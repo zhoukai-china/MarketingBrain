@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "qualityBar": "sample_grade",
+  "minLength": 520,
+  "scoreThreshold": 88,
+  "requiredSections": ["对标结论", "成熟商家通常怎么做", "当前差距", "风险", "待补数据", "下一步"],
+  "requiredTerms": ["行业口径", "差距", "风险", "成熟商家", "待补"],
+  "requiredDeliverables": ["行业对标判断", "差距清单", "待补数据"],
+  "forbiddenTerms": ["industry_benchmark_diagnosis", "作为一个AI"],
+  "styleRules": ["没有可靠行业均值时不编数字", "用成熟经营口径对标", "必须说明待补数据"],
+  "repairInstruction": "返工时必须补齐成熟商家口径、当前差距、风险和待补数据。"
+}

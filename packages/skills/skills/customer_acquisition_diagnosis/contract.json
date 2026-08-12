@@ -1,0 +1,39 @@
+{
+  "version": "1.0.0",
+  "qualityBar": "sample_grade",
+  "minLength": 520,
+  "scoreThreshold": 90,
+  "requiredSections": [
+    "一句话结论",
+    "链路红黄绿灯",
+    "三个优先级",
+    "分角色任务",
+    "下一步二选一推进"
+  ],
+  "requiredTerms": [
+    "P0",
+    "P1",
+    "P2",
+    "AI能做",
+    "老板做",
+    "团队做"
+  ],
+  "requiredDeliverables": [
+    "链路判断",
+    "可执行动作",
+    "下一步选择"
+  ],
+  "forbiddenTerms": [
+    "customer_acquisition_diagnosis",
+    "获客AI",
+    "招商AI",
+    "作为一个AI"
+  ],
+  "styleRules": [
+    "像经营顾问跟老板微信沟通，先判断再交付",
+    "不编造城市、客流、客单价、门店数、利润、线索数",
+    "资料不足时只问最关键的3到5个问题",
+    "信息足够时直接输出完整链路体检，不停留在建议"
+  ],
+  "repairInstruction": "返工时必须补齐红黄绿灯、P0/P1/P2、AI/老板/团队三类任务，并把下一步推进改成二选一。"
+}

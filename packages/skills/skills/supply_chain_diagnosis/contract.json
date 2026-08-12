@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "qualityBar": "sample_grade",
+  "minLength": 500,
+  "scoreThreshold": 88,
+  "requiredSections": ["供应链判断", "采购风险", "库存/损耗风险", "品控风险", "待补数据", "下一步"],
+  "requiredTerms": ["采购", "库存", "损耗", "品控", "供应商"],
+  "requiredDeliverables": ["风险诊断", "待补数据", "下一步检查动作"],
+  "forbiddenTerms": ["supply_chain_diagnosis", "作为一个AI"],
+  "styleRules": ["免费诊断阶段只写风险和漏洞，不编执行方案", "必须区分采购、库存、损耗、品控", "不编供应商价格"],
+  "repairInstruction": "返工时必须补齐采购、库存损耗、品控、供应商稳定性和待补数据。"
+}

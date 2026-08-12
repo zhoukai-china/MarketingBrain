@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>思潼 AI 自由组片工作台</title>
+  <script src="./node_modules/gsap/dist/gsap.min.js"></script>
+  <style>
+    @font-face { font-family: "Microsoft YaHei"; src: local("Microsoft YaHei"); }
+    @font-face { font-family: "PingFang SC"; src: local("PingFang SC"); }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #F5F2E9; }
+    body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; color: #13241C; }
+    #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #F5F2E9; }
+    .scene { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden; background: #F5F2E9; }
+    #scene1 { z-index: 1; }
+    #scene2, #scene3, #scene4, #scene5, #scene6 { opacity: 0; }
+    .ui-shot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform-origin: center center; }
+    .shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(19,36,28,.82) 0%, rgba(19,36,28,.38) 46%, rgba(19,36,28,.02) 74%); }
+    .bottom-shade { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(19,36,28,.86) 0%, rgba(19,36,28,0) 48%); }
+    .grain { position: absolute; inset: 0; opacity: .14; background-image: radial-gradient(circle at 18% 24%, rgba(22,134,95,.2) 0 2px, rgba(22,134,95,0) 3px), radial-gradient(circle at 78% 65%, rgba(19,36,28,.12) 0 1px, rgba(19,36,28,0) 2px); background-size: 43px 43px, 31px 31px; }
+    .step { position: absolute; left: 84px; top: 64px; display: inline-flex; align-items: center; gap: 16px; padding: 14px 22px; border-radius: 999px; color: #FFFEFA; background: #13241C; font: 700 24px/1 "Cascadia Mono", monospace; letter-spacing: .02em; box-shadow: 0 14px 40px rgba(19,36,28,.18); }
+    .step i { width: 12px; height: 12px; border-radius: 50%; background: #54D39C; box-shadow: 0 0 0 8px rgba(84,211,156,.16); }
+    .copy { position: absolute; left: 84px; bottom: 82px; width: 1090px; color: #FFFEFA; }
+    .copy h2 { margin: 0 0 22px; font-size: 72px; line-height: 1.08; letter-spacing: -.045em; font-weight: 900; }
+    .copy p { margin: 0; width: 880px; font-size: 28px; line-height: 1.55; font-weight: 350; color: rgba(255,254,250,.86); }
+    .accent { color: #7CE5B8; }
+    .focus { position: absolute; border: 7px solid #54D39C; border-radius: 28px; box-shadow: 0 0 0 9999px rgba(19,36,28,.34), 0 20px 70px rgba(19,36,28,.25); }
+    .tag { position: absolute; display: flex; align-items: center; gap: 12px; padding: 15px 22px; border-radius: 16px; color: #13241C; background: #FFFEFA; font-size: 25px; font-weight: 800; box-shadow: 0 16px 45px rgba(19,36,28,.2); }
+    .tag b { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: #FFFEFA; background: #16865F; font: 800 18px/1 "Cascadia Mono", monospace; }
+    .metric-row { position: absolute; top: 76px; right: 80px; display: flex; gap: 16px; }
+    .metric { min-width: 144px; padding: 18px 20px; border: 1px solid rgba(19,36,28,.12); border-radius: 18px; color: #13241C; background: rgba(255,254,250,.94); box-shadow: 0 12px 32px rgba(19,36,28,.12); }
+    .metric strong { display: block; font: 900 38px/1 "Cascadia Mono", monospace; }
+    .metric span { display: block; margin-top: 9px; font-size: 18px; color: #537064; }
+    .hero-card { position: absolute; left: 80px; top: 125px; width: 930px; padding: 52px 58px 58px; border-radius: 36px; color: #FFFEFA; background: rgba(19,36,28,.93); box-shadow: 0 40px 100px rgba(19,36,28,.25); }
+    .eyebrow { margin-bottom: 28px; color: #7CE5B8; font: 800 22px/1 "Cascadia Mono", monospace; letter-spacing: .06em; }
+    .hero-card h1 { margin: 0; font-size: 96px; line-height: 1.02; letter-spacing: -.06em; font-weight: 900; }
+    .hero-card p { margin: 32px 0 0; width: 760px; font-size: 29px; line-height: 1.55; color: rgba(255,254,250,.8); }
+    .workflow { position: absolute; left: 84px; right: 84px; bottom: 74px; display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; }
+    .flow-card { padding: 22px 26px; border-radius: 22px; color: #13241C; background: rgba(255,254,250,.94); box-shadow: 0 16px 42px rgba(19,36,28,.12); }
+    .flow-card strong { display: block; font-size: 26px; }
+    .flow-card span { display: block; margin-top: 8px; font-size: 19px; color: #537064; }
+    .outro { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #13241C; color: #FFFEFA; }
+    .outro-inner { width: 1640px; }
+    .outro-kicker { color: #7CE5B8; font: 800 23px/1 "Cascadia Mono", monospace; letter-spacing: .08em; }
+    .outro h2 { margin: 28px 0 42px; width: 1500px; font-size: 88px; line-height: 1.08; letter-spacing: -.055em; font-weight: 900; }
+    .outro-pills { display: flex; gap: 18px; }
+    .outro-pills span { padding: 18px 26px; border: 1px solid rgba(124,229,184,.38); border-radius: 999px; font-size: 23px; color: rgba(255,254,250,.82); background: rgba(124,229,184,.08); }
+    .eighty { position: absolute; right: 84px; bottom: 64px; font: 900 110px/1 "Cascadia Mono", monospace; color: #7CE5B8; letter-spacing: -.08em; }
+    .eighty small { display: block; margin: 10px 0 0 16px; font: 400 20px/1.2 "Microsoft YaHei", sans-serif; letter-spacing: 0; color: rgba(255,254,250,.62); }
+  </style>
+</head>
+<body>
+<div id="root" data-composition-id="clip-lab-intro" data-width="1920" data-height="1080" data-start="0" data-duration="58">
+  <audio id="narration" data-start="0" data-duration="56.01" data-track-index="20" src="./narration-neural.mp3"></audio>
+
+  <section id="scene1" class="scene">
+    <img class="ui-shot s1-img" src="./assets/01-hero.png" alt="自由组片工作台首页" />
+    <div class="shade"></div>
+    <div class="hero-card">
+      <div class="eyebrow">SITONG AI · 自由组片工作台</div>
+      <h1>几小时素材，<br><span class="accent">不再从头找。</span></h1>
+      <p>AI先拆素材、找高光、排结构；剪辑手保留最后的组片决定权。</p>
+    </div>
+    <div class="workflow">
+      <div class="flow-card"><strong>01 上传素材</strong><span>整场直播 / 商品片段</span></div>
+      <div class="flow-card"><strong>02 AI 拆出细片段</strong><span>价格 / 规格 / 证据 / 场景</span></div>
+      <div class="flow-card"><strong>03 自由组片</strong><span>拖动 / 替换 / 微调 / 下载</span></div>
+    </div>
+  </section>
+
+  <section id="scene2" class="scene">
+    <img class="ui-shot s2-img" src="./assets/02-source.png" alt="上传商品素材" />
+    <div class="bottom-shade"></div>
+    <div class="step"><i></i> STEP 01 · 选择素材入口</div>
+    <div class="focus s2-focus" style="left:86px;top:92px;width:1770px;height:470px"></div>
+    <div class="copy">
+      <h2>整场直播，或<span class="accent">商品片段</span>，都能接。</h2>
+      <p>整场直播先按商品拆；已经切好的商品素材，直接进入下一步。</p>
+    </div>
+  </section>
+
+  <section id="scene3" class="scene">
+    <img class="ui-shot s3-img" src="./assets/03-shelf.png" alt="AI细素材货架" />
+    <div class="step"><i></i> STEP 02 · AI 细分素材</div>
+    <div class="metric-row">
+      <div class="metric"><strong>19</strong><span>候选片段</span></div>
+      <div class="metric"><strong>8</strong><span>内容类别</span></div>
+      <div class="metric"><strong>2:00</strong><span>真实分析耗时</span></div>
+    </div>
+    <div class="focus s3-focus" style="left:92px;top:405px;width:1720px;height:575px"></div>
+    <div class="tag" style="left:116px;top:350px"><b>1</b>先分类，再让人挑</div>
+  </section>
+
+  <section id="scene4" class="scene">
+    <img class="ui-shot s4-img" src="./assets/04-track.png" alt="自由组片轨道" />
+    <div class="step"><i></i> STEP 03 · 模板排列 / 自由组片</div>
+    <div class="focus s4-focus" style="left:105px;top:555px;width:1695px;height:395px"></div>
+    <div class="tag tag-a" style="left:120px;top:480px"><b>1</b>拖动顺序</div>
+    <div class="tag tag-b" style="left:430px;top:480px"><b>2</b>替换候选</div>
+    <div class="tag tag-c" style="left:750px;top:480px"><b>3</b>微调切点</div>
+  </section>
+
+  <section id="scene5" class="scene">
+    <img class="ui-shot s5-img" src="./assets/05-preview.png" alt="视频预览和事实确认" />
+    <div class="step"><i></i> PREVIEW · 看画面，也看事实</div>
+    <div class="focus s5-focus" style="left:80px;top:80px;width:500px;height:795px"></div>
+    <div class="tag tag-preview" style="left:615px;top:130px"><b>✓</b>直接预览真实视频</div>
+    <div class="tag tag-facts" style="left:960px;top:760px"><b>!</b>强声明必须人工确认</div>
+  </section>
+
+  <section id="scene6" class="scene">
+    <div class="outro">
+      <div class="grain"></div>
+      <div class="outro-inner">
+        <div class="outro-kicker">AI 完成重复劳动 · 人完成关键判断</div>
+        <h2>下载干净初剪，<br>再到剪映完成最后精修。</h2>
+        <div class="outro-pills"><span>字幕</span><span>账号可用音乐</span><span>花字</span><span>最终发布</span></div>
+      </div>
+      <div class="eighty">80%<small>AI 先完成</small></div>
+    </div>
+  </section>
+</div>
+
+<script>
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+
+  function pushTransition(outSel, inSel, at) {
+    tl.set(inSel, { opacity: 1, x: 1920, zIndex: 10 }, at);
+    tl.to(outSel, { x: -250, duration: .48, ease: 'power3.inOut' }, at);
+    tl.to(inSel, { x: 0, duration: .48, ease: 'power3.inOut' }, at);
+    tl.set(outSel, { opacity: 0, x: 0 }, at + .49);
+  }
+
+  tl.from('.hero-card', { x: -90, opacity: 0, duration: .72, ease: 'expo.out' }, .2)
+    .from('.hero-card .eyebrow', { x: 34, opacity: 0, duration: .55, ease: 'sine.out' }, .38)
+    .from('.hero-card h1', { y: 42, opacity: 0, duration: .58, ease: 'power4.out' }, .45)
+    .from('.hero-card p', { x: 32, opacity: 0, duration: .42, ease: 'power2.out' }, .78)
+    .from('.flow-card', { y: 58, opacity: 0, duration: .45, stagger: .10, ease: 'back.out(1.25)' }, 1.05)
+    .to('.s1-img', { scale: 1.045, x: 26, duration: 7, ease: 'sine.inOut' }, 0);
+
+  pushTransition('#scene1', '#scene2', 8);
+  tl.from('#scene2 .step', { x: -70, opacity: 0, duration: .42, ease: 'expo.out' }, 8.62)
+    .from('.s2-focus', { scale: .94, opacity: 0, duration: .58, ease: 'power3.out' }, 8.76)
+    .from('#scene2 .copy h2', { y: 50, opacity: 0, duration: .52, ease: 'power4.out' }, 9.1)
+    .from('#scene2 .copy p', { opacity: 0, x: 36, duration: .44, ease: 'sine.out' }, 9.42)
+    .to('.s2-img', { scale: 1.035, y: -18, duration: 7, ease: 'power1.inOut' }, 8.5);
+
+  pushTransition('#scene2', '#scene3', 17);
+  tl.from('#scene3 .step', { scale: .82, opacity: 0, duration: .38, ease: 'back.out(1.5)' }, 17.62)
+    .from('.metric', { y: -50, opacity: 0, duration: .46, stagger: .10, ease: 'power4.out' }, 17.75)
+    .from('.s3-focus', { opacity: 0, clipPath: 'inset(0 100% 0 0)', duration: .72, ease: 'power3.out' }, 18.1)
+    .from('#scene3 .tag', { x: -40, opacity: 0, duration: .42, ease: 'expo.out' }, 18.55)
+    .to('.s3-img', { scale: 1.06, y: -26, duration: 8.2, ease: 'sine.inOut' }, 17.5);
+
+  pushTransition('#scene3', '#scene4', 28);
+  tl.from('#scene4 .step', { x: -80, opacity: 0, duration: .38, ease: 'power4.out' }, 28.6)
+    .from('.s4-focus', { scale: .95, opacity: 0, duration: .62, ease: 'expo.out' }, 28.84)
+    .from('.tag-a', { y: -38, opacity: 0, duration: .34, ease: 'back.out(1.7)' }, 29.15)
+    .from('.tag-b', { scale: .76, opacity: 0, duration: .5, ease: 'power3.out' }, 29.36)
+    .from('.tag-c', { x: 48, opacity: 0, duration: .4, ease: 'sine.out' }, 29.6)
+    .to('.s4-img', { scale: 1.05, x: -32, duration: 8, ease: 'power1.inOut' }, 28.5);
+
+  pushTransition('#scene4', '#scene5', 40);
+  tl.from('#scene5 .step', { y: -50, opacity: 0, duration: .46, ease: 'expo.out' }, 40.62)
+    .from('.s5-focus', { scale: .9, opacity: 0, duration: .6, ease: 'back.out(1.3)' }, 40.86)
+    .from('.tag-preview', { x: 70, opacity: 0, duration: .42, ease: 'power4.out' }, 41.2)
+    .from('.tag-facts', { y: 56, opacity: 0, duration: .54, ease: 'sine.out' }, 41.55)
+    .to('.s5-img', { scale: 1.045, y: 22, duration: 7, ease: 'sine.inOut' }, 40.5);
+
+  pushTransition('#scene5', '#scene6', 49);
+  tl.from('.outro-kicker', { x: -70, opacity: 0, duration: .46, ease: 'expo.out' }, 49.62)
+    .from('.outro h2', { y: 64, opacity: 0, duration: .72, ease: 'power4.out' }, 49.86)
+    .from('.outro-pills span', { scale: .75, opacity: 0, duration: .36, stagger: .10, ease: 'back.out(1.6)' }, 50.45)
+    .from('.eighty', { x: 90, opacity: 0, duration: .64, ease: 'power3.out' }, 50.72)
+    .to('.outro-inner, .eighty', { opacity: 0, duration: .7, ease: 'power1.in' }, 57.1);
+
+  window.__timelines['clip-lab-intro'] = tl;
+</script>
+</body>
+</html>

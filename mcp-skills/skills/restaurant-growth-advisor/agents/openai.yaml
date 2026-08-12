@@ -1,0 +1,4 @@
+interface:
+  display_name: "餐饮增长顾问"
+  short_description: "诊断餐饮外卖订单、堂食到店、连锁门店运营与招商加盟增长问题"
+  default_prompt: "Use -growth-advisor to diagnose this restaurant business and produce an evidence-controlled growth action plan."

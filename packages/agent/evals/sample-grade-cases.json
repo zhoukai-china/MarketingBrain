@@ -1,0 +1,124 @@
+[
+  {
+    "id": "local-push-search-quality-preview",
+    "skillId": "optimize_local_push_ads",
+    "capabilityId": "paid_traffic",
+    "tenantType": "chain_brand",
+    "input": "客户A，广告账户123456。搜索线索计划消耗较高，只来了两条线索且销售反馈不精准；请给调整方案，但不要提交。",
+    "mustInclude": ["投流结论", "账户身份", "证据与数据口径", "根因强度", "P0动作", "验证指标", "观察条件", "止损", "回退方案", "PREVIEW_ONLY变更单"]
+  },
+  {
+    "id": "local-acquisition-no-show",
+    "skillId": "customer_acquisition_diagnosis",
+    "tenantType": "local_business",
+    "input": "我是广州一家牛肉面店，抖音每周发3条，团购有但核销少，私信问价多，到店少，店员没有标准话术。",
+    "mustInclude": ["一句话结论", "链路红黄绿灯", "P0", "AI能做", "下一步二选一推进"]
+  },
+  {
+    "id": "content-group-buy-video",
+    "skillId": "baolu_content_creator",
+    "tenantType": "local_business",
+    "input": "我是一家牛肉面店，想发一条抖音，引流团购核销。",
+    "mustInclude": ["选题", "拍摄脚本", "剪辑EDL", "评论区引导话术", "投流建议"]
+  },
+  {
+    "id": "sales-price-objection",
+    "skillId": "sales_growth_advisor",
+    "capabilityId": "objection_reply",
+    "tenantType": "local_business",
+    "input": "很多客户私信问价格，问完就不回了。",
+    "mustInclude": ["当前判断", "异议", "核心破局点", "推荐回复", "客户可能回复与预判应对", "下一步动作"]
+  },
+  {
+    "id": "live-group-buy-script",
+    "skillId": "live_script_planner",
+    "tenantType": "local_business",
+    "input": "牛肉面店今晚想做一场团购直播，帮我写脚本。",
+    "mustInclude": ["开场", "留人", "互动", "转化", "逼单", "下播后跟进"]
+  },
+  {
+    "id": "ip-owner-local-store",
+    "skillId": "ip_positioning",
+    "tenantType": "local_business",
+    "input": "我是餐饮老板，想做老板IP，主要想给门店引流。",
+    "mustInclude": ["核心定位", "人设标签", "目标用户", "内容支柱", "30天执行计划"]
+  },
+  {
+    "id": "moments-old-customer",
+    "skillId": "moments_generator",
+    "tenantType": "local_business",
+    "input": "牛肉面店今天想发朋友圈，提醒老客来吃，也想带一点团购。",
+    "mustInclude": ["信任型朋友圈", "场景型朋友圈", "成交型朋友圈", "私聊承接话术"]
+  },
+  {
+    "id": "short-video-review-click-low",
+    "skillId": "baolu_review_engine",
+    "tenantType": "local_business",
+    "input": "请分析我上传的视频后台CSV：标题,播放量,完播率,点赞,评论,分享,关注\n作品A,1200,18%,30,2,8,1\n作品B,860,27%,12,0,3,0",
+    "mustInclude": ["数据质量审计", "数据总览", "视频分层", "内容结构健康度", "单条深拆", "完播率深层归因", "互动深度分析", "趋势分析", "规律总结", "方法论沉淀", "下周期选题建议", "综合诊断结论"]
+  },
+  {
+    "id": "live-review-stay-short",
+    "skillId": "baolu_live_review_engine",
+    "tenantType": "local_business",
+    "input": "复盘昨晚团购直播。后台数据：时长60分钟，累计观看1200，峰值在线88，平均在线41，评论96，商品点击150，订单18，GMV2160，无投流。录音转写：第8分钟第一次讲团购，第23分钟第一次明确引导点击，没有原定话术计划。",
+    "mustInclude": ["一、核心数据速览", "二、流量诊断", "三、转化归因", "四、互动诊断", "五、话术执行对照表", "六、人货场诊断", "七、方法论沉淀", "八、下次直播调整清单"]
+  },
+  {
+    "id": "finance-busy-no-profit",
+    "skillId": "baolu_finance_advisor",
+    "tenantType": "local_business",
+    "input": "牛肉面店客单价28，感觉忙但不赚钱，不知道问题在哪。",
+    "mustInclude": ["先判断", "关键数字", "利润卡点", "待补数据"]
+  },
+  {
+    "id": "delivery-unstable-service",
+    "skillId": "delivery_standardization",
+    "tenantType": "local_business",
+    "input": "店员接待不稳定，有的客户来了没人招呼，复购也少。",
+    "mustInclude": ["交付问题判断", "标准SOP", "责任人", "检查标准", "复购动作"]
+  },
+  {
+    "id": "hr-owner-dependent",
+    "skillId": "hr_director_consultant",
+    "tenantType": "local_business",
+    "input": "店里员工总等老板安排，老板不在就乱，怎么办。",
+    "mustInclude": ["组织问题判断", "岗位分工", "培训动作", "绩效检查", "老板减负"]
+  },
+  {
+    "id": "supervision-today-actions",
+    "skillId": "implementation_supervision_scheduler",
+    "tenantType": "local_business",
+    "input": "昨天说好要改私信话术和拍3条视频，今天不知道先干啥。",
+    "mustInclude": ["当前执行判断", "思潼AI能做", "老板今天做", "团队今天做", "明天复盘"]
+  },
+  {
+    "id": "benchmark-local-content",
+    "skillId": "industry_benchmark_diagnosis",
+    "tenantType": "local_business",
+    "input": "牛肉面店抖音每周发3条，团购有但核销少，这在同行里算差吗？",
+    "mustInclude": ["对标结论", "成熟商家通常怎么做", "当前差距", "风险", "待补数据"]
+  },
+  {
+    "id": "supply-chain-beef-cost",
+    "skillId": "supply_chain_diagnosis",
+    "tenantType": "local_business",
+    "input": "牛肉面店最近牛肉成本波动大，有时还会缺货。",
+    "mustInclude": ["供应链判断", "采购风险", "库存/损耗风险", "品控风险", "待补数据"]
+  },
+  {
+    "id": "enterprise-diagnosis-local-store",
+    "skillId": "enterprise_diagnosis_orchestrator",
+    "tenantType": "local_business",
+    "input": "我是一家牛肉面店，客单价28，抖音每周发3条，团购有但核销少，员工接待不稳定。",
+    "mustInclude": ["总判断", "红黄绿评分", "现存漏洞", "盈利缺口", "缺失数据"]
+  },
+  {
+    "id": "restaurant-takeaway-growth-shenyang",
+    "skillId": "takeaway-growth-advisor",
+    "capabilityId": "takeaway_growth",
+    "tenantType": "chain_brand",
+    "input": "客户是枕水江南，中式快餐连锁，在沈阳有7家外卖店。新店外卖销售额不好，想提升美团、饿了么和淘宝闪购订单。菜品、套餐、价格、优惠和后台数据以后再补，先正常给第一版方案。",
+    "mustInclude": ["已确认事实", "详细问题清单", "完整原因地图", "优先验证候选", "推荐进入哪个任务"]
+  }
+]

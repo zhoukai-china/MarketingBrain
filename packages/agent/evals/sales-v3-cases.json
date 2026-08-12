@@ -1,0 +1,70 @@
+[
+  {
+    "id": "sales-b2b-conversation-review",
+    "skillId": "sales_growth_advisor",
+    "capabilityId": "customer_diagnosis",
+    "tenantType": "personal_ip",
+    "tenantName": "思潼AI增长",
+    "industry": "IP与AI企业服务",
+    "input": "客户说想做企业AI，但聊天里只反复问价格。我当时直接发了报价单，没有继续问业务问题。请复盘这段销售沟通。",
+    "mustInclude": ["销售复盘", "当时做法", "存在问题", "影响成交原因", "下次具体说法", "当前补救动作", "证据状态"]
+  },
+  {
+    "id": "sales-team-meeting-review",
+    "skillId": "sales_growth_advisor",
+    "capabilityId": "customer_diagnosis",
+    "tenantType": "chain_brand",
+    "input": "复盘这段团队讨论：销售A准备给客户报39800元，销售B说先发完整方案，负责人没有确认谁是客户决策人，也没有指定谁在明天下午跟进。",
+    "mustInclude": ["团队", "报价口径", "决策人", "分工", "当前补救动作", "证据状态"]
+  },
+  {
+    "id": "sales-b2b-objection",
+    "skillId": "sales_growth_advisor",
+    "capabilityId": "objection_reply",
+    "tenantType": "personal_ip",
+    "industry": "IP与AI企业服务",
+    "input": "客户看完企业AI改造方案后说：太贵了，我们再考虑考虑。请判断真实担心，并给我可以直接发的回复。没有提供回本数据、案例或优惠政策。",
+    "mustInclude": ["当前判断", "异议", "待核实", "推荐回复", "可直接复制", "客户可能回复与预判应对", "下一步动作"]
+  },
+  {
+    "id": "sales-b2c-policy-boundary",
+    "skillId": "sales_growth_advisor",
+    "capabilityId": "objection_reply",
+    "tenantType": "local_business",
+    "industry": "本地生活",
+    "input": "顾客买了29.9元团购后问：要不要预约，临时不去能不能退？商家还没有提供预约和退款政策。请给销售回复。",
+    "mustInclude": ["B2C", "待核实", "预约", "退款", "可直接复制", "下一步动作"]
+  },
+  {
+    "id": "sales-follow-up-plan",
+    "skillId": "sales_growth_advisor",
+    "capabilityId": "follow_up_plan",
+    "tenantType": "personal_ip",
+    "input": "方案发给客户5天了。客户说内部讨论，但没有明确谁拍板，也没定下一次会议。请给跟单计划。",
+    "mustInclude": ["当前判断", "跟进计划", "时间", "负责人", "沟通目标", "进入下一步的信号", "风险", "停止条件"]
+  },
+  {
+    "id": "sales-closing-script",
+    "skillId": "sales_growth_advisor",
+    "capabilityId": "closing_script",
+    "tenantType": "personal_ip",
+    "input": "客户认可方案，也确认预算能接受，但担心团队配合不上，所以迟迟不签。请给我不施压的成交推进话术。",
+    "mustInclude": ["当前判断", "顾虑", "核心破局点", "推荐回复", "客户可能回复与预判应对", "下一步动作", "风险"]
+  },
+  {
+    "id": "sales-funnel-basic",
+    "skillId": "sales_growth_advisor",
+    "capabilityId": "funnel_review",
+    "tenantType": "personal_ip",
+    "input": "本月有40条线索，25个加微信，12个完成首次沟通，6个收到方案，2个成交。请复盘销售漏斗并给下周动作。",
+    "mustInclude": ["数据质量审计", "销售漏斗", "62.50%", "48.00%", "50.00%", "33.33%", "5.00%", "绝对流失最大", "比例流失最大", "原因边界", "下周动作"]
+  },
+  {
+    "id": "sales-funnel-no-fake-roi",
+    "skillId": "sales_growth_advisor",
+    "capabilityId": "funnel_review",
+    "tenantType": "chain_brand",
+    "input": "本月287条线索，203个建联，68个意向，31个深度沟通，7个成交。没有上月数据，没有成交金额和成本。请做销售漏斗复盘。",
+    "mustInclude": ["70.73%", "33.50%", "45.59%", "22.58%", "2.44%", "不写环比", "不计算收入或ROI", "绝对流失最大", "比例流失最大"]
+  }
+]

@@ -1,0 +1,623 @@
+﻿/* ── BaoluDiagnosisApp ── ChatGPT-style diagnosis chat page ── */
+
+.baoluDiagnosisSurface {
+  min-height: 100vh;
+  background: var(--bg, #f5f2eb);
+  font-family: var(--font, "Inter", "Noto Sans SC", system-ui, sans-serif);
+  color: var(--text, #1e1e1e);
+}
+
+/* ── Landing ── */
+
+.diagnosisLanding {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 60px 24px;
+  text-align: center;
+}
+
+.landingHero {
+  margin-bottom: 48px;
+}
+
+.landingAvatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+}
+
+.landingTitle {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+
+.landingSubtitle {
+  color: #666;
+  font-size: 16px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.landingCards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 640px) {
+  .landingCards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.landingCard {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px 20px;
+  text-align: left;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.landingCardIcon {
+  font-size: 32px;
+}
+
+.landingCard h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.landingCard p {
+  margin: 0;
+  font-size: 14px;
+  color: #555;
+  line-height: 1.5;
+  flex: 1;
+}
+
+/* ── Register ── */
+
+.diagnosisRegister {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 60px 24px;
+}
+
+.registerHeader {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.registerAvatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  margin-bottom: 12px;
+}
+
+.registerHeader h2 {
+  margin: 0 0 4px;
+  font-size: 22px;
+}
+
+.registerHeader p {
+  color: #666;
+  margin: 0;
+  font-size: 14px;
+}
+
+.registerForm {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.diagnosisRoleTabs {
+  display: flex;
+  gap: 8px;
+}
+
+.diagnosisRoleTabs button {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #d4c8b0;
+  background: #fff;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #444;
+  transition: all 0.15s;
+}
+
+.diagnosisRoleTabs button.active {
+  background: #c7a24b;
+  color: #fff;
+  border-color: #c7a24b;
+}
+
+.formGridNew {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.formGridNew label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #555;
+}
+
+.formGridNew input {
+  padding: 10px 14px;
+  border: 1px solid #d4c8b0;
+  border-radius: 10px;
+  font-size: 14px;
+  background: #fff;
+}
+
+/* ── Shared button styles ── */
+
+.primaryAction {
+  padding: 12px 24px;
+  background: #c7a24b;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.primaryAction:hover {
+  background: #b8923a;
+}
+
+.primaryAction:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.outlineAction {
+  padding: 12px 24px;
+  background: transparent;
+  color: #c7a24b;
+  border: 1.5px solid #c7a24b;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.outlineAction:hover {
+  background: #faf6ee;
+}
+
+.primarySm {
+  padding: 8px 18px;
+  background: #c7a24b;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.primarySm:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.outlineSm {
+  padding: 8px 18px;
+  background: #fff;
+  color: #c7a24b;
+  border: 1px solid #c7a24b;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.textLink {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.textLink:hover {
+  color: #555;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+/* ── Chat Layout ── */
+
+.diagnosisChatLayout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ── Sidebar ── */
+
+.diagnosisSidebar {
+  width: 260px;
+  flex-shrink: 0;
+  background: #faf8f3;
+  border-right: 1px solid #e8e0d0;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 16px;
+  gap: 20px;
+}
+
+.sidebarHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebarAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.sidebarHeader strong {
+  font-size: 14px;
+}
+
+.sidebarHeader .softText {
+  font-size: 12px;
+  color: #999;
+  margin: 0;
+}
+
+.dimensionCards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.dimensionCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #e8e0d0;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+}
+
+.dimensionCard:hover {
+  border-color: #c7a24b;
+}
+
+.dimensionCard.active {
+  border-color: #c7a24b;
+  box-shadow: 0 0 0 2px rgba(199,162,75,0.25);
+}
+
+.dimensionCard.answered {
+  border-color: #b8d6b0;
+}
+
+.dimBadge {
+  font-size: 12px;
+  font-weight: 700;
+  color: #c7a24b;
+}
+
+.dimPreview {
+  font-size: 12px;
+  color: #555;
+  line-height: 1.4;
+}
+
+.dimPlaceholder {
+  font-size: 12px;
+  color: #ccc;
+  font-style: italic;
+}
+
+.sidebarReset {
+  align-self: center;
+  margin-top: auto;
+}
+
+/* ── Main Chat ── */
+
+.diagnosisMain {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.chatHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e8e0d0;
+}
+
+.chatHeaderInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chatHeaderInfo strong {
+  font-size: 15px;
+}
+
+.chatHeaderInfo .softText {
+  font-size: 12px;
+  color: #999;
+}
+
+.stepBadge {
+  font-size: 12px;
+  background: #faf6ee;
+  color: #c7a24b;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+/* Chat messages area */
+
+.chatMessages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #faf8f3;
+}
+
+.chatBubble {
+  display: flex;
+  gap: 10px;
+  max-width: 85%;
+}
+
+.chatBubble.advisor {
+  align-self: flex-start;
+}
+
+.chatBubble.user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.bubbleAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.bubbleContent {
+  padding: 12px 16px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.chatBubble.advisor .bubbleContent {
+  background: #fff;
+  border-top-left-radius: 4px;
+  color: #333;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.chatBubble.user .bubbleContent {
+  background: #c7a24b;
+  border-top-right-radius: 4px;
+  color: #fff;
+}
+
+.bubbleContent p {
+  margin: 0;
+}
+
+.bubbleContent p + p {
+  margin-top: 8px;
+}
+
+.typingIndicator {
+  color: #999;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+/* Chat input */
+
+.chatInputArea {
+  padding: 16px 24px;
+  background: #fff;
+  border-top: 1px solid #e8e0d0;
+}
+
+.chatInputRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.chatInput {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid #d4c8b0;
+  border-radius: 12px;
+  font-size: 14px;
+  background: #faf8f3;
+}
+
+.chatInput:focus {
+  outline: none;
+  border-color: #c7a24b;
+  box-shadow: 0 0 0 3px rgba(199,162,75,0.15);
+}
+
+.chatNavRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.chatNavRow .softText {
+  font-size: 12px;
+  color: #999;
+}
+
+/* ── Report ── */
+
+.diagnosisReport {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.reportHeader {
+  margin-bottom: 32px;
+}
+
+.reportAvatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  margin-bottom: 12px;
+}
+
+.reportHeader h2 {
+  margin: 0 0 4px;
+  font-size: 24px;
+}
+
+.reportHeader .softText {
+  color: #666;
+  font-size: 14px;
+}
+
+.reportSections {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: left;
+  margin-bottom: 32px;
+}
+
+.reportItem {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px 20px;
+  border: 1px solid #e8e0d0;
+}
+
+.reportItem h4 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: #c7a24b;
+}
+
+.reportItem p {
+  margin: 0;
+  font-size: 14px;
+  color: #333;
+  line-height: 1.6;
+}
+
+.reportActions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+/* ── Notice / Dialog ── */
+
+.noticeBox {
+  padding: 8px 14px;
+  background: #fff3cd;
+  color: #856404;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.dialogOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.dialogBox {
+  background: #fff;
+  padding: 28px 24px;
+  border-radius: 16px;
+  max-width: 380px;
+  width: 90%;
+  text-align: center;
+}
+
+.dialogBox h4 {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+
+.dialogBox p {
+  margin: 0 0 20px;
+  color: #666;
+  font-size: 14px;
+}
+
+.dialogActions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+/* ── Soft text ── */
+
+.softText {
+  color: #999;
+  font-size: 13px;
+}

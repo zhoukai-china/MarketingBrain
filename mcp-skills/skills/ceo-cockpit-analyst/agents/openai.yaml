@@ -1,0 +1,4 @@
+interface:
+  display_name: "CEO经营驾驶舱分析师"
+  short_description: "把企业经营数据转成老板可审批可下令可追踪的经营行动闭环"
+  default_prompt: "Use $ceo-cockpit-analyst to turn my business data into a push-view-decide-order action loop."

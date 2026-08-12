@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "qualityBar": "sample_grade",
+  "minLength": 720,
+  "scoreThreshold": 88,
+  "requiredSections": ["总判断", "红黄绿评分", "现存漏洞", "盈利缺口", "潜在风险", "行业差距", "缺失数据"],
+  "requiredTerms": ["营收", "获客", "团队", "门店运营", "供应链", "招商拓店"],
+  "requiredDeliverables": ["诊断报告", "风险清单", "缺失数据清单"],
+  "forbiddenTerms": ["enterprise_diagnosis_orchestrator", "执行步骤", "活动方案", "文案模板", "人员分工"],
+  "styleRules": ["免费诊断报告只诊断不交付执行方案", "不编造用户没提供的数字", "必须覆盖六大板块"],
+  "repairInstruction": "返工时必须覆盖六大板块，输出红黄绿评分、漏洞、盈利缺口、风险、行业差距和缺失数据，不能写执行方案。"
+}

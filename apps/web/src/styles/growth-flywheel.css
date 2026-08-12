@@ -1,0 +1,2131 @@
+.flywheelHome,
+.flywheelDiagnosis {
+  min-height: 100vh;
+  padding-bottom: 86px;
+  color: #eef6f8;
+  background:
+    linear-gradient(180deg, rgba(7, 12, 18, 0.94), rgba(8, 12, 17, 0.99)),
+    radial-gradient(circle at 18% 4%, rgba(43, 208, 189, 0.16), transparent 28%),
+    radial-gradient(circle at 86% 12%, rgba(217, 184, 117, 0.16), transparent 26%);
+}
+
+.flywheelHome button,
+.flywheelDiagnosis button {
+  cursor: pointer;
+}
+
+.flywheelHero,
+.flywheelHome main,
+.diagnosisFormShell,
+.diagnosisReportShell,
+.solutionShell,
+.implementationShell {
+  width: min(1180px, calc(100vw - 32px));
+  margin: 0 auto;
+}
+
+.flywheelTopline,
+.diagnosisTop {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.flywheelTopline button,
+.diagnosisTop button {
+  min-height: 38px;
+  border: 1px solid rgba(226, 232, 240, 0.12);
+  border-radius: 8px;
+  padding: 0 13px;
+  color: #cfdae2;
+  background: rgba(255, 255, 255, 0.045);
+  font-weight: 800;
+}
+
+.flywheelTopline button:first-child,
+.diagnosisTop button {
+  margin-right: auto;
+  color: #07110f;
+  border-color: transparent;
+  background: linear-gradient(135deg, #e7c97f, #2bd0bd);
+}
+
+.diagnosisTop {
+  width: min(1180px, calc(100vw - 32px));
+  margin: 0 auto;
+}
+
+.diagnosisTop span {
+  color: #aab6c4;
+  font-size: 13px;
+}
+
+.workspaceShortcut {
+  position: fixed;
+  top: 88px;
+  right: 18px;
+  z-index: 30;
+  min-height: 42px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 16px;
+  color: #07110f;
+  background: #d9b875;
+  font-weight: 950;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.28);
+}
+
+.heroGrid {
+  min-height: min(640px, calc(100vh - 98px));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+  align-items: center;
+  padding: 36px 0 72px;
+}
+
+.heroCopy {
+  max-width: 780px;
+}
+
+.flywheelEyebrow {
+  margin: 0;
+  color: #d9b875;
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.heroCopy h1,
+.diagnosisIntroPanel h1,
+.reportHeroPanel h1 {
+  margin: 12px 0 16px;
+  color: #fff;
+  font-size: clamp(40px, 6.2vw, 78px);
+  line-height: 1.02;
+  letter-spacing: 0;
+}
+
+.heroLead {
+  max-width: 720px;
+  margin: 0;
+  color: #c2ced8;
+  font-size: 18px;
+  line-height: 1.9;
+}
+
+.heroDiagnosisButton,
+.generateReportButton,
+.reportPaywallNotice button,
+.primaryModalAction,
+.paywallPrimary button,
+.paywallCards article > button {
+  min-height: 52px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 22px;
+  color: #07110f;
+  background: linear-gradient(135deg, #e7c97f, #2bd0bd);
+  font-weight: 950;
+  box-shadow: 0 18px 40px rgba(43, 208, 189, 0.18);
+}
+
+.heroDiagnosisButton {
+  margin-top: 28px;
+  min-width: min(360px, 100%);
+  min-height: 68px;
+  font-size: clamp(20px, 3vw, 30px);
+}
+
+.heroAssurances {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.heroAssurances span,
+.diagnosisModeCard > span,
+.planTag,
+.consultantRouteGrid span,
+.quotaBand li::marker,
+.pickerCards article > span,
+.paywallCards article > span {
+  color: #86f4e8;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.heroAssurances span {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(43, 208, 189, 0.2);
+  border-radius: 999px;
+  padding: 0 11px;
+  background: rgba(43, 208, 189, 0.08);
+}
+
+.sitongReception {
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+  border: 1px solid rgba(226, 232, 240, 0.12);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.035)),
+    #101824;
+}
+
+.sitongReception img {
+  width: 128px;
+  height: 128px;
+  border: 3px solid rgba(217, 184, 117, 0.6);
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.sitongReception span,
+.sectionHeading p,
+.diagnosisIntroPanel .flywheelEyebrow {
+  color: #d9b875;
+}
+
+.sitongReception strong {
+  display: block;
+  margin-top: 6px;
+  color: #fff;
+  font-size: 34px;
+}
+
+.sitongReception p,
+.diagnosisModeCard p,
+.diagnosisModeCard dd,
+.planCard p,
+.planCard li,
+.splitPolicyBand p,
+.consultantRouteGrid p,
+.quotaBand li,
+.diagnosisIntroPanel p,
+.reportHeroPanel p,
+.reportPaywallNotice p,
+.trialCreditNotice span,
+.paywallLead,
+.paywallCards p {
+  color: #aab6c4;
+  line-height: 1.75;
+}
+
+.workflowBand {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  margin: -36px 0 24px;
+}
+
+.workflowBand article,
+.diagnosisModeCard,
+.planCard,
+.splitPolicyBand article,
+.consultantRouteGrid article,
+.quotaBand,
+.diagnosisIntroPanel,
+.diagnosisQuestionPanel,
+.reportHeroPanel,
+.reportFactCard,
+.reportPaywallNotice,
+.trialCreditNotice,
+.solutionPaywall,
+.pickerCards article {
+  border: 1px solid rgba(226, 232, 240, 0.11);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.workflowBand article {
+  min-height: 106px;
+  padding: 14px;
+}
+
+.workflowBand span {
+  color: #2bd0bd;
+  font-weight: 950;
+}
+
+.workflowBand strong {
+  display: block;
+  margin-top: 12px;
+  color: #fff;
+  line-height: 1.35;
+}
+
+.freeDiagnosisBand,
+.plansBand,
+.consultantBand,
+.splitPolicyBand,
+.quotaBand {
+  margin-top: 24px;
+}
+
+.sectionHeading {
+  margin-bottom: 14px;
+}
+
+.sectionHeading h2,
+.splitPolicyBand h2,
+.quotaBand h2,
+.reportPaywallNotice h2,
+.solutionPaywall h2 {
+  margin: 7px 0 0;
+  color: #fff;
+  font-size: clamp(24px, 3.2vw, 36px);
+  line-height: 1.2;
+}
+
+.diagnosisModeGrid,
+.plansGrid,
+.consultantRouteGrid {
+  display: grid;
+  gap: 14px;
+}
+
+.diagnosisModeGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.plansGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.consultantRouteGrid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.diagnosisModeCard,
+.planCard,
+.consultantRouteGrid article {
+  padding: 20px;
+}
+
+.diagnosisModeCard h3,
+.planCard h3,
+.consultantRouteGrid strong {
+  margin: 8px 0;
+  color: #fff;
+  font-size: 21px;
+}
+
+.diagnosisModeCard dl {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.diagnosisModeCard dt {
+  color: #d9b875;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.diagnosisModeCard dd {
+  margin: 3px 0 0;
+}
+
+.diagnosisModeCard button {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid rgba(43, 208, 189, 0.22);
+  border-radius: 8px;
+  color: #dffdf8;
+  background: rgba(43, 208, 189, 0.08);
+  font-weight: 900;
+}
+
+.planCard {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.planCard.featured {
+  border-color: rgba(217, 184, 117, 0.5);
+  background: linear-gradient(135deg, rgba(217, 184, 117, 0.13), rgba(43, 208, 189, 0.07));
+}
+
+.planTag {
+  width: fit-content;
+  border: 1px solid rgba(217, 184, 117, 0.3);
+  border-radius: 999px;
+  padding: 4px 10px;
+  color: #d9b875;
+  background: rgba(217, 184, 117, 0.08);
+}
+
+.planCard strong {
+  color: #d9b875;
+  font-size: 34px;
+}
+
+.planCard ul {
+  display: grid;
+  gap: 7px;
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.splitPolicyBand {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.splitPolicyBand article {
+  padding: 24px;
+}
+
+.consultantRouteGrid span {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #07110f;
+  background: linear-gradient(135deg, #e7c97f, #2bd0bd);
+}
+
+.consultantRouteGrid strong {
+  display: block;
+  font-size: 17px;
+}
+
+.quotaBand {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 24px;
+  padding: 24px;
+}
+
+.quotaBand ol {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 24px;
+}
+
+.bottomDock {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  z-index: 35;
+  width: min(680px, calc(100vw - 24px));
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  transform: translateX(-50%);
+  padding: 8px;
+  border: 1px solid rgba(226, 232, 240, 0.14);
+  border-radius: 8px;
+  background: rgba(10, 16, 23, 0.92);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.32);
+}
+
+.bottomDock button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 6px;
+  color: #dffdf8;
+  background: rgba(43, 208, 189, 0.09);
+  font-weight: 900;
+}
+
+.diagnosisPickerLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(2, 5, 8, 0.72);
+  backdrop-filter: blur(12px);
+}
+
+.diagnosisPicker,
+.solutionPaywall {
+  position: relative;
+  width: min(860px, 100%);
+  padding: 26px;
+  border: 1px solid rgba(226, 232, 240, 0.16);
+  border-radius: 8px;
+  background: #101824;
+  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.42);
+}
+
+.diagnosisPicker h2 {
+  margin: 8px 42px 18px 0;
+  color: #fff;
+  font-size: 28px;
+}
+
+.modalClose {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(226, 232, 240, 0.14);
+  border-radius: 50%;
+  color: #cbd6df;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.pickerCards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.pickerCards article {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 18px;
+}
+
+.pickerCards strong {
+  color: #fff;
+  font-size: 20px;
+}
+
+.categoryChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.categoryChips button,
+.modeSwitch button,
+.quickCategorySelect button {
+  border: 1px solid rgba(226, 232, 240, 0.13);
+  border-radius: 8px;
+  color: #cbd6df;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.categoryChips button {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.categoryChips button.active,
+.modeSwitch button.active,
+.quickCategorySelect button.active {
+  color: #07110f;
+  border-color: transparent;
+  background: #d9b875;
+}
+
+.diagnosisFormShell {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  padding: 22px 0 70px;
+}
+
+.diagnosisIntroPanel,
+.diagnosisQuestionPanel,
+.reportHeroPanel,
+.reportFactCard,
+.reportPaywallNotice,
+.trialCreditNotice {
+  padding: 22px;
+}
+
+.diagnosisIntroPanel {
+  position: sticky;
+  top: 16px;
+}
+
+.diagnosisIntroPanel img {
+  width: 82px;
+  height: 82px;
+  margin-bottom: 14px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.diagnosisIntroPanel h1 {
+  font-size: 34px;
+}
+
+.modeSwitch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.modeSwitch button {
+  min-height: 42px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.quickCategorySelect {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.quickCategorySelect button {
+  min-height: 62px;
+  padding: 10px;
+  text-align: left;
+}
+
+.quickCategorySelect strong,
+.quickCategorySelect span {
+  display: block;
+}
+
+.quickCategorySelect span {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.fieldGrid label,
+.questionField {
+  display: grid;
+  gap: 7px;
+  color: #d6e0e8;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.fieldGrid input,
+.fieldGrid select,
+.questionField textarea {
+  width: 100%;
+  border: 1px solid rgba(226, 232, 240, 0.14);
+  border-radius: 8px;
+  padding: 12px;
+  color: #eef6f8;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.fieldGrid input,
+.fieldGrid select {
+  min-height: 44px;
+}
+
+.fieldGrid select option {
+  color: #0b111c;
+}
+
+.questionStack {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.questionHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  color: #d9b875;
+  font-weight: 950;
+}
+
+.generateReportButton {
+  width: 100%;
+  margin-top: 18px;
+}
+
+.interviewPanel {
+  display: grid;
+  gap: 16px;
+}
+
+.interviewTopBar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.1);
+}
+
+.interviewTopBar span,
+.interviewCueGrid span {
+  display: block;
+  color: #d9b875;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.interviewTopBar strong {
+  display: block;
+  margin-top: 4px;
+  color: #fff;
+  font-size: 18px;
+}
+
+.interviewProgressDots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 360px;
+}
+
+.interviewProgressDots button {
+  width: 12px;
+  height: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.18);
+  border-radius: 50%;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.interviewProgressDots button.done {
+  border-color: transparent;
+  background: #2bd0bd;
+}
+
+.interviewProgressDots button.active {
+  border-color: transparent;
+  background: #d9b875;
+  box-shadow: 0 0 0 4px rgba(217, 184, 117, 0.12);
+}
+
+.interviewDepthPath {
+  margin: -4px 0 0;
+  border: 1px solid rgba(43, 208, 189, 0.14);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #8ee8dc;
+  background: rgba(43, 208, 189, 0.055);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.interviewChat {
+  display: grid;
+  gap: 12px;
+}
+
+.interviewRound {
+  display: grid;
+  gap: 8px;
+}
+
+.advisorInterviewBubble,
+.userInterviewBubble {
+  border: 1px solid rgba(226, 232, 240, 0.12);
+  border-radius: 8px;
+}
+
+.advisorInterviewBubble {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 12px;
+  padding: 16px;
+  background: rgba(43, 208, 189, 0.055);
+}
+
+.advisorInterviewBubble.current {
+  border-color: rgba(217, 184, 117, 0.28);
+  background: linear-gradient(135deg, rgba(217, 184, 117, 0.09), rgba(43, 208, 189, 0.055));
+}
+
+.advisorInterviewBubble.compact {
+  padding: 12px;
+  opacity: 0.82;
+}
+
+.advisorInterviewBubble.feedback {
+  margin-left: 44px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.advisorInterviewBubble img {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.advisorInterviewBubble span {
+  color: #d9b875;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.advisorInterviewBubble p,
+.advisorInterviewBubble strong,
+.advisorInterviewBubble em,
+.userInterviewBubble p {
+  display: block;
+  margin: 7px 0 0;
+  line-height: 1.75;
+}
+
+.advisorInterviewBubble p {
+  color: #cbd6df;
+}
+
+.advisorInterviewBubble strong {
+  color: #fff;
+  font-size: 18px;
+}
+
+.advisorInterviewBubble em {
+  color: #86f4e8;
+  font-style: normal;
+}
+
+.userInterviewBubble {
+  justify-self: end;
+  width: min(640px, 92%);
+  padding: 14px;
+  background: rgba(217, 184, 117, 0.1);
+}
+
+.userInterviewBubble p {
+  color: #fff;
+}
+
+.userInterviewBubble button,
+.textOnlyAction {
+  margin-top: 8px;
+  border: 0;
+  color: #86f4e8;
+  background: transparent;
+  font-weight: 900;
+}
+
+.interviewCueGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.interviewCueGrid > div {
+  min-height: 116px;
+  padding: 14px;
+  border: 1px solid rgba(226, 232, 240, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.interviewCueGrid div div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.interviewCueGrid b {
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: #cbd6df;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+}
+
+.interviewComposer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: 12px;
+  align-items: end;
+  padding-top: 12px;
+  border-top: 1px solid rgba(226, 232, 240, 0.1);
+}
+
+.interviewComposer textarea {
+  width: 100%;
+  border: 1px solid rgba(226, 232, 240, 0.14);
+  border-radius: 8px;
+  padding: 12px;
+  color: #eef6f8;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.interviewComposer > div {
+  display: grid;
+  gap: 8px;
+}
+
+.interviewComposer .generateReportButton {
+  margin-top: 0;
+}
+
+.diagnosisQualityError {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 154, 154, 0.28);
+  border-radius: 8px;
+  color: #ffd6d6;
+  background: rgba(255, 89, 89, 0.08);
+  line-height: 1.6;
+}
+
+.diagnosisQualityHint {
+  color: #96a7b3;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.diagnosisReportShell {
+  display: grid;
+  gap: 16px;
+  padding: 22px 0 70px;
+}
+
+.reportHeroPanel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: 20px;
+  align-items: center;
+}
+
+.reportHeroPanel h1 {
+  font-size: clamp(30px, 4vw, 48px);
+}
+
+.solutionHeroPanel h1,
+.implementationHeader h1 {
+  margin: 8px 0 12px;
+  color: #fff;
+  font-size: clamp(28px, 4vw, 48px);
+  line-height: 1.15;
+}
+
+.riskBadge {
+  min-height: 140px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  border: 1px solid rgba(217, 184, 117, 0.28);
+  border-radius: 8px;
+  background: rgba(217, 184, 117, 0.08);
+}
+
+.riskBadge span {
+  color: #aab6c4;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.riskBadge strong {
+  color: #d9b875;
+  font-size: 28px;
+}
+
+.risk高风险 strong {
+  color: #f2a2a2;
+}
+
+.risk中风险 strong {
+  color: #f2bd57;
+}
+
+.risk低风险 strong {
+  color: #2bd0bd;
+}
+
+.reportGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.reportVisualGrid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 14px;
+}
+
+.reportChartCard {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  min-height: 190px;
+  border: 1px solid rgba(226, 232, 240, 0.11);
+  border-radius: 8px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.reportChartCard.wide {
+  grid-column: span 2;
+}
+
+.chartCardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.chartCardHead span {
+  display: block;
+  margin-bottom: 6px;
+  color: #d9b875;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.chartCardHead h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 20px;
+}
+
+.chartCardHead strong {
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: #07110f;
+  background: #f2a2a2;
+  font-size: 12px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.riskBarList {
+  display: grid;
+  gap: 12px;
+}
+
+.riskBarRow {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) 36px;
+  gap: 10px;
+  align-items: center;
+}
+
+.riskBarRow span,
+.riskBarRow em {
+  color: #cdd6df;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.riskBarRow div {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.riskBarRow b {
+  display: block;
+  height: 100%;
+  min-width: 8px;
+  border-radius: inherit;
+}
+
+.bar红灯,
+.stackRed,
+.legendRed {
+  background: #f2a2a2;
+}
+
+.bar黄灯,
+.stackYellow,
+.legendYellow {
+  background: #f2bd57;
+}
+
+.bar绿灯,
+.stackGreen,
+.legendGreen {
+  background: #2bd0bd;
+}
+
+.riskStack {
+  display: flex;
+  height: 18px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.riskStack i {
+  display: block;
+  min-width: 0;
+}
+
+.riskLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+
+.riskLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #cdd6df;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.riskLegend b {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.profileFactList {
+  display: grid;
+  gap: 10px;
+}
+
+.profileFactList p,
+.chartNarrative {
+  margin: 0;
+  color: #b8c6d0;
+  line-height: 1.75;
+}
+
+.evidenceMatrix {
+  display: grid;
+  gap: 10px;
+}
+
+.evidenceMatrixRow {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  border: 1px solid rgba(226, 232, 240, 0.08);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.evidenceMatrixRow strong {
+  color: #fff;
+}
+
+.evidenceMatrixRow p {
+  margin: 0;
+  color: #b8c6d0;
+  line-height: 1.65;
+}
+
+.evidenceMatrixRow span {
+  display: block;
+  margin-bottom: 3px;
+  color: #d9b875;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.compactReportList {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.compactReportList li {
+  color: #b8c6d0;
+  line-height: 1.65;
+}
+
+.reportScoreGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.scoreCard {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  min-height: 220px;
+  padding: 18px;
+  border: 1px solid rgba(226, 232, 240, 0.11);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.scoreCardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.scoreCardHead > div {
+  display: grid;
+  gap: 8px;
+}
+
+.scoreStatusBadge {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 4px 9px;
+  color: #07110f;
+  background: #d9b875;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.scoreCard strong {
+  color: #fff;
+  font-size: 20px;
+}
+
+.scoreCard em {
+  color: #2bd0bd;
+  font-size: 36px;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.scoreEvidenceGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.scoreEvidenceBlock {
+  border: 1px solid rgba(226, 232, 240, 0.08);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.scoreEvidenceBlock span {
+  display: block;
+  margin-bottom: 4px;
+  color: #d9b875;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.scoreEvidenceBlock.judgement {
+  border-color: rgba(43, 208, 189, 0.18);
+  background: rgba(43, 208, 189, 0.055);
+}
+
+.scoreEvidenceBlock p {
+  margin: 0;
+  color: #aab6c4;
+  line-height: 1.7;
+}
+
+.status红灯 .scoreStatusBadge {
+  background: #f2a2a2;
+}
+
+.status黄灯 .scoreStatusBadge {
+  background: #f2bd57;
+}
+
+.status绿灯 .scoreStatusBadge {
+  background: #2bd0bd;
+}
+
+.reportFactCard h2 {
+  margin: 0 0 12px;
+  color: #fff;
+  font-size: 20px;
+}
+
+.reportFactCard ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 19px;
+}
+
+.reportFactCard li {
+  color: #b8c6d0;
+  line-height: 1.7;
+}
+
+.reportPaywallNotice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: 18px;
+  align-items: center;
+  border-color: rgba(217, 184, 117, 0.28);
+  background: linear-gradient(135deg, rgba(217, 184, 117, 0.11), rgba(43, 208, 189, 0.055));
+}
+
+.trialCreditNotice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  align-items: center;
+}
+
+.trialCreditNotice strong {
+  color: #fff;
+}
+
+.solutionPaywall h2 {
+  margin-right: 42px;
+}
+
+.paywallLead {
+  margin: 10px 0 18px;
+}
+
+.paywallCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.paywallCards article {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 190px;
+  padding: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.11);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.paywallCards strong {
+  color: #fff;
+  font-size: 20px;
+}
+
+.paywallCards em {
+  color: #aab6c4;
+  font-style: normal;
+  line-height: 1.5;
+}
+
+.paywallPrimary {
+  border-color: rgba(217, 184, 117, 0.5) !important;
+  background: linear-gradient(135deg, rgba(217, 184, 117, 0.13), rgba(43, 208, 189, 0.07)) !important;
+}
+
+.creditFallback {
+  opacity: 0.78;
+}
+
+.solutionShell,
+.implementationShell {
+  display: grid;
+  gap: 16px;
+  padding: 22px 0 76px;
+}
+
+.solutionHeroPanel,
+.implementationHeader,
+.solutionPanel,
+.solutionAdjustPanel,
+.reminderPanel,
+.dayDetail,
+.progressPanel {
+  border: 1px solid rgba(226, 232, 240, 0.11);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.solutionHeroPanel,
+.implementationHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 230px;
+  gap: 20px;
+  align-items: center;
+  padding: 24px;
+}
+
+.solutionHeroPanel p,
+.implementationHeader p,
+.solutionPanel p,
+.solutionAdjustPanel p,
+.dayDetail p,
+.implementationTask p,
+.implementationTask em {
+  color: #aab6c4;
+  line-height: 1.7;
+}
+
+.solutionHeroPanel > div:first-child > strong {
+  display: block;
+  margin-top: 14px;
+  color: #d9b875;
+  font-size: 18px;
+}
+
+.solutionMeta,
+.progressPanel {
+  display: grid;
+  gap: 10px;
+}
+
+.solutionMeta span {
+  min-height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(217, 184, 117, 0.24);
+  border-radius: 8px;
+  color: #d9b875;
+  background: rgba(217, 184, 117, 0.08);
+  font-weight: 950;
+}
+
+.solutionGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.solutionPanel,
+.solutionAdjustPanel {
+  padding: 22px;
+}
+
+.solutionPanel h2,
+.solutionAdjustPanel h2,
+.dayDetail h2,
+.taskGroup h3 {
+  margin: 0 0 14px;
+  color: #fff;
+}
+
+.solutionPanel article {
+  padding: 14px 0;
+  border-top: 1px solid rgba(226, 232, 240, 0.09);
+}
+
+.solutionPanel article:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.solutionPanel strong,
+.dayDetailHead strong,
+.implementationTask strong {
+  display: block;
+  color: #fff;
+}
+
+.solutionPanel article span {
+  display: inline-block;
+  margin: 7px 0;
+  color: #2bd0bd;
+  font-weight: 900;
+}
+
+.solutionPanel ol {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 22px;
+  color: #cbd6df;
+}
+
+.capabilityChips,
+.growthTargetGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.capabilityChips span,
+.growthTargetGrid span {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(43, 208, 189, 0.2);
+  border-radius: 999px;
+  padding: 0 11px;
+  color: #86f4e8;
+  background: rgba(43, 208, 189, 0.08);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.solutionAdjustPanel {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1fr) 220px;
+  gap: 16px;
+  align-items: center;
+}
+
+.solutionAdjustPanel textarea {
+  min-height: 118px;
+  border: 1px solid rgba(226, 232, 240, 0.14);
+  border-radius: 8px;
+  padding: 12px;
+  color: #eef6f8;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.solutionAdjustPanel > div:last-child {
+  display: grid;
+  gap: 10px;
+}
+
+.solutionAdjustmentNotice {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(43, 208, 189, 0.22);
+  border-radius: 8px;
+  padding: 14px;
+  background: rgba(43, 208, 189, 0.07);
+}
+
+.solutionAdjustmentNotice strong {
+  color: #86f4e8;
+}
+
+.solutionAdjustmentNotice p {
+  margin: 0;
+}
+
+.solutionAdjustmentNotice div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.solutionAdjustmentNotice span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border: 1px solid rgba(217, 184, 117, 0.24);
+  border-radius: 999px;
+  padding: 0 10px;
+  color: #f0d58d;
+  background: rgba(217, 184, 117, 0.08);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.secondaryAction {
+  min-height: 46px;
+  border: 1px solid rgba(43, 208, 189, 0.25);
+  border-radius: 8px;
+  color: #dffdf8;
+  background: rgba(43, 208, 189, 0.08);
+  font-weight: 950;
+}
+
+.progressPanel {
+  padding: 18px;
+}
+
+.progressPanel span {
+  color: #aab6c4;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.progressPanel strong {
+  color: #2bd0bd;
+  font-size: 36px;
+}
+
+.progressPanel em {
+  color: #f0d58d;
+  font-style: normal;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.progressPanel i {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.12);
+}
+
+.progressPanel b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #e7c97f, #2bd0bd);
+}
+
+.reminderPanel {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 18px;
+  padding: 18px;
+}
+
+.reminderPanel h2 {
+  margin: 4px 0 8px;
+  color: #fff;
+}
+
+.reminderPanel > div:first-child span,
+.emptyReminder p,
+.reminderList p {
+  color: #aab6c4;
+  line-height: 1.7;
+}
+
+.reminderList {
+  display: grid;
+  gap: 10px;
+}
+
+.reminderList article,
+.emptyReminder {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid rgba(217, 184, 117, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(217, 184, 117, 0.07);
+}
+
+.emptyReminder {
+  grid-template-columns: 1fr;
+}
+
+.reminderList article.done {
+  border-color: rgba(43, 208, 189, 0.22);
+  background: rgba(43, 208, 189, 0.055);
+}
+
+.reminderList span {
+  color: #f0d58d;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.reminderList article.done span {
+  color: #86f4e8;
+}
+
+.reminderList strong,
+.emptyReminder strong {
+  display: block;
+  margin-top: 5px;
+  color: #fff;
+}
+
+.reminderList aside {
+  display: grid;
+  gap: 8px;
+}
+
+.reminderList button {
+  min-height: 34px;
+  border: 1px solid rgba(43, 208, 189, 0.22);
+  border-radius: 8px;
+  color: #dffdf8;
+  background: rgba(43, 208, 189, 0.08);
+  font-weight: 900;
+}
+
+.implementationGrid {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 14px;
+}
+
+.dayRail {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  max-height: calc(100vh - 160px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.dayRail button {
+  min-height: 68px;
+  border: 1px solid rgba(226, 232, 240, 0.11);
+  border-radius: 8px;
+  padding: 10px;
+  text-align: left;
+  color: #cbd6df;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.dayRail button.active {
+  color: #07110f;
+  border-color: transparent;
+  background: #d9b875;
+}
+
+.dayRail span,
+.dayRail strong {
+  display: block;
+}
+
+.dayRail span {
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.dayRail strong {
+  margin-top: 5px;
+}
+
+.dayDetail {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+}
+
+.dayDetailHead span {
+  color: #2bd0bd;
+  font-weight: 950;
+}
+
+.taskGroup {
+  display: grid;
+  gap: 10px;
+}
+
+.soloTaskNotice {
+  border: 1px solid rgba(43, 208, 189, 0.18);
+  border-radius: 8px;
+  padding: 16px;
+  background: rgba(43, 208, 189, 0.06);
+}
+
+.soloTaskNotice strong {
+  display: block;
+  color: #86f4e8;
+}
+
+.soloTaskNotice p {
+  margin: 8px 0 0;
+}
+
+.implementationTask {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.implementationTask.done {
+  border-color: rgba(43, 208, 189, 0.32);
+  background: rgba(43, 208, 189, 0.06);
+}
+
+.implementationTask.remind {
+  border-color: rgba(217, 184, 117, 0.32);
+}
+
+.implementationTask.review {
+  border-color: rgba(217, 184, 117, 0.42);
+  background: rgba(217, 184, 117, 0.055);
+}
+
+.implementationTask span {
+  color: #d9b875;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.implementationTask em {
+  display: block;
+  margin-top: 8px;
+  font-style: normal;
+}
+
+.ipPositioningInterview {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(43, 208, 189, 0.2);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(43, 208, 189, 0.08), rgba(217, 184, 117, 0.05));
+}
+
+.ipInterviewHead {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.ipInterviewHead strong,
+.ipInterviewReady strong,
+.ipInterviewCoach strong {
+  display: block;
+  color: #f7fbff;
+}
+
+.ipInterviewHead p,
+.ipInterviewReady p,
+.ipInterviewCoach p {
+  margin: 0;
+  color: #b9c6d4;
+  line-height: 1.65;
+}
+
+.ipInterviewCoverage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ipInterviewCoverage span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  color: #aab6c4;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ipInterviewCoverage span.active {
+  color: #10170f;
+  background: #d9b875;
+}
+
+.ipInterviewCoverage span.done {
+  color: #dffdf8;
+  background: rgba(43, 208, 189, 0.18);
+}
+
+.ipInterviewCoach,
+.ipInterviewReady {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(217, 184, 117, 0.18);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.ipPositioningInterview textarea {
+  width: 100%;
+  min-height: 106px;
+  resize: vertical;
+  border: 1px solid rgba(226, 232, 240, 0.14);
+  border-radius: 8px;
+  padding: 12px;
+  color: #f7fbff;
+  background: rgba(0, 0, 0, 0.18);
+  line-height: 1.6;
+}
+
+.ipPositioningInterview textarea:focus {
+  outline: 2px solid rgba(217, 184, 117, 0.42);
+  border-color: rgba(217, 184, 117, 0.55);
+}
+
+.ipInterviewActions,
+.ipInterviewReady > div {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.taskOutputError,
+.taskOutputPending {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  line-height: 1.65;
+}
+
+.taskOutputError {
+  color: #ffd4d4;
+  border: 1px solid rgba(255, 154, 154, 0.26);
+  background: rgba(255, 89, 89, 0.08);
+}
+
+.taskOutputPending {
+  color: #dffdf8;
+  border: 1px solid rgba(43, 208, 189, 0.22);
+  background: rgba(43, 208, 189, 0.07);
+}
+
+.taskDeliverable {
+  margin-top: 14px;
+  border: 1px solid rgba(43, 208, 189, 0.22);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(43, 208, 189, 0.055);
+}
+
+.taskDeliverable > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(43, 208, 189, 0.14);
+}
+
+.taskDeliverable b {
+  color: #dffdf8;
+  font-size: 14px;
+}
+
+.taskDeliverable button {
+  min-height: 30px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.deliverableReview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-top: 1px solid rgba(43, 208, 189, 0.14);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.deliverableReview span {
+  display: inline-block;
+  margin-bottom: 4px;
+  color: #f4d27d;
+}
+
+.deliverableReview p {
+  margin: 0;
+  color: #b9c6d4;
+  line-height: 1.6;
+}
+
+.deliverableReview.accepted span {
+  color: #2bd0bd;
+}
+
+.deliverableReviewActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.deliverableAdjustment {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid rgba(43, 208, 189, 0.14);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.deliverableAdjustment > div:first-child span,
+.adjustmentReviewCard span {
+  color: #f4d27d;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.deliverableAdjustment p,
+.adjustmentReviewCard p {
+  margin: 4px 0 0;
+  color: #b9c6d4;
+  line-height: 1.6;
+}
+
+.deliverableAdjustment textarea {
+  width: 100%;
+  min-height: 88px;
+  resize: vertical;
+  border: 1px solid rgba(226, 232, 240, 0.14);
+  border-radius: 8px;
+  padding: 12px;
+  color: #f7fbff;
+  background: rgba(0, 0, 0, 0.18);
+  line-height: 1.6;
+}
+
+.deliverableAdjustment textarea:focus {
+  outline: 2px solid rgba(217, 184, 117, 0.42);
+  border-color: rgba(217, 184, 117, 0.55);
+}
+
+.adjustmentReviewCard {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(217, 184, 117, 0.24);
+  border-radius: 8px;
+  background: rgba(217, 184, 117, 0.06);
+}
+
+.adjustmentReviewCard.recommend_adjust {
+  border-color: rgba(43, 208, 189, 0.26);
+  background: rgba(43, 208, 189, 0.07);
+}
+
+.adjustmentReviewCard strong {
+  color: #f7fbff;
+}
+
+.adjustmentReviewCard pre {
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid rgba(43, 208, 189, 0.14);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.implementationTask pre {
+  white-space: pre-wrap;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 12px;
+  color: #dffdf8;
+  background: transparent;
+  font-family: inherit;
+  line-height: 1.7;
+}
+
+.implementationTask aside {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.implementationTask small {
+  color: #aab6c4;
+  font-weight: 900;
+}
+
+.implementationTask button {
+  min-height: 34px;
+  border: 1px solid rgba(43, 208, 189, 0.22);
+  border-radius: 8px;
+  color: #dffdf8;
+  background: rgba(43, 208, 189, 0.08);
+  font-weight: 900;
+}
+
+.implementationTask button:disabled,
+.reminderList button:disabled {
+  cursor: not-allowed;
+  color: rgba(223, 253, 248, 0.48);
+  border-color: rgba(226, 232, 240, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+@media (max-width: 960px) {
+  .heroGrid,
+  .diagnosisFormShell,
+  .reportHeroPanel,
+  .reportPaywallNotice,
+  .quotaBand,
+  .solutionHeroPanel,
+  .implementationHeader,
+  .solutionAdjustPanel,
+  .reminderPanel,
+  .implementationGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .workflowBand,
+  .plansGrid,
+  .consultantRouteGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .diagnosisIntroPanel {
+    position: static;
+  }
+
+  .reportGrid,
+  .reportVisualGrid,
+  .paywallCards,
+  .reportScoreGrid,
+  .solutionGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .reportChartCard.wide {
+    grid-column: auto;
+  }
+
+  .evidenceMatrixRow {
+    grid-template-columns: 1fr;
+  }
+
+  .dayRail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .flywheelTopline {
+    overflow-x: auto;
+  }
+
+  .heroGrid {
+    min-height: auto;
+    padding-top: 18px;
+  }
+
+  .workflowBand,
+  .diagnosisModeGrid,
+  .plansGrid,
+  .consultantRouteGrid,
+  .splitPolicyBand,
+  .pickerCards,
+  .fieldGrid,
+  .dayRail,
+  .implementationTask,
+  .deliverableReview {
+    grid-template-columns: 1fr;
+  }
+
+  .bottomDock {
+    grid-template-columns: 1fr;
+  }
+
+  .workspaceShortcut {
+    top: auto;
+    right: 12px;
+    bottom: 170px;
+  }
+
+  .heroDiagnosisButton {
+    width: 100%;
+  }
+
+  .diagnosisTop {
+    display: grid;
+    gap: 10px;
+    padding: 12px 0;
+  }
+
+  .diagnosisTop button {
+    width: fit-content;
+  }
+}

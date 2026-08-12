@@ -1,0 +1,4 @@
+interface:
+  display_name: "思潼带货切片精剪"
+  short_description: "多素材语义粗剪、动态特写、重点字幕、补充画面和人工审核"
+  default_prompt: "Use $commerce-clip-editor to turn approved product clips into a reviewable commerce-video rough cut."

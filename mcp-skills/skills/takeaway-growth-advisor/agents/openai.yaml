@@ -1,0 +1,4 @@
+interface:
+  display_name: "外卖增长顾问"
+  short_description: "审计外卖订单与利润，生成可审批、可复盘的单变量增长实验"
+  default_prompt: "Use takeaway-growth-advisor to audit this takeaway business and produce an evidence-controlled growth experiment."

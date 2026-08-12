@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "qualityBar": "sample_grade",
+  "minLength": 520,
+  "scoreThreshold": 88,
+  "requiredSections": ["组织问题判断", "岗位分工", "培训动作", "绩效检查", "老板减负"],
+  "requiredTerms": ["岗位", "排班", "培训", "绩效", "检查"],
+  "requiredDeliverables": ["岗位分工", "培训清单", "检查机制"],
+  "forbiddenTerms": ["hr_director_consultant", "作为一个AI"],
+  "styleRules": ["按小店可执行的方式设计，不写大公司制度", "必须给老板减负动作", "绩效要能观察、能检查"],
+  "repairInstruction": "返工时必须补齐岗位、培训、绩效、检查和老板减负。"
+}

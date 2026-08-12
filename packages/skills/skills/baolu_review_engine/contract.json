@@ -1,0 +1,96 @@
+{
+  "skillId": "baolu_review_engine",
+  "version": "2.0.0",
+  "scope": "short_video_performance_review",
+  "acceptedInputs": [
+    "csv",
+    "xlsx",
+    "xls",
+    "parsed_table_text",
+    "link_with_user_metrics"
+  ],
+  "qualityBar": "sample_grade",
+  "minLength": 480,
+  "scoreThreshold": 92,
+  "modes": {
+    "quick": {
+      "minimumEvidence": [
+        "real_metric_or_explicit_observation"
+      ],
+      "deliverable": "3_to_5_evidence_controlled_points"
+    },
+    "deep": {
+      "minimumEvidence": [
+        "csv_xlsx_or_table"
+      ],
+      "deliverable": "full_review_report"
+    }
+  },
+  "requiredSections": [
+    "数据质量审计",
+    "数据总览",
+    "视频分层",
+    "内容结构健康度",
+    "单条深拆",
+    "完播率深层归因",
+    "互动深度分析",
+    "趋势分析",
+    "规律总结",
+    "方法论沉淀",
+    "下周期选题建议",
+    "综合诊断结论"
+  ],
+  "requiredTerms": [
+    "有效记录",
+    "字段覆盖",
+    "证据边界",
+    "待验证"
+  ],
+  "requiredDeliverables": [
+    "证据质量结论",
+    "作品表现分层",
+    "可验证规律",
+    "下一周期单变量测试建议"
+  ],
+  "forbiddenTerms": [
+    "完整内容执行包",
+    "拍摄脚本",
+    "剪辑EDL",
+    "假装读取链接",
+    "作为一个AI"
+  ],
+  "styleRules": [
+    "客观数据与假设分开",
+    "缺失值不按零处理",
+    "所有计算说明口径",
+    "没有字段就明确不可判断",
+    "不同平台规律分开"
+  ],
+  "conditionalSections": {
+    "completionAndRetention": "only_when_completion_or_avg_watch_fields_exist",
+    "conversion": "only_when_direct_message_lead_order_or_conversion_fields_exist",
+    "paidVsOrganic": "only_when_paid_and_organic_fields_are_separately_available",
+    "trend": "only_when_valid_dates_and_enough_rows_exist"
+  },
+  "metricDefinitions": {
+    "engagementRate": "(likes + comments + shares) / playCount",
+    "followRate": "follows / playCount",
+    "averageCompletionRate": "average_of_non_missing_completion_values",
+    "quadrants": "playCount_median_x_engagementRate_median"
+  },
+  "must": [
+    "report_evidence_quality",
+    "preserve_missing_values",
+    "separate_observed_facts_from_hypotheses",
+    "keep_current_project_scope",
+    "label_unpersisted_methodology_as_pending"
+  ],
+  "mustNot": [
+    "pretend_to_open_video_link_or_backend",
+    "analyze_unprovided_video_frames_audio_or_editing",
+    "infer_platform_suppression_or_algorithm_causes_without_evidence",
+    "infer_paid_vs_organic_or_business_conversion_without_fields",
+    "output_content_package_live_script_or_editing_edl"
+  ],
+  "repairInstruction": "按证据重做复盘：快速诊断只基于用户给出的真实指标或明确观察；深度复盘逐行读取文件并校正行数、字段覆盖、统计口径、作品分层、健康度、趋势和选题建议。删除所有无字段支撑的因果判断。"
+}

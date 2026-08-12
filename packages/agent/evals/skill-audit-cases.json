@@ -1,0 +1,83 @@
+[
+  {
+    "id": "video-review-ip-ai-table",
+    "skillId": "baolu_review_engine",
+    "capabilityId": "video_review",
+    "tenantType": "personal_ip",
+    "tenantName": "思潼AI增长",
+    "industry": "IP与AI企业服务",
+    "city": "大连",
+    "input": "读取我上传的视频后台数据文件，只复盘文件里的作品表现、问题原因和未来优化选题方向，不要写招商文案，也不要猜画面。\n视频描述,发布时间,完播率,平均播放时长,播放量,喜欢,评论量,分享量,关注量\nAI时代的工作方式,2026/05/26,20%,9.82秒,465,6,0,4,1\n为什么你的AI数字化全是交智商税,2026/06/11,5.03%,17.81秒,338,6,0,2,0\nIP入企案例,2026/06/18,-,4.94秒,124,1,0,2,0",
+    "mustInclude": ["视频数据复盘报告", "AI时代的工作方式", "为什么你的AI数字化", "IP入企案例", "未来优化的选题方向"]
+  },
+  {
+    "id": "franchise-client-project",
+    "skillId": "baolu_content_creator",
+    "capabilityId": "franchise_acquisition",
+    "tenantType": "personal_ip",
+    "tenantName": "思潼AI增长",
+    "industry": "IP与AI企业服务",
+    "input": "我是给企业做IP和AI服务的，这次是替一个中式快餐连锁客户写招商加盟短视频。品牌名暂未确认，目标是吸引有餐饮经验、准备开店的加盟咨询者。请按SCALE逻辑先给一条能拍的招商短视频方案，未知数据写待补，不要把我本人当成连锁品牌方。",
+    "mustInclude": ["短结论", "SCALE", "口播逐字稿", "拍摄脚本", "评论区引导", "合规提醒"]
+  },
+  {
+    "id": "sales-customer-diagnosis",
+    "skillId": "sales_growth_advisor",
+    "capabilityId": "customer_diagnosis",
+    "tenantType": "personal_ip",
+    "tenantName": "思潼AI增长",
+    "industry": "IP与AI企业服务",
+    "input": "客户说想做企业AI，但聊天里只反复问价格。我当时直接发了报价单，没有继续问业务问题。请复盘这段销售沟通。",
+    "mustInclude": ["当时做法", "存在问题", "影响成交", "下次具体说法", "当前补救动作"]
+  },
+  {
+    "id": "sales-intent-temperature",
+    "skillId": "sales_growth_advisor",
+    "capabilityId": "intent_temperature",
+    "tenantType": "personal_ip",
+    "tenantName": "思潼AI增长",
+    "industry": "IP与AI企业服务",
+    "input": "客户连续两次参加方案会，主动问过实施周期和付款方式，但一直没确认预算，也没让老板参加。请判断客户意向和跟进优先级。",
+    "mustInclude": ["水温", "判断依据", "决策", "优先级", "待确认"]
+  },
+  {
+    "id": "sales-objection-reply",
+    "skillId": "sales_growth_advisor",
+    "capabilityId": "objection_reply",
+    "tenantType": "personal_ip",
+    "tenantName": "思潼AI增长",
+    "industry": "IP与AI企业服务",
+    "input": "客户看完企业AI改造方案后说：太贵了，我们再考虑考虑。请判断真实担心，并给我可以直接发的回复。",
+    "mustInclude": ["异议", "判断", "可直接", "话术", "下一步"]
+  },
+  {
+    "id": "sales-follow-up-plan",
+    "skillId": "sales_growth_advisor",
+    "capabilityId": "follow_up_plan",
+    "tenantType": "personal_ip",
+    "tenantName": "思潼AI增长",
+    "industry": "IP与AI企业服务",
+    "input": "方案发给客户5天了。客户说内部讨论，但没有明确谁拍板，也没定下一次会议。请给跟单计划。",
+    "mustInclude": ["跟进", "时间", "沟通目标", "下一步", "风险"]
+  },
+  {
+    "id": "sales-closing-script",
+    "skillId": "sales_growth_advisor",
+    "capabilityId": "closing_script",
+    "tenantType": "personal_ip",
+    "tenantName": "思潼AI增长",
+    "industry": "IP与AI企业服务",
+    "input": "客户认可方案，也确认预算能接受，但担心团队配合不上，所以迟迟不签。请给我不施压的成交推进话术。",
+    "mustInclude": ["价值", "顾虑", "话术", "下一步", "风险"]
+  },
+  {
+    "id": "sales-funnel-review",
+    "skillId": "sales_growth_advisor",
+    "capabilityId": "funnel_review",
+    "tenantType": "personal_ip",
+    "tenantName": "思潼AI增长",
+    "industry": "IP与AI企业服务",
+    "input": "本月有40条线索，25个加微信，12个完成首次沟通，6个收到方案，2个成交。请复盘销售漏斗并给下周动作。",
+    "mustInclude": ["转化率", "漏斗", "卡点", "下周", "动作"]
+  }
+]

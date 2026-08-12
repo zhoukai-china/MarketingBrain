@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "qualityBar": "sample_grade",
+  "minLength": 500,
+  "scoreThreshold": 88,
+  "requiredSections": ["当前执行判断", "思潼AI能做", "老板今天做", "团队今天做", "逾期/风险提醒", "明天复盘"],
+  "requiredTerms": ["截止", "状态", "提醒", "复盘", "责任人"],
+  "requiredDeliverables": ["任务清单", "提醒动作", "复盘节点"],
+  "forbiddenTerms": ["implementation_supervision_scheduler", "作为一个AI"],
+  "styleRules": ["必须分清AI、老板、团队三类任务", "每个任务要有截止时间或频率", "能由AI生成的交付物要直接生成"],
+  "repairInstruction": "返工时必须补齐AI/老板/团队任务、截止时间、风险提醒和明天复盘。"
+}

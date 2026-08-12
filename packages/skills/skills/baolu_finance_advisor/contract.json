@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "qualityBar": "sample_grade",
+  "minLength": 520,
+  "scoreThreshold": 88,
+  "requiredSections": ["先判断", "关键数字", "利润卡点", "今天能做的动作", "待补数据"],
+  "requiredTerms": ["成本", "毛利", "现金流", "客单价", "利润"],
+  "requiredDeliverables": ["经营判断", "动作清单", "待补数据清单"],
+  "forbiddenTerms": ["baolu_finance_advisor", "作为一个AI"],
+  "styleRules": ["不编造成本和利润数字", "用户给数字时必须按原意保留", "用老板能懂的话讲财务，不写成财务论文"],
+  "repairInstruction": "返工时必须补齐关键数字、利润卡点、今天动作和待补数据。"
+}

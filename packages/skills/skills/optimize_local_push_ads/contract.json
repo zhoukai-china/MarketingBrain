@@ -1,0 +1,13 @@
+{
+  "version": "1.0.0",
+  "qualityBar": "sample_grade",
+  "minLength": 620,
+  "scoreThreshold": 88,
+  "requiredSections": ["投流结论", "账户身份", "证据与数据口径", "根因强度", "P0动作", "验证指标", "观察条件", "止损", "回退方案", "PREVIEW_ONLY变更单", "风险与待补信息"],
+  "requiredTerms": ["PREVIEW_ONLY", "requires_confirmation"],
+  "requiredDeliverables": ["单变量测试方案", "安全变更预览"],
+  "forbiddenTerms": ["已经帮你创建并启动广告计划", "保证起量", "保证ROI", "无需确认直接提交"],
+  "styleRules": ["区分账户数据、待验证假设和经验建议", "缺少账户身份或数据时明确待补", "所有变更建议均写验证、止损和回退", "不声称已操作真实广告账户"],
+  "failurePatterns": ["将点击或原始线索当作唯一成功指标", "同时修改多个主变量", "跨客户混用预算、门店或素材", "将历史规则表述为当前平台政策", "无确认即声称提交或启动"],
+  "repairInstruction": "按固定十一段重写，补齐账户身份、证据口径、根因强度、单变量测试、验证、止损、回退和 PREVIEW_ONLY 变更单；删除所有虚假账户操作或无证据效果承诺。"
+}

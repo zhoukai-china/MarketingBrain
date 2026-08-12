@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@baolu/agent": ["packages/agent/src/index.ts"],
+      "@baolu/db": ["packages/db/src/index.ts"],
+      "@baolu/shared": ["packages/shared/src/index.ts"],
+      "@baolu/skills": ["packages/skills/src/index.ts"],
+      "@baolu/dashboard": ["packages/dashboard/src/index.ts"]
+    }
+  }
+}

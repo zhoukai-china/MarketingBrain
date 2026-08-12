@@ -1,0 +1,886 @@
+.sitongV4Root {
+  min-height: 100vh;
+  color: #18202a;
+  background:
+    linear-gradient(180deg, rgba(238, 244, 246, 0.92), rgba(244, 247, 249, 0.98)),
+    #f4f7f9;
+}
+
+.v4Topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  padding: 0 28px;
+  border-bottom: 1px solid #d8e0e6;
+  background: rgba(250, 252, 253, 0.94);
+  backdrop-filter: blur(14px);
+}
+
+.v4Brand {
+  display: grid;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  color: #142033;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.v4Brand span,
+.v4Eyebrow {
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.v4Brand strong {
+  font-size: 17px;
+}
+
+.v4Topbar nav,
+.v4Tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.v4Topbar nav button,
+.v4Tabs button,
+.v4QuietBtn,
+.v4GhostBtn,
+.v4PrimaryBtn,
+.v4ReportActions button,
+.v4Notice button,
+.v4PromptChips button {
+  min-height: 38px;
+  border-radius: 8px;
+  border: 1px solid #cbd7df;
+  padding: 0 14px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.v4Topbar nav button,
+.v4Tabs button,
+.v4GhostBtn,
+.v4QuietBtn,
+.v4PromptChips button,
+.v4ReportActions button {
+  color: #2d3c4d;
+  background: #ffffff;
+}
+
+.v4Topbar nav button.active,
+.v4Tabs button.active {
+  color: #072b28;
+  border-color: #61bcb4;
+  background: #dff5f2;
+}
+
+.v4Session {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.v4Session span {
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: #6b7280;
+  background: #eef2f5;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.v4Session span.online {
+  color: #07594f;
+  background: #dff5ec;
+}
+
+.v4Notice {
+  margin: 14px auto 0;
+  width: min(1180px, calc(100vw - 32px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid #f0c071;
+  border-radius: 8px;
+  color: #5f3e09;
+  background: #fff7df;
+}
+
+.v4Main {
+  width: min(1180px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 24px 0 56px;
+}
+
+.v4HeroBand,
+.v4DashboardHeader,
+.v4PricingHeader,
+.v4ReservedCases,
+.v4ReportBand,
+.v4Section,
+.v4ProfilePanel,
+.v4TaskBoard,
+.v4Mapping,
+.v4UploadPanel {
+  border: 1px solid #d8e0e6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.v4HeroBand {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+  gap: 24px;
+  align-items: stretch;
+  padding: 30px;
+}
+
+.entryHero {
+  align-items: center;
+}
+
+.v4HeroBand h1,
+.v4DashboardHeader h1,
+.v4PricingHeader h1,
+.v4ReservedCases h1 {
+  margin: 8px 0 12px;
+  max-width: 760px;
+  color: #122033;
+  font-size: clamp(32px, 5vw, 54px);
+  line-height: 1.06;
+  letter-spacing: 0;
+}
+
+.v4HeroBand p:not(.v4Eyebrow),
+.v4PricingHeader p,
+.v4ReservedCases p,
+.v4DashboardHeader p,
+.v4SectionHeader h2 + p {
+  margin: 0;
+  color: #536273;
+  line-height: 1.75;
+}
+
+.v4HeroActions,
+.v4CardActions,
+.v4ReportActions {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.v4PrimaryBtn {
+  color: #ffffff;
+  border-color: #126b62;
+  background: #126b62;
+}
+
+.v4PrimaryBtn:hover {
+  background: #0f5a53;
+}
+
+.v4PrimaryBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.v4GhostBtn:hover,
+.v4QuietBtn:hover,
+.v4PromptChips button:hover {
+  border-color: #6db6ad;
+  color: #07594f;
+}
+
+.v4ChatPreview {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  padding: 22px;
+  border: 1px solid #d7e5e3;
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, #effaf6, #f8fbff);
+}
+
+.v4ChatPreview span,
+.v4EntryCard span,
+.v4PriceCard span,
+.v4CaseSlots span {
+  color: #9a5b18;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.v4ChatPreview p {
+  color: #1f3346;
+  font-size: 18px;
+  line-height: 1.75;
+}
+
+.v4EntryGrid,
+.v4PricingGrid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.v4PricingGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.v4EntryCard,
+.v4PriceCard {
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  padding: 22px;
+  border: 1px solid #d8e0e6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.v4EntryCard h2,
+.v4PriceCard h2,
+.v4SectionHeader h2,
+.v4TaskBoard h2,
+.v4Mapping h2,
+.v4UploadPanel h2,
+.v4ReportBand h2,
+.v4ProfilePanel h2 {
+  margin: 8px 0 10px;
+  color: #122033;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.v4EntryCard p,
+.v4PriceCard p,
+.v4Task span,
+.v4Mapping span,
+.v4UploadPanel p,
+.v4ReportBand p {
+  color: #536273;
+  line-height: 1.65;
+}
+
+.v4EntryCard dl {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+.v4EntryCard dt {
+  color: #8793a1;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.v4EntryCard dd {
+  margin: 2px 0 0;
+  color: #1f3346;
+}
+
+.v4CardActions {
+  margin-top: auto;
+}
+
+.v4ProfilePanel {
+  margin-top: 18px;
+  padding: 20px;
+}
+
+.v4ProfilePanel.compact {
+  margin-top: 0;
+}
+
+.v4ProfileGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.v4ProfilePanel.compact .v4ProfileGrid {
+  grid-template-columns: 1fr;
+}
+
+.v4ProfileGrid label,
+.v4Composer,
+.v4FileDrop {
+  display: grid;
+  gap: 6px;
+}
+
+.v4ProfileGrid span {
+  color: #728092;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.v4ProfileGrid input,
+.v4Composer textarea {
+  width: 100%;
+  border: 1px solid #cbd7df;
+  border-radius: 8px;
+  padding: 11px 12px;
+  color: #122033;
+  background: #fbfdfe;
+}
+
+.v4Tabs {
+  margin-bottom: 16px;
+}
+
+.v4Section,
+.v4TaskBoard,
+.v4Mapping,
+.v4UploadPanel,
+.v4PricingHeader,
+.v4ReservedCases,
+.v4DashboardHeader,
+.v4ReportBand {
+  margin-top: 18px;
+  padding: 22px;
+}
+
+.v4SectionHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: end;
+}
+
+.v4WorkflowGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.v4WorkflowStep {
+  min-height: 210px;
+  padding: 16px;
+  border: 1px solid #d8e0e6;
+  border-radius: 8px;
+  background: #fbfdfe;
+}
+
+.v4WorkflowStep span {
+  color: #0f766e;
+  font-weight: 950;
+}
+
+.v4WorkflowStep h3,
+.v4Timeline h3,
+.v4TaskColumns h3 {
+  margin: 10px 0 8px;
+  color: #152234;
+}
+
+.v4WorkflowStep p,
+.v4WorkflowStep em,
+.v4Timeline p {
+  color: #536273;
+  line-height: 1.55;
+}
+
+.v4WorkflowStep em {
+  display: block;
+  margin-top: 12px;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.v4Timeline {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.v4Timeline article {
+  padding: 14px;
+  border-left: 4px solid #126b62;
+  border-radius: 8px;
+  background: #f6faf9;
+}
+
+.v4Timeline span {
+  color: #9a5b18;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.v4KpiGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.v4KpiGrid article {
+  min-height: 98px;
+  padding: 14px;
+  border: 1px solid #d8e0e6;
+  border-radius: 8px;
+  background: #fbfdfe;
+}
+
+.v4KpiGrid strong,
+.v4KpiGrid span {
+  display: block;
+}
+
+.v4KpiGrid strong {
+  color: #152234;
+}
+
+.v4KpiGrid span {
+  margin-top: 8px;
+  color: #657386;
+  line-height: 1.5;
+}
+
+.v4TwoColumn {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.v4TaskColumns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.v4TaskColumns > div {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.v4Task {
+  padding: 12px;
+  border: 1px solid #d8e0e6;
+  border-radius: 8px;
+  background: #fbfdfe;
+}
+
+.v4Task strong,
+.v4Task span {
+  display: block;
+}
+
+.v4Task.doing {
+  border-color: #6db6ad;
+  background: #effaf6;
+}
+
+.v4Task.overdue {
+  border-color: #e8a391;
+  background: #fff3ef;
+}
+
+.v4Mapping {
+  display: grid;
+  gap: 12px;
+}
+
+.v4Mapping div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #d8e0e6;
+  border-radius: 8px;
+  background: #fbfdfe;
+}
+
+.v4ChatShell {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  min-height: calc(100vh - 150px);
+  border: 1px solid #d8e0e6;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.v4ChatAside {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 18px;
+  border-right: 1px solid #d8e0e6;
+  background: #f8fbfc;
+}
+
+.v4ChatAside h2 {
+  margin: 0;
+  color: #122033;
+  line-height: 1.2;
+}
+
+.v4CreditStrip {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #d8e0e6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.v4CreditStrip.warning {
+  border-color: #f0c071;
+  background: #fff7df;
+}
+
+.v4CreditStrip span {
+  color: #657386;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.v4MiniStack {
+  display: grid;
+  gap: 8px;
+}
+
+.v4MiniStack span {
+  padding: 9px 10px;
+  border-radius: 8px;
+  color: #365063;
+  background: #eaf1f4;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.v4Conversation {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+}
+
+.v4MessageList {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 20px;
+  overflow: auto;
+  background: #f7fafb;
+}
+
+.v4Message {
+  max-width: min(760px, 90%);
+  padding: 14px;
+  border: 1px solid #d8e0e6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.v4Message.user {
+  justify-self: end;
+  border-color: #6db6ad;
+  background: #e9f7f4;
+}
+
+.v4Message.system {
+  justify-self: center;
+  background: #fff7df;
+  border-color: #f0c071;
+}
+
+.v4Message strong {
+  color: #122033;
+}
+
+.v4Message p {
+  margin: 8px 0 0;
+  color: #2d3c4d;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+
+.v4PreviewCard {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #d8e0e6;
+  border-radius: 8px;
+  background: #f8fbfc;
+}
+
+.v4PreviewCard span {
+  color: #0f766e;
+  font-weight: 900;
+}
+
+.v4PreviewCard em {
+  color: #536273;
+  font-style: normal;
+}
+
+.v4Generation {
+  justify-self: start;
+  width: min(620px, 94%);
+  padding: 14px;
+  border: 1px solid #b8dcd7;
+  border-radius: 8px;
+  background: #effaf6;
+}
+
+.v4Generation > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.v4ProgressTrack {
+  height: 8px;
+  margin: 12px 0;
+  border-radius: 999px;
+  background: #d5e3e1;
+  overflow: hidden;
+}
+
+.v4ProgressTrack i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #126b62;
+}
+
+.v4Generation details {
+  color: #536273;
+}
+
+.v4PromptChips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 12px 16px;
+  border-top: 1px solid #d8e0e6;
+  background: #ffffff;
+}
+
+.v4PromptChips button {
+  white-space: nowrap;
+}
+
+.v4Composer {
+  grid-template-columns: minmax(0, 1fr) 120px;
+  align-items: end;
+  padding: 16px;
+  border-top: 1px solid #d8e0e6;
+  background: #ffffff;
+}
+
+.v4Composer textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+
+.v4FileDrop {
+  min-height: 120px;
+  place-items: center;
+  border: 1px dashed #9eb2bf;
+  border-radius: 8px;
+  background: #fbfdfe;
+  cursor: pointer;
+  text-align: center;
+}
+
+.v4FileDrop input {
+  display: none;
+}
+
+.v4FileDrop span {
+  color: #126b62;
+  font-weight: 900;
+}
+
+.v4FileDrop small {
+  color: #657386;
+}
+
+.v4RequiredFields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.v4RequiredFields span,
+.v4Modal div span {
+  padding: 6px 8px;
+  border-radius: 8px;
+  color: #365063;
+  background: #eaf1f4;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.v4CsvResult {
+  padding: 12px;
+  border: 1px solid #d8e0e6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.v4CsvResult .good {
+  color: #0f766e;
+}
+
+.v4CsvResult .bad {
+  color: #b4532a;
+}
+
+.v4DashboardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.v4ReportBand p {
+  max-width: 760px;
+}
+
+.v4PriceCard.featured {
+  border-color: #126b62;
+  background: #effaf6;
+}
+
+.v4CaseSlots {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.v4CaseSlots div {
+  padding: 18px;
+  border: 1px dashed #cbd7df;
+  border-radius: 8px;
+  background: #fbfdfe;
+}
+
+.v4CaseSlots strong,
+.v4CaseSlots span {
+  display: block;
+}
+
+.v4ModalLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.v4Modal {
+  width: min(440px, 100%);
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.22);
+}
+
+.v4Modal h2,
+.v4Modal p {
+  margin: 0;
+}
+
+.v4Modal div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 980px) {
+  .v4Topbar {
+    grid-template-columns: 1fr;
+    align-items: start;
+    padding: 14px 16px;
+  }
+
+  .v4HeroBand,
+  .v4EntryGrid,
+  .v4PricingGrid,
+  .v4TwoColumn,
+  .v4ChatShell {
+    grid-template-columns: 1fr;
+  }
+
+  .v4WorkflowGrid,
+  .v4Timeline,
+  .v4KpiGrid,
+  .v4ProfileGrid,
+  .v4TaskColumns,
+  .v4CaseSlots {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .v4ChatAside {
+    border-right: 0;
+    border-bottom: 1px solid #d8e0e6;
+  }
+}
+
+@media (max-width: 640px) {
+  .v4Main {
+    width: min(100% - 20px, 1180px);
+    padding-top: 12px;
+  }
+
+  .v4HeroBand,
+  .v4Section,
+  .v4ProfilePanel,
+  .v4TaskBoard,
+  .v4Mapping,
+  .v4UploadPanel,
+  .v4PricingHeader,
+  .v4ReservedCases,
+  .v4DashboardHeader,
+  .v4ReportBand {
+    padding: 16px;
+  }
+
+  .v4HeroBand h1,
+  .v4DashboardHeader h1,
+  .v4PricingHeader h1,
+  .v4ReservedCases h1 {
+    font-size: 32px;
+  }
+
+  .v4WorkflowGrid,
+  .v4Timeline,
+  .v4KpiGrid,
+  .v4ProfileGrid,
+  .v4TaskColumns,
+  .v4CaseSlots {
+    grid-template-columns: 1fr;
+  }
+
+  .v4Composer {
+    grid-template-columns: 1fr;
+  }
+
+  .v4Message {
+    max-width: 100%;
+  }
+}

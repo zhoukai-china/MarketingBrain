@@ -1,0 +1,95 @@
+[
+  {
+    "id": "today-topic-inspiration",
+    "skillId": "baolu_topics",
+    "capabilityId": "topic_inspiration",
+    "tenantType": "personal_ip",
+    "tenantName": "思潼测试企业",
+    "industry": "企业AI服务",
+    "input": "只做选题灵感，不写文案。本轮主体是一个企业AI服务客户项目，目标客户是准备做AI改造的中小企业老板，发布视频号，目标是获得有效私信。私有录音观点：先梳理业务流程，再决定买什么工具。账号数据复盘：案例拆解和判断类标题值得复测。没有提供热点链接和对标账号资料。请输出有证据边界的TOP10选题。",
+    "mustInclude": ["本轮主体与目标", "四大来源自动采集结果", "AI录音卡", "三关筛选后的TOP10", "第一关证据", "共识层级", "客资准度", "配比调整建议", "待验证动作与证据边界"]
+  },
+  {
+    "id": "today-content-general",
+    "skillId": "baolu_content_creator",
+    "capabilityId": "content_plan",
+    "tenantType": "personal_ip",
+    "tenantName": "思潼测试企业",
+    "industry": "企业AI服务",
+    "input": "给企业AI服务项目写一条60秒视频号短视频。目标客户是中小企业老板，主题是做AI改造前先梳理流程，目标动作是私信领取流程诊断清单。没有客户案例、ROI和价格数据，不能编造。请输出完整可拍可发方案。",
+    "mustInclude": ["短结论", "选题", "文案", "拍摄脚本", "剪辑EDL", "发布标题", "评论区引导话术", "投流建议", "复盘指标"]
+  },
+  {
+    "id": "today-paid-traffic",
+    "skillId": "baolu_content_creator",
+    "capabilityId": "paid_traffic",
+    "tenantType": "personal_ip",
+    "tenantName": "思潼测试企业",
+    "industry": "企业AI服务",
+    "city": "大连",
+    "input": "抖音上一条客户案例视频自然播放3000，完播率18%，收到8条私信，其中3条为有效咨询，尚未成交。准备使用DOU+测试大连同城有效线索，总测试预算500元。请只给投流判断、小额A/B测试、监控和止损方案；不要创建或操作广告计划，也不要编造ROI。",
+    "mustInclude": ["投流判断", "投放目标", "平台与工具选择", "素材A/B", "预算与节奏", "人群与地域", "监控指标", "止损条件", "复盘时间", "合规提醒", "执行草案"]
+  },
+  {
+    "id": "today-content-franchise",
+    "skillId": "baolu_content_creator",
+    "capabilityId": "franchise_acquisition",
+    "tenantType": "chain_brand",
+    "tenantName": "样板测试连锁",
+    "industry": "中式快餐",
+    "input": "这是测试项目，不代表真实品牌资料。品牌名：样板测试连锁；行业：中式快餐；目标客户：有餐饮经验、准备开店的创业者；转化目标：私信领取已审核项目资料并预约沟通。真实门店数、投资额、利润、回本周期、扶持细则和案例均未提供，必须写待补，不能编造。请按最新标准输出一条招商获客短视频方案。",
+    "mustInclude": ["品牌信息", "一、选题策划", "二、口播逐字稿", "三、拍摄脚本", "四、拍摄注意事项", "五、剪辑EDL", "六、发布标题与话题", "七、最佳发布时间", "八、评论区引导话术", "九、投流建议"]
+  },
+  {
+    "id": "today-content-shooting",
+    "skillId": "baolu_content_creator",
+    "capabilityId": "shooting_editing",
+    "tenantType": "personal_ip",
+    "tenantName": "思潼测试企业",
+    "industry": "知识服务",
+    "input": "给我上传的77号视频做拍摄剪辑优化，只做拍剪优化，不扩写其他内容。\n【视频/素材解析结果】时长29秒，720×1280，竖屏；室内固定机位，一位戴眼镜女性面向镜头；字幕/口播：‘我来清唱两句，你来听听哪句跑调了。天上的星星不说话，记住了哦。天上的星星不说话，哪一句跑调的？第一还是第二？其实大部分觉得自己五音不全的人都能听得出来。关注我，下一条更难。’没有产品展示和业务转化目标。请基于这些证据输出标准拍剪优化方案，不能猜测其他画面。",
+    "mustInclude": ["视频基本信息", "现有版本诊断", "一、优化版选题定位", "二、优化版口播逐字稿", "三、优化版拍摄脚本", "四、拍摄注意事项", "五、优化版剪辑EDL", "六、优化版发布策略", "七、投流建议", "八、核心改进点"]
+  },
+  {
+    "id": "today-video-data-review",
+    "skillId": "baolu_review_engine",
+    "capabilityId": "video_review",
+    "tenantType": "personal_ip",
+    "tenantName": "思潼测试企业",
+    "industry": "企业AI服务",
+    "input": "读取下面的视频后台CSV，只复盘文件数据，不猜画面、口播、剪辑、限流或招商内容。\n标题,发布时间,完播率,平均播放时长,播放量,喜欢,评论量,分享量,关注量\nAI时代的工作方式,2026/05/26,20%,9.82秒,465,6,0,4,1\n为什么你的AI数字化全是交智商税,2026/06/11,5.03%,17.81秒,338,6,0,2,0\nIP入企案例,2026/06/18,-,4.94秒,124,1,0,2,0",
+    "mustInclude": ["数据质量审计", "数据总览", "视频分层", "内容结构健康度", "单条深拆", "完播率深层归因", "互动深度分析", "趋势分析", "规律总结", "方法论沉淀", "下周期选题建议", "综合诊断结论"]
+  },
+  {
+    "id": "today-live-script",
+    "skillId": "live_script_planner",
+    "capabilityId": "live_script",
+    "tenantType": "local_business",
+    "tenantName": "成都样板美甲店",
+    "industry": "美业",
+    "city": "成都",
+    "input": "成都一家美甲店今晚做90分钟通勤美甲团购直播，目标客户是附近上班族，目标是预约到店。团购价格、有效期、退款、库存和福利尚未确认，不能编造；唯一承接动作是评论或私信‘通勤’，由场控发送已确认的预约方式。请输出完整直播话术。",
+    "mustInclude": ["短结论", "场景识别", "直播总览", "开场话术", "核心轮播话术", "承接钩子", "高频问题应答", "收尾话术", "轮播节奏表", "场控执行清单", "合规提醒", "复盘指标"]
+  },
+  {
+    "id": "today-live-review",
+    "skillId": "baolu_live_review_engine",
+    "capabilityId": "live_review",
+    "tenantType": "local_business",
+    "tenantName": "成都样板美甲店",
+    "industry": "美业",
+    "city": "成都",
+    "input": "复盘昨晚团购直播。后台数据：时长60分钟，累计观看1200，峰值在线88，平均在线41，评论96，商品点击150，订单18，GMV2160，无投流。录音转写：第8分钟第一次讲团购，第23分钟第一次明确引导点击，第37分钟出现8秒停顿，口癖‘然后’19次。原计划：开场、需求判断、产品讲解、答疑、团购转化循环。",
+    "mustInclude": ["一、核心数据速览", "二、流量诊断", "三、转化归因", "四、互动诊断", "五、话术执行对照表", "六、人货场诊断", "七、方法论沉淀", "八、下次直播调整清单", "负责人", "验收指标"]
+  },
+  {
+    "id": "today-sales-review",
+    "skillId": "sales_growth_advisor",
+    "capabilityId": "customer_diagnosis",
+    "tenantType": "personal_ip",
+    "tenantName": "思潼测试企业",
+    "industry": "企业AI服务",
+    "input": "客户说想做企业AI，但聊天里只反复问价格。我当时直接发了报价单，没有继续问业务问题。没有提供预算、决策人和下一次沟通时间。请复盘这段销售沟通，并给我下次具体说法和当前补救动作。",
+    "mustInclude": ["当时做法", "存在问题", "影响成交原因", "下次具体说法", "当前补救动作", "证据状态"]
+  }
+]

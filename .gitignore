@@ -1,0 +1,39 @@
+node_modules
+dist
+.env
+.env.*
+!.env.example
+uploads
+*.log
+reports/continuous-improvement/
+.DS_Store
+
+# Local deployment packages, runtime state, and generated QA artefacts
+/.codex/
+/.deploy/
+/release/
+/.qa/
+/.codex-runtime/
+/.esbuild-repair/
+/.codex-*.tar.gz
+/.codex-*.tgz
+/.tmp-*
+/_tmp_*/
+
+# One-off local deployment and diagnostic outputs
+/deploy/
+/deploy-package/
+/deploy_probe.txt
+node_modules.broken-*
+/online-index-*.js
+/online-index-*.css
+/esbuild-*.tgz
+/takeaway-format-*.tgz
+/test-leads.csv
+
+# Historical reports and local working drafts are not source of truth
+/reports/
+/apps/api/reports/
+/work/
+/_tmp_*
+/logs/

@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "qualityBar": "sample_grade",
+  "minLength": 520,
+  "scoreThreshold": 88,
+  "requiredSections": ["交付问题判断", "标准SOP", "责任人", "检查标准", "复购动作"],
+  "requiredTerms": ["SOP", "责任人", "时间节点", "检查", "复购"],
+  "requiredDeliverables": ["SOP", "检查清单", "复购动作"],
+  "forbiddenTerms": ["delivery_standardization", "作为一个AI"],
+  "styleRules": ["必须拆到员工能照着执行", "不能只说提升服务", "每个动作要有责任人或检查标准"],
+  "repairInstruction": "返工时必须补齐SOP、责任人、时间节点、检查标准和复购动作。"
+}

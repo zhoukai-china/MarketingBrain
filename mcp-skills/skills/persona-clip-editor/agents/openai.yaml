@@ -1,0 +1,3 @@
+interface:
+  display_name: "人设观点切片"
+  short_description: "从长视频识别多个话题并生成多条无字幕短视频"

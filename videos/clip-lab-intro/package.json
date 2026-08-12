@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@hyperframes/producer": "^0.7.77",
+    "hyperframes": "^0.7.77"
+  }
+}

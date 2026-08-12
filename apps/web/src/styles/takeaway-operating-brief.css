@@ -1,0 +1,23 @@
+/* Long takeaway plans are operational briefs, not a stack of empty report cards. */
+.takeawayOperatingBrief.documentAnswer{border:0;border-radius:0;background:transparent;overflow:visible}
+.takeawayOperatingBrief.documentAnswer>.structuredAnswerTitle{margin:0;padding:20px 22px 17px;border:1px solid #cfe0d6;border-bottom:0;border-radius:16px 16px 0 0;background:linear-gradient(135deg,#eff8f2,#fff)}
+.takeawayOperatingBrief.documentAnswer>.structuredAnswerIntro{margin:0;padding:14px 22px;border:1px solid #dbe8e0;border-top:1px solid #e4eee8;border-bottom:0;background:#fff}
+.takeawayOperatingBrief.documentAnswer .answerSectionList{gap:10px;padding:12px;border:1px solid #dbe8e0;border-radius:0 0 16px 16px;background:#f6faf7}
+.takeawayOperatingBrief.documentAnswer .documentAnswerSection{position:relative;padding:15px 17px 16px;border:1px solid #d9e5de;border-left:4px solid var(--brief-accent,#2d755e);border-radius:5px 13px 13px 5px;background:#fff;box-shadow:0 5px 14px rgba(33,73,59,.035)}
+.takeawayOperatingBrief.documentAnswer .documentAnswerSection:nth-child(2n){--brief-accent:#657a72}
+.takeawayOperatingBrief.documentAnswer .documentAnswerSection:nth-child(3n){--brief-accent:#3d7c6d}
+.takeawayOperatingBrief.documentAnswer .documentAnswerSection>header{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:center;margin:0;padding-bottom:10px;border-bottom:1px solid #e6eee9}
+.takeawayOperatingBrief.documentAnswer .documentAnswerSection>header>span{width:29px;height:29px;border-radius:8px;background:var(--brief-accent,#2d755e);font-size:11px;box-shadow:none}
+.takeawayOperatingBrief.documentAnswer .documentAnswerSection>header>div{gap:2px;text-align:left}
+.takeawayOperatingBrief.documentAnswer .documentAnswerSection>header small{color:var(--brief-accent,#2d755e);font-size:9px;font-weight:900;letter-spacing:.1em}
+.takeawayOperatingBrief.documentAnswer .documentAnswerSection>header h3{font-size:17px;line-height:1.25}
+.takeawayOperatingBrief.documentAnswer .documentAnswerSection>.markdownResult{margin:10px 0 0;color:#345149;font-size:14px;line-height:1.72}
+.takeawayOperatingBrief.documentAnswer .documentAnswerSection>.markdownResult p{margin:0;line-height:1.72}
+.takeawayOperatingBrief.documentAnswer .documentAnswerSection>.markdownResult ul,.takeawayOperatingBrief.documentAnswer .documentAnswerSection>.markdownResult ol{display:grid;gap:0;margin:0;padding:0;list-style:none}
+.takeawayOperatingBrief.documentAnswer .documentAnswerSection>.markdownResult li{position:relative;padding:9px 0 9px 18px;border-bottom:1px solid #edf2ef;line-height:1.65}
+.takeawayOperatingBrief.documentAnswer .documentAnswerSection>.markdownResult li:last-child{padding-bottom:0;border-bottom:0}
+.takeawayOperatingBrief.documentAnswer .documentAnswerSection>.markdownResult li::before{position:absolute;top:16px;left:2px;width:6px;height:6px;border-radius:50%;background:var(--brief-accent,#2d755e);content:""}
+.takeawayOperatingBrief.documentAnswer .documentAnswerSection.summary{--brief-accent:#276f57;background:#f4faf6}
+.takeawayOperatingBrief.documentAnswer .documentAnswerSection.warning{--brief-accent:#a9752b;background:#fffaf1}
+.takeawayOperatingBrief.documentAnswer .documentAnswerSection.next{--brief-accent:#416d90;background:#f5f9fc}
+@media(max-width:720px){.takeawayOperatingBrief.documentAnswer>.structuredAnswerTitle{padding:17px 15px 14px}.takeawayOperatingBrief.documentAnswer>.structuredAnswerIntro{padding:12px 15px}.takeawayOperatingBrief.documentAnswer .answerSectionList{gap:8px;padding:9px}.takeawayOperatingBrief.documentAnswer .documentAnswerSection{padding:13px 13px 14px}.takeawayOperatingBrief.documentAnswer .documentAnswerSection>header h3{font-size:16px}.takeawayOperatingBrief.documentAnswer .documentAnswerSection>.markdownResult{font-size:13px}}
