@@ -1,0 +1,4 @@
+interface:
+  display_name: "高级本地推投流专家"
+  short_description: "巨量本地推线索诊断、计划草案与确认式PC网页辅助投放"
+  default_prompt: "使用 $optimize-local-push-ads 诊断我的本地推线索账户并生成预览变更单，在我确认前不要提交或修改账户。"

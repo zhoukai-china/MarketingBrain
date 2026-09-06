@@ -1,0 +1,21 @@
+{
+  "sha256": "e91ef4afcff706a03142d519f6a10e3e229f31728468f01124e5abcf4ceaa331",
+  "detectorVersion": "beauty-image-safety-v2.9",
+  "status": "rejected",
+  "reason": "visible_text_or_brand_like",
+  "changedVariable": "highDensityTopStrokeBandFallback",
+  "diagnostics": {
+    "candidateSelectionMode": "high_density_top_stroke_band",
+    "qualifyingRows": 17,
+    "consecutiveRows": 17,
+    "minimumConsecutiveRows": 5,
+    "peakRowTransitions": 99,
+    "meanRowTransitions": 80.412,
+    "minimumRowTransitions": 33,
+    "horizontalCoverage": 0.451,
+    "minimumHorizontalCoverage": 0.2,
+    "maximumHorizontalCoverage": 0.85,
+    "maximumTopYRatio": 0.2,
+    "minimumLuminanceDelta": 18
+  }
+}

@@ -13,6 +13,14 @@ const allowedPlans = new Set([
   "ip_standard",
   "ip_premium"
 ]);
+const allowedProducts = new Set(["founder-ip", "takeaway", "lanqi", "beauty-industry"]);
+const allowedBrandCodes = new Set(["lanqi"]);
+const productPlans = new Map([
+  ["founder-ip", "ip_standard"],
+  ["takeaway", "chain_standard"],
+  ["lanqi", "local_standard"],
+  ["beauty-industry", "local_standard"],
+]);
 
 function parseArgs(argv) {
   const args = {};
@@ -78,12 +86,28 @@ async function main() {
   if (planCode && !allowedPlans.has(planCode)) {
     throw new Error(`Invalid plan code: ${planCode}`);
   }
+  const productCode = args.product ?? process.env.INVITE_PRODUCT ?? null;
+  if (productCode && !allowedProducts.has(productCode)) {
+    throw new Error(`Invalid product code: ${productCode}`);
+  }
+  if (productCode && planCode && productPlans.get(productCode) !== planCode) {
+    throw new Error(`Product ${productCode} requires plan ${productPlans.get(productCode)}`);
+  }
+  const brandCode = args["brand-code"] ?? process.env.INVITE_BRAND_CODE ?? null;
+  if (brandCode && !allowedBrandCodes.has(brandCode)) {
+    throw new Error(`Invalid brand code: ${brandCode}`);
+  }
+  if (brandCode && productCode !== "beauty-industry") {
+    throw new Error("--brand-code is only valid with --product beauty-industry");
+  }
 
   const data = {
     codeHash: hashInviteCode(code),
     codePreview: previewInviteCode(code),
     label: args.label ?? process.env.INVITE_LABEL ?? null,
-    planCode,
+    planCode: productCode ? productPlans.get(productCode) : planCode,
+    productCode,
+    brandCode,
     maxUses: readMaxUses(args["max-uses"] ?? process.env.INVITE_MAX_USES),
     expiresAt: readDate(args["expires-at"] ?? process.env.INVITE_EXPIRES_AT),
     createdBy: args["created-by"] ?? process.env.INVITE_CREATED_BY ?? "script:create-beta-invite",
@@ -101,6 +125,8 @@ async function main() {
         codePreview: data.codePreview,
         label: data.label,
         planCode: data.planCode,
+        productCode: data.productCode,
+        brandCode: data.brandCode,
         maxUses: data.maxUses,
         expiresAt: data.expiresAt,
         createdBy: data.createdBy,
@@ -115,6 +141,8 @@ async function main() {
           codePreview: invite.codePreview,
           label: invite.label,
           planCode: invite.planCode,
+          productCode: invite.productCode,
+          brandCode: invite.brandCode,
           maxUses: invite.maxUses,
           usedCount: invite.usedCount,
           expiresAt: invite.expiresAt,

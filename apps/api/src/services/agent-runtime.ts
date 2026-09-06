@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { runAgent, routeSkill, type AgentAnalysisBrief, type LlmMessage, type LlmProvider } from "@baolu/agent";
+import { enforceTopicInspirationFinalDelivery, runAgent, routeSkill, type AgentAnalysisBrief, type AgentRequest, type LlmMessage, type LlmProvider, type ProviderFailureInfo } from "@baolu/agent";
 import { prisma } from "@baolu/db";
 import {
   inferAcquisitionCapabilities,
@@ -18,6 +18,12 @@ import { AGENT_BY_ID, AGENT_BY_SLUG } from "./agent-definitions.js";
 import { env } from "../config/env.js";
 import { createRequestFingerprint } from "./request-fingerprint.js";
 import { buildStableAgentDelivery, resolveReasoningProfile } from "./structured-delivery.js";
+import { classifyRuntimeError, emitRuntimeStage } from "./runtime-stage-trace.js";
+import {
+  releaseCreditReservation,
+  reserveCreditsBeforeProvider,
+  type ProductBillingContext
+} from "./credit-reservations.js";
 
 export class AgentAccessError extends Error {
   constructor(public code: "agent_not_found" | "agent_not_entitled" | "agent_member_access_denied" | "skill_not_allowed") {
@@ -97,6 +103,7 @@ export interface SkillRuntimeResult {
   creditCost: number;
   remainingCredits?: number;
   qualityFlags: string[];
+  providerFailure?: ProviderFailureInfo;
   analysisMode: "fast" | "deep";
   reasoningProfile: AgentReasoningProfile;
   stableDelivery?: StableAgentDelivery;
@@ -202,11 +209,20 @@ export async function invokeSkillThroughMcp(params: {
   history?: LlmMessage[];
   routingSource?: "capability" | "agent_router" | "legacy";
   capabilityLocked?: boolean;
+  promptCompositionPolicy?: "generic" | "locked_product_workflow";
   deliveryPolicy?: "clarify" | "draft_with_placeholders";
+  skillPromptOverride?: string;
+  skillVersionOverride?: string;
+  providerPolicyVersion?: string;
   skipEntitlement?: boolean;
   persist?: boolean;
+  billingContext?: ProductBillingContext;
+  failClosedOnProviderFailure?: boolean;
   signal?: AbortSignal;
+  traceStartedAt?: number;
 }): Promise<SkillRuntimeResult> {
+  const traceStartedAt = params.traceStartedAt ?? Date.now();
+  emitRuntimeStage({ requestId: params.requestId, stage: "agent_runtime", startedAt: traceStartedAt, status: "started", provider: params.provider });
   const agent = await getRuntimeAgent(params.agentId);
   if (agent.status !== "active") throw new AgentAccessError("agent_not_entitled");
   if (!params.skipEntitlement) await assertAgentAccess(params.context, agent);
@@ -222,6 +238,7 @@ export async function invokeSkillThroughMcp(params: {
     deviceScope: params.deviceScope ?? "desktop",
     history: params.history,
     capabilityLocked: params.capabilityLocked,
+    promptCompositionPolicy: params.promptCompositionPolicy,
     deliveryPolicy: params.deliveryPolicy
   });
   const replay = await loadAgentRunReplay(params.context, agent, params.requestId, requestFingerprint);
@@ -248,17 +265,57 @@ export async function invokeSkillThroughMcp(params: {
       requestedSkillId: selection.skillId as SkillId,
       capabilityId: selection.capabilityId,
       capabilityLocked: params.capabilityLocked,
+      promptCompositionPolicy: params.promptCompositionPolicy,
       deliveryPolicy: params.deliveryPolicy,
-      skillPrompt: selection.prompt,
-      skillVersionOverride: selection.version,
+      skillPrompt: params.skillPromptOverride ?? selection.prompt,
+      skillVersionOverride: params.skillVersionOverride ?? selection.version,
       history: persistedHistory.length > 0 ? persistedHistory : params.context.source === "database" ? [] : params.history,
       channel: params.channel ?? "h5"
     });
   agentRequest.signal = params.signal;
-  const rawResult = await runAgent(agentRequest, params.provider);
+  const billingReservation = params.billingContext && params.persist !== false
+    ? await reserveCreditsBeforeProvider({
+        context: params.context,
+        billing: params.billingContext,
+        requestId: params.requestId,
+        requestFingerprint,
+        capabilityId: selection.capabilityId,
+        provider: params.provider.name,
+        amount: SKILL_MANIFESTS[selection.skillId as SkillId]?.baseCreditCost ?? 0
+      })
+    : undefined;
+  try {
+  let rawResult;
+  try {
+    const providerWithPreflight = params.provider as LlmProvider & {
+      preflightAgentRequest?: (request: AgentRequest) => Promise<void>;
+    };
+    await providerWithPreflight.preflightAgentRequest?.(agentRequest);
+    emitRuntimeStage({ requestId: params.requestId, stage: "skill_runtime", startedAt: traceStartedAt, status: "started", provider: params.provider });
+    emitRuntimeStage({ requestId: params.requestId, stage: "provider", startedAt: traceStartedAt, status: "started", provider: params.provider });
+    rawResult = await runAgent(agentRequest, params.provider);
+    emitRuntimeStage({
+      requestId: params.requestId,
+      stage: "provider",
+      startedAt: traceStartedAt,
+      status: rawResult.providerFailure ? "failed" : "completed",
+      provider: params.provider,
+      ...(rawResult.providerFailure ? { errorCode: rawResult.providerFailure.code, providerFailure: rawResult.providerFailure } : {})
+    });
+    emitRuntimeStage({ requestId: params.requestId, stage: "skill_runtime", startedAt: traceStartedAt, status: "completed", provider: params.provider });
+  } catch (error) {
+    const errorCode = classifyRuntimeError(error);
+    emitRuntimeStage({ requestId: params.requestId, stage: "provider", startedAt: traceStartedAt, status: errorCode === "timed_out" ? "timed_out" : errorCode === "cancelled" ? "cancelled" : "failed", provider: params.provider, errorCode });
+    emitRuntimeStage({ requestId: params.requestId, stage: "skill_runtime", startedAt: traceStartedAt, status: errorCode === "timed_out" ? "timed_out" : errorCode === "cancelled" ? "cancelled" : "failed", provider: params.provider, errorCode });
+    throw error;
+  }
+  if (params.failClosedOnProviderFailure && rawResult.providerFailure) {
+    throw new Error(`provider_failure:${rawResult.providerFailure.code}`);
+  }
+  const finalDeliveryResult = await enforceTopicInspirationFinalDelivery(agentRequest, rawResult);
   const result = agent.slug === "acquisition"
-    ? ensureAcquisitionSubjectAnchor(rawResult, params.input)
-    : rawResult;
+    ? ensureAcquisitionSubjectAnchor(finalDeliveryResult, params.input)
+    : finalDeliveryResult;
   const deliveryStatus: SkillRuntimeResult["deliveryStatus"] = result.deliveryStatus === "needs_input"
     || (!result.deliveryStatus && result.qualityFlags.some((flag) => /clarification_(?:used|fast_path)|_clarification_used/.test(flag)))
       ? "needs_input"
@@ -287,10 +344,12 @@ export async function invokeSkillThroughMcp(params: {
         requestId: params.requestId,
         requestFingerprint,
         mcpCallId,
+        billingContext: params.billingContext,
+        billingReservationId: billingReservation?.id,
         routingSource: params.routingSource ?? (selection.capabilityId ? "capability" : "agent_router")
       });
 
-  return {
+  const response: SkillRuntimeResult = {
     status: "success",
     deliveryStatus,
     mcpCallId,
@@ -308,12 +367,19 @@ export async function invokeSkillThroughMcp(params: {
     creditCost: persistedResult.creditCost,
     remainingCredits: persistence.remainingCredits,
     qualityFlags: result.qualityFlags,
+    providerFailure: result.providerFailure,
     analysisMode: result.analysisMode,
     reasoningProfile,
     stableDelivery,
     analysisBrief: result.analysisBrief,
     traceId: params.requestId
   };
+  emitRuntimeStage({ requestId: params.requestId, stage: "agent_runtime", startedAt: traceStartedAt, status: "completed", provider: params.provider });
+  return response;
+  } catch (error) {
+    await releaseCreditReservation(billingReservation?.id, classifyRuntimeError(error));
+    throw error;
+  }
 }
 
 export async function loadAgentRunReplay(
@@ -626,6 +692,10 @@ function buildNextActions(agentSlug: string, capabilityId?: string): string[] {
     if (capabilityId === "franchise_acquisition") return ["生成招商内容执行包", "补充加盟政策与线索数据"];
     return ["选择一个餐饮增长场景", "补充经营数据后继续诊断"];
   }
+  if (capabilityId === "fip_franchise") return ["补全加盟条件与线索筛选", "记录真实考察或签约进展"];
+  if (capabilityId === "fip_store_visit") return ["补全门店与商品承接条件", "记录真实到店、核销与复购结果"];
+  if (capabilityId === "fip_student_recruitment") return ["补全课程与试听承接信息", "记录真实咨询、报名与交付进展"];
+  if (capabilityId === "fip_partner_recruitment") return ["补全合作条件与洽谈信息", "记录真实合作进展"];
   if (capabilityId === "franchise_acquisition") return ["生成下一条招商短视频文案", "补全招商线索承接信息"];
   if (capabilityId === "video_review") return ["生成下一轮选题测试", "记录本次复盘结论"];
   return ["继续补充业务信息", "把结果拆成今日行动"];

@@ -129,6 +129,7 @@ export async function registerDesktopRoutes(app: FastifyInstance): Promise<void>
       const candidates = await tx.automationTask.findMany({
         where: {
           tenantId: device.tenantId,
+          type: { not: "beauty_daily_brief" },
           status: {
             in: ["draft", "pending"]
           },

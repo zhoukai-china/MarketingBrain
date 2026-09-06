@@ -101,7 +101,7 @@ pnpm qa:full
 
 ```powershell
 pnpm qa:takeaway
-pnpm qa:franchise-acquisition
+pnpm qa:founder-ip-acquisition
 pnpm qa:lanqi-foundation
 pnpm acceptance:acquisition-scenarios
 pnpm agent:topic-system-smoke
@@ -119,7 +119,7 @@ pnpm invite:redemption-smoke
 pnpm invite:concurrency-smoke
 ```
 
-三个产品的自动分流、任务卡和交接规则见 `docs/agents/AGENTS.md`，单人使用方式见 `docs/SOLO_AGENT_DEVELOPMENT.md`。`qa:lanqi-foundation` 当前只验收蓝旗产品与知识治理基础文件；在蓝旗生产模块落地后，必须把对应代码回归继续加入该命令，不能将基础文件通过表述为产品已完成。
+三个产品的自动分流、任务卡和交接规则见 `docs/agents/AGENTS.md`，单人使用方式见 `docs/SOLO_AGENT_DEVELOPMENT.md`。`qa:lanqi-foundation` 当前验收兰琪产品与知识治理基础及已落地模块回归；后续模块必须继续把对应代码回归加入该命令，不能仅凭文档通过表述为产品已完成。`qa:franchise-acquisition` 暂时作为旧生产路径兼容命令保留，不再代表独立产品方向。
 
 需要运行中的 API、令牌、外部服务或生产式环境的命令，必须先确认目标环境。不得为了让测试通过而指向真实客户数据或执行真实付款、投放、发布。
 
@@ -164,7 +164,14 @@ Bug 单必须具备：环境、版本、前置状态、复现步骤、输入、�
 
 每个已修复 Bug 都登记到 `BUG_REGRESSIONS.md`。如果暂时只能人工验收，应记录自动化缺口和补齐计划。
 
-## 8. 发布前验收
+## 8. Skill 运行资产治理
+
+- 产品运行 capability 必须显式钉死 `route/tool → workflow → Skill version → quality contract → renderer`；同一 capability 只能有一个 active chain，未知或版本漂移必须失败关闭，不能落入通用旧模板。
+- WorkBuddy 产物只能进入 candidates/intake/quarantine；运行源码、构建产物和部署配置对候选区、个人 `.codex/skills` 的引用必须为 0。正式运行只使用仓库内经 Codex 验收、独立版本化的正式副本。
+- 历史 AgentRun 按保存时版本与输出只读恢复；旧 URL 只能做路由兼容，不能选择旧 Skill 或触发当前 fallback 重算。
+- 去旧先做清单、依赖图、内容哈希、历史/回滚影响和可恢复隔离。物理删除是独立破坏性动作，必须在精确目标和 0 引用证据明确后取得授权；不得以文件数量减少冒充稳定性。
+
+## 9. 发布前验收
 
 发布候选必须满足：
 
@@ -183,7 +190,7 @@ pnpm prelaunch:check -- --env <生产式配置文件路径>
 
 `prelaunch:check` 是配置预检，不替代 `/ready`、`/ops/launch-check`、真实模型 smoke、微信能力检查、租户隔离和页面验收。
 
-## 9. 上线后迭代
+## 10. 上线后迭代
 
 - 小范围发布，先观察测试租户或内部账号。
 - 监控 API 错误、模型/工具失败、耗时、重复扣费、质量失败、用户反馈和异常日志。
@@ -191,7 +198,7 @@ pnpm prelaunch:check -- --env <生产式配置文件路径>
 - 每个线上 Bug 先转成脱敏回归案例，再修复。
 - 每次迭代只改变一个主要变量，保留基线、测试期、护栏、止损线和回滚点。
 
-## 10. 人工只做什么
+## 11. 人工只做什么
 
 自动化通过后，人工重点验收：
 
@@ -202,6 +209,6 @@ pnpm prelaunch:check -- --env <生产式配置文件路径>
 
 机械点击、重复复现、类型检查、格式契约、历史 Bug 回归和证据整理应优先由 Codex 和自动化完成。
 
-## 11. 长期质量学习闭环
+## 12. 长期质量学习闭环
 
 智能体上线后的反馈、结果事件、每日评分、失败聚类、Eval 草稿、候选评审、灰度和回滚统一执行 `CONTINUOUS_IMPROVEMENT.md`。每日任务不等于自动发布：任何 Prompt、Skill、路由、工具、知识或代码变更仍需独立验收和人工放行。

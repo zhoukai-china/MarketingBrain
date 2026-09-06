@@ -1,0 +1,30 @@
+{
+  "skillId": "founder_ip_content_creator",
+  "version": "1.0.0",
+  "scope": "founder_ip_acquisition_content",
+  "qualityBar": "sample_grade",
+  "minLength": 260,
+  "scoreThreshold": 92,
+  "rubricDimensions": ["选题逐字保留", "目标与CTA一致", "来源和事实边界可追溯", "正文具体可编辑", "无编造或外部执行"],
+  "requiredSections": [
+    "当前选题/钩子",
+    "目标人群",
+    "来源依据与事实边界",
+    "与获客目标的关系",
+    "内容正文",
+    "承接动作",
+    "待补/待核验",
+    "下一步"
+  ],
+  "requiredDeliverables": ["逐字保留的选题", "目标一致的正文", "来源与事实边界", "目标专属CTA"],
+  "forbiddenTerms": [
+    "保证收益",
+    "保证爆款",
+    "已经发布",
+    "已经投放",
+    "已完成付款"
+  ],
+  "styleRules": ["只用本轮简报和证据", "四目标不得串用", "缺资料列待补，不补造事实", "只生成内容草稿"],
+  "failurePatterns": ["改题", "无可编辑正文", "引用其他上下文", "四目标混写", "模板冒充模型结果"],
+  "repairInstruction": "逐字保留选题；只写当前目标、人群、证据、事实边界和CTA；缺资料列待补，不编造或执行。"
+}

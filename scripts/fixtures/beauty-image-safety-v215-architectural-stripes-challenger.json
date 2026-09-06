@@ -1,0 +1,14 @@
+{
+  "sha256": "2cf4738eb2e3fcd894c838c662ea968653020aa8c4fcf086706c034aefaec205",
+  "detectorVersion": "beauty-image-safety-v2.15",
+  "status": "passed",
+  "changedVariable": "minimumBarcodeEdgeIntervalVariation",
+  "diagnostics": {
+    "edgeIntervalVariation": 0.232,
+    "minimumBarcodeEdgeIntervalVariation": 0.35,
+    "maximumBarcodeEdgeIntervalVariation": 0.62,
+    "minimumObservedRiskIntervalVariation": 0.365,
+    "architecturalCandidateAcceptedAsBarcode": false,
+    "qrAndBarcodeRiskRecallPreserved": true
+  }
+}

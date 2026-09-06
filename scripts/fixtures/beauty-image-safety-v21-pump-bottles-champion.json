@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "beauty-image-safety-champion-v1",
+  "source": "BY-26 controlled real acceptance audit asset",
+  "sha256": "fa9e11f9ae92ca218dd58ea33cde2dd8c91969c981933d8fcbcde4deed052846",
+  "detectorVersion": "beauty-image-safety-v2.1",
+  "status": "rejected",
+  "reasons": [
+    "interface_or_watermark_like",
+    "visible_text_or_brand_like"
+  ],
+  "evidence": [
+    {
+      "detectorType": "corner_watermark",
+      "componentMode": "edge_components",
+      "metrics": {
+        "glyphComponents": 8,
+        "widthCoverage": 0.291,
+        "edgePixelDensity": 0.077,
+        "meanComponentFill": 0.497,
+        "heightVariation": 0.46,
+        "readableSequenceRecovered": false
+      }
+    },
+    {
+      "detectorType": "glyph_sequence",
+      "componentMode": "edge_component_sequence",
+      "metrics": {
+        "glyphComponents": 4,
+        "widthCoverage": 0.312,
+        "edgePixelDensity": 0.042,
+        "meanComponentFill": 0.36,
+        "heightVariation": 0.495,
+        "readableSequenceRecovered": false
+      }
+    }
+  ],
+  "privacy": "No prompt, provider response, task id, credential, customer text, or tenant identifier is stored."
+}

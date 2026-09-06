@@ -1,0 +1,44 @@
+{
+  "version": "beauty-image-signage-surface-prompt-champion-v2",
+  "sourceEvidence": [
+    {
+      "assetSha256": "13211c9d3886a53cebd78a6080e6fb475766a696104b42127a1ddf241c93144b",
+      "role": "cover",
+      "qualityReasons": ["qr_or_barcode_like"],
+      "operatorFinding": "complete_reception_scene_but_countertop_display_card_became_pseudo_text_and_qr_carrier"
+    }
+  ],
+  "champion": {
+    "providerPromptVersion": "beauty-image-provider-prompt-v1.6",
+    "promptHashes": {
+      "cover": "47e78624ba0c121069747bd9b2c856e7f9fbe0b7b7e4e8c76b9f75c810f966f1",
+      "content": "bdc5c9d716f486046a08fb857aa392401c66b16debdc1c06c208c3cbd3196745",
+      "engagement": "365f2d4a28e89d6ddd106896f1466695d1a2555757b4682c48c5a1af042226d1"
+    },
+    "rootCause": "negative_object_ban_without_empty_surface_or_counter_free_positive_composition"
+  },
+  "challenger": {
+    "providerPromptVersion": "beauty-image-provider-prompt-v1.7",
+    "singleVariable": "empty_horizontal_surface_composition",
+    "requiredPromptConcepts": [
+      "not a reception counter",
+      "no front desk",
+      "fully empty",
+      "viewed obliquely",
+      "no cards, plaques, stands, menus, flyers, brochures, qr payment signs"
+    ],
+    "requiredNegativeConcepts": [
+      "front desk",
+      "reception counter",
+      "checkout counter",
+      "service counter",
+      "table sign",
+      "desk sign",
+      "standing sign",
+      "display plaque",
+      "qr payment sign",
+      "payment placard",
+      "printed packaging"
+    ]
+  }
+}

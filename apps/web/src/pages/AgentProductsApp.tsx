@@ -3,11 +3,13 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import chainBrandIpAcquisitionAvatar from "../assets/chain-brand-ip-acquisition-agent.jpg";
 import { apiPath, getAppPath } from "../lib/api.js";
+import { knowledgeSyncProgressText, knowledgeSyncResultText, resumeKnowledgeSync, runKnowledgeSync } from "../lib/knowledge-sync.js";
 import { inferAcquisitionCapability, resolveAcquisitionTaskCapabilities, scopeAcquisitionCapabilityHistory } from "../lib/acquisition-routing.js";
 import { ChatComposer, type AcquisitionComposerCapabilityId } from "../components/chat/ChatComposer.js";
 import { AgentAutomationDrawer } from "../components/automation/AgentAutomationDrawer.js";
 import { TopicSystemWorkbench, type TopicSystemGenerationRequest, type TopicSystemTurn } from "../components/acquisition/TopicSystemWorkbench.js";
 import { ContentSystemWorkbench, type ContentSystemTurn } from "../components/acquisition/ContentSystemWorkbench.js";
+import type { FounderIpContentSelection } from "../components/acquisition/founderIpContentDraft.js";
 import { PaidTrafficWorkbench, type TrafficMode } from "../components/acquisition/PaidTrafficWorkbench.js";
 import { VideoReviewWorkbench } from "../components/acquisition/VideoReviewWorkbench.js";
 import { LiveScriptWorkbench, type LiveScriptTurn } from "../components/acquisition/LiveScriptWorkbench.js";
@@ -39,6 +41,25 @@ import {
   type StableAgentDelivery,
   type TenantBrandingConfig
 } from "@baolu/shared";
+
+const FIP_LOCAL_BEAUTY_TOPIC_FIXTURE = [
+  "## 三关筛选后的TOP10",
+  "| 序号 | 选题/钩子 | 目标人群 | 核心观点/内容角度 | 来源依据 | 与获客目标的关系 | 下一步生成内容 |",
+  "| --- | --- | --- | --- | --- | --- | --- |",
+  "| 1 | 10万预算做问题肌门店，先核对哪三类经营条件 | 美业加盟意向人群 | 先看客群、服务边界与运营支持，不先承诺收益 | 合成美业加盟访谈摘要（待用户确认） | 帮助意向加盟商判断是否值得申请评估 | 生成60秒加盟条件核对口播 |",
+  "| 2 | 问题肌项目不是项目越多越好，加盟前先看服务边界 | 美业从业者 | 用服务边界替代项目堆砌 | 合成美业加盟访谈摘要（待用户确认） | 建立理性加盟认知 | 生成服务边界说明内容 |",
+  "| 3 | 有门店经验的人，考察问题肌加盟要先问这5件事 | 现有美业门店经营者 | 从已有经营经验出发核对适配度 | 合成考察问题清单（待用户确认） | 引导预约品牌考察 | 生成品牌考察清单 |",
+  "| 4 | 10万投资预算该怎么拆？先列待确认项，不替你算收益 | 谨慎型美业创业者 | 区分已确认投入项与待确认经营变量 | 合成预算核对清单（金额待确认） | 引导提交加盟咨询 | 生成预算待确认清单 |",
+  "| 5 | 从业者转做问题肌门店，最容易忽略的不是技术 | 计划转型的美业从业者 | 关注客群定位、门店执行与持续运营 | 合成美业转型访谈摘要（待用户确认） | 筛选真正适合的加盟意向 | 生成适配度自测内容 |",
+  "| 6 | 加盟问题肌项目之前，先把目标顾客说具体 | 美业加盟意向人群 | 客群越具体，项目与内容承接越可验证 | 合成目标客群工作表（待用户确认） | 提高加盟咨询的有效度 | 生成目标客群工作表 |",
+  "| 7 | 品牌考察别只看装修，重点核对这四类运营证据 | 准备考察品牌的创业者 | 用可核验运营证据替代口号 | 合成品牌考察记录（待用户确认） | 推动预约品牌考察 | 生成考察提问口播 |",
+  "| 8 | 问题肌门店开业前，哪些能力必须由自己掌握 | 首次进入美业的创业者 | 说明品牌支持与经营者责任边界 | 合成能力清单（待用户确认） | 建立招商认知并减少错配 | 生成能力边界说明 |",
+  "| 9 | 同样是美业加盟，为什么要先判断当地问题肌客群 | 区域美业创业者 | 先验证当地需求与客群，不编造市场数字 | 合成区域调研框架（数据待补） | 引导申请项目评估 | 生成区域调研清单 |",
+  "| 10 | 一次加盟咨询应该把哪些未知条件问清楚 | 10万预算美业从业者 | 把价格、政策、案例和收益全部列为待核验 | 合成咨询记录模板（待用户确认） | 引导发起加盟咨询 | 生成咨询前准备清单 |",
+  "",
+  "## 待验证动作与证据边界",
+  "以上内容全部是本机合成验收数据；真实价格、政策、案例、收益与行业热点均未读取，不得作为客户事实。"
+].join("\n");
 
 interface AgentCapabilityView {
   key: string;
@@ -114,6 +135,7 @@ interface KnowledgeSubjectView {
 
 interface AgentCatalogResponse {
   agents: AgentView[];
+  productEntries?: Array<{ productCode: string; name: string; description: string; path: string }>;
   allAgents?: AgentView[];
   defaultEntry?: string | null;
   creditBalance?: number;
@@ -126,6 +148,10 @@ interface WorkbuddyConnectionView {
   status: string;
   lastUsedAt?: string | null;
   createdAt: string;
+  productCode?: string | null;
+  scopes?: string[];
+  expiresAt?: string | null;
+  revokedAt?: string | null;
   agent: { id: string; name: string; slug: string };
 }
 
@@ -362,40 +388,46 @@ const TAKEAWAY_SCENARIO_STARTERS = [
 
 const ACQUISITION_SYSTEM_ENTRIES = [
   {
+    capabilityId: "baolu_ip_advisor",
+    icon: "问",
+    title: "问问保禄",
+    subtitle: "新媒体与创始人IP专业答疑"
+  },
+  {
     capabilityId: "topic_inspiration",
     icon: "题",
-    title: "招商选题系统",
-    subtitle: "招商行业、对标、录音、复盘四源选题"
+    title: "创始人IP选题系统",
+    subtitle: "四目标 × 热点、对标、录音、真实账号复盘"
   },
   {
     capabilityId: "content_plan",
     icon: "文",
-    title: "招商内容系统",
-    subtitle: "固定调用招商内容 Skill"
+    title: "内容系统",
+    subtitle: "基于本轮目标生成内容与承接草案"
   },
   {
     capabilityId: "paid_traffic",
     icon: "投",
-    title: "招商投流系统",
-    subtitle: "招商线索 DOU+ / 本地推诊断"
+    title: "投流系统",
+    subtitle: "预算、监控与止损预览"
   },
   {
     capabilityId: "video_review",
     icon: "盘",
-    title: "招商内容复盘",
-    subtitle: "固定调用招商内容复盘 Skill"
+    title: "视频复盘系统",
+    subtitle: "真实账号数据复盘与下一轮选题回流"
   },
   {
     capabilityId: "live_script",
     icon: "播",
-    title: "招商直播系统",
-    subtitle: "固定调用招商直播话术 Skill"
+    title: "直播系统",
+    subtitle: "直播话术、答疑与承接草案"
   },
   {
     capabilityId: "live_review",
     icon: "复",
-    title: "招商直播复盘",
-    subtitle: "固定调用招商直播复盘 Skill"
+    title: "直播复盘系统",
+    subtitle: "真实直播流量、承接与话术复盘"
   }
 ] as const;
 
@@ -407,6 +439,13 @@ const STORE_ACQUISITION_SYSTEM_ENTRIES = [
   { capabilityId: "live_script", icon: "播", title: "门店直播系统", subtitle: "固定调用门店直播话术 Skill" },
   { capabilityId: "live_review", icon: "复", title: "门店直播复盘", subtitle: "固定调用门店直播复盘 Skill" }
 ] as const;
+
+const FOUNDER_TOPIC_TARGETS = {
+  fip_franchise: "franchise",
+  fip_store_visit: "store_visit",
+  fip_student_recruitment: "student",
+  fip_partner_recruitment: "partner"
+} as const;
 
 function isAcquisitionWorkspace(slug: string): boolean {
   return slug === "acquisition" || slug === "store-acquisition";
@@ -914,6 +953,8 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
     const requested = new URLSearchParams(window.location.search).get("system") ?? "";
     return acquisitionSystemEntriesFor(slug).some((entry) => entry.capabilityId === requested) ? requested : "";
   }, [slug]);
+  const initialFounderIpContentDraftId = useMemo(() => isAcquisitionWorkspace(slug) ? new URLSearchParams(window.location.search).get("fipDraft") ?? undefined : undefined, [slug]);
+  const requestedFounderIpSubjectId = useMemo(() => isAcquisitionWorkspace(slug) ? new URLSearchParams(window.location.search).get("fipSubject") ?? undefined : undefined, [slug]);
   const initialTaskStateRef = useRef<AgentWorkspaceTaskState | null>(null);
   if (!initialTaskStateRef.current) initialTaskStateRef.current = readAgentTaskState(slug, deviceScope);
   const initialTaskState = initialTaskStateRef.current;
@@ -921,6 +962,11 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
   const [agent, setAgent] = useState<AgentView | null>(null);
   const [selected, setSelected] = useState(requestedAcquisitionSystem || (initialActiveTask?.capabilityId ?? inferTaskCapabilityFromMessages(initialActiveTask?.messages ?? [])));
   const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>(requestedAcquisitionSystem ? [requestedAcquisitionSystem] : []);
+  const [founderTopicTarget, setFounderTopicTarget] = useState<"franchise" | "store_visit" | "student" | "partner" | undefined>();
+  const [founderIpContentDraftId, setFounderIpContentDraftId] = useState<string | undefined>(initialFounderIpContentDraftId);
+  const [fipContentGenerating, setFipContentGenerating] = useState(false);
+  const [fipGeneratedContent, setFipGeneratedContent] = useState("");
+  const [fipContentGenerationError, setFipContentGenerationError] = useState("");
   const [input, setInput] = useState(initialActiveTask?.draft.content ?? "");
   const [tasks, setTasks] = useState<AgentWorkspaceTask[]>(initialTaskState.tasks);
   const [activeTaskId, setActiveTaskId] = useState(initialTaskState.activeTaskId);
@@ -961,6 +1007,7 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
   const isJumpingToLatestRef = useRef(false);
   const jumpToLatestTimerRef = useRef<number | undefined>(undefined);
   const requestAbortRef = useRef<Map<string, AbortController>>(new Map());
+  const fipContentAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!agent) return;
@@ -968,8 +1015,8 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
       const systemId = requestedAcquisitionSystem || selectedSkillIds[0] || selected;
       const systemTitle = acquisitionSystemEntriesFor(slug).find((entry) => entry.capabilityId === systemId)?.title;
       document.title = systemTitle
-        ? `${systemTitle}｜${isFranchiseAgent ? "思潼·品牌招商智能体" : "思潼·门店获客智能体"}`
-        : isFranchiseAgent ? "思潼·品牌招商智能体" : "思潼·门店获客智能体";
+        ? `${systemTitle}｜${isFranchiseAgent ? "思潼·创始人IP获客系统" : "思潼·门店获客智能体"}`
+        : isFranchiseAgent ? "思潼·创始人IP获客系统" : "思潼·门店获客智能体";
       return;
     }
     document.title = tenantAgentDisplayName(agent.slug, customerAgentName(agent.name), tenantBranding);
@@ -982,8 +1029,21 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
   const activeCustomerProfile = tasks.find((task) => task.id === activeTaskId)?.customerProfile;
   const activeKnowledgeSubject = knowledgeSubjects.find((subject) => subject.id === activeKnowledgeSubjectId);
   useEffect(() => {
-    if (agent?.marketing?.workMap) setWorkMapOpen(true);
-  }, [agent?.marketing?.workMap?.id]);
+    if (!isFranchiseAgent || knowledgeSubjects.length === 0) return;
+    const defaultSubject = knowledgeSubjects.find((subject) => subject.isDefault) ?? knowledgeSubjects[0];
+    setTasks((current) => current.map((task) => task.id === activeTaskId && !knowledgeSubjects.some((subject) => subject.id === task.knowledgeSubjectId)
+      ? {
+          ...task,
+          knowledgeSubjectId: defaultSubject.id,
+          knowledgeDocumentIds: [],
+          customerProfile: mergeTaskCustomerProfile(task.customerProfile, { name: defaultSubject.name, industry: defaultSubject.industry }),
+          updatedAt: new Date().toISOString(),
+        }
+      : task));
+  }, [activeTaskId, isFranchiseAgent, knowledgeSubjects]);
+  useEffect(() => {
+    if (agent?.marketing?.workMap && !requestedAcquisitionSystem) setWorkMapOpen(true);
+  }, [agent?.marketing?.workMap?.id, requestedAcquisitionSystem]);
   useEffect(() => {
     if (!localStorage.getItem("store_os_token")) { loginFor(`/agents/${slug}`); return; }
     let cancelled = false;
@@ -1040,7 +1100,7 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
         setSelected("");
         if (!value.entitled) return;
         if (pendingTrial) return;
-        const pendingSubjectId = isAcquisitionWorkspace(slug) ? localStorage.getItem(`sitong_pending_acquisition_subject_${slug}`) ?? localStorage.getItem("sitong_pending_acquisition_subject") : null;
+        const pendingSubjectId = isAcquisitionWorkspace(slug) ? requestedFounderIpSubjectId ?? localStorage.getItem(`sitong_pending_acquisition_subject_${slug}`) ?? localStorage.getItem("sitong_pending_acquisition_subject") : null;
         if (pendingSubjectId) {
           const task = { ...createAgentWorkspaceTask([], undefined, undefined, undefined, deviceScope), knowledgeSubjectId: pendingSubjectId };
           setTasks((current) => [task, ...current]);
@@ -1048,8 +1108,10 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
           activeTaskIdRef.current = task.id;
           setMessages([]);
           setConversationId(undefined);
-          localStorage.removeItem(`sitong_pending_acquisition_subject_${slug}`);
-          localStorage.removeItem("sitong_pending_acquisition_subject");
+          if (!requestedFounderIpSubjectId) {
+            localStorage.removeItem(`sitong_pending_acquisition_subject_${slug}`);
+            localStorage.removeItem("sitong_pending_acquisition_subject");
+          }
           return;
         }
         const conversations = await fetch(apiPath(`/conversations?agentId=${encodeURIComponent(value.id)}&deviceScope=${deviceScope}`), { headers: authHeaders() })
@@ -1104,7 +1166,7 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [deviceScope, slug]);
+  }, [deviceScope, requestedFounderIpSubjectId, slug]);
   useEffect(() => {
     if (!taskMenuId) return;
     const closeTaskMenu = () => { setTaskMenuId(null); setDeletingTaskId(null); };
@@ -1228,6 +1290,11 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
   }
 
   function activateAcquisitionSystem(capabilityId: string): void {
+    const target = FOUNDER_TOPIC_TARGETS[capabilityId as keyof typeof FOUNDER_TOPIC_TARGETS];
+    if (slug === "acquisition" && target) {
+      setFounderTopicTarget(target);
+      capabilityId = "topic_inspiration";
+    }
     const isDefinedSystem = acquisitionSystemEntries.some((entry) => entry.capabilityId === capabilityId);
     if (!isDefinedSystem && !agent?.capabilities.some((item) => item.key === capabilityId)) return;
     setSelected(capabilityId);
@@ -1351,7 +1418,7 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
     }
   }
 
-  async function send(inputOverride?: string, displayOverride?: string, capabilityOverride?: string | string[], knowledgeDocumentIdsOverride?: string[], knowledgeSubjectIdOverride?: string) {
+  async function send(inputOverride?: string, displayOverride?: string, capabilityOverride?: string | string[], knowledgeDocumentIdsOverride?: string[], knowledgeSubjectIdOverride?: string, topicSystemRun = false, topicSourceSelection?: { industry: boolean; benchmark: boolean; transcript: boolean; videoReview: boolean }, founderIpTopicContext?: TopicSystemGenerationRequest) {
     const text = (inputOverride ?? input).trim();
     const displayText = (displayOverride ?? text).trim();
     if (!text || busy || claimingTrial || !agent) return;
@@ -1419,9 +1486,23 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
           requestId: crypto.randomUUID(),
            input: text,
            routingInput: displayText,
-           capabilityId: capabilityId || undefined,
-           capabilityIds: requestCapabilityIds.length > 1 ? requestCapabilityIds : undefined,
+          capabilityId: capabilityId || undefined,
+          capabilityIds: requestCapabilityIds.length > 1 ? requestCapabilityIds : undefined,
           capabilitySelectionMode: explicitCapabilityIds.length > 0 || Boolean(pinnedTaskCapability) ? "explicit" : "auto",
+          topicSystemRun: topicSystemRun || undefined,
+          topicSourceSelection: topicSystemRun ? topicSourceSelection : undefined,
+          founderIpTopicContext: topicSystemRun && founderIpTopicContext ? {
+            subjectId: founderIpTopicContext.subjectId,
+            target: founderIpTopicContext.target,
+            identity: founderIpTopicContext.identity,
+            targetCustomer: founderIpTopicContext.targetCustomer,
+            acquisitionGoal: founderIpTopicContext.acquisitionGoal,
+            offer: founderIpTopicContext.offer || undefined,
+            accountStage: founderIpTopicContext.accountStage || undefined,
+            industry: founderIpTopicContext.industry,
+            benchmarkAccounts: founderIpTopicContext.benchmarkAccounts,
+            videoReviewId: founderIpTopicContext.videoReview?.id
+          } : undefined,
           conversationId: taskConversationId,
           deviceScope,
           history: taskHistory,
@@ -1511,6 +1592,7 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
 
   function stopGeneration(): void {
     requestAbortRef.current.get(activeTaskId)?.abort();
+    fipContentAbortRef.current?.abort();
   }
 
   function regenerateLastRun(): void {
@@ -1540,8 +1622,13 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
     placeholder: undefined,
     capabilityId: agent.knowledgeAction?.capabilityId
   };
-  const lastTopicRequestIndex = messages.reduce((latest, message, index) => message.role === "user" && /选题系统四源运行|从四大来源生成选题/.test(message.content) ? index : latest, -1);
-  const latestTopicResult = lastTopicRequestIndex >= 0
+  const lastTopicRequestIndex = messages.reduce((latest, message, index) => message.role === "user" && /选题系统四源运行|从四大来源生成(?:创始人\s*IP\s*)?选题/.test(message.content) ? index : latest, -1);
+  const localFipE2eScenario = import.meta.env.DEV && ["localhost", "127.0.0.1"].includes(window.location.hostname)
+    ? new URLSearchParams(window.location.search).get("fipE2eScenario")
+    : null;
+  const latestTopicResult = localFipE2eScenario === "success"
+    ? FIP_LOCAL_BEAUTY_TOPIC_FIXTURE
+    : lastTopicRequestIndex >= 0
     ? messages.slice(lastTopicRequestIndex + 1).find((message) => message.role === "assistant")?.content
     : undefined;
   const topicSystemTurns: TopicSystemTurn[] = messages.reduce<TopicSystemTurn[]>((turns, message, index) => {
@@ -1550,9 +1637,15 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
     return turns;
   }, []);
   const lastContentGenerationRequestIndex = messages.reduce((latest, message, index) => message.role === "user" && /内容系统[｜|]批量内容生成/.test(message.content) ? index : latest, -1);
-  const latestContentResult = lastContentGenerationRequestIndex >= 0
+  const latestContentMessage = lastContentGenerationRequestIndex >= 0
     ? messages.slice(lastContentGenerationRequestIndex + 1).find((message) => message.role === "assistant")?.content
     : undefined;
+  const latestContentGenerationError = latestContentMessage && /本次分析超过120秒|服务暂时忙|已停止本次生成|请求失败/.test(latestContentMessage)
+    ? latestContentMessage
+    : undefined;
+  const latestContentResult = latestContentGenerationError ? undefined : latestContentMessage;
+  const currentContentResult = founderIpContentDraftId ? fipGeneratedContent || undefined : latestContentResult;
+  const currentContentGenerationError = founderIpContentDraftId ? fipContentGenerationError || undefined : latestContentGenerationError;
   const contentSystemTurns: ContentSystemTurn[] = messages.reduce<ContentSystemTurn[]>((turns, message, index) => {
     if (message.role !== "user" || !message.content.startsWith("【Content System｜Refinement】")) return turns;
     turns.push({ question: message.content.replace("【Content System｜Refinement】", "").trim(), answer: messages.slice(index + 1).find((item) => item.role === "assistant")?.content });
@@ -1626,38 +1719,46 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
     navigate("/agents/clipper");
   }
 
-  function runTopicSystem(request: TopicSystemGenerationRequest): void {
-    const scopeRule = request.mode === "franchise"
-      ? "【品牌招商边界】只生成品牌招商加盟相关选题。目标对象是加盟商，不得生成门店到店、团购券、消费者优惠、核销、菜品促销或门店复购内容。"
-      : "【门店获客边界】只生成门店本地消费者相关选题，可围绕团购、到店与复购；不得生成招商加盟、加盟商招募或品牌考察内容。";
+  async function runTopicSystem(request: TopicSystemGenerationRequest): Promise<void> {
+    setFounderTopicTarget(request.target);
+    const targetRules = {
+      franchise: "【招商加盟边界】目标对象是加盟商，不得生成团购到店、学员报名或合作方招募内容。",
+      store_visit: "【C端团购到店边界】目标对象是本地消费者，可围绕团购、到店与复购；不得生成招商加盟、学员报名或合作方招募内容。",
+      student: "【学员招募边界】目标对象是潜在学员，可围绕咨询、试听、说明会与报名；不得生成加盟、团购核销或合作签署承诺。",
+      partner: "【合作方招募边界】目标对象是渠道、联营或城市合作方，可围绕资格判断与洽谈；不得把普通私信、加盟线索或学员报名写成合作达成。"
+    } as const;
+    const targetLabels = { franchise: "招商加盟", store_visit: "C端团购到店", student: "学员招募", partner: "合作方招募" } as const;
+    const scopeRule = targetRules[request.target];
+    const targetLabel = targetLabels[request.target];
     const profileSubject = tenantProfile?.tenantName?.trim();
     const subjectLabel = activeKnowledgeSubject?.name
       || activeCustomerProfile?.name
       || (profileSubject && !/^(?:演示|demo)/i.test(profileSubject) ? profileSubject : "本轮主体待确认");
-    const benchmarkSource = request.benchmarkAccounts.length
+    const benchmarkSource = request.sourceSelection.benchmark && request.benchmarkAccounts.length
       ? request.benchmarkAccounts.map((item, index) => `${index + 1}. ${item}`).join("\n")
       : "待补：本轮没有填写对标账号，不得虚构账号或作品。";
-    const recordingSource = request.transcriptDocumentIds.length
+    const recordingSource = request.sourceSelection.transcript && request.transcriptDocumentIds.length
       ? `已选择 ${request.transcriptDocumentIds.length} 条得到大脑录音转写，必须从本次知识资料中提炼真实观点、故事、案例、痛点和口头表达。`
       : "待补：当前没有可用录音转写，不得编造IP原话、案例或经历。";
-    const reviewSource = request.videoReview
+    const reviewSource = request.sourceSelection.videoReview && request.videoReview
       ? [`复盘名称：${request.videoReview.title}`, `复盘时间：${request.videoReview.createdAt}`, "复盘正文：", request.videoReview.content.slice(0, 6_000)].join("\n")
       : "待补：还没有视频数据复盘结果，不得虚构播放、完播、互动、私信或成交数据。";
     const prompt = [
       "【选题系统自动运行】【选题系统四源运行】",
       `本轮服务主体：${subjectLabel}`,
-      `【本轮${request.mode === "franchise" ? "招商" : "门店获客"} Brief】`,
-      `${request.mode === "franchise" ? "品牌/项目名称" : "门店/项目名称"}：${request.identity}`,
-      `${request.mode === "franchise" ? "目标加盟商" : "目标消费者"}：${request.targetCustomer}`,
-      `本轮${request.mode === "franchise" ? "招商" : "门店获客"}目标：${request.acquisitionGoal}`,
-      `${request.mode === "franchise" ? "招商主推产品/加盟模型" : "主推产品/团购套餐"}：${request.offer || "待补；不得虚构产品、价格或承诺。"}`,
-      `${request.mode === "franchise" ? "招商账号与内容阶段" : "门店账号与内容阶段"}：${request.accountStage || "待补；默认按首轮测试处理。"}`,
+      "【本轮创始人IP获客目标简报】",
+      `获客目标：${targetLabel}`,
+      `创始人身份/项目：${request.identity}`,
+      `目标人群：${request.targetCustomer}`,
+      `本轮线索目标：${request.acquisitionGoal}`,
+      `主推项目/真实承接：${request.offer || "待补；不得虚构产品、价格或承诺。"}`,
+      `账号与内容阶段：${request.accountStage || "待补；默认按首轮测试处理。"}`,
       `本轮明确行业：${request.industry}`,
       scopeRule,
       "请固定调用选题系统 Skill（topic_inspiration / baolu_topics），只生成选题，不展开完整文案。",
       "",
       "【来源一｜行业热点】",
-      `围绕“${request.industry}”检索和核验近期行业变化、用户问题与可用内容机会。无法核验时间或来源时必须标记待核验。`,
+      request.sourceSelection.industry ? `围绕“${request.industry}”检索和核验近期行业变化、用户问题与可用内容机会。无法核验时间或来源时必须标记待核验。` : "本轮未选择，不得检索或使用行业热点。",
       "",
       "【来源二｜对标账号】",
       benchmarkSource,
@@ -1666,15 +1767,15 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
       "【来源三｜AI录音卡】",
       recordingSource,
       "",
-      "【来源四｜视频数据复盘】",
+      "【来源四｜自己账号真实数据复盘】",
       reviewSource,
       "",
       "先从四个来源分别形成候选，再去重合并为16至20条内部候选；随后通过三关筛选：1. 目标用户是否愿意看，并写明证据状态；2. 共识层级与客资精准度；3. 账号阶段配比。最终输出10条可测试选题，并标明每条使用了哪些来源。",
       "来源不足不能用占位框架冒充结果，也不能瞎补事实；已有来源足够时直接完成第一版。禁止四维评分和综合分。"
     ].join("\n");
-    const display = `从四大来源生成${request.mode === "franchise" ? "招商" : "门店"}选题\n${request.mode === "franchise" ? "品牌/项目" : "门店/项目"}：${request.identity}\n${request.mode === "franchise" ? "目标加盟商" : "目标消费者"}：${request.targetCustomer}\n本轮目标：${request.acquisitionGoal}\n行业：${request.industry}\n对标账号：${request.benchmarkAccounts.length ? request.benchmarkAccounts.join("、") : "待补"}\nAI录音卡：${request.transcriptDocumentIds.length} 条转写\n视频数据复盘：${request.videoReview ? "已回流" : "待补"}`;
+    const display = `从四大来源生成创始人IP选题\n获客目标：${targetLabel}\n身份/项目：${request.identity}\n目标人群：${request.targetCustomer}\n本轮线索目标：${request.acquisitionGoal}\n行业：${request.industry}\n对标账号：${request.benchmarkAccounts.length ? request.benchmarkAccounts.join("、") : "待补"}\nAI录音卡：${request.transcriptDocumentIds.length} 条转写\n自己账号真实数据复盘：${request.videoReview ? "已回流" : "待补"}`;
     setActiveKnowledgeDocumentIds(request.transcriptDocumentIds);
-    void send(prompt, display, "topic_inspiration", request.transcriptDocumentIds);
+    return send(prompt, display, "topic_inspiration", request.transcriptDocumentIds, request.subjectId, true, request.sourceSelection, request);
   }
 
   function refineTopics(question: string): void {
@@ -1686,8 +1787,17 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
     void send(prompt, `选题系统微调\n${question}`, "topic_inspiration", activeKnowledgeDocumentIds);
   }
 
-  function runContentSystem(topics: string[]): void {
+  function runContentSystem(topics: string[], selection?: FounderIpContentSelection): void {
     if (topics.length === 0) return;
+    const fipDraftId = founderIpContentDraftId;
+    if (selection || fipDraftId) {
+      if (!fipDraftId) {
+        setFipContentGenerationError("当前内容草稿尚未创建，请返回选题系统重新选择。");
+        return;
+      }
+      void generateFounderIpContentDraft(fipDraftId);
+      return;
+    }
     const profileSubject = tenantProfile?.tenantName?.trim();
     const subjectLabel = activeKnowledgeSubject?.name
       || activeCustomerProfile?.name
@@ -1708,6 +1818,56 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
     ].join("\n");
     const display = `【内容系统｜批量内容生成】\n已选 ${topics.length} 个选题：\n${topics.map((topic, index) => `${index + 1}. ${topic}`).join("\n")}`;
     void send(prompt, display, "content_plan");
+  }
+
+  async function generateFounderIpContentDraft(draftId: string): Promise<void> {
+    if (fipContentGenerating) return;
+    const controller = new AbortController();
+    fipContentAbortRef.current = controller;
+    setFipContentGenerating(true);
+    setFipContentGenerationError("");
+    setFipGeneratedContent("");
+    try {
+      const e2eScenario = import.meta.env.DEV && ["localhost", "127.0.0.1"].includes(window.location.hostname)
+        ? new URLSearchParams(window.location.search).get("fipE2eScenario")
+        : null;
+      if (e2eScenario === "failure") {
+        await new Promise(resolve => window.setTimeout(resolve, 80));
+        throw new Error("受控失败：请稍后重试。");
+      }
+      if (e2eScenario === "cancel") {
+        await new Promise<void>((_resolve, reject) => {
+          const abort = () => reject(new DOMException("Aborted", "AbortError"));
+          if (controller.signal.aborted) abort();
+          else controller.signal.addEventListener("abort", abort, { once: true });
+        });
+      }
+      const response = await fetch(apiPath(`/agents/${slug}/founder-ip-content-drafts/${encodeURIComponent(draftId)}/generate`), {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({ requestId: crypto.randomUUID(), deviceScope })
+      });
+      const data = await readJson<{ content?: string; message?: string }>(response);
+      if (!response.ok || !data.content?.trim()) throw new Error(data.message || "内容生成失败，请稍后重试。");
+      setFipGeneratedContent(data.content);
+    } catch (error) {
+      const message = error instanceof Error && error.name === "AbortError"
+        ? "已停止本次内容生成。"
+        : error instanceof Error ? error.message : "内容生成失败，请稍后重试。";
+      setFipContentGenerationError(message);
+    } finally {
+      if (fipContentAbortRef.current === controller) fipContentAbortRef.current = null;
+      setFipContentGenerating(false);
+    }
+  }
+
+  async function openFounderIpContentDraft(selection: FounderIpContentSelection): Promise<void> {
+    const response = await fetch(apiPath(`/agents/${slug}/founder-ip-content-drafts`), { method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify(selection) });
+    const data = await readJson<{ draft: { id: string } }>(response);
+    setFounderTopicTarget(selection.target); setFounderIpContentDraftId(data.draft.id); setSelected("content_plan"); setSelectedSkillIds(["content_plan"]);
+    const destination = new URL(window.location.href); destination.searchParams.set("system", "content_plan"); destination.searchParams.set("fipDraft", data.draft.id); window.history.pushState({ acquisitionSystem: "content_plan", fipDraft: data.draft.id }, "", destination);
+    void generateFounderIpContentDraft(data.draft.id);
   }
 
   function trafficCapabilities(mode: TrafficMode): Array<"paid_traffic" | "dou_plus_traffic"> {
@@ -1837,7 +1997,7 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
         <button className="agentBrand" onClick={() => navigate("/my-ai")}><AgentAvatar agent={agent} branding={tenantBranding} /><strong>{displayedAgentName}</strong></button>
         <button className="newAgentTaskButton" type="button" onClick={startNewConversation}><span>＋</span>新建任务</button>
         {agent.marketing?.workMap && <button className="knowledgeSidebarButton workMapSidebarButton" type="button" onClick={() => setWorkMapOpen(true)}><span>图</span><div><strong>{agent.slug === "takeaway-growth" ? "任务地图" : "工作地图"}</strong><small>{agent.slug === "takeaway-growth" ? "按数据、诊断、实验与复盘进入" : "查看业务路径、分支和复盘回流"}</small></div></button>}
-        {agent.knowledgeAction?.enabled && <button className={`knowledgeSidebarButton ${activeKnowledgeDocumentIds.length ? "active" : ""}`} type="button" onClick={() => setKnowledgeDrawerOpen(true)}><span>◉</span><div><strong>经营资料库</strong><small>{activeKnowledgeDocumentIds.length ? `当前任务已选 ${activeKnowledgeDocumentIds.length} 条` : "选择资料让智能体分析"}</small></div></button>}
+        {agent.slug !== "acquisition" && agent.knowledgeAction?.enabled && <button className={`knowledgeSidebarButton ${activeKnowledgeDocumentIds.length ? "active" : ""}`} type="button" onClick={() => setKnowledgeDrawerOpen(true)}><span>◉</span><div><strong>经营资料库</strong><small>{activeKnowledgeDocumentIds.length ? `当前任务已选 ${activeKnowledgeDocumentIds.length} 条` : "选择资料让智能体分析"}</small></div></button>}
         {automationAction?.enabled && <button className="knowledgeSidebarButton automationSidebarButton" type="button" onClick={() => setAutomationDrawerOpen(true)}><span>⏱</span><div><strong>自动化</strong><small>让当前智能体按计划自动工作</small></div></button>}
         {isAcquisitionAgent && <nav className="acquisitionSystemNav" aria-label="获客系统板块">
           {acquisitionSystemEntries.map((entry) => <button
@@ -1848,7 +2008,7 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
             onClick={() => activateAcquisitionSystem(entry.capabilityId)}
           ><span>{entry.icon}</span><div><strong>{entry.title}</strong><small>{entry.subtitle}</small></div></button>)}
         </nav>}
-        {isAcquisitionAgent && <button className={`customerProfileSidebarButton ${activeKnowledgeSubject?.name || activeCustomerProfile?.name ? "active" : ""}`} type="button" onClick={() => setCustomerSubjectPickerOpen(true)}><span>客</span><div><strong>当前客户资料</strong><small>{activeKnowledgeSubject?.name ? `${activeKnowledgeSubject.name} · ${activeKnowledgeSubject.documentCount ?? 0} 条资料` : activeCustomerProfile?.name ? `${activeCustomerProfile.name}${activeCustomerProfile.city ? ` · ${activeCustomerProfile.city}` : ""}` : "点击选择已有客户或新增客户"}</small></div></button>}
+        {isAcquisitionAgent && agent.slug !== "acquisition" && <button className={`customerProfileSidebarButton ${activeKnowledgeSubject?.name || activeCustomerProfile?.name ? "active" : ""}`} type="button" onClick={() => setCustomerSubjectPickerOpen(true)}><span>客</span><div><strong>当前客户资料</strong><small>{activeKnowledgeSubject?.name ? `${activeKnowledgeSubject.name} · ${activeKnowledgeSubject.documentCount ?? 0} 条资料` : activeCustomerProfile?.name ? `${activeCustomerProfile.name}${activeCustomerProfile.city ? ` · ${activeCustomerProfile.city}` : ""}` : "点击选择已有客户或新增客户"}</small></div></button>}
         {isAcquisitionAgent && <button className="clipperSidebarButton" type="button" onClick={sendCurrentTaskToClipper}><span>🎬</span><div><strong>发送到自由组片</strong><small>携带当前任务摘要，进入独立剪辑工作台</small></div></button>}
         <section className="agentTaskList">
           <div className="agentTaskListHeader"><span>任务 · {deviceScope === "desktop" ? "电脑端" : "手机端"}</span><small>{orderedTasks.length}</small></div>
@@ -1900,15 +2060,16 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
           <span>{whiteLabelAcquisition ? "企业品牌获客工作台" : whiteLabelTakeaway ? `${tenantBranding.brandName}专属外卖增长工作台` : agent.marketing?.method ?? "智能体能力"}</span>
           <p>{whiteLabelTakeaway ? "当前空间只使用本企业的门店、经营资料和指标口径；先选老店或新店，再进入诊断—实验—执行—反馈—复盘闭环。" : "直接描述任务，智能体会自动选择并组合技能；也可以在输入框里手动指定。"}</p>
         </section>
-        <div className="sidebarBottom"><button onClick={() => navigate("/enterprise-knowledge-base")}>企业知识库</button><button onClick={() => navigate("/my-ai")}>我的智能体</button><button onClick={() => navigate("/account")}>企业账户</button></div>
+        <div className="sidebarBottom">{agent.slug !== "acquisition" && <button onClick={() => navigate("/enterprise-knowledge-base")}>企业知识库</button>}<button onClick={() => navigate("/my-ai")}>我的智能体</button><button onClick={() => navigate("/account")}>企业账户</button></div>
       </aside>
       <main className="agentChatArea">
-          <header><div><span>{activeAcquisitionSystem ? `${activeAcquisitionSystem.title} · MCP 直连` : whiteLabelAcquisition ? "企业品牌获客工作台" : whiteLabelTakeaway ? "专属外卖增长工作台" : agent.marketing?.method ?? "连锁品牌增长工作空间"}</span><h1>{displayedAgentName}</h1></div><div className="agentHeaderActions">{activeKnowledgeDocumentIds.length > 0 && <button className="knowledgeActivePill" onClick={() => setKnowledgeDrawerOpen(true)}>已选 {activeKnowledgeDocumentIds.length} 条经营资料</button>}<span className={`autoRoutingPill ${activeAcquisitionSystem || agent.slug === "takeaway-growth" ? "locked" : ""}`}>{agent.slug === "takeaway-growth" ? "五步工作台 · 模块固定" : activeAcquisitionSystem ? `${activeAcquisitionSystem.title} · 固定 Skill` : selectedSkillIds.length > 0 ? `已指定 ${selectedSkillIds.length} 个技能` : "自动编排技能"}</span><button className="ghostButton" onClick={startNewConversation}>{agent.slug === "takeaway-growth" ? "新一轮" : "新对话"}</button>{busy && <button className="ghostButton stopGenerationButton" onClick={stopGeneration}>停止生成</button>}{!busy && lastRun && <button className="ghostButton" onClick={regenerateLastRun}>重新生成</button>}</div></header>
+          <header><div><span>{activeAcquisitionSystem ? `${activeAcquisitionSystem.title} · MCP 直连` : whiteLabelAcquisition ? "企业品牌获客工作台" : whiteLabelTakeaway ? "专属外卖增长工作台" : agent.marketing?.method ?? "连锁品牌增长工作空间"}</span><h1>{displayedAgentName}</h1></div><div className="agentHeaderActions">{agent.slug !== "acquisition" && activeKnowledgeDocumentIds.length > 0 && <button className="knowledgeActivePill" onClick={() => setKnowledgeDrawerOpen(true)}>已选 {activeKnowledgeDocumentIds.length} 条经营资料</button>}<span className={`autoRoutingPill ${activeAcquisitionSystem || agent.slug === "takeaway-growth" ? "locked" : ""}`}>{agent.slug === "takeaway-growth" ? "五步工作台 · 模块固定" : activeAcquisitionSystem ? `${activeAcquisitionSystem.title} · 固定 Skill` : selectedSkillIds.length > 0 ? `已指定 ${selectedSkillIds.length} 个技能` : "自动编排技能"}</span><button className="ghostButton" onClick={startNewConversation}>{agent.slug === "takeaway-growth" ? "新一轮" : "新对话"}</button>{busy && <button className="ghostButton stopGenerationButton" onClick={stopGeneration}>停止生成</button>}{!busy && lastRun && <button className="ghostButton" onClick={regenerateLastRun}>重新生成</button>}</div></header>
         <div className="productMessagesViewport">
           <section className={`productMessages ${acquisitionSystemWorkbenchActive ? "topicSystemMessages" : ""}`} ref={productMessagesRef} onScroll={handleMessagesScroll} aria-label={topicSystemActive ? "选题系统工作台与生成结果" : contentSystemActive ? "内容系统工作台与生成结果" : videoReviewSystemActive ? "视频复盘系统工作台与复盘结果" : liveScriptSystemActive ? "直播系统工作台与话术输出" : liveReviewSystemActive ? "直播复盘系统工作台与复盘结果" : agent.slug === "takeaway-growth" ? "外卖增长工作台与交付结果" : "对话消息"}>
           {topicSystemActive ? <TopicSystemWorkbench
             agentSlug={agent.slug}
-            mode={isFranchiseAgent ? "franchise" : "store"}
+            mode={isFranchiseAgent ? "founder" : "store"}
+            initialTarget={isFranchiseAgent ? founderTopicTarget : undefined}
             key={`${activeTaskId}:${activeKnowledgeSubjectId ?? "enterprise"}`}
             headers={authHeaders()}
             deviceScope={deviceScope}
@@ -1923,19 +2084,23 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
             turns={topicSystemTurns}
             onGenerate={runTopicSystem}
             onAsk={refineTopics}
-            onOpenKnowledge={() => setKnowledgeDrawerOpen(true)}
+            onOpenContentSystem={openFounderIpContentDraft}
             onOpenVideoReview={() => {
               activateAcquisitionSystem("video_review");
               setInput(capabilityPromptExample("video_review"));
             }}
             onChooseSubject={() => setCustomerSubjectPickerOpen(true)}
             onBackToMap={() => setWorkMapOpen(true)}
+            localFixture={Boolean(localFipE2eScenario)}
           /> : contentSystemActive ? <ContentSystemWorkbench
-            busy={busy || claimingTrial}
-            result={latestContentResult}
+            busy={busy || claimingTrial || fipContentGenerating}
+            result={currentContentResult}
+            generationError={currentContentGenerationError}
             videoResult={latestContentVideoResult}
             turns={contentSystemTurns}
             headers={authHeaders()}
+            agentSlug={agent.slug}
+            fipDraftId={founderIpContentDraftId}
             onGenerate={runContentSystem}
             onAsk={refineContent}
             onStop={stopGeneration}
@@ -1944,6 +2109,8 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
               setContentVideoUploadSignal((value) => value + 1);
             }}
             onBackToMap={() => setWorkMapOpen(true)}
+            onBackToTopics={() => { setSelected("topic_inspiration"); setSelectedSkillIds(["topic_inspiration"]); const destination = new URL(window.location.href); destination.searchParams.set("system", "topic_inspiration"); destination.searchParams.delete("fipDraft"); window.history.pushState({ acquisitionSystem: "topic_inspiration" }, "", destination); }}
+            onOpenTrafficPreview={() => { setSelected("paid_traffic"); setSelectedSkillIds(["paid_traffic"]); const destination = new URL(window.location.href); destination.searchParams.set("system", "paid_traffic"); destination.searchParams.delete("fipDraft"); window.history.pushState({ acquisitionSystem: "paid_traffic" }, "", destination); }}
           /> : paidTrafficSystemActive ? <PaidTrafficWorkbench
             busy={busy || claimingTrial}
             questionResult={latestTrafficQuestionResult}
@@ -2002,7 +2169,7 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
               <span className="welcomeEyebrow">{agent.slug === "ceo-cockpit" ? "老板经营闭环 · 推 看 决 令" : agent.slug === "takeaway-growth" ? "外卖订单与利润 · 诊断到实验" : agent.slug === "restaurant-growth" ? "餐饮四场景 · 诊断到执行" : "统一对话 · 自动调用专业技能"}</span>
               <h2>{agent.slug === "ceo-cockpit" ? <>今天公司怎么样？<br />先看什么、决定什么？</> : agent.slug === "takeaway-growth" ? <>今天先做老店增长，<br />还是新店突破？</> : agent.slug === "restaurant-growth" ? <>今天先解决哪类<br />餐饮增长问题？</> : whiteLabelAcquisition ? <>今天想让{tenantBranding.brandName}<br />帮你完成什么？</> : <>今天想让{agent.slug === "sales" ? "销售智能体" : "增长智能体"}<br />帮你完成什么？</>}</h2>
               <p>{agent.marketing?.tagline ?? "直接说目标即可。一个问题里可以同时要短视频文案、直播话术、朋友圈和复盘方案。"}</p>
-              {agent.slug === "acquisition" && <section className="welcomeCustomerSelector" aria-label="选择当前客户">
+              {agent.slug === "acquisition" && !isFranchiseAgent && <section className="welcomeCustomerSelector" aria-label="选择当前客户">
                 <div><span>当前任务服务客户</span><strong>{activeKnowledgeSubject?.name ?? activeCustomerProfile?.name ?? "尚未选择客户"}</strong><small>{activeKnowledgeSubject ? `${activeKnowledgeSubject.typeLabel ?? "客户项目"} · 已归属 ${activeKnowledgeSubject.documentCount ?? 0} 条资料，执行时按资料权限自动调用` : "先选择客户，可避免把不同项目的资料混在一起。"}</small></div>
                 <div><button type="button" onClick={() => setCustomerSubjectPickerOpen(true)}>选择已有客户</button><button type="button" className="primary" onClick={() => navigate(`/knowledge-base?mode=create&subjectType=client_project&returnTo=${encodeURIComponent(`/agents/${slug}`)}`)}>＋ 新增客户</button></div>
               </section>}
@@ -2171,7 +2338,7 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
             knowledgeSubject={activeKnowledgeSubject}
             onOpenKnowledge={() => setKnowledgeDrawerOpen(true)}
           />}
-      {agent.slug === "acquisition" && <CustomerSubjectPicker
+      {agent.slug === "acquisition" && !isFranchiseAgent && <CustomerSubjectPicker
         open={customerSubjectPickerOpen}
         subjects={knowledgeSubjects}
         selectedSubjectId={activeKnowledgeSubjectId}
@@ -2478,6 +2645,23 @@ function RecordingKnowledgeDrawer({
   }, [open, selectedSubjectId]);
 
   useEffect(() => {
+    if (!open || !getNoteConnection || syncing || !canManageConnection) return;
+    const controller = new AbortController();
+    let resumedActive = false;
+    void resumeKnowledgeSync(getNoteConnection.id, authHeaders(), (progress) => {
+      if (progress.status === "queued" || progress.status === "running") resumedActive = true;
+      if (resumedActive) {
+        setSyncing(progress.status === "queued" || progress.status === "running");
+        setNotice(progress.status === "succeeded" ? knowledgeSyncResultText(progress) : knowledgeSyncProgressText(progress));
+      }
+    }, controller.signal).then((result) => {
+      if (resumedActive && result?.status !== "succeeded") setError(knowledgeSyncResultText(result!));
+      if (resumedActive && result?.status === "succeeded") setPage(1);
+    }).catch((reason) => { if ((reason as { name?: string }).name !== "AbortError") setError(customerErrorMessage(reason, "同步状态恢复失败。")); });
+    return () => controller.abort();
+  }, [open, getNoteConnection?.id]);
+
+  useEffect(() => {
     if (!open) return;
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
@@ -2525,11 +2709,11 @@ function RecordingKnowledgeDrawer({
 
   async function syncConnection(connectionId = getNoteConnection?.id): Promise<void> {
     if (!connectionId) return;
-    setSyncing(true); setError(""); setNotice("正在同步最新录音文字…");
+    setSyncing(true); setError(""); setNotice("正在提交同步任务…");
     try {
-      const payload = await fetch(apiPath(`/knowledge-base/connections/${connectionId}/sync`), { method: "POST", headers: authHeaders() })
-        .then((response) => readJson<{ sync: { created: number; updated: number; skipped: number } }>(response));
-      setNotice(`同步完成：新增 ${payload.sync.created} 条，更新 ${payload.sync.updated} 条，跳过 ${payload.sync.skipped} 条。`);
+      const result = await runKnowledgeSync(connectionId, authHeaders(), (progress) => setNotice(knowledgeSyncProgressText(progress)), { subjectId: selectedSubjectId || undefined });
+      if (result.status !== "succeeded") throw new Error(knowledgeSyncResultText(result));
+      setNotice(knowledgeSyncResultText(result));
       setPage(1);
       const params = new URLSearchParams({ type, page: "1", limit: "50" });
       const refreshed = await fetch(apiPath(`/knowledge-base/documents?${params.toString()}`), { headers: authHeaders() })
@@ -2628,6 +2812,7 @@ function capabilityPromptExample(capabilityId: string): string {
     dine_in_growth: "请帮我诊断堂食到店增长。品牌/门店：【请填写】；城市/商圈：【请填写】；主推消费场景：【请填写】；当前问题：【请填写】。请拆解曝光、咨询、实际到店、消费和复购漏斗。",
     chain_store_growth: "请为【餐饮连锁品牌】设计门店增长方案。门店数量和城市：【请填写】；经营模型：【请填写】；当前问题：【请填写】。请先统一数据口径，再给样板店试点、总部动作和复制机制。",
     ip_positioning: "请基于当前企业知识库中已确认的资料，为我生成一份完整IP定位方案：明确项目定位、目标用户、IP人设、内容定位、方向规划、增长路径和执行建议；没有事实依据的内容标记【待确认】，不要虚构。",
+    baolu_ip_advisor: "我想问问保禄：我的创始人IP内容发得很散，应该先收窄目标人群，还是先固定一个内容支柱？请给我直接判断、判断依据、今天可执行的一步和待验证项。没有真实账号数据时请不要编造。",
     topic_inspiration: "点击选题系统后，系统会自动扫描AI录音卡、行业与用户热点、自身账号数据复盘、同行与对标内容，再通过目标用户兴趣证据、共识层级与客资精准度、账号阶段配比三关筛选，直接给出10条可测试选题。",
     industry_hotspots: "请联网分析当前企业所属行业的近期机会，给我3个今天能用的获客选题，并把最值得拍的1个写成完整逐字稿。如需切换行业，直接补充“行业：具体行业”。",
     content_plan: "帮我写一套短视频文案，包含选题、口播、拍摄脚本、发布标题和评论区承接。",
@@ -3412,7 +3597,9 @@ function composerCapability(capabilityId: string): AcquisitionComposerCapability
   if (capabilityId === "sales_growth_advisor") return "customer_diagnosis";
   if (capabilityId === "ip_positioning") return "ip_positioning";
   if (capabilityId === "topic_inspiration") return "topic_inspiration";
+  if (capabilityId === "baolu_ip_advisor") return "baolu_ip_advisor";
   if (capabilityId === "private_domain") return "private_domain";
+  if (["fip_franchise", "fip_store_visit", "fip_student_recruitment", "fip_partner_recruitment"].includes(capabilityId)) return capabilityId as AcquisitionComposerCapabilityId;
   if (capabilityId === "franchise_acquisition") return "franchise_acquisition";
   if (capabilityId === "content_plan") return "content_plan";
   if (capabilityId === "paid_traffic" || capabilityId === "dou_plus_traffic") return capabilityId;
@@ -3430,12 +3617,14 @@ function consultantForCapability(capabilityId: string): ConsultantId {
   if (capabilityId === "sales_growth_advisor") return "sales_growth_advisor";
   if (capabilityId === "ip_positioning") return "ip_positioning";
   if (capabilityId === "topic_inspiration") return "baolu_topics";
+  if (capabilityId === "baolu_ip_advisor") return "baolu_ip_advisor";
   if (capabilityId === "industry_hotspots") return "ai_daily_brief";
   if (capabilityId === "paid_traffic") return "optimize_local_push_ads";
   if (capabilityId === "dou_plus_traffic") return "dou_plus_ads";
   if (capabilityId === "video_review") return "baolu_review_engine";
   if (capabilityId === "live_script") return "live_script_planner";
   if (capabilityId === "live_review") return "baolu_live_review_engine";
+  if (["fip_franchise", "fip_store_visit", "fip_student_recruitment", "fip_partner_recruitment"].includes(capabilityId)) return "baolu_content_creator";
   if (capabilityId === "private_domain") return "moments_generator";
   if (["daily_push", "business_map", "decision_center", "command_center"].includes(capabilityId)) return "ceo-cockpit-analyst";
   if (["customer_diagnosis", "intent_temperature", "objection_reply", "follow_up_plan", "closing_script", "funnel_review"].includes(capabilityId)) return "sales_growth_advisor";
@@ -3448,9 +3637,9 @@ export function MyAiPage() {
   const owned = data?.agents ?? [];
   return (
     <main className="agentProductPage myAiPage">
-      <nav className="agentTopbar"><button className="agentBrand whiteLabelBrand" onClick={() => navigate("/my-ai")}><TenantBrandMark branding={tenantBranding} /></button><div><span className="creditPill">{data?.creditBalance ?? 0} 企业积分</span><button className="ghostButton" onClick={() => navigate("/knowledge-base")}>企业经营资料库</button><button className="ghostButton" onClick={() => navigate("/account")}>企业账户</button></div></nav>
+      <nav className="agentTopbar"><button className="agentBrand whiteLabelBrand" onClick={() => navigate("/my-ai")}><TenantBrandMark branding={tenantBranding} /></button><div><span className="creditPill">{!loading && !error ? data?.creditBalance ?? "—" : "—"} 企业积分</span><button className="ghostButton" onClick={() => navigate("/knowledge-base")}>企业经营资料库</button><button className="ghostButton" onClick={() => navigate("/account")}>企业账户</button></div></nav>
       <section className="myAiHero"><p className="agentKicker">思潼 AI 智能体工作台</p><h1>选择今天要进入的<br />专业工作地图</h1><p>每个智能体都有独立的业务路径、分支与复盘闭环；知识资产仍由企业统一管理。</p></section>
-      {loading ? <p className="agentNotice">正在加载已开通的智能体…</p> : <AgentCardGrid agents={owned} branding={tenantBranding} />}
+      {loading ? <p className="agentNotice">正在加载已开通的智能体…</p> : !error && <><AgentCardGrid agents={owned} branding={tenantBranding} />{!!data?.productEntries?.length && <section className="agentCardGrid" aria-label="其他已开通产品" style={{ marginTop: 20 }}>{data.productEntries.map(entry => <article className="agentProductCard owned" data-owned-product={entry.productCode} key={entry.productCode}><small>已开通产品</small><h2>{entry.name}</h2><p>{entry.description}</p><button className="primaryButton" onClick={() => navigate(entry.path)}>进入{entry.name}</button></article>)}</section>}{owned.length === 0 && !data?.productEntries?.length && <p className="agentNotice">暂无已开通的智能体，请联系服务团队核对开通状态。</p>}</>}
       {error && <p className="agentError">{error}</p>}
     </main>
   );
@@ -3517,10 +3706,14 @@ export function AccountCenterPage() {
     setWorkbuddyStatus("正在生成专属连接…");
     setWorkbuddyToken("");
     try {
+      const selectedAgent = data?.agents?.find((agent) => agent.id === workbuddyAgentId);
+      const payload = selectedAgent?.slug === "beauty-industry"
+        ? { productCode: "beauty-industry", label: workbuddyLabel }
+        : { agentId: workbuddyAgentId, label: workbuddyLabel };
       const value = await fetch(apiPath("/integrations/workbuddy/connections"), {
         method: "POST",
         headers: { ...authHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ agentId: workbuddyAgentId, label: workbuddyLabel })
+        body: JSON.stringify(payload)
       }).then((response) => readJson<WorkbuddyConnectionsResponse & { token: string; connection: WorkbuddyConnectionView }>(response));
       setWorkbuddyToken(value.token);
       setWorkbuddy((current) => ({
@@ -3531,6 +3724,26 @@ export function AccountCenterPage() {
       setWorkbuddyStatus("连接已生成。密钥只显示这一次，请立即复制到 WorkBuddy。");
     } catch (reason) {
       setWorkbuddyStatus(reason instanceof Error ? reason.message : "WorkBuddy 连接生成失败");
+    }
+  }
+
+  async function rotateWorkbuddyConnection(connectionId: string) {
+    if (!window.confirm("轮换后旧密钥会立即失效。确认生成新的只显示一次密钥？")) return;
+    setWorkbuddyStatus("正在轮换连接…");
+    setWorkbuddyToken("");
+    try {
+      const value = await fetch(apiPath(`/integrations/workbuddy/connections/${connectionId}/rotate`), {
+        method: "POST",
+        headers: authHeaders()
+      }).then((response) => readJson<WorkbuddyConnectionsResponse & { token: string; connection: WorkbuddyConnectionView }>(response));
+      setWorkbuddyToken(value.token);
+      setWorkbuddy((current) => current ? {
+        ...current,
+        connections: [value.connection, ...current.connections.map((item) => item.id === connectionId ? { ...item, status: "revoked" } : item)]
+      } : current);
+      setWorkbuddyStatus("连接已轮换。新密钥只显示这一次，旧密钥已失效。");
+    } catch (reason) {
+      setWorkbuddyStatus(reason instanceof Error ? reason.message : "轮换失败");
     }
   }
 
@@ -3733,7 +3946,7 @@ export function AccountCenterPage() {
         <div>
           <p className="agentKicker">WorkBuddy 调用思潼 AI</p>
           <h2>为当前账号生成专属 MCP 连接</h2>
-          <p>每个密钥只绑定当前用户、当前企业和一个已开通的智能体。WorkBuddy 不能修改租户身份，也不能绕过智能体权限和积分。</p>
+          <p>每个密钥只绑定当前用户、当前企业和一个已开通的智能体或行业产品包。美业行业产品只需一个连接即可发现获授权的多个获客工具；WorkBuddy 不能修改租户身份，也不能绕过产品权限和积分。</p>
         </div>
         <form onSubmit={createWorkbuddyConnection}>
           <label>连接名称<input maxLength={80} value={workbuddyLabel} onChange={(event) => setWorkbuddyLabel(event.target.value)} placeholder="例如：老板的 WorkBuddy" /></label>
@@ -3749,8 +3962,8 @@ export function AccountCenterPage() {
         </div>}
         <div className="workbuddyConnectionList">
           {workbuddy?.connections.length ? workbuddy.connections.map((connection) => <article key={connection.id} className={`workbuddyConnection status-${connection.status}`}>
-            <div><strong>{connection.label}</strong><span>{customerAgentName(connection.agent.name)}</span><code>{connection.tokenPrefix}</code></div>
-            <div><small>{connection.lastUsedAt ? `最近调用：${new Date(connection.lastUsedAt).toLocaleString()}` : `创建于：${new Date(connection.createdAt).toLocaleString()}`}</small><span>{connection.status === "active" ? "已启用" : "已撤销"}</span>{connection.status === "active" && <button className="ghostButton danger" type="button" onClick={() => void revokeWorkbuddyConnection(connection.id)}>撤销</button>}</div>
+            <div><strong>{connection.label}</strong><span>{connection.productCode === "beauty-industry" ? "美业行业 MCP 产品包" : customerAgentName(connection.agent.name)}</span><code>{connection.tokenPrefix}</code>{connection.scopes?.length ? <small>{connection.scopes.length} 项已授权工具范围</small> : null}</div>
+            <div><small>{connection.lastUsedAt ? `最近调用：${new Date(connection.lastUsedAt).toLocaleString()}` : `创建于：${new Date(connection.createdAt).toLocaleString()}`}</small>{connection.expiresAt && <small>到期：{new Date(connection.expiresAt).toLocaleDateString()}</small>}<span>{connection.status === "active" ? "已启用" : "已撤销"}</span>{connection.status === "active" && <><button className="ghostButton" type="button" onClick={() => void rotateWorkbuddyConnection(connection.id)}>轮换密钥</button><button className="ghostButton danger" type="button" onClick={() => void revokeWorkbuddyConnection(connection.id)}>撤销</button></>}</div>
           </article>) : <p>还没有 WorkBuddy 连接。</p>}
         </div>
         <p className="brandingStatus" role="status">{workbuddyStatus}</p>
@@ -3922,7 +4135,7 @@ function inferTaskCapabilityFromMessages(messages: ProductMessage[]): string {
 function isAcquisitionTaskCapability(agent: AgentView, capabilityId: string): boolean {
   if (!capabilityId) return false;
   if (agent.capabilities.some((item) => item.key === capabilityId)) return true;
-  return ["franchise_acquisition", "industry_hotspots", "private_domain"].includes(capabilityId);
+  return ["fip_franchise", "fip_store_visit", "fip_student_recruitment", "fip_partner_recruitment", "franchise_acquisition", "industry_hotspots", "private_domain"].includes(capabilityId);
 }
 
 function readAgentTaskPreferences(slug: string, deviceScope: DeviceScope): Record<string, AgentTaskPreference> {

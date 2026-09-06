@@ -3,6 +3,7 @@ import { Prisma, prisma } from "@baolu/db";
 import type { DeviceScope } from "@baolu/shared";
 import type { RequestContext } from "./request-context.js";
 import type { ExecutionPlan, SkillResultEnvelope } from "./agent-orchestrator.js";
+import { settleCreditReservation, type ProductBillingContext } from "./credit-reservations.js";
 
 export class InsufficientCreditsError extends Error {
   constructor() {
@@ -39,6 +40,8 @@ export async function persistChatResult(params: {
   requestId?: string;
   requestFingerprint?: string;
   mcpCallId?: string;
+  billingContext?: ProductBillingContext;
+  billingReservationId?: string;
   routingSource?: "capability" | "agent_router" | "legacy";
   execution?: {
     plan: ExecutionPlan;
@@ -82,7 +85,7 @@ export async function persistChatResult(params: {
       const creditAccount = await tx.creditAccount.findUnique({
         where: { tenantId: params.context.tenantId }
       });
-      if (!creditAccount || creditAccount.balance < params.result.creditCost) {
+      if (!creditAccount || (!params.billingReservationId && creditAccount.balance < params.result.creditCost)) {
         throw new InsufficientCreditsError();
       }
 
@@ -156,6 +159,10 @@ export async function persistChatResult(params: {
           output: params.result.answer,
           qualityFlags: params.result.qualityFlags ?? null,
           modelProvider: params.provider.name,
+          productCode: params.billingContext?.productCode,
+          operatingEntityId: params.billingContext?.operatingEntityId,
+          usageChannel: params.billingContext?.channel,
+          mcpCredentialId: params.billingContext?.credentialId,
           creditCost: params.result.creditCost
         }
       });
@@ -189,22 +196,37 @@ export async function persistChatResult(params: {
         });
       }
 
-      const updatedAccount = await tx.creditAccount.update({
-        where: { id: creditAccount.id },
-        data: { balance: { decrement: params.result.creditCost } }
-      });
-      await tx.creditTransaction.create({
-        data: {
-          creditAccountId: creditAccount.id,
-          tenantId: params.context.tenantId,
-          userId: params.context.userId,
-          direction: "consume",
-          amount: params.result.creditCost,
-          reason: `agent:${params.agentId ?? "legacy"}:${params.result.skillId}`,
-          refType: "agent_run",
-          refId: agentRun.id
-        }
-      });
+      const updatedAccount = params.billingReservationId
+        ? await settleCreditReservation({
+            tx,
+            reservationId: params.billingReservationId,
+            actualAmount: params.result.creditCost,
+            agentRunId: agentRun.id
+          })
+        : await tx.creditAccount.update({
+            where: { id: creditAccount.id },
+            data: { balance: { decrement: params.result.creditCost } }
+          });
+      if (!params.billingReservationId) {
+        await tx.creditTransaction.create({
+          data: {
+            creditAccountId: creditAccount.id,
+            tenantId: params.context.tenantId,
+            userId: params.context.userId,
+            direction: "consume",
+            amount: params.result.creditCost,
+            reason: `agent:${params.agentId ?? "legacy"}:${params.result.skillId}`,
+            refType: "agent_run",
+            refId: agentRun.id,
+            productCode: params.billingContext?.productCode,
+            operatingEntityId: params.billingContext?.operatingEntityId,
+            channel: params.billingContext?.channel,
+            capabilityId: params.capabilityId,
+            mcpCredentialId: params.billingContext?.credentialId,
+            provider: params.provider.name
+          }
+        });
+      }
 
       return {
         conversationId: activeConversation.id,

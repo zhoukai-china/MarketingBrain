@@ -1,0 +1,19 @@
+{
+  "sha256": "df997146f3205e619734e3e596b7de098c3362d07adf45f99d5e9326d0e5f04c",
+  "detectorVersion": "beauty-image-safety-v2.9",
+  "status": "rejected",
+  "reasons": ["interface_or_watermark_like", "visible_text_or_brand_like"],
+  "rootCause": "unsupported_bright_ink_and_impure_glyph_sequences",
+  "diagnostics": {
+    "cornerComponentMode": "corner_bright_ink_layout",
+    "cornerReadableSequenceRecovered": false,
+    "cornerInkDensity": 0.135,
+    "cornerActiveColumnCoverage": 0.872,
+    "glyphCandidateSelectionMode": "highest_component_count",
+    "glyphReadableSequenceRecovered": false,
+    "glyphLikeRatio": 0.889,
+    "glyphMaximumComponentAspectRatio": 3,
+    "glyphBaselineDeviation": 2.543,
+    "glyphHeightVariation": 0.141
+  }
+}

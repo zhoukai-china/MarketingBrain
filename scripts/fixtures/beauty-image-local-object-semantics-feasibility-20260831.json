@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "auditDate": "2026-08-31",
+  "decision": "not_feasible_with_current_offline_assets",
+  "productRuntime": {
+    "dependencies": [
+      {
+        "name": "@napi-rs/canvas",
+        "version": "0.1.80",
+        "license": "MIT",
+        "capability": "deterministic drawing and CJK composition; no object semantics"
+      },
+      {
+        "name": "pngjs",
+        "version": "5.0.0",
+        "license": "MIT",
+        "capability": "PNG decoding and pixel access; no object semantics"
+      },
+      {
+        "name": "qrcode",
+        "version": "1.5.4",
+        "license": "MIT",
+        "capability": "deterministic QR fixture generation; no object semantics"
+      }
+    ],
+    "absentDependencies": [
+      "opencv",
+      "onnxruntime",
+      "transformers",
+      "tensorflow",
+      "torch",
+      "torchvision",
+      "ultralytics",
+      "mediapipe"
+    ],
+    "objectSemanticModelAssetCount": 0
+  },
+  "workspaceOnly": [
+    {
+      "name": "sharp",
+      "version": "0.35.4",
+      "license": "Apache-2.0",
+      "productDependency": false,
+      "capability": "image transforms only; no object semantics",
+      "startupMs": 119.608,
+      "rssDeltaMiB": 16.688
+    },
+    {
+      "name": "tesseract.js",
+      "version": "7.0.0",
+      "license": "Apache-2.0",
+      "productDependency": false,
+      "capability": "OCR only; no object semantics",
+      "localTrainedDataCount": 0,
+      "recognitionExecuted": false,
+      "startupMs": 22.112,
+      "rssDeltaMiB": 5.207
+    }
+  ],
+  "pythonRuntime": {
+    "available": ["numpy@2.3.5", "pillow@12.3.0"],
+    "unavailable": ["cv2", "onnxruntime", "torch", "torchvision", "transformers", "tensorflow", "ultralytics", "mediapipe", "skimage"]
+  },
+  "cachedModels": {
+    "objectSemanticModels": 0,
+    "notes": "Only incomplete ASR/lip-sync cache entries were present; no object-semantic weights or local license bundle was available."
+  },
+  "champion": {
+    "contractVersion": "beauty-image-content-role-contract-v1",
+    "runs": 3,
+    "safeAutoPassed": "0/3",
+    "riskDeterministicallyRejected": "1/3",
+    "manualReview": "5/6",
+    "observedMeanImageElapsedMs": [39.404, 44.872],
+    "observedRssDeltaMiB": [20.156, 48.516],
+    "providerCalls": 0,
+    "externalNetwork": 0
+  },
+  "sampleProvenance": {
+    "safe": [
+      "60f2ea68d251cbfe2e0fc49119f3ee4e44222c94c826b8aa692a6af09868bb8d",
+      "f7142e3fb33e29d2ed2cd7e962399f872e7b25221df05a809b808c15f604809c",
+      "5de96bbf646a43b30970b0c34b1face44531eb018cef030b6bac57a7be024e5e"
+    ],
+    "risk": [
+      "e9af2a0eebd361b634b35110a2acd3a5a31870e01e84273f2a1f2e929022a803",
+      "9f217ea59c4dda4682bab1810bf5f38bbcc633a76e337f034fac66d286bbc2e1",
+      "bc044be31355a642ee7f4d1464adb164e6a72f37efe5df940ae38e88297caf61"
+    ],
+    "privacy": "Only immutable hashes, class labels, counts and aggregate timings are retained; no customer image bytes, prompt, provider response, credential or absolute customer asset path is stored."
+  }
+}

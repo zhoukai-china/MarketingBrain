@@ -1,0 +1,25 @@
+{
+  "sha256": "3d8fe077ad29d63454fa02bd399927dedcb483353107c54e842a047a749284cd",
+  "detectorVersion": "beauty-image-safety-v2.15",
+  "status": "rejected",
+  "reason": "qr_or_barcode_like",
+  "rootCause": "Natural curtain and window-frame vertical folds satisfied the barcode interval, density and quiet-zone tests even though their detected edge widths were inconsistent and no code was decoded.",
+  "evidence": {
+    "detectorType": "barcode_stripes",
+    "bbox": { "x": 0, "y": 320, "width": 208, "height": 64 },
+    "orientation": "vertical",
+    "edgeGroups": 14,
+    "edgeGroupDensity": 0.136,
+    "directionConsistency": 0.662,
+    "quietZoneScore": 1,
+    "edgeIntervalVariation": 0.451,
+    "edgeWidthVariation": 0.338,
+    "gapWidthVariation": 0.65,
+    "primaryAxisEdgeDensity": 0.164,
+    "crossAxisEdgeDensity": 0,
+    "minorQuietZoneScore": 0,
+    "edgePersistence": 1,
+    "stripeScore": 0.765,
+    "decoded": false
+  }
+}

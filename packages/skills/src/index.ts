@@ -72,6 +72,17 @@ export const SKILL_MANIFESTS: Record<SkillId, SkillManifest> = {  general_qa: {
     isAutomationEligible: true,
     requiresWorkbench: false
   },
+  baolu_ip_advisor: {
+    id: "baolu_ip_advisor",
+    name: "保禄 · 新媒体与创始人IP能力分身",
+    version: "1.0.0",
+    description: "围绕新媒体内容、创始人IP表达、账号定位、选题与内容转化，给出事实受控的专业判断和下一步。",
+    allowedTenantTypes: ["local_business", "chain_brand", "personal_ip"],
+    minimumPlans: allPlans,
+    baseCreditCost: 5,
+    isAutomationEligible: false,
+    requiresWorkbench: false
+  },
   customer_acquisition_diagnosis: {
     id: "customer_acquisition_diagnosis",
     name: "思潼 · 获客成交链路体检",
@@ -127,16 +138,93 @@ export const SKILL_MANIFESTS: Record<SkillId, SkillManifest> = {  general_qa: {
     isAutomationEligible: true,
     requiresWorkbench: false
   },
+  xiaohongshu_ops: {
+    id: "xiaohongshu_ops",
+    name: "兰琪 · 小红书文案助手",
+    version: "1.0.0",
+    description: "根据门店真实资料和用户本轮需求生成小红书标题、正文、标签与互动承接；缺失事实明确待补，不生成图片、视频或发布动作。",
+    allowedTenantTypes: ["local_business", "chain_brand"],
+    minimumPlans: allPlans,
+    baseCreditCost: 8,
+    isAutomationEligible: false,
+    requiresWorkbench: false
+  },
+  "lanqi-image-prompt-enhancer": {
+    id: "lanqi-image-prompt-enhancer",
+    name: "兰琪 · 文生图提示词增强",
+    version: "1.0.1",
+    description: "将门店自然语言图片需求转换为可编辑创作简报、差异明确的视觉方向、正负提示词和供应商无关参数；不生成图片或计费。",
+    allowedTenantTypes: ["local_business", "chain_brand"],
+    minimumPlans: allPlans,
+    baseCreditCost: 0,
+    isAutomationEligible: false,
+    requiresWorkbench: false
+  },
+  "beauty-industry-compliance": {
+    id: "beauty-industry-compliance",
+    name: "美业行业合规",
+    version: "1.0.0",
+    description: "检查美业获客内容的事实、功效、资质、价格、素材授权和外部动作边界。",
+    allowedTenantTypes: ["local_business", "chain_brand"],
+    minimumPlans: allPlans,
+    baseCreditCost: 5,
+    isAutomationEligible: false,
+    requiresWorkbench: false
+  },
+  "beauty-industry-content-diff": {
+    id: "beauty-industry-content-diff",
+    name: "美业获客内容差异",
+    version: "1.1.0",
+    description: "在通用获客任务上补充品牌中立的美业顾客、服务场景、内容与到店承接差异。",
+    allowedTenantTypes: ["local_business", "chain_brand"],
+    minimumPlans: allPlans,
+    baseCreditCost: 10,
+    isAutomationEligible: false,
+    requiresWorkbench: false
+  },
+  "beauty-industry-xhs": {
+    id: "beauty-industry-xhs",
+    name: "美业小红书图文",
+    version: "1.1.0",
+    description: "生成品牌中立、事实受控的美业小红书文案与零付费配图提示词预览。",
+    allowedTenantTypes: ["local_business", "chain_brand"],
+    minimumPlans: allPlans,
+    baseCreditCost: 8,
+    isAutomationEligible: false,
+    requiresWorkbench: false
+  },
+  "wechat-xhs-content-line": {
+    id: "wechat-xhs-content-line",
+    name: "公众号与小红书内容生产线",
+    version: "1.0.3",
+    description: "先建立事实母版，再将小红书客户成品、门店制作说明与内部质量审核分层交付；不执行发布或付费生图。",
+    allowedTenantTypes: ["local_business", "chain_brand", "personal_ip"],
+    minimumPlans: allPlans,
+    baseCreditCost: 8,
+    isAutomationEligible: false,
+    requiresWorkbench: false
+  },
   baolu_content_creator: {
     id: "baolu_content_creator",
     name: "林策 · 内容获客咨询师",
-    version: "4.1.4",
-    description: "输出选题、短视频脚本、口播稿、图文文案、投流素材和可直接执行的内容方案。",
+    version: "5.0.0",
+    description: "输出选题、口播稿、访谈话术、拍摄脚本、剪辑 EDL、发布承接和受控投流预览的内容十件套。",
     allowedTenantTypes: ["local_business", "chain_brand", "personal_ip"],
     minimumPlans: allPlans,
     baseCreditCost: 12,
     isAutomationEligible: true,
     requiresWorkbench: false
+  },
+  founder_ip_content_creator: {
+    id: "founder_ip_content_creator",
+    name: "创始人 IP 获客内容生成",
+    version: "1.0.0",
+    description: "基于当前获客目标简报、已选题和来源证据，生成目标一致、事实受控且可编辑的创始人 IP 内容草稿。",
+    allowedTenantTypes: ["personal_ip"],
+    minimumPlans: allPlans,
+    baseCreditCost: 12,
+    isAutomationEligible: false,
+    requiresWorkbench: true
   },
   optimize_local_push_ads: {
     id: "optimize_local_push_ads",
@@ -284,8 +372,8 @@ export const SKILL_MANIFESTS: Record<SkillId, SkillManifest> = {  general_qa: {
   ai_daily_brief: {
     id: "ai_daily_brief",
     name: "晨报 · AI日报咨询师",
-    version: "0.2.0",
-    description: "抓取AI行业变化，并用思潼视角翻译成企业经营动作。",
+    version: "1.0.0",
+    description: "把已核验的公开 AI 新闻事实与面向经营者的行业解释严格分层，生成可追溯、可执行的每日情报。",
     allowedTenantTypes: ["local_business", "chain_brand", "personal_ip"],
     minimumPlans: allPlans,
     baseCreditCost: 5,
@@ -564,6 +652,9 @@ async function loadSkillPackageFromMcp(skillId: SkillId): Promise<OriginalSkillM
 }
 
 async function fetchSkillPackageFromMcp(skillId: SkillId): Promise<OriginalSkillMcpPackage | undefined> {
+  // Local demo must validate the checked-out Skill package. An already-running
+  // MCP worker may still serve an older release and must not shadow source work.
+  if (process.env.DATA_MODE === "demo") return undefined;
   const mcpUrl = process.env.SKILL_MCP_URL?.trim();
   if (!mcpUrl || process.env.SKILL_MCP_ENABLED === "false") return undefined;
 

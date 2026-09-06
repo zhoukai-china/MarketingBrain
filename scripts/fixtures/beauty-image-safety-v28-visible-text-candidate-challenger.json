@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "sha256": "66b9a75b3185c465a74cf9088887bc831cf7d960121e9ed55394c6c28180f199",
+  "detectorVersion": "beauty-image-safety-v2.8",
+  "status": "rejected",
+  "reason": "visible_text_or_brand_like",
+  "changedVariable": "highConfidenceTopDisplayTextCandidateSelection",
+  "diagnostics": {
+    "selectedCandidateRank": 10,
+    "candidateSelectionMode": "high_confidence_top_display_text",
+    "glyphCount": 3,
+    "glyphLikeRatio": 1,
+    "baselineDeviation": 0,
+    "maximumBaselineDeviation": 1.25,
+    "heightVariation": 0.022,
+    "maximumHeightVariation": 0.12,
+    "widthCoverage": 0.469,
+    "edgePixelDensity": 0.323,
+    "minimumEdgePixelDensity": 0.25,
+    "maximumComponentAspectRatio": 1,
+    "maximumAllowedComponentAspectRatio": 2.4
+  }
+}

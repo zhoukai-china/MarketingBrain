@@ -428,107 +428,102 @@ export const AGENT_DEFINITIONS: AgentDefinitionSeed[] = [
   {
     id: "agent_acquisition",
     slug: "acquisition",
-    name: "思潼·品牌招商智能体",
-    description: "服务连锁品牌老客户，只围绕招商加盟内容、加盟商线索、考察与签约承接开展工作。",
+    name: "思潼·创始人IP获客系统",
+    description: "服务创始人及其团队，复用已确认的IP资产，分别完成招商加盟、C端团购到店、学员招募与合作方招募。",
     icon: "🎯",
     status: "active",
     sortOrder: 10,
     defaultSkillId: "baolu_content_creator",
     marketing: {
-      shortName: "品牌招商",
-      method: "品牌招商增长系统",
-      tagline: "只为连锁品牌生成招商加盟内容、线索承接、考察与签约增长方案。",
-      eyebrow: "品牌招商增长系统",
-      headline: "思潼·品牌招商智能体",
-      promise: "围绕招商加盟生成选题、内容、直播与投流预览，不生成门店到店、团购或消费者促销方案。",
-      audience: "连锁品牌总部、招商团队与加盟业务负责人",
+      shortName: "创始人IP获客",
+      method: "创始人IP四目标获客系统",
+      tagline: "一套IP资产服务四类获客目标，但每个目标的获客目标简报、承接、状态与结果各自独立。",
+      eyebrow: "创始人IP获客系统",
+      headline: "思潼·创始人IP获客系统",
+      promise: "选择招商加盟、C端团购到店、学员招募或合作方招募后，生成对应的内容、承接与复盘草案；缺失事实明确待补，不混用目标指标，也不执行外部动作。",
+      audience: "思潼老客户中的企业创始人、老板及内容/获客团队",
       knowledgeAction: {
         enabled: true,
-        buttonLabel: "从这些资料提炼招商选题",
+        buttonLabel: "从这些资料提炼获客选题",
         capabilityId: "topic_inspiration",
-        defaultInstruction: "请只扫描与品牌招商加盟有关的资料，结合招商行业热点、对标招商账号、录音资料和视频复盘，交付10条可测试招商选题。不得生成门店到店、团购券、消费者优惠或核销内容；缺失来源标记待补或待核验。",
+        defaultInstruction: "请基于当前主体已确认的IP资料与本轮获客目标提炼选题。招商加盟、C端团购到店、学员招募和合作方招募必须分别标注目标、承接与结果口径；缺失来源标记待补或待核验，不得编造结果。",
         allowedDocumentTypes: ["transcript", "note", "web_page"]
       },
       automationAction: {
         enabled: true,
-        buttonLabel: "设置招商内容自动化",
+        buttonLabel: "设置获客内容自动化",
         defaultTaskType: "weekly_topic_push",
-        defaultInstruction: "每周仅基于当前品牌已确认的招商资料，提炼有事实依据的招商加盟选题；先确认目标加盟商和招商目标，不把门店消费者业务混入招商任务。",
+        defaultInstruction: "每周仅基于当前主体已确认的IP资料和单一获客目标提炼有事实依据的选题；不得将招商、团购到店、学员或合作方线索与结果混写。",
         allowedTaskTypes: ["weekly_topic_push", "moments_push", "file_analysis_followup", "audio_card_analysis", "video_publish_plan"],
         capabilityId: "topic_inspiration"
       },
       workMap: {
         id: "acquisition-growth-map",
-        version: 2,
-        title: "品牌招商工作地图",
-        subtitle: "先填写本轮招商 Brief，再用招商行业热点、对标账号、录音卡与视频复盘增强选题，复盘结果持续回流下一轮执行。",
+        version: 3,
+        title: "创始人IP获客工作地图",
+        subtitle: "从创始人IP获客系统进入选题、直播或问问保禄；本轮获客目标在选题系统内选择。",
         nodes: [
-          {
-            id: "enterprise_knowledge",
-            title: "品牌招商资料库",
-            subtitle: "可选的品牌、加盟模型、招商案例与录音证据",
-            icon: "知",
-            kind: "knowledge",
-            position: { x: 12, y: 48 },
-            action: { type: "knowledge" }
-          },
+          { id: "founder_ip_acquisition", title: "创始人IP获客系统", subtitle: "统一入口：从这里选择要执行的系统", icon: "IP", kind: "system", position: { x: 14, y: 50 }, action: { type: "static" } },
+          { id: "baolu_ip_advisor", title: "问问保禄", subtitle: "新媒体与创始人IP的任何问题答疑", icon: "问", kind: "system", position: { x: 34, y: 82 }, action: { type: "capability", capabilityId: "baolu_ip_advisor" } },
           {
             id: "topic_system",
-            title: "招商选题系统",
-            subtitle: "先填招商 Brief，再用四类来源生成加盟选题",
+            title: "选题系统",
+            subtitle: "按当前目标和证据生成可验证选题",
             icon: "题",
             kind: "system",
-            position: { x: 36, y: 27 },
+            position: { x: 37, y: 22 },
             action: { type: "capability", capabilityId: "topic_inspiration" }
           },
           {
             id: "content_system",
-            title: "招商内容系统",
-            subtitle: "生成招商短视频、图文与拍摄交付",
+            title: "内容系统",
+            subtitle: "生成与当前目标一致的内容与承接草案",
             icon: "文",
             kind: "system",
-            position: { x: 52, y: 27 },
+            position: { x: 53, y: 22 },
             action: { type: "capability", capabilityId: "content_plan" }
           },
           {
             id: "traffic_system",
-            title: "招商投流系统",
-            subtitle: "诊断招商素材、线索目标、预算、监控与止损",
+            title: "投流系统",
+            subtitle: "按当前目标输出预算、监控与止损预览",
             icon: "投",
             kind: "system",
-            position: { x: 68, y: 27 },
+            position: { x: 69, y: 22 },
             action: { type: "capability", capabilityId: "paid_traffic" }
           },
           {
             id: "video_review_system",
-            title: "招商内容复盘",
-            subtitle: "读取真实数据并沉淀下一轮招商规律",
+            title: "视频复盘系统",
+            subtitle: "读取真实数据并按目标口径回流下一轮",
             icon: "盘",
             kind: "review",
-            position: { x: 84, y: 27 },
+            position: { x: 85, y: 22 },
             action: { type: "capability", capabilityId: "video_review" }
           },
           {
             id: "live_system",
-            title: "招商直播系统",
-            subtitle: "招商开场、答疑、留资、考察与跟进",
+            title: "直播系统",
+            subtitle: "按当前目标生成答疑、承接与跟进草案",
             icon: "播",
             kind: "system",
-            position: { x: 45, y: 72 },
+            position: { x: 51, y: 58 },
             action: { type: "capability", capabilityId: "live_script" }
           },
           {
             id: "live_review_system",
-            title: "招商直播复盘",
-            subtitle: "复盘流量、加盟咨询、留资和话术执行",
+            title: "直播复盘系统",
+            subtitle: "复盘真实流量、承接进展与话术执行",
             icon: "复",
             kind: "review",
-            position: { x: 68, y: 72 },
+            position: { x: 72, y: 58 },
             action: { type: "capability", capabilityId: "live_review" }
           }
         ],
         edges: [
-          { id: "knowledge-topic", from: "enterprise_knowledge", to: "topic_system", type: "flow", label: "可选证据" },
+          { id: "founder-topic", from: "founder_ip_acquisition", to: "topic_system", type: "branch", label: "视频分支", waypoints: [{ x: 24, y: 25 }] },
+          { id: "founder-live", from: "founder_ip_acquisition", to: "live_system", type: "branch", label: "直播分支" },
+          { id: "founder-baolu-advisor", from: "founder_ip_acquisition", to: "baolu_ip_advisor", type: "branch", label: "独立答疑" },
           { id: "topic-content", from: "topic_system", to: "content_system", type: "flow" },
           { id: "content-traffic", from: "content_system", to: "traffic_system", type: "flow" },
           { id: "traffic-video-review", from: "traffic_system", to: "video_review_system", type: "flow" },
@@ -539,14 +534,6 @@ export const AGENT_DEFINITIONS: AgentDefinitionSeed[] = [
             type: "feedback",
             label: "复盘回流",
             waypoints: [{ x: 84, y: 8 }, { x: 36, y: 8 }]
-          },
-          {
-            id: "topic-live-branch",
-            from: "topic_system",
-            to: "live_system",
-            type: "branch",
-            label: "直播分支",
-            waypoints: [{ x: 36, y: 72 }]
           },
           { id: "live-live-review", from: "live_system", to: "live_review_system", type: "flow" },
           {
@@ -562,18 +549,53 @@ export const AGENT_DEFINITIONS: AgentDefinitionSeed[] = [
     },
     capabilities: [
       {
+        key: "baolu_ip_advisor",
+        title: "问问保禄",
+        subtitle: "保禄能力分身解答新媒体与创始人IP疑问",
+        skillId: "baolu_ip_advisor",
+        promptTemplate: "【问问保禄】你是保禄的新媒体与创始人IP能力分身，不冒充保禄本人。只解答新媒体内容、创始人IP表达、账号定位与经营、选题、内容结构、自然获客和内容承接问题。先给直接判断，再说明依据、今天可执行的一步和待确认/待验证项。没有本轮真实数据、平台规则或案例证据时不得编造；不得声称已发布、投放、发消息、修改账号或执行任何外部动作。超出范围时清楚说明边界。"
+      },
+      {
+        key: "fip_franchise",
+        title: "招商加盟",
+        subtitle: "加盟条件、咨询筛选、考察、签约与真实进展",
+        skillId: "baolu_content_creator",
+        promptTemplate: "【创始人IP获客目标：招商加盟】先确认当前主体、目标加盟商、本轮结果、真实承接动作与可用证据；围绕加盟条件、咨询、筛选、考察和签约生成内容与承接草案。费用、政策、案例和回报未确认时写【待补】。不得把团购核销、普通私信或内容播放写成加盟线索、签约或已执行结果；不得编造或声称已执行外部动作。"
+      },
+      {
+        key: "fip_store_visit",
+        title: "C端团购到店",
+        subtitle: "商品、预约、到店、核销与复购的消费者路径",
+        skillId: "baolu_content_creator",
+        promptTemplate: "【创始人IP获客目标：C端团购到店】先确认商品、门店、地域、消费者、真实承接与本轮结果；围绕预约、实际到店、核销和复购生成内容与承接草案。套餐、价格、优惠、库存和核销数据未确认时写【待补】。不得把播放量、私信或加盟收益承诺写成到店、核销或复购；不得编造或声称已执行外部动作。"
+      },
+      {
+        key: "fip_student_recruitment",
+        title: "学员招募",
+        subtitle: "课程对象、咨询、试听、报名与交付的真实路径",
+        skillId: "baolu_content_creator",
+        promptTemplate: "【创始人IP获客目标：学员招募】先确认课程对象、学习结果边界、本轮结果、咨询或试听承接与可用资料；生成招募内容、说明会/试听承接和报名跟进草案。课程价格、名额、师资和交付未确认时写【待补】。不得编造证书、就业、收入、报名人数或已交付结果；不得把加盟或合作线索写成学员报名，也不得声称已执行外部动作。"
+      },
+      {
+        key: "fip_partner_recruitment",
+        title: "合作方招募",
+        subtitle: "渠道、联营、城市合伙人等资格判断与洽谈",
+        skillId: "baolu_content_creator",
+        promptTemplate: "【创始人IP获客目标：合作方招募】先确认合作类型、双方条件、本轮结果、沟通/洽谈承接与可用资料；生成合作招募内容、资格判断和洽谈草案。合作政策、分润、地域和履约条件未确认时写【待补】。不得把普通私信、加盟线索或报名写成合作达成；不得编造签署、履约或已执行结果，也不得声称已执行外部动作。"
+      },
+      {
         key: "topic_inspiration",
-        title: "招商选题",
-        subtitle: "四类来源、三关筛选，生成10个可拍招商选题",
+        title: "创始人IP选题",
+        subtitle: "四类来源、三关筛选，生成10个与本轮目标一致的可拍选题",
         skillId: "baolu_topics",
-        promptTemplate: "这是品牌招商选题系统的固定任务。只围绕品牌招商加盟，扫描招商录音资料、招商行业热点、招商账号复盘与对标内容，先形成16至20条内部候选，再按目标加盟商兴趣、加盟商匹配度与账号阶段筛选，最终输出10条可测试招商选题。不得生成门店到店、团购券、消费者优惠、核销或门店促销内容；来源缺失时标记待补或待核验，不得虚构API、案例或数据。只输出选题表和待验证动作，不展开完整文案。"
+        promptTemplate: "这是创始人IP选题系统的固定任务。先读取本轮明确的获客目标（招商加盟、C端团购到店、学员招募或合作方招募）、创始人身份、目标人群、线索目标与真实承接；再汇总四类来源：近期行业热点、近期对标账号公开内容、AI录音卡真实表达、自己账号真实数据复盘。账号复盘必须明确哪些方向可作为爆款候选继续测试、哪些方向应放弃或降频；没有真实数据不得虚构播放、完播、互动、线索或成交。先形成16至20条内部候选，再按目标用户兴趣、共识层级与客资精准度、账号阶段筛选，最终输出10条可测试选题。只能服务本轮单一目标，不得混用其他目标的线索、承接或结果指标；来源缺失时标记待补或待核验，不得虚构API、案例或数据。只输出选题表和待验证动作，不展开完整文案。"
       },
       {
         key: "content_plan",
-        title: "招商内容创作",
-        subtitle: "招商口播逐字稿、拍摄脚本与发布方案",
-        skillId: "baolu_content_creator",
-        promptTemplate: "只创作品牌招商加盟内容：面向目标加盟商的短视频、图文、招商直播与私域承接。需要完整方案时再输出拍摄、剪辑、发布与招商线索承接方案。不得生成门店到店、团购券、消费者优惠、核销、菜品促销或门店复购内容。"
+        title: "创始人 IP 内容创作",
+        subtitle: "基于当前目标、选题和证据生成可编辑内容草稿",
+        skillId: "founder_ip_content_creator",
+        promptTemplate: "只处理创始人 IP 获客内容。逐字保留本轮已确认的选题/钩子，并严格使用当前获客目标简报、目标人群、来源依据、事实边界和目标对应承接动作。四个获客目标不得串用；缺少关键事实时一次性列为待补，不得编造案例、收益、价格、疗效、政策或数字。只生成内容草稿，不生成投流方案，不执行发布、投放、付款或外部动作。"
       },
       {
         key: "paid_traffic",
@@ -700,6 +722,8 @@ export const AGENT_DEFINITIONS: AgentDefinitionSeed[] = [
     },
     capabilities: [
       { key: "topic_inspiration", title: "门店选题", subtitle: "从商圈、产品、对标和复盘生成可拍选题", skillId: "baolu_topics", promptTemplate: "只围绕门店本地消费者获客，生成可验证的商圈、产品、团购、到店和复购选题。不得生成招商加盟内容；未确认的价格、套餐和优惠必须标记待补。" },
+      { key: "xiaohongshu_copy", title: "小红书文案", subtitle: "基于门店事实生成标题、正文、标签和互动承接", skillId: "xiaohongshu_ops", promptTemplate: "只生成面向本地消费者的小红书文案。固定输出标题候选、正文、话题标签、互动与承接、发布前核对；不得生成图片、视频、直播话术、招商内容、投流或发布动作。未确认的服务、价格、优惠、疗效、案例和经营结果必须省略或标记待确认。" },
+      { key: "image_prompt_preview", title: "文生图提示词", subtitle: "把普通图片需求转换成专业正负提示词与视觉参数", skillId: "lanqi-image-prompt-enhancer", promptTemplate: "只增强兰琪文生图提示词并输出严格 JSON，不生成图片、不计费。保留用户主体和硬约束，给出2至3个单变量方向；文字后期叠加，绘图提示词不得混入费用、权限、审核或未确认事实。" },
       { key: "content_plan", title: "门店内容创作", subtitle: "短视频、图文、团购与到店承接内容", skillId: "baolu_content_creator", promptTemplate: "只创作门店本地消费者内容：短视频、图文、团购与到店承接。套餐、价格、优惠、库存和经营效果只能使用用户确认事实；不得生成招商加盟内容。" },
       { key: "paid_traffic", title: "门店投流", subtitle: "本地推诊断、团购素材测试与预览", skillId: "optimize_local_push_ads", promptTemplate: "只处理门店本地消费者获客的投流诊断和 PREVIEW_ONLY 计划，核对商圈、门店、团购承接、预算与真实数据；不得生成招商加盟投流方案，也不得操作真实广告账户。" },
       { key: "dou_plus_traffic", title: "门店 DOU+", subtitle: "本地内容加热、素材测试与安全预览", skillId: "dou_plus_ads", promptTemplate: "只为门店本地消费者内容给出 DOU+ 测试和 PREVIEW_ONLY 预览，未确认产品、价格、优惠或账户状态时标记待补；不得生成招商加盟投放。" },
@@ -709,6 +733,90 @@ export const AGENT_DEFINITIONS: AgentDefinitionSeed[] = [
       { key: "live_review", title: "门店直播复盘", subtitle: "复盘互动、到店、团购与复购", skillId: "baolu_live_review_engine", promptTemplate: "只依据真实直播数据复盘门店直播互动、团购承接、到店和复购信号；不得虚构订单或招商线索。" },
       { key: "industry_hotspots", title: "本地生活热点", subtitle: "检索公开热点并生成门店可拍选题", skillId: "ai_daily_brief", promptTemplate: "先检索并核验本地生活和门店所属行业的公开热点，再生成门店消费者选题；不得把未验证热点写成事实或生成招商加盟内容。" },
       { key: "private_domain", title: "门店私域承接", subtitle: "朋友圈、社群、复购与到店沟通", skillId: "moments_generator", promptTemplate: "只生成面向门店消费者的私域内容，用于到店、团购咨询与复购；不得生成招商加盟招募内容，未确认优惠不得补写。" }
+    ]
+  },
+  {
+    id: "agent_beauty_acquisition",
+    slug: "beauty-industry",
+    name: "美业智能体",
+    description: "面向生活美容、皮肤管理、SPA、美甲美睫等经营主体的品牌中立图文、视频、直播与销售工具包。",
+    icon: "美",
+    status: "active",
+    sortOrder: 12,
+    defaultSkillId: "beauty-industry-content-diff",
+    marketing: {
+      shortName: "美业智能体",
+      method: "美业获客 MCP 产品包",
+      tagline: "一条连接使用已授权的美业获客与销售工具。",
+      eyebrow: "品牌中立的美业行业能力",
+      headline: "从小红书图文到视频内容、直播和销售",
+      promise: "只使用当前经营主体已确认事实；缺失信息明确待补，不混入兰琪、测试门店或其他租户知识。",
+      audience: "生活美容、皮肤管理、SPA、美甲美睫门店及其运营团队"
+    },
+    capabilities: [
+      {
+        key: "beauty_business_qa",
+        title: "美业经营问答",
+        subtitle: "基于本门店已确认事实给出可执行经营建议",
+        skillId: "general_qa",
+        promptTemplate: "回答美业门店经营问题。只使用当前租户已确认事实；缺失资料明确待补，不编造价格、疗效、顾客案例、业绩或已执行动作。先给结论和今天可执行动作，复杂问题再给可复制话术或清单。"
+      },
+      {
+        key: "topic_inspiration",
+        title: "美业获客选题",
+        subtitle: "生成与目标顾客、服务过程和到店承接相关的选题",
+        skillId: "baolu_topics",
+        promptTemplate: "生成品牌中立的美业获客选题，只使用本轮已确认服务、顾客和承接事实；价格、功效、案例、资质和素材授权未知时必须待补。"
+      },
+      {
+        key: "content_plan",
+        title: "美业内容十件套",
+        subtitle: "把已确认选题转为正式 content skill 十件套",
+        skillId: "baolu_content_creator",
+        promptTemplate: "只把当前美业选题和已确认门店事实转成正式内容十件套；必须包含访谈话术、拍摄脚本和剪辑 EDL。不得混入创始人 IP、AI 工具、餐饮、招商或其他行业内容，不得编造价格、疗效、案例和已执行动作。"
+      },
+      {
+        key: "beauty_xiaohongshu_package",
+        title: "美业小红书图文",
+        subtitle: "同一任务生成标题、正文、标签与三套图片方向",
+        skillId: "wechat-xhs-content-line",
+        promptTemplate: "生成品牌中立的美业小红书标题、正文、标签、互动承接和三套配图提示词；真实图片必须报价并确认，不发布、不把未确认事实写成门店事实。"
+      },
+      {
+        key: "live_script",
+        title: "美业直播话术",
+        subtitle: "生成到店顾客直播话术草稿",
+        skillId: "live_script_planner",
+        promptTemplate: "只生成面向美业到店顾客的直播话术草稿，未确认服务、价格、功效、资质和优惠必须待补；不自动开播或发布。"
+      },
+      {
+        key: "video_data_review",
+        title: "视频数据复盘",
+        subtitle: "依据已解析 CSV/Excel 或结构化数据复盘表现",
+        skillId: "baolu_review_engine",
+        promptTemplate: "只依据已解析的真实短视频数据复盘美业内容，不把播放量直接写成到店或成交，缺失证据明确待补。"
+      },
+      {
+        key: "shooting_editing",
+        title: "视频内容复盘",
+        subtitle: "依据真实画面与口播证据优化选题、拍摄和剪辑",
+        skillId: "baolu_content_creator",
+        promptTemplate: "只依据当前租户本轮视频的真实画面、口播和业务目标做结构化内容复盘；不得把视频数据报告换皮，不得编造画面、口播、案例、价格或疗效。"
+      },
+      {
+        key: "live_review",
+        title: "美业直播复盘",
+        subtitle: "依据真实直播数据复盘互动、咨询和到店承接",
+        skillId: "baolu_live_review_engine",
+        promptTemplate: "只依据用户提供的真实直播数据复盘互动、咨询与到店承接，不虚构订单、顾客案例或经营结果。"
+      },
+      {
+        key: "beauty_sales",
+        title: "美业销售",
+        subtitle: "基于真实顾客沟通做诊断、话术与跟进建议",
+        skillId: "sales_growth_advisor",
+        promptTemplate: "只使用本轮已确认的美业经营事实和真实顾客沟通；生活美容与医疗美容必须区分，不编价格、疗效、案例或假稀缺，不自动发送消息。"
+      }
     ]
   },
   {

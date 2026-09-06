@@ -3,16 +3,57 @@ import type { LlmProvider } from "@baolu/agent";
 import { prisma } from "@baolu/db";
 import type { FastifyInstance } from "fastify";
 import { env } from "../config/env.js";
-import { AgentClarificationRequired, getRuntimeAgent } from "../services/agent-runtime.js";
+import {
+  BEAUTY_INDUSTRY_PRODUCT_CODE,
+  BEAUTY_INDUSTRY_SCOPES,
+  listBeautyIndustryMcpTools,
+  runBeautyIndustryMcpTool,
+  type BeautyIndustryExecutionResult,
+  type BeautyIndustryMcpContext,
+  type BeautyIndustryScope
+} from "../products/beauty-industry/mcp-adapter.js";
+import { executeBeautyIndustryProductTool } from "../products/beauty-industry/execution.js";
+import { AgentClarificationRequired, assertAgentAccess, getRuntimeAgent } from "../services/agent-runtime.js";
 import { invokeSkillViaGateway } from "../services/mcp-client.js";
-import { resolveDatabaseRequestContext } from "../services/request-context.js";
-import { getWorkbuddyConnectionIssues, resolveWorkbuddyConnection } from "../services/workbuddy-connections.js";
+import { resolveDatabaseRequestContext, type RequestContext } from "../services/request-context.js";
+import { createRequestExecutionScope } from "../services/request-execution-scope.js";
+import {
+  enqueueBeautyDailyBrief,
+  listBeautyDailyBriefHistory,
+  processBeautyDailyBriefSnapshot,
+  readBeautyDailyBriefState,
+  retryBeautyDailyBrief
+} from "../products/beauty-industry/daily-brief-service.js";
+import { readBeautyDailyBriefClock } from "../products/beauty-industry/daily-brief-contract.js";
+import { RequestSingleFlight } from "../services/request-single-flight.js";
+import {
+  resolveBeautyIndustryBrandContext,
+  toBeautyIndustryPublicBrand
+} from "../products/beauty-industry/brand-config.js";
+import {
+  executeBeautyBusinessQa,
+  type BeautyBusinessQaExecutionResult
+} from "./lanqi-business-qa.js";
+import {
+  createBeautyBusinessQaFingerprint
+} from "../products/beauty-industry/business-qa.js";
+import {
+  getWorkbuddyConnectionIssues,
+  markWorkbuddyConnectionUsed,
+  resolveWorkbuddyConnection,
+  type WorkbuddyConnection
+} from "../services/workbuddy-connections.js";
 
 type JsonRpcId = string | number | null;
 type JsonRpcRequest = { jsonrpc?: string; id?: JsonRpcId; method?: string; params?: Record<string, unknown> };
 
 const ASK_TOOL = "sitong.ask";
 const LIST_SKILLS_TOOL = "sitong.skills";
+// Successful duplicates can replay in-memory. Failed calls must fall through to
+// the durable reservation tombstone so a later duplicate cannot call Provider
+// again or hide the billing_request_previously_failed terminal state.
+const beautyMcpSingleFlight = new RequestSingleFlight<BeautyIndustryExecutionResult>(10 * 60_000, 500, false);
+const beautyBusinessQaMcpSingleFlight = new RequestSingleFlight<BeautyBusinessQaExecutionResult>(10 * 60_000, 500, false);
 
 export async function registerWorkbuddyMcpRoutes(app: FastifyInstance, provider: LlmProvider): Promise<void> {
   app.get("/integrations/workbuddy/status", async () => ({
@@ -32,6 +73,11 @@ export async function registerWorkbuddyMcpRoutes(app: FastifyInstance, provider:
     }
 
     try {
+      const { context, agent } = await resolveWorkbuddyAccess(connection);
+      const brandContext = connection.productCode === BEAUTY_INDUSTRY_PRODUCT_CODE
+        ? toBeautyIndustryPublicBrand(resolveBeautyIndustryBrandContext(context.profile.data))
+        : undefined;
+      await markWorkbuddyConnectionUsed(connection);
       if (body.method === "initialize") {
         return rpcResult(id, {
           protocolVersion: "2024-11-05",
@@ -41,13 +87,150 @@ export async function registerWorkbuddyMcpRoutes(app: FastifyInstance, provider:
       }
       if (body.method === "notifications/initialized") return reply.code(204).send();
       if (body.method === "ping") return rpcResult(id, {});
-      if (body.method === "tools/list") return rpcResult(id, { tools: toolDefinitions() });
+      if (body.method === "tools/list") {
+        if (connection.productCode === BEAUTY_INDUSTRY_PRODUCT_CODE) {
+          const beautyContext = toBeautyMcpContext(connection);
+          await auditWorkbuddyEvent(connection, "workbuddy_mcp.tools_listed", { toolCount: listBeautyIndustryMcpTools(beautyContext).length });
+          return rpcResult(id, { tools: listBeautyIndustryMcpTools(beautyContext), brandContext });
+        }
+        if (connection.productCode) return rpcResult(id, { tools: [] });
+        return rpcResult(id, { tools: toolDefinitions() });
+      }
       if (body.method !== "tools/call") return reply.code(404).send(rpcError(id, -32601, `unknown_method:${body.method}`));
 
       const toolName = String(body.params?.name ?? "");
       const args = objectValue(body.params?.arguments);
-      const context = await resolveDatabaseRequestContext(connection.tenantId, connection.userId);
-      const agent = await getRuntimeAgent(connection.agentId);
+
+      if (connection.productCode === BEAUTY_INDUSTRY_PRODUCT_CODE) {
+        await enforceWorkbuddyRateLimit(connection);
+        if (toolName === "beauty.business_qa") {
+          const beautyContext = toBeautyMcpContext(connection);
+          if (!beautyContext.scopes.includes("operations:business-qa")) throw new Error("beauty_tool_scope_forbidden");
+          for (const key of ["tenantId", "userId", "productCode", "operatingEntityId", "credentialId", "agentId", "scopes"]) {
+            if (Object.hasOwn(args, key)) throw new Error("mcp_identity_argument_forbidden");
+          }
+          const question = requiredText(args.question, "question", 1_200);
+          if (question.length < 2) throw new Error("mcp_argument_invalid:question");
+          const externalRequestId = requiredText(args.requestId, "requestId", 200);
+          if (externalRequestId.length < 8) throw new Error("mcp_argument_invalid:requestId");
+          const conversationId = optionalText(args.conversationId, 200);
+          const connectionScope = createHash("sha256").update(connection.id).digest("hex").slice(0, 16);
+          const requestId = `workbuddy-business-qa:${connectionScope}:${externalRequestId}`;
+          const fingerprint = createBeautyBusinessQaFingerprint({ tenantId: context.tenantId, conversationId, question });
+          const executionScope = createRequestExecutionScope({ requestRaw: request.raw, replyRaw: reply.raw, timeoutMs: 45_000, timeoutCode: "business_qa_timed_out" });
+          try {
+            const result = await beautyBusinessQaMcpSingleFlight.run({
+              key: requestId,
+              fingerprint,
+              onConflict: () => new Error("request_id_conflict"),
+              execute: () => executeBeautyBusinessQa({ context, provider, requestId, fingerprint, question, conversationId, deviceScope: "desktop", signal: executionScope.signal, channel: "mcp", operatingEntityId: beautyContext.operatingEntityId, credentialId: connection.id })
+            });
+            await auditWorkbuddyEvent(connection, "workbuddy_mcp.tool_succeeded", { toolName, runId: result.agentRunId, creditCost: result.creditCost });
+            return rpcResult(id, {
+              content: [{ type: "text", text: String(result.answer ?? "") }],
+              structuredContent: { status: result.status, conversationId: result.conversationId, runId: result.agentRunId, creditCost: result.creditCost, remainingCredits: result.remainingCredits, capabilityId: "beauty_business_qa", skillId: "general_qa", skillVersion: "0.2.0", brandContext }
+            });
+          } finally {
+            executionScope.dispose();
+          }
+        }
+        if (toolName === "beauty.daily_brief") {
+          const beautyContext = toBeautyMcpContext(connection);
+          if (!beautyContext.scopes.includes("operations:daily-brief")) throw new Error("beauty_tool_scope_forbidden");
+          const action = String(args.action ?? "");
+          const requestId = String(args.requestId ?? "").trim();
+          if (requestId.length < 8) throw new Error("mcp_argument_invalid:requestId");
+          const businessDate = typeof args.businessDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.businessDate)
+            ? args.businessDate
+            : readBeautyDailyBriefClock().businessDate;
+          if (action === "get") {
+            const state = await readBeautyDailyBriefState({ businessDate, includeReport: true });
+            await auditWorkbuddyEvent(connection, "workbuddy_mcp.daily_brief_read", { businessDate, status: state.status });
+            return rpcResult(id, { content: [{ type: "text", text: `美业 AI 日报 ${businessDate}：${state.status}` }], structuredContent: { ...state, brandContext } });
+          }
+          if (action === "history") {
+            const reports = await listBeautyDailyBriefHistory(31);
+            await auditWorkbuddyEvent(connection, "workbuddy_mcp.daily_brief_history", { count: reports.length });
+            return rpcResult(id, { content: [{ type: "text", text: `已读取 ${reports.length} 个北京时间业务日状态。` }], structuredContent: { reports, brandContext } });
+          }
+          if (!["owner", "admin"].includes(context.role)) throw new Error("daily_brief_retry_forbidden");
+          if (action !== "generate" && action !== "retry") throw new Error("mcp_argument_invalid:action");
+          const queued = action === "retry"
+            ? await retryBeautyDailyBrief({ tenantId: context.tenantId, userId: context.userId, businessDate })
+            : await enqueueBeautyDailyBrief({ tenantId: context.tenantId, userId: context.userId, businessDate, trigger: "manual" });
+          if (!queued.reused) void processBeautyDailyBriefSnapshot(queued.snapshotId);
+          await auditWorkbuddyEvent(connection, "workbuddy_mcp.daily_brief_queued", { businessDate, reused: queued.reused, snapshotId: queued.snapshotId });
+          return rpcResult(id, { content: [{ type: "text", text: queued.reused ? "已返回同一业务日正在进行或已有的日报任务。" : "美业 AI 日报任务已入队。" }], structuredContent: { ...queued, businessDate, capabilityId: "beauty_daily_brief", providerCallsAtAcceptance: 0, brandContext } });
+        }
+        const executionScope = createRequestExecutionScope({
+          requestRaw: request.raw,
+          replyRaw: reply.raw,
+          timeoutMs: env.SKILL_MCP_INVOKE_TIMEOUT_MS,
+          timeoutCode: "workbuddy_mcp_timed_out"
+        });
+        try {
+          const beautyContext = toBeautyMcpContext(connection);
+          const result = await runBeautyIndustryMcpTool({
+            context: beautyContext,
+            toolName,
+            arguments: args,
+            execute: (spec) => beautyMcpSingleFlight.run({
+              key: spec.requestId,
+              fingerprint: hashMcpInvocation(toolName, args),
+              onConflict: () => new Error("request_id_conflict"),
+              execute: () => executeBeautyIndustryProductTool({
+                context,
+                agent,
+                provider,
+                requestId: spec.requestId,
+                requestFingerprint: hashMcpInvocation(spec.capabilityId, spec.arguments),
+                operatingEntityId: spec.operatingEntityId,
+                channel: "mcp",
+                credentialId: spec.credentialId,
+                capabilityId: spec.capabilityId,
+                skillId: spec.skillId,
+                input: spec.input,
+                mode: spec.mode,
+                professionalOptions: spec.professionalOptions,
+                topicWorkflow: spec.topicWorkflow,
+                contentWorkflow: spec.contentWorkflow,
+                videoContentWorkflow: spec.videoContentWorkflow,
+                liveReviewWorkflow: spec.liveReviewWorkflow,
+                conversationId: optionalText(spec.arguments.conversationId, 200),
+                deviceScope: "desktop",
+                signal: executionScope.signal
+              })
+            })
+          });
+          await auditWorkbuddyEvent(connection, "workbuddy_mcp.tool_succeeded", {
+            toolName,
+            runId: result.runId,
+            creditCost: result.creditCost,
+            routeReceipt: result.routeReceipt ?? null
+          });
+          return rpcResult(id, {
+            content: [{ type: "text", text: result.structuredDelivery?.customerDeliverable.copyMarkdown ?? result.text }],
+            structuredContent: {
+              status: result.status,
+              runId: result.runId,
+              abilityUsed: result.abilityUsed,
+              routeReceipt: result.routeReceipt,
+              creditCost: result.creditCost,
+              remainingCredits: result.remainingCredits,
+              brandContext,
+              ...(result.structuredDelivery ? {
+                customerDeliverable: result.structuredDelivery.customerDeliverable,
+                productionNotes: result.structuredDelivery.productionNotes,
+                auditReceipt: result.structuredDelivery.auditReceipt,
+                preview: result.structuredDelivery.preview
+              } : {})
+            }
+          });
+        } finally {
+          executionScope.dispose();
+        }
+      }
+      if (connection.productCode) return reply.code(404).send(rpcError(id, -32601, `unknown_tool:${toolName}`));
 
       if (toolName === LIST_SKILLS_TOOL) {
         return rpcResult(id, toolText({
@@ -66,7 +249,7 @@ export async function registerWorkbuddyMcpRoutes(app: FastifyInstance, provider:
       const conversationId = optionalText(args.conversationId, 200);
       if (conversationId) await assertWorkbuddyConversation(connection, conversationId);
       const externalRequestId = optionalText(args.requestId, 200) ?? randomUUID();
-      const connectionScope = createHash("sha256").update(connection.token).digest("hex").slice(0, 16);
+      const connectionScope = createHash("sha256").update(connection.id).digest("hex").slice(0, 16);
       const result = await invokeSkillViaGateway({
         requestId: `workbuddy:${connectionScope}:${externalRequestId}`,
         context,
@@ -102,10 +285,103 @@ export async function registerWorkbuddyMcpRoutes(app: FastifyInstance, provider:
           structuredContent: { status: "clarification_required" }
         });
       }
+      void auditWorkbuddyEvent(connection, "workbuddy_mcp.tool_failed", {
+        errorCode: externalErrorMessage(error),
+        diagnosticCode: internalDiagnosticCode(error)
+      }).catch(() => undefined);
       request.log.error({ err: error, connection: connection.label }, "WorkBuddy MCP call failed");
       return reply.code(500).send(rpcError(id, -32000, externalErrorMessage(error)));
     }
   });
+}
+
+async function resolveWorkbuddyAccess(connection: WorkbuddyConnection): Promise<{
+  context: RequestContext;
+  agent: Awaited<ReturnType<typeof getRuntimeAgent>>;
+}> {
+  const context = await resolveDatabaseRequestContext(connection.tenantId, connection.userId);
+  const agent = await getRuntimeAgent(connection.agentId);
+  await assertAgentAccess(context, agent);
+  if (!connection.productCode) return { context, agent };
+  if (connection.source !== "database") throw new Error("product_credential_database_required");
+  if (!connection.operatingEntityId || connection.operatingEntityId !== context.tenantId) {
+    throw new Error("workbuddy_operating_entity_mismatch");
+  }
+  const entitlement = await prisma.tenantProductEntitlement.findFirst({
+    where: {
+      tenantId: context.tenantId,
+      productCode: connection.productCode,
+      status: "active",
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }]
+    },
+    select: { id: true }
+  });
+  if (!entitlement) throw new Error("product_entitlement_required");
+  if (connection.productCode === BEAUTY_INDUSTRY_PRODUCT_CODE && connection.agentId !== "agent_beauty_acquisition") {
+    throw new Error("beauty_product_agent_mismatch");
+  }
+  return { context, agent };
+}
+
+function toBeautyMcpContext(connection: WorkbuddyConnection): BeautyIndustryMcpContext {
+  const allowed = new Set<string>(BEAUTY_INDUSTRY_SCOPES);
+  const scopes = connection.scopes.filter((scope): scope is BeautyIndustryScope => allowed.has(scope));
+  return {
+    credentialId: connection.id,
+    tenantId: connection.tenantId,
+    userId: connection.userId,
+    productCode: connection.productCode ?? "",
+    operatingEntityId: connection.operatingEntityId ?? "",
+    scopes,
+    entitled: true
+  };
+}
+
+async function enforceWorkbuddyRateLimit(connection: WorkbuddyConnection): Promise<void> {
+  if (connection.source !== "database") return;
+  const count = await prisma.auditLog.count({
+    where: {
+      tenantId: connection.tenantId,
+      resource: "workbuddy_mcp_connection",
+      resourceId: connection.id,
+      action: "workbuddy_mcp.call_started",
+      createdAt: { gt: new Date(Date.now() - 60_000) }
+    }
+  });
+  if (count >= connection.rateLimitPerMinute) throw new Error("workbuddy_mcp_rate_limit_exceeded");
+  await auditWorkbuddyEvent(connection, "workbuddy_mcp.call_started");
+}
+
+async function auditWorkbuddyEvent(
+  connection: WorkbuddyConnection,
+  action: string,
+  detail?: Record<string, unknown>
+): Promise<void> {
+  if (connection.source !== "database") return;
+  await prisma.auditLog.create({
+    data: {
+      tenantId: connection.tenantId,
+      userId: connection.userId,
+      action,
+      resource: "workbuddy_mcp_connection",
+      resourceId: connection.id,
+      detail: detail ? JSON.stringify(detail) : undefined
+    }
+  });
+}
+
+function hashMcpInvocation(toolName: string, args: Record<string, unknown>): string {
+  return createHash("sha256").update(JSON.stringify([toolName, canonicalJson(args)])).digest("hex");
+}
+
+function canonicalJson(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalJson);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => [key, canonicalJson(item)])
+  );
 }
 
 function toolDefinitions(): unknown[] {
@@ -181,7 +457,28 @@ function rpcError(id: JsonRpcId, code: number, message: string): object {
 
 function externalErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : "workbuddy_mcp_failed";
+  if (message.startsWith("beauty_workflow_output_")) return "beauty_output_contract_failed";
   if (message === "insufficient_credits" || message.startsWith("agent_") || message.startsWith("skill_")) return message;
-  if (message.startsWith("mcp_argument_") || message === "workbuddy_conversation_not_found") return message;
+  if (
+    message.startsWith("mcp_argument_")
+    || message.startsWith("mcp_identity_")
+    || message.startsWith("beauty_")
+    || message.startsWith("billing_request_")
+    || message.startsWith("product_")
+    || message.startsWith("workbuddy_")
+    || message.startsWith("provider_failure:")
+    || message === "request_id_conflict"
+  ) return message;
   return "sitong_service_unavailable";
+}
+
+function internalDiagnosticCode(error: unknown): string {
+  const message = error instanceof Error ? error.message : "unknown_error";
+  if (message.startsWith("beauty_workflow_output_")) {
+    // Beauty output-contract failures are already reduced to bounded codes at
+    // their source. Persist only that code for internal diagnosis; never the
+    // Provider answer, prompt, tenant identity, or stack.
+    return message.replace(/[^\p{L}\p{N}_:-]+/gu, "_").slice(0, 180);
+  }
+  return externalErrorMessage(error);
 }

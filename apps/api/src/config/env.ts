@@ -5,6 +5,7 @@ import {
   isHighCapabilityLlmModel
 } from "../services/llm-model-policy.js";
 import { parseAllowedHosts, validateAllowedHosts, validateOutboundUrl } from "../services/outbound-policy.js";
+import { getMissingBeautyProviderAssetRuntimeHosts } from "../services/beauty-provider-asset-policy.js";
 
 const emptyToUndefined = (value: unknown): unknown => (value === "" ? undefined : value);
 const optionalString = z.preprocess(emptyToUndefined, z.string().optional());
@@ -15,6 +16,7 @@ const urlWithDefault = (defaultValue: string) =>
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().default(3011),
+  API_HOST: z.string().trim().min(1).default("0.0.0.0"),
   DATA_MODE: z.enum(["demo", "database"]).default("demo"),
   CONTINUOUS_IMPROVEMENT_ENABLED: z.enum(["true", "false"]).default("false"),
   CONTINUOUS_IMPROVEMENT_AUTO_PERSIST: z.enum(["true", "false"]).default("false"),
@@ -25,6 +27,9 @@ const envSchema = z.object({
   DEEPSEEK_API_KEY: optionalString,
   DEEPSEEK_BASE_URL: optionalUrl,
   DEEPSEEK_MODEL: z.string().trim().min(1).default("deepseek-v4-pro"),
+  LANQI_LOW_RISK_TEXT_MODEL: z.enum(["deepseek-v4-flash", "qwen3.8-flash"]).default("qwen3.8-flash"),
+  LANQI_LOW_RISK_TEXT_ENABLED: z.enum(["true", "false"]).default("false"),
+  LANQI_LOW_RISK_TEXT_EVAL_APPROVED: z.enum(["true", "false"]).default("false"),
   ALIYUN_API_KEY: optionalString,
   ALIYUN_BASE_URL: urlWithDefault("https://dashscope.aliyuncs.com/compatible-mode/v1"),
   ALIYUN_MODEL: z.string().trim().min(1).default("qwen-max"),
@@ -33,10 +38,62 @@ const envSchema = z.object({
   ALIYUN_VIDEO_REPLICATION_ENDPOINT: optionalUrl,
   ALIYUN_VIDEO_REPLICATION_MODEL: z.string().trim().min(1).default("wan-animate-mix"),
   ALIYUN_VIDEO_REPLICATION_CREDITS: z.coerce.number().int().nonnegative().default(0),
+  BEAUTY_VIDEO_STAGING_DRIVER: z.enum(["disabled", "aliyun_oss"]).default("disabled"),
+  BEAUTY_VIDEO_EXECUTION_MODE: z.enum(["disabled", "controlled"]).default("disabled"),
+  BEAUTY_VIDEO_EXECUTION_AUTHORITY_KEY: optionalString,
+  SEEDANCE_EXECUTION_MODE: z.enum(["disabled", "controlled"]).default("disabled"),
+  ARK_API_KEY: optionalString,
+  SEEDANCE_EXECUTION_AUTHORITY_KEY: optionalString,
+  SEEDANCE_REVIEW_AUTHORITY_KEY: optionalString,
+  SEEDANCE_ACCOUNT_BINDING: optionalString,
+  SEEDANCE_CREDIT_COST: z.string().regex(/^\d{1,6}$/).default("0"),
+  SEEDANCE_CREDIT_QUOTE_VERSION: optionalString,
+  BEAUTY_VIDEO_RESULT_HOSTS: optionalString,
+  BEAUTY_VIDEO_OSS_BUCKET: optionalString,
+  BEAUTY_VIDEO_OSS_REGION: z.string().default("cn-beijing"),
+  BEAUTY_VIDEO_OSS_PREFIX: optionalString,
+  BEAUTY_VIDEO_OSS_APPROVED_ORIGIN: optionalString,
+  BEAUTY_VIDEO_OSS_ACCESS_KEY_ID: optionalString,
+  BEAUTY_VIDEO_OSS_ACCESS_KEY_SECRET: optionalString,
+  BEAUTY_VIDEO_OSS_SECURITY_TOKEN: optionalString,
+  BEAUTY_VIDEO_OSS_CREDENTIAL_EXPIRES_AT: optionalString,
   ALIYUN_VIDEO_REPLICATION_CALLBACK_TOKEN: optionalString,
+  ALIYUN_MEDIA_GENERATION_CALLBACK_TOKEN: optionalString,
+  LANQI_MEDIA_IMAGE_MODEL: z.string().trim().min(1).default("wan2.7-image"),
+  LANQI_MEDIA_TEXT_TO_VIDEO_MODEL: optionalString,
+  LANQI_MEDIA_IMAGE_TO_VIDEO_MODEL: optionalString,
+  LANQI_MEDIA_EXECUTION_MODE: z.enum(["disabled", "mock", "real"]).default("disabled"),
+  LANQI_MEDIA_REAL_EXECUTION_APPROVED: z.enum(["true", "false"]).default("false"),
+  LANQI_MEDIA_ASSET_STORAGE: z.enum(["disabled", "local"]).default("disabled"),
+  LANQI_MEDIA_TASK_TIMEOUT_MINUTES: z.coerce.number().int().min(5).max(180).default(30),
+  LANQI_MEDIA_IMAGE_CREDITS: z.coerce.number().int().positive().default(100),
+  BEAUTY_MEDIA_EXECUTION_MODE: z.enum(["disabled", "real"]).default("disabled"),
+  BEAUTY_MEDIA_PRODUCT_ENABLED: z.enum(["true", "false"]).default("false"),
+  BEAUTY_MEDIA_MAX_REAL_IMAGES: z.coerce.number().int().min(0).max(3).default(0),
+  BEAUTY_MEDIA_MAX_PROVIDER_COST_YUAN: z.coerce.number().min(0).max(1).default(0),
+  BEAUTY_MEDIA_IMAGE_CREDITS: z.coerce.number().int().positive().default(100),
+  BEAUTY_MEDIA_ASSET_STORAGE: z.enum(["disabled", "local"]).default("disabled"),
+  BEAUTY_MEDIA_ACCEPTANCE_OPERATOR_GATE: z.enum(["true", "false"]).default("false"),
+  BEAUTY_DAILY_BRIEF_RUNTIME_MODE: z.enum(["disabled", "controlled_mock", "live"]).default("disabled"),
+  BEAUTY_DAILY_BRIEF_SCHEDULER_ENABLED: z.enum(["true", "false"]).default("false"),
+  BEAUTY_DAILY_BRIEF_RECURRING_APPROVED: z.enum(["true", "false"]).default("false"),
+  BEAUTY_DAILY_BRIEF_SCHEDULER_TENANT_ID: optionalString,
+  BEAUTY_DAILY_BRIEF_SCHEDULER_USER_ID: optionalString,
+  BEAUTY_DAILY_BRIEF_MANUAL_RETRY_APPROVED: z.enum(["true", "false"]).default("false"),
+  BEAUTY_DAILY_BRIEF_DAILY_NETWORK_REQUEST_LIMIT: z.coerce.number().int().min(0).max(500).default(0),
+  BEAUTY_DAILY_BRIEF_DAILY_MODEL_CALL_LIMIT: z.coerce.number().int().min(0).max(10).default(0),
+  BEAUTY_DAILY_BRIEF_DAILY_COST_LIMIT_YUAN: z.coerce.number().min(0).max(100).default(0),
+  BEAUTY_DAILY_BRIEF_MONTHLY_NETWORK_REQUEST_LIMIT: z.coerce.number().int().min(0).max(1116).default(0),
+  BEAUTY_DAILY_BRIEF_MONTHLY_MODEL_CALL_LIMIT: z.coerce.number().int().min(0).max(31).default(0),
+  BEAUTY_DAILY_BRIEF_MONTHLY_COST_LIMIT_YUAN: z.coerce.number().min(0).max(4.1).default(0),
+  LANQI_MEDIA_720P_5S_CREDITS: z.coerce.number().int().positive().default(990),
+  LANQI_MEDIA_720P_10S_CREDITS: z.coerce.number().int().positive().default(1690),
+  LANQI_MEDIA_1080P_5S_CREDITS: z.coerce.number().int().positive().default(1490),
+  LANQI_MEDIA_1080P_10S_CREDITS: z.coerce.number().int().positive().default(2690),
   ALIYUN_ASR_MODEL: z.string().trim().min(1).default("qwen3-asr-flash"),
   ALIYUN_ASR_FILETRANS_MODEL: z.string().trim().min(1).default("qwen3-asr-flash-filetrans"),
   ALIYUN_MEDIA_BASE64_MAX_MB: z.coerce.number().positive().default(12),
+  ALIYUN_MEDIA_ANALYSIS_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).default(30_000),
   DASHSCOPE_API_KEY: optionalString,
   DASHSCOPE_BASE_URL: optionalUrl,
   PEXELS_API_KEY: optionalString,
@@ -46,6 +103,9 @@ const envSchema = z.object({
   DOMESTIC_COMPATIBLE_BASE_URL: optionalUrl,
   DOMESTIC_COMPATIBLE_MODEL: z.string().trim().min(1).default("deepseek-v4-pro"),
   LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(180000),
+  // V4 Pro reasoning_high exhausted a 2048-token budget without final content
+  // at 56.8s; keep a bounded 4096-token generation inside this outer deadline.
+  FOUNDER_IP_CONTENT_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).default(120_000),
   AGENT_ORCHESTRATION_STEP_TIMEOUT_MS: z.coerce.number().int().positive().default(90000),
   AGENT_ORCHESTRATION_TOTAL_TIMEOUT_MS: z.coerce.number().int().positive().default(150000),
   SKILL_MCP_URL: optionalUrl,
@@ -65,7 +125,7 @@ const envSchema = z.object({
   DOMESTIC_NETWORK_ONLY: z.enum(["true", "false"]).default("true"),
   DOMESTIC_OUTBOUND_ALLOWLIST: z
     .string()
-    .default("api.deepseek.com,dashscope.aliyuncs.com,bailian.aliyuncs.com,oss-cn-beijing.aliyuncs.com,openapi.biji.com,api.weixin.qq.com,api.mch.weixin.qq.com,qyapi.weixin.qq.com,www.jiqizhixin.com,www.leiphone.com,www.tmtpost.com,www.sogou.com,weixin.sogou.com,www.cac.gov.cn,www.miit.gov.cn,www.caict.ac.cn,www.douyin.com,douyin.com,www.xiaohongshu.com,xiaohongshu.com,channels.weixin.qq.com,mp.weixin.qq.com,api.pexels.com,images.pexels.com,videos.pexels.com,pixabay.com,cdn.pixabay.com"),
+    .default("api.deepseek.com,dashscope.aliyuncs.com,bailian.aliyuncs.com,oss-cn-beijing.aliyuncs.com,oss-accelerate.aliyuncs.com,openapi.biji.com,api.weixin.qq.com,api.mch.weixin.qq.com,qyapi.weixin.qq.com,www.jiqizhixin.com,www.leiphone.com,www.tmtpost.com,www.sogou.com,weixin.sogou.com,www.cac.gov.cn,www.miit.gov.cn,www.caict.ac.cn,www.douyin.com,douyin.com,www.xiaohongshu.com,xiaohongshu.com,channels.weixin.qq.com,mp.weixin.qq.com,api.pexels.com,images.pexels.com,videos.pexels.com,pixabay.com,cdn.pixabay.com"),
   AI_DAILY_NEWS_SOURCES: z
     .string()
     .default("https://www.cac.gov.cn/yaowen/wxyw/A093602index_1.htm,https://www.miit.gov.cn/xwfb/bldhd/index.html,https://www.caict.ac.cn/kxyj/qwfb/,https://www.jiqizhixin.com,https://www.leiphone.com,https://www.tmtpost.com"),
@@ -117,6 +177,9 @@ export function validateRuntimeConfig(): string[] {
   if (env.NODE_ENV === "production" && env.DATA_MODE !== "database") {
     issues.push("NODE_ENV=production requires DATA_MODE=database");
   }
+  if (env.NODE_ENV === "production" && (process.env.LLM_MOCK_MODE === "true" || process.env.USE_MOCK_LLM === "true")) {
+    issues.push("production forbids LLM_MOCK_MODE and USE_MOCK_LLM");
+  }
   if (env.DATA_MODE === "database" && !process.env.DATABASE_URL) {
     issues.push("DATA_MODE=database requires DATABASE_URL");
   }
@@ -125,6 +188,27 @@ export function validateRuntimeConfig(): string[] {
   }
   if (env.CONTINUOUS_IMPROVEMENT_AUTO_ACTIVATE === "true") {
     issues.push("CONTINUOUS_IMPROVEMENT_AUTO_ACTIVATE must remain false; candidates require eval, approval and canary release");
+  }
+  if (env.BEAUTY_DAILY_BRIEF_SCHEDULER_ENABLED === "true") {
+    if (env.DATA_MODE !== "database") issues.push("BEAUTY_DAILY_BRIEF_SCHEDULER_ENABLED=true requires DATA_MODE=database");
+    if (!env.BEAUTY_DAILY_BRIEF_SCHEDULER_TENANT_ID || !env.BEAUTY_DAILY_BRIEF_SCHEDULER_USER_ID) {
+      issues.push("Beauty daily scheduler requires an explicit billing tenant and user");
+    }
+    if (env.NODE_ENV === "production" && (env.BEAUTY_DAILY_BRIEF_RUNTIME_MODE !== "live" || env.BEAUTY_DAILY_BRIEF_RECURRING_APPROVED !== "true")) {
+      issues.push("Production beauty daily scheduler requires live mode and explicit recurring approval");
+    }
+  }
+  if (env.BEAUTY_DAILY_BRIEF_RUNTIME_MODE === "live") {
+    if (env.BEAUTY_DAILY_BRIEF_RECURRING_APPROVED !== "true") issues.push("Beauty daily live mode requires recurring approval");
+    if (env.BEAUTY_DAILY_BRIEF_DAILY_NETWORK_REQUEST_LIMIT <= 0) issues.push("Beauty daily live mode requires a positive daily network request limit");
+    if (env.BEAUTY_DAILY_BRIEF_DAILY_MODEL_CALL_LIMIT <= 0) issues.push("Beauty daily live mode requires a positive daily model call limit");
+    if (env.BEAUTY_DAILY_BRIEF_DAILY_COST_LIMIT_YUAN <= 0) issues.push("Beauty daily live mode requires a positive daily cost limit");
+    if (env.BEAUTY_DAILY_BRIEF_DAILY_NETWORK_REQUEST_LIMIT > 36) issues.push("Beauty daily live mode network limit exceeds approval");
+    if (env.BEAUTY_DAILY_BRIEF_DAILY_MODEL_CALL_LIMIT !== 1) issues.push("Beauty daily live mode requires exactly one daily model call");
+    if (env.BEAUTY_DAILY_BRIEF_DAILY_COST_LIMIT_YUAN > 0.13) issues.push("Beauty daily live mode daily cost exceeds approval");
+    if (env.BEAUTY_DAILY_BRIEF_MONTHLY_NETWORK_REQUEST_LIMIT <= 0 || env.BEAUTY_DAILY_BRIEF_MONTHLY_NETWORK_REQUEST_LIMIT > 1116) issues.push("Beauty daily live mode monthly network limit is invalid");
+    if (env.BEAUTY_DAILY_BRIEF_MONTHLY_MODEL_CALL_LIMIT <= 0 || env.BEAUTY_DAILY_BRIEF_MONTHLY_MODEL_CALL_LIMIT > 31) issues.push("Beauty daily live mode monthly model limit is invalid");
+    if (env.BEAUTY_DAILY_BRIEF_MONTHLY_COST_LIMIT_YUAN <= 0 || env.BEAUTY_DAILY_BRIEF_MONTHLY_COST_LIMIT_YUAN > 4.1) issues.push("Beauty daily live mode monthly cost limit is invalid");
   }
   if ((env.NODE_ENV === "production" || env.DATA_MODE === "database") && !env.JWT_SECRET) {
     issues.push("JWT_SECRET is required outside demo development");
@@ -137,6 +221,17 @@ export function validateRuntimeConfig(): string[] {
   }
   if (!isHighCapabilityLlmModel(activeLlm.model, env.LLM_ALLOWED_MODELS)) {
     issues.push(highCapabilityLlmPolicyMessage(activeLlm.model, env.LLM_ALLOWED_MODELS));
+  }
+  if (env.LANQI_LOW_RISK_TEXT_ENABLED === "true" || env.LANQI_LOW_RISK_TEXT_EVAL_APPROVED === "true") {
+    if (env.LANQI_LOW_RISK_TEXT_ENABLED !== "true" || env.LANQI_LOW_RISK_TEXT_EVAL_APPROVED !== "true") {
+      issues.push("Lanqi low-risk text candidate requires both explicit enablement and Eval approval");
+    }
+    if (env.LANQI_LOW_RISK_TEXT_MODEL === "qwen3.8-flash" && (!env.ALIYUN_API_KEY || !env.ALIYUN_BASE_URL)) {
+      issues.push("LANQI_LOW_RISK_TEXT_MODEL=qwen3.8-flash requires ALIYUN_API_KEY and ALIYUN_BASE_URL");
+    }
+    if (env.LANQI_LOW_RISK_TEXT_MODEL === "deepseek-v4-flash" && (!env.DEEPSEEK_API_KEY || !env.DEEPSEEK_BASE_URL)) {
+      issues.push("LANQI_LOW_RISK_TEXT_MODEL=deepseek-v4-flash requires DEEPSEEK_API_KEY and DEEPSEEK_BASE_URL");
+    }
   }
   if (env.SKILL_MCP_REQUIRED === "true" && !env.SKILL_MCP_URL) {
     issues.push("SKILL_MCP_REQUIRED=true requires SKILL_MCP_URL");
@@ -185,6 +280,14 @@ export function validateRuntimeConfig(): string[] {
     issues.push("production requires DOMESTIC_NETWORK_ONLY=true");
   }
   issues.push(...validateAllowedHosts("DOMESTIC_OUTBOUND_ALLOWLIST", domesticOutboundAllowlist));
+  if (env.BEAUTY_MEDIA_EXECUTION_MODE === "real") {
+    if (env.BEAUTY_MEDIA_MAX_PROVIDER_COST_YUAN <= 0) {
+      issues.push("Beauty real media requires a positive Provider cost limit");
+    }
+    for (const host of getMissingBeautyProviderAssetRuntimeHosts(domesticOutboundAllowlist)) {
+      issues.push(`Beauty real media requires DOMESTIC_OUTBOUND_ALLOWLIST to include ${host}`);
+    }
+  }
   if (activeLlm.baseUrl) {
     issues.push(
       ...validateOutboundUrl(activeLlm.providerLabel, activeLlm.baseUrl, {

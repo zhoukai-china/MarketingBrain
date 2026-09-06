@@ -1,7 +1,7 @@
 ﻿import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { Prisma, prisma } from "@baolu/db";
-import { PLANS, CREDIT_PACKS, type PlanDefinition, type PlanCode } from "@baolu/shared";
+import { PLANS, CREDIT_PACKS, PRODUCT_LOGIN_DEFINITIONS, PRODUCT_LOGIN_CODES, type PlanDefinition, type PlanCode } from "@baolu/shared";
 import { env } from "../config/env.js";
 import { requireAdminToken } from "../services/access-guards.js";
 import { createInviteCode } from "../services/invite-codes.js";
@@ -10,6 +10,7 @@ const createInviteSchema = z.object({
   code: z.string().min(4).max(80),
   label: z.string().max(120).optional(),
   planCode: z.enum(["local_standard", "local_premium", "ip_standard", "ip_premium", "chain_standard", "chain_premium"]).optional(),
+  productCode: z.enum(PRODUCT_LOGIN_CODES).optional(),
   maxUses: z.number().int().min(1).max(100).default(1),
   endDate: z.string().datetime().optional(),
   createdBy: z.string().max(120).optional()
@@ -51,6 +52,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         codePreview: invite.codePreview,
         label: invite.label,
         planCode: invite.planCode,
+        productCode: invite.productCode,
         planName: invite.planCode ? (PLANS as Record<string, PlanDefinition>)[invite.planCode].name : null,
         maxUses: invite.maxUses,
         usedCount: invite.usedCount,
@@ -83,10 +85,15 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     }
 
     try {
+      const product = parsed.data.productCode ? PRODUCT_LOGIN_DEFINITIONS[parsed.data.productCode] : undefined;
+      if (product && parsed.data.planCode && parsed.data.planCode !== product.planCode) {
+        return reply.code(400).send({ error: "product_plan_mismatch", message: "产品与套餐不匹配" });
+      }
       const invite = await createInviteCode({
         code: parsed.data.code,
         label: parsed.data.label,
-        planCode: parsed.data.planCode,
+        planCode: product?.planCode ?? parsed.data.planCode,
+        productCode: parsed.data.productCode,
         maxUses: parsed.data.maxUses,
         expiresAt: parsed.data.endDate ? new Date(parsed.data.endDate) : null,
         createdBy: parsed.data.createdBy
@@ -99,6 +106,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
           codePreview: invite.codePreview,
           label: invite.label,
           planCode: invite.planCode,
+          productCode: invite.productCode,
           maxUses: invite.maxUses,
           usedCount: invite.usedCount,
           isActive: invite.isActive,

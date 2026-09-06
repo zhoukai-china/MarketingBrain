@@ -1,0 +1,30 @@
+{
+  "sha256": "19f368105ab275c7e130e1979922954c897d1cc2e855dd82a3f310a9c348d946",
+  "detectorVersion": "beauty-image-safety-v2.4",
+  "status": "rejected",
+  "reason": "interface_or_watermark_like",
+  "evidence": [
+    {
+      "detectorType": "corner_watermark",
+      "confidence": 0.978,
+      "bbox": { "x": 556, "y": 968, "width": 104, "height": 20 },
+      "metrics": {
+        "componentMode": "edge_components",
+        "glyphComponents": 6,
+        "glyphLikeComponents": 6,
+        "baselineDeviation": 1.863,
+        "heightVariation": 0.255,
+        "gapVariation": 0.937,
+        "widthCoverage": 0.577,
+        "edgePixelDensity": 0.125,
+        "meanComponentFill": 0.514,
+        "meanComponentWidth": 5,
+        "meanComponentHeight": 4.333,
+        "sampledUnionHeight": 10,
+        "meanComponentHeightToUnionHeight": 0.433,
+        "readableSequenceRecovered": false
+      }
+    }
+  ],
+  "provenance": "BY-26 controlled acceptance audit asset; customer content and Provider payload omitted"
+}

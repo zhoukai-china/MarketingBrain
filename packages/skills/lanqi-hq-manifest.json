@@ -1,0 +1,84 @@
+{
+  "mcpName": "lanqi-hq",
+  "displayName": "兰琪总部专用 MCP",
+  "version": "1.0.0",
+  "owner": "保禄",
+  "developedBy": "workbuddy",
+  "devNote": "本 MCP 由 WorkBuddy 自行开发——把现有 skill 打包为 MCP 服务，兰琪通过 MCP 直接调用。不是 Codex / baolu-os-v2 项目，不依赖 Codex 部署。",
+  "endpoint": "/lanqi-hq/mcp",
+  "separateFrom": {
+    "mcp": "baolu-beauty-content",
+    "endpoint": "/beauty-content/mcp",
+    "note": "兰琪总部 MCP 与美业门店智能体完全独立，不共用 skill 根、不共用约束层、不共用端点"
+  },
+  "scope": "兰琪总部只做招商加盟（招募加盟商/代理商/城市代理），不做 C 端零售获客。由 WorkBuddy 自研打包为 MCP，兰琪通过 MCP 调用。",
+  "methodologySkill": "lanqi-meiye",
+  "constraintSkills": ["lanqi-compliance", "lanqi-content-diff", "lanqi-xhs", "lanqi-zhaoshang"],
+  "globalConstraintNote": "lanqi-zhaoshang 为全局招商定位约束，叠加在每一个工具上——一切输出只服务招商加盟，排除团购引流/到店转化/消费者种草等 C 端获客。",
+  "pages": [
+    {
+      "page": "小红书图文生成",
+      "genericSkill": ["wechat-xhs-content-line"],
+      "constraint": ["lanqi-xhs"]
+    },
+    {
+      "page": "选题系统",
+      "genericSkill": ["baolu_topics"],
+      "constraint": ["lanqi-content-diff"]
+    },
+    {
+      "page": "内容系统-文案脚本",
+      "genericSkill": ["baolu_content_creator"],
+      "constraint": ["lanqi-content-diff", "lanqi-compliance"]
+    },
+    {
+      "page": "视频复盘系统-数据复盘",
+      "genericSkill": ["baolu_review_engine"],
+      "constraint": ["lanqi-content-diff"],
+      "mode": "data"
+    },
+    {
+      "page": "视频复盘系统-内容复盘",
+      "genericSkill": ["baolu_review_engine"],
+      "constraint": ["lanqi-content-diff"],
+      "mode": "content"
+    },
+    {
+      "page": "直播话术",
+      "genericSkill": ["live_script_planner"],
+      "constraint": ["lanqi-compliance"]
+    },
+    {
+      "page": "直播复盘",
+      "genericSkill": ["baolu_live_review_engine"],
+      "constraint": ["lanqi-compliance"]
+    },
+    {
+      "page": "美业销售",
+      "genericSkill": ["sales_growth_advisor"],
+      "constraint": ["lanqi-compliance"]
+    },
+    {
+      "page": "投流系统-DOU+ / 本地推",
+      "genericSkill": ["dou_plus_ads", "optimize_local_push_ads"],
+      "constraint": ["lanqi-compliance"],
+      "note": "兰琪总部纳入（总部获客需要）；美业门店智能体已取消此板块，互不影响"
+    }
+  ],
+  "pendingDev": [
+    "文生视频",
+    "图生视频",
+    "美业专属交付（可后续接 delivery_standardization + lanqi-meiye）",
+    "美业经营诊断",
+    "美业知识问答"
+  ],
+  "skillRoot": "packages/skills/skills",
+  "deployment": {
+    "type": "workbuddy_self_hosted_mcp",
+    "note": "由 WorkBuddy 自行把 skill 打包为 MCP 服务（同 baolu-beauty-content 模式，非 Codex 项目），兰琪通过 MCP 直接调用",
+    "route": "/lanqi-hq/mcp",
+    "endpoint": "https://api.lcppch.top/lanqi-hq/mcp",
+    "skillNamespace": "lanqi",
+    "auth": "建议加 Authorization: Bearer（同 baolu-growth-flywheel 做法）"
+  }
+}

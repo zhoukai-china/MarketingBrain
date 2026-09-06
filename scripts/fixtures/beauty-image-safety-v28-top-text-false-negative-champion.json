@@ -1,0 +1,16 @@
+{
+  "sha256": "e91ef4afcff706a03142d519f6a10e3e229f31728468f01124e5abcf4ceaa331",
+  "detectorVersion": "beauty-image-safety-v2.8",
+  "status": "passed",
+  "reason": "visible_text_or_brand_like_missing",
+  "rootCause": "edge_component_grouping_missed_low_contrast_top_display_text",
+  "diagnostics": {
+    "sampledWidth": 384,
+    "sampledHeight": 512,
+    "topDisplayTextGlyphCandidateCount": 0,
+    "topStrokeBandFirstRow": 43,
+    "topStrokeBandLastRow": 59,
+    "topStrokeBandQualifyingRows": 17,
+    "topStrokeBandPeakTransitions": 98
+  }
+}

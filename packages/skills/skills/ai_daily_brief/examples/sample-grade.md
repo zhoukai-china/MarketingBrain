@@ -1,4 +1,6 @@
-# WorkBuddy 样板库：行业热点获客
+# Codex 正式样板库：行业热点获客
+
+> 来源：仓库正式 `ai_daily_brief@1.0.0` 的脱敏样板；不依赖 WorkBuddy 候选原件。
 
 ## 用户输入：
 

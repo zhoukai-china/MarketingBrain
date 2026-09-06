@@ -1,0 +1,17 @@
+{
+  "version": "beauty-image-safety-v210-engagement-device-missed-champion-v1",
+  "sha256": "350b1f39cf9d99a7ff669f8e73242f12e577525dadf97e6172ed35f24e5b994a",
+  "detectorVersion": "beauty-image-safety-v2.10",
+  "status": "rejected",
+  "rootCause": "explicit_person_and_handheld_device_evidence_missing",
+  "sourceEvidence": {
+    "role": "engagement",
+    "humanReadonlySummary": "synthetic hand holding a blank-screen smartphone beside a glass and plants; no customer or brand facts",
+    "observedReason": "visible_text_or_brand_like",
+    "observedDetector": "glyph_sequence",
+    "observedBbox": { "x": 548, "y": 614, "width": 148, "height": 20 },
+    "readableSequenceRecovered": false,
+    "explicitPersonOrDeviceEvidence": false
+  },
+  "privacy": "read-only synthetic acceptance asset; no prompt, provider response, credential or customer content"
+}

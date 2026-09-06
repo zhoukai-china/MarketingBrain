@@ -935,7 +935,7 @@ async function main() {
       "可用公开线索：",
       "1. 企业AI改造是一把手工程｜发布日期：2026-07-24｜来源：测试媒体｜https://example.cn/article",
       "【热点驱动内容创作任务】",
-      "用户这次补充：结合最近AI企业改造行业热点，给我3个今天能用的获客选题，并选1个按内容Skill九件套写出60-90秒完整口播文案。"
+      "用户这次补充：结合最近AI企业改造行业热点，给我3个今天能用的获客选题，并选1个按内容Skill十件套写出60-90秒完整口播文案。"
     ].join("\n")
   }, {
     name: "hotspot-content-fallback",
@@ -946,7 +946,7 @@ async function main() {
     hotspotDrivenContent.answer.includes("4. 中小企业") ||
     /北京附近|门头只露|到店核销|附近的人今天为什么要行动/.test(hotspotDrivenContent.answer)
   ) {
-    failures.push(`热点驱动内容在模型失败时仍必须遵守用户要求的3个选题，并输出有来源、长口播和完整九件套：${hotspotDrivenContent.answer.slice(0, 420)}`);
+    failures.push(`热点驱动内容在模型失败时仍必须遵守用户要求的3个选题，并输出有来源、长口播和完整十件套：${hotspotDrivenContent.answer.slice(0, 420)}`);
   }
 
   const hotspotTranscriptOnly = await runAgent({

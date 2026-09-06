@@ -65,6 +65,7 @@ export function AgentWorkMap({
   if (!open || !selectedNode) return null;
 
   function enterNode(node: AgentWorkMapNode): void {
+    if (node.action.type === "static") return;
     if (node.action.type === "knowledge") {
       if (knowledgeHref) {
         window.location.assign(knowledgeHref);
@@ -82,7 +83,9 @@ export function AgentWorkMap({
 
   const selectedState = selectedNode.action.type === "knowledge"
     ? knowledgeDocumentCount > 0 ? `当前任务已选择 ${knowledgeDocumentCount} 条资料` : "当前任务还未选择资料"
-    : selectedNode.action.capabilityId === selectedCapabilityId ? "当前任务正在使用这个模块" : "点击进入后锁定这个专业模块";
+    : selectedNode.action.type === "static"
+      ? "这是业务总入口，不直接执行任务"
+      : selectedNode.action.capabilityId === selectedCapabilityId ? "当前任务正在使用这个模块" : "点击进入后锁定这个专业模块";
 
   return (
     <section className="agentWorkMapOverlay" role="dialog" aria-modal="true" aria-label={`${agentName}工作地图`}>
@@ -138,7 +141,7 @@ export function AgentWorkMap({
                 const active = node.id === selectedNode.id;
                 const inUse = node.action.type === "knowledge"
                   ? knowledgeDocumentCount > 0
-                  : node.action.capabilityId === selectedCapabilityId;
+                  : node.action.type === "capability" && node.action.capabilityId === selectedCapabilityId;
                 const content = <>
                   <span>{node.icon}</span>
                   <div><strong>{node.title}</strong><small>{node.subtitle}</small></div>
@@ -152,6 +155,14 @@ export function AgentWorkMap({
                     href={knowledgeHref}
                     onClick={onClose}
                   >{content}</a>;
+                }
+                if (node.action.type === "static") {
+                  return <div
+                    key={node.id}
+                    className={`agentWorkMapNode node-${node.kind} node-static ${active ? "selected" : ""}`.trim()}
+                    style={{ left: `${node.position.x}%`, top: `${node.position.y}%` }}
+                    aria-label={`${node.title}，业务总入口`}
+                  >{content}</div>;
                 }
                 return <button
                   type="button"
@@ -179,7 +190,7 @@ export function AgentWorkMap({
 
         <aside className="agentWorkMapInspector">
           <span className={`agentWorkMapNodeIcon node-${selectedNode.kind}`}>{selectedNode.icon}</span>
-          <small>{selectedNode.kind === "knowledge" ? "知识底座" : selectedNode.kind === "review" ? "复盘模块" : "执行模块"}</small>
+          <small>{selectedNode.action.type === "static" ? "业务总入口" : selectedNode.kind === "knowledge" ? "知识底座" : selectedNode.kind === "review" ? "复盘模块" : "执行模块"}</small>
           <h3>{selectedNode.title}</h3>
           <p>{selectedNode.subtitle}</p>
           <section>
@@ -190,7 +201,9 @@ export function AgentWorkMap({
             <span>进入后会发生什么</span>
             <strong>{nodeActionDescription(selectedNode)}</strong>
           </section>
-          {selectedNode.action.type === "knowledge" && knowledgeHref
+          {selectedNode.action.type === "static"
+            ? <p className="agentWorkMapStaticTip">请从视频分支、直播分支或问问保禄进入具体任务；选题系统仍是视频分支的第一个模块。</p>
+            : selectedNode.action.type === "knowledge" && knowledgeHref
             ? <a className="agentWorkMapEnter" href={knowledgeHref} onClick={onClose}>进入企业知识库 →</a>
             : <button type="button" className="agentWorkMapEnter" onClick={() => enterNode(selectedNode)}>
                 {selectedNode.action.type === "knowledge" ? "进入企业知识库" : `放大进入${selectedNode.title}`} →
@@ -203,6 +216,7 @@ export function AgentWorkMap({
 }
 
 function nodeActionDescription(node: AgentWorkMapNode): string {
+  if (node.action.type === "static") return "这是创始人 IP 获客的业务入口，用于组织后续分支，不执行具体任务。";
   if (node.action.type === "knowledge") return "打开品牌获客独立企业知识库页面，管理企业、IP、客户项目、录音和行业资料。";
   if (node.kind === "review") return "进入复盘任务，读取用户提供的真实文件或数据，再沉淀下一轮可执行结论。";
   return "锁定对应专业 Skill，并回到工作台补充要求或直接执行。";

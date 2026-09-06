@@ -1,0 +1,46 @@
+{
+  "version": "beauty-image-signage-carrier-prompt-champion-v1",
+  "sourceEvidence": [
+    {
+      "assetSha256": "aadedfc946f49135b11686642b976f2ab548542c55fbae4a81e717cd151dae1f",
+      "role": "cover",
+      "qualityReasons": ["visible_text_or_brand_like", "interface_or_watermark_like", "person_or_device_like"],
+      "operatorFinding": "central_feature_wall_and_reception_objects_became_text_logo_qr_and_portrait_carriers"
+    },
+    {
+      "assetSha256": "b2fd41ede69550530a12ca735b7fd1a138b006800b8943efee1261bbd3e03133",
+      "role": "cover",
+      "qualityReasons": ["qr_or_barcode_like", "visible_text_or_brand_like"],
+      "operatorFinding": "central_reception_wall_became_large_pseudo_english_signage"
+    }
+  ],
+  "champion": {
+    "providerPromptVersion": "beauty-image-provider-prompt-v1.5",
+    "promptHashes": {
+      "cover": "556c9f70c7699d7223f56aed3e6ac751308722205190d526b94a7c865d745b6a",
+      "content": "84377fccfd3105b44c28c9237b0420058d868124d1a5b2430a429698ac4f8307",
+      "engagement": "2084e45734aafdce0ee6dcc70ccf1b14cf050150edae825743e02a15274cc7e5"
+    },
+    "rootCause": "generic_no_text_constraint_without_signage_carrier_free_composition"
+  },
+  "challenger": {
+    "providerPromptVersion": "beauty-image-provider-prompt-v1.6",
+    "singleVariable": "signage_carrier_free_composition",
+    "requiredPromptConcepts": [
+      "oblique camera angle",
+      "no central feature wall",
+      "plain textured wall surfaces",
+      "no signage-bearing surface"
+    ],
+    "requiredNegativeConcepts": [
+      "signage wall",
+      "reception logo wall",
+      "poster frame",
+      "price list",
+      "display board",
+      "countertop sign",
+      "screen",
+      "product label"
+    ]
+  }
+}

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>宠物门店情绪识别报告 - {{TIMESTAMP}}</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+  background:linear-gradient(135deg,#f5f7fa 0%,#c3cfe2 100%);
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  padding:20px;
+}
+.card{
+  background:#fff;
+  border-radius:20px;
+  box-shadow:0 20px 60px rgba(0,0,0,.12);
+  max-width:640px;
+  width:100%;
+  overflow:hidden;
+  margin:20px 0;
+}
+
+/* Header —— 用安全灯号颜色 */
+.header{
+  background:linear-gradient(135deg,{{LEVEL_COLOR}} 0%,{{LEVEL_COLOR}}dd 100%);
+  color:#fff;
+  padding:30px;
+  text-align:center;
+  position:relative;
+  overflow:hidden;
+}
+.header .emoji{font-size:64px;display:block;margin-bottom:10px;position:relative;z-index:1;animation:bounce 2s ease-in-out infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.header h1{font-size:22px;font-weight:700;margin-bottom:8px;position:relative;z-index:1}
+.header .level{
+  display:inline-block;
+  font-size:15px;font-weight:700;
+  padding:6px 18px;
+  border-radius:20px;
+  background:rgba(255,255,255,.22);
+  margin-bottom:14px;
+  position:relative;z-index:1;
+}
+.header .confidence-label{font-size:13px;opacity:.9;margin-bottom:6px;position:relative;z-index:1}
+.header .confidence-bar{background:rgba(255,255,255,.25);border-radius:12px;height:10px;overflow:hidden;position:relative;z-index:1}
+.header .confidence-fill{background:#fff;height:100%;border-radius:12px;transition:width 1.2s cubic-bezier(.4,0,.2,1);box-shadow:0 0 10px rgba(255,255,255,.5)}
+
+/* 图片 */
+.image-section{padding:24px 30px;text-align:center;background:#fafafa}
+.image-section img{max-width:100%;max-height:340px;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.1)}
+
+/* 经营建议卡片 */
+.info-section{padding:24px 30px 10px}
+.info-section .section-title{font-size:15px;font-weight:700;color:#333;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.info-card{
+  display:flex;align-items:flex-start;gap:14px;
+  padding:16px 18px;background:#f8f9fa;border-radius:14px;
+  margin-bottom:12px;border-left:4px solid {{LEVEL_COLOR}};
+  transition:transform .2s, box-shadow .2s;
+}
+.info-card:hover{transform:translateX(4px);box-shadow:0 4px 12px rgba(0,0,0,.06)}
+.info-card.risk{border-left-color:#F44336;background:#fff5f5}
+.info-card .icon{font-size:24px;flex-shrink:0;width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:#fff;border-radius:10px}
+.info-card .content{flex:1}
+.info-card .label{font-size:12px;color:#999;margin-bottom:4px}
+.info-card .value{font-size:15px;color:#333;line-height:1.6}
+
+/* 情绪刻度 */
+.emotion-scale{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 30px 20px}
+.emotion-item{text-align:center;padding:12px 8px;border-radius:12px;background:#f8f9fa;transition:all .3s}
+.emotion-item.active{background:{{LEVEL_COLOR}}15;box-shadow:0 0 0 2px {{LEVEL_COLOR}};transform:scale(1.05)}
+.emotion-item .e-emoji{font-size:28px;display:block;margin-bottom:4px}
+.emotion-item .e-name{font-size:12px;color:#666}
+.emotion-item .e-bar{height:4px;border-radius:2px;margin-top:6px;transition:width .8s}
+.emotion-item.active .e-name{color:{{LEVEL_COLOR}};font-weight:600}
+
+/* 雷达图 */
+.chart-section{padding:0 30px 25px}
+.chart-section h3{font-size:16px;font-weight:600;margin-bottom:16px;color:#333;display:flex;align-items:center;gap:8px}
+.chart-container{position:relative;height:270px;background:#fafafa;border-radius:14px;padding:16px}
+
+.footer{text-align:center;padding:16px 30px 24px;color:#bbb;font-size:12px;border-top:1px solid #f0f0f0}
+.footer .powered{font-size:11px;margin-top:4px}
+
+@media(max-width:480px){
+  .header{padding:24px 20px}
+  .header .emoji{font-size:52px}
+  .info-section,.chart-section,.emotion-scale{padding-left:20px;padding-right:20px}
+  .image-section{padding:16px 20px}
+  .emotion-scale{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <span class="emoji">{{EMOTION_EMOJI}}</span>
+    <h1>{{SPECIES_LABEL}} · {{EMOTION}}</h1>
+    <div class="level">{{LEVEL_LABEL}}</div>
+    <div class="confidence-label">置信度 {{CONFIDENCE}}%</div>
+    <div class="confidence-bar"><div class="confidence-fill" style="width:{{CONFIDENCE}}%"></div></div>
+  </div>
+
+  <div class="image-section">
+    <img src="{{IMAGE_SRC}}" alt="宠物照片" onerror="this.style.display='none';this.parentElement.innerHTML='<p style=color:#999;padding:40px>📷 图片无法显示</p>'">
+  </div>
+
+  <div class="info-section">
+    <div class="section-title">🏪 门店经营建议</div>
+    <div id="infoSection"></div>
+  </div>
+
+  <div class="emotion-scale" id="emotionScale"></div>
+
+  <div class="chart-section">
+    <h3>📊 情绪分布雷达图</h3>
+    <div class="chart-container"><canvas id="emotionChart"></canvas></div>
+  </div>
+
+  <div class="footer">
+    🐱🐶 宠物门店情绪识别 · {{TIMESTAMP}}
+    <div class="powered">Powered by {{PROVIDER_DISPLAY}}{{PROVIDER_MODEL}} · chongwu-emotion Skill</div>
+  </div>
+</div>
+
+<script>
+const result = {
+  species: "{{SPECIES}}",
+  emotion: "{{EMOTION}}",
+  confidence: parseFloat("{{CONFIDENCE_DECIMAL}}"),
+  levelColor: "{{LEVEL_COLOR}}",
+  color: "{{COLOR}}"
+};
+const data = {{RESULT_JSON}};
+const emotionDistribution = {{EMOTION_DISTRIBUTION}};
+
+// 渲染经营建议卡片
+(function renderInfo() {
+  const section = document.getElementById('infoSection');
+  const cards = [];
+  if (data.reason) cards.push({i:'🔍', l:'判断依据', v:data.reason, risk:false});
+  if (data.service_advice) cards.push({i:'🛁', l:'服务建议', v:data.service_advice, risk:false});
+  if (data.sales_advice) cards.push({i:'💰', l:'销售机会', v:data.sales_advice, risk:false});
+  if (data.soothe_script) cards.push({i:'🤝', l:'安抚话术', v:data.soothe_script, risk:false});
+  if (data.risk_warning && data.risk_warning !== '无') cards.push({i:'⚠️', l:'风险提示', v:data.risk_warning, risk:true});
+  section.innerHTML = cards.map(c => `
+    <div class="info-card${c.risk ? ' risk' : ''}">
+      <div class="icon">${c.i}</div>
+      <div class="content"><div class="label">${c.l}</div><div class="value">${c.v}</div></div>
+    </div>
+  `).join('');
+})();
+
+// 渲染情绪刻度
+(function renderScale() {
+  const scale = document.getElementById('emotionScale');
+  scale.innerHTML = emotionDistribution.map(e => {
+    const pct = Math.round(e.value * 100);
+    const isActive = e.name === result.emotion;
+    return `
+      <div class="emotion-item${isActive ? ' active' : ''}">
+        <span class="e-emoji">${e.emoji}</span>
+        <span class="e-name">${e.name}</span>
+        <div class="e-bar" style="width:${pct}%;background:${e.color}"></div>
+      </div>
+    `;
+  }).join('');
+})();
+
+// 渲染雷达图
+(function renderChart() {
+  const ctx = document.getElementById('emotionChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: emotionDistribution.map(d => d.emoji + ' ' + d.name),
+      datasets: [{
+        label: '情绪概率',
+        data: emotionDistribution.map(d => d.value),
+        backgroundColor: result.color + '20',
+        borderColor: result.color,
+        borderWidth: 2.5,
+        pointBackgroundColor: emotionDistribution.map(d => d.color),
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 6,
+        pointHoverRadius: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        r: {
+          min: 0, max: 1,
+          ticks: { stepSize: 0.2, display: false, backdropColor: 'transparent' },
+          grid: { color: '#e0e0e0' },
+          angleLines: { color: '#e0e0e0' },
+          pointLabels: { font: { size: 13, family: "'PingFang SC','Microsoft YaHei',sans-serif" }, color: '#555' }
+        }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+})();
+</script>
+</body>
+</html>

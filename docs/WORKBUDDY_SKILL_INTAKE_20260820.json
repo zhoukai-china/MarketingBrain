@@ -1,0 +1,3852 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-20T09:54:21.469Z",
+  "sourceRoot": "C:\\Users\\book\\Desktop\\新skill",
+  "candidateCount": 102,
+  "safeForCopyCount": 44,
+  "skills": [
+    {
+      "id": "bendi-compliance",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\本地服务skill\\bendi-compliance",
+      "relativeSourcePath": "本地服务skill/bendi-compliance",
+      "modifiedAt": "2026-08-19T23:29:31.860Z",
+      "skillMdSha256": "7db09e4006ddfb374f51e43cbc6abd15093b4981aa98cbdbdf8518e850bb7b93",
+      "fileCount": 1,
+      "totalBytes": 6089,
+      "description": "本地服务合规红线智能体。蒸馏本地生活服务（餐饮/美业/零售/生活服务到店业务）宣传的通用合规红线。核心命题：本地服务宣传第一优先级是不违法——虚假宣传、刷单炒信、价格欺诈、达人虚假流量，翻车一次比生意差更致命。覆盖：广告法极限词、虚假宣传（虚构月销/排队王/网红打卡）、刷单炒信（虚构好评/伪造榜单）、价格合规（虚构原价/折扣限制未标明）、达人虚假流量（95%刷的，别依赖）、服务承诺（不夸大效果）、对比贬低同行。触发词：本地服务合规、门店广告法、本地生活合规、虚假宣传、刷单炒信、好评造假、价格欺诈、达人虚假流量、到店宣传红线。适用场景：本地生活门店/服务商的内容宣传合规审查、团购广告合规扫描、好评/榜单宣称审查、达人投放风险排查。",
+      "staticQuality": {
+        "score": 66,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 6,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "bendi-content-diff",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\本地服务skill\\bendi-content-diff",
+      "relativeSourcePath": "本地服务skill/bendi-content-diff",
+      "modifiedAt": "2026-08-19T23:32:38.402Z",
+      "skillMdSha256": "7711e8ca0c9b0c5c99c4767fde2bb590bcb604ee857e4ad63e11fd339f73804b",
+      "fileCount": 1,
+      "totalBytes": 4138,
+      "description": "本地服务内容差异卡。配合通用 content-nine-piece 九件套使用，只写本地服务通用的五段差异：①合规红线（通用广告法 + 夸大虚假/达人虚假数据）②行业钩子（团购/限时/新客立减/三大到店理由）③话术与选题库（卖点转买点/场景化/蹭热点4手法）④平台侧重（点评美团+抖音+小红书）⑤案例与数据锚点。触发词：本地服务内容、门店文案、到店文案、本地生活内容、团购文案、门店引流内容、本地推投流。适用场景：给各类本地生活门店/服务商写短视频图文内容时，作为通用差异卡注入 content-nine-piece。",
+      "staticQuality": {
+        "score": 58,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 12,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "bendi-marketing",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\本地服务skill\\bendi-marketing",
+      "relativeSourcePath": "本地服务skill/bendi-marketing",
+      "modifiedAt": "2026-08-19T23:38:09.468Z",
+      "skillMdSha256": "aadbabac32b01753abfdd0266495b1e84357dfdf5aa94d9e4cc18ee78542eae4",
+      "fileCount": 1,
+      "totalBytes": 4528,
+      "description": "本地服务营销智能体。蒸馏本地生活服务（餐饮/美业/零售/服务等所有到店生意）的营销全链路方法论。核心命题：本地商家营销的核心是\"场景化 + 到店钩子\"——让用户在特定场景想到你，并用一个明确的到店理由促成行动。覆盖：卖点转买点、场景化思维、痛点痒点爽点、到店文案、海报、小红书种草、蹭热点、短视频。触发词：本地服务营销、门店营销、到店文案、本地商家营销、门店海报、门店种草、本地生活营销、门店短视频、到店钩子。适用场景：本地商家营销、门店文案海报、本地生活种草、门店短视频、到店转化文案。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 0,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "bendi-sales",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\本地服务skill\\bendi-sales",
+      "relativeSourcePath": "本地服务skill/bendi-sales",
+      "modifiedAt": "2026-08-16T09:30:26.998Z",
+      "skillMdSha256": "915bcb03e5dbaf728fcaeab0ed0bf902563752ed5d19021585a2e2af5bf5666a",
+      "fileCount": 1,
+      "totalBytes": 3886,
+      "description": "本地服务成交升单智能体。蒸馏本地生活服务（餐饮/美业/零售/服务等所有到店生意）的成交升单方法论。核心命题：本地生意升单的核心是\"引流款转利润款\"——低价引流把客请进门，用体验和效果顺势升单到高价项目，靠台阶和理由，不靠硬推。覆盖：阶梯式升单、引流款转利润款、套餐设计、升单时机、升单话术。触发词：本地服务成交、门店升单、引流转利润、到店成交、门店办卡、套餐升单、本地商家客单价、升单话术。适用场景：本地商家成交、门店升单、引流转利润、套餐设计、客单价提升。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 1,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "bendi-service",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\本地服务skill\\bendi-service",
+      "relativeSourcePath": "本地服务skill/bendi-service",
+      "modifiedAt": "2026-08-16T10:10:48.763Z",
+      "skillMdSha256": "c24795d4befbeaeeccc2cf28594a8f564cf6f847bcbc1547f96feafbe37bea70",
+      "fileCount": 1,
+      "totalBytes": 8617,
+      "description": "本地服务获客智能体。蒸馏本地生活服务（餐饮/美业/零售/汽修/乐园等所有到店生意）的通用获客方法论。核心命题：本地生意的本质是\"把同城的人引到店\"——用精准流量做高转化生意，流量是租来的，人群资产和矩阵才是自己的。覆盖：爆店公式、买点思维（用户雇佣理论）、三大到店理由、平台选择、职人号矩阵、三池模型（M1/M2/M3）、五阶起量法、本地推投流、代运营vs自运营。含权威数据：抖音生活服务GMV+59%、核销率仅50%、连锁化率25%。触发词：本地服务获客、门店引流、本地生活、到店获客、同城引流、门店抖音、本地推、团购、探店、职人号、门店短视频、本地商家获客、到店转化。适用场景：本地生活服务商家获客、门店引流、抖音同城、团购起量、职人号矩阵、本地推投流、到店核销。",
+      "staticQuality": {
+        "score": 32,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 15,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "canyin-acquisition",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\餐饮skill\\canyin-acquisition",
+      "relativeSourcePath": "餐饮skill/canyin-acquisition",
+      "modifiedAt": "2026-08-19T23:38:09.453Z",
+      "skillMdSha256": "0401b12ca6c2d70ca91567b292a0c6cf2d3abf2573b26b04f604f1b9613ab1de",
+      "fileCount": 1,
+      "totalBytes": 13052,
+      "description": "餐饮获客引流智能体。蒸馏爆店体系（买点思维+矩阵营销）与流量体系（三池模型+人群资产+五阶起量法），落地到餐饮行业。核心命题：用精准流量做高转化生意——流量是租来的，人群资产和矩阵才是自己的。覆盖：用户雇佣理论找买点、餐饮三大到店理由、平台选择逻辑、职人号矩阵、抖音三池模型、营销5A人群资产、五阶起量法（拉新→种草→转化→核销→截流）、本地推投流、代运营vs自运营。触发词：餐饮获客、餐厅引流、门店引流、抖音团购、探店达人、本地生活、职人号、矩阵营销、到店核销、本地推、投流、人群资产、A3人群、买点、到店理由、餐饮短视频、团购套餐、爆店。适用场景：餐厅/连锁门店短视频获客、单店流量模型搭建、本地生活投流、达人投放、团购起量、到店核销、自运营矩阵设计。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 26,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "canyin-compliance",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\餐饮skill\\canyin-compliance",
+      "relativeSourcePath": "餐饮skill/canyin-compliance",
+      "modifiedAt": "2026-08-16T05:57:49.387Z",
+      "skillMdSha256": "a0df75366c79161b28fa2944cb52d3214a142217b87e848cc69abe36ee53d3c0",
+      "fileCount": 1,
+      "totalBytes": 8021,
+      "description": "餐饮合规红线智能体。蒸馏网络食品/餐饮广告合规监管要求（官方监管文件+法律法规），覆盖餐饮经营和宣传的合规红线。核心命题：餐饮第一优先级是不违法，再求生意好——宣传翻车一次，比生意差更致命。覆盖：资质合规（许可/健康证/不得冒用）、广告法极限词（最/第一/顶级/国家级）、食品功效禁用（不得宣传疾病预防/治疗/保健功能）、无糖低脂零添加宣称需有证明、虚假评价/刷单/伪造必吃榜红线、价格促销合规、明厨亮灶承诺、酒类广告限制、处罚标准（最高20万+个人1-10倍）。触发词：餐饮合规、食品安全法、餐饮广告法、餐饮宣传红线、极限词、虚假宣传、食品功效、餐饮资质、明厨亮灶、食品许可、餐饮处罚、外卖合规、食品安全、餐饮虚假广告。适用场景：餐饮宣传合规审查、菜单/广告文案合规扫描、食品功效宣称审查、外卖资质合规、餐饮处罚风险排查。",
+      "staticQuality": {
+        "score": 72,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": true,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 4,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "canyin-content-diff",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\餐饮skill\\canyin-content-diff",
+      "relativeSourcePath": "餐饮skill/canyin-content-diff",
+      "modifiedAt": "2026-08-19T23:32:38.382Z",
+      "skillMdSha256": "efc53249d8eccb1c9e665726892f2ce43fd960f96f107646c6170833734bdccc",
+      "fileCount": 1,
+      "totalBytes": 7415,
+      "description": "餐饮内容差异卡。配合通用 content-nine-piece 九件套使用，只写餐饮独有的五段差异：①合规红线（资质/广告法极限词/食品功效禁用/无糖低脂零添加/虚假评价刷单/价格促销/酒类）②行业钩子（9.9/19.9 团购、三大到店理由、核销率 50% 死穴）③话术与选题库（食欲感三感、买点思维）④平台侧重（点评成交+抖音放量+小红书种草）⑤案例与数据锚点。触发词：餐饮文案、餐厅内容、菜品种草、餐饮口播、餐饮选题、餐饮合规、餐饮投流、美食文案。适用场景：给餐厅/连锁餐饮写短视频或图文内容时，作为差异卡注入 content-nine-piece。",
+      "staticQuality": {
+        "score": 40,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 16,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "canyin-content-line",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\餐饮skill\\canyin-content-line",
+      "relativeSourcePath": "餐饮skill/canyin-content-line",
+      "modifiedAt": "2026-08-16T05:56:33.931Z",
+      "skillMdSha256": "911acaac915803fb9735a9724c8e628631aa46fb814de51ea8b059a4647573c2",
+      "fileCount": 1,
+      "totalBytes": 8518,
+      "description": "餐饮小红书图文生成智能体。蒸馏小红书内容生产线方法论，落地到餐饮行业。核心命题：把餐厅/菜品做出真正适合小红书的内容——文字负责一半信息，画面负责另一半，封面 0.5 秒对上\"这顿饭我也想吃到\"的食欲或氛围。覆盖：事实母版三条硬规则（有才说/冲突问人/测试不作证言）、三画面方向候选、短文+图片清单+逐张提示词、连续性规则、餐饮食欲感+打卡感特性。触发词：餐饮小红书、餐厅图文、菜品种草、小红书配图、餐厅打卡、美食图文、餐厅内容生产、菜品文案配图、食欲感图片、餐厅小红书营销。适用场景：餐厅/菜品的小红书图文生产、菜单种草内容、餐厅打卡笔记、美食图文批量生产。",
+      "staticQuality": {
+        "score": 64,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": true,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": true,
+        "factualClaims": 0,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "canyin-marketing",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\餐饮skill\\canyin-marketing",
+      "relativeSourcePath": "餐饮skill/canyin-marketing",
+      "modifiedAt": "2026-08-16T06:05:08.169Z",
+      "skillMdSha256": "0db3c805a95fe6e5095ea6f2fe19354cc72ece27c68eb86aa983b3733ea26dd4",
+      "fileCount": 1,
+      "totalBytes": 12449,
+      "description": "餐饮营销全链路智能体。蒸馏AI营销全链路方法论（用户画像→卖点→文案→海报→种草→热点→视频），落地到餐饮行业。核心命题：用 AI 从 0 到 1 跑通一家餐厅的完整营销——先定人，再谈菜，最后用内容把菜卖出去。覆盖：卖点vs买点、场景化思维、痛点/痒点/爽点三维框架、USP独特销售主张、菜品文案公式、食欲感海报、小红书种草、蹭热点、短视频脚本、情绪文案风格迁移。触发词：餐饮营销、餐厅推广、菜品文案、餐饮海报、餐厅种草、餐饮小红书、餐饮短视频、菜单文案、餐饮卖点、餐厅品牌、食欲感、餐饮热点营销、餐厅促销文案。适用场景：餐厅/连锁品牌从0到1的营销方案、菜品卖点提炼、种草与热点文案、海报与短视频制作、营销物料批量生产。",
+      "staticQuality": {
+        "score": 64,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 1,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "canyin-private",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\餐饮skill\\canyin-private",
+      "relativeSourcePath": "餐饮skill/canyin-private",
+      "modifiedAt": "2026-08-16T05:55:58.041Z",
+      "skillMdSha256": "ea3f4117fb45afc0cd436ecdd5e9018604acd5f066b01f0d1264f68706f778f6",
+      "fileCount": 1,
+      "totalBytes": 6430,
+      "description": "餐饮私域经营智能体。蒸馏餐饮私域获客方法论（加微信引流→社群运营→朋友圈→会员体系→复购裂变）。核心命题：花一次获客成本，赚一辈子顾客价值——外卖平台流量越来越贵，私域复购才是餐饮利润的关键。覆盖：堂食/外卖客户加微信路径、社群运营SOP、朋友圈发圈节奏、会员分层体系、复购唤醒、老带新裂变、沉睡客激活。触发词：餐饮私域、餐厅社群、加微信、餐饮会员、复购、老客、裂变、老带新、沉睡客、餐厅朋友圈、私域运营、顾客留存、餐饮会员体系、社群运营。适用场景：餐厅私域搭建、社群经营、会员体系设计、复购提升、老客裂变、沉睡客激活、朋友圈经营。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 7,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "canyin-sop",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\餐饮skill\\canyin-sop",
+      "relativeSourcePath": "餐饮skill/canyin-sop",
+      "modifiedAt": "2026-08-16T05:55:35.223Z",
+      "skillMdSha256": "9a440fb35b87a4d74dfe4f3751ea263827d726d9949490d7378f0691fd8f84e1",
+      "fileCount": 1,
+      "totalBytes": 8328,
+      "description": "餐饮服务标准化智能体。蒸馏连锁餐饮门店管理SOP方法论，落地到餐饮行业服务标准化。核心命题：把\"谁干都一样\"的标准写下来——出品、服务、食安、清洁四件事标准化，交付一致性才是连锁和复购的根基。覆盖：出品标准化（标准卡/合格率）、服务流程标准化（迎客/点单/上菜/送客）、食品安全（温控/留样/效期/过敏原）、QSC管理（品质/服务/清洁）、清洁卫生（五步清洁法/分区）、成本管控。触发词：餐饮SOP、餐饮标准化、服务流程、出品标准、食品安全、食安、QSC、餐饮清洁、卫生标准、餐饮品控、后厨管理、出餐标准、餐饮培训、连锁标准化、门店SOP。适用场景：餐厅服务标准化建设、出品品质管控、食品安全合规、QSC巡店、清洁卫生规范、成本管控、连锁门店复制。",
+      "staticQuality": {
+        "score": 64,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 7,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "canyin-store",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\餐饮skill\\canyin-store",
+      "relativeSourcePath": "餐饮skill/canyin-store",
+      "modifiedAt": "2026-08-16T06:04:01.137Z",
+      "skillMdSha256": "7ca3fd25db8a3971e98ad6e6a217093d73c29d20a4e30358019819013bed28c7",
+      "fileCount": 1,
+      "totalBytes": 16648,
+      "description": "餐饮门店经营体系智能体。蒸馏一套小店经营全流程方法论（0→1→N），落地到餐饮行业。核心命题：餐饮门店增长 = 开源（获客+翻台）+ 节流（控食材/控人工/控损耗）+ 扩张（单店模型跑通再复制），全程落到「顾客」和「菜品」两个变量。覆盖开店前（设定目标/筹措资金/选址评估/品类选择/菜单设计）、开店中（定价/出品/翻台/库存/财务）、开店后（竞争/营销/促销/控损/扩张）。触发词：餐饮开店、餐饮选址、餐饮品类、菜单设计、菜品定价、食材成本、翻台率、餐饮利润、餐饮财务、餐厅经营、小吃店、快餐店、正餐、火锅、奶茶店、餐饮盈亏平衡、餐饮控损、餐饮扩张、加盟开店、单店模型。适用场景：从零开餐厅、餐厅经营诊断、菜单优化、成本控制、利润提升、翻台率提升、餐饮扩张评估。",
+      "staticQuality": {
+        "score": 58,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": true,
+        "factualClaims": 56,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "canyin-team",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\餐饮skill\\canyin-team",
+      "relativeSourcePath": "餐饮skill/canyin-team",
+      "modifiedAt": "2026-08-16T10:58:49.864Z",
+      "skillMdSha256": "d353711375fae30008481d963bc5c3c6c3133c616b0f679c47c49adbf1efb9f2",
+      "fileCount": 1,
+      "totalBytes": 9328,
+      "description": "餐饮团队管理智能体。蒸馏餐饮行业招聘/培训/薪酬激励/留人的团队管理方法论。核心命题：餐饮最宝贵的资产不是菜品，是能把菜做好、把客服务好的人——留不住人不是人不好，是没给留下来的理由。覆盖：招聘（试岗代替面试/师徒制/内部推荐/职业路径）、培训（师徒带教/SOP培训/微培训/技能比武）、薪酬激励（底薪+绩效+奖金/绩效挂钩好评/食材利用率奖）、留人（晋升通道/人文关怀/灵活排班/流失率管控）。触发词：餐饮团队、餐饮招聘、后厨管理、服务员管理、餐饮薪酬、餐饮激励、餐饮留人、员工流失、师徒制、店长培养、餐饮培训、排班管理、员工绩效、餐饮HR。适用场景：餐厅团队搭建、招聘与培训、薪酬体系设计、员工流失治理、店长培养、后厨/前厅团队管理、连锁门店人力管控。",
+      "staticQuality": {
+        "score": 66,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": true,
+        "factualClaims": 26,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "waimai-operate",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\餐饮skill\\waimai-operate",
+      "relativeSourcePath": "餐饮skill/waimai-operate",
+      "modifiedAt": "2026-08-16T11:43:26.520Z",
+      "skillMdSha256": "5e7f88e2ccff99e2f4a7047a1ce6a46271bf51f5725744bd3f4173d7432e5dba",
+      "fileCount": 1,
+      "totalBytes": 20717,
+      "description": "外卖运营7步法智能体。蒸馏一套体系化、流程化的外卖运营方法论「5力7步26招」。核心命题：外卖不是\"开店上线等收钱\"，是每天精细化运营的生意。覆盖7步：线上开店（定位决定生死）、菜单设计（用结构提高客单价）、线上运营（流量漏斗曝光→入店→下单→复购）、出品提效（效率决定评分）、交付配送（最后一公里体验）、客情维护（好评是资产差评是负债）、数据分析（用数据驱动决策）。含大量可落地数字：客单价人群分层、SKU数量控制、定价成本公式、分类≤8个、菜品描述5要素、三率指标（入店8-12%/下单18-25%/复购20-30%）、评分4.6红线、差评24小时响应、用户四分层。触发词：外卖运营、外卖开店、外卖菜单、外卖定价、外卖流量、外卖转化、外卖复购、外卖评价、外卖差评、外卖配送、外卖数据、外卖店铺装修、外卖客单价、外卖爆款、外卖7步法、餐饮线上运营。适用场景：外卖店铺从0到1开店、外卖菜单与定价设计、外卖流量与转化提升、外卖评价管理、外卖配送优化、外卖经营数据分析、餐饮企业线上运营诊断。",
+      "staticQuality": {
+        "score": 56,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 28,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "chankang-acquisition",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\产康skill\\chankang-acquisition",
+      "relativeSourcePath": "产康skill/chankang-acquisition",
+      "modifiedAt": "2026-08-19T23:38:09.463Z",
+      "skillMdSha256": "79e8c3512a45fbdc0f9a084b89c25127e331b0ed53a855562d4395da29aadba6",
+      "fileCount": 1,
+      "totalBytes": 5464,
+      "description": "产后康复获客智能体。蒸馏产后康复（产康/盆底修复）的获客引流方法论。核心命题：产康获客靠「信任」——用户决策路径是社交媒体种草（41%）+ 医生推荐（29%）+ 亲友口碑（18%），获客的核心是建立专业信任，不是低价引流。覆盖：小红书抖音种草、医生推荐渠道、亲友口碑裂变、专业信任建立、线上预约。含权威数据：小红书抖音贡献37%新客流量、线上预约渗透率52%、决策三渠道（种草41%/医生29%/口碑18%）。触发词：产康获客、产后修复引流、产康小红书、产康抖音、盆底修复获客、产康种草、医生推荐、产后康复获客、产康口碑、产康线上预约。适用场景：产康门店获客、产康小红书抖音、医生推荐渠道、亲友口碑裂变、产康种草内容。",
+      "staticQuality": {
+        "score": 40,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 25,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "chankang-compliance",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\产康skill\\chankang-compliance",
+      "relativeSourcePath": "产康skill/chankang-compliance",
+      "modifiedAt": "2026-08-16T07:36:07.116Z",
+      "skillMdSha256": "3d052da7870edd82bf51605e30e38b1fb531cac1db92b8dc91b87237efc9cb41",
+      "fileCount": 1,
+      "totalBytes": 4133,
+      "description": "产后康复合规智能体。蒸馏产后康复（产康/盆底修复）的合规红线。核心命题：产康是\"半医疗\"行业，合规是生死线——无资质做盆底康复、宣传医疗功效，等于在违法边缘跳舞。覆盖：资质合规、生活美容vs医疗康复界限、功效宣称红线、广告法极限词、医疗术语禁用。含权威数据：《产后康复服务规范（试行）》2025年发布、持证人才仅14%、15省纳入医保。触发词：产康合规、产后康复合规、盆底康复合规、产康资质、产康广告法、产后修复红线、医疗美容界限、产康宣传合规。适用场景：产康宣传合规审查、盆底康复资质、产后修复广告合规、产康功效宣称审查。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 3,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "chankang-content-diff",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\产康skill\\chankang-content-diff",
+      "relativeSourcePath": "产康skill/chankang-content-diff",
+      "modifiedAt": "2026-08-19T23:32:38.396Z",
+      "skillMdSha256": "934d90f0a7161e121e5ca3a81178015feb299b621d117b282b6a88d2be96dd33",
+      "fileCount": 1,
+      "totalBytes": 4645,
+      "description": "产康内容差异卡。配合通用 content-nine-piece 九件套使用，只写产康独有的五段差异：①合规红线（医疗功效禁用/极限词/资质线，重监管）②行业钩子（反低价、客单价1.2万、医疗级设备溢价30-50%）③话术与选题库（科普/真实康复案例脱敏/避坑）④平台侧重（小红书+抖音种草37%新客+私域口碑）⑤案例与数据锚点。触发词：产康内容、产后康复文案、盆底肌修复文案、产后恢复内容、产康合规、产康种草、产康投流。适用场景：给产后康复中心/月子中心/产康连锁写短视频图文内容时，作为差异卡注入 content-nine-piece。",
+      "staticQuality": {
+        "score": 40,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 17,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "chankang-marketing",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\产康skill\\chankang-marketing",
+      "relativeSourcePath": "产康skill/chankang-marketing",
+      "modifiedAt": "2026-08-16T07:35:33.332Z",
+      "skillMdSha256": "10e5300d191e947b2cb99e0918b7b2f748f535af555ed1c63457c38949bf79bd",
+      "fileCount": 1,
+      "totalBytes": 3646,
+      "description": "产后康复营销智能体。蒸馏产后康复（产康/盆底修复）的营销全链路方法论。核心命题：产康营销的核心是\"专业信任 + 温柔疗愈\"——产后妈妈身体脆弱、情绪敏感，营销要专业可信、不制造焦虑、给足安全感。覆盖：卖点转买点、专业信任、科普内容、温柔调性、小红书种草、短视频。含权威数据：社交媒体种草贡献41%决策、个性化方案溢价30-50%。触发词：产康营销、产后修复文案、产康种草、盆底修复文案、产康小红书、产康短视频、产后康复营销、产康科普。适用场景：产康门店营销、产后修复文案、产康种草、科普内容、盆底修复营销。",
+      "staticQuality": {
+        "score": 40,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 5,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "chankang-private",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\产康skill\\chankang-private",
+      "relativeSourcePath": "产康skill/chankang-private",
+      "modifiedAt": "2026-08-16T07:35:49.089Z",
+      "skillMdSha256": "1ef4dde53c1b2a12404ccb537b291537a62d08ec7ca4f824cafab4105aa4b902",
+      "fileCount": 1,
+      "totalBytes": 3353,
+      "description": "产后康复私域经营智能体。蒸馏产后康复（产康/盆底修复）的私域运营方法论。核心命题：产康是高复购（45%）的信任生意，私域的核心是\"全周期陪伴\"——从孕期到产后，持续触达、专业陪伴。覆盖：加微路径、全周期陪伴、复购运营、会员体系、老带新。含权威数据：复购率45%、亲友口碑贡献18%决策。触发词：产康私域、产后康复私域、妈妈社群、产康会员、产后复购、产康老带新、孕产私域、妈妈运营。适用场景：产康门店私域、妈妈社群运营、产康会员、产后复购、孕产全周期运营。",
+      "staticQuality": {
+        "score": 40,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 7,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "chankang-sales",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\产康skill\\chankang-sales",
+      "relativeSourcePath": "产康skill/chankang-sales",
+      "modifiedAt": "2026-08-16T10:16:46.960Z",
+      "skillMdSha256": "cc314b022fa4f7216e7fafd21646a8a91710d4c1f8ac258efd3c11645fa1de21",
+      "fileCount": 1,
+      "totalBytes": 4544,
+      "description": "产后康复成交升单智能体。蒸馏产后康复（产康/盆底修复）的成交与升单方法论。核心命题：产康升单的核心是\"体验转疗程\"——先做单次体验让妈妈看到效果，再顺势升单到疗程，靠专业和效果，不靠硬推。覆盖：体验转疗程升单、阶梯式疗程设计、效果可视化、升单话术、复购升单。含权威数据：复购率45%、个性化方案溢价30-50%。触发词：产康成交、产康升单、体验转疗程、产后修复成交、盆底康复升单、产康疗程、产康客单价、产康办卡。适用场景：产康成交、体验转疗程、疗程设计、产康客单价提升、产后修复升单。",
+      "staticQuality": {
+        "score": 58,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 5,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "chankang-sop",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\产康skill\\chankang-sop",
+      "relativeSourcePath": "产康skill/chankang-sop",
+      "modifiedAt": "2026-08-16T09:32:32.028Z",
+      "skillMdSha256": "f5543d1af456c515e02298d57124661385abdff205f0e48abfcc8aba993b9638",
+      "fileCount": 1,
+      "totalBytes": 3652,
+      "description": "产后康复服务标准化智能体。蒸馏产后康复（产康/盆底修复）的服务标准化方法论。核心命题：产康标准化的核心是\"服务流程 SOP 化 + 资质合规\"——《产后康复服务规范（试行）》要求服务分级和人员资质，标准化是合规和连锁复制的前提。覆盖：服务流程标准化、服务分级标准、人员资质要求、效果评估、质检。含权威数据：《产后康复服务规范（试行）》2025年发布、服务分级标准首次明确。触发词：产康标准化、产后康复SOP、产康服务流程、服务分级、人员资质、盆底康复标准、产康质检。适用场景：产康服务标准化、服务流程规范、服务分级、人员资质、产康连锁复制。",
+      "staticQuality": {
+        "score": 42,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 0,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "chankang-store",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\产康skill\\chankang-store",
+      "relativeSourcePath": "产康skill/chankang-store",
+      "modifiedAt": "2026-08-16T10:10:16.920Z",
+      "skillMdSha256": "a7f3d6ede09f8ca6bd2577f8b46cfa541190e58fbba9b4825675297e6e326d17",
+      "fileCount": 1,
+      "totalBytes": 7403,
+      "description": "产后康复门店经营智能体。蒸馏产后康复（产康/盆底修复/乳腺疏通/形体恢复）门店经营方法论。核心命题：产康是「渗透率提升红利 + 高复购」的生意——渗透率从8%涨到21%还在快速提升，用户复购率超45%，核心是盆底康复等高价值赛道。覆盖：行业大盘（产后护理修复793亿/年增速20.4%）、渗透率红利、盆底康复赛道、单店模型（回收期18-24个月/坪效4000-6000）、人才缺口、合规规范。含权威数据：产后康复渗透率8%→21.3%、复购率45%、盆底康复增速19.2%、门店2.8万家连锁仅12%、持证人才仅14%。触发词：产后康复、产康、盆底修复、腹直肌、乳腺疏通、形体恢复、产康门店、产康加盟、月子中心、产后护理、产康经营、产康盈利。适用场景：产康门店经营诊断、产康单店模型、盆底康复赛道、产康成本盈利、产康连锁加盟、产康选址。",
+      "staticQuality": {
+        "score": 56,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 48,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "chankang-team",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\产康skill\\chankang-team",
+      "relativeSourcePath": "产康skill/chankang-team",
+      "modifiedAt": "2026-08-16T09:31:31.629Z",
+      "skillMdSha256": "d80ddeed00bcfc59525993b277b91163c29669a56e6523a0e4ed0f25333259a8",
+      "fileCount": 1,
+      "totalBytes": 3331,
+      "description": "产后康复团队管理智能体。蒸馏产后康复（产康/盆底修复）的团队管理方法论。核心命题：产康团队的核心痛点是\"持证人才稀缺\"——持证康复治疗师仅占14%，谁能培养和留住专业人才，谁就解决产康最难的交付。覆盖：持证人才招聘、专业培训、薪酬激励、留人。含权威数据：持证康复治疗师仅占14%、专业人才缺口大。触发词：产康团队、康复治疗师、产康招聘、产康薪酬、产康留人、产后修复人才、产康培训、专业人才。适用场景：产康团队、康复治疗师招聘、产康薪酬激励、专业人才留人、产康培训。",
+      "staticQuality": {
+        "score": 46,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 4,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "chongwu-acquisition",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\宠物skill\\chongwu-acquisition",
+      "relativeSourcePath": "宠物skill/chongwu-acquisition",
+      "modifiedAt": "2026-08-19T23:38:09.456Z",
+      "skillMdSha256": "45e50cf4a0a7e763e0cc2a807ef9afced72e307b029de5c13fddd030ef11e47b",
+      "fileCount": 1,
+      "totalBytes": 14406,
+      "description": "宠物店获客智能体。蒸馏宠物门店与宠物品牌连锁的获客方法论，覆盖美团/大众点评、抖音本地生活、小红书、私域四大渠道。核心：宠物店获客 = 洗护服务引流（高频刚需）+ 商品连带 + 私域沉淀；服务是护城河，电商卷不走。覆盖：四大平台分工（点评=搜索洗护/寄养、抖音=同城团购、小红书=养宠种草、微信=会员社群）、洗护引流款设计（首次体验价/驱虫疫苗引流）、核销率生死线、本地推投流（同城3-10公里）、员工矩阵号、宠物社群裂变、老带新、异业联盟（宠物医院/猫咖/宠物摄影/社区）、获客成本投产。含关键数据：全国宠物店9.49万家存量整合、单店月均营收2.32万、服务营收是商品1.7倍、35%门店营收下滑、宠主90后占42.7%。触发词：宠物店获客、宠物店拓客、宠物店引流、宠物洗护引流、宠物店抖音、宠物店美团、宠物店小红书、宠物店团购、宠物直播、宠物私域引流、到店引流、宠物异业联盟、老带新裂变、宠物店投流。适用场景：宠物门店/连锁品牌的线上获客方案、美团点评运营、抖音本地生活团购与直播、小红书种草引流、私域导流、获客成本优化。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 29,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "chongwu-behavior",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\宠物skill\\chongwu-behavior",
+      "relativeSourcePath": "宠物skill/chongwu-behavior",
+      "modifiedAt": "2026-08-17T08:01:14.889Z",
+      "skillMdSha256": "92854889777016b1deef6a7ef82cc12755b05ea822b893b5457483b31e959e9d",
+      "fileCount": 1,
+      "totalBytes": 16543,
+      "description": "宠物门店行为顾问智能体。蒸馏\"宠物行为顾问\"专业方法论，从\"帮宠物主人改行为\"改写成\"帮宠物门店把行为专业变成经营武器\"。核心：宠物行为问题是宠物店最被低估的专业护城河 + 成交入口——顾客的每个行为困扰（乱叫/拆家/护食/乱尿/应激/攻击）都是一次展示专业、建立信任、连带服务和商品的机会。覆盖：犬猫行为差异（狗社交驱动/猫利益驱动）、常见行为问题速查（狗：分离焦虑/护食/拉扯/吠叫/扑人/召回；猫：乱尿/打架/挠家具/半夜跑/应激/喷尿）、进店接待与安全分级SOP（绿灯/黄灯/红灯）、洗护寄养安全操作、顾客行为咨询话术、行为问题→训练课/寄养/用品连带成交、寄养行为管理、员工培训考核。含关键数据：服务是商品1.7倍、80%利润来自老客复购、约1/5的狗有分离焦虑迹象、正向强化不打骂。触发词：宠物店行为、宠物行为咨询、宠物店被咬、洗护安全、寄养打架、宠物应激、宠物护食、狗乱叫、猫乱尿、行为问题转化、宠物训练课、宠物行为诊断、进店接待安全、宠物攻击、宠物店专业度。适用场景：宠物门店的进店行为诊断、洗护/寄养安全操作、顾客行为咨询应对、行为问题连带成交、训练课与寄养训练产品设计、店员行为专业培训。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 3,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "chongwu-compliance",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\宠物skill\\chongwu-compliance",
+      "relativeSourcePath": "宠物skill/chongwu-compliance",
+      "modifiedAt": "2026-08-17T07:49:43.522Z",
+      "skillMdSha256": "65db45040a82b043eedb689b7cb278b674e2828f07b84989e655c11e48e23c8e",
+      "fileCount": 1,
+      "totalBytes": 5873,
+      "description": "宠物店合规红线智能体。蒸馏宠物门店经营中的合规红线与风险防控，覆盖活体经营、兽药/疫苗、诊疗边界、广告宣传、寄养责任五大高风险区。核心：宠物店合规的关键是\"活体留证、兽药有资质、诊疗不越界、广告不承诺疗效、寄养签协议\"——别为一时之利踩法律红线。覆盖：活体销售合规（检疫证明/健康证明/来源可溯）、兽药经营资质（驱虫/疫苗需许可）、诊疗边界（普通宠物店不得行医）、广告法合规（禁用极限词/疗效承诺）、寄养责任（协议/免责/纠纷）。触发词：宠物店合规、活体销售合规、宠物检疫、兽药经营、宠物诊疗资质、宠物广告法、寄养协议、宠物店风险、宠物纠纷、宠物疫苗资质。适用场景：宠物门店的合规风险排查、活体销售规范、广告宣传合规、寄养纠纷防范。",
+      "staticQuality": {
+        "score": 66,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 1,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "chongwu-content-diff",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\宠物skill\\chongwu-content-diff",
+      "relativeSourcePath": "宠物skill/chongwu-content-diff",
+      "modifiedAt": "2026-08-19T23:32:38.385Z",
+      "skillMdSha256": "7fe39eeea9156b9dbb3ce62d774ed10aa80bca084c0f16eeed1d7671112207f7",
+      "fileCount": 1,
+      "totalBytes": 7328,
+      "description": "宠物店内容差异卡。配合通用 content-nine-piece 九件套使用，只写宠物行业独有的五段差异：①合规红线（活体留证/兽药疫苗资质/诊疗边界/广告法/寄养责任）②行业钩子（洗护引流款 19.9/29.9、服务引流商品盈利、洗护前后对比王牌）③话术与选题库（洗护对比/养宠干货/萌宠日常三类）④平台侧重（专业洗护点评+抖音、猫咖小红书、社区社群）⑤案例与数据锚点。触发词：宠物文案、宠物店内容、萌宠短视频、洗护前后对比、养宠干货、宠物店选题、宠物合规、宠物投流。适用场景：给宠物店/宠物连锁写短视频或图文内容时，作为差异卡注入 content-nine-piece。",
+      "staticQuality": {
+        "score": 58,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 15,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "chongwu-content-line",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\宠物skill\\chongwu-content-line",
+      "relativeSourcePath": "宠物skill/chongwu-content-line",
+      "modifiedAt": "2026-08-17T07:50:16.633Z",
+      "skillMdSha256": "0ad312b5af6aeaaf87c71c96c56a9aed6899d05ab5fa668e50bd99952b4676bc",
+      "fileCount": 1,
+      "totalBytes": 6587,
+      "description": "宠物店内容生产智能体。蒸馏宠物门店的小红书/抖音内容创作方法论。核心：宠物内容自带流量（萌宠是天然社交货币），宠物店做内容的关键是\"洗护前后对比 + 养宠干货 + 萌宠日常\"三类内容，一条洗护前后对比胜过十句广告。覆盖：小红书养宠种草（年轻宠主主力）、抖音萌宠短视频与同城团购、洗护前后对比脚本、养宠干货选题库、内容发布节奏、AI辅助生成（文案/脚本/配图）、标题话题。含关键数据：90后宠主42.7%+00后26.3%是内容平台主力、抖音宠物市场同比+88%、萌宠内容天然高互动。触发词：宠物店内容、宠物店小红书、宠物店抖音、宠物文案、萌宠短视频、洗护前后对比、养宠干货、宠物店选题、宠物内容脚本、宠物店AI内容。适用场景：宠物门店的小红书/抖音内容规划、文案脚本生成、选题库搭建、发布节奏设计。",
+      "staticQuality": {
+        "score": 38,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": true,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 10,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "chongwu-emotion",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\宠物skill\\chongwu-emotion",
+      "relativeSourcePath": "宠物skill/chongwu-emotion",
+      "modifiedAt": "2026-08-19T01:32:43.097Z",
+      "skillMdSha256": "cde1a67f4951e50202c4e478ca65ce6f785b2d9007beb5bae033a84b5aca2bcf",
+      "fileCount": 19,
+      "totalBytes": 114847,
+      "description": "宠物门店情绪识别智能体。蒸馏\"宠物情绪识别\"技术能力（6情绪分类 + 犬猫肢体语言 + AI多模态拍照识别），从\"给主人看宠物心情\"改写成\"帮门店把情绪识别变成经营第一道门\"。核心：宠物进店的情绪状态，决定门店\"该不该动手、怎么安抚、什么时候卖\"——看不懂情绪，就分不清安全边界、错过服务与销售时机、砸了专业口碑。覆盖：六情绪→门店三级安全分级映射（放松/快乐=绿灯、警觉/恐惧/悲伤=黄灯、愤怒=红灯）、进店10秒情绪观察（犬猫分开看尾巴/耳朵/眼睛/身体）、情绪→服务时机（洗护/寄养/美容什么时候能做、要缓、要拒）、情绪→销售时机（连带升单的节拍：开心才推、紧张先建信任、恐惧悲伤绝不硬推、愤怒不卖）、进店情绪安抚话术与操作注意事项、情绪观察→专业信任的客户沟通话术、AI情绪识别辅助（拍照识别+可视化报告，做新人培训和客户展示）、员工情绪识别培训考核。含关键数据：服务是商品1.7倍、80%利润来自老客复购、被咬/被抓是洗护寄养最高发纠纷、狗摇尾巴≠开心、猫打呼噜≠舒服、肚皮朝上≠求摸。触发词：宠物店情绪、宠物情绪识别、进店看情绪、宠物紧张、宠物应激、宠物攻击前兆、洗护安全、寄养安全、宠物安抚、宠物店被咬、看懂宠物、宠物状态判断、宠物肢体语言、AI识别宠物情绪。适用场景：宠物门店的进店情绪判断、洗护/寄养/美容前的安全评估、服务与销售时机把握、宠物安抚、客户专业信任建立、新人培训、AI情绪识别辅助落地。",
+      "staticQuality": {
+        "score": 54,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": true,
+        "hasContract": true,
+        "hasEval": false,
+        "factualClaims": 5,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P0_secret_pattern",
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [
+        "be2de0454264f3c3"
+      ],
+      "piiFingerprints": [],
+      "filePaths": [
+        "README.md",
+        "SKILL.md",
+        "assets/report_template.html",
+        "references/emotion_guide.md",
+        "scripts/__pycache__/pet_store_emotion.cpython-313.pyc",
+        "scripts/config.example.json",
+        "scripts/pet_store_emotion.py",
+        "scripts/providers/__init__.py",
+        "scripts/providers/__pycache__/__init__.cpython-313.pyc",
+        "scripts/providers/__pycache__/base.cpython-313.pyc",
+        "scripts/providers/__pycache__/modelscope.cpython-313.pyc",
+        "scripts/providers/__pycache__/openai_vision.cpython-313.pyc",
+        "scripts/providers/__pycache__/qwen_bailian.cpython-313.pyc",
+        "scripts/providers/__pycache__/qwen_dashscope.cpython-313.pyc",
+        "scripts/providers/base.py",
+        "scripts/providers/modelscope.py",
+        "scripts/providers/openai_vision.py",
+        "scripts/providers/qwen_bailian.py",
+        "scripts/providers/qwen_dashscope.py"
+      ],
+      "decision": {
+        "action": "不应入库",
+        "lifecycle": "desktop_quarantined_sensitive",
+        "reason": "疑似密钥或个人信息；先脱敏并完成来源审计。"
+      }
+    },
+    {
+      "id": "chongwu-marketing",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\宠物skill\\chongwu-marketing",
+      "relativeSourcePath": "宠物skill/chongwu-marketing",
+      "modifiedAt": "2026-08-17T07:51:01.826Z",
+      "skillMdSha256": "f37445d218109ddee69fe35391c38caf63e52feed79f9e207cc30cbb67a984fb",
+      "fileCount": 1,
+      "totalBytes": 8178,
+      "description": "宠物行业营销全链路智能体。蒸馏宠物食品品牌、代理商渠道、门店动销的营销方法论。核心：宠物食品已进入\"两超多强\"头部集中时代，中间梯队品牌的出路不是拼价格，是\"渠道深度赋能\"——帮代理商、帮门店把货动销出去。覆盖：主粮 vs 零食的营销差异（主粮靠长期信任/零食靠种草）、门店动销体系（洗护场景连带/体验装/试吃）、代理商渠道运营（赋能而非压货）、品牌招商、中间梯队品牌突围路径、AI赋能渠道降本增效、抖音增量渠道（+88%）。含关键数据：宠物食品线上CR5 25.3%/CR10 38.3%、麦富迪皇家连续8年线上前二、国产品牌市占49.4%、食品市场规模555亿、抖音宠物+88%。触发词：宠物营销、宠物食品营销、宠物品牌招商、宠物代理商、门店动销、宠物食品推广、主粮营销、宠物零食营销、宠物渠道赋能、宠物品牌突围、宠物AI营销。适用场景：宠物食品品牌/代理商的营销方案、渠道招商、门店动销、主粮零食差异化打法、AI赋能渠道。",
+      "staticQuality": {
+        "score": 58,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 16,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "chongwu-private",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\宠物skill\\chongwu-private",
+      "relativeSourcePath": "宠物skill/chongwu-private",
+      "modifiedAt": "2026-08-17T07:42:49.805Z",
+      "skillMdSha256": "f4c2c6e0ecabc8c06bfbc3da042c01a30232319a4a0a499749575d41980350e8",
+      "fileCount": 1,
+      "totalBytes": 7618,
+      "description": "宠物店私域复购智能体。蒸馏宠物门店的会员私域经营与复购方法论。核心：宠物是情感型 + 消耗型生意，私域的核心不是\"发广告\"，是\"养宠顾问 + 消耗品订阅 + 周期提醒\"三件事——把一次到店的客人变成长期复购的会员。覆盖：宠物社群运营（养宠知识/晒宠/团购）、主粮猫砂消耗品订阅制（自动续购）、周期复购提醒（洗护/驱虫/疫苗/换粮）、朋友圈内容体系（萌宠日常/门店现场/养宠知识）、会员分层、老带新裂变、私域工具（企微/标签/SOP）。含关键数据：单只犬年消费3006元/猫2085元、食品占消费53.7%、90后宠主42.7%是社群主力、老客贡献80%利润。触发词：宠物店私域、宠物社群、宠物会员、主粮订阅、宠物店复购、老带新、宠物朋友圈、养宠群、宠物店企微、私域运营、宠物店客户管理。适用场景：宠物门店的私域体系搭建、社群运营、主粮订阅制、复购提醒、会员分层、老带新裂变。",
+      "staticQuality": {
+        "score": 58,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 18,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "chongwu-sales",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\宠物skill\\chongwu-sales",
+      "relativeSourcePath": "宠物skill/chongwu-sales",
+      "modifiedAt": "2026-08-17T07:42:08.511Z",
+      "skillMdSha256": "35da495af11110b301be8434b7db96df0564dd5829a2409cea63952c5d124097",
+      "fileCount": 1,
+      "totalBytes": 8871,
+      "description": "宠物店到店转化成交智能体。蒸馏宠物门店的到店成交、商品连带与升单（储值/会员）方法论。核心：宠物店成交难的本质不是销售能力，而是\"服务不带货、商品无场景、锁客无机制\"三大结构缺陷；洗护服务场景是最高转化的连带时机。覆盖：洗护场景连带体系（皮毛/耳道/泪腺问题→鱼油/美毛/泪痕调理）、会员储值卡设计（次卡/月卡/年卡/储值返赠）、商品连带话术（主粮/零食/保健品/用品）、活体销售（重决策高客单）、寄养连带、顾问式销售（先解决宠主问题再推荐）。含关键数据：服务营收是商品1.7倍、单店月均营收2.32万、保健品成增长亮点（1-9月15.67亿）、主粮销量增速放缓、宠主年轻化更看重科学养宠。触发词：宠物店成交、宠物店升单、宠物店储值、办卡、宠物会员卡、洗护连带、宠物商品连带、客单价、宠物销售话术、到店转化、宠物店追销、活体销售、宠物店锁客。适用场景：宠物门店的到店成交方案、商品连带设计、会员储值卡设计、升单话术与流程、客单价提升、活体销售流程。",
+      "staticQuality": {
+        "score": 58,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 13,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "chongwu-sop",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\宠物skill\\chongwu-sop",
+      "relativeSourcePath": "宠物skill/chongwu-sop",
+      "modifiedAt": "2026-08-17T07:48:45.908Z",
+      "skillMdSha256": "6c29aba0d32e2b5203974258228d7080e22dfdead40a8a3403e98c39e445401f",
+      "fileCount": 1,
+      "totalBytes": 6918,
+      "description": "宠物店服务标准化智能体。蒸馏宠物门店洗护美容、寄养等服务的标准化SOP方法论，融合全球服务标准化最佳实践（麦当劳QSCV、丰田精益、六西格玛DMAIC）。核心：宠物店的服务标准化决定复购和口碑，关键是洗护SOP、寄养SOP、服务可视化、服务延续性——谁把\"洗得干净、看得见、记得住\"做标准，谁就能规模化复制。覆盖：洗护五步SOP（接待检查/洗护/美容/复查/交付）、寄养SOP、服务可视化（公开可追溯）、服务延续性（宠物健康档案）、品控检查、标准化复制。含关键数据：69%宠主看重服务流程公开可追溯、49%看重宠物舒适体验、52%偏爱传统门店44%偏爱专业洗护店、布偶猫占洗护猫85%。触发词：宠物店SOP、洗护流程、宠物美容标准、寄养标准、服务标准化、宠物店品控、洗护SOP、宠物店服务流程、服务可视化、宠物健康档案。适用场景：宠物门店的洗护美容标准化、寄养流程设计、服务品控、连锁复制前的标准化打磨。",
+      "staticQuality": {
+        "score": 64,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 15,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "chongwu-store",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\宠物skill\\chongwu-store",
+      "relativeSourcePath": "宠物skill/chongwu-store",
+      "modifiedAt": "2026-08-17T07:48:12.885Z",
+      "skillMdSha256": "79e16a212cecab530ba7e8b8acfdfee432b8cb1f95f858948c991ded8af9f3fc",
+      "fileCount": 1,
+      "totalBytes": 9540,
+      "description": "宠物店门店经营智能体。蒸馏宠物门店的单店模型与经营方法论，从通用小店经营框架改造出宠物版。核心：宠物店是\"服务 + 零售\"混合业态，单店模型的关键是店型选择、成本结构、坪效人效——服务是护城河，商品被电商分流，靠专业洗护 + 商品连带 + 会员复购盈利。覆盖：店型选择（综合店66.8%/猫专营7.4%/专业洗护店/社区店）、选址（社区/商业区沿街/写字楼/工作室）、单店模型（单店月均营收2.32万/成本结构/盈利测算）、坪效人效、品项结构（洗护引流/主粮零食利润/保健连带）、季节性经营（1月8月高峰/6月谷底）、扩张复制（连锁标准化）。含关键数据：全国9.49万家存量整合、35%门店下滑、服务是商品1.7倍、单店月均2.32万、超四成新店撑不过第一年、增长店共性=100平+美容洗护为主。触发词：宠物店经营、宠物店选址、宠物店坪效、宠物店成本、宠物店单店模型、宠物店盈利测算、宠物店扩张、开宠物店、宠物店店型、宠物店毛利、宠物店连锁。适用场景：宠物门店的单店模型测算、选址评估、成本分析、坪效人效提升、店型选择、扩张复制规划。",
+      "staticQuality": {
+        "score": 64,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 29,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "chongwu-team",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\宠物skill\\chongwu-team",
+      "relativeSourcePath": "宠物skill/chongwu-team",
+      "modifiedAt": "2026-08-17T07:49:13.169Z",
+      "skillMdSha256": "1987137390f64d25f819cd3a3ca3840dbca39fecfad969f0f66ce37774ccd557",
+      "fileCount": 1,
+      "totalBytes": 5572,
+      "description": "宠物店团队管理智能体。蒸馏宠物门店团队管理方法论（美容师/洗护师/店员/店长）。核心：宠物店是手艺生意，美容师是最难招最难留的核心资产，团队管理的关键是\"手艺岗位的激励 + 一专多能 + 小团队自治\"。覆盖：岗位设置（美容师/洗护师/店员/店长）、招聘选拔（手艺 + 爱宠 + 学习力）、薪酬激励（底薪+提成+连带分成）、留人机制（技术成长 + 分红）、小团队管理、一专多能。含关键数据：单店月均营收2.32万对应的小团队规模、美容师是手艺岗离职带走客户、宠物店人工是成本大头。触发词：宠物店团队、美容师管理、宠物店招聘、宠物店薪酬、洗护师激励、宠物店店长、宠物店留人、宠物店人员管理。适用场景：宠物门店的岗位设计、招聘、薪酬激励、美容师留人、小团队管理。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 1,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "ertong-acquisition",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\儿童乐园skill\\ertong-acquisition",
+      "relativeSourcePath": "儿童乐园skill/ertong-acquisition",
+      "modifiedAt": "2026-08-19T23:38:09.461Z",
+      "skillMdSha256": "d0615735d6b896e525b4a7b8a8afa7144ab4bb906f8ab3715ddeeb47d03b8273",
+      "fileCount": 1,
+      "totalBytes": 5586,
+      "description": "儿童乐园获客智能体。蒸馏儿童乐园（室内乐园/亲子游乐）的获客引流方法论。核心命题：儿童乐园获客的核心不是\"让孩子想来\"，是\"让家长觉得值得带孩子来\"——拍孩子玩得开心，让家长想晒、想带孩子来。覆盖：亲子获客逻辑、抖音同城+探店达人、家长晒娃心理、会员裂变老带新、IP引爆获客。含权威数据：Z世代父母占68%、科技设备提升客流20-30%、复购率增加15%。触发词：儿童乐园获客、亲子乐园引流、乐园抖音、乐园探店、亲子获客、乐园会员、老带新、乐园裂变、亲子营销、乐园团购、乐园IP。适用场景：儿童乐园获客、乐园抖音同城、亲子探店、会员裂变、乐园IP引爆、下沉市场乐园获客。",
+      "staticQuality": {
+        "score": 40,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 8,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "ertong-compliance",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\儿童乐园skill\\ertong-compliance",
+      "relativeSourcePath": "儿童乐园skill/ertong-compliance",
+      "modifiedAt": "2026-08-19T23:28:48.381Z",
+      "skillMdSha256": "9846f625b884b4e567f929e83b8f84cd250ad782b23c62b6f2fa5960bb9c881a",
+      "fileCount": 1,
+      "totalBytes": 6528,
+      "description": "儿童乐园合规红线智能体。蒸馏儿童乐园/亲子乐园/游乐场所经营与宣传的合规红线。核心命题：儿童乐园宣传第一优先级是不违法——安全承诺、设施夸大、诱导未成年人消费，翻车一次比生意差更致命。覆盖：广告法极限词、安全承诺红线（不承诺\"绝对安全/零风险\"）、设施真实（不夸大面积/项目/安全认证）、未成年人保护（广告不得诱导未成年人、不得利用未成年人）、特种设备（大型游乐设施需检验合格）、食品合规（园内餐饮）、价格合规。触发词：儿童乐园合规、亲子乐园广告法、游乐设施安全、儿童广告、诱导未成年人、特种设备、乐园宣传红线、遛娃宣传。适用场景：儿童乐园/亲子乐园/探洞工厂的内容宣传合规审查、设施安全承诺审查、未成年人广告合规、园内食品合规排查。",
+      "staticQuality": {
+        "score": 66,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 4,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "ertong-content-diff",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\儿童乐园skill\\ertong-content-diff",
+      "relativeSourcePath": "儿童乐园skill/ertong-content-diff",
+      "modifiedAt": "2026-08-19T23:32:38.394Z",
+      "skillMdSha256": "58205f5a02f97e407c74b7fa41cb9ce9bfea79097019488e5900bc811fb7812c",
+      "fileCount": 1,
+      "totalBytes": 3993,
+      "description": "儿童乐园内容差异卡。配合通用 content-nine-piece 九件套使用，只写儿童乐园独有的五段差异：①合规红线（通用广告法 + 安全承诺行业特有风险）②行业钩子（亲子团购套餐/年卡次卡3000-5000元）③话术与选题库（拍孩子真实画面/家长晒娃心理）④平台侧重（抖音同城亲子团购+探店达人）⑤案例与数据锚点。触发词：儿童乐园内容、亲子文案、遛娃种草、乐园团购、儿童乐园文案、遛娃选题、儿童乐园投流。适用场景：给儿童乐园/亲子乐园/探洞工厂写短视频图文内容时，作为差异卡注入 content-nine-piece。",
+      "staticQuality": {
+        "score": 66,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 8,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "ertong-marketing",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\儿童乐园skill\\ertong-marketing",
+      "relativeSourcePath": "儿童乐园skill/ertong-marketing",
+      "modifiedAt": "2026-08-16T07:35:02.925Z",
+      "skillMdSha256": "9fdc0d3a3424cb888b8ae003c0b0a964e38a6ce8346d9221ce9079ed65591d31",
+      "fileCount": 1,
+      "totalBytes": 3691,
+      "description": "儿童乐园营销智能体。蒸馏儿童乐园（室内乐园/亲子游乐）的营销全链路方法论。核心命题：儿童乐园营销的核心是\"打动家长\"——拍孩子的快乐瞬间、讲教育价值、秀家长省心，让家长\"觉得值得带孩子来\"。覆盖：卖点转买点、家长视角、快乐瞬间、教育价值、海报、短视频、小红书种草。含权威数据：Z世代父母占68%、家庭年儿童娱乐支出1.2万。触发词：儿童乐园营销、亲子营销、乐园文案、乐园海报、乐园短视频、亲子种草、乐园小红书、儿童乐园文案、亲子乐园营销。适用场景：儿童乐园营销、亲子文案海报、乐园短视频、亲子种草内容。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 3,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "ertong-private",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\儿童乐园skill\\ertong-private",
+      "relativeSourcePath": "儿童乐园skill/ertong-private",
+      "modifiedAt": "2026-08-16T07:35:17.407Z",
+      "skillMdSha256": "28ea17a820b7bdc65477f60b363095e29bc7be597ac0de81f5b998787f9915a4",
+      "fileCount": 1,
+      "totalBytes": 3295,
+      "description": "儿童乐园私域经营智能体。蒸馏儿童乐园（室内乐园/亲子游乐）的私域运营方法论。核心命题：乐园私域的核心是\"会员锁客 + 家长社群裂变\"——年卡锁定长期消费，家长圈子口碑裂变。覆盖：会员体系、家长社群、老带新裂变、生日会运营、活动触达。含权威数据：会员贡献超40%衍生收入、复购率增加15%。触发词：儿童乐园私域、乐园会员、家长社群、乐园老带新、亲子裂变、乐园复购、生日会、乐园会员体系。适用场景：儿童乐园私域、家长社群运营、乐园会员、老带新裂变、亲子复购。",
+      "staticQuality": {
+        "score": 40,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 4,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "ertong-sales",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\儿童乐园skill\\ertong-sales",
+      "relativeSourcePath": "儿童乐园skill/ertong-sales",
+      "modifiedAt": "2026-08-16T09:29:17.395Z",
+      "skillMdSha256": "7f280880aaa2b3e8a5f7833646c39333a671bc1cee0bfaadff8feb0398688a5d",
+      "fileCount": 1,
+      "totalBytes": 3761,
+      "description": "儿童乐园成交升单智能体。蒸馏儿童乐园（室内乐园/亲子游乐）的成交与升单方法论。核心命题：乐园升单的核心是\"门票转会员\"——单次门票是低频消费，年卡会员才是锁客和利润，升单要在孩子玩得最开心时顺势推会员。覆盖：门票转会员升单、年卡设计、会员储值、升单时机、升单话术。含权威数据：社区迷你乐园靠年卡（3000-5000元/家庭）、会员贡献40%衍生收入。触发词：儿童乐园成交、乐园升单、门票转会员、乐园年卡、会员储值、乐园办卡、乐园客单价、亲子办卡。适用场景：儿童乐园成交、门票转会员、年卡设计、会员储值、乐园客单价提升。",
+      "staticQuality": {
+        "score": 32,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 4,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "ertong-sop",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\儿童乐园skill\\ertong-sop",
+      "relativeSourcePath": "儿童乐园skill/ertong-sop",
+      "modifiedAt": "2026-08-16T09:32:18.312Z",
+      "skillMdSha256": "b9e8e578ed8848e81ed6a238e7b994da76e44d322f384f677be3ce780f677567",
+      "fileCount": 1,
+      "totalBytes": 3578,
+      "description": "儿童乐园服务标准化智能体。蒸馏儿童乐园（室内乐园/亲子游乐）的服务标准化方法论。核心命题：乐园标准化的核心是\"安全规范 + 服务流程\"——安全是生死线（重大事故直接关店），服务流程标准化才能连锁复制。覆盖：安全规范（设备检查/巡查/应急）、服务流程（迎客/看护/送客）、清洁卫生、质检。含权威数据：安全标准升级淘汰中小厂商、设备年检费涨30%。触发词：儿童乐园标准化、乐园安全规范、乐园SOP、乐园服务流程、设备检查、乐园清洁、安全巡查、乐园质检。适用场景：儿童乐园安全规范、服务流程标准化、设备检查、乐园连锁复制。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 2,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "ertong-store",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\儿童乐园skill\\ertong-store",
+      "relativeSourcePath": "儿童乐园skill/ertong-store",
+      "modifiedAt": "2026-08-16T10:14:07.665Z",
+      "skillMdSha256": "b90feacb6ab3af053271dd4acacedc93f7b22d3ad2156db09b77435ef3b25e5a",
+      "fileCount": 1,
+      "totalBytes": 8304,
+      "description": "儿童乐园门店经营智能体。蒸馏儿童乐园（室内乐园/亲子游乐/探洞工厂）门店经营方法论。核心命题：儿童乐园从\"纯玩乐\"升级到\"教育+社交+成长\"生态，赚钱靠\"门票引流 + 会员储值 + 衍生消费\"三维盈利，不是靠一张门票。覆盖：行业大盘（3500亿/室内占55%）、县域下沉红利（增速25-28%）、无动力乐园高毛利、会员体系（贡献40%衍生收入）、成本结构（人力25-35%）、安全合规。含权威数据：儿童娱乐市场3500亿、Z世代父母占68%、家庭年儿童娱乐支出1.2万、无动力乐园毛利50-60%、社区迷你乐园回本8-12个月。触发词：儿童乐园、亲子乐园、室内乐园、游乐场、探洞、儿童游乐、乐园经营、乐园选址、乐园会员、亲子消费、乐园成本、乐园盈利。适用场景：儿童乐园经营诊断、乐园选址、会员体系设计、乐园成本盈利分析、亲子乐园运营、下沉市场乐园。",
+      "staticQuality": {
+        "score": 58,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 43,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "ertong-team",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\儿童乐园skill\\ertong-team",
+      "relativeSourcePath": "儿童乐园skill/ertong-team",
+      "modifiedAt": "2026-08-16T09:31:17.047Z",
+      "skillMdSha256": "d45218f0198da170f9ed714081bd356aa44303eb5b21dd0cc5da3c8001c24aa7",
+      "fileCount": 1,
+      "totalBytes": 3262,
+      "description": "儿童乐园团队管理智能体。蒸馏儿童乐园（室内乐园/亲子游乐）的团队管理方法论。核心命题：乐园团队的核心是\"安全责任心 + 亲和力\"——安全是生死线，员工要像\"孩子的大朋友\"，留人靠人文关怀和晋升。覆盖：员工招聘、安全培训、薪酬激励、留人。含权威数据：人力成本占25-35%、专业幼教岗工资涨25%。触发词：儿童乐园团队、乐园员工、幼教招聘、乐园薪酬、乐园留人、安全培训、乐园培训、亲子员工。适用场景：儿童乐园团队、员工招聘培训、乐园薪酬激励、安全培训、员工留人。",
+      "staticQuality": {
+        "score": 40,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 4,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "jianfei-acquisition",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\减肥skill\\jianfei-acquisition",
+      "relativeSourcePath": "减肥skill/jianfei-acquisition",
+      "modifiedAt": "2026-08-19T23:38:09.465Z",
+      "skillMdSha256": "22f7feeba21919e95fb055b3e48baba6c17216ce7c6a7fd614f6d92202d52790",
+      "fileCount": 1,
+      "totalBytes": 6002,
+      "description": "减肥体重管理获客智能体。蒸馏减肥/体重管理的获客引流方法论。核心命题：减肥获客靠「健康信任 + 内容种草」，不是靠制造焦虑——用户被虚假宣传收割怕了（投诉2.3万条），获客的核心是建立\"科学、健康、可信\"的信任。覆盖：健康导向内容、短视频直播获客、社区服务站获客、老客复购、按效果付费获客。含权威数据：短视频直播订单占线上37.2%、25-35岁用户54.2%、女性78.6%、复购率43%。触发词：减肥获客、体重管理引流、瘦身获客、减肥抖音、减肥小红书、减重引流、体重管理获客、健康管理获客、减脂获客、减肥种草。适用场景：减肥门店获客、体重管理引流、健康管理内容种草、减重机构获客、社区服务站引流。",
+      "staticQuality": {
+        "score": 40,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 17,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "jianfei-compliance",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\减肥skill\\jianfei-compliance",
+      "relativeSourcePath": "减肥skill/jianfei-compliance",
+      "modifiedAt": "2026-08-16T07:36:55.735Z",
+      "skillMdSha256": "86c99a680aeb4fed7849e00bb792f5175bc6f4dacd2afc8d53abee280e0e0c29",
+      "fileCount": 1,
+      "totalBytes": 4743,
+      "description": "减肥体重管理合规智能体。蒸馏减肥/体重管理的合规红线。核心命题：减肥行业57%的闭店率，根源就是踩合规红线——违禁成分、虚假宣传、制造身材焦虑。合规是减肥的生死线，也是合规玩家的机会。覆盖：产品安全红线（违禁成分/药物）、宣传合规红线（不承诺效果/不制造焦虑/不做医疗宣称）、广告法极限词、政策背景。含权威数据：闭店率57%、投诉2.3万条、中消协点名、国家卫健委\"体重管理年\"。触发词：减肥合规、减肥广告法、减肥宣传红线、体重管理合规、减重合规、瘦身合规、减肥虚假宣传、减肥医疗宣称、身材焦虑。适用场景：减肥宣传合规审查、减重广告合规、体重管理功效宣称、减肥产品安全、减肥合规红线。",
+      "staticQuality": {
+        "score": 66,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 7,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "jianfei-content-diff",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\减肥skill\\jianfei-content-diff",
+      "relativeSourcePath": "减肥skill/jianfei-content-diff",
+      "modifiedAt": "2026-08-19T23:32:38.399Z",
+      "skillMdSha256": "b7fc589a2ff2d58c3a6a50577efe280773af071279f2550bf7a48e6f7f6277de",
+      "fileCount": 1,
+      "totalBytes": 4357,
+      "description": "减肥内容差异卡。配合通用 content-nine-piece 九件套使用，只写减肥独有的五段差异：①合规红线（四不原则/违禁成分/GLP-1处方药/普通食品禁宣减肥，重灾区）②行业钩子（免费体测+健康讲座/按效果付费EBC）③话术与选题库（科普/真实案例脱敏/避坑/生活化记录）④平台侧重（短视频+直播37.2%+社区服务站）⑤案例与数据锚点。触发词：减肥内容、减重文案、瘦身内容、健康减重、减肥合规、减肥避坑、减肥投流。适用场景：给减重机构/健康管理/代餐品牌写短视频图文内容时，作为差异卡注入 content-nine-piece。",
+      "staticQuality": {
+        "score": 40,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 14,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "jianfei-marketing",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\减肥skill\\jianfei-marketing",
+      "relativeSourcePath": "减肥skill/jianfei-marketing",
+      "modifiedAt": "2026-08-16T07:36:22.314Z",
+      "skillMdSha256": "5649a329b3795d4c46f7cdc38b5969f282d7b83d5d9ae6d856b89c5b6d257076",
+      "fileCount": 1,
+      "totalBytes": 3778,
+      "description": "减肥体重管理营销智能体。蒸馏减肥/体重管理的营销全链路方法论。核心命题：减肥营销的核心是\"健康导向 + 科学可信\"——不制造身材焦虑，讲科学减重和健康生活方式，建立长期信任。覆盖：卖点转买点、健康导向、科学减重内容、避坑内容、短视频、小红书种草。含权威数据：短视频直播订单占线上37.2%、25-35岁用户54.2%、女性78.6%。触发词：减肥营销、体重管理文案、减重文案、减肥种草、减肥短视频、健康管理营销、减肥小红书、减脂营销、科学减重。适用场景：减肥门店营销、体重管理文案、健康管理内容、减肥种草、科学减重内容。",
+      "staticQuality": {
+        "score": 40,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 7,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "jianfei-private",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\减肥skill\\jianfei-private",
+      "relativeSourcePath": "减肥skill/jianfei-private",
+      "modifiedAt": "2026-08-16T07:36:37.469Z",
+      "skillMdSha256": "6b3625f377782916e12f22b124994da8c7fa91d6b5dc3f47782efd48e6da1122",
+      "fileCount": 1,
+      "totalBytes": 3505,
+      "description": "减肥体重管理私域经营智能体。蒸馏减肥/体重管理的私域运营方法论。核心命题：减肥私域的核心是\"陪伴式管理\"——减重是长期过程，私域要持续陪伴、监督、鼓励，把一次性客户变成长期健康管理客户。覆盖：加微路径、陪伴式管理、复购运营、会员体系、老带新。含权威数据：复购率43%、按效果付费（EBC）模式翻倍增长。触发词：减肥私域、体重管理私域、减重社群、健康管理私域、减肥会员、减重复购、减肥老带新、陪伴式管理。适用场景：减肥门店私域、体重管理社群、减重会员、健康管理复购、陪伴式减重。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 2,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "jianfei-sales",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\减肥skill\\jianfei-sales",
+      "relativeSourcePath": "减肥skill/jianfei-sales",
+      "modifiedAt": "2026-08-16T09:29:52.308Z",
+      "skillMdSha256": "7bbd91ef4184ce37bdf6357fe76f6e15f1db397ef54935744f6ec8636cc9a262",
+      "fileCount": 1,
+      "totalBytes": 3993,
+      "description": "减肥体重管理成交升单智能体。蒸馏减肥/体重管理的成交与升单方法论。核心命题：减肥升单的核心是\"体验转周期\"——先体验让客户看到变化，再升单到周期方案，靠效果和科学，不靠焦虑和承诺。覆盖：体验转周期升单、周期方案设计、效果可视化、按效果付费、升单话术。含权威数据：头部客单价4500元/周期、复购率43%、EBC模式收入占比14.7%。触发词：减肥成交、减重升单、体验转周期、减肥办卡、体重管理成交、减肥疗程、减重客单价、按效果付费。适用场景：减肥成交、体验转周期、减肥疗程设计、减重客单价提升、按效果付费。",
+      "staticQuality": {
+        "score": 40,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 6,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "jianfei-store",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\减肥skill\\jianfei-store",
+      "relativeSourcePath": "减肥skill/jianfei-store",
+      "modifiedAt": "2026-08-16T10:17:15.177Z",
+      "skillMdSha256": "1af7f19e1e189e041dc739a4246d58d7955826ed7630d05bb8bd3ca73af2170f",
+      "fileCount": 1,
+      "totalBytes": 8854,
+      "description": "减肥体重管理门店经营智能体。蒸馏减肥/体重管理门店经营方法论。核心命题：减肥行业是「需求爆发 + 供给洗牌」的冰火两重天——超7亿人有需求，但闭店率高达57%，活下来靠的不是效果多猛，是合规+标准化+可持续。覆盖：行业大盘（体重管理3260亿/超重5.2亿人）、供给洗牌（闭店率57%/投诉2.3万条）、三大痛点（产品安全/宣传合规/加盟运营）、社区服务站模式、合规化、按效果付费模式。含权威数据：超重率34.3%肥胖率16.4%、闭店率57%、黑猫投诉减肥2.3万条、社区服务站坪效高22%、头部客单价4500元复购43%。触发词：减肥门店、体重管理、瘦身、减重、减肥加盟、减肥店经营、体重管理门店、减重机构、轻食代餐、减肥合规、身材管理、健康管理门店。适用场景：减肥门店经营诊断、体重管理门店、减肥合规、减肥加盟、社区服务站、减重机构转型。",
+      "staticQuality": {
+        "score": 66,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 50,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "jianfei-team",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\减肥skill\\jianfei-team",
+      "relativeSourcePath": "减肥skill/jianfei-team",
+      "modifiedAt": "2026-08-16T09:31:46.637Z",
+      "skillMdSha256": "1b0a46a871b87f7920a19008b285b5eb1d78a5d958ff1485a299ff705ac2691b",
+      "fileCount": 1,
+      "totalBytes": 3399,
+      "description": "减肥体重管理团队管理智能体。蒸馏减肥/体重管理的团队管理方法论。核心命题：减肥团队的核心是\"专业资质 + 陪伴式服务\"——营养师/健康管理师是核心资产，留人靠专业成长和分润。覆盖：营养师招聘、专业培训、薪酬激励、留人。含权威数据：健康管理师/营养师专业人才需求大、合规企业数量增长19%。触发词：减肥团队、营养师管理、健康管理师招聘、减肥薪酬、减重团队、营养师留人、减肥培训、健康管理人才。适用场景：减肥门店团队、营养师招聘、健康管理人才、减重薪酬激励、营养师留人。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 2,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "lanqi-meiye",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\美业skill\\lanqi-meiye",
+      "relativeSourcePath": "美业skill/lanqi-meiye",
+      "modifiedAt": "2026-08-16T12:38:19.773Z",
+      "skillMdSha256": "1b64f64307484c953653429d7cb46452719e0d47c9723c96ede12014be2b58d9",
+      "fileCount": 1,
+      "totalBytes": 6359,
+      "description": "兰琪（蓝琪）美业专属方法论。蒸馏保禄服务的具体美业客户「兰琪」的完整经营方法论——获客（三网获客/一元引流/9.9团购/头脸项目/裂变）、成交（产销分离/365会员/中台技师专场成交）、门店（7床7师单店模型）、服务（产销分离分工）。⚠️ 这是兰琪这一家问题肌美业品牌的独有实战，不是美业通用方法论。兰琪方法论会持续迭代，本 skill 独立维护，与 meiye-*（美业通用）分开。触发词：兰琪、蓝琪、兰琪获客、兰琪成交、兰琪门店、一元引流、1元拓客、9.9团购、产销分离、365会员、中台技师、头脸项目、问题肌。",
+      "staticQuality": {
+        "score": 48,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 4,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "meiye-acquisition",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\美业skill\\meiye-acquisition",
+      "relativeSourcePath": "美业skill/meiye-acquisition",
+      "modifiedAt": "2026-08-19T23:38:09.444Z",
+      "skillMdSha256": "dd936952312c919dbf32aca6dc192e2465f7603a6144419d3e47fc77d015cab3",
+      "fileCount": 1,
+      "totalBytes": 15625,
+      "description": "美业获客智能体。蒸馏美业门店与连锁品牌的获客方法论，覆盖美团/大众点评、抖音本地生活、小红书、私域四大渠道。核心：美业获客 = 公域引流（拉新）+ 私域沉淀（留存）+ 裂变（放大）；前端拓客亏钱、二转盈利。覆盖：四大平台分工（点评=搜索精准转化/抖音=同城团购/小红书=种草/微信=私域）、引流款分层设计（快消9.9/中高端199）、抖音团购核销率生死线（24-72小时有效+预约引导）、本地推投流（起投30元/定向3-15公里/止损规则）、15秒爆款脚本、员工矩阵号、老带新裂变、异业联盟、获客成本投产（单客成本行业参考500元左右）。触发词：美业获客、美业拓客、美容院引流、美业抖音、美业团购、美业点评、美业美团、美业探店、美业直播、美业私域引流、到店引流、美业异业联盟、老带新裂变、美业投流、皮肤管理获客、美甲美睫获客。适用场景：美业门店/连锁品牌的线上获客方案、美团点评运营、抖音本地生活团购与直播、小红书种草引流、私域导流、获客成本优化。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 24,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "meiye-compliance",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\美业skill\\meiye-compliance",
+      "relativeSourcePath": "美业skill/meiye-compliance",
+      "modifiedAt": "2026-08-16T05:46:30.150Z",
+      "skillMdSha256": "c58d99723699751795398bfa39a7fa6c3298fc7e1d881b914ee08103167cf842",
+      "fileCount": 1,
+      "totalBytes": 7883,
+      "description": "美业合规与风险智能体（独立版）。蒸馏官方监管文件与法规的美业合规红线，供所有美业skill调用。核心：美业是重监管行业，合规是生死线——生活美容与医疗美容有清晰法定边界，跨界即违法。覆盖：生活美容vs医疗美容界限（创伤性/侵入性是分界）、生活美容严禁开展的医疗项目清单（注射/光电/纹绣/打耳洞等）、广告法红线（极限词/医疗用语/容貌焦虑/虚假宣传）、特殊化妆品功效（染发烫发祛斑美白防晒防脱需注册证）、化妆品进货查验与标签、资质要求（营业执照+卫生许可证 vs 医疗机构许可证）、处罚红线（容貌焦虑20-100万/轻医美5-20倍罚款）、禁用词→替代词速查表。触发词：美业合规、医疗美容界限、生活美容、广告法、极限词、功效宣称、特殊化妆品、美业广告审查、容貌焦虑、医美资质、美业风险、美业法规、违规处罚。适用场景：美业内容合规审查、广告合规、生活美容项目边界判断、资质核查、功效宣称审查、美业全链路合规把关。",
+      "staticQuality": {
+        "score": 58,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 5,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "meiye-content-diff",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\美业skill\\meiye-content-diff",
+      "relativeSourcePath": "美业skill/meiye-content-diff",
+      "modifiedAt": "2026-08-19T23:32:38.379Z",
+      "skillMdSha256": "5fdae526f46ac94b71f0ba2c16da7dec1ffddea25f8c6b12638aab94e7c27586",
+      "fileCount": 1,
+      "totalBytes": 7298,
+      "description": "美业内容差异卡。配合通用 content-nine-piece 九件套使用，只写美业独有的五段差异：①合规红线（广告法极限词/医疗功效/生活美容vs医疗美容）②行业钩子（9.9/199 引流款、核销率生死线）③话术与选题库（问题肌/抗衰/避坑/零推销）④平台侧重（中高端小红书+点评、快消抖音+美团）⑤案例与数据锚点。触发词：美业内容、皮肤管理文案、美甲美睫文案、美容院文案、美业合规、美业口播、美业选题、美业投流。适用场景：给美业门店/连锁写短视频或图文内容时，作为差异卡注入 content-nine-piece。",
+      "staticQuality": {
+        "score": 58,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 13,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "meiye-content-line",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\美业skill\\meiye-content-line",
+      "relativeSourcePath": "美业skill/meiye-content-line",
+      "modifiedAt": "2026-08-16T03:50:55.503Z",
+      "skillMdSha256": "425f3797f6274525a7642f48ab4f383279cf692809884e2c4546f20a04181416",
+      "fileCount": 1,
+      "totalBytes": 10134,
+      "description": "美业小红书图文生成智能体（合规版）。专为美业门店生成小红书图文，先合规、再求好看。核心：三大合规红线（广告法极限词 / 医疗与功效禁用 / 功效证据链）、美业禁用词→替代词速查表、生活美容 vs 医疗美容界限，以及一套完整的小红书生产线——事实母版（加功效证据字段）→ 3 个画面方向候选 → 短文+图片清单+逐张提示词 → 逐张生成逐张验收。触发词：美业小红书、美容院小红书、皮肤管理文案、美业种草、美业图文、医美文案、美业合规、广告法禁用词、功效宣称、生活美容、敏感肌文案、SPA文案、美甲美睫文案、美容行业获客内容、美业笔记生成。适用场景：美业门店（皮肤管理/SPA/美甲美睫/美容院/轻医美）的小红书图文生产、美业文案合规审查、美业小红书内容标准化、美业多门店统一小红书调性。",
+      "staticQuality": {
+        "score": 86,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": true,
+        "hasOutputs": true,
+        "hasContract": true,
+        "hasEval": true,
+        "factualClaims": 2,
+        "externalActions": true
+      },
+      "riskCodes": [],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "meiye-mot",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\美业skill\\meiye-mot",
+      "relativeSourcePath": "美业skill/meiye-mot",
+      "modifiedAt": "2026-08-16T05:47:26.115Z",
+      "skillMdSha256": "13fc91d130b885777b38202855121071b7bf8ca5953bc5f0359a7566db81d25a",
+      "fileCount": 1,
+      "totalBytes": 7502,
+      "description": "美业体验设计智能体（MOT关键时刻）。蒸馏峰值体验方法论，帮美业门店/连锁用\"关键时刻\"设计驱动进店、转化、复购、推荐。核心：消费者只记得\"峰\"和\"终\"的体验，整体提升无效，要在关键时刻做峰值、消灭低谷。覆盖：三大黄金时刻（最初/最高/最终）、四大商业维度（一见就进→一进就买→一买再买→一传千里）、问三种人挖MOT（爱你的人放大你的美/不爱你的人找进店转化问题/喜欢你的人找复购低谷）、侧重点判断（增量做进店转化/存量做复购推荐）、美业场景的MOT落地（门头/面诊/半脸对比/拍照点/闺蜜卡）。触发词：美业体验、关键时刻、MOT、峰值体验、进店率、转化率、复购率、推荐率、峰终定律、体验设计、美业到店体验、服务体验、口碑裂变。适用场景：美业门店/连锁的到店体验设计、关键时刻洞察、进店转化复购推荐提升、口碑裂变设计、服务峰值打造。",
+      "staticQuality": {
+        "score": 42,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 0,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "meiye-private",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\美业skill\\meiye-private",
+      "relativeSourcePath": "美业skill/meiye-private",
+      "modifiedAt": "2026-08-16T06:03:13.319Z",
+      "skillMdSha256": "a793edddccae546bb10fb3d64c435ba5c8f23ada3981953dc4cc1dcebb65de16",
+      "fileCount": 1,
+      "totalBytes": 9168,
+      "description": "美业会员与私域经营智能体。蒸馏美业门店/连锁的会员体系与私域运营方法论。核心：美业是复购驱动的高客单生意，私域是命脉——把公域的一次性新客变成长期复购的老客。覆盖：客户四层分层运营（新客培育/活跃锁客/沉睡激活/VIP专属）、梯度化会员体系（银卡/金卡/钻石卡+权益）、私域流量池建设（企微/社群/小程序/朋友圈四触点）、分层社群运营（拒绝硬广刷屏、价值输出为主）、会员生命周期管理、老带新裂变、周期性唤醒。含关键数据：私域复购率是公域3-5倍、会员复购率比普通客户高30-50%、复购率可从18%提到54%、转介绍贡献新客45%。触发词：美业会员、美业私域、会员体系、复购、沉睡客唤醒、美业社群、朋友圈经营、老带新、转介绍、美业裂变、客户分层、会员卡、私域运营、美业锁客、会员权益。适用场景：美业门店/连锁的会员体系搭建、私域流量池建设、社群与朋友圈运营、复购率提升、老客唤醒与裂变。",
+      "staticQuality": {
+        "score": 56,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 28,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "meiye-sales",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\美业skill\\meiye-sales",
+      "relativeSourcePath": "美业skill/meiye-sales",
+      "modifiedAt": "2026-08-16T12:40:45.838Z",
+      "skillMdSha256": "bf5a31e488a9b9177eb4df3bb01a273e88ce86eba97e6130ce8dc6d894f7d3c8",
+      "fileCount": 1,
+      "totalBytes": 10423,
+      "description": "美业到店转化成交智能体。蒸馏美业门店/连锁品牌的到店成交与升单方法论。核心：升单难的本质不是销售能力，而是品项断层+效果无锚+节奏错误三大结构缺陷。覆盖：三阶阶梯式升单体系（引流款建信任→利润款疗程承接→增值款深挖终身价值，价格跨度≤5倍）、效果可视化（半脸对比/皮肤检测/前后对比）、成交节奏（体验→感知→认可，禁强行推销）、变美四阶段分步成交、卡项设计（留客卡/闺蜜卡）、顾问式升单话术。含关键数据：低价体验客直转率仅10-20%、价格跨度超5倍转化率低60%、首次到店推千元卡成交率不足8%、强行推销反感率70%。触发词：美业成交、美业升单、办卡、卡项设计、客单价、疗程卡、留客卡、美业销售话术、到店转化、美业追销、升单率、美业顾问式销售、锁客、美业套餐设计。适用场景：美业门店/连锁的到店成交方案、品项与卡项设计、升单话术与流程、客单价提升、销售团队分工。",
+      "staticQuality": {
+        "score": 58,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 32,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "meiye-sop",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\美业skill\\meiye-sop",
+      "relativeSourcePath": "美业skill/meiye-sop",
+      "modifiedAt": "2026-08-16T12:42:19.656Z",
+      "skillMdSha256": "810f45cb259dbf50776996368ac56a3e0fc6d63464271380f44577bd64075aff",
+      "fileCount": 1,
+      "totalBytes": 7521,
+      "description": "美业服务标准化智能体。蒸馏美业门店/连锁的服务流程与交付标准化方法论。核心：美业是\"手艺+服务\"生意，交付一致性是连锁化的前提——把服务拆成可复制、可量化的标准，做到\"谁做都一样\"。覆盖：服务流程五段式SOP（接待→面诊→护理→复盘→跟进）、四大标准模块（面诊SOP/消毒卫生SOP/品相设计SOP/匠心服务流程）、手法标准化（仪器替代人工/手法标准卡）、服务与销售分工、品控体系（总部监控+质检+满意度）、技术培训（看肤诊断/成分配伍/客户消耗跟进）。触发词：美业SOP、美业标准化、服务流程、手法标准、美业品控、消毒卫生、面诊SOP、美业交付、美业服务、美业培训、连锁标准化、美业品相设计。适用场景：美业门店/连锁的服务流程搭建、手法与交付标准化、品控体系设计、美容师培训、连锁复制扩张前的标准打磨。",
+      "staticQuality": {
+        "score": 64,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 0,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "meiye-store",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\美业skill\\meiye-store",
+      "relativeSourcePath": "美业skill/meiye-store",
+      "modifiedAt": "2026-08-16T12:41:42.394Z",
+      "skillMdSha256": "937319a7f11c9d11ab7e564fbc3bc8e72d4637caaa3b5332fe1a3309c52cf8a6",
+      "fileCount": 1,
+      "totalBytes": 8377,
+      "description": "美业门店经营智能体。蒸馏美业门店/连锁的单店模型与经营方法论，从通用小店经营框架改造出美业版。核心：美业是\"人+服务\"的复购生意，单店模型的关键是成本结构、坪效人效、品项结构——不靠走量，靠高毛利和复购。覆盖：选址（目标客群密集+竞品+商圈）、单店模型（标准配置/成本结构/盈利测算）、坪效人效（美业标准）、成本毛利（毛利率50%）、品项结构（引流款/利润款/明星款）、扩张复制（一区3店承接+运营成本摊薄+连锁标准打磨）。含关键数据：单店房租年10万/2员工工资20万内/装修设备7万、美容师月薪5000-6200、店长月薪1万+股份40%、月业绩十几万、毛利率50%。触发词：美业门店经营、美业选址、美业坪效、美业人效、美业成本、美业毛利、美业单店模型、美业扩张、美容院经营、美业连锁、美业盈利测算。适用场景：美业门店/连锁的单店模型测算、选址评估、成本毛利分析、坪效人效提升、扩张复制规划。",
+      "staticQuality": {
+        "score": 64,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 30,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "meiye-team",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\美业skill\\meiye-team",
+      "relativeSourcePath": "美业skill/meiye-team",
+      "modifiedAt": "2026-08-16T10:59:06.873Z",
+      "skillMdSha256": "914612426e1eecb3896c00d32c4906c1503839309090d149d6fbd1a06a828d8f",
+      "fileCount": 1,
+      "totalBytes": 8339,
+      "description": "美业团队管理智能体。蒸馏美业门店/连锁的美容师招聘、薪酬激励、晋升、留人方法论。核心：美业是\"人\"的生意，年流失率超40%，留人比招人更重要——流失率高的店往往不是薪资最低，是管理最模糊。覆盖：收入结构透明（底薪+手工+卡项提成+带教补贴四块上墙）、可见晋升阶梯、六维激励（固定薪资+业绩提成60%上限+伯乐奖+被动收入+投资型收益+年终分红）、师徒机制（老带新+津贴+业绩提成）、单项冠军PK全能冠军、因材施教放大优点、私下批评人前推举、让下属有钱赚。含关键数据：流失率超40%、透明薪酬离职率降17%、师徒制流失率降30%、留人三招在职周期从不足1年延长到2年。触发词：美业团队、美容师招聘、美业薪酬、美业留人、美容师流失、美业晋升、美业激励、师徒带教、美业人才、店长管理、美业绩效。适用场景：美业门店/连锁的美容师招聘与留人、薪酬激励设计、晋升体系搭建、师徒带教机制、团队稳定性提升。",
+      "staticQuality": {
+        "score": 58,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 23,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "qiche-acquisition",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\汽车后市场skill\\qiche-acquisition",
+      "relativeSourcePath": "汽车后市场skill/qiche-acquisition",
+      "modifiedAt": "2026-08-19T23:38:09.459Z",
+      "skillMdSha256": "a704b115b62b595e8caed752ebafeb12b69c6eeabb828af1d0e081dbd3f8670f",
+      "fileCount": 1,
+      "totalBytes": 7374,
+      "description": "汽车后市场获客智能体。蒸馏汽车后市场（汽修/新能源维修）的获客引流方法论，覆盖 C 端车主获客和 B 端招商/招学员双线。核心命题：汽修行业不需要泛流量，核心是精准客户——一天 100 个精准流量能成交，比 10000 个泛流量有用。覆盖：精准获客逻辑、两个 IP 分开（C端修车 + B端招学员/加盟）、POI 挂载、云连锁授权、圈内转介绍、IP 定位先行。含权威数据：单次进厂只消费 1 个项目车主占 66%、23-30 岁年轻消费者占 26.1%。触发词：汽修获客、汽修引流、汽修抖音、新能源维修获客、汽修招商、汽修加盟、修车获客、汽修IP、汽修短视频、车主获客、汽修转介绍、云连锁。适用场景：汽修门店获客、汽修抖音同城、汽修IP打造、汽修招商加盟、新能源维修招生、汽修精准获客。",
+      "staticQuality": {
+        "score": 46,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 5,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "qiche-compliance",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\汽车后市场skill\\qiche-compliance",
+      "relativeSourcePath": "汽车后市场skill/qiche-compliance",
+      "modifiedAt": "2026-08-19T23:28:25.726Z",
+      "skillMdSha256": "f3be4eb51055cacc48fa0e3df5c48855b5d5d624bf398e4f3d039315ded43cef",
+      "fileCount": 1,
+      "totalBytes": 6678,
+      "description": "汽车后市场合规红线智能体。蒸馏汽车后市场（保养/维修/轮胎/新能源维修）经营与宣传的合规红线。核心命题：汽修宣传第一优先级是不违法——安全承诺、假冒配件、虚假报价、贬低同行，翻车一次比生意差更致命。覆盖：广告法极限词、安全相关承诺红线（刹车/轮胎不得虚假承诺）、正品/原厂件宣称、透明报价合规、对比贬低同行（\"4S店5000其实800能修\"需有依据）、新能源维修资质（三电系统需资质）、价格欺诈。触发词：汽车后市场合规、汽修广告法、维修宣传、刹车轮胎广告、配件正品、透明报价、4S店对比、新能源维修资质、价格欺诈。适用场景：汽修门店/连锁的内容宣传合规审查、维修广告合规扫描、配件正品宣称审查、新能源维修资质风险排查。",
+      "staticQuality": {
+        "score": 66,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 4,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "qiche-content-diff",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\汽车后市场skill\\qiche-content-diff",
+      "relativeSourcePath": "汽车后市场skill/qiche-content-diff",
+      "modifiedAt": "2026-08-19T23:32:38.393Z",
+      "skillMdSha256": "b5beb30916b295aefc1aea7f8475b8440da44da8063221080988b40e2aa875f3",
+      "fileCount": 1,
+      "totalBytes": 4273,
+      "description": "汽车后市场内容差异卡。配合通用 content-nine-piece 九件套使用，只写汽车后市场独有的五段差异：①合规红线（通用广告法 + 对比贬低同行/终身承诺行业特有风险）②行业钩子（免费检测/透明报价/小保养200-500元）③话术与选题库（故障诊断/避坑/维修案例/升单话术）④平台侧重（抖音+快手双平台 O+O）⑤案例与数据锚点。触发词：汽车后市场内容、汽修文案、保养避坑、修车内容、故障灯、汽车维修文案、汽修投流。适用场景：给汽修店/保养连锁/新能源维修店写短视频图文内容时，作为差异卡注入 content-nine-piece。",
+      "staticQuality": {
+        "score": 58,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 13,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "qiche-marketing",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\汽车后市场skill\\qiche-marketing",
+      "relativeSourcePath": "汽车后市场skill/qiche-marketing",
+      "modifiedAt": "2026-08-16T07:34:31.020Z",
+      "skillMdSha256": "d29b0a9c06eda056fbfffbd1ec13437025438c785667620a4e273c886cb712f1",
+      "fileCount": 1,
+      "totalBytes": 3436,
+      "description": "汽车后市场营销智能体。蒸馏汽车后市场（汽修/保养/新能源维修）的营销全链路方法论。核心命题：汽修营销的核心是\"技术信任\"——车主最怕被坑，营销的核心是用\"专业+透明\"建立信任，不是低价。覆盖：卖点转买点、技术信任建立、避坑内容、透明报价、海报、短视频。含权威数据：单次进厂只消费1个项目车主占66%、23-30岁年轻消费者26.1%。触发词：汽修营销、汽修文案、汽车维修营销、汽修海报、汽修短视频、修车营销、汽修种草、透明报价、汽修避坑。适用场景：汽修门店营销、汽修文案海报、技术信任建立、汽修短视频、维修避坑内容。",
+      "staticQuality": {
+        "score": 40,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 5,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "qiche-private",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\汽车后市场skill\\qiche-private",
+      "relativeSourcePath": "汽车后市场skill/qiche-private",
+      "modifiedAt": "2026-08-16T07:34:46.868Z",
+      "skillMdSha256": "be8aa43cb01b245daf0dfec372b822c7f8d34b71c6116d1c47d23bfd5f9c1d2d",
+      "fileCount": 1,
+      "totalBytes": 3487,
+      "description": "汽车后市场私域经营智能体。蒸馏汽车后市场（汽修/保养/新能源维修）的私域运营方法论。核心命题：汽修是\"低频高信任\"生意，私域的核心不是高频打扰，是\"车出问题时第一时间想到你\"——保养提醒、故障咨询、维修预约。覆盖：车主加微路径、保养周期提醒、故障咨询、会员体系、老带新。含权威数据：汽修客户高度依赖圈内转介绍。触发词：汽修私域、车主运营、汽车保养提醒、汽修会员、车主社群、维修客户留存、汽修复购、车主转介绍。适用场景：汽修店私域、车主运营、保养提醒、汽修会员、维修客户留存、圈内转介绍。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 0,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "qiche-sales",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\汽车后市场skill\\qiche-sales",
+      "relativeSourcePath": "汽车后市场skill/qiche-sales",
+      "modifiedAt": "2026-08-16T09:29:01.123Z",
+      "skillMdSha256": "076fd357cb290e661599cfce4dc1a45cc5ff311f3aad0b10cde16117fbecbdf9",
+      "fileCount": 1,
+      "totalBytes": 3832,
+      "description": "汽车后市场成交升单智能体。蒸馏汽车后市场（汽修/保养/维修）的成交与升单方法论。核心命题：汽修升单的核心是\"透明报价 + 检测转化\"——保养进店，检测出问题，用透明报价促成维修升单，不是宰客。覆盖：保养转维修升单、检测转化、透明报价、套餐设计、升单话术。含权威数据：单次进厂只消费1个项目车主占66%、小保养利润率跌破10%。触发词：汽修成交、保养升单、维修升单、汽修客单价、检测转化、透明报价、汽修套餐、保养转维修。适用场景：汽修店成交、保养转维修、检测转化、汽修客单价提升、透明报价升单。",
+      "staticQuality": {
+        "score": 40,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 7,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "qiche-sop",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\汽车后市场skill\\qiche-sop",
+      "relativeSourcePath": "汽车后市场skill/qiche-sop",
+      "modifiedAt": "2026-08-16T09:32:02.176Z",
+      "skillMdSha256": "4c98a6cc78ec22e5a770a14e7907e8ecf336296739f54d134191020c8a418de2",
+      "fileCount": 1,
+      "totalBytes": 3613,
+      "description": "汽车后市场服务标准化智能体。蒸馏汽车后市场（汽修/保养/维修）的服务标准化方法论。核心命题：汽修标准化的核心是\"维修流程标准化 + 透明报价\"——把维修流程、检测流程、报价标准写下来，谁干都一样，才能连锁复制、建立信任。覆盖：维修流程标准化、检测流程、透明报价标准、质检标准、安全规范。含权威数据：新能源维修对设备流程要求高、单次进厂只消费1个项目占66%。触发词：汽修标准化、维修流程、汽修SOP、检测标准、透明报价标准、汽修质检、维修标准、新能源维修标准。适用场景：汽修服务标准化、维修流程规范、检测标准、透明报价、汽修连锁复制。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 1,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "qiche-store",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\汽车后市场skill\\qiche-store",
+      "relativeSourcePath": "汽车后市场skill/qiche-store",
+      "modifiedAt": "2026-08-16T10:16:29.729Z",
+      "skillMdSha256": "c5039978a6f2e06a455778db246869a92923b5dea0337a95b986d05a42e8e78e",
+      "fileCount": 1,
+      "totalBytes": 9960,
+      "description": "汽车后市场门店经营智能体。蒸馏汽车后市场（汽修/保养/美容/新能源维修）门店经营方法论。核心命题：传统燃油车维修在萎缩、新能源维修在爆发，汽修门店的生死在「能不能抓住新能源转型红利」——传统保养利润率已跌破5%，新能源维保产值6年涨9倍。覆盖：行业大盘（后市场1.3万亿/日均倒闭522家）、传统vs新能源业务结构、门店盈利困境（不到30%盈利）、新能源转型（三电维修/电池回收/宁德时代代理）、单店成本结构、连锁化与数字化。含权威数据：汽车维修门店38.2万家3个月减4.7万家、新能源渗透率52.9%、新能源维保产值91亿→904亿、传统保养利润率跌破5%、电车保养频次比油车少40%。触发词：汽车后市场、汽修门店、汽车维修、汽车保养、新能源维修、三电维修、汽修连锁、汽修店经营、汽车美容、轮胎保养、汽修转型、汽修盈利。适用场景：汽修门店经营诊断、新能源维修转型、汽修成本与盈利分析、汽修连锁扩张、后市场门店经营。",
+      "staticQuality": {
+        "score": 64,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 61,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "qiche-team",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\汽车后市场skill\\qiche-team",
+      "relativeSourcePath": "汽车后市场skill/qiche-team",
+      "modifiedAt": "2026-08-16T10:59:24.246Z",
+      "skillMdSha256": "076298523068a026a4742d25a1e1f077e59a8bf61725a2ef4565c002ef07fe09",
+      "fileCount": 1,
+      "totalBytes": 4097,
+      "description": "汽车后市场团队管理智能体。蒸馏汽车后市场（汽修/新能源维修）的团队管理方法论。核心命题：汽修团队的核心痛点是\"技师难招、新能源技师更稀缺\"——传统技师电路知识薄弱转不了型，谁能培养新能源技师，谁就抢到转型红利。覆盖：技师招聘、新能源技师培养、师徒带教、薪酬激励、留人。含权威数据：持证专业技师稀缺、新能源技师电路知识薄弱转型困难。触发词：汽修团队、汽修技师招聘、新能源技师、汽修薪酬、汽修留人、技师培养、汽修师徒、修车工管理。适用场景：汽修店团队、技师招聘培养、新能源技师、汽修薪酬激励、技师留人。",
+      "staticQuality": {
+        "score": 46,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 4,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "shouji-acquisition",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\手机后市场skill\\shouji-acquisition",
+      "relativeSourcePath": "手机后市场skill/shouji-acquisition",
+      "modifiedAt": "2026-08-19T23:38:09.458Z",
+      "skillMdSha256": "6e9aadcd6cf13387cd97d0d2117c1a69ff8065087860ff0afb922cf8cdd53b01",
+      "fileCount": 1,
+      "totalBytes": 7478,
+      "description": "手机后市场获客智能体。蒸馏手机后市场（贴膜/配件/维修）的获客引流方法论，覆盖 C 端门店获客（抖音同城团购）和 B 端招商获客（创始人 IP + 精准锁定同行）双线。核心命题：手机后市场获客要分 C 端 B 端两条线打——C 端用门店账号做团购引流（贴膜是天然钩子），B 端用创始人 IP 精准锁定想开店的同行（决策快、转化高）。覆盖：C端B端账号分工、贴膜团购引流、门店IP打造、创始人IP招商、精准锁定同行、内容复用降本、每天20条客资打法。含权威数据：短视频平台贡献线上贴膜增量41.6%、贴膜项目获客对象是同行决策速度快。触发词：手机后市场获客、贴膜引流、手机店获客、手机维修获客、贴膜团购、手机后市场招商、创始人IP招商、门店抖音、贴膜抖音、同行获客、招商客资。适用场景：手机贴膜/维修店获客、抖音同城团购、门店IP打造、创始人IP招商、招商客资获取、连锁招商获客。",
+      "staticQuality": {
+        "score": 40,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 5,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "shouji-compliance",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\手机后市场skill\\shouji-compliance",
+      "relativeSourcePath": "手机后市场skill/shouji-compliance",
+      "modifiedAt": "2026-08-19T23:28:00.268Z",
+      "skillMdSha256": "eb31c1446c3db520c1871d886ecd96bee08327275ebe77a9a5f99967da46c0f3",
+      "fileCount": 1,
+      "totalBytes": 6779,
+      "description": "手机后市场合规红线智能体。蒸馏手机后市场（贴膜/换屏/维修/回收/配件）经营与宣传的合规红线。核心命题：手机后市场宣传第一优先级是不违法——虚假承诺、极限词、以次充好、招商收益承诺，翻车一次比生意差更致命。覆盖：广告法极限词、质量承诺红线（不承诺\"摔不坏/终身质保\"）、价格合规（不得虚构原价）、正品/授权宣称（非授权不得称\"原装正品/官方授权\"）、二手机如实标注、对比贬低同行、招商加盟合规（不得承诺收益/用极限词）。触发词：手机后市场合规、贴膜广告法、换屏合规、手机维修宣传、手机配件广告、招商加盟合规、收益承诺、原装正品、二手机、价格欺诈。适用场景：手机后市场门店/连锁的内容宣传合规审查、招商广告合规扫描、配件/维修宣传红线排查。",
+      "staticQuality": {
+        "score": 66,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 6,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "shouji-content-diff",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\手机后市场skill\\shouji-content-diff",
+      "relativeSourcePath": "手机后市场skill/shouji-content-diff",
+      "modifiedAt": "2026-08-19T23:32:38.389Z",
+      "skillMdSha256": "084ace4e9a4ee5f64cce9abf9de9f47d2d958e713ffc739b6057dec1fbda853f",
+      "fileCount": 1,
+      "totalBytes": 4344,
+      "description": "手机后市场内容差异卡。配合通用 content-nine-piece 九件套使用，只写手机后市场独有的五段差异：①合规红线（通用广告法 + 质量承诺/招商收益承诺/对比贬低行业特有风险）②行业钩子（9.9/19.9 贴膜团购、贴膜3分钟加微送5折）③话术与选题库（贴膜避坑/摔机测试/卖点转买点）④平台侧重（抖音同城团购主战场+小红书种草）⑤案例与数据锚点。触发词：手机后市场内容、贴膜文案、手机维修内容、换屏避坑、手机店文案、贴膜团购、手机后市场投流。适用场景：给手机贴膜/维修/回收门店或连锁写短视频图文内容时，作为差异卡注入 content-nine-piece。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 10,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "shouji-marketing",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\手机后市场skill\\shouji-marketing",
+      "relativeSourcePath": "手机后市场skill/shouji-marketing",
+      "modifiedAt": "2026-08-16T07:33:55.139Z",
+      "skillMdSha256": "453c8ef15f3e720121b6136684a53bfbef46dee688f0a874d3272f71479eefad",
+      "fileCount": 1,
+      "totalBytes": 4645,
+      "description": "手机后市场营销智能体。蒸馏手机后市场（贴膜/配件/维修）的营销全链路方法论。核心命题：贴膜/配件是\"低关注度\"产品，营销的核心是场景化——让用户在\"手机屏碎了、膜花了、想换新配件\"的瞬间想到你。覆盖：卖点转买点、场景化营销、痛点痒点爽点、贴膜文案、海报、小红书种草、蹭热点、短视频。含权威数据：短视频平台贡献线上贴膜增量41.6%、功能性膜占45%。触发词：手机后市场营销、贴膜文案、贴膜海报、手机配件营销、贴膜种草、手机维修营销、贴膜小红书、贴膜短视频、手机店营销。适用场景：贴膜/配件/维修营销、手机店文案海报、贴膜种草、手机后市场内容营销。",
+      "staticQuality": {
+        "score": 42,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 2,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "shouji-private",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\手机后市场skill\\shouji-private",
+      "relativeSourcePath": "手机后市场skill/shouji-private",
+      "modifiedAt": "2026-08-16T07:34:13.437Z",
+      "skillMdSha256": "2040f44fe33526ba88116174611a9487fd87f65644bd25d2ad461c5c56fa9582",
+      "fileCount": 1,
+      "totalBytes": 3331,
+      "description": "手机后市场私域经营智能体。蒸馏手机后市场（贴膜/配件/维修）的私域运营方法论。核心命题：贴膜是\"高频刚需\"，天然适合私域复购——贴膜3分钟加微信，把一次性客流变成持续复购的配件/维修客户。覆盖：贴膜加微路径、配件复购、维修提醒、会员体系、老带新。含权威数据：私域复购是公域3-5倍。触发词：手机后市场私域、贴膜私域、手机店私域、配件复购、手机维修会员、贴膜会员、手机店社群、手机后市场复购。适用场景：贴膜店私域、手机配件复购、维修客户留存、手机店会员体系。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 1,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "shouji-sales",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\手机后市场skill\\shouji-sales",
+      "relativeSourcePath": "手机后市场skill/shouji-sales",
+      "modifiedAt": "2026-08-16T09:28:43.562Z",
+      "skillMdSha256": "084c1e2f7cd7b87772395211440cc1558b37f69d91369fa040d157fe7ea7a747",
+      "fileCount": 1,
+      "totalBytes": 3699,
+      "description": "手机后市场成交升单智能体。蒸馏手机后市场（贴膜/配件/维修）的到店成交与升单方法论。核心命题：贴膜是引流，配件和维修才是利润——升单的核心是\"贴膜时自然顺带推配件、维修\"，不是硬推销。覆盖：贴膜转配件升单、贴膜转维修升单、加购搭售、套餐设计、升单话术。含权威数据：贴膜服务毛利率比裸膜高22个百分点、配件维修是高毛利。触发词：手机后市场成交、贴膜升单、配件搭售、维修升单、手机店成交、贴膜转维修、手机后市场客单价、加购搭售。适用场景：贴膜店成交、配件搭售、维修升单、手机店客单价提升。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 1,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "shouji-store",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\手机后市场skill\\shouji-store",
+      "relativeSourcePath": "手机后市场skill/shouji-store",
+      "modifiedAt": "2026-08-16T10:13:17.207Z",
+      "skillMdSha256": "394590a2e30d6b6543b1b0c760c61a97641ab146fdd9179d490997fe9de9de4d",
+      "fileCount": 1,
+      "totalBytes": 10433,
+      "description": "手机后市场门店经营智能体。蒸馏手机后市场（贴膜/配件/维修/回收）门店经营与连锁招商方法论。核心命题：手机后市场是「贴膜引流 → 后市场转化 → 招商加盟」三级火箭——贴膜是天然引流钩子（高频刚需低门槛），靠它把客流引进来，再用配件/维修/回收把客单做上去，最后靠单店模型跑通实现招商加盟扩张。覆盖：贴膜引流模型、后市场全产业链（膜→壳→充电→维修→回收）、单店模型（投入十多万/2人运营/利润率20-30%）、换机周期红利、招商加盟扩张、C端B端账号分工。含权威数据：中国手机保护膜市场850-900亿元、换机周期延长→贴膜频次提升、贴膜服务毛利率比裸膜销售高22个百分点、折叠屏渗透率4.5%。触发词：手机后市场、手机贴膜、手机维修、手机配件、贴膜店、手机壳膜、后市场连锁、贴膜加盟、手机回收、换机周期、贴膜引流、手机店经营。适用场景：手机贴膜/维修店经营、后市场单店模型测算、贴膜引流设计、后市场产业链布局、招商加盟扩张。",
+      "staticQuality": {
+        "score": 58,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 17,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "shouji-team",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\手机后市场skill\\shouji-team",
+      "relativeSourcePath": "手机后市场skill/shouji-team",
+      "modifiedAt": "2026-08-16T10:59:47.511Z",
+      "skillMdSha256": "5b0e06660b54ab897b7910c8a3bf71ba689200f296c478f59fa12c128a034c2e",
+      "fileCount": 1,
+      "totalBytes": 3777,
+      "description": "手机后市场团队管理智能体。蒸馏手机后市场（贴膜/维修）的团队管理方法论。核心命题：手机后市场是\"技术\"生意，核心资产是贴膜师/维修师——留住技术骨干，比招新更重要。覆盖：招聘（试岗/师徒带教）、培训（贴膜/维修技术）、薪酬激励（底薪+提成）、留人（技术成长+晋升）。触发词：手机后市场团队、贴膜师管理、维修师招聘、手机店薪酬、贴膜师留人、手机维修培训、手机店员工。适用场景：贴膜店团队、维修师招聘培训、手机店薪酬激励、技术人才留人。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 0,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "ai-marketing",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\通用skill\\ai-marketing",
+      "relativeSourcePath": "通用skill/ai-marketing",
+      "modifiedAt": "2026-08-16T03:50:55.507Z",
+      "skillMdSha256": "a7ff8d53335a7f8bc1599cc49de4052f7ebd676e3f5674aba621db9d62351e47",
+      "fileCount": 1,
+      "totalBytes": 13732,
+      "description": "AI营销全链路智能体。蒸馏一套17年消费品牌营销经验沉淀的《AI营销入门实战》系列课，用 AI 从 0 到 1 跑通品牌营销全案。核心链路：用户画像（卖给谁）→ 卖点提炼（为什么买你）→ 文案（怎么说动人）→ 海报（视觉冲击）→ 小红书种草 → 蹭热点 → 视频短片。覆盖核心方法论：痛点/痒点/爽点三维框架、USP独特销售主张、卖点转买点、场景化种草、爆文拆解仿写、创意三大底层招式（走极致/强对比/打比方）、热点三步拆解重构、4种创意手法、产品短片4步流程、Seedance特效短片、GPT Image 2物料、Codex+HyperFrames视频。触发词：AI营销、用户画像、卖点提炼、买点文案、种草文案、小红书种草、营销海报、创意海报、蹭热点、热点营销、情绪文案、产品短片、营销视频、品牌营销、AI写文案、AI做海报、AI做视频、营销全案。适用场景：品牌/产品从0到1的AI营销方案、用户画像与卖点提炼、种草与热点文案生成、海报与短视频制作、营销物料批量生产。",
+      "staticQuality": {
+        "score": 62,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": true,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 0,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "ai-poster-design",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\通用skill\\ai-poster-design",
+      "relativeSourcePath": "通用skill/ai-poster-design",
+      "modifiedAt": "2026-08-16T04:09:53.786Z",
+      "skillMdSha256": "297f90039266a31baca7c8b9c979eab3966a9f43f0f87b3b71ade842d667dcbd",
+      "fileCount": 1,
+      "totalBytes": 7027,
+      "description": "AI 海报设计方法论（通用版，不绑定任何生图/视频模型）。核心是创意优先——一张合格的海报要同时踩中「热点/节气」和「品牌露出」两个点。覆盖：创意三大底层招式（走极致/强对比/打比方）、提示词通用公式（画面描述>风格光影>质量 + 关键词加减法）、品牌元素融入不跑偏、风格统一的锚定法、跨模型使用原则。方法论与具体工具解耦，接任何生图模型（即梦/豆包/文心/通义/GPT Image/Midjourney 等）甚至视频模型都能用，只需把风格描述翻译成自然语言。触发词：AI海报、海报设计、节气海报、节日海报、品牌海报、营销海报、海报创意、海报提示词、海报方法论、视觉创意、创意海报、Logo融入海报、海报风格统一。适用场景：节气/节日品牌海报创意、海报提示词编写、品牌 Logo 融入 AI 视觉、跨平台海报风格统一、海报→视频创意的迁移。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 1,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "ai-visual-prompt",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\通用skill\\ai-visual-prompt",
+      "relativeSourcePath": "通用skill/ai-visual-prompt",
+      "modifiedAt": "2026-08-16T04:55:50.585Z",
+      "skillMdSha256": "6df20a09af485e4aae77afd1a82877b77191944ac950b077933f935e699ef901",
+      "fileCount": 1,
+      "totalBytes": 10151,
+      "description": "AI视觉生成提示词方法论智能体（文生图/文生视频/图生视频）。蒸馏官方与权威教程的提示词工程方法论，让 AI 输出更高质量的图片和视频。核心：提示词不是堆形容词，是把画面拆成 AI 能理解的信息块。覆盖：文生图公式（主体+场景+风格 基础版 / 主体+场景+风格+镜头+氛围+细节 进阶版 / 8信息块）、风格三层法（媒介+气质+设计元素）、镜头语言词汇库（景别/运镜/视角）、光线氛围词汇库、负面提示词、文生视频公式（主体+动作+环境+镜头+风格光线，视频比图多\"时间/运动/转场\"三维）、图生视频5要素（首帧图/首尾帧锁定一致性）、一致性控制（关键帧+Seed+角色参考）、常见错误排查。触发词：文生图提示词、文生视频提示词、图生视频提示词、AI绘画提示词、AI视频提示词、提示词工程、提示词公式、镜头语言、运镜、景别、负面提示词、首尾帧、关键帧、图片生成、视频生成、AI生图、AI生视频。适用场景：写文生图/文生视频/图生视频提示词、提升 AI 出图出片质量、控制画面构图与镜头、解决人物场景一致性、AI视觉内容生产。",
+      "staticQuality": {
+        "score": 62,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": true,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 2,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "content-nine-piece",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\通用skill\\content-nine-piece",
+      "relativeSourcePath": "通用skill/content-nine-piece",
+      "modifiedAt": "2026-08-19T12:39:34.486Z",
+      "skillMdSha256": "bcfd7af319505eeb9ab1d1e2040be34efd98b290cb3f9decd067a00f0ba2b9a6",
+      "fileCount": 1,
+      "totalBytes": 14284,
+      "description": "通用内容生产九件套（行业无关底座）。这是所有行业内容创作 skill 的公共骨架，负责短视频/图文从选题到投流的全链路交付。九件套：①选题策划 ②口播逐字稿 ③拍摄脚本 ④拍摄注意事项 ⑤剪辑EDL ⑥发布标题与话题 ⑦最佳发布时间 ⑧评论区引导话术 ⑨投流建议。核心：任何行业的\"写文案/写脚本/做内容\"需求，先用本骨架出九件套，再通过「行业差异卡」注入该行业的合规红线、钩子、话术、平台侧重、案例。触发词：写文案、写脚本、写个稿、口播稿、逐字稿、拍摄脚本、分镜、选题、内容策划、怎么拍、标题怎么写、话题标签、发布时间、剪辑方案、EDL、评论区引导、怎么投流、本地推、抖加、DOU+。适用场景：给任何行业（美业/餐饮/宠物/手机后市场/汽车后市场/儿童乐园/产康/减肥/新疆特产/本地服务）做短视频或图文内容生产时，作为公共执行层。",
+      "staticQuality": {
+        "score": 38,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 7,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "review-base",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\通用skill\\review-base",
+      "relativeSourcePath": "通用skill/review-base",
+      "modifiedAt": "2026-08-19T23:36:31.842Z",
+      "skillMdSha256": "5aa686af04fb88c3678f999db7fa48c6bfbfb2c71d6f54aee27a2b0288b7628c",
+      "fileCount": 1,
+      "totalBytes": 6519,
+      "description": "通用复盘底座（行业无关）。收拢散在各复盘 skill（短视频/直播/销售漏斗/到店数据）的通用复盘方法，任何行业的复盘都先用本底座，再查「行业基准值速查表」对照。核心：复盘不是看数据，是找卡点、给动作、沉淀方法论。覆盖：四类复盘框架（短视频/直播/销售漏斗/到店）、通用复盘流程（数据→质量审计→诊断→报告→改进清单）、两种模式（快速诊断+深度复盘）、行业基准值速查表（10行业：核销率/到店转化/复购率/单客成本）。触发词：复盘、短视频复盘、直播复盘、销售漏斗复盘、到店数据复盘、数据分析、为什么没流量、转化低、客单价上不去、复购低、ROI怎么算。适用场景：任何行业（美业/餐饮/宠物/手机后市场/汽车后市场/儿童乐园/产康/减肥/新疆特产/本地服务）的短视频/直播/漏斗/到店数据复盘。",
+      "staticQuality": {
+        "score": 46,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": true,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 16,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "skill-distiller",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\通用skill\\skill-distiller",
+      "relativeSourcePath": "通用skill/skill-distiller",
+      "modifiedAt": "2026-08-16T07:11:08.277Z",
+      "skillMdSha256": "b84ef618efbe2507b32438d6f88ba1815beaa5089534ee9223430f456e097160",
+      "fileCount": 1,
+      "totalBytes": 11122,
+      "description": "行业 skill 蒸馏工厂（元技能）。把一套跨行业通用方法论，蒸馏成「行业专属 + 权威数据支撑」的可交付行业 skill。核心流程六步：规划行业 skill 清单 → 收集原料（我的笔记/得到课程/历史 skill/全网权威信息）→ 从通用底座蒸馏行业版（静态蒸馏内嵌方法论）→ 去品牌去作者（Grep 校验）→ 补全权威数据（只采官方/协会/权威媒体）→ 测试输出 + 三层架构分层。覆盖：行业经营全链路拆解、原料四来源怎么找、权威性把控（乱写不蒸）、skill 标准结构模板、去品牌去作者规范、通用/行业分层架构、权威数据源清单。触发词：蒸馏行业skill、开发行业skill、做XX行业skill、行业方法论文档化、skill蒸馏、行业知识库、从通用skill蒸馏、复制skill打法、扩展行业、行业skill工厂、蒸馏成skill。适用场景：把某个行业（餐饮/美业/教培/零售/汽修/产康/减肥/本地服务等）的经营方法论蒸馏成一套可交付的行业 skill，从已有通用 skill 或课程/笔记/全网信息蒸馏出行业版。",
+      "staticQuality": {
+        "score": 72,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": true,
+        "factualClaims": 2,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "保留待平台审计",
+        "lifecycle": "desktop_platform_review",
+        "reason": "不是纯行业能力或与现有通用能力语义接近；需独立产品/平台评审。"
+      }
+    },
+    {
+      "id": "wechat-xhs-content-line",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\通用skill\\wechat-xhs-content-line",
+      "relativeSourcePath": "通用skill/wechat-xhs-content-line",
+      "modifiedAt": "2026-08-16T03:50:55.501Z",
+      "skillMdSha256": "ee854b56bc3b661150017e0861a1ca8149b9f745c48240aef74d637242cb5a55",
+      "fileCount": 1,
+      "totalBytes": 18040,
+      "description": "公众号×小红书内容生产线智能体。蒸馏老金《用Claude Code搭建你的AI工作流》第五讲。解决同一份产品资料怎么做出真正适合公众号和小红书的两套内容、而不是同一篇稿子换个壳的问题。核心是「事实母版」先统一口径，再「两条线分头做」，最后用 meta-skill-creator 把「什么算好」固化成可复用Skill。覆盖：提示词五元素（身份/目标/规范及边界/步骤/验收标准）、事实母版三条硬规则、公众号三结构+四轮自查、小红书三画面方向+逐张生成验收、方法固化与换产品验证。触发词：公众号内容、小红书图文、内容生产线、一稿两做、事实母版、AI内容生产、公众号写作、小红书配图、产品内容生产、多平台内容、Claude Code内容工作流、Qwen-Image生图、内容规则固化、换产品测试。适用场景：把一份产品资料批量产出公众号+小红书两套内容、给客户搭内容生产工作流、把个人/团队内容标准固化成可复用Skill、多平台内容差异化生产。",
+      "staticQuality": {
+        "score": 78,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": true,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": true,
+        "factualClaims": 0,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "保留待平台审计",
+        "lifecycle": "desktop_platform_review",
+        "reason": "不是纯行业能力或与现有通用能力语义接近；需独立产品/平台评审。"
+      }
+    },
+    {
+      "id": "xiaodian-growth",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\通用skill\\xiaodian-growth",
+      "relativeSourcePath": "通用skill/xiaodian-growth",
+      "modifiedAt": "2026-08-16T03:50:55.505Z",
+      "skillMdSha256": "3e661800b2a528a72248efc6d0f1030443e3676c82195fdbbd40ed9cccca30d6",
+      "fileCount": 1,
+      "totalBytes": 29544,
+      "description": "小店经营增长体系智能体。蒸馏一套18年一线零售实战沉淀的《小店创业课》完整方法论（从0到1到N全流程）。核心命题：小店是最好的创业练习场，增长 = 开源（竞争+营销+促销）+ 节流（控损）+ 扩张（内外盘资源定模式），全程落到「顾客」和「商品」两个关键变量。覆盖开店前（设定目标/筹措资源/选址/商品结构/动线布局）、开店中（货架陈列/定价/分工/培训/库存管理）、开店后（竞争三打法/暖场营销/促销短平快/控损一减一加一不要/扩张内外盘点/锦囊）。触发词：小店经营、单店增长、零售店、社区店、夫妻店、便利店、超市经营、开店创业、店铺选址、商品结构、动线布局、货架陈列、零售定价、人员分工、员工培训、库存管理、门店竞争、门店营销、门店促销、损耗控制、门店扩张、开店扩张、商圈分析、应季商品、进店客流、提升毛利、控损、门店盘点。适用场景：从零开店、单店经营诊断、门店客流增长、竞争应对、促销活动设计、损耗控制、开店扩张评估、商圈与顾客分析、零售选品与应季规划。",
+      "staticQuality": {
+        "score": 78,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": true,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 43,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "保留待平台审计",
+        "lifecycle": "desktop_platform_review",
+        "reason": "不是纯行业能力或与现有通用能力语义接近；需独立产品/平台评审。"
+      }
+    },
+    {
+      "id": "ad-manager",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\投流skill\\ad-manager",
+      "relativeSourcePath": "投流skill/ad-manager",
+      "modifiedAt": "2026-08-19T23:35:32.024Z",
+      "skillMdSha256": "06c68135401716d91596c844d9c24b695b29910571598f0948a042c0f035558f",
+      "fileCount": 1,
+      "totalBytes": 7100,
+      "description": "通用投流底座（行业无关）。收拢散在各投流 skill（本地推/抖加/DOU+/微信豆）的通用投放规则，任何行业的短视频/门店投流都先用本底座，再查「行业定向参数速查表」微调。核心：投流不是砸钱，是\"好内容加钱放大\"——自然数据不够别投、投了就得盯数据、自己拍+本地推>找达人。覆盖：投流前置判断（完播率/互动率/自然播放门槛）、DOU+投放规则、本地推门店获客标准设置、日预算公式、新户经验、爆款测试流程、止损规则、行业定向参数速查表（10行业）。触发词：怎么投流、本地推、抖加、DOU+、dou+、微信豆、投多少、出价、预算分配、测爆款、门店引流、投了没效果、跑不动。适用场景：任何行业（美业/餐饮/宠物/手机后市场/汽车后市场/儿童乐园/产康/减肥/新疆特产/本地服务）的短视频投流方案、本地推设置、DOU+加热、预算规划。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 11,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "baolu-dou-plus",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\投流skill\\baolu-dou-plus",
+      "relativeSourcePath": "投流skill/baolu-dou-plus",
+      "modifiedAt": "2026-08-19T23:42:14.646Z",
+      "skillMdSha256": "51469fd7d5561f7da512843514d28e11cbb4c4333f467b3c24b5c97256cd5e37",
+      "fileCount": 9,
+      "totalBytes": 118708,
+      "description": "抖音 DOU+ 投放专家（融合版）。官方规则蒸馏（44 篇帮助中心）+ 保禄实战方法论（六步投放法、爆款测试）双核。判断视频/账号是否适合加热，设计投放目标、预算测试、涨粉策略、数据诊断、审核风险。用户问抖加怎么投、这条视频能不能加热、怎么测爆款、怎么低成本涨粉时使用。",
+      "staticQuality": {
+        "score": 78,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": true,
+        "hasOutputs": true,
+        "hasContract": true,
+        "hasEval": false,
+        "factualClaims": 0,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md",
+        "references/course-learning-status.md",
+        "references/distilled-dou-account.md",
+        "references/distilled-dou-compliance.md",
+        "references/distilled-dou-content-rules.md",
+        "references/distilled-dou-product.md",
+        "references/official-knowledge-index.md",
+        "references/official-sources.md",
+        "scripts/validate_learning_status.py"
+      ],
+      "decision": {
+        "action": "保留待平台审计",
+        "lifecycle": "desktop_platform_review",
+        "reason": "不是纯行业能力或与现有通用能力语义接近；需独立产品/平台评审。"
+      }
+    },
+    {
+      "id": "baolu-shipinhao-weixin-dou",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\投流skill\\baolu-shipinhao-weixin-dou",
+      "relativeSourcePath": "投流skill/baolu-shipinhao-weixin-dou",
+      "modifiedAt": "2026-08-18T02:14:37.858Z",
+      "skillMdSha256": "83088febad3ab8b940c2c3a077bcfe99d4bc5c27f9df385fbd89a1be2e8c3cec",
+      "fileCount": 8,
+      "totalBytes": 53083,
+      "description": "【视频号】微信豆投放专家（官方规则蒸馏 + 保禄实战方法论 + 张SIR 5A人群双核）。这是视频号（微信视频号）的微信豆加热投放 skill，区别于抖音 DOU+。覆盖微信豆加热全场景：短视频加热、商品加热、直播加热。判断内容/直播间是否适合加热、选投放目标（播放/涨粉/互动/商品点击/成交/ROI/企微名片点击）、设置预算与出价、智能加热vs定向加热、成本保障计划赔付规则、审核红线、带货评分门槛（DSR≥4.1）。用户问视频号微信豆怎么投、视频号怎么加热、这条视频能不能加热、直播怎么投微信豆、微信豆和ADQ区别时使用。",
+      "staticQuality": {
+        "score": 70,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": true,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 14,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_possible_pii",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [
+        "2818d8bf205c48b6",
+        "7e596ae84bcc114f"
+      ],
+      "filePaths": [
+        "SKILL.md",
+        "references/official-compliance.md",
+        "references/official-live.md",
+        "references/official-product.md",
+        "references/practical-advanced.md",
+        "references/source-index.md",
+        "references/tools-comparison.md",
+        "references/zhangsir-method.md"
+      ],
+      "decision": {
+        "action": "不应入库",
+        "lifecycle": "desktop_quarantined_sensitive",
+        "reason": "疑似密钥或个人信息；先脱敏并完成来源审计。"
+      }
+    },
+    {
+      "id": "dou-plus-ads",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\投流skill\\dou-plus-ads",
+      "relativeSourcePath": "投流skill/dou-plus-ads",
+      "modifiedAt": "2026-08-20T01:24:45.985Z",
+      "skillMdSha256": "2ced18328ca07ba66da8124e607865471c1d1911655ab88f2d41b55c0725bb4f",
+      "fileCount": 10,
+      "totalBytes": 117122,
+      "description": "抖音 DOU+ 内容加热投放专家。用于基于官方 DOU+ 课程和规则，判断视频或账号是否适合加热，设计投放目标、素材测试、预算预览、数据诊断、审核风险与经确认的网页辅助操作。",
+      "staticQuality": {
+        "score": 78,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": true,
+        "hasOutputs": true,
+        "hasContract": true,
+        "hasEval": false,
+        "factualClaims": 0,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval",
+        "P2_existing_skill_overlap"
+      ],
+      "duplicateIds": [
+        "dou-plus-ads",
+        "dou_plus_ads"
+      ],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md",
+        "agents/openai.yaml",
+        "references/course-learning-status.md",
+        "references/distilled-dou-account.md",
+        "references/distilled-dou-compliance.md",
+        "references/distilled-dou-content-rules.md",
+        "references/distilled-dou-product.md",
+        "references/official-knowledge-index.md",
+        "references/official-sources.md",
+        "scripts/validate_learning_status.py"
+      ],
+      "decision": {
+        "action": "合并候选",
+        "lifecycle": "desktop_overlap_review",
+        "reason": "与已有 Codex/仓库专项能力重叠；只允许差异评审，不得双注册。"
+      }
+    },
+    {
+      "id": "optimize-local-push-ads",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\投流skill\\optimize-local-push-ads",
+      "relativeSourcePath": "投流skill/optimize-local-push-ads",
+      "modifiedAt": "2026-08-20T01:24:31.701Z",
+      "skillMdSha256": "190e810220b7eb396cd7a4e8eb3d415e2842a4d85c20386ca613b6566d3ec0bd",
+      "fileCount": 41,
+      "totalBytes": 1230163,
+      "description": "巨量本地推与抖音生活服务投流专家工作流。用于本地生活商家、代理商、服务商或达人处理巨量本地推相关任务，包括产品选择、开户资质、抖音号授权、PC/来客/抖音端创编、短视频推门店或商品、直播加热与全域投放、团购交易、线索简单投与深度转化、UBMax、搜索营销、竞价与最优成本、预算放量、素材与审核、数据诊断、ROI/核销/有效线索分析、多客户隔离、变更单以及经确认的 PC 网页辅助投放。用户提到本地推、抖音本地生活投流、门店推广、团购投放、直播投流、本地线索、本地搜索广告、自动建计划或账户自动诊断时使用。",
+      "staticQuality": {
+        "score": 78,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": true,
+        "hasOutputs": true,
+        "hasContract": true,
+        "hasEval": false,
+        "factualClaims": 0,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_possible_pii",
+        "P2_missing_contract_or_eval",
+        "P2_existing_skill_overlap"
+      ],
+      "duplicateIds": [
+        "optimize-local-push-ads",
+        "optimize_local_push_ads"
+      ],
+      "secretFingerprints": [],
+      "piiFingerprints": [
+        "f56acc73f329b76e",
+        "6bab56dcf30cdd79",
+        "09f2e330e6b26f98",
+        "55e8611e7231ed88",
+        "c194b78b9cd18496",
+        "a9dbe08625112354",
+        "3789994e894d1c59"
+      ],
+      "filePaths": [
+        "SKILL.md",
+        "agents/openai.yaml",
+        "references/core-playbook.md",
+        "references/course-learning.md",
+        "references/creative-and-compliance.md",
+        "references/data-contracts.md",
+        "references/diagnostics.md",
+        "references/distilled-account-compliance.md",
+        "references/distilled-apparel-audit.md",
+        "references/distilled-automotive-aftermarket-audit.md",
+        "references/distilled-automotive-risk-audit.md",
+        "references/distilled-beauty-cosmetics-audit.md",
+        "references/distilled-beauty-spa-audit.md",
+        "references/distilled-bidding-transaction.md",
+        "references/distilled-business-service-audit.md",
+        "references/distilled-compliance.md",
+        "references/distilled-cover-design.md",
+        "references/distilled-education-audit.md",
+        "references/distilled-education-business-audit.md",
+        "references/distilled-fnb-audit.md",
+        "references/distilled-fnb-hospitality-summer-audit.md",
+        "references/distilled-health-medical-audit.md",
+        "references/distilled-leads.md",
+        "references/distilled-legal-franchise-audit.md",
+        "references/distilled-mom-3c-books-audit.md",
+        "references/distilled-realestate-home-audit.md",
+        "references/distilled-search.md",
+        "references/lead-decision-engine.md",
+        "references/measurement-and-experiments.md",
+        "references/official-catalog.md",
+        "references/official-change-report.md",
+        "references/official-knowledge-index.md",
+        "references/official-reading-queue.md",
+        "references/official-source-guide.md",
+        "references/official-source-index.json",
+        "references/output-templates.md",
+        "references/pc-execution-safety.md",
+        "scripts/build_lead_plan.py",
+        "scripts/diagnose_lead_account.py",
+        "scripts/refresh_official_sources.py",
+        "scripts/validate_skill_integrity.py"
+      ],
+      "decision": {
+        "action": "不应入库",
+        "lifecycle": "desktop_quarantined_sensitive",
+        "reason": "疑似密钥或个人信息；先脱敏并完成来源审计。"
+      }
+    },
+    {
+      "id": "xjtc-acquisition",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\新疆特产skill\\xjtc-acquisition",
+      "relativeSourcePath": "新疆特产skill/xjtc-acquisition",
+      "modifiedAt": "2026-08-19T23:38:09.466Z",
+      "skillMdSha256": "4abf6bf1f02ad5d8394ee9c0e57727a5bdade09b49b19b6cd5d48f2102a50655",
+      "fileCount": 1,
+      "totalBytes": 5737,
+      "description": "新疆特产获客招商智能体。蒸馏新疆特产（特产零售/加盟连锁）的获客招商方法论。核心命题：特产获客分 C 端游客获客 + B 端招商两条线——C 端用门店和产品引流（文旅伴手礼），B 端用创始人 IP 精准招商（第一条视频就拿到精准加盟咨询）。覆盖：创始人IP招商、内容四类（流量/人设/专业/营销）、C端B端双线、精准招商客资、文旅场景获客。含权威数据：牧民有礼第一条视频获精准加盟咨询、单客资成本25元（糖水铺案例）。触发词：新疆特产获客、特产招商、特产加盟获客、创始人IP招商、特产抖音、特产种草、文旅获客、伴手礼营销、特产品牌招商。适用场景：新疆特产店获客、特产招商加盟、创始人IP招商、文旅特产获客、特产内容营销。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 2,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "xjtc-compliance",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\新疆特产skill\\xjtc-compliance",
+      "relativeSourcePath": "新疆特产skill/xjtc-compliance",
+      "modifiedAt": "2026-08-19T23:29:10.971Z",
+      "skillMdSha256": "000e8f60510c47f65728a1af7735f2bea272abdfc06eb70b6fa500ea20a8fb85",
+      "fileCount": 1,
+      "totalBytes": 6328,
+      "description": "新疆特产合规红线智能体。蒸馏新疆特产（干果/鲜果/奶制品/肉制品等食品）经营与宣传的合规红线。核心命题：特产宣传第一优先级是不违法——食品功效宣称、产地虚假、极限词，翻车一次比生意差更致命。覆盖：广告法极限词、食品功效禁用（普通食品不得宣传疾病预防/治疗/保健）、产地宣称（\"正宗新疆/产地直发\"需真实可溯）、有机/绿色/地理标志认证、特殊宣称（无糖/低脂/零添加需证明）、食品安全（生产许可/保质期标注）、价格合规。触发词：新疆特产合规、食品广告法、产地宣称、地理标志、有机绿色认证、食品功效、特产宣传红线、干果合规、特产招商合规。适用场景：新疆特产门店/品牌的内容宣传合规审查、食品广告合规扫描、产地/地理标志宣称审查、特产招商广告排查。",
+      "staticQuality": {
+        "score": 66,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 4,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "xjtc-content-diff",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\新疆特产skill\\xjtc-content-diff",
+      "relativeSourcePath": "新疆特产skill/xjtc-content-diff",
+      "modifiedAt": "2026-08-19T23:32:38.400Z",
+      "skillMdSha256": "ad1e894f6a9866170cd4f19fd446e52e3671dc146704c3fac25ee6a33ed7991d",
+      "fileCount": 1,
+      "totalBytes": 3853,
+      "description": "新疆特产内容差异卡。配合通用 content-nine-piece 九件套使用，只写新疆特产独有的五段差异：①合规红线（通用广告法 + 食品功效/产地宣称，参考餐饮食品合规）②行业钩子（免费品尝/全国包邮/文旅点位）③话术与选题库（创始人IP四类内容/创业故事+全产业链+加盟政策）④平台侧重（C端B端双线分开）⑤案例与数据锚点。触发词：新疆特产内容、特产文案、新疆好物、特产招商内容、创业故事文案、特产投流。适用场景：给新疆特产门店/品牌写短视频图文内容（C端卖货+B端招商）时，作为差异卡注入 content-nine-piece。",
+      "staticQuality": {
+        "score": 66,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": true,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 1,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "xjtc-marketing",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\新疆特产skill\\xjtc-marketing",
+      "relativeSourcePath": "新疆特产skill/xjtc-marketing",
+      "modifiedAt": "2026-08-16T07:37:10.785Z",
+      "skillMdSha256": "2763804eb6e84179fd713f07bef60c7bcb59f1cf0133a2b98b7a7c0f5075d37f",
+      "fileCount": 1,
+      "totalBytes": 3741,
+      "description": "新疆特产营销智能体。蒸馏新疆特产（特产零售/伴手礼）的营销全链路方法论。核心命题：特产营销的核心是\"情绪价值 + 场景化\"——卖的不是特产，是\"新疆的心意\"，给消费者一个使用场景（伴手礼/送礼），他更容易心动。覆盖：卖点转买点、情绪价值、场景化、礼品化、文案、短视频。含权威数据：新疆特产市场1200亿、葡萄干188元一斤高端定位。触发词：新疆特产营销、特产文案、特产种草、伴手礼营销、特产短视频、新疆特产文案、特产小红书、特产礼品营销。适用场景：新疆特产营销、伴手礼文案、特产种草、特产短视频、礼品化营销。",
+      "staticQuality": {
+        "score": 50,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 2,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "xjtc-private",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\新疆特产skill\\xjtc-private",
+      "relativeSourcePath": "新疆特产skill/xjtc-private",
+      "modifiedAt": "2026-08-16T07:37:27.324Z",
+      "skillMdSha256": "b7ec8b3579130bef5a622f0e55c9bdd963990ce9e661a5fa96149e4feb1d8f3d",
+      "fileCount": 1,
+      "totalBytes": 3537,
+      "description": "新疆特产私域经营智能体。蒸馏新疆特产（特产零售/伴手礼）的私域运营方法论。核心命题：特产私域的核心是\"把一次性游客变成长期复购客户\"——游客买了就走，私域用\"线上复购 + 送礼场景 + 企业采购\"持续变现。覆盖：加微路径、线上复购、送礼场景、企业采购、会员体系。含权威数据：线上支持全国包邮、礼品定制/企业采购增值服务。触发词：新疆特产私域、特产复购、伴手礼复购、特产会员、游客复购、特产企业采购、特产送礼、特产线上复购。适用场景：新疆特产店私域、游客复购、特产会员、企业采购、线上复购。",
+      "staticQuality": {
+        "score": 42,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 0,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "xjtc-sales",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\新疆特产skill\\xjtc-sales",
+      "relativeSourcePath": "新疆特产skill/xjtc-sales",
+      "modifiedAt": "2026-08-16T09:30:08.716Z",
+      "skillMdSha256": "64fb8788858145f899483a882149f9d055c7af9ab25423a3ea982146f35ad01b",
+      "fileCount": 1,
+      "totalBytes": 3595,
+      "description": "新疆特产成交升单智能体。蒸馏新疆特产（特产零售/伴手礼）的成交与升单方法论。核心命题：特产升单的核心是\"单品转礼盒、散客转企业采购\"——从买一袋到买一箱，从游客散客到企业大宗采购。覆盖：单品转礼盒升单、散客转会员、企业采购升单、套餐设计、升单话术。含权威数据：葡萄干188元一斤高端定位、礼品定制/企业采购增值服务。触发词：新疆特产成交、特产升单、单品转礼盒、特产办卡、企业采购、特产客单价、伴手礼升单。适用场景：新疆特产成交、单品转礼盒、特产会员、企业采购、特产客单价提升。",
+      "staticQuality": {
+        "score": 42,
+        "hasSources": false,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": false,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 1,
+        "externalActions": true
+      },
+      "riskCodes": [
+        "P1_unverifiable_factual_claims",
+        "P1_external_action_boundary_missing",
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "desktop_p1_hold",
+        "reason": "先补可追溯来源/有效日期或预览与确认边界；未完成前不迁移。"
+      }
+    },
+    {
+      "id": "xjtc-store",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\新疆特产skill\\xjtc-store",
+      "relativeSourcePath": "新疆特产skill/xjtc-store",
+      "modifiedAt": "2026-08-16T10:13:34.982Z",
+      "skillMdSha256": "4c9e56cc4a9407305d382bda88b07f783443f29d2154253b18c1ccc1e035dc5b",
+      "fileCount": 1,
+      "totalBytes": 7370,
+      "description": "新疆特产门店经营智能体。蒸馏新疆特产（特产零售/伴手礼/加盟连锁）门店经营方法论。核心命题：新疆特产正从\"土特产\"向\"品牌化、标准化、礼品化\"转型——文旅红利 + 伴手礼需求 + 全产业链，是特产店逆袭的三大引擎。覆盖：行业大盘（特产市场1200亿/增速18%）、文旅红利、礼品化品牌化标准化、全产业链（自有工厂）、产品矩阵、加盟帮扶体系。含权威数据：新疆特产市场1200亿元、乌鲁木齐年游客1.29亿人次、牧民有礼一年50+门店、葡萄干188元一斤高端定位。触发词：新疆特产、特产门店、特产零售、伴手礼、特产加盟、新疆特产店、特产连锁、农特产品、特产经营、礼品化、特产品牌。适用场景：新疆特产店经营、特产加盟、伴手礼门店、特产品牌化、农特产品零售、文旅特产店。",
+      "staticQuality": {
+        "score": 64,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": true,
+        "hasContract": false,
+        "hasEval": false,
+        "factualClaims": 9,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "SKILL.md"
+      ],
+      "decision": {
+        "action": "修改后保留",
+        "lifecycle": "candidate_p2_quality_debt",
+        "reason": "无 P0/P1 敏感命中，已迁入非运行时候选区；仍须补 contract/sample/Eval。"
+      }
+    },
+    {
+      "id": "api-multisource-adapter",
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill\\api-multisource-adapter",
+      "relativeSourcePath": "api-multisource-adapter",
+      "modifiedAt": "2026-08-19T01:33:50.147Z",
+      "skillMdSha256": "6ebdd23917668143f67b865f546f66409a28e9d57fb60519485111ca7e630fee",
+      "fileCount": 5,
+      "totalBytes": 19811,
+      "description": null,
+      "staticQuality": {
+        "score": 56,
+        "hasSources": true,
+        "hasVersionDate": true,
+        "hasBoundaries": false,
+        "hasInputs": false,
+        "hasOutputs": true,
+        "hasContract": true,
+        "hasEval": false,
+        "factualClaims": 0,
+        "externalActions": false
+      },
+      "riskCodes": [
+        "P2_missing_contract_or_eval"
+      ],
+      "duplicateIds": [],
+      "secretFingerprints": [],
+      "piiFingerprints": [],
+      "filePaths": [
+        "README.md",
+        "SKILL.md",
+        "config.example.json",
+        "references/bailian-gateway.md",
+        "scripts/provider_template.py"
+      ],
+      "decision": {
+        "action": "保留待平台审计",
+        "lifecycle": "desktop_platform_review",
+        "reason": "不是纯行业能力或与现有通用能力语义接近；需独立产品/平台评审。"
+      }
+    }
+  ],
+  "decisionPolicy": "Decision reflects this 2026-08-20 intake only. No decision implies production registration or authorization."
+}

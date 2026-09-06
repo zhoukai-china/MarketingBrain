@@ -1,0 +1,799 @@
+{
+  "schemaVersion": 1,
+  "intakeId": "desktop-20260821",
+  "status": "raw-intake-only",
+  "createdAt": "2026-08-21T14:32:31.8834071+08:00",
+  "scope": "Desktop files with explicit Skill structure; no production registration or runtime routing.",
+  "excluded": [
+    "C:\\Users\\book\\Desktop\\阿里云服务器-安全信息.txt was explicitly excluded and was not inspected or moved."
+  ],
+  "items": [
+    {
+      "sourcePath": "C:\\Users\\book\\Desktop\\新skill",
+      "targetPath": "F:\\思潼AI增长os\\baolu-os-v2-source\\mcp-skills\\intake\\desktop-20260821\\originals\\newskill",
+      "kind": "desktop-skill-delivery",
+      "disposition": "raw-original-preserved-non-runtime",
+      "reason": "Explicit Skill structure; retained for future audit and intake, not production registration.",
+      "fileCount": 151,
+      "skillMdCount": 64,
+      "bytes": 2120186,
+      "directorySha256": "d421d891ed3366a57a5224d4674d67d3de32bbcad1b08cef95781394a9595bf6",
+      "duplicateCheck": "No exact SKILL.md SHA-256 match in F:\\思潼AI增长os\\baolu-os-v2-source\\mcp-skills at pre-move verification.",
+      "files": [
+        {
+          "relativePath": "api-multisource-adapter\\config.example.json",
+          "bytes": 396,
+          "sha256": "0bf91498df6f479c1ec75aec00db4213c35d18a744fbd2506ef01e940915bccd"
+        },
+        {
+          "relativePath": "api-multisource-adapter\\README.md",
+          "bytes": 2482,
+          "sha256": "60a3b756e7493ad4bbece7a7ece17136c323be5e99dcda38cba7261edcbf9fa5"
+        },
+        {
+          "relativePath": "api-multisource-adapter\\SKILL.md",
+          "bytes": 5914,
+          "sha256": "6ebdd23917668143f67b865f546f66409a28e9d57fb60519485111ca7e630fee"
+        },
+        {
+          "relativePath": "api-multisource-adapter\\references\\bailian-gateway.md",
+          "bytes": 2632,
+          "sha256": "41870e4f7dcc50a706689e5819534d1b6912f76061a017b4b44afe1b019fa29e"
+        },
+        {
+          "relativePath": "api-multisource-adapter\\scripts\\provider_template.py",
+          "bytes": 8387,
+          "sha256": "a8b4c7840d4a361bab76ce6f031732d1f7977120790c7d7a848eb789f190be0a"
+        },
+        {
+          "relativePath": "产康skill\\chankang-acquisition\\SKILL.md",
+          "bytes": 5464,
+          "sha256": "79e8c3512a45fbdc0f9a084b89c25127e331b0ed53a855562d4395da29aadba6"
+        },
+        {
+          "relativePath": "产康skill\\chankang-compliance\\SKILL.md",
+          "bytes": 4133,
+          "sha256": "3d052da7870edd82bf51605e30e38b1fb531cac1db92b8dc91b87237efc9cb41"
+        },
+        {
+          "relativePath": "产康skill\\chankang-content-diff\\SKILL.md",
+          "bytes": 4645,
+          "sha256": "934d90f0a7161e121e5ca3a81178015feb299b621d117b282b6a88d2be96dd33"
+        },
+        {
+          "relativePath": "产康skill\\chankang-marketing\\SKILL.md",
+          "bytes": 3646,
+          "sha256": "10e5300d191e947b2cb99e0918b7b2f748f535af555ed1c63457c38949bf79bd"
+        },
+        {
+          "relativePath": "产康skill\\chankang-private\\SKILL.md",
+          "bytes": 3353,
+          "sha256": "1ef4dde53c1b2a12404ccb537b291537a62d08ec7ca4f824cafab4105aa4b902"
+        },
+        {
+          "relativePath": "产康skill\\chankang-sop\\SKILL.md",
+          "bytes": 3652,
+          "sha256": "f5543d1af456c515e02298d57124661385abdff205f0e48abfcc8aba993b9638"
+        },
+        {
+          "relativePath": "产康skill\\chankang-store\\SKILL.md",
+          "bytes": 7403,
+          "sha256": "a7f3d6ede09f8ca6bd2577f8b46cfa541190e58fbba9b4825675297e6e326d17"
+        },
+        {
+          "relativePath": "产康skill\\chankang-team\\SKILL.md",
+          "bytes": 3331,
+          "sha256": "d80ddeed00bcfc59525993b277b91163c29669a56e6523a0e4ed0f25333259a8"
+        },
+        {
+          "relativePath": "儿童乐园skill\\ertong-acquisition\\SKILL.md",
+          "bytes": 5586,
+          "sha256": "d0615735d6b896e525b4a7b8a8afa7144ab4bb906f8ab3715ddeeb47d03b8273"
+        },
+        {
+          "relativePath": "儿童乐园skill\\ertong-marketing\\SKILL.md",
+          "bytes": 3691,
+          "sha256": "9fdc0d3a3424cb888b8ae003c0b0a964e38a6ce8346d9221ce9079ed65591d31"
+        },
+        {
+          "relativePath": "儿童乐园skill\\ertong-private\\SKILL.md",
+          "bytes": 3295,
+          "sha256": "28ea17a820b7bdc65477f60b363095e29bc7be597ac0de81f5b998787f9915a4"
+        },
+        {
+          "relativePath": "儿童乐园skill\\ertong-sales\\SKILL.md",
+          "bytes": 3761,
+          "sha256": "7f280880aaa2b3e8a5f7833646c39333a671bc1cee0bfaadff8feb0398688a5d"
+        },
+        {
+          "relativePath": "儿童乐园skill\\ertong-sop\\SKILL.md",
+          "bytes": 3578,
+          "sha256": "b9e8e578ed8848e81ed6a238e7b994da76e44d322f384f677be3ce780f677567"
+        },
+        {
+          "relativePath": "儿童乐园skill\\ertong-team\\SKILL.md",
+          "bytes": 3262,
+          "sha256": "d45218f0198da170f9ed714081bd356aa44303eb5b21dd0cc5da3c8001c24aa7"
+        },
+        {
+          "relativePath": "减肥skill\\jianfei-acquisition\\SKILL.md",
+          "bytes": 6002,
+          "sha256": "22f7feeba21919e95fb055b3e48baba6c17216ce7c6a7fd614f6d92202d52790"
+        },
+        {
+          "relativePath": "减肥skill\\jianfei-content-diff\\SKILL.md",
+          "bytes": 4357,
+          "sha256": "b7fc589a2ff2d58c3a6a50577efe280773af071279f2550bf7a48e6f7f6277de"
+        },
+        {
+          "relativePath": "减肥skill\\jianfei-marketing\\SKILL.md",
+          "bytes": 3778,
+          "sha256": "5649a329b3795d4c46f7cdc38b5969f282d7b83d5d9ae6d856b89c5b6d257076"
+        },
+        {
+          "relativePath": "减肥skill\\jianfei-private\\SKILL.md",
+          "bytes": 3505,
+          "sha256": "6b3625f377782916e12f22b124994da8c7fa91d6b5dc3f47782efd48e6da1122"
+        },
+        {
+          "relativePath": "减肥skill\\jianfei-sales\\SKILL.md",
+          "bytes": 3993,
+          "sha256": "7bbd91ef4184ce37bdf6357fe76f6e15f1db397ef54935744f6ec8636cc9a262"
+        },
+        {
+          "relativePath": "减肥skill\\jianfei-team\\SKILL.md",
+          "bytes": 3399,
+          "sha256": "1b0a46a871b87f7920a19008b285b5eb1d78a5d958ff1485a299ff705ac2691b"
+        },
+        {
+          "relativePath": "宠物skill\\宠物AI智能体_产品功能清单.docx",
+          "bytes": 44113,
+          "sha256": "087a41179a3ef8d49d67d9870a58bc68f2c4e7cdd04b5d545b36bea91ffbb39a"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-acquisition\\SKILL.md",
+          "bytes": 14406,
+          "sha256": "45e50cf4a0a7e763e0cc2a807ef9afced72e307b029de5c13fddd030ef11e47b"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-behavior\\SKILL.md",
+          "bytes": 16543,
+          "sha256": "92854889777016b1deef6a7ef82cc12755b05ea822b893b5457483b31e959e9d"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-content-line\\SKILL.md",
+          "bytes": 6587,
+          "sha256": "0ad312b5af6aeaaf87c71c96c56a9aed6899d05ab5fa668e50bd99952b4676bc"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-emotion\\README.md",
+          "bytes": 4782,
+          "sha256": "0caa7e1993f5d997288303369af328976eca3bfc0918786e2ecf699b2ceae97b"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-emotion\\SKILL.md",
+          "bytes": 17224,
+          "sha256": "cde1a67f4951e50202c4e478ca65ce6f785b2d9007beb5bae033a84b5aca2bcf"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-emotion\\assets\\report_template.html",
+          "bytes": 8270,
+          "sha256": "dae8b7113cc42f58a2d079ed085dd61bcce03573d9192fb9bf30caa69a859093"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-emotion\\references\\emotion_guide.md",
+          "bytes": 3459,
+          "sha256": "5606d721cfbcd8be875c609a61867317f3fc3bcc26d2315e7aec8c2f3060f4c2"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-emotion\\scripts\\config.example.json",
+          "bytes": 853,
+          "sha256": "4e4bda822ffeecc0b9c2215aeed3e7ca2324055e73107f1c85019c12ef8e4bbf"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-emotion\\scripts\\pet_store_emotion.py",
+          "bytes": 15404,
+          "sha256": "49746edc3f72076aea12df5908dbd4e42b89b1c8cc79234b53aace9561b3e0a4"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-emotion\\scripts\\providers\\__init__.py",
+          "bytes": 783,
+          "sha256": "79bcb7c186d1215f217b8bd0e28b725f25290863729810c590b9df3c017d2a28"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-emotion\\scripts\\providers\\base.py",
+          "bytes": 12042,
+          "sha256": "7ce7c7cfa4d828027347b3a42a5755d50ba6f3d7c44fa494e7bbde9119c911ad"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-emotion\\scripts\\providers\\modelscope.py",
+          "bytes": 1845,
+          "sha256": "b13e774980e2b14016eb74786a5a3d355a7c7714e3c444fb882239c0e38d18f0"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-emotion\\scripts\\providers\\openai_vision.py",
+          "bytes": 1249,
+          "sha256": "d51f867a1a95f14d5aa0a4d47eb231b1b7b0c5c109ea7a4a0675da3e8f8cc638"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-emotion\\scripts\\providers\\qwen_bailian.py",
+          "bytes": 1479,
+          "sha256": "7a3ccbae1d3414afaf60f7c0fd3213069bbbafaf691fea9f1235113b14f46afc"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-emotion\\scripts\\providers\\qwen_dashscope.py",
+          "bytes": 1428,
+          "sha256": "ba149539e550495675237ff0ed8a1fb6d2c70130ac0964acd7367e783955710d"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-emotion\\scripts\\providers\\__pycache__\\__init__.cpython-313.pyc",
+          "bytes": 900,
+          "sha256": "8f5b6fecc7a9ceeaf8df299fe9e727a74c9ed049d882f6c733ac4867010bb976"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-emotion\\scripts\\providers\\__pycache__\\base.cpython-313.pyc",
+          "bytes": 14598,
+          "sha256": "08a84d453ca71cdcd27684a763386dc2bb259eb42716ba15d2e50c11a769eb32"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-emotion\\scripts\\providers\\__pycache__\\modelscope.cpython-313.pyc",
+          "bytes": 2891,
+          "sha256": "f5d6254a161cc4b2472744c51017297fdb371cb54c325d09d6dcc6be475b0a7e"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-emotion\\scripts\\providers\\__pycache__\\openai_vision.cpython-313.pyc",
+          "bytes": 2360,
+          "sha256": "55feaa5e66010ec11b796acb8342413db7422ebf231d1e4c9e26cfd890715e0c"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-emotion\\scripts\\providers\\__pycache__\\qwen_bailian.cpython-313.pyc",
+          "bytes": 2566,
+          "sha256": "cf5f5c971716e6bf8a6fa86923e4c3fbb156b7b327aaec878fe2a528a65559b3"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-emotion\\scripts\\providers\\__pycache__\\qwen_dashscope.cpython-313.pyc",
+          "bytes": 2516,
+          "sha256": "2f50e544d75de24507e901b53932f5e6836c2434fd0fee066fcc0163aad1b611"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-emotion\\scripts\\__pycache__\\pet_store_emotion.cpython-313.pyc",
+          "bytes": 20198,
+          "sha256": "1ef04ff3507bd7bb6c183453a37b1dc5d403532ce02006a3f9c127c0a3ec1bf2"
+        },
+        {
+          "relativePath": "宠物skill\\chongwu-team\\SKILL.md",
+          "bytes": 5572,
+          "sha256": "1987137390f64d25f819cd3a3ca3840dbca39fecfad969f0f66ce37774ccd557"
+        },
+        {
+          "relativePath": "手机后市场skill\\shouji-acquisition\\SKILL.md",
+          "bytes": 7478,
+          "sha256": "6e9aadcd6cf13387cd97d0d2117c1a69ff8065087860ff0afb922cf8cdd53b01"
+        },
+        {
+          "relativePath": "手机后市场skill\\shouji-content-diff\\SKILL.md",
+          "bytes": 4344,
+          "sha256": "084ace4e9a4ee5f64cce9abf9de9f47d2d958e713ffc739b6057dec1fbda853f"
+        },
+        {
+          "relativePath": "手机后市场skill\\shouji-marketing\\SKILL.md",
+          "bytes": 4645,
+          "sha256": "453c8ef15f3e720121b6136684a53bfbef46dee688f0a874d3272f71479eefad"
+        },
+        {
+          "relativePath": "手机后市场skill\\shouji-private\\SKILL.md",
+          "bytes": 3331,
+          "sha256": "2040f44fe33526ba88116174611a9487fd87f65644bd25d2ad461c5c56fa9582"
+        },
+        {
+          "relativePath": "手机后市场skill\\shouji-sales\\SKILL.md",
+          "bytes": 3699,
+          "sha256": "084c1e2f7cd7b87772395211440cc1558b37f69d91369fa040d157fe7ea7a747"
+        },
+        {
+          "relativePath": "投流skill\\ad-manager\\SKILL.md",
+          "bytes": 7100,
+          "sha256": "06c68135401716d91596c844d9c24b695b29910571598f0948a042c0f035558f"
+        },
+        {
+          "relativePath": "投流skill\\baolu-dou-plus\\SKILL.md",
+          "bytes": 4570,
+          "sha256": "51469fd7d5561f7da512843514d28e11cbb4c4333f467b3c24b5c97256cd5e37"
+        },
+        {
+          "relativePath": "投流skill\\baolu-dou-plus\\references\\course-learning-status.md",
+          "bytes": 12402,
+          "sha256": "93fae177c67c840fca8daf1b7a1688a13bc138170fbbb80ddd140ca27cad4699"
+        },
+        {
+          "relativePath": "投流skill\\baolu-dou-plus\\references\\distilled-dou-account.md",
+          "bytes": 18361,
+          "sha256": "ec65e94c66c8f0308f81866815fbeaadd590cac307d44fa24125c9664b796fce"
+        },
+        {
+          "relativePath": "投流skill\\baolu-dou-plus\\references\\distilled-dou-compliance.md",
+          "bytes": 18436,
+          "sha256": "6981f8c138e70c0b9825168d733bbe7e8a8e869fba874e6c31ce0e14ab8f0c5d"
+        },
+        {
+          "relativePath": "投流skill\\baolu-dou-plus\\references\\distilled-dou-content-rules.md",
+          "bytes": 24044,
+          "sha256": "07f3aa6eb3bdbfa79280698e4e2ef915650886bc038ed3726886a0ad6b1132bf"
+        },
+        {
+          "relativePath": "投流skill\\baolu-dou-plus\\references\\distilled-dou-product.md",
+          "bytes": 26291,
+          "sha256": "bdae823a1117433a7011e1314f2814efe3d25fc7d8cdc0e812d5d0d32bd0deea"
+        },
+        {
+          "relativePath": "投流skill\\baolu-dou-plus\\references\\official-knowledge-index.md",
+          "bytes": 11606,
+          "sha256": "f6f50d91a29d7b39d84a10a7079fb08e8282e32b2b79eeaafb7f208ad42da3d8"
+        },
+        {
+          "relativePath": "投流skill\\baolu-dou-plus\\references\\official-sources.md",
+          "bytes": 1571,
+          "sha256": "d13aee56528df349cf9e691685c74e37b6b6e26bd2476ef12adbb4b3ccaf50ac"
+        },
+        {
+          "relativePath": "投流skill\\baolu-dou-plus\\scripts\\validate_learning_status.py",
+          "bytes": 1427,
+          "sha256": "5d4efd3f42a994176697c298ff35f70b24904ddcbed5f66b73dd141d144946f1"
+        },
+        {
+          "relativePath": "投流skill\\baolu-shipinhao-weixin-dou\\SKILL.md",
+          "bytes": 8290,
+          "sha256": "83088febad3ab8b940c2c3a077bcfe99d4bc5c27f9df385fbd89a1be2e8c3cec"
+        },
+        {
+          "relativePath": "投流skill\\baolu-shipinhao-weixin-dou\\references\\official-compliance.md",
+          "bytes": 9559,
+          "sha256": "7b58095a8e1729070ae43d82a66ae8cc46bd5044b61e0f561dadbd165b93674b"
+        },
+        {
+          "relativePath": "投流skill\\baolu-shipinhao-weixin-dou\\references\\official-live.md",
+          "bytes": 4258,
+          "sha256": "7a6fabd681f9b3a5a02a5069a5492ef4843c0cf9d923853b04f8ad76055172f8"
+        },
+        {
+          "relativePath": "投流skill\\baolu-shipinhao-weixin-dou\\references\\official-product.md",
+          "bytes": 6353,
+          "sha256": "7d0a5561cbedd75e32f167d7282156a457ab2468725c8438a365b5125f23d5b6"
+        },
+        {
+          "relativePath": "投流skill\\baolu-shipinhao-weixin-dou\\references\\practical-advanced.md",
+          "bytes": 4150,
+          "sha256": "368ab5e7fab671e7523dca52e9ab841226df609d990c8de807148e0ca54521d7"
+        },
+        {
+          "relativePath": "投流skill\\baolu-shipinhao-weixin-dou\\references\\source-index.md",
+          "bytes": 7689,
+          "sha256": "c8a9ad40488a7f185803e0d652206fb83b7fcd63d9f0ec25869b3c77e3da54b0"
+        },
+        {
+          "relativePath": "投流skill\\baolu-shipinhao-weixin-dou\\references\\tools-comparison.md",
+          "bytes": 7116,
+          "sha256": "8c27e66ebfdb050e1106b079edb205ea37ff2eefeb3f967acf688ebfa5bdf142"
+        },
+        {
+          "relativePath": "投流skill\\baolu-shipinhao-weixin-dou\\references\\zhangsir-method.md",
+          "bytes": 5668,
+          "sha256": "121cbcf7964422ae519ea3a9d25407bf7bd7b53ef1fa1bef428a5232774a8f84"
+        },
+        {
+          "relativePath": "投流skill\\dou-plus-ads\\SKILL.md",
+          "bytes": 2780,
+          "sha256": "2ced18328ca07ba66da8124e607865471c1d1911655ab88f2d41b55c0725bb4f"
+        },
+        {
+          "relativePath": "投流skill\\dou-plus-ads\\agents\\openai.yaml",
+          "bytes": 204,
+          "sha256": "4eb5347fbf5e737579301d6c66eecfd1ec7b98d9c3a9cb80f37ea14e6ad12f25"
+        },
+        {
+          "relativePath": "投流skill\\dou-plus-ads\\references\\course-learning-status.md",
+          "bytes": 12402,
+          "sha256": "93fae177c67c840fca8daf1b7a1688a13bc138170fbbb80ddd140ca27cad4699"
+        },
+        {
+          "relativePath": "投流skill\\dou-plus-ads\\references\\distilled-dou-account.md",
+          "bytes": 18361,
+          "sha256": "ec65e94c66c8f0308f81866815fbeaadd590cac307d44fa24125c9664b796fce"
+        },
+        {
+          "relativePath": "投流skill\\dou-plus-ads\\references\\distilled-dou-compliance.md",
+          "bytes": 18436,
+          "sha256": "6981f8c138e70c0b9825168d733bbe7e8a8e869fba874e6c31ce0e14ab8f0c5d"
+        },
+        {
+          "relativePath": "投流skill\\dou-plus-ads\\references\\distilled-dou-content-rules.md",
+          "bytes": 24044,
+          "sha256": "07f3aa6eb3bdbfa79280698e4e2ef915650886bc038ed3726886a0ad6b1132bf"
+        },
+        {
+          "relativePath": "投流skill\\dou-plus-ads\\references\\distilled-dou-product.md",
+          "bytes": 26291,
+          "sha256": "bdae823a1117433a7011e1314f2814efe3d25fc7d8cdc0e812d5d0d32bd0deea"
+        },
+        {
+          "relativePath": "投流skill\\dou-plus-ads\\references\\official-knowledge-index.md",
+          "bytes": 11606,
+          "sha256": "f6f50d91a29d7b39d84a10a7079fb08e8282e32b2b79eeaafb7f208ad42da3d8"
+        },
+        {
+          "relativePath": "投流skill\\dou-plus-ads\\references\\official-sources.md",
+          "bytes": 1571,
+          "sha256": "d13aee56528df349cf9e691685c74e37b6b6e26bd2476ef12adbb4b3ccaf50ac"
+        },
+        {
+          "relativePath": "投流skill\\dou-plus-ads\\scripts\\validate_learning_status.py",
+          "bytes": 1427,
+          "sha256": "5d4efd3f42a994176697c298ff35f70b24904ddcbed5f66b73dd141d144946f1"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\SKILL.md",
+          "bytes": 14151,
+          "sha256": "190e810220b7eb396cd7a4e8eb3d415e2842a4d85c20386ca613b6566d3ec0bd"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\agents\\openai.yaml",
+          "bytes": 313,
+          "sha256": "43636f5e31d147fb0af4dc647be6c8175793fbd1c8bb2c8192c1abe576cd2ab8"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\core-playbook.md",
+          "bytes": 7696,
+          "sha256": "1044e1678f19d14b22b83b57988de96b553d8e277507ae701f12817e1858cce9"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\course-learning.md",
+          "bytes": 7311,
+          "sha256": "921c7dabffaaed601625a02e1307f4d61b256bf35c89a20572dc60fe9229ee31"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\creative-and-compliance.md",
+          "bytes": 2950,
+          "sha256": "bad99b934012a47d5554241e4cfe7f019273cc04a519195ccada44c3ac3ba0ee"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\data-contracts.md",
+          "bytes": 3761,
+          "sha256": "fbfab0d2241195a2ebf8f5f721a9f5bac156ca333165f8fea263a55939beaa68"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\diagnostics.md",
+          "bytes": 5125,
+          "sha256": "e267eabe3a1f6deb38654b3f2ca0a8dd1ed9e72eb8e65d1d47822243b7e51998"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\distilled-account-compliance.md",
+          "bytes": 23803,
+          "sha256": "96239652d1c78284416c7b0b58fbdc3921d05f891772aabdaee97c1bf5b4ff1a"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\distilled-apparel-audit.md",
+          "bytes": 45691,
+          "sha256": "d8c0ab7586e1d4fde25c0013ec39670e172336664038bf2c76d1e55102962704"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\distilled-automotive-aftermarket-audit.md",
+          "bytes": 8666,
+          "sha256": "859e6803aba0e30d24cd265f50048f18991562de7d76d6594bee855447cc293d"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\distilled-automotive-risk-audit.md",
+          "bytes": 40126,
+          "sha256": "c2a9190e2f6820dca57236f335e00bcfced93fe8ef5da1a22b5a7cfe16454b41"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\distilled-beauty-cosmetics-audit.md",
+          "bytes": 83714,
+          "sha256": "962a673e8bb602d9229d89906c5b888f3136b4f8c6463c2b5c110766eb010c35"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\distilled-beauty-spa-audit.md",
+          "bytes": 58326,
+          "sha256": "7605002555f343ba57c8d0c40464145be5e25184d42935729cc8a3d91024a5a1"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\distilled-bidding-transaction.md",
+          "bytes": 27722,
+          "sha256": "862464a130cb0037abb181b415d526f99307708125624874c2549619595ed869"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\distilled-business-service-audit.md",
+          "bytes": 9365,
+          "sha256": "cb890dca0a34a5d814846d768805bc030302580a0b725cf3cbd74fb3169ffe3f"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\distilled-compliance.md",
+          "bytes": 23409,
+          "sha256": "d7ec8a6f5bc74628073dd395315eccfdd984c498abe16b00b94863f7062762c2"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\distilled-cover-design.md",
+          "bytes": 22732,
+          "sha256": "bc9a8ffa0c0232f2921f9b564d7f797b58b72bbd3c4c4daf34826b6affd34dfb"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\distilled-education-audit.md",
+          "bytes": 23670,
+          "sha256": "335b79a003eb97c40e8ae278730ecc772ce05f23ad57c49daf9b7cf8734b0e18"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\distilled-education-business-audit.md",
+          "bytes": 31039,
+          "sha256": "1f8b4f40bb16b37d5cd8a1292e977329e0294e5fecfe27f2c9b23d2c0e9b338c"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\distilled-fnb-audit.md",
+          "bytes": 70604,
+          "sha256": "5cd328eb11dfd8c2098ab2a13430b43674872ca1fbcde03299c7864f93dffde9"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\distilled-fnb-hospitality-summer-audit.md",
+          "bytes": 6192,
+          "sha256": "39a7a05ecf0a0cd5f88fe87f9aa521bea5eb276649e9c6c303a8908432bbd612"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\distilled-health-medical-audit.md",
+          "bytes": 45989,
+          "sha256": "e4b39bf97b9f04fc33cf4a7922528e36f67def9572e86a14d6e59cdf4ea85f0b"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\distilled-leads.md",
+          "bytes": 30082,
+          "sha256": "65032b201710d8acc5dc45adc60fd5510655a6bae4259d946797ae57eeafe932"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\distilled-legal-franchise-audit.md",
+          "bytes": 52526,
+          "sha256": "ce001d3de9a6ba4c9f8ccf0795c44e40c5d579523814700013559db87880d638"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\distilled-mom-3c-books-audit.md",
+          "bytes": 57992,
+          "sha256": "ff3708ff6a5ef4642690b56d20f8cf9db203fe8a2155574e17274af9abf171c4"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\distilled-realestate-home-audit.md",
+          "bytes": 28520,
+          "sha256": "9f7e4f90cad29c8499f8961c7ef45f0db592551a5b9cf8bb3244e3e1a330286d"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\distilled-search.md",
+          "bytes": 24896,
+          "sha256": "2342bd5c273ef17c8437f8bc250c4e529d5f7c20f9bbbe847699670bdadb0368"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\lead-decision-engine.md",
+          "bytes": 3726,
+          "sha256": "a91271171c43879bf5bf90368ff2c5bac51972b0daf54fc48339ffdc78739cae"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\measurement-and-experiments.md",
+          "bytes": 4141,
+          "sha256": "2481b1be383594caf24cfa9e00a6e3a14b8b2e1c343c0f6e91a106cd8176482e"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\official-catalog.md",
+          "bytes": 40298,
+          "sha256": "888df1bed454667ad8fc296378c1e7d197b8c928b79ab1f7914df3684673a651"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\official-change-report.md",
+          "bytes": 564,
+          "sha256": "d7881a3510cbb304b48c455e24da1e4e3aa1f314fa268b594fa450a1f0c57d86"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\official-knowledge-index.md",
+          "bytes": 63008,
+          "sha256": "3931131f6820b081cab1df4ec9c9683f13cbdf4fdc68c79a8e9e03ea106627d2"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\official-reading-queue.md",
+          "bytes": 35667,
+          "sha256": "f0a3f3c0adc41e6895f43c5d991167cc48b1342a74d3a38f4084202fa7d2859c"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\official-source-guide.md",
+          "bytes": 13050,
+          "sha256": "9be6c46ee78da4c482dac0284d45d45dc72771744042bdaacf4dcbc610652aac"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\official-source-index.json",
+          "bytes": 242704,
+          "sha256": "8d801b7f5213c33a0a5792a1fedec9383246d4dda03756bcb1975acc3011b89a"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\output-templates.md",
+          "bytes": 4216,
+          "sha256": "339d187aca12610b792286cbc72b8aed49034fb44daf3b82f376f45340fbe499"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\references\\pc-execution-safety.md",
+          "bytes": 2986,
+          "sha256": "80b3d617cca514e2015721ea572af4755429e1c9a3c3a9f0188c17b7377c2220"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\scripts\\build_lead_plan.py",
+          "bytes": 9105,
+          "sha256": "e689800025b17745ee1e1988d09c18e93d26e7309f267bf5efd9432abecdeb77"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\scripts\\diagnose_lead_account.py",
+          "bytes": 20611,
+          "sha256": "b452b8dd9024ac444efe67ad1fbceaf8df7ae536bb656ba541e6cb6add63f803"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\scripts\\refresh_official_sources.py",
+          "bytes": 27151,
+          "sha256": "15acf3966490582c4b3246ab62c1488cfcf8ee6c9b4c10b18d8da55730a93688"
+        },
+        {
+          "relativePath": "投流skill\\optimize-local-push-ads\\scripts\\validate_skill_integrity.py",
+          "bytes": 6565,
+          "sha256": "8adb1dffbcfb64ff4fb16082e5ce2750233ddcdfaa7205c7a2c2a33f5f8c3b8f"
+        },
+        {
+          "relativePath": "新疆特产skill\\xjtc-acquisition\\SKILL.md",
+          "bytes": 5737,
+          "sha256": "4abf6bf1f02ad5d8394ee9c0e57727a5bdade09b49b19b6cd5d48f2102a50655"
+        },
+        {
+          "relativePath": "新疆特产skill\\xjtc-marketing\\SKILL.md",
+          "bytes": 3741,
+          "sha256": "2763804eb6e84179fd713f07bef60c7bcb59f1cf0133a2b98b7a7c0f5075d37f"
+        },
+        {
+          "relativePath": "新疆特产skill\\xjtc-private\\SKILL.md",
+          "bytes": 3537,
+          "sha256": "b7ec8b3579130bef5a622f0e55c9bdd963990ce9e661a5fa96149e4feb1d8f3d"
+        },
+        {
+          "relativePath": "新疆特产skill\\xjtc-sales\\SKILL.md",
+          "bytes": 3595,
+          "sha256": "64fb8788858145f899483a882149f9d055c7af9ab25423a3ea982146f35ad01b"
+        },
+        {
+          "relativePath": "本地服务skill\\bendi-sales\\SKILL.md",
+          "bytes": 3886,
+          "sha256": "915bcb03e5dbaf728fcaeab0ed0bf902563752ed5d19021585a2e2af5bf5666a"
+        },
+        {
+          "relativePath": "本地服务skill\\bendi-service\\SKILL.md",
+          "bytes": 8617,
+          "sha256": "c24795d4befbeaeeccc2cf28594a8f564cf6f847bcbc1547f96feafbe37bea70"
+        },
+        {
+          "relativePath": "汽车后市场skill\\qiche-acquisition\\SKILL.md",
+          "bytes": 7374,
+          "sha256": "a704b115b62b595e8caed752ebafeb12b69c6eeabb828af1d0e081dbd3f8670f"
+        },
+        {
+          "relativePath": "汽车后市场skill\\qiche-marketing\\SKILL.md",
+          "bytes": 3436,
+          "sha256": "d29b0a9c06eda056fbfffbd1ec13437025438c785667620a4e273c886cb712f1"
+        },
+        {
+          "relativePath": "汽车后市场skill\\qiche-sales\\SKILL.md",
+          "bytes": 3832,
+          "sha256": "076fd357cb290e661599cfce4dc1a45cc5ff311f3aad0b10cde16117fbecbdf9"
+        },
+        {
+          "relativePath": "汽车后市场skill\\qiche-sop\\SKILL.md",
+          "bytes": 3613,
+          "sha256": "4c98a6cc78ec22e5a770a14e7907e8ecf336296739f54d134191020c8a418de2"
+        },
+        {
+          "relativePath": "汽车后市场skill\\qiche-team\\SKILL.md",
+          "bytes": 4097,
+          "sha256": "076298523068a026a4742d25a1e1f077e59a8bf61725a2ef4565c002ef07fe09"
+        },
+        {
+          "relativePath": "美业skill\\lanqi-meiye\\SKILL.md",
+          "bytes": 6359,
+          "sha256": "1b64f64307484c953653429d7cb46452719e0d47c9723c96ede12014be2b58d9"
+        },
+        {
+          "relativePath": "美业skill\\meiye-acquisition\\SKILL.md",
+          "bytes": 15625,
+          "sha256": "dd936952312c919dbf32aca6dc192e2465f7603a6144419d3e47fc77d015cab3"
+        },
+        {
+          "relativePath": "美业skill\\meiye-mot\\SKILL.md",
+          "bytes": 7502,
+          "sha256": "13fc91d130b885777b38202855121071b7bf8ca5953bc5f0359a7566db81d25a"
+        },
+        {
+          "relativePath": "美业skill\\meiye-private\\SKILL.md",
+          "bytes": 9168,
+          "sha256": "a793edddccae546bb10fb3d64c435ba5c8f23ada3981953dc4cc1dcebb65de16"
+        },
+        {
+          "relativePath": "通用skill\\ai-marketing\\SKILL.md",
+          "bytes": 13732,
+          "sha256": "a7ff8d53335a7f8bc1599cc49de4052f7ebd676e3f5674aba621db9d62351e47"
+        },
+        {
+          "relativePath": "通用skill\\ai-poster-design\\SKILL.md",
+          "bytes": 7027,
+          "sha256": "297f90039266a31baca7c8b9c979eab3966a9f43f0f87b3b71ade842d667dcbd"
+        },
+        {
+          "relativePath": "通用skill\\ai-visual-prompt\\SKILL.md",
+          "bytes": 10151,
+          "sha256": "6df20a09af485e4aae77afd1a82877b77191944ac950b077933f935e699ef901"
+        },
+        {
+          "relativePath": "通用skill\\content-nine-piece\\SKILL.md",
+          "bytes": 14284,
+          "sha256": "bcfd7af319505eeb9ab1d1e2040be34efd98b290cb3f9decd067a00f0ba2b9a6"
+        },
+        {
+          "relativePath": "通用skill\\review-base\\SKILL.md",
+          "bytes": 6519,
+          "sha256": "5aa686af04fb88c3678f999db7fa48c6bfbfb2c71d6f54aee27a2b0288b7628c"
+        },
+        {
+          "relativePath": "通用skill\\skill-distiller\\SKILL.md",
+          "bytes": 11122,
+          "sha256": "b84ef618efbe2507b32438d6f88ba1815beaa5089534ee9223430f456e097160"
+        },
+        {
+          "relativePath": "通用skill\\wechat-xhs-content-line\\SKILL.md",
+          "bytes": 18040,
+          "sha256": "ee854b56bc3b661150017e0861a1ca8149b9f745c48240aef74d637242cb5a55"
+        },
+        {
+          "relativePath": "通用skill\\xiaodian-growth\\SKILL.md",
+          "bytes": 29544,
+          "sha256": "3e661800b2a528a72248efc6d0f1030443e3676c82195fdbbd40ed9cccca30d6"
+        },
+        {
+          "relativePath": "餐饮skill\\canyin-acquisition\\SKILL.md",
+          "bytes": 13052,
+          "sha256": "0401b12ca6c2d70ca91567b292a0c6cf2d3abf2573b26b04f604f1b9613ab1de"
+        },
+        {
+          "relativePath": "餐饮skill\\canyin-content-diff\\SKILL.md",
+          "bytes": 7415,
+          "sha256": "efc53249d8eccb1c9e665726892f2ce43fd960f96f107646c6170833734bdccc"
+        },
+        {
+          "relativePath": "餐饮skill\\canyin-private\\SKILL.md",
+          "bytes": 6430,
+          "sha256": "ea3f4117fb45afc0cd436ecdd5e9018604acd5f066b01f0d1264f68706f778f6"
+        },
+        {
+          "relativePath": "餐饮skill\\canyin-store\\SKILL.md",
+          "bytes": 16648,
+          "sha256": "7ca3fd25db8a3971e98ad6e6a217093d73c29d20a4e30358019819013bed28c7"
+        },
+        {
+          "relativePath": "餐饮skill\\waimai-operate\\SKILL.md",
+          "bytes": 20717,
+          "sha256": "5e7f88e2ccff99e2f4a7047a1ce6a46271bf51f5725744bd3f4173d7432e5dba"
+        }
+      ]
+    },
+    {
+      "sourcePath": "C:\\Users\\book\\Desktop\\baolu-content-creator",
+      "targetPath": "F:\\思潼AI增长os\\baolu-os-v2-source\\mcp-skills\\intake\\desktop-20260821\\originals\\baolu-content-creator",
+      "kind": "desktop-skill-delivery",
+      "disposition": "raw-original-preserved-non-runtime",
+      "reason": "Explicit Skill structure; retained for future audit and intake, not production registration.",
+      "fileCount": 1,
+      "skillMdCount": 1,
+      "bytes": 29355,
+      "directorySha256": "eb42b08bb9105cdc8d139d6308e0af449f15cbd3f2a1637aeb54703292872c09",
+      "duplicateCheck": "No exact SKILL.md SHA-256 match in F:\\思潼AI增长os\\baolu-os-v2-source\\mcp-skills at pre-move verification.",
+      "files": {
+        "relativePath": "SKILL.md",
+        "bytes": 29355,
+        "sha256": "880a8f7aaa3542f1e3a3db8668d8c79700b4a545bc4df14d3955b1d49c2fadc7"
+      }
+    }
+  ],
+  "recovery": "Restore a raw original by Move-Item -LiteralPath <targetPath> -Destination <approved recovery path>; do not restore directly into a production Skill directory without a separately approved intake review."
+}

@@ -1,17 +1,29 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { prisma } from "@baolu/db";
+import { isProductLoginCode, type ProductLoginCode } from "@baolu/shared";
 import { env } from "../config/env.js";
 
 export interface WorkbuddyConnection {
+  id: string;
   label: string;
-  token: string;
   tenantId: string;
   userId: string;
   agentId: string;
+  productCode?: ProductLoginCode;
+  operatingEntityId?: string;
+  scopes: string[];
+  expiresAt?: Date;
+  rateLimitPerMinute: number;
+  source: "database" | "legacy_env";
+}
+
+interface LegacyWorkbuddyConnection extends WorkbuddyConnection {
+  token: string;
+  source: "legacy_env";
 }
 
 let cachedSource: string | undefined;
-let cachedConnections: WorkbuddyConnection[] = [];
+let cachedConnections: LegacyWorkbuddyConnection[] = [];
 
 export async function resolveWorkbuddyConnection(authorization: string | undefined): Promise<WorkbuddyConnection | null> {
   if (env.WORKBUDDY_MCP_ENABLED !== "true") return null;
@@ -20,21 +32,79 @@ export async function resolveWorkbuddyConnection(authorization: string | undefin
   const databaseConnection = env.DATA_MODE === "database"
     ? await prisma.workbuddyMcpConnection.findUnique({
         where: { tokenHash: hashWorkbuddyToken(token) },
-        select: { id: true, label: true, tenantId: true, userId: true, agentId: true, status: true }
+        select: {
+          id: true,
+          label: true,
+          tenantId: true,
+          userId: true,
+          agentId: true,
+          status: true,
+          productCode: true,
+          operatingEntityId: true,
+          scopes: true,
+          expiresAt: true,
+          revokedAt: true,
+          rateLimitPerMinute: true
+        }
       }).catch(() => null)
     : null;
-  if (databaseConnection?.status === "active") {
-    void prisma.workbuddyMcpConnection.update({
-      where: { id: databaseConnection.id },
-      data: { lastUsedAt: new Date() }
-    }).catch(() => undefined);
-    return { ...databaseConnection, token };
+  if (databaseConnection) {
+    if (
+      databaseConnection.status !== "active"
+      || databaseConnection.revokedAt
+      || isWorkbuddyConnectionExpired(databaseConnection.expiresAt)
+      || (databaseConnection.productCode !== null && !isProductLoginCode(databaseConnection.productCode))
+    ) return null;
+    return {
+      id: databaseConnection.id,
+      label: databaseConnection.label,
+      tenantId: databaseConnection.tenantId,
+      userId: databaseConnection.userId,
+      agentId: databaseConnection.agentId,
+      productCode: isProductLoginCode(databaseConnection.productCode) ? databaseConnection.productCode : undefined,
+      operatingEntityId: databaseConnection.operatingEntityId ?? undefined,
+      scopes: normalizeWorkbuddyScopes(databaseConnection.scopes),
+      expiresAt: databaseConnection.expiresAt ?? undefined,
+      rateLimitPerMinute: normalizeRateLimit(databaseConnection.rateLimitPerMinute),
+      source: "database"
+    };
   }
   return getConnections().find((connection) => safeTokenEqual(connection.token, token)) ?? null;
 }
 
+export async function markWorkbuddyConnectionUsed(connection: WorkbuddyConnection): Promise<void> {
+  if (connection.source !== "database") return;
+  await prisma.workbuddyMcpConnection.updateMany({
+    where: {
+      id: connection.id,
+      status: "active",
+      revokedAt: null,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }]
+    },
+    data: { lastUsedAt: new Date() }
+  });
+}
+
 export function hashWorkbuddyToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
+}
+
+export function normalizeWorkbuddyScopes(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(
+    value
+      .filter((item): item is string => typeof item === "string" && Boolean(item.trim()))
+      .map((item) => item.trim())
+  )];
+}
+
+export function isWorkbuddyConnectionExpired(
+  expiresAt: Date | string | null | undefined,
+  now = new Date()
+): boolean {
+  if (!expiresAt) return false;
+  const value = expiresAt instanceof Date ? expiresAt : new Date(expiresAt);
+  return !Number.isFinite(value.getTime()) || value.getTime() <= now.getTime();
 }
 
 export function getWorkbuddyConnectionIssues(): string[] {
@@ -51,7 +121,7 @@ export function getWorkbuddyConnectionIssues(): string[] {
   }
 }
 
-function getConnections(): WorkbuddyConnection[] {
+function getConnections(): LegacyWorkbuddyConnection[] {
   const source = env.WORKBUDDY_MCP_CONNECTIONS_JSON ?? "[]";
   if (source === cachedSource) return cachedConnections;
   const parsed = JSON.parse(source) as unknown;
@@ -61,7 +131,7 @@ function getConnections(): WorkbuddyConnection[] {
   return cachedConnections;
 }
 
-function normalizeConnection(value: unknown, index: number): WorkbuddyConnection {
+function normalizeConnection(value: unknown, index: number): LegacyWorkbuddyConnection {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(`WorkBuddy connection ${index + 1} must be an object`);
   }
@@ -71,12 +141,17 @@ function normalizeConnection(value: unknown, index: number): WorkbuddyConnection
     if (typeof item !== "string" || !item.trim()) throw new Error(`WorkBuddy connection ${index + 1} requires ${key}`);
     return item.trim();
   };
+  const token = required("token");
   return {
+    id: `legacy_${hashWorkbuddyToken(token).slice(0, 24)}`,
     label: typeof record.label === "string" && record.label.trim() ? record.label.trim() : `connection-${index + 1}`,
-    token: required("token"),
+    token,
     tenantId: required("tenantId"),
     userId: required("userId"),
-    agentId: required("agentId")
+    agentId: required("agentId"),
+    scopes: [],
+    rateLimitPerMinute: 30,
+    source: "legacy_env"
   };
 }
 
@@ -84,4 +159,8 @@ function safeTokenEqual(expected: string, actual: string): boolean {
   const expectedHash = createHash("sha256").update(expected).digest();
   const actualHash = createHash("sha256").update(actual).digest();
   return timingSafeEqual(expectedHash, actualHash);
+}
+
+function normalizeRateLimit(value: number): number {
+  return Number.isInteger(value) && value > 0 && value <= 600 ? value : 30;
 }

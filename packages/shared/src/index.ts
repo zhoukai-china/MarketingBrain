@@ -8,6 +8,72 @@ export type PlanCode =
   | "chain_standard"
   | "chain_premium";
 
+export const PRODUCT_LOGIN_CODES = ["founder-ip", "takeaway", "lanqi", "beauty-industry"] as const;
+export type ProductLoginCode = (typeof PRODUCT_LOGIN_CODES)[number];
+
+export interface ProductLoginDefinition {
+  code: ProductLoginCode;
+  name: string;
+  shortName: string;
+  headline: string;
+  description: string;
+  tenantRole: TenantType;
+  planCode: PlanCode;
+  defaultPath: string;
+  agentIds: readonly string[];
+}
+
+export const PRODUCT_LOGIN_DEFINITIONS: Record<ProductLoginCode, ProductLoginDefinition> = {
+  "founder-ip": {
+    code: "founder-ip",
+    name: "创始人 IP 获客系统",
+    shortName: "创始人 IP 获客",
+    headline: "进入创始人 IP 获客系统",
+    description: "围绕招商加盟、到店团购、学员招募和合作方招募推进获客。",
+    tenantRole: "personal_ip",
+    planCode: "ip_standard",
+    defaultPath: "/agents/acquisition",
+    agentIds: ["agent_acquisition"],
+  },
+  takeaway: {
+    code: "takeaway",
+    name: "枕水江南外卖增长智能体",
+    shortName: "外卖增长",
+    headline: "进入外卖增长智能体",
+    description: "为品牌总部与门店提供外卖诊断、经营动作和复盘工作台。",
+    tenantRole: "chain_brand",
+    planCode: "chain_standard",
+    defaultPath: "/agents/takeaway-growth",
+    agentIds: ["agent_takeaway_growth"],
+  },
+  lanqi: {
+    code: "lanqi",
+    name: "兰琪美业经营增长系统",
+    shortName: "兰琪美业",
+    headline: "进入兰琪美业经营增长系统",
+    description: "使用兰琪授权的方法论，建立门店档案、经营诊断和增长执行方案。",
+    tenantRole: "local_business",
+    planCode: "local_standard",
+    defaultPath: "/lanqi/store-profile",
+    agentIds: [],
+  },
+  "beauty-industry": {
+    code: "beauty-industry",
+    name: "美业智能体",
+    shortName: "美业智能体",
+    headline: "进入美业智能体",
+    description: "围绕门店经营档案、内容获客、直播复盘与美业销售，提供可保存、可继续推进的经营工作台。",
+    tenantRole: "local_business",
+    planCode: "local_standard",
+    defaultPath: "/agents/beauty-industry",
+    agentIds: ["agent_beauty_acquisition"],
+  },
+};
+
+export function isProductLoginCode(value: unknown): value is ProductLoginCode {
+  return typeof value === "string" && (PRODUCT_LOGIN_CODES as readonly string[]).includes(value);
+}
+
 
 export type WeaknessTag = "acquisition" | "delivery" | "management";
 
@@ -17,6 +83,7 @@ export type AgentWorkMapNodeKind = "knowledge" | "system" | "review";
 
 export type AgentWorkMapNodeAction =
   | { type: "knowledge" }
+  | { type: "static" }
   | { type: "capability"; capabilityId: string };
 
 export interface AgentWorkMapPoint {
@@ -145,10 +212,22 @@ export type AcquisitionCapabilityId =
   | "video_review"
   | "live_script"
   | "live_review"
+  | "fip_franchise"
+  | "fip_store_visit"
+  | "fip_student_recruitment"
+  | "fip_partner_recruitment"
+  | "baolu_ip_advisor"
   | "franchise_acquisition"
   | "private_domain";
 
 const acquisitionRoutingPatterns = {
+  // Four-goal entries are explicit product goals. Keep ordinary short
+  // franchise-content requests on the legacy-compatible franchise route so
+  // they still receive the established fact-clarification flow.
+  fipFranchise: /(?:招商加盟|招商获客|找加盟商|加盟商|加盟咨询|招商线索|加盟考察|加盟开店|加盟项目|加盟政策|开放加盟|招(?:区域)?代理)[^。；;\n]{0,40}(?:Brief|本轮目标|获客目标)|(?:招商|加盟)(?:Brief|目标)/,
+  fipStoreVisit: /团购到店|团购核销|到店核销|到店预约|预约到店|消费者到店|本地消费者获客/,
+  fipStudentRecruitment: /招学员|招募学员|招生|学员招募|课程招生|课程报名|试听(?:课)?|说明会报名|训练营报名/,
+  fipPartnerRecruitment: /合作方招募|招(?:募)?合作方|城市合伙人|渠道合作(?:方)?|联营(?:合作)?|寻找(?:渠道|联营|城市)合作/,
   franchise: /招商加盟|招商获客|找加盟商|加盟商|加盟咨询|招商线索|加盟考察|加盟开店|加盟项目|加盟政策|开放加盟|招(?:区域)?代理|招商短视频/,
   liveReview: /直播数据复盘|直播复盘|直播数据|场观|在线峰值|平均停留|直播间.*复盘/,
   videoReview: /视频复盘|复盘(?:这|该|我)?(?:次)?(?:上传的)?(?:条)?(?:视频|文件|数据表)|播放量|完播率|平均播放|作品复盘|视频(?:号)?(?:动态)?数据|后台数据|\.csv|Excel表/,
@@ -170,6 +249,10 @@ export function inferAcquisitionCapabilities(input: string): AcquisitionCapabili
   const text = normalizeBusinessInput(input).replace(/\s+/g, "");
   if (!text) return [];
   const matches = {
+    fipFranchise: acquisitionRoutingPatterns.fipFranchise.test(text),
+    fipStoreVisit: acquisitionRoutingPatterns.fipStoreVisit.test(text),
+    fipStudentRecruitment: acquisitionRoutingPatterns.fipStudentRecruitment.test(text),
+    fipPartnerRecruitment: acquisitionRoutingPatterns.fipPartnerRecruitment.test(text),
     franchise: acquisitionRoutingPatterns.franchise.test(text),
     liveReview: acquisitionRoutingPatterns.liveReview.test(text),
     videoReview: acquisitionRoutingPatterns.videoReview.test(text),
@@ -183,6 +266,10 @@ export function inferAcquisitionCapabilities(input: string): AcquisitionCapabili
   };
 
   if (!acquisitionRoutingPatterns.explicitMulti.test(text)) {
+    if (matches.fipStudentRecruitment) return ["fip_student_recruitment"];
+    if (matches.fipPartnerRecruitment) return ["fip_partner_recruitment"];
+    if (matches.fipStoreVisit) return ["fip_store_visit"];
+    if (matches.fipFranchise) return ["fip_franchise"];
     if (matches.topicInspiration) return ["topic_inspiration"];
     if (matches.liveReview) return ["live_review"];
     if (matches.videoReview) return ["video_review"];
@@ -199,10 +286,14 @@ export function inferAcquisitionCapabilities(input: string): AcquisitionCapabili
 
   const result: AcquisitionCapabilityId[] = [];
   const add = (id: AcquisitionCapabilityId) => { if (!result.includes(id)) result.push(id); };
+  if (matches.fipFranchise) add("fip_franchise");
+  if (matches.fipStoreVisit) add("fip_store_visit");
+  if (matches.fipStudentRecruitment) add("fip_student_recruitment");
+  if (matches.fipPartnerRecruitment) add("fip_partner_recruitment");
   if (matches.topicInspiration) add("topic_inspiration");
   if (matches.liveReview) add("live_review");
-  if (matches.franchise) add("franchise_acquisition");
-  else {
+  if (matches.franchise && !matches.fipFranchise) add("franchise_acquisition");
+  if (!matches.fipFranchise && !matches.fipStoreVisit && !matches.fipStudentRecruitment && !matches.fipPartnerRecruitment && !matches.franchise) {
     if (matches.paidTraffic) add("paid_traffic");
     if (matches.content) add("content_plan");
   }
@@ -321,7 +412,15 @@ export type SkillId =
   | "customer_acquisition_diagnosis"
   | "ip_positioning"
   | "baolu_topics"
+  | "baolu_ip_advisor"
+  | "xiaohongshu_ops"
+  | "lanqi-image-prompt-enhancer"
+  | "beauty-industry-compliance"
+  | "beauty-industry-content-diff"
+  | "beauty-industry-xhs"
+  | "wechat-xhs-content-line"
   | "baolu_content_creator"
+  | "founder_ip_content_creator"
   | "optimize_local_push_ads"
   | "dou_plus_ads"
   | "baolu_ad_manager"
@@ -417,7 +516,15 @@ export const ACTIVE_SKILLS: SkillId[] = [
   "customer_acquisition_diagnosis",
   "ip_positioning",
   "baolu_topics",
+  "baolu_ip_advisor",
+  "xiaohongshu_ops",
+  "lanqi-image-prompt-enhancer",
+  "beauty-industry-compliance",
+  "beauty-industry-content-diff",
+  "beauty-industry-xhs",
+  "wechat-xhs-content-line",
   "baolu_content_creator",
+  "founder_ip_content_creator",
   "optimize_local_push_ads",
   "dou_plus_ads",
   "baolu_ad_manager",

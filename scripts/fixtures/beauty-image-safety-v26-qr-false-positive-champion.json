@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "beauty-image-safety-champion-v1",
+  "sha256": "60f2ea68d251cbfe2e0fc49119f3ee4e44222c94c826b8aa692a6af09868bb8d",
+  "detectorVersion": "beauty-image-safety-v2.6",
+  "status": "rejected",
+  "reason": "qr_or_barcode_like",
+  "humanReadonlySummary": "clear water glass bowl, white towel and green leaves; no QR, barcode, text, logo, watermark, UI or person observed",
+  "evidence": [
+    {
+      "detectorType": "qr_finder_pattern",
+      "confidence": 0.953,
+      "bbox": { "x": 179, "y": 381, "width": 304, "height": 304 },
+      "metrics": {
+        "finderPatternCount": 3,
+        "runRatio": "1:1:3:1:1",
+        "averageRatioError": 0.283,
+        "rightAngleScore": 0.74,
+        "decoded": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "beauty-image-safety-champion-v1",
+  "sha256": "f00d1cb9c29db917fd0caa718cd813d52bde586e1e1084133eb029cddff0f8d8",
+  "detectorVersion": "beauty-image-safety-v2.5",
+  "status": "rejected",
+  "reason": "interface_or_watermark_like",
+  "evidence": [
+    {
+      "detectorType": "ui_layout",
+      "confidence": 0.926,
+      "bbox": { "x": 20, "y": 422, "width": 678, "height": 600 },
+      "metrics": {
+        "horizontalLongEdges": 4,
+        "verticalLongEdges": 14,
+        "panelLikeRegions": 5,
+        "rowGroups": 3,
+        "columnGroups": 4,
+        "repeatedBarRegions": 2,
+        "barRows": 1,
+        "barColumns": 1,
+        "panelGridOccupancy": 0.417,
+        "bidirectionalLongEdgeEvidence": true,
+        "alignedPanelEvidence": true
+      }
+    }
+  ],
+  "provenance": {
+    "kind": "controlled_real_provider_negative",
+    "humanReadonlySummary": "blank pump bottles, round tray, window frame and wooden table; no readable text, logo, QR, barcode, watermark, UI or person observed",
+    "containsPromptOrProviderResponse": false,
+    "customerVisible": false
+  }
+}

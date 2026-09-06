@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "detectorVersion": "beauty-image-safety-v2.13",
+  "sourceSha256": "e9af2a0eebd361b634b35110a2acd3a5a31870e01e84273f2a1f2e929022a803",
+  "provenance": "BY-38 controlled acceptance asset; metadata only",
+  "champion": {
+    "detectorVersion": "beauty-image-safety-v2.12",
+    "decision": "rejected",
+    "reason": "qr_or_barcode_like",
+    "detectorType": "barcode_stripes",
+    "edgeGroups": 11,
+    "edgeGroupDensity": 0.058,
+    "directionConsistency": 1,
+    "quietZoneScore": 0.967,
+    "decoded": false
+  },
+  "challenger": {
+    "changedVariable": "minimumBarcodeEdgeGroupDensity",
+    "minimumBarcodeEdgeGroupDensity": 0.08,
+    "barcodeDecision": "not_matched",
+    "syntheticBarcodeVariantsRejected": 3,
+    "syntheticBarcodeVariantsTotal": 3
+  },
+  "privacy": "No image bytes, prompt, customer text, provider response, credential, or full path is stored."
+}

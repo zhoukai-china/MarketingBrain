@@ -1,0 +1,25 @@
+{
+  "version": "beauty-image-content-packaging-champion-v1",
+  "sourceEvidence": {
+    "assetSha256": "9f217ea59c4dda4682bab1810bf5f38bbcc633a76e337f034fac66d286bbc2e1",
+    "role": "content",
+    "qualityDetectorVersion": "beauty-image-safety-v2.12",
+    "qualityReasons": ["visible_text_or_brand_like"],
+    "detectorType": "glyph_sequence",
+    "candidateSelectionMode": "high_density_top_stroke_band",
+    "operatorFinding": "visible_pseudo_brand_and_gibberish_on_packaging",
+    "providerTechnicalStatus": "succeeded",
+    "assetPersistenceStatus": "persisted",
+    "compositionStatus": "not_created"
+  },
+  "batchEvidence": {
+    "providerTasksSubmitted": 2,
+    "technicalSucceeded": 2,
+    "qualityPassed": 1,
+    "qualityRejected": 1,
+    "customerUsableAssets": 0,
+    "reservedCredits": 300,
+    "releasedCredits": 300,
+    "netCredits": 0
+  }
+}

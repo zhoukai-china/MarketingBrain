@@ -27,7 +27,7 @@ function assertStandardOutput(answer: string) {
   const required = [
     "本轮主体与目标",
     "四大来源自动采集结果",
-    "AI录音卡",
+    "私有知识与客户问题",
     "行业与用户热点",
     "自身账号数据复盘",
     "同行与对标内容",
@@ -57,7 +57,7 @@ async function main() {
   const complete = await runAgent({
     ...base,
     input: [
-      "本轮主体：枕水江南客户项目（仅测试，不代表真实资料）",
+      "本轮主体：合成连锁项目（仅测试，不代表真实资料）",
       "目标客户：关注中式快餐连锁合作的创业者",
       "发布平台：视频号",
       "转化目标：获得有效项目咨询",
@@ -69,7 +69,7 @@ async function main() {
     ].join("\n")
   }, provider);
   assertStandardOutput(complete.answer);
-  if (!complete.answer.includes("枕水江南") || complete.answer.includes("IP与AI企业服务最容易被误解")) {
+  if (!complete.answer.includes("合成连锁项目") || complete.answer.includes("IP与AI企业服务最容易被误解")) {
     throw new Error(`本轮客户项目没有覆盖账户默认身份\n${complete.answer}`);
   }
 
@@ -97,7 +97,7 @@ async function main() {
   assertStandardOutput(selectedRecordingContext.answer);
   const recordingRow = selectedRecordingContext.answer
     .split("\n")
-    .find((line) => line.includes("| AI录音卡 |"));
+    .find((line) => line.includes("| 私有知识与客户问题 |"));
   if (!recordingRow || !recordingRow.includes("已读取") || !/\|\s*[1-9]\d*\s*\|/.test(recordingRow)) {
     throw new Error(`已携带有效录音正文却没有被选题 Skill 识别\n${selectedRecordingContext.answer}`);
   }

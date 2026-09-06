@@ -25,6 +25,38 @@ export interface GetNoteSyncResult {
   skipped: number;
   failed: number;
   importedByType: { transcripts: number; notes: number; webPages: number };
+  unchanged: number;
+  listRequests: number;
+  detailRequests: number;
+  retryCount: number;
+  throttleMs: number;
+  backoffMs: number;
+}
+
+export type GetNoteSyncStage = "listing" | "details" | "throttling" | "backoff" | "parsing";
+
+export interface GetNoteSyncObservation {
+  stage: GetNoteSyncStage;
+  elapsedMs: number;
+  scanned: number;
+  processed: number;
+  unchanged: number;
+  failed: number;
+  listRequests: number;
+  detailRequests: number;
+  retryCount: number;
+  throttleMs: number;
+  backoffMs: number;
+}
+
+export interface GetNotePullOptions {
+  cursor?: string;
+  maxPages?: number;
+  knownDocuments?: ReadonlyMap<string, { externalUpdatedAt?: Date | null; contentHash?: string }>;
+  onObservation?: (observation: GetNoteSyncObservation) => void | Promise<void>;
+  fetchImpl?: typeof fetch;
+  sleep?: (milliseconds: number) => Promise<void>;
+  now?: () => number;
 }
 
 export type GetNoteFailureKind = "authorization" | "rate_limit" | "temporary" | "unknown";
@@ -64,13 +96,49 @@ export async function testGetNoteConnection(credentials: GetNoteCredentials): Pr
 
 export async function pullGetNoteTranscripts(
   credentials: GetNoteCredentials,
-  options: { cursor?: string; maxPages?: number } = {}
+  options: GetNotePullOptions = {}
 ): Promise<GetNoteSyncResult> {
   const documents: GetNoteDocument[] = [];
   let cursor = options.cursor;
   let scanned = 0;
   let skipped = 0;
   let failed = 0;
+  let unchanged = 0;
+  let listRequests = 0;
+  let detailRequests = 0;
+  let retryCount = 0;
+  let throttleMs = 0;
+  let backoffMs = 0;
+  const startedAt = (options.now ?? Date.now)();
+  const sleep = options.sleep ?? delay;
+  const observe = async (stage: GetNoteSyncStage): Promise<void> => {
+    await options.onObservation?.({
+      stage,
+      elapsedMs: Math.max(0, (options.now ?? Date.now)() - startedAt),
+      scanned,
+      processed: documents.length + skipped + failed + unchanged,
+      unchanged,
+      failed,
+      listRequests,
+      detailRequests,
+      retryCount,
+      throttleMs,
+      backoffMs
+    });
+  };
+  const requestJson = async (path: string, kind: "list" | "detail"): Promise<unknown> => {
+    if (kind === "list") listRequests += 1;
+    else detailRequests += 1;
+    return getJson(path, credentials, {
+      fetchImpl: options.fetchImpl,
+      sleep,
+      onRetry: async (milliseconds) => {
+        retryCount += 1;
+        backoffMs += milliseconds;
+        await observe("backoff");
+      }
+    });
+  };
   const importedByType = { transcripts: 0, notes: 0, webPages: 0 };
   let firstDetailError: Error | undefined;
   const seenCursors = new Set<string>();
@@ -78,7 +146,8 @@ export async function pullGetNoteTranscripts(
 
   for (let pageIndex = 0; pageIndex < maxPages; pageIndex += 1) {
     const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
-    const page = await getJson(`/open/api/v1/resource/note/list${query}`, credentials);
+    await observe("listing");
+    const page = await requestJson(`/open/api/v1/resource/note/list${query}`, "list");
     const items = extractItems(page);
     if (items.length === 0) {
       cursor = undefined;
@@ -92,9 +161,17 @@ export async function pullGetNoteTranscripts(
         continue;
       }
       scanned += 1;
+      const listedUpdatedAt = readDate(item, ["updated_at", "updatedAt", "updateTime", "mtime"]);
+      const known = options.knownDocuments?.get(externalId);
+      if (known?.externalUpdatedAt && listedUpdatedAt && listedUpdatedAt.getTime() <= known.externalUpdatedAt.getTime()) {
+        unchanged += 1;
+        await observe("details");
+        continue;
+      }
       let detail: unknown;
       try {
-        detail = await getJson(`/open/api/v1/resource/note/detail?id=${encodeURIComponent(externalId)}`, credentials);
+        await observe("details");
+        detail = await requestJson(`/open/api/v1/resource/note/detail?id=${encodeURIComponent(externalId)}`, "detail");
       } catch (error) {
         failed += 1;
         firstDetailError ??= error instanceof Error ? error : new Error("getnote_detail_failed");
@@ -102,7 +179,10 @@ export async function pullGetNoteTranscripts(
       }
       // GetNote applies QPS limits to read APIs. Keep detail reads paced even
       // when a note has no usable transcript.
-      await delay(350);
+      throttleMs += 350;
+      await observe("throttling");
+      await sleep(350);
+      await observe("parsing");
       const note = asRecord(asRecord(detail).data)?.note ?? asRecord(detail).data ?? detail;
       const noteRecord = asRecord(note);
       const audio = asRecord(noteRecord.audio);
@@ -167,16 +247,20 @@ export async function pullGetNoteTranscripts(
   }
 
   if (documents.length === 0 && failed > 0 && firstDetailError) throw firstDetailError;
-  return { documents, nextCursor: cursor, scanned, skipped, failed, importedByType };
+  return { documents, nextCursor: cursor, scanned, skipped, failed, importedByType, unchanged, listRequests, detailRequests, retryCount, throttleMs, backoffMs };
 }
 
-async function getJson(path: string, credentials: GetNoteCredentials): Promise<unknown> {
+async function getJson(
+  path: string,
+  credentials: GetNoteCredentials,
+  options: { fetchImpl?: typeof fetch; sleep?: (milliseconds: number) => Promise<void>; onRetry?: (milliseconds: number) => void | Promise<void> } = {}
+): Promise<unknown> {
   let lastError = new Error("getnote_request_failed");
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
     try {
-      const response = await fetch(`${GETNOTE_BASE_URL}${path}`, {
+      const response = await (options.fetchImpl ?? fetch)(`${GETNOTE_BASE_URL}${path}`, {
         signal: controller.signal,
         headers: {
           Authorization: credentials.apiKey,
@@ -196,7 +280,9 @@ async function getJson(path: string, credentials: GetNoteCredentials): Promise<u
       if (!response.ok || (normalizedCode !== undefined && normalizedCode !== "0" && normalizedCode !== "200")) {
         lastError = new Error(!response.ok ? `getnote_http_${response.status}` : `getnote_api_${normalizedCode}`);
         if (retryable && attempt < 3) {
-          await delay(500 * (2 ** attempt));
+          const waitMs = 500 * (2 ** attempt);
+          await options.onRetry?.(waitMs);
+          await (options.sleep ?? delay)(waitMs);
           continue;
         }
         throw lastError;
@@ -205,7 +291,9 @@ async function getJson(path: string, credentials: GetNoteCredentials): Promise<u
     } catch (error) {
       lastError = error instanceof Error ? error : lastError;
       if ((lastError.name === "AbortError" || /fetch failed/i.test(lastError.message)) && attempt < 3) {
-        await delay(500 * (2 ** attempt));
+        const waitMs = 500 * (2 ** attempt);
+        await options.onRetry?.(waitMs);
+        await (options.sleep ?? delay)(waitMs);
         continue;
       }
       throw lastError;

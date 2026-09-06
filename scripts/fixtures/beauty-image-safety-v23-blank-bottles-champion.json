@@ -1,0 +1,29 @@
+{
+  "sha256": "bc044be31355a642ee7f4d1464adb164e6a72f37efe5df940ae38e88297caf61",
+  "detectorVersion": "beauty-image-safety-v2.3",
+  "status": "rejected",
+  "reason": "visible_text_or_brand_like",
+  "evidence": [
+    {
+      "detectorType": "glyph_sequence",
+      "confidence": 0.96,
+      "bbox": { "x": 194, "y": 796, "width": 306, "height": 26 },
+      "metrics": {
+        "glyphCount": 5,
+        "glyphLikeComponents": 3,
+        "glyphLikeRatio": 0.6,
+        "minimumComponentAspectRatio": 1.125,
+        "maximumComponentAspectRatio": 6.8,
+        "meanComponentAspectRatio": 3.493,
+        "baselineDeviation": 1.939,
+        "gapVariation": 0.472,
+        "heightVariation": 0.181,
+        "widthCoverage": 0.706,
+        "edgePixelDensity": 0.161,
+        "meanComponentFill": 0.421,
+        "readableSequenceRecovered": false
+      }
+    }
+  ],
+  "provenance": "BY-26 controlled acceptance audit asset; customer content omitted"
+}

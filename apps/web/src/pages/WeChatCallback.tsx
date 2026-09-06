@@ -13,6 +13,7 @@ export default function WeChatCallback({ onLogin }: WeChatCallbackProps) {
   const brandLogo = tenantBrandLogoSrc(branding);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("正在完成微信登录...");
+  const [returnProductCode] = useState(() => sessionStorage.getItem("store_os_product_login_code") ?? "");
 
   useEffect(() => {
     async function exchangeCode() {
@@ -22,6 +23,7 @@ export default function WeChatCallback({ onLogin }: WeChatCallbackProps) {
         const state = params.get("state");
         const savedState = sessionStorage.getItem("wechat_oauth_state");
         const tenantHostname = sessionStorage.getItem("wechat_tenant_hostname") ?? undefined;
+        const productCode = sessionStorage.getItem("store_os_product_login_code") ?? undefined;
 
         // Validate state parameter to prevent CSRF
         if (!state || state !== savedState) {
@@ -31,6 +33,7 @@ export default function WeChatCallback({ onLogin }: WeChatCallbackProps) {
         }
         sessionStorage.removeItem("wechat_oauth_state");
         sessionStorage.removeItem("wechat_tenant_hostname");
+        sessionStorage.removeItem("store_os_product_login_code");
 
         if (!code) {
           const errDesc = params.get("errcode") ?? "";
@@ -48,7 +51,7 @@ export default function WeChatCallback({ onLogin }: WeChatCallbackProps) {
         const res = await fetch(`${apiBase}/auth/wechat-login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code, tenantHostname })
+          body: JSON.stringify({ code, tenantHostname, productCode })
         });
 
         const data = await res.json();
@@ -62,8 +65,8 @@ export default function WeChatCallback({ onLogin }: WeChatCallbackProps) {
         // Handle tenant-less new user (needs onboarding)
         if (data.needsTenant) {
           localStorage.setItem("store_os_onboarding_token", data.onboardingToken ?? "");
-          setError("该微信号尚未关联任何企业，请先通过邀请码注册");
-          setStatus("");
+          const nextPath = productCode ? `/login/${productCode}` : "/login";
+          window.location.replace(getAppPath(nextPath));
           return;
         }
 
@@ -102,7 +105,7 @@ export default function WeChatCallback({ onLogin }: WeChatCallbackProps) {
             <h1>微信登录</h1>
           </div>
           <div className="loginError">{error}</div>
-          <a href={getAppPath("/login")} className="loginDemoBtn" style={{ textDecoration: "none", display: "inline-block", marginTop: "1rem" }}>
+          <a href={getAppPath(returnProductCode ? `/login/${returnProductCode}` : "/login")} className="loginDemoBtn" style={{ textDecoration: "none", display: "inline-block", marginTop: "1rem" }}>
             返回登录页面
           </a>
         </div>

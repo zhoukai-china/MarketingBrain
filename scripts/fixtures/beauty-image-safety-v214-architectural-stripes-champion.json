@@ -1,0 +1,21 @@
+{
+  "sha256": "2cf4738eb2e3fcd894c838c662ea968653020aa8c4fcf086706c034aefaec205",
+  "detectorVersion": "beauty-image-safety-v2.14",
+  "status": "rejected",
+  "reason": "qr_or_barcode_like",
+  "rootCause": "A blank architectural timber-slat region has uniform persistent edges but no barcode encoding evidence. The previous barcode detector accepted regular spacing alone.",
+  "evidence": {
+    "detectorType": "barcode_stripes",
+    "bbox": { "x": 528, "y": 180, "width": 144, "height": 64 },
+    "orientation": "vertical",
+    "edgeGroups": 27,
+    "edgeGroupDensity": 0.38,
+    "directionConsistency": 1,
+    "quietZoneScore": 0.6,
+    "edgeIntervalVariation": 0.232,
+    "minorQuietZoneScore": 0,
+    "edgePersistence": 1,
+    "stripeScore": 1,
+    "decoded": false
+  }
+}

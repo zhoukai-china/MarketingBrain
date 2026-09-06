@@ -11,6 +11,14 @@ import * as XLSX from "xlsx";
 import { env, domesticNetworkOnly, domesticOutboundAllowlist } from "../config/env.js";
 import { assertOutboundUrlAllowed } from "../services/outbound-policy.js";
 import { analyzeRestaurantDiagnosticWorkbook, type RestaurantDiagnosticSummary } from "../services/restaurant-diagnostic.js";
+import {
+  callObservedMediaChat,
+  getMediaProviderObservation,
+  inferAliyunRegion,
+  summarizeMediaAnalysis,
+  type MediaProviderObservation,
+  type MediaProviderStage
+} from "../services/media-provider-observation.js";
 
 const execFileAsync = promisify(execFile);
 const mediaRateWindows = new Map<string, { startedAt: number; count: number }>();
@@ -28,6 +36,8 @@ interface MediaAnalyzeResult {
   restaurantDiagnostic?: RestaurantDiagnosticSummary;
   warnings: string[];
   contextText: string;
+  providerTrace: MediaProviderObservation[];
+  analysisStatus: ReturnType<typeof summarizeMediaAnalysis>;
 }
 
 export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
@@ -68,14 +78,48 @@ export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
-    const result = await analyzeMediaWithBailian({
-      filename,
-      mimeType,
-      buffer,
-      frameDataUrls,
-      metadata
-    });
-    return result;
+    // This shared upload route has no server-bound ASR purpose/tenant/budget
+    // admission contract. A configured key or client-supplied Authorization
+    // header is not permission to send recordings outside the application.
+    // Keep document parsing independent; authorized product adapters remain separate.
+    if (isAudioVideoFile(mimeType, filename)) {
+      request.log.info({
+        event: "media_analysis.admission_rejected",
+        stage: "asr_admission",
+        code: "asr_authorization_required",
+        providerCalls: 0
+      }, "media analysis stopped before external processing");
+      return reply.code(503).send({
+        error: "asr_authorization_required",
+        message: "当前入口尚未接通受授权的音视频转写。请先提供已有转写文本；自动转写须完成服务端用途、权限与费用授权后才能使用，本次未调用转写服务、未扣积分。",
+        stage: "asr_admission",
+        retryable: false,
+        providerCalls: 0,
+        creditCost: 0
+      });
+    }
+
+    const controller = new AbortController();
+    const onAborted = () => controller.abort(new Error("client_cancelled"));
+    request.raw.once("aborted", onAborted);
+    try {
+      const result = await analyzeMediaWithBailian({
+        filename,
+        mimeType,
+        buffer,
+        frameDataUrls,
+        metadata,
+        signal: controller.signal
+      });
+      request.log.info({
+        event: "media_analysis.terminal",
+        analysisStatus: result.analysisStatus,
+        providerTrace: result.providerTrace
+      }, "media analysis completed");
+      return result;
+    } finally {
+      request.raw.off("aborted", onAborted);
+    }
   });
 }
 
@@ -104,8 +148,10 @@ async function analyzeMediaWithBailian(params: {
   buffer: Buffer;
   frameDataUrls: string[];
   metadata: string;
+  signal?: AbortSignal;
 }): Promise<MediaAnalyzeResult> {
   const warnings: string[] = [];
+  const providerTrace: MediaProviderObservation[] = [];
   const configured = Boolean(getBailianApiKey() && getBailianBaseUrl());
   let frameSummary = "";
   let transcript = "";
@@ -129,15 +175,23 @@ async function analyzeMediaWithBailian(params: {
   } else {
     if (params.frameDataUrls.length > 0) {
       try {
-        frameSummary = await analyzeFrames(params.frameDataUrls, params.metadata);
+        const result = await analyzeFrames(params.frameDataUrls, params.metadata, params.signal);
+        frameSummary = result.content;
+        providerTrace.push(result.observation);
       } catch (error) {
-        warnings.push(`关键帧解析失败：${formatError(error)}`);
+        const observation = observeProviderFailure(error, "visual", env.ALIYUN_VIDEO_MODEL, "image/data-url");
+        providerTrace.push(observation);
+        warnings.push(providerFailureMessage("关键帧", observation));
       }
     } else if (params.mimeType.startsWith("image/")) {
       try {
-        frameSummary = await analyzeFrames([bufferToDataUrl(params.buffer, params.mimeType)], params.metadata);
+        const result = await analyzeFrames([bufferToDataUrl(params.buffer, params.mimeType)], params.metadata, params.signal);
+        frameSummary = result.content;
+        providerTrace.push(result.observation);
       } catch (error) {
-        warnings.push(`图片解析失败：${formatError(error)}`);
+        const observation = observeProviderFailure(error, "visual", env.ALIYUN_VIDEO_MODEL, params.mimeType);
+        providerTrace.push(observation);
+        warnings.push(providerFailureMessage("图片", observation));
       }
     } else if (params.mimeType.startsWith("video/")) {
       warnings.push("前端未抽取到可用关键帧，已跳过画面解析。");
@@ -147,25 +201,38 @@ async function analyzeMediaWithBailian(params: {
       try {
         const pages = await renderPdfPages(params.buffer, 4);
         if (pages.length > 0) {
-          frameSummary = await analyzeDocumentPages(pages, params.filename);
+          frameSummary = await analyzeDocumentPages(pages, params.filename, params.signal, providerTrace);
           warnings.push("该PDF正文较少，已使用前4页页面识别补充内容。");
         }
       } catch (error) {
-        warnings.push(`扫描PDF页面识别失败：${formatError(error)}`);
+        const observation = observeProviderFailure(error, "visual", env.ALIYUN_VIDEO_MODEL, "application/pdf-pages");
+        if (!providerTrace.some((item) => item.requestFingerprint === observation.requestFingerprint)) providerTrace.push(observation);
+        warnings.push(providerFailureMessage("扫描PDF页面", observation));
       }
     }
 
     if (shouldTryAsr(params.mimeType, params.filename, params.buffer.byteLength)) {
       try {
-        transcript = await transcribeMedia(params.buffer, params.mimeType, params.filename);
+        const result = await transcribeMedia(params.buffer, params.mimeType, params.filename, params.signal);
+        transcript = result.content;
+        providerTrace.push(result.observation);
       } catch (error) {
-        warnings.push(`语音转写失败：${formatError(error)}`);
+        const observation = observeProviderFailure(error, "asr", env.ALIYUN_ASR_MODEL, params.mimeType);
+        providerTrace.push(observation);
+        warnings.push(providerFailureMessage("语音转写", observation));
       }
     } else if (isAudioVideoFile(params.mimeType, params.filename)) {
       warnings.push(`文件超过 ${env.ALIYUN_MEDIA_BASE64_MAX_MB}MB 或不是可转写音视频，已跳过 ASR。`);
     }
   }
 
+  const analysisStatus = summarizeMediaAnalysis({
+    visualRequested: params.frameDataUrls.length > 0 || params.mimeType.startsWith("image/"),
+    asrRequested: isAudioVideoFile(params.mimeType, params.filename),
+    visualContent: frameSummary,
+    transcript,
+    observations: providerTrace
+  });
   return {
     provider: "aliyun-bailian",
     configured,
@@ -178,6 +245,8 @@ async function analyzeMediaWithBailian(params: {
     documentText: documentText || undefined,
     restaurantDiagnostic: restaurantDiagnostic?.recognized ? restaurantDiagnostic : undefined,
     warnings,
+    providerTrace,
+    analysisStatus,
     contextText: buildMediaContextText({
       filename: params.filename,
       mimeType: params.mimeType,
@@ -192,12 +261,12 @@ async function analyzeMediaWithBailian(params: {
   };
 }
 
-async function analyzeFrames(frameDataUrls: string[], metadata: string): Promise<string> {
+async function analyzeFrames(frameDataUrls: string[], metadata: string, signal?: AbortSignal) {
   const content: Array<Record<string, unknown>> = [
     {
       type: "text",
       text: [
-        "你是思潼IP获客智能体的素材解析器。只提取事实，不生成营销方案。",
+        "你是品牌中立的业务素材解析器。只提取文件中可直接验证的事实，不生成营销方案，不补造品牌、门店、人物或效果。",
         "请基于这些从用户上传视频中抽取的关键帧，输出：",
         "1. 主要画面和人物/产品/场景",
         "2. 开头3秒可能给用户的第一印象",
@@ -215,17 +284,22 @@ async function analyzeFrames(frameDataUrls: string[], metadata: string): Promise
   ];
 
   return callBailianChat({
+    stage: "visual",
     model: env.ALIYUN_VIDEO_MODEL,
-    messages: [{ role: "user", content }]
+    messages: [{ role: "user", content }],
+    inputMediaType: "image/data-url",
+    signal,
+    temperature: 0.2
   });
 }
 
-async function transcribeMedia(buffer: Buffer, mimeType: string, filename: string): Promise<string> {
+async function transcribeMedia(buffer: Buffer, mimeType: string, filename: string, signal?: AbortSignal) {
   const audio = mimeType.startsWith("video/")
     ? await extractAudioForAsr(buffer, filename)
     : { buffer, mimeType: normalizeAudioMimeType(mimeType, filename), format: inferAudioFormat(mimeType, filename) };
   const data = `data:${audio.mimeType};base64,${audio.buffer.toString("base64")}`;
   return callBailianChat({
+    stage: "asr",
     model: env.ALIYUN_ASR_MODEL,
     messages: [
       {
@@ -244,7 +318,9 @@ async function transcribeMedia(buffer: Buffer, mimeType: string, filename: strin
       asr_options: {
         enable_itn: false
       }
-    }
+    },
+    inputMediaType: audio.mimeType,
+    signal
   });
 }
 
@@ -297,10 +373,14 @@ function sanitizeTempFilename(filename: string): string {
 }
 
 async function callBailianChat(params: {
+  stage: MediaProviderStage;
   model: string;
   messages: Array<Record<string, unknown>>;
   extraBody?: Record<string, unknown>;
-}): Promise<string> {
+  inputMediaType: string;
+  signal?: AbortSignal;
+  temperature?: number;
+}) {
   const apiKey = getBailianApiKey();
   const baseUrl = getBailianBaseUrl();
   if (!apiKey || !baseUrl) throw new Error("百炼 API Key 未配置");
@@ -308,31 +388,21 @@ async function callBailianChat(params: {
     domesticNetworkOnly,
     allowedHosts: domesticOutboundAllowlist
   });
-  const response = await fetch(buildChatCompletionsUrl(baseUrl), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
+  return callObservedMediaChat({
+    stage: params.stage,
+    model: params.model,
+    baseUrl,
+    apiKey,
+    inputMediaType: params.inputMediaType,
+    timeoutMs: env.ALIYUN_MEDIA_ANALYSIS_TIMEOUT_MS,
+    signal: params.signal,
+    body: {
       model: params.model,
       messages: params.messages,
-      temperature: 0.2,
+      ...(params.temperature === undefined ? {} : { temperature: params.temperature }),
       ...params.extraBody
-    })
+    }
   });
-
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`${response.status} ${body.slice(0, 220)}`);
-  }
-
-  const json = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  const content = json.choices?.[0]?.message?.content?.trim();
-  if (!content) throw new Error("百炼返回为空");
-  return content;
 }
 
 function getBailianApiKey(): string | undefined {
@@ -341,11 +411,6 @@ function getBailianApiKey(): string | undefined {
 
 function getBailianBaseUrl(): string | undefined {
   return env.ALIYUN_BASE_URL || env.DASHSCOPE_BASE_URL;
-}
-
-function buildChatCompletionsUrl(baseUrl: string): string {
-  const trimmed = baseUrl.replace(/\/$/, "");
-  return trimmed.endsWith("/chat/completions") ? trimmed : `${trimmed}/chat/completions`;
 }
 
 function shouldTryAsr(mimeType: string, filename: string, byteSize: number): boolean {
@@ -455,8 +520,14 @@ async function renderPdfPages(buffer: Buffer, maxPages: number): Promise<string[
   }
 }
 
-async function analyzeDocumentPages(pageDataUrls: string[], filename: string): Promise<string> {
-  return callBailianChat({
+async function analyzeDocumentPages(
+  pageDataUrls: string[],
+  filename: string,
+  signal: AbortSignal | undefined,
+  providerTrace: MediaProviderObservation[]
+): Promise<string> {
+  const result = await callBailianChat({
+    stage: "visual",
     model: env.ALIYUN_VIDEO_MODEL,
     messages: [{
       role: "user",
@@ -471,8 +542,39 @@ async function analyzeDocumentPages(pageDataUrls: string[], filename: string): P
         },
         ...pageDataUrls.map((url) => ({ type: "image_url", image_url: { url } }))
       ]
-    }]
+    }],
+    inputMediaType: "application/pdf-pages",
+    signal,
+    temperature: 0.2
   });
+  providerTrace.push(result.observation);
+  return result.content;
+}
+
+function observeProviderFailure(
+  error: unknown,
+  stage: MediaProviderStage,
+  model: string,
+  inputMediaType: string
+): MediaProviderObservation {
+  const baseUrl = getBailianBaseUrl() ?? "https://dashscope.aliyuncs.com/compatible-mode/v1";
+  const endpointHost = new URL(baseUrl).hostname;
+  return getMediaProviderObservation(error, {
+    stage,
+    provider: "aliyun-bailian",
+    model,
+    region: inferAliyunRegion(endpointHost),
+    endpointHost,
+    inputMediaType,
+    timeoutMs: env.ALIYUN_MEDIA_ANALYSIS_TIMEOUT_MS
+  });
+}
+
+function providerFailureMessage(label: string, observation: MediaProviderObservation): string {
+  const suffix = observation.providerCode ?? observation.terminalCode;
+  if (observation.terminalStatus === "timed_out") return `${label}解析超时（${suffix}）。`;
+  if (observation.terminalStatus === "cancelled") return `${label}解析已取消（${suffix}）。`;
+  return `${label}解析失败（${suffix}）。`;
 }
 
 function buildMediaContextText(params: {

@@ -1,0 +1,20 @@
+{
+  "_comment": "宠物门店情绪识别 skill 配置示例。复制到 ~/.workbuddy/config/pet_store_emotion.json 后填入真实 key。",
+
+  "default_provider": "modelscope",
+
+  "modelscope_api_key": "ms-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "_modelscope_note": "魔搭社区免费 token：https://modelscope.cn → 右上角头像 → 我的中心 → 访问令牌",
+
+  "bailian_api_key": "",
+  "_bailian_note": "百炼新版：https://bailian.console.aliyun.com → API-KEY",
+
+  "dashscope_api_key": "",
+  "_dashscope_note": "（已弃用，旧版控制台 2026-09 下线）",
+
+  "openai_api_key": "",
+  "_openai_note": "通用 OpenAI 兼容，可接 GPT-4o / Claude 转发 / Gemini 转发",
+
+  "modelscope_model": "",
+  "_model_note": "留空走每个 provider 的默认模型；可手动指定如 qwen-vl-max、Qwen/Qwen2.5-VL-72B-Instruct 等"
+}

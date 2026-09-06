@@ -38,12 +38,23 @@ import { registerClipLabRoutes } from "./routes/clip-lab.js";
 import { registerKnowledgeBaseRoutes } from "./routes/knowledge-base.js";
 import { registerCeoCockpitRoutes } from "./routes/ceo-cockpit.js";
 import { registerTakeawayGrowthRoutes } from "./routes/takeaway-growth.js";
+import { registerBeautyIndustryRoutes } from "./routes/beauty-industry.js";
+import { registerLanqiReferralRoutes } from "./routes/lanqi-referrals.js";
+import { registerLanqiStoreProfileRoutes } from "./routes/lanqi-store-profile.js";
+import { registerLanqiDiagnosisRoutes } from "./routes/lanqi-diagnosis.js";
+import { registerLanqiExecutionPlanRoutes } from "./routes/lanqi-execution-plan.js";
+import { registerLanqiContentStudioRoutes } from "./routes/lanqi-content-studio.js";
+  import { registerLanqiMediaGenerationRoutes } from "./routes/lanqi-media-generation.js";
+  import { registerLanqiXhsPackageRoutes } from "./routes/lanqi-xhs-package.js";
+import { registerLanqiBusinessQaRoutes } from "./routes/lanqi-business-qa.js";
+import { requireProductEntitlement } from "./services/access-guards.js";
 import { registerViralVideoReplicationRoutes } from "./routes/viral-video-replication.js";
 import { registerWorkbuddyMcpRoutes } from "./routes/workbuddy-mcp.js";
 import { registerWechatMessageRoutes } from "./routes/wechat-messages.js";
 import { registerWechatKfRoutes } from "./routes/wechat-kf.js";
 import { registerWorkbuddySettingsRoutes } from "./routes/workbuddy-settings.js";
 import { ensureAgentProductCatalog } from "./services/agent-catalog.js";
+import { registerBeautyDailyBriefScheduler } from "./products/beauty-industry/daily-brief-service.js";
 
 export async function buildServer() {
   const configIssues = validateRuntimeConfig();
@@ -131,6 +142,22 @@ export async function buildServer() {
   await registerKnowledgeBaseRoutes(app, provider);
   await registerCeoCockpitRoutes(app);
   await registerTakeawayGrowthRoutes(app);
+  await app.register(async beautyIndustry => {
+    beautyIndustry.addHook("preHandler", requireProductEntitlement("beauty-industry"));
+    await registerBeautyIndustryRoutes(beautyIndustry, provider);
+  });
+  registerBeautyDailyBriefScheduler(app);
+  await app.register(async lanqi => {
+    lanqi.addHook("preHandler", requireProductEntitlement("lanqi"));
+    await registerLanqiReferralRoutes(lanqi);
+    await registerLanqiStoreProfileRoutes(lanqi);
+    await registerLanqiDiagnosisRoutes(lanqi);
+    await registerLanqiExecutionPlanRoutes(lanqi);
+    await registerLanqiContentStudioRoutes(lanqi, provider);
+    await registerLanqiMediaGenerationRoutes(lanqi, provider);
+    await registerLanqiXhsPackageRoutes(lanqi, provider);
+    await registerLanqiBusinessQaRoutes(lanqi, provider);
+  });
   await registerViralVideoReplicationRoutes(app);
   await registerChatRoutes(app, provider);
 
@@ -138,4 +165,4 @@ export async function buildServer() {
 }
 
 const app = await buildServer();
-await app.listen({ port: env.PORT, host: "0.0.0.0" });
+await app.listen({ port: env.PORT, host: env.API_HOST });

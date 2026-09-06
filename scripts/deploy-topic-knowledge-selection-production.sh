@@ -53,7 +53,7 @@ test -f "$STAGE_DIR/apps/api/src/routes/agents.ts"
 test -f "$STAGE_DIR/apps/api/src/routes/knowledge-base.ts"
 test -f "$STAGE_DIR/apps/web/src/components/acquisition/TopicSystemWorkbench.tsx"
 test -f "$STAGE_DIR/scripts/topic-knowledge-selection-smoke.mjs"
-grep -q 'documentQuery.set("subjectId", subjectId)' "$STAGE_DIR/apps/web/src/components/acquisition/TopicSystemWorkbench.tsx"
+grep -q 'documentQuery.set("subjectId", effectiveSourceSubjectId)' "$STAGE_DIR/apps/web/src/components/acquisition/TopicSystemWorkbench.tsx"
 ! grep -q 'knowledge_subject_mismatch' "$STAGE_DIR/apps/api/src/routes/agents.ts"
 
 cd "$STAGE_DIR"
@@ -72,7 +72,7 @@ curl -fsS http://127.0.0.1:3002/ready >/dev/null
 curl -fsS http://127.0.0.1:3002/mcp/status >/dev/null
 curl -fsS http://127.0.0.1:3002/agents/acquisition >/dev/null
 test "$(curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL/agents/acquisition")" = "200"
-grep -q 'documentQuery.set("subjectId", subjectId)' "$APP_DIR/apps/web/src/components/acquisition/TopicSystemWorkbench.tsx"
+grep -q 'documentQuery.set("subjectId", effectiveSourceSubjectId)' "$APP_DIR/apps/web/src/components/acquisition/TopicSystemWorkbench.tsx"
 ! grep -q 'knowledge_subject_mismatch' "$APP_DIR/apps/api/src/routes/agents.ts"
 sha256sum "$APP_DIR/apps/web/dist/index.html" "$APP_DIR/apps/api/dist/apps/api/src/server.js" > "$BACKUP_DIR/SHA256SUMS-after"
 date -Iseconds > "$BACKUP_DIR/DEPLOYMENT-SUCCEEDED"

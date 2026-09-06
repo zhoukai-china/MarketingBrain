@@ -1,0 +1,15 @@
+{
+  "skillId": "beauty-industry-content-diff",
+  "version": "1.1.0",
+  "scope": "beauty_acquisition_delta",
+  "qualityBar": "sample_grade",
+  "minLength": 260,
+  "scoreThreshold": 90,
+  "rubricDimensions": ["美业行业差异", "获客目标一致", "事实边界", "到店承接可执行", "无其他行业污染"],
+  "requiredSections": ["行业目标补充", "选题方向", "内容约束", "到店承接待补", "合规检查"],
+  "requiredDeliverables": ["美业目标补充", "至少3个差异化选题", "内容与素材约束", "到店承接清单", "合规检查"],
+  "forbiddenTerms": ["兰琪", "1元拓客", "固定投流半径", "固定核销率", "固定平台抽佣"],
+  "styleRules": ["只补充美业行业差异，不复制通用获客流程", "生活美容和皮肤管理不得改写成美甲美睫医美或医疗治疗", "行业参考不得写成当前门店事实", "价格人群半径预算均以当前资料为准", "只输出草案或预览"],
+  "failurePatterns": ["空结果或通用失败模板", "复制完整通用获客流程", "编造门店事实", "美业子行业误分类", "其他行业污染", "把行业参考写成当前门店事实"],
+  "repairInstruction": "保留通用获客目标，只补美业顾客顾虑、服务过程、素材授权、到店承接和合规差异；删除所有未经确认的数字和门店事实。"
+}

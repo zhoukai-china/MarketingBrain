@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { apiPath, getAppPath } from "../lib/api.js";
+import { knowledgeSyncProgressText, knowledgeSyncResultText, resumeKnowledgeSync, runKnowledgeSync } from "../lib/knowledge-sync.js";
 import { tenantBrandLogoSrc, useTenantBranding } from "../lib/tenant-branding.js";
 
 interface KnowledgeConnection {
@@ -190,6 +191,23 @@ export function KnowledgeBasePage() {
     localStorage.setItem("sitong_kb_fact_corrections", factCorrections);
   }, [identityContext, businessGoal, factCorrections]);
 
+  useEffect(() => {
+    if (!getNoteConnection || syncing) return;
+    const controller = new AbortController();
+    let resumedActive = false;
+    void resumeKnowledgeSync(getNoteConnection.id, authHeaders(), (progress) => {
+      if (progress.status === "queued" || progress.status === "running") resumedActive = true;
+      if (resumedActive) {
+        setSyncing(progress.status === "queued" || progress.status === "running");
+        setNotice(progress.status === "succeeded" ? knowledgeSyncResultText(progress) : knowledgeSyncProgressText(progress));
+      }
+    }, controller.signal).then((result) => {
+      if (resumedActive && result?.status !== "succeeded") setError(knowledgeSyncResultText(result!));
+      if (resumedActive && result?.status === "succeeded") void loadAll();
+    }).catch((reason) => { if ((reason as { name?: string }).name !== "AbortError") setError(reason instanceof Error ? reason.message : "同步状态恢复失败"); });
+    return () => controller.abort();
+  }, [getNoteConnection?.id]);
+
   async function loadAll() {
     setLoading(true);
     setError("");
@@ -255,15 +273,11 @@ export function KnowledgeBasePage() {
     if (!getNoteConnection) return;
     setSyncing(true);
     setError("");
-    setNotice("正在从得到大脑读取最新转写文字…");
+    setNotice("正在提交同步任务…");
     try {
-      const payload = await fetch(apiPath(`/knowledge-base/connections/${getNoteConnection.id}/sync`), {
-        method: "POST",
-        headers: authHeaders()
-      }).then((response) => readJson<{ sync: { created: number; updated: number; skipped: number; failed: number; importedByType: { transcripts: number; notes: number; webPages: number } } }>(response));
-      const partialFailure = payload.sync.failed > 0 ? `，另有 ${payload.sync.failed} 条读取失败，可稍后再次同步` : "";
-      const types = payload.sync.importedByType;
-      setNotice(`同步完成：新增 ${payload.sync.created} 条，更新 ${payload.sync.updated} 条；其中录音逐字稿 ${types.transcripts} 条、文字笔记 ${types.notes} 条、链接正文 ${types.webPages} 条。仅有 ${payload.sync.skipped} 条没有可读取正文${partialFailure}。`);
+      const sync = await runKnowledgeSync(getNoteConnection.id, authHeaders(), (progress) => setNotice(knowledgeSyncProgressText(progress)), { subjectId: activeSubjectId || undefined });
+      if (sync.status !== "succeeded") throw new Error(knowledgeSyncResultText(sync));
+      setNotice(knowledgeSyncResultText(sync));
       await loadAll();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "同步失败");

@@ -42,6 +42,8 @@ export function resolveReasoningProfile(
   capabilityId: string | undefined,
   skillId?: string
 ): AgentReasoningProfile {
+  if (capabilityId === "image_prompt_preview" || skillId === "lanqi-image-prompt-enhancer") return "standard";
+  if (capabilityId === "xiaohongshu_copy" || skillId === "xiaohongshu_ops") return "deep";
   if (capabilityId === "paid_traffic" || capabilityId === "video_review") return "deep";
   if (capabilityId === "topic_inspiration" || capabilityId === "content_plan") return "standard";
   return skillId === "baolu_review_engine" ? "deep" : "standard";

@@ -5,8 +5,8 @@ import { apiPath } from "../../lib/api";
 
 type SalesComposerCapabilityId = "customer_diagnosis" | "intent_temperature" | "objection_reply" | "follow_up_plan" | "closing_script" | "funnel_review";
 type CeoCockpitComposerCapabilityId = "daily_push" | "business_map" | "decision_center" | "command_center";
-export type AcquisitionComposerCapabilityId = IpAcquisitionCapabilityId | "ip_positioning" | "content_plan" | "private_domain" | "franchise_acquisition" | SalesComposerCapabilityId | CeoCockpitComposerCapabilityId;
-type ComposerTemplateCapabilityId = IpAcquisitionCapabilityId | "ip_positioning" | "franchise_acquisition" | SalesComposerCapabilityId | CeoCockpitComposerCapabilityId | "generic";
+export type AcquisitionComposerCapabilityId = IpAcquisitionCapabilityId | "ip_positioning" | "content_plan" | "private_domain" | "franchise_acquisition" | "fip_franchise" | "fip_store_visit" | "fip_student_recruitment" | "fip_partner_recruitment" | "baolu_ip_advisor" | SalesComposerCapabilityId | CeoCockpitComposerCapabilityId;
+type ComposerTemplateCapabilityId = IpAcquisitionCapabilityId | "ip_positioning" | "franchise_acquisition" | "fip_franchise" | "fip_store_visit" | "fip_student_recruitment" | "fip_partner_recruitment" | "baolu_ip_advisor" | SalesComposerCapabilityId | CeoCockpitComposerCapabilityId | "generic";
 
 interface ChatComposerProps {
   inputValue: string;
@@ -262,6 +262,36 @@ const capabilityTemplateMap: Record<ComposerTemplateCapabilityId, CapabilityTemp
       "【合规边界】不承诺稳赚、保本、固定回报；案例和经营数据必须真实授权",
       "【想要输出】SCALE招商逻辑 + 招商短视频文案 + 拍摄脚本 + 评论区线索承接 + 投流建议 + 合规提醒"
     ].join("\n")
+  },
+  fip_franchise: {
+    title: "请补充招商加盟 Brief",
+    summary: "目标加盟商、真实政策或证据、咨询/考察承接和禁止承诺。",
+    placeholder: "例如：本轮招哪类加盟商；已确认的政策与证据有哪些；咨询后如何筛选和安排考察。",
+    template: "【获客目标】招商加盟\n【目标加盟商】\n【真实政策/证据】\n【承接动作】咨询/筛选/考察\n【本轮结果】\n【禁止承诺】\n【想要输出】"
+  },
+  fip_store_visit: {
+    title: "请补充团购到店 Brief",
+    summary: "商品、门店地域、目标消费者、预约/核销承接和真实数据边界。",
+    placeholder: "例如：主推商品和门店；消费者是谁；预约、到店和核销由谁承接。",
+    template: "【获客目标】C端团购到店\n【商品/门店/地域】\n【目标消费者】\n【承接动作】预约/到店/核销\n【本轮结果】\n【真实价格或优惠】未确认写待补\n【想要输出】"
+  },
+  fip_student_recruitment: {
+    title: "请补充学员招募 Brief",
+    summary: "课程对象、学习边界、试听/说明会承接与报名交付边界。",
+    placeholder: "例如：课程适合谁；能提供什么学习结果；如何安排试听和报名。",
+    template: "【获客目标】学员招募\n【课程对象】\n【学习结果边界】\n【承接动作】咨询/试听/说明会/报名\n【本轮结果】\n【禁止承诺】不编造证书、就业、收入\n【想要输出】"
+  },
+  fip_partner_recruitment: {
+    title: "请补充合作方招募 Brief",
+    summary: "合作类型、双方条件、洽谈承接和履约边界。",
+    placeholder: "例如：寻找渠道、联营或城市合作方；双方需要满足什么条件；如何进入洽谈。",
+    template: "【获客目标】合作方招募\n【合作类型】\n【双方条件】\n【承接动作】资格判断/沟通/洽谈\n【本轮结果】\n【合作政策】未确认写待补\n【想要输出】"
+  },
+  baolu_ip_advisor: {
+    title: "问问保禄",
+    summary: "用保禄的新媒体与创始人IP能力分身，获得直接判断、依据和今天可执行的一步。",
+    placeholder: "例如：我的账号定位太宽，应该先收窄人群还是先调整内容？请按新媒体和创始人IP经验回答。",
+    template: "【我想问保禄】\n【我的账号/业务】\n【当前困惑】\n【已知事实或数据】\n【希望得到】直接判断 + 依据 + 今天可执行的一步\n【待确认边界】"
   },
   customer_diagnosis: {
     title: "请发客户对话或团队讨论",
@@ -1004,6 +1034,7 @@ function normalizeCapabilityId(capabilityId?: AcquisitionComposerCapabilityId): 
 function inferEnhanceCapability(input: string, fallback: ComposerTemplateCapabilityId): ComposerTemplateCapabilityId {
   const text = input.replace(/\s+/g, "");
   if (!text) return fallback;
+  if (/问问保禄|保禄.*(?:怎么看|怎么做|建议|判断|请教)/i.test(text)) return "baolu_ip_advisor";
   if (/选题灵感|TOP\s*10.*选题|选题.*TOP\s*10|四来源.*选题/i.test(text)) return "topic_inspiration";
   if (/直播数据复盘|直播复盘|直播数据|场观|在线峰值|平均停留|直播间.*复盘/i.test(text)) return "live_review";
   if (/视频复盘|复盘(?:这|该|我)?(?:次)?(?:上传的)?(?:条)?(?:视频|文件|数据表)|播放量|完播率|平均播放|后台数据|\.csv|Excel表/i.test(text)) return "video_review";
@@ -1011,6 +1042,9 @@ function inferEnhanceCapability(input: string, fallback: ComposerTemplateCapabil
   if (/行业热点|近期热点|热点咨询|行业趋势/i.test(text)) return "industry_hotspots";
   if (/投流|投放广告|付费流量|DOU\+|抖加|本地推|巨量引擎|千川|随心推|广告预算|出价策略|获客成本|线索成本|投产比|广告ROI/i.test(text)) return "paid_traffic";
   if (/招商加盟|招商获客|找加盟商|加盟商|加盟项目|加盟政策|开放加盟|招(?:区域)?代理/i.test(text)) return "franchise_acquisition";
+  if (/团购到店|团购核销|到店预约|预约到店|消费者到店/i.test(text)) return "fip_store_visit";
+  if (/招学员|招募学员|招生|学员招募|课程报名|试听|说明会报名/i.test(text)) return "fip_student_recruitment";
+  if (/合作方招募|招募合作方|城市合伙人|渠道合作|联营合作/i.test(text)) return "fip_partner_recruitment";
   if (/销售漏斗|线索.*建联|建联.*成交|转化率.*成交/i.test(text)) return "funnel_review";
   if (/跟单|跟进计划|方案发.*天|内部讨论.*会议/i.test(text)) return "follow_up_plan";
   if (/成交话术|不施压|迟迟不签|推进签约/i.test(text)) return "closing_script";
@@ -1083,6 +1117,26 @@ function buildEnhancedPrompt(capabilityId: ComposerTemplateCapabilityId, source:
       "",
       "【我希望的呈现方式】",
       "请按SCALE完成筛人、建信、讲模型、留资、证据与边界，并给招商短视频文案、拍摄脚本、评论区线索承接、投流建议和合规提醒。不要套用面向终端消费者的团购到店逻辑。"
+    ].join("\n");
+  }
+
+  if (["fip_franchise", "fip_store_visit", "fip_student_recruitment", "fip_partner_recruitment"].includes(capabilityId)) {
+    return [
+      `【创始人IP获客目标】${capabilityId}`,
+      ...contextBlock,
+      "必须围绕当前单一目标生成内容与承接草案；事实缺失标记【待补】，不得编造结果或声称已执行投流、发布、付款或发消息。",
+      "不得使用其他获客目标的线索、预算、承接状态或成功指标。"
+    ].join("\n");
+  }
+
+  if (capabilityId === "baolu_ip_advisor") {
+    return [
+      "请以保禄的新媒体与创始人IP能力分身回答，不冒充保禄本人。",
+      "只处理新媒体内容、创始人IP定位与表达、账号经营、选题、内容结构、自然获客和内容承接问题；超出范围时请明确说明边界。",
+      "先给直接判断，再给判断依据、今天可执行的一步和待确认/待验证项。没有本轮证据的账号数据、平台规则、案例、效果或结果不得编造。",
+      "不得声称已经发布、投放、发消息、修改账号或执行任何外部动作。",
+      "",
+      ...contextBlock
     ].join("\n");
   }
 
@@ -1202,6 +1256,11 @@ function getEnhanceStatus(capabilityId: ComposerTemplateCapabilityId, usedProfil
   if (capabilityId === "industry_hotspots") return `已识别为行业热点任务${profileNote}。`;
   if (capabilityId === "paid_traffic") return `已识别为投流策略任务${profileNote}，当前只生成建议和执行草案。`;
   if (capabilityId === "franchise_acquisition") return `已识别为招商获客任务${profileNote}。`;
+  if (capabilityId === "fip_franchise") return `已识别为招商加盟目标${profileNote}，指标将与其他目标隔离。`;
+  if (capabilityId === "fip_store_visit") return `已识别为C端团购到店目标${profileNote}，仅按预约、到店、核销与复购口径处理。`;
+  if (capabilityId === "fip_student_recruitment") return `已识别为学员招募目标${profileNote}，不承诺证书、就业或收入。`;
+  if (capabilityId === "fip_partner_recruitment") return `已识别为合作方招募目标${profileNote}，仅生成资格判断与洽谈草案。`;
+  if (capabilityId === "baolu_ip_advisor") return `已进入问问保禄：仅提供新媒体与创始人IP专业判断${profileNote}。`;
   if (capabilityId === "live_review") return `已识别为直播数据复盘任务${profileNote}。`;
   if (capabilityId === "live_script") return `已识别为直播话术任务${profileNote}，只会输出直播话术。`;
   if (capabilityId === "moments_private") return `已识别为朋友圈私域任务${profileNote}。`;

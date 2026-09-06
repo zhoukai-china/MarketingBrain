@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { ownedProductDirectory } from "../services/owned-product-directory.js";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { AgentResponse, LlmProvider } from "@baolu/agent";
@@ -31,6 +32,18 @@ import { createRequestFingerprint } from "../services/request-fingerprint.js";
 import { buildStableAgentDelivery, resolveReasoningProfile } from "../services/structured-delivery.js";
 import { buildIpCapabilityIntelContext } from "./chat.js";
 import { resolveAcquisitionWorkbenchCapability } from "../services/acquisition-workbench-routing.js";
+import { FOUNDER_IP_TARGETS, loadFounderIpGoalBrief, saveFounderIpGoalBrief } from "../services/founder-ip-goal-briefs.js";
+import { createFounderIpContentDraft, loadFounderIpContentDraft, saveFounderIpContentDraft } from "../services/founder-ip-content-drafts.js";
+import { FounderIpContentGenerationError, generateFounderIpContentDraft } from "../services/founder-ip-content-generation.js";
+import { createRequestExecutionScope } from "../services/request-execution-scope.js";
+import { classifyRuntimeError, emitRuntimeStage } from "../services/runtime-stage-trace.js";
+import {
+  assessFounderIpTopicEvidence,
+  assertFounderIpTopicContextMatchesBrief,
+  buildFounderIpTopicEvidenceDirective,
+  validateFounderIpTopicDelivery,
+  type FounderIpTopicEvidenceAssessment
+} from "../services/founder-ip-topic-evidence.js";
 
 // The shared agent package is excluded from tsx watch; route edits force local API reloads after orchestration changes.
 import {
@@ -38,6 +51,7 @@ import {
   buildKnowledgeAgentSystemPrompt,
   isAcquisitionKnowledgePackageRequest,
   loadAutomaticKnowledgeDocuments,
+  findKnowledgeSubject,
   resolveKnowledgeSubjectForRun,
   loadKnowledgeDocuments
 } from "./knowledge-base.js";
@@ -49,6 +63,20 @@ const runSchema = z.object({
   capabilityId: z.string().min(1).max(100).optional(),
   capabilityIds: z.array(z.string().min(1).max(100)).min(2).max(3).optional(),
   capabilitySelectionMode: z.enum(["auto", "explicit"]).optional(),
+  topicSystemRun: z.boolean().optional(),
+  topicSourceSelection: z.object({ industry: z.boolean(), benchmark: z.boolean(), transcript: z.boolean(), videoReview: z.boolean() }).optional(),
+  founderIpTopicContext: z.object({
+    subjectId: z.string().trim().min(1).max(120),
+    target: z.enum(FOUNDER_IP_TARGETS),
+    identity: z.string().trim().min(1).max(300),
+    targetCustomer: z.string().trim().min(1).max(500),
+    acquisitionGoal: z.string().trim().min(1).max(200),
+    offer: z.string().trim().max(500).optional(),
+    accountStage: z.string().trim().max(160).optional(),
+    industry: z.string().trim().min(1).max(160),
+    benchmarkAccounts: z.array(z.string().trim().min(1).max(300)).max(12).default([]),
+    videoReviewId: z.string().trim().min(1).max(120).optional()
+  }).optional(),
   skillId: z.string().min(1).max(120).optional(),
   conversationId: z.string().min(1).optional(),
   deviceScope: z.enum(["desktop", "mobile"]).default("desktop"),
@@ -79,6 +107,29 @@ const runSchema = z.object({
 const trialStartSchema = z.object({
   deviceId: z.string().min(8).max(200)
 });
+
+const founderIpGoalBriefSchema = z.object({
+  subjectId: z.string().trim().min(1).max(120),
+  target: z.enum(FOUNDER_IP_TARGETS),
+  identity: z.string().trim().min(1).max(300),
+  targetCustomer: z.string().trim().min(1).max(500),
+  acquisitionGoal: z.string().trim().min(1).max(200),
+  offer: z.string().trim().max(500).optional(),
+  accountStage: z.string().trim().max(160).optional(),
+  industry: z.string().trim().min(1).max(160),
+  benchmarkAccounts: z.array(z.string().trim().min(1).max(300)).max(12).default([])
+});
+
+const founderIpGoalBriefQuerySchema = z.object({
+  subjectId: z.string().trim().min(1).max(120),
+  target: z.enum(FOUNDER_IP_TARGETS)
+});
+
+const founderIpContentDraftSchema = z.object({
+  subjectId: z.string().trim().min(1).max(120), target: z.enum(FOUNDER_IP_TARGETS), topic: z.string().trim().min(3).max(500), audience: z.string().trim().min(1).max(500), sourceEvidence: z.string().trim().min(1).max(1_500), factBoundary: z.string().trim().min(1).max(1_500), goalRelation: z.string().trim().min(1).max(1_500)
+});
+const founderIpContentDraftUpdateSchema = z.object({ content: z.string().trim().min(1).max(50_000) });
+const founderIpContentDraftGenerationSchema = z.object({ requestId: z.string().trim().min(8).max(100), deviceScope: z.enum(["desktop", "mobile"]).default("desktop") });
 
 const trialRunSchema = z.object({
   requestId: z.string().min(8).max(100),
@@ -327,13 +378,101 @@ export async function registerAgentProductRoutes(app: FastifyInstance, provider:
     const context = await resolveRequestContext(request.headers);
     const agents = await listRuntimeAgents();
     const entitled = await listEntitledAgentIds(context);
-    const visible = agents.filter((agent) => entitled.has(agent.id));
+    const directory = await ownedProductDirectory(context);
+    const visible = agents.filter((agent) => entitled.has(agent.id) && (agent.slug !== "beauty-industry" || directory.beautyAllowed));
     return {
-      agents: visible.map((agent) => publicAgent(agent, true)),
+      agents: visible.map((agent) => ({ ...publicAgent(agent, true), ...(agent.slug === "beauty-industry" && directory.beautyName ? { name: directory.beautyName } : {}) })),
+      productEntries: directory.entries,
       allAgents: agents.map((agent) => publicAgent(agent, entitled.has(agent.id))),
       defaultEntry: resolveDefaultEntry(visible),
       creditBalance: context.creditBalance ?? 0
     };
+  });
+
+  app.get<{ Params: { slug: string } }>("/agents/:slug/founder-ip-goal-briefs", async (request, reply) => {
+    const parsed = founderIpGoalBriefQuerySchema.safeParse(request.query ?? {});
+    if (!parsed.success) return reply.code(400).send({ error: "invalid_goal_brief_request", details: parsed.error.flatten() });
+    try {
+      const context = await resolveRequestContext(request.headers);
+      const agent = await getRuntimeAgent(request.params.slug);
+      await assertAgentAccess(context, agent);
+      if (agent.slug !== "acquisition") return reply.code(404).send({ error: "founder_ip_goal_brief_not_available" });
+      if (!await findKnowledgeSubject(context, parsed.data.subjectId)) {
+        return reply.code(404).send({ error: "knowledge_subject_not_found", message: "当前主体不存在、已停用或不属于本企业。" });
+      }
+      const brief = await loadFounderIpGoalBrief(context, parsed.data.subjectId, parsed.data.target);
+      return { dataMode: context.source, brief };
+    } catch (error) {
+      return sendFounderIpGoalBriefError(reply, error);
+    }
+  });
+
+  app.put<{ Params: { slug: string } }>("/agents/:slug/founder-ip-goal-briefs", async (request, reply) => {
+    const parsed = founderIpGoalBriefSchema.safeParse(request.body ?? {});
+    if (!parsed.success) return reply.code(400).send({ error: "invalid_goal_brief_request", details: parsed.error.flatten() });
+    try {
+      const context = await resolveRequestContext(request.headers);
+      const agent = await getRuntimeAgent(request.params.slug);
+      await assertAgentAccess(context, agent);
+      if (agent.slug !== "acquisition") return reply.code(404).send({ error: "founder_ip_goal_brief_not_available" });
+      if (!await findKnowledgeSubject(context, parsed.data.subjectId)) {
+        return reply.code(404).send({ error: "knowledge_subject_not_found", message: "当前主体不存在、已停用或不属于本企业。" });
+      }
+      const brief = await saveFounderIpGoalBrief(context, parsed.data);
+      return { dataMode: context.source, event: "founder_ip_goal_brief_saved", brief };
+    } catch (error) {
+      return sendFounderIpGoalBriefError(reply, error);
+    }
+  });
+
+  app.post<{ Params: { slug: string } }>("/agents/:slug/founder-ip-content-drafts", async (request, reply) => {
+    const parsed = founderIpContentDraftSchema.safeParse(request.body ?? {});
+    if (!parsed.success) return reply.code(400).send({ error: "invalid_content_draft_request", details: parsed.error.flatten() });
+    try { const context = await resolveRequestContext(request.headers); const agent = await getRuntimeAgent(request.params.slug); await assertAgentAccess(context, agent); if (agent.slug !== "acquisition") return reply.code(404).send({ error: "founder_ip_content_draft_not_available" }); const draft = await createFounderIpContentDraft(context, agent.id, parsed.data); return { dataMode: context.source, event: "founder_ip_content_draft_selected", draft }; } catch (error) { return sendFounderIpGoalBriefError(reply, error); }
+  });
+  app.get<{ Params: { slug: string; draftId: string } }>("/agents/:slug/founder-ip-content-drafts/:draftId", async (request, reply) => {
+    try { const context = await resolveRequestContext(request.headers); const agent = await getRuntimeAgent(request.params.slug); await assertAgentAccess(context, agent); if (agent.slug !== "acquisition") return reply.code(404).send({ error: "founder_ip_content_draft_not_available" }); const draft = await loadFounderIpContentDraft(context, request.params.draftId); if (!draft) return reply.code(404).send({ error: "founder_ip_content_draft_not_found" }); return { dataMode: context.source, draft }; } catch (error) { return sendFounderIpGoalBriefError(reply, error); }
+  });
+  app.patch<{ Params: { slug: string; draftId: string } }>("/agents/:slug/founder-ip-content-drafts/:draftId", async (request, reply) => {
+    const parsed = founderIpContentDraftUpdateSchema.safeParse(request.body ?? {});
+    if (!parsed.success) return reply.code(400).send({ error: "invalid_content_draft_request", details: parsed.error.flatten() });
+    try { const context = await resolveRequestContext(request.headers); const agent = await getRuntimeAgent(request.params.slug); await assertAgentAccess(context, agent); if (agent.slug !== "acquisition") return reply.code(404).send({ error: "founder_ip_content_draft_not_available" }); const draft = await saveFounderIpContentDraft(context, request.params.draftId, parsed.data.content); if (!draft) return reply.code(404).send({ error: "founder_ip_content_draft_not_found" }); return { dataMode: context.source, event: "founder_ip_content_draft_saved", draft }; } catch (error) { return sendFounderIpGoalBriefError(reply, error); }
+  });
+  app.post<{ Params: { slug: string; draftId: string } }>("/agents/:slug/founder-ip-content-drafts/:draftId/generate", async (request, reply) => {
+    const parsed = founderIpContentDraftGenerationSchema.safeParse(request.body ?? {});
+    if (!parsed.success) return reply.code(400).send({ error: "invalid_content_generation_request", details: parsed.error.flatten() });
+    const traceStartedAt = Date.now();
+    const executionScope = createRequestExecutionScope({
+      requestRaw: request.raw,
+      replyRaw: reply.raw,
+      timeoutMs: env.FOUNDER_IP_CONTENT_TIMEOUT_MS,
+      timeoutCode: "founder_ip_content_generation_timed_out"
+    });
+    emitRuntimeStage({ requestId: parsed.data.requestId, stage: "fip_route", startedAt: traceStartedAt, status: "started", provider });
+    try {
+      const context = await resolveRequestContext(request.headers);
+      const agent = await getRuntimeAgent(request.params.slug);
+      await assertAgentAccess(context, agent);
+      if (agent.slug !== "acquisition") return reply.code(404).send({ error: "founder_ip_content_draft_not_available" });
+      const result = await generateFounderIpContentDraft({ context, agent, provider, draftId: request.params.draftId, requestId: parsed.data.requestId, deviceScope: parsed.data.deviceScope, signal: executionScope.signal, traceStartedAt });
+      emitRuntimeStage({ requestId: parsed.data.requestId, stage: "fip_route", startedAt: traceStartedAt, status: "completed", provider });
+      return { dataMode: context.source, event: "founder_ip_content_draft_generated", ...result };
+    } catch (error) {
+      const abortCode = executionScope.getAbortCode();
+      if (abortCode === "founder_ip_content_generation_timed_out") {
+        emitRuntimeStage({ requestId: parsed.data.requestId, stage: "fip_route", startedAt: traceStartedAt, status: "timed_out", provider, errorCode: abortCode });
+        return reply.code(504).send({ error: abortCode, message: "本次内容生成已在安全时限内停止，未自动重试；请重新发起一次新请求。" });
+      }
+      if (abortCode === "client_disconnected") {
+        emitRuntimeStage({ requestId: parsed.data.requestId, stage: "fip_route", startedAt: traceStartedAt, status: "cancelled", provider, errorCode: abortCode });
+        if (reply.raw.destroyed) return reply;
+        return reply.code(499).send({ error: "founder_ip_content_generation_cancelled", message: "本次内容生成已停止。" });
+      }
+      emitRuntimeStage({ requestId: parsed.data.requestId, stage: "fip_route", startedAt: traceStartedAt, status: "failed", provider, errorCode: classifyRuntimeError(error) });
+      return sendFounderIpContentError(reply, error);
+    } finally {
+      executionScope.dispose();
+    }
   });
 
   app.get<{ Params: { slug: string }; Querystring: { deviceScope?: string } }>("/agents/:slug/latest-video-review", async (request, reply) => {
@@ -343,11 +482,12 @@ export async function registerAgentProductRoutes(app: FastifyInstance, provider:
     const agent = await getRuntimeAgent(request.params.slug);
     await assertAgentAccess(context, agent);
     if (env.DATA_MODE === "demo") return { review: null };
+    const reviewCapabilityId = agent.slug === "beauty-industry" ? "video_data_review" : "video_review";
     const review = await prisma.agentRun.findFirst({
       where: {
         tenantId: context.tenantId,
         agentId: agent.id,
-        capabilityId: "video_review",
+        capabilityId: reviewCapabilityId,
         deviceScope: query.data.deviceScope,
         status: "succeeded",
         output: { not: null }
@@ -383,6 +523,14 @@ export async function registerAgentProductRoutes(app: FastifyInstance, provider:
   app.post<{ Params: { slug: string } }>("/agents/:slug/runs", async (request, reply) => {
     const parsed = runSchema.safeParse(request.body ?? {});
     if (!parsed.success) return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+    if (parsed.data.topicSystemRun === true && parsed.data.topicSourceSelection
+      && !Object.values(parsed.data.topicSourceSelection).some(Boolean)) {
+      return reply.code(422).send({
+        error: "founder_ip_topic_evidence_required",
+        message: "本轮没有启用任何选题来源。请至少启用一项有可核验证据的来源后再生成。",
+        rejectedSourceCount: 0
+      });
+    }
     const originalUserInput = parsed.data.input;
     parsed.data.input = normalizeBusinessInput(parsed.data.input);
     const routingInput = extractUserRoutingInput(parsed.data.input, parsed.data.routingInput);
@@ -418,6 +566,9 @@ export async function registerAgentProductRoutes(app: FastifyInstance, provider:
         capabilityId: parsed.data.capabilityId,
         capabilityIds: parsed.data.capabilityIds,
         capabilitySelectionMode: parsed.data.capabilitySelectionMode,
+        topicSystemRun: parsed.data.topicSystemRun,
+        topicSourceSelection: parsed.data.topicSourceSelection,
+        founderIpTopicContext: parsed.data.founderIpTopicContext,
         skillId: parsed.data.skillId,
         conversationId: parsed.data.conversationId,
         deviceScope: parsed.data.deviceScope,
@@ -450,19 +601,19 @@ export async function registerAgentProductRoutes(app: FastifyInstance, provider:
       // 推荐；同一企业的顾问可以明确选择其他资料夹的资料作为本次参考，原件
       // 不复制也不改变归属。loadKnowledgeDocuments 已经按 tenantId 校验，不能
       // 借此跨企业读取资料。
-      const automaticKnowledgeDocuments = knowledgeSubject
+      let automaticKnowledgeDocuments = knowledgeSubject
         ? await loadAutomaticKnowledgeDocuments(context, knowledgeSubject.id, knowledgeDocumentIds, 20 - explicitKnowledgeDocuments.length)
         : [];
-      const knowledgeDocuments = [...explicitKnowledgeDocuments, ...automaticKnowledgeDocuments];
-      const automaticKnowledgeDocumentIds = new Set(automaticKnowledgeDocuments.map((document) => document.id));
+      let knowledgeDocuments = [...explicitKnowledgeDocuments, ...automaticKnowledgeDocuments];
+      let automaticKnowledgeDocumentIds = new Set(automaticKnowledgeDocuments.map((document) => document.id));
       if (knowledgeAction?.allowedDocumentTypes.length && knowledgeDocuments.some((document) => !knowledgeAction.allowedDocumentTypes.includes(document.documentType))) {
         return reply.code(400).send({ error: "knowledge_document_type_not_allowed", message: "选中的资料类型不适用于当前智能体。" });
       }
-      const knowledgeContext = knowledgeDocuments.length ? buildAgentKnowledgeRunContext(agent, knowledgeDocuments, { subject: knowledgeSubject, fallbackIndustry: runtimeContext.profile.industry }) : undefined;
-      const ipVoiceStyleProfile = buildIpVoiceStyleProfile(knowledgeDocuments);
-      const ipVoiceStyleApplied = Boolean(ipVoiceStyleProfile);
-      const ipVoiceStyleConfidence = ipVoiceStyleProfile?.confidence;
-      const knowledgeSources = knowledgeDocuments.map((document) => ({
+      let knowledgeContext = knowledgeDocuments.length ? buildAgentKnowledgeRunContext(agent, knowledgeDocuments, { subject: knowledgeSubject, fallbackIndustry: runtimeContext.profile.industry }) : undefined;
+      let ipVoiceStyleProfile = buildIpVoiceStyleProfile(knowledgeDocuments);
+      let ipVoiceStyleApplied = Boolean(ipVoiceStyleProfile);
+      let ipVoiceStyleConfidence = ipVoiceStyleProfile?.confidence;
+      let knowledgeSources = knowledgeDocuments.map((document) => ({
         id: document.id,
         title: document.title,
         documentType: document.documentType,
@@ -498,8 +649,102 @@ export async function registerAgentProductRoutes(app: FastifyInstance, provider:
         : undefined;
       if (effectiveCapabilityId && !capability) throw new AgentAccessError("skill_not_allowed");
       const isTopicInspirationTask = capability?.key === "topic_inspiration";
+      const isRequestedFounderIpTopicRun = agent.slug === "acquisition" && parsed.data.topicSystemRun === true;
+      if (isRequestedFounderIpTopicRun && !isTopicInspirationTask) {
+        return reply.code(400).send({
+          error: "founder_ip_topic_capability_mismatch",
+          message: "选题系统请求只能调用创始人 IP 选题能力，请返回选题系统后重试。"
+        });
+      }
       const isAutomaticTopicRun = isTopicInspirationTask
-        && /【选题系统(?:自动|四源)运行】/.test(`${originalUserInput}\n${parsed.data.input}`);
+        && (isRequestedFounderIpTopicRun || /【选题系统(?:自动|四源)运行】/.test(`${originalUserInput}\n${parsed.data.input}`));
+      if (isRequestedFounderIpTopicRun && parsed.data.topicSourceSelection
+        && !Object.values(parsed.data.topicSourceSelection).some(Boolean)) {
+        return reply.code(422).send({
+          error: "founder_ip_topic_evidence_required",
+          message: "本轮没有启用任何选题来源。请至少启用一项有可核验证据的来源后再生成。",
+          rejectedSourceCount: 0
+        });
+      }
+      const topicEvidenceCandidates = [...knowledgeDocuments];
+      let founderIpTopicBrief: Awaited<ReturnType<typeof loadFounderIpGoalBrief>> | null = null;
+      let topicEvidenceAssessment: FounderIpTopicEvidenceAssessment | undefined;
+      let verifiedVideoReviewId: string | undefined;
+      if (isAutomaticTopicRun && agent.slug === "acquisition") {
+        const topicContext = parsed.data.founderIpTopicContext;
+        if (!topicContext || !knowledgeSubject || knowledgeSubject.id !== topicContext.subjectId) {
+          return reply.code(400).send({
+            error: "founder_ip_topic_context_required",
+            message: "请先保存当前获客目标简报并确认本客户工作区，再生成选题。"
+          });
+        }
+        founderIpTopicBrief = await loadFounderIpGoalBrief(runtimeContext, topicContext.subjectId, topicContext.target);
+        if (!founderIpTopicBrief) {
+          return reply.code(409).send({
+            error: "founder_ip_topic_brief_not_found",
+            message: "当前获客目标简报尚未保存，请保存后再生成选题。"
+          });
+        }
+        try {
+          assertFounderIpTopicContextMatchesBrief(topicContext, {
+          subjectId: founderIpTopicBrief.subjectId,
+          target: founderIpTopicBrief.target as (typeof FOUNDER_IP_TARGETS)[number],
+          identity: founderIpTopicBrief.identity,
+          targetCustomer: founderIpTopicBrief.targetCustomer,
+          acquisitionGoal: founderIpTopicBrief.acquisitionGoal,
+          offer: founderIpTopicBrief.offer ?? undefined,
+          accountStage: founderIpTopicBrief.accountStage ?? undefined,
+          industry: founderIpTopicBrief.industry,
+            benchmarkAccounts: Array.isArray(founderIpTopicBrief.benchmarkAccounts)
+              ? founderIpTopicBrief.benchmarkAccounts.flatMap((item) => typeof item === "string" ? [item] : [])
+              : []
+          });
+        } catch (error) {
+          const stale = error as { statusCode?: number; code?: string; message?: string; staleFields?: string[] };
+          return reply.code(stale.statusCode ?? 409).send({
+            error: stale.code ?? "founder_ip_topic_context_stale",
+            message: stale.message,
+            staleFields: stale.staleFields ?? []
+          });
+        }
+        if (topicContext.videoReviewId && context.source === "database") {
+          const review = await prisma.agentRun.findFirst({
+            where: {
+              id: topicContext.videoReviewId,
+              tenantId: context.tenantId,
+              agentId: agent.id,
+              capabilityId: "video_review",
+              status: "succeeded",
+              output: { not: null }
+            },
+            select: { id: true }
+          });
+          verifiedVideoReviewId = review?.id;
+        }
+        topicEvidenceAssessment = assessFounderIpTopicEvidence({
+          brief: topicContext,
+          subjectId: topicContext.subjectId,
+          documents: topicEvidenceCandidates,
+          sourceSelection: parsed.data.topicSourceSelection ?? { industry: true, benchmark: true, transcript: true, videoReview: true },
+          videoReviewId: verifiedVideoReviewId
+        });
+        knowledgeDocuments = topicEvidenceAssessment.qualifiedDocuments;
+        const qualifiedIds = new Set(knowledgeDocuments.map((document) => document.id));
+        automaticKnowledgeDocuments = automaticKnowledgeDocuments.filter((document) => qualifiedIds.has(document.id));
+        automaticKnowledgeDocumentIds = new Set(automaticKnowledgeDocuments.map((document) => document.id));
+        knowledgeContext = knowledgeDocuments.length ? buildAgentKnowledgeRunContext(agent, knowledgeDocuments, { subject: knowledgeSubject, fallbackIndustry: topicContext.industry }) : undefined;
+        ipVoiceStyleProfile = buildIpVoiceStyleProfile(knowledgeDocuments);
+        ipVoiceStyleApplied = Boolean(ipVoiceStyleProfile);
+        ipVoiceStyleConfidence = ipVoiceStyleProfile?.confidence;
+        knowledgeSources = knowledgeDocuments.map((document) => ({
+          id: document.id,
+          title: document.title,
+          documentType: document.documentType,
+          occurredAt: document.occurredAt ?? null,
+          knowledgeLayer: document.knowledgeLayer ?? "raw_private",
+          autoIncluded: automaticKnowledgeDocumentIds.has(document.id)
+        }));
+      }
       if (isTopicInspirationTask && !isAutomaticTopicRun) {
         const clarificationPrompt = buildTopicClarificationPrompt({
           input: parsed.data.input,
@@ -651,7 +896,7 @@ export async function registerAgentProductRoutes(app: FastifyInstance, provider:
         || capabilityIds.includes("industry_hotspots")
         || asksForHotspotResearch
       );
-      const researchSubject = parsed.data.taskCustomerProfile?.industry?.trim() || resolveResearchSubject(runtimeContext.profile);
+      const researchSubject = founderIpTopicBrief?.industry?.trim() || parsed.data.taskCustomerProfile?.industry?.trim() || resolveResearchSubject(runtimeContext.profile);
       const hasProfileIndustryTarget = researchSubject.length > 0 && hasExplicitIndustryTarget(`行业：${researchSubject}`);
       if (!isTopicInspirationTask && needsIndustryResearch && !hasExplicitIndustryTarget(routingInput) && !hasProfileIndustryTarget) {
         throw new AgentClarificationRequired(
@@ -659,10 +904,30 @@ export async function registerAgentProductRoutes(app: FastifyInstance, provider:
         );
       }
       const researchContext = isTopicInspirationTask
-        ? await buildIpCapabilityIntelContext("topic_inspiration", routingInput, researchSubject)
+        ? await buildIpCapabilityIntelContext("topic_inspiration", routingInput, researchSubject, {
+            includeIndustryHotspots: parsed.data.topicSourceSelection?.industry !== false,
+            includeCompetitorSignals: parsed.data.topicSourceSelection?.benchmark !== false
+          })
         : needsIndustryResearch
           ? await buildIpCapabilityIntelContext("industry_hotspots", routingInput, researchSubject)
           : undefined;
+      if (isAutomaticTopicRun && parsed.data.founderIpTopicContext && topicEvidenceAssessment) {
+        topicEvidenceAssessment = assessFounderIpTopicEvidence({
+          brief: parsed.data.founderIpTopicContext,
+          subjectId: parsed.data.founderIpTopicContext.subjectId,
+          documents: topicEvidenceCandidates,
+          sourceSelection: parsed.data.topicSourceSelection ?? { industry: true, benchmark: true, transcript: true, videoReview: true },
+          researchContext,
+          videoReviewId: verifiedVideoReviewId
+        });
+        if (!topicEvidenceAssessment.canGenerate) {
+          return reply.code(422).send({
+            error: "founder_ip_topic_evidence_required",
+            message: topicEvidenceAssessment.message,
+            rejectedSourceCount: topicEvidenceAssessment.rejectedDocuments.length
+          });
+        }
+      }
       const isHotspotContentTask = needsIndustryResearch && (
         capability?.key === "content_plan"
         || capabilityIds.some((id) => id === "content_plan" || id === "franchise_acquisition")
@@ -810,6 +1075,7 @@ export async function registerAgentProductRoutes(app: FastifyInstance, provider:
         taskCustomerContext,
         knowledgeContext,
         researchContext,
+        topicEvidenceAssessment ? buildFounderIpTopicEvidenceDirective(topicEvidenceAssessment) : undefined,
         isHotspotContentTask ? hotspotContentDirective(parsed.data.input) : undefined,
         `用户这次补充：${parsed.data.input}`
       ].filter(Boolean).join("\n\n");
@@ -831,8 +1097,59 @@ export async function registerAgentProductRoutes(app: FastifyInstance, provider:
         provider,
         agentId: agent.id,
         routingSource: effectiveCapabilityId ? "capability" : "agent_router",
+        persist: !isAutomaticTopicRun,
         signal: runController.signal
       });
+      if (isAutomaticTopicRun && parsed.data.founderIpTopicContext && topicEvidenceAssessment) {
+        const validation = validateFounderIpTopicDelivery({
+          answer: result.answerText,
+          brief: parsed.data.founderIpTopicContext,
+          evidence: topicEvidenceAssessment
+        });
+        if (!validation.ok) {
+          return reply.code(422).send({
+            error: "founder_ip_topic_delivery_rejected",
+            message: validation.message,
+            failures: validation.failures
+          });
+        }
+        const persistedResult: AgentResponse = {
+          skillId: result.skillId as SkillId,
+          skillVersion: result.skillVersion,
+          tenantType: runtimeContext.profile.tenantType,
+          answer: result.answerText,
+          creditCost: result.creditCost,
+          qualityFlags: result.qualityFlags,
+          analysisMode: result.analysisMode,
+          deliveryStatus: result.deliveryStatus
+        };
+        const persistence = await persistChatResult({
+          context: runtimeContext,
+          input: parsed.data.input,
+          result: persistedResult,
+          provider,
+          conversationId: parsed.data.conversationId,
+          deviceScope: parsed.data.deviceScope,
+          agentId: agent.id,
+          capabilityId: effectiveCapabilityId,
+          requestId: parsed.data.requestId,
+          requestFingerprint,
+          mcpCallId: result.mcpCallId,
+          routingSource: effectiveCapabilityId ? "capability" : "agent_router"
+        });
+        return {
+          ...result,
+          agentRunId: persistence.agentRunId,
+          conversationId: persistence.conversationId,
+          deviceScope: persistence.deviceScope,
+          remainingCredits: persistence.remainingCredits,
+          knowledgeSources,
+          knowledgeSubject: knowledgeSubject ? { id: knowledgeSubject.id, subjectType: knowledgeSubject.subjectType, name: knowledgeSubject.name, industry: knowledgeSubject.industry } : null,
+          automaticKnowledgeCount: automaticKnowledgeDocuments.length,
+          ipVoiceStyleApplied,
+          ipVoiceStyleConfidence
+        };
+      }
       return {
         ...result,
         knowledgeSources,
@@ -1073,6 +1390,11 @@ const ACQUISITION_LAUNCHER_CAPABILITIES = new Set([
   "live_script",
   "live_review",
   "industry_hotspots",
+  "fip_franchise",
+  "fip_store_visit",
+  "fip_student_recruitment",
+  "fip_partner_recruitment",
+  "baolu_ip_advisor",
   "franchise_acquisition",
   "private_domain"
 ]);
@@ -1263,6 +1585,25 @@ function sendAgentError(reply: any, error: unknown) {
     return reply.code(503).send({ error: "service_unavailable", message: "Agent 服务暂时不可用，请稍后重试。" });
   }
   throw error;
+}
+
+function sendFounderIpGoalBriefError(reply: any, error: unknown) {
+  const typed = error as { statusCode?: number; code?: string; message?: string };
+  if (typed.code === "knowledge_subject_not_found") {
+    return reply.code(404).send({ error: typed.code, message: typed.message });
+  }
+  return sendAgentError(reply, error);
+}
+
+function sendFounderIpContentError(reply: any, error: unknown) {
+  if (error instanceof FounderIpContentGenerationError) {
+    return reply.code(error.statusCode).send({
+      error: error.code,
+      message: error.message,
+      ...(error.providerFailure ? { providerFailure: error.providerFailure } : {})
+    });
+  }
+  return sendFounderIpGoalBriefError(reply, error);
 }
 
 function compactHistoryContent(content: string, maxLength = 8_000): string {

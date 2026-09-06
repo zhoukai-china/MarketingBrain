@@ -1,0 +1,20 @@
+{
+  "version": "beauty-image-engagement-layout-champion-v1",
+  "sourceEvidence": {
+    "assetSha256": "acc26153780bb387abd689aeba37f768716dd571f381581b4b2cdc7d331b385d",
+    "role": "engagement",
+    "qualityReasons": ["visible_text_or_brand_like"],
+    "operatorFinding": "visible_chinese_display_text_and_card_like_ui"
+  },
+  "contract": {
+    "imagePlanVersion": "beauty-xhs-image-plan-v1",
+    "providerPromptVersion": "beauty-image-provider-prompt-v1.1",
+    "coverPayloadSha256": "f0d36dec9c828422e38881045ea6f1794d4e73274b3fad9f0ce1d12018614456",
+    "contentPayloadSha256": "0a52b8dc2436249973c7bad8376c9bd802939fe1e8cad6123c14cd6247e928db",
+    "purposeMentionsInteractionQuestion": true,
+    "compositionMentionsPostTextSafeArea": true,
+    "providerInstructionMentionsPostTextSafeArea": true,
+    "negativePromptBlocksCardsAndButtons": true
+  },
+  "boundary": "desensitized_features_only_no_provider_payload_or_response"
+}

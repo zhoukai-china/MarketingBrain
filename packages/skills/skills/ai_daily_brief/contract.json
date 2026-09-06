@@ -38,7 +38,9 @@
     "不要写成泛泛AI新闻摘要",
     "没有可靠实时来源时必须写公开实时数据待补",
     "每个热点都要转成老板今天能执行的获客动作",
-    "禁止编造新闻事实、热榜排名、平台数据、竞品数据"
+    "禁止编造新闻事实、热榜排名、平台数据、竞品数据",
+    "来源事实与行业推断必须分层，通用AI新闻不得改写成已经在目标行业发生",
+    "行业解释必须标记推断并写清适用条件和待核验边界"
   ],
   "failurePatterns": [
     "只罗列AI新闻，没有转成行业获客动作",
@@ -46,5 +48,13 @@
     "编造具体新闻、热榜排名或平台数据",
     "没有短视频、朋友圈、直播和今日动作"
   ],
-  "repairInstruction": "返工时必须按行业热点获客结构输出，补齐热点来源/线索、IP获客机会、短视频切入、朋友圈切入、直播切入、风险提醒和今日动作；没有实时来源必须写公开实时数据待补。"
+  "repairInstruction": "返工时必须按行业热点获客结构输出，补齐热点来源/线索、IP获客机会、短视频切入、朋友圈切入、直播切入、风险提醒和今日动作；没有实时来源必须写公开实时数据待补。美业日报固定产品模式还必须逐条分离来源事实与 beauty_interpretation 推断，不得把推断补写进来源事实。",
+  "productContracts": {
+    "beauty_daily_brief": {
+      "requiredSourceFields": ["source", "title", "sourceUrl", "publishedAt", "sourceIndustry", "summary", "sourceFacts", "verificationStatus"],
+      "requiredInterpretationFields": ["inferenceLabel", "sitongComment", "possibleImpact", "applicabilityConditions", "verificationNeeded", "beautySegments"],
+      "inferenceLabel": "beauty_interpretation",
+      "sourceFactRule": "generic AI evidence is allowed; beauty claims require direct source evidence"
+    }
+  }
 }

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "beauty-image-safety-challenger-v1",
+  "sha256": "60f2ea68d251cbfe2e0fc49119f3ee4e44222c94c826b8aa692a6af09868bb8d",
+  "detectorVersion": "beauty-image-safety-v2.7",
+  "status": "passed",
+  "changedVariable": "minimumAverageQrFinderPatternAgreement",
+  "diagnostics": {
+    "minimumPatternAgreement": 0.469,
+    "averagePatternAgreement": 0.51,
+    "minimumAveragePatternAgreement": 0.72,
+    "geometryAccepted": true,
+    "patternAgreementAccepted": false
+  },
+  "hardGatesUnchanged": [
+    "qr_finder_run_ratio",
+    "qr_finder_right_angle_geometry",
+    "barcode_stripes",
+    "glyph_sequence",
+    "corner_watermark",
+    "ui_layout",
+    "person_and_customer_asset_policy"
+  ]
+}

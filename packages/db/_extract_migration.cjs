@@ -4,7 +4,7 @@ const diff = fs.readFileSync("_full_diff.sql", "utf8");
 const newTables = [
   "Distributor", "DistroCustomer", "DistroOrder", "DistroCommissionLog",
   "DistroWithdrawal", "CommissionRule", "ShareLink", "RiskRule", "RiskEvent",
-  "AuditLog", "Role", "Permission", "RolePermission", "UserRole",
+  "AuditLog", "Role", "Permission", "RolePermission", "UserRoleAssignment",
   "AccessPolicy", "RolePolicy", "SsoConfig"
 ];
 const newEnums = [

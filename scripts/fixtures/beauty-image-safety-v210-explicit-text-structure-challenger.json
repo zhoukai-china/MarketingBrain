@@ -1,0 +1,13 @@
+{
+  "sha256": "df997146f3205e619734e3e596b7de098c3362d07adf45f99d5e9326d0e5f04c",
+  "detectorVersion": "beauty-image-safety-v2.10",
+  "status": "passed",
+  "changedVariable": "minimum_explicit_text_structure_agreement",
+  "diagnostics": {
+    "unsupportedBrightInkFallbackAccepted": false,
+    "championGlyphLikeRatio": 0.889,
+    "minimumGlyphLikeRatio": 1,
+    "currentReasonCount": 0,
+    "readableSequenceRecovered": false
+  }
+}

@@ -5,6 +5,11 @@ import type { LlmProvider } from "@baolu/agent";
 import { env } from "../config/env.js";
 import { getRuntimeAgent, invokeSkillThroughMcp } from "../services/agent-runtime.js";
 import type { RequestContext } from "../services/request-context.js";
+import { classifyRuntimeError, emitRuntimeStage } from "../services/runtime-stage-trace.js";
+import {
+  BEAUTY_TEXT_BUDGET_VERSION,
+  createBeautyTextBudgetedProvider
+} from "../products/beauty-industry/text-budget.js";
 
 type JsonRpcId = string | number | null;
 
@@ -134,10 +139,15 @@ export async function registerMcpRoutes(app: FastifyInstance, provider: LlmProvi
                   },
                   routingSource: { type: "string" },
                   capabilityLocked: { type: "boolean" },
+                  promptCompositionPolicy: { type: "string", enum: ["generic", "locked_product_workflow"] },
                   deliveryPolicy: { type: "string", enum: ["clarify", "draft_with_placeholders"] },
+                  skillPromptOverride: { type: "string" },
+                  skillVersionOverride: { type: "string" },
+                  providerPolicyVersion: { type: "string", enum: [BEAUTY_TEXT_BUDGET_VERSION] },
                   skipEntitlement: { type: "boolean" },
                   persist: { type: "boolean" },
-                  auth: { type: "object" }
+                  auth: { type: "object" },
+                  traceStartedAt: { type: "number" }
                 },
                 required: ["requestId", "agentId", "tenantId", "userId", "input", "auth"]
               }
@@ -177,13 +187,27 @@ export async function registerMcpRoutes(app: FastifyInstance, provider: LlmProvi
           });
         }
         if (toolName === INVOKE_AGENT_SKILL_TOOL) {
+          const requestId = requireString(args.requestId, "requestId");
+          const traceStartedAt = typeof args.traceStartedAt === "number" ? args.traceStartedAt : Date.now();
+          emitRuntimeStage({ requestId, stage: "self_mcp_server", startedAt: traceStartedAt, status: "started", provider });
           const context = normalizeInvocationContext(args);
-          const result = await invokeSkillThroughMcp({
-            requestId: requireString(args.requestId, "requestId"),
+          const capabilityId = optionalString(args.capabilityId);
+          const skillId = optionalString(args.skillId);
+          const providerPolicyVersion = optionalString(args.providerPolicyVersion);
+          const invocationProvider = providerPolicyVersion === BEAUTY_TEXT_BUDGET_VERSION
+            ? createBeautyTextBudgetedProvider(
+                provider,
+                requireString(capabilityId, "capabilityId"),
+                requireString(skillId, "skillId")
+              )
+            : provider;
+          try {
+            const result = await invokeSkillThroughMcp({
+            requestId,
             requestFingerprint: optionalString(args.requestFingerprint),
             agentId: requireString(args.agentId, "agentId"),
-            capabilityId: optionalString(args.capabilityId),
-            skillId: optionalString(args.skillId),
+            capabilityId,
+            skillId,
             conversationId: optionalString(args.conversationId),
             channel: normalizeChannel(args.channel),
             deviceScope: args.deviceScope === "mobile" ? "mobile" : "desktop",
@@ -191,24 +215,35 @@ export async function registerMcpRoutes(app: FastifyInstance, provider: LlmProvi
             routingInput: optionalString(args.routingInput),
             history: normalizeInvocationHistory(args.history),
             context,
-            provider,
+            provider: invocationProvider,
             routingSource: normalizeRoutingSource(args.routingSource),
             capabilityLocked: args.capabilityLocked === true,
+            promptCompositionPolicy: args.promptCompositionPolicy === "locked_product_workflow" ? "locked_product_workflow" : "generic",
             deliveryPolicy: args.deliveryPolicy === "draft_with_placeholders" ? "draft_with_placeholders" : "clarify",
+            skillPromptOverride: optionalString(args.skillPromptOverride),
+            skillVersionOverride: optionalString(args.skillVersionOverride),
+            providerPolicyVersion,
             skipEntitlement: args.skipEntitlement === true,
             persist: args.persist !== false,
-            signal: runController.signal
+            signal: runController.signal,
+            traceStartedAt
           });
-          return jsonRpcResult(id, {
-            content: [{ type: "text", text: JSON.stringify(result) }]
-          });
+            emitRuntimeStage({ requestId, stage: "self_mcp_server", startedAt: traceStartedAt, status: "completed", provider });
+            return jsonRpcResult(id, {
+              content: [{ type: "text", text: JSON.stringify(result) }]
+            });
+          } catch (error) {
+            const errorCode = classifyRuntimeError(error);
+            emitRuntimeStage({ requestId, stage: "self_mcp_server", startedAt: traceStartedAt, status: errorCode === "timed_out" ? "timed_out" : errorCode === "cancelled" ? "cancelled" : "failed", provider, errorCode });
+            throw error;
+          }
         }
         return reply.code(404).send(jsonRpcError(id, -32601, `unknown_tool:${toolName}`));
       }
 
       return reply.code(404).send(jsonRpcError(id, -32601, `unknown_method:${body.method}`));
     } catch (error) {
-      request.log.error(error);
+      request.log.error({ errorCode: classifyRuntimeError(error) }, "MCP request failed");
       return reply.code(500).send(jsonRpcError(id, -32000, error instanceof Error ? error.message : String(error)));
     } finally {
       request.raw.removeListener("aborted", abortRun);

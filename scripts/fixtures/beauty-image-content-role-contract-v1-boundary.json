@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "contractVersion": "beauty-image-content-role-contract-v1",
+  "provenance": "BY-38 controlled acceptance assets; hashes and decisions only",
+  "cases": [
+    {
+      "sha256": "e9af2a0eebd361b634b35110a2acd3a5a31870e01e84273f2a1f2e929022a803",
+      "expectedStatus": "rejected",
+      "expectedReason": "multi_panel_layout"
+    },
+    {
+      "sha256": "9f217ea59c4dda4682bab1810bf5f38bbcc633a76e337f034fac66d286bbc2e1",
+      "expectedStatus": "manual_review_required",
+      "expectedReason": "content_semantics_unverified"
+    },
+    {
+      "sha256": "60f2ea68d251cbfe2e0fc49119f3ee4e44222c94c826b8aa692a6af09868bb8d",
+      "expectedStatus": "manual_review_required",
+      "expectedReason": "content_semantics_unverified"
+    }
+  ],
+  "localBoundary": {
+    "deterministicLayout": "supported",
+    "singleCompleteScene": "supported",
+    "packagingBottleContainerLabelBrandCarrierSemantics": "unsupported_locally",
+    "customerDeliveryWhenSemanticsUnverified": "fail_closed"
+  },
+  "privacy": "No image bytes, prompt, customer text, provider response, credential, or full path is stored."
+}

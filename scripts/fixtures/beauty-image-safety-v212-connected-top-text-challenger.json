@@ -1,0 +1,19 @@
+{
+  "sha256": "e98c0d514b74882cd0fc719242d94bfcb686d96381360d69d89cd4ffd82192dc",
+  "detectorVersion": "beauty-image-safety-v2.12",
+  "status": "rejected",
+  "reason": "visible_text_or_brand_like",
+  "changedVariable": "connectedTopDisplayTextBlockEvidence",
+  "diagnostics": {
+    "candidateSelectionMode": "connected_top_display_text_block",
+    "componentX": 166,
+    "componentY": 28,
+    "componentWidth": 51,
+    "componentHeight": 19,
+    "componentPixels": 571,
+    "componentFill": 0.589,
+    "componentAspectRatio": 2.684,
+    "widthRatio": 0.133,
+    "heightRatio": 0.037
+  }
+}

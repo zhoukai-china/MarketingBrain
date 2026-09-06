@@ -1,0 +1,42 @@
+{
+  "version": "beauty-xhs-boss-usable-replay-v1",
+  "source": "redacted_live_acceptance_2026-08-29",
+  "provider": {
+    "name": "deepseek",
+    "model": "deepseek-v4-pro",
+    "calls": 1,
+    "finishReason": "stop",
+    "fallbackUsed": false,
+    "usage": {
+      "promptTokens": 3585,
+      "completionTokens": 801,
+      "reasoningTokens": 0,
+      "totalTokens": 4386
+    },
+    "conservativeCostYuan": 0.018051
+  },
+  "adapter": {
+    "version": "beauty-xhs-provider-output-v1",
+    "status": "succeeded",
+    "observedProviderOutputs": 1,
+    "exactTopLevelShape": true,
+    "titleCount": 3,
+    "tagCountRange": "5-8",
+    "imageDirectionCount": 3,
+    "factReceiptKeyCount": 6,
+    "rawOutputPersisted": false
+  },
+  "quality": {
+    "blockingFlags": [
+      "rubric_not_boss_usable"
+    ],
+    "otherBlockingFlagCount": 0
+  },
+  "persistence": {
+    "agentRunCount": 0,
+    "creditReserved": 8,
+    "creditReleased": 8,
+    "creditNet": 0
+  },
+  "mediaProviderCalls": 0
+}

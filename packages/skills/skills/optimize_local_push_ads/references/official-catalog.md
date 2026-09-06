@@ -1,0 +1,256 @@
+# 巨量本地推官方知识目录
+
+> 生成时间：2026-08-10T03:29:39+00:00。仅索引公开官方页面；产品规则与界面以实时平台为准。
+
+- 官方帮助中心：<https://support.oceanengine.com/support/?pageId=305&spaceId=174>
+- 巨量本地推学堂：<https://school.oceanengine.com/page/%E5%B7%A8%E9%87%8F%E6%9C%AC%E5%9C%B0%E6%8E%A8%E5%AD%A6%E5%A0%82>
+- 公开文章：192 篇
+- 分类节点：45 个
+- 抓取失败：0 篇
+
+## 目录
+
+- **产品功能相关**
+  - **本地推平台介绍及竞价策略**
+    - **产品手册**
+      - [巨量引擎APP-巨量本地推版使用说明](https://localads.chengzijianzhan.cn/support/content/208106?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-05-14 01:53:21
+      - [产品简介](https://localads.chengzijianzhan.cn/support/content/141777?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 15:03:07
+      - [智投星使用说明 ｜本地推](https://localads.chengzijianzhan.cn/support/content/182472?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-04-09 01:32:23
+    - **竞价策略**
+      - [竞价策略](https://localads.chengzijianzhan.cn/support/content/140626?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 16:00:19
+      - [竞价策略与计费方式](https://localads.chengzijianzhan.cn/support/content/140628?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 11:33:57
+      - [计费方式概述](https://localads.chengzijianzhan.cn/support/content/140620?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 14:57:02
+      - [最优成本](https://localads.chengzijianzhan.cn/support/content/140624?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 17:18:45
+  - **交易产品介绍**
+    - [巨量本地推「返还技术服务费托管投放」产品手册](https://localads.chengzijianzhan.cn/support/content/188147?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-08 01:45:27
+    - [巨量本地推直播全域投放产品手册](https://localads.chengzijianzhan.cn/support/content/140962?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-07-29 01:09:57
+    - [巨量本地推PC端「直播加热」产品介绍文档](https://localads.chengzijianzhan.cn/support/content/206365?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-07-15 01:50:47
+    - [巨量本地推移动端「直播加热」产品介绍文档](https://localads.chengzijianzhan.cn/support/content/143775?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-07-15 01:29:43
+    - [巨量本地推PC端直播加热手动出价产品手册（对外）](https://localads.chengzijianzhan.cn/support/content/144895?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 14:53:12
+  - **搜索产品介绍**
+    - [【线索-搜索营销】搜索流量升级说明](https://localads.chengzijianzhan.cn/support/content/211850?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-08-07 01:40:30
+    - [【巨量本地推】搜索营销-「提价抢首位」产品手册](https://localads.chengzijianzhan.cn/support/content/206658?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-06-18 01:57:28
+    - [搜索图文+AI智能产品 使用手册](https://localads.chengzijianzhan.cn/support/content/189385?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-07-29 01:56:10
+    - [搜索图文+AIGC智能图文分行业showcase合集](https://localads.chengzijianzhan.cn/support/content/189386?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-05-27 01:06:08
+    - [搜索-「智能图文生成」工具产品手册](https://localads.chengzijianzhan.cn/support/content/206628?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-06-06 01:06:26
+    - [本地推线索搜索-智投方案](https://localads.chengzijianzhan.cn/support/content/195180?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-05-27 01:04:33
+    - [抖音来客｜线索商家快捷入驻操作手册（对外版）](https://localads.chengzijianzhan.cn/support/content/166286?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-05-28 01:31:55
+    - [【巨量本地推】线索营销搜索投放-蓝海投放产品手册](https://localads.chengzijianzhan.cn/support/content/147621?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-08-06 02:01:13
+    - [巨量本地推PC端-搜索产品手册（对外版）](https://localads.chengzijianzhan.cn/support/content/143706?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 19:32:01
+    - [本地推【搜索出价系数】产品手册（对外）](https://localads.chengzijianzhan.cn/support/content/143707?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-29 18:09:14
+    - [本地推「搜索通」产品手册（对外）](https://localads.chengzijianzhan.cn/support/content/144713?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-07-15 01:10:03
+    - [巨量本地推-线索投放-搜索营销产品手册](https://localads.chengzijianzhan.cn/support/content/143709?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-06-25 01:22:26
+    - [搜索营销—如何选择搜索流量](https://localads.chengzijianzhan.cn/support/content/145001?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-08-07 01:28:38
+    - [搜索投放-本地推投放模式升级介绍](https://localads.chengzijianzhan.cn/support/content/145409?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 15:06:00
+  - **线索产品介绍**
+    - [【本地推】线索简单投使用说明](https://localads.chengzijianzhan.cn/support/content/188763?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-03-11 01:07:30
+    - [【本地推】线索简单投0转化全额返赠款成本保障规则](https://localads.chengzijianzhan.cn/support/content/168581?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 15:58:29
+    - [本地推线索-智能定向拓展功能说明](https://localads.chengzijianzhan.cn/support/content/164764?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 15:58:55
+    - [「UBMax线索*AIGC素材」— PC本地推产品介绍](https://localads.chengzijianzhan.cn/support/content/148187?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-08-07 01:26:40
+    - [在巨量本地推投线索，看这一篇就够了](https://localads.chengzijianzhan.cn/support/content/143205?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 16:35:26
+    - [UBMAX线索优必投（原自动投放UBL）周期稳投模式（可对外）](https://localads.chengzijianzhan.cn/support/content/143886?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-02-04 01:46:05
+    - [【本地推】线索深度转化产品投放指南](https://localads.chengzijianzhan.cn/support/content/145305?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-07-23 01:21:37
+    - [「对外」私信管理新流程升级说明](https://localads.chengzijianzhan.cn/support/content/163224?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-17 01:39:05
+    - [私信管理新流程升级说明-移动端](https://localads.chengzijianzhan.cn/support/content/163225?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-17 01:42:44
+    - [私信管理新流程升级说明-AI即用移动端](https://localads.chengzijianzhan.cn/support/content/163227?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-09-25 17:38:03
+  - **开户&资质认证&账户管理**
+    - [抖音号授权](https://localads.chengzijianzhan.cn/support/content/140263?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 11:24:49
+    - [合同签署](https://localads.chengzijianzhan.cn/support/content/128896?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-02-28 11:25:11
+    - [商家创建账户](https://localads.chengzijianzhan.cn/support/content/141776?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 11:05:56
+    - [客服咨询](https://localads.chengzijianzhan.cn/support/content/129382?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 18:52:54
+  - **计划创编&下单**
+    - [PC端投放创编](https://localads.chengzijianzhan.cn/support/content/129379?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 18:52:00
+    - [抖音端投放创编](https://localads.chengzijianzhan.cn/support/content/141780?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 14:43:04
+    - [【本地推】来客端本地推入口及创编](https://localads.chengzijianzhan.cn/support/content/144042?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 10:45:05
+    - [人群包定向](https://localads.chengzijianzhan.cn/support/content/129391?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-05 01:17:38
+  - **财务操作（充值&支付&退款)**
+    - [巨量本地推退款操作手册—对外版](https://localads.chengzijianzhan.cn/support/content/207163?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-03-27 01:09:53
+- **通知公告**
+  - [本地推搜索-智投方案投放活动-已结束](https://localads.chengzijianzhan.cn/support/content/201305?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-02-26 01:15:48
+  - [《巨量本地推 “全域推广” 成本保障规则》更新通知](https://localads.chengzijianzhan.cn/support/content/179902?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-10-29 10:56:54
+  - [抖音搜索双列-封面优化方案](https://localads.chengzijianzhan.cn/support/content/179897?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-06-24 01:36:58
+  - [巨量本地推挂接直客开户限制通知](https://localads.chengzijianzhan.cn/support/content/145072?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 11:43:12
+  - [《直播间引流承诺函》更新通知](https://localads.chengzijianzhan.cn/support/content/144471?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-04-14 15:51:33
+  - [《巨量本地推 “全域投放” 成本保障规则》更新通知](https://localads.chengzijianzhan.cn/support/content/144470?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 15:19:19
+  - [【本地推通知】警惕冒用巨量本地推名义实施的违法行为](https://localads.chengzijianzhan.cn/support/content/144148?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 16:53:03
+  - [【个人抖音号】商业合作授权定期、分批次复核启动通知](https://localads.chengzijianzhan.cn/support/content/143782?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 16:45:09
+  - [个人抖音号商业合作授权要求](https://localads.chengzijianzhan.cn/support/content/143704?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 14:55:35
+  - [【对外版*帮助中心】个人抖音号商业合作授权优化-产品手册 for 单方解除授权能力等升级 ](https://localads.chengzijianzhan.cn/support/content/143521?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-13 15:31:10
+  - [抖音号授权功能调整通知](https://localads.chengzijianzhan.cn/support/content/140907?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2024-05-08 16:22:06
+  - [抖音号授权关系变更通知](https://localads.chengzijianzhan.cn/support/content/140902?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-03 19:41:23
+  - [巨量本地推PC端新版本《手动出价成本保障规则》更新通知](https://localads.chengzijianzhan.cn/support/content/142845?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2024-12-30 20:32:33
+  - [巨量本地推｜门店客流分析报表产品手册](https://localads.chengzijianzhan.cn/support/content/136494?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-15 01:21:39
+- **案例分享**
+  - **线索投放案例**
+    - [线索案例 | 幼蒙考拉借助巨量本地推线索投放，实现线索&GMV双效突破](https://localads.chengzijianzhan.cn/support/content/143194?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 14:50:02
+    - [本地推线索-搜索showcase优秀案例合集—对客](https://localads.chengzijianzhan.cn/support/content/143710?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-06-25 01:37:56
+    - [线索案例｜鲜檬摄影引入巨量本地推线索投放，打造婚摄行业新高度](https://localads.chengzijianzhan.cn/support/content/143195?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 16:51:27
+  - **综合案例**
+    - [综合案例 @水裹汤泉生活馆](https://localads.chengzijianzhan.cn/support/content/129384?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 18:54:24
+    - [综合案例 @北派总部](https://localads.chengzijianzhan.cn/support/content/129697?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2022-11-21 18:37:28
+    - [综合案例 @中田健身工作室](https://localads.chengzijianzhan.cn/support/content/131395?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2023-01-06 14:15:43
+    - [综合案例 @伊丽汇](https://localads.chengzijianzhan.cn/support/content/132094?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2023-01-11 13:50:12
+    - [综合案例 @帕瑞戴斯美发店](https://localads.chengzijianzhan.cn/support/content/132887?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 19:05:04
+  - **餐饮案例**
+    - [☕️餐饮新品节点X搜索运营案例-瑞幸](https://localads.chengzijianzhan.cn/support/content/143711?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 16:49:17
+    - [餐饮案例 @船山区土货火锅店](https://localads.chengzijianzhan.cn/support/content/129383?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2023-01-06 14:13:17
+    - [餐饮案例 @T97咖啡旗舰店](https://localads.chengzijianzhan.cn/support/content/129455?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 19:02:20
+    - [餐饮案例 @喜姐炸串](https://localads.chengzijianzhan.cn/support/content/131396?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2023-01-06 14:15:57
+  - **茶饮案例**
+    - [茶饮案例 @茶百道官方宠粉号](https://localads.chengzijianzhan.cn/support/content/129695?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2022-11-18 11:49:54
+    - [茶饮案例 @霸王茶姬](https://localads.chengzijianzhan.cn/support/content/132053?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2023-01-06 14:12:53
+  - **酒旅案例**
+    - [酒旅案例 @苏州湾梦幻水世界](https://localads.chengzijianzhan.cn/support/content/129385?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 18:56:49
+    - [酒旅案例 @海南红角岭国际滑翔伞飞行营地](https://localads.chengzijianzhan.cn/support/content/129617?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 19:02:55
+    - [酒旅案例 @云上草原](https://localads.chengzijianzhan.cn/support/content/131584?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2023-01-06 14:27:33
+- **规则中心**
+  - **法律法规及平台规则**
+    - **准入规则**
+      - **新客入驻**
+        - [新客投广引导手册-本地推](https://localads.chengzijianzhan.cn/support/content/143548?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 14:14:46
+      - **定向准入行业**
+        - [巨量本地推可投放类目明细](https://localads.chengzijianzhan.cn/support/content/140229?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-03 20:45:31
+        - [本地推招商加盟行业准入规则](https://localads.chengzijianzhan.cn/support/content/141928?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-03 18:56:09
+        - [巨量本地推行业定向准入规则](https://localads.chengzijianzhan.cn/support/content/145156?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-05-19 15:10:13
+    - **资质规则**
+      - [资质高频违规问题-过审指南](https://localads.chengzijianzhan.cn/support/content/143981?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-16 01:17:04
+      - **主体资质**
+      - **行业资质**
+        - [招商加盟——资质上传客户使用手册](https://localads.chengzijianzhan.cn/support/content/145212?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-25 01:06:07
+      - **特殊资质**
+        - [肖像授权资质](https://localads.chengzijianzhan.cn/support/content/210632?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-06-23 17:49:26
+    - **内容规则**
+      - **禁投规则**
+        - [中危禁投品类规则解析-巨量本地推帮助中心](https://localads.chengzijianzhan.cn/support/content/143525?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-07-16 11:20:41
+        - [低危禁投品类规则解析-巨量本地推帮助中心](https://localads.chengzijianzhan.cn/support/content/143687?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-08-04 17:36:21
+        - [高危禁投品类规则解析-巨量本地推帮助中心](https://localads.chengzijianzhan.cn/support/content/143688?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-06-25 10:57:54
+      - **审核规则**
+        - [本地推房地产部分新开行业-投放审核规则新增](https://localads.chengzijianzhan.cn/support/content/189662?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-03-02 17:36:58
+        - [资质审核规范](https://localads.chengzijianzhan.cn/support/content/129550?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 15:05:10
+        - [不规范使用语言文字—专项治理公告](https://localads.chengzijianzhan.cn/support/content/129386?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-31 01:13:04
+        - [本地推素材管控规范—个债业务虚假描述](https://localads.chengzijianzhan.cn/support/content/142103?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 16:55:22
+      - **底线规则**
+    - **治理规则**
+      - [巨量本地推关于客户行为风险治理公告](https://localads.chengzijianzhan.cn/support/content/208590?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-05-19 15:45:02
+      - [巨量本地推关于撞审行为治理公告](https://localads.chengzijianzhan.cn/support/content/145033?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-05 01:17:49
+      - [巨量本地推“账户违规中心”-功能说明](https://localads.chengzijianzhan.cn/support/content/144552?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-03-04 01:21:24
+      - [【巨量本地推】客户损害平台利益违规行为治理公告](https://localads.chengzijianzhan.cn/support/content/144321?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-05 01:26:59
+      - [本地推服务行业投放行为违规整改指引](https://localads.chengzijianzhan.cn/support/content/144160?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-06-17 01:19:17
+      - [关于使用销售线索收集功能的本地推客户违规行为治理公告](https://localads.chengzijianzhan.cn/support/content/143812?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 14:47:54
+      - [风控预警通知——关于本地推个债业务虚假宣传违规的治理公告（更新）](https://localads.chengzijianzhan.cn/support/content/143454?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 17:53:24
+      - [巨量本地推平台服务管理规范 V3.1](https://localads.chengzijianzhan.cn/support/content/143208?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-31 11:17:14
+      - [巨量本地推平台服务积分管理规则 V1.0](https://localads.chengzijianzhan.cn/support/content/143207?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-04-23 01:26:01
+      - [巨量本地推投放管控规则调整公告](https://localads.chengzijianzhan.cn/support/content/142630?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 15:27:38
+      - [风控预警通知-针对团伙及多次违规投放的治理公告](https://localads.chengzijianzhan.cn/support/content/142263?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-05 01:22:29
+      - [风控预警通知-关于涉及色情导向投放的治理公告](https://localads.chengzijianzhan.cn/support/content/136873?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-25 01:18:03
+      - [风控预警通知—关于利用仿冒他人进行违规投放的治理公告](https://localads.chengzijianzhan.cn/support/content/140128?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-10 01:41:23
+      - [用户关联主体违规行为管理规则](https://localads.chengzijianzhan.cn/support/content/133347?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-24 01:06:47
+      - [风控预警通知-关于投放禁投内容违规行为的治理公告](https://localads.chengzijianzhan.cn/support/content/140397?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 17:55:00
+      - [风控预警通知-针对违规投放旅行社/邮轮线索计划的治理公告](https://localads.chengzijianzhan.cn/support/content/141868?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2024-12-30 20:32:34
+      - **判罚规则**
+        - [用户投诉处理行为规范](https://localads.chengzijianzhan.cn/support/content/147835?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-24 10:58:15
+        - [巨量本地推客户履约行为管理规范](https://localads.chengzijianzhan.cn/support/content/147834?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-25 01:33:46
+        - [巨量本地推用户投诉处理规则 ](https://localads.chengzijianzhan.cn/support/content/147833?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-24 11:00:39
+    - **产品规则**
+      - [巨量本地推线索投放成本保障规则](https://localads.chengzijianzhan.cn/support/content/210623?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-06-23 19:38:33
+      - [巨量本地推 “全域投放” 成本保障规则](https://localads.chengzijianzhan.cn/support/content/142825?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 14:18:22
+      - [巨量本地推成长任务通用规则](https://localads.chengzijianzhan.cn/support/content/140929?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 11:26:42
+      - [巨量本地推优惠权益使用规则 V8](https://localads.chengzijianzhan.cn/support/content/131821?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-22 19:18:57
+      - [oCPM/oCPC自动赔付规则介绍](https://localads.chengzijianzhan.cn/support/content/141769?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-17 21:04:36
+      - [搜索-精准素材标准](https://localads.chengzijianzhan.cn/support/content/141898?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 15:24:08
+      - [【巨量本地推】手动出价成本保障规则](https://localads.chengzijianzhan.cn/support/content/192127?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-04-07 15:42:40
+  - **行业规范及案例指引**
+    - **行业规范**
+      - [房地产行业-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/211988?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-07-28 12:00:10
+      - [本地推-家居建材-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/211784?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-07-18 01:27:41
+      - [暑期大促-丽人行业-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/211783?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-07-15 01:17:01
+      - [暑期大促-医疗机构-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/211676?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-07-11 01:31:47
+      - [暑期大促-教育培训&商务服务-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/211675?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-07-16 17:46:08
+      - [暑期大促-教育培训-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/208412?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-05-15 01:25:49
+      - [本地“虚假宣传”专项培训-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/207675?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-04-16 18:00:35
+      - [“618”大促-汽车后市场-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/207637?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-04-28 17:09:53
+      - [“618”大促-食品饮料类-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/207609?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-04-17 11:57:45
+      - [汽车行业（风险专项）-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/207545?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-04-28 17:11:19
+      - [“618”大促-服装配饰类-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/207529?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-04-28 17:07:37
+      - [“618”大促-3C&电器类-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/207527?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-04-28 17:08:29
+      - [商务服务类-投放审核规则解读](https://localads.chengzijianzhan.cn/support/content/195179?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-06-06 01:47:31
+      - [洗浴按摩类-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/191032?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-07-09 01:45:41
+      - [双旦/双11大促-服装配饰类-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/148113?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-02-11 01:55:37
+      - [双旦/双11大促-食品饮料-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/148112?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-31 01:19:42
+      - [双旦/双11大促-医疗健康类-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/148105?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-14 01:07:13
+      - [双旦/双11大促-3c数码家电行业-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/148087?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-14 01:26:34
+      - [双旦/双11大促-美妆日化-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/147926?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-02-11 01:28:08
+      - [双旦/双11大促-母婴行业-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/147910?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-14 01:40:33
+      - [暑期大促-餐饮酒旅类-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/146003?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-07-17 01:31:17
+      - [暑期大促-家居建材类-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/146002?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-14 01:05:41
+      - [“618”大促-美妆日化行业-投放审核规则解读](https://localads.chengzijianzhan.cn/support/content/144807?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-16 01:32:21
+      - [“618”大促-母婴行业-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/144924?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-04-03 01:04:51
+      - [“618”大促-健康行业&非医疗专项-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/145019?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-31 01:33:14
+      - [“618”大促-食品饮料行业-投放审核规则解读](https://localads.chengzijianzhan.cn/support/content/144806?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 17:07:17
+      - [“618”大促-服装配饰类-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/144983?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-31 01:49:46
+      - [“618”大促-3c数码家电行业-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/144923?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-14 01:47:59
+      - [口腔医院类-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/144837?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-31 01:35:39
+      - [丽人医美类-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/144836?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-31 01:19:33
+      - [孕产服务行业-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/144607?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-14 01:20:07
+      - [法律服务行业-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/144606?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-07-16 17:45:31
+      - [回收服务行业-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/144605?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-14 01:09:03
+      - [招商加盟行业-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/144604?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-14 01:42:43
+      - [教育行业-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/143602?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-14 01:14:57
+      - [餐饮、酒旅行业-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/143603?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-14 01:14:38
+      - [丽人行业-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/143604?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-14 01:44:03
+    - **案例解读**
+      - [本地推-房地产行业-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/208610?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-08-01 02:00:22
+      - [医药健康类-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/207941?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-07-25 01:17:30
+      - [“618”大促-母婴宠物类-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/207926?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-04-28 17:06:31
+      - [“618”大促-实体书籍类-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/207923?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-04-29 01:32:15
+      - [“618”大促-美妆日化类-素材审核规则解读](https://localads.chengzijianzhan.cn/support/content/207679?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-04-16 17:50:02
+      - [本地推综合行业（法律、孕产、招商、回收）-素材审核规则&违规案例](https://localads.chengzijianzhan.cn/support/content/144838?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-31 01:42:22
+      - [食品饮料行业—素材审核案例解读](https://localads.chengzijianzhan.cn/support/content/144207?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-14 01:34:15
+      - [服装配饰行业—素材审核案例解读](https://localads.chengzijianzhan.cn/support/content/144206?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-14 01:09:33
+      - [美妆日化行业—素材审核案例解读](https://localads.chengzijianzhan.cn/support/content/144205?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-06-15 03:01:41
+  - **规则变更及信息公示**
+    - **规则速递**
+      - [规则速递-巨量本地推6月期](https://localads.chengzijianzhan.cn/support/content/211835?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-07-14 15:05:10
+      - [巨量本地推手机租赁业务-投放准入规则调整](https://localads.chengzijianzhan.cn/support/content/210610?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-06-22 16:50:02
+      - [关于升级广告素材肖像授权机制的通知](https://localads.chengzijianzhan.cn/support/content/210599?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-06-17 18:05:02
+      - [广告提示语-投放审核规则新增](https://localads.chengzijianzhan.cn/support/content/208569?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-05-18 16:40:02
+      - [【账户规则新增】整装服务报价单](https://localads.chengzijianzhan.cn/support/content/207594?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-04-07 11:00:02
+      - [报废车回收资质-投放审核规则新增](https://localads.chengzijianzhan.cn/support/content/206652?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-03-05 15:10:03
+      - [规则速递-11月期](https://localads.chengzijianzhan.cn/support/content/185692?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-11-14 15:16:13
+      - [专注力/注意力训练定向准入通知-投放审核规则调整](https://localads.chengzijianzhan.cn/support/content/146618?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-11-11 01:07:49
+      - [素材审核规范-演出票务售卖素材投放形式禁投](https://localads.chengzijianzhan.cn/support/content/146231?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-27 01:29:14
+      - [素材审核规范-地图标注服务禁投](https://localads.chengzijianzhan.cn/support/content/146230?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-27 01:15:17
+      - [素材审核规范-足疗/按摩/SPA服务线索素材](https://localads.chengzijianzhan.cn/support/content/144031?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-27 01:38:45
+      - [素材审核规范-整装家具虚假一口价 ](https://localads.chengzijianzhan.cn/support/content/143929?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 17:44:39
+      - [素材审核规范-酒类素材投放形式调整](https://localads.chengzijianzhan.cn/support/content/143890?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-27 01:11:13
+      - [素材审核规范-解除限制高消费（对客户）  ](https://localads.chengzijianzhan.cn/support/content/143672?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 18:05:53
+  - **协议专区**
+    - [【巨量本地推】线索回传工具个人信息和数据保护承诺函](https://localads.chengzijianzhan.cn/support/content/144928?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-03 20:14:55
+    - [【巨量本地推】线索回传工具数据处理安全声明](https://localads.chengzijianzhan.cn/support/content/144927?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-03 19:42:57
+    - [【巨量本地推】直播间引流承诺函](https://localads.chengzijianzhan.cn/support/content/142852?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-22 19:36:25
+    - [“直播全域商品购买”产品功能服务协议](https://localads.chengzijianzhan.cn/support/content/142851?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-22 19:33:12
+    - [“全域投放”产品功能服务协议](https://localads.chengzijianzhan.cn/support/content/142850?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-22 19:27:55
+    - [巨量本地推平台服务协议 V6.0](https://localads.chengzijianzhan.cn/support/content/142828?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 17:47:10
+    - [【巨量本地推】隐私政策](https://localads.chengzijianzhan.cn/support/content/142179?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-03 19:27:41
+- **常见问题**
+  - **账号问题**
+    - [抖音号授权常见问题](https://localads.chengzijianzhan.cn/support/content/136744?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2024-03-12 11:43:38
+    - [注销常见问题](https://localads.chengzijianzhan.cn/support/content/139837?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 14:25:01
+  - **发票问题**
+    - [开票常见问题](https://localads.chengzijianzhan.cn/support/content/136746?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-04-28 19:41:10
+    - [【电子版发票】QA文档-可对外](https://localads.chengzijianzhan.cn/support/content/139782?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-03-26 17:01:10
+  - **充值和退款问题**
+    - [充值常见问题](https://localads.chengzijianzhan.cn/support/content/129394?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 19:01:45
+    - [退款常见问题](https://localads.chengzijianzhan.cn/support/content/141518?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2024-06-28 10:49:35
+  - **数据查看问题**
+    - [数据查看常见问题](https://localads.chengzijianzhan.cn/support/content/136745?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2025-12-04 15:49:14
+  - **合同和资质问题**
+    - [资质常见问题](https://localads.chengzijianzhan.cn/support/content/136743?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2023-07-04 22:28:25
+    - [合同常见问题](https://localads.chengzijianzhan.cn/support/content/129392?graphId=526&mappingType=2&pageId=305&spaceId=174) — 更新 2026-01-12 19:00:40
+
+## 使用规则
+
+- 回答具体产品能力、赔付、审核、开户、计费或界面操作时，先打开对应官方文章核对当前版本。
+- 目录中的 `modify_time_unix` 和文章 `modified_at` 用于判断新旧；同题冲突时优先采用更新时间更晚且仍在线的官方页面。
+- 历史快照、已结束活动与已下线页面只能作为背景，不得当作当前政策。
+- 不把经验阈值写成平台保证；投放建议需结合行业、客单、毛利、核销周期和账户样本量。

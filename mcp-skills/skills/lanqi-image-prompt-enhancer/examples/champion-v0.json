@@ -1,0 +1,17 @@
+{
+  "version": "champion-v0-rule-list",
+  "capturedAt": "2026-08-14",
+  "singleVariableToImprove": "replace_rule_list_with_structured_model_ready_prompt",
+  "sameCaseSet": "eval-cases.json",
+  "scores": {
+    "intentRetention": 62,
+    "subjectConsistency": 55,
+    "compositionExecutability": 18,
+    "styleConsistency": 34,
+    "factBoundary": 82,
+    "textHandling": 40,
+    "negativeConstraints": 10,
+    "modelParameterValidity": 12
+  },
+  "knownFailure": "The previous final prompt mixed purpose, billing-adjacent governance and review rules with the drawing description, and supplied no negative prompt or model parameters."
+}

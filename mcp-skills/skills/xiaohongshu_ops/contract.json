@@ -1,0 +1,15 @@
+{
+  "skillId": "xiaohongshu_ops",
+  "version": "1.0.0",
+  "scope": "xiaohongshu_copy_only",
+  "qualityBar": "sample_grade",
+  "minLength": 180,
+  "scoreThreshold": 88,
+  "requiredSections": ["标题候选", "正文", "话题标签", "互动与承接", "发布前核对"],
+  "requiredTerms": ["标题候选", "正文", "话题标签", "互动与承接", "发布前核对"],
+  "requiredDeliverables": ["3个标题候选", "1篇完整小红书正文", "5至8个话题标签", "评论互动和承接动作", "事实核对清单"],
+  "forbiddenTerms": ["文生视频", "图生视频", "生成配图", "投流计划", "保证效果", "稳赚", "根治"],
+  "styleRules": ["具体自然", "只用已确认事实", "兰琪知识版本可追溯", "不暴露内部信息"],
+  "failurePatterns": ["冒充兰琪方法论", "编造事实或平台数据", "自动生成媒体或声称发布", "泄露其他租户资料"],
+  "repairInstruction": "只保留标题候选、正文、话题标签、互动与承接、发布前核对；删除媒体、投流、发布和无依据事实。"
+}

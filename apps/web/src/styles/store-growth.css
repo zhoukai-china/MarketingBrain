@@ -2972,6 +2972,104 @@ pre {
   text-decoration: none;
 }
 
+.loginChooserCard {
+  max-width: 760px;
+}
+
+.productLoginChoices {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.productLoginChoices a {
+  min-height: 190px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--text);
+  text-decoration: none;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(217, 184, 117, 0.09), rgba(43, 208, 189, 0.045));
+  transition: transform .2s, border-color .2s;
+}
+
+.productLoginChoices a:hover,
+.productLoginChoices a:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--gold);
+}
+
+.productLoginChoices strong {
+  font-size: 17px;
+  line-height: 1.4;
+}
+
+.productLoginChoices span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.productLoginChoices em {
+  margin-top: auto;
+  color: var(--gold);
+  font-style: normal;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.productInviteHint {
+  margin: 20px 0 0;
+  padding: 13px 15px;
+  color: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.internalOnboardingLink,
+.switchProductLink {
+  display: block;
+  margin-top: 14px;
+  color: var(--soft);
+  text-align: center;
+  font-size: 12px;
+}
+
+.validatedInvite {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  color: var(--teal);
+  border: 1px solid rgba(43, 208, 189, .28);
+  border-radius: 9px;
+  background: rgba(43, 208, 189, .07);
+  font-size: 12px;
+}
+
+.validatedInvite button {
+  padding: 3px 8px;
+  color: var(--soft);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.product-founder-ip .loginBadge { color: #e7c580; }
+.product-takeaway .loginBadge { color: #7dd3fc; }
+.product-lanqi .loginBadge { color: #f0a7c1; }
+
+@media (max-width: 700px) {
+  .productLoginChoices { grid-template-columns: 1fr; }
+  .productLoginChoices a { min-height: 0; }
+  .loginInlineFields { grid-template-columns: 1fr; }
+}
+
 /* ===== WeChat Login Button ===== */
 .wechatLoginSection {
   margin-top: 18px;

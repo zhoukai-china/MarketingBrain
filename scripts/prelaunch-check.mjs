@@ -24,6 +24,9 @@ const warnings = [];
 
 requireValue("NODE_ENV", "production");
 requireValue("DATA_MODE", "database");
+if (env.LLM_MOCK_MODE === "true" || env.USE_MOCK_LLM === "true") {
+  issues.push("Production prelaunch forbids LLM_MOCK_MODE and USE_MOCK_LLM.");
+}
 requirePresent("DATABASE_URL");
 const llm = getActiveDomesticLlmConfig();
 if (!llm) {
@@ -82,6 +85,7 @@ checkAllowedHosts("DOMESTIC_OUTBOUND_ALLOWLIST", allowlist);
 if (llm) {
   checkDomesticUrl(llm.baseUrlEnv, env[llm.baseUrlEnv], allowlist);
 }
+checkLanqiLowRiskTextCandidate(allowlist);
 for (const [index, sourceUrl] of parseAllowedHosts(env.AI_DAILY_NEWS_SOURCES ?? "").entries()) {
   if (sourceUrl.startsWith("http")) {
     checkDomesticUrl(`AI_DAILY_NEWS_SOURCES[${index}]`, sourceUrl, allowlist);
@@ -204,6 +208,25 @@ function getActiveDomesticLlmConfig() {
     };
   }
   return null;
+}
+
+function checkLanqiLowRiskTextCandidate(allowlist) {
+  const enabled = env.LANQI_LOW_RISK_TEXT_ENABLED === "true";
+  const evalApproved = env.LANQI_LOW_RISK_TEXT_EVAL_APPROVED === "true";
+  if (!enabled && !evalApproved) return;
+  if (!enabled || !evalApproved) {
+    issues.push("Lanqi low-risk text candidate requires both explicit enablement and Eval approval");
+  }
+  const model = env.LANQI_LOW_RISK_TEXT_MODEL || "qwen3.8-flash";
+  if (!new Set(["deepseek-v4-flash", "qwen3.8-flash"]).has(model)) {
+    issues.push(`LANQI_LOW_RISK_TEXT_MODEL is not an approved Lanqi candidate: ${model}`);
+    return;
+  }
+  const apiKeyEnv = model === "qwen3.8-flash" ? "ALIYUN_API_KEY" : "DEEPSEEK_API_KEY";
+  const baseUrlEnv = model === "qwen3.8-flash" ? "ALIYUN_BASE_URL" : "DEEPSEEK_BASE_URL";
+  requirePresent(apiKeyEnv);
+  requireUrl(baseUrlEnv);
+  checkDomesticUrl(baseUrlEnv, env[baseUrlEnv], allowlist);
 }
 
 function requireApprovedStrongDomesticModel(name) {

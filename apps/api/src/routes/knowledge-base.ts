@@ -166,6 +166,42 @@ interface DemoSubject extends KnowledgeSubjectSummary {
   updatedAt: Date;
 }
 
+interface DemoSyncJob {
+  id: string;
+  tenantId: string;
+  connectionId: string;
+  requestedByUserId?: string;
+  subjectId?: string;
+  clientRequestId?: string;
+  status: "queued" | "running" | "succeeded" | "failed" | "interrupted";
+  stage: string;
+  retryable: boolean;
+  scanned: number;
+  processed: number;
+  total?: number;
+  createdCount: number;
+  updatedCount: number;
+  unchangedCount: number;
+  skippedCount: number;
+  failedCount: number;
+  assignedCount: number;
+  listRequests: number;
+  detailRequests: number;
+  retryCount: number;
+  throttleMs: number;
+  backoffMs: number;
+  phaseDurations?: Record<string, number>;
+  importedByType?: Record<string, number>;
+  errorCode?: string;
+  errorMessage?: string;
+  heartbeatAt?: Date;
+  startedAt?: Date;
+  completedAt?: Date;
+  lastSuccessfulAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface KnowledgeContextDocument {
   id: string;
   title: string;
@@ -184,6 +220,8 @@ const demoConnections = new Map<string, DemoConnection>();
 const demoDocuments = new Map<string, DemoDocument>();
 const demoSubjects = new Map<string, DemoSubject>();
 const demoBatches = new Map<string, Record<string, any>>();
+const demoSyncJobs = new Map<string, DemoSyncJob>();
+const scheduledSyncJobs = new Set<string>();
 let demoStoreLoaded = false;
 
 export async function registerKnowledgeBaseRoutes(app: FastifyInstance, provider: LlmProvider): Promise<void> {
@@ -196,7 +234,9 @@ export async function registerKnowledgeBaseRoutes(app: FastifyInstance, provider
 });
 
 const connectionSyncSchema = z.object({
-  subjectId: z.string().trim().min(1).max(120).optional()
+  subjectId: z.string().trim().min(1).max(120).optional(),
+  clientRequestId: z.string().trim().min(8).max(120).optional(),
+  clientStartedAt: z.coerce.number().int().positive().optional()
 });
 
   app.post("/knowledge-base/subjects", async (request, reply) => {
@@ -569,6 +609,31 @@ const connectionSyncSchema = z.object({
     if (!connection) return reply.code(404).send({ error: "connection_not_found" });
     const subject = parsed.data.subjectId ? await findKnowledgeSubject(context, parsed.data.subjectId) : await findDefaultKnowledgeSubject(context);
     if (parsed.data.subjectId && !subject) return reply.code(400).send({ error: "knowledge_subject_not_found", message: "当前知识主体不存在或不属于本企业。" });
+    if (connection.provider === "getnote") {
+      const acceptedAt = Date.now();
+      const requestFingerprint = parsed.data.clientRequestId
+        ? createHash("sha256").update(parsed.data.clientRequestId).digest("hex").slice(0, 16)
+        : undefined;
+      const clientToApiMs = parsed.data.clientStartedAt
+        ? Math.max(0, Math.min(60_000, acceptedAt - parsed.data.clientStartedAt))
+        : undefined;
+      const { job, reused } = await createOrReuseKnowledgeSyncJob(context, connection.id, {
+        subjectId: subject?.id,
+        clientRequestId: requestFingerprint
+      });
+      scheduleKnowledgeSyncJob(app, context, connection.id, job.id);
+      request.log.info({
+        event: "knowledge_sync_accepted",
+        tenantId: context.tenantId,
+        connectionId: connection.id,
+        syncJobId: job.id,
+        reused,
+        requestFingerprint,
+        clientToApiMs,
+        queueAcceptMs: Date.now() - acceptedAt
+      }, "knowledge sync accepted");
+      return reply.code(202).send({ sync: publicSyncJob(job), reused });
+    }
     try {
       const pulled: PlatformKnowledgeSyncResult & { nextCursor?: string } = connection.provider === "getnote"
         ? await pullGetNoteTranscripts(decryptKnowledgeCredentials<GetNoteCredentials>(connection.encryptedCredentials), { cursor: connection.syncCursor ?? undefined, maxPages: 5 })
@@ -681,6 +746,28 @@ const connectionSyncSchema = z.object({
       }
       return reply.code(502).send({ error: `${connection.provider}_sync_failed`, message: publicMessage, failureKind });
     }
+  });
+
+  app.get<{ Params: { id: string } }>("/knowledge-base/connections/:id/sync", async (request, reply) => {
+    const context = await resolveRequestContext(request.headers);
+    requireKnowledgeAdmin(context);
+    const connection = await findConnection(context, request.params.id);
+    if (!connection) return reply.code(404).send({ error: "connection_not_found" });
+    const job = await latestKnowledgeSyncJob(context, connection.id);
+    if (!job) return reply.code(404).send({ error: "sync_job_not_found", message: "该连接还没有同步任务。" });
+    const recovered = await failStaleKnowledgeSyncJob(context, job);
+    if (recovered.status === "queued") scheduleKnowledgeSyncJob(app, context, connection.id, recovered.id);
+    return { sync: publicSyncJob(recovered) };
+  });
+
+  app.get<{ Params: { id: string } }>("/knowledge-base/sync-jobs/:id", async (request, reply) => {
+    const context = await resolveRequestContext(request.headers);
+    requireKnowledgeAdmin(context);
+    const job = await findKnowledgeSyncJob(context, request.params.id);
+    if (!job) return reply.code(404).send({ error: "sync_job_not_found" });
+    const recovered = await failStaleKnowledgeSyncJob(context, job);
+    if (recovered.status === "queued") scheduleKnowledgeSyncJob(app, context, recovered.connectionId, recovered.id);
+    return { sync: publicSyncJob(recovered) };
   });
 
   app.delete<{ Params: { id: string } }>("/knowledge-base/connections/:id", async (request, reply) => {
@@ -1177,6 +1264,253 @@ function isExtractableKnowledgeFile(filename: string, mimeType: string): boolean
   return mimeType.startsWith("text/") || /\.(txt|md|csv|tsv|json|log)$/i.test(filename);
 }
 
+const KNOWLEDGE_SYNC_STALE_MS = 90_000;
+
+async function createOrReuseKnowledgeSyncJob(
+  context: RequestContext,
+  connectionId: string,
+  input: { subjectId?: string; clientRequestId?: string }
+): Promise<{ job: any; reused: boolean }> {
+  const active = await activeKnowledgeSyncJob(context, connectionId);
+  if (active) {
+    const recovered = await failStaleKnowledgeSyncJob(context, active);
+    if (recovered.status === "queued" || recovered.status === "running") return { job: recovered, reused: true };
+  }
+  const now = new Date();
+  if (context.source === "demo") {
+    const existing = [...demoSyncJobs.values()].find((item) => item.tenantId === context.tenantId && item.connectionId === connectionId && ["queued", "running"].includes(item.status));
+    if (existing) return { job: existing, reused: true };
+    const job: DemoSyncJob = {
+      id: randomUUID(), tenantId: context.tenantId, connectionId, requestedByUserId: context.userId,
+      subjectId: input.subjectId, clientRequestId: input.clientRequestId, status: "queued", stage: "queued", retryable: false,
+      scanned: 0, processed: 0, createdCount: 0, updatedCount: 0, unchangedCount: 0, skippedCount: 0,
+      failedCount: 0, assignedCount: 0, listRequests: 0, detailRequests: 0, retryCount: 0,
+      throttleMs: 0, backoffMs: 0, createdAt: now, updatedAt: now
+    };
+    demoSyncJobs.set(job.id, job);
+    await persistDemoKnowledgeStore();
+    return { job, reused: false };
+  }
+  try {
+    const job = await prisma.knowledgeSyncJob.create({ data: {
+      tenantId: context.tenantId, connectionId, requestedByUserId: context.userId,
+      subjectId: input.subjectId, clientRequestId: input.clientRequestId
+    } });
+    return { job, reused: false };
+  } catch (error) {
+    if ((error as { code?: string }).code !== "P2002") throw error;
+    const raced = await activeKnowledgeSyncJob(context, connectionId);
+    if (!raced) throw error;
+    return { job: raced, reused: true };
+  }
+}
+
+async function activeKnowledgeSyncJob(context: RequestContext, connectionId: string): Promise<any | null> {
+  if (context.source === "demo") {
+    return [...demoSyncJobs.values()]
+      .filter((item) => item.tenantId === context.tenantId && item.connectionId === connectionId && ["queued", "running"].includes(item.status))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] ?? null;
+  }
+  return prisma.knowledgeSyncJob.findFirst({
+    where: { tenantId: context.tenantId, connectionId, status: { in: ["queued", "running"] } },
+    orderBy: { createdAt: "desc" }
+  });
+}
+
+async function latestKnowledgeSyncJob(context: RequestContext, connectionId: string): Promise<any | null> {
+  if (context.source === "demo") {
+    return [...demoSyncJobs.values()]
+      .filter((item) => item.tenantId === context.tenantId && item.connectionId === connectionId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] ?? null;
+  }
+  return prisma.knowledgeSyncJob.findFirst({ where: { tenantId: context.tenantId, connectionId }, orderBy: { createdAt: "desc" } });
+}
+
+async function findKnowledgeSyncJob(context: RequestContext, id: string): Promise<any | null> {
+  if (context.source === "demo") return demoSyncJobs.get(id)?.tenantId === context.tenantId ? demoSyncJobs.get(id)! : null;
+  return prisma.knowledgeSyncJob.findFirst({ where: { id, tenantId: context.tenantId } });
+}
+
+async function updateKnowledgeSyncJob(context: RequestContext, id: string, data: Record<string, unknown>): Promise<any> {
+  if (context.source === "demo") {
+    const current = demoSyncJobs.get(id);
+    if (!current || current.tenantId !== context.tenantId) throw new Error("sync_job_not_found");
+    const updated = { ...current, ...data, updatedAt: new Date() } as DemoSyncJob;
+    demoSyncJobs.set(id, updated);
+    await persistDemoKnowledgeStore();
+    return updated;
+  }
+  return prisma.knowledgeSyncJob.update({ where: { id }, data: data as any });
+}
+
+async function failStaleKnowledgeSyncJob(context: RequestContext, job: any): Promise<any> {
+  if (job.status !== "running") return job;
+  const heartbeatAt = job.heartbeatAt ? new Date(job.heartbeatAt).getTime() : new Date(job.startedAt ?? job.createdAt).getTime();
+  if (Date.now() - heartbeatAt <= KNOWLEDGE_SYNC_STALE_MS) return job;
+  return updateKnowledgeSyncJob(context, job.id, {
+    status: "interrupted", stage: "interrupted", retryable: true, completedAt: new Date(),
+    errorCode: "sync_process_interrupted", errorMessage: "同步进程已中断，可从上次成功水位重新发起。"
+  });
+}
+
+function scheduleKnowledgeSyncJob(app: FastifyInstance, context: RequestContext, connectionId: string, jobId: string): void {
+  if (scheduledSyncJobs.has(jobId)) return;
+  scheduledSyncJobs.add(jobId);
+  setTimeout(() => {
+    void runKnowledgeSyncJob(app, context, connectionId, jobId)
+      .catch((error) => app.log.error({ event: "knowledge_sync_runner_crashed", syncJobId: jobId, reason: error instanceof Error ? error.message : "unknown" }, "knowledge sync runner crashed"))
+      .finally(() => scheduledSyncJobs.delete(jobId));
+  }, 0);
+}
+
+async function runKnowledgeSyncJob(app: FastifyInstance, context: RequestContext, connectionId: string, jobId: string): Promise<void> {
+  const job = await findKnowledgeSyncJob(context, jobId);
+  if (!job || job.status !== "queued") return;
+  const connection = await findConnection(context, connectionId);
+  if (!connection || connection.provider !== "getnote") {
+    await updateKnowledgeSyncJob(context, jobId, { status: "failed", stage: "failed", retryable: false, completedAt: new Date(), errorCode: "connection_not_found", errorMessage: "同步连接不存在或类型不匹配。" });
+    return;
+  }
+  const startedAt = new Date();
+  const phaseStartedAt = new Map<string, number>();
+  const phaseDurations: Record<string, number> = {};
+  let lastStage = "queued";
+  const markStage = async (stage: string, data: Record<string, unknown> = {}): Promise<void> => {
+    const now = Date.now();
+    const previousStart = phaseStartedAt.get(lastStage);
+    if (previousStart !== undefined) phaseDurations[lastStage] = (phaseDurations[lastStage] ?? 0) + Math.max(0, now - previousStart);
+    phaseStartedAt.set(stage, now);
+    lastStage = stage;
+    await updateKnowledgeSyncJob(context, jobId, { stage, heartbeatAt: new Date(now), phaseDurations, ...data });
+    app.log.info({ event: "knowledge_sync_stage", tenantId: context.tenantId, connectionId, syncJobId: jobId, stage, ...data }, "knowledge sync stage");
+  };
+  await updateKnowledgeSyncJob(context, jobId, { status: "running", stage: "listing", startedAt, heartbeatAt: startedAt, errorCode: null, errorMessage: null });
+  phaseStartedAt.set("listing", startedAt.getTime());
+  try {
+    const knownRows = context.source === "demo"
+      ? [...demoDocuments.values()].filter((item) => item.tenantId === context.tenantId && item.connectionId === connectionId)
+      : await prisma.knowledgeDocument.findMany({ where: { tenantId: context.tenantId, connectionId }, select: { externalId: true, externalUpdatedAt: true, contentHash: true } });
+    const knownDocuments = new Map(knownRows.map((item) => [item.externalId, { externalUpdatedAt: item.externalUpdatedAt, contentHash: item.contentHash }]));
+    const pulled = await pullGetNoteTranscripts(
+      decryptKnowledgeCredentials<GetNoteCredentials>(connection.encryptedCredentials),
+      {
+        cursor: connection.syncCursor ?? undefined,
+        maxPages: 5,
+        knownDocuments,
+        onObservation: async (observation) => {
+          await markStage(observation.stage, {
+            scanned: observation.scanned, processed: observation.processed, total: observation.scanned,
+            unchangedCount: observation.unchanged, failedCount: observation.failed,
+            listRequests: observation.listRequests, detailRequests: observation.detailRequests,
+            retryCount: observation.retryCount, throttleMs: observation.throttleMs, backoffMs: observation.backoffMs
+          });
+        }
+      }
+    );
+    await markStage("persisting", { scanned: pulled.scanned, total: pulled.scanned, processed: pulled.unchanged + pulled.skipped + pulled.failed });
+    let created = 0;
+    let updated = 0;
+    let unchanged = pulled.unchanged;
+    for (const document of pulled.documents) {
+      if (context.source === "demo") {
+        const existing = [...demoDocuments.values()].find((item) => item.tenantId === context.tenantId && item.connectionId === connection.id && item.externalId === document.externalId);
+        if (existing?.contentHash === document.contentHash) {
+          unchanged += 1;
+        } else {
+          const now = new Date();
+          const record: DemoDocument = {
+            id: existing?.id ?? randomUUID(), tenantId: context.tenantId, connectionId: connection.id,
+            externalId: document.externalId, documentType: document.documentType, sourceClass: "first_party",
+            knowledgeLayer: existing?.knowledgeLayer ?? "raw_private", usagePolicy: existing?.usagePolicy ?? "recommend",
+            sensitivity: existing?.sensitivity ?? "normal", confirmedAt: existing?.confirmedAt, industry: existing?.industry,
+            subjectIds: job.subjectId ? Array.from(new Set([...(existing?.subjectIds ?? []), job.subjectId])) : existing?.subjectIds ?? [],
+            title: document.title, content: document.content, occurredAt: document.occurredAt,
+            externalUpdatedAt: document.externalUpdatedAt, contentHash: document.contentHash, metadata: document.metadata,
+            createdAt: existing?.createdAt ?? now, updatedAt: now
+          };
+          demoDocuments.set(record.id, record);
+          existing ? updated += 1 : created += 1;
+        }
+      } else {
+        const existing = await prisma.knowledgeDocument.findUnique({ where: { connectionId_externalId: { connectionId, externalId: document.externalId } }, select: { id: true, contentHash: true } });
+        if (existing?.contentHash === document.contentHash) {
+          unchanged += 1;
+          if (job.subjectId) await prisma.knowledgeDocumentSubject.upsert({ where: { documentId_subjectId: { documentId: existing.id, subjectId: job.subjectId } }, create: { documentId: existing.id, subjectId: job.subjectId }, update: {} });
+        } else {
+          const saved = await prisma.knowledgeDocument.upsert({
+            where: { connectionId_externalId: { connectionId, externalId: document.externalId } },
+            create: { ...document, metadata: document.metadata as any, tenantId: context.tenantId, connectionId, sourceClass: "first_party", ...(job.subjectId ? { subjects: { create: { subjectId: job.subjectId } } } : {}) },
+            update: { ...document, metadata: document.metadata as any }
+          });
+          if (job.subjectId && existing) await prisma.knowledgeDocumentSubject.upsert({ where: { documentId_subjectId: { documentId: saved.id, subjectId: job.subjectId } }, create: { documentId: saved.id, subjectId: job.subjectId }, update: {} });
+          existing ? updated += 1 : created += 1;
+        }
+      }
+      await updateKnowledgeSyncJob(context, jobId, { createdCount: created, updatedCount: updated, unchangedCount: unchanged, processed: Math.min(pulled.scanned, pulled.unchanged + pulled.skipped + pulled.failed + created + updated + (unchanged - pulled.unchanged)), heartbeatAt: new Date() });
+    }
+    await markStage("binding", { createdCount: created, updatedCount: updated, unchangedCount: unchanged });
+    const assigned = job.subjectId ? await assignConnectionDocumentsToSubject(context, connectionId, job.subjectId) : 0;
+    const completedAt = new Date();
+    const partial = pulled.failed > 0;
+    if (!partial) {
+      if (context.source === "demo") {
+        const record = connection as DemoConnection;
+        Object.assign(record, { syncCursor: pulled.nextCursor, lastSyncedAt: completedAt, lastError: undefined, status: "active", updatedAt: completedAt });
+        demoConnections.set(record.id, record);
+      } else {
+        await prisma.knowledgeConnection.update({ where: { id: connectionId }, data: { syncCursor: pulled.nextCursor, lastSyncedAt: completedAt, lastError: null, status: "active" } });
+      }
+    }
+    const terminal = await updateKnowledgeSyncJob(context, jobId, {
+      status: partial ? "failed" : "succeeded", stage: partial ? "partial_failure" : "completed", retryable: partial,
+      scanned: pulled.scanned, processed: pulled.scanned, total: pulled.scanned,
+      createdCount: created, updatedCount: updated, unchangedCount: unchanged, skippedCount: pulled.skipped,
+      failedCount: pulled.failed, assignedCount: assigned, listRequests: pulled.listRequests, detailRequests: pulled.detailRequests,
+      retryCount: pulled.retryCount, throttleMs: pulled.throttleMs, backoffMs: pulled.backoffMs,
+      importedByType: pulled.importedByType, phaseDurations, completedAt, heartbeatAt: completedAt,
+      lastSuccessfulAt: partial ? connection.lastSyncedAt ?? null : completedAt,
+      errorCode: partial ? "getnote_partial_detail_failure" : null,
+      errorMessage: partial ? "部分资料读取失败；已保存成功条目，未推进同步水位，可安全重试。" : null
+    });
+    await persistDemoKnowledgeStore();
+    app.log.info({ event: partial ? "knowledge_sync_failed" : "knowledge_sync_completed", tenantId: context.tenantId, connectionId, syncJobId: jobId, status: terminal.status, scanned: pulled.scanned, created, updated, unchanged, skipped: pulled.skipped, failed: pulled.failed, listRequests: pulled.listRequests, detailRequests: pulled.detailRequests, retryCount: pulled.retryCount, throttleMs: pulled.throttleMs, backoffMs: pulled.backoffMs, durationMs: completedAt.getTime() - startedAt.getTime() }, "knowledge sync terminal");
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "sync_failed";
+    const failureKind = classifyGetNoteFailure(reason);
+    const completedAt = new Date();
+    const publicMessage = getNoteSyncErrorMessage(reason);
+    await updateKnowledgeSyncJob(context, jobId, {
+      status: "failed", stage: "failed", retryable: failureKind !== "authorization", completedAt, heartbeatAt: completedAt,
+      errorCode: `getnote_${failureKind}_failure`, errorMessage: publicMessage, phaseDurations
+    });
+    if (context.source === "demo") {
+      const record = connection as DemoConnection;
+      record.lastError = publicMessage;
+      record.status = failureKind === "authorization" ? "error" : "active";
+      demoConnections.set(record.id, record);
+      await persistDemoKnowledgeStore();
+    } else {
+      await prisma.knowledgeConnection.update({ where: { id: connectionId }, data: { lastError: publicMessage, status: failureKind === "authorization" ? "error" : "active" } });
+    }
+    app.log.warn({ event: "knowledge_sync_failed", tenantId: context.tenantId, connectionId, syncJobId: jobId, failureKind, stage: lastStage, durationMs: completedAt.getTime() - startedAt.getTime() }, "knowledge sync failed");
+  }
+}
+
+function publicSyncJob(job: any): Record<string, unknown> {
+  return {
+    id: job.id, connectionId: job.connectionId, status: job.status, stage: job.stage, retryable: Boolean(job.retryable),
+    scanned: job.scanned ?? 0, processed: job.processed ?? 0, total: job.total ?? null,
+    created: job.createdCount ?? 0, updated: job.updatedCount ?? 0, unchanged: job.unchangedCount ?? 0,
+    skipped: job.skippedCount ?? 0, failed: job.failedCount ?? 0, assignedToSubject: job.assignedCount ?? 0,
+    listRequests: job.listRequests ?? 0, detailRequests: job.detailRequests ?? 0, retryCount: job.retryCount ?? 0,
+    throttleMs: job.throttleMs ?? 0, backoffMs: job.backoffMs ?? 0, phaseDurations: job.phaseDurations ?? {},
+    importedByType: job.importedByType ?? { transcripts: 0, notes: 0, webPages: 0 },
+    errorCode: job.errorCode ?? null, message: job.errorMessage ?? null,
+    startedAt: job.startedAt ?? null, completedAt: job.completedAt ?? null,
+    lastSuccessfulAt: job.lastSuccessfulAt ?? null, createdAt: job.createdAt, updatedAt: job.updatedAt
+  };
+}
+
 async function findConnection(context: RequestContext, id: string): Promise<any | null> {
   if (context.source === "demo") return demoConnections.get(id)?.tenantId === context.tenantId ? demoConnections.get(id)! : null;
   return prisma.knowledgeConnection.findFirst({ where: { id, tenantId: context.tenantId } });
@@ -1594,6 +1928,7 @@ async function restoreDemoKnowledgeStore(): Promise<void> {
       documents?: DemoDocument[];
       subjects?: DemoSubject[];
       batches?: Array<Record<string, any>>;
+      syncJobs?: DemoSyncJob[];
     };
     for (const item of raw.connections ?? []) {
       demoConnections.set(item.id, {
@@ -1628,6 +1963,16 @@ async function restoreDemoKnowledgeStore(): Promise<void> {
         completedAt: item.completedAt ? new Date(item.completedAt) : undefined
       });
     }
+    for (const item of raw.syncJobs ?? []) {
+      demoSyncJobs.set(item.id, {
+        ...item,
+        createdAt: new Date(item.createdAt), updatedAt: new Date(item.updatedAt),
+        heartbeatAt: item.heartbeatAt ? new Date(item.heartbeatAt) : undefined,
+        startedAt: item.startedAt ? new Date(item.startedAt) : undefined,
+        completedAt: item.completedAt ? new Date(item.completedAt) : undefined,
+        lastSuccessfulAt: item.lastSuccessfulAt ? new Date(item.lastSuccessfulAt) : undefined
+      });
+    }
   } catch {
     // The demo store is optional and is created after the first mutation.
   }
@@ -1642,7 +1987,8 @@ async function persistDemoKnowledgeStore(): Promise<void> {
       connections: [...demoConnections.values()],
       documents: [...demoDocuments.values()],
       subjects: [...demoSubjects.values()],
-      batches: [...demoBatches.values()]
+      batches: [...demoBatches.values()],
+      syncJobs: [...demoSyncJobs.values()]
     }), "utf8");
   } catch {
     // Persistence must not break an otherwise successful demo request.

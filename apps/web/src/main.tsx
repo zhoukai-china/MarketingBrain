@@ -1,7 +1,8 @@
 import React, { Component, lazy, Suspense, useState, useEffect, type ErrorInfo, type ReactNode } from "react";
 import ReactDOM from "react-dom/client";
-import type { LoginResult } from "./pages/LoginPage.js";
-import { apiPath, getAppPath } from "./lib/api.js";
+import type { LoginEntry, LoginResult } from "./pages/LoginPage.js";
+import { PRODUCT_LOGIN_DEFINITIONS } from "@baolu/shared";
+import { apiPath, getAppPath, getAppRoutePath } from "./lib/api.js";
 import "./styles/app.css";
 import "./styles/store-growth.css";
 import "./styles/baolu-diagnosis.css";
@@ -16,6 +17,16 @@ import "./styles/agent-work-map.css";
 import "./styles/topic-system-workbench.css";
 import "./styles/clip-lab.css";
 import "./styles/client-project-workbench.css";
+import "./styles/lanqi-store-profile.css";
+import "./styles/lanqi-diagnosis.css";
+import "./styles/lanqi-execution-plan.css";
+import "./styles/lanqi-content-studio.css";
+import "./styles/lanqi-image-studio.css";
+import "./styles/lanqi-agent-entry.css";
+import "./styles/lanqi-business-qa.css";
+import "./styles/beauty-industry.css";
+import "./styles/beauty-video-review.css";
+import "./styles/industry-workbench-prototype.css";
 
 // Pages are isolated at the route boundary so the first visit only downloads
 // the active experience instead of every workbench and internal tool.
@@ -37,6 +48,15 @@ const AgentMarketingPage = lazy(() => import("./pages/AgentProductsApp.js").then
 const AgentWorkspacePage = lazy(() => import("./pages/AgentProductsApp.js").then(module => ({ default: module.AgentWorkspacePage })));
 const InternalAgentAdminPage = lazy(() => import("./pages/AgentProductsApp.js").then(module => ({ default: module.InternalAgentAdminPage })));
 const MyAiPage = lazy(() => import("./pages/AgentProductsApp.js").then(module => ({ default: module.MyAiPage })));
+const LanqiStoreProfilePage = lazy(() => import("./pages/LanqiStoreProfilePage.js").then(module => ({ default: module.LanqiStoreProfilePage })));
+const LanqiDiagnosisPage = lazy(() => import("./pages/LanqiDiagnosisPage.js").then(module => ({ default: module.LanqiDiagnosisPage })));
+const LanqiExecutionPlanPage = lazy(() => import("./pages/LanqiExecutionPlanPage.js").then(module => ({ default: module.LanqiExecutionPlanPage })));
+const LanqiContentStudioPage = lazy(() => import("./pages/LanqiContentStudioPage.js").then(module => ({ default: module.LanqiContentStudioPage })));
+const LanqiImageStudioPage = lazy(() => import("./pages/LanqiImageStudioPage.js").then(module => ({ default: module.LanqiImageStudioPage })));
+const LanqiBusinessQaPage = lazy(() => import("./pages/LanqiBusinessQaPage.js").then(module => ({ default: module.LanqiBusinessQaPage })));
+const BeautyIndustryAcquisitionPage = lazy(() => import("./pages/BeautyIndustryAcquisitionPage.js").then(module => ({ default: module.BeautyIndustryAcquisitionPage })));
+const BeautyIndustryWorkBuddyPage = lazy(() => import("./pages/BeautyIndustryWorkBuddyPage.js").then(module => ({ default: module.BeautyIndustryWorkBuddyPage })));
+const IndustryWorkbenchPrototypePage = lazy(() => import("./pages/IndustryWorkbenchPrototypePage.js").then(module => ({ default: module.IndustryWorkbenchPrototypePage })));
 
 type AppStage = "login" | "diagnosis" | "main";
 
@@ -85,9 +105,119 @@ function takePostLoginRedirect(): string | null {
   return redirect;
 }
 
+function LanqiLocalAccessPage() {
+  const [message, setMessage] = useState("正在打开本机兰琪体验工作区…");
+
+  useEffect(() => {
+    const isLocalMachine = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    if (!import.meta.env.DEV || !isLocalMachine) {
+      window.location.replace(getAppPath("/login/lanqi"));
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch(apiPath("/auth/dev-login"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tenantRole: "local_business",
+            tenantName: "本机兰琪体验工作区",
+            planCode: "local_standard",
+          }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.token) throw new Error(data.message ?? "本机体验登录暂时不可用。");
+        if (cancelled) return;
+        localStorage.setItem("store_os_token", data.token);
+        localStorage.setItem("store_os_tenant_role", "local_business");
+        localStorage.setItem("store_os_tenant_name", "本机兰琪体验工作区");
+        localStorage.setItem("store_os_diagnosis_done", "false");
+        window.location.replace(getAppPath("/lanqi/content-studio"));
+      } catch (cause) {
+        if (!cancelled) setMessage(cause instanceof Error ? cause.message : "本机体验登录失败，请确认本地 API 正在运行。");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  return <main className="loginPage"><section className="loginCard"><div className="loginBrand"><span className="loginBadge">兰琪美业 · 本机专用</span><h1>正在进入体验工作区</h1><p>{message}</p></div></section></main>;
+}
+
+let founderIpLocalE2ESetupStarted = false;
+
+function FounderIpLocalE2EPage() {
+  const [message, setMessage] = useState("正在准备创始人 IP 获客页面验收数据…");
+
+  useEffect(() => {
+    const localOnly = import.meta.env.DEV && ["localhost", "127.0.0.1"].includes(window.location.hostname);
+    if (!localOnly) {
+      window.location.replace(getAppPath("/login/founder-ip"));
+      return;
+    }
+    // React StrictMode mounts effects twice in development. This local fixture
+    // writes tenant-scoped records, so only one setup flow may run per page load.
+    if (founderIpLocalE2ESetupStarted) return;
+    founderIpLocalE2ESetupStarted = true;
+    void (async () => {
+      const scenario = new URLSearchParams(window.location.search).get("scenario") ?? "success";
+      const json = async <T,>(path: string, init: RequestInit = {}): Promise<T> => {
+        const response = await fetch(apiPath(path), init);
+        const data = await response.json().catch(() => ({})) as T & { message?: string };
+        if (!response.ok) throw new Error(data.message ?? `本机验收数据准备失败（${response.status}）`);
+        return data;
+      };
+      const login = await json<{ token: string }>("/auth/dev-login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tenantRole: "personal_ip", tenantName: "FIP美业加盟合成验收租户", planCode: "ip_standard", industry: "美业问题肌" }) });
+      const headers = { Authorization: `Bearer ${login.token}`, "Content-Type": "application/json" };
+      const subjectName = "FIP美业加盟合成验收主体";
+      const existingSubjects = await json<{ subjects: Array<{ id: string; name: string }> }>("/knowledge-base/subjects", { headers });
+      const existingSubject = existingSubjects.subjects.find((item) => item.name === subjectName);
+      const subject = existingSubject
+        ? { subject: existingSubject }
+        : await json<{ subject: { id: string; name: string } }>("/knowledge-base/subjects", { method: "POST", headers, body: JSON.stringify({ subjectType: "ip", name: subjectName, industry: "美业问题肌" }) });
+      const briefs = [
+        { target: "franchise", identity: "美业问题肌品牌创始人", targetCustomer: "10万投资预算的美业从业者", acquisitionGoal: "获取加盟咨询", offer: "问题肌加盟条件需在咨询中确认" },
+        { target: "store_visit", identity: "美业问题肌门店创始人", targetCustomer: "门店周边有问题肌护理需求的消费者", acquisitionGoal: "预约到店", offer: "问题肌护理团购与到店条件待确认" },
+        { target: "student", identity: "皮肤管理培训创始人", targetCustomer: "计划转行的初学者", acquisitionGoal: "获取课程咨询", offer: "课程与试听条件待确认" },
+        { target: "partner", identity: "美业问题肌区域联营负责人", targetCustomer: "有本地美业渠道的合作伙伴", acquisitionGoal: "获取合作咨询", offer: "问题肌项目合作资格与投入条件待确认" }
+      ];
+      for (const brief of briefs) {
+        await json("/agents/acquisition/founder-ip-goal-briefs", { method: "PUT", headers, body: JSON.stringify({ subjectId: subject.subject.id, ...brief, accountStage: "稳定更新期", industry: "美业问题肌", benchmarkAccounts: [] }) });
+      }
+      const selection = { subjectId: subject.subject.id, target: "franchise", topic: "10万预算做问题肌门店，先核对哪三类经营条件", audience: "10万投资预算的美业从业者", sourceEvidence: "本机合成验收数据：美业加盟条件需沟通确认", factBoundary: "案例、数字、价格、政策和收益待核验，不得写成事实", goalRelation: "帮助美业从业者先判断是否值得发起加盟咨询" };
+      const draft = await json<{ draft: { id: string } }>("/agents/acquisition/founder-ip-content-drafts", { method: "POST", headers, body: JSON.stringify(selection) });
+      if (scenario === "success" || scenario === "foreign") {
+        const content = ["# 10万预算做问题肌门店，先核对哪三类经营条件", "目标人群：10万投资预算的美业从业者", "获客目标简报：美业问题肌加盟；获取加盟咨询", "来源依据：本机合成验收数据；真实条件待确认", "与获客目标的关系：帮助美业从业者先判断是否值得发起加盟咨询", "## 开场钩子", "10万预算做问题肌门店，先别急着下结论，先核对客群、服务边界和运营支持。", "## 核心观点", "面向美业问题肌加盟意向人群，案例、数字、价格、政策和收益保持待确认，不把待核验信息写成事实。", "## 承接动作", "如需判断是否适合，请发起加盟咨询并申请条件评估。"].join("\n\n");
+        await json(`/agents/acquisition/founder-ip-content-drafts/${encodeURIComponent(draft.draft.id)}`, { method: "PATCH", headers, body: JSON.stringify({ content }) });
+      }
+      let browserToken = login.token;
+      if (scenario === "foreign") {
+        const foreign = await json<{ token: string }>("/auth/dev-login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tenantRole: "personal_ip", tenantName: "FIP页面隔离租户", planCode: "ip_standard", industry: "创始人IP获客" }) });
+        browserToken = foreign.token;
+      }
+      Object.keys(sessionStorage)
+        .filter((key) => key.startsWith("sitong_agent_") || key.startsWith("sitong_conversation_") || key.startsWith("sitong_trial_"))
+        .forEach((key) => sessionStorage.removeItem(key));
+      localStorage.setItem("store_os_token", browserToken);
+      localStorage.setItem("store_os_tenant_role", "personal_ip");
+      localStorage.setItem("store_os_tenant_name", scenario === "foreign" ? "FIP页面隔离租户" : "FIP美业加盟合成验收租户");
+      const destination = new URL(getAppPath("/agents/acquisition"), window.location.origin);
+      destination.searchParams.set("system", "content_plan");
+      destination.searchParams.set("fipDraft", draft.draft.id);
+      destination.searchParams.set("fipSubject", subject.subject.id);
+      destination.searchParams.set("fipE2eScenario", scenario);
+      const apiBase = new URLSearchParams(window.location.search).get("apiBase");
+      if (apiBase) destination.searchParams.set("apiBase", apiBase);
+      window.location.replace(destination);
+    })().catch(error => setMessage(error instanceof Error ? error.message : "本机验收数据准备失败。"));
+  }, []);
+
+  return <main className="loginPage"><section className="loginCard"><div className="loginBrand"><span className="loginBadge">创始人 IP 获客 · 本机合成验收数据</span><h1>正在准备页面验收</h1><p>{message}</p></div></section></main>;
+}
+
 function Root() {
-  const rawPath = window.location.pathname;
-  const path = rawPath.startsWith("/os-v2") ? rawPath.slice("/os-v2".length) || "/" : rawPath;
+  const path = getAppRoutePath(window.location.pathname);
   const isDiagnosisRoute = path.startsWith("/diagnosis") || path.startsWith("/d/");
   const isLegacyDiagnosisRoute = path.startsWith("/legacy-diagnosis");
   const isWorkbenchRoute = path.startsWith("/workbench") || path.startsWith("/app");
@@ -127,12 +257,56 @@ function Root() {
     return <AgentMarketingPage slug={marketingMatch[1]} />;
   }
 
+  if (path === "/industry-prototype" || path.startsWith("/industry-prototype/")) {
+    return <IndustryWorkbenchPrototypePage />;
+  }
+
+  if (path === "/agents/beauty-industry/workbuddy" || path === "/agents/beauty-industry/workbuddy/") {
+    return <BeautyIndustryWorkBuddyPage />;
+  }
+
+  if (path === "/agents/beauty-industry" || path === "/agents/beauty-industry/" || path.startsWith("/agents/beauty-industry/")) {
+    return <BeautyIndustryAcquisitionPage />;
+  }
+
   if (agentMatch) {
     return <AgentWorkspacePage slug={agentMatch[1]} />;
   }
 
   if (path.startsWith("/my-ai")) {
     return <MyAiPage />;
+  }
+
+  if (path === "/lanqi/local" || path === "/lanqi/local/") {
+    return <LanqiLocalAccessPage />;
+  }
+
+  if (path === "/fip/e2e/local" || path === "/fip/e2e/local/") {
+    return <FounderIpLocalE2EPage />;
+  }
+
+  if (path.startsWith("/lanqi/store-profile")) {
+    return <LanqiStoreProfilePage />;
+  }
+
+  if (path.startsWith("/lanqi/business-qa")) {
+    return <LanqiBusinessQaPage />;
+  }
+
+  if (path.startsWith("/lanqi/diagnosis")) {
+    return <LanqiDiagnosisPage />;
+  }
+
+  if (path.startsWith("/lanqi/execution-plan")) {
+    return <LanqiExecutionPlanPage />;
+  }
+
+  if (path.startsWith("/lanqi/content-studio")) {
+    return <LanqiContentStudioPage />;
+  }
+
+  if (path.startsWith("/lanqi/image-studio")) {
+    return <LanqiImageStudioPage />;
   }
 
   if (path.startsWith("/enterprise-knowledge-base/connection-help")) {
@@ -156,6 +330,10 @@ function Root() {
 
   if (path.startsWith("/internal/projects")) {
     return <ClientProjectWorkbenchPage />;
+  }
+
+  if (path === "/internal/onboarding" || path === "/internal/onboarding/") {
+    return <AppFlow />;
   }
 
   if (path.startsWith("/internal")) {
@@ -188,7 +366,17 @@ function Root() {
 }
 
 function AppFlow() {
+  const path = getAppRoutePath(window.location.pathname);
+  const loginEntry: LoginEntry = path.startsWith("/login/founder-ip") ? "founder-ip"
+    : path.startsWith("/login/takeaway") ? "takeaway"
+    : path.startsWith("/login/lanqi") ? "lanqi"
+    : path.startsWith("/login/beauty-industry") ? "beauty-industry"
+    : path.startsWith("/internal/onboarding") ? "internal"
+    : "generic";
   const [stage, setStage] = useState<AppStage>(() => {
+    // A product-specific URL must never be captured by a stale generic
+    // diagnosis state from a previous account or another product.
+    if (loginEntry !== "generic" && loginEntry !== "internal") return "login";
     const token = localStorage.getItem("store_os_token");
     const diagnosisDone = localStorage.getItem("store_os_diagnosis_done") === "true";
     if (token && diagnosisDone) return "main";
@@ -238,7 +426,10 @@ function AppFlow() {
       window.location.href = redirect;
       return;
     }
-    window.location.href = getAppPath("/my-ai");
+    const productDefaultPath = loginEntry !== "generic" && loginEntry !== "internal"
+      ? PRODUCT_LOGIN_DEFINITIONS[loginEntry].defaultPath
+      : "/my-ai";
+    window.location.href = getAppPath(productDefaultPath);
   }
 
   function handleDiagnosisComplete(report: unknown, selectedPlan: string) {
@@ -262,16 +453,12 @@ function AppFlow() {
     setStage("login");
   }
 
-
-  const rawPath = window.location.pathname;
-  const path = rawPath.startsWith("/os-v2") ? rawPath.slice("/os-v2".length) || "/" : rawPath;
-
   if (path === "/wechat-callback") {
     return <WeChatCallback onLogin={handleLogin} />;
   }
 
     if (stage === "login") {
-    return <LoginPage mode={import.meta.env.PROD ? "production" : "dev"} onLogin={handleLogin} />;
+    return <LoginPage mode={import.meta.env.PROD ? "production" : "dev"} entry={loginEntry} onLogin={handleLogin} />;
   }
 
   if (stage === "diagnosis") {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
+import { knowledgeSyncProgressText, knowledgeSyncResultText, resumeKnowledgeSync, runKnowledgeSync } from "../lib/knowledge-sync.js";
 
 type Connection = { id: string; provider: string; label: string; status: string; capabilities: string[]; lastSyncedAt?: string; lastError?: string };
 type Subject = { id: string; name: string; typeLabel: string; industry?: string; isDefault: boolean; documentCount: number };
@@ -113,6 +114,23 @@ export function EnterpriseKnowledgeBasePage() {
 
   useEffect(() => { void load(); }, []);
 
+  useEffect(() => {
+    if (!getNote || isSyncing(getNote.id)) return;
+    const controller = new AbortController();
+    let resumedActive = false;
+    void resumeKnowledgeSync(getNote.id, authHeaders(), (progress) => {
+      if (progress.status === "queued" || progress.status === "running") resumedActive = true;
+      if (resumedActive) {
+        setSyncingConnectionIds(progress.status === "queued" || progress.status === "running" ? [getNote.id] : []);
+        setNotice(progress.status === "succeeded" ? knowledgeSyncResultText(progress) : knowledgeSyncProgressText(progress));
+      }
+    }, controller.signal).then((result) => {
+      if (resumedActive && result?.status !== "succeeded") setError(knowledgeSyncResultText(result!));
+      if (resumedActive && result?.status === "succeeded") void load(subjectId);
+    }).catch((reason) => { if ((reason as { name?: string }).name !== "AbortError") setError(reason instanceof Error ? reason.message : "同步状态恢复失败"); });
+    return () => controller.abort();
+  }, [getNote?.id]);
+
   async function load(nextSubjectId?: string) {
     setLoading(true);
     try {
@@ -172,8 +190,9 @@ export function EnterpriseKnowledgeBasePage() {
   async function sync() {
     if (!getNote || isSyncing(getNote.id)) return; setSyncingConnectionIds((current) => [...current, getNote.id]); setError("");
     try {
-      const data = await fetch(apiPath(`/knowledge-base/connections/${getNote.id}/sync`), { method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify({ subjectId: subjectId || undefined }) }).then((response) => readJson<{ sync: { created: number; updated: number; assignedToSubject?: number } }>(response));
-      setNotice(`同步完成：新增 ${data.sync.created} 条，更新 ${data.sync.updated} 条，归入当前主体 ${data.sync.assignedToSubject ?? 0} 条。`); await load(subjectId);
+      const result = await runKnowledgeSync(getNote.id, authHeaders(), (progress) => setNotice(knowledgeSyncProgressText(progress)), { subjectId: subjectId || undefined });
+      if (result.status !== "succeeded") throw new Error(knowledgeSyncResultText(result));
+      setNotice(`${knowledgeSyncResultText(result)} 归入当前主体 ${result.assignedToSubject} 条。`); await load(subjectId);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "同步失败"); }
     finally { setSyncingConnectionIds((current) => current.filter((id) => id !== getNote.id)); }
   }

@@ -1,0 +1,10 @@
+[
+  { "id": "xhs-cover", "category": "小红书封面", "request": "做一张夏季补水护理的小红书封面，温柔高级，不出现顾客正脸", "purpose": "xiaohongshu_cover", "ratio": "3:4", "style": "premium", "textMode": "title_space", "expected": ["夏季补水护理", "不出现顾客正脸"] },
+  { "id": "service-intro", "category": "项目介绍图", "request": "介绍门店已经确认的基础清洁服务，画面自然真实，不写疗效和价格", "purpose": "service_intro", "ratio": "1:1", "style": "natural", "textMode": "provided_text", "overlayText": "基础清洁", "expected": ["基础清洁", "不写疗效和价格"] },
+  { "id": "product", "category": "产品图", "request": "做一张已授权精华产品的近景图，突出透明瓶身和水润材质，不添加不存在的包装文字", "purpose": "social_poster", "ratio": "3:4", "style": "clean", "textMode": "no_text", "expected": ["精华产品", "透明瓶身"] },
+  { "id": "store-event", "category": "门店活动图", "request": "制作夏日护理主题门店活动图，只营造轻松氛围，不写折扣、销量和顾客案例", "purpose": "social_poster", "ratio": "9:16", "style": "warm", "textMode": "title_space", "expected": ["夏日护理", "不写折扣"] },
+  { "id": "empty-space", "category": "无人物空间图", "request": "做一张无人、没有人手的安静护理空间氛围图，不冒充真实门店装修", "purpose": "store_branding", "ratio": "16:9", "style": "premium", "textMode": "no_text", "expected": ["无人", "真实门店装修"] },
+  { "id": "authorized-person", "category": "授权人物图", "request": "制作一张已获得肖像授权的美容师侧身工作照，面部不过度修饰，手部动作自然", "purpose": "store_branding", "ratio": "3:4", "style": "natural", "textMode": "title_space", "expected": ["肖像授权", "美容师"] },
+  { "id": "brand-color", "category": "品牌色", "request": "保持构图简洁，使用已确认的兰琪橙色 #F28C28 作为少量点缀，不生成 logo 文字", "purpose": "xiaohongshu_cover", "ratio": "3:4", "style": "clean", "textMode": "provided_text", "overlayText": "夏日水润感", "expected": ["#F28C28", "不生成 logo"] },
+  { "id": "hands-faces", "category": "多人手部面部", "request": "护理互动场景只出现一双自然手部，不出现多人和可识别正脸，画面真实温暖", "purpose": "service_intro", "ratio": "1:1", "style": "warm", "textMode": "no_text", "expected": ["一双自然手部", "不出现多人"] }
+]

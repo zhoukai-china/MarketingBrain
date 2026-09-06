@@ -4,10 +4,11 @@ import { AGENT_DEFINITIONS } from "../apps/api/src/services/agent-definitions.js
 const franchise = AGENT_DEFINITIONS.find((agent) => agent.slug === "acquisition");
 const store = AGENT_DEFINITIONS.find((agent) => agent.slug === "store-acquisition");
 
-assert(franchise, "brand franchise agent definition missing");
-assert.equal(franchise.name, "思潼·品牌招商智能体");
-assert.match(franchise.marketing.workMap?.title ?? "", /品牌招商/);
-assert.match(franchise.capabilities.map((item) => item.promptTemplate).join("\n"), /不得生成门店到店|不得生成面向消费者/);
+assert(franchise, "founder IP acquisition compatibility agent definition missing");
+assert.equal(franchise.name, "思潼·创始人IP获客系统");
+assert.match(franchise.marketing.workMap?.title ?? "", /创始人IP获客/);
+assert(["fip_franchise", "fip_store_visit", "fip_student_recruitment", "fip_partner_recruitment"].every((key) => franchise.capabilities.some((item) => item.key === key)));
+assert(franchise.capabilities.some((item) => item.key === "baolu_ip_advisor" && item.skillId === "baolu_ip_advisor"));
 
 assert(store, "store acquisition agent definition missing");
 assert.equal(store.name, "思潼·门店获客智能体");

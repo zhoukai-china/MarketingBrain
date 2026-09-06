@@ -21,6 +21,7 @@ assert.match(validateDirectAssetUrl("https://example.cn/watch?id=1") ?? "", /直
 assert.match(validateViralReplicationInput({ ...authorized, audioRightsConfirmed: false }) ?? "", /授权/);
 assert.match(validateViralReplicationInput({ ...authorized, model: "seedance_creative" }) ?? "", /尚未开放/);
 const providerRequest = buildAliyunReplicationRequest(authorized);
-assert.equal((providerRequest.parameters as { preserve_original_audio: boolean }).preserve_original_audio, true);
-assert.equal((providerRequest.parameters as { visible_ai_label: boolean }).visible_ai_label, true);
+assert.equal(providerRequest.model, "wan2.2-animate-mix");
+assert.equal((providerRequest.parameters as { mode: string }).mode, "wan-std");
+assert.equal((providerRequest.input as { watermark: boolean }).watermark, true);
 console.log("VIRAL_VIDEO_REPLICATION_SMOKE_OK");

@@ -79,6 +79,7 @@ export function toAgentRequest(params: {
   requestedSkillId?: AgentRequest["requestedSkillId"];
   capabilityId?: AgentRequest["capabilityId"];
   capabilityLocked?: AgentRequest["capabilityLocked"];
+  promptCompositionPolicy?: AgentRequest["promptCompositionPolicy"];
   deliveryPolicy?: AgentRequest["deliveryPolicy"];
   skillPrompt?: AgentRequest["skillPrompt"];
   skillVersionOverride?: AgentRequest["skillVersionOverride"];
@@ -96,6 +97,7 @@ export function toAgentRequest(params: {
     requestedSkillId: params.requestedSkillId,
     capabilityId: params.capabilityId,
     capabilityLocked: params.capabilityLocked,
+    promptCompositionPolicy: params.promptCompositionPolicy,
     deliveryPolicy: params.deliveryPolicy,
     skillPrompt: params.skillPrompt,
     skillVersionOverride: params.skillVersionOverride,

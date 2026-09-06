@@ -1,0 +1,21 @@
+[Unit]
+Description=Beauty Industry Invite-only Beta API
+After=network.target postgresql.service baolu-os-v2.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=admin
+Group=admin
+WorkingDirectory=/opt/beauty-industry-beta
+EnvironmentFile=/etc/baolu-secrets/baolu-os-v2.env
+ExecStart=/usr/bin/env PORT=3004 LLM_TIMEOUT_MS=180000 IP_AGENT_PRIMARY_TIMEOUT_MS=180000 UPLOAD_DIR=/opt/beauty-industry-beta/uploads ORIGINAL_SKILL_ROOT=/opt/beauty-industry-beta/mcp-skills/skills SKILL_MCP_URL=http://127.0.0.1:3004/mcp WORKBUDDY_MCP_PUBLIC_URL=https://api.lcppch.top/beauty-beta/api/integrations/workbuddy/mcp LANQI_MEDIA_EXECUTION_MODE=real LANQI_MEDIA_REAL_EXECUTION_APPROVED=true LANQI_MEDIA_ASSET_STORAGE=local LANQI_MEDIA_IMAGE_MODEL=wan2.7-image BEAUTY_MEDIA_EXECUTION_MODE=real BEAUTY_MEDIA_REAL_EXECUTION_APPROVED=true BEAUTY_MEDIA_MAX_REAL_IMAGES=3 BEAUTY_MEDIA_IMAGE_CREDITS=100 BEAUTY_MEDIA_ASSET_STORAGE=local /usr/bin/pnpm --filter @baolu/api start
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import {
   AlignmentType,
   BorderStyle,
@@ -22,6 +22,7 @@ import {
 import { z } from "zod";
 import type { TenantBrandingConfig } from "@baolu/shared";
 import { resolveRequestContext } from "../services/request-context.js";
+import { getBearerToken, verifySessionToken } from "../services/auth-token.js";
 import { resolveTenantBranding } from "./tenant.js";
 
 interface ParsedSection {
@@ -40,6 +41,8 @@ interface ExportRecord {
   buffer: Buffer;
   filename: string;
   createdAt: number;
+  tenantId: string;
+  userId: string;
 }
 
 const fallbackTitle = "连锁品牌IP获客交付件";
@@ -52,6 +55,8 @@ const exportTtlMs = 10 * 60 * 1000;
 
 export async function registerExportRoutes(app: FastifyInstance): Promise<void> {
   app.post("/exports/docx", async (request, reply) => {
+    const context = await resolveExportContext(request.headers, reply);
+    if (!context) return;
     const parsed = exportSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({
@@ -61,7 +66,6 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
     }
 
     cleanupExportRecords();
-    const context = await resolveRequestContext(request.headers);
     const branding = resolveTenantBranding(context.profile.data);
     const { title } = parseAnswer(parsed.data.content);
     const filename = `${normalizeFilenamePart(parsed.data.title || title) || fallbackTitle}.docx`;
@@ -70,7 +74,9 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
     exportRecords.set(id, {
       buffer,
       filename,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      tenantId: context.tenantId,
+      userId: context.userId
     });
 
     return {
@@ -81,6 +87,10 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
   });
 
   app.get<{ Params: { id: string } }>("/exports/docx/:id", async (request, reply) => {
+    const context = await resolveExportContext(request.headers, reply);
+    if (!context) return;
+    // Lookup and consume after the asynchronous authorization, so concurrent
+    // downloads cannot both obtain the same one-use buffer.
     cleanupExportRecords();
     const record = exportRecords.get(request.params.id);
     if (!record) {
@@ -89,6 +99,15 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
         message: "Word 文件已过期，请重新点击下载"
       });
     }
+    if (record.tenantId !== context.tenantId) {
+      return reply.code(403).send({
+        error: "export_tenant_forbidden",
+        message: "当前文件不属于本经营主体"
+      });
+    }
+    if (record.userId !== context.userId) {
+      return reply.code(404).send({ error: "export_not_found", message: "当前文件不可用，请重新导出自己的内容" });
+    }
 
     exportRecords.delete(request.params.id);
     return reply
@@ -96,6 +115,29 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
       .header("Content-Disposition", buildContentDisposition(record.filename))
       .send(record.buffer);
   });
+}
+
+async function resolveExportContext(headers: Record<string, unknown>, reply: FastifyReply) {
+  reply.header("Cache-Control", "private, no-store");
+  const token = getBearerToken(headers);
+  try {
+    const identity = token ? verifySessionToken(token) : null;
+    if (!identity) {
+      reply.code(401).send({ error: "export_session_required", message: "请登录后重新导出或下载" });
+      return undefined;
+    }
+    // The shared demo resolver accepts identity headers; derive them only from
+    // the verified token here. Database mode rechecks active membership per request.
+    return await resolveRequestContext({ ...headers,
+      "x-sitong-tenant-id": identity.tenantId, "x-sitong-user-id": identity.userId
+    });
+  } catch (error) {
+    const revoked = error instanceof Error && error.message === "membership_not_found";
+    const code = revoked ? "export_membership_forbidden" : "export_authorization_unavailable";
+    reply.log.warn({ event: "export.authorization_rejected", code });
+    reply.code(revoked ? 403 : 503).send({ error: code, message: revoked ? "当前成员权限不可用，请联系管理员" : "暂时无法核验下载权限，请稍后再试" });
+    return undefined;
+  }
 }
 
 async function buildAnswerDocx(content: string, overrideTitle: string | undefined, branding: TenantBrandingConfig): Promise<Buffer> {

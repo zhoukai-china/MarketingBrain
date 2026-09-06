@@ -139,7 +139,7 @@ Windows PowerShell 若因执行策略拦截 `pnpm.ps1`，使用完全等价的 `
 
 ## 十、单人开发自动分流与任务交接
 
-用户不需要判断需求属于公共平台还是某个智能体。收到涉及外卖增长、品牌招商或蓝旗美业的开发请求后，Codex 必须先执行 `docs/agents/AGENTS.md`：
+用户不需要判断需求属于公共平台还是某个智能体。收到涉及外卖增长、创始人 IP 获客或兰琪美业的开发请求后，Codex 必须先执行 `docs/agents/AGENTS.md`：
 
 1. 自动识别产品归属和变更层级；无法唯一判断时，先做只读检查，只有会改变产品方向、知识授权或计费规则时才询问用户。
 2. 一个 Codex 任务只交付一个可独立验收的主要用户结果；同一智能体不得同时存在两个编码任务。
@@ -152,7 +152,15 @@ Windows PowerShell 若因执行策略拦截 `pnpm.ps1`，使用完全等价的 `
 当前产品目录：
 
 - `docs/agents/takeaway-growth/`：外卖增长智能体。
-- `docs/agents/franchise-acquisition/`：品牌招商智能体。
-- `docs/agents/lanqi-beauty/`：蓝旗美业经营增长智能体平台。
+- `docs/agents/founder-ip-acquisition/`：创始人 IP 获客系统，覆盖招商加盟、C 端团购到店、学员招募和合作方招募。
+- `docs/agents/lanqi-beauty/`：兰琪美业经营增长智能体平台。
 
 跨产品并行仅允许在独立 Git worktree/分支中进行，且最多两个编码任务。若两个任务都要修改公共热点文件，Codex 必须将其串行化或先完成独立的公共平台抽取任务。
+
+## 十一、WorkBuddy Skill 候选与正式运行资产隔离
+
+- WorkBuddy 生成或维护的 Skill 只能作为候选输入/样本，保存在 `mcp-skills/candidates/workbuddy-*` 或明确的 `intake/quarantine` 区；生产和验收运行时不得直接调用、软链、动态加载或隐式依赖候选原件。
+- 候选进入正式目录前，Codex 必须独立验收正式 Schema、事实保留、行业污染、合规边界、失败关闭、稳定性/可复现性和老板可直接使用性，并保留脱敏 Eval 与来源 provenance。
+- 只有验收通过的候选才可复制并重新归属到仓库 `mcp-skills/skills/<skill>`；正式副本必须有独立版本、合同、Eval、owner/provenance 和升级记录。运行时只引用正式副本，绝不回调 WorkBuddy 原件；WorkBuddy 后续产物也不得自动覆盖正式 Skill。
+- 产品运行 Skill 不得放在个人级 `C:\Users\book\.codex\skills`。该目录属于 Codex 客户端能力，不是本产品仓库的版本化运行资产。
+- Web 与 WorkBuddy 可以调用同一份已经验收的产品正式 Skill 合同，但候选来源、开发区和运行依赖必须隔离。复制或升级正式 Skill 若改变产品输出或公开能力，仍须先红灯、专项 Eval 和完整放行门禁。

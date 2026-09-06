@@ -1,0 +1,18 @@
+{
+  "version": "beauty-image-provider-prompt-v1",
+  "sourceEvidence": {
+    "assetSha256": "2e2b8decb104d73d043b8073bacfe611e8f749a78455356318261db9700c9ad2",
+    "role": "content",
+    "qualityReasons": [
+      "interface_or_watermark_like"
+    ],
+    "operatorFinding": "visible_pseudo_brand_and_gibberish_on_packaging"
+  },
+  "contract": {
+    "genericNoTextConstraint": true,
+    "genericNoBrandConstraint": true,
+    "unlabeledPackagingSurfaceConstraint": false,
+    "negativePromptStructure": "unchanged"
+  },
+  "privacy": "No customer input, Provider response, prompt body, task id or credential is retained."
+}

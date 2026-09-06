@@ -1,0 +1,14 @@
+{
+  "skillId": "lanqi-image-prompt-enhancer",
+  "version": "1.0.1",
+  "qualityBar": "sample_grade",
+  "minLength": 900,
+  "scoreThreshold": 90,
+  "requiredSections": ["intentUnderstanding", "missingQuestions", "directions", "revisionSummary", "knowledgeStatus", "factBoundary"],
+  "requiredTerms": ["positivePrompt", "negativePrompt", "overlayText", "parameters", "aspectRatio", "composition", "lighting", "colorPalette"],
+  "requiredDeliverables": ["可编辑意图理解", "2至3个单变量视觉方向", "正向提示词", "负向提示词", "后期叠字字段", "供应商无关参数"],
+  "forbiddenTerms": ["扣费", "API key", "人工审核", "保证效果", "真实顾客案例"],
+  "styleRules": ["保留用户意图", "主体一致", "单变量方向", "具体可视化", "文字后期叠加", "只用已确认事实"],
+  "failurePatterns": ["规则清单冒充提示词", "三个方向只是同义改写", "编造门店实景或人物", "管理文案混入正向提示词", "要求模型直接绘制中文"],
+  "repairInstruction": "保留用户主体和硬约束，重写为连续可视的正负提示词；将文字、事实边界和执行边界移到独立字段。"
+}

@@ -74,6 +74,25 @@ enum AgentEntitlementStatus {
   revoked
 }
 
+enum LanqiKnowledgeTier {
+  k1_authorized_core
+  k2_headquarters_private
+  k3_store_private
+  k4_session_temporary
+}
+
+enum LanqiKnowledgeStatus {
+  draft
+  active
+  retired
+}
+
+enum LanqiReferralStatus {
+  pending
+  claimed
+  revoked
+}
+
 enum AgentOfferStatus {
   draft
   active
@@ -114,6 +133,7 @@ enum AutomationTaskType {
   video_publish_plan
   video_publish_execution
   ceo_action_order
+  beauty_daily_brief
 }
 
 model Tenant {
@@ -125,40 +145,141 @@ model Tenant {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
-  stores               Store[]
-  memberships          Membership[]
-  profile              TenantProfile?
-  subscriptions        Subscription[]
-  creditAccount        CreditAccount?
-  conversations        Conversation[]
-  files                UploadedFile[]
-  agentRuns            AgentRun[]
-  agentOutcomeEvents   AgentOutcomeEvent[]
-  automationTasks      AutomationTask[]
-  desktopDevices       DesktopDevice[]
-  billingOrders        BillingOrder[]
-  offlineEvents        OfflineEvent[]
+  stores                    Store[]
+  memberships               Membership[]
+  profile                   TenantProfile?
+  subscriptions             Subscription[]
+  creditAccount             CreditAccount?
+  conversations             Conversation[]
+  files                     UploadedFile[]
+  agentRuns                 AgentRun[]
+  agentOutcomeEvents        AgentOutcomeEvent[]
+  automationTasks           AutomationTask[]
+  beautyDailyBriefSnapshots BeautyDailyBriefSnapshot[]
+  desktopDevices            DesktopDevice[]
+  billingOrders             BillingOrder[]
+  offlineEvents             OfflineEvent[]
   viralVideoReplicationJobs ViralVideoReplicationJob[]
-  growthCohorts        GrowthProjectCohort[]
-  growthProjects       GrowthProject[]
-  distributors         Distributor[]
-  commissionRules      CommissionRule[]
-  riskRules            RiskRule[]
-  riskEvents           RiskEvent[]
-  auditLogs            AuditLog[]
-  roles                Role[]
-  accessPolicies       AccessPolicy[]
-  ssoConfigs           SsoConfig[]
-  shareLinks           ShareLink[]
-  agentEntitlements    TenantAgentEntitlement[]
-  anonymousTrials      AnonymousTrial[]
-  knowledgeConnections KnowledgeConnection[]
-  knowledgeDocuments   KnowledgeDocument[]
-  knowledgeSubjects    KnowledgeSubject[]
-  knowledgeAnalyses    KnowledgeAnalysisBatch[]
-  customDomain         TenantDomain?
-  workbuddyConnections WorkbuddyMcpConnection[]
-  takeawayDataImports  TakeawayDataImport[]
+  growthCohorts             GrowthProjectCohort[]
+  growthProjects            GrowthProject[]
+  distributors              Distributor[]
+  commissionRules           CommissionRule[]
+  riskRules                 RiskRule[]
+  riskEvents                RiskEvent[]
+  auditLogs                 AuditLog[]
+  roles                     Role[]
+  accessPolicies            AccessPolicy[]
+  ssoConfigs                SsoConfig[]
+  shareLinks                ShareLink[]
+  agentEntitlements         TenantAgentEntitlement[]
+  anonymousTrials           AnonymousTrial[]
+  knowledgeConnections      KnowledgeConnection[]
+  knowledgeDocuments        KnowledgeDocument[]
+  knowledgeSyncJobs         KnowledgeSyncJob[]
+  knowledgeSubjects         KnowledgeSubject[]
+  founderIpGoalBriefs       FounderIpGoalBrief[]
+  knowledgeAnalyses         KnowledgeAnalysisBatch[]
+  lanqiKnowledgeVersions    LanqiKnowledgeVersion[]
+  lanqiReferralsSent        LanqiReferral[]            @relation("LanqiReferralInviter")
+  lanqiReferralReceived     LanqiReferral[]            @relation("LanqiReferralReferred")
+  lanqiStoreProfile         LanqiStoreProfile?
+  lanqiContentDrafts        LanqiContentDraft[]
+  lanqiMediaJobs            LanqiMediaJob[]
+  customDomain              TenantDomain?
+  workbuddyConnections      WorkbuddyMcpConnection[]
+  takeawayDataImports       TakeawayDataImport[]
+  productEntitlements       TenantProductEntitlement[]
+  beautyVideoAssetAuthorizations BeautyVideoAssetAuthorization[]
+}
+
+model TenantProductEntitlement {
+  id          String    @id @default(cuid())
+  tenantId    String
+  productCode String
+  status      String    @default("active")
+  source      String
+  startsAt    DateTime  @default(now())
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, productCode])
+  @@index([productCode, status, expiresAt])
+}
+
+model LanqiStoreProfile {
+  id             String   @id @default(cuid())
+  tenantId       String   @unique
+  confirmedFacts Json
+  estimatedFacts Json
+  needsInput     Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model LanqiContentDraft {
+  id          String   @id @default(cuid())
+  tenantId    String
+  userId      String?
+  platform    String
+  goal        String
+  audience    String
+  topic       String
+  storeFacts  Json
+  copyDraft   Json
+  imagePrompt String
+  videoPrompt String
+  sourceMode  String   @default("store_facts_only")
+  status      String   @default("draft")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+}
+
+model LanqiMediaJob {
+  id              String    @id @default(cuid())
+  tenantId        String
+  userId          String?
+  requestKey      String
+  kind            String
+  provider        String    @default("aliyun_bailian")
+  model           String
+  previewId       String?
+  promptVersion   String    @default("unknown")
+  prompt          String
+  negativePrompt  String?
+  parameters      Json?
+  imageUrl        String?
+  resolution      String?
+  ratio           String?
+  durationSeconds Int?
+  creditCost      Int
+  status          String    @default("queued")
+  billingStatus   String    @default("reserved")
+  providerTaskId  String?   @unique
+  providerStatus  String?
+  outputUrl       String?
+  assetStatus     String    @default("pending")
+  selectedAt      DateTime?
+  savedAt         DateTime?
+  canceledAt      DateTime?
+  errorMessage    String?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, requestKey])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, previewId, createdAt])
 }
 
 model TenantDomain {
@@ -188,6 +309,8 @@ model Store {
 
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   memberships Membership[]
+
+  beautyVideoAssetAuthorizations BeautyVideoAssetAuthorization[]
 
   @@index([tenantId])
 }
@@ -231,6 +354,8 @@ model InviteCode {
   codePreview String
   label       String?
   planCode    PlanCode?
+  productCode String?
+  brandCode   String?
   maxUses     Int       @default(1)
   usedCount   Int       @default(0)
   isActive    Boolean   @default(true)
@@ -240,10 +365,13 @@ model InviteCode {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  redemptions InviteCodeRedemption[]
+  redemptions   InviteCodeRedemption[]
+  lanqiReferral LanqiReferral?
 
   @@index([isActive, expiresAt])
   @@index([planCode])
+  @@index([productCode])
+  @@index([brandCode])
 }
 
 model InviteCodeRedemption {
@@ -260,6 +388,25 @@ model InviteCodeRedemption {
   @@index([inviteCodeId, usedAt])
   @@index([tenantId])
   @@index([userId])
+}
+
+model LanqiReferral {
+  id               String              @id @default(cuid())
+  inviterTenantId  String
+  inviteCodeId     String              @unique
+  referredTenantId String?             @unique
+  status           LanqiReferralStatus @default(pending)
+  label            String?
+  createdAt        DateTime            @default(now())
+  claimedAt        DateTime?
+  revokedAt        DateTime?
+  updatedAt        DateTime            @updatedAt
+
+  inviterTenant  Tenant     @relation("LanqiReferralInviter", fields: [inviterTenantId], references: [id], onDelete: Cascade)
+  inviteCode     InviteCode @relation(fields: [inviteCodeId], references: [id], onDelete: Cascade)
+  referredTenant Tenant?    @relation("LanqiReferralReferred", fields: [referredTenantId], references: [id], onDelete: SetNull)
+
+  @@index([inviterTenantId, status, createdAt])
 }
 
 model BillingOrder {
@@ -382,25 +529,60 @@ model CreditAccount {
 
   tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   transactions CreditTransaction[]
+  reservations CreditReservation[]
 }
 
 model CreditTransaction {
-  id              String          @id @default(cuid())
-  creditAccountId String
-  tenantId        String
-  userId          String?
-  direction       CreditDirection
-  amount          Int
-  reason          String
-  refType         String?
-  refId           String?
-  createdAt       DateTime        @default(now())
+  id                String          @id @default(cuid())
+  creditAccountId   String
+  tenantId          String
+  userId            String?
+  direction         CreditDirection
+  amount            Int
+  reason            String
+  refType           String?
+  refId             String?
+  productCode       String?
+  operatingEntityId String?
+  channel           String?
+  capabilityId      String?
+  mcpCredentialId   String?
+  provider          String?
+  createdAt         DateTime        @default(now())
 
   creditAccount CreditAccount @relation(fields: [creditAccountId], references: [id], onDelete: Cascade)
   user          User?         @relation(fields: [userId], references: [id])
 
   @@index([tenantId, createdAt])
   @@index([userId, createdAt])
+  @@index([tenantId, productCode, channel, createdAt])
+  @@index([mcpCredentialId, createdAt])
+}
+
+model CreditReservation {
+  id                 String   @id @default(cuid())
+  creditAccountId    String
+  tenantId           String
+  userId             String?
+  productCode        String?
+  operatingEntityId  String?
+  channel            String
+  mcpCredentialId    String?
+  requestId          String   @unique
+  requestFingerprint String?
+  amount             Int
+  actualAmount       Int?
+  status             String   @default("reserved")
+  agentRunId         String?
+  errorCode          String?
+  expiresAt          DateTime
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  creditAccount CreditAccount @relation(fields: [creditAccountId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, productCode, status, createdAt])
+  @@index([mcpCredentialId, status, createdAt])
 }
 
 model Conversation {
@@ -459,6 +641,10 @@ model AgentRun {
   output             String?
   qualityFlags       Json?
   modelProvider      String
+  productCode        String?
+  operatingEntityId  String?
+  usageChannel       String?
+  mcpCredentialId    String?
   tokenEstimate      Int            @default(0)
   creditCost         Int            @default(0)
   errorMessage       String?
@@ -479,6 +665,8 @@ model AgentRun {
   @@index([skillId, createdAt])
   @@index([agentId, createdAt])
   @@index([tenantId, deviceScope, createdAt])
+  @@index([tenantId, productCode, usageChannel, createdAt])
+  @@index([mcpCredentialId, createdAt])
 }
 
 model AgentRunStep {
@@ -530,17 +718,24 @@ model AgentDefinition {
 }
 
 model WorkbuddyMcpConnection {
-  id          String    @id @default(cuid())
-  tenantId    String
-  userId      String
-  agentId     String
-  label       String
-  tokenHash   String    @unique
-  tokenPrefix String
-  status      String    @default("active")
-  lastUsedAt  DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                 String    @id @default(cuid())
+  tenantId           String
+  userId             String
+  agentId            String
+  label              String
+  tokenHash          String    @unique
+  tokenPrefix        String
+  status             String    @default("active")
+  productCode        String?
+  operatingEntityId  String?
+  scopes             Json?
+  expiresAt          DateTime?
+  revokedAt          DateTime?
+  rotatedFromId      String?
+  rateLimitPerMinute Int       @default(30)
+  lastUsedAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   tenant Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -548,6 +743,8 @@ model WorkbuddyMcpConnection {
 
   @@index([tenantId, userId, status])
   @@index([agentId, status])
+  @@index([tenantId, productCode, status])
+  @@index([rotatedFromId])
 }
 
 model SkillRelease {
@@ -646,9 +843,52 @@ model KnowledgeConnection {
   tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   owner     User?               @relation(fields: [ownerUserId], references: [id])
   documents KnowledgeDocument[]
+  syncJobs  KnowledgeSyncJob[]
 
   @@unique([tenantId, provider, ownership])
   @@index([tenantId, status])
+}
+
+model KnowledgeSyncJob {
+  id                String    @id @default(cuid())
+  tenantId          String
+  connectionId      String
+  requestedByUserId String?
+  subjectId         String?
+  clientRequestId   String?
+  status            String    @default("queued")
+  stage             String    @default("queued")
+  retryable         Boolean   @default(false)
+  scanned           Int       @default(0)
+  processed         Int       @default(0)
+  total             Int?
+  createdCount      Int       @default(0)
+  updatedCount      Int       @default(0)
+  unchangedCount    Int       @default(0)
+  skippedCount      Int       @default(0)
+  failedCount       Int       @default(0)
+  assignedCount     Int       @default(0)
+  listRequests      Int       @default(0)
+  detailRequests    Int       @default(0)
+  retryCount        Int       @default(0)
+  throttleMs        Int       @default(0)
+  backoffMs         Int       @default(0)
+  phaseDurations    Json?
+  importedByType    Json?
+  errorCode         String?
+  errorMessage      String?   @db.Text
+  heartbeatAt       DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  lastSuccessfulAt  DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant     Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  connection KnowledgeConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, connectionId, createdAt])
+  @@index([status, heartbeatAt])
 }
 
 model KnowledgeDocument {
@@ -698,12 +938,36 @@ model KnowledgeSubject {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant    Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  documents KnowledgeDocumentSubject[]
+  tenant              Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  documents           KnowledgeDocumentSubject[]
+  founderIpGoalBriefs FounderIpGoalBrief[]
 
   @@unique([tenantId, subjectType, name])
   @@index([tenantId, status])
   @@index([tenantId, isDefault])
+}
+
+model FounderIpGoalBrief {
+  id                String   @id @default(cuid())
+  tenantId          String
+  subjectId         String
+  target            String
+  identity          String
+  targetCustomer    String
+  acquisitionGoal   String
+  offer             String?
+  accountStage      String?
+  industry          String
+  benchmarkAccounts Json     @default("[]")
+  createdByUserId   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subject KnowledgeSubject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, subjectId, target])
+  @@index([tenantId, subjectId, updatedAt])
 }
 
 model KnowledgeDocumentSubject {
@@ -717,6 +981,35 @@ model KnowledgeDocumentSubject {
 
   @@unique([documentId, subjectId])
   @@index([subjectId, documentId])
+}
+
+model LanqiKnowledgeVersion {
+  id                 String               @id @default(cuid())
+  knowledgeId        String
+  version            String
+  ownerTenantId      String
+  tier               LanqiKnowledgeTier
+  status             LanqiKnowledgeStatus @default(draft)
+  title              String
+  content            String               @db.Text
+  sourceRef          String?
+  reviewer           String?
+  approvedAt         DateTime?
+  effectiveFrom      DateTime?
+  expiresAt          DateTime?
+  allowedTenantIds   Json?
+  allowedTenantTypes Json?
+  allowedRoles       Json?
+  applicability      Json?
+  sessionId          String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  ownerTenant Tenant @relation(fields: [ownerTenantId], references: [id], onDelete: Cascade)
+
+  @@unique([knowledgeId, version])
+  @@index([ownerTenantId, tier, status])
+  @@index([knowledgeId, status])
 }
 
 model KnowledgeAnalysisBatch {
@@ -1035,32 +1328,110 @@ model UploadedFile {
 
   tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   analyses FileAnalysis[]
+  beautyVideoAuthorizations BeautyVideoAssetAuthorization[] @relation("BeautyVideoSourceFile")
+  beautyVideoAuthorizationBases BeautyVideoAssetAuthorization[] @relation("BeautyVideoBasisFile")
 
   @@index([tenantId, createdAt])
 }
 
+// BY-46: immutable declaration scope, not independent legal verification.
+model BeautyVideoAssetAuthorization {
+  id String @id @default(cuid())
+  tenantId String
+  storeId String
+  fileId String @unique
+  fileSha256 String
+  basisFileId String
+  basisSha256 String
+  subjectRole String
+  purpose String @default("video_replacement")
+  rights Json
+  assurance String @default("user_declared_not_independently_verified")
+  declaredByUserId String
+  requestKey String
+  fingerprint String
+  version Int @default(1)
+  contractVersion String @default("beauty-video-asset-authorization-v1")
+  metadata Json
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant Tenant @relation(fields:[tenantId], references:[id], onDelete:Restrict)
+  store Store @relation(fields:[storeId], references:[id], onDelete:Restrict)
+  file UploadedFile @relation("BeautyVideoSourceFile", fields:[fileId], references:[id], onDelete:Restrict)
+  basis UploadedFile @relation("BeautyVideoBasisFile", fields:[basisFileId], references:[id], onDelete:Restrict)
+  @@unique([tenantId,requestKey])
+  @@unique([tenantId,storeId,fileSha256])
+  @@index([tenantId,storeId,expiresAt,revokedAt])
+}
+
+model BeautyVideoStagingLease {
+  id String @id @default(cuid())
+  tenantId String
+  storeId String
+  requestedByUserId String
+  requestHash String
+  authorizationVersions Json
+  objects Json
+  adapterId String
+  status String @default("creating")
+  expiresAt DateTime
+  releasedAt DateTime?
+  errorCode String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([tenantId,requestHash])
+  @@index([status,expiresAt])
+}
+
+// BY-50: specialized execution permit. No public issue/update endpoint; no user-credit ledger here.
+model BeautyVideoExecutionPermit {
+  id String @id
+  tenantId String
+  userId String
+  storeId String
+  requestKey String
+  scope Json
+  signature String
+  status String @default("approved")
+  revokedAt DateTime?
+  claimedAt DateTime?
+  submitCount Int @default(0)
+  pollCount Int @default(0)
+  storageCount Int @default(0)
+  downloadCount Int @default(0)
+  committedCostFen Int @default(0)
+  observedProviderCostFen Int?
+  lastCode String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([tenantId,userId,requestKey])
+  @@index([tenantId,storeId,status])
+}
+
 model ViralVideoReplicationJob {
-  id                    String   @id @default(cuid())
+  id                    String    @id @default(cuid())
   tenantId              String
   userId                String?
   requestKey            String
   model                 String
-  status                String   @default("queued")
+  status                String    @default("queued")
   referenceVideoUrl     String?
   portraitImageUrl      String?
   referenceFileId       String?
   portraitFileId        String?
   authorizationSnapshot Json
   creditCost            Int
-  billingStatus         String   @default("reserved")
-  providerTaskId        String?  @unique
+  billingStatus         String    @default("reserved")
+  providerTaskId        String?   @unique
   providerStatus        String?
   outputVideoUrl        String?
   errorCode             String?
   errorMessage          String?
   completedAt           DateTime?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -1131,13 +1502,50 @@ model AutomationTask {
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
-  tenant Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  device DesktopDevice?  @relation(fields: [deviceId], references: [id])
-  logs   AutomationLog[]
+  tenant                   Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  device                   DesktopDevice?            @relation(fields: [deviceId], references: [id])
+  logs                     AutomationLog[]
+  beautyDailyBriefSnapshot BeautyDailyBriefSnapshot?
 
   @@index([tenantId, runAt])
   @@index([status, runAt])
   @@index([deviceId, status])
+}
+
+model BeautyDailyBriefSnapshot {
+  id                  String    @id @default(cuid())
+  productCode         String
+  businessDate        String
+  contractVersion     String
+  tenantId            String
+  userId              String?
+  automationTaskId    String?   @unique
+  status              String    @default("queued")
+  phase               String    @default("queued")
+  trigger             String
+  sourceWindowHours   Int?
+  sourceCount         Int       @default(0)
+  report              Json?
+  errorCode           String?
+  errorMessage        String?
+  lastSuccessfulAt    DateTime?
+  attemptCount        Int       @default(0)
+  manualRetryCount    Int       @default(0)
+  lockedBy            String?
+  leaseExpiresAt      DateTime?
+  providerCallCount   Int       @default(0)
+  networkRequestCount Int       @default(0)
+  providerCostYuan    Decimal   @default(0) @db.Decimal(10, 4)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  automationTask AutomationTask? @relation(fields: [automationTaskId], references: [id], onDelete: SetNull)
+
+  @@unique([productCode, businessDate, contractVersion])
+  @@index([status, leaseExpiresAt])
+  @@index([businessDate, status])
+  @@index([tenantId, createdAt])
 }
 
 model AutomationLog {
@@ -1571,6 +1979,7 @@ model UserRole {
   role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@id([userId, roleId])
+  @@map("UserRoleAssignment")
 }
 
 model AccessPolicy {

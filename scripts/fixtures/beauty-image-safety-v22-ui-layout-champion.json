@@ -1,0 +1,25 @@
+{
+  "sha256": "63f63a70505b08e5f3568979d6feba5115c7ffc0ef23fb3e1b9c0b7648b73fe9",
+  "detectorVersion": "beauty-image-safety-v2.2",
+  "status": "rejected",
+  "evidence": [
+    {
+      "detectorType": "ui_layout",
+      "reason": "interface_or_watermark_like",
+      "confidence": 0.936,
+      "bbox": { "x": 2, "y": 364, "width": 764, "height": 658 },
+      "metrics": {
+        "horizontalLongEdges": 0,
+        "verticalLongEdges": 7,
+        "panelLikeRegions": 6,
+        "rowGroups": 3,
+        "columnGroups": 3,
+        "repeatedBarRegions": 2,
+        "barRows": 1,
+        "barColumns": 1,
+        "minimumRunRatio": 0.2,
+        "alignedPanelEvidence": true
+      }
+    }
+  ]
+}

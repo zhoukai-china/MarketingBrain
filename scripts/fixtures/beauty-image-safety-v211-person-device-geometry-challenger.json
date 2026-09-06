@@ -1,0 +1,19 @@
+{
+  "version": "beauty-image-safety-v211-person-device-geometry-challenger-v1",
+  "sha256": "350b1f39cf9d99a7ff669f8e73242f12e577525dadf97e6172ed35f24e5b994a",
+  "detectorVersion": "beauty-image-safety-v2.11",
+  "status": "rejected",
+  "reason": "person_or_device_like",
+  "changedVariable": "brightNeutralScreenDarkFrameSkinProximity",
+  "diagnostics": {
+    "screenAreaRatio": 0.087,
+    "screenFillRatio": 0.56,
+    "portraitAspectRatio": 1.369,
+    "darkFrameRatio": 0.149,
+    "edgePixelDensity": 0.102,
+    "adjacentSkinRatio": 0.232,
+    "relatedSkinComponents": 2,
+    "evidenceMode": "bright_neutral_screen_dark_frame_skin_proximity"
+  },
+  "safetyBoundary": "requires the combined screen, frame and skin evidence; no SHA or path allow/deny list"
+}

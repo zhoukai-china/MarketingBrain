@@ -120,5 +120,13 @@
     "tenantType": "chain_brand",
     "input": "客户是枕水江南，中式快餐连锁，在沈阳有7家外卖店。新店外卖销售额不好，想提升美团、饿了么和淘宝闪购订单。菜品、套餐、价格、优惠和后台数据以后再补，先正常给第一版方案。",
     "mustInclude": ["已确认事实", "详细问题清单", "完整原因地图", "优先验证候选", "推荐进入哪个任务"]
+  },
+  {
+    "id": "founder-ip-baolu-advisor-positioning-boundary",
+    "skillId": "baolu_ip_advisor",
+    "capabilityId": "baolu_ip_advisor",
+    "tenantType": "personal_ip",
+    "input": "我想问问保禄：我的创始人IP内容很分散，但没有账号后台数据。现在先收窄人群还是先固定一个内容支柱？",
+    "mustInclude": ["直接判断", "判断依据", "今天先做"]
   }
 ]

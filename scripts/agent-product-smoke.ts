@@ -17,10 +17,17 @@ const restaurant = AGENT_DEFINITIONS.find((agent) => agent.id === "agent_restaur
 const sales = AGENT_DEFINITIONS.find((agent) => agent.id === "agent_sales");
 const clipper = AGENT_DEFINITIONS.find((agent) => agent.id === "agent_clipper");
 
-if (!acquisition || acquisition.capabilities.length !== 11 || acquisition.capabilities.some((item) => item.key === "ip_positioning") || !acquisition.capabilities.some((item) => item.key === "franchise_acquisition") || !acquisition.capabilities.some((item) => item.key === "topic_inspiration" && item.skillId === "baolu_topics") || !acquisition.capabilities.some((item) => item.key === "paid_traffic" && item.skillId === "optimize_local_push_ads") || !acquisition.capabilities.some((item) => item.key === "dou_plus_traffic" && item.skillId === "dou_plus_ads")) {
-  failures.push("获客 Agent 必须有 11 个首发任务，不得包含 IP 定位，并包含选题灵感、本地推、DOU+ 和招商获客");
+if (!acquisition || acquisition.name !== "思潼·创始人IP获客系统" || acquisition.capabilities.length !== 16 || acquisition.capabilities.some((item) => item.key === "ip_positioning") || !["fip_franchise", "fip_store_visit", "fip_student_recruitment", "fip_partner_recruitment"].every((key) => acquisition.capabilities.some((item) => item.key === key)) || !acquisition.capabilities.some((item) => item.key === "baolu_ip_advisor" && item.skillId === "baolu_ip_advisor") || !acquisition.capabilities.some((item) => item.key === "topic_inspiration" && item.skillId === "baolu_topics") || !acquisition.capabilities.some((item) => item.key === "paid_traffic" && item.skillId === "optimize_local_push_ads") || !acquisition.capabilities.some((item) => item.key === "dou_plus_traffic" && item.skillId === "dou_plus_ads")) {
+  failures.push("创始人IP获客系统必须保留兼容Agent ID，并提供四目标入口与问问保禄能力分身");
 }
-if (!storeAcquisition || storeAcquisition.name !== "思潼·门店获客智能体" || storeAcquisition.capabilities.length !== 10 || !storeAcquisition.capabilities.some((item) => item.key === "content_plan" && /团购/.test(item.promptTemplate))) {
+if (
+  !storeAcquisition
+  || storeAcquisition.name !== "思潼·门店获客智能体"
+  || storeAcquisition.capabilities.length !== 12
+  || !storeAcquisition.capabilities.some((item) => item.key === "content_plan" && /团购/.test(item.promptTemplate))
+  || !storeAcquisition.capabilities.some((item) => item.key === "xiaohongshu_copy" && item.skillId === "xiaohongshu_ops")
+  || !storeAcquisition.capabilities.some((item) => item.key === "image_prompt_preview" && item.skillId === "lanqi-image-prompt-enhancer")
+) {
   failures.push("store acquisition agent boundary missing");
 }
 if (acquisition && /线上订单|外卖/.test(`${acquisition.description} ${acquisition.marketing?.tagline ?? ""} ${acquisition.marketing?.promise ?? ""}`)) {
@@ -69,28 +76,31 @@ const provider = {
 };
 
 const context = { ...getDemoContext({}), source: "demo" as const };
+const founderIpContext = { ...getDemoContext({ "x-sitong-plan": "ip_standard" }), source: "demo" as const };
 if (acquisition) {
   const result = await invokeSkillThroughMcp({
-    requestId: "smoke-acquisition-0001",
-    context,
+    requestId: "smoke-acquisition-fip-skill-v1-0001",
+    context: founderIpContext,
     provider,
     agentId: acquisition.id,
     capabilityId: "content_plan",
-    skillId: "baolu_content_creator",
-    input: "我是一家本地美业店，请帮我做今天的内容方案。",
+    skillId: "founder_ip_content_creator",
+    capabilityLocked: true,
+    input: "获客目标：合作方招募。选题/钩子：合作先看交付边界。目标人群：本地渠道伙伴。来源依据：本轮录音原话。请生成内容草稿。",
     skipEntitlement: true,
     persist: false
   });
-  if (result.skillId !== "baolu_content_creator" || result.agentId !== acquisition.id) {
-    failures.push("获客任务没有通过正确的 Agent/Skill 运行");
+  if (result.skillId !== "founder_ip_content_creator" || result.agentId !== acquisition.id) {
+    failures.push(`获客任务没有通过正确的 Agent/Skill 运行：agent=${result.agentId} skill=${result.skillId}`);
   }
   const subjectAnchorResult = await invokeSkillThroughMcp({
-    requestId: "smoke-acquisition-subject-anchor-0001",
-    context,
+    requestId: "smoke-acquisition-subject-anchor-fip-skill-v1-0001",
+    context: founderIpContext,
     provider: { name: "subject-anchor-smoke", async complete() { return "# 三条短视频内容\n\n只输出内容正文，不主动提品牌。"; } },
     agentId: acquisition.id,
     capabilityId: "content_plan",
-    skillId: "baolu_content_creator",
+    skillId: "founder_ip_content_creator",
+    capabilityLocked: true,
     input: "枕水江南是中式快餐品牌，请做3条抖音短视频内容。",
     skipEntitlement: true,
     persist: false
@@ -175,7 +185,7 @@ if (acquisition) {
     requestId: "smoke-routed-seven-day-plan-0001",
     context,
     provider: { name: "routed-seven-day-fallback", async complete() { throw new Error("forced_provider_failure"); } },
-    agentId: acquisition.id,
+    agentId: storeAcquisition?.id ?? acquisition.id,
     input: "我是上海一家产后修复工作室，主推1980元盆底修复套餐，目标客户是产后3到12个月的宝妈。请给我未来7天的抖音和朋友圈获客计划，每天发什么、怎么承接优惠、私信跟进怎么说。",
     skipEntitlement: true,
     persist: false
@@ -189,7 +199,7 @@ if (acquisition) {
     requestId: "smoke-coffee-topics-0001",
     context,
     provider: { name: "forced-fallback", async complete() { throw new Error("forced_provider_failure"); } },
-    agentId: acquisition.id,
+    agentId: storeAcquisition?.id ?? acquisition.id,
     capabilityId: "content_plan",
     skillId: "baolu_content_creator",
     input: "我在杭州开一家客单价35元的社区咖啡店，请给我本周能直接拍的3个短视频选题，每个带3秒开头。",
@@ -211,14 +221,14 @@ if (acquisition) {
         return "楼下那杯竞赛级SOE拿铁每天7:30现做，走两分钟就到，顾客都说奶泡很绵密。";
       }
     },
-    agentId: acquisition.id,
+    agentId: storeAcquisition?.id ?? acquisition.id,
     capabilityId: "content_plan",
     skillId: "baolu_content_creator",
     input: "帮社区咖啡店写一条小红书发布文案，只要文案，不要脚本和投流。主推35元拿铁，目标客户是附近上班族，目标是引导到店。",
     skipEntitlement: true,
     persist: false
   });
-  if (scopedResult.skillVersion !== "4.1.4") failures.push("内容 Skill 必须绑定正式 4.1.4 版本");
+  if (scopedResult.skillVersion !== "5.0.0") failures.push("内容 Skill 必须绑定正式 5.0.0 版本");
   if (/九件套|八件套|Skill|Prompt|MCP|路由|质检|模型|剪辑EDL|发布时间|投流建议|拍摄脚本/.test(scopedResult.answerText)) {
     failures.push("限定范围的文案不得泄露内部词或扩写成完整方案");
   }

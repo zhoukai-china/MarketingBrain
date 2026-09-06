@@ -1,7 +1,14 @@
 ﻿import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import type { FastifyReply } from "fastify";
 import { prisma } from "@baolu/db";
-import { PLANS, type PlanCode } from "@baolu/shared";
+import {
+  PLANS,
+  PRODUCT_LOGIN_CODES,
+  PRODUCT_LOGIN_DEFINITIONS,
+  type PlanCode,
+  type ProductLoginCode,
+} from "@baolu/shared";
 import { env } from "../config/env.js";
 import {
   createOnboardingToken,
@@ -20,13 +27,36 @@ import {
   redeemInviteCode,
   validateInviteCode
 } from "../services/invite-codes.js";
+import { claimLanqiReferral } from "../services/lanqi-referrals.js";
 import { normalizeTenantHostname } from "./tenant.js";
+import {
+  assignBeautyIndustryBrandToTenant,
+  assertNoBeautyIndustryBrandOverride,
+  resolveBeautyIndustryBrandContext,
+  toBeautyIndustryPublicBrand
+} from "../products/beauty-industry/brand-config.js";
 
 function defaultPlanForRole(role: string): PlanCode {
   if (role === "chain_brand") return "chain_standard";
   if (role === "personal_ip") return "ip_standard";
   return "local_standard";
 }
+
+function rejectAuthBrandOverride(value: unknown, reply: FastifyReply): boolean {
+  try {
+    assertNoBeautyIndustryBrandOverride(value);
+    return false;
+  } catch (error) {
+    if (!(error instanceof Error) || error.message !== "beauty_brand_override_forbidden") throw error;
+    void reply.code(400).send({
+      error: "beauty_brand_override_forbidden",
+      message: "品牌由产品邀请码和当前租户授权决定，登录请求不能覆盖。"
+    });
+    return true;
+  }
+}
+
+const productLoginCodeSchema = z.enum(PRODUCT_LOGIN_CODES);
 
 const devLoginSchema = z.object({
   tenantRole: z.enum(["personal_ip", "local_business", "chain_brand"]).default("local_business"),
@@ -35,7 +65,8 @@ const devLoginSchema = z.object({
   industry: z.string().trim().max(80).optional(),
   city: z.string().trim().max(80).optional(),
   phone: z.string().optional(),
-  nickname: z.string().optional()
+  nickname: z.string().optional(),
+  productCode: productLoginCodeSchema.optional(),
 });
 
 const betaLoginSchema = z.object({
@@ -46,12 +77,19 @@ const betaLoginSchema = z.object({
   city: z.string().trim().max(80).optional(),
   phone: z.string().optional(),
   nickname: z.string().optional(),
-  inviteCode: z.string().trim().min(1).max(200)
+  inviteCode: z.string().trim().min(1).max(200),
+  productCode: productLoginCodeSchema.optional(),
+});
+
+const productInviteValidationSchema = z.object({
+  productCode: productLoginCodeSchema,
+  inviteCode: z.string().trim().min(1).max(200),
 });
 
 const wechatLoginSchema = z.object({
   code: z.string().min(1),
-  tenantHostname: z.string().trim().max(253).optional()
+  tenantHostname: z.string().trim().max(253).optional(),
+  productCode: productLoginCodeSchema.optional(),
 });
 
 const bindPhoneSchema = z.object({
@@ -74,17 +112,50 @@ const onboardingWorkspaceSchema = z.object({
   phone: z.string().optional(),
   nickname: z.string().optional(),
   inviteCode: z.string().optional(),
+  productCode: productLoginCodeSchema.optional(),
   diagnosisReport: diagnosisReportSchema.optional()
 });
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
+  app.post("/auth/product-invite/validate", async (request, reply) => {
+    const parsed = productInviteValidationSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+    }
+    const product = PRODUCT_LOGIN_DEFINITIONS[parsed.data.productCode];
+    const invite = await validateInviteCode(parsed.data.inviteCode, product.planCode, product.code);
+    if (!invite.ok) {
+      return reply.code(403).send({
+        error: invite.error ?? "invite_code_required",
+        message: translateInviteError(invite.error),
+      });
+    }
+    return {
+      valid: true,
+      productCode: product.code,
+      productName: product.name,
+      ...(product.code === "beauty-industry" ? {
+        brand: toBeautyIndustryPublicBrand(resolveBeautyIndustryBrandContext({
+          beautyIndustryBrand: { brandCode: invite.brandCode }
+        }))
+      } : {}),
+    };
+  });
+
   app.post("/auth/beta-login", async (request, reply) => {
+    if (rejectAuthBrandOverride(request.body, reply)) return;
     const parsed = betaLoginSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
       return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
     }
 
-    const invite = await validateInviteCode(parsed.data.inviteCode, parsed.data.planCode);
+    const product = parsed.data.productCode ? PRODUCT_LOGIN_DEFINITIONS[parsed.data.productCode] : undefined;
+    if (product && parsed.data.planCode && parsed.data.planCode !== product.planCode) {
+      return reply.code(400).send({ error: "product_plan_mismatch", message: "产品与套餐不匹配" });
+    }
+    const tenantRole = product?.tenantRole ?? parsed.data.tenantRole;
+    const requestedPlanCode = product?.planCode ?? parsed.data.planCode;
+    const invite = await validateInviteCode(parsed.data.inviteCode, requestedPlanCode, product?.code);
     if (!invite.ok) {
       return reply.code(403).send({
         error: invite.error ?? "invite_code_required",
@@ -92,10 +163,10 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
-    const planCode = parsed.data.planCode ?? invite.planCode ?? defaultPlanForRole(parsed.data.tenantRole);
+    const planCode = requestedPlanCode ?? invite.planCode ?? defaultPlanForRole(tenantRole);
 
     if (env.DATA_MODE === "demo") {
-      const auth = getDemoContext({ "x-sitong-plan": planCode, "x-sitong-role": parsed.data.tenantRole });
+      const auth = getDemoContext({ "x-sitong-plan": planCode, "x-sitong-role": tenantRole });
       const token = createSessionToken({
         tenantId: auth.tenantId,
         userId: auth.userId,
@@ -109,7 +180,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         plan: PLANS[auth.planCode],
         creditBalance: auth.creditBalance,
         diagnosisRequired: true,
-        tenantRole: parsed.data.tenantRole
+        tenantRole,
+        productCode: product?.code,
       };
     }
 
@@ -135,13 +207,30 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
             industry: parsed.data.industry,
             city: parsed.data.city,
             source: invite.source,
-            channel: "beta_web_login"
+            channel: product ? "product_web_login" : "beta_web_login",
+            productCode: product?.code,
           }
         }, tx);
         if (invite.inviteCodeId && !nextRedeemed) {
           throw new InviteRedemptionError();
         }
-        await grantBetaAgentEntitlements(tx, nextWorkspace.tenant.id);
+        const referralClaim = await claimLanqiReferral({
+          inviteCodeId: invite.inviteCodeId,
+          referredTenantId: nextWorkspace.tenant.id,
+        }, tx);
+        if (referralClaim === "already_claimed" || referralClaim === "self_referral") {
+          throw new InviteRedemptionError();
+        }
+        await restrictWorkspaceToProductAgents(tx, nextWorkspace.tenant.id, nextWorkspace.user.id, product?.code);
+        await grantBetaAgentEntitlements(tx, nextWorkspace.tenant.id, product?.code);
+        if (product?.code === "beauty-industry") {
+          await assignBeautyIndustryBrandToTenant({
+            transactionClient: tx,
+            tenantId: nextWorkspace.tenant.id,
+            brandCode: invite.brandCode,
+            source: "product_invite"
+          });
+        }
         return { workspace: nextWorkspace, redeemed: nextRedeemed };
       });
       workspace = created.workspace;
@@ -170,15 +259,18 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       creditBalance: workspace.creditBalance,
       needsTenant: false,
       diagnosisRequired: true,
-      tenantRole: parsed.data.tenantRole,
+      tenantRole,
+      productCode: product?.code,
       invite: {
         source: invite.source,
-        redeemed
+        redeemed,
+        brandCode: product?.code === "beauty-industry" ? invite.brandCode ?? "default" : undefined
       }
     };
   });
 
   app.post("/auth/dev-login", async (request, reply) => {
+    if (rejectAuthBrandOverride(request.body, reply)) return;
     if (env.NODE_ENV === "production") {
       return reply.code(404).send({
         error: "not_found",
@@ -191,10 +283,15 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
     }
 
-    const planCode = parsed.data.planCode ?? defaultPlanForRole(parsed.data.tenantRole);
+    const product = parsed.data.productCode ? PRODUCT_LOGIN_DEFINITIONS[parsed.data.productCode] : undefined;
+    if (product && parsed.data.planCode && parsed.data.planCode !== product.planCode) {
+      return reply.code(400).send({ error: "product_plan_mismatch", message: "产品与套餐不匹配" });
+    }
+    const tenantRole = product?.tenantRole ?? parsed.data.tenantRole;
+    const planCode = product?.planCode ?? parsed.data.planCode ?? defaultPlanForRole(tenantRole);
 
     if (env.DATA_MODE === "demo") {
-      const auth = getDemoContext({ "x-sitong-plan": planCode, "x-sitong-role": parsed.data.tenantRole });
+      const auth = getDemoContext({ "x-sitong-plan": planCode, "x-sitong-role": tenantRole });
       const token = createSessionToken({
         tenantId: auth.tenantId,
         userId: auth.userId,
@@ -207,17 +304,23 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         userId: auth.userId,
         plan: PLANS[auth.planCode],
         diagnosisRequired: true,
-        tenantRole: parsed.data.tenantRole
+        tenantRole,
+        productCode: product?.code,
       };
     }
 
-    const workspace = await createTenantWorkspace({
-      planCode,
-      tenantName: parsed.data.tenantName,
-      industry: parsed.data.industry,
-      city: parsed.data.city,
-      phone: parsed.data.phone,
-      nickname: parsed.data.nickname
+    const workspace = await prisma.$transaction(async (tx: any) => {
+      const nextWorkspace = await createTenantWorkspace({
+        planCode,
+        tenantName: parsed.data.tenantName,
+        industry: parsed.data.industry,
+        city: parsed.data.city,
+        phone: parsed.data.phone,
+        nickname: parsed.data.nickname,
+      }, tx);
+      await restrictWorkspaceToProductAgents(tx, nextWorkspace.tenant.id, nextWorkspace.user.id, product?.code);
+      await grantBetaAgentEntitlements(tx, nextWorkspace.tenant.id, product?.code);
+      return nextWorkspace;
     });
     const token = createSessionToken({
       tenantId: workspace.tenant.id,
@@ -233,7 +336,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       plan: workspace.plan,
       creditBalance: workspace.creditBalance,
       diagnosisRequired: true,
-      tenantRole: parsed.data.tenantRole
+      tenantRole,
+      productCode: product?.code,
     };
   });
 
@@ -299,7 +403,18 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         where: {
           userId: user.id,
           isActive: true,
-          ...(tenantDomain ? { tenantId: tenantDomain.tenantId } : {})
+          ...(tenantDomain ? { tenantId: tenantDomain.tenantId } : {}),
+          ...(parsed.data.productCode ? {
+            tenant: {
+              productEntitlements: {
+                some: {
+                  productCode: parsed.data.productCode,
+                  status: "active",
+                  OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+                },
+              },
+            },
+          } : {}),
         },
         include: {
           tenant: {
@@ -321,6 +436,15 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
             error: "tenant_membership_required",
             message: "该微信账号还不是此企业成员，请联系企业管理员添加后再登录。"
           });
+        }
+        if (parsed.data.productCode) {
+          const hasOtherMembership = await prisma.membership.count({ where: { userId: user.id, isActive: true } });
+          if (hasOtherMembership > 0) {
+            return reply.code(403).send({
+              error: "product_membership_required",
+              message: "当前账号尚未开通这个产品，请使用产品邀请码或联系服务团队。",
+            });
+          }
         }
         return {
           dataMode: "database",
@@ -349,7 +473,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         userId: user.id,
         plan: PLANS[planCode],
         needsTenant: false,
-        diagnosisRequired: false
+        diagnosisRequired: false,
+        productCode: parsed.data.productCode,
       };
     } catch (error) {
       if (error instanceof WechatAuthNotConfiguredError) {
@@ -360,13 +485,20 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post("/auth/onboarding/create-workspace", async (request, reply) => {
+    if (rejectAuthBrandOverride(request.body, reply)) return;
     const parsed = onboardingWorkspaceSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
       return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
     }
 
+    const product = parsed.data.productCode ? PRODUCT_LOGIN_DEFINITIONS[parsed.data.productCode] : undefined;
+    if (product && parsed.data.planCode !== product.planCode) {
+      return reply.code(400).send({ error: "product_plan_mismatch", message: "产品与套餐不匹配" });
+    }
+    const planCode = product?.planCode ?? (parsed.data.planCode as PlanCode);
+
     if (env.DATA_MODE === "demo") {
-      const auth = getDemoContext({ "x-sitong-plan": parsed.data.planCode });
+      const auth = getDemoContext({ "x-sitong-plan": planCode });
       const token = createSessionToken({
         tenantId: auth.tenantId,
         userId: auth.userId,
@@ -390,7 +522,21 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
     // Check if user already has a membership
     const existingMembership = await prisma.membership.findFirst({
-      where: { userId: onboarding.userId, isActive: true },
+      where: {
+        userId: onboarding.userId,
+        isActive: true,
+        ...(product ? {
+          tenant: {
+            productEntitlements: {
+              some: {
+                productCode: product.code,
+                status: "active",
+                OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+              },
+            },
+          },
+        } : {}),
+      },
       include: {
         tenant: {
           include: {
@@ -423,7 +569,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       };
     }
 
-    const invite = await validateInviteCode(parsed.data.inviteCode, parsed.data.planCode as PlanCode);
+    const invite = await validateInviteCode(parsed.data.inviteCode, planCode, product?.code);
     if (!invite.ok) {
       return reply.code(403).send({
         error: invite.error ?? "invite_code_required",
@@ -436,7 +582,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     try {
       const created = await prisma.$transaction(async (tx: any) => {
         const nextWorkspace = await createTenantWorkspace({
-          planCode: parsed.data.planCode as PlanCode,
+          planCode,
           tenantName: parsed.data.tenantName,
           userId: onboarding.userId,
           industry: parsed.data.industry,
@@ -448,18 +594,34 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
           inviteCodeId: invite.inviteCodeId,
           tenantId: nextWorkspace.tenant.id,
           userId: nextWorkspace.user.id,
-          planCode: parsed.data.planCode as PlanCode,
+          planCode,
           metadata: {
             tenantName: parsed.data.tenantName,
             industry: parsed.data.industry,
             city: parsed.data.city,
-            source: invite.source
+            source: invite.source,
+            productCode: product?.code,
           }
         }, tx);
         if (invite.inviteCodeId && !nextRedeemed) {
           throw new InviteRedemptionError();
         }
-        await grantBetaAgentEntitlements(tx, nextWorkspace.tenant.id);
+        const referralClaim = await claimLanqiReferral({
+          inviteCodeId: invite.inviteCodeId,
+          referredTenantId: nextWorkspace.tenant.id,
+        }, tx);
+        if (referralClaim === "already_claimed" || referralClaim === "self_referral") {
+          throw new InviteRedemptionError();
+        }
+        await grantBetaAgentEntitlements(tx, nextWorkspace.tenant.id, product?.code);
+        if (product?.code === "beauty-industry") {
+          await assignBeautyIndustryBrandToTenant({
+            transactionClient: tx,
+            tenantId: nextWorkspace.tenant.id,
+            brandCode: invite.brandCode,
+            source: "product_invite"
+          });
+        }
         return { workspace: nextWorkspace, redeemed: nextRedeemed };
       });
       workspace = created.workspace;
@@ -476,7 +638,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     const token = createSessionToken({
       tenantId: workspace.tenant.id,
       userId: workspace.user.id,
-      planCode: parsed.data.planCode as PlanCode
+      planCode
     });
 
     // Save diagnosis report if provided
@@ -497,7 +659,13 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       plan: workspace.plan,
       creditBalance: workspace.creditBalance,
       needsTenant: false,
-      invite: { source: invite.source, redeemed }
+      invite: {
+        source: invite.source,
+        redeemed,
+        brandCode: product?.code === "beauty-industry" ? invite.brandCode ?? "default" : undefined
+      },
+      productCode: product?.code,
+      tenantRole: product?.tenantRole ?? PLANS[planCode].tenantType,
     };
   });
 
@@ -537,14 +705,29 @@ function maskPhone(phone: string): string {
 function translateInviteError(error: string | undefined): string {
   if (error === "invite_code_expired") return "邀请码已过期，请联系服务团队重新发放";
   if (error === "invite_code_exhausted") return "邀请码使用次数已用完，请联系服务团队";
+  if (error === "invite_code_product_mismatch") return "该邀请码不属于当前产品，请使用邀请消息中的正确入口";
   return "当前体验名额需要邀请码，请填写有效邀请码";
 }
 
-async function grantBetaAgentEntitlements(transactionClient: any, tenantId: string): Promise<void> {
+async function grantBetaAgentEntitlements(
+  transactionClient: any,
+  tenantId: string,
+  productCode?: ProductLoginCode,
+): Promise<void> {
   const now = new Date();
   const expiresAt = new Date(now);
   expiresAt.setDate(expiresAt.getDate() + 30);
-  for (const agentId of ["agent_acquisition", "agent_takeaway_growth", "agent_restaurant_growth"]) {
+  if (productCode) {
+    await transactionClient.tenantProductEntitlement.upsert({
+      where: { tenantId_productCode: { tenantId, productCode } },
+      update: { status: "active", startsAt: now, expiresAt, source: "product_invite" },
+      create: { tenantId, productCode, status: "active", startsAt: now, expiresAt, source: "product_invite" },
+    });
+  }
+  const agentIds = productCode
+    ? PRODUCT_LOGIN_DEFINITIONS[productCode].agentIds
+    : ["agent_acquisition", "agent_takeaway_growth", "agent_restaurant_growth"];
+  for (const agentId of agentIds) {
     await transactionClient.tenantAgentEntitlement.upsert({
       where: {
         tenantId_agentId: {
@@ -568,4 +751,30 @@ async function grantBetaAgentEntitlements(transactionClient: any, tenantId: stri
       }
     });
   }
+}
+
+async function restrictWorkspaceToProductAgents(
+  transactionClient: any,
+  tenantId: string,
+  userId: string,
+  productCode?: ProductLoginCode,
+): Promise<void> {
+  if (!productCode) return;
+  const allowedAgentIds = [...PRODUCT_LOGIN_DEFINITIONS[productCode].agentIds];
+  const memberships = await transactionClient.membership.findMany({
+    where: { tenantId, userId },
+    select: { id: true },
+  });
+  await transactionClient.memberAgentAccess.deleteMany({
+    where: {
+      membershipId: { in: memberships.map((membership: { id: string }) => membership.id) },
+      ...(allowedAgentIds.length > 0 ? { agentId: { notIn: allowedAgentIds } } : {}),
+    },
+  });
+  await transactionClient.tenantAgentEntitlement.deleteMany({
+    where: {
+      tenantId,
+      ...(allowedAgentIds.length > 0 ? { agentId: { notIn: allowedAgentIds } } : {}),
+    },
+  });
 }

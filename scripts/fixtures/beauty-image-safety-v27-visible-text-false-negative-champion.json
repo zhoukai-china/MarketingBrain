@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "sha256": "66b9a75b3185c465a74cf9088887bc831cf7d960121e9ed55394c6c28180f199",
+  "detectorVersion": "beauty-image-safety-v2.7",
+  "status": "passed",
+  "reason": "visible_text_or_brand_like_missing",
+  "rootCause": "highest_component_count_candidate_only",
+  "diagnostics": {
+    "highestRankedCandidate": 1,
+    "highestRankedCandidateAccepted": false,
+    "highestRankedCandidateGlyphCount": 10,
+    "highestRankedCandidateGapVariation": 2.422,
+    "highestRankedCandidateWidthCoverage": 0.135,
+    "highestRankedCandidateEdgePixelDensity": 0.028,
+    "missedDisplayTextCandidateRank": 10,
+    "missedDisplayTextCandidateGlyphCount": 3,
+    "missedDisplayTextCandidateGlyphLikeRatio": 1,
+    "missedDisplayTextCandidateBaselineDeviation": 0,
+    "missedDisplayTextCandidateHeightVariation": 0.022,
+    "missedDisplayTextCandidateWidthCoverage": 0.469,
+    "missedDisplayTextCandidateEdgePixelDensity": 0.323,
+    "missedDisplayTextCandidateMaximumAspectRatio": 1
+  }
+}

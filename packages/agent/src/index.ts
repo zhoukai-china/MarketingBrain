@@ -28,6 +28,7 @@ export interface AgentRequest {
   requestedSkillId?: SkillId;
   capabilityId?: string;
   capabilityLocked?: boolean;
+  promptCompositionPolicy?: "generic" | "locked_product_workflow";
   deliveryPolicy?: "clarify" | "draft_with_placeholders";
   skillPrompt?: string;
   skillVersionOverride?: string;
@@ -43,9 +44,40 @@ export interface LlmMessage {
   content: string;
 }
 
+export type ProviderFailureCode =
+  | "http_error"
+  | "timed_out"
+  | "cancelled"
+  | "transport_error"
+  | "invalid_json"
+  | "invalid_response"
+  | "empty_final"
+  | "output_token_limit"
+  | "content_filtered"
+  | "unexpected_tool_call"
+  | "upstream_capacity"
+  | "unknown";
+
+export interface ProviderFailureInfo {
+  code: ProviderFailureCode;
+  httpStatus?: number;
+  finishReason?: string;
+  hasReasoningContent?: boolean;
+  promptTokens?: number;
+  completionTokens?: number;
+  reasoningTokens?: number;
+}
+
 export interface LlmProvider {
   name: string;
-  complete(messages: LlmMessage[], options?: { signal?: AbortSignal; reasoningProfile?: AgentReasoningProfile }): Promise<string>;
+  complete(messages: LlmMessage[], options?: {
+    signal?: AbortSignal;
+    reasoningProfile?: AgentReasoningProfile;
+    thinkingMode?: "enabled" | "disabled";
+    reasoningEffort?: "low" | "high" | "max";
+    maxTokens?: number;
+    responseFormat?: "json_object";
+  }): Promise<string>;
   streamComplete?(
     messages: LlmMessage[],
     onDelta: (delta: string) => void | Promise<void>
@@ -62,6 +94,7 @@ export interface AgentResponse {
   analysisMode: "fast" | "deep";
   deliveryStatus?: "completed" | "needs_input" | "failed";
   analysisBrief?: AgentAnalysisBrief;
+  providerFailure?: ProviderFailureInfo;
 }
 
 export interface AgentAnalysisBrief {
@@ -90,7 +123,15 @@ const ACTIVE_BUSINESS_SKILLS = new Set<SkillId>([
   "customer_acquisition_diagnosis",
   "ip_positioning",
   "baolu_topics",
+  "baolu_ip_advisor",
+  "xiaohongshu_ops",
+  "lanqi-image-prompt-enhancer",
+  "beauty-industry-compliance",
+  "beauty-industry-content-diff",
+  "beauty-industry-xhs",
+  "wechat-xhs-content-line",
   "baolu_content_creator",
+  "founder_ip_content_creator",
   "optimize_local_push_ads",
   "dou_plus_ads",
   "baolu_dreamina_video",
@@ -127,12 +168,19 @@ const IP_AGENT_REPAIR_TIMEOUT_MS = parsePositiveInt(process.env.IP_AGENT_REPAIR_
 const IP_AGENT_PLANNER_TIMEOUT_MS = parsePositiveInt(process.env.IP_AGENT_PLANNER_TIMEOUT_MS, 90000);
 const IP_AGENT_MEDIA_PRIMARY_TIMEOUT_MS = parsePositiveInt(process.env.IP_AGENT_MEDIA_PRIMARY_TIMEOUT_MS, 240000);
 const IP_AGENT_MEDIA_REPAIR_TIMEOUT_MS = parsePositiveInt(process.env.IP_AGENT_MEDIA_REPAIR_TIMEOUT_MS, 120000);
+// DeepSeek V4 Pro counts hidden reasoning and the visible answer against the same
+// max_tokens budget. FIP reasoning_high has exhausted both 4096 and 8192 before
+// producing a final answer, so keep a bounded, stage-only allowance above them.
+const FIP_CONTENT_MAX_TOKENS = 16_384;
 
 // These skills already have strict evidence gates, output contracts and safe
 // deterministic fallbacks. Use a single deep model pass to avoid a redundant
 // planner call and a second long repair call.
 const SINGLE_PASS_STRUCTURED_SKILLS = new Set<SkillId>([
   "baolu_topics",
+  "xiaohongshu_ops",
+  "wechat-xhs-content-line",
+  "lanqi-image-prompt-enhancer",
   "baolu_content_creator",
   "baolu_review_engine",
   "live_script_planner",
@@ -367,13 +415,44 @@ export function resolveAgentReasoningProfile(
   capabilityId?: string,
   skillId?: SkillId
 ): AgentReasoningProfile {
-  if (capabilityId === "paid_traffic" || capabilityId === "dou_plus_traffic" || capabilityId === "video_review") return "deep";
+  if (skillId === "beauty-industry-compliance" || skillId === "beauty-industry-content-diff" || skillId === "beauty-industry-xhs" || skillId === "wechat-xhs-content-line") return "deep";
+  if (capabilityId === "image_prompt_preview" || skillId === "lanqi-image-prompt-enhancer") return "standard";
+  if (capabilityId === "xiaohongshu_copy" || skillId === "xiaohongshu_ops") return "deep";
+  if (capabilityId === "paid_traffic" || capabilityId === "dou_plus_traffic" || capabilityId === "video_review" || capabilityId === "video_data_review") return "deep";
   if (capabilityId === "topic_inspiration" || capabilityId === "content_plan") return "standard";
   return skillId === "baolu_review_engine" ? "deep" : "standard";
 }
 
+export function resolveAgentThinkingMode(
+  capabilityId?: string,
+  skillId?: SkillId
+): "enabled" | "disabled" | undefined {
+  return capabilityId === "image_prompt_preview" || skillId === "lanqi-image-prompt-enhancer"
+    ? "disabled"
+    : undefined;
+}
+
+export function resolveAgentMaxTokens(
+  capabilityId?: string,
+  skillId?: SkillId
+): number | undefined {
+  if (skillId === "beauty-industry-content-diff" || skillId === "beauty-industry-xhs" || skillId === "wechat-xhs-content-line") return 8192;
+  return capabilityId === "image_prompt_preview" || skillId === "lanqi-image-prompt-enhancer"
+    ? 4096
+    : undefined;
+}
+
+export function resolveAgentResponseFormat(
+  capabilityId?: string,
+  skillId?: SkillId
+): "json_object" | undefined {
+  return capabilityId === "image_prompt_preview" || skillId === "lanqi-image-prompt-enhancer"
+    ? "json_object"
+    : undefined;
+}
+
 function shouldUseSinglePass(prepared: PreparedAgentMessages): boolean {
-  if (prepared.capabilityId === "topic_inspiration") return true;
+  if (prepared.capabilityId === "topic_inspiration") return prepared.skillId !== "beauty-industry-content-diff";
   // 内容系统的一次生成本身就是完整交付。模型首稿后仍有确定性事实与结构校验，
   // 不能因为个别栏目措辞不满足而再发起一轮完整模型返工；否则九项交付会被
   // 不必要地放大为两次长请求，用户只会看到长时间的“正在生成”。
@@ -383,6 +462,16 @@ function shouldUseSinglePass(prepared: PreparedAgentMessages): boolean {
 }
 
 function shouldBuildAnalysisBrief(prepared: PreparedAgentMessages): boolean {
+  // The formal beauty Skills use their first Pro pass for the customer result
+  // and reserve a second pass only for contract repair. The former
+  // planner+single-pass shape spent the same two calls but had no way to repair
+  // missing deliverables or fabricated first-person experience.
+  if (
+    prepared.skillId === "beauty-industry-compliance" ||
+    prepared.skillId === "beauty-industry-content-diff" ||
+    prepared.skillId === "beauty-industry-xhs" ||
+    prepared.skillId === "wechat-xhs-content-line"
+  ) return false;
   return resolveAgentReasoningProfile(prepared.capabilityId, prepared.skillId) === "deep";
 }
 
@@ -563,7 +652,7 @@ function getContentPlanClarificationGapsFromMessages(messages: LlmMessage[]): Co
 function shouldUseContentPlanClarification(prepared: PreparedAgentMessages): boolean {
   if (prepared.skillId !== "baolu_content_creator" || prepared.capabilityId !== "content_plan") return false;
   const currentRequest = extractLatestUserFactSource(prepared.messages);
-  if (!currentRequest || isExplicitlyScopedContentRequest(currentRequest) || extractRequestedTopicCount(currentRequest) >= 2) return false;
+  if (!currentRequest || isExplicitlyScopedContentRequest(currentRequest) || isFullContentExecutionPackageRequest(currentRequest) || extractRequestedTopicCount(currentRequest) >= 2) return false;
   return getContentPlanClarificationGapsFromMessages(prepared.messages).length > 0;
 }
 
@@ -834,7 +923,7 @@ function extractCurrentUserInput(input: string): string {
   if (!located || located.index < 0) return input;
   const afterMarker = input.slice(located.index + located.marker.length).trim();
   const nextSectionIndex = afterMarker.search(
-    /\n(?:【请重点围绕|【我希望的呈现方式|产品要求|前端上下文|请按以下内部交付契约|参数)/
+    /\n(?:当前产品上下文：|【请重点围绕|【我希望的呈现方式|产品要求|前端上下文|请按以下内部交付契约|参数)/
   );
   return (nextSectionIndex >= 0 ? afterMarker.slice(0, nextSectionIndex) : afterMarker).trim() || input;
 }
@@ -852,11 +941,16 @@ function isContentSystemBatchRequest(input: string): boolean {
   return /【内容系统[｜|]批量内容生成】|内容系统[｜|]批量内容生成/.test(input);
 }
 
+function isFullContentExecutionPackageRequest(input: string): boolean {
+  return /内容十件套|完整(?:内容)?执行包|输出选题[\s\S]{0,180}(?:完整口播|文案)[\s\S]{0,180}拍摄脚本[\s\S]{0,180}(?:剪辑|EDL)/.test(input);
+}
+
 function getRequestedContentDeliverableTerms(input: string): string[] {
   const current = extractCurrentUserInput(input);
   return uniqueStrings([
     /选题/.test(current) ? "选题" : "",
     /口播|逐字稿|可直接照读/.test(current) ? "口播逐字稿" : "",
+    /访谈|采访|一问一答/.test(current) ? "访谈话术" : "",
     /分镜/.test(current) ? "分镜" : "",
     /拍摄脚本/.test(current) ? "拍摄脚本" : "",
     /剪辑|EDL/.test(current) ? "剪辑EDL" : "",
@@ -1007,16 +1101,38 @@ function buildSkillOutputContract(skillId: SkillId, tenantType: TenantType, capa
       "IP定位最终全案允许使用 Markdown 标题、表格和清单，以便页面呈现和复制；不要为了短而缩水。",
       "禁止输出“定位确认卡”“阶段性方案”“1分钟速览+几个建议”来冒充完整IP定位全案。"
     ],
+    baolu_ip_advisor: [
+      "这是保禄的新媒体与创始人IP能力分身，不是保禄本人；不要使用‘我亲自服务过’‘我的真实客户’或未提供的经历作为依据。",
+      "只处理新媒体内容、创始人IP定位与表达、账号经营、选题、内容结构、自然获客和内容承接问题。超出范围时简要说明边界，不擅自转为外卖、门店经营、投放执行或其他业务方案。",
+      "固定输出：直接判断、判断依据、今天可执行的一步、待确认或待验证。用户问法简单时可简短回答，但仍要保留事实边界。",
+      "真实数据、平台规则、案例、效果、收入、线索和成交没有本轮证据时，不得编造；投放、发布、发消息和账号设置只可给草案或建议。"
+    ],
     baolu_topics: [
       "选题灵感必须严格按 packages/skills/skills/baolu_topics/prompt.md 和黄金样板执行，不能套用内容文案或九件套。",
       "先锁定本轮服务的IP、企业或客户项目；本轮明确主体优先于企业默认画像，客户项目不得混入账户自己的业务。",
       "必须单独识别主体角色与选题业务对象：个人IP名称只表示谁出镜、谁表达、谁提供观点；选题必须围绕其主营产品、专业服务、客户问题或行业议题展开。不得生成‘选择某个人名之前’‘执行某个人名’‘某个人名案例’等把人名商品化的标题。",
-      "点击选题系统后必须自动扫描四大来源：AI录音卡35%、行业与用户热点25%、自身账号数据复盘20%、同行与对标内容20%；先形成16至20条内部候选，再通过三关筛选交付10条。",
+      "点击选题系统后必须自动扫描四大来源：私有知识与客户问题35%、行业与用户热点25%、自身账号数据复盘20%、同行与对标内容20%；先形成16至20条内部候选，再通过三关筛选交付10条。",
       "三关固定为：第一关目标用户是否想看并记录证据状态；第二关标注共识层级与客资精准度；第三关按账号阶段校准配比。禁止四维评分、综合分和伪精确效果排名。",
       "必须输出：本轮主体与目标、四大来源自动采集结果、三关筛选后的TOP10、配比调整建议、待验证动作与证据边界。",
       "每个选题必须有来源、第一关证据、共识层级、客资准度、适用阶段和创作建议；没有评论、私信或同行互动证据时，第一关写待验证，不得冒充通过。",
       "企业画像和用户本轮确认的主营业务、目标客户、转化目标属于可用的基础事实。来源缺失时仍须完成第一版并明确缺口，不得只返回补资料清单。",
       "用户只要选题时只交付选题，不得输出完整口播逐字稿、拍摄脚本、剪辑EDL或完整内容执行包。"
+    ],
+    xiaohongshu_ops: [
+      "只交付小红书文案，不生成图片、视频、直播话术、投流计划或发布动作。",
+      "固定输出五个栏目：标题候选、正文、话题标签、互动与承接、发布前核对。",
+      "用户本轮需求、当前门店已确认资料和明确标注的兰琪知识版本状态是唯一事实来源。没有激活的兰琪知识版本时，必须明确按门店事实创作，不得冒充使用兰琪方法论。",
+      "未确认的服务、价格、优惠、疗效、案例、客户评价、平台数据和经营结果必须省略或标注待确认，不得使用样例数字补齐。",
+      "正文必须像真实小红书笔记，开头有具体场景或问题，表达自然、可读，避免空话、极限词、医疗功效承诺和模板腔。",
+      "互动与承接只能使用门店已经确认的咨询、预约或到店路径；路径未确认时写待确认，不得声称已经发布、发送或执行。"
+    ],
+    "lanqi-image-prompt-enhancer": [
+      "只增强兰琪文生图提示词，不生成图片、视频，不创建媒体任务，不计费或发布。",
+      "只输出一个不带代码围栏的 JSON 对象，必须包含 intentUnderstanding、missingQuestions、directions、revisionSummary、knowledgeStatus 和 factBoundary。",
+      "directions 必须为2至3个差异明确的单变量方向，每个方向包含 positivePrompt、negativePrompt、overlayText 和 parameters。",
+      "positivePrompt 只写可视化画面描述，不得混入积分、计费、权限、事实校验、人工审核、系统说明、供应商或 API 信息。",
+      "中文标题只放在 overlayText 后期叠加字段；绘图提示词只描述留白区域，不要求模型直接生成中文。",
+      "只使用用户本轮需求和门店已确认事实；没有激活兰琪知识版本时不得冒充兰琪方法论，不编价格、疗效、案例、销量、人物或门店实景。"
     ],
   baolu_content_creator: buildContentCreatorContract(capabilityId, input),
     optimize_local_push_ads: [
@@ -1216,7 +1332,7 @@ function buildContentCreatorContract(capabilityId?: string, input = ""): string[
   if (capabilityId === "franchise_acquisition") {
     if (isExplicitlyScopedContentRequest(input)) {
       return [
-        "当前是招商获客内容，但用户已经明确限定交付范围；必须只交付用户点名的成品，不得展开成品牌信息表和九个栏目。",
+        "当前是招商获客内容，但用户已经明确限定交付范围；必须只交付用户点名的成品，不得展开成品牌信息表和内容十件套。",
         "如果用户只要完整文案或口播逐字稿，只输出一篇约60秒、可直接照读的完整口播正文；不得附带拍摄脚本、剪辑EDL、投流、发布时间等未要求内容。",
         "品牌、品类、目标加盟商、真实证据和承接动作必须从本任务连续对话中继承；补充信息后不得忘记首轮的输出范围。",
         "招商内容内部仍按筛人、建信、讲模型、留资和证据边界组织；未知事实明确写待核实，不得复制黄金样板演示数据或虚构加盟案例。",
@@ -1228,7 +1344,7 @@ function buildContentCreatorContract(capabilityId?: string, input = ""): string[
       "招商获客只是本次任务类型，不等于用户本人就是连锁品牌方。必须区分“当前账户身份”和“本次内容主体”；用户可能是服务商，正在替客户或某个品牌项目创作。",
       "品牌、项目、行业或品类未明确时，必须写“本轮招商项目（品牌/行业待确认）”，使用行业中性表达；禁止默认成餐饮、门店、出餐、夫妻店或附近食客。",
       "内部按 SCALE 招商获客结构组织内容：筛人、建信、讲模型、留资、证据边界；用户侧不要额外输出一份重复的 SCALE 报告。",
-      "必须严格参照用户指定的 zhuishui-jiangnan-franchise-content 黄金样板，按品牌信息和九个栏目交付：选题策划、口播逐字稿、拍摄脚本、拍摄注意事项、剪辑EDL、发布标题与话题、最佳发布时间、评论区引导话术、投流建议。信息不足时使用待补真实数据或素材占位。",
+      "必须严格参照用户指定的 zhuishui-jiangnan-franchise-content 黄金样板，按品牌信息和内容十件套交付：选题策划、口播逐字稿、访谈话术、拍摄脚本、拍摄注意事项、剪辑EDL、发布标题与话题、最佳发布时间、评论区引导话术、投流建议。信息不足时使用待补真实数据或素材占位。",
       "黄金样板中的标准化卖点、加盟商案例、山东、培训3天、流水15万、毛利60%、纯利2.5万、全国布局和9300元预算全部是演示信息，不得复制为用户事实。",
       "招商视频优先使用创始人IP观点、加盟商真实过程、样板店/工厂实拍、模式拆解或考察邀约。投流围绕全国或指定区域的意向获客目标，根据账户能力选择本地推、DOU+或组合测试；只有存在真实样板店或工厂时，才增加线下考察承接。禁止使用团购、核销、面向消费者到店的逻辑。",
       "投放术语必须准确：本地推是产品名称，不等于只能投本地，在账户和平台支持时可以设置跨城市或全国范围。不得用“本地业务还是全国业务”决定本地推或DOU+，应询问转化目标、实际可承接地域、账户定向能力和落地承接。",
@@ -1261,19 +1377,35 @@ function buildContentCreatorContract(capabilityId?: string, input = ""): string[
   return [
     "内容创作必须输出执行交付物，不只是建议。",
     "写文案、短视频、图文、口播或投流素材时，必须严格按完整内容执行包输出；不得删减投流建议。",
-    "完整内容执行包固定包含九个栏目：选题、文案、拍摄脚本、拍摄注意事项、剪辑EDL、发布标题话题、发布时间、评论区引导话术、投流建议。",
-    "面向用户的标题只能写“完整内容执行包”或“可直接发布的内容执行包”，禁止写“完整报告（内容九件套）”“内容九件套”“九件套”“内容八件套”。",
+    "内容十件套固定包含十个栏目：选题、文案、访谈话术、拍摄脚本、拍摄注意事项、剪辑EDL、发布标题话题、发布时间、评论区引导话术、投流建议。",
+    "面向用户可写“内容十件套”“完整内容执行包”或“可直接发布的内容执行包”；禁止退回旧“九件套”、误写“四件套”或“八件套”。",
     "用户要求朋友圈+短视频选题时，要同时给朋友圈文案和短视频选题；如果信息不足，一次性问清必要信息后再输出完整内容执行包。",
     "涉及投流时必须准确说明：本地推是产品名称，不等于只能投本地，在账户和平台支持时可以覆盖跨城市或全国；不得把“本地业务/全国业务”机械等同于“本地推/DOU+”，要按转化目标、可承接地域、账户定向和落地承接选择。"
   ];
 }
 
 function buildProductExperienceContract(skillId: SkillId, capabilityId?: string): string {
+  if (skillId === "general_qa" && capabilityId === "beauty_business_qa") {
+    return [
+      "这是美业门店经营问答，不要输出平台、路由、Skill、模型或其他内部实现信息。",
+      "只使用当前租户已确认事实；资料不足时仍可给通用起步动作，但必须明确仍需确认的关键资料。",
+      "不得编造价格、疗效、顾客案例、业绩、员工动作或已执行结果。"
+    ].join("\n");
+  }
   if (skillId === "general_qa") {
     return [
       "思潼负责接待和分诊。用户只是在和思潼对话，不要让用户自己选择专项。",
       "如果用户问题明显属于某个专项，直接让对应咨询师按 skill 输出；不要解释内部路由、不要说系统自动转接。",
       "不要虚构未接入的咨询师，只能使用当前已接入的 skill。"
+    ].join("\n");
+  }
+
+  if (skillId === "baolu_ip_advisor") {
+    return [
+      "问问保禄体验：以保禄的新媒体与创始人IP能力分身身份给出判断，不冒充保禄本人，也不暗示已经读过未提供的个人经历、客户案例或账号数据。",
+      "只回答新媒体内容、创始人IP定位与表达、账号经营、选题、内容结构、自然获客和内容承接相关问题；问题超出范围时明确边界，并给出可继续咨询的方向。",
+      "优先给结论、依据和一个可执行的下一步。没有真实账号数据、平台规则或案例证据时，明确写经验判断、待确认或待验证。",
+      "不得声称已发布、投放、发消息、修改账号或执行其他外部动作。"
     ].join("\n");
   }
 
@@ -1512,6 +1644,13 @@ function getSalesCapabilityRequirements(capabilityId?: string, source = ""): {
       requiredDeliverables: ["可复算漏斗", "负责人", "复盘时间"]
     }
   };
+  if (
+    capabilityId === "beauty_sales"
+    && /顾客|客户/.test(source)
+    && /询问|问|回复|怎么说|怎么回|改善|效果|疗效|适合/.test(source)
+  ) {
+    return requirements.objection_reply;
+  }
   return requirements[capabilityId ?? ""] ?? {
     minLength: 460,
     requiredTerms: ["当前判断", "已确认", "待核实", "话术", "下一步动作"],
@@ -1570,29 +1709,68 @@ export async function buildAgentMessages(request: AgentRequest): Promise<Prepare
   const normalizedInput = normalizeBusinessInput(request.input);
   const taskScopedInput = resolveTaskScopedContentInput(normalizedInput, request.history);
   const tenantType = request.tenantProfile.tenantType;
-  const skillId = routeSkill(normalizedInput, request.requestedSkillId);
+  // Product entrypoints that have already resolved and authorized a capability
+  // must never be re-routed by words inside the business request.  Semantic
+  // routing is only valid before a capability is locked; after that point the
+  // model may extract parameters or ask for missing fields, but cannot select a
+  // different Skill.
+  const skillId = request.capabilityLocked && request.requestedSkillId
+    ? request.requestedSkillId
+    : routeSkill(normalizedInput, request.requestedSkillId);
   const manifest = assertSkillAllowed({
     skillId,
     planCode: request.planCode,
     tenantType
   });
+  const usesLockedProductWorkflow = request.promptCompositionPolicy === "locked_product_workflow";
+  if (usesLockedProductWorkflow && (!request.capabilityLocked || !request.skillPrompt)) {
+    throw new Error("locked_product_workflow_prompt_invalid");
+  }
   const [skillPrompt, loadedQualityContract, exampleSnippets] = await Promise.all([
     request.skillPrompt ?? loadSkillPrompt(skillId),
     loadSkillQualityContract(skillId),
-    loadSkillExampleSnippets(skillId, 3, 3600)
+    usesLockedProductWorkflow ? Promise.resolve([]) : loadSkillExampleSnippets(skillId, 3, 3600)
   ]);
   const qualityContract = adaptQualityContractToRequest(skillId, loadedQualityContract, taskScopedInput, request.capabilityId);
   const takeawayDialogueContract = skillId === "takeaway-growth-advisor"
     ? buildTakeawayTaskDialogueContract(normalizedInput)
     : undefined;
 
-  const systemPrompt = [
+  const founderIpContentRequest = skillId === "founder_ip_content_creator" && request.capabilityId === "content_plan";
+  const systemPrompt = founderIpContentRequest ? [
+    "你是创始人 IP 获客系统的内容生成器。唯一任务是把当前请求中的获客目标简报、已选题和来源证据写成事实受控的可编辑内容。",
+    "当前请求已经由服务端按租户、主体、获客目标和草稿锁定。不得读取或采用企业默认画像、历史会话、其他产品、其他租户、行业样板或通用咨询师模板。",
+    "最终答案优先：直接交付成品，不解释内部推理，不调用其他能力，不补造事实，不执行发布、投流、付款或外部动作。",
+    "",
+    `当前专属能力：${manifest.name} ${manifest.version}`,
+    "专项规则：",
+    skillPrompt,
+    "",
+    "质量合约：",
+    formatSkillQualityContract(qualityContract)
+  ].join("\n") : usesLockedProductWorkflow ? [
+    "你正在执行一个由产品入口、权限和版本共同锁定的专属工作流。只完成当前能力，不得根据自由文本切换 Skill、产品或业务分支。",
+    "只使用当前租户已确认资料和本轮用户输入中的事实；未知的价格、疗效、案例、经营结果和素材权利必须标为待补，不得用样板、其他客户或其他产品内容补齐。",
+    "输出必须满足下面的正式工作流与结构化质量合约。不得执行发布、投流、付款、充值、发消息或其他外部动作。",
+    "",
+    "客户上下文：",
+    buildTenantContext(request.tenantProfile),
+    "",
+    `当前专属能力：${manifest.name} ${manifest.version}`,
+    "专属工作流：",
+    skillPrompt,
+    "",
+    "结构化质量合约：",
+    formatSkillQualityContract(qualityContract)
+  ].join("\n") : [
     "你是思潼 企业AI增长飞轮的咨询师团队，不是通用AI助手。",
     "思潼 企业AI增长飞轮基于本地商家、连锁品牌和OPC领域的私有实战知识库训练，每周迭代。",
     "你的价值不是陪用户闲聊，而是把老板说不清的问题诊断清楚，并交付能落地执行的方案、文案、话术、SOP、复盘和清单。",
     "所有回答必须严格服从当前专项能力。专项方法论是产品核心，不能用通用AI自由发挥替代。",
     "用户只能和思潼聊天。专项咨询师只负责在回答问题时出现并交付结果，不能要求用户去找某个咨询师。",
-    "如果用户问题明显属于一个或多个专项能力，你要自动调用更合适的咨询师能力，不要让用户自己判断。",
+    request.capabilityLocked
+      ? "本次专项能力已由用户入口和服务端权限锁定；只在当前能力内提取参数或追问缺失信息，禁止切换到其他专项能力。"
+      : "如果用户问题明显属于一个或多个专项能力，你要自动调用更合适的咨询师能力，不要让用户自己判断。",
     "如果本次输出较长，先给短结论，然后给完整方案；完整方案也要分段清楚，便于导出Word。",
     "",
     "客户上下文：",
@@ -1652,6 +1830,8 @@ async function completeWithAgentTimeout(
   signal?: AbortSignal
 ): Promise<string> {
   const effectiveTimeoutMs = getEffectiveAgentTimeoutMs(prepared, timeoutMs);
+  const isFounderIpContentRequest = prepared.capabilityId === "content_plan"
+    && messages.some((message) => message.role === "user" && message.content.includes("【创始人IP获客内容生成】"));
   const controller = new AbortController();
   let timedOut = false;
   const abortFromParent = () => controller.abort(signal?.reason);
@@ -1664,7 +1844,15 @@ async function completeWithAgentTimeout(
   try {
     return await provider.complete(messages, {
       signal: controller.signal,
-      reasoningProfile: resolveAgentReasoningProfile(prepared.capabilityId, prepared.skillId)
+      reasoningProfile: resolveAgentReasoningProfile(prepared.capabilityId, prepared.skillId),
+      thinkingMode: isFounderIpContentRequest
+        ? "enabled"
+        : resolveAgentThinkingMode(prepared.capabilityId, prepared.skillId),
+      reasoningEffort: isFounderIpContentRequest ? "high" : undefined,
+      maxTokens: isFounderIpContentRequest
+        ? FIP_CONTENT_MAX_TOKENS
+        : resolveAgentMaxTokens(prepared.capabilityId, prepared.skillId),
+      responseFormat: resolveAgentResponseFormat(prepared.capabilityId, prepared.skillId)
     });
   } catch (error) {
     if (signal?.aborted) throw createAgentAbortError();
@@ -1687,6 +1875,15 @@ function throwIfAgentRunAborted(signal?: AbortSignal): void {
 }
 
 function getEffectiveAgentTimeoutMs(prepared: PreparedAgentMessages, defaultTimeoutMs: number): number {
+  const isBeautyProductRequest = prepared.messages.some((message) => message.content.includes("【固定美业能力】"));
+  if (
+    isBeautyProductRequest &&
+    defaultTimeoutMs === IP_AGENT_PRIMARY_TIMEOUT_MS &&
+    prepared.skillId === "baolu_topics" &&
+    prepared.capabilityId === "topic_inspiration"
+  ) {
+    return defaultTimeoutMs;
+  }
   // Keep live-script generation inside the browser request window. A slow
   // provider then falls back to the validated deterministic live-script package.
   if (
@@ -1710,7 +1907,7 @@ function getEffectiveAgentTimeoutMs(prepared: PreparedAgentMessages, defaultTime
   const hasUploadedFacts = /【本次用户上传\/粘贴的附件】|附件摘要|视频号数据表解析结果|业务文件解析结果|视频\/素材解析结果|文件正文\/数据|画面解析|语音\/字幕转写|原始可读内容|\.csv|\.xlsx|\.xls|上传了视频文件/.test(source);
   if (
     hasUploadedFacts &&
-    ((prepared.skillId === "baolu_review_engine" && prepared.capabilityId === "video_review") ||
+    ((prepared.skillId === "baolu_review_engine" && (prepared.capabilityId === "video_review" || prepared.capabilityId === "video_data_review")) ||
       (prepared.skillId === "baolu_content_creator" && prepared.capabilityId === "shooting_editing"))
   ) {
     if (defaultTimeoutMs === IP_AGENT_PLANNER_TIMEOUT_MS) return defaultTimeoutMs;
@@ -1725,7 +1922,7 @@ function shouldKeepPrimaryAnswerWhenRepairFails(prepared: PreparedAgentMessages,
   const hasUploadedFacts = /【本次用户上传\/粘贴的附件】|附件摘要|视频号数据表解析结果|业务文件解析结果|视频\/素材解析结果|文件正文\/数据|画面解析|语音\/字幕转写|原始可读内容|\.csv|\.xlsx|\.xls|上传了视频文件/.test(source);
   if (!hasUploadedFacts) return false;
   if (
-    (prepared.skillId === "baolu_review_engine" && prepared.capabilityId === "video_review") ||
+    (prepared.skillId === "baolu_review_engine" && (prepared.capabilityId === "video_review" || prepared.capabilityId === "video_data_review")) ||
     (prepared.skillId === "baolu_content_creator" && prepared.capabilityId === "shooting_editing")
   ) {
     return skillScenarioLooksMatched(prepared.skillId, answer, prepared.capabilityId, source)
@@ -1739,6 +1936,7 @@ export async function runAgent(request: AgentRequest, provider: LlmProvider): Pr
   throwIfAgentRunAborted(request.signal);
   const normalizedInput = normalizeBusinessInput(request.input);
   const normalizedRoutingInput = normalizeBusinessInput(request.routingInput ?? request.input);
+  const requestsCompleteContentPackage = isFullContentExecutionPackageRequest(normalizedRoutingInput);
   const inferredContentCapability = !request.capabilityLocked
     && request.requestedSkillId === "baolu_content_creator"
     && request.capabilityId === "content_plan"
@@ -1746,7 +1944,7 @@ export async function runAgent(request: AgentRequest, provider: LlmProvider): Pr
     && !isContentSystemBatchRequest(request.input)
     ? /招商|加盟|加盟商|招代理/.test(normalizedRoutingInput)
       ? "franchise_acquisition"
-      : /拍摄.*剪辑|拍剪|剪辑.*优化|镜头.*优化/.test(normalizedRoutingInput)
+      : !requestsCompleteContentPackage && /拍摄.*剪辑|拍剪|剪辑.*优化|镜头.*优化/.test(normalizedRoutingInput)
         ? "shooting_editing"
         : request.capabilityId
     : request.capabilityId;
@@ -1865,7 +2063,7 @@ export async function runAgent(request: AgentRequest, provider: LlmProvider): Pr
   // could exceed the browser's request window and discard a valid result.
   if (
     initialPrepared.skillId === "baolu_review_engine" &&
-    initialPrepared.capabilityId === "video_review"
+    (initialPrepared.capabilityId === "video_review" || initialPrepared.capabilityId === "video_data_review")
   ) {
     const tableStats = extractVideoDataTableStats(initialUserSource);
     if (tableStats.isDataTable) {
@@ -2025,6 +2223,7 @@ export async function runAgent(request: AgentRequest, provider: LlmProvider): Pr
   }
   let answer: string;
   let providerFailed = false;
+  let providerFailure: ProviderFailureInfo | undefined;
   let takeawayActionableFallbackUsed = false;
   let takeawayExplorationGuardUsed = false;
   let rawAnswer = "";
@@ -2045,6 +2244,7 @@ export async function runAgent(request: AgentRequest, provider: LlmProvider): Pr
   } catch (error) {
     throwIfAgentRunAborted(request.signal);
     providerFailed = true;
+    providerFailure = extractProviderFailureInfo(error);
     answer = buildDeterministicFallback(prepared) ?? buildTemporaryFallback(prepared, error);
   }
   return {
@@ -2055,12 +2255,96 @@ export async function runAgent(request: AgentRequest, provider: LlmProvider): Pr
     creditCost: prepared.creditCost,
     analysisMode,
     analysisBrief,
+    providerFailure,
     qualityFlags: [
       ...inspectQuality(answer, prepared.skillId, prepared.qualityContract, prepared.messages, prepared.capabilityId),
       ...(providerFailed ? ["provider_fallback_used"] : []),
+      ...(providerFailure ? [`provider_failure_${providerFailure.code}`] : []),
       ...(takeawayActionableFallbackUsed ? ["takeaway_actionable_fallback_used"] : []),
       ...(takeawayExplorationGuardUsed ? ["takeaway_exploration_guard_used"] : [])
     ]
+  };
+}
+
+const providerFailureCodes = new Set<ProviderFailureCode>([
+  "http_error",
+  "timed_out",
+  "cancelled",
+  "transport_error",
+  "invalid_json",
+  "invalid_response",
+  "empty_final",
+  "output_token_limit",
+  "content_filtered",
+  "unexpected_tool_call",
+  "upstream_capacity",
+  "unknown"
+]);
+
+function extractProviderFailureInfo(error: unknown): ProviderFailureInfo {
+  const candidate = error && typeof error === "object"
+    ? (error as { providerFailure?: Partial<ProviderFailureInfo> }).providerFailure
+    : undefined;
+  const errorMessage = error instanceof Error ? error.message : "";
+  const inferredCode: ProviderFailureCode = /timed out|timeout|timed_out/i.test(errorMessage)
+    ? "timed_out"
+    : error instanceof Error && (error.name === "AbortError" || /cancelled|canceled/i.test(errorMessage))
+      ? "cancelled"
+      : "unknown";
+  const code = candidate?.code && providerFailureCodes.has(candidate.code)
+    ? candidate.code
+    : inferredCode;
+  const safeNumber = (value: unknown): number | undefined => typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? Math.floor(value)
+    : undefined;
+  const safeFinishReason = typeof candidate?.finishReason === "string" && /^(?:stop|length|content_filter|tool_calls|insufficient_system_resource|unknown)$/.test(candidate.finishReason)
+    ? candidate.finishReason
+    : undefined;
+  return {
+    code,
+    ...(safeNumber(candidate?.httpStatus) !== undefined ? { httpStatus: safeNumber(candidate?.httpStatus) } : {}),
+    ...(safeFinishReason ? { finishReason: safeFinishReason } : {}),
+    ...(typeof candidate?.hasReasoningContent === "boolean" ? { hasReasoningContent: candidate.hasReasoningContent } : {}),
+    ...(safeNumber(candidate?.promptTokens) !== undefined ? { promptTokens: safeNumber(candidate?.promptTokens) } : {}),
+    ...(safeNumber(candidate?.completionTokens) !== undefined ? { completionTokens: safeNumber(candidate?.completionTokens) } : {}),
+    ...(safeNumber(candidate?.reasoningTokens) !== undefined ? { reasoningTokens: safeNumber(candidate?.reasoningTokens) } : {})
+  };
+}
+
+/**
+ * The API gateway calls this immediately before returning a topic-system
+ * delivery.  It is deliberately separate from the model/fallback path above:
+ * a stale repair or legacy delivery adapter must never strip the columns that
+ * make a topic actionable and traceable in the workbench.
+ */
+export async function enforceTopicInspirationFinalDelivery(
+  request: AgentRequest,
+  result: AgentResponse
+): Promise<AgentResponse> {
+  if (result.skillId !== "baolu_topics" || request.capabilityId !== "topic_inspiration") return result;
+  const usesBeautyProductContract = request.skillVersionOverride?.includes("beauty-industry-content-diff@") === true;
+  // Founder-IP keeps its expanded handoff columns below. The beauty product
+  // deliberately composes the formal baolu_topics contract with versioned
+  // beauty constraints, then enforces all quality flags, structure, facts and
+  // pollution again at product postflight. Never replace either a valid or an
+  // invalid Provider result with the shared deterministic delivery: valid
+  // output must remain attributable to the Provider, while invalid output must
+  // fail closed instead of being repaired by a template.
+  if (usesBeautyProductContract) return result;
+  const required = ["选题/钩子", "目标人群", "来源依据", "与获客目标的关系", "下一步生成内容"];
+  const topicRows = result.answer.match(/^\|\s*(?:[1-9]|10)\s*\|/gm)?.length ?? 0;
+  if (topicRows === 10 && required.every((field) => result.answer.includes(field))) return result;
+
+  const prepared = await buildAgentMessages({
+    ...request,
+    capabilityLocked: true,
+    deliveryPolicy: "draft_with_placeholders"
+  });
+  const fallback = buildTopicInspirationFallback(prepared);
+  return {
+    ...result,
+    answer: fallback,
+    qualityFlags: Array.from(new Set([...result.qualityFlags, "topic_final_delivery_rebuilt"]))
   };
 }
 
@@ -2115,9 +2399,10 @@ export function resolveAgentAnalysisMode(request: AgentRequest): "fast" | "deep"
   if (request.requestedSkillId === "takeaway-growth-advisor" || ["takeaway_data_foundation", "takeaway_growth", "mature_store_growth", "new_store_breakthrough", "takeaway_data_audit", "takeaway_menu_profit", "takeaway_campaign_roi", "takeaway_competitor_loss", "takeaway_problem_validation", "takeaway_experiment", "takeaway_execution", "takeaway_effect_evaluation", "takeaway_review"].includes(request.capabilityId ?? "")) return "deep";
   if (request.requestedSkillId === "restaurant-growth-advisor" || ["restaurant_diagnosis", "takeaway_growth", "dine_in_growth", "chain_store_growth"].includes(request.capabilityId ?? "")) return "deep";
   if (request.requestedSkillId === "sales_growth_advisor" || ["customer_diagnosis", "intent_temperature", "objection_reply", "follow_up_plan", "closing_script", "funnel_review"].includes(request.capabilityId ?? "")) return "deep";
+  if (request.requestedSkillId === "beauty-industry-compliance" || request.requestedSkillId === "beauty-industry-content-diff" || request.requestedSkillId === "beauty-industry-xhs" || request.requestedSkillId === "wechat-xhs-content-line") return "deep";
   if (request.analysisMode === "fast" || request.analysisMode === "deep") return request.analysisMode;
   const source = request.input;
-  const complexCapability = new Set(["topic_inspiration", "industry_hotspots", "paid_traffic", "video_review", "live_script", "live_review", "franchise_acquisition"]);
+  const complexCapability = new Set(["topic_inspiration", "industry_hotspots", "paid_traffic", "video_review", "video_data_review", "live_script", "live_review", "franchise_acquisition"]);
   const hasBusinessFile = /【本次用户上传\/粘贴的附件】|【业务文件解析结果】|附件摘要|文件正文\/数据|画面解析|语音\/字幕转写|\.pdf|\.docx|\.xlsx|\.csv/i.test(source);
   const multiGoal = (source.match(/(?:还要|同时|另外|并且|以及|最后|对比|复盘|分析)/g) ?? []).length >= 3;
   if (hasBusinessFile || (request.capabilityId && complexCapability.has(request.capabilityId)) || source.length >= 900 || multiGoal) return "deep";
@@ -2244,10 +2529,25 @@ export async function finalizeAgentAnswer(params: {
   const sevenDayAcquisitionPlan = params.prepared.skillId === "baolu_content_creator"
     && params.prepared.capabilityId === "content_plan"
     && isSevenDayAcquisitionPlanRequest(userSource);
-  let answer = normalizeAgentAnswer(
-    cleanAgentAnswer(params.rawAnswer, params.prepared.tenantType),
-    params.prepared
+  const usesFixedBeautyWorkflow = params.prepared.messages.some((message) =>
+    message.role === "system" && message.content.includes("【固定美业能力】")
   );
+  // Locked beauty workflows already have an explicit capability-specific
+  // output contract. Applying the shared content-creator normalizer here
+  // strips Markdown heading markers and renames V5 sections before the beauty
+  // parser sees them, so a valid single-pass fixture becomes invalid. Preserve
+  // the fixed workflow structure and let its own Schema/Eval validate it.
+  let answer = usesFixedBeautyWorkflow
+    ? cleanFixedBeautyWorkflowAnswer(params.rawAnswer)
+    : normalizeAgentAnswer(cleanAgentAnswer(params.rawAnswer, params.prepared.tenantType), params.prepared);
+  if (usesFixedBeautyWorkflow) {
+    // The product-level beauty postflight owns Schema, fact-retention,
+    // pollution and compliance validation. Shared Agent repair and
+    // deterministic fallbacks do not have the structured workflow payload and
+    // previously replaced valid fixtures with legacy enterprise templates.
+    // Keep every locked beauty capability single-pass and fail closed later.
+    return answer;
+  }
   const takeawayDialogue = params.prepared.skillId === "takeaway-growth-advisor"
     ? parseTakeawayTaskDialogue(userSource)
     : undefined;
@@ -2272,6 +2572,19 @@ export async function finalizeAgentAnswer(params: {
       params.prepared.capabilityId
     ));
     if (hasGroundingIssues || hasQualityIssues) return buildDeterministicFallback(params.prepared) ?? answer;
+    return answer;
+  }
+  const isFixedBeautyTopicsWorkflow = params.prepared.skillId === "baolu_topics"
+    && params.prepared.capabilityId === "topic_inspiration"
+    && params.prepared.messages.some((message) =>
+      message.role === "system"
+      && message.content.includes("【固定美业能力】topic_inspiration")
+    );
+  if (isFixedBeautyTopicsWorkflow) {
+    // Fixed beauty topics are single-pass. The product owns the structured
+    // source payload and its postflight rejects missing terms, fact drift and
+    // pollution. Shared repair/fallback has neither that payload nor authority
+    // to turn 2/4 verified sources into a fabricated 0/4 delivery.
     return answer;
   }
   for (let attempt = 0; attempt < 1; attempt += 1) {
@@ -2313,7 +2626,7 @@ export async function finalizeAgentAnswer(params: {
           params.prepared.skillId === "baolu_content_creator" && params.prepared.capabilityId !== "shooting_editing"
             ? scopedContentRequest
               ? "用户明确限制了交付范围，只保留用户点名的内容，不得扩写其他栏目。"
-              : "如果是内容创作，必须写成完整内容执行包，并且九个栏目标题都要出现。"
+              : "如果是内容创作，必须写成内容十件套，并且十个栏目标题都要出现。"
             : "如果当前能力不是内容创作，不要输出“完整内容执行包”。"
         ].join("\n")
       }
@@ -2325,10 +2638,9 @@ export async function finalizeAgentAnswer(params: {
       throwIfAgentRunAborted(params.signal);
       return buildDeterministicFallbackIfFactDrift(params.prepared, answer) ?? answer;
     }
-    answer = normalizeAgentAnswer(
-      cleanAgentAnswer(repairedRaw, params.prepared.tenantType),
-      params.prepared
-    );
+    answer = usesFixedBeautyWorkflow
+      ? cleanFixedBeautyWorkflowAnswer(repairedRaw)
+      : normalizeAgentAnswer(cleanAgentAnswer(repairedRaw, params.prepared.tenantType), params.prepared);
   }
 
   return enforceRequiredDeterministicDelivery(
@@ -2338,9 +2650,60 @@ export async function finalizeAgentAnswer(params: {
 }
 
 function enforceRequiredDeterministicDelivery(prepared: PreparedAgentMessages, answer: string): string {
+  const source = extractKnownFactSource(prepared.messages);
+  const beautyScoped = /生活美容|美容门店|皮肤管理|基础护理|基础清洁|日常补水|补水护理|舒缓护理/.test(source)
+    && !/美甲|美睫|纹眉/.test(source);
+  if (beautyScoped) {
+    answer = answer.replace(/\n*如果[^。\n]{0,180}真人团队(?:可以)?入企[^。\n]*(?:企业微信入口|联系入口)[^。\n]*。?/g, "").trim();
+  }
+  if (prepared.skillId === "beauty-industry-content-diff" && prepared.capabilityId === "beauty_acquisition_strategy") {
+    const reservationUnknown = hasExplicitNoData(source, "预约方式|预约渠道|咨询入口|承接方式");
+    const boundedAnswer = answer.split("\n").map((line) => {
+      if (/^目标顾客[：:]/.test(line)) return "目标顾客：门店周边正在了解基础清洁和补水护理、关心流程与推销边界的人；具体年龄与性别待补。";
+      if (/^可用素材[：:]/.test(line)) return "可用素材：只使用本轮已确认并获授权的环境、服务步骤及其他素材；未确认素材不拍、不补写。";
+      if (reservationUnknown && /^承接动作[：:]/.test(line)) return "承接动作：预约与咨询方式待补，确认真实入口后再配置承接话术。";
+      if (reservationUnknown && /^第三优先级[：:]/.test(line)) return "第三优先级：统一承接话术；预约与咨询入口确认后再配置。";
+      if (reservationUnknown && /^每天固定动作[：:]/.test(line)) return "每天固定动作：发布内容并记录真实咨询问题；咨询渠道确认后再补回复流程。";
+      return line;
+    }).join("\n").trim();
+    if (/本结果仅用于获客策略草稿与发布、投流准备（PREVIEW_ONLY）/.test(boundedAnswer)) return boundedAnswer;
+    return [
+      boundedAnswer,
+      "",
+      "执行边界",
+      "本结果仅用于获客策略草稿与发布、投流准备（PREVIEW_ONLY）；未执行发布、投流、付款或创建计划。"
+    ].join("\n");
+  }
+  if (prepared.skillId === "beauty-industry-content-diff" && prepared.capabilityId === "topic_inspiration") {
+    const reservationUnknown = hasExplicitNoData(source, "预约方式|预约渠道|咨询入口|承接方式");
+    return answer.split("\n").map((line) => {
+      let boundedLine = line.replace(/下班后\s*40\s*分钟/g, "下班后想做基础护理").replace(/午休\s*1\s*小时/g, "工作间隙");
+      if (/^目标顾客[：:]/.test(boundedLine)) boundedLine = "目标顾客：附近工作节奏快、重视体验但担心推销的人；其他年龄、性别和职业标签待补。";
+      if (/^可用素材[：:]/.test(boundedLine)) boundedLine = "可用素材：仅使用已确认的用品、空间局部和获授权员工手部；其他素材待补。";
+      if (reservationUnknown && /^承接动作[：:]/.test(boundedLine)) boundedLine = "承接动作：预约与咨询方式待补，确认真实入口后再配置承接话术。";
+      return boundedLine;
+    }).join("\n").trim();
+  }
+  if ((prepared.skillId === "beauty-industry-xhs" || prepared.skillId === "wechat-xhs-content-line") && prepared.capabilityId === "beauty_xiaohongshu_package") {
+    if (hasExplicitNoData(source, "预约方式|预约渠道|咨询入口|承接方式")) {
+      const lines = answer.split("\n").map((line) =>
+        /私信发|可以私信|私信问|附近可约|评论(?:区)?(?:发|打)|我们会回复|可约情况/.test(line)
+          ? "预约与咨询方式待补，确认真实入口后再加入承接信息。"
+          : line.replace(/私信引导区/g, "后期承接信息安全区")
+      );
+      return lines.filter((line, index) => line !== lines[index - 1]).join("\n").trim();
+    }
+    return answer;
+  }
   if (prepared.skillId !== "baolu_topics" || prepared.capabilityId !== "topic_inspiration") return answer;
+  if (prepared.skillVersion.includes("beauty-industry-content-diff@")) {
+    // The versioned beauty product owns its formal output postflight. Shared
+    // founder-IP table expansion would discard the product's verified source
+    // states (for example, 2/4 becoming 0/4) and obscure Provider provenance.
+    return answer;
+  }
   const topicRows = answer.match(/^\|\s*(?:[1-9]|10)\s*\|/gm)?.length ?? 0;
-  const required = ["四大来源自动采集结果", "三关筛选后的TOP10", "第一关证据", "共识层级", "客资准度", "配比调整建议", "待验证动作与证据边界"];
+  const required = ["四大来源自动采集结果", "三关筛选后的TOP10", "选题/钩子", "目标人群", "核心观点/内容角度", "来源依据", "与获客目标的关系", "下一步生成内容", "第一关证据", "共识层级", "客资准度", "配比调整建议", "待验证动作与证据边界"];
   const usesRetiredScoring = /四维评分|综合分/.test(answer);
   if (topicRows >= 10 && required.every((term) => answer.includes(term)) && !usesRetiredScoring) return answer;
   return buildDeterministicFallback(prepared) ?? answer;
@@ -2359,13 +2722,21 @@ const SKILL_QUALITY_CONTRACTS: Partial<Record<SkillId, { minLength: number; requ
     minLength: 260,
     requiredTerms: ["一句话结论", "红黄绿灯", "P0", "P1", "P2", "AI能做", "老板做", "团队做", "下一步"]
   },
+  xiaohongshu_ops: {
+    minLength: 180,
+    requiredTerms: ["标题候选", "正文", "话题标签", "互动与承接", "发布前核对"]
+  },
+  "lanqi-image-prompt-enhancer": {
+    minLength: 900,
+    requiredTerms: ["intentUnderstanding", "missingQuestions", "directions", "positivePrompt", "negativePrompt", "overlayText", "parameters", "revisionSummary", "knowledgeStatus", "factBoundary"]
+  },
   baolu_content_creator: {
     minLength: 420,
-    requiredTerms: ["选题", "文案", "拍摄脚本", "拍摄注意事项", "剪辑EDL", "发布标题", "发布时间", "评论区引导", "投流建议"]
+    requiredTerms: ["选题", "文案", "访谈话术", "拍摄脚本", "拍摄注意事项", "剪辑EDL", "发布标题", "发布时间", "评论区引导", "投流建议"]
   },
   baolu_topics: {
     minLength: 1100,
-    requiredTerms: ["本轮主体与目标", "四大来源自动采集结果", "AI录音卡", "行业与用户热点", "自身账号数据复盘", "同行与对标内容", "三关筛选后的TOP10", "第一关证据", "共识层级", "客资准度", "适用阶段", "配比调整建议", "待验证动作与证据边界"]
+    requiredTerms: ["本轮主体与目标", "四大来源自动采集结果", "私有知识与客户问题", "行业与用户热点", "自身账号数据复盘", "同行与对标内容", "三关筛选后的TOP10", "第一关证据", "共识层级", "客资准度", "适用阶段", "配比调整建议", "待验证动作与证据边界"]
   },
   moments_generator: {
     minLength: 220,
@@ -2472,6 +2843,22 @@ function evaluateAnswerQuality(
 
   const userSource = messages ? extractLatestUserFactSource(messages) : "";
   const knownFactSource = messages ? extractKnownFactSource(messages) : userSource;
+  const usesBeautyProductWorkflow = messages?.some((message) =>
+    message.role === "system" && message.content.includes("【固定美业能力】")
+  ) === true;
+  // The generic tenant context describes the account that is operating the
+  // product. It is not the user's current topic brief and can contain local
+  // acceptance labels which the beauty policy intentionally strips. Requiring
+  // those labels to appear in a topic delivery creates a false fact-retention
+  // failure after an otherwise valid baolu_topics result.
+  const isBeautyXhsWorkflow = usesBeautyProductWorkflow
+    && (skillId === "beauty-industry-xhs" || skillId === "wechat-xhs-content-line")
+    && capabilityId === "beauty_xiaohongshu_package";
+  const rubricFactSource = isBeautyXhsWorkflow
+    ? [...(messages ?? [])].reverse().find((message) => message.role === "user")?.content ?? userSource
+    : usesBeautyProductWorkflow && skillId === "baolu_topics" && capabilityId === "topic_inspiration"
+      ? userSource
+      : knownFactSource;
   const scopedContentRequest = skillId === "baolu_content_creator"
     && capabilityId !== "shooting_editing"
     && isExplicitlyScopedContentRequest(userSource);
@@ -2482,7 +2869,12 @@ function evaluateAnswerQuality(
     && capabilityId !== "shooting_editing"
     && isSevenDayAcquisitionPlanRequest(userSource);
   const builtInContract =
-    skillId === "ai_daily_brief" && capabilityId === "industry_hotspots"
+    skillId === "general_qa" && capabilityId === "beauty_business_qa"
+      ? {
+          minLength: 220,
+          requiredTerms: ["先给结论", "今天先做", "可以直接使用", "仍需确认"]
+        }
+      : skillId === "ai_daily_brief" && capabilityId === "industry_hotspots"
       ? {
           minLength: 620,
           requiredTerms: ["短结论", "行业热点速览", "热点咨询", "热点来源/线索", "热点判断", "IP获客机会", "可蹭选题", "短视频切入", "朋友圈切入", "直播切入", "风险提醒", "今日动作"]
@@ -2500,7 +2892,7 @@ function evaluateAnswerQuality(
       : skillId === "baolu_content_creator" && capabilityId === "franchise_acquisition"
         ? {
             minLength: 1800,
-            requiredTerms: ["品牌信息", "选题策划", "口播逐字稿", "拍摄脚本", "拍摄注意事项", "剪辑EDL", "发布标题", "最佳发布时间", "评论区引导话术", "投流建议", "加盟需谨慎"]
+            requiredTerms: ["品牌信息", "选题策划", "口播逐字稿", "访谈话术", "拍摄脚本", "拍摄注意事项", "剪辑EDL", "发布标题", "最佳发布时间", "评论区引导话术", "投流建议", "加盟需谨慎"]
           }
       : sevenDayAcquisitionPlan
         ? {
@@ -2517,7 +2909,7 @@ function evaluateAnswerQuality(
             minLength: 80,
             requiredTerms: []
           }
-      : skillId === "baolu_review_engine" && capabilityId === "video_review"
+      : skillId === "baolu_review_engine" && (capabilityId === "video_review" || capabilityId === "video_data_review")
         ? {
             minLength: 1200,
             requiredTerms: ["数据质量审计", "数据总览", "视频分层", "内容结构健康度", "单条深拆", "完播率深层归因", "互动深度分析", "趋势分析", "规律总结", "方法论沉淀", "下周期选题建议", "综合诊断结论"]
@@ -2543,22 +2935,32 @@ function evaluateAnswerQuality(
         ? SKILL_QUALITY_CONTRACTS[skillId]
         : undefined;
   const usesCapabilitySpecificContract =
+    (skillId === "general_qa" && capabilityId === "beauty_business_qa") ||
     (skillId === "optimize_local_push_ads" && capabilityId === "paid_traffic") ||
     (skillId === "baolu_content_creator" && capabilityId === "shooting_editing") ||
     (skillId === "baolu_content_creator" && capabilityId === "franchise_acquisition") ||
     sevenDayAcquisitionPlan ||
     fullSpokenCopyRequest ||
     scopedContentRequest ||
-    (skillId === "baolu_review_engine" && capabilityId === "video_review") ||
+    (skillId === "baolu_review_engine" && (capabilityId === "video_review" || capabilityId === "video_data_review")) ||
     (skillId === "live_script_planner" && capabilityId === "live_script") ||
     skillId === "sales_growth_advisor" ||
     (skillId === "ai_daily_brief" && capabilityId === "industry_hotspots");
   const includeQualityContractTerms = !usesCapabilitySpecificContract;
+  const qualityContractTerms = (qualityContract?.requiredTerms ?? []).filter((term) =>
+    !(usesBeautyProductWorkflow
+      && capabilityId === "beauty_xiaohongshu_package"
+      && ["事实母版", "画面方向", "逐张提示词"].includes(term))
+  );
   const requiredTerms = uniqueStrings([
     ...(builtInContract?.requiredTerms ?? []),
-    ...(includeQualityContractTerms ? qualityContract?.requiredTerms ?? [] : []),
+    ...(includeQualityContractTerms ? qualityContractTerms : []),
     ...(includeQualityContractTerms ? qualityContract?.requiredSections ?? [] : []),
-    ...(includeQualityContractTerms ? qualityContract?.requiredDeliverables ?? [] : [])
+    // requiredDeliverables are human-readable acceptance descriptions rather
+    // than literal user-facing labels. Beauty product workflows validate their
+    // exact sections, counts and cross-module boundaries again at product
+    // postflight, so repeating these internal phrases is not a success signal.
+    ...(includeQualityContractTerms && !usesBeautyProductWorkflow ? qualityContract?.requiredDeliverables ?? [] : [])
   ]);
   const forbiddenTerms = [
     ...(qualityContract?.forbiddenTerms ?? []),
@@ -2577,7 +2979,10 @@ function evaluateAnswerQuality(
     flags.push("too_short");
     score -= 25;
   }
-  if (/作为一个AI|我是一个AI|无法提供|我不能|无法帮助/.test(answer)) {
+  const genericAiTonePattern = skillId === "general_qa" && capabilityId === "beauty_business_qa"
+    ? /作为一个AI|我是一个AI/
+    : /作为一个AI|我是一个AI|无法提供|我不能|无法帮助/;
+  if (genericAiTonePattern.test(answer)) {
     flags.push("generic_ai_tone");
     score -= 30;
   }
@@ -2607,7 +3012,7 @@ function evaluateAnswerQuality(
     flags.push("paid_traffic_fake_execution");
     score -= 45;
   }
-  const rubricIssues = inspectRubricQuality(skillId, answer, knownFactSource, qualityContract, capabilityId);
+  const rubricIssues = inspectRubricQuality(skillId, answer, rubricFactSource, qualityContract, capabilityId);
   for (const issue of rubricIssues) {
     flags.push(issue.flag);
     rubricNotes.push(issue.note);
@@ -2668,7 +3073,9 @@ function getQualityRepairInstruction(
       ? "本轮是替客户/品牌项目创作：必须以用户当前输入指定的客户项目为内容主体，以该项目的目标受众和转化目的为承接；企业画像只代表服务提供方背景，不得把文案改成推广用户自己的主营业务。"
       : undefined,
     "返工要求：先给短结论，再给完整交付物；缺少的栏目/关键词必须用原词出现在最终答案中；必须包含可执行动作、话术/清单/SOP/脚本中至少一种；必须命中用户本次场景；必须保留用户事实，不得编造数据；最终要像老板能直接复制、拍摄、发布、复盘或交给员工执行。",
-    "语气像思潼一对一陪老板推进，不要泛泛讲道理，不要说自己是AI。"
+    skillId === "general_qa" && capabilityId === "beauty_business_qa"
+      ? "语气像一位可靠的门店经营顾问，直接、自然、可执行；不要泛泛讲道理，不要说自己是AI。"
+      : "语气像思潼一对一陪老板推进，不要泛泛讲道理，不要说自己是AI。"
   ].filter(Boolean).join("\n");
 }
 
@@ -2701,7 +3108,25 @@ function inspectRubricQuality(
     });
   }
 
-  if (skillId === "sales_growth_advisor") {
+  if ((skillId === "beauty-industry-xhs" || skillId === "wechat-xhs-content-line") && capabilityId === "beauty_xiaohongshu_package") {
+    const xhsFactIssues = inspectBeautyXhsTaskFactIssues(answer, userSource);
+    const missingFactKeys = xhsFactIssues.filter((issue) => issue.kind === "missing").map((issue) => issue.key);
+    const contradictoryFactKeys = xhsFactIssues.filter((issue) => issue.kind === "contradiction").map((issue) => issue.key);
+    if (missingFactKeys.length > 0) {
+      issues.push({
+        flag: "rubric_fact_retention_weak",
+        note: `小红书任务事实回执未完整保留：${missingFactKeys.map(beautyXhsTaskFactLabel).join("、")}`,
+        penalty: 24
+      });
+    }
+    if (contradictoryFactKeys.length > 0) {
+      issues.push({
+        flag: "rubric_fact_contradiction",
+        note: `小红书任务事实回执与服务端锁定值矛盾：${contradictoryFactKeys.map(beautyXhsTaskFactLabel).join("、")}`,
+        penalty: 35
+      });
+    }
+  } else if (skillId === "sales_growth_advisor") {
     const allSourceNumberFacts = Array.from(
       userSource
         .replace(/(^|\n)\s*\d+[.、]\s*/g, "$1")
@@ -2720,7 +3145,7 @@ function inspectRubricQuality(
         penalty: 18
       });
     }
-  } else if (skillId === "baolu_review_engine" && capabilityId === "video_review" && isVideoDataTableSource(userSource)) {
+  } else if (skillId === "baolu_review_engine" && (capabilityId === "video_review" || capabilityId === "video_data_review") && isVideoDataTableSource(userSource)) {
     const stats = extractVideoDataTableStats(userSource);
     const retainedDataFacts = hasVideoDataFactRetention(answer, stats);
     if (!retainedDataFacts) {
@@ -2744,7 +3169,7 @@ function inspectRubricQuality(
 
   const isCompleteContentPlan = skillId === "baolu_content_creator"
     && capabilityId === "content_plan"
-    && ["完整内容执行包", "口播逐字稿", "拍摄脚本", "拍摄注意事项", "剪辑EDL", "发布标题", "发布时间", "评论区", "投流建议", "明确的下一步动作"]
+    && ["口播逐字稿", "访谈话术", "拍摄脚本", "拍摄注意事项", "剪辑EDL", "发布标题", "发布时间", "评论区", "投流建议", "明确的下一步动作"]
       .every((term) => answer.includes(term));
   if (skillId && !isCompleteContentPlan && !skillScenarioLooksMatched(skillId, answer, capabilityId, userSource)) {
     issues.push({
@@ -2754,7 +3179,7 @@ function inspectRubricQuality(
     });
   }
 
-  if (answer.length > 380 && !hasDirectlyUsableAsset(answer)) {
+  if (answer.length > 380 && !hasDirectlyUsableAsset(answer, skillId, capabilityId)) {
     issues.push({
       flag: "rubric_not_boss_usable",
       note: "缺少老板能直接复制使用的话术、脚本、清单、日历、EDL或复盘表",
@@ -2794,9 +3219,14 @@ function extractUserFactTokens(source: string): string[] {
 }
 
 function skillScenarioLooksMatched(skillId: SkillId, answer: string, capabilityId?: string, userSource = ""): boolean {
+  if (skillId === "general_qa" && capabilityId === "beauty_business_qa") {
+    return ["先给结论", "今天先做", "可以直接使用", "仍需确认"].every(term => answer.includes(term))
+      && !/保证(?:效果|成交|预约)|百分百|治愈|诊断结果|已经(?:执行|通知|发布)|真实顾客案例/.test(answer);
+  }
   if (skillId === "baolu_topics" && capabilityId === "topic_inspiration") {
     const topicRows = answer.match(/^\|\s*(?:[1-9]|10)\s*\|/gm)?.length ?? 0;
-    return topicRows === 10
+    const topicCards = answer.match(/^###\s+(?:0[1-9]|10)[.、：:]\s*\S.+$/gm)?.length ?? 0;
+    const legacyTableMatched = topicRows === 10
       && [
         /本轮主体与目标/,
         /四大来源自动采集结果/,
@@ -2806,7 +3236,26 @@ function skillScenarioLooksMatched(skillId: SkillId, answer: string, capabilityI
         /客资准度/,
         /配比调整建议/,
         /待验证动作与证据边界/
+      ].every((pattern) => pattern.test(answer));
+    const customerCardsMatched = topicCards === 10
+      && [
+        /用户可用TOP10/,
+        /选题策略摘要/,
+        /来源与质量审核/,
+        /四大来源自动采集结果/,
+        /三关筛选后的TOP10/,
+        /第一关证据/,
+        /共识层级/,
+        /客资准度/,
+        /配比调整建议/,
+        /待验证动作与证据边界/
       ].every((pattern) => pattern.test(answer))
+      && (answer.match(/^- 适合人群：\S.+$/gm)?.length ?? 0) === 10
+      && (answer.match(/^- 内容角度：\S.+$/gm)?.length ?? 0) === 10
+      && (answer.match(/^- 为什么有助\S+：\S.+$/gm)?.length ?? 0) === 10
+      && (answer.match(/^- 建议内容形式：\S.+$/gm)?.length ?? 0) === 10
+      && (answer.match(/^- 生成内容：\S.+$/gm)?.length ?? 0) === 10;
+    return (legacyTableMatched || customerCardsMatched)
       && inspectTopicInspirationFactIssues(answer, userSource).length === 0
       && !/四维评分|综合分/.test(answer)
       && !/完整报告（内容九件套）|内容九件套|九件套|完整内容执行包|口播逐字稿|拍摄脚本|剪辑EDL/.test(answer);
@@ -3022,14 +3471,196 @@ function inspectSalesFactIssues(answer: string, source: string): string[] {
   return uniqueStrings(issues);
 }
 
-function hasDirectlyUsableAsset(answer: string): boolean {
+function hasDirectlyUsableAsset(answer: string, skillId?: SkillId, capabilityId?: string): boolean {
+  if (
+    (skillId === "beauty-industry-xhs" || skillId === "wechat-xhs-content-line")
+    && capabilityId === "beauty_xiaohongshu_package"
+  ) {
+    return hasDirectlyUsableBeautyXhsDelivery(answer);
+  }
   return /话术|脚本|文案|EDL|清单|表格|日历|模板|置顶评论|私信回复|可直接回复|跟进计划|SOP|0到3秒|0-3秒|今天|明天|发布时间/.test(answer);
+}
+
+function hasDirectlyUsableBeautyXhsDelivery(answer: string): boolean {
+  const customer = answer.match(/(?:^|\n)##\s+客户可复制成品\s*\n([\s\S]*?)(?=\n##\s+门店制作说明\s*(?:\n|$))/)?.[1] ?? "";
+  if (!customer) return false;
+  const titleBlock = customer.match(/(?:^|\n)###\s+标题候选\s*\n([\s\S]*?)(?=\n###\s+正文\s*(?:\n|$))/)?.[1] ?? "";
+  const titles = titleBlock
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^\s*(?:[-*]\s*)?(?:[1-3一二三])[.、:：)）]\s*/, "").trim())
+    .filter(Boolean);
+  const body = customer.match(/(?:^|\n)###\s+正文\s*\n([\s\S]*?)(?=\n###\s+话题标签\s*(?:\n|$))/)?.[1]?.trim() ?? "";
+  const tagBlock = customer.match(/(?:^|\n)###\s+话题标签\s*\n([\s\S]*?)(?=\n###\s+互动与承接\s*(?:\n|$))/)?.[1] ?? "";
+  const tags = [...new Set(tagBlock.match(/#[^\s#，,；;]+/g) ?? [])];
+  const engagement = customer.match(/(?:^|\n)###\s+互动与承接\s*\n([\s\S]*)$/)?.[1]?.trim() ?? "";
+  return titles.length === 3
+    && body.length >= 60
+    && tags.length >= 5
+    && tags.length <= 8
+    && engagement.length >= 4
+    && !/(?:受控流程|controlled\s*mock|确定性模拟|任务事实回执|事实与合规待补|待补|待核验|核验|供应商|Schema|Eval|提示词|视觉参数|合同)/i.test(customer);
 }
 
 function looksLikeGenericAdvice(answer: string): boolean {
   const genericHits = (answer.match(/建议|可以|需要|提升|优化|加强|注意/g) ?? []).length;
   const concreteHits = (answer.match(/话术|脚本|镜头|字幕|标题|时间|指标|私信|评论|0到|0-|第\d|今天|明天/g) ?? []).length;
   return genericHits >= 8 && concreteHits < 5;
+}
+
+function inspectBeautyXhsPackageIssues(answer: string, userSource: string): string[] {
+  const issues: string[] = [];
+  const requiredDirections = ["配图方向一｜封面图", "配图方向二｜内容图", "配图方向三｜互动承接图"];
+  const requestedThreeImages = /(?:封面图|封面).*(?:内容图|内容).*(?:互动承接图|承接图)|3\s*张配图|三张配图/s.test(userSource);
+  if (requestedThreeImages && requiredDirections.some((term) => !answer.includes(term))) {
+    issues.push("缺少封面图、内容图、互动承接图三套独立配图方向");
+  }
+  const unsupportedFirstPerson = /我最近|我(?:去|做|用|体验|护理)完|我的(?:皮肤|体验|护理)|亲测|护理师会/.test(answer)
+    && !/用户本人确认|本人真实经历|第一人称真实素材已确认/.test(userSource);
+  if (unsupportedFirstPerson) issues.push("把未提供的第一人称体验或门店服务细节写成了事实");
+  if (/已经生成图片|图片已生成|已提交图片任务/.test(answer)) issues.push("预览阶段虚构了图片执行结果");
+  const taskFactIssues = inspectBeautyXhsTaskFactIssues(answer, userSource);
+  if (taskFactIssues.some((issue) => issue.kind === "missing")) issues.push("任务事实回执没有完整保留服务端锁定事实");
+  if (taskFactIssues.some((issue) => issue.kind === "contradiction")) issues.push("任务事实回执与服务端锁定事实矛盾");
+  return issues;
+}
+
+type BeautyXhsTaskFactKey = "time_context" | "service_project" | "audience_geography" | "target_audience" | "platform" | "deliverable";
+
+export interface BeautyXhsTaskFactIssue {
+  kind: "missing" | "contradiction";
+  key: BeautyXhsTaskFactKey;
+}
+
+interface LockedBeautyXhsTaskFact {
+  key: BeautyXhsTaskFactKey;
+  value: string;
+}
+
+export function inspectBeautyXhsTaskFactIssues(answer: string, userSource: string): BeautyXhsTaskFactIssue[] {
+  const facts = parseLockedBeautyXhsTaskFacts(userSource);
+  if (facts.length === 0) return [{ kind: "missing", key: "platform" }];
+  const receipt = extractBeautyXhsTaskFactReceipt(answer);
+  if (!receipt) return facts.map((fact) => ({ kind: "missing", key: fact.key }));
+  const issues: BeautyXhsTaskFactIssue[] = [];
+  for (const fact of facts) {
+    const line = extractBeautyXhsReceiptLine(receipt, fact.key);
+    if (line && beautyXhsFactMatches(line, fact)) continue;
+    issues.push({ kind: line && beautyXhsFactExplicitlyContradicts(line, fact) ? "contradiction" : "missing", key: fact.key });
+  }
+  return issues;
+}
+
+function parseLockedBeautyXhsTaskFacts(source: string): LockedBeautyXhsTaskFact[] {
+  const allowed = new Set<BeautyXhsTaskFactKey>(["time_context", "service_project", "audience_geography", "target_audience", "platform", "deliverable"]);
+  return Array.from(source.matchAll(/\[XHS_TASK_FACT:([a-z_]+)]\s*([^\n]{1,160})/g)).flatMap((match) => {
+    const key = match[1] as BeautyXhsTaskFactKey;
+    const value = match[2]?.trim() ?? "";
+    return allowed.has(key) && value ? [{ key, value }] : [];
+  });
+}
+
+function extractBeautyXhsTaskFactReceipt(answer: string): string {
+  const match = answer.match(/(?:^|\n)#{0,3}\s*任务事实回执\s*\n([\s\S]*?)(?=\n#{1,3}\s|$)/);
+  return match?.[1]?.trim() ?? "";
+}
+
+function extractBeautyXhsReceiptLine(receipt: string, key: BeautyXhsTaskFactKey): string {
+  const labels: Record<BeautyXhsTaskFactKey, RegExp> = {
+    time_context: /^(?:[-*]\s*)?(?:季节|时点|季节\/时点|时间语境)[：:]\s*(.+)$/m,
+    service_project: /^(?:[-*]\s*)?(?:服务项目|本次项目|项目)[：:]\s*(.+)$/m,
+    audience_geography: /^(?:[-*]\s*)?(?:地理范围|地域|范围)[：:]\s*(.+)$/m,
+    target_audience: /^(?:[-*]\s*)?(?:目标顾客|目标人群|受众)[：:]\s*(.+)$/m,
+    platform: /^(?:[-*]\s*)?(?:平台)[：:]\s*(.+)$/m,
+    deliverable: /^(?:[-*]\s*)?(?:交付|交付形式|内容形式)[：:]\s*(.+)$/m
+  };
+  return receipt.match(labels[key])?.[1]?.trim() ?? "";
+}
+
+function beautyXhsFactMatches(source: string, fact: LockedBeautyXhsTaskFact): boolean {
+  const compact = normalizeBeautyXhsFactText(source);
+  const expected = normalizeBeautyXhsFactText(fact.value);
+  if (fact.key === "time_context") return beautyXhsAliasGroup(expected, BEAUTY_XHS_TIME_ALIASES).some((alias) => compact.includes(alias));
+  if (fact.key === "audience_geography") return beautyXhsAliasGroup(expected, BEAUTY_XHS_GEOGRAPHY_ALIASES).some((alias) => compact.includes(alias));
+  if (fact.key === "target_audience") {
+    const expectsFemale = BEAUTY_XHS_FEMALE_AUDIENCE.test(expected);
+    const expectsCustomer = /顾客|客户|客群|用户|人群/.test(expected);
+    const expectedAgeRange = beautyXhsAgeRange(fact.value);
+    return (!expectsFemale || BEAUTY_XHS_FEMALE_AUDIENCE.test(compact))
+      && (!expectsCustomer || /顾客|客户|客群|用户|人群/.test(compact))
+      && (!expectedAgeRange || beautyXhsAgeRange(source) === expectedAgeRange);
+  }
+  if (fact.key === "service_project") {
+    const projectCore = normalizeBeautyXhsProject(expected);
+    return projectCore.length >= 2 ? normalizeBeautyXhsProject(compact).includes(projectCore) : compact.includes(expected);
+  }
+  if (fact.key === "platform") return /小红书/.test(compact);
+  if (fact.key === "deliverable") return /图文|图片(?:与|和|加)文字|文字(?:与|和|加)图片/.test(compact);
+  return compact.includes(expected);
+}
+
+function beautyXhsFactExplicitlyContradicts(source: string, fact: LockedBeautyXhsTaskFact): boolean {
+  const compact = normalizeBeautyXhsFactText(source);
+  if (fact.key === "time_context") {
+    const expectedGroup = beautyXhsAliasGroup(normalizeBeautyXhsFactText(fact.value), BEAUTY_XHS_TIME_ALIASES);
+    return BEAUTY_XHS_TIME_ALIASES.some((group) => group.some((alias) => compact.includes(alias)) && !group.some((alias) => expectedGroup.includes(alias)));
+  }
+  if (fact.key === "audience_geography" && /异地|外地|远途|全国/.test(compact)) return true;
+  if (fact.key === "target_audience") {
+    if (BEAUTY_XHS_FEMALE_AUDIENCE.test(fact.value) && BEAUTY_XHS_MALE_AUDIENCE.test(compact) && !BEAUTY_XHS_FEMALE_AUDIENCE.test(compact)) return true;
+    const expectedAgeRange = beautyXhsAgeRange(fact.value);
+    const actualAgeRange = beautyXhsAgeRange(source);
+    if (expectedAgeRange && actualAgeRange && expectedAgeRange !== actualAgeRange) return true;
+  }
+  if (fact.key === "platform" && /抖音|视频号|公众号|朋友圈/.test(compact) && !/小红书/.test(compact)) return true;
+  if (fact.key === "deliverable" && /视频|直播|音频/.test(compact) && !/图文|图片|文字/.test(compact)) return true;
+  if (fact.key === "service_project" && /治疗|手术|注射/.test(compact) && !/治疗|手术|注射/.test(fact.value)) return true;
+  return false;
+}
+
+const BEAUTY_XHS_TIME_ALIASES = [
+  ["春季", "春天", "春日"],
+  ["夏季", "夏天", "盛夏"],
+  ["秋季", "秋天", "秋日"],
+  ["冬季", "冬天", "寒冬"]
+] as const;
+const BEAUTY_XHS_GEOGRAPHY_ALIASES = [["附近", "周边", "门店周边", "社区周边"], ["本地", "同城", "本市", "本区"]] as const;
+const BEAUTY_XHS_FEMALE_AUDIENCE = /女性|女士|女生|女顾客|女客户|女客群|女用户|女性用户|女性人群/;
+const BEAUTY_XHS_MALE_AUDIENCE = /男性|男士|男生|男顾客|男客户|男客群|男用户|男性用户|男性人群/;
+
+function beautyXhsAgeRange(value: string): string | undefined {
+  const normalized = value.replace(/[—–－~～至到]/g, "-").replace(/\s+/g, "");
+  const match = normalized.match(/(?:^|\D)(\d{1,2})-(\d{1,2})(?:岁|周岁)?(?:\D|$)/);
+  if (!match) return undefined;
+  const lower = Number(match[1]);
+  const upper = Number(match[2]);
+  if (!Number.isInteger(lower) || !Number.isInteger(upper) || lower > upper) return undefined;
+  return `${lower}-${upper}`;
+}
+
+function beautyXhsAliasGroup(value: string, groups: readonly (readonly string[])[]): string[] {
+  return [...(groups.find((group) => group.some((alias) => value.includes(alias))) ?? [value])];
+}
+
+function normalizeBeautyXhsFactText(value: string): string {
+  return value.toLowerCase().replace(/[\s，。；;：:、“”‘’（）()[\]【】{}<>《》|/\\_-]+/g, "");
+}
+
+function normalizeBeautyXhsProject(value: string): string {
+  return normalizeBeautyXhsFactText(value)
+    .replace(/日常/g, "基础")
+    .replace(/保湿/g, "补水")
+    .replace(/基础|护理|项目|服务|疗程/g, "");
+}
+
+function beautyXhsTaskFactLabel(key: BeautyXhsTaskFactKey): string {
+  return ({
+    time_context: "季节/时点",
+    service_project: "服务项目",
+    audience_geography: "地理范围",
+    target_audience: "目标顾客",
+    platform: "平台",
+    deliverable: "交付形式"
+  } as const)[key];
 }
 
 function uniqueStrings(items: string[]): string[] {
@@ -3055,18 +3686,19 @@ function normalizeAgentAnswer(answer: string, prepared: PreparedAgentMessages): 
 const CONTENT_PACKAGE_HEADING_RULES: Array<{ title: string; pattern: RegExp }> = [
   { title: "一、选题策划", pattern: /^一[、.．]\s*(?:选题(?:策划)?|主题)(?=$|[：:\s])/ },
   { title: "二、口播逐字稿", pattern: /^二[、.．]\s*(?:可直接发布的文案|口播(?:逐字稿|文案)?|文案)(?:[（(][^）)]*[）)])?(?=$|[：:\s])/ },
-  { title: "三、拍摄脚本", pattern: /^三[、.．]\s*(?:可直接拍摄的脚本[：:]?\s*)?拍摄脚本(?=$|[：:\s])/ },
-  { title: "四、拍摄注意事项", pattern: /^四[、.．]\s*拍摄注意事项(?=$|[：:\s])/ },
-  { title: "五、剪辑EDL文件", pattern: /^五[、.．]\s*剪辑\s*EDL(?:文件)?(?=$|[：:\s])/i },
-  { title: "六、发布标题与话题标签", pattern: /^六[、.．]\s*发布标题(?:与话题(?:标签)?|话题(?:标签)?)?(?=$|[：:\s])/ },
-  { title: "七、最佳发布时间", pattern: /^七[、.．]\s*(?:最佳)?发布时间(?=$|[：:\s])/ },
-  { title: "八、评论区引导话术", pattern: /^八[、.．]\s*评论区(?:引导)?话术(?=$|[：:\s])/ },
-  { title: "九、投流建议", pattern: /^九[、.．]\s*投流建议(?=$|[：:\s])/ }
+  { title: "三、访谈话术", pattern: /^三[、.．]\s*(?:访谈|采访)(?:内容[·・])?(?:提问)?话术(?=$|[：:\s])/ },
+  { title: "四、拍摄脚本", pattern: /^四[、.．]\s*(?:可直接拍摄的脚本[：:]?\s*)?拍摄脚本(?=$|[：:\s])/ },
+  { title: "五、拍摄注意事项", pattern: /^五[、.．]\s*拍摄注意事项(?=$|[：:\s])/ },
+  { title: "六、剪辑EDL文件", pattern: /^六[、.．]\s*剪辑\s*EDL(?:文件)?(?=$|[：:\s])/i },
+  { title: "七、发布标题与话题标签", pattern: /^七[、.．]\s*发布标题(?:与话题(?:标签)?|话题(?:标签)?)?(?=$|[：:\s])/ },
+  { title: "八、最佳发布时间", pattern: /^八[、.．]\s*(?:最佳)?发布时间(?=$|[：:\s])/ },
+  { title: "九、评论区引导话术", pattern: /^九[、.．]\s*评论区(?:引导)?话术(?=$|[：:\s])/ },
+  { title: "十、投流建议", pattern: /^十[、.．]\s*投流建议(?=$|[：:\s])/ }
 ];
 
 function normalizeContentPackageHeadings(content: string): string {
   const inlineFixed = content.replace(
-    /(。|；|;)\s*(?=[一二三四五六七八九][、.．]\s*(?:选题|主题|可直接发布的文案|口播|文案|可直接拍摄的脚本|拍摄脚本|拍摄注意事项|剪辑\s*EDL|发布标题|发布时间|评论区|投流建议))/g,
+    /(。|；|;)\s*(?=[一二三四五六七八九十][、.．]\s*(?:选题|主题|可直接发布的文案|口播|文案|访谈|采访|可直接拍摄的脚本|拍摄脚本|拍摄注意事项|剪辑\s*EDL|发布标题|发布时间|评论区|投流建议))/g,
     "$1\n"
   );
   return inlineFixed.split(/\r?\n/).flatMap((rawLine) => {
@@ -3096,8 +3728,8 @@ function normalizeContentCreatorAnswer(answer: string, requireFullPackage: boole
     normalized = `完整内容执行包\n${normalized}`;
   }
   if (requireFullPackage) {
-    // WorkBuddy 内容样板是唯一栏目合同：先把被模型拼到上一行的栏目切开，
-    // 再统一成用户可见的九个栏目。绝不把正文里的“标题”“主选题”当成新栏目。
+    // WorkBuddy V5 内容样板是唯一栏目合同：先把被模型拼到上一行的栏目切开，
+    // 再统一成用户可见的十个栏目。绝不把正文里的“标题”“主选题”当成新栏目。
     normalized = normalizeContentPackageHeadings(normalized).trim();
   }
   return normalized;
@@ -3106,14 +3738,27 @@ function normalizeContentCreatorAnswer(answer: string, requireFullPackage: boole
 function getSkillRepairInstruction(skillId: SkillId, answer: string, messages: LlmMessage[], capabilityId?: string): string | undefined {
   const currentUserFactSource = extractLatestUserFactSource(messages);
   const userFactSource = extractKnownFactSource(messages);
+  if ((skillId === "beauty-industry-xhs" || skillId === "wechat-xhs-content-line") && capabilityId === "beauty_xiaohongshu_package") {
+    const xhsIssues = inspectBeautyXhsPackageIssues(answer, userFactSource);
+    if (xhsIssues.length > 0) {
+      return [
+        "当前美业小红书图文没有达到事实与配图交付契约，必须完整重写。",
+        `问题：${xhsIssues.join("；")}。`,
+        "正文只能使用用户已确认的服务、素材和经营事实；用户没有提供本人或顾客经历时，禁止写‘我做过/亲测/做完后’等第一人称体验，也不能替门店承诺护理师行为。",
+        "用户要求三张配图时，必须分别输出：配图方向一｜封面图、配图方向二｜内容图、配图方向三｜互动承接图；每个方向都要有正向视觉提示词和负向提示词。",
+        "图片只做零付费提示词预览，不得声称已经生成、提交或发布。",
+        userFactSource ? `用户已确认事实如下，只能基于这些内容重写：\n${userFactSource}` : ""
+      ].filter(Boolean).join("\n");
+    }
+  }
   if (skillId === "baolu_content_creator" && capabilityId === "content_plan" && isContentSystemBatchRequest(currentUserFactSource)) {
-    const missing = CONTENT_NINE_PIECE_TERMS.filter((term) => !answerContainsContractTerm(answer, term));
+    const missing = CONTENT_TEN_PIECE_TERMS.filter((term) => !answerContainsContractTerm(answer, term));
     const hasPackageTitle = /完整内容执行包/.test(answer);
     if (missing.length === 0 && hasPackageTitle) return undefined;
     return [
       "当前来自内容系统的批量生成，必须交付一份完整内容执行包，不能降级成短视频脚本或四段摘要。",
       missing.length > 0 ? `缺少栏目：${missing.join("、")}。` : "请补上完整内容执行包标题。",
-      "固定交付顺序（严格使用 WorkBuddy 样板标题）：一、选题策划；二、口播逐字稿；三、拍摄脚本；四、拍摄注意事项；五、剪辑EDL文件；六、发布标题与话题标签；七、最佳发布时间；八、评论区引导话术；九、投流建议。",
+      "固定交付顺序（严格使用 WorkBuddy V5 样板标题）：一、选题策划；二、口播逐字稿；三、访谈话术；四、拍摄脚本；五、拍摄注意事项；六、剪辑EDL文件；七、发布标题与话题标签；八、最佳发布时间；九、评论区引导话术；十、投流建议。",
       "所有未确认的品牌、数据、案例、价格、地域和结果都必须写待补或待核实，不能编造。"
     ].join("\n");
   }
@@ -3262,7 +3907,7 @@ function getSkillRepairInstruction(skillId: SkillId, answer: string, messages: L
         "最终只输出一篇约60秒、可直接照读的完整招商口播逐字稿，并使用本任务各轮已经确认的真实事实。"
       ].filter(Boolean).join("\n");
     }
-    const required = ["品牌信息", "一、选题策划", "二、口播逐字稿", "三、拍摄脚本", "四、拍摄注意事项", "五、剪辑EDL", "六、发布标题", "七、最佳发布时间", "八、评论区引导话术", "九、投流建议"];
+    const required = ["品牌信息", "一、选题策划", "二、口播逐字稿", "三、访谈话术", "四、拍摄脚本", "五、拍摄注意事项", "六、剪辑EDL", "七、发布标题", "八、最佳发布时间", "九、评论区引导话术", "十、投流建议"];
     const missing = required.filter((term) => !answer.includes(term));
     const expectedBrand = extractFranchiseBrandName(franchiseSource);
     const answerBrand = answer.match(/\|\s*品牌名\s*\|\s*([^|\n]+)\s*\|/)?.[1]?.trim();
@@ -3277,7 +3922,7 @@ function getSkillRepairInstruction(skillId: SkillId, answer: string, messages: L
       wrongBrand ? `品牌名识别错误。用户确认的品牌名是“${expectedBrand}”，品牌信息表及全文必须保持一致，不能把任务指令当品牌名。` : undefined,
       copiedDemoFacts.length > 0 ? `复制了样板演示事实：${copiedDemoFacts.join("、")}。这些不是用户资料，必须删除或改成待补真实数据。` : undefined,
       illegalPromise ? "招商内容禁止稳赚、保本、零风险、包回本、保证收益或确定回本。" : undefined,
-      "固定结构为品牌信息和九个栏目；SCALE只作为内部逻辑，不再额外生成重复报告。",
+      "固定结构为品牌信息和内容十件套；SCALE只作为内部逻辑，不再额外生成重复报告。",
       userFactSource ? `用户本轮事实如下，只能基于这些事实写：\n${userFactSource}` : ""
     ].filter(Boolean).join("\n");
   }
@@ -3300,12 +3945,12 @@ function getSkillRepairInstruction(skillId: SkillId, answer: string, messages: L
       "只保留用户点名的可直接使用成品，不要输出完整内容执行包，也不要解释内部工作流。"
     ].join("\n");
   }
-  const missing = CONTENT_NINE_PIECE_TERMS.filter((term) => !answerContainsContractTerm(answer, term));
+  const missing = CONTENT_TEN_PIECE_TERMS.filter((term) => !answerContainsContractTerm(answer, term));
   if (missing.length === 0 && !/九件套|内容九件套|八件套|内容八件套/.test(answer)) return undefined;
   return [
     "当前是内容获客能力，输出必须严格按完整内容执行包，不允许暴露内部结构名。",
     `缺少或表述不完整的栏目：${missing.join("、") || "请把内部结构名改成完整内容执行包"}`,
-    "完整内容执行包固定为：选题、文案、拍摄脚本、拍摄注意事项、剪辑EDL、发布标题话题、发布时间、评论区引导话术、投流建议。"
+    "内容十件套固定为：选题、文案、访谈话术、拍摄脚本、拍摄注意事项、剪辑EDL、发布标题话题、发布时间、评论区引导话术、投流建议。"
   ].join("\n");
 }
 
@@ -3713,9 +4358,45 @@ function extractTopicBenchmarkAccounts(source: string): string[] {
   return uniqueStrings(Array.from(block.matchAll(/(?:^|\n)\s*(?:\d+[.、]\s*)?([^\n]{2,80})/g))
     .map((match) => match[1]?.trim() ?? "")
     .filter((value) => Boolean(value)
-      && !/^(?:无|未提供|待补|只能使用|同名账号|无法访问|没有)/.test(value)
+      && !/^(?:无|未提供|待补|只能使用|同名账号|无法访问|没有|本轮未选择|未选择|未启用)/.test(value)
       && !/^(?:平台|主页链接|账号名)[：:]/.test(value)))
     .slice(0, 12);
+}
+
+function extractTopicSourceBlock(source: string, sourceName: "行业热点" | "对标账号" | "AI录音卡" | "自己账号真实数据复盘"): string {
+  const nextBySource = {
+    行业热点: "来源二｜对标账号",
+    对标账号: "来源三｜AI录音卡",
+    AI录音卡: "来源四｜自己账号真实数据复盘",
+    自己账号真实数据复盘: "四大来源"
+  } as const;
+  const start = `【来源${sourceName === "行业热点" ? "一" : sourceName === "对标账号" ? "二" : sourceName === "AI录音卡" ? "三" : "四"}｜${sourceName}】`;
+  const afterStart = source.split(start)[1] ?? "";
+  const next = nextBySource[sourceName];
+  return afterStart.split(`【${next}`)[0]?.trim() ?? "";
+}
+
+function isTopicSourceUnselected(block: string): boolean {
+  return /(?:本轮)?未选择|未启用|不使用|跳过本来源/.test(block);
+}
+
+function topicEvidenceExcerpt(value: string | undefined, maxLength = 32): string | undefined {
+  const normalized = value?.replace(/[`|｜]/g, " ").replace(/\s+/g, " ").replace(/[。；;，,：:]+$/g, "").trim();
+  if (!normalized) return undefined;
+  return normalized.length > maxLength ? `${normalized.slice(0, maxLength)}…` : normalized;
+}
+
+function extractTopicSourceEvidence(source: string): { hotspot?: string; benchmark?: string; recording?: string; review?: string } {
+  const hotspotBlock = extractTopicSourceBlock(source, "行业热点");
+  const benchmarkBlock = extractTopicSourceBlock(source, "对标账号");
+  const recordingBlock = extractTopicSourceBlock(source, "AI录音卡");
+  const reviewBlock = extractTopicSourceBlock(source, "自己账号真实数据复盘");
+  return {
+    hotspot: topicEvidenceExcerpt(hotspotBlock.match(/热点\d*[：:]\s*([^\n｜|]+)/)?.[1]),
+    benchmark: topicEvidenceExcerpt(benchmarkBlock.match(/对标线索\d*[：:]\s*([^\n｜|]+)/)?.[1]),
+    recording: topicEvidenceExcerpt(recordingBlock.match(/(?:客户原话|客户问题|录音转写)[：:]\s*([^\n。；;]+)/)?.[1]),
+    review: topicEvidenceExcerpt(reviewBlock.match(/(?:复盘结论|复盘正文)[：:]\s*([^\n。；;]+)/)?.[1])
+  };
 }
 
 function hasUsableTopicPrivateKnowledge(source: string): boolean {
@@ -3777,28 +4458,46 @@ function buildTopicInspirationFallback(prepared: PreparedAgentMessages): string 
   const target = extractLastExplicitTopicValue(conversationSource, ["目标客户", "目标人群", "想吸引"], 40)
     || extractTargetCustomer(source, subject)
     || "目标客户待确认";
+  const acquisitionTarget = extractLastExplicitTopicValue(conversationSource, ["本轮获客目标", "获客目标"], 30)
+    || "获客目标待确认";
+  const acquisitionScope = /招商|加盟/.test(acquisitionTarget)
+    ? "加盟评估"
+    : /团购|到店/.test(acquisitionTarget)
+      ? "团购到店决策"
+      : /学员|招生|课程/.test(acquisitionTarget)
+        ? "学员咨询"
+        : /合作|渠道|联营/.test(acquisitionTarget)
+          ? "合作洽谈"
+          : "目标决策";
   const platform = extractLastExplicitTopicValue(conversationSource, ["发布平台", "主发平台", "平台"], 20)
     || conversationSource.match(/(?:发布|主发)(?:到|在)?\s*(视频号|抖音|小红书|快手|B站)/)?.[1]
     || "发布平台待确认";
-  const rawGoal = extractLastExplicitTopicValue(conversationSource, ["本次增长目标", "增长目标", "转化目标", "业务目标"], 48)
+  const rawGoal = extractLastExplicitTopicValue(conversationSource, ["本轮线索目标", "本次增长目标", "增长目标", "转化目标", "业务目标"], 48)
     || conversationSource.match(/希望用户(?:看完|看了).*?后\s*([^\n。；;，,]{2,40})/)?.[1]?.trim()
     || conversationSource.match(/(?:目标|希望达成)(?:是|为|：:)\s*([^\n。；;，,]{2,40})/)?.[1]?.trim();
   const goal = rawGoal?.replace(/^希望用户(?:看完|看了).*?后\s*/, "").replace(/[，、,：:；;。]+$/g, "") || "转化目标待确认";
-  const privateMaterialSelected = /(?:【本次用户上传\/粘贴的附件】|【知识资料】|【业务文件解析结果】|【资料\s*\d+｜|录音转写正文)/.test(conversationSource);
-  const privateReady = hasUsableTopicPrivateKnowledge(conversationSource);
-  const hotspotMissing = /(?:没有|未)(?:提供|上传|选择)?[^。\n]{0,30}(?:热点|公开线索|来源链接)/.test(conversationSource);
+  const recordingBlock = extractTopicSourceBlock(conversationSource, "AI录音卡");
+  const hotspotBlock = extractTopicSourceBlock(conversationSource, "行业热点");
+  const reviewBlock = extractTopicSourceBlock(conversationSource, "自己账号真实数据复盘");
+  const sourceEvidence = extractTopicSourceEvidence(conversationSource);
+  const recordingSelected = !isTopicSourceUnselected(recordingBlock);
+  const hotspotSelected = !isTopicSourceUnselected(hotspotBlock);
+  const reviewSelected = !isTopicSourceUnselected(reviewBlock);
+  const privateMaterialSelected = recordingSelected && /(?:【本次用户上传\/粘贴的附件】|【知识资料】|【业务文件解析结果】|【资料\s*\d+｜|录音转写正文|客户原话[：:]|客户问题[：:])/.test(conversationSource);
+  const privateReady = recordingSelected && hasUsableTopicPrivateKnowledge(conversationSource);
+  const hotspotMissing = !hotspotSelected || /(?:没有|未)(?:提供|上传|选择)?[^。\n]{0,30}(?:热点|公开线索|来源链接)/.test(hotspotBlock);
   const hotspotReady = !hotspotMissing && /公开线索|可用行业热点|热点来源|热点资讯|行业热点|https?:\/\//i.test(source);
-  const accountMissing = /(?:没有|未|暂未)(?:提供|上传|选择)?[^。\n]{0,30}(?:账号数据|后台数据|历史数据)|(?:账号数据|后台数据|历史数据)[^。\n]{0,30}(?:没有|未提供|暂未提供|待补)/.test(source);
-  const accountReady = !accountMissing && /账号数据|视频复盘|播放量|完播率|平均播放|点赞|评论|分享|后台数据|CSV|Excel/i.test(source);
+  const accountMissing = !reviewSelected || /(?:没有|未|暂未)(?:提供|上传|选择)?[^。\n]{0,30}(?:账号数据|后台数据|历史数据)|(?:账号数据|后台数据|历史数据)[^。\n]{0,30}(?:没有|未提供|暂未提供|待补)/.test(reviewBlock);
+  const accountReady = !accountMissing && /账号数据|真实数据复盘|视频复盘|复盘结论|播放量|完播率|平均播放|点赞|评论|分享|后台数据|CSV|Excel/i.test(reviewBlock);
   const benchmarkAccounts = extractTopicBenchmarkAccounts(conversationSource);
   const competitorProvided = benchmarkAccounts.length > 0;
-  const competitorMissing = !competitorProvided && /(?:没有|未)(?:提供|上传|选择)?[^。\n]{0,30}(?:对标账号|竞品账号|同行账号|主页链接|对标资料)/.test(conversationSource);
+  const competitorMissing = !competitorProvided && /(?:没有|未)(?:提供|上传|选择)?[^。\n]{0,30}(?:对标账号|竞品账号|同行账号|主页链接|对标资料)/.test(extractTopicSourceBlock(conversationSource, "对标账号"));
   const competitorReady = !competitorMissing && /对标线索\d+[：:][^\n]*(?:https?:\/\/|主页链接|公开页面)/.test(source);
   const sources = [
-    { name: "AI录音卡", status: privateReady ? "已读取" : privateMaterialSelected ? "已选择但无有效正文" : "未发现/待补", ready: privateReady, candidates: privateReady ? 7 : 0, summary: privateReady ? "已读取本轮选中的AI录音卡转写；只使用录音中可见的真实表达、客户问题、故事和案例。" : privateMaterialSelected ? "已收到录音选择，但选中的录音为0秒、空转写或没有可分析正文；本轮不把它冒充客户证据。" : "本轮没有读到可用的AI录音卡转写，不会虚构IP原话、客户问题或案例。" },
-    { name: "行业与用户热点", status: hotspotReady ? "已读取" : "未发现/待补", ready: hotspotReady, candidates: hotspotReady ? 4 : 0, summary: hotspotReady ? "已读取本轮自动检索的公开线索；采用时保留来源、URL和日期。" : "本轮未发现满足核验标准的近期热点，不用普通观点文章凑数。" },
-    { name: "自身账号数据复盘", status: accountReady ? "已读取" : "未发现/待补", ready: accountReady, candidates: accountReady ? 3 : 0, summary: accountReady ? "已读取账号数据或复盘结论；只把可见指标用于选题判断。" : "当前任务未发现账号后台数据或复盘结论。" },
-    { name: "同行与对标内容", status: competitorReady ? "已读取并核验" : competitorProvided ? "已提供/待核验" : "未发现/待补", ready: competitorReady, candidates: competitorReady ? 3 : 0, summary: competitorReady ? `已读取并核验对标账号：${benchmarkAccounts.join("、")}；未读到互动数时不认定为爆款。` : competitorProvided ? `用户已提供对标账号：${benchmarkAccounts.join("、")}；本轮未找到可确认归属的公开主页或作品，保留为待核验，不能当成未提供。` : "本轮未发现可回溯的同行内容线索或对标资料。" }
+    { name: "私有知识与客户问题", status: privateReady ? "已读取" : privateMaterialSelected ? "已选择但无有效正文" : "未发现/待补", ready: privateReady, candidates: privateReady ? 7 : 0, summary: privateReady ? `已读取本轮已授权私有资料：${sourceEvidence.recording ?? "真实表达已读取"}。` : privateMaterialSelected ? "已收到私有资料选择，但选中的录音为0秒、空转写或没有可分析正文；本轮不把它冒充客户证据。" : "本轮没有读到可用的私有知识或客户问题，不会虚构本人原话、客户问题或案例。" },
+    { name: "行业与用户热点", status: hotspotReady ? "已读取" : "未发现/待补", ready: hotspotReady, candidates: hotspotReady ? 4 : 0, summary: hotspotReady ? `已读取本轮自动检索的公开线索：${sourceEvidence.hotspot ?? "热点标题待核验"}；采用时保留来源、URL和日期。` : "本轮未发现满足核验标准的近期热点，不用普通观点文章凑数。" },
+    { name: "自身账号数据复盘", status: accountReady ? "已读取" : "未发现/待补", ready: accountReady, candidates: accountReady ? 3 : 0, summary: accountReady ? `已读取账号数据或复盘结论：${sourceEvidence.review ?? "可见指标已读取"}。` : "当前任务未发现账号后台数据或复盘结论。" },
+    { name: "同行与对标内容", status: competitorReady ? "已读取并核验" : competitorProvided ? "已提供/待核验" : "未发现/待补", ready: competitorReady, candidates: competitorReady ? 3 : 0, summary: competitorReady ? `已读取并核验对标线索：${sourceEvidence.benchmark ?? benchmarkAccounts.join("、")}；未读到互动数时不认定为爆款。` : competitorProvided ? `用户已提供对标账号：${benchmarkAccounts.join("、")}；本轮未找到可确认归属的主页或作品，保留为待核验，不能当成未提供。` : "本轮未发现可回溯的同行内容线索或对标资料。" }
   ];
   const aiProcessTopic = /AI|人工智能|数字化/.test(`${topicBusiness} ${conversationSource}`)
     && /流程|重构|改造|企业AI|买什么工具|工具/.test(`${topicBusiness} ${conversationSource}`);
@@ -3884,7 +4583,14 @@ function buildTopicInspirationFallback(prepared: PreparedAgentMessages): string 
         aiProcessTopic ? "梳理业务流程时，最容易遗漏哪一个关键环节？" : `执行${topicBusiness}时，最容易遗漏哪一个关键环节？`,
         `什么样的人暂时不适合选择${topicBusiness}？`
           ];
-  const internalCandidatePool = [
+  const sourceAnchoredTitles = [
+    hotspotReady && sourceEvidence.hotspot ? `热点“${sourceEvidence.hotspot}”出现后，${target}最该先判断什么？` : undefined,
+    competitorReady && sourceEvidence.benchmark ? `对标内容“${sourceEvidence.benchmark}”为什么能吸引${target}继续了解？` : undefined,
+    privateReady && sourceEvidence.recording ? `客户说“${sourceEvidence.recording}”，${acquisitionScope}时最该先看什么？` : undefined,
+    accountReady && sourceEvidence.review ? `复盘发现“${sourceEvidence.review}”，下一条内容该保留还是放弃？` : undefined
+  ].filter((item): item is string => Boolean(item));
+  const internalCandidatePool = uniqueStrings([
+    ...sourceAnchoredTitles,
     ...titleTemplates,
     `${target}第一次了解${topicBusiness}时，最容易问错什么？`,
     `${topicBusiness}有哪些看起来正确、实际需要先验证的做法？`,
@@ -3892,7 +4598,7 @@ function buildTopicInspirationFallback(prepared: PreparedAgentMessages): string 
     `${topicBusiness}的客户为什么会比较很久才行动？`,
     `判断${topicBusiness}是否适合自己，先看哪三个条件？`,
     `如果只用一条内容讲清${topicBusiness}，最该讲什么？`
-  ];
+  ]);
   const selectedTitles = internalCandidatePool.slice(0, 10);
   const types = ["认知型", "连接型", "认知型", "信任型", "信任型", "转化型", "连接型", "认知型", "信任型", "转化型"];
   const consensusLevels = ["人性共识", "利益共识", "时代共识", "专业共识", "利益共识", "专业共识", "利益共识", hotspotReady ? "热点共识" : "时代共识", "人性共识", "专业共识"];
@@ -3918,7 +4624,7 @@ function buildTopicInspirationFallback(prepared: PreparedAgentMessages): string 
     const hotspotSupported = hotspotReady && [3, 7].includes(index);
     const peerSupported = competitorReady && [1, 4, 8].includes(index);
     const evidence = [
-      privateSupported ? "AI录音卡" : "",
+      privateSupported ? "私有知识与客户问题" : "",
       dataSupported ? "账号复盘" : "",
       hotspotSupported ? "已核验热点" : "",
       peerSupported ? "公开对标线索" : ""
@@ -3935,7 +4641,10 @@ function buildTopicInspirationFallback(prepared: PreparedAgentMessages): string 
         : privateSupported
           ? "只使用私有资料里的真实观点和问题，不补虚构案例或结果数字。"
           : "先做低成本小样验证目标用户反应，再决定是否继续。";
-    return `| ${index + 1} | ${title} | ${types[index]} | ${evidence} | ${firstGate} | ${consensus} | ${precisionByConsensus[consensus]} | ${stageByConsensus[consensus]} | ${suggestion} |`;
+    const contentAngle = `${types[index]}：${dataSupported ? "用账号复盘结论验证取舍" : hotspotSupported ? "用可回溯热点做业务解释" : privateSupported ? "用真实表达拆解顾虑" : peerSupported ? "用公开对标角度对照" : "先验证核心判断"}`;
+    const goalRelation = `服务“${acquisitionTarget} / ${goal}”：引导${target}先完成一次明确咨询或判断。`;
+    const nextContent = `进入内容系统：围绕“${title}”生成完整内容。`;
+    return `| ${index + 1} | ${title} | ${types[index]} | ${target} | ${contentAngle} | ${evidence} | ${goalRelation} | ${nextContent} | ${firstGate} | ${consensus} | ${precisionByConsensus[consensus]} | ${stageByConsensus[consensus]} | ${suggestion} |`;
   });
   const sourceRows = sources.map((item) => `| ${item.name} | ${item.status} | ${item.summary} | ${item.candidates} |`);
   const verifiedCount = topicRows.filter((row) => row.includes("| 通过：")).length;
@@ -3951,6 +4660,7 @@ function buildTopicInspirationFallback(prepared: PreparedAgentMessages): string 
     "",
     "本轮主体与目标",
     `服务主体：${subject}`,
+    `获客目标：${acquisitionTarget}`,
     `主体角色：${isPersonalIpSubject ? "个人IP/内容发布者（不是商品或服务名称）" : "企业、品牌或客户项目"}`,
     `选题业务对象：${topicBusiness}`,
     `服务区域：${city}`,
@@ -3968,10 +4678,10 @@ function buildTopicInspirationFallback(prepared: PreparedAgentMessages): string 
     "三关筛选说明",
     "第一关检查目标用户是否用评论、私信或实际咨询问过，或同行同类内容是否有500赞以上证据；无证据统一标待验证。第二关只贴共识层级标签与客资精准度标签（客资准度）。第三关按账号阶段校准内容配比。每条候选均保留来源标签、第一关证据状态、共识层级标签、客资精准度标签和账号阶段配比建议；全程不进行数值打分。",
     "",
-    "三关筛选后的TOP10：三关筛选后的10个可测试选题",
+    "最终选题：三关筛选后的TOP10｜三关筛选后的10个可测试选题",
     `说明：${verifiedCount}条第一关已有证据，${10 - verifiedCount}条待验证；序号只用于引用，不代表效果排名。`,
-    "| # | 最终选题 | 类型 | 来源标签 | 第一关证据状态 | 共识层级标签 | 客资精准度标签（客资准度） | 适用阶段 | 创作建议 |",
-    "|---:|---|---|---|---|---|---|---|---|",
+    "| # | 选题/钩子 | 类型 | 目标人群 | 核心观点/内容角度 | 来源依据 | 与获客目标的关系 | 下一步生成内容 | 第一关证据状态 | 共识层级标签 | 客资精准度标签（客资准度） | 适用阶段 | 创作建议 |",
+    "|---:|---|---|---|---|---|---|---|---|---|---|---|---|",
     ...topicRows,
     "",
     "账号阶段配比建议（配比调整建议）",
@@ -3980,8 +4690,8 @@ function buildTopicInspirationFallback(prepared: PreparedAgentMessages): string 
     "待验证动作与证据边界",
     ...sources.filter((item) => !item.ready).map((item) => item.name === "同行与对标内容" && competitorProvided
       ? `- ${item.name}：已收到“${benchmarkAccounts.join("、")}”，但缺少可确认归属的主页或作品证据；补主页链接后自动升级。`
-      : item.name === "AI录音卡" && privateMaterialSelected
-        ? "- AI录音卡：已选择资料，但没有有效转写正文；请同步或选择一条包含真实表达的录音。"
+      : item.name === "私有知识与客户问题" && privateMaterialSelected
+        ? "- 私有知识与客户问题：已选择资料，但没有有效转写正文；请同步或选择一条包含真实表达的录音。"
         : `- ${item.name}：当前任务未发现；不阻断第一版，后续接入或上传后自动升级。`),
     "- 第一关待验证题先做低成本小样，记录曝光、完播、评论问题、私信和有效线索；拿到真实反馈后保留或删除。",
     "- 没有读取到同行互动数时，不得写成“500赞爆款”或“同行已验证”。",
@@ -4309,6 +5019,11 @@ function classifySalesCustomerType(source: string): "b2c" | "b2b" | "unknown" {
   return "unknown";
 }
 
+function isBeautyConsumerSalesSource(source: string): boolean {
+  return /美业|生活美容|皮肤管理|美容|基础清洁|日常补水|护理/.test(source)
+    && /顾客|消费者/.test(source);
+}
+
 function salesSceneLabel(source: string): string {
   const type = classifySalesCustomerType(source);
   if (type === "b2c") return "B2C消费者成交";
@@ -4533,20 +5248,62 @@ function buildSalesIntentFallback(source: string): string {
   ].join("\n");
 }
 
-function buildSalesObjectionFallback(source: string, closing = false): string {
-  if (!closing && isStudentTrainingSales(source)) return buildStudentTrainingObjectionFallback(source);
-  if (!closing && classifySalesCustomerType(source) === "b2c" && /预约|退款|退\??|能不能退|核销/.test(source)) {
+function buildSalesObjectionFallback(source: string, closing = false, decisionSource = source): string {
+  if (!closing && isStudentTrainingSales(decisionSource)) return buildStudentTrainingObjectionFallback(source);
+  const isBeautyEffectQuestion = isBeautyConsumerSalesSource(decisionSource)
+    && /改善|效果|疗效|适合/.test(decisionSource);
+  if (
+    !closing
+    && !isBeautyEffectQuestion
+    && classifySalesCustomerType(decisionSource) === "b2c"
+    && /预约|退款|退\??|能不能退|核销/.test(decisionSource)
+  ) {
     return buildSalesB2cPolicyReplyFallback(source);
   }
   const quote = extractCustomerQuote(source) ?? (closing ? "担心团队配合不上" : "太贵了，我们再考虑考虑");
-  const isB2b = classifySalesCustomerType(source) !== "b2c";
-  const objectionName = closing ? "实施顾虑" : /贵|价格|预算/.test(source) ? "价格异议" : "决策异议";
+  const isB2b = !isBeautyConsumerSalesSource(decisionSource) && classifySalesCustomerType(decisionSource) !== "b2c";
+  const objectionName = closing
+    ? "实施顾虑"
+    : isBeautyEffectQuestion
+      ? "效果预期异议"
+      : /贵|价格|预算/.test(source)
+        ? "价格异议"
+        : "决策异议";
   const primaryScript = closing
     ? "“你的顾虑合理。现在不是要你忽略团队配合风险，而是把风险拆开：谁负责、第一阶段做到什么、用什么验收。我们可以先开一次实施对齐会，把参与人和首期边界定清楚；如果这三项对不上，就不急着签。”"
-    : "“理解，企业项目最怕花了钱却落不下去。你说贵，主要是总预算超出预期，还是目前还没看清这套方案能解决哪个最关键的问题？你告诉我是哪一种，我按你的真实顾虑把方案再说明白，不急着现在做决定。”";
+    : isB2b
+      ? "“理解，企业项目最怕花了钱却落不下去。你说贵，主要是总预算超出预期，还是目前还没看清这套方案能解决哪个最关键的问题？你告诉我是哪一种，我按你的真实顾虑把方案再说明白，不急着现在做决定。”"
+      : "“理解你想先确认一次服务能带来什么感受。每个人的实际情况和适合的护理节奏不同，我们不承诺固定改善结果。我先了解你现在最在意的问题和真实情况，再只按已经确认的服务步骤说明；价格、预约方式和效果边界没有核实前，我不会先替门店承诺。”";
   const alternateScript = isB2b
     ? "“可以考虑。为了不让内部只剩下比价格，我可以把方案拆成‘解决什么问题、谁负责落地、怎么验收’三部分。你们现在最需要确认的是预算、实施风险，还是决策人意见？我只补对应的一页。”"
     : "“可以先不决定。你最担心的是价格、是否适合，还是购买后的使用安排？我先把你真正关心的一点说清楚。预约、退款和优惠以门店或平台已经确认的政策为准，我不会先替你承诺。”";
+  const anticipatedResponses = isB2b
+    ? [
+        "如果客户说预算不够：确认预算边界和必须解决的问题，再判断能否缩小首期范围；不先承诺降价。",
+        "如果客户说怕落不了地：只展示企业资料中真实存在的交付分工和验收方式；缺失政策先核实。",
+        "如果客户说需要老板决定：把下一步改为决策人参与的短会或一页内部汇报材料。",
+        "如果客户不愿约时间：转入低频培育，不制造虚假名额、折扣或截止时间。"
+      ]
+    : [
+        "如果顾客追问一次是否能明显改善：说明个体情况和护理节奏不同，只介绍已确认的服务步骤，不承诺固定改善结果。",
+        "如果顾客问是否适合自己：先了解其真实情况；超出生活美容服务边界时建议咨询有资质的专业机构，不做诊断。",
+        "如果顾客询问价格、优惠或预约：仅回复门店已经确认的信息；未确认时明确需要核实。",
+        "如果顾客暂时不决定：尊重其节奏，约定是否需要后续联系，不制造虚假名额、折扣或截止时间。"
+      ];
+  const nextActions = isB2b
+    ? [
+        "今天：发送话术A，目标是确认异议类型或实施顾虑的具体位置。",
+        "客户回应后24小时内：只补一份针对性材料或安排一次15分钟对齐。",
+        "风险与停止条件：连续两次没有有效回应，暂停高频跟进；不得承诺收益、回本、优惠、库存或政策。"
+      ]
+    : [
+        "现在：先询问顾客当前最在意的问题和可以确认的真实情况，不推断肤况或效果。",
+        "顾客回应后：只使用门店已确认的项目步骤、服务特色、价格和预约信息继续沟通。",
+        "风险与停止条件：无法确认服务边界或出现医疗诊断诉求时停止推销；不得承诺疗效、价格、优惠或顾客案例。"
+      ];
+  const pendingFacts = isB2b
+    ? "客户预算、比较对象、决策权限、实施负责人及企业真实交付边界。"
+    : "顾客真实需求、是否适合当前生活美容服务、门店已确认服务步骤、价格、预约方式及效果边界。";
   return [
     "当前判断",
     `场景：${salesSceneLabel(source)}。已确认客户表达“${quote}”。这是${objectionName}，但真实原因仍待核实。`,
@@ -4571,18 +5328,13 @@ function buildSalesObjectionFallback(source: string, closing = false): string {
     "“没问题，我不连续催你。为了下次联系不打扰，你希望我在什么时间再问一次？如果你暂时不确定，我先把这次待确认的问题记下来，有新信息时再继续。”",
     "",
     "客户可能回复与预判应对",
-    "如果客户说预算不够：确认预算边界和必须解决的问题，再判断能否缩小首期范围；不先承诺降价。",
-    "如果客户说怕落不了地：只展示企业资料中真实存在的交付分工和验收方式；缺失政策先核实。",
-    "如果客户说需要老板决定：把下一步改为决策人参与的短会或一页内部汇报材料。",
-    "如果客户不愿约时间：转入低频培育，不制造虚假名额、折扣或截止时间。",
+    ...anticipatedResponses,
     "",
     "下一步动作",
-    "今天：发送话术A，目标是确认异议类型或实施顾虑的具体位置。",
-    "客户回应后24小时内：只补一份针对性材料或安排一次15分钟对齐。",
-    "风险与停止条件：连续两次没有有效回应，暂停高频跟进；不得承诺收益、回本、优惠、库存或政策。",
+    ...nextActions,
     "",
     "待核实",
-    "客户预算、比较对象、决策权限、实施负责人及企业真实交付边界。"
+    pendingFacts
   ].join("\n");
 }
 
@@ -4739,6 +5491,7 @@ function buildSalesFunnelFallback(source: string): string {
 
 function buildSalesGrowthFallback(prepared: PreparedAgentMessages): string {
   const rawSource = extractSalesTaskSource(prepared);
+  const decisionSource = extractLatestUserFactSource(prepared.messages) || rawSource;
   const source = prepared.tenantType === "local_business" && classifySalesCustomerType(rawSource) === "unknown"
     ? `B2C消费者成交场景。\n${rawSource}`
     : rawSource;
@@ -4748,17 +5501,23 @@ function buildSalesGrowthFallback(prepared: PreparedAgentMessages): string {
     case "intent_temperature":
       return buildSalesIntentFallback(source);
     case "objection_reply":
-      return buildSalesObjectionFallback(source, false);
+      return buildSalesObjectionFallback(source, false, decisionSource);
     case "follow_up_plan":
       return buildSalesFollowUpFallback(source);
     case "closing_script":
-      return buildSalesObjectionFallback(source, true);
+      return buildSalesObjectionFallback(source, true, decisionSource);
     case "funnel_review":
       return buildSalesFunnelFallback(source);
+    case "beauty_sales":
+      return /顾客|客户/.test(source) && /询问|问|回复|怎么说|怎么回|改善|效果|疗效|适合/.test(source)
+        ? buildSalesObjectionFallback(source, false, decisionSource)
+        : buildSalesDiagnosisFallback(source);
     default:
       if (/漏斗|转化率|线索.*成交/.test(source)) return buildSalesFunnelFallback(source);
       if (/复盘|聊天记录|录音|团队讨论/.test(source)) return buildSalesDiagnosisFallback(source);
-      if (/怎么回|话术|太贵|考虑考虑|不签|成交/.test(source)) return buildSalesObjectionFallback(source, /不签|成交/.test(source));
+      if (/怎么回|话术|太贵|考虑考虑|不签|成交/.test(source)) {
+        return buildSalesObjectionFallback(source, /不签|成交/.test(source), decisionSource);
+      }
       return buildSalesDiagnosisFallback(source);
   }
 }
@@ -5542,7 +6301,7 @@ function buildDeterministicFallback(prepared: PreparedAgentMessages): string | u
   if (prepared.skillId === "dou_plus_ads" && prepared.capabilityId === "dou_plus_traffic") return buildDouPlusFallback(prepared);
   if (prepared.skillId === "baolu_content_creator" && prepared.capabilityId === "shooting_editing") return buildShootingEditingFallback(prepared);
   if (prepared.skillId === "baolu_content_creator") return buildContentCreatorFallback(prepared);
-  if (prepared.skillId === "baolu_review_engine" && prepared.capabilityId === "video_review") return buildVideoReviewFallback(prepared);
+  if (prepared.skillId === "baolu_review_engine" && (prepared.capabilityId === "video_review" || prepared.capabilityId === "video_data_review")) return buildVideoReviewFallback(prepared);
   if (prepared.skillId === "live_script_planner" && prepared.capabilityId === "live_script") return buildLiveScriptFallback(prepared);
   if (prepared.skillId === "baolu_live_review_engine" && prepared.capabilityId === "live_review") return buildLiveReviewFallback(prepared);
   if (prepared.skillId === "sales_growth_advisor") return buildSalesGrowthFallback(prepared);
@@ -6628,6 +7387,7 @@ function buildContentCreatorFallback(prepared: PreparedAgentMessages): string | 
     ? [currentRequest, userConversationSource].filter(Boolean).join("\n")
     : [currentRequest, conversationSource || extractKnownFactSource(prepared.messages)].filter(Boolean).join("\n");
   if (!source) return undefined;
+  const previewOnlyTraffic = /PREVIEW_ONLY/.test(source);
   const scopedSource = [taskScopedRequest, userConversationSource, source].filter(Boolean).join("\n");
   const contentSystemBatch = prepared.capabilityId === "content_plan" && isContentSystemBatchRequest(currentRequest);
   const explicitPart = getExplicitContentPart(taskScopedRequest);
@@ -6740,6 +7500,8 @@ function buildContentCreatorFallback(prepared: PreparedAgentMessages): string | 
   const scenario = buildContentFallbackScenario(source, business, city);
   const context = buildIpDeliveryContext(source);
   const isEnterpriseAiContent = /企业AI重构|AI企业重构|AI重构|企业AI改造|AI企业改造|企业智能化改造|企业改造|AI改造|智能体开发/.test(`${source} ${business} ${context.offer}`);
+  const isBeautyContent = /生活美容|美容门店|皮肤管理|基础护理|基础清洁|日常补水|补水护理|舒缓护理/.test(`${source} ${business} ${context.offer}`)
+    && !/美甲|美睫|纹眉/.test(`${source} ${business} ${context.offer}`);
 
   return [
     "完整内容执行包",
@@ -6761,52 +7523,62 @@ function buildContentCreatorFallback(prepared: PreparedAgentMessages): string | 
       ? "事实边界：政策含义、客户案例、改造效果和报价必须使用已核验信息；未知内容标注待核实，不编造结果。"
       : "事实边界：价格、地址和套餐名使用门店真实信息，不写没有确认过的数字。",
     "",
-    "三、可直接拍摄的脚本：拍摄脚本",
+    "三、访谈话术",
+    "访谈对象：本次实际出镜负责人【待确认】；以下问答只使用已确认事实。",
+    `【问】这次为什么重点介绍${context.offer}？`,
+    `【答】我们先面向${context.target}说明真实服务流程和适用边界；未确认的价格、效果、案例和门店数据不作承诺。`,
+    "",
+    "四、可直接拍摄的脚本：拍摄脚本",
     `镜头1，开头3秒：${scenario.shot1}`,
     `镜头2，${isEnterpriseAiContent ? "3到14秒" : "3到8秒"}：${scenario.shot2}`,
     `镜头3，${isEnterpriseAiContent ? "14到28秒" : "8到14秒"}：${scenario.shot3}`,
     `镜头4，${isEnterpriseAiContent ? "28到53秒" : "14到22秒"}：${scenario.shot4}`,
     `镜头5，${isEnterpriseAiContent ? "53到60秒" : "22到28秒"}：${scenario.shot5}`,
     "",
-    "四、拍摄注意事项",
+    "五、拍摄注意事项",
     scenario.shootingNote1,
     `字幕要短：${scenario.subtitleKeywords}`,
     isEnterpriseAiContent ? `科技素材只作辅助，重点是${scenario.visualFocus}。` : `门头只露1秒，重点是${scenario.visualFocus}。`,
     isEnterpriseAiContent ? "出镜时像给企业老板做业务诊断，少讲概念，多讲流程、责任人和验收标准。" : "老板出镜不用背稿，像跟老顾客说话，语速自然。",
     "",
-    "五、剪辑EDL文件",
+    "六、剪辑EDL文件",
     isEnterpriseAiContent ? scenario.edl1 : `0到3秒：${scenario.edl1}`,
     isEnterpriseAiContent ? scenario.edl2 : `3到8秒：${scenario.edl2}`,
     isEnterpriseAiContent ? scenario.edl3 : `8到14秒：${scenario.edl3}`,
     isEnterpriseAiContent ? scenario.edl4 : `14到22秒：${scenario.edl4}`,
     isEnterpriseAiContent ? scenario.edl5 : `22到28秒：${scenario.edl5}`,
     "",
-    "六、发布标题与话题标签",
+    "七、发布标题与话题标签",
     `标题1：${scenario.title1}`,
     `标题2：${scenario.title2}`,
     `话题：${scenario.topics}`,
     "",
-    "七、最佳发布时间",
+    "八、最佳发布时间",
     scenario.publishTime1,
     scenario.publishTime2,
     "",
-    "八、评论区引导话术",
+    "九、评论区引导话术",
     `置顶评论：${scenario.pinnedComment}`,
     `有人问价格：${scenario.priceReply}`,
-    isEnterpriseAiContent ? "有人问怎么开始：先说企业规模、最想改造的一条流程和当前卡点，再按真实情况判断可执行的第一步。" : "有人问地址：在XX路XX号，离你近的话可以先看主页再决定到店时间。",
+    isEnterpriseAiContent
+      ? "有人问怎么开始：先说企业规模、最想改造的一条流程和当前卡点，再按真实情况判断可执行的第一步。"
+      : isBeautyContent
+        ? "有人问地址：门店地址尚未确认；补齐真实地址后再加入到店说明。"
+        : "有人问地址：在XX路XX号，离你近的话可以先看主页再决定到店时间。",
     "",
-    "九、投流建议",
+    "十、投流建议",
+    previewOnlyTraffic ? "执行边界：PREVIEW_ONLY，只输出投流预览和验证指标，不登录账户、不充值、不创建或提交计划。" : undefined,
     `先自然跑24小时，看完播、主页点击、${scenario.conversionMetric}和有效咨询。`,
     isEnterpriseAiContent
       ? "如需投流，按真实可服务区域定向企业主、管理者和业务负责人，小额测试不同痛点版本；不使用门店周边三公里的到店逻辑。"
       : "如果本轮目标是单店到店，可先用本地推小额测试门店周边3公里；这是本次到店目标的测试定向，不是本地推只能投本地。本地推的最终地域按业务可承接范围和账户能力设置。",
     `复盘指标：完播率、主页点击率、评论率、私信数、${scenario.reviewMetric}。五天转化仍然低，就先改${isEnterpriseAiContent ? "价值表达、案例证据和咨询诊断流程" : "主页承接和店员话术"}。`,
     "",
-    "十、明确的下一步动作",
+    "明确的下一步动作",
     `今天：由内容负责人核对“${scenario.topic}”涉及的产品/服务、价格、案例和素材是否已确认；未确认项继续标记【待补】，不补写为事实。`,
     `明天：按上述拍摄脚本完成一条素材并发布，置顶评论只使用“${scenario.pinnedComment}”这一条已设计的承接话术。`,
     `第5天：由运营负责人按完播、主页点击、评论、私信和${scenario.reviewMetric}复盘；只选择一个最大卡点进入下一轮优化。`
-  ].join("\n");
+  ].filter((item): item is string => Boolean(item)).join("\n");
 }
 
 function isNoFaceContentResistanceRequest(source: string): boolean {
@@ -6962,33 +7734,38 @@ function buildHotspotDrivenContentFallback(prepared: PreparedAgentMessages): str
     ...spokenLines,
     `事实来源：${sourceLine}`,
     "",
-    "三、拍摄脚本",
+    "三、访谈话术",
+    "访谈对象：本次实际出镜负责人【待确认】。",
+    "【问】这条公开线索对企业老板真正意味着什么？",
+    "【答】只能根据上方已列来源解释流程、责任人和验收方式；没有来源的案例、效果和报价一律待核验。",
+    "",
+    "四、拍摄脚本",
     "镜头1（0-3秒）：思潼正面近景，关键词大字幕“没人对结果负责”。",
     "镜头2（3-15秒）：切公开报道标题截图，必须保留来源与日期；日期未知标“待核验”。",
     "镜头3（15-32秒）：切企业会议、客服工单、销售跟进表等已授权真实素材；没有素材就用流程图卡。",
     "镜头4（32-52秒）：正面中景，三根手指对应“单流程、负责人、基线”。",
     "镜头5（52-75秒）：流程闭环图 + 正面收尾，只留一个评论动作。",
     "",
-    "四、拍摄注意事项",
+    "五、拍摄注意事项",
     "报道截图不得裁掉媒体名和日期；不把来源未确认的标题说成当天新闻。案例、客户名称和效果数据未授权时一律不出现。语速自然，每句话不超过40字。",
     "",
-    "五、剪辑EDL文件",
+    "六、剪辑EDL文件",
     "0-3秒：硬切近景，黄色大字“AI改造最贵的坑”。3-15秒：来源截图缓慢推近。15-32秒：每4秒切一次业务流程素材。32-52秒：三个方法逐条弹出。52-68秒：闭环图从左到右点亮。68-75秒：人物定格 + 评论引导。",
     "",
-    "六、发布标题与话题标签",
+    "七、发布标题与话题标签",
     "主标题：企业做AI改造，最先缺的不是工具，而是这个人",
     "备选标题1：AI项目为什么容易烂尾？先查这3件事",
     "备选标题2：老板别急着买AI系统，先把这张流程表填完",
     "话题：#企业AI改造 #AI落地 #企业管理 #业务流程 #老板IP",
     "",
-    "七、最佳发布时间",
+    "八、最佳发布时间",
     "优先测试工作日12:00-13:00或20:00-21:30；以账号后台目标企业主活跃时段为准，同类内容连续测试3次再下结论。",
     "",
-    "八、评论区引导话术",
+    "九、评论区引导话术",
     "置顶评论：你最想先改客服、销售、内容还是内部管理？写一个，我按“频率、成本、可量化”帮你判断。",
     "追问回复：这项工作现在一天发生几次？由谁负责？你最想降低时间、人工还是错误率？",
     "",
-    "九、投流建议",
+    "十、投流建议",
     "先自然跑24小时。只有目标企业主评论和主页访问明显高于账号近7条平均值时，再小预算测试。重点看3秒停留、平均播放、企业身份评论、主页访问和有效咨询；不以泛播放量作为成功标准。"
   ].join("\n");
 }
@@ -7037,33 +7814,38 @@ function buildCompetitorDrivenContentFallback(prepared: PreparedAgentMessages): 
     "【48-64秒】先用两到四周跑通一个小闭环。有效，就复制到更多岗位和门店；无效，就回到流程里找卡点。这样企业买到的不是一场AI演示，而是一套员工愿意用、老板能验收的经营流程。",
     "【64-75秒｜收尾】如果你也在考虑企业AI改造，评论区写下你最想改的一个流程。我帮你判断，这一步适不适合先做。",
     "",
-    "三、拍摄脚本",
+    "三、访谈话术",
+    "访谈对象：本次实际出镜负责人【待确认】。",
+    "【问】企业判断 AI 改造是否值得做，最先看什么？",
+    "【答】先看每天重复发生的业务流程、责任人和改造前后的同口径基线；未提供的客户案例和效果数据不作事实。",
+    "",
+    "四、拍摄脚本",
     "镜头1（0-3秒）：创始人正面近景，字幕“最先买的不是工具”。",
     "镜头2（3-15秒）：切电脑中多个软件图标或已授权的真实办公画面，配问号动画。",
     "镜头3（15-30秒）：客服、销售、运营三个流程卡片依次出现，最后用断线图表示数据没接通。",
     "镜头4（30-48秒）：创始人竖起三根手指，屏幕同步出现“单流程、负责人、验收基线”。",
     "镜头5（48-75秒）：流程闭环图从左到右点亮，回到人物近景完成评论引导。",
     "",
-    "四、拍摄注意事项",
+    "五、拍摄注意事项",
     "语速控制在每分钟260至300字；每句话不超过40字。竞品页面只作为内部选题研究，不直接展示未经授权的账号画面。客户案例、成本和结果数据未经确认一律不出现。",
     "",
-    "五、剪辑EDL文件",
+    "六、剪辑EDL文件",
     "0-3秒硬切近景；3-15秒每4秒切一次软件/办公素材；15-30秒三张流程卡连续弹出；30-48秒三条方法逐条高亮；48-64秒闭环图点亮；64-75秒人物定格并保留评论关键词。",
     "",
-    "六、发布标题与话题标签",
+    "七、发布标题与话题标签",
     "主标题：企业做AI改造，最先买的不是工具",
     "备选标题1：为什么很多AI项目最后只剩一场演示？",
     "备选标题2：老板验收AI项目，只看这3个数字",
     "话题：#企业AI改造 #AI落地 #智能体 #业务流程 #老板IP",
     "",
-    "七、最佳发布时间",
+    "八、最佳发布时间",
     "优先测试工作日12:00-13:00或20:00-21:30；连续发布3条同类选题，再按账号后台目标企业主活跃时段调整。",
     "",
-    "八、评论区承接",
+    "九、评论区引导话术",
     "置顶评论：你最想先改客服、销售、内容还是内部管理？写一个具体流程，我按频率、成本和可量化程度帮你判断。",
     "私信首问：这个流程现在由谁负责？一天发生几次？你最想降低时间、人工还是错误率？",
     "",
-    "九、投流建议",
+    "十、投流建议",
     "先自然跑24小时。只有目标企业主评论、主页访问和有效咨询高于账号近7条平均值时再小预算放大；重点看3秒停留、平均播放、企业身份互动、主页访问和有效咨询，不用泛播放量代替获客结果。"
   ].join("\n");
 }
@@ -7127,34 +7909,39 @@ function buildFranchiseAcquisitionContentFallback(prepared: PreparedAgentMessage
     `【45-55秒】如果你确实准备启动，先把计划区域、相关经验和启动时间想清楚，我们再判断这个模式是否匹配。`,
     `【55-60秒】${conversionAction ? conversionAction : `想继续了解，可以私信“${keyword}”领取项目资料`}。投资有风险，加盟需谨慎。`,
     "",
-    "三、拍摄脚本",
+    "三、访谈话术",
+    "访谈对象：品牌负责人或指定出镜人【待确认】；问答不得冒充真实加盟商采访。",
+    `【问】考察${brand}时，最先应该核验什么？`,
+    `【答】先核验${modelChecks}；品牌案例、投资额、经营结果和回本周期没有真实资料时继续标记【待补】。`,
+    "",
+    "四、拍摄脚本",
     `| 镜号 | 时间段 | 景别 | 画面内容 | 动作/备注 |\n|---|---|---|---|---|\n| 1 | 0-3秒 | 中近景 | 品牌负责人正对镜头 | 直接说筛选钩子 |\n| 2 | 3-15秒 | 中景 | 负责人讲三项判断标准 | 关键词字幕 |\n| 3 | 15-30秒 | B-roll | ${hasInspectionProof ? `真实${proofProcess}` : `【待补】真实${proofProcess}素材`} | 没有证据不拍实力空镜 |\n| 4 | 30-45秒 | 中近景+B-roll | 负责人讲核验方法 | 叠加考察清单 |\n| 5 | 45-60秒 | 近景 | 适合条件与单一行动 | ${conversionAction ? "按已确认的私信/预约动作承接" : `私信“${keyword}”`} |`,
     `B-roll清单：真实产品/服务、真实运营或交付过程、已授权案例、品牌元素；缺少的素材标记【待补】。`,
     "构图：机位与眼睛平齐，头顶留白约1/6，背景保留真实品牌或业务元素。",
     "",
-    "四、拍摄注意事项",
+    "五、拍摄注意事项",
     `| 项目 | 要求 |\n|---|---|\n| 着装 | 符合品牌负责人身份，避免复杂图案 |\n| 场景 | 只使用真实存在且允许拍摄的${proofProcess} |\n| 状态 | 像帮助对方判断项目，不用夸张推销腔 |\n| 道具 | 真实考察清单或流程图；经营数据发布前核验 |\n| 禁忌 | 不念稿、不编案例、不承诺收益、全片只留一个行动 |`,
     "",
-    "五、剪辑EDL",
+    "六、剪辑EDL",
     `视频名称：${brand}招商获客｜总时长：60秒｜目标平台：${platform}`,
     `| 时间段 | 画面 | 字幕/剪辑 |\n|---|---|---|\n| 0-3秒 | 负责人中近景 | 0.5秒内出现筛选钩子 |\n| 3-15秒 | 负责人+判断标准 | 3个关键词依次高亮 |\n| 15-30秒 | 真实过程B-roll | 每镜2-3秒，证据与口播对应 |\n| 30-45秒 | 负责人+清单图卡 | 未确认数字不出现 |\n| 45-55秒 | 负责人近景 | 适合条件字幕 |\n| 55-60秒 | 定格+单一行动 | ${conversionAction ? "私信领取资料并预约沟通" : `私信“${keyword}”`}，加风险提示 |`,
     "EDL规范：硬切为主；人声优先；BGM不超过人声30%；数据字幕必须有真实来源。",
     "",
-    "六、发布标题与话题",
+    "七、发布标题与话题",
     `主标题：想做${brand}，先别急着问加盟费，先看这3件事`,
     `备选1：考察${businessProject}，先验证模式、证据和支持过程`,
     `备选2：什么样的人适合做${industry}？先对照这份清单`,
     `话题：#招商加盟 #项目考察 #${industry.replace(/[（）()]/g, "")}；平台热词发布前确认。`,
     "",
-    "七、最佳发布时间",
+    "八、最佳发布时间",
     "推荐测试：工作日12:00-13:30；备选：19:00-21:00。最终以该账号后台目标人群活跃时间为准。",
     "",
-    "八、评论区引导话术",
+    "九、评论区引导话术",
     `置顶评论：如果你正在看${industry}项目，你最想先核验产品、运营还是支持流程？`,
     `意向回复：${conversionAction ? `请直接${conversionAction}；收到后再确认计划区域、相关经验和启动时间。` : `可以先私信“${keyword}”，我按计划区域、相关经验和启动时间给你对应的初步了解清单。`}`,
     "任何关于投资额、收益、名额、区域政策和支持内容的回复，都必须查真实项目资料后再发送。",
     "",
-    "九、投流建议",
+    "十、投流建议",
     "投流前置判断：先自然跑24小时，记录完播、有效评论、有效咨询、资料完整回复和预约；没有这些数据时不直接判定适合投流。",
     "DOU+：以小预算测试目标人群互动或主页访问，具体金额、时长和定向待账户能力与预算确认。",
     "本地推：只有存在真实样板点/工厂/考察现场并能够承接时才设置到店考察；地域按实际可承接范围配置，不因产品名机械限制本地。",
@@ -7705,7 +8492,13 @@ function extractLiveFactFragment(source: string, pattern: RegExp, fallback: stri
   return matched && matched.length >= 3 ? matched.slice(0, 150) : fallback;
 }
 
-function buildLiveScheduleTable(duration: number, isFranchise: boolean, context: ReturnType<typeof buildIpDeliveryContext>, isTakeaway = false): string {
+function buildLiveScheduleTable(
+  duration: number,
+  isFranchise: boolean,
+  context: ReturnType<typeof buildIpDeliveryContext>,
+  isTakeaway = false,
+  isBeautyServiceIntro = false
+): string {
   const safeDuration = Math.max(8, duration);
   const isAppointment = !isFranchise && /预约|到店/.test(context.objective);
   const modules = isFranchise
@@ -7730,7 +8523,18 @@ function buildLiveScheduleTable(duration: number, isFranchise: boolean, context:
           ["核心内容轮播", "按A-B-C-D轮换，让新进场顾客快速进入主线"],
           ["收尾与订单复盘", "总结真实信息，引导顾客自主选择配送范围内门店"]
         ]
-      : [
+      : isBeautyServiceIntro
+        ? [
+            ["开场与目标顾客", `讲清已确认的${context.offer}适合了解哪些日常护理需求`],
+            ["话术A：到店顾虑", "回答强推销、流程不透明等顾虑，不创造顾客评价"],
+            ["话术B：真实服务步骤", "只展示已确认的用品、环境和服务步骤"],
+            ["话术C：事实与价格边界", "未确认的价格、效果、案例和预约方式明确待补"],
+            ["话术D：咨询与预约答疑", "讲清已确认的咨询方式；预约入口未确认时不虚构"],
+            ["互动答疑与咨询承接", "集中回答高频问题，并重复唯一咨询关键词"],
+            ["核心内容轮播", "按A-B-C-D轮换，让新进场顾客快速了解服务流程"],
+            ["收尾与咨询记录", `总结事实边界，引导${context.objective}并记录待补问题`]
+          ]
+        : [
         ["开场与目标人群", `讲清${context.offer}适合谁，并给出本场唯一承接动作`],
         ["话术A：需求痛点", "还原真实使用或到店需求，不创造顾客评价"],
         ["话术B：产品价值", "用已确认产品事实做FABE表达"],
@@ -7803,49 +8607,71 @@ function buildFullLiveScriptFallback(
 ): string {
   const duration = extractLiveDurationMinutes(source) ?? 60;
   const storeCount = extractStoreCountFact(source);
-  const missingProductFacts = /(?:缺失|未提供|没有|暂无|未知)[^。；;\n]{0,36}(?:菜品|产品|客单价|价格|优惠|福利)|(?:菜品|产品|客单价|价格|优惠|福利)[^。；;\n]{0,36}(?:缺失|未提供|没有|暂无|未知)/.test(source);
+  const isBeautyServiceIntro = !isFranchise
+    && /生活美容|美容门店|皮肤管理|基础护理|基础清洁|日常补水|舒缓护理/.test(source)
+    && /服务介绍|不带货|不挂团购|不销售产品|服务流程/.test(source);
+  const beautyServiceNames = uniqueStrings(["基础清洁", "日常补水护理", "舒缓护理"]
+    .filter((term) => source.includes(term.replace("护理", "")) || source.includes(term)));
+  const displayOffer = isBeautyServiceIntro
+    ? (beautyServiceNames.length > 0 ? beautyServiceNames.join("、") : "已确认的生活美容服务流程")
+    : context.offer;
+  const missingProductFacts = !isBeautyServiceIntro && /(?:缺失|未提供|没有|暂无|未知)[^。；;\n]{0,36}(?:菜品|产品|客单价|价格|优惠|福利)|(?:菜品|产品|客单价|价格|优惠|福利)[^。；;\n]{0,36}(?:缺失|未提供|没有|暂无|未知)/.test(source);
   const missingFranchiseFacts = /(?:未提供|没有|暂无|缺失|未知)/.test(source)
     && /门店盈利|加盟费|投资回收期|供应链政策|成功案例/.test(source);
   const isTakeaway = !isFranchise && hasAffirmativeTakeawayIntent(`${source} ${context.target}`);
-  const isAppointment = !isFranchise && /预约|到店/.test(context.objective);
+  const isAppointment = !isFranchise && (isBeautyServiceIntro || /预约|到店/.test(context.objective));
   const investment = extractLiveFactFragment(source, /(?:总投资|整店总投入|总投入|整体投入|投资区间|投资预算)[：:为\s]*[^。；;\n]{1,100}/, "投资口径以本轮正式资料为准，未确认的数字不口播");
   const profitModel = extractLiveFactFragment(source, /(?:核心利润|盈利模型|真实盈利项目|盈利项目|利润项目|经营模式|引流品)(?:包括|包含)?[：:为\s]*[^。；;\n]{1,130}/, "经营模式只讲已确认项目，不承诺利润或回本");
   const support = extractLiveFactFragment(source, /(?:扶持政策|总部支持|扶持动作|支持政策)[：:为\s]*[^。；;\n]{1,150}/, "扶持动作只讲本轮已经确认的选址、培训、开业、运营或供应链内容");
   const productFacts = extractLiveFactFragment(
     source,
     /(?:产品详情|套餐|主推产品|主推活动|招牌|核心卖点)[：:为\s]*[^。；;\n]{1,150}/,
-    isTakeaway ? "本场只展示已经确认的菜品、套餐、分量、包装、出餐和打包信息" : `本场只展示已经确认的${context.offer}产品、服务和使用规则`
+    isTakeaway
+      ? "本场只展示已经确认的菜品、套餐、分量、包装、出餐和打包信息"
+      : isBeautyServiceIntro
+        ? `本场只介绍已经确认的${displayOffer}、用品、环境和服务步骤，不销售产品或套餐`
+        : `本场只展示已经确认的${displayOffer}产品、服务和使用规则`
   );
   const pricing = extractLiveFactFragment(
     source,
     /(?:价格|团购价|直播价|福利|原价)[：:为\s]*[^。；;\n]{1,100}|\d+(?:\.\d+)?\s*元[^。；;\n]{0,80}/,
-    isTakeaway ? "价格、活动、配送费和预计送达时间以外卖平台实时页面为准，未确认不口播" : "价格和福利以直播后台已经确认的规则为准，未确认不口播"
+    isTakeaway
+      ? "价格、活动、配送费和预计送达时间以外卖平台实时页面为准，未确认不口播"
+      : isBeautyServiceIntro
+        ? "价格、优惠和预约方式尚未确认，本场不口播数字或虚构入口"
+        : "价格和福利以直播后台已经确认的规则为准，未确认不口播"
   );
-  const modeName = isFranchise ? "招商加盟" : isEnterpriseService ? "知识/企业服务咨询" : isTakeaway ? "餐饮外卖转化" : isAppointment ? "本地生活预约到店" : "本地生活/产品带货";
+  const modeName = isFranchise ? "招商加盟" : isEnterpriseService ? "知识/企业服务咨询" : isTakeaway ? "餐饮外卖转化" : isBeautyServiceIntro ? "生活美容门店服务介绍" : isAppointment ? "本地生活预约到店" : "本地生活/产品带货";
   const evidenceLine = isFranchise
     ? `本场可使用的真实资料：${storeCount ? `已确认现有${storeCount}家门店；` : ""}${investment}；${profitModel}；${support}${missingFranchiseFacts ? "；门店盈利、加盟费、投资回收期、供应链政策和成功案例数据统一标注【待补】" : ""}。`
-    : `本场可使用的真实资料：${storeCount ? `已确认现有${storeCount}家店；` : ""}${productFacts}；${pricing}${missingProductFacts ? "；菜品、客单价、优惠等未提供项统一标注【待补】" : ""}。`;
+    : `本场可使用的真实资料：${storeCount ? `已确认现有${storeCount}家店；` : ""}${productFacts}；${pricing}${missingProductFacts ? "；产品、价格、优惠等未提供项统一标注【待补】" : ""}。`;
   const actionLine = `唯一承接动作：${context.objective}；关键词“${live.keyword}”；承接内容为${live.nextStep}。`;
   const scriptA = isFranchise
     ? `很多人在比较项目时，第一反应是问投入和回本。但真正应该先判断的是：这个项目靠什么获得客户、靠什么形成收入、总部支持能不能落到动作。今天我不替你承诺结果，只把${context.offer}已经确认的经营逻辑和适合条件讲清楚。`
     : isTakeaway
       ? `如果你正在选今天吃什么，先看三件事：今天真实能点什么、套餐信息是否看得懂、你的位置是否在配送范围。今天只讲已确认菜品和平台实时规则，不用虚构销量或优惠催单。`
-      : `如果你正在比较${context.offer}，先别只看一句价格。你真正要判断的是它适不适合自己、具体包含什么、${isAppointment ? "怎么预约到店" : "怎么购买或使用"}。今天我只讲已经确认的信息，没确认的规则不临时加。`;
+      : isBeautyServiceIntro
+        ? `如果你第一次了解${displayOffer}，先不用只问价格。今天只讲已经确认的服务步骤、用品与环境，以及到店前值得问清的问题；不把日常护理写成治疗。`
+        : `如果你正在比较${displayOffer}，先别只看一句价格。你真正要判断的是它适不适合自己、具体包含什么、${isAppointment ? "怎么预约到店" : "怎么购买或使用"}。今天我只讲已经确认的信息，没确认的规则不临时加。`;
   const scriptB = isFranchise
     ? `接下来讲实力，但实力不是喊口号。能展示门店、供应链、培训、开业或运营过程，我们就展示对应资料；没有原始证据的数字和案例不讲。你判断一个项目，也请先看过程是否真实、支持是否能验证。`
     : isTakeaway
       ? `接下来直接看真实菜品和打包过程。菜品名、套餐内容、分量、口味和包装由门店当天核验；没有产品卡或实拍素材的内容统一标记【待补】，不借用别家图片和顾客评价。`
-      : `接下来讲产品价值。我们只围绕本轮已经确认的产品、套餐、服务流程和适用条件来说明。你可以重点看它适合谁、解决什么问题、怎么使用；没有确认的原料、效果和顾客反馈不会写进话术。`;
+      : isBeautyServiceIntro
+        ? `接下来讲服务过程。我们只围绕已经确认的${displayOffer}、用品、环境和服务步骤来说明；没有确认的效果、案例、价格和顾客反馈不会写进话术。`
+        : `接下来讲产品价值。我们只围绕本轮已经确认的产品、套餐、服务流程和适用条件来说明。你可以重点看它适合谁、解决什么问题、怎么使用；没有确认的原料、效果和顾客反馈不会写进话术。`;
   const scriptC = isFranchise
     ? `关于投资和经营模式，本场统一按这份真实口径说明：${investment}；${profitModel}。这不是收益承诺，最终结果还与选址、经营能力和实际执行有关。投资有风险，加盟需谨慎。`
     : isTakeaway
       ? `关于价格、活动、配送费和预计送达时间，本场统一按外卖平台实时页面说明：${pricing}。直播间不另编折扣，也不口头保证固定配送时效。`
-      : `关于价格和福利，本场统一按已经确认的规则说明：${pricing}。有效期、适用门店、库存、赠品和退款核销规则没有确认的，不在直播间自行承诺。`;
+      : isBeautyServiceIntro
+        ? `关于价格和预约，本场只按已经确认的规则说明：${pricing}。当前未确认的预约入口、适用条件和服务效果不在直播间自行补充。`
+        : `关于价格和福利，本场统一按已经确认的规则说明：${pricing}。有效期、适用门店、库存、赠品和退款核销规则没有确认的，不在直播间自行承诺。`;
   const scriptD = isFranchise
     ? `最后讲支持和适配：${support}。你要判断的不是“总部说得多不多”，而是谁在什么阶段做什么。符合条件的继续领取资料预约沟通，不符合的也先把边界问清楚。`
     : isTakeaway
       ? `最后把外卖下单路径讲清楚：先记住品牌名“${context.business}”，再到已确认营业的外卖平台搜索，选择配送范围内的对应门店，看清实时菜单、价格和配送信息后自主下单。抖音负责展示和答疑，不把抖音团购写成默认成交路径。`
-      : `最后把${isAppointment ? "预约到店" : "购买或预约"}路径讲清楚：先确认自己是否需要${context.offer}，再按直播间已经确认的入口完成${context.objective}。如果规则还不清楚，先留言提问，不为了促单临时创造优惠。`;
+      : `最后把${isAppointment ? "咨询与预约到店" : "购买或预约"}路径讲清楚：先确认自己是否需要${displayOffer}，再按直播间已经确认的入口完成${context.objective}。如果规则还不清楚，先留言提问，不为了促单临时创造优惠。`;
   const faqLines = isTakeaway
     ? [
         `1. 今天能点什么？答：只展示门店当天核验的真实菜品和套餐；未确认菜名、分量和口味统一标记【待补】。`,
@@ -7858,33 +8684,33 @@ function buildFullLiveScriptFallback(
         `1. ${isFranchise ? "投资是多少" : "价格是多少"}？答：本场只按已经确认的正式口径回答。${isFranchise ? investment : pricing}。未确认项目以正式资料为准。`,
         `2. ${isFranchise ? "效果或多久回本" : "是否适合、效果怎么判断"}？答：${isFranchise ? "不承诺收益和回本周期，经营结果取决于选址、执行和实际市场；我们只提供真实模式与支持资料。" : "不承诺统一效果，先确认适用条件、服务内容和真实使用规则。"}`,
         `3. 适合谁？答：主要面向${context.target}；是否适合仍要结合具体需求和条件判断。`,
-        `4. 能提供什么支持？答：${isFranchise ? support : "只按已经确认的产品、售前和售后规则回答，未确认服务不承诺。"}`,
+        `4. 能提供什么支持？答：${isFranchise ? support : isBeautyServiceIntro ? "只按已经确认的服务流程、用品、环境和咨询规则回答，未确认内容不承诺。" : "只按已经确认的产品、售前和售后规则回答，未确认服务不承诺。"}`,
         `5. 下一步怎么做？答：在评论区打“${live.keyword}”，再完成${context.objective}，我们按你的真实情况继续沟通。`
       ];
   return [
     `${context.business} · ${duration}分钟直播话术包`,
     "",
     "短结论",
-    `本场按${modeName}设计，围绕${context.offer}，服务${context.target}，目标是${context.objective}。所有经营数字、福利和案例只使用本轮已确认资料。`,
+    `本场按${modeName}设计，围绕${displayOffer}，服务${context.target}，目标是${context.objective}。所有经营数字、福利和案例只使用本轮已确认资料。`,
     "",
     "场景识别",
-    `已识别为${modeName}。${isFranchise ? "按痛点—真实实力—经营模式—扶持边界—留资承接组织。" : isTakeaway ? "按需求—真实菜品/套餐—价格与配送规则—外卖平台下单路径—订单承接组织。" : isAppointment ? "按需求—服务价值—真实价格/规则—预约路径—到店承接组织。" : "按需求—产品价值—真实价格/福利—购买路径—转化承接组织。"}`,
+    `已识别为${modeName}。${isFranchise ? "按痛点—真实实力—经营模式—扶持边界—留资承接组织。" : isTakeaway ? "按需求—真实菜品/套餐—价格与配送规则—外卖平台下单路径—订单承接组织。" : isBeautyServiceIntro ? "按到店顾虑—真实服务步骤—事实边界—咨询承接组织。" : isAppointment ? "按需求—服务价值—真实价格/规则—预约路径—到店承接组织。" : "按需求—产品价值—真实价格/福利—购买路径—转化承接组织。"}`,
     "",
     "一、直播总览",
-    `直播目标：让${context.target}听懂${context.offer}，完成${context.objective}。`,
+    `直播目标：让${context.target}听懂${displayOffer}，完成${context.objective}。`,
     `行业/品类：${context.industry}。`,
     `直播时长：${duration}分钟。`,
     evidenceLine,
     actionLine,
-    "开播前检查：主播确认产品/项目、适合与不适合人群、真实数据、限制条件和唯一行动入口；场控确认贴片、关键词回复、承接入口和违规词提醒。",
+    `开播前检查：主播确认${isBeautyServiceIntro ? "服务项目" : "产品/项目"}、适合与不适合人群、真实数据、限制条件和唯一行动入口；场控确认贴片、关键词回复、承接入口和违规词提醒。`,
     `合规提醒：${isFranchise ? "不得承诺收益、回本、零风险或虚假名额；固定提示“投资有风险，加盟需谨慎”。" : "不得虚构价格、原价、库存、名额、赠品、功效、有效期和核销规则。"}`,
     "",
     "二、开场话术",
     "主播口播稿",
-    `刚进来的朋友先别划走。我用30秒讲清楚今天这场直播适合谁。如果你正在${live.hesitation}，先听我把${context.offer}适合谁、怎么判断和下一步怎么做讲清楚。${live.opening}`,
-    `留人：接下来我会依次讲真实需求、已经确认的证据、${isFranchise ? "经营和投资边界" : "产品与价格规则"}，最后回答大家最关心的问题。`,
+    `刚进来的朋友先别划走。我用30秒讲清楚今天这场直播适合谁。如果你正在${live.hesitation}，先听我把${displayOffer}的真实步骤、边界和下一步讲清楚。${live.opening}`,
+    `留人：接下来我会依次讲真实需求、已经确认的证据、${isFranchise ? "经营和投资边界" : isBeautyServiceIntro ? "服务步骤与事实边界" : "产品与价格规则"}，最后回答大家最关心的问题。`,
     "运营配合动作",
-    `置顶本场主题“${context.offer}”，同步显示唯一行动入口“${context.objective}”；不显示未经确认的价格、名额或效果数字。`,
+    `置顶本场主题“${displayOffer}”，同步显示唯一行动入口“${context.objective}”；不显示未经确认的价格、名额或效果数字。`,
     "",
     "三、四套核心轮播话术",
     "话术A：痛点共鸣",
@@ -7892,14 +8718,14 @@ function buildFullLiveScriptFallback(
     scriptA,
     "运营配合动作：展示与痛点对应的真实场景或问题清单；没有素材就用文字卡，不伪造客户原话。",
     "",
-    "话术B：真实实力/产品价值",
+    `话术B：${isBeautyServiceIntro ? "真实服务过程" : "真实实力/产品价值"}`,
     "主播口播稿",
     scriptB,
     isTakeaway
       ? "运营配合动作：只展示本轮已授权的真实菜品、套餐、包装、出餐、打包和平台页面素材，并标注拍摄门店与日期。"
       : "运营配合动作：只展示本轮已授权的门店、产品、流程、供应链、培训或服务资料，并标注资料名称。",
     "",
-    `话术C：${isFranchise ? "模式与投资边界" : "真实价格与福利"}`,
+    `话术C：${isFranchise ? "模式与投资边界" : isBeautyServiceIntro ? "事实与价格边界" : "真实价格与福利"}`,
     "主播口播稿",
     scriptC,
     `运营配合动作：${isFranchise ? "展示正式投资/经营资料并保留风险提示" : isTakeaway ? "核对外卖后台价格、配送范围、活动规则和商品入口" : isAppointment ? "核对后台价格、适用范围和预约入口" : "核对后台价格、适用范围和购买入口"}；任何未确认数字都不打贴片。`,
@@ -7914,7 +8740,7 @@ function buildFullLiveScriptFallback(
     `承接钩子B｜答疑后：如果你的问题还没有被回答，打“${live.keyword}”并补一句你最关心什么，我按真实条件给你下一步。`,
     `承接钩子C｜收尾前：已经确认需要继续沟通的，现在完成${context.objective}；承接内容仍是${live.nextStep}，不临时增加赠品或名额。`,
     "互动：每轮请用户只回答一个具体问题，场控记录城市、需求、预算/价格关注点和行动意向。",
-    "产品承接：所有承接都回到本轮唯一入口，不同时引导多个动作。",
+    `${isBeautyServiceIntro ? "服务承接" : "产品承接"}：所有承接都回到本轮唯一入口，不同时引导多个动作。`,
     "转化与合规逼单：用适合条件、真实资料和明确下一步推动决策，不使用虚假倒计时、库存和名额。",
     "",
     "五、高频问题应答",
@@ -7922,14 +8748,14 @@ function buildFullLiveScriptFallback(
     "",
     "六、收尾话术",
     "主播口播稿",
-    `今天我们把${context.offer}适合谁、真实资料和限制条件讲清楚了。如果你已经确认需要继续了解，现在打“${live.keyword}”并完成${context.objective}。如果还不确定，把最关心的问题留下来，我们按事实回答，不催你在信息不清楚时做决定。${isFranchise ? "投资有风险，加盟需谨慎。" : "价格、福利和适用规则以直播间已确认信息为准。"}`,
+    `今天我们把${displayOffer}的真实步骤、资料和限制条件讲清楚了。如果你已经确认需要继续了解，现在打“${live.keyword}”并完成${context.objective}。如果还不确定，把最关心的问题留下来，我们按事实回答，不催你在信息不清楚时做决定。${isFranchise ? "投资有风险，加盟需谨慎。" : "价格、福利和适用规则以直播间已确认信息为准。"}`,
     "运营配合动作：停止新增优惠和名额；重复唯一承接入口，确认线索已记录后再下播。",
     "",
     `七、${duration}分钟轮播节奏表`,
-    buildLiveScheduleTable(duration, isFranchise, context, isTakeaway),
+    buildLiveScheduleTable(duration, isFranchise, context, isTakeaway, isBeautyServiceIntro),
     "",
     "八、场控执行清单",
-    "开播前：核对品牌、产品/项目、价格/投资、福利/扶持、适用条件、承接入口和授权素材；未确认内容从贴片与提词器删除。",
+    `开播前：核对品牌、${isBeautyServiceIntro ? "服务项目、价格、适用条件" : "产品/项目、价格/投资、福利/扶持、适用条件"}、承接入口和授权素材；未确认内容从贴片与提词器删除。`,
     `直播中：按节奏表切换A-B-C-D；每轮记录进入、停留、评论、关键词和${isFranchise ? "有效留资" : isTakeaway ? "外卖商品点击与下单意向" : isAppointment ? "有效预约意向" : "下单/预约/核销意向"}，主播说到未确认数字时立即提醒。`,
     `下播后跟进：按“已完成${context.objective}、已问${isFranchise ? "投资" : "价格"}、已问适合条件、只围观”四类分层；优先跟进前两类，并保留用户原问题。`,
     `合规提醒：${isFranchise ? "投资有风险，加盟需谨慎；禁止收益、回本、保本和虚假名额承诺。" : "禁止虚构原价、折扣、库存、赠品、功效、有效期和核销规则。"}`,
@@ -7954,6 +8780,11 @@ function buildLiveScriptFallback(prepared: PreparedAgentMessages): string | unde
   const liveIndustry = extractLiveIndustry(source);
   const isFranchise = liveMode === "franchise" || /招商|加盟|创业者|投资|留资|加盟商/.test(source);
   const isTakeawayProduct = !isFranchise && hasAffirmativeTakeawayIntent(source);
+  const isBeautyServiceIntro = !isFranchise
+    && /生活美容|美容门店|皮肤管理|基础护理|基础清洁|日常补水|舒缓护理/.test(source)
+    && /服务介绍|不带货|不挂团购|不销售产品|服务流程/.test(source);
+  const beautyServiceNames = uniqueStrings(["基础清洁", "日常补水护理", "舒缓护理"]
+    .filter((term) => source.includes(term.replace("护理", "")) || source.includes(term)));
   const context = {
     ...baseContext,
     ...(liveBrand ? { business: liveBrand } : {}),
@@ -7963,10 +8794,17 @@ function buildLiveScriptFallback(prepared: PreparedAgentMessages): string | unde
           target: `${baseContext.city}新店配送范围内、正在选择一顿中式快餐的外卖顾客`,
           objective: `搜索${liveBrand ?? baseContext.business}，并在已确认营业的美团、饿了么或淘宝闪购门店自主下单`
         }
+      : isBeautyServiceIntro
+        ? {
+            offer: beautyServiceNames.length > 0 ? beautyServiceNames.join("、") : "已确认的生活美容服务流程",
+            industry: "生活美容",
+            target: "附近想先了解日常护理流程、担心强推销或夸大效果的顾客",
+            objective: liveObjective ?? "收集真实咨询；预约方式确认后再安排到店"
+          }
       : liveOffer
         ? { offer: liveOffer }
         : {}),
-    ...(liveObjective ? { objective: liveObjective } : {}),
+    ...(!isBeautyServiceIntro && liveObjective ? { objective: liveObjective } : {}),
     ...(liveIndustry ? { industry: liveIndustry } : /手机后市场/.test(source) ? { industry: "手机后市场" } : {})
   };
   const isEnterpriseService = /企业AI|AI企业|企业改造|企业客户|中小企业|企业主|老板IP|品牌获客/.test(source);
@@ -8388,7 +9226,7 @@ function hasAffirmativeTakeawayIntent(source: string): boolean {
 
 function extractPlatform(source: string): string {
   const platforms = ["美团", "饿了么", "淘宝闪购", "抖音", "小红书", "视频号", "朋友圈", "快手", "社群"].filter((platform) => source.includes(platform));
-  return platforms.length > 0 ? platforms.join("/") : "主发布平台";
+  return platforms.length > 0 ? platforms.join("/") : "发布平台【待补】";
 }
 
 function extractObjective(source: string): string {
@@ -8431,7 +9269,10 @@ function extractOffer(source: string, business: string): string {
       ? "企业AI改造与流程诊断服务（流程诊断清单作为私信承接）"
       : "企业AI改造与落地服务";
   }
-  if (/皮肤管理|美容/.test(source)) return "皮肤管理服务【具体项目待补】";
+  if (/皮肤管理|美容|基础护理|基础清洁|日常补水|舒缓护理/.test(source)) {
+    const services = uniqueStrings(["基础清洁", "日常补水", "舒缓护理"].filter((term) => source.includes(term.replace("护理", "")) || source.includes(term)));
+    return services.length > 0 ? `${services.join("、")}（生活美容）` : "生活美容服务【具体项目待补】";
+  }
   if (/餐饮|堂食|午餐|上班族/.test(source)) return "堂食主推菜品/套餐【待补】";
   return `${business}主推产品/服务`;
 }
@@ -8444,7 +9285,11 @@ function extractTargetCustomer(source: string, industry: string): string {
   if (/家长|孩子|少儿|学生/.test(source)) return "有孩子学习需求的家长";
   if (/加盟|招商|创业者|投资/.test(source)) return "想找稳妥项目的创业者";
   if (!/美业|皮肤管理|美容|美甲|美睫|护肤/.test(source) && /学员|招生|培训/.test(source)) return "有明确学习和职业发展需求的学员";
-  if (/美甲|美睫|美容/.test(source)) return "想变美但怕踩坑的女生";
+  if (/生活美容|美容|皮肤管理|基础护理|基础清洁|日常补水|舒缓护理/.test(source) && !/美甲|美睫|纹眉/.test(source)) {
+    return /强推销|流程不透明/.test(source)
+      ? "对基础护理流程和推销边界有顾虑的附近顾客"
+      : "正在了解生活美容日常护理、希望先看清服务边界的顾客";
+  }
   if (/餐饮|牛肉面|火锅|烧烤|咖啡|美食/.test(source)) return "附近想快速决策吃什么的人";
   return `对${industry}有明确需求的人`;
 }
@@ -8495,6 +9340,7 @@ interface VideoDataTableStats {
   rows: VideoDataTableRow[];
   avgSecondsValues: number[];
   completionRateValues: number[];
+  threeSecondRetentionRateValues: number[];
   playValues: number[];
   commentValues: number[];
   directMessageValues: number[];
@@ -8513,6 +9359,7 @@ interface VideoDataTableRow {
   date?: string;
   playCount?: number;
   completionRate?: number;
+  threeSecondRetentionRate?: number;
   avgSeconds?: number;
   likes?: number;
   comments?: number;
@@ -8529,13 +9376,14 @@ const VIDEO_DATA_COLUMN_ALIASES: Array<{ key: VideoDataColumn; pattern: RegExp }
   { key: "date", pattern: /^(?:发布时间|发布日期|日期)$/ },
   { key: "playCount", pattern: /^(?:播放量|播放次数|播放)$/ },
   { key: "completionRate", pattern: /^(?:完播率|完播)$/ },
+  { key: "threeSecondRetentionRate", pattern: /^(?:3秒留存率|三秒留存率|3秒留存|三秒留存)$/ },
   { key: "avgSeconds", pattern: /^(?:平均播放时长|平均观看时长|平均播放)$/ },
   { key: "likes", pattern: /^(?:喜欢|点赞|点赞数|点赞量)$/ },
   { key: "comments", pattern: /^(?:评论|评论数|评论量)$/ },
   { key: "shares", pattern: /^(?:分享|分享数|分享量|转发)$/ },
   { key: "follows", pattern: /^(?:关注|关注数|关注量|新增关注)$/ },
-  { key: "directMessages", pattern: /^(?:私信|私信数|咨询数|私聊数)$/ }
-  ,{ key: "conversions", pattern: /^(?:核销|核销数|成交|成交数|留资|留资数|预约|预约数|转化|转化数)$/ }
+  { key: "directMessages", pattern: /^(?:私信|私信数|私信量|私信咨询|私信咨询数|私信咨询量|咨询数|咨询量|私聊数)$/ }
+  ,{ key: "conversions", pattern: /^(?:有效咨询|有效咨询数|核销|核销数|成交|成交数|留资|留资数|预约|预约数|转化|转化数)$/ }
 ];
 
 function splitDelimitedTableLine(line: string, delimiter: string): string[] {
@@ -8647,7 +9495,7 @@ function parseVideoDataRows(source: string): { fields: string[]; rows: VideoData
       else if (key === "date") row.date = cell;
       else row[key] = parseVideoDataNumber(cell) as never;
     }
-    if (row.playCount !== undefined || row.completionRate !== undefined || row.avgSeconds !== undefined || row.likes !== undefined || row.comments !== undefined || row.shares !== undefined || row.follows !== undefined || row.directMessages !== undefined || row.conversions !== undefined) {
+    if (row.playCount !== undefined || row.completionRate !== undefined || row.threeSecondRetentionRate !== undefined || row.avgSeconds !== undefined || row.likes !== undefined || row.comments !== undefined || row.shares !== undefined || row.follows !== undefined || row.directMessages !== undefined || row.conversions !== undefined) {
       rows.push(row);
     }
   }
@@ -8662,6 +9510,7 @@ function extractVideoDataTableStats(source: string): VideoDataTableStats {
       rows: [],
       avgSecondsValues: [],
       completionRateValues: [],
+      threeSecondRetentionRateValues: [],
       playValues: [],
       commentValues: [],
       directMessageValues: [],
@@ -8689,6 +9538,7 @@ function extractVideoDataTableStats(source: string): VideoDataTableStats {
     ? rows.flatMap((row) => row.avgSeconds === undefined ? [] : [row.avgSeconds])
     : legacyAvgSecondsValues;
   const completionRateValues = rows.flatMap((row) => row.completionRate === undefined ? [] : [row.completionRate]);
+  const threeSecondRetentionRateValues = rows.flatMap((row) => row.threeSecondRetentionRate === undefined ? [] : [row.threeSecondRetentionRate]);
   const playValues = rows.length > 0
     ? rows.flatMap((row) => row.playCount === undefined ? [] : [row.playCount])
     : legacyPlayValues;
@@ -8710,6 +9560,7 @@ function extractVideoDataTableStats(source: string): VideoDataTableStats {
     rows,
     avgSecondsValues,
     completionRateValues,
+    threeSecondRetentionRateValues,
     playValues,
     commentValues,
     directMessageValues,
@@ -8732,6 +9583,7 @@ function formatVideoDataRow(row: VideoDataTableRow): string {
   const metrics = [
     row.playCount !== undefined ? `播放 ${row.playCount}` : undefined,
     row.completionRate !== undefined ? `完播 ${row.completionRate}%` : undefined,
+    row.threeSecondRetentionRate !== undefined ? `3秒留存 ${row.threeSecondRetentionRate}%` : undefined,
     row.avgSeconds !== undefined ? `平均播放 ${row.avgSeconds}秒` : undefined,
     row.likes !== undefined ? `喜欢 ${row.likes}` : undefined,
     row.comments !== undefined ? `评论 ${row.comments}` : undefined,
@@ -8743,15 +9595,27 @@ function formatVideoDataRow(row: VideoDataTableRow): string {
   return `${row.title ?? "未命名作品"}（${metrics || "指标待补"}）`;
 }
 
+function videoDataTitlePreview(title: string | undefined): string {
+  return (title ?? "未命名作品")
+    .replace(/\s*#[^#\s，。；;、]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 52) || "未命名作品";
+}
+
 function hasVideoDataFactRetention(answer: string, stats: VideoDataTableStats): boolean {
   if (!/播放量|播放/.test(answer) || !/完播|平均播放/.test(answer) || !/评论|私信|互动/.test(answer)) return false;
   if (!hasReliableVideoDataTable(stats)) return true;
+  const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
   const requiredValues = uniqueStrings([
+    stats.rowCount !== undefined ? `有效记录：${stats.rowCount} 条` : "",
     stats.topPlay !== undefined ? String(stats.topPlay) : "",
     stats.topCompletionRate !== undefined ? `${stats.topCompletionRate}%` : "",
+    stats.threeSecondRetentionRateValues.length > 0 ? `${Math.max(...stats.threeSecondRetentionRateValues)}%` : "",
     stats.lowAvgSeconds !== undefined ? `${stats.lowAvgSeconds}秒` : "",
-    ...stats.conversionValues.slice(0, 2).map(String),
-    ...stats.rows.slice(0, 2).flatMap((row) => row.title ? [row.title] : [])
+    stats.directMessageValues.length > 0 ? `私信合计 ${sum(stats.directMessageValues)}` : "",
+    stats.conversionValues.length > 0 ? `业务转化合计 ${sum(stats.conversionValues)}` : "",
+    ...stats.rows.slice(0, 2).flatMap((row) => row.title ? [videoDataTitlePreview(row.title)] : [])
   ]).filter(Boolean);
   return requiredValues.every((value) => answer.includes(value));
 }
@@ -8807,6 +9671,7 @@ function buildVideoDataTableReviewFallback(source: string, stats: VideoDataTable
   const percent = (value: number | undefined) => value === undefined ? "不可计算" : `${(value * 100).toFixed(2)}%`;
   const playValues = numeric("playCount");
   const completionValues = numeric("completionRate");
+  const threeSecondRetentionValues = numeric("threeSecondRetentionRate");
   const avgSecondsValues = numeric("avgSeconds");
   const likes = numeric("likes");
   const comments = numeric("comments");
@@ -8855,15 +9720,12 @@ function buildVideoDataTableReviewFallback(source: string, stats: VideoDataTable
     }
   }
   const topTags = [...hashtagCounts.entries()].sort((left, right) => right[1] - left[1]).slice(0, 8);
-  const titlePreview = (row: VideoDataTableRow) => (row.title ?? "未命名作品")
-    .replace(/\s*#[^#\s，。；;、]+/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 52) || "未命名作品";
+  const titlePreview = (row: VideoDataTableRow) => videoDataTitlePreview(row.title);
   const rowLine = (row: VideoDataTableRow, index: number) => {
     const parts = [
       row.playCount !== undefined ? `播放 ${row.playCount}` : undefined,
       row.completionRate !== undefined ? `完播 ${row.completionRate}%` : undefined,
+      row.threeSecondRetentionRate !== undefined ? `3秒留存 ${row.threeSecondRetentionRate}%` : undefined,
       row.avgSeconds !== undefined ? `平均播放 ${row.avgSeconds}秒` : undefined,
       `互动率 ${percent(rowEngagementRate(row))}`,
       row.follows !== undefined ? `关注 ${row.follows}` : undefined,
@@ -8876,6 +9738,7 @@ function buildVideoDataTableReviewFallback(source: string, stats: VideoDataTable
   const fieldNames = stats.fields.join(" ");
   const missingFields = [
     completionValues.length < rows.length ? `完播率缺 ${rows.length - completionValues.length} 条` : undefined,
+    threeSecondRetentionValues.length < rows.length ? `3秒留存率缺 ${rows.length - threeSecondRetentionValues.length} 条` : undefined,
     avgSecondsValues.length < rows.length ? `平均播放时长缺 ${rows.length - avgSecondsValues.length} 条` : undefined,
     directMessages.length === 0 ? "无私信字段" : undefined,
     conversions.length === 0 ? "无业务转化字段" : undefined,
@@ -8997,13 +9860,14 @@ function buildVideoDataTableReviewFallback(source: string, stats: VideoDataTable
     "## 零、数据质量审计",
     `有效记录：${rows.length} 条；已识别字段：${availableFields}。`,
     dates.length > 0 ? `日期范围：${dates[0]} 至 ${dates[dates.length - 1]}。` : "日期范围：未识别到有效日期。",
-    `字段覆盖：播放量 ${playValues.length}/${rows.length}，完播率 ${completionValues.length}/${rows.length}，平均播放时长 ${avgSecondsValues.length}/${rows.length}，点赞 ${likes.length}/${rows.length}，评论 ${comments.length}/${rows.length}，分享 ${shares.length}/${rows.length}，关注 ${follows.length}/${rows.length}。`,
+    `字段覆盖：播放量 ${playValues.length}/${rows.length}，3秒留存率 ${threeSecondRetentionValues.length}/${rows.length}，完播率 ${completionValues.length}/${rows.length}，平均播放时长 ${avgSecondsValues.length}/${rows.length}，点赞 ${likes.length}/${rows.length}，评论 ${comments.length}/${rows.length}，分享 ${shares.length}/${rows.length}，关注 ${follows.length}/${rows.length}，私信 ${directMessages.length}/${rows.length}。`,
     `缺失与限制：${missingFields.length > 0 ? missingFields.join("；") : "核心字段完整"}。缺失值不按 0 参与均值。`,
     totalComments === 0 ? "评论字段合计为0：只能确认表内记录为0，不能据此判断评论功能是否关闭。" : `评论字段合计 ${totalComments}。`,
     "",
     "## 一、数据总览",
     `总播放 ${number(totalPlay)}；平均播放 ${number(average(playValues))}；播放中位数 ${number(median(playValues))}。`,
     `平均完播率 ${completionValues.length > 0 ? `${number(average(completionValues))}%` : "不可计算"}（仅统计有值的 ${completionValues.length} 条）；平均播放时长 ${avgSecondsValues.length > 0 ? `${number(average(avgSecondsValues))}秒` : "不可计算"}。`,
+    `平均3秒留存率 ${threeSecondRetentionValues.length > 0 ? `${number(average(threeSecondRetentionValues))}%` : "不可计算"}（仅统计有值的 ${threeSecondRetentionValues.length} 条）。`,
     `互动合计 ${totalInteractions}（点赞 ${totalLikes}、评论 ${totalComments}、分享 ${totalShares}），整体互动率 ${percent(engagementRate)}；新增关注 ${totalFollows}，关注率 ${percent(followRate)}。`,
     directMessages.length > 0 ? `私信合计 ${sum(directMessages)}。` : "私信：文件无该字段，不能判断咨询承接。",
     conversions.length > 0 ? `业务转化合计 ${sum(conversions)}。` : "业务转化：文件无该字段，不能判断成交、留资或核销。",
@@ -9412,7 +10276,23 @@ function buildLiveScene(context: ReturnType<typeof buildIpDeliveryContext>, sour
       resultMetric: "企业老板有效咨询和诊断预约数"
     };
   }
-  if (/美甲|美睫|美容|皮肤管理/.test(`${source} ${context.business} ${context.offer}`)) {
+  if (
+    /生活美容|美容|皮肤管理|护肤|基础护理|基础清洁|日常补水|补水护理|舒缓护理/.test(`${source} ${context.business} ${context.offer}`)
+    && !/美甲|美睫|纹眉/.test(`${source} ${context.business} ${context.offer}`)
+  ) {
+    const keyword = source.match(/(?:评论或私信|私信或评论|私信|评论(?:区)?(?:打)?|关键词)[：:]?\s*[“"'‘]([^”"'’]{1,12})[”"'’]/)?.[1]?.trim() ?? "护理";
+    return {
+      painPoint: "附近顾客想先了解基础护理流程和服务边界，但担心强推销、夸大效果或预约信息不透明",
+      opening: "如果你第一次了解基础护理，先不用急着问价格。今天只把已经确认的清洁、日常补水、舒缓护理步骤和到店前需要问清的信息讲明白。",
+      hesitation: "担心强推销、流程不透明，或把日常护理说成治疗",
+      productProof: "只展示已经确认的护理用品、服务步骤、环境局部和获授权员工操作；不使用顾客案例，不承诺治疗或统一效果。",
+      keyword,
+      nextStep: "已确认的咨询方式；预约入口未确认时只收集问题",
+      urgency: "真实咨询与后续预约确认",
+      resultMetric: "有效咨询和已确认预约数"
+    };
+  }
+  if (/美甲|美睫|纹眉/.test(`${source} ${context.business} ${context.offer}`)) {
     const keyword = source.match(/(?:评论或私信|私信或评论|私信|评论(?:区)?(?:打)?|关键词)[：:]?\s*[“"'‘]([^”"'’]{1,12})[”"'’]/)?.[1]?.trim() ?? "预约";
     return {
       painPoint: "附近上班族想做日常通勤款，但担心款式不适合、时间不好约、服务规则不清楚",
@@ -9680,19 +10560,22 @@ function buildContentFallbackScenario(source: string, business: string, city: st
       reviewMetric: "抖音3秒停留、品牌搜索、外卖平台店铺访问、商品点击率、加购率、下单转化率与复购率"
     };
   }
-  if (/皮肤管理|护肤/.test(`${source} ${business}`)) {
+  if (
+    /生活美容|美容|皮肤管理|护肤|基础护理|基础清洁|日常补水|补水护理|舒缓护理/.test(`${source} ${business}`)
+    && !/美甲|美睫|纹眉/.test(`${source} ${business}`)
+  ) {
     return {
-      objective: "私信咨询和预约到店",
+      objective: /目标是[“'‘]?([^。\n]{2,48})/.test(source) ? extractObjective(source) : "了解真实服务流程；咨询与预约入口待补",
       topic: `${city}第一次做皮肤管理前，先确认这3件事。`,
-      userHook: "附近有油痘、敏感或肤质管理需求，正在比较服务边界和预约方式的人。",
-      openingHook: "真实咨询流程、服务边界、工具卫生和预约前要确认的信息",
-      copyLine1: "想做皮肤管理，先别只问价格。先把你想改善的困扰、是否有敏感情况和能够到店的时间说清楚，再判断适不适合预约咨询。",
-      copyLine2: "项目、价格和案例没有确认的部分都标【待补】；先把真实需求发来，我们只按已确认的服务范围沟通下一步。",
+      userHook: "对基础护理流程、强推销和信息不透明有顾虑，想先了解服务边界的附近顾客。",
+      openingHook: "已确认的服务流程、用品和拍摄授权边界",
+      copyLine1: "第一次了解基础护理，先别只比较价格。先看已确认的服务步骤、可以使用的用品，以及哪些信息仍待补。",
+      copyLine2: "项目、价格、案例和预约方式没有确认的部分都标【待补】；只按已确认的生活美容服务范围说明下一步。",
       shot1: "拍门店咨询区或服务准备画面。口播：第一次做皮肤管理，先确认这3件事。",
-      shot2: "拍工具消毒、物料准备和流程说明。口播：先说你的困扰和敏感情况，再看服务边界。",
+      shot2: "拍已确认可用的用品和服务流程。口播：先看服务步骤，再确认哪些信息仍待补。",
       shot3: "拍预约问题卡。口播：项目、价格和案例没确认前，不用一句效果承诺催你决定。",
-      shot4: "拍门头或预约入口，不拍顾客脸和隐私。口播：附近想了解的，先把情况发来。",
-      shot5: "回到流程卡收尾。口播：先确认适合范围，再决定是否预约到店。",
+      shot4: "拍已确认可用的接待区或空间局部，不拍顾客脸和隐私。口播：咨询与预约入口待确认。",
+      shot5: "回到流程卡收尾。口播：先看清服务边界，再决定是否继续咨询。",
       shootingNote1: "不拍顾客面部、皮肤近景和可识别隐私；不使用治疗、根治、保证改善或即时见效等表述。",
       subtitleKeywords: "皮肤管理、先确认需求、服务边界、工具卫生、预约咨询",
       visualFocus: "真实咨询流程、服务准备、工具卫生和预约注意事项",
@@ -9706,13 +10589,13 @@ function buildContentFallbackScenario(source: string, business: string, city: st
       topics: `${city}皮肤管理 护肤咨询 本地生活 预约到店 服务边界`,
       publishTime1: "先在账号已有的客户活跃时段小范围测试，24小时后用真实完播、咨询和预约数据复盘。",
       publishTime2: "同一主题可测试“需求判断”与“服务准备”两个版本，不承诺固定流量。",
-      pinnedComment: "想了解皮肤管理的，可以先说目前最想解决的问题和方便到店的时间，我们按真实服务范围沟通。",
+      pinnedComment: "咨询与预约方式待补；确认真实入口后，再加入对应承接话术。",
       priceReply: "项目和价格需按你的需求及门店当日真实资料确认；没有确认的信息不会先报成确定结论。",
       conversionMetric: "有效私信咨询和预约数",
       reviewMetric: "完播率、有效咨询数、预约数、到店咨询数"
     };
   }
-  if (/美甲|美睫|美容|皮肤管理|护肤|纹眉/.test(`${source} ${business}`)) {
+  if (/美甲|美睫|纹眉/.test(`${source} ${business}`)) {
     return {
       objective: "同城预约到店",
       topic: `想换一个显白又不夸张的款式，可以先看这家${city}${business}。`,
@@ -9846,6 +10729,16 @@ function buildContentFallbackScenario(source: string, business: string, city: st
 function buildDeterministicFallbackIfFactDrift(prepared: PreparedAgentMessages, answer: string): string | undefined {
   const source = extractKnownFactSource(prepared.messages);
   if (!source) return undefined;
+  if ((prepared.skillId === "beauty-industry-xhs" || prepared.skillId === "wechat-xhs-content-line") && prepared.capabilityId === "beauty_xiaohongshu_package") {
+    const issues = inspectBeautyXhsPackageIssues(answer, source);
+    if (issues.length > 0) {
+      return [
+        "本次小红书图文结果未通过事实与完整性检查，未保存为可用成品。",
+        `未通过项：${issues.join("；")}。`,
+        "请重新生成；本次没有生成图片、发布内容或产生媒体费用。"
+      ].join("\n");
+    }
+  }
   if (prepared.skillId === "baolu_content_creator" && prepared.capabilityId === "content_plan") {
     const taskRequest = extractTaskScopedContentSource(prepared.messages);
     const transcriptOnly = isTranscriptOnlyContentRequest(taskRequest);
@@ -9866,6 +10759,13 @@ function buildDeterministicFallbackIfFactDrift(prepared: PreparedAgentMessages, 
     return buildShootingEditingFallback(prepared);
   }
   if (prepared.skillId === "baolu_topics" && prepared.capabilityId === "topic_inspiration") {
+    if (prepared.skillVersion.includes("beauty-industry-content-diff@")) {
+      // The beauty product validates its structured brief and every source
+      // state after the Agent returns. A shared deterministic replacement has
+      // no access to that structured payload and would turn usable sources
+      // into false "未发现" claims.
+      return undefined;
+    }
     if (inspectTopicInspirationFactIssues(answer, source).length > 0) {
       return buildTopicInspirationFallback(prepared);
     }
@@ -9918,7 +10818,7 @@ function buildDeterministicFallbackIfFactDrift(prepared: PreparedAgentMessages, 
       return buildLiveReviewFallback(prepared);
     }
   }
-  if (prepared.skillId === "baolu_review_engine" && prepared.capabilityId === "video_review") {
+  if (prepared.skillId === "baolu_review_engine" && (prepared.capabilityId === "video_review" || prepared.capabilityId === "video_data_review")) {
     const tableStats = extractVideoDataTableStats(source);
     if (tableStats.isDataTable) {
       return buildVideoDataTableReviewFallback(source, tableStats);
@@ -9967,9 +10867,10 @@ function buildDeterministicFallbackIfFactDrift(prepared: PreparedAgentMessages, 
   return undefined;
 }
 
-const CONTENT_NINE_PIECE_TERMS = [
+const CONTENT_TEN_PIECE_TERMS = [
   "选题",
   "文案",
+  "访谈话术",
   "拍摄脚本",
   "拍摄注意事项",
   "剪辑EDL",
@@ -9978,6 +10879,18 @@ const CONTENT_NINE_PIECE_TERMS = [
   "评论区引导",
   "投流建议"
 ];
+
+function cleanFixedBeautyWorkflowAnswer(answer: string): string {
+  return answer
+    .replace(/^好的[，,。]?\s*(这是)?(我)?(修正后|重新整理后|按要求修正后)[^\n]*\n+/i, "")
+    .replace(/^```[^\n]*\n?/gm, "")
+    .replace(/^```\s*$/gm, "")
+    .replace(/\*\*/g, "")
+    .replace(/^\s*>\s?/gm, "")
+    .replace(/`/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
 export function cleanAgentAnswer(answer: string, tenantType: TenantType): string {
   let cleaned = answer

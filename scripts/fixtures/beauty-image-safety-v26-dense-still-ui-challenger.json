@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "beauty-image-safety-challenger-v1",
+  "sha256": "f00d1cb9c29db917fd0caa718cd813d52bde586e1e1084133eb029cddff0f8d8",
+  "detectorVersion": "beauty-image-safety-v2.6",
+  "status": "passed",
+  "changedVariable": "panelGridOccupancy",
+  "diagnostics": {
+    "horizontalLongEdges": 4,
+    "verticalLongEdges": 14,
+    "panelLikeRegions": 5,
+    "rowGroups": 3,
+    "columnGroups": 4,
+    "panelGridOccupancy": 0.417,
+    "minimumPanelGridOccupancy": 0.6,
+    "panelGridAccepted": false,
+    "repeatedBarRegions": 2,
+    "barRows": 1,
+    "barColumns": 1,
+    "repeatedBarsAccepted": false
+  },
+  "hardGatesUnchanged": [
+    "qr_finder_pattern",
+    "barcode_stripes",
+    "glyph_sequence",
+    "corner_watermark",
+    "repeated_bars_ui",
+    "person_and_customer_asset_policy"
+  ]
+}

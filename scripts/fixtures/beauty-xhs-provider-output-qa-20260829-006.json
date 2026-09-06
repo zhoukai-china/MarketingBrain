@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "beauty-xhs-provider-failure-replay-v1",
+  "incidentId": "QA-20260829-006",
+  "diagnosticFingerprint": "051a4fdd786d905a",
+  "capabilityId": "beauty_xiaohongshu_package",
+  "scope": "acquisition:xhs",
+  "skillVersion": "wechat-xhs-content-line@1.0.3+beauty-industry-xhs@1.1.0+beauty-industry-compliance@1.0.0",
+  "providerTerminal": {
+    "provider": "deepseek",
+    "model": "deepseek-v4-pro",
+    "finishReason": "stop",
+    "promptTokens": 3585,
+    "completionTokens": 937,
+    "reasoningTokens": 0,
+    "totalTokens": 4522
+  },
+  "failureBoundary": {
+    "stage": "structured_output_adapter",
+    "observedProviderOutputs": 0,
+    "agentRunCount": 0,
+    "legacyErrorCode": "provider_failure:unknown",
+    "rawOutputPersisted": false,
+    "specificContractRuleKnown": false
+  },
+  "ledger": {
+    "reservations": 1,
+    "releases": 1,
+    "netCredits": 0
+  }
+}

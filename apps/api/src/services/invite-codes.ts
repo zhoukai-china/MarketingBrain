@@ -1,6 +1,6 @@
 ﻿import { createHash } from "node:crypto";
 import { prisma } from "@baolu/db";
-import type { PlanCode } from "@baolu/shared";
+import type { PlanCode, ProductLoginCode } from "@baolu/shared";
 import { env, inviteCodes, inviteRequired } from "../config/env.js";
 import { toPrismaJsonOptional } from "./prisma-json.js";
 
@@ -9,7 +9,9 @@ export interface InviteValidationResult {
   source?: "database" | "env" | "disabled";
   inviteCodeId?: string;
   planCode?: PlanCode | null;
-  error?: "invite_code_required" | "invite_code_not_found" | "invite_code_expired" | "invite_code_exhausted";
+  productCode?: ProductLoginCode | null;
+  brandCode?: "lanqi" | null;
+  error?: "invite_code_required" | "invite_code_not_found" | "invite_code_expired" | "invite_code_exhausted" | "invite_code_product_mismatch";
 }
 
 export class InviteRedemptionError extends Error {
@@ -37,6 +39,8 @@ export async function createInviteCode(params: {
   code: string;
   label?: string;
   planCode?: PlanCode;
+  productCode?: ProductLoginCode;
+  brandCode?: "lanqi";
   maxUses?: number;
   expiresAt?: Date | string | null;
   createdBy?: string;
@@ -52,6 +56,8 @@ export async function createInviteCode(params: {
       codePreview: previewInviteCode(normalized),
       label: params.label,
       planCode: params.planCode,
+      productCode: params.productCode,
+      brandCode: params.productCode === "beauty-industry" ? params.brandCode : undefined,
       maxUses: params.maxUses ?? 1,
       expiresAt: params.expiresAt,
       createdBy: params.createdBy
@@ -61,13 +67,17 @@ export async function createInviteCode(params: {
 
 export async function validateInviteCode(
   inviteCode: string | undefined,
-  planCode?: PlanCode
+  planCode?: PlanCode,
+  productCode?: ProductLoginCode,
 ): Promise<InviteValidationResult> {
-  if (!inviteRequired) {
+  const normalized = normalizeInviteCode(inviteCode);
+  // Local acceptance may make an invite optional, but an explicitly supplied
+  // code still carries product and tenant-brand authority. Skipping its lookup
+  // would silently discard that server-owned assignment and turn a Lanqi invite
+  // into the neutral beauty brand.
+  if (!inviteRequired && !normalized) {
     return { ok: true, source: "disabled" };
   }
-
-  const normalized = normalizeInviteCode(inviteCode);
   if (!normalized) {
     return { ok: false, error: "invite_code_required" };
   }
@@ -76,7 +86,8 @@ export async function validateInviteCode(
     const record = await prisma.inviteCode.findUnique({
       where: {
         codeHash: hashInviteCode(normalized)
-      }
+      },
+      include: { lanqiReferral: true },
     });
 
     if (record) {
@@ -93,16 +104,22 @@ export async function validateInviteCode(
       if (record.planCode && planCode && record.planCode !== planCode) {
         return { ok: false, source: "database", error: "invite_code_not_found" };
       }
+      const recordProductCode = (record.productCode ?? (record.lanqiReferral ? "lanqi" : null)) as ProductLoginCode | null;
+      if (productCode && recordProductCode !== productCode) {
+        return { ok: false, source: "database", error: "invite_code_product_mismatch" };
+      }
       return {
         ok: true,
         source: "database",
         inviteCodeId: record.id,
-        planCode: record.planCode as PlanCode | null
+        planCode: record.planCode as PlanCode | null,
+        productCode: recordProductCode,
+        brandCode: recordProductCode === "beauty-industry" && record.brandCode === "lanqi" ? "lanqi" : null,
       };
     }
   }
 
-  if (inviteCodes.includes(normalized)) {
+  if (inviteCodes.includes(normalized) && !productCode) {
     return { ok: true, source: "env", planCode };
   }
 

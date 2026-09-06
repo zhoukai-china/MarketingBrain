@@ -1,0 +1,28 @@
+{
+  "asset": "scripts/fixtures/beauty-video-content-av.mp4",
+  "generator": "scripts/generate-beauty-video-content-av-fixture.ps1",
+  "provenance": "Generated locally with Windows System.Speech Microsoft Huihui Desktop and the existing local ffmpeg binary; no network or Provider call.",
+  "sha256": "bd613075b9b7044947809fd8bebab44bc7c488294c453dc030fae3a7a5e88c1a",
+  "byteSize": 63191,
+  "formatName": "mov,mp4,m4a,3gp,3g2,mj2",
+  "durationSeconds": 8,
+  "width": 360,
+  "height": 640,
+  "videoCodec": "h264",
+  "audioCodec": "aac",
+  "audioSampleRateHz": 22050,
+  "audioChannels": 1,
+  "visualExpectation": [
+    "浅绿色竖屏背景",
+    "上半部深绿色矩形",
+    "下半部金色矩形",
+    "无人物",
+    "无文字"
+  ],
+  "asrExpectation": "这是美业视频内容复盘测试样本，不包含真实客户信息。",
+  "review": {
+    "frames": "0s/4s/7s sampled frames match the static synthetic visual expectation.",
+    "audio": "The only speech source is the exact asrExpectation string passed directly to the local Microsoft Huihui Desktop synthesizer; the muxed asset contains one AAC mono stream and no imported recording.",
+    "desensitization": "No person, shop, account, customer, brand, price, efficacy claim, real caption, business metric or customer media is present. The visible image contains only two geometric color blocks and no text."
+  }
+}

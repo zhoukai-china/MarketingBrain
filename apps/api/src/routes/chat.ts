@@ -683,10 +683,20 @@ export async function buildEntryAwareInput(params: {
 export async function buildIpCapabilityIntelContext(
   capabilityId: string | undefined,
   input: string,
-  fallbackIndustry = ""
+  fallbackIndustry = "",
+  options: { includeIndustryHotspots?: boolean; includeCompetitorSignals?: boolean } = {}
 ): Promise<string | undefined> {
   const normalized = normalizeIpCapabilityId(capabilityId);
   if (normalized === "topic_inspiration") {
+    const includeIndustryHotspots = options.includeIndustryHotspots !== false;
+    const includeCompetitorSignals = options.includeCompetitorSignals !== false;
+    if (!includeIndustryHotspots && !includeCompetitorSignals) {
+      return [
+        "【四大来源自动采集｜公开部分】",
+        "本轮未选择行业热点或对标账号；系统不会检索或使用这两类公开来源。",
+        "AI录音卡与账号数据复盘仍仅按本轮显式选择的私有材料处理。"
+      ].join("\n");
+    }
     const industry = extractIndustryQuery(input) || fallbackIndustry.trim();
     if (!industry) {
       return [
@@ -696,13 +706,13 @@ export async function buildIpCapabilityIntelContext(
         "不得因此只返回补资料问题；请基于已确认主体与目标完成第一版，并把公开来源标为待补。"
       ].join("\n");
     }
-    const peerSources = buildCompetitorSignalSources(input, industry).slice(0, 12);
+    const peerSources = includeCompetitorSignals ? buildCompetitorSignalSources(input, industry).slice(0, 12) : [];
     const [trendScan, peerSettled] = await Promise.all([
-      scanIndustryTrends(industry, { limit: 8 }),
+      includeIndustryHotspots ? scanIndustryTrends(industry, { limit: 8 }) : Promise.resolve(undefined),
       Promise.allSettled(peerSources.map((source) => fetchCompetitorSourceSignals(source, industry)))
     ]);
-    const hotspots = trendScan.verifiedHotspots.slice(0, 5);
-    const requestedAccounts = extractCompetitorAccountQueries(input).slice(0, 6);
+    const hotspots = trendScan?.verifiedHotspots.slice(0, 5) ?? [];
+    const requestedAccounts = includeCompetitorSignals ? extractCompetitorAccountQueries(input).slice(0, 6) : [];
     const peerSourceResults = peerSettled.flatMap((settled, index) => {
       if (settled.status !== "fulfilled") return [];
       const source = peerSources[index];
@@ -731,9 +741,9 @@ export async function buildIpCapabilityIntelContext(
     return [
       "【四大来源自动采集｜公开部分】",
       `检索主体：${industry}；检索日期：${retrievedAt}（北京时间）。`,
-      `行业与用户热点：${hotspots.length ? `发现${hotspots.length}条可用行业热点` : "未发现同时满足近期、相关和可回溯标准的已核验热点"}。`,
+      `行业与用户热点：${includeIndustryHotspots ? (hotspots.length ? `发现${hotspots.length}条可用行业热点` : "未发现同时满足近期、相关和可回溯标准的已核验热点") : "本轮未选择，不检索或使用。"}。`,
       ...hotspots.map((item, index) => `热点${index + 1}：${item.title}｜${item.eventType}｜日期：${item.publishedAt}｜来源：${item.source}${item.url ? `｜${item.url}` : ""}`),
-      `同行与对标内容：${peerSignals.length ? `发现${peerSignals.length}条同行公开内容线索` : "未发现可回溯的同行公开内容线索"}。`,
+      `同行与对标内容：${includeCompetitorSignals ? (peerSignals.length ? `发现${peerSignals.length}条同行公开内容线索` : "未发现可回溯的同行公开内容线索") : "本轮未选择，不检索或使用。"}。`,
       ...accountCoverage,
       ...peerSignals.map((item, index) => `对标线索${index + 1}：${item.title}｜来源：${item.label}${item.publishedAt ? `｜日期：${item.publishedAt}` : "｜日期待核验"}｜互动数据未读取，爆款状态待核验｜${item.url}`),
       "公开采集边界：只有上列带来源和URL的热点可写成已核验公开线索；同行标题仅用于提取问题与表达角度，未读取到点赞、评论或私信证据时，第一关必须标记待验证。",

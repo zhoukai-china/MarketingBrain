@@ -1,0 +1,5 @@
+interface:
+  display_name: "兰琪文生图提示词增强"
+  short_description: "将门店自然语言图片需求转换为专业可执行的文生图提示词"
+  brand_color: "#F28C28"
+  default_prompt: "Use $lanqi-image-prompt-enhancer to turn this Lanqi beauty image brief into structured model-ready prompts."

@@ -41,7 +41,7 @@ async function main(): Promise<void> {
   );
   const sequentialPlan = buildExecutionPlan("plan-sequential", [
     { capabilityId: "industry_hotspots", title: "行业热点", skillId: "ai_daily_brief", skillVersion: "1.0.0" },
-    { capabilityId: "content_plan", title: "内容文案", skillId: "baolu_content_creator", skillVersion: "4.1.4" }
+    { capabilityId: "content_plan", title: "内容文案", skillId: "baolu_content_creator", skillVersion: "5.0.0" }
   ]);
   assert.equal(sequentialPlan.mode, "sequential");
   assert.deepEqual(sequentialPlan.steps[1].dependsOn, ["step-industry_hotspots"]);
@@ -72,7 +72,7 @@ async function main(): Promise<void> {
   const hotspotTranscriptRequest = "行业：AI行业。请联网分析近期行业机会，给我3个今天能用的获客选题，并把最值得拍的1个写成完整逐字稿。";
   const hotspotTranscriptPlan = buildExecutionPlan("plan-hotspot-transcript", [
     { capabilityId: "industry_hotspots", title: "行业热点", skillId: "ai_daily_brief", skillVersion: "1.0.0" },
-    { capabilityId: "content_plan", title: "文案创作", skillId: "baolu_content_creator", skillVersion: "4.1.4" }
+    { capabilityId: "content_plan", title: "文案创作", skillId: "baolu_content_creator", skillVersion: "5.0.0" }
   ]);
   const hotspotTranscript = await executeExecutionPlan({
     plan: hotspotTranscriptPlan,
@@ -115,7 +115,7 @@ async function main(): Promise<void> {
   assert.equal(partial.results.find((item) => item.capabilityId === "private_domain")?.error?.retryable, true);
 
   const qualityGatePlan = buildExecutionPlan("plan-quality-gate", [
-    { capabilityId: "content_plan", title: "内容文案", skillId: "baolu_content_creator", skillVersion: "4.1.4" },
+    { capabilityId: "content_plan", title: "内容文案", skillId: "baolu_content_creator", skillVersion: "5.0.0" },
     { capabilityId: "paid_traffic", title: "投流系统", skillId: "optimize_local_push_ads", skillVersion: "1.0.0" }
   ]);
   const qualityGated = await executeExecutionPlan({

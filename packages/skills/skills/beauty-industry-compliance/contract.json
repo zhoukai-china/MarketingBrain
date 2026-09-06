@@ -1,0 +1,15 @@
+{
+  "skillId": "beauty-industry-compliance",
+  "version": "1.0.0",
+  "scope": "beauty_acquisition_compliance",
+  "qualityBar": "sample_grade",
+  "minLength": 220,
+  "scoreThreshold": 92,
+  "rubricDimensions": ["风险识别准确", "安全改写保留意图", "事实依据不编造", "待补信息最少必要", "外部动作边界明确"],
+  "requiredSections": ["风险等级", "命中问题", "安全改写", "待补证据", "执行边界"],
+  "requiredDeliverables": ["风险分级", "逐项命中依据", "可直接使用的安全改写", "待补证据清单", "执行边界"],
+  "forbiddenTerms": ["兰琪", "验收A店", "验收B店", "保证效果", "已经发布", "已经投流"],
+  "styleRules": ["只使用当前经营主体已确认事实", "没有可验证依据时不输出固定处罚数字", "日常护理建议不冒充医疗诊断", "只生成待审核内容"],
+  "failurePatterns": ["固定处罚无来源", "编造资质功效价格案例", "越权外部动作", "跨租户或品牌泄露"],
+  "repairInstruction": "逐项指出风险依据并保留原始经营意图，改写为可验证、非医疗承诺的日常护理或经营表达；缺少的资质、价格和案例列为待补。"
+}

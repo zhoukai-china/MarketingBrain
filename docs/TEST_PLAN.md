@@ -2,6 +2,10 @@
 
 本文件定义长期核心验收面。具体任务开始前，Codex 应选择受影响条目并转成可执行验收条件；新增核心能力时同步更新本文件。
 
+## Seedance受控持久执行专项（BY54）
+
+`pnpm.cmd beauty-industry:seedance-execution-smoke`（已加入qa:regression）覆盖默认关闭、签名/素材审核、token/费用/请求独立上限、POST未知不可重放、GET有限恢复、积分/permit/usage事务、下载原子落盘/回执恢复、owner与跨租户、DNS pin/TLS选项/重定向/安全日志。需要真实SQL并发证据时运行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/acceptance/beauty-industry/video-foundation-db.ps1 -Suite BY54 -Port 55454`，仅该子进程策略，不改系统策略；脚本只创建新独立目录/空闲端口，并在finally按正式身份停止。禁止接生产库/真实Provider；实际云/素材/账号/费用另需授权。本项未改DOM，不把Fastify inject冒充桌面/390px或真实Ark成功。
+
 ## 持续学习专项测试
 
 涉及反馈、行为结果、质量评分、Eval 沉淀或候选发布时，至少执行：

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { AgentAccessError, AgentClarificationRequired, invokeSkillThroughMcp, type SkillRuntimeResult } from "./agent-runtime.js";
 import { IdempotencyConflictError, InsufficientCreditsError } from "./chat-persistence.js";
 import { buildStableAgentDelivery, resolveReasoningProfile } from "./structured-delivery.js";
+import { classifyRuntimeError, emitRuntimeStage } from "./runtime-stage-trace.js";
 
 type InvocationParams = Parameters<typeof invokeSkillThroughMcp>[0];
 
@@ -19,6 +20,15 @@ const skillRuntimeResultSchema = z.object({
   artifacts: z.array(z.object({ type: z.string(), id: z.string(), label: z.string() })),
   creditCost: z.number().nonnegative(),
   qualityFlags: z.array(z.string()),
+  providerFailure: z.object({
+    code: z.enum(["http_error", "timed_out", "cancelled", "transport_error", "invalid_json", "invalid_response", "empty_final", "output_token_limit", "content_filtered", "unexpected_tool_call", "upstream_capacity", "unknown"]),
+    httpStatus: z.number().int().nonnegative().optional(),
+    finishReason: z.string().max(40).optional(),
+    hasReasoningContent: z.boolean().optional(),
+    promptTokens: z.number().int().nonnegative().optional(),
+    completionTokens: z.number().int().nonnegative().optional(),
+    reasoningTokens: z.number().int().nonnegative().optional()
+  }).optional(),
   analysisMode: z.enum(["fast", "deep"]),
   reasoningProfile: z.enum(["standard", "deep"]).optional(),
   traceId: z.string().min(1)
@@ -41,7 +51,23 @@ export class McpUnavailableError extends Error {
  * remains runnable without an extra service.
  */
 export async function invokeSkillViaGateway(params: InvocationParams): Promise<SkillRuntimeResult> {
-  if (env.SKILL_MCP_REQUIRED !== "true") return invokeSkillThroughMcp(params);
+  const traceStartedAt = params.traceStartedAt ?? Date.now();
+  emitRuntimeStage({ requestId: params.requestId, stage: "mcp_client", startedAt: traceStartedAt, status: "started", provider: params.provider });
+  // A local demo must exercise the checked-out Agent package.  Otherwise a
+  // developer can change a Skill contract here but still receive an older
+  // delivery from a separately running MCP service configured in .env.
+  // Production keeps its mandatory MCP boundary below.
+  if (env.DATA_MODE === "demo" || env.SKILL_MCP_REQUIRED !== "true") {
+    try {
+      const result = await invokeSkillThroughMcp(params);
+      emitRuntimeStage({ requestId: params.requestId, stage: "mcp_client", startedAt: traceStartedAt, status: "completed", provider: params.provider });
+      return result;
+    } catch (error) {
+      const errorCode = classifyRuntimeError(error);
+      emitRuntimeStage({ requestId: params.requestId, stage: "mcp_client", startedAt: traceStartedAt, status: errorCode === "timed_out" ? "timed_out" : errorCode === "cancelled" ? "cancelled" : "failed", provider: params.provider, errorCode });
+      throw error;
+    }
+  }
   if (!env.SKILL_MCP_URL) throw new McpUnavailableError();
   if (Date.now() < circuitOpenUntil) throw new McpUnavailableError("mcp_circuit_open");
 
@@ -85,10 +111,15 @@ export async function invokeSkillViaGateway(params: InvocationParams): Promise<S
             history: params.history,
             routingSource: params.routingSource,
             capabilityLocked: params.capabilityLocked,
+            promptCompositionPolicy: params.promptCompositionPolicy,
             deliveryPolicy: params.deliveryPolicy,
+            skillPromptOverride: params.skillPromptOverride,
+            skillVersionOverride: params.skillVersionOverride,
+            providerPolicyVersion: params.providerPolicyVersion,
             skipEntitlement: params.skipEntitlement,
             persist: params.persist,
-            auth: params.context
+            auth: params.context,
+            traceStartedAt
           }
         }
       })
@@ -107,7 +138,7 @@ export async function invokeSkillViaGateway(params: InvocationParams): Promise<S
     circuitOpenUntil = 0;
     const reasoningProfile = parsed.data.reasoningProfile
       ?? resolveReasoningProfile(params.capabilityId, parsed.data.skillId);
-    return {
+    const result = {
       ...parsed.data,
       reasoningProfile,
       // Rebuild this deterministic view at the gateway boundary. It keeps a
@@ -118,6 +149,8 @@ export async function invokeSkillViaGateway(params: InvocationParams): Promise<S
         answerText: parsed.data.answerText
       })
     } as SkillRuntimeResult;
+    emitRuntimeStage({ requestId: params.requestId, stage: "mcp_client", startedAt: traceStartedAt, status: "completed", provider: params.provider });
+    return result;
   } catch (error) {
     if (
       error instanceof AgentAccessError
@@ -126,6 +159,7 @@ export async function invokeSkillViaGateway(params: InvocationParams): Promise<S
       || error instanceof IdempotencyConflictError
     ) throw error;
     if (params.signal?.aborted) {
+      emitRuntimeStage({ requestId: params.requestId, stage: "mcp_client", startedAt: traceStartedAt, status: "cancelled", provider: params.provider, errorCode: "cancelled" });
       const cancelled = new Error("agent_execution_cancelled");
       cancelled.name = "AbortError";
       throw cancelled;
@@ -139,6 +173,8 @@ export async function invokeSkillViaGateway(params: InvocationParams): Promise<S
     if (consecutiveTransportFailures >= MCP_CIRCUIT_FAILURE_THRESHOLD) {
       circuitOpenUntil = Date.now() + MCP_CIRCUIT_COOLDOWN_MS;
     }
+    const errorCode = classifyRuntimeError(unavailable);
+    emitRuntimeStage({ requestId: params.requestId, stage: "mcp_client", startedAt: traceStartedAt, status: errorCode === "timed_out" ? "timed_out" : errorCode === "cancelled" ? "cancelled" : "failed", provider: params.provider, errorCode });
     throw unavailable;
   } finally {
     clearTimeout(timeout);
