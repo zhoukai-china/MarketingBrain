@@ -491,7 +491,7 @@ export default function DiagnosisPage({
           {" "}
           <button className="reportConfirmBtn" onClick={handleConfirm}>
             {" "}
-            确认版本，进入思潼 企业AI增长飞轮 ⟶{" "}
+            确认版本，进入思潼AI 行业智能体平台 ⟶{" "}
           </button>{" "}
           <button className="reportBackBtn" onClick={() => setStage("intro")}>
             {" "}

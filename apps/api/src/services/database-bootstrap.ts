@@ -2,6 +2,7 @@
 import { PLANS, type PlanCode, type TenantType } from "@baolu/shared";
 import { env } from "../config/env.js";
 import { AGENT_DEFINITIONS } from "./agent-definitions.js";
+import { grantSignupWalletCreditsInTx } from "./sitong-wallet.js";
 
 export async function createTenantWorkspace(params: {
   planCode: PlanCode;
@@ -100,22 +101,40 @@ export async function createTenantWorkspace(params: {
       }
     });
 
-    await tx.creditTransaction.create({
-      data: {
-        creditAccountId: creditAccount.id,
-        tenantId: tenant.id,
-        userId: user.id,
-        direction: "grant",
-        amount: initialCredits,
-        reason: "welcome_credits"
-      }
+    // 口径（2026-09-10 产品拍板）：**新用户不赠送任何欢迎积分**。默认初始额度为 0，
+    // 因此这里不写 `welcome_credits` 流水，避免账本里出现 0 元噪声记录。
+    // 测试/内测环境如需体验额度，用 `NEW_USER_*_TRIAL_CREDITS` 显式打开（见 getInitialWorkspaceCredits）。
+    if (initialCredits > 0) {
+      await tx.creditTransaction.create({
+        data: {
+          creditAccountId: creditAccount.id,
+          tenantId: tenant.id,
+          userId: user.id,
+          direction: "grant",
+          amount: initialCredits,
+          reason: "welcome_credits"
+        }
+      });
+    }
+
+    // 平台唯一入口是货架 `/market`，而货架的展示（`/market/me`、访问态）与扣费
+    // （`/market/skus/:skuId/run`、`/market/ppu/consume`）都读**用户级双桶钱包**。
+    // 欢迎积分如果只发租户级 `CreditAccount`，新用户登录后货架就是「💎 0 积分」，
+    // 点任何智能体都会被 402 `insufficient_credits` 拦住（QA-20260910-016）。
+    // 因此按同一额度补发到用户钱包 bonus 桶：幂等（同一用户只发一次）、与工作区
+    // 创建同事务、失败即整体回滚，不会出现「建了工作区没发币」的半成品态。
+    const walletGrant = await grantSignupWalletCreditsInTx(tx, {
+      userId: user.id,
+      amount: initialCredits
     });
 
     return {
       tenant,
       user,
       plan,
-      creditBalance: creditAccount.balance
+      creditBalance: creditAccount.balance,
+      walletBalance: walletGrant.balance,
+      walletWelcomeGranted: walletGrant.granted
     };
   };
 
@@ -125,6 +144,13 @@ export async function createTenantWorkspace(params: {
   return prisma.$transaction(createWorkspace);
 }
 
+/**
+ * 新工作区的初始积分额度。
+ *
+ * 产品口径（2026-09-10）：**默认 0，新用户不赠送任何欢迎积分**，需要用量就先充值。
+ * `NEW_USER_*_TRIAL_CREDITS` 是给隔离测试/内测环境准备体验额度的显式开关，
+ * 生产环境不配置这些变量，因此生产注册出来的账号余额就是 0。
+ */
 function getInitialWorkspaceCredits(tenantType: TenantType): number {
   if (tenantType === "chain_brand" && env.NEW_USER_CHAIN_TRIAL_CREDITS !== undefined) {
     return env.NEW_USER_CHAIN_TRIAL_CREDITS;
@@ -135,7 +161,7 @@ function getInitialWorkspaceCredits(tenantType: TenantType): number {
   if (tenantType === "local_business" && env.NEW_USER_LOCAL_TRIAL_CREDITS !== undefined) {
     return env.NEW_USER_LOCAL_TRIAL_CREDITS;
   }
-  return 300;
+  return 0;
 }
 
 function getDefaultStoreName(tenantType: TenantType): string {

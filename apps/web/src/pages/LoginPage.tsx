@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
-  PRODUCT_LOGIN_CODES,
   PRODUCT_LOGIN_DEFINITIONS,
   type ProductLoginCode,
   type TenantType,
@@ -63,6 +62,11 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
   const [city, setCity] = useState("");
   const [inviteCode, setInviteCode] = useState(() => new URLSearchParams(window.location.search).get("invite") ?? "");
   const [inviteValidated, setInviteValidated] = useState(false);
+  const [wechatReady, setWechatReady] = useState<boolean | null>(null);
+  // 是否强制邀请码由服务端开关决定（INVITE_REQUIRED）。null = 还没问回来，
+  // 此时按「要邀请码」处理，避免配置没到手就先把注册放开。
+  const [inviteRequired, setInviteRequired] = useState<boolean | null>(null);
+  const [inviteFallbackOpen, setInviteFallbackOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
@@ -73,11 +77,28 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
   const showWechatLogin = isCustomDomain || !isProduction || Boolean(import.meta.env.VITE_WECHAT_AUTH_APPID);
   const brandLogo = tenantBrandLogoSrc(branding);
   const internalEntry = entry === "internal";
+  const directTestLogin = import.meta.env.VITE_DIRECT_TEST_LOGIN === "true";
   const onboardingToken = localStorage.getItem("store_os_onboarding_token") ?? "";
 
   useEffect(() => {
-    document.title = `${product?.name ?? branding.systemName} - 登录`;
+    document.title = `${product?.name ?? branding.systemName} - 登录 / 注册`;
   }, [branding.systemName, product?.name]);
+
+  useEffect(() => {
+    if (isCustomDomain) return;
+    let cancelled = false;
+    void fetch(`${apiBase}/auth/wechat-config`, { method: "GET" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((config: { configured?: boolean; inviteRequired?: boolean } | null) => {
+        if (cancelled) return;
+        setWechatReady(Boolean(config?.configured));
+        if (typeof config?.inviteRequired === "boolean") setInviteRequired(config.inviteRequired);
+      })
+      .catch(() => {
+        if (!cancelled) setWechatReady(false);
+      });
+    return () => { cancelled = true; };
+  }, [isCustomDomain]);
 
   useEffect(() => {
     if (product) {
@@ -126,6 +147,9 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
   async function handleProductInviteValidate(event: FormEvent) {
     event.preventDefault();
     if (!product || loginInFlight.current) return;
+    // Bug4（WorkBuddy 2026-09-10）：以前这里靠原生 required 拦空值，
+    // 浏览器只弹一个「请填写此字段」的气泡，用户看到的是「按钮没反应」。
+    // 表单已加 noValidate，空值一律走这条中文提示。
     if (!inviteCode.trim()) {
       setError("请输入邀请消息中的邀请码。");
       setRetryReady(true);
@@ -164,7 +188,10 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
       setRetryReady(true);
       return;
     }
-    if ((isProduction || product) && !inviteCode.trim()) {
+    // 平台主入口是否强制邀请码由服务端开关决定（INVITE_REQUIRED，随 /auth/wechat-config 下发）；
+    // 产品入口（美业 / 兰琪）仍按产品邀请码走服务端校验。
+    const invitesNeeded = product ? true : (isProduction && inviteRequired !== false);
+    if (invitesNeeded && !inviteCode.trim()) {
       setError("请输入邀请码。");
       setRetryReady(true);
       return;
@@ -174,7 +201,7 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
     setBusy(true);
     clearFeedback();
     setStatus("正在创建你的专属工作区...");
-    const useOnboarding = Boolean(product && onboardingToken);
+    const useOnboarding = Boolean(onboardingToken);
     const useBetaLogin = isProduction || Boolean(product);
     try {
       const endpoint = useOnboarding ? "/auth/onboarding/create-workspace" : useBetaLogin ? "/auth/beta-login" : "/auth/dev-login";
@@ -261,15 +288,45 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
   }
 
   if (!isCustomDomain && entry === "generic") {
-    return <div className="loginPage"><main className="loginCard loginChooserCard">
-      <div className="loginBrand"><span className="loginBadge">产品登录</span><h1>请从你收到邀请的产品进入</h1><p>账号和数据由统一底层安全管理，使用时只会看到你被授权的产品。</p></div>
-      <div className="productLoginChoices">
-        {PRODUCT_LOGIN_CODES.map((code) => {
-          const item = PRODUCT_LOGIN_DEFINITIONS[code];
-          return <a key={code} href={getAppPath(`/login/${code}`)}><strong>{item.name}</strong><span>{item.description}</span><em>进入产品登录 →</em></a>;
-        })}
+    // 微信首次授权后回到这里补资料，这一步就是「注册」；完成后直接进平台首页。
+    const finishingSignup = Boolean(onboardingToken);
+    // 平台主入口是否还要邀请码由服务端开关 INVITE_REQUIRED 决定（随 /auth/wechat-config 下发）。
+    // 开放注册（false）：只保留「微信一键登录 / 注册」，不渲染邀请码入口和邀请码输入框。
+    // 邀请制（true）：保留「使用邀请码开通」入口，邀请码必填。
+    // 配置还没回来时按「需要邀请码」处理，宁可多问一次也不要放过未授权的开通。
+    const invitesNeeded = isProduction && inviteRequired !== false;
+    const showInviteForm = invitesNeeded ? (inviteFallbackOpen || wechatReady === false) : wechatReady === false;
+    const workspaceFields = <>
+      <label><span className="loginFieldLabel">企业 / 品牌名称<b className="requiredMarker">*</b></span><input value={tenantName} onChange={(event) => { setTenantName(event.target.value); clearFeedback(); }} placeholder="例如：XX品牌 / XX门店" maxLength={80} autoComplete="organization" required /></label>
+      {invitesNeeded && <label><span className="loginFieldLabel">邀请码<b className="requiredMarker">*</b></span><input value={inviteCode} onChange={(event) => { setInviteCode(event.target.value); clearFeedback(); }} placeholder="请输入邀请码" maxLength={200} autoComplete="one-time-code" /></label>}
+    </>;
+    return <div className="loginPage"><main className="loginCard platformLoginCard">
+      <div className="loginBrand">
+        <span className="loginBadge">{branding.systemName}</span>
+        <h1>{finishingSignup ? "完成注册，开通你的工作区" : "登录 / 注册"}</h1>
+        <p>一个账号、一个积分钱包，货架上的行业智能体随取随用。</p>
       </div>
-      <p className="productInviteHint">没有收到邀请？请联系对应服务团队获取专属链接。不要自行选择其他产品开通。</p>
+      <div className="loginForm">
+        {!finishingSignup && wechatReady !== false && <button className="wechatLoginBtn" onClick={handleWechatLogin} disabled={busy || wechatReady === null} type="button">{busy ? "正在打开微信…" : wechatReady === null ? "正在检查登录方式…" : "微信一键登录 / 注册"}</button>}
+        {!finishingSignup && wechatReady === true && !showInviteForm && <p className="wechatLoginHint">首次使用微信登录，会自动为你注册账号并开通工作区{invitesNeeded ? "（需邀请码）" : "，不需要邀请码"}。</p>}
+        {finishingSignup ? (
+          <form onSubmit={handleLoginSubmit}>
+            {workspaceFields}
+            <button className="loginSubmit" type="submit" disabled={busy}>{busy ? "正在开通…" : retryReady ? "再试一次" : "完成注册并进入平台"}</button>
+            <button className="switchProductLink" type="button" disabled={busy} onClick={() => { localStorage.removeItem("store_os_onboarding_token"); setTenantName(""); clearFeedback(); void handleWechatLogin(); }}>不是这个微信号？重新授权</button>
+          </form>
+        ) : !showInviteForm ? (
+          invitesNeeded
+            ? <button className="switchProductLink" type="button" onClick={() => { setInviteFallbackOpen(true); clearFeedback(); }}>使用邀请码开通</button>
+            : null
+        ) : (
+          <form onSubmit={handleLoginSubmit}>
+            {workspaceFields}
+            <button className="loginSubmit" type="submit" disabled={busy}>{busy ? "正在进入…" : retryReady ? "再试一次" : "进入思潼AI 智能体平台"}</button>
+          </form>
+        )}
+        <Feedback error={error} status={status} />
+      </div>
       {mode === "dev" && <a className="internalOnboardingLink" href={getAppPath("/internal/onboarding")}>内部开发开通入口</a>}
       <LoginFooter />
     </main></div>;
@@ -289,7 +346,7 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
       <button className="wechatLoginBtn" onClick={handleWechatLogin} disabled={busy || publicBrand.loading} type="button">{busy ? "正在打开微信…" : "微信授权登录"}</button>
       <p className="wechatLoginHint">仅已加入 {branding.brandName} 企业空间的成员可以登录。</p>
       <Feedback error={error} status={status} />
-    </div> : product && !inviteValidated ? <form onSubmit={handleProductInviteValidate} className="loginForm productInviteForm">
+    </div> : product && !inviteValidated ? <form onSubmit={handleProductInviteValidate} className="loginForm productInviteForm" noValidate>
       {showWechatLogin && <><button className="wechatLoginBtn" onClick={handleWechatLogin} disabled={busy} type="button">微信授权登录</button><p className="wechatLoginHint">已有账号可直接登录；首次开通请使用邀请消息中的邀请码。</p><div className="loginDivider"><span>首次开通</span></div></>}
       <label><span className="loginFieldLabel">产品邀请码<b className="requiredMarker">*</b></span><input value={inviteCode} onChange={(event) => { setInviteCode(event.target.value); clearFeedback(); }} placeholder="请输入邀请消息中的邀请码" maxLength={200} autoComplete="one-time-code" required /></label>
       <Feedback error={error} status={status} />
@@ -307,7 +364,7 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
       </form>
       {internalEntry && mode === "dev" && <div className="loginDevSection"><div className="loginDivider"><span>开发者快速入口</span></div><button className="loginDemoBtn" onClick={handleDemoQuickLogin} disabled={busy} type="button">一键演示登录</button><p className="loginDemoHint">仅本地开发环境可用，生产后端会拒绝此登录。</p></div>}
     </>}
-    {mode === "dev" && product && !isCustomDomain && <div className="loginDevSection"><div className="loginDivider"><span>本机体验入口</span></div><button className="loginDemoBtn" onClick={handleDemoQuickLogin} disabled={busy} type="button">本机直接开通并进入{product.shortName}</button><p className="loginDemoHint">仅当前电脑的开发环境可用，不需要邀请码；清除浏览器数据后可再次通过此入口直接进入，不影响线上产品授权。</p></div>}
+    {(mode === "dev" || directTestLogin) && product && !isCustomDomain && <div className="loginDevSection"><div className="loginDivider"><span>本机体验入口</span></div><button className="loginDemoBtn" onClick={handleDemoQuickLogin} disabled={busy} type="button">本机直接开通并进入{product.shortName}</button><p className="loginDemoHint">不需要邀请码，可直接进入体验工作区。</p></div>}
     <LoginFooter customDomain={isCustomDomain} />
   </main></div>;
 }

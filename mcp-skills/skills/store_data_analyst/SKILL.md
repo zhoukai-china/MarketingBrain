@@ -1,6 +1,6 @@
-﻿---
+---
 name: store_data_analyst
-description: 思潼企业AI增长OS - store data analyst
+description: 思潼AI 行业智能体平台 - store data analyst
 type: prompt
 version: "1.0.0"
 ---

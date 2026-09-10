@@ -1,6 +1,6 @@
-﻿---
+---
 name: franchise_compliance_checker
-description: 思潼企业AI增长OS - franchise compliance checker
+description: 思潼AI 行业智能体平台 - franchise compliance checker
 type: prompt
 version: "1.0.0"
 ---

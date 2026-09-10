@@ -15,7 +15,7 @@ set +a
 
 umask 077
 {
-  echo "思潼AI增长飞轮｜内部体验邀请码"
+  echo "思潼AI 行业智能体平台｜内部体验邀请码"
   echo
   echo "体验地址：https://api.lcppch.top/os-v2/"
   echo "套餐：chain_premium"

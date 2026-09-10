@@ -31,7 +31,9 @@ export type LanqiTaskLlmProviderConfig = {
   onUsage?: (usage: DomesticProviderUsageObservation) => void;
 };
 
-export function createRuntimeLlmProvider(): RuntimeLlmProvider {
+export function createRuntimeLlmProvider(
+  onUsage?: (usage: DomesticProviderUsageObservation) => void
+): RuntimeLlmProvider {
   if (env.LLM_PROVIDER === "aliyun") {
     return new DomesticChatProvider({
       providerName: "aliyun",
@@ -40,7 +42,8 @@ export function createRuntimeLlmProvider(): RuntimeLlmProvider {
       model: env.ALIYUN_MODEL,
       timeoutMs: env.LLM_TIMEOUT_MS,
       domesticNetworkOnly,
-      allowedHosts: domesticOutboundAllowlist
+      allowedHosts: domesticOutboundAllowlist,
+      onUsage
     });
   }
 
@@ -52,7 +55,8 @@ export function createRuntimeLlmProvider(): RuntimeLlmProvider {
       model: env.DOMESTIC_COMPATIBLE_MODEL,
       timeoutMs: env.LLM_TIMEOUT_MS,
       domesticNetworkOnly,
-      allowedHosts: domesticOutboundAllowlist
+      allowedHosts: domesticOutboundAllowlist,
+      onUsage
     });
   }
 
@@ -63,7 +67,8 @@ export function createRuntimeLlmProvider(): RuntimeLlmProvider {
     model: env.DEEPSEEK_MODEL,
     timeoutMs: env.LLM_TIMEOUT_MS,
     domesticNetworkOnly,
-    allowedHosts: domesticOutboundAllowlist
+    allowedHosts: domesticOutboundAllowlist,
+    onUsage
   });
 }
 

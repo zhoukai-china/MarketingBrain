@@ -1,5 +1,73 @@
 # 兰琪美业经营增长智能体状态
 
+> **2026-09-09（0909 总纲）**：本产品方向已由《兰琪美业门店 AI 经营大脑·Codex 开发总纲》覆盖，当前唯一交付单元为 8 个一级导航板块，一块板一批交付。旧 LQ-* 任务卡批量标记「暂停 / 由 0909 覆盖」（详见 `tasks/README.md`），仅保留证据不再续做。新开发任务自 LQ-18 起。**当前编码任务（2026-09-10 更新）：LQ-18 私域营销（板块4）· 两个用户报障（微信群话术生成不了 / AI 配图不显示）已修复，本机 + 测试实例验收通过，并于 2026-09-10 发布生产（发布 id `20260910-lanqi-lq18-closeout-prod1`，`DEPLOY_OK` + 健康 200），本轮收口；下一步开发 LQ-19 公域获客（板块3）并部署测试实例。LQ-20 经营驾驶舱（板块1）本轮「不验收」——按用户指示留到经营驾驶舱专项开发时再验收，现有测试实例结果只作既有回归。二期连锁（`chain.html`）本期不实现。**
+
+## LQ-18 私域营销（板块4）本轮收口（2026-09-10）
+
+- 用户本轮 7 条要求与落地：① 修「微信群营销话术生成不了」；② 修「AI 配图没有正常生成」；③ 私域营销页本轮开发完即收口；④ 下一步开发公域获客页（LQ-19）；⑤ 经营驾驶舱两页本轮不验收；⑥ 需要上生产；⑦ 本轮新增验收脚本与文档更新要提交 git。
+- 两个 P1 已修并闭环（详见 `docs/BUG_REGRESSIONS.md` **QA-20260910-020 / -022**）：
+  - **QA-020 微信群话术「生成不了」**：前端把「主题」当必填 → 只填「具体内容」时按钮永远灰着且不说明原因；后端同样把主题当必填，且 Provider 错误串会直接渲染到页面（会把模型名/厂商名暴露给老板）。修复：主题改可选 + 缺主题时按「具体内容」首句自动起标题（截断 18 字，字数口径只算具体内容）；按钮禁用给可见中文原因；生成失败只回人话，原始报错进服务端日志。
+  - **QA-022 AI 配图「不显示」**：`moments-image.ts` 把 `asset.url` 硬编码成 `/beauty-industry/moments/assets/...`，兰琪租户没有该 entitlement → 取图 403 → 前端不看状态码，把 JSON 错误体塞进 `<img>` 变成破图。**生图是好的，取图作用域错了。** 修复：新增 `normalizeAssetBasePath()`，配图 URL 跟随注册作用域。
+- 本轮新增验收脚本（提交 git）：`scripts/lanqi-moments-wechat-group-flow.mjs`（页面级，测试实例 **6/0**）、`scripts/lanqi-moments-asset-deployed-check.mjs`（**已部署实例**取图作用域 **5/0**，含"兰琪 200+真 PNG / 美业作用域 403 / 跨租户 404 / 匿名 401"，收尾精确回收合成资产与一次性租户）、`scripts/lanqi-moments-asset-scope-smoke.ts`（本机契约级 **9/0**）、`scripts/lanqi-test-instance-acceptance.mjs`（测试实例总验收 **14/14**），均已在 `package.json` 立脚本入口。
+- 本轮自动验证：`pnpm.cmd lanqi:moments-smoke` PASS、`pnpm.cmd lanqi:moments-asset-scope-smoke` 9/0、`pnpm.cmd lanqi:moments-wechat-group-flow` 6/0、`pnpm.cmd lanqi:moments-asset-deployed-check` 5/0、`pnpm.cmd lanqi:test-instance-acceptance` 14/14、`pnpm.cmd qa:fast` PASS（退出码 0）。
+- **生产阻塞（需用户拍板，属权限变更）**：生产 `public` schema 的 entitlement 只有 `beauty-industry`(6 active/7 revoked)、`founder-ip`(190 active)、`takeaway`(190 active)，**没有任何 `lanqi` entitlement**；生产两个兰琪租户（各 1 条）都只有 `beauty-industry|active|2026-09-23`。而 `apps/api/src/server.ts:163` 给 `/lanqi` 作用域挂了 `requireProductEntitlement("lanqi")`，因此 `/lanqi/stores`、`/lanqi/moments/*`、`/lanqi/acquire/*`、`/lanqi/dashboard`、`/lanqi/goal-setting` 在生产全部 403（`code=product_entitlement_missing`）。生产也**没有任何 `lanqi` 邀请码**（`InviteCode.productCode` 分布：`<null>` 129、`beauty-industry` 7），所以生产当前无法新注册兰琪租户。三条候选修法：(a) 给生产两个既有兰琪租户补 `lanqi|active` entitlement（纯数据 upsert，最小改动，保留存量门店数据）；(b) `/lanqi` 作用域接受 `beauty-industry` 兜底（改代码）；(c) 发兰琪邀请码重新注册（需迁移存量门店数据）。**三条都是生产权限/数据变更，需用户确认后再执行。**
+
+- **生产发布（2026-09-10 完成）**：包 `release-20260910-lanqi-moments-wechat-asset.tar.gz`（8865072 B，sha256 `58ee722de78497ec810f5c52257080c28756b313e8b56203258d903740ad763c`，1421 文件）已发布生产，发布 id `20260910-lanqi-lq18-closeout-prod1`，`DEPLOY_OK` + 健康 200（after 15s）/ ready 200，migrate 无待应用迁移（48 migrations found）。生产入口产物 `assets/index-Ugq-Ml5W.js`；dist 内 `userFacingGenerationError`（3 处）/ `resolveWechatTopic`（3 处）/ `normalizeAssetBasePath`（2 处）均已命中。备份 `/opt/baolu-backups/20260910-lanqi-lq18-closeout-prod1-before-baolu-os-v2/`，发布日志 `/tmp/deploy-20260910-lanqi-lq18-closeout-prod1-baolu-os-v2.log`。**上线不等于可用**：同批实测生产仍无 `lanqi` entitlement 与 `lanqi` 邀请码，`/lanqi/*` 仍会被 `requireProductEntitlement("lanqi")` 挡住，见上一条与 `docs/CURRENT_DEPLOYMENT_STATUS.md`。
+
+## LQ-20 经营驾驶舱（板块1）与目标设置（2026-09-10，**本轮不验收**）
+
+> 用户 2026-09-10 指示：**经营驾驶舱那两页（`/lanqi/dashboard`、`/lanqi/goal-setting`）本轮不验收**，留到「经营驾驶舱开发」时再验收。下面这节保留的是当时已跑的开发期证据，本轮**不作为验收主张**，也不代表老板已验收。
+
+- 已交付并可体验：`/lanqi/dashboard` 经营驾驶舱（结论条 → 本月目标与达成 + 右上角「⚙ 设置目标」→ 9 维经营健康度雷达 → 门店健康度红绿灯 → 今日关键指标 → 工具入口，顶部「🔔 今日待办」）；`/lanqi/goal-setting` 目标设置页（说明条 + 4 张目标卡 + 保存/取消 + 数据来源 8 行）。
+- **数据口径（按 WorkBuddy 补充）**：只有「本月 4 个目标」（业绩 / 新客 / 升单 / 唤醒）手输，按 `store_id` + 月份存（`LanqiStoreGoal`，一月一条、同月只更新当前月、历史不覆盖）；已完成 / 会员数 / 沉睡率 / 卡耗率 / 预收负债 / 今日指标 / 9 维雷达全部自动统计、界面只读，不设任何录入框。月初未设目标不显示 0 或 NaN：显示「未设置 · 去设置目标」；上月有目标时显示「沿用上月」并标明来源月份。
+- 9 维雷达按 0909 文档 `radarScore` 公式纯 SVG 渲染（≥85 绿 / 70–84 橙 / <70 红），不引图表库、不加动画、不可拖拽缩放。
+- 一期只单店：UI 不出现「全部门店 / 门店切换器 / 多店聚合」；`chain.html`（二期连锁：多店聚合 + 总部视角 + 门店健康度列表）只在任务卡与本节登记，**本期不实现**。
+- 同轮修掉 WorkBuddy《兰琪朋友圈获客测试体验报告》（2026-09-10）9 条：**7 条成立已修**——Bug1(P0) `/lanqi` 作用域下 moments/acquire 接口 403、Bug2(P0) `/lanqi/*` 路由 fallback 到外卖落地页、Bug3(P1) 未登录仍渲染功能入口、Bug6(P2)「今日待办」按钮无响应、Bug7(P2) 403 文案不分原因（后端加 `code`，前端分 4 类）、Bug8(P2) 无门店无 CTA、Bug9(P2) 按钮禁用无原因；**Bug4(P1)** 复核为原生 `required` 气泡在无头浏览器不可见，本回合给产品邀请码表单加 `noValidate` 改走页内中文提示；**Bug5(P1)** 复核为**当前源码不成立**（带会话访问 `/my-ai` 正常渲染工作台，0 console/page error），未改代码。详见 `docs/BUG_REGRESSIONS.md` QA-20260910-014。
+- 自动验证（2026-09-10 本机实跑，全部 PASS）：`lanqi:dashboard-smoke`（规则 60/0 + API smoke PASS）、`lanqi:store-gate-smoke`（44/0）、`lanqi:moments-smoke`（47/20/9，0 failed）、`lanqi:store-access-smoke`（14/0）、`pnpm.cmd qa:fast`、`pnpm.cmd qa:lanqi-foundation`、`pnpm.cmd qa:full`（含 `qa:regression` + web/api `build` + `api-runtime-data-check:PASS`，`QAFULL_EXIT=0`）、`pnpm.cmd -r typecheck` 7/7、`git diff --check` 0。
+- 页面验收（真实 Chromium，`scripts/lanqi-page-check.mjs`）：驾驶舱/朋友圈/微信群/`/my-ai`/登录页全部渲染正确，无门店时显示原因 +「去完善门店档案 / 门店后台」CTA，匿名实例 `/lanqi/*` 直接落 `/login/lanqi`，空邀请码点击出现「请输入邀请消息中的邀请码。」；console 错误 0、page error 0。
+- **测试实例复验（2026-09-10，`https://api.lcppch.top/lanqi-test`）**：新增 `scripts/lanqi-test-instance-acceptance.mjs`（命令 `pnpm.cmd lanqi:test-instance-acceptance`），同一组 14 项断言连续 3 轮全 PASS（驾驶舱完整渲染含「本月结论/今日关键指标」、无 NaN、无「全部门店/门店切换」、无外卖串页、无 4xx/5xx、console/page 0 错误、目标页 4 个手输目标 + 未设目标显示「待设置」+ 数据来源表、朋友圈门店门禁无阻断、填好原话后「生成朋友圈文案」`disabled=false`（Bug1 场景）、`/my-ai` 兰琪已开通 + 进入入口）。Bug4（空邀请码页内提示）与 Bug3（未登录跳转）在非免登录实例（本机 5178）复验通过；免登录实例看不到登录页，故不在该实例验证。
+- 已知边界：其余五个导航板块（门店AI使用案例 / 客户管理 / AI客户分析 / AI模拟销售 / 门店后台）仍是兰琪「开发中」占位页（本轮只保证不再 fallback 到其他产品）；真实 POS/收银/扣卡流水未对接，一期驾驶舱用带 `dataSource` 标记的演示数据源；仪表盘首次冷启动可见约 4–7 秒（静态资源逐个串行加载，接口本身 20–35ms），属体验优化项、不阻塞验收。
+
+## LQ-19 公域获客（板块3，2026-09-10，**下一步开发 / 待业务验收**）
+
+> 用户 2026-09-10 指示：私域营销页（LQ-18）收口后，**下一步开发公域获客页**。该板块代码本机已完成（免登录），但**尚未部署到测试实例**，需补测试实例部署 + 专项验收。
+
+- 已交付并可体验（本机免登录）：枢纽 `/lanqi/acquire`；子页 `/lanqi/acquire/video`、`/copywriter`、`/live`、`/methods`。小红书图文按 demo 无独立入口，由 video 四模式覆盖。
+- 真实大模型接入：文案改稿、AI 运营顾问、直播话术逐字稿、文案转片分镜均由平台 `createRuntimeLlmProvider` 走真实 Provider（开发阶段消耗），输出后仍过结构 + 合规门禁，不合格 fail closed 不兜底。
+- 本轮修两个 P1：①「成稿」步骤空白（`setStep` 与同步写编辑器竞态，改受控回填）；② 合规门禁误拦——序数用法「第一部分」、劝阻复述「不引导加微信／不用特效」、渠道名词「回复评论和私信」被当成违规导致整段/整批被毙，已改成语境感知判定（真违规仍拦）。详见 `docs/BUG_REGRESSIONS.md` QA-20260910-011 / -012。
+- 免登录仅测试实例：`VITE_DIRECT_TEST_LOGIN`（前端）+ `DIRECT_TEST_LOGIN`（后端），本机直达不跳登录；账号密码登录统一由思潼 AI 平台设计后接入，本机不做登录页。
+- 自动验证：`lanqi:acquire-smoke`（80/0）、`lanqi:moments-smoke`（47/20/9，0）、真实大模型 API 走查 16/16、真实浏览器走查 24/24、视频走查 25/25、`qa:fast` PASS、Web/API typecheck exit 0。
+- 已知边界：minimax 未首充，真实出片 fail closed；爆款复刻检索源待定；未部署测试实例（本轮按用户要求停在内测验收，不部署）。
+
+## 思潼AI 货架（2026-09-10，开发中占位）
+
+- 兰琪美业经营大脑已作为**品牌专属内核**上架思潼 AI 货架，独占「🧠 兰琪专区」（SKU `lanqi__lanqi-brain`）。
+- 当前状态是「🚧 开发中」（`coming_soon`）+ 徽标「兰琪品牌 · 需授权」：货架可见、不显示价格、不可购买、不可运行；即使误改成可售，货架 `/run` 也只返回 409 `marketplace_skill_not_configured`，不执行、不扣积分（fail-closed）。
+- 专区与内核都带 `zones:["lanqi"]` 白名单，不会出现在创始人 IP 或通用美业专区；兰琪品牌专属知识不下放给通用美业租户。
+- 真正开放使用仍走兰琪自己的 8 板块工作台与产品授权（LQ-18 等），不是货架对话流；开放前需另立任务补 capability 与专项 Eval。
+- 验证：`node scripts/marketplace-shelf-browser-e2e.mjs` PASS（断言兰琪专区仅 1 张卡、标「开发中」、详情「开发中 · 敬请期待」、无价格、console 错误 0）；`marketplace:foundation-smoke`、`marketplace:api-smoke`、`marketplace:db-smoke`、`qa:fast`、`qa:regression`、`build` PASS。
+
+## LQ-18 私域营销（板块4，2026-09-09，待业务验收）
+
+### 测试环境部署（2026-09-10）
+
+- 独立测试实例已部署并外部可达：web `https://api.lcppch.top/lanqi-test/`、API `https://api.lcppch.top/lanqi-test/api/health`、私域营销入口 `https://api.lcppch.top/lanqi-test/lanqi/moments`。
+- 隔离：目录 `/opt/baolu-os-v2-test`、systemd `baolu-os-v2-test`（端口 3010）、env `/etc/baolu-secrets/baolu-os-v2-test.env`、数据库同库独立 schema `lanqi_test`（47 项迁移已应用，含 `LanqiMoment*`）。
+- nginx：`/etc/nginx/snippets/lanqi-test.conf`（`/lanqi-test/` + `/lanqi-test/api/` → 3010）；原配置备份 `qiwx-bot.conf.bak-lanqi-test-20260910`。
+- 未改动生产 `baolu-os-v2`（3002，`/os-v2/*`）。原 `/chat-test` 属旧版页面，故测试实例用 `/lanqi-test/`。
+- 免邀请码直登（仅测试实例）：新增 env 开关 `DIRECT_TEST_LOGIN`（后端，默认 false）+ `VITE_DIRECT_TEST_LOGIN`（前端）；测试实例设 true 后，登录页出现「本机直接开通并进入美业智能体」，无需邀请码直接进入，登录后落地 `/lanqi/brain`。生产未设=不变（`/os-v2/api/auth/dev-login` 仍 404）。
+- DeepSeek 平台密钥接入（2026-09-10）：核对发现**生产 env 的 `DEEPSEEK_API_KEY` 已失效（直连 DeepSeek 返回 401）**，测试实例沿用同一把 key 因此报 `deepseek_provider_http_error`。已按用户提供的平台 DeepSeek key 更新 **生产 env + 测试 env + 本地 dev `.env`**（`DEEPSEEK_BASE_URL=https://api.deepseek.com/v1`、`DEEPSEEK_MODEL=deepseek-v4-pro`、`LLM_PROVIDER=deepseek`），重启 `baolu-os-v2` 与 `baolu-os-v2-test`；验证两环境直连 DeepSeek 均 200、`/health` 200、外部 `os-v2` 与 `lanqi-test` 均 200。密钥仅存于服务器 env（640 root:admin）与本地后端 `.env`，未写入代码/日志。
+
+- 已交付并可体验：`/lanqi/moments`（朋友圈 fast/pro 双模式 + 配图建议下载）与 `/lanqi/moments/wechat-group`（微信群话术子页）。
+- 后端：朋友圈规则引擎、升级服务、门店列表、升级/历史/微信群话术接口（beauty-industry 授权门禁内、`store_id` 隔离、`requestKey` 幂等落库）；新增 `LanqiMomentDraft/Upgrade/Asset` 表迁移。
+- 文案生成已接入**真实大模型**（DeepSeek 经百炼，开发阶段消耗）：`upgradeMomentsLlm` 经平台 `createRuntimeLlmProvider` 调用，输出自然 AI 文风；生成后仍套诊断/评分/合规/结构门禁，结构不合格或含违规词 fail closed。
+- 自动验证：`lanqi:moments-smoke` PASS（24/15/9）、`qa:fast` PASS、Web 构建 PASS、真实 LLM 端到端调用 PASS（钩子/占位/CTA/合规门禁全部命中）、浏览器真实点走 fast/pro/微信群主流程、干净刷新无新增控制台错误。
+- 快速模式已补「传图片 · 本地预览」入口（对齐 Demo；真实文件选择的上传 E2E 需真实浏览器/bsk，本 in-app 浏览器不支持 setFiles）。
+- 微信群话术已接真实大模型（`generateWechatGroupLlm`）；与朋友圈同一套 Provider，虚素材走「请补充」不编造。
+- Phase 0a 门店 RBAC 已落地：`services/store-access-guard.ts`（老板=owner/admin 全店+agg；店长=manager/前台=staff 仅绑定店），moments 各接口逐请求重算，冒烟 14/14。
+- 真实 AI 配图已落地（无积分直连）：`moments-image.ts` 直连百炼 wan2.7-image，OSS 结果下载落 `apps/api/uploads/moments/<tenant>/`，经鉴权接口读取下载；真实生成验证 PASS（HTTP 200、PNG 签名正确）；每张约 ¥0.2 开发成本。
+- 已知边界：文案与微信群话术已接真实大模型（开发阶段消耗）；真实 AI 配图已可用（无积分直连，每张约 ¥0.2 开发成本）；RBAC 核心矩阵已落地，但「老板/店长/前台」的管理页（配置成员/角色）与 agg 看板接口尚未交付（属后续板块/Phase 0a 管理面）；移动 390 真机验收待补；未部署 chat-test/chat 生产环境。
+
 ## 全产品暂停停点（2026-09-03）
 
 - 用户最新明确要求兰琪/美业智能体整体暂停开发，经营问答也停止对外验收；等待用户提供新的原型后再恢复。小红书图文、经营问答、WorkBuddy外部接入、视频及所有暂停任务均不得继续。

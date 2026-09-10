@@ -1,6 +1,6 @@
-﻿---
+---
 name: menu_optimizer
-description: 思潼企业AI增长OS - menu optimizer
+description: 思潼AI 行业智能体平台 - menu optimizer
 type: prompt
 version: "1.0.0"
 ---

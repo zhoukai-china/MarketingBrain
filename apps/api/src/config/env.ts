@@ -121,6 +121,8 @@ const envSchema = z.object({
   ADMIN_TOKEN: optionalString,
   OPS_TOKEN: optionalString,
   INVITE_REQUIRED: z.enum(["true", "false"]).default("true"),
+  // 仅测试实例开启：允许「本机直接开通」免邀请码登录（dev-login）。生产不设=关闭。
+  DIRECT_TEST_LOGIN: z.enum(["true", "false"]).default("false"),
   INVITE_CODES: optionalString,
   DOMESTIC_NETWORK_ONLY: z.enum(["true", "false"]).default("true"),
   DOMESTIC_OUTBOUND_ALLOWLIST: z

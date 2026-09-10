@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 
 type OnboardingStep = "info" | "connect" | "verify" | "done";
 
@@ -119,7 +119,7 @@ export function OnboardingView({ token, headers }: OnboardingViewProps) {
             接下来你可以开始诊断，或直接和思潼说你的经营问题。
           </p>
           <button className="diagnosisStartBtn" onClick={() => window.location.reload()}>
-            进入思潼 企业AI增长飞轮
+            进入思潼AI 行业智能体平台
           </button>
         </div>
       </div>

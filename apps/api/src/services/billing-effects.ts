@@ -1,6 +1,7 @@
 ﻿import { prisma } from "@baolu/db";
 import { Prisma } from "@baolu/db";
 import { PLANS, CREDIT_PACKS, PROJECT_PACKAGES, type PlanDefinition } from "@baolu/shared";
+import { applyRechargeInTx } from "./sitong-wallet.js";
 
 export async function applyPaidOrder(orderId: string) {
   return prisma.$transaction(async (tx: any) => {
@@ -24,13 +25,19 @@ export async function applyPaidOrder(orderId: string) {
       throw new Error("legacy_billing_order_disabled");
     }
 
-    const paidOrder = await tx.billingOrder.update({
-      where: { id: order.id },
+    const claimedPaid = await tx.billingOrder.updateMany({
+      where: { id: order.id, status: "pending" },
       data: {
         status: "paid",
         paidAt: new Date()
       }
     });
+    if (claimedPaid.count !== 1) {
+      const existing = await tx.billingOrder.findUnique({ where: { id: order.id } });
+      if (!existing) throw new Error("order_not_found");
+      return existing;
+    }
+    const paidOrder = await tx.billingOrder.findUniqueOrThrow({ where: { id: order.id } });
 
     const creditAccount =
       (await tx.creditAccount.findUnique({ where: { tenantId: order.tenantId } })) ??
@@ -98,26 +105,17 @@ export async function applyPaidOrder(orderId: string) {
 
     if (order.type === "credit_pack" && order.creditPackCode) {
       const pack = CREDIT_PACKS[order.creditPackCode as keyof typeof CREDIT_PACKS];
-      await tx.creditAccount.update({
-        where: { id: creditAccount.id },
-        data: {
-          balance: {
-            increment: pack.credits
-          }
-        }
-      });
-
-      await tx.creditTransaction.create({
-        data: {
-          creditAccountId: creditAccount.id,
-          tenantId: order.tenantId,
-          userId: order.userId,
-          direction: "grant",
-          amount: pack.credits,
-          reason: `credit_pack:${order.creditPackCode}`,
-          refType: "billing_order",
-          refId: order.id
-        }
+      if (!order.userId) throw new Error("credit_pack_order_missing_user");
+      await applyRechargeInTx(tx, {
+        userId: order.userId,
+        planId: order.creditPackCode,
+        amountCny: order.amountCny,
+        basePts: pack.baseCredits,
+        bonusPts: pack.bonusCredits,
+        method: order.provider ?? "wechat",
+        idempotencyKey: `billing:${order.id}`,
+        priceVersion: 1,
+        source: "web"
       });
     }
 

@@ -20,9 +20,10 @@ import {
   WidthType
 } from "docx";
 import { z } from "zod";
-import type { TenantBrandingConfig } from "@baolu/shared";
+import { EXPORT_PRICING, type TenantBrandingConfig } from "@baolu/shared";
 import { resolveRequestContext } from "../services/request-context.js";
 import { getBearerToken, verifySessionToken } from "../services/auth-token.js";
+import { consumeWalletCredits, readWallet, buildRechargeUrl } from "../services/sitong-wallet.js";
 import { resolveTenantBranding } from "./tenant.js";
 
 interface ParsedSection {
@@ -54,6 +55,12 @@ const exportRecords = new Map<string, ExportRecord>();
 const exportTtlMs = 10 * 60 * 1000;
 
 export async function registerExportRoutes(app: FastifyInstance): Promise<void> {
+  app.get("/exports/docx/price", async () => ({
+    credits: EXPORT_PRICING.docxCredits,
+    version: EXPORT_PRICING.docxVersion,
+    effectiveAt: EXPORT_PRICING.docxEffectiveAt
+  }));
+
   app.post("/exports/docx", async (request, reply) => {
     const context = await resolveExportContext(request.headers, reply);
     if (!context) return;
@@ -66,11 +73,44 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
     }
 
     cleanupExportRecords();
+
+    const price = EXPORT_PRICING.docxCredits;
+    const walletBefore = await readWallet(context.userId);
+    if (walletBefore.balance < price) {
+      return reply.code(402).send({
+        error: "insufficient_credits",
+        message: "当前积分不足，充值后可导出精美 Word。",
+        balance: walletBefore.balance,
+        required: price,
+        rechargeUrl: buildRechargeUrl("docx_export")
+      });
+    }
+
     const branding = resolveTenantBranding(context.profile.data);
     const { title } = parseAnswer(parsed.data.content);
     const filename = `${normalizeFilenamePart(parsed.data.title || title) || fallbackTitle}.docx`;
     const buffer = await buildAnswerDocx(parsed.data.content, parsed.data.title || title, branding);
     const id = crypto.randomUUID();
+
+    // 交付物生成完成后才扣费；同一次导出用 recordId 幂等，失败不扣。
+    const consumed = await consumeWalletCredits({
+      userId: context.userId,
+      requestId: `docx:${id}`,
+      price,
+      skillId: "docx_export",
+      priceVersion: EXPORT_PRICING.docxVersion,
+      source: "web"
+    });
+    if (consumed.status === "insufficient") {
+      return reply.code(402).send({
+        error: "insufficient_credits",
+        message: "当前积分不足，充值后可导出精美 Word。",
+        balance: consumed.wallet.balance,
+        required: price,
+        rechargeUrl: buildRechargeUrl("docx_export")
+      });
+    }
+
     exportRecords.set(id, {
       buffer,
       filename,
@@ -82,7 +122,9 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
     return {
       id,
       filename,
-      downloadUrl: `/exports/docx/${id}`
+      downloadUrl: `/exports/docx/${id}`,
+      consumedCredits: price,
+      balance: consumed.wallet.balance
     };
   });
 
@@ -140,40 +182,64 @@ async function resolveExportContext(headers: Record<string, unknown>, reply: Fas
   }
 }
 
-async function buildAnswerDocx(content: string, overrideTitle: string | undefined, branding: TenantBrandingConfig): Promise<Buffer> {
-  const { title: parsedTitle, sections } = parseAnswer(content);
+export async function buildAnswerDocx(content: string, overrideTitle: string | undefined, branding: TenantBrandingConfig): Promise<Buffer> {
+  const { title: parsedTitle, intro, sections } = parseAnswer(content);
   const title = overrideTitle || parsedTitle;
   const brandColor = branding.primaryColor.slice(1).toUpperCase();
   const brandSignature = `${branding.brandName} · ${branding.systemName}`;
   const border = { style: BorderStyle.SINGLE, size: 1, color: "D7DEE8" };
   const mutedBorder = { style: BorderStyle.SINGLE, size: 1, color: "EEF2F7" };
+  const mdRuns = (text: string, opts: { size?: number; color?: string; bold?: boolean; font?: string } = {}) => {
+    const parts = cleanInlineText(text).split(/(\*\*[^*]+\*\*)/g).filter((part) => part.length > 0);
+    const runs = parts.map((part) => {
+      const isBold = /^\*\*[^*]+\*\*$/.test(part);
+      return new TextRun({
+        text: isBold ? part.slice(2, -2) : part,
+        font: opts.font ?? "Microsoft YaHei",
+        size: opts.size ?? 22,
+        color: opts.color ?? "1B2430",
+        bold: opts.bold || isBold
+      });
+    });
+    return runs.length > 0
+      ? runs
+      : [new TextRun({ text: "", font: opts.font ?? "Microsoft YaHei", size: opts.size ?? 22, color: opts.color ?? "1B2430" })];
+  };
   const bodyParagraph = (text: string, color = "1B2430", bold = false, size = 22) =>
     new Paragraph({
       spacing: { after: 120, line: 300 },
-      children: [new TextRun({ text: cleanDisplayText(text), font: "Microsoft YaHei", size, color, bold })]
+      children: mdRuns(text, { size, color, bold })
     });
   const bulletParagraph = (text: string) =>
     new Paragraph({
       numbering: { reference: "answer-bullets", level: 0 },
       spacing: { after: 80, line: 300 },
-      children: [new TextRun({ text: cleanDisplayText(text), font: "Microsoft YaHei", size: 21, color: "253244" })]
+      children: mdRuns(text, { size: 21, color: "253244" })
+    });
+  const quoteParagraph = (text: string) =>
+    new Paragraph({
+      spacing: { after: 80, line: 300 },
+      indent: { left: 260 },
+      border: { left: { style: BorderStyle.SINGLE, size: 18, color: brandColor, space: 8 } },
+      shading: { fill: "FBF8F4", color: "auto", type: ShadingType.CLEAR },
+      children: mdRuns(text, { size: 21, color: "454F5B" })
     });
   const labelParagraph = (text: string) =>
     new Paragraph({
       spacing: { after: 80, line: 280 },
-      children: [new TextRun({ text: cleanDisplayText(text), font: "Microsoft YaHei", size: 20, color: "203748", bold: true })]
+      children: mdRuns(text, { size: 20, color: "203748", bold: true })
     });
   const valueParagraph = (text: string) =>
     new Paragraph({
       spacing: { after: 80, line: 280 },
-      children: [new TextRun({ text: cleanDisplayText(text), font: "Microsoft YaHei", size: 20, color: "253244" })]
+      children: mdRuns(text, { size: 20, color: "253244" })
     });
   const fieldParagraph = (label: string, value: string) =>
     new Paragraph({
       spacing: { after: 95, line: 300 },
       children: [
-        new TextRun({ text: `${cleanDisplayText(label)}：`, font: "Microsoft YaHei", size: 21, color: "7A5A00", bold: true }),
-        new TextRun({ text: cleanDisplayText(value), font: "Microsoft YaHei", size: 21, color: "253244" })
+        ...mdRuns(`${label}：`, { size: 21, color: "7A5A00", bold: true }),
+        ...mdRuns(value, { size: 21, color: "253244" })
       ]
     });
   const tableFromParsed = ({ headers, rows }: ParsedTable) => {
@@ -225,6 +291,16 @@ async function buildAnswerDocx(content: string, overrideTitle: string | undefine
       ]
     });
   };
+  const renderLine = (line: string, sectionTitle: string): Paragraph | undefined => {
+    if (/^>\s?/.test(line)) return quoteParagraph(line);
+    if (/^\s*[-*]\s+/.test(line)) return bulletParagraph(line);
+    const match = line.match(/^([^：:]{1,22})[：:]\s*(.+)$/);
+    const label = match ? match[1].trim() : "说明";
+    const value = stripRepeatedSectionLabel(match ? match[2].trim() : line, sectionTitle);
+    if (!value) return undefined;
+    return label !== "说明" ? fieldParagraph(label, value) : bodyParagraph(value);
+  };
+
   const sectionChildren = (section: ParsedSection, index: number) => {
     const children: any[] = [
       new Paragraph({
@@ -243,17 +319,9 @@ async function buildAnswerDocx(content: string, overrideTitle: string | undefine
         continue;
       }
 
-      const rows = parseColonRows(block.lines);
-      for (const row of rows) {
-        const value = stripRepeatedSectionLabel(row.value, section.title);
-        if (!value) continue;
-        if (row.label !== "说明") {
-          children.push(fieldParagraph(row.label, value));
-        } else if (/^\s*[-*]\s+/.test(row.value)) {
-          children.push(bulletParagraph(value));
-        } else {
-          children.push(bodyParagraph(value));
-        }
+      for (const line of block.lines) {
+        const paragraph = renderLine(line, section.title);
+        if (paragraph) children.push(paragraph);
       }
     }
 
@@ -330,6 +398,7 @@ async function buildAnswerDocx(content: string, overrideTitle: string | undefine
             ],
             border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: "D9B875", space: 8 } }
           }),
+          ...intro.map((line) => renderLine(line, "")).filter((paragraph): paragraph is Paragraph => Boolean(paragraph)),
           ...sections.flatMap((section, index) => sectionChildren(section, index))
         ]
       }
@@ -366,7 +435,7 @@ async function buildAnswerDocx(content: string, overrideTitle: string | undefine
   return Packer.toBuffer(doc);
 }
 
-function parseAnswer(content: string): { title: string; sections: ParsedSection[] } {
+function parseAnswer(content: string): { title: string; intro: string[]; sections: ParsedSection[] } {
   const lines = content
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -375,6 +444,7 @@ function parseAnswer(content: string): { title: string; sections: ParsedSection[
   const title = firstLine && !isSectionHeading(firstLine) ? firstLine.replace(/^#+\s*/, "") : fallbackTitle;
   const bodyLines = firstLine && title === firstLine.replace(/^#+\s*/, "") ? lines.slice(1) : lines;
   const sections: ParsedSection[] = [];
+  const intro: string[] = [];
   let current: ParsedSection | undefined;
 
   for (const line of bodyLines) {
@@ -384,32 +454,36 @@ function parseAnswer(content: string): { title: string; sections: ParsedSection[
       continue;
     }
     if (!current) {
-      current = { title: "短结论", lines: [] };
-      sections.push(current);
+      // 第一个章节标题之前的内容作为“引言”，不占用章节编号。
+      intro.push(line);
+      continue;
     }
     current.lines.push(line);
   }
 
+  if (sections.length === 0) {
+    // 完全没有章节标题时，退回单节，避免内容丢失。
+    return { title, intro: [], sections: intro.length ? [{ title: "内容概要", lines: intro }] : [] };
+  }
+
   return {
     title,
+    intro,
     sections: sections.filter((section) => section.lines.length > 0)
   };
 }
 
 function isSectionHeading(line: string): boolean {
-  return /^(#{2,3}\s*)?([一二三四五六七八九十]+、|\d+[.、])\S+/.test(line);
+  const bare = stripInlineMarks(line);
+  return /^([一二三四五六七八九十]+、|\d+[.、])\S+/.test(bare);
 }
 
 function cleanSectionTitle(line: string): string {
-  return line.replace(/^#{2,3}\s*/, "").replace(/^([一二三四五六七八九十]+、|\d+[.、])\s*/, "");
+  return stripInlineMarks(line).replace(/^([一二三四五六七八九十]+、|\d+[.、])\s*/, "").trim();
 }
 
-function parseColonRows(lines: string[]) {
-  return lines.map((line) => {
-    const match = line.match(/^([^：:]{1,22})[：:]\s*(.+)$/);
-    if (!match) return { label: "说明", value: line };
-    return { label: match[1], value: match[2] };
-  });
+function stripInlineMarks(line: string): string {
+  return line.replace(/^#{1,3}\s*/, "").replace(/[*_]/g, "").trim();
 }
 
 function parseMarkdownTableLines(tableLines: string[]): ParsedTable | undefined {
@@ -466,11 +540,10 @@ function stripRepeatedSectionLabel(line: string, sectionTitle: string): string {
   return line === sectionTitle ? "" : line;
 }
 
-function cleanDisplayText(text: string): string {
+function cleanInlineText(text: string): string {
   return text
-    .replace(/^>\s*/, "")
+    .replace(/^\s*>\s?/, "")
     .replace(/^\s*[-*]\s+/, "")
-    .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/`([^`]+)`/g, "$1")
     .trim();
 }

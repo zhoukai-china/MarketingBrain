@@ -1,6 +1,6 @@
-﻿---
+---
 name: opc_client_education
-description: 思潼企业AI增长OS - opc client education
+description: 思潼AI 行业智能体平台 - opc client education
 type: prompt
 version: "1.0.0"
 ---

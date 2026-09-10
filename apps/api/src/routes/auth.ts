@@ -9,7 +9,7 @@ import {
   type PlanCode,
   type ProductLoginCode,
 } from "@baolu/shared";
-import { env } from "../config/env.js";
+import { env, inviteRequired } from "../config/env.js";
 import {
   createOnboardingToken,
   createSessionToken,
@@ -77,7 +77,10 @@ const betaLoginSchema = z.object({
   city: z.string().trim().max(80).optional(),
   phone: z.string().optional(),
   nickname: z.string().optional(),
-  inviteCode: z.string().trim().min(1).max(200),
+  // 平台主入口开放注册（INVITE_REQUIRED=false）后不再强制邀请码，schema 必须允许缺省；
+  // 缺省时由 validateInviteCode 按服务端开关判定：开放注册放行，邀请制返回
+  // 403 invite_code_required（与产品入口同一套错误语义），不再在 schema 层抛 400。
+  inviteCode: z.string().trim().max(200).optional(),
   productCode: productLoginCodeSchema.optional(),
 });
 
@@ -271,7 +274,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
   app.post("/auth/dev-login", async (request, reply) => {
     if (rejectAuthBrandOverride(request.body, reply)) return;
-    if (env.NODE_ENV === "production") {
+    if (env.NODE_ENV === "production" && env.DIRECT_TEST_LOGIN !== "true") {
       return reply.code(404).send({
         error: "not_found",
         message: "dev login is disabled in production"
@@ -342,17 +345,19 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   });
 
   
-  // Check whether WeChat auth is configured on the server
+  // Check whether WeChat auth is configured on the server.
+  // `inviteRequired` 一并返回：登录页据此决定微信首次注册要不要填邀请码，
+  // 这样「开放注册 / 邀请制」是服务端的一个开关，不需要改前端代码重新构建。
   app.get("/auth/wechat-config", async (_request, reply) => {
     const appid = env.WECHAT_AUTH_APPID;
     const secret = env.WECHAT_AUTH_SECRET;
     if (!appid || !secret) {
       if (env.DATA_MODE === "demo") {
-        return reply.code(503).send({ configured: false, reason: "demo_mode" });
+        return reply.code(503).send({ configured: false, reason: "demo_mode", inviteRequired });
       }
-      return reply.code(503).send({ configured: false, reason: "missing_credentials" });
+      return reply.code(503).send({ configured: false, reason: "missing_credentials", inviteRequired });
     }
-    return { configured: true, appid };
+    return { configured: true, appid, inviteRequired };
   });
 
   app.post("/auth/wechat-login", async (request, reply) => {

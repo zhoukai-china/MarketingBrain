@@ -105,7 +105,7 @@ export function StoreGrowthApp() {
       <aside className="storeSidebar ipAgentSidebar">
         <div className="brandBlock">
           <span>思潼</span>
-          <h1>企业AI增长飞轮</h1>
+          <h1>思潼AI 行业智能体平台</h1>
         </div>
 
         <nav className="storeNav ipAgentNav" aria-label="Agent 列表">

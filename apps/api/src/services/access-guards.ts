@@ -45,12 +45,35 @@ export function requireProductEntitlement(productCode: ProductLoginCode) {
         status: "active",
         OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
       },
-      select: { id: true },
+      select: { id: true, expiresAt: true },
     });
     if (!entitlement) {
+      // Bug7（WorkBuddy 2026-09-10）：「未开通」和「已过期」是两件事，文案必须分开，
+      // 否则老板看到「请联系服务团队」却不知道是自己没开通还是刚过期。
+      const expired = await prisma.tenantProductEntitlement.findFirst({
+        where: { tenantId: context.tenantId, productCode },
+        orderBy: { expiresAt: "desc" },
+        select: { status: true, expiresAt: true },
+      });
+      const reason = expired
+        ? expired.status !== "active"
+          ? "product_entitlement_inactive"
+          : expired.expiresAt && expired.expiresAt <= new Date()
+            ? "product_entitlement_expired"
+            : "product_entitlement_required"
+        : "product_entitlement_missing";
       await reply.code(403).send({
+        // 保留原有 error 字段，避免既有调用方（WorkBuddy MCP、后台）解析失败；
+        // 新增 code 字段承载具体原因，前端按 code 分流文案。
         error: "product_entitlement_required",
-        message: "当前企业尚未开通此产品，请联系服务团队。",
+        code: reason,
+        message:
+          reason === "product_entitlement_expired"
+            ? "本产品的使用期限已到期，续期后即可继续使用。"
+            : reason === "product_entitlement_inactive"
+              ? "本产品当前处于停用状态，请联系服务团队重新启用。"
+              : "当前企业尚未开通此产品，请联系服务团队开通。",
+        trace_id: request.id,
       });
     }
   };

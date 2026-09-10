@@ -1,6 +1,7 @@
 export const defaultHighCapabilityLlmModels = [
   "deepseek-v4-pro",
   "deepseek-v4pro",
+  "deepseek-v4-flash",
   "qwen-max",
   "qwen3-max",
   "qwen3-235b-a22b",
@@ -10,7 +11,7 @@ export const defaultHighCapabilityLlmModels = [
 const blockedLlmModelPatterns = [
   /deepseek[-_]?reasoner/i,
   /deepseek[-_]?r1/i,
-  /(turbo|lite|mini|cheap|flash|small)/i,
+  /(turbo|lite|mini|cheap|small)/i,
   /\bgpt[-_\d]?/i,
   /chatgpt/i,
   /openai/i,

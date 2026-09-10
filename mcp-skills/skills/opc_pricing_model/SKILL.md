@@ -1,6 +1,6 @@
-﻿---
+---
 name: opc_pricing_model
-description: 思潼企业AI增长OS - opc pricing model
+description: 思潼AI 行业智能体平台 - opc pricing model
 type: prompt
 version: "1.0.0"
 ---

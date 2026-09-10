@@ -3,6 +3,8 @@ import ReactDOM from "react-dom/client";
 import type { LoginEntry, LoginResult } from "./pages/LoginPage.js";
 import { PRODUCT_LOGIN_DEFINITIONS } from "@baolu/shared";
 import { apiPath, getAppPath, getAppRoutePath } from "./lib/api.js";
+import { DIRECT_TEST_LOGIN_ENABLED, ensureDirectTestSession } from "./lib/direct-test-session.js";
+import { clearStoredSession, probeSession, readSessionToken, takePostLoginRedirect } from "./lib/session.js";
 import "./styles/app.css";
 import "./styles/store-growth.css";
 import "./styles/baolu-diagnosis.css";
@@ -25,8 +27,16 @@ import "./styles/lanqi-image-studio.css";
 import "./styles/lanqi-agent-entry.css";
 import "./styles/lanqi-business-qa.css";
 import "./styles/beauty-industry.css";
+import "./styles/lanqi-moments.css";
 import "./styles/beauty-video-review.css";
 import "./styles/industry-workbench-prototype.css";
+import "./styles/sitong-design.css";
+
+document.documentElement.setAttribute(
+  "data-theme",
+  localStorage.getItem("sitong-theme") || "dark"
+);
+document.body.setAttribute("data-device", "desktop");
 
 // Pages are isolated at the route boundary so the first visit only downloads
 // the active experience instead of every workbench and internal tool.
@@ -54,9 +64,31 @@ const LanqiExecutionPlanPage = lazy(() => import("./pages/LanqiExecutionPlanPage
 const LanqiContentStudioPage = lazy(() => import("./pages/LanqiContentStudioPage.js").then(module => ({ default: module.LanqiContentStudioPage })));
 const LanqiImageStudioPage = lazy(() => import("./pages/LanqiImageStudioPage.js").then(module => ({ default: module.LanqiImageStudioPage })));
 const LanqiBusinessQaPage = lazy(() => import("./pages/LanqiBusinessQaPage.js").then(module => ({ default: module.LanqiBusinessQaPage })));
+const LanqiMomentsPage = lazy(() => import("./pages/LanqiMomentsPage.js").then(module => ({ default: module.LanqiMomentsPage })));
+const LanqiBrainHomePage = lazy(() => import("./pages/LanqiBrainHomePage.js").then(module => ({ default: module.LanqiBrainHomePage })));
+const LanqiMomentsHomePage = lazy(() => import("./pages/LanqiMomentsHomePage.js").then(module => ({ default: module.LanqiMomentsHomePage })));
+const LanqiAcquireHomePage = lazy(() => import("./pages/LanqiAcquireHomePage.js").then(module => ({ default: module.LanqiAcquireHomePage })));
+const LanqiAcquireCopywriterPage = lazy(() => import("./pages/LanqiAcquireCopywriterPage.js").then(module => ({ default: module.LanqiAcquireCopywriterPage })));
+const LanqiAcquireMethodsPage = lazy(() => import("./pages/LanqiAcquireMethodsPage.js").then(module => ({ default: module.LanqiAcquireMethodsPage })));
+const LanqiAcquireLivePage = lazy(() => import("./pages/LanqiAcquireLivePage.js").then(module => ({ default: module.LanqiAcquireLivePage })));
+const LanqiAcquireVideoPage = lazy(() => import("./pages/LanqiAcquireVideoPage.js").then(module => ({ default: module.LanqiAcquireVideoPage })));
+const LanqiMomentsWechatGroupPage = lazy(() => import("./pages/LanqiMomentsWechatGroupPage.js").then(module => ({ default: module.LanqiMomentsWechatGroupPage })));
+const LanqiDashboardPage = lazy(() => import("./pages/LanqiDashboardPage.js").then(module => ({ default: module.LanqiDashboardPage })));
+const LanqiGoalSettingPage = lazy(() => import("./pages/LanqiGoalSettingPage.js").then(module => ({ default: module.LanqiGoalSettingPage })));
+const LanqiCasesPage = lazy(() => import("./pages/LanqiPlaceholderPage.js").then(module => ({ default: module.LanqiCasesPage })));
+const LanqiCustomersPage = lazy(() => import("./pages/LanqiPlaceholderPage.js").then(module => ({ default: module.LanqiCustomersPage })));
+const LanqiAnalysisPage = lazy(() => import("./pages/LanqiPlaceholderPage.js").then(module => ({ default: module.LanqiAnalysisPage })));
+const LanqiSalesSimPage = lazy(() => import("./pages/LanqiPlaceholderPage.js").then(module => ({ default: module.LanqiSalesSimPage })));
+const LanqiStoreAdminPage = lazy(() => import("./pages/LanqiPlaceholderPage.js").then(module => ({ default: module.LanqiStoreAdminPage })));
 const BeautyIndustryAcquisitionPage = lazy(() => import("./pages/BeautyIndustryAcquisitionPage.js").then(module => ({ default: module.BeautyIndustryAcquisitionPage })));
 const BeautyIndustryWorkBuddyPage = lazy(() => import("./pages/BeautyIndustryWorkBuddyPage.js").then(module => ({ default: module.BeautyIndustryWorkBuddyPage })));
 const IndustryWorkbenchPrototypePage = lazy(() => import("./pages/IndustryWorkbenchPrototypePage.js").then(module => ({ default: module.IndustryWorkbenchPrototypePage })));
+const MarketplaceHomePage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceHomePage })));
+const MarketplaceAdminPage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceAdminPage })));
+const MarketplaceAgentDetailPage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceAgentDetailPage })));
+const MarketplaceMinePage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceMinePage })));
+const MarketplaceAgentChatPage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceAgentChatPage })));
+const RechargePage = lazy(() => import("./pages/RechargePage.js").then(module => ({ default: module.RechargePage })));
 
 type AppStage = "login" | "diagnosis" | "main";
 
@@ -69,8 +101,6 @@ interface StoredLoginInfo {
   planCode: string;
   dataMode: string;
 }
-
-const postLoginRedirectKey = "store_os_post_login_redirect";
 
 class EnterpriseKnowledgeErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -96,13 +126,6 @@ class EnterpriseKnowledgeErrorBoundary extends Component<{ children: ReactNode }
       </section>
     </main>;
   }
-}
-
-function takePostLoginRedirect(): string | null {
-  const redirect = localStorage.getItem(postLoginRedirectKey);
-  localStorage.removeItem(postLoginRedirectKey);
-  if (!redirect || !redirect.startsWith("/") || redirect.startsWith("//")) return null;
-  return redirect;
 }
 
 function LanqiLocalAccessPage() {
@@ -216,6 +239,109 @@ function FounderIpLocalE2EPage() {
   return <main className="loginPage"><section className="loginCard"><div className="loginBrand"><span className="loginBadge">创始人 IP 获客 · 本机合成验收数据</span><h1>正在准备页面验收</h1><p>{message}</p></div></section></main>;
 }
 
+// 内测实例免登录：开关打开时先建立体验会话，再渲染页面，
+// 用户点开链接不会看到登录页；生产实例开关关闭，行为不变。
+function DirectTestLoginGate({ children }: { children: ReactNode }) {
+  const [state, setState] = useState<"checking" | "ready" | "failed">(
+    DIRECT_TEST_LOGIN_ENABLED ? "checking" : "ready"
+  );
+  const [message, setMessage] = useState("正在进入美业智能体体验工作区…");
+
+  useEffect(() => {
+    if (!DIRECT_TEST_LOGIN_ENABLED) return;
+    let cancelled = false;
+    void ensureDirectTestSession()
+      .then(() => {
+        if (!cancelled) setState("ready");
+      })
+      .catch((cause: unknown) => {
+        if (cancelled) return;
+        setMessage(cause instanceof Error ? cause.message : "本机体验登录失败。");
+        setState("failed");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!DIRECT_TEST_LOGIN_ENABLED || state !== "ready") return;
+    const path = getAppRoutePath(window.location.pathname);
+    const isEntry = path === "/" || path === "" || path.startsWith("/login");
+    if (isEntry) window.location.replace(getAppPath("/lanqi/dashboard"));
+  }, [state]);
+
+  if (state === "ready") return <>{children}</>;
+
+  return (
+    <main className="loginPage">
+      <section className="loginCard">
+        <div className="loginBrand">
+          <span className="loginBadge">兰琪美业 · 内测实例</span>
+          <h1>{state === "failed" ? "体验入口暂时打不开" : "正在进入体验工作区"}</h1>
+          <p>{message}</p>
+          {state === "failed" && (
+            <button className="loginDemoBtn" type="button" onClick={() => window.location.reload()}>
+              重新进入
+            </button>
+          )}
+        </div>
+      </section>
+    </main>
+  );
+}
+
+/**
+ * 平台登录页的会话前置校验（QA-20260910-018）。
+ *
+ * 「已登录就不给看登录页」这条规则只有在服务端确认 token 仍然有效时才成立。
+ * 以前只看 localStorage 有没有 token，token 一旦失效就会把用户从 /login 弹回
+ * /market，而货架又显示「未登录 · 点击登录」——点一次弹一次，用户永远进不了登录页。
+ *
+ * 现在的行为：
+ * - token 有效 → 按登录后落地地址跳走（默认货架）；
+ * - token 失效（401/403）→ 清掉本地会话，正常渲染登录页；
+ * - 网络异常（探针 cannot tell）→ 不清 token，也渲染登录页，让用户至少能重新登录。
+ */
+function LoginSessionGate({ children }: { children: ReactNode }) {
+  const path = getAppRoutePath(window.location.pathname);
+  const isLoginRoute = path === "/login" || path === "/login/";
+  const shouldProbe = !DIRECT_TEST_LOGIN_ENABLED && isLoginRoute && Boolean(readSessionToken());
+  const [state, setState] = useState<"probing" | "resolved">(shouldProbe ? "probing" : "resolved");
+
+  useEffect(() => {
+    if (state !== "probing") return;
+    let cancelled = false;
+    void probeSession(readSessionToken()).then((result) => {
+      if (cancelled) return;
+      if (result === "valid") {
+        // 页面正在卸载，保持在过渡态避免闪一下登录表单。
+        window.location.replace(takePostLoginRedirect("/market"));
+        return;
+      }
+      if (result === "invalid") clearStoredSession();
+      setState("resolved");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [state]);
+
+  if (state === "resolved") return <>{children}</>;
+
+  return (
+    <main className="loginPage">
+      <section className="loginCard">
+        <div className="loginBrand">
+          <span className="loginBadge">思潼 AI</span>
+          <h1>正在确认登录状态</h1>
+          <p>马上就好；如果这个页面停留超过几秒，请刷新重试。</p>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 function Root() {
   const path = getAppRoutePath(window.location.pathname);
   const isDiagnosisRoute = path.startsWith("/diagnosis") || path.startsWith("/d/");
@@ -226,6 +352,18 @@ function Root() {
   const isV4PreviewRoute = path.startsWith("/v4-preview");
   const marketingMatch = path.match(/^\/p\/([a-z0-9_-]+)\/?$/i);
   const agentMatch = path.match(/^\/agents\/([a-z0-9_-]+)\/?$/i);
+  const marketplaceChatMatch = path.match(/^\/agent\/([a-z0-9_-]+)\/chat\/?$/i);
+  const marketplaceAgentMatch = path.match(/^\/agent\/([a-z0-9_-]+)\/?$/i);
+
+  // 平台首页（货架）是唯一入口：根路径直接落到货架，不再进入旧的单品落地页。
+  if (path === "/" || path === "") {
+    window.location.replace(getAppPath("/market"));
+    return null;
+  }
+
+  // 注意：不要再在这里按「localStorage 里有 token」把 /login 弹回货架。
+  // 那是登录死循环的成因（QA-20260910-018），判断已移到 LoginSessionGate，
+  // 由服务端探针决定去留。
 
   // Brand acquisition uses a dedicated, full-page knowledge base. Keep this
   // route separate from the legacy global /knowledge-base manager so a work
@@ -257,6 +395,18 @@ function Root() {
     return <AgentMarketingPage slug={marketingMatch[1]} />;
   }
 
+  if (marketplaceChatMatch) {
+    return <MarketplaceAgentChatPage skuId={marketplaceChatMatch[1]} />;
+  }
+
+  if (marketplaceAgentMatch) {
+    return <MarketplaceAgentDetailPage skuId={marketplaceAgentMatch[1]} />;
+  }
+
+  if (path === "/mine" || path.startsWith("/mine/")) {
+    return <MarketplaceMinePage />;
+  }
+
   if (path === "/industry-prototype" || path.startsWith("/industry-prototype/")) {
     return <IndustryWorkbenchPrototypePage />;
   }
@@ -277,8 +427,33 @@ function Root() {
     return <MyAiPage />;
   }
 
+  // 兰琪工作台需要会话：未登录访问 `/lanqi/*` 时不渲染任何功能入口或表单，
+  // 直接带回兰琪登录页（保住兰琪产品上下文，不落进平台通用产品选择页）。
+  // 内测免登录实例（DIRECT_TEST_LOGIN_ENABLED）由 DirectTestLoginGate 先建立
+  // 会话，因此本判断对它无影响；`/lanqi/local` 是登录前的本机入口，单独放行。
+  if (
+    (path === "/lanqi" || path === "/lanqi/" || path.startsWith("/lanqi/")) &&
+    !DIRECT_TEST_LOGIN_ENABLED &&
+    !localStorage.getItem("store_os_token")
+  ) {
+    window.location.replace(getAppPath("/login/lanqi"));
+    return null;
+  }
+
   if (path === "/lanqi/local" || path === "/lanqi/local/") {
     return <LanqiLocalAccessPage />;
+  }
+
+  // 兰琪工作台入口：`/lanqi` 与 `/lanqi/`（demo 的 home.html 对应地址）直达 0909
+  // 经营驾驶舱（不是八板块卡片墙，也不再落进旧的「美业智能体」单品页
+  // `/agents/beauty-industry`）。八板块总览仍在 `/lanqi/brain`。
+  if (path === "/lanqi" || path === "/lanqi/") {
+    window.location.replace(getAppPath("/lanqi/dashboard"));
+    return null;
+  }
+
+  if (path === "/lanqi/brain" || path === "/lanqi/brain/") {
+    return <LanqiBrainHomePage />;
   }
 
   if (path === "/fip/e2e/local" || path === "/fip/e2e/local/") {
@@ -308,6 +483,65 @@ function Root() {
   if (path.startsWith("/lanqi/image-studio")) {
     return <LanqiImageStudioPage />;
   }
+  if (path.startsWith("/lanqi/moments/wechat-group")) {
+    return <LanqiMomentsWechatGroupPage />;
+  }
+  if (path.startsWith("/lanqi/moments/friend-circle")) {
+    return <LanqiMomentsPage />;
+  }
+  if (path.startsWith("/lanqi/moments")) {
+    return <LanqiMomentsHomePage />;
+  }
+  if (path.startsWith("/lanqi/acquire/copywriter")) {
+    return <LanqiAcquireCopywriterPage />;
+  }
+  if (path.startsWith("/lanqi/acquire/methods")) {
+    return <LanqiAcquireMethodsPage />;
+  }
+  if (path.startsWith("/lanqi/acquire/live")) {
+    return <LanqiAcquireLivePage />;
+  }
+  if (path.startsWith("/lanqi/acquire/video")) {
+    return <LanqiAcquireVideoPage />;
+  }
+  if (path.startsWith("/lanqi/acquire")) {
+    return <LanqiAcquireHomePage />;
+  }
+
+  /*
+   * 兰琪经营驾驶舱（LQ-20）：demo 的 home.html 就是这一页，也是登录后的默认落地页。
+   * 必须放在全局兜底 `AgentHomePage` 之前，否则会掉进外卖增长智能体的首页（报告 Bug2）。
+   */
+  if (path === "/lanqi/dashboard" || path === "/lanqi/dashboard/") {
+    return <LanqiDashboardPage />;
+  }
+  if (path.startsWith("/lanqi/goal-setting")) {
+    return <LanqiGoalSettingPage />;
+  }
+
+  /*
+   * 侧栏里还没开发的板块：每一项都要能落在兰琪自己的页面上（占位页明说「开发中」），
+   * 不能因为路由缺失掉进别的产品首页。
+   */
+  if (path === "/lanqi/cases" || path === "/lanqi/cases/") {
+    return <LanqiCasesPage />;
+  }
+  if (path === "/lanqi/customers" || path === "/lanqi/customers/") {
+    return <LanqiCustomersPage />;
+  }
+  if (path === "/lanqi/analysis" || path === "/lanqi/analysis/") {
+    return <LanqiAnalysisPage />;
+  }
+  if (path === "/lanqi/sales-sim" || path === "/lanqi/sales-sim/") {
+    return <LanqiSalesSimPage />;
+  }
+  if (path === "/lanqi/store" || path === "/lanqi/store/") {
+    return <LanqiStoreAdminPage />;
+  }
+  // 私域营销在部分入口里带前缀：`/lanqi/private-domain/moments` 也回到私域营销首页。
+  if (path.startsWith("/lanqi/private-domain/moments")) {
+    return <LanqiMomentsHomePage />;
+  }
 
   if (path.startsWith("/enterprise-knowledge-base/connection-help")) {
     return <KnowledgeConnectionHelpPage />;
@@ -322,6 +556,18 @@ function Root() {
 
   if (path.startsWith("/account")) {
     return <AccountCenterPage />;
+  }
+
+  if (path.startsWith("/recharge")) {
+    return <RechargePage />;
+  }
+
+  if (path.startsWith("/market/admin")) {
+    return <MarketplaceAdminPage />;
+  }
+
+  if (path.startsWith("/market")) {
+    return <MarketplaceHomePage />;
   }
 
   if (path.startsWith("/internal/legacy")) {
@@ -421,6 +667,7 @@ function AppFlow() {
       dataMode: result.dataMode
     });
 
+    // 一次性消费安全回跳地址：有深链就回深链，没有就按登录入口决定默认落地页。
     const redirect = takePostLoginRedirect();
     if (redirect) {
       window.location.href = redirect;
@@ -428,8 +675,15 @@ function AppFlow() {
     }
     const productDefaultPath = loginEntry !== "generic" && loginEntry !== "internal"
       ? PRODUCT_LOGIN_DEFINITIONS[loginEntry].defaultPath
-      : "/my-ai";
-    window.location.href = getAppPath(productDefaultPath);
+      : "/market";
+    const isLocalDev =
+      import.meta.env.DEV &&
+      ["localhost", "127.0.0.1"].includes(window.location.hostname);
+    const brainEntry =
+      (isLocalDev || import.meta.env.VITE_DIRECT_TEST_LOGIN === "true") && (loginEntry === "beauty-industry" || loginEntry === "lanqi")
+        ? "/lanqi/dashboard"
+        : productDefaultPath;
+    window.location.href = getAppPath(brainEntry);
   }
 
   function handleDiagnosisComplete(report: unknown, selectedPlan: string) {
@@ -528,7 +782,7 @@ function DiagnosisAwareApp({
 
           <div className="reportActions">
             <button className="reportConfirmBtn" onClick={confirmDiagnosis}>
-              进入思潼 企业AI增长飞轮 →
+              进入思潼AI 行业智能体平台 →
             </button>
             <button className="reportBackBtn" onClick={onReDiagnosis}>
               重新诊断
@@ -601,7 +855,11 @@ function formatPlanLabel(code: string): string {
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <Suspense fallback={<main className="agentProductPage" aria-busy="true" />}>
-      <Root />
+      <DirectTestLoginGate>
+        <LoginSessionGate>
+          <Root />
+        </LoginSessionGate>
+      </DirectTestLoginGate>
     </Suspense>
   </React.StrictMode>
 );

@@ -1,4 +1,4 @@
-﻿import type { FastifyInstance } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { AlignmentType, Document, Footer, Header, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 import { z } from "zod";
 import { prisma } from "@baolu/db";
@@ -18,8 +18,8 @@ const createReportSchema = z.object({
 });
 
 const createDocxSchema = z.object({
-  title: z.string().min(1).max(120).default("思潼 企业AI增长飞轮咨询报告"),
-  filename: z.string().min(1).max(180).default("思潼 企业AI增长飞轮咨询报告.docx"),
+  title: z.string().min(1).max(120).default("思潼AI 行业智能体平台咨询报告"),
+  filename: z.string().min(1).max(180).default("思潼AI 行业智能体平台咨询报告.docx"),
   content: z.string().min(1).max(120000),
   consultantName: z.string().max(40).optional(),
   consultantTitle: z.string().max(80).optional()
@@ -159,7 +159,7 @@ export async function registerReportRoutes(
 
     const context = await resolveRequestContext(request.headers);
     const branding = resolveTenantBranding(context.profile.data);
-    const requestedFilename = parsed.data.filename === "思潼 企业AI增长飞轮咨询报告.docx"
+    const requestedFilename = parsed.data.filename === "思潼AI 行业智能体平台咨询报告.docx"
       ? `${branding.brandName} ${branding.systemName}咨询报告.docx`
       : parsed.data.filename;
     const safeFilename = sanitizeDocxFilename(requestedFilename);
@@ -189,7 +189,7 @@ function sanitizeDocxFilename(raw: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 150);
-  const fallback = base || "思潼 企业AI增长飞轮咨询报告";
+  const fallback = base || "思潼AI 行业智能体平台咨询报告";
   return fallback.toLowerCase().endsWith(".docx") ? fallback : `${fallback}.docx`;
 }
 
@@ -425,7 +425,7 @@ function buildReportAgentInput(params: {
 
   return [
     `请生成《${params.title}》。`,
-    "你是思潼 企业AI增长飞轮的垂直经营增长咨询师，不是通用AI。",
+    "你是思潼AI 行业智能体平台的垂直经营增长咨询师，不是通用AI。",
     params.tenantName ? `客户：${params.tenantName}` : null,
     params.industry ? `行业：${params.industry}` : null,
     params.city ? `城市：${params.city}` : null,
@@ -485,7 +485,7 @@ function markdownToHtml(markdown: string): string {
     '<html lang="zh-CN">',
     "<head>",
     '<meta charset="utf-8" />',
-    "<title>思潼 企业AI增长飞轮经营报告</title>",
+    "<title>思潼AI 行业智能体平台经营报告</title>",
     "<style>body{font-family:Arial,'Microsoft YaHei',sans-serif;max-width:860px;margin:40px auto;line-height:1.8;color:#17211d}h1,h2{line-height:1.3}h1{font-size:28px}h2{font-size:20px;margin-top:28px}p{white-space:pre-wrap}</style>",
     "</head>",
     "<body>",

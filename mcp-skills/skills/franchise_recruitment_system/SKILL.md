@@ -1,6 +1,6 @@
 ---
 name: franchise_recruitment_system
-description: 思潼企业AI增长飞轮的连锁品牌直营获客与招商签约双轨能力
+description: 思潼AI 行业智能体平台的连锁品牌直营获客与招商签约双轨能力
 type: prompt
 version: "1.0.0"
 ---

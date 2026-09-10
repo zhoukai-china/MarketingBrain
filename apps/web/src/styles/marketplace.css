@@ -1,0 +1,762 @@
+.marketplacePage,
+.marketplaceAdminPage {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 138, 61, 0.16), transparent 34%),
+    radial-gradient(circle at 88% 12%, rgba(59, 130, 246, 0.18), transparent 30%),
+    linear-gradient(160deg, #070e1f 0%, #0b1730 48%, #081428 100%);
+  color: #eaf1ff;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.marketplaceHeader,
+.marketplaceAdminHeader {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px clamp(18px, 4vw, 52px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(7, 14, 31, 0.78);
+  backdrop-filter: blur(18px);
+}
+
+.marketplaceBrand {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.marketplaceBrand span {
+  color: #ff8a3d;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.marketplaceBrand strong {
+  font-size: 15px;
+}
+
+.marketplaceHeaderActions,
+.marketplaceAdminActions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.marketplaceWallet,
+.marketplaceGhost,
+.marketplacePrimary,
+.marketplaceMiniButton,
+.marketplaceChips button {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #eaf1ff;
+  padding: 9px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.marketplaceWallet {
+  color: #ffb070;
+}
+
+.marketplacePrimary {
+  background: #ff8a3d;
+  border-color: transparent;
+  color: #1b0c01;
+  font-weight: 700;
+}
+
+.marketplaceHero {
+  padding: 46px clamp(18px, 5vw, 72px) 28px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.marketplaceHero p {
+  margin: 0 0 8px;
+  color: #9db0d4;
+}
+
+.marketplaceHero h1 {
+  margin: 0 0 22px;
+  font-size: clamp(28px, 4vw, 46px);
+  line-height: 1.12;
+}
+
+.marketplaceSearch {
+  position: relative;
+  max-width: 620px;
+}
+
+.marketplaceSearch input {
+  width: 100%;
+  padding: 14px 68px 14px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #eaf1ff;
+  font-size: 15px;
+}
+
+.marketplaceSearch button {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: #9db0d4;
+  cursor: pointer;
+}
+
+.marketplaceChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 16px;
+}
+
+.marketplaceChips button.active {
+  background: #ff8a3d;
+  color: #1b0c01;
+  border-color: transparent;
+  font-weight: 700;
+}
+
+.marketplaceSharedBanner {
+  max-width: 1180px;
+  margin: 0 auto 24px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: linear-gradient(90deg, rgba(255, 138, 61, 0.16), rgba(59, 130, 246, 0.16));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffb070;
+  font-size: 13px;
+}
+
+.marketplaceNotice {
+  max-width: 1180px;
+  margin: 0 auto 18px;
+  padding: 12px 16px;
+  border-radius: 13px;
+  background: rgba(52, 216, 160, 0.12);
+  border: 1px solid rgba(52, 216, 160, 0.26);
+  color: #9ff3d3;
+}
+
+.marketplaceGroups {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 clamp(18px, 4vw, 24px) 56px;
+}
+
+.marketplaceZone {
+  margin-bottom: 34px;
+}
+
+.marketplaceZoneTitle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.marketplaceZoneTitle > span {
+  font-size: 26px;
+}
+
+.marketplaceZoneTitle h2 {
+  margin: 0;
+  font-size: 21px;
+}
+
+.marketplaceZoneTitle p {
+  margin: 3px 0 0;
+  color: #9db0d4;
+  font-size: 13px;
+}
+
+.marketplaceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
+  gap: 15px;
+}
+
+.marketplaceCard {
+  padding: 17px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.marketplaceCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 138, 61, 0.45);
+}
+
+.marketplaceCardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.marketplaceIcon {
+  font-size: 28px;
+}
+
+.marketplaceBadge {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255, 138, 61, 0.2);
+  color: #ffb070;
+  font-size: 11px;
+}
+
+.marketplaceCard h3 {
+  margin: 12px 0 6px;
+  font-size: 17px;
+}
+
+.marketplaceCard p {
+  margin: 0 0 10px;
+  color: #9db0d4;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.marketplaceTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.marketplaceTags span {
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #c7d5f2;
+  font-size: 11px;
+}
+
+.marketplacePrice {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.marketplacePrice strong {
+  color: #ff8a3d;
+}
+
+.marketplacePrice span {
+  color: #9db0d4;
+  font-size: 12px;
+}
+
+.marketplaceCardMeta {
+  margin-top: 9px;
+  color: #7689ad;
+  font-size: 11px;
+}
+
+.marketplaceEmpty,
+.marketplaceLoading {
+  padding: 44px;
+  text-align: center;
+  color: #9db0d4;
+}
+
+.marketplaceDetailBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.52);
+}
+
+.marketplaceDetail {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 24px;
+  border-radius: 22px;
+  background: #0b1730;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.marketplaceDetailClose {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  border: 0;
+  background: transparent;
+  color: #9db0d4;
+  font-size: 26px;
+  cursor: pointer;
+}
+
+.marketplaceDetailHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.marketplaceDetailHead h2 {
+  margin: 2px 0 0;
+}
+
+.marketplaceUseCase {
+  margin: 16px 0;
+  padding: 12px 14px;
+  border-radius: 13px;
+  background: rgba(255, 138, 61, 0.12);
+  color: #ffb070;
+  line-height: 1.5;
+}
+
+.marketplaceDetailBlocks {
+  display: grid;
+  gap: 12px;
+}
+
+.marketplaceDetailBlocks > div {
+  padding: 13px 14px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.marketplaceDetailBlocks h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #ff8a3d;
+}
+
+.marketplaceDetailBlocks p {
+  margin: 0;
+  color: #c7d5f2;
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+.marketplaceDetailActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.marketplaceDetailNote {
+  margin: 14px 0 0;
+  color: #7689ad;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.marketplaceAdminPage {
+  color: #eaf1ff;
+}
+
+.marketplaceAdminHeader {
+  background: rgba(7, 14, 31, 0.9);
+}
+
+.marketplaceAdminNav {
+  display: flex;
+  gap: 8px;
+  padding: 16px clamp(18px, 4vw, 52px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.marketplaceAdminNav button {
+  border: 0;
+  border-radius: 999px;
+  padding: 9px 16px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #c7d5f2;
+  cursor: pointer;
+}
+
+.marketplaceAdminNav button.active {
+  background: #ff8a3d;
+  color: #1b0c01;
+  font-weight: 700;
+}
+
+.marketplaceAdminOverview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  padding: 24px clamp(18px, 4vw, 52px);
+}
+
+.marketplaceAdminOverview article {
+  padding: 20px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.marketplaceAdminOverview span {
+  display: block;
+  color: #9db0d4;
+  font-size: 13px;
+}
+
+.marketplaceAdminOverview strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 30px;
+  color: #ff8a3d;
+}
+
+.marketplaceAdminError {
+  margin: 20px clamp(18px, 4vw, 52px);
+  padding: 13px 16px;
+  border-radius: 13px;
+  background: rgba(255, 107, 107, 0.14);
+  color: #ffb3b3;
+}
+
+.marketplaceAdminTable {
+  padding: 24px clamp(18px, 4vw, 52px) 60px;
+  overflow-x: auto;
+}
+
+.marketplaceAdminSectionTitle {
+  margin-bottom: 14px;
+}
+
+.marketplaceAdminSectionTitle h2 {
+  margin: 0;
+}
+
+.marketplaceAdminSectionTitle p {
+  margin: 4px 0 0;
+  color: #9db0d4;
+}
+
+.marketplaceAdminTable table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.marketplaceAdminTable th,
+.marketplaceAdminTable td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+}
+
+.marketplaceAdminTable th {
+  color: #9db0d4;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.marketplaceMiniButton {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+@media (max-width: 700px) {
+  .marketplaceHeader,
+  .marketplaceAdminHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .marketplaceHeaderActions,
+  .marketplaceAdminActions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .marketplaceGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .marketplaceDetail {
+    padding: 20px;
+  }
+}
+
+.marketplaceDetailPage,
+.marketplaceMinePage {
+  min-height: 100vh;
+  padding: 24px 28px 64px;
+}
+
+.marketplaceDetailBody {
+  max-width: 980px;
+  margin: 28px auto 0;
+}
+
+.marketplaceDetailBody .marketplaceDetailHead {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.marketplaceDetailBody .marketplaceDetailHead h1 {
+  margin: 2px 0 4px;
+  font-size: 30px;
+}
+
+.marketplaceDetailBody .marketplaceUseCase {
+  margin: 22px 0;
+  font-size: 17px;
+}
+
+.marketplaceDetailBody .marketplaceDetailActions {
+  margin-top: 18px;
+}
+
+.marketplaceMineSection {
+  max-width: 980px;
+  margin: 30px auto 0;
+}
+
+.marketplaceMineSection h1 {
+  font-size: 30px;
+  margin-bottom: 10px;
+}
+
+.marketplaceMineSection h2 {
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+
+.marketplaceMineBalance {
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #eaf1ff;
+}
+
+.marketplaceMineBalance strong {
+  color: #ff8a3d;
+  font-size: 22px;
+}
+
+.marketplaceMineTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.marketplaceMineTable th,
+.marketplaceMineTable td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: #eaf1ff;
+}
+
+.marketplaceMineTable th {
+  color: #9db0d4;
+  font-weight: 600;
+}
+
+.marketplaceEmptyText {
+  color: #9db0d4;
+}
+
+.marketplaceChatPanel {
+  margin-top: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.marketplaceChatPanel textarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #eaf1ff;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.marketplaceChatPanel textarea:focus {
+  outline: none;
+  border-color: rgba(255, 138, 61, 0.7);
+}
+
+.marketplaceChatCost {
+  color: #ffb070;
+  font-weight: 600;
+}
+
+.marketplaceChatAnswer {
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  white-space: pre-wrap;
+  line-height: 1.75;
+}
+
+.marketplaceZoneSoon {
+  opacity: 0.72;
+}
+
+.marketplaceZoneSoonText {
+  color: #9db0d4;
+  margin: 0 0 8px;
+}
+
+.ind-card {
+  margin: 18px 0;
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 138, 61, 0.28);
+  border-radius: 14px;
+  background: rgba(255, 138, 61, 0.06);
+}
+
+.ind-h {
+  color: #ffb070;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.ind-row {
+  display: flex;
+  gap: 12px;
+  margin: 7px 0;
+  line-height: 1.6;
+}
+
+.ind-row span {
+  flex: 0 0 72px;
+  color: #9db0d4;
+}
+
+.ind-row b {
+  color: #eaf1ff;
+  font-weight: 500;
+}
+
+.ind-row.red b {
+  color: #ff6b6b;
+}
+
+[data-theme="light"] .marketplacePage,
+[data-theme="light"] .marketplaceAdminPage {
+  background: #f4f7fb;
+  color: #10213c;
+}
+
+[data-theme="light"] .marketplaceHeader,
+[data-theme="light"] .marketplaceAdminHeader {
+  border-bottom-color: rgba(20, 35, 60, 0.1);
+}
+
+[data-theme="light"] .marketplaceCard,
+[data-theme="light"] .marketplaceDetail,
+[data-theme="light"] .marketplaceMineTable th,
+[data-theme="light"] .ind-card {
+  background: rgba(255, 255, 255, 0.86);
+  border-color: rgba(20, 35, 60, 0.12);
+  color: #10213c;
+}
+
+[data-theme="light"] .marketplaceCard h3,
+[data-theme="light"] .marketplaceDetail h2,
+[data-theme="light"] .marketplaceDetail h1,
+[data-theme="light"] .marketplaceMineSection h1,
+[data-theme="light"] .marketplaceMineSection h2,
+[data-theme="light"] .ind-h {
+  color: #10213c;
+}
+
+[data-theme="light"] .marketplaceCard p,
+[data-theme="light"] .marketplaceDetail p,
+[data-theme="light"] .marketplaceMineBalance,
+[data-theme="light"] .ind-row b {
+  color: #3a4a63;
+}
+
+.marketplaceIndustryList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 980px;
+}
+
+.marketplaceIndustryEditor {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  padding: 16px 18px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.marketplaceIndustryEditor summary {
+  cursor: pointer;
+  color: #eaf1ff;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.marketplaceIndustryEditor label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0;
+  color: #9db0d4;
+  font-size: 13px;
+}
+
+.marketplaceIndustryEditor textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #eaf1ff;
+  font-size: 13px;
+}
+
+.marketplaceIndustryEditorStatus {
+  margin-left: 10px;
+  color: #34d8a0;
+}
+
+[data-theme="light"] .marketplaceIndustryEditor {
+  background: #fff;
+  border-color: rgba(20, 35, 60, 0.14);
+}
+
+[data-theme="light"] .marketplaceIndustryEditor summary {
+  color: #10213c;
+}
+
+[data-theme="light"] .marketplaceIndustryEditor textarea {
+  color: #10213c;
+  background: #fff;
+}

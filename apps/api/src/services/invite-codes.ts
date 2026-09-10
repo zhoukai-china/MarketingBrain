@@ -75,7 +75,10 @@ export async function validateInviteCode(
   // code still carries product and tenant-brand authority. Skipping its lookup
   // would silently discard that server-owned assignment and turn a Lanqi invite
   // into the neutral beauty brand.
-  if (!inviteRequired && !normalized) {
+  // 开放注册只放开「平台主入口」（无 productCode）。产品入口（美业 / 兰琪 / 创始人 IP / 外卖）
+  // 的开通凭证就是产品邀请码，必须始终校验：否则把 beta-login / create-workspace 的
+  // inviteCode 字段留空就能绕过产品授权，白拿受控产品的租户与品牌归属。
+  if (!inviteRequired && !normalized && !productCode) {
     return { ok: true, source: "disabled" };
   }
   if (!normalized) {

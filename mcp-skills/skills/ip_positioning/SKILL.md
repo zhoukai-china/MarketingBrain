@@ -1,6 +1,6 @@
-﻿---
+---
 name: ip_positioning
-description: 思潼企业AI增长OS - ip positioning
+description: 思潼AI 行业智能体平台 - ip positioning
 type: prompt
 version: "1.0.0"
 ---

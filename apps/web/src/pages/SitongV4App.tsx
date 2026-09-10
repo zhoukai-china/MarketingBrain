@@ -120,7 +120,7 @@ export function SitongV4App() {
       <header className="v4Topbar">
         <button className="v4Brand" onClick={() => navigate({ page: "home" })}>
           <span>思潼</span>
-          <strong>企业 AI 增长 OS</strong>
+          <strong>思潼AI 行业智能体平台</strong>
         </button>
         <nav aria-label="业务类型导航">
           {v4EntryList.map((entry) => (

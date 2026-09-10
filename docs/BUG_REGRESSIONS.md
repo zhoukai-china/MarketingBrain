@@ -1,5 +1,155 @@
 # Bug 回归台账
 
+## QA-20260910-021：开放注册下 `/auth/beta-login` 仍把邀请码当必填（400）＋ «无邀请码即放行» 会放过产品入口（P1，平台登录入口，TEST + PROD 已复验）
+
+- 现象（真实测试实例，非合成）：产品拍板「去掉邀请码，只留微信一键登录 / 注册」并把 `INVITE_REQUIRED=false` 下发到实例后，`POST /auth/beta-login` 不带邀请码直接返回 `400 invalid_request`，根本走不到服务端的放行分支。也就是说「登录页说不需要邀请码、接口仍拒绝建号」的不一致态。
+- 修复前红灯证据（`https://api.lcppch.top/lanqi-test/api`，本轮部署前实测）：
+  - 空串 `{"inviteCode":""}` → `http=400 {"error":"invalid_request","details":{"fieldErrors":{"inviteCode":["String must contain at least 1 character(s)"]}}}`
+  - 缺字段 `{}` → `http=400 {"fieldErrors":{"inviteCode":["Required"]}}`
+  - 乱码邀请码 → `http=403 invite_code_not_found`
+  - 带产品码且缺邀请码 → `http=400 {"fieldErrors":{"inviteCode":["Required"]}}`
+- 根因（两层，缺一不可）：
+  1. `apps/api/src/routes/auth.ts` 的 `betaLoginSchema.inviteCode` 是 `z.string().trim().min(1).max(200)`，schema 在 `validateInviteCode` 之前就把缺省值打成 400；服务端开关 `INVITE_REQUIRED` 的放行分支（`invite-codes.ts` 里的 `!inviteRequired`）永远拿不到无邀请码的请求。
+  2. 自查发现的越权风险：`/auth/onboarding/create-workspace` 的 `inviteCode` 本来就是 `optional()`，如果把 `validateInviteCode` 改成「无邀请码即放行」，那么带 `productCode`（美业 / 兰琪 / 创始人 IP / 外卖）的请求就能**不填邀请码**拿到受控产品的租户与品牌归属。
+- 最小修复：
+  - `apps/api/src/routes/auth.ts`：`betaLoginSchema.inviteCode` 改为 `z.string().trim().max(200).optional()`；**产品入口专用的 `productInviteValidationSchema` 仍保持 `.min(1)` 必填**，两条路径语义分离。
+  - `apps/api/src/services/invite-codes.ts`：放行条件由 `!inviteRequired && !normalized` 收紧为 `!inviteRequired && !normalized && !productCode`——开放注册只放开平台主入口，产品入口的凭证（产品邀请码）始终校验。
+  - `apps/web/src/pages/LoginPage.tsx`（generic 平台入口分支）：`invitesNeeded` 为假时不再渲染任何邀请码入口与邀请码输入框，只保留「微信一键登录 / 注册」；微信不可用（`wechatReady===false`）时才回落到人工开通表单。产品入口（`product` 分支）未改动。
+  - `scripts/product-login-entry-smoke.mjs` 增加 8 条契约断言（beta schema 可缺省、产品 schema 仍必填、`!productCode` 条件、`invite_code_required` 分支保留、登录页不得再出现「有邀请码？用邀请码开通」与「选填：用于记录邀请渠道」、`showInviteForm` 表达式、邀请码输入框只在 `invitesNeeded` 下渲染）。
+- 修复后证据（同一实例，部署 `20260910-open-registration-test` 之后实测）：
+  - `beta-login {}` → `200`，建号成功（`dataMode=database`，`plan=local_standard`，新账号 `creditBalance=0`，与「新用户不赠送积分」口径一致）。
+  - `beta-login {"inviteCode":""}` → `200`。
+  - `beta-login {"inviteCode":"bogus-code-xyz","productCode":"beauty-industry"}` → `403 invite_code_not_found`（产品入口未被绕过）。
+  - `product-invite/validate {"productCode":"beauty-industry","inviteCode":""}` → `400`（产品 schema 仍必填）。
+  - 真实浏览器（本机 production 构建 + 反代到测试实例，`scripts/tmp/local-prod-login-preview.mjs`）：开放注册下登录页只渲染「微信一键登录 / 注册」+ 文案「首次使用微信登录，会自动为你注册账号并开通工作区，不需要邀请码。」，`forms=0 / inputs=0 / 带邀请码按钮=0`；同一构建把 `/auth/wechat-config` 改写成 `inviteRequired=true` 做负向对照，邀请制路径仍渲染「使用邀请码开通」入口 + 邀请码必填表单。两次 `prod_login_entry_readonly_check:PASS`，console 0 错误。
+- 回归命令：`pnpm.cmd auth:product-login-smoke`、`pnpm.cmd qa:fast`；实例级：`node scripts/tmp/prod-login-entry-readonly-check.mjs`（本机 production 预览实例）。
+- 状态：**TEST + PROD 均已复验**。TEST：`/opt/baolu-os-v2-test`，发布 id `20260910-open-registration-test`；PROD：随兰琪 LQ-18 收口包 `release-20260910-lanqi-moments-wechat-asset.tar.gz` 于 2026-09-10 上线（发布 id `20260910-lanqi-lq18-closeout-prod1`，`DEPLOY_OK` + 健康 200（after 15s）/ ready 200）。生产只读复验：`https://api.lcppch.top/os-v2/api/auth/wechat-config` 返回 `{"configured":true,"inviteRequired":false}`，`scripts/tmp/prod-login-entry-readonly-check.mjs` → `prod_login_entry_readonly_check:PASS`（`invite_mode=open-registration`，`/os-v2/login` 只渲染「微信一键登录 / 注册」，无邀请码表单，console 0 错误）。**注意边界**：开放注册只放开平台主入口；产品入口（兰琪 / 美业）仍要求产品邀请码，而生产当前没有任何 `lanqi` 邀请码，见下方 QA-20260910-020 状态与 `docs/CURRENT_DEPLOYMENT_STATUS.md`。
+- 补充复验（2026-09-10 21:2x，本轮收尾；同一实例、非合成）：
+  - TEST（`https://api.lcppch.top/lanqi-test/api`，`scripts/tmp/open-registration-test-verify.mjs`）**6/6 PASS**：`wechat-config.inviteRequired=false`；`beta-login` 空串邀请码与缺省邀请码均 `200` 建号成功（修复前 `400 fieldErrors.inviteCode`）；无效邀请码 `403 invite_code_not_found`；**带 `productCode=lanqi` 且空邀请码 `403 invite_code_required`**（产品入口未被绕过）；`product-invite/validate` 空邀请码 `400`（产品 schema 仍必填）。
+  - 部署产物核对（TEST，只读）：`/lanqi-test/index.html` 实际加载的 `assets/LoginPage-DD4lyfsO.js` 中已无「有邀请码？用邀请码开通」「选填：用于记录邀请渠道」字面量，同时存在「不需要邀请码」「微信一键登录」。注意 `dist/assets` 下仍留有历史 `LoginPage-*.js` 旧 chunk（全量叠加发布不删除历史文件），但 `index.html` 不引用它们。
+  - 渲染复验（本机 production 构建，真实 Chromium）：新增 `scripts/tmp/probe-login-open-registration.mjs`，用 CDP 在**响应层**改写 `/auth/wechat-config` 的 `inviteRequired`，分别渲染两个分支——开放注册只留「微信一键登录 / 注册」；邀请制仍渲染「使用邀请码开通」+ 邀请码必填表单，两种模式 `consoleErrors=[]`。
+  - PROD 只读 + **不建号**安全探针：`POST /os-v2/api/auth/beta-login {"inviteCode":"","tenantName":""}` → `400` 且 `fieldErrors` 只有 `tenantName`（若 `inviteCode` 仍必填，这里会同时出现 `inviteCode` 报错）；`{"inviteCode":"code-does-not-exist-0910"}` → `403 invite_code_not_found`；`prod-login-entry-readonly-check:PASS`，`/os-v2/login` 截图确认只剩「微信一键登录 / 注册」。
+  - 本轮真实支付验收（chat-test，¥50 最小档）**部分完成**：用户本人扫码已确认「扫码 → 微信支付付款页面」正常，但**未实际付款**，因此「回调 → `RechargeOrder.paid` → 钱包入账」仍未验证（DB 实测 3 张单 `pending`、`paidBalance=0`、无 `WalletLedger` 充值流水，未产生资金损失）。明天续做见 `docs/CURRENT_DEPLOYMENT_STATUS.md` 本轮小节。
+
+## QA-20260910-020：微信群营销话术「生成不了」——主题被当必填 + 按钮禁用不说明原因（P1，LQ-18，已关闭）
+
+- 现象（用户报障，非合成）：用户在内测实例打开「私域营销 → 微信群话术」，填了内容却「生成不了」；同一时段朋友圈页 `POST /lanqi/moments/upgrade` 正常 200，说明不是整站或登录问题。
+- 真实环境证据：`journalctl -u baolu-os-v2-test` 从打开该页到离开，**没有任何 `POST /lanqi/moments/wechat-group`**；同租户 `GET /lanqi/stores` 连续 200。后端没被调用过 → 症状在前端。另用探针直接打后端 `POST /lanqi/moments/wechat-group` → 200（约 2.0s，5/5 合规检查 ok），证明**接口本身是好的**。
+- 根因（三层，缺一都还会复现）：
+  1. `apps/web/src/pages/LanqiMomentsWechatGroupPage.tsx` 按钮条件是 `disabled={loading || !storeId || !topic || !detail}`——把「主题」当必填；老板只填「具体内容」时按钮永远灰着。
+  2. 灰着**不告诉原因**：页面没有任何禁用说明，和 QA-20260910-014 Bug9 的「按钮禁用无原因」是同一类，只是这次落在微信群子页。
+  3. 后端同样把主题当必填：`WechatGroupInput.topic` 必填、缺主题抛「请填写要聊的主题」；且 Provider 侧错误串（`deepseek_provider_http_error` / `llm_provider_not_configured`）会被前端 `readResponse` 直接渲染到页面，违反 LQ-18 验收条件 3「不暴露模型名/厂商名」。
+- 修复前红灯（新增 `scripts/lanqi-moments-wechat-group-flow.mjs`，真实 Chromium 打内测实例，修复前的旧构建）：`3 passed, 3 failed`——`只填「具体内容」即可生成群话术（主题可为空）` FAIL（`fill=filled disabled=true reason=null`）、`具体内容为空时按钮禁用且写明原因（不得静默变灰）` FAIL（`blockedReason=null`）、`「具体内容」字段有可见必填提示` FAIL（`detailHint=""`）。
+- 最小修复：
+  - `apps/api/src/products/beauty-industry/moments-service.ts`：`WechatGroupInput.topic` 改可选；新增导出 `resolveWechatTopic(topic, detail, scene)`——填了用填的，没填就从「具体内容」按 `\n。！？!?；;` 取第一句截断 18 字当标题，实在没有才回落场景名；新增内部 `rawInputLength(topic, detail)`，主题留空时 `rawLen` **只算具体内容**，不把派生标题重复计入字数；`generateWechatGroup` / `generateWechatGroupLlm` 都去掉「请填写要聊的主题」抛错。
+  - `apps/api/src/routes/moments.ts`：`WECHAT_SCHEMA.topic` 改 `z.string().trim().max(100).optional()`；新增 `userFacingGenerationError(kind)`，微信群/配图两类生成失败只回一句人话（「群话术这次没生成出来，稍后再点一次；刚才填的内容还在，不用重填。」），原始报错走 `request.log.error`；输入类（`INVALID_MSG`）仍按 422 原文回显，因为那是给老板看的填表提示。
+  - `apps/web/src/pages/LanqiMomentsWechatGroupPage.tsx`：提交时 `topic: topic.trim()`；新增 `trimmedDetail` / `blockedReason` / `canGenerate`，loading、门店未就绪、具体内容为空三种情况分别给可见中文原因；主题 label 标「可选」+ placeholder「不填就按「具体内容」自动起标题」，具体内容 label 标「必填」；按钮 `disabled={!canGenerate}`，上方渲染 `data-lanqi-wechat-blocked` 原因行。
+  - `apps/web/src/styles/lanqi-moments.css`：新增 `.lq-moments__opt` / `.lq-moments__req` / `.lq-moments__reason`。
+- 回归测试：`scripts/lanqi-moments-wechat-smoke.ts` 删掉旧断言「缺主题拒绝」（那条断言锁的正是引发本 Bug 的旧语义），换成 5 条新断言：缺主题不再拒绝 / 缺主题时 `rawLen` 只算具体内容 / 显式主题优先 / 派生主题取第一句截断 18 字 / 无可派生文字回落场景名。新增页面级回归 `scripts/lanqi-moments-wechat-group-flow.mjs`（可机读断言，默认**不**点生成以免产生模型费用；`--generate` 才真出稿）。
+- 绿灯：`pnpm.cmd lanqi:moments-smoke` → service 20/0、wechat 13/0（`MOMENTS_EXIT=0`）；`pnpm.cmd --filter @baolu/api exec tsc -p tsconfig.json --noEmit`、`pnpm.cmd --filter @baolu/web exec tsc --noEmit` 均 exit 0；本机页面级实测 `detailHint="具体内容必填"`、空内容 `blockedReason="还要填「具体内容」…"`（后两条红灯断言转为 PASS）。
+- 测试实例复验（2026-09-10，`https://api.lcppch.top/lanqi-test`，发布包 `release-20260910-lanqi-moments-wechat-asset`）：页面级脚本 `scripts/lanqi-moments-wechat-group-flow.mjs`（命令 `pnpm.cmd lanqi:moments-wechat-group-flow --base https://api.lcppch.top/lanqi-test`）**6 passed / 0 failed**——① 微信群话术页可达并渲染四个字段 + 生成按钮；② 门店门禁无阻断（`gates=[]`）；③ 只填「具体内容」时按钮 `disabled=false`（本 Bug 原场景，修复前 `fill=filled disabled=true reason=null`）；④ 具体内容为空时按钮禁用并写明原因（`blockedReason="还要填「具体内容」——把要说的话写进来，就能生成。"`，修复前 `blockedReason=null`）；⑤ 「具体内容」字段有可见必填提示（`detailHint="具体内容必填"`、主题 `topicHint=""`）；⑥ console 0 / page 0 错误。证据 `%TEMP%\lq-wechat-group-flow\wechat-group-flow.json` + `wechat-group.png`。
+- 状态：**已关闭（本地 + 测试实例；生产已上线待授权复验）**。生产发布 `20260910-lanqi-lq18-closeout-prod1`（2026-09-10）已把本修复带上线——只读核对生产 `dist`：`apps/api/dist/apps/api/src/routes/moments.js` 命中 `userFacingGenerationError`（3 处）、`.../products/beauty-industry/moments-service.js` 命中 `resolveWechatTopic`（3 处）。但生产 `/lanqi` 作用域仍无 `lanqi` entitlement（实测 0 行），**生产可用性待生产 `lanqi` 授权确认后复验**（见 `docs/CURRENT_DEPLOYMENT_STATUS.md` 与 `docs/agents/lanqi-beauty/STATUS.md`）。
+
+## QA-20260910-022：AI 配图「没有正常生成」——资产 URL 落在美业单品作用域，兰琪租户取图 403 变成破图（P1，LQ-18，已关闭）
+
+- 现象（用户报障，非合成）：点「生成配图」后按钮走完、也回了成功，但图片位置是破图。用户看到的是「AI 配图没有正常生成」。
+- 真实环境证据：`journalctl -u baolu-os-v2-test` 同一时刻 `POST /lanqi/moments/image 200`（约 16.9s，真实生图确实成功），紧接着 `GET /beauty-industry/moments/assets/0410c034-… 403`。UA 是 `QuarkPC/7.1.5.968`，即真实浏览器，不是探针。
+- 根因：`apps/api/src/products/beauty-industry/moments-image.ts` 里 `DEFAULT_ASSET_BASE_PATH = "/beauty-industry"`，返回的 `asset.url` 硬编码成美业单品作用域；而兰琪租户没有 `beauty-industry` entitlement，`server.ts` 给该作用域挂了 `requireProductEntitlement("beauty-industry")` → 取图必然 403。前端 `fetch(...).blob()` 不校验状态码，把 JSON 错误体塞进 `<img>`，于是表现为破图。**生图是好的，取图作用域错了**。
+- 修复前红灯（`scripts/lanqi-moments-asset-scope-smoke.ts`，把 `assetBasePath` 改回 `undefined` 复现）：`5 passed / 4 failed`，`url=/beauty-industry/...`、取回 404/JSON。
+- 最小修复：`moments-image.ts` 新增 `normalizeAssetBasePath()` 并让 `generateMomentImage({ assetBasePath })` 接受作用域；`apps/api/src/routes/moments.ts` 的 `POST {base}/moments/image` 传 `assetBasePath: basePath`（`/beauty-industry` 与 `/lanqi` 两条注册都自动正确）。
+- 绿灯：`pnpm.cmd lanqi:moments-asset-scope-smoke` → `9 passed, 0 failed`（`ASSET_EXIT=0`）——返回 `/lanqi/moments/assets/<id>`，同作用域取回 `200` + `image/png` + 70 B 真 PNG 字节；反向断言「美业单品作用域对兰琪租户 403」「跨租户取图 404」仍然成立。
+- 部署实例复验（2026-09-10，新增 `scripts/lanqi-moments-asset-deployed-check.mjs`，命令 `pnpm.cmd lanqi:moments-asset-deployed-check`）：本机 smoke 只能证明契约，看不到实例上真正注册的路由与真正生效的 entitlement，因此补一条打**已部署实例**的脚本——用 `POST {base}/api/auth/dev-login` 取两个不同兰琪租户，播一条 1×1 合成 PNG，断言四条对外契约，收尾按本轮 tenantId 精确回收合成资产与两个一次性租户。结果 **5 passed / 0 failed**：① 租户 A `GET /api/lanqi/moments/assets/<id>` → `200` + `image/png` + 70 B + PNG 魔数 `89504e470d0a1a0a`；② 同 token 打 `/api/beauty-industry/moments/assets/<id>` → `403`（**这就是用户当时看到的破图成因**，修复后仍然守着旧作用域边界）；③ 租户 B → `404`（租户隔离）；④ 匿名 → `401`（鉴权门禁仍在）；⑤ `/api/lanqi/stores` → `200`（兰琪租户自身作用域可用）。复跑后实例回到基线：`LanqiMomentAsset` 真实数据 5 条不变、`Lanqi Asset Scope Verify*` 一次性租户残留 0、`lq18-scope-verify-0001.png` 文件 0。
+- 状态：**已关闭（本地 + 测试实例；生产已上线待授权复验）**。生产发布 `20260910-lanqi-lq18-closeout-prod1`（2026-09-10）已把本修复带上线——只读核对生产 `dist`：`.../products/beauty-industry/moments-image.js` 命中 `normalizeAssetBasePath`（2 处）。但生产 `/lanqi` 作用域仍无 `lanqi` entitlement（实测 0 行），**生产可用性待生产 `lanqi` 授权确认后复验**（见 `docs/CURRENT_DEPLOYMENT_STATUS.md`）。
+
+## QA-20260910-019：交互式 SSH 会话中断导致生产发布脚本在备份阶段被打断，回滚报 `tar: Unexpected EOF`（P2，发布工具，已关闭）
+
+- 现象：首次把 `20260910-copy-neutral-refcase` 发布到生产时，部署脚本跑到「第 5 步打包 200MB 备份」时，外层交互式 SSH 会话断开，脚本与 `tar` 一并被终止，回滚分支输出 `tar: Unexpected EOF`。
+- 根因：`deploy-release.sh` 在前台运行，生命周期绑定在**交互式 SSH 会话**上；会话一断（网络抖动 / 终端超时 / 客户端关闭），正在跑的备份和后续步骤收到 HUP 被杀。备份包只写了一半 → `tar` 解包时 `Unexpected EOF`。这是**编排方式**缺陷，不是脚本逻辑或数据损坏。
+- 影响与核验：发布未完成，但**未造成损坏**——事后只读核对生产 `dist` 哈希与 `dist-hashes-before.txt` **完全一致**，`baolu-os-v2` 服务 200 / `health` 200，业务无感知。
+- 最小修复（操作口径，非代码）：长部署一律用**脱离会话**的方式跑——`sudo setsid nohup bash /tmp/deploy-release.sh <id> <app> … > /tmp/deploy-<id>-<app>.log 2>&1 < /dev/null &`，然后 `tail -f` 日志观察；不再用交互式 SSH 前台跑。
+- 修复后复验：用 `setsid nohup` 重跑 → 日志结尾 `DEPLOY_OK 20260910-copy-neutral-refcase-prod2`，健康 200（after 15s）/ ready 200；备份目录 `/opt/baolu-backups/20260910-copy-neutral-refcase-prod2-before-baolu-os-v2/` 完整（`app-before.tar.gz` 204661382 B、`db-before.sql.gz` 7753579 B）。
+- 自动化缺口：`tar: Unexpected EOF` 目前靠人眼识别；未加「备份包可完整解压」自检。补齐计划：在备份步骤后加 `tar -tzf app-before.tar.gz > /dev/null` 校验，失败即中止发布（下一轮发布工具任务）。
+- 风险等级：P2（发布工具/运维流程；本次未造成数据或服务损坏）。**已关闭**。
+
+## QA-20260910-017：通用「文案智能体」的输出参考案例串了美业样例（方案②，P1，**生产已发布并复验**）
+
+- 现象（真实生产页面，非合成）：创始人 IP 专区（通用专区）的 `/agent/ipzone__copy` 点「👀 输出参考案例 · 不消耗积分」，弹窗里是美业样例——`输入：美业门店 · 卖点=不破皮项目 · 目标=引流到店`、`「做了 16 年美容，我最怕客人进门就问一句：你们这个会不会破皮？」`、话题标签 `#美业老板 #不破皮 #皮肤管理 #美容院经营`。同一内核在美业专区的 `meiye__copy` 弹窗内容**逐字相同**。用户反馈原话：「文案智能体的输出参考案例不对」。修复前截图：`%TEMP%\ref-case-prod-before-0910\{ipzone__copy,meiye__copy}.png`（两图内容一致）。
+- 根因：`apps/web/src/pages/MarketplaceApp.tsx` 取样例用的是 `referenceCaseFor(coreSkuCode(sku.skuCode))`，`ipzone__copy` 与 `meiye__copy` 归一后内核都是 `copy`，于是共用同一条案例；而 `reference-cases.ts` 里那条通用案例写的就是美业内容。受影响的不止文案：同批共用内核共 4 条——`copy` / `topic` / `livescript` / `moments`（`topic` 的「美业连锁 / 一家店月耗卡 300 次 / 我们的新仪器」、`livescript` 的「美业门店 / 扣肤质领自测表 / 加赠一次护理」、`moments` 的「美业老板 / 床位利用率不到 40% / 复购周期」）。这不是模型或缓存问题，是通用样例与行业样例放在同一张表里。
+- 方案②（用户 2026-09-10 拍板）：**通用样例中性化；行业专属样例放回各行业专区自己的内核**。这里的取舍是「不写行业词」而不是「删掉行业样例」，所以美业专区必须仍然拿得到美业样例。
+- 最小修复（2 处生产源码 + 1 处守护）
+  - `apps/web/src/marketplace/reference-cases.ts`：4 条共用内核中性化——`copy`→`本地门店 · 卖点=到店体验`；`topic`→`本地连锁门店 / 一家店一个月接待 300 组客人 / 新买的设备`；`livescript`→`本地门店 / 扣关键词领对比表 / 满 20 单加赠一次到店体验`；`moments`→`本地门店老板 / 预约档期空着大半 / 回访节奏`。文件顶部写明契约「通用案例不得出现行业词，行业样例走 `INDUSTRY_REFERENCE_CASES`」。
+  - 同文件新增 `INDUSTRY_REFERENCE_CASES`（按**完整 SKU 代码**命中）+ `referenceCaseForSku(skuCode)`：`meiye__copy` / `meiye__topic` / `meiye__livescript` / `meiye__moments` 恢复为美业样例，内容从修复前生产包逐字取回（不是新写的内容）。
+  - `apps/web/src/pages/MarketplaceApp.tsx` 改走 `referenceCaseForSku(sku.skuCode)`：行业专区取自己的样例，通用专区回落中性样例。
+- 修复前红灯（两次，均在本机实测）
+  - ① 本卡自身的红灯：新增 `scripts/marketplace-reference-case-neutral-smoke.ts` 后，把通用 `copy` 临时改回旧美业样例 → FAIL `ipzone__copy 的参考案例不得出现美业行业词`；把美业样例临时挂到通用专区键 `ipzone__copy` → FAIL，报错即用户投诉的那句 `FAIL: ipzone__copy 的参考案例不得出现美业行业词`。
+  - ② 守护自检：脚本内置「历史红灯样例」（修复前生产上 `ipzone__copy` 真实渲染的那三行美业文案）必须被判为命中，否则直接 FAIL；把通用 `topic` 临时塞一个「美业」→ FAIL `topic: 通用参考案例出现行业词「美业」`。
+- 绿灯（修复后）：`pnpm.cmd marketplace:reference-case-neutral-smoke` PASS（`通用内核 9 个：ip-pos, topic, copy, vidrev, livescript, liverev, sales, moments, ip-pack`）。断言覆盖：4 条共用内核无行业词；通用专区每个 SKU 解析出的样例都不得含任何非通用专区行业词；`INDUSTRY_REFERENCE_CASES` 不得挂在通用专区；每条行业专属样例必须命中本专区行业词（否则应并回通用中性样例）；`meiye__copy` 必须保留；`referenceCaseForSku` 必须按完整 SKU 命中。
+- 页面复验（本机 `vite dev` 5174 + API 3011，真实 Chromium，非合成；`scripts/tmp/prod-reference-case-readonly-check.mjs`）：`ipzone__copy` → 弹窗 `输入：本地门店 · 卖点=到店体验 · 目标=引流到店`、正文「差的不在说法，在标准」、标签 `#本地生意 #开店日常 #到店体验 #门店经营`，无任何美业词；`meiye__copy` → 恢复 `输入：美业门店 · 卖点=不破皮项目`、「做了 16 年美容…会不会破皮」、`#美业老板 #不破皮 #皮肤管理 #美容院经营`；`ipzone__moments` 中性 / `meiye__moments` 美业，两边分别正确。截图：`%TEMP%\ref-case-neutral-0910e\*.png`（已逐张目视确认）。
+- 测试：`pnpm.cmd marketplace:reference-case-neutral-smoke` PASS；`pnpm.cmd --filter @baolu/web typecheck` PASS；`pnpm.cmd qa:fast` PASS；`pnpm.cmd auth:product-login-smoke` PASS；`pnpm.cmd --filter @baolu/web build` PASS。
+- 风险等级：P1（用户实际看到不属于自己行业的样例，且已反馈到生产）。
+- 生产发布（2026-09-10）：发布 id `20260910-copy-neutral-refcase-prod2`，包 sha256 `c1ef1da392c2d60f2ce8b9d9e0da3a83b29b853c572cbe657a6560932bccf063`（与 `release-20260910-copy-neutral-refcase.tar.gz` 一致），`DEPLOY_OK` + 健康 200（after 15s）/ ready 200；同包先发 `chat-test`（id `20260910-copy-neutral-refcase-test`）。生产入口 `assets/index-D2Psnwlm.js`，货架 chunk 由旧包 `MarketplaceApp-DVvMwzZt.js` 换成 **`assets/MarketplaceApp-NXm7kVbh.js`（51282 B）**。
+- 生产复验（线上只读，真实 Chromium，非合成；`scripts/tmp/prod-reference-case-readonly-check.mjs`）：`ipzone__copy` → `beautySample=false`，弹窗 `输入：本地门店 · 卖点=到店体验 · 目标=引流到店`、标签 `#本地生意 #开店日常 #到店体验 #门店经营`，**无任何美业词**；`meiye__copy` → `beautySample=true`，恢复 `输入：美业门店 · 卖点=不破皮项目`、`#美业老板 #不破皮 #皮肤管理 #美容院经营`。chunk 内容核对：同一份 `MarketplaceApp-NXm7kVbh.js` 内 `本地门店`/`#本地生意` 与 `美业门店`/`#美业老板` 共存，即通用走中性、美业保留行业样例。截图 `%TEMP%\ref-case-prod-0910b\`。
+- 绿灯（生产复验同批）：`pnpm.cmd marketplace:reference-case-neutral-smoke` PASS；`pnpm.cmd auth:product-login-smoke` PASS；`deployed_marketplace_browser_check:PASS`（`shelf / credits_yuan / coming_soon_count=45 / detail_redo_copy / direct_test_entry / console_clean`）。
+- 状态：**已关闭（本地 + 测试 + 生产全部复验）**。
+
+## QA-20260910-018：已失效的本地 token 把用户从 `/login` 弹回货架 → 登录死循环；同批 `main.tsx` 重复声明导致前端整包编译失败（P1，**生产已发布并复验**）
+
+- 现象（用户反馈，生产）：`https://api.lcppch.top/os-v2/login` 用微信打开**直接落到首页并显示「未登录」**，点「登录」又回到首页，进不去登录页；电脑端同样。用户描述为「点击登入之后还是直接到首页，并没有到登入页面」。
+- 根因（两层）
+  - ① 登录死循环：`main.tsx` 的路由门禁只看 `localStorage.getItem("store_os_token")` 是否存在，只要本地有 token 就把 `/login` 弹回 `/market`；token 过期/被吊销后该判断依旧成立，而货架又因为 token 无效显示「未登录 · 点击登录」——点一次弹一次，永远进不去登录页。**「有没有 token」不等于「会话是否有效」**。
+  - ② 编译失败（阻断级）：`main.tsx` 里残留了一份旧的局部 `takePostLoginRedirect`，与 `lib/session.ts` 新导入的同名函数重复声明，Vite 报 `Duplicate declaration "takePostLoginRedirect"`，`/agent/ipzone__copy` 等页面直接白屏。这会掩盖 ① 的验证结果——用户看到的可能是「编译坏了」的空白页。
+- 最小修复
+  - 新增 `apps/web/src/lib/session.ts` 作为唯一会话工具：`readSessionToken()` / `clearStoredSession()` / `probeSession()`（只读探针 `GET /market/me`：200=valid、401/403=invalid、网络异常或 5xx=unknown 且**不清 token**）/ `readPostLoginRedirect()` + `takePostLoginRedirect()`（无 fallback 返回 null，有 fallback 返回 `getAppPath(fallback)`；本次把带参版本拆成原语 + 两个重载，避免与旧局部函数重名）。
+  - `main.tsx` 新增 `LoginSessionGate`：仅当 `!DIRECT_TEST_LOGIN_ENABLED && isLoginRoute && readSessionToken()` 时先做服务端探针；`valid` → `window.location.replace(takePostLoginRedirect("/market"))`；`invalid` → `clearStoredSession()` 后正常渲染登录页；`unknown` → 渲染登录页但保留 token。**删掉了「只看 localStorage」的弹出逻辑**，并在原位留注释说明它是登录死循环的成因。
+- 修复前红灯：`pnpm.cmd auth:product-login-smoke` FAIL —— `AssertionError: 已有会话访问平台登录页必须回平台首页，不能落进旧的单品诊断流程`，`expected: /!DIRECT_TEST_LOGIN_ENABLED && \(path === "\/login" \|\| path === "\/login\/"\) && localStorage\.getItem\("store_os_token"\)/`。即：旧断言锁的是**引发死循环的那段实现**，重构后必然失败。这是「断言过期」而不是功能回归——死循环语义恰恰是本卡要改掉的东西。
+- 断言处理（不放宽门禁，改成锁更强的语义）：`scripts/product-login-entry-smoke.mjs` 把这条改写为 5 条断言——`isLoginRoute` 必须同时覆盖 `/login` 与 `/login/`；必须 `!DIRECT_TEST_LOGIN_ENABLED && isLoginRoute && Boolean(readSessionToken())` 才走探针；`valid` 必须回 `/market`（保留一次性安全回跳）；`invalid` 必须 `clearStoredSession()`；并用 `assert.doesNotMatch` **禁止**「只凭本地 token 就把 `/login` 弹回货架」的旧写法回来。另加守护自检：把修复前那段原样字符串喂回该正则，必须命中，否则断言已失效。
+- 绿灯（修复后）：`pnpm.cmd auth:product-login-smoke` PASS；`pnpm.cmd qa:fast` PASS（含 7 个 workspace 的 `typecheck`，`apps/web`/`apps/api` 均 Done）；本机页面复验 `/agent/ipzone__copy` 正常渲染（不再白屏）。
+- 风险等级：P1（核心登录入口不可用 + 前端整包编译失败，属阻断级）。
+- 生产发布（2026-09-10）：随 `20260910-copy-neutral-refcase-prod2` 同包上线（sha256 `c1ef1da3…bccf063`，`DEPLOY_OK`）。
+- 生产复验（线上只读，`scripts/tmp/prod-login-entry-readonly-check.mjs`）：`prod_login_entry_readonly_check:PASS`——`root_market`（点 `https://api.lcppch.top/os-v2/` 落货架）、`anonymous`（显示「🔒 未登录 · 点击登录」，属匿名访客预期行为，不再死循环）、`login_page`（`/os-v2/login` 渲染平台登录页 = 微信一键登录 / 注册 + 使用邀请码开通，**不再被弹回货架**）、`wallet_copy`、`wechat_button`、`wechat_config`（`configured=true`，appid `wxf405233d…`）、`invite_form`、`console_clean` 全 PASS。截图 `%TEMP%\login-readonly-*\`。
+- 生产内测免登录门禁（P0 预检）：`/etc/baolu-secrets/baolu-os-v2.env` 不含 `VITE_DIRECT_TEST_LOGIN`；`scripts/tmp/prod-build-direct-test-login-runtime-check.mjs`（真实 Chrome 打本地生产构建 `/os-v2/login` 与 `/`）PASS。**生产是正常登录实例**。
+- 仍未完成：**微信首次授权（扫码）那一跳的真人验证**。用户当前没有未注册过思潼 AI 的微信号，已授权 Codex 用真实浏览器代跑邀请码开通链路（与微信首登共用同一套 `/auth/beta-login` 建号逻辑）。
+- 状态：**已关闭（本地 + 生产只读复验）**；真人微信扫码一跳记入 `docs/CURRENT_DEPLOYMENT_STATUS.md` 的未完成项。
+
+## QA-20260910-016：新注册账号货架显示 0 积分——欢迎积分只发到租户级 `CreditAccount`，货架读的是用户级 `Wallet`（P1，**已关闭：2026-09-10 产品拍板改为「新用户不赠送任何积分」，生产已发布同包**）
+
+- 现象（真实生产，非合成）：用一次性邀请码在生产走完注册链路后，服务端响应 `creditBalance: 300`，但货架钱包 pill 显示 `💎 0 积分 · ≈ ¥0 全平台通用`。这正是用户反馈里「进思潼AI 显示未登录 / 看不到积分」的一环：账号建好了、token 也签发了，但货架展示的余额是 0。
+- 只读复现证据（生产 `baolu_os_v2`，`scripts/tmp/prod-qa-wallet-recon.sh`）：4 个 QA 工作区的 owner `Wallet.paidBalance=0 / bonusBalance=0`，同租户 `CreditAccount.balance=300`；对照老租户「兰琪」`CreditAccount.balance=208`、其 owner `Wallet` 同为 `0/0`；`WalletLedger` **全表 0 行**（从未有过钱包流水）。DB 总量：`Tenant 207 / User 201`。
+- 根因：迁移 `202609090004_sitong_wallet_double_bucket` 引入按用户的 `Wallet` 后，PLAT-06（见 QA-20260910-001）把**货架**的展示（`/market/me`、访问态）与扣费（`/run`、`/ppu/consume`）统一到用户双桶钱包，但**注册发放欢迎积分**的路径没跟着迁移：`apps/api/src/services/database-bootstrap.ts` 的 `createTenantWorkspace` 仍然只写租户级 `CreditAccount(300)` + `CreditTransaction(300, welcome_credits)`。新用户的钱包是 `readWallet()` → `getOrCreateWallet()` 懒创建的，初始就是 `0/0`，没有任何 grant。与 QA-20260910-001 是同一次「货架迁到用户钱包」迁移遗留的**第二个缺口**（那次补的是「展示与扣费同源」，这次是「注册发币的同源」）。
+- 影响面与并存关系：货架（用户主入口，登录后默认落 `/market`）全部走用户 `Wallet`；而 `/chat`、`/billing/*`、`/beauty-industry/*` 等仍在读租户级 `CreditAccount`（`chat-persistence.ts`、`billing-consume.ts`、`billing-effects.ts`）。`billing-effects.ts` 里 `credit_pack` 充值已只入 `Wallet`（`applyRechargeInTx`），subscription/project_package 仍入 `CreditAccount`——即**双钱包正在迁移中**，欢迎积分是唯一没跟上的入账点。
+- 计费口径（这是本 Bug 修复里唯一需要用户拍板的点）：按 `docs/CURRENT_DEPLOYMENT_STATUS.md`「每个新工作区当前默认发放 300 体验积分」，这是一份**单一额度**。可选修法口径不同、计费结果不同，属 AGENTS 第十节要求「会改变计费规则时先询问用户」的范围：
+  - 口径 A（单一额度，300 总）：欢迎积分只入用户 `Wallet`（`bonus` 桶），同时把 `/chat` 等遗留读取也切到 `Wallet`。改动大（要把 `chat-persistence`/`resolveRequestContext` 的余额源一起迁移），但符合文档里「300 体验积分」的原意。
+  - 口径 B（最小改动，300 聊天 + 300 货架 = 600）：在 `createTenantWorkspace` 里**为新用户**增加一次 `Wallet` grant（`bonus` 桶 + `WalletLedger`），保留既有 `CreditAccount(300)` 不动，遗留 `/chat` 不受影响。改动小、无回归，但等于把免费额度提到 600，与现文档口径不一致，需同步改文案。
+  - 共同注意点：`Wallet` 是**按 userId** 的唯一记录，grant 只能发生在**新用户创建**那一次（同一用户二次建工作区不得重复发），且必须与 `createTenantWorkspace` 在同一事务里，避免「建了工作区但没发币」的半成品态。
+- 红灯回归（修复前失败，2026-09-10）：新增 `scripts/signup-welcome-wallet-smoke.ts`（`pnpm.cmd marketplace:signup-welcome-wallet-smoke`，跑在本机 `DATA_MODE=database` + 真实 PostgreSQL 上，非合成）。修复前断言 FAIL：`new user has a wallet row`——新用户建完工作区连 `Wallet` 行都不存在，货架的 `readWallet()` 懒创建 `0/0`。这就是本卡的红灯。
+- 最小修复（本轮采用**口径 B**，改动 2 处生产源码）：`apps/api/src/services/sitong-wallet.ts` 新增导出 `grantSignupWalletCreditsInTx(tx, {userId, amount, source})`——发到用户级 `Wallet.bonusBalance`，写 1 条 `WalletLedger(bucket=bonus, type=bonus, source="signup")`；按 `userId + source="signup"` 查重保证**幂等**（同一用户二次建工作区不重复发），`amount<=0` 直接返回不发。`apps/api/src/services/database-bootstrap.ts` 在 `createTenantWorkspace` 的欢迎积分 `CreditTransaction` 之后、**同一事务内**调用它，返回值新增 `walletBalance` / `walletWelcomeGranted`（`creditBalance` 仍为租户级 300，未改）。
+- 绿灯（修复后）：`pnpm.cmd marketplace:signup-welcome-wallet-smoke` PASS（断言「新用户有 Wallet 行 / `bonusBalance=300` / 恰 1 条 `source=signup` 流水 / 二次建区不重复发 / 既有 `CreditAccount` 仍 300」）；`pnpm.cmd marketplace:db-smoke` PASS；`pnpm.cmd billing:wallet-db-smoke` PASS；`pnpm.cmd qa:fast` PASS；`pnpm.cmd typecheck` PASS；`pnpm.cmd qa:regression` PASS。
+- 部署复验（chat-test，2026-09-10）：发布 `20260910-signup-welcome-wallet`（包 sha256 `15c4fac1cbd0a4aaefa0746ef4f81826823681521fd14015608a2e3d3a81d042`，1416 文件）叠加到 `/opt/baolu-os-v2-test`，`DEPLOY_OK` + 健康 200/ready 200。随后在该环境**真实建号**验证（临时一次性邀请码 `qa-wallet-20260910-01`，`POST /auth/beta-login`）：`userId=cmtvf7sfi01e7f9mgllhz19qr` → `Wallet.paidBalance=0 / bonusBalance=300`，`WalletLedger` 恰 1 条 `delta=300, bucket=bonus, type=bonus, source=signup`；同租户 `CreditAccount=300` 未变。即部署环境里现象已消除。
+- 未部署生产的原因：口径 B 会把新用户**实际可用免费额度从 300 提到 600**（货架 300 + 遗留租户账户 300），而且两桶**不可互换**：`/market` 货架与「下载精美 Word」（`EXPORT_PRICING.docxCredits=10`）扣 `Wallet`，而 `/chat` 与外部接入（WorkBuddy / billing access token，见 `billing-consume.ts`）仍扣租户级 `CreditAccount`，`/my-ai` 顶部「企业积分」也展示 `CreditAccount`。这是**计费/定价口径变更**，按 AGENTS 第十节必须先问用户，故生产保持原样。
+- 风险等级：P1（新用户核心路径看不到自己应有的积分，直接影响首次体验与付费转化）。本地与 chat-test 已修复；**生产仍为 0 积分**，属于未放行状态。
+- 最终口径（2026-09-10 产品拍板，已落地）：**新用户不赠送任何积分**。`getInitialWorkspaceCredits(tenantType)` 默认由 300 改为 **0**，`initialCredits > 0` 才写 `welcome_credits` 流水；`grantSignupWalletCreditsInTx` 保留但收到 `amount=0` 时按设计直接返回不发币。**「生产新账号余额 0」由 Bug 转为预期行为**，要开通用量就先充值。`NEW_USER_*_TRIAL_CREDITS` 仅作为隔离测试/内测环境的显式体验额度开关（生产/测试 env 均未配置）。
+- 该口径随发布 id `20260910-copy-neutral-refcase-prod2`（包 sha256 `c1ef1da3…bccf063`，`DEPLOY_OK` + 健康 200 / ready 200，48 migrations / No pending migrations）上线到生产 `/opt/baolu-os-v2`，同包先发 `chat-test`。
+- 已作废的备选（留档，不再执行）：口径 A（总量保持 300，把 `/chat` 等余额源统一到 `Wallet`）；口径 B（300 聊天 + 300 货架 = 600）。两者都因「不再赠送欢迎积分」而失去前提。
+- 遗留（不阻塞，已记录）：`/chat`、`/billing/*`、`/beauty-industry/*` 仍读租户级 `CreditAccount`，货架读用户级 `Wallet`，双钱包迁移未完成；文档里旧的「每个新工作区默认发放 300 体验积分」口径已失效。
+- 存量用户：本修复**只对新建工作区生效**。已有租户（含 4 个 QA 工作区与老客户）下次访问货架仍是懒创建 `0/0`。如要覆盖存量用户，需另开 backfill 脚本任务。
+- 生产第二轮复验（2026-09-10 晚，设备无未注册微信号，用户授权 Codex 代跑，同上一轮口径）：临时一次性邀请码 `qa-signup-20260910-02`（id `cmtvffpxx00002buedkwlx163`）走真实浏览器注册链路，`prod_signup_acceptance:PASS` 11/11，新工作区 `cmtvfg6kn059qulvl97ohjred` / `userId cmtvfg6kr059rulvlttpshfl2` / `creditBalance=300`。**本缺陷在生产仍原样复现**：货架 pill = `💎 0 积分 · ≈ ¥0 全平台通用`，DB 只读复核 `Wallet(paid=0, bonus=0)`、该用户 `WalletLedger` 0 行（全表 0 行），同租户 `CreditAccount=300`。邀请码跑完 `isActive=false`。证据截图 `%TEMP%\prod-signup-acceptance-02\`。
+- 状态：**已关闭**（口径变更 + 生产发布 + 只读复验）。本轮未改生产环境配置口径以外的业务参数、未产生客户费用、未删数据；代跑新增的 QA 工作区 `QA注册验收工作区-0910-02` 按「生产删 Tenant 属高危」保留未删。
+
+## QA-20260910-012：合规门禁把「劝阻复述 / 渠道名词 / 序数用法」当成违规，整段输出被毙（P1，LQ-19 本地关闭）
+
+- 红灯（真实大模型，非合成）：`POST /beauty-industry/acquire/live/segments` 稳定返回 HTTP 422 `invalid_live_input 生成内容未通过合规门禁：绝对化/疗效词（第一）`；同一批 `POST /beauty-industry/acquire/advisor` 返回「顾问回答命中绝对化/疗效词：特效；命中违规引导词：私信」。浏览器走查 21/23，两条失败均由此引起。
+- 根因（抓原始模型输出定位，证据 `.debug/api-dev.err.log` 临时诊断打印）：① 模型写「第一部分／第二部分」讲直播流程，`ABS_FIRST_CLAIM` 的序数豁免只是一串单字类，漏掉「部」等量词；② 模型按要求写「不引导加微信」「不用特效滤镜」，即在**劝阻语境里复述**被禁词；③ 模型写「每天回复评论和私信」，是在平台内回复顾客消息的**渠道名词**，不是导流引导。三类都不是违规，却按整段 fail closed。
+- 最小修复（`moments-rules.ts`，仅收紧误判、不放宽真违规）：序数豁免换成完整序数量词表（明确不收「名／位／梯队」，「第一名」继续拦）；新增语境判定 `hasRiskyUsage`——否定词与本词之间隔≤2 字且不跨句读才豁免（「不引导加微信」「不要用特效」豁免，「不管怎样私信我」仍拦），「私信」另加平台内回复/渠道并列的安全前缀。同步把四条提示词的「第一」口径改成「仅排名宣称」，减少模型无谓自我审查。
+- 回归：`scripts/lanqi-moments-rules-smoke.ts` 新增 10 条、`scripts/lanqi-live-service-smoke.ts` 新增 1 条、`scripts/lanqi-advisor-service-smoke.ts` 新增 1 条，修复前新增断言全部 FAIL（证据见卡内记录），修复后全绿。
+- 验证：`pnpm.cmd lanqi:acquire-smoke`（80/0）、`pnpm.cmd lanqi:moments-smoke`（47/20/9，0）、真实大模型 API 走查 16/16、真实浏览器走查 24/24、视频走查 25/25、`qa:fast` PASS。真实付费调用仅本轮开发走查，未新增生产费用。
+
+## QA-20260910-011：文案改稿「成稿」步骤空白（P1，LQ-19 本地关闭）
+
+- 红灯：真实浏览器走查 `.lq-cw__draft` 成稿编辑框为空，但同一页「合规/事实检查项」正常渲染，因此此前的接口级断言（只看返回体）完全没暴露。
+- 根因：点击事件里先 `setStep(3)` 再同步写 `editorRef.current.textContent`；React 尚未挂载第三步编辑框，`editorRef.current` 仍指向上一步节点，写入丢失。
+- 最小修复（`apps/web/src/pages/LanqiAcquireCopywriterPage.tsx`）：改成受控回填——`applyDraft(text)` 只登记文本 + revision，新增 `useEffect([step, draftSource, draftRevision])` 在步骤切换挂载后再写编辑器；三处调用点（初始改稿、重新生成、选开头、`goStep(3)`）统一走该入口，`goStep(3)` 仍优先恢复本机已存草稿。
+- 验证：走查断言由「空白」变为「成稿步骤有真实正文 :: 253 字」并通过；`qa:fast`、Web/API typecheck PASS。
+
 ## QA-20260905-010：Seedance独立token上限遗漏交付阻断（P1，BY54开发中发现并本地关闭）
 
 - 非线上/真实付费事故。新增执行fixture返回108001 completion，签名上限108000，但估算仍在总人民币预算内；修复前断言期望refunded实际charged，证据`by54-evidence-20260905/logs/token-cap-red.log`。单一货币比较不能替代签名token上限。
@@ -1124,3 +1274,73 @@ BY51结束时相同核心文件SHA、同一Get-SourceFingerprint，Windows Power
 - 修复：新增美业通用核心的品牌无关输入装配和 XHS 无关的专属质量合同；兰琪 API 位于产品 entitlement 作用域，只注入当前租户 `confirmedFacts`；独立页面支持问答、追问、历史和刷新恢复。controlled mock 专属 fixture 不再落入旧模板，并明确标识非真实模型质量。
 - 回归：`lanqi:business-qa-smoke` 覆盖空问题、固定映射、事实边界、顺序幂等、同键冲突、历史追问与跨租户 404；桌面/390px真实页面覆盖生成、刷新、追问和 console。外部 Provider 0、积分 0、费用 ¥0。
 - 状态：**已关闭**。专项、兰琪领域门禁、`qa:fast/regression/full`（含 build）和桌面/390px真实页面全部 PASS；Provider/积分/费用均为 0。
+
+## QA-20260910-001：思潼AI 货架「展示余额」与「按次扣费」不同源（P1，本地已关闭）
+
+- 现象：数据库模式下 `GET /market/me` 返回用户双桶钱包余额，而 `POST /market/ppu/consume`（货架按次扣费公开接口）仍扣租户级 `CreditAccount`。同一租户会出现「页面显示有余额、按次扣费却判定不足」，或扣到了用户看不到的另一个钱包；`GET /market/skus/:skuId/access` 的访问态同样读 `CreditAccount`。
+- 根因：迁移 `202609090004_sitong_wallet_double_bucket` 引入按用户的双桶 `Wallet` 后，货架只把 `/market/skus/:skuId/run`（真实生成路径）和 `/market/me` 切到新钱包，`consumeMarketplacePpu`、`accessStateFor`/`getCreditBalance` 仍留在旧 `CreditAccount`，同一模块双钱包分裂。`scripts/marketplace-db-smoke.ts` 是旧合约（播 `CreditAccount`、断言 `/market/me`），故先表现为测试失败。
+- 修复前红灯（两次，均保留在脚本与本次运行记录中）：① 原脚本在 `database unified wallet starts at 300` 稳定 FAIL；② 只播种用户 `Wallet(paid=300)`、不建 `CreditAccount` 后，`/market/me` 返回 300 通过，但同一钱包的 `POST /market/ppu/consume` 返回 `insufficient_credits`，`database ppu consume completes` FAIL。另发现 `registerMarketplaceRoutes` 会按目录种子重建 SKU，测试改价必须放在路由注册之后，否则价格被种子重置。
+- 最小修复：货架统一到用户双桶钱包——`getCreditBalance` 在数据库模式改读 `readWallet(context.userId)`；`consumeMarketplacePpu` 改用 `consumeWalletCredits({ requestId: "marketplace_ppu:<idempotencyKey>", skillId: sku.skuCode })`；保留租户级 `MarketplaceLedgerEntry` 幂等键与 `coming_soon` 409 前置拦截（不执行、不扣费）。未改动 billing/其它产品的 `CreditAccount` 计费。
+- 回归：`pnpm.cmd marketplace:db-smoke` PASS（同源钱包 300→295、重复扣费幂等、订阅 mock-pay、owner 改价）；`pnpm.cmd marketplace:api-smoke`、`pnpm.cmd marketplace:foundation-smoke` PASS；`node scripts/marketplace-shelf-browser-e2e.mjs` PASS（货架 9 SKU / 7「开发中」/ 兰琪专区 / Word 按钮「⬇ 下载精美 Word · 10 积分」、真实模型 1 次、桌面 + 390px、console 0）；`pnpm.cmd qa:fast`、`pnpm.cmd qa:regression`、`pnpm.cmd build` PASS。
+- 状态：**已关闭（本地）**。真实付款、生产迁移与生产配置未执行。
+
+## QA-20260910-002：登录/注册回归在本机「内测免登录」实例上超时失败，被误读为登录功能故障（P2，已关闭）
+
+- 现象：在本机 `vite dev` 默认实例（`http://127.0.0.1:5174`）上执行 `pnpm.cmd auth:login-entry-browser-smoke`，脚本以 `Error: waitFor timeout: () => window.location.pathname.split("/").filter(Boolean).pop() === "market"` 失败。报错语义指向「根路径没有落到平台首页」，容易被误判成登录/注册链路坏了。
+- 根因：`apps/web/.env.development.local` 里的 `VITE_DIRECT_TEST_LOGIN=true` 会被 `vite dev` 默认加载，`main.tsx` 的 `DirectTestLoginGate` 先自动建立体验会话并把入口直达 `/lanqi/brain`，anon 未登录态在这类实例上不存在。脚本此前没有区分「干净实例」和「免登录实例」，把环境冲突暴露成了通用超时。这不是登录/注册功能缺陷（换干净实例同脚本 PASS），也不是 API 或邀请码问题。
+- 修复前红灯（保留在本次运行记录中）：同一脚本在 5174 免登录实例上先以 `waitFor timeout ... === "market"` 失败；同一脚本指向 `VITE_DIRECT_TEST_LOGIN=false` 启动的 5178 干净实例时 PASS。
+- 最小修复：`scripts/login-entry-browser-smoke.mjs` 增加根路径预检——进入 `/` 后若检测到自动会话或「内测实例 / 正在进入体验工作区 / 体验入口暂时打不开」文案，立即抛出明确环境错误并给出可复制的处理命令；未命中才继续原有断言。不改产品代码、不放宽任何登录断言。
+- 回归：免登录实例（5174）→ 明确环境错误且非零退出（`环境错误：http://127.0.0.1:5174 是「内测免登录」实例…`）；干净实例（5178，`VITE_DIRECT_TEST_LOGIN=false`）→ `login_entry_browser_smoke:PASS root_to_home=PASS login_page=PASS signup_to_home=PASS wallet_visible=PASS session_redirect=PASS console_clean=PASS`。两条都在本地实测通过，未削弱原有正常路径覆盖。
+- 状态：**已关闭**。若需要在本机跑登录/注册回归，先按脚本给出的命令用 `VITE_DIRECT_TEST_LOGIN=false` 启一个干净实例，再设 `LOGIN_SMOKE_WEB_URL` 指向它。
+
+## QA-20260910-003：货架「免费重做 1 次」兜底缺归属/次数/额度约束（P1，本地已关闭）
+
+- 现象：按结果付费合同要求「每个付费交付不满意可免费重做 1 次、不重复扣积分」，但实现前货架没有免费重做入口：任何一次重新生成都按次扣费；即使补上 `redoOf` 凭证，若只按 `idempotencyKey` 查账本，就会同时出现「用别人的凭证白嫖」「用重做产物的凭证无限链式免费」「跨低价内核的凭证去免费生成高价内核」和「余额被清零后连已购权益也无法重做」四类越权/计费漏洞。
+- 根因：货架 `/run` 只有付费分支，扣费前一律做余额校验，没有「引用原单、限 1 次、限定归属与商品」的免费重做解析；`resolveFreeRedo` 的归属键（`tenantId`+`userId`）、跨 SKU 校验和链式回落（把重做产物的凭证回落到最初付费单计数）缺一即漏。
+- 修复前红灯（保留在脚本与本次运行记录中）：临时移除 `resolveFreeRedo` 的 `tenantId`/`userId` 归属过滤后，`pnpm.cmd marketplace:free-redo-smoke` 稳定 FAIL（`FAIL: the second free redo returns the dedicated exhausted error`）——别人可用同租户凭证消耗本单免费额度；恢复归属过滤后 PASS。
+- 最小修复：`apps/api/src/routes/marketplace.ts` 新增 `marketplaceRunSchema.redoOf` 与 `resolveFreeRedo`（数据库模式按 `tenantId`+`userId`+`idempotencyKey`+`refType=marketplace_run` 查账本，demo 模式 fail-closed 返回 not_found；`entry.skuId` 与原 SKU 不同返回 `sku_mismatch`；被引用订单本身是重做产物时回落到最初付费 `requestId`，保证每单仅免费 1 次）。`/run` 中 `freeRedoRoot` 存在时跳过 402 余额拦截，交付成功后调用既有 `recordRedo`（`WalletLedger` `type=redo`、`delta=0`，同 `refRequestId` 限 1 次），失败返回 409 `marketplace_redo_exhausted` 且不静默降级为扣费；免费重做写 `marketplaceLedgerEntry` `type=adjustment`、`amountCredits=0`、`metadata.freeRedoOf`，响应带 `freeRedo`/`freeRedoOf`/新 `requestId`。`packages/shared/src/index.ts` 新增 `creditsToYuan`/`formatYuanText`/`yuanLabelForCredits`，前端在积分旁统一显示人民币折算。
+- 回归：`pnpm.cmd marketplace:free-redo-smoke` PASS——真实模型 0 次、Provider 费用 ¥0（模型出口指向本进程内 127.0.0.1 桩），11 组断言覆盖：付费扣一次/拿凭证 → 免费重做 0 积分余额不变并给新 `requestId` → `WalletLedger` 恰 1 条 `consume(-30)`+1 条 `redo(0)`、`MarketplaceLedgerEntry` 恰 2 条（`ppu_consume` 30、`adjustment` 0 且 `metadata.freeRedoOf`）→ 第二次重做 409 `marketplace_redo_exhausted` → 链式重做 409 → 跨账号 404 `marketplace_redo_not_found` 且对方账本为 0 → 跨 SKU 409 `marketplace_redo_sku_mismatch` → 未知凭证 404 → 余额清零后免费重做仍 200 且 `balance=0` → 余额清零后普通付费 402 → 租户隔离。
+- 回归（页面）：`node scripts/marketplace-shelf-browser-e2e.mjs` PASS（干净实例 `VITE_DIRECT_TEST_LOGIN=false`）——货架「200 积分/次 · ≈ ¥10」「40 积分/次 · ≈ ¥2」、详情按钮「用一次 · 扣 200 积分（≈ ¥10）」、Word「⬇ 下载精美 Word · 10 积分（≈ ¥0.5）」、本次消耗「200 积分（≈ ¥10）」、交付完成后「😕 不满意 · 免费重做一次（不扣积分）」入口存在且可点、390px 无横向溢出、console 错误 0。`pnpm.cmd marketplace:api-smoke`、`marketplace:db-smoke`、`marketplace:foundation-smoke`、`marketplace:cost-smoke`、`pnpm.cmd qa:fast`、`pnpm.cmd qa:regression` 全 PASS。
+- 状态：**已关闭（本地）**。真实付款、生产部署、价格配置化（ppu/充值档/汇率走接口 + version/effective_at + 订单记 price_version）未执行。
+
+## QA-20260910-013：构建不复制 `apps/api/src/data/*.json`，部署后货架一直吃 dist 旧数据（P1，TEST 部署时发现，本地已关闭）
+
+- 现象（真实部署环境，非合成）：把 PLAT-06/07 的货架目录改动发布到 `chat-test`（`/opt/baolu-os-v2-test`）后，`GET /market/skus` 仍返回旧目录——18 个 SKU 全部 `selling`、没有兰琪专区、创始人 IP 专区 7 个未完成内核没有「开发中」；无头 Chrome 打真实货架页，`开发中` 出现 0 处（断言要求 ≥7）。本地（读 `src/data`）一切正常，只有部署后复现，属于「本地通过、线上不变」的静默失败。
+- 根因：`apps/api/src/services/marketplace-catalog.ts` 用 `readFileSync(new URL("../data/marketplace-v3.json", import.meta.url))` 在运行时读 JSON，而 `@baolu/api` 的 build 只有 `tsc -p tsconfig.json`；**tsc 不搬运非 TS 资源**，`dist/apps/api/src/data/marketplace-v3.json` 只能是历史残留（现场为 13:01 的 22506 B 旧文件，源码已是 23629 B），于是 API 永远读旧货架。不是文件权限、缓存或 nginx 问题，`apps/api/src/data/` 也是本次新增目录，属于「新增运行时资源但没进构建产物」这一类通用缺陷。
+- 修复前证据：TEST 现场 `sha256(src)`≠`sha256(dist)`（`2eec39bd…` vs `9d3bc68f…`）；`docs/BUG_REGRESSIONS.md` 同批证据保存在部署日志 `/tmp/deploy-test.log` 与 `scripts/deployed-marketplace-browser-check.mjs` 的 `.txt` 文本快照里。本地红灯由新增探针 `pnpm.cmd api:runtime-data-check` 稳定复现（`stale_in_dist marketplace-v3.json`）。
+- 最小修复：新增 `apps/api/scripts/copy-runtime-data.mjs`（构建后把 `src/data` 逐文件复制到 `dist/apps/api/src/data`；缺源目录或缺编译产物直接报错，用 `copyFileSync` 逐文件，避免 Windows 非 ASCII 路径下 `fs.cpSync` 崩 0xC0000409），并把 `apps/api` 的 `build` 改为 `tsc -p tsconfig.json && node scripts/copy-runtime-data.mjs`。不改 `marketplace-catalog.ts` 的读取方式、不改货架契约、不动其它包构建。
+- 回归门禁：① 新增 `scripts/api-runtime-data-check.mjs` + `pnpm.cmd api:runtime-data-check`，比对 `apps/api/src/data` 与 `dist/apps/api/src/data` 的哈希（dist 不存在时明确 SKIP 并提示先构建）；② 接入 `qa:full`（`qa:fast && qa:regression && pnpm build && pnpm api:runtime-data-check`）——放在 build 之后，因为「dist 必须等于 src」只在刚构建完成立，放在开发中快速检查里会把「改了源码还没重建」误报成缺陷；③ 部署脚本 `scripts/deploy-credits-yuan-free-redo-test.sh` 增加两条发布期断言：src/dist JSON 哈希必须相等、`curl /market/skus` 必须含 `lanqi__lanqi-brain` 且 `coming_soon` ≥ 7（失败即自动回滚并重启旧版）。
+- 回归：`pnpm.cmd --filter @baolu/api build` PASS（输出 `api_runtime_data_copied -> dist/apps/api/src/data`）、`pnpm.cmd api:runtime-data-check` PASS（`files=marketplace-v3.json`）、本地 dist 恢复为 `ip-pos=selling` + 7 个 `coming_soon` + `lanqi-brain=coming_soon`；`pnpm.cmd qa:fast`、`pnpm.cmd qa:regression`、`pnpm.cmd qa:full`（含 build 与新增探针）PASS；TEST 复部署后 `curl /market/skus` 出现 `lanqi__lanqi-brain` 与 7 个 `coming_soon`，真实浏览器 `node scripts/deployed-marketplace-browser-check.mjs` PASS。
+- 复验（2026-09-10 全量发布，TEST + PROD）：发布包 `release-20260910-credits-yuan-free-redo-prod1.tar.gz`（8808083 B，sha256 `99ff9c78…6e1337`）。`chat-test`（`/opt/baolu-os-v2-test`，端口 3010）与生产（`/opt/baolu-os-v2`，端口 3002）两次部署的服务端校验均 `VERIFY_OK`：`src_data_sha = dist_data_matches_src = 2eec39bd…3752e4`（本次修复的 P1 探针）、`index_base_path` 正确（`/lanqi-test/`、`/os-v2/`）、`/market/skus` `skus_total=19` / `coming_soon=15` / `lanqi_brain_present=True`。生产修复前红灯证据保留在 `%TEMP%\deploy-check-prod-before\`（货架「全部 18」、无兰琪专区、无 `≈ ¥`），修复后同一脚本 `deployed_marketplace_browser_check:PASS`（含 `≈ ¥`、≥7 处「开发中」、详情页「免费重做」、console 0）。结论：**本缺陷确认已在本地、TEST、生产三处关闭**；生产受影响窗口为 2026-09-10 18:03 回滚后至本次发布完成之间，期间货架仍展示旧目录。
+- 状态：**已关闭（本地 + TEST + PROD 全量发布复验）**。
+
+## QA-20260910-014：兰琪「朋友圈获客」WorkBuddy 测试报告 9 条缺陷闭环（LQ-20，测试实例已复验）
+
+- 来源：WorkBuddy《兰琪朋友圈获客测试体验报告》（2026-09-10，`stage1/final_draft.md` + `stage3/兰琪朋友圈获客测试报告.docx`），实测环境 `https://api.lcppch.top/lanqi-test/...`，共 9 条（P0×2 / P1×3 / P2×4）。
+- 复核结论：**7 条成立并已修**（Bug1/2/3/6/7/8/9）；**Bug4 是呈现问题**——中文提示分支在 HEAD 就存在，但表单 `required` 让浏览器先弹原生气泡，无头浏览器看不到气泡才被记成「按钮无响应」，本回合改为页内提示；**Bug5 在当前源码已不成立**——带会话访问 `/my-ai` 正常渲染工作台（标题「思潼 AI 智能体工作台」+ 智能体卡片，0 console/page error），报告当时应是未登录或 catalog 请求失败导致的空白，未改代码。
+- 共同根因：① 兰琪产品 entitlement 作用域只注册了 `/beauty-industry/*`，`/lanqi/moments|acquire` 一律 403；② 前端 `/lanqi/*` 未登记路由被全局 `AgentHomePage` 兜底成外卖产品落地页；③ 「未开通 / 无门店 / 无权限 / 接口失败」四种状态在前端被压成同一句「当前企业尚未开通此产品」，且没有 CTA。
+- 修复前证据：报告内截图（`final-desktop-friend-circle.png` 按钮禁用、`m-guess-private-domain.png` 路由串产品、`final-mobile-my.png` 空白）；本机红灯为新增 `lanqi-store-gate-smoke` 的按原因分流断言（旧实现一律「尚未开通」）。
+- 最小修复：
+  - Bug1(P0)：`apps/api/src/server.ts` 在 `lanqi` 作用域补 `registerMomentRoutes(lanqi, "/lanqi")`、`registerAcquireRoutes(lanqi, "/lanqi")`；旧 `/beauty-industry/*` 注册保留兼容。
+  - Bug2(P0)：`apps/web/src/main.tsx` 在全局兜底前登记 `/lanqi/dashboard`、`/lanqi/goal-setting`、`/lanqi/cases|customers|analysis|sales-sim|store`、`/lanqi/private-domain/moments`；`LanqiBrainShell.tsx` 8 项侧栏全部指向真实兰琪路由。
+  - Bug3(P1)：`main.tsx` 对 `/lanqi/*` 前置未登录判断，`window.location.replace(getAppPath("/login/lanqi"))`（`DIRECT_TEST_LOGIN` 内测实例与 `/lanqi/local` 例外）。
+  - Bug6(P2)：`LanqiBrainShell.tsx` 顶部「🔔 今日待办」由无 `onClick` 的 `<button>` 改为 `<a href="/lanqi/dashboard#today">`。
+  - Bug7(P2)：`apps/api/src/services/access-guards.ts` 的 403 增加 `code`（`product_entitlement_missing|inactive|expired|required`，保留 `error` 兼容）；`apps/web/src/lib/lanqi-store-gate.ts` 按 `code` 产出 4 类不同文案。
+  - Bug8/9(P2)：新增共享 `apps/web/src/lib/use-lanqi-store-gate.ts` + `apps/web/src/components/lanqi-brain/LanqiStoreGateBanner.tsx`，紧贴生成按钮上方渲染「状态 + 原因 + CTA」（`.lq-gate__reason`，带 `data-lanqi-gate` / `data-lanqi-gate-reason` 钩子），空门店给出「去完善门店档案 / 门店后台」CTA，禁用原因不再是空白。
+  - Bug4(P1)：`apps/web/src/pages/LoginPage.tsx` 产品邀请码表单加 `noValidate`，空值走既有中文提示分支。
+- 回归测试：新增 `scripts/lanqi-store-gate-smoke.ts`（44 条，锁 Bug7/8/9 契约，含 4 类 403 文案分流、空门店 CTA、网络失败可重试、新旧字段兼容）；`scripts/lanqi-page-check.mjs` 增加 `--token`（预置会话）与 `--click-text`（点击后取最终快照）用于真实浏览器复验；接入 `qa:lanqi-foundation`。
+- 验证命令与结果（2026-09-10 本机）：`pnpm.cmd lanqi:store-gate-smoke` → 44 passed / 0 failed；`pnpm.cmd lanqi:moments-smoke` → 47/20/9，0 failed；`pnpm.cmd lanqi:store-access-smoke` → 14/0；`pnpm.cmd lanqi:dashboard-smoke` → 规则 60/0 + API smoke PASS；`pnpm.cmd -r typecheck` → 7/7 PASS；`pnpm.cmd qa:fast`、`pnpm.cmd qa:lanqi-foundation`、`pnpm.cmd qa:full`（含 `qa:regression` + web/api `build` + `api-runtime-data-check:PASS`，`QAFULL_EXIT=0`）全部 PASS；`git diff --check` 退出码 0（仅 Windows LF→CRLF 提示）。
+- 浏览器复验（真实 Chromium + 本机 dev token，非合成）：`/lanqi/dashboard` 渲染兰琪经营驾驶舱（9 维雷达、今日指标、今日待办）；`/lanqi/moments/friend-circle`、`/lanqi/moments/wechat-group` 表单可提交，无门店时显示原因与 CTA，console 0 / page error 0；`/my-ai` 正常渲染工作台；关闭免登录的实例上匿名访问 `/lanqi/moments`、`/lanqi/dashboard` 直接落到 `/login/lanqi`；`/login/lanqi` 空邀请码点击「继续进入兰琪美业」→ 页内出现「请输入邀请消息中的邀请码。」（修复前此点击只触发不可见的原生气泡）。
+- 测试实例复验（2026-09-10，`https://api.lcppch.top/lanqi-test`，构建时间 17:56）：新增可复跑验收脚本 `scripts/lanqi-test-instance-acceptance.mjs`（`pnpm.cmd lanqi:test-instance-acceptance`），同一组 14 项断言连续 3 轮 **14/14 PASS**。直接覆盖本卡缺陷的断言：Bug1——`/lanqi/moments/friend-circle` 无 `data-lanqi-gate` 阻断（`gates=[]`），填入 30 字原话后「生成朋友圈文案」`disabled=false`（报告原场景是「填好表单但按钮禁用」）；Bug2——驾驶舱/目标页/朋友圈/微信群/`/my-ai` 全部不出现「枕水江南」且侧栏为兰琪 8 项；Bug5——`/my-ai` 渲染「思潼 AI 智能体工作台 / 已开通产品 兰琪 AI / 进入兰琪 AI」，0 console/page error；Bug7/8/9——朋友圈页面无「未开通 / 无门店 / 未停用」红字阻断，`gates=[]`。接口层实测 `/lanqi/dashboard?month=2026-09` 21ms、`/lanqi/stores` 17–34ms，页面首屏 4–7 秒来自静态资源串行加载，不是接口 403 或超时。
+- 不能在免登录实例上复验的两条（测试实例 `DIRECT_TEST_LOGIN=true`，`/lanqi/*` 免登录直达、`/login/lanqi` 直接跳驾驶舱）：Bug3 与 Bug4 改在本机非免登录实例（5178，`VITE_DIRECT_TEST_LOGIN=false`）复验——匿名访问 `/lanqi/dashboard`、`/lanqi/moments/friend-circle`、`/lanqi/goal-setting` 全部落到 `/login/lanqi` 且不渲染功能表单；`/login/lanqi` 空邀请码点「继续进入兰琪美业」出现页内「请输入邀请消息中的邀请码。」，均 0 console/page error。
+- 状态：**已关闭（测试实例已复验）**。Bug5 记为「当前源码不成立（环境相关）」；生产 `os-v2` 未部署，本卡只主张测试实例已修复。
+
+## QA-20260910-015：发布脚本固定 6 秒健康检查窗口，把「启动慢」误判成「发布失败」并触发自动回滚（P2，部署工具，本地已关闭）
+
+- 现象（真实生产发布，2026-09-10）：首次执行生产全量发布时，第 9 步 `systemctl restart` 后用 `sleep 6` 加单次 `curl` 判定健康，得到 `connection refused`（health=000），脚本按设计自动回滚。但服务本身启动成功——`journalctl` 显示 `18:03:40` 开始启动、`18:03:53 Server listening at http://0.0.0.0:3002`，即生产冷启动（`pnpm --filter @baolu/api start` 经 pnpm 包一层再拉起 node）约需 12 秒，超过 6 秒窗口。
+- 连带影响（比现象本身更严重）：本次自动回滚只还原代码，**不回滚数据库**——回滚前第 8 步已成功应用 `202609090005_lanqi_moments`、`202609100001_lanqi_store_goals` 两条迁移。回滚后一度出现「DB schema 领先于运行代码」的窗口；同时新增文件（`apps/api/src/data/marketplace-v3.json` 等）被 `new-files.txt` 逻辑删除，P1 修复在生产上短暂失效（货架仍是旧目录，服务 `/health`、`/ready`、`/os-v2/` 均 200，用户侧无中断）。
+- 根因：发布脚本把「进程尚未完成冷启动」等同于「发布失败」。固定睡眠不适用于经 pnpm 包装的启动路径，且单次 curl 没有重试；`restart` 后的 `systemctl is-active` 在 node 退出前也可能瞬时为 active，不能替代端口探测。
+- 修复前证据：`/tmp/deploy-prod-full.out` 第 9 步 `health=000` → `ROLLBACK_DONE`；同文件第 8 步 `All migrations have been successfully applied.`；`journalctl -u baolu-os-v2` 记录 `Server listening` 于 18:03:53。
+- 最小修复：`scripts/tmp/deploy-release.sh`（发布工具，不入发布包）新增 `wait_http_ok` 轮询函数——health 最多 40 次 × 3 秒（120 秒）、ready 最多 20 次 × 3 秒，两者都拿到 200 才算成功；健康检查失败时先输出 `journalctl -n 60` 尾部再失败，便于区分「启动慢」与「真启动失败」；回滚路径同样改为轮询。另加 `BACKUP_TAG` 环境变量，允许重跑时使用独立备份目录，避免覆盖上一轮可用于回滚的备份。
+- 回归：改用轮询后重跑生产发布，第 9 步输出 `health=200 (after 12s)` / `ready=200 (after 0s)` → `DEPLOY_OK`，不再误判回滚；`verify-deploy.sh` 全 PASS；数据库确认两条迁移已应用（`_prisma_migrations` 含 `202609100001_lanqi_store_goals`、`202609090005_lanqi_moments`），`LanqiMomentDraft`、`LanqiStoreGoal` 表存在。
+- 状态：**已关闭**。发布脚本目前仍是 `scripts/tmp/` 下的临时工具（AGENTS 规定该目录不随发布包），若要长期使用应先补「基于端口就绪」的断言并落成仓库正式脚本。

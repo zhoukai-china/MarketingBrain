@@ -1,4 +1,5 @@
-import type { RefObject } from "react";
+import { useEffect, useState, type RefObject } from "react";
+import { yuanLabelForCredits } from "@baolu/shared";
 import type { ConsultantId, ChatMessage } from "../../types";
 import { ipAcquisitionCapabilities, type IpAcquisitionCapability, type IpAcquisitionCapabilityId } from "../../data/ipAcquisitionAgent";
 import { apiPath } from "../../lib/api";
@@ -35,6 +36,17 @@ type AnswerContentBlock = { type: "text"; lines: string[] } | { type: "table"; t
 const fallbackTitle = "IP获客交付件";
 
 export function ChatMessages({ messages, busy, thinkingStep, currentConsultantId, capabilityId, chatEndRef, onQuickPrompt }: ChatMessagesProps) {
+  // Word 导出对所有智能体答案统一按次独立扣积分；按钮先说明价格，避免用户点完才知道扣费。
+  const [docxPrice, setDocxPrice] = useState<number | null>(null);
+  useEffect(() => {
+    void fetch(apiPath("/exports/docx/price"))
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { credits?: number } | null) => {
+        if (data && typeof data.credits === "number") setDocxPrice(data.credits);
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <div
       className="consultChatMessages"
@@ -84,7 +96,7 @@ export function ChatMessages({ messages, busy, thinkingStep, currentConsultantId
               {msg.role === "advisor" && (
                 <div className="messageDownloadBar" aria-label="下载交付件">
                   <button type="button" onClick={() => void downloadAnswerDocx(msg.content)}>
-                    下载精美 Word
+                    {`下载精美 Word${docxPrice ? ` · ${docxPrice} 积分（${yuanLabelForCredits(docxPrice)}）` : ""}`}
                   </button>
                 </div>
               )}
@@ -381,7 +393,7 @@ async function downloadAnswerDocx(content: string): Promise<void> {
     const { title } = parseAnswer(content);
     const response = await fetch(apiPath("/exports/docx"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: exportAuthHeaders(true),
       body: JSON.stringify({
         title: normalizeFilenamePart(title) || fallbackTitle,
         content
@@ -391,16 +403,31 @@ async function downloadAnswerDocx(content: string): Promise<void> {
     if (!response.ok || !data.downloadUrl) {
       throw new Error(data.message || "Word 文件生成失败");
     }
+    const fileResponse = await fetch(apiPath(data.downloadUrl), { headers: exportAuthHeaders(), cache: "no-store" });
+    if (!fileResponse.ok) {
+      throw new Error("Word 文件下载失败");
+    }
+    const blob = await fileResponse.blob();
+    const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
-    anchor.href = apiPath(data.downloadUrl);
+    anchor.href = url;
     anchor.download = data.filename || `${normalizeFilenamePart(title) || fallbackTitle}.docx`;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
+    URL.revokeObjectURL(url);
   } catch (error) {
     console.error("Word document generation failed", error);
     window.alert("Word 文件生成失败，请稍后再试。");
   }
+}
+
+function exportAuthHeaders(json = false): Record<string, string> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("store_os_token") : null;
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(json ? { "Content-Type": "application/json" } : {})
+  };
 }
 
 function formatTime(value?: string): string {

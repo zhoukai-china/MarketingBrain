@@ -1,4 +1,4 @@
-﻿import type { FastifyInstance } from "fastify";
+import type { FastifyInstance } from "fastify";
 import QRCode from "qrcode";
 import { z } from "zod";
 import { prisma } from "@baolu/db";
@@ -26,7 +26,7 @@ import {
 
 const createOrderSchema = z.object({
   type: z.literal("credit_pack"),
-  creditPackCode: z.enum(["starter_500", "growth_1500", "scale_5000"]),
+  creditPackCode: z.enum(["pack_50", "pack_100", "pack_300", "pack_500", "pack_1000"]),
   eventId: z.string().min(1).optional(),
   eventCode: z.string().min(3).max(80).optional(),
   registrationId: z.string().min(1).optional(),
@@ -422,7 +422,7 @@ async function buildOrderInput(input: z.infer<typeof createOrderSchema>): Promis
     ok: true,
     amountCny: pack.priceCny,
     creditPackCode: input.creditPackCode,
-    credits: pack.credits
+    credits: pack.baseCredits + pack.bonusCredits
   };
 }
 
@@ -431,9 +431,9 @@ function buildOrderDescription(order: {
 }): string {
   if (order.creditPackCode) {
     const pack = CREDIT_PACKS[order.creditPackCode as CreditPackCode];
-    return `思潼 企业AI增长飞轮-${pack?.name ?? "积分包"}`;
+    return `思潼AI 行业智能体平台-${pack?.name ?? "积分包"}`;
   }
-  return "思潼 企业AI增长飞轮积分充值";
+  return "思潼AI 行业智能体平台积分充值";
 }
 
 async function resolveOrderAttribution(

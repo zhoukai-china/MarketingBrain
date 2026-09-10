@@ -1,6 +1,6 @@
-﻿---
+---
 name: brand_consultant
-description: 思潼企业AI增长OS - brand consultant
+description: 思潼AI 行业智能体平台 - brand consultant
 type: prompt
 version: "1.0.0"
 ---

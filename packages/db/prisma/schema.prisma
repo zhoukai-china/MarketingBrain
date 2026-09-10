@@ -185,11 +185,14 @@ model Tenant {
   lanqiStoreProfile         LanqiStoreProfile?
   lanqiContentDrafts        LanqiContentDraft[]
   lanqiMediaJobs            LanqiMediaJob[]
+  lanqiStoreGoals           LanqiStoreGoal[]
   customDomain              TenantDomain?
   workbuddyConnections      WorkbuddyMcpConnection[]
   takeawayDataImports       TakeawayDataImport[]
   productEntitlements       TenantProductEntitlement[]
   beautyVideoAssetAuthorizations BeautyVideoAssetAuthorization[]
+  billingAccessTokens       BillingAccessToken[]
+  billingConsumes           BillingConsume[]
 }
 
 model TenantProductEntitlement {
@@ -219,6 +222,29 @@ model LanqiStoreProfile {
   updatedAt      DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+/// 兰琪驾驶舱唯一的「手输」数据：本月 4 个目标（业绩/新客/升单/唤醒）。
+/// 口径：按 store_id + month 各存一条，一月一条、不覆盖历史；其余指标一律自动统计。
+model LanqiStoreGoal {
+  id         String   @id @default(cuid())
+  tenantId   String
+  storeId    String
+  // YYYY-MM，按门店+月份唯一，改当月只更新当月这条，历史月份记录不动
+  month      String
+  rev        Int?
+  newCount   Int?
+  up         Int?
+  wake       Int?
+  requestKey String?
+  updatedBy  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, storeId, month])
+  @@index([tenantId, month])
 }
 
 model LanqiContentDraft {
@@ -343,6 +369,10 @@ model User {
   knowledgeConnections KnowledgeConnection[]
   knowledgeAnalyses    KnowledgeAnalysisBatch[]
   workbuddyConnections WorkbuddyMcpConnection[]
+  billingAccessTokens  BillingAccessToken[]
+  wallet               Wallet?
+  walletLedgers        WalletLedger[]
+  rechargeOrders       RechargeOrder[]
 
   @@index([wechatUnionid])
   @@index([phone])
@@ -745,6 +775,49 @@ model WorkbuddyMcpConnection {
   @@index([agentId, status])
   @@index([tenantId, productCode, status])
   @@index([rotatedFromId])
+}
+
+model BillingAccessToken {
+  id             String    @id @default(cuid())
+  tenantId       String
+  userId         String
+  label          String?
+  tokenHash      String    @unique
+  tokenPrefix    String
+  status         String    @default("active")
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  rotatedFromId  String?
+  lastUsedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  billingConsumes BillingConsume[]
+
+  @@index([tenantId, userId, status])
+  @@index([rotatedFromId])
+}
+
+model BillingConsume {
+  id                String    @id @default(cuid())
+  tenantId          String
+  userId            String?
+  accessTokenId     String?
+  requestId         String
+  amount            Int
+  status            String    @default("completed")
+  creditTransactionId String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  accessToken BillingAccessToken? @relation(fields: [accessTokenId], references: [id], onDelete: SetNull)
+
+  @@unique([accessTokenId, requestId])
+  @@index([tenantId, createdAt])
+  @@index([accessTokenId, status, createdAt])
 }
 
 model SkillRelease {
@@ -2027,4 +2100,367 @@ model SsoConfig {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, provider])
+}
+
+// ══════════════════════════════════════════════════════�
+// 模块四：思潼AI 智能体超市（Marketplace Shelf / SKU / Ledger）
+// 货架按业务场景四分区；SKU 是独立售卖商品，供应商分账，统一积分账本。
+// ══════════════════════════════════════════════════════�
+
+enum MarketplaceSkuStatus {
+  selling
+  trial
+  internal
+  coming_soon
+  offline
+}
+
+enum MarketplaceSupplierType {
+  self_operated
+  third_party
+}
+
+enum MarketplaceEntitlementTrack {
+  ppu
+  subscription
+}
+
+enum MarketplaceEntitlementStatus {
+  active
+  expired
+  canceled
+}
+
+enum MarketplaceLedgerType {
+  topup
+  ppu_consume
+  ppu_refund
+  subscription_charge
+  subscription_refund
+  adjustment
+}
+
+enum MarketplaceOrderStatus {
+  pending
+  paid
+  canceled
+  expired
+  refunded
+}
+
+model MarketplaceSupplier {
+  id             String                 @id @default(cuid())
+  code           String                 @unique
+  name           String
+  type           MarketplaceSupplierType @default(self_operated)
+  settlementRate Decimal                @default(0) @db.Decimal(10, 4)
+  contactEmail   String?
+  status         String                 @default("active")
+  metadata       Json?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  skus MarketplaceSku[]
+
+  @@index([type, status])
+}
+
+model MarketplaceIndustryProfile {
+  id        String   @id @default(cuid())
+  zoneKey   String   @unique
+  title     String
+  tag       String
+  who       String?
+  lexicon   Json
+  pains     Json
+  redline   Json
+  ov        Json
+  ready     Boolean  @default(true)
+  general   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneKey, ready])
+}
+
+model MarketplaceSku {
+  id                  String                @id @default(cuid())
+  skuCode             String                @unique
+  agentId             String?
+  capabilityKey       String?
+  supplierId          String
+  zone                String
+  name                String
+  icon                String?
+  badge               String?
+  description         String
+  verbs               Json
+  useCase             String
+  need                String
+  tags                Json
+  keywords            Json
+  ppu                 Int                   @default(0)
+  subscriptionPriceCny Int?
+  subscriptionQuota   String?
+  trial               Boolean               @default(false)
+  status              MarketplaceSkuStatus  @default(coming_soon)
+  sortOrder           Int                   @default(0)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  supplier      MarketplaceSupplier           @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  entitlements MarketplaceSkuEntitlement[]
+  ledgerEntries MarketplaceLedgerEntry[]
+  orders        MarketplaceSubscriptionOrder[]
+  subscriptions MarketplaceSubscription[]
+
+  @@index([zone, status, sortOrder])
+  @@index([supplierId, status])
+  @@index([agentId, status])
+}
+
+model MarketplaceSkuEntitlement {
+  id        String                       @id @default(cuid())
+  tenantId  String
+  skuId     String
+  track     MarketplaceEntitlementTrack
+  status    MarketplaceEntitlementStatus @default(active)
+  source    String
+  startsAt  DateTime                     @default(now())
+  expiresAt DateTime?
+  orderId   String?
+  metadata  Json?
+  createdAt DateTime                     @default(now())
+  updatedAt DateTime                     @updatedAt
+
+  sku MarketplaceSku @relation(fields: [skuId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, skuId])
+  @@index([tenantId, status, expiresAt])
+  @@index([skuId, status])
+}
+
+model MarketplaceSubscription {
+  id              String   @id @default(cuid())
+  tenantId        String
+  userId          String?
+  skuId           String
+  status          String   @default("active")
+  startDate       DateTime @default(now())
+  endDate         DateTime
+  priceCny        Int
+  quota           String?
+  providerOrderId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  sku MarketplaceSku @relation(fields: [skuId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status, endDate])
+  @@index([skuId, status, endDate])
+}
+
+model MarketplaceSubscriptionOrder {
+  id              String                 @id @default(cuid())
+  tenantId        String
+  userId          String?
+  skuId           String
+  subscriptionId  String?
+  priceCny        Int
+  status          MarketplaceOrderStatus @default(pending)
+  provider        String                 @default("wechat_pay")
+  providerOrderId String?
+  codeUrl         String?
+  expiresAt       DateTime
+  paidAt          DateTime?
+  metadata        Json?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  sku MarketplaceSku @relation(fields: [skuId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([status, createdAt])
+  @@index([skuId, createdAt])
+}
+
+model MarketplaceLedgerEntry {
+  id              String                @id @default(cuid())
+  tenantId        String
+  userId          String?
+  skuId           String?
+  type            MarketplaceLedgerType
+  direction       String
+  amountCredits   Int                   @default(0)
+  amountCny       Int                   @default(0)
+  status          String                @default("completed")
+  idempotencyKey  String?
+  refType         String?
+  refId           String?
+  metadata        Json?
+  createdAt       DateTime              @default(now())
+
+  sku MarketplaceSku? @relation(fields: [skuId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, createdAt])
+  @@index([type, createdAt])
+  @@index([skuId, createdAt])
+}
+
+// ══════════════════════════════════════════════════════
+// 模块五：思潼AI 统一钱包（v5 双桶账本 · 账号级）
+// paid = 基础积分（充值 base，严格 price×20）；bonus = 阶梯赠送（独立记账，不退）。
+// 消耗顺序先 paid 后 bonus；跨桶拆两条 ledger；同一 request_id 幂等。
+// ══════════════════════════════════════════════════════
+
+enum WalletBucket {
+  paid
+  bonus
+}
+
+enum WalletLedgerType {
+  recharge
+  bonus
+  consume
+  refund
+  admin
+  redo
+}
+
+enum RechargeOrderStatus {
+  created
+  paid
+  failed
+  refunded
+}
+
+model Wallet {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  paidBalance  Int      @default(0)
+  bonusBalance Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ledgers WalletLedger[]
+}
+
+model WalletLedger {
+  id           String            @id @default(cuid())
+  walletId     String
+  userId       String
+  delta        Int
+  bucket       WalletBucket
+  type         WalletLedgerType
+  refOrderId   String?
+  refRequestId String?
+  skillId      String?
+  viaBundle    String?
+  stepIndex    Int?
+  priceVersion Int?
+  source       String            @default("web")
+  createdAt    DateTime          @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([walletId, type, createdAt])
+  @@index([walletId, refRequestId, createdAt])
+}
+
+model RechargeOrder {
+  id             String              @id @default(cuid())
+  userId         String
+  planId         String?
+  amountCny      Int
+  basePts        Int
+  bonusPts       Int
+  method         String              @default("wechat")
+  status         RechargeOrderStatus @default(created)
+  idempotencyKey String?             @unique
+  priceVersion   Int?
+  paidAt         DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+// 兰琪美业门店 AI 经营大脑 · 私域营销（LQ-18）
+// 门店/租户隔离在应用层每个请求重算，故此处用标量字段承载 tenantId/storeId，
+// 不新增外键关联，避免改动已有 Tenant/User/Store 的关系定义。
+
+model LanqiMomentDraft {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String?
+  storeId   String
+  mode      String
+  pillar    String?
+  inputs    Json
+  raw       String?
+  status    String   @default("draft")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, storeId, mode, createdAt])
+  @@index([userId])
+}
+
+model LanqiMomentUpgrade {
+  id           String   @id @default(cuid())
+  tenantId     String
+  userId       String?
+  storeId      String
+  requestKey   String
+  draftId      String?
+  mode         String
+  pillar       String?
+  goal         String?
+  tone         String?
+  level        String?
+  keepMine     Boolean  @default(false)
+  raw          String
+  body         String
+  core         String?
+  rawLen       Int
+  newLen       Int
+  rawScore     Int
+  newScore     Int
+  issues       Json
+  ups          Json
+  checks       Json
+  status       String   @default("queued")
+  errorMessage String?
+  traceId      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([tenantId, requestKey])
+  @@index([tenantId, storeId, createdAt])
+  @@index([status])
+}
+
+model LanqiMomentAsset {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String?
+  storeId   String
+  upgradeId String?
+  requestKey String
+  kind      String   @default("image")
+  name      String?
+  url       String
+  thumbUrl  String?
+  status    String   @default("created")
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, requestKey])
+  @@index([tenantId, storeId])
 }

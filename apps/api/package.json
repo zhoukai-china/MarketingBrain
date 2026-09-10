@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch --exclude uploads/** --exclude src/routes/exports.ts --exclude src/routes/tenant.ts --exclude src/services/agent-runtime.ts --exclude ../../packages/agent/** src/server.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node scripts/copy-runtime-data.mjs",
     "start": "node dist/apps/api/src/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

@@ -1,4 +1,4 @@
-﻿import type { FastifyInstance } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { resolveCname, resolveTxt } from "node:dns/promises";
@@ -30,11 +30,11 @@ const domainPatchSchema = z.object({ hostname: z.string().trim().min(3).max(253)
 
 const DEFAULT_BRANDING: TenantBrandingConfig = {
   brandName: "思潼",
-  systemName: "思潼AI增长飞轮",
+  systemName: "思潼AI 行业智能体平台",
   primaryColor: "#1f6a57",
-  loginHeadline: "进入思潼AI增长飞轮",
+  loginHeadline: "进入思潼AI 行业智能体平台",
   loginDescription: "进入企业专属的智能体工作台，用知识、数据与专业能力持续推动业务增长。",
-  exportFooter: "由思潼AI增长飞轮生成",
+  exportFooter: "由思潼AI 行业智能体平台生成",
   isCustomized: false
 };
 

@@ -54,7 +54,8 @@ export const PRODUCT_LOGIN_DEFINITIONS: Record<ProductLoginCode, ProductLoginDef
     description: "使用兰琪授权的方法论，建立门店档案、经营诊断和增长执行方案。",
     tenantRole: "local_business",
     planCode: "local_standard",
-    defaultPath: "/lanqi/store-profile",
+    // 登录兰琪入口后先看经营驾驶舱（LQ-20）；门店档案是驾驶舱里的二级页面。
+    defaultPath: "/lanqi/dashboard",
     agentIds: [],
   },
   "beauty-industry": {
@@ -399,7 +400,7 @@ export function inferSalesCapabilities(input: string): SalesCapabilityId[] {
   return acquisitionRoutingPatterns.explicitMulti.test(text) ? matched.slice(0, 3) : matched.slice(0, 1);
 }
 
-export type CreditPackCode = "starter_500" | "growth_1500" | "scale_5000";
+export type CreditPackCode = "pack_50" | "pack_100" | "pack_300" | "pack_500" | "pack_1000";
 
 export type ProjectPackageCode =
   | "ai_health_express"
@@ -479,22 +480,60 @@ export interface CreditPackDefinition {
   code: CreditPackCode;
   name: string;
   priceCny: number;
-  credits: number;
-  /** Estimated underlying model/compute cost. Customer price is always cost x markupMultiplier. */
-  estimatedComputeCostCny: number;
+  /** 基础积分，严格等于 priceCny × 20。 */
+  baseCredits: number;
+  /** 阶梯赠送积分，独立记账，不混入基础积分。 */
+  bonusCredits: number;
 }
 
 /**
- * First-release credit pricing policy. Credits are the only paid AI usage unit:
- * customer price = actual compute cost × 10. The current packs use one credit
- * as ¥0.01 of compute cost, so one credit sells for ¥0.10.
+ * 思潼AI 统一积分钱包定价口径（定稿）。
+ * 1 元 = 20 积分；售价锚交付价值，成本只做毛利告警，不进定价公式。
  */
 export const CREDIT_PRICING = {
-  markupMultiplier: 10,
-  computeCostCnyPerCredit: 0.01,
-  customerPriceCnyPerCredit: 0.1,
-  formula: "用户支付金额 = 实际算力成本 × 10"
+  ptsPerYuan: 20,
+  customerPriceCnyPerCredit: 0.05,
+  formula: "售价锚交付价值；成本波动由毛利吸收，不传导到前端价格"
 } as const;
+
+/**
+ * 平台公共能力定价（全平台统一）。
+ * 精美 Word 导出（/exports/docx）按次扣积分；成本不进定价公式。
+ */
+export const EXPORT_PRICING = {
+  docxVersion: 1,
+  docxEffectiveAt: "2026-09-10",
+  docxCredits: 10
+} as const;
+
+/**
+ * 积分 → 人民币折算（基准 1 元 = 20 积分）。
+ * 只用于标价展示，不参与定价公式；成本波动由毛利吸收，不传导到售价。
+ */
+export function creditsToYuan(
+  credits: number,
+  ptsPerYuan: number = CREDIT_PRICING.ptsPerYuan
+): number {
+  const points = Number(credits);
+  if (!Number.isFinite(points) || !Number.isFinite(ptsPerYuan) || ptsPerYuan <= 0) return 0;
+  return points / ptsPerYuan;
+}
+
+/** 人民币展示文本：去掉多余小数位（10 → "10"，0.5 → "0.5"，0.05 → "0.05"）。 */
+export function formatYuanText(amount: number): string {
+  const value = Number.isFinite(amount) ? amount : 0;
+  const rounded = Math.round(value * 100) / 100;
+  if (Number.isInteger(rounded)) return String(rounded);
+  return rounded.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+/** 标价文案：200 积分 → "≈ ¥10"；40 积分 → "≈ ¥2"；10 积分 → "≈ ¥0.5"。 */
+export function yuanLabelForCredits(
+  credits: number,
+  ptsPerYuan: number = CREDIT_PRICING.ptsPerYuan
+): string {
+  return `≈ ¥${formatYuanText(creditsToYuan(credits, ptsPerYuan))}`;
+}
 
 export interface ProjectPackageDefinition {
   code: ProjectPackageCode;
@@ -675,26 +714,40 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
 };
 
 export const CREDIT_PACKS: Record<CreditPackCode, CreditPackDefinition> = {
-  starter_500: {
-    code: "starter_500",
-    name: "体验积分包",
-    priceCny: 30,
-    credits: 300,
-    estimatedComputeCostCny: 3
+  pack_50: {
+    code: "pack_50",
+    name: "试试看",
+    priceCny: 50,
+    baseCredits: 1000,
+    bonusCredits: 0
   },
-  growth_1500: {
-    code: "growth_1500",
-    name: "常用积分包",
+  pack_100: {
+    code: "pack_100",
+    name: "够用一阵",
     priceCny: 100,
-    credits: 1000,
-    estimatedComputeCostCny: 10
+    baseCredits: 2000,
+    bonusCredits: 200
   },
-  scale_5000: {
-    code: "scale_5000",
-    name: "高频积分包",
+  pack_300: {
+    code: "pack_300",
+    name: "常用",
     priceCny: 300,
-    credits: 3000,
-    estimatedComputeCostCny: 30
+    baseCredits: 6000,
+    bonusCredits: 1000
+  },
+  pack_500: {
+    code: "pack_500",
+    name: "重度",
+    priceCny: 500,
+    baseCredits: 10000,
+    bonusCredits: 2000
+  },
+  pack_1000: {
+    code: "pack_1000",
+    name: "团队年用",
+    priceCny: 1000,
+    baseCredits: 20000,
+    bonusCredits: 5000
   }
 };
 

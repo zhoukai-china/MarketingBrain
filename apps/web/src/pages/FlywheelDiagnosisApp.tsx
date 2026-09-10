@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import sitongChiefAvatar from "../assets/sitong-beauty.png";
 import {
-  FREE_TRIAL_CREDITS,
   creditOffers,
   diagnosisModes,
   membershipOffers,
@@ -3062,7 +3061,7 @@ export default function FlywheelDiagnosisApp() {
   return (
     <div className="flywheelDiagnosis">
       <header className="diagnosisTop">
-        <button onClick={() => window.location.href = "/"}>思潼企业AI增长飞轮</button>
+        <button onClick={() => window.location.href = "/"}>思潼AI 行业智能体平台</button>
         <span>诊断和报告永久免费，不扣积分、不占会员额度</span>
       </header>
 
@@ -3256,8 +3255,8 @@ export default function FlywheelDiagnosisApp() {
           </section>
 
           <section className="trialCreditNotice">
-            <strong>新账号注册即赠送{FREE_TRIAL_CREDITS}积分</strong>
-            <span>可兑换1套全企业落地方案，完整体验诊断、报告、方案和简易落地闭环。</span>
+            <strong>新账号注册不赠送积分</strong>
+            <span>诊断与报告免费；生成落地方案按积分兑换，先充值再使用。</span>
           </section>
         </main>
       )}
@@ -3490,7 +3489,7 @@ export default function FlywheelDiagnosisApp() {
               <article className="creditFallback">
                 <span>积分兑换</span>
                 {creditOffers.map((offer) => <p key={offer.code}>{offer.price}元={offer.credits}积分</p>)}
-                <button onClick={() => unlockSolution(`${FREE_TRIAL_CREDITS}积分兑换`)}>用积分生成方案</button>
+                <button onClick={() => unlockSolution("积分兑换")}>用积分生成方案</button>
               </article>
             </div>
           </section>

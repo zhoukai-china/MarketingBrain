@@ -58,8 +58,6 @@ export interface ProjectPackageOffer {
   benefits: string[];
 }
 
-export const FREE_TRIAL_CREDITS = 300;
-
 export const diagnosisModes: DiagnosisModeConfig[] = [
   {
     id: "quick",
@@ -117,7 +115,7 @@ export const membershipOffers: MembershipOffer[] = [
     audience: "单店商家、个人IP、OPC单人创业者",
     benefits: [
       "不收月度订阅费",
-      "注册赠送300体验积分",
+      "注册不赠送积分，按实际使用扣积分",
       "开放首版IP获客智能体",
       "实际执行时按积分扣费"
     ]
@@ -180,24 +178,38 @@ export const projectPackageOffers: ProjectPackageOffer[] = [
 
 export const creditOffers: CreditOffer[] = [
   {
-    code: "starter_500",
-    title: "体验加量包",
-    price: 30,
-    credits: 300,
-    description: "适合临时多生成几份内容、话术或复盘"
-  },
-  {
-    code: "growth_1500",
-    title: "常用加量包",
-    price: 100,
+    code: "pack_50",
+    title: "试试看",
+    price: 50,
     credits: 1000,
-    description: "适合一周内连续做内容生产和视频数据复盘"
+    description: "起充档，零赠送，适合先试一次"
   },
   {
-    code: "scale_5000",
-    title: "高频加量包",
+    code: "pack_100",
+    title: "够用一阵",
+    price: 100,
+    credits: 2200,
+    description: "默认档，多送 200 积分"
+  },
+  {
+    code: "pack_300",
+    title: "常用",
     price: 300,
-    credits: 3000,
-    description: "适合高频输出或团队集中测试"
+    credits: 7000,
+    description: "多送 1000 积分"
+  },
+  {
+    code: "pack_500",
+    title: "重度",
+    price: 500,
+    credits: 12000,
+    description: "多送 2000 积分"
+  },
+  {
+    code: "pack_1000",
+    title: "团队年用",
+    price: 1000,
+    credits: 25000,
+    description: "多送 5000 积分，适合团队长期使用"
   }
 ];

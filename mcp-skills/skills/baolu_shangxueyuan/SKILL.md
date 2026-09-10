@@ -1,6 +1,6 @@
-﻿---
+---
 name: baolu_shangxueyuan
-description: 思潼企业AI增长OS - baolu shangxueyuan
+description: 思潼AI 行业智能体平台 - baolu shangxueyuan
 type: prompt
 version: "1.0.0"
 ---

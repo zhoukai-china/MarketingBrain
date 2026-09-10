@@ -1,6 +1,6 @@
-﻿---
+---
 name: multi_store_dashboard
-description: 思潼企业AI增长OS - multi store dashboard
+description: 思潼AI 行业智能体平台 - multi store dashboard
 type: prompt
 version: "1.0.0"
 ---

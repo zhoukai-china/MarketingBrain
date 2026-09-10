@@ -1,0 +1,20 @@
+[
+  {
+    "id": "dsh-takeaway-normal-synthetic",
+    "skillId": "takeaway-growth-advisor",
+    "capabilityId": "takeaway_growth",
+    "tenantType": "chain_brand",
+    "tenantName": "评测连锁（合成数据，非真实客户）",
+    "industry": "快餐",
+    "city": "沈阳",
+    "input": "评测客户是中式快餐连锁（合成数据，非真实客户），在沈阳有7家外卖店。新店外卖销售额不好，想提升美团、饿了么和淘宝闪购订单。菜品、套餐、价格、优惠和后台数据以后再补，先正常给第一版方案。",
+    "mustInclude": [
+      "已确认事实",
+      "详细问题清单",
+      "完整原因地图",
+      "优先验证候选",
+      "推荐进入哪个任务",
+      "数据不足"
+    ]
+  }
+]

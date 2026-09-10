@@ -34,7 +34,7 @@ export function GrowthFlywheelHome() {
       <header className="flywheelHero">
         <nav className="flywheelTopline" aria-label="产品入口">
           <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-            思潼企业AI增长飞轮
+            思潼AI 行业智能体平台
           </button>
           <button onClick={() => window.location.href = "#plans"}>积分使用</button>
         </nav>
@@ -42,7 +42,7 @@ export function GrowthFlywheelHome() {
         <div className="heroGrid">
           <section className="heroCopy" aria-labelledby="home-title">
             <p className="flywheelEyebrow">先体检，再行动</p>
-            <h1 id="home-title">思潼企业AI增长飞轮</h1>
+            <h1 id="home-title">思潼AI 行业智能体平台</h1>
             <p className="heroLead">
               先做一次免费的经营AI体检，看清获客、成交、团队、营收里的关键问题；需要继续落地时，思潼再陪你生成方案、拆任务、做复盘。
             </p>

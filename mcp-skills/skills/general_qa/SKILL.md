@@ -1,6 +1,6 @@
-﻿---
+---
 name: general_qa
-description: 思潼企业AI增长OS - general qa
+description: 思潼AI 行业智能体平台 - general qa
 type: prompt
 version: "1.0.0"
 ---

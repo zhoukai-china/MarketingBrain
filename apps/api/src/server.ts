@@ -22,6 +22,8 @@ import { registerFileRoutes } from "./routes/files.js";
 import { registerAutomationRoutes } from "./routes/automation.js";
 import { registerDesktopRoutes } from "./routes/desktop.js";
 import { registerBillingRoutes } from "./routes/billing.js";
+import { registerBillingAccessTokenRoutes } from "./routes/billing-access-tokens.js";
+import { registerBillingConsumeRoutes } from "./routes/billing-consume.js";
 import { registerCreditRoutes } from "./routes/credits.js";
 import { registerAudioCardRoutes } from "./routes/audio-cards.js";
 import { registerReportRoutes } from "./routes/reports.js";
@@ -39,6 +41,8 @@ import { registerKnowledgeBaseRoutes } from "./routes/knowledge-base.js";
 import { registerCeoCockpitRoutes } from "./routes/ceo-cockpit.js";
 import { registerTakeawayGrowthRoutes } from "./routes/takeaway-growth.js";
 import { registerBeautyIndustryRoutes } from "./routes/beauty-industry.js";
+import { registerMomentRoutes } from "./routes/moments.js";
+import { registerAcquireRoutes } from "./routes/acquire.js";
 import { registerLanqiReferralRoutes } from "./routes/lanqi-referrals.js";
 import { registerLanqiStoreProfileRoutes } from "./routes/lanqi-store-profile.js";
 import { registerLanqiDiagnosisRoutes } from "./routes/lanqi-diagnosis.js";
@@ -47,12 +51,15 @@ import { registerLanqiContentStudioRoutes } from "./routes/lanqi-content-studio.
   import { registerLanqiMediaGenerationRoutes } from "./routes/lanqi-media-generation.js";
   import { registerLanqiXhsPackageRoutes } from "./routes/lanqi-xhs-package.js";
 import { registerLanqiBusinessQaRoutes } from "./routes/lanqi-business-qa.js";
+import { registerLanqiDashboardRoutes } from "./routes/lanqi-dashboard.js";
 import { requireProductEntitlement } from "./services/access-guards.js";
 import { registerViralVideoReplicationRoutes } from "./routes/viral-video-replication.js";
 import { registerWorkbuddyMcpRoutes } from "./routes/workbuddy-mcp.js";
 import { registerWechatMessageRoutes } from "./routes/wechat-messages.js";
 import { registerWechatKfRoutes } from "./routes/wechat-kf.js";
 import { registerWorkbuddySettingsRoutes } from "./routes/workbuddy-settings.js";
+import { registerMarketplaceRoutes } from "./routes/marketplace.js";
+import { registerGeoRoutes } from "./routes/geo.js";
 import { ensureAgentProductCatalog } from "./services/agent-catalog.js";
 import { registerBeautyDailyBriefScheduler } from "./products/beauty-industry/daily-brief-service.js";
 
@@ -122,6 +129,8 @@ export async function buildServer() {
   await registerAutomationRoutes(app);
   await registerDesktopRoutes(app);
   await registerBillingRoutes(app);
+  await registerBillingAccessTokenRoutes(app);
+  await registerBillingConsumeRoutes(app);
   await registerOfflineEventRoutes(app);
   await registerCreditRoutes(app);
   await registerAudioCardRoutes(app, provider);
@@ -136,6 +145,7 @@ export async function buildServer() {
   await registerWorkbuddySettingsRoutes(app);
   await registerWechatMessageRoutes(app, provider);
   await registerWechatKfRoutes(app, provider);
+  await registerMarketplaceRoutes(app);
   await registerAgentProductRoutes(app, provider);
   await registerAgentAdminRoutes(app, provider);
   await registerClipLabRoutes(app, provider);
@@ -145,11 +155,23 @@ export async function buildServer() {
   await app.register(async beautyIndustry => {
     beautyIndustry.addHook("preHandler", requireProductEntitlement("beauty-industry"));
     await registerBeautyIndustryRoutes(beautyIndustry, provider);
+    await registerMomentRoutes(beautyIndustry, "/beauty-industry");
+    await registerAcquireRoutes(beautyIndustry, "/beauty-industry");
   });
   registerBeautyDailyBriefScheduler(app);
   await app.register(async lanqi => {
     lanqi.addHook("preHandler", requireProductEntitlement("lanqi"));
     await registerLanqiReferralRoutes(lanqi);
+    // 经营驾驶舱（板块 1）与它唯一的手输写入口「本月 4 个目标」（LQ-20）。
+    await registerLanqiDashboardRoutes(lanqi);
+    // 私域营销 / 公域获客是兰琪 8 板块工作台的第 3、4 块，必须挂在兰琪产品
+    // 作用域内：此前它们只在 beauty-industry 作用域注册，兰琪租户调用必然 403
+    // （WorkBuddy 2026-09-10 报告 Bug1）。
+    // 兰琪侧注册的是 `/lanqi/...`，与美业单品的 `/beauty-industry/...` 是两套
+    // 独立路径，避免同一条 path 在两个作用域重复注册，也不会把兰琪前端再打回
+    // 美业作用域（那样仍然 403）。
+    await registerMomentRoutes(lanqi, "/lanqi");
+    await registerAcquireRoutes(lanqi, "/lanqi");
     await registerLanqiStoreProfileRoutes(lanqi);
     await registerLanqiDiagnosisRoutes(lanqi);
     await registerLanqiExecutionPlanRoutes(lanqi);
@@ -160,6 +182,7 @@ export async function buildServer() {
   });
   await registerViralVideoReplicationRoutes(app);
   await registerChatRoutes(app, provider);
+  await registerGeoRoutes(app, provider);
 
   return app;
 }

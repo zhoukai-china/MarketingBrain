@@ -1,6 +1,6 @@
-﻿---
+---
 name: opc_delivery_system
-description: 思潼企业AI增长OS - opc delivery system
+description: 思潼AI 行业智能体平台 - opc delivery system
 type: prompt
 version: "1.0.0"
 ---

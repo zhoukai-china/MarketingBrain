@@ -32,6 +32,17 @@ node_modules.broken-*
 /takeaway-format-*.tgz
 /test-leads.csv
 
+# Local debug artefacts (browser shots, dev logs). Never part of the release archive.
+/.debug/
+
+# scripts/tmp/ 里是发布与验收用的脚本（build-prod-filelist / deploy-release /
+# prod-*-readonly-check 等），文档按这个路径引用它们，因此纳入版本管理；
+# 该目录仍被 scripts/tmp/build-prod-filelist.ps1 的 excludePattern 排除，
+# 不随发布包上线。目录内的截图 / 日志 / json 产物按下面的规则单独忽略。
+/scripts/tmp/**/*.png
+/scripts/tmp/**/*.json
+/scripts/tmp/**/*.log
+
 # Historical reports and local working drafts are not source of truth
 /reports/
 /apps/api/reports/

@@ -1,7 +1,7 @@
-﻿import type { Consultant, QuickPrompt, MemoryState } from "../types";
+import type { Consultant, QuickPrompt, MemoryState } from "../types";
 
 export const consultants: Consultant[] = [
-  { id: "general_qa", name: "思潼", title: "企业AI增长飞轮", description: "先判断经营卡点，再安排下一步动作", spriteX: 0, spriteY: 0, spriteW: 64, spriteH: 64 },
+  { id: "general_qa", name: "思潼", title: "思潼AI 行业智能体平台", description: "先判断经营卡点，再安排下一步动作", spriteX: 0, spriteY: 0, spriteW: 64, spriteH: 64 },
   { id: "customer_acquisition_diagnosis", name: "获客成交体检", title: "增长链路诊断", description: "先找获客、承接、成交卡点，再拆行动清单", spriteX: 0, spriteY: 0, spriteW: 64, spriteH: 64 },
   { id: "ip_positioning", name: "IP定位", title: "思潼工作重点", description: "创始人IP五步定位法", spriteX: 64, spriteY: 0, spriteW: 64, spriteH: 64 },
   { id: "baolu_content_creator", name: "内容计划", title: "思潼工作重点", description: "四大脚本模型+爆款内容生产", spriteX: 128, spriteY: 0, spriteW: 64, spriteH: 64 },

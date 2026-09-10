@@ -1,6 +1,6 @@
-﻿---
+---
 name: promotion_planner
-description: 思潼企业AI增长OS - promotion planner
+description: 思潼AI 行业智能体平台 - promotion planner
 type: prompt
 version: "1.0.0"
 ---

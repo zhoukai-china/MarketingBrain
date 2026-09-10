@@ -1,7 +1,7 @@
 ﻿import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { Prisma, prisma } from "@baolu/db";
-import { PLANS, CREDIT_PACKS, PRODUCT_LOGIN_DEFINITIONS, PRODUCT_LOGIN_CODES, type PlanDefinition, type PlanCode } from "@baolu/shared";
+import { PLANS, PRODUCT_LOGIN_DEFINITIONS, PRODUCT_LOGIN_CODES, type PlanDefinition, type PlanCode } from "@baolu/shared";
 import { env } from "../config/env.js";
 import { requireAdminToken } from "../services/access-guards.js";
 import { createInviteCode } from "../services/invite-codes.js";

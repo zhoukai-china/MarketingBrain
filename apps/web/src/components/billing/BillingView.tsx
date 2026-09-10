@@ -19,12 +19,14 @@ const creditPacks: Array<{
   title: string;
   price: number;
   credits: number;
-  computeCost: number;
+  bonus: number;
   description: string;
 }> = [
-  { code: "starter_500", title: "体验积分包", price: 30, credits: 300, computeCost: 3, description: "适合先体验内容、话术或复盘能力" },
-  { code: "growth_1500", title: "常用积分包", price: 100, credits: 1000, computeCost: 10, description: "适合持续进行内容生产和数据分析" },
-  { code: "scale_5000", title: "高频积分包", price: 300, credits: 3000, computeCost: 30, description: "适合团队高频调用多个智能体" }
+  { code: "pack_50", title: "试试看", price: 50, credits: 1000, bonus: 0, description: "起充档，零赠送" },
+  { code: "pack_100", title: "够用一阵", price: 100, credits: 2200, bonus: 200, description: "多送 200 积分" },
+  { code: "pack_300", title: "常用", price: 300, credits: 7000, bonus: 1000, description: "多送 1000 积分" },
+  { code: "pack_500", title: "重度", price: 500, credits: 12000, bonus: 2000, description: "多送 2000 积分" },
+  { code: "pack_1000", title: "团队年用", price: 1000, credits: 25000, bonus: 5000, description: "多送 5000 积分" }
 ];
 
 export function BillingView({ token, headers, onNeedLogin }: BillingViewProps) {
@@ -99,8 +101,8 @@ export function BillingView({ token, headers, onNeedLogin }: BillingViewProps) {
               onClick={() => void createOrder(pack.code)}
               disabled={Boolean(busyCode)}
             >
-              <strong>{pack.title} · ¥{pack.price} = {pack.credits} 积分</strong>
-              <span>{busyCode === pack.code ? "正在创建支付订单…" : `${pack.description}（对应约 ¥${pack.computeCost} 实际算力成本）`}</span>
+              <strong>{pack.title} · ¥{pack.price} = {pack.credits} 积分{pack.bonus > 0 ? `（多送 ${pack.bonus}）` : ""}</strong>
+              <span>{busyCode === pack.code ? "正在创建支付订单…" : pack.description}</span>
             </button>
           ))}
         </div>
