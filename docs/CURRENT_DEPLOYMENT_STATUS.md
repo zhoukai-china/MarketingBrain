@@ -1,8 +1,34 @@
 # 当前部署状态
 
-更新时间：2026-09-11（最近一次为 **P0 身份头冒充修复上测试实例 + 生产**，见下方顶部条目；此前为兰琪生产数据收尾与 LQ-19 公域获客发布；2026-08-03 清单保留为当时状态）
+更新时间：2026-09-11（最近一次为 **微信登录失败路径修正 + 一次性验收租户回收上测试实例 + 生产**，见下方顶部条目；此前为 P0 身份头冒充修复、兰琪生产数据收尾与 LQ-19 公域获客发布；2026-08-03 清单保留为当时状态）
 
-## 最新发布：20260911-identity-p0-prod1（2026-09-11，测试实例 + 生产）— P0 身份头冒充修复
+## 最新发布：20260911-wechat-login-failure-paths-prod1（2026-09-11，测试实例 + 生产）— 微信登录失败路径修正
+
+发布包：`release-20260911-wechat-login-failure-paths.tar.gz`（**8916973 B**，sha256 `3bfebb5817cf45e965f0ad2184570270760c898a0f67e684ebf770b64dccfae3`，**1427 个文件**）。测试实例与生产共用同一份产物，两侧部署日志第 3 行 `archive sha256` 实测与本机一致。发布 id 按环境分别记为 `20260911-wechat-login-failure-paths-test1` / `20260911-wechat-login-failure-paths-prod1`。策略同前：stage 构建 → 备份 → 全量叠加（不删除历史文件）→ 第 7b 步在 `$APP` 就地 `prisma generate` 并按 `schema.prisma` 逐模型校验 → migrate → 重启 → 健康轮询 → 校验 → 失败自动回滚；部署以 `setsid nohup` 后台运行（规避 QA-20260910-019 的交互会话中断回滚）。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 联调 `chat-test` | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | `https://api.lcppch.top/lanqi-test/` | `20260911-wechat-login-failure-paths-test1` | `DEPLOY_OK` + `health=200 (after 9s)` / `ready=200` |
+| 生产 `chat` | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | `https://api.lcppch.top/os-v2/` | `20260911-wechat-login-failure-paths-prod1` | `DEPLOY_OK` + `health=200 (after 15s)` / `ready=200` |
+
+- 本包内容：`apps/api/src/services/wechat-auth.ts`（新增 `WechatOAuthExchangeError`，区分 `invalid_code` / `upstream_unavailable`）、`apps/api/src/routes/auth.ts`（401 `wechat_code_invalid` / 502 `wechat_upstream_unavailable` 分类映射，上游 `errmsg` 只进服务端日志）、`package.json`（新增并接入 `qa:fast` 的 `auth:wechat-login-failure-paths-smoke`）、`scripts/wechat-login-failure-paths-smoke.ts`。详见 `docs/BUG_REGRESSIONS.md` QA-20260911-004。
+- 迁移：`48 migrations found in prisma/migrations` / `No pending migrations to apply.`（两侧一致，无 schema 变更）。运行时客户端守护：两侧部署日志第 132 行 `prisma client model coverage OK: 99 models`。
+- 备份与日志：生产备份 `/opt/baolu-backups/20260911-wechat-login-failure-paths-prod1-before-baolu-os-v2/`，部署日志 `/tmp/deploy-20260911-wechat-login-failure-paths-prod1-baolu-os-v2.log`（运行日志 `/tmp/deploy-run-prod1.log`）；测试备份 `/opt/baolu-backups/20260911-wechat-login-failure-paths-test1-before-baolu-os-v2-test/`，日志同名 `-test1-` 两份。**回滚**＝把备份目录还原回 `$APP` 并 `systemctl restart`；代码侧最小回滚点是 `wechat-auth.ts` / `auth.ts` 两个文件。
+- 发布后复验（2026-09-11 07:2x，外网只读；未改数据、未再发布）：
+  - **失败路径**：`scripts/tmp/prod-lanqi-wechat-failure-paths.mjs` → 测试实例 **8/8 PASS**、生产 **8/8 PASS**；生产 A4 实测 `401 {"error":"wechat_code_invalid","message":"微信授权已失效，请返回登录页重新授权。"}`（修复前为 500 `internal_server_error`）。
+  - **正路**：`scripts/tmp/prod-lanqi-login-readonly-check.mjs` → 兰琪品牌在、`/auth/wechat-config` = `{"configured":true,"appid":"wxf405233d62ec376a","inviteRequired":false}`、`consoleErrors=[]`。
+  - **运行面**：`systemctl is-active baolu-os-v2 baolu-os-v2-test` → 两者 `active`；`journalctl -u baolu-os-v2 --since "-90 min" -p err` 无条目。
+- 与真人扫码（③）的关系：失败路径已固化成可重复探针（无需真人、不消耗邀请码席位）；正常路径仍待 WorkBuddy/用户用 `cmengtv` 微信完成 `snsapi_userinfo` 授权并补门店资料。
+
+### 生产数据动作：一次性验收租户回收（2026-09-11 07:15，生产 `baolu_os_v2`，可回滚）
+
+- 回收对象：上一条目「② 产品邀请码注册 E2E」新建的一次性验收租户 `Tenant cmtw4ovd1057y13ka0xmza9n9`「兰琪注册验收门店-20260911」及其 `User cmtw4ovd7057z13ka4sj3osqw`。属**用户明确要求**的破坏性数据动作，执行前先全量备份。
+- 删除前备份：`/opt/baolu-os-v2/.qa/qa-tenant-rollback-20260911-071559/`（122 个文件；按 `tenantId`/`userId` 导出所有含该列的表 CSV，非空 15 份，含 `Tenant` / `User` / `Membership` / `Store` / `TenantProfile` / `TenantProductEntitlement` / `TenantAgentEntitlement` / `CreditAccount` / `Wallet` / `InviteCodeRedemption` 等，另有 `InviteCode__before.csv`）。
+- 执行（单事务）：`delete from "Tenant" where id='…'` → `DELETE 1`（指向 `Tenant` 的 59 个外键均为 CASCADE/SET NULL，无 RESTRICT 阻挡）；`delete from "User" where id='…'` → `DELETE 1`；`update "InviteCode" set "usedCount" = greatest("usedCount" - 1, 0) where id='…'` → 席位 `1 → 0`。**踩坑**：`InviteCodeRedemption` 只外键到 `InviteCode`、不级联 Tenant/User，首轮留下 1 行孤儿（`id=cmtw4ovh9059713kau9w1knzi`、`planCode=local_standard`），已按 `tenantId` 显式 `DELETE 1` 清掉。
+- 回收后实测（2026-09-11 07:2x，生产只读复核）：`Tenant` 目标行 0、`User` 目标行 0、`InviteCodeRedemption` 0、`LanqiMomentUpgrade` 目标行 0、`LanqiMomentAsset` 目标行 0；`InviteCode` = `usedCount 0 / maxUses 5 / isActive true`（**席位从剩 4 恢复到满 5**）；`Tenant` 总数 208。
+- **回滚**：按备份目录里的 CSV 逐表 `COPY` 回插（含 `InviteCode` 恢复 `usedCount=1`）。
+
+## 发布：20260911-identity-p0-prod1（2026-09-11，测试实例 + 生产）— P0 身份头冒充修复
 
 发布包：`release-20260911-identity-p0-prod1.tar.gz`（**8900152 B**，sha256 `5e5ca99d123133bcdd8b88a9eef895329c61ab059c983afa77cc220055299e5f`，**1426 个文件**）。本地构建产物 `%TEMP%\release-20260911-identity-p0-prod1.tar.gz` 与服务器 `/tmp/release-20260911-identity-p0-prod1.tar.gz` sha256 一致（部署日志第 3 行 `archive sha256` 复核）。测试实例与生产共用同一份产物，发布 id 按环境分别记为 `20260911-identity-p0-test1` / `20260911-identity-p0-prod1`。策略同前：stage 构建 → 备份 → 全量叠加（不删除历史文件）→ 第 7b 步在 `$APP` 就地 `prisma generate` 并按 `schema.prisma` 逐模型校验运行时客户端 → migrate → 重启 → 健康轮询 → 校验 → 失败自动回滚。
 

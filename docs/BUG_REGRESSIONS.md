@@ -42,6 +42,23 @@
 - 残留（未在本轮处理，已登记）：`scripts/login-entry-browser-smoke.mjs` 依赖本机 dev server（默认 `http://127.0.0.1:5174` + `INVITE_CODE`）走邀请制注册闭环，本轮未运行；若后续把本机 dev 环境也切成 `INVITE_REQUIRED=false`，它的步骤 3 需要同步改口径。
 - 状态：**已关闭（检查资产已对齐现行合同）。**
 
+## QA-20260911-004：`POST /auth/wechat-login` 把「微信授权码已失效」压成 500 服务器故障（P1，已修 + 已上生产并复验）
+
+- 现象（真实生产，非合成；2026-09-11 外网实测 `https://api.lcppch.top/os-v2/api/auth/wechat-login`）：`{"code":"invalid-probe-code","productCode":"lanqi"}` → **500** `internal_server_error`「服务暂时不可用」。触发场景就是真人扫码验收（③）里的失败路径——用户授权超时、同一个 `code` 被重复换取、或伪造 code。真实语义是「请重新授权」，却同时误导两端：老板看到「服务器故障」，运维收到 5xx 告警。
+- 根因（`apps/api/src/services/wechat-auth.ts`）：换取 `sns/oauth2/access_token` 时，对上游 `errcode`（`40029` invalid code、`40163` code been used 等）、HTTP 非 2xx、网络异常、JSON 解析失败、缺 `openid` **一律 `throw new Error(...)`**；`apps/api/src/server.ts:99` 的兜底把未分类 `Error` 统一映射为 500 `internal_server_error`。业务失败与系统故障在同一个 catch 里被压平——这是根因，不是路由写错。附带风险：上游 `errmsg` 一旦随 `Error.message` 透出，就把微信侧原文回显给了前端。
+- 失败路径探针（新增，只读：不建租户、不消耗邀请码席位）：`scripts/tmp/prod-lanqi-wechat-failure-paths.mjs`（本机 CDP 起 Chromium，`--headless=new`；用法 `WECHAT_PROBE_WEB_URL=https://api.lcppch.top/os-v2 node scripts/tmp/prod-lanqi-wechat-failure-paths.mjs`）。8 项断言：
+  - A1 缺 `code` → 400 `invalid_request`；A2 空串 `code` → 400；A3 非法 `tenantHostname` → 400 `invalid_tenant_domain`；A4 无效 `code` → 明确业务错误（**不得 5xx**）。
+  - B1 缺 `state` → 页内拒绝且 **0 次** 请求 `/auth/wechat-login`；B2 `state` 不匹配 → 同上；B3 用户取消授权 → 提示取消且 0 次请求；B4 无效 `code` → 页面给中文可读错误、不泄露内部信息。
+  - **首跑即红灯，命中 A4。** 修复后测试实例 8/8、生产 8/8 全绿（见下方复验）。
+- 修复前红灯（自动回归，新增 `scripts/wechat-login-failure-paths-smoke.ts`：真实 Fastify + 路由 + 合成微信响应桩，复刻生产 500 兜底）：`git stash push -- apps/api/src/services/wechat-auth.ts apps/api/src/routes/auth.ts` 后运行 → **22 passed / 12 failed**（失败点全部是「业务失败路径被映射成 500」）；`git stash pop` 恢复，两个文件 sha256 前后一致（`1b80a683…` / `9aad859e…`）。
+- 最小修复（两文件，不做无关重构）：
+  - `apps/api/src/services/wechat-auth.ts`：新增 `WechatOAuthExchangeError`，`kind` 仅 `invalid_code` / `upstream_unavailable` 两类；`INVALID_CODE_ERRCODES = {40029, 40163}` 归 `invalid_code`；fetch 抛错、HTTP 非 2xx、JSON 解析失败、缺 `openid` 归 `upstream_unavailable`。上游 `errmsg` 只进 `detail`（服务端日志），不回前端。
+  - `apps/api/src/routes/auth.ts`：`catch` 分类映射——`invalid_code` → **401** `{error:"wechat_code_invalid", message:"微信授权已失效，请返回登录页重新授权。"}`；`upstream_unavailable` → **502** `{error:"wechat_upstream_unavailable", message:"微信授权服务暂时不可用，请稍后重试或联系服务团队。"}`；两类都 `request.log.warn` 记 `detail`。未分类错误仍走原 500 兜底（不吞异常）。
+  - `package.json`：新增 `pnpm.cmd auth:wechat-login-failure-paths-smoke` 并接入 `qa:fast`（紧随 `auth:identity-header-spoof-smoke`）。
+- 修复后验收（同批实测）：`pnpm.cmd auth:wechat-login-failure-paths-smoke` → **34 passed / 0 failed**（含正常路径不被误伤：有效 code 无 membership → 200 `needsTenant` + `onboardingToken`）；`pnpm.cmd qa:fast` → **PASS**（exit 0，含新用例 34/34 与全仓 typecheck 7/7）。
+- 生产复验（2026-09-11 07:2x，外网只读）：`scripts/tmp/prod-lanqi-wechat-failure-paths.mjs` → 测试实例 **8/8 PASS**、生产 **8/8 PASS**；生产 A4 实测 `401 {"error":"wechat_code_invalid","message":"微信授权已失效，请返回登录页重新授权。"}`；`scripts/tmp/prod-lanqi-login-readonly-check.mjs` → 兰琪品牌在、`wechatConfig={"configured":true,"appid":"wxf405233d62ec376a","inviteRequired":false}`、`consoleErrors=[]`。
+- 状态：**已关闭（测试实例 + 生产均已发布并复验）。** 发布包 `release-20260911-wechat-login-failure-paths.tar.gz`（8916973 B，sha256 `3bfebb5817cf45e965f0ad2184570270760c898a0f67e684ebf770b64dccfae3`，1427 文件），发布 id `20260911-wechat-login-failure-paths-test1` / `-prod1`；两侧部署日志实测：`archive sha256` 与本机一致、`DEPLOY_OK`、`health=200`（test after 9s / prod after 15s）、`ready=200`、`48 migrations found` + `No pending migrations`、第 7b 步 `prisma client model coverage OK: 99 models`；部署后 `journalctl -u baolu-os-v2 --since "-4 min" -p err` 无条目。备份/日志/回滚见 `docs/CURRENT_DEPLOYMENT_STATUS.md` 顶部条目。
+
 ## QA-20260911-001：发布脚本只在 `$STAGE` 生成 Prisma Client，生产运行时客户端缺 4 个新模型，兰琪驾驶舱/目标页/朋友圈历史全部 500（P1，生产已修复并复验）
 
 - 现象（真实生产，非合成）：兰琪生产授权补齐后（`TenantProductEntitlement` 出现两条 `lanqi|active`，source `lanqi_launch_backfill_20260911`），兰琪租户 `GET /lanqi/stores`、`GET /lanqi/store-profile` 正常 200，但 `GET /lanqi/dashboard?month=2026-09`、`GET /lanqi/goals?month=2026-09`、`GET /lanqi/moments/upgrades` 全部 500：错误码分别为 `lanqi_dashboard_error` / `lanqi_goals_error` / `moments_history_error`，message 统一为 `Cannot read properties of undefined (reading 'findUnique')`（朋友圈历史是 `findMany`）。服务器本机 `http://127.0.0.1:3002/...` 与外部 `https://api.lcppch.top/os-v2/api/...` 表现一致。

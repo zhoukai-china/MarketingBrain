@@ -19,6 +19,7 @@ import { createTenantWorkspace } from "../services/database-bootstrap.js";
 import { getDemoContext } from "../services/demo-context.js";
 import {
   exchangeWechatOAuthCode,
+  WechatOAuthExchangeError,
   WechatAuthNotConfiguredError
 } from "../services/wechat-auth.js";
 import { resolveRequestContext } from "../services/request-context.js";
@@ -484,6 +485,23 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     } catch (error) {
       if (error instanceof WechatAuthNotConfiguredError) {
         return reply.code(503).send({ error: "wechat_auth_not_configured", issues: error.issues });
+      }
+      // 微信换取授权码的可预期失败不能落到 server.ts 的 500 兜底：
+      // 授权码失效是用户重新授权就能恢复的业务失败（401），
+      // 上游/配置异常是需要运维介入的依赖故障（502）。
+      // 上游原始 errmsg 只写服务端日志，回给前端的是可读中文文案。
+      if (error instanceof WechatOAuthExchangeError) {
+        request.log.warn({ wechatOAuthError: error.kind, detail: error.detail }, "wechat oauth exchange failed");
+        if (error.kind === "invalid_code") {
+          return reply.code(401).send({
+            error: "wechat_code_invalid",
+            message: "微信授权已失效，请返回登录页重新授权。"
+          });
+        }
+        return reply.code(502).send({
+          error: "wechat_upstream_unavailable",
+          message: "微信授权服务暂时不可用，请稍后重试或联系服务团队。"
+        });
       }
       throw error;
     }

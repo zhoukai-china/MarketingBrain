@@ -1,6 +1,6 @@
 # 兰琪美业经营增长智能体状态
 
-> **2026-09-09（0909 总纲）**：本产品方向已由《兰琪美业门店 AI 经营大脑·Codex 开发总纲》覆盖，当前唯一交付单元为 8 个一级导航板块，一块板一批交付。旧 LQ-* 任务卡批量标记「暂停 / 由 0909 覆盖」（详见 `tasks/README.md`），仅保留证据不再续做。新开发任务自 LQ-18 起。**当前状态（2026-09-11 更新）：LQ-18 私域营销（板块4）已于 2026-09-10 收口并发布生产（发布 id `20260910-lanqi-lq18-closeout-prod1`）；LQ-19 公域获客（板块3）已在 2026-09-11 完成测试实例部署与专项验收（新增页面级探针 28/0、接口冒烟 80/0，既有回归 14/0），并随发布 id `20260911-lanqi-lq19-acquire-prod1` 上生产（`DEPLOY_OK` + 健康 200，生产 `/lanqi/acquire/*` 接口 16/16 PASS），本轮收口。LQ-20 经营驾驶舱（板块1）本轮「不验收」——按用户指示留到经营驾驶舱专项开发时再验收，现有测试实例结果只作既有回归。二期连锁（`chain.html`）本期不实现。生产收尾三项（LQ-18 验收残留清理、产品邀请码注册 E2E）已执行且已通过，真人微信扫码待 WorkBuddy 用 `cmengtv` 执行，详见下方「生产收尾三项（2026-09-11）」。**
+> **2026-09-09（0909 总纲）**：本产品方向已由《兰琪美业门店 AI 经营大脑·Codex 开发总纲》覆盖，当前唯一交付单元为 8 个一级导航板块，一块板一批交付。旧 LQ-* 任务卡批量标记「暂停 / 由 0909 覆盖」（详见 `tasks/README.md`），仅保留证据不再续做。新开发任务自 LQ-18 起。**当前状态（2026-09-11 更新）：LQ-18 私域营销（板块4）已于 2026-09-10 收口并发布生产（发布 id `20260910-lanqi-lq18-closeout-prod1`）；LQ-19 公域获客（板块3）已在 2026-09-11 完成测试实例部署与专项验收（新增页面级探针 28/0、接口冒烟 80/0，既有回归 14/0），并随发布 id `20260911-lanqi-lq19-acquire-prod1` 上生产（`DEPLOY_OK` + 健康 200，生产 `/lanqi/acquire/*` 接口 16/16 PASS），本轮收口。LQ-20 经营驾驶舱（板块1）本轮「不验收」——按用户指示留到经营驾驶舱专项开发时再验收，现有测试实例结果只作既有回归。二期连锁（`chain.html`）本期不实现。生产收尾三项：① LQ-18 验收残留已清、② 产品邀请码注册 E2E 已通过且**该一次性验收租户随后已按要求回收（席位恢复到满 5）**、③ 真人微信扫码待 WorkBuddy 用 `cmengtv` 执行，但其**失败路径已补自动化探针并修真一个 P1（无效 code 由 500 改 401，已上生产）**，详见下方「生产收尾三项（2026-09-11）」。**
 
 ## 生产收尾三项（2026-09-11，用户授权执行）
 
@@ -21,7 +21,8 @@
   - `Tenant cmtw4ovd1057y13ka0xmza9n9`「兰琪注册验收门店-20260911」，`local_business`／美业／上海，`createdAt 2026-09-10 22:58:14 +08`；
   - `User cmtw4ovd7057z13ka4sj3osqw`（负责人，无微信 openid）、`Membership cmtw4ovdk058313kavgpgk7g2`（owner）、默认门店 `cmtw4ovdd058113kaggcmkfti`「默认门店」；
   - `TenantProductEntitlement cmtw4ovi5059913ka9vkd5uxk`：`lanqi|active`、`source=product_invite`、`expiresAt 2026-10-10 22:58:14 +08`。
-- 席位账：生产 `lanqi` 产品邀请码 1 条（label「兰琪美业生产首批开通 20260911」、`maxUses=5`、`isActive=true`、无到期），核销后 `usedCount=1`，**剩余 4 席**。邀请码明文只保存在本机 `%TEMP%\lanqi-prod-auth-20260911\`，不写入仓库/文档/报告。
+- 席位账：生产 `lanqi` 产品邀请码 1 条（label「兰琪美业生产首批开通 20260911」、`maxUses=5`、`isActive=true`、无到期），核销后 `usedCount=1`，**当时剩余 4 席**。邀请码明文只保存在本机 `%TEMP%\lanqi-prod-auth-20260911\`，不写入仓库/文档/报告。
+- **回收（2026-09-11 07:15，用户要求，可回滚）**：该一次性验收租户已完成使命，删除 `Tenant cmtw4ovd1057y13ka0xmza9n9` + `User cmtw4ovd7057z13ka4sj3osqw`，并把邀请码 `usedCount` 由 1 退回 0（`maxUses` 仍 5）→ **席位恢复到满 5**。删除前全量备份 `/opt/baolu-os-v2/.qa/qa-tenant-rollback-20260911-071559/`（122 个文件，按 `tenantId`/`userId` 导出全部相关表 CSV，另有 `InviteCode__before.csv`）；回收后只读复核：目标 Tenant/User/`InviteCodeRedemption` 全 0、`Tenant` 总数 208、`InviteCode` = `usedCount 0 / maxUses 5 / isActive true`。回滚＝按备份 CSV 逐表 `COPY` 回插。踩坑已记录：`InviteCodeRedemption` 不级联 Tenant/User，需按 `tenantId` 显式删除，否则留孤儿行。详见 `docs/CURRENT_DEPLOYMENT_STATUS.md` 顶部条目。
 - 页面级验收脚本（本轮新增，提交 git）：`scripts/tmp/prod-lanqi-signup-acceptance.mjs`，真实 Chromium 打生产 `https://api.lcppch.top/os-v2`，**全项 PASS**：匿名无 token → 产品入口渲染「微信授权登录 + 产品邀请码」→ 随机假邀请码被拒（页内中文提示、不发 token、停留原页）→ 真码校验通过 → 门店资料提交 → 落地 `/os-v2/lanqi/dashboard` → `POST /auth/beta-login` 回执 `invite={"source":"database","redeemed":true}` → 主会话刷新仍在工作台（不再出邀请码表单）→ 新租户 `GET /lanqi/stores`、`/account/status` 均 200 → 全新浏览器上下文仍匿名。报告与截图：`%TEMP%\lanqi-prod-auth-20260911\signup-shots\`。
 - 会话态页面复验（`scripts/tmp/prod-lanqi-new-tenant-browser-verify.mjs`，注入服务端同密钥签发的短时 token）：驾驶舱加载完成（6 个标题 / 12 个 section+article）、刷新不丢会话、门店档案页渲染正常，`consoleErrors=[]`；截图 `verify-shots\01-lanqi-dashboard.png` 视觉确认为兰琪橙色工作台 + 经营驾驶舱 + 9 维健康度 + 本月目标卡。
 - 只读接口复核（生产 3002；**服务端路由不带 `/api` 前缀，nginx 才加**）：新租户 `/lanqi/dashboard`、`/lanqi/stores`、`/account/status`、`/lanqi/store-profile`、`/lanqi/execution-plan/current`、`/lanqi/diagnosis/current` 全 200；存量兰琪租户 A `/lanqi/stores` 只看到自己的门店，无跨租户串数据；匿名 `/lanqi/stores`、`/account/status` → 401 `login_required`。
@@ -34,8 +35,9 @@
 - 服务端行为（`apps/api/src/routes/auth.ts:363` 起）：无 membership 且无 `productCode` → 200 `{needsTenant:true, onboardingToken}`；有 membership 但无该产品权限 → 403 `product_membership_required`；`productCode=lanqi` 且账号已在别的租户 → 403（不会自动开兰琪）。
 - 截至 2026-09-11 07:0x 复核：生产近 3 天新建 6 个租户全部来自邀请码/开放注册，**没有任何微信授权新建的租户**；`User.wechatOpenid` 非空共 17 人，均为历史记录。即「没有从未登录过的微信号」这一前提在当前口径下仍成立，需用户/WorkBuddy 用 `cmengtv` 微信在浏览器完成授权并补门店资料。
 - 执行方式（交 WorkBuddy）：浏览器打开 `https://api.lcppch.top/os-v2/login/lanqi` → 「微信授权登录」→ 用 `cmengtv` 扫码/确认 → 补门店资料 → 应落到 `/os-v2/lanqi/dashboard`；完成后回填落地截图/结果，本轮即可闭环。
-- 建议 WorkBuddy 一并回归的失败路径（尚未脚本化）：`POST /auth/wechat-login` 传无效 code 应返回明确错误而非 500；`/wechat-callback` 缺 `state`、`state` 不匹配必须拒绝。
-- 验收数据现状（2026-09-11 07:0x，生产只读）：`LanqiMomentUpgrade=0`、`LanqiMomentAsset=0`、`Tenant=209`、`TenantProductEntitlement(lanqi,active)=3`、`LanqiReferral=0`。
+- **失败路径已自动化（2026-09-11，用户要求补探针）**：新增 `scripts/tmp/prod-lanqi-wechat-failure-paths.mjs`（只读探针，不建租户、不消耗邀请码席位，可在生产直接跑）：A1 缺 `code`→400；A2 空 `code`→400；A3 非法 `tenantHostname`→400 `invalid_tenant_domain`；A4 无效 `code`→明确业务错误（不得 5xx）；B1 缺 `state`→页内拒绝且 0 次请求 `/auth/wechat-login`；B2 `state` 不匹配→同上；B3 用户取消授权→提示取消且 0 次请求；B4 无效 `code`→页面中文可读错误、不泄露内部信息。**首跑即红灯，揪出一个 P1 真缺陷**：`POST /auth/wechat-login` 传无效 code 返回 500 `internal_server_error`（「授权已失效」被说成「服务器故障」，并污染 5xx 告警）。已最小修复（`wechat-auth.ts` 区分 `invalid_code`/`upstream_unavailable`；`auth.ts` 映射 401 `wechat_code_invalid` / 502 `wechat_upstream_unavailable`，上游 `errmsg` 只进服务端日志），新增仓库回归 `scripts/wechat-login-failure-paths-smoke.ts`（红灯 22 passed / 12 failed → 修复后 **34 passed / 0 failed**，已接 `qa:fast`），并随发布 id `20260911-wechat-login-failure-paths-test1` / `-prod1` 上测试实例与生产；发布后探针**两侧各 8/8 PASS**。详见 `docs/BUG_REGRESSIONS.md` QA-20260911-004。
+- WorkBuddy 真人扫码时只需回归**正常路径**：失败路径已由上述探针覆盖，无需人工复现。
+- 验收数据现状（2026-09-11 07:2x，生产只读，已含一次性租户回收）：`LanqiMomentUpgrade=0`、`LanqiMomentAsset=0`、`Tenant=208`、`TenantProductEntitlement(lanqi,active)=3`、`LanqiReferral=0`。
 
 ## LQ-18 私域营销（板块4）本轮收口（2026-09-10）
 
