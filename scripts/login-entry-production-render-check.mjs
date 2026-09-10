@@ -123,6 +123,9 @@ async function main() {
     const homeUrl = await evaluate(cdp, sessionId, `() => window.location.href`);
 
     // 2. 生产 /login 必须是平台登录/注册页，且没有任何历史诊断入口残留。
+    //    平台主入口的产品口径（QA-20260910-021）：`INVITE_REQUIRED=false` 时只留
+    //    「微信一键登录 / 注册」，不再渲染「使用邀请码开通」入口。这条断言原来写的是
+    //    旧口径（必须保留邀请码回落），2026-09-11 复验时发现已过期，按现行合同改过来。
     await cdp.send("Page.navigate", { url: `${webBase}/login` }, sessionId);
     await waitFor(cdp, sessionId, `() => document.body.innerText.includes("登录 / 注册")`);
     await waitFor(cdp, sessionId, `() => {
@@ -132,11 +135,56 @@ async function main() {
     const loginText = await evaluate(cdp, sessionId, `() => document.body.innerText`);
     assert.match(loginText, /思潼AI 行业智能体平台/, "login page shows the platform name");
     assert.match(loginText, /一个账号、一个积分钱包/, "login page explains the shared wallet");
-    assert.match(loginText, /使用邀请码开通/, "login page keeps the invite-code fallback");
+    // 开放注册口径（生产 INVITE_REQUIRED=false）：微信一键登录是唯一入口，邀请码入口消失。
+    assert.match(loginText, /微信一键登录 \/ 注册/, "open registration keeps the WeChat one-click entry");
+    assert.doesNotMatch(loginText, /使用邀请码开通/, "open registration removes the platform invite-code entry");
+    assert.match(loginText, /不需要邀请码/, "login page tells the user no invite code is needed");
     assert.doesNotMatch(loginText, /单项快速诊断/, "login page is not the legacy diagnosis flow");
     assert.doesNotMatch(loginText, /扣点|人民币|订阅|免费试用/, "login page avoids off-policy wording");
 
-    // 3. 线上旧链接不能 404（历史入口仍可用）。
+    // 3. 手机端（真人扫码后落地的那个尺寸）必须能把「微信一键登录 / 注册」完整看到、点到：
+    //    按钮在首屏可视区内、未被横向溢出裁掉、文案不被截断。手机扫码验收就是走这一屏。
+    await cdp.send(
+      "Emulation.setDeviceMetricsOverride",
+      { width: 375, height: 812, deviceScaleFactor: 2, mobile: true },
+      sessionId
+    );
+    await cdp.send(
+      "Emulation.setUserAgentOverride",
+      { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1" },
+      sessionId
+    );
+    await cdp.send("Page.navigate", { url: `${webBase}/login` }, sessionId);
+    await waitFor(cdp, sessionId, `() => document.body.innerText.includes("微信一键登录 / 注册")`);
+    const mobile = await evaluate(cdp, sessionId, `() => {
+      const buttons = Array.from(document.querySelectorAll("button"));
+      const target = buttons.find((item) => item.textContent.includes("微信一键登录 / 注册"));
+      if (!target) return { found: false };
+      const rect = target.getBoundingClientRect();
+      const style = window.getComputedStyle(target);
+      return {
+        found: true,
+        disabled: target.disabled,
+        visible: style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0,
+        inViewport: rect.top >= 0 && rect.left >= -1 && rect.bottom <= window.innerHeight + 1 && rect.right <= window.innerWidth + 1,
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+        overflowX: Math.round(document.documentElement.scrollWidth - window.innerWidth),
+        bodyText: document.body.innerText
+      };
+    }`);
+    assert.equal(mobile.found, true, "mobile login shows the WeChat one-click button");
+    assert.equal(mobile.visible, true, "mobile WeChat button is visible");
+    assert.equal(mobile.disabled, false, "mobile WeChat button is tappable (config already loaded)");
+    assert.equal(mobile.inViewport, true, "mobile WeChat button sits inside the first viewport");
+    assert.ok(mobile.width >= 44 && mobile.height >= 40, `mobile tap target is big enough (${mobile.width}x${mobile.height})`);
+    assert.ok(mobile.overflowX <= 2, `mobile login does not scroll sideways (overflowX=${mobile.overflowX})`);
+    assert.doesNotMatch(mobile.bodyText, /使用邀请码开通/, "mobile open registration hides the invite-code entry too");
+    assert.doesNotMatch(mobile.bodyText, /未登录/, "mobile login screen is the sign-in screen, not the anonymous shelf");
+    await cdp.send("Emulation.clearDeviceMetricsOverride", {}, sessionId);
+    await cdp.send("Emulation.setUserAgentOverride", { userAgent: "" }, sessionId);
+
+    // 4. 线上旧链接不能 404（历史入口仍可用）。
     for (const legacyPath of ["/diagnosis", "/terms", "/privacy"]) {
       await cdp.send("Page.navigate", { url: `${webBase}${legacyPath}` }, sessionId);
       const status = await waitFor(cdp, sessionId, `() => document.body.innerText.trim().length > 0 ? "ok" : ""`);
@@ -151,6 +199,8 @@ async function main() {
       + ` home_url=${homeUrl}`
       + " root_to_home=PASS"
       + " login_page=PASS"
+      + " open_registration_no_invite_code=PASS"
+      + ` mobile_login_button=${mobile.width}x${mobile.height}=PASS`
       + " legacy_paths=PASS"
       + " console_clean=PASS\n"
     );

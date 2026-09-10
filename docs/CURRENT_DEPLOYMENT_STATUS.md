@@ -21,7 +21,8 @@
   - **冒充被拒**（外网 `https://api.lcppch.top/os-v2/api/lanqi/stores`）：匿名 401、裸身份头 401、裸头 + `Bearer not-a-real-token` 401、裸头 + 错误 ops 令牌 401、对照租户裸头 401；对照组（有 `founder-ip`、无 `lanqi`）真实令牌 → 403 `product_entitlement_missing`。
   - **公开面**：`/health`、`/ready`、`/auth/wechat-config`（`{"configured":true,"appid":"wxf405233d62ec376a","inviteRequired":false}`）、`/market/skus` 均 200。
   - **运行面**：`systemctl show baolu-os-v2` → `ActiveState=active` / `SubState=running` / `NRestarts=0`（`ExecMainStartTimestamp=Fri 2026-09-11 07:03:18 CST`）；`journalctl -u baolu-os-v2 --since "2026-09-11 07:00:00" -p err` 无新增条目（仅本次复验自己发起的匿名请求走既有 `missing_tenant_or_user` → 401 路径留下的 err 级记录），无 `Cannot read properties of undefined`。
-- 真人微信扫码（本条目未执行）：二维码已生成于本机 `%TEMP%\wechat-login-acceptance\login-qr.png`（平台入口）与 `lanqi-login-qr.png`（`/os-v2/login/lanqi`），待用户用未登录过思潼 AI 的微信扫码走完「授权 → 注册 → 落 `/os-v2/market`」；微信登录配置、`inviteRequired=false` 已就绪。
+- 真人微信扫码（本条目未执行，可由用户随时补做）：二维码已生成于本机 `%TEMP%\wechat-login-acceptance\login-qr.png`（平台入口）与 `lanqi-login-qr.png`（`/os-v2/login/lanqi`），待用户用未登录过思潼 AI 的微信扫码走完「授权 → 注册 → 落 `/os-v2/market`」；微信登录配置、`inviteRequired=false` 已就绪。
+  - 扫码前的前置只读复验（2026-09-11 07:0x，真实 Chromium 打生产，`pnpm.cmd auth:login-entry-production-check`）：`PASS`——根路径落 `/os-v2/market`、`/login` 是平台登录/注册页、**手机视口 375×812 下「微信一键登录 / 注册」按钮 301×46 可见可点且在首屏内、页面无横向溢出**、开放注册下不出现邀请码入口、历史路径不 404、console 0 错误。截图 `%TEMP%\wechat-login-acceptance\login-mobile.png`（390×844，`innerWidth=390 / scrollWidth=390`）与 `login-lanqi-mobile.png`、`login-desktop.png`。该脚本原先断言「必须保留使用邀请码开通」（旧口径）导致误报，已按现行合同修正，见 `docs/BUG_REGRESSIONS.md` QA-20260911-003。
 
 ## 生产数据收尾：LQ-18 验收残留清理 + 产品邀请码注册 E2E（2026-09-11，仅数据/文档，无代码发布）
 

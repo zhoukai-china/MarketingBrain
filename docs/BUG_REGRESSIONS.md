@@ -30,6 +30,18 @@
   - **冒充仍被拒**（外网 `https://api.lcppch.top/os-v2/api`，本轮重测）：匿名 401、裸身份头 401、裸头 + 无效 Bearer 401、裸头 + 错误 ops 令牌 401、对照租户裸头 401；对照组真实令牌访问未开通产品 403 `product_entitlement_missing`（授权 ↔ 身份语义仍可区分）。
   - **发布后运行面**：`baolu-os-v2` `ActiveState=active` / `NRestarts=0`（`ExecMainStartTimestamp=Fri 2026-09-11 07:03:18 CST`），`journalctl -u baolu-os-v2 --since "2026-09-11 07:00" -p err` 除本次复验自身制造的匿名 401（既有 `missing_tenant_or_user` → 401 映射）外无新增错误；无 `Cannot read properties of undefined`。发布包、备份目录、日志与复验矩阵见 `docs/CURRENT_DEPLOYMENT_STATUS.md` 顶部条目。
 
+## QA-20260911-003：生产登录页渲染检查脚本仍按旧口径断言「必须保留邀请码回落」（P3，检查资产，已修）
+
+- 现象（真实生产，非合成）：2026-09-11 07:0x 为做「手机端真人扫码验收」的前置只读复验，跑 `pnpm.cmd auth:login-entry-production-check`（对 `https://api.lcppch.top/os-v2` 实测），脚本以 `AssertionError: login page keeps the invite-code fallback` 失败。此时生产登录页本身是对的：只渲染「微信一键登录 / 注册」+「首次使用微信登录，会自动为你注册账号并开通工作区，不需要邀请码。」。
+- 根因（检查资产过期，不是产品缺陷）：`scripts/login-entry-production-render-check.mjs` 的期望值写在 QA-20260910-021 之前——「平台主入口必须保留『使用邀请码开通』」。产品口径在那之后改成「去掉邀请码，只留微信一键登录 / 注册」（`INVITE_REQUIRED=false` 时隐藏平台邀请码入口），脚本没同步。危害方向是反的：上线后这条断言会长期把**正确的**产品行为报成红灯，属于「检查资产与合同脱钩」。
+- 最小修复：`scripts/login-entry-production-render-check.mjs`
+  - 断言换成现行合同：出现「微信一键登录 / 注册」、出现「不需要邀请码」、**不出现**「使用邀请码开通」（旧断言反转）；保留品牌名、共享钱包说明、「不是旧诊断流程」、非合规用词（`扣点|人民币|订阅|免费试用`）与历史路径不 404 的断言。
+  - 新增手机视口一段（`Emulation.setDeviceMetricsOverride` 375×812 / DPR2 / mobile + iPhone UA），断言微信按钮**可见、可点（非 disabled）、在首屏内、点击区域 ≥44×40、页面无横向溢出（`scrollWidth - innerWidth ≤ 2`）**、移动端同样不出现邀请码入口、且不落到匿名货架（页面不得出现「未登录」）。这一段就是手机端真人扫码将要落地的那个屏。
+- 修复后验收：`pnpm.cmd auth:login-entry-production-check` → `login_entry_production_render_check:PASS home_url=https://api.lcppch.top/os-v2/market root_to_home=PASS login_page=PASS open_registration_no_invite_code=PASS mobile_login_button=301x46=PASS legacy_paths=PASS console_clean=PASS`（真实 Chromium 打生产，2026-09-11 07:0x）。
+- 证据截图（本机 CDP 真实移动视口，只读打开页面、不填表单不提交）：`%TEMP%\wechat-login-acceptance\login-mobile.png`（390×844，`innerWidth=390 / scrollWidth=390`，无横向溢出）、`login-lanqi-mobile.png`（兰琪产品入口仍保留产品邀请码，符合产品分支口径）、`login-desktop.png`（1440×900）。
+- 残留（未在本轮处理，已登记）：`scripts/login-entry-browser-smoke.mjs` 依赖本机 dev server（默认 `http://127.0.0.1:5174` + `INVITE_CODE`）走邀请制注册闭环，本轮未运行；若后续把本机 dev 环境也切成 `INVITE_REQUIRED=false`，它的步骤 3 需要同步改口径。
+- 状态：**已关闭（检查资产已对齐现行合同）。**
+
 ## QA-20260911-001：发布脚本只在 `$STAGE` 生成 Prisma Client，生产运行时客户端缺 4 个新模型，兰琪驾驶舱/目标页/朋友圈历史全部 500（P1，生产已修复并复验）
 
 - 现象（真实生产，非合成）：兰琪生产授权补齐后（`TenantProductEntitlement` 出现两条 `lanqi|active`，source `lanqi_launch_backfill_20260911`），兰琪租户 `GET /lanqi/stores`、`GET /lanqi/store-profile` 正常 200，但 `GET /lanqi/dashboard?month=2026-09`、`GET /lanqi/goals?month=2026-09`、`GET /lanqi/moments/upgrades` 全部 500：错误码分别为 `lanqi_dashboard_error` / `lanqi_goals_error` / `moments_history_error`，message 统一为 `Cannot read properties of undefined (reading 'findUnique')`（朋友圈历史是 `findMany`）。服务器本机 `http://127.0.0.1:3002/...` 与外部 `https://api.lcppch.top/os-v2/api/...` 表现一致。
