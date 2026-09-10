@@ -1,8 +1,29 @@
 # 当前部署状态
 
-更新时间：2026-09-10（最近一次为兰琪 LQ-18 收口生产发布；下方 2026-08-03 清单保留为当时状态）
+更新时间：2026-09-11（最近一次为兰琪 LQ-19 公域获客发布测试实例 + 生产；下方 2026-08-03 清单保留为当时状态）
 
-## 最新发布：20260910-lanqi-lq18-closeout-prod1（2026-09-10，生产）
+## 最新发布：20260911-lanqi-lq19-acquire-prod1（2026-09-11，测试实例 + 生产）
+
+发布包：`release-20260911-lanqi-lq19-acquire-test1.tar.gz`（8876681 B，sha256 `7272985e6e3ac50b6060085a1f0466828af4046cabd7830e5dd07b4b683d4879`，1422 个文件）。**测试实例与生产共用同一份产物**：服务器上只有这一份归档（`/tmp/release-20260911-lanqi-lq19-acquire-test1.tar.gz`），两侧部署日志第 0 步打印的 `archive sha256` 与该值一致；发布 id 按环境分别记为 `20260911-lanqi-lq19-acquire-test1` / `20260911-lanqi-lq19-acquire-prod1`。文件清单由 `scripts/tmp/build-prod-filelist.ps1` 从当前工作树（tracked + 未忽略 untracked）生成，比上一轮 1421 个多出 `scripts/check-prisma-client-models.mjs`（QA-20260911-001 的仓库守护）。策略同前：stage 构建 → 备份 → 全量叠加（不删除历史文件）→ migrate → **第 7b 步在 `$APP` 就地 `prisma generate` 并按 `schema.prisma` 逐模型校验运行时客户端** → 重启 → 健康轮询 → 校验 → 失败自动回滚。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 联调 `chat-test` | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | `https://api.lcppch.top/lanqi-test/` | `20260911-lanqi-lq19-acquire-test1` | `DEPLOY_OK` + 健康 200（after 9s）/ ready 200 |
+| 生产 `chat` | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | `https://api.lcppch.top/os-v2/` | `20260911-lanqi-lq19-acquire-prod1` | `DEPLOY_OK` + 健康 200（after 15s）/ ready 200 |
+
+- 本包内容（兰琪 LQ-19 公域获客，板块3）：枢纽 `/lanqi/acquire` + 四个子页 `video` / `copywriter` / `live` / `methods`；后端 `/lanqi/acquire/*`（短视频文案改稿、AI 运营顾问、直播话术「规则 5 轮 23 段骨架 + 19 批分批生成 + 5 类救场话术库」、文案转片分镜与单镜重写）。**两条 LQ-19 P1 收口随包进生产**（`docs/BUG_REGRESSIONS.md` QA-20260910-011 成稿步骤空白、QA-20260910-012 合规门禁误拦）。生产侧的实际增量还有部署守护 `scripts/check-prisma-client-models.mjs`——**上一轮记录里「第 7b 步与守护脚本尚未随包上线」的边界在本轮解除**：两份部署日志第 131/132 行分别打印 `prisma delegates OK: lanqiStoreGoal,lanqiMomentDraft,lanqiMomentUpgrade,lanqiMomentAsset,lanqiStoreProfile` 与 `prisma client model coverage OK: 99 models …`。
+- 生产入口产物（线上只读复验）：`assets/index-Ugq-Ml5W.js`（与上一轮同名——LQ-19 的 web 代码在上一轮全树快照中已随包进生产，本包 web 侧无新增改动）；`apps/api/dist/apps/api/src/routes/acquire.js` 已在运行目录（14184 B，`2026-09-11 06:32`），`products/beauty-industry/video-script-service.js` 命中服务版本串 `lanqi-video-script/1.0`。测试实例产物为 `assets/index-D3_TBbMw.js`（base path 不同故哈希不同）。
+- 生产迁移：`prisma migrate deploy` → 48 migrations found / No pending migrations to apply，本包不含新增 schema 变更（测试实例同为 48 / 无待应用）。
+- 接口复验（**生产真机，本轮首次对 `/lanqi/acquire/*` 取证**，脚本 `scripts/tmp/prod-lanqi-lq19-acquire-acceptance.sh`，服务器本机 `http://127.0.0.1:3002`，**16/16 PASS**）：
+  - 匿名 `POST /lanqi/acquire/{video/storyboard,video/shot,live/plan}` → `401 {"error":"login_required"}`（3/3）；无 `lanqi` entitlement 的对照租户 → `403 product_entitlement_missing`。
+  - 兰琪租户 A：`video/storyboard` 200（`shotCount=1`、每镜 `prompt` 非空、`totalSeconds=11`、`sourceChars=50`、`serviceVersion=lanqi-video-script/1.0`）；`video/shot` 200（重出提示词含素材名）；`live/plan` 200（`rounds=5`、`segments=23`、`batches=19`，批次段号 1–23 全覆盖且无重复）；`copywriter` 200（走真实 Provider，正文非空，输出不含模型/厂商名）。
+  - 失败路径：缺必填 `live/plan` → `422 invalid_live_input`「还差必填：店名 / 主播身份、主打项目 / 产品名、真实卖点、带货标的、平台」；空口播文案 `video/storyboard` → `422 invalid_video_script_input`「还差必填：口播文案」。
+  - 租户隔离：A 用 B 的门店 id 请求 `video/storyboard` 与 `live/plan` → 均 `404 store_not_found`，响应体不含 B 的门店 id。
+- 测试实例验收（`https://api.lcppch.top/lanqi-test`，全部实测 PASS）：`pnpm.cmd lanqi:acquire-instance-acceptance`（**本轮新增页面级探针**，28 项 0 失败：枢纽 5 张卡与链接指向含 `mode=script`／copywriter 四步骨架 + 清空后本地拦截／video 四页签 + 爆款复刻 fail-closed／门店素材成片与 AI 剪辑 offline／文案转片四步走通 +「确认并生成」走肖像授权弹层后仍 fail-closed（捕获「视频生成服务暂未开通」、出片请求 0）／live 必填缺失本地反问／methods 空输入禁用 + 6 chips／移动 390×844 无横向溢出／全页无模型厂商名／无 4xx5xx、console 与 page 0 错误）；`pnpm.cmd lanqi:acquire-smoke` 80/0；`pnpm.cmd lanqi:test-instance-acceptance` 14 项 0 失败（驾驶舱 / 目标设置 / 朋友圈 Bug1 / 工作台入口既有回归）。
+- 未执行（口径说明）：生产没有 `DIRECT_TEST_LOGIN`（`/auth/dev-login` 404），依赖免登录的兰琪专项脚本不能打生产，生产侧改用上面的自签 JWT 只读接口取证；`VIDEO_RENDERING_READY` 未配置 → 真实出片仍 fail-closed（设计内行为，不是缺陷），爆款复刻无真实检索源同样 fail-closed。真人微信扫码注册端到端验收仍未执行（仍缺「从未登录过思潼 AI」的微信号）。
+- 备份与回滚：生产 `/opt/baolu-backups/20260911-lanqi-lq19-acquire-prod1-before-baolu-os-v2/`（`app-before.tar.gz`、`db-before.sql.gz`、`dist-hashes-before.txt`、`new-files.txt`、`baolu-os-v2.env`、`baolu-os-v2.service.txt`）；测试 `/opt/baolu-backups/20260911-lanqi-lq19-acquire-test1-before-baolu-os-v2-test/`。发布日志 `/tmp/deploy-20260911-lanqi-lq19-acquire-prod1-baolu-os-v2.log`、`/tmp/deploy-20260911-lanqi-lq19-acquire-test1-baolu-os-v2-test.log`（结尾分别为 `DEPLOY_OK 20260911-lanqi-lq19-acquire-prod1 app=/opt/baolu-os-v2`、`DEPLOY_OK 20260911-lanqi-lq19-acquire-test1 app=/opt/baolu-os-v2-test`）；回滚由 `deploy-release.sh` 失败时自动执行。部署后 `df -h /opt` 余量 7.7 G。
+
+## 上一轮：20260910-lanqi-lq18-closeout-prod1（2026-09-10，生产）
 
 发布包：`release-20260910-lanqi-moments-wechat-asset.tar.gz`（8865072 B，sha256 `58ee722de78497ec810f5c52257080c28756b313e8b56203258d903740ad763c`，1421 个文件）。文件清单由 `scripts/tmp/build-prod-filelist.ps1` 从当前工作树（tracked + 未忽略 untracked）生成，比上一轮 1420 个多出 `scripts/lanqi-moments-asset-deployed-check.mjs`。策略同前：stage 构建 → 备份 → 全量叠加（不删除历史文件）→ migrate → 重启 → 健康轮询 → 校验 → 失败自动回滚；本地包与服务器 `/tmp/release-20260910-lanqi-lq18-closeout.tar.gz` 的 sha256 一致。
 

@@ -1,6 +1,6 @@
 # 兰琪美业经营增长智能体状态
 
-> **2026-09-09（0909 总纲）**：本产品方向已由《兰琪美业门店 AI 经营大脑·Codex 开发总纲》覆盖，当前唯一交付单元为 8 个一级导航板块，一块板一批交付。旧 LQ-* 任务卡批量标记「暂停 / 由 0909 覆盖」（详见 `tasks/README.md`），仅保留证据不再续做。新开发任务自 LQ-18 起。**当前编码任务（2026-09-10 更新）：LQ-18 私域营销（板块4）· 两个用户报障（微信群话术生成不了 / AI 配图不显示）已修复，本机 + 测试实例验收通过，并于 2026-09-10 发布生产（发布 id `20260910-lanqi-lq18-closeout-prod1`，`DEPLOY_OK` + 健康 200），本轮收口；下一步开发 LQ-19 公域获客（板块3）并部署测试实例。LQ-20 经营驾驶舱（板块1）本轮「不验收」——按用户指示留到经营驾驶舱专项开发时再验收，现有测试实例结果只作既有回归。二期连锁（`chain.html`）本期不实现。**
+> **2026-09-09（0909 总纲）**：本产品方向已由《兰琪美业门店 AI 经营大脑·Codex 开发总纲》覆盖，当前唯一交付单元为 8 个一级导航板块，一块板一批交付。旧 LQ-* 任务卡批量标记「暂停 / 由 0909 覆盖」（详见 `tasks/README.md`），仅保留证据不再续做。新开发任务自 LQ-18 起。**当前编码任务（2026-09-11 更新）：LQ-18 私域营销（板块4）已于 2026-09-10 收口并发布生产（发布 id `20260910-lanqi-lq18-closeout-prod1`）；LQ-19 公域获客（板块3）已在 2026-09-11 完成测试实例部署与专项验收（新增页面级探针 28/0、接口冒烟 80/0，既有回归 14/0），并随发布 id `20260911-lanqi-lq19-acquire-prod1` 上生产（`DEPLOY_OK` + 健康 200，生产 `/lanqi/acquire/*` 接口 16/16 PASS），本轮收口。LQ-20 经营驾驶舱（板块1）本轮「不验收」——按用户指示留到经营驾驶舱专项开发时再验收，现有测试实例结果只作既有回归。二期连锁（`chain.html`）本期不实现。**
 
 ## LQ-18 私域营销（板块4）本轮收口（2026-09-10）
 
@@ -30,7 +30,17 @@
 
 ## LQ-19 公域获客（板块3，2026-09-10，**下一步开发 / 待业务验收**）
 
-> 用户 2026-09-10 指示：私域营销页（LQ-18）收口后，**下一步开发公域获客页**。该板块代码本机已完成（免登录），但**尚未部署到测试实例**，需补测试实例部署 + 专项验收。
+> 用户 2026-09-10 指示：私域营销页（LQ-18）收口后，**下一步开发公域获客页**。该板块代码本机已完成（免登录），测试实例部署 + 专项验收已于 2026-09-11 补齐，并同日上生产。
+
+### 测试实例部署 + 生产发布 + 验收（2026-09-11）
+
+- 发布包 `release-20260911-lanqi-lq19-acquire-test1.tar.gz`（8876681 B，sha256 `7272985e6e3ac50b6060085a1f0466828af4046cabd7830e5dd07b4b683d4879`，1422 文件）**测试实例与生产共用同一份产物**（服务器归档唯一，两侧部署日志第 0 步 `archive sha256` 一致）。
+- 测试实例：发布 id `20260911-lanqi-lq19-acquire-test1`，`/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010，`https://api.lcppch.top/lanqi-test/`，`DEPLOY_OK` + 健康 200（after 9s）/ ready 200，migrate 48 / 无待应用。
+- 生产：发布 id `20260911-lanqi-lq19-acquire-prod1`，`/opt/baolu-os-v2` · `baolu-os-v2` · 3002，`https://api.lcppch.top/os-v2/`，`DEPLOY_OK` + 健康 200（after 15s）/ ready 200，migrate 48 / 无待应用；入口产物 `assets/index-Ugq-Ml5W.js`，运行目录已有 `apps/api/dist/.../routes/acquire.js`（14184 B）。备份 `/opt/baolu-backups/20260911-lanqi-lq19-acquire-prod1-before-baolu-os-v2/`，日志 `/tmp/deploy-20260911-lanqi-lq19-acquire-prod1-baolu-os-v2.log`。
+- **QA-20260911-001 的部署守护随本包上线并实际生效**：两份部署日志第 131/132 行打印 `prisma delegates OK: lanqiStoreGoal,lanqiMomentDraft,lanqiMomentUpgrade,lanqiMomentAsset,lanqiStoreProfile` 与 `prisma client model coverage OK: 99 models`，上一轮「守护脚本尚未随包上线」的边界解除。
+- 测试实例验收（全部实测 PASS）：新增页面级探针 `pnpm.cmd lanqi:acquire-instance-acceptance`（`scripts/lanqi-acquire-instance-acceptance.mjs`，**28 项 0 失败**：枢纽 5 张卡 + 链接指向含 `mode=script`／copywriter 四步骨架与清空后本地拦截（新增请求 0）／video 四页签、爆款复刻 fail-closed 不编造条目、门店素材成片与 AI 剪辑 offline、文案转片四步走通、点「确认并生成」走肖像授权弹层后仍 fail-closed（弹窗「视频生成服务暂未开通」、出片请求 0）／live 必填缺失本地反问（新增排段请求 0）／methods 空输入禁用 + 6 chips／移动 390×844 无横向溢出／全页无模型厂商名／无 4xx5xx、console 与 page 0 错误）；`pnpm.cmd lanqi:acquire-smoke` 80/0；`pnpm.cmd lanqi:test-instance-acceptance` 14 项 0 失败（驾驶舱 / 目标设置 / 朋友圈 Bug1 / 工作台入口既有回归）。
+- 生产接口验收（**本轮首次对生产 `/lanqi/acquire/*` 取证**，`scripts/tmp/prod-lanqi-lq19-acquire-acceptance.sh`，自签 JWT 只读，**16/16 PASS**）：匿名三接口 401 `login_required`；无 entitlement 对照租户 403 `product_entitlement_missing`；租户 A `video/storyboard` / `video/shot` / `live/plan` / `copywriter` 全 200（分镜 `shotCount=1` 且每镜 prompt 非空、直播 `rounds=5 segments=23 batches=19`、文案走真实 Provider 正文非空且不含模型名）；缺必填 422 反问；A 用 B 门店 → 404 `store_not_found` 且不回泄 B 门店 id。
+- 残余边界：`VIDEO_RENDERING_READY` 未配置（minimax 未首充）→ 真实出片 fail-closed；爆款复刻无真实检索源 → fail-closed；两条均为设计内行为，不是缺陷。生产无 `DIRECT_TEST_LOGIN`，依赖免登录的兰琪专项脚本不能打生产。
 
 - 已交付并可体验（本机免登录）：枢纽 `/lanqi/acquire`；子页 `/lanqi/acquire/video`、`/copywriter`、`/live`、`/methods`。小红书图文按 demo 无独立入口，由 video 四模式覆盖。
 - 真实大模型接入：文案改稿、AI 运营顾问、直播话术逐字稿、文案转片分镜均由平台 `createRuntimeLlmProvider` 走真实 Provider（开发阶段消耗），输出后仍过结构 + 合规门禁，不合格 fail closed 不兜底。
