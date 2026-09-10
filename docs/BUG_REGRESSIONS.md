@@ -1,5 +1,18 @@
 # Bug 回归台账
 
+## QA-20260911-001：发布脚本只在 `$STAGE` 生成 Prisma Client，生产运行时客户端缺 4 个新模型，兰琪驾驶舱/目标页/朋友圈历史全部 500（P1，生产已修复并复验）
+
+- 现象（真实生产，非合成）：兰琪生产授权补齐后（`TenantProductEntitlement` 出现两条 `lanqi|active`，source `lanqi_launch_backfill_20260911`），兰琪租户 `GET /lanqi/stores`、`GET /lanqi/store-profile` 正常 200，但 `GET /lanqi/dashboard?month=2026-09`、`GET /lanqi/goals?month=2026-09`、`GET /lanqi/moments/upgrades` 全部 500：错误码分别为 `lanqi_dashboard_error` / `lanqi_goals_error` / `moments_history_error`，message 统一为 `Cannot read properties of undefined (reading 'findUnique')`（朋友圈历史是 `findMany`）。服务器本机 `http://127.0.0.1:3002/...` 与外部 `https://api.lcppch.top/os-v2/api/...` 表现一致。
+- 根因（发布工具，单一根因）：`scripts/tmp/deploy-release.sh` 第 3 步在 `$STAGE` 里执行 `pnpm --filter @baolu/db run prisma:generate`（发布日志第 20 行确认生成路径为 `/opt/baolu-stage/<rel>/node_modules/.pnpm/@prisma+client@5.17.0_prisma@5.17.0/node_modules/@prisma/client`），但第 7 步 overlay 只 `for d in apps packages docs mcp-skills scripts` 并显式 `--exclude=./node_modules`——**生成结果从未进入运行目录 `$APP`**。于是 `schema.prisma` 与数据库都已有 `LanqiStoreGoal` / `LanqiMomentDraft` / `LanqiMomentUpgrade` / `LanqiMomentAsset`（迁移 `202609090005_lanqi_moments`、`202609100001_lanqi_store_goals` 均已应用、表存在），而运行中的客户端 `index.d.ts` 停在 `2026-09-09 17:03`，四个模型在客户端里完全不存在 → `prisma.lanqiStoreGoal` 为 `undefined`。属「本地/构建通过、线上静默失败」的部署产物类缺陷。
+- 影响面（修复前实测，8 条路由矩阵）：**500** = `/lanqi/dashboard`、`/lanqi/goals`、`/lanqi/moments/upgrades`（`POST /lanqi/moments/wechat-group` 走同一模型）；**200** = `/lanqi/stores`、`/lanqi/store-profile`、`/beauty-industry/stores`、`/health`、`/ready`；匿名 `/lanqi/*` → 401 正常；对照租户（有 `founder-ip`、无 `lanqi`）`/lanqi/*` → 403 `product_entitlement_missing`，未越权。
+- 修复前红灯（未改动生产即取得）：按 `schema.prisma` 的 `model` 清单逐个比对运行时客户端，确认缺 4 个模型；再把发布前客户端备份还原到 `/tmp/oldclient` 用新增守护脚本校验 → `FAIL 运行时客户端缺少 4 个模型：LanqiStoreGoal / LanqiMomentDraft / LanqiMomentUpgrade / LanqiMomentAsset`，并告警「客户端 2026-09-09T09:03:45Z 早于 schema 2026-09-10T12:56:01Z」，`exit=1`。
+- 最小修复：
+  - 生产（运行时修复，已完成）：先备份客户端目录 → `/opt/baolu-backups/prisma-client-fix-20260911-061132/prisma-client-before.tar.gz`（sha256 `50f589c9371d4abd6c4d3be843a2d30b27cdc9738b9b3d3a4ea3a84636a07f17`），在 `/opt/baolu-os-v2/packages/db` 用生产 env 就地 `prisma generate`，再 `systemctl restart baolu-os-v2`。不改代码、不改数据库。
+  - 发布工具（防复发）：`scripts/tmp/deploy-release.sh` 新增第 7b 步——在 `$APP` 就地 `prisma generate`，随后按 `schema.prisma` 的 `model` 清单逐个校验运行时客户端，缺任一模型即 `false`，交由既有 `restore_on_failure` 自动回滚。
+  - 仓库守护：新增 `scripts/check-prisma-client-models.mjs`（入口 `pnpm.cmd db:client-model-check`），兼容 pnpm / 扁平布局与 `PRISMA_CLIENT_DIR` 显式指定，接入 `qa:fast` 首条。
+- 修复后验收（同批实测，服务器本机 + 外网）：`/lanqi/dashboard`、`/lanqi/goals`、`/lanqi/moments/upgrades` 全部 200（`/lanqi/goals` 返回 `dataSource=database`）；`/lanqi/stores`、`/lanqi/store-profile`、`/beauty-industry/stores`、`/health`、`/ready` 仍 200；匿名仍 401；对照租户仍 403；守护脚本绿灯 `PASS 全部 99 个模型均存在`（`exit=0`）；`journalctl -u baolu-os-v2` 自重启点 `2026-09-11 06:11:40` 之后无新增 `Cannot read properties of undefined`（仅有的两条在 `06:11:08`，属修复前）。
+- 状态：**已关闭（生产已修复并复验）**。发布脚本第 7b 步与 `qa:fast` 守护尚未随发布包上线，将在下一次发布时随包生效。
+
 ## QA-20260910-021：开放注册下 `/auth/beta-login` 仍把邀请码当必填（400）＋ «无邀请码即放行» 会放过产品入口（P1，平台登录入口，TEST + PROD 已复验）
 
 - 现象（真实测试实例，非合成）：产品拍板「去掉邀请码，只留微信一键登录 / 注册」并把 `INVITE_REQUIRED=false` 下发到实例后，`POST /auth/beta-login` 不带邀请码直接返回 `400 invalid_request`，根本走不到服务端的放行分支。也就是说「登录页说不需要邀请码、接口仍拒绝建号」的不一致态。

@@ -154,6 +154,54 @@ while IFS= read -r f; do
 done < "/tmp/rel-files-${REL}.txt"
 echo "overlay applied"
 
+step "7b. prisma client in target (QA-20260911-001 guard)"
+# 关键：第 3 步的 prisma generate 跑在 $STAGE，但第 7 步 overlay 只拷
+# apps/packages/docs/mcp-skills/scripts，node_modules 被显式排除，生成结果
+# 不会进入 $APP。若只重建 stage，schema/数据库已更新而运行时客户端仍旧，
+# 新模型会以 `undefined` 形态崩溃（2026-09-11 兰琪 /lanqi/dashboard、/lanqi/goals、
+# /lanqi/moments/upgrades 全部 500，`Cannot read properties of undefined`）。
+#
+# 因此这里在 $APP 就地重新生成。注意不能用 `$APP/node_modules/@prisma/client`
+# 推断路径：pnpm 布局下仓库根并没有这个软链（只有 packages/db 等消费方有），
+# `readlink -f` 会返回空值，在 `set -e` 下直接判死并触发无谓回滚。
+# 统一走 node 的模块解析，拿到的就是运行时真正加载的那份客户端：
+#   entry      = <...>/node_modules/@prisma/client/default.js
+#   client dir = <...>/node_modules/.prisma/client   （@prisma 的兄弟目录，不是子目录）
+prisma_client_dir() {
+  ( cd "$1/packages/db" && node -e '
+    const { createRequire } = require("module");
+    const path = require("path");
+    const req = createRequire(path.join(process.cwd(), "package.json"));
+    process.stdout.write(path.resolve(path.dirname(req.resolve("@prisma/client")), "..", "..", ".prisma", "client"));
+  ' )
+}
+
+sudo bash -c "set -a; . '$ENV_FILE'; set +a; cd '$APP/packages/db' && pnpm run prisma:generate"
+CLIENT_DIR="$(prisma_client_dir "$APP")"
+test -n "$CLIENT_DIR"
+test -f "$CLIENT_DIR/index.d.ts"
+sudo chown -R admin:admin "$CLIENT_DIR" 2>/dev/null || true
+PRISMA_MISSING=""
+while IFS= read -r model; do
+  grep -q "$model" "$CLIENT_DIR/index.d.ts" || PRISMA_MISSING="$PRISMA_MISSING $model"
+done < <(grep '^model ' "$APP/packages/db/prisma/schema.prisma" | awk '{print $2}')
+if [ -n "$PRISMA_MISSING" ]; then
+  echo "!!! runtime prisma client missing models:$PRISMA_MISSING" >&2
+  false
+fi
+# 类型文件能命中还不够（历史缺陷是运行时模型代理为 undefined），再按运行时
+# 真实加载路径做一次 delegate 探测。
+sudo bash -c "set -a; . '$ENV_FILE'; set +a; cd '$APP/apps/api' && node -e '
+  const EXPECT = [\"lanqiStoreGoal\", \"lanqiMomentDraft\", \"lanqiMomentUpgrade\", \"lanqiMomentAsset\", \"lanqiStoreProfile\"];
+  import(\"@baolu/db\").then((m) => {
+    const missing = EXPECT.filter((k) => typeof m.prisma[k] !== \"object\");
+    if (missing.length) { console.error(\"missing delegates: \" + missing.join(\",\")); process.exit(1); }
+    console.log(\"prisma delegates OK: \" + EXPECT.join(\",\"));
+  }).catch((e) => { console.error(String(e)); process.exit(1); });
+'"
+echo "prisma client model coverage OK: $(grep -c '^model ' "$APP/packages/db/prisma/schema.prisma") models in $CLIENT_DIR"
+
+
 step "8. prisma migrate deploy"
 set -a
 # shellcheck disable=SC1090
