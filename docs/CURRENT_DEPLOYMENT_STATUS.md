@@ -1,6 +1,36 @@
 # 当前部署状态
 
-更新时间：2026-09-11（最近一次为兰琪 LQ-19 公域获客发布测试实例 + 生产；下方 2026-08-03 清单保留为当时状态）
+更新时间：2026-09-11（最近一次为兰琪**生产数据收尾**：LQ-18 验收残留清理 + 产品邀请码注册 E2E，无代码发布；最近一次代码发布仍为兰琪 LQ-19 公域获客上测试实例 + 生产；下方 2026-08-03 清单保留为当时状态）
+
+## 生产数据收尾：LQ-18 验收残留清理 + 产品邀请码注册 E2E（2026-09-11，仅数据/文档，无代码发布）
+
+本轮**没有**代码发布，也不改任何应用代码；只做两件生产数据动作 + 一次生产端到端验收，因此没有新发布包、没有 migrate、没有重启服务（`baolu-os-v2` / `baolu-os-v2-test` 全程 `active`）。
+
+### ① LQ-18 验收残留清理（生产 `baolu_os_v2`，可回滚）
+
+- 删除 `LanqiMomentUpgrade cmtw353it057x12k47vkr6pux` 与其关联 `LanqiMomentAsset b0e32259-cc00-4bc0-a694-d502ad18bbde`，单事务执行，两行各 `DELETE 1`。
+- 删除前核对：`LanqiMomentUpgrade=1`、`LanqiMomentAsset=1`、`assets_pointing_to_upgrade=0`；删除后两表 `=0`，2026-09-11 07:0x 只读复核仍为 0。
+- 配图文件不删除，移到 `/opt/baolu-os-v2/.qa/lq18-cleanup-backup-20260911/`（原路径 `/opt/baolu-os-v2/uploads/moments/cmt6idd1c04v62hgb86gvh7pz/b0e32259-cc00-4bc0-a694-d502ad18bbde.png`，1957870 B，sha256 `fb665985f197dd5a05aa2f172cb44aa64995d146d858d429d6cac70e7cd62b9c`）；同目录含 `LanqiMomentUpgrade.csv`（1587 B）、`LanqiMomentAsset.csv`（414 B）。
+- **回滚**：两条 CSV `COPY` 回表 + png 移回原路径。
+- 库口径更正（再次确认，沿用上一轮结论）：生产 `DATABASE_URL` 指向 `baolu_os_v2`（取自 3002 进程环境）；仓库 `.env` 里的 `Sitong_os_v2` 凭据已失效。
+
+### ② 兰琪产品邀请码生产注册端到端（消耗 1 席位，全项 PASS）
+
+- 新建一次性验收租户：`Tenant cmtw4ovd1057y13ka0xmza9n9`「兰琪注册验收门店-20260911」（`local_business`／美业／上海，`2026-09-10 22:58:14 +08`）、`User cmtw4ovd7057z13ka4sj3osqw`、`Membership cmtw4ovdk058313kavgpgk7g2`（owner）、默认门店 `cmtw4ovdd058113kaggcmkfti`、`TenantProductEntitlement cmtw4ovi5059913ka9vkd5uxk`（`lanqi|active`、`source=product_invite`、`expiresAt 2026-10-10 22:58:14 +08`）。
+- 席位账：生产 `lanqi` 产品邀请码 1 条（`maxUses=5`），核销后 `usedCount=1`，**剩余 4 席**。邀请码明文只在本机 `%TEMP%\lanqi-prod-auth-20260911\`，不入库/文档/报告。
+- 脚本（本轮新增，提交 git，**不入发布包**——`build-prod-filelist.ps1` 按规则排除 `scripts/tmp/`）：`scripts/tmp/prod-lanqi-signup-acceptance.mjs`（页面级真实 Chromium 打生产，全项 PASS）、`scripts/tmp/prod-lanqi-new-tenant-browser-verify.mjs`（会话态页面复验 PASS，`consoleErrors=[]`）。**重复运行会再消耗 1 个席位**，运行前需重新确认。
+- 只读接口复核（生产 3002，**服务端路由不带 `/api` 前缀**）：新租户 6 条读接口全 200；存量兰琪租户 A 只看到自己的门店；匿名 → 401 `login_required`。
+
+### ③ 真人微信扫码（未执行）
+
+- 生产微信登录配置只读核对正常：`/os-v2/api/auth/wechat-config` → `{"configured":true,"appid":"wxf405233d62ec376a","inviteRequired":false}`；链路为网页授权 `snsapi_userinfo`（非扫码登录）→ `/wechat-callback` → `POST /auth/wechat-login`。
+- 2026-09-11 07:0x 复核：生产近 3 天新建 6 个租户全部来自邀请码/开放注册，**没有微信授权新建的租户**；`User.wechatOpenid` 非空 17 人（均为历史）。需 WorkBuddy/用户用 `cmengtv` 微信在浏览器完成授权 + 补门店资料。
+
+### 本轮 git 与同步状态
+
+- 仓库**无任何 git 远端**：`git remote -v` 空、`.git/config` 无 `[remote]`、无 `refs/remotes`、无 `FETCH_HEAD`；本机 GitHub Desktop（3.6.4/3.6.5）日志显示该目录只是「adding repository at …（本地添加）」，从未 clone/fetch/publish，日志中无任何 `github.com` URL；`gh` CLI 未安装。本机 git 身份 `renpolu123-png <renpolu123@gmail.com>`。
+- 因此本轮只做**本地提交**（HEAD 见 `git log -1`），无法 push；要上远端需先 `git remote add origin <url>`（用户在 GitHub Desktop 点 Publish repository 或自建空仓库后提供 URL）。
+- 服务器侧文档同步：`docs/` 属发布清单内容，本轮改动随下次发布进生产/测试实例，也可按需手工同步；`scripts/tmp/` 按设计不进服务器树（服务器上 `scripts/tmp` 为空目录）。
 
 ## 最新发布：20260911-lanqi-lq19-acquire-prod1（2026-09-11，测试实例 + 生产）
 
