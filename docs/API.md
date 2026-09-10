@@ -147,6 +147,12 @@ Authorization: Bearer <token>
 
 当前 MVP 只保存手机号，短信验证码校验待接入短信服务。
 
+### 身份来源（P0 修复后，`docs/BUG_REGRESSIONS.md` QA-20260911-002）
+
+`DATA_MODE=database` 时，`resolveRequestContext` 的身份**只来自 `Authorization: Bearer <token>` 里验签通过的会话令牌**。`x-sitong-tenant-id` / `x-sitong-user-id` 不再是身份来源：无有效令牌时即使带上这两个头也返回 401 `login_required`，且不会去查 membership（避免「猜 ID 即探测」）。有效令牌同时携带伪造头时，一律以令牌为准。
+
+内部运维脚本是唯一例外：除裸身份头外必须携带 `x-sitong-ops-token`，其值与 API 进程的 `OPS_TOKEN` 常量时间相等时才被承认；未配置 `OPS_TOKEN` 时该通道整体关闭。仓库内脚本统一用 `scripts/lib/internal-ops-identity.mjs`，测试夹具统一用 `scripts/lib/db-session-headers.ts`（真实会话令牌）。
+
 ## Tenant Profile And Conversations
 
 客户画像是思潼AI增长OS输出专业度的基础，不是普通用户资料。前端“资料”页会写入：

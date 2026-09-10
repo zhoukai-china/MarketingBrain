@@ -4,6 +4,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { parseBy09ProviderUsageWindow } from "./beauty-industry-by09-usage-window.mjs";
+import { internalIdentityHeaders } from "./lib/internal-ops-identity.mjs";
 
 const requireFromDb = createRequire(new URL("../packages/db/package.json", import.meta.url));
 const { PrismaClient } = requireFromDb("@prisma/client");
@@ -249,7 +250,7 @@ function api(path, init) {
 }
 
 function identityHeaders() {
-  return { "x-sitong-tenant-id": tenantId, "x-sitong-user-id": userId };
+  return internalIdentityHeaders({ tenantId, userId });
 }
 
 function readUsageJournal(start, end) {

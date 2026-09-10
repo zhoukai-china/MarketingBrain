@@ -1,4 +1,5 @@
 import { prisma } from "../packages/db/dist/index.js";
+import { internalIdentityHeaders } from "./lib/internal-ops-identity.mjs";
 
 const baseUrl = process.env.SITONG_INTERNAL_URL ?? "http://127.0.0.1:3002";
 const connection = await prisma.knowledgeConnection.findFirst({
@@ -16,8 +17,7 @@ if (!membership) throw new Error("no_active_membership");
 
 const headers = {
   "content-type": "application/json",
-  "x-sitong-tenant-id": connection.tenantId,
-  "x-sitong-user-id": membership.userId
+  ...internalIdentityHeaders({ tenantId: connection.tenantId, userId: membership.userId })
 };
 const documentsResponse = await fetch(`${baseUrl}/knowledge-base/documents?type=transcript&limit=1`, { headers });
 if (!documentsResponse.ok) throw new Error(`documents_${documentsResponse.status}`);

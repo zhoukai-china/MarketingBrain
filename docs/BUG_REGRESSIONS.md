@@ -1,5 +1,32 @@
 # Bug 回归台账
 
+## QA-20260911-002：`DATA_MODE=database` 下裸 `x-sitong-tenant-id` / `x-sitong-user-id` 头可冒充任意租户读数据（P0，代码已修 + 回归已绿）
+
+- 现象（真实生产，非合成；2026-09-11 外网实测 `https://api.lcppch.top/os-v2/api/lanqi/stores`）：
+
+  | 请求 | 修复前实测结果 |
+  | --- | --- |
+  | 匿名（无任何头） | 401 `login_required` |
+  | 只带 `x-sitong-tenant-id` + `x-sitong-user-id`（无 Bearer） | **200**，返回该租户真实门店 `{"ok":true,"stores":[{"id":"cmt6idd1j04v92hgbyxtcd694","name":"默认门店","city":"烟台"}]}` |
+  | 同上 + `Authorization: Bearer not-a-real-token` | **200**（无效令牌被忽略后回落到裸头，等于没有凭证校验） |
+  | 只给 tenant 头 / 只给 user 头 / 随机 user / 随机 tenant | 401（说明缺的不是「ID 正确性」而是「凭证」） |
+  | 对照租户（有 `founder-ip`、无 `lanqi` 授权）身份头 | 403 `product_entitlement_missing`（授权层正常，身份层被绕过） |
+
+- 根因（`apps/api/src/services/request-context.ts` database 分支）：`const resolvedTenantId = tokenPayload?.tenantId ?? tenantId;`（user 同）——**没有验签令牌时直接采信请求头里的身份**。随后只做 `prisma.membership.findFirst({ where: { tenantId, userId } })` 存在性校验，而这两个值是普通 cuid 主键（会出现在前端路由、分享链接、日志和客服工单里），不是密码学凭证。于是「猜到/拿到两个 ID」= 「拥有该租户身份」。这不是越权判断写错，而是身份来源本身错了：把客户端可自填的请求头当成了认证结果。
+- 影响面：所有走 `resolveRequestContext` 的租户数据读接口（门店、画像、驾驶舱、目标、朋友圈历史、钱包/积分相关读接口等）都可能被无凭证读取；写入类接口同一入口，风险等于「可冒充任意租户成员」。属 P0（数据泄露）。
+- 修复前红灯（自动回归，新增 `scripts/identity-header-spoof-smoke.ts`）：用真实路由（`registerAccountRoutes` + 复刻生产作用域形状的产品授权守卫）+ 合成 membership/entitlement 桩复刻同一条链路，**修复前 16 passed / 14 failed**（失败点即上表 9 种裸头组合必须 401 却 200）。断言同时锁定「裸头不得触达 membership / entitlement 查询」，避免「先查库再拒绝」留下枚举副作用。
+- 最小修复（不做无关重构）：
+  - `apps/api/src/services/request-context.ts`：database 分支身份**只能来自 `verifySessionToken` 验签通过的会话令牌**；无令牌时 `resolvedTenantId/resolvedUserId` 取空串 → `throw new Error("missing_tenant_or_user")` → 既有错误映射为 401 `login_required`。有效令牌 + 伪造头时仍以令牌为准（头不能提权）。
+  - 内部运维通道（唯一例外，fail-closed）：新增 `hasValidOpsCredential`，仅当 `env.OPS_TOKEN` 非空且请求头 `x-sitong-ops-token` 与之 `timingSafeEqual` 相等时才承认裸 `x-sitong-*` 头；未配置 `OPS_TOKEN` 时通道整体关闭。**不使用** `requireOpsToken` 那种「开发环境无令牌即放行」的宽松分支。
+  - 测试夹具（10 个脚本）：原本直接发裸身份头，等于在生产漏洞的调用方式上做断言，统一改为 `scripts/lib/db-session-headers.ts` 生成真实 Bearer 会话令牌。
+  - 运维脚本（6 个）：原本同样靠裸头冒充成员，改走 `scripts/lib/internal-ops-identity.mjs`（令牌来源 `SITONG_OPS_TOKEN` → `OPS_TOKEN` → `.env`/`apps/api/.env`/`/opt/baolu-os-v2/.env`，取不到直接抛错，不静默降级为无凭证请求）。
+  - `package.json`：新增 `pnpm.cmd auth:identity-header-spoof-smoke` 并接入 `qa:fast`（紧跟 `auth:product-login-smoke` 之后），该 P0 每次快速门禁都必须红灯可复现。
+- 修复后验收（同批实测）：`pnpm.cmd auth:identity-header-spoof-smoke` → **30 passed / 0 failed**（修复前后各跑一次，红灯→绿灯同一份用例）；`pnpm.cmd qa:fast` → PASS（exit 0，含新用例 30/30 与全仓 typecheck 7/7）。
+- 相邻回归（受影响领域专项，逐条实跑）：`pnpm.cmd export:owner-isolation-smoke` PASS（3 轮；每单恰扣 10 积分、跨用户/跨租户不可下载）；`pnpm.cmd billing:wallet-db-smoke` PASS；`pnpm.cmd marketplace:db-smoke` PASS；`pnpm.cmd marketplace:free-redo-smoke` PASS；`pnpm.cmd lanqi:moments-asset-scope-smoke` 9 passed / 0 failed；`pnpm.cmd qa:regression` PASS（exit 0）。
+- 既有失败（不是本次引入，已用 `git stash` 对照证明）：`pnpm.cmd billing:consume-db-smoke`（`precheck returns 200`，实际 404 `marketplace_skill_not_configured`）、`pnpm.cmd billing:paid-order-db-smoke`（`credit pack credits granted exactly once`）、`pnpm.cmd marketplace:live-run-smoke`（409 `marketplace_sku_coming_soon`）——三条在**修复前的工作树上同样失败**，属仓库既有失败，需另立任务处理，不由本 P0 掩盖也不放宽断言。
+- 残余风险（本次不消除，已登记 PLAT-08 后续项）：`x-sitong-ops-token` 是「带外共享密钥」通道，属于新的对外可探测入口。缓解：生产 `OPS_TOKEN` 为 80 字符随机值（实测非占位符，sha256 前缀 `5b97acd3`）、常量时间比较、`OPS_TOKEN` 为空即关闭；后续应把它限制为仅本机/内网可达（或在反代层拒绝该头），而不是长期开在公网 API 上。
+- 状态：**代码已修复、本地回归已绿（30/30 + qa:fast + qa:regression）**；生产复现证据见上表，生产发布与发布后复验记录见 `docs/CURRENT_DEPLOYMENT_STATUS.md`。
+
 ## QA-20260911-001：发布脚本只在 `$STAGE` 生成 Prisma Client，生产运行时客户端缺 4 个新模型，兰琪驾驶舱/目标页/朋友圈历史全部 500（P1，生产已修复并复验）
 
 - 现象（真实生产，非合成）：兰琪生产授权补齐后（`TenantProductEntitlement` 出现两条 `lanqi|active`，source `lanqi_launch_backfill_20260911`），兰琪租户 `GET /lanqi/stores`、`GET /lanqi/store-profile` 正常 200，但 `GET /lanqi/dashboard?month=2026-09`、`GET /lanqi/goals?month=2026-09`、`GET /lanqi/moments/upgrades` 全部 500：错误码分别为 `lanqi_dashboard_error` / `lanqi_goals_error` / `moments_history_error`，message 统一为 `Cannot read properties of undefined (reading 'findUnique')`（朋友圈历史是 `findMany`）。服务器本机 `http://127.0.0.1:3002/...` 与外部 `https://api.lcppch.top/os-v2/api/...` 表现一致。

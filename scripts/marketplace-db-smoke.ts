@@ -4,6 +4,7 @@ import Fastify from "../apps/api/node_modules/fastify/fastify.js";
 import { prisma } from "../apps/api/node_modules/@baolu/db/dist/index.js";
 import { registerMarketplaceRoutes } from "../apps/api/src/routes/marketplace.js";
 import { ensureMarketplaceCatalog } from "../apps/api/src/services/marketplace-catalog.js";
+import { sessionHeaders } from "./lib/db-session-headers.js";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`FAIL: ${message}`);
@@ -47,10 +48,7 @@ async function main(): Promise<void> {
     data: { subscriptionPriceCny: 99, subscriptionQuota: "包月不限次", status: "selling" }
   });
 
-  const headers = {
-    "x-sitong-tenant-id": tenantId,
-    "x-sitong-user-id": userId
-  };
+  const headers = sessionHeaders(tenantId, userId);
 
   try {
     const search = await app.inject({ method: "GET", url: "/market/skus?q=%E5%88%9B%E5%A7%8B%E4%BA%BAIP" });

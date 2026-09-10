@@ -26,6 +26,7 @@ import path from "node:path";
 import Fastify from "../apps/api/node_modules/fastify/fastify.js";
 import { prisma } from "../apps/api/node_modules/@baolu/db/dist/index.js";
 import { registerMomentRoutes } from "../apps/api/src/routes/moments.js";
+import { sessionHeaders } from "./lib/db-session-headers.js";
 
 let pass = 0;
 let fail = 0;
@@ -100,8 +101,8 @@ async function main(): Promise<void> {
   });
   await registerMomentRoutes(beautyApp, "/beauty-industry");
 
-  const headers = { "x-sitong-tenant-id": tenantId, "x-sitong-user-id": userId, "content-type": "application/json" };
-  const headersB = { "x-sitong-tenant-id": tenantBId, "x-sitong-user-id": userBId, "content-type": "application/json" };
+  const headers = sessionHeaders(tenantId, userId, { "content-type": "application/json" });
+  const headersB = sessionHeaders(tenantBId, userBId, { "content-type": "application/json" });
 
   try {
     // ===== 1. 兰琪作用域请求配图：命中幂等键，不触发模型调用 =====

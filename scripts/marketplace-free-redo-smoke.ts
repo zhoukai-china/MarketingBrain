@@ -64,6 +64,8 @@ async function main(): Promise<void> {
   const Fastify = (await import("../apps/api/node_modules/fastify/fastify.js")).default;
   const { registerMarketplaceRoutes } = await import("../apps/api/src/routes/marketplace.js");
   const { ensureMarketplaceCatalog } = await import("../apps/api/src/services/marketplace-catalog.js");
+  // 动态导入：本文件必须先完成上面的模型出口覆盖再加载 env，否则可能打到真实 Provider。
+  const { sessionHeaders } = await import("./lib/db-session-headers.js");
 
   const tenantId = `mp-redo-${randomUUID()}`;
   const userId = `mp-redo-user-${randomUUID()}`;
@@ -90,8 +92,8 @@ async function main(): Promise<void> {
   // 目录种子会重建 SKU，价格/状态必须在注册后再固定。
   await prisma.marketplaceSku.update({ where: { skuCode: SKU }, data: { ppu: PRICE, status: "selling" } });
 
-  const headers = { "x-sitong-tenant-id": tenantId, "x-sitong-user-id": userId };
-  const otherHeaders = { "x-sitong-tenant-id": otherTenantId, "x-sitong-user-id": otherUserId };
+  const headers = sessionHeaders(tenantId, userId);
+  const otherHeaders = sessionHeaders(otherTenantId, otherUserId);
   const run = (payload: Record<string, unknown>, useHeaders = headers) =>
     app.inject({
       method: "POST",

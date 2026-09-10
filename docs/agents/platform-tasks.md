@@ -371,3 +371,66 @@ WorkBuddy 使用 `BillingAccessToken` 只推导思潼 tenant/user，读同一 `C
 - 未运行：`qa:full` / `build`（本轮分段执行 fast + regression + 各专项已覆盖）；生产部署、真实付款未执行。
 - 残余风险：汇率硬编码，充值档与有效价未落库版本，后续若要改汇率需走配置化任务；免费重做是「每单 1 次」的服务端账本权益，跨端/跨天以账本为准。
 - 回滚点：回退 `marketplace.ts` 的 `redoOf`/`resolveFreeRedo`/免费重做分支与 `packages/shared` 折算函数、前端接入，即回到 PLAT-06「重新生成一律按次扣费」状态。
+
+## PLAT-08 请求身份只认验签会话：修复 `x-sitong-*` 裸头冒充任意租户（P0）
+
+状态：自动化验收通过（本地）；生产发布与发布后复验见 `docs/CURRENT_DEPLOYMENT_STATUS.md`
+
+### 归属
+
+- 产品：公共平台（跨全部产品、全部智能体的身份与租户隔离底座）。
+- 层级：公共平台（认证/租户隔离），不新开专区、不改任何智能体的 Skill 输出链。
+- 风险：高。身份来源即安全边界，改错会一次性打死所有登录用户或继续放行冒充者。
+- 预计修改热点：`apps/api/src/services/request-context.ts`、受影响测试夹具与运维脚本、`package.json` 的 `qa:fast`。
+- 是否允许并行：允许（只碰身份解析与夹具，不改货架/兰琪业务逻辑）。同一时刻不得再有第二个编码任务改 `request-context.ts`。
+
+### 用户结果
+
+任何人（包括从分享链接、路由、日志里捡到 `tenantId` / `userId` 的陌生人）都必须先完成微信登录拿到真令牌，才能读到该租户的门店、画像、驾驶舱与钱包数据；「手里有两个 ID」不再等于「拥有该租户身份」。
+
+### 本次范围
+
+- `apps/api/src/services/request-context.ts`：database 模式下身份**只来自** `verifySessionToken` 验签通过的会话令牌；无有效令牌且无运维凭证时按既有语义返回 401 `login_required`。有效令牌 + 伪造头仍以令牌为准。
+- 唯一例外是内部运维通道 `hasValidOpsCredential`：`OPS_TOKEN` 非空 + `x-sitong-ops-token` 常量时间匹配才承认裸 `x-sitong-*` 头；未配置 `OPS_TOKEN` 即整体关闭（fail-closed，不走「开发环境无令牌即放行」的宽松分支）。
+- `scripts/identity-header-spoof-smoke.ts`：新增 P0 自动回归（真实路由 + 合成 membership/entitlement 桩，30 条断言），接入 `qa:fast`。
+- `scripts/lib/db-session-headers.ts`：10 个 database 模式夹具（marketplace / wallet / billing / 兰琪资产作用域 / WorkBuddy MCP）由裸身份头改为真实 Bearer。
+- `scripts/lib/internal-ops-identity.mjs`：6 个运维脚本（生产 AI 记录、生产选题录制、BY09、BY17 两条、XHS 离线审计）改走显式运维凭证，取不到令牌即报错退出。
+
+### 本次不做
+
+- 不做密码学凭证模型改造（不引入 mTLS / 短期服务令牌 / OIDC）；不引入新的身份字段或数据库迁移。
+- 不改产品授权层（`requireProductEntitlement` 与 403 语义保持原样）；不改登录/注册与微信 OAuth 链路。
+- 不把 `x-sitong-ops-token` 通道做成公网长期方案（仅作为本轮最小改动下的运维例外，后续项见「交接」）。
+
+### 验收条件
+
+1. 正常路径：手上持有真实会话令牌的兰琪租户读 `/lanqi/stores`、`/account/status` 返回 200，身份取自令牌（`tenantId`/`userId`/`role` 与令牌一致）。
+2. 失败路径：裸 `x-sitong-tenant-id`/`x-sitong-user-id`（含配无效 Bearer、过期签名、只给一个、随机 ID、伪造同租户他人、伪造别的租户 owner、`internal-*` 合成身份）一律 401，且**不得触达 membership / entitlement 查询**；令牌指向不存在的成员关系 401；有效令牌访问未开通产品 403（授权问题不等于身份问题）。
+3. 不应发生：用无效 Bearer 覆盖掉身份校验；用一个租户的 ID 读到另一个租户的数据；裸头请求把「猜 ID」变成数据库查询（用户名/租户枚举副作用）；修好后真实登录用户被误判未登录。
+4. 可观测结果事件：401 `login_required`（身份缺失）与 403 `product_entitlement_missing`（已识别身份但无授权）保持可区分；`missing_tenant_or_user` 不再由裸头满足。
+
+### 基线与失败证据
+
+- 基线命令：`pnpm.cmd qa:fast`（含 `auth:product-login-smoke`、`db:client-model-check`）。
+- 修复前失败测试：`pnpm.cmd auth:identity-header-spoof-smoke` → 16 passed / **14 failed**（红灯点＝裸头必须 401 却 200）。
+- 现象、根因和连带影响：见 `docs/BUG_REGRESSIONS.md` QA-20260911-002（含生产外网实测矩阵）。根因是 database 分支 `tokenPayload?.tenantId ?? tenantId` 无令牌时直接采信请求头；连带影响是全部走 `resolveRequestContext` 的读写接口都可被无凭证冒充。
+
+### 实现记录
+
+- 修改文件：`apps/api/src/services/request-context.ts`（身份来源 + `hasValidOpsCredential`）；新增 `scripts/identity-header-spoof-smoke.ts`、`scripts/lib/db-session-headers.ts`、`scripts/lib/internal-ops-identity.mjs`；改写 10 个夹具与 6 个运维脚本；`package.json`（新增 `auth:identity-header-spoof-smoke`，接入 `qa:fast`）。
+- 数据/接口/配置变化：无数据库迁移、无接口签名变化。新请求头 `x-sitong-ops-token` 仅在 `OPS_TOKEN` 配置时生效；生产 `OPS_TOKEN` 为 80 字符随机值。
+- 兼容性和回滚点：回滚 = 还原 `apps/api/src/services/request-context.ts` 一处（其余为测试/脚本与 `package.json`），即回到「裸头可用」状态；夹具与运维脚本改回裸头会同时恢复漏洞用法，不单独回滚。
+
+### 验证
+
+- 领域命令：`pnpm.cmd auth:identity-header-spoof-smoke` → 30 passed / 0 failed；`pnpm.cmd export:owner-isolation-smoke`、`billing:wallet-db-smoke`、`marketplace:db-smoke`、`marketplace:free-redo-smoke`、`lanqi:moments-asset-scope-smoke` 全 PASS。
+- `pnpm.cmd qa:fast`：PASS（exit 0，含新用例 30/30 + 全仓 typecheck 7/7）；`pnpm.cmd qa:regression`：PASS（exit 0）。
+- 生产发布后复验：裸头 401 / 无效 Bearer 401 / 缺 `OPS_TOKEN` 的 `x-sitong-ops-token` 401、真实会话 200、`/health` `/ready` 200、journal 无新错误（记录见 `docs/CURRENT_DEPLOYMENT_STATUS.md`）。
+- 未运行项：`qa:full`（本轮以 `qa:fast` + `qa:regression` + 受影响的 5 条专项覆盖；跨模块改动建议下次发布前补跑）。
+- 已知既有失败（非本轮引入，`git stash` 对照证明）：`billing:consume-db-smoke`、`billing:paid-order-db-smoke`、`marketplace:live-run-smoke`。
+
+### 交接
+
+- 残余风险：`x-sitong-ops-token` 是共享密钥通道，仍可从公网探测（缓解：80 字符随机值 + 常量时间比较 + 未配置即关闭）。后续项：把它收敛到仅本机/内网可达，或改用 SSH 隧道/一次性签发令牌。
+- 后续任务：① 处理三条既有失败专项；② `complex-agent-live-eval.ts`、`verify-founder-ip-goal-briefs.ts` 若在 database 模式下打本机端口，需同法改走运维凭证通道。
+- 最后更新日期：2026-09-11

@@ -13,6 +13,7 @@ import { getBeautyTextBudget } from "../apps/api/src/products/beauty-industry/te
 import { BEAUTY_WORKFLOWS, buildBeautyWorkflowPrompt } from "../apps/api/src/products/beauty-industry/workflows.js";
 import { buildBeautyXhsTaskFactDirective } from "../apps/api/src/products/beauty-industry/xhs-task-facts.js";
 import { buildBeautyXhsTaskSnapshot, buildBeautyXhsTaskSnapshotDirective } from "../apps/api/src/products/beauty-industry/xhs-task-snapshot.js";
+import { internalIdentityHeaders } from "./lib/internal-ops-identity.mjs";
 
 const requireFromDb = createRequire(new URL("../packages/db/package.json", import.meta.url));
 const { PrismaClient } = requireFromDb("@prisma/client");
@@ -139,7 +140,7 @@ function buildProductAlignedEvalContract(contract) {
 }
 
 function identityHeaders() {
-  return { "x-sitong-tenant-id": tenantId, "x-sitong-user-id": userId };
+  return internalIdentityHeaders({ tenantId, userId });
 }
 
 async function api(path, init = {}) {

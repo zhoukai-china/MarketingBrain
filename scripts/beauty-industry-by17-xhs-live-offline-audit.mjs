@@ -9,6 +9,7 @@ import { buildBeautyIndustryRunInput } from "../apps/api/src/products/beauty-ind
 import { buildBeautyWorkflowPrompt } from "../apps/api/src/products/beauty-industry/workflows.js";
 import { buildBeautyXhsTaskFactDirective } from "../apps/api/src/products/beauty-industry/xhs-task-facts.js";
 import { parseBeautyXhsDelivery } from "../apps/api/src/products/beauty-industry/xhs-delivery.js";
+import { internalIdentityHeaders } from "./lib/internal-ops-identity.mjs";
 
 const requireFromDb = createRequire(new URL("../packages/db/package.json", import.meta.url));
 const { PrismaClient } = requireFromDb("@prisma/client");
@@ -88,7 +89,7 @@ try {
   ]);
   try {
     const historyResponse = await fetch(`${API_BASE}/beauty-industry/acquisition/history`, {
-      headers: { "x-sitong-tenant-id": tenant.id, "x-sitong-user-id": run.userId },
+      headers: internalIdentityHeaders({ tenantId: tenant.id, userId: run.userId }),
       signal: AbortSignal.timeout(10_000)
     });
     assert.equal(historyResponse.status, 200);

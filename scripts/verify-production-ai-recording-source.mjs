@@ -1,4 +1,5 @@
 import { prisma } from "../packages/db/dist/index.js";
+import { internalIdentityHeaders } from "./lib/internal-ops-identity.mjs";
 
 const connection = await prisma.knowledgeConnection.findFirst({
   where: { provider: "getnote", status: "active" },
@@ -14,10 +15,7 @@ const membership = await prisma.membership.findFirst({
 if (!membership) throw new Error("no_active_membership");
 
 const response = await fetch("http://127.0.0.1:3002/knowledge-base/documents?type=transcript&limit=20", {
-  headers: {
-    "x-sitong-tenant-id": connection.tenantId,
-    "x-sitong-user-id": membership.userId
-  }
+  headers: internalIdentityHeaders({ tenantId: connection.tenantId, userId: membership.userId })
 });
 if (!response.ok) throw new Error(`knowledge_endpoint_${response.status}`);
 const payload = await response.json();

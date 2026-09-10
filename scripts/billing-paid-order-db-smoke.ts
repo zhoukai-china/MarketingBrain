@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import Fastify from "../apps/api/node_modules/fastify/fastify.js";
 import { prisma } from "../apps/api/node_modules/@baolu/db/dist/index.js";
 import { registerBillingRoutes } from "../apps/api/src/routes/billing.js";
+import { sessionHeaders } from "./lib/db-session-headers.js";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`FAIL: ${message}`);
@@ -26,11 +27,7 @@ async function main(): Promise<void> {
   const app = Fastify();
   await registerBillingRoutes(app);
 
-  const headers = {
-    "x-sitong-tenant-id": tenantId,
-    "x-sitong-user-id": userId,
-    "content-type": "application/json"
-  };
+  const headers = sessionHeaders(tenantId, userId, { "content-type": "application/json" });
 
   try {
     const create = await app.inject({
@@ -45,10 +42,7 @@ async function main(): Promise<void> {
     const first = await app.inject({
       method: "POST",
       url: `/billing/orders/${order.id}/mock-pay`,
-      headers: {
-        "x-sitong-tenant-id": tenantId,
-        "x-sitong-user-id": userId
-      }
+      headers: sessionHeaders(tenantId, userId)
     });
     assert(first.statusCode === 200, `mock pay succeeds (status ${first.statusCode}, body ${first.body})`);
     const firstBody = first.json() as { applied: boolean };
@@ -57,10 +51,7 @@ async function main(): Promise<void> {
     const second = await app.inject({
       method: "POST",
       url: `/billing/orders/${order.id}/mock-pay`,
-      headers: {
-        "x-sitong-tenant-id": tenantId,
-        "x-sitong-user-id": userId
-      }
+      headers: sessionHeaders(tenantId, userId)
     });
     assert(second.statusCode === 200, "repeated mock pay is accepted");
     const secondBody = second.json() as { applied: boolean };

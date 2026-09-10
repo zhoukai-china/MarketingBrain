@@ -1,3 +1,4 @@
+import "dotenv/config";
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
@@ -5,6 +6,7 @@ import { dirname } from "node:path";
 import { prisma } from "../packages/db/src/index.js";
 import { assignBeautyIndustryBrandToTenant } from "../apps/api/src/products/beauty-industry/brand-config.js";
 import { getBeautyTextBudget } from "../apps/api/src/products/beauty-industry/text-budget.js";
+import { sessionHeaders } from "./lib/db-session-headers.js";
 
 const MODEL = "deepseek-v4-pro";
 const CAPABILITY = "beauty_business_qa";
@@ -140,7 +142,7 @@ function consumeGrant(): void {
 }
 
 function headers(tenant = tenantId, user = userId): Record<string, string> {
-  return { "Content-Type": "application/json", "x-sitong-tenant-id": tenant, "x-sitong-user-id": user };
+  return sessionHeaders(tenant, user, { "Content-Type": "application/json" });
 }
 
 async function api(path: string, init: RequestInit = {}): Promise<Response> {

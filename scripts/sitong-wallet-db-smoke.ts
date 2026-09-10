@@ -5,6 +5,7 @@ import { prisma } from "../apps/api/node_modules/@baolu/db/dist/index.js";
 import { registerBillingAccessTokenRoutes } from "../apps/api/src/routes/billing-access-tokens.js";
 import { registerBillingConsumeRoutes } from "../apps/api/src/routes/billing-consume.js";
 import { applyRecharge, consumeWalletCredits } from "../apps/api/src/services/sitong-wallet.js";
+import { sessionHeaders } from "./lib/db-session-headers.js";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`FAIL: ${message}`);
@@ -26,17 +27,13 @@ async function main(): Promise<void> {
   await registerBillingAccessTokenRoutes(app);
   await registerBillingConsumeRoutes(app);
 
-  const sessionHeaders = {
-    "x-sitong-tenant-id": tenantId,
-    "x-sitong-user-id": userId,
-    "content-type": "application/json"
-  };
+  const humanSessionHeaders = sessionHeaders(tenantId, userId, { "content-type": "application/json" });
 
   try {
     const created = await app.inject({
       method: "POST",
       url: "/billing/access-tokens",
-      headers: sessionHeaders,
+      headers: humanSessionHeaders,
       payload: { label: "wallet smoke", expiresInDays: 30 }
     });
     assert(created.statusCode === 201, "access token created");
@@ -77,7 +74,7 @@ async function main(): Promise<void> {
     assert(orderLedgers === 2, "one recharge writes two ledger rows (paid + bonus)");
 
     // 2) GET /wallet 分桶返回
-    const walletRes = await app.inject({ method: "GET", url: "/wallet", headers: sessionHeaders });
+    const walletRes = await app.inject({ method: "GET", url: "/wallet", headers: humanSessionHeaders });
     assert(walletRes.statusCode === 200, "GET /wallet returns 200");
     const walletBody = walletRes.json() as { paidBalance: number; bonusBalance: number; balance: number };
     assert(walletBody.paidBalance === 2000 && walletBody.bonusBalance === 200 && walletBody.balance === 2200, "wallet returns split buckets");

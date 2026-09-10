@@ -7,6 +7,7 @@ import Fastify from "../apps/api/node_modules/fastify/fastify.js";
 import { prisma } from "../apps/api/node_modules/@baolu/db/dist/index.js";
 import { registerMarketplaceRoutes } from "../apps/api/src/routes/marketplace.js";
 import { ensureMarketplaceCatalog } from "../apps/api/src/services/marketplace-catalog.js";
+import { sessionHeaders } from "./lib/db-session-headers.js";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`FAIL: ${message}`);
@@ -61,10 +62,7 @@ async function main(): Promise<void> {
   await registerMarketplaceRoutes(app);
 
   try {
-    const headers = {
-      "x-sitong-tenant-id": tenantId,
-      "x-sitong-user-id": userId
-    };
+    const headers = sessionHeaders(tenantId, userId);
     const startedAt = Date.now();
     const run = await app.inject({
       method: "POST",

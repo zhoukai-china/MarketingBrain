@@ -4,6 +4,7 @@ import Fastify from "../apps/api/node_modules/fastify/fastify.js";
 import { prisma } from "../apps/api/node_modules/@baolu/db/dist/index.js";
 import { registerBillingAccessTokenRoutes } from "../apps/api/src/routes/billing-access-tokens.js";
 import { registerBillingConsumeRoutes } from "../apps/api/src/routes/billing-consume.js";
+import { sessionHeaders } from "./lib/db-session-headers.js";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`FAIL: ${message}`);
@@ -28,17 +29,13 @@ async function main(): Promise<void> {
   await registerBillingAccessTokenRoutes(app);
   await registerBillingConsumeRoutes(app);
 
-  const sessionHeaders = {
-    "x-sitong-tenant-id": tenantId,
-    "x-sitong-user-id": userId,
-    "content-type": "application/json"
-  };
+  const humanSessionHeaders = sessionHeaders(tenantId, userId, { "content-type": "application/json" });
 
   try {
     const created = await app.inject({
       method: "POST",
       url: "/billing/access-tokens",
-      headers: sessionHeaders,
+      headers: humanSessionHeaders,
       payload: { label: "WorkBuddy billing smoke", expiresInDays: 30 }
     });
     assert(created.statusCode === 201, "billing access token can be created");
@@ -57,7 +54,7 @@ async function main(): Promise<void> {
       headers: tokenHeaders,
       payload: { amount: 100, skill: "beauty_business_qa" }
     });
-    assert(precheck.statusCode === 200, "precheck returns 200");
+    assert(precheck.statusCode === 200, `precheck returns 200 (got ${precheck.statusCode}: ${precheck.body})`);
     const precheckBody = precheck.json() as { ok: boolean; balance: number };
     assert(precheckBody.ok === true && precheckBody.balance === 300, "precheck reads unified wallet");
 
@@ -100,10 +97,7 @@ async function main(): Promise<void> {
     const rotate = await app.inject({
       method: "POST",
       url: `/billing/access-tokens/${createdBody.accessToken.id}/rotate`,
-      headers: {
-        "x-sitong-tenant-id": tenantId,
-        "x-sitong-user-id": userId
-      }
+      headers: sessionHeaders(tenantId, userId)
     });
     assert(rotate.statusCode === 201, `billing access token rotates (status ${rotate.statusCode}, body ${rotate.body})`);
     const rotated = rotate.json() as { token: string };

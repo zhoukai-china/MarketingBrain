@@ -98,7 +98,8 @@ try {
   await registerWorkbuddyMcpRoutes(app, provider);
   await app.ready();
 
-  const ownerHeaders = { "x-sitong-tenant-id": tenantId, "x-sitong-user-id": userId };
+  const { sessionHeaders } = await import("./lib/db-session-headers.js");
+  const ownerHeaders = sessionHeaders(tenantId, userId);
   const created = await app.inject({
     method: "POST",
     url: "/integrations/workbuddy/connections",
@@ -431,7 +432,7 @@ try {
   const otherCreated = await app.inject({
     method: "POST",
     url: "/integrations/workbuddy/connections",
-    headers: { "x-sitong-tenant-id": otherTenantId, "x-sitong-user-id": otherUserId },
+    headers: sessionHeaders(otherTenantId, otherUserId),
     payload: { productCode: "beauty-industry", scopes: ["acquisition:topics"] }
   });
   assert.equal(otherCreated.statusCode, 201, otherCreated.body);

@@ -1,4 +1,5 @@
 import { prisma } from "../packages/db/src/index.js";
+import { internalIdentityHeaders } from "./lib/internal-ops-identity.mjs";
 
 async function main(): Promise<void> {
 const connections = await prisma.knowledgeConnection.findMany({
@@ -42,10 +43,7 @@ if (primaryConnection) {
   });
   if (membership) {
     const response = await fetch("http://127.0.0.1:3002/knowledge-base/documents?type=transcript&limit=20", {
-      headers: {
-        "x-sitong-tenant-id": primaryConnection.tenantId,
-        "x-sitong-user-id": membership.userId
-      }
+      headers: internalIdentityHeaders({ tenantId: primaryConnection.tenantId, userId: membership.userId })
     });
     if (!response.ok) throw new Error(`knowledge_endpoint_${response.status}`);
     const payload = await response.json() as { documents?: Array<{
