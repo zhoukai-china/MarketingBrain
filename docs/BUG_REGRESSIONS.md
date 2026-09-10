@@ -25,7 +25,10 @@
 - 相邻回归（受影响领域专项，逐条实跑）：`pnpm.cmd export:owner-isolation-smoke` PASS（3 轮；每单恰扣 10 积分、跨用户/跨租户不可下载）；`pnpm.cmd billing:wallet-db-smoke` PASS；`pnpm.cmd marketplace:db-smoke` PASS；`pnpm.cmd marketplace:free-redo-smoke` PASS；`pnpm.cmd lanqi:moments-asset-scope-smoke` 9 passed / 0 failed；`pnpm.cmd qa:regression` PASS（exit 0）。
 - 既有失败（不是本次引入，已用 `git stash` 对照证明）：`pnpm.cmd billing:consume-db-smoke`（`precheck returns 200`，实际 404 `marketplace_skill_not_configured`）、`pnpm.cmd billing:paid-order-db-smoke`（`credit pack credits granted exactly once`）、`pnpm.cmd marketplace:live-run-smoke`（409 `marketplace_sku_coming_soon`）——三条在**修复前的工作树上同样失败**，属仓库既有失败，需另立任务处理，不由本 P0 掩盖也不放宽断言。
 - 残余风险（本次不消除，已登记 PLAT-08 后续项）：`x-sitong-ops-token` 是「带外共享密钥」通道，属于新的对外可探测入口。缓解：生产 `OPS_TOKEN` 为 80 字符随机值（实测非占位符，sha256 前缀 `5b97acd3`）、常量时间比较、`OPS_TOKEN` 为空即关闭；后续应把它限制为仅本机/内网可达（或在反代层拒绝该头），而不是长期开在公网 API 上。
-- 状态：**代码已修复、本地回归已绿（30/30 + qa:fast + qa:regression）**；生产复现证据见上表，生产发布与发布后复验记录见 `docs/CURRENT_DEPLOYMENT_STATUS.md`。
+- 状态：**已关闭（测试实例 + 生产均已发布并复验）**。发布 id `20260911-identity-p0-test1` / `20260911-identity-p0-prod1`（同一发布包 `release-20260911-identity-p0-prod1.tar.gz`，8900152 B，sha256 `5e5ca99d123133bcdd8b88a9eef895329c61ab059c983afa77cc220055299e5f`，1426 文件）；两侧 `DEPLOY_OK` + `health=200` / `ready=200`，48 个迁移无待应用，第 7b 步 `prisma client model coverage OK: 99 models`。发布后复验（2026-09-11 07:0x，服务器本机 + 外网）：
+  - **正路仍通**（本机 `127.0.0.1:3002`，用生产 `JWT_SECRET` 现签的真实会话令牌，非裸头）：`/lanqi/stores`、`/lanqi/store-profile`、`/lanqi/dashboard?month=2026-09`、`/lanqi/goals?month=2026-09`、`/lanqi/moments/upgrades?storeId=…`、`/beauty-industry/stores`、`/market/skus` **全部 200**；运维通道 `x-sitong-ops-token`（正确 `OPS_TOKEN`）`/lanqi/stores` 200，错误令牌 401。
+  - **冒充仍被拒**（外网 `https://api.lcppch.top/os-v2/api`，本轮重测）：匿名 401、裸身份头 401、裸头 + 无效 Bearer 401、裸头 + 错误 ops 令牌 401、对照租户裸头 401；对照组真实令牌访问未开通产品 403 `product_entitlement_missing`（授权 ↔ 身份语义仍可区分）。
+  - **发布后运行面**：`baolu-os-v2` `ActiveState=active` / `NRestarts=0`（`ExecMainStartTimestamp=Fri 2026-09-11 07:03:18 CST`），`journalctl -u baolu-os-v2 --since "2026-09-11 07:00" -p err` 除本次复验自身制造的匿名 401（既有 `missing_tenant_or_user` → 401 映射）外无新增错误；无 `Cannot read properties of undefined`。发布包、备份目录、日志与复验矩阵见 `docs/CURRENT_DEPLOYMENT_STATUS.md` 顶部条目。
 
 ## QA-20260911-001：发布脚本只在 `$STAGE` 生成 Prisma Client，生产运行时客户端缺 4 个新模型，兰琪驾驶舱/目标页/朋友圈历史全部 500（P1，生产已修复并复验）
 

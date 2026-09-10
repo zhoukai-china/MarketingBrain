@@ -1,6 +1,27 @@
 # 当前部署状态
 
-更新时间：2026-09-11（最近一次为兰琪**生产数据收尾**：LQ-18 验收残留清理 + 产品邀请码注册 E2E，无代码发布；最近一次代码发布仍为兰琪 LQ-19 公域获客上测试实例 + 生产；下方 2026-08-03 清单保留为当时状态）
+更新时间：2026-09-11（最近一次为 **P0 身份头冒充修复上测试实例 + 生产**，见下方顶部条目；此前为兰琪生产数据收尾与 LQ-19 公域获客发布；2026-08-03 清单保留为当时状态）
+
+## 最新发布：20260911-identity-p0-prod1（2026-09-11，测试实例 + 生产）— P0 身份头冒充修复
+
+发布包：`release-20260911-identity-p0-prod1.tar.gz`（**8900152 B**，sha256 `5e5ca99d123133bcdd8b88a9eef895329c61ab059c983afa77cc220055299e5f`，**1426 个文件**）。本地构建产物 `%TEMP%\release-20260911-identity-p0-prod1.tar.gz` 与服务器 `/tmp/release-20260911-identity-p0-prod1.tar.gz` sha256 一致（部署日志第 3 行 `archive sha256` 复核）。测试实例与生产共用同一份产物，发布 id 按环境分别记为 `20260911-identity-p0-test1` / `20260911-identity-p0-prod1`。策略同前：stage 构建 → 备份 → 全量叠加（不删除历史文件）→ 第 7b 步在 `$APP` 就地 `prisma generate` 并按 `schema.prisma` 逐模型校验运行时客户端 → migrate → 重启 → 健康轮询 → 校验 → 失败自动回滚。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 联调 `chat-test` | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | `https://api.lcppch.top/lanqi-test/` | `20260911-identity-p0-test1` | `DEPLOY_OK` + `health=200 (after 9s)` / `ready=200` |
+| 生产 `chat` | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | `https://api.lcppch.top/os-v2/` | `20260911-identity-p0-prod1` | `DEPLOY_OK` + `health=200 (after 15s)` / `ready=200` |
+
+- 本包内容：`apps/api/src/services/request-context.ts` 的 P0 修复（database 模式身份只来自验签会话令牌；新增 fail-closed 的 `x-sitong-ops-token` 运维通道，见 `docs/BUG_REGRESSIONS.md` QA-20260911-002 / `docs/agents/platform-tasks.md` PLAT-08），随包上线 10 个夹具改真会话令牌、6 个运维脚本改显式运维凭证、新回归 `scripts/identity-header-spoof-smoke.ts`（已接 `qa:fast`）。QA-20260911-001 的仓库守护 `scripts/check-prisma-client-models.mjs` 与发布脚本第 7b 步一并生效。
+- 迁移：`48 migrations found in prisma/migrations` / `No pending migrations to apply.`（两侧一致，无 schema 变更）。
+- 运行时客户端守护：生产部署日志第 132 行 `prisma client model coverage OK: 99 models in /opt/baolu-os-v2/node_modules/.pnpm/@prisma+client@5.17.0_prisma@5.17.0/node_modules/.prisma/client`。
+- 备份与日志：生产备份 `/opt/baolu-backups/20260911-identity-p0-prod1-before-baolu-os-v2/`（部署前目录快照），发布日志 `/tmp/deploy-20260911-identity-p0-prod1-baolu-os-v2.log`；测试备份 `/opt/baolu-backups/20260911-identity-p0-test1-before-baolu-os-v2-test/`，日志 `/tmp/deploy-20260911-identity-p0-test1-baolu-os-v2-test.log`。**回滚**＝把备份目录还原回 `$APP` 并 `systemctl restart`；代码侧最小回滚点是 `request-context.ts` 单文件。
+- 发布后复验（2026-09-11 07:0x，服务器本机 + 外网；未改数据、未再发布）：
+  - **正路仍通**（本机 `127.0.0.1:3002`，用生产 `JWT_SECRET` 现签真实会话令牌——令牌与密钥只在本机进程内使用，不落仓库/文档）：`/lanqi/stores` 200（返回兰琪租户真实门店）、`/lanqi/store-profile` 200、`/lanqi/dashboard?month=2026-09` 200、`/lanqi/goals?month=2026-09` 200、`/lanqi/moments/upgrades?storeId=…` 200、`/beauty-industry/stores` 200、`/market/skus` 200。
+  - **运维通道**：正确 `x-sitong-ops-token` + 裸 `x-sitong-*` 头 → `/lanqi/stores` 200；错误 ops 令牌 → 401。
+  - **冒充被拒**（外网 `https://api.lcppch.top/os-v2/api/lanqi/stores`）：匿名 401、裸身份头 401、裸头 + `Bearer not-a-real-token` 401、裸头 + 错误 ops 令牌 401、对照租户裸头 401；对照组（有 `founder-ip`、无 `lanqi`）真实令牌 → 403 `product_entitlement_missing`。
+  - **公开面**：`/health`、`/ready`、`/auth/wechat-config`（`{"configured":true,"appid":"wxf405233d62ec376a","inviteRequired":false}`）、`/market/skus` 均 200。
+  - **运行面**：`systemctl show baolu-os-v2` → `ActiveState=active` / `SubState=running` / `NRestarts=0`（`ExecMainStartTimestamp=Fri 2026-09-11 07:03:18 CST`）；`journalctl -u baolu-os-v2 --since "2026-09-11 07:00:00" -p err` 无新增条目（仅本次复验自己发起的匿名请求走既有 `missing_tenant_or_user` → 401 路径留下的 err 级记录），无 `Cannot read properties of undefined`。
+- 真人微信扫码（本条目未执行）：二维码已生成于本机 `%TEMP%\wechat-login-acceptance\login-qr.png`（平台入口）与 `lanqi-login-qr.png`（`/os-v2/login/lanqi`），待用户用未登录过思潼 AI 的微信扫码走完「授权 → 注册 → 落 `/os-v2/market`」；微信登录配置、`inviteRequired=false` 已就绪。
 
 ## 生产数据收尾：LQ-18 验收残留清理 + 产品邀请码注册 E2E（2026-09-11，仅数据/文档，无代码发布）
 

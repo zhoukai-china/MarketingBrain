@@ -374,7 +374,7 @@ WorkBuddy 使用 `BillingAccessToken` 只推导思潼 tenant/user，读同一 `C
 
 ## PLAT-08 请求身份只认验签会话：修复 `x-sitong-*` 裸头冒充任意租户（P0）
 
-状态：自动化验收通过（本地）；生产发布与发布后复验见 `docs/CURRENT_DEPLOYMENT_STATUS.md`
+状态：已交付（测试实例 + 生产已发布并复验）；发布与复验记录见 `docs/CURRENT_DEPLOYMENT_STATUS.md` 顶部条目
 
 ### 归属
 
@@ -425,12 +425,17 @@ WorkBuddy 使用 `BillingAccessToken` 只推导思潼 tenant/user，读同一 `C
 
 - 领域命令：`pnpm.cmd auth:identity-header-spoof-smoke` → 30 passed / 0 failed；`pnpm.cmd export:owner-isolation-smoke`、`billing:wallet-db-smoke`、`marketplace:db-smoke`、`marketplace:free-redo-smoke`、`lanqi:moments-asset-scope-smoke` 全 PASS。
 - `pnpm.cmd qa:fast`：PASS（exit 0，含新用例 30/30 + 全仓 typecheck 7/7）；`pnpm.cmd qa:regression`：PASS（exit 0）。
-- 生产发布后复验：裸头 401 / 无效 Bearer 401 / 缺 `OPS_TOKEN` 的 `x-sitong-ops-token` 401、真实会话 200、`/health` `/ready` 200、journal 无新错误（记录见 `docs/CURRENT_DEPLOYMENT_STATUS.md`）。
+- 生产发布后复验（2026-09-11，测试实例 + 生产同一发布包，两侧 `DEPLOY_OK`）：
+  - 发布：包 `release-20260911-identity-p0-prod1.tar.gz`（8900152 B，sha256 `5e5ca99d123133bcdd8b88a9eef895329c61ab059c983afa77cc220055299e5f`，1426 文件）；发布 id `20260911-identity-p0-test1`（chat-test，健康 200 after 9s）/ `20260911-identity-p0-prod1`（生产，健康 200 after 15s），ready 均 200，48 个迁移无待应用，第 7b 步 `prisma client model coverage OK: 99 models`。
+  - 正路仍通（服务器本机 3002，生产 `JWT_SECRET` 现签真实会话令牌）：`/lanqi/stores`、`/lanqi/store-profile`、`/lanqi/dashboard?month=2026-09`、`/lanqi/goals?month=2026-09`、`/lanqi/moments/upgrades?storeId=…`、`/beauty-industry/stores`、`/market/skus` 全部 **200**；正确 `OPS_TOKEN` 的运维通道 `/lanqi/stores` 200，错误令牌 401。
+  - 冒充仍被拒（外网实测）：匿名 401、裸头 401、裸头 + 无效 Bearer 401、裸头 + 错误 ops 令牌 401、对照租户裸头 401；对照组真实令牌访问未开通产品 **403 `product_entitlement_missing`**（未把授权问题误判成身份问题）。
+  - 公开面未受影响：`/health`、`/ready`、`/auth/wechat-config`、`/market/skus` 200。运行面 `baolu-os-v2` `NRestarts=0`，`journalctl -p err` 自重启点后无新增错误（记录见 `docs/CURRENT_DEPLOYMENT_STATUS.md`）。
 - 未运行项：`qa:full`（本轮以 `qa:fast` + `qa:regression` + 受影响的 5 条专项覆盖；跨模块改动建议下次发布前补跑）。
 - 已知既有失败（非本轮引入，`git stash` 对照证明）：`billing:consume-db-smoke`、`billing:paid-order-db-smoke`、`marketplace:live-run-smoke`。
 
 ### 交接
 
 - 残余风险：`x-sitong-ops-token` 是共享密钥通道，仍可从公网探测（缓解：80 字符随机值 + 常量时间比较 + 未配置即关闭）。后续项：把它收敛到仅本机/内网可达，或改用 SSH 隧道/一次性签发令牌。
-- 后续任务：① 处理三条既有失败专项；② `complex-agent-live-eval.ts`、`verify-founder-ip-goal-briefs.ts` 若在 database 模式下打本机端口，需同法改走运维凭证通道。
+- 残余风险（P3，本轮复验时观察到）：未登录请求走 `missing_tenant_or_user` 抛错路径，Fastify 以 `level:50` 记 err，匿名扫描会在 journal 里堆出错误级噪声；对外状态码与文案都正确，仅在下一轮顺手把该分支降级为不高于 warn 的记录或改用不抛错的 401 返回。
+- 后续任务：① 处理三条既有失败专项；② `complex-agent-live-eval.ts`、`verify-founder-ip-goal-briefs.ts` 若在 database 模式下打本机端口，需同法改走运维凭证通道；③ 收敛 `x-sitong-ops-token` 的公网可达性。
 - 最后更新日期：2026-09-11
