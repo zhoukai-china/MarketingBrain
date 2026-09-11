@@ -294,10 +294,20 @@ async function main() {
           if (/发布前检查|字 →/.test(resultText)) break;
           await sleep(1000);
         }
+        // 契约口径：出稿成功后右侧渲染「{rawLen} 字 → {newLen} 字」改写指标，并在
+        // `.lq-moments__checks` 区块里逐条渲染发布前检查项（✓/! 标签：说明）。
+        // 注意：页面**没有**「发布前检查」这个纯文本标题（检查项区块本身无标题），
+        // 旧断言断言了一个产品从未渲染过的字面量，会对正确出稿误判为失败。
+        const checkItems = await evaluate(
+          root,
+          sessionId,
+          `document.querySelectorAll(".lq-moments__checks > div").length`,
+        );
+        const checkItemCount = typeof checkItems === "number" ? checkItems : 0;
         push(
-          "点「生成群话术」真实出稿（含改写字数与发布前检查）",
-          /发布前检查/.test(resultText) && /字 →/.test(resultText) && generateCalls.length >= 1,
-          `requests=${generateCalls.length} 含检查项=${/发布前检查/.test(resultText)}`,
+          "点「生成群话术」真实出稿（含改写字数与发布前检查项）",
+          /字 →/.test(resultText) && checkItemCount >= 1 && generateCalls.length >= 1,
+          `requests=${generateCalls.length} 检查项=${checkItemCount}`,
         );
         push(
           "出稿不外泄模型名/厂商名",

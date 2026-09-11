@@ -4,6 +4,8 @@
 
 > **2026-09-11 追加（WorkBuddy 走查报告复核）**：用户交来 WorkBuddy 的《兰琪登录授权走查报告-cmengtv》与《兰琪公域获客测试报告》，要求核验测试是否正确、修掉真 Bug。**核验结论：登录报告 3 条「关键发现」全部是测试方法错误（`cmengtv` 是微信号、被当成产品邀请码；`inviteRequired` 是平台主入口口径；`dev-login` 生产禁用是设计内 fail-closed），登录链路无需改代码。** 公域报告 9 条中成立 3 条（2 条已修、1 条登记为体验残留），另由报告 #1 的 502 线索**反向查出一个真 P1：直播/顾问间歇性 422（合规门禁把「我**不**敢保证」这类免责说法误判成效果承诺 + 重写次数只有 2 次）**。已最小修复：语境感知 `containsPromiseClaims()`、live/advisor 重写次数 2→3、回灌提示点名违规词并要求逐字删除；随发布 id `20260911-lq19-acquire-fixes-test1` / `-prod1` 上测试实例与生产（`DEPLOY_OK` + 健康 200；测试实例走查 **16/16**、重复探针 **live 6/6 · advisor 3/3**、页面探针 **30/0**；生产接口验收 **16/16 PASS**）。详见 `docs/BUG_REGRESSIONS.md` QA-20260911-005 与下方「LQ-19 公域获客」。
 
+> **2026-09-11 追加（私域营销页复测报告复核）**：用户交来 WorkBuddy《兰琪私域营销页复测报告》，要求核验是否合理并修复。**核验结论：报告 2 条 P1 都不成立（测试方法问题）**——① 「快速模式默认示例文本被判定为空」：文本框本来就是 `placeholder` 提示 + 初始 `value=""`，空输入给「请先写一句你的原话」是**正确的负路径**，不是「默认值没生效」；② 「专业模式点『生成真实 AI 配图』清空已有结果」：真实浏览器实测点击后文案正文与结果元信息仍在（`hasResultMeta=true`、正文 135 字）、`store_os_token` 在、URL 未跳转、配图请求 200 出图，报告截图抓的是**出图等待期的中间态**。**2 条 P2 成立并已修**：「结果卡片缺少复制 / 重新生成」「顶栏『多端实时同步』点了没有任何反馈」（后者原本是纯 `<span>`，连 `onClick` 都没有）。P3「案例中心 / 客户管理仍是占位页」按用户本轮口径（其他页面暂时显示开发中）**保留占位**。**另由报告线索反向查出一个真 P1**：快速模式空输入 `POST /lanqi/moments/upgrade` 返回 **HTTP 500**（`INVALID_MSG` 漏了「请先写一句你的原话」，且 500 分支把原始报错直接回显给前端，会暴露 `deepseek_provider_http_error` / `llm_provider_not_configured` 这类内部串）——已最小修复并加三层回归（`lanqi:moments-input-error-paths-smoke` **18/0**、`lanqi:moments-ui-contract-smoke` **19/0**、`lanqi:moments-retest` 真实浏览器回归），详见 `docs/BUG_REGRESSIONS.md` QA-20260911-007 与下方「LQ-18 私域营销（板块4）复测收口（2026-09-11）」。
+
 ## 生产收尾三项（2026-09-11，用户授权执行）
 
 > 用户本轮明确授权：「① 清掉 LQ-18 验收残留（`LanqiMomentUpgrade cmtw353it057x12k47vkr6pux` + `LanqiMomentAsset b0e32259-…`）；② 用现有 `lanqi` 邀请码在生产跑一次注册端到端（新增 1 个一次性租户、占用 5 席位中的 1 个）；③ 真人扫码」。①② 已在生产执行并留证（可回滚）；③ 必须真人持 `cmengtv` 微信在浏览器完成 `snsapi_userinfo` 授权，Agent 无法代持微信凭据，已移交 WorkBuddy/用户执行。
@@ -40,6 +42,21 @@
 - **失败路径已自动化（2026-09-11，用户要求补探针）**：新增 `scripts/tmp/prod-lanqi-wechat-failure-paths.mjs`（只读探针，不建租户、不消耗邀请码席位，可在生产直接跑）：A1 缺 `code`→400；A2 空 `code`→400；A3 非法 `tenantHostname`→400 `invalid_tenant_domain`；A4 无效 `code`→明确业务错误（不得 5xx）；B1 缺 `state`→页内拒绝且 0 次请求 `/auth/wechat-login`；B2 `state` 不匹配→同上；B3 用户取消授权→提示取消且 0 次请求；B4 无效 `code`→页面中文可读错误、不泄露内部信息。**首跑即红灯，揪出一个 P1 真缺陷**：`POST /auth/wechat-login` 传无效 code 返回 500 `internal_server_error`（「授权已失效」被说成「服务器故障」，并污染 5xx 告警）。已最小修复（`wechat-auth.ts` 区分 `invalid_code`/`upstream_unavailable`；`auth.ts` 映射 401 `wechat_code_invalid` / 502 `wechat_upstream_unavailable`，上游 `errmsg` 只进服务端日志），新增仓库回归 `scripts/wechat-login-failure-paths-smoke.ts`（红灯 22 passed / 12 failed → 修复后 **34 passed / 0 failed**，已接 `qa:fast`），并随发布 id `20260911-wechat-login-failure-paths-test1` / `-prod1` 上测试实例与生产；发布后探针**两侧各 8/8 PASS**。详见 `docs/BUG_REGRESSIONS.md` QA-20260911-004。
 - WorkBuddy 真人扫码时只需回归**正常路径**：失败路径已由上述探针覆盖，无需人工复现。
 - 验收数据现状（2026-09-11 07:2x，生产只读，已含一次性租户回收）：`LanqiMomentUpgrade=0`、`LanqiMomentAsset=0`、`Tenant=208`、`TenantProductEntitlement(lanqi,active)=3`、`LanqiReferral=0`。
+
+## LQ-18 私域营销（板块4）复测收口（2026-09-11）
+
+> 用户 2026-09-11：「这个是 workbuddy 的测试（《兰琪私域营销页复测报告》）你看看是否合理及修复。今天的兰琪智能体要把私域营销页**全部测试通过**；公域获客页尽可能开发完；其他页面暂时显示开发中；私域和公域开发完之后我们先内部测试，没问题之后让用户来内测。」
+
+- 核验：报告 2 条 P1 **都不成立**（测试方法问题）、2 条 P2 **成立并已修**、1 条 P3 按用户口径保留占位；另由报告线索反向查出**一个真 P1**（快速模式空输入被判 500）。详见 `docs/BUG_REGRESSIONS.md` **QA-20260911-007**。同轮另修掉一个**检查资产 P3**：`lanqi-moments-wechat-group-flow.mjs` 真实生成断言引用了产品从未渲染的标题「发布前检查」，见 **QA-20260911-008**。
+- 「私域营销页全部测试通过」实测（打测试实例 `https://api.lcppch.top/lanqi-test`）：
+  - `pnpm.cmd lanqi:moments-retest --generate --image` → **14/0**（现场证伪两条 P1：空输入给「请先写一句你的原话」不是 500；点 AI 配图后文案仍在 `bodyLen=93`、token 在、出图 200、`imageShown=true`）。
+  - `pnpm.cmd lanqi:moments-wechat-group-flow --generate` → **8/0**（真实出稿 `27 字 → 96 字` + 5 条发布前检查项；证明原始反馈「微信群营销话术生成不了」已不存在）。
+  - `pnpm.cmd lanqi:moments-asset-deployed-check` → **5/0**（兰琪作用域 200 + 真 PNG / 美业 403 / 跨租户 404 / 匿名 401）。
+  - `pnpm.cmd lanqi:test-instance-acceptance` → **14/0**；`pnpm.cmd lanqi:acquire-instance-acceptance` → **30/0**。
+  - 本地门禁：`pnpm.cmd qa:fast` PASS、`pnpm.cmd lanqi:moments-input-error-paths-smoke` 18/0、`pnpm.cmd lanqi:moments-ui-contract-smoke` 19/0。
+- 「其他页面暂时显示开发中」：`/lanqi/cases`、`/lanqi/customers`、`/lanqi/analysis`、`/lanqi/sales-sim`、`/lanqi/store` 全部路由到 `LanqiPlaceholderPage`，页面明写「开发中 · 后续板块」，本轮**保留占位**，符合用户口径。
+- 「公域获客页尽可能开发完」：LQ-19 已在 2026-09-11 上生产并专项验收（见下节）。四模式里 `copywriter` / `live` / `methods` 可用；`video` 的 `replicate`（真实爆款检索未接通）与 `assets` / `clip`（出片服务未开通，`VIDEO_RENDERING_READY=false`）为**设计内 fail-closed**，页面明确提示缺口、不假装成功——属「能跑 / 待外部条件」，非缺陷。测试实例实测 **30/0**。
+- 生产发布：包 `release-20260911-lq18-moments-retest-fixes.tar.gz`，发布 id `20260911-lq18-moments-retest-fixes-test1` / `-prod1`，结果与 sha256 见 `docs/CURRENT_DEPLOYMENT_STATUS.md`。
 
 ## LQ-18 私域营销（板块4）本轮收口（2026-09-10）
 
