@@ -40,6 +40,7 @@ export function LanqiMomentsWechatGroupPage() {
   const [result, setResult] = useState<WechatResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [toast, setToast] = useState("");
   // 门店可用性（Bug7/8/9）：与朋友圈共用同一判定，不再各写一套。
   const { gate, storeId, reload } = useLanqiStoreGate("微信群话术");
   // 「按钮为什么不能点」必须有可见答案（Bug10：老板填了内容、按钮还是灰的，页面上一个字都没说）。
@@ -78,6 +79,34 @@ export function LanqiMomentsWechatGroupPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function flash(message: string) {
+    setToast(message);
+    window.setTimeout(() => setToast(""), 1500);
+  }
+
+  /** 与朋友圈页同一口径：结果卡片底部给「复制文案 / 重新生成」（WorkBuddy 复测 P2）。 */
+  function copyBody() {
+    const text = (result?.body ?? "").trim();
+    if (!text) {
+      flash("还没有可复制的内容");
+      return;
+    }
+    if (navigator.clipboard) {
+      void navigator.clipboard.writeText(text).then(
+        () => flash("群话术已复制"),
+        () => flash("复制失败，请手动选中复制")
+      );
+      return;
+    }
+    const area = document.createElement("textarea");
+    area.value = text;
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand("copy");
+    document.body.removeChild(area);
+    flash("群话术已复制");
   }
 
   return (
@@ -136,12 +165,19 @@ export function LanqiMomentsWechatGroupPage() {
                       <div key={i} className={c.ok ? "ok" : "warn"}>{c.ok ? "✓" : "!"} {c.label}：{c.detail}</div>
                     ))}
                   </div>
+                  <div className="lq-cw__tools" data-lanqi-wechat-tools>
+                    <button type="button" className="lq-cw__tool" data-lanqi-wechat-copy onClick={copyBody}>📋 复制文案</button>
+                    <button type="button" className="lq-cw__tool" disabled={loading} data-lanqi-wechat-regen onClick={() => void generate()}>
+                      {loading ? "重新生成中…" : "🔄 重新生成"}
+                    </button>
+                  </div>
                 </>
               )}
             </>
           )}
         </section>
       </div>
+      {toast && <div className="lq-cw__toast" role="status" data-lanqi-wechat-toast>{toast}</div>}
       </div>
     </LanqiBrainShell>
   );

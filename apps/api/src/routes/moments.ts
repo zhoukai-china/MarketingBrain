@@ -26,7 +26,21 @@ const MOMENTS_INPUT_SCHEMA = z.object({
 });
 
 const INVALID_MSG =
-  /还差必填|请先选择内容类型|至少 15 字|未知模式|缺少门店标识|参数不合法|请填写要聊的主题|请填写具体内容|违规引导词/;
+  /还差必填|请先选择内容类型|至少 15 字|请先写一句你的原话|未知模式|缺少门店标识|参数不合法|请填写要聊的主题|请填写具体内容|违规引导词/;
+
+/**
+ * 「老板填错了」和「我们这边出故障了」的唯一分界。
+ *
+ * 边界：输入类 → 4xx + 原文回显（那是给老板看的填表提示）；其余 → 5xx + 只说人话。
+ *
+ * 导出给 `scripts/lanqi-moments-input-error-paths-smoke.ts`：用例直接拿规则层/服务层
+ * **真实抛出的每一条校验文案**来过这个判定，而不是复述正则，这样以后新增一句校验提示
+ * 却忘了同步正则会立刻红灯——2026-09-11 快速模式空输入就是这样从 422 退化成 500 的
+ * （WorkBuddy 复测报告看到 500，把它当成了「页面坏掉 / 结果被清空」）。
+ */
+export function isMomentsInputError(message: string): boolean {
+  return INVALID_MSG.test(message);
+}
 
 function momentRequestKey(tenantId: string, storeId: string, input: unknown): string {
   const digest = createHash("sha256").update(JSON.stringify(input)).digest("hex").slice(0, 32);
@@ -42,10 +56,10 @@ function momentRequestKey(tenantId: string, storeId: string, input: unknown): st
  * - 输入类（`INVALID_MSG`）→ 422，原文回显，因为那是给老板看的填表提示；
  * - 其余（Provider / 网络 / 未知）→ 500，只回一句能看懂的话，原始报错进服务端日志。
  */
-function userFacingGenerationError(kind: "wechat" | "image"): string {
-  return kind === "wechat"
-    ? "群话术这次没生成出来，稍后再点一次；刚才填的内容还在，不用重填。"
-    : "配图这次没生成出来，稍后再点一次；文案还在，不用重写。";
+export function userFacingGenerationError(kind: "moments" | "wechat" | "image"): string {
+  if (kind === "wechat") return "群话术这次没生成出来，稍后再点一次；刚才填的内容还在，不用重填。";
+  if (kind === "image") return "配图这次没生成出来，稍后再点一次；文案还在，不用重写。";
+  return "文案这次没生成出来，稍后再点一次；刚才填的内容还在，不用重填。";
 }
 
 /**
@@ -146,10 +160,14 @@ export async function registerMomentRoutes(app: FastifyInstance, basePath = "/be
       return { ok: true, tenantId: context.tenantId, result };
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown";
-      const invalid = INVALID_MSG.test(message);
+      const invalid = isMomentsInputError(message);
+      if (!invalid) request.log.error({ err: error }, "lanqi_moments_upgrade_failed");
       return reply
         .code(invalid ? 422 : 500)
-        .send({ code: invalid ? "invalid_moments_input" : "moments_error", message });
+        .send({
+          code: invalid ? "invalid_moments_input" : "moments_error",
+          message: invalid ? message : userFacingGenerationError("moments")
+        });
     }
   });
 
@@ -251,7 +269,7 @@ export async function registerMomentRoutes(app: FastifyInstance, basePath = "/be
       return { ok: true, tenantId: context.tenantId, result };
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown";
-      const invalid = INVALID_MSG.test(message);
+      const invalid = isMomentsInputError(message);
       if (!invalid) request.log.error({ err: error }, "lanqi_moments_wechat_group_failed");
       return reply
         .code(invalid ? 422 : 500)

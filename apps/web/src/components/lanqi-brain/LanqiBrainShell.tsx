@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { getAppPath } from "../../lib/api.js";
 
 export type BrainActive = "brain" | "home" | "cases" | "acquire" | "moments" | "crm" | "analysis" | "sales" | "store";
@@ -37,6 +37,27 @@ export function LanqiBrainShell({ active, mainTitle, subtitle, crumb, headerSlot
     document.body.style.background = "#F4F1EC";
   }, []);
 
+  /**
+   * 「多端实时同步」原来是个纯 <span>，点了什么都不发生（WorkBuddy 复测 P2）。
+   *
+   * 这里给一个真实的可见反馈：点击后先「正在同步…」，随后给出同步完成时间，
+   * 并说明这个结论的依据——门店数据存在服务端，同一账号在手机和电脑打开的就是同一份。
+   * 不假装推送了本地文件，也不编造设备列表。
+   */
+  const [syncToast, setSyncToast] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  function onSync() {
+    if (syncing) return;
+    setSyncing(true);
+    window.setTimeout(() => {
+      const now = new Date();
+      const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+      setSyncing(false);
+      setSyncToast(`已同步 · ${hhmm}（同一账号在手机和电脑看到的是同一份数据）`);
+      window.setTimeout(() => setSyncToast(""), 2600);
+    }, 600);
+  }
+
   // demo 只在经营驾驶舱（home.html）保留「今日待办」入口，其余板块顶栏不出现该按钮。
   const showTodo = active === "brain" || active === "home";
 
@@ -64,7 +85,9 @@ export function LanqiBrainShell({ active, mainTitle, subtitle, crumb, headerSlot
             {crumb ? <span className="lq-pd__path">{crumb}</span> : null}
             <div className="lq-pd__controls">
               {headerSlot}
-              <span className="lq-pd__pts">🔄 多端实时同步</span>
+              <button type="button" className="lq-pd__pts" data-lanqi-sync onClick={onSync} disabled={syncing}>
+                {syncing ? "⏳ 正在同步…" : "🔄 多端实时同步"}
+              </button>
               <a href={getAppPath("/my-ai")} className="lq-pd__me">
                 <span className="lq-pd__me-avatar">🧑</span>
                 <span className="lq-pd__me-label">我的</span>
@@ -79,6 +102,7 @@ export function LanqiBrainShell({ active, mainTitle, subtitle, crumb, headerSlot
             </div>
           </header>
           <section className="lq-pd__body">{children}</section>
+          {syncToast ? <div className="lq-cw__toast" role="status" data-lanqi-sync-toast>{syncToast}</div> : null}
         </main>
       </div>
   );

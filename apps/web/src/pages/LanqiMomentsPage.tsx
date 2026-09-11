@@ -91,6 +91,7 @@ export function LanqiMomentsPage() {
   const [result, setResult] = useState<MomentsResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [toast, setToast] = useState("");
   const [aiImg, setAiImg] = useState<{ url: string; assetId: string; loading: boolean; error: string }>({ url: "", assetId: "", loading: false, error: "" });
   // 门店可用性（Bug7/8/9）：能不能生成、为什么不能、去哪解决，全部由这一个判定给出。
   const { gate, storeId, reload } = useLanqiStoreGate("朋友圈获客");
@@ -147,6 +148,38 @@ export function LanqiMomentsPage() {
 
   function setField(key: string, value: string) {
     setFields((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function flash(message: string) {
+    setToast(message);
+    window.setTimeout(() => setToast(""), 1500);
+  }
+
+  /**
+   * 「复制文案」：WorkBuddy 复测（2026-09-11）指出结果卡片没有任何可操作按钮，
+   * 老板只能手动框选出稿。复制成功后给一条可见 toast；剪贴板 API 被浏览器拒绝时
+   * 退回 `execCommand("copy")`（旧浏览器 / 非安全上下文）。
+   */
+  function copyBody() {
+    const text = (result?.body ?? "").trim();
+    if (!text) {
+      flash("还没有可复制的内容");
+      return;
+    }
+    if (navigator.clipboard) {
+      void navigator.clipboard.writeText(text).then(
+        () => flash("文案已复制"),
+        () => flash("复制失败，请手动选中复制")
+      );
+      return;
+    }
+    const area = document.createElement("textarea");
+    area.value = text;
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand("copy");
+    document.body.removeChild(area);
+    flash("文案已复制");
   }
 
   function onPickPhotos(files: FileList | null) {
@@ -292,6 +325,13 @@ export function LanqiMomentsPage() {
                   <div key={i} className={c.ok ? "ok" : "warn"}>{c.ok ? "✓" : "!"} {c.label}：{c.detail}</div>
                 ))}
               </div>
+              {/* WorkBuddy 复测 P2：结果卡片底部要有「复制文案 / 重新生成」，不能只靠手动选中。 */}
+              <div className="lq-cw__tools" data-lanqi-moments-tools>
+                <button type="button" className="lq-cw__tool" data-lanqi-moments-copy onClick={copyBody}>📋 复制文案</button>
+                <button type="button" className="lq-cw__tool" disabled={loading} data-lanqi-moments-regen onClick={() => void generate()}>
+                  {loading ? "重新生成中…" : "🔄 重新生成"}
+                </button>
+              </div>
               <div className="lq-moments__figs">
                 {photos.length > 0 && <div className="lq-moments__fig-note">你已传 {photos.length} 张图，可用其中 1 张做封面</div>}
                 {placeholderCaptions(result).map((cap, i) => (
@@ -324,6 +364,7 @@ export function LanqiMomentsPage() {
           )}
         </section>
       </div>
+      {toast && <div className="lq-cw__toast" role="status" data-lanqi-moments-toast>{toast}</div>}
       </div>
     </LanqiBrainShell>
   );

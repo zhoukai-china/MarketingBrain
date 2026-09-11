@@ -1,5 +1,40 @@
 # Bug 回归台账
 
+## QA-20260911-007：WorkBuddy 私域营销复测报告核验（2 条 P1 误判、2 条 P2 成立）＋ 反向查出的真 P1「快速模式空输入被判成 500 服务器故障」（P1，已修 + 已上测试实例与生产）
+
+- 触发：用户 2026-09-11 交来 WorkBuddy`兰琪私域营销页复测报告.docx`（测试地址 `https://api.lcppch.top/lanqi-test/lanqi/moments`，Playwright headless），要求「看下是否合理及修复」。本条目先逐条核验报告结论，再记录核验过程中**由报告线索反向查出的一个真 P1**。
+- 核验方式：docx 解包取正文逐条对照当前源码；报告判定的每条「Bug」都用真实浏览器打测试实例独立复跑取证，不用报告结论当结论。探针：`scripts/lanqi-moments-retest.mjs`（本轮由临时诊断脚本升级为正式回归）。
+
+### 一、报告的 4 条「收口项」：2 条 P1 不成立（测试方法问题），2 条 P2 成立
+
+| 报告条目 | 级别（报告） | 核验结论 | 证据 |
+| --- | --- | --- | --- |
+| 「快速模式默认示例文本被判定为空」 | P1 | **不成立**。文本框是 `placeholder` 提示、初始 `value=""`（这正是上一轮按报告「方案 A」改过的行为）。空输入点生成给「请先写一句你的原话」是**正确的负路径**，不是「默认值没生效」。 | 真实浏览器快照 `firstTextarea.value="" / placeholder.length>0`；`scripts/lanqi-moments-retest.mjs` 与 `scripts/lanqi-moments-input-error-paths-smoke.ts` 都锁死这条。 |
+| 「专业模式『生成真实 AI 配图』清除已有结果」 | P1 | **不成立**。点配图后右侧文案正文仍在（`hasResultMeta=true`、`bodyLen=135`）、`store_os_token` 仍在、URL 未跳转、配图请求 200 出图，`emptyPlaceholder=false`。 | 同一探针 `--generate --image` 实测；报告截图里的「空白」是**等待出图期间**的中间态截图。 |
+| 「生成结果缺少复制 / 再生成操作」 | P2 | **成立，真缺陷**。三条生成结果（快速 / 专业 / 微信群话术）卡片底部没有任何可操作按钮，老板只能手动框选出稿。 | 已修（见下） |
+| 「顶部『多端实时同步』无可见反馈」 | P2 | **成立，真缺陷**。顶栏该项是纯 `<span>`，没有 `onClick`，点了确实什么都不发生。 | 已修（见下） |
+
+- 报告另列的 P3「案例中心 / 客户管理仍是占位页」按用户本轮口径（其他页面暂时显示开发中）**保留占位**，不改：`LanqiPlaceholderPage` 已明说「开发中 · 后续板块」并给出后续版本计划。
+- 报告「修复确认清单」的 5 条（私域首页可达、按钮可点、无跨租户串数据、`/my-ai` 正常、移动端可用）与本次复核一致，无异议。
+
+### 二、由报告线索反向查出的真 P1：快速模式空输入被压成 500 服务器故障
+
+- 复现证据：测试实例 `journalctl -u baolu-os-v2-test` 在 2026-09-11 08:22:58 / 08:23:19 两次 `POST /lanqi/moments/upgrade` → `"statusCode":500`。即用户不填内容直接点生成，页面拿到的是**服务端故障**语义，而不是「这是给你看的填表提示」。这也解释了 WorkBuddy 为什么把一次正常的空输入校验记成「页面坏掉 / 结果被清空」。
+- 根因（两个，缺一不可）：
+  1. **输入类判定漏了一条文案**：`routes/moments.ts` 的 `INVALID_MSG` 正则没有覆盖产品层 `fastGate()` 抛出的「请先写一句你的原话」，于是输入校验被归入「非输入类」→ 走 500 分支。
+  2. **500 分支直接回显原始 message**：非输入类失败把 `error.message` 原样回给前端，会把 `llm_provider_not_configured` / `deepseek_provider_http_error` 这类内部串暴露给老板（`/moments/wechat-group` 早已改用 `userFacingGenerationError()`，`/moments/upgrade` 没跟上）。
+- 最小修复（`apps/api/src/routes/moments.ts`）：
+  - `INVALID_MSG` 增加「请先写一句你的原话」；抽出并导出 `isMomentsInputError(message)` 作为「老板填错了 / 我们出故障了」的唯一分界。
+  - `userFacingGenerationError` 增加 `"moments"` 文案并导出（「文案这次没生成出来，稍后再点一次；刚才填的内容还在，不用重填。」）；`/moments/upgrade` 与 `/moments/wechat-group` 的 catch 统一用它，非输入类失败额外 `request.log.error` 留服务端证据。
+- P2 修复（前端）：
+  - `LanqiMomentsPage.tsx` / `LanqiMomentsWechatGroupPage.tsx`：结果卡片底部新增「📋 复制文案 / 🔄 重新生成」（`data-lanqi-moments-tools` / `data-lanqi-wechat-tools`），复制优先走 `navigator.clipboard`、被拒时退回 `execCommand("copy")`，成功/失败都给可见 toast（`data-lanqi-*-toast`）。
+  - `LanqiBrainShell.tsx`：顶栏「多端实时同步」由纯 `<span>` 改为按钮（`data-lanqi-sync`），点击「正在同步…」→「已同步 · HH:mm（同一账号在手机和电脑看到的是同一份数据）」（`data-lanqi-sync-toast`）。不伪造设备列表，也不假装推送了本地文件——门店数据本来就在服务端。
+- 回归（自愈性设计）：
+  - `scripts/lanqi-moments-input-error-paths-smoke.ts`（**18 passed / 0 failed**，已接 `qa:lanqi-foundation`）：覆盖快速空原话 → 422、原话不足 15 字 → 422、专业模式无 pillar / 缺必填 → 422、别人的门店 → 404（不泄露 B 门店 id）、Provider/网络类串**不得**被判成输入类、三套对老板文案不含 `deepseek|llm_|provider` 等内部串；**并从规则层/服务层真实抛出的 8 条校验文案反向过一遍判定**——以后新增一句校验提示却忘了同步正则会立刻红灯。红灯已证：临时移除正则里的文案 → `14 passed / 4 failed`（status=500 / code=`moments_error` / 漏判「请先写一句你的原话」）。
+  - `scripts/lanqi-moments-ui-contract-smoke.mjs`（**19 passed / 0 failed**，已接 `qa:lanqi-foundation`）：源码契约层锁住复制/重新生成/同步反馈与旧 `<span>` 写法不得回归；同时禁止 `.lq-cw__tools/.lq-cw__toast` 等样式类被误删。
+  - `scripts/lanqi-moments-retest.mjs`（本轮新增，正式浏览器回归，默认不调模型）：把报告 4 条收口项逐条变成可机读断言，含「空输入提示必须是填错口径且不含厂商串」「顶栏同步点击后有 `已同步 · HH:mm` toast」「结果卡片有两按钮且点复制必有反馈」。
+- 状态：**已关闭（代码已修 + 回归已绿 + 已上测试实例与生产）。**
+
 ## QA-20260911-005：WorkBuddy 两份走查报告核验（登录 3 条误判 / 公域 9 条）＋ 直播与顾问间歇性 422「合规假阳性 + 重写次数不足」（P1，已修 + 已上测试实例与生产）
 
 - 触发：用户 2026-09-11 交来 WorkBuddy 两份报告——`兰琪登录授权走查报告-cmengtv.docx`（`https://api.lcppch.top/os-v2/login/lanqi`）与`兰琪公域获客测试报告.docx`（`https://api.lcppch.top/lanqi-test/lanqi/acquire`），要求「看下测试是否正确、要修改哪些 bug 就修」。本条目先逐条核验报告结论，再记录核验过程中**由报告线索暴露出的一个真 P1**。
