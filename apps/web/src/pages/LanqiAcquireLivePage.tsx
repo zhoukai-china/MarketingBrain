@@ -36,6 +36,27 @@ const CARRY_OPTIONS = ["团购券", "居家产品", "会员卡"];
 const PLATFORM_OPTIONS = ["抖音", "视频号"];
 const WORDS_PER_MINUTE = 200;
 
+// 0911 走查：演示门店信息原来直接当表单默认值，老板不逐条清空就会生成别人家门店的逐字稿。
+// 现在默认全空，示例只出现在 placeholder 提示里，需要时由用户主动点「填入示例」。
+const DEMO_INPUT = {
+  host: "美肌研 · 创始人晓曼",
+  main: "水光深层补水 / 夜修精华",
+  sell: "小分子玻尿酸导入+手法，把水分推到肌底",
+  price: "团购价99 / 原价398；夜修精华 169/298",
+  card: "年度会员 1980元，含12次补水+居家8折"
+};
+
+const FIELD_HINTS = {
+  host: "例：美肌研 · 创始人晓曼",
+  main: "例：水光深层补水 / 夜修精华",
+  sell: "例：小分子玻尿酸导入+手法，把水分推到肌底（写真实卖点，别写效果承诺）",
+  price: "例：团购价99 / 原价398",
+  card: "例：年度会员 1980元，含12次补水+居家8折"
+};
+
+/** 分批生成的重试退避表（毫秒）。3 次机会共约 14 秒，够跨过一次发版重启，也不会把用户卡住。 */
+const RETRY_DELAYS_MS = [1500, 4000, 9000];
+
 const HERO_LEAD =
   "把真实项目/产品信息给我，直接生成主播一个人对着镜头能念的 2 小时逐字稿（含节奏提示）。不写运营动作、不要求场控，一个人一部手机就能播。支持一键导出 Word 文档。";
 const HERO_LEAD_DONE_PREFIX = "共 23 段（开场 + 3 轮主循环 + 收尾），含【主播口播稿】【备用话术】【互动动作】【节奏提示】。每段可单独复制，整体可导出 Word。";
@@ -50,6 +71,29 @@ function authHeaders(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
 }
 
+/** 带上 HTTP 状态码的错误：分批生成据此区分「输入不对（重试没用）」和「服务端不可用（值得重试）」。 */
+function httpError(message: string, status: number): Error {
+  const error = new Error(message) as Error & { status?: number };
+  error.status = status;
+  return error;
+}
+
+function statusOf(error: unknown): number {
+  const value = (error as { status?: unknown } | null)?.status;
+  return typeof value === "number" ? value : 0;
+}
+
+/**
+ * 5xx / 网关错误的用户可读文案：区分「服务在重启」（502/503/504）与其他失败，
+ * 并把 HTTP 状态回传给用户，方便跟运维对齐（0911 直播 502 走查：原来只显示一句泛化报错）。
+ */
+function describeHttpFailure(status: number): string {
+  if (status === 502 || status === 503 || status === 504) {
+    return `服务端暂时不可用（HTTP ${status}）：多半是服务正在发版重启或瞬时排队，不是你的输入有问题，稍等 1 分钟再重试即可。`;
+  }
+  return `服务端返回 HTTP ${status}：不是你的输入问题，稍后重试即可。`;
+}
+
 async function readResponse(response: Response): Promise<any> {
   const body = await response.json().catch(() => ({}));
   if (response.status === 401) {
@@ -57,7 +101,7 @@ async function readResponse(response: Response): Promise<any> {
     window.location.replace(getAppPath("/login"));
     throw new Error("登录已失效");
   }
-  if (!response.ok) throw new Error(body.message ?? body.error ?? "请求失败");
+  if (!response.ok) throw httpError(body.message ?? body.error ?? "请求失败", response.status);
   return body;
 }
 
@@ -100,12 +144,12 @@ async function copyText(text: string): Promise<boolean> {
 }
 
 export function LanqiAcquireLivePage() {
-  const [host, setHost] = useState("美肌研 · 创始人晓曼");
+  const [host, setHost] = useState("");
   const [carries, setCarries] = useState<string[]>(["团购券", "居家产品", "会员卡"]);
-  const [main, setMain] = useState("水光深层补水 / 夜修精华");
-  const [sell, setSell] = useState("小分子玻尿酸导入+手法，把水分推到肌底");
-  const [price, setPrice] = useState("团购价99 / 原价398；夜修精华 169/298");
-  const [card, setCard] = useState("年度会员 1980元，含12次补水+居家8折");
+  const [main, setMain] = useState("");
+  const [sell, setSell] = useState("");
+  const [price, setPrice] = useState("");
+  const [card, setCard] = useState("");
   const [platforms, setPlatforms] = useState<string[]>(["抖音", "视频号"]);
 
   const [phase, setPhase] = useState<Phase>("empty");
@@ -115,6 +159,7 @@ export function LanqiAcquireLivePage() {
   const [progress, setProgress] = useState({ done: 0, total: 0, label: "" });
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [demoNotice, setDemoNotice] = useState("");
 
   const stats = useMemo(() => {
     const words = segments.reduce((sum, seg) => sum + countLiveWords(seg.script), 0);
@@ -143,16 +188,39 @@ export function LanqiAcquireLivePage() {
     return readResponse(await fetch(apiPath(path), { method: "POST", headers: authHeaders(), body: JSON.stringify(body) }));
   }
 
-  /** 单批生成；网络抖动 / 服务端 5xx 时重试一次，输入类错误直接放弃。 */
+  /** 一键填入示例门店信息（默认表单为空，示例不预填，避免生成别人家门店的逐字稿）。 */
+  function fillDemo() {
+    setHost(DEMO_INPUT.host);
+    setMain(DEMO_INPUT.main);
+    setSell(DEMO_INPUT.sell);
+    setPrice(DEMO_INPUT.price);
+    setCard(DEMO_INPUT.card);
+    setCarries([...CARRY_OPTIONS]);
+    setPlatforms([...PLATFORM_OPTIONS]);
+    setDemoNotice("已填入示例门店信息，请逐条改成你自己的真实信息再生成");
+    window.setTimeout(() => setDemoNotice(""), 3200);
+  }
+
+  /** 单批生成；网络抖动 / 服务端 5xx 按 RETRY_DELAYS_MS 有界重试，输入类错误直接放弃。 */
   async function fetchBatch(storeId: string, batchNo: number): Promise<LiveSegment[]> {
     let lastError = "请求失败";
-    for (let attempt = 0; attempt < 2; attempt += 1) {
+    for (let attempt = 0; attempt < RETRY_DELAYS_MS.length; attempt += 1) {
       try {
         const body = await postJson("/lanqi/acquire/live/segments", { ...payload(storeId), batchNo });
         return body.result.segments as LiveSegment[];
       } catch (e) {
-        lastError = e instanceof Error ? e.message : "请求失败";
-        if (/还差必填|参数不合法|门店不存在|批次不存在|合规门禁|不足 3 条|是空的|念不动|重新输出|请补齐/.test(lastError)) break;
+        const status = statusOf(e);
+        const raw = e instanceof Error ? e.message : "请求失败";
+        lastError = status >= 500 ? describeHttpFailure(status) : raw;
+        // 输入类错误（缺必填 / 合规门禁 / 参数不合法）重试也不会变好，直接失败关闭并让用户改输入。
+        const inputError = /还差必填|参数不合法|门店不存在|批次不存在|合规门禁|不足 3 条|是空的|念不动|重新输出|请补齐|登录已失效/.test(raw);
+        const retriable = !inputError && (status === 0 || status >= 500);
+        if (!retriable) break;
+        if (attempt < RETRY_DELAYS_MS.length - 1) {
+          const waitMs = RETRY_DELAYS_MS[attempt];
+          setProgress((prev) => ({ ...prev, label: `第 ${batchNo} 批遇到临时故障，${Math.round(waitMs / 1000)} 秒后自动重试…` }));
+          await new Promise((resolve) => window.setTimeout(resolve, waitMs));
+        }
       }
     }
     throw new Error(`第 ${batchNo} 批生成失败：${lastError}`);
@@ -384,10 +452,24 @@ export function LanqiAcquireLivePage() {
 
         <div className="lq-live__main">
           <section className="lq-live__input">
-            <h3>① 直播信息（缺则反问，不捏造）</h3>
+            <div className="lq-live__head">
+              <h3>① 直播信息（缺则反问，不捏造）</h3>
+              <button className="lq-live__demo" type="button" onClick={fillDemo}>
+                填入示例
+              </button>
+            </div>
+            <p className="lq-live__demo-hint">
+              默认空白：请填你自己门店的真实信息（示例仅作格式参考，不要直接生成别人家的逐字稿）。
+            </p>
+            {demoNotice && <p className="lq-live__demo-notice">{demoNotice}</p>}
             <div className="lq-live__fi">
               <label htmlFor="lq-live-host">店名 / 主播身份</label>
-              <input id="lq-live-host" value={host} onChange={(e) => setHost(e.target.value)} />
+              <input
+                id="lq-live-host"
+                placeholder={FIELD_HINTS.host}
+                value={host}
+                onChange={(e) => setHost(e.target.value)}
+              />
             </div>
             <div className="lq-live__fi">
               <label>带货标的（可多选）</label>
@@ -406,19 +488,40 @@ export function LanqiAcquireLivePage() {
             </div>
             <div className="lq-live__fi">
               <label htmlFor="lq-live-main">主打项目 / 产品名</label>
-              <input id="lq-live-main" value={main} onChange={(e) => setMain(e.target.value)} />
+              <input
+                id="lq-live-main"
+                placeholder={FIELD_HINTS.main}
+                value={main}
+                onChange={(e) => setMain(e.target.value)}
+              />
             </div>
             <div className="lq-live__fi">
               <label htmlFor="lq-live-sell">真实卖点</label>
-              <textarea id="lq-live-sell" rows={3} value={sell} onChange={(e) => setSell(e.target.value)} />
+              <textarea
+                id="lq-live-sell"
+                rows={3}
+                placeholder={FIELD_HINTS.sell}
+                value={sell}
+                onChange={(e) => setSell(e.target.value)}
+              />
             </div>
             <div className="lq-live__fi">
               <label htmlFor="lq-live-price">价格机制</label>
-              <input id="lq-live-price" value={price} onChange={(e) => setPrice(e.target.value)} />
+              <input
+                id="lq-live-price"
+                placeholder={FIELD_HINTS.price}
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+              />
             </div>
             <div className="lq-live__fi">
               <label htmlFor="lq-live-card">会员卡项权益与价</label>
-              <input id="lq-live-card" value={card} onChange={(e) => setCard(e.target.value)} />
+              <input
+                id="lq-live-card"
+                placeholder={FIELD_HINTS.card}
+                value={card}
+                onChange={(e) => setCard(e.target.value)}
+              />
             </div>
             <div className="lq-live__fi">
               <label>平台（抖音 / 视频号，影响违禁词口径）</label>
@@ -446,7 +549,14 @@ export function LanqiAcquireLivePage() {
               <b>合规红线：</b>
               {COMPLIANCE_NOTE}
             </div>
-            {error && <p className="lq-live__err">{error}</p>}
+            {error && (
+              <div className="lq-live__err-block">
+                <p className="lq-live__err">{error}</p>
+                <p className="lq-live__err-hint">
+                  分批生成时遇到 502/503/504 会自动重试；仍失败多为发版重启或排队，等 1 分钟后点上方「重新生成 2 小时逐字稿」重试即可。输入类错误（缺必填、合规门禁）请按提示修改后再生成。
+                </p>
+              </div>
+            )}
           </section>
 
           <section className="lq-live__out">

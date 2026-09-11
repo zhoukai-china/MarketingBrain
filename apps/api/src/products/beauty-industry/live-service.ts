@@ -7,7 +7,7 @@
 //   · 口播按 200 字/分钟估算；「可撑分钟」= (口播 + 备用话术 + 救场库) 字数 / 200
 //   · 生成侧：规则定骨架 → 模型只填内容 → 合规硬门禁（违规引导词 / 绝对化疗效词 / 价格口径）
 
-import { containsAbsWords, containsBanWords, splitSentences } from "./moments-rules.js";
+import { containsAbsWords, containsBanWords, containsPromiseClaims, splitSentences } from "./moments-rules.js";
 import { createRuntimeLlmProvider, type RuntimeLlmProvider } from "../../services/llm-provider-factory.js";
 
 export const LIVE_SERVICE_VERSION = "lanqi_live_service_v1" as const;
@@ -18,8 +18,13 @@ export const LIVE_PLANNED_MINUTES = 120;
 /** 每组模型调用的最大分钟数：控制单次输出体量，避免单请求超时 */
 const BATCH_MAX_MINUTES = 8;
 const BATCH_MAX_SEGMENTS = 2;
-/** 合规重写次数：首次不过 → 把原因回灌模型重写一次 → 仍不过则 fail closed */
-const MAX_ATTEMPTS = 2;
+/**
+ * 合规重写次数：首次不过 → 把原因回灌模型重写 → 仍不过则 fail closed。
+ * 允许 3 次（含首次）而非 2 次：模型偶发写出「私信」这类软违规时，单次重写不足以稳定纠正，
+ * 而一批失败会让整份 2 小时逐字稿报废（0911 实测 10 批里 1 批命中 422、单批耗时 44 秒）。
+ * 门禁本身不放宽，只多给一次带具体回灌信息的重写机会。
+ */
+const MAX_ATTEMPTS = 3;
 
 export interface LiveRound {
   no: number;
@@ -291,7 +296,10 @@ export async function generateLiveSegments(
     if (violations.length) {
       lastError = `生成内容未通过合规门禁：${violations.join("、")}`;
       feedback.length = 0;
-      feedback.push(`上一版出现了这些问题，必须全部改掉：${violations.join("、")}`);
+      feedback.push(
+        `上一版出现了这些问题，必须全部改掉（逐字删掉这些字样，不要换近义词保留）：${violations.join("、")}。` +
+          `需要引导下单时统一说「${linkWord}」；价格一律带「参考」二字；不要写任何效果承诺。`
+      );
       continue;
     }
 
@@ -338,7 +346,10 @@ export async function generateLiveFiller(
     if (violations.length) {
       lastError = `生成内容未通过合规门禁：${violations.join("、")}`;
       feedback.length = 0;
-      feedback.push(`上一版出现了这些问题，必须全部改掉：${violations.join("、")}`);
+      feedback.push(
+        `上一版出现了这些问题，必须全部改掉（逐字删掉这些字样，不要换近义词保留）：${violations.join("、")}。` +
+          `需要引导下单时统一说「${linkWord}」；价格一律带「参考」二字；不要写任何效果承诺。`
+      );
       continue;
     }
     return { groups: parsed.groups, attempts };
@@ -544,9 +555,8 @@ function collectLiveViolations(segments: ViolationCandidate[], input: LiveInput)
   }
 
   // 空口承诺疗效的句式
-  const promise = /(保证|100%\s*有效|一定有效|绝对有效|立刻见效|马上见效|当场见效)/g;
-  const promiseHit = text.match(promise);
-  if (promiseHit) violations.add(`效果承诺（${[...new Set(promiseHit)].join("、")}）`);
+  const promise = containsPromiseClaims(text);
+  if (promise.length) violations.add(`效果承诺（${promise.map((item) => item.word).join("、")}）`);
 
   // 长句堆砌会念不动：单句超过 90 字直接判不合格
   for (const seg of segments) {

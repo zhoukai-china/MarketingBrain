@@ -1,5 +1,59 @@
 # Bug 回归台账
 
+## QA-20260911-005：WorkBuddy 两份走查报告核验（登录 3 条误判 / 公域 9 条）＋ 直播与顾问间歇性 422「合规假阳性 + 重写次数不足」（P1，已修 + 已上测试实例与生产）
+
+- 触发：用户 2026-09-11 交来 WorkBuddy 两份报告——`兰琪登录授权走查报告-cmengtv.docx`（`https://api.lcppch.top/os-v2/login/lanqi`）与`兰琪公域获客测试报告.docx`（`https://api.lcppch.top/lanqi-test/lanqi/acquire`），要求「看下测试是否正确、要修改哪些 bug 就修」。本条目先逐条核验报告结论，再记录核验过程中**由报告线索暴露出的一个真 P1**。
+- 核验方式：两份 docx 解包取正文逐条对照当前源码/生产实况；报告里判定为「Bug」的每一条都独立复跑取证，不用报告结论当结论。
+
+### 一、登录授权走查报告（账号 `cmengtv`）：3 条「关键发现」全部不成立，属测试方法错误
+
+| 报告结论 | 级别（报告） | 核验结论 | 证据 |
+| --- | --- | --- | --- |
+| 「`cmengtv` 不是有效产品邀请码」 | P0 阻断 | **不成立**。`cmengtv` 是用户给的**微信号**（用于真人扫码），被填进了**产品邀请码**输入框。真实兰琪产品邀请码从未交付给 WorkBuddy（明文只留在本机 `%TEMP%\lanqi-prod-auth-20260911\`，不入仓库/文档）。403 `invite_code_not_found` 是**正确的负路径**。 | `POST /auth/product-invite/validate` → 403 `invite_code_not_found`，与「随便填一个非邀请码字符串」的预期行为一致；生产 `InviteCode` 只有那 1 条 `lanqi` 码（`usedCount 0 / maxUses 5`）。 |
+| 「前后端 `inviteRequired` 不一致（前端 false、后端强制要邀请码）」 | P1 | **不成立**，属口径误读。`LoginPage.tsx:193` `const invitesNeeded = product ? true : (isProduction && inviteRequired !== false);`——**产品入口（`/login/lanqi`）按设计恒要求产品邀请码**；`inviteRequired:false` 是**平台主入口**（开放注册）的开关口径，两者不是同一入口。这正是 QA-20260910-021 专门收紧的行为：开放注册只放开平台主入口，产品入口仍走产品邀请码授权。 | `GET /auth/wechat-config` 返回 `inviteRequired:false`（平台口径）+ `/os-v2/login/lanqi` 仍渲染产品邀请码表单，二者同时正确。 |
+| 「`dev-login` 在生产禁用，影响自动化冒烟」 | 建议 | **不是缺陷，是设计**（fail-closed）。生产不允许任何免密登录通道；测试实例有独立的 `DIRECT_TEST_LOGIN`。 | `POST /auth/dev-login` → `dev login is disabled in production`；测试实例同接口可用。 |
+
+- 登录链路**无需改代码**。报告第 4 节要求的「为 `cmengtv` 注册有效邀请码再重跑」方向也不对：真人扫码走的是**微信网页授权**（`snsapi_userinfo`），不是邀请码开通；产品入口要的邀请码与「哪个微信号」无关。
+- 给 WorkBuddy 的正确操作：手机微信打开 `https://api.lcppch.top/os-v2/login/lanqi` → 「微信授权登录」→ 确认授权 → 在补资料页填门店名 → 落到 `/os-v2/lanqi/dashboard`。生产邀请码明文不交付给外部测试方；若确需在测试实例用邀请码开通，由我方在 `/lanqi-test` 单独发码，不明文进文档。
+
+### 二、公域获客测试报告：9 条里 3 条成立（已修 2、登记 1）、4 条属设计内行为、2 条为体验优化
+
+| # | 报告问题 | 级别（报告） | 核验结论 | 处置 |
+| --- | --- | --- | --- | --- |
+| 1 | 直播 `live/segments` 502 | P0 | **假阳性**。服务器 `nginx error.log` 同时刻为 `connect() failed (111: Connection refused)`，与测试实例发布重启窗口（07:00:07）重叠；另两条 499 是客户端自己断开。07:36 重跑 **16/16 PASS**。 | 后端无需改；**但暴露两个真问题**（见下表 I、II），本轮已修前端 |
+| 2 | 直播表单预填「美肌研 · 创始人晓曼」等示例门店 | P1 | **成立，真 Bug**：默认 `value` 即示例数据，老板不逐行清空就会生成别人家门店的逐字稿；失败后还回填示例。 | **已修**：5 个输入默认空 + 示例改 placeholder + 新增「填入示例」按钮 |
+| 3 | `/my-ai` 加载 10–15 秒 | P1 | 成立（体验）。页面只有一句「正在加载…」。 | **未修**（本轮不扩范围），登记为残留 |
+| 4 | 文案改稿首屏等待 20–30 秒 | P1 | 部分成立：`LanqiAcquireCopywriterPage.tsx` 已有 `LOADING_TEXTS` 轮播进度文案，「无进度提示」不准确；但等待确实偏长。 | **未修**，登记为残留 |
+| 5 | 爆款复刻「暂未接通真实爆款检索」 | P2 | **设计内 fail-closed**（不做假数据），非缺陷。 | 不改；待用户决定检索源 |
+| 6 | 门店素材成片 / AI 剪辑「出片服务暂未开通」 | P2 | **设计内 fail-closed**（minimax 未首充，`VIDEO_RENDERING_READY` 未配置）。 | 不改 |
+| 7 | 案例中心「开发中」占位 | P2 | 占位页，测试环境符合预期。 | 不改；正式上线前补内容 |
+| 8 | 顾问快捷问题标点 `没空拍视频，怎么持续获客）` | P3 | **成立，真 Bug**（错用右括号）。 | **已修**：改「？」 |
+| 9 | 「今日待办」锚点无高亮 | P3 | 成立（体验优化）。 | **未修**，登记为可选优化 |
+
+### 三、由报告线索暴露的真 P1：直播/顾问间歇性 422（合规门禁假阳性 + 重写次数不足）
+
+- 复现证据（真实大模型，非合成；2026-09-11 07:4x 打测试实例 `https://api.lcppch.top/lanqi-test/api`）：
+  - `GET` 采样 `$env:TEMP\lq-422-probe.txt`：live 4/4 OK、advisor 3/3 OK → 说明**不是必现**，报告 #1 的「必 502」确实不成立。
+  - 加大样本 `$env:TEMP\lq-422-probe2.txt`：`live/segments × 6` → **5/6**，第 1 次 **HTTP 422、耗时 44317ms**，body `{"code":"invalid_live_input","message":"生成内容未通过合规门禁：违规引导词（私信）"}`。
+  - 端到端走查 `$env:TEMP\lq-acquire-walkthrough-20260911b.txt`：**14/16**，两条 FAIL 全部是 422——顾问 422（`效果承诺（保证）`，14.99s）、直播第 1 批 422（44.4s）。
+- 根因（两个，缺一不可）：
+  1. **合规判定假阳性**：`live-service.ts` 的效果承诺正则 `/(保证|100%有效|一定有效|绝对有效|立刻见效|马上见效|当场见效)/` 命中「我**不**敢保证」「效果没法**保证**」这类**合规免责说法**——主播最该念的那句话被判违规，整批 2 小时逐字稿报废。与 0909「第一部分/第二部分」误判属同一类：**规则只看词、不看语境**。
+  2. **重写次数不足**：`MAX_ATTEMPTS = 2`（live）/ `ADVISOR_MAX_ATTEMPTS = 2`（advisor）——模型偶发写出「私信」这类软违规时，**单次重写不足以稳定纠正**，第二次仍不过即 fail closed，门店看到「这次没生成出来」。
+- 最小修复（不做无关重构）：
+  - `apps/api/src/products/beauty-industry/moments-rules.ts`：新增 `PROMISE_CLAIMS`、否定语境判定 `isDisclaimedClaim()`（否定线索 `不/没/别/难/无法`，与承诺词之间 ≤2 字且不跨句才算免责）与导出 `containsPromiseClaims()`；**门禁本身不放宽**，只是不再把免责说法当承诺。
+  - `apps/api/src/products/beauty-industry/live-service.ts`：`MAX_ATTEMPTS` 2 → **3**；`collectLiveViolations` 改用 `containsPromiseClaims`；回灌提示强化为「逐字删掉这些字样，**不要换近义词保留**；需要引导下单时统一说「${linkWord}」；价格一律带「参考」二字；不要写任何效果承诺」（原来只说「必须全部改掉」，模型换个近义词就再次被拦）。
+  - `apps/api/src/products/beauty-industry/advisor-service.ts`：`ADVISOR_MAX_ATTEMPTS` 2 → **3**，注释同步说明「门禁不放宽，只多给一次带具体回灌信息的重写机会」。
+- 修复前红灯（回归脚本先失败再修）：`scripts/lanqi-live-service-smoke.ts` / `scripts/lanqi-advisor-service-smoke.ts` 新增断言「重写到上限 3 次」「软违规连续两次、第三次纠正后出稿」「重写提示必须点名被拦的违规词且禁止换近义词」「『我不敢保证…』`attempts===1` 不触发门禁」「『不会马上见效』不算效果承诺」，在改为 3 次与新判定**之前**运行即失败（旧实现只重写 1 次、且「不敢保证」被判违规）。
+- 修复后验收（2026-09-11 本机实跑，全部 exit 0）：
+  - `node scripts/lanqi-acquire-ui-contract-smoke.mjs` → **37 passed / 0 failed**（新增源码静态契约，不连网不花钱；含「直播表单 5 字段默认空 / 有『填入示例』/ placeholder 带例」「`describeHttpFailure` 区分 502/503/504 且有界退避「标点已改成『？』」以及两条**反向守卫**：不得顺手改掉 `lanqi-live-service-smoke.ts` 的演示门店夹具与 `lanqi-advisor-rules-smoke.ts` 的错标点夹具）。
+  - `pnpm.cmd lanqi:acquire-smoke` → **exit 0**：`acquire_rules_v1 49/0`、`acquire_service_v2 13/0`、`advisor-rules 48/0`、`advisor-service 35/0`、`live-rules 58/0`、`live-service 43/0`、`video-rules 80/0`。
+  - `pnpm.cmd qa:fast` → **PASS（exit 0）**，全仓 typecheck 7/7、`identity-header-spoof 30/0`、`wechat-login-failure-paths 34/0`。
+  - 证据日志：`%TEMP%\lq-acquire-smoke-0911.txt`、`%TEMP%\lq-422-probe2.txt`、`%TEMP%\lq-acquire-walkthrough-20260911b.txt`。
+- 发布：测试实例 `20260911-lq19-acquire-fixes-test1`、生产 `20260911-lq19-acquire-fixes-prod1`，同包 `release-20260911-lq19-acquire-fixes.tar.gz`（**8935166 B**，sha256 `641b9807fb1363be5bffde749441c0578601faa26868e8100952e73eb8a34d4f`，**1429 文件**）。测试实例与生产复验结果见 `docs/CURRENT_DEPLOYMENT_STATUS.md` 顶部条目。
+- 包内**不含**并行线程的 marketplace/视频复盘改动（`routes/marketplace.ts`、`marketplace/chat-flows.ts`、`pages/MarketplaceApp.tsx`、`styles/sitong-design.css` 及 `video-review-engine.ts`、`vidrev-report.tsx`、`scripts/marketplace-vidrev-*`），这些在发布清单里被显式剔除，保证生产只拿到本轮兰琪修复；服务器上这些文件保持上一版内容。
+- 残留（本轮不修，已登记）：① `/my-ai` 首屏只有一句加载文案（10–15s）；② 文案改稿等待长，建议补「约需 20 秒」进度；③ 「今日待办」锚点无高亮；④ 爆款复刻检索源待定；⑤ minimax 未首充，真实出片仍 fail-closed。
+- 状态：**已关闭（代码已修 + 测试实例与生产均已发布并复验）。**
+
 ## QA-20260911-002：`DATA_MODE=database` 下裸 `x-sitong-tenant-id` / `x-sitong-user-id` 头可冒充任意租户读数据（P0，代码已修 + 回归已绿）
 
 - 现象（真实生产，非合成；2026-09-11 外网实测 `https://api.lcppch.top/os-v2/api/lanqi/stores`）：

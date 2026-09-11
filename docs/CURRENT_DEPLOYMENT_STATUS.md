@@ -1,6 +1,31 @@
 # 当前部署状态
 
-更新时间：2026-09-11（最近一次为 **微信登录失败路径修正 + 一次性验收租户回收上测试实例 + 生产**，见下方顶部条目；此前为 P0 身份头冒充修复、兰琪生产数据收尾与 LQ-19 公域获客发布；2026-08-03 清单保留为当时状态）
+更新时间：2026-09-11（最近一次为 **WorkBuddy 报告核验后的 LQ-19 公域获客修复（合规假阳性 422 + 直播表单预填）上测试实例 + 生产**，见下方顶部条目；此前为微信登录失败路径修正、一次性验收租户回收、P0 身份头冒充修复、兰琪生产数据收尾与 LQ-19 首发布；2026-08-03 清单保留为当时状态）
+
+## 最新发布：20260911-lq19-acquire-fixes-prod1（2026-09-11，测试实例 + 生产）— WorkBuddy 报告核验后的 LQ-19 公域获客修复
+
+发布包：`release-20260911-lq19-acquire-fixes.tar.gz`（**8935166 B**，sha256 `641b9807fb1363be5bffde749441c0578601faa26868e8100952e73eb8a34d4f`，**1429 个文件**）。测试实例与生产共用同一份产物，两侧部署日志第 3 行 `archive sha256` 实测与本机一致。发布 id 按环境分别记为 `20260911-lq19-acquire-fixes-test1` / `20260911-lq19-acquire-fixes-prod1`。策略同前：stage 构建 → 备份 → 全量叠加（不删除历史文件）→ 第 7b 步在 `$APP` 就地 `prisma generate` 并按 `schema.prisma` 逐模型校验 → migrate → 重启 → 健康轮询 → 校验 → 失败自动回滚；部署以 `setsid nohup` 后台运行（规避 QA-20260910-019 的交互会话中断回滚）。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 联调 `chat-test` | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | `https://api.lcppch.top/lanqi-test/` | `20260911-lq19-acquire-fixes-test1` | `DEPLOY_OK` + `health=200 (after 12s)` / `ready=200` |
+| 生产 `chat` | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | `https://api.lcppch.top/os-v2/` | `20260911-lq19-acquire-fixes-prod1` | `DEPLOY_OK` + `health=200 (after 15s)` / `ready=200` |
+
+- 起因：用户交来 WorkBuddy 两份走查报告（登录授权 + 公域获客），要求核验测试是否正确并修真 Bug。逐条核验结论见 `docs/BUG_REGRESSIONS.md` **QA-20260911-005**（登录 3 条「关键发现」全部是测试方法错误，登录链路不改代码；公域 9 条成立 3 条），并**由 #1 的 502 线索反向查出一个真 P1**：直播/顾问间歇性 422（实测 live 5/6、端到端走查 14/16）。
+- 本包内容（相对上一生产版本的最小修复集）：
+  - `apps/api/src/products/beauty-industry/moments-rules.ts`：新增 `PROMISE_CLAIMS`、否定语境判定 `isDisclaimedClaim()` 并导出 `containsPromiseClaims()`——不再把「我**不**敢保证」「没法**保证**」这类合规免责说法判成效果承诺（门禁不放宽）。
+  - `apps/api/src/products/beauty-industry/live-service.ts`：`MAX_ATTEMPTS` 2 → **3**（软违规重写从 1 次增到 2 次）；改用 `containsPromiseClaims`；回灌提示点名违规词并要求「逐字删掉、不要换近义词保留」。
+  - `apps/api/src/products/beauty-industry/advisor-service.ts`：`ADVISOR_MAX_ATTEMPTS` 2 → **3**。
+  - `apps/web/src/pages/LanqiAcquireLivePage.tsx`：直播表单 5 个输入默认改为空、示例改 placeholder、新增「填入示例」按钮（避免默认生成别人家门店的逐字稿）；分批生成对 5xx/网络做有界退避重试并把 HTTP 状态告诉用户（`describeHttpFailure`）。
+  - `apps/web/src/pages/LanqiAcquireMethodsPage.tsx`：快捷问题标点 `）` → `？`；`apps/web/src/styles/lanqi-moments.css`：新增直播页示例/错误块样式。
+  - 新增/加强回归：`scripts/lanqi-acquire-ui-contract-smoke.mjs`（**37/0**，源码静态契约，不连网）并接 `package.json` 的 `lanqi:acquire-ui-contract-smoke`；`scripts/lanqi-live-service-smoke.ts`（43/0）/`scripts/lanqi-advisor-service-smoke.ts`（35/0）新增 4 组断言；`scripts/lanqi-acquire-instance-acceptance.mjs` 新增 2 条页面级断言。
+- 迁移：`48 migrations found in prisma/migrations` / `No pending migrations to apply.`（两侧一致，无 schema 变更）。运行时客户端守护：两侧 `prisma delegates OK: lanqiStoreGoal,lanqiMomentDraft,lanqiMomentUpgrade,lanqiMomentAsset,lanqiStoreProfile` + `prisma client model coverage OK: 99 models`。
+- 备份与日志：生产备份 `/opt/baolu-backups/20260911-lq19-acquire-fixes-prod1-before-baolu-os-v2/`（206M，db=baolu_os_v2），部署日志 `/tmp/deploy-20260911-lq19-acquire-fixes-prod1-baolu-os-v2.log`（运行日志 `/tmp/deploy-run-20260911-lq19-acquire-fixes-prod1.log`）；测试备份 `/opt/baolu-backups/20260911-lq19-acquire-fixes-test1-before-baolu-os-v2-test/`，日志同名 `-test1-` 两份。**回滚**＝把备份目录还原回 `$APP` 并 `systemctl restart`；代码侧最小回滚点是 `moments-rules.ts` + `live-service.ts` + `advisor-service.ts` + `LanqiAcquireLivePage.tsx`。
+- 发布后复验（2026-09-11 08:2x，真实 Provider / 外网只读；未改业务数据、未再发布）：
+  - **测试实例（`https://api.lcppch.top/lanqi-test/api`）**：端到端走查 `scripts/lanqi-acquire-llm-walkthrough.mjs` → **16/16 PASS**（顾问、直播第 1 批、垫场、文案转片全 200，输出不含模型/厂商名）；重复运行探针 `scripts/tmp/lq-422-probe.mjs --live=6 --advisor=3` → **live 6/6 · advisor 3/3**（修复前同口径为 live 5/6，第 1 次 422）；页面级探针 `scripts/lanqi-acquire-instance-acceptance.mjs` → **30/0**（含「默认不预填示例门店」「『填入示例』可一键回填」两条新断言）。
+  - **生产（`https://api.lcppch.top/os-v2/`）**：接口验收 `scripts/tmp/prod-lanqi-lq19-acquire-acceptance.sh` → **16/16 PASS**（匿名 401 `login_required` / 无 entitlement 租户 403 `product_entitlement_missing` / A 租户 `video/storyboard`、`video/shot`、`live/plan`、`copywriter` 全 200 且分镜与直播骨架口径正确 / 缺必填 422 中文反问 / 跨门店 404 `store_not_found` 不回泄 B 门店 id / 全部响应不含模型厂商名）。
+  - **部署产物**：生产 `apps/web/dist/assets/LanqiAcquireLivePage-*.js` 实测含 2 处「填入示例」；生产服务 `ActiveState=active`、`NRestarts=0`，`https://api.lcppch.top/os-v2/` 200。
+- 与上一版的关系：本包是 LQ-19 公域获客页在 `20260911-lanqi-lq19-acquire-prod1` 之后的**收口修复包**，只含兰琪公域获客相关改动；服务器上并行的 marketplace/视频复盘改动**未**进入本包，保持上一版内容。
 
 ## 最新发布：20260911-wechat-login-failure-paths-prod1（2026-09-11，测试实例 + 生产）— 微信登录失败路径修正
 

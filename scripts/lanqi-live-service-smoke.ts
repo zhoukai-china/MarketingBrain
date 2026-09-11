@@ -155,7 +155,7 @@ async function main() {
     return JSON.stringify(payload);
   });
   const emptyScriptErr = await rejects(() => generateLiveSegments(baseInput, 1, emptyScript.provider));
-  assert("空口播稿两次都坏时失败关闭", (emptyScriptErr ?? "").includes("是空的"));
+  assert("空口播稿始终坏时失败关闭", (emptyScriptErr ?? "").includes("是空的"));
 
   const thinFill = fakeProvider(() => {
     const payload = JSON.parse(batchPayload(1)) as { segments: Array<{ no: number; fill: string[] }> };
@@ -167,8 +167,20 @@ async function main() {
 
   const notJson = fakeProvider(() => "好的，我建议你先这样做。");
   const notJsonErr = await rejects(() => generateLiveSegments(baseInput, 1, notJson.provider));
-  assert("非法 JSON 也重试一次", notJson.calls() === 2);
-  assert("非法 JSON 两次都坏时失败关闭", (notJsonErr ?? "").includes("不是合法 JSON"));
+  assert("非法 JSON 重写到上限", notJson.calls() === 3);
+  assert("非法 JSON 始终坏时失败关闭", (notJsonErr ?? "").includes("不是合法 JSON"));
+
+  // 4b. 复盘回归（0911 直播 422）：软违规连续两次、第三次纠正后仍要能出稿，不整批报废
+  const flaky = fakeProvider((call) => {
+    const payload = JSON.parse(batchPayload(1)) as { segments: Array<{ no: number; script: string }> };
+    if (call < 3) payload.segments[0].script += "想参加的私信我报名。";
+    return JSON.stringify(payload);
+  });
+  const flakyOk = await generateLiveSegments(baseInput, 1, flaky.provider);
+  assert("软违规重写两次后仍能出稿", flakyOk.attempts === 3 && flaky.calls() === 3);
+  assert("重写提示点名被拦的违规词", flaky.prompts[1].includes("私信"));
+  assert("重写提示给出平台内替代说法", flaky.prompts[1].includes("小黄车"));
+  assert("重写提示禁止换近义词保留", flaky.prompts[1].includes("不要换近义词保留"));
 
   // 5. 合规硬门禁：违规引导词被拦下，改动后放行
   const violating = fakeProvider((call) => {
@@ -186,7 +198,7 @@ async function main() {
     return JSON.stringify(payload);
   });
   const alwaysBanErr = await rejects(() => generateLiveSegments(baseInput, 1, alwaysBan.provider));
-  assert("两次都含违规引导词时失败关闭", (alwaysBanErr ?? "").includes("合规门禁"));
+  assert("始终含违规引导词时失败关闭", (alwaysBanErr ?? "").includes("合规门禁"));
 
   const absErr = await rejects(() =>
     generateLiveSegments(baseInput, 1, fakeProvider(() => {
@@ -215,6 +227,26 @@ async function main() {
     }).provider)
   );
   assert("效果承诺句式被拦下", (promiseErr ?? "").includes("效果承诺"));
+
+  // 复盘回归（0911 直播 422）：否定式免责「我不敢保证／效果没法保证」曾被当成效果承诺拦掉
+  const disclaimer = fakeProvider(() => {
+    const payload = JSON.parse(batchPayload(1)) as { segments: Array<{ no: number; script: string }> };
+    payload.segments[0].script =
+      "我不敢保证一次就有效果，皮肤状态每个人不一样，我们按流程一步步来，做完当天能上妆。";
+    payload.segments[1].script =
+      "效果没法保证，但你到店我先帮你看清楚状态，再决定做什么项目，不让你多花冤枉钱。";
+    return JSON.stringify(payload);
+  });
+  const disclaimerOk = await generateLiveSegments(baseInput, 1, disclaimer.provider);
+  assert("否定式免责不算效果承诺", disclaimerOk.attempts === 1 && disclaimer.calls() === 1);
+  const negatedSoonErr = await rejects(() =>
+    generateLiveSegments(baseInput, 1, fakeProvider(() => {
+      const payload = JSON.parse(batchPayload(1)) as { segments: Array<{ no: number; script: string }> };
+      payload.segments[0].script = "护肤是长期的事，不会马上见效，坚持来做才稳。";
+      return JSON.stringify(payload);
+    }).provider)
+  );
+  assert("否定式「不会马上见效」不算效果承诺", negatedSoonErr === null);
 
   // 6. 价格口径：没给过的价格不许编
   const fabricatedPrice = fakeProvider(() => {

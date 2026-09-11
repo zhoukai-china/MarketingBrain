@@ -543,7 +543,29 @@ async function main() {
       pass: ["直播信息", "带货标的", "主打项目", "真实卖点", "价格机制", "平台"].every((token) => liveText.includes(token)),
       detail: `readyAtMs=${live.readyAtMs} textLen=${liveText.length}`,
     });
-    // 页面预填了演示门店信息，先清掉一个必填项，验证必填缺失时的本地反问。
+    // 0911 走查修复：直播表单默认必须为空——原来预填演示门店（美肌研 · 创始人晓曼 / 水光深层补水…），
+    // 老板不清空就会生成别人家门店的逐字稿。示例只允许出现在 placeholder 与「填入示例」按钮里。
+    const liveHostDefault = await evaluate(root, live.sessionId, "document.querySelector('input#lq-live-host')?.value ?? null");
+    const liveHostPlaceholder = await evaluate(
+      root,
+      live.sessionId,
+      "document.querySelector('input#lq-live-host')?.getAttribute('placeholder') ?? ''"
+    );
+    checks.push({
+      name: "live：默认不预填演示门店（示例只在 placeholder / 「填入示例」）",
+      pass: liveHostDefault === "" && String(liveHostPlaceholder).length > 0 && liveText.includes("填入示例"),
+      detail: `host默认值=${JSON.stringify(liveHostDefault)} placeholder=${JSON.stringify(liveHostPlaceholder)} 含「填入示例」=${liveText.includes("填入示例")}`,
+    });
+    // 「填入示例」是格式参考入口：点一下应把示例填进表单（老板再逐条改成自己的真实信息）。
+    const liveDemoClick = await clickButton(root, live, "填入示例");
+    await sleep(400);
+    const liveHostAfterDemo = await evaluate(root, live.sessionId, "document.querySelector('input#lq-live-host')?.value ?? ''");
+    checks.push({
+      name: "live：「填入示例」可一键填入参考信息",
+      pass: liveDemoClick === "clicked" && String(liveHostAfterDemo).length > 0,
+      detail: `click=${liveDemoClick} 点后 host 值长度=${String(liveHostAfterDemo).length}`,
+    });
+    // 清掉一个必填项，验证必填缺失时的本地反问（示例已填入，其余必填在位，单独清 host 即「缺一项」）。
     const liveCleared = await setFieldValue(root, live, "input#lq-live-host", "");
     await sleep(400);
     const livePlanCallsBefore = countRequests(live, "/acquire/live/plan");

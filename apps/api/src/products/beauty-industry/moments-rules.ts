@@ -360,6 +360,52 @@ function hasRiskyUsage(text: string, word: string): boolean {
   return false;
 }
 
+// 空口承诺疗效的句式。
+// 判定要点：「承诺」类词出现在否定语境里时属于合规免责，不能当成承诺拦掉——
+// 主播念「我不敢保证一次就有效果」「效果没法保证，得看你的皮肤状态」正是最该保留的说法。
+// 旧口径只要出现「保证」就整批判违规，一次措辞就把 44 秒生成出来的整批逐字稿毙掉
+// （0911 直播 422 复盘），与 0909「第一部分/第二部分」误判属同一类假阳性。
+export const PROMISE_CLAIMS = [
+  "保证",
+  "100%有效",
+  "100% 有效",
+  "一定有效",
+  "绝对有效",
+  "立刻见效",
+  "马上见效",
+  "当场见效"
+] as const;
+
+/** 承诺词前面的否定语境（不承诺 / 不敢保证 / 没法保证 / 无法保证 / 很难马上见效）。 */
+const CLAIM_NEGATION_CUES = ["不", "没", "别", "难", "无法"];
+const CLAIM_NEGATION_WINDOW = 3;
+
+function isDisclaimedClaim(text: string, index: number): boolean {
+  const window = text.slice(Math.max(0, index - CLAIM_NEGATION_WINDOW), index);
+  return CLAIM_NEGATION_CUES.some((cue) => {
+    const at = window.lastIndexOf(cue);
+    if (at < 0) return false;
+    const between = window.slice(at + cue.length);
+    // 否定词与承诺词之间最多隔两个字（不敢保证 / 不会马上见效），跨句读就不算免责。
+    return between.length <= 2 && !CLAUSE_BREAK.test(between);
+  });
+}
+
+export function containsPromiseClaims(text: string): Array<{ word: string }> {
+  const hits = new Set<string>();
+  for (const word of PROMISE_CLAIMS) {
+    let from = 0;
+    while (from <= text.length) {
+      const at = text.indexOf(word, from);
+      if (at < 0) break;
+      from = at + word.length;
+      if (isDisclaimedClaim(text, at)) continue;
+      hits.add(word);
+    }
+  }
+  return [...hits].map((word) => ({ word }));
+}
+
 export function publishCheck(
   body: string,
   opts: { hasPlaceholder?: boolean } = {}

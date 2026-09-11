@@ -54,8 +54,13 @@ export interface AdvisorCompletion {
   complete: (messages: LlmMessage[]) => Promise<string>;
 }
 
-/** 合规/结构门禁最多重试一次：第一次被拦，带拦截原因让模型重写；第二次还不通过就失败关闭。 */
-export const ADVISOR_MAX_ATTEMPTS = 2;
+/**
+ * 合规/结构门禁重写次数：第一次被拦，带拦截原因让模型重写；全部不通过就失败关闭。
+ * 允许 3 次（含首次）而非 2 次：模型偶发结构缺项或软违规时单次重写不足以稳定纠正，
+ * 而门店看到的是「这次没回答出来」（0911 实测顾问 422、耗时 15 秒＝两次调用）。
+ * 门禁本身不放宽，只多给一次带具体回灌信息的重写机会。
+ */
+export const ADVISOR_MAX_ATTEMPTS = 3;
 
 interface RawAdvisorPayload {
   summary?: unknown;

@@ -307,6 +307,13 @@
 
 .lq-live__input { background: #fff; border: 1px solid #E8E2DB; border-radius: 12px; padding: 16px 18px; }
 .lq-live__input h3 { font-size: 15px; font-weight: 800; margin: 0 0 12px; }
+/* 0911 走查：演示数据不再预填，改成「填入示例」按钮 + 默认空白提示 */
+.lq-live__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.lq-live__head h3 { margin: 0; }
+.lq-live__demo { flex-shrink: 0; font-size: 12px; font-weight: 700; font-family: inherit; padding: 5px 11px; border-radius: 999px; border: 1px solid rgba(243,112,33,.35); background: rgba(243,112,33,.08); color: #D45A12; cursor: pointer; }
+.lq-live__demo:hover { background: rgba(243,112,33,.16); }
+.lq-live__demo-hint { font-size: 11.5px; color: #9A8B7D; line-height: 1.6; margin: 0 0 12px; }
+.lq-live__demo-notice { font-size: 12px; color: #D45A12; background: rgba(243,112,33,.08); border-radius: 8px; padding: 7px 10px; margin: 0 0 12px; line-height: 1.6; }
 .lq-live__fi { margin-bottom: 13px; }
 .lq-live__fi label { display: block; font-size: 12.5px; font-weight: 700; color: #6B5B50; margin-bottom: 6px; }
 .lq-live__fi input, .lq-live__fi textarea, .lq-live__fi select { width: 100%; border: 1px solid #E8E2DB; border-radius: 10px; padding: 9px 11px; font-size: 13px; font-family: inherit; color: #2D1A10; background: #FAF8F5; box-sizing: border-box; }
@@ -322,6 +329,10 @@
 .lq-live__note { background: rgba(243,112,33,.06); border: 1px solid rgba(243,112,33,.22); border-radius: 10px; padding: 11px 14px; margin-top: 14px; font-size: 12px; color: #6B5B50; line-height: 1.6; }
 .lq-live__note b { color: #D45A12; }
 .lq-live__err { margin: 12px 0 0; font-size: 12.5px; color: #B42318; line-height: 1.6; }
+/* 0911 走查：502 只显示一句泛化报错，用户不知道能不能重试 → 补可读的失败说明 */
+.lq-live__err-block { margin-top: 12px; border: 1px solid rgba(180,35,24,.22); background: rgba(180,35,24,.05); border-radius: 10px; padding: 10px 12px; }
+.lq-live__err-block .lq-live__err { margin: 0; font-weight: 700; }
+.lq-live__err-hint { margin: 6px 0 0; font-size: 12px; color: #6B5B50; line-height: 1.65; }
 .lq-live__hint { font-size: 12px !important; color: #9A8B7D !important; }
 
 .lq-live__out { min-height: 300px; }

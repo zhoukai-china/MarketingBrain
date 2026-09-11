@@ -148,8 +148,8 @@ async function main() {
   const withNeed = normalizeAdvisorAnswer({ ...goodPayload, needInfo: ["门店所在城市", "主推项目", "客单价"] }, topics);
   assert("needInfo 最多 3 条", withNeed.needInfo.length === 3);
 
-  // 8. 合规修复重试：第一次被拦，带原因回灌后第二次通过
-  assert("重试上限为 2 次", ADVISOR_MAX_ATTEMPTS === 2);
+  // 8. 合规修复重写：第一次被拦，带原因回灌后第二次通过
+  assert("重写上限为 3 次", ADVISOR_MAX_ATTEMPTS === 3);
 
   const violating = JSON.stringify({
     ...goodPayload,
@@ -176,7 +176,17 @@ async function main() {
       complete: async () => violating
     })
   );
-  assert("两次都不合规时失败关闭", (alwaysBad ?? "").includes("未通过合规与结构门禁"));
+  assert("始终不合规时失败关闭", (alwaysBad ?? "").includes("未通过合规与结构门禁"));
+
+  // 9b. 复盘回归（0911 顾问 422）：连续两次被拦、第三次纠正后仍要给出答案，不让门店看到「没答出来」
+  let flakyCalls = 0;
+  const flaky = await runAdvisorAnswer("抖音投了本地推没转化，怎么调？", "dy", topics, [], {
+    complete: async () => {
+      flakyCalls += 1;
+      return flakyCalls < 3 ? violating : JSON.stringify(goodPayload);
+    }
+  });
+  assert("软违规重写两次后仍产出可用答案", flakyCalls === 3 && flaky.steps.length === 4);
 
   // 10. 结构不合法（不是 JSON）：同样走重试，重试仍坏则失败关闭
   const badJsonCalls: number[] = [];
@@ -188,8 +198,8 @@ async function main() {
       }
     })
   );
-  assert("非法 JSON 也重试一次", badJsonCalls.length === 2);
-  assert("非法 JSON 两次都坏时失败关闭", (badJson ?? "").includes("未通过合规与结构门禁"));
+  assert("非法 JSON 重写到上限", badJsonCalls.length === 3);
+  assert("非法 JSON 始终坏时失败关闭", (badJson ?? "").includes("未通过合规与结构门禁"));
 
   console.log(`\nadvisor-service: ${pass} passed, ${fail} failed`);
   if (fail > 0) process.exit(1);
