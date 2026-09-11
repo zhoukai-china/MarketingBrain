@@ -275,6 +275,7 @@
 .lq-adv__body .lq-adv__need { font-size: 12.5px; color: #9A3412; }
 .lq-adv__thinking { color: #6B5B50; font-style: italic; font-size: 13px; }
 .lq-adv__sources { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.lq-adv__source-note { margin: 10px 0 0; font-size: 11.5px; color: #9A8B7D; }
 .lq-adv__tag { font-size: 11px; font-weight: 700; color: #D45A12; background: rgba(243,112,33,.10); border: 1px solid rgba(243,112,33,.30); padding: 3px 9px; border-radius: 20px; }
 .lq-adv__meta { margin-top: 8px; font-size: 11.5px; color: #9A8B7D; }
 .lq-adv__chips { padding: 0 18px 14px; }

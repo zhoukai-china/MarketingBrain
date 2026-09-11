@@ -47,6 +47,9 @@ const FORBIDDEN_TOKENS = [
   "gemini",
 ];
 
+/** 「参考方法标签」不得被写成平台官方出处（我们没有接入平台官方资料库）。 */
+const OFFICIAL_SOURCE_CLAIM = /官方|公告|通知|白皮书|算法文档|规则文档|内部资料|内部文件|红头|政策原文|平台文件/;
+
 const results = [];
 const samples = {};
 let failures = 0;
@@ -168,6 +171,15 @@ async function main() {
   );
   const advisorForbidden = findForbidden(advisorBody);
   record("顾问输出现模型/厂商名", advisorForbidden.length === 0, advisorForbidden.join(",") || "无");
+  const advisorAnswer = advisorBody.answer ?? {};
+  const advisorSources = Array.isArray(advisorAnswer.sources) ? advisorAnswer.sources : [];
+  const officialSourceHits = advisorSources.filter((label) => OFFICIAL_SOURCE_CLAIM.test(String(label)));
+  record(
+    "顾问参考方法标签为 2~3 条且不含官方/公告/内部资料口径",
+    advisorBody.needPlatform !== true && advisorSources.length >= 2 && advisorSources.length <= 3 && officialSourceHits.length === 0,
+    `count=${advisorSources.length} · ${advisorSources.join(" / ")} · official=${officialSourceHits.join(",") || "无"}`
+  );
+  samples.advisor = { summary: advisorAnswer.summary, sources: advisorSources };
 
   // 5. 直播话术：计划 + 分批 + 垫场
   const liveInput = {

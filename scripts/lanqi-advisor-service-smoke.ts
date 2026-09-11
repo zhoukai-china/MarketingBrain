@@ -53,7 +53,7 @@ const goodPayload = {
 };
 
 async function main() {
-  assert("服务版本已声明", ADVISOR_SERVICE_VERSION === "advisor_service_v2");
+  assert("服务版本已声明", ADVISOR_SERVICE_VERSION === "advisor_service_v3");
 
   // 1. 门店隔离：必须带 store_id
   const noStore = await rejects(() => answerAdvisorQuestion({ storeId: "  ", question: "视频号发了没人转，问题在哪？" }));
@@ -148,6 +148,14 @@ async function main() {
   const withNeed = normalizeAdvisorAnswer({ ...goodPayload, needInfo: ["门店所在城市", "主推项目", "客单价"] }, topics);
   assert("needInfo 最多 3 条", withNeed.needInfo.length === 3);
 
+  // 7b. 模型编造「官方出处」（2026-09-11 用户提问：我们有蒸馏平台官方信息做 RAG 吗？）
+  // 事实是没有。所以模型给的「抖音官方算法文档」这类标签必须被拦掉，不能原样当成来源展示。
+  const officialClaim = normalizeAdvisorAnswer({ ...goodPayload, sources: ["抖音官方算法文档", "美团官方公告"] }, topics);
+  assert("模型编造的官方出处被拦掉", officialClaim.sources.length > 0 && officialClaim.sources.every((s) => !/官方|公告|内部资料/.test(s)));
+  const halfOfficial = normalizeAdvisorAnswer({ ...goodPayload, sources: ["官方算法文档", "本地推投放要点", "甲"] }, topics);
+  assert("合法方法标签被保留", halfOfficial.sources.includes("本地推投放要点") && halfOfficial.sources.includes("甲"));
+  assert("半官方标签同样不展示", !halfOfficial.sources.some((s) => /官方|公告|内部资料/.test(s)));
+
   // 8. 合规修复重写：第一次被拦，带原因回灌后第二次通过
   assert("重写上限为 3 次", ADVISOR_MAX_ATTEMPTS === 3);
 
@@ -156,10 +164,12 @@ async function main() {
     summary: "先让顾客加微信再慢慢转化。"
   });
   const seenPrompts: string[] = [];
+  const systemPrompts: string[] = [];
   let callCount = 0;
   const repaired = await runAdvisorAnswer("抖音投了本地推没转化，怎么调？", "dy", topics, [], {
     complete: async (messages) => {
       callCount += 1;
+      systemPrompts.push(typeof messages[0]?.content === "string" ? messages[0].content : "");
       const userTurn = messages[messages.length - 1];
       seenPrompts.push(typeof userTurn.content === "string" ? userTurn.content : "");
       return callCount === 1 ? violating : JSON.stringify(goodPayload);
@@ -168,6 +178,7 @@ async function main() {
   assert("被拦后重试一次即产出可用答案", callCount === 2 && repaired.steps.length === 4);
   assert("首次提问不带修复说明", !seenPrompts[0].includes("被系统的合规与结构门禁拦截"));
   assert("重试时回灌了拦截原因", seenPrompts[1].includes("违规引导词"));
+  assert("提示词禁止把标签写成平台官方出处", /官方/.test(systemPrompts[0] ?? "") && /资料库/.test(systemPrompts[0] ?? ""));
   assert("重试时要求不要复述被拦词", seenPrompts[1].includes("不要复述这些被拦截的词"));
 
   // 9. 两次都不合规：失败关闭，不把违规内容兜给门店

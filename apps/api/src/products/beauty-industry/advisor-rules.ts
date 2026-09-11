@@ -3,7 +3,7 @@
 // 对齐 demo `methods.html`：先判断平台，判断不出来就反问确认，再给能照做的动作；
 // 本模块为纯函数，不触达 DB / Provider，回答正文由 LLM 生成。
 
-export const ADVISOR_RULES_VERSION = "advisor_rules_v1" as const;
+export const ADVISOR_RULES_VERSION = "advisor_rules_v2" as const;
 
 // 与 demo 一致：只覆盖抖音 / 视频号 / 美团三个平台
 export type AdvisorPlatform = "dy" | "sph" | "mt";
@@ -152,15 +152,31 @@ export function stringList(value: unknown, max: number, perItemMax = 40): string
   return out;
 }
 
-/** 来源标签：优先用模型给的、限 3 条；太少时用命中话题的确定性标签补齐。 */
+/**
+ * 参考方法标签的出处红线（2026-09-11）。
+ *
+ * 事实：我们**没有**蒸馏抖音/视频号/美团官方信息，也没有任何 RAG 检索语料。
+ * 标签只是通用打法名（如「本地推投放要点」）。模型一旦输出「抖音官方算法文档」「美团官方公告」
+ * 这类字样，页面上的「来源：」就变成编造的权威出处，属于硬红线，直接拦掉。
+ */
+export const SOURCE_OFFICIAL_CLAIM = /官方|公告|通知|白皮书|算法文档|规则文档|内部资料|内部文件|红头|政策原文|平台文件/;
+
+/** 只保留通用方法名标签：先按上限取，再丢官方出处，最后截断。 */
+export function sanitizeSourceLabels(value: unknown, max = 3): string[] {
+  return stringList(value, Math.max(max * 3, max), 20)
+    .filter((label) => !SOURCE_OFFICIAL_CLAIM.test(label))
+    .slice(0, max);
+}
+
+/** 参考方法标签：优先用模型给的、限 3 条；太少时用命中话题的确定性标签补齐。 */
 export function buildSources(value: unknown, topics: AdvisorTopicSpec[], max = 3): string[] {
-  const fromModel = stringList(value, max, 20);
+  const fromModel = sanitizeSourceLabels(value, max);
   if (fromModel.length >= max) return fromModel;
   const merged = [...fromModel];
   for (const topic of topics) {
     for (const source of topic.sources) {
       if (merged.length >= max) break;
-      if (!merged.includes(source)) merged.push(source);
+      if (!merged.includes(source) && !SOURCE_OFFICIAL_CLAIM.test(source)) merged.push(source);
     }
     if (merged.length >= max) break;
   }

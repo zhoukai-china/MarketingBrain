@@ -7,6 +7,9 @@
  *     老板不清空就会直接生成别人家门店的逐字稿 → 改为 placeholder + 用户主动点「填入示例」。
  *  2) P3 AI 运营顾问快捷问题「没空拍视频，怎么持续获客）」标点错误 → 改为「？」。
  *  3) P0「直播话术 502」的复核结论是发布重启窗口 + 前端没有可重试提示 → 锁定可读失败文案与有界重试。
+ *  4) P1 顾问回答的「来源」标签被误读成平台官方出处（用户 2026-09-11 提问「这个智能回复的来源是哪里，
+ *     我们有蒸馏抖音/视频号/美团官方信息做 RAG 资料库吗」）→ 事实上没有 RAG 语料库，标签只是通用打法名，
+ *     页面必须显式声明「不是平台官方发布」，禁止再写成「来源：xxx」的权威出处口吻。
  *
  * 同时反向锁定两处「不要顺手改掉」的测试夹具：
  *  - `scripts/lanqi-advisor-rules-smoke.ts` 仍以错标点原样作输入，覆盖「标点错了也能识别话题」；
@@ -21,6 +24,7 @@ function read(relativePath) {
 
 const livePage = read("apps/web/src/pages/LanqiAcquireLivePage.tsx");
 const methodsPage = read("apps/web/src/pages/LanqiAcquireMethodsPage.tsx");
+const momentsCss = read("apps/web/src/styles/lanqi-moments.css");
 const advisorRulesSmoke = read("scripts/lanqi-advisor-rules-smoke.ts");
 const liveServiceSmoke = read("scripts/lanqi-live-service-smoke.ts");
 
@@ -100,6 +104,20 @@ for (const question of [
 ]) {
   requireMatch(methodsPage, new RegExp(question.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `methods：保留快捷问题「${question}」`);
 }
+
+// ⑦ AI 运营顾问：参考标签不得被读成平台官方出处（我们没有任何官方语料/RAG 资料库）
+requireMatch(
+  methodsPage,
+  /<p className="lq-adv__source-note" data-lanqi-advisor-source-note>/,
+  "methods：参考标签上方有来源声明（带 data-lanqi-advisor-source-note 钩子）"
+);
+requireMatch(methodsPage, /不是平台官方发布/, "methods：声明明写「不是平台官方发布」");
+requireMatch(methodsPage, /以下为通用打法标签/, "methods：声明讲清标签是通用打法名");
+requireMatch(methodsPage, /参考：\{source\}/, "methods：标签前缀为「参考：」，不冒充出处");
+forbidMatch(methodsPage, /来源：\{source\}/, "methods：标签不再写成「来源：xxx」的权威出处口吻");
+requireMatch(methodsPage, /已附通用打法参考/, "methods：已附标签时的提示文案与「参考」口径一致");
+forbidMatch(methodsPage, /已附参考来源/, "methods：提示不再使用「已附参考来源」");
+requireMatch(momentsCss, /\.lq-adv__source-note\s*\{/, "methods：来源声明有对应样式");
 
 // ⑥ 反向锁定：两处测试夹具不要被顺手改掉
 requireMatch(

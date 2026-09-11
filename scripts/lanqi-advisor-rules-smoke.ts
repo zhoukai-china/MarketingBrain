@@ -12,6 +12,7 @@ import {
   mentionsForeignPlatform,
   normalizeSteps,
   platformAskBack,
+  sanitizeSourceLabels,
   stepsAreUsable,
   stringList
 } from "../apps/api/src/products/beauty-industry/advisor-rules.js";
@@ -29,7 +30,7 @@ function assert(name: string, cond: boolean) {
 }
 
 // 1. 只覆盖 demo 的三个平台
-assert("规则版本已声明", ADVISOR_RULES_VERSION === "advisor_rules_v1");
+assert("规则版本已声明", ADVISOR_RULES_VERSION === "advisor_rules_v2");
 assert("只有抖音/视频号/美团三个平台", ADVISOR_PLATFORM_KEYS.length === 3);
 assert("平台顺序与 demo 一致", ADVISOR_PLATFORM_KEYS.join(",") === "dy,sph,mt");
 assert("平台中文名与 demo 一致", ADVISOR_PLATFORMS.dy.label === "抖音" && ADVISOR_PLATFORMS.sph.label === "视频号" && ADVISOR_PLATFORMS.mt.label === "美团");
@@ -98,6 +99,17 @@ const sources = buildSources([], topics, 3);
 assert("模型没给来源时用话题标签补齐", sources.length > 0 && sources.length <= 3);
 assert("来源去重", new Set(sources).size === sources.length);
 assert("模型给了 3 条就用模型给的", buildSources(["甲", "乙", "丙"], topics, 3).join(",") === "甲,乙,丙");
+
+// 8b. 来源标签不得冒充官方出处（2026-09-11 用户提问：我们有蒸馏抖音/视频号/美团官方信息做 RAG 吗？——没有）
+// 我们没有接入任何平台官方资料库，标签只是通用打法名；模型一旦输出「官方/公告/算法文档/内部资料」，
+// 页面上的「来源」就会变成编造的权威出处，必须拦掉而不是照原样展示。
+assert("官方出处标签被单独拦截", sanitizeSourceLabels(["抖音官方算法文档", "本地推投放要点"], 3).join(",") === "本地推投放要点");
+assert("公告/内部资料标签全被拦截", sanitizeSourceLabels(["美团官方公告", "平台内部资料"], 3).length === 0);
+assert("拦截后仍保留非官方标签的原始顺序", sanitizeSourceLabels(["官方文档", "甲", "乙"], 3).join(",") === "甲,乙");
+const officialOnly = buildSources(["抖音官方算法文档", "美团官方公告"], topics, 3);
+assert("模型只给官方标签时不展示任何官方出处", officialOnly.length > 0 && officialOnly.every((s) => !/官方|公告|内部资料/.test(s)));
+const mixedOfficial = buildSources(["官方文档", "甲", "乙"], topics, 3);
+assert("混入官方标签时先丢官方再补齐", mixedOfficial[0] === "甲" && mixedOfficial[1] === "乙" && !mixedOfficial.some((s) => /官方|公告|内部资料/.test(s)));
 
 // 9. 外平台拦截：不能把门店带向别的平台
 assert("命中快手", mentionsForeignPlatform("可以试试快手") === "快手");

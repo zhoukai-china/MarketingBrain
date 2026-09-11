@@ -1,5 +1,30 @@
 # Bug 回归台账
 
+## QA-20260911-010：AI 运营顾问把「通用打法标签」渲染成权威口吻的「来源：xxx」，有被读成平台官方出处的风险（P2，已修 + 已上测试实例与生产）
+
+- 触发：用户 2026-09-11 在兰琪公域获客页 `https://api.lcppch.top/os-v2/lanqi/acquire/methods` 问「这个智能回复的来源是哪里？我们有蒸馏抖音/视频号/美团平台官方信息做 RAG 检索资料库吗？」——指的是顾问回答底部的 `来源：xxx` 标签。
+- 事实核验（只读；在 `apps/api/src`、`apps/web/src`、`packages` 全量检索 `rag|corpus|知识库|retriev`）：
+  - **没有**任何 RAG 检索链路，**没有**抖音 / 视频号 / 美团官方语料库，也**没有**对这三家平台官方信息做过蒸馏。
+  - 标签只有两个来源：① 模型在 `sources` 字段自拟；② 模型给不全时由 `buildSources()` 用 `ADVISOR_TOPICS` 的 6 个话题（review / no-time / forward / ads / margin / startup）确定性补齐。标签内容是「本地推投放要点」这类**通用打法名**，不是文件出处。
+  - 该区块 UI 对齐 demo `methods.html` 第 314-380 行的 `sources([...])` 硬编码标签，本来就只是标签陈列。
+- 现象与风险：在没有任何检索 / 引用链路的前提下，用「来源：」前缀 + 提示语「已附参考来源」呈现，等于让门店以为这是有出处的资料；模型一旦把 `sources` 写成「抖音官方算法文档」「美团官方公告」这类字样，页面就会把**编造的权威出处**当真话展示，命中「不得编造案例、数字、效果或已执行动作」红线，也会让用户误判「我们有平台官方语料库」。
+- 根因：把「通用打法名标签」当「引用出处」来呈现；同时模型侧完全没有禁止官方口径的约束。
+- 最小修复：
+  - `apps/api/src/products/beauty-industry/advisor-rules.ts`：`ADVISOR_RULES_VERSION` `advisor_rules_v1` → `advisor_rules_v2`；新增出处红线 `SOURCE_OFFICIAL_CLAIM`（`官方|公告|通知|白皮书|算法文档|规则文档|内部资料|内部文件|红头|政策原文|平台文件`）与 `sanitizeSourceLabels()`；`buildSources()` 对**模型给的标签**与**确定性补齐的标签**都先过滤官方字样再截断。
+  - `apps/api/src/products/beauty-industry/advisor-service.ts`：`ADVISOR_SERVICE_VERSION` `advisor_service_v2` → `advisor_service_v3`；系统提示词 `sources` 行改为「2~3 个参考**方法**标签（例如「本地推投放要点」），每个 12 字内；只能写通用打法名，严禁出现「官方、公告、算法文档、内部资料」这类字样——我们没有接入平台官方资料库，不得让门店以为这是官方文件出处。」
+  - `apps/web/src/pages/LanqiAcquireMethodsPage.tsx`：标签前缀 `来源：` → `参考：`；标签块上方新增声明（`data-lanqi-advisor-source-note`：「以下为通用打法标签，按本店情况整理，不是平台官方发布」）；notice 由「已附参考来源 / 未附来源」改为「已附通用打法参考 / 未附参考」。
+  - `apps/web/src/styles/lanqi-moments.css`：新增 `.lq-adv__source-note`（11.5px / `#9A8B7D`）。
+- 回归（三层，修复前均可红灯）：
+  - `scripts/lanqi-advisor-rules-smoke.ts`（**53 passed / 0 failed**，随 `pnpm.cmd lanqi:acquire-smoke`）：锁 `ADVISOR_RULES_VERSION === "advisor_rules_v2"`；新增 5 条官方出处拦截断言（`sanitizeSourceLabels` 必须丢掉「XX 官方公告」类标签、`buildSources` 不得补齐官方字样标签、上限与截断不受影响）。
+  - `scripts/lanqi-advisor-service-smoke.ts`（**39 passed / 0 failed**）：锁 `ADVISOR_SERVICE_VERSION === "advisor_service_v3"`；新增 3 条断言并捕获 `systemPrompts`，断言提示词含「严禁出现」官方口径、且不再写「参考来源标签」。
+  - `scripts/lanqi-acquire-ui-contract-smoke.mjs`（**45 passed / 0 failed**，随 `pnpm.cmd lanqi:acquire-ui-contract-smoke`）：新增第 ⑦ 段 8 条源码契约断言——必须有 `data-lanqi-advisor-source-note` 钩子、「不是平台官方发布」、「以下为通用打法标签」、`参考：{source}`；**禁止** `来源：{source}` 与「已附参考来源」回归；并锁 `.lq-adv__source-note` 样式类存在。
+  - 红灯证据（修复前）：`pnpm.cmd lanqi:acquire-smoke` → `FAIL - 规则版本已声明` + `TypeError: (0 , import_advisor_rules.sanitizeSourceLabels) is not a function`（退出码 1），证明新增断言确实在修复前失败。
+  - 页面级真实浏览器探针（内测实例 `https://api.lcppch.top/lanqi-test`，桌面 1440 + 移动 390）：`scripts/tmp/lq19-advisor-source-note-browser.mjs` → **23 passed / 0 failed**；两档均实测出现 `参考：本地推投放要点` 等 2~3 条标签、声明「以下为通用打法标签，按本店情况整理，不是平台官方发布」可见、标签前缀为「参考：」、提示为「… · 已附通用打法参考」、无横向溢出、console/page 错误 0。
+  - 接口级真实 Provider 探针（内测实例 `/lanqi` 作用域，3 轮 dy / sph / mt）：`scripts/tmp/lq19-advisor-source-note-probe.mjs` → **17 passed / 0 failed**；3 轮 `sources` 均为 3 条通用打法标签，无官方口径、无模型/厂商名泄露。
+  - 探针首跑假红已定位为**探针自身缺陷**（不是产品回归）：① 读 `result.sources` 而非 `result.answer.sources`；② 门店档案 state 未提交就点快捷问题，导致 `storeId=""` 被 zod 400 拦下。修正为读 `result.answer.sources`、等 `/lanqi/stores` 返回 200 且发送按钮可用（其 disabled 条件含 `!storeId`）后再点，之后稳定全绿。
+- 刻意**不做**的事：不去接一个假的「官方资料库」来把「来源」坐实。用户另一个待决策问题是「要不要真的接入平台官方信息 / 爆款检索」——那需要外部数据源与授权，属独立任务，本轮不假装可用；同类设计内 fail-closed 还有「爆款复刻的爆款检索未接通」「文案转片出片服务未开通（`VIDEO_RENDERING_READY=false`）」。
+- 状态：**已关闭**（代码已修 + 三层回归已绿 + 内测实例真实浏览器/接口探针全绿 + 已上测试实例与生产）。详见 `docs/CURRENT_DEPLOYMENT_STATUS.md` 顶部条目与 `docs/agents/lanqi-beauty/STATUS.md`。
+
 ## QA-20260911-007：WorkBuddy 私域营销复测报告核验（2 条 P1 误判、2 条 P2 成立）＋ 反向查出的真 P1「快速模式空输入被判成 500 服务器故障」（P1，已修 + 已上测试实例与生产）
 
 - 触发：用户 2026-09-11 交来 WorkBuddy`兰琪私域营销页复测报告.docx`（测试地址 `https://api.lcppch.top/lanqi-test/lanqi/moments`，Playwright headless），要求「看下是否合理及修复」。本条目先逐条核验报告结论，再记录核验过程中**由报告线索反向查出的一个真 P1**。
@@ -1513,3 +1538,4 @@ BY51结束时相同核心文件SHA、同一Get-SourceFingerprint，Windows Power
 - 最小修复：`scripts/tmp/deploy-release.sh`（发布工具，不入发布包）新增 `wait_http_ok` 轮询函数——health 最多 40 次 × 3 秒（120 秒）、ready 最多 20 次 × 3 秒，两者都拿到 200 才算成功；健康检查失败时先输出 `journalctl -n 60` 尾部再失败，便于区分「启动慢」与「真启动失败」；回滚路径同样改为轮询。另加 `BACKUP_TAG` 环境变量，允许重跑时使用独立备份目录，避免覆盖上一轮可用于回滚的备份。
 - 回归：改用轮询后重跑生产发布，第 9 步输出 `health=200 (after 12s)` / `ready=200 (after 0s)` → `DEPLOY_OK`，不再误判回滚；`verify-deploy.sh` 全 PASS；数据库确认两条迁移已应用（`_prisma_migrations` 含 `202609100001_lanqi_store_goals`、`202609090005_lanqi_moments`），`LanqiMomentDraft`、`LanqiStoreGoal` 表存在。
 - 状态：**已关闭**。发布脚本目前仍是 `scripts/tmp/` 下的临时工具（AGENTS 规定该目录不随发布包），若要长期使用应先补「基于端口就绪」的断言并落成仓库正式脚本。
+

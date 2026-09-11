@@ -1,6 +1,32 @@
 # 当前部署状态
 
-更新时间：2026-09-11（最近一次为 **WorkBuddy 报告核验后的 LQ-19 公域获客修复（合规假阳性 422 + 直播表单预填）上测试实例 + 生产**，见下方顶部条目；此前为微信登录失败路径修正、一次性验收租户回收、P0 身份头冒充修复、兰琪生产数据收尾与 LQ-19 首发布；2026-08-03 清单保留为当时状态）
+更新时间：2026-09-11（最近一次为 **兰琪 LQ-19 顾问「来源」标签口径修复（QA-20260911-010）上测试实例 + 生产**，见下方顶部条目；此前为 WorkBuddy 报告核验后的 LQ-19 公域获客修复、微信登录失败路径修正、一次性验收租户回收、P0 身份头冒充修复、兰琪生产数据收尾与 LQ-19 首发布；2026-08-03 清单保留为当时状态）
+
+## 最新发布：20260911-lq19-advisor-source-note-prod1（2026-09-11，测试实例 + 生产）— 兰琪 LQ-19 顾问「来源」标签口径修复
+
+发布包：`release-20260911-lq19-advisor-source-note.tar.gz`（**8935546 B**，sha256 `88ff356f019439233c288eb81f5be2278d3315da67d9a47e94c14e414d1a0a50`，**1428 个文件**）。测试实例与生产共用同一份产物，两侧部署日志第 3 行 `archive sha256` 实测与本机一致（注：服务器 `/tmp` 上的该归档随后被并行任务的清理动作移除，sha256 证据留在两份部署日志与仓库本地归档中）。发布 id 按环境分别记为 `20260911-lq19-advisor-source-note-test1` / `20260911-lq19-advisor-source-note-prod1`。策略同前：stage 构建 → 备份 → 全量叠加（不删除历史文件）→ 第 7b 步在 `$APP` 就地 `prisma generate` 并按 `schema.prisma` 逐模型校验 → migrate → 重启 → 健康轮询 → 校验 → 失败自动回滚；部署以 `setsid nohup` 后台运行（规避 QA-20260910-019 的交互会话中断回滚）。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 联调 `chat-test` | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | `https://api.lcppch.top/lanqi-test/` | `20260911-lq19-advisor-source-note-test1` | `DEPLOY_OK` + `health=200 (after 12s)` / `ready=200` |
+| 生产 `chat` | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | `https://api.lcppch.top/os-v2/` | `20260911-lq19-advisor-source-note-prod1` | `DEPLOY_OK` + `health=200 (after 15s)` / `ready=200` |
+
+- 起因：用户在兰琪公域获客页 `#/lanqi/acquire/methods` 指着 AI 运营顾问回答底部的 `来源：xxx` 问「这个智能回复的来源是哪里？我们有蒸馏抖音/视频号/美团平台官方信息做 RAG 检索资料库吗？」。**核实结论：没有。** 顾问没有任何 RAG 检索链路、没有三家平台官方语料库、也没有对官方信息做过蒸馏；标签只有两处来源（模型在 `sources` 字段自拟，或 `buildSources()` 用 `ADVISOR_TOPICS` 六个话题的通用打法名补齐）。原写法会让门店误以为标签有真实出处，模型还可能写出「抖音官方算法文档」这类编造的权威出处。
+- 本包内容（相对上一生产版本的最小修复集，共 5 个源码文件 + 3 个回归脚本）：
+  - `apps/api/src/products/beauty-industry/advisor-rules.ts`：版本 `advisor_rules_v1` → **`advisor_rules_v2`**；新增出处红线 `SOURCE_OFFICIAL_CLAIM`（`官方|公告|通知|白皮书|算法文档|规则文档|内部资料|内部文件|红头|政策原文|平台文件`）与 `sanitizeSourceLabels()`；`buildSources()` 对**模型标签与确定性补齐标签都**过滤官方字样。
+  - `apps/api/src/products/beauty-industry/advisor-service.ts`：版本 `advisor_service_v2` → **`advisor_service_v3`**；系统提示词 sources 行改为「2~3 个参考**方法**标签……严禁出现「官方、公告、算法文档、内部资料」这类字样——我们没有接入平台官方资料库」。
+  - `apps/web/src/pages/LanqiAcquireMethodsPage.tsx`：标签前缀 `来源：` → `参考：`；notice `已附参考来源` → `已附通用打法参考`、`未附来源` → `未附参考`；标签块新增固定声明 `<p data-lanqi-advisor-source-note>以下为通用打法标签，按本店情况整理，不是平台官方发布</p>`。
+  - `apps/web/src/styles/lanqi-moments.css`：新增 `.lq-adv__source-note`（11.5px / `#9A8B7D`）。
+  - 回归：`scripts/lanqi-advisor-rules-smoke.ts`（**53/0**）、`scripts/lanqi-advisor-service-smoke.ts`（**39/0**）、`scripts/lanqi-acquire-ui-contract-smoke.mjs`（**45/0**）。红灯证据：修复前 `FAIL - 规则版本已声明` + `TypeError: sanitizeSourceLabels is not a function`。
+- 迁移：`48 migrations found in prisma/migrations` / `No pending migrations to apply.`（两侧一致，无 schema 变更）。运行时客户端守护：两侧 `prisma delegates OK: lanqiStoreGoal,lanqiMomentDraft,lanqiMomentUpgrade,lanqiMomentAsset,lanqiStoreProfile` + `prisma client model coverage OK: 99 models`。
+- 备份与日志：生产备份 `/opt/baolu-backups/20260911-lq19-advisor-source-note-prod1-before-baolu-os-v2/`（208M，db=baolu_os_v2），部署日志 `/tmp/deploy-run-20260911-lq19-advisor-source-note-prod1.log`；测试备份 `/opt/baolu-backups/20260911-lq19-advisor-source-note-test1-before-baolu-os-v2-test/`（178M），日志 `/tmp/deploy-run-20260911-lq19-advisor-source-note-test1.log`。**回滚**＝把备份目录还原回 `$APP` 并 `systemctl restart baolu-os-v2`；代码侧最小回滚点是 `advisor-rules.ts` + `advisor-service.ts` + `LanqiAcquireMethodsPage.tsx`。
+- 发布后复验（2026-09-11 13:4x–13:5x，真实 Provider / 外网只读；未改业务数据、未再发布）：
+  - **测试实例页面级（真实浏览器）**：`scripts/tmp/lq19-advisor-source-note-browser.mjs` 桌面 1440 + 移动 390 → **23/0**（标签 2~3 条、`参考：` 前缀、声明可见、notice「已附通用打法参考」、无横向溢出、console/page 错误 0）；截图 `scripts/tmp/lq19-browser-out/{desktop-1440,mobile-390}.png`。
+  - **测试实例接口级**：`scripts/tmp/lq19-advisor-source-note-probe.mjs --rounds 3` → **17/0**（3 轮 dy/sph/mt 各 3 条 `sources`，无官方口径、无厂商名）。
+  - **生产接口验收**：`scripts/tmp/prod-lanqi-lq19-acquire-acceptance.sh` → **16/16 PASS**（匿名 401 `login_required` / 无 entitlement 403 `product_entitlement_missing` / A 租户 `video/storyboard`、`video/shot`、`live/plan`、`copywriter` 全 200 / 缺必填 422 中文反问 / 跨门店 404 `store_not_found` 不回泄 B 门店 id / 全部响应不含模型厂商名）。
+  - **生产顾问标签只读探针（本轮新增脚本）**：`scripts/tmp/prod-lq19-advisor-source-check.sh` → **16/16 PASS**（生产无 `dev-login`，改为按 `prod-lanqi-lq19-acquire-acceptance.sh` 同口径从生产 env 现场签发存量兰琪租户短时 token；dy/sph/mt 三问实测 `sources` 各 3 条如 `["本地推投放要点","抖音起号要点","AI模拟销售"]`、无官方口径、标签 ≤20 字、无厂商名）。首跑曾因 `/tmp` 存在 root 遗留的 `lq19-acquire-acceptance.json/.mjs` 导致写结果 `EACCES`（16/16 断言本身全 PASS），清理后 exit 0。
+  - **部署产物**：生产 `apps/web/dist/assets/LanqiAcquireMethodsPage-BfHXCbQi.js` 实测含 `data-lanqi-advisor-source-note`、「不是平台官方发布」、「已附通用打法参考」、「参考：」；`apps/api/dist/apps/api/src/products/beauty-industry/advisor-rules.js` 含 `advisor_rules_v2` / `SOURCE_OFFICIAL_CLAIM`，`advisor-service.js` 含 `advisor_service_v3`；`systemctl is-active baolu-os-v2` = `active`。
+- 与上一版的关系：本包是 LQ-19 公域获客页在 `20260911-lq19-acquire-fixes-prod1` 之后的**文案口径收口包**，只含兰琪顾问标签相关改动；服务器上并行的 marketplace / 视频复盘改动**未**进入本包（打包时用 `scripts/tmp/lq-deploy-override/` 把 17 个非兰琪文件替换为服务器已部署版本），保持上一版内容。
 
 ## 最新发布：20260911-lq19-acquire-fixes-prod1（2026-09-11，测试实例 + 生产）— WorkBuddy 报告核验后的 LQ-19 公域获客修复
 

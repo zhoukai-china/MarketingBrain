@@ -126,7 +126,7 @@ export function LanqiAcquireMethodsPage() {
         return;
       }
       if (!result.answer) throw new Error("顾问没有返回动作清单，请重试一次");
-      pushMessage({ role: "ai", answer: result.answer, notice: `${result.platformLabel} · ${result.answer.sources.length ? "已附参考来源" : "未附来源"}` });
+      pushMessage({ role: "ai", answer: result.answer, notice: `${result.platformLabel} · ${result.answer.sources.length ? "已附通用打法参考" : "未附参考"}` });
     } catch (e) {
       const message = e instanceof Error ? e.message : "请求失败";
       setError(message);
@@ -182,11 +182,16 @@ export function LanqiAcquireMethodsPage() {
                         <p className="lq-adv__need">还需要你补一句：{message.answer.needInfo.join("、")}</p>
                       )}
                       {message.answer.sources.length > 0 && (
-                        <div className="lq-adv__sources">
-                          {message.answer.sources.map((source) => (
-                            <span key={source} className="lq-adv__tag">来源：{source}</span>
-                          ))}
-                        </div>
+                        <>
+                          <p className="lq-adv__source-note" data-lanqi-advisor-source-note>
+                            以下为通用打法标签，按本店情况整理，不是平台官方发布
+                          </p>
+                          <div className="lq-adv__sources">
+                            {message.answer.sources.map((source) => (
+                              <span key={source} className="lq-adv__tag">参考：{source}</span>
+                            ))}
+                          </div>
+                        </>
                       )}
                       {message.notice && <div className="lq-adv__meta">{message.notice}</div>}
                     </>

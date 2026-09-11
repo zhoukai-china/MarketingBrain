@@ -24,7 +24,7 @@ import {
   stringList
 } from "./advisor-rules.js";
 
-export const ADVISOR_SERVICE_VERSION = "advisor_service_v2" as const;
+export const ADVISOR_SERVICE_VERSION = "advisor_service_v3" as const;
 
 export interface AdvisorTurn {
   role: "user" | "ai";
@@ -84,7 +84,7 @@ const SYSTEM_PROMPT = [
   "- steps：3~5 条，按第一周执行顺序排好优先级；title 是 6~14 字的动作名，detail 是 30~90 字的具体做法（写清谁做、做什么、做到什么程度）。",
   "- summary：一句话结论（40 字内），先说这家店最该修的那一件事。",
   "- followUps：2~3 条用户可能接着问的问题，每条 20 字内。",
-  "- sources：2~3 个参考来源标签，每个 12 字内（例如「本地推投放要点」）。",
+  "- sources：2~3 个参考方法标签（例如「本地推投放要点」），每个 12 字内；只能写通用打法名，严禁出现「官方、公告、算法文档、内部资料」这类字样——我们没有接入平台官方资料库，不得让门店以为这是官方文件出处。",
   "- needInfo：如果门店情况不足以给具体动作，列出还需要用户补充的信息（每条 15 字内），最多 3 条；信息够就给空数组。",
   "只输出 JSON，不要输出任何其它文字。",
   'JSON 结构：{"summary":"","steps":[{"title":"","detail":""}],"followUps":[""],"sources":[""],"needInfo":[""]}'
