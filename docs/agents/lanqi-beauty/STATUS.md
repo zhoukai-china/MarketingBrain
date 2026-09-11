@@ -57,6 +57,7 @@
 - 「其他页面暂时显示开发中」：`/lanqi/cases`、`/lanqi/customers`、`/lanqi/analysis`、`/lanqi/sales-sim`、`/lanqi/store` 全部路由到 `LanqiPlaceholderPage`，页面明写「开发中 · 后续板块」，本轮**保留占位**，符合用户口径。
 - 「公域获客页尽可能开发完」：LQ-19 已在 2026-09-11 上生产并专项验收（见下节）。四模式里 `copywriter` / `live` / `methods` 可用；`video` 的 `replicate`（真实爆款检索未接通）与 `assets` / `clip`（出片服务未开通，`VIDEO_RENDERING_READY=false`）为**设计内 fail-closed**，页面明确提示缺口、不假装成功——属「能跑 / 待外部条件」，非缺陷。测试实例实测 **30/0**。
 - 生产发布：包 `release-20260911-lq18-moments-retest-fixes.tar.gz`，发布 id `20260911-lq18-moments-retest-fixes-test1` / `-prod1`，结果与 sha256 见 `docs/CURRENT_DEPLOYMENT_STATUS.md`。
+- **生产只读复验 + 当日二次独立复跑（2026-09-11 09:0x–09:2x）**：新增 `scripts/tmp/prod-lq18-empty-input-probe.mjs`（生产机只读探针，自签会话借用存量兰琪租户，只发在调用模型前就被校验拦下的非法请求，不写数据、不产生费用、不建租户）→ 生产 **8 passed / 0 failed**（空原话 422 +「请先写一句你的原话」、专业模式空字段 422 点名、群话术空 detail 400、跨租户 storeId 404，四类响应均无内部串泄露），即「空输入被判 500」的 P1 在**生产实况**已关闭。生产 dist 取证：`LanqiMomentsPage-zrH-5AAR.js` 命中 `data-lanqi-moments-copy/-regen`、`LanqiMomentsWechatGroupPage-Dz_JXLy-.js` 命中 `data-lanqi-wechat-copy`。当日重跑（非沿用上轮数字）：`lanqi:moments-retest --generate --image` 14/0、`lanqi:moments-wechat-group-flow --generate` 8/0、`lanqi:moments-asset-deployed-check` 5/0（一次性租户回收后残留 0）、`lanqi:test-instance-acceptance` 14/0、`lanqi:acquire-instance-acceptance` 30/0、`lanqi:acquire-ui-contract-smoke` 37/0、`qa:fast` 退出码 0、`qa:lanqi-foundation` EXITCODE=0。残留 P3：群话术空 `detail` 的 400 响应 `details.fieldErrors` 仍是 zod 英文原文（页面已禁用按钮并给中文原因，正常用户走不到），下一批一并收。
 
 ## LQ-18 私域营销（板块4）本轮收口（2026-09-10）
 
