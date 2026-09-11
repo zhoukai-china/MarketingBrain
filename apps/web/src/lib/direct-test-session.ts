@@ -36,6 +36,16 @@ export function readStoredToken(): string {
   return localStorage.getItem(TOKEN_KEY) ?? "";
 }
 
+/**
+ * 本地是否已经有一份体验会话。
+ *
+ * 内测实例的页面全是整页跳转（侧栏用 `<a href>`），每次跳转都会重新挂载
+ * `DirectTestLoginGate`；只要本地已有会话就不该再把整页挡成「正在进入体验工作区」。
+ */
+export function hasDirectTestSession(): boolean {
+  return DIRECT_TEST_LOGIN_ENABLED && Boolean(readStoredToken());
+}
+
 async function sessionIsUsable(token: string): Promise<boolean> {
   try {
     const response = await fetch(apiPath(DIRECT_TEST_PROBE_PATH), {
@@ -73,20 +83,24 @@ async function createTestSession(): Promise<void> {
   localStorage.setItem(TENANT_NAME_KEY, data.tenantName ?? TEST_TENANT_NAME);
 }
 
-let inflightSession: Promise<void> | null = null;
+let inflightSession: Promise<boolean> | null = null;
 
 /**
  * 确保内测实例始终持有一个可用会话：
  * 已有可用会话直接返回，会话缺失或失效则重新建立，不做任何跳转。
+ *
+ * 返回 `true` 表示这次是**新建**的会话（原会话缺失或已失效）：调用方如果已经
+ * 用旧会话渲染了页面，需要让页面重新取一次数据。
  */
-export function ensureDirectTestSession(): Promise<void> {
-  if (!DIRECT_TEST_LOGIN_ENABLED) return Promise.resolve();
+export function ensureDirectTestSession(): Promise<boolean> {
+  if (!DIRECT_TEST_LOGIN_ENABLED) return Promise.resolve(false);
   if (inflightSession) return inflightSession;
 
   const run = (async () => {
     const existing = readStoredToken();
-    if (existing && (await sessionIsUsable(existing))) return;
+    if (existing && (await sessionIsUsable(existing))) return false;
     await createTestSession();
+    return true;
   })();
 
   inflightSession = run;

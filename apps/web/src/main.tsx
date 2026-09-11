@@ -1,9 +1,13 @@
-import React, { Component, lazy, Suspense, useState, useEffect, type ErrorInfo, type ReactNode } from "react";
+import React, { Component, lazy, Suspense, useState, useEffect, useRef, type ErrorInfo, type ReactNode } from "react";
 import ReactDOM from "react-dom/client";
 import type { LoginEntry, LoginResult } from "./pages/LoginPage.js";
 import { PRODUCT_LOGIN_DEFINITIONS } from "@baolu/shared";
 import { apiPath, getAppPath, getAppRoutePath } from "./lib/api.js";
-import { DIRECT_TEST_LOGIN_ENABLED, ensureDirectTestSession } from "./lib/direct-test-session.js";
+import {
+  DIRECT_TEST_LOGIN_ENABLED,
+  ensureDirectTestSession,
+  hasDirectTestSession,
+} from "./lib/direct-test-session.js";
 import { clearStoredSession, probeSession, readSessionToken, takePostLoginRedirect } from "./lib/session.js";
 import "./styles/app.css";
 import "./styles/store-growth.css";
@@ -239,11 +243,19 @@ function FounderIpLocalE2EPage() {
   return <main className="loginPage"><section className="loginCard"><div className="loginBrand"><span className="loginBadge">创始人 IP 获客 · 本机合成验收数据</span><h1>正在准备页面验收</h1><p>{message}</p></div></section></main>;
 }
 
-// 内测实例免登录：开关打开时先建立体验会话，再渲染页面，
-// 用户点开链接不会看到登录页；生产实例开关关闭，行为不变。
+// 内测实例免登录：第一次进入（本机还没有体验会话）时先建立会话再渲染页面，
+// 之后只要有会话就直接渲染，用户点开链接不会看到登录页；生产实例开关关闭，
+// 行为不变。
+//
+// 2026-09-11（QA-20260911-013）：内测实例的侧栏导航是整页跳转（`<a href>`），
+// 每次跳转都会重新挂载本组件。以前无论本地有没有会话都先把整页挡成
+// 「正在进入体验工作区」，于是用户每点一个功能都会先看到一次中间页。
+// 现在本地已有会话时直接渲染页面，会话是否仍然有效放到后台静默校验：
+// 校验通过就什么都不做，真失效了才重建会话并让页面刷新一次。
 function DirectTestLoginGate({ children }: { children: ReactNode }) {
+  const renderedWithStoredSession = useRef(hasDirectTestSession());
   const [state, setState] = useState<"checking" | "ready" | "failed">(
-    DIRECT_TEST_LOGIN_ENABLED ? "checking" : "ready"
+    DIRECT_TEST_LOGIN_ENABLED && !renderedWithStoredSession.current ? "checking" : "ready"
   );
   const [message, setMessage] = useState("正在进入美业智能体体验工作区…");
 
@@ -251,11 +263,31 @@ function DirectTestLoginGate({ children }: { children: ReactNode }) {
     if (!DIRECT_TEST_LOGIN_ENABLED) return;
     let cancelled = false;
     void ensureDirectTestSession()
-      .then(() => {
-        if (!cancelled) setState("ready");
+      .then((created) => {
+        if (cancelled) return;
+        // 页面已经带着旧会话渲染过了，而这次后台校验发现旧会话不可用并重建了
+        // 会话：页面上首批数据请求拿的是旧 token，会 401，所以刷新一次让页面
+        // 重新取数。短时间（15s）内最多自动刷新一次，避免会话始终建不起来时
+        // 变成刷新死循环。
+        if (created && renderedWithStoredSession.current) {
+          const key = "store_os_direct_test_session_refresh_at";
+          const last = Number(sessionStorage.getItem(key) ?? 0);
+          if (!Number.isFinite(last) || Date.now() - last > 15_000) {
+            sessionStorage.setItem(key, String(Date.now()));
+            window.location.reload();
+          }
+          return;
+        }
+        setState("ready");
       })
       .catch((cause: unknown) => {
         if (cancelled) return;
+        // 已有旧会话时页面已经渲染出来了，不该因为一次后台校验失败把整页换成
+        // 错误页；只有本来就没有会话（首屏还在挡着）才提示失败。
+        if (renderedWithStoredSession.current) {
+          setState("ready");
+          return;
+        }
         setMessage(cause instanceof Error ? cause.message : "本机体验登录失败。");
         setState("failed");
       });

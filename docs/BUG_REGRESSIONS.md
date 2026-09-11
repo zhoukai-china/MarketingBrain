@@ -1,5 +1,24 @@
 # Bug 回归台账
 
+## QA-20260911-013：内测实例点任意功能都先闪一次「正在进入体验工作区」中间页，用户当成缓存页要求去掉（P2，已修 + 回归已绿 + 已上测试实例）
+
+- 触发：用户 2026-09-11 反馈（截图）：在 `https://api.lcppch.top/lanqi-test/`「点击任一功能之后出现缓存页：兰琪美业·内测实例 / 正在进入体验工作区 / 正在进入美业智能体体验工作区…」，要求「去掉这个缓存页」。
+- 复现（**测试实例真实浏览器，2026-09-11 `scripts/tmp/lanqi-test-splash-probe.mjs`，修复前红灯**）：桌面 1440 与移动 390 各 2 条断言失败——点侧栏导航后中间页 `出现=true`（@494ms / @501ms），已持有会话时刷新子页 `出现=true`（@21ms），共 4 failed。
+- 根因（`apps/web/src/main.tsx` 的 `DirectTestLoginGate`）：内测实例侧栏导航是整页跳转（`apps/web/src/components/lanqi-brain/LanqiBrainShell.tsx:70` 用 `<a href={n.href}>` 渲染 `NAV` 里 8 个兰琪板块链接），每点一个功能都重新挂载 `DirectTestLoginGate`；旧实现的初始状态**无条件**是 `"checking"`，必须等 `ensureDirectTestSession()` 的 `/lanqi/stores` 探活返回才切 `"ready"`。于是「本机明明已经有可用体验会话」也要每次白等一次网络往返，表现成用户说的缓存中间页。这是内测免登录门的渲染时序问题，不是浏览器缓存问题，也不是后端变慢。
+- 最小修复（只改内测免登录门，生产开关关闭时行为不变）：
+  - `apps/web/src/lib/direct-test-session.ts`：新增 `hasDirectTestSession()`（`DIRECT_TEST_LOGIN_ENABLED && Boolean(readStoredToken())`，**零网络**）；`ensureDirectTestSession()` 返回类型 `Promise<void>` → `Promise<boolean>`，`true` = 本次新建会话（原来没有或已失效），`false` = 复用已有可用会话，原调用点语义不变。
+  - `apps/web/src/main.tsx`：`DirectTestLoginGate` 用 `useRef(hasDirectTestSession())` 记住「进来时本机已经有会话」，初始状态据此决定——已有会话直接 `"ready"` 渲染页面，没有会话才 `"checking"`。`ensureDirectTestSession()` 仍照常后台跑：返回 `false`（复用成功）静默置 `"ready"`；返回 `true` 且此前是拿旧会话渲染的页面，则以 `sessionStorage` 键 `store_os_direct_test_session_refresh_at` **15 秒节流**刷新一次（换成新 token 重新取数），避免会话始终建不起来时刷新死循环。`catch` 分支在已有旧会话时只置 `"ready"`，不把已经渲染出来的页面换成错误页，只有首屏本来就没有会话才显示失败页。
+  - 生产实例 `VITE_DIRECT_TEST_LOGIN` 未开：`DIRECT_TEST_LOGIN_ENABLED=false` 时初始状态恒为 `"ready"`、`useEffect` 首行直接 return，**渲染路径与网络行为都不变**（实测生产 `/api/auth/dev-login` = `404`，测试实例 = `200`，两个环境开关状态相反）。
+- 回归（静态契约 + 真实页面两层，均已落成常驻脚本）：
+  - `scripts/lanqi-test-splash-contract-smoke.mjs`（14 条静态契约断言，已接入 `pnpm.cmd qa:fast` 的 `lanqi:test-splash-contract-smoke`）：锁死「已有会话时初态必须是 ready」「零网络判定函数存在且被初态使用」「后台校验失败不得把已渲染页面换成错误页」「自动刷新有 15 秒节流」「生产开关关闭时行为不变」「侧栏导航仍是整页跳转」等，防止哪天有人把初态改回无条件 `checking`。
+  - `scripts/lanqi-test-instance-splash-browser-e2e.mjs`（真实 Chromium，桌面 1440 + 移动 390）：无会话首屏允许出现一次中间页（首次建会话必然要有），之后「点侧栏导航」「已持有会话刷新子页」两条路径**不得**再出现；并断言页面真实落到 `/lanqi/acquire`、子页渲染出正文、console/page error 为 0。
+- 验收结果（2026-09-11，`https://api.lcppch.top/lanqi-test`）：`node scripts/lanqi-test-instance-splash-browser-e2e.mjs --base https://api.lcppch.top/lanqi-test` → **PASS (0 failed)**——桌面 1440：首屏中间页 `出现=true @2460ms`（首次建会话）→ 点「公域获客」后 `splash=false` 落到 `/lanqi-test/lanqi/acquire` → 刷新 `/lanqi/acquire/methods` 后 `splash=false` 并渲染出正文；移动 390 同口径 5 类断言全 PASS；两侧 `console=0` / `page=0`，截图 `%TEMP%\lanqi-test-splash-e2e\desktop-1440.png`、`mobile-390.png`。契约 smoke **14/14 PASS**；`pnpm.cmd lanqi:acquire-ui-contract-smoke` **45 passed / 0 failed**（相邻公域获客页无回归）；`pnpm.cmd --filter @baolu/web typecheck` PASS；`pnpm.cmd qa:fast` PASS。
+- 发布（2026-09-11）：包 `release-20260911-lq19-test-splash-fix.tar.gz`（**7573234 B**，sha256 `f77268f71df52e453f5bc08a31efb640772e071f0544b19e2d4929423eafd900`，1277 文件），发布 id `20260911-lq19-test-splash-fix-test2` → `DEPLOY_OK` + `health=200 (after 12s)` / `ready=200`，48 条迁移无待应用。生产侧同一时段由另一条工作线的全量包（`20260911-mobile-topbar-prod1`）带上同一份 `main.tsx` / `direct-test-session.ts`（实测生产部署目录内已含 `hasDirectTestSession`），该环境开关关闭、无行为差异；随后 `pnpm.cmd auth:login-entry-production-check` **PASS**（`root_to_home` / `login_page` / `console_clean` 等全 PASS）。
+- 发布过程记录（发布工具问题，不是本 Bug 的回归项）：首次尝试 `…-test1` 在 stage 构建阶段失败——发布文件清单漏勾 `apps/web/src/pages/MarketplaceApp.tsx`（`main.tsx` 惰性路由引用它），报 `Cannot find module './pages/MarketplaceApp.js'` 与两条连带 `skuId` 类型错；**服务未动、未触发回滚**。重新生成清单后先在本地跑 `pnpm.cmd --filter @baolu/web build` 拦截同类问题，再重发即通过。
+- 刻意未做：不在本轮单独发布生产。内测免登录门只在 `VITE_DIRECT_TEST_LOGIN=true` 的测试实例渲染，生产该开关关闭，本修复对生产用户零可见差异；同时工作区还带着别的工作线未上生产的改动（`main.tsx` 移动端设备判定 QA-20260911-012、`MarketplaceApp.tsx` / `sitong-design.css` 货架改造），按最小发布集不把它们顺带带上生产。
+- 状态：**已修 + 回归已绿 + 已上测试实例**（生产经另一条工作线的全量包同步带上，切换开关关闭、行为不变）。
+
+
 ## QA-20260911-010：AI 运营顾问把「通用打法标签」渲染成权威口吻的「来源：xxx」，有被读成平台官方出处的风险（P2，已修 + 已上测试实例与生产）
 
 - 触发：用户 2026-09-11 在兰琪公域获客页 `https://api.lcppch.top/os-v2/lanqi/acquire/methods` 问「这个智能回复的来源是哪里？我们有蒸馏抖音/视频号/美团平台官方信息做 RAG 检索资料库吗？」——指的是顾问回答底部的 `来源：xxx` 标签。
