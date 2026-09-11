@@ -41,13 +41,45 @@ export function LanqiPlaceholderPage({ active, icon, title, subtitle, summary, b
             ))}
           </ul>
           <div className="lq-dash__tools" style={{ marginTop: 16 }}>
-            <a href={getAppPath("/lanqi/dashboard")}>🏠 回经营驾驶舱<span>先看本月目标和达成情况</span></a>
-            <a href={getAppPath("/lanqi/moments")}>💬 私域营销<span>朋友圈 / 微信群话术（已可用）</span></a>
-            <a href={getAppPath("/lanqi/acquire")}>📣 公域获客<span>视频 / 文案 / 直播（已可用）</span></a>
+            <a href={getAppPath("/lanqi/moments")}>💬 去用私域营销<span>朋友圈 / 微信群话术（已上线）</span></a>
+            <a href={getAppPath("/lanqi/brain")}>🧭 返回板块总览<span>看看八个板块各自开放到哪一步</span></a>
           </div>
         </section>
       </div>
     </LanqiBrainShell>
+  );
+}
+
+/**
+ * 本轮上线口径（用户 2026-09-11）：只有「私域营销」可以正常上线，其余板块显示「开发中」。
+ *
+ * 经营驾驶舱（LQ-20）用户已明确「本轮不验收」，公域获客（LQ-19）还是「待业务验收」，
+ * 所以这两块也按「开发中」对待——真实页面组件保留在仓库里，等对应板块专项验收通过后
+ * 由 `apps/web/src/main.tsx` 的 `LANQI_MOMENTS_ONLY_LAUNCH` 白名单逐块放开。
+ */
+export function LanqiDashboardInDevelopmentPage() {
+  return (
+    <LanqiPlaceholderPage
+      active="home"
+      icon="🏠"
+      title="经营驾驶舱"
+      subtitle="本月目标与达成 · 9 维健康度 · 今日动作"
+      summary="把门店本月目标、达成进度、9 维经营健康度和今天该做什么放到一屏。本板块还在开发中，暂未对门店开放。"
+      bullets={["本月目标与达成进度（老板手输 4 个目标）", "9 维经营健康度雷达与门店红绿灯", "今日关键指标与今日动作清单"]}
+    />
+  );
+}
+
+export function LanqiAcquireInDevelopmentPage() {
+  return (
+    <LanqiPlaceholderPage
+      active="acquire"
+      icon="📣"
+      title="公域获客"
+      subtitle="短视频文案 · 直播话术 · AI 运营顾问"
+      summary="面向公域流量的获客动作：短视频文案改稿、直播话术、AI 运营顾问和文案转片。本板块还在开发中，暂未对门店开放。"
+      bullets={["短视频文案改稿（四步向导）", "直播话术逐字稿与 AI 运营顾问", "文案转片与爆款复刻（待接通外部服务）"]}
+    />
   );
 }
 

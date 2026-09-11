@@ -29,7 +29,7 @@ export function LanqiMomentsHomePage() {
     <LanqiBrainShell active="moments" mainTitle="私域营销" subtitle="① 选阵地（朋友圈 / 微信群） → ② 选模式 → ③ AI 生成 → ④ 发布">
       <div className="lq-moments">
         <div className="lq-moments__backline">
-          <a href={getAppPath("/lanqi/acquire")} className="lq-moments__back">← 返回公域获客</a>
+          <a href={getAppPath("/lanqi/brain")} className="lq-moments__back">← 返回板块总览</a>
         </div>
         <div className="lq-md-wrap">
           {ENTRIES.map((e) => (

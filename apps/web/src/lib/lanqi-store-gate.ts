@@ -81,7 +81,9 @@ export type LanqiStoreErrorReason =
 const PARKING_PAGE_HREF = "/lanqi/store-profile";
 const STORE_ADMIN_HREF = "/lanqi/store";
 const LOGIN_HREF = "/login/lanqi";
-const DASHBOARD_HREF = "/lanqi/dashboard";
+// 经营驾驶舱本轮仍是「开发中」（LANQI_MOMENTS_ONLY_LAUNCH），弹窗里的返回入口
+// 统一落到八板块总览，避免把用户带到一个明说「开发中」的页面。
+const DASHBOARD_HREF = "/lanqi/brain";
 
 function reasonOfCode(errorCode: string | null | undefined): LanqiStoreErrorReason {
   switch ((errorCode ?? "").trim()) {
@@ -144,7 +146,7 @@ export function describeLanqiStoreGate(input: DescribeLanqiStoreGateInput): Lanq
         headline: "兰琪美业使用期限已到期",
         detail: "续期后即可继续使用，续期前门店数据不会丢失。",
         cta: { label: "用邀请码登录", href: LOGIN_HREF },
-        secondaryCta: { label: "返回经营驾驶舱", href: DASHBOARD_HREF },
+        secondaryCta: { label: "返回板块总览", href: DASHBOARD_HREF },
         retry: false,
         canGenerate: false,
         blockedReason: "产品已到期，续期后即可生成。"
@@ -156,7 +158,7 @@ export function describeLanqiStoreGate(input: DescribeLanqiStoreGateInput): Lanq
         reason,
         headline: "兰琪美业当前处于停用状态",
         detail: "请联系服务团队重新启用；启用后这里会自动恢复。",
-        cta: { label: "返回经营驾驶舱", href: DASHBOARD_HREF },
+        cta: { label: "返回板块总览", href: DASHBOARD_HREF },
         secondaryCta: null,
         retry: false,
         canGenerate: false,
@@ -182,7 +184,7 @@ export function describeLanqiStoreGate(input: DescribeLanqiStoreGateInput): Lanq
         reason,
         headline: "当前账号没有这家门店的权限",
         detail: "前台只能使用自己绑定的门店；换老板 / 店长账号登录，或让老板把门店绑定到你的账号。",
-        cta: { label: "返回经营驾驶舱", href: DASHBOARD_HREF },
+        cta: { label: "返回板块总览", href: DASHBOARD_HREF },
         secondaryCta: null,
         retry: false,
         canGenerate: false,

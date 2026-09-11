@@ -54,8 +54,9 @@ export const PRODUCT_LOGIN_DEFINITIONS: Record<ProductLoginCode, ProductLoginDef
     description: "使用兰琪授权的方法论，建立门店档案、经营诊断和增长执行方案。",
     tenantRole: "local_business",
     planCode: "local_standard",
-    // 登录兰琪入口后先看经营驾驶舱（LQ-20）；门店档案是驾驶舱里的二级页面。
-    defaultPath: "/lanqi/dashboard",
+    // 当前口径（用户 2026-09-11）：只有「私域营销」可正常上线，作为默认落地页；
+    // 经营驾驶舱等未验收板块显示「开发中」。
+    defaultPath: "/lanqi/moments",
     agentIds: [],
   },
   "beauty-industry": {

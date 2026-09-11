@@ -85,9 +85,10 @@
 /* 0909 私域营销 · 橙色侧栏 + 顶栏（对齐 demo） */
 .lq-pd { display: flex; min-height: 100vh; background: #F4F1EC; color: #2D1A10; }
 .lq-pd__side { width: 232px; flex-shrink: 0; background: #F37021; border-right: 1px solid rgba(45,26,16,.18); padding: 20px 12px; display: flex; flex-direction: column; gap: 18px; }
-.lq-pd__brand { display: flex; gap: 11px; align-items: center; padding: 0 4px 16px; border-bottom: 1px solid rgba(45,26,16,.18); color: #2D1A10; }
-.lq-pd__logo { display: inline-block; padding: 4px 9px; background: #fff; color: #F37021; border-radius: 8px; font-weight: 800; font-size: 13px; }
-.lq-pd__brand-name { font-size: 15px; font-weight: 800; line-height: 1.25; letter-spacing: .3px; color: #2D1A10; }
+.lq-pd__brand { display: flex; gap: 11px; align-items: center; padding: 0 4px 16px; border-bottom: 1px solid rgba(45,26,16,.18); color: #2D1A10; min-width: 0; }
+/* 品牌图：48×40 白底圆角，等比缩放不裁切（对齐原型 .sh-icon）。 */
+.lq-pd__logo { display: block; width: 48px; height: 40px; border-radius: 11px; background: #fff; border: 1px solid rgba(45,26,16,.14); object-fit: contain; flex-shrink: 0; }
+.lq-pd__brand-name { font-size: 15px; font-weight: 800; line-height: 1.25; letter-spacing: .3px; color: #2D1A10; flex: 1; min-width: 0; }
 .lq-pd__nav { display: flex; flex-direction: column; gap: 3px; }
 .lq-pd__item { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-radius: 10px; border: 1px solid transparent; color: #2D1A10; text-decoration: none; font-weight: 700; font-size: 14px; }
 .lq-pd__item:hover { background: rgba(45,26,16,.10); }
@@ -95,6 +96,8 @@
 .lq-pd__label { flex: 1; }
 .lq-pd__badge { font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 700; letter-spacing: .3px; background: rgba(45,26,16,.14); color: #2D1A10; }
 .lq-pd__item.on .lq-pd__badge { background: rgba(243,112,33,.14); color: #D45A12; }
+/* 未上线板块徽标：低饱和灰，和「可用 / 新」这类强调色区分开。 */
+.lq-pd__badge--dev { background: rgba(45,26,16,.10); color: rgba(45,26,16,.62); font-weight: 700; }
 .lq-pd__main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .lq-pd__top { display: flex; align-items: center; gap: 12px; padding: 14px 20px; background: #fff; border-bottom: 1px solid #F0EBE4; flex-wrap: wrap; }
 .lq-pd__crumb h1 { font-size: 24px; margin: 0; line-height: 1.25; letter-spacing: -.3px; font-weight: 800; }

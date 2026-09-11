@@ -10,15 +10,22 @@ export type BrainActive = "brain" | "home" | "cases" | "acquire" | "moments" | "
  * 兰琪路由表内，于是点侧栏会掉进全局兜底页（外卖增长智能体首页），看起来像「串台」。
  * 现在每一项都指向兰琪自己的地址，未开发的板块由 `/lanqi/*` 兜底页接管。
  */
-const NAV: Array<{ key: BrainActive; name: string; icon: string; href: string; badge?: string }> = [
-  { key: "home", name: "经营驾驶舱", icon: "🏠", href: getAppPath("/lanqi/dashboard") },
-  { key: "cases", name: "门店AI使用案例", icon: "🏬", href: getAppPath("/lanqi/cases") },
-  { key: "acquire", name: "公域获客", icon: "📣", href: getAppPath("/lanqi/acquire") },
-  { key: "moments", name: "私域营销", icon: "💬", href: getAppPath("/lanqi/moments") },
-  { key: "crm", name: "客户管理", icon: "👤", href: getAppPath("/lanqi/customers") },
-  { key: "analysis", name: "AI客户分析", icon: "📈", href: getAppPath("/lanqi/analysis") },
-  { key: "sales", name: "AI模拟销售", icon: "🤝", href: getAppPath("/lanqi/sales-sim") },
-  { key: "store", name: "门店后台", icon: "🖥️", href: getAppPath("/lanqi/store"), badge: "新" }
+/**
+ * 侧栏 8 项的上线状态。
+ *
+ * 用户 2026-09-11 口径：**目前只有「私域营销」可以正常上线，其余板块显示「开发中」**。
+ * 所以这里显式给每一项标 `online` / `dev`，由 UI 决定是否挂「开发中」徽标；
+ * 页面本身的上线口径由 `main.tsx` 的路由开关统一决定，两边必须一致。
+ */
+const NAV: Array<{ key: BrainActive; name: string; icon: string; href: string; status: "online" | "dev" }> = [
+  { key: "home", name: "经营驾驶舱", icon: "🏠", href: getAppPath("/lanqi/dashboard"), status: "dev" },
+  { key: "cases", name: "门店AI使用案例", icon: "🏬", href: getAppPath("/lanqi/cases"), status: "dev" },
+  { key: "acquire", name: "公域获客", icon: "📣", href: getAppPath("/lanqi/acquire"), status: "dev" },
+  { key: "moments", name: "私域营销", icon: "💬", href: getAppPath("/lanqi/moments"), status: "online" },
+  { key: "crm", name: "客户管理", icon: "👤", href: getAppPath("/lanqi/customers"), status: "dev" },
+  { key: "analysis", name: "AI客户分析", icon: "📈", href: getAppPath("/lanqi/analysis"), status: "dev" },
+  { key: "sales", name: "AI模拟销售", icon: "🤝", href: getAppPath("/lanqi/sales-sim"), status: "dev" },
+  { key: "store", name: "门店后台", icon: "🖥️", href: getAppPath("/lanqi/store"), status: "dev" }
 ];
 
 /** demo 顶栏品牌名：`ws-top h1 .main-title` 写品牌名的页面用它做主标题。 */
@@ -64,12 +71,16 @@ export function LanqiBrainShell({ active, mainTitle, subtitle, crumb, headerSlot
   return (
     <div className="lq-pd">
         <aside className="lq-pd__side">
-          <div className="lq-pd__brand"><span className="lq-pd__logo">兰琪</span><span className="lq-pd__brand-name">美业门店 AI 经营大脑</span></div>
+          {/* 品牌位用真实兰琪品牌图（对齐 0909 原型 daily.html 的 .sh-logo），不再用「兰琪」两字当 Logo。 */}
+          <div className="lq-pd__brand">
+            <img className="lq-pd__logo" src={getAppPath("/lanqi-logo.jpg")} alt="兰琪·爱美荟" />
+            <span className="lq-pd__brand-name">兰琪 · 美业门店 AI 经营大脑</span>
+          </div>
           <nav className="lq-pd__nav">
             {NAV.map((n) => (
               <a key={n.key} className={`lq-pd__item${active === n.key ? " on" : ""}`} href={n.href}>
                 <span>{n.icon}</span><span className="lq-pd__label">{n.name}</span>
-                {n.badge ? <span className="lq-pd__badge">{n.badge}</span> : null}
+                {n.status === "dev" ? <span className="lq-pd__badge lq-pd__badge--dev">开发中</span> : null}
               </a>
             ))}
           </nav>

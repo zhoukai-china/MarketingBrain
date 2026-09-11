@@ -1,6 +1,34 @@
 # 当前部署状态
 
-更新时间：2026-09-11（最近一次为 **兰琪内测实例免登录中间页消除（QA-20260911-013）上测试实例，生产由同期 20260911-mobile-topbar-prod1 全量包带上**，见下方顶部条目；此前为工作区在途改动全量发布（PLAT-13 电脑端微信扫码登录等）、兰琪 LQ-19 顾问「来源」标签口径修复、WorkBuddy 报告核验后的 LQ-19 公域获客修复、微信登录失败路径修正、一次性验收租户回收、P0 身份头冒充修复、兰琪生产数据收尾与 LQ-19 首发布；2026-08-03 清单保留为当时状态）
+更新时间：2026-09-11（最近一次为 **兰琪品牌 Logo 修正 + 上线板块收口（LQ-21 / QA-20260911-014，只放「私域营销」，其余 7 个板块显示「开发中」），上测试实例 + 生产**，见下方顶部条目；此前为手机端平台页顶栏修复 + 货架「退出登录」入口（QA-20260911-012）、工作区在途改动全量发布（电脑端微信扫码登录 PLAT-13 + 视频复盘引擎 + 试用积分 + 兰琪顾问规则）、兰琪 LQ-19 顾问「来源」标签口径修复、WorkBuddy 报告核验后的 LQ-19 公域获客修复、微信登录失败路径修正、一次性验收租户回收、P0 身份头冒充修复、兰琪生产数据收尾与 LQ-19 首发布；2026-08-03 清单保留为当时状态）
+
+## 最新发布：20260911-lq21-brand-launch-test1 / -prod1（2026-09-11，测试实例 + 生产）— 兰琪品牌 Logo 修正 + 上线板块收口
+
+发布包：`release-20260911-lq21-brand-launch-full.tar.gz`（**9248209 B**，sha256 `24c61595407be94ee6c3d576f7fceb830485182400c7c79a1e49f6f1b7988d08`，**1451 个文件**）。测试实例与生产共用同一份产物，两侧部署日志第 3 行 `archive sha256` 实测与本机一致（`24c61595…`，均为 1451 文件）。发布 id 按环境分别记为 `20260911-lq21-brand-launch-test1` / `20260911-lq21-brand-launch-prod1`。策略同前：stage 构建 → 备份 → 全量叠加（不删除历史文件）→ 就地 `prisma generate` → migrate → 重启 → 健康轮询 → 校验 → 失败自动回滚；部署以 `setsid nohup` 后台运行。
+
+起因：用户 2026-09-11 反馈「兰琪 logo 头像不对」以及「目前私域营销可以正常上线 其他板块显示开发中即可」。对应缺陷、根因与回归见 `docs/BUG_REGRESSIONS.md` **QA-20260911-014**（含修复前 5 passed / 30 failed 的红证与修复后 42 条真实浏览器断言的绿证）；任务卡 `docs/agents/lanqi-beauty/tasks/LQ-21-兰琪品牌标识与上线板块收口.md`。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 联调 `chat-test` | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | `https://api.lcppch.top/lanqi-test/` | `20260911-lq21-brand-launch-test1` | `DEPLOY_OK` + `health=200 (after 15s)` / `ready=200` |
+| 生产 `chat` | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | `https://api.lcppch.top/os-v2/` | `20260911-lq21-brand-launch-prod1` | `DEPLOY_OK` + `health=200 (after 15s)` / `ready=200` |
+
+- 本包内容（本轮新增 1 个静态资源 + 1 个回归脚本 + 1 个浏览器探针；发布包是工作区全量快照，同时带上了并行工作线已发布的产物）：
+  - `apps/web/public/lanqi-logo.jpg`（**新增**，154399 B / 1920×1509，sha256 `b9e649195a6879c4244f0b425ef40e2d9c0f14130f470e6f64f01fce0f417c0f`，与 0909 原型 `assets/logo/lanqi-logo.jpg` 逐字节一致）。
+  - `apps/web/src/components/lanqi-brain/LanqiBrainShell.tsx`：左上角品牌位由纯文本 `<span>兰琪</span>` 改为 `<img src={getAppPath("/lanqi-logo.jpg")} alt="兰琪·爱美荟" />`；`NAV` 每项新增 `status: "online" | "dev"`，**只有「私域营销」是 `online`**，其余 7 项渲染「开发中」徽标。
+  - `apps/web/src/main.tsx`：新增单点开关 `export const LANQI_MOMENTS_ONLY_LAUNCH = true`——`/lanqi/acquire*`、`/lanqi/dashboard`、`/lanqi/goal-setting` 由「开发中」占位页接管；真实页面组件与路由分支**全部保留**，改回 `false` 即整体回滚。默认落地 `/lanqi` → `/lanqi/moments`（入口重定向 + 免登录门 `DirectTestLoginGate` + `packages/shared` 的 `defaultPath` 三处一致）。
+  - `apps/web/src/pages/LanqiBrainHomePage.tsx`（板块总览只有「私域营销」`done=true`）、`LanqiPlaceholderPage.tsx`（新增 `LanqiDashboardInDevelopmentPage` / `LanqiAcquireInDevelopmentPage`，删掉「（已可用）」口径）、`LanqiMomentsHomePage.tsx`（返回链接改「板块总览」）、`apps/web/src/lib/lanqi-store-gate.ts`（门店弹窗返回入口改 `/lanqi/brain`）、`apps/web/src/styles/lanqi-moments.css`（`.lq-pd__logo` 对齐原型 `.sh-icon` 48×40/圆角/白底/`object-fit:contain`，新增 `.lq-pd__badge--dev`）、`packages/shared/src/index.ts`（兰琪 `defaultPath`）。
+  - 回归：`scripts/lanqi-brand-nav-contract-smoke.mjs`（新增，35 条只读源码契约，已接入 `pnpm.cmd qa:fast` 的 `lanqi:brand-nav-contract-smoke`）、`scripts/lanqi-brand-nav-browser-e2e.mjs`（新增，真实 Chromium 桌面 1440 + 移动 390，42 条断言）。
+- 迁移：两侧 `48 migrations found in prisma/migrations` / `No pending migrations to apply.`（无 schema 变更）；运行时守护 `prisma delegates OK: lanqiStoreGoal,lanqiMomentDraft,lanqiMomentUpgrade,lanqiMomentAsset,lanqiStoreProfile`。
+- 备份与日志：生产备份 `/opt/baolu-backups/20260911-lq21-brand-launch-prod1-before-baolu-os-v2/`，部署日志 `/tmp/deploy-run-20260911-lq21-brand-launch-prod1.log`；测试备份 `/opt/baolu-backups/20260911-lq21-brand-launch-test1-before-baolu-os-v2-test/`，日志同名 `-test1-`。**回滚**＝把对应备份目录还原回 `$APP` 并 `systemctl restart`（或仅把 `LANQI_MOMENTS_ONLY_LAUNCH` 改回 `false` 后重发一个包）。
+- 发布后复验（2026-09-11，外网 + 服务器只读；未改数据）：
+  - **产物一致性（生产）**：`verify-deploy.sh` → **VERIFY_OK**（`systemd_active=active`、`health/ready=200`、`src_data_sha` 与 `dist_data_matches_src` 均 `2eec39bd…`、`index_base_path=/os-v2/`、`market/skus` 契约 `skus_total=19` / `coming_soon=15` / `lanqi_brain_present=True`）。
+  - **兰琪工作台页面（内测实例，真实 Chrome）**：`node scripts/lanqi-brand-nav-browser-e2e.mjs --base https://api.lcppch.top/lanqi-test` → **PASS (0 failed，42 条断言)**——品牌位真图 `naturalWidth=1920`、侧栏 8 项其中 7 项带「开发中」徽标、「私域营销」无徽标、默认落地 `/lanqi/moments`、9 个未上线路由逐个落在兰琪自己的「开发中」占位页、桌面/移动无横向溢出、`console=0 / page=0`；截图 `%TEMP%\lanqi-brand-nav-e2e\desktop-1440.png`、`mobile-390.png`。
+  - **生产产物级**：`curl https://api.lcppch.top/os-v2/lanqi-logo.jpg` → `200 image/jpeg 154399 B`；服务器 `apps/web/dist/lanqi-logo.jpg` sha256 `b9e64919…` 与源码资源一致；生产首页实际引用的 `assets/index-BxB8zc9L.js` → `assets/LanqiBrainShell-B8lFNuCX.js`（3168 B）内含 `lanqi-logo` / `开发中` / `/lanqi/moments`；生产 `/etc/baolu-secrets/baolu-os-v2.env` 无 `VITE_DIRECT_TEST_LOGIN`（免登录门关闭，渲染路径不变）。
+  - **登录入口渲染（生产）**：`pnpm.cmd auth:login-entry-production-check` → **PASS**（`root_to_home` / `legacy_market_redirect` / `login_page` / `open_registration_no_invite_code` / `mobile_login_button=301x46` / `legacy_paths` / `console_clean`）。
+  - **运行面**：`systemctl is-active baolu-os-v2 baolu-os-v2-test` 均 `active`，`NRestarts=0`，`health` 两侧 `200`。
+  - **门禁**：`pnpm.cmd qa:fast` **PASS**；相邻回归 `lanqi:moments-ui-contract-smoke` **19/0**、`lanqi:acquire-ui-contract-smoke` **45/0**、`lanqi:test-splash-contract-smoke` **14/0**。
+- **尚未验收（需用户本人执行）**：生产实例上「真人微信扫码登录后进入兰琪工作台」的目视确认——生产走真人扫码，无法无人值守进入工作台，故生产侧证据只到「产物 + 首页渲染」层；真页面证据取自内测实例（与生产同一份产物，`VITE_DIRECT_TEST_LOGIN=true`）。另：用户此前提出的「爆款复刻接真实检索」「文案转片出片（`VIDEO_RENDERING_READY=false`）」「真人微信扫码给我链接」与 `git push` 重试，属另行跟进项，不在本包范围。
 
 ## 最新发布：20260911-lq19-test-splash-fix-test2（2026-09-11，测试实例；生产由同期另一条工作线全量包带上）— 兰琪内测实例「正在进入体验工作区」中间页消除
 

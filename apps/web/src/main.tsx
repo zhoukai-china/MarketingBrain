@@ -84,6 +84,17 @@ const LanqiCustomersPage = lazy(() => import("./pages/LanqiPlaceholderPage.js").
 const LanqiAnalysisPage = lazy(() => import("./pages/LanqiPlaceholderPage.js").then(module => ({ default: module.LanqiAnalysisPage })));
 const LanqiSalesSimPage = lazy(() => import("./pages/LanqiPlaceholderPage.js").then(module => ({ default: module.LanqiSalesSimPage })));
 const LanqiStoreAdminPage = lazy(() => import("./pages/LanqiPlaceholderPage.js").then(module => ({ default: module.LanqiStoreAdminPage })));
+const LanqiDashboardInDevelopmentPage = lazy(() => import("./pages/LanqiPlaceholderPage.js").then(module => ({ default: module.LanqiDashboardInDevelopmentPage })));
+const LanqiAcquireInDevelopmentPage = lazy(() => import("./pages/LanqiPlaceholderPage.js").then(module => ({ default: module.LanqiAcquireInDevelopmentPage })));
+
+/*
+ * 兰琪上线口径开关（用户 2026-09-11 要求）：
+ * 「目前私域营销可以正常上线，其他板块显示开发中即可」。
+ * true = 只有 /lanqi/moments* 是已上线功能，经营驾驶舱、公域获客等未验收板块
+ * 一律由「开发中」占位页接管（真实页面组件与路由分支保留在仓库，未被删除）。
+ * 后续某个板块验收通过，只需把它单独放行或整体改回 false。
+ */
+export const LANQI_MOMENTS_ONLY_LAUNCH = true;
 const BeautyIndustryAcquisitionPage = lazy(() => import("./pages/BeautyIndustryAcquisitionPage.js").then(module => ({ default: module.BeautyIndustryAcquisitionPage })));
 const BeautyIndustryWorkBuddyPage = lazy(() => import("./pages/BeautyIndustryWorkBuddyPage.js").then(module => ({ default: module.BeautyIndustryWorkBuddyPage })));
 const IndustryWorkbenchPrototypePage = lazy(() => import("./pages/IndustryWorkbenchPrototypePage.js").then(module => ({ default: module.IndustryWorkbenchPrototypePage })));
@@ -300,7 +311,7 @@ function DirectTestLoginGate({ children }: { children: ReactNode }) {
     if (!DIRECT_TEST_LOGIN_ENABLED || state !== "ready") return;
     const path = getAppRoutePath(window.location.pathname);
     const isEntry = path === "/" || path === "" || path.startsWith("/login");
-    if (isEntry) window.location.replace(getAppPath("/lanqi/dashboard"));
+    if (isEntry) window.location.replace(getAppPath("/lanqi/moments"));
   }, [state]);
 
   if (state === "ready") return <>{children}</>;
@@ -476,11 +487,11 @@ function Root() {
     return <LanqiLocalAccessPage />;
   }
 
-  // 兰琪工作台入口：`/lanqi` 与 `/lanqi/`（demo 的 home.html 对应地址）直达 0909
-  // 经营驾驶舱（不是八板块卡片墙，也不再落进旧的「美业智能体」单品页
+  // 兰琪工作台入口：`/lanqi` 与 `/lanqi/` 直达当前唯一已上线的「私域营销」
+  // （不是八板块卡片墙，也不再落进旧的「美业智能体」单品页
   // `/agents/beauty-industry`）。八板块总览仍在 `/lanqi/brain`。
   if (path === "/lanqi" || path === "/lanqi/") {
-    window.location.replace(getAppPath("/lanqi/dashboard"));
+    window.location.replace(getAppPath("/lanqi/moments"));
     return null;
   }
 
@@ -524,6 +535,14 @@ function Root() {
   if (path.startsWith("/lanqi/moments")) {
     return <LanqiMomentsHomePage />;
   }
+  /*
+   * 公域获客（LQ-19 及子页）尚未验收上线，本轮口径是「开发中」。
+   * 放在 acquire 各子路由最前面，确保 /lanqi/acquire* 全部落在占位页，
+   * 不让用户点进未验收的功能；真实组件与下方分支保留，验收通过后放开开关即可。
+   */
+  if (path.startsWith("/lanqi/acquire")) {
+    if (LANQI_MOMENTS_ONLY_LAUNCH) return <LanqiAcquireInDevelopmentPage />;
+  }
   if (path.startsWith("/lanqi/acquire/copywriter")) {
     return <LanqiAcquireCopywriterPage />;
   }
@@ -545,10 +564,10 @@ function Root() {
    * 必须放在全局兜底 `AgentHomePage` 之前，否则会掉进外卖增长智能体的首页（报告 Bug2）。
    */
   if (path === "/lanqi/dashboard" || path === "/lanqi/dashboard/") {
-    return <LanqiDashboardPage />;
+    return LANQI_MOMENTS_ONLY_LAUNCH ? <LanqiDashboardInDevelopmentPage /> : <LanqiDashboardPage />;
   }
   if (path.startsWith("/lanqi/goal-setting")) {
-    return <LanqiGoalSettingPage />;
+    return LANQI_MOMENTS_ONLY_LAUNCH ? <LanqiDashboardInDevelopmentPage /> : <LanqiGoalSettingPage />;
   }
 
   /*
@@ -713,7 +732,7 @@ function AppFlow() {
       ["localhost", "127.0.0.1"].includes(window.location.hostname);
     const brainEntry =
       (isLocalDev || import.meta.env.VITE_DIRECT_TEST_LOGIN === "true") && (loginEntry === "beauty-industry" || loginEntry === "lanqi")
-        ? "/lanqi/dashboard"
+        ? "/lanqi/moments"
         : productDefaultPath;
     window.location.href = getAppPath(brainEntry);
   }
