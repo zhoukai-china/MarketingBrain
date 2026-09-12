@@ -12,6 +12,7 @@
   - 红灯（契约层）：`node scripts/lanqi-moments-ui-contract-smoke.mjs` → **FAIL 23 passed / 3 failed**（新增的「分支作用域」断言抓出 needsInput 分支缺按钮与进行态文案）。
   - 红灯（真实浏览器，内测实例）：`node scripts/lanqi-moments-retest.mjs --base https://api.lcppch.top/lanqi-test` → **9 passed / 1 failed**：`needsPanelShown=true` 而 `needsRegen={"found":false}`，即「面板会渲染、里面确实没按钮」。
   - 绿灯（上内测实例后同命令）：**11 passed / 0 failed**，含 `needsRegen={"found":true,"disabled":false,"text":"🔄 重新生成"}`、`needsCopyShown=false`、`点「重新生成」真的又发起了一次升级请求 :: upgradePosts 2 -> 3`、`console=0 page=0`；契约 smoke → **26 passed / 0 failed**；`pnpm.cmd qa:fast` → `QAFAST_EXIT=0`。
+  - 绿灯（补覆盖报告点名的第三个入口·微信群话术页）：同脚本新增群话术页断言后 → **14 passed / 0 failed**（`群话术：素材不够具体时也进入「信息还不够」面板并给出「重新生成」`、`copyShown=false`、`console=0 page=0`）；该页 needsInput 同为规则判定，仍不调用模型。
   - 线上产物核对（两侧、只取 index.html 当前引用的 chunk）：生产 `LanqiMomentsPage-5xwsyia7.js` / `LanqiMomentsWechatGroupPage-D-XnfouP.js`、内测 `LanqiMomentsPage-DQOUUrpU.js` / `LanqiMomentsWechatGroupPage-Cy8fRwom.js`，均含 needs 分支新标记。
 - 发布（2026-09-12）：包 `release-20260912-lq24-moments-needs-regen-full.tar.gz`（**9353793 B**，sha256 `671423ad9029ca4962d508b993f6a651783de1679722af924083565609cf372a`，1462 文件，服务器实测一致）。测试实例 `20260912-lq24-needs-regen-test1` + 生产 `20260912-lq24-needs-regen-prod1`，两侧 `DEPLOY_OK`（`health=200 (after 15s)` / `ready=200`，48 迁移无待应用）+ `VERIFY_OK`。备份 `/opt/baolu-backups/20260912-lq24-needs-regen-{test1,prod1}-before-*`。
 - 刻意不做：报告建议里的「多版本切换」标注为可选，且涉及额外模型调用与计价口径，留待单独决策；P3「其他板块显示开发中」按用户口径保留（不是缺陷）。

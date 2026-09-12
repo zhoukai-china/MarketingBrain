@@ -437,6 +437,69 @@ async function main() {
       }
     }
 
+    // ③ 微信群话术页：报告点名的第三个入口，与朋友圈页同一口径。
+    //    该页 needsInput 同样是规则判定（`isInputRich(`${topic} ${detail}`)`），不调用模型。
+    await root.send("Page.navigate", { url: `${base}/lanqi/moments/wechat-group` }, sessionId);
+    const groupDeadline = Date.now() + 25000;
+    let groupReady = false;
+    while (Date.now() < groupDeadline) {
+      const groupText = await evaluate(root, sessionId, "document.body?.innerText ?? ''");
+      if (groupText.includes("生成群话术")) {
+        groupReady = true;
+        break;
+      }
+      await sleep(500);
+    }
+    const groupFill = await evaluate(
+      root,
+      sessionId,
+      `(() => {
+        const ta = document.querySelector('[data-lanqi-wechat-field="detail"] textarea');
+        if (!ta) return "not-found";
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+        setter.call(ta, ${JSON.stringify("来了个客人，聊了几句就走了，也没有说别的")});
+        ta.dispatchEvent(new Event("input", { bubbles: true }));
+        return "filled";
+      })()`,
+    );
+    await sleep(400);
+    await clickByText(root, sessionId, "生成群话术");
+    const groupNeedsDeadline = Date.now() + 20000;
+    let groupNeeds = null;
+    while (Date.now() < groupNeedsDeadline) {
+      groupNeeds = await evaluate(
+        root,
+        sessionId,
+        `(() => {
+          const panel = document.querySelector(".lq-moments__needs");
+          if (!panel) return null;
+          const regen = panel.querySelector("[data-lanqi-wechat-regen]");
+          return {
+            shown: true,
+            regen: regen ? { found: true, disabled: regen.disabled, text: (regen.innerText || "").trim() } : { found: false },
+            copyShown: Boolean(panel.querySelector("[data-lanqi-wechat-copy]"))
+          };
+        })()`,
+      );
+      if (groupNeeds?.shown) break;
+      await sleep(500);
+    }
+    push(
+      "群话术页可达并渲染「生成群话术」",
+      groupReady,
+      `ready=${groupReady}`,
+    );
+    push(
+      "群话术：素材不够具体时也进入「信息还不够」面板并给出「重新生成」",
+      groupFill === "filled" && Boolean(groupNeeds?.regen?.found),
+      `fill=${groupFill} needs=${JSON.stringify(groupNeeds)}`,
+    );
+    push(
+      "群话术：信息不够面板同样不放「复制文案」",
+      groupNeeds !== null && groupNeeds.copyShown === false,
+      `copyShown=${groupNeeds?.copyShown}`,
+    );
+
     push(
       "页面 console / page 无错误",
       consoleErrors.length === 0 && pageErrors.length === 0,
