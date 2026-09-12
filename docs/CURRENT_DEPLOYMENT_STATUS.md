@@ -34,6 +34,25 @@
 
 **下一批（PLAT-23，未开工）**：积分 ↔ 人民币 ↔ 成本换算常量口径统一。现状是三条线互不一致——对客售价线 1 积分 = ¥0.05（`CREDIT_PRICING`）、内部成本线 1 积分 = ¥0.01 且「20 倍」（`MARKETPLACE_CREDIT_MARKUP`）实际生效为 `credits = ceil(成本 × 2000)`（等于成本 → 营收 **100 倍**，与注释的 20 倍不符），另有美业图片 `¥0.2/张` 与兰琪视频「成本 ×10」等不同倍数、以及 DeepSeek 两套单价表（¥3/¥6 与 ¥3.48/¥6.96）。**该批需用户先选定口径（A 只让常量说真话 / B 让 20 倍名副其实但内部估算数字变化 / C 只加注释与契约），未获批准前不改任何对客价格与扣费。**
 
+## 最新发布：20260912-lq24-needs-regen-test1 / -prod1（2026-09-12，测试实例 + 生产）— 兰琪私域营销「素材信息不够」分支补齐重新生成
+
+用户交来 WorkBuddy《兰琪私域营销页回归复测报告（第3轮）》并指示「参考修复」。**先复核报告**：报告标为待处理的两条 P2（结果面板缺「复制 / 重新生成」、顶栏「多端实时同步」点击无反馈）**在 2026-09-11 已修并已上线**——本轮真实浏览器实测 `tools.labels=["📋 复制文案","🔄 重新生成"]`、`syncToast="已同步 · 10:26（同一账号在手机和电脑看到的是同一份数据）"`，属**旧构建时效差异**；报告澄清的「422 是正确空值校验」与既有结论一致。**但顺报告反查出一条真实残留**：素材被判「还不够具体」（`result.needsInput`，规则层 `isInputRich`）时，结果面板是另一套 JSX，**只有一句提示、没有任何按钮**——这才是「结果卡片没有按钮」的真实现场。任务卡 `docs/agents/lanqi-beauty/tasks/LQ-24-私域营销信息不足分支补齐重新生成.md`，缺陷与红/绿证见 `docs/BUG_REGRESSIONS.md` **QA-20260912-012**。
+
+最小修复（纯前端，两页各 +6 行）：`apps/web/src/pages/LanqiMomentsPage.tsx` 与 `LanqiMomentsWechatGroupPage.tsx` 的 needsInput 分支补「🔄 重新生成」（`data-lanqi-moments-regen` / `data-lanqi-wechat-regen`，含「重新生成中…」进行态）；**刻意不放**「复制文案」（该分支没有正文，避免让老板复制到一句提示）。验收脚本同步补分支作用域的断言：`scripts/lanqi-moments-ui-contract-smoke.mjs`（新增 `branchOf()`，只在 needs 分支内断言，避免被 else 分支的按钮蒙混）与 `scripts/lanqi-moments-retest.mjs`（用 20 字「不具体」素材触发规则判定，**不调用模型、不花钱**地复现 needsInput）。
+
+**先红后绿**：契约 smoke `23 passed / 3 failed` → **26 passed / 0 failed**；真实浏览器（内测实例）`9 passed / 1 failed`（`needsPanelShown=true` 而 `needsRegen={"found":false}`）→ **11 passed / 0 failed**（含 `点「重新生成」真的又发起了一次升级请求 :: upgradePosts 2 -> 3`、`console=0 page=0`）；`pnpm.cmd qa:fast` → `QAFAST_EXIT=0`。
+
+发布包 `release-20260912-lq24-moments-needs-regen-full.tar.gz`（**9353793 B**，sha256 `671423ad9029ca4962d508b993f6a651783de1679722af924083565609cf372a`，1462 文件，服务器 `sha256sum` 与本地逐字一致）。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 测试 | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | https://api.lcppch.top/lanqi-test/ | `20260912-lq24-needs-regen-test1` | `DEPLOY_OK`（`health=200 (after 15s)` / `ready=200`，48 迁移无待应用）+ `VERIFY_OK` + 浏览器 **11/0** |
+| 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | https://api.lcppch.top/os-v2/ | `20260912-lq24-needs-regen-prod1` | `DEPLOY_OK`（同上）+ `VERIFY_OK`（`skus_total=19` / `coming_soon=13` / 两个 `vidrev` = `selling`）+ 线上 chunk 实测含新标记 |
+
+线上产物核对（只取 index.html 当前引用的 chunk，两侧）：生产 `LanqiMomentsPage-5xwsyia7.js` / `LanqiMomentsWechatGroupPage-D-XnfouP.js`、内测 `LanqiMomentsPage-DQOUUrpU.js` / `LanqiMomentsWechatGroupPage-Cy8fRwom.js`，均含 needs 分支标记。备份 `/opt/baolu-backups/20260912-lq24-needs-regen-{test1,prod1}-before-*`；回滚 = 还原备份目录 + `systemctl restart`（无接口 / 无迁移 / 无数据变更）。
+
+**打包方式的一处工程说明**：工作区当时存在**另一条并行工作线未提交的在途改动**（`marketplace-cost.ts` 等）。为避免把他的半成品打进发布包，本次不在工作区直接打包，而是 `git worktree add --detach <temp> HEAD` 检出干净树后按 `scripts/tmp/filelist-lq24-prod.txt`（1462 文件）打包——发布包只含已提交内容，不含任何未提交改动。
+
 ## 最新发布：20260912-plat21-cost-leak-prod1（2026-09-12，生产）— 客户侧响应不再返回内部算力成本
 
 用户 2026-09-12 指出「**我们把成本直接暴露给客户了**」：`/marketplace/run` 的成功响应里带了 `modelCostCny`（本次真实算力成本，人民币），客户打开 DevTools 就能看到我们每次赚多少，违反「不向普通用户暴露供应商、密钥或内部成本」，要求「抓紧摘掉，内部审计继续走账本 `metadata` 就够了」。任务卡见 `docs/agents/platform-tasks.md` **PLAT-21**，缺陷与红/绿证见 `docs/BUG_REGRESSIONS.md` **QA-20260912-010**。

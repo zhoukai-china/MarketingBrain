@@ -1,5 +1,22 @@
 # Bug 回归台账
 
+## QA-20260912-012：「素材信息不够」时结果面板只剩一句提示、没有任何下一步出口（P2，已修 + 已上测试实例与生产）
+
+- 触发：用户交来 WorkBuddy《兰琪私域营销页回归复测报告（第3轮）》（2026-09-12，`stage3/兰琪私域营销页回归复测报告-第3轮.docx`），报告把「结果面板缺少复制 / 重新生成按钮」「顶部多端实时同步点击无反馈」列为待处理 P2。
+- **先复核报告本身**：那两条 P2 在 2026-09-11 已修并已上线——本轮实测内测实例真实浏览器 `tools.labels=["📋 复制文案","🔄 重新生成"]`、`syncToast="已同步 · 10:26（同一账号在手机和电脑看到的是同一份数据）"`，且线上 index.html 真正引用的 chunk 里两个标记都在。报告的这两条属**旧构建时效差异**（与第 2 轮两条 P1 同一性质）。
+- 但顺着报告现象反查，查出**一条真实残留**：当 `result.needsInput` 为真（规则层判定素材不够具体）时，结果面板走的是另一套 JSX，**只渲染一句提示、没有任何操作按钮**——「结果卡片没有按钮」在这个分支上确实成立，老板被判定素材不够后没有任何下一步出口。
+- 根因：结果面板在 `LanqiMomentsPage.tsx` / `LanqiMomentsWechatGroupPage.tsx` 各写两条分支（有正文 / needsInput），2026-09-11 补按钮时只补了「有正文」那条，另一条漏网。**连带影响**：WorkBuddy 的 DOM 扫描把整页记成「结果面板无按钮」，与真实交互能力不符。
+- 独立复现（**不花钱、不依赖模型**）：规则层先卡「至少 15 字」再用 `isInputRich(raw)` 判是否够具体；用 20 字、无数字 / 无具体项目 / 无「时间+价格」的句子即可稳定落进 needsInput。服务端实测 `POST /lanqi/moments/upgrade` → `needsInput=True`（响应 keys 含 `needsInput`）。
+- 最小修复（纯前端，两页各 +6 行）：needsInput 分支补 `🔄 重新生成`（`data-lanqi-moments-regen` / `data-lanqi-wechat-regen`，含「重新生成中…」进行态）；**刻意不放**「复制文案」——该分支没有正文，放上去只会让老板复制到一句提示。
+- 回归（先红后绿，两层都留证）：
+  - 红灯（契约层）：`node scripts/lanqi-moments-ui-contract-smoke.mjs` → **FAIL 23 passed / 3 failed**（新增的「分支作用域」断言抓出 needsInput 分支缺按钮与进行态文案）。
+  - 红灯（真实浏览器，内测实例）：`node scripts/lanqi-moments-retest.mjs --base https://api.lcppch.top/lanqi-test` → **9 passed / 1 failed**：`needsPanelShown=true` 而 `needsRegen={"found":false}`，即「面板会渲染、里面确实没按钮」。
+  - 绿灯（上内测实例后同命令）：**11 passed / 0 failed**，含 `needsRegen={"found":true,"disabled":false,"text":"🔄 重新生成"}`、`needsCopyShown=false`、`点「重新生成」真的又发起了一次升级请求 :: upgradePosts 2 -> 3`、`console=0 page=0`；契约 smoke → **26 passed / 0 failed**；`pnpm.cmd qa:fast` → `QAFAST_EXIT=0`。
+  - 线上产物核对（两侧、只取 index.html 当前引用的 chunk）：生产 `LanqiMomentsPage-5xwsyia7.js` / `LanqiMomentsWechatGroupPage-D-XnfouP.js`、内测 `LanqiMomentsPage-DQOUUrpU.js` / `LanqiMomentsWechatGroupPage-Cy8fRwom.js`，均含 needs 分支新标记。
+- 发布（2026-09-12）：包 `release-20260912-lq24-moments-needs-regen-full.tar.gz`（**9353793 B**，sha256 `671423ad9029ca4962d508b993f6a651783de1679722af924083565609cf372a`，1462 文件，服务器实测一致）。测试实例 `20260912-lq24-needs-regen-test1` + 生产 `20260912-lq24-needs-regen-prod1`，两侧 `DEPLOY_OK`（`health=200 (after 15s)` / `ready=200`，48 迁移无待应用）+ `VERIFY_OK`。备份 `/opt/baolu-backups/20260912-lq24-needs-regen-{test1,prod1}-before-*`。
+- 刻意不做：报告建议里的「多版本切换」标注为可选，且涉及额外模型调用与计价口径，留待单独决策；P3「其他板块显示开发中」按用户口径保留（不是缺陷）。
+- 回滚：还原 `/opt/baolu-backups/<本轮发布 id>-before-<app>/` 并 `systemctl restart`；或只回滚这两个页面文件重发包（无接口 / 无迁移 / 无数据变更）。
+
 ## QA-20260912-011：视频复盘 chat 页匿名用户白填 4 步才撞 401，且提示用户点一个页面上不存在的登录按钮（P1，已修 + 已回归 + 已上测试实例与生产）
 
 - 触发：用户 2026-09-12 提供 WorkBuddy 报告 `C:\Users\book\WorkBuddy\2026-09-12-07-24-26\OSv2_视频复盘_agent_QA报告.md`（07:24 快照，匿名视角）。报告列了三条 P1：chat 页没有登录入口、文案误导、登录检查放在流程末端。
