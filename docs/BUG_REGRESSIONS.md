@@ -15,6 +15,7 @@
   - 生产真实浏览器（**不需要真人扫码、不消耗邀请码**）：headless Chrome 打开 `https://api.lcppch.top/os-v2/login/lanqi?invite=<兰琪产品邀请码>`，页面实测文案 `邀请码已验证 / 门店名称* / 行业 / 所在城市 / 邀请码有效，请完成工作区资料。/ 开通并进入兰琪美业`——即带码打开会自动核验并直接进入门店资料表单。截图 `scripts/tmp/lq25-prefill-prod.png`。
 - 发布（2026-09-12）：包 `release-20260912-lq25-invite-keep-full.tar.gz`（**9359687 B**，sha256 `fae6538168b5e405bc842b8ed6c9a2a06e7d1cb05aca6a42a22fdb5778a3cbed`，1462 文件，服务器实测一致）。测试实例 `20260912-lq25-invite-keep-test1` + 生产 `20260912-lq25-invite-keep-prod1`，两侧 `DEPLOY_OK`（`health=200 (after 15s)` / `ready=200`，48 迁移无待应用）+ `VERIFY_OK`。
 - 已知边界（未修，留作下一步）：① `needsTenant` 的 onboarding token 存在 localStorage，换浏览器/清缓存后重新扫码会再走一次「补资料」，但此时邀请码会被本修复带回并自动核验，不再需要手填；② 同一微信号若**已开通别的产品**，产品入口按设计返回 `403 product_membership_required`（需要单独用邀请码开通兰琪）——是否允许「一个微信号开多个产品」属产品决策，本轮不动。
+- **真人端到端复验（2026-09-12，老板本人，生产）**：用户按修复后的「带邀请码的兰琪入口链接」成功开通并进入，回复「能进入，私域营销页正常可用」。后台佐证：新租户 `cmtxwo0ib057y1161bdr27l84`（`createdAt 2026-09-12 12:49 +08`，owner `Membership` 1 条、`lanqi` 授权 `active`、默认门店 1 个），兰琪邀请码 `la****p7` 由 `usedCount 0 → 1`。**这条 P1 由真人闭环，可关闭。** 残留：该新账号未绑定微信，换设备需重走同一链接；如需扫码直达，需把老板微信号绑为该租户 owner（一次性、可回滚，待用户确认）。
 - 回滚：还原 `/opt/baolu-backups/20260912-lq25-invite-keep-{test1,prod1}-before-*/` + `systemctl restart`；或只回滚这两个前端文件重发包（无接口 / 无迁移 / 无数据变更）。
 
 ## QA-20260912-012：「素材信息不够」时结果面板只剩一句提示、没有任何下一步出口（P2，已修 + 已上测试实例与生产）
