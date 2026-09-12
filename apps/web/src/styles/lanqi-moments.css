@@ -505,6 +505,23 @@
 .lq-vd__offline p { margin: 0 auto; max-width: 420px; font-size: 12.5px; color: #6B5B50; line-height: 1.75; }
 .lq-vd__offline .lq-vd__hint { margin-top: 10px; }
 
+/* 爆款检索结果：条目按真实平台 / 类型标注，点开原页面或选中复刻（LQ-25） */
+.lq-vd__hits { margin-top: 14px; }
+.lq-vd__hit-list { display: grid; gap: 10px; margin: 10px 0 0; padding: 0; list-style: none; }
+.lq-vd__hit { padding: 11px 13px; border: 1px solid #E8E2DB; border-radius: 12px; background: #fff; }
+.lq-vd__hit-top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.lq-vd__hit-badge { padding: 2px 8px; border-radius: 999px; background: rgba(243,112,33,.12); color: #D45A12; font-size: 11.5px; font-weight: 800; }
+.lq-vd__hit-kind { padding: 2px 8px; border-radius: 999px; background: #F3F0EC; color: #6B5B50; font-size: 11.5px; font-weight: 700; }
+.lq-vd__hit-site { min-width: 0; overflow: hidden; color: #9A8B7D; font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
+.lq-vd__hit-title { margin: 7px 0 0; color: #2D1A10; font-size: 13.5px; font-weight: 700; line-height: 1.5; }
+.lq-vd__hit-snippet { margin: 4px 0 0; color: #6B5B50; font-size: 12px; line-height: 1.6; }
+.lq-vd__hit-actions { display: flex; gap: 14px; align-items: center; margin-top: 9px; }
+.lq-vd__hit-actions a, .lq-vd__hit-link { color: #D45A12; font-size: 12.5px; font-weight: 700; text-decoration: none; }
+.lq-vd__hit-actions a:hover, .lq-vd__hit-link:hover { text-decoration: underline; }
+.lq-vd__hit-actions button { padding: 5px 12px; border: none; border-radius: 999px; background: #F37021; color: #fff; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.lq-vd__chosen { margin-top: 10px; padding: 12px 14px; border: 1.5px solid rgba(243,112,33,.35); border-radius: 12px; background: #FFF9F4; }
+.lq-vd__chosen .lq-vd__hit-link { display: inline-block; margin-top: 8px; }
+
 .lq-vd__placeholder { display: grid; place-items: center; min-height: 220px; padding: 26px; border: 1.5px dashed #E8E2DB; border-radius: 12px; background: #FAF8F5; color: #9A8B7D; font-size: 13.5px; line-height: 1.75; text-align: center; }
 
 .lq-vd__card { margin-top: 12px; padding: 12px 15px; border: 1px solid #E8E2DB; border-radius: 12px; background: #fff; }

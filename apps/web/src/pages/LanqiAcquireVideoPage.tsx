@@ -8,7 +8,7 @@
 //   · 一期单店：不出门店切换器、不出门店下拉。
 //   · 真实视频出片能力尚未开通：需要出片的按钮一律 fail closed 明确提示，绝不假装成功。
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
 import { LanqiBrainShell } from "../components/lanqi-brain/LanqiBrainShell.js";
 
@@ -121,9 +121,12 @@ const SCRIPT_DEMO =
  */
 const VIDEO_RENDERING_READY = false;
 const RENDERING_OFFLINE_MSG = "视频生成服务暂未开通，这条成片现在还出不来。你的文案 / 素材 / 设置已经留在页面上，服务开通后直接点生成即可。";
-/** 真实爆款检索开关：未接通时绝不编造搜索结果与链接。 */
-const REPLICATE_SEARCH_READY = false;
-const REPLICATE_OFFLINE_MSG = "暂未接通真实爆款检索，所以这里不给结果 —— 不编造视频链接和播放量。已保留关键词与筛选条件，检索接通后直接点搜索即可。";
+/**
+ * 爆款检索（LQ-25）：检索源 = 抖音 + 视频号两个平台，走 `POST /lanqi/acquire/video/viral-search`。
+ * 结果只来自公开网页检索的真实页面；检索服务没开通 / 没有有效条目 / 上游失败时，
+ * 页面照实说明，绝不编造「爆款」条目、链接或播放量。
+ */
+const REPLICATE_SEARCH_FAILED_MSG = "检索服务这次没有返回结果，请稍后重试。没有结果就是没有结果，不会给你编造的条目。";
 
 const PORTRAIT_SCRIPT = "上传的人物照片为本人或已取得本人授权，同意用于 AI 生成视频并用于门店宣传。";
 const PORTRAIT_ASSET = "我已获得照片中人物的肖像权授权，同意将其用于生成门店宣传 / 探店视频，并知悉生成内容含该人物肖像。达人探店场景需额外取得达人本人授权。";
@@ -342,7 +345,7 @@ export function LanqiAcquireVideoPage() {
           ))}
         </div>
 
-        {mode === "replicate" && <ReplicateMode />}
+        {mode === "replicate" && <ReplicateMode storeId={storeId} flash={flash} />}
         {mode === "assets" && <AssetsMode storeName={storeName} />}
         {mode === "clip" && <ClipMode storeName={storeName} flash={flash} />}
         {mode === "script" && <ScriptMode storeId={storeId} storeName={storeName} flash={flash} />}
@@ -355,28 +358,87 @@ export function LanqiAcquireVideoPage() {
 
 // ────────────────────────────── 模式 1：爆款复刻 ──────────────────────────────
 
-function ReplicateMode() {
+/** 一条检索到的平台条目：类型按真实页面标注，热度不带推算字段。 */
+interface ViralSearchItem {
+  id: string;
+  platform: string;
+  platformLabel: string;
+  kind: string;
+  kindLabel: string;
+  title: string;
+  url: string;
+  site: string;
+  snippet: string;
+}
+
+function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: string) => void }) {
   const [keyword, setKeyword] = useState("");
   const [platform, setPlatform] = useState("all");
   const [category, setCategory] = useState("skin");
-  const [stage, setStage] = useState<"input" | "blocked">("input");
+  const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [hits, setHits] = useState<ViralSearchItem[]>([]);
+  const [hitNote, setHitNote] = useState("");
+  const [disclosure, setDisclosure] = useState("");
+  const [picked, setPicked] = useState<ViralSearchItem | null>(null);
   const [replaceMode, setReplaceMode] = useState<"face" | "body">("face");
   const [photo, setPhoto] = useState<string | null>(null);
   const [product, setProduct] = useState<string | null>(null);
+  // 连续搜索时丢弃过期响应，避免慢请求把新结果覆盖掉。
+  const requestRef = useRef(0);
 
-  const canSearch = keyword.trim().length > 0;
+  const canSearch = keyword.trim().length > 0 && !searching;
   const photoNeeded = replaceMode === "face" ? "头部图片" : "全身画面";
+
+  const runSearch = useCallback(async () => {
+    const text = keyword.trim();
+    if (!text) return;
+    if (!storeId) {
+      flash("门店信息还在加载，请稍后再试一次。");
+      return;
+    }
+    const ticket = requestRef.current + 1;
+    requestRef.current = ticket;
+    setSearching(true);
+    setPicked(null);
+    try {
+      const response = await fetch(apiPath("/lanqi/acquire/video/viral-search"), {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ storeId, keyword: text, platform, category })
+      });
+      const body = await readResponse(response);
+      if (requestRef.current !== ticket) return;
+      const result = body?.result ?? {};
+      setHits(Array.isArray(result.items) ? (result.items as ViralSearchItem[]) : []);
+      setHitNote(typeof result.note === "string" ? result.note : "");
+      setDisclosure(typeof result.disclosure === "string" ? result.disclosure : "");
+      setSearched(true);
+    } catch (error) {
+      if (requestRef.current !== ticket) return;
+      setHits([]);
+      setDisclosure("");
+      setHitNote(error instanceof Error && error.message ? error.message : REPLICATE_SEARCH_FAILED_MSG);
+      setSearched(true);
+    } finally {
+      if (requestRef.current === ticket) setSearching(false);
+    }
+  }, [category, flash, keyword, platform, storeId]);
 
   return (
     <div className="lq-vd__main">
       <section className="lq-vd__left">
         <div className="lq-vd__stage">
-          {stage === "input" ? "步骤 1 / 3 · 告诉 AI 要找什么样的爆款" : "步骤 2 / 3 · 从结果里选一条复刻"}
+          {picked
+            ? "步骤 3 / 3 · 已选中一条爆款，补素材即可复刻"
+            : searched
+              ? "步骤 2 / 3 · 从真实结果里选一条复刻"
+              : "步骤 1 / 3 · 告诉 AI 要找什么样的爆款"}
         </div>
-        {stage === "input" ? (
+        {!picked ? (
           <>
             <h3 className="lq-vd__card-title">搜爆款关键词</h3>
-            <p className="lq-vd__card-sub">AI 会自动去抖音、视频号找同赛道高热度视频，挑可复刻的给你。</p>
+            <p className="lq-vd__card-sub">AI 去抖音、视频号检索同赛道内容，只给可点开的真实页面；热度以页面自身展示为准。</p>
             <div className="lq-vd__field">
               <label htmlFor="lq-vd-kw">关键词 <span className="req">*</span></label>
               <div className="lq-vd__kw">
@@ -424,23 +486,51 @@ function ReplicateMode() {
               className="lq-vd__btn primary block"
               type="button"
               disabled={!canSearch}
-              onClick={() => {
-                if (!REPLICATE_SEARCH_READY) {
-                  setStage("blocked");
-                  return;
-                }
-              }}
+              onClick={runSearch}
             >
-              🚀 AI 去抖音/视频号搜爆款
+              {searching ? "⏳ 正在去抖音 / 视频号检索…" : "🚀 AI 去抖音/视频号搜爆款"}
             </button>
+            {searched && (
+              <div className="lq-vd__hits" aria-label="爆款检索结果">
+                <h3 className="lq-vd__card-title">
+                  搜到的条目 <span className="tag opt">{hits.length} 条</span>
+                </h3>
+                {hits.length > 0 ? (
+                  <ul className="lq-vd__hit-list">
+                    {hits.map((hit) => (
+                      <li key={hit.id} className="lq-vd__hit">
+                        <div className="lq-vd__hit-top">
+                          <span className="lq-vd__hit-badge">{hit.platformLabel}</span>
+                          <span className="lq-vd__hit-kind">{hit.kindLabel}</span>
+                          <span className="lq-vd__hit-site">{hit.site}</span>
+                        </div>
+                        <p className="lq-vd__hit-title">{hit.title}</p>
+                        {hit.snippet && <p className="lq-vd__hit-snippet">{hit.snippet}</p>}
+                        <div className="lq-vd__hit-actions">
+                          <a href={hit.url} target="_blank" rel="noopener noreferrer">打开原页面 ↗</a>
+                          <button type="button" onClick={() => setPicked(hit)}>选它复刻</button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="lq-vd__hint">{hitNote || REPLICATE_SEARCH_FAILED_MSG}</p>
+                )}
+              </div>
+            )}
           </>
         ) : (
           <>
-            <h3 className="lq-vd__card-title">搜索条件</h3>
-            <div className="lq-vd__kv"><span className="k">关键词</span><span className="v">{keyword.trim() || "（未填）"}</span></div>
-            <div className="lq-vd__kv"><span className="k">平台</span><span className="v">{PLATFORMS.find((p) => p.k === platform)?.n}</span></div>
-            <div className="lq-vd__kv"><span className="k">领域</span><span className="v">{CATS.find((c) => c.k === category)?.n}</span></div>
-            <button className="lq-vd__btn ghost" type="button" onClick={() => setStage("input")}>↻ 换个关键词重新搜</button>
+            <h3 className="lq-vd__card-title">已选爆款 <span className="tag green">换脸 / 换人</span></h3>
+            <div className="lq-vd__chosen">
+              <div className="lq-vd__hit-top">
+                <span className="lq-vd__hit-badge">{picked.platformLabel}</span>
+                <span className="lq-vd__hit-kind">{picked.kindLabel}</span>
+                <span className="lq-vd__hit-site">{picked.site}</span>
+              </div>
+              <p className="lq-vd__hit-title">{picked.title}</p>
+              <a className="lq-vd__hit-link" href={picked.url} target="_blank" rel="noopener noreferrer">打开原页面 ↗</a>
+            </div>
 
             <div className="lq-vd__stage" style={{ marginTop: 18 }}>步骤 3 / 3 · 提供素材，替换主角与产品</div>
             <h3 className="lq-vd__card-title">替换主角 <span className="tag green">换脸 / 换人</span></h3>
@@ -483,15 +573,17 @@ function ReplicateMode() {
             >
               {photo ? "🎬 生成爆款复刻视频" : `⚠️ 请先提供${photoNeeded}再生成`}
             </button>
-            <button className="lq-vd__btn ghost" type="button" onClick={() => setStage("input")}>↻ 换照片重新生成</button>
+            <button className="lq-vd__btn ghost" type="button" onClick={() => { setPicked(null); setPhoto(null); }}>
+              ↻ 换一条爆款重来
+            </button>
           </>
         )}
       </section>
 
       <section className="lq-vd__right">
-        {stage === "input" ? (
+        {!searched ? (
           <div className="lq-vd__placeholder">
-            填好左侧关键词，点「搜爆款」<br />AI 会自动去抖音、视频号找同赛道高热度视频
+            填好左侧关键词，点「AI 去抖音/视频号搜爆款」<br />只给真实可点开的条目，检索不到就照实说
           </div>
         ) : (
           <>
@@ -499,19 +591,21 @@ function ReplicateMode() {
               爆款复刻 · 换脸 / 换人 <span className="lq-vd__badge">严格复刻</span>
             </div>
             <div className="lq-vd__warn">
-              搜索结果按关键词匹配的高热度视频，帮你快速找可复刻条目；版权与原创度请自行核对。
+              {disclosure || "结果按关键词匹配到的真实公开页面；版权与原创度请自行核对。"}
             </div>
-            <div className="lq-vd__offline">
-              <div className="ico">🔌</div>
-              <h3>暂未接通真实爆款检索</h3>
-              <p>{REPLICATE_OFFLINE_MSG}</p>
-              <p className="lq-vd__hint">
-                硬要求：不做假数据。宁可不给结果，也不给你一条点开是 404 的「爆款」。
-              </p>
-            </div>
+            {hits.length === 0 && (
+              <div className="lq-vd__offline">
+                <div className="ico">🔎</div>
+                <h3>这次没有可点开的条目</h3>
+                <p>{hitNote || REPLICATE_SEARCH_FAILED_MSG}</p>
+                <p className="lq-vd__hint">
+                  硬要求：不做假数据。宁可不给结果，也不给你一条点开是 404 的「爆款」。
+                </p>
+              </div>
+            )}
             <div className="lq-vd__card">
-              <div className="lq-vd__kv"><span className="k">来源</span><span className="v">待检索接通</span></div>
-              <div className="lq-vd__kv"><span className="k">原视频</span><span className="v">暂无</span></div>
+              <div className="lq-vd__kv"><span className="k">来源</span><span className="v">{picked ? `${picked.platformLabel} · ${picked.kindLabel}` : "从左侧结果里选一条"}</span></div>
+              <div className="lq-vd__kv"><span className="k">原视频</span><span className="v">{picked ? picked.title : "暂无"}</span></div>
               <div className="lq-vd__kv"><span className="k">替换模式</span><span className="v">{replaceMode === "face" ? "换脸（头部图片）" : "换人（全身画面）"}</span></div>
               <div className="lq-vd__kv"><span className="k">替换产品</span><span className="v">{product ? "已替换为上传产品" : "保留原产品"}</span></div>
               <div className="lq-vd__kv"><span className="k">生成方式</span><span className="v">AI 人像替换 · 平台内置能力，无需你自行配置</span></div>

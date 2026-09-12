@@ -506,23 +506,48 @@ async function main() {
       pass: vdTabs.every((name) => vdTabState.some((tab) => tab.text.includes(name))),
       detail: JSON.stringify(vdTabState),
     });
-    // 爆款复刻：填关键词后点搜爆款；无真实检索源时必须明确说明缺口，而不是编造条目。
+    // 爆款复刻（LQ-25，用户 2026-09-12 口径）：检索源 = 抖音 + 视频号，走真实检索接口。
+    // 判定标准：点了搜索必须真发请求；条目只能是平台域内可点开页面；上游没有有效条目时
+    // 必须出现「没有可点开的条目」的明确说明。两种结果都算通过，**编造条目才算失败**。
     const vdKw = await setFieldValue(root, vd, "input#lq-vd-kw", "皮肤管理门店获客");
     await sleep(400);
     const vdSearchCallsBefore = vd.requestTimeline.length;
     const vdSearchClick = await clickButton(root, vd, "AI 去抖音/视频号搜爆款");
-    await sleep(1200);
-    const vdSearchText = await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''");
+    let vdSearchText = "";
+    let vdHitLinks = [];
+    for (let attempt = 0; attempt < 32; attempt++) {
+      await sleep(1000);
+      const probe = await evaluate(
+        root,
+        vd.sessionId,
+        `(() => ({
+          text: document.body?.innerText ?? "",
+          links: [...document.querySelectorAll(".lq-vd__hit-list a")].map((node) => node.getAttribute("href") || "")
+        }))()`,
+      );
+      vdSearchText = probe?.text ?? "";
+      vdHitLinks = Array.isArray(probe?.links) ? probe.links : [];
+      if (vdHitLinks.length > 0 || vdSearchText.includes("没有可点开的条目")) break;
+    }
     const vdSearchCallsAfter = vd.requestTimeline.length;
+    const vdRequested = countRequests(vd, "/lanqi/acquire/video/viral-search") > 0;
+    const vdPlatformLinks = vdHitLinks.filter((href) =>
+      /^https:\/\/(?:www\.|mp\.|channels\.)?(?:douyin\.com|weixin\.qq\.com)\//.test(href) ||
+      /^https:\/\/www\.douyin\.com\/(?:video|note)\//.test(href),
+    );
+    const vdNoFabrication = vdHitLinks.length === vdPlatformLinks.length;
+    const vdHonestEmpty = vdHitLinks.length > 0 || vdSearchText.includes("没有可点开的条目");
     checks.push({
-      name: "video：爆款复刻无真实检索源 → 明确 fail closed，不编造爆款条目",
+      name: "video：爆款复刻走真实检索（抖音 / 视频号），无有效条目时明确说明、不编造",
       pass:
         vdKw === "filled" &&
         vdSearchClick === "clicked" &&
-        vdSearchText.includes("暂未接通真实爆款检索") &&
-        vdSearchText.includes("不编造视频链接和播放量") &&
-        vdSearchCallsAfter === vdSearchCallsBefore,
-      detail: `fill=${vdKw} click=${vdSearchClick} 含缺口说明=${vdSearchText.includes("暂未接通真实爆款检索")} 新增请求=${vdSearchCallsAfter - vdSearchCallsBefore}`,
+        vdSearchCallsAfter > vdSearchCallsBefore &&
+        vdRequested &&
+        vdNoFabrication &&
+        vdHonestEmpty &&
+        leakHit(vdSearchText) === null,
+      detail: `fill=${vdKw} click=${vdSearchClick} 新增请求=${vdSearchCallsAfter - vdSearchCallsBefore} 检索接口=${vdRequested} 条目=${vdHitLinks.length} 平台域内=${vdPlatformLinks.length} 无结果说明=${vdSearchText.includes("没有可点开的条目")}`,
     });
     const vdFailClosed = [];
     for (const tab of ["门店素材成片", "AI 剪辑"]) {

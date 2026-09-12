@@ -24,6 +24,7 @@ function read(relativePath) {
 
 const livePage = read("apps/web/src/pages/LanqiAcquireLivePage.tsx");
 const methodsPage = read("apps/web/src/pages/LanqiAcquireMethodsPage.tsx");
+const videoPage = read("apps/web/src/pages/LanqiAcquireVideoPage.tsx");
 const momentsCss = read("apps/web/src/styles/lanqi-moments.css");
 const advisorRulesSmoke = read("scripts/lanqi-advisor-rules-smoke.ts");
 const liveServiceSmoke = read("scripts/lanqi-live-service-smoke.ts");
@@ -130,6 +131,17 @@ requireMatch(
   /美肌研 · 创始人晓曼/,
   "guard：直播服务 smoke 仍用演示门店作输入夹具"
 );
+
+// ⑤ 爆款复刻检索源（LQ-25，用户 2026-09-12 口径：检索源 = 抖音 + 视频号，开闸跑）
+//    页面必须走真实检索接口；检索不到时照实说明，绝不回退成硬编码的假结果。
+requireMatch(videoPage, /\/lanqi\/acquire\/video\/viral-search/, "video：爆款复刻走真实检索接口");
+requireMatch(videoPage, /aria-label="爆款检索结果"/, "video：检索结果区有可访问名称");
+requireMatch(videoPage, /选它复刻/, "video：检索到的条目可选中进入复刻");
+requireMatch(videoPage, /打开原页面/, "video：条目提供原页面链接（可核对真伪）");
+requireMatch(videoPage, /不做假数据/, "video：无结果时仍写明「不做假数据」");
+forbidMatch(videoPage, /暂未接通真实爆款检索/, "video：不再硬编码「暂未接通真实爆款检索」");
+forbidMatch(videoPage, /REPLICATE_SEARCH_READY/, "video：不再靠前端开关假装 fail closed");
+forbidMatch(videoPage, /(百炼|通义|qwen|Qwen|DashScope|达摩院)/, "video：页面文案不出现厂商与模型名");
 
 console.log(`\nlanqi_acquire_ui_contract_smoke: ${failures === 0 ? "PASS" : "FAIL"} (${results.length - failures} passed / ${failures} failed)`);
 process.exit(failures === 0 ? 0 : 1);

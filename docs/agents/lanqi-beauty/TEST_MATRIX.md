@@ -25,6 +25,22 @@ pnpm.cmd qa:fast
 
 真实操作桌面与移动端主路径，并覆盖加载、空状态、错误、重试、重复点击、刷新、返回、权限不足和网络失败；检查控制台、关键请求和隐私信息展示。
 
+## LQ-25 爆款复刻真实检索源（抖音 + 视频号，2026-09-12）
+
+| 检查项 | 结果 | 证据 |
+|---|---|---|
+| 检索源与用户口径一致 | PASS | 用户拍板「检索源 = 抖音和视频号两个平台」「开闸跑」「暂时只在兰琪用」；页面平台筛选 = 抖音+视频号 / 抖音 / 视频号，路由只在 `server.ts` 兰琪作用域注册 |
+| 条目真实性（只给可点开页面） | PASS | `scripts/lanqi-viral-search-contract-smoke.ts` **55/0**：只认抖音 `/video`·`/note` 与微信生态站内页；账号主页 / 搜索页 / 开放平台文档 / 短链 / 第三方站点 / `http` 明文 / 带账号密码链接全部丢弃 |
+| 不编造热度与结论 | PASS | 条目结构没有播放量 / 点赞字段；服务只读 `output.search_info.search_results` 来源页清单，不使用模型生成的正文结论；冒烟断言「条目没有编造的字段」 |
+| 真实链路可用（非 mock） | PASS | 生产同一把凭据跑真实服务代码：关键词「皮肤管理门店获客」→ 抖音 3 条站内页、视频号侧 6 条微信生态页、全部平台 6 条合并（抖音在前），URL 全为 `www.douyin.com/{video|note}` 或 `mp.weixin.qq.com/s?...` |
+| 失败关闭（未配置 / 上游失败 / 无有效条目） | PASS | 未配置 → `viral_search_unavailable`(503)；两平台都失败 → `viral_search_upstream_failed`(502)；上游只回第三方站点 → 空数组 + 「没有检索到可点开的抖音 / 视频号公开页面」；空关键词 → 400 |
+| 平台筛选真实生效 | PASS | 冒烟断言「只搜抖音时只发抖音查询」「全部平台时两个平台各发一条查询」；条目侧按平台过滤不串台 |
+| 租户与 RBAC | PASS | 路由复用公域获客同一套「每次请求重算 Membership + `assertStoreVisible`」；单店角色检索不到别的门店；参数非法 400、未开通 503 |
+| 只在兰琪可用（结构约束） | PASS | 冒烟断言「检索路由挂在兰琪作用域」「没有注册到美业单品作用域」；`viral-video-replication` 老链路未改动 |
+| 计费边界 | PASS | 一期不做积分：路由不扣费、不写流水、不落库（冒烟反向断言 `creditCost|billing|wallet|creditLedger|$transaction`） |
+| 页面契约 | PASS | `pnpm.cmd lanqi:acquire-ui-contract-smoke` **53/0**（新增 7 条：真实接口 / 结果区可访问名 / 选它复刻 / 打开原页面 / 不做假数据 / 不再硬编码 fail-closed / 页面无厂商与模型名） |
+| 类型检查与结构门禁 | PASS | `apps/api`、`apps/web` typecheck `EXIT=0`；`qa:fast` 含 `lanqi:viral-search-smoke` |
+
 ## LQ-17 美业经营问答独立网页
 
 | 检查项 | 结果 | 证据 |

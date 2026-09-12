@@ -34,6 +34,13 @@ const envSchema = z.object({
   ALIYUN_BASE_URL: urlWithDefault("https://dashscope.aliyuncs.com/compatible-mode/v1"),
   ALIYUN_MODEL: z.string().trim().min(1).default("qwen-max"),
   ALIYUN_VIDEO_MODEL: z.string().trim().min(1).default("qwen-vl-max"),
+  // 兰琪「爆款复刻 · 爆款检索源」（LQ-25）：检索源 = 抖音 + 视频号两个平台。
+  // 默认 disabled = 一个外发检索请求都不发；只有显式配置才开闸（开闸即真实检索，不做假数据）。
+  LANQI_VIRAL_SEARCH_DRIVER: z.enum(["disabled", "aliyun_web_search"]).default("disabled"),
+  LANQI_VIRAL_SEARCH_MODEL: z.string().trim().min(1).default("qwen-plus"),
+  LANQI_VIRAL_SEARCH_STRATEGY: z.enum(["standard", "pro"]).default("pro"),
+  LANQI_VIRAL_SEARCH_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(60_000).default(25_000),
+  LANQI_VIRAL_SEARCH_RESULT_LIMIT: z.coerce.number().int().min(1).max(12).default(8),
   ALIYUN_VIDEO_REPLICATION_API_KEY: optionalString,
   ALIYUN_VIDEO_REPLICATION_ENDPOINT: optionalUrl,
   ALIYUN_VIDEO_REPLICATION_MODEL: z.string().trim().min(1).default("wan2.2-animate-mix"),
@@ -351,6 +358,16 @@ export function validateRuntimeConfig(): string[] {
     issues.push("production requires DOMESTIC_NETWORK_ONLY=true");
   }
   issues.push(...validateAllowedHosts("DOMESTIC_OUTBOUND_ALLOWLIST", domesticOutboundAllowlist));
+  if (env.LANQI_VIRAL_SEARCH_DRIVER === "aliyun_web_search") {
+    if (!env.ALIYUN_API_KEY && !env.DASHSCOPE_API_KEY) {
+      issues.push("LANQI_VIRAL_SEARCH_DRIVER=aliyun_web_search requires ALIYUN_API_KEY or DASHSCOPE_API_KEY");
+    }
+    if (!domesticOutboundAllowlist.includes("dashscope.aliyuncs.com")) {
+      issues.push(
+        "LANQI_VIRAL_SEARCH_DRIVER=aliyun_web_search requires DOMESTIC_OUTBOUND_ALLOWLIST to include dashscope.aliyuncs.com"
+      );
+    }
+  }
   if (env.BEAUTY_MEDIA_EXECUTION_MODE === "real") {
     if (env.BEAUTY_MEDIA_MAX_PROVIDER_COST_YUAN <= 0) {
       issues.push("Beauty real media requires a positive Provider cost limit");

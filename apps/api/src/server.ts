@@ -51,6 +51,7 @@ import { registerLanqiContentStudioRoutes } from "./routes/lanqi-content-studio.
   import { registerLanqiMediaGenerationRoutes } from "./routes/lanqi-media-generation.js";
   import { registerLanqiXhsPackageRoutes } from "./routes/lanqi-xhs-package.js";
 import { registerLanqiBusinessQaRoutes } from "./routes/lanqi-business-qa.js";
+import { registerLanqiViralSearchRoutes } from "./routes/lanqi-viral-search.js";
 import { registerLanqiDashboardRoutes } from "./routes/lanqi-dashboard.js";
 import { requireProductEntitlement } from "./services/access-guards.js";
 import { registerViralVideoReplicationRoutes } from "./routes/viral-video-replication.js";
@@ -180,6 +181,9 @@ export async function buildServer() {
     await registerLanqiMediaGenerationRoutes(lanqi, provider);
     await registerLanqiXhsPackageRoutes(lanqi, provider);
     await registerLanqiBusinessQaRoutes(lanqi, provider);
+    // 兰琪专属：视频获客 · 爆款复刻的爆款检索源（抖音 / 视频号）。用户 2026-09-12 口径
+    // 「爆款复刻暂时只在兰琪去用」，因此只在兰琪作用域注册，美业单品侧不挂这条路由。
+    await registerLanqiViralSearchRoutes(lanqi);
   });
   await registerViralVideoReplicationRoutes(app);
   // 兰琪视频首帧图的限时签名外链：读取方是阿里云百炼的视频模型，不是登录用户，
