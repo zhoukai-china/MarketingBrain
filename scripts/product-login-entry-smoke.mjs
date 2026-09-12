@@ -16,6 +16,7 @@ const [server, guards] = await Promise.all([
   readFile(new URL("../apps/api/src/server.ts", import.meta.url), "utf8"),
   readFile(new URL("../apps/api/src/services/access-guards.ts", import.meta.url), "utf8"),
 ]);
+const styles = await readFile(new URL("../apps/web/src/styles/store-growth.css", import.meta.url), "utf8");
 const devSchemaSection = auth.slice(auth.indexOf("const devLoginSchema"), auth.indexOf("const betaLoginSchema"));
 const devRouteSection = auth.slice(auth.indexOf('app.post("/auth/dev-login"'), auth.indexOf("// Check whether WeChat auth"));
 const demoQuickLoginSection = login.slice(login.indexOf("async function handleDemoQuickLogin"), login.indexOf('if (!isCustomDomain && entry === "generic")'));
@@ -213,3 +214,13 @@ assert.match(
   "受控产品的开通仍必须强制校验产品邀请码（闸门没有被放宽）",
 );
 console.log("一号多产品口径回归通过（QA-20260912-014）。");
+
+// QA-20260912-015（用户 2026-09-12 报障）：产品入口的门店资料表单是浅色卡片，
+// 输入框不能沿用平台深色主题的底色——否则深字配深底，老板看不清自己填的内容
+// （实测输入文字 rgb(18,32,58) 落在 rgba(9,13,20,.8) 上，对比度约 1.05:1）。
+assert.match(
+  styles,
+  /\.productLoginPage \.loginForm input[\s\S]{0,220}?background:\s*#fff/i,
+  "产品入口的门店资料输入框必须是浅底（深字配深底属不可读）",
+);
+console.log("产品入口表单可读性回归通过（QA-20260912-015）。");
