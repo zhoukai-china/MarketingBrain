@@ -202,6 +202,12 @@ assert.doesNotMatch(
 );
 assert.match(auth, /一个账号可以使用全平台的智能体/, "「一号多产品」的口径必须留痕，避免被无声改回");
 assert.match(
+  main,
+  /splashTimer/,
+  "登录过渡页必须有兜底超时（用户 2026-09-12：不能无限停在「正在确认登录状态」）",
+);
+assert.match(main, /setTimeout\(\(\) => \{\s*\n?\s*if \(!cancelled\) setState\("resolved"\)/, "兜底超时必须真正把页面切到已解状态");
+assert.match(
   auth,
   /validateInviteCode\(code, plan, productCode\)|validateInviteCode\(parsed\.data\.inviteCode, planCode, product\?\.code\)/,
   "受控产品的开通仍必须强制校验产品邀请码（闸门没有被放宽）",

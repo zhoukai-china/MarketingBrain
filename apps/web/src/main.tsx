@@ -380,8 +380,14 @@ function LoginSessionGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<"probing" | "resolved">(shouldProbe ? "probing" : "resolved");
 
   useEffect(() => {
-    if (state !== "probing") return;
+    if (!shouldProbe) return;
     let cancelled = false;
+    // 用户 2026-09-12：过渡页不能无限停着——最多闪 1500ms，
+    // 之后先把登录页渲染出来，会话探针在后台继续跑（有效仍会跳工作台），
+    // 这样最坏情况只是闪一下，不会让人对着「正在确认登录状态」干等。
+    const splashTimer = window.setTimeout(() => {
+      if (!cancelled) setState("resolved");
+    }, 1500);
     void probeSession(readSessionToken()).then((result) => {
       if (cancelled) return;
       if (result === "valid") {
@@ -394,8 +400,9 @@ function LoginSessionGate({ children }: { children: ReactNode }) {
     });
     return () => {
       cancelled = true;
+      window.clearTimeout(splashTimer);
     };
-  }, [state]);
+  }, [shouldProbe]);
 
   if (state === "resolved") return <>{children}</>;
 
