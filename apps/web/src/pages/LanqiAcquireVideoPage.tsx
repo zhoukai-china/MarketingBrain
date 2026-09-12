@@ -324,32 +324,66 @@ export function LanqiAcquireVideoPage() {
   const storeId = store?.id ?? "";
   const storeName = store?.name ?? "本店";
 
-  // demo video.html：主标题=品牌名，副标题随模式切换
+  /*
+   * 0912 一期口径（`2026-09-12-视频获客一期最终范围-Codex交接.md`）：
+   * 视频获客只有两个任务页 —— 本页 = 爆款复刻（单模式），一键成片是独立路由。
+   * 门店素材成片（AssetsMode）与 AI 剪辑（ClipMode）的代码保留在下方供后续复用，
+   * 但**本期不挂入口、不交付**，所以这里不再渲染页签，也不再出现它们。
+   */
   return (
-    <LanqiBrainShell active="acquire" subtitle={MODE_SUBTITLE[mode]} crumb="/ 公域获客 / 视频获客">
+    <LanqiBrainShell active="acquire" subtitle={MODE_SUBTITLE.replicate} crumb="/ 公域获客 / 视频获客 / 爆款复刻">
       <div className="lq-vd">
         <a className="lq-vd__back" href={getAppPath("/lanqi/acquire")}>← 返回公域获客</a>
+        <ReplicateMode storeId={storeId} flash={flash} />
+        {notice && <p className="lq-vd__toast">{notice}</p>}
+      </div>
+    </LanqiBrainShell>
+  );
+}
 
-        <div className="lq-vd__tabs" role="tablist">
-          {MODES.map((item) => (
-            <button
-              key={item.k}
-              type="button"
-              role="tab"
-              aria-selected={mode === item.k}
-              className={`lq-vd__tab${mode === item.k ? " on" : ""}`}
-              onClick={() => setMode(item.k)}
-            >
-              {item.n}
-            </button>
-          ))}
-        </div>
+// ────────────────────────── 一键成片（原「文案转片」，0912 一期） ──────────────────────────
 
-        {mode === "replicate" && <ReplicateMode storeId={storeId} flash={flash} />}
-        {mode === "assets" && <AssetsMode storeName={storeName} />}
-        {mode === "clip" && <ClipMode storeName={storeName} flash={flash} />}
-        {mode === "script" && <ScriptMode storeId={storeId} storeName={storeName} flash={flash} />}
+/**
+ * 一键成片 = 独立页面（**不是**爆款复刻页里的页签），6 步：
+ *   说需求 → AI 生成文案（3 版候选）→ AI 分镜脚本 → 传素材卡 → 积分预算 → 成片。
+ * 本期**没有「手动贴文案」入口**：门店老板写不出文案，所以第 1 步只说需求。
+ * 第 3–6 步复用下面的 `ScriptMode`（分镜 / 素材卡 / 预算 / 出片），所以它从第 2 步之后接管。
+ */
+export function LanqiAcquireVideoCopyPage() {
+  const [store, setStore] = useState<StoreInfo | null>(null);
+  const [notice, setNotice] = useState("");
 
+  const flash = useCallback((message: string) => {
+    setNotice(message);
+    window.setTimeout(() => setNotice((current) => (current === message ? "" : current)), 3200);
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const response = await fetch(apiPath("/lanqi/stores"), { headers: authHeaders() });
+        const body = await readResponse(response);
+        const list: StoreInfo[] = body.stores ?? [];
+        if (alive && list.length) setStore(list[0]);
+      } catch {
+        /* 门店加载失败不阻断页面，单店口径下不弹错误 */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  return (
+    <LanqiBrainShell
+      active="acquire"
+      subtitle="视频获客 · 一键成片（说需求 → AI 写文案 → AI 分镜 → 素材卡 → 积分预算 → 成片）"
+      crumb="/ 公域获客 / 视频获客 / 一键成片"
+    >
+      <div className="lq-vd">
+        <a className="lq-vd__back" href={getAppPath("/lanqi/acquire")}>← 返回公域获客</a>
+        <OneClickCopyMode storeId={store?.id ?? ""} storeName={store?.name ?? "本店"} flash={flash} />
         {notice && <p className="lq-vd__toast">{notice}</p>}
       </div>
     </LanqiBrainShell>
@@ -891,9 +925,263 @@ function ClipMode({ storeName, flash }: { storeName: string; flash: (message: st
 
 // ────────────────────────────── 模式 4：文案转片 ──────────────────────────────
 
-function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName: string; flash: (message: string) => void }) {
-  const [step, setStep] = useState(1);
-  const [script, setScript] = useState("");
+/** 一键成片第 2 步的一版候选文案（后端大模型生成，字数与预估时长由后端算）。 */
+interface CopyCandidate {
+  id: string;
+  style: string;
+  styleLabel: string;
+  title: string;
+  hook: string;
+  body: string;
+  cta: string;
+  chars: number;
+  durEst: number;
+  chosen: boolean;
+  fullText: string;
+}
+
+/** 文案风格 / 目标时长：与后端 `video-copy-service.ts` 的 key 一一对应（界面不出现任何厂商名）。 */
+const COPY_STYLES = [
+  { k: "hook", n: "痛点钩子", d: "前 3 秒戳痛点，转化最猛" },
+  { k: "story", n: "故事信任", d: "老板亲述，适合 IP 号" },
+  { k: "dry", n: "干货科普", d: "讲知识，涨粉收藏" },
+  { k: "promo", n: "促销活动", d: "限时钩子，拉到店" }
+];
+
+const COPY_DURS = [
+  { k: 15, n: "15 秒左右", d: "1–2 个分镜 · 快节奏" },
+  { k: 30, n: "30 秒左右", d: "2–3 个分镜 · 最常用" },
+  { k: 45, n: "45 秒以上", d: "3+ 个分镜 · 讲透一件事" }
+];
+
+const COPY_STEPS = ["说需求", "AI 生成文案", "AI 分镜脚本", "传素材卡", "积分预算", "成片"];
+
+/**
+ * 一键成片 · 第 1–2 步：门店老板写不出文案，所以先说需求，由**后端大模型**写 3 版候选；
+ * 选定一版后交给 `ScriptMode` 从第 3 步（AI 分镜脚本）接管 → 素材卡 → 积分预算 → 成片。
+ * 本期没有「手动贴文案」入口；生成失败只能「换一批」或退回第 1 步补信息。
+ */
+function OneClickCopyMode({ storeId, storeName, flash }: { storeId: string; storeName: string; flash: (message: string) => void }) {
+  const [need, setNeed] = useState("");
+  const [style, setStyle] = useState("hook");
+  const [dur, setDur] = useState(30);
+  const [sell, setSell] = useState("");
+  const [plat, setPlat] = useState("all");
+  const [round, setRound] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const [candidates, setCandidates] = useState<CopyCandidate[]>([]);
+  const [chosen, setChosen] = useState<CopyCandidate | null>(null);
+
+  const generate = useCallback(
+    async (nextRound: number) => {
+      const text = need.trim();
+      if (!text) {
+        setError("请先用一句话说清这条视频要推广什么。");
+        return;
+      }
+      if (!storeId) {
+        setError("门店信息还在加载，请稍后再试一次。");
+        return;
+      }
+      setError("");
+      setBusy(true);
+      try {
+        const response = await fetch(apiPath("/lanqi/acquire/video/copy-candidates"), {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({ storeId, need: text, cat: "skin", style, dur, sell: sell.trim(), plat, round: nextRound })
+        });
+        const body = await readResponse(response);
+        const list: CopyCandidate[] = body?.result?.candidates ?? [];
+        if (list.length < 3) throw new Error("这次没有生成出 3 版文案，请点「换一批」重试。");
+        setCandidates(list);
+        setWarnings(Array.isArray(body?.result?.warnings) ? body.result.warnings : []);
+        setRound(nextRound);
+        flash("文案已生成，挑一版用。");
+      } catch (err) {
+        setCandidates([]);
+        setError(err instanceof Error && err.message ? err.message : "这次没有生成出可用的文案，请点「换一批」重试，或退回第 1 步把需求再说具体一点。");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [dur, flash, need, plat, sell, storeId, style]
+  );
+
+  // 选定一版后：第 3–6 步由分镜流程接管。
+  if (chosen) {
+    return <ScriptMode key={chosen.id} storeId={storeId} storeName={storeName} flash={flash} initialScript={chosen.fullText} />;
+  }
+
+  const stage = candidates.length ? 2 : 1;
+  return (
+    <div className="lq-vd__main">
+      <section className="lq-vd__left">
+        <div className="lq-vd__stage">一键成片 · 第 {stage} 步 / 6 · {COPY_STEPS[stage - 1]}</div>
+        {stage === 1 ? (
+          <>
+            <h3 className="lq-vd__card-title">这条视频要推广什么 <span className="tag green">必填</span></h3>
+            <p className="lq-vd__card-sub">一句话说清就行，剩下的文案交给 AI 写 —— 你不需要自己写口播稿。</p>
+            <div className="lq-vd__field">
+              <label htmlFor="lq-copy-need">一句话需求 <span className="req">*</span></label>
+              <div className="lq-vd__kw">
+                <span className="lead-ico" aria-hidden="true">💬</span>
+                <input
+                  id="lq-copy-need"
+                  value={need}
+                  placeholder="如：推广祛痘体验课，想让同城客到店"
+                  onChange={(event) => setNeed(event.target.value)}
+                />
+              </div>
+              <p className="lq-vd__hint">例：推广祛痘体验课 / 拉老客回店做肩颈 / 招同城探店达人</p>
+            </div>
+            <div className="lq-vd__field">
+              <label>文案风格 <span className="tag opt">第 1 版按你选的风格写</span></label>
+              <div className="lq-vd__chips">
+                {COPY_STYLES.map((item) => (
+                  <button
+                    key={item.k}
+                    type="button"
+                    className={`lq-vd__chip${style === item.k ? " on" : ""}`}
+                    onClick={() => setStyle(item.k)}
+                  >
+                    {item.n}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="lq-vd__field">
+              <label>目标时长</label>
+              <div className="lq-vd__opts three">
+                {COPY_DURS.map((item) => (
+                  <button
+                    key={item.k}
+                    type="button"
+                    className={`lq-vd__opt${dur === item.k ? " on" : ""}`}
+                    onClick={() => setDur(item.k)}
+                  >
+                    <b>{item.n}</b>
+                    <span>{item.d}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="lq-vd__field">
+              <label htmlFor="lq-copy-sell">主打卖点 <span className="tag opt">可选</span></label>
+              <input
+                id="lq-copy-sell"
+                className="lq-vd__input"
+                value={sell}
+                placeholder="如：先做肤质检测，不办卡也能做"
+                onChange={(event) => setSell(event.target.value)}
+              />
+            </div>
+            <div className="lq-vd__field">
+              <label>投放平台</label>
+              <div className="lq-vd__chips">
+                {PLATFORMS.map((item) => (
+                  <button
+                    key={item.k}
+                    type="button"
+                    className={`lq-vd__chip${plat === item.k ? " on" : ""}`}
+                    onClick={() => setPlat(item.k)}
+                  >
+                    {item.n}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button className="lq-vd__btn primary block" type="button" disabled={busy || !need.trim()} onClick={() => void generate(0)}>
+              {busy ? "⏳ AI 正在写文案…" : "✨ 让 AI 写 3 版文案"}
+            </button>
+            {error && <p className="lq-vd__hint">{error}</p>}
+          </>
+        ) : (
+          <>
+            <h3 className="lq-vd__card-title">本次需求</h3>
+            <div className="lq-vd__card">
+              <div className="lq-vd__kv"><span className="k">需求</span><span className="v">{need.trim()}</span></div>
+              <div className="lq-vd__kv"><span className="k">风格</span><span className="v">{COPY_STYLES.find((item) => item.k === style)?.n}</span></div>
+              <div className="lq-vd__kv"><span className="k">时长</span><span className="v">{dur} 秒左右</span></div>
+              <div className="lq-vd__kv"><span className="k">卖点</span><span className="v">{sell.trim() || "（没填 · AI 不会自己编）"}</span></div>
+              <div className="lq-vd__kv"><span className="k">平台</span><span className="v">{PLATFORMS.find((item) => item.k === plat)?.n}</span></div>
+            </div>
+            <p className="lq-vd__card-sub">右边挑一版，点「用这版」直接进分镜；换一批 = 保留你选的风格那版，只换另外两版。</p>
+            <button className="lq-vd__btn ghost" type="button" disabled={busy} onClick={() => { setCandidates([]); setError(""); }}>
+              ← 回去改需求
+            </button>
+            {warnings.map((item) => (
+              <p className="lq-vd__hint" key={item}>⚠️ {item}</p>
+            ))}
+          </>
+        )}
+      </section>
+
+      <section className="lq-vd__right">
+        {stage === 1 ? (
+          <>
+            <div className="lq-vd__sec-title">一键成片怎么做 <span className="lq-vd__badge">6 步</span></div>
+            {COPY_STEPS.map((label, index) => (
+              <div className={`lq-vd__step${index === 0 ? " on" : ""}`} key={label}>
+                <span className="n">{index + 1}</span>
+                <span>{label}</span>
+              </div>
+            ))}
+            <div className="lq-vd__note">
+              门店老板写不出文案，这是做视频最大的卡点 —— 所以第 1 步只说需求，文案和分镜都由 AI 出；<br />
+              你只需要挑一版、传素材、确认预算，最后看成片。
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="lq-vd__sec-title">AI 写的 3 版文案 <span className="lq-vd__badge">{round ? `第 ${round + 1} 批` : "按你选的风格"}</span></div>
+            {candidates.map((candidate) => (
+              <div className="lq-vd__card" key={candidate.id}>
+                <div className="lq-vd__hit-top">
+                  <span className="lq-vd__hit-badge">{candidate.styleLabel}</span>
+                  {candidate.chosen && <span className="lq-vd__hit-kind">按你选的风格</span>}
+                  <span className="lq-vd__hit-site">{candidate.chars} 字 · 约 {candidate.durEst} 秒</span>
+                </div>
+                <p className="lq-vd__hit-title">{candidate.title}</p>
+                <p className="lq-vd__hit-snippet">【钩子】{candidate.hook}</p>
+                <p className="lq-vd__hit-snippet">{candidate.body}</p>
+                <p className="lq-vd__hit-snippet">【结尾】{candidate.cta}</p>
+                <button className="lq-vd__btn primary block" type="button" onClick={() => setChosen(candidate)}>
+                  用这版 → 进分镜
+                </button>
+              </div>
+            ))}
+            <button className="lq-vd__btn ghost" type="button" disabled={busy} onClick={() => void generate(round + 1)}>
+              {busy ? "⏳ 正在换一批…" : "↻ 换一批（保留第 1 版）"}
+            </button>
+            {error && <p className="lq-vd__hint">{error}</p>}
+            <div className="lq-vd__warn">
+              这 3 版由平台内置能力生成（你不用注册任何账号）。生成失败的处理顺序：<b>换一批 → 退回第 1 步把需求说具体</b>。
+            </div>
+          </>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function ScriptMode({
+  storeId,
+  storeName,
+  flash,
+  initialScript = ""
+}: {
+  storeId: string;
+  storeName: string;
+  flash: (message: string) => void;
+  initialScript?: string;
+}) {
+  // 0912 一期：第 1–2 步（说需求 / AI 写文案）在 OneClickCopyMode 里完成，
+  // 本组件从第 3 步「AI 分镜脚本」接管，所以初始 step = 2（且不再有「手动贴文案」入口）。
+  const [step, setStep] = useState(2);
+  const [script, setScript] = useState(initialScript);
   const [splitMode, setSplitMode] = useState("auto");
   const [styleKey, setStyleKey] = useState("cinema");
   const [tierKey, setTierKey] = useState("std");
@@ -934,7 +1222,7 @@ function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName:
 
   const buildStoryboard = useCallback(async () => {
     setError("");
-    if (!script.trim()) { setError("请先贴入口播文案。"); return; }
+    if (!script.trim()) { setError("请先选一版文案。"); return; }
     if (!storeId) { setError("门店信息还在加载，请稍后再试一次。"); return; }
     setBusy("正在按语义断句、切分镜、补生视频提示词…");
     try {
@@ -963,6 +1251,14 @@ function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName:
       setBusy("");
     }
   }, [script, storeId, styleKey, splitMode, castNames, sceneNames, propNames]);
+
+  /** 一键成片：选定文案后自动出分镜（用户不必再点一次「生成分镜脚本」）。 */
+  const autoBuilt = useRef(false);
+  useEffect(() => {
+    if (!initialScript.trim() || autoBuilt.current) return;
+    autoBuilt.current = true;
+    void buildStoryboard();
+  }, [buildStoryboard, initialScript]);
 
   const rebuildOne = useCallback(
     async (index: number) => {
@@ -1219,24 +1515,23 @@ function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName:
   return (
     <div className="lq-vd__main">
       <section className="lq-vd__left">
-        <div className="lq-vd__stage">文案转片 · 第 {Math.min(step, 4)} 步 / 4</div>
+        <div className="lq-vd__stage">
+          {rendering || renderedCount > 0 || Object.keys(shotsRender).length > 0
+            ? `一键成片 · 第 6 步 / 6 · ${COPY_STEPS[5]}`
+            : `一键成片 · 第 ${step + 1} 步 / 6 · ${COPY_STEPS[step]}`}
+        </div>
 
-        {step === 1 && (
+        {step === 2 && (
           <>
-            <h3 className="lq-vd__card-title">口播文案 / 脚本 <span className="tag green">必填</span></h3>
-            <p className="lq-vd__card-sub">
-              把你写好的口播稿原样贴进来。下一步自动断句，切成每镜不超过 15 秒的<b>分镜脚本</b>，镜头、景别、运镜、
-              <b>生视频提示词</b>全给你补上。
-            </p>
-            <textarea
-              className="lq-vd__area"
-              value={script}
-              placeholder="例：很多人问我，开了十六年的美业店，到底靠什么活下来……"
-              onChange={(event) => setScript(event.target.value)}
-            />
-            <button className="lq-vd__btn ghost" type="button" onClick={() => setScript(SCRIPT_DEMO)}>📋 填入示例文案（兰琪）</button>
-
-            <div className="lq-vd__field" style={{ marginTop: 16 }}>
+            <h3 className="lq-vd__card-title">分镜已出 <span className="tag green">{shots.length} 镜</span></h3>
+            <p className="lq-vd__card-sub">右侧逐镜确认：口播原句、画面描述、生视频提示词都能直接改，改完再进下一步。</p>
+            <div className="lq-vd__card">
+              <div className="lq-vd__kv"><span className="k">原文</span><span className="v">{board?.sourceChars ?? 0} 字</span></div>
+              <div className="lq-vd__kv"><span className="k">分镜</span><span className="v">{shots.length} 镜 · {totalSeconds} 秒</span></div>
+              <div className="lq-vd__kv"><span className="k">画面风格</span><span className="v">{SCRIPT_STYLES.find((item) => item.k === styleKey)?.n}</span></div>
+              <div className="lq-vd__kv"><span className="k">切分规则</span><span className="v">{board?.splitMode?.n ?? splitMode}</span></div>
+            </div>
+            <div className="lq-vd__field" style={{ marginTop: 12 }}>
               <label>切分规则</label>
               <div className="lq-vd__opts three">
                 {SPLIT_MODES.map((item) => (
@@ -1252,7 +1547,6 @@ function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName:
                 ))}
               </div>
             </div>
-
             <div className="lq-vd__field">
               <label>画面风格</label>
               <div className="lq-vd__chips">
@@ -1268,27 +1562,9 @@ function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName:
                 ))}
               </div>
             </div>
-
-            <button className="lq-vd__btn primary block" type="button" disabled={Boolean(busy)} onClick={() => void buildStoryboard()}>
-              {busy ? "正在生成分镜…" : "✂️ 生成分镜脚本"}
+            <button className="lq-vd__btn ghost" type="button" disabled={Boolean(busy)} onClick={() => void buildStoryboard()}>
+              {busy ? "正在重新切分…" : "↻ 重新切分"}
             </button>
-            <div className="lq-vd__warn">
-              硬约束（视频能力限制）：单次生成 4–15 秒，所以长文案必须切镜；单次请求最多 9 张参考图，所以按分镜所属场景分组调用。
-            </div>
-          </>
-        )}
-
-        {step === 2 && (
-          <>
-            <h3 className="lq-vd__card-title">分镜已出 <span className="tag green">{shots.length} 镜</span></h3>
-            <p className="lq-vd__card-sub">右侧逐镜确认：口播原句、画面描述、生视频提示词都能直接改，改完再进下一步。</p>
-            <div className="lq-vd__card">
-              <div className="lq-vd__kv"><span className="k">原文</span><span className="v">{board?.sourceChars ?? 0} 字</span></div>
-              <div className="lq-vd__kv"><span className="k">分镜</span><span className="v">{shots.length} 镜 · {totalSeconds} 秒</span></div>
-              <div className="lq-vd__kv"><span className="k">画面风格</span><span className="v">{SCRIPT_STYLES.find((item) => item.k === styleKey)?.n}</span></div>
-              <div className="lq-vd__kv"><span className="k">切分规则</span><span className="v">{board?.splitMode?.n ?? splitMode}</span></div>
-            </div>
-            <button className="lq-vd__btn ghost" type="button" onClick={() => void buildStoryboard()}>↻ 重新切分</button>
             <button className="lq-vd__btn ghost" type="button" onClick={exportPrompts}>⬇ 导出提示词（TXT）</button>
             <button className="lq-vd__btn primary block" type="button" onClick={() => setStep(3)}>📦 下一步：上传素材卡</button>
           </>
@@ -1543,13 +1819,17 @@ function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName:
       <section className="lq-vd__right">
         {!shots.length && (
           <>
-            <div className="lq-vd__sec-title">文案怎么变成成片 <span className="lq-vd__badge">4 步</span></div>
-            <div className="lq-vd__step on"><span className="n">1</span><span><b>贴文案</b> · 你写好的口播稿，原样贴进来</span></div>
-            <div className="lq-vd__step"><span className="n">2</span><span><b>分镜脚本</b> · 自动切不超过 15 秒的分镜，每镜直接出<b>生视频提示词</b></span></div>
+            <div className="lq-vd__sec-title">一键成片怎么做 <span className="lq-vd__badge">6 步</span></div>
+            <div className="lq-vd__step on"><span className="n">1</span><span><b>说需求</b> · 一句话说清推广什么，不用自己写文案</span></div>
+            <div className="lq-vd__step"><span className="n">2</span><span><b>AI 生成文案</b> · 出 3 版候选，每版标字数与预估时长</span></div>
+            <div className="lq-vd__step"><span className="n">3</span><span><b>分镜脚本</b> · 自动切不超过 15 秒的分镜，每镜直接出<b>生视频提示词</b></span></div>
+            <div className="lq-vd__step"><span className="n">4</span><span><b>传素材卡</b> · 人物 / 场景 / 道具 / 音频，提示词自动补进去</span></div>
+            <div className="lq-vd__step"><span className="n">5</span><span><b>积分预算</b> · 选画质档位，看清这次要花多少积分</span></div>
+            <div className="lq-vd__step"><span className="n">6</span><span><b>成片</b> · 逐镜出片，满意就下载，不满意按反馈重跑</span></div>
             <div className="lq-vd__step"><span className="n">3</span><span><b>传素材卡</b> · 人物卡（正/侧/背）+ 场景卡 + 音频卡 + 道具卡 + 其他参考</span></div>
             <div className="lq-vd__step"><span className="n">4</span><span><b>成片</b> · 选定画质档位后出片，直接发抖音 / 视频号 / 朋友圈</span></div>
             <div className="lq-vd__placeholder" style={{ height: 180 }}>
-              左侧贴好文案<br />点「✂️ 生成分镜脚本」<br />右侧这里出分镜表
+            左侧选好一版文案<br />系统自动出分镜脚本<br />右侧这里出分镜表
             </div>
           </>
         )}
@@ -1666,7 +1946,7 @@ function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName:
         {shots.length > 0 && step === 4 && (
           <>
             <div className="lq-vd__sec-title">输出规格 <span className="lq-vd__badge">{shots.length} 镜 · {totalSeconds} 秒</span></div>
-            <div className="lq-vd__note">分镜与提示词已在第 2 步定稿（分镜脚本 = 生视频提示词）。这一步只确认画质档位，没问题就直接生成。</div>
+            <div className="lq-vd__note">分镜与提示词已在第 3 步定稿（分镜脚本 = 生视频提示词）。这一步只确认画质档位，没问题就直接生成。</div>
             <div className="lq-vd__card">
               <div className="lq-vd__kv"><span className="k">画质档位</span><span className="v">{tier.n} · {tier.res}</span></div>
               <div className="lq-vd__kv"><span className="k">规格说明</span><span className="v">{tier.out}</span></div>
@@ -1773,7 +2053,7 @@ function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName:
           <div className="lq-vd__modal-card">
             <h3>✍️ 肖像授权确认</h3>
             <div className="lq-vd__ready">
-              ✅ <b>文案转片的出片能力已接通</b> —— 你不用注册账号、不用实名认证、不用自己配密钥，也不用管背后用的什么模型。
+            ✅ <b>一键成片的出片能力已接通</b> —— 你不用注册账号、不用实名认证、不用自己配密钥，也不用管背后用的什么模型。
               确认授权后系统会按分镜逐镜出片，每一镜都会先给出费用再创建任务。
             </div>
             <p className="lq-vd__card-sub" style={{ marginTop: 10 }}>

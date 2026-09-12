@@ -27,21 +27,21 @@ const ENTRIES: AcquireEntry[] = [
   },
   {
     key: "video",
-    tag: "已开放",
-    accent: false,
-    name: "视频获客",
-    desc: "四种做法：爆款复刻（换人/换产品）、门店素材成片、AI 剪辑（自己拍的传上来自动剪）、文案转片（贴文案+场景图直出成片）。",
-    enter: "进入视频获客 →",
+    tag: "新增",
+    accent: true,
+    name: "爆款复刻",
+    desc: "给关键词，AI 去抖音 / 视频号搜同赛道已跑通的爆款，挑一条换成你的脸 / 产品，保留原片画面与节奏出成片。",
+    enter: "去搜爆款 →",
     href: getAppPath("/lanqi/acquire/video")
   },
   {
     key: "script",
     tag: "新增",
     accent: true,
-    name: "文案转片",
-    desc: "贴一段口播文案 → AI 出分镜脚本（每镜直接给 AI 生视频提示词）→ 传人物卡（正/侧/背）+ 场景卡 + 音频卡 + 道具卡 → 确认后出成片。",
-    enter: "进入文案转片 →",
-    href: getAppPath("/lanqi/acquire/video?mode=script")
+    name: "一键成片",
+    desc: "不用自己写文案：一句话说需求 → AI 写 3 版文案 → 自动出分镜脚本 → 传人物卡 / 场景卡 / 道具卡 → 确认积分预算 → 出成片。",
+    enter: "进入一键成片 →",
+    href: getAppPath("/lanqi/acquire/video-copy")
   },
   {
     key: "live",

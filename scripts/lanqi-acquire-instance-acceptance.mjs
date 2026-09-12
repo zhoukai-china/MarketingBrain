@@ -287,6 +287,159 @@ function blankErrors(page) {
   return page.httpErrors.filter((item) => item.status !== "failed" && item.status >= 400);
 }
 
+/**
+ * 视频获客页的真实验收（LQ-23 起该页在「收口」口径下也刻意可直达，因此不能按占位页验收）。
+ *
+ * 覆盖两件事：
+ *  ① 四个模式页签齐全；② 爆款复刻（LQ-25）必须真发检索请求，条目只能是抖音 / 微信生态域内页面，
+ *     没有有效条目时必须出现「没有可点开的条目」说明 —— 两种结果都算通过，**编造条目才算失败**。
+ */
+async function verifyVideoPage(root, checks, base, label, record) {
+  const vd = await openPage(root, `${base}/lanqi/acquire/video`, "爆款复刻");
+  const vdShell = await evaluate(
+    root,
+    vd.sessionId,
+    `(() => ({
+      tabs: document.querySelectorAll("[role=tab]").length,
+      text: document.body?.innerText ?? ""
+    }))()`,
+  );
+  checks.push({
+    name: `${label}：爆款复刻单模式（无页签、无门店素材成片 / AI 剪辑入口）`,
+    pass:
+      vdShell.tabs === 0 &&
+      vdShell.text.includes("爆款复刻") &&
+      !vdShell.text.includes("门店素材成片") &&
+      !vdShell.text.includes("AI 剪辑"),
+    detail: `tabs=${vdShell.tabs} 含爆款复刻=${vdShell.text.includes("爆款复刻")} 含门店素材成片=${vdShell.text.includes("门店素材成片")} 含AI剪辑=${vdShell.text.includes("AI 剪辑")}`,
+  });
+
+  const vdKw = await setFieldValue(root, vd, "input#lq-vd-kw", "皮肤管理门店获客");
+  await sleep(400);
+  const vdSearchCallsBefore = vd.requestTimeline.length;
+  const vdSearchClick = await clickButton(root, vd, "AI 去抖音/视频号搜爆款");
+  let vdSearchText = "";
+  let vdHitLinks = [];
+  for (let attempt = 0; attempt < 32; attempt++) {
+    await sleep(1000);
+    const probe = await evaluate(
+      root,
+      vd.sessionId,
+      `(() => ({
+        text: document.body?.innerText ?? "",
+        links: [...document.querySelectorAll(".lq-vd__hit-list a")].map((node) => node.getAttribute("href") || "")
+      }))()`,
+    );
+    vdSearchText = probe?.text ?? "";
+    vdHitLinks = Array.isArray(probe?.links) ? probe.links : [];
+    if (vdHitLinks.length > 0 || vdSearchText.includes("没有可点开的条目")) break;
+  }
+  const vdSearchCallsAfter = vd.requestTimeline.length;
+  const vdRequested = countRequests(vd, "/lanqi/acquire/video/viral-search") > 0;
+  const vdPlatformLinks = vdHitLinks.filter(
+    (href) =>
+      /^https:\/\/www\.douyin\.com\/(?:video|note)\//.test(href) ||
+      /^https:\/\/(?:mp|channels|www)\.weixin\.qq\.com\//.test(href) ||
+      /^https:\/\/mp\.weixin\.qq\.com\/s\?/.test(href),
+  );
+  checks.push({
+    name: `${label}：爆款复刻走真实检索（抖音 / 视频号），无有效条目时明确说明、不编造`,
+    pass:
+      vdKw === "filled" &&
+      vdSearchClick === "clicked" &&
+      vdSearchCallsAfter > vdSearchCallsBefore &&
+      vdRequested &&
+      vdHitLinks.length === vdPlatformLinks.length &&
+      (vdHitLinks.length > 0 || vdSearchText.includes("没有可点开的条目")) &&
+      leakHit(vdSearchText) === null,
+    detail: `fill=${vdKw} click=${vdSearchClick} 新增请求=${vdSearchCallsAfter - vdSearchCallsBefore} 检索接口=${vdRequested} 条目=${vdHitLinks.length} 平台域内=${vdPlatformLinks.length} 无结果说明=${vdSearchText.includes("没有可点开的条目")}`,
+  });
+  checks.push({
+    name: `${label}：无接口 4xx/5xx、console/page 无错误`,
+    pass: blankErrors(vd).length === 0 && vd.consoleErrors.length === 0 && vd.pageErrors.length === 0,
+    detail: `http=${JSON.stringify(blankErrors(vd).slice(0, 4))} console=${vd.consoleErrors.length} page=${vd.pageErrors.length}`,
+  });
+  record(vd, `${base}/lanqi/acquire/video`);
+  await closePage(root, vd);
+}
+
+/**
+ * 一键成片（0912 一期）：6 步页，第 1 步只说需求 → 后端大模型出 3 版候选 → 「用这版」直接进分镜。
+ * 严格口径：**不得出现手动贴文案入口**；候选必须真发后端请求；失败时必须明确说明，不放假文案。
+ */
+async function verifyVideoCopyPage(root, checks, base, label, record) {
+  const cp = await openPage(root, `${base}/lanqi/acquire/video-copy`, "一键成片");
+  const intro = await evaluate(root, cp.sessionId, "document.body?.innerText ?? ''");
+  const stepLabels = ["说需求", "AI 生成文案", "AI 分镜脚本", "传素材卡", "积分预算", "成片"];
+  checks.push({
+    name: `${label}：6 步首屏 + 无手动贴文案入口`,
+    pass:
+      stepLabels.every((item) => intro.includes(item)) &&
+      !intro.includes("填入示例文案") &&
+      !intro.includes("原样贴进来") &&
+      !intro.includes("门店素材成片") &&
+      !intro.includes("AI 剪辑"),
+    detail: `6步=${stepLabels.every((item) => intro.includes(item))} 含贴文案=${intro.includes("原样贴进来")}`,
+  });
+
+  const filled = await setFieldValue(root, cp, "input#lq-copy-need", "推广祛痘体验课，想让同城客到店");
+  await sleep(400);
+  const callsBefore = cp.requestTimeline.length;
+  const clicked = await clickButton(root, cp, "让 AI 写 3 版文案");
+  let text = "";
+  let cards = 0;
+  for (let attempt = 0; attempt < 45; attempt++) {
+    await sleep(1000);
+    const probe = await evaluate(
+      root,
+      cp.sessionId,
+      `(() => ({
+        text: document.body?.innerText ?? "",
+        cards: [...document.querySelectorAll("button")].filter((node) => (node.innerText || "").includes("用这版")).length
+      }))()`,
+    );
+    text = probe?.text ?? "";
+    cards = probe?.cards ?? 0;
+    if (cards >= 3 || /换一批|没有生成出|稍后重试|暂未/.test(text)) break;
+  }
+  const requested = countRequests(cp, "/lanqi/acquire/video/copy-candidates") > 0;
+  const failedClosed = cards === 0 && /没有生成出|稍后重试|暂未开通/.test(text);
+  checks.push({
+    name: `${label}：说需求 → 后端出 3 版文案（失败则明确说明，不放假文案）`,
+    pass:
+      filled === "filled" &&
+      clicked === "clicked" &&
+      cp.requestTimeline.length > callsBefore &&
+      requested &&
+      (cards === 3 || failedClosed) &&
+      leakHit(text) === null,
+    detail: `fill=${filled} click=${clicked} 新增请求=${cp.requestTimeline.length - callsBefore} 候选卡=${cards} 失败说明=${failedClosed}`,
+  });
+
+  if (cards === 3) {
+    const picked = await clickButton(root, cp, "用这版");
+    let after = "";
+    for (let attempt = 0; attempt < 30; attempt++) {
+      await sleep(1000);
+      after = await evaluate(root, cp.sessionId, "document.body?.innerText ?? ''");
+      if (after.includes("第 3 步 / 6")) break;
+    }
+    checks.push({
+      name: `${label}：用这版直接进第 3 步分镜（没有回头贴文案的路）`,
+      pass: picked === "clicked" && after.includes("第 3 步 / 6") && !after.includes("原样贴进来"),
+      detail: `click=${picked} 命中第3步=${after.includes("第 3 步 / 6")}`,
+    });
+  }
+
+  checks.push({
+    name: `${label}：console/page 无错误、无厂商名泄露`,
+    pass: cp.consoleErrors.length === 0 && cp.pageErrors.length === 0 && leakHit(text) === null,
+    detail: `console=${cp.consoleErrors.length} page=${cp.pageErrors.length} 泄露=${leakHit(text) ?? "无"}`,
+  });
+  record(cp, `${base}/lanqi/acquire/video-copy`);
+  await closePage(root, cp);
+}
+
 async function main() {
   await mkdir(outDir, { recursive: true });
   const profileDir = await mkdtemp(path.join(tmpdir(), "lq-acquire-profile-"));
@@ -359,7 +512,6 @@ async function main() {
       const routes = [
         { path: "/lanqi/acquire", label: "枢纽页" },
         { path: "/lanqi/acquire/copywriter", label: "短视频文案改稿" },
-        { path: "/lanqi/acquire/video", label: "视频获客" },
         { path: "/lanqi/acquire/live", label: "直播话术" },
         { path: "/lanqi/acquire/methods", label: "AI 运营顾问" },
       ];
@@ -384,6 +536,11 @@ async function main() {
         record(page, `${base}${route.path}`);
         await closePage(root, page);
       }
+
+      // 视频获客页是「收口」口径下的刻意例外（LQ-23）：直接按真实页面验收，
+      // 包含 LQ-25 的爆款复刻真实检索。
+      await verifyVideoPage(root, checks, base, "收口(视频获客)", record);
+      await verifyVideoCopyPage(root, checks, base, "收口(一键成片)", record);
 
       const mobileViewport = { width: 390, height: 844, mobile: true };
       const hubMobile = await openPage(root, `${base}/lanqi/acquire`, "公域获客", mobileViewport);

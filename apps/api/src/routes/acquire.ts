@@ -18,6 +18,13 @@ import {
   validateVideoScriptInput,
   type StoryboardInput
 } from "../products/beauty-industry/video-script-service.js";
+import {
+  VIDEO_COPY_DURS,
+  VIDEO_COPY_PLATFORMS,
+  VIDEO_COPY_STYLES,
+  generateVideoCopyCandidates,
+  validateVideoCopyBrief
+} from "../products/beauty-industry/video-copy-service.js";
 
 const COPYWRITER_SCHEMA = z.object({
   storeId: z.string().trim().min(1),
@@ -25,6 +32,23 @@ const COPYWRITER_SCHEMA = z.object({
   purpose: z.enum(["auto", "deal", "aware", "exposure"]).default("auto"),
   goal: z.enum(["all", "completion", "engagement", "conversion"]).default("all"),
   extra: z.string().trim().max(500).optional()
+});
+
+/**
+ * 一键成片（原「文案转片」）第 1–2 步：说需求 → 后端大模型出 3 版候选文案。
+ * 口径见 `2026-09-12-视频获客一期最终范围-Codex交接.md`：本期**没有手动贴文案入口**。
+ */
+const VIDEO_COPY_SCHEMA = z.object({
+  storeId: z.string().trim().min(1),
+  need: z.string().trim().min(1).max(120),
+  cat: z.string().trim().max(32).default("skin"),
+  style: z.enum(VIDEO_COPY_STYLES.map(style => style.k) as [string, ...string[]]).default("hook"),
+  dur: z.coerce.number().int().refine(value => VIDEO_COPY_DURS.includes(value as 15 | 30 | 45), {
+    message: "目标时长只支持 15 / 30 / 45 秒"
+  }).default(30),
+  sell: z.string().trim().max(120).default(""),
+  plat: z.enum(VIDEO_COPY_PLATFORMS.map(platform => platform.k) as [string, ...string[]]).default("all"),
+  round: z.coerce.number().int().min(0).max(99).default(0)
 });
 
 const ADVISOR_SCHEMA = z.object({
@@ -248,6 +272,38 @@ export async function registerAcquireRoutes(app: FastifyInstance, basePath = "/b
       const message = error instanceof Error ? error.message : "unknown";
       const invalid = /是空的|请先补上/.test(message);
       return reply.code(invalid ? 422 : 500).send({ code: invalid ? "invalid_video_shot_input" : "video_shot_error", message });
+    }
+  });
+
+  // 一键成片 · 第 1–2 步：说需求 → 3 版候选文案（真实大模型，前端不拼模板）。
+  app.post(`${basePath}/acquire/video/copy-candidates`, async (request, reply) => {
+    try {
+      const context = await resolveRequestContext(request.headers);
+      const parsed = VIDEO_COPY_SCHEMA.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        return reply.code(400).send({ code: "invalid_video_copy_request", message: "参数不合法", details: parsed.error.flatten() });
+      }
+      const denied = await assertStoreAccess(context, parsed.data.storeId);
+      if (denied) return reply.code(denied.code).send({ code: denied.bodyCode, message: denied.message });
+
+      const brief = validateVideoCopyBrief(parsed.data);
+      if (!brief.ok) return reply.code(422).send({ code: "invalid_video_copy_brief", message: brief.message });
+
+      const result = await generateVideoCopyCandidates(brief.brief);
+      return { ok: true, tenantId: context.tenantId, result };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "unknown";
+      if (message === "llm_provider_not_configured") {
+        return reply.code(503).send({ code: "video_copy_unavailable", message: "文案生成服务还没有开通，暂时写不出文案。" });
+      }
+      if (/llm_output_invalid_structure|违规引导词/.test(message)) {
+        // 失败关闭：不返回半成品、不返回演示文案。
+        return reply.code(502).send({
+          code: "video_copy_failed",
+          message: "这次没有生成出可用的文案，请点「换一批」重试，或退回第 1 步把需求再说具体一点。"
+        });
+      }
+      return reply.code(500).send({ code: "video_copy_error", message });
     }
   });
 }

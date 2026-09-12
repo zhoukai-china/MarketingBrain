@@ -103,6 +103,7 @@ const LanqiAcquireCopywriterPage = lazy(() => import("./pages/LanqiAcquireCopywr
 const LanqiAcquireMethodsPage = lazy(() => import("./pages/LanqiAcquireMethodsPage.js").then(module => ({ default: module.LanqiAcquireMethodsPage })));
 const LanqiAcquireLivePage = lazy(() => import("./pages/LanqiAcquireLivePage.js").then(module => ({ default: module.LanqiAcquireLivePage })));
 const LanqiAcquireVideoPage = lazy(() => import("./pages/LanqiAcquireVideoPage.js").then(module => ({ default: module.LanqiAcquireVideoPage })));
+const LanqiAcquireVideoCopyPage = lazy(() => import("./pages/LanqiAcquireVideoPage.js").then(module => ({ default: module.LanqiAcquireVideoCopyPage })));
 const LanqiMomentsWechatGroupPage = lazy(() => import("./pages/LanqiMomentsWechatGroupPage.js").then(module => ({ default: module.LanqiMomentsWechatGroupPage })));
 const LanqiDashboardPage = lazy(() => import("./pages/LanqiDashboardPage.js").then(module => ({ default: module.LanqiDashboardPage })));
 const LanqiGoalSettingPage = lazy(() => import("./pages/LanqiGoalSettingPage.js").then(module => ({ default: module.LanqiGoalSettingPage })));
@@ -601,7 +602,20 @@ function Root() {
    * 不让用户点进未验收的功能；真实组件与下方分支保留，验收通过后放开开关即可。
    * 例外：文案转片（LQ-23）已接通真实图生视频并单独验收，必须排在总闸之前放行。
    */
+  /*
+   * 0912 一期口径：视频获客 = 两个独立任务页（爆款复刻 / 一键成片），各自独立路由，
+   * 不做成一个页面的页签。旧深链 `?mode=script` 一跳转到一键成片页，`?mode=assets|clip`
+   * 本期不交付 → 回到爆款复刻页（页面本身也不提供这两个入口）。
+   */
+  if (path.startsWith("/lanqi/acquire/video-copy")) {
+    return <LanqiAcquireVideoCopyPage />;
+  }
   if (path.startsWith("/lanqi/acquire/video")) {
+    const legacyMode = new URLSearchParams(window.location.search).get("mode");
+    if (legacyMode === "script") {
+      window.location.replace(`${getAppPath("/lanqi/acquire/video-copy")}${window.location.hash}`);
+      return <LanqiAcquireVideoCopyPage />;
+    }
     return <LanqiAcquireVideoPage />;
   }
   if (path.startsWith("/lanqi/acquire")) {
