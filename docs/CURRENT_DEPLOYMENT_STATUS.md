@@ -1,6 +1,21 @@
 # 当前部署状态
 
-更新时间：2026-09-12（最近一次为 **PLAT-24 视频复盘 chat 页匿名登录引导（WorkBuddy QA 三条 P1，上测试实例 + 生产）**，上一条为 **PLAT-22 客户侧残留成本字段清理（剪辑台 `/clip-lab/render` 的 `estimatedLocalCostYuan`）**，再往上为 **PLAT-21 客户侧响应摘掉内部算力成本（货架 `modelCostCny` + 美业图片报价 `estimatedProviderCostYuan`）** 与 **PLAT-19 客户界面只显示积分、去掉「≈ ¥」人民币折算**，其下为 **LQ-23 兰琪「文案转片」真实出片上生产 + 历史构建产物回收 + 备份保留策略落地**、**PLAT-18 历史路由清理第一、二批 + 全局兜底页修复，上测试实例 + 生产**、兰琪侧栏一级导航白字配色（LQ-22）、货架 SKU 分享链接 `/agents/<skuCode>` 修复（QA-20260911-015）、货架「我的智能体」文案改为「常用智能体」（PLAT-15）、兰琪品牌 Logo 修正 + 上线板块收口（LQ-21 / QA-20260911-014）、手机端平台页顶栏修复 + 货架「退出登录」入口（QA-20260911-012）、工作区在途改动全量发布（电脑端微信扫码登录 PLAT-13 + 视频复盘引擎 + 试用积分 + 兰琪顾问规则）、兰琪 LQ-19 顾问「来源」标签口径修复、WorkBuddy 报告核验后的 LQ-19 公域获客修复、微信登录失败路径修正、一次性验收租户回收、P0 身份头冒充修复、兰琪生产数据收尾与 LQ-19 首发布；2026-08-03 清单保留为当时状态）
+更新时间：2026-09-12（最近一次为 **PLAT-23 积分 ↔ 人民币 ↔ 成本换算口径统一（方案 A：常量自洽 + 口径文档 + 契约，合并包重发后上测试实例 + 生产）**，其下为 **PLAT-24 视频复盘 chat 页匿名登录引导（WorkBuddy QA 三条 P1）**、**PLAT-22 客户侧残留成本字段清理（剪辑台 `/clip-lab/render`）**、**PLAT-21 客户侧响应摘掉内部算力成本（货架 `modelCostCny` + 美业图片报价 `estimatedProviderCostYuan`）** 与 **PLAT-19 客户界面只显示积分、去掉「≈ ¥」人民币折算**，再往下为 **LQ-23 兰琪「文案转片」真实出片上生产 + 历史构建产物回收 + 备份保留策略落地**、**PLAT-18 历史路由清理第一、二批 + 全局兜底页修复，上测试实例 + 生产**、兰琪侧栏一级导航白字配色（LQ-22）、货架 SKU 分享链接 `/agents/<skuCode>` 修复（QA-20260911-015）、货架「我的智能体」文案改为「常用智能体」（PLAT-15）、兰琪品牌 Logo 修正 + 上线板块收口（LQ-21 / QA-20260911-014）、手机端平台页顶栏修复 + 货架「退出登录」入口（QA-20260911-012）、工作区在途改动全量发布（电脑端微信扫码登录 PLAT-13 + 视频复盘引擎 + 试用积分 + 兰琪顾问规则）、兰琪 LQ-19 顾问「来源」标签口径修复、WorkBuddy 报告核验后的 LQ-19 公域获客修复、微信登录失败路径修正、一次性验收租户回收、P0 身份头冒充修复、兰琪生产数据收尾与 LQ-19 首发布；2026-08-03 清单保留为当时状态）
+
+## 最新发布：20260912-plat23b-merged-prod1（2026-09-12，生产）— 积分换算常量口径统一（方案 A），并处理一次并发发布互相覆盖
+
+用户 2026-09-12 对 PLAT-23 选定**方案 A：不改任何数字，只让常量说真话**。改动：`apps/api/src/services/marketplace-cost.ts` 的 `MARKETPLACE_CREDIT_MARKUP = 20`（注释称 20 倍、实际 100 倍）换成 `MARKETPLACE_TARGET_COST_TO_REVENUE_MULTIPLE = 100` + `MARKETPLACE_CUSTOMER_PRICE_CNY_PER_CREDIT = CREDIT_PRICING.customerPriceCnyPerCredit`（¥0.05）+ `MARKETPLACE_CREDITS_PER_COST_CNY = 100 ÷ 0.05 = 2000`（浮点精确），换算改为单次乘法；新增口径文档 `docs/PRICING.md`（三条报价线、两套模型价表分工、变更规则）；新增契约 `scripts/credits-cost-consistency-contract-smoke.ts`（24 条，含 20 万点逐点比对）并挂 `qa:fast`。
+
+**一个必须写在案上的精度事实**：纯表达式重写无法逐位一致——实测 300 万个成本值，旧式与任何自洽写法都有差异（对比单次乘法 459 处），**全部落在「成本 × 2000 正好是整数」的边界**，方向固定为旧式多送 1 积分；只影响内部 `estimatedCredits` 与账本 metadata，**对客扣费（SKU `ppu`）一分未变**（真实深度复盘复核 `consumedCredits=60`）。契约把「差异 ≤1 且只落在整数边界」写成了断言。
+
+发布包（当前线上）：`release-20260912-plat23b-merged-full.tar.gz`（9367676 B，sha256 `2b6c6501b0c3224b54becf4a10b43c11d7a7e96a79da863bcb1cf25a7dd0fda5`，1465 文件）。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | https://api.lcppch.top/os-v2/ | `20260912-plat23b-merged-prod1` | `DEPLOY_OK` + `VERIFY_OK` + 匿名探针 **PASS** + `deployed-marketplace-browser-check` **PASS** + `platform:route-browser-e2e` **PASS 24/24**；`journalctl -p err` 近 6 分钟 `No entries` |
+| 测试 | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | https://api.lcppch.top/lanqi-test/ | `20260912-plat23b-merged-test1` | `DEPLOY_OK`（`health=200 after 45s`）+ `ready=200` |
+
+**并发发布事故与处置（重要）**：我第一轮生产发布完成后，另一个并行任务的 `20260912-lq24-needs-regen-prod1`（兰琪朋友圈重新生成）也在发生产，它的包来自不含本次修改的树，覆盖后生产 src/dist 里新常量变成 **0 处**（被回退）。处置方式：把两个包逐文件比对（差异全集 10 个文件，运行时代码 3 个），从**当前合并后的工作区**重新打包（`plat23b-merged`，包内同时含我的新常量与对方的 lq24 标记）再发生产。**经验**：`deploy-release.sh` 是叠加覆盖，多任务并行时谁最后发谁说了算；发布前后都要做一次标记核查，发现被覆盖就用「当前合并后的工作区」重打包，不要用旧包互相覆盖。
 
 ## 最新发布：20260912-plat24-chat-login-gate-prod1（2026-09-12，生产）— 视频复盘 chat 页匿名用户不再白填 4 步
 
@@ -32,7 +47,19 @@
 | 测试 | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | https://api.lcppch.top/lanqi-test/ | `20260912-plat22-cliplab-cost-test1` | `DEPLOY_OK` + `VERIFY_OK`；部署产物 `clip-lab.js` 中 `estimatedLocalCostYuan` = 0 次 |
 | 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | https://api.lcppch.top/os-v2/ | `20260912-plat22-cliplab-cost-prod1` | `DEPLOY_OK` + `VERIFY_OK` + 浏览器 `deployed-marketplace-browser-check` **PASS** + `platform:route-browser-e2e` **PASS 24/24** + `marketplace-sku-link-regression` **ALL PASS**；`journalctl -p err` 近 8 分钟 `No entries` |
 
-**下一批（PLAT-23，未开工）**：积分 ↔ 人民币 ↔ 成本换算常量口径统一。现状是三条线互不一致——对客售价线 1 积分 = ¥0.05（`CREDIT_PRICING`）、内部成本线 1 积分 = ¥0.01 且「20 倍」（`MARKETPLACE_CREDIT_MARKUP`）实际生效为 `credits = ceil(成本 × 2000)`（等于成本 → 营收 **100 倍**，与注释的 20 倍不符），另有美业图片 `¥0.2/张` 与兰琪视频「成本 ×10」等不同倍数、以及 DeepSeek 两套单价表（¥3/¥6 与 ¥3.48/¥6.96）。**该批需用户先选定口径（A 只让常量说真话 / B 让 20 倍名副其实但内部估算数字变化 / C 只加注释与契约），未获批准前不改任何对客价格与扣费。**
+**PLAT-23（已做，见上方最新发布）**：积分 ↔ 人民币 ↔ 成本换算常量口径统一。用户选定方案 A（只让常量说真话，不改数字），已落地 `MARKETPLACE_TARGET_COST_TO_REVENUE_MULTIPLE = 100` + `CREDIT_PRICING.customerPriceCnyPerCredit` 推导、`docs/PRICING.md` 口径文档与新契约。**仍待用户点头的是后续两批**：三条线倍数区间（30–100× / 10–20× / 4–8×）与两条地板是否写入正式价目；是否对齐 `livescript` 200→60、图片 100→20（属动钱）。
+
+## 最新发布：20260912-lq25-invite-keep-test1 / -prod1（2026-09-12，测试实例 + 生产）— 兰琪扫码登录不再丢邀请码
+
+用户 2026-09-12 反馈「已扫码 但是需要邀请码 还是登入不了」。只读取证结论：生产日志里 `10:04:44 POST /auth/wechat-bridge/complete` 表明**那次扫码授权已经成功**；该微信号 active memberships = 0；两张兰琪邀请码 `usedCount` 均为 **0**。根因是**扫码链路只带 `productCode`、不带 `inviteCode`**：`resolveWechatLogin()` 对「新用户且无产品授权」只会返回 `needsTenant`，前端整页 `replace` 回 `/login/lanqi` 补资料时把刚填的邀请码丢掉，老板看到的就是「扫码成功了却还要邀请码」。缺陷与红/绿证见 `docs/BUG_REGRESSIONS.md` **QA-20260912-013**。
+
+改动（纯前端）：`apps/web/src/pages/LoginPage.tsx` 在开始微信授权前把产品邀请码暂存到 `sessionStorage["store_os_pending_invite"]`，`needsTenant` 回跳带 `?invite=<码>`，产品入口对 `?invite=` 自动核验一次（`submitProductInviteCode()`，与表单提交共用实现）并直接进入「门店资料」表单；`apps/web/src/pages/WeChatCallback.tsx` 手机微信内回跳同口径。**不动服务端**：不建租户、不改授权模型、不碰计费与积分。
+
+验收：源码契约红灯（新断言打在修复前版本上命中数 0）→ 绿灯 `node scripts/product-login-entry-smoke.mjs` **PASS**（该脚本已挂 `qa:fast` 的 `auth:product-login-smoke`）；`pnpm.cmd --filter @baolu/web typecheck` exit 0；`pnpm.cmd qa:fast` → `QAFAST_EXIT=0`；**生产真实浏览器**（headless，不需要真人扫码、不消耗邀请码）打开 `https://api.lcppch.top/os-v2/login/lanqi?invite=<兰琪产品邀请码>` → 页面出现「邀请码已验证 / 门店名称* / 行业 / 所在城市 / 邀请码有效，请完成工作区资料。」，截图 `scripts/tmp/lq25-prefill-prod.png`。
+
+发布包 `release-20260912-lq25-invite-keep-full.tar.gz`（**9359687 B**，sha256 `fae6538168b5e405bc842b8ed6c9a2a06e7d1cb05aca6a42a22fdb5778a3cbed`，1462 文件，服务器 `sha256sum` 与本地一致）。测试实例与生产均 `DEPLOY_OK`（`health=200 (after 15s)` / `ready=200`，48 迁移无待应用）+ `VERIFY_OK`。备份 `/opt/baolu-backups/20260912-lq25-invite-keep-{test1,prod1}-before-*`；回滚 = 还原备份 + `systemctl restart`，或只回滚这两个前端文件重发包。
+
+**已知边界**：① `needsTenant` 的 onboarding token 在 localStorage，换浏览器重扫会再走一次「补资料」，但邀请码已由本修复带回并自动核验；② 同一微信号若已开通别的产品，产品入口仍返回 `403 product_membership_required`（需单独用邀请码开通兰琪），是否允许「一个微信号多产品」属产品决策。
 
 ## 最新发布：20260912-lq24-needs-regen-test1 / -prod1（2026-09-12，测试实例 + 生产）— 兰琪私域营销「素材信息不够」分支补齐重新生成
 

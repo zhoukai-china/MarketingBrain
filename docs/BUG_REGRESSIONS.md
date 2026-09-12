@@ -1,5 +1,22 @@
 # Bug 回归台账
 
+## QA-20260912-013：兰琪入口「先填邀请码再扫码」，扫码成功后邀请码被丢掉，老板卡在「还是要邀请码」进不去（P1，已修 + 已上测试实例与生产）
+
+- 触发：用户 2026-09-12 反馈「已扫码 但是需要邀请码 还是登入不了」。
+- 现场取证（只读）：生产日志 `10:04:44 POST /auth/wechat-bridge/complete`——**那次扫码授权其实已经成功**；库内该微信号（`User` 中最新一条有 `wechatOpenid` 的记录，`createdAt 2026-09-10`）**active memberships = 0**；两张兰琪邀请码 `usedCount` 都是 **0**（说明从未成功核销过）。
+- 现象与根因分开：
+  - 现象：扫码授权成功 → 前端把页面 `replace` 回 `/login/lanqi` 让老板「补门店资料」→ 老板看到登录页又要邀请码，以为根本没登进去。
+  - 根因：`/auth/wechat-bridge/session` 与 `/auth/wechat-login` 的载荷**只有 `productCode`、没有 `inviteCode`**；`resolveWechatLogin()` 在「没有匹配产品授权」时只会返回 `needsTenant`（新用户）或 `403 product_membership_required`，**从不核销邀请码**。又因为回跳是整页 `replace`，React state 归零，老板刚填的邀请码被丢掉，只能重填一遍 —— 体验上就是「扫码也没用」。
+  - 连带影响：产品入口那句「首次使用微信登录，会自动为你注册账号并开通工作区（需邀请码）」在**微信链路上从未兑现**。
+- 最小修复（纯前端，2 个文件）：开始微信授权前把登录页填过的产品邀请码暂存 `sessionStorage["store_os_pending_invite"]`；`needsTenant` 回跳时带上 `?invite=<码>`；产品入口对 `?invite=` **自动核验一次**（抽成 `submitProductInviteCode()`，与表单提交共用同一实现），老板直接落到「门店资料」表单；手机微信内 `/wechat-callback` 同口径。**不动服务端**：不建租户、不改授权模型、不碰计费与积分。
+- 回归（先红后绿）：
+  - 红灯（源码契约）：把新断言打在 HEAD（修复前）版本上，`pendingInviteKey` / `rememberPendingInvite(` / `store_os_pending_invite` 出现次数**均为 0**；修复后为 4 / 3 / 1。
+  - 绿灯：`node scripts/product-login-entry-smoke.mjs` → **PASS**（新增 5 条断言；该脚本已挂 `qa:fast` 的 `auth:product-login-smoke`）；`pnpm.cmd --filter @baolu/web typecheck` → exit 0；`pnpm.cmd qa:fast` → `QAFAST_EXIT=0`。
+  - 生产真实浏览器（**不需要真人扫码、不消耗邀请码**）：headless Chrome 打开 `https://api.lcppch.top/os-v2/login/lanqi?invite=<兰琪产品邀请码>`，页面实测文案 `邀请码已验证 / 门店名称* / 行业 / 所在城市 / 邀请码有效，请完成工作区资料。/ 开通并进入兰琪美业`——即带码打开会自动核验并直接进入门店资料表单。截图 `scripts/tmp/lq25-prefill-prod.png`。
+- 发布（2026-09-12）：包 `release-20260912-lq25-invite-keep-full.tar.gz`（**9359687 B**，sha256 `fae6538168b5e405bc842b8ed6c9a2a06e7d1cb05aca6a42a22fdb5778a3cbed`，1462 文件，服务器实测一致）。测试实例 `20260912-lq25-invite-keep-test1` + 生产 `20260912-lq25-invite-keep-prod1`，两侧 `DEPLOY_OK`（`health=200 (after 15s)` / `ready=200`，48 迁移无待应用）+ `VERIFY_OK`。
+- 已知边界（未修，留作下一步）：① `needsTenant` 的 onboarding token 存在 localStorage，换浏览器/清缓存后重新扫码会再走一次「补资料」，但此时邀请码会被本修复带回并自动核验，不再需要手填；② 同一微信号若**已开通别的产品**，产品入口按设计返回 `403 product_membership_required`（需要单独用邀请码开通兰琪）——是否允许「一个微信号开多个产品」属产品决策，本轮不动。
+- 回滚：还原 `/opt/baolu-backups/20260912-lq25-invite-keep-{test1,prod1}-before-*/` + `systemctl restart`；或只回滚这两个前端文件重发包（无接口 / 无迁移 / 无数据变更）。
+
 ## QA-20260912-012：「素材信息不够」时结果面板只剩一句提示、没有任何下一步出口（P2，已修 + 已上测试实例与生产）
 
 - 触发：用户交来 WorkBuddy《兰琪私域营销页回归复测报告（第3轮）》（2026-09-12，`stage3/兰琪私域营销页回归复测报告-第3轮.docx`），报告把「结果面板缺少复制 / 重新生成按钮」「顶部多端实时同步点击无反馈」列为待处理 P2。
