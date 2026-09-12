@@ -59,7 +59,7 @@
 
 发布包 `release-20260912-lq25-invite-keep-full.tar.gz`（**9359687 B**，sha256 `fae6538168b5e405bc842b8ed6c9a2a06e7d1cb05aca6a42a22fdb5778a3cbed`，1462 文件，服务器 `sha256sum` 与本地一致）。测试实例与生产均 `DEPLOY_OK`（`health=200 (after 15s)` / `ready=200`，48 迁移无待应用）+ `VERIFY_OK`。备份 `/opt/baolu-backups/20260912-lq25-invite-keep-{test1,prod1}-before-*`；回滚 = 还原备份 + `systemctl restart`，或只回滚这两个前端文件重发包。
 
-**已知边界**：① `needsTenant` 的 onboarding token 在 localStorage，换浏览器重扫会再走一次「补资料」，但邀请码已由本修复带回并自动核验；② 同一微信号若已开通别的产品，产品入口仍返回 `403 product_membership_required`（需单独用邀请码开通兰琪），是否允许「一个微信号多产品」属产品决策。
+**已知边界**：① `needsTenant` 的 onboarding token 在 localStorage，换浏览器重扫会再走一次「补资料」，但邀请码已由本修复带回并自动核验；② ~~同一微信号若已开通别的产品，产品入口仍返回 `403 product_membership_required`~~ —— **用户 2026-09-12 拍板「一个账号可以使用全平台」，该 403 已移除**：已开通其他产品的微信号再进兰琪入口会走「补资料」开第二个租户，兰琪仍靠产品邀请码把关（无码 403 `invite_code_required`）。见 QA-20260912-014。
 
 **真人端到端复验（2026-09-12，老板本人，生产）**：用户按「带邀请码的兰琪入口链接」成功开通并进入，回复「能进入，私域营销页正常可用」。后台佐证：新租户 `cmtxwo0ib057y1161bdr27l84`（`createdAt 2026-09-12 12:49 +08`）＋ owner `Membership` 1 条 ＋ `lanqi` 授权 `active` ＋ 默认门店 1 个；兰琪邀请码 `la****p7` 由 `usedCount 0 → 1`。残留：该新账号未绑定微信，换设备需重走同一链接；如需「扫码直达」，需把老板微信号绑为该租户 owner（一次性、可回滚，待用户确认）。
 

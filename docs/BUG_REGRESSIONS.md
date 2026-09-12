@@ -14,7 +14,16 @@
   - 绿灯：`node scripts/product-login-entry-smoke.mjs` → **PASS**（新增 5 条断言；该脚本已挂 `qa:fast` 的 `auth:product-login-smoke`）；`pnpm.cmd --filter @baolu/web typecheck` → exit 0；`pnpm.cmd qa:fast` → `QAFAST_EXIT=0`。
   - 生产真实浏览器（**不需要真人扫码、不消耗邀请码**）：headless Chrome 打开 `https://api.lcppch.top/os-v2/login/lanqi?invite=<兰琪产品邀请码>`，页面实测文案 `邀请码已验证 / 门店名称* / 行业 / 所在城市 / 邀请码有效，请完成工作区资料。/ 开通并进入兰琪美业`——即带码打开会自动核验并直接进入门店资料表单。截图 `scripts/tmp/lq25-prefill-prod.png`。
 - 发布（2026-09-12）：包 `release-20260912-lq25-invite-keep-full.tar.gz`（**9359687 B**，sha256 `fae6538168b5e405bc842b8ed6c9a2a06e7d1cb05aca6a42a22fdb5778a3cbed`，1462 文件，服务器实测一致）。测试实例 `20260912-lq25-invite-keep-test1` + 生产 `20260912-lq25-invite-keep-prod1`，两侧 `DEPLOY_OK`（`health=200 (after 15s)` / `ready=200`，48 迁移无待应用）+ `VERIFY_OK`。
-- 已知边界（未修，留作下一步）：① `needsTenant` 的 onboarding token 存在 localStorage，换浏览器/清缓存后重新扫码会再走一次「补资料」，但此时邀请码会被本修复带回并自动核验，不再需要手填；② 同一微信号若**已开通别的产品**，产品入口按设计返回 `403 product_membership_required`（需要单独用邀请码开通兰琪）——是否允许「一个微信号开多个产品」属产品决策，本轮不动。
+- 已知边界：① `needsTenant` 的 onboarding token 存在 localStorage，换浏览器/清缓存后重新扫码会再走一次「补资料」，但此时邀请码会被本修复带回并自动核验，不再需要手填；② ~~同一微信号若已开通别的产品会 403~~ —— **用户 2026-09-12 拍板「一个账号可以使用全平台」，该 403 已移除**，见下方 QA-20260912-014。
+
+## QA-20260912-014：一个微信号进不了「第二个产品」（旧的一号一产品假设）（P1 体验缺陷，按用户口径已改 + 已回归）
+
+- 触发：用户 2026-09-12 拍板「**允许一号多产品**——我们的平台就是一个账号可以使用全平台的智能体；兰琪因为要给自己加盟商用、不给其他人用，所以加了个邀请码才能使用」。
+- 旧行为（根因）：`resolveWechatLogin()` 在「该微信号已有其他产品的租户、但没有本产品的租户」时直接返回 **403 `product_membership_required`**（文案「当前账号尚未开通这个产品，请使用产品邀请码或联系服务团队」）。结果是：已开通外卖/美业的微信号再进兰琪入口，只会看到一句"请使用产品邀请码"却**无处输入**——这正是用户今天撞到的那条。
+- 口径更正：平台是**一个账号用全平台**；受控产品（兰琪）的开通闸门是**产品邀请码**（给加盟商开门），不是"一人只能一个产品"。
+- 最小修复（`apps/api/src/routes/auth.ts`，删除一个分支）：产品入口在「无本产品租户」时不再区分是否已有其他租户，一律走 `needsTenant` 补资料 → 用邀请码开通**第二个租户**（仍绑同一个微信号）。**受控闸门不变**：`onboarding/create-workspace` 仍强制 `validateInviteCode(inviteCode, planCode, productCode)`，无码即 403 `invite_code_required`；`/lanqi/*` 的 `requireProductEntitlement("lanqi")` 守卫也未动，没有兰琪授权的账号依旧拿不到兰琪数据。
+- 回归（源码契约，已挂 `qa:fast` 的 `auth:product-login-smoke`）：`scripts/product-login-entry-smoke.mjs` 新增 3 条断言——**禁止**再出现 `error: "product_membership_required"`、必须留痕「一个账号可以使用全平台的智能体」、必须仍强制校验产品邀请码。`node scripts/product-login-entry-smoke.mjs` → PASS；`pnpm.cmd --filter @baolu/api typecheck` → exit 0。
+- 未做：一个微信号拥有多个**租户**时的"默认落地租户"仍按最早创建的 membership 走（平台入口）；兰琪入口因按产品授权过滤，会正确落到兰琪租户。是否要给多租户加"选择工作区"页属后续需求。
 - **真人端到端复验（2026-09-12，老板本人，生产）**：用户按修复后的「带邀请码的兰琪入口链接」成功开通并进入，回复「能进入，私域营销页正常可用」。后台佐证：新租户 `cmtxwo0ib057y1161bdr27l84`（`createdAt 2026-09-12 12:49 +08`，owner `Membership` 1 条、`lanqi` 授权 `active`、默认门店 1 个），兰琪邀请码 `la****p7` 由 `usedCount 0 → 1`。**这条 P1 由真人闭环，可关闭。** 残留：该新账号未绑定微信，换设备需重走同一链接；如需扫码直达，需把老板微信号绑为该租户 owner（一次性、可回滚，待用户确认）。
 - 回滚：还原 `/opt/baolu-backups/20260912-lq25-invite-keep-{test1,prod1}-before-*/` + `systemctl restart`；或只回滚这两个前端文件重发包（无接口 / 无迁移 / 无数据变更）。
 

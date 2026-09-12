@@ -190,3 +190,20 @@ assert.match(
   "手机微信内授权回跳补资料时同样要带上邀请码",
 );
 console.log("扫码开通邀请码留存回归通过（QA-20260912-013）。");
+
+// QA-20260912-014（用户 2026-09-12 口径）：「一个账号可以使用全平台」。
+// 受控产品（兰琪）的开通闸门是**产品邀请码**，不是「一人只能一个产品」——
+// 已开通外卖/美业的微信号再进兰琪入口，必须走 needsTenant 补资料开第二个租户，
+// 不能再被 403 product_membership_required 挡死。
+assert.doesNotMatch(
+  auth,
+  /error:\s*"product_membership_required"/,
+  "不得再以「一号一产品」为由拦断第二个产品的开通",
+);
+assert.match(auth, /一个账号可以使用全平台的智能体/, "「一号多产品」的口径必须留痕，避免被无声改回");
+assert.match(
+  auth,
+  /validateInviteCode\(code, plan, productCode\)|validateInviteCode\(parsed\.data\.inviteCode, planCode, product\?\.code\)/,
+  "受控产品的开通仍必须强制校验产品邀请码（闸门没有被放宽）",
+);
+console.log("一号多产品口径回归通过（QA-20260912-014）。");
