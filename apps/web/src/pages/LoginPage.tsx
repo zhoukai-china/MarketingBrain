@@ -39,6 +39,23 @@ const ROLE_OPTIONS: Array<{ value: TenantRole; label: string; desc: string }> = 
 
 const postLoginRedirectKey = "store_os_post_login_redirect";
 const productLoginSessionKey = "store_os_product_login_code";
+/**
+ * 首次开通时，老板在登录页填过的产品邀请码必须在微信授权过程中留住。
+ *
+ * QA-20260912-013 的真实现场：兰琪入口「先扫码 → 被判定新用户 → 前端把页面 replace 回
+ * /login/lanqi 补资料」，但这一步会丢掉刚填的邀请码，老板看到的就是「扫码成功了，怎么还
+ * 要邀请码」，于是进不去。这里把码暂存在 sessionStorage（同一浏览器同一标签页），
+ * 授权回来补资料时再带上、并自动核验，老板只需要补门店名称。
+ */
+const pendingInviteKey = "store_os_pending_invite";
+function rememberPendingInvite(code: string): void {
+  const normalized = (code ?? "").trim();
+  if (normalized) sessionStorage.setItem(pendingInviteKey, normalized);
+  else sessionStorage.removeItem(pendingInviteKey);
+}
+function readPendingInvite(): string {
+  return sessionStorage.getItem(pendingInviteKey) ?? "";
+}
 const PRODUCT_REDIRECT_PREFIXES: Record<ProductLoginCode, readonly string[]> = {
   "founder-ip": ["/agents/acquisition"],
   takeaway: ["/agents/takeaway-growth"],
@@ -135,6 +152,17 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
     }
   }, [product]);
 
+  // 扫码开通回来会带上 ?invite=<邀请码>：这里自动核验一次，让老板直接落到「门店资料」表单，
+  // 不用再手填一遍邀请码（QA-20260912-013）。只自动试一次，失败仍由用户手动重试。
+  const autoInviteTried = useRef(false);
+  useEffect(() => {
+    if (!product || inviteValidated || autoInviteTried.current) return;
+    const fromQuery = new URLSearchParams(window.location.search).get("invite") ?? "";
+    if (!fromQuery.trim()) return;
+    autoInviteTried.current = true;
+    void submitProductInviteCode(fromQuery);
+  }, [product, inviteValidated]);
+
   // 电脑端：轮询扫码会话，拿到手机授权后的登录结果并就地完成登录。
   useEffect(() => {
     if (!wechatQr || wechatQr.expired) return;
@@ -182,7 +210,10 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
           // 新用户还没工作区：沿用手机端直连的行为，去补资料页完成开通。
           localStorage.setItem("store_os_onboarding_token", login.onboardingToken ?? "");
           const code = productCodeRef.current;
-          window.location.replace(getAppPath(code ? `/login/${code}` : "/login"));
+          // 带上刚填的邀请码：否则老板会看到「扫码成功了却还要邀请码」的死循环。
+          const target = getAppPath(code ? `/login/${code}` : "/login");
+          const pendingInvite = readPendingInvite();
+          window.location.replace(pendingInvite ? `${target}?invite=${encodeURIComponent(pendingInvite)}` : target);
           return;
         }
         if (!login.token) {
@@ -248,6 +279,8 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
 
       const state = crypto.randomUUID();
       sessionStorage.setItem("wechat_oauth_state", state);
+      // 微信内打开也要留住邀请码：授权回跳落 /wechat-callback，同样会走「补资料」分支。
+      rememberPendingInvite(inviteCode);
       if (product) sessionStorage.setItem(productLoginSessionKey, product.code);
       else sessionStorage.removeItem(productLoginSessionKey);
       if (isCustomDomain) sessionStorage.setItem("wechat_tenant_hostname", publicBrand.hostname);
@@ -270,6 +303,9 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
     setBusy(true);
     clearFeedback();
     setStatus("正在生成登录二维码...");
+    // 扫码前填了邀请码就先留住：扫码结果若是「新用户要补资料」，
+    // 回跳时会带上它并自动核验，老板不用再填一遍（QA-20260912-013）。
+    rememberPendingInvite(inviteCode);
     try {
       const res = await fetch(apiPath("/auth/wechat-bridge/session"), {
         method: "POST",
@@ -311,13 +347,18 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
     }
   }
 
-  async function handleProductInviteValidate(event: FormEvent) {
-    event.preventDefault();
+  /**
+   * 产品邀请码核验（表单提交 + 「扫码开通回来」自动核验共用同一条实现）。
+   * QA-20260912-013：以前只有表单这一条入口，扫码回来自动核对的需求只能手填，
+   * 于是老板扫码成功后仍被要求「再填一次邀请码」。
+   */
+  async function submitProductInviteCode(rawCode: string) {
     if (!product || loginInFlight.current) return;
     // Bug4（WorkBuddy 2026-09-10）：以前这里靠原生 required 拦空值，
     // 浏览器只弹一个「请填写此字段」的气泡，用户看到的是「按钮没反应」。
     // 表单已加 noValidate，空值一律走这条中文提示。
-    if (!inviteCode.trim()) {
+    const normalizedInvite = rawCode.trim();
+    if (!normalizedInvite) {
       setError("请输入邀请消息中的邀请码。");
       setRetryReady(true);
       return;
@@ -330,7 +371,7 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
       const res = await fetch(`${apiBase}/auth/product-invite/validate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productCode: product.code, inviteCode: inviteCode.trim() }),
+        body: JSON.stringify({ productCode: product.code, inviteCode: normalizedInvite }),
       });
       const data = await res.json();
       if (!res.ok || !data.valid) throw new Error(data.message ?? data.error ?? "邀请码验证失败。");
@@ -344,6 +385,11 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
       loginInFlight.current = false;
       setBusy(false);
     }
+  }
+
+  async function handleProductInviteValidate(event: FormEvent) {
+    event.preventDefault();
+    await submitProductInviteCode(inviteCode);
   }
 
   async function handleLoginSubmit(event: FormEvent) {

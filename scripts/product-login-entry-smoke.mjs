@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [main, login, auth, invites, schema, shared, webApi, beautyWorkspace] = await Promise.all([
+const [main, login, auth, invites, schema, shared, webApi, beautyWorkspace, wechatCallback] = await Promise.all([
   readFile(new URL("../apps/web/src/main.tsx", import.meta.url), "utf8"),
   readFile(new URL("../apps/web/src/pages/LoginPage.tsx", import.meta.url), "utf8"),
   readFile(new URL("../apps/api/src/routes/auth.ts", import.meta.url), "utf8"),
@@ -10,6 +10,7 @@ const [main, login, auth, invites, schema, shared, webApi, beautyWorkspace] = aw
   readFile(new URL("../packages/shared/src/index.ts", import.meta.url), "utf8"),
   readFile(new URL("../apps/web/src/lib/api.ts", import.meta.url), "utf8"),
   readFile(new URL("../apps/web/src/pages/BeautyIndustryAcquisitionPage.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../apps/web/src/pages/WeChatCallback.tsx", import.meta.url), "utf8"),
 ]);
 const [server, guards] = await Promise.all([
   readFile(new URL("../apps/api/src/server.ts", import.meta.url), "utf8"),
@@ -167,3 +168,25 @@ assert.doesNotMatch(
 );
 
 console.log("产品独立登录入口回归通过：4 个产品入口、内部开通页、产品邀请码与按产品授权均已建立。");
+
+// QA-20260912-013（2026-09-12）：兰琪入口「先填邀请码再扫码」时，邀请码必须在
+// 微信授权 + 「新用户补资料」这一跳里留住，否则老板扫码成功后仍被要求再填一次邀请码，
+// 现场表现就是「已扫码，但还是登入不了」。
+assert.match(login, /const pendingInviteKey = "store_os_pending_invite"/, "扫码开通必须把产品邀请码暂存在 sessionStorage");
+assert.match(login, /rememberPendingInvite\(inviteCode\)/, "开始微信授权前必须记住产品邀请码");
+assert.match(
+  login,
+  /\?invite=\$\{encodeURIComponent\(pendingInvite\)\}/,
+  "授权回来补资料时必须把邀请码带回产品登录页",
+);
+assert.match(
+  login,
+  /submitProductInviteCode\(fromQuery\)/,
+  "带 invite 参数回到产品入口时必须自动核验一次，不能再让老板手填第二遍",
+);
+assert.match(
+  wechatCallback,
+  /sessionStorage\.getItem\("store_os_pending_invite"\)/,
+  "手机微信内授权回跳补资料时同样要带上邀请码",
+);
+console.log("扫码开通邀请码留存回归通过（QA-20260912-013）。");

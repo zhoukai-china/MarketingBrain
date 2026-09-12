@@ -97,7 +97,11 @@ export default function WeChatCallback({ onLogin }: WeChatCallbackProps) {
         if (data.needsTenant) {
           localStorage.setItem("store_os_onboarding_token", data.onboardingToken ?? "");
           const nextPath = productCode ? `/login/${productCode}` : "/login";
-          window.location.replace(getAppPath(nextPath));
+          // QA-20260912-013：手机微信内授权同样会落到「补资料」，把登录页填过的产品邀请码带上，
+          // 否则老板会看到「授权成功了却还要邀请码」。
+          const pendingInvite = sessionStorage.getItem("store_os_pending_invite") ?? "";
+          const target = getAppPath(nextPath);
+          window.location.replace(pendingInvite ? `${target}?invite=${encodeURIComponent(pendingInvite)}` : target);
           return;
         }
 
