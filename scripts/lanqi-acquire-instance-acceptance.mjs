@@ -364,23 +364,26 @@ async function verifyVideoPage(root, checks, base, label, record) {
       vd.sessionId,
       `(() => ({
         text: document.body?.innerText ?? "",
-        quoteDisabled: [...document.querySelectorAll("button")].find((node) => (node.innerText || "").includes("报价"))?.disabled ?? null
+        confirmDisabled: [...document.querySelectorAll("button")].find((node) => (node.innerText || "").includes("再出片"))?.disabled ?? null
       }))()`,
     );
     const callsBeforeQuote = vd.requestTimeline.length;
-    await clickButton(root, vd, "先报价");
+    await clickButton(root, vd, "看报价");
     await sleep(900);
     const addedRequests = vd.requestTimeline.length - callsBeforeQuote;
+    const afterQuote = await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''");
+    const localBlocked = /请先上传要复刻的原视频|请先逐条确认四项素材与肖像授权|请先上传/.test(afterQuote);
     checks.push({
-      name: `${label}：复刻出片面板齐备、未上传/未授权前不放行（不出现假生成）`,
+      name: `${label}：复刻出片面板齐备、未上传/未授权时本地拦截（不出现假生成）`,
       pass:
         pickedHit === "clicked" &&
         panel.text.includes("上传原视频") &&
         panel.text.includes("素材与肖像授权") &&
         panel.text.includes("报价与出片") &&
-        panel.quoteDisabled === true &&
+        panel.confirmDisabled === true &&
+        localBlocked &&
         addedRequests === 0,
-      detail: `选它复刻=${pickedHit} 面板=上传原视频:${panel.text.includes("上传原视频")}/授权:${panel.text.includes("素材与肖像授权")}/报价:${panel.text.includes("报价与出片")} 报价按钮禁用=${panel.quoteDisabled} 新增请求=${addedRequests}`,
+      detail: `选它复刻=${pickedHit} 面板=上传原视频:${panel.text.includes("上传原视频")}/授权:${panel.text.includes("素材与肖像授权")}/报价:${panel.text.includes("报价与出片")} 确认按钮禁用=${panel.confirmDisabled} 本地拦截提示=${localBlocked} 新增请求=${addedRequests}`,
     });
   }
 
