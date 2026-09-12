@@ -41,6 +41,18 @@ function forbidMatch(source, pattern, name) {
   record(name, !hit, hit ? `仍存在 ${String(pattern)}` : "未出现");
 }
 
+/**
+ * 结果面板有两条分支（有正文 / 信息不足），断言必须落在具体那条分支里。
+ * 否则「有正文」分支里的按钮会让「信息不足」分支的空缺被误判成通过——
+ * 这正是 LQ-24 要修的漏网：2026-09-11 补按钮时只补了有正文那条。
+ */
+function branchOf(source, marker) {
+  const start = source.indexOf(marker);
+  if (start < 0) return "";
+  const alt = source.indexOf(") : (", start);
+  return alt < 0 ? source.slice(start, start + 1500) : source.slice(start, alt);
+}
+
 // —— 朋友圈结果卡片：复制 / 重新生成 ——
 requireMatch(friendCircle, /data-lanqi-moments-tools/, "朋友圈：结果卡片有操作区容器");
 requireMatch(friendCircle, /data-lanqi-moments-copy/, "朋友圈：有「复制文案」按钮");
@@ -54,6 +66,19 @@ requireMatch(friendCircle, /重新生成中…/, "朋友圈：重新生成时有
 requireMatch(wechatGroup, /data-lanqi-wechat-copy/, "群话术：有「复制文案」按钮");
 requireMatch(wechatGroup, /data-lanqi-wechat-regen/, "群话术：有「重新生成」按钮");
 requireMatch(wechatGroup, /data-lanqi-wechat-toast/, "群话术：有可见 toast");
+
+// —— 信息不足（needsInput）分支：也要给出「重新生成」，但不要「复制」 ——
+// 老板被判定「素材还不够」时，面板原本只剩一句提示，没有任何下一步出口（LQ-24）。
+const friendCircleNeeds = branchOf(friendCircle, "result.needsInput ? (");
+record("朋友圈：定位到「信息不足」分支代码块", friendCircleNeeds.length > 0, `len=${friendCircleNeeds.length}`);
+requireMatch(friendCircleNeeds, /data-lanqi-moments-regen/, "朋友圈：信息不足分支也有「重新生成」按钮");
+requireMatch(friendCircleNeeds, /重新生成中…/, "朋友圈：信息不足分支的按钮有进行中文案");
+forbidMatch(friendCircleNeeds, /data-lanqi-moments-copy/, "朋友圈：信息不足分支不放「复制文案」（没有正文可复制）");
+
+const wechatNeeds = branchOf(wechatGroup, "result.needsInput ? (");
+record("群话术：定位到「信息不足」分支代码块", wechatNeeds.length > 0, `len=${wechatNeeds.length}`);
+requireMatch(wechatNeeds, /data-lanqi-wechat-regen/, "群话术：信息不足分支也有「重新生成」按钮");
+forbidMatch(wechatNeeds, /data-lanqi-wechat-copy/, "群话术：信息不足分支不放「复制文案」");
 
 // —— 顶栏「多端实时同步」：从纯 span 改成可点按钮 + 反馈 ——
 requireMatch(shell, /<button[^>]*className="lq-pd__pts"[^>]*data-lanqi-sync/, "顶栏：同步入口是可点按钮");

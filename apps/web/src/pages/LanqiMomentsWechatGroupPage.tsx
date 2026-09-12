@@ -155,6 +155,12 @@ export function LanqiMomentsWechatGroupPage() {
                   <strong>⚠️ 这条群消息素材还不够</strong>
                   <p className="lq-moments__body">{result.body}</p>
                   <p className="lq-moments__needs-hint">补充一个具体信息（时间 / 活动 / 优惠 / 名额）再生成，不编造内容。</p>
+                  {/* LQ-24：与朋友圈页同口径——信息不够时也要有下一步出口，这里只给「重新生成」。 */}
+                  <div className="lq-cw__tools" data-lanqi-wechat-needs-tools>
+                    <button type="button" className="lq-cw__tool" disabled={loading} data-lanqi-wechat-regen onClick={() => void generate()}>
+                      {loading ? "重新生成中…" : "🔄 重新生成"}
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <>

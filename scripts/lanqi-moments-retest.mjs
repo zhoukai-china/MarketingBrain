@@ -130,6 +130,11 @@ const SNAPSHOT_EXPR = `(() => {
   const ta = [...document.querySelectorAll("textarea")].filter((n) => n.offsetParent !== null);
   const gen = btnFor("生成朋友圈文案");
   const aiBtn = btnFor("生成真实 AI 配图") || btnFor("真实配图生成中");
+  // 「素材信息还不够」分支单独取一次：它和「有正文」分支是两套 JSX，
+  // 必须按 needs 面板作用域查询，否则会误把 else 分支的按钮当成它已有操作（LQ-24）。
+  const needsPanel = document.querySelector(".lq-moments__needs");
+  const needsRegen = needsPanel?.querySelector("[data-lanqi-moments-regen]") ?? null;
+  const needsCopy = needsPanel?.querySelector("[data-lanqi-moments-copy]") ?? null;
   const tools = document.querySelector("[data-lanqi-moments-tools]");
   const sync = document.querySelector("[data-lanqi-sync]");
   return {
@@ -151,6 +156,9 @@ const SNAPSHOT_EXPR = `(() => {
     toast: document.querySelector("[data-lanqi-moments-toast]")?.innerText?.trim() ?? null,
     syncButton: sync ? { found: true, tag: sync.tagName, disabled: sync.disabled, text: (sync.innerText || "").trim() } : { found: false },
     syncToast: document.querySelector("[data-lanqi-sync-toast]")?.innerText?.trim() ?? null,
+    needsPanelShown: Boolean(needsPanel),
+    needsRegen: needsRegen ? { found: true, disabled: needsRegen.disabled, text: (needsRegen.innerText || "").trim() } : { found: false },
+    needsCopyShown: Boolean(needsCopy),
     text,
   };
 })()`;
@@ -281,6 +289,66 @@ async function main() {
         !/deepseek|llm_|provider|internal|stack|500/i.test(afterEmptyClick.errorText),
       `error=${JSON.stringify(afterEmptyClick.errorText)}`,
     );
+
+    // ①b 「素材信息还不够」分支：规则判定（`isInputRich`），不调用模型、不花钱、可稳定复现。
+    // WorkBuddy 复测看到的「结果卡片没有复制/重新生成」真实现场就在这里：
+    // 面板只剩一句提示，没有任何下一步出口（LQ-24）。
+    const fillFastText = (value) =>
+      evaluate(
+        root,
+        sessionId,
+        `(() => {
+          const ta = [...document.querySelectorAll("textarea")].filter((n) => n.offsetParent !== null)[0];
+          if (!ta) return "not-found";
+          const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+          setter.call(ta, ${JSON.stringify(value)});
+          ta.dispatchEvent(new Event("input", { bubbles: true }));
+          return "filled";
+        })()`,
+      );
+    const upgradePosts = () => calls.filter((c) => c.method === "POST" && c.url.includes("/lanqi/moments/upgrade")).length;
+    // 注意：规则层先卡「至少 15 字」，再用 `isInputRich` 判是否够具体。
+    // 这句 20 字、无数字/无具体项目/无时间+价格，因此稳定落进 needsInput，且不调用模型。
+    const filledNeeds = await fillFastText("来了个客人，聊了几句就走了，也没有说别的");
+    await sleep(400);
+    await clickByText(root, sessionId, "生成朋友圈文案");
+    let needsState = null;
+    const needsDeadline = Date.now() + 20000;
+    while (Date.now() < needsDeadline) {
+      const state = await readState(root, sessionId);
+      if (state.needsPanelShown) {
+        needsState = state;
+        break;
+      }
+      await sleep(500);
+    }
+    push(
+      "素材不够具体时进入「信息还不够」面板（规则判定复现，不调用模型）",
+      filledNeeds === "filled" && needsState !== null,
+      `fill=${filledNeeds} needsPanelShown=${Boolean(needsState?.needsPanelShown)}`,
+    );
+    push(
+      "信息不够面板也给出「重新生成」按钮（不是死路）",
+      Boolean(needsState?.needsRegen?.found) && Boolean(needsState?.needsRegen?.text?.includes("重新生成")),
+      `needsRegen=${JSON.stringify(needsState?.needsRegen)}`,
+    );
+    push(
+      "信息不够面板不放「复制文案」（那里没有正文可复制）",
+      needsState !== null && needsState.needsCopyShown === false,
+      `needsCopyShown=${needsState?.needsCopyShown}`,
+    );
+    if (needsState?.needsRegen?.found) {
+      const beforePosts = upgradePosts();
+      await evaluate(root, sessionId, `document.querySelector(".lq-moments__needs [data-lanqi-moments-regen]")?.click()`);
+      const regenDeadline = Date.now() + 15000;
+      let afterPosts = beforePosts;
+      while (Date.now() < regenDeadline) {
+        afterPosts = upgradePosts();
+        if (afterPosts > beforePosts) break;
+        await sleep(400);
+      }
+      push("点「重新生成」真的又发起了一次升级请求", afterPosts > beforePosts, `upgradePosts ${beforePosts} -> ${afterPosts}`);
+    }
 
     // ② 顶栏「多端实时同步」：可点，且点击后有可见反馈（P2，本轮修复项）。
     push(

@@ -313,6 +313,14 @@ export function LanqiMomentsPage() {
                   <strong>⚠️ 这条素材信息还不够</strong>
                   <p className="lq-moments__body">{result.body}</p>
                   <p className="lq-moments__needs-hint">补充一个关键信息（客人是谁 / 做了什么 / 结果或价格）再生成，会得到更完整的朋友圈；不想编造内容。</p>
+                  {/* LQ-24：这条分支原来只有提示、没有任何下一步出口——WorkBuddy 复测看到的
+                      「结果卡片没有复制 / 重新生成」真实现场就在这里。只补「重新生成」：
+                      这里没有正文，不给复制，免得老板复制到一句提示。 */}
+                  <div className="lq-cw__tools" data-lanqi-moments-needs-tools>
+                    <button type="button" className="lq-cw__tool" disabled={loading} data-lanqi-moments-regen onClick={() => void generate()}>
+                      {loading ? "重新生成中…" : "🔄 重新生成"}
+                    </button>
+                  </div>
                 </div>
               ) : (
               <>
