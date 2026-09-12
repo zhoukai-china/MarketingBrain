@@ -26,6 +26,22 @@ async function main(): Promise<void> {
 
   const shelf = await app.inject({ method: "GET", url: "/market/skus" });
   const shelfBody = shelf.json() as { skus: Array<{ skuCode: string; status: string }> };
+  // 开卖状态必须来自发布文件 `marketplace-v3.json`，而不是数据库专区 profile 里的 `ov`。
+  // `syncMarketplaceIndustryProfiles()` 只在首次建行时写 `ov`，之后不再覆盖；而
+  // `loadMarketplaceIndustryProfiles()` 又用库里的 `ov` 覆盖内存值。若状态跟着库里走，
+  // 「改文件 + 发版」在库里已有 profile 行的环境会静默失效（2026-09-11 实测：文件已 selling，
+  // 线上 `/market/skus` 仍返回 coming_soon）。这条断言就是钉住该回归。
+  const vidrevStatuses = Object.fromEntries(
+    shelfBody.skus.filter((sku) => sku.skuCode.endsWith("__vidrev")).map((sku) => [sku.skuCode, sku.status])
+  );
+  assert(
+    vidrevStatuses["ipzone__vidrev"] === "selling",
+    `ipzone__vidrev must be selling (got ${vidrevStatuses["ipzone__vidrev"]})`
+  );
+  assert(
+    vidrevStatuses["meiye__vidrev"] === "selling",
+    `meiye__vidrev must be selling (got ${vidrevStatuses["meiye__vidrev"]})`
+  );
   const soonSku = shelfBody.skus.find((sku) => sku.status === "coming_soon");
   assert(soonSku !== undefined, "coming_soon skus are still listed on the public shelf");
   assert(typeof soonSku!.status === "string", "the shelf API exposes each sku status");

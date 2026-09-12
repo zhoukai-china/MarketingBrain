@@ -10,8 +10,10 @@
  *
  * 断言（桌面 1440 + 移动 390 各跑一遍）：
  *   1) 首屏（干净 profile、本地无会话）允许出现一次中间页 —— 只记录，不断言；
- *   2) 首屏结束后本地必须已有体验会话，且真的落到兰琪页面；
- *   3) 已有会话时点侧栏导航（整页跳转）**不得**再出现中间页，并落到公域获客页；
+ *   2) 首屏结束后本地必须已有体验会话，且落到当前唯一已上线的「私域营销」
+ *      （用户 2026-09-11 口径：只有私域营销可正常上线，其余板块显示「开发中」）；
+ *   3) 已有会话时点侧栏导航（整页跳转）**不得**再出现中间页，且未上线板块落到
+ *      兰琪自己的「开发中」占位页（不许空白页、不许串到别的产品）；
  *   4) 已有会话时直接打开/刷新子页**不得**出现中间页，且真实渲染出内容；
  *   5) 两种情况控制台错误 / 页面异常均为 0。
  *
@@ -209,7 +211,7 @@ async function runViewport(root, viewport) {
 
   // 场景 1：首屏（干净 profile，没有本地会话）—— 允许出现一次中间页，只记录。
   await root.send("Page.navigate", { url: `${base}/` }, sessionId);
-  const first = await sampleUntil(root, sessionId, { durationMs: 25000, readyText: "经营驾驶舱" });
+  const first = await sampleUntil(root, sessionId, { durationMs: 25000, readyText: "私域营销" });
   info(
     `${viewport.label} 首屏（无会话）中间页`,
     `出现=${first.splashSeen}${first.splashMs !== null ? ` @${first.splashMs}ms` : ""} · 落地=${first.lastPath} · 就绪=${first.readyMs}ms`
@@ -217,6 +219,11 @@ async function runViewport(root, viewport) {
   record(
     `${viewport.label} 首屏最终落到兰琪页面`,
     first.readyMs !== null && first.lastPath.includes("/lanqi/"),
+    `path=${first.lastPath} text=${first.lastText}`
+  );
+  record(
+    `${viewport.label} 首屏落在当前唯一已上线的「私域营销」`,
+    first.readyMs !== null && first.lastPath.includes("/lanqi/moments"),
     `path=${first.lastPath} text=${first.lastText}`
   );
 
@@ -243,14 +250,14 @@ async function runViewport(root, viewport) {
     } · 落地=${afterClick.lastPath}`
   );
   record(
-    `${viewport.label} 点侧栏导航后落到公域获客页`,
-    afterClick.lastPath.includes("/lanqi/acquire"),
-    `path=${afterClick.lastPath}`
+    `${viewport.label} 点侧栏未上线板块后落到兰琪「开发中」占位页`,
+    afterClick.lastPath.includes("/lanqi/acquire") && String(afterClick.lastText).includes("开发中"),
+    `path=${afterClick.lastPath} text=${String(afterClick.lastText).slice(0, 80)}`
   );
 
   // 场景 3：已持有会话时直接刷新子页 —— 不得出现中间页。
   await root.send("Page.navigate", { url: `${base}/lanqi/acquire/methods` }, sessionId);
-  const reload = await sampleUntil(root, sessionId, { durationMs: 15000, readyText: "AI 运营顾问" });
+  const reload = await sampleUntil(root, sessionId, { durationMs: 15000, readyText: "公域获客" });
   record(
     `${viewport.label} 已持有会话刷新子页不再出现中间页`,
     reload.splashSeen === false,
@@ -258,7 +265,11 @@ async function runViewport(root, viewport) {
       reload.splashText ? ` text=${reload.splashText}` : ""
     } · 落地=${reload.lastPath}`
   );
-  record(`${viewport.label} 子页真实渲染出内容`, reload.readyMs !== null, `path=${reload.lastPath} text=${reload.lastText}`);
+  record(
+    `${viewport.label} 子页真实渲染出内容（未上线板块 = 兰琪「开发中」占位）`,
+    reload.readyMs !== null && String(reload.lastText).includes("开发中"),
+    `path=${reload.lastPath} text=${String(reload.lastText).slice(0, 80)}`
+  );
   record(
     `${viewport.label} 控制台错误 / 页面异常为 0`,
     consoleErrors.length === 0 && pageErrors.length === 0,

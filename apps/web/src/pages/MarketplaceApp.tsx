@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { yuanLabelForCredits } from "@baolu/shared";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
 import { referenceCaseForSku, type ReferenceCase } from "../marketplace/reference-cases.js";
-import { clearStoredSession } from "../lib/session.js";
-import { chatFlowFor, buildRunPrompt } from "../marketplace/chat-flows.js";
+import { clearStoredSession, readSessionToken } from "../lib/session.js";
+import { chatFlowFor, buildRunBody } from "../marketplace/chat-flows.js";
 import { IpPosReport, type IpPosPayload } from "../marketplace/ip-pos-report.js";
+import { VidrevReport, isVidrevPayload, VIDREV_PREFILL_KEY, type VidrevPayload } from "../marketplace/vidrev-report.js";
 import sitongAvatar from "../assets/sitong-beauty.png";
 
 interface MarketplaceZone {
@@ -98,6 +98,42 @@ async function readJson<T>(response: Response): Promise<T> {
   return data;
 }
 
+/** 管理端读取：把 401/403 翻译成销售能看懂的话，其余沿用服务端 message / error。 */
+async function adminReadJson<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    if (response.status === 403) {
+      throw new Error("当前账号没有发放权限（需要 operator 及以上角色），请用运营/销售后台账号登入。");
+    }
+    if (response.status === 401) {
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      throw new Error(
+        data.error === "admin_token_required"
+          ? "体验额度发放需要平台运营凭证：请在上方填写「平台管理令牌」后再试。"
+          : "登录已失效，请重新登入后再发放。"
+      );
+    }
+    const data = (await response.json().catch(() => ({}))) as { message?: string; error?: string };
+    throw new Error(data.message ?? data.error ?? `请求失败（${response.status}）`);
+  }
+  return (await response.json()) as T;
+}
+
+/**
+ * 运营后台专用请求头（PLAT-11）。
+ *
+ * 体验额度是资金侧写操作，服务端除角色守卫外还要求平台运营凭证
+ * （`x-sitong-admin-token` == `ADMIN_TOKEN`，与 `/admin/invites` 同源），
+ * 否则任何商家 owner 都能给自己发体验积分（QA-20260911-009）。
+ * 凭证只挂在这一条请求路径上，不并进通用 `authHeaders`，避免泄漏到普通接口。
+ */
+function adminAuthHeaders(json = false): Record<string, string> {
+  const token = sessionStorage.getItem("sitong_admin_token");
+  return {
+    ...authHeaders(json),
+    ...(token ? { "x-sitong-admin-token": token } : {})
+  };
+}
+
 /**
  * 服务端判定「会话失效」（401/403）时统一收口：清掉本地 token。
  * 不清的话页面会一边显示「未登录 · 点击登录」、一边在 localStorage 里留着失效 token，
@@ -117,14 +153,30 @@ async function fetchMarketMe<T>(): Promise<T | null> {
   return readJson<T>(response);
 }
 
-function toggleTheme(): void {
-  const current = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
-  document.documentElement.setAttribute("data-theme", current);
-  try {
-    localStorage.setItem("sitong-theme", current);
-  } catch {
-    // 隐私模式下不阻断主流程。
-  }
+/**
+ * 主题切换（2026-09-11：平台默认浅色）。
+ *
+ * 用 state 记住当前主题，切换后按钮能立即反映新状态；`data-theme` 与 localStorage
+ * 仍然是唯一事实来源（首次渲染从 DOM 读取，避免和 main.tsx 的初始化打架）。
+ */
+function useTheme(): { theme: "light" | "dark"; toggle: () => void } {
+  const [theme, setTheme] = useState<"light" | "dark">(() =>
+    typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") === "dark"
+      ? "dark"
+      : "light"
+  );
+  const toggle = () => {
+    const next: "light" | "dark" = theme === "light" ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", next);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", next === "dark" ? "#101721" : "#F4F7FC");
+    try {
+      localStorage.setItem("sitong-theme", next);
+    } catch {
+      // 隐私模式下不阻断主流程。
+    }
+    setTheme(next);
+  };
+  return { theme, toggle };
 }
 
 function guestToLogin(path: string): void {
@@ -139,22 +191,51 @@ function groupByZone(skus: MarketplaceSku[], zones: MarketplaceZone[]) {
 }
 
 function Topbar({ active, balance, onNavigate }: { active: string; balance: number | null; onNavigate: (path: string) => void }) {
+  const { theme, toggle } = useTheme();
+  // 2026-09-11：货架页登入后此前没有退出入口（商家换账号只能自己清浏览器缓存）。
+  // 只要本地还有 token 或服务端已返回余额，就认为当前是登录态，展示「退出登录」。
+  const [loggedIn, setLoggedIn] = useState(() => Boolean(readSessionToken()));
+
+  useEffect(() => {
+    if (balance !== null) setLoggedIn(true);
+  }, [balance]);
+
+  function handleLogout() {
+    clearStoredSession();
+    // 运营凭证只活在当前标签页，退出时一并清掉，避免换账号后残留。
+    try {
+      sessionStorage.removeItem("sitong_admin_token");
+    } catch {
+      // 隐私模式下 sessionStorage 不可写：不影响退出登录主流程。
+    }
+    // 退出后落回货架，重新登入成功仍回到货架，不会卡在登录页。
+    localStorage.setItem("store_os_post_login_redirect", getAppPath("/agents"));
+    setLoggedIn(false);
+    window.location.href = getAppPath("/login");
+  }
+
   return (
     <>
       <header className="topbar">
-        <div className="brand" onClick={() => onNavigate("/market")}>
+        <div className="brand" onClick={() => onNavigate("/agents")}>
           <span className="brand-mark">思潼<span className="brand-accent">AI</span></span>
           <span className="brand-sub">行业智能体平台</span>
         </div>
         <nav className="topnav">
-          <a className={`nav-link ${active === "market" ? "active" : ""}`} onClick={() => onNavigate("/market")}>货架</a>
-          <a className={`nav-link ${active === "mine" ? "active" : ""}`} onClick={() => onNavigate("/mine")}>我的智能体</a>
+          <a className={`nav-link ${active === "market" ? "active" : ""}`} onClick={() => onNavigate("/agents")}>货架</a>
+          <a className={`nav-link ${active === "mine" ? "active" : ""}`} onClick={() => onNavigate("/mine")}>常用智能体</a>
           <a className={`nav-link ${active === "recharge" ? "active" : ""}`} onClick={() => onNavigate("/recharge")}>积分充值</a>
         </nav>
-        <button className="theme-toggle" onClick={toggleTheme} title="切换深色 / 浅色"><span className="tt-ico">🌙</span><span>深色</span></button>
-        <div className="wallet-pill" onClick={() => (balance === null ? guestToLogin("/market") : onNavigate("/recharge"))} title="积分余额 · 点击充值">
-          {balance === null ? "🔒 未登录 · 点击登录" : <>💎 <b>{balance}</b> 积分 · {yuanLabelForCredits(balance)} <span className="wp-tag">全平台通用</span></>}
+        <button className="theme-toggle" onClick={toggle} title="切换深色 / 浅色">
+          <span className="tt-ico">{theme === "light" ? "☀️" : "🌙"}</span>
+          <span>{theme === "light" ? "浅色" : "深色"}</span>
+        </button>
+        <div className="wallet-pill" onClick={() => (balance === null ? guestToLogin("/agents") : onNavigate("/recharge"))} title="积分余额 · 点击充值">
+          {balance === null ? "🔒 未登录 · 点击登录" : <>💎 <b>{balance}</b> 积分 <span className="wp-tag">全平台通用</span></>}
         </div>
+        {loggedIn ? (
+          <button className="logout-link" onClick={handleLogout} title="退出后用另一个账号重新登入">退出登录</button>
+        ) : null}
       </header>
       <div className="shared-banner">💎 <b>积分全平台通用</b> · 按次使用从统一积分钱包扣，创始人IP专区与各行业专区的所有智能体均可抵扣</div>
     </>
@@ -261,8 +342,8 @@ function AgentCard({ sku, all }: { sku: MarketplaceSku; all: MarketplaceSku[] })
   const priceText = soon
     ? `🧩 开发中 · 上线后按次计费`
     : bundle
-      ? `按环节计费 · 走完 ${bundleSteps(sku, all).length} 步共 ${bundleTotal(sku, all)} 积分 · ${yuanLabelForCredits(bundleTotal(sku, all))}`
-      : `${sku.ppu} 积分/次 · ${yuanLabelForCredits(sku.ppu)}`;
+      ? `按环节计费 · 走完 ${bundleSteps(sku, all).length} 步共 ${bundleTotal(sku, all)} 积分`
+      : `${sku.ppu} 积分/次`;
   return (
     <article className="agent-card skill-card" onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(sku.skuCode)}`); }}>
       <div className="ac-top">
@@ -338,7 +419,7 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
     <main className="app-wrap">
       <Topbar active="market" balance={balance} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
       <section className="view view-detail">
-        <button className="back" onClick={() => { window.location.href = getAppPath("/market"); }}>‹ 返回货架</button>
+        <button className="back" onClick={() => { window.location.href = getAppPath("/agents"); }}>‹ 返回货架</button>
         <div className="detail-grid">
           <div className="detail-main">
             <div className="d-head"><span className="d-ico">{sku.icon}</span><div><h1>{sku.name}</h1><div className="d-cat">{sku.zoneName}{sku.verbs.length ? ` · ${sku.verbs.join(" / ")}` : ""}</div></div></div>
@@ -372,12 +453,12 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
               {bundle ? (
                 <div className="pc-block">
                   <div className="pc-label">按环节计费 · 走一步扣一步</div>
-                  <div className="pc-pts">{total} <span>积分 · 走完 {steps.length} 步 · {yuanLabelForCredits(total)}</span></div>
+                  <div className="pc-pts">{total} <span>积分 · 走完 {steps.length} 步</span></div>
                   <div className="pk-steps">
-                    {steps.map((s, i) => <div className="pk-row" key={s.skuCode}><i>{i + 1}</i><b>{s.name.replace(/智能体$/, "")}</b><span>{s.ppu} 分 · {yuanLabelForCredits(s.ppu)}</span></div>)}
-                    <div className="pk-row total"><i>Σ</i><b>走完全链路</b><span>{total} 分 · {yuanLabelForCredits(total)}</span></div>
+                    {steps.map((s, i) => <div className="pk-row" key={s.skuCode}><i>{i + 1}</i><b>{s.name.replace(/智能体$/, "")}</b><span>{s.ppu} 分</span></div>)}
+                    <div className="pk-row total"><i>Σ</i><b>走完全链路</b><span>{total} 分</span></div>
                   </div>
-                  <button className="btn primary block" disabled={soon} onClick={startChat}>{soon ? "开发中 · 敬请期待" : `开始第 1 步 · 扣 ${steps[0]?.ppu ?? 0} 积分（${yuanLabelForCredits(steps[0]?.ppu ?? 0)}）`}</button>
+                  <button className="btn primary block" disabled={soon} onClick={startChat}>{soon ? "开发中 · 敬请期待" : `开始第 1 步 · 扣 ${steps[0]?.ppu ?? 0} 积分`}</button>
                   {soon
                     ? <div className="pc-note">🚧 组合内各环节正在开发中，上线后开放按环节使用。</div>
                     : <div className="pc-note">🎯 <b>不用先付全款</b>：进入后一步一步走，每步交付完才扣该步的积分——<b>中途停下来，没做的环节不扣钱</b>。</div>}
@@ -385,11 +466,11 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
               ) : (
                 <div className="pc-block">
                   <div className="pc-label">用一次 · 扣多少</div>
-                  <div className="pc-pts">{sku.ppu} <span>积分/次 · {yuanLabelForCredits(sku.ppu)}</span></div>
+                  <div className="pc-pts">{sku.ppu} <span>积分/次</span></div>
                   <div className="pc-result">{sku.useCase}</div>
-                  <button className="btn primary block" disabled={soon} onClick={startChat}>{soon ? "开发中 · 敬请期待" : `用一次 · 扣 ${sku.ppu} 积分（${yuanLabelForCredits(sku.ppu)}）`}</button>
+                  <button className="btn primary block" disabled={soon} onClick={startChat}>{soon ? "开发中 · 敬请期待" : `用一次 · 扣 ${sku.ppu} 积分`}</button>
                   {soon
-                    ? <div className="pc-note">🚧 该智能体内核正在开发中，暂不能发起生成；这里的 {sku.ppu} 积分/次（{yuanLabelForCredits(sku.ppu)}）为规划定价，上线前会再确认。</div>
+                    ? <div className="pc-note">🚧 该智能体内核正在开发中，暂不能发起生成；这里的 {sku.ppu} 积分/次为规划定价，上线前会再确认。</div>
                     : <div className="pc-note">🎯 <b>按结果付费</b>：付一次 = 拿到上面那份交付物；不满意可申请重做一次，不重复扣积分。</div>}
                 </div>
               )}
@@ -484,9 +565,9 @@ export function MarketplaceMinePage() {
     <main className="app-wrap">
       <Topbar active="mine" balance={balance} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
       <section className="view view-mine">
-        <h1>我的智能体</h1>
+        <h1>常用智能体</h1>
         <div className="mine-top">
-          <div className="balance-card"><div className="bc-label">积分余额</div><div className="bc-val">💎 {balance ?? "—"}</div><div className="bc-sub">{balance === null ? "按次使用 · 全平台通用" : `${yuanLabelForCredits(balance)} · 按次使用 · 全平台通用`}</div><button className="btn ghost sm" onClick={() => { window.location.href = getAppPath("/recharge"); }}>+ 充值积分</button></div>
+          <div className="balance-card"><div className="bc-label">积分余额</div><div className="bc-val">💎 {balance ?? "—"}</div><div className="bc-sub">按次使用 · 全平台通用</div><button className="btn ghost sm" onClick={() => { window.location.href = getAppPath("/recharge"); }}>+ 充值积分</button></div>
           <div className="shared-card wide">💎 <b>跨智能体通用</b><br />积分在统一钱包，可在创始人IP专区与各行业专区的智能体抵扣——只充一次，处处可用。</div>
         </div>
         <h3>近期按次使用</h3>
@@ -496,7 +577,7 @@ export function MarketplaceMinePage() {
               <article className="agent-card owned-card" key={entry.id}>
                 <div className="ac-ico">🤖</div>
                 <div className="ac-name">{entry.skuName ?? "智能体"}</div>
-                <div className="ac-price">{entry.amountCredits} 积分 · {yuanLabelForCredits(entry.amountCredits)}</div>
+                <div className="ac-price">{entry.amountCredits} 积分</div>
                 <div className="ac-foot"><span className="chip owned">{new Date(entry.createdAt).toLocaleDateString("zh-CN")}</span></div>
               </article>
             ))}
@@ -507,13 +588,303 @@ export function MarketplaceMinePage() {
   );
 }
 
+/** 体验额度发放（PLAT-11）：销售/运营确认真实商家身份后，按客户手机号/微信自助发额度。 */
+const TRIAL_IDENTITY_OPTIONS = [
+  { key: "phone", label: "客户手机号", placeholder: "13800000000" },
+  { key: "wechatOpenid", label: "微信 openid", placeholder: "oXXXXXXXXXXXXXXXX" },
+  { key: "wechatUnionid", label: "微信 unionid", placeholder: "oXXXXXXXXXXXXXXXX" },
+  { key: "userId", label: "用户 ID", placeholder: "c..." }
+] as const;
+
+type TrialIdentityKey = (typeof TRIAL_IDENTITY_OPTIONS)[number]["key"];
+
+interface TrialGrantRow {
+  id: string;
+  grantId: string;
+  amount: number;
+  userId: string;
+  nickname: string | null;
+  phone: string | null;
+  operator: string | null;
+  createdAt: string;
+}
+
+interface TrialGrantResult {
+  state: "created" | "already_applied" | "dry_run";
+  grantId: string;
+  amount: number;
+  user: { id: string; nickname: string | null; phone: string | null; wechatOpenid: string | null };
+  wallet: { paidBalance: number; bonusBalance: number; balance: number };
+  grantedAt: string | null;
+}
+
+/** 默认体验额度口径（2026-09-11 用户拍板）：400 积分 / 3 天。 */
+const TRIAL_DEFAULT_CREDITS = 400;
+const TRIAL_DEFAULT_VALID_DAYS = 3;
+
+function suggestedGrantId(): string {
+  const now = new Date();
+  const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+  const suffix = Math.random().toString(36).slice(2, 6);
+  return `${stamp}-trial-${suffix}`;
+}
+
+function addDaysLabel(fromIso: string | null, days: number): string {
+  const base = fromIso ? new Date(fromIso) : new Date();
+  if (Number.isNaN(base.getTime())) return "—";
+  const until = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+  const y = until.getFullYear();
+  const m = String(until.getMonth() + 1).padStart(2, "0");
+  const d = String(until.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+const adminFieldStyle: CSSProperties = {
+  display: "grid",
+  gap: 6,
+  fontSize: 13,
+  color: "var(--muted)"
+};
+const adminInputStyle: CSSProperties = {
+  padding: "10px 12px",
+  borderRadius: 10,
+  border: "1px solid var(--line)",
+  background: "var(--bg2)",
+  color: "var(--text)",
+  fontSize: 14
+};
+
 export function MarketplaceAdminPage() {
+  const [identityKey, setIdentityKey] = useState<TrialIdentityKey>("phone");
+  const [identityValue, setIdentityValue] = useState("");
+  const [adminToken, setAdminToken] = useState(() => sessionStorage.getItem("sitong_admin_token") ?? "");
+  const [amount, setAmount] = useState(String(TRIAL_DEFAULT_CREDITS));
+  const [validDays, setValidDays] = useState(String(TRIAL_DEFAULT_VALID_DAYS));
+  const [grantId, setGrantId] = useState(suggestedGrantId());
+  const [operator, setOperator] = useState("");
+  const [dryRun, setDryRun] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<TrialGrantResult | null>(null);
+  const [grants, setGrants] = useState<TrialGrantRow[]>([]);
+  const [grantsError, setGrantsError] = useState("");
+
+  const loadGrants = async () => {
+    // 没有平台运营凭证时不发请求：服务端会 401，直接把「先去填令牌」讲清楚即可。
+    if (!sessionStorage.getItem("sitong_admin_token")) {
+      setGrants([]);
+      setGrantsError("填写平台管理令牌后，这里会显示最近的发放记录。");
+      return;
+    }
+    try {
+      const response = await fetch(apiPath("/market/admin/trial-grants?limit=20"), { headers: adminAuthHeaders(), cache: "no-store" });
+      const data = await adminReadJson<{ grants: TrialGrantRow[] }>(response);
+      setGrants(data.grants ?? []);
+      setGrantsError("");
+    } catch (reason) {
+      setGrantsError(reason instanceof Error ? reason.message : String(reason));
+    }
+  };
+
+  useEffect(() => {
+    void loadGrants();
+  }, []);
+
+  const submit = async () => {
+    setError("");
+    setResult(null);
+    const trimmed = identityValue.trim();
+    if (!trimmed) {
+      setError("请先填写客户身份（手机号 / 微信 / 用户 ID）");
+      return;
+    }
+    const amountNumber = Number.parseInt(amount, 10);
+    if (!Number.isInteger(amountNumber) || amountNumber < 1 || amountNumber > 800) {
+      setError("发放积分必须是 1-800 的整数");
+      return;
+    }
+    if (!/^[A-Za-z0-9_-]{8,80}$/.test(grantId.trim())) {
+      setError("发放编号只允许字母、数字、- 和 _，长度 8-80");
+      return;
+    }
+    setBusy(true);
+    try {
+      const response = await fetch(apiPath("/market/admin/trial-grants"), {
+        method: "POST",
+        headers: adminAuthHeaders(true),
+        body: JSON.stringify({
+          identity: { [identityKey]: trimmed },
+          amount: amountNumber,
+          grantId: grantId.trim(),
+          ...(operator.trim() ? { operator: operator.trim() } : {}),
+          dryRun
+        })
+      });
+      const data = await adminReadJson<{ grant: TrialGrantResult }>(response);
+      setResult(data.grant);
+      if (data.grant.state !== "dry_run") {
+        setGrantId(suggestedGrantId());
+        void loadGrants();
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const days = Number.parseInt(validDays, 10) || TRIAL_DEFAULT_VALID_DAYS;
+
   return (
     <main className="app-wrap">
       <Topbar active="admin" balance={null} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
       <section className="view view-mine">
-        <h1>平台管理端</h1>
-        <p className="mine-tip">管理端功能在后续阶段接入，当前货架与充值链路已就绪。</p>
+        <h1>体验额度发放</h1>
+        <p className="mine-tip">
+          销售/运营确认真实商家身份后发放体验额度。额度只能发给<b>已经自己扫码注册登入</b>的客户，
+          走 bonus 桶、不计收入、不退款；默认口径 {TRIAL_DEFAULT_CREDITS} 积分 / {TRIAL_DEFAULT_VALID_DAYS} 天。
+          本页属于资金侧操作，除账号角色外还需要<b>平台管理令牌</b>（ADMIN_TOKEN），否则任何商家都能给自己发额度。
+        </p>
+
+        <div style={{ display: "grid", gap: 14, maxWidth: 560, marginTop: 12 }}>
+          <label style={adminFieldStyle}>
+            <span>平台管理令牌（仅本次会话保存在浏览器，关闭标签页即清除）</span>
+            <input
+              type="password"
+              value={adminToken}
+              onChange={(event) => {
+                setAdminToken(event.target.value);
+                const next = event.target.value.trim();
+                if (next) sessionStorage.setItem("sitong_admin_token", next);
+                else sessionStorage.removeItem("sitong_admin_token");
+                setGrantsError("");
+              }}
+              onBlur={() => { void loadGrants(); }}
+              placeholder="内部运营凭证，由负责人下发"
+              style={adminInputStyle}
+            />
+          </label>
+
+          <label style={adminFieldStyle}>
+            <span>客户身份类型</span>
+            <select
+              value={identityKey}
+              onChange={(event) => { setIdentityKey(event.target.value as TrialIdentityKey); setIdentityValue(""); }}
+              style={adminInputStyle}
+            >
+              {TRIAL_IDENTITY_OPTIONS.map((option) => (
+                <option key={option.key} value={option.key}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label style={adminFieldStyle}>
+            <span>{TRIAL_IDENTITY_OPTIONS.find((option) => option.key === identityKey)?.label ?? "客户身份"}</span>
+            <input
+              value={identityValue}
+              onChange={(event) => setIdentityValue(event.target.value)}
+              placeholder={TRIAL_IDENTITY_OPTIONS.find((option) => option.key === identityKey)?.placeholder}
+              style={adminInputStyle}
+            />
+          </label>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <label style={adminFieldStyle}>
+              <span>发放积分（1-800）</span>
+              <input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="numeric" style={adminInputStyle} />
+            </label>
+            <label style={adminFieldStyle}>
+              <span>运营有效期（天）</span>
+              <input value={validDays} onChange={(event) => setValidDays(event.target.value)} inputMode="numeric" style={adminInputStyle} />
+            </label>
+          </div>
+
+          <label style={adminFieldStyle}>
+            <span>发放编号（幂等键：同一个编号只会发一次）</span>
+            <input value={grantId} onChange={(event) => setGrantId(event.target.value)} style={adminInputStyle} />
+          </label>
+
+          <label style={adminFieldStyle}>
+            <span>发放人（销售/运营，选填，留空记为当前账号）</span>
+            <input value={operator} onChange={(event) => setOperator(event.target.value)} placeholder="如 sales01 / 张三" style={adminInputStyle} />
+          </label>
+
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--muted)" }}>
+            <input type="checkbox" checked={dryRun} onChange={(event) => setDryRun(event.target.checked)} />
+            预演（dry-run）：只校验身份，不写入任何积分
+          </label>
+
+          <div>
+            <button className="btn primary" disabled={busy} onClick={() => { void submit(); }}>
+              {busy ? "处理中…" : dryRun ? "预演发放" : `发放 ${amount || "—"} 积分`}
+            </button>
+          </div>
+        </div>
+
+        {error && <div className="marketplaceAdminError" role="alert">{error}</div>}
+
+        {result && (
+          <div className="marketplaceAdminOverview" style={{ padding: 0, marginTop: 18 }}>
+            <article>
+              <span>发放结果</span>
+              <strong style={{ fontSize: 20 }}>
+                {result.state === "created" ? "发放成功" : result.state === "already_applied" ? "已发放过（幂等）" : "预演完成"}
+              </strong>
+            </article>
+            <article>
+              <span>客户</span>
+              <strong style={{ fontSize: 18 }}>{result.user.nickname ?? result.user.phone ?? result.user.id.slice(0, 8)}</strong>
+            </article>
+            <article>
+              <span>体验额度余额（bonus 桶）</span>
+              <strong style={{ fontSize: 22 }}>💎 {result.wallet.bonusBalance}</strong>
+            </article>
+            <article>
+              <span>钱包总余额</span>
+              <strong style={{ fontSize: 22 }}>{result.wallet.balance}</strong>
+            </article>
+          </div>
+        )}
+
+        {result && result.state !== "already_applied" && (
+          <p className="mine-tip" style={{ marginTop: 8 }}>
+            运营口径有效期 {days} 天，建议到期日：<b>{addDaysLabel(result.grantedAt, days)}</b>
+            （系统当前不自动回收过期体验积分，到期需人工核对）。
+          </p>
+        )}
+
+        <section className="marketplaceAdminTable" style={{ padding: "20px 0 40px" }}>
+          <div className="marketplaceAdminSectionTitle">
+            <h2>最近发放记录</h2>
+            <p>来自钱包流水 <code>trial_grant:*</code>，用于对账与核对客户余额。</p>
+          </div>
+          {grantsError && <div className="marketplaceAdminError" role="alert">{grantsError}</div>}
+          {!grantsError && grants.length === 0 && <p className="mine-tip">暂无发放记录。</p>}
+          {!grantsError && grants.length > 0 && (
+            <table>
+              <thead>
+                <tr>
+                  <th>发放时间</th>
+                  <th>发放编号</th>
+                  <th>客户</th>
+                  <th>积分</th>
+                  <th>发放人</th>
+                </tr>
+              </thead>
+              <tbody>
+                {grants.map((row) => (
+                  <tr key={row.id}>
+                    <td>{row.createdAt.slice(0, 16).replace("T", " ")}</td>
+                    <td>{row.grantId}</td>
+                    <td>{row.nickname ?? row.phone ?? row.userId.slice(0, 8)}</td>
+                    <td>+{row.amount}</td>
+                    <td>{row.operator ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
       </section>
     </main>
   );
@@ -524,8 +895,16 @@ interface ChatItem {
   role: "ai" | "user";
   text: string;
   html?: boolean;
-  /** ip-pos 等有结构化契约的智能体会同时返回 payload，用于专用渲染。 */
-  payload?: IpPosPayload;
+  /** ip-pos / vidrev 等有结构化契约的智能体会同时返回 payload，用于专用渲染。 */
+  payload?: IpPosPayload | VidrevPayload;
+}
+
+/** 从视频复盘跳过来时带的「候选选题」预填；只在对应轮次自动填入一次。 */
+interface ChatPrefill {
+  sku: string;
+  slotKey: string;
+  value: string;
+  note?: string;
 }
 
 export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
@@ -546,12 +925,21 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
   const [uploadNote, setUploadNote] = useState("");
   const [docxPrice, setDocxPrice] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
+  /**
+   * PLAT-24：chat 页也要有顶栏（登录 / 钱包 / 主题）与「进页即检测登录态」。
+   * 之前匿名用户能一路填完 4 步、点「确认生成」才撞 401，而错误提示让他去点的
+   * 「右上角『未登录 · 点击登录』」在这个页面根本不存在（WorkBuddy QA 2026-09-12 三条 P1）。
+   */
+  const [balance, setBalance] = useState<number | null>(null);
+  const [hasSession, setHasSession] = useState(() => Boolean(readSessionToken()));
   /** 最近一次成功交付的 requestId：作为「免费重做」的凭证。 */
   const [lastRequestId, setLastRequestId] = useState<string | null>(null);
   /** 当前这份交付是否已经是免费重做产物（每单仅限免费重做 1 次）。 */
   const [freeRedoUsed, setFreeRedoUsed] = useState(false);
   /** 发起中的免费重做凭证；追问补充信息的续跑也要沿用，避免变成付费重跑。 */
   const redoOfRef = useRef<string | null>(null);
+  /** 视频复盘「加入选题池」带过来的候选选题（一次性消费）。 */
+  const [prefill, setPrefill] = useState<ChatPrefill | null>(null);
   const timerRef = useRef<number | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -575,6 +963,20 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     return () => { cancelled = true; };
   }, [skuId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void fetchMarketMe<{ creditBalance: number }>()
+      .then((data) => {
+        if (cancelled) return;
+        setBalance(data ? data.creditBalance : null);
+        // 服务端认账（拿到余额）就说明会话有效；被 `handleStaleSession` 清掉时会回落成未登录。
+        if (data) setHasSession(true);
+        else if (!readSessionToken()) setHasSession(false);
+      })
+      .catch(() => { if (!cancelled) setBalance(null); });
+    return () => { cancelled = true; };
+  }, []);
+
   const bundle = sku ? isBundle(sku) : false;
   const steps = sku ? bundleSteps(sku, all) : [];
   const runSku = sku ? (bundle ? steps[0] ?? sku : sku) : sku;
@@ -584,6 +986,10 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     ? (industry?.ov?.[coreSkuCode(runSku.skuCode)]?.welcome as string | undefined) ?? ""
     : "";
   const welcome = ovWelcome || flow?.welcome || "";
+  /** 同专区「选题」智能体：视频复盘第十章候选选题一键带入它。 */
+  const topicSkuCode = runSku
+    ? all.find((item) => item.skuCode === `${zoneOfSku(runSku.skuCode)}__topic`)?.skuCode ?? null
+    : null;
 
   useEffect(() => {
     if (!flow || soon) return;
@@ -602,9 +1008,27 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     setLastRequestId(null);
     setFreeRedoUsed(false);
     redoOfRef.current = null;
+    try {
+      const rawPrefill = sessionStorage.getItem(VIDREV_PREFILL_KEY);
+      sessionStorage.removeItem(VIDREV_PREFILL_KEY);
+      const parsed = rawPrefill ? (JSON.parse(rawPrefill) as Partial<ChatPrefill>) : null;
+      setPrefill(parsed?.sku && parsed.slotKey && parsed.value ? { sku: parsed.sku, slotKey: parsed.slotKey, value: parsed.value, note: parsed.note } : null);
+    } catch {
+      setPrefill(null);
+    }
     if (timerRef.current) window.clearInterval(timerRef.current);
     if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
   }, [flow?.name, industry?.key, soon]);
+
+  // 走到被预填的那一轮时，把候选选题放进输入框，用户可改可发。
+  useEffect(() => {
+    if (!flow || !prefill) return;
+    if (coreSkuCode(runSku?.skuCode ?? skuId) !== prefill.sku) return;
+    const index = flow.slots.findIndex((slot) => slot.key === prefill.slotKey);
+    if (index < 0 || step !== index || input.trim()) return;
+    setInput(prefill.value);
+    if (prefill.note) setUploadNote(prefill.note);
+  }, [step, prefill, flow, runSku?.skuCode, skuId, input]);
 
   useEffect(() => {
     void fetch(apiPath("/exports/docx/price"))
@@ -632,19 +1056,21 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
         method: "POST",
         headers: authHeaders(true),
         body: JSON.stringify({
-          input: buildRunPrompt(flow, finalAnswers),
+          // 视频复盘额外带 mode / platform / period / has_revenue_data 结构化入参，
+          // 后端据此重算口径并校验（其余技能仍是纯文本需求单）。
+          ...buildRunBody(coreSkuCode(runSku.skuCode), flow, finalAnswers),
           ...(redoOf ? { redoOf } : {})
         })
       });
       if (handleStaleSession(runResponse.status)) {
-        throw new Error("登录状态已失效，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次未扣积分。");
+        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次未扣积分。");
       }
       const result = await readJson<{
         answer: string;
         consumedCredits: number;
         balance: number;
         needsInput?: boolean;
-        payload?: IpPosPayload;
+        payload?: IpPosPayload | VidrevPayload;
         requestId?: string;
         freeRedo?: boolean;
       }>(runResponse);
@@ -685,11 +1111,21 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
   }
 
   async function send() {
-    if (!flow || !runSku || soon) return;
     const value = input.trim();
     if (!value || busy) return;
     setInput("");
+    await submitAnswer(value);
+  }
 
+  /** 快捷选项按钮：值直接来自 ChatSlot.choices，避免用户自由输入被后端误判。 */
+  async function sendChoice(value: string) {
+    if (busy) return;
+    setInput("");
+    await submitAnswer(value);
+  }
+
+  async function submitAnswer(value: string) {
+    if (!flow || !runSku || soon || busy) return;
     if (awaitingSupplement) {
       setItems((prev) => [...prev, { id: `su${Date.now()}`, role: "user", text: value }]);
       await generateRun({ ...answers, __supplement: value });
@@ -796,7 +1232,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
       if (response.status === 402) {
         const data = (await response.json().catch(() => ({}))) as { message?: string; required?: number };
         const required = data.required ?? docxPrice ?? 0;
-        window.alert(`${data.message ?? "当前积分不足，无法导出。"}本次导出需 ${required} 积分（${yuanLabelForCredits(required)}），请先充值。`);
+        window.alert(`${data.message ?? "当前积分不足，无法导出。"}本次导出需 ${required} 积分，请先充值。`);
         return;
       }
       if (handleStaleSession(response.status)) {
@@ -825,16 +1261,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
 
   return (
     <main className="app-wrap chat-page">
-      <header className="topbar">
-        <div className="brand" onClick={() => { window.location.href = getAppPath("/market"); }}>
-          <span className="brand-mark">思潼<span className="brand-accent">AI</span></span>
-          <span className="brand-sub">行业智能体平台</span>
-        </div>
-        <nav className="topnav">
-          <a className="nav-link" onClick={() => { window.location.href = getAppPath("/market"); }}>货架</a>
-          <a className="nav-link active">对话</a>
-        </nav>
-      </header>
+      <Topbar active="chat" balance={balance} onNavigate={(path) => { window.location.href = getAppPath(path); }} />
 
       {soon ? (
         <section className="view view-chat chat-page-body">
@@ -852,12 +1279,32 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
             </div>
             <div className="chat-page-composer">
               <button className="btn ghost block" style={{ marginBottom: 10 }} onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}`); }}>‹ 返回详情 · 看输出参考案例</button>
-              <button className="btn primary block" onClick={() => { window.location.href = getAppPath("/market"); }}>去货架挑已上线的智能体</button>
+              <button className="btn primary block" onClick={() => { window.location.href = getAppPath("/agents"); }}>去货架挑已上线的智能体</button>
             </div>
           </div>
         </section>
       ) : !flow ? (
         <div className="loading" style={{ padding: 48 }}>正在加载对话…</div>
+      ) : !hasSession ? (
+        <section className="view view-chat chat-page-body">
+          <div className="chat-page-shell">
+            <div className="chat-page-head">
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <button className="back" onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}`); }}>‹ 返回详情</button>
+                <img className="chat-avatar-img" src={sitongAvatar} alt="思潼" />
+                <span className="chat-page-title">{runSku?.name ?? "智能体"} · 需登录</span>
+              </div>
+            </div>
+            <div className="zone-soon" style={{ margin: "0 16px" }}>
+              🔒 <b>这个智能体要登录后才能使用</b>：每生成一次扣 <b>{runSku?.ppu ?? 0} 积分</b>，结果存进你自己的账号，方便回看和免费重做一次。<br />
+              现在不用填任何信息——登录后自动回到这一页，我再带你走那 4 步。
+            </div>
+            <div className="chat-page-composer">
+              <button className="btn primary block" onClick={() => guestToLogin(`/agent/${encodeURIComponent(skuId)}/chat`)}>🔒 立即登录 · 用「{runSku?.name ?? "这个智能体"}」</button>
+              <button className="btn ghost block" style={{ marginTop: 10 }} onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}`); }}>先看它交付什么 · 输出参考案例</button>
+            </div>
+          </div>
+        </section>
       ) : (
         <section className="view view-chat chat-page-body">
           <div className="chat-page-shell">
@@ -867,7 +1314,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
               <img className="chat-avatar-img" src={sitongAvatar} alt="思潼" />
               <span className="chat-page-title">{flow.name} · {runSku?.name ?? ""}</span>
             </div>
-            {cost !== null && <span className="chat-page-cost">本次消耗 {cost} 积分（{yuanLabelForCredits(cost)}）· 双桶钱包</span>}
+            {cost !== null && <span className="chat-page-cost">本次消耗 {cost} 积分 · 双桶钱包</span>}
           </div>
           {!done && flow.slots.length > 1 && (
             <div className="chat-progress">
@@ -886,7 +1333,9 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                   {item.role === "ai" ? (
                     <>
                       <span className="chat-bubble-label">思潼 · {sku?.name ?? "智能体"}</span>
-                      {item.payload?.sections ? (
+                      {isVidrevPayload(item.payload) ? (
+                        <VidrevReport payload={item.payload} renderMarkdown={renderMarkdownHtml} topicSkuCode={topicSkuCode} reportTitle={runSku?.name} />
+                      ) : item.payload?.sections ? (
                         <IpPosReport payload={item.payload} renderMarkdown={renderMarkdownHtml} />
                       ) : (
                         <div className="md-rich" style={{ color: "var(--text)", fontSize: 14, lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: item.html ? renderMarkdownHtml(item.text) : renderInline(item.text) }} />
@@ -908,7 +1357,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                 <div className="chat-bubble ai" style={{ maxWidth: "84%" }}>
                   <span className="chat-bubble-label">思潼 · {sku?.name ?? "智能体"}</span>
                   <div className="md-rich" style={{ color: "var(--text)", fontSize: 14, lineHeight: 1.7 }}>
-                    <p><b>请先确认需求</b>：确认后我按下面这套信息生成交付（约扣 {runSku?.ppu ?? 0} 积分 · {yuanLabelForCredits(runSku?.ppu ?? 0)}）。如有不对，点「修改」重填。</p>
+                    <p><b>请先确认需求</b>：确认后我按下面这套信息生成交付（约扣 {runSku?.ppu ?? 0} 积分）。如有不对，点「修改」重填。</p>
                     <table className="report-table">
                       <tbody>
                         {flow.slots.map((slot) => (
@@ -935,7 +1384,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
             <div className="chat-page-composer">
               {freeRedoUsed ? (
                 <div className="chat-hint" style={{ marginBottom: 10 }}>
-                  本单的免费重做机会已用完；如需再生成会按次扣 {runSku?.ppu ?? 0} 积分（{yuanLabelForCredits(runSku?.ppu ?? 0)}），可点「重新开始」。
+                  本单的免费重做机会已用完；如需再生成会按次扣 {runSku?.ppu ?? 0} 积分，可点「重新开始」。
                 </div>
               ) : (
                 <button className="btn ghost block" style={{ marginBottom: 10 }} disabled={busy || !lastRequestId} onClick={redoDelivery}>
@@ -943,7 +1392,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                 </button>
               )}
               <button className="btn ghost block" style={{ marginBottom: 10 }} disabled={exporting} onClick={downloadWord}>
-                {exporting ? "正在导出…" : `⬇ 下载精美 Word${docxPrice ? ` · ${docxPrice} 积分（${yuanLabelForCredits(docxPrice)}）` : ""}`}
+                {exporting ? "正在导出…" : `⬇ 下载精美 Word${docxPrice ? ` · ${docxPrice} 积分` : ""}`}
               </button>
               <button className="btn primary block" onClick={restart}>再问一次 / 重新开始</button>
             </div>
@@ -967,6 +1416,13 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                 </div>
               )}
               {uploadNote && <div className="chat-hint" style={{ color: "var(--accent2)", marginBottom: 8 }}>{uploadNote}</div>}
+              {!awaitingSupplement && (flow.slots[step]?.choices?.length ?? 0) > 0 && (
+                <div className="chat-choices">
+                  {flow.slots[step].choices?.map((choice) => (
+                    <button key={choice} type="button" className="chat-choice" disabled={busy} onClick={() => void sendChoice(choice)}>{choice}</button>
+                  ))}
+                </div>
+              )}
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}

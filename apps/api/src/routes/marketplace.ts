@@ -2,9 +2,12 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { Prisma, prisma } from "@baolu/db";
 import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { LlmMessage } from "@baolu/agent";
 import type { SkillId } from "@baolu/shared";
 import { env, domesticNetworkOnly, domesticOutboundAllowlist } from "../config/env.js";
+import { requireAdminToken } from "../services/access-guards.js";
 import { resolveRequestContext, type RequestContext } from "../services/request-context.js";
 import { DomesticChatProvider, type DomesticProviderUsageObservation } from "../services/domestic-chat-provider.js";
 import { searchPublicTopicSources } from "../services/public-topic-search.js";
@@ -13,6 +16,12 @@ import {
   estimateMarketplaceModelCostCny,
   marketplaceCreditsForUsage
 } from "../services/marketplace-cost.js";
+import {
+  MAX_TRIAL_CREDITS,
+  TrialGrantError,
+  grantMarketplaceTrialCredits,
+  listMarketplaceTrialGrants
+} from "../services/marketplace-trial-grant.js";
 import {
   consumeWalletCredits,
   getOrCreateWallet,
@@ -34,6 +43,15 @@ import {
   type MarketplaceSkuStatus,
   type PublicMarketplaceSku
 } from "../services/marketplace-catalog.js";
+import {
+  computeVidrevMetrics,
+  parseVidrevRowsFromText,
+  validateVidrevReport,
+  vidrevMetricBrief,
+  type VidrevMetrics,
+  type VidrevPayload,
+  type VidrevRawRow
+} from "../services/video-review-engine.js";
 
 const zoneEnum = z.enum(["ipzone", "canyin", "meiye", "chongwu"]);
 const skuStatusEnum = z.enum(["selling", "trial", "internal", "coming_soon", "offline"]);
@@ -54,13 +72,23 @@ const skuQuerySchema = z.object({
 });
 
 const marketplaceRunSchema = z.object({
-  input: z.string().trim().min(1).max(50_000),
+  // 视频复盘支持结构化入参（rows），因此 input 允许为空；其余技能在路由里强制要求 input。
+  input: z.string().trim().max(50_000).optional(),
   // 按结果付费兜底：携带原交付的 requestId 表示「不满意，免费重做一次」（限 1 次/单，不再扣积分）。
   redoOf: z.string().trim().min(8).max(200).optional(),
   history: z.array(z.object({
     role: z.enum(["user", "assistant"]),
     content: z.string().trim().min(1).max(50_000)
-  })).max(12).optional()
+  })).max(12).optional(),
+  // 视频复盘结构化入参（附件 §六 接口契约）；缺字段一律不传，禁止前端补 0。
+  mode: z.enum(["quick", "deep"]).optional(),
+  platform: z.string().trim().max(40).optional().nullable(),
+  period: z.object({
+    start: z.string().trim().max(40).optional().nullable(),
+    end: z.string().trim().max(40).optional().nullable()
+  }).optional().nullable(),
+  rows: z.array(z.record(z.unknown())).max(50).optional(),
+  has_revenue_data: z.boolean().optional()
 });
 
 const MARKETPLACE_SKILL_BY_CAPABILITY: Record<string, string> = {
@@ -122,6 +150,33 @@ const industryProfilePatchSchema = z.object({
   pains: z.array(z.string().trim().min(1).max(500)).max(100).optional(),
   redline: z.array(z.string().trim().min(1).max(1000)).max(100).optional(),
   ov: z.record(z.string(), z.record(z.string(), z.unknown())).optional()
+});
+
+// PLAT-11：销售/运营自助发放体验额度。身份四选一，金额带上限，grant-id 作为幂等键。
+const trialGrantIdentitySchema = z
+  .object({
+    userId: z.string().trim().min(1).max(64).optional(),
+    phone: z.string().trim().min(1).max(32).optional(),
+    wechatOpenid: z.string().trim().min(1).max(128).optional(),
+    wechatUnionid: z.string().trim().min(1).max(128).optional()
+  })
+  .refine(
+    (value) => [value.userId, value.phone, value.wechatOpenid, value.wechatUnionid].filter(Boolean).length === 1,
+    { message: "必须且只能提供一个身份：手机号 / 微信 openid / 微信 unionid / user-id" }
+  );
+
+const trialGrantInputSchema = z.object({
+  identity: trialGrantIdentitySchema,
+  amount: z.number().int().min(1).max(MAX_TRIAL_CREDITS),
+  grantId: z
+    .string()
+    .trim()
+    .min(8)
+    .max(80)
+    .regex(/^[A-Za-z0-9_-]+$/, "发放编号只允许字母、数字、- 和 _"),
+  operator: z.string().trim().min(2).max(40).optional(),
+  tenantId: z.string().trim().min(1).max(64).optional(),
+  dryRun: z.boolean().optional()
 });
 
 export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<void> {
@@ -199,6 +254,20 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
       const skillId = resolveMarketplaceSkillId(sku.capabilityKey);
       if (!skillId) return reply.code(409).send({ error: "marketplace_skill_not_configured" });
 
+      const core = sku.skuCode.includes("__") ? sku.skuCode.slice(sku.skuCode.lastIndexOf("__") + 2) : sku.skuCode;
+      const rawInput = parsed.data.input ?? "";
+      const structuredRows = (parsed.data.rows ?? []) as unknown as VidrevRawRow[];
+      // 只有视频复盘允许「结构化数据行」替代文本输入；其余技能仍要求文字输入，保持既有 400 行为。
+      if (core !== "vidrev" && rawInput.trim().length === 0) {
+        return reply.code(400).send({ error: "invalid_request", details: { input: ["必填"] } });
+      }
+      if (core === "vidrev" && rawInput.trim().length === 0 && structuredRows.length === 0) {
+        return reply.code(400).send({
+          error: "invalid_request",
+          details: { input: ["视频复盘需要数据行（rows）或文字说明（input）"] }
+        });
+      }
+
       const requestId = randomUUID();
       const usage = { promptTokens: 0, completionTokens: 0, reasoningTokens: 0 };
       const baseProvider = new DomesticChatProvider({
@@ -262,11 +331,10 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
       }
 
       try {
-        const core = sku.skuCode.includes("__") ? sku.skuCode.slice(sku.skuCode.lastIndexOf("__") + 2) : sku.skuCode;
-        let userContent = marketplaceRunInput(sku, parsed.data.input);
+        let userContent = marketplaceRunInput(sku, rawInput);
         if (core === "topic") {
-          const industryMatch = /(?:行业|账号阶段)[^：:]*[：:]\s*([^\n]+)/.exec(parsed.data.input);
-          const benchMatch = /(?:同行爆款|对标账号)[^：:]*[：:]\s*([^\n]+)/.exec(parsed.data.input);
+          const industryMatch = /(?:行业|账号阶段)[^：:]*[：:]\s*([^\n]+)/.exec(rawInput);
+          const benchMatch = /(?:同行爆款|对标账号)[^：:]*[：:]\s*([^\n]+)/.exec(rawInput);
           const industry = industryMatch?.[1]?.trim() ?? "";
           const bench = benchMatch?.[1]?.trim() ?? "";
           try {
@@ -275,8 +343,8 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
           } catch {
             userContent += "\n\n【搜索源 · 实时检索】行业热点：检索失败；同行爆款：未提供";
           }
-          const apiKeyMatch = /API\s*[Kk]ey[：:\s]*([A-Za-z0-9_.]+)/.exec(parsed.data.input);
-          const clientMatch = /Client\s*I[Dd][：:\s]*([A-Za-z0-9_]+)/.exec(parsed.data.input);
+          const apiKeyMatch = /API\s*[Kk]ey[：:\s]*([A-Za-z0-9_.]+)/.exec(rawInput);
+          const clientMatch = /Client\s*I[Dd][：:\s]*([A-Za-z0-9_]+)/.exec(rawInput);
           const apiKey = apiKeyMatch?.[1] ?? (process.env.GETNOTE_API_KEY ?? "");
           const clientId = clientMatch?.[1] ?? (process.env.GETNOTE_CLIENT_ID ?? "");
           if (apiKey && clientId) {
@@ -288,6 +356,33 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
             }
           }
         }
+        // 视频复盘：先用确定性引擎把数据行重算成硬口径，再把口径与明细喂给模型，最后校验模型输出。
+        let vidrevMetrics: VidrevMetrics | null = null;
+        let vidrevMode: "quick" | "deep" = parsed.data.mode ?? "deep";
+        let vidrevHasRevenue = parsed.data.has_revenue_data ?? false;
+        if (core === "vidrev") {
+          const rows = structuredRows.length > 0 ? structuredRows : parseVidrevRowsFromText(rawInput).rows;
+          vidrevMode = parsed.data.mode ?? (rows.length > 0 ? "deep" : "quick");
+          vidrevHasRevenue = parsed.data.has_revenue_data ?? false;
+          const platform = parsed.data.platform?.trim() || "抖音";
+          const period = parsed.data.period ?? null;
+          if (vidrevMode === "deep") {
+            vidrevMetrics = computeVidrevMetrics(rows);
+            if (vidrevMetrics.count === 0) {
+              return reply.code(422).send({
+                error: "marketplace_output_invalid",
+                message: "深度复盘未解析到可复算的数据行，本次未扣积分。请上传带列头的数据表（CSV / 表格），或改用快速诊断。",
+                reasons: ["V0 未解析到可复算的数据行：深度复盘必须有结构化数据（rows 或可解析的数据表）。"],
+                failed_rules: ["V0"]
+              });
+            }
+            userContent += `\n\n【本次复盘参数】模式=深度复盘；平台=${platform}；周期=${period?.start ?? "未提供"} ~ ${period?.end ?? "未提供"}；是否有成交金额=${vidrevHasRevenue ? "有" : "无"}。`;
+            userContent += `\n\n【后端重算口径 · 必须逐字照抄，写错即判失败】\n${vidrevMetricBrief(vidrevMetrics)}`;
+            userContent += `\n\n【结构化数据明细 · 只能引用这些 video_id，禁止编造视频】\n${vidrevRowsTable(vidrevMetrics)}`;
+          } else {
+            userContent += `\n\n【本次复盘参数】模式=快速诊断；平台=${platform}。输出精简版：判定 + 3–5 条要点 + 1 条立即动作 + ⚠️ 边界说明（补齐后台数据可升级为完整报告，同一任务不重复扣费）；不要输出趋势与配比章节。`;
+          }
+        }
         // 分轮交互：同一会话的历史（含上一轮【需补充信息】问答）随请求带上，保证只扣一次费。
         const history = parsed.data.history ?? [];
         const turnMessages: LlmMessage[] = [
@@ -296,6 +391,7 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
         ];
         let answerText: string;
         let ipPosPayload: IpPosPayload | null = null;
+        let vidrevPayload: VidrevPayload | null = null;
         try {
           if (core === "ip-pos") {
             // 全案体量大（速览 + 八章 + ≥80 条选题），单次生成会超出输出上限被截断；
@@ -320,7 +416,13 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
           } else {
             answerText = (await provider.complete(
               [
-                { role: "system", content: marketplaceSkillSystemPrompt(sku) },
+                {
+                  role: "system",
+                  content:
+                    core === "vidrev" && vidrevMode === "quick"
+                      ? VIDREV_QUICK_SYSTEM_PROMPT
+                      : marketplaceSkillSystemPrompt(sku)
+                },
                 ...turnMessages
               ] as LlmMessage[],
               { maxTokens: 2048 }
@@ -367,7 +469,7 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
           }
         }
         if (core === "ip-pos") {
-          const validation = parseIpPosFull(answerText, parsed.data.input);
+          const validation = parseIpPosFull(answerText, rawInput);
           if (validation.failures.length > 0) {
             return reply.code(422).send({
               error: "marketplace_output_invalid",
@@ -376,6 +478,58 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
             });
           }
           ipPosPayload = validation.payload;
+        }
+        if (core === "vidrev") {
+          const validateVidrev = (markdown: string) =>
+            validateVidrevReport({
+              markdown,
+              metrics: vidrevMetrics,
+              mode: vidrevMode,
+              hasRevenueData: vidrevHasRevenue
+            });
+          let validation = validateVidrev(answerText);
+          // 真实模型可能因排版漂移导致格式类校验失败（如 deep-dive 理由未编号）。失败时带上
+          // 具体 failed_rules 自动纠错重跑一次，仍不过才 422 且不扣费——既保质量又减少误伤。
+          if (validation.failures.length > 0) {
+            await dumpVidrevDebugOutput("first", answerText, validation.failures);
+            const corrective = [
+              "上一次输出未通过技能校验，请在不改动已经正确的数字与结论的前提下，重新输出完整报告并只修正下列问题：",
+              ...validation.failures.slice(0, 12).map((item, index) => `${index + 1}. ${item}`),
+              "硬性排版：单条深拆必须先写「为什么…：」独占一行，紧接着用「1.」「2.」「3.」列出至少 3 条理由（不要用项目符号）；第八章规律总结的「支撑视频」列必须填具体 video_id（如 v1、v5），不能留空或写「—」；第九章方法论沉淀每条用「1.」「2.」编号独占一段，五个字段各占一行（类型：/规律：/证据：/置信度：/相关选题：），禁止用「/」把五个字段串成一行。"
+            ].join("\n");
+            try {
+              const retryText = (await provider.complete(
+                [
+                  {
+                    role: "system",
+                    content: vidrevMode === "quick" ? VIDREV_QUICK_SYSTEM_PROMPT : marketplaceSkillSystemPrompt(sku)
+                  },
+                  ...turnMessages,
+                  { role: "assistant", content: answerText },
+                  { role: "user", content: corrective }
+                ] as LlmMessage[],
+                { maxTokens: 8192 }
+              )) as unknown as string;
+              const retryValidation = validateVidrev(retryText ?? "");
+              if (retryValidation.failures.length === 0) {
+                answerText = retryText;
+                validation = retryValidation;
+              } else {
+                await dumpVidrevDebugOutput("retry", retryText ?? "", retryValidation.failures);
+              }
+            } catch {
+              // 纠错重跑失败则保留首次输出，走下面的 422 分支（不扣积分）。
+            }
+          }
+          if (validation.failures.length > 0) {
+            return reply.code(422).send({
+              error: "marketplace_output_invalid",
+              message: "视频复盘未通过技能校验，本次未扣积分：\n" + validation.failures.slice(0, 8).join("\n"),
+              reasons: validation.failures.slice(0, 20),
+              failed_rules: [...new Set(validation.failures.map((item) => item.split(/[\s：:]/)[0]))]
+            });
+          }
+          vidrevPayload = validation.payload;
         }
         const answer = marketplaceWrappedAnswer(sku, answerText);
         const costCny = estimateMarketplaceModelCostCny(usage);
@@ -454,17 +608,16 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
           answer,
           qualityFlags: null,
           deliveryStatus: "completed",
-          estimatedCredits: dynamicCredits,
           consumedCredits: freeRedo ? 0 : price,
           freeRedo,
           ...(freeRedoRoot ? { freeRedoOf: freeRedoRoot } : {}),
-          modelCostCny: costCny,
           requestId,
           balance: walletAfter.balance,
           paidBalance: walletAfter.paidBalance,
           bonusBalance: walletAfter.bonusBalance,
           spent,
-          ...(ipPosPayload ? { payload: ipPosPayload } : {})
+          ...(ipPosPayload ? { payload: ipPosPayload } : {}),
+          ...(vidrevPayload ? { payload: vidrevPayload } : {})
         };
       } catch (error) {
         throw error;
@@ -617,6 +770,58 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
       admin.get<{ Querystring: { limit?: string } }>("/ledger", async (request) => {
         const limit = clampLimit(request.query.limit);
         return { ledger: await listMarketplaceLedger(undefined, limit) };
+      });
+
+      // PLAT-11：体验额度发放（销售/运营自助）。
+      //
+      // P0（QA-20260911-009）：体验额度是**资金侧写操作**，只靠租户级角色是放不住的——
+      // `context.role` 来自 membership，任何商家注册后就是自己租户的 `owner`，
+      // 只查角色等于给每个商家开了「给自己无限发积分」的入口（实测一条 grant-id 可发 800）。
+      // 因此这两条路由除角色守卫外，还必须由平台运维凭证证明调用方是内部人员：
+      //   - 生产：`x-sitong-admin-token` 必须等于 `env.ADMIN_TOKEN`（同 `/admin/invites`）；
+      //   - 本地/开发：`ADMIN_TOKEN` 未配置时沿用既有「未配置即放行」语义，角色守卫仍然生效。
+      // 读侧同样要凭证：列表含全平台客户手机号，属于跨租户数据。
+      admin.get<{ Querystring: { limit?: string } }>(
+        "/trial-grants",
+        { preHandler: requireAdminToken },
+        async (request) => {
+          const limit = clampLimit(request.query.limit);
+          return { grants: await listMarketplaceTrialGrants(limit) };
+        }
+      );
+
+      admin.post("/trial-grants", async (request, reply) => {
+        await requireAdminToken(request, reply);
+        if (reply.sent) return;
+        await requireMarketplaceAdmin("write")(request, reply);
+        if (reply.sent) return;
+        const parsed = trialGrantInputSchema.safeParse(request.body ?? {});
+        if (!parsed.success) {
+          return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+        }
+        const context = await resolveRequestContext(request.headers);
+        try {
+          const grant = await grantMarketplaceTrialCredits({
+            identity: parsed.data.identity,
+            amount: parsed.data.amount,
+            grantId: parsed.data.grantId,
+            operator: parsed.data.operator ?? context.userId,
+            tenantId: parsed.data.tenantId ?? null,
+            dryRun: parsed.data.dryRun ?? false
+          });
+          return { grant };
+        } catch (error) {
+          if (error instanceof TrialGrantError) {
+            const status =
+              error.code === "trial_grant_user_not_found"
+                ? 404
+                : error.code === "trial_grant_id_conflict" || error.code === "trial_grant_user_ambiguous"
+                  ? 409
+                  : 400;
+            return reply.code(status).send({ error: error.code, message: error.message });
+          }
+          throw error;
+        }
       });
     }, { prefix: "/admin" });
   }, { prefix: "/market" });
@@ -997,6 +1202,55 @@ function marketplaceRunInput(sku: PublicMarketplaceSku, input: string): string {
   return context ? `${context}\n\n用户输入：\n${input}${instruction}` : `${input}${instruction}`;
 }
 
+/** 把后端重算出的视频明细渲染成 Markdown 表，喂给模型只做归因，不做数字计算。 */
+function vidrevRowsTable(metrics: VidrevMetrics): string {
+  const num = (value: number | null, unit = ""): string => (value === null ? "数据缺失" : `${value}${unit}`);
+  const pct = (value: number | null): string => (value === null ? "数据缺失" : `${(value * 100).toFixed(2)}%`);
+  const header = "| video_id | 标题 | 时长(s) | 发布时间 | 播放 | 赞 | 评论 | 分享 | 收藏 | 完播率 | 5秒完播率 | 咨询 | 投流金额 | 内容类型 |";
+  const divider = "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|";
+  const rows = metrics.videos.map((video) =>
+    [
+      "",
+      video.id,
+      video.title,
+      num(video.durationSec),
+      video.publishedAt ?? "数据缺失",
+      num(video.plays),
+      num(video.likes),
+      num(video.comments),
+      num(video.shares),
+      num(video.saves),
+      pct(video.completionRate),
+      pct(video.completion5s),
+      num(video.conversions),
+      num(video.adSpend, " 元"),
+      video.contentType.length > 0 ? video.contentType : "未标注",
+      ""
+    ].join(" | ")
+  );
+  return [header, divider, ...rows].join("\n");
+}
+
+/**
+ * 排障用：仅在显式设置 `VIDREV_DEBUG_DUMP_DIR` 时，把未通过校验的模型原文落盘。
+ * 用于定位「模型排版漂移」类间歇失败（默认不写盘、不落库、不影响交付）。
+ */
+async function dumpVidrevDebugOutput(stage: string, markdown: string, failures: string[]): Promise<void> {
+  const dir = process.env.VIDREV_DEBUG_DUMP_DIR;
+  if (!dir || markdown.trim().length === 0) return;
+  try {
+    await mkdir(dir, { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    await writeFile(
+      join(dir, `vidrev-${stage}-${stamp}.md`),
+      `<!-- failed_rules: ${failures.join(" | ")} -->\n\n${markdown}`,
+      "utf8"
+    );
+  } catch {
+    // 诊断写入失败不得影响交付。
+  }
+}
+
 const MARKETPLACE_SKILL_PROMPTS: Record<string, string> = {
   "ip-pos": "按 IP 定位方法论，输出一个 Markdown 表格，列依次为：维度（项目定位 / 目标用户 / 人设定位 / 记忆板块 / 内容矩阵）、结论、说明。每个维度一行。",
   topic: "按选题三关筛选方法论，输出一个 Markdown 表格，列依次为：序号、选题、切入角度、平台建议、是否踩雷。给 3-5 行。",
@@ -1013,6 +1267,7 @@ function marketplaceSkillSystemPrompt(sku: PublicMarketplaceSku): string {
   const core = sku.skuCode.includes("__") ? sku.skuCode.slice(sku.skuCode.lastIndexOf("__") + 2) : sku.skuCode;
   if (core === "topic") return TOPIC_SYSTEM_PROMPT;
   if (core === "copy") return COPY_SYSTEM_PROMPT;
+  if (core === "vidrev") return VIDREV_SYSTEM_PROMPT;
   const prompt = MARKETPLACE_SKILL_PROMPTS[core] ?? "输出一个 Markdown 表格，列依次为：模块、内容。";
   return `你是思潼AI行业智能体平台的「${sku.name}」。${prompt}\n只输出一个 Markdown 表格，不要输出表格之外的任何说明、推导、评分或内部评估。`;
 }
@@ -1113,6 +1368,59 @@ function splitRow(line: string): string[] {
   if (!l.startsWith("|") || !l.endsWith("|")) return [];
   return l.slice(1, -1).split("|");
 }
+
+const VIDREV_SYSTEM_PROMPT = [
+  "你是思潼AI行业智能体平台的「视频复盘智能体」。一次交付 = 1 份完整复盘报告：1 个一级标题（H1）+ 第零章到第十章共 11 个二级标题（H2），章节名与顺序逐字照抄下面这份清单，章节内禁止使用 H3/H4：",
+  "H1：`# 短视频复盘报告 · <周期起> ~ <周期止>（<平台名>）`",
+  "## 零、数据质量审计",
+  "## 一、数据总览",
+  "## 二、视频分层",
+  "## 三、内容结构健康度",
+  "## 四、单条深拆（TOP3 + BOTTOM3）",
+  "## 五、完播率深层归因",
+  "## 六、互动深度分析",
+  "## 七、趋势预警",
+  "## 八、规律总结",
+  "## 九、方法论沉淀",
+  "## 十、下个周期选题建议",
+  "",
+  "【零、数据质量审计】必须是一张「检查项 | 结果」表格，检查项至少含：总记录数、完播率覆盖、评论数据、发布时段、投流标记。表格后接「受限维度：」并用 1. 2. 3. 逐条列出每一个缺失维度、影响和降级口径；确实没有缺失时写「受限维度：无」。",
+  "「发布时段」一律按下文数据明细里的「发布时间」列判定：有则该行写「精确到日/精确到小时」，无（写「数据缺失」）才在受限维度里声明缺失——禁止数据里有发布时间却宣称「发布时段缺失」。",
+  "【一、数据总览】用「指标 | 数值」表格，至少含：视频总数、总播放、总互动（含互动率，注明加权）、总转化、投流金额、ROI、趋势、账号基线（中位数）。**ROI 无成交金额字段时必须写「数据缺失（无成交金额字段）」，禁止填 0 或编造数值。** 表格后可点明均值是否被极值污染、判断账号健康度一律看中位数。",
+  "【二、视频分层】先写分层口径（播放中位数、转化中位数、高播放 ≥1.5× 中位数、高转化 ≥1.5× 中位数），再用表格逐条列出：象限 | # | 标题 | 播放 | 咨询 | 完播。四象限名称固定为「又爆又赚 / 有量无转 / 有转无量 / 没量没转」。**四象限条数之和必须等于总条数，每条视频只能出现在一行**；落在中间带的按播放是否达基线二分。",
+  "【三、内容结构健康度】用「类型 | 条数 | 占比 | 均播 | 互动率 | 完播率 | 判定」表格逐类型列出；再写 `健康度评分 =（爆款型 + 人设型）/ 总数 = xx% → 🟢/🟡/🔴`，档位必须与分数一致（>50%🟢 / 30–50%🟡 / <30%🔴）；再写核心矛盾（太少/太多/错配）与调整建议（增/减/改）。",
+  "【四、单条深拆】格式：`1. <video_id>「<标题>」｜<象限>`，下一行写该条指标（播放 / 赞 / 评 / 分享 / 收藏 / 完播 / 5秒完播 / 咨询 / 是否投流），再写「为什么好：」或「为什么流量好但转化差：」或「为什么不行：」+ 1. 2. 3. **至少 3 条理由**，最后写「可复用：…」与「改进：…」。总条数 ≥6 时必须 TOP3 + BOTTOM3 共 6 条；<6 时至少 TOP1 + BOTTOM1。**video_id 必须来自本次数据，禁止编造视频。**",
+  "【五、完播率深层归因】按时长自适应分桶（3–5 桶，每桶 ≥1 条，默认 <30s / 30-45s / 45-60s / >60s；某桶为空要合并并注明「该桶本周期无内容，无法评估」），用「时长区间 | 条数 | 均播 | 完播率」表格；再按类型给完播率；最后写「最佳配方：」指名「类型 × 时长」。**禁止写死 <10s/10-20s/20-40s。**",
+  "【六、互动深度分析】给出浅互动率、深互动率、赞/分享比与判定（<2:1🟢 / 2–4:1🟡 / >4:1🔴），并列出分享率 TOP3。",
+  "【七、趋势预警】先写账号基线（播放中位数、互动率中位数、警戒线、优秀线），再写「周次 | 条数 | 均播 | 播放中位数」表格（周度数字后端已给出，照抄不要自己重算）；再写告警（🔴/🟡 等级 + 触发条件 + 动作）与积极信号。**数据不足 3 条时本章只写一句「样本不足 3 条，本周期不输出趋势预警。」**",
+  "【八、规律总结】用表格逐维列出钩子 / 选题 / 形式 / 时间 / 转化五个维度，**五维各 ≥1 条，每条必须指名支撑视频（如 v1、v5）。** 只有本次数据完全没有「发布时间」时，时间维度才允许写「数据缺失，本周期不做时间归因」并把「支撑视频」列写「无」。",
+  "【九、方法论沉淀】≥2 条，每条用 `1.` `2.` 编号独占一段，五个字段各占一行、字段名逐字写全：`类型：…`、`规律：…`、`证据：…`、`置信度：…`、`相关选题：…`（禁止把五个字段用「/」串成一行）；证据必须带具体视频与数字；置信度只能取「疑似规律 / 已确认 / 黄金法则」。",
+  "【十、下个周期选题建议】四个方向必须齐全且用这些标题：主力复制（又爆又赚池）/ 优化重拍（有量无转池）/ 投流放量（有转无量池）/ 放弃方向，每个方向给出基于具体 video_id 的动作；最后给「候选选题（直接进选题池，来源：数据复盘）」**≥2 条**，每条一句可发布的选题标题 + 依据。候选选题的标题与评论引导**严禁出现：私信 / 电话 / 找我 / 留个 / 加我 / 扫码领**。",
+  "",
+  "【硬口径（写错即判失败、不扣积分）】",
+  "1. 所有比率一律加权平均（总量相除）：互动率 = Σ互动 ÷ Σ播放，完播率按播放加权；禁止逐条相除再平均。",
+  "2. 空值不等于 0：缺失字段按缺失处理并写「数据缺失」，禁止用 0 兜底参与计算（ROI、完播率、投流金额尤其注意）。",
+  "3. 四象限由后端函数判定，报告必须与后端给的口径完全一致，禁止自行改判。",
+  "4. 时长分桶必须自适应 3–5 桶，每桶至少 1 条。",
+  "5. 不做共识层级、不写口播稿/脚本、不做 IP 定位。",
+  "",
+  "【排版】一段不超过 5 行；能用表格就不用列表；加粗不超过 12 处；除 🔴🟡🟢 外不要装饰性 emoji；数值百分比保留两位小数。",
+  "【输出前自检】① 十章齐全、章节名逐字一致；② 四象限条数之和 = 总条数；③ 深拆条数与 reasons/reusable/improve 达标；④ 健康度档位与分数一致；⑤ 无成交金额时 ROI 写「数据缺失」；⑥ 第十章四方向齐全且候选选题 ≥2 条、无违禁词。",
+  "只输出这一份 Markdown 报告，禁止输出任何推导过程、评分标准、内部评估、工作区/任务卡字样。"
+].join("\n");
+
+// 快速诊断：只输出精简版，结构固定到可被 validateQuick 逐条解析（否则 422 不扣费）。
+const VIDREV_QUICK_SYSTEM_PROMPT = [
+  "你是思潼AI行业智能体平台的「视频复盘智能体」。现在是【快速诊断】模式：只输出精简版，**不要**输出完整报告的零~十章，也不要输出趋势与配比章节。",
+  "严格按下面结构输出 Markdown，标题与字段名逐字照抄，缺任何一项都会被判失败（失败不扣积分）：",
+  "第 1 行：`## 视频复盘 · 快速诊断`",
+  "第 2 行：`判定：` + 一句话结论（说明当前表现属于哪一类象限，或相对账号基线的位置）。",
+  "第 3 行：`三个要点`（独占一行），随后换行用 `1.` `2.` `3.` 各占一行写 3 条要点（每条一句话，直接说问题或机会，合计 3–5 条）。",
+  "接着一行：`立即动作：` + 恰好 1 条可立即执行的动作（独占一行）。",
+  "最后一行：`⚠️ 本次为快速诊断，基于你提供的信息；补齐后台数据（各条播放 / 完播 / 互动 / 转化）可免费升级为完整复盘报告，同一任务不重复扣费。`",
+  "硬口径：不编造数字，用户没给的数据一律写「数据缺失」；不要用 0 兜底；除 ⚠️ 外不要装饰性 emoji；不写口播稿、不做 IP 定位。",
+  "只输出这一份 Markdown，禁止输出任何推导过程、评分标准、内部评估。"
+].join("\n");
 
 const COPY_SYSTEM_PROMPT = [
   "你是思潼AI行业智能体平台的「文案智能体」。按「内容十件套 V5」完整交付一套：一、选题策划；二、口播逐字稿；三、访谈话术；四、拍摄脚本；五、拍摄注意事项；六、剪辑EDL；七、发布标题与话题；八、最佳发布时间；九、评论区引导；十、投流建议。",

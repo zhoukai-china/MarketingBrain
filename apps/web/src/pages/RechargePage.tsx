@@ -274,12 +274,12 @@ export function RechargePage() {
     return (
       <main className="app-wrap">
         <header className="topbar">
-          <div className="brand" onClick={() => { window.location.href = getAppPath("/market"); }}>
+          <div className="brand" onClick={() => { window.location.href = getAppPath("/agents"); }}>
             <span className="brand-mark">思潼<span className="brand-accent">AI</span></span>
             <span className="brand-sub">行业智能体平台</span>
           </div>
           <nav className="topnav">
-            <a className="nav-link" onClick={() => { window.location.href = getAppPath("/market"); }}>货架</a>
+            <a className="nav-link" onClick={() => { window.location.href = getAppPath("/agents"); }}>货架</a>
             <a className="nav-link active">积分充值</a>
           </nav>
           <div className="wallet-pill" title="积分余额 · 点击登录" onClick={() => { localStorage.setItem("store_os_post_login_redirect", getAppPath(`/recharge${window.location.search}`)); window.location.href = getAppPath("/login"); }}>🔒 未登录 · 点击登录</div>
@@ -308,12 +308,12 @@ export function RechargePage() {
   return (
     <main className="app-wrap">
       <header className="topbar">
-        <div className="brand" onClick={() => { window.location.href = getAppPath("/market"); }}>
+        <div className="brand" onClick={() => { window.location.href = getAppPath("/agents"); }}>
           <span className="brand-mark">思潼<span className="brand-accent">AI</span></span>
           <span className="brand-sub">行业智能体平台</span>
         </div>
         <nav className="topnav">
-          <a className="nav-link" onClick={() => { window.location.href = getAppPath("/market"); }}>货架</a>
+          <a className="nav-link" onClick={() => { window.location.href = getAppPath("/agents"); }}>货架</a>
           <a className="nav-link active">积分充值</a>
         </nav>
         <div className="wallet-pill" title="积分余额 · 点击充值" onClick={() => { window.location.href = getAppPath("/recharge"); }}>💎 <b>{wallet?.balance ?? "—"}</b> 积分 <span className="wp-tag">全平台通用</span></div>
@@ -411,7 +411,7 @@ export function RechargePage() {
                 </div>
               </div>
               {fromWorkbuddy && (
-                <div className="rc-card ad"><b>🏭 顺手看看思潼AI</b><p>你在 WorkBuddy 用的是单个智能体；思潼AI 里有按行业打包的完整解决方案——同一套方法论，说你那个行业的行话。</p><button className="btn ghost sm block" onClick={() => { window.location.href = getAppPath("/market"); }}>去看看行业智能体 ›</button></div>
+                <div className="rc-card ad"><b>🏭 顺手看看思潼AI</b><p>你在 WorkBuddy 用的是单个智能体；思潼AI 里有按行业打包的完整解决方案——同一套方法论，说你那个行业的行话。</p><button className="btn ghost sm block" onClick={() => { window.location.href = getAppPath("/agents"); }}>去看看行业智能体 ›</button></div>
               )}
             </aside>
           </div>

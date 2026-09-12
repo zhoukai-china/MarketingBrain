@@ -1,0 +1,158 @@
+=== qa:full
+pnpm qa:fast && pnpm qa:regression && pnpm build && pnpm api:runtime-data-check
+=== qa:fast
+pnpm db:client-model-check && pnpm beauty-industry:image-asset-url-policy-p1-smoke && pnpm beauty-industry:image-generation-success-p1-smoke && pnpm beauty-industry:image-signage-carrier-prompt-p1-smoke && pnpm beauty-industry:image-composition-p1-smoke && pnpm beauty-industry:deterministic-visual-delivery-p1-smoke && pnpm beauty-industry:xhs-same-page-image-p1-smoke && pnpm lint:structure && pnpm quality:assets && pnpm quality:evals && pnpm marketplace:reference-case-neutral-smoke && pnpm marketplace:sku-link-contract-smoke && pnpm auth:product-login-smoke && pnpm auth:identity-header-spoof-smoke && pnpm auth:wechat-login-failure-paths-smoke && pnpm auth:wechat-login-bridge-smoke && pnpm lanqi:test-splash-contract-smoke && pnpm lanqi:brand-nav-contract-smoke && pnpm platform:route-contract-smoke && pnpm typecheck
+=== db:client-model-check
+node scripts/check-prisma-client-models.mjs
+=== beauty-industry:image-asset-url-policy-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-image-asset-url-policy-p1-smoke.ts
+=== beauty-industry:image-generation-success-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-image-generation-success-p1-smoke.ts
+=== beauty-industry:image-signage-carrier-prompt-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-image-signage-carrier-prompt-p1-smoke.ts
+=== beauty-industry:image-composition-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-image-composition-p1-smoke.ts
+=== beauty-industry:deterministic-visual-delivery-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-deterministic-visual-delivery-p1-smoke.ts
+=== beauty-industry:xhs-same-page-image-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-xhs-same-page-image-p1-smoke.ts
+=== lint:structure
+node scripts/check-structure.mjs
+=== quality:assets
+node scripts/check-skill-quality-assets.mjs
+=== quality:evals
+node scripts/check-agent-eval-cases.mjs
+=== marketplace:reference-case-neutral-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/marketplace-reference-case-neutral-smoke.ts
+=== marketplace:sku-link-contract-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/marketplace-sku-link-contract-smoke.ts
+=== auth:product-login-smoke
+node scripts/product-login-entry-smoke.mjs
+=== auth:identity-header-spoof-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/identity-header-spoof-smoke.ts
+=== auth:wechat-login-failure-paths-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/wechat-login-failure-paths-smoke.ts
+=== auth:wechat-login-bridge-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/wechat-login-bridge-smoke.ts
+=== lanqi:test-splash-contract-smoke
+node scripts/lanqi-test-splash-contract-smoke.mjs
+=== lanqi:brand-nav-contract-smoke
+node scripts/lanqi-brand-nav-contract-smoke.mjs
+=== platform:route-contract-smoke
+node scripts/platform-route-contract-smoke.mjs
+=== typecheck
+pnpm -r typecheck
+=== qa:regression
+pnpm beauty-industry:seedance-execution-smoke && pnpm beauty-industry:seedance-adapter-smoke && pnpm beauty-industry:video-execution-smoke && pnpm beauty-industry:video-oss-staging-smoke && pnpm export:owner-isolation-smoke && pnpm beauty-industry:asr-admission-smoke && pnpm beauty-industry:video-foundation-smoke && pnpm beauty-industry:video-material-authorization-smoke && pnpm skill:smoke && pnpm agent:smoke && pnpm agent:input-smoke && pnpm agent:orchestrator-smoke && pnpm skill:mcp-resilience-smoke && pnpm fip:self-mcp-timeout-smoke && pnpm beauty-industry:mcp-platform-smoke && pnpm beauty-industry:workbuddy-oauth-poc-smoke && pnpm beauty-industry:web-contract-smoke && node apps/api/node_modules/tsx/dist/cli.mjs scripts/franchise-store-agent-split-smoke.ts && node scripts/mcp-request-cancellation-smoke.mjs && node scripts/topic-brief-workbench-smoke.mjs && node scripts/topic-knowledge-selection-smoke.mjs && pnpm quality:continuous-smoke && pnpm quality:daily-startup-smoke
+=== beauty-industry:seedance-execution-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-seedance-execution-smoke.ts
+=== beauty-industry:seedance-adapter-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-seedance-adapter-smoke.ts
+=== beauty-industry:video-execution-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-usage-metering-smoke.ts && node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-video-execution-smoke.ts
+=== beauty-industry:video-oss-staging-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-video-oss-staging-smoke.ts
+=== export:owner-isolation-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/export-owner-isolation-smoke.ts
+=== beauty-industry:asr-admission-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-asr-admission-smoke.ts
+=== beauty-industry:video-foundation-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-video-replication-foundation-smoke.ts
+=== beauty-industry:video-material-authorization-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-video-material-authorization-smoke.ts
+=== skill:smoke
+node scripts/skill-contract-smoke.mjs
+=== agent:smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/agent-product-smoke.ts
+=== agent:input-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/agent-input-smoke.ts
+=== agent:orchestrator-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/agent-orchestrator-smoke.ts
+=== skill:mcp-resilience-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/skill-mcp-resilience-smoke.ts
+=== fip:self-mcp-timeout-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/fip-self-mcp-timeout-smoke.ts
+=== beauty-industry:mcp-platform-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-workbuddy-platform-smoke.ts
+=== beauty-industry:workbuddy-oauth-poc-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-workbuddy-oauth-poc-smoke.ts
+=== beauty-industry:web-contract-smoke
+pnpm beauty-industry:home-p1-smoke && pnpm beauty-industry:navigation-shell-p1-smoke && pnpm beauty-industry:video-ia-p1-smoke && pnpm beauty-industry:invite-beta-scope-smoke && pnpm beauty-industry:journey-p1-smoke && pnpm beauty-industry:text-budget-smoke && pnpm beauty-industry:media-observability-smoke && pnpm beauty-industry:image-quality-p1-smoke && pnpm beauty-industry:image-content-packaging-p1-smoke && pnpm beauty-industry:image-persistence-observability-p1-smoke && pnpm beauty-industry:image-asset-url-policy-p1-smoke && pnpm beauty-industry:fixed-route-output-p1-smoke && pnpm beauty-industry:user-path-contract-p1-smoke && pnpm beauty-industry:xhs-input-preflight-p1-smoke && pnpm beauty-industry:xhs-controlled-contract-p1-smoke && pnpm beauty-industry:xhs-fact-retention-p1-smoke && pnpm beauty-industry:xhs-provider-structure-p1-smoke && pnpm beauty-industry:xhs-customer-delivery-p1-smoke && pnpm beauty-industry:xhs-same-page-image-p1-smoke && pnpm beauty-industry:workflow-composition-smoke && pnpm beauty-industry:topic-workbench-p1-smoke && pnpm beauty-industry:topic-customer-delivery-p1-smoke && pnpm beauty-industry:content-ten-workbench-p1-smoke && pnpm beauty-industry:video-data-review-workbench-p1-smoke && pnpm beauty-industry:video-data-review-runtime-p1-smoke && pnpm beauty-industry:video-content-review-workbench-p1-smoke && pnpm beauty-industry:video-content-review-runtime-p1-smoke && pnpm beauty-industry:video-content-review-activation-p1-smoke && pnpm beauty-industry:live-review-workbench-p1-smoke && pnpm beauty-industry:live-review-runtime-p1-smoke && pnpm beauty-industry:topic-evidence-smoke && pnpm beauty-industry:topic-fact-retention-p1-smoke && pnpm beauty-industry:topic-two-source-error-p1-smoke && pnpm beauty-industry:getnote-sync-p1-smoke && pnpm beauty-industry:daily-brief-p1-smoke && pnpm beauty-industry:daily-brief-live-p1-smoke && node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-controlled-mock-routing-smoke.ts && node scripts/beauty-industry-web-contract-smoke.mjs && node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-profile-memory-smoke.ts
+=== beauty-industry:home-p1-smoke
+node scripts/beauty-industry-home-p1-smoke.mjs
+=== beauty-industry:navigation-shell-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/owned-product-directory-smoke.ts && node scripts/beauty-industry-navigation-shell-p1-smoke.mjs
+=== beauty-industry:video-ia-p1-smoke
+node scripts/beauty-industry-video-ia-p1-smoke.mjs
+=== beauty-industry:invite-beta-scope-smoke
+node scripts/beauty-industry-invite-beta-scope-smoke.mjs
+=== beauty-industry:journey-p1-smoke
+node scripts/beauty-industry-acquisition-journey-p1-smoke.mjs && node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-mcp-contract-smoke.ts
+=== beauty-industry:text-budget-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-by09-text-budget-smoke.ts && node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-by09-message-profile.ts && node scripts/beauty-industry-by09-usage-window-smoke.mjs
+=== beauty-industry:media-observability-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-media-observability-smoke.ts
+=== beauty-industry:image-quality-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-image-quality-p1-smoke.ts
+=== beauty-industry:image-content-packaging-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-image-content-packaging-p1-smoke.ts
+=== beauty-industry:image-persistence-observability-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-image-persistence-observability-p1-smoke.ts
+=== beauty-industry:image-asset-url-policy-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-image-asset-url-policy-p1-smoke.ts
+=== beauty-industry:fixed-route-output-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-fixed-route-output-p1-smoke.ts
+=== beauty-industry:user-path-contract-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-user-path-contract-p1-smoke.ts
+=== beauty-industry:xhs-input-preflight-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-xhs-input-preflight-p1-smoke.ts
+=== beauty-industry:xhs-controlled-contract-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-xhs-controlled-contract-p1-smoke.ts
+=== beauty-industry:xhs-fact-retention-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-xhs-fact-retention-p1-smoke.ts
+=== beauty-industry:xhs-provider-structure-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-xhs-provider-structure-p1-smoke.ts
+=== beauty-industry:xhs-customer-delivery-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-xhs-customer-delivery-p1-smoke.ts
+=== beauty-industry:xhs-same-page-image-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-xhs-same-page-image-p1-smoke.ts
+=== beauty-industry:workflow-composition-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-workflow-composition-smoke.ts
+=== beauty-industry:topic-workbench-p1-smoke
+node scripts/beauty-industry-topic-workbench-p1-smoke.mjs
+=== beauty-industry:topic-customer-delivery-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-topic-customer-delivery-p1-smoke.ts
+=== beauty-industry:content-ten-workbench-p1-smoke
+node scripts/beauty-industry-content-ten-workbench-p1-smoke.mjs && node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-mcp-contract-smoke.ts
+=== beauty-industry:video-data-review-workbench-p1-smoke
+node scripts/beauty-industry-video-data-review-workbench-p1-smoke.mjs
+=== beauty-industry:video-data-review-runtime-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-video-data-review-runtime-p1-smoke.ts
+=== beauty-industry:video-content-review-workbench-p1-smoke
+node scripts/beauty-industry-video-content-review-workbench-p1-smoke.mjs
+=== beauty-industry:video-content-review-runtime-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-video-content-review-runtime-p1-smoke.ts
+=== beauty-industry:video-content-review-activation-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-video-content-review-activation-p1-smoke.ts
+=== beauty-industry:live-review-workbench-p1-smoke
+node scripts/beauty-industry-live-review-workbench-p1-smoke.mjs
+=== beauty-industry:live-review-runtime-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-live-review-runtime-p1-smoke.ts
+=== beauty-industry:topic-evidence-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-topic-evidence-smoke.ts
+=== beauty-industry:topic-fact-retention-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-topic-fact-retention-p1-smoke.ts
+=== beauty-industry:topic-two-source-error-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-topic-two-source-error-p1-smoke.ts
+=== beauty-industry:getnote-sync-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-getnote-sync-p1-smoke.ts
+=== beauty-industry:daily-brief-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-daily-brief-p1-smoke.ts
+=== beauty-industry:daily-brief-live-p1-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-daily-brief-parser-p1-smoke.ts && node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-daily-brief-live-p1-smoke.ts && node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-daily-brief-manual-acceptance-p1-smoke.ts
+=== quality:continuous-smoke
+node apps/api/node_modules/tsx/dist/cli.mjs scripts/continuous-improvement-smoke.ts
+=== quality:daily-startup-smoke
+node -e "import('dotenv/config').then(() => console.log('Daily quality runtime dependencies are resolvable.'))"
+=== build
+pnpm -r build

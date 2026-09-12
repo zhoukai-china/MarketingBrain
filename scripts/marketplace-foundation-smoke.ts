@@ -2,8 +2,10 @@ import {
   MARKETPLACE_V3_SKU_SEEDS,
   MARKETPLACE_SUPPLIER_SEEDS,
   MARKETPLACE_ZONES,
+  MARKETPLACE_INDUSTRIES,
   demoMarketplace,
-  matchesMarketplaceQuery
+  matchesMarketplaceQuery,
+  refreshMarketplaceSkuSeeds
 } from "../apps/api/src/services/marketplace-catalog.js";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -50,8 +52,8 @@ function main(): void {
   const sellingSkus = shelf.filter((sku) => sku.status === "selling").map((sku) => sku.skuCode);
   assert(shelf.length === 19, `public shelf keeps all 19 skus visible (got ${shelf.length})`);
   assert(
-    soonSkus.length === 15,
-    `15 coming_soon skus stay on the shelf: 7 per 通用 ready zone + 1 品牌专属内核 (got ${soonSkus.length})`
+    soonSkus.length === 13,
+    `13 coming_soon skus stay on the shelf: 创始人IP专区 6 + 美业专区 6 + 1 品牌专属内核 (got ${soonSkus.length})`
   );
   assert(soonSkus.some((sku) => sku.skuCode === "ipzone__topic"), "coming_soon sku stays visible on the public shelf");
   // 品牌专属内核只在自己的专区上架，不污染通用分区。
@@ -65,8 +67,18 @@ function main(): void {
     "兰琪品牌内核不得出现在创始人IP/美业等通用专区"
   );
   assert(
-    sellingSkus.length === 4 && sellingSkus.every((code) => code.endsWith("__ip-pos") || code.endsWith("__copy")),
-    `only ip-pos and copy are selling (got ${sellingSkus.join(", ")})`
+    sellingSkus.length === 6
+      && sellingSkus.filter((code) => code.endsWith("__ip-pos") || code.endsWith("__copy")).length === 4
+      && sellingSkus.includes("ipzone__vidrev")
+      && sellingSkus.includes("meiye__vidrev"),
+    `only ip-pos / copy (both zones) and 两个专区的视频复盘 are selling (got ${sellingSkus.join(", ")})`
+  );
+  // 专区级 override 生效范围：视频复盘内核在两个专区都已开卖，美业其余内核仍按内核缺省状态显示开发中。
+  assert(
+    demoMarketplace.getSku("ipzone__vidrev")!.status === "selling"
+      && demoMarketplace.getSku("meiye__vidrev")!.status === "selling"
+      && demoMarketplace.getSku("meiye__livescript")!.status === "coming_soon",
+    "两个专区的视频复盘都已开卖，同一专区内未开卖的内核仍保持 coming_soon"
   );
 
   const topic = demoMarketplace.getSku("ipzone__topic")!;
@@ -104,6 +116,28 @@ function main(): void {
     { q: "创始人 IP" }
   );
   assert(textMatch, "backend text search matches scenario terms");
+
+  // 开卖状态只认发布文件 `marketplace-v3.json`（QA-20260911-016）。
+  //
+  // 生产实测的失效链路：`MarketplaceIndustryProfile` 行是首版建行时写入的，
+  // `syncMarketplaceIndustryProfiles()` 之后只做 `update: {}`（不覆盖 `ov`），而
+  // `loadMarketplaceIndustryProfiles()` 又会用库里的 `ov` 覆盖内存值 —— 于是库里
+  // `ov = {}` 时，文件里新加的 `ov.<skill>.status` 被吞掉，发版后线上仍是「开发中」。
+  // 这里直接模拟「库里已有空 ov 的 profile 行」，钉住种子状态必须来自文件。
+  MARKETPLACE_INDUSTRIES.ipzone.ov = {};
+  MARKETPLACE_INDUSTRIES.meiye.ov = {};
+  refreshMarketplaceSkuSeeds();
+  const seedStatus = (skuCode: string) =>
+    MARKETPLACE_V3_SKU_SEEDS.find((sku) => sku.skuCode === skuCode)?.status;
+  assert(
+    seedStatus("ipzone__vidrev") === "selling" && seedStatus("meiye__vidrev") === "selling",
+    `开卖状态必须来自发布文件而不是库里的专区 profile：ipzone__vidrev=${seedStatus("ipzone__vidrev")} / `
+      + `meiye__vidrev=${seedStatus("meiye__vidrev")}`
+  );
+  assert(
+    seedStatus("ipzone__livescript") === "coming_soon",
+    "文件里没写 status 的内核仍按内核缺省状态展示「开发中」"
+  );
 
   console.log("PASS marketplace-foundation-smoke");
 }

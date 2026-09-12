@@ -36,7 +36,7 @@ const envSchema = z.object({
   ALIYUN_VIDEO_MODEL: z.string().trim().min(1).default("qwen-vl-max"),
   ALIYUN_VIDEO_REPLICATION_API_KEY: optionalString,
   ALIYUN_VIDEO_REPLICATION_ENDPOINT: optionalUrl,
-  ALIYUN_VIDEO_REPLICATION_MODEL: z.string().trim().min(1).default("wan-animate-mix"),
+  ALIYUN_VIDEO_REPLICATION_MODEL: z.string().trim().min(1).default("wan2.2-animate-mix"),
   ALIYUN_VIDEO_REPLICATION_CREDITS: z.coerce.number().int().nonnegative().default(0),
   BEAUTY_VIDEO_STAGING_DRIVER: z.enum(["disabled", "aliyun_oss"]).default("disabled"),
   BEAUTY_VIDEO_EXECUTION_MODE: z.enum(["disabled", "controlled"]).default("disabled"),
@@ -64,9 +64,18 @@ const envSchema = z.object({
   LANQI_MEDIA_IMAGE_TO_VIDEO_MODEL: optionalString,
   LANQI_MEDIA_EXECUTION_MODE: z.enum(["disabled", "mock", "real"]).default("disabled"),
   LANQI_MEDIA_REAL_EXECUTION_APPROVED: z.enum(["true", "false"]).default("false"),
+  // 图片与视频分开放行：本轮预算只批了「文案转片」图生视频，不能顺带把付费生图也打开。
+  LANQI_MEDIA_IMAGE_REAL_EXECUTION_APPROVED: z.enum(["true", "false"]).default("false"),
   LANQI_MEDIA_ASSET_STORAGE: z.enum(["disabled", "local"]).default("disabled"),
   LANQI_MEDIA_TASK_TIMEOUT_MINUTES: z.coerce.number().int().min(5).max(180).default(30),
+  // 首帧图暂存：门店上传的首帧图放进本平台自己的存储，再生成一条「限时、一次性签名」
+  // 的 HTTPS 外链交给视频模型抓取。没有公网基址或签名密钥时整条链路 fail closed。
+  LANQI_MEDIA_PUBLIC_BASE_URL: optionalUrl,
+  LANQI_MEDIA_STAGING_SECRET: optionalString,
+  LANQI_MEDIA_FIRST_FRAME_TTL_MINUTES: z.coerce.number().int().min(5).max(1440).default(240),
+  LANQI_MEDIA_FIRST_FRAME_MAX_MB: z.coerce.number().positive().max(10).default(6),
   LANQI_MEDIA_IMAGE_CREDITS: z.coerce.number().int().positive().default(100),
+  LANQI_MEDIA_VIDEO_CREDITS_PER_SECOND: z.coerce.number().int().positive().default(30),
   BEAUTY_MEDIA_EXECUTION_MODE: z.enum(["disabled", "real"]).default("disabled"),
   BEAUTY_MEDIA_PRODUCT_ENABLED: z.enum(["true", "false"]).default("false"),
   BEAUTY_MEDIA_MAX_REAL_IMAGES: z.coerce.number().int().min(0).max(3).default(0),

@@ -2,8 +2,12 @@
 /**
  * 兰琪一期（单店）公域获客页验收探针（只读，不改服务端状态、不真调模型）。
  *
- * 覆盖：/lanqi/acquire 枢纽页 + 四个子页（copywriter / video / live / methods）、
- * 桌面与移动两档尺寸、模型/厂商名泄露检查、接口 4xx/5xx 与控制台错误。
+ * 两种口径自动切换（用户 2026-09-11：目前只有私域营销可正常上线，其余板块显示「开发中」）：
+ *   A. 板块已收口（当前状态）：只验证 /lanqi/acquire* 全部落到兰琪自己的「开发中」占位页，
+ *      不空白、不串到别的产品、无模型/厂商名泄露、无接口 4xx/5xx 与控制台错误；
+ *   B. 板块已放开（`apps/web/src/main.tsx` 的 LANQI_MOMENTS_ONLY_LAUNCH 放开公域获客后）：
+ *      自动跑下面的逐模块验收清单 —— 枢纽页 + 四个子页（copywriter / video / live / methods）、
+ *      桌面与移动两档尺寸、模型/厂商名泄露检查、接口 4xx/5xx 与控制台错误。
  *
  * 与 `scripts/lanqi-test-instance-acceptance.mjs` 同源（同一套 CDP 探针），
  * 区别是断言对象换成公域获客板块。
@@ -323,6 +327,82 @@ async function main() {
       });
     }
 
+    async function finish() {
+      const failed = checks.filter((item) => !item.pass);
+      const report = {
+        generatedAt: new Date().toISOString(),
+        base,
+        checks,
+        failed: failed.map((item) => item.name),
+        pages: pageReports,
+      };
+      const reportPath = path.join(outDir, "lq-acquire-acceptance.json");
+      await writeFile(reportPath, JSON.stringify(report, null, 2), "utf8");
+
+      for (const check of checks) {
+        console.log(`${check.pass ? "PASS" : "FAIL"}  ${check.name}  ::  ${check.detail}`);
+      }
+      console.log(`\n合计 ${checks.length} 项，失败 ${failed.length} 项`);
+      console.log(`report: ${reportPath}`);
+      if (failed.length) process.exitCode = 1;
+    }
+
+    /*
+     * 口径 A（当前）：公域获客板块已收口到「开发中」占位。
+     * 先用一个探针判断实例当前跑的是哪种口径，避免把「已收口」误判成「板块坏了」。
+     */
+    const guard = await openPage(root, `${base}/lanqi/acquire`, "公域获客");
+    const acquireClosed = guard.snapshot.text.includes("本板块还在开发中");
+    await closePage(root, guard);
+
+    if (acquireClosed) {
+      const routes = [
+        { path: "/lanqi/acquire", label: "枢纽页" },
+        { path: "/lanqi/acquire/copywriter", label: "短视频文案改稿" },
+        { path: "/lanqi/acquire/video", label: "视频获客" },
+        { path: "/lanqi/acquire/live", label: "直播话术" },
+        { path: "/lanqi/acquire/methods", label: "AI 运营顾问" },
+      ];
+      for (const route of routes) {
+        const page = await openPage(root, `${base}${route.path}`, "公域获客");
+        const text = page.snapshot.text;
+        checks.push({
+          name: `收口(${route.label})：显示兰琪「开发中」占位`,
+          pass: text.includes("公域获客") && text.includes("开发中") && text.includes("本板块还在开发中"),
+          detail: `readyAtMs=${page.readyAtMs} textLen=${text.length} 含「开发中」=${text.includes("开发中")}`,
+        });
+        checks.push({
+          name: `收口(${route.label})：不串到别的产品 / 无模型厂商名泄露`,
+          pass: !/枕水江南|外卖增长/.test(text) && leakHit(text) === null && page.snapshot.gates.length === 0,
+          detail: `串页=${/枕水江南|外卖增长/.test(text)} 泄露=${leakHit(text) ?? "无"} gates=${JSON.stringify(page.snapshot.gates)}`,
+        });
+        checks.push({
+          name: `收口(${route.label})：无接口 4xx/5xx、console/page 无错误`,
+          pass: blankErrors(page).length === 0 && page.consoleErrors.length === 0 && page.pageErrors.length === 0,
+          detail: `http=${JSON.stringify(blankErrors(page).slice(0, 4))} console=${page.consoleErrors.length} page=${page.pageErrors.length}`,
+        });
+        record(page, `${base}${route.path}`);
+        await closePage(root, page);
+      }
+
+      const mobileViewport = { width: 390, height: 844, mobile: true };
+      const hubMobile = await openPage(root, `${base}/lanqi/acquire`, "公域获客", mobileViewport);
+      const videoMobile = await openPage(root, `${base}/lanqi/acquire/video`, "公域获客", mobileViewport);
+      checks.push({
+        name: "收口：移动端 390×844 无横向溢出",
+        pass: hubMobile.snapshot.overflowX <= 2 && videoMobile.snapshot.overflowX <= 2,
+        detail: `hubOverflow=${hubMobile.snapshot.overflowX} videoOverflow=${videoMobile.snapshot.overflowX}`,
+      });
+      record(hubMobile, `${base}/lanqi/acquire (mobile)`);
+      record(videoMobile, `${base}/lanqi/acquire/video (mobile)`);
+      await closePage(root, hubMobile);
+      await closePage(root, videoMobile);
+
+      console.log("[INFO] 公域获客板块当前为「开发中」口径，逐模块验收清单在板块放开后自动生效。");
+      await finish();
+      return;
+    }
+
     // ① 枢纽页：五张入口卡
     const hub = await openPage(root, `${base}/lanqi/acquire`, "公域获客");
     const hubText = hub.snapshot.text;
@@ -639,23 +719,7 @@ async function main() {
     await closePage(root, hubMobile);
     await closePage(root, videoMobile);
 
-    const failed = checks.filter((item) => !item.pass);
-    const report = {
-      generatedAt: new Date().toISOString(),
-      base,
-      checks,
-      failed: failed.map((item) => item.name),
-      pages: pageReports,
-    };
-    const reportPath = path.join(outDir, "lq-acquire-acceptance.json");
-    await writeFile(reportPath, JSON.stringify(report, null, 2), "utf8");
-
-    for (const check of checks) {
-      console.log(`${check.pass ? "PASS" : "FAIL"}  ${check.name}  ::  ${check.detail}`);
-    }
-    console.log(`\n合计 ${checks.length} 项，失败 ${failed.length} 项`);
-    console.log(`report: ${reportPath}`);
-    if (failed.length) process.exitCode = 1;
+    await finish();
   } finally {
     root?.close();
     chrome.kill();

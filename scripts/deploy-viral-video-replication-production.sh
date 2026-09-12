@@ -48,7 +48,9 @@ set_env_if_missing() {
 existing_dashscope_key="$(sudo sed -n 's/^DASHSCOPE_API_KEY=//p' "$ENV_FILE" | tail -n 1)"
 test -n "$existing_dashscope_key"
 set_env_if_missing "ALIYUN_VIDEO_REPLICATION_API_KEY" "$existing_dashscope_key"
-set_env_if_missing "ALIYUN_VIDEO_REPLICATION_ENDPOINT" "https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis"
+# wan2.2-animate-mix 只接受 image2video 端点；video-generation 端点会返回 url error。
+set_env_if_missing "ALIYUN_VIDEO_REPLICATION_ENDPOINT" "https://dashscope.aliyuncs.com/api/v1/services/aigc/image2video/video-synthesis"
+set_env_if_missing "ALIYUN_VIDEO_REPLICATION_MODEL" "wan2.2-animate-mix"
 # Deliberately disabled until a product owner confirms the customer-facing credit price.
 set_env_if_missing "ALIYUN_VIDEO_REPLICATION_CREDITS" "0"
 set_env_if_missing "ALIYUN_VIDEO_REPLICATION_CALLBACK_TOKEN" "$(openssl rand -hex 32)"

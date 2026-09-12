@@ -86,6 +86,45 @@ function findChrome() {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/* ---- 侧栏配色的对比度实算（取的是浏览器算完后的 rgb/rgba 文本） ---- */
+function parseRgb(text) {
+  const m = String(text ?? "").match(/rgba?\(([^)]+)\)/);
+  if (!m) return null;
+  const nums = m[1].split(",").map((v) => Number(v.trim()));
+  if (nums.length < 3 || nums.slice(0, 3).some((v) => Number.isNaN(v))) return null;
+  return [nums[0], nums[1], nums[2], nums.length > 3 && !Number.isNaN(nums[3]) ? nums[3] : 1];
+}
+function isWhiteRgb(text) {
+  const c = parseRgb(text);
+  return Boolean(c) && c[0] === 255 && c[1] === 255 && c[2] === 255;
+}
+function isBrandOrangeRgb(text) {
+  const c = parseRgb(text);
+  return Boolean(c) && c[0] === 243 && c[1] === 112 && c[2] === 33;
+}
+/** 半透明前景叠到不透明底色上的实际观感色。 */
+function overlayRgb(fgText, bgText) {
+  const fg = parseRgb(fgText);
+  const bg = parseRgb(bgText);
+  if (!fg || !bg) return null;
+  return [0, 1, 2].map((i) => Math.round(fg[3] * fg[i] + (1 - fg[3]) * bg[i]));
+}
+function contrastOfRgb(aText, bText) {
+  const a = parseRgb(aText);
+  const b = parseRgb(bText);
+  if (!a || !b) return null;
+  const lum = (rgb) => {
+    const [r, g, bl] = rgb.slice(0, 3).map((v) => {
+      const x = v / 255;
+      return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const la = lum(a);
+  const lb = lum(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
 async function waitForDevtools(timeoutMs = 20000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -220,7 +259,19 @@ const BRAND_EXPR = `(() => {
   const cs = name ? getComputedStyle(name) : null;
   const lineHeight = cs ? parseFloat(cs.lineHeight) || 0 : 0;
   const nameBox = name ? name.getBoundingClientRect() : null;
+  // 侧栏配色（用户 2026-09-11：一级导航字体由黑改白）：取的是浏览器算完之后的真实颜色，
+  // 不是源码文本，所以「样式没被加载 / 被别的规则盖掉」这种情况也会被这条断言抓住。
+  const sideEl = document.querySelector(".lq-pd__side");
+  const firstItem = items[0] ?? null;
+  const badgeEl = document.querySelector(".lq-pd__badge");
   return {
+    sideBg: sideEl ? getComputedStyle(sideEl).backgroundColor : "",
+    navColor: firstItem ? getComputedStyle(firstItem).color : "",
+    navFontSize: firstItem ? getComputedStyle(firstItem).fontSize : "",
+    navFontWeight: firstItem ? getComputedStyle(firstItem).fontWeight : "",
+    badgeColor: badgeEl ? getComputedStyle(badgeEl).color : "",
+    badgeBg: badgeEl ? getComputedStyle(badgeEl).backgroundColor : "",
+    nameColor: cs ? cs.color : "",
     isImg: Boolean(img) && img.tagName === "IMG",
     src: img ? img.getAttribute("src") : null,
     currentSrc: img ? img.currentSrc : null,
@@ -346,6 +397,30 @@ async function runViewport(root, viewport) {
   );
   const devLabels = brand.rows.filter((r) => r.badge.includes("开发中")).map((r) => r.label);
   info(`${viewport.label} 开发中板块`, devLabels.join(" / "));
+
+  // ---- 侧栏配色：橙底白字；最小字号的「开发中」徽标必须比改前更清楚 ----
+  const navContrast = contrastOfRgb(brand.navColor, brand.sideBg);
+  const badgeChip = overlayRgb(brand.badgeBg, brand.sideBg);
+  const badgeContrast = badgeChip ? contrastOfRgb("rgb(255, 255, 255)", `rgb(${badgeChip.join(", ")})`) : null;
+  record(
+    `${viewport.label} 侧栏导航/品牌名是白字，底色仍是兰琪橙`,
+    isWhiteRgb(brand.navColor) && isWhiteRgb(brand.nameColor) && isBrandOrangeRgb(brand.sideBg),
+    `nav=${brand.navColor} name=${brand.nameColor} bg=${brand.sideBg}`
+  );
+  record(
+    `${viewport.label} 侧栏导航白字对比度不低于 2.9:1（品牌橙不变，AA 例外见 LQ-22）`,
+    navContrast !== null && navContrast >= 2.9,
+    navContrast === null
+      ? `取色失败 nav=${brand.navColor} bg=${brand.sideBg}`
+      : `${navContrast.toFixed(2)}:1（${brand.navFontWeight} ${brand.navFontSize}）`
+  );
+  record(
+    `${viewport.label} 「开发中」徽标白字对比度 ≥ 4.5:1（改前深棕字 2.71:1）`,
+    isWhiteRgb(brand.badgeColor) && badgeContrast !== null && badgeContrast >= 4.5,
+    badgeContrast === null
+      ? `取色失败 badge=${brand.badgeColor} bg=${brand.badgeBg}`
+      : `badge=${brand.badgeColor} on=${brand.badgeBg} chip=rgb(${badgeChip.join(", ")}) ${badgeContrast.toFixed(2)}:1`
+  );
 
   // ---- 未上线板块逐个直开：仍在兰琪外壳 + 「开发中」占位 + 不串产品 ----
   for (const route of OFFLINE_BOARDS) {

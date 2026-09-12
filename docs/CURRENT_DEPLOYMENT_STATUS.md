@@ -1,6 +1,233 @@
 # 当前部署状态
 
-更新时间：2026-09-11（最近一次为 **兰琪品牌 Logo 修正 + 上线板块收口（LQ-21 / QA-20260911-014，只放「私域营销」，其余 7 个板块显示「开发中」），上测试实例 + 生产**，见下方顶部条目；此前为手机端平台页顶栏修复 + 货架「退出登录」入口（QA-20260911-012）、工作区在途改动全量发布（电脑端微信扫码登录 PLAT-13 + 视频复盘引擎 + 试用积分 + 兰琪顾问规则）、兰琪 LQ-19 顾问「来源」标签口径修复、WorkBuddy 报告核验后的 LQ-19 公域获客修复、微信登录失败路径修正、一次性验收租户回收、P0 身份头冒充修复、兰琪生产数据收尾与 LQ-19 首发布；2026-08-03 清单保留为当时状态）
+更新时间：2026-09-12（最近一次为 **PLAT-24 视频复盘 chat 页匿名登录引导（WorkBuddy QA 三条 P1，上测试实例 + 生产）**，上一条为 **PLAT-22 客户侧残留成本字段清理（剪辑台 `/clip-lab/render` 的 `estimatedLocalCostYuan`）**，再往上为 **PLAT-21 客户侧响应摘掉内部算力成本（货架 `modelCostCny` + 美业图片报价 `estimatedProviderCostYuan`）** 与 **PLAT-19 客户界面只显示积分、去掉「≈ ¥」人民币折算**，其下为 **LQ-23 兰琪「文案转片」真实出片上生产 + 历史构建产物回收 + 备份保留策略落地**、**PLAT-18 历史路由清理第一、二批 + 全局兜底页修复，上测试实例 + 生产**、兰琪侧栏一级导航白字配色（LQ-22）、货架 SKU 分享链接 `/agents/<skuCode>` 修复（QA-20260911-015）、货架「我的智能体」文案改为「常用智能体」（PLAT-15）、兰琪品牌 Logo 修正 + 上线板块收口（LQ-21 / QA-20260911-014）、手机端平台页顶栏修复 + 货架「退出登录」入口（QA-20260911-012）、工作区在途改动全量发布（电脑端微信扫码登录 PLAT-13 + 视频复盘引擎 + 试用积分 + 兰琪顾问规则）、兰琪 LQ-19 顾问「来源」标签口径修复、WorkBuddy 报告核验后的 LQ-19 公域获客修复、微信登录失败路径修正、一次性验收租户回收、P0 身份头冒充修复、兰琪生产数据收尾与 LQ-19 首发布；2026-08-03 清单保留为当时状态）
+
+## 最新发布：20260912-plat24-chat-login-gate-prod1（2026-09-12，生产）— 视频复盘 chat 页匿名用户不再白填 4 步
+
+用户 2026-09-12 提供 WorkBuddy《OSv2 视频复盘 agent QA 报告》（07:24 快照）。报告三条 P1 我在当前生产上独立复现（新增只读探针 `scripts/vidrev-chat-anonymous-probe.mjs`，2 个 SKU × 桌面 1440 / 移动 390 = 4 视口 × 4 断言，修复前**全红**）：chat 页顶栏只有「货架 / 对话」（没有登录入口），匿名用户直接进 4 步向导、填完＋确认后才在 `/run` 撞 401，而且提示他去点一个页面上根本不存在的「右上角『未登录 · 点击登录』」，文案还写成「登录状态已失效」。
+
+改动（纯前端，`apps/web/src/pages/MarketplaceApp.tsx`）：① chat 页顶栏改用全局 `Topbar`（登录入口 / 积分钱包 / 主题切换 / 退出登录），顺带补齐报告 P2 的「chat 页缺主题切换」；② 新增 `hasSession` + 钱包读取，**未登录直接渲染登录引导**（说明「登录后才能使用、每次扣 N 积分、结果存进自己账号」+「🔒 立即登录」带回跳 + 回详情看参考案例），不再渲染 4 步向导；③ 掉登录文案由「登录状态已失效」改为「登录已过期」。任务卡 `docs/agents/platform-tasks.md` **PLAT-24**，缺陷 `docs/BUG_REGRESSIONS.md` **QA-20260912-011**。
+
+发布包：`release-20260912-plat24-chat-login-gate-full.tar.gz`（9348144 B，sha256 `170c6dab0b4fbf37cb70dab30f7737c8e50f99a0f7735baa31c8ad687e9a52f9`，1461 文件；服务器侧逐字一致）。无删除文件、无迁移、无 env 变更。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 测试（内测免登录实例） | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | https://api.lcppch.top/lanqi-test/ | `20260912-plat24-chat-login-gate-test1` | `DEPLOY_OK` + `VERIFY_OK` + `PROBE_EXPECT=auto-login` **PASS**（免登录体验未被弄坏） |
+| 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | https://api.lcppch.top/os-v2/ | `20260912-plat24-chat-login-gate-prod1` | `DEPLOY_OK` + `VERIFY_OK` + 匿名探针 **PASS** + `deployed-marketplace-browser-check` **PASS** + `platform:route-browser-e2e` **PASS 24/24** + `marketplace-sku-link-regression` **ALL PASS**；`journalctl -p err` 近 8 分钟 `No entries` |
+
+老路径不回归（本地带登录 + 真实模型 1 次深度复盘）：`MP_E2E_WEB_URL=http://127.0.0.1:5175 node scripts/marketplace-vidrev-browser-e2e.mjs` → **PASS**（`chatRun=true`、11 章节、导出按钮、`本次消耗 60 积分`、移动 `overflow=0`、`consoleErrors=0`）。
+
+**下一批（PLAT-25，未开工）**：报告里剩下的 P2——浏览器 `<title>` 四个页面都是「思潼AI 行业智能体平台」、页面标题冗余「视频复盘 · 视频复盘智能体」、meiye 欢迎语先问「第 1 轮 POI/团购」与进度条第 1 步「复盘模式」不一致（`marketplace-v3.json` 数据文案）。**报告里「约扣 60 积分 · ≈ ¥3」的折算已由 PLAT-19 下线，属快照时效差异。**
+
+## 最新发布：20260912-plat22-cliplab-cost-prod1（2026-09-12，生产）— 剪辑台响应不再返回本地算力成本
+
+用户 2026-09-12 要求把「成本字段外泄」与「换算常量口径」分别开成任务卡、按「每批只动一件事」推进。本批（**PLAT-22**，缺陷登记在 QA-20260912-010「第三处」）只清一处：`POST /clip-lab/render`（`/agents/clipper` 工作台智能体，租户可打开）在 `result.measurement.estimatedLocalCostYuan` 里回传本机渲染成本（`renderMs / 3_600_000 × 2.4`，¥2.4/小时口径），而前端从未渲染它。
+
+改动：`apps/api/src/routes/clip-lab.ts` 删除该字段；同一 `measurement` 里不含钱的效率口径（`totalMs` / `renderMs` / `realtimeFactor` / `machineVideosPerHour` / `estimatedHumanMinutes` / `humanReviewVideosPerHour`）全部保留；契约 `scripts/response-cost-contract-smoke.mjs` 新增第 ⑥ 段（4 条断言）从 29 条扩到 **35 条**。先红后绿：修复前 `FAIL (34 passed / 1 failed)` exit=1，修复后 `PASS (35 passed / 0 failed)` exit=0；`pnpm.cmd qa:fast` exit=0。
+
+发布包：`release-20260912-plat22-cliplab-cost-full.tar.gz`（9333118 B，sha256 `c0a65060b663c31642df90eee188f7f338ed3bb25101e1d6f9242acc7cabdce4`，1460 文件；服务器侧 `sha256sum` 逐字一致）。无删除文件、无迁移、无 env 变更。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 测试 | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | https://api.lcppch.top/lanqi-test/ | `20260912-plat22-cliplab-cost-test1` | `DEPLOY_OK` + `VERIFY_OK`；部署产物 `clip-lab.js` 中 `estimatedLocalCostYuan` = 0 次 |
+| 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | https://api.lcppch.top/os-v2/ | `20260912-plat22-cliplab-cost-prod1` | `DEPLOY_OK` + `VERIFY_OK` + 浏览器 `deployed-marketplace-browser-check` **PASS** + `platform:route-browser-e2e` **PASS 24/24** + `marketplace-sku-link-regression` **ALL PASS**；`journalctl -p err` 近 8 分钟 `No entries` |
+
+**下一批（PLAT-23，未开工）**：积分 ↔ 人民币 ↔ 成本换算常量口径统一。现状是三条线互不一致——对客售价线 1 积分 = ¥0.05（`CREDIT_PRICING`）、内部成本线 1 积分 = ¥0.01 且「20 倍」（`MARKETPLACE_CREDIT_MARKUP`）实际生效为 `credits = ceil(成本 × 2000)`（等于成本 → 营收 **100 倍**，与注释的 20 倍不符），另有美业图片 `¥0.2/张` 与兰琪视频「成本 ×10」等不同倍数、以及 DeepSeek 两套单价表（¥3/¥6 与 ¥3.48/¥6.96）。**该批需用户先选定口径（A 只让常量说真话 / B 让 20 倍名副其实但内部估算数字变化 / C 只加注释与契约），未获批准前不改任何对客价格与扣费。**
+
+## 最新发布：20260912-plat21-cost-leak-prod1（2026-09-12，生产）— 客户侧响应不再返回内部算力成本
+
+用户 2026-09-12 指出「**我们把成本直接暴露给客户了**」：`/marketplace/run` 的成功响应里带了 `modelCostCny`（本次真实算力成本，人民币），客户打开 DevTools 就能看到我们每次赚多少，违反「不向普通用户暴露供应商、密钥或内部成本」，要求「抓紧摘掉，内部审计继续走账本 `metadata` 就够了」。任务卡见 `docs/agents/platform-tasks.md` **PLAT-21**，缺陷与红/绿证见 `docs/BUG_REGRESSIONS.md` **QA-20260912-010**。
+
+改动：① `apps/api/src/routes/marketplace.ts` 成功响应删除 `modelCostCny` 与成本折算积分 `estimatedCredits`（后者 = `ceil(成本 × 2000)`，客户可反推成本，属同一泄露）；账本 `MarketplaceLedgerEntry.metadata` 的 `modelCostCny` / `estimatedCredits` / 三个 token 计数**全部保留**。② 同轮只读扫描发现第二处同类泄露并一并修复：`apps/api/src/routes/beauty-industry-media.ts` 的 `/media/quote` 响应删除 `estimatedProviderCostYuan`（供应商成本，人民币），`apps/web/src/pages/BeautyIndustryAcquisitionPage.tsx` 类型同步删除该字段；服务端的成本闸门（`estimateBeautyImageProviderCostYuan` + `resolveReadiness`）与 job 参数里的成本审计字段**保留**。新增契约 `scripts/response-cost-contract-smoke.mjs`（**29 条**离线断言，挂进 `qa:fast` 的 `platform:response-cost-contract-smoke`），三个真实运行 smoke 补缺席断言 + 账本审计断言。兰琪报价页 `/lanqi` 的 `estimatedCredits` 是**对外公开单价**（30 积分/秒、每镜 90 积分），按用户口径保留；美业 job `serialize()` 的 `provider` / `model`（供应商与模型名）本轮未动，单独等用户定。
+
+发布包（当前线上为第二轮）：`release-20260912-plat21-cost-leak2-full.tar.gz`（9327277 B，sha256 `b6d922a58bac4525e39f21e837e1296e584d2b93d4768896cfeb19fb518647ac`，1460 文件；服务器侧 `sha256sum` 与部署日志逐字一致）；第一轮为 `release-20260912-plat21-cost-leak-full.tar.gz`（9326080 B，sha256 `dcd156437143c2bfcdc2d7c1fdcf59d447ea4c782511682ee6b7658ccf9dd21f`）。两轮都无删除文件、无迁移、无 env 变更。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 测试 | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | https://api.lcppch.top/lanqi-test/ | `20260912-plat21-cost-leak-test1` | `DEPLOY_OK`（`health=200 (after 15s)` / `ready=200`，48 迁移无待应用）+ `VERIFY_OK` + 浏览器 **PASS** |
+| 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | https://api.lcppch.top/os-v2/ | `20260912-plat21-cost-leak-prod1` | `DEPLOY_OK`（同上）+ `VERIFY_OK`（`skus_total=19` / `coming_soon=13` / 两个 `vidrev` = `selling`）+ 浏览器 **PASS** + `marketplace-sku-link-regression` **ALL PASS**；`journalctl -p err` 近 10 分钟 `No entries` |
+| 测试 | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | https://api.lcppch.top/lanqi-test/ | `20260912-plat21-cost-leak2-test1` | 含美业报价一处；`DEPLOY_OK` + `VERIFY_OK` + 浏览器 **PASS** |
+| 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | https://api.lcppch.top/os-v2/ | `20260912-plat21-cost-leak2-prod1` | 含美业报价一处；`DEPLOY_OK` + `VERIFY_OK` + 浏览器 **PASS** + `marketplace-sku-link-regression` **ALL PASS**；`journalctl -p err` 近 8 分钟 `No entries` |
+
+验收证据：本地真实端到端 `VIDREV_SMOKE_ONLY=deep pnpm.cmd marketplace:vidrev-run-smoke` → `costFieldsAbsent=true` / `ledgerModelCostCny=0.029529` / `consumedCredits=60`；上线后直接查生产部署产物，`marketplace.js` 里 `modelCostCny` 与 `estimatedCredits` 各只出现 1 次且都在账本 `metadata` 内、响应对象已无成本字段，`beauty-industry-media.js` 的 `/media/quote` 响应对象已无 `estimatedProviderCostYuan` 而成本闸门仍在。备份：`/opt/baolu-backups/20260912-plat21-cost-leak{,-2}-{prod1-before-baolu-os-v2,test1-before-baolu-os-v2-test}/`。
+
+## 最新发布：20260912-lq23-video-prod2（2026-09-12，生产）— 兰琪「文案转片」真实出片接通 + 构建垃圾回收 + 备份保留策略
+
+用户 2026-09-12 指令「开始接视频」并逐项拍板（爆款复刻方案 A `wan2.2-animate-mix` std；文案转片 `wan2.6-i2v-flash` 720P 无声 = 30 积分/秒、每镜 90 积分；首次联调上限 ¥10；素材桶方案 B；定价 10 倍口径）。任务卡见 `docs/agents/lanqi-beauty/tasks/LQ-23-文案转片真实出片接通.md`，缺陷与红/绿证见 `docs/BUG_REGRESSIONS.md` **QA-20260912-008**。**本轮只放行「文案转片」一条线；门店素材成片 / AI 剪辑仍由 `VIDEO_RENDERING_READY=false` 关着，付费生图继续关闭。**
+
+发布包：`release-20260912-lq23-video-prod-full.tar.gz`（9307742 B，sha256 `a9c27e4867bc700abb964cd7d310afbbcee2d225613ed98a8c7e8e5f1cea427a`，1458 文件；服务器侧实测一致）。删除清单 6 条（PLAT-18 已下线页面）。
+
+生产 env 新增 9 行（102–110 行，备份 `/opt/baolu-backups/env-lq23-prod-20260912-083231/baolu-os-v2.env.before-lq23`）：`LANQI_MEDIA_EXECUTION_MODE=real`、`LANQI_MEDIA_REAL_EXECUTION_APPROVED=true`、`LANQI_MEDIA_ASSET_STORAGE=local`、`LANQI_MEDIA_IMAGE_TO_VIDEO_MODEL=wan2.6-i2v-flash`、`LANQI_MEDIA_VIDEO_CREDITS_PER_SECOND=30`、`LANQI_MEDIA_PUBLIC_BASE_URL=https://api.lcppch.top/os-v2/api`、`LANQI_MEDIA_STAGING_SECRET=<openssl rand -hex 32>`、`LANQI_MEDIA_FIRST_FRAME_TTL_MINUTES=240`、`LANQI_MEDIA_FIRST_FRAME_MAX_MB=6`。**未设** `LANQI_MEDIA_IMAGE_REAL_EXECUTION_APPROVED`（付费生图仍关）。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | https://api.lcppch.top/os-v2/ | `20260912-lq23-video-prod2` | `DEPLOY_OK`（`health=200 after 15s`、`ready=200`、48 迁移无待应用）+ `VERIFY_OK`（`src_data_sha=dist=a668b642…`、`index_base_path=/os-v2/`、`skus_total=19`/`coming_soon=13`、`lanqi_brain_present`、`ipzone__vidrev`/`meiye__vidrev` 均 `selling`） |
+| 测试 | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | https://api.lcppch.top/lanqi-test/ | `20260912-lq23-video-dual-test`（同日早先） | `DEPLOY_OK` + nginx 两处 `client_max_body_size 20m`；视频页浏览器 E2E 桌面 1200 / 移动 390 各 16 项、0 failed |
+
+**同日顺手做完的三件运维收尾（均用户已授权）：**
+
+1. **历史构建产物回收**。首次 `verify-deploy.sh` 报 `web_credits_rmb_copy_absent` 红灯，追下去发现**不是客户页面退回了人民币折算**（PLAT-19 口径成立）——`/opt/baolu-*` 的发布是「只叠加、不删除」，`dist/assets` 累积了 2253 个历史 hashed 产物 / 123.8 MB，其中 14 个还带着旧文案，被全目录 grep 误判成当前问题。新增 `scripts/gc-web-dist-assets.sh`（从 `index.html` 走 import 图求可达集，先干跑再移动到 `/opt/baolu-backups`，可回滚），生产回收 **2253 文件 / 123.8 MB**、测试回收 **693 文件 / 29.5 MB**，两侧可达集都收敛到 **53 个**。同时把 `verify-deploy.sh` 的口径改成**只看 import 图里的产物**，并容错 `API_BASE` 漏结尾斜杠（此前会把 `/os-v2/api` 拼成 `/os-v2/apimarket/skus`，落回 SPA index.html 假报 `market/skus parse error`）。
+2. **`/opt/baolu-backups` 保留策略 + 清历史**。`scripts/prune-baolu-backups.sh` 新增 `gc` 分组（构建垃圾隔离区只留最新 1 个），按「每组留最新 4 个 + 超过 14 天无条件删」执行：**删除 17 个目录 / 2381 MB**，磁盘 `67% → 58%`，清单 `/opt/baolu-backups/.prune-log/20260912-084740.tsv`，剩余备份 13 个。
+3. **回收内测试用额度**。删掉 `/etc/baolu-secrets/baolu-os-v2-test.env` 的 `NEW_USER_LOCAL_TRIAL_CREDITS=300`（备份 `/opt/baolu-backups/env-lq23-trial-recycle-20260912-084631/baolu-os-v2-test.env.before`），重启内测服务后 `health=200`/`ready=200`。生产 env **从来没有**该变量（`grep -c` = 0），无需处理。
+
+**LQ-23 生产登录门槛收口（2026-09-12 追加）**：生产浏览器级 E2E 第一次运行**未通过**（桌面 1200 视口 900s 未扫码，16 项里 12 项停在登录页；移动 390 视口扫码成功离开登录页，但只拿到平台登录态，视频页断言全未通过）。根因确认**不在发布包**：`/os-v2/api/auth/wechat-config` 实测 `inviteRequired=false`（平台入口不强制邀请码），但**兰琪产品入口 `/os-v2/login/lanqi` 必须先填产品邀请码**（前端「产品邀请码 *」必填 + `/auth/product-invite/validate` 服务端校验），用户扫码后被拦在这一层。已在生产新建一次性兰琪产品邀请码（`InviteCode cmtxqpx0f0000jcq47ge1joxd`、`codePreview=la****p7`、`maxUses=3` / `usedCount=0`、`expiresAt=2026-10-12`、`label=lanqi-prod-verify-20260912`；明文只线下交付不入库，撤销＝`isActive=false`），并实测该码 `POST /auth/product-invite/validate` → `200 {"valid":true,"productCode":"lanqi","productName":"兰琪美业经营增长系统"}`。验收脚本补 `--invite-code` 后已重开窗口重跑，**仍未取得「扫码后全部断言通过」的生产页面级证据**。详见 `docs/agents/lanqi-beauty/STATUS.md`。
+
+## 最新发布：20260912-plat19-credits-only-test1 / -prod1（2026-09-12，测试实例 + 生产）— 客户界面只显示积分，去掉「≈ ¥」人民币折算
+
+用户 2026-09-12 要求：「每次生成提示用户消耗多少积分就可以了 不要告诉花了多少钱 比如：约扣 60 积分 · ≈ ¥3 去掉 ≈ ¥3 平台每个智能体页面都只显示消耗多少积分 不显示消耗多少元」。任务卡见 `docs/agents/platform-tasks.md` **PLAT-19**；缺陷红/绿证见 `docs/BUG_REGRESSIONS.md` **QA-20260912-009**（P2）。**纯展示口径改动，未动计费、定价、钱包余额计算。**
+
+发布包：`release-20260912-plat19-credits-only-full.tar.gz`（**9311332 B**，sha256 `e4d70513e51286d60134c0f5a522178ccadfa5e96e2891a6f758eeab4c057076`，1458 文件；服务器侧 `sha256sum` 与本机逐字一致）。
+
+关键改动：
+
+1. `apps/web/src/pages/MarketplaceApp.tsx`：删掉 `yuanLabelForCredits` import 与 13 处「≈ ¥」渲染（顶栏钱包、专区封面副标题、分步链路、单品货架卡、余额卡、已购列表、导出 402 alert、聊天页消耗、生成确认气泡、免费重做提示、Word 导出按钮）。所有「N 积分」表述保留。
+2. `apps/web/src/components/chat/ChatMessages.tsx`：删掉 import；Word 导出按钮改为「下载精美 Word · N 积分」。
+3. `packages/shared/src/index.ts`：`yuanLabelForCredits` 加「仅供内部/管理端使用」注释 + 指向新契约 smoke（函数本体保留，内部/管理端仍可用）。
+4. **充值页 `/recharge` 刻意保留 `¥`**——那是真实付款金额，不是积分折算。
+5. 新增 `scripts/marketplace-credits-only-contract-smoke.mjs`（19 条只读源码断言，挂进 `qa:fast`）；`scripts/deployed-marketplace-browser-check.mjs` 断言由「同时展示积分与人民币折算」改为「只显示积分 + 不得出现 `≈ ¥`」。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 测试 | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | https://api.lcppch.top/lanqi-test/ | `20260912-plat19-credits-only-test1` | `DEPLOY_OK`（`stale files removed: 0`）+ `VERIFY_OK`（`web_credits_rmb_copy_absent = no` / `web_credits_copy = yes`）+ 浏览器 **PASS** |
+| 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | https://api.lcppch.top/os-v2/ | `20260912-plat19-credits-only-prod1` | `DEPLOY_OK`（`health=200 (after 15s)` / `ready=200`）+ `VERIFY_OK` + 浏览器 **PASS**；`journalctl -p err` 近 15 分钟 `No entries` |
+
+**验收口径（真实浏览器，非类型检查）**：生产 `DEPLOY_CHECK_WEB_URL=https://api.lcppch.top/os-v2 node scripts/deployed-marketplace-browser-check.mjs` → `shelf=PASS credits_only=PASS no_yuan_conversion=PASS detail_redo_copy=PASS console_clean=PASS`。货架卡片实际文本只剩「200 积分/次」「40 积分/次」「60 积分/次」，整页 `¥` 出现 **0 次**（修复前同一位置是「200 积分/次 · ≈ ¥10」「60 积分/次 · ≈ ¥3」）；详情页「200 积分/次」「用一次 · 扣 200 积分」。构建产物导入图探针（`index.html` 出发 53 个可达资源）：`≈ ¥` 已消失，`¥` 与「基准 1 元 = 20 积分」仍在（充值页正对照）。未受波及：`platform:route-browser-e2e` 生产 **PASS 24/24**、`marketplace-sku-link-regression` 生产 **ALL PASS**。截图 `%TEMP%\deployed-marketplace-check-1789174651795\`。
+
+部署前备份：生产 `/opt/baolu-backups/20260912-plat19-credits-only-prod1-before-baolu-os-v2/`；测试 `/opt/baolu-backups/20260912-plat19-credits-only-test1-before-baolu-os-v2-test/`。发布日志 `/tmp/deploy-20260912-plat19-credits-only-prod1-baolu-os-v2.log`、`/tmp/deploy-20260912-plat19-credits-only-test1-baolu-os-v2-test.log`。
+
+回滚：还原上述 `-before-*` 备份并 `systemctl restart baolu-os-v2`；或只恢复本轮 3 个前端/共享文件重新发包。
+
+## 最新发布：20260912-plat18-route-cleanup-test1 / -prod1（2026-09-12，测试实例 + 生产）— 历史路由清理第一/二批 + 输错网址不再掉进外卖首页
+
+用户 2026-09-12 同意「每批只删一组、独立可回滚，删前先加『保留网址清单』契约，删后跑 `qa:fast`」的推进方式，并明确第一批（`/legacy-diagnosis`、`/v4-preview`、`/industry-prototype`）、第二批（`/clip-lab`）+ 清构建垃圾。**第三批 `/internal/*` 本轮未动**（用户原话「我不擅自删」，需单独点头）。任务卡见 `docs/agents/platform-tasks.md` **PLAT-18**；缺陷与红/绿证见 `docs/BUG_REGRESSIONS.md` **QA-20260912-007**（输错网址掉进外卖增长智能体首页，P2）。**只删路由分支与已下线页面文件，未改任何在售智能体逻辑。**
+
+发布包：`release-20260912-plat18-route-cleanup-full.tar.gz`（sha256 `92a36b4f391dd2eb92957b43ede7430eb9a945745e2cd00cb8260b385cd21551`，1456 文件 / 1871 条目；服务器侧实测一致）。
+
+关键改动：
+
+1. 新增 `apps/web/src/pages/NotFoundPage.tsx` + `apps/web/src/styles/not-found.css`：统一兜底页，标题「这个页面不存在，或者已经下线」、回显 pathname、出口 `/agents` 与 `/my-ai`，并设 `document.title="页面不存在 - 思潼AI 行业智能体平台"`。
+2. `apps/web/src/main.tsx`：删掉 `SitongV4App` / `BaoluDiagnosisApp` / `ClipLabApp` 三个路由分支与常量，全局兜底由 `return <AgentHomePage />` 改为 `return <NotFoundPage />`。**保留 `import "./styles/clip-lab.css"`**（在售 `/agents/clipper` 仍在用）。
+3. 第二批口径修正：用户原话要删 `/clip-lab` 的两个页面组件，但实测 `ClipLabApp` 被**在售** `/agents/clipper` 复用（`AgentProductsApp.tsx` import + `agent.slug === "clipper"` 分支），故**只删路由，保留 `ClipLabApp.tsx` / `PersonaClipLabApp.tsx` / `clip-lab.css` / `apps/api/src/routes/clip-lab.ts`**，并把这条写成契约硬断言。
+4. 新增 `scripts/platform-route-contract-smoke.mjs`（挂进 `qa:fast`）+ `scripts/platform-route-browser-e2e.mjs`：把「保留网址能打开 / 已删网址落统一兜底页且不显示其他产品页 / 在售入口不受影响」固化为可重复回归。
+5. `scripts/tmp/deploy-release.sh` 新增**可选第 8 参数**（删除清单）与第 `7a` 步：只允许 `apps/` `packages/` `docs/` `mcp-skills/` `scripts/` 前缀，拒绝绝对路径与 `..`；**不传参数时行为与旧版完全一致**。
+
+删除清单（两侧服务器实测均已 `REMOVED`，删除清单留档 `/tmp/plat18-deleted-paths.txt`）：
+
+```
+apps/web/src/pages/BaoluDiagnosisApp.tsx
+apps/web/src/pages/IndustryWorkbenchPrototypePage.tsx
+apps/web/src/pages/SitongV4App.tsx
+apps/web/src/styles/industry-workbench-prototype.css
+apps/web/src/styles/sitong-v4.css
+scripts/industry-workbench-prototype-smoke.mjs
+```
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 测试 | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | https://api.lcppch.top/lanqi-test/ | `20260912-plat18-route-cleanup-test1` | `DEPLOY_OK`（`stale files removed: 6`）+ `VERIFY_OK`（`health`/`ready=200`、`src_data_sha=dist=a668b642…`、`skus_total=19`/`coming_soon=13`、两个 `vidrev` = `selling`）+ `platform:route-browser-e2e` **PASS 24/24** |
+| 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | https://api.lcppch.top/os-v2/ | `20260912-plat18-route-cleanup-prod1` | `DEPLOY_OK`（`stale files removed: 6`）+ `VERIFY_OK`（同上全部 PASS）+ `platform:route-browser-e2e` **PASS 24/24**（部署前同脚本对生产为 **FAIL 12/24**，即用户报的 Bug 已当场复现并被修掉） |
+
+**验收口径（真实浏览器，非类型检查）**：保留网址 `/agents`、`/my-ai`、`/lanqi/moments` 打开成功且控制台 0 error；`/legacy-diagnosis`、`/v4-preview`、`/industry-prototype`、`/clip-lab`、`/__platform-route-check-not-exist` 全部落到「页面不存在 - 思潼AI 行业智能体平台」兜底页；`/agents/clipper`（在售视频剪辑工作台）不受 `/clip-lab` 下线影响；移动端 390×844 兜底页标题与两个出口可见、无横向溢出。截图存于 `%TEMP%\platform-route-check-*`。
+
+**同日踩到的两个工程坑（已修，非产品逻辑）**：
+
+1. `scripts/tmp/*.ps1` 是「UTF-8 无 BOM + LF」，Windows PowerShell 5.1 按 ANSI 解码后**中文注释会把紧随的换行吞掉、静默注释掉下一行代码**，这是首次打包时 6 个已删文件没被过滤掉的真正根因。已把 `build-prod-filelist.ps1` 与 `build-release-archive.ps1` 的注释全部改为 ASCII 并加显式警告；**其余 `.ps1` 仍有同类风险，未一并处理**（记入残余风险）。
+2. `package.json` 曾被并发任务清空过一次（07:40 变成 90 字节），07:45 由另一任务恢复但**丢了 `marketplace:credits:trial-grant` script**，已补回；现 219 个 scripts、JSON 合法。
+
+部署前备份：生产 `/opt/baolu-backups/20260912-plat18-route-cleanup-prod1-before-baolu-os-v2/`（212M，含 `app-before.tar.gz`、`db-before.sql.gz`、`dist-hashes-before.txt`、`new-files.txt`、`deleted-paths.txt`）；测试 `/opt/baolu-backups/20260912-plat18-route-cleanup-test1-before-baolu-os-v2-test/`。发布日志 `/tmp/deploy-20260912-plat18-route-cleanup-prod1-baolu-os-v2.log`、`/tmp/deploy-20260912-plat18-route-cleanup-test1-baolu-os-v2-test.log`。
+
+回滚：还原上述 `-before-*` 备份并 `systemctl restart baolu-os-v2`；或单独恢复 6 个已删文件 + 把 `main.tsx` 兜底改回 `<AgentHomePage />` 重新发包。
+
+**未运行**：本轮未跑 `pnpm qa:full`（跨模块改动面小、以 `qa:fast` + 契约 smoke + 双实例真实浏览器 E2E 覆盖；`qa:full` 期间工作区有并发任务改 `package.json`、`lanqi-media-generation.ts`，跑出来无法区分归因）。`/internal/*` 第三批按用户要求**未删**。
+
+**服务器清垃圾（2026-09-12 当日执行，非业务改动）**：删掉 `/opt/baolu-stage/20260911-*` 共 13 个历史构建暂存目录（5.0G scratch，`deploy-release.sh` 每次发布会重建，不是回滚资产）+ `/tmp` 41 个发布传输产物（`overlay-*.tar.gz` / `release-*.tar.gz` / `rel-files-*.txt` / `filelist-*.txt`）。磁盘 **77% → 59%（6.5G → 12G 可用）**。删除保护：完全未触碰 `/opt/baolu-backups/**`（3.0G 回滚备份原样保留，含本轮两个 `20260912-plat18-*` 备份）、保留当日 `20260912-plat18-route-cleanup-{prod1,test1}` 暂存目录；执行前已确认无正在进行的部署进程，删除后复核 `systemctl is-active=active` / `health=200` / `web=200` / `skus=200`。
+
+**仍未做**：`/opt/baolu-os-v2/apps/web/dist/assets` 历史产物清理（2263 文件 / 131M）**按工程判断暂缓**——只有 131M 收益，但要精确算出「当前 `index.html` 经全链路 import 可达的产物集合」才算安全，做错会直接把线上打白屏。磁盘已回到 59%，不急，建议随下次发布改为「构建期先生成可达清单、再原子替换」一起做。
+
+## 最新发布：20260911-lq22-nav-white-text-test1 / -prod1（2026-09-11，测试实例 + 生产）— 兰琪一级导航改白字（品牌橙底不变）
+
+用户 2026-09-11 问「一级导航页的字体从黑色改成白色会好看些吗」，看过带真实截图的对比后定稿：**保留兰琪品牌橙底 `#F37021` + 导航字改白 + 10px「开发中」徽标底色加深**。口径、AA 例外声明与红/绿证见 `docs/agents/lanqi-beauty/tasks/LQ-22-侧栏导航白字配色.md`。这是用户主动要求的视觉调整，**不是 Bug 修复，故未登记 `docs/BUG_REGRESSIONS.md`**（同 PLAT-15 只改文案不登记的做法），但对比度已被固化成回归断言。
+
+发布包：`release-20260911-lq22-nav-white-text-full.tar.gz`（**9287379 B**，sha256 `a80b9a08c3d31c1b75c8d2c90ac255df76789a588546380cf07c1a4ce879e268`，1455 文件；服务器侧 sha256 实测一致）。关键改动仅 `apps/web/src/styles/lanqi-moments.css` 4 条规则：`.lq-pd__brand` / `.lq-pd__brand-name` / `.lq-pd__item` 字色 `#2D1A10` → `#fff`、`.lq-pd__item:hover` 蒙层 `rgba(45,26,16,.10)` → `rgba(255,255,255,.18)`、`.lq-pd__badge(--dev)` 底色 `rgba(45,26,16,.14/.10)` → `rgba(45,26,16,.30)` 且字色改白；外加两个回归脚本加断言（契约 smoke 35→42、浏览器 E2E 加 3 条/视口）。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 测试 | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | https://api.lcppch.top/lanqi-test/ | `20260911-lq22-nav-white-text-test1` | `DEPLOY_OK`（`health=200 (after 15s)` / `ready=200`，`48 migrations found` / `No pending migrations to apply.`）+ `lanqi-brand-nav-browser-e2e --base .../lanqi-test` **PASS 0 failed**（桌面 1440 + 移动 390：`nav=rgb(255,255,255)` / `bg=rgb(243,112,33)` / 白字对比度 **2.94:1** / 徽标白字 **4.79:1**，其余「开发中」占位与已上线页面断言全绿） |
+| 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | https://api.lcppch.top/os-v2/ | `20260911-lq22-nav-white-text-prod1` | `DEPLOY_OK`（`health=200 (after 33s)` / `ready=200`）+ 线上 CSS 产物 `assets/index-C-muJ3eY.css` 实测五条全部命中：`.lq-pd__item{…color:#fff}` / `.lq-pd__brand-name{…color:#fff}` / `.lq-pd__item:hover{background:#ffffff2e}` / `.lq-pd__badge{background:#2d1a104d;color:#fff}` / `.lq-pd__side{background:#f37021}` |
+
+**已知口径（重要）**：这条生产发布与 `20260911-vidrev-open3-prod1`（两个视频复盘 SKU 开卖）时间上相邻，已当场核查**没有互相覆盖**——生产 `/opt/baolu-os-v2/apps/api/dist/apps/api/src/services/marketplace-catalog.js` 仍在（`MARKETPLACE_SKU_STATUS_OVERRIDES` 命中 3 次、`vidrev` 命中 2 次），`apps/api/src/data/marketplace-v3.json` 仍有 4 处 `selling`，即两个视频复盘 SKU 的「已开卖」状态与发布文件读取修复都还在。
+
+**未运行 / 残余风险**：生产侧**没有**跑 `lanqi-brand-nav-browser-e2e`——生产要求真人微信扫码登录，脚本会在登录页等待超时（测试实例有免登录门所以能跑）；生产改用「抓取线上 CSS 产物做规则与取值断言」替代，并另有测试实例真实浏览器截图佐证。要补生产页面级证据，需用户**本人扫码登录后再跑一次**该脚本。回滚 = 还原上述 4 条 CSS 规则重新发包，或还原 `/opt/baolu-backups/20260911-lq22-nav-white-text-{test1,prod1}-before-*` 并 `systemctl restart`。
+
+## 最新发布：20260911-vidrev-open3-test1 / 20260911-vidrev-open-prod1（2026-09-11，测试实例 + 生产）— 两个视频复盘智能体开卖（`coming_soon` → `selling`）
+
+用户 2026-09-11 明确同意「把这两个 SKU（两个视频复盘智能体）从『开发中』改成开卖」后执行。缺陷、根因链与红/绿证见 `docs/BUG_REGRESSIONS.md` **QA-20260911-016**；按人审计与历史页面清理分别记在 `docs/agents/platform-tasks.md` **PLAT-17 / PLAT-18**。
+
+发布包：`release-20260911-vidrev-open3-full.tar.gz`（**9288547 B**，sha256 `e797080cac4a74963517c0c43c39635affb5d37654c52fd662fb5c54ec8eee17`，1455 文件）。关键改动：`apps/api/src/data/marketplace-v3.json` 给 `ipzone.ov.vidrev` / `meiye.ov.vidrev` 写 `status: "selling"`；`apps/api/src/services/marketplace-catalog.ts` 新增 `MARKETPLACE_SKU_STATUS_OVERRIDES`，让 SKU 状态从**发布文件**读取（此前被数据库历史 `ov` 静默覆盖，是本轮线上「改了却没生效」的根因）。三个部署脚本硬校验 `marketplace-v3.json` sha256 `a668b642…`，`verify-deploy.sh` 新增「两个 `vidrev` 必须 = `selling` 否则 `SystemExit`」。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 测试 | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | https://api.lcppch.top/lanqi-test/ | `20260911-vidrev-open3-test1` | `DEPLOY_OK` + `VERIFY_OK`（`PASS ipzone__vidrev_status = selling` / `PASS meiye__vidrev_status = selling` / `coming_soon = 13`）+ `deployed-marketplace-browser-check` PASS + `marketplace-sku-link-regression` ALL PASS |
+| 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | https://api.lcppch.top/os-v2/ | `20260911-vidrev-open-prod1` | `DEPLOY_OK`（`health=200 (after 15s)` / `ready=200`）+ `VERIFY_OK`（同上两条 PASS）+ `marketplace-sku-link-regression --base https://api.lcppch.top/os-v2` **ALL PASS**（桌面 1440 / 手机 390，两个 SKU 渲染「已开卖」，`200 /api/market/skus/<sku>`，无 5xx、无 console 错误） |
+
+回滚：还原 `/opt/baolu-backups/20260911-vidrev-open*-{test1,prod1}-before-<app>/` 并 `systemctl restart`；或把 `apps/api/src/data/marketplace-v3.json` 里两个 `status` 改回 `coming_soon` 重发包（发布文件是唯一口径来源）。
+
+注意：本轮部署期间另有一条不同任务的生产发布（`20260911-lq22-nav-white-text-prod1`）也在跑，它的包里带 `marketplace-v3.json` 新版本但没有本修复的代码，因此**那次 `DEPLOY_OK` 之后线上仍是「开发中」**，容易被误读成部署没生效。
+
+## 最新发布：20260911-qa015-sku-link-test1 / -prod1（2026-09-11，测试实例 + 生产）— 货架 SKU 分享链接不再兜底成「服务暂时不可用」
+
+发布包：`release-20260911-qa015-sku-link-full.tar.gz`（**9270737 B**，sha256 `32d40b128ddbea2b3057e4045c3e71e48d1eb53757cbe2cf4c72380bcc1a68fc`，**1453 个文件**）。测试实例与生产共用同一份产物，两侧部署日志第 3 行 `archive sha256` 实测与本机一致（`32d40b12…`，均为 1453 文件）。发布 id 按环境分别记为 `20260911-qa015-sku-link-test1` / `20260911-qa015-sku-link-prod1`。策略同前：stage 构建 → 备份 → 全量叠加（不删除历史文件）→ 就地 `prisma generate` → migrate → 重启 → 健康轮询 → 校验 → 失败自动回滚。
+
+起因：用户 2026-09-11 反馈「① 创始人IP专区 https://api.lcppch.top/os-v2/agents/ipzone__vidrev ② 美业专区 https://api.lcppch.top/os-v2/agents/meiye__vidrev 上面两个网址显示服务暂时不可用」。缺陷、根因、红/绿证与回归脚本见 `docs/BUG_REGRESSIONS.md` **QA-20260911-015**。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 联调 `chat-test` | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | `https://api.lcppch.top/lanqi-test/` | `20260911-qa015-sku-link-test1` | `DEPLOY_OK` + `health=200 (after 15s)` / `ready=200` |
+| 生产 `chat` | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | `https://api.lcppch.top/os-v2/` | `20260911-qa015-sku-link-prod1` | `DEPLOY_OK` + `health=200 (after 15s)` / `ready=200` |
+
+- 本包内容（前端路由 1 处 + 1 个回归脚本；发布包是工作区全量快照，同时带上了并行工作线已发布的产物）：
+  - `apps/web/src/main.tsx`：新增 `isMarketplaceSkuCode(slug)`（判据：slug 含 `__`）与一条分支——`/agents/<zone>__<capability>`（如 `/agents/ipzone__vidrev`）交给货架详情页 `MarketplaceAgentDetailPage`，与单数 `/agent/<skuCode>` 同一个组件；其余 `/agents/<slug>` 仍走工作台智能体页 `AgentWorkspacePage`，行为不变。
+  - `scripts/marketplace-sku-link-regression.mjs`：真实 Chromium 回归（桌面 1440 + 手机 390 × 货架 SKU），断言「不出现服务故障话术 / 不被强跳登录页 / 渲染出详情正文与『开发中』/ 详情数据来自 `200 /api/market/skus/<sku>` / 无 5xx / 无 console 错误」，失败时额外打印本轮 `/api/` 请求与页面异常。
+- 迁移：两侧 `48 migrations found in prisma/migrations` / `No pending migrations to apply.`（无 schema 变更）；运行时守护 `prisma delegates OK: lanqiStoreGoal,lanqiMomentDraft,lanqiMomentUpgrade,lanqiMomentAsset,lanqiStoreProfile`。
+- 备份与日志：生产备份 `/opt/baolu-backups/20260911-qa015-sku-link-prod1-before-baolu-os-v2/`（211M），测试备份 `/opt/baolu-backups/20260911-qa015-sku-link-test1-before-baolu-os-v2-test/`（181M）；日志 `/tmp/deploy-run-prod1.out` / `/tmp/deploy-run-test1.out`。**回滚**＝把对应备份目录还原回 `$APP` 并 `systemctl restart`，或直接重发上一包 `release-20260911-common-agents-label-full.tar.gz`。
+- 发布后复验（2026-09-11 20:0x–20:1x，外网 + 服务器只读；未改数据）：
+  - **产物一致性（生产）**：`verify-deploy.sh` → **VERIFY_OK**（`systemd_active=active`、`health/ready=200`、`src_data_sha` 与 `dist_data_matches_src` 均 `2eec39bd…`、`index_base_path=/os-v2/`、`market/skus` 契约 `skus_total=19` / `coming_soon=15` / `lanqi_brain_present=True`；`api-base` 记得以 `/` 结尾）。
+  - **用户的原始链接（生产，真实 Chrome，匿名与手机都跑）**：`node scripts/marketplace-sku-link-regression.mjs --base https://api.lcppch.top/os-v2` → **ALL PASS（24 条断言 0 failed）**：`https://api.lcppch.top/os-v2/agents/ipzone__vidrev` 与 `.../agents/meiye__vidrev` 都直接渲染货架详情页（`📊 视频复盘智能体` + `创始人IP专区` / `美业专区` + 「开发中」），不再出现「服务暂时不可用」、不再被强跳登录页，`200 /api/market/skus/<sku>`，无 5xx、`console=0`；修复前同命令为 **12 failed**（详见 QA-20260911-015）。截图 `%TEMP%\sku-link-green-prod\`。
+  - **同产物内测实例稳定性**：`--base https://api.lcppch.top/lanqi-test` 连跑 **5 轮 ALL PASS**（每轮 18 条断言）。
+  - **生产页面探针**：`DEPLOY_CHECK_WEB_URL=https://api.lcppch.top/os-v2 node scripts/deployed-marketplace-browser-check.mjs` → **PASS**（`shelf` / `credits_yuan` / `coming_soon_count=45` / `detail_redo_copy` / `direct_test_entry` / `console_clean`）。
+  - **运行面**：`systemctl is-active` 两侧 `active`，`NRestarts=0`，`journalctl -u baolu-os-v2 -p err --since '15 min ago'` = **No entries**。
+  - **门禁**：`pnpm.cmd qa:fast` **PASS**；`pnpm.cmd --filter @baolu/web typecheck` / `build` 均 **PASS**。
+- **尚未验收（需用户本人执行）**：手机上用真人微信扫码登录后，从分享链接点进这两个专区页的目视确认——生产走真人扫码，无法无人值守进入登录后页面；本轮已把「未登录打开链接」这一条真实浏览器路径覆盖（修复前会被强跳登录页，修复后直接看到详情页）。
+- 运维提示：根分区 `/dev/vda3` 当前 **24G / 30G（84%，剩余 ≈4.7G）**，`/opt/baolu-backups` 与 `/opt/baolu-stage` 是主要占用方；下次发布前建议先清理过期备份与旧 stage 目录（本轮未删任何服务器文件）。
+
+## 最新发布：20260911-common-agents-label-test1 / -prod1（2026-09-11，测试实例 + 生产）— 货架导航「我的智能体」改为「常用智能体」
+
+发布包：`release-20260911-common-agents-label-full.tar.gz`（**9263958 B**，sha256 `0a90888775ddf484f396f040226bdd3ea8907f33f7fdee4a46bef1f9394a1540`，**1452 个文件**）。测试实例与生产共用同一份产物，两侧部署日志第 3 行 `archive sha256` 实测与本机一致（`0a908887…`）。发布 id 按环境分别记为 `20260911-common-agents-label-test1` / `20260911-common-agents-label-prod1`。策略同前：stage 构建 → 备份 → 全量叠加（不删除历史文件）→ 就地 `prisma generate` → migrate → 重启 → 健康轮询 → 校验 → 失败自动回滚。
+
+起因：用户 2026-09-11 要求「我的智能体 改成 常用智能体」。这是**纯用户可见文案变更，不是缺陷修复**，因此未登记到 `BUG_REGRESSIONS.md`；验收证据见下方。**只改显示文案，`/mine`、`/my-ai` 路由路径一律不动**，既有链接与回归断言不受影响。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 联调 `chat-test` | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | `https://api.lcppch.top/lanqi-test/` | `20260911-common-agents-label-test1` | `DEPLOY_OK` + `health=200 (after 15s)` / `ready=200` |
+| 生产 `chat` | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | `https://api.lcppch.top/os-v2/` | `20260911-common-agents-label-prod1` | `DEPLOY_OK` + `health=200 (after 15s)` / `ready=200` |
+
+- 本包内容（5 个文件；发布包是工作区全量快照，同时带上了并行工作线已发布的产物）：
+  - `apps/web/src/pages/MarketplaceApp.tsx`：顶栏 Tab 与 `/mine` 页标题由「我的智能体」改为「常用智能体」（两处，唯一面向用户的主口径）。
+  - `apps/web/src/pages/KnowledgeBasePage.tsx`：企业知识库返回按钮「返回我的智能体」→「返回常用智能体」。
+  - `apps/web/src/pages/AgentProductsApp.tsx`：智能体侧栏底部入口与「尚未开通」页返回按钮同步改为「常用智能体」/「返回常用智能体」。
+  - `apps/web/src/styles/sitong-design.css`：仅更新分区注释，无样式行为变化。
+  - 回归：`scripts/marketplace-mobile-layout-check.mjs` 的 Tab 文案断言与文件头注释同步为 `货架|常用智能体|积分充值`（不改断言强度，仍逐条校验 3 个 Tab 的宽度/高度与横向溢出）。
+- 迁移：两侧 `48 migrations found in prisma/migrations` / `No pending migrations to apply.`（无 schema 变更）；运行时守护 `prisma delegates OK: lanqiStoreGoal,lanqiMomentDraft,lanqiMomentUpgrade,lanqiMomentAsset,lanqiStoreProfile`。
+- 备份与日志：生产备份 `/opt/baolu-backups/20260911-common-agents-label-prod1-before-baolu-os-v2/`；测试备份 `/opt/baolu-backups/20260911-common-agents-label-test1-before-baolu-os-v2-test/`。**回滚**＝把对应备份目录还原回 `$APP` 并 `systemctl restart`；因是纯文案改动，也可以重发上一个包 `release-20260911-lq21-brand-launch-full.tar.gz`。
+- 发布后复验（2026-09-11 19:3x–19:4x，外网 + 服务器只读；未改数据）：
+  - **产物一致性（两侧）**：`bash /tmp/verify-deploy.sh <app> <service> <port> <web-url> <api-base> <vite-base>` → 两侧 **VERIFY_OK**（`systemd_active=active`、`health/ready=200`、`src_data_sha` 与 `dist_data_matches_src` 均等于 `2eec39bd…`、`index_base_path` 分别 `/lanqi-test/` 与 `/os-v2/`、`market/skus` 契约 `skus_total=19` / `coming_soon=15` / `lanqi_brain_present=True`）。**注意 `api-base` 必须以 `/` 结尾**（脚本会直接拼 `market/skus`）；漏掉斜杠时 nginx 的 SPA 兜底会返回 200 HTML，而后半段 JSON 解析必然 `VERIFY_FAILED`，这不是产品故障。
+  - **手机布局 + Tab 文案（生产 + 测试实例，真实 Chrome 390×844 + 微信 UA）**：`MARKETPLACE_LAYOUT_CHECK_URL=… node scripts/marketplace-mobile-layout-check.mjs` → 生产 **PASS**（`topbar=390x100 tabs=货架:89x31|常用智能体:89x31|积分充值:89x31 overflowX=0 landscapeOverflowX=0`）、测试实例 **PASS**（`topbar=390x105`，同一组文案）；举证 `scrollWidthWithVisibleOverflow=390 / offenderCount=0`，截图 `%TEMP%\sitong-marketplace-mobile.png`（顶栏第二行实测渲染「常用智能体」）。
+  - **生产页面探针**：`DEPLOY_CHECK_WEB_URL=https://api.lcppch.top/os-v2 node scripts/deployed-marketplace-browser-check.mjs` → **PASS**（`shelf` / `credits_yuan` / `detail_redo_copy` / `direct_test_entry` / `console_clean` 全 PASS）。
+  - **登录入口渲染（生产）**：`pnpm.cmd auth:login-entry-production-check` → **PASS**（`root_to_home` / `legacy_market_redirect` / `login_page` / `open_registration_no_invite_code` / `mobile_login_button=301x46` / `legacy_paths` / `console_clean`）。
+  - **运行面**：`systemctl is-active baolu-os-v2` = `active`，`NRestarts=0`，`journalctl -u baolu-os-v2 -p err --since '5 min ago'` = **No entries**。
+  - **门禁**：`pnpm.cmd qa:fast` **PASS**；`pnpm.cmd qa:full` **PASS**（含 `qa:regression`、`build`、`api:runtime-data-check: PASS files=marketplace-v3.json`）。
+- 同轮一并处理的非仓库动作：按用户要求删除三条 Codex 自动化（「微信手机与桌面端登录60分钟巡检」cron、「保禄每日AI增长执行与复盘」heartbeat、「美业底层能力开发接力」heartbeat）；删除前已把三份配置原文留档在 `scripts/tmp/automations-archive-20260911/`，需要时可手工重建。
+- **尚未验收（需用户本人执行）**：手机上用真人微信扫码登录后，逐页确认「常用智能体」在真机微信内的显示与点击跳转（生产走真人扫码，无法无人值守进入登录后页面）。
 
 ## 最新发布：20260911-lq21-brand-launch-test1 / -prod1（2026-09-11，测试实例 + 生产）— 兰琪品牌 Logo 修正 + 上线板块收口
 
@@ -30,23 +257,63 @@
   - **门禁**：`pnpm.cmd qa:fast` **PASS**；相邻回归 `lanqi:moments-ui-contract-smoke` **19/0**、`lanqi:acquire-ui-contract-smoke` **45/0**、`lanqi:test-splash-contract-smoke` **14/0**。
 - **尚未验收（需用户本人执行）**：生产实例上「真人微信扫码登录后进入兰琪工作台」的目视确认——生产走真人扫码，无法无人值守进入工作台，故生产侧证据只到「产物 + 首页渲染」层；真页面证据取自内测实例（与生产同一份产物，`VITE_DIRECT_TEST_LOGIN=true`）。另：用户此前提出的「爆款复刻接真实检索」「文案转片出片（`VIDEO_RENDERING_READY=false`）」「真人微信扫码给我链接」与 `git push` 重试，属另行跟进项，不在本包范围。
 
-## 最新发布：20260911-lq19-test-splash-fix-test2（2026-09-11，测试实例；生产由同期另一条工作线全量包带上）— 兰琪内测实例「正在进入体验工作区」中间页消除
+## 最新发布：20260911-mobile-topbar-prod1（2026-09-11，测试实例 + 生产）— 手机端顶栏布局修复 + 货架「退出登录」
 
-发布包：`release-20260911-lq19-test-splash-fix.tar.gz`（**7573234 B**，sha256 `f77268f71df52e453f5bc08a31efb640772e071f0544b19e2d4929423eafd900`，**1277 个文件**）。增量包只含工作区当前源码集，`docs/` 与临时脚本不进包；服务器 `/tmp` 实测 sha256 与本机一致。
+发布包：`release-20260911-mobile-topbar-full.tar.gz`（**9101971 B**，sha256 `1d9744ed1882d33c11ca9d2fc37e2c4d3f4a7eab5f868d810436db143f3d3dfc`，**1448 个文件**）。测试实例与生产共用同一份产物，两侧部署日志第 3 行 `archive sha256` 实测与本机一致（`1d9744ed…`）。发布 id 按环境分别记为 `20260911-mobile-topbar-test1` / `20260911-mobile-topbar-prod1`。策略同前：stage 构建 → 备份 → 全量叠加（不删除历史文件）→ 就地 `prisma generate` → migrate → 重启 → 健康轮询 → 校验 → 失败自动回滚；部署以 `nohup` 后台运行。
+
+起因：用户 2026-09-11 反馈「手机端显示页面不完整 还是得调调」与「已注册登入，登入之后如何要退出登入然后重新登入呢？」。对应缺陷、根因与回归见 `docs/BUG_REGRESSIONS.md` **QA-20260911-012**（含修复前 12 条 FAIL 的红证与修复后截图）。
 
 | 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
 | --- | --- | --- | --- | --- |
-| 联调 `chat-test` | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | `https://api.lcppch.top/lanqi-test/` | `20260911-lq19-test-splash-fix-test2` | `DEPLOY_OK` + `health=200 (after 12s)` / `ready=200` |
-| 生产 `chat` | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | `https://api.lcppch.top/os-v2/` | （本轮不单独发）由 `20260911-mobile-topbar-prod1` 全量包带上同一份 `main.tsx` | 该包 `DEPLOY_OK` + `health=200 (after 15s)` / `ready=200`（18:23:47 重启） |
+| 联调 `chat-test` | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | `https://api.lcppch.top/lanqi-test/` | `20260911-mobile-topbar-test1` | `DEPLOY_OK` + `health=200 (after 15s)` / `ready=200` |
+| 生产 `chat` | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | `https://api.lcppch.top/os-v2/` | `20260911-mobile-topbar-prod1` | `DEPLOY_OK` + `health=200 (after 15s)` / `ready=200` |
 
-- 改动：`apps/web/src/lib/direct-test-session.ts`（新增零网络 `hasDirectTestSession()`；`ensureDirectTestSession()` 由 `Promise<void>` 改 `Promise<boolean>`）、`apps/web/src/main.tsx`（内测免登录门已有会话时直接渲染，后台静默校验+15 秒节流刷新）。Bug 台账见 `docs/BUG_REGRESSIONS.md` **QA-20260911-013**。
-- 发布前验证：`pnpm.cmd --filter @baolu/web build` 通过（先在本地拦住上一轮 `Cannot find module './pages/MarketplaceApp.js'` 那类源码集不自洽的包）、`pnpm.cmd qa:fast` PASS（含新契约 smoke 14/14）、`pnpm.cmd lanqi:acquire-ui-contract-smoke` 45/0。
-- 发布后复验（测试实例真实浏览器，只读）：`node scripts/lanqi-test-instance-splash-browser-e2e.mjs --base https://api.lcppch.top/lanqi-test` → **PASS (0 failed)**：桌面 1440 首屏中间页出现一次（@2460ms，首次建会话）后，点侧栏导航与刷新子页均 `splash=false`；移动 390 同口径全 PASS；两侧 console/page error 为 0，截图 `%TEMP%\lanqi-test-splash-e2e\desktop-1440.png` 与 `mobile-390.png`。
-- 迁移：`48 migrations found in prisma/migrations` / `No pending migrations to apply.`。
-- 备份与回滚：测试实例备份 `/opt/baolu-backups/20260911-lq19-test-splash-fix-test2-before-baolu-os-v2-test/`（180M），日志 `/tmp/deploy-run-20260911-lq19-test-splash-fix-test2.log` 与 `/tmp/deploy-20260911-lq19-test-splash-fix-test2-baolu-os-v2-test.log`。回滚＝还原该备份目录并 `systemctl restart baolu-os-v2-test`。
-- 生产交付路径说明：生产 `VITE_DIRECT_TEST_LOGIN` 未开（`/api/auth/dev-login` = 404，测试实例 = 200），内测免登录门在生产不渲染，本修复对生产用户零可见差异；**该文件的生产投放由同期 `20260911-mobile-topbar-prod1` 的「工作区在途改动」包一并完成**（实测生产 `apps/web/src/main.tsx` 已含 `hasDirectTestSession`）。生产复验：`pnpm.cmd auth:login-entry-production-check` **PASS**（`root_to_home` / `legacy_market_redirect` / `login_page` / `open_registration_no_invite_code` / `mobile_login_button=301x46` / `legacy_paths` / `console_clean`）。
-- 磁盘：本次发布前 `/` 已用 25G / 30G，期间两条并行发布（本包 + `mobile-topbar`）后剩余约 2.3G（92%）。下一次发布前若低于约 2G，先清理 `/opt/baolu-stage/2026090*` 纯 scratch 暂存目录（回滚资产在 `/opt/baolu-backups`，不受影响）。
+- 本包内容（3 个源码文件 + 1 个回归脚本；发布包是工作区全量快照，同时带上了并行工作线的 2 个新脚本 `scripts/lanqi-test-instance-splash-browser-e2e.mjs`、`scripts/lanqi-test-splash-contract-smoke.mjs`）：
+  - `apps/web/src/main.tsx`：新增 `MOBILE_MAX_WIDTH = 900` 与 `resolveDevice()`，`applyDevice()` 在启动 / `resize` / `orientationchange` 重算，替换原来写死的 `document.body.setAttribute("data-device", "desktop")`。**这是本次三处根因里最关键的一处**——写死 desktop 让 `sitong-design.css` 的 `body[data-device="mobile"]` 整套规则在真机上永不生效。
+  - `apps/web/src/styles/sitong-design.css`：手机断点下 `.app-wrap` 去掉原型手机外壳改满宽 + `overflow-x:hidden`；顶栏改两行（`.topbar{flex-wrap:wrap}`、`.topnav` 折行、`.nav-link{flex:1 1 0;white-space:nowrap}`、钱包胶囊 `margin-left:auto;white-space:nowrap`）；新增 `.logout-link`；`:root[data-theme="light"]` 补 `--topbar-bg` / `--toast-bg` / `--ovl-bg` 浅色 token。
+  - `apps/web/src/pages/MarketplaceApp.tsx`：`Topbar` 新增登录态与「退出登录」按钮（`clearStoredSession()` + 清 `sessionStorage.sitong_admin_token` + 写回跳 `/agents` + 跳 `/login`）。
+  - 回归：`scripts/marketplace-mobile-layout-check.mjs`（修复前该脚本自身还有语法错误、完全跑不了；本轮先修脚本再修产品，并把「货架未加载完也放行」「`overflow-x:hidden` 藏溢出」两处假绿补成真断言）。
+- 迁移：两侧 `48 migrations found in prisma/migrations` / `No pending migrations to apply.`（无 schema 变更）。
+- 备份与日志：生产备份 `/opt/baolu-backups/20260911-mobile-topbar-prod1-before-baolu-os-v2/`（209M），部署日志 `/tmp/deploy-20260911-mobile-topbar-prod1-baolu-os-v2.log`；测试备份 `/opt/baolu-backups/20260911-mobile-topbar-test1-before-baolu-os-v2-test/`（179M）。**回滚**＝把对应备份目录还原回 `$APP` 并 `systemctl restart`。
+- 发布前磁盘（观察项）：根分区 30G，本次发布期间最低到 **2.1G 可用（93%）**，未触发 ENOSPC，发布未被回滚。stage 目录仍占 ~6.8G、备份 ~6.9G；下次发布会前需要再腾挪。
+- 发布后复验（2026-09-11 18:2x–18:3x，外网 + 服务器只读；未改数据）：
+  - **产物一致性（两侧）**：`verify-deploy.sh` → **VERIFY_OK**（`systemd_active=active`、`health/ready=200`、`src_data_sha` 与 `dist_data_matches_src` 均等于 `2eec39bd…`、`index_base_path` 分别 `/lanqi-test/` 与 `/os-v2/`、`market/skus` 契约 `skus_total=19` / `coming_soon=15` / `lanqi_brain_present=True`）。
+  - **手机布局（生产 + 测试实例，真实 Chrome 390×844 + 微信 UA）**：`node scripts/marketplace-mobile-layout-check.mjs` → 生产 **PASS**（`topbar=390x100 tabs=货架:89x31|我的智能体:89x31|积分充值:89x31 overflowX=0 landscapeOverflowX=0`），测试实例 **PASS**（`topbar=390x105`）。同一支脚本在修复前对生产是 **12 条 FAIL**（顶栏 222px、Tab 竖排 46px 宽、钱包 `right=418`、顶栏近黑）。新增取证 `scrollWidthWithVisibleOverflow=390 / offenderCount=0`。
+  - **退出登录链路（测试实例，真实浏览器点按钮）**：`scripts/tmp/shelf-logout-browser-check.mjs` → **PASS**：`.logout-link` 文案「退出登录」、可见且不越界；点击后 `tokenAfter=""` / `onboardingToken=""` / `adminToken=""` / `postLoginRedirect="/lanqi-test/agents"` / URL = `/lanqi-test/login`。
+  - **部署产物**：生产 `apps/web/dist/assets/MarketplaceApp-OReuTtMJ.js` 含 `logout-link`；主包 `assets/index-DpGo1cKf.js` 含 `MicroMessenger` / `900` / `data-device` / `orientationchange`。
+  - **运行面**：`systemctl is-active baolu-os-v2 baolu-os-v2-test` 均 `active`，`NRestarts=0`；`journalctl -u baolu-os-v2 --since '-40 min' -p err` 与测试实例同口径均 **No entries**。
+  - **门禁**：`pnpm.cmd qa:fast` **PASS**（结构检查 / Skill 质量资产 / Eval 结构 / 7 包 `typecheck`）。
+- **尚未验收（需用户本人执行）**：真机上用另一个微信号重新登入后的完整体验（退出 → 重新扫码 → 回到货架）；以及 PLAT-13 的真人扫码闭环 7 条（清单见 `docs/agents/platform-tasks.md` PLAT-13）。
 
+## 最新发布：20260911-all-inflight-full-prod1（2026-09-11，测试实例 + 生产）— 工作区在途改动全量发布（含 PLAT-13 电脑端微信扫码登录）
+
+发布包：`release-20260911-all-inflight-full.tar.gz`（**9088300 B**，sha256 `95c169e6dabebc46d5a57c20edf290aa2e3ffd61f4316f0668e67de8d26b38c6`，**1446 个文件**）。测试实例与生产共用同一份产物，两侧部署日志首段 `archive sha256` 实测与本机一致（`95c169e6…`）。发布 id 按环境分别记为 `20260911-all-inflight-full-test1` / `20260911-all-inflight-full-prod1`。策略同前：stage 构建 → 备份 → 全量叠加（不删除历史文件）→ 第 7b 步在 `$APP` 就地 `prisma generate` 并按 `schema.prisma` 逐模型校验 → migrate → 重启 → 健康轮询 → 校验 → 失败自动回滚；部署以 `setsid nohup` 后台运行（规避 QA-20260910-019 的交互会话中断回滚）。
+
+**这是用户拍板的「全量发布」，不是最小修复集**：按用户 2026-09-11 的决定，把工作区全部在途改动一次打包发到两个环境（此前提供的「只发登录扫码的最小包」选项被用户否决）。因此本包含多个互不相干的工作线，验收按各线各自的验收条件分别执行。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 联调 `chat-test` | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | `https://api.lcppch.top/lanqi-test/` | `20260911-all-inflight-full-test1` | `DEPLOY_OK` + `health=200 (after 12s)` / `ready=200` |
+| 生产 `chat` | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | `https://api.lcppch.top/os-v2/` | `20260911-all-inflight-full-prod1` | `DEPLOY_OK` + `health=200 (after 15s)` / `ready=200` |
+
+- 本包内容（23 个已跟踪文件修改 + 14 个新文件）：
+  - **PLAT-13 电脑端微信扫码登录（新能力）**：新增 `apps/api/src/services/wechat-login-bridge.ts`、`apps/web/src/pages/WeChatBridgePage.tsx`、`apps/web/src/lib/wechat-bridge-session.ts`；`apps/api/src/routes/auth.ts` 新增 `/auth/wechat-bridge/session|status|qrcode|complete` 四条路由；`apps/web/src/pages/LoginPage.tsx`（电脑端出码 + 轮询自动登录）、`WeChatCallback.tsx`、`main.tsx`、`styles/store-growth.css` 配套改造。根因是电脑端此前把用户直接甩到 `open.weixin.qq.com` 的「请在微信客户端打开链接」死页。
+  - **视频复盘引擎 + 货架改造**：新增 `apps/api/src/services/video-review-engine.ts`、`apps/web/src/marketplace/vidrev-report.tsx`；`apps/api/src/routes/marketplace.ts`（+332 行）、`apps/web/src/pages/MarketplaceApp.tsx`（+452 行）、`apps/web/src/marketplace/chat-flows.ts`、`apps/web/src/styles/sitong-design.css`。**注意：本次未改开卖状态**，`apps/api/src/data/marketplace-v3.json` 的 `ipzone__vidrev` 仍为 `coming_soon`（该文件 sha256 与部署脚本硬编码期望值 `2eec39bd…` 一致，开卖与否仍待用户单独确认）。
+  - **试用积分发放**：新增 `apps/api/src/services/marketplace-trial-grant.ts`、`scripts/grant-marketplace-trial-credits.mjs` 及两个 smoke。
+  - **兰琪顾问规则**：`apps/api/src/products/beauty-industry/advisor-rules.ts`、`advisor-service.ts` 及其 smoke。
+  - **登录/会话与货架回归脚本**：`apps/web/src/lib/session.ts`、`RechargePage.tsx`、`LanqiAcquireMethodsPage.tsx`、`apps/web/index.html`；`scripts/login-entry-browser-smoke.mjs`、`login-entry-production-render-check.mjs`、`deployed-marketplace-browser-check.mjs`、`marketplace-shelf-browser-e2e.mjs`、`product-login-entry-smoke.mjs`。
+  - 质量资产：`packages/agent/evals/sample-grade-cases.json`、`packages/skills/skills/baolu_review_engine/contract.json`、`package.json`（新增并接入 `qa:fast` 的登录/扫码相关 smoke）。
+- 迁移：`48 migrations found in prisma/migrations` / `No pending migrations to apply.`（两侧一致，无 schema 变更）。运行时客户端守护：两侧 `prisma delegates OK: lanqiStoreGoal,lanqiMomentDraft,lanqiMomentUpgrade,lanqiMomentAsset,lanqiStoreProfile` + `prisma client model coverage OK: 99 models`。
+- 备份与日志：生产备份 `/opt/baolu-backups/20260911-all-inflight-full-prod1-before-baolu-os-v2/`（208M，db=baolu_os_v2），部署日志 `/tmp/deploy-20260911-all-inflight-full-prod1-baolu-os-v2.log`（运行日志 `/tmp/deploy-run-20260911-all-inflight-full-prod1.log`）；测试备份 `/opt/baolu-backups/20260911-all-inflight-full-test1-before-baolu-os-v2-test/`（178M），日志同名 `-test1-` 两份。**回滚**＝把对应备份目录还原回 `$APP` 并 `systemctl restart`。两侧本次新增文件清单见各备份目录 `new-files.txt`（均 14 个，含 `wechat-login-bridge.ts`、`WeChatBridgePage.tsx`、`video-review-engine.ts`、`vidrev-report.tsx`、`marketplace-trial-grant.ts`）。
+- 发布前磁盘腾挪（必做，否则 build 阶段会 ENOSPC 并触发回滚）：发布前根分区 30G 已用 26G/**1.9G 可用（94%）**。清理了 14 个历史构建暂存目录（`/opt/baolu-stage/20260910-*` 与 `ip-positioning-*`，纯 scratch，回滚资产在 `/opt/baolu-backups` 不受影响）与 `/tmp` 下已应用完的历史 `overlay-*` / `rel-files-*` / 旧 release 包，共释放约 3.4G；发布后为 **4.2G 可用（86%）**。
+- 发布后复验（2026-09-11 13:56–14:02，外网 + 服务器只读；未改数据、未再发布）：
+  - **产物一致性（两侧）**：`verify-deploy.sh` → **VERIFY_OK**（`systemd_active=active`、`health/ready=200`、`src_data_sha` 与 `dist_data_matches_src` 均等于 `2eec39bd…`、`index_base_path` 分别 `/lanqi-test/` 与 `/os-v2/`、`market/skus` 契约 `skus_total=19` / `coming_soon=15` / `lanqi_brain_present=True`）。
+  - **PLAT-13 扫码登录（生产，真实外网只读）**：`scripts/tmp/prod-login-desktop-deadend-probe.mjs` → 点「微信登录」后 **`url_after_click=https://api.lcppch.top/os-v2/login`、`host_after_click=api.lcppch.top`、`dead_end_text=false`、`qr_shown=true`、`console_errors=[]`**，页面文案出现「请用微信扫这个码登录 / 等待扫码授权…」，截图 `C:\Users\book\.codex\visualizations\2026\09\11\01a08e77-df24-7b60-953b-7afda42f815a\prod-login-qr\prod-login-desktop-after-click.png`（修复前为跳 `open.weixin.qq.com` 死页，`dead_end_text=true` / `qr_shown=false`）。
+  - **二维码落点与出码接口防护（生产实测）**：前端实际取的图 `https://api.lcppch.top/os-v2/api/auth/wechat-bridge/qrcode?u=https%3A%2F%2Fapi.lcppch.top%2Fos-v2%2Fwechat-bridge%3Fb%3D…%26s%3D…`，二维码内容仍是**同一站点**的中转页（无开放重定向）。`scripts/tmp/prod-wechat-bridge-qrcode-probe.sh` → 本站会话地址 `200` + `Content-Type: image/svg+xml`（真返回 SVG）；外部域名 `400 invalid_qrcode_target`；`javascript:` scheme `400`；真实主机 + 伪造会话 `404 wechat_bridge_not_found`（中文提示「登录二维码已失效，请回到电脑刷新二维码后重新扫码」）。测试实例与生产 `POST /auth/wechat-bridge/session` 均 `200` 且返回 `{id, secret, expiresAt, ttlSeconds:300}`。生产 `apps/web/dist/assets/` 存在 `WeChatBridgePage-CVOI36xW.js`、`wechat-bridge-session-DOVEjPNz.js`，`apps/api/dist/.../services/wechat-login-bridge.js` 存在。
+  - **货架页页面级验收（生产，真实浏览器）**：`DEPLOY_CHECK_WEB_URL=https://api.lcppch.top/os-v2 node scripts/deployed-marketplace-browser-check.mjs` → **PASS**（`shelf=PASS credits_yuan=PASS coming_soon_count=45 detail_redo_copy=PASS direct_test_entry=PASS console_clean=PASS`），截图目录 `%TEMP%\deployed-marketplace-check-1789106649187\`；货架显示「全部 19 / 创始人IP 9 / 美业 9 / 兰琪 1」，`IP定位智能体 200 积分/次 · ≈ ¥10` 在售，`视频复盘智能体` 仍标「开发中 · 上线后按次计费」——与未改开卖状态一致。
+  - **登录入口渲染**：`pnpm.cmd auth:login-entry-production-check` → **PASS**（`root_to_home` / `legacy_market_redirect` / `login_page` / `open_registration_no_invite_code` / `legacy_paths` / `console_clean` 全 PASS）。
+  - **运行面**：`systemctl is-active baolu-os-v2 baolu-os-v2-test` → 两者 `active`，`NRestarts=0`；`journalctl -u baolu-os-v2 --since '-15 min' -p err` 与测试实例同口径均无条目。
+- **尚未验收（需用户本人执行）**：真机微信扫码后的完整登录闭环（电脑端出码 → 手机扫码授权 → 电脑端自动进入并落到 `/agents`）。测试实例免登录、无法用于扫码验收，因此只能在生产由用户真人执行；清单在 `docs/agents/platform-tasks.md` 的 **PLAT-13「真人扫码验收清单」**（7 条），验收链接 `https://api.lcppch.top/os-v2/login`。对应的脱敏回归台账为 `docs/BUG_REGRESSIONS.md` **QA-20260911-011**。
 
 
 ## 最新发布：20260911-lq19-advisor-source-note-prod1（2026-09-11，测试实例 + 生产）— 兰琪 LQ-19 顾问「来源」标签口径修复

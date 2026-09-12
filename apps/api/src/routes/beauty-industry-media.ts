@@ -102,7 +102,6 @@ export async function registerBeautyIndustryMediaRoutes(app: FastifyInstance): P
       regenerationEligible: action.retryEligible && existingBatchStatus === "succeeded",
       regenerationOfJobId: action.retryEligible && existingBatchStatus === "succeeded" ? existing[0]?.id : undefined,
       deliveryMode: "real_provider_composed",
-      estimatedProviderCostYuan,
       imagePlan,
       message: readiness.message
     };

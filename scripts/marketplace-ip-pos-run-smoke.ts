@@ -29,8 +29,6 @@ interface IpPosRunBody {
   state: string;
   answer: string;
   consumedCredits: number;
-  estimatedCredits: number;
-  modelCostCny: number;
   balance: number;
   requestId: string;
   payload?: {
@@ -82,9 +80,13 @@ async function main(): Promise<void> {
     }
     assert(run.statusCode === 200, `ip-pos run returns 200 (got ${run.statusCode})`);
     const body = run.json() as IpPosRunBody;
+    const rawBody = run.json() as Record<string, unknown>;
     assert(body.state === "completed", "ip-pos run completes");
     assert(body.consumedCredits === PRICE, `ip-pos charges exactly ${PRICE} credits (got ${body.consumedCredits})`);
     assert(body.balance === START_BALANCE - PRICE, `ip-pos settles wallet balance (got ${body.balance})`);
+    // PLAT-21：客户侧响应绝不能带内部算力成本；成本只走账本 metadata。
+    assert(!("modelCostCny" in rawBody), "客户侧响应不得返回内部算力成本 modelCostCny");
+    assert(!("estimatedCredits" in rawBody), "客户侧响应不得返回成本折算 estimatedCredits");
 
     const answer = body.answer;
     for (const chapter of ["一、项目定位", "二、目标用户", "三、IP人设", "四、内容定位", "五、选题方向", "六、投流建议", "七、IP发展规划", "八、执行建议"]) {
@@ -109,6 +111,8 @@ async function main(): Promise<void> {
     assert(ledger.length === 1, `ip-pos run writes exactly one ledger entry (got ${ledger.length})`);
     assert(ledger[0].amountCredits === PRICE, "ledger records the 200-credit charge");
     assert(ledger[0].status === "completed", "ledger entry is completed");
+    const ledgerMetadata = (ledger[0].metadata ?? {}) as Record<string, unknown>;
+    assert(typeof ledgerMetadata.modelCostCny === "number", "内部账本 metadata 仍记录 modelCostCny（审计不回退）");
 
     const walletDebits = await prisma.walletLedger.findMany({ where: { walletId: wallet.id, type: "consume" } });
     assert(walletDebits.length === 1, `the unified wallet records exactly one consume ledger row (got ${walletDebits.length})`);
@@ -127,9 +131,9 @@ async function main(): Promise<void> {
       JSON.stringify({
         state: body.state,
         elapsedMs,
-        estimatedCredits: body.estimatedCredits,
         consumedCredits: body.consumedCredits,
-        modelCostCny: body.modelCostCny,
+        costFieldsAbsent: !("modelCostCny" in rawBody) && !("estimatedCredits" in rawBody),
+        ledgerModelCostCny: ledgerMetadata.modelCostCny,
         balance: body.balance,
         answerChars: answer.length,
         topicTotal: payload!.stats.topic_total,

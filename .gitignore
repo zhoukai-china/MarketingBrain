@@ -21,6 +21,10 @@ reports/continuous-improvement/
 /.tmp-*
 /_tmp_*/
 
+# 本地发布包与本地暂存目录：体积大、可重建，永不入库
+/.tmp/
+/release-*.tar.gz
+
 # One-off local deployment and diagnostic outputs
 /deploy/
 /deploy-package/

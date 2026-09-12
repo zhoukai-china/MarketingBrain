@@ -128,5 +128,35 @@
     "tenantType": "personal_ip",
     "input": "我想问问保禄：我的创始人IP内容很分散，但没有账号后台数据。现在先收窄人群还是先固定一个内容支柱？",
     "mustInclude": ["直接判断", "判断依据", "今天先做"]
+  },
+  {
+    "id": "vidrev-deep-under3-rows-audit-first",
+    "skillId": "baolu_review_engine",
+    "capabilityId": "video_review",
+    "tenantType": "personal_ip",
+    "tenantName": "思潼AI增长",
+    "industry": "IP与AI企业服务",
+    "input": "深度复盘，平台抖音，周期 2026-08-01~2026-08-07，只有 2 条记录：\n序号,标题,时长(秒),发布时间,播放,点赞,评论,分享,收藏,完播率,5秒完播率,咨询量,是否投流,投流金额,内容类型\n1,门店日常,45,2026-08-02,3200,58,4,6,9,31%,42%,1,否,0,日常\n2,新品探店,62,2026-08-05,1500,7,0,1,2,-,28%,0,否,0,探店",
+    "mustInclude": ["数据质量审计", "待验证", "视频分层"]
+  },
+  {
+    "id": "vidrev-deep-no-revenue-field",
+    "skillId": "baolu_review_engine",
+    "capabilityId": "video_review",
+    "tenantType": "personal_ip",
+    "tenantName": "思潼AI增长",
+    "industry": "IP与AI企业服务",
+    "input": "深度复盘，平台视频号，周期 2026-08-01~2026-08-14，有播放和互动数据，但没有成交金额字段，也没有咨询量字段：\n序号,标题,时长(秒),发布时间,播放,点赞,评论,分享,收藏,完播率,5秒完播率,是否投流,投流金额,内容类型\n1,知识口播A,38,2026-08-02,52000,410,22,60,80,44%,51%,否,0,知识\n2,知识口播B,41,2026-08-04,8600,52,3,9,12,33%,40%,否,0,知识\n3,剧情软广,72,2026-08-06,118000,890,140,210,230,29%,36%,是,900,剧情",
+    "mustInclude": ["互动深度分析", "待验证", "下周期选题建议"]
+  },
+  {
+    "id": "vidrev-quick-single-link-boundary",
+    "skillId": "baolu_review_engine",
+    "capabilityId": "video_review",
+    "tenantType": "personal_ip",
+    "tenantName": "思潼AI增长",
+    "industry": "IP与AI企业服务",
+    "input": "快速诊断一条抖音作品：https://example.com/v/abc，我看到的播放是 3.2万、点赞 480、评论 12、分享 9、完播率 38%，没有导出后台文件，也没有投流。帮我看看这条为什么是现在这个结果。",
+    "mustInclude": ["快速诊断", "立即动作", "判定"]
   }
 ]

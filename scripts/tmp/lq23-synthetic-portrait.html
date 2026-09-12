@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>synthetic test portrait</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 720px;
+        height: 960px;
+        overflow: hidden;
+      }
+      .frame {
+        position: relative;
+        width: 720px;
+        height: 960px;
+        background: linear-gradient(160deg, #f6e7d8 0%, #e8d3c2 45%, #cdb4a4 100%);
+      }
+      .blur {
+        position: absolute;
+        border-radius: 999px;
+        filter: blur(38px);
+        opacity: 0.55;
+      }
+      .b1 {
+        width: 420px;
+        height: 420px;
+        left: -60px;
+        top: 40px;
+        background: #ffd9b8;
+      }
+      .b2 {
+        width: 380px;
+        height: 300px;
+        right: -70px;
+        top: 300px;
+        background: #f2c4a8;
+      }
+      .shelf {
+        position: absolute;
+        right: 44px;
+        top: 120px;
+        width: 210px;
+        height: 12px;
+        border-radius: 6px;
+        background: rgba(120, 82, 60, 0.35);
+      }
+      .bottle {
+        position: absolute;
+        width: 26px;
+        height: 74px;
+        border-radius: 8px 8px 6px 6px;
+        background: rgba(255, 255, 255, 0.75);
+      }
+      .person {
+        position: absolute;
+        left: 190px;
+        top: 210px;
+        width: 340px;
+      }
+      .hair-back {
+        position: absolute;
+        left: -18px;
+        top: -6px;
+        width: 376px;
+        height: 430px;
+        border-radius: 190px 190px 150px 150px;
+        background: #3a2a24;
+      }
+      .neck {
+        position: absolute;
+        left: 148px;
+        top: 292px;
+        width: 46px;
+        height: 96px;
+        border-radius: 18px;
+        background: #edc3a5;
+      }
+      .face {
+        position: absolute;
+        left: 74px;
+        top: 42px;
+        width: 194px;
+        height: 250px;
+        border-radius: 96px 96px 88px 88px;
+        background: #f3cdb0;
+        box-shadow: inset -14px -10px 26px rgba(190, 140, 110, 0.35);
+      }
+      .fringe {
+        position: absolute;
+        left: 60px;
+        top: 22px;
+        width: 222px;
+        height: 96px;
+        border-radius: 110px 110px 40px 40px;
+        background: #3a2a24;
+      }
+      .ear {
+        position: absolute;
+        top: 132px;
+        width: 26px;
+        height: 44px;
+        border-radius: 14px;
+        background: #eec4a4;
+      }
+      .ear.l {
+        left: 62px;
+      }
+      .ear.r {
+        right: 62px;
+      }
+      .brow {
+        position: absolute;
+        top: 128px;
+        width: 52px;
+        height: 9px;
+        border-radius: 6px;
+        background: #4a342c;
+      }
+      .brow.l {
+        left: 96px;
+      }
+      .brow.r {
+        right: 96px;
+      }
+      .eye {
+        position: absolute;
+        top: 152px;
+        width: 42px;
+        height: 18px;
+        border-radius: 50%;
+        background: #ffffff;
+        box-shadow: inset 0 0 0 3px #5b4238;
+      }
+      .eye.l {
+        left: 101px;
+      }
+      .eye.r {
+        right: 101px;
+      }
+      .pupil {
+        position: absolute;
+        top: 157px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #2f2320;
+      }
+      .pupil.l {
+        left: 116px;
+      }
+      .pupil.r {
+        right: 116px;
+      }
+      .nose {
+        position: absolute;
+        left: 162px;
+        top: 176px;
+        width: 18px;
+        height: 52px;
+        border-radius: 12px;
+        background: rgba(206, 152, 120, 0.55);
+      }
+      .mouth {
+        position: absolute;
+        left: 140px;
+        top: 244px;
+        width: 62px;
+        height: 26px;
+        border-radius: 0 0 32px 32px;
+        background: #b4655f;
+      }
+      .blush {
+        position: absolute;
+        top: 198px;
+        width: 46px;
+        height: 26px;
+        border-radius: 50%;
+        background: rgba(226, 138, 128, 0.4);
+        filter: blur(6px);
+      }
+      .blush.l {
+        left: 84px;
+      }
+      .blush.r {
+        right: 84px;
+      }
+      .shoulders {
+        position: absolute;
+        left: -40px;
+        top: 372px;
+        width: 420px;
+        height: 220px;
+        border-radius: 210px 210px 0 0;
+        background: #8fa79b;
+      }
+      .collar {
+        position: absolute;
+        left: 130px;
+        top: 372px;
+        width: 80px;
+        height: 60px;
+        border-radius: 0 0 40px 40px;
+        background: #f3cdb0;
+      }
+      .tag {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        right: 0;
+        padding: 10px 0 12px;
+        text-align: center;
+        font: 18px/1.4 system-ui, "Microsoft YaHei", sans-serif;
+        color: #6a5044;
+        background: rgba(255, 255, 255, 0.72);
+        letter-spacing: 0.06em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="frame">
+      <div class="blur b1"></div>
+      <div class="blur b2"></div>
+      <div class="shelf"></div>
+      <div class="bottle" style="right: 60px; top: 46px"></div>
+      <div class="bottle" style="right: 100px; top: 58px; height: 60px; background: rgba(240, 214, 196, 0.85)"></div>
+      <div class="bottle" style="right: 150px; top: 64px; height: 54px; background: rgba(226, 205, 220, 0.85)"></div>
+      <div class="person">
+        <div class="hair-back"></div>
+        <div class="neck"></div>
+        <div class="shoulders"></div>
+        <div class="collar"></div>
+        <div class="face"></div>
+        <div class="fringe"></div>
+        <div class="ear l"></div>
+        <div class="ear r"></div>
+        <div class="brow l"></div>
+        <div class="brow r"></div>
+        <div class="eye l"></div>
+        <div class="eye r"></div>
+        <div class="pupil l"></div>
+        <div class="pupil r"></div>
+        <div class="nose"></div>
+        <div class="mouth"></div>
+        <div class="blush l"></div>
+        <div class="blush r"></div>
+      </div>
+      <div class="tag">合成测试人像 · 非真人 · 仅用于联调验收</div>
+    </div>
+  </body>
+</html>

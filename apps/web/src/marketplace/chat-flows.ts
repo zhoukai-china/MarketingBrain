@@ -3,6 +3,8 @@ export interface ChatSlot {
   key: string;
   label: string;
   q: string;
+  /** 有选项的槽位在前端渲染成快捷按钮，避免用户自由输入被误判（如复盘模式 / 平台）。 */
+  choices?: string[];
 }
 
 export interface ChatFlow {
@@ -46,11 +48,31 @@ export const CHAT_FLOWS: Record<string, ChatFlow> = {
   },
   vidrev: {
     name: "视频复盘",
-    welcome: "你好，我是思潼 · 视频复盘智能体。先给数据，我再给你归因和下一轮动作。",
+    welcome:
+      "你好，我是思潼 · 视频复盘智能体。先选模式、给数据，我再给你归因和下一轮动作。两种模式同价 60 积分/次；先做快速诊断、后续补齐数据升级为深度复盘时，同一任务只扣一次费。",
     slots: [
-      { key: "vid", label: "视频概况", q: "这条视频讲什么？类型（口播 / 探店 / 案例）？发在哪个平台？" },
-      { key: "data", label: "关键数据", q: "播放 / 完播 / 赞评转 / 涨粉大概多少？" },
-      { key: "aim", label: "目标动作", q: "这条原本想达成什么？带货 / 招商 / 涨粉？实际达到了吗？" }
+      {
+        key: "mode",
+        label: "复盘模式",
+        q: "先选复盘模式：🚀 快速诊断（只给链接或口头描述，我给判定 + 3–5 条要点 + 1 条立即动作）还是 📊 深度复盘（粘贴后台数据表，我出第零章审计 + 十章完整归因 + 下周期选题）？",
+        choices: ["🚀 快速诊断", "📊 深度复盘"]
+      },
+      {
+        key: "platform",
+        label: "平台",
+        q: "这批视频发在哪个平台？（一次只复盘一个平台，跨平台请分开出报告）",
+        choices: ["抖音", "视频号", "小红书", "快手", "B站"]
+      },
+      {
+        key: "period",
+        label: "统计周期",
+        q: "统计周期是哪一段？（写成 2026-08-12 ~ 2026-09-07 这种格式；不知道就写「近30天」）"
+      },
+      {
+        key: "data",
+        label: "数据 / 描述",
+        q: "把数据发我：深度复盘请粘贴后台数据表（列头含 标题／时长／发布时间／播放／点赞／评论／分享／收藏／完播率／咨询量／是否投流／投流金额，最多 50 条，缺的列可以没有）；快速诊断就用一两句话描述这条视频和大概数据，并写上这条视频原本想达成的动作（到店 / 咨询 / 涨粉）。"
+      }
     ]
   },
   livescript: {
@@ -109,4 +131,61 @@ export function buildRunPrompt(flow: ChatFlow, answers: Record<string, string>):
   const supplement = (answers.__supplement ?? "").trim();
   const extra = supplement ? `\n- 补充说明：${supplement}` : "";
   return `请按「${flow.name}」方法论，基于下面业务信息生成最终交付。\n${items}${extra}`;
+}
+
+/** /market/skus/:sku/run 的请求体；视频复盘会额外带结构化参数。 */
+export interface RunRequestBody {
+  input: string;
+  mode?: "quick" | "deep";
+  platform?: string | null;
+  period?: { start: string | null; end: string | null } | null;
+  has_revenue_data?: boolean;
+}
+
+const VIDREV_MODE_CHOICES: Array<[RegExp, "quick" | "deep"]> = [
+  [/快速/, "quick"],
+  [/深度/, "deep"]
+];
+
+/** 从「2026-08-12 ~ 2026-09-07」「近30天」这类文本里抽出可用的起止日期。 */
+function parsePeriod(text: string): { start: string | null; end: string | null } | null {
+  const dates = text.match(/\d{4}-\d{1,2}(?:-\d{1,2})?/g) ?? [];
+  if (dates.length === 0) return null;
+  return { start: dates[0] ?? null, end: dates[1] ?? dates[0] ?? null };
+}
+
+/**
+ * 视频复盘：模式 / 平台 / 周期单独作为结构化入参发给后端，避免后端从自由文本里猜；
+ * 数据表保持原样、独占成行，后端 parseVidrevRowsFromText 才能按表头解析出每一列。
+ */
+export function buildVidrevRunBody(flow: ChatFlow, answers: Record<string, string>): RunRequestBody {
+  const mode = VIDREV_MODE_CHOICES.find(([pattern]) => pattern.test(answers.mode ?? ""))?.[1] ?? "deep";
+  const platform = (answers.platform ?? "").trim();
+  const periodText = (answers.period ?? "").trim();
+  const data = (answers.data ?? "").trim();
+  const supplement = (answers.__supplement ?? "").trim();
+
+  const head = [
+    `- 复盘模式：${mode === "quick" ? "快速诊断" : "深度复盘"}`,
+    `- 平台：${platform || "抖音"}`,
+    `- 统计周期：${periodText || "未提供"}`,
+    "- 数据 / 描述："
+  ].join("\n");
+  const tail = supplement ? `\n- 补充说明：${supplement}` : "";
+  const input = `请按「${flow.name}」方法论生成最终交付。\n${head}\n${data || "（待补充）"}${tail}`;
+
+  return {
+    input,
+    mode,
+    platform: platform || null,
+    period: parsePeriod(periodText),
+    // 有成交口径字段时后端才允许出 ROI 数值；否则只给留资成本口径。
+    has_revenue_data: /成交金额|成交额|营业额|销售额|GMV|收入/i.test(data)
+  };
+}
+
+/** 统一组装 run 请求体：视频复盘走结构化入参，其余技能维持原有文本需求单。 */
+export function buildRunBody(coreSkillId: string, flow: ChatFlow, answers: Record<string, string>): RunRequestBody {
+  if (coreSkillId === "vidrev") return buildVidrevRunBody(flow, answers);
+  return { input: buildRunPrompt(flow, answers) };
 }

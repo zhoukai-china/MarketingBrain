@@ -54,6 +54,7 @@ import { registerLanqiBusinessQaRoutes } from "./routes/lanqi-business-qa.js";
 import { registerLanqiDashboardRoutes } from "./routes/lanqi-dashboard.js";
 import { requireProductEntitlement } from "./services/access-guards.js";
 import { registerViralVideoReplicationRoutes } from "./routes/viral-video-replication.js";
+import { registerLanqiFirstFramePublicRoute } from "./services/lanqi-media-staging.js";
 import { registerWorkbuddyMcpRoutes } from "./routes/workbuddy-mcp.js";
 import { registerWechatMessageRoutes } from "./routes/wechat-messages.js";
 import { registerWechatKfRoutes } from "./routes/wechat-kf.js";
@@ -181,6 +182,9 @@ export async function buildServer() {
     await registerLanqiBusinessQaRoutes(lanqi, provider);
   });
   await registerViralVideoReplicationRoutes(app);
+  // 兰琪视频首帧图的限时签名外链：读取方是阿里云百炼的视频模型，不是登录用户，
+  // 所以必须注册在兰琪产品 entitlement 作用域之外，只用签名校验。
+  registerLanqiFirstFramePublicRoute(app);
   await registerChatRoutes(app, provider);
   await registerGeoRoutes(app, provider);
 

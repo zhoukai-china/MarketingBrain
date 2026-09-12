@@ -483,7 +483,7 @@ export function KnowledgeBasePage() {
     <main className="agentProductPage knowledgeBasePage">
       <nav className="agentTopbar knowledgeTopbar">
         <button className="agentBrand whiteLabelBrand" onClick={() => window.location.href = getAppPath("/my-ai")}><span className={`tenantBrandLogo ${tenantBranding.logoUrl ? "hasImage" : ""}`} style={{ background: tenantBranding.logoUrl ? undefined : tenantBranding.primaryColor }}>{tenantBranding.logoUrl ? <img src={tenantBrandLogoSrc(tenantBranding)} alt={`${tenantBranding.brandName} Logo`} /> : tenantBranding.brandName.slice(0, 2)}</span><strong>{tenantBranding.isCustomized ? `${tenantBranding.brandName}企业知识库` : "企业知识库"}</strong></button>
-        <div>{returnTo && <button className="ghostButton" onClick={() => window.location.href = getAppPath(returnTo)}>返回品牌获客</button>}<button className="ghostButton" onClick={() => window.location.href = getAppPath("/my-ai")}>返回我的智能体</button><button className="ghostButton" onClick={() => window.location.href = getAppPath("/account")}>企业账户</button></div>
+        <div>{returnTo && <button className="ghostButton" onClick={() => window.location.href = getAppPath(returnTo)}>返回品牌获客</button>}<button className="ghostButton" onClick={() => window.location.href = getAppPath("/my-ai")}>返回常用智能体</button><button className="ghostButton" onClick={() => window.location.href = getAppPath("/account")}>企业账户</button></div>
       </nav>
 
       <section className="knowledgeHero">

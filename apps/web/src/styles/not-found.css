@@ -1,0 +1,110 @@
+/*
+ * 统一兜底页（PLAT-18）：未知网址 / 已下线地址的落点。
+ * 只依赖 sitong-design.css 的主题 Token，深浅主题都可读。
+ */
+.notFoundPage {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px 64px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.notFoundCard {
+  width: 100%;
+  max-width: 560px;
+  padding: 32px 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg2);
+  box-shadow: var(--shadow-sm);
+  text-align: left;
+}
+
+.notFoundBadge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg3);
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.notFoundCard h1 {
+  margin: 14px 0 10px;
+  font-size: 22px;
+  line-height: 1.35;
+}
+
+.notFoundLead {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+  word-break: break-all;
+}
+
+.notFoundPath {
+  margin: 0 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--bg3);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.notFoundActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.notFoundPrimary,
+.notFoundSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: var(--radius-s);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.notFoundPrimary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.notFoundSecondary {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+}
+
+.notFoundHint {
+  margin: 20px 0 0;
+  color: var(--muted-2);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+@media (max-width: 900px) {
+  .notFoundCard {
+    padding: 24px 18px;
+  }
+
+  .notFoundCard h1 {
+    font-size: 19px;
+  }
+
+  .notFoundPrimary,
+  .notFoundSecondary {
+    flex: 1 1 100%;
+  }
+}

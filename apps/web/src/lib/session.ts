@@ -5,9 +5,10 @@ import { apiPath, getAppPath, getAppRoutePath } from "./api.js";
  *
  * 背景（登录死循环，QA-20260910-018）：此前判断「已登录」只看 localStorage 里
  * 有没有 `store_os_token`。token 过期或被吊销后这个判断依旧成立，于是访问
- * `/login` 会被直接弹回 `/market`，而货架又因为 token 无效显示「未登录 · 点击登录」，
- * 用户就在登录页和货架之间来回跳，永远进不去登录页。
- * 这里统一用一次只读探针（`GET /market/me`）来判定会话是否真的可用。
+ * `/login` 会被直接弹回平台首页（`/agents`，旧地址 `/market`），而首页又因为
+ * token 无效显示「未登录 · 点击登录」，用户就在登录页和首页之间来回跳，
+ * 永远进不去登录页。
+ * 这里统一用一次只读探针（接口 `GET /market/me`，与页面路由无关）来判定会话是否真的可用。
  */
 
 export const SESSION_TOKEN_KEY = "store_os_token";

@@ -113,14 +113,19 @@ async function main() {
     await cdp.send("Runtime.enable", {}, sessionId);
     await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false }, sessionId);
 
-    // 1. 生产根路径必须落到平台首页（货架），而不是旧的单品落地页。
+    // 1. 生产根路径必须落到平台首页（`/agents`，2026-09-11 前是 `/market`），而不是旧的单品落地页。
     await cdp.send("Page.navigate", { url: `${webBase}/` }, sessionId);
-    await waitFor(cdp, sessionId, `() => window.location.pathname.split("/").filter(Boolean).pop() === "market"`);
+    await waitFor(cdp, sessionId, `() => window.location.pathname.split("/").filter(Boolean).pop() === "agents"`);
     await waitFor(cdp, sessionId, `() => document.body.innerText.includes("货架")`);
     const homeText = await evaluate(cdp, sessionId, `() => document.body.innerText`);
     assert.match(homeText, /行业智能体平台/, "production home shows platform brand");
     assert.match(homeText, /未登录/, "anonymous visitor is prompted to log in");
     const homeUrl = await evaluate(cdp, sessionId, `() => window.location.href`);
+
+    // 1b. 更名前的 `/os-v2/market` 老链接必须仍然可用（同后缀跳到 `/agents`），不能 404。
+    await cdp.send("Page.navigate", { url: `${webBase}/market` }, sessionId);
+    await waitFor(cdp, sessionId, `() => window.location.pathname.endsWith("/agents")`);
+    await waitFor(cdp, sessionId, `() => document.body.innerText.includes("货架")`);
 
     // 2. 生产 /login 必须是平台登录/注册页，且没有任何历史诊断入口残留。
     //    平台主入口的产品口径（QA-20260910-021）：`INVITE_REQUIRED=false` 时只留
@@ -198,6 +203,7 @@ async function main() {
       "login_entry_production_render_check:PASS"
       + ` home_url=${homeUrl}`
       + " root_to_home=PASS"
+      + " legacy_market_redirect=PASS"
       + " login_page=PASS"
       + " open_registration_no_invite_code=PASS"
       + ` mobile_login_button=${mobile.width}x${mobile.height}=PASS`

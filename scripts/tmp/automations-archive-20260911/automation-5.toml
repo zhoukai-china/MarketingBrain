@@ -1,0 +1,14 @@
+version = 1
+id = "5"
+kind = "cron"
+name = "微信手机与桌面端登录60分钟巡检"
+prompt = "你是思潼企业AI增长系统的微信登录巡检任务。每次运行请在项目 C:\\Users\\book\\Documents\\思潼AI增长os 中执行以下检查并尽量自动修复可修复问题：\n\n1. 进入 baolu-os-v2-deepseek\\思潼AI增长os\\baolu-os-v2。\n2. 运行线上微信登录巡检：\nnode scripts\\wechat-login-watchdog.mjs --env .env --publicBaseUrl https://api.lcppch.top/os-v2 --apiBaseUrl https://api.lcppch.top/os-v2/api --localApiBaseUrl https://api.lcppch.top/os-v2/api\n该巡检必须覆盖：\n- 手机端微信内置浏览器：/api/ready、/api/auth/wechat-config、/wechat-callback，以及前端授权回调提交 /auth/wechat-login 的代码路径、state/sessionStorage 防重复提交和异常超时处理。\n- 电脑桌面端扫码登录：/wechat-bridge 页面、/api/auth/wechat-bridge/status 路由，以及前端二维码启动、轮询、回调完成 /auth/wechat-bridge/start、/status、/complete 的代码路径。\n3. 如果失败：\n- 先区分是否只是本地 .env 的 OPS/ADMIN token 不等于生产导致 401，不要把这种情况误报成用户登录故障。\n- 必须复查 https://api.lcppch.top/os-v2/api/ready、https://api.lcppch.top/os-v2/api/auth/wechat-config、https://api.lcppch.top/os-v2/wechat-callback、https://api.lcppch.top/os-v2/wechat-bridge。\n- 若手机或桌面端公开页面/路由失败，继续诊断仓库配置、前端回调路径、API 路由和 sessionStorage/轮询逻辑；能在本地代码内修复的直接修复并运行 pnpm.cmd typecheck，必要时运行前端 build。\n- 若判断需要服务器环境变量、微信公众号 AppSecret/IP 白名单、阿里云 systemctl/nginx 才能修复，请明确记录阻塞项，不要做无效重启或猜测性修改。\n- 真实微信授权/桌面扫码需要真实设备，不能用伪造 code 冒充通过；应明确区分“公开链路检查通过”和“真实设备授权未执行”。\n4. 这条登录链路是首要体验入口：如有异常，输出简短中文结果，包含端（手机/桌面）、影响范围、原因、已做修复、下一步需要谁处理。无异常时只输出手机端、桌面端各自的简短通过摘要。\n注意：不要打印任何 token、secret、openid、手机号全量值；只允许脱敏。"
+status = "PAUSED"
+rrule = "FREQ=HOURLY;INTERVAL=1"
+model = "gpt-5.6-luna"
+reasoning_effort = "medium"
+execution_environment = "local"
+target = { type = "project", project_id = "local-b2d5bae6a953793d8aae1ae913d55f29" }
+cwds = ["C:\\Users\\book\\Documents\\思潼AI增长os"]
+created_at = 1783759197329
+updated_at = 1783819542027

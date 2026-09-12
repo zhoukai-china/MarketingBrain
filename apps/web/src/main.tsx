@@ -12,7 +12,6 @@ import { clearStoredSession, probeSession, readSessionToken, takePostLoginRedire
 import "./styles/app.css";
 import "./styles/store-growth.css";
 import "./styles/baolu-diagnosis.css";
-import "./styles/sitong-v4.css";
 import "./styles/growth-flywheel.css";
 import "./styles/agent-products.css";
 import "./styles/takeaway-operating-brief.css";
@@ -33,31 +32,59 @@ import "./styles/lanqi-business-qa.css";
 import "./styles/beauty-industry.css";
 import "./styles/lanqi-moments.css";
 import "./styles/beauty-video-review.css";
-import "./styles/industry-workbench-prototype.css";
 import "./styles/sitong-design.css";
 
-document.documentElement.setAttribute(
-  "data-theme",
-  localStorage.getItem("sitong-theme") || "dark"
-);
-document.body.setAttribute("data-device", "desktop");
+// 2026-09-11 产品拍板：平台默认浅色主题（此前默认深色）。仅在用户没有
+// 主动选择过主题时才用浅色兜底；用户切换过的偏好仍按 localStorage 生效。
+const initialTheme = localStorage.getItem("sitong-theme") === "dark" ? "dark" : "light";
+document.documentElement.setAttribute("data-theme", initialTheme);
+document
+  .querySelector('meta[name="theme-color"]')
+  ?.setAttribute("content", initialTheme === "dark" ? "#101721" : "#F4F7FC");
+/**
+ * 设备判定（2026-09-11 真机修复：手机端页面显示不完整）。
+ *
+ * 此前这里恒写 `"desktop"`，于是 `sitong-design.css` 里
+ * `body[data-device="mobile"]` 的整套移动端规则在手机上一条都不生效：
+ * 顶栏 Tab 被 flex 挤成 46px 宽的竖排字、顶栏高 222px 顶满首屏，
+ * 钱包胶囊溢出到屏幕右侧（QA-20260911-012）。
+ *
+ * 现在按「视口宽度 + 移动端 UA」判定，并在窗口尺寸变化时重算，
+ * 覆盖微信内置浏览器、横竖屏切换和桌面拖窄窗口三种情况。
+ */
+const MOBILE_MAX_WIDTH = 900;
+
+function resolveDevice(): "mobile" | "desktop" {
+  const narrow = window.innerWidth <= MOBILE_MAX_WIDTH;
+  const mobileUa = /Android|iPhone|iPad|iPod|Windows Phone|MicroMessenger|Mobile Safari|HarmonyOS/i.test(
+    navigator.userAgent
+  );
+  if (narrow) return "mobile";
+  return mobileUa && window.innerWidth <= 1180 ? "mobile" : "desktop";
+}
+
+function applyDevice(): void {
+  document.body.setAttribute("data-device", resolveDevice());
+}
+
+applyDevice();
+window.addEventListener("resize", applyDevice, { passive: true });
+window.addEventListener("orientationchange", applyDevice, { passive: true });
 
 // Pages are isolated at the route boundary so the first visit only downloads
 // the active experience instead of every workbench and internal tool.
 const StoreGrowthApp = lazy(() => import("./pages/StoreGrowthApp.js").then(module => ({ default: module.StoreGrowthApp })));
 const FlywheelDiagnosisApp = lazy(() => import("./pages/FlywheelDiagnosisApp.js"));
-const SitongV4App = lazy(() => import("./pages/SitongV4App.js").then(module => ({ default: module.SitongV4App })));
-const BaoluDiagnosisApp = lazy(() => import("./pages/BaoluDiagnosisApp.js"));
 const LoginPage = lazy(() => import("./pages/LoginPage.js"));
 const WeChatCallback = lazy(() => import("./pages/WeChatCallback.js"));
+const WeChatBridgePage = lazy(() => import("./pages/WeChatBridgePage.js"));
 const LegalPage = lazy(() => import("./pages/LegalPage.js"));
-const ClipLabApp = lazy(() => import("./pages/ClipLabApp.js"));
+const NotFoundPage = lazy(() => import("./pages/NotFoundPage.js"));
 const KnowledgeBasePage = lazy(() => import("./pages/KnowledgeBasePage.js").then(module => ({ default: module.KnowledgeBasePage })));
 const EnterpriseKnowledgeBasePage = lazy(() => import("./pages/EnterpriseKnowledgeBasePage.js").then(module => ({ default: module.EnterpriseKnowledgeBasePage })));
 const KnowledgeConnectionHelpPage = lazy(() => import("./pages/KnowledgeConnectionHelpPage.js").then(module => ({ default: module.KnowledgeConnectionHelpPage })));
 const ClientProjectWorkbenchPage = lazy(() => import("./pages/ClientProjectWorkbenchPage.js").then(module => ({ default: module.ClientProjectWorkbenchPage })));
 const AccountCenterPage = lazy(() => import("./pages/AgentProductsApp.js").then(module => ({ default: module.AccountCenterPage })));
-const AgentHomePage = lazy(() => import("./pages/AgentProductsApp.js").then(module => ({ default: module.AgentHomePage })));
 const AgentMarketingPage = lazy(() => import("./pages/AgentProductsApp.js").then(module => ({ default: module.AgentMarketingPage })));
 const AgentWorkspacePage = lazy(() => import("./pages/AgentProductsApp.js").then(module => ({ default: module.AgentWorkspacePage })));
 const InternalAgentAdminPage = lazy(() => import("./pages/AgentProductsApp.js").then(module => ({ default: module.InternalAgentAdminPage })));
@@ -97,7 +124,6 @@ const LanqiAcquireInDevelopmentPage = lazy(() => import("./pages/LanqiPlaceholde
 export const LANQI_MOMENTS_ONLY_LAUNCH = true;
 const BeautyIndustryAcquisitionPage = lazy(() => import("./pages/BeautyIndustryAcquisitionPage.js").then(module => ({ default: module.BeautyIndustryAcquisitionPage })));
 const BeautyIndustryWorkBuddyPage = lazy(() => import("./pages/BeautyIndustryWorkBuddyPage.js").then(module => ({ default: module.BeautyIndustryWorkBuddyPage })));
-const IndustryWorkbenchPrototypePage = lazy(() => import("./pages/IndustryWorkbenchPrototypePage.js").then(module => ({ default: module.IndustryWorkbenchPrototypePage })));
 const MarketplaceHomePage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceHomePage })));
 const MarketplaceAdminPage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceAdminPage })));
 const MarketplaceAgentDetailPage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceAgentDetailPage })));
@@ -339,10 +365,11 @@ function DirectTestLoginGate({ children }: { children: ReactNode }) {
  *
  * 「已登录就不给看登录页」这条规则只有在服务端确认 token 仍然有效时才成立。
  * 以前只看 localStorage 有没有 token，token 一旦失效就会把用户从 /login 弹回
- * /market，而货架又显示「未登录 · 点击登录」——点一次弹一次，用户永远进不了登录页。
+ * 平台首页（`/agents`，旧地址 `/market`），而首页又显示「未登录 · 点击登录」——
+ * 点一次弹一次，用户永远进不了登录页。
  *
  * 现在的行为：
- * - token 有效 → 按登录后落地地址跳走（默认货架）；
+ * - token 有效 → 按登录后落地地址跳走（默认平台首页）；
  * - token 失效（401/403）→ 清掉本地会话，正常渲染登录页；
  * - 网络异常（探针 cannot tell）→ 不清 token，也渲染登录页，让用户至少能重新登录。
  */
@@ -359,7 +386,7 @@ function LoginSessionGate({ children }: { children: ReactNode }) {
       if (cancelled) return;
       if (result === "valid") {
         // 页面正在卸载，保持在过渡态避免闪一下登录表单。
-        window.location.replace(takePostLoginRedirect("/market"));
+        window.location.replace(takePostLoginRedirect("/agents"));
         return;
       }
       if (result === "invalid") clearStoredSession();
@@ -385,22 +412,32 @@ function LoginSessionGate({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * 货架 SKU 编码 = `<行业专区>__<能力>`（见 `apps/api/src/services/marketplace-catalog.ts`，
+ * 例如 `ipzone__vidrev` / `meiye__copy` / `n__copy`）；工作台智能体 slug
+ * （`acquisition`、`clipper`、`takeaway-growth`…）不含双下划线，两套命名不会冲突。
+ */
+function isMarketplaceSkuCode(slug: string): boolean {
+  return slug.includes("__");
+}
+
 function Root() {
   const path = getAppRoutePath(window.location.pathname);
   const isDiagnosisRoute = path.startsWith("/diagnosis") || path.startsWith("/d/");
-  const isLegacyDiagnosisRoute = path.startsWith("/legacy-diagnosis");
   const isWorkbenchRoute = path.startsWith("/workbench") || path.startsWith("/app");
   const isLoginRoute = path.startsWith("/login");
   const isWechatCallbackRoute = path.startsWith("/wechat-callback");
-  const isV4PreviewRoute = path.startsWith("/v4-preview");
+  // 电脑端扫码登录：手机扫到二维码后落到本站的中转页（PLAT-13）。
+  const isWechatBridgeRoute = path.startsWith("/wechat-bridge");
   const marketingMatch = path.match(/^\/p\/([a-z0-9_-]+)\/?$/i);
   const agentMatch = path.match(/^\/agents\/([a-z0-9_-]+)\/?$/i);
   const marketplaceChatMatch = path.match(/^\/agent\/([a-z0-9_-]+)\/chat\/?$/i);
   const marketplaceAgentMatch = path.match(/^\/agent\/([a-z0-9_-]+)\/?$/i);
 
-  // 平台首页（货架）是唯一入口：根路径直接落到货架，不再进入旧的单品落地页。
+  // 平台首页是唯一入口：根路径直接落到平台首页，不再进入旧的单品落地页。
+  // 2026-09-11 起平台首页地址为 `/agents`（产品叫「智能体平台」，URL 不再用 market）。
   if (path === "/" || path === "") {
-    window.location.replace(getAppPath("/market"));
+    window.location.replace(getAppPath("/agents"));
     return null;
   }
 
@@ -426,14 +463,6 @@ function Root() {
     return <LegalPage kind="privacy" />;
   }
 
-  if (path.startsWith("/clip-lab")) {
-    if (import.meta.env.PROD) {
-      window.location.replace(getAppPath("/agents/clipper"));
-      return null;
-    }
-    return <ClipLabApp />;
-  }
-
   if (marketingMatch) {
     return <AgentMarketingPage slug={marketingMatch[1]} />;
   }
@@ -450,8 +479,20 @@ function Root() {
     return <MarketplaceMinePage />;
   }
 
-  if (path === "/industry-prototype" || path.startsWith("/industry-prototype/")) {
-    return <IndustryWorkbenchPrototypePage />;
+  /*
+   * 平台首页（智能体平台入口）：`/agents`。
+   *
+   * 2026-09-11 由 `/market` 更名——产品对外叫「思潼AI 智能体平台」，入口地址不该再出现
+   * market（旧地址按下方兼容分支 1:1 跳转，已发出去的链接不会 404）。
+   * `/agents` 是**精确匹配**：这里只是和 `/agents/:slug`（单品落地页）共用命名空间，
+   * 不接管 `/agents/beauty-industry`、`/agents/acquisition` 等既有页面。
+   */
+  if (path === "/agents/admin" || path.startsWith("/agents/admin/")) {
+    return <MarketplaceAdminPage />;
+  }
+
+  if (path === "/agents" || path === "/agents/") {
+    return <MarketplaceHomePage />;
   }
 
   if (path === "/agents/beauty-industry/workbuddy" || path === "/agents/beauty-industry/workbuddy/") {
@@ -460,6 +501,18 @@ function Root() {
 
   if (path === "/agents/beauty-industry" || path === "/agents/beauty-industry/" || path.startsWith("/agents/beauty-industry/")) {
     return <BeautyIndustryAcquisitionPage />;
+  }
+
+  /*
+   * 货架 SKU 的落地链接：`/agents/<zone>__<capability>`（例如 `/agents/ipzone__vidrev`）。
+   *
+   * `/agents` 是平台首页，`/agent/<skuCode>` 是货架详情页，两者共用同一套 SKU 编码；
+   * 对外发出去的验收/分享链接两种写法都会出现。SKU 编码不是工作台智能体 slug，
+   * 落进工作台页会在 `/api/agents/me` 里找不到，被兜底成「服务暂时不可用」（QA-20260911-015），
+   * 把「智能体还没上线 / 链接写法不对」说成了服务故障。这里显式归到货架命名空间。
+   */
+  if (agentMatch && isMarketplaceSkuCode(agentMatch[1])) {
+    return <MarketplaceAgentDetailPage skuId={agentMatch[1]} />;
   }
 
   if (agentMatch) {
@@ -539,7 +592,11 @@ function Root() {
    * 公域获客（LQ-19 及子页）尚未验收上线，本轮口径是「开发中」。
    * 放在 acquire 各子路由最前面，确保 /lanqi/acquire* 全部落在占位页，
    * 不让用户点进未验收的功能；真实组件与下方分支保留，验收通过后放开开关即可。
+   * 例外：文案转片（LQ-23）已接通真实图生视频并单独验收，必须排在总闸之前放行。
    */
+  if (path.startsWith("/lanqi/acquire/video")) {
+    return <LanqiAcquireVideoPage />;
+  }
   if (path.startsWith("/lanqi/acquire")) {
     if (LANQI_MOMENTS_ONLY_LAUNCH) return <LanqiAcquireInDevelopmentPage />;
   }
@@ -561,7 +618,7 @@ function Root() {
 
   /*
    * 兰琪经营驾驶舱（LQ-20）：demo 的 home.html 就是这一页，也是登录后的默认落地页。
-   * 必须放在全局兜底 `AgentHomePage` 之前，否则会掉进外卖增长智能体的首页（报告 Bug2）。
+   * 必须放在全局兜底 `NotFoundPage` 之前，否则会掉进「页面不存在」页（报告 Bug2）。
    */
   if (path === "/lanqi/dashboard" || path === "/lanqi/dashboard/") {
     return LANQI_MOMENTS_ONLY_LAUNCH ? <LanqiDashboardInDevelopmentPage /> : <LanqiDashboardPage />;
@@ -613,12 +670,17 @@ function Root() {
     return <RechargePage />;
   }
 
-  if (path.startsWith("/market/admin")) {
-    return <MarketplaceAdminPage />;
-  }
-
-  if (path.startsWith("/market")) {
-    return <MarketplaceHomePage />;
+  /*
+   * 旧平台首页地址兼容（2026-09-11 更名 `/market` → `/agents`）。
+   *
+   * 「market」已经不合适：产品叫智能体平台，入口不该读成市场/货架。但更名前发出去、
+   * 印在物料上、被客户收藏的 `/os-v2/market*` 链接必须继续能用，所以这里按**同后缀**
+   * 跳到新地址（`/market` → `/agents`、`/market/admin` → `/agents/admin`），
+   * 而不是笼统地全塞回首页。
+   */
+  if (path === "/market" || path.startsWith("/market/")) {
+    window.location.replace(getAppPath(`/agents${path.slice("/market".length)}`));
+    return null;
   }
 
   if (path.startsWith("/internal/legacy")) {
@@ -637,17 +699,9 @@ function Root() {
     return <InternalAgentAdminPage />;
   }
 
-  if (isLegacyDiagnosisRoute) {
-    return <BaoluDiagnosisApp />;
-  }
-
   // /diagnosis or /d/ → always standalone diagnosis (free entry, no login)
   if (isDiagnosisRoute) {
     return <FlywheelDiagnosisApp />;
-  }
-
-  if (isV4PreviewRoute) {
-    return <SitongV4App />;
   }
 
   if (isWorkbenchRoute) {
@@ -655,11 +709,19 @@ function Root() {
     return null;
   }
 
-  if (isLoginRoute || isWechatCallbackRoute) {
+  if (isLoginRoute || isWechatCallbackRoute || isWechatBridgeRoute) {
     return <AppFlow />;
   }
 
-  return <AgentHomePage />;
+  /*
+   * 未知网址统一兜底（PLAT-18 验收条件 2）。
+   *
+   * 这里以前直接渲染 `<AgentHomePage />`：输错网址、访问已下线的历史地址
+   * （`/legacy-diagnosis`、`/v4-preview`、`/industry-prototype`、`/clip-lab`）
+   * 都会显示「外卖增长智能体」的首页，用户会以为打开的正是那个产品。
+   * 现在统一落到「页面不存在 / 已下线」说明页：不显示任何具体产品的内容。
+   */
+  return <NotFoundPage />;
 }
 
 function AppFlow() {
@@ -726,7 +788,7 @@ function AppFlow() {
     }
     const productDefaultPath = loginEntry !== "generic" && loginEntry !== "internal"
       ? PRODUCT_LOGIN_DEFINITIONS[loginEntry].defaultPath
-      : "/market";
+      : "/agents";
     const isLocalDev =
       import.meta.env.DEV &&
       ["localhost", "127.0.0.1"].includes(window.location.hostname);
@@ -760,6 +822,10 @@ function AppFlow() {
 
   if (path === "/wechat-callback") {
     return <WeChatCallback onLogin={handleLogin} />;
+  }
+
+  if (path === "/wechat-bridge") {
+    return <WeChatBridgePage />;
   }
 
     if (stage === "login") {

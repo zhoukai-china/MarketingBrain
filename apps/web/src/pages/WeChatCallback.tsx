@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { type LoginResult } from "./LoginPage.js";
 import { apiBase, getAppPath } from "../lib/api.js";
 import { tenantBrandLogoSrc, usePublicTenantBranding } from "../lib/tenant-branding.js";
+import { clearPendingWeChatBridge, readPendingWeChatBridge } from "../lib/wechat-bridge-session.js";
 
 interface WeChatCallbackProps {
   onLogin: (result: LoginResult) => void;
@@ -14,6 +15,8 @@ export default function WeChatCallback({ onLogin }: WeChatCallbackProps) {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("正在完成微信登录...");
   const [returnProductCode] = useState(() => sessionStorage.getItem("store_os_product_login_code") ?? "");
+  // 电脑端扫码登录：手机只负责把 code 交回服务端，不在这里落 token。
+  const [bridgeDone, setBridgeDone] = useState(false);
 
   useEffect(() => {
     async function exchangeCode() {
@@ -43,6 +46,34 @@ export default function WeChatCallback({ onLogin }: WeChatCallbackProps) {
             setError("微信授权未返回授权码，请重新登录");
           }
           setStatus("");
+          return;
+        }
+
+        // PLAT-13：从电脑端二维码进来的，走扫码中转；登录结果由电脑端取走。
+        const bridge = readPendingWeChatBridge();
+        if (bridge) {
+          setStatus("正在把授权结果同步到电脑...");
+          const bridgeRes = await fetch(`${apiBase}/auth/wechat-bridge/complete`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: bridge.id, secret: bridge.secret, code })
+          });
+          const bridgeData = (await bridgeRes.json().catch(() => ({}))) as {
+            ok?: boolean;
+            needsTenant?: boolean;
+            message?: string;
+          };
+          if (!bridgeRes.ok || bridgeData.ok !== true) {
+            // 失败结果服务端会留着，用户回到电脑刷新二维码再扫即可。
+            setError(bridgeData.message ?? "微信授权失败，请回到电脑刷新二维码后重新扫码。");
+            setStatus("");
+            return;
+          }
+          clearPendingWeChatBridge();
+          setBridgeDone(true);
+          setStatus(bridgeData.needsTenant === true
+            ? "已授权。请回到电脑补全企业信息，完成开通。"
+            : "已授权，请回到电脑完成登录。");
           return;
         }
 
@@ -122,8 +153,10 @@ export default function WeChatCallback({ onLogin }: WeChatCallbackProps) {
           <h1>微信登录</h1>
         </div>
         <div className="loginStatus">{status}</div>
-        <div className="wechatLoadingSpinner" />
-        <p className="wechatCallbackHint">请稍候，正在处理微信授权...</p>
+        {bridgeDone ? <p className="wechatCallbackHint">这台手机不用再操作了，回到电脑页面会自动登录。</p> : <>
+          <div className="wechatLoadingSpinner" />
+          <p className="wechatCallbackHint">请稍候，正在处理微信授权...</p>
+        </>}
       </div>
     </div>
   );

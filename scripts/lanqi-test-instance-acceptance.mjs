@@ -3,7 +3,16 @@
  * 兰琪一期（单店）内测实例验收探针（只读，不改服务端状态）。
  *
  * 用途：对已部署的实例（默认 `https://api.lcppch.top/lanqi-test`）跑同一组可机读断言，
- * 用于 WorkBuddy《兰琪朋友圈获客测试体验报告》与 LQ-20 驾驶舱改动的上线后复验。
+ * 用于 WorkBuddy《兰琪朋友圈获客测试体验报告》的上线后复验。
+ *
+ * 口径（用户 2026-09-11）：目前只有「私域营销」可正常上线，其余板块显示「开发中」。
+ * 因此：
+ *   ① 经营驾驶舱 `/lanqi/dashboard`、② 目标设置 `/lanqi/goal-setting` 当前断言的是
+ *     兰琪自己的「开发中」占位页（不空白、不串产品、可一键去用私域营销、无控制台错误）；
+ *   ③ 朋友圈获客（唯一已上线板块）保留完整功能断言；
+ *   ④ 工作台入口不变。
+ * 板块放开后（`apps/web/src/main.tsx` 的 LANQI_MOMENTS_ONLY_LAUNCH 改为 false），
+ * 需要把 ①② 断言恢复成驾驶舱 / 目标设置的完整渲染断言（见文件内注释）。
  * 与 `scripts/lanqi-page-check.mjs` 的区别：
  *  1. 断言可机读（布尔 + 证据片段），不是靠人看截图；
  *  2. 记录接口状态码与首屏可见耗时，便于区分「页面慢」和「接口 500」；
@@ -258,72 +267,58 @@ async function main() {
     const version = await waitForDevtools();
     root = await CdpSession.connect(version.webSocketDebuggerUrl);
 
-    // ① 驾驶舱：完整渲染 + 无 NaN + 无连锁残留 + 首次可见耗时
-    const dash = await openPage(root, `${base}/lanqi/dashboard`, "本月结论");
+    /*
+     * ① 经营驾驶舱 / ② 目标设置：本轮口径（用户 2026-09-11）是「只有私域营销可正常上线，
+     * 其余板块显示开发中」，所以这两页当前应落到兰琪自己的「开发中」占位页。
+     * 驾驶舱的完整渲染断言（本月结论 / 今日关键指标 / 无 NaN / 无接口错误）在板块放开后恢复：
+     * 把 `apps/web/src/main.tsx` 的 LANQI_MOMENTS_ONLY_LAUNCH 改为 false，再按下方注释恢复旧断言。
+     */
+    const dash = await openPage(root, `${base}/lanqi/dashboard`, "开发中");
     const dashText = dash.snapshot.text;
     checks.push({
-      name: "dashboard 完整渲染",
-      pass: dashText.includes("本月结论") && dashText.includes("今日关键指标") && !dashText.includes("正在加载"),
-      detail: `readyAtMs=${dash.readyAtMs} textLen=${dashText.length} 含「本月结论」=${dashText.includes("本月结论")}`,
+      name: "驾驶舱：板块已收口，显示兰琪「开发中」占位",
+      pass: dashText.includes("经营驾驶舱") && dashText.includes("开发中") && dashText.includes("本板块还在开发中"),
+      detail: `readyAtMs=${dash.readyAtMs} textLen=${dashText.length} 含「开发中」=${dashText.includes("开发中")}`,
       firstVisibleMs: dash.readyAtMs,
     });
     checks.push({
-      name: "dashboard 无 NaN / 无 undefined",
+      name: "驾驶舱：占位页无 NaN / 无 undefined",
       pass: !/NaN/.test(dashText) && !/undefined/.test(dashText),
       detail: `NaN=${/NaN/.test(dashText)} undefined=${/undefined/.test(dashText)}`,
     });
     checks.push({
-      name: "一期单店：无「全部门店 / 门店切换」",
-      pass: !/全部门店|门店切换|多店聚合/.test(dashText),
-      detail: `命中=${(/全部门店|门店切换|多店聚合/.test(dashText))}`,
+      name: "驾驶舱：占位页不空白、不串到别的产品",
+      pass: dashText.trim().length > 200 && !/枕水江南|外卖增长|正在加载/.test(dashText),
+      detail: `textLen=${dashText.length} 串页=${/枕水江南|外卖增长/.test(dashText)}`,
     });
     checks.push({
-      name: "无外卖产品串页（枕水江南）",
-      pass: !dashText.includes("枕水江南"),
-      detail: `命中=${dashText.includes("枕水江南")}`,
+      name: "驾驶舱：占位页仍能一键去用已上线的私域营销",
+      pass: dashText.includes("私域营销") && dash.snapshot.text.includes("已上线"),
+      detail: `含「私域营销」=${dashText.includes("私域营销")} 含「已上线」=${dashText.includes("已上线")}`,
     });
     checks.push({
-      name: "驾驶舱无接口 4xx/5xx",
+      name: "驾驶舱：占位页无接口 4xx/5xx",
       pass: dash.httpErrors.filter((e) => e.status !== "failed").length === 0,
       detail: JSON.stringify(dash.httpErrors.slice(0, 6)),
     });
     checks.push({
-      name: "驾驶舱 console/page 无错误",
+      name: "驾驶舱：占位页 console/page 无错误",
       pass: dash.consoleErrors.length === 0 && dash.pageErrors.length === 0,
       detail: `console=${dash.consoleErrors.length} page=${dash.pageErrors.length}`,
     });
     await closePage(root, dash);
 
-    // ② 目标设置：只有本月 4 个目标可手输，其余只读
-    const goal = await openPage(root, `${base}/lanqi/goal-setting`, "谁输");
+    // ② 目标设置：同属经营驾驶舱，当前也是「开发中」占位。
+    // 放开后恢复：4 个本月目标可手输、其余只读、未设目标显示「待设置」、口径说明表（谁输/怎么来）。
+    const goal = await openPage(root, `${base}/lanqi/goal-setting`, "开发中");
     const goalText = goal.snapshot.text;
-    const targetInputs = await evaluate(
-      root,
-      goal.sessionId,
-      `[...document.querySelectorAll("input")].filter((el) => el.type !== "checkbox" && el.type !== "radio" && el.offsetParent !== null).length`,
-    );
-    const readonlyRows = await evaluate(
-      root,
-      goal.sessionId,
-      `[...document.querySelectorAll("input,textarea")].filter((el) => el.readOnly || el.disabled).length`,
-    );
     checks.push({
-      name: "goal-setting：4 个手输目标",
-      pass: /业绩目标/.test(goalText) && /新客目标/.test(goalText) && /升单目标/.test(goalText) && /沉睡唤醒/.test(goalText),
-      detail: `可编辑输入框=${targetInputs} 只读/禁用=${readonlyRows}`,
+      name: "goal-setting：板块已收口，显示兰琪「开发中」占位",
+      pass: goalText.includes("经营驾驶舱") && goalText.includes("开发中") && goalText.includes("本板块还在开发中"),
+      detail: `readyAtMs=${goal.readyAtMs} textLen=${goalText.length} 含「开发中」=${goalText.includes("开发中")}`,
     });
     checks.push({
-      name: "goal-setting：未设目标不显示 0（显示「待设置」）",
-      pass: goalText.includes("待设置") || goalText.includes("本月目标未设置"),
-      detail: `含「待设置」=${goalText.includes("待设置")}`,
-    });
-    checks.push({
-      name: "goal-setting：口径说明表（谁输/怎么来）",
-      pass: goalText.includes("谁输") && goalText.includes("自动统计"),
-      detail: `textLen=${goalText.length}`,
-    });
-    checks.push({
-      name: "goal-setting console/page 无错误",
+      name: "goal-setting：占位页 console/page 无错误",
       pass: goal.consoleErrors.length === 0 && goal.pageErrors.length === 0,
       detail: `console=${goal.consoleErrors.length} page=${goal.pageErrors.length}`,
     });

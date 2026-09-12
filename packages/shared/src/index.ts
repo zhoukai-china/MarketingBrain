@@ -528,7 +528,14 @@ export function formatYuanText(amount: number): string {
   return rounded.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
 }
 
-/** 标价文案：200 积分 → "≈ ¥10"；40 积分 → "≈ ¥2"；10 积分 → "≈ ¥0.5"。 */
+/**
+ * 标价文案：200 积分 → "≈ ¥10"；40 积分 → "≈ ¥2"；10 积分 → "≈ ¥0.5"。
+ *
+ * ⚠️ 仅供内部 / 管理端使用（PLAT-19，用户 2026-09-12 要求）：
+ * 面向客户的智能体页面、聊天页、生成确认与扣费提示**只显示积分**，
+ * 不显示折算人民币。`apps/web` 客户界面禁止再引用本函数（有契约 smoke 兜底：
+ * `pnpm marketplace:credits-only-contract-smoke`）。
+ */
 export function yuanLabelForCredits(
   credits: number,
   ptsPerYuan: number = CREDIT_PRICING.ptsPerYuan

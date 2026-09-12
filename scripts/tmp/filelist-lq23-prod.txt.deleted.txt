@@ -1,0 +1,6 @@
+apps/web/src/pages/BaoluDiagnosisApp.tsx
+apps/web/src/pages/IndustryWorkbenchPrototypePage.tsx
+apps/web/src/pages/SitongV4App.tsx
+apps/web/src/styles/industry-workbench-prototype.css
+apps/web/src/styles/sitong-v4.css
+scripts/industry-workbench-prototype-smoke.mjs

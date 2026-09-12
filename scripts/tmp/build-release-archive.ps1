@@ -1,5 +1,8 @@
-# 构建增量发布归档：文本文件统一 LF 化，二进制原样复制，保证 Linux 端逐字节可用。
-# 用法: powershell -File scripts/tmp/build-release-archive.ps1 -RepoRoot <path> -FileList <path> -OutArchive <path> -StageRoot <path>
+# Build an incremental release archive: text files normalized to LF, binaries copied as-is,
+# so the Linux side gets byte-exact content.
+# Usage: powershell -File scripts/tmp/build-release-archive.ps1 -RepoRoot <path> -FileList <path> -OutArchive <path> -StageRoot <path>
+# NOTE: keep this file ASCII-only. Windows PowerShell 5.1 reads .ps1 without BOM as ANSI,
+# which can swallow line breaks after non-ASCII comment text and silently comment out code.
 param(
   [Parameter(Mandatory=$true)][string]$RepoRoot,
   [Parameter(Mandatory=$true)][string]$FileList,
@@ -34,8 +37,9 @@ foreach ($rel in $rels) {
 }
 
 if (Test-Path -LiteralPath $OutArchive) { Remove-Item -LiteralPath $OutArchive -Force }
-# 注意：Windows 自带 tar.exe 无法把含非 ASCII 路径的清单文件（-T）转换为 wchar_t，
-# 必须改为 -C <StageRoot> . 直接归档目录内容；Windows 写出的 UTF-8 文件名在 Linux 侧解包正常。
+# Note: Windows built-in tar.exe cannot convert non-ASCII paths from a list file (-T) to
+# wchar_t, so archive the staged directory directly via -C <StageRoot> . instead.
+# UTF-8 file names written by Windows unpack correctly on Linux.
 Push-Location $StageRoot
 try {
   & tar.exe -czf $OutArchive -C $StageRoot .

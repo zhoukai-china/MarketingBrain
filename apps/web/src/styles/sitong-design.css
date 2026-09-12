@@ -82,8 +82,11 @@ body.proto-hidden .proto-bar{display:none}
 /* ---------- 设备框架 ---------- */
 body[data-device="desktop"] .app-wrap{max-width:1200px;margin:0 auto}
 body[data-device="mobile"]{background:var(--bg)}
-body[data-device="mobile"] .app-wrap{max-width:410px;margin:20px auto;
-  border:10px solid #16223c;border-radius:38px;overflow:hidden;box-shadow:var(--shadow-lg);
+/* 真机上不再画「手机外壳」（2026-09-11）：10px 边框 + 38px 圆角 + 20px 外边距
+   是给原型设备预览用的，放到真机上会平白吃掉 30px 首屏高度，把顶栏 Tab 挤出首屏。
+   真机只保留整宽布局与背景光晕。 */
+body[data-device="mobile"] .app-wrap{max-width:100%;margin:0 auto;
+  border:none;border-radius:0;box-shadow:none;overflow-x:hidden;
   background:var(--bg);position:relative}
 body[data-device="mobile"] .app-wrap::before{
   content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
@@ -113,6 +116,11 @@ body[data-device="mobile"] .proto-bar{border-radius:0}
 .wallet-pill b{color:var(--accent2);font-size:16px;font-variant-numeric:tabular-nums}
 .wallet-pill.locked{color:var(--muted)}
 .wp-tag{font-size:11px;color:var(--ok);border:1px solid rgba(52,216,160,.4);border-radius:10px;padding:1px 8px;background:rgba(52,216,160,.08)}
+/* 退出登录（2026-09-11）：此前货架页登入后没有任何退出入口，
+   商家换账号只能自己清浏览器缓存——加一个明确的退出入口。 */
+.logout-link{margin-left:8px;padding:7px 12px;border-radius:10px;border:1px solid var(--line);background:var(--glass);
+  color:var(--muted);font-size:13px;cursor:pointer;white-space:nowrap;transition:.18s;box-shadow:var(--inset-hi)}
+.logout-link:hover{color:var(--accent);border-color:rgba(255,138,61,.45)}
 
 /* ---------- 通用横幅 ---------- */
 .shared-banner{padding:10px 26px;font-size:13px;letter-spacing:.2px;
@@ -320,7 +328,7 @@ body[data-device="mobile"] .zone-chip{font-size:12px;padding:6px 11px}
 .recharge-gate{background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.4);border-radius:13px;padding:15px;font-size:13px;line-height:1.7;color:var(--danger)}
 .recharge-gate a{color:var(--accent2);text-decoration:underline}
 
-/* ---------- 我的智能体 ---------- */
+/* ---------- 常用智能体 ---------- */
 .mine-top{display:grid;grid-template-columns:250px 1fr;gap:18px;margin:12px 0 26px}
 .balance-card{position:relative;overflow:hidden;background:linear-gradient(155deg, rgba(255,255,255,.08), rgba(255,255,255,.025));
   border:1px solid var(--line);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;gap:7px;
@@ -515,6 +523,18 @@ body[data-device="mobile"] .brand-sub{display:none}
 body[data-device="mobile"] .nav-link{font-size:13px;padding:5px 8px}
 body[data-device="mobile"] .theme-toggle{padding:5px 9px;font-size:12px}
 body[data-device="mobile"] .wallet-pill{padding:6px 10px;font-size:12px}
+/* 移动端顶栏（2026-09-11）：Tab 必须是「一行文字 + 可点宽度」，
+   不能像以前那样被挤成 46px 的竖排字；钱包胶囊也不能溢出屏幕右侧。 */
+body[data-device="mobile"] .topbar{flex-wrap:wrap;gap:8px 10px}
+body[data-device="mobile"] .brand{flex:1 1 auto;min-width:0}
+body[data-device="mobile"] .topnav{order:9;flex:1 1 auto;min-width:0;margin-left:0;justify-content:space-between;gap:6px}
+/* 主题切换排到 Tab 行末尾（order 10）：首行留给「品牌 + 钱包 + 退出登录」，
+   第二行是 Tab + 主题切换，顶栏稳定两行、不占满首屏。 */
+body[data-device="mobile"] .theme-toggle{order:10;flex:0 0 auto}
+body[data-device="mobile"] .nav-link{flex:1 1 0;min-width:0;white-space:nowrap;text-align:center;padding:7px 6px}
+body[data-device="mobile"] .wallet-pill{flex:0 0 auto;margin-left:auto;max-width:100%;white-space:nowrap}
+body[data-device="mobile"] .wallet-pill .wp-tag{display:none}
+body[data-device="mobile"] .logout-link{padding:6px 10px;font-size:12px}
 body[data-device="mobile"] .hero{padding:20px 2px 18px}
 body[data-device="mobile"] .hero p{font-size:14px;line-height:1.6}
 body[data-device="mobile"] .h-cta-item{font-size:11.5px;padding:6px 11px}
@@ -616,6 +636,12 @@ body[data-device="mobile"] .drawer-body{padding:14px}
   --glow-blue:0 12px 30px rgba(255,255,255,.05);
   --inset-hi:inset 0 1px 0 rgba(255,255,255,.9);
   --drawer-bg:linear-gradient(165deg,#FFFFFF,#F1F6FC);
+  /* 浅色主题补 token（2026-09-11）：此前 `--topbar-bg` / `--toast-bg` / `--ovl-bg`
+     只在 :root 的深色里有值，浅色主题下顶栏仍是 `rgba(15,15,19,.72)` 的近黑玻璃，
+     在浅色页面上像「一块没加载完的黑条」（QA-20260911-012）。 */
+  --topbar-bg:rgba(255,255,255,.86);
+  --toast-bg:rgba(255,255,255,.97);
+  --ovl-bg:rgba(16,32,64,.45);
   --c-purple:#5B3FBF; --c-purple-2:#6B4FC7; --c-purple-3:#4A2FA8;
   --c-red:#C0392B; --c-red-2:#A93226;
   --c-green:#0B7A54; --c-green-2:#0E8A5F;
@@ -817,3 +843,131 @@ body[data-device="mobile"] .ipr-overview-table td{font-size:12.5px}
 body[data-device="mobile"] .ipr-tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 body[data-device="mobile"] .ipr-tab{padding:7px 10px}
 body[data-device="mobile"] .ipr-topics{max-height:300px}
+
+/* =====================================================================
+   视频复盘（vidrev）报告
+   契约：CODEX-视频复盘智能体-样例输出.md §七（第零章置顶不可折叠 / 四象限可点击筛选 /
+   配比堆叠条 / 分桶与周趋势柱状图同时画均值+中位数 / 移动端图表横滚 + 表格前三列固定）
+   ===================================================================== */
+.vrv{display:flex;flex-direction:column;gap:14px;margin-top:6px}
+.vrv-export{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.vrv-queued{font-size:12px;color:var(--ok)}
+.vrv-action{margin-top:10px;padding:11px 13px;border-radius:12px;background:rgba(255,138,61,.12);
+  border:1px solid rgba(255,138,61,.32);font-size:13.5px;line-height:1.7;font-weight:700;color:var(--text)}
+.vrv-warn{margin-top:12px;padding:11px 13px;border-radius:12px;background:rgba(255,176,32,.12);
+  border:1px solid rgba(255,176,32,.4);font-size:13px;line-height:1.7;color:var(--text)}
+.vrv-warn>b{display:block;margin-bottom:6px;color:#ffcf7a}
+.vrv-warn ol,.vrv-warn ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.vrv-warn.soft{background:var(--glass);border-color:var(--line)}
+.vrv-warn.soft>b{color:var(--muted)}
+.vrv-note{margin-top:10px;font-size:13px;line-height:1.7;color:var(--muted)}
+.vrv-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+/* 四象限 */
+.vrv-quad{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.vrv-quad-cell{display:flex;flex-direction:column;gap:4px;padding:12px 13px;border-radius:14px;text-align:left;
+  cursor:pointer;background:var(--glass-2);border:1px solid var(--line);box-shadow:var(--inset-hi);color:var(--text);
+  transition:border-color .15s ease,transform .15s ease}
+.vrv-quad-cell:hover{transform:translateY(-1px);border-color:var(--line-strong)}
+.vrv-quad-cell.on{border-color:rgba(255,138,61,.6);background:rgba(255,138,61,.14)}
+.vrv-quad-cell b{font-size:14px}
+.vrv-quad-count{font-size:20px;font-weight:800;color:var(--accent2);font-variant-numeric:tabular-nums}
+.vrv-quad-cell em{font-size:11.5px;color:var(--muted-2);font-style:normal}
+.vrv-quad-ids{font-size:11.5px;color:var(--muted);word-break:break-all}
+.vrv-quad-axis{margin-top:8px;font-size:12px;color:var(--muted-2)}
+.vrv-quad-notes{margin-top:10px}
+.vrv-quad-detail{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
+.vrv-video-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:8px}
+.vrv-video-card{display:flex;flex-direction:column;gap:5px;padding:11px 12px;border-radius:12px;
+  background:var(--glass);border:1px solid var(--line);box-shadow:var(--inset-hi)}
+.vrv-video-card b{font-size:13px;line-height:1.6;font-weight:700}
+.vrv-video-sub{font-size:11.5px;color:var(--muted-2)}
+.vrv-video-metrics{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* 配比堆叠条 */
+.vrv-stack{margin-bottom:14px}
+.vrv-stack-bar{display:flex;height:26px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+.vrv-stack-seg{display:flex;align-items:center;justify-content:center;opacity:.92;transition:filter .15s ease}
+.vrv-stack-seg:hover{filter:brightness(1.18)}
+.vrv-stack-seg em{font-size:11px;font-style:normal;color:#fff;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5);white-space:nowrap}
+.vrv-stack-legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.vrv-stack-legend span{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--muted);
+  padding:3px 8px;border-radius:99px;border:1px solid transparent}
+.vrv-stack-legend span.on{border-color:var(--line);background:var(--glass)}
+.vrv-stack-legend i{width:9px;height:9px;border-radius:3px;display:inline-block}
+.vrv-stack-tip{margin-top:8px;font-size:12px;color:var(--muted-2);min-height:18px}
+.vrv-adjust{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px}
+.vrv-adjust>div{padding:10px 12px;border-radius:12px;background:var(--glass);border:1px solid var(--line)}
+.vrv-adjust b{display:block;font-size:12px;color:var(--accent2);margin-bottom:6px}
+.vrv-adjust ul{margin:0;padding-left:16px;font-size:12.5px;line-height:1.7;color:var(--text)}
+
+/* 均值 / 中位数柱状图 */
+.vrv-bars{margin:6px 0 12px}
+.vrv-bars-legend{display:flex;gap:14px;font-size:11.5px;color:var(--muted);margin-bottom:8px}
+.vrv-bars-legend span{display:flex;align-items:center;gap:5px}
+.vrv-bars-legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.vrv-bars-legend i.mean{background:var(--accent-deep)}
+.vrv-bars-legend i.median{background:#4aa8ff}
+.vrv-bars-grid{display:flex;align-items:flex-end;gap:14px;padding:10px 4px 0;border-bottom:1px solid var(--line)}
+.vrv-bars-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:72px}
+.vrv-bars-plot{display:flex;align-items:flex-end;gap:5px;height:132px;width:100%;justify-content:center}
+.vrv-bar{position:relative;width:26px;border-radius:6px 6px 0 0;min-height:2px;display:flex;justify-content:center}
+.vrv-bar.mean{background:linear-gradient(180deg,#ffa45c,#e0641a)}
+.vrv-bar.median{background:linear-gradient(180deg,#7cc3ff,#2f8fd8)}
+.vrv-bar em{position:absolute;top:-16px;font-size:10.5px;font-style:normal;color:var(--muted);
+  white-space:nowrap;font-variant-numeric:tabular-nums}
+.vrv-bars-label{font-size:12px;font-weight:700;color:var(--text)}
+.vrv-bars-sub{font-size:10.5px;color:var(--muted-2);margin-bottom:8px;text-align:center}
+
+/* 深拆 / 方法论 / 选题 */
+.vrv-dive{padding:10px 0;border-bottom:1px dashed var(--line)}
+.vrv-dive:last-child{border-bottom:0}
+.vrv-dive-metrics{font-size:12.5px;color:var(--muted);line-height:1.8;font-variant-numeric:tabular-nums}
+.vrv-method{padding:10px 0;border-bottom:1px dashed var(--line)}
+.vrv-method p{margin:6px 0;font-size:13.5px;line-height:1.7;color:var(--text)}
+.vrv-method-meta{font-size:12.5px;color:var(--muted)}
+.vrv-next{margin-bottom:10px}
+.vrv-candidates{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:8px}
+.vrv-candidate{display:flex;flex-direction:column;gap:7px;padding:12px 13px;border-radius:14px;
+  background:linear-gradient(165deg,rgba(255,138,61,.10),rgba(255,255,255,.02));border:1px solid rgba(255,138,61,.3)}
+.vrv-candidate b{font-size:13.5px;line-height:1.6}
+.vrv-candidate>span{font-size:12.5px;color:var(--muted);line-height:1.7}
+.vrv-candidate-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px}
+.vrv-raw summary{cursor:pointer;font-size:12.5px;color:var(--accent2)}
+.vrv-raw[open] summary{margin-bottom:10px}
+.vrv-quick .cr-list li{font-size:13.5px}
+
+/* 快捷选项按钮（视频复盘的模式 / 平台） */
+.chat-choices{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.chat-choice{font-size:12.5px;padding:8px 13px;border-radius:999px;cursor:pointer;color:var(--text);
+  background:var(--glass-2);border:1px solid var(--line);box-shadow:var(--inset-hi);
+  transition:border-color .15s ease,color .15s ease}
+.chat-choice:hover{border-color:rgba(255,138,61,.5);color:var(--accent2)}
+.chat-choice:disabled{opacity:.5;cursor:not-allowed}
+
+/* 移动端：图表横滚 + 表格前三列固定 */
+body[data-device="mobile"] .vrv-table-fix th:nth-child(-n+3),
+body[data-device="mobile"] .vrv-table-fix td:nth-child(-n+3){position:sticky;background:var(--bg2);z-index:1}
+body[data-device="mobile"] .vrv-table-fix th:nth-child(1),body[data-device="mobile"] .vrv-table-fix td:nth-child(1){left:0}
+body[data-device="mobile"] .vrv-table-fix th:nth-child(2),body[data-device="mobile"] .vrv-table-fix td:nth-child(2){left:96px}
+body[data-device="mobile"] .vrv-table-fix th:nth-child(3),body[data-device="mobile"] .vrv-table-fix td:nth-child(3){left:180px}
+body[data-device="mobile"] .vrv-quad{grid-template-columns:1fr}
+body[data-device="mobile"] .vrv-video-grid{grid-template-columns:1fr}
+body[data-device="mobile"] .vrv-candidates{grid-template-columns:1fr}
+body[data-device="mobile"] .vrv-bars-col{min-width:84px}
+
+/* 真实移动端断点：main.tsx 把 body[data-device] 固定为 desktop，
+   因此上面按 data-device 的规则在浏览器里不会命中；此处用视口宽度兜底。 */
+@media (max-width:640px){
+  .vrv-quad{grid-template-columns:1fr}
+  .vrv-video-grid{grid-template-columns:1fr}
+  .vrv-candidates{grid-template-columns:1fr}
+  .vrv-bars-col{min-width:84px}
+}
+@media (max-width:520px){
+  .vrv-table-fix th:nth-child(-n+3),
+  .vrv-table-fix td:nth-child(-n+3){position:sticky;background:var(--bg2);z-index:1}
+  .vrv-table-fix th:nth-child(1),.vrv-table-fix td:nth-child(1){left:0}
+  .vrv-table-fix th:nth-child(2),.vrv-table-fix td:nth-child(2){left:96px}
+  .vrv-table-fix th:nth-child(3),.vrv-table-fix td:nth-child(3){left:180px}
+}

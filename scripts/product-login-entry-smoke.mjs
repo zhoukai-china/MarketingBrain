@@ -53,7 +53,19 @@ assert.match(schema, /productCode\s+String\?/, "数据库邀请码缺少产品�
 assert.match(schema, /model TenantProductEntitlement/, "无独立智能体的产品也必须有产品级授权记录");
 assert.match(main, /stale generic[\s\S]*diagnosis state/, "产品登录页必须隔离旧通用诊断状态");
 assert.match(main, /PRODUCT_LOGIN_DEFINITIONS\[loginEntry\]\.defaultPath/, "产品登录完成后必须回到对应产品默认页面");
-assert.match(main, /if \(path === "\/" \|\| path === ""\) \{[\s\S]{0,120}getAppPath\("\/market"\)/, "平台根路径必须直接落到货架首页，不能落进旧的单品落地页");
+assert.match(main, /if \(path === "\/" \|\| path === ""\) \{[\s\S]{0,200}getAppPath\("\/agents"\)/, "平台根路径必须直接落到平台首页（/agents），不能落进旧的单品落地页");
+// 平台首页更名（2026-09-11，产品对外叫「智能体平台」，入口不再用 market）：
+// 老链接 `/market*` 必须按同后缀 1:1 跳到 `/agents*`，不许 404，也不许笼统塞回首页。
+assert.match(
+  main,
+  /path === "\/market" \|\| path\.startsWith\("\/market\/"\)[\s\S]{0,160}getAppPath\(`\/agents\$\{path\.slice\("\/market"\.length\)\}`\)/,
+  "旧地址 /market* 必须按同后缀跳到 /agents*",
+);
+assert.match(
+  main,
+  /path === "\/agents" \|\| path === "\/agents\/"\) \{[\s\S]{0,80}<MarketplaceHomePage \/>/,
+  "平台首页必须由 /agents 精确匹配渲染（不得吞掉 /agents/:slug 单品页）",
+);
 // 登录死循环修复（QA-20260910-018）：以前只看 localStorage 有没有 token 就把
 // `/login` 弹回货架，token 失效后用户会在登录页和货架之间来回跳。现在必须在
 // 服务端探针确认会话仍有效时才回货架，失效会话要清掉本地 token 再渲染登录页。
@@ -70,7 +82,7 @@ assert.match(
 );
 assert.match(
   main,
-  /result === "valid"[\s\S]{0,120}window\.location\.replace\(takePostLoginRedirect\("\/market"\)\)/,
+  /result === "valid"[\s\S]{0,120}window\.location\.replace\(takePostLoginRedirect\("\/agents"\)\)/,
   "会话探针确认有效时，访问平台登录页必须回平台首页（保留一次性安全回跳）",
 );
 assert.match(

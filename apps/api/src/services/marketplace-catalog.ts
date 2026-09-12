@@ -18,6 +18,28 @@ const MARKETPLACE_ZONE_ICONS: Record<string, string> = {
   chongwu: "🐾"
 };
 
+/**
+ * 开卖状态（`ov.<skill>.status`）以**发布文件** `marketplace-v3.json` 为准，不从数据库专区 profile 读。
+ *
+ * 原因：专区 profile 行支持运维在运行时改（`PATCH /market/admin/industries/:key`），
+ * 而 `syncMarketplaceIndustryProfiles()` 只在首次建行时写入 `ov`、之后不再覆盖；而
+ * `loadMarketplaceIndustryProfiles()` 又会用库里的 `ov` 覆盖内存里的文件值。
+ * 于是「改文件 + 发版」在库里已有 profile 行的环境下会静默失效
+ * （2026-09-11 实测：文件已是 selling，线上仍是 coming_soon）。
+ * 开卖=动钱，必须随发布走、可回滚，所以这里固定读发布文件的 `ov.<skill>.status`。
+ */
+const MARKETPLACE_SKU_STATUS_OVERRIDES: Record<string, Record<string, string>> = Object.fromEntries(
+  Object.entries(v3Data.industries).map(([zoneKey, industry]) => {
+    const ov = (industry.ov ?? {}) as Record<string, Record<string, unknown>>;
+    const perSkill: Record<string, string> = {};
+    for (const [skillId, entry] of Object.entries(ov)) {
+      const status = industryValue(entry?.status);
+      if (status) perSkill[skillId] = status;
+    }
+    return [zoneKey, perSkill];
+  })
+);
+
 export const MARKETPLACE_ZONES = Object.values(v3Data.industries).map((industry) => ({
   key: String(industry.key),
   name: String(industry.title),
@@ -542,7 +564,12 @@ function buildMarketplaceSkuSeeds(): MarketplaceSkuSeed[] {
         subscriptionPriceCny: typeof sub.price === "number" ? sub.price : undefined,
         subscriptionQuota: typeof sub.quota === "string" ? sub.quota : undefined,
         trial: Boolean(core.trial),
-        status: normalizeMarketplaceSkuStatus(core.status),
+        // 专区级 override 可以单独改开卖状态：同一个内核在不同专区的准备度不同。
+        // 优先取发布文件里的 `ov.<skill>.status`（见 MARKETPLACE_SKU_STATUS_OVERRIDES 注释），
+        // 其次取内存 override（可能来自库里的专区 profile），最后回落到内核缺省状态。
+        status: normalizeMarketplaceSkuStatus(
+          MARKETPLACE_SKU_STATUS_OVERRIDES[industryKey]?.[skillId] ?? override.status ?? core.status
+        ),
         sortOrder: seeds.length
       });
     }

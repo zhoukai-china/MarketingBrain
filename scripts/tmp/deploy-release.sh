@@ -16,6 +16,10 @@ SERVICE="${4:?service name}"
 ENV_FILE="${5:?env file}"
 PORT="${6:?port}"
 VITE_BASE="${7:?vite base path}"
+# Optional 8th arg: local copy of the release's ".deleted.txt" (paths intentionally removed
+# from the source tree in this release). Overlay is additive, so those paths would otherwise
+# linger on the server forever. Without this arg the deploy behaves exactly as before.
+DELETED_LIST="${8:-}"
 
 STAGE="/opt/baolu-stage/${REL}"
 # 允许用 BACKUP_TAG 指定备份前缀，重跑时保留上一轮备份不被覆盖
@@ -118,8 +122,16 @@ SRC_HASH="$(sha256sum "$STAGE/apps/api/src/data/marketplace-v3.json" | awk '{pri
 DIST_HASH="$(sha256sum "$STAGE/apps/api/dist/apps/api/src/data/marketplace-v3.json" | awk '{print $1}')"
 echo "marketplace src=$SRC_HASH dist=$DIST_HASH"
 test "$SRC_HASH" = "$DIST_HASH"
-test "$SRC_HASH" = "2eec39bd3ea2b9821d8ad8113c63123c580e0f72f0063fe06890feb9553752e4"
-grep -rq '≈ ¥' "$STAGE/apps/web/dist/assets"
+test "$SRC_HASH" = "a668b6429315914e14e7d72601967e8f93a2006ecb9297dd59f283f0ba467416"
+# PLAT-19（用户 2026-09-12）：面向客户的页面只显示积分，不再显示折算人民币。
+# 旧断言要求产物里必须出现 '≈ ¥'，与 PLAT-19 的用户口径直接冲突（2026-09-12 首次
+# LQ-23 发布即被它卡在「第 4 步」）。这里改为反向断言 + 正向断言「扣费提示仍有积分」，
+# 口径契约的权威门禁是 `pnpm marketplace:credits-only-contract-smoke`（已挂 qa:fast）。
+if grep -rq '≈ ¥' "$STAGE/apps/web/dist/assets"; then
+  echo "!!! customer web bundle still shows RMB conversion (≈ ¥); PLAT-19 forbids it" >&2
+  false
+fi
+grep -rq '积分' "$STAGE/apps/web/dist/assets"
 echo "build artifacts OK"
 
 step "5. backup"
@@ -153,6 +165,36 @@ while IFS= read -r f; do
   case "$f" in */*) ;; *) [ -e "$APP/$f" ] && sudo chown admin:admin "$APP/$f" ;; esac
 done < "/tmp/rel-files-${REL}.txt"
 echo "overlay applied"
+
+step "7a. remove files intentionally deleted by this release"
+# 叠加发布不会删除服务器上的历史文件；本步按发布方给出的删除清单清理同名残留。
+# 安全约束：只允许删除源码树白名单前缀下的路径，拒绝空路径、绝对路径和 ".."；
+# 删除清单在备份阶段已存为 $BACKUP/deleted-paths.txt，回滚时 app-before.tar.gz 会把这些文件还原。
+if [ -n "$DELETED_LIST" ] && [ -f "$DELETED_LIST" ]; then
+  cp "$DELETED_LIST" "$BACKUP/deleted-paths.txt"
+  removed=0
+  while IFS= read -r f; do
+    f="$(printf '%s' "$f" | tr -d '\r' | sed 's#^\./##')"
+    [ -n "$f" ] || continue
+    case "$f" in
+      apps/*|packages/*|docs/*|mcp-skills/*|scripts/*) ;;
+      *) echo "SKIP (outside allowlist): $f"; continue ;;
+    esac
+    case "$f" in
+      /*|*..*) echo "SKIP (suspicious path): $f"; continue ;;
+    esac
+    if [ -e "$APP/$f" ]; then
+      sudo rm -f "$APP/$f"
+      echo "removed: $f"
+      removed=$(( removed + 1 ))
+    else
+      echo "already absent: $f"
+    fi
+  done < "$DELETED_LIST"
+  echo "stale files removed: $removed (list: $DELETED_LIST)"
+else
+  echo "no deleted-list supplied; skipping (additive overlay only)"
+fi
 
 step "7b. prisma client in target (QA-20260911-001 guard)"
 # 关键：第 3 步的 prisma generate 跑在 $STAGE，但第 7 步 overlay 只拷

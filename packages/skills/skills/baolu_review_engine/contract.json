@@ -52,6 +52,26 @@
     "可验证规律",
     "下一周期单变量测试建议"
   ],
+  "marketplaceChapterContract": {
+    "appliesTo": "思潼AI 货架 vidrev（ipzone__vidrev / meiye__vidrev），由 apps/api/src/services/video-review-engine.ts 校验；本文件不改动 legacy 运行链",
+    "shape": "H1 报告标题 + 11 个 H2（零~十），章节内禁止 H3/H4",
+    "chapters": [
+      "⓪ 数据质量审计",
+      "一、数据总览",
+      "二、视频分层",
+      "三、内容结构健康度",
+      "四、单条深拆",
+      "五、完播率深层归因",
+      "六、互动深度分析",
+      "七、趋势预警",
+      "八、规律总结",
+      "九、方法论沉淀",
+      "十、下个周期选题建议"
+    ],
+    "boldingCap": 12,
+    "emojiAllowList": ["🔴", "🟡", "🟢"],
+    "violationScanScope": "仅扫描第十章候选选题，不误伤正文"
+  },
   "forbiddenTerms": [
     "完整内容执行包",
     "拍摄脚本",

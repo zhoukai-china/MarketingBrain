@@ -1,5 +1,4 @@
 import { useEffect, useState, type RefObject } from "react";
-import { yuanLabelForCredits } from "@baolu/shared";
 import type { ConsultantId, ChatMessage } from "../../types";
 import { ipAcquisitionCapabilities, type IpAcquisitionCapability, type IpAcquisitionCapabilityId } from "../../data/ipAcquisitionAgent";
 import { apiPath } from "../../lib/api";
@@ -96,7 +95,7 @@ export function ChatMessages({ messages, busy, thinkingStep, currentConsultantId
               {msg.role === "advisor" && (
                 <div className="messageDownloadBar" aria-label="下载交付件">
                   <button type="button" onClick={() => void downloadAnswerDocx(msg.content)}>
-                    {`下载精美 Word${docxPrice ? ` · ${docxPrice} 积分（${yuanLabelForCredits(docxPrice)}）` : ""}`}
+                    {`下载精美 Word${docxPrice ? ` · ${docxPrice} 积分` : ""}`}
                   </button>
                 </div>
               )}

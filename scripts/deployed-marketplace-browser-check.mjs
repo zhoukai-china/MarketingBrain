@@ -1,5 +1,6 @@
 // 已部署实例的真实浏览器只读验收：打线上/测试环境的公开 URL，不写任何数据。
-// 覆盖：货架渲染、积分→人民币折算（≈ ¥）、7 个未完成内核显示「开发中」、IP 定位详情页「按结果付费 + 重做」文案、控制台无新增错误。
+// 覆盖：货架渲染、「只显示积分、不显示人民币折算」（PLAT-19）、未完成内核显示「开发中」、
+// IP 定位详情页「按结果付费 + 重做」文案、控制台无新增错误。
 // 用法：DEPLOY_CHECK_WEB_URL=https://api.lcppch.top/lanqi-test node scripts/deployed-marketplace-browser-check.mjs
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -12,7 +13,7 @@ const chromePath = process.env.DEPLOY_CHECK_CHROME_PATH ?? "C:\\Program Files\\G
 const shotDir = process.env.DEPLOY_CHECK_SHOT_DIR ?? path.join(tmpdir(), `deployed-marketplace-check-${Date.now()}`);
 
 const IP_POS_SKU = "ipzone__ip-pos";
-/** 创始人 IP 专区 9 个内核里，7 个未完成内核必须是「开发中」。 */
+/** 全页「开发中」占位下限：创始人IP专区 6 + 美业专区 6（+ 兰琪专区 1）= 13，只要货架生效就远高于 7。 */
 const COMING_SOON_MIN = 7;
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -127,15 +128,19 @@ async function main() {
     await cdp.send("Runtime.enable", {}, sessionId);
     await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 1200, deviceScaleFactor: 1, mobile: false }, sessionId);
 
-    // 1. 货架首页：专区、积分标价与人民币折算、未完成内核的「开发中」占位。
-    await cdp.send("Page.navigate", { url: `${webBase}/market` }, sessionId);
+    // 1. 货架首页（`/agents`，2026-09-11 前是 `/market`）：专区、积分标价与人民币折算、
+    //    未完成内核的「开发中」占位。
+    await cdp.send("Page.navigate", { url: `${webBase}/agents` }, sessionId);
     await waitFor(cdp, sessionId, `() => document.body.innerText.includes("创始人IP专区")`);
     await waitFor(cdp, sessionId, `() => document.body.innerText.includes("IP定位智能体")`);
     const shelfText = await evaluate(cdp, sessionId, `() => document.body.innerText`);
-    const shelfShot = await shoot(cdp, sessionId, "01-shelf-market");
-    await writeFile(path.join(shotDir, "01-shelf-market.txt"), shelfText, "utf8");
+    const shelfShot = await shoot(cdp, sessionId, "01-shelf-agents");
+    await writeFile(path.join(shotDir, "01-shelf-agents.txt"), shelfText, "utf8");
     assert.match(shelfText, /行业智能体平台/, "shelf shows the platform brand");
-    assert.match(shelfText, /200 积分\/次 · ≈ ¥10/, "IP 定位标价同时展示积分与人民币折算");
+    // PLAT-19（用户 2026-09-12）：客户界面只显示消耗多少积分，不再显示折算人民币。
+    assert.match(shelfText, /200 积分\/次/, "IP 定位标价只显示积分");
+    assert.doesNotMatch(shelfText, /≈\s*¥/, "货架不得再显示「≈ ¥」人民币折算");
+    assert.doesNotMatch(shelfText, /积分[^。\n]{0,14}¥/, "积分后面不得再跟人民币金额");
     const totalSoon = (shelfText.match(/开发中/g) ?? []).length;
     assert.ok(totalSoon >= COMING_SOON_MIN, `未完成内核必须显示「开发中」，实际出现 ${totalSoon} 处`);
 
@@ -145,7 +150,9 @@ async function main() {
     const detailText = await evaluate(cdp, sessionId, `() => document.body.innerText`);
     const detailShot = await shoot(cdp, sessionId, "02-agent-ip-pos");
     await writeFile(path.join(shotDir, "02-agent-ip-pos.txt"), detailText, "utf8");
-    assert.match(detailText, /积分\/次 · ≈ ¥/, "detail page shows credits with yuan conversion");
+    assert.match(detailText, /积分\/次/, "detail page shows credits");
+    assert.doesNotMatch(detailText, /≈\s*¥/, "详情页不得再显示「≈ ¥」人民币折算");
+    assert.doesNotMatch(detailText, /\(¥|（¥|\(≈|（≈/, "详情页扣费提示不得再带人民币金额");
     assert.match(detailText, /不满意可申请重做一次，不重复扣积分/, "detail page explains the free-redo fallback");
 
     // 3. 该实例的直达入口（免登录实例落兰琪驾驶舱）必须仍然能打开，不受本次发布影响。
@@ -162,7 +169,8 @@ async function main() {
       "deployed_marketplace_browser_check:PASS"
       + ` base=${webBase}`
       + " shelf=PASS"
-      + " credits_yuan=PASS"
+      + " credits_only=PASS"
+      + " no_yuan_conversion=PASS"
       + ` coming_soon_count=${totalSoon}`
       + " detail_redo_copy=PASS"
       + " direct_test_entry=PASS"

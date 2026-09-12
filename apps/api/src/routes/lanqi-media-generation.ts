@@ -4,17 +4,28 @@ import type { LlmProvider } from "@baolu/agent";
 import { Prisma, prisma } from "@baolu/db";
 import { z } from "zod";
 import { env } from "../config/env.js";
-import { discardLanqiMediaAsset, lanqiMediaAssetUrl, markLanqiMediaAsset, persistLanqiMockImage, persistLanqiProviderImage, readLanqiMediaAsset } from "../services/lanqi-media-assets.js";
-import { cancelLanqiMediaTask, getLanqiMediaExecutionReadiness, getLanqiMediaTask, quoteLanqiMedia, submitLanqiMedia, validateLanqiMediaRequest, type LanqiMediaRequest } from "../services/lanqi-media-generation.js";
+import { discardLanqiMediaAsset, lanqiMediaAssetUrl, markLanqiMediaAsset, persistLanqiMockImage, persistLanqiProviderImage, persistLanqiProviderVideo, readLanqiMediaAsset } from "../services/lanqi-media-assets.js";
+import { LANQI_VIDEO_MAX_SECONDS, LANQI_VIDEO_MIN_SECONDS, cancelLanqiMediaTask, getLanqiMediaExecutionReadiness, getLanqiMediaTask, isSameLanqiMediaRequest, quoteLanqiMedia, submitLanqiMedia, validateLanqiMediaRequest, type LanqiMediaRequest } from "../services/lanqi-media-generation.js";
+import { resolveLanqiFirstFrameInput, stageLanqiFirstFrame, lanqiFirstFrameRequestFingerprint } from "../services/lanqi-media-staging.js";
 import { resolveRequestContext } from "../services/request-context.js";
 import { loadLanqiImagePreview, registerLanqiImageStudioRoutes } from "./lanqi-image-studio.js";
 
+const firstFrameIdPattern = /^lanqi-ff-[A-Za-z0-9]{16,64}$/;
+/**
+ * 视频侧「首帧图」的两种传法：
+ *  · firstFrameId —— 之前已经暂存好的图（第 3 步上传过，第 4 步直接生成）；
+ *  · firstFrame —— 本次现传的内容，服务端先落本平台自己的存储再签外链。
+ */
+type FirstFrameUpload = { contentType: string; dataBase64: string };
+type MediaRequestInput = LanqiMediaRequest & { firstFrameId?: string; firstFrame?: FirstFrameUpload };
 const mediaRequest = z.object({
   kind: z.enum(["image", "text_to_video", "image_to_video"]), prompt: z.string().trim().min(1).max(5000),
   negativePrompt: z.string().trim().max(5000).optional(), previewId: z.string().trim().regex(/^lanqi-image-[A-Za-z0-9_-]{12,160}$/).optional(),
   promptVersion: z.string().trim().min(1).max(80).optional(),
   resolution: z.enum(["720P", "1080P"]).optional(), ratio: z.enum(["1:1", "3:4", "16:9", "9:16"]).optional(),
-  durationSeconds: z.union([z.literal(5), z.literal(10)]).optional(), imageUrl: z.string().url().optional(), requestKey: z.string().regex(/^[A-Za-z0-9_-]{12,120}$/).optional(),
+  durationSeconds: z.number().int().min(LANQI_VIDEO_MIN_SECONDS).max(LANQI_VIDEO_MAX_SECONDS).optional(), imageUrl: z.string().url().optional(), requestKey: z.string().regex(/^[A-Za-z0-9_-]{12,120}$/).optional(),
+  firstFrameId: z.string().trim().regex(firstFrameIdPattern).optional(),
+  firstFrame: z.object({ contentType: z.string().trim().min(3).max(80), dataBase64: z.string().min(16).max(12_000_000) }).optional(),
 });
 const confirmationRequest = mediaRequest.extend({ confirmed: z.literal(true) });
 const callback = z.object({ taskId: z.string().min(1), status: z.string().min(1), outputUrl: z.string().url().optional(), errorMessage: z.string().max(500).optional() });
@@ -32,12 +43,14 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
     if (!parsed.success) return reply.code(400).send({ error: "invalid_request" });
     const bound = await bindTrustedImagePreview(context, parsed.data);
     if (!bound.ok) return reply.code(bound.statusCode).send({ error: bound.error, message: bound.message });
-    const input = bound.input;
+    const frame = await bindLanqiFirstFrame(context, bound.input);
+    if (!frame.ok) return reply.code(frame.statusCode).send({ error: frame.error, message: frame.message });
+    const input = frame.input;
     const issue = validateLanqiMediaRequest(input);
     if (issue) return reply.code(400).send({ error: "invalid_media_request", message: issue });
     const readiness = getLanqiMediaExecutionReadiness(input);
     const quote = quoteLanqiMedia(input);
-    const authorization = await resolveLanqiMediaAuthorization(context, readiness, quote.creditCost);
+    const authorization = await resolveLanqiMediaAuthorization(context, readiness, quote.creditCost, input.kind);
     request.log.info({ event: "lanqi_image_generation.quoted", tenantId: context.tenantId, previewId: input.previewId, promptVersion: input.promptVersion, mode: readiness.mode, canConfirm: authorization.canConfirm, blockCode: authorization.blockCode });
     return { creditCost: quote.creditCost, customerPriceYuan: quote.customerPriceYuan, canConfirm: authorization.canConfirm, billable: authorization.canConfirm && readiness.billable, executionMode: readiness.mode,
       blockCode: authorization.blockCode,
@@ -51,12 +64,16 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
     const context = await resolveRequestContext(request.headers);
     const bound = await bindTrustedImagePreview(context, parsed.data);
     if (!bound.ok) return reply.code(bound.statusCode).send({ error: bound.error, message: bound.message });
-    const input = bound.input;
+    const frame = await bindLanqiFirstFrame(context, bound.input);
+    if (!frame.ok) return reply.code(frame.statusCode).send({ error: frame.error, message: frame.message });
+    const input = frame.input;
     const issue = validateLanqiMediaRequest(input);
     if (issue) return reply.code(400).send({ error: "invalid_media_request", message: issue });
     const readiness = getLanqiMediaExecutionReadiness(input);
     const requestKey = input.requestKey ?? String(request.headers["x-idempotency-key"] ?? randomUUID());
     if (!/^[A-Za-z0-9_-]{12,120}$/.test(requestKey)) return reply.code(400).send({ error: "invalid_request_key" });
+    // 指纹取「稳定暂存 ID」优先；只有外部直传 imageUrl 时才退化成原始 URL（绝不是签名外链）。
+    const firstFrameFingerprint = lanqiFirstFrameRequestFingerprint({ kind: input.kind, firstFrameId: frame.firstFrameId, imageUrl: input.imageUrl });
     if (readiness.mode === "mock") {
       if (!readiness.canConfirm) return reply.code(409).send({ error: "media_execution_blocked", message: readiness.blockedReason });
       try {
@@ -71,11 +88,11 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
     if (context.source === "demo") return reply.code(409).send({ error: "demo_execution_disabled", message: "当前体验环境不会创建付费生成任务，也不会扣积分。" });
     const existing = await prisma.lanqiMediaJob.findFirst({ where: { tenantId: context.tenantId, requestKey } });
     if (existing) {
-      if (!sameRequest(existing, input)) return reply.code(409).send({ error: "request_key_conflict", message: "本次输入已经变化，请重新发起生成。" });
+      if (!sameRequest(existing, input, firstFrameFingerprint)) return reply.code(409).send({ error: "request_key_conflict", message: "本次输入已经变化，请重新发起生成。" });
       return { job: serialize(existing), idempotent: true };
     }
     const quote = quoteLanqiMedia(input);
-    const authorization = await resolveLanqiMediaAuthorization(context, readiness, quote.creditCost);
+    const authorization = await resolveLanqiMediaAuthorization(context, readiness, quote.creditCost, input.kind);
     if (!authorization.canConfirm) return reply.code(authorization.blockCode === "quota_exhausted" ? 429 : 409).send({ error: authorization.blockCode ?? "media_execution_blocked", message: authorization.message });
     let job: any;
     try {
@@ -84,7 +101,7 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
         if (!account || account.balance < quote.creditCost) throw Object.assign(new Error("insufficient_credits"), { statusCode: 402 });
         const created = await tx.lanqiMediaJob.create({ data: { tenantId: context.tenantId, userId: context.userId, requestKey, kind: input.kind, provider: quote.provider, model: quote.model,
           previewId: input.previewId, promptVersion: input.promptVersion ?? "unknown", prompt: input.prompt, negativePrompt: input.negativePrompt,
-          parameters: { ratio: input.ratio, resolution: input.resolution, durationSeconds: input.durationSeconds, watermark: true } as Prisma.InputJsonValue,
+          parameters: { ratio: input.ratio, resolution: input.resolution, durationSeconds: input.durationSeconds, watermark: true, firstFrameId: firstFrameFingerprint } as Prisma.InputJsonValue,
           imageUrl: input.imageUrl, resolution: input.resolution, ratio: input.ratio, durationSeconds: input.durationSeconds, creditCost: quote.creditCost } });
         await tx.creditAccount.update({ where: { id: account.id }, data: { balance: { decrement: quote.creditCost } } });
         await tx.creditTransaction.create({ data: { creditAccountId: account.id, tenantId: context.tenantId, userId: context.userId, direction: "consume", amount: quote.creditCost, reason: "lanqi_media_generation", refType: "lanqi_media_job", refId: created.id } });
@@ -94,7 +111,7 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
       if ((error as { statusCode?: number }).statusCode === 402) return reply.code(402).send({ error: "insufficient_credits", message: "积分不足，本次没有创建任务或扣费。" });
       if ((error as { code?: string }).code === "P2002") {
         const concurrent = await prisma.lanqiMediaJob.findFirst({ where: { tenantId: context.tenantId, requestKey } });
-        if (concurrent && sameRequest(concurrent, input)) return { job: serialize(concurrent), idempotent: true };
+        if (concurrent && sameRequest(concurrent, input, firstFrameFingerprint)) return { job: serialize(concurrent), idempotent: true };
       }
       throw error;
     }
@@ -110,11 +127,13 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
     }
   });
 
-  app.get("/lanqi/media/jobs", async request => {
+  app.get<{ Querystring: { kind?: string } }>("/lanqi/media/jobs", async (request, reply) => {
     const context = await resolveRequestContext(request.headers);
+    const kinds = parseLanqiMediaJobKinds(request.query?.kind);
+    if (!kinds) return reply.code(400).send({ error: "invalid_kind_filter", message: "任务类型筛选不合法。" });
     if (env.LANQI_MEDIA_EXECUTION_MODE === "mock") return { jobs: (mockJobs.get(context.tenantId) ?? []).map(toPublicMock) };
     if (context.source === "demo") return { jobs: [] };
-    const jobs = await prisma.lanqiMediaJob.findMany({ where: { tenantId: context.tenantId, kind: "image" }, orderBy: { createdAt: "desc" }, take: 30 });
+    const jobs = await prisma.lanqiMediaJob.findMany({ where: { tenantId: context.tenantId, kind: { in: kinds } }, orderBy: { createdAt: "desc" }, take: 30 });
     return { jobs: jobs.map(serialize) };
   });
 
@@ -138,7 +157,7 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
       const status = provider.status.toLowerCase();
       if (["succeeded", "success"].includes(status)) {
         if (!provider.outputUrl) throw new Error("provider_output_missing");
-        await persistLanqiProviderImage({ tenantId: job.tenantId, jobId: job.id, sourceUrl: provider.outputUrl });
+        await persistLanqiProviderOutput(job, provider.outputUrl);
         const finalized = await finalizeSuccess(job, provider.status);
         if (!finalized.accepted) await discardLanqiMediaAsset({ tenantId: job.tenantId, jobId: job.id });
         const updated = finalized.job;
@@ -149,9 +168,9 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
       const updated = await prisma.lanqiMediaJob.update({ where: { id: job.id }, data: { status: status === "pending" ? "submitted" : "processing", providerStatus: provider.status } });
       return { job: serialize(updated) };
     } catch (error) {
-      if (error instanceof Error && ["provider_output_missing", "media_asset_storage_not_ready", "media_asset_invalid_content_type", "media_asset_invalid_size", "media_asset_too_large"].includes(error.message)) {
+      if (error instanceof Error && isAssetPersistenceFailure(error.message)) {
         const failed = await refund(job, "failed", error.message);
-        return reply.code(502).send({ error: "media_asset_persistence_failed", message: "图片生成完成但保存失败，预留积分已自动退回。", job: serialize(failed) });
+        return reply.code(502).send({ error: "media_asset_persistence_failed", message: "生成完成但保存失败，预留积分已自动退回。", job: serialize(failed) });
       }
       return reply.code(502).send({ error: "media_refresh_failed", message: "生成状态暂时无法刷新，请稍后再试。" });
     }
@@ -233,9 +252,10 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
     }
     try {
       const asset = await readLanqiMediaAsset({ tenantId: context.tenantId, jobId: request.params.jobId });
-      const extension = asset.metadata.contentType === "image/jpeg" ? "jpg" : asset.metadata.contentType === "image/webp" ? "webp" : "png";
-      const fileName = `lanqi-xhs-${request.params.jobId.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 24)}.${extension}`;
-      request.log.info({ event: "lanqi_xhs_package.downloaded", tenantId: context.tenantId, jobFingerprint: request.params.jobId.slice(0, 8) });
+      const isVideo = asset.metadata.contentType === "video/mp4";
+      const extension = isVideo ? "mp4" : asset.metadata.contentType === "image/jpeg" ? "jpg" : asset.metadata.contentType === "image/webp" ? "webp" : "png";
+      const fileName = `${isVideo ? "lanqi-video" : "lanqi-xhs"}-${request.params.jobId.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 24)}.${extension}`;
+      request.log.info({ event: isVideo ? "lanqi_video.downloaded" : "lanqi_xhs_package.downloaded", tenantId: context.tenantId, jobFingerprint: request.params.jobId.slice(0, 8) });
       return reply
         .header("Content-Type", asset.metadata.contentType)
         .header("Content-Disposition", `attachment; filename="${fileName}"`)
@@ -256,7 +276,7 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
     const status = parsed.data.status.toLowerCase();
     if (["succeeded", "success"].includes(status) && parsed.data.outputUrl) {
       try {
-        await persistLanqiProviderImage({ tenantId: job.tenantId, jobId: job.id, sourceUrl: parsed.data.outputUrl });
+        await persistLanqiProviderOutput(job, parsed.data.outputUrl);
         const finalized = await finalizeSuccess(job, parsed.data.status);
         if (!finalized.accepted) await discardLanqiMediaAsset({ tenantId: job.tenantId, jobId: job.id });
       } catch (error) { await refund(job, "failed", error instanceof Error ? error.message : "asset_persistence_failed"); }
@@ -266,6 +286,29 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
   });
 }
 
+/** 图片与成片共用同一条租户隔离落盘链路，按任务类型选择对应的格式校验规则。 */
+async function persistLanqiProviderOutput(job: { id: string; tenantId: string; kind: string }, sourceUrl: string) {
+  return job.kind === "image"
+    ? persistLanqiProviderImage({ tenantId: job.tenantId, jobId: job.id, sourceUrl })
+    : persistLanqiProviderVideo({ tenantId: job.tenantId, jobId: job.id, sourceUrl });
+}
+
+/** 只有「供应商已出结果、但结果不能安全落盘」才退款；网络抖动仍按可重试处理。 */
+function isAssetPersistenceFailure(message: string): boolean {
+  return /^(provider_output_missing|media_asset_(storage_not_ready|invalid_content_type|invalid_size|invalid_container|too_large)|media_asset_download_\d{3})$/.test(message);
+}
+
+const LANQI_MEDIA_JOB_KINDS = ["image", "text_to_video", "image_to_video"] as const;
+
+/** 媒体任务列表默认只回图片（旧工作台行为不变）；视频页显式传 kind=image_to_video。 */
+function parseLanqiMediaJobKinds(value: unknown): string[] | undefined {
+  if (value === undefined || value === null || value === "") return ["image"];
+  if (typeof value !== "string") return undefined;
+  const requested = [...new Set(value.split(",").map(item => item.trim()).filter(Boolean))];
+  if (!requested.length || requested.length > LANQI_MEDIA_JOB_KINDS.length) return undefined;
+  return requested.every(kind => (LANQI_MEDIA_JOB_KINDS as readonly string[]).includes(kind)) ? requested : undefined;
+}
+
 async function refund(job: any, finalStatus: "failed" | "canceled", message: string) {
   return prisma.$transaction(async tx => {
     const claimed = await tx.lanqiMediaJob.updateMany({ where: { id: job.id, billingStatus: "reserved" }, data: { billingStatus: "refund_processing" } });
@@ -273,8 +316,8 @@ async function refund(job: any, finalStatus: "failed" | "canceled", message: str
     if (!current) return job;
     if (claimed.count === 0) return current;
     if (claimed.count === 1) {
-      const account = await tx.creditAccount.findUnique({ where: { tenantId: current.tenantId } });
-      if (account) {
+    const account = await tx.creditAccount.findUnique({ where: { tenantId: current.tenantId } });
+    if (account) {
         await tx.creditAccount.update({ where: { id: account.id }, data: { balance: { increment: current.creditCost } } });
         await tx.creditTransaction.create({ data: { creditAccountId: account.id, tenantId: current.tenantId, userId: current.userId, direction: "refund", amount: current.creditCost, reason: "lanqi_media_generation_refund", refType: "lanqi_media_job", refId: current.id } });
       }
@@ -316,7 +359,7 @@ async function refreshMockJob(tenantId: string, jobId: string): Promise<MockJob 
   job.refreshCount += 1; job.updatedAt = new Date().toISOString();
   if (job.refreshCount === 1) { job.status = "processing"; job.progress = 55; }
   else if (job.prompt.includes("[模拟失败]")) { job.status = "failed"; job.progress = 0; job.assetStatus = "unavailable"; job.errorMessage = "受控模拟失败；未调用外部模型、未扣积分。"; job.canCancel = false; job.canRetry = true; }
-  else { await persistLanqiMockImage({ tenantId, jobId, prompt: job.prompt, ratio: job.ratio }); job.status = "succeeded"; job.progress = 100; job.assetStatus = "persisted"; job.outputUrl = lanqiMediaAssetUrl(job.id); job.canCancel = false; }
+  else { await persistLanqiMockImage({ tenantId, jobId, prompt: job.prompt, ratio: job.ratio, label: job.kind === "image" ? "受控模拟成图" : "受控模拟成片" }); job.status = "succeeded"; job.progress = 100; job.assetStatus = "persisted"; job.outputUrl = lanqiMediaAssetUrl(job.id); job.canCancel = false; }
   return job;
 }
 
@@ -348,15 +391,25 @@ function serialize(job: any): PublicJob {
     canCancel: ["queued", "submitted"].includes(status), canRetry: ["failed", "canceled"].includes(status), selectedAt: toIso(job.selectedAt), savedAt: toIso(job.savedAt), createdAt: toIso(job.createdAt)!, updatedAt: toIso(job.updatedAt)!, executionMode: "real" };
 }
 
-function sameRequest(job: any, input: LanqiMediaRequest): boolean { return job.kind === input.kind && job.prompt === input.prompt && (job.negativePrompt ?? undefined) === input.negativePrompt && (job.previewId ?? undefined) === input.previewId && (job.promptVersion ?? undefined) === input.promptVersion && (job.ratio ?? undefined) === input.ratio; }
+/** 幂等比较口径集中在 services/lanqi-media-generation.ts，便于离线回归（见 isSameLanqiMediaRequest）。 */
+function sameRequest(job: any, input: LanqiMediaRequest, firstFrameFingerprint?: string): boolean {
+  return isSameLanqiMediaRequest(job, input, firstFrameFingerprint);
+}
 
 export async function resolveLanqiMediaAuthorization(
   context: Awaited<ReturnType<typeof resolveRequestContext>>,
   readiness: ReturnType<typeof getLanqiMediaExecutionReadiness>,
   creditCost: number,
+  kind: LanqiMediaRequest["kind"] = "image",
 ): Promise<{ canConfirm: boolean; message: string; blockCode?: "media_execution_blocked" | "quota_exhausted" }> {
   if (!readiness.canConfirm) return { canConfirm: false, message: readiness.blockedReason ?? "当前媒体生成能力未放行，本次不会创建任务或扣积分。", blockCode: "media_execution_blocked" };
   if (readiness.mode !== "real" || context.source !== "database") return { canConfirm: true, message: "" };
+  // 「本次验收最多 3 张」是首轮真实生图预算上限；成片按秒计价，不受该图片上限约束。
+  if (kind !== "image") {
+    const account = await prisma.creditAccount.findUnique({ where: { tenantId: context.tenantId }, select: { balance: true } });
+    if (!account || account.balance < creditCost) return { canConfirm: false, blockCode: "quota_exhausted", message: "当前可用积分不足，本次不会创建任务或扣积分；继续生成需要新的明确授权。" };
+    return { canConfirm: true, message: "" };
+  }
   const [account, completedJobs] = await Promise.all([
     prisma.creditAccount.findUnique({ where: { tenantId: context.tenantId }, select: { balance: true } }),
     prisma.lanqiMediaJob.count({ where: { tenantId: context.tenantId, kind: "image", providerTaskId: { not: null } } }),
@@ -373,8 +426,24 @@ export async function resolveLanqiMediaAuthorization(
   return { canConfirm: true, message: "" };
 }
 
-async function bindTrustedImagePreview(context: Awaited<ReturnType<typeof resolveRequestContext>>, input: LanqiMediaRequest): Promise<
-  | { ok: true; input: LanqiMediaRequest }
+/**
+ * 视频侧「首帧图」入口：把请求里的 firstFrameId / firstFrame / imageUrl 归一成
+ * 一条本平台自有的限时签名外链（方案 B：素材只进自己的存储，不依赖第三方桶）。
+ */
+async function bindLanqiFirstFrame(
+  context: Awaited<ReturnType<typeof resolveRequestContext>>,
+  input: MediaRequestInput,
+): Promise<
+  | { ok: true; input: LanqiMediaRequest; firstFrameId?: string }
+  | { ok: false; statusCode: number; error: string; message: string }
+> {
+  const resolved = await resolveLanqiFirstFrameInput({ tenantId: context.tenantId, kind: input.kind, firstFrameId: input.firstFrameId, firstFrame: input.firstFrame, imageUrl: input.imageUrl });
+  if (!resolved.ok) return resolved;
+  return { ok: true, input: { ...input, imageUrl: resolved.imageUrl }, firstFrameId: resolved.firstFrameId };
+}
+
+async function bindTrustedImagePreview(context: Awaited<ReturnType<typeof resolveRequestContext>>, input: MediaRequestInput): Promise<
+  | { ok: true; input: MediaRequestInput }
   | { ok: false; statusCode: 404 | 409 | 422; error: string; message: string }
 > {
   if (input.kind !== "image") return { ok: true, input };

@@ -1,5 +1,5 @@
 // 思潼 AI 货架 + IP 定位智能体真实浏览器验收（本地 API + Web，真实模型只跑 1 次）。
-// 覆盖：7 个内核显示「开发中」、IP 定位 200 积分详情页、聊天页结构化报告渲染、桌面/移动端无横向溢出、控制台无新增错误。
+// 覆盖：创始人IP专区 6 个内核显示「开发中」、IP 定位 200 积分详情页、聊天页结构化报告渲染、桌面/移动端无横向溢出、控制台无新增错误。
 // 前置：apps/api dev（127.0.0.1:3011）与 apps/web dev（127.0.0.1:5174）已启动。
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -21,9 +21,9 @@ const IPZONE_NAME = "创始人IP专区";
 /** 兰琪专区是品牌专属专区：只上架 1 个品牌内核，且当前为「开发中」。 */
 const LANQI_ZONE_NAME = "兰琪专区";
 const LANQI_SKU = "lanqi__lanqi-brain";
-/** 创始人 IP 专区 9 个内核里，7 个未完成内核必须是「开发中」。 */
+/** 创始人 IP 专区 9 个内核里，6 个未完成内核必须是「开发中」（视频复盘已开卖）。 */
 const IPZONE_TOTAL = 9;
-const COMING_SOON_COUNT = 7;
+const COMING_SOON_COUNT = 6;
 const START_BALANCE = 1000;
 
 /** IP 定位对话流有 4 轮信息收集，逐轮回答后才会出现「确认，开始生成」。 */
@@ -200,7 +200,7 @@ async function openPage(cdp, token, url, viewport) {
 }
 
 async function checkShelf(cdp, token) {
-  const { sessionId } = await openPage(cdp, token, `${webBase}/market`, { width: 1280, height: 900 });
+  const { sessionId } = await openPage(cdp, token, `${webBase}/agents`, { width: 1280, height: 900 });
   await waitFor(cdp, sessionId, "document.querySelectorAll('.agent-card').length >= 9");
   const shelf = await evaluate(cdp, sessionId, `() => {
     const shelves = [...document.querySelectorAll('.shelf')];

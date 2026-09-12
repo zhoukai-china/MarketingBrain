@@ -5,11 +5,13 @@ import { env, domesticNetworkOnly, domesticOutboundAllowlist } from "../config/e
 import { assertOutboundUrlAllowed } from "./outbound-policy.js";
 
 const maxImageBytes = 20 * 1024 * 1024;
+/** 3 秒 720P 无声成片实际约 1–3MB；上限留足余量，同时防止超大响应落盘。 */
+const maxVideoBytes = 120 * 1024 * 1024;
 
 export type LanqiMediaAssetMetadata = {
   jobId: string;
   tenantKey: string;
-  contentType: "image/png" | "image/jpeg" | "image/webp" | "image/svg+xml";
+  contentType: "image/png" | "image/jpeg" | "image/webp" | "image/svg+xml" | "video/mp4";
   bytes: number;
   createdAt: string;
   selectedAt?: string;
@@ -32,11 +34,28 @@ export async function persistLanqiProviderImage(params: { tenantId: string; jobI
   return writeAsset({ tenantId: params.tenantId, jobId: params.jobId, bytes, contentType, source: "provider" });
 }
 
-export async function persistLanqiMockImage(params: { tenantId: string; jobId: string; prompt: string; ratio?: string }): Promise<LanqiMediaAssetMetadata> {
+export async function persistLanqiMockImage(params: { tenantId: string; jobId: string; prompt: string; ratio?: string; label?: string }): Promise<LanqiMediaAssetMetadata> {
   const title = escapeXml(params.prompt.replace(/\s+/g, " ").slice(0, 42));
+  const label = escapeXml(params.label ?? "受控模拟成图");
   const [width, height] = mockCanvas(params.ratio);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff8ed"/><stop offset="1" stop-color="#ef8a3a"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><circle cx="${Math.round(width * .76)}" cy="${Math.round(height * .25)}" r="${Math.round(Math.min(width, height) * .18)}" fill="#fff" opacity=".55"/><rect x="${Math.round(width * .08)}" y="${Math.round(height * .62)}" width="${Math.round(width * .84)}" height="${Math.round(height * .24)}" rx="28" fill="#fff" opacity=".9"/><text x="${Math.round(width * .12)}" y="${Math.round(height * .7)}" font-family="sans-serif" font-size="${Math.max(22, Math.round(width * .035))}" font-weight="700" fill="#713410">受控模拟成图</text><text x="${Math.round(width * .12)}" y="${Math.round(height * .77)}" font-family="sans-serif" font-size="${Math.max(16, Math.round(width * .022))}" fill="#7a5b46">${title}</text><text x="${Math.round(width * .12)}" y="${Math.round(height * .83)}" font-family="sans-serif" font-size="${Math.max(14, Math.round(width * .018))}" fill="#9a7358">零费用流程验收 · 不代表真实模型画质</text></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff8ed"/><stop offset="1" stop-color="#ef8a3a"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><circle cx="${Math.round(width * .76)}" cy="${Math.round(height * .25)}" r="${Math.round(Math.min(width, height) * .18)}" fill="#fff" opacity=".55"/><rect x="${Math.round(width * .08)}" y="${Math.round(height * .62)}" width="${Math.round(width * .84)}" height="${Math.round(height * .24)}" rx="28" fill="#fff" opacity=".9"/><text x="${Math.round(width * .12)}" y="${Math.round(height * .7)}" font-family="sans-serif" font-size="${Math.max(22, Math.round(width * .035))}" font-weight="700" fill="#713410">${label}</text><text x="${Math.round(width * .12)}" y="${Math.round(height * .77)}" font-family="sans-serif" font-size="${Math.max(16, Math.round(width * .022))}" fill="#7a5b46">${title}</text><text x="${Math.round(width * .12)}" y="${Math.round(height * .83)}" font-family="sans-serif" font-size="${Math.max(14, Math.round(width * .018))}" fill="#9a7358">零费用流程验收 · 不代表真实模型画质</text></svg>`;
   return writeAsset({ tenantId: params.tenantId, jobId: params.jobId, bytes: Buffer.from(svg), contentType: "image/svg+xml", source: "controlled_mock" });
+}
+
+/** 成片落盘：与图片同一条租户隔离链路，只接受 provider 返回的 MP4。 */
+export async function persistLanqiProviderVideo(params: { tenantId: string; jobId: string; sourceUrl: string }): Promise<LanqiMediaAssetMetadata> {
+  if (env.LANQI_MEDIA_ASSET_STORAGE !== "local") throw new Error("media_asset_storage_not_ready");
+  assertOutboundUrlAllowed("Lanqi generated video", params.sourceUrl, { domesticNetworkOnly, allowedHosts: domesticOutboundAllowlist });
+  const response = await fetch(params.sourceUrl, { signal: AbortSignal.timeout(180_000) });
+  if (!response.ok) throw new Error(`media_asset_download_${response.status}`);
+  const length = Number(response.headers.get("content-length") ?? 0);
+  if (length > maxVideoBytes) throw new Error("media_asset_too_large");
+  if (normalizeVideoContentType(response.headers.get("content-type")) !== "video/mp4") throw new Error("media_asset_invalid_content_type");
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.length === 0 || bytes.length > maxVideoBytes) throw new Error("media_asset_invalid_size");
+  // 只认 MP4 容器魔数，避免 provider 返回错误页时把 HTML 当成成片落盘。
+  if (bytes.length < 12 || bytes.subarray(4, 8).toString("latin1") !== "ftyp") throw new Error("media_asset_invalid_container");
+  return writeAsset({ tenantId: params.tenantId, jobId: params.jobId, bytes, contentType: "video/mp4", source: "provider" });
 }
 
 export async function readLanqiMediaAsset(params: { tenantId: string; jobId: string }): Promise<{ metadata: LanqiMediaAssetMetadata; bytes: Buffer }> {
@@ -122,7 +141,13 @@ function normalizeImageContentType(value: string | null): LanqiMediaAssetMetadat
   return undefined;
 }
 
+function normalizeVideoContentType(value: string | null): "video/mp4" | undefined {
+  const normalized = value?.split(";")[0]?.trim().toLowerCase();
+  return normalized === "video/mp4" ? "video/mp4" : undefined;
+}
+
 function extensionFor(contentType: LanqiMediaAssetMetadata["contentType"]): string {
+  if (contentType === "video/mp4") return ".mp4";
   if (contentType === "image/jpeg") return ".jpg";
   if (contentType === "image/webp") return ".webp";
   if (contentType === "image/svg+xml") return ".svg";

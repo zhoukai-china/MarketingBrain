@@ -236,8 +236,7 @@ export async function registerClipLabRoutes(app: FastifyInstance, provider: LlmP
           realtimeFactor: Number((result.renderMs / 1000 / Math.max(renderedSeconds, 1)).toFixed(2)),
           machineVideosPerHour,
           estimatedHumanMinutes,
-          humanReviewVideosPerHour: humanVideosPerHour,
-          estimatedLocalCostYuan: Number(Math.max(0.01, result.renderMs / 3_600_000 * 2.4).toFixed(2))
+          humanReviewVideosPerHour: humanVideosPerHour
         },
         inspectionScope: {
           processed: `机器逐帧处理了所选 ${Math.round(renderedSeconds)} 秒画面，并处理了整段音轨`,

@@ -1,0 +1,2163 @@
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { z } from "zod";
+import { Prisma, prisma } from "@baolu/db";
+import { randomUUID } from "node:crypto";
+import type { LlmMessage } from "@baolu/agent";
+import type { SkillId } from "@baolu/shared";
+import { env, domesticNetworkOnly, domesticOutboundAllowlist } from "../config/env.js";
+import { resolveRequestContext, type RequestContext } from "../services/request-context.js";
+import { DomesticChatProvider, type DomesticProviderUsageObservation } from "../services/domestic-chat-provider.js";
+import { searchPublicTopicSources } from "../services/public-topic-search.js";
+import { fetchGetnoteNotes } from "../services/getnote.js";
+import {
+  estimateMarketplaceModelCostCny,
+  marketplaceCreditsForUsage
+} from "../services/marketplace-cost.js";
+import {
+  consumeWalletCredits,
+  getOrCreateWallet,
+  readWallet,
+  recordRedo,
+  buildRechargeUrl
+} from "../services/sitong-wallet.js";
+import {
+  MARKETPLACE_ZONES,
+  MARKETPLACE_INDUSTRIES,
+  PUBLIC_MARKETPLACE_STATUSES,
+  demoMarketplace,
+  ensureMarketplaceCatalog,
+  isMarketplaceSkuPurchasable,
+  matchesMarketplaceQuery,
+  normalizeJsonArray,
+  toPublicMarketplaceSku,
+  type MarketplaceSkuQuery,
+  type MarketplaceSkuStatus,
+  type PublicMarketplaceSku
+} from "../services/marketplace-catalog.js";
+
+const zoneEnum = z.enum(["ipzone", "canyin", "meiye", "chongwu"]);
+const skuStatusEnum = z.enum(["selling", "trial", "internal", "coming_soon", "offline"]);
+const supplierTypeEnum = z.enum(["self_operated", "third_party"]);
+
+const skuQuerySchema = z.object({
+  q: z.string().optional(),
+  zone: zoneEnum.optional(),
+  tag: z.string().optional(),
+  badge: z.string().optional(),
+  trial: z.enum(["true", "false"]).optional(),
+  supplierId: z.string().optional(),
+  minPpu: z.coerce.number().int().nonnegative().optional(),
+  maxPpu: z.coerce.number().int().nonnegative().optional(),
+  minSub: z.coerce.number().int().nonnegative().optional(),
+  maxSub: z.coerce.number().int().nonnegative().optional(),
+  status: skuStatusEnum.optional()
+});
+
+const marketplaceRunSchema = z.object({
+  input: z.string().trim().min(1).max(50_000),
+  // 按结果付费兜底：携带原交付的 requestId 表示「不满意，免费重做一次」（限 1 次/单，不再扣积分）。
+  redoOf: z.string().trim().min(8).max(200).optional(),
+  history: z.array(z.object({
+    role: z.enum(["user", "assistant"]),
+    content: z.string().trim().min(1).max(50_000)
+  })).max(12).optional()
+});
+
+const MARKETPLACE_SKILL_BY_CAPABILITY: Record<string, string> = {
+  ip_positioning: "ip_positioning",
+  topic_inspiration: "baolu_topics",
+  content_plan: "baolu_content_creator",
+  video_data_review: "baolu_review_engine",
+  live_script: "live_script_planner",
+  live_review: "baolu_live_review_engine",
+  private_domain: "moments_generator",
+  customer_diagnosis: "sales_growth_advisor"
+};
+
+
+const skuInputSchema = z.object({
+  skuCode: z.string().min(1).max(80),
+  agentId: z.string().min(1).max(80).optional().nullable(),
+  capabilityKey: z.string().min(1).max(80).optional().nullable(),
+  supplierId: z.string().min(1),
+  zone: zoneEnum,
+  name: z.string().min(1).max(120),
+  icon: z.string().max(20).optional().nullable(),
+  badge: z.string().max(40).optional().nullable(),
+  description: z.string().min(1).max(2000),
+  verbs: z.array(z.string().min(1).max(80)).min(1).max(12),
+  useCase: z.string().min(1).max(500),
+  need: z.string().min(1).max(500),
+  tags: z.array(z.string().min(1).max(80)).max(50),
+  keywords: z.array(z.string().min(1).max(80)).max(50),
+  ppu: z.coerce.number().int().nonnegative(),
+  subscriptionPriceCny: z.coerce.number().int().nonnegative().optional().nullable(),
+  subscriptionQuota: z.string().max(200).optional().nullable(),
+  trial: z.boolean().default(false),
+  status: skuStatusEnum,
+  sortOrder: z.coerce.number().int().nonnegative().default(0)
+});
+
+const supplierInputSchema = z.object({
+  code: z.string().min(1).max(80),
+  name: z.string().min(1).max(120),
+  type: supplierTypeEnum,
+  settlementRate: z.coerce.number().min(0).max(1),
+  contactEmail: z.string().email().optional().nullable(),
+  status: z.enum(["active", "inactive"]).default("active")
+});
+
+const ppuConsumeSchema = z.object({
+  skuId: z.string().min(1),
+  idempotencyKey: z.string().min(1).max(140)
+});
+
+const subscriptionSchema = z.object({
+  skuId: z.string().min(1)
+});
+
+const industryProfilePatchSchema = z.object({
+  who: z.string().trim().max(1000).optional().nullable(),
+  lexicon: z.array(z.string().trim().min(1).max(120)).max(100).optional(),
+  pains: z.array(z.string().trim().min(1).max(500)).max(100).optional(),
+  redline: z.array(z.string().trim().min(1).max(1000)).max(100).optional(),
+  ov: z.record(z.string(), z.record(z.string(), z.unknown())).optional()
+});
+
+export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<void> {
+  await ensureMarketplaceCatalog();
+
+  await app.register(async (market) => {
+    market.get("/zones", async () => ({
+      zones: MARKETPLACE_ZONES,
+      industries: Object.values(MARKETPLACE_INDUSTRIES)
+    }));
+
+    market.get<{ Querystring: z.infer<typeof skuQuerySchema> }>("/skus", async (request, reply) => {
+      const parsed = skuQuerySchema.safeParse(request.query ?? {});
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+      }
+      const query: MarketplaceSkuQuery = {
+        ...parsed.data,
+        trial: parsed.data.trial === undefined ? undefined : parsed.data.trial === "true"
+      };
+      return {
+        zones: MARKETPLACE_ZONES,
+        skus: await listMarketplaceSkus(query, false)
+      };
+    });
+
+    market.get<{ Params: { skuId: string } }>("/skus/:skuId", async (request, reply) => {
+      const sku = await getMarketplaceSku(request.params.skuId);
+      if (!sku) return reply.code(404).send({ error: "marketplace_sku_not_found" });
+      return { sku, industry: MARKETPLACE_INDUSTRIES[sku.zone] ?? null };
+    });
+
+    market.get<{ Params: { skuId: string } }>("/skus/:skuId/access", async (request) => {
+      const sku = await getMarketplaceSku(request.params.skuId);
+      if (!sku) {
+        return {
+          state: "guest",
+          track: null,
+          balance: 0,
+          reason: "marketplace_sku_not_found"
+        };
+      }
+      const context = await tryResolveContext(request);
+      if (!context) {
+        return {
+          state: "guest",
+          track: null,
+          balance: 0,
+          sku: { skuCode: sku.skuCode, ppu: sku.ppu }
+        };
+      }
+      return accessStateFor(context, sku);
+    });
+
+    market.post<{ Params: { skuId: string } }>("/skus/:skuId/run", async (request, reply) => {
+      const parsed = marketplaceRunSchema.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+      }
+      const context = await resolveRequestContext(request.headers);
+      const sku = await getMarketplaceSku(request.params.skuId);
+      if (!sku) return reply.code(404).send({ error: "marketplace_sku_not_found" });
+      const access = await accessStateFor(context, sku);
+      if (access.state === "unavailable") {
+        const comingSoon = sku.status === "coming_soon";
+        return reply.code(409).send({
+          error: comingSoon ? "marketplace_sku_coming_soon" : "marketplace_sku_not_available",
+          message: comingSoon
+            ? "该智能体正在开发中，敬请期待；本次未扣积分。"
+            : "该智能体暂不可用；本次未扣积分。",
+          status: sku.status
+        });
+      }
+
+      const skillId = resolveMarketplaceSkillId(sku.capabilityKey);
+      if (!skillId) return reply.code(409).send({ error: "marketplace_skill_not_configured" });
+
+      const requestId = randomUUID();
+      const usage = { promptTokens: 0, completionTokens: 0, reasoningTokens: 0 };
+      const baseProvider = new DomesticChatProvider({
+        providerName: "deepseek",
+        apiKey: env.DEEPSEEK_API_KEY,
+        baseUrl: env.DEEPSEEK_BASE_URL,
+        model: process.env.MARKETPLACE_MODEL ?? "deepseek-v4-flash",
+        timeoutMs: env.LLM_TIMEOUT_MS,
+        domesticNetworkOnly,
+        allowedHosts: domesticOutboundAllowlist,
+        onUsage: (obs: DomesticProviderUsageObservation) => {
+          usage.promptTokens += obs.promptTokens ?? 0;
+          usage.completionTokens += obs.completionTokens ?? 0;
+          usage.reasoningTokens += obs.reasoningTokens ?? 0;
+        }
+      });
+      const provider = {
+        name: baseProvider.name,
+        isConfigured: () => baseProvider.isConfigured(),
+        getModel: () => baseProvider.getModel(),
+        complete: (messages: Parameters<typeof baseProvider.complete>[0], options: Parameters<typeof baseProvider.complete>[1]) => baseProvider.complete(messages, {
+          ...(options as object),
+          reasoningProfile: "standard",
+          thinkingMode: "disabled",
+          maxTokens: Math.min(Math.max(((options as { maxTokens?: number })?.maxTokens) ?? 8000, 8000), 8192)
+        })
+      };
+
+      const price = sku.ppu;
+      if (price <= 0) {
+        return reply.code(409).send({ error: "marketplace_ppu_not_configured", message: "该智能体未配置按次价格" });
+      }
+
+      // 按结果付费兜底：不满意可免费重做一次（每个付费交付限 1 次，重做不再扣积分）。
+      // redoOf 必须指向「当前用户自己的、同一 SKU 的」已交付订单，防止跨账号 / 跨商品白嫖。
+      let freeRedoRoot: string | null = null;
+      if (parsed.data.redoOf) {
+        const target = await resolveFreeRedo(context, parsed.data.redoOf, sku.id);
+        if (!target.ok) {
+          const skuMismatch = target.code === "sku_mismatch";
+          return reply.code(skuMismatch ? 409 : 404).send({
+            error: skuMismatch ? "marketplace_redo_sku_mismatch" : "marketplace_redo_not_found",
+            message: skuMismatch
+              ? "免费重做只能针对同一个智能体的上一份交付。"
+              : "找不到可免费重做的原始交付（可能不属于当前账号）。"
+          });
+        }
+        freeRedoRoot = target.rootRequestId;
+      }
+
+      const walletBefore = await readWallet(context.userId);
+      // 免费重做复用原交付已付的权益，余额不足也必须放行；只有付费生成才拦余额。
+      if (!freeRedoRoot && walletBefore.balance < price) {
+        return reply.code(402).send({
+          error: "insufficient_credits",
+          message: "当前积分不足，请先充值后再使用。",
+          balance: walletBefore.balance,
+          required: price,
+          rechargeUrl: buildRechargeUrl(sku.skuCode)
+        });
+      }
+
+      try {
+        const core = sku.skuCode.includes("__") ? sku.skuCode.slice(sku.skuCode.lastIndexOf("__") + 2) : sku.skuCode;
+        let userContent = marketplaceRunInput(sku, parsed.data.input);
+        if (core === "topic") {
+          const industryMatch = /(?:行业|账号阶段)[^：:]*[：:]\s*([^\n]+)/.exec(parsed.data.input);
+          const benchMatch = /(?:同行爆款|对标账号)[^：:]*[：:]\s*([^\n]+)/.exec(parsed.data.input);
+          const industry = industryMatch?.[1]?.trim() ?? "";
+          const bench = benchMatch?.[1]?.trim() ?? "";
+          try {
+            const search = await searchPublicTopicSources(industry, bench);
+            userContent += `\n\n【搜索源 · 实时检索】\n行业热点：${search.hot.fetched ? search.hot.items.join("；") : search.hot.note}\n同行爆款：${search.bench.fetched ? search.bench.items.join("；") : search.bench.note}`;
+          } catch {
+            userContent += "\n\n【搜索源 · 实时检索】行业热点：检索失败；同行爆款：未提供";
+          }
+          const apiKeyMatch = /API\s*[Kk]ey[：:\s]*([A-Za-z0-9_.]+)/.exec(parsed.data.input);
+          const clientMatch = /Client\s*I[Dd][：:\s]*([A-Za-z0-9_]+)/.exec(parsed.data.input);
+          const apiKey = apiKeyMatch?.[1] ?? (process.env.GETNOTE_API_KEY ?? "");
+          const clientId = clientMatch?.[1] ?? (process.env.GETNOTE_CLIENT_ID ?? "");
+          if (apiKey && clientId) {
+            const notes = await fetchGetnoteNotes(apiKey, clientId).catch(() => []);
+            if (notes.length > 0) {
+              userContent += `\n\n【Get笔记 · 录音卡（真实拉取）】\n${notes.map((n) => `- ${n.title}：${n.summary || "（无摘要）"}`).join("\n")}`;
+            } else {
+              userContent += "\n\n【Get笔记 · 录音卡】已提供 API Key，但拉取未取到笔记（可能未授权/网络），按「无」处理。";
+            }
+          }
+        }
+        // 分轮交互：同一会话的历史（含上一轮【需补充信息】问答）随请求带上，保证只扣一次费。
+        const history = parsed.data.history ?? [];
+        const turnMessages: LlmMessage[] = [
+          ...history.map((item) => ({ role: item.role, content: item.content }) as LlmMessage),
+          { role: "user", content: userContent }
+        ];
+        let answerText: string;
+        let ipPosPayload: IpPosPayload | null = null;
+        try {
+          if (core === "ip-pos") {
+            // 全案体量大（速览 + 八章 + ≥80 条选题），单次生成会超出输出上限被截断；
+            // 按「0–四章 / 五–八章」两段并发生成后合并，保证章节完整可校验。
+            const [partA, partB] = (await Promise.all([
+              provider.complete(
+                [{ role: "system", content: IP_POS_SYSTEM_PROMPT_A }, ...turnMessages] as LlmMessage[],
+                { maxTokens: 8192 }
+              ),
+              provider.complete(
+                [{ role: "system", content: IP_POS_SYSTEM_PROMPT_B }, ...turnMessages] as LlmMessage[],
+                { maxTokens: 8192 }
+              )
+            ])) as unknown as [string, string];
+            const clarifyA = extractClarification(partA ?? "");
+            const clarifyB = extractClarification(partB ?? "");
+            answerText = clarifyA
+              ? String(partA ?? "")
+              : clarifyB
+                ? String(partB ?? "")
+                : `${String(partA ?? "").trim()}\n\n${String(partB ?? "").trim()}`;
+          } else {
+            answerText = (await provider.complete(
+              [
+                { role: "system", content: marketplaceSkillSystemPrompt(sku) },
+                ...turnMessages
+              ] as LlmMessage[],
+              { maxTokens: 2048 }
+            )) as unknown as string;
+          }
+        } catch (modelError) {
+          const code = (modelError as { code?: string })?.code ?? "model_call_failed";
+          return reply.code(502).send({
+            error: "marketplace_provider_failed",
+            code,
+            message: `模型调用失败（${code}），本次未扣积分。`
+          });
+        }
+
+        const clarification = extractClarification(answerText);
+        if (clarification) {
+          return reply.code(200).send({
+            needsInput: true,
+            answer: clarification,
+            consumedCredits: 0,
+            balance: walletBefore.balance,
+            required: price
+          });
+        }
+
+        if (core === "topic") {
+          const validation = parseTopicTable(answerText);
+          if (validation.failures.length > 0) {
+            return reply.code(422).send({
+              error: "marketplace_output_invalid",
+              message: "选题交付未通过技能校验，本次未扣积分：\n" + validation.failures.slice(0, 8).join("\n"),
+              reasons: validation.failures.slice(0, 20)
+            });
+          }
+        }
+        if (core === "copy") {
+          const validation = parseCopyTen(answerText);
+          if (validation.failures.length > 0) {
+            return reply.code(422).send({
+              error: "marketplace_output_invalid",
+              message: "文案交付未通过技能校验，本次未扣积分：\n" + validation.failures.join("\n"),
+              reasons: validation.failures
+            });
+          }
+        }
+        if (core === "ip-pos") {
+          const validation = parseIpPosFull(answerText, parsed.data.input);
+          if (validation.failures.length > 0) {
+            return reply.code(422).send({
+              error: "marketplace_output_invalid",
+              message: "IP 定位全案未通过技能校验，本次未扣积分：\n" + validation.failures.slice(0, 8).join("\n"),
+              reasons: validation.failures.slice(0, 20)
+            });
+          }
+          ipPosPayload = validation.payload;
+        }
+        const answer = marketplaceWrappedAnswer(sku, answerText);
+        const costCny = estimateMarketplaceModelCostCny(usage);
+        const dynamicCredits = marketplaceCreditsForUsage(usage);
+
+        // 扣费时机：交付完成之后。免费重做则跳过扣费，只登记一次 redo 权益消耗。
+        let freeRedo = false;
+        let walletAfter = walletBefore;
+        let spent: { paid: number; bonus: number } = { paid: 0, bonus: 0 };
+        if (freeRedoRoot) {
+          const redo = await recordRedo({
+            userId: context.userId,
+            requestId: freeRedoRoot,
+            skillId: sku.skuCode,
+            source: "marketplace"
+          });
+          if (!redo.ok) {
+            return reply.code(409).send({
+              error: "marketplace_redo_exhausted",
+              message: "这份交付的免费重做机会已用完（每个付费交付仅限免费重做 1 次）；如需再生成会按次扣积分。",
+              requestId: freeRedoRoot,
+              redoLeft: 0
+            });
+          }
+          freeRedo = true;
+          walletAfter = await readWallet(context.userId);
+        } else {
+          const consumed = await consumeWalletCredits({
+            userId: context.userId,
+            requestId,
+            price,
+            skillId: sku.skuCode,
+            source: "web"
+          });
+          if (consumed.status === "insufficient") {
+            return reply.code(402).send({
+              error: "insufficient_credits",
+              message: "当前积分不足，请先充值后再使用。",
+              balance: consumed.wallet.balance,
+              paidBalance: consumed.wallet.paidBalance,
+              bonusBalance: consumed.wallet.bonusBalance,
+              required: price,
+              rechargeUrl: buildRechargeUrl(sku.skuCode)
+            });
+          }
+          walletAfter = consumed.wallet;
+          spent = consumed.spent;
+        }
+
+        await prisma.marketplaceLedgerEntry.create({
+          data: {
+            tenantId: context.tenantId,
+            userId: context.userId,
+            skuId: sku.id,
+            type: freeRedo ? "adjustment" : "ppu_consume",
+            direction: freeRedo ? "none" : "debit",
+            amountCredits: freeRedo ? 0 : price,
+            amountCny: 0,
+            status: "completed",
+            idempotencyKey: requestId,
+            refType: "marketplace_run",
+            refId: requestId,
+            metadata: {
+              ...(freeRedo ? { freeRedo: true, freeRedoOf: freeRedoRoot } : {}),
+              estimatedCredits: dynamicCredits,
+              modelCostCny: costCny,
+              promptTokens: usage.promptTokens,
+              completionTokens: usage.completionTokens,
+              reasoningTokens: usage.reasoningTokens
+            }
+          }
+        });
+
+        return {
+          state: "completed",
+          answer,
+          qualityFlags: null,
+          deliveryStatus: "completed",
+          estimatedCredits: dynamicCredits,
+          consumedCredits: freeRedo ? 0 : price,
+          freeRedo,
+          ...(freeRedoRoot ? { freeRedoOf: freeRedoRoot } : {}),
+          modelCostCny: costCny,
+          requestId,
+          balance: walletAfter.balance,
+          paidBalance: walletAfter.paidBalance,
+          bonusBalance: walletAfter.bonusBalance,
+          spent,
+          ...(ipPosPayload ? { payload: ipPosPayload } : {})
+        };
+      } catch (error) {
+        throw error;
+      }
+    });
+
+    market.get("/me", async (request, reply) => {
+      const context = await resolveRequestContext(request.headers);
+      const wallet = context.source === "database" ? await readWallet(context.userId) : { balance: await getCreditBalance(context) };
+      return {
+        dataMode: context.source,
+        creditBalance: wallet.balance,
+        subscriptions: await listSubscriptions(context),
+        recentPpu: await listRecentPpuUsage(context)
+      };
+    });
+
+    market.post("/ppu/consume", async (request, reply) => {
+      const parsed = ppuConsumeSchema.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+      }
+      const context = await resolveRequestContext(request.headers);
+      const sku = await getMarketplaceSku(parsed.data.skuId);
+      if (!sku) return reply.code(404).send({ error: "marketplace_sku_not_found" });
+      if (!isMarketplaceSkuPurchasable(sku.status)) {
+        const comingSoon = sku.status === "coming_soon";
+        return reply.code(409).send({
+          error: comingSoon ? "marketplace_sku_coming_soon" : "marketplace_sku_not_available",
+          message: comingSoon
+            ? "该智能体正在开发中，敬请期待；本次未扣积分。"
+            : "该智能体暂不可用；本次未扣积分。",
+          status: sku.status
+        });
+      }
+      return await consumeMarketplacePpu(context, sku, parsed.data.idempotencyKey);
+    });
+
+    market.post("/subscriptions", async (request, reply) => {
+      const parsed = subscriptionSchema.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+      }
+      const context = await resolveRequestContext(request.headers);
+      const sku = await getMarketplaceSku(parsed.data.skuId);
+      if (!sku) return reply.code(404).send({ error: "marketplace_sku_not_found" });
+      if (!sku.subscriptionPriceCny) {
+        return reply.code(409).send({ error: "marketplace_subscription_not_available" });
+      }
+      return await createMarketplaceSubscription(context, sku);
+    });
+
+    market.post<{ Params: { orderId: string } }>("/subscriptions/:orderId/mock-pay", async (request, reply) => {
+      if (env.NODE_ENV === "production") {
+        return reply.code(404).send({ error: "not_found" });
+      }
+      const context = await resolveRequestContext(request.headers);
+      return await mockPayMarketplaceSubscription(context, request.params.orderId);
+    });
+
+    await market.register(async (admin) => {
+      admin.addHook("preHandler", requireMarketplaceAdmin("read"));
+
+      admin.get("/overview", async (request) => {
+        const context = await resolveRequestContext(request.headers);
+        return { overview: await marketplaceOverview() };
+      });
+
+      admin.get("/industries", async () => ({
+        industries: Object.values(MARKETPLACE_INDUSTRIES)
+      }));
+
+      admin.patch<{ Params: { key: string } }>("/industries/:key", async (request, reply) => {
+        await requireMarketplaceAdmin("write")(request, reply);
+        if (reply.sent) return;
+        const parsed = industryProfilePatchSchema.safeParse(request.body ?? {});
+        if (!parsed.success) {
+          return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+        }
+        const key = request.params.key;
+        const existing = await prisma.marketplaceIndustryProfile.findUnique({ where: { zoneKey: key } });
+        if (!existing) {
+          return reply.code(404).send({ error: "marketplace_industry_not_found" });
+        }
+        const updateData: Prisma.MarketplaceIndustryProfileUpdateInput = {};
+        if (parsed.data.who !== undefined) updateData.who = parsed.data.who;
+        if (parsed.data.lexicon !== undefined) updateData.lexicon = parsed.data.lexicon as Prisma.InputJsonValue;
+        if (parsed.data.pains !== undefined) updateData.pains = parsed.data.pains as Prisma.InputJsonValue;
+        if (parsed.data.redline !== undefined) updateData.redline = parsed.data.redline as Prisma.InputJsonValue;
+        if (parsed.data.ov !== undefined) updateData.ov = parsed.data.ov as Prisma.InputJsonValue;
+        await prisma.marketplaceIndustryProfile.update({ where: { id: existing.id }, data: updateData });
+        await ensureMarketplaceCatalog();
+        return { industry: MARKETPLACE_INDUSTRIES[key] ?? null };
+      });
+
+      admin.get("/skus", async (request, reply) => {
+        const parsed = skuQuerySchema.safeParse(request.query ?? {});
+        if (!parsed.success) {
+          return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+        }
+        const query: MarketplaceSkuQuery = {
+          ...parsed.data,
+          trial: parsed.data.trial === undefined ? undefined : parsed.data.trial === "true"
+        };
+        return { skus: await listMarketplaceSkus(query, true) };
+      });
+
+      admin.post("/skus", async (request, reply) => {
+        await requireMarketplaceAdmin("write")(request, reply);
+        if (reply.sent) return;
+        const parsed = skuInputSchema.safeParse(request.body ?? {});
+        if (!parsed.success) {
+          return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+        }
+        return { sku: await upsertMarketplaceSku(parsed.data) };
+      });
+
+      admin.patch<{ Params: { skuId: string } }>("/skus/:skuId", async (request, reply) => {
+        await requireMarketplaceAdmin("write")(request, reply);
+        if (reply.sent) return;
+        const parsed = skuInputSchema.partial().safeParse(request.body ?? {});
+        if (!parsed.success) {
+          return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+        }
+        return { sku: await upsertMarketplaceSku(parsed.data, request.params.skuId) };
+      });
+
+      admin.get("/suppliers", async () => ({ suppliers: await listMarketplaceSuppliers() }));
+
+      admin.post("/suppliers", async (request, reply) => {
+        await requireMarketplaceAdmin("write")(request, reply);
+        if (reply.sent) return;
+        const parsed = supplierInputSchema.safeParse(request.body ?? {});
+        if (!parsed.success) {
+          return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+        }
+        return { supplier: await upsertMarketplaceSupplier(parsed.data) };
+      });
+
+      admin.patch<{ Params: { supplierId: string } }>("/suppliers/:supplierId", async (request, reply) => {
+        await requireMarketplaceAdmin("write")(request, reply);
+        if (reply.sent) return;
+        const parsed = supplierInputSchema.partial().safeParse(request.body ?? {});
+        if (!parsed.success) {
+          return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+        }
+        return { supplier: await upsertMarketplaceSupplier(parsed.data, request.params.supplierId) };
+      });
+
+      admin.get<{ Querystring: { limit?: string } }>("/ledger", async (request) => {
+        const limit = clampLimit(request.query.limit);
+        return { ledger: await listMarketplaceLedger(undefined, limit) };
+      });
+    }, { prefix: "/admin" });
+  }, { prefix: "/market" });
+}
+
+type MarketplaceAdminOperation = "read" | "write";
+
+function requireMarketplaceAdmin(operation: MarketplaceAdminOperation) {
+  return async function guard(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const context = await resolveRequestContext(request.headers);
+    const rank = roleRank(context.role);
+    if (operation === "read") {
+      if (rank < 1) await reply.code(403).send({ error: "marketplace_admin_required" });
+      return;
+    }
+    if (rank < 2) await reply.code(403).send({ error: "marketplace_admin_write_required" });
+  };
+}
+
+function roleRank(role: string): number {
+  if (role === "owner" || role === "admin") return 3;
+  if (role === "operator") return 2;
+  if (role === "manager") return 1;
+  return 0;
+}
+
+async function tryResolveContext(request: FastifyRequest): Promise<RequestContext | null> {
+  try {
+    return await resolveRequestContext(request.headers);
+  } catch {
+    return null;
+  }
+}
+
+async function getCreditBalance(context: RequestContext): Promise<number> {
+  if (context.source === "demo") return demoMarketplace.getBalance(context.tenantId);
+  // 货架只认用户双桶钱包：展示（/market/me、访问态）与扣费（/run、/ppu/consume）必须同源，
+  // 否则会出现「余额显示够、扣费却失败」或反向的错账。
+  return (await readWallet(context.userId)).balance;
+}
+
+async function listMarketplaceSkus(query: MarketplaceSkuQuery, includeOffline: boolean): Promise<PublicMarketplaceSku[]> {
+  if (env.DATA_MODE === "demo") {
+    return demoMarketplace.listSkus(query, includeOffline).map((sku) => demoMarketplace.toPublic(sku));
+  }
+
+  const rows = await prisma.marketplaceSku.findMany({
+    where: {
+      ...(includeOffline ? {} : { status: { in: PUBLIC_MARKETPLACE_STATUSES } }),
+      ...(query.status ? { status: query.status } : {})
+    },
+    include: { supplier: true },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
+  });
+
+  return rows
+    .filter((row) =>
+      matchesMarketplaceQuery(
+        {
+          name: row.name,
+          description: row.description,
+          useCase: row.useCase,
+          need: row.need,
+          badge: row.badge,
+          verbs: normalizeJsonArray(row.verbs),
+          tags: normalizeJsonArray(row.tags),
+          keywords: normalizeJsonArray(row.keywords),
+          zone: row.zone,
+          supplierName: row.supplier.name
+        },
+        query
+      )
+    )
+    .filter((row) => {
+      if (query.supplierId && row.supplierId !== query.supplierId) return false;
+      if (query.badge && row.badge !== query.badge) return false;
+      if (typeof query.trial === "boolean" && row.trial !== query.trial) return false;
+      if (typeof query.minPpu === "number" && row.ppu < query.minPpu) return false;
+      if (typeof query.maxPpu === "number" && row.ppu > query.maxPpu) return false;
+      if (typeof query.minSub === "number" && (row.subscriptionPriceCny ?? 0) < query.minSub) return false;
+      if (typeof query.maxSub === "number" && (row.subscriptionPriceCny ?? 0) > query.maxSub) return false;
+      return true;
+    })
+    .map((row) =>
+      toPublicMarketplaceSku({
+        ...row,
+        supplierName: row.supplier.name,
+        supplierType: row.supplier.type
+      })
+    );
+}
+
+async function getMarketplaceSku(idOrCode: string): Promise<PublicMarketplaceSku | null> {
+  if (env.DATA_MODE === "demo") {
+    const sku = demoMarketplace.getSku(idOrCode);
+    return sku ? demoMarketplace.toPublic(sku) : null;
+  }
+
+  const row = await prisma.marketplaceSku.findFirst({
+    where: { OR: [{ id: idOrCode }, { skuCode: idOrCode }] },
+    include: { supplier: true }
+  });
+  if (!row) return null;
+  return toPublicMarketplaceSku({
+    ...row,
+    supplierName: row.supplier.name,
+    supplierType: row.supplier.type
+  });
+}
+
+async function accessStateFor(context: RequestContext, sku: PublicMarketplaceSku) {
+  if (context.source === "demo") {
+    const demo = demoMarketplace.getSku(sku.skuCode);
+    if (!demo) return { state: "unavailable", balance: 0 };
+    return demoMarketplace.accessState(context.tenantId, demo);
+  }
+
+  if (!isMarketplaceSkuPurchasable(sku.status)) {
+    return { state: "unavailable", balance: await getCreditBalance(context), reason: sku.status };
+  }
+  const now = new Date();
+  const subscription = await prisma.marketplaceSubscription.findFirst({
+    where: {
+      tenantId: context.tenantId,
+      skuId: sku.id,
+      status: "active",
+      endDate: { gt: now }
+    },
+    orderBy: { endDate: "desc" }
+  });
+  if (subscription) {
+    return { state: "subscribed", track: "subscription", balance: await getCreditBalance(context) };
+  }
+  const balance = await getCreditBalance(context);
+  return balance >= sku.ppu
+    ? { state: "ready", track: "ppu", balance }
+    : { state: "insufficient_credits", track: "ppu", balance };
+}
+
+async function consumeMarketplacePpu(
+  context: RequestContext,
+  sku: PublicMarketplaceSku,
+  idempotencyKey: string
+) {
+  if (context.source === "demo") {
+    return demoMarketplace.consumePpu(context.tenantId, context.userId, sku.skuCode, idempotencyKey);
+  }
+
+  const existingLedger = await prisma.marketplaceLedgerEntry.findUnique({
+    where: { tenantId_idempotencyKey: { tenantId: context.tenantId, idempotencyKey } }
+  });
+  if (existingLedger) {
+    return {
+      state: "completed",
+      balance: await getCreditBalance(context),
+      idempotent: true
+    };
+  }
+
+  // 与 /market/skus/:skuId/run 相同的用户双桶钱包扣费，保证 /market/me 显示的余额就是被扣的钱包。
+  const consumed = await consumeWalletCredits({
+    userId: context.userId,
+    requestId: `marketplace_ppu:${idempotencyKey}`,
+    price: sku.ppu,
+    skillId: sku.skuCode,
+    source: "marketplace"
+  });
+  if (consumed.status === "insufficient") {
+    return { state: "insufficient_credits", balance: consumed.wallet.balance };
+  }
+
+  await prisma.marketplaceLedgerEntry.create({
+    data: {
+      tenantId: context.tenantId,
+      userId: context.userId,
+      skuId: sku.id,
+      type: "ppu_consume",
+      direction: "debit",
+      amountCredits: sku.ppu,
+      amountCny: 0,
+      status: "completed",
+      idempotencyKey,
+      refType: "marketplace_ppu_consume",
+      refId: idempotencyKey
+    }
+  });
+  return { state: "completed", balance: consumed.wallet.balance, idempotent: consumed.idempotent };
+}
+
+/**
+ * 免费重做的授权判定（按结果付费兜底）。
+ * 只有「当前用户自己的、同一 SKU 的、已成功交付」的订单才可免费重做；
+ * 若被引用的订单本身已经是免费重做产物，则回落到最初的付费订单计数，
+ * 保证「每个付费交付最多免费重做 1 次」，不会顺着链无限免费。
+ */
+async function resolveFreeRedo(
+  context: RequestContext,
+  redoOf: string,
+  skuId: string
+): Promise<{ ok: true; rootRequestId: string } | { ok: false; code: "not_found" | "sku_mismatch" }> {
+  // 演示模式没有真实钱包账本，无法核对归属，直接拒绝（fail-closed）。
+  if (context.source === "demo") return { ok: false, code: "not_found" };
+
+  const entry = await prisma.marketplaceLedgerEntry.findFirst({
+    where: {
+      tenantId: context.tenantId,
+      userId: context.userId,
+      idempotencyKey: redoOf,
+      refType: "marketplace_run"
+    },
+    orderBy: { createdAt: "desc" }
+  });
+  if (!entry) return { ok: false, code: "not_found" };
+  // 跨 SKU 白嫖拦截：不能用低价交付的订单去免费重做高价智能体。
+  if (entry.skuId && entry.skuId !== skuId) return { ok: false, code: "sku_mismatch" };
+
+  const meta = (entry.metadata ?? null) as { freeRedoOf?: unknown } | null;
+  const freeRedoOf =
+    meta && typeof meta.freeRedoOf === "string" && meta.freeRedoOf.length > 0 ? meta.freeRedoOf : null;
+  return { ok: true, rootRequestId: freeRedoOf ?? redoOf };
+}
+
+async function createMarketplaceSubscription(context: RequestContext, sku: PublicMarketplaceSku) {
+  if (context.source === "demo") {
+    const order = demoMarketplace.createSubscription(context.tenantId, context.userId, sku.skuCode);
+    return { dataMode: "demo", order };
+  }
+
+  const expiresAt = new Date(Date.now() + 30 * 60_000);
+  const order = await prisma.marketplaceSubscriptionOrder.create({
+    data: {
+      tenantId: context.tenantId,
+      userId: context.userId,
+      skuId: sku.id,
+      priceCny: sku.subscriptionPriceCny ?? 0,
+      expiresAt,
+      codeUrl: `weixin://wxpay/pending/${Date.now()}`
+    }
+  });
+  return { dataMode: "database", order };
+}
+
+async function mockPayMarketplaceSubscription(context: RequestContext, orderId: string) {
+  if (context.source === "demo") {
+    const subscription = demoMarketplace.paySubscription(orderId, context.tenantId);
+    return { dataMode: "demo", subscription, applied: true };
+  }
+
+  const order = await prisma.marketplaceSubscriptionOrder.findFirst({
+    where: { id: orderId, tenantId: context.tenantId }
+  });
+  if (!order) throw Object.assign(new Error("marketplace_order_not_found"), { statusCode: 404 });
+  if (order.status === "paid") {
+    const existing = await prisma.marketplaceSubscription.findUnique({
+      where: { id: order.subscriptionId ?? "" }
+    });
+    return { dataMode: "database", subscription: existing, applied: true };
+  }
+  if (order.status !== "pending") {
+    throw Object.assign(new Error(`marketplace_order_not_payable:${order.status}`), { statusCode: 409 });
+  }
+
+  const sku = await prisma.marketplaceSku.findUnique({ where: { id: order.skuId } });
+  if (!sku || !sku.subscriptionPriceCny) {
+    throw Object.assign(new Error("marketplace_subscription_not_available"), { statusCode: 409 });
+  }
+
+  const endDate = new Date(Date.now() + 30 * 24 * 60 * 60_000);
+  const result = await prisma.$transaction(async (tx) => {
+    const subscription = await tx.marketplaceSubscription.create({
+      data: {
+        tenantId: order.tenantId,
+        userId: order.userId,
+        skuId: order.skuId,
+        status: "active",
+        startDate: new Date(),
+        endDate,
+        priceCny: order.priceCny,
+        quota: sku.subscriptionQuota,
+        providerOrderId: order.providerOrderId
+      }
+    });
+    await tx.marketplaceSubscriptionOrder.update({
+      where: { id: order.id },
+      data: { status: "paid", paidAt: new Date(), subscriptionId: subscription.id }
+    });
+    await tx.marketplaceLedgerEntry.create({
+      data: {
+        tenantId: order.tenantId,
+        userId: order.userId,
+        skuId: order.skuId,
+        type: "subscription_charge",
+        direction: "debit",
+        amountCredits: 0,
+        amountCny: order.priceCny,
+        status: "completed",
+        idempotencyKey: `subscription-order:${order.id}`,
+        refType: "marketplace_subscription_order",
+        refId: order.id
+      }
+    });
+    return subscription;
+  });
+  return { dataMode: "database", subscription: result, applied: true };
+}
+
+async function listSubscriptions(context: RequestContext) {
+  if (context.source === "demo") {
+    return demoMarketplace.listSubscriptions(context.tenantId);
+  }
+  return prisma.marketplaceSubscription.findMany({
+    where: { tenantId: context.tenantId },
+    orderBy: { endDate: "desc" },
+    take: 50
+  });
+}
+
+async function listRecentPpuUsage(context: RequestContext) {
+  if (context.source === "demo") {
+    return demoMarketplace
+      .listLedger(context.tenantId, 20)
+      .filter((entry) => entry.type === "ppu_consume")
+      .map((entry) => {
+        const sku = demoMarketplace.getSku(entry.skuId ?? "");
+        return {
+          id: entry.id,
+          skuCode: sku?.skuCode ?? null,
+          skuName: sku?.name ?? null,
+          skuIcon: sku?.icon ?? null,
+          amountCredits: entry.amountCredits,
+          createdAt: entry.createdAt
+        };
+      });
+  }
+
+  const rows = await prisma.marketplaceLedgerEntry.findMany({
+    where: { tenantId: context.tenantId, type: "ppu_consume" },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+    include: { sku: true }
+  });
+  return rows.map((entry) => ({
+    id: entry.id,
+    skuCode: entry.sku?.skuCode ?? null,
+    skuName: entry.sku?.name ?? null,
+    skuIcon: entry.sku?.icon ?? null,
+    amountCredits: entry.amountCredits,
+    createdAt: entry.createdAt.toISOString()
+  }));
+}
+
+function resolveMarketplaceSkillId(capabilityKey: string | null | undefined): SkillId | undefined {
+  if (!capabilityKey) return undefined;
+  return MARKETPLACE_SKILL_BY_CAPABILITY[capabilityKey] as SkillId | undefined;
+}
+
+function marketplaceIndustryContext(sku: PublicMarketplaceSku): string | null {
+  const industry = MARKETPLACE_INDUSTRIES[sku.zone];
+  if (!industry || industry.general) return null;
+  const core = sku.skuCode.includes("__") ? sku.skuCode.slice(sku.skuCode.lastIndexOf("__") + 2) : sku.skuCode;
+  const ov = (industry.ov ?? {})[core] ?? {};
+  const cap = typeof ov.cap === "string" ? ov.cap : "";
+  const tips = Array.isArray(ov.tip) ? ov.tip.map((item) => String(item)).filter(Boolean) : [];
+  return [
+    `你是「${industry.title}」行业智能体，服务对象：${industry.who ?? "行业经营者"}。`,
+    `行业术语：${industry.lexicon.join("、")}。`,
+    `典型痛点：${industry.pains.join("；")}。`,
+    `必须遵守的合规红线：${industry.redline.join("；")}。`,
+    cap ? `该场景方法论（照此产出）：${cap}` : "",
+    tips.length > 0 ? `落地提示：${tips.join("；")}` : ""
+  ].filter(Boolean).join("\n");
+}
+
+function marketplaceRunInput(sku: PublicMarketplaceSku, input: string): string {
+  const context = marketplaceIndustryContext(sku);
+  const instruction =
+    "\n\n输出要求：只给用户交付成果，格式严格按上文要求（章节标题 / 表格结构保持清晰）。禁止输出任何推导过程、评分标准、内部评估、工作区/任务卡等字样。";
+  return context ? `${context}\n\n用户输入：\n${input}${instruction}` : `${input}${instruction}`;
+}
+
+const MARKETPLACE_SKILL_PROMPTS: Record<string, string> = {
+  "ip-pos": "按 IP 定位方法论，输出一个 Markdown 表格，列依次为：维度（项目定位 / 目标用户 / 人设定位 / 记忆板块 / 内容矩阵）、结论、说明。每个维度一行。",
+  topic: "按选题三关筛选方法论，输出一个 Markdown 表格，列依次为：序号、选题、切入角度、平台建议、是否踩雷。给 3-5 行。",
+  copy: "按文案方法论，输出一个 Markdown 表格，列依次为：模块（钩子 / 正文 / 标题话题 / 发布建议）、内容。每模块一行。",
+  vidrev: "按视频复盘方法论，输出一个 Markdown 表格，列依次为：模块（数据概览 / 归因 / 下一条动作）、内容。每模块一行。",
+  livescript: "按直播话术方法论，输出一个 Markdown 表格，列依次为：模块（开场 / 主推 / 节奏表 / 场控清单）、内容。每模块一行。",
+  liverev: "按直播复盘方法论，输出一个 Markdown 表格，列依次为：模块（定量指标 / 定性问题 / 话术迭代带）、内容。每模块一行。",
+  sales: "按销售成交方法论，输出一个 Markdown 表格，列依次为：模块（客户判断 / 标准话术 / 异议处理 / 合规提示）、内容。每模块一行。",
+  moments: "按朋友圈七柱方法论，输出一个 Markdown 表格，列依次为：模块（正文 / 配图建议 / 发布时间）、内容。每模块一行。",
+  "ip-pack": "按 IP 增长全链路方法论，输出一个 Markdown 表格，列依次为：模块（现状判断 / 先打哪一环 / 排兵布阵）、内容。每模块一行。"
+};
+
+function marketplaceSkillSystemPrompt(sku: PublicMarketplaceSku): string {
+  const core = sku.skuCode.includes("__") ? sku.skuCode.slice(sku.skuCode.lastIndexOf("__") + 2) : sku.skuCode;
+  if (core === "topic") return TOPIC_SYSTEM_PROMPT;
+  if (core === "copy") return COPY_SYSTEM_PROMPT;
+  const prompt = MARKETPLACE_SKILL_PROMPTS[core] ?? "输出一个 Markdown 表格，列依次为：模块、内容。";
+  return `你是思潼AI行业智能体平台的「${sku.name}」。${prompt}\n只输出一个 Markdown 表格，不要输出表格之外的任何说明、推导、评分或内部评估。`;
+}
+
+const TOPIC_SYSTEM_PROMPT = [
+  "你是思潼AI行业智能体平台的「选题智能体」。一次交付 10 条选题，输出严格按下面的 Markdown 结构，主表格必须正好是这 7 列：",
+  "| # | 选题 | 类型 | 来源 | 共识层级 | 客资准度 | 创作建议 |",
+  "",
+  "字段取值：",
+  "- 类型：认知型 / 信任型 / 连接型 / 转化型",
+  "- 来源：Get笔记 / 行业热点 / 数据复盘 / 同行爆款（可复合，如 `Get笔记+同行爆款`）",
+  "- 共识层级：人性共识 / 时代共识 / 利益共识 / 热点共识 / 专业共识",
+  "- 客资准度：★☆☆☆☆ / ★★★☆☆ / ★★★★☆ / ★★★★★",
+  "",
+  "共识层级与客资准度必须严格按下表绑定，不可自由组合：",
+  "| 共识层级 | 客资准度 | 战略目的 |",
+  "|---|---|---|",
+  "| 人性共识 | ★☆☆☆☆ | 拉流量，撬自然流 |",
+  "| 时代共识 | ★★★☆☆ | 建认知，让目标客户认识你 |",
+  "| 利益共识 | ★★★★☆ | 主力内容，流量+客资双拿 |",
+  "| 热点共识 | ★★★☆☆ | 借势曝光 |",
+  "| 专业共识 | ★★★★★ | 收客资，看了就想咨询 |",
+  "",
+  "三关（结果体现在选题里）：关① 一票否决（目标用户想不想看，取值 通过 / 通过（弱证据） / 否决，禁止写'应该有人想看'，无数据时标'弱证据：依据公开报道'）；关② 共识层级×客资准度只贴标签不淘汰；关③ 阶段配比（起号期 人性5/时代2/利益2/专业1，增长期 3/3/3/1，变现期 2/2/3/3，热点看时机）。",
+  "来源配额（10 条）：Get笔记 3-4 / 行业热点 2-3 / 数据复盘 2 / 同行爆款 2。若用户未提供账号数据，来源③的 2 条并入①②，并如实写「来源③：未提供数据，2 条配额已并入①②」，禁止用'内容空白'猜测。",
+  "CTA 严禁出现：私信 / 电话 / 找我 / 留个 / 加我 / 扫码领（合规引导用'看主页/评论区/关注'）。扩展字段（hook/gates/gate1_evidence/platform/risk_level/shoot_tip/cta）补不出时留空白显示 —，禁止编造，不进主表格 7 列。",
+  "",
+  "输出结构（严格）：",
+  "## 一、四个来源实拉结果",
+  "| 来源 | 实拉情况 | 拿到什么 |",
+  "## 二、选题 10 条（三关已过）",
+  "| # | 选题 | 类型 | 来源 | 共识层级 | 客资准度 | 创作建议 |",
+  "（10 行）",
+  "## 三、配比校验（{阶段}）",
+  "| 层级 | 基线 | 本次 | 结论 |",
+  "结论 + 调整建议",
+  "## 四、来源配额核对",
+  "| 来源 | 目标 | 实际 | 说明 |",
+  "",
+  "先判断信息是否够用：若「行业 / 账号阶段」缺失、敷衍（乱码、随意字符、与业务无关）或明显无法理解，则不要输出选题表；只输出：第一行「【需补充信息】」，下面 1-3 条「- 需要补充：…」问清行业与账号阶段。",
+  "其中「阶段」由用户账号阶段决定：起号期 / 增长期 / 变现期。只输出该 Markdown，不要输出表格之外的任何说明、推导、评分或内部评估。"
+].join("\n");
+
+interface TopicRow {
+  id: string;
+  title: string;
+  type: string;
+  source: string;
+  consensus: string;
+  precision: string;
+  advice: string;
+}
+
+function parseTopicTable(text: string): { rows: TopicRow[]; failures: string[] } {
+  const failures: string[] = [];
+  const lines = text.split(/\r?\n/);
+  const rows: TopicRow[] = [];
+  let idx = 0;
+  // 找到主表格（表头含 选题 的 7 列表）
+  for (let i = 0; i < lines.length; i++) {
+    const cells = splitRow(lines[i]);
+    if (cells.length >= 7 && cells[0].trim() === "#" && (cells[1] ?? "").trim() === "选题") {
+      idx = i + 1;
+      break;
+    }
+  }
+  if (idx === 0) {
+    return { rows, failures: ["未找到符合 7 列（# / 选题 / 类型 / 来源 / 共识层级 / 客资准度 / 创作建议）的主表格"] };
+  }
+  for (; idx < lines.length; idx++) {
+    const line = lines[idx].trim();
+    if (!line.startsWith("|")) break;
+    const cells = splitRow(line).map((c) => c.trim());
+    if (cells.every((c) => /^:?-{2,}:?$/.test(c))) continue;
+    if (cells.length < 7) {
+      failures.push(`第 ${rows.length + 1} 行字段不足（应为 7 列，实际 ${cells.length}）`);
+      rows.push({ id: cells[0] ?? "", title: cells[1] ?? "", type: cells[2] ?? "", source: cells[3] ?? "", consensus: cells[4] ?? "", precision: cells[5] ?? "", advice: cells[6] ?? "" });
+      continue;
+    }
+    rows.push({ id: cells[0], title: cells[1], type: cells[2], source: cells[3], consensus: cells[4], precision: cells[5], advice: cells[6] });
+  }
+  if (rows.length < 10) failures.push(`选题不足 10 条（实际 ${rows.length} 条）`);
+  const binding: Record<string, number> = { "人性共识": 1, "时代共识": 3, "利益共识": 4, "热点共识": 3, "专业共识": 5 };
+  rows.forEach((r, i) => {
+    const expected = binding[r.consensus];
+    const stars = (r.precision.match(/★/g) ?? []).length;
+    if (expected === undefined) failures.push(`第 ${i + 1} 条共识层级非法：${r.consensus}`);
+    else if (stars !== expected) failures.push(`第 ${i + 1} 条「${r.consensus}」应绑定 ${"★".repeat(expected)}，实际 ${r.precision}`);
+    if (!r.title || !r.type || !r.source || !r.advice) failures.push(`第 ${i + 1} 条存在空字段`);
+  });
+  if (!/配比校验/.test(text)) failures.push("缺少「配比校验」块");
+  if (/私信|电话|找我|留个|加我|扫码领/.test(text)) failures.push("CTA 含违禁词（私信/电话/找我/留个/加我/扫码领）");
+  return { rows, failures };
+}
+
+function splitRow(line: string): string[] {
+  const l = line.trim();
+  if (!l.startsWith("|") || !l.endsWith("|")) return [];
+  return l.slice(1, -1).split("|");
+}
+
+const COPY_SYSTEM_PROMPT = [
+  "你是思潼AI行业智能体平台的「文案智能体」。按「内容十件套 V5」完整交付一套：一、选题策划；二、口播逐字稿；三、访谈话术；四、拍摄脚本；五、拍摄注意事项；六、剪辑EDL；七、发布标题与话题；八、最佳发布时间；九、评论区引导；十、投流建议。",
+  "整体交付一份 Markdown，每章用『一、』…『十、』作为章节标题（独占一行，可用加粗如 **一、选题策划** 或 Markdown 标题），顺序与字段名严格按本约定。不要把所有章节塞进同一个表格；章节内部可使用小表格 / 列表 / 代码块：",
+  "一、选题策划（选题角度/爆款元素/脚本类型/漏斗层级/内容类型：获客型/人设型/流量型）；",
+  "二、口播逐字稿（默认60秒，按 0-3/3-15/15-30/30-45/45-55/55-60 六段，含【动作/情绪】与 >B-roll 切换点，每句≤40字）；",
+  "三、访谈话术（招商/获客型：必须给出 5-6 组问答，每组单独一行，开头写【问·情境式/情感式/转折式/引导式/回顾式】+ 问题，下一行【答】+ 答复；人设/流量型可显式标 不适用）；",
+  "四、拍摄脚本（固定场景+移动场景+B-roll清单，按场景段落不逐字卡秒）；",
+  "五、拍摄注意事项（着装/场景/收音/灯光/状态/禁忌六类清单）；禁忌 用描述性语言（如避免医疗承诺、绝对化用语、诱导私信），不要逐字写出被禁止的词；",
+  "六、剪辑EDL（段落/画面/配乐/字幕特效/备注，不写秒区间，≥4段，含 BGM 与字幕规范）；",
+  "七、发布标题与话题（必须 3 行标题：『📌 主标题：…』『🔁 备选1：…』『🔁 备选2：…』；三层话题：大流量1-2/精准2-3/行业1-2）；",
+  "八、最佳发布时间（推荐+备选+策略）；",
+  "九、评论区引导（置顶评论+前10条回复风格+意向转化话术）；",
+  "十、投流建议（按内容类型定主渠道：获客型→本地推；流量型→DOU+；人设型→DOU+测爆款+私域。给前置指标/设置/日预算公式）。",
+  "严禁在 口播/标题/话题/置顶评论/意向转化话术 中出现：私信、加微信、电话、联系我、找我、留个、扫码领、加我；以及 唯一/保证/100%/根治/彻底/永久；包回本/稳赚/月入过万/零风险/躺赚。",
+  "先判断信息是否够用：若「行业/产品卖点」或「目标人群」缺失、敷衍（如乱码、随意字符、与业务无关，或只写了『无/没有/随便/测试/111』之类），或明显无法理解，则不要猜测、不要编造、也不要输出十件套；只输出如下固定格式（第一行必须是「【需补充信息】」，最多 3 条）：\n【需补充信息】\n- 需要补充：…\n- 需要补充：…\n只有关键信息够用时，才输出十件套。",
+  "十件套里的客户名、门店名、案例、数据、资质、价格等，凡用户未明确提供的，一律写「待补充」，严禁编造或套用任何真实品牌/客户名称。",
+  "输出必须一、…十、十节齐全、每节独立成段；标题必须正好 3 行（主标题 + 2 备选）；若为获客/招商型，访谈话术必须 5-6 组【问·…】，且第十节主投本地推。只输出这套十件套 Markdown，不要输出任何说明、推导或内部评估。"
+].join("\n");
+
+function extractClarification(text: string): string | null {
+  const trimmed = (text ?? "").trim();
+  if (!trimmed) return null;
+  // 只认开头附近的固定标记，避免正文里偶发提到时误判。
+  if (!/【需补充信息】/.test(trimmed.slice(0, 120))) return null;
+  const message = trimmed.replace(/[\s*_#>]*【需补充信息】[\s*_]*/, "").trim();
+  return message || "还需要补充关键信息才能生成，请补充「行业 / 产品卖点」与「目标人群」后再试。";
+}
+
+function parseCopyTen(text: string): { failures: string[] } {
+  const failures: string[] = [];
+  const sections = ["一、", "二、", "三、", "四、", "五、", "六、", "七、", "八、", "九、", "十、"];
+  sections.forEach((s: string) => {
+    if (!new RegExp(`(?:^|\\n)(?:#{0,3}\\s*)?(?:[*_]{1,2}\\s*)?(?:\\s*\\|\\s*\\*\\*?\\s*)?${s}`).test(text)) {
+      failures.push(`缺少「${s}」章节`);
+    }
+  });
+
+  // 词数量：口播逐字稿（去动作标记）
+  const scriptMatch = /二、[\s\S]*?(?=(?:^|\n)(?:#{0,3}\s*)?(?:[*_]{1,2}\s*)?(?:\s*\|)?\s*三、|$)/.exec(text);
+  const scriptText = scriptMatch ? scriptMatch[0] : "";
+  const cleanScript = scriptText.replace(/【[^】]*】/g, "").replace(/>B-roll[^\n]*/g, "").replace(/```/g, "");
+  const words = (cleanScript.match(/[\u4e00-\u9fa5a-zA-Z0-9]/g) ?? []).length;
+  if (words < 150) failures.push(`口播稿过短（${words} 字 < 150）`);
+  const longSentence = cleanScript.split(/[。！？；\n]/).map((s) => s.trim()).find((s) => s.length > 40 && !/^[0-9]+[-\s]*[0-9]*\s*秒/.test(s) && !/^【/.test(s) && !/^>/.test(s) && !/^\|/.test(s) && !/^[#-]/.test(s) && !/[|].*[|]/.test(s));
+  if (longSentence) failures.push(`口播存在 >40 字单句（${longSentence.slice(0, 24)}…）`);
+
+  // 标题数量
+  const titleCount = (text.match(/^(?:#{0,3}\s*)?(?:[*_]{1,2}\s*)?(?:📌\s*)?主标题|^(?:#{0,3}\s*)?(?:[*_]{1,2}\s*)?(?:🔁\s*)?备选/gm) ?? []).length;
+  if (titleCount < 3) failures.push(`标题不足（${titleCount} < 3，需主标题+2备选）`);
+
+  // 话题三层
+  ["大流量", "精准", "行业"].forEach((layer) => {
+    if (!new RegExp(layer).test(text)) failures.push(`话题缺少「${layer}」层级`);
+  });
+
+  // EDL 段落数（表格行）
+  const edlRowCount = countTableRows(text, "段落");
+  if (edlRowCount < 4) failures.push(`剪辑EDL 段落不足（${edlRowCount} < 4）`);
+
+  // 访谈问答（招商/获客型需 ≥5 组）
+  const contentType = (/(内容类型|content_type)[\s\S]{0,12}?[：:][\s\S]{0,6}?((?:获客型|人设型|流量型))/.exec(text)?.[1]) ?? "";
+  if (contentType === "获客型") {
+    const qaCount = (text.match(/(?:【问·?|问·)/g) ?? []).length;
+    if (qaCount < 5) failures.push(`访谈话术问答不足（${qaCount} < 5）`);
+  }
+
+  // 投流渠道错配
+  if (contentType === "获客型" && !/本地推/.test(text)) failures.push("获客型应主投本地推，缺失本地推建议");
+  if (contentType === "流量型" && !/DOU\+/.test(text)) failures.push("流量型应主投 DOU+，缺失 DOU+ 建议");
+
+  // 违禁词（仅扫 二/七/九，去掉「十、投流」涉及的私信留资设置项）
+  // 先剔除模型在“禁忌/严禁/违禁/医疗承诺”等合规说明里复述被禁止词的句子，避免自我命中。
+  const scanText = text
+    .replace(/十、[\s\S]*$/m, "")
+    .split(/\r?\n/)
+    .filter((line) => !/严禁|禁忌|违禁|医疗承诺|避免[^，。]{0,12}承诺|绝对化用语|合规提示/.test(line))
+    .join("\n");
+  if (/私信|加微信|电话|联系我|找我|留个|扫码领|加我/.test(scanText)) failures.push("文案区含违规引导词（私信/加微信/电话/联系我/找我/留个/扫码领/加我）");
+  if (/唯一|保证|100%|根治|彻底|永久/.test(scanText)) failures.push("文案区含绝对化用语（唯一/保证/100%/根治/彻底/永久）");
+  if (/包回本|稳赚|月入过万|零风险|躺赚/.test(scanText)) failures.push("文案区含承诺类表述（包回本/稳赚/月入过万/零风险/躺赚）");
+  return { failures };
+}
+
+function countTableRows(text: string, headerCell: string): number {
+  const lines = text.split(/\r?\n/);
+  let count = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const cells = splitRow(lines[i]).map((c) => c.trim());
+    if (cells.some((c) => c === headerCell)) {
+      for (let j = i + 1; j < lines.length; j++) {
+        const c2 = splitRow(lines[j]).map((x) => x.trim());
+        if (!lines[j].trim().startsWith("|")) break;
+        if (c2.every((x) => /^:?-{2,}:?$/.test(x))) continue;
+        count++;
+      }
+      break;
+    }
+  }
+  return count;
+}
+
+/* ---------------------------------------------------------------------------
+ * IP 定位智能体（ip-pos）：200 积分/次，一次交付 1 份完整 IP 定位全案。
+ * 全案体量大（1分钟速览 + 八章 + ≥80 条选题），按「0–四章 / 五–八章」两段并发生成再合并，
+ * 合并结果必须通过下面的硬校验（V1–V10）才扣费，校验不通过不扣积分、可免费重跑。
+ * ------------------------------------------------------------------------- */
+
+const IP_POS_OVERVIEW_FIELDS = [
+  "项目定位",
+  "核心用户",
+  "IP人设",
+  "IP原型",
+  "当前IP状态",
+  "内容重心",
+  "首选平台",
+  "第一个月核心动作"
+];
+
+const IP_POS_COMMON_RULES = [
+  "【一次交付】一次使用 = 交付 1 份完整的 IP 定位全案（📌1分钟速览 + 一~八章），按次扣 200 积分；允许分轮追问，但同一个会话只扣一次费。",
+  "【信息不全先问，不许硬出方案】「品牌名 / 现状（有无账号、粉丝量、做过什么）/ 目标用户 / 目标（招商 · 获客 · 卖课）」四项缺一，或回答敷衍（乱码、随意字符、与业务无关，或只写「无 / 没有 / 测试 / 111」），就不要输出任何章节内容，只输出两行：",
+  "【需补充信息】",
+  "- 需要补充：…（最多 3 条，一次最多问 3 个问题，只问真正缺的，不要重复用户已经给过的信息）",
+  "信息够用时，绝对不要出现「需补充信息」这几个字。",
+  "【不做什么】不写逐字口播稿 / 拍摄脚本（那是文案智能体的活）、不做实际投放、不承诺涨粉或客资数字、不给回本周期结论。",
+  "【空值】用户没给的数据（粉丝量、门店数、月营收、客单价、成本等）一律写「—」或「待补充：需要用户提供…」，严禁编造任何品牌名、数字、案例、资质、客户原话。",
+  "【违禁词·命中即判失败】用户可见文案（一句话定位、人设描述、语言正例、签名档、选题标题、钩子话术、执行建议）里禁止出现：私信 / 加微信 / 打电话 / 联系我 / 找我 / 留个 / 扫码；第一 / 唯一 / 最好 / 绝对 / 100% / 保证 / 顶级；包回本 / 稳赚 / 月入过万 / 零风险 / 躺赚 / 必赚。引导一律用「评论区说下你在哪个城市」「看主页置顶」这类合规说法，也不要在正文里复述这些词。",
+  "【五步递进不许跳步】项目 → 用户 → 人设 → 内容 → 选题。",
+  "【格式】只输出 Markdown 正文；章节号、章节标题、字段名严格照抄下面的结构，表格列名一字不改；不要输出推导过程、评分标准、内部评估、工作区 / 任务卡 / 提示词等字样。"
+].join("\n");
+
+const IP_POS_SYSTEM_PROMPT_A = [
+  "你是思潼AI行业智能体平台的「IP 定位智能体」。本次你交付 IP 定位全案的【前半部分】：📌1分钟速览 + 一、项目定位 + 二、目标用户定位 + 三、IP人设定位 + 四、内容定位。",
+  "第五章及以后由同一次交付的另一段负责，你不要重复输出，也不要写「（后略）」「详见后文」这类占位。",
+  IP_POS_COMMON_RULES,
+  "",
+  "严格按下面的结构输出：",
+  "",
+  "## 📌 1分钟速览",
+  "| 维度 | 结论 |",
+  "|---|---|",
+  "| 项目定位 | 谁、靠什么、帮谁、赚什么钱 |",
+  "| 核心用户 | 最典型的客户是谁 + 他最痛的一件事 |",
+  "| IP人设 | 一句话人设（身份 + 帮谁 + 凭什么信） |",
+  "| IP原型 | 主原型 + 辅助原型 |",
+  "| 当前IP状态 | 账号现状 / 粉丝量 / 内容现状 / 核心卡点（没数据就写 —） |",
+  "| 内容重心 | 先打哪一类内容、怎么打 |",
+  "| 首选平台 | 主阵地 + 一句话理由 |",
+  "| 第一个月核心动作 | 3 条，用 ①②③ 分隔 |",
+  "以上 8 行一行都不能少、不能改字段名，缺一判失败。",
+  "",
+  "## 一、项目定位",
+  "### 1.1 一句话定位",
+  "> 你做什么 + 帮谁解决什么 + 跟同行最大的不同（一句话）",
+  "### 1.2 核心差异化",
+  "| 序号 | 差异化点 | 支撑证据 | 用户价值 |",
+  "|---|---|---|---|",
+  "至少 3 行；「支撑证据」必须是真实数据 / 客户原话 / 可验证事实，禁止只写「专业」「靠谱」这类形容词；用户没给证据就写「待补充：需要用户提供…」。",
+  "### 1.3 竞品对比",
+  "| 维度 | 我们 | 竞品A | 竞品B | 机会点 |",
+  "|---|---|---|---|---|",
+  "至少 3 行；竞品 ≥2 个；用户没给竞品就用「竞品A（待补充）」这类占位，不要编造真实品牌。",
+  "### 1.4 阶段判断",
+  "- 当前阶段：起步期 / 成长期 / 成熟期（按用户给的账号现状判断）",
+  "- IP策略方向：一句话说明先做什么、不做什么",
+  "",
+  "## 二、目标用户定位",
+  "### 2.1 用户画像（代号：…）",
+  "| 维度 | 描述 |",
+  "|---|---|",
+  "| 年龄/城市/职业/收入 | … |",
+  "| 一句话描述 | …（用目标用户自己的口气说） |",
+  "### 2.2 痛点地图",
+  "| 序号 | 痛点 | 类型 | 紧急度 | 现状 |",
+  "|---|---|---|---|---|",
+  "至少 5 行，不足判失败；类型取 功能 / 情感 / 社会，紧急度取 高 / 中 / 低。",
+  "### 2.3 决策旅程",
+  "| 阶段 | 他在想什么 | 匹配内容类型 |",
+  "|---|---|---|",
+  "至少 4 行；第三列必须标明内容类型：信任型 / 认知型 / 连接型 / 转化型。",
+  "### 2.4 内容消费偏好",
+  "| 平台 | 时段 | 信任源 |",
+  "|---|---|---|",
+  "至少 2 行。",
+  "",
+  "## 三、IP人设定位",
+  "### 3.1 一句话人设",
+  "> …",
+  "### 3.2 五维人设模型",
+  "| 维度 | 内容 |",
+  "|---|---|",
+  "| 身份标签 | 主：… / 辅：… |",
+  "| 性格特质 | … % + … % + … % |",
+  "| 信任锚点 | 核心：… ／ 阶段验证：… ／ 持续证明：… |",
+  "| 表达风格 | … |",
+  "| 价值主张 | … |",
+  "五维一行都不能少。",
+  "- **3 个月认知转变**：从「…」→ 到「…」",
+  "### 3.3 IP原型",
+  "- 主原型：…（领路型 / 专家型 / 同行型 / 挑战型）",
+  "- 辅助原型：…",
+  "- 理由：…",
+  "### 3.4 语言风格",
+  "**正例**（100–200 字，口语，用户能直接照读）：",
+  "> …",
+  "**反例**（约 100 字，说明为什么用户会划走）：",
+  "> …",
+  "### 3.5 视觉建议",
+  "| 主色调 | 场景 | 着装 | 质感 |",
+  "|---|---|---|---|",
+  "### 3.6 记忆板块",
+  "#### 视觉锤",
+  "- 主锤：…",
+  "- 辅锤：…",
+  "- 使用场景：…",
+  "#### 声音钉",
+  "- 开场音/BGM：…",
+  "- 标志语/口头禅：…",
+  "- 语调特征：…",
+  "### 3.7 主页四件套",
+  "#### 昵称建议",
+  "- 推荐：…",
+  "- 备选：…",
+  "#### 头像建议",
+  "- 拍摄要点：…",
+  "- 要求：…",
+  "#### 签名档",
+  "必须正好 4 行，放在代码块里，一行一条：",
+  "```",
+  "第1行（身份标签）：…",
+  "第2行（价值主张）：…",
+  "第3行（信任钩子）：…",
+  "第4行（行动引导）：…",
+  "```",
+  "签名档不是 4 行判失败；第 4 行的引导语必须是合规说法。",
+  "#### 背景图建议",
+  "- 内容：…",
+  "- 风格：…",
+  "",
+  "## 四、内容定位",
+  "### 4.1 内容使命",
+  "> 让谁，看完多少条内容，敢做什么（一句话）",
+  "### 4.2 内容矩阵",
+  "| 类型 | 配比 | 方向 | 示例选题 |",
+  "|---|---|---|---|",
+  "| 信任型 | …% | … | … |",
+  "| 认知型 | …% | … | … |",
+  "| 连接型 | …% | … | … |",
+  "| 转化型 | …% | … | … |",
+  "至少 4 类，配比合计 100%。",
+  "### 4.3 平台差异化",
+  "| 平台 | 定位 | 侧重 | 频率 |",
+  "|---|---|---|---|",
+  "至少 2 个平台；每个平台的「侧重」和「频率」必须不同，全平台一样判失败。",
+  "",
+  "输出前自检：速览 8 行齐全、四章齐全、痛点 ≥5、差异化 ≥3 条且都有支撑证据、决策旅程每阶段标了内容类型、签名档正好 4 行、平台 ≥2 个且侧重/频率不同、没有违禁词。"
+].join("\n");
+
+const IP_POS_SYSTEM_PROMPT_B = [
+  "你是思潼AI行业智能体平台的「IP 定位智能体」。本次你交付 IP 定位全案的【后半部分】：五、选题方向 + 六、投流建议 + 七、IP发展规划 + 八、执行建议。",
+  "前四章（项目 / 用户 / 人设 / 内容）由同一次交付的另一段负责，你不要重复输出，直接从第五章开始。",
+  IP_POS_COMMON_RULES,
+  "",
+  "严格按下面的结构输出：",
+  "",
+  "## 五、选题方向",
+  "### 5.1 信任型选题（共 22 条）",
+  "1. 选题标题 ｜ 内容形式 ｜ ⭐⭐⭐",
+  "必须把 22 条全部写完，一条一行，每行固定为「序号. 选题标题 ｜ 内容形式 ｜ 优先级」，优先级取 ⭐ / ⭐⭐ / ⭐⭐⭐。",
+  "### 5.2 认知型选题（共 22 条）",
+  "同上，22 条全部写完。",
+  "### 5.3 连接型选题（共 22 条）",
+  "同上，22 条全部写完。",
+  "### 5.4 转化型选题（共 14 条）",
+  "同上，14 条全部写完。",
+  "四类合计 ≥80 条，一条都不能省，禁止写「其余按同一结构推导」这类占位；少一条判失败。",
+  "### 5.5 TOP10 优先选题",
+  "| 排名 | 选题标题方向 | 类型 | 预期效果 | 创作要点 |",
+  "|---|---|---|---|---|",
+  "正好 10 行，排名 1–10；类型取 信任型 / 认知型 / 连接型 / 转化型。",
+  "### 5.6 第一个月选题日历",
+  "| 日期 | 类型 | 选题 | 备注 |",
+  "|---|---|---|---|",
+  "| D1 | 信任型 | … | |",
+  "D1 到 D30 共 30 行，每周留 1 天「休息」，四类轮换；少于 28 行判失败。",
+  "### 5.7 结尾钩子规范",
+  "| 类型 | 目的 | 话术模板 |",
+  "|---|---|---|",
+  "| 关注钩 | 引导关注 | … |",
+  "| 行动钩 | 引导进主页 | … |",
+  "| 共鸣钩 | 引导评论 | … |",
+  "| 留资钩 | 合规引导 | … |",
+  "- 声音钉收尾语：…",
+  "- 第一个月 A/B 测试计划：…",
+  "",
+  "## 六、投流建议",
+  "### 6.1 投流前置判断",
+  "| 内容 | 完播率 | 互动率 | 自然播放 | 是否适合投 |",
+  "|---|---|---|---|---|",
+  "### 6.2 DOU+ 投放方案",
+  "| 场景 | 目标 | 金额 | 时长 | 定向 |",
+  "|---|---|---|---|---|",
+  "- 投放节奏：…",
+  "- 注意事项：…",
+  "### 6.3 本地推投放方案",
+  "| 场景 | 目标 | 金额 | 范围 | 关键设置 |",
+  "|---|---|---|---|---|",
+  "投放城市没给就写「待补充：需用户确认目标城市」，不要编造。",
+  "### 6.4 月预算分配",
+  "| 项目 | 金额 | 占比 |",
+  "|---|---|---|",
+  "| DOU+ | … | …% |",
+  "| 本地推 | … | …% |",
+  "| **合计** | **…** | **100%** |",
+  "预算金额未给时按「待补充：需用户确认月预算」处理，占比给出建议值且合计 100%。",
+  "### 6.5 第一个月投放日历",
+  "| 日期 | 投什么内容 | 渠道 | 金额 |",
+  "|---|---|---|---|",
+  "至少 4 行。",
+  "本节是平台设置项名词区，可以出现「私信留资」这类平台功能名；其余章节一律不许出现违禁引导词。",
+  "",
+  "## 七、IP发展规划",
+  "### 7.1 IP能力评估",
+  "| 维度 | 评分(0-10) | 当前表现 | 目标(3个月) |",
+  "|---|---|---|---|",
+  "| 表达能力 | … | … | … |",
+  "| 内容能力 | … | … | … |",
+  "| 平台认知 | … | … | … |",
+  "| 账号基础 | … | … | … |",
+  "| 投入度 | … | … | … |",
+  "| **综合** | **X/50** | | **Y/50** |",
+  "五维缺一项或缺综合分判失败；综合分必须等于五项之和。",
+  "### 7.2 现状诊断",
+  "- 当前最短板：…",
+  "- 当前最大卡点：…",
+  "- 当前最大优势（别丢了）：…",
+  "### 7.3 三阶段发展路径",
+  "| 阶段 | 时间 | 人设侧重 | 内容重心 | 关键里程碑 |",
+  "|---|---|---|---|---|",
+  "| 起步期 | 第 1–3 月 | … | … | … |",
+  "| 成长期 | … | … | … | … |",
+  "| 成熟期 | … | … | … | … |",
+  "### 7.4 第一个月能力提升计划",
+  "| 周次 | 练什么 | 怎么练 | 检验标准 |",
+  "|---|---|---|---|",
+  "第 1–4 周，共 4 行。",
+  "",
+  "## 八、执行建议",
+  "- **关键成功因素**：① … ② … ③ …（正好 3 条）",
+  "- **风险提示**：① … ② …（正好 2 条，写风险本身，不要复述任何违禁词）",
+  "- **迭代周期**：…",
+  "",
+  "输出前自检：四类选题合计 ≥80 条且数量达标（信任 ≥22 / 认知 ≥22 / 连接 ≥22 / 转化 ≥14）、TOP10 正好 10 行、日历 ≥28 天、预算占比合计 100%、能力五维 + 综合分齐全、成功因素 3 条 / 风险 2 条、没有违禁词。"
+].join("\n");
+
+interface IpPosPayloadError {
+  code: string;
+  field: string;
+  message: string;
+}
+
+export interface IpPosPayload {
+  meta: { brand: string; industry: string; goal: string; generatedAt: string };
+  overview: {
+    project: string;
+    user: string;
+    persona: string;
+    archetype: string;
+    ip_status: string;
+    content_focus: string;
+    platform: string;
+    month_actions: string;
+  };
+  stats: {
+    topic_total: number;
+    by_type: { trust: number; cognitive: number; connection: number; conversion: number };
+  };
+  validation: { passed: boolean; errors: IpPosPayloadError[] };
+  /** 主页四件套「可直接抄」卡片用；bio 为签名档 4 行原文。 */
+  homepage: { nickname: string; avatar: string; bio: string[]; banner: string };
+  /** 语言风格正/反例，供前端单独展示与「口播正例导出 TXT」。 */
+  tone: { positive: string; negative: string };
+  topics: {
+    trust: string[];
+    cognitive: string[];
+    connection: string[];
+    conversion: string[];
+    top10: string[];
+    calendar30: string[];
+  };
+  sections: Record<string, string>;
+}
+
+/** 取某一章的正文（从章标题行到下一个章标题行）。 */
+function ipPosChapterText(text: string, label: string): string {
+  const lines = text.split(/\r?\n/);
+  const heading = new RegExp(`^\\s*(?:#{1,5}\\s*)?(?:[*_]{1,2}\\s*)?${label}、`);
+  const start = lines.findIndex((line) => heading.test(line));
+  if (start < 0) return "";
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    if (/^\s*(?:#{1,5}\s*)?(?:[*_]{1,2}\s*)?(?:一|二|三|四|五|六|七|八|九|十|十一|十二)、/.test(lines[i])) {
+      end = i;
+      break;
+    }
+  }
+  return lines.slice(start, end).join("\n");
+}
+
+/**
+ * 章内小节（从匹配行到下一个同级或更高级标题，或 x.y 小节标题）。
+ * 命中行本身是标题时必须允许它的子标题留在小节内，否则
+ * 「### 3.7 主页四件套」这种“标题紧跟子标题”的小节会被切成空串，
+ * 导致签名档等内容整体丢失。
+ */
+function ipPosSubSection(section: string, pattern: RegExp): string {
+  const lines = section.split(/\r?\n/);
+  const start = lines.findIndex((line) => pattern.test(line));
+  if (start < 0) return "";
+  const startHeading = /^\s*(#{1,6})\s/.exec(lines[start]);
+  const startLevel = startHeading ? startHeading[1].length : 0;
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    const line = lines[i];
+    const heading = /^\s*(#{1,6})\s/.exec(line);
+    if (heading) {
+      if (startLevel > 0 && heading[1].length > startLevel) continue;
+      end = i;
+      break;
+    }
+    if (/^\s*(?:[*_]{1,2}\s*)?\d+\.\d+[.、\s]/.test(line)) {
+      end = i;
+      break;
+    }
+    if (/^\s*\*\*\s*\d+\.\d+/.test(line)) {
+      end = i;
+      break;
+    }
+  }
+  return lines.slice(start, end).join("\n");
+}
+
+/** 段落里以指定表头单元格开头的表格数据行。 */
+function ipPosTableRows(section: string, headerCell: string): string[][] {
+  const lines = section.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const cells = splitRow(lines[i]).map((c) => c.trim());
+    if (cells.some((c) => c.replace(/[*_`\s]/g, "") === headerCell)) {
+      const rows: string[][] = [];
+      for (let j = i + 1; j < lines.length; j++) {
+        if (!lines[j].trim().startsWith("|")) break;
+        const c2 = splitRow(lines[j]).map((x) => x.trim());
+        if (c2.length === 0) continue;
+        if (c2.every((x) => /^:?-{2,}:?$/.test(x))) continue;
+        rows.push(c2);
+      }
+      return rows;
+    }
+  }
+  return [];
+}
+
+/** 键值两列表格 → 记录（去掉加粗标记）。 */
+function ipPosKeyValueRows(section: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const line of section.split(/\r?\n/)) {
+    const cells = splitRow(line).map((c) => c.trim());
+    if (cells.length < 2) continue;
+    const key = (cells[0] ?? "").replace(/[*_`\s]/g, "");
+    if (!key || /^:?-{2,}:?$/.test(key)) continue;
+    if (out[key] === undefined) out[key] = cells[1] ?? "";
+  }
+  return out;
+}
+
+/** 选题小节里的条目（要求「选题 ｜ 形式 ｜ 优先级」三段式）。 */
+function ipPosTopicItems(section: string): string[] {
+  const items = section
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => /^(?:\d{1,3}\s*[.、)]|[-*])\s+\S/.test(line))
+    .map((line) => line.replace(/^(?:\d{1,3}\s*[.、)]|[-*])\s+/, "").trim())
+    .filter(Boolean);
+  const structured = items.filter((item) => (item.match(/[｜|]/g) ?? []).length >= 2);
+  return structured.length > 0 ? structured : items;
+}
+
+/** 主页签名档行（优先取「签名档」小节里的代码块内容）。 */
+function ipPosSignatureLines(section: string): string[] {
+  const lines = section.split(/\r?\n/);
+  // 优先标题行/加粗标签行，避免正文顺带提到「签名档」时从错误位置截取。
+  const labeled = lines.findIndex(
+    (line) => /签名档/.test(line) && /^\s*(?:#{1,6}\s|\*\*|[-*]\s)/.test(line)
+  );
+  const start = labeled >= 0 ? labeled : lines.findIndex((line) => /签名档/.test(line));
+  if (start < 0) return [];
+  const rest = lines.slice(start).join("\n");
+  const fenced = /```[^\n]*\n([\s\S]*?)```/.exec(rest);
+  if (fenced) {
+    return (fenced[1] ?? "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
+  return rest
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => /^(?:[-*]\s*)?(?:\*\*)?第\s*[1-4一二三四]\s*行/.test(line));
+}
+
+/** 小节里的「标签：值」取首个匹配（主页四件套各字段）。 */
+function ipPosLabeledValue(section: string, label: string): string {
+  const match = new RegExp(`${label}[^\\n：:]{0,8}[：:]\\s*([^\\n]+)`).exec(section.replace(/[*`]/g, ""));
+  return (match?.[1] ?? "").replace(/[*`]/g, "").trim();
+}
+
+/** 小节首条可用文本：优先指定标签行，其次首条列表项，最后首个正文行。 */
+function ipPosFirstValue(section: string, label?: string): string {
+  if (label) {
+    const labeled = ipPosLabeledValue(section, label);
+    if (labeled) return labeled;
+  }
+  const lines = section.split(/\r?\n/).map((line) => line.trim());
+  const bullet = lines.find((line) => /^[-*]\s+\S/.test(line));
+  if (bullet) return bullet.replace(/^[-*]\s+/, "").replace(/[*`]/g, "").trim();
+  const plain = lines.find((line) => line && !/^#{1,6}\s/.test(line) && !/^-{2,}$/.test(line));
+  return plain ? plain.replace(/[*`]/g, "").trim() : "—";
+}
+
+/** 标签（正例 / 反例）下方的引用块正文；模型没写引用块时退回第一段正文。 */
+function ipPosQuotedAfter(section: string, pattern: RegExp): string {
+  const lines = section.split(/\r?\n/);
+  const start = lines.findIndex((line) => pattern.test(line));
+  if (start < 0) return "";
+  const buffer: string[] = [];
+  let inside = false;
+  for (let i = start; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (/^>/.test(line)) {
+      inside = true;
+      buffer.push(line.replace(/^>\s?/, "").trim());
+      continue;
+    }
+    if (inside) break;
+  }
+  if (buffer.length > 0) return buffer.join("").trim();
+  for (let i = start + 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    if (/^\*\*(?:正例|反例)\*\*/.test(line) || /^#{1,6}\s/.test(line)) break;
+    return line.replace(/^[-*]\s+/, "").replace(/[*`]/g, "").trim();
+  }
+  return "";
+}
+
+/**
+ * 「第一 / 最好 / 100%」只在宣称式语境下判失败。
+ * 契约样例本身会使用序号（第一家店 / 第一年 / 第一个月 / 第一印象）、
+ * 占比（合计 100%）和比较式（挑数据最好的发），这些属于正常表达，
+ * 不能整体当成有效广告的绝对化用语。
+ */
+const IP_POS_ABSOLUTE_CLAIM_PATTERNS: RegExp[] = [
+  /(?:行业|全国|全网|全球|市场|本地|同城|赛道|领域|业内|品类|区域|中国|亚洲|世界)\s*第\s*一/,
+  /(?:销量|口碑|排名|业绩|流量|粉丝量)\s*第\s*一/,
+  /第\s*一\s*(?:名|品牌|人|梯队|选择|股)/,
+  /(?:全网|全国|行业|市场|业内|同城|本地|全球|中国|亚洲|世界)\s*最\s*(?:好|强|优|牛|厉害|专业)/,
+  /最\s*(?:好|强|优|牛|厉害)\s*的?\s*(?:品牌|门店|机构|团队|老师|课程|服务|方案|效果|选择|模式|方法|平台|系统|项目|美容院|连锁|品质|体验|资源)/,
+  /100\s*%\s*(?:保证|承诺|确保|有效|成功|回本|赚钱|见(?:效|结果)|提升|放心|转化|增长|成交|爆款|涨粉|上岸)/,
+  /(?:保证|承诺|确保)[^。；！？\n]{0,6}100\s*%/
+];
+
+function ipPosAbsoluteClaim(text: string): string | null {
+  for (const pattern of IP_POS_ABSOLUTE_CLAIM_PATTERNS) {
+    const matched = pattern.exec(text);
+    if (matched) return matched[0].replace(/\s+/g, "");
+  }
+  return null;
+}
+
+/**
+ * 「唯一 / 绝对 / 保证 / 顶级」只拦宣称式用法，避免把正常中文误判成绝对化用语：
+ * - 唯一：排除否定式（钱不是唯一解）和名词性用法（唯一性）；
+ * - 绝对：只拦「绝对 + 正面宣称」（绝对有效 / 绝对是），放行「绝对不要 / 没有绝对」；
+ * - 保证：只拦对客户的收益/效果承诺（保证你稳赚 / 保证见效），放行「保证一周 2 天投入」「保证金」；
+ * - 顶级：等级宣称，命中即判失败。
+ */
+function ipPosBannedAbsoluteWord(text: string): string | null {
+  for (const hit of text.matchAll(/唯一|绝对|保证|顶级/g)) {
+    const word = hit[0];
+    const at = hit.index ?? 0;
+    const before = text.slice(Math.max(0, at - 4), at);
+    const after = text.slice(at + word.length, at + word.length + 2);
+    if (word === "唯一") {
+      if (/(?:不是|并非|没有|不|非|无|没)$/.test(before)) continue;
+      if (/^性/.test(after)) continue;
+      return word;
+    }
+    if (word === "绝对") {
+      if (!/^(?:有效|第一|最好|好|领先|正确|可靠|放心|安全|专业|是|能|可以|会|让|成功|赚钱|稳赚|回本|提升|值得|保证)/.test(after)) continue;
+      return word;
+    }
+    if (word === "保证") {
+      if (!/^(?:您|你|效果|收益|赚|盈利|回本|成功|涨粉|客资|成交|转化|增长|上岸|结果|通过|录取|供货|正品|品质|质量|底价|最低价|有效|见效)/.test(after)) continue;
+      return word;
+    }
+    return word; // 顶级
+  }
+  return null;
+}
+
+/** 剔除非文案区（第六章平台设置项名词）与合规说明行，再查违禁词。 */
+function ipPosVisibleCopyText(text: string): string {
+  let inAds = false;
+  let inNegativeSample = false;
+  const kept: string[] = [];
+  for (const line of text.split(/\r?\n/)) {
+    const flat = line.replace(/\s+/g, "");
+    if (/^(?:#{1,5}|[*_]{1,2})?六、/.test(flat)) {
+      inAds = true;
+      continue;
+    }
+    if (inAds && /^(?:#{1,5}|[*_]{1,2})?七、/.test(flat)) inAds = false;
+    if (inAds) continue;
+    // 「反例」是契约要求模型写的反面样本（演示用户为什么会划走），不是交付给用户照读的文案，
+    // 坏样例里必然带违禁词。跳过反例标签行及其正文，避免误伤整份输出、让模型白扣一次费。
+    if (/^约?反例/.test(flat.replace(/^[#>*_+\-]+/, ""))) {
+      inNegativeSample = true;
+      continue;
+    }
+    if (inNegativeSample) {
+      const trimmed = line.trim();
+      const startsNewBlock = /^#{1,6}\s/.test(trimmed) || /^\*\*(?:正例|反例)\*\*/.test(trimmed);
+      if (!startsNewBlock) continue;
+      inNegativeSample = false;
+    }
+    kept.push(line);
+  }
+  return kept
+    .filter(
+      (line) =>
+        !/严禁|禁忌|违禁|合规提示|绝对化用语|反例|不要说|不能写|不要复述|避免[^，。]{0,12}(承诺|词|表述|用语)/.test(line)
+    )
+    .join("\n")
+    .replace(/第(?:一|二|三|四|五|六|七|八|九|十)?个?月/g, "")
+    .replace(/第[一二三四五六七八九十\d]+(?:周|步|次|类|行|条|时间|印象|反应|桶金|大)/g, "");
+}
+
+export function parseIpPosFull(text: string, userInput: string): { failures: string[]; payload: IpPosPayload } {
+  const errors: IpPosPayloadError[] = [];
+  const failures: string[] = [];
+  const fail = (code: string, field: string, message: string) => {
+    errors.push({ code, field, message });
+    failures.push(message);
+  };
+
+  const chapters: Array<{ label: string; keyword: string; key: string }> = [
+    { label: "一", keyword: "项目定位", key: "positioning" },
+    { label: "二", keyword: "目标用户", key: "user" },
+    { label: "三", keyword: "IP人设", key: "ip" },
+    { label: "四", keyword: "内容定位", key: "content" },
+    { label: "五", keyword: "选题方向", key: "topics" },
+    { label: "六", keyword: "投流建议", key: "ads" },
+    { label: "七", keyword: "IP发展规划", key: "growth" },
+    { label: "八", keyword: "执行建议", key: "execution" }
+  ];
+
+  const sections: Record<string, string> = {};
+  for (const chapter of chapters) {
+    const body = ipPosChapterText(text, chapter.label);
+    sections[chapter.key] = body;
+    const expected = `${chapter.label}、${chapter.keyword}`.replace(/\s+/g, "");
+    const found = text.split(/\r?\n/).some((line) =>
+      line
+        .replace(/\s+/g, "")
+        .replace(/^[#>*_\-—\d.、]+/, "")
+        .startsWith(expected)
+    );
+    if (!body || !found) fail("V2", `chapter_${chapter.key}`, `缺少「${chapter.label}、${chapter.keyword}」章节`);
+  }
+
+  // V1 · 1 分钟速览 8 项
+  const overviewSection = (() => {
+    const lines = text.split(/\r?\n/);
+    const start = lines.findIndex((line) => /1\s*分钟速览/.test(line));
+    if (start < 0) return "";
+    let end = lines.length;
+    for (let i = start + 1; i < lines.length; i++) {
+      if (/^\s*(?:#{1,5}\s*)?(?:[*_]{1,2}\s*)?一、/.test(lines[i])) {
+        end = i;
+        break;
+      }
+    }
+    return lines.slice(start, end).join("\n");
+  })();
+  const overviewRows = ipPosKeyValueRows(overviewSection);
+  const overviewMissing = IP_POS_OVERVIEW_FIELDS.filter((field) => {
+    const value = (overviewRows[field] ?? "").trim();
+    return !value || value === "—" || value === "-" || value === "待补充";
+  });
+  if (!overviewSection) {
+    fail("V1", "overview", "缺少「📌 1分钟速览」板块");
+  } else if (overviewMissing.length > 0) {
+    fail("V1", "overview", `1分钟速览缺项：${overviewMissing.join("、")}`);
+  }
+
+  // V3 · 选题数量（四类合计 ≥80，且各类达标）
+  const topicsSection = sections.topics ?? "";
+  const topicBuckets = {
+    trust: ipPosTopicItems(ipPosSubSection(topicsSection, /信任型选题/)),
+    cognitive: ipPosTopicItems(ipPosSubSection(topicsSection, /认知型选题/)),
+    connection: ipPosTopicItems(ipPosSubSection(topicsSection, /连接型选题/)),
+    conversion: ipPosTopicItems(ipPosSubSection(topicsSection, /转化型选题/))
+  };
+  const topicTotal =
+    topicBuckets.trust.length +
+    topicBuckets.cognitive.length +
+    topicBuckets.connection.length +
+    topicBuckets.conversion.length;
+  const thresholds: Array<[keyof typeof topicBuckets, number, string]> = [
+    ["trust", 22, "信任型"],
+    ["cognitive", 22, "认知型"],
+    ["connection", 22, "连接型"],
+    ["conversion", 14, "转化型"]
+  ];
+  for (const [key, threshold, name] of thresholds) {
+    if (topicBuckets[key].length < threshold) {
+      fail("V3", `topics_${key}`, `${name}选题不足 ${threshold} 条（实际 ${topicBuckets[key].length} 条）`);
+    }
+  }
+  if (topicTotal < 80) fail("V3", "topics_total", `选题总量不足 80 条（实际 ${topicTotal} 条）`);
+
+  // V4 · 痛点 ≥5
+  const painRows = ipPosTableRows(sections.user ?? "", "痛点");
+  if (painRows.length < 5) fail("V4", "user_pains", `痛点不足 5 个（实际 ${painRows.length} 个）`);
+
+  // V5 · 差异化必须有支撑证据
+  const diffRows = ipPosTableRows(sections.positioning ?? "", "差异化点");
+  if (diffRows.length < 3) {
+    fail("V5", "positioning_differentiation", `核心差异化不足 3 条（实际 ${diffRows.length} 条）`);
+  } else {
+    diffRows.forEach((row, index) => {
+      const evidence = (row[2] ?? "").trim().replace(/[*_`]/g, "");
+      if (!evidence || evidence === "—" || evidence === "-" || evidence.length < 3) {
+        fail("V5", `positioning_differentiation[${index + 1}]`, `第 ${index + 1} 条差异化缺「支撑证据」`);
+      }
+    });
+  }
+
+  // V6 · 签名档正好 4 行
+  const homeSection = ipPosSubSection(sections.ip ?? "", /主页四件套|签名档/);
+  const signatureLines = ipPosSignatureLines(homeSection);
+  if (signatureLines.length !== 4) {
+    fail("V6", "ip_homepage_bio", `签名档必须正好 4 行（实际 ${signatureLines.length} 行）`);
+  }
+
+  // V7 · 平台差异化（≥2 个平台，侧重/频率不得完全相同）
+  const platformRows = ipPosTableRows(sections.content ?? "", "平台").filter((row) => {
+    const name = (row[0] ?? "").replace(/[*_`\s]/g, "");
+    return Boolean(name) && !/^:?-{2,}:?$/.test(name) && name !== "平台";
+  });
+  if (platformRows.length < 2) {
+    fail("V7", "content_platform_diff", `平台差异化不足 2 个平台（实际 ${platformRows.length} 个）`);
+  } else {
+    const signatures = new Set(
+      platformRows.map((row) => `${(row[2] ?? "").replace(/[*_`\s]/g, "")}|${(row[3] ?? "").replace(/[*_`\s]/g, "")}`)
+    );
+    if (signatures.size < 2) fail("V7", "content_platform_diff", "各平台侧重/频率完全相同，未体现平台差异化");
+  }
+
+  // V8 · 五维人设 + 能力五维 + 综合分
+  const fiveDimSection = ipPosSubSection(sections.ip ?? "", /五维/);
+  const fiveDimMissing = ["身份标签", "性格特质", "信任锚点", "表达风格", "价值主张"].filter(
+    (field) => !fiveDimSection.replace(/[*_`\s]/g, "").includes(field)
+  );
+  if (fiveDimMissing.length > 0) {
+    fail("V8", "ip_five_dim", `五维人设缺项：${fiveDimMissing.join("、")}`);
+  }
+  const abilitySection = ipPosSubSection(sections.growth ?? "", /能力评估|能力打分/);
+  const abilityMissing = ["表达能力", "内容能力", "平台认知", "账号基础", "投入度"].filter(
+    (field) => !abilitySection.replace(/[*_`\s]/g, "").includes(field)
+  );
+  if (abilityMissing.length > 0) {
+    fail("V8", "growth_ability", `IP能力评估缺项：${abilityMissing.join("、")}`);
+  }
+  if (!/综合[\s\S]{0,20}?\d{1,2}\s*\/\s*50/.test(abilitySection.replace(/[*_`]/g, ""))) {
+    fail("V8", "growth_ability_total", "IP能力评估缺少综合分（格式：X/50）");
+  }
+
+  // V9 · TOP10 正好 10 行、日历 ≥28 天
+  const top10Rows = ipPosTableRows(ipPosSubSection(topicsSection, /TOP\s*10|优先选题/i), "排名");
+  if (top10Rows.length !== 10) fail("V9", "topics_top10", `TOP10 必须正好 10 行（实际 ${top10Rows.length} 行）`);
+  const calendarSection = ipPosSubSection(topicsSection, /日历/);
+  const calendarDays = new Set(
+    (calendarSection.match(/(?:^|\|)\s*D\s*(\d{1,2})\b/gi) ?? []).map((item) => (item.match(/\d{1,2}/) ?? [""])[0])
+  );
+  if (calendarDays.size < 28) fail("V9", "topics_calendar30", `第一个月选题日历不足 28 天（实际 ${calendarDays.size} 天）`);
+
+  // V10 · 违禁词（文案区，排除第六章平台设置项名词）
+  const copyText = ipPosVisibleCopyText(text);
+  if (/私信|加微信|打电话|联系我|找我|留个|扫码/.test(copyText)) {
+    fail("V10", "banned_guide", "文案区含违规引导词（私信/加微信/打电话/联系我/找我/留个/扫码）");
+  }
+  const bannedAbsoluteWord = ipPosBannedAbsoluteWord(copyText);
+  if (bannedAbsoluteWord) {
+    fail("V10", "banned_absolute", `文案区含绝对化用语（唯一/绝对/保证/顶级：${bannedAbsoluteWord}）`);
+  }
+  const absoluteClaim = ipPosAbsoluteClaim(copyText);
+  if (absoluteClaim) {
+    fail("V10", "banned_absolute", `文案区含绝对化用语（宣称式：${absoluteClaim}）`);
+  }
+  if (/包回本|稳赚|月入过万|零风险|躺赚|必赚/.test(copyText)) {
+    fail("V10", "banned_promise", "文案区含承诺类表述（包回本/稳赚/月入过万/零风险/躺赚/必赚）");
+  }
+
+  const pick = (patterns: RegExp[]): string => {
+    for (const pattern of patterns) {
+      const matched = pattern.exec(userInput)?.[1]?.trim();
+      if (matched) return matched;
+    }
+    return "—";
+  };
+  const top10 = top10Rows
+    .map((row) => (row[1] ?? "").replace(/[*_`]/g, "").trim())
+    .filter(Boolean);
+  const calendar30 = calendarSection
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => /^\|/.test(line) && /(?:^|\|)\s*D\s*\d{1,2}\b/i.test(line));
+
+  const payload: IpPosPayload = {
+    meta: {
+      brand: pick([/(?:品牌名|品牌名称|品牌|项目名|项目名称)[^\n：:]{0,6}[：:]\s*([^\n]{1,40})/]),
+      industry: pick([/(?:行业|赛道|领域)[^\n：:]{0,6}[：:]\s*([^\n]{1,40})/]),
+      goal: pick([/(?:核心目标|目标|诉求)[^\n：:]{0,8}[：:]\s*([^\n]{1,40})/]),
+      generatedAt: new Date().toISOString()
+    },
+    overview: {
+      project: overviewRows["项目定位"] ?? "—",
+      user: overviewRows["核心用户"] ?? "—",
+      persona: overviewRows["IP人设"] ?? "—",
+      archetype: overviewRows["IP原型"] ?? "—",
+      ip_status: overviewRows["当前IP状态"] ?? "—",
+      content_focus: overviewRows["内容重心"] ?? "—",
+      platform: overviewRows["首选平台"] ?? "—",
+      month_actions: overviewRows["第一个月核心动作"] ?? "—"
+    },
+    stats: {
+      topic_total: topicTotal,
+      by_type: {
+        trust: topicBuckets.trust.length,
+        cognitive: topicBuckets.cognitive.length,
+        connection: topicBuckets.connection.length,
+        conversion: topicBuckets.conversion.length
+      }
+    },
+    validation: { passed: failures.length === 0, errors },
+    homepage: {
+      nickname: ipPosFirstValue(ipPosSubSection(homeSection, /昵称建议|昵称/), "推荐"),
+      avatar: ipPosFirstValue(ipPosSubSection(homeSection, /头像建议|头像/), "拍摄要点"),
+      bio: signatureLines,
+      banner: ipPosFirstValue(ipPosSubSection(homeSection, /背景图建议|背景图/), "内容")
+    },
+    tone: {
+      positive: ipPosQuotedAfter(ipPosSubSection(sections.ip ?? "", /语言风格/), /正例/),
+      negative: ipPosQuotedAfter(ipPosSubSection(sections.ip ?? "", /语言风格/), /反例/)
+    },
+    topics: {
+      trust: topicBuckets.trust,
+      cognitive: topicBuckets.cognitive,
+      connection: topicBuckets.connection,
+      conversion: topicBuckets.conversion,
+      top10,
+      calendar30
+    },
+    sections
+  };
+
+  return { failures, payload };
+}
+
+function marketplaceWrappedAnswer(sku: PublicMarketplaceSku, answer: string): string {
+  const industry = MARKETPLACE_INDUSTRIES[sku.zone];
+  if (!industry || industry.general || industry.redline.length === 0) return answer;
+  return `${answer}\n\n行业落地提示与合规红线：\n${industry.redline.map((line) => `- ${line}`).join("\n")}`;
+}
+
+async function marketplaceOverview() {
+  if (env.DATA_MODE === "demo") return demoMarketplace.overview();
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const [ppu, gmv, activeTenants] = await Promise.all([
+    prisma.marketplaceLedgerEntry.findMany({
+      where: { type: "ppu_consume", createdAt: { gte: startOfToday } },
+      select: { amountCredits: true }
+    }),
+    prisma.marketplaceLedgerEntry.aggregate({
+      where: {
+        type: { in: ["subscription_charge", "topup"] },
+        createdAt: { gte: startOfToday }
+      },
+      _sum: { amountCny: true }
+    }),
+    prisma.marketplaceLedgerEntry.findMany({
+      where: { createdAt: { gte: startOfToday } },
+      distinct: ["tenantId"],
+      select: { tenantId: true }
+    })
+  ]);
+  return {
+    todayCalls: ppu.length,
+    todayPoints: ppu.reduce((sum, entry) => sum + entry.amountCredits, 0),
+    activeTenants: activeTenants.length,
+    gmvCny: gmv._sum.amountCny ?? 0
+  };
+}
+
+async function listMarketplaceLedger(tenantId: string | undefined, limit: number) {
+  if (env.DATA_MODE === "demo") return demoMarketplace.listLedger(tenantId, limit);
+  return prisma.marketplaceLedgerEntry.findMany({
+    where: tenantId ? { tenantId } : {},
+    orderBy: { createdAt: "desc" },
+    take: limit
+  });
+}
+
+async function listMarketplaceSuppliers() {
+  if (env.DATA_MODE === "demo") return demoMarketplace.listSuppliers();
+  return prisma.marketplaceSupplier.findMany({ orderBy: { code: "asc" } });
+}
+
+async function upsertMarketplaceSupplier(
+  input: Partial<z.infer<typeof supplierInputSchema>>,
+  supplierId?: string
+) {
+  if (env.DATA_MODE === "demo") {
+    return demoMarketplace.upsertSupplier({
+      ...input,
+      code: input.code ?? (supplierId ?? "unknown"),
+      name: input.name ?? "未命名供应商",
+      type: input.type ?? "self_operated",
+      settlementRate: input.settlementRate ?? 0,
+      status: input.status ?? "active",
+      contactEmail: input.contactEmail ?? undefined,
+      id: supplierId
+    });
+  }
+  const data: Record<string, unknown> = {};
+  if (input.code !== undefined) data.code = input.code;
+  if (input.name !== undefined) data.name = input.name;
+  if (input.type !== undefined) data.type = input.type;
+  if (input.settlementRate !== undefined) data.settlementRate = new Prisma.Decimal(input.settlementRate);
+  if (input.contactEmail !== undefined) data.contactEmail = input.contactEmail;
+  if (input.status !== undefined) data.status = input.status;
+  if (supplierId) {
+    return prisma.marketplaceSupplier.update({ where: { id: supplierId }, data: data as any });
+  }
+  return prisma.marketplaceSupplier.create({ data: data as any });
+}
+
+async function upsertMarketplaceSku(
+  input: Partial<z.infer<typeof skuInputSchema>>,
+  skuId?: string
+) {
+  if (env.DATA_MODE === "demo") {
+    if (skuId) {
+      const existing = demoMarketplace.getSku(skuId);
+      if (!existing) throw Object.assign(new Error("marketplace_sku_not_found"), { statusCode: 404 });
+      return demoMarketplace.upsertSku({
+        skuCode: input.skuCode ?? existing.skuCode,
+        agentId: input.agentId ?? existing.agentId,
+        capabilityKey: input.capabilityKey ?? existing.capabilityKey,
+        supplierId: existing.supplierId,
+        zone: input.zone ?? existing.zone,
+        name: input.name ?? existing.name,
+        icon: input.icon ?? existing.icon,
+        badge: input.badge ?? existing.badge,
+        description: input.description ?? existing.description,
+        verbs: input.verbs ?? existing.verbs,
+        useCase: input.useCase ?? existing.useCase,
+        need: input.need ?? existing.need,
+        tags: input.tags ?? existing.tags,
+        keywords: input.keywords ?? existing.keywords,
+        ppu: input.ppu ?? existing.ppu,
+        subscriptionPriceCny: input.subscriptionPriceCny ?? existing.subscriptionPriceCny,
+        subscriptionQuota: input.subscriptionQuota ?? existing.subscriptionQuota,
+        trial: input.trial ?? existing.trial,
+        status: input.status ?? existing.status,
+        sortOrder: input.sortOrder ?? existing.sortOrder
+      });
+    }
+    const required = skuInputSchema.safeParse(input);
+    if (!required.success) throw Object.assign(new Error("invalid_request"), { statusCode: 400 });
+    return demoMarketplace.upsertSku({
+      ...required.data,
+      agentId: required.data.agentId ?? undefined,
+      capabilityKey: required.data.capabilityKey ?? undefined,
+      icon: required.data.icon ?? "🛒",
+      badge: required.data.badge ?? undefined,
+      subscriptionPriceCny: required.data.subscriptionPriceCny ?? undefined,
+      subscriptionQuota: required.data.subscriptionQuota ?? undefined
+    });
+  }
+
+  const data: Record<string, unknown> = {};
+  if (input.skuCode !== undefined) data.skuCode = input.skuCode;
+  if (input.agentId !== undefined) data.agentId = input.agentId;
+  if (input.capabilityKey !== undefined) data.capabilityKey = input.capabilityKey;
+  if (input.supplierId !== undefined) data.supplierId = input.supplierId;
+  if (input.zone !== undefined) data.zone = input.zone;
+  if (input.name !== undefined) data.name = input.name;
+  if (input.icon !== undefined) data.icon = input.icon;
+  if (input.badge !== undefined) data.badge = input.badge;
+  if (input.description !== undefined) data.description = input.description;
+  if (input.verbs !== undefined) data.verbs = input.verbs;
+  if (input.useCase !== undefined) data.useCase = input.useCase;
+  if (input.need !== undefined) data.need = input.need;
+  if (input.tags !== undefined) data.tags = input.tags;
+  if (input.keywords !== undefined) data.keywords = input.keywords;
+  if (input.ppu !== undefined) data.ppu = input.ppu;
+  if (input.subscriptionPriceCny !== undefined) data.subscriptionPriceCny = input.subscriptionPriceCny;
+  if (input.subscriptionQuota !== undefined) data.subscriptionQuota = input.subscriptionQuota;
+  if (input.trial !== undefined) data.trial = input.trial;
+  if (input.status !== undefined) data.status = input.status;
+  if (input.sortOrder !== undefined) data.sortOrder = input.sortOrder;
+
+  if (skuId) {
+    const existing = await prisma.marketplaceSku.findFirst({
+      where: { OR: [{ id: skuId }, { skuCode: skuId }] },
+      select: { id: true }
+    });
+    if (!existing) {
+      throw Object.assign(new Error("marketplace_sku_not_found"), { statusCode: 404 });
+    }
+    return prisma.marketplaceSku.update({ where: { id: existing.id }, data: data as any });
+  }
+  if (!input.skuCode || !input.name || !input.zone || !input.supplierId) {
+    throw Object.assign(new Error("invalid_request"), { statusCode: 400 });
+  }
+  return prisma.marketplaceSku.create({ data: data as any });
+}
+
+function clampLimit(rawLimit: string | undefined): number {
+  const parsed = Number(rawLimit ?? 50);
+  if (!Number.isFinite(parsed)) return 50;
+  return Math.max(1, Math.min(Math.trunc(parsed), 200));
+}

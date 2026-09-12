@@ -115,7 +115,10 @@ const MAX_SEC = 15;
 const SCRIPT_DEMO =
   "很多人问我，开了十六年的美业店，到底靠什么活下来。其实没什么秘诀，就是把每一次护理都做扎实。我们的手法讲究先看肤质再上产品，一次护理四十分钟，全程不推销。店里用的精华套盒，都是我自己先试过三个月的。如果你也在为皮肤状态发愁，欢迎来店里坐坐，我们免费给你做一次肤质检测。";
 
-/** 真实出片能力开关：未开通时所有「要出片」的动作都必须 fail closed。 */
+/**
+ * 门店素材成片 / AI 剪辑 两条线仍未接通，继续保持 fail closed。
+ * 文案转片（LQ-23）已接通真实图生视频，走下方 ScriptMode 自己的就绪口径，不看这个开关。
+ */
 const VIDEO_RENDERING_READY = false;
 const RENDERING_OFFLINE_MSG = "视频生成服务暂未开通，这条成片现在还出不来。你的文案 / 素材 / 设置已经留在页面上，服务开通后直接点生成即可。";
 /** 真实爆款检索开关：未接通时绝不编造搜索结果与链接。 */
@@ -125,6 +128,23 @@ const REPLICATE_OFFLINE_MSG = "暂未接通真实爆款检索，所以这里不�
 const PORTRAIT_SCRIPT = "上传的人物照片为本人或已取得本人授权，同意用于 AI 生成视频并用于门店宣传。";
 const PORTRAIT_ASSET = "我已获得照片中人物的肖像权授权，同意将其用于生成门店宣传 / 探店视频，并知悉生成内容含该人物肖像。达人探店场景需额外取得达人本人授权。";
 const CLIP_CONSENT = "原始素材是我自己拍摄的；如画面中出现员工 / 顾客肖像，已取得本人同意，允许 AI 剪辑加工后用于门店宣传。";
+
+/** 文案转片：每镜真实出片的可调参数与硬边界。 */
+const SHOT_TIER_RES: Record<string, "720P" | "1080P"> = { draft: "720P", std: "720P", final: "1080P" };
+/** 首帧图在上传前压到这个最长边，既保证清晰度又不让请求体超限。 */
+const FIRST_FRAME_MAX_EDGE = 1280;
+const FIRST_FRAME_REFUSED = "暂时读不到这张照片，请换一张 JPG / PNG 再试。";
+const VIDEO_POLL_INTERVAL_MS = 6000;
+const VIDEO_POLL_LIMIT = 80;
+
+type ShotRender = {
+  no: number;
+  status: "queued" | "running" | "succeeded" | "failed";
+  jobId?: string;
+  objectUrl?: string;
+  creditCost?: number;
+  message?: string;
+};
 
 // ────────────────────────────── 类型与工具 ──────────────────────────────
 
@@ -155,9 +175,9 @@ interface StoryboardResult {
   imageGroupingNote: string;
 }
 
-interface CastCard { id: number; name: string; imgs: (string | null)[] }
-interface SceneCard { id: number; name: string; imgs: string[] }
-interface PropCard { id: number; name: string; img: string | null }
+interface CastCard { id: number; name: string; imgs: (File | null)[] }
+interface SceneCard { id: number; name: string; imgs: File[] }
+interface PropCard { id: number; name: string; img: File | null }
 interface AudioCard { id: number; name: string; kind: string; file: string | null }
 
 const AUDIO_KINDS = [
@@ -208,24 +228,58 @@ function readMode(): Mode {
   return value === "assets" || value === "clip" || value === "script" ? value : "replicate";
 }
 
+/**
+ * 把门店选中的首帧图读成 base64（JPEG）。先把最长边压到 1280，
+ * 既保证模型接到的首帧够清晰，又不让请求体把网关顶爆。
+ */
+async function readFirstFrameBase64(file: File): Promise<string> {
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new window.Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error(FIRST_FRAME_REFUSED));
+      element.src = objectUrl;
+    });
+    const longest = Math.max(image.naturalWidth, image.naturalHeight);
+    if (!longest) throw new Error(FIRST_FRAME_REFUSED);
+    const scale = Math.min(1, FIRST_FRAME_MAX_EDGE / longest);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error(FIRST_FRAME_REFUSED);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.86);
+    const base64 = dataUrl.replace(/^data:[^,]*,/, "");
+    if (!base64) throw new Error(FIRST_FRAME_REFUSED);
+    return base64;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 function FilePick({
   label,
   accept = "image/*",
   multiple = false,
+  disabled = false,
   onPick
 }: {
   label: string;
   accept?: string;
   multiple?: boolean;
+  disabled?: boolean;
   onPick: (files: File[]) => void;
 }) {
   return (
-    <label className="lq-vd__pick">
+    <label className={`lq-vd__pick${disabled ? " off" : ""}`}>
       <span>{label}</span>
       <input
         type="file"
         accept={accept}
         multiple={multiple}
+        disabled={disabled}
         onChange={(event) => {
           onPick(Array.from(event.target.files ?? []));
           event.target.value = "";
@@ -758,16 +812,20 @@ function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName:
   const [scenes, setScenes] = useState<SceneCard[]>([{ id: 1, name: "门店前台", imgs: [] }]);
   const [props, setProps] = useState<PropCard[]>([]);
   const [audios, setAudios] = useState<AudioCard[]>([{ id: 1, name: "轻柔钢琴 BGM", kind: "bgm", file: null }]);
-  const [refs, setRefs] = useState<string[]>([]);
+  const [refs, setRefs] = useState<File[]>([]);
   const [portraitOpen, setPortraitOpen] = useState(false);
   const [portraitOk, setPortraitOk] = useState(false);
   const [consent, setConsent] = useState(false);
   const [consentWarn, setConsentWarn] = useState(false);
   const [feedback, setFeedback] = useState<string[]>([]);
   const [feedbackNote, setFeedbackNote] = useState("");
+  const [shotsRender, setShotsRender] = useState<Record<number, ShotRender>>({});
+  const [rendering, setRendering] = useState(false);
 
   const tier = TIERS.find((item) => item.k === tierKey) ?? TIERS[1];
   const totalSeconds = shots.reduce((sum, shot) => sum + shot.seconds, 0);
+  const renderedCount = shots.filter((shot) => shotsRender[shot.no]?.status === "succeeded").length;
+  const usedCredits = shots.reduce((sum, shot) => sum + (shotsRender[shot.no]?.creditCost ?? 0), 0);
   const sceneNames = scenes.map((item) => item.name).filter(Boolean);
   const propNames = props.map((item) => item.name).filter(Boolean);
   const castNames = casts.map((item) => item.name).filter(Boolean);
@@ -904,6 +962,166 @@ function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName:
     flash("已导出提示词 TXT。");
   }, [shots, totalSeconds, styleKey, tier, storeName, flash]);
 
+  const markShot = useCallback((no: number, patch: Partial<ShotRender>) => {
+    setShotsRender((current) => ({ ...current, [no]: { ...current[no], no, status: current[no]?.status ?? "queued", ...patch } }));
+  }, []);
+
+  /**
+   * 这一镜用哪张人物正面照当首帧图。
+   * 缺图时明确告诉老板「缺谁的正脸、回第 3 步补」，绝不静默降级成没有本人的文生视频。
+   */
+  const firstFrameFileFor = useCallback(
+    (index: number): { file?: File; castName: string; block?: string } => {
+      const shot = shots[index];
+      if (!shot) return { castName: "", block: "这一镜不存在了，请刷新页面重试。" };
+      const map = mapping[shot.no] ?? {};
+      const targetName = map.cast ?? castNames[0];
+      const card = casts.find((item) => item.name === targetName) ?? casts[0];
+      if (!card) return { castName: "", block: "还没有人物卡。先回第 3 步上传一张人物正面照。" };
+      const label = card.name || `人物 ${card.id}`;
+      const file = card.imgs.find((item): item is File => Boolean(item));
+      if (!file) return { castName: label, block: `「${label}」还缺正面照（首帧图）。先回第 3 步把正面照传上，再回来生成这一镜。` };
+      return { file, castName: label };
+    },
+    [shots, mapping, casts, castNames]
+  );
+
+  /** 轮询到结果后，把成片按带登录态的请求取回来（媒体接口要 token，不能直接当 video src）。 */
+  const fetchShotAsset = useCallback(async (jobId: string): Promise<string> => {
+    const response = await fetch(apiPath(`/lanqi/media/assets/${jobId}`), { headers: authHeaders() });
+    if (!response.ok) throw new Error("成片已经生成，但这次没取回来。点「重新取回」再试一次，不会重复扣费。");
+    const blob = await response.blob();
+    if (!blob.size) throw new Error("成片已经生成，但这次没取回来。点「重新取回」再试一次，不会重复扣费。");
+    return URL.createObjectURL(blob);
+  }, []);
+
+  /** 从已提交的任务继续看结果（刷新页面 / 上一轮轮询超时后用），不会新建任务、不会二次扣费。 */
+  const resumeShot = useCallback(
+    async (no: number) => {
+      const jobId = shotsRender[no]?.jobId;
+      if (!jobId) return;
+      setError("");
+      markShot(no, { status: "running", message: undefined });
+      try {
+        const response = await fetch(apiPath(`/lanqi/media/jobs/${jobId}/refresh`), { method: "POST", headers: authHeaders() });
+        const body = await response.json().catch(() => ({}));
+        const job = body.job;
+        if (job?.status === "succeeded") {
+          const objectUrl = await fetchShotAsset(jobId);
+          markShot(no, { status: "succeeded", objectUrl, creditCost: job.creditCost, message: undefined });
+          flash(`第 ${no} 镜已出片。`);
+          return;
+        }
+        if (job?.status === "failed" || job?.status === "canceled") {
+          markShot(no, { status: "failed", message: job.errorMessage ?? "这一镜没出成片，预留积分已自动退回。" });
+          return;
+        }
+        markShot(no, { status: "running", message: body.message ?? "还在生成中，稍后再点一次「查询结果」。" });
+      } catch (cause) {
+        markShot(no, { status: "failed", message: cause instanceof Error ? cause.message : "查询失败，请稍后再试。" });
+      }
+    },
+    [shotsRender, markShot, fetchShotAsset, flash]
+  );
+
+  /** 单镜真实出片：首帧图 → 费用预览 → 明确确认 → 轮询 → 取回成片。失败不显示成片、不重复扣费。 */
+  const renderShot = useCallback(
+    async (index: number) => {
+      const shot = shots[index];
+      if (!shot) return;
+      const no = shot.no;
+      const pick = firstFrameFileFor(index);
+      if (!pick.file) {
+        setError(pick.block ?? "这一镜缺人物正面照，先回第 3 步上传。");
+        markShot(no, { status: "failed", message: pick.block ?? "这一镜缺人物正面照。" });
+        return;
+      }
+      setError("");
+      markShot(no, { status: "queued", message: "正在读取首帧图…", objectUrl: undefined });
+      try {
+        const dataBase64 = await readFirstFrameBase64(pick.file);
+        const payload = {
+          kind: "image_to_video" as const,
+          prompt: shot.prompt,
+          negativePrompt: shot.negative,
+          resolution: SHOT_TIER_RES[tierKey] ?? "720P",
+          durationSeconds: shot.seconds,
+          firstFrame: { contentType: "image/jpeg", dataBase64 }
+        };
+        const quoteResponse = await fetch(apiPath("/lanqi/media/quote"), { method: "POST", headers: authHeaders(), body: JSON.stringify(payload) });
+        const quote = await readResponse(quoteResponse);
+        if (!quote.canConfirm) {
+          markShot(no, { status: "failed", message: quote.message ?? "视频生成能力当前没有放行，本次没有创建任务、没有扣积分。" });
+          return;
+        }
+        markShot(no, { status: "queued", message: `已锁定费用 ${quote.creditCost} 积分，正在创建任务…`, creditCost: quote.creditCost });
+        const requestKey = (window.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 60);
+        const confirmResponse = await fetch(apiPath("/lanqi/media/confirm"), {
+          method: "POST",
+          headers: { ...authHeaders(), "X-Idempotency-Key": requestKey },
+          body: JSON.stringify({ ...payload, requestKey, confirmed: true })
+        });
+        const confirmed = await readResponse(confirmResponse);
+        const job = confirmed.job;
+        markShot(no, { status: "running", jobId: job.id, creditCost: job.creditCost, message: "任务已提交，正在生成这一镜…" });
+        let latest = job;
+        for (let attempt = 0; attempt < VIDEO_POLL_LIMIT; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, VIDEO_POLL_INTERVAL_MS));
+          const refreshResponse = await fetch(apiPath(`/lanqi/media/jobs/${job.id}/refresh`), { method: "POST", headers: authHeaders() });
+          const body = await refreshResponse.json().catch(() => ({}));
+          if (!refreshResponse.ok) {
+            const failedJob = body.job;
+            if (failedJob && ["failed", "canceled"].includes(failedJob.status)) {
+              markShot(no, { status: "failed", message: failedJob.errorMessage ?? body.message ?? "这一镜没出成片，预留积分已自动退回。" });
+              return;
+            }
+            throw new Error(body.message ?? "生成状态暂时刷不出来，任务还在跑。点「查询结果」可以继续看，不会重复扣费。");
+          }
+          latest = body.job;
+          if (latest.status === "succeeded") break;
+          if (latest.status === "failed" || latest.status === "canceled") {
+            markShot(no, { status: "failed", message: latest.errorMessage ?? "这一镜没出成片，预留积分已自动退回。" });
+            return;
+          }
+        }
+        if (latest.status !== "succeeded") {
+          markShot(no, { status: "running", message: "这一镜还在生成。点「查询结果」继续看，不会重复扣费。" });
+          return;
+        }
+        const objectUrl = await fetchShotAsset(job.id);
+        markShot(no, { status: "succeeded", objectUrl, creditCost: latest.creditCost ?? job.creditCost, message: undefined });
+        flash(`第 ${no} 镜已出片。`);
+      } catch (cause) {
+        markShot(no, { status: "failed", message: cause instanceof Error ? cause.message : "这一镜生成失败。" });
+      }
+    },
+    [shots, firstFrameFileFor, markShot, tierKey, fetchShotAsset, flash]
+  );
+
+  /** 整片出片：按分镜顺序逐镜生成，上一镜没出结果就停下，不并发烧钱。 */
+  const renderAll = useCallback(async () => {
+    if (rendering || !shots.length) return;
+    setRendering(true);
+    try {
+      for (let index = 0; index < shots.length; index += 1) {
+        const no = shots[index].no;
+        if (shotsRender[no]?.status === "succeeded") continue;
+        await renderShot(index);
+      }
+    } finally {
+      setRendering(false);
+    }
+  }, [rendering, shots, shotsRender, renderShot]);
+
+  const downloadShot = useCallback((no: number) => {
+    const objectUrl = shotsRender[no]?.objectUrl;
+    if (!objectUrl) return;
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = `兰琪成片_第${no}镜.mp4`;
+    anchor.click();
+  }, [shotsRender]);
+
   return (
     <div className="lq-vd__main">
       <section className="lq-vd__left">
@@ -1013,13 +1231,13 @@ function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName:
                             current.map((item) => {
                               if (item.id !== cast.id) return item;
                               const imgs = [...item.imgs];
-                              imgs[index] = files[0]?.name ?? null;
+                              imgs[index] = files[0] ?? null;
                               return { ...item, imgs };
                             })
                           )
                         }
                       />
-                      <div className="ang-role">{angle.role}{cast.imgs[index] ? ` · ${cast.imgs[index]}` : ""}</div>
+                      <div className="ang-role">{angle.role}{cast.imgs[index] ? ` · ${cast.imgs[index]?.name}` : ""}</div>
                     </div>
                   ))}
                 </div>
@@ -1051,7 +1269,7 @@ function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName:
                   label={scene.imgs.length ? `已选 ${scene.imgs.length} 张` : "选择图片（可多张）"}
                   multiple
                   onPick={(files) =>
-                    setScenes((current) => current.map((item) => (item.id === scene.id ? { ...item, imgs: [...item.imgs, ...files.map((file) => file.name)].slice(0, 3) } : item)))
+                    setScenes((current) => current.map((item) => (item.id === scene.id ? { ...item, imgs: [...item.imgs, ...files].slice(0, 3) } : item)))
                   }
                 />
               </div>
@@ -1061,7 +1279,9 @@ function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName:
             </button>
 
             <h3 className="lq-vd__card-title" style={{ marginTop: 18 }}>③ 音频卡 <span className="tag opt">可选 · ≤{MAX_AUDIOS} 段</span></h3>
-            <p className="lq-vd__card-sub">成片要用的声音：背景音乐 / 老板口播配音 / 门店环境音。不传也行 —— 不传时 AI 会自己生成环境音；传了就用你的。</p>
+            <p className="lq-vd__card-sub">
+              本期成片先出<b>无声</b>版本：镜头画面是真实生成的，背景音乐 / 口播配音这一段还没接通，所以音频卡先只做占位记录，不会进成片。
+            </p>
             {audios.map((audio) => (
               <div className="lq-vd__sg" key={audio.id}>
                 <div className="sg-head">
@@ -1087,12 +1307,11 @@ function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName:
                     </button>
                   ))}
                 </div>
-                <div className="aud-file">
-                  {audio.file ? `已上传 · ${audio.file}` : "未上传 · 不传则由 AI 生成环境音"}
-                </div>
+                <div className="aud-file">{audio.file ? `已记录 · ${audio.file}` : "未记录 · 本期成片无声"}</div>
                 <FilePick
-                  label={audio.file ? "↻ 替换音频" : "⬆ 上传音频"}
+                  label="音频上传暂未接通（本期成片无声）"
                   accept="audio/*"
+                  disabled
                   onPick={(files) => setAudios((current) => current.map((item) => (item.id === audio.id ? { ...item, file: files[0]?.name ?? null } : item)))}
                 />
               </div>
@@ -1123,8 +1342,8 @@ function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName:
                   <button className="sg-del" type="button" onClick={() => setProps((current) => current.filter((item) => item.id !== prop.id))}>✕</button>
                 </div>
                 <FilePick
-                  label={prop.img ? `已选 · ${prop.img}` : "选择道具图"}
-                  onPick={(files) => setProps((current) => current.map((item) => (item.id === prop.id ? { ...item, img: files[0]?.name ?? null } : item)))}
+                  label={prop.img ? `已选 · ${prop.img.name}` : "选择道具图"}
+                  onPick={(files) => setProps((current) => current.map((item) => (item.id === prop.id ? { ...item, img: files[0] ?? null } : item)))}
                 />
               </div>
             ))}
@@ -1134,7 +1353,7 @@ function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName:
 
             <h3 className="lq-vd__card-title" style={{ marginTop: 18 }}>⑤ 其他参考 <span className="tag opt">可选</span></h3>
             <p className="lq-vd__card-sub">不填也能跑。填了画面更贴你想要的样子。（风格参考图最多 2 张，视频参考最多 3 段）</p>
-            <FilePick label={refs.length ? `已选 ${refs.length} 张风格参考图` : "选择风格参考图"} multiple onPick={(files) => setRefs((current) => [...current, ...files.map((file) => file.name)].slice(0, 2))} />
+            <FilePick label={refs.length ? `已选 ${refs.length} 张风格参考图` : "选择风格参考图"} multiple onPick={(files) => setRefs((current) => [...current, ...files].slice(0, 2))} />
             <div className="lq-vd__note">
               参考图合计 <b>{imgCount}</b> / {MAX_IMGS} 张
               {imgCount > MAX_IMGS ? "，已超出单次上限，系统会按分镜所属场景自动分组调用。" : "。"}
@@ -1184,11 +1403,11 @@ function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName:
 
             <h3 className="lq-vd__card-title" style={{ marginTop: 18 }}>⑧ 生成选项</h3>
             <div className="lq-vd__chips">
-              <span className="lq-vd__pill on">🔊 原生音画同步 <span className="hint">环境音+人声一起出</span></span>
-              <span className="lq-vd__pill on">🔒 人物一致性锁定 <span className="hint">固定 seed + 尾帧接首帧</span></span>
+              <span className="lq-vd__pill on">🔇 无声成片 <span className="hint">本期只出画面，不带 BGM / 配音</span></span>
+              <span className="lq-vd__pill on">🔒 人物一致性锁定 <span className="hint">每镜都用同一张人物首帧图</span></span>
             </div>
             <div className="lq-vd__note">
-              人物一致性锁定：AI 生视频跨多次生成会在 3–4 个镜头后出现脸漂移。开启后固定 seed，并把上一镜尾帧作为下一镜首帧串联，能明显压住漂移。
+              人物一致性锁定：AI 生视频跨多次生成会在 3–4 个镜头后出现脸漂移。本期做法是每一镜都复用同一张人物首帧图，把出镜人钉在同一个人身上。
             </div>
 
             <label className="lq-vd__consent">
@@ -1358,16 +1577,77 @@ function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName:
               <div className="lq-vd__kv"><span className="k">画质档位</span><span className="v">{tier.n} · {tier.res}</span></div>
               <div className="lq-vd__kv"><span className="k">规格说明</span><span className="v">{tier.out}</span></div>
               <div className="lq-vd__kv"><span className="k">画面风格</span><span className="v">{SCRIPT_STYLES.find((item) => item.k === styleKey)?.n}</span></div>
-              <div className="lq-vd__kv"><span className="k">音频</span><span className="v">{audios.filter((item) => item.file).length ? `${audios.filter((item) => item.file).length} 段已上传` : "AI 自动生成环境音（未上传音频卡）"}</span></div>
-              <div className="lq-vd__kv"><span className="k">一致性锁定</span><span className="v">固定 seed + 尾帧串联</span></div>
+              <div className="lq-vd__kv"><span className="k">音频</span><span className="v">本期成片无声（不带 BGM / 配音）</span></div>
+              <div className="lq-vd__kv"><span className="k">一致性锁定</span><span className="v">每镜复用同一张人物正面照当首帧图</span></div>
               <div className="lq-vd__kv"><span className="k">AI 标识</span><span className="v">起始画面显式标识</span></div>
             </div>
-            <div className="lq-vd__offline">
-              <div className="ico">🔌</div>
-              <h3>出片服务暂未开通</h3>
-              <p>{RENDERING_OFFLINE_MSG}</p>
-              <p className="lq-vd__hint">可以先把分镜和提示词导出去（⬇ 导出提示词 TXT），成片服务开通后回来点生成即可。</p>
+            <div className="lq-vd__note">
+              逐镜按 <b>{SHOT_TIER_RES[tierKey] ?? "720P"}</b> · 各镜实际时长出 <b>无声</b>成片。每镜都复用同一张人物正面照当首帧图，出镜人才不会换脸。
+              费用在每一次生成前先给你看清楚，确认后才创建任务；没出成的镜次预留积分会自动退回。
             </div>
+            <div className="lq-vd__sec-title" style={{ marginTop: 14 }}>
+              分镜出片 <span className="lq-vd__badge">{renderedCount}/{shots.length} 镜已出片</span>
+            </div>
+            <div className="lq-vd__note">
+              {usedCredits
+                ? <>本次已确认 <b>{usedCredits}</b> 积分。没出成的镜次预留积分会自动退回，同一镜重试不会重复扣费。</>
+                : "可以点每一镜的「生成本镜」单独出片，也可以点「逐镜生成整片」按分镜顺序一次跑完。"}
+            </div>
+            <div className="lq-vd__shots">
+              {shots.map((shot, index) => {
+                const item = shotsRender[shot.no];
+                const status = item?.status;
+                const busy = status === "running" || status === "queued";
+                return (
+                  <article className="lq-vd__shot" key={shot.no}>
+                    <header className="pr-top">
+                      <span className="pr-no">分镜 {shot.no}</span>
+                      <span className="pr-sec">{shot.seconds} 秒</span>
+                      <span className="pr-tag">{shot.kind}</span>
+                      <span style={{ flex: 1 }} />
+                      {item?.creditCost ? <span className="pr-sec">已确认 {item.creditCost} 积分</span> : null}
+                    </header>
+                    <div className="pr-lab">出片状态</div>
+                    <div className="pr-text">
+                      {status === "succeeded"
+                        ? "✅ 已出片，可直接播放 / 下载。"
+                        : status === "failed"
+                          ? `⚠️ ${item?.message ?? "这一镜没出成片。"}`
+                          : busy
+                            ? `⏳ ${item?.message ?? "正在生成…"}`
+                            : "未生成。点下面的按钮才会真正创建生成任务。"}
+                    </div>
+                    {item?.objectUrl ? (
+                      <video src={item.objectUrl} controls playsInline style={{ width: "100%", marginTop: 8, borderRadius: 10, background: "#000" }} />
+                    ) : null}
+                    <div className="lq-vd__chips" style={{ marginTop: 8 }}>
+                      <button className="lq-vd__btn ghost" type="button" disabled={rendering || busy} onClick={() => void renderShot(index)}>
+                        {status === "succeeded" ? "🎬 重新生成这一镜" : status === "failed" ? "🎬 重试这一镜" : "🎬 生成本镜"}
+                      </button>
+                      {item?.jobId && status !== "succeeded" ? (
+                        <button className="lq-vd__btn ghost" type="button" disabled={busy} onClick={() => void resumeShot(shot.no)}>
+                          🔍 查询结果
+                        </button>
+                      ) : null}
+                      {item?.objectUrl ? (
+                        <button className="lq-vd__btn ghost" type="button" onClick={() => downloadShot(shot.no)}>
+                          ⬇ 下载这一镜
+                        </button>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+            <button className="lq-vd__btn primary block" type="button" disabled={rendering} onClick={() => void renderAll()}>
+              {rendering
+                ? "正在按分镜顺序逐镜出片，跑完一镜再跑下一镜…"
+                : renderedCount && renderedCount < shots.length
+                  ? `🎬 继续生成剩下 ${shots.length - renderedCount} 镜`
+                  : renderedCount
+                    ? "🎬 全部已出片，重新逐镜生成"
+                    : "🎬 逐镜生成整片"}
+            </button>
             <div className="lq-vd__field">
               <label>🔄 不满意？一键重新生成，并指出要调整哪里</label>
               <div className="lq-vd__chips">
@@ -1399,11 +1679,8 @@ function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName:
           <div className="lq-vd__modal-card">
             <h3>✍️ 肖像授权确认</h3>
             <div className="lq-vd__ready">
-              {VIDEO_RENDERING_READY ? (
-                <>✅ <b>视频能力平台已接通</b> —— 你不用注册账号、不用实名认证、不用自己配密钥，也不用管背后用的什么模型。</>
-              ) : (
-                <>🔌 <b>视频能力由平台统一接通</b> —— 你不用注册账号、不用实名认证、不用自己配密钥，也不用管背后用的什么模型；成片服务开通后直接生成，不用再确认一次授权。</>
-              )}
+              ✅ <b>文案转片的出片能力已接通</b> —— 你不用注册账号、不用实名认证、不用自己配密钥，也不用管背后用的什么模型。
+              确认授权后系统会按分镜逐镜出片，每一镜都会先给出费用再创建任务。
             </div>
             <p className="lq-vd__card-sub" style={{ marginTop: 10 }}>
               需要你确认的只有一件事：<b>照片里的人是本人，或者已经拿到对方书面同意</b>。这是肖像权合规要求，确认一次长期有效。
@@ -1422,7 +1699,7 @@ function ScriptMode({ storeId, storeName, flash }: { storeId: string; storeName:
                 onClick={() => {
                   setPortraitOk(true);
                   setPortraitOpen(false);
-                  window.alert(RENDERING_OFFLINE_MSG);
+                  void renderAll();
                 }}
               >
                 ✅ 确认授权，开始用

@@ -55,25 +55,29 @@ async function main(): Promise<void> {
       state: string;
       answer: string;
       consumedCredits: number;
-      estimatedCredits: number;
-      modelCostCny: number;
       balance: number;
     };
     assert(body.state === "completed", "live marketplace run completes");
     assert(body.consumedCredits > 0, "live marketplace run charges positive credits");
     assert(body.balance === 1500 - body.consumedCredits, "live marketplace run settles wallet balance");
+    // PLAT-21：客户侧响应绝不能带内部算力成本；成本只走账本 metadata。
+    const rawBody = run.json() as Record<string, unknown>;
+    assert(!("modelCostCny" in rawBody), "客户侧响应不得返回内部算力成本 modelCostCny");
+    assert(!("estimatedCredits" in rawBody), "客户侧响应不得返回成本折算 estimatedCredits");
     console.log("ANSWER_PREVIEW", body.answer.slice(0, 800));
     assert(body.answer.length > 40, "live marketplace run returns a substantive answer");
 
     const ledger = await prisma.marketplaceLedgerEntry.findMany({ where: { tenantId } });
     assert(ledger.length === 1, "live marketplace run writes one ledger entry");
+    const metadata = (ledger[0].metadata ?? {}) as Record<string, unknown>;
+    assert(typeof metadata.modelCostCny === "number", "内部账本 metadata 仍记录 modelCostCny（审计不回退）");
 
     console.log(
       JSON.stringify({
         state: body.state,
-        estimatedCredits: body.estimatedCredits,
         consumedCredits: body.consumedCredits,
-        modelCostCny: body.modelCostCny,
+        costFieldsAbsent: !("modelCostCny" in rawBody) && !("estimatedCredits" in rawBody),
+        ledgerModelCostCny: metadata.modelCostCny,
         balance: body.balance,
         answerChars: body.answer.length,
         answerPreview: body.answer.slice(0, 120)

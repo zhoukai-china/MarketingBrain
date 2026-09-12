@@ -1,6 +1,7 @@
 ﻿import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import type { FastifyReply } from "fastify";
+import type { FastifyBaseLogger, FastifyReply } from "fastify";
+import QRCode from "qrcode";
 import { prisma } from "@baolu/db";
 import {
   PLANS,
@@ -22,6 +23,12 @@ import {
   WechatOAuthExchangeError,
   WechatAuthNotConfiguredError
 } from "../services/wechat-auth.js";
+import {
+  WECHAT_BRIDGE_TTL_MS,
+  completeWechatLoginBridge,
+  createWechatLoginBridge,
+  readWechatLoginBridge
+} from "../services/wechat-login-bridge.js";
 import { resolveRequestContext } from "../services/request-context.js";
 import {
   InviteRedemptionError,
@@ -361,12 +368,16 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     return { configured: true, appid, inviteRequired };
   });
 
-  app.post("/auth/wechat-login", async (request, reply) => {
-    const parsed = wechatLoginSchema.safeParse(request.body ?? {});
-    if (!parsed.success) {
-      return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
-    }
-
+  /**
+   * 微信授权码换登录结果。两个入口必须走同一段业务逻辑，否则会各自漂移：
+   * - 手机端（微信内置浏览器）`POST /auth/wechat-login`；
+   * - 电脑端扫码中转（PLAT-13）`POST /auth/wechat-bridge/complete`。
+   * 这里只负责「算出结果」，不直接写 reply，调用方自己决定怎么回。
+   */
+  async function resolveWechatLogin(
+    input: { code: string; tenantHostname?: string; productCode?: ProductLoginCode },
+    log: FastifyBaseLogger
+  ): Promise<{ statusCode: number; body: Record<string, unknown> }> {
     if (env.DATA_MODE === "demo") {
       const auth = getDemoContext({ "x-sitong-plan": "local_standard" });
       const token = createSessionToken({
@@ -375,30 +386,33 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         planCode: auth.planCode
       });
       return {
-        dataMode: "demo",
-        token,
-        tenantId: auth.tenantId,
-        userId: auth.userId,
-        plan: PLANS[auth.planCode],
-        needsTenant: false,
-        diagnosisRequired: true
+        statusCode: 200,
+        body: {
+          dataMode: "demo",
+          token,
+          tenantId: auth.tenantId,
+          userId: auth.userId,
+          plan: PLANS[auth.planCode],
+          needsTenant: false,
+          diagnosisRequired: true
+        }
       };
     }
 
     try {
-      const tenantHostname = parsed.data.tenantHostname
-        ? normalizeTenantHostname(parsed.data.tenantHostname)
+      const tenantHostname = input.tenantHostname
+        ? normalizeTenantHostname(input.tenantHostname)
         : undefined;
-      if (parsed.data.tenantHostname && !tenantHostname) {
-        return reply.code(400).send({ error: "invalid_tenant_domain", message: "登录域名格式无效。" });
+      if (input.tenantHostname && !tenantHostname) {
+        return { statusCode: 400, body: { error: "invalid_tenant_domain", message: "登录域名格式无效。" } };
       }
       const tenantDomain = tenantHostname
         ? await prisma.tenantDomain.findFirst({ where: { hostname: tenantHostname, status: "verified" } })
         : null;
       if (tenantHostname && !tenantDomain) {
-        return reply.code(403).send({ error: "tenant_domain_not_verified", message: "该品牌域名尚未完成验证，请联系企业管理员。" });
+        return { statusCode: 403, body: { error: "tenant_domain_not_verified", message: "该品牌域名尚未完成验证，请联系企业管理员。" } };
       }
-      const identity = await exchangeWechatOAuthCode(parsed.data.code);
+      const identity = await exchangeWechatOAuthCode(input.code);
       const user = await prisma.user.upsert({
         where: { wechatOpenid: identity.openid },
         update: { wechatUnionid: identity.unionid },
@@ -410,11 +424,11 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
           userId: user.id,
           isActive: true,
           ...(tenantDomain ? { tenantId: tenantDomain.tenantId } : {}),
-          ...(parsed.data.productCode ? {
+          ...(input.productCode ? {
             tenant: {
               productEntitlements: {
                 some: {
-                  productCode: parsed.data.productCode,
+                  productCode: input.productCode,
                   status: "active",
                   OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
                 },
@@ -438,27 +452,36 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
       if (!membership) {
         if (tenantDomain) {
-          return reply.code(403).send({
-            error: "tenant_membership_required",
-            message: "该微信账号还不是此企业成员，请联系企业管理员添加后再登录。"
-          });
+          return {
+            statusCode: 403,
+            body: {
+              error: "tenant_membership_required",
+              message: "该微信账号还不是此企业成员，请联系企业管理员添加后再登录。"
+            }
+          };
         }
-        if (parsed.data.productCode) {
+        if (input.productCode) {
           const hasOtherMembership = await prisma.membership.count({ where: { userId: user.id, isActive: true } });
           if (hasOtherMembership > 0) {
-            return reply.code(403).send({
-              error: "product_membership_required",
-              message: "当前账号尚未开通这个产品，请使用产品邀请码或联系服务团队。",
-            });
+            return {
+              statusCode: 403,
+              body: {
+                error: "product_membership_required",
+                message: "当前账号尚未开通这个产品，请使用产品邀请码或联系服务团队。",
+              }
+            };
           }
         }
         return {
-          dataMode: "database",
-          userId: user.id,
-          needsTenant: true,
-          diagnosisRequired: true,
-          onboardingToken: createOnboardingToken({ userId: user.id }),
-          wechat: { openid: identity.openid, hasUnionid: Boolean(identity.unionid) }
+          statusCode: 200,
+          body: {
+            dataMode: "database",
+            userId: user.id,
+            needsTenant: true,
+            diagnosisRequired: true,
+            onboardingToken: createOnboardingToken({ userId: user.id }),
+            wechat: { openid: identity.openid, hasUnionid: Boolean(identity.unionid) }
+          }
         };
       }
 
@@ -473,38 +496,212 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       });
 
       return {
-        dataMode: "database",
-        token,
-        tenantId: membership.tenantId,
-        userId: user.id,
-        plan: PLANS[planCode],
-        needsTenant: false,
-        diagnosisRequired: false,
-        productCode: parsed.data.productCode,
+        statusCode: 200,
+        body: {
+          dataMode: "database",
+          token,
+          tenantId: membership.tenantId,
+          userId: user.id,
+          plan: PLANS[planCode],
+          needsTenant: false,
+          diagnosisRequired: false,
+          productCode: input.productCode,
+        }
       };
     } catch (error) {
       if (error instanceof WechatAuthNotConfiguredError) {
-        return reply.code(503).send({ error: "wechat_auth_not_configured", issues: error.issues });
+        return { statusCode: 503, body: { error: "wechat_auth_not_configured", issues: error.issues } };
       }
       // 微信换取授权码的可预期失败不能落到 server.ts 的 500 兜底：
       // 授权码失效是用户重新授权就能恢复的业务失败（401），
       // 上游/配置异常是需要运维介入的依赖故障（502）。
       // 上游原始 errmsg 只写服务端日志，回给前端的是可读中文文案。
       if (error instanceof WechatOAuthExchangeError) {
-        request.log.warn({ wechatOAuthError: error.kind, detail: error.detail }, "wechat oauth exchange failed");
+        log.warn({ wechatOAuthError: error.kind, detail: error.detail }, "wechat oauth exchange failed");
         if (error.kind === "invalid_code") {
-          return reply.code(401).send({
-            error: "wechat_code_invalid",
-            message: "微信授权已失效，请返回登录页重新授权。"
-          });
+          return {
+            statusCode: 401,
+            body: {
+              error: "wechat_code_invalid",
+              message: "微信授权已失效，请返回登录页重新授权。"
+            }
+          };
         }
-        return reply.code(502).send({
-          error: "wechat_upstream_unavailable",
-          message: "微信授权服务暂时不可用，请稍后重试或联系服务团队。"
-        });
+        return {
+          statusCode: 502,
+          body: {
+            error: "wechat_upstream_unavailable",
+            message: "微信授权服务暂时不可用，请稍后重试或联系服务团队。"
+          }
+        };
       }
       throw error;
     }
+  }
+
+  app.post("/auth/wechat-login", async (request, reply) => {
+    const parsed = wechatLoginSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+    }
+    const outcome = await resolveWechatLogin(parsed.data, request.log);
+    return reply.code(outcome.statusCode).send(outcome.body);
+  });
+
+  // ---------------------------------------------------------------------------
+  // PLAT-13 电脑端微信扫码登录（中转会话）
+  //
+  // 现象（2026-09-11 生产实测）：电脑浏览器点「微信一键登录 / 注册」会跳到微信的
+  // 「请在微信客户端打开链接」死页——公众号网页授权页只认微信内置浏览器。
+  // 修法不是改授权地址（微信不支持电脑端起授权页），而是加一次中转：
+  //   电脑 --创建会话--> 服务端发一次性 id + secret，二维码指向 <本站>/wechat-bridge?b=&s=
+  //   手机（微信内）扫二维码 -> 微信授权 -> /wechat-callback -> 回填登录结果
+  //   电脑 --轮询 status--> 取走登录结果（一次性，取走即焚）
+  // 会话存内存（见 services/wechat-login-bridge.ts），API 重启会让在途二维码作废，
+  // 用户刷新二维码即可；这条已知限制登记在任务卡 PLAT-13。
+  // ---------------------------------------------------------------------------
+  const wechatBridgeCreateSchema = z.object({
+    tenantHostname: z.string().trim().max(253).optional(),
+    productCode: productLoginCodeSchema.optional(),
+  });
+  const wechatBridgeCompleteSchema = wechatBridgeCreateSchema.extend({
+    id: z.string().min(1).max(128),
+    secret: z.string().min(1).max(256),
+    code: z.string().min(1).max(512),
+  });
+  const wechatBridgeStatusSchema = z.object({
+    id: z.string().min(1).max(128),
+    secret: z.string().min(1).max(256),
+  });
+
+  /** 会话不存在 / 过期统一话术：不区分「id 不存在」和「secret 不对」，避免被拿来探测。 */
+  function wechatBridgeGone(reply: FastifyReply, state: "not_found" | "expired") {
+    return reply.code(state === "expired" ? 410 : 404).send({
+      error: state === "expired" ? "wechat_bridge_expired" : "wechat_bridge_not_found",
+      message: "登录二维码已失效，请回到电脑刷新二维码后重新扫码。",
+    });
+  }
+
+  app.post("/auth/wechat-bridge/session", async (request, reply) => {
+    const parsed = wechatBridgeCreateSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+    }
+    const tenantHostname = parsed.data.tenantHostname
+      ? normalizeTenantHostname(parsed.data.tenantHostname)
+      : undefined;
+    if (parsed.data.tenantHostname && !tenantHostname) {
+      return reply.code(400).send({ error: "invalid_tenant_domain", message: "登录域名格式无效。" });
+    }
+    const session = createWechatLoginBridge({
+      productCode: parsed.data.productCode,
+      tenantHostname,
+    });
+    return {
+      id: session.id,
+      // secret 只在此刻返回一次，服务端只留哈希；二维码里的 s 就是它。
+      secret: session.secret,
+      expiresAt: session.expiresAt,
+      ttlSeconds: Math.round(WECHAT_BRIDGE_TTL_MS / 1000),
+    };
+  });
+
+  app.get("/auth/wechat-bridge/status", async (request, reply) => {
+    const parsed = wechatBridgeStatusSchema.safeParse(request.query ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+    }
+    // consume: 只有「登录成功」的结果会被取走，失败结果留着让用户重新授权一次。
+    const read = readWechatLoginBridge({
+      id: parsed.data.id,
+      secret: parsed.data.secret,
+      consume: true,
+    });
+    if (read.state === "not_found" || read.state === "expired") return wechatBridgeGone(reply, read.state);
+    if (read.state === "pending") {
+      return { state: "pending", expiresAt: read.context.expiresAt };
+    }
+    return {
+      state: "completed",
+      ok: read.result.statusCode === 200,
+      statusCode: read.result.statusCode,
+      login: read.result.body,
+      expiresAt: read.context.expiresAt,
+    };
+  });
+
+  /**
+   * 二维码图片。内容由前端按自己的站点拼（同一份代码要同时服务 `/os-v2/` 与测试实例
+   * `/lanqi-test/`），服务端只负责画图并顺手校验：目标必须是本站扫码中转页，
+   * 且 b/s 对应的会话仍然有效——避免这个接口被当成免费二维码生成器。
+   */
+  app.get("/auth/wechat-bridge/qrcode", async (request, reply) => {
+    const parsed = z.object({ u: z.string().min(1).max(2048) }).safeParse(request.query ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+    }
+    let target: URL;
+    try {
+      target = new URL(parsed.data.u);
+    } catch {
+      return reply.code(400).send({ error: "invalid_qrcode_target", message: "二维码地址无效。" });
+    }
+    // 只允许画「本站自己的」扫码中转页：生产 Web 与 API 同域（api.lcppch.top），
+    // 开发态 Web 在 localhost:517x、API 在 localhost:301x，故对回环地址放行。
+    const apiHost = String(request.headers.host ?? "");
+    const targetIsLocal = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(target.host);
+    const hostAllowed = targetIsLocal || (Boolean(apiHost) && target.host === apiHost);
+    if (!/^https?:$/.test(target.protocol) || !target.pathname.endsWith("/wechat-bridge") || !hostAllowed) {
+      return reply.code(400).send({ error: "invalid_qrcode_target", message: "二维码地址无效。" });
+    }
+    const read = readWechatLoginBridge({
+      id: target.searchParams.get("b") ?? "",
+      secret: target.searchParams.get("s") ?? "",
+    });
+    if (read.state === "not_found" || read.state === "expired") return wechatBridgeGone(reply, read.state);
+    const svg = await QRCode.toString(target.toString(), { type: "svg", margin: 1, width: 320 });
+    return reply
+      .header("Content-Type", "image/svg+xml; charset=utf-8")
+      .header("Cache-Control", "no-store")
+      .send(svg);
+  });
+
+  app.post("/auth/wechat-bridge/complete", async (request, reply) => {
+    const parsed = wechatBridgeCompleteSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+    }
+    const found = readWechatLoginBridge({ id: parsed.data.id, secret: parsed.data.secret });
+    if (found.state === "not_found" || found.state === "expired") return wechatBridgeGone(reply, found.state);
+    // 只有「已经成功过」才拒绝二次提交（不允许换人）；上一次失败仍应允许重新授权。
+    if (found.state === "completed" && found.result.statusCode === 200) {
+      return {
+        state: "completed",
+        ok: true,
+        needsTenant: found.result.body.needsTenant === true,
+      };
+    }
+    // 产品与品牌域名一律取会话创建时（电脑端）的值，不采信手机端回传，防止中途换租户。
+    const outcome = await resolveWechatLogin(
+      {
+        code: parsed.data.code,
+        productCode: found.context.productCode as ProductLoginCode | undefined,
+        tenantHostname: found.context.tenantHostname,
+      },
+      request.log
+    );
+    completeWechatLoginBridge({
+      id: parsed.data.id,
+      secret: parsed.data.secret,
+      result: outcome,
+    });
+    return {
+      state: "completed",
+      ok: outcome.statusCode === 200,
+      needsTenant: outcome.body.needsTenant === true,
+      statusCode: outcome.statusCode,
+      message: typeof outcome.body.message === "string" ? outcome.body.message : undefined,
+    };
   });
 
   app.post("/auth/onboarding/create-workspace", async (request, reply) => {

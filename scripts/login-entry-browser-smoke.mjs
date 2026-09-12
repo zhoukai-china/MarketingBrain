@@ -149,7 +149,7 @@ async function main() {
       if (autoSession || /内测实例|正在进入体验工作区|体验入口暂时打不开/.test(text)) {
         return { directTest: true, path: window.location.pathname, autoSession };
       }
-      if (window.location.pathname.split("/").filter(Boolean).pop() === "market" && text.includes("货架")) {
+      if (window.location.pathname.split("/").filter(Boolean).pop() === "agents" && text.includes("货架")) {
         return { directTest: false, path: window.location.pathname, autoSession };
       }
       return false;
@@ -164,14 +164,21 @@ async function main() {
       ].join("\n"));
     }
 
-    // 1. 根路径必须落到平台首页（货架），不再进入旧的单品落地页。
-    const lastSegment = `() => window.location.pathname.split("/").filter(Boolean).pop() === "market"`;
+    // 1. 根路径必须落到平台首页（`/agents`，2026-09-11 前是 `/market`），不再进入旧的单品落地页。
+    const lastSegment = `() => window.location.pathname.split("/").filter(Boolean).pop() === "agents"`;
     await waitFor(cdp, sessionId, lastSegment);
     await waitFor(cdp, sessionId, `() => document.body.innerText.includes("货架")`);
     const homeText = await evaluate(cdp, sessionId, `() => document.body.innerText`);
     assert.match(homeText, /行业智能体平台/, "platform home shows platform brand");
     assert.match(homeText, /货架/, "platform home renders the shelf");
     assert.match(homeText, /未登录/, "anonymous visitor is prompted to log in");
+
+    // 1b. 旧入口地址 `/market` 不能 404：印在物料上/被收藏的老链接要按同后缀跳到新地址。
+    await cdp.send("Page.navigate", { url: `${webBase}/market` }, sessionId);
+    await waitFor(cdp, sessionId, `() => window.location.pathname.endsWith("/agents")`);
+    await waitFor(cdp, sessionId, `() => document.body.innerText.includes("货架")`);
+    await cdp.send("Page.navigate", { url: `${webBase}/market/admin` }, sessionId);
+    await waitFor(cdp, sessionId, `() => window.location.pathname.endsWith("/agents/admin")`);
 
     // 2. 未登录访问 /login 必须看到平台登录/注册页，而不是旧的单点诊断流程。
     await cdp.send("Page.navigate", { url: `${webBase}/login` }, sessionId);

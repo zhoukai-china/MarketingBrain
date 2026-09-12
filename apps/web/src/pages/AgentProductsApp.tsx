@@ -2060,7 +2060,7 @@ export function AgentWorkspacePage({ slug }: { slug: string }) {
           <span>{whiteLabelAcquisition ? "企业品牌获客工作台" : whiteLabelTakeaway ? `${tenantBranding.brandName}专属外卖增长工作台` : agent.marketing?.method ?? "智能体能力"}</span>
           <p>{whiteLabelTakeaway ? "当前空间只使用本企业的门店、经营资料和指标口径；先选老店或新店，再进入诊断—实验—执行—反馈—复盘闭环。" : "直接描述任务，智能体会自动选择并组合技能；也可以在输入框里手动指定。"}</p>
         </section>
-        <div className="sidebarBottom">{agent.slug !== "acquisition" && <button onClick={() => navigate("/enterprise-knowledge-base")}>企业知识库</button>}<button onClick={() => navigate("/my-ai")}>我的智能体</button><button onClick={() => navigate("/account")}>企业账户</button></div>
+        <div className="sidebarBottom">{agent.slug !== "acquisition" && <button onClick={() => navigate("/enterprise-knowledge-base")}>企业知识库</button>}<button onClick={() => navigate("/my-ai")}>常用智能体</button><button onClick={() => navigate("/account")}>企业账户</button></div>
       </aside>
       <main className="agentChatArea">
           <header><div><span>{activeAcquisitionSystem ? `${activeAcquisitionSystem.title} · MCP 直连` : whiteLabelAcquisition ? "企业品牌获客工作台" : whiteLabelTakeaway ? "专属外卖增长工作台" : agent.marketing?.method ?? "连锁品牌增长工作空间"}</span><h1>{displayedAgentName}</h1></div><div className="agentHeaderActions">{agent.slug !== "acquisition" && activeKnowledgeDocumentIds.length > 0 && <button className="knowledgeActivePill" onClick={() => setKnowledgeDrawerOpen(true)}>已选 {activeKnowledgeDocumentIds.length} 条经营资料</button>}<span className={`autoRoutingPill ${activeAcquisitionSystem || agent.slug === "takeaway-growth" ? "locked" : ""}`}>{agent.slug === "takeaway-growth" ? "五步工作台 · 模块固定" : activeAcquisitionSystem ? `${activeAcquisitionSystem.title} · 固定 Skill` : selectedSkillIds.length > 0 ? `已指定 ${selectedSkillIds.length} 个技能` : "自动编排技能"}</span><button className="ghostButton" onClick={startNewConversation}>{agent.slug === "takeaway-growth" ? "新一轮" : "新对话"}</button>{busy && <button className="ghostButton stopGenerationButton" onClick={stopGeneration}>停止生成</button>}{!busy && lastRun && <button className="ghostButton" onClick={regenerateLastRun}>重新生成</button>}</div></header>
@@ -4101,7 +4101,7 @@ function AgentCapabilities({ capabilities, selected, onSelect, compact = false }
 }
 
 function AccessRequired({ agent }: { agent: AgentView }) {
-  return <main className="agentProductPage accessRequired"><AgentAvatar agent={agent} className="agentIcon" /><h1>{customerAgentName(agent.name)} 尚未开通</h1><p>当前企业账号还不能使用这项服务。</p><div className="heroActions"><button className="primaryButton" onClick={() => navigate(`/p/${agent.slug}`)}>查看介绍与体验</button><button className="ghostButton" onClick={() => navigate("/my-ai")}>返回我的智能体</button></div></main>;
+  return <main className="agentProductPage accessRequired"><AgentAvatar agent={agent} className="agentIcon" /><h1>{customerAgentName(agent.name)} 尚未开通</h1><p>当前企业账号还不能使用这项服务。</p><div className="heroActions"><button className="primaryButton" onClick={() => navigate(`/p/${agent.slug}`)}>查看介绍与体验</button><button className="ghostButton" onClick={() => navigate("/my-ai")}>返回常用智能体</button></div></main>;
 }
 
 function PageState({ text }: { text: string }) { return <main className="agentProductPage pageState"><div className="agentSpinner" /><p>{text}</p><button className="ghostButton" onClick={() => navigate("/")}>返回首页</button></main>; }

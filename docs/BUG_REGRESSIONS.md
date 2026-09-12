@@ -1,5 +1,92 @@
 # Bug 回归台账
 
+## QA-20260912-011：视频复盘 chat 页匿名用户白填 4 步才撞 401，且提示用户点一个页面上不存在的登录按钮（P1，已修 + 已回归 + 已上测试实例与生产）
+
+- 触发：用户 2026-09-12 提供 WorkBuddy 报告 `C:\Users\book\WorkBuddy\2026-09-12-07-24-26\OSv2_视频复盘_agent_QA报告.md`（07:24 快照，匿名视角）。报告列了三条 P1：chat 页没有登录入口、文案误导、登录检查放在流程末端。
+- 独立复现（生产 `https://api.lcppch.top/os-v2`，修复前，新增只读探针 `scripts/vidrev-chat-anonymous-probe.mjs`）：两个 SKU × 桌面 1440 / 移动 390 = 4 视口 × 4 条断言 **全部 FAIL**、`exit=1`。取证原文：顶栏 `思潼AI 货架 对话`（无登录/钱包/主题）、`hasModeChoice=true`（匿名直接进 4 步向导）、`hasLoginButton=false`、页面无任何登录说明。
+- 现象（用户所见）与根因分开：
+  - 现象：匿名用户走完「模式 → 平台 → 周期 → 数据/描述」+ 确认卡片，点「✓ 确认，开始生成」才收到 `401`；提示语让他去点「右上角『未登录 · 点击登录』」，而 chat 页顶栏只有「货架 / 对话」两个链接——提示指向一个**不存在**的控件。
+  - 根因：`MarketplaceAgentChatPage` 自带一份硬编码的精简顶栏（不走全局 `Topbar`，所以没有登录/钱包/主题/退出），且页面**从不检测登录态**——`handleStaleSession(401)` 要等到 `/run` 返回 401 才触发，抛出的又是「登录状态已失效」（对从未登录过的匿名用户属误读）。
+  - 连带影响：因为 401 只在最后一步出现，匿名用户白填一轮；同时该页还缺主题切换（报告 P2）。
+- 最小修复（`apps/web/src/pages/MarketplaceApp.tsx`，纯前端）：
+  1. chat 页顶栏改用全局 `Topbar`（🔒 未登录·点击登录 / 💎 积分 / 主题 / 退出登录）。
+  2. 页面新增 `hasSession`（读本地会话）+ 钱包读取；**未登录直接渲染登录引导**（说明「登录后才能使用、每次扣 N 积分、结果存进自己账号」+ 主按钮「🔒 立即登录」带回跳 + 次按钮回详情看参考案例），不再渲染 4 步向导。
+  3. 掉登录文案由「登录状态已失效」改为「登录已过期」。
+- 回归（先红后绿）：
+  - 红灯：`PROBE_WEB_URL=https://api.lcppch.top/os-v2 node scripts/vidrev-chat-anonymous-probe.mjs` → 4 视口 × 4 断言全 FAIL、`exit=1`（见上）。
+  - 绿灯：修复后同命令 **PASS**；红线位置由「顶栏无登录入口 / 直接进向导 / 无登录按钮 / 无登录说明」变为「顶栏 `🔒 未登录 · 点击登录`、出现登录引导与登录按钮、不进 4 步向导」。
+  - 老路径不回归（本地带登录 + 真实模型 1 次深度复盘）：`MP_E2E_WEB_URL=http://127.0.0.1:5175 MP_E2E_API_URL=http://127.0.0.1:3011 node scripts/marketplace-vidrev-browser-e2e.mjs` → **PASS**（`chatRun=true`、11 章节、导出按钮、`costText="本次消耗 60 积分 · 双桶钱包"`、移动 `overflow=0`、`consoleErrors=0`）。
+  - `pnpm.cmd --filter @baolu/web typecheck` → `exit=0`；`pnpm.cmd qa:fast` → `exit=0`。
+- 刻意不做（保留给 PLAT-25）：页面标题冗余「视频复盘 · 视频复盘智能体」、四个页面 `<title>` 都是「思潼AI 行业智能体平台」、meiye 欢迎语先问「第 1 轮 POI/团购」与进度条第 1 步「复盘模式」不一致（数据文案问题，在 `apps/api/src/data/marketplace-v3.json`）。报告里「约扣 60 积分 · ≈ ¥3」的人民币折算已由 PLAT-19 下线，属报告时效差异。
+- 发布（2026-09-12）：发布包 `release-20260912-plat24-chat-login-gate-full.tar.gz`（**9348144 B**，sha256 `170c6dab0b4fbf37cb70dab30f7737c8e50f99a0f7735baa31c8ad687e9a52f9`，1461 文件）。测试实例 `20260912-plat24-chat-login-gate-test1` → `DEPLOY_OK` + `VERIFY_OK` + `PROBE_EXPECT=auto-login` 探针 **PASS**（该实例是内测免登录体验实例，匿名口径不适用）；生产 `20260912-plat24-chat-login-gate-prod1` → `DEPLOY_OK` + `VERIFY_OK` + 匿名探针 **PASS** + `deployed-marketplace-browser-check` **PASS** + `platform:route-browser-e2e` **PASS 24/24** + `marketplace-sku-link-regression` **ALL PASS** + `journalctl -p err` 近 8 分钟 `No entries`。备份 `/opt/baolu-backups/20260912-plat24-chat-login-gate-{prod1-before-baolu-os-v2,test1-before-baolu-os-v2-test}/`。
+- 回滚：还原 `/opt/baolu-backups/<本轮发布 id>-before-<app>/` 并 `systemctl restart`；或只回滚 `MarketplaceApp.tsx` 一个文件重发包（无接口/迁移/数据变更）。
+- 状态：**已修 + 已回归（先红后绿）+ 已上测试实例与生产**。
+
+## QA-20260912-010：`/marketplace/run` 把「本次真实算力成本」返回给了浏览器（P2 商业信息泄露，已修 + 已回归 + 已上测试实例与生产）
+
+- 触发：用户 2026-09-12 反馈「**我们把成本直接暴露给客户了。** `/marketplace/run` 的响应里带了 `modelCostCny` 字段，也就是每次运行的真实算力成本会返回到浏览器。客户打开开发者工具就能看到我们每次赚多少。这跟 `CONTRACTS.md` 里写的『不向普通用户暴露供应商、密钥或内部成本』冲突。建议从响应里摘掉，内部审计继续走账本 `metadata` 就够了。**抓紧摘掉**」。
+- 现象（用户所见，与根因分开）：`POST /market/skus/<sku>/run` 成功后返回的 JSON 里有 `modelCostCny: 0.029529`（本次调用 DeepSeek 的真实人民币成本）。客户在浏览器 DevTools → Network 里直接可读；再配合对外展示的积分口径，等于把毛利结构送给客户。同一响应里的 `estimatedCredits` 也是同一类泄露：它等于 `ceil(真实成本 × 2000)`（`MARKETPLACE_CREDIT_MARKUP=20` ÷ `MARKETPLACE_COMPUTE_COST_CNY_PER_CREDIT=0.01`），客户拿它反推成本只差一个向上取整。
+- 根因：生成成功后的返回对象把内部成本变量 `costCny`（`modelCostCny`）和由成本折算出的 `dynamicCredits`（`estimatedCredits`）一起回了浏览器。这两个值本来只需要写进 `MarketplaceLedgerEntry.metadata` 供内部审计；`apps/web` 从未消费它们——前端只用 `consumedCredits`（= SKU 定价 `ppu`）渲染「本次消耗 N 积分」。也就是「内部审计字段」和「客户响应字段」被混在同一个对象里，没有任何契约拦住。
+- 影响面与边界：属**内部成本/毛利口径泄露**（P2：不涉及跨租户数据、密钥、扣费错误或服务不可用）。同类字段逐项确认过：兰琪报价页的 `estimatedCredits` 是**对外公开单价**（`quoteLanqiMedia()` 直读 `LANQI_MEDIA_*_CREDITS`，如 30 积分/秒、每镜 90 积分），不是成本折算，按用户口径必须保留；`/market/admin/*` 的 `gmvCny`、账本 `amountCny` 属内部管理端与账本，保持不动。
+- **同轮只读扫描发现的第二处（一并修复）**：`POST /beauty-industry/acquisition/runs/:runId/media/quote` 把 `estimatedProviderCostYuan`（本批图片的供应商成本，人民币，由 `estimateBeautyImageProviderCostYuan()` 算出）直接回给客户页面；`apps/web/src/pages/BeautyIndustryAcquisitionPage.tsx` 的类型里也声明了它。虽然页面没有任何地方渲染这个字段，但它和 `modelCostCny` 是同一件事：客户打开 DevTools 就能读到我们每张图的供应商成本。同一文件 job `serialize()` 还回传 `provider` / `model`（供应商与模型名）——**这一项本轮未动**，因为它属「供应商身份」而非「内部成本」，且 `docs/agents/lanqi-beauty/CONTRACTS.md` 有专门条款，单独开条目处理更安全（见 PLAT-21 残余）。
+- **第三处（按用户「每批只动一件事」拆成 PLAT-22 单独一批修复）**：`POST /clip-lab/render`（`/agents/clipper` 工作台智能体，租户可打开）在 `result.measurement.estimatedLocalCostYuan` 里回传本机渲染成本（`renderMs / 3_600_000 × 2.4`，¥2.4/小时口径）。前端从未渲染它，属白送。修复＝删该字段并保留同一 `measurement` 里不含钱的效率口径（`totalMs` / `renderMs` / `realtimeFactor` / `machineVideosPerHour` / `estimatedHumanMinutes` / `humanReviewVideosPerHour`）；契约第 ⑥ 段 4 条断言钉住。先红后绿：修复前 `FAIL (34 passed / 1 failed)`、`exit=1`；修复后 `PASS (35 passed / 0 failed)`、`exit=0`；`pnpm.cmd qa:fast` exit=0（含 `platform:route-contract-smoke` 99/0）。
+- 修复前红灯（新增源码级契约，修复前跑当前源码；该脚本发现第二处泄露后已更名为 `scripts/response-cost-contract-smoke.mjs`）：`FAIL (15 passed / 7 failed)`、`exit=1`；关键失败项 `[FAIL] 成功响应块内无 modelCostCny / estimatedCredits :: 响应块仍含成本字段`、`[FAIL] modelCostCny 全仓路由文件只出现一次（仅内部账本 metadata） :: 出现 2 次（账本内 1 次）`、`[FAIL] ... 显式断言响应不含成本字段`（三个真实运行 smoke 当时只把成本打进日志、没有断言）。
+- 最小修复（只改响应口径，不动计费、不动定价、不动账本字段）：
+  1. `apps/api/src/routes/marketplace.ts`：成功响应删除 `modelCostCny: costCny,` 与 `estimatedCredits: dynamicCredits,` 两行；`MarketplaceLedgerEntry.metadata` 里的 `modelCostCny` / `estimatedCredits` / `promptTokens` / `completionTokens` / `reasoningTokens` **全部保留**（内部审计不回退）。
+  2. `scripts/marketplace-live-run-smoke.ts`、`scripts/marketplace-ip-pos-run-smoke.ts`、`scripts/marketplace-vidrev-run-smoke.ts`：新增 `!("modelCostCny" in body)` / `!("estimatedCredits" in body)` 缺席断言 + 账本 `metadata.modelCostCny` 仍为数字的审计断言，日志字段改成 `costFieldsAbsent` / `ledgerModelCostCny`（以前是直接打印成本）。
+  3. 第二处（美业图片报价）：`apps/api/src/routes/beauty-industry-media.ts` 的 `/media/quote` 响应删除 `estimatedProviderCostYuan`（服务端成本计算与 `resolveReadiness` 闸门**保留**，摘字段不等于摘风控）；`apps/web/src/pages/BeautyIndustryAcquisitionPage.tsx` 的 `BeautyMediaQuote` 类型删除该字段。
+  4. 新增 `scripts/response-cost-contract-smoke.mjs`（**29 条**离线断言，只读源码、不连网、不调模型、不花钱）并挂进 `qa:fast`（`platform:response-cost-contract-smoke`）：`modelCostCny` 只允许出现在账本 metadata（全文件恰好 1 次）、`estimatedCredits` 同理、成功响应块不得含两者、账本审计字段与客户字段（`consumedCredits`/`balance`/`requestId`/`spent` 等）双向必须保留、客户前端不得引用 `modelCostCny` / `estimatedProviderCostYuan`、`estimatedCredits` 只允许出现在兰琪公开报价白名单且报价文案仍在、美业报价响应不得含 `estimatedProviderCostYuan` 且仍保留 `creditCost`/`canConfirm`/`message`/`imageCount`、报价仍在服务端按成本做闸门。
+- 回归（先红后绿）：
+  - 契约（先红后绿，两处分别验红）：`modelCostCny` 一处修复前 `FAIL 15/7`、`exit=1`；加上美业报价一处后（重命名为 `scripts/response-cost-contract-smoke.mjs`）再跑出 `FAIL (25 passed / 4 failed)`、`exit=1`（红），修复后 `response_cost_contract_smoke: PASS (29 passed / 0 failed)`、`exit=0`（绿）。
+  - 真实端到端（本地 Postgres + 真实 DeepSeek，单次 deep 复盘）：`VIDREV_SMOKE_ONLY=deep pnpm.cmd marketplace:vidrev-run-smoke` → **PASS**，`{"phase":"deep","elapsedMs":14843,"consumedCredits":60,"costFieldsAbsent":true,"ledgerModelCostCny":0.029529,"answerChars":5425}`——响应里**没有**成本字段，账本里**仍有**成本。
+  - 相邻回归：`pnpm.cmd qa:fast` **exit=0**（含新契约、美业图片 6 个 P1 smoke、7 包 typecheck 全绿）；`marketplace:cost-smoke` / `marketplace:foundation-smoke` / `marketplace:api-smoke` / `marketplace:db-smoke` / `marketplace:sku-link-contract-smoke`(18/18) / `marketplace:credits-only-contract-smoke`(19/19) / `beauty-industry:real-media-smoke`（`active_xhs_delivery=real_provider_composed`、`zero_call_contract_only=true`）/ `beauty-industry:brand-package-p1-smoke` 全部 PASS。
+- 发布（2026-09-12，共两轮）：
+  - 第一轮（只修货架一处）：`release-20260912-plat21-cost-leak-full.tar.gz`（9326080 B，sha256 `dcd156437143c2bfcdc2d7c1fdcf59d447ea4c782511682ee6b7658ccf9dd21f`，1460 文件）→ 测试 `20260912-plat21-cost-leak-test1`、生产 `20260912-plat21-cost-leak-prod1`，两侧 `DEPLOY_OK` + `VERIFY_OK`。
+  - 第二轮（含美业报价一处，即当前线上版本）：`release-20260912-plat21-cost-leak2-full.tar.gz`（**9327277 B**，sha256 `b6d922a58bac4525e39f21e837e1296e584d2b93d4768896cfeb19fb518647ac`，1460 文件，无意删文件；本机与服务器 `sha256sum` 逐字一致）。测试 `20260912-plat21-cost-leak2-test1`、生产 `20260912-plat21-cost-leak2-prod1`，两侧 `DEPLOY_OK`（`health=200 (after 15s)` / `ready=200`、48 迁移无待应用）+ `VERIFY_OK`（`skus_total=19` / `coming_soon=13` / 两个 `vidrev` = `selling`）+ 浏览器 `deployed-marketplace-browser-check` **PASS**（`shelf` / `credits_only` / `no_yuan_conversion` / `console_clean`）+ `marketplace-sku-link-regression` **ALL PASS** + `journalctl -u baolu-os-v2 -p err` 近 8 分钟 `No entries`。备份 `/opt/baolu-backups/20260912-plat21-cost-leak2-{prod1-before-baolu-os-v2,test1-before-baolu-os-v2-test}/`。
+- 上线后对**部署产物本身**的取证（不只信源码，生产实例）：① `/opt/baolu-os-v2/apps/api/dist/apps/api/src/routes/marketplace.js` 里 `modelCostCny` 只出现 **1 次**、`estimatedCredits` 只出现 **1 次**，且两处都在 `prisma.marketplaceLedgerEntry.create({ ... metadata: { ... } })` 内，紧随其后的 `return { state: "completed", ... }` 响应对象已无成本字段（对比修复前同一位置会多出 `estimatedCredits: dynamicCredits,` 与 `modelCostCny: costCny,` 两行）；② `beauty-industry-media.js` 的 `/media/quote` 响应对象里 `estimatedProviderCostYuan` **已消失**，而同文件内 `estimateBeautyImageProviderCostYuan()`、`resolveReadiness(..., estimatedProviderCostYuan)` 与 job 参数里的成本审计字段都还在（风控与审计未退化）。
+- 既有无关失败（记录，不属本缺陷）：`pnpm.cmd marketplace:live-run-smoke` 在本地已因 `ipzone__moments` 的开卖状态由发布文件 `marketplace-v3.json` 固定为 `coming_soon` 而返回 `409 marketplace_sku_coming_soon`（该脚本仍只改数据库行，与 QA-20260911-016 修掉的「状态以发布文件为准」冲突）——本次未扩大范围去修它，故改用 `marketplace:vidrev-run-smoke`（两个 `vidrev` SKU 确为 `selling`）做真实端到端验收。
+- 回滚：还原 `/opt/baolu-backups/<本次发布 id>-before-<app>/` 并 `systemctl restart`；或重发上一包（纯响应字段删除，无迁移、无数据变更）。
+- 状态：**已修 + 已回归（先红后绿）+ 已上测试实例与生产**。
+
+## QA-20260911-016：专区级「开卖」状态写在发布文件里却不生效，货架两个视频复盘智能体仍是「开发中」（P1，已修 + 已上测试实例与生产）
+
+- 触发：用户 2026-09-11 明确同意「把这两个 SKU（两个视频复盘智能体）从『开发中』改成开卖」。开卖＝动钱，先拿到用户明确同意才动手。
+- 改动：`apps/api/src/data/marketplace-v3.json` 给 `industries.ipzone.ov.vidrev`、`industries.meiye.ov.vidrev` 写 `status: "selling"`（`ipzone` 是新增该条目，`meiye` 是在既有 override 条目上补字段）。
+- 现象（用户所见，与根因分开）：发布包构建产物、`marketplace-v3.json` sha256、部署日志全部对得上，`verify-deploy.sh` 也 `VERIFY_OK`，但线上 `/api/market/skus` 里两个 `vidrev` 仍是 `coming_soon`，用户在货架上看到的还是「开发中」。
+- 根因链（`apps/api/src/services/marketplace-catalog.ts`，现象不是原因）：
+  1. `syncMarketplaceIndustryProfiles()` 对**已存在**的专区 profile 行只做 `update: {}`，不覆盖 `ov`；
+  2. `loadMarketplaceIndustryProfiles()` 反过来用库里的 `ov` **覆盖内存**里的 `MARKETPLACE_INDUSTRIES[zone].ov`；
+  3. 于是「发布文件里新增的 `ov.<skill>.status`」被库里的旧 `ov` 静默吞掉——状态的真实来源变成了数据库历史值，而不是发布文件。
+- 最小复现（本轮新增临时探针 `scripts/tmp/probe-profile-ov.ts`，`scripts/tmp/` 不进发布包）：本地 Postgres 打印 `profile ipzone: keys=[] vidrev.status=undefined`、`profile meiye: keys=[...] vidrev.status=undefined`；线上测试实例 DB 同形（`ipzone|{}` / `meiye|{...无 status}`）。
+- 修复前红灯：把 status 行临时改回 `override.status ?? core.status`，`pnpm.cmd marketplace:foundation-smoke` **exit=1**（末尾新增的红灯断言抛 `FAIL:`），证明断言能抓到该缺陷而不是恒绿。
+- 最小修复：`marketplace-catalog.ts` 新增模块级 `MARKETPLACE_SKU_STATUS_OVERRIDES`（从**发布文件**读 `industries.*.ov.<skill>.status`），种子 status 改为 `normalize(MARKETPLACE_SKU_STATUS_OVERRIDES[industryKey]?.[skillId] ?? override.status ?? core.status)`。开卖＝动钱，口径必须随发布文件走、并能被部署脚本校验。
+- 回归（先红后绿）：`marketplace:foundation-smoke` PASS（`coming_soon` 14→13、`selling` 5→6，新增「两个专区 `vidrev` 都 `selling` 且 `meiye__livescript` 仍 `coming_soon`」+ 表末红灯断言：模拟库里 `ov = {}` 时状态仍必须从文件取到 `selling`）；`marketplace:vidrev-contract-smoke` PASS；`marketplace:sku-link-contract-smoke` 18/18；`pnpm.cmd qa:fast` **exit=0**。三个部署脚本（`scripts/tmp/verify-deploy.sh` / `deploy-release.sh` / `deploy-prod1.sh`）同步硬校验 `marketplace-v3.json` sha256 = `a668b6429315914e14e7d72601967e8f93a2006ecb9297dd59f283f0ba467416`；`verify-deploy.sh` 新增「`ipzone__vidrev` / `meiye__vidrev` 必须 = `selling`，否则 `SystemExit`」。
+- 已上环境：测试实例 `20260911-vidrev-open3-test1` → `DEPLOY_OK` + `VERIFY_OK`（`PASS ipzone__vidrev_status = selling` / `PASS meiye__vidrev_status = selling`）+ `deployed-marketplace-browser-check` PASS + `marketplace-sku-link-regression` ALL PASS。生产 `20260911-vidrev-open-prod1` → `DEPLOY_OK`（`health=200 (after 15s)` / `ready=200`）+ `VERIFY_OK`（同上两条 PASS）+ `marketplace-sku-link-regression --base https://api.lcppch.top/os-v2` **ALL PASS**（桌面 1440 / 手机 390 × 两个 SKU：渲染「已开卖」正文、`200 /api/market/skus/<sku>`、无 5xx、无 console 错误）。发布包 `release-20260911-vidrev-open3-full.tar.gz`（**9288547 B**，sha256 `e797080cac4a74963517c0c43c39635affb5d37654c52fd662fb5c54ec8eee17`）。
+- 回滚：还原对应备份 `/opt/baolu-backups/20260911-vidrev-open*-{test1,prod1}-before-<app>/` 并 `systemctl restart`；或把发布文件里的 `status` 改回 `coming_soon` 重发包（发布文件是唯一口径来源）。
+- 原地观察到的干扰项（记录，不属本缺陷）：部署期间另有一条不同任务的生产发布（`20260911-lq22-nav-white-text-prod1`）在跑，它的包里有 `marketplace-v3.json` 新版本但**没有本修复的代码**，所以那一次 `DEPLOY_OK` 之后线上仍是 `coming_soon`——这也是本缺陷更容易被误读成「部署没生效」的原因。
+- 残余 / 刻意不做：① `marketplace:api-smoke` 在 `DATA_MODE=database` + `DATABASE_URL` 环境下会在更早的 `/market/me` 断言失败，属**既有环境限制**（该 smoke 设计上跑 demo 模式），本轮线上口径由 `foundation-smoke` 新断言 + `sku-link-contract-smoke` + `verify-deploy.sh` 三处兜住；② 专区级开关缺少按人审计与角色化，见 `docs/agents/platform-tasks.md` **PLAT-17**；③ 服务器历史构建产物与历史路由未清理，见 **PLAT-18**。
+- 状态：**已修 + 已上测试实例与生产**。
+
+## QA-20260911-015：货架 SKU 落地链接 `/agents/<skuCode>` 被工作台智能体页接管，兜底成「服务暂时不可用」（P1，已修 + 回归已绿 + 已上测试实例与生产）
+
+- 触发：用户 2026-09-11 反馈「① 创始人IP专区：https://api.lcppch.top/os-v2/agents/ipzone__vidrev ② 美业专区：https://api.lcppch.top/os-v2/agents/meiye__vidrev 上面两个网址显示服务暂时不可用」。
+- 现象（用户所见，与根因分开）：已登录状态下打开这两个链接，页面显示 `服务暂时不可用，请稍后再试。 返回首页`；未登录打开则先被推去 `/login`。两条链接都不是 404，也不是服务器 5xx——只是渲染到了一个「没有这个智能体」的工作台页。
+- 根因：`/agents` 是平台首页，`/agents/<slug>` 在 `apps/web/src/main.tsx` 的 `agentMatch` 分支里被**一律**交给 `AgentWorkspacePage`（工作台智能体页）。而货架 SKU 编码是 `<行业专区>__<能力>`（`ipzone__vidrev` / `meiye__vidrev`，见 `apps/api/src/services/marketplace-catalog.ts`），不是工作台 slug：`/api/agents/me` 里找不到它 → 抛 `agent_not_found` → `apps/web/src/pages/AgentProductsApp.tsx:633` 的 `customerErrorMessage` 对机器码（`/^[a-z0-9_:-]+$/`）统一兜底成「服务暂时不可用，请稍后再试。」，把「链接写法不对 / 这个智能体还没上线」说成了服务故障。真正常的货架详情入口是**单数** `/agent/<skuCode>`（`marketplaceAgentMatch` 分支）；两套命名空间共用 `/agents/...` 前缀，是这次「同一个东西两个地址、其中一个坏掉」的来源。
+- 服务器侧同时取证（用来排除「真的是服务故障」）：两个 URL nginx 全 `200`，当日状态统计无 5xx；`/api/market/skus/ipzone__vidrev`、`/api/market/skus/meiye__vidrev` 均 `200`（`status=coming_soon`）；nginx 日志显示用户已成功扫码登录（`wechat-bridge/complete` 200 → 跳 `/agents/ipzone__vidrev`），登录后 `/api/agents/me` 也是 `200`、`/api/market/skus/*` 也正常——坏的是前端渲染路径，不是接口或服务。
+- 修复前红灯（真实浏览器，可重复执行）：
+  - 生产实例（匿名访客）：`node scripts/marketplace-sku-link-regression.mjs --base https://api.lcppch.top/os-v2` → **12 failed**（2 个 SKU × 桌面 1440 / 手机 390，每条 3 类失败）：`[FAIL] 未被强制跳到登录页 :: finalUrl=https://api.lcppch.top/os-v2/login`、`[FAIL] 渲染货架详情正文（开发中 + 视频复盘）`、`[FAIL] 详情数据来自货架接口 :: 未调用货架详情接口`；同轮 `[INFO] 取证 /api/ 请求` 里只有 `auth/wechat-config`、`public/tenant-branding`，没有任何 `/api/market/skus/...`——未登录用户拿到的公开分享链接被直接改名成登录任务。
+  - 内测实例（已登录态，即用户实际看到的那一屏）：同脚本 **12 failed**，失败文本 `服务暂时不可用，请稍后再试。 返回首页`。
+- 最小修复（只改前端路由归属，不动 API、租户、计费、货架数据）：`apps/web/src/main.tsx` 新增 `isMarketplaceSkuCode(slug)`（判据：slug 含 `__`；工作台 slug 如 `acquisition` / `clipper` / `takeaway-growth` 都不含双下划线，来自 `/api/agents/me` 的命名不会误伤），并在 `agentMatch` 分支**之前**插入一条：`agentMatch && isMarketplaceSkuCode(agentMatch[1])` → `MarketplaceAgentDetailPage`（与 `/agent/<skuCode>` 同一个组件、同一份数据来源），其余 `/agents/<slug>` 仍走工作台页，行为不变。
+- 回归（先红后绿，真实浏览器，本轮新增 `scripts/marketplace-sku-link-regression.mjs`，已注册为 `pnpm.cmd marketplace:sku-link-regression`）：
+  - 修复前：生产 `12 failed`（见上）。修复后：生产 `ALL PASS`（2 SKU × 桌面 1440 / 手机 390 × 6 类断言 = 24 条全绿，匿名访客直达货架详情页，`200 /api/market/skus/<sku>`，无 5xx、无 console 错误）。
+  - 同产物在内测实例连跑 **5 轮 ALL PASS**，用来证明结果不是单次运气。
+  - **探针自身修正（改探针，不放宽产品口径）**：首版把「页面文字连续两帧一致」当渲染完成，而货架详情的加载态（`正在加载智能体…`）本身也很稳定，会在正文渲染前就判绿灯 —— 实测出现过 `[FAIL] 渲染货架详情正文 :: … 正在加载智能体…` 同时 `/api/market/skus/<sku>` 已是 `200` 的**假失败**。已把加载态文案并入 `TRANSIENT_MARKERS`，并新增失败时的 `/api/` 请求 + 页面异常取证；真卡死时超时分支仍返回最后文本、断言照样失败。
+- 验收结果：生产 `bash /tmp/verify-deploy.sh /opt/baolu-os-v2 baolu-os-v2 3002 https://api.lcppch.top/os-v2/ https://api.lcppch.top/os-v2/api/ /os-v2/` → **VERIFY_OK**（`systemd_active=active`、`health/ready=200`、`src_data_sha` 与 `dist_data_matches_src` 均 `2eec39bd…`、`index_base_path=/os-v2/`、`market/skus` 契约 `skus_total=19` / `coming_soon=15` / `lanqi_brain_present=True`）；`DEPLOY_CHECK_WEB_URL=https://api.lcppch.top/os-v2 node scripts/deployed-marketplace-browser-check.mjs` → **PASS**（`shelf` / `credits_yuan` / `coming_soon_count=45` / `detail_redo_copy` / `direct_test_entry` / `console_clean`）；截图 `%TEMP%\sku-link-green-prod\{ipzone__vidrev,meiye__vidrev}-{desktop-1440,mobile-390}.png`（移动 390 页面完整、无横向溢出）。
+- 发布（2026-09-11）：发布包 `release-20260911-qa015-sku-link-full.tar.gz`（**9270737 B**，sha256 `32d40b128ddbea2b3057e4045c3e71e48d1eb53757cbe2cf4c72380bcc1a68fc`，**1453 文件**）。测试实例 `20260911-qa015-sku-link-test1` / 生产 `20260911-qa015-sku-link-prod1` 都拿到 `DEPLOY_OK` + `health=200 (after 15s)` / `ready=200`，两侧部署日志第 3 行 `archive sha256` 与本机逐字一致（同一份产物），`NRestarts=0`，`journalctl -p err` 近 15 分钟 `No entries`，48 条迁移无待应用。备份：`/opt/baolu-backups/20260911-qa015-sku-link-prod1-before-baolu-os-v2/`（211M）、`/opt/baolu-backups/20260911-qa015-sku-link-test1-before-baolu-os-v2-test/`（181M）；**回滚**＝把对应备份目录还原回 `$APP` 并 `systemctl restart`（纯前端路由改动，也可直接重发上一包 `release-20260911-common-agents-label-full.tar.gz`）。
+- 刻意不做 / 残余：① 货架数据未动 —— `apps/api/src/data/marketplace-v3.json` 发布前后 sha256 都是 `2eec39bd3ea2b9821d8ad8113c63123c580e0f72f0063fe06890feb9553752e4`，`ipzone__vidrev` / `meiye__vidrev` 仍是 `coming_soon`（**开卖要等用户明确同意**）；② 未改 `customerErrorMessage` 的兜底文案 —— 真正不存在的**工作台** slug 仍会显示「服务暂时不可用」，属独立 P3（语义仍不准，但货架编码已不会再走到那里），单独开条目处理更安全；③ `package.json` 新增的 `marketplace:sku-link-regression` 入口属本地开发工具，不参与运行时（在本次发布包之后补登记，不影响线上产物）。
+- 收尾补充（2026-09-11 20:1x，防止被改回去）：新增源码级契约门禁 `scripts/marketplace-sku-link-contract-smoke.ts`（`pnpm.cmd marketplace:sku-link-contract-smoke`，18 条离线断言）并接进 `pnpm.cmd qa:fast`，锁死「`isMarketplaceSkuCode` 判据存在 / 货架归属分支排在工作台分支之前 / 单数短链 `/agent/<skuCode>` 仍渲染同一组件 / 货架 SKU 全部含 `__`、工作台 slug 全部不含、两集合不相交 / 浏览器回归脚本仍覆盖两条真实链接与货架加载态文案」。**先红后绿**：同一支脚本跑 `HEAD`（修复前）源码 → `7 passed / 11 failed`、`exit=1`；跑当前源码 → `18 passed / 0 failed`，`pnpm.cmd qa:fast` 整体 **exit=0**（7 包 typecheck 全绿）。属开发工具，不参与运行时，故未随本轮发布包上服务器。任务卡见 `docs/agents/platform-tasks.md` **PLAT-16**。
+- 状态：**已修 + 回归已绿 + 已上测试实例与生产**。
+
 ## QA-20260911-014：兰琪工作台左上角拿「兰琪」两个字当品牌 Logo，且未验收板块（经营驾驶舱 / 公域获客）被标成已可用（P2，已修 + 回归已绿 + 已上测试实例与生产）
 
 - 触发：用户 2026-09-11 反馈「兰琪 logo 头像不对」+「目前私域营销可以正常上线 其他板块显示开发中即可」。两条要求：① 左上角品牌位要显示真实兰琪品牌 Logo；② 只有「私域营销」算已上线，其余板块一律显示「开发中」。
@@ -46,6 +133,45 @@
 - 刻意未做：不在本轮单独发布生产。内测免登录门只在 `VITE_DIRECT_TEST_LOGIN=true` 的测试实例渲染，生产该开关关闭，本修复对生产用户零可见差异；同时工作区还带着别的工作线未上生产的改动（`main.tsx` 移动端设备判定 QA-20260911-012、`MarketplaceApp.tsx` / `sitong-design.css` 货架改造），按最小发布集不把它们顺带带上生产。
 - 状态：**已修 + 回归已绿 + 已上测试实例**（生产经另一条工作线的全量包同步带上，切换开关关闭、行为不变）。
 
+## QA-20260911-012：手机打开平台页顶栏错乱、正文被挤，且货架页没有「退出登录」入口（P1，已修 + 已上测试实例与生产）
+
+- 触发：用户 2026-09-11 反馈两点——「手机端显示页面不完整 还是得调调」与「已注册登入，登入之后如何要退出登入然后重新登入呢？」。前者是真机上的布局缺陷，后者是功能缺口（货架页没有退出入口）。
+- 复现（**真实生产实测**，2026-09-11 修复前，`MARKETPLACE_LAYOUT_CHECK_URL=https://api.lcppch.top/os-v2 node scripts/marketplace-mobile-layout-check.mjs`，390×844 手机视口 + 微信内置浏览器 UA，只读页面不登录）：**12 条断言失败** —— 顶栏高 **222px**（应为两行内）、三个 Tab 被压成 **46px 宽的竖排字**（`货架` 高 109px，逐字换行）、钱包胶囊 `right=418` 溢出 390 视口、顶栏背景 `rgba(15,15,19,.72)` 在浅色主题下仍是近黑横带。截图 `%TEMP%\sitong-mobile-prod-before.png`。
+- 根因（三个独立原因叠加，缺一个都修不干净）：
+  1. **设备断点写死**：`apps/web/src/main.tsx` 里有一行 `document.body.setAttribute("data-device", "desktop")`，**恒定**把设备标成桌面。`sitong-design.css` 里 `body[data-device="mobile"]` 的整套移动端规则（顶栏换行、Tab 单行、钱包收敛、手机外壳取消）在真机上一句都不生效——现象是「手机上排版像被压扁的桌面版」，根因是断点判断根本不是判断。
+  2. **浅色主题令牌缺项**：`:root[data-theme="light"]` 只覆盖了部分设计 token，`--topbar-bg` / `--toast-bg` / `--ovl-bg` 只有深色一套值（`rgba(15,15,19,.72)` 等）。全新访客默认浅色，于是浅色页面上顶着一条近黑玻璃横带。
+  3. **货架页无退出入口**：「退出登录」此前只存在于 `/my-ai`（`AgentProductsApp.tsx`）与 `main.tsx` 的老店铺流程；手机用户扫码登进 `/agents` 之后，想换微信号重新登入没有任何按钮可点。
+- 最小修复（3 个源码文件，不动登录/计费主链）：
+  - `apps/web/src/main.tsx`：新增 `MOBILE_MAX_WIDTH = 900` 与 `resolveDevice()`（视口宽度 + 移动 UA 双条件判定），`applyDevice()` 在启动、`resize`、`orientationchange` 时重算，替换写死的 `"desktop"`。
+  - `apps/web/src/styles/sitong-design.css`：① 手机断点下 `.app-wrap` 去掉原型「手机外壳」（10px 边框 / 38px 圆角 / 20px 外边距）改为满宽；② 顶栏改两行布局（`.topbar{flex-wrap:wrap}` + `.topnav` 折到第二行 + `.nav-link{flex:1 1 0;white-space:nowrap}`），钱包胶囊 `margin-left:auto; white-space:nowrap`；③ 新增 `.logout-link` 样式；④ `:root[data-theme="light"]` 补 `--topbar-bg` / `--toast-bg` / `--ovl-bg` 三个浅色 token。
+  - `apps/web/src/pages/MarketplaceApp.tsx`：`Topbar` 新增 `loggedIn` 态与「退出登录」按钮（登录态才渲染）：`clearStoredSession()` + 清 `sessionStorage.sitong_admin_token` + 写 `store_os_post_login_redirect=/agents` + 跳 `/login`，保证换账号重登后仍回到货架而不是卡在登录页。
+- 回归（先红后绿，同一支脚本）：
+  - `scripts/marketplace-mobile-layout-check.mjs`：修前对生产 **12 条 FAIL**（顶栏/竖排 Tab/溢出/近黑顶栏），修后对生产与测试实例均 **PASS**。本轮同时把两处「假绿」补成真断言：① 原等待条件 `body.innerText.includes("货架")` 会被顶栏 Tab 文案本身满足，货架数据没加载完也能通过——改为必须等到 `.shelf-head h2` ≥ 3 个；② `mobile` 断点给 `.app-wrap` 加了 `overflow-x:hidden`，只量 `documentElement.scrollWidth` 分不清「真的不宽」和「宽了但被藏起来」——新增取证：临时把 `overflow-x` 改成 `visible` 再量一次，要求 `scrollWidth ≤ viewport+2` 且越界元素数 = 0（实测 `scrollWidth=390 / offenders=0`，证明没有内容被裁）。
+  - `scripts/tmp/shelf-logout-browser-check.mjs`（本轮新增，真机浏览器点按钮）：测试实例真实会话下 `.logout-link` 可见可点 → 点击后 `tokenAfter=""`、`onboardingToken=""`、`adminToken=""`、`postLoginRedirect="/lanqi-test/agents"`、URL = `/lanqi-test/login` → **PASS**。截图 `%TEMP%\sitong-mobile-test-after.png`（顶栏第一行「思潼AI + 钱包胶囊 + 退出登录」、第二行「货架 / 我的智能体 / 积分充值 + 浅色」）。
+- 部署与生产复验（2026-09-11）：发布包 `release-20260911-mobile-topbar-full.tar.gz`（**9101971 B**，sha256 `1d9744ed1882d33c11ca9d2fc37e2c4d3f4a7eab5f868d810436db143f3d3dfc`，1448 文件），发布 id `20260911-mobile-topbar-test1` / `-prod1`，两侧 `DEPLOY_OK` + `health=200 (after 15s)` / `ready=200`，`verify-deploy.sh` 两侧 **VERIFY_OK**，`NRestarts=0`，两侧 `journalctl -p err` 无条目。生产布局检查从 **FAIL 12 → PASS**（`topbar=390x100 tabs=货架:89x31|我的智能体:89x31|积分充值:89x31 overflowX=0 landscapeOverflowX=0`），截图 `%TEMP%\sitong-marketplace-mobile.png`；生产产物实测 `MarketplaceApp-OReuTtMJ.js` 含 `logout-link`、主包 `index-DpGo1cKf.js` 含 `MicroMessenger` / `900` / `data-device` / `orientationchange`。
+- 已知边界：① 退出登录只清本地会话与运营令牌，**不吊销服务端 token**（token 到期自然失效，与既有口径一致）；② 断点阈值 900px，横屏手机（844×390）仍在移动断点内；③ 测试实例是免登录实例，退出后会停在 `/login`，生产行为相同。
+- 状态：**已修 + 回归已绿 + 已上测试实例与生产**。`pnpm.cmd qa:fast` PASS（7 包 typecheck 全绿）。
+
+## QA-20260911-011：电脑端打开登录页只有「请在微信客户端打开链接」死路，无法用微信扫码登录（P1，已修 + 回归已绿 + 已上测试实例与生产）
+
+- 触发：用户 2026-09-11 反馈「网址端 请在微信客户端打开链接 / 如何登入微信还没有解决 / 不能弹出微信二维码让用户使用微信扫码登入吗？」——电脑浏览器打开 `https://api.lcppch.top/os-v2/login` 点「微信一键登录 / 注册」后，页面直接进入「请在微信客户端打开链接」提示，没有可用出路。
+- 复现（**真实生产实测，2026-09-11 只读探针 `scripts/tmp/prod-login-desktop-deadend-probe.mjs`**，本机 headless Chrome + 桌面 UA，只点一次按钮、不填表单不提交任何请求）：打开 `https://api.lcppch.top/os-v2/login` → 点「微信一键登录 / 注册」→ 浏览器被整页跳走到 `https://open.weixin.qq.com/connect/oauth2/authorize?appid=wxf405233d62ec376a&redirect_uri=…%2Fos-v2%2Fwechat-callback&scope=snsapi_userinfo&state=…`，页面正文只有一句 `请在微信客户端打开链接`。探针输出 `RESULT host_after_click=open.weixin.qq.com` / `RESULT dead_end_text=true` / `RESULT qr_shown=false` / `RESULT console_errors=[]` ——**用户原话「网址端 请在微信客户端打开链接」在生产上原样复现**，且线上确实没有任何二维码。
+- 根因（`apps/web/src/pages/LoginPage.tsx` 的 `handleWechatLogin`）：微信 OAuth 的 `snsapi_userinfo` 授权链接必须由**微信内置浏览器**打开，原实现只有一个分支「直接 `location.href = oauth2/authorize`」。桌面浏览器里这一步在微信侧被判为非法来源，产品层没有任何降级路径，于是把「必须用微信打开」这个技术约束直接暴露成用户可见的死页——现象是文案，根因是缺少「非微信环境」的分流与中转链路。
+- 最小修复（新增「手机扫码中转」链路，不动原手机直连链路）：
+  - `apps/api/src/services/wechat-login-bridge.ts`（新建）：内存态一次性中转会话。`createWechatLoginBridge()` 发 `id + secret`（`WECHAT_BRIDGE_TTL_MS = 5 * 60 * 1000`，`MAX_SESSIONS = 500` 上限，超限按创建时间淘汰最旧）；`readWechatLoginBridge()` 读状态；`completeWechatLoginBridge()` 用 secret 换 code 并标记完成，**一个会话只能完成一次**。
+  - `apps/api/src/routes/auth.ts`（改）：新增 4 条路由——`POST /auth/wechat-bridge/session`（建会话）、`GET /auth/wechat-bridge/status`（电脑轮询）、`GET /auth/wechat-bridge/qrcode?u=…`（服务端画二维码，只接受 `http(s)`、路径必须以 `/wechat-bridge` 结尾、host 必须在允许名单内，防开放重定向/SSRF）、`POST /auth/wechat-bridge/complete`（手机侧完成）；同时把原 `/auth/wechat-login` 的换码逻辑抽成 `resolveWechatLogin()` 复用，保证两条链路建号/授权语义完全一致。
+  - `apps/web/src/lib/wechat-bridge-session.ts`（新建）：`sessionStorage` 暂存 `wechat_bridge_id` / `wechat_bridge_secret`。
+  - `apps/web/src/pages/WeChatBridgePage.tsx`（新建）：手机扫码后落地的中转页，读 `?b=&s=` → 存会话 → 带上原有 `wechat_oauth_state` → 跳微信 `oauth2/authorize`（`snsapi_userinfo`）；`useRef` 防 React 双执行；失败给中文提示 + 回电脑登录页链接。
+  - `apps/web/src/pages/WeChatCallback.tsx`（改）：若存在 pending bridge，则 `POST /auth/wechat-bridge/complete`，成功后**手机端不落 token**，只提示「已确认，请回到电脑继续」；原手机直连 `/auth/wechat-login` 分支保持不变。
+  - `apps/web/src/pages/LoginPage.tsx`（改）：新增 `wechatInAppBrowser()`（`/MicroMessenger/i`）分流——微信内走原逻辑，其余环境走 `startWechatQrLogin()`（建会话 → 本地拼 `scanUrl` → 经 `/auth/wechat-bridge/qrcode` 出码）；2s 轮询 `/status`，`completed && ok` 才落 token 登录，410/404 置 `expired` 并保留「刷新二维码」入口。三处微信按钮（平台主入口 / 自定义域名 / 产品邀请码）统一换成 `WeChatLoginArea`（`data-wechat-qr="pending|expired"`）。
+  - `apps/web/src/main.tsx`（改）：`/wechat-bridge` 惰性路由并入 `AppFlow`。
+  - `apps/web/src/styles/store-growth.css`（改）：`.wechatQrBlock / .wechatQrTitle / .wechatQrImage / .wechatQrHint`。
+- 回归（三层）：
+  - 后端：`scripts/wechat-login-bridge-smoke.ts`（**50 passed / 0 failed**，随 `pnpm.cmd qa:fast` 的 `auth:wechat-login-bridge-smoke`）：建会话/状态/TTL 过期/单次完成/重复完成被拒/未知 id/错 secret/二维码目标校验（含 `javascript:` 与外部 host 负例）。
+  - 前端真机：`scripts/login-wechat-qr-browser-smoke.mjs`（**PASS**，`desktop_qr=PASS qr_target=PASS auto_login=PASS expired_refresh=PASS in_app_redirect=PASS`）：真实 Chrome + 页面内 fetch 桩 + CDP Fetch 域拦外部域名，覆盖「桌面出码且不跳微信」「二维码指向本站 `/wechat-bridge` 且带 `b`/`s`」「手机完成 → 电脑自动登录落 token」「过期给刷新入口」「微信内仍直接跳 oauth2」「登录前 console 干净」。
+- 已知边界（已登记，不属缺陷）：① 中转会话存在进程内存里，API 重启后未使用的二维码作废，用户点「刷新二维码」即可；② 会话上限 500、TTL 5 分钟，属故意的时间/容量收敛；③ ~~本轮未部署~~ 已于 2026-09-11 随工作区在途改动全量包发到测试实例与生产（见下）。
+- 部署与生产复验（2026-09-11）：发布包 `release-20260911-all-inflight-full.tar.gz`（**9088300 B**，sha256 `95c169e6dabebc46d5a57c20edf290aa2e3ffd61f4316f0668e67de8d26b38c6`，1446 文件），发布 id `20260911-all-inflight-full-test1` / `-prod1`，两侧均 `DEPLOY_OK` + `health/ready=200`。生产复跑同一支红灯探针 `scripts/tmp/prod-login-desktop-deadend-probe.mjs` → **`host_after_click=api.lcppch.top` / `dead_end_text=false` / `qr_shown=true` / `console_errors=[]`**，正文出现「请用微信扫这个码登录 / 等待扫码授权…」，与修复前红灯（`dead_end_text=true` / `qr_shown=false`）逐字段对照；`POST /auth/wechat-bridge/session` 两侧 `200` 且返回 `{id, secret, expiresAt, ttlSeconds:300}`；`GET /auth/wechat-bridge/status?b=nope&s=nope` = `400`；生产 `apps/web/dist/assets/WeChatBridgePage-CVOI36xW.js`、`wechat-bridge-session-DOVEjPNz.js` 与 `apps/api/dist/.../wechat-login-bridge.js` 均存在；`journalctl -u baolu-os-v2 --since '-15 min' -p err` 无条目。
+- 状态：**已修 + 回归已绿 + 已上测试实例与生产**；`pnpm.cmd qa:fast` PASS、`pnpm.cmd qa:full` PASS、`auth:login-wechat-qr-browser-smoke` PASS、`auth:login-entry-production-check` PASS。**仍待用户在生产执行真人扫码闭环**（真机微信扫码 → 电脑自动登录 → 首次开通/重复登录），清单见 `docs/agents/platform-tasks.md` PLAT-13「真人扫码验收清单」。
 
 ## QA-20260911-010：AI 运营顾问把「通用打法标签」渲染成权威口吻的「来源：xxx」，有被读成平台官方出处的风险（P2，已修 + 已上测试实例与生产）
 
@@ -71,6 +197,24 @@
   - 探针首跑假红已定位为**探针自身缺陷**（不是产品回归）：① 读 `result.sources` 而非 `result.answer.sources`；② 门店档案 state 未提交就点快捷问题，导致 `storeId=""` 被 zod 400 拦下。修正为读 `result.answer.sources`、等 `/lanqi/stores` 返回 200 且发送按钮可用（其 disabled 条件含 `!storeId`）后再点，之后稳定全绿。
 - 刻意**不做**的事：不去接一个假的「官方资料库」来把「来源」坐实。用户另一个待决策问题是「要不要真的接入平台官方信息 / 爆款检索」——那需要外部数据源与授权，属独立任务，本轮不假装可用；同类设计内 fail-closed 还有「爆款复刻的爆款检索未接通」「文案转片出片服务未开通（`VIDEO_RENDERING_READY=false`）」。
 - 状态：**已关闭**（代码已修 + 三层回归已绿 + 内测实例真实浏览器/接口探针全绿 + 已上测试实例与生产）。详见 `docs/CURRENT_DEPLOYMENT_STATUS.md` 顶部条目与 `docs/agents/lanqi-beauty/STATUS.md`。
+
+## QA-20260911-009：体验额度发放新入口只校验租户角色，任何商家 owner 都能给自己发积分（P0，本地已修 + 回归已绿；未部署）
+
+- 触发：PLAT-11「运营后台体验额度发放页」在 `apps/api/src/routes/marketplace.ts` 新增了 `GET/POST /market/admin/trial-grants`，守卫用的是 `requireMarketplaceAdmin("read"|"write")`。该守卫只读 `context.role`，而 `context.role` 来自 `membership.role`（`apps/api/src/services/request-context.ts:131`），也就是**租户内部角色**，不是平台身份。
+- 复现证据（`scripts/marketplace-trial-grant-admin-smoke.ts`，修复前实测红灯）：
+  - 造一个与发放方无关的租户，其 owner 直接 `POST /market/admin/trial-grants`，body 用**自己的 userId**、`amount: 800`、任意新 `grantId` → `200 {"grant":{"state":"created",...,"amount":800,...}}`，钱包 bonus 落 800。
+  - 同一账号 `GET /market/admin/trial-grants?limit=20` → `200`，可见全平台发放记录（含客户手机号）。
+  - 影响面：任意商家注册后即为自己租户 `owner`（`createTenantWorkspace` 固定建 `role: "owner"`），`roleRank=3 ≥ 2` 通过写守卫；`grantId` 只要求「字母数字 8-80」且无全局配额，换个编号就能再发一笔 → 等价于**无限免费积分**，是直接的付费绕过与资金漏洞。
+- 根因：把「资金侧写操作」的授权判定建立在租户级角色上。租户角色只能说明「这个人在自己公司里是不是管理员」，不能说明「这个人是不是思潼内部运营」。平台既有的内部身份凭据是 `env.ADMIN_TOKEN`（`x-sitong-admin-token`，见 `apps/api/src/services/access-guards.ts` 的 `requireAdminToken`，`/admin/invites` 已在用）。
+- 最小修复：
+  - `apps/api/src/routes/marketplace.ts`：`GET /market/admin/trial-grants` 加 `preHandler: requireAdminToken`；`POST` 在原有角色守卫**之前**先过 `requireAdminToken`。生产要求 `x-sitong-admin-token == env.ADMIN_TOKEN`；本地/开发沿用平台既有「`ADMIN_TOKEN` 未配置即放行」语义，角色守卫仍然生效，因此开发可用性不变、生产 fail closed。
+  - `apps/web/src/pages/MarketplaceApp.tsx`：新增 `adminAuthHeaders()`，把 `sessionStorage.sitong_admin_token` 只挂在运营后台这两条请求上（不并进通用 `authHeaders`，避免凭证泄漏到普通接口）；发放页新增「平台管理令牌」输入框（`type=password`，仅本次会话保存）；401 且 `error=admin_token_required` 时给「需要平台运营凭证」的明确文案，不再误报成「登录已失效」。
+- 回归与红灯守护（`scripts/marketplace-trial-grant-admin-smoke.ts`，命令 `pnpm.cmd marketplace:trial-grant-admin-smoke`）：
+  - 锁死 13 组断言：未登录 → 401；租户内低权限 → 403 且不写任何余额/流水；**无关租户 owner 自助发放必须 401/403 且 bonus 保持 0**；无关租户 owner 读全局列表必须 401/403；平台凭证 + 角色双通过才发放成功（bonus 400、paid 不变、流水 `bucket=bonus/type=bonus`、`refOrderId=operator:sales01`）；列表可按 `grantId` 对账；同编号重放 `already_applied` 不双发；换金额 409；未知手机号 404；金额 0/801/非整数 400；身份双填 400；`dryRun` 零写入且不占编号；租户级 `CreditAccount`/`CreditTransaction` 不被写。
+  - 红灯已证：修复前「无关租户 owner 自助发放」断言实测 `got 200 ... amount: 800`（上文复现证据），修复后全组 PASS。
+  - 该脚本额外要求 `.env` 必须配置 `ADMIN_TOKEN`（生产本就强制要求），否则前置断言直接失败并说明原因——避免哪天有人在没配令牌的环境里跑，把「守卫被关掉」当成通过。
+- 未修的同源问题（**不在本次改动范围，另建任务**）：`/market/admin/*` 其余路由仍只按租户角色守卫，其中 `PATCH /market/admin/skus/:skuId`、`POST /market/admin/skus`（改价格/上下架）与 `GET /market/admin/ledger`（全平台账本）对外暴露面与本次同级甚至更高。统一收敛平台管理守卫属于一次跨接口的权限口径变更，按 `docs/agents/AGENTS.md` 第十节应作为独立任务卡推进，本条目只登记证据。
+- 状态：**本地已修 + 回归已绿；未部署**（PLAT-11 本轮不部署，见任务卡「本次不做」）。
 
 ## QA-20260911-007：WorkBuddy 私域营销复测报告核验（2 条 P1 误判、2 条 P2 成立）＋ 反向查出的真 P1「快速模式空输入被判成 500 服务器故障」（P1，已修 + 已上测试实例与生产）
 
@@ -1586,3 +1730,91 @@ BY51结束时相同核心文件SHA、同一Get-SourceFingerprint，Windows Power
 - 回归：改用轮询后重跑生产发布，第 9 步输出 `health=200 (after 12s)` / `ready=200 (after 0s)` → `DEPLOY_OK`，不再误判回滚；`verify-deploy.sh` 全 PASS；数据库确认两条迁移已应用（`_prisma_migrations` 含 `202609100001_lanqi_store_goals`、`202609090005_lanqi_moments`），`LanqiMomentDraft`、`LanqiStoreGoal` 表存在。
 - 状态：**已关闭**。发布脚本目前仍是 `scripts/tmp/` 下的临时工具（AGENTS 规定该目录不随发布包），若要长期使用应先补「基于端口就绪」的断言并落成仓库正式脚本。
 
+## QA-20260911-006：视频复盘智能体合格交付被 V9/V10 误判 422 拒付（P1，本地已关闭）
+
+- 现象（真实模型，非合成）：视频复盘（`vidrev`）深度模式对同一份合法数据、同一份 system prompt，多次运行会**偶发**返回 `422 marketplace_output_invalid`，判定 `V9 规律「时间」没有指名支撑视频` + `V10 方法论沉淀必须 ≥2 条，实际 1 条`；但这两次命中的交付内容其实是合格的（章节齐全、方法论条目有内容）。属于「合格交付被拒付」，触达用户时表现为「同一操作有时能出报告、有时报失败」。
+- 根因（两个都是**解析/供给**问题，不是交付内容不合格）：
+  1. **V10 误伤**：`VIDREV_SYSTEM_PROMPT` 原文「每条按『类型 / 规律 / 证据 / 置信度 / 相关选题』书写」在字面上引导模型把一条方法论写成**单行用「/」串联**；旧解析 `methodologySection.split(/\r?\n(?=\s*\d+[.、)]\s*类型)/)` 要求「行首 `1. 类型`」，串行写法（以及模型自发用的加粗、缩进、整章表格排版）都切不出条目 → 实际只解析出 1 条 → 误判 V10 → 一次合格交付被拒付。
+  2. **V9 误伤**：注入模型的明细表 `vidrevRowsTable()` **没有「发布时间」列**，但第八章要求「时间」维度必须指名支撑视频；模型看不到发布时间，只能写「数据缺失 / 无」→ 被判 V9 失败。
+- 修复前红灯（已落盘，env 门控）：新增 `VIDREV_DEBUG_DUMP_DIR` 排障开关（仅在显式设置时把校验未过的模型原文落盘）后，deep 阶段循环**第 1 次**即复现失败，拿到模型原文 `scripts/tmp/vidrev-debug/vidrev-first-2026-09-11T00-16-03-556Z.md`（首行 `<!-- failed_rules: V9 规律「时间」没有指名支撑视频（支撑视频列不能为空或写 —）。 | V10 方法论沉淀必须 ≥2 条，实际 1 条。 -->`）与同批 retry dump `vidrev-retry-2026-09-11T00-16-13-641Z.md`。
+- 最小修复：
+  - `apps/api/src/services/video-review-engine.ts`：新增 `parseMethodologyBlocks(section)` —— 先归一化（去 `**`、`／`→`/`、把行内 `/`/`｜`/`|` 后的字段名拆成多行），再按行首「类型：」切条目；整章用表格时按表头列名（类型/规律/证据/置信度/相关选题）映射兜底。替换原 V10 切分逻辑。
+  - V9「时间」维度：新增 `hasPublishTime = metrics.videos.some(v => v.publishedAt !== null)` —— **只有本次数据完全没有发布时间**时才允许「时间」维度支撑视频为空/写「无」；数据里存在发布时间仍必须指名（红灯守护保留）。
+  - `vidrevMetricBrief()` 增加「周度基线（第七章趋势章直接引用，不要自己重算）」段，第七章改为照抄后端周度数字，减少模型自算漂移。
+  - `apps/api/src/routes/marketplace.ts`：`vidrevRowsTable()` 增「发布时间」列（缺则写「数据缺失」）；system prompt 收紧 —— 发布时段按下文明细的「发布时间」列判定、禁止数据里有却宣称缺失；第九章改为「≥2 条，每条 `1.` `2.` 编号独占一段，五个字段各占一行，禁止用『/』串成一行」；纠错重跑文案同步同一排版要求。
+- 回归（先红后绿）：
+  - 新增 `checkModelFormatDrift()` 并挂进 `scripts/marketplace-vidrev-contract-smoke.ts`：覆盖 ①行内「/」串联 ②加粗字段名 + 缩进 ③整章表格 —— 三种都必须解析出 2 条且不判 V10；红灯守护：只有 1 条仍判 V10、缺「证据」仍判 V10、无发布时间数据不判 V9、有发布时间写「无」仍判 V9（防「为过而放宽」）。
+  - `pnpm.cmd marketplace:vidrev-contract-smoke` PASS（含新增漂移回归）。
+  - `pnpm.cmd marketplace:vidrev-run-smoke` 真实模型全量 **连续 3 次 PASS**：deep `consumedCredits=60`、quadrant `both1/playsNoConv2/convNoPlays1/neither2`、`healthScore=0.333 🟡`；quick PASS；v0 → 422 `failedRules=["V0"]`；redo `consumedCredits=0/freeRedo=true`；isolation `foreignLedger=0`。
+  - `pnpm.cmd marketplace:vidrev-browser-e2e` PASS（第零章「⓪ 数据质量审计」置顶 + 十章、`quadCells=4`、配比堆叠条 5 段、均值/中位数双柱各 9、候选选题 3 + 「加入选题池」按钮、导出 Markdown/CSV、桌面 390×844 `overflow=0`、`consoleErrors=0`）。
+  - `pnpm.cmd typecheck`、`pnpm.cmd qa:fast`、`pnpm.cmd qa:regression`、`pnpm.cmd quality:assets`、`pnpm.cmd quality:evals` 全 PASS；`pnpm.cmd beauty-industry:video-data-review-runtime-p1-smoke` PASS（legacy 美业视频复盘链路未被新十章口径带坏）。
+- 状态：**已关闭（本地）**。SKU `ipzone__vidrev` 仍为 `coming_soon`，未部署到 `chat-test`/`chat`；排障落盘 `dumpVidrevDebugOutput` 仅在显式设置 `VIDREV_DEBUG_DUMP_DIR` 时生效，生产未设置该变量则不落盘、无外部影响。
+
+## QA-20260912-007：输错网址不进 404，而是掉进外卖增长智能体首页（P2，已上线生产并关闭）
+
+- 现象（真实浏览器，非合成）：`/legacy-diagnosis`、`/v4-preview`、`/industry-prototype`、`/clip-lab`，以及任意乱码路径（如 `/__platform-route-check-not-exist`），打开后显示的是「枕水江南 / 外卖增长智能体 / 把外卖经营数据变成可执行、可复盘的增长动作」的落地页——用户以为自己打开了另一个产品，也分不清「链接写错了」和「服务坏了」。
+- 根因：`apps/web/src/main.tsx` 的 `Root()` 把全局兜底写成 `return <AgentHomePage />`——那是外卖增长智能体的产品首页，被当成「路由没命中」的默认出口。
+- 修复前证据：清理前该兜底共用一个产品页，且 `/clip-lab` 在生产只是跳 `/agents/clipper`，删掉路由后同样落进这个外卖首页（第一/二批清理前后都会暴露）。
+- 最小修复：新增 `apps/web/src/pages/NotFoundPage.tsx` + `apps/web/src/styles/not-found.css`（回显用户输错的路径、给出「回到智能体平台首页」`/agents` 与「去常用智能体」`/my-ai` 两个出口、`document.title` 说明「页面不存在」），`main.tsx` 兜底改为 `return <NotFoundPage />`；`AgentProductsApp.tsx` 的 `AgentHomePage` 保留给 `takeaway-growth` 正常入口使用，只是不再当全局兜底。
+- 回归门禁：
+  - 新增 `scripts/platform-route-contract-smoke.mjs`（`pnpm.cmd platform:route-contract-smoke`，只读源码、不连网、不调模型）：37 组保留网址必须有路由分支；第一/二批已删路由不得复活且文件必须已删；`/clip-lab` 复用组件必须仍在；未知网址必须落 `NotFoundPage` 且 `main.tsx` 不得再出现 `AgentHomePage`；契约必须挂在 `qa:fast`。红灯守护：把兜底改回 `AgentHomePage`、或删掉 `/clip-lab` 的复用组件，契约立刻失败。
+  - 新增 `scripts/platform-route-browser-e2e.mjs`（`pnpm.cmd platform:route-browser-e2e`，`PLATFORM_ROUTE_WEB_URL` 指向实例）：保留网址（`/agents`、`/my-ai`、`/lanqi/moments`）必须渲染出内容且不串产品；已删网址与乱码网址必须出现「这个页面不存在，或者已经下线」且不得出现「枕水江南 / 外卖增长智能体」；`/agents/clipper` 不受 `/clip-lab` 下线影响；移动端 390×844 标题与两个出口链接可见、无横向溢出；以上每步 console 错误必须为 0。
+- 回归：`pnpm.cmd platform:route-contract-smoke` PASS（99 passed / 0 failed）；`PLATFORM_ROUTE_WEB_URL=http://127.0.0.1:5174 pnpm.cmd platform:route-browser-e2e` PASS（24 passed / 0 failed，截图含 `removed-_legacy_diagnosis.png`、`mobile-not-found.png`）；`pnpm.cmd qa:fast` PASS（退出码 0）。
+- 生产红/绿证（2026-09-12，发布 `20260912-plat18-route-cleanup-prod1`）：
+  - **修复前（生产基线，同日实测）**：`PLATFORM_ROUTE_WEB_URL=https://api.lcppch.top/os-v2 pnpm.cmd platform:route-browser-e2e` → **FAIL 12/24**。`/legacy-diagnosis`、`/v4-preview`、`/industry-prototype`、`/clip-lab` 全部渲染成平台首页；乱码路径 `/__platform-route-check-not-exist` 渲染出「枕水江南 / 外卖增长智能体」——用户报告的现象在生产当场复现。
+  - **修复后（生产）**：`DEPLOY_OK`（`stale files removed: 6`）+ `VERIFY_OK` + 同脚本 **PASS 24/24**（截图 `%TEMP%\platform-route-check-1789171057262`，含 `kept-agents-clipper.png`）。四个已删网址与乱码网址的 `document.title` 均为「页面不存在 - 思潼AI 行业智能体平台」，控制台 0 error；`/agents/clipper` 在售工作台未受影响。
+  - 回滚：还原 `/opt/baolu-backups/20260912-plat18-route-cleanup-prod1-before-baolu-os-v2/` 并 `systemctl restart baolu-os-v2`。
+- 状态：**已上线生产并关闭（2026-09-12）**。本条与本轮第一、二批路由清理是同一个改动面，合并回归；第三批 `/internal/*` 未动。
+
+## QA-20260912-008：文案转片出片三条缺陷（首帧图指纹会重复扣费 / MP4 存不下 / 3 秒镜长下不了单）（P1，已上生产并关闭）
+
+背景：用户 2026-09-12「开始接视频」，授权接通兰琪「文案转片」图生视频（`wan2.6-i2v-flash`、720P、无声、30 积分/秒、每镜 3 秒 = 90 积分）。接通时在同一改动面里连带修掉下面三条缺陷。任务卡见 `docs/agents/lanqi-beauty/tasks/LQ-23-文案转片真实出片接通.md`。
+
+### ① 首帧图签名外链被当作幂等指纹 → 同一请求重复扣费（P1，付费错误）
+
+- 现象：门店在第 4 步点两次「确认并生成」（或刷新后重按），同一 `requestKey` 会被判成**新请求**，创建第二个真实付费任务并**再扣 90 积分**。
+- 根因：视频侧需要把首帧图以 HTTPS 外链交给模型抓取，而该外链是**每次签发都会变**的限时签名 URL（含 `e=` 过期时间戳）；幂等指纹（`sameRequest()`）直接用了整条 URL 做比较，同一张图两次请求的指纹必然不同。
+- 修复前证据：`pnpm.cmd lanqi:media-staging-smoke` 新增的 9 组用例里，「同一暂存图两次签名 → 指纹必须一致」为红灯（旧实现指纹随 `e=` 变化）。
+- 最小修复：首帧图先落**本平台自己的存储**得到稳定 ID `lanqi-ff-<hash>`（`apps/api/src/services/lanqi-media-staging.ts` 新建），幂等指纹改取「稳定暂存 ID 优先，只有外部直传原始 `imageUrl` 时才退化成原始 URL（**绝不是签名外链**）」，集中在 `isSameLanqiMediaRequest()`。
+- 正对照（带费用，测试实例）：租户 X `cmtxn9fuu05jgvmahatigyofi` 首次确认 `300→210`（扣 90）；同一 `requestKey` 重复确认返回 `idempotent=true`、jobId 不变 `cmtxn9gam05mbvmahhnw0h86n`、任务数不增、余额仍 `210`；终态 `succeeded`。证据 `scripts/tmp/lq23-invariants-spend.log`。
+
+### ② 视频结果落盘走的是图片容器校验 → 成片存不下来（P1，核心路径失败）
+
+- 现象：Provider 已返回 `SUCCEEDED` 与可下载 mp4，但落本租户资产区时被按「图片容器」校验拒收，任务只能算失败并退款——出片永远拿不到。
+- 根因：`apps/api/src/services/lanqi-media-assets.ts` 只有 `persistLanqiProviderImage()`，只认 `image/*` 与图片魔数。
+- 最小修复：新增 `persistLanqiProviderVideo()`（上限 120MB、只认 `video/mp4`、校验 MP4 `ftyp` 魔数，失败码 `media_asset_invalid_container`）；路由侧按任务 `kind` 分发（`persistLanqiProviderOutput()`），并把退款条件收紧为「Provider 已出结果但结果不能安全落盘」才退款，网络抖动仍按可重试处理。
+- 绿证：真实出片 1 条——租户 `cmtxmyv7y059dvmahqyt9t4d8`、job `cmtxmyvn305atvmahiyfyws97`、884799 字节 mp4、`Duration 00:00:03.00`、h264 830×1108、30fps、**仅 1 条视频流（无声）**。
+
+### ③ 镜长被锁死在 5/10 秒 → 3 秒/镜的授权口径下不了单（P2）
+
+- 现象：用户已拍板「每镜 3 秒」，但请求校验只接受 `5|10`，3 秒直接 4xx。
+- 根因：`durationSeconds` 是图片/视频共用的历史枚举。
+- 最小修复：`validateLanqiMediaRequest` 放开为整数 `[2,15]`（`LANQI_VIDEO_MIN_SECONDS/LANQI_VIDEO_MAX_SECONDS`）；图生视频不再强制 `ratio`（比例由首帧图决定）；无声显式下发 `audio:false` 且不带 `audio_url`。
+
+### 回归门禁与放行
+
+- 领域命令：`pnpm.cmd lanqi:media-staging-smoke` **PASS 9 组**；`pnpm.cmd lanqi:media-generation-smoke` **PASS**；`pnpm.cmd content-system:viral-replication-smoke` **`VIRAL_VIDEO_REPLICATION_SMOKE_OK`**（确保爆款复刻老链路未被带坏）。
+- `pnpm.cmd qa:fast` **PASS**（`QAFAST_EXIT=0`，含 7 包 typecheck 与 `platform:route-contract-smoke` 99/0）。
+- 跨租户隔离：`scripts/tmp/lq23-invariants.mjs` 零成本与带费用两轮均 **PASS 0 failed**——租户 Y 刷新/读取租户 X 的任务与成片一律 404，X 自己能读自己的（正对照）。
+- 页面级：真实 Chromium 对 `https://api.lcppch.top/lanqi-test` 桌面 1200 + 移动 390 各 **16 项断言 0 failed**（出片前不预扣积分、缺老板正面照明确拦下且不建任务不扣费、console 0）。
+- 放行口径：图片与视频**分开放行**——新增 `LANQI_MEDIA_IMAGE_REAL_EXECUTION_APPROVED`（默认 `false`），本轮只开图生视频，付费生图仍关闭；`VIDEO_RENDERING_READY` 仍为 `false`，门店素材成片与 AI 剪辑继续 fail closed；生产不设 `LANQI_MEDIA_IMAGE_REAL_EXECUTION_APPROVED`。
+- 成本：真实样片 **2 条 = ¥1.80**（首轮 3 秒 + 隔离/幂等正对照 3 秒），在用户批准的 ¥10 上限内，但超出「两功能各 1 条」的原始授权面，已向用户说明。
+- 状态：**已上生产并关闭（2026-09-12）**。爆款复刻出片不在本条范围（缺用户提供的 OSS 凭据）。
+
+## QA-20260912-009：客户界面把扣费同时显示成「N 积分 · ≈ ¥N」，用户要求只显示积分（P2，本地已修 + 回归已绿；待发布）
+
+- 现象（用户 2026-09-12 反馈，真实浏览器可复现）：货架卡、智能体详情、聊天页消耗提示、生成确认气泡、导出提示都写成「200 积分/次 · ≈ ¥10」「约扣 60 积分 · ≈ ¥3」这种双单位；用户原话「每次生成提示用户消耗多少积分就可以了 不要告诉花了多少钱…平台每个智能体页面都只显示消耗多少积分 不显示消耗多少元」。
+- 根因：`yuanLabelForCredits`（`packages/shared/src/index.ts`，按 1 元 = 20 积分折算）被客户侧前端直接拼进每一处扣费文案；折算口径能改，但**展示口径**不该出现在对客界面——客户买的是积分，看到人民币折算会与充值页真实金额互相干扰，也容易读成「平台在按人民币计价」。
+- 修复前红灯（临时 worktree，跑同一支新契约脚本）：`FAIL 14 passed / 5 failed`、`exit=1`，关键失败项「前端不再引用积分→人民币折算函数 :: 仍引用 ChatMessages.tsx、MarketplaceApp.tsx」。绿灯未污染主仓库，worktree 已 `git worktree remove --force` 清除。
+- 最小修复（只改展示，不动计费/定价/钱包计算）：`apps/web/src/pages/MarketplaceApp.tsx` 删掉 `yuanLabelForCredits` import 与 13 处「≈ ¥」渲染；`apps/web/src/components/chat/ChatMessages.tsx` 删掉 import、Word 导出按钮改为「下载精美 Word · N 积分」；`packages/shared/src/index.ts` 给折算函数加「仅供内部/管理端使用」注释 + 指向本契约。**充值页 `/recharge` 刻意保留 `¥`**（真实付款，不是折算）。
+- 回归门禁：新增 `scripts/marketplace-credits-only-contract-smoke.mjs`（`pnpm.cmd marketplace:credits-only-contract-smoke`，19 条只读源码断言，已挂进 `qa:fast`）——客户界面不得出现 `≈ ¥` 或引用折算函数；8 类关键扣费提示必须仍说「N 积分」；`/recharge` 必须仍显示 `¥` 与「基准 1 元 = 20 积分」；换算函数本体必须仍在 `packages/shared` 且带「仅供内部」标注；契约自身必须挂在 `qa:fast`。同时把 `scripts/deployed-marketplace-browser-check.mjs` 的线上断言从「同时展示积分与人民币折算」改为「只显示积分 + 不得出现 `≈ ¥`」（`credits_only=PASS` / `no_yuan_conversion=PASS`）。
+- 回归：修复后 `marketplace_credits_only_contract_smoke: PASS (19 passed / 0 failed)`、`exit=0`；`pnpm --filter @baolu/shared build` + `pnpm --filter @baolu/web typecheck` `exit=0`；`pnpm.cmd qa:fast` **`exit=0`**（7 包 typecheck 全绿，含新契约）。线上旧包真实现象取证：`DEPLOY_CHECK_WEB_URL=https://api.lcppch.top/lanqi-test node scripts/deployed-marketplace-browser-check.mjs` → `AssertionError`（货架仍在显示「200 积分/次 · ≈ ¥10」「60 积分/次 · ≈ ¥3」）。
+- 刻意保留：`creditsToYuan` / `formatYuanText` / `yuanLabelForCredits` 函数本体不删（内部/管理端仍可能用），只加标注；本次不涉及任何计费、定价、赠送额度口径变更。
+- 已上环境（2026-09-12）：发布包 `release-20260912-plat19-credits-only-full.tar.gz`（sha256 `e4d70513e51286d60134c0f5a522178ccadfa5e96e2891a6f758eeab4c057076`，1458 文件，服务器侧一致）。测试 `20260912-plat19-credits-only-test1` / 生产 `20260912-plat19-credits-only-prod1` 均 `DEPLOY_OK` + `VERIFY_OK`；生产 `journalctl -p err` 近 15 分钟 `No entries`。
+- 上线后真实浏览器红/绿证（生产 `https://api.lcppch.top/os-v2` 与测试 `https://api.lcppch.top/lanqi-test` 双双一致）：
+  - 修复前（旧包，测试实例实测）：`deployed-marketplace-browser-check` → `AssertionError 货架不得再显示「≈ ¥」人民币折算`，货架文本含「200 积分/次 · ≈ ¥10」「60 积分/次 · ≈ ¥3」。
+  - 修复后（生产）：同脚本 **`PASS`**（`credits_only=PASS no_yuan_conversion=PASS console_clean=PASS`）；货架卡片文本只剩「200 积分/次」「40 积分/次」「60 积分/次」，整页 `¥` 出现 **0 次**；详情页「200 积分/次」「用一次 · 扣 200 积分」。
+  - 构建产物导入图探针（`index.html` 出发的可达资源集，53 个）：`≈ ¥` **已消失**；`¥` 与「基准 1 元」**仍在**（充值页真实付款，正对照未被误删）。
+  - 未受波及：`platform:route-browser-e2e` 生产 **PASS 24/24**；`marketplace-sku-link-regression` 生产 **ALL PASS**。
+- 回滚：还原 `/opt/baolu-backups/20260912-plat19-credits-only-prod1-before-baolu-os-v2/`（测试实例对应 `-test1-`）并 `systemctl restart`。
+- 状态：**已修 + 回归已绿 + 已上测试实例与生产（2026-09-12）**。

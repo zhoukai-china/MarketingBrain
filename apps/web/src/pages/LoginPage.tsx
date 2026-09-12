@@ -4,7 +4,7 @@ import {
   type ProductLoginCode,
   type TenantType,
 } from "@baolu/shared";
-import { apiBase, getAppPath, getAppRoutePath } from "../lib/api.js";
+import { apiBase, apiPath, getAppPath, getAppRoutePath } from "../lib/api.js";
 import {
   DEFAULT_TENANT_BRANDING,
   tenantBrandLogoSrc,
@@ -52,6 +52,25 @@ function isRedirectForProduct(value: string | null, productCode: ProductLoginCod
   return PRODUCT_REDIRECT_PREFIXES[productCode].some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 }
 
+/** 微信内置浏览器才允许直接跳 oauth2；电脑端和普通手机浏览器会撞上「请在微信客户端打开链接」死页。 */
+function wechatInAppBrowser(): boolean {
+  try {
+    return /MicroMessenger/i.test(navigator.userAgent);
+  } catch {
+    return false;
+  }
+}
+
+/** 电脑端扫码登录会话（PLAT-13）：二维码 + 一次性取结果的凭据。 */
+interface WechatQrState {
+  id: string;
+  secret: string;
+  qrSrc: string;
+  expiresAt: number;
+  /** 过期后二维码块继续留在页面上（用户还需要点「刷新二维码」），只是不能再扫。 */
+  expired: boolean;
+}
+
 export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
   const publicBrand = usePublicTenantBranding();
   const branding = publicBrand.matched ? publicBrand.branding : DEFAULT_TENANT_BRANDING;
@@ -71,7 +90,13 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [retryReady, setRetryReady] = useState(false);
+  const [wechatQr, setWechatQr] = useState<WechatQrState | null>(null);
   const loginInFlight = useRef(false);
+  // 轮询 effect 只依赖二维码本身，避免父组件重渲染把定时器反复重置。
+  const onLoginRef = useRef(onLogin);
+  onLoginRef.current = onLogin;
+  const productCodeRef = useRef<string | undefined>(undefined);
+  productCodeRef.current = product?.code;
   const isProduction = mode === "production";
   const isCustomDomain = publicBrand.matched;
   const showWechatLogin = isCustomDomain || !isProduction || Boolean(import.meta.env.VITE_WECHAT_AUTH_APPID);
@@ -110,13 +135,107 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
     }
   }, [product]);
 
+  // 电脑端：轮询扫码会话，拿到手机授权后的登录结果并就地完成登录。
+  useEffect(() => {
+    if (!wechatQr || wechatQr.expired) return;
+    let cancelled = false;
+
+    const poll = async () => {
+      if (cancelled) return;
+      if (Date.now() > wechatQr.expiresAt) {
+        setWechatQr((prev) => (prev ? { ...prev, expired: true } : prev));
+        return;
+      }
+      try {
+        const res = await fetch(apiPath(
+          `/auth/wechat-bridge/status?id=${encodeURIComponent(wechatQr.id)}&secret=${encodeURIComponent(wechatQr.secret)}`
+        ));
+        const data = (await res.json().catch(() => ({}))) as {
+          state?: string;
+          ok?: boolean;
+          message?: string;
+          login?: {
+            token?: string;
+            tenantId?: string;
+            userId?: string;
+            tenantName?: string;
+            needsTenant?: boolean;
+            onboardingToken?: string;
+            plan?: { planCode?: string };
+            dataMode?: string;
+            diagnosisRequired?: boolean;
+          };
+        };
+        if (cancelled) return;
+        if (res.status === 404 || res.status === 410) {
+          setWechatQr((prev) => (prev ? { ...prev, expired: true } : prev));
+          return;
+        }
+        if (!res.ok || data.state !== "completed") return;
+        setWechatQr(null);
+        if (data.ok !== true) {
+          setError(typeof data.message === "string" && data.message ? data.message : "微信授权失败，请重新扫码。");
+          return;
+        }
+        const login = data.login ?? {};
+        if (login.needsTenant) {
+          // 新用户还没工作区：沿用手机端直连的行为，去补资料页完成开通。
+          localStorage.setItem("store_os_onboarding_token", login.onboardingToken ?? "");
+          const code = productCodeRef.current;
+          window.location.replace(getAppPath(code ? `/login/${code}` : "/login"));
+          return;
+        }
+        if (!login.token) {
+          setError("微信登录未返回登录凭证，请重新扫码。");
+          return;
+        }
+        localStorage.setItem("store_os_token", login.token);
+        localStorage.setItem("store_os_diagnosis_done", "false");
+        onLoginRef.current({
+          token: login.token,
+          tenantId: login.tenantId ?? "",
+          userId: login.userId ?? "",
+          tenantRole: login.plan?.planCode?.startsWith("chain") ? "chain_brand"
+            : login.plan?.planCode?.startsWith("ip") ? "personal_ip"
+            : "local_business",
+          tenantName: login.tenantName ?? "",
+          planCode: login.plan?.planCode ?? "local_standard",
+          dataMode: login.dataMode ?? "database",
+          diagnosisRequired: login.diagnosisRequired ?? true,
+        });
+      } catch {
+        // 网络抖动：下一轮再试，不打断用户。
+      }
+    };
+
+    const timer = window.setInterval(() => { void poll(); }, 2000);
+    void poll();
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [wechatQr]);
+
   function clearFeedback() {
     setError("");
     setStatus("");
     setRetryReady(false);
   }
 
+  /**
+   * 微信内打开：保持原来的直接跳转授权（这是微信唯一放行的方式）。
+   * 其它环境（电脑、普通手机浏览器）：不再跳 oauth2 撞「请在微信客户端打开链接」死页，
+   * 改成当场显示二维码，用手机微信扫码完成授权，结果回填到这台电脑。
+   */
   async function handleWechatLogin() {
+    if (wechatInAppBrowser()) {
+      await startInAppWechatLogin();
+      return;
+    }
+    await startWechatQrLogin();
+  }
+
+  async function startInAppWechatLogin() {
     setBusy(true);
     clearFeedback();
     setStatus("正在打开微信授权...");
@@ -140,6 +259,54 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "微信登录请求失败，请稍后重试。");
       setStatus("");
+      setBusy(false);
+    }
+  }
+
+  /** 生成一次性扫码会话 + 二维码；二维码内容是本站在 `/wechat-bridge` 上的中转页。 */
+  async function startWechatQrLogin() {
+    if (loginInFlight.current) return;
+    loginInFlight.current = true;
+    setBusy(true);
+    clearFeedback();
+    setStatus("正在生成登录二维码...");
+    try {
+      const res = await fetch(apiPath("/auth/wechat-bridge/session"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...(product ? { productCode: product.code } : {}),
+          ...(isCustomDomain ? { tenantHostname: publicBrand.hostname } : {}),
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        id?: string;
+        secret?: string;
+        ttlSeconds?: number;
+        message?: string;
+      };
+      if (!res.ok || !data.id || !data.secret) {
+        throw new Error(data.message ?? "生成登录二维码失败，请稍后重试。");
+      }
+      // 二维码指向本站中转页；同一份代码要同时服务 /os-v2/ 与 /lanqi-test/，
+      // 所以地址由前端按当前站点拼，不依赖服务端配置。
+      const scanUrl = new URL(getAppPath("/wechat-bridge"), window.location.origin);
+      scanUrl.searchParams.set("b", data.id);
+      scanUrl.searchParams.set("s", data.secret);
+      const ttlSeconds = Number(data.ttlSeconds) > 0 ? Number(data.ttlSeconds) : 300;
+      setWechatQr({
+        id: data.id,
+        secret: data.secret,
+        qrSrc: apiPath(`/auth/wechat-bridge/qrcode?u=${encodeURIComponent(scanUrl.toString())}`),
+        expiresAt: Date.now() + ttlSeconds * 1000,
+        expired: false,
+      });
+      setStatus("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "生成登录二维码失败，请稍后重试。");
+      setStatus("");
+    } finally {
+      loginInFlight.current = false;
       setBusy(false);
     }
   }
@@ -307,7 +474,7 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
         <p>一个账号、一个积分钱包，货架上的行业智能体随取随用。</p>
       </div>
       <div className="loginForm">
-        {!finishingSignup && wechatReady !== false && <button className="wechatLoginBtn" onClick={handleWechatLogin} disabled={busy || wechatReady === null} type="button">{busy ? "正在打开微信…" : wechatReady === null ? "正在检查登录方式…" : "微信一键登录 / 注册"}</button>}
+        {!finishingSignup && wechatReady !== false && <WeChatLoginArea qr={wechatQr} busy={busy} disabled={wechatReady === null} label={wechatReady === null ? "正在检查登录方式…" : "微信一键登录 / 注册"} onStart={() => void handleWechatLogin()} onRefresh={() => void startWechatQrLogin()} />}
         {!finishingSignup && wechatReady === true && !showInviteForm && <p className="wechatLoginHint">首次使用微信登录，会自动为你注册账号并开通工作区{invitesNeeded ? "（需邀请码）" : "，不需要邀请码"}。</p>}
         {finishingSignup ? (
           <form onSubmit={handleLoginSubmit}>
@@ -343,11 +510,11 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
     </div>
 
     {isCustomDomain ? <div className="loginForm brandedDomainLogin">
-      <button className="wechatLoginBtn" onClick={handleWechatLogin} disabled={busy || publicBrand.loading} type="button">{busy ? "正在打开微信…" : "微信授权登录"}</button>
+      <WeChatLoginArea qr={wechatQr} busy={busy} disabled={publicBrand.loading} label="微信授权登录" onStart={() => void handleWechatLogin()} onRefresh={() => void startWechatQrLogin()} />
       <p className="wechatLoginHint">仅已加入 {branding.brandName} 企业空间的成员可以登录。</p>
       <Feedback error={error} status={status} />
     </div> : product && !inviteValidated ? <form onSubmit={handleProductInviteValidate} className="loginForm productInviteForm" noValidate>
-      {showWechatLogin && <><button className="wechatLoginBtn" onClick={handleWechatLogin} disabled={busy} type="button">微信授权登录</button><p className="wechatLoginHint">已有账号可直接登录；首次开通请使用邀请消息中的邀请码。</p><div className="loginDivider"><span>首次开通</span></div></>}
+      {showWechatLogin && <><WeChatLoginArea qr={wechatQr} busy={busy} disabled={false} label="微信授权登录" onStart={() => void handleWechatLogin()} onRefresh={() => void startWechatQrLogin()} /><p className="wechatLoginHint">已有账号可直接登录；首次开通请使用邀请消息中的邀请码。</p><div className="loginDivider"><span>首次开通</span></div></>}
       <label><span className="loginFieldLabel">产品邀请码<b className="requiredMarker">*</b></span><input value={inviteCode} onChange={(event) => { setInviteCode(event.target.value); clearFeedback(); }} placeholder="请输入邀请消息中的邀请码" maxLength={200} autoComplete="one-time-code" required /></label>
       <Feedback error={error} status={status} />
       <button className="loginSubmit" type="submit" disabled={busy}>{busy ? "正在验证..." : retryReady ? "重新验证邀请码" : `继续进入${product.shortName}`}</button>
@@ -371,6 +538,32 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
 
 function Feedback({ error, status }: { error: string; status: string }) {
   return <div className="loginFeedback" aria-live="polite">{error ? <div className="loginError" role="alert">{error}</div> : status ? <div className="loginStatus" role="status">{status}</div> : null}</div>;
+}
+
+/**
+ * 微信登录入口：没有二维码时是原来的绿色按钮；拿到扫码会话后换成二维码块。
+ * 电脑端与普通手机浏览器都走二维码，只有微信内置浏览器才直接跳 oauth2。
+ */
+function WeChatLoginArea({ qr, busy, disabled, label, onStart, onRefresh }: {
+  qr: WechatQrState | null;
+  busy: boolean;
+  disabled: boolean;
+  label: string;
+  onStart: () => void;
+  onRefresh: () => void;
+}) {
+  if (!qr) {
+    return <button className="wechatLoginBtn" onClick={onStart} disabled={busy || disabled} type="button">{busy ? "正在打开微信…" : label}</button>;
+  }
+  return <div className="wechatQrBlock" data-wechat-qr={qr.expired ? "expired" : "pending"}>
+    <p className="wechatQrTitle">{qr.expired ? "二维码已失效" : "请用微信扫这个码登录"}</p>
+    {!qr.expired && <img className="wechatQrImage" src={qr.qrSrc} alt="微信登录二维码" width={200} height={200} />}
+    <p className="wechatQrHint">{qr.expired
+      ? "二维码 5 分钟内有效，点下面的按钮重新生成一张。"
+      : "用手机微信「扫一扫」扫码并授权，这台电脑会自动登录。"}</p>
+    {!qr.expired && <div className="loginStatus" role="status">等待扫码授权…</div>}
+    <button className="switchProductLink" type="button" onClick={onRefresh}>刷新二维码</button>
+  </div>;
 }
 
 function LoginFooter({ customDomain = false }: { customDomain?: boolean }) {

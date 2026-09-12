@@ -45,6 +45,38 @@ function forbidMatch(source, pattern, name) {
   record(name, !hit, hit ? `仍存在 ${String(pattern)}` : "未出现");
 }
 
+/* ---- 对比度实算：侧栏配色不允许「悄悄变淡」 ---- */
+function hexToRgb(hex) {
+  const raw = String(hex ?? "").replace("#", "").trim();
+  const full = raw.length === 3 ? raw.split("").map((c) => c + c).join("") : raw;
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return null;
+  return [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
+}
+function rgbaToParts(text) {
+  const nums = String(text ?? "").split(",").map((v) => Number(v.trim()));
+  if (nums.length < 3 || nums.some((v) => Number.isNaN(v))) return null;
+  return [nums[0], nums[1], nums[2], nums.length > 3 ? nums[3] : 1];
+}
+function channelLuminance(value) {
+  const v = value / 255;
+  return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+}
+function luminance([r, g, b]) {
+  return 0.2126 * channelLuminance(r) + 0.7152 * channelLuminance(g) + 0.0722 * channelLuminance(b);
+}
+function contrastRatio(a, b) {
+  const la = luminance(a);
+  const lb = luminance(b);
+  const hi = Math.max(la, lb);
+  const lo = Math.min(la, lb);
+  return (hi + 0.05) / (lo + 0.05);
+}
+/** 半透明色叠在不透明底色上的实际观感色。 */
+function blendOver(parts, background) {
+  const [r, g, b, a] = parts;
+  return [r, g, b].map((v, i) => Math.round(a * v + (1 - a) * background[i]));
+}
+
 // ① 品牌图资产：必须是真实 JPEG，且落在 web 静态目录
 const logoFile = fileURLToPath(new URL("../apps/web/public/lanqi-logo.jpg", import.meta.url));
 let logoOk = false;
@@ -163,6 +195,56 @@ requireMatch(
   "样式：.lq-pd__logo 为 48×40 + object-fit:contain"
 );
 requireMatch(css, /\.lq-pd__brand-name\s*\{[^}]*min-width:\s*0/, "样式：品牌名允许收缩不撑破侧栏");
+
+// ⑩ 侧栏配色：橙底白字（用户 2026-09-11 口径：「一级导航页的字体从黑色改成白色」）
+//
+// 为什么不是「白字 + 任意橙」：白字压在兰琪品牌橙 #F37021 上只有 2.94:1，低于 WCAG AA
+// 的 4.5:1（原来的深棕字 #2D1A10 是 5.64:1）。用户要白字的观感，所以**保留品牌橙**、改白字，
+// 同时把侧栏里**字号最小**的那处（10px「开发中」徽标）单独提亮：徽标底色从「橙上浅棕蒙层」
+// 改成「橙上深棕蒙层」，白字压在上面的对比度反而从 2.71:1 升到 4.5:1 以上。
+//
+// 本节对比度是**实算**的（从 CSS 里取色再算），不是写死的期望值：谁把侧栏底色调浅、
+// 或把徽标底色改回浅棕，这里就会红。导航白字那条是「不得变差」的回归下限，
+// 不是 AA 达标声明——AA 例外已在 docs/agents/lanqi-beauty/tasks/LQ-22 里写明。
+const sidebarBgHex = (css.match(/\.lq-pd__side\s*\{[^}]*background:\s*(#[0-9A-Fa-f]{6})\s*;/) ?? [])[1];
+record("配色：侧栏底色仍是兰琪品牌橙 #F37021", (sidebarBgHex ?? "").toUpperCase() === "#F37021", `background=${sidebarBgHex}`);
+
+const navTextHex = (css.match(/\.lq-pd__item\s*\{[^}]*color:\s*(#[0-9A-Fa-f]{3,8})\s*;/) ?? [])[1];
+record("配色：侧栏导航文字改为白色", /^#(?:fff|ffffff)$/i.test(navTextHex ?? ""), `color=${navTextHex}`);
+record("配色：导航行悬停态用白色蒙层（不再是深棕蒙层）", /\.lq-pd__item:hover\s*\{\s*background:\s*rgba\(255,\s*255,\s*255,/.test(css), "hover=rgba(255,255,255,…)");
+
+const brandBlockColor = (css.match(/\.lq-pd__brand\s*\{[^}]*color:\s*(#[0-9A-Fa-f]{3,8})\s*;/) ?? [])[1];
+const brandNameColor = (css.match(/\.lq-pd__brand-name\s*\{[^}]*color:\s*(#[0-9A-Fa-f]{3,8})\s*;/) ?? [])[1];
+record("配色：品牌位文字同步改为白色", /^#(?:fff|ffffff)$/i.test(brandBlockColor ?? "") && /^#(?:fff|ffffff)$/i.test(brandNameColor ?? ""), `.lq-pd__brand=${brandBlockColor} .lq-pd__brand-name=${brandNameColor}`);
+
+const devBadgeRule = (css.match(/\.lq-pd__badge--dev\s*\{([^}]*)\}/) ?? [])[1] ?? "";
+const devBadgeColor = (devBadgeRule.match(/color:\s*(#[0-9A-Fa-f]{3,8})\s*;/) ?? [])[1];
+const devBadgeRgba = rgbaToParts((devBadgeRule.match(/background:\s*rgba\(([^)]*)\)\s*;/) ?? [])[1]);
+record("配色：「开发中」徽标改为白字", /^#(?:fff|ffffff)$/i.test(devBadgeColor ?? ""), `color=${devBadgeColor}`);
+
+const sidebarBg = hexToRgb(sidebarBgHex);
+const navText = hexToRgb(navTextHex);
+if (sidebarBg && navText) {
+  const navContrast = contrastRatio(navText, sidebarBg);
+  record(
+    "对比度：侧栏导航白字在品牌橙上不得低于 2.9:1（本轮基线，AA 例外见 LQ-22）",
+    navContrast >= 2.9,
+    `${navContrast.toFixed(2)}:1`
+  );
+} else {
+  record("对比度：侧栏导航白字在品牌橙上不得低于 2.9:1（本轮基线，AA 例外见 LQ-22）", false, "取色失败");
+}
+if (sidebarBg && devBadgeRgba) {
+  const chip = blendOver(devBadgeRgba, sidebarBg);
+  const badgeContrast = contrastRatio([255, 255, 255], chip);
+  record(
+    "对比度：10px「开发中」徽标白字 ≥ 4.5:1（改前 2.71:1）",
+    badgeContrast >= 4.5,
+    `${badgeContrast.toFixed(2)}:1 chip=rgb(${chip.join(",")})`
+  );
+} else {
+  record("对比度：10px「开发中」徽标白字 ≥ 4.5:1（改前 2.71:1）", false, "取色失败");
+}
 
 // ⑨ 脚本入口已注册
 requireMatch(packageJson, /lanqi:brand-nav-contract-smoke/, "package.json：已注册 lanqi:brand-nav-contract-smoke");

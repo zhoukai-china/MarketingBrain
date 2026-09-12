@@ -13,10 +13,14 @@ export interface LanqiMediaRequest {
   requestKey?: string;
   resolution?: LanqiResolution;
   ratio?: LanqiRatio;
-  durationSeconds?: 5 | 10;
+  durationSeconds?: number;
   imageUrl?: string;
   watermark?: boolean;
 }
+
+/** wan2.6-i2v-flash / wan2.5 系列：成片时长按整数秒下发，官方区间 [2,15]。 */
+export const LANQI_VIDEO_MIN_SECONDS = 2;
+export const LANQI_VIDEO_MAX_SECONDS = 15;
 
 const mediaEndpoint = "https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis";
 const imageEndpoint = "https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation";
@@ -37,6 +41,8 @@ function modelFor(input: Pick<LanqiMediaRequest, "kind">): string | undefined {
 export function quoteLanqiMedia(input: LanqiMediaRequest): { creditCost: number; customerPriceYuan: number; provider: "aliyun_bailian"; model: string } {
   if (input.kind === "image") return price(env.LANQI_MEDIA_IMAGE_CREDITS, modelFor(input) ?? "未配置");
   const seconds = input.durationSeconds ?? 5;
+  // 图生视频（文案转片）按成本 ×10 的按秒口径计价：30 积分/秒，每镜 3 秒 = 90 积分。
+  if (input.kind === "image_to_video") return price(Math.max(1, Math.round(seconds * env.LANQI_MEDIA_VIDEO_CREDITS_PER_SECOND)), modelFor(input) ?? "未配置");
   const credits = input.resolution === "1080P"
     ? (seconds === 10 ? env.LANQI_MEDIA_1080P_10S_CREDITS : env.LANQI_MEDIA_1080P_5S_CREDITS)
     : (seconds === 10 ? env.LANQI_MEDIA_720P_10S_CREDITS : env.LANQI_MEDIA_720P_5S_CREDITS);
@@ -50,11 +56,47 @@ function price(creditCost: number, model: string) {
 export function validateLanqiMediaRequest(input: LanqiMediaRequest): string | undefined {
   if (!input.prompt.trim() || input.prompt.length > 5000) return "提示词不能为空且不得超过 5000 字符";
   if (input.kind === "image") return input.promptVersion?.trim() ? undefined : "图片任务缺少专业提示词版本，请重新生成提示词预览";
-  if (!input.resolution || !input.ratio || !input.durationSeconds) return "视频需要选择分辨率、横竖屏和时长";
-  if (!(["16:9", "9:16"] as LanqiRatio[]).includes(input.ratio)) return "视频仅支持 16:9 横屏或 9:16 竖屏";
+  if (!input.resolution || !input.durationSeconds) return "视频需要选择分辨率和时长";
+  // 图生视频的画面比例由首帧图片决定，不再单独下发横竖屏。
+  if (input.kind === "text_to_video" && !input.ratio) return "文生视频需要选择横竖屏";
+  if (input.ratio && !(["16:9", "9:16"] as LanqiRatio[]).includes(input.ratio)) return "视频仅支持 16:9 横屏或 9:16 竖屏";
+  if (!Number.isInteger(input.durationSeconds) || input.durationSeconds < LANQI_VIDEO_MIN_SECONDS || input.durationSeconds > LANQI_VIDEO_MAX_SECONDS) {
+    return `视频时长必须为 ${LANQI_VIDEO_MIN_SECONDS}–${LANQI_VIDEO_MAX_SECONDS} 秒的整数`;
+  }
   if (input.kind === "image_to_video" && !input.imageUrl) return "图生视频需要提供本店自有或已获授权的图片链接";
   if (input.imageUrl && !/^https:\/\//.test(input.imageUrl)) return "图片素材必须为 HTTPS 链接";
   return undefined;
+}
+
+/** 幂等比较所需的持久化字段子集（不依赖 Prisma 类型，便于离线回归）。 */
+export interface LanqiMediaJobIdentity {
+  kind: string;
+  prompt: string;
+  negativePrompt?: string | null;
+  ratio?: string | null;
+  previewId?: string | null;
+  promptVersion?: string | null;
+  durationSeconds?: number | null;
+  parameters?: unknown;
+}
+
+/**
+ * 幂等比较。图生视频必须比「稳定指纹」（暂存 ID，或外部直传时的原始 URL），
+ * 绝不能比签名外链本身 —— 签名里的 e= 每次请求都会变，比整条 URL 会把同一张图的
+ * 重试误判成新请求，从而重复扣费、重复出片。
+ */
+export function isSameLanqiMediaRequest(job: LanqiMediaJobIdentity, input: LanqiMediaRequest, firstFrameFingerprint?: string): boolean {
+  const storedFrameId = (job.parameters as { firstFrameId?: string } | null | undefined)?.firstFrameId;
+  const base =
+    job.kind === input.kind &&
+    job.prompt === input.prompt &&
+    (job.negativePrompt ?? undefined) === input.negativePrompt &&
+    (job.ratio ?? undefined) === input.ratio;
+  if (!base) return false;
+  if (input.kind === "image_to_video") {
+    return (job.durationSeconds ?? undefined) === input.durationSeconds && (storedFrameId ?? undefined) === firstFrameFingerprint;
+  }
+  return (job.previewId ?? undefined) === input.previewId && (job.promptVersion ?? undefined) === input.promptVersion;
 }
 
 export function getLanqiMediaProviderIssue(input: Pick<LanqiMediaRequest, "kind">): string | undefined {
@@ -66,21 +108,26 @@ export function getLanqiMediaProviderIssue(input: Pick<LanqiMediaRequest, "kind"
 export function getLanqiMediaExecutionReadiness(input: Pick<LanqiMediaRequest, "kind">): LanqiMediaExecutionReadiness {
   const mode = env.LANQI_MEDIA_EXECUTION_MODE;
   const storage = env.LANQI_MEDIA_ASSET_STORAGE;
+  const subject = input.kind === "image" ? "图片" : "视频";
   if (mode === "disabled") {
-    return { mode, storage, canConfirm: false, billable: false, blockedReason: "真实图片生成尚未获得本轮预算放行；当前只可查看费用预览。" };
+    return { mode, storage, canConfirm: false, billable: false, blockedReason: `真实${subject}生成尚未获得本轮预算放行；当前只可查看费用预览。` };
   }
   if (mode === "mock") {
     if (env.NODE_ENV === "production") return { mode, storage, canConfirm: false, billable: false, blockedReason: "生产环境禁止使用模拟生成模式。" };
     return { mode, storage, canConfirm: true, billable: false };
   }
   if (env.LANQI_MEDIA_REAL_EXECUTION_APPROVED !== "true") {
-    return { mode, storage, canConfirm: false, billable: false, blockedReason: "真实图片生成预算尚未确认。" };
+    return { mode, storage, canConfirm: false, billable: false, blockedReason: `真实${subject}生成预算尚未确认。` };
+  }
+  // 图片与视频分开放行：本轮只批了「文案转片」图生视频，付费生图仍按未放行处理。
+  if (input.kind === "image" && env.LANQI_MEDIA_IMAGE_REAL_EXECUTION_APPROVED !== "true") {
+    return { mode, storage, canConfirm: false, billable: false, blockedReason: `真实${subject}生成尚未获得本轮预算放行；当前只可查看费用预览。` };
   }
   if (storage !== "local") {
-    return { mode, storage, canConfirm: false, billable: false, blockedReason: "租户图片持久存储尚未就绪，不能创建付费任务。" };
+    return { mode, storage, canConfirm: false, billable: false, blockedReason: `租户${subject}持久存储尚未就绪，不能创建付费任务。` };
   }
   const providerIssue = getLanqiMediaProviderIssue(input);
-  if (providerIssue) return { mode, storage, canConfirm: false, billable: false, blockedReason: "图片模型能力尚未就绪。" };
+  if (providerIssue) return { mode, storage, canConfirm: false, billable: false, blockedReason: `${subject}模型能力尚未就绪。` };
   return { mode, storage, canConfirm: true, billable: true };
 }
 
@@ -92,17 +139,33 @@ export function buildLanqiMediaProviderRequest(input: LanqiMediaRequest): Record
   const providerPrompt = input.negativePrompt?.trim()
     ? `${input.prompt.trim()}\n\n必须避免：${input.negativePrompt.trim()}`
     : input.prompt.trim();
-  return input.kind === "image"
-    ? {
-        model: modelFor(input),
-        input: { messages: [{ role: "user", content: [{ text: providerPrompt }] }] },
-        parameters: { watermark: input.watermark ?? true, n: 1, size: imageSizeForRatio(input.ratio) },
-      }
-    : {
-        model: modelFor(input),
-        input: input.kind === "image_to_video" ? { prompt: input.prompt, media: [{ type: "image", url: input.imageUrl }] } : { prompt: input.prompt },
-        parameters: { resolution: input.resolution, ratio: input.ratio, duration: input.durationSeconds, watermark: true },
-      };
+  if (input.kind === "image") {
+    return {
+      model: modelFor(input),
+      input: { messages: [{ role: "user", content: [{ text: providerPrompt }] }] },
+      parameters: { watermark: input.watermark ?? true, n: 1, size: imageSizeForRatio(input.ratio) },
+    };
+  }
+  if (input.kind === "image_to_video") {
+    // 百炼图生视频（wan2.6-i2v-flash）契约：input.img_url 为必填首帧图，prompt 为运镜/画面描述；
+    // 无声成片必须显式 audio:false（并且不下发 audio_url）；画面比例由首帧图决定，不下发 ratio。
+    return {
+      model: modelFor(input),
+      input: { prompt: providerPrompt, img_url: input.imageUrl },
+      parameters: {
+        resolution: input.resolution,
+        duration: input.durationSeconds,
+        audio: false,
+        prompt_extend: false,
+        watermark: input.watermark ?? true,
+      },
+    };
+  }
+  return {
+    model: modelFor(input),
+    input: { prompt: providerPrompt },
+    parameters: { resolution: input.resolution, ratio: input.ratio, duration: input.durationSeconds, watermark: true },
+  };
 }
 
 export async function cancelLanqiMediaTask(providerTaskId: string): Promise<void> {
