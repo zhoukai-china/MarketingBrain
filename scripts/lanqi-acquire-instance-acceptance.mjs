@@ -354,6 +354,36 @@ async function verifyVideoPage(root, checks, base, label, record) {
       leakHit(vdSearchText) === null,
     detail: `fill=${vdKw} click=${vdSearchClick} 新增请求=${vdSearchCallsAfter - vdSearchCallsBefore} 检索接口=${vdRequested} 条目=${vdHitLinks.length} 平台域内=${vdPlatformLinks.length} 无结果说明=${vdSearchText.includes("没有可点开的条目")}`,
   });
+  // 复刻出片面板（LQ-27）：选一条后必须出现「上传原视频 / 四项授权 / 报价与出片」，
+  // 未上传素材与未勾授权前按钮必须禁用、点了不发请求（不出现假生成）。
+  if (vdHitLinks.length > 0) {
+    const pickedHit = await clickButton(root, vd, "选它复刻");
+    await sleep(900);
+    const panel = await evaluate(
+      root,
+      vd.sessionId,
+      `(() => ({
+        text: document.body?.innerText ?? "",
+        quoteDisabled: [...document.querySelectorAll("button")].find((node) => (node.innerText || "").includes("报价"))?.disabled ?? null
+      }))()`,
+    );
+    const callsBeforeQuote = vd.requestTimeline.length;
+    await clickButton(root, vd, "先报价");
+    await sleep(900);
+    const addedRequests = vd.requestTimeline.length - callsBeforeQuote;
+    checks.push({
+      name: `${label}：复刻出片面板齐备、未上传/未授权前不放行（不出现假生成）`,
+      pass:
+        pickedHit === "clicked" &&
+        panel.text.includes("上传原视频") &&
+        panel.text.includes("素材与肖像授权") &&
+        panel.text.includes("报价与出片") &&
+        panel.quoteDisabled === true &&
+        addedRequests === 0,
+      detail: `选它复刻=${pickedHit} 面板=上传原视频:${panel.text.includes("上传原视频")}/授权:${panel.text.includes("素材与肖像授权")}/报价:${panel.text.includes("报价与出片")} 报价按钮禁用=${panel.quoteDisabled} 新增请求=${addedRequests}`,
+    });
+  }
+
   checks.push({
     name: `${label}：无接口 4xx/5xx、console/page 无错误`,
     pass: blankErrors(vd).length === 0 && vd.consoleErrors.length === 0 && vd.pageErrors.length === 0,

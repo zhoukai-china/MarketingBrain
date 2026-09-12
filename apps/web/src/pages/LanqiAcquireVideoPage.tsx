@@ -194,6 +194,12 @@ function authHeaders(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
 }
 
+/** multipart 上传不能带 Content-Type，否则浏览器不会补 boundary。 */
+function uploadHeaders(): HeadersInit {
+  const token = localStorage.getItem("store_os_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function readResponse(response: Response): Promise<any> {
   const body = await response.json().catch(() => ({}));
   if (response.status === 401) {
@@ -392,6 +398,18 @@ export function LanqiAcquireVideoCopyPage() {
 
 // ────────────────────────────── 模式 1：爆款复刻 ──────────────────────────────
 
+/**
+ * 爆款复刻的四项授权（与美业侧同一口径）：逐条确认后才允许报价与出片。
+ * 后端 `material-authorizations` / `quote` / `confirm` 三个接口都用这四个布尔值做门禁。
+ */
+const REPLICATION_RIGHTS = [
+  { k: "visual", label: "我拥有原视频画面及改编使用权" },
+  { k: "audio", label: "我拥有原音频 / 音乐的使用权" },
+  { k: "performer", label: "原视频主角已单独同意被替换" },
+  { k: "portrait", label: "替换照片为本人，或已取得本人书面授权" }
+] as const;
+type ReplicationRightKey = (typeof REPLICATION_RIGHTS)[number]["k"];
+
 /** 一条检索到的平台条目：类型按真实页面标注，热度不带推算字段。 */
 interface ViralSearchItem {
   id: string;
@@ -421,8 +439,165 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
   // 连续搜索时丢弃过期响应，避免慢请求把新结果覆盖掉。
   const requestRef = useRef(0);
 
+  /*
+   * 出片接线（LQ-27）：上传原视频 + 人物照片 → 四项授权 → 报价 → 确认 → 轮询 → 播放/下载。
+   * 全部复用既有链路（`/files`、`/viral-video-replication/*`），没有新建后端能力。
+   */
+  const [videoFile, setVideoFile] = useState<{ id: string; name: string } | null>(null);
+  const [portraitFile, setPortraitFile] = useState<{ id: string; name: string } | null>(null);
+  const [rights, setRights] = useState<Record<ReplicationRightKey, boolean>>({
+    visual: false,
+    audio: false,
+    performer: false,
+    portrait: false
+  });
+  const [busy, setBusy] = useState("");
+  const [notice, setNotice] = useState("");
+  const [quote, setQuote] = useState<{ canConfirm?: boolean; creditCost?: number | null; message?: string; gaps?: string[] } | null>(null);
+  const [job, setJob] = useState<{ id: string; status: string } | null>(null);
+  const [assetUrl, setAssetUrl] = useState("");
+  const requestKeyRef = useRef(`lq-rep-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`);
+
   const canSearch = keyword.trim().length > 0 && !searching;
   const photoNeeded = replaceMode === "face" ? "头部图片" : "全身画面";
+  const rightsOk = REPLICATION_RIGHTS.every((item) => rights[item.k]);
+
+  const uploadAsset = useCallback(async (kind: "video" | "portrait", file: File | undefined) => {
+    if (!file) return;
+    if (kind === "video") {
+      if (!/\.(mp4|mov)$/i.test(file.name)) {
+        setNotice("原视频只支持 MP4 / MOV 文件；抖音、视频号的播放页链接平台不读取。");
+        return;
+      }
+      if (file.size > 200 * 1024 * 1024) {
+        setNotice("原视频超过 200MB，请先裁短或压缩再上传。");
+        return;
+      }
+    } else if (!/^image\/(jpeg|jpg|png|webp)$/i.test(file.type) && !/\.(jpe?g|png|webp)$/i.test(file.name)) {
+      setNotice("人物照片只支持 JPG / PNG / WebP。");
+      return;
+    }
+    setBusy(kind === "video" ? "正在上传原视频…" : "正在上传人物照片…");
+    setNotice("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const response = await fetch(apiPath("/files"), { method: "POST", headers: uploadHeaders(), body: form });
+      const body = await readResponse(response);
+      const id = body?.file?.id;
+      if (!id) throw new Error("素材上传失败，请稍后重试。");
+      if (kind === "video") {
+        setVideoFile({ id, name: file.name });
+      } else {
+        setPortraitFile({ id, name: file.name });
+        setPhoto(file.name);
+      }
+      setQuote(null);
+      setNotice(kind === "video" ? "原视频已上传。" : "人物照片已上传。");
+    } catch (error) {
+      setNotice(error instanceof Error && error.message ? error.message : "素材上传失败，请稍后重试。");
+    } finally {
+      setBusy("");
+    }
+  }, []);
+
+  const replicationPayload = useCallback(
+    () => ({
+      referenceFileId: videoFile?.id,
+      portraitFileId: portraitFile?.id,
+      requestKey: requestKeyRef.current,
+      model: "aliyun_strict",
+      visualRightsConfirmed: rights.visual,
+      audioRightsConfirmed: rights.audio,
+      performerConsentConfirmed: rights.performer,
+      portraitConsentConfirmed: rights.portrait
+    }),
+    [portraitFile, rights, videoFile]
+  );
+
+  const requestQuote = useCallback(async () => {
+    if (!videoFile) { setNotice("请先上传要复刻的原视频（MP4 / MOV）。"); return; }
+    if (!portraitFile) { setNotice(`请先上传${photoNeeded}照片。`); return; }
+    if (!rightsOk) { setNotice("请先逐条确认四项素材与肖像授权。"); return; }
+    setBusy("正在校验素材与授权…");
+    setNotice("");
+    setQuote(null);
+    try {
+      const response = await fetch(apiPath("/viral-video-replication/quote"), {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(replicationPayload())
+      });
+      const body = await readResponse(response);
+      setQuote(body);
+      setNotice(body?.message ?? "报价已生成");
+    } catch (error) {
+      setNotice(error instanceof Error && error.message ? error.message : "报价校验失败，请稍后重试。");
+    } finally {
+      setBusy("");
+    }
+  }, [photoNeeded, replicationPayload, rightsOk, portraitFile, videoFile]);
+
+  const loadAsset = useCallback(async (jobId: string) => {
+    try {
+      const response = await fetch(apiPath(`/viral-video-replication/jobs/${jobId}/content`), { headers: authHeaders() });
+      if (!response.ok) throw new Error("成片读取失败");
+      const blob = await response.blob();
+      setAssetUrl(URL.createObjectURL(blob));
+    } catch (error) {
+      setNotice(error instanceof Error && error.message ? error.message : "成片读取失败");
+    }
+  }, []);
+
+  const pollJob = useCallback(
+    async (jobId: string) => {
+      for (let attempt = 0; attempt < 60; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 6000));
+        try {
+          const response = await fetch(apiPath("/viral-video-replication/jobs"), { headers: authHeaders() });
+          const body = await readResponse(response);
+          const found = (body?.jobs ?? []).find((item: { id?: string }) => item.id === jobId);
+          const status = String(found?.status ?? "unknown");
+          setJob({ id: jobId, status });
+          if (status === "succeeded") {
+            setNotice("成片已生成，可以播放或下载。");
+            void loadAsset(jobId);
+            return;
+          }
+          if (status === "failed" || status === "cancelled") {
+            setNotice(`任务结束：${status}。没有成片可下载，你没有拿到会自动退还。`);
+            return;
+          }
+        } catch {
+          /* 单次轮询失败不终止，下一轮继续 */
+        }
+      }
+      setNotice("任务还在处理中，可以稍后回到本页刷新查看。");
+    },
+    [loadAsset]
+  );
+
+  const confirmReplication = useCallback(async () => {
+    setBusy("正在创建任务…");
+    setNotice("");
+    try {
+      const response = await fetch(apiPath("/viral-video-replication/confirm"), {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(replicationPayload())
+      });
+      const body = await readResponse(response);
+      const id = body?.job?.id;
+      if (!id) throw new Error("任务没有创建成功，请稍后重试。");
+      setJob({ id, status: String(body.job.status ?? "submitted") });
+      setNotice(`任务已提交，当前状态：${body.job.status ?? "submitted"}。`);
+      void pollJob(id);
+    } catch (error) {
+      setNotice(error instanceof Error && error.message ? error.message : "任务创建失败，请稍后重试。");
+    } finally {
+      setBusy("");
+    }
+  }, [pollJob, replicationPayload]);
 
   const runSearch = useCallback(async () => {
     const text = keyword.trim();
@@ -566,9 +741,23 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
               <a className="lq-vd__hit-link" href={picked.url} target="_blank" rel="noopener noreferrer">打开原页面 ↗</a>
             </div>
 
-            <div className="lq-vd__stage" style={{ marginTop: 18 }}>步骤 3 / 3 · 提供素材，替换主角与产品</div>
-            <h3 className="lq-vd__card-title">替换主角 <span className="tag green">换脸 / 换人</span></h3>
-            <p className="lq-vd__card-sub">AI 会保留原爆款的画面、动作、节奏与配音，只把主角换成你。</p>
+            <div className="lq-vd__stage" style={{ marginTop: 18 }}>步骤 3 / 4 · 上传原视频 + 提供主角照片</div>
+            <h3 className="lq-vd__card-title">① 上传原视频 <span className="tag green">必填</span></h3>
+            <p className="lq-vd__card-sub">
+              把你在抖音 / 视频号刷到的那条爆款<b>下载后上传</b> —— 平台不抓站内视频流，只接受你自己上传的授权原片。MP4 / MOV，≤200MB。
+            </p>
+            <div className="lq-vd__fileinfo">
+              <b>{videoFile ? `已上传：${videoFile.name}` : "未上传原视频"}</b>
+              <p>只有拿到授权的原片才能复刻；未授权素材请勿上传。</p>
+            </div>
+            <FilePick
+              label={videoFile ? "重新选择原视频" : "选择原视频（MP4）"}
+              accept="video/mp4,video/quicktime,.mp4,.mov"
+              onPick={(files) => void uploadAsset("video", files[0])}
+            />
+
+            <h3 className="lq-vd__card-title" style={{ marginTop: 18 }}>② 提供主角照片 <span className="tag green">换脸 / 换人</span></h3>
+            <p className="lq-vd__card-sub">AI 保留原爆款的画面、动作、节奏与配音，只把主角换成你；照片会上传到你账号名下，仅用于本次生成。</p>
             <div className="lq-vd__chips">
               <button
                 type="button"
@@ -586,27 +775,70 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
               </button>
             </div>
             <div className="lq-vd__fileinfo">
-              <b>{photo ? `已提供${photoNeeded}` : "未提供素材"}</b>
-              <p>保留素材在你的电脑上，不上传、不联网。要出你自己的成片时选一张照片即可。</p>
+              <b>{portraitFile ? `已上传：${portraitFile.name}` : `未上传${photoNeeded}照片`}</b>
+              <p>换脸给头部照片，换人给人物全身画面；照片须为本人或已获授权。</p>
             </div>
-            <FilePick label={photo ? "重新选择照片" : "选择照片"} onPick={(files) => setPhoto(files[0]?.name ?? null)} />
+            <FilePick
+              label={portraitFile ? "重新选择照片" : "选择照片"}
+              accept="image/jpeg,image/png,image/webp"
+              onPick={(files) => void uploadAsset("portrait", files[0])}
+            />
 
             <h3 className="lq-vd__card-title" style={{ marginTop: 18 }}>替换产品 <span className="tag opt">可选</span></h3>
-            <p className="lq-vd__card-sub">把原爆款里的产品 / 道具换成你自己的产品图，不填则保留原产品。</p>
+            <p className="lq-vd__card-sub">本期生成只替换主角，产品 / 道具替换尚未开通 —— 这里不放用不上的上传控件。</p>
             <div className="lq-vd__fileinfo">
-              <b>{product ? "已提供产品图" : "未替换产品（保留原产品）"}</b>
-              <p>建议白底或场景图，主体清晰、无复杂文字。</p>
+              <b>保留原片的产品 / 道具</b>
+              <p>等后端支持产品替换后再开放这一步。</p>
             </div>
-            <FilePick label={product ? "重新选择" : "选择产品图"} onPick={(files) => setProduct(files[0]?.name ?? null)} />
 
+            <div className="lq-vd__stage" style={{ marginTop: 18 }}>步骤 4 / 4 · 授权 → 报价 → 出片</div>
+            <h3 className="lq-vd__card-title">③ 素材与肖像授权 <span className="tag green">逐条确认</span></h3>
+            <p className="lq-vd__card-sub">这四项是平台合规动作，逐条确认后才允许报价与出片。</p>
+            {REPLICATION_RIGHTS.map((item) => (
+              <label className="lq-vd__consent" key={item.k}>
+                <input
+                  type="checkbox"
+                  checked={rights[item.k]}
+                  onChange={(event) => setRights((current) => ({ ...current, [item.k]: event.target.checked }))}
+                />
+                <span className="cb-txt">{item.label}</span>
+              </label>
+            ))}
+
+            <h3 className="lq-vd__card-title" style={{ marginTop: 18 }}>④ 报价与出片</h3>
+            <div className="lq-vd__card">
+              <div className="lq-vd__kv">
+                <span className="k">预计积分</span>
+                <span className="v">
+                  {quote?.creditCost ? `${quote.creditCost} 积分 · 确认后才扣减` : quote ? "本次未能报价" : "点「校验并报价」后显示"}
+                </span>
+              </div>
+              <div className="lq-vd__kv"><span className="k">输出</span><span className="v">MP4 · 沿用原片画幅与时长 · 起始画面带 AI 标识</span></div>
+              <div className="lq-vd__kv"><span className="k">任务</span><span className="v">{job ? `${job.id} · ${job.status}` : "尚未创建"}</span></div>
+            </div>
+            <button className="lq-vd__btn ghost" type="button" disabled={Boolean(busy)} onClick={() => void requestQuote()}>
+              🧾 校验素材与授权，看报价
+            </button>
             <button
               className="lq-vd__btn primary block"
               type="button"
-              disabled={!photo}
-              onClick={() => window.alert(RENDERING_OFFLINE_MSG)}
+              disabled={Boolean(busy) || !quote?.canConfirm}
+              onClick={() => void confirmReplication()}
             >
-              {photo ? "🎬 生成爆款复刻视频" : `⚠️ 请先提供${photoNeeded}再生成`}
+              {busy ? busy : quote?.canConfirm ? "✅ 确认并出片（按报价扣积分）" : "先报价，再出片"}
             </button>
+            {notice && <p className="lq-vd__hint">{notice}</p>}
+            {quote?.gaps && quote.gaps.length > 0 && (
+              <div className="lq-vd__warn">还缺前置条件：{quote.gaps.join("、")}。未创建任务、未扣积分。</div>
+            )}
+            {assetUrl && (
+              <>
+                <video className="lq-vd__result" src={assetUrl} controls playsInline />
+                <a className="lq-vd__btn ghost" href={assetUrl} download={`lanqi-replication-${job?.id ?? "result"}.mp4`}>
+                  ⬇ 下载成片
+                </a>
+              </>
+            )}
             <button className="lq-vd__btn ghost" type="button" onClick={() => { setPicked(null); setPhoto(null); }}>
               ↻ 换一条爆款重来
             </button>

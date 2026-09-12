@@ -521,6 +521,8 @@
 .lq-vd__hit-actions button { padding: 5px 12px; border: none; border-radius: 999px; background: #F37021; color: #fff; font-size: 12.5px; font-weight: 700; cursor: pointer; }
 .lq-vd__chosen { margin-top: 10px; padding: 12px 14px; border: 1.5px solid rgba(243,112,33,.35); border-radius: 12px; background: #FFF9F4; }
 .lq-vd__chosen .lq-vd__hit-link { display: inline-block; margin-top: 8px; }
+/* 爆款复刻成片播放（LQ-27）：纵向短片，宽度撑满左栏 */
+.lq-vd__result { display: block; width: 100%; margin-top: 12px; border-radius: 12px; background: #000; }
 
 .lq-vd__placeholder { display: grid; place-items: center; min-height: 220px; padding: 26px; border: 1.5px dashed #E8E2DB; border-radius: 12px; background: #FAF8F5; color: #9A8B7D; font-size: 13.5px; line-height: 1.75; text-align: center; }
 

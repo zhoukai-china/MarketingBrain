@@ -238,6 +238,14 @@ assert(
 );
 assert("页面接真实检索接口", webSource.includes("/lanqi/acquire/video/viral-search"));
 assert("页面不再硬编码「暂未接通真实爆款检索」开关", !/REPLICATE_SEARCH_READY\s*=\s*false/.test(webSource));
+
+// ── ⑥ 出片接线（LQ-27）：复用既有链路，不新写后端、不放假按钮 ──
+assert("复刻页复用素材上传接口（/files）", webSource.includes('apiPath("/files")') && webSource.includes("uploadHeaders"));
+assert("复刻页走既有报价 / 确认 / 任务接口", ["/viral-video-replication/quote", "/viral-video-replication/confirm", "/viral-video-replication/jobs"].every((path) => webSource.includes(path)));
+assert("复刻页有四项授权门禁", ["visual", "audio", "performer", "portrait"].every((key) => webSource.includes(key)));
+assert("原视频上传必填并校验 mp4 与大小", /mp4\|mov/i.test(webSource) && /200 \* 1024 \* 1024/.test(webSource));
+assert("确认按钮在报价前禁用（不出现假生成按钮）", /disabled=\{Boolean\(busy\) \|\| !quote\?\.canConfirm\}/.test(webSource));
+assert("页面不再用弹窗假装生成", !/onClick=\{\(\) => window\.alert\(RENDERING_OFFLINE_MSG\)\}/.test(webSource.split("function AssetsMode")[0]));
 assert("页面文案不出现厂商与模型名", !/(百炼|通义|qwen|Qwen|DashScope|达摩院)/.test(webSource));
 assert(
   "面向门店的检索文案与条目标签不出现厂商名",
