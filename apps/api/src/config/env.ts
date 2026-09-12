@@ -38,6 +38,9 @@ const envSchema = z.object({
   ALIYUN_VIDEO_REPLICATION_ENDPOINT: optionalUrl,
   ALIYUN_VIDEO_REPLICATION_MODEL: z.string().trim().min(1).default("wan2.2-animate-mix"),
   ALIYUN_VIDEO_REPLICATION_CREDITS: z.coerce.number().int().nonnegative().default(0),
+  // 付费执行的「单批人民币上限」（单位：分）。默认 0 = 禁止任何付费外发；
+  // 只有显式配置（例如首次联调 ¥10 = 1000）才可能真正调用付费视频接口。
+  ALIYUN_VIDEO_REPLICATION_MAX_COST_FEN: z.coerce.number().int().nonnegative().default(0),
   BEAUTY_VIDEO_STAGING_DRIVER: z.enum(["disabled", "aliyun_oss"]).default("disabled"),
   BEAUTY_VIDEO_EXECUTION_MODE: z.enum(["disabled", "controlled"]).default("disabled"),
   BEAUTY_VIDEO_EXECUTION_AUTHORITY_KEY: optionalString,
@@ -74,14 +77,45 @@ const envSchema = z.object({
   LANQI_MEDIA_STAGING_SECRET: optionalString,
   LANQI_MEDIA_FIRST_FRAME_TTL_MINUTES: z.coerce.number().int().min(5).max(1440).default(240),
   LANQI_MEDIA_FIRST_FRAME_MAX_MB: z.coerce.number().positive().max(10).default(6),
-  LANQI_MEDIA_IMAGE_CREDITS: z.coerce.number().int().positive().default(100),
+  /**
+   * 图片对客价（兰琪图片 / 美业小红书三图包**共用同一口径**）：
+   * ¥1/张 = 20 积分（用户 2026-09-12 拍板「图片改成对客价一元一张」）。
+   * 供应商成本 ¥0.2/张 → 约 5 倍毛利，与视频线同量级（见 docs/PRICING.md）。
+   * 三图包 = 60 积分（原 300）。
+   */
+  LANQI_MEDIA_IMAGE_CREDITS: z.coerce.number().int().positive().default(20),
   LANQI_MEDIA_VIDEO_CREDITS_PER_SECOND: z.coerce.number().int().positive().default(30),
   BEAUTY_MEDIA_EXECUTION_MODE: z.enum(["disabled", "real"]).default("disabled"),
   BEAUTY_MEDIA_PRODUCT_ENABLED: z.enum(["true", "false"]).default("false"),
   BEAUTY_MEDIA_MAX_REAL_IMAGES: z.coerce.number().int().min(0).max(3).default(0),
   BEAUTY_MEDIA_MAX_PROVIDER_COST_YUAN: z.coerce.number().min(0).max(1).default(0),
-  BEAUTY_MEDIA_IMAGE_CREDITS: z.coerce.number().int().positive().default(100),
+  BEAUTY_MEDIA_IMAGE_CREDITS: z.coerce.number().int().positive().default(20),
   BEAUTY_MEDIA_ASSET_STORAGE: z.enum(["disabled", "local"]).default("disabled"),
+  /**
+   * 推荐有礼（PLAT-28）。全部默认关闭，上线前改 env 即生效，不发版。
+   *
+   * 口径（用户 2026-09-12 冻结）：
+   * - 三段奖励：新客 100、推荐人第一段 100（新客首次真实使用）、推荐人第二段 200（该新客首次真实充值）；
+   * - 奖励积分**只能用于文字类智能体**（`REFERRAL_REWARD_TEXT_ONLY`，服务端硬限制）；
+   * - 奖励进 bonus 桶，90 天有效；不设单人月上限，改为超阈值**告警**；
+   * - 绑定 / 首次真实使用 / 首次真实充值三个事件都必须落在活动窗内（左闭右开）。
+   */
+  REFERRAL_REWARD_ENABLED: z.enum(["true", "false"]).default("false"),
+  REFERRAL_CAMPAIGN_STARTS_AT: optionalString,
+  REFERRAL_CAMPAIGN_ENDS_AT: optionalString,
+  REFERRAL_NEW_USER_CREDITS: z.coerce.number().int().nonnegative().default(100),
+  REFERRAL_REFERRER_FIRST_USE_CREDITS: z.coerce.number().int().nonnegative().default(100),
+  REFERRAL_REFERRER_FIRST_RECHARGE_CREDITS: z.coerce.number().int().nonnegative().default(200),
+  REFERRAL_REWARD_VALID_DAYS: z.coerce.number().int().positive().default(90),
+  REFERRAL_REWARD_ALERT_THRESHOLD_CREDITS: z.coerce.number().int().positive().default(20000),
+  REFERRAL_REWARD_TEXT_ONLY: z.enum(["true", "false"]).default("true"),
+  /**
+   * 人工体验额度发放入口总开关（PLAT-28 第①批，2026-09-12 用户口径）。
+   * 默认 false：`POST /market/admin/trial-grants` 与运维 CLI `scripts/grant-marketplace-trial-credits.mjs`
+   * 一律拒绝（`403 trial_grant_disabled`，CLI 退出码 2），历史流水只读保留、一条不删。
+   * 后台 `/agents/admin` 的同一个键可覆盖此默认值（PlatformSetting 表）。
+   */
+  MARKETPLACE_TRIAL_GRANT_ENABLED: z.enum(["true", "false"]).default("false"),
   BEAUTY_MEDIA_ACCEPTANCE_OPERATOR_GATE: z.enum(["true", "false"]).default("false"),
   BEAUTY_DAILY_BRIEF_RUNTIME_MODE: z.enum(["disabled", "controlled_mock", "live"]).default("disabled"),
   BEAUTY_DAILY_BRIEF_SCHEDULER_ENABLED: z.enum(["true", "false"]).default("false"),
@@ -181,6 +215,14 @@ export const inviteRequired = env.INVITE_REQUIRED !== "false";
 export const inviteCodes = parseAllowedHosts(env.INVITE_CODES ?? "");
 export const wechatAuthRequired = env.WECHAT_AUTH_REQUIRED !== "false";
 
+/** 解析可选的 ISO 8601 时间（推荐有礼活动窗等）。空值或非法值返回 null。 */
+export function parseOptionalIsoDate(value: string | null | undefined): Date | null {
+  const text = (value ?? "").trim();
+  if (!text) return null;
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 export function validateRuntimeConfig(): string[] {
   const issues: string[] = [];
   const activeLlm = getActiveLlmConfig();
@@ -199,6 +241,24 @@ export function validateRuntimeConfig(): string[] {
   }
   if (env.CONTINUOUS_IMPROVEMENT_AUTO_ACTIVATE === "true") {
     issues.push("CONTINUOUS_IMPROVEMENT_AUTO_ACTIVATE must remain false; candidates require eval, approval and canary release");
+  }
+  // PLAT-28 推荐有礼：开奖必须在完整活动窗内（左闭右开），且奖励积分必须只能用于文字类智能体。
+  // 这两条是用户 2026-09-12 冻结口径，不做「配置错了也能启动」的容错。
+  if (env.REFERRAL_REWARD_ENABLED === "true") {
+    const referralStartsAt = parseOptionalIsoDate(env.REFERRAL_CAMPAIGN_STARTS_AT);
+    const referralEndsAt = parseOptionalIsoDate(env.REFERRAL_CAMPAIGN_ENDS_AT);
+    if (!referralStartsAt || !referralEndsAt) {
+      issues.push(
+        "REFERRAL_REWARD_ENABLED=true requires REFERRAL_CAMPAIGN_STARTS_AT and REFERRAL_CAMPAIGN_ENDS_AT in ISO 8601"
+      );
+    } else if (referralStartsAt.getTime() >= referralEndsAt.getTime()) {
+      issues.push("REFERRAL_CAMPAIGN_STARTS_AT must be earlier than REFERRAL_CAMPAIGN_ENDS_AT (活动窗左闭右开)");
+    }
+  }
+  if (env.REFERRAL_REWARD_TEXT_ONLY !== "true") {
+    issues.push(
+      "REFERRAL_REWARD_TEXT_ONLY must remain true: 推荐奖励积分只能用于文字类智能体（用户 2026-09-12 冻结口径）"
+    );
   }
   if (env.BEAUTY_DAILY_BRIEF_SCHEDULER_ENABLED === "true") {
     if (env.DATA_MODE !== "database") issues.push("BEAUTY_DAILY_BRIEF_SCHEDULER_ENABLED=true requires DATA_MODE=database");
