@@ -3,6 +3,19 @@ import { ReplicationError } from "./viral-video-replication-runtime.js";
 import { type ReplicationAdmission, type ReplicationAssetEvidence, type ReplicationRequest } from "./viral-video-replication.js";
 import { videoFileHash, type InspectedVideoFile, type VideoPrivateFile } from "./beauty-video-private-files.js";
 
+/** 按输出秒数计积分（用户 2026-09-13 拍板：爆款复刻 30 积分/秒）。
+ *  供应商按实际出片秒数计费（出片时长≈原视频时长）；扣分向上取整、不超过 maxOutputSeconds 封顶；
+ *  未配置 creditsPerSecond（<=0）时回退固定 creditCost（兼容旧口径）。 */
+export function computeReplicationCreditCost(input: {
+  durationSeconds?: number;
+  maxOutputSeconds: number;
+  creditsPerSecond?: number;
+  creditCost: number;
+}): number {
+  if (!input.creditsPerSecond || !Number.isFinite(input.creditsPerSecond) || input.creditsPerSecond <= 0) return input.creditCost;
+  const seconds = Math.max(1, Math.min(Math.ceil(input.durationSeconds ?? 0), input.maxOutputSeconds));
+  return Math.max(1, Math.ceil(seconds * input.creditsPerSecond));
+}
 export const VIDEO_AUTHORIZATION_VERSION="beauty-video-asset-authorization-v1";
 export type VideoActor={tenantId:string;userId:string};
 export const videoDeclarationSchema=z.object({fileId:z.string().min(1).max(120),basisFileId:z.string().min(1).max(120),subjectRole:z.enum(["reference","owner","kol"]),purpose:z.literal("video_replacement"),expiresAt:z.string().datetime(),requestKey:z.string().min(12).max(120),rightsDeclared:z.literal(true)}).strict();
@@ -74,10 +87,10 @@ export function createVideoAssetAuthorization(db:any, read:VideoAuthorizationRea
         await audit(tx,actor,"revoke",id,"future_access_revoked_external_copy_not_recalled");return publicRecord(await tx.beautyVideoAssetAuthorization.findUnique({where:{id}}));
       });
     },
-    async admission(actor:VideoActor,input:ReplicationRequest,policy:{creditCost:number;maxCostFen:number;maxOutputSeconds:number;stagingReady:boolean}):Promise<ReplicationAdmission>{
+    async admission(actor:VideoActor,input:ReplicationRequest,policy:{creditCost:number;maxCostFen:number;maxOutputSeconds:number;stagingReady:boolean;creditsPerSecond?:number}):Promise<ReplicationAdmission>{
       const s=await scope(actor);if(!input.referenceFileId||!input.portraitFileId||input.referenceVideoUrl||input.portraitImageUrl)throw new ReplicationError("owned_file_ids_required",422);
       const reference=await inspect(actor,input.referenceFileId,"reference"),portrait=await inspect(actor,input.portraitFileId,input.template==="kol_visit"?"kol":"owner");
-      return {tenantId:actor.tenantId,userId:actor.userId,storeId:s.storeId,productCode:"beauty-industry",entitlement:true,allowedStoreIds:[s.storeId],reference:reference.evidence,portrait:portrait.evidence,...policy};
+      return {tenantId:actor.tenantId,userId:actor.userId,storeId:s.storeId,productCode:"beauty-industry",entitlement:true,allowedStoreIds:[s.storeId],reference:reference.evidence,portrait:portrait.evidence,...policy,creditCost:computeReplicationCreditCost({durationSeconds:reference.evidence.durationSeconds,maxOutputSeconds:policy.maxOutputSeconds,creditsPerSecond:policy.creditsPerSecond,creditCost:policy.creditCost})};
     }
   };
 }

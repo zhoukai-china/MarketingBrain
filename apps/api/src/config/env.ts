@@ -45,6 +45,7 @@ const envSchema = z.object({
   ALIYUN_VIDEO_REPLICATION_ENDPOINT: optionalUrl,
   ALIYUN_VIDEO_REPLICATION_MODEL: z.string().trim().min(1).default("wan2.2-animate-mix"),
   ALIYUN_VIDEO_REPLICATION_CREDITS: z.coerce.number().int().nonnegative().default(0),
+  ALIYUN_VIDEO_REPLICATION_CREDITS_PER_SECOND: z.coerce.number().int().nonnegative().default(0),
   // 付费执行的「单批人民币上限」（单位：分）。默认 0 = 禁止任何付费外发；
   // 只有显式配置（例如首次联调 ¥10 = 1000）才可能真正调用付费视频接口。
   ALIYUN_VIDEO_REPLICATION_MAX_COST_FEN: z.coerce.number().int().nonnegative().default(0),

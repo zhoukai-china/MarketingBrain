@@ -87,6 +87,22 @@ requireMatch(shell, /正在同步…/, "顶栏：同步中有可见进行态");
 requireMatch(shell, /已同步 · \$\{hhmm\}/, "顶栏：同步完成给出时间");
 forbidMatch(shell, /<span className="lq-pd__pts">🔄 多端实时同步<\/span>/, "顶栏：旧的「点了没反应」纯 span 写法已移除");
 
+// —— 占位符「补数字」交互（2026-09-13 用户反馈：老板看不懂要补什么数字）——
+requireMatch(friendCircle, /✏️ 补数字/, "朋友圈：占位符可点击「✏️ 补数字」");
+requireMatch(friendCircle, /data-lanqi-moments-patch-digit/, "朋友圈：「补数字」按钮有可自动化标记");
+requireMatch(friendCircle, /data-lanqi-moments-digit-input/, "朋友圈：补数字输入框有可自动化标记");
+requireMatch(friendCircle, /data-lanqi-moments-digit-confirm/, "朋友圈：确认补数字按钮有可自动化标记");
+requireMatch(friendCircle, /护理 40 分钟/, "朋友圈：补数字提示带真实示例（护理 40 分钟）");
+requireMatch(friendCircle, /不要写「白了一个色号」这类效果数字/, "朋友圈：提示明确禁止效果类数字");
+requireMatch(friendCircle, /PLACEHOLDER_TOKEN.replace|replace\(PLACEHOLDER_TOKEN/, "朋友圈：确认后占位符被替换成老板填的真实数字");
+requireMatch(friendCircle, /copyBody|patched/, "朋友圈：复制使用补数字后的正文");
+requireMatch(css, /\.lq-moments__patch-(?:btn|box|hint|row)\b/, "样式：补数字交互样式类存在");
+
+// —— 后端占位文案与检查口径（moments-service / moments-rules）——
+const service = read("apps/api/src/products/beauty-industry/moments-service.ts");
+const rules = read("apps/api/src/products/beauty-industry/moments-rules.ts");
+requireMatch(service, /【这里补一个真实数字】/, "服务端：占位符文案更明确（【这里补一个真实数字】）");
+requireMatch(rules, /补一个真实数字/, "规则：占位检测识别新占位符");
 // —— 样式：不复用不存在的类 ——
 requireMatch(css, /\.lq-cw__tools\b/, "样式：结果操作区类存在");
 requireMatch(css, /\.lq-cw__tool\b/, "样式：结果操作按钮类存在");

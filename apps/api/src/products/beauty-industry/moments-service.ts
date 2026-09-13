@@ -285,11 +285,11 @@ function buildBody(
     parts.push(FAST_GOALS[opts.goal].hook);
     parts.push(core);
     if (opts.level !== "light" && opts.tone) parts.push(TONE_PROOF[opts.tone]);
-    if (placeholder) parts.push("【待你补一句：具体数字】");
+    if (placeholder) parts.push("【这里补一个真实数字】");
     parts.push(FAST_GOALS[opts.goal].cta);
   } else if (opts.mode === "pro" && opts.pillar) {
     parts.push(core);
-    if (placeholder) parts.push("【待你补一句：具体数字】");
+    if (placeholder) parts.push("【这里补一个真实数字】");
     parts.push(PILLARS[opts.pillar].cta);
   } else {
     parts.push(core);
@@ -435,7 +435,7 @@ function buildMomentPrompt(input: MomentsUpgradeInput, raw: string): LlmMessage[
     "- 禁止绝对化/疗效词：根治、永久、最好、排名宣称（全城第一／销量第一／第一品牌）、100%、特效、治愈、药用、祛除、七天见效；序数用法（第一次、第一周、第一部分）正常，不算违规。",
     "- 开头要有钩子/情景，正文分段，结尾用上面指定动作。",
     hookLine ? "- " + hookLine : "",
-    "- 若原文没有任何数字，正文中插入一行占位：\u3010待你补一句：具体数字\u3011（不要编数字）。",
+    "- 若原文没有任何数字，正文中插入一行占位：\u3010这里补一个真实数字\u3011（不要编数字）。",
     "- 用户很可能是随手发的零散口语：请从中提炼最有用的门店场景/事实，写得更具体、有代入感，分 3～4 段；不要只是复述原文。",
     "- 如果输入信息太少，实在写不成一条有内容的朋友圈，body 只输出这一句：这条素材还缺一个关键信息，请补充（比如客人是谁、做了什么、结果或价格）。不要编造、不要硬凑。",
     "只输出 JSON：{\"body\": \"最终文案\", \"core\": \"核心正文\"}。body 含钩子+核心+指定结尾动作；core 只含主体内容。不要输出其它文字。"
@@ -487,7 +487,7 @@ export async function upgradeMomentsLlm(input: MomentsUpgradeInput): Promise<Mom
   }
   if (containsBanWordsLocal(body).length) throw new Error("生成内容包含违规引导词，已拦截");
 
-  const placeholder = !/\d/.test(core) || body.includes("【待你补一句：具体数字】");
+  const placeholder = !/\d/.test(core) || body.includes("【这里补一个真实数字】") || body.includes("【待你补一句：具体数字】");
   const issues = diagnosticIssues(core || body);
   const rawScore = scoreOf(core || raw, issues);
   const newScore = upgradedScore(rawScore, level);

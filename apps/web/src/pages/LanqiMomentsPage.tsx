@@ -50,6 +50,12 @@ function placeholderCaptions(result: MomentsResult): string[] {
   return ["门店环境实拍", "护理过程特写", "到店体验瞬间"];
 }
 
+// 与后端 moments-service 的占位文案保持一致：原话缺数字时插入，提示老板亲补真实数字（AI 不编）。
+const PLACEHOLDER_TOKEN = "【这里补一个真实数字】";
+/** 补数字示例与红线：用户看不懂「具体数字」的歧义，这里给真实场景与禁止项。 */
+const PATCH_EXAMPLES = "补一个这次真实发生的数字，替换占位符。例如：护理 40 分钟 / 清洁做了三遍 / 体验课参考价 99 元。不要写「白了一个色号」这类效果数字。";
+
+
 async function downloadSuggestionPng(name: string, texts: string[]): Promise<void> {
   const canvas = document.createElement("canvas");
   canvas.width = 640;
@@ -94,6 +100,9 @@ export function LanqiMomentsPage() {
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const [aiImg, setAiImg] = useState<{ url: string; assetId: string; loading: boolean; error: string }>({ url: "", assetId: "", loading: false, error: "" });
+  const [digitOpen, setDigitOpen] = useState(false);
+  const [digitValue, setDigitValue] = useState("");
+  const [patchedDigit, setPatchedDigit] = useState<string | null>(null);
   // 门店可用性（Bug7/8/9）：能不能生成、为什么不能、去哪解决，全部由这一个判定给出。
   const { gate, storeId, reload } = useLanqiStoreGate("朋友圈获客");
 
@@ -115,9 +124,11 @@ export function LanqiMomentsPage() {
         headers: authHeaders(),
         body: JSON.stringify(body)
       }));
+      resetPatch();
       setResult(data.result as MomentsResult);
     } catch (e) {
       setError(humanizeAsyncError(e));
+      resetPatch();
       setResult(null);
     } finally {
       setLoading(false);
@@ -151,6 +162,12 @@ export function LanqiMomentsPage() {
     setFields((prev) => ({ ...prev, [key]: value }));
   }
 
+  function resetPatch() {
+    setPatchedDigit(null);
+    setDigitOpen(false);
+    setDigitValue("");
+  }
+
   function flash(message: string) {
     setToast(message);
     window.setTimeout(() => setToast(""), 1500);
@@ -162,7 +179,8 @@ export function LanqiMomentsPage() {
    * 退回 `execCommand("copy")`（旧浏览器 / 非安全上下文）。
    */
   function copyBody() {
-    const text = (result?.body ?? "").trim();
+    const bodyText = result?.body ?? "";
+    const text = (patchedDigit && bodyText.includes(PLACEHOLDER_TOKEN) ? bodyText.replace(PLACEHOLDER_TOKEN, patchedDigit) : bodyText).trim();
     if (!text) {
       flash("还没有可复制的内容");
       return;
@@ -203,6 +221,11 @@ export function LanqiMomentsPage() {
     ? "① 传图 + 粘原话 → ② AI 诊断升级 → ③ 对比微调后发布"
     : "① 选七柱类型 → ② 填对应内容 → ③ AI 生成本店老板朋友圈图文";
 
+  const hasPatchPlaceholder = result?.body.includes(PLACEHOLDER_TOKEN) === true;
+  const effectiveBody = patchedDigit && result?.body.includes(PLACEHOLDER_TOKEN)
+    ? result.body.replace(PLACEHOLDER_TOKEN, patchedDigit)
+    : (result?.body ?? "");
+
   return (
     <LanqiBrainShell active="moments" mainTitle="私域营销" subtitle={subtitle} crumb="/ 公域获客 / 私域营销">
     <div className="lq-moments">
@@ -212,7 +235,7 @@ export function LanqiMomentsPage() {
 
       {/* demo moments.html modeSwitcher()：模式卡 */}
       <div className="lq-md-wrap">
-        <button type="button" className={`lq-md-card${mode === "fast" ? " on" : ""}`} onClick={() => { setMode("fast"); setResult(null); }}>
+<button type="button" className={`lq-md-card${mode === "fast" ? " on" : ""}`} onClick={() => { resetPatch(); setMode("fast"); setResult(null); }}>
           {mode === "fast" && <span className="lq-md-card__ck">✓</span>}
           <div className="lq-md-card__top">
             <span className="lq-md-card__ic">⚡</span>
@@ -222,7 +245,7 @@ export function LanqiMomentsPage() {
           <div className="lq-md-card__desc">你已经写好了一条朋友圈，只是觉得发不出去。把图和原话给 AI，它帮你诊断问题、补钩子、补结尾，直接升级成能发的版本。</div>
           <div className="lq-md-card__flow">流程：传图 → 粘原话 → AI 升级 → 对比/微调 → 发布</div>
         </button>
-        <button type="button" className={`lq-md-card${mode === "pro" ? " on" : ""}`} onClick={() => { setMode("pro"); setResult(null); }}>
+<button type="button" className={`lq-md-card${mode === "pro" ? " on" : ""}`} onClick={() => { resetPatch(); setMode("pro"); setResult(null); }}>
           {mode === "pro" && <span className="lq-md-card__ck">✓</span>}
           <div className="lq-md-card__top">
             <span className="lq-md-card__ic">🎯</span>
@@ -286,7 +309,7 @@ export function LanqiMomentsPage() {
             <>
               <div className="lq-moments__pillars">
                 {(Object.keys(PILLAR_META) as Pillar[]).map((p) => (
-                  <button key={p} className={pillar === p ? "on" : ""} onClick={() => { setPillar(p); setFields({}); setResult(null); }}>
+<button key={p} className={pillar === p ? "on" : ""} onClick={() => { resetPatch(); setPillar(p); setFields({}); setResult(null); }}>
                     {PILLAR_META[p].name}<em>{PILLAR_META[p].pct}%</em>
                   </button>
                 ))}
@@ -335,11 +358,61 @@ export function LanqiMomentsPage() {
               <div className="lq-moments__meta">
                 {result.rawLen} 字 → {result.newLen} 字 · 内容分 {result.rawScore} → {result.newScore} · {result.level}
               </div>
-              <div className="lq-moments__body">{result.body}</div>
+              {hasPatchPlaceholder && !patchedDigit ? (
+                <>
+                  <div className="lq-moments__body">
+                    {result.body.split(PLACEHOLDER_TOKEN)[0]}
+                    <button
+                      type="button"
+                      className="lq-moments__patch-btn"
+                      data-lanqi-moments-patch-digit
+                      onClick={() => setDigitOpen((open) => !open)}
+                    >
+                      ✏️ 补数字
+                    </button>
+                    {result.body.split(PLACEHOLDER_TOKEN)[1] ?? ""}
+                  </div>
+                  {digitOpen && (
+                    <div className="lq-moments__patch-box">
+                      <p className="lq-moments__patch-hint">{PATCH_EXAMPLES}</p>
+                      <div className="lq-moments__patch-row">
+                        <input
+                          data-lanqi-moments-digit-input
+                          value={digitValue}
+                          onChange={(event) => setDigitValue(event.target.value)}
+                          placeholder="例：护理 40 分钟"
+                        />
+                        <button
+                          type="button"
+                          className="lq-cw__tool"
+                          data-lanqi-moments-digit-confirm
+                          disabled={!digitValue.trim()}
+                          onClick={() => {
+                            setPatchedDigit(digitValue.trim());
+                            setDigitOpen(false);
+                          }}
+                        >
+                          确认补上
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {!digitOpen && (
+                    <p className="lq-moments__patch-cta">正文缺一个真实数字（时长 / 次数 / 到店价），点「✏️ 补数字」填写，系统不会替你编。</p>
+                  )}
+                </>
+              ) : (
+                <div className="lq-moments__body">{effectiveBody}</div>
+              )}
               <div className="lq-moments__checks">
-                {result.checks.map((c, i) => (
-                  <div key={i} className={c.ok ? "ok" : "warn"}>{c.ok ? "✓" : "!"} {c.label}：{c.detail}</div>
-                ))}
+                {result.checks.map((c, i) => {
+                  const patchedHit = Boolean(patchedDigit) && c.label === "有具体数字";
+                  return (
+                    <div key={i} className={patchedHit ? "ok" : c.ok ? "ok" : "warn"}>
+                      {patchedHit ? "✓" : c.ok ? "✓" : "!"} {c.label}：{patchedHit ? `你已补：${patchedDigit}（发布前请确认真实）` : c.detail}
+                    </div>
+                  );
+                })}
               </div>
               {/* WorkBuddy 复测 P2：结果卡片底部要有「复制文案 / 重新生成」，不能只靠手动选中。 */}
               <div className="lq-cw__tools" data-lanqi-moments-tools>

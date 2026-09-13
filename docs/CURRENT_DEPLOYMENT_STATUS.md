@@ -1,5 +1,13 @@
 # 当前部署状态
 
+## 最新发布：20260913-lq27-moments-patch-v2（2026-09-13，测试实例 + 生产）— 朋友圈「补数字」交互 + 占位符前后端统一 + 爆款复刻定价 24 积分/秒
+
+- 发布包 `release-20260913-lq27-moments-patch-v2.tar.gz`（9,573,861 B，1498 文件；canary `marketplace-v3.json` = `1dd5b672…`）。
+- 内容：朋友圈结果卡片新增「✏️ 补数字」就地交互（示例：护理 40 分钟 / 清洁三遍 / 体验课参考价 99 元；红线：不写效果数字），占位串统一为「【这里补一个真实数字】」（push ×2 + 模型提示词 + 规则检测 + 前端四处一致，QA-20260913-011）；爆款复刻定价拍板 **对外 ¥1.2/秒 = 24 积分/秒**（成本 ¥0.6/秒），生产 env `ALIYUN_VIDEO_REPLICATION_CREDITS_PER_SECOND=24`（运行进程实测生效）。
+- 测试实例 `20260913-lq27-moments-patch-v2-test1`：`DEPLOY_OK` + 健康 200；真实浏览器补数字探针 **14/0**。
+- 生产 `20260913-lq27-moments-patch-v2-prod1`：`DEPLOY_OK` + 健康 200 / ready 200；源码/dist 均含新占位串与按钮标记；服务进程环境实测 `CREDITS_PER_SECOND=24`。
+- 说明：前一包 `release-20260913-lq27-moments-patch-pricing`（v1）只改前端按钮与规则文案，模型提示词仍用旧占位串导致正文旧串；v2 修复提示词后前后端一致。
+
 ## 备份保留策略（2026-09-13 起生效，用户授权）
 
 - 策略：`/opt/baolu-backups/` 按环境（生产 `*before-baolu-os-v2` / 测试 `*before-baolu-os-v2-test`）各保留最近 **8 份**（按目录修改时间倒序），其余删除；删除清单写入 `$ROOT/.retention-deleted-<时间戳>.log`。
@@ -31,6 +39,12 @@
 **过程中的一次失败（磁盘满，已自动回滚，后成功）**：测试环境首次部署 `…-test1` 在 step 9 因 PostgreSQL `53100 No space left on device` 启动失败，部署脚本按设计自动回滚（服务恢复 active）；根因是部署瞬间 segment+备份把磁盘挤满（期间服务器定时任务清掉了 stage 释放空间）。处置：按库内 `scripts/tmp/server-disk-cleanup.sh` 清理 /tmp 传输产物 + 删除遗留 scratch stage `20260913-lq27-acquire-board-test1`（388M）后，`…-test2` 与 `…-prod1` 一次成功。**磁盘压力提示**：`/opt/baolu-backups` 已占 12G（30G 盘），建议后续单独任务评估备份保留策略或扩容。
 
 备份与回滚：`/opt/baolu-backups/20260913-zd5-storefront-ux-{test1,test2,prod1}-before-<app>/`（含 app-before.tar.gz、db-before.sql.gz、env、dist-hashes）；回滚＝还原对应备份目录并 `systemctl restart baolu-os-v2(-test)`（既有流程）。
+
+
+
+## 未发布小批（2026-09-13）：微信支付运行时读密钥探测（QA-20260913-001 加固）
+
+`/ops/wechat-pay-check` / `/ops/launch-check` 新增 `probeWechatPayRuntimeKeys()`（真实读取商户私钥与平台公钥，复用支付路径读取函数）；生产且支付必需时 `/ready` 新增 `wechat_pay` 检查，密钥文件不可读/解析失败会 503 红灯。契约 smoke 14 条断言 PASS，`qa:fast` exit 0。未发布，待与后续批次一起打包。
 
 ## 本批改动详情（已随 20260913-zd5-storefront-ux 上线，见上方发布记录）
 

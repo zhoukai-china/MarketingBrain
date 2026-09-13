@@ -8,7 +8,7 @@ import { videoFileHash } from "./beauty-video-private-files.js";
 /** No default real transport and no environment flag can turn local fixtures into a cloud adapter. */
 export function createVideoMaterialIntegration(options:{
   db:any;authorization:ReturnType<typeof createVideoAssetAuthorization>;driver?:PrivateVideoStagingDriver;
-  policy:{creditCost:number;maxCostFen:number;maxOutputSeconds:number};now?:()=>number;
+  policy:{creditCost:number;maxCostFen:number;maxOutputSeconds:number;creditsPerSecond?:number};now?:()=>number;
   execution?:Pick<ReplicationRuntimePorts,"submit"|"poll"|"persist"|"read">&{access:"local_only"|"provider_https"};
   control?:ReplicationRuntimePorts["control"];
 }){

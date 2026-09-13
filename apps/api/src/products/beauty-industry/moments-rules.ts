@@ -427,12 +427,12 @@ export function publishCheck(
   });
 
   const hasDigitTxt = hasDigit(body);
-  const placeholder = opts.hasPlaceholder || body.includes("【待你补一句】");
+  const placeholder = opts.hasPlaceholder || body.includes("【待你补一句】") || body.includes("补一个真实数字");
   items.push({
     ok: hasDigitTxt && !placeholder,
     label: "有具体数字",
     detail: placeholder
-      ? "含【待你补一句】占位，数字项需你亲补"
+      ? "正文缺 1 个真实数字（时长 / 次数 / 到店价），点「✏️ 补数字」补齐"
       : hasDigitTxt
         ? "已含数字"
         : "建议补 1 个数字"

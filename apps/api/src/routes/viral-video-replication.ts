@@ -31,7 +31,7 @@ export async function registerViralVideoReplicationRoutes(app: FastifyInstance, 
       // maxCostFen 以前硬编码为 0（等于永久禁止付费执行）。现在改为读环境变量，
       // 默认仍是 0：**漏配就等于关闭**，只有显式给出上限（首次联调 ¥10 = 1000 分）
       // 才可能外发付费请求。这是「先能跑通、再常态化」的受控开关。
-      policy:{creditCost:env.ALIYUN_VIDEO_REPLICATION_CREDITS,maxCostFen:env.ALIYUN_VIDEO_REPLICATION_MAX_COST_FEN,maxOutputSeconds:30}}),...ports};
+      policy:{creditCost:env.ALIYUN_VIDEO_REPLICATION_CREDITS,maxCostFen:env.ALIYUN_VIDEO_REPLICATION_MAX_COST_FEN,maxOutputSeconds:30,...(env.ALIYUN_VIDEO_REPLICATION_CREDITS_PER_SECOND>0?{creditsPerSecond:env.ALIYUN_VIDEO_REPLICATION_CREDITS_PER_SECOND}:{})}}),...ports};
   }
   const repo = ports.repository ?? createReplicationRepository(prisma);
   async function context(headers: Record<string, unknown>): Promise<RequestContext> {
