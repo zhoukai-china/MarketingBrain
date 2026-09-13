@@ -20,7 +20,7 @@ export type OssStagingCredentials = { accessKeyId: string; accessKeySecret: stri
 export type OssWireRequest = { method: string; url: string; headers: Record<string,string>; body?: Buffer; timeoutMs: number };
 export type OssWireResponse = { status: number; headers: Record<string,string>; body: Buffer };
 export type OssTransport = (request: OssWireRequest) => Promise<OssWireResponse>;
-export type OssAudit = { event: "beauty_video.oss"; operation: string; status: number; elapsedMs: number; code: string; objectFingerprint: string };
+export type OssAudit = { event: "beauty_video.oss"; operation: string; status: number; elapsedMs: number; code: string; objectFingerprint: string; detail?: string };
 
 export function validateOssStagingConfig(c: OssStagingConfig) {
   if (!/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(c.bucket) || c.region !== "cn-beijing" ||
@@ -102,7 +102,9 @@ export function createOssPrivateVideoStaging(options: {
         const bucketRead=u.pathname==="/"&&op==="GET"&&["bucketInfo","versioning","lifecycle"].some(k=>u.search===`?${k}`||u.search===`?${k}=`);
         const objectPath=u.pathname.startsWith(`/${c.prefix}`)&&!u.search&&!/%|\\|\.\./.test(u.pathname)&&["PUT","HEAD","DELETE"].includes(op);
         if(u.origin!==c.approvedOrigin||u.username||u.password||u.hash||(!bucketRead&&!objectPath)||p.stream||p.writeStream) fail("oss_sdk_request_rejected");
-        let status=0,code="oss_transport_unknown";
+        // 现场教训（LQ-27）：非 ReplicationError 的底层错误（如 TypeError: socket hang up）会被
+        // 统一压成 oss_transport_unknown，运维完全看不出原因。这里把错误名/消息一起记进审计。
+        let status=0,code="oss_transport_unknown",detail:string|undefined;
         try {
           await options.beforeRequest?.(object,cleanup);
           const response=await transport({url,method:op,headers:p.headers,body:p.content,timeoutMs:20000});status=response.status;
@@ -111,8 +113,10 @@ export function createOssPrivateVideoStaging(options: {
           if(![200,204,404].includes(status))fail("oss_response_invalid");
           code="ok";
           return {status,headers:response.headers,data:response.body,res:{status,statusCode:status,headers:response.headers,size:response.body.length}};
-        } catch(e) {code=e instanceof ReplicationError?e.code:"oss_transport_unknown";wireFailure=new ReplicationError(code,503);throw wireFailure;}
-        finally { options.audit?.({event:"beauty_video.oss",operation:bucketRead?u.search.slice(1):op,status,elapsedMs:Math.max(0,now()-start),code,objectFingerprint:hash(u.pathname).slice(0,16)}); }
+        } catch(e) {code=e instanceof ReplicationError?e.code:"oss_transport_unknown";
+          detail=e instanceof Error?`${e.name}: ${String(e.message).slice(0,120)}`:`${typeof e}`;
+          wireFailure=new ReplicationError(code,503);throw wireFailure;}
+        finally { options.audit?.({event:"beauty_video.oss",operation:bucketRead?u.search.slice(1):op,status,elapsedMs:Math.max(0,now()-start),code,detail,objectFingerprint:hash(u.pathname).slice(0,16)}); }
       }}
     });
     // The SDK wraps transport errors; preserve our allowlisted reason without exposing its raw error.

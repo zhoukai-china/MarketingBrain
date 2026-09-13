@@ -19,10 +19,14 @@ import { createSessionToken } from "../apps/api/src/services/auth-token.js";
 import {
   REPLICATION_CONTRACT,
   REPLICATION_MODEL,
-  replicationSchema,
-  videoExecutionRequestHash
+  replicationSchema
 } from "../apps/api/src/services/viral-video-replication.js";
-import { VIDEO_EXECUTION_VERSION, VIDEO_PRICE_VERSION, videoExecutionScopeSchema } from "../apps/api/src/services/beauty-video-execution-permit.js";
+import {
+  VIDEO_EXECUTION_VERSION,
+  VIDEO_PRICE_VERSION,
+  videoExecutionRequestHash,
+  videoExecutionScopeSchema
+} from "../apps/api/src/services/beauty-video-execution-permit.js";
 
 const API = (process.env.LQ27_API ?? "http://127.0.0.1:3002").replace(/\/+$/, "");
 const AUTHORITY_KEY = process.env.BEAUTY_VIDEO_EXECUTION_AUTHORITY_KEY ?? "";
@@ -112,7 +116,9 @@ async function main() {
   await declare(token, portraitFileId, basisFileId, "owner", expiresAt, `lq27-decl-pt-${stamp}`);
   log("素材授权声明已记录");
 
-  // ── ③ 报价（这一步会真实完成安全暂存，并在库里留下暂存租约） ──
+  // ── ③ 先按素材授权签这一批许可（人签一批、只跑一次）──
+  // 关键顺序：**许可必须在报价之前签好** —— 报价阶段就会走准入校验（claim 会要许可），
+  // 所以"先报价看 gaps 再签许可"这条路是不通的（会直接 422 execution_permit_required）。
   const parsed = replicationSchema.parse({
     referenceFileId,
     portraitFileId,
@@ -128,20 +134,17 @@ async function main() {
     performerConsentConfirmed: true,
     portraitConsentConfirmed: true
   });
-  const quote = await api<{ canConfirm?: boolean; creditCost?: number; gaps?: string[]; message?: string }>("/viral-video-replication/quote", {
-    method: "POST",
-    token,
-    body: parsed
-  });
-  log("报价结果", { canConfirm: quote.canConfirm === true, creditCost: quote.creditCost ?? null, gaps: quote.gaps ?? [] });
-
-  // ── ④ 按服务端算出的暂存租约与素材授权，签这一批许可（人签一批、只跑一次） ──
   const requestHash = videoExecutionRequestHash(parsed);
   const refAuth = await prisma.beautyVideoAssetAuthorization.findUnique({ where: { fileId: referenceFileId } });
   const ptAuth = await prisma.beautyVideoAssetAuthorization.findUnique({ where: { fileId: portraitFileId } });
-  const lease = await prisma.beautyVideoStagingLease.findUnique({ where: { tenantId_requestHash: { tenantId, requestHash } } });
   if (!refAuth || !ptAuth) throw new Error("素材授权记录缺失，无法签许可");
-  const storageCostEvidenceHash = sha256(JSON.stringify({ leaseId: lease?.id ?? null, adapterId: lease?.adapterId ?? null, objects: lease?.objects ?? null }));
+  // 存储成本证据 = 两份素材授权的不可变指纹（真实记录，不是编造值）；成本上限按一次 PUT 的极小额取 1 分。
+  const storageCostEvidenceHash = sha256(
+    JSON.stringify([
+      { id: refAuth.id, fileId: refAuth.fileId, sha256: refAuth.fileSha256, version: refAuth.version },
+      { id: ptAuth.id, fileId: ptAuth.fileId, sha256: ptAuth.fileSha256, version: ptAuth.version }
+    ])
+  );
   const scope = videoExecutionScopeSchema.parse({
     version: VIDEO_EXECUTION_VERSION,
     contract: REPLICATION_CONTRACT,
@@ -161,7 +164,9 @@ async function main() {
     reference: { fileId: refAuth.fileId, sha256: refAuth.fileSha256, evidenceId: refAuth.id, version: refAuth.version, role: refAuth.subjectRole },
     portrait: { fileId: ptAuth.fileId, sha256: ptAuth.fileSha256, evidenceId: ptAuth.id, version: ptAuth.version, role: ptAuth.subjectRole },
     priceVersion: VIDEO_PRICE_VERSION,
-    maxOutputSeconds: 30,
+    // 预算公式（permit 自检）：maxCostFen ≥ maxOutputSeconds × 60（wan-std） + storageCostUpperFen。
+    // 用户授权上限 ¥10 = 1000 分 → 输出上限取 16 秒（16×60+1=961 ≤ 1000），不越权加预算。
+    maxOutputSeconds: 16,
     maxSubmit: 1,
     maxPoll: 120,
     maxStorageHttp: 40,
@@ -176,7 +181,16 @@ async function main() {
   await prisma.beautyVideoExecutionPermit.create({
     data: { id: permitId, tenantId, userId, storeId, requestKey, scope: scope as object, signature, status: "approved" }
   });
-  log("单批许可已签发", { permitId, maxCostFen: MAX_COST_FEN, storageCostUpperFen: 1, leaseId: lease?.id ?? null });
+  log("单批许可已签发", { permitId, maxCostFen: MAX_COST_FEN, storageCostUpperFen: 1 });
+
+  // ── ④ 报价（这一步会真实完成安全暂存，并在库里留下暂存租约） ──
+  const quote = await api<{ canConfirm?: boolean; creditCost?: number; gaps?: string[]; message?: string }>("/viral-video-replication/quote", {
+    method: "POST",
+    token,
+    body: parsed
+  });
+  log("报价结果", { canConfirm: quote.canConfirm === true, creditCost: quote.creditCost ?? null, gaps: quote.gaps ?? [] });
+  const lease = await prisma.beautyVideoStagingLease.findUnique({ where: { tenantId_requestHash: { tenantId, requestHash } } });
 
   // ── ⑤ 确认出片（真实调用付费接口，一次不重试；失败即止） ──
   const confirmed = await api<{ job?: { id?: string; status?: string } }>("/viral-video-replication/confirm", { method: "POST", token, body: parsed });

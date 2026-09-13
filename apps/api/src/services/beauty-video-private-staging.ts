@@ -54,7 +54,10 @@ export function createVideoPrivateStaging(db:any,authorization:ReturnType<typeof
     // Revoke access before deletion; crashed cleanup can be resumed by the same persistent lease.
     await db.beautyVideoStagingLease.updateMany({where:{id,status:{not:"released"}},data:{status:"releasing"}});
     try{for(const o of lease.objects as StagedObject[])await driver.remove(o);await db.beautyVideoStagingLease.update({where:{id},data:{status:"released",releasedAt:new Date(now()),errorCode:null}});await audit(lease,"released","future_access_disabled_no_external_recall");}
-    catch{await db.beautyVideoStagingLease.update({where:{id},data:{status:"cleanup_failed",errorCode:"staging_cleanup_failed"}});throw new ReplicationError("staging_cleanup_failed",503);}
+    // 现场教训（LQ-27）：以前这里固定记/固定抛通用码，导致"删不掉"还是"请求被拒"根本分不清。
+    // 现在把驱动给的具体码（如 oss_transport_unknown / oss_http_403）原样记在租约上并抛出。
+    catch(e){const code=e instanceof ReplicationError?e.code:"staging_cleanup_failed";
+      await db.beautyVideoStagingLease.update({where:{id},data:{status:"cleanup_failed",errorCode:code}});throw new ReplicationError(code,503);}
   }
   async function stage(a:ReplicationAdmission,input:ReplicationRequest){
     if(!input.requestKey)throw new ReplicationError("idempotency_key_required",400);
