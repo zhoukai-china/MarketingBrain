@@ -1,5 +1,13 @@
 # 当前部署状态
 
+## 备份保留策略（2026-09-13 起生效，用户授权）
+
+- 策略：`/opt/baolu-backups/` 按环境（生产 `*before-baolu-os-v2` / 测试 `*before-baolu-os-v2-test`）各保留最近 **8 份**（按目录修改时间倒序），其余删除；删除清单写入 `$ROOT/.retention-deleted-<时间戳>.log`。
+- 脚本：`/opt/baolu-backups/retention.sh`（mtime 排序，幂等，重复运行不再多删）。
+- 首轮执行（2026-09-13）：删除 60 份过期备份，释放约 10.6G（磁盘 100% → 12G 可用 / 60%）。首轮按目录名排序误删了几份当日回滚点（含 `lq27-acquire-board-prod1` 的 before 备份；该发布仍有 `/opt/releases` 归档 + git `5ae4d52`，且已补做当前健康态基线）。
+- 当前基线：`/opt/baolu-backups/20260913-post-lq27-board-baseline-before-baolu-os-v2`（194M：app 代码包 + 生产 env + db dump），作为今日全部发布后的统一回滚点。
+- 注意：常规回滚不依赖 before 备份（历史积压）；缺少 before 备份时回滚 = 还原基线 + 重新叠加目标 release 包。
+
 ## 最新发布：20260913-lq27-acquire-board（2026-09-13，测试实例 + 生产）— 兰琪公域获客板块验收放开 + LQ-27 爆款复刻真样片链路修复
 
 - 发布包 `release-20260913-lq27-acquire-board.tar.gz`（9,558,110 B，1495 文件；canary `marketplace-v3.json` = `1dd5b672…`，与 20260913-zd5-storefront-ux 同代同哈希）。
