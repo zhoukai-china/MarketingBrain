@@ -12,7 +12,7 @@ import { getAppPath } from "../lib/api.js";
 const BOARDS: Array<{ key: string; name: string; icon: string; href: string; done: boolean }> = [
   { key: "home", name: "经营驾驶舱", icon: "🏠", href: getAppPath("/lanqi/dashboard"), done: false },
   { key: "cases", name: "门店AI使用案例", icon: "🏬", href: getAppPath("/lanqi/cases"), done: false },
-  { key: "acquire", name: "公域获客", icon: "📣", href: getAppPath("/lanqi/acquire"), done: false },
+  { key: "acquire", name: "公域获客", icon: "📣", href: getAppPath("/lanqi/acquire"), done: true },
   { key: "moments", name: "私域营销", icon: "💬", href: getAppPath("/lanqi/moments"), done: true },
   { key: "crm", name: "客户管理", icon: "👤", href: getAppPath("/lanqi/customers"), done: false },
   { key: "analysis", name: "AI客户分析", icon: "📈", href: getAppPath("/lanqi/analysis"), done: false },
@@ -43,7 +43,7 @@ export function LanqiBrainHomePage() {
             </a>
           ))}
         </div>
-        <p className="lq-brain__note">当前仅开放：私域营销（朋友圈营销 · 快速/专业两种模式，微信群营销话术）。经营驾驶舱、门店AI使用案例、公域获客、客户管理、AI客户分析、AI模拟销售、门店后台均在开发中，后续逐个开放。</p>
+        <p className="lq-brain__note">当前已开放：私域营销（朋友圈营销 · 快速/专业两种模式，微信群营销话术）与公域获客（短视频文案改稿 / 爆款复刻 / 一键成片 / 直播话术 / AI 运营顾问）。经营驾驶舱、门店AI使用案例、客户管理、AI客户分析、AI模拟销售、门店后台均在开发中，后续逐个开放。</p>
       </main>
     </LanqiBrainShell>
   );

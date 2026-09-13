@@ -10,9 +10,9 @@
  * 断言：
  *   1) 侧栏品牌位是真实 `<img src="/lanqi-logo.jpg">`，且 `naturalWidth>0`（不是破图/占位）；
  *   2) 品牌名「兰琪 · 美业门店 AI 经营大脑」单行渲染，不折行、不被挤没；
- *   3) 侧栏 8 项里恰好 7 项带「开发中」徽标，且「私域营销」不带徽标；
+ *   3) 侧栏 8 项里恰好 6 项带「开发中」徽标，「私域营销」「公域获客」不带徽标；
  *   4) 默认落地 `/lanqi/moments`（唯一已上线板块）；
- *   5) 8 个未上线板块地址逐个直开：仍在兰琪外壳里、正文出现「开发中」+「去用私域营销」，
+ *   5) 6 个未上线板块地址逐个直开：仍在兰琪外壳里、正文出现「开发中」+「去用私域营销」；公域获客枢纽与爆款复刻按已上线真实页验收；
  *      不空白、不串到别的产品；
  *   6) 私域营销首页与两个子页（朋友圈 / 微信群）可正常进入且渲染出内容；
  *   7) 桌面/移动均无横向溢出；控制台错误 / 页面异常为 0。
@@ -48,12 +48,14 @@ const OFFLINE_BOARDS = [
   "/lanqi/dashboard",
   "/lanqi/goal-setting",
   "/lanqi/cases",
-  "/lanqi/acquire",
-  "/lanqi/acquire/video",
   "/lanqi/customers",
   "/lanqi/analysis",
   "/lanqi/sales-sim",
   "/lanqi/store",
+];
+const ACQUIRE_PAGES = [
+  { path: "/lanqi/acquire", expect: "去搜爆款" },
+  { path: "/lanqi/acquire/video", expect: "爆款复刻" },
 ];
 const MOMENTS_PAGES = [
   { path: "/lanqi/moments", expect: "朋友圈营销" },
@@ -385,15 +387,21 @@ async function runViewport(root, viewport) {
     } lines=${brand.nameLines} clipped=${brand.nameClipped}`
   );
   record(
-    `${viewport.label} 侧栏恰好 8 项、其中 7 项带「开发中」徽标`,
-    brand.navCount === 8 && brand.devBadges === 7,
+    `${viewport.label} 侧栏恰好 8 项、其中 6 项带「开发中」徽标`,
+    brand.navCount === 8 && brand.devBadges === 6,
     `nav=${brand.navCount} dev=${brand.devBadges}`
   );
   const momentsRow = brand.rows.find((r) => r.href.includes("/lanqi/moments"));
   record(
-    `${viewport.label} 「私域营销」不带「开发中」徽标（唯一已上线板块）`,
+    `${viewport.label} 「私域营销」不带「开发中」徽标（已上线板块）`,
     Boolean(momentsRow) && momentsRow.badge === "",
     `moments badge=${JSON.stringify(momentsRow?.badge ?? null)}`
+  );
+  const acquireRow = brand.rows.find((r) => r.href.includes("/lanqi/acquire"));
+  record(
+    `${viewport.label} 「公域获客」不带「开发中」徽标（已上线板块）`,
+    Boolean(acquireRow) && acquireRow.badge === "",
+    `acquire badge=${JSON.stringify(acquireRow?.badge ?? null)}`
   );
   const devLabels = brand.rows.filter((r) => r.badge.includes("开发中")).map((r) => r.label);
   info(`${viewport.label} 开发中板块`, devLabels.join(" / "));
@@ -440,6 +448,23 @@ async function runViewport(root, viewport) {
       `${viewport.label} ${route} 落在兰琪「开发中」占位页（不空白 / 不串产品）`,
       inShell && showsDev && offersMoments && !crossProduct && snap.textLength > 120,
       `shell=${inShell} dev=${showsDev} momentsCta=${offersMoments} cross=${crossProduct} len=${snap.textLength} path=${snap.path}`
+    );
+  }
+
+  // ---- 已上线板块：公域获客枢纽 + 爆款复刻（2026-09-13 放开，不再是占位页） ----
+  for (const page of ACQUIRE_PAGES) {
+    await root.send("Page.navigate", { url: `${base}${page.path}` }, sessionId);
+    const snap = await waitFor(
+      root,
+      sessionId,
+      `(() => { const s = ${SNAPSHOT_EXPR}; return { ok: s.hasShell && s.textLength > 120 && s.text.includes(${JSON.stringify(page.expect)}) && !s.text.includes("本板块还在开发中"), ...s }; })()`,
+      25000
+    );
+    const text = String(snap.text ?? "");
+    record(
+      `${viewport.label} 已上线 ${page.path} 正常渲染（含「${page.expect}」且非占位）`,
+      snap.hasShell === true && snap.textLength > 120 && text.includes(page.expect) && !text.includes("本板块还在开发中"),
+      `shell=${snap.hasShell} len=${snap.textLength} path=${snap.path}`
     );
   }
 

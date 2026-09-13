@@ -1,5 +1,5 @@
 # 当前部署状态
-
+> **明日待办（2026-09-13 关机交接）**：`release-20260913-lq27-nav-online`（侧栏「公域获客」摘掉「开发中」徽标 + 八板块总览/说明同步 + 品牌导航契约/浏览器 E2E 更新）已在测试实例 `DEPLOY_OK`（health 200）；**生产 `-prod1` 尚未部署**，明天先 `bash /tmp/deploy-release-lq27f.sh 20260913-lq27-nav-online-prod1 /opt/releases/release-20260913-lq27-nav-online.tar.gz /opt/baolu-os-v2 baolu-os-v2 /etc/baolu-secrets/baolu-os-v2.env 3002 /os-v2/`，随后跑 `node scripts/lanqi-brand-nav-browser-e2e.mjs` 验收。另外：其他任务在途 `apps/web/src/marketplace/livescript-full-case.ts`（重复定义 + 语法错误）当前会让 `qa:fast` 的 web 步骤失败，属既有失败，本任务改用「HEAD 快照 + 本任务文件 + 已上线 marketplace-v3.json(1dd5b672…)」的干净发布包规避。
 ## 最新发布：20260913-lq27-moments-patch-v2（2026-09-13，测试实例 + 生产）— 朋友圈「补数字」交互 + 占位符前后端统一 + 爆款复刻定价 24 积分/秒
 
 - 发布包 `release-20260913-lq27-moments-patch-v2.tar.gz`（9,573,861 B，1498 文件；canary `marketplace-v3.json` = `1dd5b672…`）。

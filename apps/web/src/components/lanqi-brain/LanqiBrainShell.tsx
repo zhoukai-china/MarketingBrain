@@ -13,14 +13,14 @@ export type BrainActive = "brain" | "home" | "cases" | "acquire" | "moments" | "
 /**
  * 侧栏 8 项的上线状态。
  *
- * 用户 2026-09-11 口径：**目前只有「私域营销」可以正常上线，其余板块显示「开发中」**。
+ * 口径（2026-09-13 更新）：**「私域营销」与「公域获客」已上线，其余 6 个板块显示「开发中」**。
  * 所以这里显式给每一项标 `online` / `dev`，由 UI 决定是否挂「开发中」徽标；
  * 页面本身的上线口径由 `main.tsx` 的路由开关统一决定，两边必须一致。
  */
 const NAV: Array<{ key: BrainActive; name: string; icon: string; href: string; status: "online" | "dev" }> = [
   { key: "home", name: "经营驾驶舱", icon: "🏠", href: getAppPath("/lanqi/dashboard"), status: "dev" },
   { key: "cases", name: "门店AI使用案例", icon: "🏬", href: getAppPath("/lanqi/cases"), status: "dev" },
-  { key: "acquire", name: "公域获客", icon: "📣", href: getAppPath("/lanqi/acquire"), status: "dev" },
+  { key: "acquire", name: "公域获客", icon: "📣", href: getAppPath("/lanqi/acquire"), status: "online" },
   { key: "moments", name: "私域营销", icon: "💬", href: getAppPath("/lanqi/moments"), status: "online" },
   { key: "crm", name: "客户管理", icon: "👤", href: getAppPath("/lanqi/customers"), status: "dev" },
   { key: "analysis", name: "AI客户分析", icon: "📈", href: getAppPath("/lanqi/analysis"), status: "dev" },

@@ -115,13 +115,10 @@ record("外壳：能解析出 NAV 数组", Boolean(navMatch), navMatch ? "已解
 const navBody = navMatch ? navMatch[1] : "";
 const onlineCount = (navBody.match(/status:\s*"online"/g) ?? []).length;
 const devCount = (navBody.match(/status:\s*"dev"/g) ?? []).length;
-record("外壳：NAV 恰好 1 项 status=online", onlineCount === 1, `online=${onlineCount}`);
-record("外壳：NAV 其余 7 项 status=dev", devCount === 7, `dev=${devCount}`);
-requireMatch(
-  navBody,
-  /key:\s*"moments"[\s\S]*?status:\s*"online"/,
-  "外壳：只有「私域营销」是 online"
-);
+record("外壳：NAV 恰好 2 项 status=online（私域营销 + 公域获客）", onlineCount === 2, `online=${onlineCount}`);
+record("外壳：NAV 其余 6 项 status=dev", devCount === 6, `dev=${devCount}`);
+requireMatch(navBody, /key:\s*"moments"[\s\S]*?status:\s*"online"/, "外壳：「私域营销」是 online");
+requireMatch(navBody, /key:\s*"acquire"[\s\S]*?status:\s*"online"/, "外壳：「公域获客」是 online");
 requireMatch(shell, /开发中/, "外壳：dev 板块渲染「开发中」文案");
 forbidMatch(shell, /badge:\s*"新"/, "外壳：移除「门店后台 · 新」徽标（与本轮口径冲突）");
 
@@ -130,12 +127,11 @@ const boardsMatch = brainHome.match(/const BOARDS:[^=]*=\s*\[([\s\S]*?)\n\];/);
 record("总览：能解析出 BOARDS 数组", Boolean(boardsMatch), boardsMatch ? "已解析" : "未匹配到 BOARDS 数组");
 const boardsBody = boardsMatch ? boardsMatch[1] : "";
 const doneCount = (boardsBody.match(/done:\s*true/g) ?? []).length;
-record("总览：BOARDS 恰好 1 项 done=true", doneCount === 1, `done=${doneCount}`);
-requireMatch(
-  boardsBody,
-  /key:\s*"moments"[\s\S]*?done:\s*true/,
-  "总览：只有「私域营销」done=true"
-);
+record("总览：BOARDS 恰好 2 项 done=true（私域营销 + 公域获客）", doneCount === 2, `done=${doneCount}`);
+requireMatch(boardsBody, /key:\s*"moments"[\s\S]*?done:\s*true/, "总览：「私域营销」done=true");
+requireMatch(boardsBody, /key:\s*"acquire"[\s\S]*?done:\s*true/, "总览：「公域获客」done=true");
+requireMatch(brainHome, /当前已开放[\s\S]*公域获客/, "总览：公域获客已进入已开放清单");
+forbidMatch(brainHome, /公域获客[^。]*均在开发中/, "总览：公域获客不再列入开发中清单");
 forbidMatch(
   brainHome,
   /已可体验：经营驾驶舱/,
@@ -157,12 +153,8 @@ requireMatch(momentsHome, /返回板块总览/, "私域营销首页：返回链�
 // ⑦ 路由口径：默认落地私域营销；未上线板块渲染「开发中」占位
 requireMatch(main, /LANQI_MOMENTS_ONLY_LAUNCH/, "路由：存在单点开关 LANQI_MOMENTS_ONLY_LAUNCH");
 requireMatch(main, /LanqiDashboardInDevelopmentPage/, "路由：经营驾驶舱被「开发中」占位接管");
-requireMatch(main, /LanqiAcquireInDevelopmentPage/, "路由：公域获客被「开发中」占位接管");
-requireMatch(
-  main,
-  /path\.startsWith\("\/lanqi\/acquire"\)[\s\S]{0,200}LanqiAcquireInDevelopmentPage/,
-  "路由：/lanqi/acquire* 命中「开发中」占位"
-);
+requireMatch(main, /LANQI_ACQUIRE_LAUNCHED/, "路由：存在公域获客放开开关 LANQI_ACQUIRE_LAUNCHED");
+requireMatch(main, /LANQI_MOMENTS_ONLY_LAUNCH && !LANQI_ACQUIRE_LAUNCHED/, "路由：仅未放开时公域获客才命中「开发中」占位");
 forbidMatch(
   main,
   /window\.location\.replace\(getAppPath\("\/lanqi\/dashboard"\)\)/,
