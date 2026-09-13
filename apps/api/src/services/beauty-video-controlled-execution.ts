@@ -41,7 +41,7 @@ export function createControlledVideoIntegration(options:Omit<Base,"environment"
       e.BEAUTY_VIDEO_EXECUTION_AUTHORITY_KEY===e.ALIYUN_VIDEO_REPLICATION_API_KEY)throw new ReplicationError("execution_configuration_invalid",503);
     const access=injected?"local_only" as const:"provider_https" as const;
     const hosts=(e.BEAUTY_VIDEO_RESULT_HOSTS??"").split(",").map(s=>s.trim());
-    if(!hosts.length||hosts.some(h=>!/^([a-z0-9-]+\.)+oss-(cn-beijing|accelerate)\.aliyuncs\.com$/.test(h)))throw new ReplicationError("execution_result_host_required",503);
+    if(!hosts.length||hosts.some(h=>!/^(?:[a-z0-9-]+\.)*oss-cn-[a-z0-9-]+\.aliyuncs\.com$|^(?:[a-z0-9-]+\.)*oss-accelerate\.aliyuncs\.com$/.test(h)))throw new ReplicationError("execution_result_host_required",503);
     const permits=createVideoExecutionPermits(base.db,{authorityKey:e.BEAUTY_VIDEO_EXECUTION_AUTHORITY_KEY??"",access,now:base.now});
     const provider=createReplicationProvider({endpoint:e.ALIYUN_VIDEO_REPLICATION_ENDPOINT??"",apiKey:e.ALIYUN_VIDEO_REPLICATION_API_KEY!,fetch:providerFetch});
     const assets=createReplicationAssetStore({root:resultRoot,allowedResultHosts:hosts,fetch:resultFetch});

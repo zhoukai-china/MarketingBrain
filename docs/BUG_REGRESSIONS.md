@@ -1,5 +1,236 @@
 # Bug 回归台账
 
+## QA-20260913-010：爆款复刻出片真样片（首次成功）+ 三项现场连锁缺陷（P1 链路，已修 + 已上生产并验证）
+
+- 用户口径（2026-09-12）：爆款复刻出片接线（上传原视频 / 四项授权 / 报价 / 确认 / 轮询 / 下载），复用既有授权 / 暂存 / 许可 / 计费链路；首次联调上限 ¥10、一次不重试、失败即止。
+- 第一轮（09-13 上午，修复前）：confirm 必挂 `oss_transport_unknown`，三次尝试全部失败，累计花费 ¥0（从未提交供应商）。根因 ①（QA-20260913-008 同源处理）为 transport 层；修复后第 4 次提交成功，供应商受理并进入 processing。
+- 现场发现 ②：供应商结果主机区域不固定（同一账号实测 wulanchabu → hangzhou → wulanchabu/hangzhou 交替），原白名单只认 `oss-cn-beijing` / `oss-accelerate` → `artifact_host_not_approved` 且任务被判 FAILED 并退款，成片拿不到。最小修复：`beauty-provider-asset-policy.ts` 安全边界收敛为「阿里云 OSS 域名族」（`oss-cn-<region>` 任意区域 + accelerate，含子域），env `BEAUTY_VIDEO_RESULT_HOSTS` 升级为基域列表；`viral-video-replication-assets.ts` 结果主机放行同口径 + 对已放行的 OSS 地址做 http→https 升级（协议仍强制 https，不做重定向）。
+- 现场发现 ③：样本脚本在任务非终态时就删除许可/授权 → 任务变 `terminal_unknown` + 积分退款 + `/jobs` 变 503 `execution_permit_invalid`（在途成片拿不回来）。最小修复：仅终态才清理；轮询改为「列出 + `jobs/:id/refresh` 显式推进」，并允许处理 `processing` 中间态。
+- 真样片（第 4 次提交，修复后）：job `cmtzfsmry05iipoiavf5jrayp` = `succeeded` / `charged`；成片 `/tmp/lq27-sample-final4.mp4`（3.000s、h264、816×1088、15fps、451,548 B、sha256 `a623237d0caf965e7a8d7e751d08f0d12e7220ba93e601681e70f78bf918f854`），已下载到本地供老板查看。合成租户 `lq27samplemtzfskqk` 保留作审计，其余三次失败轮次的合成租户已清理。
+- 成本与价格：wan2.2-animate-mix std 按 ¥0.60/秒估算；本次 3 秒成片 ≈ ¥1.8；三次已出片任务（第 2/3/4 次）合计估算 ≈ ¥5.4，第 1 次（无人体素材被拒）¥0，均在 ¥10 以内。供应商真实账单未查询（与既往口径一致）。正式积分定价待老板按真实成本拍板；当前 600 积分为临时占位值。
+- 回归：`lanqi:video-oss-transport-smoke` 10/0（Node v20 `all:true` 形状 + 原始错误诊断）；`beauty-industry:image-asset-url-policy-p1-smoke` PASS（新增 wulanchabu / hangzhou 任意区域 + 子域 + http 升级断言）；`lanqi-video-staging-cleanup-diag-smoke` 4/0；`qa:fast` exit 0。发布：`release-20260913-lq27-oss-live-fix-prod1` + `release-20260913-lq27-result-hosts-fix-prod1`（定点源码覆盖 + 服务端单包构建 + 重启，prod `DEPLOY_OK` / health 200）。
+- 状态：已上生产并验证（2026-09-13）。残余：积分定价待老板拍板；供应商账单实付金额需后台确认；`/tmp` 被系统清理导致一次发布中断（运维侧改用 `/opt/releases` 存放发布包）。
+
+## QA-20260913-009：直播话术偶发 422（整批报废 → 违规段单独重写 + 最后一次换写法，门禁不放宽）（P1，已修 + 已上测试与生产）
+
+- 触发：2026-09-13 实测同一条输入一次成功一次 422（demo5 定位为偶发）；0911 亦曾 10 批中 1 批命中。现象：模型偶发写出「私信 / 留个」等软违规词 → 整批合规门禁拒绝 → 整份 2 小时逐字稿报废。
+- 根因：`live-service.ts` 在违规时整批回灌重写，模型把违规词换个位置再犯；重写次数用完即整批 422。
+- 修复：违规时**只重写违规段落**（已通过段落原样保留，不整批推倒）；最后一次机会追加「完全换一种写法（换句式 / 换开场 / 换举例角度）」；仍不过才 fail closed。门禁规则与权重未放宽。
+- 先红后绿：`scripts/lanqi-live-service-smoke.ts` 新增 7 条断言（只重写违规段 / 保留已通过段首版文本 / 换写法提示），修复前 3 条失败，修复后 `49 passed / 0 failed`。
+- 回归：`lanqi:acquire-smoke`（含 live-rules 58 / live-service）exit 0；`qa:fast` exit 0；同一输入真实模型探针连续 3 次全部出稿（桌面测试实例 `lanqi-test`），无 422 复发。已随 `release-20260913-lq27-oss-live-fix-prod1` 上生产（源码含「只需要重写以下段落 / 换一种写法」标记）。
+- 状态：已关闭（2026-09-13）。残余：非确定模型仍可能单批次偶发失败，但已由「段级重写 + 换写法」显著收敛，且失败仍是中文明确提示。
+
+## QA-20260913-008：爆款复刻 confirm 必挂 `oss_transport_unknown`（Node v20 自定义 lookup 形状不兼容，OSS 请求全部瞬间失败）（P1，已修 + 已上生产并验证）
+
+- 触发：LQ-27 样片第一轮三次 confirm 全部 503，审计只见统一码 `oss_transport_unknown`（quote 不碰 OSS 所以"成功"，confirm 必挂），误导为间歇性故障。
+- 根因：生产 Node v20.20.2 的 `https.request` 在 autoSelectFamily（Happy Eyeballs）下以 `options.all=true` 调用自定义 `lookup`；旧回调只回 `(address, family)` 字符串，被 Node 按数组解构 → `ERR_INVALID_IP_ADDRESS: Invalid IP address: undefined`，所有 OSS 请求 12–31ms 内失败。`beauty-video-oss-staging.ts` 又把底层错误名吞掉只留统一码，运维无法定位。
+- 修复：`createPinnedIpLookup()` 双形状兼容（`all=true` 回 `[{address,family}]`，否则回 `(address,family)`）+ 请求固定 `family:4`；`rawErrorDetail()` 把底层错误名/码/消息带进审计 detail。
+- 先红后绿：新增 `scripts/lanqi-video-oss-transport-smoke.ts` 10 项（修复前导入即失败），修复后 10/0，已挂 `package.json` 的 `lanqi:video-oss-transport-smoke` 与 `qa:lanqi-foundation`。
+- 回归与验证：`qa:fast` exit 0；修复后生产 confirm 成功、供应商受理任务（提交 1 次）；服务器 HTTPS 变体探针（Node v20.20.2）证明修复前 3/3 失败、修复后 3/3 403→200-链路正常。
+- 状态：已关闭（2026-09-13）。
+## QA-20260913-007：视频复盘 chat 页浏览器 Title 通用 + 页内标题重复段（P2，PLAT-25B，已修 + 已回归，未发布）
+
+- 触发：WorkBuddy《OSv2 视频复盘 agent QA 报告》（2026-09-12 07:24）P2 第 5/6 条：chat 深链页 `<title>` 全是「思潼AI 行业智能体平台」；页内标题「视频复盘 · 视频复盘智能体」两段重复。
+- 根因：`MarketplaceAgentChatPage` 未设置 `document.title`（沿用 index.html 默认），页内标题直接拼 `flow.name · runSku.name`。
+- 修复（纯前端 `apps/web/src/pages/MarketplaceApp.tsx`）：新增 `document.title` effect——`智能体名 · 专区名`（ipzone→「视频复盘智能体 · 创始人IP专区」、meiye→「美业视频复盘智能体 · 美业专区」）；页内标题改用 `runSku?.name ?? flow.name ?? "智能体"` + 可选 `industry.title`，去掉重复段。
+- 回归（先红后绿）：
+  - 新增离线契约 `scripts/vidrev-chat-title-contract-smoke.mjs`（6 断言，含 meiye 欢迎语顺序守护）并挂进 `qa:fast`；`pnpm qa:fast` **exit 0**（含全仓 typecheck）。
+  - 带登录真实浏览器 `marketplace-vidrev-browser-e2e`（`MP_E2E_RUN_CHAT=false`，零模型）：本地两 SKU 页内/浏览器标题正确且互为不同，控制台 0 错误。
+  - 匿名探针 `vidrev-chat-anonymous-probe` 本地 4 视口 **PASS**（匿名登录闸门无回归）。
+- 发布：已上线（2026-09-13，20260913-zd5-storefront-ux，测试+生产 DEPLOY_OK + VERIFY_OK，含 PLAT-25B 标题与货架三项 UI 口径）。
+
+
+## QA-20260913-006：旧版「9 轮经营诊断」页会在有登录态时顶掉任意流程页（用户要求清除，已下线）
+
+- 触发：用户 2026-09-13 截图报障「清除掉这个旧页面」，并给出复现路径：**复制已登录网址 → 新开标签页打开 → 显示未登录 → 点登录 → 落到这个旧诊断页**（地址栏停在 `/os-v2/login`，页面是「免费经营体检 / 单项快速诊断 / IP诊断 / 第1轮 共9轮」）。
+- 根因（状态机残留分支，`apps/web/src/main.tsx` 的 AppFlow 初始化）：`token && diagnosisDone ? "main" : token ? "diagnosis" : "login"` —— 只要浏览器里有 `store_os_token`、而 `store_os_diagnosis_done` 不是 `"true"`，**走 AppFlow 的任意地址都会被渲染成旧诊断页，与 URL 无关**；而每次登录又会把 `store_os_diagnosis_done` 写回 `"false"`（LoginPage ×3、WeChatCallback ×1、main.tsx ×1），所以会被反复触发。叠加会话探针在探测失败时保留旧 token，就出现用户看到的「新标签页显示未登录 → 点登录 → 旧诊断页」。
+- 取证（生产真实浏览器，修复前）：注入 `store_os_token` + `store_os_diagnosis_done=false` 打开流程页 → 页面文本命中「免费经营体检 / 单项快速诊断 / IP诊断 / 第1轮 / 共9轮 / 诊断和报告永久免费，不扣积分、不占会员额度」——与用户截图逐字一致（**红灯**）。
+- 最小修复：① 删除 AppFlow 的 `stage === "diagnosis"` 渲染分支，初始化改为「有 token 直接进主界面」；② `/diagnosis` 与 `/d/` 老链接**统一重定向到 `/agents`**；③ 删除 `FlywheelDiagnosisApp` 引用、`handleReDiagnosis` 与 5 处「写回 false」；④ **刻意不加**「`/login` + 本地 token 就弹回货架」的保险——那会复活 QA-20260910-018 登录死循环（`product-login-entry-smoke` 有专门反向断言，我第一版保险写法被它拦下后已撤掉）。
+- 回归（先红后绿）：红灯①＝生产真实浏览器命中旧诊断页文字；红灯②＝`platform:route-contract-smoke`（旧口径要求 `/diagnosis` 渲染 `FlywheelDiagnosisApp`）与 `product-login-entry-smoke`（禁止只凭 token 弹回）各红 1 条；绿灯＝route-contract 口径改为「旧诊断已下线：`/diagnosis`、`/d/` 必须重定向货架，且 main.tsx 不得再出现 `<FlywheelDiagnosisApp />` / `stage === "diagnosis"` / `setStage("diagnosis")`」→ **101 passed / 0 failed**，`product-login-entry-smoke` PASS，`qa:fast` exit 0；生产复测同一脚本 → 旧页文字 **false**、`/diagnosis` 最终落在 `/agents`。
+- 发布：`release-20260913-remove-legacy-diagnosis-full.tar.gz`（sha256 `003ae33b2d6aa57c61f76708c5ce2efbe16aa38f3f7de9f4ba095949fb724273`，1492 文件），生产 + 测试 `DEPLOY_OK` + `VERIFY_OK`。
+- 已知边界：`FlywheelDiagnosisApp.tsx` / `GrowthFlywheelHome.tsx` / `DiagnosisView.tsx` / `GrowthWorkbenchView.tsx` / main.tsx 的 `DiagnosisAwareApp` 已确认**无任何调用点**（不可达残留代码）；物理删除属独立破坏性动作，需单独任务 + 0 引用证据，本批未删。
+
+## QA-20260913-005：兰琪私域两页断网直出英文 `Failed to fetch`（P2，已修 + 已回归 + 两环境已上线）
+
+- 来源：WorkBuddy《兰琪私域营销内测验收报告》（2026-09-13，测试实例）。15 项验收中 14 项通过，**唯一不通过 #9「失败 / 超时 / 断网」**。
+- 复核结论：**成立，真 Bug**。输入保留是正确行为（无需改）；但前端把 `fetch` 抛出的 `TypeError: Failed to fetch` 原文直接渲染给门店，且报错态没有可见重试入口。朋友圈页（`LanqiMomentsPage`）与微信群页（`LanqiMomentsWechatGroupPage`）同源。
+- 根因：`catch` 里写成 `setError(e instanceof Error ? e.message : "生成失败")` —— 网络异常的 `message` 就是英文原文；错误块只有一行文案、没有按钮。
+- 先红后绿：新增 `scripts/lanqi-moments-error-copy-smoke.mjs`（修复前模块缺失 `EXIT=1`；修复后 **11/0**）：网络异常 / Safari `Load failed` / 超时中断 → 中文人话 + 重试指引；未知英文错误必须有中文兜底（不外泄英文）；已有中文业务提示（如合规门禁）原样保留；两页都必须使用统一人话化且报错态带 `data-lanqi-retry` 重试按钮。
+- 最小修复：新增 `apps/web/src/lib/humanize-error.ts`（`humanizeAsyncError`：网络/超时 → 中文 + 「点『🔄 重新生成』再试一次，刚才填的内容不会丢」；其余英文兜底中文；中文业务提示原样保留）；两页 `catch` 改用它；两页报错块加 `role="alert"` + 「🔄 重新生成」按钮（`data-lanqi-retry`）；朋友圈「AI 配图」失败也走同一函数。
+- 回归：`lanqi:moments-error-copy-smoke` **11/0**（已挂进 `qa:lanqi-foundation`）；`lanqi:test-instance-acceptance` **12/0**；`@baolu/web` typecheck 通过；两环境产物均含新文案，产物中不再出现该英文串。
+- 上线：发布包 `release-20260913-qa1301-moments-error-full.tar.gz`，发布 id `20260913-qa1301-moments-error-test1` / `-prod1`，两环境 `DEPLOY_OK` + health/ready 200。
+- 待复跑：WorkBuddy 用 acc-run.js 第 9 项（拦截请求模拟断网）确认「中文人话提示 + 重试入口」出现。#15 租户隔离建议在生产双真人微信账号下复验（报告已注明）。
+
+## QA-20260913-003：手机微信里打开充值页只出二维码，用户自己扫不了（P0 收款可用性，已修 + 已实测）
+
+- 触发：用户 2026-09-13 真机反馈「**手机端付不了款，二维码无法识别**，截图给微信也不支持付款（微信弹『该商户暂时不支持通过长按识别二维码完成支付』），只能网页端出二维码、再用手机扫」。
+- 根因：`RechargePage` 的预下单**写死** `tradeType: "native"`（只生成 Native 二维码）。Native 码的设计前提是「另一个设备来扫」，用户用同一部手机付款时既扫不了自己的屏幕，微信也不允许长按识别。服务端其实早就支持 JSAPI 分支（`tradeType=jsapi` → `createWechatJsapiPrepay` → 返回 `payParams`），只是前端从没走过。
+- 最小修复（纯前端）：`apps/web/src/pages/RechargePage.tsx` 增加 `isWechatInAppBrowser()` 与 `invokeWechatJsapiPay()`（等 `WeixinJSBridgeReady`、调 `getBrandWCPayRequest`）：**微信内置浏览器 → JSAPI 直接拉起收银台**；电脑 / 普通手机浏览器 → 仍走二维码；JSAPI 拉不起（例如账号没有 openid / 桥不存在）时回落到二维码并给出明确文案，不让流程卡死。
+- 验证（生产真实接口 + 真实微信 UA 的真实浏览器）：
+  - 接口侧：用用户真实账号下单后 `tradeType=jsapi` → 200，返回完整收银台参数 `appId / nonceStr / package / paySign / signType / timeStamp`（随后删单，残留 0）；
+  - 前端侧：把浏览器 UA 覆盖成微信（MicroMessenger/8.0.74）打开 `/recharge` 点充值 → 实际发出的请求体是 **`{"tradeType":"jsapi"}`**（修复前是 native）；headless 环境没有微信 JSBridge，于是按设计显示「微信收银台没有正常拉起，请重试/换电脑」——真机上会直接弹出收银台。
+  - 契约：`auth:product-login-smoke` 新增 4 条断言（识别微信浏览器 / 请求 jsapi / 真调 WeixinJSBridge / 保留 native 兜底）；`qa:fast` exit 0。
+- 发布：包 `release-20260913-mobile-pay-referral-fix-full.tar.gz`（9526550 B，sha256 `e62f7a24367d0eb573e0f14f5460bd8a8c2c5049abf69cbf3fd2e1c32fee3425`，1488 文件），生产 + 测试 `DEPLOY_OK` + `VERIFY_OK`；线上 `RechargePage-*.js` 内已含 `getBrandWCPayRequest`。
+- 已知边界：微信**外部**浏览器（Safari/Chrome）打开时仍是二维码——这是微信支付 Native 的限制，产品上应引导用户「在微信里打开」；后续可评估 H5 支付（`mweb`）。
+- **真人验证通过（用户本人，2026-09-13）**：用户在手机微信内打开充值页 → **直接弹出微信收银台、无需扫码** → 完成 ¥50 支付；订单 `cmtz4trww05dqxtez2ncm61yc` `paid` 于 09:25:31，钱包入账 +1000（余额 1950）。本条 P0 可关闭。
+
+## QA-20260913-002：带推荐码注册，码在「货架→登录」这一跳丢了，归因没落库（P2 归因准确性，已修 + 已回归 + 已上线）
+
+- 触发：用户 2026-09-13 用链接 A（`?ref=ref-mxow3bifnsv5`）完成真机注册（新用户 `cmtz3atc9…` + 工作区「杨萋萋」），但 `ReferralBinding` 为 0、码计数为 0。
+- 定位（先证明服务端没问题）：用真实浏览器 + 生产接口跑完整 E2E（带 `?ref=` 打开登录页 → 注入合法 onboarding token → 填品牌名 → 提交）→ **归因成功落库**（推荐人 `cmtvilv2a…`、`source=platform_onboarding`、码计数 +1，测试数据随后清理）。所以服务端与「带码提交」链路是好的。
+- 根因（nginx 访问日志逐跳取证）：
+  - `08:42:23 GET /os-v2/login?ref=ref-mxow3bifnsv5` ← 带码打开；
+  - `08:42:30 GET /os-v2/login`（referer=`/os-v2/agents`）← **用户在货架点「登录」，这一跳丢掉了 `?ref=`**；
+  - `08:42:36 GET /os-v2/wechat-callback?...&state=<纯 uuid>` ← 微信 state 里也不带码；
+  - `08:42:37 GET /os-v2/login` ← 补资料页无码 → 提交时手上没有码 → 服务端 `state="none"` → 不写归因（符合「无码注册照常」契约）。
+  - 即：码只活在 URL + 浏览器存储里，**任何一跳丢 query/存储就没有兜底载体**。
+- 最小修复（2 处，前端）：
+  1. **把码塞进微信 `state`**（`<uuid>|<ref>`，微信原样回传）：`LoginPage` 发起授权时写入，`WeChatCallback` 回调时从 state 还原并重新种回存储——即使 URL/存储都丢了也能找回；
+  2. **所有「去登录」跳转自动带码**：新增 `lib/pending-referral.ts#loginPathWithPendingReferral()`，货架未登录点击、退出后重登等入口统一使用。
+- 回归：`auth:product-login-smoke` 新增 4 条断言（state 带码 / 回调还原 / 站内跳转带码）→ PASS；包与 QA-20260913-003 同批发布（`release-20260913-mobile-pay-referral-fix-*`）。
+- 残留（待用户决定）：用户 19:52（实际 08:42）那次注册**没有归因行**。两条路：① 用修好的链接再注册一个新号（证据最干净）；② 用户批准后按证据人工补录该条归因（metadata 标注 backfill；活动窗尚未开始，不产生奖励）。
+
+## QA-20260913-004：「不满意重做」被当成薅羊毛通道（规则缺口，待用户拍板口径）
+
+- 触发：用户 2026-09-13 反馈「明明满意，但点击不满意重做，相当于花了一次钱收到两份文案，如何避免这种薅羊毛」。
+- 现状（用户账号真实流水为证）：`-40 consume ipzone__copy`（08:49:51）后紧跟一条 **`0 redo ipzone__copy`**（08:51:20）——规则是「每笔付费交付可**免费重做一次**」（`sitong-wallet.recordRedo`：同一 requestId 只允许 1 条 redo 流水），因此**付一次钱可以拿到两份成品**，且当前实现不会作废第一份。
+- 判断：这不是代码 bug，是**规则设计**留出的口子。修复要动「按结果付费」的对客承诺，属于计费口径，需用户拍板（候选项见 `docs/CURRENT_DEPLOYMENT_STATUS.md` 同日段落：A 重做替换原稿 / B 重做须选问题类型 / C 重做打折收费 / D 月度免费重做上限；建议 A+B，必要时叠加 D）。
+- **用户 2026-09-13 拍板：先保留「不满意可重做」，以后再取消该功能**。因此本批**不改**重做规则（现状：每笔付费交付可免费重做 1 次）；四个候选口径保留在本条与部署状态文档里，等用户后续指令再实施。
+
+## QA-20260913-001：微信支付预下单不可用（`/etc/baolu-secrets` 目录权限被改成 700，服务读不到商户私钥）（P0 收款链路，已修 + 已实测）
+
+- 触发：2026-09-13 上午做「今天给用户发链接：注册 → 充值 → 用智能体」的放行体检时，用生产接口实测充值链路：`POST /billing/orders`（pack_50）**200 正常建单**，但紧接着 `POST /billing/orders/:id/wechat-prepay` 返回 **502 `wechat_pay_prepay_failed`** → **用户拿不到支付二维码，今天根本充不了值**。
+- 取证（生产日志原文，含上游栈）：
+  - `EACCES: permission denied, open '/etc/baolu-secrets/wechatpay_apiclient_key.pem'`
+  - `at readPemValue (…/services/wechat-pay.js) ← getWechatPayPrivateKey ← buildWechatPayAuthorization ← createWechatNativePrepay ← routes/billing.js`
+  - `ls -ld /etc/baolu-secrets` → **`drwx------ root root`（mtime 2026-09-12 18:56）**；而服务是 `User=admin` / `Group=admin`（systemd 单元确认），密钥文件本身是 `-rw------- admin admin`（内容与权限都没问题）。
+- 根因：**目录**权限在 2026-09-12 18:56 被改成 `700 root:root`（此前是 `755 root:root`）。systemd 以 root 读 `EnvironmentFile` 不受影响，所以服务照常启动、`/ready` 与 `/ops/wechat-pay-check` 都显示「配置齐全」——**只有运行时真正去读 PEM 文件的支付路径会 EACCES**，属于典型的「配置齐全但运行时不可用」静默故障。
+- 影响面：2026-09-12 18:56 起所有充值（credit_pack / subscription / project 包）都无法发起支付；无用户资金损失（预下单就失败，没人付得了钱）。**注意**：昨天那笔「真实 ¥1 付款成功但没入账」是**另一回事**——那是通道验证用的合成订单（`pay-verify-channel-tenant`，`userId` 为空、`creditPackCode` 为空），本来就不满足入账条件（`billing-effects` 要求 `credit_pack` 订单必须有 userId + pack code），不是本次故障，也不是用户路径。
+- 修复（运维动作，无代码改动）：`chown root:admin /etc/baolu-secrets && chmod 750 /etc/baolu-secrets`（**比原来的 755 更严**：其他用户既不能读也不能列目录；服务用户 admin 可读）。修复后以服务用户身份实测两个 PEM 均可读。
+- 回归与实测（修复后，生产）：
+  - `POST /billing/orders`（pack_50）→ 200，`credits=1000 / amountCny=50`；
+  - `POST /billing/orders/:id/wechat-prepay` → **200，返回真实 `weixin://wxpay/bizpayurl?p…`**（可扫码支付）；
+  - 0 积分调用智能体 → **402 `insufficient_credits`**（`balance:0 required:40 rechargeUrl:/recharge…`，失败关闭、不报 500）；
+  - 付款入账链路：`pnpm.cmd billing:paid-order-wallet-smoke` → **PASS**（paid 订单进用户钱包 paid/bonus 双桶）；
+  - 合成验收数据按 id 精确清理，残留 0/0/0。
+- 建议的加固（未做，待用户拍板）：`/ops/wechat-pay-check` 目前只校验 env 键是否齐全，**校验不到运行时读不到 PEM 这类故障**；建议加一条「以服务身份实际读取私钥/平台公钥成功」的运行时探测，并把 `WECHAT_PAY_REQUIRED` 置 true 让 `/ready` 在支付不可用时直接红灯。
+
+## QA-20260912-021：平台登录页「完成注册」表单的输入框是深底深字，品牌名看不清（P2 可读性，已修 + 已回归 + 已上测试实例与生产）
+
+- 触发：用户 2026-09-12 真机用链接 A 注册时反馈「填了品牌名，**字体太浅 看不清**」（微信内打开 `/os-v2/login?ref=…` 的「完成注册，开通你的工作区」表单）。
+- 取证（真实浏览器 + `prefers-color-scheme` 两种取值，注入一个未过期的 onboarding token 让表单出现）：`getComputedStyle` 实测
+  - 输入文字 `rgb(18, 32, 58)`（= `--text` 亮色主题的深蓝 `#12203A`）
+  - 输入框底色 `rgba(9, 13, 20, 0.8)`（近黑，**硬编码、不随主题变**）
+  - 对比度 ≈ **1.23:1**（WCAG AA 要求 ≥4.5:1）→ 深底深字，几乎不可见。
+- 根因：登录卡是固定深色底，而 `.loginForm input` 的颜色取主题变量 `--text`；亮色主题下 `--text` 变成深蓝，于是「深色卡片 + 深色文字」。这与 QA-20260912-015（产品入口浅底卡片上的深字）是同一类问题的另一半：**卡片底色固定，文字颜色却跟着主题走**。
+- 最小修复（`apps/web/src/styles/store-growth.css`，只加一段作用域规则）：`.loginPage:not(.productLoginPage) .loginForm input/select/textarea` 固定 `background: rgba(9,13,20,.8)` + `color: #f2f2f4` + `-webkit-text-fill-color: #f2f2f4`（防微信/安卓强制深色模式改色）；placeholder `#9aa4b2`；标签 `#c9d2e0`。产品入口的浅底规则（QA-015）在上方且更具体，不受影响。
+- 回归：修复后同探针实测文字 `rgb(242,242,244)` / 底色 `rgba(9,13,20,.8)` → 对比度 ≈ **15:1**，标签 ≈ 11:1，placeholder ≈ 7:1；本地与生产一致。`pnpm.cmd auth:product-login-smoke` 新增 3 条断言（浅字颜色 / `-webkit-text-fill-color` / 标签颜色）→ PASS；`qa:fast` exit 0。
+- 发布：包 `release-20260912-plat31-referral-carry-contrast-full.tar.gz`（9516529 B，sha256 `445b40caf59279c9b4b38af139571e1d8a7168a6f673e185c8982a0514c8ef78`，1487 文件），生产 + 测试 `DEPLOY_OK` + `VERIFY_OK`。
+- 已知边界：只覆盖非产品登录页；兰琪/美业等产品入口走各自的浅底规则（QA-015），本次未动。
+
+## QA-20260912-022：带推荐码的注册成功了，归因却没落库——推荐码在微信授权往返里丢了（P1 推荐链路，已修 + 已回归 + 已上测试实例与生产）
+
+- 触发：用户 2026-09-12 19:52 用链接 A 完成真机注册（**服务端两步都 200**：`/auth/wechat-login` 550ms、`/auth/onboarding/create-workspace` 98ms），库里也确实新建了用户（204→205）与工作区「蓝册」（211→212），但 `ReferralBinding` 仍是 **0 行**、推荐码 `usedCount` 仍是 **0**。
+- 定位（先证明服务端是对的，再查前端）：在**生产**用同一套接口复现——造一个合成用户 + 合法的 onboarding token，POST `/auth/onboarding/create-workspace` 带 `referralCode=ref-mxow3bifnsv5` → 返回 `referral.state = "bound"`、归因行落库、计数 +1（随后按 id 清理，残留 0）。**因此服务端归因是好的，问题在前端没把码带过去。**
+- 根因：旧实现只把推荐码存在 `sessionStorage`，而这条链路上有两处会丢它：① 微信授权往返（部分机型/webview 会换上下文）；② 回调后 `window.location.replace("/login")` **丢掉了 URL 上的 `?ref=`**，此时若存储已丢就再没有第二来源。于是提交时 `referralCode` 为空 → 服务端 `state="none"` → 不写归因（也符合「无码注册照常」的契约）。
+- 最小修复（前端 3 个文件，不动服务端）：新增 `apps/web/src/lib/pending-referral.ts` —— 推荐码同时写 `sessionStorage` 与 `localStorage`（带 24h 时间戳），读取时 session 优先、local 兜底、过期自动清；`WeChatCallback` 与 `LoginPage`（扫码中转）在「新用户补资料」回跳时**在 URL 上继续带 `ref=`**（与既有的 `invite=` 并列）；注册成功后统一清码。
+- 回归：`pnpm.cmd auth:product-login-smoke` 新增 4 条断言（必须用双保险模块 / 两条回跳路径都带 `ref=`）→ PASS（同时把既有的「邀请码必须带回」断言改成兼容 `invite=` + `ref=` 的写法，意图不变）；真实浏览器探针新增「推荐码双保险」4 项：打开 `/login?ref=…` 后 sessionStorage 与 localStorage **都必须有该码**、提示可见、控制台 0 错误 → 本地与生产 **17/17 PASS**；`qa:fast` exit 0。
+- 残留（需要用户决定，已如实登记）：用户 19:52 那次真实注册（用户 `cmtybsqmv…`、工作区「蓝册」）**没有归因行**，因为当时的码没带上。两条路：① 用另一个还没有工作区的微信重测一次（修复后已上线，这是最干净的证据）；② 由用户批准后，我按证据人工补录这条归因（`metadata` 标注 backfill，且因活动窗尚未开始，不产生任何奖励）。
+## QA-20260912-019：货架「输出参考案例」与两个智能体的真实交付契约不符（P2 误导性展示，已修 + 已回归 + 已上测试实例与生产）
+
+- 触发：用户 2026-09-12 截图报障「**文案智能体的输出样例不对 / 视频复盘的输出样例不对**」（货架详情页「输出参考案例 · 不消耗积分」弹层）。
+- 现象：弹层里的样例是 2026-09-10 之前从 WorkBuddy 原型 BENCH_HTML 搬过来的静态文案（`apps/web/src/marketplace/reference-cases.ts`），老板看到的交付物与智能体真正交付的东西不是一回事。
+- 根因与证据（逐条对真实契约，不是主观判断）：
+  - **文案智能体**（`ipzone__copy` → capability `content_plan` → 内容创作 V5）：真实契约是**分级交付** —— 只要一条文案就给「标题 + 正文 + 话题（多平台适配）」，要脚本/拍摄/投流/执行包就给**内容十件套**（`packages/skills/skills/baolu_content_creator/prompt.md` 第 143 行固定十栏顺序：一、选题策划；二、口播逐字稿；三、访谈话术；四、拍摄脚本；五、拍摄注意事项；六、剪辑EDL；七、发布标题与话题；八、最佳发布时间；九、评论区引导话术；十、投流建议）。旧样例标题写「**1 条抖音口播文案 · 可直发**」，只有钩子/正文/结尾动作/话题标签 4 行 —— 既没有多平台适配、也没有十件套、也没有标题。
+  - **视频复盘智能体**（`ipzone__vidrev` → capability `video_data_review`）：真实契约是**两种模式同价** —— 🚀 快速诊断（判定 + 3–5 条要点 + **恰好 1 条立即动作** + 边界说明「补齐数据升级为完整报告不重复扣费」）／📊 深度复盘（**第零章数据质量审计 + 十章**：数据总览／视频分层／内容结构健康度／单条深拆／完播率深层归因／互动深度分析／趋势预警／规律总结／方法论沉淀／选题建议，见 `apps/api/src/services/video-review-engine.ts` 的 `CHAPTER_LABELS`）；输入还必须先给模式／平台／统计周期／后台数据表。旧样例标题写「单条视频复盘 · 含下一条动作」，只有数据/归因/下一条动作 3 行，模式、章节、输入要求全都没有。
+  - 连带影响：老板按样例判断「一次使用买到什么」，会得出比真实交付**更小**的预期；同时也看不出两个智能体真正的差异（快速诊断 vs 深度复盘）。
+- 最小修复（只改静态案例文案，不动提示词、不动扣费、不动路由）：重写 `REFERENCE_CASES.copy` 与 `REFERENCE_CASES.vidrev`，按上述权威契约呈现「分级交付 / 两种模式」，并保留脱敏中性（不出现行业词，符合 `marketplace:reference-case-neutral-smoke` 的通用样例规则）。
+- 回归（先红后绿）：
+  - **红灯（生产真实浏览器，修复前）**：新增 `scripts/tmp/plat28-sample-probe.mjs`（打开 `/agents/ipzone__copy` 与 `/agents/ipzone__vidrev`，点开参考案例弹层，断言「线上用户真正看到的那段文字」）→ **4 passed / 4 failed**：文案页缺「内容十件套/选题策划/访谈话术/拍摄脚本/剪辑EDL/投流建议/视频号/小红书」，且仍渲染旧标题「1 条抖音口播文案 · 可直发」；视频复盘页缺「快速诊断/深度复盘/数据质量审计/视频分层/完播率深层归因/方法论沉淀/选题建议/不重复扣费」，仍渲染旧标题「单条视频复盘 · 含下一条动作」。
+  - **绿灯（本地干净实例）** → **8 passed / 0 failed**；**绿灯（生产重发后）** → **8 passed / 0 failed**（两个弹层、控制台 0 错误，截图 `%TEMP%\plat28-samples-*\copy-modal.png` / `vidrev-modal.png`）。
+  - 行业词守护：`pnpm.cmd marketplace:reference-case-neutral-smoke` → PASS（通用内核 9 个）；`pnpm.cmd qa:fast` → exit 0。
+- 发布（2026-09-12）：包 `release-20260912-plat28d-sample-fix-full.tar.gz`（9467268 B，sha256 `10c631c5bf2596e272c8a1cdab4da15a5c2f9f86a64704a5baafcfd82d824e0e`，1479 文件）。生产 `/opt/baolu-os-v2` + 测试 `/opt/baolu-os-v2-test` 均 `DEPLOY_OK` + `VERIFY_OK`；发布后线上 entry `index-DE0Qu9i7.js` → `MarketplaceApp-gklPuVgX.js` 内含「内容十件套」「数据质量审计」。
+- 已知边界：弹层仍是**静态样例**（不调模型、不消耗积分），它只能承诺「交付物的结构与形态」，真实内容仍由智能体按输入推导；本批不做「用真实运行结果做样例」的动态方案（那会引入模型调用与计费口径问题）。
+- **第二轮修正（用户 2026-09-12 晚）**：用户看到第一版（结构清单 + 节选）后明确「**输出样例就是完整的输出样例，不是概况**」。已把两条样例改成完整交付物全文：文案 = 品牌信息 + **十栏全部展开**（口播逐字稿可照读、5 镜号拍摄表、剪辑 EDL 规范、标题话题、评论话术、投流三方案 + 日历 + 待确认项，见新增 `apps/web/src/marketplace/content-ten-full-case.ts`）；视频复盘 = **一份真实深度复盘报告全文**（零章 + 十章，含全部表格与口径，见新增 `apps/web/src/marketplace/vidrev-full-case.ts`）。验证：探针扩到 **13 项**（含两样例全部栏目 + 老账号提示），本地与生产均 **13/13 PASS**；`marketplace:reference-case-neutral-smoke` PASS；发布包 `release-20260912-plat29b-full-samples-full.tar.gz`（sha256 `4bec7366…`）两侧 `DEPLOY_OK` + `VERIFY_OK`。
+
+## QA-20260912-020：老账号带推荐码登录时页面无任何说明，用户以为「推荐坏了」（P2 认知缺口，已修 + 已回归 + 已上测试实例与生产）
+
+- 触发：用户 2026-09-12 晚连续用两个已有工作区的微信号点推荐链接，都直接进了旧工作区、后台 `ReferralBinding` 一直 0 行；用户两次问「后台怎么什么都没有」，并明确要求「老账号带着推荐码登录时，页面给一句『你已有工作区，推荐关系只在被推荐人首次开通时建立』」。
+- 根因：被推荐人只有**首次开通工作区**（`onboarding/create-workspace` / `beta-login` 的建租户路径）才会落 `ReferralBinding`；已有工作区的账号由 `resolveWechatLogin` 直接放行登录，页面**什么都不说**——功能正确、认知为零，每次都要靠后台日志解释。
+- 最小修复（前端 4 个文件，不动归因与扣费）：新增 `apps/web/src/lib/referral-notice.ts`（sessionStorage 一次性标记）；`LoginPage`（扫码中转成功 + 表单提交成功两条路径）与 `WeChatCallback`（微信内授权成功）在「带着推荐码但本次没有产生归因」时打标；货架落地页 `MarketplaceHomePage` 顶部显示可关闭提示；登录页推荐码说明同步改为「**只有首次开通工作区的新账号**才会登记推荐关系」。
+- 回归：`pnpm.cmd auth:product-login-smoke` 新增 6 条断言（静态说明 / 两条登录路径打标 / 独立 key / 落地页文案 / 可关闭）→ PASS；`scripts/tmp/plat28-sample-probe.mjs` 新增 5 项真实浏览器断言（提示可见 → 点「知道了」→ 提示消失且标记清除 → 控制台 0 错误），本地与生产 **13/13 PASS**；`qa:fast` exit 0。
+- 发布：同 `release-20260912-plat29b-full-samples-full.tar.gz`（两侧 `DEPLOY_OK` + `VERIFY_OK`）。
+- 关联数据操作（同一轮，用户指令）：生产 17 个历史微信绑定已按用户要求清空（备份 + 回滚 SQL 见 `docs/agents/platform-tasks.md` PLAT-28 卡「三条指令」段），以便用新微信做真机注册验收。
+
+## QA-20260912-018：手机上残留的过期微信授权，把登录页锁死在「完成注册」并连撞 7 次 401（P1 真机阻塞，已修 + 已回归 + 已上测试实例与生产）
+
+- 触发：用户 2026-09-12 18:25 按 PLAT-28 第①批的推荐链接做**真机注册验收**，截图反馈：页面停在「完成注册，开通你的工作区」，企业/品牌名称填了「蓝测」，点「再试一次」只得到一行红色 `invalid_onboarding_token`，进不去。
+- 现场取证（生产只读，`journalctl -u baolu-os-v2`）：
+  - 18:24:52–18:25:20 之间 `POST /auth/onboarding/create-workspace` **7 次全部 401**；
+  - **当天 0 次** `/auth/wechat-login` / `wechat-bridge/complete` —— 这次点按根本没走微信授权，是页面自己进入了「补资料」形态。
+- 根因（现象与根因分开）：
+  - 现象：登录页变成「完成注册」表单，`微信一键登录 / 注册` 按钮被藏起来；提交永远失败；页面把**错误码**当文案显示给老板。
+  - 根因：登录页只判断 `localStorage["store_os_onboarding_token"]` **有没有值**，不校验它是否过期。手机微信 WebView 里残留着更早一次授权留下的 token → `finishingSignup=true` → 隐藏登录入口、渲染补资料表单；而该 token（服务端 `createOnboardingToken`，**30 分钟有效**）早已过期 → 每次提交都被 `verifyOnboardingToken` 拒绝，返回 401 `invalid_onboarding_token`（且该响应只有错误码、没有 message）。
+  - 连带影响：`再试一次` 只是重发同一个死令牌，永远失败；唯一出口是文案很小的「不是这个微信号？重新授权」。任何在这台设备上做过一次微信授权、隔天再来注册的用户都会撞上，不是个例。
+- 最小修复（前端 2 处 + 服务端 1 处，不动注册/归因逻辑）：
+  - `LoginPage.tsx` 新增 `readUsableOnboardingToken()`：解析 JWT 的 `exp`（只用于前端体验判断，真伪仍由服务端验签），**过期/损坏当场清掉**并把登录入口还给用户；
+  - 过期提示用独立 sessionStorage 标记（`onboardingExpiredNoticeKey`）承载，而不是塞进 `useState` 初始化函数的返回值——React StrictMode 会双调用初始化函数，写在里面提示会丢（本地 dev 实测踩到，已改成幂等标记）；
+  - 服务端拒绝死令牌时（401 `invalid_onboarding_token`）前端清本地 + 恢复登录入口 + 提示「上次的微信授权已过期（30 分钟有效），请点下面「微信一键登录 / 注册」重新授权」；
+  - `auth.ts` 的 401 补中文 message，不再把错误码当文案。
+- 回归（先红后绿）：
+  - **红灯（生产真实浏览器，修复前）**：新增 `scripts/tmp/plat28-stale-onboarding-probe.mjs`（注入一个结构合法但 exp=1 的 token）打 `https://api.lcppch.top/os-v2/login?ref=…` → **1 passed / 4 failed**：`formShown=true`、微信入口不可见、token 未清、无过期提示——与老板截图完全一致。
+  - 红灯（源码契约，对 `git show HEAD:` 的修复前文件跑同一组断言）→ 5 条**全 FAIL**。
+  - **绿灯（干净实例真实浏览器）**：同一探针打本地非免登录实例（`VITE_DIRECT_TEST_LOGIN=false`，5176）→ **5 passed / 0 failed**。
+  - **绿灯（生产真实浏览器，重发后）**：探针 → **5 passed / 0 failed**；带推荐码登录页探针 → **12 passed / 0 failed**（桌面 1440 + 移动 390、控制台 0 错误）；生产 API 复核 **6 PASS / 0 FAIL**（匿名 401、人工发放 403 `trial_grant_disabled`、配置位 10 项、过期授权 401 文案可读）。
+  - 契约 smoke：`pnpm.cmd auth:product-login-smoke` 新增 6 条断言（必须校验 exp、过期即清、服务端拒绝后恢复入口、独立标记、401 带 message）→ PASS；`pnpm.cmd qa:fast` / `pnpm.cmd qa:full` PASS。
+- 发布（2026-09-12）：包 `release-20260912-plat28c-merged-fix-full.tar.gz`（9437321 B，sha256 `2d95769e5c82aee1f5807b7611e23b47cc77d3d04d937bf8b0632d1910c48e0e`，1474 文件）。**本修复是在一次并发发布覆盖事故之后重发才上线的**（事故与处置见 `docs/CURRENT_DEPLOYMENT_STATUS.md`「20260912-plat28c-merged-fix」段与 PLAT-28 任务卡）。
+- 已知边界：过期只做「一次清掉 + 提示重新授权」，不做自动重放授权（微信授权必须由用户手势触发）；onboarding token 的 30 分钟有效期不变（它是能创建租户的凭据，不为此延长）。
+
+## QA-20260912-017：爆款复刻「没有真实检索源」——按用户口径接通抖音 + 视频号（能力接通，含失败关闭回归）
+
+- 触发：用户 2026-09-12 拍板「**爆款复刻的检索源 = 抖音和视频号两个平台**」+「**开闸跑**」，并明确「**爆款复刻暂时只在兰琪去用**」。此前该功能一直登记为「设计内 fail-closed，待用户决定检索源」（见下方 WorkBuddy 公域获客报告复核表 #5）。
+- 先做的只读可行性核验（生产服务器实测，不写任何数据）：
+  - `https://www.douyin.com/search/<kw>` → HTTP 200 但 body 是 73KB 空壳（`<body></body>`），无任何 `/video/`、`/note/` 链接；
+  - 抖音站内搜索 API（未签名）→ 返回 7 字节 `blocked`；`/aweme/v1/web/hot/search/list/` → 0 字节；
+  - `https://www.iesdouyin.com/web/api/v2/aweme/iteminfo/` 与 `/aweme/v1/web/aweme/detail/` → 各 0 字节（需签名与登录态）；
+  - `v.douyin.com/<短链>` → 只回一段混淆 JS；`channels.weixin.qq.com/platform/search` → 登录墙 SPA；
+  - 结论：**没有签名与登录态就拿不到抖音 / 视频号站内条目**，硬做只能靠伪造数据，因此不做服务端爬虫。
+- 采用的真实通路：走**公开网页检索的来源页清单**（阿里云百炼 `enable_search` 的 `output.search_info.search_results`），
+  只取 `title / url / site / snippet`，**完全不使用模型生成的自然语言结论**，再经规则层只保留平台域内可点开页面。
+  抖音侧检索词固定为 `抖音 <关键词> <行业词> 爆款视频 site:douyin.com/video`（实测有效条目 3→5 条），微信侧 `site:mp.weixin.qq.com <关键词> <行业词> 视频号`。
+- 红/绿证据：
+  - 红：`scripts/lanqi-viral-search-contract-smoke.ts` 先于实现建立（模块不存在 → transform 失败，`EXIT=1`）。
+  - 绿：实现后同一命令 **55 passed / 0 failed**；`apps/api` / `apps/web` typecheck 各 `EXIT=0`；
+    `pnpm.cmd lanqi:acquire-ui-contract-smoke` **53/0**（含新增 7 条视频页契约）。
+- 真实链路实测（用生产同一把凭据、跑真实服务代码，非 mock）：关键词「皮肤管理门店获客」+ 领域皮肤管理 →
+  `platform=dy` 3 条（全部 `https://www.douyin.com/note/...`）、`platform=sph` 6 条（全部 `https://mp.weixin.qq.com/s?...`）、
+  `platform=all` 6 条合并（抖音在前）；无第三方站点、无播放量/点赞等编造字段。
+- 失败关闭回归（全部覆盖在冒烟里）：检索源未配置 → `viral_search_unavailable`(503)；两个平台都失败 → `viral_search_upstream_failed`(502)；
+  上游只回第三方站点 → 空数组 + 「这次没有检索到可点开的抖音 / 视频号公开页面」；空关键词 → 400；条目里永远没有热度推算字段。
+- 租户与边界：路由 `POST /lanqi/acquire/video/viral-search` 复用公域获客同一套门店隔离与 RBAC（每次请求重算 Membership + `assertStoreVisible`），
+  单店角色无法检索别家门店；路由**只在兰琪作用域注册**（用户口径「暂时只在兰琪用」），美业单品 `/beauty-industry` 侧无此路由；一期不扣费、不写流水、不落库。
+- 处置：**能力接通并放行**（测试实例 + 生产，检索驱动由默认 `disabled` 显式改为 `aliyun_web_search`）。
+
+## QA-20260912-016：人工体验额度发放入口没有总开关（P0 资损风险面，已按用户口径默认停用 + 已回归 + 已上测试实例与生产）
+
+- 触发：用户 2026-09-12 拍板推荐有礼三批，要求第①批先「**关闭人工发放入口** + 推荐归因 + 配置位后台可读写」，并明确「统一改为**默认停用**（配置开关控制，历史流水一条不删）」。
+- 现场（修复前，本地真实库 HTTP 回归）：`pnpm.cmd marketplace:trial-grant-admin-smoke` **PASS**，其中一条断言就是「平台运维凭证 + 运营角色 → `POST /market/admin/trial-grants` 返回 **200 `state=created`**、bonus 桶 +400」。也就是说：只要拿到平台令牌，人工就能不限次数地往任何一个客户钱包里发积分，**没有任何总开关**，推荐有礼上线前后的口径切换只能靠人记住。
+- 根因与现象分开：
+  - 现象：人工发放入口始终可用。
+  - 根因：PLAT-11 只做了「鉴权 (ADMIN_TOKEN + role) + 单笔上限 800 + 幂等 grant-id」三道约束，**没有运行期开关**；`env.ts` 也没有对应变量，无法通过配置在新活动上线前收口。
+  - 连带影响：推荐有礼第②批会开始往同一批用户钱包发 bonus 积分，两个发放入口同时开放时，「活动前收口、活动后按规则发」这条边界无法被系统保证。
+- 最小修复（默认停用 + 可放行 + 流水不删）：
+  - `env.ts` 新增 `MARKETPLACE_TRIAL_GRANT_ENABLED`（默认 `false`）。
+  - `POST /market/admin/trial-grants` 鉴权后先查开关（后台 `PlatformSetting` 覆盖值优先）：关闭时 **403 `trial_grant_disabled`**、零写入；`GET` 只读列表保持可用。
+  - 后台 `/agents/admin` 停用时**不渲染发放表单**并写明停用原因与放行入口；运维 CLI `scripts/grant-marketplace-trial-credits.mjs` 关闭时打印原因并 **EXIT=2**。
+- 回归（先红后绿）：
+  - 红灯：新增 `scripts/referral-attribution-smoke.ts` 放到**修复前 HEAD** 的临时 git worktree 上跑 → **16 passed / 34 failed**，头三条即「停用后人工发放返回 403」实测 `status=200 body={"grant":{"state":"created",…}}`、「停用错误码 trial_grant_disabled」缺失、「停用后零写入」不成立。
+  - 绿灯：修复后同脚本 → **59 passed / 0 failed**；`pnpm.cmd marketplace:trial-grant-admin-smoke`（已改为先验证默认停用、再用后台开关放行跑原契约）→ **PASS**；CLI 实测 **EXIT=2** 零写入；`pnpm.cmd qa:fast` / `pnpm.cmd qa:full` PASS。
+  - 页面：`scripts/tmp/plat28-admin-ui-check.ts`（真实 Chrome，本地 dev）→ **16 passed / 0 failed**：停用态无发放表单、10 个配置开关渲染、真写一次落库且回显「已被后台改为当前值」、桌面 1440 与移动 390 控制台 0 错误、无横向溢出。
+- 残余风险（明确登记，不伪装成已修）：开关一旦被后台打开，PLAT-11 那套鉴权/上限/幂等仍是唯一护栏，本批不引入审批流或第二人复核；若后续要「发超过 N 积分必须双人确认」，另开任务卡。
+- 回滚：把 `MARKETPLACE_TRIAL_GRANT_ENABLED` 保持 `false` 即回到本批状态；要恢复旧行为，在后台把「人工体验额度发放」打开（一次点击、有操作人留痕），无需回滚代码。
+- 发布（2026-09-12）：包 `release-20260912-plat28b-refcode-alnum-full.tar.gz`（9431218 B，sha256 `59d76e808d88869089ce5b6649dfb6efdafd7f698f42dd43642811f255e9b382`，1474 文件）。测试 `/opt/baolu-os-v2-test`（`20260912-plat28b-refcode-alnum`）+ 生产 `/opt/baolu-os-v2`（同包）均 `DEPLOY_OK` + `VERIFY_OK`；生产功能核查 38 PASS / 0 FAIL（含 403 停用、10 配置位、带码注册归因、无码/无效码、零奖励、CLI 退出码 2、清理后残留 0）；生产登录页带推荐码链接真实浏览器 12 PASS / 0 FAIL。备份 `/opt/baolu-backups/20260912-plat28b-refcode-alnum-before-baolu-os-v2{,-test}/`。
+
 ## QA-20260912-013：兰琪入口「先填邀请码再扫码」，扫码成功后邀请码被丢掉，老板卡在「还是要邀请码」进不去（P1，已修 + 已上测试实例与生产）
 
 - 触发：用户 2026-09-12 反馈「已扫码 但是需要邀请码 还是登入不了」。
@@ -44,6 +275,30 @@
 - 发布（2026-09-12）：包 `release-20260912-lq24-moments-needs-regen-full.tar.gz`（**9353793 B**，sha256 `671423ad9029ca4962d508b993f6a651783de1679722af924083565609cf372a`，1462 文件，服务器实测一致）。测试实例 `20260912-lq24-needs-regen-test1` + 生产 `20260912-lq24-needs-regen-prod1`，两侧 `DEPLOY_OK`（`health=200 (after 15s)` / `ready=200`，48 迁移无待应用）+ `VERIFY_OK`。备份 `/opt/baolu-backups/20260912-lq24-needs-regen-{test1,prod1}-before-*`。
 - 刻意不做：报告建议里的「多版本切换」标注为可选，且涉及额外模型调用与计价口径，留待单独决策；P3「其他板块显示开发中」按用户口径保留（不是缺陷）。
 - 回滚：还原 `/opt/baolu-backups/<本轮发布 id>-before-<app>/` 并 `systemctl restart`；或只回滚这两个页面文件重发包（无接口 / 无迁移 / 无数据变更）。
+
+## QA-20260912-012：微信支付回调验签失败，客户付了钱订单却永远停在 pending（P0，已修 + 已用真实 ¥1 付款验证）
+
+- 触发：用户 2026-09-12 要求做真实收款验证，并真实支付 ¥1（订单 `cmtxxmlpp00016kiqp07agv24`，`codeUrl` 由生产 `createWechatNativePrepay` 真实生成）。
+- 现象（用户侧）：微信扣款成功，但后台订单一直 `pending`、`paidAt` 为空；微信每 15 秒重试回调，连续 4 次全部 500（13:17:02 / :17:17 / :17:32 / :18:03）。
+- 根因（两层，现象不是原因）：
+  1. **配置层**：`WECHAT_PAY_PLATFORM_PUBLIC_KEY` 在 `/etc/baolu-secrets/baolu-os-v2.env` 里写成「单行 + 字面 `\n`」。systemd 读 `EnvironmentFile=` 时会吃掉反斜杠——**运行进程里实际拿到的是 `-----BEGIN PUBLIC KEY-----nMII…`（450 字符、单行，反斜杠和换行都没了）**。
+  2. **代码层**：`verifyWechatPaySignature()` 直接把它交给 `createVerify().verify(publicKey, …)`，Node/OpenSSL 抛 `error:1E08010C:DECODER routines::unsupported` → 回调 500 → 微信重试 → 订单永不结算。该错误只在**真的有人付款**时才会暴露。
+- 取证（只读、可重放）：
+  - 运行进程 env 结构：`{"length":450,"hasRealNewline":false,"hasEscaped":false,"first":"-----BEGIN PUBLIC KEY-----nMII"}`（`/proc/<MainPID>/environ`）。
+  - 同一份 env 文件用 bash `. file` 读出来是 458 字符且含 `\\n`；`normalizePem()` 能修这种，但修不了 systemd 已经吃掉反斜杠的形态。
+  - 合法 PEM 走 `createVerify().verify()` 不抛错；畸形单行值必抛 `DECODER routines::unsupported`。
+- 最小修复（配置层，不动业务逻辑）：公钥落成文件 + env 指向它——`/etc/baolu-secrets/wechatpay_platform_public_key.pem`（用 `printf '%b\n'` 把 `\n` 还原成真实换行；`chown admin:admin`、`chmod 600`），env 增加 `WECHAT_PAY_PLATFORM_PUBLIC_KEY_FILE=<该文件>`（代码本就支持 `_FILE` 且优先于内联值）。env 备份 `/opt/baolu-backups/env-wechatpay-pubkey-20260912-131914/baolu-os-v2.env.before`。
+- 验证（真实付款闭环）：
+  - 修复前：4 次回调全 `500` + `DECODER routines::unsupported`。
+  - 修复后（13:19:14 重启）：微信下一次重试 **13:21:03** 验签通过、响应 **200**、订单转 `paid`（`paidAt=2026-09-12 05:21:03.591Z`）。
+  - 账目正确：该验证租户 `CreditTransaction` **0 条**——这单是「非标准档验证单」（`creditPackCode=null`），按设计不发放积分，避免「付 ¥1 拿 1000 积分」的错账；无误发、无重复。
+  - 同轮扫描 env：除该公钥外**没有其它含字面 `\n` 的变量**（其它 PEM 早已走 `_FILE`）。
+- 防复发：
+  - 代码：`wechat-pay.ts` 新增导出 `assertParsablePublicKey()`，**使用前**先 `createPublicKey()` 解析；失败即抛 `WechatPayNotConfiguredError`，并在「单行、看不到换行」时写明根因（systemd 吃反斜杠）与修法（改用 `WECHAT_PAY_PLATFORM_PUBLIC_KEY_FILE`），不再把 OpenSSL 的隐晦错误留到客户付款之后。
+  - 契约：新增 `scripts/wechat-pay-public-key-contract-smoke.ts`（`pnpm.cmd platform:wechat-pay-public-key-contract-smoke`，8 条断言，已挂 `qa:fast`）：合法 PEM 原样通过；畸形单行值必须报「不是合法 PEM」+ 指向 `_FILE` + 提到 systemd；纯垃圾值也必须报「不是合法 PEM」。
+- 处置工具（新增）：`scripts/pay-verify-create-order.ts`（手动生成非标准档 ¥1 验证单；注释里写明「支付成功不发放积分」的口径）。
+- 教训：**真实付款链路必须在第一个真实客户之前至少跑一次真的付款**；配置类缺陷不会出现在类型检查、单测或 mock 支付里。PEM 类密钥一律走 `_FILE`，不要以「单行 + `\n`」写进 systemd 的 `EnvironmentFile`。
+- 状态：**已修 + 已用真实 ¥1 付款端到端验证 + 防复发契约已挂门禁**（配置修复已在生产生效，无需再发包；代码守卫随下一次发布上线）。
 
 ## QA-20260912-011：视频复盘 chat 页匿名用户白填 4 步才撞 401，且提示用户点一个页面上不存在的登录按钮（P1，已修 + 已回归 + 已上测试实例与生产）
 
@@ -328,7 +583,7 @@
 | 2 | 直播表单预填「美肌研 · 创始人晓曼」等示例门店 | P1 | **成立，真 Bug**：默认 `value` 即示例数据，老板不逐行清空就会生成别人家门店的逐字稿；失败后还回填示例。 | **已修**：5 个输入默认空 + 示例改 placeholder + 新增「填入示例」按钮 |
 | 3 | `/my-ai` 加载 10–15 秒 | P1 | 成立（体验）。页面只有一句「正在加载…」。 | **未修**（本轮不扩范围），登记为残留 |
 | 4 | 文案改稿首屏等待 20–30 秒 | P1 | 部分成立：`LanqiAcquireCopywriterPage.tsx` 已有 `LOADING_TEXTS` 轮播进度文案，「无进度提示」不准确；但等待确实偏长。 | **未修**，登记为残留 |
-| 5 | 爆款复刻「暂未接通真实爆款检索」 | P2 | **设计内 fail-closed**（不做假数据），非缺陷。 | 不改；待用户决定检索源 |
+| 5 | 爆款复刻「暂未接通真实爆款检索」 | P2 | 当时是**设计内 fail-closed**（不做假数据），非缺陷。 | **2026-09-12 用户拍板检索源 = 抖音 + 视频号并「开闸跑」，已接通并上测试实例与生产**：见 QA-20260912-017 与任务卡 `LQ-25-爆款复刻真实检索源接通.md` |
 | 6 | 门店素材成片 / AI 剪辑「出片服务暂未开通」 | P2 | **设计内 fail-closed**（minimax 未首充，`VIDEO_RENDERING_READY` 未配置）。 | 不改 |
 | 7 | 案例中心「开发中」占位 | P2 | 占位页，测试环境符合预期。 | 不改；正式上线前补内容 |
 | 8 | 顾问快捷问题标点 `没空拍视频，怎么持续获客）` | P3 | **成立，真 Bug**（错用右括号）。 | **已修**：改「？」 |

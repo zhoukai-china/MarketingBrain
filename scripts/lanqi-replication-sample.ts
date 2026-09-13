@@ -198,7 +198,7 @@ async function main() {
   if (!jobId) throw new Error("任务未创建成功");
   log("任务已创建", { jobId, status: confirmed.job?.status });
 
-  // ── ⑥ 轮询 ──
+  // ── ⑥ 轮询（列出 + 显式刷新推进供应商轮询；非终态继续） ──
   let finalStatus = "unknown";
   for (let attempt = 0; attempt < 60; attempt += 1) {
     await new Promise(resolve => setTimeout(resolve, 6000));
@@ -206,7 +206,11 @@ async function main() {
     const found = (list.jobs ?? []).find(item => item.id === jobId);
     finalStatus = String(found?.status ?? "unknown");
     log(`轮询 ${attempt + 1}`, finalStatus);
-    if (["succeeded", "failed", "cancelled"].includes(finalStatus)) break;
+    if (["succeeded", "failed", "cancelled", "terminal_unknown"].includes(finalStatus)) break;
+    if (found) {
+      try { await api(`/viral-video-replication/jobs/${jobId}/refresh`, { method: "POST", token }); }
+      catch (error) { log(`refresh 失败（不阻断）`, error instanceof Error ? error.message : String(error)); }
+    }
   }
 
   // ── ⑦ 取成片 ──
@@ -221,11 +225,19 @@ async function main() {
   }
 
   // ── ⑧ 清理付费侧痕迹（保留租户与任务作审计） ──
-  await prisma.beautyVideoExecutionPermit.deleteMany({ where: { id: permitId } });
-  if (lease) await prisma.beautyVideoStagingLease.deleteMany({ where: { id: lease.id } });
-  await prisma.beautyVideoAssetAuthorization.deleteMany({ where: { tenantId } });
-  log("清理完成", { deletedPermit: permitId, deletedLease: lease?.id ?? null, keptTenant: tenantId });
-  console.log(`\nRESULT ${JSON.stringify({ tenantId, jobId, finalStatus, out: finalStatus === "succeeded" ? OUT_PATH : null })}`);
+  // 现场教训（2026-09-13）：非终态就删 permit/授权，任务会变成 terminal_unknown 且 /jobs 变 503
+  // （execution_permit_invalid），在途/已出的成片拿不回来。只有观察到终态才清理；
+  // 轮询超时仍非终态时保留全部记录，等下一次确认终态后再清。
+  const terminal = ["succeeded", "failed", "cancelled", "terminal_unknown"].includes(finalStatus);
+  if (terminal) {
+    await prisma.beautyVideoExecutionPermit.deleteMany({ where: { id: permitId } });
+    if (lease) await prisma.beautyVideoStagingLease.deleteMany({ where: { id: lease.id } });
+    await prisma.beautyVideoAssetAuthorization.deleteMany({ where: { tenantId } });
+    log("清理完成", { deletedPermit: permitId, deletedLease: lease?.id ?? null, keptTenant: tenantId });
+  } else {
+    log("任务仍在途，保留许可与授权以便恢复取件", { tenantId, jobId, finalStatus });
+  }
+  console.log(`\nRESULT ${JSON.stringify({ tenantId, jobId, finalStatus, permitKept: !terminal, out: finalStatus === "succeeded" ? OUT_PATH : null })}`);
   void tenant;
 }
 

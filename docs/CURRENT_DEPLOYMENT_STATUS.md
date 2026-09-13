@@ -1,15 +1,241 @@
 # 当前部署状态
 
-## ⚠️ `/my-ai` 路由 E2E 红灯（2026-09-12 开批排查中，产品疑似无问题）
+## 最新发布：20260913-lq27-acquire-board（2026-09-13，测试实例 + 生产）— 兰琪公域获客板块验收放开 + LQ-27 爆款复刻真样片链路修复
 
-- 现象：`PLATFORM_ROUTE_WEB_URL=https://api.lcppch.top/os-v2 node scripts/platform-route-browser-e2e.mjs` → `[FAIL] 保留网址 /my-ai（常用智能体工作台）仍能打开 :: len=0 兜底页=false 串产品=无 文本=`，连跑两次稳定复现；同轮「控制台无错误」PASS（0 error），其余 23 条路由全绿。同一脚本 13:0x（`plat23b-merged`）时是 24/24。
-- **诊断（本轮新证据）**：用独立探针直接打开 `https://api.lcppch.top/os-v2/my-ai`（干净 Chrome，等待 9s）→ **`finalUrl=https://api.lcppch.top/os-v2/login`**，标题正常、登录页正文正常渲染（「微信一键登录 / 注册 …」）。也就是说：**匿名访问 `/my-ai` 会被带到登录页**（该页需要会话），E2E 的 `len=0` 很可能抓的是「跳转瞬间的空 body」+ 断言本身没有把「跳转到登录页」当作合法结果。
-- 结论倾向：**产品页面大概率没问题，是这条 E2E 断言过时/时序脆弱**（E2E 用干净环境=匿名，但断言要求「仍能打开并出现正文」）。
-- 下一步（本批剩余工作）：① 用带登录态的浏览器复验 `/my-ai` 真的渲染工作台（本地 dev 会自动登录，可做对照）；② 把 `platform-route-browser-e2e` 的 `/my-ai` 断言改成「匿名→落在 /login 视为通过，登录态→必须渲染工作台」，并保留反向断言（不得落到兜底页/串产品）；③ 顺带查清 13:0x→现在之间是哪次并行发布改了它的匿名行为（`lq24`/`lq25`/`lq26`）。
+- 发布包 `release-20260913-lq27-acquire-board.tar.gz`（9,558,110 B，1495 文件；canary `marketplace-v3.json` = `1dd5b672…`，与 20260913-zd5-storefront-ux 同代同哈希）。
+- 内容：`LANQI_ACQUIRE_LAUNCHED=true` 放开 `/lanqi/acquire*`（经营驾驶舱仍按 `LANQI_MOMENTS_ONLY_LAUNCH` 占位）；直播话术偶发 422 段级重写修复；LQ-27 出片链路 OSS 传输层 / 结果主机族 / http→https / 样本清理时序修复（QA-20260913-008/009/010）。
+- 测试实例 `20260913-lq27-acquire-board-test1`：`DEPLOY_OK` + 健康 200；页面级验收 **30/0**、API 真实模型走查 **17/17**。
+- 生产 `20260913-lq27-acquire-board-prod1`：`DEPLOY_OK` + 健康 200 / ready 200；生产只读接口验收 **16/16**；线上源码含 `LANQI_ACQUIRE_LAUNCHED=true` 与三项修复标记。
+- 同日先行修复：`20260913-lq27-oss-live-fix-prod1`（OSS transport）与 `20260913-lq27-result-hosts-fix-prod1`（结果主机放宽 + env 基域，定点源码覆盖 + 服务端单包构建 + 重启；该两包不含 UI 放行，仅修复链路）。
+- 待老板拍板：爆款复刻正式积分定价（样片成本 ≈ ¥1.80/条，wan-std ¥0.60/秒；临时 600 积分仅为报价占位）。
 
-更新时间：2026-09-12（最近一次为 **PLAT-23 积分 ↔ 人民币 ↔ 成本换算口径统一（方案 A：常量自洽 + 口径文档 + 契约，合并包重发后上测试实例 + 生产）**，其下为 **PLAT-24 视频复盘 chat 页匿名登录引导（WorkBuddy QA 三条 P1）**、**PLAT-22 客户侧残留成本字段清理（剪辑台 `/clip-lab/render`）**、**PLAT-21 客户侧响应摘掉内部算力成本（货架 `modelCostCny` + 美业图片报价 `estimatedProviderCostYuan`）** 与 **PLAT-19 客户界面只显示积分、去掉「≈ ¥」人民币折算**，再往下为 **LQ-23 兰琪「文案转片」真实出片上生产 + 历史构建产物回收 + 备份保留策略落地**、**PLAT-18 历史路由清理第一、二批 + 全局兜底页修复，上测试实例 + 生产**、兰琪侧栏一级导航白字配色（LQ-22）、货架 SKU 分享链接 `/agents/<skuCode>` 修复（QA-20260911-015）、货架「我的智能体」文案改为「常用智能体」（PLAT-15）、兰琪品牌 Logo 修正 + 上线板块收口（LQ-21 / QA-20260911-014）、手机端平台页顶栏修复 + 货架「退出登录」入口（QA-20260911-012）、工作区在途改动全量发布（电脑端微信扫码登录 PLAT-13 + 视频复盘引擎 + 试用积分 + 兰琪顾问规则）、兰琪 LQ-19 顾问「来源」标签口径修复、WorkBuddy 报告核验后的 LQ-19 公域获客修复、微信登录失败路径修正、一次性验收租户回收、P0 身份头冒充修复、兰琪生产数据收尾与 LQ-19 首发布；2026-08-03 清单保留为当时状态）
+## 最新发布：20260913-zd5-storefront-ux（2026-09-13，测试实例 + 生产）— 货架三项 UI 口径 + PLAT-25B 标题体系
 
-## 最新发布：20260912-plat23b-merged-prod1（2026-09-12，生产）— 积分换算常量口径统一（方案 A），并处理一次并发发布互相覆盖
+发布包 `release-20260913-zd5-storefront-ux-full.tar.gz`（9,562,900 B，sha256 `19bdf5faaf898deac491a3bcd5cec52811a35ffd3fd850fab9d7452eb93cab05`，1495 文件；`marketplace-v3.json` 新哈希 `1dd5b672…`）。
+
+| 环境 | 目录 / 服务 / 端口 | 发布 id | 结果 |
+| --- | --- | --- | --- |
+| 测试 | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | `20260913-zd5-storefront-ux-test2` | `DEPLOY_OK`（health=200 after 18s / ready=200）+ `VERIFY_OK`（skus 19 / coming_soon 13 / lanqi_brain present / 双 vidrev selling） |
+| 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | `20260913-zd5-storefront-ux-prod1` | `DEPLOY_OK`（health=200 after 15s / ready=200）+ `VERIFY_OK` + 生产功能探针 PASS + `platform-route-browser-e2e` **24/24** + `journalctl -p err` 近 25 分钟无条目 |
+
+内容：① 智能体页去掉「按次交付」表述；② 兰琪专区→「品牌工作台」，首个产品「兰琪美业门店经营大脑」；③ 平台搜索专区级命中（搜「美业」带出美业专区并隐藏无关待上线专区）；④ PLAT-25B chat 页标题体系（浏览器 `<title>` = 智能体名 · 专区名）。发布后生产实测：搜「美业」→ 货架 `美业专区 + 品牌工作台`、卡片无「按次交付」、详情页价卡无「按次交付」、控制台 0 错误。
+
+**过程中的一次失败（磁盘满，已自动回滚，后成功）**：测试环境首次部署 `…-test1` 在 step 9 因 PostgreSQL `53100 No space left on device` 启动失败，部署脚本按设计自动回滚（服务恢复 active）；根因是部署瞬间 segment+备份把磁盘挤满（期间服务器定时任务清掉了 stage 释放空间）。处置：按库内 `scripts/tmp/server-disk-cleanup.sh` 清理 /tmp 传输产物 + 删除遗留 scratch stage `20260913-lq27-acquire-board-test1`（388M）后，`…-test2` 与 `…-prod1` 一次成功。**磁盘压力提示**：`/opt/baolu-backups` 已占 12G（30G 盘），建议后续单独任务评估备份保留策略或扩容。
+
+备份与回滚：`/opt/baolu-backups/20260913-zd5-storefront-ux-{test1,test2,prod1}-before-<app>/`（含 app-before.tar.gz、db-before.sql.gz、env、dist-hashes）；回滚＝还原对应备份目录并 `systemctl restart baolu-os-v2(-test)`（既有流程）。
+
+## 本批改动详情（已随 20260913-zd5-storefront-ux 上线，见上方发布记录）
+
+三项货架 UI 口径改动：
+
+1. **去掉「按次交付」表述**：货架卡片价签与详情页定价卡不再显示「按次交付 / 扣 N 积分 / ≈ ¥」（详情按钮只剩「直接开始」），与 PLAT-31「不前置报价」口径一致。
+2. **兰琪专区 → 品牌工作台**：`marketplace-v3.json` 的 `industries.lanqi.title` 改为「品牌工作台」，`lanqi-brain` 产品名改为「兰琪美业门店经营大脑」（品牌工作台当前唯一产品）。
+3. **平台搜索专区级命中**：搜索时空闲时不再展示无关的「待上线」专区占位；搜「美业」直接把美业专区（及其 SKU）整组带出（`zoneHits` 匹配专区名/标语/前缀）。
+
+验证：本地浏览器实测货架搜索（美业 → 美业专区 + 品牌工作台、占位专区隐藏）、详情页无「按次交付」、`marketplace:foundation-smoke` / `marketplace:api-smoke` / `marketplace:shelf-browser-e2e`（`MP_E2E_RUN_CHAT=false`）PASS、`pnpm qa:fast` exit 0。未发布未提交；发布按批次打包待总调度决策（工作树混有多个未提交批次）。
+
+
+## 最新发布：20260913-remove-legacy-diagnosis（2026-09-13，测试实例 + 生产）— 清除旧版「9 轮经营诊断」页
+
+用户 2026-09-13 报障并给出复现路径：复制已登录网址新开标签页 → 显示未登录 → 点登录 → 落到旧诊断页（Ubuntu… 地址栏停在 `/os-v2/login`，页面是「免费经营体检 / 单项快速诊断 / IP诊断 / 第1轮 共9轮」），要求清除。
+
+根因：`main.tsx` AppFlow 的残留分支 `token && diagnosisDone ? "main" : token ? "diagnosis" : "login"` —— 有 token 且 `store_os_diagnosis_done ≠ "true"` 时，**任意流程页都会被渲染成旧诊断页**；每次登录又把它写回 `"false"`，于是反复触发。
+
+修复：删掉 AppFlow 的诊断阶段（有 token 直接进主界面）；`/diagnosis`、`/d/` 老链接重定向到 `/agents`；清掉 `FlywheelDiagnosisApp` 引用、`handleReDiagnosis` 与 5 处「写回 false」。**没有**加「`/login` + token 直接弹回货架」的保险——那会复活 QA-20260910-018 登录死循环（被 `product-login-entry-smoke` 拦下后撤掉）。
+
+| 环境 | 目录 / 服务 / 端口 | 发布 id | 结果 |
+| --- | --- | --- | --- |
+| 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | `20260913-remove-legacy-diagnosis` | `DEPLOY_OK` + `VERIFY_OK` + 复现探针转绿（旧页文字 false；`/diagnosis` → `/agents`） |
+| 测试 | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | 同上 | `DEPLOY_OK` + `VERIFY_OK` |
+
+回归：`platform:route-contract-smoke` 口径改为「旧诊断已下线 + 老链接重定向 + 不得复活」→ **101 passed / 0 failed**；`product-login-entry-smoke` PASS；`qa:fast` exit 0。发布包 `release-20260913-remove-legacy-diagnosis-full.tar.gz`（sha256 `003ae33b…`，1492 文件）。缺陷登记 **QA-20260913-006**；残留的不可达旧组件（`FlywheelDiagnosisApp` 等）等物理删除的独立任务处理。
+
+**同日后续（2026-09-13 02:0x–02:1x，用户指令，无代码发布）**：
+
+- **手机支付真人验证通过**：用户在手机微信内充值 → 直接弹出微信收银台（未扫码）→ ¥50 支付成功，订单 `cmtz4trww05dqxtez2ncm61yc` `paid` 09:25:31、钱包 +1000（QA-20260913-003 可关闭）。
+- **「不满意重做」按用户口径先保留**（以后再取消该功能）：本批不改规则，四个候选口径留在 QA-20260913-004 等后续指令。
+- **第二次清理历史微信绑定**（为推荐归因真机验收铺路）：备份 `/opt/baolu-backups/20260913-wechat-identity-clear-2/`（`wechat-identity-before.csv` 2 行 + `rollback.sql`），清空后 `users_with_openid=0`；同时清掉浏览器 E2E 留下的合成归因测试数据（1 条 binding + 其租户/用户/钱包），`ReferralBinding` 回到 **0 行**、各推荐码 `usedCount` 归零。
+- **发链接前的生产自测**：用链接 B（`ref-1tckrmyfcuc5`）在同一生产链路跑通「带码注册 → 归因落库」（推荐人＝保禄ip账号、`source=platform_onboarding`），随后清理，残留 0。
+
+## 最新发布：20260913-dragdrop-outer / 20260913-no-preprice-dragdrop（2026-09-13，测试实例 + 生产）— 客户界面不再使用前报价 + 对话框支持拖拽上传（PLAT-31）
+
+用户 2026-09-13 两条口径，均已实现上线：
+
+1. **「文字类智能体每次使用都要告诉扣多少积分，感受不好」** → 去掉**使用前**的扣积分文字，只在**交付完成后**告知本次消耗。去掉：货架卡片 `N 积分/次`、详情页价格块与「用一次 · 扣 N 积分 / 开始第 1 步 · 扣 N 积分」按钮、分步每步 `N 分`、按结果付费里的「不重复扣积分」、匿名引导「每生成一次扣 N 积分」、确认气泡「约扣 N 积分」、重做用尽「会按次扣 N 积分」。保留：聊天页 `本次消耗 {cost} 积分`（交付后）、Word 导出价格与「本次导出需 N 积分」、积分不足提示、失败路径「本次未扣积分」、充值页真实金额。
+2. **「要支持文件直接拖拽进浏览器的对话框里（目前不支持）」** → 拖拽区挂在**整个对话框容器**上（多文件、拖拽提示、可移除），并新增粘贴文件；**文本类附件（txt/md/csv/tsv/json/log/srt）会真的读进需求单**（`【附件：文件名】` 拼进 `input`，2 万字上限），其它类型明确提示「暂不能自动读取，请粘贴关键内容」。
+
+| 环境 | 目录 / 服务 / 端口 | 发布 id | 结果 |
+| --- | --- | --- | --- |
+| 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | `20260913-no-preprice-dragdrop` → `20260913-dragdrop-outer` | 两次 `DEPLOY_OK` + `VERIFY_OK`；真实浏览器原生拖拽探针 **通过**（拖真实 CSV → `📎 后台数据.csv（已读取）`）；详情页前置报价断言全 false |
+| 测试 | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | 同上 | `DEPLOY_OK` + `VERIFY_OK` |
+
+契约与回归：`marketplace-credits-only-contract-smoke` 把原先「必须出现前置报价」的 4 条断言改成**反向断言**（前置报价再回来就红），并新增拖拽 5 条断言 → **24 passed / 0 failed**（先红：改代码后旧断言先红 4 条）；`qa:fast` exit 0；`@baolu/web typecheck` exit 0。发布包 `release-20260913-no-preprice-dragdrop-full.tar.gz`（sha256 `21009997…`）与 `release-20260913-dragdrop-outer-full.tar.gz`（sha256 `defaac89…`）。任务卡 `docs/agents/platform-tasks.md` **PLAT-31**。
+
+**当日支付复核（用户账号真实流水）**：`cmtz4trww…` ¥50 → `paid`（09:25:31），钱包 `1950`；两笔真实充值（08:45、09:25）与两笔扣费（文案 40、导出 Word 10）全部与流水一致。观测缺口：支付回调写 metadata 时会覆盖预下单写入的 `wechatTradeType`，**事后无法从库里区分这笔是微信内 JSAPI 还是扫码**；建议后续把回调改成 merge 而不是覆盖（未做）。
+
+## 最新发布：20260913-mobile-pay-referral-fix（2026-09-13，测试实例 + 生产）— 手机微信内支付改走 JSAPI + 推荐归因两处断点补上
+
+用户真机反馈两件事，都已修复上线：
+
+1. **手机端付不了款**（QA-20260913-003）：充值页写死 `tradeType: "native"` 只出二维码，用户无法扫自己屏幕、长按识别又被微信拒绝。修复：微信内置浏览器 → **JSAPI 直接拉起收银台**（`WeixinJSBridge.getBrandWCPayRequest`），电脑/普通浏览器 → 仍用二维码，拉不起时回落并给明确文案。生产实测（用户账号 + 真实微信 UA）：请求体已变成 `{"tradeType":"jsapi"}`，接口返回完整收银台参数（appId/nonceStr/package/paySign/signType/timeStamp）。
+2. **带推荐码注册但归因没落**（QA-20260913-002）：nginx 日志逐跳取证——`/login?ref=…` → 货架点登录 → `/login`（**query 丢弃**）→ 微信回调 state 无码 → 补资料页无码 → 提交时无码。服务端与带码链路本身正常（真实浏览器 E2E 已跑出归因）。修复：**码进微信 `state`** + **所有「去登录」跳转自动带码**（`loginPathWithPendingReferral`）。
+
+发布包 `release-20260913-mobile-pay-referral-fix-full.tar.gz`（9526550 B，sha256 `e62f7a24367d0eb573e0f14f5460bd8a8c2c5049abf69cbf3fd2e1c32fee3425`，1488 文件）。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | https://api.lcppch.top/os-v2/ | `20260913-mobile-pay-referral-fix` | `DEPLOY_OK` + `VERIFY_OK` + 真实微信 UA 探测（请求 jsapi ✓ / 收银台参数 ✓） |
+| 测试 | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | https://api.lcppch.top/lanqi-test/ | `20260913-mobile-pay-referral-fix` | `DEPLOY_OK` + `VERIFY_OK` |
+
+回归：`auth:product-login-smoke` 新增 7 条断言（jsapi / WeixinJSBridge / native 兜底 / state 带码 / 回调还原 / 站内跳转带码）；`qa:fast` exit 0。线上产物：`RechargePage-*.js` 含 `getBrandWCPayRequest`、`LoginPage-*.js` 含 state 带码、`MarketplaceApp-*.js` 含带码登录跳转。
+
+**待用户拍板：免费重做被当薅羊毛通道（QA-20260913-004）**。证据：用户账号流水 `-40 consume ipzone__copy` → `0 redo ipzone__copy`（免费第二份）。四个候选口径：
+
+| 方案 | 做法 | 代价 |
+| --- | --- | --- |
+| A 重做替换原稿 | 重做后旧交付物不可再复制/导出，只留历史快照 | 需约定"导出配额随交付走" |
+| B 重做须说明原因 | 必须勾选问题类型（可选填一句）才能重做 | 只是提高滥用成本 |
+| C 重做打折收费 | 例如 40 → 20 积分 | 弱化"不满意可重做"的原有承诺 |
+| D 月度免费重做上限 | 每账号每月 N 次，超出按 C | 规则稍复杂，但可解释 |
+
+建议 **A + B（必要时叠加 D）**：保留"不满意可重做"的承诺，同时让第二份不再是可以自由使用的额外成品。等用户选定后实现（改动集中在前端交付物操作与导出入口，以及服务端 redo 校验）。
+
+## 2026-09-13 上午：放行体检发现并修复「微信支付预下单不可用」（仅运维权限修复，无代码发布）
+
+用户当天计划：给客户发链接 → 客户自助注册 → 客户充值积分 → 用智能体（分享奖励留到之后）。放行前做了三段实测体检，注册与用智能体两段正常，**充值一段红灯**：
+
+- 现象：生产 `POST /billing/orders`（pack_50）200 建单正常，`POST /billing/orders/:id/wechat-prepay` **502 `wechat_pay_prepay_failed`**；日志根因 `EACCES: permission denied, open '/etc/baolu-secrets/wechatpay_apiclient_key.pem'`。
+- 根因：**`/etc/baolu-secrets` 目录权限在 2026-09-12 18:56 被改成 `drwx------ root root`**（此前 `755`）。服务以 `User=admin` 运行，systemd 读 EnvironmentFile 不受影响，因此 `/ready`、`/ops/wechat-pay-check` 都显示配置齐全，只有运行时读 PEM 的支付路径会失败。
+- 修复：`chown root:admin /etc/baolu-secrets && chmod 750 /etc/baolu-secrets`（比原 755 更严；服务用户可读，其他用户不可读不可列）。修复后实测：预下单 **200 + 真实 `weixin://wxpay/bizpayurl?p…`**；0 积分用智能体 **402 `insufficient_credits`**（含充值引导）；`billing:paid-order-wallet-smoke` **PASS**（付款进用户钱包 paid/bonus 双桶）；合成验收数据清理后残留 0。
+- 顺带查清历史疑点：2026-09-12 「真实 ¥1 付款后未入账」的那单是**通道验证用合成订单**（`pay-verify-channel-tenant`，无 userId、无 creditPackCode），不满足入账条件（`credit_pack` 入账要求 userId + pack code），与本次故障无关（详见 `docs/BUG_REGRESSIONS.md` QA-20260913-001）。
+- 待用户拍板：给 `/ops/wechat-pay-check` 增加「运行时实际读取私钥/平台公钥」探测，并把 `WECHAT_PAY_REQUIRED=true`（让支付不可用时 `/ready` 直接红灯）。
+
+当日放行结论（发放链接前）：**可发**；在售 SKU 6 个（创始人IP专区与美业专区各自的 IP定位 200 / 文案 40 / 视频复盘 60），其余 13 个仍标「开发中」；人工发体验额度默认停用（需要送积分要先在 `/agents/admin` 打开该开关）；推荐有礼只落归因、不发奖（第②批未上线）。
+
+**当日真人端到端验收（生产，用户本人账号，2026-09-13 08:42–08:49）**：
+
+| 步骤 | 证据 |
+| --- | --- |
+| 注册 | 新用户 `cmtz3atc905bl9axxjymwezyr`（08:42:37）+ 新工作区「杨萋萋」（08:42:46），`/auth/wechat-login` 与 `/auth/onboarding/create-workspace` 均 200 |
+| 充值 | 订单 `cmtz3eguh05dc9axxu3v842ei`（pack_50 / ¥50 / 1000 积分）→ `paid` 08:45:40；`POST /billing/wechat/notify` 正常处理 |
+| 入账 | 用户钱包 paid 桶 **+1000**，流水 `type=recharge, bucket=paid`（08:45:40） |
+| 用智能体 | `POST /market/skus/ipzone__copy/run` 08:49:40 → 扣 **40** 积分，流水 `type=consume, skill=ipzone__copy`；余额 **1000 → 960** |
+| 健康 | 近 10 分钟 `journalctl -p err` **无条目**；服务 active、`/health` 与 `/ready` 均 200 |
+
+结论：**注册 → 充值 → 入账 → 用智能体扣费 全链路在真实微信 + 真实付款下跑通**，可以开始给客户发链接。注意：用户本轮先后建了两张 ¥50 订单，第一张 `cmtz3chz105d59axxnzlm2n8y` 未付款（仍 pending，会自动过期，无需处理）。
+
+## ✅ `/my-ai` 路由 E2E 红灯已关闭（2026-09-13 总调度5，产品无问题、测试脚本修复）
+
+- 结论：**产品行为正常**——匿名访问 `/my-ai` 被带到登录页（该页需要会话）是预期；红灯是测试脚本「断言过时 + 采集时序脆弱」。
+- 根因：E2E 用干净环境（=匿名）访问受保护页，客户端路由先闪过中间态再 `replace` 到 `/login`；旧 `openPath` 等首屏有字后固定只观察 1.2 秒，正好落在「旧 DOM 卸载、新文档还没渲染」的空窗，抓到空 body 报成 `len=0`；且旧断言没把「落到登录页」当作合法结果。
+- 修复（`scripts/platform-route-browser-e2e.mjs`，与其余平台批次同在未提交工作树）：① `openPath` 改为等到终态页面渲染出正文（最多 15 秒）再快照，不再抓跳转空窗；② 登录判据放宽为「`pathname` 以 `/login` 结尾」或页面出现「微信一键登录」即视为通过，保留反向断言（不得是兜底页、不得串产品、控制台 0 error）。
+- 验证（2026-09-13，总调度5）：
+  - 生产匿名：`PLATFORM_ROUTE_WEB_URL=https://api.lcppch.top/os-v2` → **24 passed / 0 failed**；`/my-ai` 明细「匿名 → 落在登录页（该页需会话，属预期）」，控制台 0 error。
+  - 本地登录态（`VITE_DIRECT_TEST_LOGIN=true` + 本地 API 3011 + vite 5174）：**24 passed / 0 failed**；`/my-ai` `render_len=143`（真实渲染工作台）、`/agents/clipper` `pathname=/agents/clipper`（登录态不落登录页），控制台 0 error。
+- 历史定位（原第③步）：git 历史显示 `/my-ai` 的登录守卫在 4054f59（LQ-23，09-12 10:06）的父提交里就已存在，早于 13:0x 全绿那次运行——**没有哪次并行发布改变匿名行为**，13:0x 全绿只是当时抓到了中间态文本；6f0e2e5（同日 15:48 登录过渡页 1.5s 兜底）改变的是登录页过渡时序，不是产品回归。
+
+更新时间：2026-09-13（最近一次为 **总调度5：`/my-ai` 路由 E2E 红灯收口**；其下为 **PLAT-31**、**QA-20260913-001~006 系列**、**2026-09-12 的 PLAT-28/29 推荐有礼与样例系列**）
+
+## 最新发布：20260912-plat31-referral-carry-contrast（2026-09-12，测试实例 + 生产）— 推荐码跨授权往返不再丢 + 平台登录页输入框可读性修复
+
+用户 2026-09-12 真机反馈两件事，都已修复上线：
+
+1. **「填了品牌名，字体太浅 看不清」**（QA-20260912-021）：平台登录页「完成注册」表单实测为「深底深字」——输入文字 `rgb(18,32,58)`（亮色主题的 `--text` 深蓝）落在近黑底色 `rgba(9,13,20,.8)` 上，对比度 **1.23:1**（要求 ≥4.5:1）。修复：`.loginPage:not(.productLoginPage) .loginForm` 固定深底浅字（`#f2f2f4`）+ `-webkit-text-fill-color`（防微信/安卓强制深色模式改色）+ placeholder/标签提对比度。修复后实测文字对比度 ≈ **15:1**、标签 ≈ 11:1、placeholder ≈ 7:1。
+2. **「带推荐码注册成功但归因没落」**（QA-20260912-022）：老板 19:52 真机注册成功（用户 204→205、工作区「蓝册」211→212），但 `ReferralBinding` 为 0。**先在生产复现证明服务端是对的**：合成用户 + 合法 onboarding token 走 `/auth/onboarding/create-workspace` 带码 → `state=bound`、归因落库（随后按 id 清理，残留 0）。根因在前端：推荐码只存 `sessionStorage`，微信授权往返 + 回调 `replace("/login")` 丢 `?ref=` 两件事叠加后码就没了。修复：新增 `lib/pending-referral.ts`（session + local 双写，24h TTL），两条补资料回跳路径的 URL 继续带 `ref=`；注册成功后清码。
+
+发布包 `release-20260912-plat31-referral-carry-contrast-full.tar.gz`（9516529 B，sha256 `445b40caf59279c9b4b38af139571e1d8a7168a6f673e185c8982a0514c8ef78`，1487 文件）。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | https://api.lcppch.top/os-v2/ | `20260912-plat31-referral-carry-contrast` | `DEPLOY_OK` + `VERIFY_OK` + 对比度实测 **15:1** + 样例/提示/推荐码探针 **17/17 PASS** |
+| 测试 | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | https://api.lcppch.top/lanqi-test/ | `20260912-plat31-referral-carry-contrast` | `DEPLOY_OK` + `VERIFY_OK` |
+
+回归：`auth:product-login-smoke` 新增 7 条断言（输入框浅字 / `-webkit-text-fill-color` / 标签颜色 / 双保险模块 / 两条回跳带 `ref=`）→ PASS；真实浏览器探针扩到 **17 项**（两个完整样例 10+11 栏目、老账号提示、推荐码双保险 session+local）→ 本地与生产**均 0 failed**；`qa:fast` exit 0。文档：缺陷 **QA-20260912-021 / 022**；任务卡 PLAT-29 第二轮与 PLAT-30（新增「发布后删自己的 stage」条目）。
+
+**同轮磁盘处置（重要）**：发布后 `/` 到 **97%（968M 可用）**。在确认**无部署进程在跑**后，清理了 `/opt/baolu-stage/*` 全部历史构建暂存（**5.0G → 4.0K**，可从包重建，不是回滚资产），`/opt/baolu-backups` 9.1G **原样未动**；清理后磁盘 **79%（5.9G 可用）**，两侧服务仍 active、health 200。这也是 PLAT-30 新增第 5 条（发布成功后自动删自己的 stage）的直接依据。
+
+**待用户决定（未执行）**：老板 19:52 那次真实注册（工作区「蓝册」）没有归因行。① 用另一个尚无工作区的微信重测（修复已上线，证据最干净）；② 用户批准后按证据人工补录该条归因（metadata 标注 backfill；活动窗尚未开始，不产生奖励）。
+
+## 上一轮：20260912-plat29b-full-samples（2026-09-12，测试实例 + 生产）— 输出参考案例改成**完整交付物全文** + 老账号带推荐码提示
+
+用户 2026-09-12 晚两条口径：①「**输出样例就是完整的输出样例，不是概况**」；②「老账号带着推荐码登录时，页面给一句『你已有工作区，推荐关系只在被推荐人首次开通时建立』——**加**」。
+
+改动（均在 `apps/web`，不动提示词 / 扣费 / 路由 / 模型）：
+
+- 新增 `marketplace/content-ten-full-case.ts`：文案智能体样例＝**内容十件套十栏全部展开**（选题策划 / 口播逐字稿（可照读全文，含 0–3 秒钩子分段）/ 访谈话术 3 组 / 拍摄脚本 5 镜号表 + B-roll + 构图 / 拍摄注意事项 / 剪辑 EDL（时间线 + 字幕 + BGM + 转场）/ 发布标题与话题 / 最佳发布时间 / 评论区引导话术 / 投流建议三方案 + 日历 + 待确认项）。
+- 新增 `marketplace/vidrev-full-case.ts`：视频复盘样例＝**一份真实深度复盘报告全文**（零、数据质量审计 → 一、数据总览 → 二、视频分层 → 三、内容结构健康度 → 四、单条深拆 TOP3+BOTTOM3 → 五、完播率深层归因 → 六、互动深度分析 → 七、趋势预警 → 八、规律总结 → 九、方法论沉淀 → 十、下个周期选题建议），含全部表格与口径。
+- 新增 `lib/referral-notice.ts` + `LoginPage` / `WeChatCallback` 打标 + 货架落地页可关闭提示：老账号带推荐码登录时明确告知「已有工作区不产生推荐关系」；登录页推荐码说明改为「只有首次开通工作区的新账号才会登记推荐关系」。
+
+发布包 `release-20260912-plat29b-full-samples-full.tar.gz`（9502545 B，sha256 `4bec73662546c257045564d8daa1f165eb8e41a6da128d2aaa0ca44eff24b1c6`，1485 文件）。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | https://api.lcppch.top/os-v2/ | `20260912-plat29b-full-samples` | `DEPLOY_OK` + `VERIFY_OK` + 样例/提示探针 **13/13 PASS** |
+| 测试 | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | https://api.lcppch.top/lanqi-test/ | `20260912-plat29b-full-samples` | `DEPLOY_OK` + `VERIFY_OK` |
+
+验证：`scripts/tmp/plat28-sample-probe.mjs` 扩到 13 项（文案十栏 + 视频复盘十一章 + 老账号提示可见/可关闭/标记清除），本地与生产**均 13 passed / 0 failed**，控制台 0 错误，截图 `%TEMP%\plat28-samples-*\copy-modal.png` / `vidrev-modal.png`；`marketplace:reference-case-neutral-smoke` PASS（完整样例仍不含行业词，中途因样例出现「到店率」被守护拦下一次后已改词）；`auth:product-login-smoke` 新增 6 条断言 PASS；`qa:fast` exit 0。发布后标记核查（两侧一致）：PLAT-28 三项 + 完整样例两项 + 老账号提示 + LQ-25 + LQ-30 + PLAT-23 + 微信支付验签**全部在线**。缺陷登记 `docs/BUG_REGRESSIONS.md` **QA-20260912-019（第二轮）** 与 **QA-20260912-020**；回滚 `/opt/baolu-backups/20260912-plat29b-full-samples-before-baolu-os-v2{,-test}/`。
+
+**同轮生产数据操作（用户指令，非代码）**：清空 17 个历史微信绑定（`User.wechatOpenid` / `wechatUnionid`），以便用户用新微信完成推荐有礼真机注册验收。备份与回滚：`/opt/baolu-backups/20260912-wechat-identity-clear/`（CSV 17 行 + `rollback.sql`）；用户/租户/会员（204 / 211 / 211）未改动，归因表仍 0 行、推荐码 1 活跃。另为用户补发第二张推荐码 `ref-1tckrmyfcuc5`（码主＝保禄ip 账号），避免用户所用微信正好是原码码主而触发自荐拒绝。
+
+## 上一轮：20260912-plat28d-sample-fix（2026-09-12，测试实例 + 生产）— 货架「输出参考案例」与真实交付契约对齐（PLAT-29）+ 补带 LQ-25
+
+用户 2026-09-12 晚截图报障「**文案智能体的输出样例不对 / 视频复盘的输出样例不对**」（货架详情页「输出参考案例 · 不消耗积分」弹层）。逐条对权威契约后确认是**交付物结构层面**的不符，不是文案风格问题：
+
+- 文案（`ipzone__copy` → `content_plan`）：旧样例是「1 条抖音口播文案（钩子/正文/结尾动作/话题标签）」，真实契约是**分级交付** —— 只要一条文案给「标题+正文+话题（多平台适配）」，要执行包给**内容十件套**（选题策划→口播逐字稿→访谈话术→拍摄脚本→拍摄注意事项→剪辑EDL→发布标题与话题→最佳发布时间→评论区引导话术→投流建议）。
+- 视频复盘（`ipzone__vidrev` → `video_data_review`）：旧样例只有「数据/归因/下一条动作」3 行，真实契约是**两种模式同价** —— 快速诊断（判定+3–5 条要点+恰好 1 条立即动作+「补齐数据升级不重复扣费」边界说明）／深度复盘（**第零章数据质量审计 + 十章**，`CHAPTER_LABELS` 权威定义）。
+
+改动仅限 `apps/web/src/marketplace/reference-cases.ts` 两条静态样例（不动提示词、不动扣费、不动路由、不调模型）。发布包 `release-20260912-plat28d-sample-fix-full.tar.gz`（9467268 B，sha256 `10c631c5bf2596e272c8a1cdab4da15a5c2f9f86a64704a5baafcfd82d824e0e`，1479 文件）。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | https://api.lcppch.top/os-v2/ | `20260912-plat28d-sample-fix` | `DEPLOY_OK` + `VERIFY_OK` + 样例探针 **8/8 PASS** + 过期授权探针 **5/5** + 带码登录页探针 **12/12** |
+| 测试 | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | https://api.lcppch.top/lanqi-test/ | `20260912-plat28d-sample-fix` | `DEPLOY_OK` + `VERIFY_OK` |
+
+回归证据：新增 `scripts/tmp/plat28-sample-probe.mjs`（打开 `/agents/ipzone__copy`、`/agents/ipzone__vidrev`，点开弹层断言**线上用户真正看到的那段文字**）→ 修复前生产 **4 passed / 4 failed**（缺十件套/第零章+十章等 16 个关键结构词，且旧标题仍在），修复后本地与生产均 **8 passed / 0 failed**；`marketplace:reference-case-neutral-smoke` PASS（通用样例中性守护未被破坏）；`qa:fast` exit 0。线上 entry `index-DE0Qu9i7.js` → `MarketplaceApp-gklPuVgX.js` 内含「内容十件套」「数据质量审计」。缺陷登记 `docs/BUG_REGRESSIONS.md` **QA-20260912-019**，任务卡 `docs/agents/platform-tasks.md` **PLAT-29**。
+
+同包补带并行任务**已提交但生产尚未上线**的 LQ-25（爆款复刻真实检索源）：发布前核查生产 `LANQI_VIRAL_SEARCH_DRIVER` = **0** 处、`routes/lanqi-viral-search.ts` 不存在，发布后两侧均为 **4 处 + 路由存在**。发布后标记总核查：PLAT-28（人工发放闸门/归因服务/配置面板/登录过期修复）+ 新样例两项 + LQ-25 + LQ-30 + PLAT-23 常量 + 微信支付验签 **全部在线**。回滚：`/opt/baolu-backups/20260912-plat28d-sample-fix-before-baolu-os-v2{,-test}/`。
+
+## 上一轮：20260912-plat28c-merged-fix（2026-09-12，测试实例 + 生产）— 过期授权不再锁死注册入口（P1 真机修复）+ 合并重发（PLAT-28 × LQ-30）
+
+**事故与修复的经过（先看这段，再看下面的 §PLAT-28 第①批）**：用户 18:25 用手机微信打开推荐链接做真机验收时，页面停在「完成注册」并连撞 7 次 401 `invalid_onboarding_token`（截图见用户消息）。取证：18:24:52–18:25:20 `POST /auth/onboarding/create-workspace` 7 次全部 401，且**当天 0 次微信授权回调** —— 这次点按根本没走微信授权：手机里残留着 2026-09-11/12 更早一次授权留下的 `store_os_onboarding_token`（服务端签发，30 分钟有效），登录页只看「有没有值」就渲染成补资料形态、把「微信一键登录 / 注册」藏了起来，提交永远撞过期。
+
+修复（P1，已上线）：`LoginPage.tsx` 解析 token 的 `exp`，过期/损坏**当场清掉**并把登录入口还给用户；过期提示改用独立 sessionStorage 标记（React StrictMode 双调用 `useState` 初始化函数会让提示丢失，本地实测踩到）；服务端 401 补中文 message（不再把错误码当文案）。回归：生产真实浏览器探针修复前 **1 passed / 4 failed**（与截图一致）→ 修复后 **5 passed / 0 failed**；源码契约对 `git show HEAD:` 跑同一组断言修复前 5 条全 FAIL；带推荐码登录页探针生产 **12 passed / 0 failed**；生产 API 复核 **6 PASS / 0 FAIL**。缺陷登记 `docs/BUG_REGRESSIONS.md` **QA-20260912-018**。
+
+**并发发布覆盖事故（同轮）**：17:45/17:51 另一条并行任务发 `20260912-lq30-video-budget` 时，用的是**不含 PLAT-28 的包**，把生产/测试的 `routes/marketplace.ts`（人工发放闸门）、`pages/LoginPage.tsx`（推荐码提示）、`pages/MarketplaceApp.tsx`（配置面板）与 `data/marketplace-v3.json` 一起回退；同时把服务器 `/tmp/deploy-release.sh` 覆盖成旧副本（旧 marketplace-v3.json 哈希常量），我随后用新包发布时被这个旧常量在第 4 步拦下（**未改任何文件、服务未动**）。处置：按 PLAT-23 事故的既定做法，**从当前合并后的工作区重新打包**并重传脚本后发布。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | https://api.lcppch.top/os-v2/ | `20260912-plat28c-merged-fix` | `DEPLOY_OK` + `VERIFY_OK` + 过期授权探针 **5/5 PASS** + 带码登录页探针 **12/12 PASS** + 生产 API 复核 **6/6 PASS** |
+| 测试 | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | https://api.lcppch.top/lanqi-test/ | `20260912-plat28c-merged-fix` | `DEPLOY_OK` + `VERIFY_OK` |
+
+发布包：`release-20260912-plat28c-merged-fix-full.tar.gz`（9437321 B，sha256 `2d95769e5c82aee1f5807b7611e23b47cc77d3d04d937bf8b0632d1910c48e0e`，1474 文件）。发布后标记核查（两侧一致）：PLAT-28 的 `trial_grant_disabled` / referral 服务与配置面板 / 登录页推荐码提示 / 过期授权修复 **全在**，LQ-30 的 `ALIYUN_VIDEO_REPLICATION_MAX_COST_FEN` **在**（没有被我这轮回退），PLAT-23 常量、微信支付验签、LQ-24 重新生成、`marketplace-v3.json` 新哈希（`8a1f7bb7…`）**全在**。
+
+事故期间数据干净度（只读核对）：17:50–18:45 `WalletLedger` 中 `trial_grant:*` 新增 **0** 条（人工发放虽短暂放开但无人调用），`ReferralBinding` 全程 0 行，两张推荐码未丢（1 活跃 `ref-****v5` + 1 停用）。备份：`/opt/baolu-backups/20260912-plat28c-merged-fix-before-baolu-os-v2{,-test}/`。
+
+## 上一轮：20260912-plat28b-refcode-alnum（2026-09-12，测试实例 + 生产）— 推荐有礼第①批：人工发放默认停用 + 推荐归因 + 配置位后台可读写
+
+用户 2026-09-12 把「思潼AI 推荐有礼」拆成三批，要求一批一件事。第①批只做三件事：**关闭人工发放入口**、**推荐归因**、**10 个配置位后台可读写**（本批**不实际发奖**）。冻结口径（三段奖励 100/100/200、奖励只能用于文字类智能体、bonus 桶 90 天、月无上限只告警、活动窗左闭右开、首充必须真实 paid 且未退款、同一微信只能被推荐一次）全部写进任务卡 PLAT-28 与 `references`，未做任何变更。
+
+发布包：`release-20260912-plat28b-refcode-alnum-full.tar.gz`（9431218 B，sha256 `59d76e808d88869089ce5b6649dfb6efdafd7f698f42dd43642811f255e9b382`，1474 文件，服务器侧逐字一致）。前序包 `release-20260912-plat28-referral-attribution-full.tar.gz`（9428112 B，sha256 `311b44ca…`）已先上两侧，因推荐码字符集修正被替换。
+
+| 环境 | 目录 / 服务 / 端口 | 入口 | 发布 id | 结果 |
+| --- | --- | --- | --- | --- |
+| 生产 | `/opt/baolu-os-v2` · `baolu-os-v2` · 3002 | https://api.lcppch.top/os-v2/ | `20260912-plat28b-refcode-alnum` | `DEPLOY_OK` + `VERIFY_OK` + 生产功能核查 **38 PASS / 0 FAIL** + 登录页带码探针 **12 PASS / 0 FAIL** |
+| 测试 | `/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 | https://api.lcppch.top/lanqi-test/ | `20260912-plat28b-refcode-alnum` | `DEPLOY_OK` + `VERIFY_OK`（`No pending migrations to apply`） |
+
+改动：`env.ts` 新增 `MARKETPLACE_TRIAL_GRANT_ENABLED`（默认 false）；`POST /market/admin/trial-grants` 停用时返回 **403 `trial_grant_disabled`** 且零写入（历史流水只读保留），后台面板停用态不渲染发放表单，运维 CLI 退出码 2；新增 `ReferralCode` / `ReferralBinding` / `PlatformSetting` 三张表（迁移 `202609120001_referral_rewards_plat28`，纯新增、可回滚）与 `GET/PATCH /market/admin/referral-config`、`POST /market/admin/referral-codes`、`GET /market/admin/referrals`；`/login?ref=<推荐码>` 的码随注册链路（`beta-login` / `onboarding/create-workspace`）提交，注册事务提交后落归因，**归因失败只拒绝归因、不阻断注册**（无码注册行为与上线前一致）。
+
+生产实证（`scripts/tmp/plat28-prod-verify.sh`，真实生产接口 + 生产库）：人工发放 403 `trial_grant_disabled`；配置位 10 项全部可读（默认 `source=env`）；带码注册 → `ReferralBinding` 落库（推荐人 `cmtvilv2a…`（兰琪美业 owner）/ 被推荐人 / `boundAt` / `tenantId` / `source=beta_web_login`）；无码注册 `referral.state=none`；无效码注册成功且 `invalid_code`；三重唯一索引（userId / unionid / openid）在生产库存在；**零推荐奖励流水、零余额**；合成验收数据按 id 精确清理后逐表核对**残留 0**。当前生产验收链接：`https://api.lcppch.top/os-v2/login?ref=ref-mxow3bifnsv5`。
+
+**推荐码字符集修正（发布中途）**：第一版用 base64url 生成推荐码，本次生产验收码正好以 `_` 结尾（`ref-…zpo_`）——分享到聊天工具或手抄时结尾的下划线/连字符最容易被截断。已改为 `ref-` + 12 位小写字母+数字，并加断言 `^ref-[a-z0-9]{12}$`；旧码已 `isActive=false`。
+
+**并发发布核查（用户特别提醒）**：发布前后各做一次标记核查。核查中发现 **PLAT-23 的 `MARKETPLACE_TARGET_COST_TO_REVENUE_MULTIPLE` 在 16:01 那轮发布后已从两侧源码中消失**（并发叠加覆盖），本次包内该文件是含该常量的版本，发布后两侧恢复正常（`plat23=2` 处）。其余标记（PLAT-21/22/24/27、微信支付验签 `verifyWechatPaySignature`、LQ-24 重新生成按钮、图片默认 20 积分）逐项确认仍在。
+
+发布后运行面：两侧 `active`、`health=200` / `ready=200`；生产 `journalctl -p err` 近 6 分钟 `No entries`；`/` 剩余 6.2G（78%）。回滚：`/opt/baolu-backups/20260912-plat28b-refcode-alnum-before-baolu-os-v2{,-test}/`。
+
+第①批**刻意不做**：不发奖励（第②批）、不做推荐明细后台（第③批）、不做同设备/IP 批量注册限频（第②批风控）。活动窗在第①批仍为空（口径：开始 = 上线第②批那一刻），因此第①批期间产生的归因记录在奖励计算时属「窗外」，不会产生奖励——这是口径要求，不是缺陷。
+
+## 上一轮：20260912-plat23b-merged-prod1（2026-09-12，生产）— 积分换算常量口径统一（方案 A），并处理一次并发发布互相覆盖
 
 用户 2026-09-12 对 PLAT-23 选定**方案 A：不改任何数字，只让常量说真话**。改动：`apps/api/src/services/marketplace-cost.ts` 的 `MARKETPLACE_CREDIT_MARKUP = 20`（注释称 20 倍、实际 100 倍）换成 `MARKETPLACE_TARGET_COST_TO_REVENUE_MULTIPLE = 100` + `MARKETPLACE_CUSTOMER_PRICE_CNY_PER_CREDIT = CREDIT_PRICING.customerPriceCnyPerCredit`（¥0.05）+ `MARKETPLACE_CREDITS_PER_COST_CNY = 100 ÷ 0.05 = 2000`（浮点精确），换算改为单次乘法；新增口径文档 `docs/PRICING.md`（三条报价线、两套模型价表分工、变更规则）；新增契约 `scripts/credits-cost-consistency-contract-smoke.ts`（24 条，含 20 万点逐点比对）并挂 `qa:fast`。
 
@@ -39,7 +265,7 @@
 
 老路径不回归（本地带登录 + 真实模型 1 次深度复盘）：`MP_E2E_WEB_URL=http://127.0.0.1:5175 node scripts/marketplace-vidrev-browser-e2e.mjs` → **PASS**（`chatRun=true`、11 章节、导出按钮、`本次消耗 60 积分`、移动 `overflow=0`、`consoleErrors=0`）。
 
-**下一批（PLAT-25，未开工）**：报告里剩下的 P2——浏览器 `<title>` 四个页面都是「思潼AI 行业智能体平台」、页面标题冗余「视频复盘 · 视频复盘智能体」、meiye 欢迎语先问「第 1 轮 POI/团购」与进度条第 1 步「复盘模式」不一致（`marketplace-v3.json` 数据文案）。**报告里「约扣 60 积分 · ≈ ¥3」的折算已由 PLAT-19 下线，属快照时效差异。**
+**PLAT-25 收口（2026-09-13 总调度5）**：A（meiye 欢迎语顺序）已上线；B（标题体系——浏览器 `<title>` 与页内标题，QA-20260913-007）已完成 + 已回归（新增 `vidrev-chat-title-contract-smoke` 挂进 `qa:fast`；本地带登录浏览器实测两 SKU 标题正确、匿名探针 4 视口 PASS、`qa:fast` exit 0），代码与回归在未提交工作树，**发布待总调度决策**（当前工作树还混有其他未提交批次，需按发布批次打包，避免 PLAT-28 覆盖事故重演）。
 
 ## 最新发布：20260912-plat22-cliplab-cost-prod1（2026-09-12，生产）— 剪辑台响应不再返回本地算力成本
 

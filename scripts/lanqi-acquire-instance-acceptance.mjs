@@ -596,7 +596,7 @@ async function main() {
     // ① 枢纽页：五张入口卡
     const hub = await openPage(root, `${base}/lanqi/acquire`, "公域获客");
     const hubText = hub.snapshot.text;
-    const hubCards = ["短视频文案改稿", "视频获客", "文案转片", "直播话术", "AI 运营顾问"];
+    const hubCards = ["短视频文案改稿", "爆款复刻", "一键成片", "直播话术", "AI 运营顾问"];
     checks.push({
       name: "acquire 枢纽：5 张入口卡齐全",
       pass: hubCards.every((name) => hubText.includes(name)),
@@ -604,13 +604,14 @@ async function main() {
     });
     const hubHrefs = hub.snapshot.links.join(" ");
     checks.push({
-      name: "acquire 枢纽：入口链接指向 4 个子页 + 文案转片带 mode=script",
+      name: "acquire 枢纽：入口链接指向 5 个任务入口（无 mode=script 旧链）",
       pass:
         hubHrefs.includes("/lanqi/acquire/copywriter") &&
         hubHrefs.includes("/lanqi/acquire/video") &&
+        hubHrefs.includes("/lanqi/acquire/video-copy") &&
         hubHrefs.includes("/lanqi/acquire/live") &&
         hubHrefs.includes("/lanqi/acquire/methods") &&
-        hubHrefs.includes("mode=script"),
+        !hubHrefs.includes("mode=script"),
       detail: hub.snapshot.links.join(" | ").slice(0, 300),
     });
     checks.push({
@@ -683,153 +684,10 @@ async function main() {
     record(cw, `${base}/lanqi/acquire/copywriter`);
     await closePage(root, cw);
 
-    // ③ 视频获客：四种做法 + 未开通能力 fail closed
-    const vd = await openPage(root, `${base}/lanqi/acquire/video`, "爆款复刻");
-    const vdTabs = ["爆款复刻", "门店素材成片", "AI 剪辑", "文案转片"];
-    const vdTabState = await evaluate(
-      root,
-      vd.sessionId,
-      `[...document.querySelectorAll("[role=tab]")].map((el) => ({ text: (el.innerText || "").trim(), selected: el.getAttribute("aria-selected") }))`,
-    );
-    checks.push({
-      name: "video：四个模式页签齐全",
-      pass: vdTabs.every((name) => vdTabState.some((tab) => tab.text.includes(name))),
-      detail: JSON.stringify(vdTabState),
-    });
-    // 爆款复刻（LQ-25，用户 2026-09-12 口径）：检索源 = 抖音 + 视频号，走真实检索接口。
-    // 判定标准：点了搜索必须真发请求；条目只能是平台域内可点开页面；上游没有有效条目时
-    // 必须出现「没有可点开的条目」的明确说明。两种结果都算通过，**编造条目才算失败**。
-    const vdKw = await setFieldValue(root, vd, "input#lq-vd-kw", "皮肤管理门店获客");
-    await sleep(400);
-    const vdSearchCallsBefore = vd.requestTimeline.length;
-    const vdSearchClick = await clickButton(root, vd, "AI 去抖音/视频号搜爆款");
-    let vdSearchText = "";
-    let vdHitLinks = [];
-    for (let attempt = 0; attempt < 32; attempt++) {
-      await sleep(1000);
-      const probe = await evaluate(
-        root,
-        vd.sessionId,
-        `(() => ({
-          text: document.body?.innerText ?? "",
-          links: [...document.querySelectorAll(".lq-vd__hit-list a")].map((node) => node.getAttribute("href") || "")
-        }))()`,
-      );
-      vdSearchText = probe?.text ?? "";
-      vdHitLinks = Array.isArray(probe?.links) ? probe.links : [];
-      if (vdHitLinks.length > 0 || vdSearchText.includes("没有可点开的条目")) break;
-    }
-    const vdSearchCallsAfter = vd.requestTimeline.length;
-    const vdRequested = countRequests(vd, "/lanqi/acquire/video/viral-search") > 0;
-    const vdPlatformLinks = vdHitLinks.filter((href) =>
-      /^https:\/\/(?:www\.|mp\.|channels\.)?(?:douyin\.com|weixin\.qq\.com)\//.test(href) ||
-      /^https:\/\/www\.douyin\.com\/(?:video|note)\//.test(href),
-    );
-    const vdNoFabrication = vdHitLinks.length === vdPlatformLinks.length;
-    const vdHonestEmpty = vdHitLinks.length > 0 || vdSearchText.includes("没有可点开的条目");
-    checks.push({
-      name: "video：爆款复刻走真实检索（抖音 / 视频号），无有效条目时明确说明、不编造",
-      pass:
-        vdKw === "filled" &&
-        vdSearchClick === "clicked" &&
-        vdSearchCallsAfter > vdSearchCallsBefore &&
-        vdRequested &&
-        vdNoFabrication &&
-        vdHonestEmpty &&
-        leakHit(vdSearchText) === null,
-      detail: `fill=${vdKw} click=${vdSearchClick} 新增请求=${vdSearchCallsAfter - vdSearchCallsBefore} 检索接口=${vdRequested} 条目=${vdHitLinks.length} 平台域内=${vdPlatformLinks.length} 无结果说明=${vdSearchText.includes("没有可点开的条目")}`,
-    });
-    const vdFailClosed = [];
-    for (const tab of ["门店素材成片", "AI 剪辑"]) {
-      const clicked = await evaluate(
-        root,
-        vd.sessionId,
-        `(() => {
-          const el = [...document.querySelectorAll("[role=tab]")].find((node) => (node.innerText || "").trim().includes(${JSON.stringify(tab)}));
-          if (!el) return "not-found";
-          el.click();
-          return "clicked";
-        })()`,
-      );
-      await sleep(900);
-      const tabText = await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''");
-      vdFailClosed.push({ tab, clicked, offline: tabText.includes("出片服务暂未开通") || tabText.includes("视频生成服务暂未开通") });
-    }
-    checks.push({
-      name: "video：门店素材成片 / AI 剪辑 出片能力未开通 → fail closed 不假装成功",
-      pass: vdFailClosed.every((item) => item.clicked === "clicked" && item.offline === true),
-      detail: JSON.stringify(vdFailClosed),
-    });
-    const vdScript = await openPage(root, `${base}/lanqi/acquire/video?mode=script`, "文案转片");
-    const scriptTabSelected = await evaluate(
-      root,
-      vdScript.sessionId,
-      `[...document.querySelectorAll("[role=tab]")].find((el) => el.getAttribute("aria-selected") === "true")?.innerText?.trim() ?? ""`,
-    );
-    // 走完 4 步（分镜/提示词是本地规则 + 规则型接口，不调模型），验证最后一步出片 fail closed。
-    await clickButton(root, vdScript, "填入示例文案");
-    await sleep(500);
-    await clickButton(root, vdScript, "生成分镜脚本");
-    await sleep(2500);
-    await clickButton(root, vdScript, "下一步：上传素材卡");
-    await sleep(800);
-    await clickButton(root, vdScript, "下一步：输出规格");
-    await sleep(3500);
-    const vdScriptText = await evaluate(root, vdScript.sessionId, "document.body?.innerText ?? ''");
-    checks.push({
-      name: "video：文案转片（?mode=script）默认选中该页签",
-      pass: vdScript.snapshot.href.includes("mode=script") && scriptTabSelected.includes("文案转片"),
-      detail: `href=${vdScript.snapshot.href} 选中页签=${scriptTabSelected}`,
-    });
-    checks.push({
-      name: "video：文案转片四步走通 → 出片未开通明确提示，可先导出提示词",
-      pass: vdScriptText.includes("出片服务暂未开通") && vdScriptText.includes("导出提示词"),
-      detail: `含「出片服务暂未开通」=${vdScriptText.includes("出片服务暂未开通")} 含导出提示词=${vdScriptText.includes("导出提示词")}`,
-    });
-    // 走到最终确认：勾选肖像授权 → 确认并生成 → 授权弹层 → 真实出片仍必须 fail closed（弹窗说明 + 无出片请求）。
-    const consentToggled = await evaluate(
-      root,
-      vdScript.sessionId,
-      `(() => {
-        const box = document.querySelector(".lq-vd__consent input[type=checkbox]");
-        if (!box) return "not-found";
-        box.click();
-        return "clicked";
-      })()`,
-    );
-    await sleep(400);
-    const genClick = await clickButton(root, vdScript, "确认并生成");
-    await sleep(1200);
-    const modalText = await evaluate(root, vdScript.sessionId, "document.body?.innerText ?? ''");
-    const authClick = await clickButton(root, vdScript, "确认授权，开始用");
-    await sleep(1200);
-    const genCalls = countRequests(vdScript, "/acquire/video/generate");
-    checks.push({
-      name: "video：点「确认并生成」走授权弹层，最终仍 fail closed（无出片请求、无假成功）",
-      pass:
-        consentToggled === "clicked" &&
-        genClick === "clicked" &&
-        modalText.includes("肖像授权确认") &&
-        authClick === "clicked" &&
-        vdScript.dialogs.some((message) => message.includes("视频生成服务暂未开通")) &&
-        genCalls === 0,
-      detail: `consent=${consentToggled} genClick=${genClick} 弹层=${modalText.includes("肖像授权确认")} authClick=${authClick} 弹窗=${JSON.stringify(vdScript.dialogs)} 出片请求=${genCalls}`,
-    });
-    const vdLeak = leakHit(await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''"));
-    checks.push({
-      name: "video：无模型/厂商名泄露",
-      pass: vdLeak === null,
-      detail: `命中=${vdLeak ?? "无"}`,
-    });
-    checks.push({
-      name: "video：无接口 4xx/5xx、console/page 无错误",
-      pass: blankErrors(vd).length === 0 && vd.consoleErrors.length === 0 && vd.pageErrors.length === 0,
-      detail: `http=${JSON.stringify(blankErrors(vd).slice(0, 4))} console=${vd.consoleErrors.length} page=${vd.pageErrors.length}`,
-    });
-    record(vd, `${base}/lanqi/acquire/video`);
-    await closePage(root, vd);
-    await closePage(root, vdScript);
-
+    // ③ 视频获客（0912 一期）：爆款复刻单模式页 + 一键成片独立页（两页契约，不再有四页签）。
+    // 旧「门店素材成片 / AI 剪辑」页签已按 LQ-26 收口不渲染；确认与出片一律走各自页面的既有 fail-closed 口径。
+    await verifyVideoPage(root, checks, base, "video", record);
+    await verifyVideoCopyPage(root, checks, base, "video-copy", record);
     // ④ 直播话术
     const live = await openPage(root, `${base}/lanqi/acquire/live`, "直播话术生成器");
     const liveText = live.snapshot.text;

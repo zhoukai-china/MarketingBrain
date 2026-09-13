@@ -19,10 +19,11 @@ export const LIVE_PLANNED_MINUTES = 120;
 const BATCH_MAX_MINUTES = 8;
 const BATCH_MAX_SEGMENTS = 2;
 /**
- * 合规重写次数：首次不过 → 把原因回灌模型重写 → 仍不过则 fail closed。
- * 允许 3 次（含首次）而非 2 次：模型偶发写出「私信」这类软违规时，单次重写不足以稳定纠正，
- * 而一批失败会让整份 2 小时逐字稿报废（0911 实测 10 批里 1 批命中 422、单批耗时 44 秒）。
- * 门禁本身不放宽，只多给一次带具体回灌信息的重写机会。
+ * 合规重写次数：首次不过 → 只把违规段落单独回灌重写（已通过段落保留，不整批报废）→
+ * 最后一次机会要求完全换一种写法 → 仍不过则 fail closed。
+ * 允许 3 次（含首次）：模型偶发写出「私信」这类软违规时，整批重写会把同一条违规词换个位置再犯，
+ * 而一批失败会让整份 2 小时逐字稿报废（0911 实测 10 批里 1 批命中 422、单批耗时 44 秒；
+ * 0913 实测同一条输入一次成功一次 422，属偶发）。门禁本身不放宽，只缩小重写范围并强制换说法。
  */
 const MAX_ATTEMPTS = 3;
 
@@ -257,7 +258,8 @@ export function buildLivePlan(input: LiveInput): LivePlanResult {
 
 /**
  * 生成一批段落。规则先给骨架（时间段 / 主题 / 分钟数），模型只负责填内容。
- * 合规硬门禁：违规引导词、绝对化疗效词、价格口径；首次不过回灌重写一次，仍不过 fail closed。
+ * 合规硬门禁：违规引导词、绝对化疗效词、价格口径、编造数字；
+ * 违规时只重写违规段落（已通过段落原样保留），最后一次机会换写法，仍不过才 fail closed。
  */
 export async function generateLiveSegments(
   input: LiveInput,
@@ -268,19 +270,27 @@ export async function generateLiveSegments(
   if (!batch) throw new Error("批次不存在");
   if (!provider.isConfigured()) throw new Error("llm_provider_not_configured");
 
-  const specs = batch.segNos
+  const allSpecs = batch.segNos
     .map((no) => LIVE_SEGMENTS.find((seg) => seg.no === no))
     .filter((seg): seg is LiveSegmentSpec => Boolean(seg));
   const linkWord = liveLinkWord(input.platforms);
   const feedback: string[] = [];
   let attempts = 0;
   let lastError = "llm_output_invalid_structure";
+  /** 已通过合规门禁的段落：按段号保留首版文本，不再整批推倒重写。 */
+  const retained = new Map<number, LiveSegment>();
 
   while (attempts < MAX_ATTEMPTS) {
     attempts += 1;
-    const messages = buildLiveBatchPrompt(input, batch, specs, linkWord, feedback);
+    const specs = allSpecs.filter((seg) => !retained.has(seg.no));
+    if (!specs.length) break;
+    const partialRewrite = attempts > 1;
+    const messages = buildLiveBatchPrompt(input, batch, specs, linkWord, feedback, {
+      partialRewrite,
+      styleSwitch: partialRewrite && attempts >= MAX_ATTEMPTS
+    });
     const rawText = await provider.complete(messages, {
-      maxTokens: Math.min(Math.round(batch.targetWords * 2.2) + 1200, 8000),
+      maxTokens: Math.min(Math.round(batch.targetWords * (specs.length / Math.max(allSpecs.length, 1)) * 2.2) + 1200, 8000),
       reasoningProfile: "standard",
       thinkingMode: "disabled"
     });
@@ -292,20 +302,38 @@ export async function generateLiveSegments(
       continue;
     }
 
-    const violations = collectLiveViolations(parsed.segments, input);
-    if (violations.length) {
-      lastError = `生成内容未通过合规门禁：${violations.join("、")}`;
+    const violatingSegments: number[] = [];
+    const violationLabels = new Set<string>();
+    for (const seg of parsed.segments) {
+      const labels = collectLiveSegmentViolations(seg, input);
+      if (labels.length) {
+        violatingSegments.push(seg.no);
+        for (const label of labels) violationLabels.add(label);
+      } else {
+        retained.set(seg.no, seg);
+      }
+    }
+    if (violatingSegments.length) {
+      lastError = `生成内容未通过合规门禁：${[...violationLabels].join("、")}`;
       feedback.length = 0;
       feedback.push(
-        `上一版出现了这些问题，必须全部改掉（逐字删掉这些字样，不要换近义词保留）：${violations.join("、")}。` +
+        `上一版第 ${violatingSegments.join("、")} 段出现了这些问题，必须全部改掉（逐字删掉这些字样，不要换近义词保留）：${[...violationLabels].join("、")}。` +
           `需要引导下单时统一说「${linkWord}」；价格一律带「参考」二字；不要写任何效果承诺。`
       );
+      if (attempts >= MAX_ATTEMPTS) {
+        feedback.push("这一次请完全换一种写法重新写这些段落（换句式、换开场、换举例角度都可以），不要沿用上一版措辞。");
+      }
       continue;
     }
 
+    const segments = allSpecs.map((spec) => {
+      const kept = retained.get(spec.no);
+      if (!kept) throw new Error(`第 ${spec.no} 段缺失，无法合并批次结果`);
+      return { ...kept, words: countLiveWords(kept.script) };
+    });
     return {
       batch,
-      segments: parsed.segments.map((seg) => ({ ...seg, words: countLiveWords(seg.script) })),
+      segments,
       attempts,
       qualityChecks: ["违规引导词", "绝对化疗效词", "价格口径", "编造数字"]
     };
@@ -363,7 +391,8 @@ function buildLiveBatchPrompt(
   batch: LiveBatch,
   specs: LiveSegmentSpec[],
   linkWord: string,
-  feedback: string[]
+  feedback: string[],
+  options: { partialRewrite?: boolean; styleSwitch?: boolean } = {}
 ): Array<{ role: "system" | "user"; content: string }> {
   const round = LIVE_ROUNDS.find((item) => item.no === batch.round);
   const segmentLines = specs
@@ -399,9 +428,14 @@ function buildLiveBatchPrompt(
     `平台：${input.platforms.join(" / ")}`,
     "",
     `当前轮次：${round?.name ?? ""}（${round?.time ?? ""}，目标：${round?.goal ?? ""}）`,
-    "本批要写的段落：",
+    options.partialRewrite
+      ? "现在只需要重写以下段落（其他段落已经通过门禁，输出里只包含这些段，不要重复其他段）："
+      : "本批要写的段落：",
     segmentLines,
     "",
+    ...(options.styleSwitch
+      ? ["这次请完全换一种写法重新写这些段落（换句式、换开场、换举例角度都可以），不要沿用上一版措辞。"]
+      : []),
     "每段要求：",
     "- script：按口播目标字数写够（±15%），这是能不能撑满 2 小时的关键；宁可写满不要写短。",
     `- fill：3 条备用话术，每条 60～90 字。用途是本段讲完但时间还没到时接着念，所以要和 script 换着说法讲，不要重复 script 原句。`,
@@ -532,11 +566,9 @@ function parseLiveFillerPayload(
 
 type ViolationCandidate = Pick<LiveSegment, "script"> & Partial<Pick<LiveSegment, "no" | "fill" | "interact" | "rhythm">>;
 
-/** 合规与编造检查：命中的问题回灌模型重写；仍不过则 fail closed。 */
-function collectLiveViolations(segments: ViolationCandidate[], input: LiveInput): string[] {
-  const text = segments
-    .map((seg) => [seg.script, ...(seg.fill ?? []), seg.interact, seg.rhythm].filter(Boolean).join("\n"))
-    .join("\n");
+/** 单段合规与编造检查：命中的问题回灌模型只重写该段；仍不过则 fail closed。 */
+function collectLiveSegmentViolations(seg: ViolationCandidate, input: LiveInput): string[] {
+  const text = [seg.script, ...(seg.fill ?? []), seg.interact, seg.rhythm].filter(Boolean).join("\n");
   const violations = new Set<string>();
 
   const ban = containsBanWords(text);
@@ -559,13 +591,19 @@ function collectLiveViolations(segments: ViolationCandidate[], input: LiveInput)
   if (promise.length) violations.add(`效果承诺（${promise.map((item) => item.word).join("、")}）`);
 
   // 长句堆砌会念不动：单句超过 90 字直接判不合格
-  for (const seg of segments) {
-    const longSentence = splitSentences(seg.script ?? "").find((sentence) => sentence.replace(/\s/g, "").length > 90);
-    if (longSentence) {
-      violations.add(seg.no ? `第 ${seg.no} 段有句子超过 90 字，主播念不动` : "有句子超过 90 字，主播念不动");
-      break;
-    }
+  const longSentence = splitSentences(seg.script ?? "").find((sentence) => sentence.replace(/\s/g, "").length > 90);
+  if (longSentence) {
+    violations.add(seg.no ? `第 ${seg.no} 段有句子超过 90 字，主播念不动` : "有句子超过 90 字，主播念不动");
   }
 
   return [...violations];
+}
+
+/** 整批口径的合规检查（救场话术库沿用，按单段聚合，顺序稳定）。 */
+function collectLiveViolations(segments: ViolationCandidate[], input: LiveInput): string[] {
+  const labels = new Set<string>();
+  for (const seg of segments) {
+    for (const label of collectLiveSegmentViolations(seg, input)) labels.add(label);
+  }
+  return [...labels];
 }

@@ -74,7 +74,6 @@ window.addEventListener("orientationchange", applyDevice, { passive: true });
 // Pages are isolated at the route boundary so the first visit only downloads
 // the active experience instead of every workbench and internal tool.
 const StoreGrowthApp = lazy(() => import("./pages/StoreGrowthApp.js").then(module => ({ default: module.StoreGrowthApp })));
-const FlywheelDiagnosisApp = lazy(() => import("./pages/FlywheelDiagnosisApp.js"));
 const LoginPage = lazy(() => import("./pages/LoginPage.js"));
 const WeChatCallback = lazy(() => import("./pages/WeChatCallback.js"));
 const WeChatBridgePage = lazy(() => import("./pages/WeChatBridgePage.js"));
@@ -123,6 +122,9 @@ const LanqiAcquireInDevelopmentPage = lazy(() => import("./pages/LanqiPlaceholde
  * 后续某个板块验收通过，只需把它单独放行或整体改回 false。
  */
 export const LANQI_MOMENTS_ONLY_LAUNCH = true;
+/** 公域获客（板块3）已验收放开：true = 枢纽页/文案改稿/顾问/直播话术可用（爆款复刻与一键成片始终放行）；
+ *  经营驾驶舱（板块1）仍由 LANQI_MOMENTS_ONLY_LAUNCH 单独按「开发中」占位，不受本开关影响。 */
+export const LANQI_ACQUIRE_LAUNCHED = true;
 const BeautyIndustryAcquisitionPage = lazy(() => import("./pages/BeautyIndustryAcquisitionPage.js").then(module => ({ default: module.BeautyIndustryAcquisitionPage })));
 const BeautyIndustryWorkBuddyPage = lazy(() => import("./pages/BeautyIndustryWorkBuddyPage.js").then(module => ({ default: module.BeautyIndustryWorkBuddyPage })));
 const MarketplaceHomePage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceHomePage })));
@@ -198,7 +200,6 @@ function LanqiLocalAccessPage() {
         localStorage.setItem("store_os_token", data.token);
         localStorage.setItem("store_os_tenant_role", "local_business");
         localStorage.setItem("store_os_tenant_name", "本机兰琪体验工作区");
-        localStorage.setItem("store_os_diagnosis_done", "false");
         window.location.replace(getAppPath("/lanqi/content-studio"));
       } catch (cause) {
         if (!cancelled) setMessage(cause instanceof Error ? cause.message : "本机体验登录失败，请确认本地 API 正在运行。");
@@ -619,7 +620,7 @@ function Root() {
     return <LanqiAcquireVideoPage />;
   }
   if (path.startsWith("/lanqi/acquire")) {
-    if (LANQI_MOMENTS_ONLY_LAUNCH) return <LanqiAcquireInDevelopmentPage />;
+    if (LANQI_MOMENTS_ONLY_LAUNCH && !LANQI_ACQUIRE_LAUNCHED) return <LanqiAcquireInDevelopmentPage />;
   }
   if (path.startsWith("/lanqi/acquire/copywriter")) {
     return <LanqiAcquireCopywriterPage />;
@@ -720,9 +721,16 @@ function Root() {
     return <InternalAgentAdminPage />;
   }
 
-  // /diagnosis or /d/ → always standalone diagnosis (free entry, no login)
+  /**
+   * 旧版「9 轮经营诊断」已下线（2026-09-13 用户要求清除）。
+   *
+   * 它是单点登录时代的上手流程，现在平台的主线是「登录 → 货架」，这套诊断既不再引导用户，
+   * 又会在用户带 token 打开任意网址时把页面顶掉（见 AppFlow 里被删掉的状态分支）。
+   * 这里把老链接统一重定向到货架，避免老书签落进 404 或旧页面。
+   */
   if (isDiagnosisRoute) {
-    return <FlywheelDiagnosisApp />;
+    window.location.replace(getAppPath("/agents"));
+    return null;
   }
 
   if (isWorkbenchRoute) {
@@ -757,10 +765,15 @@ function AppFlow() {
     // A product-specific URL must never be captured by a stale generic
     // diagnosis state from a previous account or another product.
     if (loginEntry !== "generic" && loginEntry !== "internal") return "login";
+    /**
+     * 2026-09-13（用户要求清除旧诊断页）：这里以前是
+     * `token && diagnosisDone ? "main" : token ? "diagnosis" : "login"`——
+     * 只要浏览器里有 token、而 `store_os_diagnosis_done` 不是 "true"，
+     * **打开任意网址都会被顶进旧版 9 轮诊断页**（用户的现场：复制已登录网址新开标签页 → 见到旧诊断页）。
+     * 现在：有 token 直接进主界面（货架/工作台），不再有诊断阶段。
+     */
     const token = localStorage.getItem("store_os_token");
-    const diagnosisDone = localStorage.getItem("store_os_diagnosis_done") === "true";
-    if (token && diagnosisDone) return "main";
-    if (token && !diagnosisDone) return "diagnosis";
+    if (token) return "main";
     return "login";
   });
 
@@ -789,7 +802,6 @@ function AppFlow() {
   function handleLogin(result: LoginResult) {
     localStorage.setItem("store_os_tenant_role", result.tenantRole);
     localStorage.setItem("store_os_tenant_name", result.tenantName);
-    localStorage.setItem("store_os_diagnosis_done", "false");
 
     setLoginInfo({
       token: result.token,
@@ -826,10 +838,7 @@ function AppFlow() {
     setStage("main");
   }
 
-  function handleReDiagnosis() {
-    localStorage.setItem("store_os_diagnosis_done", "false");
-    setStage("diagnosis");
-  }
+  // 旧版诊断已下线（2026-09-13）：重新诊断的入口与状态一并移除。
 
   function handleLogout() {
     localStorage.removeItem("store_os_token");
@@ -849,14 +858,11 @@ function AppFlow() {
     return <WeChatBridgePage />;
   }
 
-    if (stage === "login") {
+  if (stage === "login") {
     return <LoginPage mode={import.meta.env.PROD ? "production" : "dev"} entry={loginEntry} onLogin={handleLogin} />;
   }
 
-  if (stage === "diagnosis") {
-    return <FlywheelDiagnosisApp />;
-  }
-
+  // 旧版诊断阶段已下线（2026-09-13）：不再有任何路径会进入 stage === "diagnosis"。
   return <MyAiPage />;
 }
 

@@ -182,6 +182,31 @@ async function main() {
   assert("重写提示给出平台内替代说法", flaky.prompts[1].includes("小黄车"));
   assert("重写提示禁止换近义词保留", flaky.prompts[1].includes("不要换近义词保留"));
 
+  // 复盘回归（demo5 直播偶发 422 方向二）：违规只重写违规段，保留已通过段落，不整批报废。
+  // 旧实现会把整批推倒重写：第二次调用会同时重生成第 1 段，且提示词点名全部段落。
+  const scopedRewrite = fakeProvider((call) => {
+    const payload = JSON.parse(batchPayload(1)) as { segments: Array<{ no: number; script: string }> };
+    if (call === 1) payload.segments[1].script += "想参加的私信我报名。";
+    if (call > 1) payload.segments[0].script = "第 1 段第二版：这段开头换一种说法，讲一下今天为什么要聊补水。";
+    return JSON.stringify(payload);
+  });
+  const scopedOk = await generateLiveSegments(baseInput, 1, scopedRewrite.provider);
+  assert("违规只在第 2 段时两次调用出稿", scopedOk.attempts === 2 && scopedRewrite.calls() === 2);
+  assert("重写请求只点名违规段、不重写已通过段", !scopedRewrite.prompts[1].includes("第 1 段"));
+  assert("重写请求点名违规段号", scopedRewrite.prompts[1].includes("第 2 段"));
+  assert("已通过段保留首版文本不被重写覆盖", scopedOk.segments.find(seg => seg.no === 1)!.script.includes("手上事情先放一放"));
+
+  // 复盘回归（demo5 直播偶发 422 方向三）：最后一次机会要求完全换一种写法，仍不过才失败关闭。
+  const styleSwitch = fakeProvider((call) => {
+    const payload = JSON.parse(batchPayload(1)) as { segments: Array<{ no: number; script: string }> };
+    if (call < 3) payload.segments[0].script += "想参加的留个联系方式。";
+    if (call >= 3) payload.segments[0].script = "刚进来的朋友先别走，我先把今天为什么要讲补水说明白，讲完你就知道下一步该做什么。";
+    return JSON.stringify(payload);
+  });
+  const styleOk = await generateLiveSegments(baseInput, 1, styleSwitch.provider);
+  assert("顽固违规在第三次换写法后出稿", styleOk.attempts === 3 && styleSwitch.calls() === 3);
+  assert("最后一次重试提示换一种写法", styleSwitch.prompts[2].includes("换一种写法"));
+
   // 5. 合规硬门禁：违规引导词被拦下，改动后放行
   const violating = fakeProvider((call) => {
     const payload = JSON.parse(batchPayload(1)) as { segments: Array<{ no: number; script: string }> };

@@ -41,6 +41,20 @@ pnpm.cmd qa:fast
 | 页面契约 | PASS | `pnpm.cmd lanqi:acquire-ui-contract-smoke` **53/0**（新增 7 条：真实接口 / 结果区可访问名 / 选它复刻 / 打开原页面 / 不做假数据 / 不再硬编码 fail-closed / 页面无厂商与模型名） |
 | 类型检查与结构门禁 | PASS | `apps/api`、`apps/web` typecheck `EXIT=0`；`qa:fast` 含 `lanqi:viral-search-smoke` |
 
+
+## LQ-27 爆款复刻真样片 + 公域获客板块放开（2026-09-13）
+
+| 检查项 | 结果 | 证据 |
+|---|---|---|
+| OSS 传输层（Node v20 lookup 形状） | PASS | `lanqi:video-oss-transport-smoke` 10/0；生产 confirm 成功、供应商受理任务；QA-20260913-008 |
+| 真样片出片 | PASS | job `cmtzfsmry05iipoiavf5jrayp` `succeeded/charged`；3.000s / h264 / 816×1088 / 451,548 B / sha256 `a623237d…`；估算成本 ≈ ¥1.80/条（wan-std ¥0.60/秒），三次出片任务合计 ≈ ¥5.40 ≤ ¥10 |
+| 结果主机任意 OSS 区域 + http→https | PASS | `beauty-industry:image-asset-url-policy-p1-smoke` PASS（wulanchabu / hangzhou / 子域 / 升级断言）；QA-20260913-010 |
+| 样本脚本终态后才清理 | PASS | `lanqi-video-staging-cleanup-diag-smoke` 4/0；脚本轮询含 refresh、非终态保留许可/授权 |
+| 直播话术偶发 422 | PASS | `lanqi-live-service-smoke` 49/0（段级重写 + 换写法）；同一输入真实模型 3/3 出稿 |
+| 公域获客板块验收（测试实例） | PASS | `lanqi-acquire-instance-acceptance` **30/0**（桌面 + 移动 390；枢纽 5 卡 / 文案改稿 / 爆款复刻 / 一键成片 / 直播话术 / AI 顾问）；API 真实模型走查 17/17 |
+| 生产只读接口 | PASS | `prod-lanqi-lq19-acquire-acceptance.sh` **16/16**（匿名 401 / 缺必填 422 / 跨门店 404 不回泄 / 无厂商名） |
+| 门禁 | PASS | `qa:fast` exit 0；`lanqi:acquire-smoke` exit 0 |
+
 ## LQ-17 美业经营问答独立网页
 
 | 检查项 | 结果 | 证据 |

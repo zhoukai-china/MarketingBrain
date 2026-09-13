@@ -2,11 +2,28 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, realpath, rename, writeFile, unlink, readdir } from "node:fs/promises";
 import path from "node:path";
 import { probeClip } from "./clip-renderer.js";
-import { validateBeautyProviderAssetUrl } from "./beauty-provider-asset-policy.js";
+import { isAliyunOssResultFamily, validateBeautyProviderAssetUrl } from "./beauty-provider-asset-policy.js";
 import { ReplicationError, type ReplicationArtifact, type ReplicationJob } from "./viral-video-replication-runtime.js";
 
 const sha = (v: string | Buffer) => createHash("sha256").update(v).digest("hex");
 const MAX_BYTES = 200 * 1024 * 1024;
+
+/** 结果主机白名单：OSS 域名族（优先）或 env 配置的精确/子域基域（第二道防线）。 */
+export function isResultHostAllowed(hostname: string, allowedHosts: readonly string[]): boolean {
+  const host = hostname.toLowerCase();
+  if (isAliyunOssResultFamily(host)) return true;
+  return allowedHosts.some((base) => {
+    const b = base.trim().toLowerCase();
+    return b.length > 0 && (host === b || host.endsWith(`.${b}`));
+  });
+}
+
+/** 百炼结果 URL 可能是 http；Aliyun OSS 支持 https，仅对白名单内的 OSS 域名升级协议，不做任何重定向。 */
+export function normalizeAliyunOssResultUrl(rawUrl: string, allowedHosts: readonly string[]): string {
+  const u = new URL(rawUrl);
+  if (u.protocol === "http:" && isResultHostAllowed(u.hostname, allowedHosts)) u.protocol = "https:";
+  return u.toString();
+}
 /** Local output only. No public bucket, signed URL or third-party media in API responses. */
 export function createReplicationAssetStore(options: { root: string; allowedResultHosts: readonly string[]; fetch?: typeof fetch; probe?: typeof probeClip;
   validateUrl?: (url: string) => void; recoveryReceipt?: boolean }) {
@@ -23,7 +40,9 @@ export function createReplicationAssetStore(options: { root: string; allowedResu
     async persist(job: ReplicationJob, url: string): Promise<ReplicationArtifact> {
       let u: URL;
       try { u = new URL(url); } catch { throw new ReplicationError("artifact_url_rejected"); }
-      if (!options.allowedResultHosts.includes(u.hostname)) throw new ReplicationError("artifact_host_not_approved");
+      if (!isResultHostAllowed(u.hostname, options.allowedResultHosts)) throw new ReplicationError("artifact_host_not_approved");
+      url = normalizeAliyunOssResultUrl(url, options.allowedResultHosts);
+      u = new URL(url);
       try { if (options.validateUrl) options.validateUrl(url); else validateBeautyProviderAssetUrl(url, options.allowedResultHosts); } catch { throw new ReplicationError("artifact_url_rejected"); }
       const response = await (options.fetch ?? fetch)(url, { redirect: "error", signal: AbortSignal.timeout(60_000) });
       if (!response.ok || !response.body) throw new ReplicationError("artifact_download_failed");

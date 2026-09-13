@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { lookup } from "node:dns/promises";
-import { BlockList, isIP } from "node:net";
+import { BlockList, isIP, type LookupFunction } from "node:net";
 import { request as httpsRequest } from "node:https";
 import { ReplicationError } from "./viral-video-replication-runtime.js";
 import type { PrivateVideoStagingDriver, StagedObject } from "./beauty-video-private-staging.js";
@@ -13,6 +13,29 @@ const sdkRequire = createRequire(require.resolve("ali-oss"));
 const sdkDebug = sdkRequire("debug");
 const hash = (b: string | Buffer) => createHash("sha256").update(b).digest("hex");
 const fail = (code: string): never => { throw new ReplicationError(code, 503); };
+/**
+ * Node >=20 的 https.request 在 autoSelectFamily（Happy Eyeballs）下会用 options.all=true 调自定义
+ * lookup，旧签名只回 string 会被 Node 按数组解构 → ERR_INVALID_IP_ADDRESS: Invalid IP address:
+ * undefined（2026-09-13 生产定位：所有 OSS 请求瞬间失败，被包装成 oss_transport_unknown）。
+ * 这里同时兼容 all=true（回 [{address,family}]）与普通形状（回 address,family）。
+ */
+export function createPinnedIpLookup(address: string, family = 4): LookupFunction {
+  return (_host, options, callback) => {
+    const all = typeof options === "boolean" ? options : Boolean((options as { all?: boolean } | null)?.all);
+    if (all) callback(null, [{ address, family }]);
+    else callback(null, address, family);
+  };
+}
+/** 底层 socket/TLS 错误名与消息进审计 detail，不再只剩统一的 oss_transport_unknown。 */
+export function rawErrorDetail(error: unknown): string {
+  const e = error as { name?: string; code?: string; message?: string };
+  return `${e?.name ?? "Error"}: ${e?.code ? `${e.code} ` : ""}${String(e?.message ?? "").slice(0, 120)}`;
+}
+function ossTransportError(error: unknown): ReplicationError {
+  const wrapped = new ReplicationError("oss_transport_unknown", 503);
+  (wrapped as { detail?: string }).detail = rawErrorDetail(error);
+  return wrapped;
+}
 const keyPattern = /^[a-f0-9]{32}-(reference|portrait)\.(mp4|png|jpg|webp|bmp|mov|avi)$/;
 export const OSS_STAGING_VERSION = "beauty-oss-private-staging-v1";
 export type OssStagingConfig = { bucket: string; region: string; prefix: string; approvedOrigin: string };
@@ -52,14 +75,14 @@ export function createOssHttpsTransport(origin: string): OssTransport {
       assertOssPublicIpv4(rows.map(x=>x.address));
       const address=rows[0].address;
       return await new Promise<OssWireResponse>((resolve,reject)=>{
-        const req=httpsRequest(u,{method:r.method,headers:r.headers,agent:false,servername:u.hostname,
-          rejectUnauthorized:true,signal,lookup:(_host,_options,callback:any)=>callback(null,address,4)},res=>{
+        const req=httpsRequest(u,{method:r.method,headers:r.headers,agent:false,family:4,servername:u.hostname,
+          rejectUnauthorized:true,signal,lookup:createPinnedIpLookup(address)},res=>{
           const chunks:Buffer[]=[];let size=0;
           res.on("data",chunk=>{size+=chunk.length;if(size>65536){res.destroy();reject(new ReplicationError("oss_response_too_large",503));}else chunks.push(Buffer.from(chunk));});
-          res.on("error",()=>reject(new ReplicationError("oss_transport_unknown",503)));
+          res.on("error",(error)=>reject(ossTransportError(error)));
           res.on("end",()=>resolve({status:res.statusCode??0,headers:Object.fromEntries(Object.entries(res.headers).map(([k,v])=>[k,String(v??"")])),body:Buffer.concat(chunks)}));
         });
-        req.on("error",()=>reject(new ReplicationError("oss_transport_unknown",503)));
+        req.on("error",(error)=>reject(ossTransportError(error)));
         req.end(r.body);
       });
     } finally { if(timer)clearTimeout(timer); }
@@ -113,9 +136,10 @@ export function createOssPrivateVideoStaging(options: {
           if(![200,204,404].includes(status))fail("oss_response_invalid");
           code="ok";
           return {status,headers:response.headers,data:response.body,res:{status,statusCode:status,headers:response.headers,size:response.body.length}};
-        } catch(e) {code=e instanceof ReplicationError?e.code:"oss_transport_unknown";
-          detail=e instanceof Error?`${e.name}: ${String(e.message).slice(0,120)}`:`${typeof e}`;
-          wireFailure=new ReplicationError(code,503);throw wireFailure;}
+        } catch(e) {const transportWrapped=e instanceof ReplicationError?e:new ReplicationError("oss_transport_unknown",503);
+          code=transportWrapped.code;
+          detail=(e as { detail?: string })?.detail ?? (e instanceof Error?`${e.name}: ${String(e.message).slice(0,120)}`:`${typeof e}`);
+          wireFailure=transportWrapped;throw wireFailure;}
         finally { options.audit?.({event:"beauty_video.oss",operation:bucketRead?u.search.slice(1):op,status,elapsedMs:Math.max(0,now()-start),code,detail,objectFingerprint:hash(u.pathname).slice(0,16)}); }
       }}
     });
