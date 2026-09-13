@@ -5,6 +5,20 @@ import { createReplicationProvider,replicationSchema,REPLICATION_MODEL,type Repl
 import { createReplicationAssetStore } from "./viral-video-replication-assets.js";
 import { ReplicationError } from "./viral-video-replication-runtime.js";
 
+/**
+ * 供应商密钥的形状检查（LQ-27 现场修正）。
+ *
+ * 这道检查的本意是"看起来像一把供应商密钥"，不是"校验密钥真伪"（真伪由调用结果决定）。
+ * 原实现写死 `/^sk-[A-Za-z0-9_-]{16,}$/`，但生产在用的工作区密钥形如
+ * `sk-ws-….<含小数点>`，env 行尾还可能残留 CR —— 结果配置完全合法却永远
+ * 503 `execution_configuration_invalid`，付费链路根本开不了闸。
+ * 现在：允许 `.`，容忍尾部空白与 CR，其余照旧从严。
+ */
+export function isProviderKeyShaped(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  return /^sk-[A-Za-z0-9_.-]{16,}$/.test(value.replace(/[\s\r\n]+$/, ""));
+}
+
 type Base=Parameters<typeof createConfiguredVideoMaterialIntegration>[0];
 export type VideoExecutionEnvironment=VideoStagingEnvironment&{
   BEAUTY_VIDEO_EXECUTION_MODE?:string;BEAUTY_VIDEO_EXECUTION_AUTHORITY_KEY?:string;
@@ -23,7 +37,7 @@ export function createControlledVideoIntegration(options:Omit<Base,"environment"
     const injected=[base.offlineTransport,providerFetch,resultFetch].filter(Boolean).length;
     if(e.BEAUTY_VIDEO_EXECUTION_MODE!=="controlled"||e.BEAUTY_VIDEO_STAGING_DRIVER!=="aliyun_oss"||
       (injected!==0&&injected!==3)||e.ALIYUN_VIDEO_REPLICATION_MODEL!==REPLICATION_MODEL||
-      !/^sk-[A-Za-z0-9_-]{16,}$/.test(e.ALIYUN_VIDEO_REPLICATION_API_KEY??"")||!path.isAbsolute(resultRoot)||
+      !isProviderKeyShaped(e.ALIYUN_VIDEO_REPLICATION_API_KEY)||!path.isAbsolute(resultRoot)||
       e.BEAUTY_VIDEO_EXECUTION_AUTHORITY_KEY===e.ALIYUN_VIDEO_REPLICATION_API_KEY)throw new ReplicationError("execution_configuration_invalid",503);
     const access=injected?"local_only" as const:"provider_https" as const;
     const hosts=(e.BEAUTY_VIDEO_RESULT_HOSTS??"").split(",").map(s=>s.trim());
