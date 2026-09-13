@@ -3,6 +3,7 @@ import { apiPath, getAppPath } from "../lib/api.js";
 import { LanqiBrainShell } from "../components/lanqi-brain/LanqiBrainShell.js";
 import { LanqiStoreGateBanner } from "../components/lanqi-brain/LanqiStoreGateBanner.js";
 import { useLanqiStoreGate } from "../lib/use-lanqi-store-gate.js";
+import { humanizeAsyncError } from "../lib/humanize-error.js";
 
 type Mode = "fast" | "pro";
 type Pillar = "work" | "problem" | "method" | "case" | "value" | "life" | "invite";
@@ -116,7 +117,7 @@ export function LanqiMomentsPage() {
       }));
       setResult(data.result as MomentsResult);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "生成失败");
+      setError(humanizeAsyncError(e));
       setResult(null);
     } finally {
       setLoading(false);
@@ -142,7 +143,7 @@ export function LanqiMomentsPage() {
       const blob = await assetResponse.blob();
       setAiImg({ url: URL.createObjectURL(blob), assetId: data.asset.assetId, loading: false, error: "" });
     } catch (e) {
-      setAiImg({ url: "", assetId: "", loading: false, error: e instanceof Error ? e.message : "配图生成失败" });
+      setAiImg({ url: "", assetId: "", loading: false, error: humanizeAsyncError(e, "配图这次没生成出来，请稍后重试。") });
     }
   }
 
@@ -301,7 +302,14 @@ export function LanqiMomentsPage() {
           <button className="lq-moments__gen" disabled={loading || !storeId} onClick={generate}>
             {loading ? "生成中…" : "生成朋友圈文案"}
           </button>
-          {error && <p className="lq-moments__err">{error}</p>}
+          {error && (
+            <div className="lq-moments__errbox" role="alert">
+              <p className="lq-moments__err">{error}</p>
+              <button type="button" className="lq-cw__tool" data-lanqi-retry disabled={loading} onClick={() => void generate()}>
+                {loading ? "重新生成中…" : "🔄 重新生成"}
+              </button>
+            </div>
+          )}
         </section>
 
         <section className="lq-moments__right">

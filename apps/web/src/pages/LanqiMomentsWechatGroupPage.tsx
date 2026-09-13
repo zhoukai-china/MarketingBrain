@@ -3,6 +3,7 @@ import { apiPath, getAppPath } from "../lib/api.js";
 import { LanqiBrainShell } from "../components/lanqi-brain/LanqiBrainShell.js";
 import { LanqiStoreGateBanner } from "../components/lanqi-brain/LanqiStoreGateBanner.js";
 import { useLanqiStoreGate } from "../lib/use-lanqi-store-gate.js";
+import { humanizeAsyncError } from "../lib/humanize-error.js";
 
 type Scene = "notice" | "activity" | "qa" | "reactivate" | "care";
 interface CheckItem { ok: boolean; label: string; detail: string }
@@ -74,7 +75,7 @@ export function LanqiMomentsWechatGroupPage() {
       }));
       setResult(data.result as WechatResult);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "生成失败");
+      setError(humanizeAsyncError(e));
       setResult(null);
     } finally {
       setLoading(false);
@@ -143,7 +144,14 @@ export function LanqiMomentsWechatGroupPage() {
           <button className="lq-moments__gen" disabled={!canGenerate} onClick={generate}>
             {loading ? "生成中…" : "生成群话术"}
           </button>
-          {error && <p className="lq-moments__err">{error}</p>}
+          {error && (
+            <div className="lq-moments__errbox" role="alert">
+              <p className="lq-moments__err">{error}</p>
+              <button type="button" className="lq-cw__tool" data-lanqi-retry disabled={loading} onClick={() => void generate()}>
+                {loading ? "重新生成中…" : "🔄 重新生成"}
+              </button>
+            </div>
+          )}
         </section>
 
         <section className="lq-moments__right">
