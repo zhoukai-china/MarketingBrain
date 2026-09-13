@@ -1,5 +1,8 @@
 # 兰琪美业经营增长智能体状态
 
+> **2026-09-14 追加（收口昨日遗留）**：侧栏「公域获客」已摘掉「开发中」徽标（`LanqiBrainShell` NAV 改 `status:"online"`、八板块总览 `done:true`、说明文案同步；契约冒烟 46/0、品牌导航浏览器 E2E 0 failed）。生产 `20260913-lq27-nav-online-prod1` 已 `DEPLOY_OK` + 健康 200，公域获客与私域营销为当前两个已上线板块，其余 6 板块仍显示「开发中」占位。
+
+
 > **2026-09-13 追加（公域获客板块已验收放开 · LQ-27 爆款复刻真样片首次成功）**：本任务「兰琪-公域获客-页面开发」承接 demo5。**① 直播话术偶发 422 修复**（违规段落单独重写、最后一次换写法，门禁不放宽；QA-20260913-009，已上测试与生产）。**② 爆款复刻出片链路三处修复**：OSS 传输层 Node v20 `all:true` lookup 形状（QA-20260913-008）、结果主机放宽为「阿里云 OSS 域名族」+ http→https 升级（env `BEAUTY_VIDEO_RESULT_HOSTS` 更新为基域列表）、样本脚本仅在终态后清理（QA-20260913-010）。**③ 真样片成功**：job `cmtzfsmry05iipoiavf5jrayp` `succeeded/charged`，成片 3.000s / h264 / 816×1088 / 451,548 B / sha256 `a623237d0caf965e7a8d7e751d08f0d12e7220ba93e601681e70f78bf918f854`；按 wan-std ¥0.60/秒估算 ≈ ¥1.80/条，三次已出片任务合计约 ¥5.40（≤ ¥10 授权上限），供应商账单未查询；**爆款复刻积分定价已拍板：对外 ¥1.2/秒 = 24 积分/秒**（成本 ¥0.6/秒，3 秒样片 = 72 积分；环境变量 `ALIYUN_VIDEO_REPLICATION_CREDITS_PER_SECOND=24` 已在生产生效）。**④ 板块级验收并放开**：测试实例页面级 **30/0**（桌面 + 移动 390；枢纽 5 卡 / 文案改稿 / 爆款复刻 / 一键成片 / 直播话术 / AI 顾问；视频页=单模式）、API 真实模型走查 **17/17**、生产只读接口 **16/16**；随 `release-20260913-lq27-acquire-board-test1/-prod1` 放行 `/lanqi/acquire*`（`LANQI_ACQUIRE_LAUNCHED=true`），**经营驾驶舱仍按「开发中」占位**（`LANQI_MOMENTS_ONLY_LAUNCH=true` 不变）；**朋友圈「补数字」交互已上线**（占位符改「【这里补一个真实数字】」+ 点「✏️ 补数字」就地填写真实数字，示例与红线明确，QA-20260913-011，真实浏览器 14/0）。**⑤ 环境处置与风险**：服务器磁盘曾 100% 满导致测试实例崩溃（PostgreSQL `No space left`），已清理全部陈旧 `/opt/baolu-stage` 与旧 overlay/发布包恢复服务；`/opt/baolu-backups` 已 12G，建议制定按环境保留最近 N 份的备份策略；发布 filelist 为全量工作树，会连带其他任务在途的 `marketplace-v3.json`（线上 canary 已同步为 `1dd5b672…`，共享 `/tmp/deploy-release.sh` 待其他任务同步该值）。
 
 
