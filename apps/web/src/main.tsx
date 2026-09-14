@@ -93,6 +93,7 @@ const BeautyIndustryAcquisitionPage = lazy(() => import("./pages/BeautyIndustryA
 const BeautyIndustryWorkBuddyPage = lazy(() => import("./pages/BeautyIndustryWorkBuddyPage.js").then(module => ({ default: module.BeautyIndustryWorkBuddyPage })));
 const MarketplaceHomePage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceHomePage })));
 const MarketplaceAdminPage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceAdminPage })));
+const AdminConsolePage = lazy(() => import("./marketplace/AdminConsolePage.js").then(module => ({ default: module.AdminConsolePage })));
 const MarketplaceAgentDetailPage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceAgentDetailPage })));
 const MarketplaceMinePage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceMinePage })));
 const MarketplaceAgentChatPage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceAgentChatPage })));
@@ -422,7 +423,13 @@ function Root() {
    * 不接管 `/agents/beauty-industry`、`/agents/acquisition` 等既有页面。
    */
   if (path === "/agents/admin" || path.startsWith("/agents/admin/")) {
-    return <MarketplaceAdminPage />;
+    // PLAT-35：`/agents/admin` 换成统一后台（侧边导航：概览 / 客户 / 订单与收款 / 积分干预 /
+    // 智能体与货架 / 推荐归因 / 质量与安全）。旧页面保留在 `/agents/admin/legacy`，
+    // 它的「推荐有礼配置位」可写编辑不在新后台里重复造。
+    if (path === "/agents/admin/legacy" || path === "/agents/admin/legacy/") {
+      return <MarketplaceAdminPage />;
+    }
+    return <AdminConsolePage />;
   }
 
   if (path === "/agents" || path === "/agents/") {

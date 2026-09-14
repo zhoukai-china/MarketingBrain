@@ -1,0 +1,182 @@
+/* PLAT-35 统一管理后台（仅运营，随后台页面懒加载）。 */
+
+/* ---------------------------------------------------------------------------
+   PLAT-35 统一管理后台（用户 2026-09-15）：左侧导航 + 右侧视图，只有运营用。
+   布局在 390px 下也必须是「先导航后内容」，不能横向溢出。
+   --------------------------------------------------------------------------- */
+.adminConsoleBody {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: 16px;
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 16px 16px 48px;
+  align-items: start;
+}
+
+.adminConsoleNav {
+  position: sticky;
+  top: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.adminConsoleNavTitle {
+  display: grid;
+  gap: 2px;
+}
+
+.adminConsoleNavTitle strong { font-size: 14px; color: var(--text); }
+.adminConsoleNavTitle span { font-size: 11.5px; color: var(--muted); }
+
+.adminConsoleNav nav { display: grid; gap: 4px; }
+
+.adminNavItem {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: none;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.adminNavItem strong { font-size: 13px; }
+.adminNavItem small { font-size: 11px; color: var(--muted); line-height: 1.35; }
+.adminNavItem:hover { background: rgba(255, 255, 255, 0.04); }
+.adminNavItem.active { border-color: var(--accent2); background: rgba(255, 138, 0, 0.10); }
+.adminNavItem.active strong { color: var(--accent2); }
+
+.adminConsoleMain { display: grid; gap: 14px; min-width: 0; }
+
+.adminConsoleHeader {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass);
+  padding: 14px 16px;
+}
+
+.adminConsoleHeader h1 { margin: 0 0 4px; font-size: 18px; }
+.adminConsoleHeader p { margin: 0; font-size: 12.5px; color: var(--muted); }
+.adminConsoleEndpoints { display: flex; flex-wrap: wrap; gap: 6px; }
+.adminConsoleEndpoints code {
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+.adminConsoleToken {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass);
+  padding: 10px 14px;
+}
+
+.adminConsoleToken label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); flex: 1 1 320px; }
+.adminConsoleToken input { padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+.adminTokenState { font-size: 12px; color: var(--muted); }
+.adminTokenState.ok { color: var(--accent2); }
+
+.adminConsoleNotice {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent2);
+  border-radius: 10px;
+  background: var(--glass);
+  padding: 10px 12px;
+  font-size: 12.5px;
+  color: var(--text);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.adminConsoleNotice.warn { border-left-color: #d9822b; }
+
+.adminPanel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass);
+  padding: 14px 16px 18px;
+  min-width: 0;
+}
+
+.adminPanel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.adminPanel h2 { margin: 0; font-size: 14.5px; }
+
+.adminCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.adminCard {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
+  background: var(--bg);
+}
+
+.adminCard span { font-size: 11.5px; color: var(--muted); }
+.adminCard strong { font-size: 17px; }
+
+.adminForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.adminForm label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.adminForm input,
+.adminForm select {
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  min-width: 160px;
+}
+
+.adminTableWrap { overflow-x: auto; max-width: 100%; }
+.adminTableCaption { font-size: 12px; color: var(--muted); margin: 8px 0 6px; }
+.adminTable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.adminTable th,
+.adminTable td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.adminTable th { color: var(--muted); font-weight: 500; font-size: 11.5px; }
+.adminRowActions { display: flex; gap: 6px; }
+.adminConsoleEmpty { font-size: 12.5px; color: var(--muted); margin: 6px 0; }
+
+@media (max-width: 900px) {
+  .adminConsoleBody { grid-template-columns: minmax(0, 1fr); }
+  .adminConsoleNav { position: static; }
+  .adminConsoleNav nav { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}
