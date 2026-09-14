@@ -52,8 +52,8 @@ function main(): void {
   const sellingSkus = shelf.filter((sku) => sku.status === "selling").map((sku) => sku.skuCode);
   assert(shelf.length === 19, `public shelf keeps all 19 skus visible (got ${shelf.length})`);
   assert(
-    soonSkus.length === 15,
-    `15 coming_soon skus stay on the shelf: 创始人IP专区 7 + 美业专区 7 + 1 品牌专属内核 (got ${soonSkus.length})`
+    soonSkus.length === 13,
+    `13 coming_soon skus stay on the shelf: 创始人IP专区 6 + 美业专区 6 + 1 品牌专属内核（视频复盘已上架）(got ${soonSkus.length})`
   );
   assert(soonSkus.some((sku) => sku.skuCode === "ipzone__topic"), "coming_soon sku stays visible on the public shelf");
   // 品牌专属内核只在自己的专区上架，不污染通用分区。
@@ -67,16 +67,16 @@ function main(): void {
     "兰琪品牌内核不得出现在创始人IP/美业等通用专区"
   );
   assert(
-    sellingSkus.length === 4
-      && sellingSkus.filter((code) => code.endsWith("__ip-pos") || code.endsWith("__copy")).length === 4,
-    `only ip-pos / copy (both zones) are selling（视频复盘 2026-09-14 已下架成开发中）(got ${sellingSkus.join(", ")})`
+    sellingSkus.length === 6
+      && sellingSkus.filter((code) => code.endsWith("__ip-pos") || code.endsWith("__copy") || code.endsWith("__vidrev")).length === 6,
+    `only ip-pos / copy / vidrev (both zones) are selling（视频复盘按 2026-09-13 工单验收后已重新上架）(got ${sellingSkus.join(", ")})`
   );
-  // 2026-09-14 用户口径：视频复盘智能体先下架成「开发中」，改好再上架。
+  // 2026-09-14 用户口径：视频复盘智能体按 2026-09-13 工单改好、验收通过后重新上架。
   assert(
-    demoMarketplace.getSku("ipzone__vidrev")!.status === "coming_soon"
-      && demoMarketplace.getSku("meiye__vidrev")!.status === "coming_soon"
+    demoMarketplace.getSku("ipzone__vidrev")!.status === "selling"
+      && demoMarketplace.getSku("meiye__vidrev")!.status === "selling"
       && demoMarketplace.getSku("meiye__livescript")!.status === "coming_soon",
-    "两个专区的视频复盘都已下架成 coming_soon"
+    "两个专区的视频复盘都已上架（selling）"
   );
 
   const topic = demoMarketplace.getSku("ipzone__topic")!;
@@ -128,7 +128,7 @@ function main(): void {
   const seedStatus = (skuCode: string) =>
     MARKETPLACE_V3_SKU_SEEDS.find((sku) => sku.skuCode === skuCode)?.status;
   assert(
-    seedStatus("ipzone__vidrev") === "coming_soon" && seedStatus("meiye__vidrev") === "coming_soon",
+    seedStatus("ipzone__vidrev") === "selling" && seedStatus("meiye__vidrev") === "selling",
     `状态必须来自发布文件而不是库里的专区 profile：ipzone__vidrev=${seedStatus("ipzone__vidrev")} / `
       + `meiye__vidrev=${seedStatus("meiye__vidrev")}`
   );

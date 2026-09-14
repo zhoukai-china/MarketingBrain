@@ -1,6 +1,7 @@
 // 视频复盘智能体（vidrev）真实运行验收：走生产同一路由 + 真实模型 + 真实数据库。
 // 验收点：深度复盘 60 积分/次只扣一次、十章齐全、四象限/健康度与后端重算一致、账本恰好一条；
-//         快速诊断同样只扣一次；无数据行 → 422 且不扣费；免费重做 charged=0；租户隔离。
+//         无数据行 → 422 且不扣费；余额不足 → 402 引导充值；免费重做 charged=0；租户隔离。
+// 工单 2026-09-13 §2.2 已取消「快速诊断」，只保留深度复盘，因此本脚本不再跑 quick 相位。
 //
 // 首次验证只用真机深度跑（真实模型可能一次不达 V1–V12）可设：
 //   $env:VIDREV_SMOKE_ONLY="deep"; pnpm.cmd marketplace:vidrev-run-smoke
@@ -69,13 +70,16 @@ async function main(): Promise<void> {
   const dump = process.env.VIDREV_SMOKE_DUMP ?? "";
 
   await ensureMarketplaceCatalog();
-  // 视频复盘 2026-09-14 已按用户口径下架成「开发中」（ipzone__vidrev / meiye__vidrev = coming_soon）。
-  // 冒烟测试仍临时置为 trial 跑验收，结束时还原为进入时的状态，不污染真实开卖状态。
+  // 视频复盘 2026-09-14 按工单验收通过后已重新上架（ipzone__vidrev / meiye__vidrev = selling）。
+  // 冒烟测试仍临时置为 trial 跑验收（与开卖状态解耦），结束时还原为进入时的状态。
   // 注意：registerMarketplaceRoutes 内部会再调一次 ensureMarketplaceCatalog() 覆盖回种子状态，
   // 所以必须等路由注册完成后才能真正落库为 trial。
   const skuRow = await prisma.marketplaceSku.findUniqueOrThrow({ where: { skuCode: SKU } });
   const tenant = await createTenant("main");
   const other = await createTenant("other");
+  // 余额不足专用租户：工单要求「余额不足时提示充值而不是无输出」。
+  const poor = await createTenant("poor");
+  await prisma.wallet.update({ where: { id: poor.walletId }, data: { paidBalance: 0, bonusBalance: 0 } });
 
   const app = Fastify();
   await registerMarketplaceRoutes(app);
@@ -88,6 +92,41 @@ async function main(): Promise<void> {
 
   try {
     let deepRequestId = "";
+
+    // 工单 §2.4：`POST /vidrev/parse-preview` 先证明「文件真到了、解析到了」，不调模型。
+    if (!only || only === "preview") {
+      const csv = [
+        "视频标题,发布时间,播放数,点赞数,评论数,分享数,收藏数,完播率,5秒完播率",
+        "示例一,2026-08-12,124000,3200,286,410,520,31%,62%",
+        "示例二,2026-08-18,32000,900,60,120,200,38%,60%"
+      ].join("\n");
+      const preview = await app.inject({
+        method: "POST",
+        url: "/vidrev/parse-preview",
+        headers: headers(tenant),
+        payload: { content: csv }
+      });
+      assert(preview.statusCode === 200, `vidrev parse-preview returns 200 (got ${preview.statusCode})`);
+      const previewBody = preview.json() as {
+        ok?: boolean; rowCount?: number; platform?: string | null;
+        period?: { start?: string | null; end?: string | null }; limitedDimensions?: string[];
+      };
+      assert(previewBody.ok === true, "parse-preview recognises the table");
+      assert(previewBody.rowCount === 2, `parse-preview counts 2 rows (got ${previewBody.rowCount})`);
+      assert(previewBody.platform === "抖音", `parse-preview detects 抖音 (got ${previewBody.platform})`);
+      assert(previewBody.period?.start === "2026-08-12" && previewBody.period?.end === "2026-08-18", "parse-preview reports the date range");
+      assert((previewBody.limitedDimensions ?? []).length === 0, "parse-preview reports no limited dimension for a complete table");
+
+      const emptyPreview = await app.inject({
+        method: "POST",
+        url: "/vidrev/parse-preview",
+        headers: headers(tenant),
+        payload: { content: "视频标题,发布时间,播放数\n" }
+      });
+      assert(emptyPreview.statusCode === 200, `empty parse-preview returns 200 (got ${emptyPreview.statusCode})`);
+      assert(emptyPreview.json().ok === false, "header-only preview must not claim success");
+      console.log(JSON.stringify({ phase: "preview", rows: previewBody.rowCount, platform: previewBody.platform, emptyOk: false }));
+    }
 
     if (!only || only === "deep") {
       const startedAt = Date.now();
@@ -203,27 +242,6 @@ async function main(): Promise<void> {
       return;
     }
 
-    // 快速诊断：同样只扣一次 60。
-    if (!only || only === "quick") {
-      const run = await app.inject({
-        method: "POST",
-        url: `/market/skus/${encodeURIComponent(SKU)}/run`,
-        headers: headers(tenant),
-        payload: {
-          mode: "quick",
-          platform: "抖音",
-          input: "这条视频播放 3.2 万、点赞 900、评论 60、分享 120，咨询 6 个，帮我快速看看问题在哪。"
-        }
-      });
-      if (run.statusCode !== 200) console.log("QUICK_RESPONSE", run.statusCode, run.body.slice(0, 4000));
-      assert(run.statusCode === 200, `vidrev quick run returns 200 (got ${run.statusCode})`);
-      const body = run.json() as VidrevRunBody;
-      assert(body.consumedCredits === PRICE, `vidrev quick charges exactly ${PRICE} credits (got ${body.consumedCredits})`);
-      assert(body.payload?.kind === "vidrev", "vidrev quick returns vidrev payload");
-      assert(body.payload?.mode === "quick", `vidrev quick payload mode is quick (got ${body.payload?.mode})`);
-      console.log(JSON.stringify({ phase: "quick", consumedCredits: body.consumedCredits, answerChars: body.answer.length }));
-    }
-
     // 无数据行的深度复盘 → 422 且不扣费（V0，模型调用前拦截）。
     if (!only || only === "v0") {
       const before = await prisma.wallet.findUniqueOrThrow({ where: { id: tenant.walletId } });
@@ -274,11 +292,32 @@ async function main(): Promise<void> {
       console.log(JSON.stringify({ phase: "isolation", foreignLedger: foreign.length }));
     }
 
+    // 余额不足：必须明确 402 + 引导充值，且不写任何账本（工单 §四）。
+    if (!only || only === "insufficient") {
+      const run = await app.inject({
+        method: "POST",
+        url: `/market/skus/${encodeURIComponent(SKU)}/run`,
+        headers: headers(poor),
+        payload: { mode: "deep", platform: "抖音", rows: ROWS, has_revenue_data: true }
+      });
+      assert(run.statusCode === 402, `vidrev insufficient balance returns 402 (got ${run.statusCode})`);
+      const body = run.json() as { error?: string; message?: string; required?: number; balance?: number; rechargeUrl?: string };
+      assert(body.error === "insufficient_credits", `insufficient error code (got ${body.error})`);
+      assert(body.required === PRICE, `insufficient response states required=${PRICE} (got ${body.required})`);
+      assert((body.message ?? "").includes("充值"), "insufficient response tells the user to recharge");
+      assert((body.rechargeUrl ?? "").length > 0, "insufficient response carries a recharge url");
+      const ledger = await prisma.marketplaceLedgerEntry.findMany({ where: { tenantId: poor.tenantId } });
+      assert(ledger.length === 0, "insufficient balance writes no ledger row");
+      const wallet = await prisma.wallet.findUniqueOrThrow({ where: { id: poor.walletId } });
+      assert(wallet.paidBalance + wallet.bonusBalance === 0, "insufficient balance does not change the wallet");
+      console.log(JSON.stringify({ phase: "insufficient", status: 402, required: body.required, balance: body.balance }));
+    }
+
     console.log("PASS marketplace-vidrev-run-smoke");
   } finally {
     await app.close();
     await prisma.marketplaceSku.update({ where: { skuCode: SKU }, data: { status: skuRow.status } });
-    for (const t of [tenant, other]) {
+    for (const t of [tenant, other, poor]) {
       await prisma.marketplaceLedgerEntry.deleteMany({ where: { tenantId: t.tenantId } });
       await prisma.creditReservation.deleteMany({ where: { tenantId: t.tenantId } });
       await prisma.creditTransaction.deleteMany({ where: { tenantId: t.tenantId } });

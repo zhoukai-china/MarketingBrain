@@ -51,12 +51,12 @@ const SKUS = skuArgs.length ? skuArgs : ["ipzone__vidrev", "meiye__vidrev"];
 
 /**
  * 每个 SKU 在页面上的期望：`name` 取自 `apps/api/src/data/marketplace-v3.json`（skill 名），
- * `state` 与该 SKU 的货架状态一致（两个专区的视频复盘 2026-09-14 已下架成开发中 = coming_soon）。
+ * `state` 与该 SKU 的货架状态一致（两个专区的视频复盘按 2026-09-13 工单验收通过后已重新上架 = selling）。
  * 未列出的 SKU 一律按 coming_soon 断言，避免默认值悄悄放宽验收口径。
  */
 const SKU_EXPECTED = {
-  ipzone__vidrev: { name: "视频复盘", state: "coming_soon" },
-  meiye__vidrev: { name: "视频复盘", state: "coming_soon" }
+  ipzone__vidrev: { name: "视频复盘", state: "selling" },
+  meiye__vidrev: { name: "视频复盘", state: "selling" }
 };
 
 const VIEWPORTS = [

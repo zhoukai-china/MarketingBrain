@@ -9,6 +9,20 @@ import sitongAvatar from "../assets/sitong-beauty.png";
 import { bundleSteps, coreSkuCode, isBundle, isComingSoon, zoneOfSku, type MarketplaceIndustry, type MarketplaceSku } from "./sku-model.js";
 import { authHeaders, fetchMarketMe, guestToLogin, handleStaleSession, readJson, Topbar } from "./shell.js";
 
+/**
+ * 视频复盘：还没拿到数据表时的回复（工单 2026-09-13 §四「未传文件时输入复盘」）。
+ * 这里刻意不调用后端、不扣积分，只把「数据从哪来、怎么传」讲清楚。
+ */
+const VIDREV_NO_DATA_GUIDE = [
+  "**先别急——我还没拿到你的数据。** 没有数据我只能编，我不会编。",
+  "",
+  "📥 数据导出指南（上方卡片也能随时展开）",
+  "- **视频号**：登录视频号助手 https://channels.weixin.qq.com/login.html → 数据中心 → 视频数据 → 单篇视频 → 选「近 30 天」→ 下载表格",
+  "- **抖音**：登录抖音创作者中心 https://creator.douyin.com/ → 数据中心 → 作品数据 → 近 30 天 → 导出数据",
+  "",
+  "把下载好的 **CSV 或 Excel** 直接拖进对话框上传，再跟我说「复盘」即可。（本次没有调用模型、未扣积分）"
+].join("\n");
+
 interface ChatItem {
   id: string;
   role: "ai" | "user";
@@ -207,6 +221,12 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
       if (attachmentText) {
         const baseInput = typeof body.input === "string" ? body.input : "";
         body.input = `${baseInput}${baseInput ? "\n\n" : ""}${attachmentText}`.slice(0, 50_000);
+        // 工单 2026-09-13 §2.4：有成交口径字段时后端才允许出 ROI 数值。
+        // 抖音/视频号导出的表里就有「成交金额」，所以这里要连附件内容一起判断，
+        // 否则用户明明传了成交数据，报告却只给留资成本口径。
+        if (coreSkuCode(runSku.skuCode) === "vidrev" && /成交金额|成交额|营业额|销售额|GMV|收入/i.test(attachmentText)) {
+          body.has_revenue_data = true;
+        }
       }
       const runResponse = await fetch(apiPath(`/market/skus/${encodeURIComponent(runSku.skuCode)}/run`), {
         method: "POST",
@@ -283,6 +303,19 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
       return;
     }
 
+    // 工单 2026-09-13 §四：未传数据时输入「复盘」不能空跑一轮（更不能扣积分）——
+    // 先把「数据从哪来、怎么传」讲清楚，用户看到指南再去导出。
+    if (isVidrev && flow.slots[step].key === "data" && !vidrevHasData(value)) {
+      setItems((prev) => [
+        ...prev,
+        { id: `nodata-u${Date.now()}`, role: "user", text: value },
+        { id: `nodata-a${Date.now()}`, role: "ai", text: VIDREV_NO_DATA_GUIDE }
+      ]);
+      setInput("");
+      setUploadNote("本次没有调用模型、未扣积分。");
+      return;
+    }
+
     const nextAnswers = { ...answers, [flow.slots[step].key]: value };
     setAnswers(nextAnswers);
     // 附件要出现在用户自己那条消息里，否则用户不知道文件到底有没有被带上。
@@ -356,6 +389,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
 
   /** 会被真正读进需求里的文本类附件（视频复盘的后台导出 CSV 就是走这条）。 */
   const TEXT_ATTACHMENT_PATTERN = /\.(txt|md|csv|tsv|json|log|srt)$/i;
+  /** 视频复盘专用：平台后台默认导出的 Excel 也要能真读到数据（工单 2026-09-13 §2.1）。 */
+  const WORKBOOK_ATTACHMENT_PATTERN = /\.(xlsx|xls)$/i;
   const MAX_ATTACHMENT_TEXT = 20_000;
 
   /**
@@ -363,7 +398,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
    *
    * 口径（2026-09-13 用户要求「支持文件直接拖拽进浏览器的对话框」）：
    * - 文本类（txt/md/csv/tsv/json/log/srt）直接读内容，发请求时拼进需求单，智能体真的能看到；
-   * - 其它类型（PDF/Word/Excel/图片/视频）当前只记录文件名并**明确告诉用户**要粘贴关键内容，
+   * - 视频复盘例外：平台后台默认导出的 Excel（.xlsx/.xls）会经平台文档解析入口读成表格文本（工单 2026-09-13 §2.1）。
+   * - 其它类型（PDF/Word/图片/视频）当前只记录文件名并**明确告诉用户**要粘贴关键内容，
    *   不做「假装已解析」。
    */
   async function addFiles(files: File[]) {
@@ -382,6 +418,25 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
         } catch {
           next.push({ kind, name: file.name });
           notes.push(`无法读取「${file.name}」，请把关键内容粘贴到对话框`);
+        }
+      } else if (isVidrev && !isVideo && WORKBOOK_ATTACHMENT_PATTERN.test(file.name)) {
+        // 工单 2026-09-13 §2.1/§2.4：视频号助手与抖音创作者中心默认导出的就是 Excel，
+        // 拖进来必须真读到数据，不能只说「暂不能自动读取」。走平台受授权的文档解析入口
+        // （`/media/analyze` 只对音视频 fail-closed，表格是文档，不进 ASR 通道）。
+        try {
+          const raw = await parseWorkbookAttachment(file);
+          if (raw) {
+            const truncated = raw.length > MAX_ATTACHMENT_TEXT;
+            next.push({ kind, name: file.name, text: raw.slice(0, MAX_ATTACHMENT_TEXT) });
+            notes.push(`已读取「${file.name}」的表格内容（Excel 已转成表格文本）${truncated ? `（超过 ${MAX_ATTACHMENT_TEXT} 字，已截断）` : ""}`);
+          } else {
+            next.push({ kind, name: file.name });
+            notes.push(`「${file.name}」里没有读到可用数据，请确认导出的是视频号 / 抖音后台的作品数据表（至少含标题、发布时间、播放量等列）`);
+          }
+        } catch (error) {
+          next.push({ kind, name: file.name });
+          const detail = error instanceof Error && error.message ? `（${error.message}）` : "";
+          notes.push(`「${file.name}」解析失败${detail}，请确认是视频号 / 抖音后台导出的 Excel（.xlsx），或另存为 CSV 再上传`);
         }
       } else if (isVideo) {
         next.push({ kind, name: file.name });
@@ -402,9 +457,54 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     if (fileRef.current) fileRef.current.value = "";
   }
 
+  /**
+   * 视频复盘：把 Excel 交给平台自己的文档解析入口，拿回「表头 + 数据行」的表格文本。
+   * 这条链路不调用 ASR / 视觉模型，仍然要求登录态；解析失败会抛出人话原因。
+   */
+  async function parseWorkbookAttachment(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append("file", file, file.name);
+    formData.append("metadata", "视频复盘数据表");
+    formData.append("frames", "[]");
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
+    try {
+      const response = await fetch(apiPath("/media/analyze"), {
+        method: "POST",
+        headers: authHeaders(),
+        body: formData,
+        signal: controller.signal
+      });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { message?: string };
+        throw new Error(payload.message?.trim() || `解析失败（${response.status}）`);
+      }
+      const payload = (await response.json()) as { documentText?: string };
+      return (payload.documentText ?? "").trim();
+    } catch (error) {
+      if ((error as { name?: string }).name === "AbortError") throw new Error("解析超过 60 秒已停止，请换更小的表格重试");
+      throw error;
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  }
+
+  /**
+   * 视频复盘的「数据」轮：只有真带了数据（已读到的附件文本，或含指标+数字的描述）才放行。
+   * 只打「复盘」两个字属于「还没给数据」，先回导出指南，不调用模型也不扣积分。
+   */
+  function vidrevHasData(value: string): boolean {
+    if (attachments.some((item) => item.text)) return true;
+    const text = value.trim();
+    if (!text) return false;
+    const hasMetric = /标题|播放|点赞|评论|分享|收藏|完播|发表时间|发布时间|播放量|播放数/.test(text);
+    return hasMetric && /\d/.test(text);
+  }
+
   function enhanceInput() {
     if (!flow) return;
     const base = input.trim() || "（待补充）";
+
     const enhanced = `【${runSku?.name ?? flow.name}需求 · 增强】\n• 业务背景：${base}\n• 关键目标：\n• 已有数据 / 素材：${attachments.map((a) => a.name).join("、") || "（无）"}\n• 最想解决的问题：\n\n请按「${flow.name}」方法论补全维度后输出。`;
     setInput(enhanced);
     setUploadNote("已按该方法论增强，请在原有基础上补充缺口后发送。");
@@ -789,7 +889,12 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                 </button>
               </div>
               </div>
-              <div className="chat-hint">AI 会按本智能体技能逻辑<b>主动提问，引导你补全信息</b>，补全后产出结果 · <b>可把文件直接拖进这里</b>（文本类 CSV/TXT/MD/JSON 会读进需求；PDF/Word/Excel/图片/视频暂只记文件名）</div>
+              <div className="chat-hint">
+                AI 会按本智能体技能逻辑<b>主动提问，引导你补全信息</b>，补全后产出结果 · <b>可把文件直接拖进这里</b>
+                {isVidrev
+                  ? "（文本类 CSV/TXT/MD/JSON 与后台导出的 Excel（.xlsx）会读进需求；PDF/Word/图片/视频暂只记文件名）"
+                  : "（文本类 CSV/TXT/MD/JSON 会读进需求；PDF/Word/Excel/图片/视频暂只记文件名）"}
+              </div>
             </div>
           )}
           </div>

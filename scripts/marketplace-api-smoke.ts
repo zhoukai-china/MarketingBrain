@@ -35,12 +35,12 @@ async function main(): Promise<void> {
     shelfBody.skus.filter((sku) => sku.skuCode.endsWith("__vidrev")).map((sku) => [sku.skuCode, sku.status])
   );
   assert(
-    vidrevStatuses["ipzone__vidrev"] === "coming_soon",
-    `ipzone__vidrev must be coming_soon (got ${vidrevStatuses["ipzone__vidrev"]})`
+    vidrevStatuses["ipzone__vidrev"] === "selling",
+    `ipzone__vidrev must be selling (got ${vidrevStatuses["ipzone__vidrev"]})`
   );
   assert(
-    vidrevStatuses["meiye__vidrev"] === "coming_soon",
-    `meiye__vidrev must be coming_soon (got ${vidrevStatuses["meiye__vidrev"]})`
+    vidrevStatuses["meiye__vidrev"] === "selling",
+    `meiye__vidrev must be selling (got ${vidrevStatuses["meiye__vidrev"]})`
   );
   const soonSku = shelfBody.skus.find((sku) => sku.status === "coming_soon");
   assert(soonSku !== undefined, "coming_soon skus are still listed on the public shelf");
