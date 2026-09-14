@@ -2104,7 +2104,7 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 
 ## PLAT-32 平台底座抽取：公共底座与智能体专用代码清晰分离（用户 2026-09-14 拍板）
 
-状态：基本完成（第①②③批完成；第④批 MarketplaceApp.tsx 已全部拆成 5 个独立页面组件 + sku-model + shell，MarketplaceApp.tsx 现为 5 行 re-export 桶；auth.ts 仅剩 schemas/helpers 与巨型 registerAuthRoutes 未拆，建议单列后续任务）。
+状态：基本完成（第①②③批完成；第④批 MarketplaceApp.tsx 全部拆成 5 个独立页面组件 + sku-model + shell；auth.ts 已抽 schemas/helpers，仅剩巨型 registerAuthRoutes 约 1250 行未拆，建议单列后续任务）。
 
 ### 用户结果
 
