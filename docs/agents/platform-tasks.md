@@ -2198,3 +2198,46 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 - 残余风险：真实浏览器验收只覆盖桌面 1440（移动端未跑真机录音）；iOS Safari 的 `audio/mp4` 录音已在前端做了容器与扩展名兼容，但未在真机 iPhone 上验过。
 - 计费口径：语音输入当前免费但有次数上限；如果上线后用量大，再谈按次计费。
 - 最后更新日期：2026-09-14
+
+## PLAT-34 统一注册链接（用户 2026-09-15：兰琪要邀请码，其他智能体都不要）
+
+状态：**已完成 + 已上测试实例与生产**（`verify-deploy.sh` VERIFY_OK）。
+
+### 用户口径
+
+「兰琪智能体要邀请码，其他智能体都不需要邀请码，通过链接直接注册就可以了；推荐归因要保留；把给用户的链接统一成一个链接。」
+
+### 归属
+
+- 产品：公共平台（登录 / 开通 / 推荐归因）。
+- 风险：高（身份与开通闸门），因此同时锁「开对了」和「没开错」两侧。
+
+### 实现（最小改动）
+
+- `apps/api/src/services/invite-codes.ts`：受控产品清单显式声明 `LANQI_PRODUCT_CODE = "lanqi"`；缺省邀请码时——兰琪 403 `invite_code_required`，非兰琪产品入口放行（`source: "not_required"`，不写任何邀请码归属），平台主入口仍由 `INVITE_REQUIRED` 决定（生产/测试均为 `false` = 开放注册）。**显式带了码就按码校验**：无效 / 过期 / 用尽 / 产品不匹配仍然 403，绝不静默忽略。
+- `apps/api/src/routes/auth.ts`：`beta-login` 与 `onboarding/create-workspace` 在没有 `inviteCodeId` 时跳过兑换；美业品牌归属只在邀请码带品牌时写入（无码保持默认品牌，不伪造来源）。推荐归因（`referralCode`）链路一行未改。
+- `apps/web/src/pages/LoginPage.tsx`：邀请码表单与必填只在兰琪入口出现；其他产品入口直接进工作区资料表单并保留微信通道；统一链接（`/login?ref=…`）带失效旧码时清码并提示，不把新用户挡在门外。
+
+### 对外链接（只有一个）
+
+`https://api.lcppch.top/os-v2/login?ref=<你的推荐码>`（推荐码可省略；`ref` 只做归因，首次开通工作区才登记，已有账号不重复绑定）。兰琪仍用 `…/login/lanqi?invite=<兰琪码>` 发加盟商。
+
+### 验收
+
+1. 正常路径：统一链接无邀请码建号（测试实例真实 HTTP 200，`invite.source=disabled`）；美业 / 创始人 IP / 外卖入口无码开通（测试实例真实 HTTP 200 且回带 `productCode`）；兰琪带有效码开通并兑换一次。
+2. 失败路径：兰琪无码 403 `invite_code_required`；任何入口带无效码 403 `invite_code_not_found`；用尽的码再用 403。
+3. 不应发生：无码白拿兰琪授权；无效码被静默忽略；推荐归因因「没邀请码」丢失；已有账号被要求重新填码。
+4. 页面级（生产真机只读，17/17 PASS）：统一链接只给「微信一键登录 / 注册」+ 展示推荐码、无邀请码输入框；兰琪入口保留「产品邀请码」必填；美业 / 创始人 IP / 外卖入口直接进资料表单；四个入口控制台 0 error。
+
+### 测试
+
+- 新增 `pnpm.cmd auth:invite-gate-smoke`（真数据库 6 项，已入 `qa:regression`）：无码注册 / 兰琪 403 / 三个非兰琪产品放行 / 无效码 403 / 有效码兑换且 `usedCount=1` / 无效推荐码不挡注册。**红灯证据**：把 `invite-codes.ts` + `auth.ts` 回退到修复前，该用例稳定失败（`beauty-industry 无邀请码必须能直接开通（实际 403 invite_code_required）`）。
+- `pnpm.cmd auth:product-login-smoke`（静态契约已同步 PLAT-34 口径）、`pnpm.cmd platform:referral-attribution-smoke`（60 passed / 0 failed）、`pnpm.cmd qa:fast` 全绿。
+- 页面级脚本：`scripts/acceptance/plat34-unified-login-browser-e2e.mjs`（生产 `https://api.lcppch.top/os-v2` 17/17、控制台 0 error）。
+
+### 交接
+
+- 发布包 `release-20260915-plat34-unified-login.tar.gz`（sha256 `f869e1e0…`），测试 `20260915-plat34-test1` / 生产 `20260915-plat34-prod1` 均 `DEPLOY_OK` + `VERIFY_OK`。
+- 残余：测试实例是「兰琪本机直登」环境，登录页会被自动跳过，所以页面级验收放在生产做（只读、不注册）；测试实例改做真实 HTTP 闸门验证（含 2 个验收租户，跑完已清理）。
+- 还没做（用户已点名，排在后面）：统一管理后台入口；计费模型改成「按 token 成本 × 利润率、只告知消耗、不给单个智能体标价」（需要利润率/取整/余额不足三处拍板）。
+- 最后更新日期：2026-09-15

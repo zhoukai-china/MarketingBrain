@@ -1,5 +1,15 @@
 # 当前部署状态
 
+## 最新发布：20260915-plat34-unified-login（2026-09-15，测试实例 + 生产）— 统一注册链接（兰琪要邀请码，其他都不要）
+
+- 发布包 `release-20260915-plat34-unified-login.tar.gz`（9,679,686 B / 1524 文件，sha256 `f869e1e0a8b5cd290495066391cbc8fddbacc5f8f967e1357fe2557bd5d2c1a3`），从 commit `8e07d7e` 完整快照打包。
+- 用户口径：对外只发**一个**注册链接 `https://api.lcppch.top/os-v2/login?ref=<推荐码>`（`ref` 只做归因、可省略）；**兰琪**仍凭邀请码（`/login/lanqi?invite=…`），美业 / 创始人 IP / 外卖与统一链接都能直接注册。
+- 实现：`invite-codes.ts` 受控产品清单显式=`lanqi`；缺码时兰琪 403、非兰琪产品放行且不写码归属，平台主入口仍由 `INVITE_REQUIRED`（生产/测试均 `false`）决定；**带无效码一律 403**；`auth.ts` 无 `inviteCodeId` 时跳过兑换、美业品牌只在码带品牌时写；`LoginPage.tsx` 邀请码表单只在兰琪出现，其他入口直达资料表单并保留微信通道，统一链接里的失效旧码会被清掉并提示（不挡注册）。推荐归因链路未改。
+- 验证：新增 `auth:invite-gate-smoke`（真数据库 6 项，已入 `qa:regression`；红灯=回退后 `beauty-industry 无邀请码 → 403`）、`platform:referral-attribution-smoke` 60/0、`qa:fast` 全绿；测试实例真实 HTTP：无码建号 200 / 兰琪无码 403 `invite_code_required` / 美业无码 200（回带 `productCode`）/ 无效码 403 `invite_code_not_found`（验收租户已清理）；**生产只读页面验收 17/17**（统一链接无邀请码输入框且显示推荐码、兰琪保留必填、其余三个入口直达资料表单、控制台 0 error）。
+- 部署：测试 `20260915-plat34-test1`、生产 `20260915-plat34-prod1` 均 `DEPLOY_OK` + `verify-deploy.sh` **VERIFY_OK**；`journalctl -p err` 无条目。生产再次实测兰琪无码 403 / 无效码 403（两条都不落数据）。
+- 备份/回滚：`/opt/baolu-backups/20260915-plat34-{test1,prod1}-before-baolu-os-v2*`；回滚＝还原备份目录 + `systemctl restart baolu-os-v2(-test)`。
+- 未做（用户已点名，排后续）：统一管理后台入口；计费模型改为「按 token 成本 × 利润率、只告知消耗、不给单个智能体标价」（需利润率 / 取整 / 余额不足三处拍板）。
+
 ## 最新发布：20260914-vidrev-online（2026-09-14，测试实例 + 生产）— 视频复盘验收通过后重新上架（含 P1 修复）
 
 - 发布包 `release-20260914-vidrev-online-v5.tar.gz`（9,673,131 B / 1522 文件，sha256 `b79534fa3f2eb3ac01e3bf99e70eb62b1a27f9d9aa11ccb48f867e29ebaf200f`），从 commit `7e77301` 快照打包（完整文件集）。
