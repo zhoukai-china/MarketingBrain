@@ -30,6 +30,8 @@
 
 - 2026-09-14（总调度7 · 发布 3）：`20260914-zd7c-vidrev-off` 测试 + 生产均 `DEPLOY_OK` + `VERIFY_OK`；按用户口径把「视频复盘智能体」下架成「开发中」（`ipzone__vidrev` / `meiye__vidrev` → `coming_soon`，货架 `coming_soon=15` / `selling=4`），改好后再上架。备份 `/opt/baolu-backups/20260914-zd7c-vidrev-off-prod1-before-baolu-os-v2/`。
 
+- 2026-09-14（总调度7 · 发布 4）：`20260914-zd7d/zd7e-vidrev-fix` 测试 + 生产均 `DEPLOY_OK` + `VERIFY_OK`；按 2026-09-13 工单改造视频复盘（数据导出指南 / 删快速诊断 / `parse-preview` 预检 / 一键填充标准请求 / 视频号抖音字段别名）。视频复盘仍为「开发中」，待业务验收后再上架。
+
 ## 已知阻塞
 
 - 桌面版 create_thread/fork_thread 对项目/派生线程会报 missing field call_id 系统错误，线程执行通道不可用；任务暂时在“开发总调度”对话框直接推进。
