@@ -54,7 +54,7 @@ const OFFLINE_BOARDS = [
   "/lanqi/store",
 ];
 const ACQUIRE_PAGES = [
-  { path: "/lanqi/acquire", expect: "去搜爆款" },
+  { path: "/lanqi/acquire", expect: "去复刻" },
   { path: "/lanqi/acquire/video", expect: "爆款复刻" },
 ];
 const MOMENTS_PAGES = [

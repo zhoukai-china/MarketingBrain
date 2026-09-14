@@ -2,6 +2,18 @@
 /**
  * 兰琪美业「公域获客 / 视频获客」四模式交互验收脚本。
  *
+ * ⚠️ 已退役（SUPERSEDED）。本脚本断言的是 LQ-19 时期的「一页四页签」页面
+ * （🔥 爆款复刻 / 🏪 门店素材成片 / ✂️ AI 剪辑 / 📝 文案转片）与当时的
+ * fail-closed 文案，这些结构在 LQ-26（拆成 /lanqi/acquire/video + /lanqi/acquire/video-copy
+ * 两个路由）、LQ-27（爆款复刻真实出片 + 按秒计价）、LQ-28（取消「搜爆款」，改为
+ * 门店自备参考素材）之后都不再存在，直接运行必然失败，且失败不代表页面有问题。
+ *
+ * 现在的权威入口（真实浏览器、可重复）：
+ *   pnpm.cmd lanqi:acquire-instance-acceptance   # 打测试实例，爆款复刻 + 一键成片全量验收
+ *   pnpm.cmd lanqi:acquire-ui-contract-smoke     # 源码静态契约（含 LQ-28 下线断言）
+ *
+ * 确需复现历史四页签行为（例如对照 LQ-19 老构建）时才加 --legacy 运行。
+ *
  * 与 lanqi-page-check.mjs 的区别：本脚本会真实点击 4 个模式页签、触发主按钮、
  * 轮询真实接口返回，并对关键文案与 fail-closed 行为做断言，产物为截图 + JSON 报告。
  *
@@ -32,6 +44,18 @@ const outDir = argValue("--out", path.join(tmpdir(), "lanqi-acquire-video-flow")
 const port = Number(argValue("--port", "9344"));
 const width = 1440;
 const height = 1100;
+
+if (!args.includes("--legacy")) {
+  console.error(
+    [
+      "本脚本已退役（SUPERSEDED）：断言对象是 LQ-19 的四页签页面，LQ-26 / LQ-27 / LQ-28 之后已不存在。",
+      "请改用：pnpm.cmd lanqi:acquire-instance-acceptance（真实浏览器验收）",
+      "     或：pnpm.cmd lanqi:acquire-ui-contract-smoke（源码契约 smoke）",
+      "确需复现历史行为时加 --legacy 运行。",
+    ].join("\n"),
+  );
+  process.exit(3);
+}
 
 const CHROME_CANDIDATES = [
   path.join(process.env.LOCALAPPDATA ?? "", "ms-playwright", "chromium-1234", "chrome-win64", "chrome.exe"),

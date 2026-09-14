@@ -291,8 +291,12 @@ function blankErrors(page) {
  * 视频获客页的真实验收（LQ-23 起该页在「收口」口径下也刻意可直达，因此不能按占位页验收）。
  *
  * 覆盖两件事：
- *  ① 四个模式页签齐全；② 爆款复刻（LQ-25）必须真发检索请求，条目只能是抖音 / 微信生态域内页面，
- *     没有有效条目时必须出现「没有可点开的条目」说明 —— 两种结果都算通过，**编造条目才算失败**。
+ *  ① 单模式（爆款复刻）无模式页签；② 爆款复刻（LQ-28）参考素材由门店自备 ——
+ *     页面不得再有「搜爆款」入口，两个参考素材页签都要能真正进入：
+ *     「参考抖音链接」只登记来源且**不发任何检索请求、不出片**，切到「上传参考视频」
+ *     必须出现可用的原片文件选择器（LQ-28 首次上测试实例时这里曾误判：两个页签是
+ *     条件渲染，不切页签就取不到上传面板，属于探针缺陷，已改为切页签后再断言）。
+ *     未上传原片与未勾齐授权时点「看报价」必须本地拦截（LQ-27 防线，新增请求数必须为 0）。
  */
 async function verifyVideoPage(root, checks, base, label, record) {
   const vd = await openPage(root, `${base}/lanqi/acquire/video`, "爆款复刻");
@@ -314,78 +318,143 @@ async function verifyVideoPage(root, checks, base, label, record) {
     detail: `tabs=${vdShell.tabs} 含爆款复刻=${vdShell.text.includes("爆款复刻")} 含门店素材成片=${vdShell.text.includes("门店素材成片")} 含AI剪辑=${vdShell.text.includes("AI 剪辑")}`,
   });
 
-  const vdKw = await setFieldValue(root, vd, "input#lq-vd-kw", "皮肤管理门店获客");
-  await sleep(400);
-  const vdSearchCallsBefore = vd.requestTimeline.length;
-  const vdSearchClick = await clickButton(root, vd, "AI 去抖音/视频号搜爆款");
-  let vdSearchText = "";
-  let vdHitLinks = [];
-  for (let attempt = 0; attempt < 32; attempt++) {
-    await sleep(1000);
-    const probe = await evaluate(
-      root,
-      vd.sessionId,
-      `(() => ({
-        text: document.body?.innerText ?? "",
-        links: [...document.querySelectorAll(".lq-vd__hit-list a")].map((node) => node.getAttribute("href") || "")
-      }))()`,
-    );
-    vdSearchText = probe?.text ?? "";
-    vdHitLinks = Array.isArray(probe?.links) ? probe.links : [];
-    if (vdHitLinks.length > 0 || vdSearchText.includes("没有可点开的条目")) break;
-  }
-  const vdSearchCallsAfter = vd.requestTimeline.length;
-  const vdRequested = countRequests(vd, "/lanqi/acquire/video/viral-search") > 0;
-  const vdPlatformLinks = vdHitLinks.filter(
-    (href) =>
-      /^https:\/\/www\.douyin\.com\/(?:video|note)\//.test(href) ||
-      /^https:\/\/(?:mp|channels|www)\.weixin\.qq\.com\//.test(href) ||
-      /^https:\/\/mp\.weixin\.qq\.com\/s\?/.test(href),
+  // ── LQ-28 ①：搜爆款入口必须整体消失，两个参考素材页签必须在位 ──
+  // 注：默认停在「参考抖音链接」页签，此时上传面板按条件渲染尚未挂载，
+  // 因此这里只断言链接侧；原片选择器在下面切到上传页签后再断言。
+  const vdSurface = await evaluate(
+    root,
+    vd.sessionId,
+    `(() => {
+      const text = document.body?.innerText ?? "";
+      const labels = [...document.querySelectorAll("button")].map((node) => (node.innerText || "").trim());
+      return {
+        searchButtons: labels.filter((item) => /搜爆款|平台筛选|行业领域/.test(item)),
+        keywordInput: Boolean(document.querySelector("#lq-vd-kw")),
+        linkTab: text.includes("参考抖音链接"),
+        uploadTab: text.includes("上传参考视频"),
+        linkInput: Boolean(document.querySelector("#lq-vd-ref-link")),
+        linkCaveat: text.includes("不会出片"),
+      };
+    })()`,
   );
   checks.push({
-    name: `${label}：爆款复刻走真实检索（抖音 / 视频号），无有效条目时明确说明、不编造`,
+    name: `${label}：爆款复刻不再有「搜爆款」入口，改为参考抖音链接 / 上传参考视频两页签`,
     pass:
-      vdKw === "filled" &&
-      vdSearchClick === "clicked" &&
-      vdSearchCallsAfter > vdSearchCallsBefore &&
-      vdRequested &&
-      vdHitLinks.length === vdPlatformLinks.length &&
-      (vdHitLinks.length > 0 || vdSearchText.includes("没有可点开的条目")) &&
-      leakHit(vdSearchText) === null,
-    detail: `fill=${vdKw} click=${vdSearchClick} 新增请求=${vdSearchCallsAfter - vdSearchCallsBefore} 检索接口=${vdRequested} 条目=${vdHitLinks.length} 平台域内=${vdPlatformLinks.length} 无结果说明=${vdSearchText.includes("没有可点开的条目")}`,
+      vdSurface.searchButtons.length === 0 &&
+      !vdSurface.keywordInput &&
+      vdSurface.linkTab &&
+      vdSurface.uploadTab &&
+      vdSurface.linkInput &&
+      vdSurface.linkCaveat &&
+      leakHit(vdShell.text) === null,
+    detail: `检索按钮=${JSON.stringify(vdSurface.searchButtons)} 关键词框=${vdSurface.keywordInput} 链接页签=${vdSurface.linkTab} 上传页签=${vdSurface.uploadTab} 链接输入框=${vdSurface.linkInput} 不出片提示=${vdSurface.linkCaveat}`,
   });
-  // 复刻出片面板（LQ-27）：选一条后必须出现「上传原视频 / 四项授权 / 报价与出片」，
-  // 未上传素材与未勾授权前按钮必须禁用、点了不发请求（不出现假生成）。
-  if (vdHitLinks.length > 0) {
-    const pickedHit = await clickButton(root, vd, "选它复刻");
-    await sleep(900);
-    const panel = await evaluate(
-      root,
-      vd.sessionId,
-      `(() => ({
-        text: document.body?.innerText ?? "",
-        confirmDisabled: [...document.querySelectorAll("button")].find((node) => (node.innerText || "").includes("再出片"))?.disabled ?? null
-      }))()`,
-    );
-    const callsBeforeQuote = vd.requestTimeline.length;
-    await clickButton(root, vd, "看报价");
-    await sleep(900);
-    const addedRequests = vd.requestTimeline.length - callsBeforeQuote;
-    const afterQuote = await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''");
-    const localBlocked = /请先上传要复刻的原视频|请先逐条确认四项素材与肖像授权|请先上传/.test(afterQuote);
-    checks.push({
-      name: `${label}：复刻出片面板齐备、未上传/未授权时本地拦截（不出现假生成）`,
-      pass:
-        pickedHit === "clicked" &&
-        panel.text.includes("上传原视频") &&
-        panel.text.includes("素材与肖像授权") &&
-        panel.text.includes("报价与出片") &&
-        panel.confirmDisabled === true &&
-        localBlocked &&
-        addedRequests === 0,
-      detail: `选它复刻=${pickedHit} 面板=上传原视频:${panel.text.includes("上传原视频")}/授权:${panel.text.includes("素材与肖像授权")}/报价:${panel.text.includes("报价与出片")} 确认按钮禁用=${panel.confirmDisabled} 本地拦截提示=${localBlocked} 新增请求=${addedRequests}`,
-    });
-  }
+
+  // ── LQ-28 ①b：切到「上传参考视频」页签，原片选择器必须真实可用 ──
+  const uploadTabOpen = await clickButton(root, vd, "上传参考视频");
+  await sleep(600);
+  const vdUploadPanel = await evaluate(
+    root,
+    vd.sessionId,
+    `(() => {
+      const text = document.body?.innerText ?? "";
+      const picks = [...document.querySelectorAll("input[type=file]")].map((node) => ({
+        accept: node.getAttribute("accept") || "",
+        disabled: Boolean(node.disabled)
+      }));
+      return {
+        videoPick: picks.some((item) => item.accept.includes("video/mp4") && item.accept.includes(".mov") && !item.disabled),
+        pickCount: picks.length,
+        limitCopy: text.includes("MP4 / MOV") && text.includes("200MB") && text.includes("2–30 秒"),
+        linkInputGone: !document.querySelector("#lq-vd-ref-link"),
+      };
+    })()`,
+  );
+  checks.push({
+    name: `${label}：切到「上传参考视频」页签后有可用的原片选择器（格式/大小/时长约束可见）`,
+    pass:
+      uploadTabOpen === "clicked" &&
+      vdUploadPanel.videoPick &&
+      vdUploadPanel.limitCopy &&
+      vdUploadPanel.linkInputGone &&
+      leakHit(vdShell.text) === null,
+    detail: `切页签=${uploadTabOpen} 视频选择器=${vdUploadPanel.videoPick} 文件输入数=${vdUploadPanel.pickCount} 约束文案=${vdUploadPanel.limitCopy} 链接输入框已收起=${vdUploadPanel.linkInputGone}`,
+  });
+
+  // 切回「参考抖音链接」页签：下面的断言继续走「贴链接只登记来源」这条路径。
+  const backToLinkTab = await clickButton(root, vd, "参考抖音链接");
+  await sleep(400);
+
+  // ── LQ-28 ②：非抖音链接必须本地拦截，且不发任何请求 ──
+  await setFieldValue(root, vd, "#lq-vd-ref-link", "https://www.kuaishou.com/short-video/3xabcdef");
+  await sleep(300);
+  const callsBeforeBadLink = vd.requestTimeline.length;
+  const badLinkClick = await clickButton(root, vd, "登记参考来源");
+  await sleep(800);
+  const afterBadLink = await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''");
+  const badLinkBlocked = /这里只登记抖音链接/.test(afterBadLink);
+  const badLinkRequests = vd.requestTimeline.length - callsBeforeBadLink;
+  checks.push({
+    name: `${label}：非抖音链接本地拦截、不发请求`,
+    pass:
+      backToLinkTab === "clicked" &&
+      badLinkClick === "clicked" &&
+      badLinkBlocked &&
+      badLinkRequests === 0 &&
+      leakHit(afterBadLink) === null,
+    detail: `切回链接页签=${backToLinkTab} 点击=${badLinkClick} 本地拦截提示=${badLinkBlocked} 新增请求=${badLinkRequests}`,
+  });
+
+  // ── LQ-28 ③：抖音链接只登记参考来源（不发请求、不出片）──
+  await setFieldValue(root, vd, "#lq-vd-ref-link", "https://www.douyin.com/video/7400000000000000000");
+  await sleep(300);
+  const callsBeforeGoodLink = vd.requestTimeline.length;
+  const goodLinkClick = await clickButton(root, vd, "登记参考来源");
+  await sleep(900);
+  const afterGoodLink = await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''");
+  const goodLinkRequests = vd.requestTimeline.length - callsBeforeGoodLink;
+  const linkRegistered = /已登记参考来源/.test(afterGoodLink);
+  const linkDoesNotProduce = /不会出片/.test(afterGoodLink) && !/任务已提交/.test(afterGoodLink);
+  checks.push({
+    name: `${label}：抖音链接只登记参考来源，不发请求也不出片`,
+    pass:
+      goodLinkClick === "clicked" &&
+      linkRegistered &&
+      linkDoesNotProduce &&
+      goodLinkRequests === 0 &&
+      leakHit(afterGoodLink) === null,
+    detail: `点击=${goodLinkClick} 已登记=${linkRegistered} 不出片=${linkDoesNotProduce} 新增请求=${goodLinkRequests}`,
+  });
+
+  // ── LQ-27 防线（沿用）：出片面板齐备、未上传原片与未勾授权时本地拦截，不出现假生成 ──
+  const uploadTabClick = await clickButton(root, vd, "上传参考视频");
+  await sleep(500);
+  const panel = await evaluate(
+    root,
+    vd.sessionId,
+    `(() => ({
+      text: document.body?.innerText ?? "",
+      confirmDisabled: [...document.querySelectorAll("button")].find((node) => (node.innerText || "").includes("再出片"))?.disabled ?? null
+    }))()`,
+  );
+  const callsBeforeQuote = vd.requestTimeline.length;
+  await clickButton(root, vd, "看报价");
+  await sleep(1200);
+  const addedRequests = vd.requestTimeline.length - callsBeforeQuote;
+  const afterQuote = await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''");
+  const localBlocked = /请先上传要复刻的原视频|请先逐条确认四项素材与肖像授权|请先上传/.test(afterQuote);
+  checks.push({
+    name: `${label}：复刻出片面板齐备、未上传原片 / 未授权时本地拦截（不出现假生成）`,
+    pass:
+      uploadTabClick === "clicked" &&
+      panel.text.includes("上传参考视频") &&
+      panel.text.includes("素材与肖像授权") &&
+      panel.text.includes("报价与出片") &&
+      panel.confirmDisabled === true &&
+      localBlocked &&
+      addedRequests === 0,
+    detail: `切页签=${uploadTabClick} 面板=上传参考视频:${panel.text.includes("上传参考视频")}/授权:${panel.text.includes("素材与肖像授权")}/报价:${panel.text.includes("报价与出片")} 确认按钮禁用=${panel.confirmDisabled} 本地拦截提示=${localBlocked} 新增请求=${addedRequests}`,
+  });
 
   checks.push({
     name: `${label}：无接口 4xx/5xx、console/page 无错误`,

@@ -25,7 +25,13 @@ pnpm.cmd qa:fast
 
 真实操作桌面与移动端主路径，并覆盖加载、空状态、错误、重试、重复点击、刷新、返回、权限不足和网络失败；检查控制台、关键请求和隐私信息展示。
 
-## LQ-25 爆款复刻真实检索源（抖音 + 视频号，2026-09-12）
+## LQ-25 爆款复刻真实检索源（抖音 + 视频号，2026-09-12）— **已由 LQ-28 下线（2026-09-14）**
+
+> **本节整体已成历史。** 用户 2026-09-14 明确要求「取消爆款复刻里面的搜索爆款功能，让用户自己添加链接或者上传视频文件」：
+> 上线后实测该检索既证明不了「爆款」（接口字段只有 `icon/site_name/index/title/url`，**没有点赞 / 播放**），
+> 又抓不到视频号视频（`site:channels.weixin.qq.com` 0 条）、混入图文与无关赛道（抖音 10 条里 0 条 `/video/`、3 条 `/note/`、3 条 `/user/`，含用户点名的「沐足保健」），
+> 因此**整个检索链路（规则层 / 服务层 / 路由 / 环境变量 / 契约 smoke）连同页面入口一并删除**，爆款复刻改为门店自备参考素材（登记抖音链接 + 上传原片）。
+> 下表保留为 LQ-25 当时的验收留痕，**不代表当前产品行为**；当前口径见下方「LQ-28」小节与 `docs/BUG_REGRESSIONS.md` QA-20260914-003。
 
 | 检查项 | 结果 | 证据 |
 |---|---|---|
@@ -39,7 +45,21 @@ pnpm.cmd qa:fast
 | 只在兰琪可用（结构约束） | PASS | 冒烟断言「检索路由挂在兰琪作用域」「没有注册到美业单品作用域」；`viral-video-replication` 老链路未改动 |
 | 计费边界 | PASS | 一期不做积分：路由不扣费、不写流水、不落库（冒烟反向断言 `creditCost|billing|wallet|creditLedger|$transaction`） |
 | 页面契约 | PASS | `pnpm.cmd lanqi:acquire-ui-contract-smoke` **53/0**（新增 7 条：真实接口 / 结果区可访问名 / 选它复刻 / 打开原页面 / 不做假数据 / 不再硬编码 fail-closed / 页面无厂商与模型名） |
-| 类型检查与结构门禁 | PASS | `apps/api`、`apps/web` typecheck `EXIT=0`；`qa:fast` 含 `lanqi:viral-search-smoke` |
+| 类型检查与结构门禁 | PASS（当时） | `apps/api`、`apps/web` typecheck `EXIT=0`；`qa:fast` 当时含 `lanqi:viral-search-smoke`（LQ-28 已移除该项） |
+
+
+## LQ-28 爆款复刻取消检索、改门店自备素材（2026-09-14）
+
+| 检查项 | 结果 | 证据 |
+|---|---|---|
+| 搜爆款入口整体消失 | PASS | 测试实例真实浏览器（桌面 1440 + 移动 390）`lanqi:acquire-instance-acceptance`：`检索按钮=[] 关键词框=false 链接页签=true 上传页签=true`；生产线上产物 `assets/LanqiAcquireVideoPage-Cp5WhOXM.js` 内 `平台筛选`/`行业领域`/`lq-vd-kw` 命中 0 |
+| 抖音链接只登记来源、不发请求不出片 | PASS | 测试实例：`抖音链接只登记参考来源，不发请求也不出片 :: 已登记=true 不出片=true 新增请求=0`；契约断言 `登记参考来源` / `不会出片` 均在位 |
+| 非抖音链接本地拦截 | PASS | 测试实例：`非抖音链接本地拦截、不发请求 :: 本地拦截提示=true 新增请求=0`；契约断言 `parseReferenceLink` 本地校验 |
+| 未上传原片 / 未授权时本地拦截（LQ-27 防线保持） | PASS | 测试实例：`面板=上传参考视频:true/授权:true/报价:true 确认按钮禁用=true 本地拦截提示=true 新增请求=0`；契约断言 `素材与肖像授权` + 报价/确认走既有 `viral-video-replication/quote|confirm` |
+| 后端检索链路彻底移除 | PASS | 生产/测试源码树 `viral-search*` 4 文件已删；`POST /lanqi/acquire/video/viral-search` 生产发布前 **401** → 发布后 **404 `Route … not found`**；`server.ts` import 与注册已去、`env.ts` 五项 `LANQI_VIRAL_SEARCH_*` 与生产校验已去；`package.json` 不再含 `lanqi:viral-search-smoke` |
+| 源码契约 + 门禁 | PASS | `pnpm.cmd lanqi:acquire-ui-contract-smoke` **65 passed / 0 failed**；`pnpm.cmd --filter @baolu/web typecheck` PASS；`pnpm.cmd qa:fast` exit 0 |
+| 发布与回滚 | PASS | `release-20260914-lq28-self-material-v2.tar.gz`（sha256 `170d6fbf…`，1493 文件），发布 id `20260914-lq28-self-material-test2` / `-prod1`，两侧 `DEPLOY_OK` + health/ready 200 + 4 条删除全部生效；回滚＝`/opt/baolu-backups/20260914-lq28-self-material-prod1-before-baolu-os-v2/` + `systemctl restart baolu-os-v2` |
+| 生产页面级浏览器验收 | 未跑（既有边界） | 生产 `/lanqi/acquire*` 需真人微信扫码登录，自动化停在 `/os-v2/login`（同 LQ-22）；页面级证据取自测试实例 33/0 + 线上产物断言 + 生产接口 401→404 |
 
 
 ## LQ-27 爆款复刻真样片 + 公域获客板块放开（2026-09-13）

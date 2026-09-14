@@ -132,13 +132,27 @@ requireMatch(
   "guard：直播服务 smoke 仍用演示门店作输入夹具"
 );
 
-// ⑤ 爆款复刻检索源（LQ-25，用户 2026-09-12 口径：检索源 = 抖音 + 视频号，开闸跑）
-//    页面必须走真实检索接口；检索不到时照实说明，绝不回退成硬编码的假结果。
-requireMatch(videoPage, /\/lanqi\/acquire\/video\/viral-search/, "video：爆款复刻走真实检索接口");
-requireMatch(videoPage, /aria-label="爆款检索结果"/, "video：检索结果区有可访问名称");
-requireMatch(videoPage, /选它复刻/, "video：检索到的条目可选中进入复刻");
-requireMatch(videoPage, /打开原页面/, "video：条目提供原页面链接（可核对真伪）");
-requireMatch(videoPage, /不做假数据/, "video：无结果时仍写明「不做假数据」");
+// ⑤ 爆款复刻参考素材（LQ-28，用户 2026-09-14 口径：取消「搜索爆款」，改为门店自备素材）
+//    下线理由（生产实测，见 tasks/LQ-28-*.md 取证表）：公开检索无热度字段（证明不了爆款）、
+//    拿不到视频号视频、也拿不到抖音视频文件。所以参考素材改由门店自己给：
+//    贴抖音链接只登记来源（不出片），真正出片必须上传原片。
+forbidMatch(videoPage, /viral-search/, "video：检索接口已下线，页面不再调用 /lanqi/acquire/video/viral-search");
+forbidMatch(videoPage, /AI 去抖音\/视频号搜爆款/, "video：不再有「AI 去抖音/视频号搜爆款」入口");
+forbidMatch(videoPage, /平台筛选/, "video：不再有检索用的「平台筛选」控件");
+forbidMatch(videoPage, /行业领域/, "video：不再有检索用的「行业领域」控件");
+forbidMatch(videoPage, /选它复刻/, "video：不再有「选它复刻」的检索结果条目");
+forbidMatch(videoPage, /爆款检索结果/, "video：不再渲染检索结果区");
+requireMatch(videoPage, /参考抖音链接/, "video：第 1 步提供「参考抖音链接」页签");
+requireMatch(videoPage, /上传参考视频/, "video：第 1 步提供「上传参考视频」页签");
+requireMatch(videoPage, /登记参考来源/, "video：抖音链接只登记参考来源（不发检索请求）");
+requireMatch(videoPage, /不会出片/, "video：明说贴链接不会出片，出片必须上传原片");
+requireMatch(videoPage, /parseReferenceLink/, "video：链接在本地校验（不发任何请求）");
+requireMatch(videoPage, /id="lq-vd-ref-link"/, "video：链接输入框有稳定 id，供验收脚本定位");
+requireMatch(videoPage, /readVideoMeta/, "video：上传前读取真实视频时长 / 尺寸");
+requireMatch(videoPage, /newReplicationRequestKey/, "video：换素材后换新幂等键（报价 / 确认共用）");
+requireMatch(videoPage, /\/viral-video-replication\/quote/, "video：报价仍走既有复刻链路");
+requireMatch(videoPage, /\/viral-video-replication\/confirm/, "video：出片仍走既有确认链路");
+requireMatch(videoPage, /素材与肖像授权/, "video：四项授权仍逐条确认后才允许报价");
 forbidMatch(videoPage, /暂未接通真实爆款检索/, "video：不再硬编码「暂未接通真实爆款检索」");
 forbidMatch(videoPage, /REPLICATE_SEARCH_READY/, "video：不再靠前端开关假装 fail closed");
 forbidMatch(videoPage, /(百炼|通义|qwen|Qwen|DashScope|达摩院)/, "video：页面文案不出现厂商与模型名");

@@ -1,12 +1,13 @@
 // 兰琪美业门店 AI 经营大脑 · 公域获客 / 视频获客
 //
-// 严格对齐 demo `video.html`（活规范）：4 个模式页签 —— 爆款复刻 / 门店素材成片 / AI 剪辑 / 文案转片。
+// 0912 一期口径：本页只交付「爆款复刻」单模式（不渲染模式页签）。
+// `AssetsMode` / `ClipMode` 的代码保留在下方供后续复用，但本期不挂入口；一键成片是独立路由。
 // 口径（0909 总纲 + 硬约束）：
 //   · 界面只出现画质档位（草稿预览 480p / 标准成片 720p / 高清成片 1080p），不出现任何模型名或厂商名。
 //   · 门店用户不注册账号、不建密钥、不做实名认证；唯一合规动作 = 肖像授权确认。
-//   · 本阶段不做积分 / 计费 / 定价（主按钮不写「扣 N 积分」）。
 //   · 一期单店：不出门店切换器、不出门店下拉。
-//   · 真实视频出片能力尚未开通：需要出片的按钮一律 fail closed 明确提示，绝不假装成功。
+//   · 爆款复刻（LQ-28）不再由平台搜爆款：参考素材由门店自备（贴抖音链接只登记来源 / 上传原片），
+//     报价与出片沿用 LQ-27 既有链路，缺素材或授权一律 fail closed 明确提示，绝不假装成功。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
@@ -28,7 +29,7 @@ const MODES: { k: Mode; n: string }[] = [
  * 唯一改动：demo「文案转片」原文含「看积分预算」分句，兰琪一期不做积分，按硬约束去掉该分句。
  */
 const MODE_SUBTITLE: Record<Mode, string> = {
-  replicate: "视频获客 · 爆款复刻（关键词搜爆款 → 换脸/换人/换产品成片）",
+  replicate: "视频获客 · 爆款复刻（参考抖音链接 / 上传原片 → 换脸/换人成片）",
   assets: "门店素材成片（上传老板照片 + 门店环境 → 生成老板宣传 / 达人探店视频，风格任意选）",
   clip: "AI 剪辑（自己拍的视频传上来 → AI 自动精选片段 / 加字幕 / 配 BGM / 加片头片尾 → 出成片）",
   script: "文案转片（贴文案 → AI 出分镜脚本 → 传人物卡/场景卡/道具卡 → 逐镜生成出成片）"
@@ -38,13 +39,6 @@ const PLATFORMS = [
   { k: "all", n: "抖音+视频号" },
   { k: "dy", n: "抖音" },
   { k: "sph", n: "视频号" }
-];
-
-const CATS = [
-  { k: "skin", n: "美容·皮肤管理" },
-  { k: "nail", n: "美甲美睫" },
-  { k: "spa", n: "SPA·养生" },
-  { k: "mix", n: "综合生活美容" }
 ];
 
 const ASSET_TEMPLATES = [
@@ -122,11 +116,17 @@ const SCRIPT_DEMO =
 const VIDEO_RENDERING_READY = false;
 const RENDERING_OFFLINE_MSG = "视频生成服务暂未开通，这条成片现在还出不来。你的文案 / 素材 / 设置已经留在页面上，服务开通后直接点生成即可。";
 /**
- * 爆款检索（LQ-25）：检索源 = 抖音 + 视频号两个平台，走 `POST /lanqi/acquire/video/viral-search`。
- * 结果只来自公开网页检索的真实页面；检索服务没开通 / 没有有效条目 / 上游失败时，
- * 页面照实说明，绝不编造「爆款」条目、链接或播放量。
+ * 参考素材（LQ-28，用户 2026-09-14 口径）：取消「搜索爆款」入口，改为门店自备素材 ——
+ * 贴抖音链接只登记参考来源，真正出片必须上传用户自己的原片。
+ * 原因（生产实测）：公开检索拿不到热度字段（无法证明是不是爆款）、拿不到视频号视频、
+ * 也拿不到抖音视频文件；继续硬做只会给出门店无法信赖的结果。
  */
-const REPLICATE_SEARCH_FAILED_MSG = "检索服务这次没有返回结果，请稍后重试。没有结果就是没有结果，不会给你编造的条目。";
+const REFERENCE_LINK_CAVEAT =
+  "抖音、视频号都不开放站内视频文件下载，平台也无法把分享链接解析成视频文件 —— 所以贴链接只登记参考来源，不会出片。";
+const REFERENCE_MIN_SECONDS = 2;
+const REFERENCE_MAX_SECONDS = 30;
+const REFERENCE_MAX_MB = 200;
+const PORTRAIT_MAX_MB = 5;
 
 const PORTRAIT_SCRIPT = "上传的人物照片为本人或已取得本人授权，同意用于 AI 生成视频并用于门店宣传。";
 const PORTRAIT_ASSET = "我已获得照片中人物的肖像权授权，同意将其用于生成门店宣传 / 探店视频，并知悉生成内容含该人物肖像。达人探店场景需额外取得达人本人授权。";
@@ -410,40 +410,82 @@ const REPLICATION_RIGHTS = [
 ] as const;
 type ReplicationRightKey = (typeof REPLICATION_RIGHTS)[number]["k"];
 
-/** 一条检索到的平台条目：类型按真实页面标注，热度不带推算字段。 */
-interface ViralSearchItem {
-  id: string;
-  platform: string;
-  platformLabel: string;
-  kind: string;
-  kindLabel: string;
-  title: string;
-  url: string;
-  site: string;
-  snippet: string;
+/** 登记下来的参考来源：只登记来源，不代表平台拿得到这条链接的视频文件。 */
+type ReferenceLink = { url: string; host: string; kindLabel: string };
+
+/**
+ * 只识别抖音单条视频 / 图文 / 官方分享短链。账号主页、搜索页、合集、直播链接一律不收，
+ * 免得把「一个账号」当成「一条爆款」。纯本地校验：不发任何请求。
+ */
+function parseReferenceLink(raw: string): { ok: true; value: ReferenceLink } | { ok: false; reason: string } {
+  const text = raw.trim();
+  if (!text) return { ok: false, reason: "请先粘贴一条抖音视频链接。" };
+  let url: URL;
+  try {
+    url = new URL(text);
+  } catch {
+    return { ok: false, reason: "这不像一条完整链接，请粘贴以 https:// 开头的地址。" };
+  }
+  if (url.protocol !== "https:") return { ok: false, reason: "只接受 https 链接，http 明文链接不收。" };
+  const host = url.hostname.toLowerCase();
+  const isDouyin = host === "douyin.com" || host.endsWith(".douyin.com") || host === "iesdouyin.com" || host.endsWith(".iesdouyin.com");
+  if (!isDouyin) return { ok: false, reason: "这里只登记抖音链接；其他平台（含视频号）请把原片存到手机后，到「上传参考视频」上传。" };
+  if (host === "v.douyin.com") return { ok: true, value: { url: text, host, kindLabel: "抖音分享短链" } };
+  const hit = url.pathname.match(/^\/(?:share\/)?(video|note)\/\d+/);
+  if (!hit) {
+    return { ok: false, reason: "只识别单条抖音视频（/video/）或图文（/note/）链接；账号主页、搜索页、合集、直播链接都不能作为复刻参考。" };
+  }
+  return { ok: true, value: { url: text, host, kindLabel: hit[1] === "note" ? "抖音图文" : "抖音视频" } };
+}
+
+/** 上传前读真实时长与画面尺寸；读不到就返回 null，交给服务端校验，不在这里假装成功。 */
+function readVideoMeta(file: File): Promise<{ seconds: number | null; width: number | null; height: number | null }> {
+  return new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(file);
+    const probe = document.createElement("video");
+    let timer: number | undefined;
+    let settled = false;
+    const finish = (value: { seconds: number | null; width: number | null; height: number | null }) => {
+      if (settled) return;
+      settled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+      URL.revokeObjectURL(objectUrl);
+      resolve(value);
+    };
+    timer = window.setTimeout(() => finish({ seconds: null, width: null, height: null }), 8000);
+    probe.preload = "metadata";
+    probe.onloadedmetadata = () =>
+      finish({
+        seconds: Number.isFinite(probe.duration) ? probe.duration : null,
+        width: probe.videoWidth || null,
+        height: probe.videoHeight || null
+      });
+    probe.onerror = () => finish({ seconds: null, width: null, height: null });
+    probe.src = objectUrl;
+  });
+}
+
+/**
+ * 幂等键：报价 / 确认共用同一个 key。**换掉原片或人物照片后必须换新 key**，
+ * 否则服务端会把「换了素材」当成同一次请求重放，返回上一次的报价或任务。
+ */
+function newReplicationRequestKey(): string {
+  return `lq-rep-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
 }
 
 function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: string) => void }) {
-  const [keyword, setKeyword] = useState("");
-  const [platform, setPlatform] = useState("all");
-  const [category, setCategory] = useState("skin");
-  const [searching, setSearching] = useState(false);
-  const [searched, setSearched] = useState(false);
-  const [hits, setHits] = useState<ViralSearchItem[]>([]);
-  const [hitNote, setHitNote] = useState("");
-  const [disclosure, setDisclosure] = useState("");
-  const [picked, setPicked] = useState<ViralSearchItem | null>(null);
+  /** 第 1 步参考素材：贴链接（只登记来源）/ 上传原片（真正出片用）两个页签。 */
+  const [refTab, setRefTab] = useState<"link" | "upload">("link");
+  const [linkInput, setLinkInput] = useState("");
+  const [linkError, setLinkError] = useState("");
+  const [reference, setReference] = useState<ReferenceLink | null>(null);
   const [replaceMode, setReplaceMode] = useState<"face" | "body">("face");
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [product, setProduct] = useState<string | null>(null);
-  // 连续搜索时丢弃过期响应，避免慢请求把新结果覆盖掉。
-  const requestRef = useRef(0);
 
   /*
-   * 出片接线（LQ-27）：上传原视频 + 人物照片 → 四项授权 → 报价 → 确认 → 轮询 → 播放/下载。
+   * 出片接线（LQ-27）：上传原片 + 人物照片 → 四项授权 → 报价 → 确认 → 轮询 → 播放/下载。
    * 全部复用既有链路（`/files`、`/viral-video-replication/*`），没有新建后端能力。
    */
-  const [videoFile, setVideoFile] = useState<{ id: string; name: string } | null>(null);
+  const [videoFile, setVideoFile] = useState<{ id: string; name: string; seconds: number | null; width: number | null; height: number | null } | null>(null);
   const [portraitFile, setPortraitFile] = useState<{ id: string; name: string } | null>(null);
   const [rights, setRights] = useState<Record<ReplicationRightKey, boolean>>({
     visual: false,
@@ -456,28 +498,56 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
   const [quote, setQuote] = useState<{ canConfirm?: boolean; creditCost?: number | null; message?: string; gaps?: string[] } | null>(null);
   const [job, setJob] = useState<{ id: string; status: string } | null>(null);
   const [assetUrl, setAssetUrl] = useState("");
-  const requestKeyRef = useRef(`lq-rep-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`);
+  const requestKeyRef = useRef(newReplicationRequestKey());
 
-  const canSearch = keyword.trim().length > 0 && !searching;
   const photoNeeded = replaceMode === "face" ? "头部图片" : "全身画面";
   const rightsOk = REPLICATION_RIGHTS.every((item) => rights[item.k]);
+  const canRegisterLink = linkInput.trim().length > 0;
 
   const uploadAsset = useCallback(async (kind: "video" | "portrait", file: File | undefined) => {
     if (!file) return;
     if (kind === "video") {
       if (!/\.(mp4|mov)$/i.test(file.name)) {
-        setNotice("原视频只支持 MP4 / MOV 文件；抖音、视频号的播放页链接平台不读取。");
+        setNotice("参考视频只支持 MP4 / MOV 文件；抖音、视频号的播放页链接平台不读取。");
         return;
       }
-      if (file.size > 200 * 1024 * 1024) {
-        setNotice("原视频超过 200MB，请先裁短或压缩再上传。");
+      if (file.size > REFERENCE_MAX_MB * 1024 * 1024) {
+        setNotice(`参考视频超过 ${REFERENCE_MAX_MB}MB，请先裁短或压缩再上传。`);
         return;
       }
-    } else if (!/^image\/(jpeg|jpg|png|webp)$/i.test(file.type) && !/\.(jpe?g|png|webp)$/i.test(file.name)) {
-      setNotice("人物照片只支持 JPG / PNG / WebP。");
-      return;
+    } else {
+      if (!/^image\/(jpeg|jpg|png|webp)$/i.test(file.type) && !/\.(jpe?g|png|webp)$/i.test(file.name)) {
+        setNotice("人物照片只支持 JPG / PNG / WebP。");
+        return;
+      }
+      if (file.size > PORTRAIT_MAX_MB * 1024 * 1024) {
+        setNotice(`人物照片超过 ${PORTRAIT_MAX_MB}MB，请先压缩再上传。`);
+        return;
+      }
     }
-    setBusy(kind === "video" ? "正在上传原视频…" : "正在上传人物照片…");
+    let meta: { seconds: number | null; width: number | null; height: number | null } = { seconds: null, width: null, height: null };
+    if (kind === "video") {
+      setBusy("正在读取视频信息…");
+      setNotice("");
+      meta = await readVideoMeta(file);
+      if (meta.seconds !== null && (meta.seconds < REFERENCE_MIN_SECONDS || meta.seconds > REFERENCE_MAX_SECONDS)) {
+        setBusy("");
+        setNotice(
+          `参考视频要在 ${REFERENCE_MIN_SECONDS}–${REFERENCE_MAX_SECONDS} 秒之间（这条读到 ${meta.seconds.toFixed(1)} 秒），请先裁剪再上传。`
+        );
+        return;
+      }
+      if (
+        meta.width !== null &&
+        meta.height !== null &&
+        (meta.width < 200 || meta.height < 200 || meta.width > 2048 || meta.height > 2048 || meta.width / meta.height < 1 / 3 || meta.width / meta.height > 3)
+      ) {
+        setBusy("");
+        setNotice("参考视频的画面尺寸不支持：短边要 ≥200px、长边 ≤2048px，画面比例在 1:3 – 3:1 之间。");
+        return;
+      }
+    }
+    setBusy(kind === "video" ? "正在上传参考视频…" : "正在上传人物照片…");
     setNotice("");
     try {
       const form = new FormData();
@@ -487,19 +557,35 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
       const id = body?.file?.id;
       if (!id) throw new Error("素材上传失败，请稍后重试。");
       if (kind === "video") {
-        setVideoFile({ id, name: file.name });
+        setVideoFile({ id, name: file.name, seconds: meta.seconds, width: meta.width, height: meta.height });
       } else {
         setPortraitFile({ id, name: file.name });
-        setPhoto(file.name);
       }
+      /* 换了原片 / 人物照片就是一次新的复刻请求：换新幂等键并清掉上一次的报价与成片。 */
+      requestKeyRef.current = newReplicationRequestKey();
       setQuote(null);
-      setNotice(kind === "video" ? "原视频已上传。" : "人物照片已上传。");
+      setJob(null);
+      setAssetUrl("");
+      setNotice(kind === "video" ? "参考视频已上传。" : "人物照片已上传。");
     } catch (error) {
       setNotice(error instanceof Error && error.message ? error.message : "素材上传失败，请稍后重试。");
     } finally {
       setBusy("");
     }
   }, []);
+
+  /** 贴链接只登记参考来源：本地校验 → 不发任何请求，也明确告诉用户这里出不了片。 */
+  const registerLink = useCallback(() => {
+    const parsed = parseReferenceLink(linkInput);
+    if (!parsed.ok) {
+      setReference(null);
+      setLinkError(parsed.reason);
+      return;
+    }
+    setReference(parsed.value);
+    setLinkError("");
+    flash("参考来源已登记；出片还要在「上传参考视频」里上传原片。");
+  }, [flash, linkInput]);
 
   const replicationPayload = useCallback(
     () => ({
@@ -599,287 +685,267 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
     }
   }, [pollJob, replicationPayload]);
 
-  const runSearch = useCallback(async () => {
-    const text = keyword.trim();
-    if (!text) return;
-    if (!storeId) {
-      flash("门店信息还在加载，请稍后再试一次。");
-      return;
-    }
-    const ticket = requestRef.current + 1;
-    requestRef.current = ticket;
-    setSearching(true);
-    setPicked(null);
-    try {
-      const response = await fetch(apiPath("/lanqi/acquire/video/viral-search"), {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({ storeId, keyword: text, platform, category })
-      });
-      const body = await readResponse(response);
-      if (requestRef.current !== ticket) return;
-      const result = body?.result ?? {};
-      setHits(Array.isArray(result.items) ? (result.items as ViralSearchItem[]) : []);
-      setHitNote(typeof result.note === "string" ? result.note : "");
-      setDisclosure(typeof result.disclosure === "string" ? result.disclosure : "");
-      setSearched(true);
-    } catch (error) {
-      if (requestRef.current !== ticket) return;
-      setHits([]);
-      setDisclosure("");
-      setHitNote(error instanceof Error && error.message ? error.message : REPLICATE_SEARCH_FAILED_MSG);
-      setSearched(true);
-    } finally {
-      if (requestRef.current === ticket) setSearching(false);
-    }
-  }, [category, flash, keyword, platform, storeId]);
+  /** 换素材重来：清空参考素材、人物形象、授权与上一次的报价 / 任务，并换新幂等键。 */
+  const resetAll = useCallback(() => {
+    requestKeyRef.current = newReplicationRequestKey();
+    setLinkInput("");
+    setLinkError("");
+    setReference(null);
+    setVideoFile(null);
+    setPortraitFile(null);
+    setRights({ visual: false, audio: false, performer: false, portrait: false });
+    setQuote(null);
+    setJob(null);
+    setAssetUrl("");
+    setNotice("");
+  }, []);
+
+  /** 还差什么才允许报价：原片、人物照片、四项授权，逐项点名，不含糊。 */
+  const missing = [
+    !videoFile ? "参考视频原片" : "",
+    !portraitFile ? photoNeeded : "",
+    !rightsOk ? "四项素材与肖像授权" : ""
+  ].filter(Boolean);
+  const stage = !videoFile
+    ? "第 1 步 / 3 · 提供参考素材：贴抖音链接 或 上传原片"
+    : !portraitFile
+      ? "第 2 步 / 3 · 提供要替换的人物形象"
+      : !rightsOk
+        ? "第 3 步 / 3 · 逐条确认素材与肖像授权"
+        : "第 3 步 / 3 · 素材与授权已齐，可以校验并报价";
 
   return (
     <div className="lq-vd__main">
       <section className="lq-vd__left">
-        <div className="lq-vd__stage">
-          {picked
-            ? "步骤 3 / 3 · 已选中一条爆款，补素材即可复刻"
-            : searched
-              ? "步骤 2 / 3 · 从真实结果里选一条复刻"
-              : "步骤 1 / 3 · 告诉 AI 要找什么样的爆款"}
+        <div className="lq-vd__stage">{stage}</div>
+
+        <h3 className="lq-vd__card-title">① 参考素材 <span className="tag green">必填</span></h3>
+        <p className="lq-vd__card-sub">
+          参考素材由你自己提供，平台不再替你去搜爆款。抖音、视频号都不开放站内视频文件下载，
+          <b>贴链接只登记参考来源，出片必须上传你手里的原片</b>。
+        </p>
+        <div className="lq-vd__chips" role="group" aria-label="参考素材方式">
+          <button
+            type="button"
+            aria-pressed={refTab === "link"}
+            className={`lq-vd__pill${refTab === "link" ? " on" : ""}`}
+            onClick={() => setRefTab("link")}
+          >
+            🔗 参考抖音链接
+          </button>
+          <button
+            type="button"
+            aria-pressed={refTab === "upload"}
+            className={`lq-vd__pill${refTab === "upload" ? " on" : ""}`}
+            onClick={() => setRefTab("upload")}
+          >
+            🎬 上传参考视频
+          </button>
         </div>
-        {!picked ? (
+        {refTab === "link" ? (
           <>
-            <h3 className="lq-vd__card-title">搜爆款关键词</h3>
-            <p className="lq-vd__card-sub">AI 去抖音、视频号检索同赛道内容，只给可点开的真实页面；热度以页面自身展示为准。</p>
-            <div className="lq-vd__field">
-              <label htmlFor="lq-vd-kw">关键词 <span className="req">*</span></label>
-              <div className="lq-vd__kw">
-                <span className="lead-ico" aria-hidden="true">🔍</span>
-                <input
-                  id="lq-vd-kw"
-                  value={keyword}
-                  placeholder="如：皮肤管理门店获客"
-                  onChange={(event) => setKeyword(event.target.value)}
-                />
-              </div>
-              <p className="lq-vd__hint">例：皮肤管理门店获客 / 美甲店同城引流 / 肩颈护理种草</p>
+            <div className="lq-vd__field" style={{ marginTop: 14 }}>
+              <label htmlFor="lq-vd-ref-link">抖音视频 / 图文链接</label>
+              <input
+                id="lq-vd-ref-link"
+                value={linkInput}
+                placeholder="https://www.douyin.com/video/7xxxxxxxxxx"
+                onChange={(event) => {
+                  setLinkInput(event.target.value);
+                  setLinkError("");
+                }}
+              />
+              <p className="lq-vd__hint">只收单条视频 / 图文或官方分享短链；账号主页、搜索页、合集、直播链接不收。</p>
             </div>
-            <div className="lq-vd__field">
-              <label>平台筛选</label>
-              <div className="lq-vd__chips">
-                {PLATFORMS.map((item) => (
-                  <button
-                    key={item.k}
-                    type="button"
-                    className={`lq-vd__chip${platform === item.k ? " on" : ""}`}
-                    onClick={() => setPlatform(item.k)}
-                  >
-                    {item.n}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="lq-vd__field">
-              <label>行业领域</label>
-              <div className="lq-vd__chips">
-                {CATS.map((item) => (
-                  <button
-                    key={item.k}
-                    type="button"
-                    className={`lq-vd__chip${category === item.k ? " on" : ""}`}
-                    onClick={() => setCategory(item.k)}
-                  >
-                    {item.n}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <button
-              className="lq-vd__btn primary block"
-              type="button"
-              disabled={!canSearch}
-              onClick={runSearch}
-            >
-              {searching ? "⏳ 正在去抖音 / 视频号检索…" : "🚀 AI 去抖音/视频号搜爆款"}
+            <button className="lq-vd__btn primary block" type="button" disabled={!canRegisterLink} onClick={registerLink}>
+              🔗 登记参考来源
             </button>
-            {searched && (
-              <div className="lq-vd__hits" aria-label="爆款检索结果">
-                <h3 className="lq-vd__card-title">
-                  搜到的条目 <span className="tag opt">{hits.length} 条</span>
-                </h3>
-                {hits.length > 0 ? (
-                  <ul className="lq-vd__hit-list">
-                    {hits.map((hit) => (
-                      <li key={hit.id} className="lq-vd__hit">
-                        <div className="lq-vd__hit-top">
-                          <span className="lq-vd__hit-badge">{hit.platformLabel}</span>
-                          <span className="lq-vd__hit-kind">{hit.kindLabel}</span>
-                          <span className="lq-vd__hit-site">{hit.site}</span>
-                        </div>
-                        <p className="lq-vd__hit-title">{hit.title}</p>
-                        {hit.snippet && <p className="lq-vd__hit-snippet">{hit.snippet}</p>}
-                        <div className="lq-vd__hit-actions">
-                          <a href={hit.url} target="_blank" rel="noopener noreferrer">打开原页面 ↗</a>
-                          <button type="button" onClick={() => setPicked(hit)}>选它复刻</button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="lq-vd__hint">{hitNote || REPLICATE_SEARCH_FAILED_MSG}</p>
-                )}
+            {linkError && <p className="lq-vd__err">{linkError}</p>}
+            {reference && (
+              <div className="lq-vd__chosen">
+                <div className="lq-vd__hit-top">
+                  <span className="lq-vd__hit-badge">{reference.kindLabel}</span>
+                  <span className="lq-vd__hit-site">{reference.host}</span>
+                </div>
+                <p className="lq-vd__hit-title">{reference.url}</p>
+                <p className="lq-vd__hint">已登记参考来源：这里只记来源，平台不读取这条链接里的视频文件，也不会凭它出片。</p>
               </div>
+            )}
+            <div className="lq-vd__warn">{REFERENCE_LINK_CAVEAT}</div>
+            {!videoFile && (
+              <p className="lq-vd__hint">
+                下一步：在手机上打开这条抖音 → 点「分享 / …」→ 保存到相册 → 回到本页切到<b>「上传参考视频」</b>把原片传上来。
+                没上传原片之前，报价与出片都不会开始。
+              </p>
             )}
           </>
         ) : (
           <>
-            <h3 className="lq-vd__card-title">已选爆款 <span className="tag green">换脸 / 换人</span></h3>
-            <div className="lq-vd__chosen">
-              <div className="lq-vd__hit-top">
-                <span className="lq-vd__hit-badge">{picked.platformLabel}</span>
-                <span className="lq-vd__hit-kind">{picked.kindLabel}</span>
-                <span className="lq-vd__hit-site">{picked.site}</span>
-              </div>
-              <p className="lq-vd__hit-title">{picked.title}</p>
-              <a className="lq-vd__hit-link" href={picked.url} target="_blank" rel="noopener noreferrer">打开原页面 ↗</a>
-            </div>
-
-            <div className="lq-vd__stage" style={{ marginTop: 18 }}>步骤 3 / 4 · 上传原视频 + 提供主角照片</div>
-            <h3 className="lq-vd__card-title">① 上传原视频 <span className="tag green">必填</span></h3>
-            <p className="lq-vd__card-sub">
-              把你在抖音 / 视频号刷到的那条爆款<b>下载后上传</b> —— 平台不抓站内视频流，只接受你自己上传的授权原片。MP4 / MOV，≤200MB。
+            <p className="lq-vd__card-sub" style={{ marginTop: 14 }}>
+              MP4 / MOV，≤{REFERENCE_MAX_MB}MB，时长 {REFERENCE_MIN_SECONDS}–{REFERENCE_MAX_SECONDS} 秒。
+              抖音、视频号的分享链接平台不读取，请先把原片存到手机或电脑再上传。
             </p>
             <div className="lq-vd__fileinfo">
-              <b>{videoFile ? `已上传：${videoFile.name}` : "未上传原视频"}</b>
-              <p>只有拿到授权的原片才能复刻；未授权素材请勿上传。</p>
+              <b>{videoFile ? `已上传：${videoFile.name}` : "未上传参考视频"}</b>
+              <p>
+                {videoFile
+                  ? `时长 ${
+                      videoFile.seconds !== null ? `${videoFile.seconds.toFixed(1)} 秒` : "读不到（以服务端校验为准）"
+                    }${
+                      videoFile.width && videoFile.height ? ` · ${videoFile.width}×${videoFile.height}` : ""
+                    }`
+                  : "只有拿到授权的原片才能复刻；未授权素材请勿上传。"}
+              </p>
             </div>
             <FilePick
-              label={videoFile ? "重新选择原视频" : "选择原视频（MP4）"}
+              label={videoFile ? "重新选择原视频" : "选择原视频（MP4 / MOV）"}
               accept="video/mp4,video/quicktime,.mp4,.mov"
               onPick={(files) => void uploadAsset("video", files[0])}
             />
-
-            <h3 className="lq-vd__card-title" style={{ marginTop: 18 }}>② 提供主角照片 <span className="tag green">换脸 / 换人</span></h3>
-            <p className="lq-vd__card-sub">AI 保留原爆款的画面、动作、节奏与配音，只把主角换成你；照片会上传到你账号名下，仅用于本次生成。</p>
-            <div className="lq-vd__chips">
-              <button
-                type="button"
-                className={`lq-vd__pill${replaceMode === "face" ? " on" : ""}`}
-                onClick={() => setReplaceMode("face")}
-              >
-                换脸 <span className="hint">给头部图片</span>
-              </button>
-              <button
-                type="button"
-                className={`lq-vd__pill${replaceMode === "body" ? " on" : ""}`}
-                onClick={() => setReplaceMode("body")}
-              >
-                换人 <span className="hint">给人物全身画面</span>
-              </button>
-            </div>
-            <div className="lq-vd__fileinfo">
-              <b>{portraitFile ? `已上传：${portraitFile.name}` : `未上传${photoNeeded}照片`}</b>
-              <p>换脸给头部照片，换人给人物全身画面；照片须为本人或已获授权。</p>
-            </div>
-            <FilePick
-              label={portraitFile ? "重新选择照片" : "选择照片"}
-              accept="image/jpeg,image/png,image/webp"
-              onPick={(files) => void uploadAsset("portrait", files[0])}
-            />
-
-            <h3 className="lq-vd__card-title" style={{ marginTop: 18 }}>替换产品 <span className="tag opt">可选</span></h3>
-            <p className="lq-vd__card-sub">本期生成只替换主角，产品 / 道具替换尚未开通 —— 这里不放用不上的上传控件。</p>
-            <div className="lq-vd__fileinfo">
-              <b>保留原片的产品 / 道具</b>
-              <p>等后端支持产品替换后再开放这一步。</p>
-            </div>
-
-            <div className="lq-vd__stage" style={{ marginTop: 18 }}>步骤 4 / 4 · 授权 → 报价 → 出片</div>
-            <h3 className="lq-vd__card-title">③ 素材与肖像授权 <span className="tag green">逐条确认</span></h3>
-            <p className="lq-vd__card-sub">这四项是平台合规动作，逐条确认后才允许报价与出片。</p>
-            {REPLICATION_RIGHTS.map((item) => (
-              <label className="lq-vd__consent" key={item.k}>
-                <input
-                  type="checkbox"
-                  checked={rights[item.k]}
-                  onChange={(event) => setRights((current) => ({ ...current, [item.k]: event.target.checked }))}
-                />
-                <span className="cb-txt">{item.label}</span>
-              </label>
-            ))}
-
-            <h3 className="lq-vd__card-title" style={{ marginTop: 18 }}>④ 报价与出片</h3>
-            <div className="lq-vd__card">
-              <div className="lq-vd__kv">
-                <span className="k">预计积分</span>
-                <span className="v">
-                  {quote?.creditCost ? `${quote.creditCost} 积分 · 确认后才扣减` : quote ? "本次未能报价" : "点「校验并报价」后显示"}
-                </span>
-              </div>
-              <div className="lq-vd__kv"><span className="k">输出</span><span className="v">MP4 · 沿用原片画幅与时长 · 起始画面带 AI 标识</span></div>
-              <div className="lq-vd__kv"><span className="k">任务</span><span className="v">{job ? `${job.id} · ${job.status}` : "尚未创建"}</span></div>
-            </div>
-            <button className="lq-vd__btn ghost" type="button" disabled={Boolean(busy)} onClick={() => void requestQuote()}>
-              🧾 校验素材与授权，看报价
-            </button>
-            <button
-              className="lq-vd__btn primary block"
-              type="button"
-              disabled={Boolean(busy) || !quote?.canConfirm}
-              onClick={() => void confirmReplication()}
-            >
-              {busy ? busy : quote?.canConfirm ? "✅ 确认并出片（按报价扣积分）" : "先报价，再出片"}
-            </button>
-            {notice && <p className="lq-vd__hint">{notice}</p>}
-            {quote?.gaps && quote.gaps.length > 0 && (
-              <div className="lq-vd__warn">还缺前置条件：{quote.gaps.join("、")}。未创建任务、未扣积分。</div>
-            )}
-            {assetUrl && (
-              <>
-                <video className="lq-vd__result" src={assetUrl} controls playsInline />
-                <a className="lq-vd__btn ghost" href={assetUrl} download={`lanqi-replication-${job?.id ?? "result"}.mp4`}>
-                  ⬇ 下载成片
-                </a>
-              </>
-            )}
-            <button className="lq-vd__btn ghost" type="button" onClick={() => { setPicked(null); setPhoto(null); }}>
-              ↻ 换一条爆款重来
-            </button>
           </>
         )}
+
+        <h3 className="lq-vd__card-title" style={{ marginTop: 18 }}>
+          ② 人物形象 <span className="tag green">换脸 / 换人</span>
+        </h3>
+        <p className="lq-vd__card-sub">AI 保留原片的画面、动作、节奏与配音，只把主角换成你上传的人；照片会上传到你账号名下，仅用于本次生成。</p>
+        <div className="lq-vd__chips">
+          <button
+            type="button"
+            className={`lq-vd__pill${replaceMode === "face" ? " on" : ""}`}
+            onClick={() => setReplaceMode("face")}
+          >
+            换脸 <span className="hint">给头部图片</span>
+          </button>
+          <button
+            type="button"
+            className={`lq-vd__pill${replaceMode === "body" ? " on" : ""}`}
+            onClick={() => setReplaceMode("body")}
+          >
+            换人 <span className="hint">给人物全身画面</span>
+          </button>
+        </div>
+        <div className="lq-vd__fileinfo">
+          <b>{portraitFile ? `已上传：${portraitFile.name}` : `未上传${photoNeeded}照片`}</b>
+          <p>换脸给头部照片，换人给人物全身画面；照片须为本人或已获授权。JPG / PNG / WebP，≤{PORTRAIT_MAX_MB}MB。</p>
+        </div>
+        <FilePick
+          label={portraitFile ? "重新选择照片" : "选择照片"}
+          accept="image/jpeg,image/png,image/webp"
+          onPick={(files) => void uploadAsset("portrait", files[0])}
+        />
+
+        <h3 className="lq-vd__card-title" style={{ marginTop: 18 }}>
+          替换产品 <span className="tag opt">可选</span>
+        </h3>
+        <p className="lq-vd__card-sub">本期生成只替换主角，产品 / 道具替换尚未开通 —— 这里不放用不上的上传控件。</p>
+        <div className="lq-vd__fileinfo">
+          <b>保留原片的产品 / 道具</b>
+          <p>等后端支持产品替换后再开放这一步。</p>
+        </div>
+
+        <h3 className="lq-vd__card-title" style={{ marginTop: 18 }}>
+          ③ 素材与肖像授权 <span className="tag green">逐条确认</span>
+        </h3>
+        <p className="lq-vd__card-sub">这四项是平台合规动作，逐条确认后才允许报价与出片。</p>
+        {REPLICATION_RIGHTS.map((item) => (
+          <label className="lq-vd__consent" key={item.k}>
+            <input
+              type="checkbox"
+              checked={rights[item.k]}
+              onChange={(event) => setRights((current) => ({ ...current, [item.k]: event.target.checked }))}
+            />
+            <span className="cb-txt">{item.label}</span>
+          </label>
+        ))}
+
+        <h3 className="lq-vd__card-title" style={{ marginTop: 18 }}>④ 报价与出片</h3>
+        <div className="lq-vd__card">
+          <div className="lq-vd__kv">
+            <span className="k">预计积分</span>
+            <span className="v">
+              {quote?.creditCost ? `${quote.creditCost} 积分 · 确认后才扣减` : quote ? "本次未能报价" : "点「校验并报价」后显示"}
+            </span>
+          </div>
+          <div className="lq-vd__kv"><span className="k">输出</span><span className="v">MP4 · 沿用原片画幅与时长 · 起始画面带 AI 标识</span></div>
+          <div className="lq-vd__kv"><span className="k">任务</span><span className="v">{job ? `${job.id} · ${job.status}` : "尚未创建"}</span></div>
+        </div>
+        {missing.length > 0 && <p className="lq-vd__hint">还差：{missing.join("、")}。</p>}
+        <button className="lq-vd__btn ghost" type="button" disabled={Boolean(busy)} onClick={() => void requestQuote()}>
+          🧾 校验素材与授权，看报价
+        </button>
+        <button
+          className="lq-vd__btn primary block"
+          type="button"
+          disabled={Boolean(busy) || !quote?.canConfirm}
+          onClick={() => void confirmReplication()}
+        >
+          {busy ? busy : quote?.canConfirm ? "✅ 确认并出片（按报价扣积分）" : "先报价，再出片"}
+        </button>
+        {notice && <p className="lq-vd__hint">{notice}</p>}
+        {quote?.gaps && quote.gaps.length > 0 && (
+          <div className="lq-vd__warn">还缺前置条件：{quote.gaps.join("、")}。未创建任务、未扣积分。</div>
+        )}
+        {assetUrl && (
+          <>
+            <video className="lq-vd__result" src={assetUrl} controls playsInline />
+            <a className="lq-vd__btn ghost" href={assetUrl} download={`lanqi-replication-${job?.id ?? "result"}.mp4`}>
+              ⬇ 下载成片
+            </a>
+          </>
+        )}
+        <button className="lq-vd__btn ghost" type="button" onClick={resetAll}>
+          ↻ 换一组参考素材重来
+        </button>
       </section>
 
       <section className="lq-vd__right">
-        {!searched ? (
-          <div className="lq-vd__placeholder">
-            填好左侧关键词，点「AI 去抖音/视频号搜爆款」<br />只给真实可点开的条目，检索不到就照实说
+        <div className="lq-vd__sec-title">
+          爆款复刻 · 换脸 / 换人 <span className="lq-vd__badge">严格复刻</span>
+        </div>
+        <div className="lq-vd__warn">
+          参考素材由你自己提供：贴抖音链接只登记来源，<b>出片必须上传原片</b>。平台不抓站内视频流，也不替你去搜爆款。
+        </div>
+        <div className="lq-vd__card">
+          <div className="lq-vd__kv">
+            <span className="k">参考来源</span>
+            <span className="v">{reference ? `${reference.kindLabel} · ${reference.host}` : "未登记抖音链接"}</span>
           </div>
-        ) : (
-          <>
-            <div className="lq-vd__sec-title">
-              爆款复刻 · 换脸 / 换人 <span className="lq-vd__badge">严格复刻</span>
-            </div>
-            <div className="lq-vd__warn">
-              {disclosure || "结果按关键词匹配到的真实公开页面；版权与原创度请自行核对。"}
-            </div>
-            {hits.length === 0 && (
-              <div className="lq-vd__offline">
-                <div className="ico">🔎</div>
-                <h3>这次没有可点开的条目</h3>
-                <p>{hitNote || REPLICATE_SEARCH_FAILED_MSG}</p>
-                <p className="lq-vd__hint">
-                  硬要求：不做假数据。宁可不给结果，也不给你一条点开是 404 的「爆款」。
-                </p>
-              </div>
-            )}
-            <div className="lq-vd__card">
-              <div className="lq-vd__kv"><span className="k">来源</span><span className="v">{picked ? `${picked.platformLabel} · ${picked.kindLabel}` : "从左侧结果里选一条"}</span></div>
-              <div className="lq-vd__kv"><span className="k">原视频</span><span className="v">{picked ? picked.title : "暂无"}</span></div>
-              <div className="lq-vd__kv"><span className="k">替换模式</span><span className="v">{replaceMode === "face" ? "换脸（头部图片）" : "换人（全身画面）"}</span></div>
-              <div className="lq-vd__kv"><span className="k">替换产品</span><span className="v">{product ? "已替换为上传产品" : "保留原产品"}</span></div>
-              <div className="lq-vd__kv"><span className="k">生成方式</span><span className="v">AI 人像替换 · 平台内置能力，无需你自行配置</span></div>
-              <div className="lq-vd__kv"><span className="k">输出</span><span className="v">MP4 · 9:16 · 起始画面带 AI 生成标识</span></div>
-            </div>
-            <div className="lq-vd__warn">换脸需先完成肖像授权，授权后方可生成；此处预览仅作效果示意。</div>
-          </>
-        )}
+          <div className="lq-vd__kv">
+            <span className="k">参考视频</span>
+            <span className="v">
+              {videoFile
+                ? `${videoFile.name}${videoFile.seconds !== null ? ` · ${videoFile.seconds.toFixed(1)} 秒` : ""}`
+                : "未上传原片（没有原片就不会出片）"}
+            </span>
+          </div>
+          <div className="lq-vd__kv">
+            <span className="k">人物形象</span>
+            <span className="v">
+              {replaceMode === "face" ? "换脸（头部图片）" : "换人（全身画面）"}
+              {portraitFile ? ` · ${portraitFile.name}` : " · 待上传"}
+            </span>
+          </div>
+          <div className="lq-vd__kv">
+            <span className="k">替换产品</span>
+            <span className="v">保留原片的产品 / 道具（本期尚未开通替换）</span>
+          </div>
+          <div className="lq-vd__kv"><span className="k">生成方式</span><span className="v">AI 人像替换 · 平台内置能力，无需你自行配置</span></div>
+          <div className="lq-vd__kv"><span className="k">输出</span><span className="v">MP4 · 沿用原片画幅与时长 · 起始画面带 AI 生成标识</span></div>
+        </div>
+        <div className="lq-vd__note">
+          {missing.length > 0 ? (
+            <>
+              <b>还差这些才出片：</b>
+              {missing.join("、")}。补齐后点「校验素材与授权，看报价」。
+            </>
+          ) : (
+            <>
+              <b>素材与授权已齐：</b>点「校验素材与授权，看报价」拿到积分与前置条件，再决定要不要出片。
+            </>
+          )}
+        </div>
+        <div className="lq-vd__warn">换脸需先完成肖像授权，授权后方可生成；平台不提供站内视频下载，链接仅作来源登记。</div>
       </section>
     </div>
   );

@@ -30,8 +30,8 @@ const ENTRIES: AcquireEntry[] = [
     tag: "新增",
     accent: true,
     name: "爆款复刻",
-    desc: "给关键词，AI 去抖音 / 视频号搜同赛道已跑通的爆款，挑一条换成你的脸 / 产品，保留原片画面与节奏出成片。",
-    enter: "去搜爆款 →",
+    desc: "粘贴你刷到的抖音链接，或直接上传你自己的原片 → 换成你的脸 / 人，保留原片画面与节奏出成片。",
+    enter: "去复刻 →",
     href: getAppPath("/lanqi/acquire/video")
   },
   {

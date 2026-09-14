@@ -505,7 +505,10 @@
 .lq-vd__offline p { margin: 0 auto; max-width: 420px; font-size: 12.5px; color: #6B5B50; line-height: 1.75; }
 .lq-vd__offline .lq-vd__hint { margin-top: 10px; }
 
-/* 爆款检索结果：条目按真实平台 / 类型标注，点开原页面或选中复刻（LQ-25） */
+/* 【LQ-28 起已无引用】爆款检索结果样式（条目按真实平台 / 类型标注、点开原页面 / 选中复刻）。
+ * LQ-25 的「搜爆款」入口已下线，爆款复刻改为门店自备参考素材（抖音链接登记 / 上传原片），
+ * 页面不再渲染 .lq-vd__hits / .lq-vd__hit*。保留样式仅为避免影响历史构建与极小改动下的回滚，
+ * 确认长期不再需要时可与 LQ-25 后端检索残留一并清理。 */
 .lq-vd__hits { margin-top: 14px; }
 .lq-vd__hit-list { display: grid; gap: 10px; margin: 10px 0 0; padding: 0; list-style: none; }
 .lq-vd__hit { padding: 11px 13px; border: 1px solid #E8E2DB; border-radius: 12px; background: #fff; }
