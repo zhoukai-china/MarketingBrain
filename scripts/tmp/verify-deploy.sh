@@ -25,7 +25,7 @@ chk "ready" "200" "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${
 echo "== runtime data (P1 fix) =="
 SRC="$(sha256sum "$APP/apps/api/src/data/marketplace-v3.json" | awk '{print $1}')"
 DIST="$(sha256sum "$APP/apps/api/dist/apps/api/src/data/marketplace-v3.json" | awk '{print $1}')"
-chk "src_data_sha" "1dd5b672eea8841a36c624bf08b8b191fa2f55a54c3d246c9740cabbe30f12c0" "$SRC"
+chk "src_data_sha" "fe5b3ea77542ff68410a41aa1f1cd78db5c392f439b0138a3f8ec238e435dd4a" "$SRC"
 chk "dist_data_matches_src" "$SRC" "$DIST"
 
 echo "== web build =="
@@ -108,17 +108,18 @@ try:
     if not hit:
         raise SystemExit('lanqi__lanqi-brain missing')
     print("PASS  lanqi_brain_present = True")
-    # 开卖状态必须真的落到线上（QA-20260911-016）：库里已有 profile 行时，
+    # 状态必须真的落到线上（QA-20260911-016）：库里已有 profile 行时，
     # 种子文件里的 ov.<skill>.status 会在「建行后不再覆盖 ov」的旧逻辑下被吞掉，
-    # 表现为源码/产物哈希全对、线上仍是 coming_soon。这里直接断言货架状态。
+    # 表现为源码/产物哈希全对、线上仍是旧状态。这里直接断言货架状态。
+    # 2026-09-14 用户口径：视频复盘智能体先下架成「开发中」，改好再上架。
     for code in ('ipzone__vidrev', 'meiye__vidrev'):
         row = next((s for s in skus if (s.get('skuCode') or s.get('id')) == code), None)
         if row is None:
             raise SystemExit('%s missing from /market/skus' % code)
         got = row.get('status')
-        if got != 'selling':
-            raise SystemExit('%s expected selling, got %s' % (code, got))
-        print("PASS  %s_status = selling" % code)
+        if got != 'coming_soon':
+            raise SystemExit('%s expected coming_soon, got %s' % (code, got))
+        print("PASS  %s_status = coming_soon" % code)
     zones = set()
     for s in skus:
         z = s.get('zone') or s.get('category')

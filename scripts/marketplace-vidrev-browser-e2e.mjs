@@ -83,7 +83,7 @@ async function ensureWalletBalance(token, userId, prisma) {
 }
 
 /**
- * 视频复盘内核已在两个专区开卖（`ipzone__vidrev` / `meiye__vidrev` = selling）。
+ * 视频复盘 2026-09-14 已按用户口径下架成「开发中」（`ipzone__vidrev` / `meiye__vidrev` = coming_soon）。
  * 本脚本仍把该 SKU 临时置为 trial 跑验收，结束后还原为进入时的状态，避免验收脚本依赖或污染真实开卖状态。
  */
 async function withVidrevTrial(prisma, run) {

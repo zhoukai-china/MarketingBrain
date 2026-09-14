@@ -69,7 +69,7 @@ async function main(): Promise<void> {
   const dump = process.env.VIDREV_SMOKE_DUMP ?? "";
 
   await ensureMarketplaceCatalog();
-  // 视频复盘内核已在两个专区开卖（ipzone__vidrev / meiye__vidrev = selling）。
+  // 视频复盘 2026-09-14 已按用户口径下架成「开发中」（ipzone__vidrev / meiye__vidrev = coming_soon）。
   // 冒烟测试仍临时置为 trial 跑验收，结束时还原为进入时的状态，不污染真实开卖状态。
   // 注意：registerMarketplaceRoutes 内部会再调一次 ensureMarketplaceCatalog() 覆盖回种子状态，
   // 所以必须等路由注册完成后才能真正落库为 trial。
