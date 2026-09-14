@@ -1,4 +1,16 @@
 # 当前部署状态
+
+## 最新发布：20260914-lq30b-replicate-live（2026-09-14，测试实例 + 生产）— 兰琪爆款复刻「只支持上传原片」+ 出片链路真能跑通
+
+- 发布包 `release-20260914-lq30b-replicate-live.tar.gz`（9,665,278 B / 1520 文件，sha256 `f340f0f119723f6d3e059961da77e5c1d2d7d23730c6441bbcd52da0e3a8e98c`）。**打包口径**：其他任务在途的 `apps/web/src/marketplace/AgentChatPage.tsx`、`scripts/marketplace-vidrev-run-smoke.ts` 以 HEAD 版本入包（其工作树版本当时编译不过 `vidrevHasData`），该任务新增的两个未跟踪脚本不入包。
+- 内容：① 参考素材**只保留上传原片**——抖音链接页签 / 输入框 / 「登记参考来源」按钮 / 链接解析代码整体撤退（用户 2026-09-14「先取消抖音链接的爆款复刻，只支持上传视频」）；② 出片链路的产品权益清单抽到 `apps/api/src/services/video-replication-entitlement.ts`（`beauty-industry` + `lanqi`），路由准入 / 素材授权 `scope()` / 许可 `currentAccess()` 三处共用；③ 新增 env `VIDEO_REPLICATION_PERMIT_MODE`（默认 `operator`；生产与测试实例置 `auto`）——按同一套预算上限自动签一条绑定本次请求的单批许可；④ 页面报价前自动上传「在线勾选声明」并登记两份素材授权；⑤ 报价缺口翻人话（`insufficient_credits` 等），确认仍走既有 402 `insufficient_credits`。
+- 测试实例 `20260914-lq30b-replicate-live-test1` / 生产 `20260914-lq30b-replicate-live-prod1`：均 `DEPLOY_OK` + `health=200` / `ready=200`（生产 after 15s）+ 无待应用迁移；生产 `verify-deploy.sh` **VERIFY_OK**（public_web 200 / public_market_skus 200 / skus_total=19 / coming_soon=15 / zones=ipzone,lanqi,meiye）。
+- 页面级验收（测试实例真实浏览器，桌面 1440 + 移动 390）：`pnpm.cmd lanqi:acquire-instance-acceptance` **37 项 / 失败 0**。新增「爆款复刻只支持上传原片（无搜爆款入口、无贴链接入口）」；「点主按钮真的走报价」= 4 个请求（声明依据上传 + 两条素材授权 + 报价），报价后状态 `blocked`（该免登录租户积分不足）、未创建任务；`lanqi:acquire-ui-contract-smoke` **79 / 0**（含「不再有参考抖音链接 / lq-vd-ref-link / 登记参考来源 / 链接解析代码」四条反向断言）。
+- 生产只读产物核对：入口 `assets/index-DtcU3loT.js` → `assets/LanqiAcquireVideoPage-CGvmZ2vi.js`（HTTP 200 / 54,372 B）：`参考抖音链接` **0**、`lq-vd-ref-link` **0**、`登记参考来源` **0**、`上传原片` 5、`更换原视频` / `删除这条原片` 各 1、`data-lq-vd-primary` / `data-lq-vd-remove` 各 2；匿名 `POST /os-v2/api/viral-video-replication/quote` → **401**。服务与配置复核：两个服务 `active`、两侧 health 200、两侧 env 各 1 行 `VIDEO_REPLICATION_PERMIT_MODE=auto`。
+- 配置变更（含备份，可回滚）：`/etc/baolu-secrets/baolu-os-v2.env` 与 `baolu-os-v2-test.env` 各追加 `VIDEO_REPLICATION_PERMIT_MODE=auto`（备份 `.bak-20260914-lq30`）。回滚 = 还原该备份 env + 还原发布前备份目录 + `systemctl restart <service>`。
+- 回滚点：`/opt/baolu-backups/20260914-lq30b-replicate-live-prod1-before-baolu-os-v2/` 与 `/opt/baolu-backups/20260914-lq30b-replicate-live-test1-before-baolu-os-v2-test/`。
+- 未做：未给任何租户补权益（用户 2026-09-14 明确「不用给杨萋萋账号补权益」）；未跑真实付费样片（用户自行用真素材测验）；单条成本上限仍为 ¥10 → 只能出 ≤16 秒的片（更长需提高 `ALIYUN_VIDEO_REPLICATION_MAX_COST_FEN`）。
+- 提交：`ed498ae`（LQ-30 主体）+ `881d7be`（并行提交 `cd37a6b` 把工作树页面覆盖回贴链接旧版后，重新落回只上传原片版）。**注意**：`docs/`、`scripts/tmp/deploy-*.sh` 仍可能有并行任务在途改动，本发布只针对上列文件。
 ## 最新发布：20260914-plat33-voice-input（2026-09-14，测试实例 + 生产）— 公共平台语音输入
 
 - 发布包 `release-20260914-plat33-voice-input.tar.gz`（9,652,995 B / 1518 文件，sha256 `5e8c36da311f02e42aef5c581fc8059646c2db2b30dfb6cc7f3a0c3b6368060b`，本地与服务器实测一致）。**从「只含本提交」的干净快照打包**（`git worktree` 指向 commit `402769b`）：打包时同一工作树里并行线程正在改 `viral-video-replication*` / `beauty-video-*` / 新增 `video-replication-entitlement.ts` 与 LQ-30 卡，包内已核对**不含**这些在途文件（`tar -tzf | grep video-replication-entitlement|LQ-30` = 0）。
