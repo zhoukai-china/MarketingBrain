@@ -24,6 +24,8 @@
 - 2026-09-13 收尾（用户关机，明日继续）：① 明天可发链接 https://api.lcppch.top/os-v2/login?ref=ref-mxow3bifnsv5（真码未使用）；生产全链路合成 E2E 21/21、reward-payguard（推荐第②批+90天到期+支付加固）已上线，活动窗 2026-09-13T12:02Z 起 / 2026-09-30T16:00Z 止。② 任务4 进度：直播话术招商完整样例已完成（web typecheck + neutral smoke PASS），IP定位 Word 去#修复已写（api typecheck PASS）但未运行渲染截图、未跑两条改动后的全量 qa:fast、未发布。③ 明日续作清单：补 qa:fast → docx 渲染验收 → 把样例+Word 修复并入下个公共平台批次；复盘 WorkBuddy 新用户链路验收报告中“断网原生提示/mock server error”文案残余。
 - 2026-09-14（总调度7）：确立目标结构＝1 个公共平台代码区＋每个智能体各自一个代码区；平台少动、向后兼容、改动串行，智能体可并行，先做真实产品再抽公共能力；用户只与总调度沟通需求，由总调度判定公共/单智能体并派发。进展：兰琪 LQ-28 已收口（测试+生产上线）；「平台底座抽取」完成第①②③批（server.ts 产品路由抽到 `apps/api/src/products/register.ts`、main.tsx 兰琪路由抽到 `apps/web/src/routes/lanqi.tsx`），第④批 MarketplaceApp.tsx 全部拆成 5 个独立组件 + `sku-model.ts` + `shell.tsx`，auth.ts 已抽 schemas/helpers（qa:fast + web/api build 全绿）；auth.ts 巨型 registerAuthRoutes 建议单列后续任务。既有回归红灯：`beauty-video-oss-staging-smoke.ts` 期望 `cleanup_failed` 实得 `oss_http_503`（本批未触及，属既有失败）。暂不做平台发布。
 
+- 2026-09-14（总调度7 · 发布）：`20260914-zd7-platform` 测试实例 + 生产均 `DEPLOY_OK` + `VERIFY_OK`；上线内容 = 样例修复（文案「内容十件套」/ 视频复盘「深度复盘」/ 直播话术完整样例）+ 客户端拖拽上传/去前置报价 + 「平台底座抽取」路由重构。生产产物核对：`内容十件套`=4、`深度复盘`=10、旧 `单条视频复盘`=0、`约扣`=0；备份 `/opt/baolu-backups/20260914-zd7-platform-prod1-before-baolu-os-v2/`（189M）。残留：美业专属样例 `meiye__copy` 仍是旧版短样例。
+
 ## 已知阻塞
 
 - 桌面版 create_thread/fork_thread 对项目/派生线程会报 missing field call_id 系统错误，线程执行通道不可用；任务暂时在“开发总调度”对话框直接推进。

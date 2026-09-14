@@ -1,4 +1,14 @@
 # 当前部署状态
+## 最新发布：20260914-zd7-platform（2026-09-14，测试实例 + 生产）— 样例修复上线（文案「内容十件套」/ 视频复盘「深度复盘」/ 直播话术完整样例）+ 平台底座抽取重构 + 客户端拖拽上传/去前置报价
+
+- 发布包 `release-20260914-zd7-platform.tar.gz`（9,600,317 B，sha256 `8084b8cd0103b018ebc5b7353a86befebdfb159429d4999ac0746905ca6f94dc`，1510 文件；canary `marketplace-v3.json` = `1dd5b672…`）。
+- 内容：① 货架输出参考样例恢复到修复版——文案智能体「内容十件套（十栏全展开）」、视频复盘「深度复盘 · 完整报告样例（第零章数据质量审计 + 十章全文）」、直播话术「招商场景完整样例（2 小时连续逐字稿）」；② 客户端「对话框拖拽上传」与「去掉使用前前置报价」恢复；③ 「平台底座抽取」路由重构（`server.ts` 产品路由 → `products/register.ts`；`main.tsx` 兰琪路由 → `routes/lanqi.tsx`；`MarketplaceApp.tsx` 拆 5 组件 + `sku-model` + `shell`；`auth.ts` 拆 schemas/helpers）。
+- 测试实例 `20260914-zd7-platform-test1`：`DEPLOY_OK` + health/ready 200；`verify-deploy.sh` **VERIFY_OK**；产物核对 `内容十件套`=4、`深度复盘`=10、旧 `单条视频复盘`=0、`onDragOver`=1。
+- 生产 `20260914-zd7-platform-prod1`：`DEPLOY_OK` + health=200 (after 15s) / ready=200；`verify-deploy.sh` **VERIFY_OK**；产物核对同测试（`内容十件套`=4、`深度复盘`=10、旧 `单条视频复盘`=0、`约扣`=0）；`journalctl -p err` 近 10 分钟无条目。
+- 备份/回滚：`/opt/baolu-backups/20260914-zd7-platform-prod1-before-baolu-os-v2/`（189M，含 app-before + db-before）；回滚 = 还原该备份并 `systemctl restart baolu-os-v2`。
+- 说明：本轮修复了 9-14 兰琪发布时把 marketplace 相关文件按服务器旧版保留、导致样例修复未上线的问题。
+- 已知残留：美业专区专属样例 `meiye__copy` 仍是旧版短样例（本次未改；属行业专属样例，待确认是否换成新格式）。
+
 > **已收口（2026-09-14）**：`20260913-lq27-nav-online-prod1` 已部署生产（`DEPLOY_OK` + health 200 / ready 200；marketplace canary `1dd5b672…` 一致）；测试实例品牌导航浏览器 E2E **0 failed**（桌面 1440 + 移动 390：侧栏恰好 8 项、其中 6 项带「开发中」徽标，「私域营销」「公域获客」不带徽标；公域获客枢纽/爆款复刻按已上线页验收；驾驶舱等 6 个未上线板块仍占位；无横向溢出、应用侧 console 0）。已知：其他任务在途 `apps/web/src/marketplace/livescript-full-case.ts`（重复定义 + 语法错误）仍会让 `qa:fast` 的 web 步骤失败，属既有失败（非本任务改动），待相关任务修复。
 ## 最新发布：20260914-lq28-self-material-v2（2026-09-14，测试实例 + 生产）— 爆款复刻取消「搜索爆款」，改门店自备素材
 
