@@ -23,9 +23,12 @@ check(app.includes("PLAT-25B：chat 页浏览器 <title> 带上智能体名与�
 check(!/flow\.name\}\s*·\s*\{runSku\?\.name/.test(app), "页内标题不再出现「{flow.name} · {runSku?.name}」重复拼法");
 check(app.includes('{runSku?.name ?? flow.name ?? "智能体"}{industry?.title ? ` · ${industry.title}` : ""}'), "页内标题 = 智能体名（兜底 flow.name）+ 可选专区名");
 
-// ③ PLAT-25A：美业欢迎语必须先引导选模式，行业口径（POI/团购）只能挪位置不能删。
+// ③ 美业欢迎语：2026-09-13 工单取消了「快速诊断」，只保留深度复盘；行业口径（POI/团购）只能挪位置不能删。
 const meiyeWelcome = data.industries?.meiye?.ov?.vidrev?.welcome ?? "";
-check(typeof meiyeWelcome === "string" && meiyeWelcome.includes("选复盘模式"), "meiye 欢迎语先引导「选复盘模式」，与进度条第 1 步一致");
+check(
+  typeof meiyeWelcome === "string" && meiyeWelcome.includes("深度复盘") && !meiyeWelcome.includes("快速诊断") && !meiyeWelcome.includes("选复盘模式"),
+  "meiye 欢迎语只保留深度复盘（工单 2026-09-13 已取消快速诊断与模式选择）"
+);
 check(meiyeWelcome.includes("POI") && meiyeWelcome.includes("团购"), "meiye 欢迎语仍保留 POI / 团购行业口径（未删，只是挪到数据/描述步）");
 check(!/<b>第 1 轮<\/b>：这条视频挂了 POI/.test(meiyeWelcome), "meiye 欢迎语不再抢先问「第 1 轮 POI/团购」");
 
