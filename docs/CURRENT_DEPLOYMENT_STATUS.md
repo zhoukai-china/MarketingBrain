@@ -1,5 +1,16 @@
 # 当前部署状态
 
+## 最新发布：20260914-vidrev-online（2026-09-14，测试实例 + 生产）— 视频复盘验收通过后重新上架（含 P1 修复）
+
+- 发布包 `release-20260914-vidrev-online-v5.tar.gz`（9,673,131 B / 1522 文件，sha256 `b79534fa3f2eb3ac01e3bf99e70eb62b1a27f9d9aa11ccb48f867e29ebaf200f`），从 commit `7e77301` 快照打包（完整文件集）。
+- **验收（工单 2026-09-13 §四 十项）**：① 未传文件只打「复盘」→ 回复导出指南、不调模型不扣积分；② 界面无「快速诊断」；③ 视频号助手 / 抖音创作者中心网址可点；④ 抖音 CSV/Excel → 报告（测试实例真实模型 14–17 秒）；⑤ 视频号 Excel → 报告 / 受限维度；⑥ 空表 → 明确提示；⑦ 余额不足 → 402 引导充值（测试实例实测）；⑧ 「增强提示词」改成「✨ 一键填充标准请求」；⑨ 输出零 + 一~十共 11 段标题 + 数据质量审计；⑩ payload 契约 `kind=vidrev`。
+- **验收中发现并修掉一条 P1（QA-20260914-006）**：引擎把空象限占位符「无」当成视频 ID，只要有一个象限为空就必然 422（`V3 视频 无 被归入多个象限`）——正是用户反馈的「上传数据后没有输出」。修复后测试实例真实复盘 **200 / 60 积分一次 / 6,029 字 / 两个空象限**；生产同版产物含该修复。
+- **上架**：`marketplace-v3.json` 的 `ipzone.ov.vidrev` / `meiye.ov.vidrev` 由 `coming_soon` 改回 `selling`（新 sha256 `2d3684e26767f7f2ee000ba3e71280d0df79918cdf570a728d4d0d511ca3b566`，三个发布脚本与 foundation/api/sku-link 三处契约断言同步）。生产 `/market/skus` 实测两个 vidrev 均 `selling`（在售 6 / 开发中 13）；`verify-deploy.sh` **VERIFY_OK**。
+- 新增能力：对话页支持平台后台导出的 `.xlsx/.xls`（走 `/media/analyze` 文档解析，**不**走 ASR 通道），附件含成交金额时置 `has_revenue_data`。新增 `vidrev:excel-upload-smoke`（已入 `qa:fast`，3 轮 / 0 Provider）与 `scripts/acceptance/vidrev-excel-upload-browser-e2e.mjs`（本地 15/15、测试实例 15/15）。
+- 发布过程记录：首包（v1）因**误把 `package.json` 排除出文件清单**，服务器 corepack 装到 pnpm 11（要求 Node ≥22）构建失败（`ERR_UNKNOWN_BUILTIN_MODULE: node:sqlite`）；v3 漏打 `LanqiAcquireVideoPage.tsx` → stage 缺模块失败。两次都在**动任何文件之前**退出、服务未受影响，最终用完整文件集（v5）发布成功。
+- 备份/回滚：`/opt/baolu-backups/20260914-vidrev-online-test4-before-baolu-os-v2-test/`、`…-prod1-before-baolu-os-v2/`；回滚＝还原备份目录 + `systemctl restart baolu-os-v2(-test)`。
+- 磁盘：按用户 2026-09-14 点头执行备份保留策略（每环境留最近 8 份），删除 28 个旧目录、释放 4.83G，清单 `/opt/baolu-backups/.retention-deleted-20260914-193131.log`。
+
 ## 最新发布：20260914-lq30b-replicate-live（2026-09-14，测试实例 + 生产）— 兰琪爆款复刻「只支持上传原片」+ 出片链路真能跑通
 
 - 发布包 `release-20260914-lq30b-replicate-live.tar.gz`（9,665,278 B / 1520 文件，sha256 `f340f0f119723f6d3e059961da77e5c1d2d7d23730c6441bbcd52da0e3a8e98c`）。**打包口径**：其他任务在途的 `apps/web/src/marketplace/AgentChatPage.tsx`、`scripts/marketplace-vidrev-run-smoke.ts` 以 HEAD 版本入包（其工作树版本当时编译不过 `vidrevHasData`），该任务新增的两个未跟踪脚本不入包。
