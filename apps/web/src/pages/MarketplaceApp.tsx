@@ -11,83 +11,19 @@ import { chatFlowFor, buildRunBody } from "../marketplace/chat-flows.js";
 import { IpPosReport, type IpPosPayload } from "../marketplace/ip-pos-report.js";
 import { VidrevReport, isVidrevPayload, VIDREV_PREFILL_KEY, type VidrevPayload } from "../marketplace/vidrev-report.js";
 import sitongAvatar from "../assets/sitong-beauty.png";
-
-interface MarketplaceZone {
-  key: string;
-  name: string;
-  tagline: string;
-  icon: string;
-  ready?: boolean;
-  general?: boolean;
-  prefix?: string;
-}
-
-interface MarketplaceIndustry {
-  key: string;
-  title: string;
-  tag: string;
-  ready: boolean;
-  general: boolean;
-  prefix?: string;
-  who?: string;
-  lexicon: string[];
-  pains: string[];
-  redline: string[];
-  ov?: Record<string, Record<string, unknown>>;
-}
-
-interface MarketplaceSku {
-  id: string;
-  skuCode: string;
-  zone: string;
-  zoneName: string;
-  name: string;
-  icon?: string | null;
-  badge?: string | null;
-  description: string;
-  verbs: string[];
-  useCase: string;
-  need: string;
-  tags: string[];
-  keywords: string[];
-  ppu: number;
-  status: string;
-  sortOrder: number;
-  supplierName: string;
-}
-
-const BUNDLE_ORDER = ["ip-pos", "topic", "copy", "vidrev", "livescript", "liverev", "sales"];
-
-function coreSkuCode(skuCode: string): string {
-  const separator = skuCode.indexOf("__");
-  return separator >= 0 ? skuCode.slice(separator + 2) : skuCode;
-}
-
-function zoneOfSku(skuCode: string): string {
-  const separator = skuCode.indexOf("__");
-  return separator >= 0 ? skuCode.slice(0, separator) : "";
-}
-
-function isBundle(sku: MarketplaceSku): boolean {
-  return coreSkuCode(sku.skuCode) === "ip-pack";
-}
-
-// 货架可见但内核未完成：仍可进详情看能力介绍，但不允许进入对话、不消耗积分。
-function isComingSoon(sku: MarketplaceSku | null | undefined): boolean {
-  return Boolean(sku && sku.status === "coming_soon");
-}
-
-function bundleSteps(sku: MarketplaceSku, all: MarketplaceSku[]): MarketplaceSku[] {
-  if (!isBundle(sku)) return [];
-  const zone = zoneOfSku(sku.skuCode);
-  return BUNDLE_ORDER
-    .map((sid) => all.find((item) => item.skuCode === `${zone}__${sid}`))
-    .filter((item): item is MarketplaceSku => Boolean(item));
-}
-
-function bundleTotal(sku: MarketplaceSku, all: MarketplaceSku[]): number {
-  return bundleSteps(sku, all).reduce((sum, step) => sum + step.ppu, 0);
-}
+import {
+  BUNDLE_ORDER,
+  bundleSteps,
+  bundleTotal,
+  coreSkuCode,
+  groupByZone,
+  isBundle,
+  isComingSoon,
+  zoneOfSku,
+  type MarketplaceIndustry,
+  type MarketplaceSku,
+  type MarketplaceZone
+} from "../marketplace/sku-model.js";
 
 function authHeaders(json = false): Record<string, string> {
   const token = localStorage.getItem("store_os_token");
@@ -194,12 +130,6 @@ function guestToLogin(path: string): void {
   // 带上暂存的推荐码：不带的话，从货架点「登录」这一跳会把归因码丢掉
   // （2026-09-13 真机 nginx 日志实证：/login?ref=… → /login → 回调 → /login，码全丢）。
   window.location.href = getAppPath(loginPathWithPendingReferral("/login"));
-}
-
-function groupByZone(skus: MarketplaceSku[], zones: MarketplaceZone[]) {
-  return zones
-    .map((zone) => ({ zone, items: skus.filter((sku) => sku.zone === zone.key) }))
-    .filter((group) => group.items.length > 0);
 }
 
 function Topbar({ active, balance, onNavigate }: { active: string; balance: number | null; onNavigate: (path: string) => void }) {
