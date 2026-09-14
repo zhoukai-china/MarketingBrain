@@ -128,15 +128,42 @@ assert.match(
   /inviteCode:\s*z\.string\(\)\.trim\(\)\.min\(1\)\.max\(200\)/,
   "产品入口的邀请码必须保持必填，去掉邀请码只针对平台主入口",
 );
+// PLAT-34（2026-09-15 用户口径）：只有兰琪必须凭邀请码开通；其他产品入口与统一注册链接直接注册。
+// 仍然是「显式带了码就按码校验」——无效码一律 403，产品/品牌归属不被静默丢弃。
 assert.match(
   invites,
-  /if \(!inviteRequired && !normalized && !productCode\) \{\s*return \{ ok: true, source: "disabled" \};/,
-  "开放注册只能放开无产品归属的平台主入口；缺省邀请码时是否放行由 INVITE_REQUIRED 决定，且产品入口必须始终校验产品邀请码",
+  /export const LANQI_PRODUCT_CODE: ProductLoginCode = "lanqi";/,
+  "受控产品清单必须显式声明为兰琪（PLAT-34 口径的唯一出处）",
 );
 assert.match(
   invites,
-  /if \(!normalized\) \{\s*return \{ ok: false, error: "invite_code_required" \};/,
-  "产品入口或邀请制下缺省邀请码必须返回 invite_code_required（403），不能被开放注册放行",
+  /if \(productCode === LANQI_PRODUCT_CODE\) return \{ ok: false, error: "invite_code_required" \};/,
+  "兰琪缺省邀请码必须 403 invite_code_required，不能被开放注册放行",
+);
+assert.match(
+  invites,
+  /if \(productCode\) return \{ ok: true, source: "not_required" \};/,
+  "非兰琪产品入口缺省邀请码必须放行（直接注册），且不写任何邀请码归属",
+);
+assert.match(
+  invites,
+  /return inviteRequired\s*\n?\s*\? \{ ok: false, error: "invite_code_required" \}\s*\n?\s*: \{ ok: true, source: "disabled" \};/,
+  "平台主入口是否要邀请码仍由 INVITE_REQUIRED 决定（对外统一链接用 false）",
+);
+assert.match(
+  auth,
+  /const nextRedeemed = invite\.inviteCodeId \? await redeemInviteCode\(\{/,
+  "没有邀请码时注册路径必须跳过兑换，不能拿 undefined 去兑换",
+);
+assert.match(
+  login,
+  /const invitesNeeded = product \? product\.code === "lanqi" : \(isProduction && inviteRequired !== false\);/,
+  "登录页必须只在兰琪入口强制邀请码，平台主入口按服务端开关",
+);
+assert.match(
+  login,
+  /product && product\.code === "lanqi" && !inviteValidated \? <form onSubmit=\{handleProductInviteValidate\}/,
+  "邀请码表单只允许出现在兰琪入口",
 );
 assert.doesNotMatch(
   login,

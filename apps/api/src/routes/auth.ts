@@ -150,7 +150,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
           phone: parsed.data.phone,
           nickname: parsed.data.nickname
         }, tx);
-        const nextRedeemed = await redeemInviteCode({
+        const nextRedeemed = invite.inviteCodeId ? await redeemInviteCode({
           inviteCodeId: invite.inviteCodeId,
           tenantId: nextWorkspace.tenant.id,
           userId: nextWorkspace.user.id,
@@ -163,7 +163,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
             channel: product ? "product_web_login" : "beta_web_login",
             productCode: product?.code,
           }
-        }, tx);
+        }, tx) : false;
         if (invite.inviteCodeId && !nextRedeemed) {
           throw new InviteRedemptionError();
         }
@@ -176,7 +176,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         }
         await restrictWorkspaceToProductAgents(tx, nextWorkspace.tenant.id, nextWorkspace.user.id, product?.code);
         await grantBetaAgentEntitlements(tx, nextWorkspace.tenant.id, product?.code);
-        if (product?.code === "beauty-industry") {
+        if (product?.code === "beauty-industry" && invite.brandCode) {
           await assignBeautyIndustryBrandToTenant({
             transactionClient: tx,
             tenantId: nextWorkspace.tenant.id,
@@ -790,7 +790,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
           phone: parsed.data.phone,
           nickname: parsed.data.nickname
         }, tx);
-        const nextRedeemed = await redeemInviteCode({
+        const nextRedeemed = invite.inviteCodeId ? await redeemInviteCode({
           inviteCodeId: invite.inviteCodeId,
           tenantId: nextWorkspace.tenant.id,
           userId: nextWorkspace.user.id,
@@ -802,7 +802,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
             source: invite.source,
             productCode: product?.code,
           }
-        }, tx);
+        }, tx) : false;
         if (invite.inviteCodeId && !nextRedeemed) {
           throw new InviteRedemptionError();
         }
@@ -814,7 +814,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
           throw new InviteRedemptionError();
         }
         await grantBetaAgentEntitlements(tx, nextWorkspace.tenant.id, product?.code);
-        if (product?.code === "beauty-industry") {
+        if (product?.code === "beauty-industry" && invite.brandCode) {
           await assignBeautyIndustryBrandToTenant({
             transactionClient: tx,
             tenantId: nextWorkspace.tenant.id,
