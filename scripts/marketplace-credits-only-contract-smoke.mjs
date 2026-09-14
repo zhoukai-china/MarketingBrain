@@ -10,8 +10,9 @@
  * 三条口径：
  *  ① 缺席：`apps/web/src` 客户界面不得再渲染 `≈ ¥` 折算，也不得引用
  *     `yuanLabelForCredits` / `creditsToYuan` / `formatYuanText`；
- *  ② 保留：去掉人民币后，扣费提示仍然必须明确说出「多少积分」（货架、详情、聊天确认、
- *     Word 导出一处都不能少），否则等于把用户最需要的那句话也删了；
+ *  ② 保留：**交付完成之后**必须告诉用户这次消耗了多少积分（聊天页「本次消耗 N 积分」），
+ *     以及导出这种单独动作需要多少积分；**使用前不再反复提示要扣多少积分**
+ *     （2026-09-13 用户口径：「每次使用都要告诉扣多少积分，感受不好」——前置金额一律去掉）；
  *  ③ 例外：`/recharge` 是**真实支付**页面，`¥` 是用户实际要付的钱，不属于「积分折算」，
  *     必须保留（本契约用白名单显式豁免，并要求它继续展示真实价格）。
  */
@@ -108,13 +109,20 @@ forbidContains(marketplace, "≈ ¥", "货架与智能体页面不再拼「≈ �
 
 const chatMessages = read("apps/web/src/components/chat/ChatMessages.tsx");
 
-requireContains(marketplace, "约扣 {runSku?.ppu ?? 0} 积分", "生成确认气泡仍说明「约扣 N 积分」");
 requireContains(marketplace, "本次消耗 {cost} 积分", "聊天页顶部仍显示本次消耗积分");
-requireContains(marketplace, "扣 ${steps[0]?.ppu ?? 0} 积分", "分步链路按钮仍说明第一步扣多少积分");
-requireContains(marketplace, "${sku.ppu} 积分/次", "单品详情仍显示「N 积分/次」");
 requireContains(marketplace, "本次导出需 ${required} 积分", "积分不足的导出提示仍说明所需积分");
-requireContains(marketplace, "会按次扣 {runSku?.ppu ?? 0} 积分", "重做提示仍说明按次扣多少积分");
 requireContains(marketplace, "${docxPrice} 积分", "Word 导出按钮仍显示所需积分");
+// 2026-09-13 用户口径：使用前不再出现任何「要扣多少积分」的前置提示（只在交付后告知消耗）。
+forbidContains(marketplace, "约扣 {runSku?.ppu ?? 0} 积分", "生成确认气泡不得再前置报价");
+forbidContains(marketplace, "扣 ${steps[0]?.ppu ?? 0} 积分", "分步链路按钮不得再前置报价");
+forbidContains(marketplace, "${sku.ppu} 积分/次", "单品详情不得再显示「N 积分/次」");
+forbidContains(marketplace, "会按次扣 {runSku?.ppu ?? 0} 积分", "重做提示不得再前置报价");
+forbidContains(marketplace, "每生成一次扣", "登录引导不得再前置报价");
+// 2026-09-13 用户口径：对话框必须支持把文件直接拖进来（文本类附件要真的被读进需求）。
+requireContains(marketplace, "onDragOver=", "对话框必须支持拖拽（onDragOver）");
+requireContains(marketplace, "onDrop=", "对话框必须支持拖拽（onDrop）");
+requireContains(marketplace, "async function addFiles(", "拖拽/上传必须走统一的附件入口");
+requireContains(marketplace, "【附件：${item.name}】", "文本类附件内容必须真的拼进需求单");
 requireContains(chatMessages, "${docxPrice} 积分", "工作台聊天页 Word 导出按钮仍显示所需积分");
 
 /* ------------------------------------------------------------------ *

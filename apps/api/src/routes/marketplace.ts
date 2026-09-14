@@ -23,12 +23,25 @@ import {
   listMarketplaceTrialGrants
 } from "../services/marketplace-trial-grant.js";
 import {
+  PlatformSettingError,
+  isMarketplaceTrialGrantEnabled,
+  readPlatformSettings,
+  updatePlatformSettings
+} from "../services/referral-config.js";
+import {
+  ReferralCodeError,
+  issueReferralCode,
+  listReferralBindings,
+  listReferralCodesOfOwner
+} from "../services/referral-attribution.js";
+import {
   consumeWalletCredits,
   getOrCreateWallet,
   readWallet,
   recordRedo,
   buildRechargeUrl
 } from "../services/sitong-wallet.js";
+import { maybeGrantReferralReward } from "../services/referral-rewards.js";
 import {
   MARKETPLACE_ZONES,
   MARKETPLACE_INDUSTRIES,
@@ -177,6 +190,19 @@ const trialGrantInputSchema = z.object({
   operator: z.string().trim().min(2).max(40).optional(),
   tenantId: z.string().trim().min(1).max(64).optional(),
   dryRun: z.boolean().optional()
+});
+
+// PLAT-28：平台运行期配置位（推荐有礼 9 键 + 人工发放总开关），后台可读写。
+const platformSettingUpdateSchema = z.object({
+  updates: z.record(z.string().trim().min(1).max(64), z.unknown()),
+  operator: z.string().trim().min(2).max(40).optional()
+});
+
+// PLAT-28：给推荐人下发推荐码（第③批的推荐人视角后台会在此基础上做）。
+const referralCodeInputSchema = z.object({
+  identity: trialGrantIdentitySchema,
+  label: z.string().trim().max(40).optional(),
+  operator: z.string().trim().min(2).max(40).optional()
 });
 
 export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<void> {
@@ -603,6 +629,13 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
           }
         });
 
+
+
+        if (!freeRedo) {
+          await maybeGrantReferralReward({ referredUserId: context.userId, kind: "referrer_first_use" }).catch((error: unknown) => {
+            request.log.warn({ err: error }, "referral reward(referrer_first_use) failed");
+          });
+        }
         return {
           state: "completed",
           answer,
@@ -795,6 +828,17 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
         if (reply.sent) return;
         await requireMarketplaceAdmin("write")(request, reply);
         if (reply.sent) return;
+        // PLAT-28 第①批（用户 2026-09-12）：人工发放入口默认停用，历史流水只读保留。
+        // 停用必须是「明确已停用」而不是 500，所以在这里直接返回 403 + 专属错误码；
+        // 想重新放行只能改后台开关（PlatformSetting.MARKETPLACE_TRIAL_GRANT_ENABLED），
+        // 不走「再加一个后门参数」的路子。
+        if (!(await isMarketplaceTrialGrantEnabled())) {
+          return reply.code(403).send({
+            error: "trial_grant_disabled",
+            message:
+              "人工发放体验额度已停用（推荐有礼上线前收口）。历史发放记录仍可查看；如需重新放行，请在后台打开「人工体验额度发放」开关。"
+          });
+        }
         const parsed = trialGrantInputSchema.safeParse(request.body ?? {});
         if (!parsed.success) {
           return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
@@ -823,6 +867,91 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
           throw error;
         }
       });
+
+      // ---------------------------------------------------------------------
+      // PLAT-28 第①批：推荐有礼配置位（后台可读写）+ 推荐码下发 + 归因查询
+      //
+      // 这一批**不发任何奖励**：配置位只负责「读得到、写得到、校验严格」，
+      // 奖励发放口径（三段金额、首次真实使用/首充触发、退款冲正）留给第②批。
+      // 写操作一律要求平台运维凭证 + 运营角色，与体验额度发放同一套守卫。
+      // ---------------------------------------------------------------------
+      admin.get("/referral-config", { preHandler: requireAdminToken }, async () => {
+        return await readPlatformSettings();
+      });
+
+      admin.patch("/referral-config", async (request, reply) => {
+        await requireAdminToken(request, reply);
+        if (reply.sent) return;
+        await requireMarketplaceAdmin("write")(request, reply);
+        if (reply.sent) return;
+        const parsed = platformSettingUpdateSchema.safeParse(request.body ?? {});
+        if (!parsed.success) {
+          return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+        }
+        const context = await resolveRequestContext(request.headers);
+        try {
+          const snapshot = await updatePlatformSettings(
+            parsed.data.updates,
+            parsed.data.operator ?? context.userId
+          );
+          return snapshot;
+        } catch (error) {
+          if (error instanceof PlatformSettingError) {
+            return reply.code(400).send({ error: error.code, key: error.key, message: error.message });
+          }
+          throw error;
+        }
+      });
+
+      admin.post("/referral-codes", async (request, reply) => {
+        await requireAdminToken(request, reply);
+        if (reply.sent) return;
+        await requireMarketplaceAdmin("write")(request, reply);
+        if (reply.sent) return;
+        const parsed = referralCodeInputSchema.safeParse(request.body ?? {});
+        if (!parsed.success) {
+          return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+        }
+        const context = await resolveRequestContext(request.headers);
+        try {
+          const issued = await issueReferralCode({
+            identity: parsed.data.identity,
+            label: parsed.data.label ?? null,
+            createdBy: parsed.data.operator ?? context.userId
+          });
+          return { referralCode: issued };
+        } catch (error) {
+          if (error instanceof ReferralCodeError) {
+            const status = error.code === "referral_user_not_found" ? 404 : error.code === "referral_user_ambiguous" ? 409 : 400;
+            return reply.code(status).send({ error: error.code, message: error.message });
+          }
+          throw error;
+        }
+      });
+
+      admin.get<{ Querystring: { limit?: string; ownerUserId?: string } }>(
+        "/referral-codes",
+        { preHandler: requireAdminToken },
+        async (request, reply) => {
+          const ownerUserId = (request.query.ownerUserId ?? "").trim();
+          if (!ownerUserId) {
+            return reply.code(400).send({
+              error: "invalid_request",
+              message: "按推荐人查推荐码需要 ownerUserId（全量码清单属于第③批推荐明细后台）。"
+            });
+          }
+          return { codes: await listReferralCodesOfOwner(ownerUserId) };
+        }
+      );
+
+      admin.get<{ Querystring: { limit?: string } }>(
+        "/referrals",
+        { preHandler: requireAdminToken },
+        async (request) => {
+          const limit = clampLimit(request.query.limit);
+          return { bindings: await listReferralBindings(limit) };
+        }
+      );
     }, { prefix: "/admin" });
   }, { prefix: "/market" });
 }

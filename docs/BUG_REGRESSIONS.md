@@ -1,5 +1,51 @@
 # Bug 回归台账
 
+## QA-20260914-001：充值页把英文开发期错误原文直出给门店（`mock server error` / `Failed to fetch`）（P1，已修）
+
+- 触发：WorkBuddy《新用户链路验收报告》（2026-09-12，生产 + 测试实例）两条红灯——P1 合成 500 时充值页正文直出英文 `mock server error`；P2 浏览器断网时直出 `Failed to fetch`，既不是人话也没有重试指引。
+- 根因：`apps/web/src/lib/humanize-error.ts` 的 `humanizeAsyncError()` 判定「这是不是机器码」的方式是「整串只由 `[a-z0-9_:-]` 组成（即无空格）」，所以**带空格的英文句子必然绕过中文兜底**；`RechargePage.tsx` 又把 `reason.message` 直接塞进 `setError()`，开发期文案原样落到门店屏幕上。
+- 修复：新增 `billingErrorCopy(reason, fallback)`，判定标准从「像不像机器码」改成「有没有中文」——已知业务码固定中文（`insufficient_credits` → 企业积分不足，请先充值后再使用；`login_required|membership_not_found|missing_tenant_or_user` → 请先完成登录），网络/超时 → 中文人话 + 重试指引（「请重试；仍然失败请稍后再试或联系客服。」），服务端已返回的中文原样保留；`RechargePage.tsx`（含微信内 JSAPI 收银台分支）统一改用该函数，不再直出 `reason.message`。
+- 先红后绿：新增契约 `scripts/billing-error-copy-smoke.mjs`（`pnpm platform:billing-error-copy-smoke`，10 条断言：`mock server error` / `Internal Server Error` / 断网 / 业务码 / 中文原样 / 空异常兜底 / 页面用统一函数 / 页面不直出 `reason.message`）。修复前 `mock server error`、`Internal Server Error`、断网三条必红；修复后 **10 passed / 0 failed**，并已挂进 `qa:fast`。
+- 发布：随 `release-20260914-zd6-platform-batch`（测试实例 + 生产）。
+- 状态：已修并上线（2026-09-14）。残余：本批只覆盖充值 / 账单页；兰琪若干页面（如 `LanqiBusinessQaPage.tsx`、`LanqiAcquireVideoPage.tsx`）仍存在「`error.message` 直出」的同类写法，未做全仓排查，建议在各自任务窗口按同一契约收口。
+
+## QA-20260914-002：IP 定位 Word 导出把 markdown 标题符带进正文（P2，已修）
+
+- 触发：IP 定位智能体交付内容里使用了无编号 markdown 标题（`## 视觉锤`、`## 声音钉`）与四级标题（`#### 内容选题`），导出 Word 后正文里直接出现 `## 视觉锤`、`#### 内容选题`。
+- 根因（`apps/api/src/routes/exports.ts`）：① `parseAnswer()` 只把「编号标题」（`一、` / `1.` 这类，由 `isSectionHeading()` 判定）识别为章节标题，无编号 markdown 标题落进正文；② `stripInlineMarks()` 的标题符剥除范围只写了 `#{1,3}`，`##` 两级标题所以整串残留、`####` 四级标题剥完还留一个 `#`。
+- 修复：`stripInlineMarks()` 剥除范围改到 `#{1,6}`；`parseAnswer()` 把 `^#{1,6}\s+` 的无编号 markdown 标题也升级为章节标题（不再降级成正文）；`renderLine()` 入口再兜一层剥除。门禁规则未放宽，不做「把 `#` 当正文」的妥协。
+- 先红后绿：新增契约 `scripts/docx-export-markdown-smoke.ts`（`pnpm platform:docx-export-markdown-smoke`）。修复前该用例 6 条里 4 条失败（`## 视觉锤` / `## 声音钉` 残留、四级标题残留、无编号标题没升级成章节）；修复后扩到 **10 passed / 0 failed**，并已挂进 `qa:fast`。
+- 验证方式说明：本机无 pandoc / soffice / Word（实测 NOT FOUND），因此不依赖外部渲染器，改为直接对生成 docx 的 OOXML（`word/document.xml`）断言：正文 `<w:t>` 不允许再出现 `#`、无编号标题必须成为真章节标题（`02  视觉锤`）、章节顺序与正文不丢、4~6 级标题同样不漏 `#`。
+- 发布：随 `release-20260914-zd6-platform-batch`（测试实例 + 生产）。
+- 状态：已修并上线（2026-09-14）。残余：只验证了 OOXML 结构，未做 Word 客户端像素级渲染验收；交付内容里其它 markdown 结构（表格 / 图片 / 嵌套列表）的 Word 视觉验收仍未覆盖。
+
+## QA-20260914-003：爆款复刻「搜爆款」给不出可用结果（证明不了爆款 / 抓不到视频号 / 混入图文与无关赛道）（P2 能力下线，已修）
+
+- 触发：用户 2026-09-14 在「兰琪-公域获客-页面开发」任务反馈「爆款复刻里面的搜索结果不行」，并给出三条现场观察：① 抓到的不是爆款（点赞很少）；② 要求皮肤管理却给沐足；③ 还混入图文；用户直接给出新口径——**「取消爆款复刻里面的搜索爆款功能，让用户自己添加链接或者上传视频文件」**。
+- 只读取证（2026-09-14 在生产机真实调用生产同一把凭据，跑真实服务代码；探针 `scripts/tmp/lq28-search-probe.mjs`，不输出密钥）：
+
+| 探针 | 实测结论 |
+| --- | --- |
+| 检索返回字段 | 每条只有 `icon / site_name / index / title / url`，**没有 snippet、没有点赞 / 播放字段** → 服务端**无法证明「是不是爆款」**，用户看到的「不是爆款」是能力天花板，不是排序没调好 |
+| `site:channels.weixin.qq.com 皮肤管理门店获客` | `search_results=0` → **视频号侧根本没有可检索的站内视频页**，与用户「抓不到视频号视频」一致 |
+| `抖音 皮肤管理门店获客 皮肤管理 爆款视频 site:douyin.com/video` | 10 条里 **0 条 `/video/`**、3 条 `/note/`（图文）、3 条 `/user/`（账号主页）、其余第三方站点；其中一条正是用户点名的「楠枫沐足保健服务馆」→ **检索词带行业词也挡不住无关赛道与图文混入** |
+| `www.douyin.com/video/{id}` 视频页 | HTTP 200 / 72914 B，`<body></body>` 空壳，无 `playAddr` / `RENDER_DATA` |
+| `iesdouyin iteminfo` / `aweme detail` | HTTP 200 / **0 字节** |
+| `iesdouyin share` / `m.douyin share` 分享页 | HTTP 200 / 32KB JS 空壳，无视频直链、无 `digg_count` |
+
+- 根因：LQ-25 的能力假设不成立——**公开网页检索既没有热度字段（证明不了爆款）、也没有视频号站内视频页，服务端还拿不到抖音/视频号视频文件**。继续硬做只会给出门店无法信赖的结果；继续加规则层过滤只能减少脏条目，不能把「不是爆款」变成爆款。因此按用户口径**下线检索能力**，改为门店自备素材。
+- 修复（下线 + 改口径，最小可回滚）：
+  - 后端整体删除：`apps/api/src/routes/lanqi-viral-search.ts`、`apps/api/src/products/lanqi/viral-search-service.ts`、`apps/api/src/products/lanqi/viral-search-rules.ts`、`scripts/lanqi-viral-search-contract-smoke.ts`；`apps/api/src/server.ts` 去掉 import 与 `registerLanqiViralSearchRoutes` 注册；`apps/api/src/config/env.ts` 去掉 `LANQI_VIRAL_SEARCH_*` 五项与对应生产校验；`package.json` 去掉 `lanqi:viral-search-smoke` 及其在 `qa:fast` / `lanqi:acquire-smoke` 的引用。
+  - 页面 `apps/web/src/pages/LanqiAcquireVideoPage.tsx`（爆款复刻）改为三段式：① **参考素材**（「🔗 参考抖音链接」/「🎬 上传参考视频」两页签；链接只做本地校验并登记参考来源，**不发请求、不出片**，并明说平台不提供站内视频文件下载、给出「存原片再上传」；上传只收 `MP4 / MOV ≤200MB` 并回显真实时长）→ ② **人物形象**（换脸 / 换人 + 肖像图上传）→ ③ **素材与肖像授权 → 报价 → 确认 → 轮询 → 播放下载**（沿用 LQ-27 既有链路，不动计费与幂等）；底部提供「↻ 换一组参考素材重来」（换素材同时更换幂等键）。
+  - 同页彻底移除「搜爆款 / 平台筛选 / 行业领域 / 关键词」入口与结果区（`.lq-vd__hits` 样式块保留但已无引用）；枢纽卡片文案改为「去复刻 →」。
+- 先红后绿：`scripts/lanqi-acquire-ui-contract-smoke.mjs` 的爆款复刻断言段整段换为 LQ-28 契约（反向断言不得再出现 `搜爆款` / `平台筛选` / `行业领域` / `#lq-vd-kw` / `viral-search`，正向断言两个参考素材页签、`登记参考来源`、`不会出片`、`parseReferenceLink`、`readVideoMeta`、`newReplicationRequestKey`、报价与确认按钮、`素材与肖像授权` 齐备）→ **65 passed / 0 failed**。
+- 测试实例真实浏览器验收（桌面 1440 + 移动 390，真实 Chromium，不产生模型调用与费用）：`pnpm.cmd lanqi:acquire-instance-acceptance`（默认 base `https://api.lcppch.top/lanqi-test`）**33 项 / 失败 0**（2026-09-14 复跑，报告 `lq-acquire-acceptance.json`）。关键项逐条命中：`video：爆款复刻不再有「搜爆款」入口，改为参考抖音链接 / 上传参考视频两页签 :: 检索按钮=[] 关键词框=false 链接页签=true 上传页签=true`；`video：非抖音链接本地拦截、不发请求 :: 本地拦截提示=true 新增请求=0`；`video：抖音链接只登记参考来源，不发请求也不出片 :: 已登记=true 不出片=true 新增请求=0`；`video：…未上传原片 / 未授权时本地拦截（不出现假生成） :: 确认按钮禁用=true 本地拦截提示=true 新增请求=0`；`移动端 390×844 … 无横向溢出`。
+- 门禁：`pnpm.cmd --filter @baolu/web typecheck` PASS；`pnpm.cmd qa:fast` exit 0。
+- 发布：`release-20260914-lq28-self-material-v2.tar.gz`（9,515,966 B / 1493 文件，sha256 `170d6fbf4d645c4dbd3998175fbc7683d4975e23fe9beae396e33ed9fdd1712a`；发布 id `20260914-lq28-self-material-test2` / `-prod1`）。两侧 `DEPLOY_OK`：删除清单 4 条 `viral-search*` 实测全部 `removed`，`prisma migrate deploy` = `50 migrations found` / `No pending migrations to apply.`，`health=200` / `ready=200`（生产 health 200 after 15s）。备份 `/opt/baolu-backups/20260914-lq28-self-material-prod1-before-baolu-os-v2/`（189M：`app-before.tar.gz` + 生产 env）；回滚＝还原备份目录 + `systemctl restart baolu-os-v2`（或重新叠加上一包 `release-20260913-lq27-nav-online.tar.gz`）。包内只含 LQ-28 相关差异（`scripts/tmp/lq28-build-override.mjs` 把其他任务在途改动替换为生产同版内容），生产 `/opt/baolu-os-v2` 上 `referral-*.ts` 三个未验收文件保持原字节不变。
+- 状态：**已上线**（2026-09-14 生产 `@api.lcppch.top` `/opt/baolu-os-v2` 执行同一包，`DEPLOY_OK 20260914-lq28-self-material-prod1`）。生产只读取证：`POST /lanqi/acquire/video/viral-search` 发布**前 401**（路由存在、需登录，`{"error":"login_required"}`）→ 发布**后 404**（`Route POST:/lanqi/acquire/video/viral-search not found`）；`/opt/baolu-os-v2/apps/api/src/routes/` 与 `.../products/lanqi/` 下 `viral-search*` **4 个源文件已删除**；线上入口引用的产物 `assets/LanqiAcquireVideoPage-Cp5WhOXM.js`（由 `index-_gkj3AXg.js` 引入）里 `平台筛选` / `行业领域` / `lq-vd-kw` / `viral-search` 命中均为 **0**，`搜爆款` 仅剩 **2 处说明文案**（「平台不再替你去搜爆款」「也不替你去搜爆款」）。**生产页面级浏览器验收未跑**：生产 `/lanqi/acquire*` 需真人微信扫码登录，自动化脚本只能停在 `/os-v2/login`（同 LQ-22 既有边界），故页面级证据取自测试实例 33/0 + 线上产物断言 + 生产接口 401→404。
+- 残留与边界（必须对用户讲清）：抖音 / 视频号**不开放站内视频文件下载**，服务端也无法把分享链接解析成视频（上表 5 条路径全部实测为空壳或 0 字节），所以「参考抖音链接」只用于登记来源与引导，**真正出片必须有用户上传的原片**；若门店要「平台真爆款 + 点赞/播放数据」，唯一可行路径是接第三方数据服务，属独立采购决定，本卡不做。替换产品 / 视频比例 / 模型版本三项控件本项目后端不支持，**未放空控件**；用户提供的原型截图与此处的差异已如实记录在任务卡 `LQ-28-爆款复刻取消检索改自备素材.md`。
+- 关联：任务卡 `docs/agents/lanqi-beauty/tasks/LQ-28-爆款复刻取消检索改自备素材.md`；下线前的接通记录见 QA-20260912-017。
+
 ## QA-20260913-011：朋友圈「补数字」占位符用户看不懂 + 提示词仍用旧占位符串（P2，已修 + 已上测试与生产）
 
 - 触发：老板反馈「用户不理解要补什么数字，提示得更明显一点」（2026-09-13）。原设计：原文缺数字时结果正文插入「【待你补一句：具体数字】」，检查项提示「数字项需你亲补」——没有示例、结果不可就地改。
@@ -593,7 +639,7 @@
 | 2 | 直播表单预填「美肌研 · 创始人晓曼」等示例门店 | P1 | **成立，真 Bug**：默认 `value` 即示例数据，老板不逐行清空就会生成别人家门店的逐字稿；失败后还回填示例。 | **已修**：5 个输入默认空 + 示例改 placeholder + 新增「填入示例」按钮 |
 | 3 | `/my-ai` 加载 10–15 秒 | P1 | 成立（体验）。页面只有一句「正在加载…」。 | **未修**（本轮不扩范围），登记为残留 |
 | 4 | 文案改稿首屏等待 20–30 秒 | P1 | 部分成立：`LanqiAcquireCopywriterPage.tsx` 已有 `LOADING_TEXTS` 轮播进度文案，「无进度提示」不准确；但等待确实偏长。 | **未修**，登记为残留 |
-| 5 | 爆款复刻「暂未接通真实爆款检索」 | P2 | 当时是**设计内 fail-closed**（不做假数据），非缺陷。 | **2026-09-12 用户拍板检索源 = 抖音 + 视频号并「开闸跑」，已接通并上测试实例与生产**：见 QA-20260912-017 与任务卡 `LQ-25-爆款复刻真实检索源接通.md` |
+| 5 | 爆款复刻「暂未接通真实爆款检索」 | P2 | 当时是**设计内 fail-closed**（不做假数据），非缺陷。 | **2026-09-12 用户拍板检索源 = 抖音 + 视频号并「开闸跑」，已接通并上测试实例与生产**：见 QA-20260912-017 与任务卡 `LQ-25-爆款复刻真实检索源接通.md`。**2026-09-14 用户要求「取消爆款复刻里面的搜索爆款功能，让用户自己添加链接或者上传视频文件」，该检索能力已由 LQ-28 整体下线**（页面入口 + API 路由 + 环境变量 + 专项冒烟全部删除）：见 QA-20260914-003 与任务卡 `LQ-28-爆款复刻取消检索改自备素材.md` |
 | 6 | 门店素材成片 / AI 剪辑「出片服务暂未开通」 | P2 | **设计内 fail-closed**（minimax 未首充，`VIDEO_RENDERING_READY` 未配置）。 | 不改 |
 | 7 | 案例中心「开发中」占位 | P2 | 占位页，测试环境符合预期。 | 不改；正式上线前补内容 |
 | 8 | 顾问快捷问题标点 `没空拍视频，怎么持续获客）` | P3 | **成立，真 Bug**（错用右括号）。 | **已修**：改「？」 |

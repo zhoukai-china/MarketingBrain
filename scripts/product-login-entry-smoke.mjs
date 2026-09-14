@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [main, login, auth, invites, schema, shared, webApi, beautyWorkspace, wechatCallback] = await Promise.all([
+const [main, login, auth, invites, schema, shared, webApi, beautyWorkspace, wechatCallback, marketplaceApp, referralNotice, rechargePage] = await Promise.all([
   readFile(new URL("../apps/web/src/main.tsx", import.meta.url), "utf8"),
   readFile(new URL("../apps/web/src/pages/LoginPage.tsx", import.meta.url), "utf8"),
   readFile(new URL("../apps/api/src/routes/auth.ts", import.meta.url), "utf8"),
@@ -11,6 +11,9 @@ const [main, login, auth, invites, schema, shared, webApi, beautyWorkspace, wech
   readFile(new URL("../apps/web/src/lib/api.ts", import.meta.url), "utf8"),
   readFile(new URL("../apps/web/src/pages/BeautyIndustryAcquisitionPage.tsx", import.meta.url), "utf8"),
   readFile(new URL("../apps/web/src/pages/WeChatCallback.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../apps/web/src/pages/MarketplaceApp.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../apps/web/src/lib/referral-notice.ts", import.meta.url), "utf8"),
+  readFile(new URL("../apps/web/src/pages/RechargePage.tsx", import.meta.url), "utf8"),
 ]);
 const [server, guards] = await Promise.all([
   readFile(new URL("../apps/api/src/server.ts", import.meta.url), "utf8"),
@@ -177,7 +180,9 @@ assert.match(login, /const pendingInviteKey = "store_os_pending_invite"/, "扫�
 assert.match(login, /rememberPendingInvite\(inviteCode\)/, "开始微信授权前必须记住产品邀请码");
 assert.match(
   login,
-  /\?invite=\$\{encodeURIComponent\(pendingInvite\)\}/,
+  // 2026-09-12 起回跳 URL 同时带 invite 与 ref（推荐码），所以断言改成「query 里必须包含 invite 参数」，
+  // 意图不变：授权回来补资料时，产品邀请码必须还在 URL 上。
+  /invite=\$\{encodeURIComponent\(pendingInvite\)\}/,
   "授权回来补资料时必须把邀请码带回产品登录页",
 );
 assert.match(
@@ -224,3 +229,101 @@ assert.match(
   "产品入口的门店资料输入框必须是浅底（深字配深底属不可读）",
 );
 console.log("产品入口表单可读性回归通过（QA-20260912-015）。");
+
+// QA-20260912-017（用户 2026-09-12 真机截图报障）：手机上残留一个**过期的**
+// `store_os_onboarding_token` 时，登录页会把自己渲染成「完成注册，开通你的工作区」，
+// 把「微信一键登录 / 注册」入口藏起来；提交只会一直撞 401 `invalid_onboarding_token`，
+// 连点 7 次都失败，页面上还直接把错误码当文案显示。这里把修复锁成契约：
+//   ① 存在性之外必须校验 exp，过期/损坏当场清掉，登录入口必须回到首屏；
+//   ② 服务端拒绝死令牌时，前端要清本地 + 恢复登录入口，并给「重新授权」的人话；
+//   ③ 401 响应必须带可读中文 message，不能只回错误码。
+assert.match(login, /function readUsableOnboardingToken\(\)/, "登录页必须识别过期的 onboarding token");
+assert.match(login, /expiry \* 1000 <= Date\.now\(\)/, "过期判断必须真的比较 exp，不能只判断有没有值");
+assert.match(login, /localStorage\.removeItem\(onboardingTokenKey\)/, "过期 token 必须当场清掉，不能继续伪装成「完成注册」页");
+assert.match(
+  login,
+  /data\.error === "invalid_onboarding_token"[\s\S]{0,240}clearOnboardingToken\(\)/,
+  "服务端拒绝死令牌时必须清本地并恢复登录入口",
+);
+assert.match(login, /onboardingExpired &&/, "过期后必须在登录页给出「上次授权已过期」的提示");
+assert.match(
+  login,
+  /onboardingExpiredNoticeKey/,
+  "过期提示必须用独立标记（React StrictMode 双调用初始化函数，写在 useState 里会丢）",
+);
+assert.match(
+  auth,
+  /error:\s*"invalid_onboarding_token",\s*message:/,
+  "401 invalid_onboarding_token 必须带可读中文 message（不能把错误码当文案显示给用户）",
+);
+console.log("过期授权不得锁死登录入口的回归通过（QA-20260912-017）。");
+
+// 用户 2026-09-12 第二轮口径：老账号带着推荐码登录时，页面要说清「已有工作区不产生推荐关系」，
+// 不能每次都靠后台日志解释。锁三件事：① 登录页静态说明；② 老账号登录时打标；③ 落地页展示并带关闭。
+assert.match(
+  login,
+  /只有首次开通工作区的新账号/,
+  "登录页必须静态说明「只有首次开通工作区的新账号才登记推荐关系」",
+);
+assert.match(login, /markExistingUserReferralNotice\(\)/, "老账号带推荐码登录时必须打标提示");
+assert.match(wechatCallback, /markExistingUserReferralNotice\(\)/, "微信回调成功登录的老账号同样要打标");
+assert.match(referralNotice, /store_os_referral_existing_notice/, "提示标记必须落在独立 key 上，便于一次性消费");
+assert.match(marketplaceApp, /推荐关系只在/, "货架落地页必须显示「已有工作区不产生推荐关系」的提示");
+assert.match(marketplaceApp, /clearExistingUserReferralNotice\(\)/, "提示必须可关闭（一次性消费）");
+console.log("老账号带推荐码的提示回归通过（PLAT-28 第①批补充）。");
+
+// 2026-09-12 用户真机：平台登录页「完成注册」表单里，品牌名字体太浅看不清。
+// 实测根因：亮色主题下 --text 是深蓝 #12203A，而输入框底是固定近黑 rgba(9,13,20,.8) → 对比度 1.23:1。
+assert.match(
+  styles,
+  /\.loginPage:not\(\.productLoginPage\) \.loginForm input[\s\S]{0,320}?color:\s*#f2f2f4/i,
+  "平台登录页输入框必须固定深底浅字（亮色主题下不能用 --text 的深蓝）",
+);
+assert.match(
+  styles,
+  /-webkit-text-fill-color:\s*#f2f2f4/i,
+  "必须用 -webkit-text-fill-color 防止微信/安卓强制深色模式再改色",
+);
+assert.match(
+  styles,
+  /\.loginPage:not\(\.productLoginPage\) \.loginForm label span\s*\{\s*color:\s*#c9d2e0/i,
+  "平台登录页表单标签的颜色要提到可读对比度",
+);
+console.log("平台登录页输入框对比度回归通过（QA-20260912-021）。");
+
+// 2026-09-12 真机：老板带推荐码注册成功但归因没落 —— 前端把码弄丢了。
+// 契约：推荐码必须双保险（sessionStorage + localStorage 24h），并且回调回跳 URL 继续带 ?ref=。
+assert.match(referralNotice, /store_os_referral_existing_notice/, "老账号提示标记仍在");
+assert.match(
+  login,
+  /from "\.\.\/lib\/pending-referral\.js"/,
+  "登录页必须使用双保险的推荐码暂存（pending-referral），不能只用 sessionStorage",
+);
+assert.match(
+  wechatCallback,
+  /ref=\$\{encodeURIComponent\(pendingReferral\)\}/,
+  "微信回调回跳到补资料页时必须在 URL 上继续带 ref=",
+);
+assert.match(
+  login,
+  /ref=\$\{encodeURIComponent\(pendingReferral\)\}/,
+  "扫码中转回跳到补资料页时同样要带 ref=",
+);
+console.log("推荐码跨授权往返不丢的回归通过（QA-20260912-022）。");
+
+// 2026-09-13 真机取证（nginx 日志）：用户从推荐链接进登录页后，在货架点「登录」跳到不带 query 的
+// `/login`，微信回调的 state 也不带码 → 补资料提交时码没了。加固：① 码进微信 state；② 所有「去登录」跳转带码。
+assert.match(login, /pendingReferralForState/, "微信授权必须把推荐码塞进 state（微信原样回传）");
+assert.match(wechatCallback, /referralFromState/, "回调页必须能从 state 里把推荐码还原");
+assert.match(marketplaceApp, /loginPathWithPendingReferral/, "货架等「去登录」跳转必须自动带上暂存的推荐码");
+assert.match(referralNotice, /store_os_referral_existing_notice/, "老账号提示标记仍在（防止被覆盖）");
+console.log("推荐码在站内跳转/微信回调两处断点的回归通过（QA-20260913-002）。");
+
+// 2026-09-13 用户真机：手机微信里打开充值页只出 Native 二维码，用户无法扫自己屏幕、
+// 长按识别又被微信拒绝（“该商户暂时不支持通过长按识别二维码完成支付”）。
+// 契约：微信内必须走 JSAPI 收银台；其它环境仍保留二维码；两者都不能被写死成单一方式。
+assert.match(rechargePage, /function isWechatInAppBrowser\(\)/, "充值页必须能识别微信内置浏览器");
+assert.match(rechargePage, /tradeType: "jsapi"/, "微信内必须请求 JSAPI 收银台");
+assert.match(rechargePage, /invokeWechatJsapiPay|WeixinJSBridge/, "微信内必须真的调起 WeixinJSBridge 收银台");
+assert.match(rechargePage, /tradeType: "native"/, "非微信环境（电脑/普通浏览器）仍须保留扫码方式");
+console.log("手机微信内支付的回归通过（QA-20260913-003）。");

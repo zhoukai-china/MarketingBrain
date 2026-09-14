@@ -46,6 +46,7 @@ pnpm qa:full
 
 - [ ] 开发/测试登录按环境策略可用，生产不开放开发登录。
 - [ ] 邀请码正常兑换；重复、过期、无效和并发兑换行为正确。
+- [ ] 推荐归因（PLAT-28）：带推荐码注册落唯一归因（推荐人 + 被推荐人 + 绑定时间），重复/自荐/无效码只拒绝归因、不阻断注册，无码注册不受影响；第①批不发奖励。
 - [ ] 租户 A 无法读取、修改或推断租户 B 的会话、文件、任务、订单、积分、品牌和 Agent 运行。
 - [ ] 不同 Agent 会话不会串联。
 - [ ] 权限不足返回明确错误，不泄露内部数据。
@@ -55,6 +56,7 @@ pnpm qa:full
 ```powershell
 pnpm invite:redemption-smoke
 pnpm invite:concurrency-smoke
+pnpm platform:referral-attribution-smoke
 pnpm beta:smoke
 ```
 
@@ -146,12 +148,15 @@ pnpm agent:zhenshui-pilot-smoke
 - [ ] 成功、失败、重试、重复回调和并发请求不重复扣费或发放权益。
 - [ ] 生产禁止 mock-pay；测试订单与真实订单明确区分。
 - [ ] 订单、积分流水和权益变更保持可审计、租户隔离和幂等。
+- [ ] 人工体验额度发放默认停用（`403 trial_grant_disabled`、零写入、历史流水只读），后台开关放行后原契约（鉴权/上限/幂等/dry-run/资金落点）不变。
 - [ ] 微信配置检查、预下单和回调按测试环境单独验收。
 
 相关命令：
 
 ```powershell
 pnpm beta:smoke
+pnpm marketplace:trial-grant-admin-smoke
+pnpm platform:referral-attribution-smoke
 ```
 
 只有在受控测试环境中才增加微信支付相关参数；禁止发起未经批准的真实付款。

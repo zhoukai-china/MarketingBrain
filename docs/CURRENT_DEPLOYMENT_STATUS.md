@@ -1,5 +1,16 @@
 # 当前部署状态
 > **已收口（2026-09-14）**：`20260913-lq27-nav-online-prod1` 已部署生产（`DEPLOY_OK` + health 200 / ready 200；marketplace canary `1dd5b672…` 一致）；测试实例品牌导航浏览器 E2E **0 failed**（桌面 1440 + 移动 390：侧栏恰好 8 项、其中 6 项带「开发中」徽标，「私域营销」「公域获客」不带徽标；公域获客枢纽/爆款复刻按已上线页验收；驾驶舱等 6 个未上线板块仍占位；无横向溢出、应用侧 console 0）。已知：其他任务在途 `apps/web/src/marketplace/livescript-full-case.ts`（重复定义 + 语法错误）仍会让 `qa:fast` 的 web 步骤失败，属既有失败（非本任务改动），待相关任务修复。
+## 最新发布：20260914-lq28-self-material-v2（2026-09-14，测试实例 + 生产）— 爆款复刻取消「搜索爆款」，改门店自备素材
+
+- 发布包 `release-20260914-lq28-self-material-v2.tar.gz`（9,515,966 B / 1493 文件，sha256 `170d6fbf4d645c4dbd3998175fbc7683d4975e23fe9beae396e33ed9fdd1712a`；canary `marketplace-v3.json` = `1dd5b672…` 校验通过）。
+- 内容：整条「搜爆款」检索能力下线（`apps/api/src/routes/lanqi-viral-search.ts`、`apps/api/src/products/lanqi/viral-search-{service,rules}.ts`、`scripts/lanqi-viral-search-contract-smoke.ts` 删除，`server.ts` 去注册，`env.ts` 去 `LANQI_VIRAL_SEARCH_*` 五项与生产校验，`package.json` 去 `lanqi:viral-search-smoke`）；页面 `LanqiAcquireVideoPage.tsx`（爆款复刻）改三段式自备素材：「🔗 参考抖音链接 / 🎬 上传参考视频」两页签 → 人物形象 → 素材与肖像授权 → 报价 → 确认 → 轮询 → 播放下载（沿用 LQ-27 计费与幂等）。详见 `docs/BUG_REGRESSIONS.md` QA-20260914-003。
+- 发布方式：因工作树混有其他任务在途改动，用 `scripts/tmp/lq28-build-override.mjs` 生成「只含 LQ-28 差异」的 1493 文件清单 + 36 份生产同版覆盖文件（生产上 PLAT-28 的 `referral-*.ts` 三文件排除、保持原字节不变）。
+- 测试实例 `20260914-lq28-self-material-test2`：`DEPLOY_OK` + 健康 200；真实浏览器页面级验收 **33 项 / 失败 0**（桌面 1440 + 移动 390）。
+- 生产 `20260914-lq28-self-material-prod1`：`DEPLOY_OK 20260914-lq28-self-material-prod1`，`health=200 (after 15s)` / `ready=200`；删除清单 4 条 `viral-search*` 实测全部 `removed`；`prisma migrate deploy` = `50 migrations found` / `No pending migrations to apply.`；`POST /lanqi/acquire/video/viral-search` 发布前 **401** → 发布后 **404 `Route … not found`**；线上入口产物 `assets/LanqiAcquireVideoPage-Cp5WhOXM.js`（`index-_gkj3AXg.js` 引入）内 `平台筛选`/`行业领域`/`lq-vd-kw`/`viral-search` 命中 **0**。
+- 备份与回滚：`/opt/baolu-backups/20260914-lq28-self-material-prod1-before-baolu-os-v2/`（189M：`app-before.tar.gz` + 生产 env）；回滚＝还原备份目录 + `systemctl restart baolu-os-v2`，或重新叠加上一包 `release-20260913-lq27-nav-online.tar.gz`。
+- 残留（非功能、无运行影响）：`apps/web/dist/assets/` 下有 21 个 2026-09-12~14 的历史 `LanqiAcquireVideoPage-*.js` 构建残留与 `apps/api/dist/.../viral-search*.js`（overlay 不删 dist）；当前 `index.html` 只引用新产物，旧 chunk 不在加载图里。如需彻底清掉「产物里还能 grep 到」的疑虑，需单独授权做一次 dist 清理（属删除型操作）。
+- 未跑（既有边界）：生产页面级浏览器验收——生产 `/lanqi/acquire*` 需真人微信扫码登录，自动化脚本停在 `/os-v2/login`（同 LQ-22）。
+
 ## 最新发布：20260913-lq27-moments-patch-v2（2026-09-13，测试实例 + 生产）— 朋友圈「补数字」交互 + 占位符前后端统一 + 爆款复刻定价 24 积分/秒
 
 - 发布包 `release-20260913-lq27-moments-patch-v2.tar.gz`（9,573,861 B，1498 文件；canary `marketplace-v3.json` = `1dd5b672…`）。

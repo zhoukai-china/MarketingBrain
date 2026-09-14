@@ -25,7 +25,7 @@ chk "ready" "200" "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${
 echo "== runtime data (P1 fix) =="
 SRC="$(sha256sum "$APP/apps/api/src/data/marketplace-v3.json" | awk '{print $1}')"
 DIST="$(sha256sum "$APP/apps/api/dist/apps/api/src/data/marketplace-v3.json" | awk '{print $1}')"
-chk "src_data_sha" "a668b6429315914e14e7d72601967e8f93a2006ecb9297dd59f283f0ba467416" "$SRC"
+chk "src_data_sha" "1dd5b672eea8841a36c624bf08b8b191fa2f55a54c3d246c9740cabbe30f12c0" "$SRC"
 chk "dist_data_matches_src" "$SRC" "$DIST"
 
 echo "== web build =="

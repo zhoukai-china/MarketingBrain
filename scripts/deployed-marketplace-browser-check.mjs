@@ -13,7 +13,7 @@ const chromePath = process.env.DEPLOY_CHECK_CHROME_PATH ?? "C:\\Program Files\\G
 const shotDir = process.env.DEPLOY_CHECK_SHOT_DIR ?? path.join(tmpdir(), `deployed-marketplace-check-${Date.now()}`);
 
 const IP_POS_SKU = "ipzone__ip-pos";
-/** 全页「开发中」占位下限：创始人IP专区 6 + 美业专区 6（+ 兰琪专区 1）= 13，只要货架生效就远高于 7。 */
+/** 全页「开发中」占位下限：创始人IP专区 6 + 美业专区 6（+ 品牌工作台 1）= 13，只要货架生效就远高于 7。 */
 const COMING_SOON_MIN = 7;
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

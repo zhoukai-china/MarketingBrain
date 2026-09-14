@@ -46,6 +46,9 @@ node_modules.broken-*
 /scripts/tmp/**/*.png
 /scripts/tmp/**/*.json
 /scripts/tmp/**/*.log
+# scripts/tmp 下新增的一次性产物（filelist / 探针 / stage 目录 / 归档 / hash 文本）默认不入库；
+# 已跟踪的部署脚本（deploy-release.sh、verify-deploy.sh 等）不受影响，仍保持跟踪。
+/scripts/tmp/*
 
 # Historical reports and local working drafts are not source of truth
 /reports/

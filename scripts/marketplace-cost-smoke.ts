@@ -18,7 +18,7 @@ const costCny = estimateMarketplaceModelCostCny(usage);
 const credits = marketplaceCreditsForUsage(usage);
 
 assert(costCny > 0.03 && costCny < 0.04, "model cost is derived from prompt and completion tokens");
-assert(credits >= 72 && credits <= 74, "credits are 20x cost with one-credit minimum rounding");
+assert(credits === 72, `credits follow 目标倍数 100 × 售价 ¥0.05 (2000 积分/元成本)，实际 ${credits}`);
 assert(marketplaceCreditsForCostCny(0) === 0, "zero cost charges zero credits");
 assert(marketplaceCreditsForCostCny(0.001) >= 1, "positive cost charges at least one credit");
 

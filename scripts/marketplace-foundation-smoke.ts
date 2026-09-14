@@ -60,7 +60,7 @@ function main(): void {
   const lanqiSkus = shelf.filter((sku) => sku.zone === "lanqi").map((sku) => sku.skuCode);
   assert(
     lanqiSkus.length === 1 && lanqiSkus[0] === "lanqi__lanqi-brain",
-    `兰琪专区只上架 1 个品牌内核 (got ${lanqiSkus.join(", ")})`
+    `品牌工作台（原兰琪专区）只上架 1 个品牌内核 (got ${lanqiSkus.join(", ")})`
   );
   assert(
     !shelf.some((sku) => sku.skuCode.endsWith("__lanqi-brain") && sku.zone !== "lanqi"),

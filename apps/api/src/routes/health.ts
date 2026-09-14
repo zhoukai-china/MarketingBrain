@@ -1,4 +1,4 @@
-﻿import type { FastifyInstance } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "@baolu/db";
 import {
@@ -14,6 +14,7 @@ import {
   wechatAuthRequired
 } from "../config/env.js";
 import { requireOpsToken } from "../services/access-guards.js";
+import { probeWechatPayRuntimeKeys } from "../services/wechat-pay.js";
 import type { RuntimeLlmProvider } from "../services/llm-provider-factory.js";
 
 const wechatAuthCheckQuerySchema = z.object({
@@ -42,7 +43,11 @@ export async function registerHealthRoutes(
       configured: provider.isConfigured()
     };
 
-    const ok = issues.length === 0 && db.ok;
+    const wechatPayRuntime = env.NODE_ENV === "production" && env.WECHAT_PAY_REQUIRED !== "false"
+      ? probeWechatPayRuntimeKeys()
+      : { privateKeyOk: true, platformPublicKeyOk: true, issues: [] as string[] };
+    const wechatPayOk = wechatPayRuntime.issues.length === 0;
+    const ok = issues.length === 0 && db.ok && wechatPayOk;
     return reply.code(ok ? 200 : 503).send({
       ok,
       service: "Sitong-os-v2-api",
@@ -54,7 +59,14 @@ export async function registerHealthRoutes(
           issues
         },
         database: db,
-        llm
+        wechat_pay: {
+          ok: wechatPayOk,
+          issues: wechatPayRuntime.issues,
+          metadata: {
+            required: env.WECHAT_PAY_REQUIRED !== "false",
+            runtimeProbeEnabled: env.NODE_ENV === "production"
+          }
+        },        llm
       },
       time: new Date().toISOString()
     });
@@ -147,6 +159,8 @@ export async function registerHealthRoutes(
 
   app.get("/ops/wechat-pay-check", { preHandler: requireOpsToken }, async () => {
     const issues = getWechatPayConfigIssues();
+    const runtimeProbe = probeWechatPayRuntimeKeys();
+    for (const issue of runtimeProbe.issues) issues.push(issue);
     const warnings: string[] = [];
     const notifyUrl = env.WECHAT_PAY_NOTIFY_URL ?? null;
 
@@ -166,6 +180,7 @@ export async function registerHealthRoutes(
       required: env.WECHAT_PAY_REQUIRED !== "false",
       issues,
       warnings,
+      runtime: { privateKeyOk: runtimeProbe.privateKeyOk, platformPublicKeyOk: runtimeProbe.platformPublicKeyOk },
       appIdPreview: env.WECHAT_PAY_APPID ? previewValue(env.WECHAT_PAY_APPID) : null,
       mchIdPreview: env.WECHAT_PAY_MCH_ID ? previewValue(env.WECHAT_PAY_MCH_ID) : null,
       certSerialPreview: env.WECHAT_PAY_CERT_SERIAL_NO
@@ -186,7 +201,9 @@ export async function registerHealthRoutes(
     const inviteGate = await checkInviteGate();
     const wechatAuthIssues = getWechatAuthConfigIssues();
     const wechatPayRequired = env.WECHAT_PAY_REQUIRED !== "false";
-    const wechatPayIssues = wechatPayRequired ? getWechatPayConfigIssues() : [];
+    const wechatPayIssues = wechatPayRequired
+      ? [...getWechatPayConfigIssues(), ...probeWechatPayRuntimeKeys().issues]
+      : [];
     const checks = [
       {
         key: "runtime_config",

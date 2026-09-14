@@ -5,6 +5,8 @@ import {
   type TenantType,
 } from "@baolu/shared";
 import { apiBase, apiPath, getAppPath, getAppRoutePath } from "../lib/api.js";
+import { markExistingUserReferralNotice } from "../lib/referral-notice.js";
+import { clearPendingReferral, readPendingReferral, rememberPendingReferral } from "../lib/pending-referral.js";
 import {
   DEFAULT_TENANT_BRANDING,
   tenantBrandLogoSrc,
@@ -56,6 +58,62 @@ function rememberPendingInvite(code: string): void {
 function readPendingInvite(): string {
   return sessionStorage.getItem(pendingInviteKey) ?? "";
 }
+/**
+ * PLAT-28 推荐有礼：推荐链接形如 `/login?ref=ref-xxxxxxxx`。
+ *
+ * 推荐码与产品邀请码是两码事（邀请码是**开通资格**，推荐码是**归因来源**），
+ * 所以单独存一个键，互不覆盖。微信授权会跳走再回来（同标签页），sessionStorage 能留住它；
+ * 补资料页提交开通时再带上，服务端在注册落库后异步核对归因。
+ */
+function previewReferralCode(code: string): string {
+  const normalized = code.trim();
+  if (normalized.length <= 8) return normalized;
+  return `${normalized.slice(0, 6)}****${normalized.slice(-2)}`;
+}
+
+const onboardingTokenKey = "store_os_onboarding_token";
+/**
+ * 「刚清掉一个过期授权」的提示标记（sessionStorage，同标签页有效）。
+ * 用独立键而不是 useState 里的对象，是因为 React StrictMode 会双调用 useState 初始化函数：
+ * 第一次调用完成清理，第二次调用就读不到「过期」这件事，提示就会丢（本地 dev 实测）。
+ */
+const onboardingExpiredNoticeKey = "store_os_onboarding_expired_notice";
+
+/** 读取 JWT 的 exp（只用于前端体验判断，不做任何安全判定——真伪一律由服务端验签）。 */
+function readJwtExpiry(token: string): number | null {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))) as { exp?: unknown };
+    return typeof payload.exp === "number" ? payload.exp : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 读取本机「微信授权后补资料」令牌。
+ *
+ * 过期/损坏的必须当场清掉：否则登录页会把自己渲染成「完成注册，开通你的工作区」，
+ * 把「微信一键登录 / 注册」入口藏起来；用户填完表单只会一直撞
+ * 401 `invalid_onboarding_token`，点「再试一次」永远失败，无路可走。
+ * 2026-09-12 生产真机实测就是这个现场（老板截图：企业/品牌名称填「蓝测」→ 401，连点 7 次）。
+ */
+function readUsableOnboardingToken(): string {
+  const raw = localStorage.getItem(onboardingTokenKey) ?? "";
+  if (!raw) return "";
+  const expiry = readJwtExpiry(raw);
+  if (!expiry || expiry * 1000 <= Date.now()) {
+    localStorage.removeItem(onboardingTokenKey);
+    sessionStorage.setItem(onboardingExpiredNoticeKey, "1");
+    return "";
+  }
+  return raw;
+}
+
+function readOnboardingExpiredNotice(): boolean {
+  return sessionStorage.getItem(onboardingExpiredNoticeKey) === "1";
+}
 const PRODUCT_REDIRECT_PREFIXES: Record<ProductLoginCode, readonly string[]> = {
   "founder-ip": ["/agents/acquisition"],
   takeaway: ["/agents/takeaway-growth"],
@@ -97,6 +155,8 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
   const [industry, setIndustry] = useState("");
   const [city, setCity] = useState("");
   const [inviteCode, setInviteCode] = useState(() => new URLSearchParams(window.location.search).get("invite") ?? "");
+  // PLAT-28：推荐码只来自推荐链接（`?ref=`），不提供手工输入框（手工填码属于后台口径，不是用户路径）。
+  const [referralCode] = useState(() => new URLSearchParams(window.location.search).get("ref") ?? "");
   const [inviteValidated, setInviteValidated] = useState(false);
   const [wechatReady, setWechatReady] = useState<boolean | null>(null);
   // 是否强制邀请码由服务端开关决定（INVITE_REQUIRED）。null = 还没问回来，
@@ -120,11 +180,28 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
   const brandLogo = tenantBrandLogoSrc(branding);
   const internalEntry = entry === "internal";
   const directTestLogin = import.meta.env.VITE_DIRECT_TEST_LOGIN === "true";
-  const onboardingToken = localStorage.getItem("store_os_onboarding_token") ?? "";
+  const [onboardingToken, setOnboardingToken] = useState(() => readUsableOnboardingToken());
+  const [onboardingExpired, setOnboardingExpired] = useState(() => readOnboardingExpiredNotice());
+  /** 令牌过期/被服务端拒绝时统一收口：清本地 + 恢复登录入口 + 说明原因。 */
+  const clearOnboardingToken = (expired = true) => {
+    localStorage.removeItem(onboardingTokenKey);
+    setOnboardingToken("");
+    if (expired) {
+      sessionStorage.setItem(onboardingExpiredNoticeKey, "1");
+      setOnboardingExpired(true);
+    } else {
+      sessionStorage.removeItem(onboardingExpiredNoticeKey);
+      setOnboardingExpired(false);
+    }
+  };
 
   useEffect(() => {
     document.title = `${product?.name ?? branding.systemName} - 登录 / 注册`;
   }, [branding.systemName, product?.name]);
+
+  useEffect(() => {
+    if (referralCode.trim()) rememberPendingReferral(referralCode);
+  }, [referralCode]);
 
   useEffect(() => {
     if (isCustomDomain) return;
@@ -208,20 +285,30 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
         const login = data.login ?? {};
         if (login.needsTenant) {
           // 新用户还没工作区：沿用手机端直连的行为，去补资料页完成开通。
-          localStorage.setItem("store_os_onboarding_token", login.onboardingToken ?? "");
+          localStorage.setItem(onboardingTokenKey, login.onboardingToken ?? "");
+          setOnboardingToken(login.onboardingToken ?? "");
+          sessionStorage.removeItem(onboardingExpiredNoticeKey);
+          setOnboardingExpired(false);
           const code = productCodeRef.current;
           // 带上刚填的邀请码：否则老板会看到「扫码成功了却还要邀请码」的死循环。
           const target = getAppPath(code ? `/login/${code}` : "/login");
           const pendingInvite = readPendingInvite();
-          window.location.replace(pendingInvite ? `${target}?invite=${encodeURIComponent(pendingInvite)}` : target);
+          const pendingReferral = readPendingReferral();
+          // 回跳的 URL 也要带上推荐码：微信授权往返有可能换 webview / 丢存储，URL 是最稳的那一层。
+          const query = [
+            pendingInvite ? `invite=${encodeURIComponent(pendingInvite)}` : "",
+            pendingReferral ? `ref=${encodeURIComponent(pendingReferral)}` : ""
+          ].filter(Boolean).join("&");
+          window.location.replace(query ? `${target}?${query}` : target);
           return;
         }
         if (!login.token) {
           setError("微信登录未返回登录凭证，请重新扫码。");
           return;
         }
+        // 老账号带着推荐码登录：只有「首次开通工作区」才会建立推荐关系，这里给落地页留一句提示。
+        if (readPendingReferral()) markExistingUserReferralNotice();
         localStorage.setItem("store_os_token", login.token);
-        localStorage.setItem("store_os_diagnosis_done", "false");
         onLoginRef.current({
           token: login.token,
           tenantId: login.tenantId ?? "",
@@ -277,7 +364,12 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
       const appId = config.appid ?? (import.meta.env.VITE_WECHAT_AUTH_APPID as string | undefined);
       if (!appId) throw new Error("微信登录缺少 AppID，请联系服务团队。");
 
-      const state = crypto.randomUUID();
+      // 把推荐码塞进微信 `state`：微信会原样回传，即使中途丢了 URL 或浏览器存储，
+      // 回调页也能把码找回来（2026-09-13 真机实测：货架→登录那一跳会丢 ?ref=）。
+      const pendingReferralForState = readPendingReferral();
+      const state = pendingReferralForState
+        ? `${crypto.randomUUID()}|${pendingReferralForState}`
+        : crypto.randomUUID();
       sessionStorage.setItem("wechat_oauth_state", state);
       // 微信内打开也要留住邀请码：授权回跳落 /wechat-callback，同样会走「补资料」分支。
       rememberPendingInvite(inviteCode);
@@ -430,14 +522,30 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
           industry: product?.code === "beauty-industry" ? "美业" : industry.trim() || undefined,
           city: city.trim() || undefined,
           inviteCode: useBetaLogin ? inviteCode.trim() : undefined,
+          referralCode: readPendingReferral() || undefined,
         }),
       });
       const data = await res.json();
-      if (!res.ok || data.error) throw new Error(data.message ?? data.error ?? "登录失败，请检查信息后重试。");
+      if (!res.ok || data.error) {
+        // 授权过期是「可恢复」的业务失败：清掉死令牌、把登录入口还给用户，不能让「再试一次」永远失败。
+        if (data.error === "invalid_onboarding_token") {
+          clearOnboardingToken();
+          throw new Error("上次的微信授权已过期（30 分钟有效），请点下面「微信一键登录 / 注册」重新授权。");
+        }
+        throw new Error(data.message ?? data.error ?? "登录失败，请检查信息后重试。");
+      }
 
+      // 同理：带着推荐码但本次并没有产生归因（服务端未返回 bound），说明这是已有工作区的老账号。
+      if (readPendingReferral() && (data as { referral?: { state?: string } }).referral?.state !== "bound") {
+        markExistingUserReferralNotice();
+      }
       localStorage.setItem("store_os_token", data.token);
-      localStorage.removeItem("store_os_onboarding_token");
-      localStorage.setItem("store_os_diagnosis_done", "false");
+      localStorage.removeItem(onboardingTokenKey);
+      setOnboardingToken("");
+      sessionStorage.removeItem(onboardingExpiredNoticeKey);
+      setOnboardingExpired(false);
+      // 归因已经交给服务端；清掉暂存的推荐码，避免同一个标签页里后续再开通别的产品时被重复带上。
+      clearPendingReferral();
       onLogin({
         token: data.token,
         tenantId: data.tenantId,
@@ -481,7 +589,6 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.message ?? data.error ?? "演示登录失败。");
       localStorage.setItem("store_os_token", data.token);
-      localStorage.setItem("store_os_diagnosis_done", "false");
       onLogin({
         token: data.token,
         tenantId: data.tenantId,
@@ -518,15 +625,21 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
         <span className="loginBadge">{branding.systemName}</span>
         <h1>{finishingSignup ? "完成注册，开通你的工作区" : "登录 / 注册"}</h1>
         <p>一个账号、一个积分钱包，货架上的行业智能体随取随用。</p>
+        {referralCode.trim() && <p className="wechatLoginHint">已识别推荐码 {previewReferralCode(referralCode)}：<b>只有首次开通工作区的新账号</b>才会登记推荐关系；已有工作区的账号直接登录，不重复绑定。</p>}
       </div>
       <div className="loginForm">
+        {!finishingSignup && onboardingExpired && (
+          <div className="loginError" role="alert">
+            上次的微信授权已过期（30 分钟有效），已帮你清除。请点下面的「微信一键登录 / 注册」重新开始。
+          </div>
+        )}
         {!finishingSignup && wechatReady !== false && <WeChatLoginArea qr={wechatQr} busy={busy} disabled={wechatReady === null} label={wechatReady === null ? "正在检查登录方式…" : "微信一键登录 / 注册"} onStart={() => void handleWechatLogin()} onRefresh={() => void startWechatQrLogin()} />}
         {!finishingSignup && wechatReady === true && !showInviteForm && <p className="wechatLoginHint">首次使用微信登录，会自动为你注册账号并开通工作区{invitesNeeded ? "（需邀请码）" : "，不需要邀请码"}。</p>}
         {finishingSignup ? (
           <form onSubmit={handleLoginSubmit}>
             {workspaceFields}
             <button className="loginSubmit" type="submit" disabled={busy}>{busy ? "正在开通…" : retryReady ? "再试一次" : "完成注册并进入平台"}</button>
-            <button className="switchProductLink" type="button" disabled={busy} onClick={() => { localStorage.removeItem("store_os_onboarding_token"); setTenantName(""); clearFeedback(); void handleWechatLogin(); }}>不是这个微信号？重新授权</button>
+            <button className="switchProductLink" type="button" disabled={busy} onClick={() => { clearOnboardingToken(false); setTenantName(""); clearFeedback(); void handleWechatLogin(); }}>不是这个微信号？重新授权</button>
           </form>
         ) : !showInviteForm ? (
           invitesNeeded

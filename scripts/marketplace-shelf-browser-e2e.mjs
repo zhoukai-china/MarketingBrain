@@ -18,8 +18,8 @@ const IP_POS_SKU = "ipzone__ip-pos";
 const COPY_SKU = "ipzone__copy";
 const SOON_SKU = "ipzone__liverev";
 const IPZONE_NAME = "创始人IP专区";
-/** 兰琪专区是品牌专属专区：只上架 1 个品牌内核，且当前为「开发中」。 */
-const LANQI_ZONE_NAME = "兰琪专区";
+/** 品牌工作台（原兰琪专区）是品牌专属专区：只上架 1 个品牌内核，且当前为「开发中」。 */
+const LANQI_ZONE_NAME = "品牌工作台";
 const LANQI_SKU = "lanqi__lanqi-brain";
 /** 创始人 IP 专区 9 个内核里，6 个未完成内核必须是「开发中」（视频复盘已开卖）。 */
 const IPZONE_TOTAL = 9;
@@ -246,18 +246,12 @@ async function checkShelf(cdp, token) {
   );
   assert.ok(shelf.selling.length === IPZONE_TOTAL - COMING_SOON_COUNT, `已上架内核应为 ${IPZONE_TOTAL - COMING_SOON_COUNT} 个，实际 ${shelf.selling.length}`);
   const ipPosCard = shelf.selling.find((card) => /IP定位/.test(card.name ?? ""));
+  assert.ok(ipPosCard, `IP 定位卡片缺失，实际 ${JSON.stringify(shelf.selling)}`);
+  // 2026-09-13 用户口径：卡片不再前置报价——已上架内核价签为空，不得出现积分/人民币折算/「按次交付」。
+  assert.ok(!ipPosCard.price, `IP 定位卡片不得显示价格，实际 ${JSON.stringify(ipPosCard)}`);
   assert.ok(
-    ipPosCard && /200 积分/.test(ipPosCard.price ?? ""),
-    `IP 定位必须显示 200 积分/次，实际 ${JSON.stringify(shelf.selling)}`
-  );
-  // 标价必须带人民币折算（1 元 = 20 积分）：200 积分 → ≈ ¥10。
-  assert.ok(
-    /≈ ¥10/.test(ipPosCard?.price ?? ""),
-    `IP 定位标价必须带「≈ ¥10」折算，实际 ${ipPosCard?.price}`
-  );
-  assert.ok(
-    shelf.selling.every((card) => /≈ ¥/.test(card.price ?? "")),
-    `所有已上架内核标价都必须带「≈ ¥」折算，实际 ${JSON.stringify(shelf.selling)}`
+    shelf.selling.every((card) => !card.price),
+    `所有已上架内核卡片都不得前置报价，实际 ${JSON.stringify(shelf.selling)}`
   );
   assert.ok(shelf.zones.includes(LANQI_ZONE_NAME), `货架缺少「${LANQI_ZONE_NAME}」，实际 ${JSON.stringify(shelf.zones)}`);
   assert.equal(shelf.lanqiTotal, 1, `${LANQI_ZONE_NAME} 只应上架 1 个品牌内核，实际 ${shelf.lanqiTotal}`);
@@ -294,9 +288,9 @@ async function checkDetail(cdp, token, skuId, expected) {
     assert.match(detail.button, /开发中/, `${skuId} 开发中内核按钮文案错误：${detail.button}`);
   } else {
     assert.equal(detail.disabled, false, `${skuId} 已上架内核按钮必须可点`);
-    assert.match(detail.button, new RegExp(`扣 ${expected.ppu} 积分`), `${skuId} 按钮未显示正确扣费：${detail.button}`);
-    // 按钮同时展示人民币折算：200 积分 → ≈ ¥10、40 积分 → ≈ ¥2。
-    assert.match(detail.button, /≈ ¥/, `${skuId} 按钮未显示「≈ ¥」折算：${detail.button}`);
+    // 2026-09-13 用户口径：详情页按钮不再前置报扣费/人民币折算。
+    assert.match(detail.button, /直接开始|开始第 1 步/, `${skuId} 按钮文案错误：${detail.button}`);
+    assert.ok(!/扣 .* 积分|≈ ¥/.test(detail.button), `${skuId} 按钮不得再显示扣积分/人民币折算：${detail.button}`);
   }
   return { sessionId, detail };
 }

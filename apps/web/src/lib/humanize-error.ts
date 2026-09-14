@@ -15,15 +15,38 @@ function hasChinese(value: string): boolean {
   return /[\u4e00-\u9fa5]/.test(value);
 }
 
-export function humanizeAsyncError(error: unknown, fallback = "这次没生成出来，请稍后重试。"): string {
+export function humanizeAsyncError(
+  error: unknown,
+  fallback = "这次没生成出来，请稍后重试。",
+  retryHint = RETRY_HINT
+): string {
   const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
   const name = error instanceof Error ? error.name : "";
   if (name === "AbortError" || TIMEOUT_PATTERNS.some((pattern) => pattern.test(message))) {
-    return `这次等太久了（网络慢或服务忙），没拿到结果。${RETRY_HINT}`;
+    return `这次等太久了（网络慢或服务忙），没拿到结果。${retryHint}`;
   }
   if (NETWORK_PATTERNS.some((pattern) => pattern.test(message))) {
-    return `网络开小差了，没连上服务器。检查一下网络，${RETRY_HINT}`;
+    return `网络开小差了，没连上服务器。检查一下网络，${retryHint}`;
   }
   if (message && hasChinese(message)) return message;
   return fallback;
+}
+
+/**
+ * 充值 / 账单页的错误文案（QA-20260914-001，WorkBuddy 新用户链路验收报告 P1 + P2）。
+ *
+ * 现场：合成 500 时页面直出英文 `mock server error`；断网时直出 `Failed to fetch`。
+ * 旧实现只在「整串都是 [a-z0-9_:-]」这种无空格机器码时才回落中文兜底，
+ * 带空格的英文句子必然漏出去——所以这里不再判断"像不像码"，改判"有没有中文"。
+ *
+ * 顺序：已知业务码 → 固定中文；其余交给统一的异步错误人话化（网络 / 超时 / 未知英文）；
+ * 服务端已经返回的中文提示原样保留。
+ */
+const BILLING_RETRY_HINT = "请重试；仍然失败请稍后再试或联系客服。";
+
+export function billingErrorCopy(reason: unknown, fallback: string): string {
+  const message = reason instanceof Error ? reason.message : typeof reason === "string" ? reason : "";
+  if (/insufficient_credits/.test(message)) return "企业积分不足，请先充值后再使用。";
+  if (/login_required|membership_not_found|missing_tenant_or_user/.test(message)) return "请先完成登录。";
+  return humanizeAsyncError(reason, fallback, BILLING_RETRY_HINT);
 }

@@ -373,6 +373,9 @@ model User {
   wallet               Wallet?
   walletLedgers        WalletLedger[]
   rechargeOrders       RechargeOrder[]
+  referralCodes             ReferralCode[]      @relation("ReferralCodeOwner")
+  referralBindingsAsReferrer ReferralBinding[]  @relation("ReferralReferrer")
+  referralBindingAsReferred  ReferralBinding?   @relation("ReferralReferred")
 
   @@index([wechatUnionid])
   @@index([phone])
@@ -2361,6 +2364,7 @@ model WalletLedger {
   stepIndex    Int?
   priceVersion Int?
   source       String            @default("web")
+  expiresAt DateTime?
   createdAt    DateTime          @default(now())
 
   wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
@@ -2463,4 +2467,80 @@ model LanqiMomentAsset {
 
   @@unique([tenantId, requestKey])
   @@index([tenantId, storeId])
+}
+
+// ---------------------------------------------------------------------------
+// 推荐有礼（PLAT-28，第①批：人工发放入口关闭 + 推荐归因 + 配置位后台可读写）
+//
+// 三段奖励（新客 100 / 推荐人首次真实使用 100 / 推荐人首次真实充值 200）、
+// 90 天 bonus 桶、text-only 硬限制、活动窗左闭右开等口径见
+// docs/agents/platform-tasks.md PLAT-28 与 apps/api/src/services/referral-config.ts。
+// 第①批只落「归因」与「配置」，不发任何奖励。
+// ---------------------------------------------------------------------------
+
+/// 推荐码：归属到一个**用户**（不是租户）。明文码只在下发那一刻返回一次，库里只存 sha256 哈希。
+model ReferralCode {
+  id           String    @id @default(cuid())
+  ownerUserId  String
+  /// 下发时推荐人的微信 unionid / openid 快照（unionid 缺失时用 openid 兜底去重）
+  ownerUnionid String?
+  ownerOpenid  String?
+  codeHash     String    @unique
+  codePreview  String
+  label        String?
+  isActive     Boolean   @default(true)
+  /// null = 不限次数（第①批冻结口径：不设单人月上限，改为超阈值只告警）
+  maxUses      Int?
+  usedCount    Int       @default(0)
+  expiresAt    DateTime?
+  createdBy    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  owner    User              @relation("ReferralCodeOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  bindings ReferralBinding[]
+
+  @@index([ownerUserId, isActive])
+}
+
+/// 推荐归因：一个被推荐人只能被归因一次。
+/// userId / unionid / openid 三重唯一（后两者可为空，Postgres 唯一索引不约束 NULL）。
+/// 生产实测（2026-09-12）：User 表 204 人中 0 人有 unionid、17 人有 openid，
+/// 微信网页授权当前拿不到 unionid，因此「同一微信只能被推荐一次」在 unionid 缺失时
+/// 必须靠 openid 兜底，否则这条风控形同不存在。
+model ReferralBinding {
+  id              String   @id @default(cuid())
+  referralCodeId  String
+  referrerUserId  String
+  referrerUnionid String?
+  referrerOpenid  String?
+  referredUserId  String   @unique
+  referredUnionid String?  @unique
+  referredOpenid  String?  @unique
+  boundAt         DateTime @default(now())
+  /// 绑定来源：registration（注册即绑定）/ 后续批次手动补录
+  source          String   @default("registration")
+  /// 被推荐人注册后落到的工作区（第③批「推荐明细」按此关联）
+  tenantId        String?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  referralCode ReferralCode @relation(fields: [referralCodeId], references: [id], onDelete: Cascade)
+  referrer     User         @relation("ReferralReferrer", fields: [referrerUserId], references: [id], onDelete: Cascade)
+  referred     User         @relation("ReferralReferred", fields: [referredUserId], references: [id], onDelete: Cascade)
+
+  @@index([referrerUserId, boundAt])
+  @@index([referralCodeId, boundAt])
+}
+
+/// 平台运行期配置（后台可读写，覆盖 env 默认值）。
+/// 只允许白名单键（见 apps/api/src/services/referral-config.ts），值必须是可公开的非敏感配置：
+/// 开关、金额、天数、阈值、活动时间窗。禁止把密钥写进这里。
+model PlatformSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

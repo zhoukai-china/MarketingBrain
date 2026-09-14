@@ -351,13 +351,43 @@ async function checkMobile(cdp, sessionId) {
   return mobile;
 }
 
+/** PLAT-25B：带登录态打开两个视频复盘 chat 页，验证浏览器 <title> 与页内标题去重。零模型成本。 */
+async function checkChatTitles(cdp, token) {
+  const expected = [
+    { sku: "ipzone__vidrev", agent: "视频复盘智能体", zone: "创始人IP专区" },
+    { sku: "meiye__vidrev", agent: "美业视频复盘智能体", zone: "美业专区" }
+  ];
+  const results = {};
+  for (const item of expected) {
+    const ctx = await openPage(cdp, token, `${webBase}/agent/${item.sku}/chat`, { width: 1280, height: 1000 });
+    await waitFor(cdp, ctx.sessionId, "document.querySelector('.chat-page-title')", 20_000);
+    const snap = await evaluate(cdp, ctx.sessionId, `() => ({
+      pageTitle: document.querySelector('.chat-page-title')?.textContent?.trim() ?? "",
+      docTitle: document.title
+    })`);
+    results[item.sku] = snap;
+    assert.ok(snap.pageTitle.includes(item.agent), `${item.sku} 页内标题应含「${item.agent}」，实际「${snap.pageTitle}」`);
+    assert.ok(snap.pageTitle.includes(item.zone), `${item.sku} 页内标题应含专区「${item.zone}」，实际「${snap.pageTitle}」`);
+    assert.ok(!/^视频复盘 · 视频复盘/.test(snap.pageTitle), `${item.sku} 页内标题不得是旧重复段，实际「${snap.pageTitle}」`);
+    assert.ok(snap.docTitle.includes(item.agent), `${item.sku} 浏览器 <title> 应含「${item.agent}」，实际「${snap.docTitle}」`);
+    assert.notEqual(snap.docTitle, "思潼AI 行业智能体平台", `${item.sku} 浏览器 <title> 不得退回通用平台名`);
+    await cdp.send("Target.closeTarget", { targetId: ctx.targetId });
+    await cdp.send("Target.disposeBrowserContext", { browserContextId: ctx.browserContextId });
+  }
+  assert.notEqual(results.ipzone__vidrev.docTitle, results.meiye__vidrev.docTitle, "两个 SKU 的浏览器 <title> 必须不同（多标签可区分）");
+  assert.notEqual(results.ipzone__vidrev.pageTitle, results.meiye__vidrev.pageTitle, "两个 SKU 的页内标题必须不同");
+  console.log(`vidrev chat titles: ${JSON.stringify(results)}`);
+  return results;
+}
+
 async function main() {
   const { token, userId } = await createTenant();
   const { prisma, wallet } = await seedWallet(userId);
   assert.equal(wallet?.paidBalance, START_BALANCE, `seedWallet 写入失败：${JSON.stringify(wallet)}`);
   const balance = await ensureWalletBalance(token, userId, prisma);
   const cdp = await connectChrome();
-  const summary = { balance, chat: null, mobile: null };
+  const summary = { balance, chat: null, mobile: null, titles: null };
+  summary.titles = await checkChatTitles(cdp, token);
   try {
     await withVidrevTrial(prisma, async () => {
       if (runChat) {

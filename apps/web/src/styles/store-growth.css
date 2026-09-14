@@ -3081,6 +3081,27 @@ pre {
   color: rgba(18, 32, 58, 0.45);
 }
 
+/* 平台 / 内部登录卡（非产品入口）是**固定深色底**（`.loginCard` 的深色卡片 + 输入框底色
+   `rgba(9,13,20,.8)`），但亮色主题下 `--text` 是深蓝 `#12203A` —— 又变成「深底深字」。
+   2026-09-12 用户真机实测（微信内打开 /os-v2/login?ref=… 的「完成注册」表单）：
+   输入文字 rgb(18,32,58) 落在 rgba(9,13,20,.8) 上，对比度约 **1.23:1**，品牌名几乎看不见。
+   这里把非产品登录页的输入固定为「深底浅字」，并用 `-webkit-text-fill-color` 防止
+   微信 / 安卓强制深色模式再改一次颜色；产品入口有自己的浅底规则（上方），不受影响。 */
+.loginPage:not(.productLoginPage) .loginForm input,
+.loginPage:not(.productLoginPage) .loginForm select,
+.loginPage:not(.productLoginPage) .loginForm textarea {
+  background: rgba(9, 13, 20, 0.8);
+  color: #f2f2f4;
+  -webkit-text-fill-color: #f2f2f4;
+  border-color: rgba(242, 242, 244, 0.22);
+}
+.loginPage:not(.productLoginPage) .loginForm input::placeholder,
+.loginPage:not(.productLoginPage) .loginForm textarea::placeholder {
+  color: #9aa4b2;
+  -webkit-text-fill-color: #9aa4b2;
+}
+.loginPage:not(.productLoginPage) .loginForm label span { color: #c9d2e0; }
+
 @media (max-width: 700px) {
   .productLoginChoices { grid-template-columns: 1fr; }
   .productLoginChoices a { min-height: 0; }

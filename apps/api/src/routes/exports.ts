@@ -291,7 +291,9 @@ export async function buildAnswerDocx(content: string, overrideTitle: string | u
       ]
     });
   };
-  const renderLine = (line: string, sectionTitle: string): Paragraph | undefined => {
+  const renderLine = (rawLine: string, sectionTitle: string): Paragraph | undefined => {
+    // 去掉 markdown 标题符（## 视觉锤 这类无编号标题不能被 isSectionHeading 捕获，会原样带 # 进 Word）。
+    const line = rawLine.replace(/^#{1,6}\s*/, "");
     if (/^>\s?/.test(line)) return quoteParagraph(line);
     if (/^\s*[-*]\s+/.test(line)) return bulletParagraph(line);
     const match = line.match(/^([^：:]{1,22})[：:]\s*(.+)$/);
@@ -448,7 +450,7 @@ function parseAnswer(content: string): { title: string; intro: string[]; section
   let current: ParsedSection | undefined;
 
   for (const line of bodyLines) {
-    if (isSectionHeading(line)) {
+    if (isSectionHeading(line) || /^#{1,6}\s+/.test(line)) {
       current = { title: cleanSectionTitle(line), lines: [] };
       sections.push(current);
       continue;
@@ -483,7 +485,8 @@ function cleanSectionTitle(line: string): string {
 }
 
 function stripInlineMarks(line: string): string {
-  return line.replace(/^#{1,3}\s*/, "").replace(/[*_]/g, "").trim();
+  // 1~6 级 markdown 标题符都要剥掉：之前只认 1~3 级，`#### 内容选题` 会残留一个 `#` 进 Word。
+  return line.replace(/^#{1,6}\s*/, "").replace(/[*_]/g, "").trim();
 }
 
 function parseMarkdownTableLines(tableLines: string[]): ParsedTable | undefined {

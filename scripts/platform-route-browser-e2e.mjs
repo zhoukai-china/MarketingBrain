@@ -164,6 +164,15 @@ async function shoot(cdp, sessionId, name) {
   return file;
 }
 
+async function pageSnapshot(cdp, sessionId) {
+  return evaluate(cdp, sessionId, `() => ({
+    pathname: window.location.pathname,
+    title: document.title,
+    text: document.body ? document.body.innerText : "",
+    length: document.body ? document.body.innerText.trim().length : 0
+  })`);
+}
+
 /** 打开一个路径并等页面稳定：等待正文渲染出内容，再做断言。 */
 async function openPath(cdp, sessionId, routePath) {
   cdp.pageErrors.length = 0;
@@ -171,12 +180,28 @@ async function openPath(cdp, sessionId, routePath) {
   await waitFor(cdp, sessionId, `() => document.body && document.body.innerText.trim().length > 0`);
   // 前端是客户端路由，首屏渲染后还会再切一次（懒加载 + 登录态判定），固定观察 1.2 秒。
   await delay(1200);
-  return evaluate(cdp, sessionId, `() => ({
-    pathname: window.location.pathname,
-    title: document.title,
-    text: document.body.innerText,
-    length: document.body.innerText.trim().length
-  })`);
+  // 匿名访问受保护页（如 /my-ai）会被客户端路由带到 /login，中间可能经过短暂空窗
+  // （旧 DOM 卸载、新文档还没渲染）。固定 1.2 秒可能正好落在空窗，这里等到终态页面
+  // 渲染出正文（最多 15 秒），避免把「跳转中的空 body」误判为路由故障。
+  const deadline = Date.now() + 15_000;
+  for (;;) {
+    let snap;
+    try {
+      snap = await pageSnapshot(cdp, sessionId);
+    } catch (error) {
+      if (
+        !/Execution context was destroyed|Cannot find context|Inspected target navigated/i.test(
+          error instanceof Error ? error.message : String(error)
+        )
+      ) {
+        throw error;
+      }
+      snap = null;
+    }
+    if (snap && snap.length > 0) return snap;
+    if (Date.now() > deadline) return snap ?? { pathname: "", title: "", text: "", length: 0 };
+    await delay(300);
+  }
 }
 
 function consoleErrors(cdp) {
@@ -203,16 +228,24 @@ async function main() {
     for (const route of KEPT_ROUTES) {
       const snapshot = await openPath(cdp, sessionId, route.path);
       const misses = WRONG_FALLBACK_MARKERS.filter((marker) => snapshot.text.includes(marker));
+      /**
+       * 需要登录的保留网址：匿名访客被带到 `/login` 是**正确行为**，不是故障。
+       * 2026-09-12 实测 `https://api.lcppch.top/os-v2/my-ai` 匿名会 `finalUrl=/login` 并渲染登录页
+       * （「微信一键登录 / 注册 …」），而本脚本用的是干净环境（=匿名），旧断言「必须渲染出 ≥40 字正文」
+       * 会抓在跳转瞬间的空 body 上，报成 `len=0` 假失败（同时控制台 0 error、其余 23 条路由全绿）。
+       * 现在把「落到登录页」也算通过，但**保留反向断言**：不得是兜底页、不得串到别的产品、不得控制台报错。
+       * 登录态下的真实渲染由带会话的验收（`marketplace:vidrev-browser-e2e` 等）覆盖。
+       */
+      const landedOnLogin = snapshot.text.includes("微信一键登录") || snapshot.pathname.endsWith("/login");
       const ok =
         !snapshot.text.includes(NOT_FOUND_TEXT) &&
-        snapshot.length >= route.minLength &&
-        (route.mustInclude ? snapshot.text.includes(route.mustInclude) : true) &&
-        misses.length === 0;
+        misses.length === 0 &&
+        (landedOnLogin || (snapshot.length >= route.minLength && (route.mustInclude ? snapshot.text.includes(route.mustInclude) : true)));
       record(
         ok,
         `保留网址 ${route.path}（${route.label}）仍能打开`,
         ok
-          ? `render_len=${snapshot.length}`
+          ? landedOnLogin ? `匿名 → 落在登录页（该页需会话，属预期）` : `render_len=${snapshot.length}`
           : `len=${snapshot.length} 兜底页=${snapshot.text.includes(NOT_FOUND_TEXT)} 串产品=${misses.join("/") || "无"} 文本=${snapshot.text.replace(/\s+/g, " ").slice(0, 160)}`
       );
       const errors = consoleErrors(cdp);

@@ -16,7 +16,7 @@
  * 本轮（第二批）完成后，第三批 `/internal/*` 仍在仓库里，用户点头后才动，
  * 所以契约里只登记「现状」：不检查、也不要求删除。
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -149,8 +149,13 @@ const PRESERVED_ROUTES = [
   },
   {
     url: "/diagnosis 与 /d/",
-    label: "免费诊断（在用，不是历史页面）",
-    must: ['path.startsWith("/diagnosis") || path.startsWith("/d/")', "<FlywheelDiagnosisApp />"],
+    // 2026-09-13 用户要求清除旧版「9 轮经营诊断」：它不再渲染，老链接统一重定向到货架。
+    label: "旧版诊断（已下线：重定向到货架，不得再渲染）",
+    must: [
+      'path.startsWith("/diagnosis") || path.startsWith("/d/")',
+      'window.location.replace(getAppPath("/agents"))',
+    ],
+    mustNotInMain: ["<FlywheelDiagnosisApp />", 'stage === "diagnosis"', 'setStage("diagnosis")'],
   },
   {
     url: "/enterprise-knowledge-base*",
@@ -350,6 +355,38 @@ requireContains(
   read("apps/web/src/pages/NotFoundPage.tsx"),
   "这个页面不存在，或者已经下线",
   "兜底页给出「不存在 / 已下线」明确说明"
+);
+
+/* ------------------------------------------------------------------ *
+ * ⑤ 术语：对客与文档统一叫「市场合伙人」（用户 2026-09-12 指令）
+ * ------------------------------------------------------------------ */
+
+/** 递归列出 apps/web/src 下的源码文件，用来查「旧称有没有漏在客户界面」。 */
+function listWebSources(dir = path.join(repoRoot, "apps/web/src"), collected = []) {
+  for (const entry of readdirSync(dir)) {
+    const full = path.join(dir, entry);
+    if (statSync(full).isDirectory()) {
+      listWebSources(full, collected);
+      continue;
+    }
+    if (/\.tsx?$/.test(entry)) collected.push(full);
+  }
+  return collected;
+}
+
+const legacyTermFiles = listWebSources()
+  .filter((file) => readFileSync(file, "utf8").includes("分销商"))
+  .map((file) => path.relative(repoRoot, file).split(path.sep).join("/"));
+record(
+  "客户界面不得再用「分销商」旧称（统一叫「市场合伙人」）",
+  legacyTermFiles.length === 0,
+  legacyTermFiles.length === 0 ? "0 处" : `仍出现：${legacyTermFiles.join("、")}`
+);
+const partnerTerm = "市场合伙人";
+record(
+  `PLAT-26 分润任务卡使用新称「${partnerTerm}」`,
+  read("docs/agents/platform-tasks.md").includes(partnerTerm),
+  read("docs/agents/platform-tasks.md").includes(partnerTerm) ? "命中" : "缺失"
 );
 
 /* ------------------------------------------------------------------ *

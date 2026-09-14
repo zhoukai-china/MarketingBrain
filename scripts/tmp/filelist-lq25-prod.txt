@@ -47,6 +47,8 @@ apps/api/src/products/beauty-industry/xhs-task-snapshot.ts
 apps/api/src/products/lanqi/dashboard-service.ts
 apps/api/src/products/lanqi/demo-scope.ts
 apps/api/src/products/lanqi/goal-store.ts
+apps/api/src/products/lanqi/viral-search-rules.ts
+apps/api/src/products/lanqi/viral-search-service.ts
 apps/api/src/routes/account.ts
 apps/api/src/routes/acquire.ts
 apps/api/src/routes/admin.ts
@@ -85,6 +87,7 @@ apps/api/src/routes/lanqi-image-studio.ts
 apps/api/src/routes/lanqi-media-generation.ts
 apps/api/src/routes/lanqi-referrals.ts
 apps/api/src/routes/lanqi-store-profile.ts
+apps/api/src/routes/lanqi-viral-search.ts
 apps/api/src/routes/lanqi-xhs-package.ts
 apps/api/src/routes/marketplace.ts
 apps/api/src/routes/mcp.ts
@@ -185,6 +188,8 @@ apps/api/src/services/persona-clip-planner.ts
 apps/api/src/services/platform-knowledge-connectors.ts
 apps/api/src/services/prisma-json.ts
 apps/api/src/services/public-topic-search.ts
+apps/api/src/services/referral-attribution.ts
+apps/api/src/services/referral-config.ts
 apps/api/src/services/request-context.ts
 apps/api/src/services/request-execution-scope.ts
 apps/api/src/services/request-fingerprint.ts
@@ -479,6 +484,7 @@ docs/agents/lanqi-beauty/tasks/LQ-21-兰琪品牌标识与上线板块收口.md
 docs/agents/lanqi-beauty/tasks/LQ-22-侧栏导航白字配色.md
 docs/agents/lanqi-beauty/tasks/LQ-23-文案转片真实出片接通.md
 docs/agents/lanqi-beauty/tasks/LQ-24-私域营销信息不足分支补齐重新生成.md
+docs/agents/lanqi-beauty/tasks/LQ-25-爆款复刻真实检索源接通.md
 docs/agents/lanqi-beauty/tasks/README.md
 docs/agents/lanqi-beauty/TEST_MATRIX.md
 docs/agents/lanqi-beauty/WORKFLOW.md
@@ -515,6 +521,7 @@ docs/DEVELOPMENT.md
 docs/LAUNCH_PLAN.md
 docs/nginx-v2.example.conf
 docs/ORIGINAL_SKILL_MCP.md
+docs/PRICING.md
 docs/PRODUCT_PLATFORM_ARCHITECTURE.md
 docs/QUALITY_WORKFLOW.md
 docs/RELEASE_STATUS.md
@@ -853,6 +860,7 @@ packages/db/prisma/migrations/202609090003_billing_consume/migration.sql
 packages/db/prisma/migrations/202609090004_sitong_wallet_double_bucket/migration.sql
 packages/db/prisma/migrations/202609090005_lanqi_moments/migration.sql
 packages/db/prisma/migrations/202609100001_lanqi_store_goals/migration.sql
+packages/db/prisma/migrations/202609120001_referral_rewards_plat28/migration.sql
 packages/db/prisma/schema.prisma
 packages/db/prisma/seed-demo.ts
 packages/db/src/index.ts
@@ -1185,6 +1193,9 @@ scripts/beta-smoke.mjs
 scripts/billing-consume-db-smoke.ts
 scripts/billing-paid-order-db-smoke.ts
 scripts/bootstrap-aliyun-v2.sh
+scripts/bs-video-retention.sh
+scripts/bs-video-sts-refresh-run.sh
+scripts/bs-video-sts-refresh.mjs
 scripts/ceo-knowledge-analysis-location-smoke.mjs
 scripts/channel-gateways-smoke.ts
 scripts/check-agent-eval-cases.mjs
@@ -1199,6 +1210,7 @@ scripts/content-system-batch-smoke.ts
 scripts/content-system-display-smoke.ts
 scripts/continuous-improvement-smoke.ts
 scripts/create-beta-invite.mjs
+scripts/credits-cost-consistency-contract-smoke.ts
 scripts/deploy-acquisition-20260810.sh
 scripts/deploy-ai-recording-overlay-20260811.sh
 scripts/deploy-ai-recording-prebuilt-20260811.sh
@@ -1348,6 +1360,7 @@ scripts/lanqi-test-instance-acceptance.mjs
 scripts/lanqi-test-instance-splash-browser-e2e.mjs
 scripts/lanqi-test-splash-contract-smoke.mjs
 scripts/lanqi-video-rules-smoke.ts
+scripts/lanqi-viral-search-contract-smoke.ts
 scripts/lanqi-xhs-copy-contract-smoke.mjs
 scripts/lanqi-xhs-package-contract-smoke.mjs
 scripts/lanqi-xhs-package-workflow-smoke.ts
@@ -1378,7 +1391,9 @@ scripts/marketplace-vidrev-contract-smoke.ts
 scripts/marketplace-vidrev-run-smoke.ts
 scripts/mcp-request-cancellation-smoke.mjs
 scripts/owned-product-directory-smoke.ts
+scripts/page-snapshot.mjs
 scripts/paid-traffic-upload-smoke.ts
+scripts/pay-verify-create-order.ts
 scripts/platform-knowledge-connectors-smoke.ts
 scripts/platform-route-browser-e2e.mjs
 scripts/platform-route-contract-smoke.mjs
@@ -1393,6 +1408,7 @@ scripts/production-rotate-admin-tokens.sh
 scripts/production-switch-with-rollback.sh
 scripts/prune-baolu-backups.sh
 scripts/recharge-browser-smoke.mjs
+scripts/referral-attribution-smoke.ts
 scripts/reparse-takeaway-imports.ts
 scripts/response-cost-contract-smoke.mjs
 scripts/restaurant-diagnostic-smoke.ts
@@ -1454,6 +1470,7 @@ scripts/vidrev-chat-anonymous-probe.mjs
 scripts/viral-video-replication-smoke.ts
 scripts/wechat-login-bridge-smoke.ts
 scripts/wechat-login-failure-paths-smoke.ts
+scripts/wechat-pay-public-key-contract-smoke.ts
 scripts/workbuddy-extreme-smoke.ts
 scripts/workbuddy-selfservice-smoke.ts
 scripts/zhenshui-internal-pilot-smoke.ts

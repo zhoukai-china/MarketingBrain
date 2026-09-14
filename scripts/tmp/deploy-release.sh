@@ -122,7 +122,7 @@ SRC_HASH="$(sha256sum "$STAGE/apps/api/src/data/marketplace-v3.json" | awk '{pri
 DIST_HASH="$(sha256sum "$STAGE/apps/api/dist/apps/api/src/data/marketplace-v3.json" | awk '{print $1}')"
 echo "marketplace src=$SRC_HASH dist=$DIST_HASH"
 test "$SRC_HASH" = "$DIST_HASH"
-test "$SRC_HASH" = "a668b6429315914e14e7d72601967e8f93a2006ecb9297dd59f283f0ba467416"
+test "$SRC_HASH" = "1dd5b672eea8841a36c624bf08b8b191fa2f55a54c3d246c9740cabbe30f12c0"
 # PLAT-19（用户 2026-09-12）：面向客户的页面只显示积分，不再显示折算人民币。
 # 旧断言要求产物里必须出现 '≈ ¥'，与 PLAT-19 的用户口径直接冲突（2026-09-12 首次
 # LQ-23 发布即被它卡在「第 4 步」）。这里改为反向断言 + 正向断言「扣费提示仍有积分」，

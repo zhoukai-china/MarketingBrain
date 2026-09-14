@@ -10,6 +10,8 @@
 //   3. 资金侧写操作必须由**平台运维凭证**证明身份：只靠租户级 owner/operator 角色
 //      会让任意商家给自己发体验积分（P0，见 docs/BUG_REGRESSIONS.md QA-20260911-009），
 //      因此无关租户的 owner 主动发放必须 401 `admin_token_required`；
+//   3b. PLAT-28 第①批（2026-09-12）：人工发放**默认停用** → 403 `trial_grant_disabled` 且零写入；
+//      开关打开（后台 PlatformSetting / `/market/admin/referral-config`）后才恢复到下面的正常路径。
 //   4. 正常路径：发放 400 → `state=created`、bonus +400、列表可按 grantId 对账；
 //   5. 幂等：同 grantId 重放 → `already_applied` 且不重复加币；换金额 → 409 `trial_grant_id_conflict`；
 //   6. 失败关闭：未知手机号 → 404；金额 0 / 801 / 非整数 → 400；身份双填 → 400；
@@ -32,6 +34,7 @@ const createdTenantIds: string[] = [];
 const createdUserIds: string[] = [];
 
 async function cleanup(): Promise<void> {
+  await prisma.platformSetting.deleteMany({ where: { key: "MARKETPLACE_TRIAL_GRANT_ENABLED" } });
   for (const userId of createdUserIds) {
     await prisma.walletLedger.deleteMany({ where: { userId } });
     await prisma.wallet.deleteMany({ where: { userId } });
@@ -186,6 +189,36 @@ async function main(): Promise<void> {
     assert(
       outsiderGet.statusCode === 401 || outsiderGet.statusCode === 403,
       `unrelated tenant owner must NOT read the global grant list with customer phones (got ${outsiderGet.statusCode})`
+    );
+
+    // 3b. PLAT-28 第①批：默认停用（这一步是本次新增的硬门禁）。
+    await prisma.platformSetting.deleteMany({ where: { key: "MARKETPLACE_TRIAL_GRANT_ENABLED" } });
+    const disabled = await app.inject({
+      method: "POST",
+      url: "/market/admin/trial-grants",
+      headers: staffHeaders,
+      payload: { identity: { userId: staff.userId }, amount: 400, grantId: `${grantId}-disabled` }
+    });
+    assert(
+      disabled.statusCode === 403 && (disabled.json() as { error?: string }).error === "trial_grant_disabled",
+      `disabled-by-default returns 403 trial_grant_disabled (got ${disabled.statusCode}: ${disabled.body.slice(0, 200)})`
+    );
+    assert(
+      (await walletOf(staff.userId)) === null && (await ledgerRows(staff.userId, `${grantId}-disabled`)).length === 0,
+      "disabled-by-default must not write any balance or ledger row"
+    );
+
+    // 3c. 开关打开后，下面第 4 步起的既有契约必须原样成立（说明停用是开关，不是把接口删了）。
+    const enableGrant = await app.inject({
+      method: "PATCH",
+      url: "/market/admin/referral-config",
+      headers: staffHeaders,
+      payload: { updates: { MARKETPLACE_TRIAL_GRANT_ENABLED: true }, operator: "smoke" }
+    });
+    assert(enableGrant.statusCode === 200, `admin can enable trial grants again (got ${enableGrant.statusCode}: ${enableGrant.body.slice(0, 200)})`);
+    assert(
+      (enableGrant.json() as { trialGrantEnabled?: boolean }).trialGrantEnabled === true,
+      "enable response reports trialGrantEnabled=true"
     );
 
     // 4. 正常路径：平台运维凭证 + 角色守卫都通过 → 真实发放。

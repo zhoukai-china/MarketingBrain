@@ -8,19 +8,19 @@
 // 3. 取样例统一走 `referenceCaseForSku(skuCode)`：先看行业专属，再回落到通用。
 // 守护回归：pnpm.cmd marketplace:reference-case-neutral-smoke
 import { IP_POS_FULL_CASE_HTML } from "./ip-pos-full-case.js";
-
+import { CONTENT_TEN_FULL_CASE_HTML } from "./content-ten-full-case.js";
+import { VIDREV_FULL_CASE_HTML } from "./vidrev-full-case.js";
+import { LIVESCRIPT_FULL_CASE_HTML } from "./livescript-full-case.js";
 export interface ReferenceCaseRow {
   k: string;
   v: string;
 }
-
 export interface ReferenceCase {
   title: string;
   input: string;
   rows?: ReferenceCaseRow[];
   html?: string;
 }
-
 export const REFERENCE_CASES: Record<string, ReferenceCase> = {
   "ip-pos": {
     title: "IP 定位全案 · 1 分钟速览",
@@ -37,33 +37,19 @@ export const REFERENCE_CASES: Record<string, ReferenceCase> = {
     ]
   },
   copy: {
-    title: "1 条抖音口播文案 · 可直发",
-    input: "输入：本地门店 · 卖点=到店体验 · 目标=引流到店",
-    rows: [
-      { k: "钩子（前 3 秒）", v: "「做了 16 年这行，我最怕客人进门就问一句：你们这个跟别家到底差在哪？」" },
-      { k: "正文", v: "差的不在说法，在标准——同一件事，我们把它拆成能检查的动作清单，做完没做完一眼看得出来，不用你反复问、也不用我们反复解释。" },
-      { k: "结尾动作", v: "「想先看看我们是怎么做的，评论区打「清单」，我发你一份完整的做法对照表。」" },
-      { k: "话题标签", v: "#本地生意 #开店日常 #到店体验 #门店经营" }
-    ]
+    title: "内容十件套 · 完整交付样例（十栏全部展开）",
+    input: "输入（5 项）：产品/卖点=到店体验 · 目标人群=怕踩坑、想省心的本地客人 · 平台=抖音+视频号+小红书 · 口播时长=60 秒 · 内容类型=获客型",
+    html: CONTENT_TEN_FULL_CASE_HTML
   },
   vidrev: {
-    title: "单条视频复盘 · 含下一条动作",
-    input: "输入：某门店引流视频后台数据",
-    rows: [
-      { k: "数据", v: "播放 1.2w　完播率 21%（同类中位 28%）　互动率 1.8%　主页点击 96" },
-      { k: "归因", v: "前 3 秒用了门店环境空镜，钩子弱 → 完播率低；中段讲项目原理、信息密度下降 → 跳出集中在 8-14 秒。" },
-      { k: "下一条动作", v: "① 前 3 秒改成「结论前置 + 反常识」句式　② 中段时间轴压缩到 6 秒内　③ 结尾加明确动作而非「点赞关注」。" }
-    ]
+    title: "深度复盘 · 完整报告样例（第零章 + 十章全文）",
+    input: "输入（4 项）：模式=深度复盘 · 平台=抖音 · 统计周期=2026-08-01～2026-09-07 · 粘贴后台数据表（6 条，列头含标题/时长/播放/点赞/评论/分享/收藏/完播率/咨询量/是否投流/投流金额）",
+    html: VIDREV_FULL_CASE_HTML
   },
   livescript: {
-    title: "2 小时直播话术 · 含轮播节奏表",
-    input: "输入：本地门店 · 带货 · 客单 398",
-    rows: [
-      { k: "0-10 分钟 · 开场留人", v: "「今天不讲产品，先讲一个真事：上周有位客人拿着在别家买的东西来找我补救…」" },
-      { k: "10-40 分钟 · 主推", v: "痛点共鸣 → 方案拆解 → 案例佐证（不承诺效果）→ 价格锚定 → 限时限量。" },
-      { k: "轮播节奏", v: "每 12 分钟一轮：讲痛点 3 分钟 / 出方案 4 分钟 / 上链接逼单 3 分钟 / 答疑 2 分钟。" },
-      { k: "场控清单", v: "扣 1 领资料、扣关键词领对比表、满 20 单加赠一次到店体验。" }
-    ]
+    title: "直播话术 · 招商场景完整样例（2 小时连续逐字稿）",
+    input: "输入（5 项）：品牌=连锁餐饮（有直营、开放加盟） · 招商目标=想开店但没经验的小老板 · 平台=抖音 · 时长=2 小时 · 引流款=9.9 元 资料包",
+    html: LIVESCRIPT_FULL_CASE_HTML
   },
   liverev: {
     title: "一场直播复盘 · 定量 + 定性",
@@ -105,7 +91,6 @@ export const REFERENCE_CASES: Record<string, ReferenceCase> = {
     ]
   }
 };
-
 export function referenceCaseFor(coreSkillId: string): ReferenceCase | undefined {
   return REFERENCE_CASES[coreSkillId];
 }
@@ -137,7 +122,7 @@ export const INDUSTRY_REFERENCE_CASES: Record<string, ReferenceCase> = {
     ]
   },
   "meiye__livescript": {
-    title: "2 小时直播话术 · 含轮播节奏表",
+    title: "直播话术 · 招商场景完整样例（2 小时连续逐字稿）",
     input: "输入：美业门店 · 带货 · 客单 398",
     rows: [
       { k: "0-10 分钟 · 开场留人", v: "「今天不讲项目，先讲一个真事：上周有位客人带着别家做的项目来找我修复…」" },

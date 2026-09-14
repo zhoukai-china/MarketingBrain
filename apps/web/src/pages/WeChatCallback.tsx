@@ -3,6 +3,9 @@ import { type LoginResult } from "./LoginPage.js";
 import { apiBase, getAppPath } from "../lib/api.js";
 import { tenantBrandLogoSrc, usePublicTenantBranding } from "../lib/tenant-branding.js";
 import { clearPendingWeChatBridge, readPendingWeChatBridge } from "../lib/wechat-bridge-session.js";
+import { markExistingUserReferralNotice } from "../lib/referral-notice.js";
+import { readPendingReferral } from "../lib/pending-referral.js";
+import { rememberPendingReferral } from "../lib/pending-referral.js";
 
 interface WeChatCallbackProps {
   onLogin: (result: LoginResult) => void;
@@ -37,6 +40,10 @@ export default function WeChatCallback({ onLogin }: WeChatCallbackProps) {
         sessionStorage.removeItem("wechat_oauth_state");
         sessionStorage.removeItem("wechat_tenant_hostname");
         sessionStorage.removeItem("store_os_product_login_code");
+        // 推荐码由微信 state 原样带回（格式：`<uuid>|<ref>`）：即使 URL 或存储中途丢了，
+        // 这里也能重新种回去，保证补资料提交时还带着码。
+        const referralFromState = state.includes("|") ? state.slice(state.indexOf("|") + 1).trim() : "";
+        if (referralFromState) rememberPendingReferral(referralFromState);
 
         if (!code) {
           const errDesc = params.get("errcode") ?? "";
@@ -100,14 +107,21 @@ export default function WeChatCallback({ onLogin }: WeChatCallbackProps) {
           // QA-20260912-013：手机微信内授权同样会落到「补资料」，把登录页填过的产品邀请码带上，
           // 否则老板会看到「授权成功了却还要邀请码」。
           const pendingInvite = sessionStorage.getItem("store_os_pending_invite") ?? "";
+          const pendingReferral = readPendingReferral();
           const target = getAppPath(nextPath);
-          window.location.replace(pendingInvite ? `${target}?invite=${encodeURIComponent(pendingInvite)}` : target);
+          // 推荐码既存本地，也继续挂在回跳 URL 上：微信授权往返可能换 webview / 丢存储，URL 是最稳的那层。
+          const query = [
+            pendingInvite ? `invite=${encodeURIComponent(pendingInvite)}` : "",
+            pendingReferral ? `ref=${encodeURIComponent(pendingReferral)}` : ""
+          ].filter(Boolean).join("&");
+          window.location.replace(query ? `${target}?${query}` : target);
           return;
         }
 
         // Successful login
+        // 老账号带着推荐码登录：只有首次开通工作区才建立推荐关系，给落地页留一句提示。
+        if ((sessionStorage.getItem("store_os_pending_referral") ?? "").trim()) markExistingUserReferralNotice();
         localStorage.setItem("store_os_token", data.token);
-        localStorage.setItem("store_os_diagnosis_done", "false");
 
         onLogin({
           token: data.token,

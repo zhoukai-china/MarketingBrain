@@ -7,6 +7,9 @@
  * - 体验额度只在「销售确认商家身份」之后由人触发，走**用户级钱包 bonus 桶**：不可退款、不可折现、不计收入。
  * - 同一 `--grant-id` 幂等：重复执行不会重复加币；同一 grant-id 换金额直接报错。
  * - 系统当前**不自动回收**过期体验积分；`--valid-days` 只用于打印运营建议到期日，回收靠人工。
+ * - **PLAT-28 第①批（2026-09-12 用户口径）：人工发放默认停用**。开关为
+ *   `MARKETPLACE_TRIAL_GRANT_ENABLED`（默认 false；后台 `/agents/admin` 的同名开关可覆盖），
+ *   关闭时本脚本打印明确原因并以退出码 2 结束，绝不写任何流水。
  *
  * 用法（在仓库根目录、进程内已有 DATABASE_URL 时执行）：
  *   node scripts/grant-marketplace-trial-credits.mjs \
@@ -27,6 +30,22 @@ const { PrismaClient } = requireFromDb("@prisma/client");
 const TRIAL_GRANT_SOURCE_PREFIX = "trial_grant:";
 /** 单笔体验额度硬上限：防止误输入把「体验」发成「大额赠送」。 */
 const MAX_TRIAL_CREDITS = 800;
+
+/**
+ * 人工发放总开关：后台 PlatformSetting 覆盖值优先，其次 env（默认 false）。
+ * 表还没迁移时退回 env——默认值即「停用」，失败方向是安全的。
+ */
+async function resolveTrialGrantEnabled(prisma) {
+  try {
+    const row = await prisma.platformSetting.findUnique({
+      where: { key: "MARKETPLACE_TRIAL_GRANT_ENABLED" }
+    });
+    if (row) return row.value === true || row.value === "true";
+  } catch {
+    /* 老库还没有 PlatformSetting 表：退回 env 判定 */
+  }
+  return process.env.MARKETPLACE_TRIAL_GRANT_ENABLED === "true";
+}
 
 function parseArgs(argv) {
   const values = {};
@@ -117,6 +136,14 @@ async function main() {
 
   const prisma = new PrismaClient();
   try {
+    if (!(await resolveTrialGrantEnabled(prisma))) {
+      console.error("trial_grant_disabled: 人工发放体验额度已停用（PLAT-28 第①批，2026-09-12 用户口径）。");
+      console.error("- 未写入任何积分与流水；历史发放记录仍可只读核对。");
+      console.error("- 重新放行：在后台 /agents/admin「推荐有礼配置位」打开「人工体验额度发放」，");
+      console.error("  或把 MARKETPLACE_TRIAL_GRANT_ENABLED=true 写进运行环境后再执行本脚本。");
+      process.exitCode = 2;
+      return;
+    }
     const result = await prisma.$transaction(async (tx) => {
       const user = await resolveUser(tx, args);
       if (tenantIdFilter) await assertTenantMembership(tx, user.id, tenantIdFilter);

@@ -506,7 +506,7 @@ async function main() {
   const tokenB = await createTenant(`BY26三图隔离对照-${stamp}`);
   const initialCredits = await apiJson("/credits/transactions?limit=20", tokenA);
   assert.equal(initialCredits.response.status, 200);
-  assert.ok(initialCredits.body.creditBalance >= (resumeConsumedBatch ? 0 : 300), resumeConsumedBatch ? "resumed batch credit balance is invalid" : "synthetic tenant needs at least 300 test credits");
+  assert.ok(initialCredits.body.creditBalance >= (resumeConsumedBatch ? 0 : 60), resumeConsumedBatch ? "resumed batch credit balance is invalid" : "synthetic tenant needs at least 60 test credits (3 图 × 20 积分, 2026-09-12 定价)");
 
   const userDataDir = await mkdtemp(path.join(tmpdir(), "beauty-by25-image-live-"));
   const cdp = await connectChrome(userDataDir);
@@ -628,10 +628,10 @@ async function main() {
     const quotePayload = quoteRequest.postData ? JSON.parse(quoteRequest.postData) : { imageCount: 3 };
     const quote = await apiJson(`/beauty-industry/acquisition/runs/${encodeURIComponent(runId)}/media/quote`, tokenA, { method: "POST", body: JSON.stringify(quotePayload) });
     assert.equal(quote.response.status, 200);
-    assert.deepEqual({ imageCount: quote.body.imageCount, creditCost: quote.body.creditCost, canConfirm: quote.body.canConfirm, imagePlanVersion: quote.body.imagePlan?.version }, { imageCount: 3, creditCost: 300, canConfirm: true, imagePlanVersion: "beauty-xhs-image-plan-v2" });
+    assert.deepEqual({ imageCount: quote.body.imageCount, creditCost: quote.body.creditCost, canConfirm: quote.body.canConfirm, imagePlanVersion: quote.body.imagePlan?.version }, { imageCount: 3, creditCost: 60, canConfirm: true, imagePlanVersion: "beauty-xhs-image-plan-v2" });
     const creditsBeforeMedia = await apiJson("/credits/transactions?limit=30", tokenA);
     assert.equal(creditsBeforeMedia.response.status, 200);
-    assert.ok(creditsBeforeMedia.body.creditBalance >= 300);
+    assert.ok(creditsBeforeMedia.body.creditBalance >= 60);
 
     if (quoteOnly) {
       const desktopQuoteState = await evaluate(cdp, desktop.sessionId, `() => ({
@@ -795,7 +795,7 @@ async function main() {
 
     const creditsAfter = await apiJson("/credits/transactions?limit=30", tokenA);
     assert.equal(creditsAfter.response.status, 200);
-    assert.equal(creditsBeforeMedia.body.creditBalance - creditsAfter.body.creditBalance, terminal.batchStatus === "succeeded" ? 300 : 0);
+    assert.equal(creditsBeforeMedia.body.creditBalance - creditsAfter.body.creditBalance, terminal.batchStatus === "succeeded" ? 60 : 0);
     let newRunAudit = null;
     let regenerationQuote = null;
     let textUsage = [];
@@ -872,9 +872,9 @@ async function main() {
       customerUsable,
       model: "wan2.7-image",
       conservativeCostYuan: Number((providerTasksCreated * 0.2).toFixed(2)),
-      creditsReserved: 300,
-      creditsSettled: terminal.batchStatus === "succeeded" ? 300 : 0,
-      creditsReleasedOrCompensated: terminal.batchStatus === "succeeded" ? 0 : 300,
+      creditsReserved: 60,
+      creditsSettled: terminal.batchStatus === "succeeded" ? 60 : 0,
+      creditsReleasedOrCompensated: terminal.batchStatus === "succeeded" ? 0 : 60,
       jobs: terminal.jobs.map((job) => ({ jobId: job.id, providerTaskId: job.providerTaskId, technicalStatus: job.technicalStatus, qualityStatus: job.qualityStatus, qualityReasons: job.qualityReasons, customerUsable: job.customerUsable, billingStatus: job.billingStatus })),
       operatorReviews: terminal.operatorReviews ?? [],
       images: assets.map((asset, index) => ({ ...asset, width: restored.images[index]?.width, height: restored.images[index]?.height })),

@@ -2,6 +2,11 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { apiPath, getAppPath } from "../lib/api.js";
 import { referenceCaseForSku, type ReferenceCase } from "../marketplace/reference-cases.js";
 import { clearStoredSession, readSessionToken } from "../lib/session.js";
+import {
+  clearExistingUserReferralNotice,
+  readExistingUserReferralNotice
+} from "../lib/referral-notice.js";
+import { loginPathWithPendingReferral } from "../lib/pending-referral.js";
 import { chatFlowFor, buildRunBody } from "../marketplace/chat-flows.js";
 import { IpPosReport, type IpPosPayload } from "../marketplace/ip-pos-report.js";
 import { VidrevReport, isVidrevPayload, VIDREV_PREFILL_KEY, type VidrevPayload } from "../marketplace/vidrev-report.js";
@@ -102,6 +107,11 @@ async function readJson<T>(response: Response): Promise<T> {
 async function adminReadJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
     if (response.status === 403) {
+      const data = (await response.json().catch(() => ({}))) as { error?: string; message?: string };
+      // PLAT-28：停用是「功能关闭」，不是「你没权限」，两者的用户动作完全不同，必须分开讲。
+      if (data.error === "trial_grant_disabled") {
+        throw new Error(data.message ?? "人工发放体验额度已停用。");
+      }
       throw new Error("当前账号没有发放权限（需要 operator 及以上角色），请用运营/销售后台账号登入。");
     }
     if (response.status === 401) {
@@ -181,7 +191,9 @@ function useTheme(): { theme: "light" | "dark"; toggle: () => void } {
 
 function guestToLogin(path: string): void {
   localStorage.setItem("store_os_post_login_redirect", getAppPath(path));
-  window.location.href = getAppPath("/login");
+  // 带上暂存的推荐码：不带的话，从货架点「登录」这一跳会把归因码丢掉
+  // （2026-09-13 真机 nginx 日志实证：/login?ref=… → /login → 回调 → /login，码全丢）。
+  window.location.href = getAppPath(loginPathWithPendingReferral("/login"));
 }
 
 function groupByZone(skus: MarketplaceSku[], zones: MarketplaceZone[]) {
@@ -211,7 +223,7 @@ function Topbar({ active, balance, onNavigate }: { active: string; balance: numb
     // 退出后落回货架，重新登入成功仍回到货架，不会卡在登录页。
     localStorage.setItem("store_os_post_login_redirect", getAppPath("/agents"));
     setLoggedIn(false);
-    window.location.href = getAppPath("/login");
+    window.location.href = getAppPath(loginPathWithPendingReferral("/login"));
   }
 
   return (
@@ -249,6 +261,12 @@ export function MarketplaceHomePage() {
   const [zone, setZone] = useState("");
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  /** 老账号带推荐码登录的一次性提示（见 lib/referral-notice.js）。 */
+  const [referralNotice, setReferralNotice] = useState(() => readExistingUserReferralNotice());
+  const dismissReferralNotice = () => {
+    clearExistingUserReferralNotice();
+    setReferralNotice(false);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -276,21 +294,58 @@ export function MarketplaceHomePage() {
     return () => { cancelled = true; };
   }, []);
 
+  const q = query.trim().toLowerCase();
+  /** 专区级命中：搜「美业」即使单个 SKU 名称不含，也要把该专区整组带出（用户 2026-09-13 反馈）。 */
+  const zoneHits = useMemo(() => {
+    const queryText = query.trim().toLowerCase();
+    if (!queryText) return new Set<string>();
+    return new Set(
+      zones
+        .filter((z) => `${z.name} ${z.tagline ?? ""} ${z.prefix ?? ""}`.toLowerCase().includes(queryText))
+        .map((z) => z.key)
+    );
+  }, [zones, query]);
+
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
     return skus.filter((sku) => {
       if (zone && sku.zone !== zone) return false;
       if (!q) return true;
       const hay = [sku.name, sku.skuCode, sku.zoneName, sku.badge ?? "", sku.description, sku.useCase, sku.need, ...sku.verbs, ...sku.tags, ...sku.keywords].join(" ").toLowerCase();
-      return q.split(/\s+/).every((term) => hay.includes(term));
+      return q.split(/\s+/).every((term) => hay.includes(term)) || zoneHits.has(sku.zone);
     });
-  }, [skus, query, zone]);
+  }, [skus, query, zone, zoneHits]);
 
   const groups = useMemo(() => groupByZone(filtered, zones), [filtered, zones]);
 
   return (
     <main className="app-wrap">
       <Topbar active="market" balance={balance} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
+      {referralNotice && (
+        <div
+          role="status"
+          style={{
+            maxWidth: 1100,
+            margin: "10px auto 0",
+            padding: "10px 14px",
+            borderRadius: 12,
+            border: "1px solid var(--line)",
+            background: "var(--glass)",
+            color: "var(--text)",
+            fontSize: 13.5,
+            lineHeight: 1.6,
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
+            justifyContent: "space-between"
+          }}
+        >
+          <span>
+            ℹ️ 你已有工作区，本次是<b>直接登录</b>：推荐关系只在<b>被推荐人首次开通工作区</b>时建立，
+            所以这次不会新增推荐归因——你现有的账号、积分和工作区都不受影响。
+          </span>
+          <button className="back" type="button" onClick={dismissReferralNotice}>知道了</button>
+        </div>
+      )}
       <section className="view view-home">
         <div className="hero">
           <div className="hero-anchor">行业 AI 解决方案 · 不是通用 AI 工具</div>
@@ -322,7 +377,7 @@ export function MarketplaceHomePage() {
                 </div>
               </div>
             ))}
-            {zones.filter((z) => !z.ready).map((z) => (
+            {zones.filter((z) => !z.ready && (!query.trim() || zoneHits.has(z.key))).map((z) => (
               <div className="shelf" key={z.key}>
                 <div className="shelf-head"><h2>{z.name}</h2><span className="shelf-tag">{z.tagline}</span></div>
                 <div className="zone-soon">🚧 该专区正在上新，敬请期待。</div>
@@ -339,11 +394,13 @@ export function MarketplaceHomePage() {
 function AgentCard({ sku, all }: { sku: MarketplaceSku; all: MarketplaceSku[] }) {
   const bundle = isBundle(sku);
   const soon = isComingSoon(sku);
+  // 2026-09-13 用户口径：**不要在使用前反复告诉用户「要扣多少积分」**（感受不好），
+  // 只在交付完成之后告诉他这次消耗了多少（见 chat 页的「本次消耗 N 积分」）。
   const priceText = soon
-    ? `🧩 开发中 · 上线后按次计费`
+    ? `🧩 开发中 · 敬请期待`
     : bundle
-      ? `按环节计费 · 走完 ${bundleSteps(sku, all).length} 步共 ${bundleTotal(sku, all)} 积分`
-      : `${sku.ppu} 积分/次`;
+      ? `分 ${bundleSteps(sku, all).length} 步交付`
+      : "";
   return (
     <article className="agent-card skill-card" onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(sku.skuCode)}`); }}>
       <div className="ac-top">
@@ -356,7 +413,7 @@ function AgentCard({ sku, all }: { sku: MarketplaceSku; all: MarketplaceSku[] })
       </div>
       <p className="ac-use">{sku.useCase}</p>
       <div className="ac-need">🧩 需要：{(sku.need || "你的业务输入").split("；")[0]}…</div>
-      <div className={`ac-price${soon ? " soon" : ""}`}>{priceText}</div>
+      {priceText ? <div className={`ac-price${soon ? " soon" : ""}`}>{priceText}</div> : null}
       <div className="ac-foot">{soon ? <span className="chip soon only">开发中 · 敬请期待</span> : <span className="chip go only">去看看 ›</span>}</div>
     </article>
   );
@@ -452,26 +509,25 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
             <div className="price-card">
               {bundle ? (
                 <div className="pc-block">
-                  <div className="pc-label">按环节计费 · 走一步扣一步</div>
-                  <div className="pc-pts">{total} <span>积分 · 走完 {steps.length} 步</span></div>
+                  <div className="pc-label">分步交付 · 走一步交付一步</div>
+                  <div className="pc-pts">{steps.length} <span>步 · 走完全链路</span></div>
                   <div className="pk-steps">
-                    {steps.map((s, i) => <div className="pk-row" key={s.skuCode}><i>{i + 1}</i><b>{s.name.replace(/智能体$/, "")}</b><span>{s.ppu} 分</span></div>)}
-                    <div className="pk-row total"><i>Σ</i><b>走完全链路</b><span>{total} 分</span></div>
+                    {steps.map((s, i) => <div className="pk-row" key={s.skuCode}><i>{i + 1}</i><b>{s.name.replace(/智能体$/, "")}</b><span>第 {i + 1} 步</span></div>)}
+                    <div className="pk-row total"><i>Σ</i><b>走完全链路</b><span>{steps.length} 步</span></div>
                   </div>
-                  <button className="btn primary block" disabled={soon} onClick={startChat}>{soon ? "开发中 · 敬请期待" : `开始第 1 步 · 扣 ${steps[0]?.ppu ?? 0} 积分`}</button>
+                  <button className="btn primary block" disabled={soon} onClick={startChat}>{soon ? "开发中 · 敬请期待" : "开始第 1 步"}</button>
                   {soon
                     ? <div className="pc-note">🚧 组合内各环节正在开发中，上线后开放按环节使用。</div>
-                    : <div className="pc-note">🎯 <b>不用先付全款</b>：进入后一步一步走，每步交付完才扣该步的积分——<b>中途停下来，没做的环节不扣钱</b>。</div>}
+                    : <div className="pc-note">🎯 <b>不用一次走完</b>：进入后一步一步来，每步交付完才结算——<b>中途停下来，没做的环节不计费</b>。</div>}
                 </div>
               ) : (
                 <div className="pc-block">
-                  <div className="pc-label">用一次 · 扣多少</div>
-                  <div className="pc-pts">{sku.ppu} <span>积分/次</span></div>
+                  <div className="pc-label">用一次 · 交付什么</div>
                   <div className="pc-result">{sku.useCase}</div>
-                  <button className="btn primary block" disabled={soon} onClick={startChat}>{soon ? "开发中 · 敬请期待" : `用一次 · 扣 ${sku.ppu} 积分`}</button>
+                  <button className="btn primary block" disabled={soon} onClick={startChat}>{soon ? "开发中 · 敬请期待" : "直接开始"}</button>
                   {soon
-                    ? <div className="pc-note">🚧 该智能体内核正在开发中，暂不能发起生成；这里的 {sku.ppu} 积分/次为规划定价，上线前会再确认。</div>
-                    : <div className="pc-note">🎯 <b>按结果付费</b>：付一次 = 拿到上面那份交付物；不满意可申请重做一次，不重复扣积分。</div>}
+                    ? <div className="pc-note">🚧 该智能体内核正在开发中，暂不能发起生成；上线时间以公告为准。</div>
+                    : <div className="pc-note">🎯 <b>按结果付费</b>：付一次 = 拿到上面那份交付物；不满意可申请重做一次。</div>}
                 </div>
               )}
               {/* 方案②：行业专属样例按完整 SKU 命中，通用专区一律回落通用中性样例。 */}
@@ -654,6 +710,185 @@ const adminInputStyle: CSSProperties = {
   fontSize: 14
 };
 
+/**
+ * PLAT-28 第①批：推荐有礼配置位（9 个 referral 键 + 人工发放总开关）。
+ *
+ * 这一批**不发奖励**，只保证老板/运营能在后台看到、改到、改错了有明确提示；
+ * 真正发奖的口径（三段金额、首次真实使用/首充、退款冲正）留给第②批。
+ * `REFERRAL_REWARD_TEXT_ONLY` 是冻结口径，界面只读。
+ */
+interface PlatformSettingView {
+  key: string;
+  group: "referral" | "marketplace";
+  label: string;
+  description: string;
+  type: "boolean" | "integer" | "datetime";
+  min?: number;
+  max?: number;
+  lockedValue?: boolean;
+  value: boolean | number | string | null;
+  envValue: boolean | number | string | null;
+  source: "database" | "env";
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
+interface PlatformSettingsResponse {
+  settings: PlatformSettingView[];
+  trialGrantEnabled: boolean;
+  referralRewardEnabled: boolean;
+  referralTextOnly: boolean;
+}
+
+function settingInputValue(setting: PlatformSettingView): string {
+  if (setting.type === "boolean") return setting.value === true ? "true" : "false";
+  if (setting.value === null || setting.value === undefined) return "";
+  return String(setting.value);
+}
+
+function settingEnvHint(setting: PlatformSettingView): string {
+  const envText =
+    setting.envValue === null || setting.envValue === undefined || setting.envValue === ""
+      ? "未设置"
+      : String(setting.envValue);
+  return setting.source === "database"
+    ? `默认值 ${envText} → 已被后台改为当前值（${setting.updatedAt?.slice(0, 16).replace("T", " ") ?? "—"}${setting.updatedBy ? ` · ${setting.updatedBy}` : ""}）`
+    : `当前=默认值（${envText}），尚未在后台改过`;
+}
+
+function PlatformSettingsPanel({
+  adminToken,
+  onTrialGrantEnabledChange
+}: {
+  adminToken: string;
+  onTrialGrantEnabledChange: (enabled: boolean) => void;
+}) {
+  const [settings, setSettings] = useState<PlatformSettingView[]>([]);
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [error, setError] = useState("");
+  const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  const load = async () => {
+    if (!adminToken.trim()) {
+      setError("填写平台管理令牌后，这里会显示推荐有礼配置位。");
+      setSettings([]);
+      setLoaded(false);
+      return;
+    }
+    try {
+      const response = await fetch(apiPath("/market/admin/referral-config"), { headers: adminAuthHeaders(), cache: "no-store" });
+      const data = await adminReadJson<PlatformSettingsResponse>(response);
+      setSettings(data.settings ?? []);
+      setDraft({});
+      setError("");
+      setLoaded(true);
+      onTrialGrantEnabledChange(Boolean(data.trialGrantEnabled));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  };
+
+  useEffect(() => {
+    void load();
+    // 令牌变化（负责人填/换令牌）后重新拉一次；改完保存会自己刷新。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminToken]);
+
+  const dirtyKeys = settings
+    .filter((item) => draft[item.key] !== undefined && draft[item.key] !== settingInputValue(item))
+    .map((item) => item.key);
+
+  const save = async () => {
+    if (dirtyKeys.length === 0) return;
+    setBusy(true);
+    setError("");
+    setStatus("");
+    try {
+      const updates: Record<string, unknown> = {};
+      for (const key of dirtyKeys) {
+        const setting = settings.find((item) => item.key === key);
+        if (!setting) continue;
+        const raw = draft[key];
+        updates[key] = setting.type === "boolean" ? raw === "true" : raw;
+      }
+      const response = await fetch(apiPath("/market/admin/referral-config"), {
+        method: "PATCH",
+        headers: adminAuthHeaders(true),
+        body: JSON.stringify({ updates })
+      });
+      const data = await adminReadJson<PlatformSettingsResponse>(response);
+      setSettings(data.settings ?? []);
+      setDraft({});
+      setStatus(`已保存 ${dirtyKeys.length} 项配置（本批仍不发奖励）。`);
+      onTrialGrantEnabledChange(Boolean(data.trialGrantEnabled));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="marketplaceAdminTable" style={{ padding: "8px 0 8px" }}>
+      <div className="marketplaceAdminSectionTitle">
+        <h2>推荐有礼配置位（PLAT-28 第①批）</h2>
+        <p>
+          本批只提供开关的读写与校验，<b>不发放任何奖励</b>：三段奖励金额、90 天有效期、text-only
+          硬限制、活动窗左闭右开等口径由第②批按这里的配置执行。奖励积分的「只能用于文字类智能体」是冻结口径，不可改。
+        </p>
+      </div>
+      {error && <div className="marketplaceAdminError" role="alert">{error}</div>}
+      {status && <p className="mine-tip" role="status">{status}</p>}
+      {loaded && !error && (
+        <div style={{ display: "grid", gap: 12, maxWidth: 760, marginTop: 8 }}>
+          {settings.map((setting) => (
+            <label key={setting.key} style={adminFieldStyle}>
+              <span>
+                {setting.label}
+                <code style={{ marginLeft: 8, fontSize: 11, opacity: 0.7 }}>{setting.key}</code>
+                {setting.lockedValue !== undefined && <b style={{ marginLeft: 8, fontSize: 11 }}>冻结口径</b>}
+              </span>
+              {setting.type === "boolean" ? (
+                <select
+                  value={draft[setting.key] ?? settingInputValue(setting)}
+                  onChange={(event) => setDraft((prev) => ({ ...prev, [setting.key]: event.target.value }))}
+                  style={adminInputStyle}
+                  disabled={setting.lockedValue !== undefined}
+                >
+                  <option value="true">打开</option>
+                  <option value="false">关闭</option>
+                </select>
+              ) : (
+                <input
+                  value={draft[setting.key] ?? settingInputValue(setting)}
+                  inputMode={setting.type === "integer" ? "numeric" : "text"}
+                  placeholder={setting.type === "datetime" ? "例：2026-10-01T00:00:00+08:00" : ""}
+                  onChange={(event) => setDraft((prev) => ({ ...prev, [setting.key]: event.target.value }))}
+                  style={adminInputStyle}
+                />
+              )}
+              <small style={{ fontSize: 12, opacity: 0.75 }}>
+                {setting.description}
+                {setting.min !== undefined || setting.max !== undefined
+                  ? `（范围 ${setting.min ?? "-"} ~ ${setting.max ?? "-"}）`
+                  : ""}
+              </small>
+              <small style={{ fontSize: 12, opacity: 0.6 }}>{settingEnvHint(setting)}</small>
+            </label>
+          ))}
+          <div>
+            <button className="btn primary" disabled={busy || dirtyKeys.length === 0} onClick={() => { void save(); }}>
+              {busy ? "保存中…" : dirtyKeys.length === 0 ? "没有改动" : `保存 ${dirtyKeys.length} 项`}
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function MarketplaceAdminPage() {
   const [identityKey, setIdentityKey] = useState<TrialIdentityKey>("phone");
   const [identityValue, setIdentityValue] = useState("");
@@ -668,6 +903,11 @@ export function MarketplaceAdminPage() {
   const [result, setResult] = useState<TrialGrantResult | null>(null);
   const [grants, setGrants] = useState<TrialGrantRow[]>([]);
   const [grantsError, setGrantsError] = useState("");
+  /**
+   * 人工体验额度发放总开关（PLAT-28 第①批）。默认 false = 停用：
+   * 面板在拿到服务端配置之前按「已停用」渲染，避免守卫还没回来就把发放按钮露出来。
+   */
+  const [trialGrantEnabled, setTrialGrantEnabled] = useState(false);
 
   const loadGrants = async () => {
     // 没有平台运营凭证时不发请求：服务端会 401，直接把「先去填令牌」讲清楚即可。
@@ -739,12 +979,22 @@ export function MarketplaceAdminPage() {
     <main className="app-wrap">
       <Topbar active="admin" balance={null} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
       <section className="view view-mine">
-        <h1>体验额度发放</h1>
+        <h1>{trialGrantEnabled ? "体验额度发放" : "体验额度发放（已停用）"}</h1>
         <p className="mine-tip">
           销售/运营确认真实商家身份后发放体验额度。额度只能发给<b>已经自己扫码注册登入</b>的客户，
           走 bonus 桶、不计收入、不退款；默认口径 {TRIAL_DEFAULT_CREDITS} 积分 / {TRIAL_DEFAULT_VALID_DAYS} 天。
           本页属于资金侧操作，除账号角色外还需要<b>平台管理令牌</b>（ADMIN_TOKEN），否则任何商家都能给自己发额度。
         </p>
+        {!trialGrantEnabled && (
+          <div className="marketplaceAdminError" role="alert" style={{ maxWidth: 560 }}>
+            <b>人工发放入口已停用（PLAT-28 第①批，2026-09-12 用户口径）。</b>
+            <br />
+            接口 <code>POST /market/admin/trial-grants</code> 现在返回 <code>403 trial_grant_disabled</code>，
+            运维脚本同样拒绝执行；<b>历史发放流水一条未删</b>，下面仍可查看与对账。
+            推荐有礼相关配置在下方「推荐有礼配置位」里读写；如需临时恢复人工发放，
+            在那里把「人工体验额度发放」打开（会记下谁在什么时候改的）。
+          </div>
+        )}
 
         <div style={{ display: "grid", gap: 14, maxWidth: 560, marginTop: 12 }}>
           <label style={adminFieldStyle}>
@@ -764,7 +1014,12 @@ export function MarketplaceAdminPage() {
               style={adminInputStyle}
             />
           </label>
-
+          {!trialGrantEnabled && (
+            <p className="mine-tip" style={{ margin: 0 }}>
+              填入平台管理令牌后本页会自动读取当前配置；停用状态下不渲染发放表单，避免误操作。
+            </p>
+          )}
+          {trialGrantEnabled && <>
           <label style={adminFieldStyle}>
             <span>客户身份类型</span>
             <select
@@ -819,6 +1074,7 @@ export function MarketplaceAdminPage() {
               {busy ? "处理中…" : dryRun ? "预演发放" : `发放 ${amount || "—"} 积分`}
             </button>
           </div>
+          </>}
         </div>
 
         {error && <div className="marketplaceAdminError" role="alert">{error}</div>}
@@ -885,6 +1141,8 @@ export function MarketplaceAdminPage() {
             </table>
           )}
         </section>
+
+        <PlatformSettingsPanel adminToken={adminToken} onTrialGrantEnabledChange={setTrialGrantEnabled} />
       </section>
     </main>
   );
@@ -921,8 +1179,10 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
   const [confirmPending, setConfirmPending] = useState(false);
   const [awaitingSupplement, setAwaitingSupplement] = useState(false);
   const [elapsed, setElapsed] = useState(0);
-  const [attachments, setAttachments] = useState<Array<{ kind: string; name: string }>>([]);
+  const [attachments, setAttachments] = useState<Array<{ kind: string; name: string; text?: string }>>([]);
   const [uploadNote, setUploadNote] = useState("");
+  /** 拖拽悬停态：让「把文件拖进来」这件事在界面上看得见。 */
+  const [dragActive, setDragActive] = useState(false);
   const [docxPrice, setDocxPrice] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
   /**
@@ -977,6 +1237,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     return () => { cancelled = true; };
   }, []);
 
+
   const bundle = sku ? isBundle(sku) : false;
   const steps = sku ? bundleSteps(sku, all) : [];
   const runSku = sku ? (bundle ? steps[0] ?? sku : sku) : sku;
@@ -990,6 +1251,16 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
   const topicSkuCode = runSku
     ? all.find((item) => item.skuCode === `${zoneOfSku(runSku.skuCode)}__topic`)?.skuCode ?? null
     : null;
+  /**
+   * PLAT-25B：chat 页浏览器 <title> 带上智能体名与专区名（多标签可区分、分享有识别度）；
+   * 页内标题同步用「智能体名 · 专区名」，不再拼 `flow.name · agent.name` 的重复段。
+   */
+  useEffect(() => {
+    if (runSku?.name) {
+      document.title = industry?.title ? `${runSku.name} · ${industry.title}` : `${runSku.name} - 思潼AI 行业智能体平台`;
+    }
+  }, [runSku?.skuCode, runSku?.name, industry?.title]);
+
 
   useEffect(() => {
     if (!flow || soon) return;
@@ -998,6 +1269,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
       { id: "q0", role: "ai", text: `**${flow.slots[0].label}**：${flow.slots[0].q}` }
     ]);
     setStep(0);
+
     setAnswers({});
     setInput("");
     setCost(null);
@@ -1052,15 +1324,26 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     }, 150000);
     try {
       const redoOf = redoOfRef.current;
+      const body: Record<string, unknown> = {
+        // 视频复盘额外带 mode / platform / period / has_revenue_data 结构化入参，
+        // 后端据此重算口径并校验（其余技能仍是纯文本需求单）。
+        ...buildRunBody(coreSkuCode(runSku.skuCode), flow, finalAnswers),
+        ...(redoOf ? { redoOf } : {})
+      };
+      // 附件必须真的进需求单：文本类附件内容拼在 input 末尾（接口上限 5 万字，这里再兜一次底），
+      // 只记文件名等于让 AI 空手干活——那才是真正的「不支持上传」。
+      const attachmentText = attachments
+        .filter((item) => item.text)
+        .map((item) => `【附件：${item.name}】\n${item.text}`)
+        .join("\n\n");
+      if (attachmentText) {
+        const baseInput = typeof body.input === "string" ? body.input : "";
+        body.input = `${baseInput}${baseInput ? "\n\n" : ""}${attachmentText}`.slice(0, 50_000);
+      }
       const runResponse = await fetch(apiPath(`/market/skus/${encodeURIComponent(runSku.skuCode)}/run`), {
         method: "POST",
         headers: authHeaders(true),
-        body: JSON.stringify({
-          // 视频复盘额外带 mode / platform / period / has_revenue_data 结构化入参，
-          // 后端据此重算口径并校验（其余技能仍是纯文本需求单）。
-          ...buildRunBody(coreSkuCode(runSku.skuCode), flow, finalAnswers),
-          ...(redoOf ? { redoOf } : {})
-        })
+        body: JSON.stringify(body)
       });
       if (handleStaleSession(runResponse.status)) {
         throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次未扣积分。");
@@ -1134,7 +1417,11 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
 
     const nextAnswers = { ...answers, [flow.slots[step].key]: value };
     setAnswers(nextAnswers);
-    setItems((prev) => [...prev, { id: `u${step}`, role: "user", text: value }]);
+    // 附件要出现在用户自己那条消息里，否则用户不知道文件到底有没有被带上。
+    const attachmentSuffix = attachments.length > 0
+      ? `\n（附件：${attachments.map((item) => item.name).join("、")}）`
+      : "";
+    setItems((prev) => [...prev, { id: `u${step}`, role: "user", text: value + attachmentSuffix }]);
 
     if (step < flow.slots.length - 1) {
       const next = step + 1;
@@ -1143,7 +1430,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
       return;
     }
 
-    // 5 项收齐后先确认需求再生成，避免「瞎输入」直接扣积分。
+    // 5 项收齐后先确认需求再生成，避免「瞎输入」直接产出。
     setConfirmPending(true);
   }
 
@@ -1199,12 +1486,51 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     fileRef.current?.click();
   }
 
+  /** 会被真正读进需求里的文本类附件（视频复盘的后台导出 CSV 就是走这条）。 */
+  const TEXT_ATTACHMENT_PATTERN = /\.(txt|md|csv|tsv|json|log|srt)$/i;
+  const MAX_ATTACHMENT_TEXT = 20_000;
+
+  /**
+   * 统一的附件入口：按钮选择、**拖拽进对话框**、以及粘贴文件都走这里。
+   *
+   * 口径（2026-09-13 用户要求「支持文件直接拖拽进浏览器的对话框」）：
+   * - 文本类（txt/md/csv/tsv/json/log/srt）直接读内容，发请求时拼进需求单，智能体真的能看到；
+   * - 其它类型（PDF/Word/Excel/图片/视频）当前只记录文件名并**明确告诉用户**要粘贴关键内容，
+   *   不做「假装已解析」。
+   */
+  async function addFiles(files: File[]) {
+    if (files.length === 0) return;
+    const next: Array<{ kind: string; name: string; text?: string }> = [];
+    const notes: string[] = [];
+    for (const file of files) {
+      const isVideo = /^video\//.test(file.type) || /\.(mp4|mov|m4v|webm|avi)$/i.test(file.name);
+      const kind = isVideo ? "video" : "file";
+      if (!isVideo && TEXT_ATTACHMENT_PATTERN.test(file.name)) {
+        try {
+          const raw = await file.text();
+          const truncated = raw.length > MAX_ATTACHMENT_TEXT;
+          next.push({ kind, name: file.name, text: raw.slice(0, MAX_ATTACHMENT_TEXT) });
+          notes.push(`已读取「${file.name}」的内容${truncated ? `（超过 ${MAX_ATTACHMENT_TEXT} 字，已截断）` : ""}`);
+        } catch {
+          next.push({ kind, name: file.name });
+          notes.push(`无法读取「${file.name}」，请把关键内容粘贴到对话框`);
+        }
+      } else if (isVideo) {
+        next.push({ kind, name: file.name });
+        notes.push(`已添加视频「${file.name}」：视频内容暂不能自动解析，请用文字说明要点`);
+      } else {
+        next.push({ kind, name: file.name });
+        notes.push(`已添加「${file.name}」：这类文件暂不能自动读取，请把关键内容（或另存为 CSV/TXT）粘贴/拖进来`);
+      }
+    }
+    setAttachments((prev) => [...prev, ...next]);
+    setUploadNote(notes.join("；"));
+  }
+
   function onFileChange() {
-    const file = fileRef.current?.files?.[0];
-    const kind = fileRef.current?.getAttribute("data-kind") ?? "file";
-    if (!file) return;
-    setAttachments((prev) => [...prev, { kind, name: file.name }]);
-    setUploadNote(`已上传${kind === "video" ? "视频" : "文件"}：${file.name}` + (kind === "video" ? "（视频内容解析将在后续接入）" : ""));
+    const files = Array.from(fileRef.current?.files ?? []);
+    if (files.length === 0) return;
+    void addFiles(files);
     if (fileRef.current) fileRef.current.value = "";
   }
 
@@ -1296,7 +1622,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
               </div>
             </div>
             <div className="zone-soon" style={{ margin: "0 16px" }}>
-              🔒 <b>这个智能体要登录后才能使用</b>：每生成一次扣 <b>{runSku?.ppu ?? 0} 积分</b>，结果存进你自己的账号，方便回看和免费重做一次。<br />
+                🔒 <b>这个智能体要登录后才能使用</b>：结果存进你自己的账号，方便回看，也方便不满意时免费重做一次。<br />
               现在不用填任何信息——登录后自动回到这一页，我再带你走那 4 步。
             </div>
             <div className="chat-page-composer">
@@ -1307,15 +1633,44 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
         </section>
       ) : (
         <section className="view view-chat chat-page-body">
-          <div className="chat-page-shell">
+          <div
+            className="chat-page-shell"
+            style={{ position: "relative" }}
+            onDragOver={(event) => { event.preventDefault(); setDragActive(true); }}
+            onDragEnter={(event) => { event.preventDefault(); setDragActive(true); }}
+            onDragLeave={(event) => {
+              const next = event.relatedTarget as Node | null;
+              if (!next || !event.currentTarget.contains(next)) setDragActive(false);
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              setDragActive(false);
+              void addFiles(Array.from(event.dataTransfer?.files ?? []));
+            }}
+          >
           <div className="chat-page-head">
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <button className="back" onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}`); }}>‹ 返回详情</button>
               <img className="chat-avatar-img" src={sitongAvatar} alt="思潼" />
-              <span className="chat-page-title">{flow.name} · {runSku?.name ?? ""}</span>
+              <span className="chat-page-title">{runSku?.name ?? flow.name ?? "智能体"}{industry?.title ? ` · ${industry.title}` : ""}</span>
             </div>
             {cost !== null && <span className="chat-page-cost">本次消耗 {cost} 积分 · 双桶钱包</span>}
           </div>
+          {dragActive && (
+            <div
+              className="chat-hint"
+              style={{
+                margin: "0 0 10px",
+                padding: "8px 12px",
+                borderRadius: 12,
+                border: "1px dashed var(--accent2)",
+                background: "rgba(255,138,61,.14)",
+                color: "var(--accent2)"
+              }}
+            >
+              松手即可把文件添加到对话框（文本类 CSV / TXT / MD / JSON 会直接读进需求）
+            </div>
+          )}
           {!done && flow.slots.length > 1 && (
             <div className="chat-progress">
               {flow.slots.map((slot, idx) => {
@@ -1357,7 +1712,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                 <div className="chat-bubble ai" style={{ maxWidth: "84%" }}>
                   <span className="chat-bubble-label">思潼 · {sku?.name ?? "智能体"}</span>
                   <div className="md-rich" style={{ color: "var(--text)", fontSize: 14, lineHeight: 1.7 }}>
-                    <p><b>请先确认需求</b>：确认后我按下面这套信息生成交付（约扣 {runSku?.ppu ?? 0} 积分）。如有不对，点「修改」重填。</p>
+                <p><b>请先确认需求</b>：确认后我按下面这套信息生成交付。如有不对，点「修改」重填。</p>
                     <table className="report-table">
                       <tbody>
                         {flow.slots.map((slot) => (
@@ -1384,7 +1739,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
             <div className="chat-page-composer">
               {freeRedoUsed ? (
                 <div className="chat-hint" style={{ marginBottom: 10 }}>
-                  本单的免费重做机会已用完；如需再生成会按次扣 {runSku?.ppu ?? 0} 积分，可点「重新开始」。
+                本单的免费重做机会已用完；如需再生成一次，可点「重新开始」。
                 </div>
               ) : (
                 <button className="btn ghost block" style={{ marginBottom: 10 }} disabled={busy || !lastRequestId} onClick={redoDelivery}>
@@ -1406,12 +1761,23 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                 <button className="btn ghost sm" onClick={() => openFile("file")}>📎 文件</button>
                 <button className="btn ghost sm" onClick={() => openFile("video")}>🎬 视频</button>
                 <button className="btn ghost sm" onClick={enhanceInput}>✨ 增强提示词</button>
-                <input ref={fileRef} type="file" style={{ display: "none" }} onChange={onFileChange} />
+                <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={onFileChange} />
               </div>
+              <div>
               {attachments.length > 0 && (
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                   {attachments.map((a, i) => (
-                    <span key={i} style={{ background: "var(--glass)", border: "1px solid var(--line)", borderRadius: 999, padding: "3px 10px", fontSize: 12, color: "var(--text)" }}>{a.kind === "video" ? "🎬" : "📎"} {a.name}</span>
+                    <span key={i} style={{ background: "var(--glass)", border: "1px solid var(--line)", borderRadius: 999, padding: "3px 10px", fontSize: 12, color: "var(--text)" }}>
+                      {a.kind === "video" ? "🎬" : "📎"} {a.name}{a.text ? "（已读取）" : ""}
+                      <button
+                        type="button"
+                        aria-label={`移除 ${a.name}`}
+                        onClick={() => setAttachments((prev) => prev.filter((_, index) => index !== i))}
+                        style={{ marginLeft: 6, background: "none", border: "none", color: "var(--muted)", cursor: "pointer" }}
+                      >
+                        ×
+                      </button>
+                    </span>
                   ))}
                 </div>
               )}
@@ -1425,6 +1791,13 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
               )}
               <textarea
                 value={input}
+                onPaste={(event) => {
+                  const files = Array.from(event.clipboardData?.files ?? []);
+                  if (files.length > 0) {
+                    event.preventDefault();
+                    void addFiles(files);
+                  }
+                }}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -1442,7 +1815,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                   {busy ? "正在生成…" : awaitingSupplement ? "重新生成" : step < flow.slots.length - 1 ? "下一步" : "确认需求"}
                 </button>
               </div>
-              <div className="chat-hint">AI 会按本智能体技能逻辑<b>主动提问，引导你补全信息</b>，补全后产出结果 · 可上传：视频 / 文件（单文件 ≤ 50MB）</div>
+              </div>
+              <div className="chat-hint">AI 会按本智能体技能逻辑<b>主动提问，引导你补全信息</b>，补全后产出结果 · <b>可把文件直接拖进这里</b>（文本类 CSV/TXT/MD/JSON 会读进需求；PDF/Word/Excel/图片/视频暂只记文件名）</div>
             </div>
           )}
           </div>

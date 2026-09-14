@@ -737,7 +737,7 @@ if (-not $OfflineSelfTest) {
     if ($env:BEAUTY_MEDIA_REAL_EXECUTION_APPROVED -ne "true" -or $env:LANQI_MEDIA_REAL_EXECUTION_APPROVED -ne "true") { throw "Approved XHS media profile is missing the explicit real-execution approvals." }
     if ([int]$env:BEAUTY_MEDIA_MAX_REAL_IMAGES -ne 3) { throw "Approved XHS media profile must be capped at three images." }
     if ([decimal]$env:BEAUTY_MEDIA_MAX_PROVIDER_COST_YUAN -le 0 -or [decimal]$env:BEAUTY_MEDIA_MAX_PROVIDER_COST_YUAN -gt 1) { throw "Approved XHS media profile exceeds the local acceptance cost boundary." }
-    if ([int]$env:BEAUTY_MEDIA_IMAGE_CREDITS -ne 100 -or $env:BEAUTY_MEDIA_ASSET_STORAGE -ne "local") { throw "Approved XHS media profile must use the 300-credit three-image contract and local storage." }
+    if ([int]$env:BEAUTY_MEDIA_IMAGE_CREDITS -ne 20 -or $env:BEAUTY_MEDIA_ASSET_STORAGE -ne "local") { throw "Approved XHS media profile must use the 60-credit three-image contract (¥1/张 = 20 积分, 2026-09-12 定价) and local storage." }
     if ($env:LANQI_MEDIA_IMAGE_MODEL -ne "wan2.7-image") { throw "Approved XHS media profile requires wan2.7-image." }
   }
   $mediaExecutionMode = if ($approvedMediaRequested) { [string]$env:BEAUTY_MEDIA_EXECUTION_MODE } else { "disabled" }

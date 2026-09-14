@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { apiPath, getAppPath } from "../lib/api";
+import { billingErrorCopy } from "../lib/humanize-error.js";
 
 interface CreditPack {
   code: string;
@@ -32,6 +33,56 @@ interface BillingAccessToken {
 
 const PTS_PER_YUAN = 20;
 
+/**
+ * 微信内置浏览器：必须走 JSAPI 收银台（`WeixinJSBridge`），不能只出二维码。
+ *
+ * 2026-09-13 用户真机实测：手机微信里打开充值页，页面只出 Native 二维码——
+ * 用户没法用同一部手机扫自己屏幕上的码，长按识别又被微信拒绝
+ * （“该商户暂时不支持通过长按识别二维码完成支付”），只能改用电脑打开页面才付得了款。
+ * 现在微信内 → JSAPI 直接拉起收银台；其它环境（电脑、普通手机浏览器）→ 仍用二维码。
+ */
+function isWechatInAppBrowser(): boolean {
+  return typeof navigator !== "undefined" && /MicroMessenger/i.test(navigator.userAgent);
+}
+
+interface WeixinJsBridgeLike {
+  invoke: (api: string, params: Record<string, unknown>, callback: (res: { err_msg?: string }) => void) => void;
+}
+
+/** 拉起微信内支付。返回 ok / cancel / fail，失败时由上层给「重新支付」与备选路径。 */
+function invokeWechatJsapiPay(payParams: Record<string, unknown>): Promise<"ok" | "cancel" | "fail"> {
+  return new Promise((resolve) => {
+    const bridge = (window as unknown as { WeixinJSBridge?: WeixinJsBridgeLike }).WeixinJSBridge;
+    const call = () => {
+      const active = (window as unknown as { WeixinJSBridge?: WeixinJsBridgeLike }).WeixinJSBridge;
+      if (!active) {
+        resolve("fail");
+        return;
+      }
+      active.invoke("getBrandWCPayRequest", payParams, (res) => {
+        const message = res?.err_msg ?? "";
+        if (message === "get_brand_wcpay_request:ok") resolve("ok");
+        else if (message === "get_brand_wcpay_request:cancel") resolve("cancel");
+        else resolve("fail");
+      });
+    };
+    if (bridge) {
+      call();
+      return;
+    }
+    // 微信注入 JSBridge 有两个时机：已注入、或等 `WeixinJSBridgeReady` 事件。
+    const onReady = () => {
+      document.removeEventListener("WeixinJSBridgeReady", onReady);
+      call();
+    };
+    document.addEventListener("WeixinJSBridgeReady", onReady);
+    window.setTimeout(() => {
+      document.removeEventListener("WeixinJSBridgeReady", onReady);
+      if (!(window as unknown as { WeixinJSBridge?: WeixinJsBridgeLike }).WeixinJSBridge) resolve("fail");
+    }, 2000);
+  });
+}
+
 function packPts(pack: CreditPack): number {
   return pack.baseCredits + pack.bonusCredits;
 }
@@ -54,14 +105,6 @@ async function readJson<T>(response: Response): Promise<T> {
   return payload as T;
 }
 
-function customerMessage(reason: unknown, fallback = "服务暂时不可用，请稍后再试。"): string {
-  const message = reason instanceof Error ? reason.message : String(reason ?? "");
-  if (/insufficient_credits/.test(message)) return "企业积分不足，请先充值后再使用。";
-  if (/login_required|membership_not_found|missing_tenant_or_user/.test(message)) return "请先完成登录。";
-  if (/^[a-z0-9_:-]+$/i.test(message)) return fallback;
-  return message || fallback;
-}
-
 function formatDate(value: string): string {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return value;
@@ -82,12 +125,14 @@ export function RechargePage() {
   const [notice, setNotice] = useState("");
   const [busyCode, setBusyCode] = useState("");
   const [qrSrc, setQrSrc] = useState("");
+  /** 当前这一单用的是哪种支付方式：jsapi（微信内收银台）/ native（二维码）。 */
+  const [payMode, setPayMode] = useState<"none" | "jsapi" | "native">("none");
   const [orderId, setOrderId] = useState("");
   const [accessTokens, setAccessTokens] = useState<BillingAccessToken[]>([]);
   const [newToken, setNewToken] = useState("");
   const [tokenLabel, setTokenLabel] = useState("WorkBuddy 访问令牌");
   const pollRef = useRef<number | null>(null);
-  const isLocal = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+const isLocal = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
 
   useEffect(() => {
     void loadPacks();
@@ -112,7 +157,7 @@ export function RechargePage() {
         setPlanIdx(hot >= 0 ? hot : 0);
       }
     } catch (reason) {
-      setError(customerMessage(reason, "充值档位加载失败，请刷新重试。"));
+      setError(billingErrorCopy(reason, "充值档位加载失败，请刷新重试。"));
     } finally {
       setLoading(false);
     }
@@ -142,6 +187,7 @@ export function RechargePage() {
     setError("");
     setNotice("");
     setQrSrc("");
+    setPayMode("none");
     setBusyCode(pack.code);
     try {
       const created = await fetch(apiPath("/billing/orders"), {
@@ -152,12 +198,52 @@ export function RechargePage() {
 
       if (isLocal) {
         setNotice("本机验收：订单已创建，点击「模拟支付到账」入账双桶。");
+      } else if (isWechatInAppBrowser()) {
+        // 微信内：直接拉起收银台，用户不需要（也没法）扫自己屏幕上的二维码。
+        setPayMode("jsapi");
+        let payParams: Record<string, unknown> | undefined;
+        try {
+          const prepay = await fetch(apiPath(`/billing/orders/${created.order.id}/wechat-prepay`), {
+            method: "POST",
+            headers: { ...authHeaders(), "Content-Type": "application/json" },
+            body: JSON.stringify({ tradeType: "jsapi" })
+          }).then(readJson<{ payParams?: Record<string, unknown>; order?: { payParams?: Record<string, unknown> } }>);
+          // 接口把收银台参数放在顶层 `payParams`（实测 2026-09-13：appId/nonceStr/package/paySign/signType/timeStamp）。
+          // 同时兼容早期把 payParams 嵌在 order 里的结构，避免任何一侧改动把支付打哑。
+          payParams = prepay.payParams ?? prepay.order?.payParams;
+        } catch {
+          // 例如账号没有微信 openid（非微信注册的老账号）：下面回落二维码，不让流程卡死。
+          payParams = undefined;
+        }
+        setOrderId(created.order.id);
+        void pollOrder(created.order.id);
+        if (!payParams) {
+          try {
+            await fetch(apiPath(`/billing/orders/${created.order.id}/wechat-prepay`), {
+              method: "POST",
+              headers: { ...authHeaders(), "Content-Type": "application/json" },
+              body: JSON.stringify({ tradeType: "native" })
+            }).then(readJson);
+            setPayMode("native");
+            setQrSrc(apiPath(`/billing/orders/${created.order.id}/wechat-qr.svg`));
+            setNotice("已在页面生成收款二维码：用另一台设备的微信扫码支付；也可以点上面的按钮重试微信内支付。");
+          } catch {
+            setNotice("微信支付暂时拉不起来，请点上面的按钮重试，或稍后换电脑打开本页扫码支付。");
+          }
+          return;
+        }
+        const result = await invokeWechatJsapiPay(payParams);
+        if (result === "ok") setNotice("支付完成，正在到账…（到账后积分立即可用）");
+        else if (result === "cancel") setNotice("你取消了支付，点上面的按钮可以重新支付。");
+        else setNotice("微信收银台没有正常拉起：请点上面的按钮重试；仍然不行就用电脑打开本页扫码支付。");
+        return;
       } else {
         await fetch(apiPath(`/billing/orders/${created.order.id}/wechat-prepay`), {
           method: "POST",
           headers: { ...authHeaders(), "Content-Type": "application/json" },
           body: JSON.stringify({ tradeType: "native" })
         }).then(readJson);
+        setPayMode("native");
         setQrSrc(apiPath(`/billing/orders/${created.order.id}/wechat-qr.svg`));
       }
       setOrderId(created.order.id);
@@ -169,7 +255,7 @@ export function RechargePage() {
         setToken("");
         return;
       }
-      setError(customerMessage(reason, "下单失败，请稍后重试。"));
+      setError(billingErrorCopy(reason, "下单失败，请稍后重试。"));
     } finally {
       setBusyCode("");
     }
@@ -216,7 +302,7 @@ export function RechargePage() {
       setOrderId("");
       await refreshBalance();
     } catch (reason) {
-      setError(customerMessage(reason, "模拟支付失败。"));
+      setError(billingErrorCopy(reason, "模拟支付失败。"));
     } finally {
       setBusyCode("");
     }
@@ -236,7 +322,7 @@ export function RechargePage() {
       setAccessTokens((current) => [created.accessToken, ...current]);
       setNotice("访问令牌已生成，只显示这一次，请立即复制保存。");
     } catch (reason) {
-      setError(customerMessage(reason, "访问令牌生成失败。"));
+      setError(billingErrorCopy(reason, "访问令牌生成失败。"));
     }
   }
 
@@ -252,7 +338,7 @@ export function RechargePage() {
       setAccessTokens((current) => [rotated.accessToken, ...current.filter((item) => item.id !== id)]);
       setNotice("旧访问令牌已失效，新访问令牌只显示这一次。");
     } catch (reason) {
-      setError(customerMessage(reason, "访问令牌刷新失败。"));
+      setError(billingErrorCopy(reason, "访问令牌刷新失败。"));
     }
   }
 
@@ -264,7 +350,7 @@ export function RechargePage() {
       setAccessTokens((current) => current.map((item) => item.id === id ? { ...item, status: "revoked", revokedAt: new Date().toISOString() } : item));
       setNotice("访问令牌已失效。");
     } catch (reason) {
-      setError(customerMessage(reason, "访问令牌失效操作失败。"));
+      setError(billingErrorCopy(reason, "访问令牌失效操作失败。"));
     }
   }
 
@@ -379,9 +465,14 @@ export function RechargePage() {
                 </button>
               )}
 
-              {qrSrc && (
-                <div className="rc-qr"><p>请使用微信扫码支付，到账后积分立即可用。</p><img src={qrSrc} alt="微信支付二维码" /></div>
-              )}
+      {qrSrc && (
+        <div className="rc-qr"><p>请使用微信扫码支付，到账后积分立即可用。</p><img src={qrSrc} alt="微信支付二维码" /></div>
+      )}
+      {payMode === "jsapi" && !qrSrc && (
+        <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--muted)", lineHeight: 1.7 }}>
+          微信内支付：已直接调起微信收银台（不需要扫码）。若没有弹出，点上面的按钮重试；仍不行就用电脑打开本页扫码支付。
+        </p>
+      )}
 
               <div className="rc-notes">
                 <span>✓ 基准 1 元 = 20 积分，充得越多多送越多</span>

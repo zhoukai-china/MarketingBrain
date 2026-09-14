@@ -14,6 +14,7 @@ import {
   payDemoBillingOrder
 } from "../services/demo-billing.js";
 import { applyPaidOrder } from "../services/billing-effects.js";
+import { maybeGrantReferralReward } from "../services/referral-rewards.js";
 import { resolveRequestContext } from "../services/request-context.js";
 import {
   createWechatJsapiPrepay,
@@ -262,6 +263,11 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     }
 
     const paidOrder = await applyPaidOrder(order.id);
+        if (paidOrder?.userId) {
+          await maybeGrantReferralReward({ referredUserId: paidOrder.userId, kind: "referrer_first_recharge" }).catch((error: unknown) => {
+            request.log.warn({ err: error }, "referral reward(referrer_first_recharge) failed");
+          });
+        }
     return {
       dataMode: "database",
       order: paidOrder,
@@ -535,6 +541,11 @@ async function registerWechatNotifyRoute(app: FastifyInstance): Promise<void> {
           }
         });
         await applyPaidOrder(order.id);
+        if (order.userId) {
+          await maybeGrantReferralReward({ referredUserId: order.userId, kind: "referrer_first_recharge" }).catch((error: unknown) => {
+            request.log.warn({ err: error }, "referral reward(referrer_first_recharge) failed");
+          });
+        }
 
         return reply.code(200).send({
           code: "SUCCESS",

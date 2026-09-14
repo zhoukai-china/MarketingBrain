@@ -281,7 +281,20 @@ export async function consumeWalletCredits(params: {
       }
 
       const paidUse = Math.min(wallet.paidBalance, amount);
-      const bonusUse = Math.min(wallet.bonusBalance, amount - paidUse);
+      // PLAT-28 第②批：推荐奖励有 90 天到期（expiresAt），已到期的推荐奖励积分不可消费。
+      // 采用聚合口径：从 bonus 余额里扣除「已过期且仍未花掉的推荐奖励」总量（保守，且不误放行过期积分）。
+      const expiredReferralAgg = await tx.walletLedger.aggregate({
+        where: {
+          userId: params.userId,
+          bucket: "bonus",
+          type: "bonus",
+          source: { startsWith: "referral_reward:" },
+          expiresAt: { not: null, lte: new Date() }
+        },
+        _sum: { delta: true }
+      });
+      const expiredReferral = Math.max(0, expiredReferralAgg._sum.delta ?? 0);
+      const bonusUse = Math.min(Math.max(0, wallet.bonusBalance - expiredReferral), amount - paidUse);
       const totalUse = paidUse + bonusUse;
 
       if (totalUse < amount) {
