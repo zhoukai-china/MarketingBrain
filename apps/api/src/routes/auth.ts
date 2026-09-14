@@ -5,11 +5,14 @@ import QRCode from "qrcode";
 import { prisma } from "@baolu/db";
 import {
   PLANS,
-  PRODUCT_LOGIN_CODES,
   PRODUCT_LOGIN_DEFINITIONS,
   type PlanCode,
   type ProductLoginCode,
-} from "@baolu/shared";
+} from "@baolu/shared";
+
+import { betaLoginSchema, bindPhoneSchema, devLoginSchema, diagnosisReportSchema, onboardingWorkspaceSchema, productInviteValidationSchema, productLoginCodeSchema, wechatLoginSchema } from "./auth-schemas.js";
+import { grantBetaAgentEntitlements, maskPhone, restrictWorkspaceToProductAgents, translateInviteError } from "./auth-helpers.js";
+
 import { env, inviteRequired } from "../config/env.js";
 import {
   createOnboardingToken,
@@ -65,75 +68,6 @@ function rejectAuthBrandOverride(value: unknown, reply: FastifyReply): boolean {
     return true;
   }
 }
-
-const productLoginCodeSchema = z.enum(PRODUCT_LOGIN_CODES);
-
-const devLoginSchema = z.object({
-  tenantRole: z.enum(["personal_ip", "local_business", "chain_brand"]).default("local_business"),
-  tenantName: z.string().trim().min(1).max(80).default("演示商家"),
-  planCode: z.enum(["local_standard", "local_premium", "ip_standard", "ip_premium", "chain_standard", "chain_premium"]).optional(),
-  industry: z.string().trim().max(80).optional(),
-  city: z.string().trim().max(80).optional(),
-  phone: z.string().optional(),
-  nickname: z.string().optional(),
-  productCode: productLoginCodeSchema.optional(),
-  // PLAT-28：推荐有礼推荐码（`/login?ref=xxx` 带过来）。无效/重复只拒绝归因，不影响开通。
-  referralCode: z.string().trim().max(200).optional(),
-});
-
-const betaLoginSchema = z.object({
-  tenantRole: z.enum(["personal_ip", "local_business", "chain_brand"]).default("local_business"),
-  tenantName: z.string().trim().min(1).max(80).default("演示商家"),
-  planCode: z.enum(["local_standard", "local_premium", "ip_standard", "ip_premium", "chain_standard", "chain_premium"]).optional(),
-  industry: z.string().trim().max(80).optional(),
-  city: z.string().trim().max(80).optional(),
-  phone: z.string().optional(),
-  nickname: z.string().optional(),
-  // 平台主入口开放注册（INVITE_REQUIRED=false）后不再强制邀请码，schema 必须允许缺省；
-  // 缺省时由 validateInviteCode 按服务端开关判定：开放注册放行，邀请制返回
-  // 403 invite_code_required（与产品入口同一套错误语义），不再在 schema 层抛 400。
-  inviteCode: z.string().trim().max(200).optional(),
-  productCode: productLoginCodeSchema.optional(),
-  // PLAT-28：推荐有礼推荐码；缺省或非法都不阻断注册，只是不产生归因。
-  referralCode: z.string().trim().max(200).optional(),
-});
-
-const productInviteValidationSchema = z.object({
-  productCode: productLoginCodeSchema,
-  inviteCode: z.string().trim().min(1).max(200),
-});
-
-const wechatLoginSchema = z.object({
-  code: z.string().min(1),
-  tenantHostname: z.string().trim().max(253).optional(),
-  productCode: productLoginCodeSchema.optional(),
-});
-
-const bindPhoneSchema = z.object({
-  phone: z.string().min(6).max(32),
-  code: z.string().optional()
-});
-
-const diagnosisReportSchema = z.object({
-  summary: z.string(),
-  recommendedPlan: z.string(),
-  roadmap: z.array(z.object({ step: z.string(), content: z.string(), priority: z.number() }))
-});
-
-const onboardingWorkspaceSchema = z.object({
-  onboardingToken: z.string().min(1),
-  planCode: z.enum(["local_standard", "local_premium", "ip_standard", "ip_premium", "chain_standard", "chain_premium"]).default("local_standard"),
-  tenantName: z.string().min(1).max(80),
-  industry: z.string().optional(),
-  city: z.string().optional(),
-  phone: z.string().optional(),
-  nickname: z.string().optional(),
-  inviteCode: z.string().optional(),
-  // PLAT-28：推荐有礼推荐码（微信授权 → 补资料 → 开通工作区这条路上带的码）。
-  referralCode: z.string().optional(),
-  productCode: productLoginCodeSchema.optional(),
-  diagnosisReport: diagnosisReportSchema.optional()
-});
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   app.post("/auth/product-invite/validate", async (request, reply) => {
@@ -979,87 +913,5 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       bound: true,
       phone: maskPhone(parsed.data.phone)
     };
-  });
-}
-
-function maskPhone(phone: string): string {
-  if (phone.length <= 7) return phone;
-  return `${phone.slice(0, 3)}****${phone.slice(-4)}`;
-}
-
-function translateInviteError(error: string | undefined): string {
-  if (error === "invite_code_expired") return "邀请码已过期，请联系服务团队重新发放";
-  if (error === "invite_code_exhausted") return "邀请码使用次数已用完，请联系服务团队";
-  if (error === "invite_code_product_mismatch") return "该邀请码不属于当前产品，请使用邀请消息中的正确入口";
-  return "当前体验名额需要邀请码，请填写有效邀请码";
-}
-
-async function grantBetaAgentEntitlements(
-  transactionClient: any,
-  tenantId: string,
-  productCode?: ProductLoginCode,
-): Promise<void> {
-  const now = new Date();
-  const expiresAt = new Date(now);
-  expiresAt.setDate(expiresAt.getDate() + 30);
-  if (productCode) {
-    await transactionClient.tenantProductEntitlement.upsert({
-      where: { tenantId_productCode: { tenantId, productCode } },
-      update: { status: "active", startsAt: now, expiresAt, source: "product_invite" },
-      create: { tenantId, productCode, status: "active", startsAt: now, expiresAt, source: "product_invite" },
-    });
-  }
-  const agentIds = productCode
-    ? PRODUCT_LOGIN_DEFINITIONS[productCode].agentIds
-    : ["agent_acquisition", "agent_takeaway_growth", "agent_restaurant_growth"];
-  for (const agentId of agentIds) {
-    await transactionClient.tenantAgentEntitlement.upsert({
-      where: {
-        tenantId_agentId: {
-          tenantId,
-          agentId
-        }
-      },
-      update: {
-        status: "active",
-        startsAt: now,
-        expiresAt,
-        source: "beta_invite"
-      },
-      create: {
-        tenantId,
-        agentId,
-        status: "active",
-        startsAt: now,
-        expiresAt,
-        source: "beta_invite"
-      }
-    });
-  }
-}
-
-async function restrictWorkspaceToProductAgents(
-  transactionClient: any,
-  tenantId: string,
-  userId: string,
-  productCode?: ProductLoginCode,
-): Promise<void> {
-  if (!productCode) return;
-  const allowedAgentIds = [...PRODUCT_LOGIN_DEFINITIONS[productCode].agentIds];
-  const memberships = await transactionClient.membership.findMany({
-    where: { tenantId, userId },
-    select: { id: true },
-  });
-  await transactionClient.memberAgentAccess.deleteMany({
-    where: {
-      membershipId: { in: memberships.map((membership: { id: string }) => membership.id) },
-      ...(allowedAgentIds.length > 0 ? { agentId: { notIn: allowedAgentIds } } : {}),
-    },
-  });
-  await transactionClient.tenantAgentEntitlement.deleteMany({
-    where: {
-      tenantId,
-      ...(allowedAgentIds.length > 0 ? { agentId: { notIn: allowedAgentIds } } : {}),
-    },
   });
 }

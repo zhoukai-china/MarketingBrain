@@ -23,8 +23,9 @@ const [server, guards, register] = await Promise.all([
 const shell = await readFile(new URL("../apps/web/src/marketplace/shell.tsx", import.meta.url), "utf8");
 const lanqiRoutes = await readFile(new URL("../apps/web/src/routes/lanqi.tsx", import.meta.url), "utf8");
 const homePage = await readFile(new URL("../apps/web/src/marketplace/HomePage.tsx", import.meta.url), "utf8");
+const authSchemas = await readFile(new URL("../apps/api/src/routes/auth-schemas.ts", import.meta.url), "utf8");
 const styles = await readFile(new URL("../apps/web/src/styles/store-growth.css", import.meta.url), "utf8");
-const devSchemaSection = auth.slice(auth.indexOf("const devLoginSchema"), auth.indexOf("const betaLoginSchema"));
+const devSchemaSection = authSchemas.slice(authSchemas.indexOf("const devLoginSchema"), authSchemas.indexOf("const betaLoginSchema"));
 const devRouteSection = auth.slice(auth.indexOf('app.post("/auth/dev-login"'), auth.indexOf("// Check whether WeChat auth"));
 const demoQuickLoginSection = login.slice(login.indexOf("async function handleDemoQuickLogin"), login.indexOf('if (!isCustomDomain && entry === "generic")'));
 
@@ -49,7 +50,7 @@ assert.match(beautyWorkspace, /reason instanceof ApiRequestError && reason\.stat
 assert.match(beautyWorkspace, /localStorage\.removeItem\("store_os_token"\)/, "401恢复前必须清理失效会话");
 assert.match(beautyWorkspace, /window\.location\.replace\(getAppPath\("\/login\/beauty-industry"\)\)/, "401必须回到美业产品登录链");
 assert.match(demoQuickLoginSection, /productCode:\s*product\?\.code/, "本机直接体验入口必须把当前产品代码交给后端授权链");
-assert.match(auth, /productLoginCodeSchema/, "后端必须校验产品代码");
+assert.match(authSchemas, /productLoginCodeSchema/, "后端必须校验产品代码");
 assert.match(devSchemaSection, /productCode:\s*productLoginCodeSchema\.optional\(\)/, "本机产品登录必须校验可选产品代码");
 assert.match(devRouteSection, /grantBetaAgentEntitlements\(tx, nextWorkspace\.tenant\.id, product\?\.code\)/, "本机产品登录必须在同一事务内创建产品授权");
 assert.equal(
@@ -115,8 +116,8 @@ assert.match(login, /"登录 \/ 注册"/, "平台登录页必须同时承载登�
 assert.match(login, /"微信一键登录 \/ 注册"/, "平台登录页必须提供微信一键登录 / 注册");
 // 开放注册（服务端 INVITE_REQUIRED=false，用户 2026-09-10 拍板「去掉邀请码，只留微信一键登录/注册」）：
 // 平台主入口不得再渲染邀请码入口；产品入口（美业 / 兰琪等）仍按产品邀请码校验。
-const betaSchemaSection = auth.slice(auth.indexOf("const betaLoginSchema"), auth.indexOf("const productInviteValidationSchema"));
-const productInviteSchemaSection = auth.slice(auth.indexOf("const productInviteValidationSchema"), auth.indexOf("const wechatLoginSchema"));
+const betaSchemaSection = authSchemas.slice(authSchemas.indexOf("const betaLoginSchema"), authSchemas.indexOf("const productInviteValidationSchema"));
+const productInviteSchemaSection = authSchemas.slice(authSchemas.indexOf("const productInviteValidationSchema"), authSchemas.indexOf("const wechatLoginSchema"));
 assert.match(
   betaSchemaSection,
   /inviteCode:\s*z\.string\(\)\.trim\(\)\.max\(200\)\.optional\(\)/,
