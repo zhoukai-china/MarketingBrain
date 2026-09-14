@@ -20,6 +20,7 @@ const [server, guards, register] = await Promise.all([
   readFile(new URL("../apps/api/src/services/access-guards.ts", import.meta.url), "utf8"),
   readFile(new URL("../apps/api/src/products/register.ts", import.meta.url), "utf8"),
 ]);
+const shell = await readFile(new URL("../apps/web/src/marketplace/shell.tsx", import.meta.url), "utf8");
 const lanqiRoutes = await readFile(new URL("../apps/web/src/routes/lanqi.tsx", import.meta.url), "utf8");
 const styles = await readFile(new URL("../apps/web/src/styles/store-growth.css", import.meta.url), "utf8");
 const devSchemaSection = auth.slice(auth.indexOf("const devLoginSchema"), auth.indexOf("const betaLoginSchema"));
@@ -318,7 +319,7 @@ console.log("推荐码跨授权往返不丢的回归通过（QA-20260912-022）�
 // `/login`，微信回调的 state 也不带码 → 补资料提交时码没了。加固：① 码进微信 state；② 所有「去登录」跳转带码。
 assert.match(login, /pendingReferralForState/, "微信授权必须把推荐码塞进 state（微信原样回传）");
 assert.match(wechatCallback, /referralFromState/, "回调页必须能从 state 里把推荐码还原");
-assert.match(marketplaceApp, /loginPathWithPendingReferral/, "货架等「去登录」跳转必须自动带上暂存的推荐码");
+assert.match(shell, /loginPathWithPendingReferral/, "货架等「去登录」跳转必须自动带上暂存的推荐码");
 assert.match(referralNotice, /store_os_referral_existing_notice/, "老账号提示标记仍在（防止被覆盖）");
 console.log("推荐码在站内跳转/微信回调两处断点的回归通过（QA-20260913-002）。");
 

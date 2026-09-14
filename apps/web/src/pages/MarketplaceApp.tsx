@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
 import { referenceCaseForSku, type ReferenceCase } from "../marketplace/reference-cases.js";
-import { clearStoredSession, readSessionToken } from "../lib/session.js";
+import { readSessionToken } from "../lib/session.js";
 import {
   clearExistingUserReferralNotice,
   readExistingUserReferralNotice
 } from "../lib/referral-notice.js";
-import { loginPathWithPendingReferral } from "../lib/pending-referral.js";
 import { chatFlowFor, buildRunBody } from "../marketplace/chat-flows.js";
 import { IpPosReport, type IpPosPayload } from "../marketplace/ip-pos-report.js";
 import { VidrevReport, isVidrevPayload, VIDREV_PREFILL_KEY, type VidrevPayload } from "../marketplace/vidrev-report.js";
@@ -24,165 +23,17 @@ import {
   type MarketplaceSku,
   type MarketplaceZone
 } from "../marketplace/sku-model.js";
-
-function authHeaders(json = false): Record<string, string> {
-  const token = localStorage.getItem("store_os_token");
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(json ? { "Content-Type": "application/json" } : {})
-  };
-}
-
-async function readJson<T>(response: Response): Promise<T> {
-  const data = await response.json().catch(() => ({})) as T & { message?: string };
-  if (!response.ok) throw new Error(data.message ?? `请求失败（${response.status}）`);
-  return data;
-}
-
-/** 管理端读取：把 401/403 翻译成销售能看懂的话，其余沿用服务端 message / error。 */
-async function adminReadJson<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    if (response.status === 403) {
-      const data = (await response.json().catch(() => ({}))) as { error?: string; message?: string };
-      // PLAT-28：停用是「功能关闭」，不是「你没权限」，两者的用户动作完全不同，必须分开讲。
-      if (data.error === "trial_grant_disabled") {
-        throw new Error(data.message ?? "人工发放体验额度已停用。");
-      }
-      throw new Error("当前账号没有发放权限（需要 operator 及以上角色），请用运营/销售后台账号登入。");
-    }
-    if (response.status === 401) {
-      const data = (await response.json().catch(() => ({}))) as { error?: string };
-      throw new Error(
-        data.error === "admin_token_required"
-          ? "体验额度发放需要平台运营凭证：请在上方填写「平台管理令牌」后再试。"
-          : "登录已失效，请重新登入后再发放。"
-      );
-    }
-    const data = (await response.json().catch(() => ({}))) as { message?: string; error?: string };
-    throw new Error(data.message ?? data.error ?? `请求失败（${response.status}）`);
-  }
-  return (await response.json()) as T;
-}
-
-/**
- * 运营后台专用请求头（PLAT-11）。
- *
- * 体验额度是资金侧写操作，服务端除角色守卫外还要求平台运营凭证
- * （`x-sitong-admin-token` == `ADMIN_TOKEN`，与 `/admin/invites` 同源），
- * 否则任何商家 owner 都能给自己发体验积分（QA-20260911-009）。
- * 凭证只挂在这一条请求路径上，不并进通用 `authHeaders`，避免泄漏到普通接口。
- */
-function adminAuthHeaders(json = false): Record<string, string> {
-  const token = sessionStorage.getItem("sitong_admin_token");
-  return {
-    ...authHeaders(json),
-    ...(token ? { "x-sitong-admin-token": token } : {})
-  };
-}
-
-/**
- * 服务端判定「会话失效」（401/403）时统一收口：清掉本地 token。
- * 不清的话页面会一边显示「未登录 · 点击登录」、一边在 localStorage 里留着失效 token，
- * 用户点登录立刻被弹回货架，形成登录死循环（QA-20260910-018）。
- */
-function handleStaleSession(status: number): boolean {
-  if (status !== 401 && status !== 403) return false;
-  clearStoredSession();
-  return true;
-}
-
-/** 读货架账户信息（余额 / 使用记录）；未登录或会话失效时返回 null。 */
-async function fetchMarketMe<T>(): Promise<T | null> {
-  if (!localStorage.getItem("store_os_token")) return null;
-  const response = await fetch(apiPath("/market/me"), { headers: authHeaders(), cache: "no-store" });
-  if (handleStaleSession(response.status)) return null;
-  return readJson<T>(response);
-}
-
-/**
- * 主题切换（2026-09-11：平台默认浅色）。
- *
- * 用 state 记住当前主题，切换后按钮能立即反映新状态；`data-theme` 与 localStorage
- * 仍然是唯一事实来源（首次渲染从 DOM 读取，避免和 main.tsx 的初始化打架）。
- */
-function useTheme(): { theme: "light" | "dark"; toggle: () => void } {
-  const [theme, setTheme] = useState<"light" | "dark">(() =>
-    typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") === "dark"
-      ? "dark"
-      : "light"
-  );
-  const toggle = () => {
-    const next: "light" | "dark" = theme === "light" ? "dark" : "light";
-    document.documentElement.setAttribute("data-theme", next);
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", next === "dark" ? "#101721" : "#F4F7FC");
-    try {
-      localStorage.setItem("sitong-theme", next);
-    } catch {
-      // 隐私模式下不阻断主流程。
-    }
-    setTheme(next);
-  };
-  return { theme, toggle };
-}
-
-function guestToLogin(path: string): void {
-  localStorage.setItem("store_os_post_login_redirect", getAppPath(path));
-  // 带上暂存的推荐码：不带的话，从货架点「登录」这一跳会把归因码丢掉
-  // （2026-09-13 真机 nginx 日志实证：/login?ref=… → /login → 回调 → /login，码全丢）。
-  window.location.href = getAppPath(loginPathWithPendingReferral("/login"));
-}
-
-function Topbar({ active, balance, onNavigate }: { active: string; balance: number | null; onNavigate: (path: string) => void }) {
-  const { theme, toggle } = useTheme();
-  // 2026-09-11：货架页登入后此前没有退出入口（商家换账号只能自己清浏览器缓存）。
-  // 只要本地还有 token 或服务端已返回余额，就认为当前是登录态，展示「退出登录」。
-  const [loggedIn, setLoggedIn] = useState(() => Boolean(readSessionToken()));
-
-  useEffect(() => {
-    if (balance !== null) setLoggedIn(true);
-  }, [balance]);
-
-  function handleLogout() {
-    clearStoredSession();
-    // 运营凭证只活在当前标签页，退出时一并清掉，避免换账号后残留。
-    try {
-      sessionStorage.removeItem("sitong_admin_token");
-    } catch {
-      // 隐私模式下 sessionStorage 不可写：不影响退出登录主流程。
-    }
-    // 退出后落回货架，重新登入成功仍回到货架，不会卡在登录页。
-    localStorage.setItem("store_os_post_login_redirect", getAppPath("/agents"));
-    setLoggedIn(false);
-    window.location.href = getAppPath(loginPathWithPendingReferral("/login"));
-  }
-
-  return (
-    <>
-      <header className="topbar">
-        <div className="brand" onClick={() => onNavigate("/agents")}>
-          <span className="brand-mark">思潼<span className="brand-accent">AI</span></span>
-          <span className="brand-sub">行业智能体平台</span>
-        </div>
-        <nav className="topnav">
-          <a className={`nav-link ${active === "market" ? "active" : ""}`} onClick={() => onNavigate("/agents")}>货架</a>
-          <a className={`nav-link ${active === "mine" ? "active" : ""}`} onClick={() => onNavigate("/mine")}>常用智能体</a>
-          <a className={`nav-link ${active === "recharge" ? "active" : ""}`} onClick={() => onNavigate("/recharge")}>积分充值</a>
-        </nav>
-        <button className="theme-toggle" onClick={toggle} title="切换深色 / 浅色">
-          <span className="tt-ico">{theme === "light" ? "☀️" : "🌙"}</span>
-          <span>{theme === "light" ? "浅色" : "深色"}</span>
-        </button>
-        <div className="wallet-pill" onClick={() => (balance === null ? guestToLogin("/agents") : onNavigate("/recharge"))} title="积分余额 · 点击充值">
-          {balance === null ? "🔒 未登录 · 点击登录" : <>💎 <b>{balance}</b> 积分 <span className="wp-tag">全平台通用</span></>}
-        </div>
-        {loggedIn ? (
-          <button className="logout-link" onClick={handleLogout} title="退出后用另一个账号重新登入">退出登录</button>
-        ) : null}
-      </header>
-      <div className="shared-banner">💎 <b>积分全平台通用</b> · 按次使用从统一积分钱包扣，创始人IP专区与各行业专区的所有智能体均可抵扣</div>
-    </>
-  );
-}
+import {
+  adminAuthHeaders,
+  adminReadJson,
+  authHeaders,
+  fetchMarketMe,
+  guestToLogin,
+  handleStaleSession,
+  readJson,
+  Topbar,
+  useTheme
+} from "../marketplace/shell.js";
 
 export function MarketplaceHomePage() {
   const [zones, setZones] = useState<MarketplaceZone[]>([]);
