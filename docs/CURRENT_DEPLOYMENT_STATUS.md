@@ -1,5 +1,16 @@
 # 当前部署状态
 
+## 最新发布：20260915-plat35-admin-console（2026-09-15，测试实例 + 生产）— 统一管理后台入口
+
+- 发布包 `release-20260915-plat35-admin-console.tar.gz`（sha256 `69a16d42fd4d574f3ca7e83da3059531cb123c2eefd37940bc2537e05a5c32a4`，1527 文件），从 commit `3e751a1` 完整快照打包。
+- 用户口径：「侧边导航把 5 个视图 + 客户 / 订单 / 积分干预串起来，复用已有 API」「后台只有我需要用，不需要给用户」。
+- 内容：新增 `AdminConsolePage`（`/agents/admin`）——左侧 7 个分组：**概览 / 客户 / 订单与收款 / 积分干预 / 智能体与货架 / 推荐归因 / 质量与安全**；页头直接列出每个视图用到的接口（排障一眼可见）；写操作只保留后台本来就有的四类（发体验额度、建邀请码、SKU 上下架/改价、生成推荐码），其余只读。旧页面保留在 `/agents/admin/legacy`（推荐有礼配置位的可写编辑不在新后台里重造）。样式独立成 `styles/admin-console.css` 并随后台懒加载。
+- 门槛（不给用户）：视图数据要**平台管理令牌**（`x-sitong-admin-token`）**且**当前账号是 owner/admin；缺哪个页面直说哪个，错误文案按后台口径重写（不再复用「体验额度发放」页的文案）。
+- 验证：本地真机 18/18（7 个视图逐个切换、移动端 390 无横向溢出、控制台 0 error）；**测试实例真机 18/18**（真实部署产物 + 真实数据）；生产 `verify-deploy.sh` **VERIFY_OK**、产物含 `AdminConsolePage-*.js` 与「仅运营使用」文案、`/admin/customers` 无令牌 **401**（后台不对外开放）、`journalctl -p err` 无条目；`qa:fast` 全绿（`PLAT35_QA_FAST_OK`）。
+- 部署：测试 `20260915-plat35-test1`、生产 `20260915-plat35-prod1` 均 `DEPLOY_OK`。备份/回滚：`/opt/baolu-backups/20260915-plat35-{test1,prod1}-before-baolu-os-v2*`。
+- 未做：生产页面级（需要真人微信登录 + 平台令牌；生产不代老板登录）。老板入口：`https://api.lcppch.top/os-v2/agents/admin`，用平台账号登录后在页面顶部「平台管理令牌」里粘贴 `ADMIN_TOKEN`（服务器 `/etc/baolu-secrets/baolu-os-v2.env`）。
+- 排队中：计费模型改为「按 token 成本 × 利润率、只告知消耗、不给单个智能体标价」（等利润率 / 取整 / 余额不足三处拍板）。
+
 ## 最新发布：20260915-plat34-unified-login（2026-09-15，测试实例 + 生产）— 统一注册链接（兰琪要邀请码，其他都不要）
 
 - 发布包 `release-20260915-plat34-unified-login.tar.gz`（9,679,686 B / 1524 文件，sha256 `f869e1e0a8b5cd290495066391cbc8fddbacc5f8f967e1357fe2557bd5d2c1a3`），从 commit `8e07d7e` 完整快照打包。

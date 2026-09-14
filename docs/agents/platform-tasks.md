@@ -2241,3 +2241,43 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 - 残余：测试实例是「兰琪本机直登」环境，登录页会被自动跳过，所以页面级验收放在生产做（只读、不注册）；测试实例改做真实 HTTP 闸门验证（含 2 个验收租户，跑完已清理）。
 - 还没做（用户已点名，排在后面）：统一管理后台入口；计费模型改成「按 token 成本 × 利润率、只告知消耗、不给单个智能体标价」（需要利润率/取整/余额不足三处拍板）。
 - 最后更新日期：2026-09-15
+
+## PLAT-35 统一管理后台入口（用户 2026-09-15：侧边导航串起 5 个视图 + 客户/订单/积分干预）
+
+状态：**已完成 + 已上测试实例与生产**（`verify-deploy.sh` VERIFY_OK）。
+
+### 用户口径
+
+「侧边导航把 5 个视图 + 客户 / 订单 / 积分干预串起来，复用已有 API」「后台只有我需要用，不需要给用户」。
+
+### 归属与边界
+
+- 产品：公共平台（运营后台）。风险：高（资金侧写操作 + 客户数据），因此**默认只读、写操作只保留原有四类**。
+- 入口 `/agents/admin`（旧页面退到 `/agents/admin/legacy`）；不对普通用户开放：数据视图同时要求平台管理令牌与 owner/admin 会话。
+
+### 实现
+
+- 新增 `apps/web/src/marketplace/AdminConsolePage.tsx`：左侧 7 个分组——**概览 / 客户 / 订单与收款 / 积分干预 / 智能体与货架 / 推荐归因 / 质量与安全**；页头列出每个视图用到的接口；数组/对象用通用表格渲染（最多 50 行 + 提示），未知结构也不会白屏。
+- 复用接口：`/market/admin/overview|skus|suppliers|ledger|trial-grants|referral-config|referral-codes|referrals`、`/admin/customers|invites|billing/audit|ops/summary|quality/summary|security/isolation-audit|agents`（不新增聚合 API）。
+- 写操作：发体验额度、建邀请码、SKU 上下架/改价、生成推荐码——都是后台本来就有的动作与守卫。
+- 门槛与文案：令牌缺失 → 「这个视图需要平台管理令牌」；账号非 owner/admin → 「当前账号不是 owner / admin，读不了后台数据」（不再复用「体验额度发放」页的通用文案）。
+- 样式 `apps/web/src/styles/admin-console.css` 随后台懒加载；`marketplace.css` 里原本放错位置（该文件未被任何地方引用）的样式已移出。
+
+### 验收
+
+1. 正常路径：本地与**测试实例**真机各 18/18 —— 7 个视图逐个切换都能渲染出真实数据、页面标注「仅运营使用」、控制台 0 error。
+2. 失败路径：不带令牌时 `/admin/customers` 返回 401 且页面给出「需要平台管理令牌」；非 owner/admin 会话被 403 拦下（本地实测）。
+3. 不应发生：普通用户看到后台数据或入口；后台里再造一套计费/扣费逻辑；移动端横向溢出（390 实测 scrollWidth=innerWidth）。
+4. 可观测：每个视图页头显示它调用的接口路径，排障不需要翻代码。
+
+### 测试
+
+- `scripts/acceptance/plat35-admin-console-browser-e2e.mjs`（本地 18/18、测试实例 18/18）。
+- `pnpm.cmd qa:fast` 全绿（`PLAT35_QA_FAST_OK`）。
+
+### 交接
+
+- 发布包 `release-20260915-plat35-admin-console.tar.gz`（sha256 `69a16d42…`），测试 `20260915-plat35-test1` / 生产 `20260915-plat35-prod1` 均 `DEPLOY_OK` + `VERIFY_OK`。
+- 老板入口：`https://api.lcppch.top/os-v2/agents/admin`；用平台账号登录后，在页面顶部「平台管理令牌」粘贴 `ADMIN_TOKEN`（服务器 `/etc/baolu-secrets/baolu-os-v2.env`）。
+- 未做：生产页面级验收（生产要真人微信登录 + 令牌，不代老板登录）；「推荐有礼配置位」的可写编辑仍只在旧页 `/agents/admin/legacy`（要不要搬进新后台等老板说了算）。
+- 最后更新日期：2026-09-15
