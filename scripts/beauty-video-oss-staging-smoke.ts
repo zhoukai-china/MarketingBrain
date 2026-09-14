@@ -102,7 +102,7 @@ async function main(){
   const missingCredentials=configured({...environment,BEAUTY_VIDEO_OSS_SECURITY_TOKEN:""});await assert.rejects(()=>missingCredentials.admission(actor as any,input),/credentials_unavailable/);assert.equal(ff.calls.length,0);
   const noBudget=createConfiguredVideoMaterialIntegration({...base,policy:{...base.policy,maxCostFen:0},environment,offlineTransport:ff.transport,execution});
   await assert.rejects(async()=>noBudget.runtime!.confirm((await noBudget.admission(actor as any,input))!,input),/budget_exceeded/);assert.equal(ff.calls.length,0);assert.equal(await db.creditReservation.count(),0);
-  const integrated=configured(),app=Fastify({logger:false});await registerViralVideoReplicationRoutes(app,{...integrated,context:async headers=>({...actor,...(headers["x-other-user"]?{userId:"other"}:{}),source:"database"} as any),entitled:async()=>true});
+  const integrated=configured(),app=Fastify({logger:false});await registerViralVideoReplicationRoutes(app,{...integrated,context:async headers=>({...actor,...(headers["x-other-user"]?{userId:"other"}:{}),source:"database"} as any),entitled:async()=>true,creditBalance:async(t:string)=>(await db.creditAccount.findUnique({where:{tenantId:t}}))?.balance??null});
   try{
     const quote=await app.inject({method:"POST",url:"/viral-video-replication/quote",payload:input});assert.equal(quote.statusCode,200);assert.equal(quote.json().canConfirm,true);assert.equal(ff.calls.length,0);
     assert.equal((await app.inject({method:"POST",url:"/viral-video-replication/confirm",payload:{...input,tenantId:"injected"}})).statusCode,400);assert.equal(ff.calls.length,0);

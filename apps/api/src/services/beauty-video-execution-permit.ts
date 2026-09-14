@@ -1,8 +1,9 @@
-import { createHash,createHmac,timingSafeEqual } from "node:crypto";
+import { createHash,createHmac,randomUUID,timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { createBeautyUsageMeter,usageHash,type UsageMeasure } from "./beauty-usage-metering.js";
 import { ReplicationError,type ReplicationJob } from "./viral-video-replication-runtime.js";
 import { REPLICATION_CONTRACT,REPLICATION_MODEL,type ReplicationAdmission,type ReplicationRequest } from "./viral-video-replication.js";
+import { findVideoReplicationEntitlement } from "./video-replication-entitlement.js";
 
 export const VIDEO_EXECUTION_VERSION="beauty-video-controlled-execution-v1";
 export const VIDEO_PRICE_VERSION="wan2.2-animate-mix-cn-beijing-20260905";
@@ -27,7 +28,7 @@ export const videoExecutionRequestHash=(input:ReplicationRequest)=>createHash("s
 const fingerprint=(s:string)=>createHash("sha256").update(s).digest("hex").slice(0,16);
 function reject(code:string,status=422):never{throw new ReplicationError(code,status);}
 
-export function createVideoExecutionPermits(db:any,options:{authorityKey:string;access:"local_only"|"provider_https";now?:()=>number}){
+export function createVideoExecutionPermits(db:any,options:{authorityKey:string;access:"local_only"|"provider_https";now?:()=>number;autoIssue?:boolean}){
   if(Buffer.byteLength(options.authorityKey)<32)reject("execution_authority_unconfigured",503);
   const now=options.now??Date.now;
   const usageCall={step:"video_generation",attempt:1,provider:"aliyun_bailian",model:REPLICATION_MODEL,mode:options.access==="local_only"?"controlled_mock" as const:"real" as const};
@@ -45,7 +46,8 @@ export function createVideoExecutionPermits(db:any,options:{authorityKey:string;
   function live(row:any,s:VideoExecutionScope){if(row.revokedAt||now()>=s.expiresAt)reject("execution_permit_expired_or_revoked");}
   async function currentAccess(tx:any,s:VideoExecutionScope){
     const member=await tx.membership.findFirst({where:{tenantId:s.tenantId,userId:s.userId,isActive:true}});
-    const entitlement=await tx.tenantProductEntitlement.findFirst({where:{tenantId:s.tenantId,productCode:"beauty-industry",status:"active",startsAt:{lte:new Date(now())},OR:[{expiresAt:null},{expiresAt:{gt:new Date(now())}}]}});
+    // 共享出片能力：美业单品与兰琪工作台任一 active 权益都放行（清单见 video-replication-entitlement.ts）。
+    const entitlement=await findVideoReplicationEntitlement(tx,s.tenantId,now());
     if(!member||!entitlement||(member.storeId&&member.storeId!==s.storeId))reject("execution_access_revoked",403);
     for(const bound of[s.reference,s.portrait]){const r=await tx.beautyVideoAssetAuthorization.findFirst({where:{id:bound.evidenceId,tenantId:s.tenantId,storeId:s.storeId,declaredByUserId:s.userId,fileId:bound.fileId,fileSha256:bound.sha256,version:bound.version,subjectRole:bound.role,purpose:"video_replacement",revokedAt:null,expiresAt:{gt:new Date(now())}}});if(!r)reject("execution_asset_changed");}
   }
@@ -78,7 +80,70 @@ export function createVideoExecutionPermits(db:any,options:{authorityKey:string;
       return s;
     });
   }
+  /**
+   * 单批许可的**自动签发**（用户 2026-09-14 拍板 A 方案）。
+   *
+   * 原口径是"许可只能由运营离线签"（没有任何 HTTP 接口）。兰琪门店要自助出片时，
+   * 每出一条都等人工介入等于功能不可用；改为：条件满足就由服务端按**同一套预算上限**
+   * 自动签一条绑定本次请求的许可。安全性质一条不少：
+   *   · 绑定 (tenantId,userId,requestKey) + 素材授权指纹 + 请求哈希，换素材即换键；
+   *   · 预算自检 maxCostFen ≥ maxOutputSeconds×费率 + 存储上限，输出秒数由预算反推（不越权加钱）；
+   *   · 仍然只能 claim 一次、submit 一次，轮询 / 下载 / 暂存各有上限，扣分与幂等不变；
+   *   · 许可被 claim 过或已被撤销时**不重签**，直接失败关闭。
+   */
+  const AUTO_PERMIT_TTL_MS=2*3600*1000;
+  /** 存储成本上限：一次 PUT 的极小额，取 1 分（与 LQ-27 样片同一口径）。 */
+  const STORAGE_COST_UPPER_FEN=1;
+  function autoScope(a:ReplicationAdmission,input:ReplicationRequest,permitId:string,issuedAt:number){
+    const ratePerSecond=input.mode==="wan-pro"?90:60;
+    const affordable=Math.floor((a.maxCostFen-STORAGE_COST_UPPER_FEN)/ratePerSecond);
+    const maxOutputSeconds=Math.min(a.maxOutputSeconds,affordable);
+    if(!Number.isInteger(maxOutputSeconds)||maxOutputSeconds<2)reject("execution_budget_too_small");
+    const bound=(e:ReplicationAdmission["reference"]|ReplicationAdmission["portrait"])=>({fileId:e.fileId,sha256:e.sha256,evidenceId:e.evidenceId,version:e.authorizationVersion,role:e.role});
+    return videoExecutionScopeSchema.parse({version:VIDEO_EXECUTION_VERSION,contract:REPLICATION_CONTRACT,permitId,
+      tenantId:a.tenantId,userId:a.userId,storeId:a.storeId,requestKey:input.requestKey,purpose:"video_replacement",
+      provider:"aliyun_bailian",model:REPLICATION_MODEL,region:"cn-beijing",access:options.access,mode:input.mode,
+      template:input.template,requestHash:videoExecutionRequestHash(input),reference:bound(a.reference),portrait:bound(a.portrait),
+      priceVersion:VIDEO_PRICE_VERSION,maxOutputSeconds,maxSubmit:1,maxPoll:120,maxStorageHttp:40,maxDownload:1,
+      maxCostFen:a.maxCostFen,storageCostUpperFen:STORAGE_COST_UPPER_FEN,
+      // 成本证据 = 两份素材授权记录的不可变指纹（真实记录，不是编造值）。
+      storageCostEvidenceHash:createHash("sha256").update(JSON.stringify([
+        {id:a.reference.evidenceId,fileId:a.reference.fileId,sha256:a.reference.sha256,version:a.reference.authorizationVersion},
+        {id:a.portrait.evidenceId,fileId:a.portrait.fileId,sha256:a.portrait.sha256,version:a.portrait.authorizationVersion}
+      ])).digest("hex"),
+      issuedAt,expiresAt:issuedAt+AUTO_PERMIT_TTL_MS});
+  }
+  async function ensure(a:ReplicationAdmission,input:ReplicationRequest){
+    if(!options.autoIssue)return;
+    const requestKey=input.requestKey??"";
+    if(!requestKey)reject("idempotency_key_required",400);
+    const existing=await db.beautyVideoExecutionPermit.findFirst({where:{tenantId:a.tenantId,userId:a.userId,requestKey}});
+    if(existing){
+      try{
+        const current=verified(existing);live(existing,current);
+        if(current.storeId===a.storeId&&current.requestHash===videoExecutionRequestHash(input)&&current.mode===input.mode&&current.template===input.template)return;
+      }catch{/* 过期 / 绑定漂移：下面按"重签"处理，只有从未用过的才重签 */ }
+      // 已 claim、已花预算或已撤销的许可一律保留并失败关闭；只有"签了但从未用过"的可以就地重签 scope。
+      if(existing.revokedAt||existing.status!=="approved"||existing.submitCount!==0||existing.committedCostFen!==0)reject("execution_permit_not_reusable",409);
+      const rotated=autoScope(a,input,existing.id,now());
+      const signature=createHmac("sha256",options.authorityKey).update(JSON.stringify(rotated)).digest("hex");
+      const changed=await db.beautyVideoExecutionPermit.updateMany({where:{id:existing.id,status:"approved",submitCount:0,committedCostFen:0,revokedAt:null},
+        data:{storeId:a.storeId,scope:rotated as object,signature,lastCode:"auto_reissued_unused"}});
+      if(changed.count!==1)reject("execution_permit_not_reusable",409);
+      return;
+    }
+    const issuedAt=now(),permitId=randomUUID(),scope=autoScope(a,input,permitId,issuedAt);
+    const signature=createHmac("sha256",options.authorityKey).update(JSON.stringify(scope)).digest("hex");
+    try{
+      await db.beautyVideoExecutionPermit.create({data:{id:permitId,tenantId:a.tenantId,userId:a.userId,storeId:a.storeId,
+        requestKey,scope:scope as object,signature,status:"approved",lastCode:"auto_issued_pending_confirmation"}});
+    }catch(error:any){
+      // 两次报价并发：唯一键冲突说明另一路已签发，直接复用那条，不重复签。
+      if(error?.code!=="P2002")throw error;
+    }
+  }
   return {
+    ensure,
     async admission(a:ReplicationAdmission,input:ReplicationRequest,history=false){
       const {row,s}=await rowFor(a,input);if(!history)live(row,s);
       return {...a,maxCostFen:s.maxCostFen-s.storageCostUpperFen,maxOutputSeconds:s.maxOutputSeconds,executionPermitId:row.id};

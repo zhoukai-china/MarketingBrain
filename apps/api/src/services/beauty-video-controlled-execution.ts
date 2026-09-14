@@ -24,6 +24,8 @@ export type VideoExecutionEnvironment=VideoStagingEnvironment&{
   BEAUTY_VIDEO_EXECUTION_MODE?:string;BEAUTY_VIDEO_EXECUTION_AUTHORITY_KEY?:string;
   BEAUTY_VIDEO_RESULT_HOSTS?:string;ALIYUN_VIDEO_REPLICATION_API_KEY?:string;
   ALIYUN_VIDEO_REPLICATION_MODEL?:string;ALIYUN_VIDEO_REPLICATION_ENDPOINT?:string;
+  /** `auto` = 条件满足就按预算自动签单批许可（用户 2026-09-14 拍板）；缺省/其他值一律走人工签发。 */
+  VIDEO_REPLICATION_PERMIT_MODE?:string;
 };
 /** Environment selects code, never grants permission. Permits are HMAC-bound records in the existing DB.
  * No issue endpoint, no auto key loading, no paid retry. Only explicit HTTP confirmation executes. */
@@ -42,7 +44,8 @@ export function createControlledVideoIntegration(options:Omit<Base,"environment"
     const access=injected?"local_only" as const:"provider_https" as const;
     const hosts=(e.BEAUTY_VIDEO_RESULT_HOSTS??"").split(",").map(s=>s.trim());
     if(!hosts.length||hosts.some(h=>!/^(?:[a-z0-9-]+\.)*oss-cn-[a-z0-9-]+\.aliyuncs\.com$|^(?:[a-z0-9-]+\.)*oss-accelerate\.aliyuncs\.com$/.test(h)))throw new ReplicationError("execution_result_host_required",503);
-    const permits=createVideoExecutionPermits(base.db,{authorityKey:e.BEAUTY_VIDEO_EXECUTION_AUTHORITY_KEY??"",access,now:base.now});
+    const permits=createVideoExecutionPermits(base.db,{authorityKey:e.BEAUTY_VIDEO_EXECUTION_AUTHORITY_KEY??"",access,now:base.now,
+      autoIssue:e.VIDEO_REPLICATION_PERMIT_MODE==="auto"});
     const provider=createReplicationProvider({endpoint:e.ALIYUN_VIDEO_REPLICATION_ENDPOINT??"",apiKey:e.ALIYUN_VIDEO_REPLICATION_API_KEY!,fetch:providerFetch});
     const assets=createReplicationAssetStore({root:resultRoot,allowedResultHosts:hosts,fetch:resultFetch});
     const integrated=createConfiguredVideoMaterialIntegration({...base,environment:e,control:permits,
@@ -56,7 +59,10 @@ export function createControlledVideoIntegration(options:Omit<Base,"environment"
       let input=args[1];
       if(!input){const job=await integrated.repository.get(args[2]!,a.tenantId);input=job?.authorizationSnapshot.request as ReplicationRequest|undefined;}
       if(!input)throw new ReplicationError("execution_history_not_bound",409);
-      return permits.admission(a,replicationSchema.parse(input),!args[1]);
+      const request=replicationSchema.parse(input);
+      // auto 模式：按同一套预算上限自动签发绑定本次请求的单批许可（幂等，已用过的不重签）。
+      await permits.ensure(a,request);
+      return permits.admission(a,request,!args[1]);
     }};
   }catch(e){
     const code=e instanceof ReplicationError?e.code:"execution_configuration_invalid";

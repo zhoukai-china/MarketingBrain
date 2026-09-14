@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ReplicationError } from "./viral-video-replication-runtime.js";
 import { type ReplicationAdmission, type ReplicationAssetEvidence, type ReplicationRequest } from "./viral-video-replication.js";
 import { videoFileHash, type InspectedVideoFile, type VideoPrivateFile } from "./beauty-video-private-files.js";
+import { findVideoReplicationEntitlement } from "./video-replication-entitlement.js";
 
 /** 按输出秒数计积分（用户 2026-09-13 拍板：爆款复刻 30 积分/秒）。
  *  供应商按实际出片秒数计费（出片时长≈原视频时长）；扣分向上取整、不超过 maxOutputSeconds 封顶；
@@ -25,13 +26,14 @@ export type VideoAuthorizationReader=(f:VideoPrivateFile,kind:"reference"|"owner
 export function createVideoAssetAuthorization(db:any, read:VideoAuthorizationReader, now=Date.now){
   async function scope(actor:VideoActor,write=false,tx=db){
     const member=await tx.membership.findFirst({where:{tenantId:actor.tenantId,userId:actor.userId,isActive:true}});
-    const entitlement=await tx.tenantProductEntitlement.findFirst({where:{tenantId:actor.tenantId,productCode:"beauty-industry",status:"active",startsAt:{lte:new Date(now())},OR:[{expiresAt:null},{expiresAt:{gt:new Date(now())}}]}});
+    // 共享出片能力：美业单品与兰琪工作台任一 active 权益都放行（清单只有一处）。
+    const entitlement=await findVideoReplicationEntitlement(tx,actor.tenantId,now());
     if(!member||!entitlement)throw new ReplicationError("product_access_denied",403);
     // No new role grants. A store-scoped member cannot choose another store in body/header.
     if(write&&!(["owner","admin"].includes(member.role)||(member.role==="manager"&&member.storeId)))throw new ReplicationError("asset_declaration_forbidden",403);
     const stores=await tx.store.findMany({where:{tenantId:actor.tenantId,...(member.storeId?{id:member.storeId}:{})},take:2});
     if(stores.length!==1)throw new ReplicationError("store_context_required",409);
-    return {storeId:stores[0].id,member};
+    return {storeId:stores[0].id,member,productCode:entitlement.productCode};
   }
   async function getFile(actor:VideoActor,id:string,tx=db){
     const f=await tx.uploadedFile.findFirst({where:{id,tenantId:actor.tenantId,userId:actor.userId}});
@@ -90,7 +92,7 @@ export function createVideoAssetAuthorization(db:any, read:VideoAuthorizationRea
     async admission(actor:VideoActor,input:ReplicationRequest,policy:{creditCost:number;maxCostFen:number;maxOutputSeconds:number;stagingReady:boolean;creditsPerSecond?:number}):Promise<ReplicationAdmission>{
       const s=await scope(actor);if(!input.referenceFileId||!input.portraitFileId||input.referenceVideoUrl||input.portraitImageUrl)throw new ReplicationError("owned_file_ids_required",422);
       const reference=await inspect(actor,input.referenceFileId,"reference"),portrait=await inspect(actor,input.portraitFileId,input.template==="kol_visit"?"kol":"owner");
-      return {tenantId:actor.tenantId,userId:actor.userId,storeId:s.storeId,productCode:"beauty-industry",entitlement:true,allowedStoreIds:[s.storeId],reference:reference.evidence,portrait:portrait.evidence,...policy,creditCost:computeReplicationCreditCost({durationSeconds:reference.evidence.durationSeconds,maxOutputSeconds:policy.maxOutputSeconds,creditsPerSecond:policy.creditsPerSecond,creditCost:policy.creditCost})};
+      return {tenantId:actor.tenantId,userId:actor.userId,storeId:s.storeId,productCode:s.productCode,entitlement:true,allowedStoreIds:[s.storeId],reference:reference.evidence,portrait:portrait.evidence,...policy,creditCost:computeReplicationCreditCost({durationSeconds:reference.evidence.durationSeconds,maxOutputSeconds:policy.maxOutputSeconds,creditsPerSecond:policy.creditsPerSecond,creditCost:policy.creditCost})};
     }
   };
 }

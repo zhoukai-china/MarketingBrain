@@ -10,10 +10,13 @@ import { ReplicationError, createReplicationRepository, publicReplicationJob, ty
 import { createVideoAssetAuthorization } from "../services/beauty-video-asset-authorization.js";
 import { createVideoPrivateFileReader } from "../services/beauty-video-private-files.js";
 import { createControlledVideoIntegration } from "../services/beauty-video-controlled-execution.js";
+import { findVideoReplicationEntitlement } from "../services/video-replication-entitlement.js";
 
 export type ReplicationRoutePorts = {
   context?(headers: Record<string, unknown>): Promise<RequestContext>;
   entitled?(tenantId: string): Promise<boolean>;
+  /** 积分余额（报价阶段用来判断「够不够这一次」，默认读当前进程的 prisma）。 */
+  creditBalance?(tenantId: string): Promise<number | null>;
   /** Server-owned evidence, never client consent. Default has no approved store/staging authority. */
   admission?(context: RequestContext, input?: ReplicationRequest, jobId?: string): Promise<ReplicationAdmission | null>;
   runtime?: ReturnType<typeof createReplicationRuntime>;
@@ -42,7 +45,8 @@ export async function registerViralVideoReplicationRoutes(app: FastifyInstance, 
       if (!token || !verifySessionToken(token)) throw new ReplicationError("unauthorized", 401);
       c = await resolveRequestContext(headers);
     }
-    const entitled = ports.entitled ? await ports.entitled(c.tenantId) : c.source === "database" && Boolean(await prisma.tenantProductEntitlement.findFirst({ where: { tenantId: c.tenantId, productCode: "beauty-industry", status: "active", OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, select: { id: true } }));
+    // 共享能力：美业单品与兰琪工作台任一 active 权益都放行（清单见 video-replication-entitlement.ts）。
+    const entitled = ports.entitled ? await ports.entitled(c.tenantId) : c.source === "database" && Boolean(await findVideoReplicationEntitlement(prisma, c.tenantId));
     if (!entitled) throw new ReplicationError("product_access_denied", 403);
     return c;
   }
@@ -64,6 +68,13 @@ export async function registerViralVideoReplicationRoutes(app: FastifyInstance, 
       gaps.push(...validateReplicationAdmission(input, admission));
     }
     if (!ports.runtime) gaps.push("controlled_execution_not_enabled");
+    // 积分不足要在报价阶段就说清（此前只在确认时 402，用户看不出下一步该干什么）。
+    if (admission) {
+      const balance = ports.creditBalance
+        ? await ports.creditBalance(c.tenantId)
+        : (await prisma.creditAccount.findUnique({ where: { tenantId: c.tenantId }, select: { balance: true } }))?.balance ?? null;
+      if (balance === null || balance < admission.creditCost) gaps.push("insufficient_credits");
+    }
     return { c, input, admission, gaps: [...new Set(gaps)] };
   }
   app.post("/viral-video-replication/material-authorizations",async(request,reply)=>{
@@ -80,13 +91,16 @@ export async function registerViralVideoReplicationRoutes(app: FastifyInstance, 
   app.post("/viral-video-replication/quote", async (request, reply) => {
     try {
       const p = await preflight(request.headers, request.body);
-      return { contractVersion: REPLICATION_CONTRACT, model: "aliyun_strict", mode: "只替换授权人物，保留参考视频原背景、动作和光照；不提供新口播或换背景。", canConfirm: p.gaps.length === 0, creditCost: p.admission?.creditCost ?? null, gaps: p.gaps, message: p.gaps.length ? "缺少前置能力或授权；不会创建任务或预留积分。" : "请确认本次报价；不会自动重试或补做。" };
+      return { contractVersion: REPLICATION_CONTRACT, model: "aliyun_strict", mode: "只替换授权人物，保留参考视频原背景、动作和光照；不提供新口播或换背景。", canConfirm: p.gaps.length === 0, creditCost: p.admission?.creditCost ?? null, gaps: p.gaps, message: p.gaps.length ? "这一版还不能出片（缺口见下方），不会创建任务、不会预留积分。" : "请确认本次报价；不会自动重试或补做。" };
     } catch (error) { return safeError(error, reply); }
   });
   app.post("/viral-video-replication/confirm", async (request, reply) => {
     try {
       const p = await preflight(request.headers, request.body);
-      if (p.gaps.length || !p.admission || !ports.runtime) return reply.code(422).send({ error: "replication_preflight_blocked", gaps: p.gaps, message: "未创建任务、未预留积分；需要服务端素材授权与安全暂存，或调整不支持的组合。" });
+      // 积分不足不进 422：让它继续走到 claim，由既有口径回 402 `insufficient_credits`
+      // （BY50 契约不变；报价阶段已经在 gaps 里提前告诉用户该去充值）。
+      const blocking = p.gaps.filter((gap) => gap !== "insufficient_credits");
+      if (blocking.length || !p.admission || !ports.runtime) return reply.code(422).send({ error: "replication_preflight_blocked", gaps: p.gaps, message: "未创建任务、未预留积分；需要服务端素材授权与安全暂存，或调整不支持的组合。" });
       if (!p.input.requestKey) throw new ReplicationError("idempotency_key_required", 400);
       return reply.code(202).send(await ports.runtime.confirm(p.admission, p.input));
     } catch (error) { return safeError(error, reply); }

@@ -61,7 +61,7 @@ async function main(){
   const resultFetch:typeof fetch=async()=>{downloads++;return new Response(resultFault?Buffer.from("invalid"):video,{headers:{"content-type":"video/mp4"}});};
   const options={db,authorization:auth,environment:env,policy:{creditCost:100,maxCostFen:0,maxOutputSeconds:30},now:()=>now,resultRoot:path.join(root,`result-${round}`),offlineTransport:oss.transport,providerFetch,resultFetch};
   const integrated=createControlledVideoIntegration(options),second=createControlledVideoIntegration(options);
-  async function appFor(i=integrated){const app=Fastify({logger:false});await registerViralVideoReplicationRoutes(app,{...i,context:async h=>({...actor,...(h["x-foreign"]?{tenantId:"foreign"}:{}),source:"database"} as any),entitled:async()=>true});return app;}
+  async function appFor(i=integrated){const app=Fastify({logger:false});await registerViralVideoReplicationRoutes(app,{...i,context:async h=>({...actor,...(h["x-foreign"]?{tenantId:"foreign"}:{}),source:"database"} as any),entitled:async()=>true,creditBalance:async(t:string)=>(await db.creditAccount.findUnique({where:{tenantId:t}}))?.balance??null});return app;}
   const app=await appFor(),app2=await appFor(second);
   const call=(url:string,payload:any,appInstance=app)=>appInstance.inject({method:"POST",url:`/viral-video-replication/${url}`,payload});
   const credits=async()=>(await db.creditAccount.findUnique({where:{tenantId:actor.tenantId}})).balance;

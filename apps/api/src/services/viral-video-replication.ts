@@ -1,5 +1,6 @@
 import { isIP } from "node:net";
 import { z } from "zod";
+import { isVideoReplicationProductCode, type VideoReplicationProductCode } from "./video-replication-entitlement.js";
 
 export const REPLICATION_CONTRACT = "beauty-video-replication-v1" as const;
 export const REPLICATION_MODEL = "wan2.2-animate-mix" as const;
@@ -102,7 +103,8 @@ export type ReplicationAssetEvidence = {
   mimeType: string; bytes: number; width: number; height: number; durationSeconds?: number;
 };
 export type ReplicationAdmission = {
-  tenantId: string; userId: string; storeId: string; productCode: "beauty-industry";
+  // 共享出片能力：权益可能来自美业单品或兰琪工作台（见 video-replication-entitlement.ts）。
+  tenantId: string; userId: string; storeId: string; productCode: VideoReplicationProductCode;
   entitlement: boolean; allowedStoreIds: readonly string[]; reference: ReplicationAssetEvidence; portrait: ReplicationAssetEvidence;
   creditCost: number; maxCostFen: number; maxOutputSeconds: number; stagingReady: boolean;
   stagingLeaseId?: string; executionPermitId?: string;
@@ -111,7 +113,7 @@ export type ReplicationAdmission = {
 /** Server evidence only; never parse this type out of a client body. */
 export function validateReplicationAdmission(input: ReplicationRequest, a: ReplicationAdmission, now = Date.now()): string[] {
   const issues = replicationCapabilityGaps(input);
-  if (!a.entitlement || a.productCode !== "beauty-industry" || !a.allowedStoreIds.includes(a.storeId)) issues.push("replication_access_denied");
+  if (!a.entitlement || !isVideoReplicationProductCode(a.productCode) || !a.allowedStoreIds.includes(a.storeId)) issues.push("replication_access_denied");
   for (const [asset, fileId, role, rights] of [
     [a.reference, input.referenceFileId, "reference", ["visual", "audio", "performer"]],
     [a.portrait, input.portraitFileId, input.template === "kol_visit" ? "kol" : "owner", ["portrait"]]

@@ -231,7 +231,34 @@ function replicationFailureNotice(error: unknown): string {
   if (code === "asset_not_found") {
     return "这条素材在服务端没登记上，请删掉重新上传一次再报价。";
   }
+  if (code === "insufficient_credits") {
+    return "积分不足：这次没有创建任务、也没有扣积分。请先充值，再回来点确认出片。";
+  }
+  if (code === "execution_permit_required" || code === "execution_permit_not_reusable" || code === "execution_budget_too_small") {
+    return "这次没有拿到出片许可（单批预算不足或已失效），没有创建任务、没有扣积分；请重试一次，仍然失败请联系思潼服务团队。";
+  }
+  if (code === "asset_authorization_required") {
+    return "素材授权声明没登记上，请重新上传素材后再点一次「先报价，再出片」。";
+  }
   return error instanceof Error && error.message ? error.message : "请求失败，请稍后重试。";
+}
+
+/**
+ * 报价缺口码要说人话：服务端返回的是业务码（`insufficient_credits` 等），
+ * 直接铺给门店看等于没说。未在表内的码原样显示，不猜、不美化。
+ */
+const REPLICATION_GAP_LABELS: Record<string, string> = {
+  insufficient_credits: "积分不足，请先充值",
+  provider_budget_exceeded: "这条片的时长超出当前单条预算上限（提高上限或换更短的片）",
+  execution_permit_required: "出片许可没签下来（单批预算）",
+  execution_budget_too_small: "单条预算上限太低，装不下这条片",
+  secure_staging_required: "安全暂存未就绪",
+  server_asset_authorization_required: "素材授权声明未登记",
+  controlled_execution_not_enabled: "出片执行未开启"
+};
+
+function replicationGapText(gaps: string[] | undefined): string {
+  return (gaps ?? []).map((gap) => REPLICATION_GAP_LABELS[gap] ?? gap).join("、");
 }
 
 async function copyText(label: string, text: string): Promise<boolean> {
@@ -561,6 +588,8 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
   const [job, setJob] = useState<{ id: string; status: string } | null>(null);
   const [assetUrl, setAssetUrl] = useState("");
   const requestKeyRef = useRef(newReplicationRequestKey());
+  /** 已登记过素材授权声明的素材对：同一对素材只登记一次（换素材即失效，由幂等键 + 声明 requestKey 决定）。 */
+  const declaredRef = useRef<{ videoFileId: string; portraitFileId: string } | null>(null);
 
   const photoNeeded = replaceMode === "face" ? "头部图片" : "全身画面";
   const rightsOk = REPLICATION_RIGHTS.every((item) => rights[item.k]);
@@ -678,14 +707,69 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
     [portraitFile, rights, videoFile]
   );
 
+  /**
+   * 「在线勾选即算声明」（用户 2026-09-14 口径）：不再要求门店上传 PDF 授权书。
+   * 把四条勾选落成一份声明文本 → 作为**授权依据文件**上传 → 再为原片与人像各登记一条素材授权。
+   * requestKey 由素材 fileId 决定，服务端按它幂等：同一素材重复登记不会产生第二份记录。
+   */
+  const ensureMaterialDeclarations = useCallback(async () => {
+    const videoId = videoFile?.id;
+    const portraitId = portraitFile?.id;
+    if (!videoId || !portraitId) throw new Error("请先上传原片与人物照片。");
+    const done = declaredRef.current;
+    if (done && done.videoFileId === videoId && done.portraitFileId === portraitId) return;
+    const basisText = [
+      "兰琪 · 爆款复刻 素材与肖像授权在线声明",
+      "（由门店用户在本页逐条勾选后生成；平台未独立核验法律真实性，只作为授权依据引用）",
+      `原片文件：${videoFile?.name ?? ""}`,
+      `人物照片：${portraitFile?.name ?? ""}`,
+      "1) 原视频画面与改编权：已确认拥有或已获授权",
+      "2) 原视频音频：已确认拥有或已获授权",
+      "3) 原视频主角同意被替换：已确认",
+      "4) 替换照片本人或已获授权：已确认",
+      "声明人：本账号门店操作人；声明仅用于本次生成。"
+    ].join("\n");
+    const form = new FormData();
+    form.append("file", new File([basisText], "兰琪-素材与肖像授权在线声明.txt", { type: "text/plain" }));
+    const basisResponse = await fetch(apiPath("/files"), { method: "POST", headers: uploadHeaders(), body: form });
+    const basisBody = await readResponse(basisResponse);
+    const basisFileId = basisBody?.file?.id;
+    if (!basisFileId) throw new Error("授权依据上传失败，请稍后重试。");
+    const expiresAt = new Date(Date.now() + 30 * 86400_000).toISOString();
+    for (const [fileId, subjectRole] of [[videoId, "reference"], [portraitId, "owner"]] as const) {
+      try {
+        const response = await fetch(apiPath("/viral-video-replication/material-authorizations"), {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({
+            fileId,
+            basisFileId,
+            subjectRole,
+            purpose: "video_replacement",
+            expiresAt,
+            requestKey: `lqvd-${subjectRole}-${fileId}`,
+            rightsDeclared: true
+          })
+        });
+        await readResponse(response);
+      } catch (error) {
+        /* 同一素材已登记过（依据文件换了）→ 幂等冲突，服务端已有的声明继续有效，不当作失败。 */
+        if ((error as { code?: string } | null)?.code !== "idempotency_conflict") throw error;
+      }
+    }
+    declaredRef.current = { videoFileId: videoId, portraitFileId: portraitId };
+  }, [portraitFile, videoFile]);
+
   const requestQuote = useCallback(async () => {
     if (!videoFile) { setNotice("请先上传要复刻的原视频（MP4 / MOV）。"); return; }
     if (!portraitFile) { setNotice(`请先上传${photoNeeded}照片。`); return; }
     if (!rightsOk) { setNotice("请先逐条确认四项素材与肖像授权。"); return; }
-    setBusy("正在校验素材与授权…");
+    setBusy("正在登记素材授权…");
     setNotice("");
     setQuote(null);
     try {
+      await ensureMaterialDeclarations();
+      setBusy("正在校验素材与授权…");
       const response = await fetch(apiPath("/viral-video-replication/quote"), {
         method: "POST",
         headers: authHeaders(),
@@ -699,7 +783,7 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
     } finally {
       setBusy("");
     }
-  }, [photoNeeded, replicationPayload, rightsOk, portraitFile, videoFile]);
+  }, [ensureMaterialDeclarations, photoNeeded, replicationPayload, rightsOk, portraitFile, videoFile]);
 
   const loadAsset = useCallback(async (jobId: string) => {
     try {
@@ -777,14 +861,25 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
     setNotice("");
   }, []);
 
-  /** 还差什么才允许报价：原片、人物照片、四项授权，逐项点名，不含糊。 */
+  /**
+   * 还差什么才允许报价。用户 2026-09-14 口径「给抖音链接或者上传视频，二选一就可以了才对」：
+   * ① 参考素材这一步**确实是二选一** —— 贴链接登记来源，或上传原片；
+   * 但出片本身必须有原片：抖音 / 视频号不提供站内视频文件下载（实测 4 条路径全空壳），
+   * 所以只登记了链接时，提示要写清「为什么还差原片」，不能像"链接没被认出来"。
+   */
   const missing = [
-    !videoFile ? "参考视频原片" : "",
+    !videoFile
+      ? reference
+        ? "出片要用的原片（链接已登记为参考来源；抖音 / 视频号不提供站内视频文件下载，请在抖音里保存原片后从上面「上传参考视频」传上来）"
+        : "参考素材：贴抖音链接登记来源，或直接上传原片（二选一；出片必须有原片）"
+      : "",
     !portraitFile ? photoNeeded : "",
     !rightsOk ? "四项素材与肖像授权" : ""
   ].filter(Boolean);
   const stage = !videoFile
-    ? "第 1 步 / 3 · 提供参考素材：贴抖音链接 或 上传原片"
+    ? reference
+      ? "第 1 步 / 3 · 参考来源已登记；出片还需要这条视频的原片"
+      : "第 1 步 / 3 · 提供参考素材：贴抖音链接登记来源，或上传原片"
     : !portraitFile
       ? "第 2 步 / 3 · 提供要替换的人物形象"
       : !rightsOk
@@ -838,10 +933,11 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
       <section className="lq-vd__left">
         <div className="lq-vd__stage">{stage}</div>
 
-        <h3 className="lq-vd__card-title">① 参考素材 <span className="tag green">必填</span></h3>
+        <h3 className="lq-vd__card-title">① 参考素材 <span className="tag green">链接 / 原片 二选一</span></h3>
         <p className="lq-vd__card-sub">
-          参考素材由你自己提供，平台不再替你去搜爆款。抖音、视频号都不开放站内视频文件下载，
-          <b>贴链接只登记参考来源，出片必须上传你手里的原片</b>。
+          参考素材由你自己提供，平台不再替你去搜爆款。两条路任选其一登记：<b>贴抖音链接登记参考来源</b>，
+          或<b>直接上传原片</b>。注意：抖音、视频号都不开放站内视频文件下载，模型吃的是<b>视频文件</b>本身，
+          所以贴链接这一步能过，但真正出片仍然需要你手里的原片（在抖音里点「分享 → 保存本地视频」再上传即可）。
         </p>
         <div className="lq-vd__chips" role="group" aria-label="参考素材方式">
           <button
@@ -1029,7 +1125,9 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
         </button>
         {notice && <p className="lq-vd__hint">{notice}</p>}
         {quote?.gaps && quote.gaps.length > 0 && (
-          <div className="lq-vd__warn">还缺前置条件：{quote.gaps.join("、")}。未创建任务、未扣积分。</div>
+          <div className="lq-vd__warn" data-lq-vd-gaps={quote.gaps.join(",")}>
+            这一版还不能出片：{replicationGapText(quote.gaps)}。未创建任务、未扣积分。
+          </div>
         )}
         {assetUrl && (
           <>

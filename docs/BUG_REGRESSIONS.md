@@ -1,5 +1,24 @@
 # Bug 回归台账
 
+## QA-20260914-005：兰琪爆款复刻「真出片」走不通（权益口径 / 素材授权声明 / 单批许可三道门）（P1，已修代码，待发布）
+
+- 触发：用户 2026-09-14「先把爆款复刻功能搞定」，并在会话中追加「给了抖音链接还是提示还差：参考视频原片；给链接或上传视频二选一就可以了才对」。
+- 现场证据（生产只读）：`/lanqi/stores` 403（该会话所在租户没有兰琪权益）、`POST /files` 5 次 200、全程**没有** `/viral-video-replication/quote`；11 条 active 权益分布 `lanqi=9 / beauty-industry=7`，9 个兰琪租户里只有 2 个（2026-08-24 历史租户）同时持美业权益。
+- 根因（三处硬编码 + 两处缺失）：
+  1. `/viral-video-replication/*` 的路由 `context()`、素材授权 `scope()`、许可 `currentAccess()` 三处都写死 `productCode:"beauty-industry"`，兰琪租户一点报价就 403；
+  2. 页面只勾四项授权、**从未**调用 `/material-authorizations`，后端要的是「原片 + 人像各一条带授权依据的声明」，所以即便权益放开也会 422；
+  3. 单批许可 `BeautyVideoExecutionPermit` 只能由运营用 `BEAUTY_VIDEO_EXECUTION_AUTHORITY_KEY` 离线签（代码里写明没有任何 HTTP 接口能创建），门店自助出片走不通。
+- 修复（最小、可回滚）：
+  - 新增 `apps/api/src/services/video-replication-entitlement.ts`：出片能力的**产品权益清单为唯一出处**（`beauty-industry` + `lanqi`），三处准入共用同一套 active / 生效 / 到期口径，未在清单内的产品码一律拒绝；
+  - `beauty-video-asset-authorization.ts` 的准入快照改记**实际命中的产品码**（事后可区分这条成片是哪条产品线买的）；
+  - 新增 env `VIDEO_REPLICATION_PERMIT_MODE`（默认 `operator` = 与改动前完全一致；`auto` = 服务端按同一套预算上限自动签一条绑定本次请求的许可，仍只能 claim 一次、submit 一次，轮询/下载/暂存各自限额，扣分与幂等不变；已 claim 或已撤销的许可**不重签**）；
+  - 报价阶段新增缺口 `insufficient_credits`（余额不足提前说清），但**确认仍走既有 402 `insufficient_credits`**（BY50 契约不变）；
+  - 页面：报价前自动上传「在线勾选声明」文本作为授权依据并登记两份素材授权（幂等）；缺口码翻成人话；主按钮文案与提示不再像"链接没被认出来"。
+- 先红后绿：新增 `scripts/lanqi-video-replication-access-smoke.ts`（`pnpm.cmd lanqi:video-replication-access-smoke`）。修复前 6 条源码断言 + 「只有 lanqi 权益 → 报价 200」等 7 条为红；修复后 **19 / 0**。相邻回归：`beauty-industry:video-execution-smoke` 三轮 PASS、`beauty-industry:video-material-authorization-smoke` BY46_PASS、`beauty-industry:video-foundation-smoke` BY45_FOUNDATION_PASS、`lanqi:acquire-ui-contract-smoke` 82/0、`pnpm.cmd qa:fast` exit 0。
+- 既有失败（与本轮无关，已在基线复现）：`beauty-industry:video-oss-staging-smoke` 在 `staging.release()` 的 `/cleanup_failed/` 断言上失败——把本轮改动的 `scope()` 那一行还原成硬编码后同样失败；该路径最后一次改动是 `9e5b6a1`，登记为既有失败、不在本轮放行门禁内。
+- 未做：不改定价（24 积分/秒）、不改美业侧页面、不自动充值、不放宽单条成本上限（¥10 → 只能出 ≤16 秒的片，超时长的片必须提高 env 上限）。
+- 关联：任务卡 `docs/agents/lanqi-beauty/tasks/LQ-30-爆款复刻真实可出片.md`；上游证据 QA-20260914-003（抖音/视频号拿不到视频文件）、QA-20260914-004（三条现场缺陷）。
+
 ## QA-20260914-001：充值页把英文开发期错误原文直出给门店（`mock server error` / `Failed to fetch`）（P1，已修）
 
 - 触发：WorkBuddy《新用户链路验收报告》（2026-09-12，生产 + 测试实例）两条红灯——P1 合成 500 时充值页正文直出英文 `mock server error`；P2 浏览器断网时直出 `Failed to fetch`，既不是人话也没有重试指引。
