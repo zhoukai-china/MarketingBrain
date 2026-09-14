@@ -48,6 +48,10 @@ function checkWorkOrder20260913(): void {
   assert(/app\.post\("\/vidrev\/parse-preview"/.test(route), "必须提供 POST /vidrev/parse-preview 预检接口");
   assert(!/VIDREV_QUICK_SYSTEM_PROMPT/.test(route), "快速诊断的 system prompt 必须删除");
   assert(!/"quick"/.test(route), "路由层不得再有 quick 模式分支");
+
+  // 全仓口径：货架数据（含美业专区欢迎语）与后端 agent 定义都不得再提「快速诊断」。
+  assert(!/快速诊断/.test(readSource("apps/api/src/data/marketplace-v3.json")), "货架数据（含美业专区欢迎语）不得再出现「快速诊断」");
+  assert(!/快速诊断/.test(readSource("apps/api/src/services/agent-definitions.ts")), "后端 agent 定义不得再出现「快速诊断」");
 }
 
 function assert(condition: unknown, message: string): asserts condition {
