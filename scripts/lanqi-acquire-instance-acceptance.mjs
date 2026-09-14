@@ -373,9 +373,7 @@ async function verifyVideoPage(root, checks, base, label, record) {
     detail: `tabs=${vdShell.tabs} 含爆款复刻=${vdShell.text.includes("爆款复刻")} 含门店素材成片=${vdShell.text.includes("门店素材成片")} 含AI剪辑=${vdShell.text.includes("AI 剪辑")}`,
   });
 
-  // ── LQ-28 ①：搜爆款入口必须整体消失，两个参考素材页签必须在位 ──
-  // 注：默认停在「参考抖音链接」页签，此时上传面板按条件渲染尚未挂载，
-  // 因此这里只断言链接侧；原片选择器在下面切到上传页签后再断言。
+  // ── LQ-30（用户 2026-09-14）：参考素材只支持上传原片，搜爆款与贴链接入口都必须不存在 ──
   const vdSurface = await evaluate(
     root,
     vd.sessionId,
@@ -386,28 +384,30 @@ async function verifyVideoPage(root, checks, base, label, record) {
         searchButtons: labels.filter((item) => /搜爆款|平台筛选|行业领域/.test(item)),
         keywordInput: Boolean(document.querySelector("#lq-vd-kw")),
         linkTab: text.includes("参考抖音链接"),
-        uploadTab: text.includes("上传参考视频"),
         linkInput: Boolean(document.querySelector("#lq-vd-ref-link")),
-        linkCaveat: text.includes("不会出片"),
+        registerButton: labels.some((item) => item.includes("登记参考来源")),
+        uploadHint: text.includes("上传参考视频") || text.includes("参考视频原片"),
+        filePick: document.querySelectorAll("input[type=file]").length,
       };
     })()`,
   );
   checks.push({
-    name: `${label}：爆款复刻不再有「搜爆款」入口，改为参考抖音链接 / 上传参考视频两页签`,
+    name: `${label}：爆款复刻只支持上传原片（无搜爆款入口、无贴链接入口）`,
     pass:
       vdSurface.searchButtons.length === 0 &&
       !vdSurface.keywordInput &&
-      vdSurface.linkTab &&
-      vdSurface.uploadTab &&
-      vdSurface.linkInput &&
-      vdSurface.linkCaveat &&
+      !vdSurface.linkTab &&
+      !vdSurface.linkInput &&
+      !vdSurface.registerButton &&
+      vdSurface.uploadHint &&
+      vdSurface.filePick > 0 &&
       leakHit(vdShell.text) === null,
-    detail: `检索按钮=${JSON.stringify(vdSurface.searchButtons)} 关键词框=${vdSurface.keywordInput} 链接页签=${vdSurface.linkTab} 上传页签=${vdSurface.uploadTab} 链接输入框=${vdSurface.linkInput} 不出片提示=${vdSurface.linkCaveat}`,
+    detail: `检索按钮=${JSON.stringify(vdSurface.searchButtons)} 关键词框=${vdSurface.keywordInput} 链接页签=${vdSurface.linkTab} 链接输入框=${vdSurface.linkInput} 登记按钮=${vdSurface.registerButton} 上传提示=${vdSurface.uploadHint} 文件输入=${vdSurface.filePick}`,
   });
 
-  // ── LQ-28 ①b：切到「上传参考视频」页签，原片选择器必须真实可用 ──
-  const uploadTabOpen = await clickButton(root, vd, "上传参考视频");
-  await sleep(600);
+  // ── LQ-30 ①b：原片选择器必须真实可用（上传是唯一入口，不再需要切页签） ──
+  const uploadTabOpen = "no-tab-upload-only";
+  await sleep(400);
   const vdUploadPanel = await evaluate(
     root,
     vd.sessionId,
@@ -426,139 +426,24 @@ async function verifyVideoPage(root, checks, base, label, record) {
     })()`,
   );
   checks.push({
-    name: `${label}：切到「上传参考视频」页签后有可用的原片选择器（格式/大小/时长约束可见）`,
+    name: `${label}：首屏就有可用的原片选择器（格式/大小/时长约束可见）`,
     pass:
-      uploadTabOpen === "clicked" &&
       vdUploadPanel.videoPick &&
       vdUploadPanel.limitCopy &&
       vdUploadPanel.linkInputGone &&
       leakHit(vdShell.text) === null,
-    detail: `切页签=${uploadTabOpen} 视频选择器=${vdUploadPanel.videoPick} 文件输入数=${vdUploadPanel.pickCount} 约束文案=${vdUploadPanel.limitCopy} 链接输入框已收起=${vdUploadPanel.linkInputGone}`,
-  });
-
-  // 切回「参考抖音链接」页签：下面的断言继续走「贴链接只登记来源」这条路径。
-  const backToLinkTab = await clickButton(root, vd, "参考抖音链接");
-  await sleep(400);
-
-  // ── LQ-28 ②：非抖音链接必须本地拦截，且不发任何请求 ──
-  await setFieldValue(root, vd, "#lq-vd-ref-link", "https://www.kuaishou.com/short-video/3xabcdef");
-  await sleep(300);
-  const callsBeforeBadLink = vd.requestTimeline.length;
-  const badLinkClick = await clickButton(root, vd, "登记参考来源");
-  await sleep(800);
-  const afterBadLink = await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''");
-  const badLinkBlocked = /这里只登记抖音链接/.test(afterBadLink);
-  const badLinkRequests = vd.requestTimeline.length - callsBeforeBadLink;
-  checks.push({
-    name: `${label}：非抖音链接本地拦截、不发请求`,
-    pass:
-      backToLinkTab === "clicked" &&
-      badLinkClick === "clicked" &&
-      badLinkBlocked &&
-      badLinkRequests === 0 &&
-      leakHit(afterBadLink) === null,
-    detail: `切回链接页签=${backToLinkTab} 点击=${badLinkClick} 本地拦截提示=${badLinkBlocked} 新增请求=${badLinkRequests}`,
-  });
-
-  // ── LQ-28 ③：抖音链接只登记参考来源（不发请求、不出片）──
-  await setFieldValue(root, vd, "#lq-vd-ref-link", "https://www.douyin.com/video/7400000000000000000");
-  await sleep(300);
-  const callsBeforeGoodLink = vd.requestTimeline.length;
-  const goodLinkClick = await clickButton(root, vd, "登记参考来源");
-  await sleep(900);
-  const afterGoodLink = await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''");
-  const goodLinkRequests = vd.requestTimeline.length - callsBeforeGoodLink;
-  const linkRegistered = /已登记参考来源/.test(afterGoodLink);
-  const linkDoesNotProduce = /不会出片/.test(afterGoodLink) && !/任务已提交/.test(afterGoodLink);
-  checks.push({
-    name: `${label}：抖音链接只登记参考来源，不发请求也不出片`,
-    pass:
-      goodLinkClick === "clicked" &&
-      linkRegistered &&
-      linkDoesNotProduce &&
-      goodLinkRequests === 0 &&
-      leakHit(afterGoodLink) === null,
-    detail: `点击=${goodLinkClick} 已登记=${linkRegistered} 不出片=${linkDoesNotProduce} 新增请求=${goodLinkRequests}`,
-  });
-
-  // ── LQ-27 防线（沿用）：出片面板齐备、未上传原片与未勾授权时本地拦截，不出现假生成 ──
-  const uploadTabClick = await clickButton(root, vd, "上传参考视频");
-  await sleep(500);
-  const panel = await evaluate(
-    root,
-    vd.sessionId,
-    `(() => ({
-      text: document.body?.innerText ?? "",
-      confirmDisabled: [...document.querySelectorAll("button")].find((node) => (node.innerText || "").includes("再出片"))?.disabled ?? null
-    }))()`,
-  );
-  const callsBeforeQuote = vd.requestTimeline.length;
-  await clickButton(root, vd, "看报价");
-  await sleep(1200);
-  const addedRequests = vd.requestTimeline.length - callsBeforeQuote;
-  const afterQuote = await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''");
-  const localBlocked = /请先上传要复刻的原视频|请先逐条确认四项素材与肖像授权|请先上传/.test(afterQuote);
-  checks.push({
-    name: `${label}：复刻出片面板齐备、未上传原片 / 未授权时本地拦截（不出现假生成）`,
-    pass:
-      uploadTabClick === "clicked" &&
-      panel.text.includes("上传参考视频") &&
-      panel.text.includes("素材与肖像授权") &&
-      panel.text.includes("报价与出片") &&
-      panel.confirmDisabled === true &&
-      localBlocked &&
-      addedRequests === 0,
-    detail: `切页签=${uploadTabClick} 面板=上传参考视频:${panel.text.includes("上传参考视频")}/授权:${panel.text.includes("素材与肖像授权")}/报价:${panel.text.includes("报价与出片")} 确认按钮禁用=${panel.confirmDisabled} 本地拦截提示=${localBlocked} 新增请求=${addedRequests}`,
-  });
-
-  // ── LQ-29（用户 2026-09-14 三条真实反馈）──
-  //  ① 抖音「分享 → 复制链接」复制出来的是口令文本（文字 + 短链混排），必须能识别出短链；
-  //     整段确实没有链接时必须说清「没有链接」并给出复制链接的步骤，不许含糊。
-  const backToLinkTabLq29 = await clickButton(root, vd, "参考抖音链接");
-  await sleep(400);
-  await setFieldValue(
-    root,
-    vd,
-    "#lq-vd-ref-link",
-    "7.32 复制打开抖音，看看【餐饮AI视频案例展示的作品】https://v.douyin.com/iRNBho6u/ 复制此链接，打开抖音搜索，直接观看视频！",
-  );
-  await sleep(300);
-  const callsBeforeShareCode = vd.requestTimeline.length;
-  const shareCodeClick = await clickButton(root, vd, "登记参考来源");
-  await sleep(900);
-  const afterShareCode = await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''");
-  const shareCodeRegistered =
-    /已登记参考来源/.test(afterShareCode) &&
-    afterShareCode.includes("v.douyin.com") &&
-    !/这不像一条完整链接|这段文字里没有链接/.test(afterShareCode);
-  checks.push({
-    name: `${label}：抖音分享口令（文字 + 短链混排）能被识别、只登记来源、不发请求`,
-    pass: backToLinkTabLq29 === "clicked" && shareCodeClick === "clicked" && shareCodeRegistered && vd.requestTimeline.length === callsBeforeShareCode,
-    detail: `切页签=${backToLinkTabLq29} 点击=${shareCodeClick} 已登记=${shareCodeRegistered} 新增请求=${vd.requestTimeline.length - callsBeforeShareCode}`,
-  });
-
-  await setFieldValue(root, vd, "#lq-vd-ref-link", "4.33 01/29 Ehb:/ 2pm W@Z.ZM 餐饮AI视频案例展示 餐饮门店");
-  await sleep(200);
-  const callsBeforePlainCode = vd.requestTimeline.length;
-  const plainCodeClick = await clickButton(root, vd, "登记参考来源");
-  await sleep(600);
-  const afterPlainCode = await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''");
-  const plainCodeExplained = /这段文字里没有链接/.test(afterPlainCode) && /复制链接/.test(afterPlainCode) && !/这不像一条完整链接/.test(afterPlainCode);
-  checks.push({
-    name: `${label}：整段没有链接时明说「没有链接」并给出复制链接的步骤`,
-    pass: plainCodeClick === "clicked" && plainCodeExplained && vd.requestTimeline.length === callsBeforePlainCode,
-    detail: `点击=${plainCodeClick} 明确提示=${plainCodeExplained} 新增请求=${vd.requestTimeline.length - callsBeforePlainCode}`,
+    detail: `视频选择器=${vdUploadPanel.videoPick} 文件输入数=${vdUploadPanel.pickCount} 约束文案=${vdUploadPanel.limitCopy} 无链接输入框=${vdUploadPanel.linkInputGone}`,
   });
 
   //  ② 已上传的原片 / 照片必须能删除（并清掉上一次报价），删除后能重新选。
   //  ③ 未报价前「先报价，再出片」不能是点不动的死按钮。
-  const backToUploadTabLq29 = await clickButton(root, vd, "上传参考视频");
-  await sleep(500);
+  const backToUploadTabLq29 = "upload-only";
+  await sleep(300);
   const missingPrimary = await readPrimaryState(root, vd);
   checks.push({
     name: `${label}：素材没齐时出片主按钮明确禁用并点名还差什么`,
     pass:
-      backToUploadTabLq29 === "clicked" &&
+      backToUploadTabLq29 === "upload-only" &&
       missingPrimary.found === true &&
       missingPrimary.state === "missing" &&
       missingPrimary.disabled === true &&

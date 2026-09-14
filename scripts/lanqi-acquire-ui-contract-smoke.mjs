@@ -142,12 +142,14 @@ forbidMatch(videoPage, /平台筛选/, "video：不再有检索用的「平台�
 forbidMatch(videoPage, /行业领域/, "video：不再有检索用的「行业领域」控件");
 forbidMatch(videoPage, /选它复刻/, "video：不再有「选它复刻」的检索结果条目");
 forbidMatch(videoPage, /爆款检索结果/, "video：不再渲染检索结果区");
-requireMatch(videoPage, /参考抖音链接/, "video：第 1 步提供「参考抖音链接」页签");
-requireMatch(videoPage, /上传参考视频/, "video：第 1 步提供「上传参考视频」页签");
-requireMatch(videoPage, /登记参考来源/, "video：抖音链接只登记参考来源（不发检索请求）");
-requireMatch(videoPage, /不会出片/, "video：明说贴链接不会出片，出片必须上传原片");
-requireMatch(videoPage, /parseReferenceLink/, "video：链接在本地校验（不发任何请求）");
-requireMatch(videoPage, /id="lq-vd-ref-link"/, "video：链接输入框有稳定 id，供验收脚本定位");
+// LQ-30（用户 2026-09-14 指示「先取消抖音链接的爆款复刻，只支持上传视频」）：
+// 贴链接入口整体撤退——参考素材只留上传原片一条路。
+forbidMatch(videoPage, /参考抖音链接/, "video：不再有「参考抖音链接」入口");
+forbidMatch(videoPage, /lq-vd-ref-link/, "video：不再有链接输入框（含其稳定 id）");
+forbidMatch(videoPage, /登记参考来源/, "video：不再有「登记参考来源」按钮");
+forbidMatch(videoPage, /parseReferenceLink|extractReferenceUrl|trimReferenceUrl/, "video：链接解析代码整体删除，不留半截");
+requireMatch(videoPage, /上传原片/, "video：参考素材只支持上传原片，且文案讲清这条唯一路径");
+requireMatch(videoPage, /上传参考视频/, "video：仍提供「上传参考视频」入口");
 requireMatch(videoPage, /readVideoMeta/, "video：上传前读取真实视频时长 / 尺寸");
 requireMatch(videoPage, /newReplicationRequestKey/, "video：换素材后换新幂等键（报价 / 确认共用）");
 requireMatch(videoPage, /\/viral-video-replication\/quote/, "video：报价仍走既有复刻链路");
@@ -157,15 +159,10 @@ forbidMatch(videoPage, /暂未接通真实爆款检索/, "video：不再硬编�
 forbidMatch(videoPage, /REPLICATE_SEARCH_READY/, "video：不再靠前端开关假装 fail closed");
 forbidMatch(videoPage, /(百炼|通义|qwen|Qwen|DashScope|达摩院)/, "video：页面文案不出现厂商与模型名");
 
-// ⑧ 爆款复刻三条真实 Bug（LQ-29，用户 2026-09-14 反馈）：
-//    1) 抖音分享口令（文字 + 短链混排）被判成「不是完整链接」；
-//    2) 已上传的原片 / 照片只有「重新选择」，没有删除入口；
-//    3) 未报价前「先报价，再出片」恒为禁用，点了没反应也没有解释。
-//    行为口径由 `pnpm lanqi:acquire-reference-link-smoke` 真跑函数体；这里锁源码结构，防回退。
-requireMatch(videoPage, /function extractReferenceUrl\(/, "video：先从任意粘贴文本里抽出链接（口令文字 + 短链混排也能识别）");
-requireMatch(videoPage, /function trimReferenceUrl\(/, "video：裁掉链接尾部粘连的中文提示与标点");
-forbidMatch(videoPage, /reason: "这不像一条完整链接/, "video：不再用「这不像一条完整链接」把真实分享口令判死");
-requireMatch(videoPage, /这段文字里没有链接/, "video：整段没有链接时，明确说「没有链接」并给出复制链接的步骤");
+// ⑧ 爆款复刻真实 Bug 的防回退（LQ-29 保留 ②③；① 贴链接整条路已在 LQ-30 撤掉）：
+//    ② 已上传的原片 / 照片只有「重新选择」，没有删除入口；
+//    ③ 未报价前「先报价，再出片」恒为禁用，点了没反应也没有解释。
+forbidMatch(videoPage, /这不像一条完整链接/, "video：旧提示「这不像一条完整链接」彻底删除");
 requireMatch(videoPage, /const removeAsset = useCallback\(/, "video：已上传素材有删除入口（换新幂等键 + 清上次报价 / 任务 / 成片）");
 requireMatch(videoPage, /data-lq-vd-remove="video"/, "video：原片的删除按钮有稳定钩子");
 requireMatch(videoPage, /data-lq-vd-remove="portrait"/, "video：照片的删除按钮有稳定钩子");

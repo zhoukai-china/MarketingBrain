@@ -6,7 +6,7 @@
 //   · 界面只出现画质档位（草稿预览 480p / 标准成片 720p / 高清成片 1080p），不出现任何模型名或厂商名。
 //   · 门店用户不注册账号、不建密钥、不做实名认证；唯一合规动作 = 肖像授权确认。
 //   · 一期单店：不出门店切换器、不出门店下拉。
-//   · 爆款复刻（LQ-28）不再由平台搜爆款：参考素材由门店自备（贴抖音链接只登记来源 / 上传原片），
+//   · 爆款复刻（LQ-28/LQ-30）不再由平台搜爆款、也不读平台链接：参考素材由门店自备原片上传，
 //     报价与出片沿用 LQ-27 既有链路，缺素材或授权一律 fail closed 明确提示，绝不假装成功。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -29,7 +29,7 @@ const MODES: { k: Mode; n: string }[] = [
  * 唯一改动：demo「文案转片」原文含「看积分预算」分句，兰琪一期不做积分，按硬约束去掉该分句。
  */
 const MODE_SUBTITLE: Record<Mode, string> = {
-  replicate: "视频获客 · 爆款复刻（参考抖音链接 / 上传原片 → 换脸/换人成片）",
+  replicate: "视频获客 · 爆款复刻（上传原片 → 换脸/换人成片）",
   assets: "门店素材成片（上传老板照片 + 门店环境 → 生成老板宣传 / 达人探店视频，风格任意选）",
   clip: "AI 剪辑（自己拍的视频传上来 → AI 自动精选片段 / 加字幕 / 配 BGM / 加片头片尾 → 出成片）",
   script: "文案转片（贴文案 → AI 出分镜脚本 → 传人物卡/场景卡/道具卡 → 逐镜生成出成片）"
@@ -116,13 +116,11 @@ const SCRIPT_DEMO =
 const VIDEO_RENDERING_READY = false;
 const RENDERING_OFFLINE_MSG = "视频生成服务暂未开通，这条成片现在还出不来。你的文案 / 素材 / 设置已经留在页面上，服务开通后直接点生成即可。";
 /**
- * 参考素材（LQ-28，用户 2026-09-14 口径）：取消「搜索爆款」入口，改为门店自备素材 ——
- * 贴抖音链接只登记参考来源，真正出片必须上传用户自己的原片。
- * 原因（生产实测）：公开检索拿不到热度字段（无法证明是不是爆款）、拿不到视频号视频、
- * 也拿不到抖音视频文件；继续硬做只会给出门店无法信赖的结果。
+ * 参考素材（LQ-28 → LQ-30）：取消「搜索爆款」入口，改为门店自备素材。
+ * 用户 2026-09-14 指示「先取消抖音链接的爆款复刻，只支持上传视频」：
+ * 平台链接既不能证明是不是爆款、也拿不到站内视频文件（实测 4 条路径全空壳），
+ * 所以这里只保留**上传原片**一条路，不再放登记来源的入口，避免让人以为贴链接能出片。
  */
-const REFERENCE_LINK_CAVEAT =
-  "抖音、视频号都不开放站内视频文件下载，平台也无法把分享链接解析成视频文件 —— 所以贴链接只登记参考来源，不会出片。";
 const REFERENCE_MIN_SECONDS = 2;
 const REFERENCE_MAX_SECONDS = 30;
 const REFERENCE_MAX_MB = 200;
@@ -460,73 +458,6 @@ const REPLICATION_RIGHTS = [
 ] as const;
 type ReplicationRightKey = (typeof REPLICATION_RIGHTS)[number]["k"];
 
-/** 登记下来的参考来源：只登记来源，不代表平台拿得到这条链接的视频文件。 */
-type ReferenceLink = { url: string; host: string; kindLabel: string };
-
-/**
- * 只识别抖音单条视频 / 图文 / 官方分享短链。账号主页、搜索页、合集、直播链接一律不收，
- * 免得把「一个账号」当成「一条爆款」。纯本地校验：不发任何请求。
- *
- * 用户 2026-09-14 反馈「没有正确识别抖音链接」：抖音 App 的「分享 → 复制链接」复制的
- * 是**分享口令文本**（口令 + 短链 + 「复制此链接，打开抖音搜索」这类提示混排成一段），
- * 不是裸 URL。之前把整段丢进 `new URL()` 必然抛错，于是真实口令一律被判成
- * 「这不像一条完整链接」。现在先从任意文本里抽出那条链接再校验：`http://` 升级为
- * `https://`，链接后面粘连的中文提示与标点裁掉，没写 scheme 的 `v.douyin.com/xxx` 也认。
- */
-/** 口令里链接后面常跟着「复制此链接，打开抖音…」这类中文与标点：只留链接本身。 */
-function trimReferenceUrl(url: string): string {
-  const head = url.replace(/[\s"'“”‘’<>（）()【】「」《》，。、；;:!！?？]+$/gu, "");
-  const cjk = head.search(/[\u3000-\u303f\u4e00-\u9fff\uff00-\uffef]/u);
-  const kept = (cjk >= 0 ? head.slice(0, cjk) : head).replace(/[\s"'“”‘’]+$/gu, "");
-  return kept.replace(/[,;:.]+$/u, "");
-}
-
-/** 从任意粘贴文本里抽出第一条抖音链接；抽不到返回 null（不猜、不编）。 */
-function extractReferenceUrl(raw: string): string | null {
-  const text = raw.trim();
-  if (!text) return null;
-  const withScheme = text.match(/https?:\/\/[^\s]+/i);
-  if (withScheme) return trimReferenceUrl(withScheme[0]);
-  const bare = text.match(/(?:v\.douyin\.com|(?:www\.)?douyin\.com|(?:www\.)?iesdouyin\.com)\/[^\s]*/i);
-  if (bare) return trimReferenceUrl(`https://${bare[0]}`);
-  return null;
-}
-
-function parseReferenceLink(raw: string): { ok: true; value: ReferenceLink } | { ok: false; reason: string } {
-  const text = raw.trim();
-  if (!text) return { ok: false, reason: "请先粘贴一条抖音视频链接。" };
-  const extracted = extractReferenceUrl(text);
-  if (!extracted) {
-    return {
-      ok: false,
-      reason:
-        "这段文字里没有链接。请在抖音里点「分享 → 复制链接」，把整段一起粘贴进来（含 https://v.douyin.com/… 或 www.douyin.com/video/…）；只贴口令文字识别不了。"
-    };
-  }
-  let url: URL;
-  try {
-    url = new URL(extracted);
-  } catch {
-    return { ok: false, reason: "这条链接读不出来，请回抖音重新「复制链接」再粘贴一次。" };
-  }
-  const host = url.hostname.toLowerCase();
-  const isDouyin = host === "douyin.com" || host.endsWith(".douyin.com") || host === "iesdouyin.com" || host.endsWith(".iesdouyin.com");
-  if (!isDouyin) {
-    return {
-      ok: false,
-      reason: `这里只登记抖音链接；识别到的是 ${host}。其他平台（含视频号）请把原片存到手机后，到「上传参考视频」上传。`
-    };
-  }
-  /* 统一登记成 https 的标准地址：口令里的多余文字与 http 明文都不带进登记结果。 */
-  const normalized = `https://${url.host}${url.pathname}${url.search}`;
-  if (host === "v.douyin.com") return { ok: true, value: { url: normalized, host, kindLabel: "抖音分享短链" } };
-  const hit = url.pathname.match(/^\/(?:share\/)?(video|note)\/\d+/);
-  if (!hit) {
-    return { ok: false, reason: "只识别单条抖音视频（/video/）或图文（/note/）链接；账号主页、搜索页、合集、直播链接都不能作为复刻参考。" };
-  }
-  return { ok: true, value: { url: normalized, host, kindLabel: hit[1] === "note" ? "抖音图文" : "抖音视频" } };
-}
-
 /** 上传前读真实时长与画面尺寸；读不到就返回 null，交给服务端校验，不在这里假装成功。 */
 function readVideoMeta(file: File): Promise<{ seconds: number | null; width: number | null; height: number | null }> {
   return new Promise((resolve) => {
@@ -563,11 +494,7 @@ function newReplicationRequestKey(): string {
 }
 
 function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: string) => void }) {
-  /** 第 1 步参考素材：贴链接（只登记来源）/ 上传原片（真正出片用）两个页签。 */
-  const [refTab, setRefTab] = useState<"link" | "upload">("link");
-  const [linkInput, setLinkInput] = useState("");
-  const [linkError, setLinkError] = useState("");
-  const [reference, setReference] = useState<ReferenceLink | null>(null);
+  /** 第 1 步参考素材：用户 2026-09-14 口径「只支持上传视频」，不再有贴链接入口。 */
   const [replaceMode, setReplaceMode] = useState<"face" | "body">("face");
 
   /*
@@ -593,8 +520,6 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
 
   const photoNeeded = replaceMode === "face" ? "头部图片" : "全身画面";
   const rightsOk = REPLICATION_RIGHTS.every((item) => rights[item.k]);
-  const canRegisterLink = linkInput.trim().length > 0;
-
   const uploadAsset = useCallback(async (kind: "video" | "portrait", file: File | undefined) => {
     if (!file) return;
     if (kind === "video") {
@@ -664,19 +589,6 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
       setBusy("");
     }
   }, []);
-
-  /** 贴链接只登记参考来源：本地校验 → 不发任何请求，也明确告诉用户这里出不了片。 */
-  const registerLink = useCallback(() => {
-    const parsed = parseReferenceLink(linkInput);
-    if (!parsed.ok) {
-      setReference(null);
-      setLinkError(parsed.reason);
-      return;
-    }
-    setReference(parsed.value);
-    setLinkError("");
-    flash("参考来源已登记；出片还要在「上传参考视频」里上传原片。");
-  }, [flash, linkInput]);
 
   /**
    * 删除已上传素材（用户 2026-09-14 反馈「已上传的照片 / 视频无法删除、无法替换」）。
@@ -849,9 +761,6 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
   /** 换素材重来：清空参考素材、人物形象、授权与上一次的报价 / 任务，并换新幂等键。 */
   const resetAll = useCallback(() => {
     requestKeyRef.current = newReplicationRequestKey();
-    setLinkInput("");
-    setLinkError("");
-    setReference(null);
     setVideoFile(null);
     setPortraitFile(null);
     setRights({ visual: false, audio: false, performer: false, portrait: false });
@@ -862,24 +771,16 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
   }, []);
 
   /**
-   * 还差什么才允许报价。用户 2026-09-14 口径「给抖音链接或者上传视频，二选一就可以了才对」：
-   * ① 参考素材这一步**确实是二选一** —— 贴链接登记来源，或上传原片；
-   * 但出片本身必须有原片：抖音 / 视频号不提供站内视频文件下载（实测 4 条路径全空壳），
-   * 所以只登记了链接时，提示要写清「为什么还差原片」，不能像"链接没被认出来"。
+   * 还差什么才允许报价。用户 2026-09-14 口径：参考素材只支持上传视频
+   * （平台链接拿不到视频文件，实测 4 条路径全空壳），所以只点名原片、人物照片与四项授权。
    */
   const missing = [
-    !videoFile
-      ? reference
-        ? "出片要用的原片（链接已登记为参考来源；抖音 / 视频号不提供站内视频文件下载，请在抖音里保存原片后从上面「上传参考视频」传上来）"
-        : "参考素材：贴抖音链接登记来源，或直接上传原片（二选一；出片必须有原片）"
-      : "",
+    !videoFile ? "参考视频原片（先在抖音 / 视频号里「保存本地视频」，再上传）" : "",
     !portraitFile ? photoNeeded : "",
     !rightsOk ? "四项素材与肖像授权" : ""
   ].filter(Boolean);
   const stage = !videoFile
-    ? reference
-      ? "第 1 步 / 3 · 参考来源已登记；出片还需要这条视频的原片"
-      : "第 1 步 / 3 · 提供参考素材：贴抖音链接登记来源，或上传原片"
+    ? "第 1 步 / 3 · 上传要复刻的原片"
     : !portraitFile
       ? "第 2 步 / 3 · 提供要替换的人物形象"
       : !rightsOk
@@ -933,68 +834,12 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
       <section className="lq-vd__left">
         <div className="lq-vd__stage">{stage}</div>
 
-        <h3 className="lq-vd__card-title">① 参考素材 <span className="tag green">链接 / 原片 二选一</span></h3>
+        <h3 className="lq-vd__card-title">① 参考素材 <span className="tag green">必填 · 上传原片</span></h3>
         <p className="lq-vd__card-sub">
-          参考素材由你自己提供，平台不再替你去搜爆款。两条路任选其一登记：<b>贴抖音链接登记参考来源</b>，
-          或<b>直接上传原片</b>。注意：抖音、视频号都不开放站内视频文件下载，模型吃的是<b>视频文件</b>本身，
-          所以贴链接这一步能过，但真正出片仍然需要你手里的原片（在抖音里点「分享 → 保存本地视频」再上传即可）。
+          参考素材由你自己提供，平台不替你去搜、也不读取平台链接里的视频文件（抖音、视频号都不开放站内视频下载）。
+          请先在抖音 / 视频号里点「分享 → 保存本地视频」，再把这条<b>原片</b>传上来。
         </p>
-        <div className="lq-vd__chips" role="group" aria-label="参考素材方式">
-          <button
-            type="button"
-            aria-pressed={refTab === "link"}
-            className={`lq-vd__pill${refTab === "link" ? " on" : ""}`}
-            onClick={() => setRefTab("link")}
-          >
-            🔗 参考抖音链接
-          </button>
-          <button
-            type="button"
-            aria-pressed={refTab === "upload"}
-            className={`lq-vd__pill${refTab === "upload" ? " on" : ""}`}
-            onClick={() => setRefTab("upload")}
-          >
-            🎬 上传参考视频
-          </button>
-        </div>
-        {refTab === "link" ? (
-          <>
-            <div className="lq-vd__field" style={{ marginTop: 14 }}>
-              <label htmlFor="lq-vd-ref-link">抖音视频 / 图文链接</label>
-              <input
-                id="lq-vd-ref-link"
-                value={linkInput}
-                placeholder="https://www.douyin.com/video/7xxxxxxxxxx"
-                onChange={(event) => {
-                  setLinkInput(event.target.value);
-                  setLinkError("");
-                }}
-              />
-              <p className="lq-vd__hint">只收单条视频 / 图文或官方分享短链；账号主页、搜索页、合集、直播链接不收。</p>
-            </div>
-            <button className="lq-vd__btn primary block" type="button" disabled={!canRegisterLink} onClick={registerLink}>
-              🔗 登记参考来源
-            </button>
-            {linkError && <p className="lq-vd__err">{linkError}</p>}
-            {reference && (
-              <div className="lq-vd__chosen">
-                <div className="lq-vd__hit-top">
-                  <span className="lq-vd__hit-badge">{reference.kindLabel}</span>
-                  <span className="lq-vd__hit-site">{reference.host}</span>
-                </div>
-                <p className="lq-vd__hit-title">{reference.url}</p>
-                <p className="lq-vd__hint">已登记参考来源：这里只记来源，平台不读取这条链接里的视频文件，也不会凭它出片。</p>
-              </div>
-            )}
-            <div className="lq-vd__warn">{REFERENCE_LINK_CAVEAT}</div>
-            {!videoFile && (
-              <p className="lq-vd__hint">
-                下一步：在手机上打开这条抖音 → 点「分享 / …」→ 保存到相册 → 回到本页切到<b>「上传参考视频」</b>把原片传上来。
-                没上传原片之前，报价与出片都不会开始。
-              </p>
-            )}
-          </>
-        ) : (
+        {(
           <>
             <p className="lq-vd__card-sub" style={{ marginTop: 14 }}>
               MP4 / MOV，≤{REFERENCE_MAX_MB}MB，时长 {REFERENCE_MIN_SECONDS}–{REFERENCE_MAX_SECONDS} 秒。
@@ -1147,12 +992,12 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
           爆款复刻 · 换脸 / 换人 <span className="lq-vd__badge">严格复刻</span>
         </div>
         <div className="lq-vd__warn">
-          参考素材由你自己提供：贴抖音链接只登记来源，<b>出片必须上传原片</b>。平台不抓站内视频流，也不替你去搜爆款。
+          参考素材由你自己提供：<b>上传原片</b>才能出片。平台不抓站内视频流、不解析平台链接，也不替你去搜爆款。
         </div>
         <div className="lq-vd__card">
           <div className="lq-vd__kv">
-            <span className="k">参考来源</span>
-            <span className="v">{reference ? `${reference.kindLabel} · ${reference.host}` : "未登记抖音链接"}</span>
+            <span className="k">参考素材</span>
+            <span className="v">{videoFile ? videoFile.name : "未上传参考视频"}</span>
           </div>
           <div className="lq-vd__kv">
             <span className="k">参考视频</span>
