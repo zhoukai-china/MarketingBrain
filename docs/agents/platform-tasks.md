@@ -2281,3 +2281,32 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 - 老板入口：`https://api.lcppch.top/os-v2/agents/admin`；用平台账号登录后，在页面顶部「平台管理令牌」粘贴 `ADMIN_TOKEN`（服务器 `/etc/baolu-secrets/baolu-os-v2.env`）。
 - 未做：生产页面级验收（生产要真人微信登录 + 令牌，不代老板登录）；「推荐有礼配置位」的可写编辑仍只在旧页 `/agents/admin/legacy`（要不要搬进新后台等老板说了算）。
 - 最后更新日期：2026-09-15
+
+## PLAT-36 清掉 4 条既有红灯（用户 2026-09-15：同意开卡修）
+
+状态：**已完成**（4 条全绿；`qa:regression` 全链路首次通过）。
+
+### 用户口径
+
+「4 条既有红灯同意开卡修。其中 `beauty-industry:web-contract-smoke` 是断言过期（PLAT-32 把注册搬到了 `products/register.ts`），另外 3 条在视频复刻那条线上。」
+
+### 实际结果（先复现，后动手；其中 2 条已被并行 LQ-30 线程修掉）
+
+| 红灯 | 复现结果 | 处置 |
+|---|---|---|
+| `beauty-industry:video-foundation-smoke` | 当前 HEAD 已 **PASS**（LQ-30 线程修掉） | 只回归确认，不动代码 |
+| `beauty-industry:video-material-authorization-smoke` | 当前 HEAD 已 **PASS**（同上） | 只回归确认，不动代码 |
+| `beauty-industry:web-contract-smoke` | 仍红：断言 `server.ts` 含 `registerBeautyIndustryRoutes` | 改断言：`server.ts` 走 `registerProductRoutes` + `products/register.ts` 真注册美业路由（QA-20260915-002） |
+| `beauty-industry:video-oss-staging-smoke` | 仍红：① 断言旧的 `/cleanup_failed/` 文案；② **修掉①后暴露审计泄漏上游原始错误 message**（P1） | ① 改成钉「必须抛错 + 驱动具体码 + 租约 `cleanup_failed` + sweep 可恢复」；② `rawErrorDetail()` 只留「类名 + 错误码 + 12 位消息指纹」（QA-20260915-001） |
+
+### 验收与测试
+
+- `REDLIGHT_ALL_OK`：上述 4 条一次性连跑全部 PASS（oss-staging 连续 3 轮，每轮 124 次注入 SDK 请求、云端 0、Provider 0、费用 0）。
+- `pnpm.cmd qa:regression` 全链路通过（此前被这两条挡在中间，含 `auth:invite-gate-smoke`、`plat33:voice-transcribe-admission-smoke` 等新增门禁）。
+- 泄漏红灯证据：探针 `LEAK_MARKER SYNTHETIC_RAW_RESPONSE`（审计 detail 里出现上游 message 原文）；修复后新断言要求 `messageFingerprint=<12位>` 且不得出现原始文本/URL。
+
+### 交接
+
+- 代码改动仅两处运行时文件：`apps/api/src/services/beauty-video-oss-staging.ts`（审计脱敏）+ 两个 smoke 断言；另有 `docs/BUG_REGRESSIONS.md` 登记。
+- 残余：真实云 OSS / 真实素材仍未接入（本卡全程离线合成，`BEAUTY_VIDEO_STAGING_DRIVER` 未开启时该驱动不生效）；视频复刻线上链路此前已由 LQ-30 线程发布。
+- 最后更新日期：2026-09-15

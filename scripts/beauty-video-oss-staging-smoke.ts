@@ -115,7 +115,18 @@ async function main(){
     const j=await integrated.repository.get(id,actor.tenantId),leaseId=j!.authorizationSnapshot.stagingLeaseId;
     await db.store.create({data:{id:"other-store",tenantId:actor.tenantId}});await db.membership.updateMany({where:actor,data:{storeId:"other-store"}});
     await assert.rejects(()=>integrated.admission(actor as any,input),/asset_not_found/);await db.membership.updateMany({where:actor,data:{storeId}});
-    ff.set({deleteFailure:true});await assert.rejects(()=>integrated.staging!.release(leaseId),/cleanup_failed/);assert.equal((await db.beautyVideoStagingLease.findUnique({where:{id:leaseId}})).status,"cleanup_failed");ff.set({deleteFailure:false});await integrated.staging!.sweep();assert.equal(ff.objects.size,0);
+    // 9e5b6a1（LQ-27 诊断补齐）后的口径：清理失败**不吞错误**——lease 必须落 `cleanup_failed`，
+    // 同时把驱动的具体错误码（`oss_http_503` 这类）记下来并抛给调用方，方便排障。
+    // 旧断言等的是通用文案 `/cleanup_failed/`，属于断言过期；这里改钉真正要保的三件事：
+    // ① 一定要抛错（不伪称释放成功）；② 抛的是驱动具体码；③ lease 状态可被 sweep 恢复。
+    ff.set({deleteFailure:true});
+    const cleanupError=await integrated.staging!.release(leaseId).then(()=>null,(e:any)=>e);
+    assert.ok(cleanupError,"清理失败必须抛错，不能静默成功");
+    assert.match(String(cleanupError?.code ?? ""),/^oss_/,"清理失败必须保留驱动具体错误码");
+    const failedLease=await db.beautyVideoStagingLease.findUnique({where:{id:leaseId}});
+    assert.equal(failedLease!.status,"cleanup_failed","清理失败必须落 cleanup_failed 状态，保持可恢复");
+    assert.match(String(failedLease!.errorCode ?? ""),/^oss_/,"lease 必须记下驱动具体错误码");
+    ff.set({deleteFailure:false});await integrated.staging!.sweep();assert.equal(ff.objects.size,0);
     uncertain=true;const unknownInput={...input,requestKey:randomUUID()};const unknown=await integrated.runtime!.confirm(a,unknownInput);assert.equal(unknown.job.status,"terminal_unknown");const after=ff.calls.length;await integrated.runtime!.confirm(a,unknownInput);assert.equal(ff.calls.length,after);assert.equal(submissions,2);assert.equal(ff.objects.size,0);uncertain=false;
     ff.set({failPut:ff.putCount()+2});await assert.rejects(()=>integrated.runtime!.confirm(a,{...input,requestKey:randomUUID()}),/oss_/);assert.equal(ff.objects.size,0);assert.equal(submissions,2);
     const staged=await integrated.staging!.stage(a,{...input,requestKey:randomUUID()});now+=901000;await assert.rejects(()=>staged.assertScope(),/unavailable/);await integrated.staging!.sweep();assert.equal(ff.objects.size,0);
@@ -123,7 +134,16 @@ async function main(){
     await integrated.authorization.revoke(actor,refAuth.id);assert.equal(ff.objects.size,0,"BY49 revoke must clean active lease even before a job exists");assert.equal((await integrated.repository.get(id,actor.tenantId))!.status,"terminal_unknown");assert.equal((await db.creditAccount.findUnique({where:{tenantId:actor.tenantId}})).balance,1000);assert.equal(await db.creditReservation.count(),2);
     await assert.rejects(()=>integrated.admission(actor as any,{...input,requestKey:randomUUID()}),/authorization_required/);
     assert.equal(await db.creditReservation.count({where:{status:"released"}}),2);
-    const exposed=JSON.stringify([...audit,...await db.auditLog.findMany()]);for(const word of["SYNTHETICACCESSKEY49","SYNTHETIC_STS","SYNTHETIC_SECRET","x-oss-signature","private raw response","SYNTHETIC_RAW_RESPONSE"])assert.ok(!exposed.includes(word));
+    const exposed=JSON.stringify([...audit,...await db.auditLog.findMany()]);
+    for(const word of["SYNTHETICACCESSKEY49","SYNTHETIC_STS","SYNTHETIC_SECRET","x-oss-signature","private raw response","SYNTHETIC_RAW_RESPONSE"])assert.ok(!exposed.includes(word),`审计不得出现上游原始内容：${word}`);
+    // 2026-09-15 回归：LQ-27 起审计要记底层错误，但**只能记类名/错误码 + 消息指纹**，
+    // 不许把原始 message 落进去（真实环境里 message 可能含签名 URL、桶名、AccessKeyId）。
+    const detailEvents=(audit as any[]).filter((item)=>typeof item?.detail==="string");
+    assert.ok(detailEvents.length>0,"审计必须保留底层错误摘要（不能只剩统一 code）");
+    for(const event of detailEvents){
+      assert.match(event.detail,/messageFingerprint=[a-f0-9]{12}/,"底层错误摘要必须带消息指纹，便于同一根因对齐");
+      assert.ok(!/SYNTHETIC|private raw response|http:\/\/|https:\/\//.test(event.detail),`审计摘要不得含原始 message/URL：${event.detail}`);
+    }
     console.log(JSON.stringify({round,result:"PASS",sdkRequests:f.calls.length+ff.calls.length,syntheticHandoffs:submissions,providerCalls:0,externalNetwork:forbiddenNetwork,creditsNet:0}));
   }finally{await app.close();}
  }

@@ -6,7 +6,7 @@ async function read(path) {
 }
 
 async function main() {
-  const [page, styles, workbuddyPage, loginPage, profile, route, execution, outputContract, routeReceipt, workflows, adapter, mcpRoute, mainEntry, server, account, sharedSource, sharedRuntime] = await Promise.all([
+  const [page, styles, workbuddyPage, loginPage, profile, route, execution, outputContract, routeReceipt, workflows, adapter, mcpRoute, mainEntry, server, account, sharedSource, sharedRuntime, productRegister] = await Promise.all([
     read("apps/web/src/pages/BeautyIndustryAcquisitionPage.tsx"),
     read("apps/web/src/styles/beauty-industry.css"),
     read("apps/web/src/pages/BeautyIndustryWorkBuddyPage.tsx"),
@@ -23,7 +23,9 @@ async function main() {
     read("apps/api/src/server.ts"),
     read("apps/web/src/pages/AgentProductsApp.tsx"),
     read("packages/shared/src/index.ts"),
-    read("packages/shared/dist/index.js")
+    read("packages/shared/dist/index.js"),
+    // PLAT-32 之后美业路由挂在 products/register.ts（server.ts 只做产品注册装配）。
+    read("apps/api/src/products/register.ts")
   ]);
 
   assert.match(page, /美业经营工作台/);
@@ -92,7 +94,11 @@ async function main() {
   assert.match(adapter, /beauty\.sales_advice/);
   assert.match(mainEntry, /BeautyIndustryAcquisitionPage/);
   assert.match(mainEntry, /path\.startsWith\("\/login\/beauty-industry"\) \? "beauty-industry"/);
-  assert.match(server, /registerBeautyIndustryRoutes/);
+// PLAT-32（commit 0e7053a）把产品路由从 server.ts 拆到 products/register.ts，
+// 这里不能再断言 server.ts 里直接出现 `registerBeautyIndustryRoutes`（断言过期会让整条
+// `beauty-industry:web-contract-smoke` 一直红）。口径不变：server 装配产品路由，美业路由真被注册。
+assert.match(server, /registerProductRoutes/, "server 必须通过 products/register.ts 装配产品路由（PLAT-32 拆分后）");
+assert.match(productRegister, /registerBeautyIndustryRoutes/, "美业路由必须真被注册（现在挂在 products/register.ts）");
   assert.match(account, /productCode: "beauty-industry"/);
   for (const shared of [sharedSource, sharedRuntime]) {
     assert.match(shared, /name: "美业智能体"/);

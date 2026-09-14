@@ -1,5 +1,23 @@
 # Bug 回归台账
 
+## QA-20260915-001：OSS 暂存审计把上游原始错误 message 落库（可能含签名 URL / 桶名 / AccessKeyId）（P1，本次修复）
+
+- 触发：用户 2026-09-15「同意开卡修 4 条既有红灯」。修 `beauty-industry:video-oss-staging-smoke` 的第一条断言（清理失败错误码）后，**暴露出下一条更严重的失败**：`assert.ok(!exposed.includes("SYNTHETIC_RAW_RESPONSE"))`——审计内容里出现了上游原始错误文本。
+- 现场证据（离线合成、无真实云）：探针打印 `LEAK_MARKER SYNTHETIC_RAW_RESPONSE`，上下文为 `{"event":"beauty_video.oss","operation":"bucketInfo=",...,"code":"oss_transport_unknown","detail":"Error: SYNTHETIC_RAW_RESPONSE_SECRET_MUST_NOT_ESCAPE"}`。合成夹具用这个字符串代表「任意上游错误 message」；真实环境里 message 可能包含签名 URL、桶名、AccessKeyId 或响应体片段。
+- 根因：LQ-27（`9e5b6a1`）为了不再把底层错误压成统一的 `oss_transport_unknown`，把 `name + code + message` 一起写进审计 `detail`（`rawErrorDetail()`），并在另一处回退分支里直接 `e.message.slice(0,120)`。诊断变好了，但把上游原文也带进了审计/日志，违反仓库「不在日志/审计写真实密钥与客户敏感数据」的红线。
+- 修复（最小、可回滚）：`apps/api/src/services/beauty-video-oss-staging.ts` 的 `rawErrorDetail()` 改为只输出「错误类名 + 错误码（白名单字符 + 长度上限）+ 12 位消息指纹（sha256）」，两处回退分支统一走它。诊断能力保留（同一根因可用指纹对齐、错误类型仍可见），原文与 URL 不再落审计。
+- 回归（先红灯后绿灯）：`scripts/beauty-video-oss-staging-smoke.ts` 新增断言——审计 detail 必须带 `messageFingerprint=<12位>`，且不得出现 `SYNTHETIC` / 原始 URL / 原始 message。修复前该断言稳定失败（`LEAK_MARKER`），修复后 `beauty-industry:video-oss-staging-smoke` 连续 3 轮 PASS（每轮 124 次注入 SDK 请求、云端 0、Provider 0、费用 0）。
+- 边界：只改审计文本，不改重试、删除、签名、TTL、预算与租约状态机；真实云与真实素材仍未接入（本卡全程离线合成）。
+
+## QA-20260915-002：两条 gate 因断言过期长期红灯（P3，本次修复）
+
+- 触发：同一批「既有红灯」清单。
+- 现象与根因：
+  1. `beauty-industry:web-contract-smoke` 断言 `server.ts` 里出现 `registerBeautyIndustryRoutes`——PLAT-32（`0e7053a`）已把产品路由装配搬到 `apps/api/src/products/register.ts`，`server.ts` 只调 `registerProductRoutes`。断言指向的**位置**变了，能力没变。
+  2. `beauty-industry:video-oss-staging-smoke` 断言清理失败抛出的错误文本匹配 `/cleanup_failed/`——LQ-27（`9e5b6a1`）**有意**改成保留驱动具体错误码（如 `oss_http_503`）便于排障，租约状态仍然落 `cleanup_failed`。
+- 修复：两处断言改成钉「能力/契约」而不是钉「实现位置与文案」——① 断言 `server.ts` 走 `registerProductRoutes` **且** `products/register.ts` 真的注册了美业路由；② 断言清理失败「必须抛错 + 抛驱动具体码 + 租约落 `cleanup_failed` 且 `errorCode` 记录具体码 + sweep 可恢复」。
+- 验证：`REDLIGHT_ALL_OK`——上述两条 + `beauty-industry:video-foundation-smoke` + `beauty-industry:video-material-authorization-smoke` 全部 PASS；`pnpm.cmd qa:regression` 全链路通过（此前被这两条挡在中间）。
+
 ## QA-20260914-006：视频复盘把空象限占位符「无」当成视频 ID，导致有象限为空就出不了报告（P1，本次修复）
 
 - 触发：用户 2026-09-14「视频复盘验收通过后把它重新上架」的验收过程。上线前在**测试实例**用真实后台导出格式的表格跑真实模型，连续 3 次（3 条 / 6 条数据集）返回 `422 marketplace_output_invalid`，原文：`V3 视频 无 被归入多个象限（both / conv_no_plays）`、`V3 四象限条数之和 4 ≠ 总条数 3`。这与用户最初的 P0 反馈「视频数据上传了但是并没有输出」完全对应。

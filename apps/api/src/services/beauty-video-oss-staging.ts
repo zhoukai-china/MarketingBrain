@@ -26,10 +26,26 @@ export function createPinnedIpLookup(address: string, family = 4): LookupFunctio
     else callback(null, address, family);
   };
 }
-/** 底层 socket/TLS 错误名与消息进审计 detail，不再只剩统一的 oss_transport_unknown。 */
+const SAFE_ERROR_TOKEN = /^[A-Za-z0-9_.-]{1,40}$/;
+
+/**
+ * 审计里的底层错误摘要（LQ-27 诊断诉求 + 2026-09-15 安全回归）。
+ *
+ * LQ-27 要把「不再只剩 oss_transport_unknown」做掉，于是这里开始记底层错误；
+ * 但当时把**原始 message** 原样写进了审计。实测（`beauty-industry:video-oss-staging-smoke`）：
+ * 上游错误的 message 会被完整落到审计里——真实环境里 message 可能含签名 URL、桶名、
+ * AccessKeyId 或响应体片段，属于仓库明令禁止写入日志/审计的内容。
+ *
+ * 现在的口径：只留「错误类名 + 错误码 + 消息指纹」。
+ * - 类名/错误码做白名单字符校验并有长度上限（如 `TypeError ECONNRESET`），够定位；
+ * - 消息只留 12 位 sha256 指纹，同一根因可对齐、原文不外泄。
+ */
 export function rawErrorDetail(error: unknown): string {
   const e = error as { name?: string; code?: string; message?: string };
-  return `${e?.name ?? "Error"}: ${e?.code ? `${e.code} ` : ""}${String(e?.message ?? "").slice(0, 120)}`;
+  const name = typeof e?.name === "string" && SAFE_ERROR_TOKEN.test(e.name) ? e.name : "Error";
+  const code = typeof e?.code === "string" && SAFE_ERROR_TOKEN.test(e.code) ? ` ${e.code}` : "";
+  const fingerprint = hash(String(e?.message ?? "")).slice(0, 12);
+  return `${name}${code} messageFingerprint=${fingerprint}`;
 }
 function ossTransportError(error: unknown): ReplicationError {
   const wrapped = new ReplicationError("oss_transport_unknown", 503);
@@ -138,7 +154,8 @@ export function createOssPrivateVideoStaging(options: {
           return {status,headers:response.headers,data:response.body,res:{status,statusCode:status,headers:response.headers,size:response.body.length}};
         } catch(e) {const transportWrapped=e instanceof ReplicationError?e:new ReplicationError("oss_transport_unknown",503);
           code=transportWrapped.code;
-          detail=(e as { detail?: string })?.detail ?? (e instanceof Error?`${e.name}: ${String(e.message).slice(0,120)}`:`${typeof e}`);
+          // 统一走 rawErrorDetail：非 ReplicationError 的底层异常也不许把原始 message 落审计。
+          detail=(e as { detail?: string })?.detail ?? rawErrorDetail(e);
           wireFailure=transportWrapped;throw wireFailure;}
         finally { options.audit?.({event:"beauty_video.oss",operation:bucketRead?u.search.slice(1):op,status,elapsedMs:Math.max(0,now()-start),code,detail,objectFingerprint:hash(u.pathname).slice(0,16)}); }
       }}
