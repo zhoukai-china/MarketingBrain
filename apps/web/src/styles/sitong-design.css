@@ -726,6 +726,10 @@ body[data-device="mobile"] .drawer-body{padding:14px}
 :root[data-theme="light"] .rc-card.token .rct-box{background:rgba(16,32,64,.05)}
 .rct-box code{flex:1;font-size:12px;letter-spacing:.5px;color:var(--text);word-break:break-all}
 .rct-tip{font-size:11px;color:var(--muted-2);margin-top:8px}
+.rc-mcp-cmd{margin:10px 0;padding:10px 12px;max-height:190px;overflow:auto;border-radius:9px;
+  background:rgba(0,0,0,.16);border:1px solid var(--line);font-size:11.5px;line-height:1.6;
+  color:var(--text);white-space:pre-wrap;word-break:break-all}
+:root[data-theme="light"] .rc-mcp-cmd{background:rgba(16,32,64,.05)}
 .rc-login{max-width:420px;margin:26px auto 0;text-align:center;padding:34px 26px;
   border-radius:var(--radius);background:var(--glass);border:1px solid var(--line);box-shadow:var(--shadow)}
 .rcl-ico{font-size:30px;margin-bottom:10px}

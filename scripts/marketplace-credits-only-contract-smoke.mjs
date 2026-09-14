@@ -135,6 +135,8 @@ requireContains(chatMessages, "${docxPrice} 积分", "工作台聊天页 Word �
 const recharge = read("apps/web/src/pages/RechargePage.tsx");
 requireContains(recharge, "¥${currentPlan.priceCny}", "充值页仍显示真实付款金额（真实支付，不是积分折算）");
 requireContains(recharge, "基准 1 元 = 20 积分", "充值页仍说明积分与真实金额的换算基准");
+requireContains(recharge, "请帮我在 WorkBuddy 中接入", "充值页必须给出可直接复制给 WorkBuddy 的 MCP 安装指令");
+requireContains(recharge, "/integrations/workbuddy/mcp", "充值页安装指令必须指向 WorkBuddy MCP 地址");
 
 const shared = read("packages/shared/src/index.ts");
 requireContains(shared, "export function yuanLabelForCredits", "shared 仍保留折算函数供内部/管理端使用");

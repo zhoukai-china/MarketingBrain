@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api";
 import { billingErrorCopy } from "../lib/humanize-error.js";
 
@@ -20,18 +20,24 @@ interface WalletBalance {
   balance: number;
 }
 
-interface BillingAccessToken {
-  id: string;
-  label: string | null;
-  tokenPrefix: string;
-  status: string;
-  expiresAt: string | null;
-  revokedAt: string | null;
-  lastUsedAt: string | null;
-  createdAt: string;
-}
-
 const PTS_PER_YUAN = 20;
+
+/**
+ * WorkBuddy 接入思潼 AI 的 MCP：把这段整段发给 WorkBuddy，它会自己合并 mcpServers 配置。
+ * 与「企业账户 → WorkBuddy 调用思潼 AI」里生成的是同一段指令，密钥前缀是 `sitong_wb_`。
+ */
+export function buildWorkbuddyInstruction(url: string, key: string): string {
+  const config = JSON.stringify({
+    mcpServers: {
+      "sitong-ai": {
+        type: "streamable-http",
+        url,
+        headers: { Authorization: `Bearer ${key}` }
+      }
+    }
+  }, null, 2);
+  return `请帮我在 WorkBuddy 中接入“思潼 AI”MCP。请打开 MCP 配置，将下面的 sitong-ai 配置合并进现有的 mcpServers（不要删除我已有的其他 MCP），保存配置并刷新 MCP 服务列表。配置完成后请提示我：我会自行前往 MCP 服务管理页面，对 sitong-ai 点击信任并启用。\n\n${config}`;
+}
 
 /**
  * 微信内置浏览器：必须走 JSAPI 收银台（`WeixinJSBridge`），不能只出二维码。
@@ -105,12 +111,6 @@ async function readJson<T>(response: Response): Promise<T> {
   return payload as T;
 }
 
-function formatDate(value: string): string {
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return value;
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
 export function RechargePage() {
   const query = useMemo(() => new URLSearchParams(window.location.search), []);
   const fromWorkbuddy = query.get("from") === "workbuddy";
@@ -128,9 +128,9 @@ export function RechargePage() {
   /** 当前这一单用的是哪种支付方式：jsapi（微信内收银台）/ native（二维码）。 */
   const [payMode, setPayMode] = useState<"none" | "jsapi" | "native">("none");
   const [orderId, setOrderId] = useState("");
-  const [accessTokens, setAccessTokens] = useState<BillingAccessToken[]>([]);
-  const [newToken, setNewToken] = useState("");
-  const [tokenLabel, setTokenLabel] = useState("WorkBuddy 访问令牌");
+  /** WorkBuddy MCP 接入指令用到的服务地址与本次生成的连接密钥（`sitong_wb_`）。 */
+  const [mcpUrl, setMcpUrl] = useState("https://api.lcppch.top/os-v2/api/integrations/workbuddy/mcp");
+  const [mcpToken, setMcpToken] = useState("");
   const pollRef = useRef<number | null>(null);
 const isLocal = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
 
@@ -165,12 +165,14 @@ const isLocal = typeof window !== "undefined" && (window.location.hostname === "
 
   async function loadAccount() {
     try {
-      const [walletData, tokens] = await Promise.all([
+      const [walletData, mcpInfo] = await Promise.all([
         fetch(apiPath("/wallet"), { headers: authHeaders(), cache: "no-store" }).then(readJson<WalletBalance>),
-        fetch(apiPath("/billing/access-tokens"), { headers: authHeaders() }).then(readJson<{ tokens?: BillingAccessToken[] }>)
+        fetch(apiPath("/integrations/workbuddy/connections"), { headers: authHeaders(), cache: "no-store" })
+          .then(readJson<{ mcpUrl?: string }>)
+          .catch((): { mcpUrl?: string } => ({}))
       ]);
       setWallet(walletData);
-      setAccessTokens(tokens.tokens ?? []);
+      if (mcpInfo.mcpUrl) setMcpUrl(mcpInfo.mcpUrl);
     } catch (reason) {
       const status = (reason as { status?: number })?.status;
       if (status === 401 || status === 403) {
@@ -178,7 +180,6 @@ const isLocal = typeof window !== "undefined" && (window.location.hostname === "
         setToken("");
       } else {
         setWallet(null);
-        setAccessTokens([]);
       }
     }
   }
@@ -308,49 +309,37 @@ const isLocal = typeof window !== "undefined" && (window.location.hostname === "
     }
   }
 
-  async function createAccessToken(event: FormEvent) {
-    event.preventDefault();
+  /**
+   * 复制「给 WorkBuddy 的安装指令」。首次调用会先按当前账号生成一条专属 MCP 连接
+   * （密钥 `sitong_wb_` 只显示这一次），再把地址 + 密钥拼进指令一起复制。
+   */
+  async function copyWorkbuddyInstruction() {
     setError("");
     setNotice("");
     try {
-      const created = await fetch(apiPath("/billing/access-tokens"), {
-        method: "POST",
-        headers: { ...authHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ label: tokenLabel.trim() || "WorkBuddy 访问令牌" })
-      }).then(readJson<{ token: string; accessToken: BillingAccessToken }>);
-      setNewToken(created.token);
-      setAccessTokens((current) => [created.accessToken, ...current]);
-      setNotice("访问令牌已生成，只显示这一次，请立即复制保存。");
+      let key = mcpToken;
+      let url = mcpUrl;
+      if (!key) {
+        const me = await fetch(apiPath("/agents/me"), { headers: authHeaders(), cache: "no-store" })
+          .then(readJson<{ agents?: Array<{ id: string; slug?: string }> }>);
+        const agent = me.agents?.[0];
+        if (!agent) throw new Error("当前账号还没有可用智能体，先开通一个智能体再生成连接密钥。");
+        const created = await fetch(apiPath("/integrations/workbuddy/connections"), {
+          method: "POST",
+          headers: { ...authHeaders(), "Content-Type": "application/json" },
+          body: JSON.stringify(agent.slug === "beauty-industry"
+            ? { productCode: "beauty-industry", label: "WorkBuddy 连接" }
+            : { agentId: agent.id, label: "WorkBuddy 连接" })
+        }).then(readJson<{ token: string; mcpUrl?: string }>);
+        key = created.token;
+        if (created.mcpUrl) url = created.mcpUrl;
+        setMcpToken(key);
+        setMcpUrl(url);
+      }
+      await navigator.clipboard.writeText(buildWorkbuddyInstruction(url, key));
+      setNotice("安装指令已复制，直接粘贴发给 WorkBuddy 即可。");
     } catch (reason) {
-      setError(billingErrorCopy(reason, "访问令牌生成失败。"));
-    }
-  }
-
-  async function rotateAccessToken(id: string) {
-    setError("");
-    setNotice("");
-    try {
-      const rotated = await fetch(apiPath(`/billing/access-tokens/${id}/rotate`), {
-        method: "POST",
-        headers: authHeaders()
-      }).then(readJson<{ token: string; accessToken: BillingAccessToken }>);
-      setNewToken(rotated.token);
-      setAccessTokens((current) => [rotated.accessToken, ...current.filter((item) => item.id !== id)]);
-      setNotice("旧访问令牌已失效，新访问令牌只显示这一次。");
-    } catch (reason) {
-      setError(billingErrorCopy(reason, "访问令牌刷新失败。"));
-    }
-  }
-
-  async function revokeAccessToken(id: string) {
-    setError("");
-    setNotice("");
-    try {
-      await fetch(apiPath(`/billing/access-tokens/${id}`), { method: "DELETE", headers: authHeaders() }).then(readJson);
-      setAccessTokens((current) => current.map((item) => item.id === id ? { ...item, status: "revoked", revokedAt: new Date().toISOString() } : item));
-      setNotice("访问令牌已失效。");
-    } catch (reason) {
-      setError(billingErrorCopy(reason, "访问令牌失效操作失败。"));
+      setError(billingErrorCopy(reason, "安装指令复制失败，请重试。"));
     }
   }
 
@@ -484,22 +473,11 @@ const isLocal = typeof window !== "undefined" && (window.location.hostname === "
             <aside className="rc-side">
               <div className="rc-card"><b>💎 积分用在哪</b><p>思潼AI 里所有按次使用的智能体（创始人IP专区 + 各行业专区）都从这一个钱包扣。</p></div>
               <div className="rc-card token">
-                <b>🔑 WorkBuddy 访问令牌</b>
-                <p>在 WorkBuddy 里使用思潼智能体时粘贴这个令牌，扣的就是这个钱包，不用再单独充值。</p>
-                <form className="rc-token-form" onSubmit={createAccessToken}>
-                  <input value={tokenLabel} onChange={(e) => setTokenLabel(e.target.value)} maxLength={80} aria-label="令牌名称" />
-                  <button className="btn ghost sm" type="submit">生成访问令牌</button>
-                </form>
-                {newToken && <div className="rct-reveal"><span>请立即复制，只显示这一次</span><code>{newToken}</code></div>}
-                <div className="rc-token-list">
-                  {accessTokens.length === 0 && <p className="rc-empty">还没有访问令牌。</p>}
-                  {accessTokens.map((item) => (
-                    <div key={item.id} className="rct-row">
-                      <div><strong>{item.label ?? "WorkBuddy 访问令牌"}</strong><code>{item.tokenPrefix}</code><span>{item.status === "revoked" ? "已失效" : item.expiresAt ? `有效期至 ${formatDate(item.expiresAt)}` : "长期有效"}</span></div>
-                      {item.status !== "revoked" && <div className="rct-actions"><button type="button" onClick={() => void rotateAccessToken(item.id)}>刷新</button><button type="button" onClick={() => void revokeAccessToken(item.id)}>失效</button></div>}
-                    </div>
-                  ))}
-                </div>
+                <b>🔗 在 WorkBuddy 里接入思潼 AI</b>
+                <p>把下面这段整段复制，直接发给 WorkBuddy，它就会自动接入思潼 AI 的 MCP（不用手动改 JSON）。</p>
+                <pre className="rc-mcp-cmd">{buildWorkbuddyInstruction(mcpUrl, mcpToken || "在这里粘贴 sitong_wb_ 开头的连接密钥")}</pre>
+                <button className="btn ghost sm block" type="button" onClick={() => void copyWorkbuddyInstruction()}>📋 复制安装指令</button>
+                <p className="rc-empty">连接密钥（sitong_wb_ 开头）只显示这一次：点上面按钮会自动生成并连指令一起复制；要换密钥去「企业账户 → WorkBuddy 调用思潼 AI」。</p>
               </div>
               {fromWorkbuddy && (
                 <div className="rc-card ad"><b>🏭 顺手看看思潼AI</b><p>你在 WorkBuddy 用的是单个智能体；思潼AI 里有按行业打包的完整解决方案——同一套方法论，说你那个行业的行话。</p><button className="btn ghost sm block" onClick={() => { window.location.href = getAppPath("/agents"); }}>去看看行业智能体 ›</button></div>
