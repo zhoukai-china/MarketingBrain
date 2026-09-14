@@ -15,9 +15,10 @@ const [main, login, auth, invites, schema, shared, webApi, beautyWorkspace, wech
   readFile(new URL("../apps/web/src/lib/referral-notice.ts", import.meta.url), "utf8"),
   readFile(new URL("../apps/web/src/pages/RechargePage.tsx", import.meta.url), "utf8"),
 ]);
-const [server, guards] = await Promise.all([
+const [server, guards, register] = await Promise.all([
   readFile(new URL("../apps/api/src/server.ts", import.meta.url), "utf8"),
   readFile(new URL("../apps/api/src/services/access-guards.ts", import.meta.url), "utf8"),
+  readFile(new URL("../apps/api/src/products/register.ts", import.meta.url), "utf8"),
 ]);
 const styles = await readFile(new URL("../apps/web/src/styles/store-growth.css", import.meta.url), "utf8");
 const devSchemaSection = auth.slice(auth.indexOf("const devLoginSchema"), auth.indexOf("const betaLoginSchema"));
@@ -164,7 +165,8 @@ assert.match(
 );
 assert.match(auth, /productEntitlements/, "微信产品登录必须按产品授权筛选租户");
 assert.match(guards, /requireProductEntitlement/, "产品 API 缺少统一授权守卫");
-assert.match(server, /requireProductEntitlement\("lanqi"\)/, "兰琪 API 必须拒绝未授权租户");
+assert.match(register, /requireProductEntitlement\("lanqi"\)/, "兰琪 API 必须拒绝未授权租户");
+assert.match(server, /registerProductRoutes\(app, provider\)/, "产品路由必须统一由 registerProductRoutes 挂载");
 assert.doesNotMatch(
   auth,
   /for \(const agentId of \[\"agent_acquisition\", \"agent_takeaway_growth\", \"agent_restaurant_growth\"\]\)/,
