@@ -22,6 +22,7 @@ const [server, guards, register] = await Promise.all([
 ]);
 const shell = await readFile(new URL("../apps/web/src/marketplace/shell.tsx", import.meta.url), "utf8");
 const lanqiRoutes = await readFile(new URL("../apps/web/src/routes/lanqi.tsx", import.meta.url), "utf8");
+const homePage = await readFile(new URL("../apps/web/src/marketplace/HomePage.tsx", import.meta.url), "utf8");
 const styles = await readFile(new URL("../apps/web/src/styles/store-growth.css", import.meta.url), "utf8");
 const devSchemaSection = auth.slice(auth.indexOf("const devLoginSchema"), auth.indexOf("const betaLoginSchema"));
 const devRouteSection = auth.slice(auth.indexOf('app.post("/auth/dev-login"'), auth.indexOf("// Check whether WeChat auth"));
@@ -272,8 +273,8 @@ assert.match(
 assert.match(login, /markExistingUserReferralNotice\(\)/, "老账号带推荐码登录时必须打标提示");
 assert.match(wechatCallback, /markExistingUserReferralNotice\(\)/, "微信回调成功登录的老账号同样要打标");
 assert.match(referralNotice, /store_os_referral_existing_notice/, "提示标记必须落在独立 key 上，便于一次性消费");
-assert.match(marketplaceApp, /推荐关系只在/, "货架落地页必须显示「已有工作区不产生推荐关系」的提示");
-assert.match(marketplaceApp, /clearExistingUserReferralNotice\(\)/, "提示必须可关闭（一次性消费）");
+assert.match(homePage, /推荐关系只在/, "货架落地页必须显示「已有工作区不产生推荐关系」的提示");
+assert.match(homePage, /clearExistingUserReferralNotice\(\)/, "提示必须可关闭（一次性消费）");
 console.log("老账号带推荐码的提示回归通过（PLAT-28 第①批补充）。");
 
 // 2026-09-12 用户真机：平台登录页「完成注册」表单里，品牌名字体太浅看不清。

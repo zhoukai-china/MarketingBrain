@@ -3,7 +3,7 @@
 // 『视频复盘 · 视频复盘智能体』这种重复段」，并守护 PLAT-25A 的美业欢迎语顺序不被回退。
 import { readFileSync } from "node:fs";
 
-const appPath = "apps/web/src/pages/MarketplaceApp.tsx";
+const appPath = "apps/web/src/marketplace/AgentChatPage.tsx";
 const dataPath = "apps/api/src/data/marketplace-v3.json";
 const app = readFileSync(appPath, "utf8");
 const data = JSON.parse(readFileSync(dataPath, "utf8"));

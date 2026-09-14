@@ -100,8 +100,11 @@ record(
   helperHits.length === 0 ? "未引用 yuanLabelForCredits / creditsToYuan / formatYuanText" : `仍引用：${helperHits.join("、")}`
 );
 
-const marketplace = read("apps/web/src/pages/MarketplaceApp.tsx");
-forbidContains(marketplace, "≈ ¥", "货架与智能体页面不再拼「≈ ¥」文案");
+const agentDetail = read("apps/web/src/marketplace/AgentDetailPage.tsx");
+const agentChat = read("apps/web/src/marketplace/AgentChatPage.tsx");
+const homePage = read("apps/web/src/marketplace/HomePage.tsx");
+const marketplacePages = agentDetail + homePage + agentChat;
+forbidContains(marketplacePages, "≈ ¥", "货架与智能体页面不再拼「≈ ¥」文案");
 
 /* ------------------------------------------------------------------ *
  * ② 保留：扣费提示必须仍然明确说出「多少积分」
@@ -109,20 +112,20 @@ forbidContains(marketplace, "≈ ¥", "货架与智能体页面不再拼「≈ �
 
 const chatMessages = read("apps/web/src/components/chat/ChatMessages.tsx");
 
-requireContains(marketplace, "本次消耗 {cost} 积分", "聊天页顶部仍显示本次消耗积分");
-requireContains(marketplace, "本次导出需 ${required} 积分", "积分不足的导出提示仍说明所需积分");
-requireContains(marketplace, "${docxPrice} 积分", "Word 导出按钮仍显示所需积分");
+requireContains(agentChat, "本次消耗 {cost} 积分", "聊天页顶部仍显示本次消耗积分");
+requireContains(agentChat, "本次导出需 ${required} 积分", "积分不足的导出提示仍说明所需积分");
+requireContains(agentChat, "${docxPrice} 积分", "Word 导出按钮仍显示所需积分");
 // 2026-09-13 用户口径：使用前不再出现任何「要扣多少积分」的前置提示（只在交付后告知消耗）。
-forbidContains(marketplace, "约扣 {runSku?.ppu ?? 0} 积分", "生成确认气泡不得再前置报价");
-forbidContains(marketplace, "扣 ${steps[0]?.ppu ?? 0} 积分", "分步链路按钮不得再前置报价");
-forbidContains(marketplace, "${sku.ppu} 积分/次", "单品详情不得再显示「N 积分/次」");
-forbidContains(marketplace, "会按次扣 {runSku?.ppu ?? 0} 积分", "重做提示不得再前置报价");
-forbidContains(marketplace, "每生成一次扣", "登录引导不得再前置报价");
+forbidContains(marketplacePages, "约扣 {runSku?.ppu ?? 0} 积分", "生成确认气泡不得再前置报价");
+forbidContains(marketplacePages, "扣 ${steps[0]?.ppu ?? 0} 积分", "分步链路按钮不得再前置报价");
+forbidContains(marketplacePages, "${sku.ppu} 积分/次", "单品详情不得再显示「N 积分/次」");
+forbidContains(marketplacePages, "会按次扣 {runSku?.ppu ?? 0} 积分", "重做提示不得再前置报价");
+forbidContains(marketplacePages, "每生成一次扣", "登录引导不得再前置报价");
 // 2026-09-13 用户口径：对话框必须支持把文件直接拖进来（文本类附件要真的被读进需求）。
-requireContains(marketplace, "onDragOver=", "对话框必须支持拖拽（onDragOver）");
-requireContains(marketplace, "onDrop=", "对话框必须支持拖拽（onDrop）");
-requireContains(marketplace, "async function addFiles(", "拖拽/上传必须走统一的附件入口");
-requireContains(marketplace, "【附件：${item.name}】", "文本类附件内容必须真的拼进需求单");
+requireContains(agentChat, "onDragOver=", "对话框必须支持拖拽（onDragOver）");
+requireContains(agentChat, "onDrop=", "对话框必须支持拖拽（onDrop）");
+requireContains(agentChat, "async function addFiles(", "拖拽/上传必须走统一的附件入口");
+requireContains(agentChat, "【附件：${item.name}】", "文本类附件内容必须真的拼进需求单");
 requireContains(chatMessages, "${docxPrice} 积分", "工作台聊天页 Word 导出按钮仍显示所需积分");
 
 /* ------------------------------------------------------------------ *
