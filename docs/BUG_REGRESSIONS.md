@@ -46,6 +46,29 @@
 - 残留与边界（必须对用户讲清）：抖音 / 视频号**不开放站内视频文件下载**，服务端也无法把分享链接解析成视频（上表 5 条路径全部实测为空壳或 0 字节），所以「参考抖音链接」只用于登记来源与引导，**真正出片必须有用户上传的原片**；若门店要「平台真爆款 + 点赞/播放数据」，唯一可行路径是接第三方数据服务，属独立采购决定，本卡不做。替换产品 / 视频比例 / 模型版本三项控件本项目后端不支持，**未放空控件**；用户提供的原型截图与此处的差异已如实记录在任务卡 `LQ-28-爆款复刻取消检索改自备素材.md`。
 - 关联：任务卡 `docs/agents/lanqi-beauty/tasks/LQ-28-爆款复刻取消检索改自备素材.md`；下线前的接通记录见 QA-20260912-017。
 
+## QA-20260914-004：爆款复刻「抖音分享口令识别不了 / 已传素材删不掉换不掉 / 出片主按钮点不动」（P1，前端已修；出片权益口径待拍板）
+
+- 触发：用户 2026-09-14 在「兰琪-公域获客-页面开发」任务反馈三条现场缺陷（附 3 张截图）：① 粘贴抖音「分享 → 复制链接」得到的口令被页面判成「这不像一条完整链接」；② 已上传的照片 / 视频无法删除、无法替换；③「先报价，再出片」点不了。
+- 根因：
+  - ① `parseReferenceLink()` 把**整段粘贴文本**直接丢给 `new URL()`。抖音分享复制出来的是**口令文本**（`7.32 复制打开抖音，看看【…的作品】https://v.douyin.com/xxxx/ 复制此链接，打开抖音搜索…`），不是裸 URL → `URL` 构造必然抛错 → 真实口令一律落进 catch 的「这不像一条完整链接」。**这是正常路径被误判，不是用户操作错。**
+  - ② 上传区只有 `FilePick`，**已上传后没有任何删除入口**，页面也没有清理上一次报价 / 任务 / 成片的路径，用户无法反悔重来。
+  - ③ 主按钮 `disabled={busy || !quote?.canConfirm}`——**拿到报价之前恒为禁用**，旁边的「看报价」是 `ghost` 次级按钮，用户既看不出为什么点不动，也拿不到任何解释。
+  - ③ 的第二层（决定用户能否真的出片，**不是本条缺陷的根因**）：前端放开按钮后，`POST /viral-video-replication/quote` 对**只有兰琪权益**的账号必然 **403 `product_access_denied`**——该路由在 `apps/api/src/products/register.ts` 注册于兰琪 entitlement 作用域之外（只做签名校验），但 `apps/api/src/routes/viral-video-replication.ts` 的 `context()` 硬编码只认 `productCode: "beauty-industry"` 的 active 权益。生产库只读实测（2026-09-14）：active 权益 `takeaway=190 / founder-ip=190 / lanqi=9 / beauty-industry=7`，**9 个兰琪租户里只有 2 个同时持 `beauty-industry`**（且都是 2026-08-24 的历史租户），2026-09-13~14 新建的「兰琪」租户只有 `lanqi` → 老板一点就走 403。后端把 403 统一回成「当前步骤未完成；请按前置条件处理」，会把人引到「素材没填错」的错误方向。
+- 修复（最小、可回滚，**只动前端**）：
+  - `apps/web/src/pages/LanqiAcquireVideoPage.tsx`：新增 `trimReferenceUrl()` / `extractReferenceUrl()` 并重写 `parseReferenceLink()`——先从任意粘贴文本里**抽出第一条链接**再校验，`http://` 升级 `https://`，裁掉链接后粘连的中文提示与标点，无协议头的 `v.douyin.com/xxx` 也认，统一登记 `https://host/path?query`；整段没链接时明说「这段文字里没有链接」并给「分享 → 复制链接」步骤；非抖音链接报出**实际域名**。
+  - 新增 `removeAsset(kind)`：删除已上传原片 / 照片时**换新幂等键**并清掉上一次报价、任务、成片地址；上传区改为「更换 / 删除」同排（钩子 `data-lq-vd-remove="video|portrait"`，文案 `🔄 更换原视频` / `🗑 删除这条原片`）。
+  - 出片主按钮改为显式状态机 `busy / missing / need_quote / ready / blocked`（钩子 `data-lq-vd-primary`）：素材没齐 → 禁用并逐项点名「还差：…」；齐了但没报价 → **可点**，点它就是先报价；报价可确认 → 「✅ 确认并出片（按报价扣 N 积分）」；前置条件不足 → 禁用并照实说明缺口。未确认前不建任务、不扣积分。
+  - `readResponse()` 把 `body.error` 错误码挂到 `error.code`，新增 `replicationFailureNotice()`：403 → 「当前账号还没有开通这项出片能力，所以拿不到报价；这与素材、授权是否填对无关」；`asset_not_found` → 提示删掉重传；其余错误码原样显示，不猜原因、不谎称成功。
+  - `apps/web/src/styles/lanqi-moments.css`：新增 `.lq-vd__actions`（更换 / 删除同排可换行）、`.lq-vd__btn.small`、`.lq-vd__btn.danger`。
+- 先红后绿：① 新增 `scripts/lanqi-acquire-reference-link-smoke.mjs`（从源码切函数体 + 擦 TS 类型后真跑，11 条：分享口令 / `http` 升级 / 尾部中文裁剪 / 无协议头短链 / 图文笔记 / 保留查询参数 / 无链接 / 非抖音域名 / 账号主页 / 空输入；指向修复前源码时 9 条红）→ **11 passed / 0 failed**；② `scripts/lanqi-acquire-ui-contract-smoke.mjs` 新增 16 条源码结构断言（修复前全红）→ **82 passed / 0 failed**；③ `scripts/lanqi-acquire-instance-acceptance.mjs` 新增 LQ-29 浏览器验收段（共 **42 项**），并修掉探针自身两处缺陷：请求时间线漏统计 `/viral-video-replication/`（把「点主按钮真的走了报价」算成 0 请求）、照片未上传文案写死。
+- 门禁：`pnpm.cmd qa:fast` exit 0（结构检查 / Skill 质量资产 / Eval 结构 / 全仓 typecheck 全绿）。
+- 测试实例页面级验收（`https://api.lcppch.top/lanqi-test`，真实 Chromium，桌面 1440 + 移动 390，CDP `DOM.setFileInputFiles` 真实上传）：**42 项 / 失败 2 项**，两项失败**均为权益门禁的预期结果**（测试实例每次免登录新建的租户只带 `lanqi` 权益 →「点主按钮真的走到报价」「无接口 4xx/5xx」必然被后端 403 挡下），**不是 UI 缺陷**；其余 40 项全 PASS，包括三条 Bug 的红绿复验、分享口令识别、删除 / 更换、主按钮状态机、移动端 390 无横向溢出、console / page 0 错误。
+- 发布（2026-09-14）：`release-20260914-lq29-acquire-fixes-v2.tar.gz`（9,623,158 B / 1512 文件，sha256 `bf1a1bcbad7760c138e2afa027f5704fdd0b01091b67dd063e6f9ac10bd5f29c`，本地与服务器 `/opt/releases/` 实测一致；全量工作树清单，发布前逐字节比对确认与生产不同处的文件恰好只有本任务的 7 个源 / 脚本文件 + 2 个已提交文档，包内不含其他任务在途改动）。发布 id 测试 `20260914-lq29-acquire-fixes-test2` / 生产 `20260914-lq29-acquire-fixes-prod1`，两侧 `DEPLOY_OK` + `health=200` / `ready=200` + `50 migrations found / No pending migrations to apply.`，`verify-deploy.sh` 两侧 **VERIFY_OK**。
+- 生产只读取证（本轮复核）：`index.html` → `assets/index-DNYd7rb4.js` → `assets/LanqiAcquireVideoPage-BwFfTi2O.js`；直接下载该线上 chunk（HTTP **200** / 67,224 B）实测 `data-lq-vd-primary`=1、`data-lq-vd-remove`=1、`data-lq-vd-primary-hint`=1、`还没有开通这项出片能力`=1、`这段文字里没有链接`=1、`更换原视频`=1、`更换照片`=1、`删除这条原片`=1，旧提示 `这不像一条完整链接` **0**；`POST /os-v2/api/viral-video-replication/quote` 未登录 **401 `{"error":"unauthorized",…}`**（路由在、需登录，未登录不得报价）；`_prisma_migrations` 已应用 **50** 条、无待应用（另有 1 条 2026-07-07 已回滚的历史记录，与本包无关）。备份 `/opt/baolu-backups/20260914-lq29-acquire-fixes-prod1-before-baolu-os-v2/`（190M）；回滚 = 还原该备份 + `systemctl restart baolu-os-v2`。
+- 状态：**前端三条缺陷已修并上线**（2026-09-14）。**出片链路仍受权益门禁拦截**：要真正出片必须由老板拍板「① 给在用的兰琪租户补 `beauty-industry` 权益」或「② 放宽 `/viral-video-replication/*` 接受 `lanqi` 权益」——两条都属权限 / 计费口径变更，Agent 未擅自执行。
+- 残留与边界：生产页面级浏览器验收未跑（生产 `/lanqi/acquire*` 需真人微信扫码，自动化停在 `/os-v2/login`，同 LQ-22）；「参考抖音链接只登记来源、不出片」是 LQ-28 已定的设计内 fail-closed，本卡不改也不得承诺「贴链接直接出片」；后端 403 的 `message` 仍是通用文案，非本页调用方看到的还是「请按前置条件处理」。
+- 关联：任务卡 `docs/agents/lanqi-beauty/tasks/LQ-29-爆款复刻参考素材三条缺陷.md`；权益门禁的上游设计见 QA-20260913-010（真样片链路）与 QA-20260914-003。
+
 ## QA-20260913-011：朋友圈「补数字」占位符用户看不懂 + 提示词仍用旧占位符串（P2，已修 + 已上测试与生产）
 
 - 触发：老板反馈「用户不理解要补什么数字，提示得更明显一点」（2026-09-13）。原设计：原文缺数字时结果正文插入「【待你补一句：具体数字】」，检查项提示「数字项需你亲补」——没有示例、结果不可就地改。

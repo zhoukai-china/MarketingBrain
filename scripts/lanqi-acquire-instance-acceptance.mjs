@@ -24,6 +24,12 @@ import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const repoRoot = fileURLToPath(new URL("..", import.meta.url));
+/** LQ-29 验收夹具：本地合成的 8 秒 360×640 竖屏 mp4 + 仓库内 jpg（不含真人、不含客户资料）。 */
+const VIDEO_FIXTURE = path.join(repoRoot, "scripts", "fixtures", "beauty-video-content-av.mp4");
+const PHOTO_FIXTURE = path.join(repoRoot, "apps", "web", "public", "lanqi-logo.jpg");
 
 const args = process.argv.slice(2);
 function argValue(flag, fallback) {
@@ -148,7 +154,9 @@ async function openPage(root, url, marker, viewport = { width, height, mobile: f
     }
     if (payload.method === "Network.responseReceived") {
       const { url: reqUrl, status } = payload.params.response;
-      if (reqUrl.includes("/api/") || reqUrl.includes("/lanqi")) {
+      // 复刻链路的接口挂在应用根路径 `/viral-video-replication/...` 下（不在 /api 或
+      // /lanqi 前缀里）。漏掉它会让「点主按钮走了报价」这类探针把真实请求数算成 0。
+      if (reqUrl.includes("/api/") || reqUrl.includes("/lanqi") || reqUrl.includes("/viral-video-replication/")) {
         requestTimeline.push({ atMs: Date.now() - startedAt, status, url: reqUrl.replace(base, "") });
       }
       if (status >= 400) httpErrors.push({ status, url: reqUrl });
@@ -245,6 +253,38 @@ async function fillFirstTextarea(root, page, value) {
   return await setFieldValue(root, page, "textarea", value);
 }
 
+/**
+ * 把本地文件塞进页面上的 `input[type=file]`（隐藏输入也能塞）。
+ * CDP 的 `DOM.setFileInputFiles` 会补齐 change 事件，React 受控上传链路能正常收到。
+ */
+async function setFileInputFiles(root, page, selector, files) {
+  await root.send("DOM.enable", {}, page.sessionId);
+  const { root: docRoot } = await root.send("DOM.getDocument", { depth: 1 }, page.sessionId);
+  const { nodeId } = await root.send("DOM.querySelector", { nodeId: docRoot.nodeId, selector }, page.sessionId);
+  if (!nodeId) return "not-found";
+  await root.send("DOM.setFileInputFiles", { files, nodeId }, page.sessionId);
+  return "set";
+}
+
+/** 读出复刻主按钮的状态钩子：state / 文案 / 是否禁用。 */
+async function readPrimaryState(root, page) {
+  return await evaluate(
+    root,
+    page.sessionId,
+    `(() => {
+      const el = document.querySelector("button[data-lq-vd-primary]");
+      if (!el) return { found: false };
+      return {
+        found: true,
+        state: el.getAttribute("data-lq-vd-primary"),
+        text: (el.innerText || "").trim(),
+        disabled: Boolean(el.disabled),
+        hint: document.querySelector("[data-lq-vd-primary-hint]")?.innerText?.trim() ?? "",
+      };
+    })()`,
+  );
+}
+
 function countRequests(page, fragment) {
   return page.requestTimeline.filter((item) => item.url.includes(fragment)).length;
 }
@@ -272,6 +312,21 @@ async function clickButton(root, page, label) {
       const wanted = ${JSON.stringify(label)};
       const el = [...document.querySelectorAll("button")].find((node) => (node.innerText || "").trim().includes(wanted) && !node.disabled);
       if (!el) return "not-found";
+      el.click();
+      return "clicked";
+    })()`,
+  );
+}
+
+/** 按选择器点元素（用于带 data-* 钩子的按钮），返回 clicked / not-found / disabled。 */
+async function clickSelector(root, page, selector) {
+  return await evaluate(
+    root,
+    page.sessionId,
+    `(() => {
+      const el = document.querySelector(${JSON.stringify(selector)});
+      if (!el) return "not-found";
+      if (el.disabled) return "disabled";
       el.click();
       return "clicked";
     })()`,
@@ -455,6 +510,183 @@ async function verifyVideoPage(root, checks, base, label, record) {
       addedRequests === 0,
     detail: `切页签=${uploadTabClick} 面板=上传参考视频:${panel.text.includes("上传参考视频")}/授权:${panel.text.includes("素材与肖像授权")}/报价:${panel.text.includes("报价与出片")} 确认按钮禁用=${panel.confirmDisabled} 本地拦截提示=${localBlocked} 新增请求=${addedRequests}`,
   });
+
+  // ── LQ-29（用户 2026-09-14 三条真实反馈）──
+  //  ① 抖音「分享 → 复制链接」复制出来的是口令文本（文字 + 短链混排），必须能识别出短链；
+  //     整段确实没有链接时必须说清「没有链接」并给出复制链接的步骤，不许含糊。
+  const backToLinkTabLq29 = await clickButton(root, vd, "参考抖音链接");
+  await sleep(400);
+  await setFieldValue(
+    root,
+    vd,
+    "#lq-vd-ref-link",
+    "7.32 复制打开抖音，看看【餐饮AI视频案例展示的作品】https://v.douyin.com/iRNBho6u/ 复制此链接，打开抖音搜索，直接观看视频！",
+  );
+  await sleep(300);
+  const callsBeforeShareCode = vd.requestTimeline.length;
+  const shareCodeClick = await clickButton(root, vd, "登记参考来源");
+  await sleep(900);
+  const afterShareCode = await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''");
+  const shareCodeRegistered =
+    /已登记参考来源/.test(afterShareCode) &&
+    afterShareCode.includes("v.douyin.com") &&
+    !/这不像一条完整链接|这段文字里没有链接/.test(afterShareCode);
+  checks.push({
+    name: `${label}：抖音分享口令（文字 + 短链混排）能被识别、只登记来源、不发请求`,
+    pass: backToLinkTabLq29 === "clicked" && shareCodeClick === "clicked" && shareCodeRegistered && vd.requestTimeline.length === callsBeforeShareCode,
+    detail: `切页签=${backToLinkTabLq29} 点击=${shareCodeClick} 已登记=${shareCodeRegistered} 新增请求=${vd.requestTimeline.length - callsBeforeShareCode}`,
+  });
+
+  await setFieldValue(root, vd, "#lq-vd-ref-link", "4.33 01/29 Ehb:/ 2pm W@Z.ZM 餐饮AI视频案例展示 餐饮门店");
+  await sleep(200);
+  const callsBeforePlainCode = vd.requestTimeline.length;
+  const plainCodeClick = await clickButton(root, vd, "登记参考来源");
+  await sleep(600);
+  const afterPlainCode = await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''");
+  const plainCodeExplained = /这段文字里没有链接/.test(afterPlainCode) && /复制链接/.test(afterPlainCode) && !/这不像一条完整链接/.test(afterPlainCode);
+  checks.push({
+    name: `${label}：整段没有链接时明说「没有链接」并给出复制链接的步骤`,
+    pass: plainCodeClick === "clicked" && plainCodeExplained && vd.requestTimeline.length === callsBeforePlainCode,
+    detail: `点击=${plainCodeClick} 明确提示=${plainCodeExplained} 新增请求=${vd.requestTimeline.length - callsBeforePlainCode}`,
+  });
+
+  //  ② 已上传的原片 / 照片必须能删除（并清掉上一次报价），删除后能重新选。
+  //  ③ 未报价前「先报价，再出片」不能是点不动的死按钮。
+  const backToUploadTabLq29 = await clickButton(root, vd, "上传参考视频");
+  await sleep(500);
+  const missingPrimary = await readPrimaryState(root, vd);
+  checks.push({
+    name: `${label}：素材没齐时出片主按钮明确禁用并点名还差什么`,
+    pass:
+      backToUploadTabLq29 === "clicked" &&
+      missingPrimary.found === true &&
+      missingPrimary.state === "missing" &&
+      missingPrimary.disabled === true &&
+      /还差/.test(missingPrimary.hint),
+    detail: `切页签=${backToUploadTabLq29} 状态=${missingPrimary.state} 禁用=${missingPrimary.disabled} 提示=${missingPrimary.hint.slice(0, 60)}`,
+  });
+
+  const videoSet = await setFileInputFiles(root, vd, 'input[type=file][accept*="video/mp4"]', [VIDEO_FIXTURE]);
+  let afterVideoUpload = "";
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    await sleep(1000);
+    afterVideoUpload = await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''");
+    if (/已上传：beauty-video-content-av\.mp4/.test(afterVideoUpload) || /上传失败|不支持|请先裁剪|读不到/.test(afterVideoUpload)) break;
+  }
+  const videoUploaded = /已上传：beauty-video-content-av\.mp4/.test(afterVideoUpload);
+  const videoRemoveVisible = await evaluate(root, vd.sessionId, `Boolean(document.querySelector('[data-lq-vd-remove="video"]'))`);
+  checks.push({
+    name: `${label}：原片能真上传，上传后出现「更换原视频」与删除入口`,
+    pass: videoSet === "set" && videoUploaded && videoRemoveVisible === true && afterVideoUpload.includes("更换原视频"),
+    detail: `塞文件=${videoSet} 已上传=${videoUploaded} 删除按钮=${videoRemoveVisible} 更换文案=${afterVideoUpload.includes("更换原视频")}`,
+  });
+
+  const videoRemoveClick = await clickSelector(root, vd, '[data-lq-vd-remove="video"]');
+  await sleep(700);
+  const afterVideoRemove = await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''");
+  const videoRemoved =
+    afterVideoRemove.includes("未上传参考视频") &&
+    !afterVideoRemove.includes("更换原视频") &&
+    /已删除参考视频/.test(afterVideoRemove) &&
+    !(await evaluate(root, vd.sessionId, `Boolean(document.querySelector('[data-lq-vd-remove="video"]'))`));
+  checks.push({
+    name: `${label}：已上传的原片能删除，删完回到「未上传 + 重新选择」`,
+    pass: videoRemoveClick === "clicked" && videoRemoved,
+    detail: `点删除=${videoRemoveClick} 回到未上传=${afterVideoRemove.includes("未上传参考视频")} 出现删除提示=${/已删除参考视频/.test(afterVideoRemove)}`,
+  });
+
+  // 删掉再传一次：走的是真实的「替换素材」路径（换新幂等键，清掉上一次报价）。
+  await setFileInputFiles(root, vd, 'input[type=file][accept*="video/mp4"]', [VIDEO_FIXTURE]);
+  let videoReuploaded = false;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    await sleep(1000);
+    videoReuploaded = /已上传：beauty-video-content-av\.mp4/.test(await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''"));
+    if (videoReuploaded) break;
+  }
+  const photoSet = await setFileInputFiles(root, vd, 'input[type=file][accept*="image/jpeg"]', [PHOTO_FIXTURE]);
+  let afterPhotoUpload = "";
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    await sleep(1000);
+    afterPhotoUpload = await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''");
+    if (/已上传：lanqi-logo\.jpg/.test(afterPhotoUpload) || /上传失败|不支持/.test(afterPhotoUpload)) break;
+  }
+  const photoUploaded = /已上传：lanqi-logo\.jpg/.test(afterPhotoUpload);
+  const photoRemoveVisible = await evaluate(root, vd.sessionId, `Boolean(document.querySelector('[data-lq-vd-remove="portrait"]'))`);
+  checks.push({
+    name: `${label}：照片能真上传，上传后出现「更换照片」与删除入口`,
+    pass: videoReuploaded && photoSet === "set" && photoUploaded && photoRemoveVisible === true && afterPhotoUpload.includes("更换照片"),
+    detail: `原片重传=${videoReuploaded} 塞文件=${photoSet} 已上传=${photoUploaded} 删除按钮=${photoRemoveVisible} 更换文案=${afterPhotoUpload.includes("更换照片")}`,
+  });
+
+  const photoRemoveClick = await clickSelector(root, vd, '[data-lq-vd-remove="portrait"]');
+  await sleep(700);
+  const afterPhotoRemove = await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''");
+  // 文案是「未上传${photoNeeded}照片」，photoNeeded 随换脸 / 换人模式变化
+  // （头部图片 / 全身画面），所以这里按「未上传…照片」的结构匹配，不写死某一种。
+  const photoUnuploadedText = /未上传\S{0,6}照片/.test(afterPhotoRemove);
+  const photoRemoved =
+    photoUnuploadedText &&
+    !afterPhotoRemove.includes("更换照片") &&
+    /已删除人物照片/.test(afterPhotoRemove);
+  checks.push({
+    name: `${label}：已上传的照片能删除，删完回到「未上传 + 重新选择」`,
+    pass: photoRemoveClick === "clicked" && photoRemoved,
+    detail: `点删除=${photoRemoveClick} 回到未上传=${photoUnuploadedText} 出现删除提示=${/已删除人物照片/.test(afterPhotoRemove)}`,
+  });
+
+  await setFileInputFiles(root, vd, 'input[type=file][accept*="image/jpeg"]', [PHOTO_FIXTURE]);
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    await sleep(1000);
+    if (/已上传：lanqi-logo\.jpg/.test(await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''"))) break;
+  }
+  const rightsBoxes = await evaluate(
+    root,
+    vd.sessionId,
+    `(() => {
+      const boxes = [...document.querySelectorAll("label.lq-vd__consent input[type=checkbox]")];
+      boxes.forEach((box) => { if (!box.checked) box.click(); });
+      return boxes.length;
+    })()`,
+  );
+  await sleep(800);
+  const quoteReadyPrimary = await readPrimaryState(root, vd);
+  checks.push({
+    name: `${label}：素材与四项授权齐了以后，「先报价，再出片」是能点的活按钮`,
+    pass:
+      rightsBoxes === 4 &&
+      quoteReadyPrimary.found === true &&
+      quoteReadyPrimary.state === "need_quote" &&
+      quoteReadyPrimary.disabled === false &&
+      quoteReadyPrimary.text.includes("先报价，再出片"),
+    detail: `授权勾选=${rightsBoxes} 状态=${quoteReadyPrimary.state} 禁用=${quoteReadyPrimary.disabled} 文案=${quoteReadyPrimary.text}`,
+  });
+
+  const callsBeforeQuoteLq29 = vd.requestTimeline.length;
+  const quoteClick = await clickSelector(root, vd, "button[data-lq-vd-primary]");
+  let primaryAfterQuote = { found: false };
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    await sleep(1000);
+    primaryAfterQuote = await readPrimaryState(root, vd);
+    if (primaryAfterQuote.state === "ready" || primaryAfterQuote.state === "blocked") break;
+  }
+  const quoteText = await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''");
+  const quoteRequests = vd.requestTimeline.length - callsBeforeQuoteLq29;
+  const confirmRequests = countRequests(vd, "/viral-video-replication/confirm");
+  const explainGap = primaryAfterQuote.state !== "blocked" || /还缺前置条件|当前还不能出片|缺口见下方说明|未能报价|暂不/.test(quoteText);
+  checks.push({
+    name: `${label}：点主按钮真的走报价（拿到报价就变「确认并出片」，被拦就说明缺口）且不自动扣积分出片`,
+    pass:
+      quoteClick === "clicked" &&
+      quoteRequests > 0 &&
+      (primaryAfterQuote.state === "ready" || primaryAfterQuote.state === "blocked") &&
+      explainGap &&
+      quoteText.includes("尚未创建") &&
+      confirmRequests === 0,
+    detail: `点击=${quoteClick} 新增报价请求=${quoteRequests} 报价后状态=${primaryAfterQuote.state} 文案=${primaryAfterQuote.text}`,
+  });
+
+  const lq29Shot = await root.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true }, vd.sessionId);
+  await writeFile(path.join(outDir, "lq29-replication-quote.png"), Buffer.from(lq29Shot.data, "base64"));
 
   checks.push({
     name: `${label}：无接口 4xx/5xx、console/page 无错误`,

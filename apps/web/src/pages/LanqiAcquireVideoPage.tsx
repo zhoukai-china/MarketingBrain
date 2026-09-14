@@ -207,8 +207,31 @@ async function readResponse(response: Response): Promise<any> {
     window.location.replace(getAppPath("/login"));
     throw new Error("登录已失效");
   }
-  if (!response.ok) throw new Error(body.message ?? body.error ?? "请求失败");
+  if (!response.ok) {
+    /* 带上下游错误码：调用方要按码给「下一步怎么做」，不能把 403 一律显示成「请稍后重试」。 */
+    const error = new Error(body.message ?? body.error ?? "请求失败") as Error & { code?: string };
+    error.code = typeof body.error === "string" ? body.error : "";
+    throw error;
+  }
   return body;
+}
+
+/**
+ * 用户 2026-09-14 反馈「先报价，再出片 点不了」。前端把按钮放开后还有一层真实拦截：
+ * 复刻链路挂在美业产品权益下，只有兰琪权益的账号调用 `/viral-video-replication/*` 必然 403
+ * （见 docs/BUG_REGRESSIONS.md QA-20260914-004 的根因段）。后端原文「请按前置条件处理」会把
+ * 人引到「素材没填对」的错误方向，所以这里按码照实说明：**没开通能力**跟素材无关。
+ * 识别不了的错误码原样显示，不猜原因、不谎称成功。
+ */
+function replicationFailureNotice(error: unknown): string {
+  const code = (error as { code?: string } | null)?.code ?? "";
+  if (code === "product_access_denied") {
+    return "当前账号还没有开通这项出片能力，所以拿不到报价；这与素材、授权是否填对无关。请联系思潼服务团队为这个账号开通后再试（已上传的素材会保留在本页）。";
+  }
+  if (code === "asset_not_found") {
+    return "这条素材在服务端没登记上，请删掉重新上传一次再报价。";
+  }
+  return error instanceof Error && error.message ? error.message : "请求失败，请稍后重试。";
 }
 
 async function copyText(label: string, text: string): Promise<boolean> {
@@ -416,26 +439,65 @@ type ReferenceLink = { url: string; host: string; kindLabel: string };
 /**
  * 只识别抖音单条视频 / 图文 / 官方分享短链。账号主页、搜索页、合集、直播链接一律不收，
  * 免得把「一个账号」当成「一条爆款」。纯本地校验：不发任何请求。
+ *
+ * 用户 2026-09-14 反馈「没有正确识别抖音链接」：抖音 App 的「分享 → 复制链接」复制的
+ * 是**分享口令文本**（口令 + 短链 + 「复制此链接，打开抖音搜索」这类提示混排成一段），
+ * 不是裸 URL。之前把整段丢进 `new URL()` 必然抛错，于是真实口令一律被判成
+ * 「这不像一条完整链接」。现在先从任意文本里抽出那条链接再校验：`http://` 升级为
+ * `https://`，链接后面粘连的中文提示与标点裁掉，没写 scheme 的 `v.douyin.com/xxx` 也认。
  */
+/** 口令里链接后面常跟着「复制此链接，打开抖音…」这类中文与标点：只留链接本身。 */
+function trimReferenceUrl(url: string): string {
+  const head = url.replace(/[\s"'“”‘’<>（）()【】「」《》，。、；;:!！?？]+$/gu, "");
+  const cjk = head.search(/[\u3000-\u303f\u4e00-\u9fff\uff00-\uffef]/u);
+  const kept = (cjk >= 0 ? head.slice(0, cjk) : head).replace(/[\s"'“”‘’]+$/gu, "");
+  return kept.replace(/[,;:.]+$/u, "");
+}
+
+/** 从任意粘贴文本里抽出第一条抖音链接；抽不到返回 null（不猜、不编）。 */
+function extractReferenceUrl(raw: string): string | null {
+  const text = raw.trim();
+  if (!text) return null;
+  const withScheme = text.match(/https?:\/\/[^\s]+/i);
+  if (withScheme) return trimReferenceUrl(withScheme[0]);
+  const bare = text.match(/(?:v\.douyin\.com|(?:www\.)?douyin\.com|(?:www\.)?iesdouyin\.com)\/[^\s]*/i);
+  if (bare) return trimReferenceUrl(`https://${bare[0]}`);
+  return null;
+}
+
 function parseReferenceLink(raw: string): { ok: true; value: ReferenceLink } | { ok: false; reason: string } {
   const text = raw.trim();
   if (!text) return { ok: false, reason: "请先粘贴一条抖音视频链接。" };
+  const extracted = extractReferenceUrl(text);
+  if (!extracted) {
+    return {
+      ok: false,
+      reason:
+        "这段文字里没有链接。请在抖音里点「分享 → 复制链接」，把整段一起粘贴进来（含 https://v.douyin.com/… 或 www.douyin.com/video/…）；只贴口令文字识别不了。"
+    };
+  }
   let url: URL;
   try {
-    url = new URL(text);
+    url = new URL(extracted);
   } catch {
-    return { ok: false, reason: "这不像一条完整链接，请粘贴以 https:// 开头的地址。" };
+    return { ok: false, reason: "这条链接读不出来，请回抖音重新「复制链接」再粘贴一次。" };
   }
-  if (url.protocol !== "https:") return { ok: false, reason: "只接受 https 链接，http 明文链接不收。" };
   const host = url.hostname.toLowerCase();
   const isDouyin = host === "douyin.com" || host.endsWith(".douyin.com") || host === "iesdouyin.com" || host.endsWith(".iesdouyin.com");
-  if (!isDouyin) return { ok: false, reason: "这里只登记抖音链接；其他平台（含视频号）请把原片存到手机后，到「上传参考视频」上传。" };
-  if (host === "v.douyin.com") return { ok: true, value: { url: text, host, kindLabel: "抖音分享短链" } };
+  if (!isDouyin) {
+    return {
+      ok: false,
+      reason: `这里只登记抖音链接；识别到的是 ${host}。其他平台（含视频号）请把原片存到手机后，到「上传参考视频」上传。`
+    };
+  }
+  /* 统一登记成 https 的标准地址：口令里的多余文字与 http 明文都不带进登记结果。 */
+  const normalized = `https://${url.host}${url.pathname}${url.search}`;
+  if (host === "v.douyin.com") return { ok: true, value: { url: normalized, host, kindLabel: "抖音分享短链" } };
   const hit = url.pathname.match(/^\/(?:share\/)?(video|note)\/\d+/);
   if (!hit) {
     return { ok: false, reason: "只识别单条抖音视频（/video/）或图文（/note/）链接；账号主页、搜索页、合集、直播链接都不能作为复刻参考。" };
   }
-  return { ok: true, value: { url: text, host, kindLabel: hit[1] === "note" ? "抖音图文" : "抖音视频" } };
+  return { ok: true, value: { url: normalized, host, kindLabel: hit[1] === "note" ? "抖音图文" : "抖音视频" } };
 }
 
 /** 上传前读真实时长与画面尺寸；读不到就返回 null，交给服务端校验，不在这里假装成功。 */
@@ -587,6 +649,21 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
     flash("参考来源已登记；出片还要在「上传参考视频」里上传原片。");
   }, [flash, linkInput]);
 
+  /**
+   * 删除已上传素材（用户 2026-09-14 反馈「已上传的照片 / 视频无法删除、无法替换」）。
+   * 清理口径与 `uploadAsset` 换素材完全一致：换新幂等键 + 清掉上一次的报价 / 任务 / 成片，
+   * 免得服务端把「删了重传」当成同一次请求重放，返回上一次的报价或任务。
+   */
+  const removeAsset = useCallback((kind: "video" | "portrait") => {
+    requestKeyRef.current = newReplicationRequestKey();
+    if (kind === "video") setVideoFile(null);
+    else setPortraitFile(null);
+    setQuote(null);
+    setJob(null);
+    setAssetUrl("");
+    setNotice(kind === "video" ? "已删除参考视频，可以重新上传另一条。" : "已删除人物照片，可以重新上传另一张。");
+  }, []);
+
   const replicationPayload = useCallback(
     () => ({
       referenceFileId: videoFile?.id,
@@ -618,7 +695,7 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
       setQuote(body);
       setNotice(body?.message ?? "报价已生成");
     } catch (error) {
-      setNotice(error instanceof Error && error.message ? error.message : "报价校验失败，请稍后重试。");
+      setNotice(replicationFailureNotice(error));
     } finally {
       setBusy("");
     }
@@ -679,7 +756,7 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
       setNotice(`任务已提交，当前状态：${body.job.status ?? "submitted"}。`);
       void pollJob(id);
     } catch (error) {
-      setNotice(error instanceof Error && error.message ? error.message : "任务创建失败，请稍后重试。");
+      setNotice(replicationFailureNotice(error));
     } finally {
       setBusy("");
     }
@@ -713,6 +790,48 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
       : !rightsOk
         ? "第 3 步 / 3 · 逐条确认素材与肖像授权"
         : "第 3 步 / 3 · 素材与授权已齐，可以校验并报价";
+
+  /*
+   * 用户 2026-09-14 反馈「先报价，再出片 点不了」：原实现里这颗按钮在拿到报价之前恒为禁用，
+   * 用户看到的是一个点不动的橙色按钮，也没有任何解释。现在按阶段给出可执行状态：
+   *   · 素材 / 授权没齐 → 禁用，并逐项点名还差什么；
+   *   · 齐了但还没报价 → **可点**，点它先去报价（等价于上面的「校验素材与授权，看报价」）；
+   *   · 报价可以确认 → 可点，文案变成「确认并出片（按报价扣积分）」；
+   *   · 服务端前置条件不满足 → 禁用，并照实说明缺口，不创建任务、不扣积分。
+   */
+  const primary: { state: string; label: string; disabled: boolean; action: "quote" | "confirm"; hint: string } = busy
+    ? { state: "busy", label: busy, disabled: true, action: "quote", hint: "" }
+    : missing.length > 0
+      ? {
+          state: "missing",
+          label: "先补齐素材与授权，再出片",
+          disabled: true,
+          action: "quote",
+          hint: `还差：${missing.join("、")}。补齐后这里会自动可以点。`
+        }
+      : !quote
+        ? {
+            state: "need_quote",
+            label: "先报价，再出片",
+            disabled: false,
+            action: "quote",
+            hint: "点这里就是先报价：拿到积分与前置条件后，按钮会变成「确认并出片」，再点一次才会扣积分出片。"
+          }
+        : quote.canConfirm
+          ? {
+              state: "ready",
+              label: `✅ 确认并出片（按报价扣 ${quote.creditCost ?? 0} 积分）`,
+              disabled: false,
+              action: "confirm",
+              hint: "点这一下才会真正建任务、扣积分；未确认前不会扣。"
+            }
+          : {
+              state: "blocked",
+              label: "当前还不能出片",
+              disabled: true,
+              action: "confirm",
+              hint: "服务端反馈还缺前置条件或授权，未创建任务、未扣积分；缺口见下方说明。"
+            };
 
   return (
     <div className="lq-vd__main">
@@ -797,11 +916,23 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
                   : "只有拿到授权的原片才能复刻；未授权素材请勿上传。"}
               </p>
             </div>
-            <FilePick
-              label={videoFile ? "重新选择原视频" : "选择原视频（MP4 / MOV）"}
-              accept="video/mp4,video/quicktime,.mp4,.mov"
-              onPick={(files) => void uploadAsset("video", files[0])}
-            />
+            <div className="lq-vd__actions">
+              <FilePick
+                label={videoFile ? "🔄 更换原视频" : "选择原视频（MP4 / MOV）"}
+                accept="video/mp4,video/quicktime,.mp4,.mov"
+                onPick={(files) => void uploadAsset("video", files[0])}
+              />
+              {videoFile && (
+                <button
+                  className="lq-vd__btn ghost small danger"
+                  data-lq-vd-remove="video"
+                  type="button"
+                  onClick={() => removeAsset("video")}
+                >
+                  🗑 删除这条原片
+                </button>
+              )}
+            </div>
           </>
         )}
 
@@ -829,11 +960,23 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
           <b>{portraitFile ? `已上传：${portraitFile.name}` : `未上传${photoNeeded}照片`}</b>
           <p>换脸给头部照片，换人给人物全身画面；照片须为本人或已获授权。JPG / PNG / WebP，≤{PORTRAIT_MAX_MB}MB。</p>
         </div>
-        <FilePick
-          label={portraitFile ? "重新选择照片" : "选择照片"}
-          accept="image/jpeg,image/png,image/webp"
-          onPick={(files) => void uploadAsset("portrait", files[0])}
-        />
+        <div className="lq-vd__actions">
+          <FilePick
+            label={portraitFile ? "🔄 更换照片" : "选择照片"}
+            accept="image/jpeg,image/png,image/webp"
+            onPick={(files) => void uploadAsset("portrait", files[0])}
+          />
+          {portraitFile && (
+            <button
+              className="lq-vd__btn ghost small danger"
+              data-lq-vd-remove="portrait"
+              type="button"
+              onClick={() => removeAsset("portrait")}
+            >
+              🗑 删除这张照片
+            </button>
+          )}
+        </div>
 
         <h3 className="lq-vd__card-title" style={{ marginTop: 18 }}>
           替换产品 <span className="tag opt">可选</span>
@@ -874,13 +1017,15 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
         <button className="lq-vd__btn ghost" type="button" disabled={Boolean(busy)} onClick={() => void requestQuote()}>
           🧾 校验素材与授权，看报价
         </button>
+        {primary.hint && <p className="lq-vd__hint" data-lq-vd-primary-hint={primary.state}>{primary.hint}</p>}
         <button
           className="lq-vd__btn primary block"
+          data-lq-vd-primary={primary.state}
           type="button"
-          disabled={Boolean(busy) || !quote?.canConfirm}
-          onClick={() => void confirmReplication()}
+          disabled={primary.disabled}
+          onClick={() => void (primary.action === "quote" ? requestQuote() : confirmReplication())}
         >
-          {busy ? busy : quote?.canConfirm ? "✅ 确认并出片（按报价扣积分）" : "先报价，再出片"}
+          {primary.label}
         </button>
         {notice && <p className="lq-vd__hint">{notice}</p>}
         {quote?.gaps && quote.gaps.length > 0 && (

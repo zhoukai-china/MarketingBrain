@@ -62,6 +62,23 @@ pnpm.cmd qa:fast
 | 生产页面级浏览器验收 | 未跑（既有边界） | 生产 `/lanqi/acquire*` 需真人微信扫码登录，自动化停在 `/os-v2/login`（同 LQ-22）；页面级证据取自测试实例 33/0 + 线上产物断言 + 生产接口 401→404 |
 
 
+## LQ-29 爆款复刻参考素材三条现场缺陷（2026-09-14）
+
+| 检查项 | 结果 | 证据 |
+|---|---|---|
+| 抖音分享口令识别（缺陷①，先红后绿） | PASS | 新增 `scripts/lanqi-acquire-reference-link-smoke.mjs` **11 passed / 0 failed**（指向修复前源码时 9 条红；用 `LANQI_REFERENCE_PAGE_PATH` 可复现红灯）：覆盖分享口令 `7.32 复制打开抖音…https://v.douyin.com/xxxx/ 复制此链接…` / `http` 升级 `https` / 尾部粘连中文与标点裁剪 / 无协议头短链 / 图文笔记 / 保留查询参数 / 无链接 / 非抖音域名 / 账号主页 / 空输入 |
+| 无链接与非抖音链接的失败口径 | PASS | 整段没有链接 → 页面明说「这段文字里没有链接」并给「分享 → 复制链接」步骤；非抖音 → 报出**实际识别到的域名**；旧提示 `这不像一条完整链接` 在源码与线上产物中命中 **0** |
+| 已上传素材可删除 / 可替换（缺陷②） | PASS | 契约 smoke 新增结构断言；测试实例真实浏览器：`🔄 更换原视频` / `🔄 更换照片` 与 `🗑 删除这条原片` / `🗑 删除这张照片`（`data-lq-vd-remove`）可见可点，删除后 `data-lq-vd-remove` 消失、可重新上传；删除会换新幂等键并清掉上一次报价 / 任务 / 成片，重传即全新一次请求 |
+| 出片主按钮状态机（缺陷③） | PASS | 测试实例：素材未齐 → `data-lq-vd-primary=missing` 且禁用并点名「还差：…」；素材齐但未报价 → `need_quote` **可点**，点击真的发起报价（`新增报价请求=1`）；报价可确认 → `ready`、文案「✅ 确认并出片（按报价扣 N 积分）」；**未确认前不建任务、不扣积分** |
+| 403 说人话（第三层口径） | PASS | `replicationFailureNotice()`：`product_access_denied` → 「当前账号还没有开通这项出片能力…与素材、授权是否填对无关」，**不猜原因、不谎称成功**；线上产物含该文案 1 处 |
+| 源码契约 + 门禁 | PASS | `pnpm.cmd lanqi:acquire-ui-contract-smoke` 新增 16 条结构断言（未改页面时全红）→ **82 passed / 0 failed**；`pnpm.cmd qa:fast` exit 0 |
+| 测试实例真实浏览器验收 | 42 项 / 2 项预期失败 | `pnpm.cmd lanqi:acquire-instance-acceptance`（桌面 1440 + 移动 390，CDP `DOM.setFileInputFiles` 真实上传）：**42 项 / 失败 2 项**，两项均为权益门禁预期（免登录新建租户只带 `lanqi` 权益 → 报价被后端 403 挡下：「点主按钮真的走报价」`新增报价请求=1, 报价后状态=need_quote`、`无接口 4xx/5xx` 捕获 `403 …/api/viral-video-replication/quote`），**其余 40 项全 PASS**（含 390 无横向溢出、console / page 0 错误） |
+| 发布与回滚 | PASS | `release-20260914-lq29-acquire-fixes-v2.tar.gz`（9,623,158 B / 1512 文件，sha256 `bf1a1bcb…`），发布 id `20260914-lq29-acquire-fixes-test2` / `-prod1`，两侧 `DEPLOY_OK` + health/ready 200 + `No pending migrations`，`verify-deploy.sh` 两侧 VERIFY_OK；回滚＝`/opt/baolu-backups/20260914-lq29-acquire-fixes-prod1-before-baolu-os-v2/` + `systemctl restart baolu-os-v2` |
+| 生产只读产物与接口取证 | PASS | 线上 chunk `assets/LanqiAcquireVideoPage-BwFfTi2O.js`（HTTP 200 / 67,224 B，由 `index-DNYd7rb4.js` 引入）含 `data-lq-vd-primary` / `data-lq-vd-remove` / `还没有开通这项出片能力` / `这段文字里没有链接` / `更换原视频` / `删除这条原片` 各 1，旧串命中 0；`POST /os-v2/api/viral-video-replication/quote` 未登录 **401** |
+| 生产页面级浏览器验收 | 未跑（既有边界） | 生产 `/lanqi/acquire*` 需真人微信扫码登录，自动化停在 `/os-v2/login`（同 LQ-22）；页面级证据取自测试实例 42 项 + 线上产物与接口只读探针 |
+| 出片链路的权益门禁 | 未闭环（待老板拍板） | `apps/api/src/routes/viral-video-replication.ts` 的 `context()` 只认 `beauty-industry` active 权益，兰琪租户只带 `lanqi` → 一点即 403。二选一：① 给在用兰琪租户补 `beauty-industry`；② 放宽该路由接受 `lanqi`（属权限 / 计费口径变更，Agent 未擅自执行） |
+
+
 ## LQ-27 爆款复刻真样片 + 公域获客板块放开（2026-09-13）
 
 | 检查项 | 结果 | 证据 |

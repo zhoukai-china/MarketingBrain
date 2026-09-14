@@ -157,5 +157,28 @@ forbidMatch(videoPage, /暂未接通真实爆款检索/, "video：不再硬编�
 forbidMatch(videoPage, /REPLICATE_SEARCH_READY/, "video：不再靠前端开关假装 fail closed");
 forbidMatch(videoPage, /(百炼|通义|qwen|Qwen|DashScope|达摩院)/, "video：页面文案不出现厂商与模型名");
 
+// ⑧ 爆款复刻三条真实 Bug（LQ-29，用户 2026-09-14 反馈）：
+//    1) 抖音分享口令（文字 + 短链混排）被判成「不是完整链接」；
+//    2) 已上传的原片 / 照片只有「重新选择」，没有删除入口；
+//    3) 未报价前「先报价，再出片」恒为禁用，点了没反应也没有解释。
+//    行为口径由 `pnpm lanqi:acquire-reference-link-smoke` 真跑函数体；这里锁源码结构，防回退。
+requireMatch(videoPage, /function extractReferenceUrl\(/, "video：先从任意粘贴文本里抽出链接（口令文字 + 短链混排也能识别）");
+requireMatch(videoPage, /function trimReferenceUrl\(/, "video：裁掉链接尾部粘连的中文提示与标点");
+forbidMatch(videoPage, /reason: "这不像一条完整链接/, "video：不再用「这不像一条完整链接」把真实分享口令判死");
+requireMatch(videoPage, /这段文字里没有链接/, "video：整段没有链接时，明确说「没有链接」并给出复制链接的步骤");
+requireMatch(videoPage, /const removeAsset = useCallback\(/, "video：已上传素材有删除入口（换新幂等键 + 清上次报价 / 任务 / 成片）");
+requireMatch(videoPage, /data-lq-vd-remove="video"/, "video：原片的删除按钮有稳定钩子");
+requireMatch(videoPage, /data-lq-vd-remove="portrait"/, "video：照片的删除按钮有稳定钩子");
+requireMatch(videoPage, /🔄 更换原视频/, "video：已上传后「更换原视频」文案明确");
+requireMatch(videoPage, /🔄 更换照片/, "video：已上传后「更换照片」文案明确");
+requireMatch(videoPage, /data-lq-vd-primary=\{primary\.state\}/, "video：出片主按钮带稳定状态钩子，供验收脚本断言");
+requireMatch(videoPage, /state: "need_quote"/, "video：未报价阶段有独立的 need_quote 状态");
+requireMatch(videoPage, /disabled=\{primary\.disabled\}/, "video：主按钮禁用状态由状态机决定");
+forbidMatch(videoPage, /disabled=\{Boolean\(busy\) \|\| !quote\?\.canConfirm\}/, "video：主按钮不再在拿到报价前恒为禁用");
+requireMatch(momentsCss, /\.lq-vd__actions\s*\{/, "video：「更换 / 删除」按钮同排样式存在");
+requireMatch(momentsCss, /\.lq-vd__btn\.danger/, "video：删除按钮有危险色样式");
+requireMatch(videoPage, /code === "product_access_denied"/, "video：权益拦截（403）单独给「未开通能力」的下一步，不混进「素材没填对」");
+requireMatch(videoPage, /error\.code = typeof body\.error === "string"/, "video：接口错误码带进前端，供按码给下一步");
+
 console.log(`\nlanqi_acquire_ui_contract_smoke: ${failures === 0 ? "PASS" : "FAIL"} (${results.length - failures} passed / ${failures} failed)`);
 process.exit(failures === 0 ? 0 : 1);

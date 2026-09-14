@@ -236,7 +236,8 @@
     "invite:redemption-smoke": "node apps/api/node_modules/tsx/dist/cli.mjs scripts/invite-redemption-smoke.ts",
     "invite:concurrency-smoke": "node scripts/invite-concurrency-smoke.mjs",
     "platform:billing-error-copy-smoke": "node scripts/billing-error-copy-smoke.mjs",
-    "platform:docx-export-markdown-smoke": "node apps/api/node_modules/tsx/dist/cli.mjs scripts/docx-export-markdown-smoke.ts"
+    "platform:docx-export-markdown-smoke": "node apps/api/node_modules/tsx/dist/cli.mjs scripts/docx-export-markdown-smoke.ts",
+    "lanqi:acquire-reference-link-smoke": "node scripts/lanqi-acquire-reference-link-smoke.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.0.1",

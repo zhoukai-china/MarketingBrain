@@ -468,6 +468,15 @@
 .lq-vd__pick:hover { border-color: #F37021; background: #FFF9F4; }
 .lq-vd__pick input[type="file"] { display: none; }
 
+/* LQ-29（用户 2026-09-14 反馈「已上传的照片 / 视频无法删除、无法替换」）：
+   「更换」与「删除」并排放在同一行，删掉已上传素材的入口必须一眼可见、点得到。 */
+.lq-vd__actions { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin-top: 8px; }
+.lq-vd__actions .lq-vd__pick { flex: 1 1 220px; margin-top: 0; }
+.lq-vd__actions .lq-vd__btn { margin-top: 0; }
+.lq-vd__btn.small { padding: 7px 12px; border-radius: 9px; font-size: 12px; }
+.lq-vd__btn.danger { border-color: #F2C6C0; background: #fff; color: #B42318; }
+.lq-vd__btn.danger:hover:not(:disabled) { border-color: #B42318; background: #FFF5F4; color: #B42318; }
+
 .lq-vd__fileinfo { margin-top: 10px; }
 .lq-vd__fileinfo b { font-size: 13px; font-weight: 800; color: #2D1A10; }
 .lq-vd__fileinfo p { margin: 4px 0 0; font-size: 11.5px; color: #6B5B50; line-height: 1.6; }
