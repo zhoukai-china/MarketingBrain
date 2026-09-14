@@ -132,19 +132,22 @@ export interface VidrevMetrics {
 
 const FIELD_ALIASES: Record<keyof VidrevRawRow, string[]> = {
   video_id: ["videoid", "序号", "编号", "视频id", "视频编号", "id"],
-  title: ["标题", "视频标题", "作品", "视频", "title"],
+  title: ["标题", "视频标题", "作品标题", "作品", "视频", "title"],
   duration_sec: ["时长", "时长秒", "时长s", "视频时长", "秒数", "duration", "durationsec"],
-  published_at: ["发布时间", "发布日期", "日期", "发布", "publishedat"],
-  plays: ["播放量", "播放", "播放数", "曝光", "曝光量", "plays"],
-  likes: ["点赞量", "点赞", "赞", "likes"],
-  comments: ["评论量", "评论数", "评论", "评", "comments"],
-  shares: ["分享量", "分享数", "分享", "转发", "shares"],
-  saves: ["收藏量", "收藏数", "收藏", "saves"],
-  completion_rate: ["完播率", "completionrate", "完播"],
+  // 视频号后台用「发表时间」，抖音用「发布时间」；两者都要能识别。
+  published_at: ["发布时间", "发布日期", "发表时间", "发布日期时间", "日期", "发布", "发表", "publishedat"],
+  plays: ["播放量", "播放", "播放数", "播放次数", "视频播放量", "曝光", "曝光量", "plays", "playcount"],
+  likes: ["点赞量", "点赞", "点赞数", "赞", "likes", "likecount"],
+  comments: ["评论量", "评论数", "评论", "评", "comments", "commentcount"],
+  // 视频号后台用「转发量」，抖音用「分享数」。
+  shares: ["分享量", "分享数", "分享", "转发", "转发量", "转发数", "shares", "sharecount"],
+  saves: ["收藏量", "收藏数", "收藏", "saves", "savecount"],
+  // 视频号的「平均播放进度」口径等同完播率，一并映射。
+  completion_rate: ["完播率", "平均播放进度", "平均播放完成度", "播放完成率", "completionrate", "完播"],
   completion_5s: ["5秒完播率", "5s完播率", "五秒完播率", "5秒完播", "completion5s"],
   conversions: ["咨询量", "咨询数", "咨询", "转化数", "转化", "留资量", "留资", "线索", "conversions"],
   is_paid: ["是否投流", "投流标记", "付费标记", "isp Paid", "ispaid", "投流", "付费"],
-  ad_spend: ["投流金额", "投流花费", "投流消耗", "消耗", "adspend"],
+  ad_spend: ["投流金额", "投流花费", "投流消耗", "广告消耗", "投流费用", "投放金额", "消耗", "adspend"],
   content_type: ["内容类型", "内容形式", "类型", "contenttype"]
 };
 

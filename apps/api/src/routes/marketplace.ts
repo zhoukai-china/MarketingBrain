@@ -94,7 +94,6 @@ const marketplaceRunSchema = z.object({
     content: z.string().trim().min(1).max(50_000)
   })).max(12).optional(),
   // 视频复盘结构化入参（附件 §六 接口契约）；缺字段一律不传，禁止前端补 0。
-  mode: z.enum(["quick", "deep"]).optional(),
   platform: z.string().trim().max(40).optional().nullable(),
   period: z.object({
     start: z.string().trim().max(40).optional().nullable(),
@@ -103,6 +102,27 @@ const marketplaceRunSchema = z.object({
   rows: z.array(z.record(z.unknown())).max(50).optional(),
   has_revenue_data: z.boolean().optional()
 });
+
+/**
+ * 视频复盘「文件到底有没有到后端」的预检（工单 2.4）：
+ * 只解析、不调模型、不扣积分；前端可先确认「文件到了 + 解析到了」，再发起正式复盘。
+ */
+const vidrevParsePreviewSchema = z.object({
+  content: z.string().max(400_000).optional(),
+  rows: z.array(z.record(z.unknown())).max(50).optional(),
+  platform: z.string().trim().max(40).optional().nullable()
+});
+
+/** 从表头/正文里猜平台（抖音 / 视频号 / 小红书 / 快手 / B站），识别不出返回 null。 */
+function detectVidrevPlatform(text: string): string | null {
+  const head = (text ?? "").slice(0, 4000);
+  if (/视频号|微信视频号|channels\.weixin|发表时间|转发量/.test(head)) return "视频号";
+  if (/抖音|douyin|创作者中心|5\s*秒完播率|分享数/.test(head)) return "抖音";
+  if (/小红书|xiaohongshu|薯条/.test(head)) return "小红书";
+  if (/快手|kuaishou|磁力/.test(head)) return "快手";
+  if (/B站|bilibili|哔哩/.test(head)) return "B站";
+  return null;
+}
 
 const MARKETPLACE_SKILL_BY_CAPABILITY: Record<string, string> = {
   ip_positioning: "ip_positioning",
@@ -207,6 +227,41 @@ const referralCodeInputSchema = z.object({
 
 export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<void> {
   await ensureMarketplaceCatalog();
+
+  // 视频复盘预检（工单 2.4）：验证「文件真的到了后端、字段也解析到了」，不调模型、不扣积分。
+  app.post("/vidrev/parse-preview", async (request, reply) => {
+    const parsed = vidrevParsePreviewSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+    }
+    const content = parsed.data.content ?? "";
+    const structured = (parsed.data.rows ?? []) as unknown as VidrevRawRow[];
+    const result = structured.length > 0
+      ? { rows: structured, notes: [`已收到结构化数据行 ${structured.length} 条。`] }
+      : parseVidrevRowsFromText(content);
+
+    const fields = new Set<string>();
+    for (const row of result.rows) {
+      for (const [key, value] of Object.entries(row as Record<string, unknown>)) {
+        if (value !== null && value !== undefined && value !== "") fields.add(key);
+      }
+    }
+    const dates = result.rows
+      .map((row) => row.published_at)
+      .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      .sort();
+    const metrics = result.rows.length > 0 ? computeVidrevMetrics(result.rows) : null;
+
+    return {
+      ok: result.rows.length > 0,
+      rowCount: result.rows.length,
+      fields: [...fields],
+      platform: parsed.data.platform ?? detectVidrevPlatform(content),
+      period: { start: dates[0] ?? null, end: dates[dates.length - 1] ?? null },
+      limitedDimensions: metrics?.limitedDimensions ?? [],
+      notes: result.notes
+    };
+  });
 
   await app.register(async (market) => {
     market.get("/zones", async () => ({
@@ -384,30 +439,25 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
         }
         // 视频复盘：先用确定性引擎把数据行重算成硬口径，再把口径与明细喂给模型，最后校验模型输出。
         let vidrevMetrics: VidrevMetrics | null = null;
-        let vidrevMode: "quick" | "deep" = parsed.data.mode ?? "deep";
         let vidrevHasRevenue = parsed.data.has_revenue_data ?? false;
         if (core === "vidrev") {
           const rows = structuredRows.length > 0 ? structuredRows : parseVidrevRowsFromText(rawInput).rows;
-          vidrevMode = parsed.data.mode ?? (rows.length > 0 ? "deep" : "quick");
           vidrevHasRevenue = parsed.data.has_revenue_data ?? false;
           const platform = parsed.data.platform?.trim() || "抖音";
           const period = parsed.data.period ?? null;
-          if (vidrevMode === "deep") {
-            vidrevMetrics = computeVidrevMetrics(rows);
-            if (vidrevMetrics.count === 0) {
-              return reply.code(422).send({
-                error: "marketplace_output_invalid",
-                message: "深度复盘未解析到可复算的数据行，本次未扣积分。请上传带列头的数据表（CSV / 表格），或改用快速诊断。",
-                reasons: ["V0 未解析到可复算的数据行：深度复盘必须有结构化数据（rows 或可解析的数据表）。"],
-                failed_rules: ["V0"]
-              });
-            }
-            userContent += `\n\n【本次复盘参数】模式=深度复盘；平台=${platform}；周期=${period?.start ?? "未提供"} ~ ${period?.end ?? "未提供"}；是否有成交金额=${vidrevHasRevenue ? "有" : "无"}。`;
-            userContent += `\n\n【后端重算口径 · 必须逐字照抄，写错即判失败】\n${vidrevMetricBrief(vidrevMetrics)}`;
-            userContent += `\n\n【结构化数据明细 · 只能引用这些 video_id，禁止编造视频】\n${vidrevRowsTable(vidrevMetrics)}`;
-          } else {
-            userContent += `\n\n【本次复盘参数】模式=快速诊断；平台=${platform}。输出精简版：判定 + 3–5 条要点 + 1 条立即动作 + ⚠️ 边界说明（补齐后台数据可升级为完整报告，同一任务不重复扣费）；不要输出趋势与配比章节。`;
+          // 2026-09-14 用户口径（工单 2.2）：只保留「深度复盘」，删除快速诊断分支。
+          vidrevMetrics = computeVidrevMetrics(rows);
+          if (vidrevMetrics.count === 0) {
+            return reply.code(422).send({
+              error: "marketplace_output_invalid",
+              message: "没有识别到视频记录，本次未扣积分。请上传视频号/抖音后台导出的 CSV/Excel（至少包含 1 条视频数据，表头含标题 / 播放 / 互动等字段）。",
+              reasons: ["V0 未解析到可复算的数据行：深度复盘必须有结构化数据（rows 或可解析的数据表）。"],
+              failed_rules: ["V0"]
+            });
           }
+          userContent += `\n\n【本次复盘参数】模式=深度复盘；平台=${platform}；周期=${period?.start ?? "未提供"} ~ ${period?.end ?? "未提供"}；是否有成交金额=${vidrevHasRevenue ? "有" : "无"}。`;
+          userContent += `\n\n【后端重算口径 · 必须逐字照抄，写错即判失败】\n${vidrevMetricBrief(vidrevMetrics)}`;
+          userContent += `\n\n【结构化数据明细 · 只能引用这些 video_id，禁止编造视频】\n${vidrevRowsTable(vidrevMetrics)}`;
         }
         // 分轮交互：同一会话的历史（含上一轮【需补充信息】问答）随请求带上，保证只扣一次费。
         const history = parsed.data.history ?? [];
@@ -444,10 +494,7 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
               [
                 {
                   role: "system",
-                  content:
-                    core === "vidrev" && vidrevMode === "quick"
-                      ? VIDREV_QUICK_SYSTEM_PROMPT
-                      : marketplaceSkillSystemPrompt(sku)
+                  content: marketplaceSkillSystemPrompt(sku)
                 },
                 ...turnMessages
               ] as LlmMessage[],
@@ -510,7 +557,8 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
             validateVidrevReport({
               markdown,
               metrics: vidrevMetrics,
-              mode: vidrevMode,
+              // 工单 2.2：只保留深度复盘，校验按 deep 口径走。
+              mode: "deep",
               hasRevenueData: vidrevHasRevenue
             });
           let validation = validateVidrev(answerText);
@@ -528,7 +576,7 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
                 [
                   {
                     role: "system",
-                    content: vidrevMode === "quick" ? VIDREV_QUICK_SYSTEM_PROMPT : marketplaceSkillSystemPrompt(sku)
+                    content: marketplaceSkillSystemPrompt(sku)
                   },
                   ...turnMessages,
                   { role: "assistant", content: answerText },
@@ -1536,19 +1584,6 @@ const VIDREV_SYSTEM_PROMPT = [
   "【排版】一段不超过 5 行；能用表格就不用列表；加粗不超过 12 处；除 🔴🟡🟢 外不要装饰性 emoji；数值百分比保留两位小数。",
   "【输出前自检】① 十章齐全、章节名逐字一致；② 四象限条数之和 = 总条数；③ 深拆条数与 reasons/reusable/improve 达标；④ 健康度档位与分数一致；⑤ 无成交金额时 ROI 写「数据缺失」；⑥ 第十章四方向齐全且候选选题 ≥2 条、无违禁词。",
   "只输出这一份 Markdown 报告，禁止输出任何推导过程、评分标准、内部评估、工作区/任务卡字样。"
-].join("\n");
-
-// 快速诊断：只输出精简版，结构固定到可被 validateQuick 逐条解析（否则 422 不扣费）。
-const VIDREV_QUICK_SYSTEM_PROMPT = [
-  "你是思潼AI行业智能体平台的「视频复盘智能体」。现在是【快速诊断】模式：只输出精简版，**不要**输出完整报告的零~十章，也不要输出趋势与配比章节。",
-  "严格按下面结构输出 Markdown，标题与字段名逐字照抄，缺任何一项都会被判失败（失败不扣积分）：",
-  "第 1 行：`## 视频复盘 · 快速诊断`",
-  "第 2 行：`判定：` + 一句话结论（说明当前表现属于哪一类象限，或相对账号基线的位置）。",
-  "第 3 行：`三个要点`（独占一行），随后换行用 `1.` `2.` `3.` 各占一行写 3 条要点（每条一句话，直接说问题或机会，合计 3–5 条）。",
-  "接着一行：`立即动作：` + 恰好 1 条可立即执行的动作（独占一行）。",
-  "最后一行：`⚠️ 本次为快速诊断，基于你提供的信息；补齐后台数据（各条播放 / 完播 / 互动 / 转化）可免费升级为完整复盘报告，同一任务不重复扣费。`",
-  "硬口径：不编造数字，用户没给的数据一律写「数据缺失」；不要用 0 兜底；除 ⚠️ 外不要装饰性 emoji；不写口播稿、不做 IP 定位。",
-  "只输出这一份 Markdown，禁止输出任何推导过程、评分标准、内部评估。"
 ].join("\n");
 
 const COPY_SYSTEM_PROMPT = [

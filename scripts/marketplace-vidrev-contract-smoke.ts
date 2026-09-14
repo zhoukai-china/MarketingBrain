@@ -8,6 +8,47 @@ import {
   validateVidrevReport,
   type VidrevRawRow
 } from "../apps/api/src/services/video-review-engine.js";
+import { readFileSync } from "node:fs";
+
+function readSource(rel: string): string {
+  return readFileSync(new URL(`../${rel}`, import.meta.url), "utf8");
+}
+
+/**
+ * 工单 2026-09-13（视频复盘智能体修改工单）验收：
+ * ① 未上传前必须有视频号/抖音导出指南（含真实网址）；② 不得再有快速诊断模式；
+ * ③ 视频号后台字段（发表时间 / 转发量 / 平均播放进度）必须能解析；
+ * ④ 后端必须有 `POST /vidrev/parse-preview` 预检接口证明文件真的到了。
+ */
+function checkWorkOrder20260913(): void {
+  const shipinhao = [
+    "标题,发表时间,播放量,点赞量,评论量,转发量,收藏量,平均播放进度",
+    "示例一,2026-08-12,124000,3200,286,410,520,31%",
+    "示例二,2026-08-18,32000,900,60,120,200,38%"
+  ].join("\n");
+  const parsed = parseVidrevRowsFromText(shipinhao);
+  assert(parsed.rows.length === 2, `视频号后台表头应解析出 2 条，实际 ${parsed.rows.length}`);
+  assert(parsed.rows[0]?.plays === 124000, "视频号「播放量」应映射到 plays");
+  assert(parsed.rows[0]?.shares === 410, "视频号「转发量」应映射到 shares");
+  assert(typeof parsed.rows[0]?.published_at === "string", "视频号「发表时间」应映射到 published_at");
+  near(parsed.rows[0]?.completion_rate, 0.31, 1e-9, "视频号「平均播放进度」应映射到 completion_rate");
+
+  const flows = readSource("apps/web/src/marketplace/chat-flows.ts");
+  const vidrevBlock = flows.slice(flows.indexOf("vidrev: {"), flows.indexOf("livescript: {"));
+  assert(!/快速诊断/.test(vidrevBlock), "vidrev 交互定义不得再出现「快速诊断」");
+  assert(!/key: "mode"/.test(vidrevBlock), "vidrev 不得再有「复盘模式」选择步骤");
+  assert(/数据导出指南/.test(vidrevBlock), "vidrev 欢迎语必须指向「视频数据导出指南」");
+
+  const chat = readSource("apps/web/src/marketplace/AgentChatPage.tsx");
+  assert(/channels\.weixin\.qq\.com\/login\.html/.test(chat), "导出指南必须含视频号助手网址");
+  assert(/creator\.douyin\.com/.test(chat), "导出指南必须含抖音创作者中心网址");
+  assert(/一键填充标准请求/.test(chat), "「增强提示词」必须改成「一键填充标准请求」");
+
+  const route = readSource("apps/api/src/routes/marketplace.ts");
+  assert(/app\.post\("\/vidrev\/parse-preview"/.test(route), "必须提供 POST /vidrev/parse-preview 预检接口");
+  assert(!/VIDREV_QUICK_SYSTEM_PROMPT/.test(route), "快速诊断的 system prompt 必须删除");
+  assert(!/"quick"/.test(route), "路由层不得再有 quick 模式分支");
+}
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`FAIL: ${message}`);
@@ -528,47 +569,6 @@ function checkFailureRules(): void {
   assert(shortDocWithNote.includes("样本不足"), "样本不足必须显式标注");
 }
 
-function checkQuickMode(): void {
-  const quick = [
-    "## 快速诊断 · 单条视频",
-    "",
-    "数据（用户提供）：播放 4,100 ｜ 赞 110 ｜ 评 5 ｜ 分享 2 ｜ 完播 31%",
-    "",
-    "判定：没量没转（播放低于账号基线 0.6 倍；咨询 0）",
-    "",
-    "三个要点：",
-    "1. 完播 31% 不算差，问题不在内容中段，在曝光和开头",
-    "2. 分享只有 2 条，没有值得转的点",
-    "3. 短时长杂项拉低账号时长权重",
-    "",
-    "立即动作：改成检查清单结构，重发一次，不要投流。",
-    "",
-    "⚠️ 本次为快速诊断，未做趋势与配比分析。补齐后台数据可升级为完整报告，同一任务不重复扣费。"
-  ].join("\n");
-  const result = validateVidrevReport({ markdown: quick, metrics: null, mode: "quick", hasRevenueData: false });
-  assert(result.failures.length === 0, `快速诊断样例不应判失败，实际：\n${result.failures.join("\n")}`);
-  assert(result.payload?.kind === "vidrev" && result.payload.mode === "quick", "快速模式 payload 必须标 mode=quick");
-  assert((result.payload?.quick?.points.length ?? 0) >= 3, "快速模式要点 ≥3 条");
-  assert(result.payload?.quick?.next_action.length ?? 0 > 0, "快速模式必须有 1 条立即动作");
-  assert(result.payload?.quick?.note.includes("不重复扣费"), "快速模式必须说明补齐数据升级不重复扣费");
-
-  const badQuick = validateVidrevReport({
-    markdown: quick.replace("立即动作：", "建议："),
-    metrics: null,
-    mode: "quick",
-    hasRevenueData: false
-  });
-  assert(badQuick.failures.some((item) => item.startsWith("Q1")), "快速模式缺立即动作应判失败");
-
-  const twoPoints = validateVidrevReport({
-    markdown: quick.replace("3. 短时长杂项拉低账号时长权重\n", ""),
-    metrics: null,
-    mode: "quick",
-    hasRevenueData: false
-  });
-  assert(twoPoints.failures.some((item) => item.startsWith("Q2")), "快速模式要点 <3 条应判失败");
-}
-
 /**
  * 真实模型「排版漂移」回归（2026-09-11 实测取证）。
  * 证据：`scripts/tmp/vidrev-debug/vidrev-first-2026-09-11T00-16-03-556Z.md`（真实模型原文）——
@@ -702,9 +702,9 @@ function main(): void {
   checkValidReport();
   checkFailureRules();
   checkModelFormatDrift();
-  checkQuickMode();
+  checkWorkOrder20260913();
   checkRouteSchemaShape();
-  console.log("marketplace vidrev contract smoke: PASS（解析 / 加权口径 / 四象限 / 自适应分桶 / V1–V12 / 快速模式 / 模型排版漂移兼容）");
+  console.log("marketplace vidrev contract smoke: PASS（解析 / 加权口径 / 四象限 / 自适应分桶 / V1–V12 / 工单 2026-09-13 修改项 / 模型排版漂移兼容）");
 }
 
 main();

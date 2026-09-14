@@ -49,14 +49,8 @@ export const CHAT_FLOWS: Record<string, ChatFlow> = {
   vidrev: {
     name: "视频复盘",
     welcome:
-      "你好，我是思潼 · 视频复盘智能体。先选模式、给数据，我再给你归因和下一轮动作。两种模式同价 60 积分/次；先做快速诊断、后续补齐数据升级为深度复盘时，同一任务只扣一次费。",
+      "你好，我是思潼 · 视频复盘智能体。一次使用 = 交付 **1 份完整深度复盘报告**（第零章数据质量审计 + 一模十章归因 + 下周期选题建议），**60 积分/次**。\n\n开始前请先从平台后台导出近 30 天数据表格（CSV / Excel），再直接拖到对话框上传；不确定从哪导出，看下方「📥 视频数据导出指南」。",
     slots: [
-      {
-        key: "mode",
-        label: "复盘模式",
-        q: "先选复盘模式：🚀 快速诊断（只给链接或口头描述，我给判定 + 3–5 条要点 + 1 条立即动作）还是 📊 深度复盘（粘贴后台数据表，我出第零章审计 + 十章完整归因 + 下周期选题）？",
-        choices: ["🚀 快速诊断", "📊 深度复盘"]
-      },
       {
         key: "platform",
         label: "平台",
@@ -71,7 +65,7 @@ export const CHAT_FLOWS: Record<string, ChatFlow> = {
       {
         key: "data",
         label: "数据 / 描述",
-        q: "把数据发我：深度复盘请粘贴后台数据表（列头含 标题／时长／发布时间／播放／点赞／评论／分享／收藏／完播率／咨询量／是否投流／投流金额，最多 50 条，缺的列可以没有）；快速诊断就用一两句话描述这条视频和大概数据，并写上这条视频原本想达成的动作（到店 / 咨询 / 涨粉）。"
+        q: "把平台后台导出的数据表格（CSV / Excel）拖进对话框上传，或直接把表格内容粘贴进来（列头含 标题／时长／发布时间／播放／点赞／评论／分享／收藏／完播率／转化／是否投流／投流金额，最多 50 条，缺的列可以没有）。上传后跟我说「复盘」即可。"
       }
     ]
   },
@@ -136,16 +130,10 @@ export function buildRunPrompt(flow: ChatFlow, answers: Record<string, string>):
 /** /market/skus/:sku/run 的请求体；视频复盘会额外带结构化参数。 */
 export interface RunRequestBody {
   input: string;
-  mode?: "quick" | "deep";
   platform?: string | null;
   period?: { start: string | null; end: string | null } | null;
   has_revenue_data?: boolean;
 }
-
-const VIDREV_MODE_CHOICES: Array<[RegExp, "quick" | "deep"]> = [
-  [/快速/, "quick"],
-  [/深度/, "deep"]
-];
 
 /** 从「2026-08-12 ~ 2026-09-07」「近30天」这类文本里抽出可用的起止日期。 */
 function parsePeriod(text: string): { start: string | null; end: string | null } | null {
@@ -155,18 +143,18 @@ function parsePeriod(text: string): { start: string | null; end: string | null }
 }
 
 /**
- * 视频复盘：模式 / 平台 / 周期单独作为结构化入参发给后端，避免后端从自由文本里猜；
+ * 视频复盘：平台 / 周期单独作为结构化入参发给后端，避免后端从自由文本里猜；
  * 数据表保持原样、独占成行，后端 parseVidrevRowsFromText 才能按表头解析出每一列。
+ * 2026-09-14 工单 2.2：只保留「深度复盘」，不再传 mode。
  */
 export function buildVidrevRunBody(flow: ChatFlow, answers: Record<string, string>): RunRequestBody {
-  const mode = VIDREV_MODE_CHOICES.find(([pattern]) => pattern.test(answers.mode ?? ""))?.[1] ?? "deep";
   const platform = (answers.platform ?? "").trim();
   const periodText = (answers.period ?? "").trim();
   const data = (answers.data ?? "").trim();
   const supplement = (answers.__supplement ?? "").trim();
 
   const head = [
-    `- 复盘模式：${mode === "quick" ? "快速诊断" : "深度复盘"}`,
+    "- 复盘模式：深度复盘（唯一模式）",
     `- 平台：${platform || "抖音"}`,
     `- 统计周期：${periodText || "未提供"}`,
     "- 数据 / 描述："
@@ -176,7 +164,6 @@ export function buildVidrevRunBody(flow: ChatFlow, answers: Record<string, strin
 
   return {
     input,
-    mode,
     platform: platform || null,
     period: parsePeriod(periodText),
     // 有成交口径字段时后端才允许出 ROI 数值；否则只给留资成本口径。

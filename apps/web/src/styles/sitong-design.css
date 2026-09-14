@@ -730,6 +730,14 @@ body[data-device="mobile"] .drawer-body{padding:14px}
   background:rgba(0,0,0,.16);border:1px solid var(--line);font-size:11.5px;line-height:1.6;
   color:var(--text);white-space:pre-wrap;word-break:break-all}
 :root[data-theme="light"] .rc-mcp-cmd{background:rgba(16,32,64,.05)}
+/* 视频复盘：未上传数据前的「数据导出指南」折叠卡片（工单 2.1）。 */
+.chat-vidrev-guide{margin:0 0 10px;border:1px solid var(--line);border-radius:14px;background:var(--glass);overflow:hidden}
+.chat-vidrev-guide>summary{cursor:pointer;padding:11px 14px;font-size:13px;font-weight:700;color:var(--accent2);list-style:none}
+.chat-vidrev-guide>summary::-webkit-details-marker{display:none}
+.chat-vidrev-guide-body{padding:0 16px 14px;font-size:12.5px;line-height:1.8;color:var(--text)}
+.chat-vidrev-guide-body h4{margin:12px 0 6px;font-size:12.5px;color:var(--accent2)}
+.chat-vidrev-guide-body ol,.chat-vidrev-guide-body ul{margin:0;padding-left:20px}
+.chat-vidrev-guide-body a{color:var(--c-blue);word-break:break-all}
 .rc-login{max-width:420px;margin:26px auto 0;text-align:center;padding:34px 26px;
   border-radius:var(--radius);background:var(--glass);border:1px solid var(--line);box-shadow:var(--shadow)}
 .rcl-ico{font-size:30px;margin-bottom:10px}

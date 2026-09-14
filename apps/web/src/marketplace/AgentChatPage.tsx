@@ -103,6 +103,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
   const runSku = sku ? (bundle ? steps[0] ?? sku : sku) : sku;
   const soon = isComingSoon(runSku);
   const flow = runSku ? chatFlowFor(coreSkuCode(runSku.skuCode)) : undefined;
+  /** 工单 2.1/2.3：视频复盘专属——未上传数据前展示导出指南，「增强提示词」改成一键填充标准请求。 */
+  const isVidrev = coreSkuCode(runSku?.skuCode ?? skuId) === "vidrev";
   const ovWelcome = runSku
     ? (industry?.ov?.[coreSkuCode(runSku.skuCode)]?.welcome as string | undefined) ?? ""
     : "";
@@ -402,6 +404,22 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     setUploadNote("已按该方法论增强，请在原有基础上补充缺口后发送。");
   }
 
+  /**
+   * 工单 2.3：视频复盘的「增强提示词」改成一键填充标准请求——
+   * 没上传文件就先提示去上传；上传了就把「文件名 / 平台 / 周期」拼成一条标准请求填进输入框。
+   */
+  function fillVidrevStandardRequest() {
+    const file = attachments[0];
+    if (!file) {
+      setUploadNote("请先把平台后台导出的数据表格（CSV / Excel）拖进对话框上传，再点「一键填充标准请求」。");
+      return;
+    }
+    const platform = (answers.platform ?? "").trim() || "抖音";
+    const periodText = (answers.period ?? "").trim() || "近30天";
+    setInput(`我已上传 ${file.name}，平台是 ${platform}，统计周期 ${periodText}，请做深度复盘。`);
+    setUploadNote("已按标准请求填充，直接发送即可。");
+  }
+
   async function downloadWord() {
     if (exporting) return;
     const finalItem = [...items].reverse().find((item) => item.role === "ai" && item.html);
@@ -516,6 +534,33 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
             </div>
             {cost !== null && <span className="chat-page-cost">本次消耗 {cost} 积分 · 双桶钱包</span>}
           </div>
+          {isVidrev && !done && !soon && (
+            <details className="chat-vidrev-guide" open>
+              <summary>📥 视频数据导出指南（不知道数据从哪来、怎么传，先看这里）</summary>
+              <div className="chat-vidrev-guide-body">
+                <p>请先从你发视频的平台后台导出近 <b>30 天</b>数据表格（CSV / Excel），然后直接拖到这里上传。</p>
+                <h4>视频号</h4>
+                <ol>
+                  <li>登录视频号助手：<a href="https://channels.weixin.qq.com/login.html" target="_blank" rel="noreferrer">channels.weixin.qq.com/login.html</a>（扫码登录）</li>
+                  <li>进入：数据中心 → 视频数据 → 单篇视频</li>
+                  <li>选择日期范围（建议「近 30 天」）→ 下载表格</li>
+                  <li>把下载好的表格拖到对话框上传，输入「复盘」</li>
+                </ol>
+                <h4>抖音</h4>
+                <ol>
+                  <li>登录抖音创作者中心：<a href="https://creator.douyin.com/" target="_blank" rel="noreferrer">creator.douyin.com</a>（扫码登录）</li>
+                  <li>进入：数据中心 → 作品数据 → 近 30 天 → 导出数据</li>
+                  <li>把下载好的表格拖到对话框上传，输入「复盘」</li>
+                </ol>
+                <h4>上传后我会做什么</h4>
+                <ul>
+                  <li>自动识别平台字段，缺字段会告诉你哪些数据缺失、是否影响结论</li>
+                  <li>一次只复盘一个平台；想换平台请重新上传对应表格</li>
+                  <li>建议 5–50 条视频，太少趋势不可信，太多建议拆周期</li>
+                </ul>
+              </div>
+            </details>
+          )}
           {dragActive && (
             <div
               className="chat-hint"
@@ -620,7 +665,9 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                 <button className="btn ghost sm" onClick={() => openFile("file")}>📎 文件</button>
                 <button className="btn ghost sm" onClick={() => openFile("video")}>🎬 视频</button>
-                <button className="btn ghost sm" onClick={enhanceInput}>✨ 增强提示词</button>
+                {isVidrev
+                  ? <button className="btn ghost sm" onClick={fillVidrevStandardRequest}>✨ 一键填充标准请求</button>
+                  : <button className="btn ghost sm" onClick={enhanceInput}>✨ 增强提示词</button>}
                 <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={onFileChange} />
               </div>
               <div>
