@@ -1,4 +1,11 @@
 # 当前部署状态
+## 最新发布：20260914-zd7b-recharge-mcp（2026-09-14，测试实例 + 生产）— 充值页 WorkBuddy 区块改为可直接复制的 MCP 接入指令
+
+- 发布包 `release-20260914-zd7b-recharge-mcp.tar.gz`（9,601,340 B，sha256 `9d40f32be07a98e6e466ce3893ece9f2f246d05c72bbfdc602b17428c2b26be5`，1510 文件）。从「只含本提交」的干净快照打包，未夹带并行兰琪线程的在途改动（已核对包内 `LanqiAcquireVideoPage.tsx` 逐字等于 HEAD）。
+- 内容：充值页「WorkBuddy 访问令牌」（计费令牌）UI 换成「在 WorkBuddy 里接入思潼 AI」——一段可直接复制给 WorkBuddy 的 MCP 安装指令 + 「📋 复制安装指令」按钮；首次点击会按当前账号生成一条 `sitong_wb_` 专属连接，把 MCP 地址 + 密钥拼进指令一起复制（不再让用户手动改 JSON，也不会再用错计费令牌）。
+- 测试实例 `20260914-zd7b-recharge-mcp-test1` / 生产 `20260914-zd7b-recharge-mcp-prod1`：均 `DEPLOY_OK` + `verify-deploy.sh` **VERIFY_OK**；生产产物核对 `请帮我在 WorkBuddy 中接入`=1、`integrations/workbuddy/mcp`=1、`复制安装指令`=1、旧 `WorkBuddy 访问令牌`=0；`journalctl -p err` 无条目。
+- 备份/回滚：`/opt/baolu-backups/20260914-zd7b-recharge-mcp-prod1-before-baolu-os-v2/`（189M）。回滚 = 还原该备份并 `systemctl restart baolu-os-v2`。
+
 ## 最新发布：20260914-zd7-platform（2026-09-14，测试实例 + 生产）— 样例修复上线（文案「内容十件套」/ 视频复盘「深度复盘」/ 直播话术完整样例）+ 平台底座抽取重构 + 客户端拖拽上传/去前置报价
 
 - 发布包 `release-20260914-zd7-platform.tar.gz`（9,600,317 B，sha256 `8084b8cd0103b018ebc5b7353a86befebdfb159429d4999ac0746905ca6f94dc`，1510 文件；canary `marketplace-v3.json` = `1dd5b672…`）。
