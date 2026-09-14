@@ -6,6 +6,22 @@
 
 `pnpm.cmd beauty-industry:seedance-execution-smoke`（已加入qa:regression）覆盖默认关闭、签名/素材审核、token/费用/请求独立上限、POST未知不可重放、GET有限恢复、积分/permit/usage事务、下载原子落盘/回执恢复、owner与跨租户、DNS pin/TLS选项/重定向/安全日志。需要真实SQL并发证据时运行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/acceptance/beauty-industry/video-foundation-db.ps1 -Suite BY54 -Port 55454`，仅该子进程策略，不改系统策略；脚本只创建新独立目录/空闲端口，并在finally按正式身份停止。禁止接生产库/真实Provider；实际云/素材/账号/费用另需授权。本项未改DOM，不把Fastify inject冒充桌面/390px或真实Ark成功。
 
+## 公共平台语音输入专项（PLAT-33）
+
+用户录音是「会外发的用户数据」，所以这条链路必须同时验准入、失败关闭和真实转写：
+
+```powershell
+pnpm.cmd plat33:voice-transcribe-admission-smoke
+pnpm.cmd plat33:voice-input-contract-smoke
+pnpm.cmd beauty-industry:asr-admission-smoke
+```
+
+- `plat33:voice-transcribe-admission-smoke`：合成音频 + 注入 transport。覆盖匿名 401、客户端自报用途/租户不放行、一次录音只外发一次、视频 415、超体积 413、缺 Key 503、每小时次数上限 429（且不误伤同租户其他用户）、用途固定 `web_voice_input`、`creditCost: 0`、日志不含录音内容/凭据/租户标识；同时反向断言共享入口 `/media/analyze` 对音视频仍 503。
+- 真实转写（手工、会产生极小费用）：`node apps/api/node_modules/tsx/dist/cli.mjs scripts/acceptance/plat33-voice-transcribe-live.ts <音频文件>`，期望 200 + 中文正文 + `creditCost: 0`。
+- 真机页面（Chrome 假麦克风喂真实中文录音，只读不发送）：`node scripts/acceptance/plat33-voice-input-browser-e2e.mjs`，需要 `PLAT33_SESSION_FILE`、`PLAT33_FAKE_MIC_WAV`，可选 `PLAT33_SKU_PATH` / `PLAT33_PRE_CLICKS`。公共平台对话页与智能体工作台各跑一次。
+
+新需求不得把语音转写改回 `/media/analyze`（该入口按安全要求对音视频 fail-closed），也不得在没有服务端准入（身份/用途/次数/体积）的情况下外发录音。
+
 ## 持续学习专项测试
 
 涉及反馈、行为结果、质量评分、Eval 沉淀或候选发布时，至少执行：

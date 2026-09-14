@@ -33,6 +33,7 @@ import { registerDiagnosisRoutes } from "./routes/diagnosis.js";
 import { registerOfflineEventRoutes } from "./routes/offline-events.js";
 import { registerExportRoutes } from "./routes/exports.js";
 import { registerMediaRoutes } from "./routes/media.js";
+import { registerVoiceRoutes } from "./routes/voice.js";
 import { registerMcpRoutes } from "./routes/mcp.js";
 import { registerAgentProductRoutes } from "./routes/agents.js";
 import { registerAgentAdminRoutes } from "./routes/agent-admin.js";
@@ -124,6 +125,7 @@ export async function buildServer() {
   await registerDiagnosisRoutes(app, provider);
   await registerExportRoutes(app);
   await registerMediaRoutes(app);
+  await registerVoiceRoutes(app);
   await registerMcpRoutes(app, provider);
   await registerWorkbuddyMcpRoutes(app, provider);
   await registerWorkbuddySettingsRoutes(app);

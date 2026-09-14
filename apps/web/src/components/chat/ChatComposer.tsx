@@ -737,6 +737,45 @@ export function ChatComposer({
     setAttachments((prev) => prev.filter((item) => item.id !== id));
   }
 
+  /**
+   * 语音输入转写（PLAT-33）：录音只走平台自己的受授权入口 `/voice/transcribe`。
+   * 这条通道必须带登录态；任何失败都返回带 warning 的结果，由 `voiceTranscriptionFailureMessage`
+   * 统一翻成人话，不静默丢录音。
+   */
+  async function transcribeVoiceAttachment(file: File): Promise<MediaAnalysisResponse | null> {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
+    try {
+      const formData = new FormData();
+      formData.append("file", file, file.name);
+      const response = await fetch(apiPath("/voice/transcribe"), {
+        method: "POST",
+        headers: stripMultipartHeaders(headers),
+        body: formData,
+        signal: controller.signal
+      });
+      if (!response.ok) {
+        let detail = `语音转写请求失败（${response.status}）`;
+        try {
+          const payload = (await response.json()) as { message?: string; error?: string };
+          detail = payload.message?.trim() || payload.error?.trim() || detail;
+        } catch {
+          // 服务端没返回 JSON 时保留状态码文案。
+        }
+        return { configured: false, warnings: [detail] };
+      }
+      return (await response.json()) as MediaAnalysisResponse;
+    } catch (error) {
+      if ((error as { name?: string }).name === "AbortError") {
+        return { configured: false, warnings: ["语音转写超过60秒，已自动停止；本次未扣积分，请缩短录音或直接用文字输入。"] };
+      }
+      const detail = error instanceof Error && error.message ? error.message : "网络连接异常";
+      return { configured: false, warnings: [`语音转写服务暂时不可用：${detail}`] };
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  }
+
   function toggleVoice() {
     const activeRecorder = mediaRecorderRef.current;
     if (activeRecorder && activeRecorder.state !== "inactive") {
@@ -851,7 +890,8 @@ export function ChatComposer({
     try {
       const mimeType = blob.type || "audio/webm";
       const file = new File([blob], `语音输入-${Date.now()}.${audioExtensionForMime(mimeType)}`, { type: mimeType });
-      const analysis = await analyzeMediaAttachment(file, "用户语音输入");
+      // PLAT-33：语音输入走独立的受授权转写入口（`/media/analyze` 对音视频一律 fail-closed）。
+      const analysis = await transcribeVoiceAttachment(file);
       const transcript = analysis?.transcript?.trim();
       if (transcript) {
         onInputChange([inputValue.trim(), transcript].filter(Boolean).join("\n"));

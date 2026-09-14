@@ -4,6 +4,7 @@ import { readSessionToken } from "../lib/session.js";
 import { chatFlowFor, buildRunBody } from "./chat-flows.js";
 import { IpPosReport, type IpPosPayload } from "./ip-pos-report.js";
 import { VidrevReport, isVidrevPayload, VIDREV_PREFILL_KEY, type VidrevPayload } from "./vidrev-report.js";
+import { audioExtensionForMime, useVoiceInput, voiceTranscriptionFailureMessage } from "../components/chat/useVoiceInput.js";
 import sitongAvatar from "../assets/sitong-beauty.png";
 import { bundleSteps, coreSkuCode, isBundle, isComingSoon, zoneOfSku, type MarketplaceIndustry, type MarketplaceSku } from "./sku-model.js";
 import { authHeaders, fetchMarketMe, guestToLogin, handleStaleSession, readJson, Topbar } from "./shell.js";
@@ -105,6 +106,11 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
   const flow = runSku ? chatFlowFor(coreSkuCode(runSku.skuCode)) : undefined;
   /** 工单 2.1/2.3：视频复盘专属——未上传数据前展示导出指南，「增强提示词」改成一键填充标准请求。 */
   const isVidrev = coreSkuCode(runSku?.skuCode ?? skuId) === "vidrev";
+  /** 公共平台对话页的语音输入：录音 → `/voice/transcribe`（受授权转写入口）→ 并入输入框。 */
+  const voice = useVoiceInput({
+    transcribe: transcribeVoiceBlob,
+    onText: (text) => setInput((prev) => [prev.trim(), text].filter(Boolean).join("\n"))
+  });
   const ovWelcome = runSku
     ? (industry?.ov?.[coreSkuCode(runSku.skuCode)]?.welcome as string | undefined) ?? ""
     : "";
@@ -420,6 +426,52 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     setUploadNote("已按标准请求填充，直接发送即可。");
   }
 
+  /**
+   * 公共平台对话页的语音输入转写：把录音 blob 传到 `/voice/transcribe`
+   * （PLAT-33 的受授权语音入口，与智能体工作台同一通道），拿回文字；
+   * 失败时给一句人话，绝不静默。
+   */
+  async function transcribeVoiceBlob(blob: Blob): Promise<{ text: string; message?: string }> {
+    const mimeType = blob.type || "audio/webm";
+    const file = new File([blob], `语音输入-${Date.now()}.${audioExtensionForMime(mimeType)}`, { type: mimeType });
+    const formData = new FormData();
+    formData.append("file", file, file.name);
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
+    let response: Response;
+    try {
+      response = await fetch(apiPath("/voice/transcribe"), {
+        method: "POST",
+        // multipart 的 Content-Type 由浏览器带 boundary 生成，这里只带鉴权头。
+        headers: authHeaders(),
+        body: formData,
+        signal: controller.signal
+      });
+    } catch (error) {
+      return {
+        text: "",
+        message: (error as { name?: string }).name === "AbortError"
+          ? "语音转写超过60秒，已自动停止；本次未扣积分，请缩短录音或直接用文字输入。"
+          : "语音转写服务暂时不可用，本次未扣积分。可以直接输入文字或稍后重试。"
+      };
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+    if (!response.ok) {
+      let detail = `语音服务请求失败（${response.status}）`;
+      try {
+        const payload = (await response.json()) as { message?: string; error?: string };
+        detail = payload.message?.trim() || payload.error?.trim() || detail;
+      } catch {
+        // 服务端没返回 JSON 时保留状态码文案。
+      }
+      return { text: "", message: detail };
+    }
+    const analysis = (await response.json()) as { configured?: boolean; transcript?: string; warnings?: string[] };
+    const text = analysis.transcript?.trim() ?? "";
+    return { text, message: text ? "" : voiceTranscriptionFailureMessage(analysis) };
+  }
+
   async function downloadWord() {
     if (exporting) return;
     const finalItem = [...items].reverse().find((item) => item.role === "ai" && item.html);
@@ -665,6 +717,15 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                 <button className="btn ghost sm" onClick={() => openFile("file")}>📎 文件</button>
                 <button className="btn ghost sm" onClick={() => openFile("video")}>🎬 视频</button>
+                <button
+                  className={`btn ghost sm${voice.recording ? " voice-recording" : ""}`}
+                  type="button"
+                  onClick={voice.toggle}
+                  disabled={busy || voice.busy}
+                  title={voice.recording ? "结束录音并转成文字" : "语音输入：点一下开始说话"}
+                >
+                  {voice.recording ? "⏹ 结束录音" : "🎤 语音"}
+                </button>
                 {isVidrev
                   ? <button className="btn ghost sm" onClick={fillVidrevStandardRequest}>✨ 一键填充标准请求</button>
                   : <button className="btn ghost sm" onClick={enhanceInput}>✨ 增强提示词</button>}
@@ -689,6 +750,11 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                 </div>
               )}
               {uploadNote && <div className="chat-hint" style={{ color: "var(--accent2)", marginBottom: 8 }}>{uploadNote}</div>}
+              {voice.message && (
+                <div className="chat-hint" style={{ color: voice.recording ? "var(--accent2)" : "var(--muted)", marginBottom: 8 }}>
+                  {voice.message}
+                </div>
+              )}
               {!awaitingSupplement && (flow.slots[step]?.choices?.length ?? 0) > 0 && (
                 <div className="chat-choices">
                   {flow.slots[step].choices?.map((choice) => (

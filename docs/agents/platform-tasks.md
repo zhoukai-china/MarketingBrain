@@ -2146,3 +2146,55 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 - 基线：`qa:fast` EXIT=0（2026-09-14 总调度7 实测）。
 - 残余风险：公共巨型文件拆分需逐批回归，禁止一次性搬迁；`scripts/tmp/deploy-release.sh` 仍是共享热点，PLAT-30 防覆盖卡实现前需人工串行。
 - 最后更新日期：2026-09-14
+
+## PLAT-33 公共平台语音输入（用户 2026-09-14：支持用户语音输入内容）
+
+状态：待发布（本地实现 + 真机验收完成，详见「验证」）
+
+### 归属
+
+- 产品：公共平台（`platform`），服务货架所有智能体的对话框。
+- 层级：公共平台（前端输入组件 + 一个新的受授权后端入口）。
+- 风险：中，新增一个会外发用户录音的接口，必须把准入写死。
+
+### 用户结果
+
+用户在公共平台任意智能体的对话框里点「🎤 语音」说一句话，再点一次结束，录音被转成中文填进输入框，检查后照常发送；麦克风没权限、没设备、被占用、没听到声音、服务未配置时都给一句中文人话，并且**不扣积分、不静默**。
+
+### 本次范围
+
+- 前端：公共平台对话页 `apps/web/src/marketplace/AgentChatPage.tsx` 新增「🎤 语音 / ⏹ 结束录音」按钮与状态提示；录音逻辑抽成可复用 hook `apps/web/src/components/chat/useVoiceInput.ts`；智能体工作台 `ChatComposer.tsx` 复用同一 hook 的同一入口。
+- 后端：新增 `POST /voice/transcribe`（`apps/api/src/routes/voice.ts`），服务端固定用途 `web_voice_input`。四项准入：① 身份只取服务端验签会话（未登录 401 `voice_login_required`）；② 每小时次数上限 `VOICE_TRANSCRIBE_HOURLY_LIMIT`（默认 60 次/租户+用户，超限 429）；③ 体积上限 `VOICE_TRANSCRIBE_MAX_MB`（默认 10MB，超限 413）；④ 缺 Key/地址 503 `voice_transcription_not_configured`。超时 504、上游失败 502，均 `creditCost: 0` 且明说未扣积分。
+- 配置：`apps/api/src/config/env.ts` 新增 `VOICE_TRANSCRIBE_MAX_MB` / `VOICE_TRANSCRIBE_HOURLY_LIMIT` / `VOICE_TRANSCRIBE_TIMEOUT_MS` 三项（都有默认值，不配也能跑）。
+
+### 本次不做
+
+- 不给语音输入做积分计费（`creditCost: 0`）：成本先用次数 + 体积上限控住，按次收费属于新计费口径，需要单独走计费契约与回归。
+- 不放开共享入口 `/media/analyze` 的音视频闸门（见 QA-20260905-003 / BY-47）：该入口没有产品用途/租户/预算绑定，保持 fail-closed。
+- 不做长音频（分钟级）转写：语音输入按「一句话」设计，长音频/视频另走对应产品入口。
+
+### 验收条件
+
+1. 正常路径：登录后在对话框点语音 → 说话 → 结束录音 → 中文出现在输入框；工作台同一按钮同一条链路。
+2. 失败路径：未登录 401；超次数 429；超体积 413；非音频 415；缺 Key 503；上游失败 502；超时 504。全部给人话、`creditCost: 0`。
+3. 不应发生：匿名或客户端自报的用途/租户字段能开启外发；语音请求扣积分；失败静默；录音内容写进日志。
+4. 可观测结果事件：成功/失败都写 `voice_transcribe.terminal`（只记用途、mime、字节数、字数、脱敏 provider 观测），准入拒绝写 `voice_transcribe.admission_rejected`（`providerCalls: 0`）。
+
+### 基线与失败证据
+
+- 基线：`pnpm.cmd qa:fast` EXIT=0（2026-09-14 开工前实测）。
+- 修复前红灯（`test-environments/plat33-voice-input-20260914/redlight-before-fix.json`）：旧实现下公共平台对话页没有语音入口；工作台的语音按钮打的 `/media/analyze` 对音视频一律 **503 `asr_authorization_required`**，新入口 `/voice/transcribe` **404**，外发 0 次、费用 0。
+- 根因：语音输入当时复用了「共享上传入口」，而该入口按安全要求只接文档、拒音视频；公共平台缺乏一个绑定用途/租户/预算的语音转写入口。
+
+### 验证
+
+- 领域命令：`pnpm.cmd plat33:voice-transcribe-admission-smoke`（3 轮：12 次成功 / 21 次拒绝，真实外发 0、费用 0）、`pnpm.cmd plat33:voice-input-contract-smoke`（19 项契约断言）、`pnpm.cmd beauty-industry:asr-admission-smoke`（共享入口仍 fail-closed）。
+- 真实链路：`scripts/acceptance/plat33-voice-transcribe-live.ts` 用真实中文录音走一遍生产同源 ASR 配置 → 200、207 字中文、1.6 秒、`creditCost: 0`（`live-asr-check-1.json`）。
+- 真机浏览器（Chrome 假麦克风喂真实中文录音，只读不发送）：① 公共平台对话页 `/agent/ipzone__copy/chat` 7/7 PASS；② 智能体工作台 `/agents/acquisition` 7/7 PASS；两侧控制台 0 error，截图与 `result.json` 见 `test-environments/plat33-voice-input-20260914/`。
+- 复跑方式：`PLAT33_SESSION_FILE=<含 token 的 json> PLAT33_FAKE_MIC_WAV=<16k 单声道 wav> PLAT33_SKU_PATH=/agent/<sku>/chat node scripts/acceptance/plat33-voice-input-browser-e2e.mjs`（工作台再加 `PLAT33_PRE_CLICKS`）。
+
+### 交接
+
+- 残余风险：真实浏览器验收只覆盖桌面 1440（移动端未跑真机录音）；iOS Safari 的 `audio/mp4` 录音已在前端做了容器与扩展名兼容，但未在真机 iPhone 上验过。
+- 计费口径：语音输入当前免费但有次数上限；如果上线后用量大，再谈按次计费。
+- 最后更新日期：2026-09-14

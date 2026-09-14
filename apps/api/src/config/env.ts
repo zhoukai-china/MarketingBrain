@@ -45,6 +45,13 @@ const envSchema = z.object({
   BEAUTY_VIDEO_STAGING_DRIVER: z.enum(["disabled", "aliyun_oss"]).default("disabled"),
   BEAUTY_VIDEO_EXECUTION_MODE: z.enum(["disabled", "controlled"]).default("disabled"),
   BEAUTY_VIDEO_EXECUTION_AUTHORITY_KEY: optionalString,
+  /**
+   * 单批许可签发方式（用户 2026-09-14 拍板 A：条件满足自动签发，仍受同一套预算上限约束）。
+   * 默认 `operator` = 与改动前完全一致（没有任何接口能签许可，只有运营离线签）；
+   * 显式置 `auto` 才会由服务端按 `ALIYUN_VIDEO_REPLICATION_MAX_COST_FEN` 反推输出上限自动签。
+   * 取值非法一律按 `operator` 失败关闭（不落回放行）。
+   */
+  VIDEO_REPLICATION_PERMIT_MODE: z.enum(["operator", "auto"]).default("operator"),
   SEEDANCE_EXECUTION_MODE: z.enum(["disabled", "controlled"]).default("disabled"),
   ARK_API_KEY: optionalString,
   SEEDANCE_EXECUTION_AUTHORITY_KEY: optionalString,
@@ -138,6 +145,11 @@ const envSchema = z.object({
   ALIYUN_ASR_FILETRANS_MODEL: z.string().trim().min(1).default("qwen3-asr-flash-filetrans"),
   ALIYUN_MEDIA_BASE64_MAX_MB: z.coerce.number().positive().default(12),
   ALIYUN_MEDIA_ANALYSIS_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).default(30_000),
+  // 公共平台语音输入（PLAT-33）：只接短录音，服务端限体积 + 限每小时次数，
+  // 这两个值就是这次外发 ASR 的「预算准入」，客户端无法覆盖。
+  VOICE_TRANSCRIBE_MAX_MB: z.coerce.number().positive().default(10),
+  VOICE_TRANSCRIBE_HOURLY_LIMIT: z.coerce.number().int().min(1).default(60),
+  VOICE_TRANSCRIBE_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).default(60_000),
   DASHSCOPE_API_KEY: optionalString,
   DASHSCOPE_BASE_URL: optionalUrl,
   PEXELS_API_KEY: optionalString,
