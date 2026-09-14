@@ -26,6 +26,8 @@ const xlsxPath = process.env.VIDREV_E2E_XLSX;
 const sessionFile = process.env.VIDREV_E2E_SESSION_FILE;
 const inlineToken = process.env.VIDREV_E2E_SESSION_TOKEN;
 const mobile = process.env.VIDREV_E2E_MOBILE === "1";
+/** 跑已上线的环境（SKU 已是 selling）时跳过本地数据库的临时 trial 切换。 */
+const skipStatusFlip = process.env.VIDREV_E2E_SKIP_STATUS_FLIP === "1";
 const shotDir = process.env.VIDREV_E2E_SHOT_DIR ?? path.join(tmpdir(), `vidrev-e2e-${Date.now()}`);
 const SKU = "ipzone__vidrev";
 
@@ -49,9 +51,13 @@ async function main() {
   const token = await resolveToken();
   await mkdir(shotDir, { recursive: true });
 
-  const { prisma } = await import("../../apps/api/node_modules/@baolu/db/dist/index.js");
-  const original = await prisma.marketplaceSku.findUniqueOrThrow({ where: { skuCode: SKU } });
-  await prisma.marketplaceSku.update({ where: { skuCode: SKU }, data: { status: "trial" } });
+  let prisma = null;
+  let original = null;
+  if (!skipStatusFlip) {
+    ({ prisma } = await import("../../apps/api/node_modules/@baolu/db/dist/index.js"));
+    original = await prisma.marketplaceSku.findUniqueOrThrow({ where: { skuCode: SKU } });
+    await prisma.marketplaceSku.update({ where: { skuCode: SKU }, data: { status: "trial" } });
+  }
 
   const cdp = await startChrome();
   try {
@@ -74,8 +80,18 @@ async function main() {
 
     cdp.pageErrors.length = 0;
     await cdp.send("Page.navigate", { url: `${webBase}${skuPath}` }, sessionId);
-    await waitFor(cdp, sessionId, `() => Boolean(document.querySelector(".chat-page-composer"))`, 40_000, "对话输入区出现");
-    await delay(1200);
+    // 真实环境（测试/生产）拿货架数据比本地慢：必须等「视频复盘自己的界面」渲染出来再断言，
+    // 否则会把「SKU 数据还在路上」误判成「没有导出指南 / 还有快速诊断」。
+    await waitFor(
+      cdp,
+      sessionId,
+      `() => Boolean(document.querySelector("details.chat-vidrev-guide"))
+        || /视频复盘智能体/.test(document.body ? document.body.innerText : "")
+        || Boolean(document.querySelector(".chat-page-composer"))`,
+      60_000,
+      "对话输入区出现"
+    );
+    await delay(2000);
 
     // ① 导出指南常驻 + 两个真实网址可点。
     const guide = await evaluate(cdp, sessionId, `() => {
@@ -191,8 +207,10 @@ async function main() {
   } finally {
     try { cdp.socket.close(); } catch {}
     cdp.child.kill();
-    await prisma.marketplaceSku.update({ where: { skuCode: SKU }, data: { status: original.status } }).catch(() => {});
-    await prisma.$disconnect().catch(() => {});
+    if (prisma && original) {
+      await prisma.marketplaceSku.update({ where: { skuCode: SKU }, data: { status: original.status } }).catch(() => {});
+      await prisma.$disconnect().catch(() => {});
+    }
   }
 
   const failed = results.filter((item) => !item.ok);
