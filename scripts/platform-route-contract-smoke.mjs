@@ -54,6 +54,7 @@ function forbidFile(relativePath, name) {
 }
 
 const main = read("apps/web/src/main.tsx");
+const lanqiRoutes = read("apps/web/src/routes/lanqi.tsx");
 const packageJson = read("package.json");
 
 /* ------------------------------------------------------------------ *
@@ -273,8 +274,9 @@ const PRESERVED_ROUTES = [
 ];
 
 for (const route of PRESERVED_ROUTES) {
+  const source = route.url.startsWith("/lanqi") ? lanqiRoutes : main;
   for (const needle of route.must) {
-    requireContains(main, needle, `保留网址 ${route.url}（${route.label}）`);
+    requireContains(source, needle, `保留网址 ${route.url}（${route.label}）`);
   }
 }
 

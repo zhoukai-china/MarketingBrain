@@ -20,6 +20,7 @@ const [server, guards, register] = await Promise.all([
   readFile(new URL("../apps/api/src/services/access-guards.ts", import.meta.url), "utf8"),
   readFile(new URL("../apps/api/src/products/register.ts", import.meta.url), "utf8"),
 ]);
+const lanqiRoutes = await readFile(new URL("../apps/web/src/routes/lanqi.tsx", import.meta.url), "utf8");
 const styles = await readFile(new URL("../apps/web/src/styles/store-growth.css", import.meta.url), "utf8");
 const devSchemaSection = auth.slice(auth.indexOf("const devLoginSchema"), auth.indexOf("const betaLoginSchema"));
 const devRouteSection = auth.slice(auth.indexOf('app.post("/auth/dev-login"'), auth.indexOf("// Check whether WeChat auth"));
@@ -155,9 +156,9 @@ assert.match(
   "邀请码输入框必须只在邀请制下渲染",
 );
 assert.match(login, /完成注册，开通你的工作区/, "微信首次授权回来后必须进入完成注册步骤");
-assert.match(main, /function LanqiLocalAccessPage\(\)/, "必须提供兰琪本机专用直达入口");
-assert.match(main, /!import\.meta\.env\.DEV \|\| !isLocalMachine/, "本机直达入口不得在正式环境或非本机地址启用");
-assert.match(main, /getAppPath\("\/lanqi\/content-studio"\)/, "本机直达入口必须进入兰琪内容工作台");
+assert.match(lanqiRoutes, /function LanqiLocalAccessPage\(\)/, "必须提供兰琪本机专用直达入口");
+assert.match(lanqiRoutes, /!import\.meta\.env\.DEV \|\| !isLocalMachine/, "本机直达入口不得在正式环境或非本机地址启用");
+assert.match(lanqiRoutes, /getAppPath\("\/lanqi\/content-studio"\)/, "本机直达入口必须进入兰琪内容工作台");
 assert.match(
   webApi,
   /return `\$\{appPath\}\$\{separator\}apiBase=\$\{encodeURIComponent\(queryApiBase\)\}`/,

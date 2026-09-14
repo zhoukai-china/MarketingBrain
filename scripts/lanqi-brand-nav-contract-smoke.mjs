@@ -22,6 +22,7 @@ const brainHome = read("apps/web/src/pages/LanqiBrainHomePage.tsx");
 const placeholder = read("apps/web/src/pages/LanqiPlaceholderPage.tsx");
 const momentsHome = read("apps/web/src/pages/LanqiMomentsHomePage.tsx");
 const main = read("apps/web/src/main.tsx");
+const lanqiRoutes = read("apps/web/src/routes/lanqi.tsx");
 const css = read("apps/web/src/styles/lanqi-moments.css");
 const shared = read("packages/shared/src/index.ts");
 const packageJson = read("package.json");
@@ -151,12 +152,12 @@ forbidMatch(momentsHome, /返回公域获客/, "私域营销首页：不再「�
 requireMatch(momentsHome, /返回板块总览/, "私域营销首页：返回链接指向板块总览");
 
 // ⑦ 路由口径：默认落地私域营销；未上线板块渲染「开发中」占位
-requireMatch(main, /LANQI_MOMENTS_ONLY_LAUNCH/, "路由：存在单点开关 LANQI_MOMENTS_ONLY_LAUNCH");
-requireMatch(main, /LanqiDashboardInDevelopmentPage/, "路由：经营驾驶舱被「开发中」占位接管");
-requireMatch(main, /LANQI_ACQUIRE_LAUNCHED/, "路由：存在公域获客放开开关 LANQI_ACQUIRE_LAUNCHED");
-requireMatch(main, /LANQI_MOMENTS_ONLY_LAUNCH && !LANQI_ACQUIRE_LAUNCHED/, "路由：仅未放开时公域获客才命中「开发中」占位");
+requireMatch(lanqiRoutes, /LANQI_MOMENTS_ONLY_LAUNCH/, "路由：存在单点开关 LANQI_MOMENTS_ONLY_LAUNCH");
+requireMatch(lanqiRoutes, /LanqiDashboardInDevelopmentPage/, "路由：经营驾驶舱被「开发中」占位接管");
+requireMatch(lanqiRoutes, /LANQI_ACQUIRE_LAUNCHED/, "路由：存在公域获客放开开关 LANQI_ACQUIRE_LAUNCHED");
+requireMatch(lanqiRoutes, /LANQI_MOMENTS_ONLY_LAUNCH && !LANQI_ACQUIRE_LAUNCHED/, "路由：仅未放开时公域获客才命中「开发中」占位");
 forbidMatch(
-  main,
+  lanqiRoutes,
   /window\.location\.replace\(getAppPath\("\/lanqi\/dashboard"\)\)/,
   "路由：入口不再默认跳经营驾驶舱"
 );
@@ -170,7 +171,7 @@ record(
 );
 record(
   "路由：`/lanqi` 入口默认落地私域营销",
-  /path === "\/lanqi" \|\| path === "\/lanqi\/"\)\s*\{\s*window\.location\.replace\(getAppPath\("\/lanqi\/moments"\)\)/.test(main),
+  /path === "\/lanqi" \|\| path === "\/lanqi\/"\)\s*\{\s*window\.location\.replace\(getAppPath\("\/lanqi\/moments"\)\)/.test(lanqiRoutes),
   "`/lanqi` 重定向"
 );
 record(

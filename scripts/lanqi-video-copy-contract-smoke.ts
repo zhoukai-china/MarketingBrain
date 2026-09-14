@@ -115,11 +115,11 @@ function read(relative: string): string {
 }
 
 const pageSource = read("apps/web/src/pages/LanqiAcquireVideoPage.tsx");
-const mainSource = read("apps/web/src/main.tsx");
+const lanqiRouteSource = read("apps/web/src/routes/lanqi.tsx");
 const homeSource = read("apps/web/src/pages/LanqiAcquireHomePage.tsx");
 const routeSource = read("apps/api/src/routes/acquire.ts");
 
-assert("一键成片有独立路由", mainSource.includes("/lanqi/acquire/video-copy") && mainSource.includes("LanqiAcquireVideoCopyPage"));
+assert("一键成片有独立路由", lanqiRouteSource.includes("/lanqi/acquire/video-copy") && lanqiRouteSource.includes("LanqiAcquireVideoCopyPage"));
 assert(
   "视频页不再渲染页签（爆款复刻单模式）",
   !/lq-vd__tabs/.test(pageSource) && !/role="tablist"/.test(pageSource) && !/setMode\(/.test(pageSource)
@@ -129,7 +129,7 @@ assert("一键成片无「手动贴文案」入口", !/📋 填入示例文案/.
 assert("一键成片 6 步齐全", ["说需求", "AI 生成文案", "AI 分镜脚本", "传素材卡", "积分预算", "成片"].every(label => pageSource.includes(label)));
 assert("文案候选走后端接口（前端不拼模板）", pageSource.includes("/lanqi/acquire/video/copy-candidates") && routeSource.includes("/acquire/video/copy-candidates"));
 assert("枢纽页两张视频卡指向两个路由", homeSource.includes("/lanqi/acquire/video-copy") && homeSource.includes("一键成片") && homeSource.includes("爆款复刻"));
-assert("旧深链 ?mode=script 跳转到一键成片", /===\s*"script"/.test(mainSource) && mainSource.includes("video-copy"));
+assert("旧深链 ?mode=script 跳转到一键成片", /===\s*"script"/.test(lanqiRouteSource) && lanqiRouteSource.includes("video-copy"));
 assert("页面文案不出现厂商与模型名", !/(百炼|通义|qwen|Qwen|DashScope|Seedance|豆包|可灵|MiniMax|海螺|Hailuo|即梦)/.test(pageSource));
 
 console.log(`\nlanqi video copy contract smoke: ${pass} passed, ${fail} failed`);
