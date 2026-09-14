@@ -1,4 +1,17 @@
 # 当前部署状态
+## 最新发布：20260914-plat33-voice-input（2026-09-14，测试实例 + 生产）— 公共平台语音输入
+
+- 发布包 `release-20260914-plat33-voice-input.tar.gz`（9,652,995 B / 1518 文件，sha256 `5e8c36da311f02e42aef5c581fc8059646c2db2b30dfb6cc7f3a0c3b6368060b`，本地与服务器实测一致）。**从「只含本提交」的干净快照打包**（`git worktree` 指向 commit `402769b`）：打包时同一工作树里并行线程正在改 `viral-video-replication*` / `beauty-video-*` / 新增 `video-replication-entitlement.ts` 与 LQ-30 卡，包内已核对**不含**这些在途文件（`tar -tzf | grep video-replication-entitlement|LQ-30` = 0）。
+- 内容：用户口径「在公共平台里增加语音输入功能，支持用户语音输入内容」。① 公共平台对话页 `/agent/<sku>/chat` 新增「🎤 语音 / ⏹ 结束录音」，录音走新入口；② 录音逻辑抽成 `useVoiceInput` hook，智能体工作台 `ChatComposer` 复用同一入口（原先它打 `/media/analyze`，对音视频一律 503 `asr_authorization_required`，等于语音一直不可用）；③ 新增 `POST /voice/transcribe`：身份只认服务端验签会话（未登录 401 `voice_login_required`）、用途由服务端固定 `web_voice_input`、每小时次数上限（默认 60/租户+用户，超限 429）、体积上限（默认 10MB，超限 413）、非音频 415、缺 Key 503 `voice_transcription_not_configured`、超时 504 / 上游失败 502，全部 `creditCost: 0` 且明说未扣积分；④ 新增 `VOICE_TRANSCRIBE_MAX_MB` / `VOICE_TRANSCRIBE_HOURLY_LIMIT` / `VOICE_TRANSCRIBE_TIMEOUT_MS`（有默认值）；⑤ **不放开**共享入口 `/media/analyze` 的音视频闸门（QA-20260905-003 / BY-47 保持 fail-closed，本卡有反向断言）。
+- 测试实例 `20260914-plat33-voice-input-test1` / 生产 `20260914-plat33-voice-input-prod1`：均 `DEPLOY_OK` + `verify-deploy.sh` **VERIFY_OK**（`marketplace-v3.json` canary `f986b5b7…` 一致、skus 19 / coming_soon 15 / 双 vidrev `coming_soon`）；两侧 `prisma migrate deploy` = `50 migrations found / No pending migrations to apply.`；`journalctl -p err` 无条目。
+- 线上核对：生产 `POST https://api.lcppch.top/os-v2/api/voice/transcribe`（未登录）**401** `voice_login_required` 且 `providerCalls: 0`；生产/测试产物 `assets/ChatComposer-*.js` 与 `assets/MarketplaceApp-*.js` 均含 `voice/transcribe`，`🎤 语音` 各 1 处。
+- 测试实例**真实转写**（服务端用测试库既有会话、只读）：8 秒真实中文录音 → **200**、`purpose=web_voice_input`、50 个中文字、706ms、`creditCost: 0`、`qwen3-asr-flash` `billingStarted=confirmed`。
+- 真机浏览器（Chrome 假麦克风喂真实中文录音，只读不发送）：公共平台对话页 `/agent/ipzone__copy/chat` **7/7 PASS**、智能体工作台 `/agents/acquisition` **7/7 PASS**，两侧控制台 0 error，截图见 `test-environments/plat33-voice-input-20260914/`。
+- 备份/回滚：`/opt/baolu-backups/20260914-plat33-voice-input-prod1-before-baolu-os-v2/`、`…-test1-before-baolu-os-v2-test/`；回滚 = 还原备份目录 + `systemctl restart baolu-os-v2(-test)`，或重放上一包。
+- 发布前磁盘处置（非业务改动）：`/opt/baolu-stage` 历史构建暂存 16 个目录 **6.1G**（`deploy-release.sh` 每次重建，不是回滚资产）已清理，磁盘 **94% → 72%（1.8G → 7.9G 可用）**；本轮两个 stage 目录发布后也已清掉，当前 **75% / 7.1G 可用**。`/opt/baolu-backups`（7.0G，52 份）**未动**——保留策略脚本仍未执行，等老板点头。
+- 既有回归红灯（**非本轮引入**，已在报告里标明）：① `beauty-industry:video-oss-staging-smoke`（`cleanup_failed` 实得 `oss_http_503`，2026-09-14 平台抽取批次已记录）；② `beauty-industry:video-foundation-smoke` / `video-material-authorization-smoke`（把 `env.ts` 回退到 HEAD 后同样失败，且并行线程正在改这些 `beauty-video-*` 文件）；③ `beauty-industry:web-contract-smoke` 断言 `server.ts` 含 `registerBeautyIndustryRoutes`，而该注册在 PLAT-32（commit `0e7053a`）已移到 `products/register.ts`，HEAD 上就已不成立。
+- 未跑：生产页面级语音验收（生产对话页需真人微信登录，自动化停在登录态）；移动端真机录音（本机只跑了桌面 1440）。
+
 ## 最新发布：20260914-zd7d/zd7e-vidrev-fix（2026-09-14，测试实例 + 生产）— 视频复盘智能体按 2026-09-13 工单改造
 
 - 包 `release-20260914-zd7d-vidrev-fix.tar.gz`（sha256 `357fad7a…`）+ `release-20260914-zd7e-vidrev-fix2.tar.gz`（sha256 `731d9a3d…`，收尾美业欢迎语与后端 agent 定义）。

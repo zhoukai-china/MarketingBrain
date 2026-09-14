@@ -23,6 +23,8 @@ const speakMs = Number(process.env.PLAT33_SPEAK_MS ?? 8000);
 /** 可选：进入工作台内层页面要按顺序点的按钮文案（用 `;` 分隔），例如 `进入图文获客`。 */
 const preClicks = (process.env.PLAT33_PRE_CLICKS ?? "").split(";").map((item) => item.trim()).filter(Boolean);
 const shotDir = process.env.PLAT33_SHOT_DIR ?? path.join(tmpdir(), `plat33-voice-${Date.now()}`);
+/** `PLAT33_MOBILE=1` 时按 390×844 移动端跑（额外断言页面没有横向溢出）。 */
+const mobile = process.env.PLAT33_MOBILE === "1";
 const sessionFile = process.env.PLAT33_SESSION_FILE;
 const inlineToken = process.env.PLAT33_SESSION_TOKEN;
 
@@ -186,7 +188,13 @@ async function main() {
     cdp.sessions.add(sessionId);
     await cdp.send("Page.enable", {}, sessionId);
     await cdp.send("Runtime.enable", {}, sessionId);
-    await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 1400, deviceScaleFactor: 1, mobile: false }, sessionId);
+    await cdp.send(
+      "Emulation.setDeviceMetricsOverride",
+      mobile
+        ? { width: 390, height: 844, deviceScaleFactor: 2, mobile: true }
+        : { width: 1440, height: 1400, deviceScaleFactor: 1, mobile: false },
+      sessionId
+    );
     await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
       source: `try { localStorage.setItem("store_os_token", ${JSON.stringify(token)}); } catch {}`
     }, sessionId);
@@ -252,6 +260,15 @@ async function main() {
     record(errors.length === 0, "整个过程控制台无错误", errors.length === 0 ? "0 error" : errors.join(" | ").slice(0, 200));
 
     const state = await evaluate(cdp, sessionId, PAGE_STATE);
+    if (mobile) {
+      const overflow = await evaluate(cdp, sessionId, `() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        innerWidth: window.innerWidth,
+        voiceButtonVisible: (() => { const b = ${VOICE_BUTTON}; if (!b) return false; const r = b.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.right <= window.innerWidth + 1; })()
+      })`);
+      record(overflow.scrollWidth <= overflow.innerWidth + 1, "移动端 390px 无横向溢出", `scrollWidth=${overflow.scrollWidth} innerWidth=${overflow.innerWidth}`);
+      record(overflow.voiceButtonVisible, "移动端语音按钮在可视区域内");
+    }
     await writeFile(
       path.join(shotDir, "result.json"),
       JSON.stringify({ skuPath, transcript, hint: state.hint, buttonText: state.buttonText, before, during, afterShot, duringShot }, null, 2)
