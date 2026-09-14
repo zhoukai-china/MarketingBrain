@@ -1,4 +1,16 @@
 # 当前部署状态
+## 最新发布：20260914-lq29-acquire-fixes（2026-09-14，测试实例 + 生产）— 兰琪爆款复刻三条现场缺陷修复（抖音分享口令 / 已传素材删除替换 / 出片主按钮点不了）
+
+- 发布包 `release-20260914-lq29-acquire-fixes-v2.tar.gz`（9,623,158 B / 1512 文件，sha256 `bf1a1bcbad7760c138e2afa027f5704fdd0b01091b67dd063e6f9ac10bd5f29c`，本地与服务器 `/opt/releases/` 实测一致）。从「只含本提交」的干净快照打包：发布前逐字节比对确认与生产不同处的文件恰好只有本任务的 7 个源 / 脚本文件 + 2 个已提交文档，未夹带并行任务的在途改动。
+- 内容（**只动前端**：`LanqiAcquireVideoPage.tsx` + `lanqi-moments.css`，未改后端路由 / 鉴权 / 计费）：① `parseReferenceLink()` 重写——从任意粘贴文本**抽出第一条链接**再校验（`http` 升级 `https`、裁掉链接后粘连的中文与标点、无协议头短链 `v.douyin.com/xxx` 也认），整段没有链接时明说「这段文字里没有链接」并给「分享 → 复制链接」步骤，非抖音链接报出实际域名，旧提示「这不像一条完整链接」彻底删除；② 上传区新增「🔄 更换原视频 / 🔄 更换照片」与「🗑 删除这条原片 / 删除这张照片」，删除时换新幂等键并清掉上一次报价 / 任务 / 成片；③ 出片主按钮改显式状态机（素材没齐点名缺口 / 齐了没报价时可点、点它就是先报价 / 报价可确认后变「✅ 确认并出片（按报价扣 N 积分）」），**未确认前不建任务、不扣积分**；④ 403 改说人话（`product_access_denied` → 「当前账号还没有开通这项出片能力，与素材、授权是否填对无关」）。详见 `docs/BUG_REGRESSIONS.md` QA-20260914-004。
+- 测试实例 `20260914-lq29-acquire-fixes-test2` / 生产 `20260914-lq29-acquire-fixes-prod1`：均 `DEPLOY_OK` + `health=200` / `ready=200` + `50 migrations found / No pending migrations to apply.`；`verify-deploy.sh` 两侧 **VERIFY_OK**（`WEB_URL` 需带结尾斜杠，否则 `/os-v2` → `/os-v2/` 的 302 会被误判为 `public_web` FAIL）。
+- 生产产物核对（直接下载线上 chunk）：`index.html` → `assets/index-DNYd7rb4.js` → `assets/LanqiAcquireVideoPage-BwFfTi2O.js`（HTTP 200 / 67,224 B）内 `data-lq-vd-primary` / `data-lq-vd-remove` / `data-lq-vd-primary-hint` / `还没有开通这项出片能力` / `这段文字里没有链接` / `更换原视频` / `更换照片` / `删除这条原片` 各 **1** 处，旧串 `这不像一条完整链接` **0**；`POST /os-v2/api/viral-video-replication/quote` 未登录 **401**（路由在、需登录）。
+- 页面级验收：测试实例真实浏览器（桌面 1440 + 移动 390，CDP `DOM.setFileInputFiles` 真实上传）**42 项 / 失败 2 项**，两项均为权益门禁的**预期结果**（免登录新建租户只带 `lanqi` 权益 → 报价被后端 403 挡下），其余 40 项全 PASS。
+- 备份/回滚：`/opt/baolu-backups/20260914-lq29-acquire-fixes-prod1-before-baolu-os-v2/`（190M）。回滚 = 还原该备份并 `systemctl restart baolu-os-v2`。
+- 未跑（既有边界）：生产页面级浏览器验收——生产 `/lanqi/acquire*` 需真人微信扫码登录，自动化停在 `/os-v2/login`（同 LQ-22 / LQ-28）。
+- **未闭环（需老板拍板，属权限 / 计费口径变更）**：前端放开按钮后仍拿不到报价——`apps/api/src/routes/viral-video-replication.ts` 的 `context()` 只认 `beauty-industry` active 权益，而兰琪租户只带 `lanqi`（生产只读实测：active 权益 `lanqi=9` 中仅 2 个同时持 `beauty-industry`，均为 2026-08-24 历史租户）。二选一：① 给在用兰琪租户补 `beauty-industry` 权益；② 放宽 `/viral-video-replication/*` 接受 `lanqi` 权益。另需确认在用的兰琪租户（可能与历史素材租户不是同一个）。
+- 残留（非功能、无运行影响）：`/opt/baolu-os-v2/apps/web/dist/assets/` 未随发布清理，仍有 2026-09-12~14 的历史 `LanqiAcquireVideoPage-*.js` 残留（当前共 1044 个产物文件）；`index.html` 只引用新产物，旧 chunk 不在加载图里（`这不像一条完整链接` 只出现在 3 个已下线的旧 chunk 中）。
+
 ## 最新发布：20260914-zd7b-recharge-mcp（2026-09-14，测试实例 + 生产）— 充值页 WorkBuddy 区块改为可直接复制的 MCP 接入指令
 
 - 发布包 `release-20260914-zd7b-recharge-mcp.tar.gz`（9,601,340 B，sha256 `9d40f32be07a98e6e466ce3893ece9f2f246d05c72bbfdc602b17428c2b26be5`，1510 文件）。从「只含本提交」的干净快照打包，未夹带并行兰琪线程的在途改动（已核对包内 `LanqiAcquireVideoPage.tsx` 逐字等于 HEAD）。
