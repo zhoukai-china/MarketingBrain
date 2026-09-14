@@ -507,6 +507,30 @@ function checkFailureRules(): void {
   );
   assert(hasRule(v3, "V3"), `四象限与重算结果不一致应判 V3，实际 ${v3.join(" | ")}`);
 
+  /**
+   * 回归（2026-09-14 生产验收实测）：模型在空象限写「无」时，引擎曾把「无」当成视频 ID，
+   * 于是同一份报告同时踩两条 V3（“视频 无 被归入多个象限”“四象限条数之和 ≠ 总条数”），
+   * 只要有一个象限为空用户就拿不到报告。空象限占位符必须被忽略。
+   */
+  const placeholderFailures = run(
+    mutate((doc) =>
+      doc
+        .replace("| 又爆又赚 | v1 | 示例标题一", "| 又爆又赚 | 无 | -")
+        .replace("| 有量无转 | v5 | 示例标题五", "| 有转无量 | 无 | -")
+    )
+  );
+  assert(
+    !placeholderFailures.some((item) => /无[\s\S]{0,12}被归入多个象限/.test(item)),
+    `空象限的「无」不能被当成视频 ID（实际 ${placeholderFailures.join(" | ")}）`
+  );
+  const placeholderQuadrantOnly = run(
+    mutate((doc) => doc.replace("| 有转无量 | v3 | 示例标题三", "| 有转无量 | 无 | -"))
+  );
+  assert(
+    !placeholderQuadrantOnly.some((item) => /无[\s\S]{0,12}被归入多个象限/.test(item)),
+    `单个空象限写「无」也不能判成重复象限（实际 ${placeholderQuadrantOnly.join(" | ")}）`
+  );
+
   const v4 = run(mutate((doc) => doc.replace(/\n6\. v3「示例标题三」[\s\S]*?(?=\n## 五、)/, "\n")));
   assert(hasRule(v4, "V4"), `深拆条数不足应判 V4，实际 ${v4.join(" | ")}`);
 

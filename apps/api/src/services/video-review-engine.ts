@@ -883,6 +883,22 @@ interface QuadrantTable {
   problems: string[];
 }
 
+/**
+ * 象限表里的「没有视频」写法。模型在某个象限为空时会写「无 / 暂无 / —」，
+ * 这些是占位符不是视频 ID。2026-09-14 生产验收实测：把「无」当 ID 会同时踩两条 V3
+ * （“视频 无 被归入多个象限”“四象限条数之和 ≠ 总条数”），导致**只要有一个象限为空
+ * 就整份报告判失败、用户拿不到报告**——这正是用户反馈的「上传数据后没有输出」。
+ */
+const QUADRANT_EMPTY_TOKENS = new Set([
+  "无", "暂无", "没有", "空", "略", "－", "-", "--", "—", "——", "/", "／", "n/a", "na", "none", "null", "0 条", "无视频"
+]);
+
+function isQuadrantEmptyToken(value: string): boolean {
+  const normalized = value.trim().replace(/^#/, "").replace(/[（）()\s]/g, "");
+  if (normalized.length === 0) return true;
+  return QUADRANT_EMPTY_TOKENS.has(normalized.toLowerCase()) || QUADRANT_EMPTY_TOKENS.has(normalized);
+}
+
 function parseQuadrantTable(section: string): QuadrantTable {
   const mapping = new Map<string, string>();
   const problems: string[] = [];
@@ -897,14 +913,21 @@ function parseQuadrantTable(section: string): QuadrantTable {
     const label = (cells[0] ?? "").trim();
     const key = labelToKey[label];
     if (!key) continue;
-    const id = (cells[1] ?? "").trim().replace(/^#/, "");
-    if (id.length === 0) continue;
-    total += 1;
-    if (mapping.has(id)) {
-      problems.push(`视频 ${id} 被归入多个象限（${mapping.get(id)} / ${key}）`);
-      continue;
+    // 一个象限里可能列多个视频（「v1、v3」/「v1,v3」/「v1 v3」），逐个拆开；占位符与非 ID 片段跳过。
+    const rawCell = (cells[1] ?? "").trim();
+    if (isQuadrantEmptyToken(rawCell)) continue;
+    for (const piece of rawCell.split(/[、,，;；\s]+/)) {
+      const cleaned = piece.trim().replace(/^#/, "").replace(/[（(].*?[)）]/g, "").trim();
+      // 只接受「像 ID」的片段：避免把「v1 播放12万」这类说明性文字当成第二个视频。
+      if (!/^[\w-]+$/.test(cleaned)) continue;
+      if (isQuadrantEmptyToken(cleaned)) continue;
+      total += 1;
+      if (mapping.has(cleaned)) {
+        problems.push(`视频 ${cleaned} 被归入多个象限（${mapping.get(cleaned)} / ${key}）`);
+        continue;
+      }
+      mapping.set(cleaned, key);
     }
-    mapping.set(id, key);
   }
   return { mapping, total, problems };
 }
