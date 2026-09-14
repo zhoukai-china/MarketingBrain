@@ -28,6 +28,8 @@
 
 - 2026-09-14（总调度7 · 发布 2）：`20260914-zd7b-recharge-mcp` 测试 + 生产均 `DEPLOY_OK` + `VERIFY_OK`；充值页 WorkBuddy 区块换成可直接复制的 MCP 接入指令（首次点击自动生成 `sitong_wb_` 连接并连指令一起复制），旧的计费令牌 UI 下线。备份 `/opt/baolu-backups/20260914-zd7b-recharge-mcp-prod1-before-baolu-os-v2/`。
 
+- 2026-09-14（总调度7 · 发布 3）：`20260914-zd7c-vidrev-off` 测试 + 生产均 `DEPLOY_OK` + `VERIFY_OK`；按用户口径把「视频复盘智能体」下架成「开发中」（`ipzone__vidrev` / `meiye__vidrev` → `coming_soon`，货架 `coming_soon=15` / `selling=4`），改好后再上架。备份 `/opt/baolu-backups/20260914-zd7c-vidrev-off-prod1-before-baolu-os-v2/`。
+
 ## 已知阻塞
 
 - 桌面版 create_thread/fork_thread 对项目/派生线程会报 missing field call_id 系统错误，线程执行通道不可用；任务暂时在“开发总调度”对话框直接推进。

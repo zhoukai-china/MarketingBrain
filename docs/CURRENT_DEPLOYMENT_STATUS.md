@@ -1,4 +1,12 @@
 # 当前部署状态
+## 最新发布：20260914-zd7c-vidrev-off（2026-09-14，测试实例 + 生产）— 视频复盘智能体下架成「开发中」（改好再上架）
+
+- 发布包 `release-20260914-zd7c-vidrev-off.tar.gz`（9,627,767 B，sha256 `d3c817a520f6dc7ca6bf0da1e2799b69412e8733a7452237ad1ca3965bb59a06`，1512 文件）。
+- 内容：用户口径「视频复盘智能体先改成开发中，改好后再上架给用户使用」。`apps/api/src/data/marketplace-v3.json` 把 `industries.ipzone.ov.vidrev.status` 与 `industries.meiye.ov.vidrev.status` 由 `selling` 改回 `coming_soon`；同步更新 `verify-deploy.sh`（两个 vidrev 必须 = `coming_soon`）、三个发布脚本的 `marketplace-v3.json` sha256 常量（`1dd5b672…` → `fe5b3ea7…`）、以及 `marketplace-foundation-smoke` / `marketplace-api-smoke` / `marketplace-sku-link-regression` / `marketplace-vidrev-browser-e2e` / `marketplace-vidrev-run-smoke` 的断言与注释。
+- 测试实例 `20260914-zd7c-vidrev-off-test1` / 生产 `20260914-zd7c-vidrev-off-prod1`：均 `DEPLOY_OK` + `verify-deploy.sh` **VERIFY_OK**；生产 `/market/skus` 实测 `ipzone__vidrev` / `meiye__vidrev` 均 `coming_soon`，`coming_soon=15` / `selling=4`；`journalctl -p err` 无条目。
+- 备份/回滚：`/opt/baolu-backups/20260914-zd7c-vidrev-off-prod1-before-baolu-os-v2/`（191M）。回滚 = 还原该备份并 `systemctl restart baolu-os-v2`。**磁盘提示：本轮后 `/` 已用 24G / 剩 4.1G（86%）**，建议尽快跑一次备份保留策略（每环境留最近 8 份）。
+- 上架回滚（业务侧）：改好视频复盘后，把 `marketplace-v3.json` 两处 `status` 改回 `selling`、同步两个哈希常量与契约断言，再发一次即可。
+
 ## 最新发布：20260914-lq29-acquire-fixes（2026-09-14，测试实例 + 生产）— 兰琪爆款复刻三条现场缺陷修复（抖音分享口令 / 已传素材删除替换 / 出片主按钮点不了）
 
 - 发布包 `release-20260914-lq29-acquire-fixes-v2.tar.gz`（9,623,158 B / 1512 文件，sha256 `bf1a1bcbad7760c138e2afa027f5704fdd0b01091b67dd063e6f9ac10bd5f29c`，本地与服务器 `/opt/releases/` 实测一致）。从「只含本提交」的干净快照打包：发布前逐字节比对确认与生产不同处的文件恰好只有本任务的 7 个源 / 脚本文件 + 2 个已提交文档，未夹带并行任务的在途改动。
