@@ -63,7 +63,7 @@ DIST_HASH="$(sha256sum "$STAGE/apps/api/dist/apps/api/src/data/marketplace-v3.js
 echo "src=$SRC_HASH"
 echo "dist=$DIST_HASH"
 test "$SRC_HASH" = "$DIST_HASH"
-test "$SRC_HASH" = "2d3684e26767f7f2ee000ba3e71280d0df79918cdf570a728d4d0d511ca3b566"
+test "$SRC_HASH" = "8ab3b8f3f1f3a58e3e2f544b67ca1dc0b7ca2946023878c75ab1778c7b33ce4a"
 echo "build artifacts OK"
 
 step "5. backup"
