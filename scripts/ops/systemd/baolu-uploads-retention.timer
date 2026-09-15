@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Baolu OS customer upload retention daily at 03:40 Asia/Shanghai
+
+[Timer]
+OnCalendar=*-*-* 03:40:00
+Persistent=true
+AccuracySec=1min
+RandomizedDelaySec=10min
+Unit=baolu-uploads-retention.service
+
+[Install]
+WantedBy=timers.target

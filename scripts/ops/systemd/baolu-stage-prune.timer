@@ -1,0 +1,11 @@
+[Unit]
+Description=Reap Baolu OS deploy stage leftovers hourly (keep 24h)
+
+[Timer]
+OnCalendar=*-*-* *:17:00
+Persistent=true
+AccuracySec=1min
+Unit=baolu-stage-prune.service
+
+[Install]
+WantedBy=timers.target

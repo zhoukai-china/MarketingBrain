@@ -15,7 +15,7 @@
 - 边界（如实说）：**30 秒是模型硬上限**，不是我们的预算；超过 30 秒的片必须裁短。积分仍是门槛（有积分才能出片），老板测试账号余额为 0，需充值；单条对外价 24 积分/秒（30 秒 = 720 积分）。
 - 关联：任务卡 `docs/agents/lanqi-beauty/tasks/LQ-31-爆款复刻用户端不设预算上限.md`；上一轮 QA-20260915-001（磁盘 P0）。
 
-## QA-20260915-001：磁盘写满导致内测邀请入口「服务不可用」（P0，已现场修复；保留策略待常态化）
+## QA-20260915-001：磁盘写满导致内测邀请入口「服务不可用」（P0，已现场修复；保留策略已常态化）
 
 - 触发：用户 2026-09-15 报「`https://api.lcppch.top/os-v2/login/lanqi?invite=lanqi-beta-2026` 显示服务不可用，正在让用户内测」。
 - 复现与取证（只读）：页面 `GET /os-v2/login/lanqi?invite=…` **200**（前端正常）；`/api/health` / `/api/ready` 均 200；nginx 当天 5xx 里 `POST /os-v2/api/auth/beta-login` **500**（12:07:51、12:07:55）。
@@ -28,6 +28,7 @@
   1. **备份保留策略已执行**：`scripts/ops/prune-server-backups.sh --apply`（每环境保留最近 8 份）→ 删除 21 个历史备份，磁盘 **69% → 57%（13G 可用）**。注意：按保留策略，20260914 及更早的发布前备份（含 LQ-29 / LQ-30 的回滚点）已随之回收，当前可用的最新回滚点是 20260915 各次发布。
   2. **发布脚本加双保险**（`scripts/tmp/deploy-release.sh`，同步到服务器 `/tmp/deploy-release.sh`，旧版备份 `.bak-20260915-diskguard`）：preflight 增加「可用空间 < `MIN_FREE_GB`（默认 5G）直接拒绝发布」；发布开始时回收 `> KEEP_STAGE_DAYS`（默认 2 天）的历史暂存目录；**发布成功即删除本次 `STAGE`**（失败时保留取证）。实测：`MIN_FREE_GB=999` 时脚本在动任何东西前拒绝并给出处置命令；正常阈值下空间检查通过后按原流程继续。
   3. **磁盘水位告警已上线**：新增 `scripts/ops/disk-alert.sh`（使用率 ≥85% 或可用 ≤8G 才发，未越线安静；`--dry-run` 只打印），部署到 `/opt/baolu-ops/disk-alert.sh`，并用 `baolu-disk-alert.timer`（**每小时**，`EnvironmentFile=/etc/baolu-secrets/baolu-os-v2-alerts.env`，走既有 `SITONG_ALERT_WEBHOOK`）常驻；安装后手工跑一次 service：`exit=0`（当前 57%，未越线不发）。
+  4. **保留策略常态化（2026-09-15 本轮）**：新增①每小时 `baolu-stage-prune.timer`——清 `/opt/baolu-stage/*` 与 `/tmp/release-*.tar.gz` 中超过 **24 小时**的残留（失败发布留下的 380M 就靠它兜底）；②每天 03:40 `baolu-uploads-retention.timer`——客户上传满 **180 天**自动清理，只输出数量/字节数与目录分布、**不把客户文件名写进日志**（需要清单时用 `--list`）；③一次性 `scripts/ops/purge-legacy-artifacts.sh`——白名单清 2026-07/08 的历史发布包与失效目录（约 1.5G），脚本显式拒绝任何 `/opt/baolu-backups` 路径。安装脚本 `scripts/ops/install-storage-retention.sh` 会先 `bash -n` 自检、再 dry-run 打印将删清单、最后才 `enable --now`。完整口径、验证命令与回滚方式见 `docs/STORAGE_RETENTION.md`。
 - 关联：`docs/CURRENT_DEPLOYMENT_STATUS.md` 同日条目；上游同类事件（2026-09-13 测试实例因磁盘满崩溃）见兰琪 STATUS 历史段。
 
 ## QA-20260915-001：OSS 暂存审计把上游原始错误 message 落库（可能含签名 URL / 桶名 / AccessKeyId）（P1，本次修复）

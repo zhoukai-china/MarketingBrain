@@ -1,0 +1,15 @@
+[Unit]
+Description=Baolu OS storage retention: reap /opt/baolu-stage leftovers older than 24h
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# 暂存目录是发布脚本用 sudo 建的，删除需要 root；脚本自带白名单与路径防呆。
+ExecStart=/bin/bash /opt/baolu-ops/prune-stage.sh --apply
+Nice=10
+IOSchedulingClass=idle
+UMask=0027
+TimeoutStartSec=10min
+StandardOutput=journal
+StandardError=journal

@@ -1,0 +1,16 @@
+[Unit]
+Description=Baolu OS customer upload retention (delete files older than 180 days)
+After=network-online.target baolu-os-v2.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# 上传根目录属 admin，历史目录里可能有 root 拥有的旧文件，统一用 root 执行；
+# 脚本只处理 /opt/baolu-os-v2{,/-test}/uploads 白名单目录、跳过隐藏目录与 24h 暂存目录。
+ExecStart=/bin/bash /opt/baolu-ops/prune-uploads-retention.sh --apply
+Nice=15
+IOSchedulingClass=idle
+UMask=0027
+TimeoutStartSec=30min
+StandardOutput=journal
+StandardError=journal
