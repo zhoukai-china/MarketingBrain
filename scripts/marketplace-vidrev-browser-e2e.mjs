@@ -15,6 +15,8 @@ const apiBase = process.env.MP_E2E_API_URL ?? "http://127.0.0.1:3011";
 const chromePath = process.env.MP_E2E_CHROME_PATH ?? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 const runChat = process.env.MP_E2E_RUN_CHAT !== "false";
 const skipMobile = process.env.MP_E2E_SKIP_MOBILE === "true";
+/** 平台范围相位默认跑；个别诊断场景可显式跳过（`MP_E2E_SKIP_PLATFORM_SCOPE=true`）。 */
+const runPlatformScope = process.env.MP_E2E_SKIP_PLATFORM_SCOPE !== "true";
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const VIDREV_SKU = "ipzone__vidrev";
@@ -151,7 +153,9 @@ async function connectChrome() {
       consoleErrors.push(message.params.args.map((arg) => arg.value ?? arg.description ?? "").join(" "));
     }
     if (message.method === "Log.entryAdded" && message.params.entry.level === "error") {
-      consoleErrors.push(message.params.entry.text);
+      // 带上 URL：否则「403 Forbidden」这种控制台文本查不出是谁拒的。
+      const entry = message.params.entry;
+      consoleErrors.push(entry.url ? `${entry.text} @ ${entry.url}` : entry.text);
     }
   });
   const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
@@ -373,14 +377,45 @@ async function checkChatTitles(cdp, token) {
   return results;
 }
 
+/**
+ * 平台范围相位（用户 2026-09-15：视频复盘只做抖音 / 视频号）。
+ *
+ * 为什么要有这一段：`marketplace:vidrev-platform-scope-smoke` 钉的是服务端接口，
+ * 而「平台快捷选项里还留着小红书 / 快手 / B站」是用户一眼就能看见的回归，必须用真页面钉住。
+ * 不生成、不调模型、不花钱。
+ */
+async function checkPlatformScope(cdp, token) {
+  const ctx = await openPage(cdp, token, `${webBase}/agent/${VIDREV_SKU}/chat`, { width: 1280, height: 1000 });
+  try {
+    await waitFor(cdp, ctx.sessionId, "document.querySelector('textarea')");
+    const snap = await evaluate(cdp, ctx.sessionId, `() => ({
+      choices: [...document.querySelectorAll('.chat-choices .chat-choice')].map((node) => (node.textContent ?? '').trim()),
+      text: document.body.innerText
+    })`);
+    const leaked = ["小红书", "快手", "B站", "哔哩哔哩"].filter((word) => snap.text.includes(word));
+    assert.deepEqual(snap.choices, ["抖音", "视频号"], `平台快捷选项只允许抖音 / 视频号，实际 ${JSON.stringify(snap.choices)}`);
+    assert.deepEqual(leaked, [], `视频复盘 chat 页不得再出现已下线平台：${leaked.join("、")}`);
+    // 正对照：支持的两个平台必须真的写着，避免「整段删干净」也算通过。
+    for (const platform of ["抖音", "视频号"]) {
+      assert.ok(snap.text.includes(platform), `视频复盘 chat 页必须写明支持「${platform}」`);
+    }
+    console.log(`vidrev platform scope: choices=${JSON.stringify(snap.choices)} textLen=${snap.text.length}`);
+    return { choices: snap.choices, textLength: snap.text.length };
+  } finally {
+    await cdp.send("Target.closeTarget", { targetId: ctx.targetId });
+    await cdp.send("Target.disposeBrowserContext", { browserContextId: ctx.browserContextId });
+  }
+}
+
 async function main() {
   const { token, userId } = await createTenant();
   const { prisma, wallet } = await seedWallet(userId);
   assert.equal(wallet?.paidBalance, START_BALANCE, `seedWallet 写入失败：${JSON.stringify(wallet)}`);
   const balance = await ensureWalletBalance(token, userId, prisma);
   const cdp = await connectChrome();
-  const summary = { balance, chat: null, mobile: null, titles: null };
+  const summary = { balance, chat: null, mobile: null, titles: null, platformScope: null };
   summary.titles = await checkChatTitles(cdp, token);
+  if (runPlatformScope) summary.platformScope = await checkPlatformScope(cdp, token);
   try {
     await withVidrevTrial(prisma, async () => {
       if (runChat) {
@@ -393,7 +428,15 @@ async function main() {
     const blocking = cdp.consoleErrors.filter(
       (text) => !/favicon|Download the React DevTools|Failed to load resource: the server responded with a status of 404/.test(text)
     );
-    assert.equal(blocking.length, 0, `页面控制台出现错误：${JSON.stringify(blocking.slice(0, 3))}`);
+    // 控制台只说「403」看不出是谁拒的，把这一步的 /market/* 非 2xx 响应一并带进断言信息。
+    const failedCalls = cdp.networkLog
+      .filter((entry) => entry.status >= 400)
+      .map((entry) => `${entry.status} ${entry.url.replace(/^https?:\/\/[^/]+/, "")}`);
+    assert.equal(
+      blocking.length,
+      0,
+      `页面控制台出现错误：${JSON.stringify(blocking.slice(0, 3))}；失败请求：${JSON.stringify(failedCalls.slice(0, 5))}`
+    );
     console.log(JSON.stringify({
       status: "PASS",
       webBase,

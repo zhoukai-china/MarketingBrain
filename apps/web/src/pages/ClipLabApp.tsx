@@ -554,7 +554,7 @@ function CommerceClipLabApp() {
   return (
     <main className="clipLabPage">
       <header className="clipLabHeader">
-        <a className="clipLabBrand" href={getAppPath("/my-ai")}><span className="clipLabLogo">思潼</span><span>自由组片智能体</span></a>
+        <a className="clipLabBrand" href={getAppPath("/agents")}><span className="clipLabLogo">思潼</span><span>自由组片智能体</span></a>
         <span className="clipLabStatus"><i /> 带货视频 · AI 初剪工作台</span>
       </header>
 

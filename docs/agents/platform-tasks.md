@@ -2310,3 +2310,65 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 - 代码改动仅两处运行时文件：`apps/api/src/services/beauty-video-oss-staging.ts`（审计脱敏）+ 两个 smoke 断言；另有 `docs/BUG_REGRESSIONS.md` 登记。
 - 残余：真实云 OSS / 真实素材仍未接入（本卡全程离线合成，`BEAUTY_VIDEO_STAGING_DRIVER` 未开启时该驱动不生效）；视频复刻线上链路此前已由 LQ-30 线程发布。
 - 最后更新日期：2026-09-15
+
+## PLAT-44 旧「专业工作地图」工作台下线 + 视频复盘只做抖音/视频号（用户 2026-09-15）
+
+状态：**已完成**（测试实例 + 生产已发布）
+
+### 归属
+
+- 产品：公共平台（前端路由表 `main.tsx`、货架与智能体工作台入口、`marketplace` 预检/运行校验）。
+- 层级：公共平台（历史页面下线 + 业务口径收窄），**不改**计费、定价、权限与积分口径。
+- 风险：中。路由是单点热点；视频复盘收窄会改变「上传小红书表格」的用户可见结果。
+- 预计修改热点：`apps/web/src/main.tsx`、`apps/web/src/pages/{AgentProductsApp,KnowledgeBasePage,ClipLabApp,PersonaClipLabApp,NotFoundPage}.tsx`、`apps/web/src/marketplace/chat-flows.ts`、`apps/web/src/components/acquisition/BeautyVideoDataReviewWorkbench.tsx`、`apps/api/src/routes/marketplace.ts`、`apps/api/src/services/video-review-engine.ts`、路由契约与浏览器验收脚本。
+- 是否允许并行：否（`main.tsx` 属热点文件令牌清单，同一时刻只允许一方改）。
+
+### 用户结果
+
+打开旧工作台地址（`/my-ai`、`/workbench`、`/app`）不再看到历史工作台（CEO 驾驶舱 / 外卖 / 餐饮），而是直接落到智能体平台货架；视频复盘只接受抖音与视频号的数据表，其它平台明确说明「不支持」，且不解析、不消耗积分。
+
+### 本次范围
+
+- `/my-ai` 不再渲染 `MyAiPage`，兼容跳转到 `/agents`（仍走 `takePostLoginRedirect`，尊重「登录后要去的页面」）；`/workbench`、`/app` 一跳 `/agents`（不再经 `/my-ai` 中转）。
+- 平台自有页面里指向 `/my-ai` 的入口改到正确落点：企业知识库「返回常用智能体」、工作台侧栏「常用智能体」、工作地图「切换智能体」、账户页「返回智能体」、未开通页「返回常用智能体」→ `/mine`；品牌按钮、ClipLab / PersonaClipLab 品牌 → `/agents`；`NotFoundPage` 的「去常用智能体」→ `/mine`。
+- 视频复盘（服务端）：`detectVidrevPlatform` 先把 小红书 / 快手 / B站 判成「其他平台」（避免它们的字段被抖音规则误吞）；`POST /vidrev/parse-preview` 对非支持平台返回 `ok:false` + 明确说明；`POST /market/skus/:sku/run` 对非支持平台 **422 `vidrev_platform_not_supported`**（不扣费、不调模型）；解析字段别名去掉小红书口径（`笔记标题`/`观看量`）。
+- 视频复盘（前端）：平台快捷选项只留「抖音 / 视频号」；欢迎语写明支持范围；美业数据复盘页的平台导出指南去掉小红书 / 快手 / B站。
+- 契约与回归：修掉 `mustNotInMain` 哑断言（QA-20260915-004）；新增 `scripts/marketplace-vidrev-platform-scope-smoke.ts`（`pnpm.cmd marketplace:vidrev-platform-scope-smoke`，真实路由 + 真实库目录同步、0 Provider，已挂进 `qa:regression`）；`marketplace-vidrev-browser-e2e.mjs` 增加「平台范围」相位（真页面，不生成、不花钱）。
+
+### 本次不做
+
+- 不删 `MyAiPage` 组件本体：`agent:work-map-smoke`、`owned-product-directory-smoke` 与美业 BY-52 仍引用它，本次只下线路由。
+- 不动兰琪 / 美业自有页面里的 `/my-ai` 入口（跨线文件，已转派总调度8）。
+- 不改计费、价格、额度、权限模型，不做数据库迁移。
+
+### 验收条件
+
+1. 正常路径：匿名与登录态访问 `/my-ai`、`/workbench`、`/app` 都落到货架 `/agents`；抖音 / 视频号表格预检 `ok:true` 且能解析出数据行。
+2. 失败路径：小红书 / B站 / 快手表格预检 `ok:false`、`platform="其他平台"`、`rowCount=0`、`fields=[]`，说明里点名「只支持抖音和视频号」；显式传 `platform="小红书"` 同样被拒。
+3. 不应发生：旧地址落入「页面不存在」兜底页或历史工作台；平台自有页面里再出现指向已下线 `/my-ai` 的入口；非支持平台被解析成有数据或产生扣费。
+4. 可观测结果事件：预检返回 `platform` / `rowCount` / `notes`；运行接口 422 体 `error=vidrev_platform_not_supported`，`creditCost=0`。
+
+### 基线与失败证据
+
+- 基线命令：`pnpm.cmd platform:route-contract-smoke`（改前 101/0）、`pnpm.cmd marketplace:vidrev-contract-smoke`。
+- 修复前失败测试/Eval：契约反向断言的红灯复现记录在 `docs/BUG_REGRESSIONS.md` QA-20260915-004（旧写法 `FAIL 105 passed / 1 failed`）；同一记录还包含浏览器验收共用会话导致的假阴性。
+- 现象、根因和连带影响：见 QA-20260915-004；产品侧 `/my-ai` 原先渲染历史工作台，老书签会进入已下线的历史智能体列表。
+
+### 实现记录
+
+- 修改文件：本卡「本次范围」列出的 18 个文件 + 新增 `scripts/marketplace-vidrev-platform-scope-smoke.ts`。
+- 数据/接口/配置变化：无迁移、无 env 变更。接口行为变化仅两处：`POST /vidrev/parse-preview`（非支持平台 `ok:false`）、`POST /market/skus/:sku/run`（非支持平台 422）。
+- 兼容性和回滚点：路由回滚 = 还原 `main.tsx` 的 `/my-ai`、`/workbench|/app` 两个分支与 `platform-route-contract-smoke.mjs`；视频复盘回滚 = 还原 `routes/marketplace.ts` + `services/video-review-engine.ts` + `marketplace/chat-flows.ts`。发布前备份见 `docs/CURRENT_DEPLOYMENT_STATUS.md`。
+
+### 验证
+
+- 领域命令：`marketplace:vidrev-contract-smoke`、`marketplace:vidrev-platform-scope-smoke`、`vidrev:excel-upload-smoke`、`platform:route-contract-smoke`（106/0）、`agent:work-map-smoke`、`@baolu/web typecheck`、`@baolu/api typecheck`。
+- `pnpm.cmd qa:fast`：PASS（`QAFAST_EXIT=0`，7 包 typecheck 全绿）。
+- 页面/E2E：本地真实 Chromium 6/6（企业知识库「返回常用智能体」落 `/mine`；`/app`、`/workbench`、`/my-ai` 落 `/agents`）；本地 `platform:route-browser-e2e` 26/26；`marketplace:vidrev-browser-e2e` 平台范围相位 PASS（`choices=["抖音","视频号"]`、0 console error、0 模型调用）；测试实例与生产 `platform:route-browser-e2e` 各 **26/26**；生产/测试 `POST /vidrev/parse-preview` 实测小红书 `ok:false`、视频号 `ok:true`。
+- 未运行项：`marketplace:vidrev-run-smoke`（含真实模型深度复盘，本轮不改该链路，避免模型费用）。
+
+### 交接
+
+- 残余风险：兰琪 / 美业自有页面里的 `/my-ai` 入口仍在（点击会跳货架，功能不阻塞、语义不一致），已转派；`scripts/beauty-directory-browser-e2e.mjs` 仍断言 `/my-ai` 渲染 `.myAiPage`，美业线恢复活动前必须改。
+- 后续任务：`MyAiPage` 组件本体的去留（需与引用它的 smoke 和 BY-52 文档一起处理）。
+- 最后更新日期：2026-09-15

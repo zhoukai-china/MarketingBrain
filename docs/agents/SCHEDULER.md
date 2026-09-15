@@ -32,6 +32,10 @@
 
 - 2026-09-14（总调度7 · 发布 4）：`20260914-zd7d/zd7e-vidrev-fix` 测试 + 生产均 `DEPLOY_OK` + `VERIFY_OK`；按 2026-09-13 工单改造视频复盘（数据导出指南 / 删快速诊断 / `parse-preview` 预检 / 一键填充标准请求 / 视频号抖音字段别名）。视频复盘仍为「开发中」，待业务验收后再上架。
 
+- 2026-09-15（平台线「思潼AI平台开发」· 承接总调度7；发布 5）：总调度7 线程因桌面版 `missing field call_id` 系统错误停摆，平台任务在本线继续并收口发布 `20260915-plat44b-legacy-ai`（测试 `…-test1`、生产 `…-prod1` 均 `DEPLOY_OK` + `VERIFY_OK`；生产 `journalctl -p err` 近 12 分钟无条目；发布包 sha256 `d025c7b8…`）。上线内容 = 旧「专业工作地图」工作台下线（`/my-ai`、`/workbench`、`/app` 全部回货架；平台自有页面里「返回常用智能体」改到 `/mine`、品牌回货架）+ 视频复盘只做抖音/视频号（服务端 fail closed 422、预检 `其他平台`、前端选项与指南收窄）。同轮修掉「保留网址契约」的 `mustNotInMain` 哑断言（`docs/BUG_REGRESSIONS.md` QA-20260915-004）并新增 `marketplace:vidrev-platform-scope-smoke`（真实路由、0 Provider，已入 `qa:regression`）。生产真机 26/26 通过。任务卡：`docs/agents/platform-tasks.md` PLAT-44。
+
+- 2026-09-15（跨线迁移结果，供两条线共同参考）：总调度8 已把兰琪编码任务迁到独立 worktree（`C:/Users/book/.codex/worktrees/f18c/baolu-os-v2-source`，分支 `codex/lanqi-acquire2-page`），平台任务留主树；迁移过程中平台在途改动被暂存带进了兰琪工作树，已核实全部回到主树、无文件丢失，兰琪工作树 `git status` 干净。跨产品自本轮起可真正并行（上限仍是 2 个编码任务），但**发布通道仍串行**。
+
 ## 总调度8 · 并行/串行判定与热点互斥（2026-09-15）
 
 **判定：受限并行。** 各自产品目录的文件可并行；工作树、共享热点文件、发布通道一律**串行**。

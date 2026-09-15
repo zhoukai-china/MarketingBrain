@@ -115,16 +115,25 @@ const vidrevParsePreviewSchema = z.object({
   platform: z.string().trim().max(40).optional().nullable()
 });
 
-/** 从表头/正文里猜平台（抖音 / 视频号 / 小红书 / 快手 / B站），识别不出返回 null。 */
+/**
+ * 从表头/正文里猜平台。
+ *
+ * 2026-09-15 用户口径：**视频复盘只做抖音和视频号**，小红书 / 快手 / B站 一律不支持；
+ * 识别到这些平台时返回 "其他平台"，由调用方 fail closed（不出报告、不消耗积分）。
+ */
 function detectVidrevPlatform(text: string): string | null {
   const head = (text ?? "").slice(0, 4000);
+  // 先判「不支持」的平台，避免它们的字段（如「分享数」）被抖音规则误吞。
+  if (/小红书|xiaohongshu|薯条|笔记标题|观看量|快手|kuaishou|磁力|B站|bilibili|哔哩|弹幕/.test(head)) return "其他平台";
   if (/视频号|微信视频号|channels\.weixin|发表时间|转发量/.test(head)) return "视频号";
   if (/抖音|douyin|创作者中心|5\s*秒完播率|分享数/.test(head)) return "抖音";
-  if (/小红书|xiaohongshu|薯条/.test(head)) return "小红书";
-  if (/快手|kuaishou|磁力/.test(head)) return "快手";
-  if (/B站|bilibili|哔哩/.test(head)) return "B站";
   return null;
 }
+
+/** 视频复盘当前支持的平台（用户 2026-09-15 口径）。 */
+const VIDREV_SUPPORTED_PLATFORMS = ["抖音", "视频号"];
+const VIDREV_UNSUPPORTED_MESSAGE =
+  "视频复盘目前只支持**抖音**和**视频号**：请上传抖音创作者中心或视频号助手导出的作品数据表。小红书 / 快手 / B站 等平台的数据暂不支持复盘。";
 
 const MARKETPLACE_SKILL_BY_CAPABILITY: Record<string, string> = {
   ip_positioning: "ip_positioning",
@@ -253,12 +262,26 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
       .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
       .sort();
     const metrics = result.rows.length > 0 ? computeVidrevMetrics(result.rows) : null;
+    const detectedPlatform = parsed.data.platform ?? detectVidrevPlatform(content);
+
+    // 2026-09-15 用户口径：只做抖音 / 视频号；识别到小红书等平台时明确说明，不进解析、不消耗积分。
+    if (detectedPlatform === "其他平台" || (detectedPlatform && !VIDREV_SUPPORTED_PLATFORMS.includes(detectedPlatform))) {
+      return {
+        ok: false,
+        rowCount: 0,
+        fields: [],
+        platform: detectedPlatform,
+        period: { start: null, end: null },
+        limitedDimensions: [],
+        notes: [VIDREV_UNSUPPORTED_MESSAGE]
+      };
+    }
 
     return {
       ok: result.rows.length > 0,
       rowCount: result.rows.length,
       fields: [...fields],
-      platform: parsed.data.platform ?? detectVidrevPlatform(content),
+      platform: detectedPlatform,
       period: { start: dates[0] ?? null, end: dates[dates.length - 1] ?? null },
       limitedDimensions: metrics?.limitedDimensions ?? [],
       notes: result.notes
@@ -445,6 +468,15 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
           const rows = structuredRows.length > 0 ? structuredRows : parseVidrevRowsFromText(rawInput).rows;
           vidrevHasRevenue = parsed.data.has_revenue_data ?? false;
           const platform = parsed.data.platform?.trim() || "抖音";
+          if (!VIDREV_SUPPORTED_PLATFORMS.includes(platform)) {
+            return reply.code(422).send({
+              error: "vidrev_platform_not_supported",
+              message: VIDREV_UNSUPPORTED_MESSAGE,
+              platform,
+              providerCalls: 0,
+              creditCost: 0
+            });
+          }
           const period = parsed.data.period ?? null;
           // 2026-09-14 用户口径（工单 2.2）：只保留「深度复盘」，删除快速诊断分支。
           vidrevMetrics = computeVidrevMetrics(rows);

@@ -1,5 +1,19 @@
 # Bug 回归台账
 
+## QA-20260915-004：保留网址契约的 `mustNotInMain` 是**哑断言**（写多少都不会红）+ 旧地址浏览器验收共用会话导致的假阴性（P2，已修；门禁已能真红）
+
+- 触发（写本轮契约时自测发现的）：给 `/workbench 与 /app` 加「不得再经已下线的 `/my-ai` 中转」断言后，**故意把 `main.tsx` 改回旧写法**（`getAppPath("/my-ai")`），跑 `pnpm.cmd platform:route-contract-smoke` 仍然 **PASS 105/0**——门禁对这条要求根本没有执行。
+- 根因：`scripts/platform-route-contract-smoke.mjs` 里 `mustNotInMain` 只在 `REMOVED_BATCH_1` / `REMOVED_BATCH_2`（已删批次）两个循环里被消费；`PRESERVED_ROUTES`（保留网址/兼容跳转）循环只遍历 `route.must`。所以保留网址条目上写 `mustNotInMain` 是死配置，而 `must` 里的字符串（如 `takePostLoginRedirect("/agents")`）在 `main.tsx` 别处也存在，**反面要求完全没有守门**。
+- 最小修复：`PRESERVED_ROUTES` 循环补上
+  `for (const needle of route.mustNotInMain ?? []) forbidContains(main, needle, ...)`（只加这一层，不改任何既有断言语义）。
+- 红灯→绿灯证据（同一支脚本、同一份源码，只改 `main.tsx` 一行）：
+  - 旧写法（经 `/my-ai` 中转）：`[FAIL] 保留网址 /workbench 与 /app … 不得再出现 :: 仍存在 getAppPath("/my-ai")` → `FAIL (105 passed / 1 failed)`、`exit=1`；
+  - 新写法（一跳货架）：`PASS (106 passed / 0 failed)`、`exit=0`。
+- 连带发现的第二个问题（同类，属测试自身）：`scripts/platform-route-browser-e2e.mjs` 的旧地址断言原先把 `/my-ai`、`/workbench` 放在**同一个浏览器会话**里跑；前面刚访问过的 `/lanqi/moments` 会在本地留下「登录后要去哪」（`store_os_post_login_redirect`），而旧地址的跳转实现是 `takePostLoginRedirect("/agents")`——它**故意尊重**这份待办跳转，于是生产匿名实测落到 `/os-v2/login/lanqi`，被脚本误报成「旧地址没回货架」。干净上下文（独立 `Target.createBrowserContext`）实测落点就是 `/os-v2/agents`。
+  - 修复：每条旧地址各起一个独立浏览器上下文（`Target.createBrowserContext` → 关闭 `Target.closeTarget` + `disposeBrowserContext`）。
+  - 复跑：生产 `platform:route-browser-e2e` **26/26 PASS**（`/my-ai`、`/workbench` 均 `pathname=/os-v2/agents`）。
+- 结论与边界：这是**门禁自身的缺陷**（不会红的断言比没有断言更危险），不是产品缺陷；产品侧 `/my-ai` 下线跳转本身在本地、测试实例、生产三处实测都正确。台账留档是为了以后写兼容跳转契约时知道：反向断言必须挂在会被执行的循环上，浏览器验收的旧地址必须用干净上下文。
+
 ## QA-20260915-003：SSH 被本机 IP 触发 fail2ban 封禁，发布通道「上午能用、下午突然连不上」（P1，已恢复并定位）
 
 - 触发：2026-09-15 13:19 起，从开发机执行 `ssh root@api.lcppch.top` 全部 **connect timeout**；同一时间网站 `https://api.lcppch.top/os-v2/` 正常（443 通），上午的多次发布都成功。

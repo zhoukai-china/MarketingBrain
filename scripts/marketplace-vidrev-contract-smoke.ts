@@ -33,21 +33,29 @@ function checkWorkOrder20260913(): void {
   assert(typeof parsed.rows[0]?.published_at === "string", "视频号「发表时间」应映射到 published_at");
   near(parsed.rows[0]?.completion_rate, 0.31, 1e-9, "视频号「平均播放进度」应映射到 completion_rate");
 
-  // 顺手覆盖小红书 / B站：小红书导出用「笔记标题 / 观看量」，B站用「播放量 / 弹幕数」。
+  // 2026-09-15 用户口径：视频复盘只做抖音 / 视频号——小红书、B站等平台的导出字段一律**不再**兼容。
   const xhs = parseVidrevRowsFromText([
     "笔记标题,发布时间,观看量,点赞数,收藏数,评论数,分享数",
     "小红书示例,2026-08-12,56000,2100,800,120,60"
   ].join("\n"));
-  assert(xhs.rows.length === 1, "小红书表头应能解析出数据行");
-  assert(xhs.rows[0]?.plays === 56000, "小红书「观看量」应映射到 plays");
-  assert(typeof xhs.rows[0]?.title === "string" && xhs.rows[0]!.title!.length > 0, "小红书「笔记标题」应映射到 title");
+  assert(xhs.rows.every((row) => row.plays === null || row.plays === undefined), "小红书「观看量」不得再被当成播放量");
+  assert(xhs.rows.every((row) => !row.title), "小红书「笔记标题」不得再被当成标题");
 
   const bilibili = parseVidrevRowsFromText([
     "标题,发布时间,播放量,点赞数,评论数,分享数,收藏数,弹幕数",
     "B站示例,2026-08-12,88000,4300,210,90,600,320"
   ].join("\n"));
-  assert(bilibili.rows.length === 1, "B站表头应能解析出数据行");
-  assert(bilibili.rows[0]?.plays === 88000, "B站「播放量」应映射到 plays");
+  const engineSrc = readSource("apps/api/src/services/video-review-engine.ts");
+  // 只看代码行（注释里说明「不再兼容小红书」是合法的）。
+  const engineCode = engineSrc
+    .split(/\r?\n/)
+    .filter((line) => !line.trim().startsWith("//"))
+    .join("\n");
+  assert(!/小红书|bilibili|笔记标题|观看量/.test(engineCode), "解析器不得再兼容小红书/B站的导出字段");
+  const routeSrc = readSource("apps/api/src/routes/marketplace.ts");
+  assert(/vidrev_platform_not_supported/.test(routeSrc), "非抖音/视频号的平台必须在服务端 fail closed");
+  assert(/笔记标题|观看量|弹幕/.test(routeSrc), "平台识别必须能把小红书/B站数据判成「其他平台」");
+  void bilibili;
 
   const flows = readSource("apps/web/src/marketplace/chat-flows.ts");
   const vidrevBlock = flows.slice(flows.indexOf("vidrev: {"), flows.indexOf("livescript: {"));
@@ -58,6 +66,9 @@ function checkWorkOrder20260913(): void {
   assert(!/key: "period"/.test(vidrevBlock), "vidrev 不得再有「统计周期」步骤");
   assert(!/60 积分\/次/.test(vidrevBlock), "vidrev 欢迎语不得再出现「60 积分/次」");
   assert(/看上方/.test(vidrevBlock), "vidrev 欢迎语必须说「看上方」导出指南");
+  // 2026-09-15 用户口径：视频复盘只做抖音 + 视频号，选项里不得再出现小红书/快手/B站。
+  assert(/choices: \["抖音", "视频号"\]/.test(vidrevBlock), "vidrev 平台选项只保留抖音与视频号");
+  assert(!/小红书|快手|B站/.test(vidrevBlock), "vidrev 不得再出现小红书/快手/B站选项");
 
   const chat = readSource("apps/web/src/marketplace/AgentChatPage.tsx");
   assert(/channels\.weixin\.qq\.com\/login\.html/.test(chat), "导出指南必须含视频号助手网址");

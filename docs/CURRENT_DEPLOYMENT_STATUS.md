@@ -1,5 +1,39 @@
 # 当前部署状态
 
+## 最新发布：20260915-plat44b-legacy-ai（2026-09-15，生产 + 测试实例）— 旧「专业工作地图」工作台下线 + 视频复盘只做抖音/视频号
+
+### 一、用户口径（2026-09-15）
+
+- 旧「专业工作地图」工作台（`/my-ai`，含 CEO 驾驶舱 / 外卖 / 餐饮等历史智能体）**下线**：这条地址不再渲染历史页面，统一跳到智能体平台货架 `/agents`，老链接不 404 也不再有人误入历史页面。
+- 视频复盘**只做抖音和视频号**：小红书 / 快手 / B站 的数据表不再解析，明确告诉用户不支持。
+
+### 二、改动（19 个文件，含 1 个新增）
+
+1. **旧工作台地址全部回货架**：`/my-ai` → `takePostLoginRedirect("/agents")`（`MyAiPage` 不再被路由渲染）；`/workbench`、`/app` 从「经 `/my-ai` 中转」改成**一跳** `/agents`。
+2. **平台自有页面里指向已下线 `/my-ai` 的入口改到正确落点**：企业知识库「返回常用智能体」、工作台侧栏「常用智能体」、工作地图「切换智能体」、账户页「返回智能体」、未开通页「返回常用智能体」→ `/mine`（新的「常用智能体」页）；品牌按钮与 ClipLab / PersonaClipLab 品牌 → `/agents`；兜底页「去常用智能体」→ `/mine`。
+3. **视频复盘服务端 fail closed**：平台识别先把 小红书 / 快手 / B站 判成「其他平台」（避免「分享数」等字段被抖音规则误吞）；`POST /vidrev/parse-preview` 返回 `ok:false` + 「只支持抖音和视频号」；`POST /market/skus/:sku/run` 对非支持平台 **422 `vidrev_platform_not_supported`**（`creditCost=0`，不解析、不扣费）；解析字段别名去掉小红书口径（`笔记标题` / `观看量`）。
+4. **视频复盘前端收窄**：平台快捷选项只剩「抖音 / 视频号」，欢迎语写明支持范围，美业数据复盘页去掉小红书 / 快手 / B站 导出指南。
+5. **门禁修复与新增**：修掉「保留网址契约」的 `mustNotInMain` 哑断言（见 `docs/BUG_REGRESSIONS.md` QA-20260915-004）；新增 `marketplace:vidrev-platform-scope-smoke`（真实路由 + 真实库目录同步、**0 Provider**）并挂进 `qa:regression`；`marketplace-vidrev-browser-e2e.mjs` 增加「平台范围」相位；`platform-route-browser-e2e.mjs` 的旧地址断言改为**每条独立浏览器上下文**。
+
+### 三、发布与验收
+
+| 环境 | 发布 id | 结果 |
+| --- | --- | --- |
+| 测试 | `20260915-plat44b-legacy-ai-test1` | `DEPLOY_OK` + `VERIFY_OK`；`platform:route-browser-e2e` **26/26 PASS** |
+| 生产 | `20260915-plat44b-legacy-ai-prod1` | `DEPLOY_OK` + `VERIFY_OK`（`skus_total=19` / `coming_soon=13` / `vite_base=/os-v2/`）；`journalctl -p err` 近 12 分钟 `No entries` |
+
+- 发布包 `release-20260915-plat44b-legacy-ai.tar.gz`（sha256 `d025c7b892943b0ade6d6b969d31f85f14f549e35b9437eb6bc33799a2551c99`，1554 文件）；上一个包 `release-20260915-plat44-legacy-ai.tar.gz`（首轮测试实例用，随后被 b 版覆盖）。备份：`/opt/baolu-backups/20260915-plat44b-legacy-ai-prod1-before-baolu-os-v2`、`…-test1-before-baolu-os-v2-test`。
+- 生产真机只读实测（干净浏览器上下文）：`/os-v2/my-ai` → `/os-v2/agents`、`/os-v2/workbench` → `/os-v2/agents`、`/os-v2/app` → `/os-v2/agents`、`/os-v2/mine` 正常渲染「常用智能体」；`platform:route-browser-e2e` 生产 **26/26 PASS**。
+- 生产/测试接口实测：`POST /vidrev/parse-preview` 小红书表 → `{"ok":false,"platform":"其他平台","rowCount":0,"notes":["视频复盘目前只支持**抖音**和**视频号**…"]}`；视频号表 → `ok:true`、`platform:"视频号"`、解析 1 行。
+- 本地门禁：`qa:fast` **PASS**（7 包 typecheck）、`qa:regression` **PASS**（含新增 `marketplace:vidrev-platform-scope-smoke`）、`platform:route-contract-smoke` 106/0（并把反向断言改成能真红）、`marketplace:vidrev-contract-smoke`、`vidrev:excel-upload-smoke`、`agent:work-map-smoke` 全 PASS；本地真实 Chromium：返回入口落点 6/6、`platform:route-browser-e2e` 26/26、vidrev 平台范围相位 PASS（0 console error、0 模型调用）。
+- 回滚：`/opt/baolu-backups/20260915-plat44b-legacy-ai-prod1-before-baolu-os-v2/`（测试实例对应 `-test1-`）+ `systemctl restart baolu-os-v2`。本轮**无数据库迁移、无 env 变更**。
+
+### 四、遗留与后续（不阻塞）
+
+- 兰琪 / 美业自有页面里的「返回我的 AI」等入口仍指向 `/my-ai`（点击会跳货架，功能正常、标签语义不一致），已转派对应线自行决定改成 `/agents` 还是 `/mine`。
+- `scripts/beauty-directory-browser-e2e.mjs` 仍断言 `/my-ai` 渲染 `.myAiPage`，美业线恢复活动前需同步改造。
+- `MyAiPage` 组件本体仍保留在 `AgentProductsApp.tsx`（`agent:work-map-smoke`、`owned-product-directory-smoke`、美业 BY-52 仍引用），是否删除另立任务。
+
 ## 最新发布：20260915-plat43-copy（2026-09-15，生产 + 测试实例）— 客户可见文案「去计费感」
 
 ### 一、用户口径（2026-09-15）

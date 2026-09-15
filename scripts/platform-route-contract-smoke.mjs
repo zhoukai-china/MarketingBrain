@@ -120,8 +120,9 @@ const PRESERVED_ROUTES = [
   },
   {
     url: "/my-ai",
-    label: "常用智能体",
-    must: ['path.startsWith("/my-ai")', "<MyAiPage />"],
+    label: "旧「专业工作地图」工作台已下线（2026-09-15）→ 兼容跳转到货架",
+    must: ['path.startsWith("/my-ai")', 'takePostLoginRedirect("/agents")'],
+    mustNotInMain: ["<MyAiPage />"],
   },
   {
     url: "/login*",
@@ -190,8 +191,10 @@ const PRESERVED_ROUTES = [
   },
   {
     url: "/workbench 与 /app",
-    label: "旧工作台地址兼容跳转 → /my-ai",
-    must: ['path.startsWith("/workbench") || path.startsWith("/app")', 'getAppPath("/my-ai")'],
+    // 2026-09-15：旧工作台已下线，这两个地址直接跳货架（不再经 /my-ai 中转）。
+    label: "旧工作台地址兼容跳转 → 货架（不经已下线的 /my-ai）",
+    must: ['path.startsWith("/workbench") || path.startsWith("/app")', 'takePostLoginRedirect("/agents")'],
+    mustNotInMain: ['getAppPath("/my-ai")'],
   },
   {
     url: "/fip/e2e/local",
@@ -277,6 +280,16 @@ for (const route of PRESERVED_ROUTES) {
   const source = route.url.startsWith("/lanqi") ? lanqiRoutes : main;
   for (const needle of route.must) {
     requireContains(source, needle, `保留网址 ${route.url}（${route.label}）`);
+  }
+  /*
+   * 兼容跳转类路由要能表达「跳到哪里」之外的半个契约：老目标必须已经不存在。
+   *
+   * 只写 `must: ['takePostLoginRedirect("/agents")']` 是**哑断言**——这行字符串在 main.tsx
+   * 里别处也有，删掉本条分支它也照样命中（2026-09-15 实测：把 /workbench 改回旧写法，
+   * 契约仍然全绿）。所以这里补上 mustNotInMain，让「不再经 /my-ai 中转」这类要求真的能红。
+   */
+  for (const needle of route.mustNotInMain ?? []) {
+    forbidContains(main, needle, `保留网址 ${route.url}（${route.label}）不得再出现`);
   }
 }
 

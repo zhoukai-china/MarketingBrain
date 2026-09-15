@@ -111,7 +111,6 @@ const AccountCenterPage = lazy(() => import("./pages/AgentProductsApp.js").then(
 const AgentMarketingPage = lazy(() => import("./pages/AgentProductsApp.js").then(module => ({ default: module.AgentMarketingPage })));
 const AgentWorkspacePage = lazy(() => import("./pages/AgentProductsApp.js").then(module => ({ default: module.AgentWorkspacePage })));
 const InternalAgentAdminPage = lazy(() => import("./pages/AgentProductsApp.js").then(module => ({ default: module.InternalAgentAdminPage })));
-const MyAiPage = lazy(() => import("./pages/AgentProductsApp.js").then(module => ({ default: module.MyAiPage })));
 const BeautyIndustryAcquisitionPage = lazy(() => import("./pages/BeautyIndustryAcquisitionPage.js").then(module => ({ default: module.BeautyIndustryAcquisitionPage })));
 const BeautyIndustryWorkBuddyPage = lazy(() => import("./pages/BeautyIndustryWorkBuddyPage.js").then(module => ({ default: module.BeautyIndustryWorkBuddyPage })));
 const MarketplaceHomePage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceHomePage })));
@@ -483,8 +482,14 @@ function Root() {
     return <AgentWorkspacePage slug={agentMatch[1]} />;
   }
 
+  /**
+   * 2026-09-15 用户口径：旧「专业工作地图」工作台（/my-ai，含 CEO 驾驶舱 / 外卖 / 餐饮等历史智能体）
+   * **已下线**。这条地址不再渲染历史页面，统一跳到新的智能体平台货架 `/agents`，
+   * 这样老链接不会 404，也不会再有人误入历史页面。
+   */
   if (path.startsWith("/my-ai")) {
-    return <MyAiPage />;
+    window.location.replace(takePostLoginRedirect("/agents"));
+    return null;
   }
 
   const lanqiRoute = renderLanqiRoutes(path);
@@ -555,8 +560,14 @@ function Root() {
     return null;
   }
 
+  /**
+   * 旧工作台地址（`/workbench`、`/app`）→ 货架。
+   *
+   * 2026-09-15 用户口径：旧「专业工作地图」工作台已下线，`/my-ai` 自身也跳货架；
+   * 这两个老地址直接跳货架，不再走「/workbench → /my-ai → /agents」两跳。
+   */
   if (isWorkbenchRoute) {
-    window.location.replace(getAppPath("/my-ai"));
+    window.location.replace(takePostLoginRedirect("/agents"));
     return null;
   }
 
@@ -684,8 +695,9 @@ function AppFlow() {
     return <LoginPage mode={import.meta.env.PROD ? "production" : "dev"} entry={loginEntry} onLogin={handleLogin} />;
   }
 
-  // 旧版诊断阶段已下线（2026-09-13）：不再有任何路径会进入 stage === "diagnosis"。
-  return <MyAiPage />;
+  // 旧版诊断阶段与旧工作台都已下线（2026-09-13 / 2026-09-15）：兜底统一回智能体平台货架。
+  window.location.replace(takePostLoginRedirect("/agents"));
+  return null;
 }
 
 function DiagnosisAwareApp({

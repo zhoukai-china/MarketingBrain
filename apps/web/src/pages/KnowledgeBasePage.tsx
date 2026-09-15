@@ -482,8 +482,10 @@ export function KnowledgeBasePage() {
   return (
     <main className="agentProductPage knowledgeBasePage">
       <nav className="agentTopbar knowledgeTopbar">
-        <button className="agentBrand whiteLabelBrand" onClick={() => window.location.href = getAppPath("/my-ai")}><span className={`tenantBrandLogo ${tenantBranding.logoUrl ? "hasImage" : ""}`} style={{ background: tenantBranding.logoUrl ? undefined : tenantBranding.primaryColor }}>{tenantBranding.logoUrl ? <img src={tenantBrandLogoSrc(tenantBranding)} alt={`${tenantBranding.brandName} Logo`} /> : tenantBranding.brandName.slice(0, 2)}</span><strong>{tenantBranding.isCustomized ? `${tenantBranding.brandName}企业知识库` : "企业知识库"}</strong></button>
-        <div>{returnTo && <button className="ghostButton" onClick={() => window.location.href = getAppPath(returnTo)}>返回品牌获客</button>}<button className="ghostButton" onClick={() => window.location.href = getAppPath("/my-ai")}>返回常用智能体</button><button className="ghostButton" onClick={() => window.location.href = getAppPath("/account")}>企业账户</button></div>
+        {/* 2026-09-15：旧「专业工作地图」工作台 /my-ai 已下线（现在只做跳转），
+            品牌回货架、返回入口回新的「常用智能体」页 /mine。 */}
+        <button className="agentBrand whiteLabelBrand" onClick={() => window.location.href = getAppPath("/agents")}><span className={`tenantBrandLogo ${tenantBranding.logoUrl ? "hasImage" : ""}`} style={{ background: tenantBranding.logoUrl ? undefined : tenantBranding.primaryColor }}>{tenantBranding.logoUrl ? <img src={tenantBrandLogoSrc(tenantBranding)} alt={`${tenantBranding.brandName} Logo`} /> : tenantBranding.brandName.slice(0, 2)}</span><strong>{tenantBranding.isCustomized ? `${tenantBranding.brandName}企业知识库` : "企业知识库"}</strong></button>
+        <div>{returnTo && <button className="ghostButton" onClick={() => window.location.href = getAppPath(returnTo)}>返回品牌获客</button>}<button className="ghostButton" onClick={() => window.location.href = getAppPath("/mine")}>返回常用智能体</button><button className="ghostButton" onClick={() => window.location.href = getAppPath("/account")}>企业账户</button></div>
       </nav>
 
       <section className="knowledgeHero">

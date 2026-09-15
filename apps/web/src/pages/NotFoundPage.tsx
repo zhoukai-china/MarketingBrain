@@ -35,7 +35,7 @@ export default function NotFoundPage() {
           <a className="notFoundPrimary" href={getAppPath("/agents")}>
             回到智能体平台首页
           </a>
-          <a className="notFoundSecondary" href={getAppPath("/my-ai")}>
+          <a className="notFoundSecondary" href={getAppPath("/mine")}>
             去常用智能体
           </a>
         </div>

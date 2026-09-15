@@ -26,13 +26,20 @@ const WRONG_FALLBACK_MARKERS = ["枕水江南", "外卖增长智能体"];
 /** 保留网址：必须真实渲染出内容，且不得落到兜底页。 */
 // minLength 按「未登录时该地址本来会说什么」定，断言只要求「渲染出本产品自己的界面
 // + 不是兜底页 + 不串产品」，不用固定字数卡死登录态差异：
-//   /my-ai 未登录给短登录引导；
 //   /lanqi/moments 未登录给兰琪自己的入口页（生产实测 138 字），登录后才展开完整内容
 //   （本地开发态实测 405 字），因此这里用「兰琪」品牌词 + 较小的字数下限表达真实契约。
 const KEPT_ROUTES = [
   { path: "/agents", label: "智能体平台首页（货架）", mustInclude: "货架", minLength: 200 },
-  { path: "/my-ai", label: "常用智能体工作台", mustInclude: "", minLength: 40 },
   { path: "/lanqi/moments", label: "兰琪私域营销（当前唯一已上线板块）", mustInclude: "兰琪", minLength: 100 }
+];
+
+/**
+ * 已下线的历史页面：必须兼容跳转，不能 404、也不能再把用户丢回历史界面。
+ * 2026-09-15 用户口径：旧「专业工作地图」工作台（含 CEO 驾驶舱 / 外卖 / 餐饮历史智能体）下线 → 回货架。
+ */
+const LEGACY_REDIRECT_ROUTES = [
+  { path: "/my-ai", expectPath: "/agents", label: "旧专业工作地图已下线" },
+  { path: "/workbench", expectPath: "/agents", label: "旧工作台地址 /workbench" }
 ];
 
 /** 已清理的历史网址 + 一个乱码网址：必须落到统一兜底页。 */
@@ -251,6 +258,49 @@ async function main() {
       const errors = consoleErrors(cdp);
       record(errors.length === 0, `保留网址 ${route.path} 控制台无错误`, errors.length === 0 ? "0 error" : errors.join(" | ").slice(0, 200));
       await shoot(cdp, sessionId, `kept-${route.path.replace(/[^a-z0-9]+/gi, "_")}`);
+    }
+
+    /**
+     * 已下线历史页面的兼容跳转：不能 404、不能留在历史界面。
+     *
+     * 每条旧地址必须用**独立浏览器上下文**开：这些地址的跳转实现走
+     * `takePostLoginRedirect("/agents")`，它会尊重本地留下的「登录后要去哪」
+     * （例如前面刚访问过 `/lanqi/moments`，匿名会被记成 `/lanqi/moments`）。
+     * 2026-09-15 生产实测踩过一次：共用会话时 `/my-ai` 被前面的兰琪页记下的跳转带走，
+     * 落到 `/login/lanqi`，把「旧地址回货架」误报成失败；干净上下文里落点就是 `/agents`。
+     */
+    for (const legacy of LEGACY_REDIRECT_ROUTES) {
+      const { browserContextId } = await cdp.send("Target.createBrowserContext");
+      const { targetId } = await cdp.send("Target.createTarget", { url: "about:blank", browserContextId });
+      const { sessionId: legacySession } = await cdp.send("Target.attachToTarget", { targetId, flatten: true });
+      cdp.sessions.add(legacySession);
+      await cdp.send("Page.enable", {}, legacySession);
+      await cdp.send("Runtime.enable", {}, legacySession);
+      await cdp.send(
+        "Emulation.setDeviceMetricsOverride",
+        { width: 1440, height: 1200, deviceScaleFactor: 1, mobile: false },
+        legacySession
+      );
+      const snapshot = await openPath(cdp, legacySession, legacy.path);
+      const misses = WRONG_FALLBACK_MARKERS.filter((marker) => snapshot.text.includes(marker));
+      const ok =
+        snapshot.pathname.endsWith(legacy.expectPath) &&
+        !snapshot.text.includes(NOT_FOUND_TEXT) &&
+        misses.length === 0;
+      record(
+        ok,
+        `${legacy.label}：${legacy.path} 兼容跳转到 ${legacy.expectPath}`,
+        `pathname=${snapshot.pathname} len=${snapshot.length} 兜底页=${snapshot.text.includes(NOT_FOUND_TEXT)} 串产品=${misses.join("/") || "无"}`
+      );
+      const legacyErrors = consoleErrors(cdp);
+      record(
+        legacyErrors.length === 0,
+        `${legacy.path} 兼容跳转控制台无错误`,
+        legacyErrors.length === 0 ? "0 error" : legacyErrors.join(" | ").slice(0, 200)
+      );
+      await shoot(cdp, legacySession, `legacy-${legacy.path.replace(/[^a-z0-9]+/gi, "_")}`);
+      await cdp.send("Target.closeTarget", { targetId });
+      await cdp.send("Target.disposeBrowserContext", { browserContextId });
     }
 
     for (const routePath of REMOVED_ROUTES) {

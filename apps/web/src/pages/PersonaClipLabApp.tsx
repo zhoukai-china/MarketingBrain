@@ -267,7 +267,7 @@ export default function PersonaClipLabApp() {
 
   return <main className="clipLabPage personaClipLabPage">
     <header className="clipLabHeader">
-      <a className="clipLabBrand" href={getAppPath("/my-ai")}><span className="clipLabLogo">思潼</span><span>自由组片智能体</span></a>
+      <a className="clipLabBrand" href={getAppPath("/agents")}><span className="clipLabLogo">思潼</span><span>自由组片智能体</span></a>
       <span className="clipLabStatus"><i /> 人设观点切片 · 多话题自动初剪</span>
     </header>
 

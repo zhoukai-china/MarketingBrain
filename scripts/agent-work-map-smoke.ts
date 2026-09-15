@@ -110,7 +110,8 @@ const myAiSource = agentProductsSource.slice(
 assert.match(myAiSource, /<AgentCardGrid agents=\{owned\}/, "my-ai should display every entitled agent");
 assert.doesNotMatch(myAiSource, /filter\(\(agent\) => agent\.slug === "takeaway-growth"\)/, "my-ai must not hide acquisition behind a takeaway-only filter");
 assert.match(agentProductsSource, /if \(agent\?\.marketing\?\.workMap && !requestedAcquisitionSystem\) setWorkMapOpen\(true\)/, "work map should be the default agent entry without reopening over a direct system page");
-assert.match(agentProductsSource, /onSwitchAgent=\{\(\) => navigate\("\/my-ai"\)\}/, "work map should provide a visible agent switch entry");
+// 2026-09-15：旧工作台 /my-ai 已下线（只剩跳转），工作地图的「切换智能体」改指向新的「常用智能体」页 /mine。
+assert.match(agentProductsSource, /onSwitchAgent=\{\(\) => navigate\("\/mine"\)\}/, "work map should provide a visible agent switch entry");
 assert.match(workMapComponentSource, /if \(node\.action\.type === "static"\) \{[\s\S]{0,700}return <div/, "Static work-map roots must render as non-clickable cards");
 assert.match(workMapComponentSource, /"这是业务总入口，不直接执行任务"/, "Static work-map roots must describe that they do not execute a task");
 

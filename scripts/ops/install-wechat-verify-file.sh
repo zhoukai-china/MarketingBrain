@@ -58,29 +58,59 @@ import sys
 
 path, ssl_line, server_line = sys.argv[1], sys.argv[2], sys.argv[3]
 text = open(path, encoding="utf-8").read()
-if "MP_verify_" in text:
-    print("nginx: MP_verify location 已存在，跳过插入")
-    sys.exit(0)
-
 lines = text.splitlines(keepends=True)
-idx_ssl = next((i for i, l in enumerate(lines) if l.strip() == ssl_line), None)
-if idx_ssl is None:
-    sys.exit("nginx: 找不到 'listen 443 ssl;'")
-idx_srv = next((i for i in range(idx_ssl, len(lines)) if lines[i].strip() == server_line), None)
-if idx_srv is None:
-    sys.exit("nginx: 443 块里找不到 server_name api.lcppch.top;")
-
-block = [
-    "\n",
+LOCATION = [
     "    # 微信业务域名校验文件（由 scripts/ops/install-wechat-verify-file.sh 维护；勿改成 proxy_pass/302）\n",
     "    location ~ ^/MP_verify_[\\w]+\\.txt$ {\n",
     "        default_type text/plain;\n",
     "        root /var/www/wechat-verify;\n",
     "    }\n",
 ]
-lines[idx_srv + 1 : idx_srv + 1] = block
-open(path, "w", encoding="utf-8").write("".join(lines))
-print("nginx: location 已插入（第 %d 行之后）" % (idx_srv + 1))
+
+changed = False
+
+# 1) 443 server 块：补 MP_verify location（若尚未存在）。
+if "/MP_verify_" not in text:
+    idx_ssl = next((i for i, l in enumerate(lines) if l.strip() == ssl_line), None)
+    if idx_ssl is None:
+        sys.exit("nginx: 找不到 'listen 443 ssl;'")
+    idx_srv = next((i for i in range(idx_ssl, len(lines)) if lines[i].strip() == server_line), None)
+    if idx_srv is None:
+        sys.exit("nginx: 443 块里找不到 server_name api.lcppch.top;")
+    lines[idx_srv + 1 : idx_srv + 1] = ["\n"] + LOCATION
+    print("nginx: 443 块插入 MP_verify location（第 %d 行之后）" % (idx_srv + 1))
+    changed = True
+else:
+    print("nginx: MP_verify location 已存在，跳过 443 插入")
+
+# 2) 80 server 块：现在是「全量 301 跳 https」，会让不跟随跳转的校验器拿到 301 而不是文件内容；
+#    把 301 收进 location /，并让校验文件在 http 下直接返回 200（其余路径行为不变）。
+idx_80 = next((i for i, l in enumerate(lines) if l.strip() == "listen 80;"), None)
+if idx_80 is not None:
+    idx_return = next(
+        (
+            i
+            for i in range(idx_80, len(lines))
+            if lines[i].strip() == "return 301 https://$host$request_uri;"
+        ),
+        None,
+    )
+    if idx_return is not None:
+        redirect_block = [
+            "    location / {\n",
+            "        return 301 https://$host$request_uri;\n",
+            "    }\n",
+        ]
+        lines[idx_return : idx_return + 1] = LOCATION + redirect_block
+        print("nginx: 80 块改为「校验文件直出 200 + 其余仍 301」（原第 %d 行）" % (idx_return + 1))
+        changed = True
+    else:
+        print("nginx: 80 块里没有全量 301（可能已处理过），跳过")
+
+if not changed:
+    print("nginx: 无需改动")
+else:
+    open(path, "w", encoding="utf-8").write("".join(lines))
 PY
 
 if ! nginx -t; then
