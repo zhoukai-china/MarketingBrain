@@ -1,5 +1,16 @@
 # Bug 回归台账
 
+## QA-20260916-003：`qa:lanqi-foundation` 领域门禁**在 main 上本来就红**——三处断言仍指向重构前的文件/旧价格（P2，两处已修；一处属定价线，登记待修）
+
+- 触发：2026-09-16 交付 LQ-33 时按 AGENTS.md 跑兰琪领域门禁 `pnpm.cmd qa:lanqi-foundation`，链条前段就失败。
+- 复现与归因（**逐条区分「本次引入」还是「既有」**）：在 `main` 工作树（HEAD `81de397`）跑同一条命令，**同样失败**；失败点与本任务（LQ-33）改动文件无交集，属既有红灯：
+  1. `scripts/lanqi-business-qa-smoke.ts`：断言 `apps/api/src/server.ts` 含 `registerLanqiBusinessQaRoutes`。根因是 commit `0e7053a`「拆分 server.ts 产品路由装配到 products/register.ts（行为不变）」把装配点搬走了，断言没跟着搬（同一脚本还断言 `/lanqi/business-qa` 出现在 `apps/web/src/main.tsx`，而网页路由也已拆到 `apps/web/src/routes/lanqi.tsx`）。**已修**：改查 `products/register.ts`，并加一条「必须挂在 `app.register(async (lanqi) => …)` 兰琪作用域内」的断言（比原来更强）；网页路由改为在 `main.tsx` 或 `routes/lanqi.tsx` 命中即可。
+  2. `scripts/lanqi-xhs-package-contract-smoke.mjs`：同样是装配点搬迁导致的过期断言。**已修**：改查 `products/register.ts` + 兰琪作用域断言。
+  3. `scripts/lanqi-media-generation-smoke.ts`：断言图片报价 `{ creditCost: 100, customerPriceYuan: 1 }`，实际代码返回 `{ creditCost: 20, customerPriceYuan: 0.2 }`。**未修，登记**——这里牵出两个独立问题：① 图片单价已在 2026-09-12 由用户拍板改成 **20 积分/张**，测试断言仍是 100；② `apps/api/src/services/lanqi-media-generation.ts` 的 `customerPriceYuan = creditCost / 100` 与「**1 积分 = ¥0.05**」（`docs/PRICING.md`）不符（20 积分应为 ¥1，现返回 ¥0.2）。②是**真实口径不一致**，属图片/定价线，且当前该字段不在页面展示（`verify-deploy.sh` 的 `web_credits_rmb_copy_absent` 为 no），因此按 P2 登记、**不在 LQ-33 任务里改**（避免顺手改钱的口径）。
+- 修复后：`pnpm.cmd lanqi:business-qa-smoke`（3 个脚本）全绿；`pnpm.cmd lanqi:xhs-package-smoke`（2 个脚本）全绿；新增回归 `pnpm.cmd lanqi:copy-kit-smoke` 28/0 已挂进同一领域命令。
+- 影响面说明：`qa:lanqi-foundation` 目前仍会停在第 3 条（既有红），与本任务交付物无关；本任务用「专项 smoke + 真实 Eval + 测试实例页面验收 + `qa:fast`」作为放行证据，并在报告中如实标注该条既有失败。
+- 后续（需单独立项）：① 把图片报价的 `customerPriceYuan` 换成 `creditCost × 0.05`（或统一走 `CREDIT_PRICING`），并同步 `lanqi-media-generation-smoke` 的期望值；② 全仓扫一遍「查 `server.ts` 断装配」的同类过期断言，避免以后再出现同因红灯。
+
 ## QA-20260916-002：兰琪「美业文案十件套」真实生成**偶发失败**——输出被推理 token 吃满截断 / 口播字数不足 / 合规备注里写了被禁词被结构校验打回（P1，已修 + 3 次真实 Eval 全绿 + 已上两环境）
 
 - 触发：2026-09-15 夜 LQ-33（公域获客新增「美业文案十件套」卡）真实模型 Eval，用户口径是「新增一张卡、独立计费」，交付质量必须稳。
