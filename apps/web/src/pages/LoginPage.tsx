@@ -634,7 +634,7 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
       <div className="loginBrand">
         <span className="loginBadge">{branding.systemName}</span>
         <h1>{finishingSignup ? "完成注册，开通你的工作区" : "登录 / 注册"}</h1>
-        <p>一个账号、一个积分钱包，货架上的行业智能体随取随用。</p>
+        <p>一个账号、一份全平台通用积分，货架上的行业智能体随取随用。</p>
         {referralCode.trim() && <p className="wechatLoginHint">已识别推荐码 {previewReferralCode(referralCode)}：<b>只有首次开通工作区的新账号</b>才会登记推荐关系；已有工作区的账号直接登录，不重复绑定。</p>}
       </div>
       <div className="loginForm">

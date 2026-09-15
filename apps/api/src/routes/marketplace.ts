@@ -107,7 +107,7 @@ const marketplaceRunSchema = z.object({
 
 /**
  * 视频复盘「文件到底有没有到后端」的预检（工单 2.4）：
- * 只解析、不调模型、不扣积分；前端可先确认「文件到了 + 解析到了」，再发起正式复盘。
+ * 只解析、不调模型、不消耗积分；前端可先确认「文件到了 + 解析到了」，再发起正式复盘。
  */
 const vidrevParsePreviewSchema = z.object({
   content: z.string().max(400_000).optional(),
@@ -230,7 +230,7 @@ const referralCodeInputSchema = z.object({
 export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<void> {
   await ensureMarketplaceCatalog();
 
-  // 视频复盘预检（工单 2.4）：验证「文件真的到了后端、字段也解析到了」，不调模型、不扣积分。
+  // 视频复盘预检（工单 2.4）：验证「文件真的到了后端、字段也解析到了」，不调模型、不消耗积分。
   app.post("/vidrev/parse-preview", async (request, reply) => {
     const parsed = vidrevParsePreviewSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
@@ -328,8 +328,8 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
         return reply.code(409).send({
           error: comingSoon ? "marketplace_sku_coming_soon" : "marketplace_sku_not_available",
           message: comingSoon
-            ? "该智能体正在开发中，敬请期待；本次未扣积分。"
-            : "该智能体暂不可用；本次未扣积分。",
+            ? "该智能体正在开发中，敬请期待；本次不消耗积分。"
+            : "该智能体暂不可用；本次不消耗积分。",
           status: sku.status
         });
       }
@@ -381,20 +381,20 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
 
       const price = sku.ppu;
       if (price <= 0) {
-        return reply.code(409).send({ error: "marketplace_ppu_not_configured", message: "该智能体未配置按次价格" });
+        return reply.code(409).send({ error: "marketplace_ppu_not_configured", message: "该智能体暂未开放使用" });
       }
 
       /**
        * 免费重做已下线（用户 2026-09-15 拍板「取消智能体的免费重做」）。
        *
        * 这里**显式拒绝**而不是静默忽略：老缓存的前端 bundle 仍然会带 `redoOf`，
-       * 静默忽略会让用户以为"重做免费"而实际被扣积分；显式拒绝才是可解释的行为。
-       * 想再生成一次 = 一次正常的按次扣费生成。
+       * 静默忽略会让用户以为"重做免费"而实际被消耗积分；显式拒绝才是可解释的行为。
+       * 想再生成一次 = 一次正常的按次消耗积分生成。
        */
       if (parsed.data.redoOf) {
         return reply.code(409).send({
           error: "marketplace_free_redo_removed",
-          message: "「免费重做」已下线。如需再生成一份，请按正常按次计费重新发起（会按该智能体的价格扣积分）。",
+          message: "需要再要一份时，重新发起一次即可（用量按实际消耗计算）。",
           retryable: false,
           providerCalls: 0,
           creditCost: 0
@@ -451,7 +451,7 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
           if (vidrevMetrics.count === 0) {
             return reply.code(422).send({
               error: "marketplace_output_invalid",
-              message: "没有识别到视频记录，本次未扣积分。请上传视频号/抖音后台导出的 CSV/Excel（至少包含 1 条视频数据，表头含标题 / 播放 / 互动等字段）。",
+              message: "没有识别到视频记录，本次不消耗积分。请上传视频号/抖音后台导出的 CSV/Excel（至少包含 1 条视频数据，表头含标题 / 播放 / 互动等字段）。",
               reasons: ["V0 未解析到可复算的数据行：深度复盘必须有结构化数据（rows 或可解析的数据表）。"],
               failed_rules: ["V0"]
             });
@@ -507,7 +507,7 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
           return reply.code(502).send({
             error: "marketplace_provider_failed",
             code,
-            message: `模型调用失败（${code}），本次未扣积分。`
+            message: `模型调用失败（${code}），本次不消耗积分。`
           });
         }
 
@@ -527,7 +527,7 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
           if (validation.failures.length > 0) {
             return reply.code(422).send({
               error: "marketplace_output_invalid",
-              message: "选题交付未通过技能校验，本次未扣积分：\n" + validation.failures.slice(0, 8).join("\n"),
+              message: "选题交付未通过技能校验，本次不消耗积分：\n" + validation.failures.slice(0, 8).join("\n"),
               reasons: validation.failures.slice(0, 20)
             });
           }
@@ -537,7 +537,7 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
           if (validation.failures.length > 0) {
             return reply.code(422).send({
               error: "marketplace_output_invalid",
-              message: "文案交付未通过技能校验，本次未扣积分：\n" + validation.failures.join("\n"),
+              message: "文案交付未通过技能校验，本次不消耗积分：\n" + validation.failures.join("\n"),
               reasons: validation.failures
             });
           }
@@ -547,7 +547,7 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
           if (validation.failures.length > 0) {
             return reply.code(422).send({
               error: "marketplace_output_invalid",
-              message: "IP 定位全案未通过技能校验，本次未扣积分：\n" + validation.failures.slice(0, 8).join("\n"),
+              message: "IP 定位全案未通过技能校验，本次不消耗积分：\n" + validation.failures.slice(0, 8).join("\n"),
               reasons: validation.failures.slice(0, 20)
             });
           }
@@ -564,7 +564,7 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
             });
           let validation = validateVidrev(answerText);
           // 真实模型可能因排版漂移导致格式类校验失败（如 deep-dive 理由未编号）。失败时带上
-          // 具体 failed_rules 自动纠错重跑一次，仍不过才 422 且不扣费——既保质量又减少误伤。
+          // 具体 failed_rules 自动纠错重跑一次，仍不过才 422 且不消耗积分——既保质量又减少误伤。
           if (validation.failures.length > 0) {
             await dumpVidrevDebugOutput("first", answerText, validation.failures);
             const corrective = [
@@ -593,13 +593,13 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
                 await dumpVidrevDebugOutput("retry", retryText ?? "", retryValidation.failures);
               }
             } catch {
-              // 纠错重跑失败则保留首次输出，走下面的 422 分支（不扣积分）。
+              // 纠错重跑失败则保留首次输出，走下面的 422 分支（不消耗积分）。
             }
           }
           if (validation.failures.length > 0) {
             return reply.code(422).send({
               error: "marketplace_output_invalid",
-              message: "视频复盘未通过技能校验，本次未扣积分：\n" + validation.failures.slice(0, 8).join("\n"),
+              message: "视频复盘未通过技能校验，本次不消耗积分：\n" + validation.failures.slice(0, 8).join("\n"),
               reasons: validation.failures.slice(0, 20),
               failed_rules: [...new Set(validation.failures.map((item) => item.split(/[\s：:]/)[0]))]
             });
@@ -610,7 +610,7 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
         const costCny = estimateMarketplaceModelCostCny(usage);
         const dynamicCredits = marketplaceCreditsForUsage(usage);
 
-        // 扣费时机：交付完成之后。免费重做已下线，这里只剩正常按次扣费一条路径。
+        // 消耗积分时机：交付完成之后。免费重做已下线，这里只剩正常按次消耗积分一条路径。
         const consumed = await consumeWalletCredits({
           userId: context.userId,
           requestId,
@@ -729,8 +729,8 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
         return reply.code(409).send({
           error: comingSoon ? "marketplace_sku_coming_soon" : "marketplace_sku_not_available",
           message: comingSoon
-            ? "该智能体正在开发中，敬请期待；本次未扣积分。"
-            : "该智能体暂不可用；本次未扣积分。",
+            ? "该智能体正在开发中，敬请期待；本次不消耗积分。"
+            : "该智能体暂不可用；本次不消耗积分。",
           status: sku.status
         });
       }
@@ -1035,8 +1035,8 @@ async function tryResolveContext(request: FastifyRequest): Promise<RequestContex
 
 async function getCreditBalance(context: RequestContext): Promise<number> {
   if (context.source === "demo") return demoMarketplace.getBalance(context.tenantId);
-  // 货架只认用户双桶钱包：展示（/market/me、访问态）与扣费（/run、/ppu/consume）必须同源，
-  // 否则会出现「余额显示够、扣费却失败」或反向的错账。
+  // 货架只认用户双桶钱包：展示（/market/me、访问态）与消耗积分（/run、/ppu/consume）必须同源，
+  // 否则会出现「余额显示够、消耗积分却失败」或反向的错账。
   return (await readWallet(context.userId)).balance;
 }
 
@@ -1158,7 +1158,7 @@ async function consumeMarketplacePpu(
     };
   }
 
-  // 与 /market/skus/:skuId/run 相同的用户双桶钱包扣费，保证 /market/me 显示的余额就是被扣的钱包。
+  // 与 /market/skus/:skuId/run 相同的用户双桶钱包消耗积分，保证 /market/me 显示的余额就是被扣的钱包。
   const consumed = await consumeWalletCredits({
     userId: context.userId,
     requestId: `marketplace_ppu:${idempotencyKey}`,
@@ -1542,7 +1542,7 @@ const VIDREV_SYSTEM_PROMPT = [
   "【九、方法论沉淀】≥2 条，每条用 `1.` `2.` 编号独占一段，五个字段各占一行、字段名逐字写全：`类型：…`、`规律：…`、`证据：…`、`置信度：…`、`相关选题：…`（禁止把五个字段用「/」串成一行）；证据必须带具体视频与数字；置信度只能取「疑似规律 / 已确认 / 黄金法则」。",
   "【十、下个周期选题建议】四个方向必须齐全且用这些标题：主力复制（又爆又赚池）/ 优化重拍（有量无转池）/ 投流放量（有转无量池）/ 放弃方向，每个方向给出基于具体 video_id 的动作；最后给「候选选题（直接进选题池，来源：数据复盘）」**≥2 条**，每条一句可发布的选题标题 + 依据。候选选题的标题与评论引导**严禁出现：私信 / 电话 / 找我 / 留个 / 加我 / 扫码领**。",
   "",
-  "【硬口径（写错即判失败、不扣积分）】",
+  "【硬口径（写错即判失败、不消耗积分）】",
   "1. 所有比率一律加权平均（总量相除）：互动率 = Σ互动 ÷ Σ播放，完播率按播放加权；禁止逐条相除再平均。",
   "2. 空值不等于 0：缺失字段按缺失处理并写「数据缺失」，禁止用 0 兜底参与计算（ROI、完播率、投流金额尤其注意）。",
   "3. 四象限由后端函数判定，报告必须与后端给的口径完全一致，禁止自行改判。",
@@ -1658,7 +1658,7 @@ function countTableRows(text: string, headerCell: string): number {
 /* ---------------------------------------------------------------------------
  * IP 定位智能体（ip-pos）：200 积分/次，一次交付 1 份完整 IP 定位全案。
  * 全案体量大（1分钟速览 + 八章 + ≥80 条选题），按「0–四章 / 五–八章」两段并发生成再合并，
- * 合并结果必须通过下面的硬校验（V1–V10）才扣费，校验不通过不扣积分、可免费重跑。
+ * 合并结果必须通过下面的硬校验（V1–V10）才消耗积分，校验不通过不消耗积分、可免费重跑。
  * ------------------------------------------------------------------------- */
 
 const IP_POS_OVERVIEW_FIELDS = [
@@ -1673,7 +1673,7 @@ const IP_POS_OVERVIEW_FIELDS = [
 ];
 
 const IP_POS_COMMON_RULES = [
-  "【一次交付】一次使用 = 交付 1 份完整的 IP 定位全案（📌1分钟速览 + 一~八章），按次扣 200 积分；允许分轮追问，但同一个会话只扣一次费。",
+  "【一次交付】交付 1 份完整的 IP 定位全案（📌1分钟速览 + 一~八章）；允许分轮追问，同一会话只算一次。",
   "【信息不全先问，不许硬出方案】「品牌名 / 现状（有无账号、粉丝量、做过什么）/ 目标用户 / 目标（招商 · 获客 · 卖课）」四项缺一，或回答敷衍（乱码、随意字符、与业务无关，或只写「无 / 没有 / 测试 / 111」），就不要输出任何章节内容，只输出两行：",
   "【需补充信息】",
   "- 需要补充：…（最多 3 条，一次最多问 3 个问题，只问真正缺的，不要重复用户已经给过的信息）",

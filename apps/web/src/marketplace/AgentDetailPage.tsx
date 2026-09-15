@@ -89,7 +89,7 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
 
           <aside className="detail-buy">
             {soon && (
-              <div className="zone-soon">🚧 <b>该智能体正在开发中</b>：能力介绍和输出参考案例可以先看，暂未开放使用。上线后直接用统一积分钱包按次使用，不需要重复充值。</div>
+              <div className="zone-soon">🚧 <b>该智能体正在开发中</b>：能力介绍和输出参考案例可以先看，暂未开放使用。上线后可直接使用，和平台其他智能体共用同一份积分，不需要重复充值。</div>
             )}
             <div className="use-card">
               <div className="use-label">开始使用 · 对话式智能体</div>
@@ -110,7 +110,7 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
                   <button className="btn primary block" disabled={soon} onClick={startChat}>{soon ? "开发中 · 敬请期待" : "开始第 1 步"}</button>
                   {soon
                     ? <div className="pc-note">🚧 组合内各环节正在开发中，上线后开放按环节使用。</div>
-                    : <div className="pc-note">🎯 <b>不用一次走完</b>：进入后一步一步来，每步交付完才结算——<b>中途停下来，没做的环节不计费</b>。</div>}
+                    : <div className="pc-note">🎯 <b>不用一次走完</b>：进入后一步一步来，每步交付完才结算——<b>中途停下来，没做的环节不消耗积分</b>。</div>}
                 </div>
               ) : (
                 <div className="pc-block">
@@ -119,13 +119,13 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
                   <button className="btn primary block" disabled={soon} onClick={startChat}>{soon ? "开发中 · 敬请期待" : "直接开始"}</button>
                   {soon
                     ? <div className="pc-note">🚧 该智能体内核正在开发中，暂不能发起生成；上线时间以公告为准。</div>
-                    : <div className="pc-note">🎯 <b>按结果付费</b>：付一次 = 拿到上面那份交付物；如需再生成一份，会按次扣积分（免费重做已下线）。</div>}
+                    : <div className="pc-note">🎯 <b>按结果交付</b>：一次拿到上面那份完整交付物；如需再要一份，重新发起一次即可，用量按实际消耗计算。</div>}
                 </div>
               )}
               {/* 方案②：行业专属样例按完整 SKU 命中，通用专区一律回落通用中性样例。 */}
               <button className="btn ghost block demo-chat-btn" onClick={() => setBenchmark(referenceCaseForSku(sku.skuCode) ?? null)}>👀 输出参考案例 · 不消耗积分</button>
             </div>
-            <div className="shared-card">💎 <b>一个钱包，全平台通用</b><br />按次使用的积分来自思潼AI 统一钱包，各行业专区的智能体共用；在 WorkBuddy 里用思潼智能体，扣的也是这个钱包。</div>
+            <div className="shared-card">💎 <b>一份积分，全平台通用</b><br />创始人IP专区与各行业专区的智能体共用同一份积分；在 WorkBuddy 里用思潼智能体，用的也是这份积分。</div>
             {notice && <div className="notice">{notice}</div>}
           </aside>
         </div>

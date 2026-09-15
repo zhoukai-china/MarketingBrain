@@ -157,7 +157,7 @@ export function Topbar({ active, balance, onNavigate }: { active: string; balanc
           <button className="logout-link" onClick={handleLogout} title="退出后用另一个账号重新登入">退出登录</button>
         ) : null}
       </header>
-      <div className="shared-banner">💎 <b>积分全平台通用</b> · 按次使用从统一积分钱包扣，创始人IP专区与各行业专区的所有智能体均可抵扣</div>
+      <div className="shared-banner">💎 <b>积分全平台通用</b> · 创始人IP专区与各行业专区的所有智能体共用同一份积分</div>
     </>
   );
 }

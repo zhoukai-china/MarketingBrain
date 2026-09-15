@@ -21,7 +21,9 @@ function main(): void {
     assert(supplierCodes.has(sku.supplierCode), `${sku.skuCode} supplier is valid`);
     assert(Number.isInteger(sku.ppu) && sku.ppu >= 0, `${sku.skuCode} ppu is valid`);
     assert(sku.verbs.length > 0, `${sku.skuCode} has verbs`);
-    assert(/1\s*次使用|一次使用/.test(sku.useCase), `${sku.skuCode} has outcome anchor`);
+    // 2026-09-15 用户口径：取消「按次使用 / 一次使用」这类计费感表述，useCase 直接讲交付物。
+    assert(sku.useCase.trim().length > 0, `${sku.skuCode} has useCase`);
+    assert(!/按次使用|一次使用/.test(sku.useCase), `${sku.skuCode} useCase avoids per-use billing wording`);
   }
 
   const ipzoneOnly = demoMarketplace.listSkus({ zone: "ipzone" }, false);

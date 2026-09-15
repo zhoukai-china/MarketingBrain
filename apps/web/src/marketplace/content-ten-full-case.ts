@@ -139,7 +139,7 @@ export const CONTENT_TEN_FULL_CASE_HTML = `
 
     <div class="cr-sec"><div class="cr-h">十、投流建议</div>
       <div class="cr-sub-h">前置判断</div>
-      <div class="copy-box">这条是<b>获客型内容</b>，价值在「能被收藏 + 能带咨询」，适合小预算测试放量；但<b>只有在自然流量跑出完播 ≥30%、评论里有真实咨询意向之后</b>才建议投。以下预算与节奏需你确认后才执行——智能体只给方案，<b>不代投、不自动扣费</b>。</div>
+      <div class="copy-box">这条是<b>获客型内容</b>，价值在「能被收藏 + 能带咨询」，适合小预算测试放量；但<b>只有在自然流量跑出完播 ≥30%、评论里有真实咨询意向之后</b>才建议投。以下预算与节奏需你确认后才执行——智能体只给方案，<b>不代投、不自动消耗积分</b>。</div>
       <table class="report-table">
         <tr><th>方案</th><th>投放方式</th><th>建议预算</th><th>看什么指标</th></tr>
         <tr><td>DOU+ 内容加热（首选）</td><td>先投 100 元 × 2 组（系统智能 vs 自定义相似达人）</td><td>200 元测试</td><td>完播率、评论转化意向</td></tr>

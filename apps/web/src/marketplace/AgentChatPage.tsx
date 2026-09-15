@@ -11,7 +11,7 @@ import { authHeaders, fetchMarketMe, guestToLogin, handleStaleSession, readJson,
 
 /**
  * 视频复盘：还没拿到数据表时的回复（工单 2026-09-13 §四「未传文件时输入复盘」）。
- * 这里刻意不调用后端、不扣积分，只把「数据从哪来、怎么传」讲清楚。
+ * 这里刻意不调用后端、不消耗积分，只把「数据从哪来、怎么传」讲清楚。
  */
 const VIDREV_NO_DATA_GUIDE = [
   "**先别急——我还没拿到你的数据。** 没有数据我只能编，我不会编。",
@@ -20,7 +20,7 @@ const VIDREV_NO_DATA_GUIDE = [
   "- **视频号**：登录视频号助手 https://channels.weixin.qq.com/login.html → 数据中心 → 视频数据 → 单篇视频 → 选「近 30 天」→ 下载表格",
   "- **抖音**：登录抖音创作者中心 https://creator.douyin.com/ → 数据中心 → 作品数据 → 近 30 天 → 导出数据",
   "",
-  "把下载好的 **CSV 或 Excel** 直接拖进对话框上传，再跟我说「复盘」即可。（本次没有调用模型、未扣积分）"
+  "把下载好的 **CSV 或 Excel** 直接拖进对话框上传，再跟我说「复盘」即可。（本次没有调用模型、不消耗积分）"
 ].join("\n");
 
 interface ChatItem {
@@ -195,7 +195,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     timerRef.current = window.setInterval(() => setElapsed((e) => e + 1), 1000);
     timeoutRef.current = window.setTimeout(() => {
       setBusy(false);
-      setItems((prev) => [...prev, { id: `timeout${Date.now()}`, role: "ai", text: "生成超时（已超过 120 秒），可能是模型繁忙，请稍后重试。本次未扣积分。" }]);
+      setItems((prev) => [...prev, { id: `timeout${Date.now()}`, role: "ai", text: "生成超时（已超过 120 秒），可能是模型繁忙，请稍后重试。本次不消耗积分。" }]);
       if (timerRef.current) window.clearInterval(timerRef.current);
     }, 150000);
     try {
@@ -226,7 +226,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
         body: JSON.stringify(body)
       });
       if (handleStaleSession(runResponse.status)) {
-        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次未扣积分。");
+        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次不消耗积分。");
       }
       const result = await readJson<{
         answer: string;
@@ -240,7 +240,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
         setItems((prev) => [
           ...prev,
           { id: `clr${Date.now()}`, role: "ai", text: result.answer },
-          { id: `clrq${Date.now()}`, role: "ai", text: "以上关键信息还需要你补充一下。直接把补充内容发给我，我会重新生成（本次不扣积分）。" }
+          { id: `clrq${Date.now()}`, role: "ai", text: "以上关键信息还需要你补充一下。直接把补充内容发给我，我会重新生成（本次不消耗积分）。" }
         ]);
         setAwaitingSupplement(true);
         setDone(false);
@@ -284,7 +284,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
       return;
     }
 
-    // 工单 2026-09-13 §四：未传数据时输入「复盘」不能空跑一轮（更不能扣积分）——
+    // 工单 2026-09-13 §四：未传数据时输入「复盘」不能空跑一轮（更不能消耗积分）——
     // 先把「数据从哪来、怎么传」讲清楚，用户看到指南再去导出。
     if (isVidrev && flow.slots[step].key === "data" && !vidrevHasData(value)) {
       setItems((prev) => [
@@ -293,7 +293,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
         { id: `nodata-a${Date.now()}`, role: "ai", text: VIDREV_NO_DATA_GUIDE }
       ]);
       setInput("");
-      setUploadNote("本次没有调用模型、未扣积分。");
+      setUploadNote("本次没有调用模型、不消耗积分。");
       return;
     }
 
@@ -458,7 +458,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
 
   /**
    * 视频复盘的「数据」轮：只有真带了数据（已读到的附件文本，或含指标+数字的描述）才放行。
-   * 只打「复盘」两个字属于「还没给数据」，先回导出指南，不调用模型也不扣积分。
+   * 只打「复盘」两个字属于「还没给数据」，先回导出指南，不调用模型也不消耗积分。
    */
   function vidrevHasData(value: string): boolean {
     if (attachments.some((item) => item.text)) return true;
@@ -520,8 +520,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
       return {
         text: "",
         message: (error as { name?: string }).name === "AbortError"
-          ? "语音转写超过60秒，已自动停止；本次未扣积分，请缩短录音或直接用文字输入。"
-          : "语音转写服务暂时不可用，本次未扣积分。可以直接输入文字或稍后重试。"
+          ? "语音转写超过60秒，已自动停止；本次不消耗积分，请缩短录音或直接用文字输入。"
+          : "语音转写服务暂时不可用，本次不消耗积分。可以直接输入文字或稍后重试。"
       };
     } finally {
       window.clearTimeout(timeoutId);
@@ -561,7 +561,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
         return;
       }
       if (handleStaleSession(response.status)) {
-        window.alert("登录状态已失效，本地登录信息已清除。请重新登录后再导出；本次未扣积分。");
+        window.alert("登录状态已失效，本地登录信息已清除。请重新登录后再导出；本次不消耗积分。");
         return;
       }
       const created = await readJson<{ downloadUrl?: string; filename?: string }>(response);
@@ -599,8 +599,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
               </div>
             </div>
             <div className="zone-soon" style={{ margin: "0 16px" }}>
-              🚧 <b>该智能体内核还在开发中</b>，对话与生成暂未开放，也不会扣积分。<br />
-              上线后直接用统一积分钱包按次使用，不需要重复充值；可以先回详情页看「输出参考案例」了解交付物长什么样。
+              🚧 <b>该智能体内核还在开发中</b>，对话与生成暂未开放，也不会消耗积分。<br />
+              上线后可直接使用，和平台其他智能体共用同一份积分，不需要重复充值；可以先回详情页看「输出参考案例」了解交付物长什么样。
             </div>
             <div className="chat-page-composer">
               <button className="btn ghost block" style={{ marginBottom: 10 }} onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}`); }}>‹ 返回详情 · 看输出参考案例</button>
@@ -653,7 +653,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
               <img className="chat-avatar-img" src={sitongAvatar} alt="思潼" />
               <span className="chat-page-title">{runSku?.name ?? flow.name ?? "智能体"}{industry?.title ? ` · ${industry.title}` : ""}</span>
             </div>
-            {cost !== null && <span className="chat-page-cost">本次消耗 {cost} 积分 · 双桶钱包</span>}
+            {cost !== null && <span className="chat-page-cost">本次消耗 {cost} 积分</span>}
           </div>
           {isVidrev && !done && !soon && (
             <details className="chat-vidrev-guide" open>
@@ -759,12 +759,12 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
             )}
           </div>
 
-          {done && <div className="chat-donebar">✓ 已生成结果 · 可继续用文字追问迭代；重新生成会按次扣积分</div>}
+          {done && <div className="chat-donebar">✓ 已生成结果 · 可继续用文字追问迭代；重新生成会按实际用量计算</div>}
 
           {done ? (
             <div className="chat-page-composer">
               <div className="chat-hint" style={{ marginBottom: 10 }}>
-                免费重做已下线：如需再生成一份，点「再问一次 / 重新开始」，会按该智能体价格正常扣积分。
+                需要再要一份时，点「再问一次 / 重新开始」即可，用量按实际消耗计算。
               </div>
               <button className="btn ghost block" style={{ marginBottom: 10 }} disabled={exporting} onClick={downloadWord}>
                 {exporting ? "正在导出…" : `⬇ 下载精美 Word${docxPrice ? ` · ${docxPrice} 积分` : ""}`}
@@ -842,7 +842,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                   }
                 }}
                 rows={2}
-                placeholder={awaitingSupplement ? "补充缺失的信息，发送后重新生成（不扣积分）" : "在这里输入，AI 主动引导你逐步补全"}
+                placeholder={awaitingSupplement ? "补充缺失的信息，发送后重新生成（不消耗积分）" : "在这里输入，AI 主动引导你逐步补全"}
                 style={{ width: "100%", background: "var(--glass)", border: "1px solid var(--line)", borderRadius: 14, padding: "12px 14px", color: "var(--text)", fontSize: 14, resize: "none" }}
               />
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10 }}>

@@ -209,7 +209,7 @@ export function IpPosReport({
     <div className="ipr">
       {payload.validation && !payload.validation.passed && (
         <div className="chat-report ipr-invalid">
-          <div className="cr-head">⚠️ 本次交付未通过技能校验（未扣积分）</div>
+          <div className="cr-head">⚠️ 本次交付未通过技能校验（不消耗积分）</div>
           <ul className="cr-list">
             {payload.validation.errors.slice(0, 10).map((error, index) => (
               <li key={`${error.code}-${index}`}>{error.message}</li>

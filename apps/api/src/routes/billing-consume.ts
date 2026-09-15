@@ -163,7 +163,7 @@ export async function registerBillingConsumeRoutes(app: FastifyInstance): Promis
      */
     return reply.code(409).send({
       error: "billing_free_redo_removed",
-      message: "「免费重做」已下线。如需再生成一份，请按正常按次计费重新发起。",
+      message: "需要再要一份时，重新发起一次即可（用量按实际消耗计算）。",
       retryable: false,
       creditCost: 0
     });

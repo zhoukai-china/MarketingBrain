@@ -361,10 +361,10 @@ const isLocal = typeof window !== "undefined" && (window.location.hostname === "
         </header>
         <section className="view view-recharge">
           {fromWorkbuddy && (
-            <div className="rc-from"><span className="rcf-ico">🧩</span><div className="rcf-txt"><b>你来自 WorkBuddy</b><p>在 WorkBuddy 里用的思潼智能体，充的就是这个钱包——充完回到 WorkBuddy 继续用，也能直接用思潼AI 里的行业智能体。</p></div></div>
+            <div className="rc-from"><span className="rcf-ico">🧩</span><div className="rcf-txt"><b>你来自 WorkBuddy</b><p>在 WorkBuddy 里用的思潼智能体，用的就是这份积分——充完回到 WorkBuddy 继续用，也能直接用思潼AI 里的行业智能体。</p></div></div>
           )}
           <h1>积分充值</h1>
-          <p className="rc-sub">基准 1 元 = 20 积分，<b>充得越多多送越多</b>。一个钱包两处用。</p>
+          <p className="rc-sub">基准 1 元 = 20 积分，<b>充得越多多送越多</b>。一份积分两处用。</p>
           <div className="rc-login">
             <div className="rcl-ico">🔑</div>
             <b>登录后充值</b>
@@ -398,11 +398,11 @@ const isLocal = typeof window !== "undefined" && (window.location.hostname === "
         {fromWorkbuddy && (
           <div className="rc-from">
             <span className="rcf-ico">🧩</span>
-            <div className="rcf-txt"><b>你来自 WorkBuddy</b><p>在 WorkBuddy 里用的思潼智能体，充的就是这个钱包——充完回到 WorkBuddy 继续用，也能直接用思潼AI 里的行业智能体。</p></div>
+            <div className="rcf-txt"><b>你来自 WorkBuddy</b><p>在 WorkBuddy 里用的思潼智能体，用的就是这份积分——充完回到 WorkBuddy 继续用，也能直接用思潼AI 里的行业智能体。</p></div>
           </div>
         )}
         <h1>积分充值</h1>
-        <p className="rc-sub">基准 1 元 = 20 积分，<b>充得越多多送越多</b>。一个钱包两处用：思潼AI 里的行业智能体能用，WorkBuddy 里的思潼智能体也扣这个钱包。</p>
+        <p className="rc-sub">基准 1 元 = 20 积分，<b>充得越多多送越多</b>。一份积分两处用：思潼AI 里的行业智能体能用，WorkBuddy 里的思潼智能体也一样通用。</p>
 
         {(error || notice) && <div className="notice">{error || notice}</div>}
 
@@ -466,12 +466,12 @@ const isLocal = typeof window !== "undefined" && (window.location.hostname === "
               <div className="rc-notes">
                 <span>✓ 基准 1 元 = 20 积分，充得越多多送越多</span>
                 <span>✓ 积分不过期，思潼AI 与 WorkBuddy 里的思潼智能体通用</span>
-                <span>✓ 按结果付费：付一次 = 拿到一份交付物，不满意可重做一次</span>
+                <span>✓ 按结果交付：一次拿到一份完整交付物；需要再要一份，重新发起即可</span>
               </div>
             </div>
 
             <aside className="rc-side">
-              <div className="rc-card"><b>💎 积分用在哪</b><p>思潼AI 里所有按次使用的智能体（创始人IP专区 + 各行业专区）都从这一个钱包扣。</p></div>
+              <div className="rc-card"><b>💎 积分用在哪</b><p>思潼AI 创始人IP专区 + 各行业专区的所有智能体，共用这一份积分。</p></div>
               <div className="rc-card token">
                 <b>🔗 在 WorkBuddy 里接入思潼 AI</b>
                 <p>把下面这段整段复制，直接发给 WorkBuddy，它就会自动接入思潼 AI 的 MCP（不用手动改 JSON）。</p>

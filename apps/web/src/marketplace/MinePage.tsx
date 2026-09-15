@@ -163,12 +163,12 @@ export function MarketplaceMinePage() {
       <section className="view view-mine">
         <h1>常用智能体</h1>
         <div className="mine-top">
-          <div className="balance-card"><div className="bc-label">积分余额</div><div className="bc-val">💎 {balance ?? "—"}</div><div className="bc-sub">按次使用 · 全平台通用</div><button className="btn ghost sm" onClick={() => { window.location.href = getAppPath("/recharge"); }}>+ 充值积分</button></div>
-          <div className="shared-card wide">💎 <b>跨智能体通用</b><br />积分在统一钱包，可在创始人IP专区与各行业专区的智能体抵扣——只充一次，处处可用。</div>
+          <div className="balance-card"><div className="bc-label">积分余额</div><div className="bc-val">💎 {balance ?? "—"}</div><div className="bc-sub">全平台通用</div><button className="btn ghost sm" onClick={() => { window.location.href = getAppPath("/recharge"); }}>+ 充值积分</button></div>
+          <div className="shared-card wide">💎 <b>跨智能体通用</b><br />同一份积分，在创始人IP专区与各行业专区的智能体都能用——只充一次，处处可用。</div>
         </div>
         <ReferralLinkCard />
-        <h3>近期按次使用</h3>
-        {loading ? <div className="loading">正在加载…</div> : recent.length === 0 ? <p className="mine-tip">暂无按次使用记录</p> : (
+        <h3>近期使用记录</h3>
+        {loading ? <div className="loading">正在加载…</div> : recent.length === 0 ? <p className="mine-tip">暂无使用记录</p> : (
           <div className="card-grid">
             {recent.map((entry) => (
               <article className="agent-card owned-card" key={entry.id}>
