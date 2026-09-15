@@ -79,8 +79,10 @@
 
 - 平台侧本轮已发布：`20260915-plat44b-legacy-ai`（测试 `…-test1` / 生产 `…-prod1` 均 `DEPLOY_OK` + `VERIFY_OK`），内容与证据见 `docs/CURRENT_DEPLOYMENT_STATUS.md` 顶部条目与 PLAT-44 卡。
 - 兰琪线现由任务「兰琪-公域获客3」（`01a0a4d1`，in-progress）承接；已由本线把写区独占、热点文件令牌、打包纪律、发布串行四条规则发给它。
-- **工作树现状**：兰琪3 当前用**主树** `F:\思潼AI增长os\baolu-os-v2-source`（`总调度8` 记录里的 `6ee3` 工作树**并不存在**，只是当时的计划）；主树在本线提交 `2f15a2f` 处干净。跨产品并行建议仍按 AGENTS.md 第 10 条在独立 worktree 里做，否则打包必须等对方 `git status` 干净。
-- **定时任务现状**：`C:\Users\book\.codex\automations` 下没有任何 automation 定义（只有一个 `.run-jitter-salt`）——历史记录里提到的「每日 12 点定时任务」当前**不存在**；如需每日自动巡检，需要用户明确重建。
+- **工作树现状（2026-09-15 已解决）**：兰琪3 原先在**主树** `F:\思潼AI增长os\baolu-os-v2-source` 里跑（`总调度8` 记录里的 `6ee3` 工作树并不存在，只是当时的计划）。用户同意后已由调度线执行 handoff：兰琪3 迁到 `C:\Users\book\.codex\worktrees\a410\baolu-os-v2-source`（分支 `codex/3`，起点 `3134b5c`），**主树留在平台线且 `git status` 干净、HEAD 未变**，迁移前主树无在途改动因此没有文件被带走。新工作树**没有 `node_modules`**，已要求兰琪3 先 `pnpm.cmd install --frozen-lockfile` 再跑任何门禁。
+- **迁移前必做（血的教训）**：handoff 会把「源工作树的未提交改动」搬进目标工作树（2026-09-15 上午 10 个平台文件就这样被搬进兰琪工作树）。**任何 handoff/交接前先 `git status` 清场**，并把 `git diff --binary` 留底到仓库外（本轮留底：`C:\Users\book\.codex\tmp-zd7-recover-20260915\`）。
+- **跨线发布互查**：兰琪3 当天晚些时候发了 `lq33b`（顶栏「我的 · 充值」直达 `/recharge`），发布后已由平台线复核**平台改动仍在线上**（`/my-ai`、`/workbench`、`/app` 仍一跳 `/agents`；`POST /os-v2/api/vidrev/parse-preview` 对小红书仍 `ok:false`）。全量源码叠加发布的风险点从此固定为「发布后必须双向抽检」。
+- **定时任务现状（用户 2026-09-15 明确答复：不要）**：`C:\Users\book\.codex\automations` 下没有任何 automation 定义（只有一个 `.run-jitter-salt`），历史记录里提到的「每日 12 点定时任务」当前不存在，**用户已决定不重建**；这条不要再主动提议。
 - **开放项清单**（平台侧）：PLAT-23 待用户拍板口径（阻塞）；PLAT-26 待用户给分润比例；PLAT-28 第②③批未开工（PLAT-30 排期其后）；PLAT-32 剩 `registerAuthRoutes` 拆分；PLAT-44 遗留兰琪/美业自有页面的 `/my-ai` 入口、美业 `beauty-directory-browser-e2e`、`MyAiPage` 去留。产品侧：美业 BY-55 等用户提供非生产 Ark 账号 + 已授权素材 + 预算核验（外部 PAUSED）；创始人 IP 扩展与外卖增长均无进行中编码任务。
 
 ## 已知阻塞
