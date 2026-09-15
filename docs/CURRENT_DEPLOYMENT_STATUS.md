@@ -1,5 +1,43 @@
 # 当前部署状态
 
+## 最新发布：20260915-lq32b-audio-compose（2026-09-15，测试实例 + 生产）— 一键成片「音频接通 + 合成一条成片」
+
+### 一、用户口径（2026-09-15）
+
+- 老板在兰琪「公域获客 → 一键成片」看到音频卡写着「音频上传暂未接通（本期成片无声）」，问「为什么音频没接通？让用户上传一段音频，或者支持上传视频抽取音频也可以啊」。
+- 同一轮确认两件事：① **音频 + 文案一起做**；② 新增的「美业文案十件套」要**新增一张卡**、**独立计费**（该卡见 `docs/agents/lanqi-beauty/tasks/LQ-33-公域获客文案十件套新卡.md`，本轮未开工）。
+
+### 二、技术事实（先说清，不靠话术遮盖）
+
+- 视频模型 `wan2.6-i2v-flash` **只出无声画面**（`parameters.audio=false`，且不下发 `audio_url`），所以「成片有声音」这件事不可能靠换模型解决，只能由平台**本地混流**补上。
+- 改造前「一键成片」只按镜交付（每镜一个 mp4，各自下载），**没有拼接**，所以音频卡就算能上传也没有落脚点。
+- 生产服务器已具备合成条件：`/usr/local/bin/ffmpeg`（7.0.2-static）+ `ffprobe`；合片与混音是**本机计算**，不调用外部付费接口 → **不额外扣积分**（页面已写明）。
+
+### 三、改动（源码 5 个文件，含 3 个新增/1 个改脚本）
+
+1. **后端新服务** `apps/api/src/services/lanqi-media-compose.ts`（新增）：按分镜顺序拼接（`scale+pad+setsar+fps=30` 统一画布后 `concat` 滤镜）、混入音轨（`-stream_loop -1` 循环补齐 + `-shortest` 以画面长度为准 + `-c:a aac`）、输出校验（`ftyp` 魔数 + 体积上限）、幂等（`requestKey` 索引）与租户隔离（镜次按 `tenantId` 查、音轨文件必须是本租户的 `UploadedFile` 且落在 `UPLOAD_DIR` 内、成片落盘路径由租户派生）。错误码：`audio_rights_required` / `audio_file_not_found` / `audio_file_unsupported` / `audio_file_too_large` / `audio_track_missing` / `shot_not_found` / `shots_not_ready` / `compose_tool_unavailable` / `compose_failed`。
+2. **后端路由** `apps/api/src/routes/lanqi-media-generation.ts`：新增 `POST /lanqi/media/compose`（合成）、`GET /lanqi/media/compose/:composeId`（播放）、`GET /lanqi/media/compose/:composeId/download`（下载）；三条都先 `resolveRequestContext`，未登录 **401**。
+3. **落盘链路** `apps/api/src/services/lanqi-media-assets.ts`：新增 `persistLanqiComposedVideo`（复用同一条租户隔离落盘链路，`source:"composed"`，带 `shotCount / audioIncluded / audioSource / durationSeconds`）+ 合成幂等索引读写。
+4. **前端** `apps/web/src/pages/LanqiAcquireVideoPage.tsx`：音频卡由占位改为**真实上传**（`audio/*,video/*`，≤20MB；上传视频时平台抽其声音当音轨）；多段必须显式指定「本片音轨」；新增音轨使用权授权（未勾选不合成）；上传后「输出规格 / 成片区」显示「🔊 带音轨成片」或「🎧 抽音轨成片」；新增「🧩 合成成片（拼接 + 混音）」入口（未出片时禁用并点名「还差 N 镜没出片」）与整片播放 / 下载；删除「本期成片无声 / 音频上传暂未接通」旧文案。
+5. **门禁**：新增 `pnpm lanqi:media-compose-smoke`（离线，真实 ffmpeg，**22/0**）；`scripts/lanqi-acquire-ui-contract-smoke.mjs` 新增 22 条结构断言（**101/0**）；`scripts/lanqi-acquire-instance-acceptance.mjs` 新增 4 条真实浏览器断言，并修掉它自己的一个假失败缺陷（见下）。
+
+### 四、验证证据
+
+- 离线：`pnpm.cmd lanqi:media-compose-smoke` **22 passed / 0 failed**（无音轨拼接 / 长音轨 / 短音轨循环 / 视频抽音 / 无声视频当音轨报错 / 跨租户 / 未出片 / 未授权 / 超大音轨 / 幂等 / 成片跨租户读不到）。
+- 页面契约：`pnpm.cmd lanqi:acquire-ui-contract-smoke` **101 passed / 0 failed**。
+- 全量快速门禁：`pnpm.cmd qa:fast` **exit 0**（含 typecheck 7 包）。
+- 测试实例真实浏览器：`node scripts/lanqi-acquire-instance-acceptance.mjs --port 9371` **42 项 / 失败 0**（桌面 1440；含「音频卡真的能上传（`input.accept=audio/*,video/*`、`disabled=false`）」「上传带声音的视频 → 抽音轨 + 出现授权」「授权勾选可勾」「成片区有合成入口、未出片时点不动且不发合成请求」）。
+- 生产只读取证：`POST /os-v2/api/lanqi/media/compose` 匿名 **401** `login_required`；`GET /os-v2/api/lanqi/media/compose/:composeId` 匿名 **401**；线上主包引用的 chunk `LanqiAcquireVideoPage-E9tMehS9.js`（72,803 B）内 `data-lq-vd-compose`=1、`上传音频`=1、`合成成片`=1、`音频上传暂未接通`=**0**、`本期成片无声`=**0**；`apps/api/dist/.../services/lanqi-media-compose.js` 12341 B 含 `stream_loop`；`verify-deploy.sh` **VERIFY_OK**（货架 19 SKU / coming_soon 13 / 两个 vidrev=selling）。
+- 发布：包 `release-20260915-lq32b-audio-compose.tar.gz`（1558 文件 / 9,798,538 B / sha256 `b1f14f3e74f9efa06b10d6a4843d3f831b40a31b1bcfc02045c6cf068050b798`，本地与服务器 `/tmp` 实测一致），发布 id 测试 `20260915-lq32b-audio-compose-test1` / 生产 **`-prod1`**，两侧 `DEPLOY_OK` + `health=200` / `ready=200`。
+- 顺带修掉的测试工具缺陷：`lanqi-acquire-instance-acceptance.mjs` 的 `findChrome()` 只看文件是否存在，选中了**启动即退出（exit 3）的 Playwright Chromium**，导致验收每次以「DevTools 端口未就绪」假失败；现改为 `--version` 探活后再选。详见 `docs/BUG_REGRESSIONS.md` **QA-20260915-005**。
+
+### 五、边界与未做（如实说）
+
+- **没用真实付费素材跑过整条合成**：测试实例只跑到「逐镜出片前」（真实出片要积分，测试租户 0 积分），所以「真实模型出片 + 真实音轨 → 一条成片」的端到端**尚未在实例上跑过**；合成链路本身用真实 ffmpeg + 合成素材离线验证（22/0）。老板账号充值后即可真实走一遍。
+- **成片仍受两件事限制**：单条成片 ≤12 镜；音轨 ≤20MB（超出请先裁短），音轨来源只支持音频文件或带声音的 MP4 / MOV。
+- **不做**：TTS 自动配音、多音轨混音 / 音量包络、字幕烧制；不改逐镜出片与计费口径；`VIDEO_RENDERING_READY=false`（门店素材成片 / AI 剪辑）保持 fail-closed。
+- **LQ-33（美业文案十件套新卡，独立计费）本轮未开工**，任务卡已建，等排期；它要动平台热点文件 `apps/api/src/routes/marketplace.ts`（抽共享合同），必须与平台线串行。
+
 ## 最新发布：20260915-plat44b-legacy-ai（2026-09-15，生产 + 测试实例）— 旧「专业工作地图」工作台下线 + 视频复盘只做抖音/视频号
 
 ### 一、用户口径（2026-09-15）

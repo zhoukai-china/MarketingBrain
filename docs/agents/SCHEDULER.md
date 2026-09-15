@@ -85,5 +85,20 @@
 
 ## 已知阻塞
 
+## 兰琪线交接（2026-09-15，任务「兰琪-公域获客4」，接管 `01a0a4d1`）
+
+**为什么第三次换线程**：兰琪线上一棒「兰琪-公域获客3」（`01a0a4d1`）与再上一棒「兰琪线程」`01a09f67` 都因桌面版 `missing field call_id`（请求体累积过大）在启动阶段就 systemError；本任务「兰琪-公域获客4」按前述规则新开线程承接，不改工作树。
+
+**接管时继承的待办**（来自 `01a09f67` 最后一轮用户口径）：① 一键成片音频接通；②「A 新增一张卡（清晰、独立计费）」+「音频 + 文案一起做」。
+
+**本轮所做（已交付并上线）**：LQ-32「一键成片音频接通 + 合成一条成片」已上测试实例与生产（`20260915-lq32b-audio-compose-test1` / `-prod1`，`DEPLOY_OK` + `VERIFY_OK`；离线 22/0、页面契约 101/0、测试实例浏览器 42/0、`qa:fast` exit 0），详见 `docs/CURRENT_DEPLOYMENT_STATUS.md` 顶部条目与 `tasks/LQ-32-一键成片音频接通.md`。**LQ-33（美业文案十件套新卡，独立计费）只建了卡、未开工。**
+
+**本轮用到的热点文件令牌（依第 2 条，事后登记）**：
+
+- 兰琪线在本轮改了 `package.json`（仅新增脚本 `lanqi:media-compose-smoke`）、`docs/CURRENT_DEPLOYMENT_STATUS.md`、`docs/BUG_REGRESSIONS.md` 三个热点文件；改之前平台线「思潼AI平台开发」（`01a0a48d`）为 idle 状态（没有在途发布），且本轮全程只改兰琪文件 + 上述三个热点文件，未触碰 `apps/web/src/main.tsx`、`NotFoundPage.tsx`、`products/register.ts`、`scripts/tmp/deploy-*.sh`、`marketplace` / `vidrev` 相关文件。
+- 打包前 `git status --porcelain` 已确认工作树只有兰琪改动；发布包 filelist **1558 文件**，未包含任何平台在途文件（当时主树干净）。发布为串行执行（测试 → 生产），期间无其他任务打包 / 部署。
+
+**下一棒注意**：LQ-33 需要把「内容十件套 V5」合同从 `apps/api/src/routes/marketplace.ts` 抽到共享模块，**必然触碰平台热点文件**，开工前先与平台线确认空闲；兰琪其余板块（经营驾驶舱等）仍按「开发中」占位。
+
 - 桌面版 create_thread/fork_thread 对项目/派生线程会报 missing field call_id 系统错误，线程执行通道不可用；任务暂时在“开发总调度”对话框直接推进。
 - 兰琪/美业整体暂停等待新原型；XHS、经营问答、BY-19/20/43、BY-44 外部保持 PAUSED。

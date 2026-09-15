@@ -7,6 +7,7 @@ import { env } from "../config/env.js";
 import { discardLanqiMediaAsset, lanqiMediaAssetUrl, markLanqiMediaAsset, persistLanqiMockImage, persistLanqiProviderImage, persistLanqiProviderVideo, readLanqiMediaAsset } from "../services/lanqi-media-assets.js";
 import { LANQI_VIDEO_MAX_SECONDS, LANQI_VIDEO_MIN_SECONDS, cancelLanqiMediaTask, getLanqiMediaExecutionReadiness, getLanqiMediaTask, isSameLanqiMediaRequest, quoteLanqiMedia, submitLanqiMedia, validateLanqiMediaRequest, type LanqiMediaRequest } from "../services/lanqi-media-generation.js";
 import { resolveLanqiFirstFrameInput, stageLanqiFirstFrame, lanqiFirstFrameRequestFingerprint } from "../services/lanqi-media-staging.js";
+import { LANQI_COMPOSE_MAX_SHOTS, LanqiComposeError, composeLanqiShots } from "../services/lanqi-media-compose.js";
 import { resolveRequestContext } from "../services/request-context.js";
 import { loadLanqiImagePreview, registerLanqiImageStudioRoutes } from "./lanqi-image-studio.js";
 
@@ -29,6 +30,16 @@ const mediaRequest = z.object({
 });
 const confirmationRequest = mediaRequest.extend({ confirmed: z.literal(true) });
 const callback = z.object({ taskId: z.string().min(1), status: z.string().min(1), outputUrl: z.string().url().optional(), errorMessage: z.string().max(500).optional() });
+/**
+ * LQ-32 合成成片：把已出片的镜次按顺序拼成一条并混入音轨。
+ * 音轨只认门店自己上传的文件（音频或带声音的视频），必须先确认使用权。
+ */
+const composeRequest = z.object({
+  shotJobIds: z.array(z.string().trim().min(8).max(120)).min(2).max(LANQI_COMPOSE_MAX_SHOTS),
+  audioFileId: z.string().trim().min(8).max(120).optional(),
+  audioRightsConfirmed: z.boolean().optional(),
+  requestKey: z.string().regex(/^[A-Za-z0-9_-]{12,120}$/),
+});
 
 type PublicJob = { id: string; previewId?: string; kind: string; status: string; progress: number; creditCost: number; billingStatus: string; assetStatus: string; outputUrl?: string; errorMessage?: string; canCancel: boolean; canRetry: boolean; selectedAt?: string; savedAt?: string; createdAt: string; updatedAt: string; executionMode: "mock" | "real" };
 type MockJob = PublicJob & { tenantId: string; requestKey: string; prompt: string; negativePrompt?: string; promptVersion?: string; ratio?: string; refreshCount: number };
@@ -263,6 +274,80 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
         .send(asset.bytes);
     } catch {
       return reply.code(404).send({ error: "media_asset_not_found" });
+    }
+  });
+
+  /**
+   * LQ-32：合成成片。逐镜出片是**无声**的（视频模型不下发 audio），所以「一键成片」
+   * 真正能交付一条完整片子，必须支持把逐镜画面拼起来并混入门店自己的音轨。
+   * 合片与混音全部走本机 ffmpeg，不调用外部付费接口，因此不额外扣积分。
+   */
+  app.post<{ Body: z.infer<typeof composeRequest> }>("/lanqi/media/compose", async (request, reply) => {
+    const context = await resolveRequestContext(request.headers);
+    const parsed = composeRequest.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: "invalid_compose_request", message: "合成参数不完整，请刷新页面后重试。" });
+    try {
+      const compose = await composeLanqiShots({
+        tenantId: context.tenantId,
+        shotJobIds: parsed.data.shotJobIds,
+        audioFileId: parsed.data.audioFileId,
+        audioRightsConfirmed: parsed.data.audioRightsConfirmed,
+        requestKey: parsed.data.requestKey,
+      });
+      if (!compose.idempotent) {
+        request.log.info({
+          event: "lanqi_media.composed",
+          tenantId: context.tenantId,
+          composeFingerprint: compose.composeId.slice(0, 8),
+          shotCount: compose.shotCount,
+          audioIncluded: compose.audioIncluded,
+          audioSource: compose.audioSource ?? "none",
+          durationSeconds: compose.durationSeconds,
+          bytes: compose.bytes,
+        });
+      }
+      return { compose };
+    } catch (error) {
+      if (error instanceof LanqiComposeError) {
+        request.log.warn({ event: "lanqi_media.compose_rejected", tenantId: context.tenantId, errorCode: error.code });
+        return reply.code(error.status).send({ error: error.code, message: error.message });
+      }
+      request.log.error({ event: "lanqi_media.compose_error", tenantId: context.tenantId, errorCode: error instanceof Error ? error.message : "unknown" });
+      return reply.code(502).send({ error: "compose_failed", message: "合成失败，本次没有产出成片，请重试。" });
+    }
+  });
+
+  app.get<{ Params: { composeId: string } }>("/lanqi/media/compose/:composeId", async (request, reply) => {
+    const context = await resolveRequestContext(request.headers);
+    if (!/^cmp-[A-Za-z0-9]{8,64}$/.test(request.params.composeId)) return reply.code(404).send({ error: "compose_not_found" });
+    try {
+      const asset = await readLanqiMediaAsset({ tenantId: context.tenantId, jobId: request.params.composeId });
+      return reply.header("Content-Type", asset.metadata.contentType).header("Cache-Control", "private, max-age=3600").send(asset.bytes);
+    } catch (error) {
+      request.log.warn({
+        event: "lanqi_media.compose_read_failed",
+        tenantId: context.tenantId,
+        composeFingerprint: request.params.composeId.slice(0, 8),
+        errorCode: error instanceof Error ? error.message : "unknown_compose_read_error",
+      });
+      return reply.code(404).send({ error: "compose_not_found" });
+    }
+  });
+
+  app.get<{ Params: { composeId: string } }>("/lanqi/media/compose/:composeId/download", async (request, reply) => {
+    const context = await resolveRequestContext(request.headers);
+    if (!/^cmp-[A-Za-z0-9]{8,64}$/.test(request.params.composeId)) return reply.code(404).send({ error: "compose_not_found" });
+    try {
+      const asset = await readLanqiMediaAsset({ tenantId: context.tenantId, jobId: request.params.composeId });
+      const fileName = `lanqi-composed-${request.params.composeId.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 24)}.mp4`;
+      request.log.info({ event: "lanqi_media.composed_downloaded", tenantId: context.tenantId, composeFingerprint: request.params.composeId.slice(0, 8) });
+      return reply
+        .header("Content-Type", asset.metadata.contentType)
+        .header("Content-Disposition", `attachment; filename="${fileName}"`)
+        .header("Cache-Control", "private, no-store")
+        .send(asset.bytes);
+    } catch {
+      return reply.code(404).send({ error: "compose_not_found" });
     }
   });
 

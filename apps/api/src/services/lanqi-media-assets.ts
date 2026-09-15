@@ -17,7 +17,15 @@ export type LanqiMediaAssetMetadata = {
   selectedAt?: string;
   savedAt?: string;
   retention: "tenant_owned";
-  source: "provider" | "controlled_mock";
+  source: "provider" | "controlled_mock" | "composed";
+  /** 仅合成成片（LQ-32）使用：这条成片是否带音轨、由几镜拼成、用了哪种音轨来源。 */
+  composed?: {
+    shotCount: number;
+    audioIncluded: boolean;
+    audioSource?: "audio_file" | "video_audio_track";
+    durationSeconds: number;
+    requestKey: string;
+  };
 };
 
 export async function persistLanqiProviderImage(params: { tenantId: string; jobId: string; sourceUrl: string }): Promise<LanqiMediaAssetMetadata> {
@@ -40,6 +48,45 @@ export async function persistLanqiMockImage(params: { tenantId: string; jobId: s
   const [width, height] = mockCanvas(params.ratio);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff8ed"/><stop offset="1" stop-color="#ef8a3a"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><circle cx="${Math.round(width * .76)}" cy="${Math.round(height * .25)}" r="${Math.round(Math.min(width, height) * .18)}" fill="#fff" opacity=".55"/><rect x="${Math.round(width * .08)}" y="${Math.round(height * .62)}" width="${Math.round(width * .84)}" height="${Math.round(height * .24)}" rx="28" fill="#fff" opacity=".9"/><text x="${Math.round(width * .12)}" y="${Math.round(height * .7)}" font-family="sans-serif" font-size="${Math.max(22, Math.round(width * .035))}" font-weight="700" fill="#713410">${label}</text><text x="${Math.round(width * .12)}" y="${Math.round(height * .77)}" font-family="sans-serif" font-size="${Math.max(16, Math.round(width * .022))}" fill="#7a5b46">${title}</text><text x="${Math.round(width * .12)}" y="${Math.round(height * .83)}" font-family="sans-serif" font-size="${Math.max(14, Math.round(width * .018))}" fill="#9a7358">零费用流程验收 · 不代表真实模型画质</text></svg>`;
   return writeAsset({ tenantId: params.tenantId, jobId: params.jobId, bytes: Buffer.from(svg), contentType: "image/svg+xml", source: "controlled_mock" });
+}
+
+/**
+ * LQ-32 合成成片落盘：拼接 + 混音由本地 ffmpeg 完成，字节已经在本机内存里，
+ * 不再走 provider 下载，但仍与图片 / 逐镜视频走**同一条租户隔离落盘链路**。
+ */
+export async function persistLanqiComposedVideo(params: {
+  tenantId: string;
+  jobId: string;
+  bytes: Buffer;
+  composed: NonNullable<LanqiMediaAssetMetadata["composed"]>;
+}): Promise<LanqiMediaAssetMetadata> {
+  if (env.LANQI_MEDIA_ASSET_STORAGE !== "local") throw new Error("media_asset_storage_not_ready");
+  if (params.bytes.length === 0) throw new Error("media_asset_invalid_size");
+  if (params.bytes.subarray(4, 8).toString("latin1") !== "ftyp") throw new Error("media_asset_invalid_container");
+  return writeAsset({
+    tenantId: params.tenantId,
+    jobId: params.jobId,
+    bytes: params.bytes,
+    contentType: "video/mp4",
+    source: "composed",
+    composed: params.composed,
+  });
+}
+
+export async function readLanqiComposeIndex(params: { tenantId: string; requestKey: string }): Promise<{ composeId: string } | undefined> {
+  try {
+    const raw = JSON.parse(await readFile(composeIndexPath(params.tenantId, params.requestKey), "utf8")) as { composeId?: string };
+    return raw.composeId ? { composeId: raw.composeId } : undefined;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+export async function writeLanqiComposeIndex(params: { tenantId: string; requestKey: string; composeId: string }): Promise<void> {
+  const target = composeIndexPath(params.tenantId, params.requestKey);
+  await mkdir(path.dirname(target), { recursive: true });
+  await writeFile(target, JSON.stringify({ composeId: params.composeId, createdAt: new Date().toISOString() }), "utf8");
 }
 
 /** 成片落盘：与图片同一条租户隔离链路，只接受 provider 返回的 MP4。 */
@@ -97,7 +144,7 @@ export function lanqiMediaAssetUrl(jobId: string): string {
   return `/lanqi/media/assets/${encodeURIComponent(jobId)}`;
 }
 
-async function writeAsset(params: { tenantId: string; jobId: string; bytes: Buffer; contentType: LanqiMediaAssetMetadata["contentType"]; source: LanqiMediaAssetMetadata["source"] }): Promise<LanqiMediaAssetMetadata> {
+async function writeAsset(params: { tenantId: string; jobId: string; bytes: Buffer; contentType: LanqiMediaAssetMetadata["contentType"]; source: LanqiMediaAssetMetadata["source"]; composed?: LanqiMediaAssetMetadata["composed"] }): Promise<LanqiMediaAssetMetadata> {
   assertJobId(params.jobId);
   const base = assetBase(params.tenantId, params.jobId);
   await mkdir(path.dirname(base), { recursive: true });
@@ -113,9 +160,17 @@ async function writeAsset(params: { tenantId: string; jobId: string; bytes: Buff
     createdAt: new Date().toISOString(),
     retention: "tenant_owned",
     source: params.source,
+    ...(params.composed ? { composed: params.composed } : {}),
   };
   await writeFile(`${base}.json`, JSON.stringify(metadata, null, 2), "utf8");
   return metadata;
+}
+
+/** 合成幂等索引：按租户 + requestKey 记住「这一组镜次只合成一次」。 */
+function composeIndexPath(tenantId: string, requestKey: string): string {
+  if (!/^[A-Za-z0-9_-]{12,120}$/.test(requestKey)) throw new Error("invalid_compose_request_key");
+  const root = path.resolve(env.UPLOAD_DIR, "lanqi-media", tenantKey(tenantId), "compose-index");
+  return path.resolve(root, `${requestKey}.json`);
 }
 
 function assetBase(tenantId: string, jobId: string): string {

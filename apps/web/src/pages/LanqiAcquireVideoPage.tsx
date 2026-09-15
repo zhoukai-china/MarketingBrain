@@ -105,6 +105,12 @@ const CAST_ANGLES = [
 const MAX_IMGS = 9;
 const MAX_AUDIOS = 3;
 const MAX_SEC = 15;
+/**
+ * LQ-32 音轨：门店自己上传的一段音频（BGM / 口播 / 环境音），
+ * 也可以上传一段带声音的视频，由后端 ffmpeg 抽出其中的声音当音轨。
+ */
+const AUDIO_MAX_MB = 20;
+const AUDIO_RIGHTS_TEXT = "我拥有这段音频 / 视频的使用权，或已取得授权，同意把它作为本次成片的音轨用于门店宣传。";
 
 const SCRIPT_DEMO =
   "很多人问我，开了十六年的美业店，到底靠什么活下来。其实没什么秘诀，就是把每一次护理都做扎实。我们的手法讲究先看肤质再上产品，一次护理四十分钟，全程不推销。店里用的精华套盒，都是我自己先试过三个月的。如果你也在为皮肤状态发愁，欢迎来店里坐坐，我们免费给你做一次肤质检测。";
@@ -179,7 +185,16 @@ interface StoryboardResult {
 interface CastCard { id: number; name: string; imgs: (File | null)[] }
 interface SceneCard { id: number; name: string; imgs: File[] }
 interface PropCard { id: number; name: string; img: File | null }
-interface AudioCard { id: number; name: string; kind: string; file: string | null }
+interface AudioCard {
+  id: number;
+  name: string;
+  kind: string;
+  /** 展示用的文件名（未上传为 null）。 */
+  file: string | null;
+  /** 平台文件 id（`POST /files` 返回），合成成片时用它取音轨。 */
+  fileId: string | null;
+  mediaKind: "audio" | "video" | null;
+}
 
 const AUDIO_KINDS = [
   { k: "bgm", n: "BGM 配乐", ico: "🎵" },
@@ -1598,7 +1613,11 @@ function ScriptMode({
   const [casts, setCasts] = useState<CastCard[]>([{ id: 1, name: "老板本人", imgs: [null, null, null] }]);
   const [scenes, setScenes] = useState<SceneCard[]>([{ id: 1, name: "门店前台", imgs: [] }]);
   const [props, setProps] = useState<PropCard[]>([]);
-  const [audios, setAudios] = useState<AudioCard[]>([{ id: 1, name: "轻柔钢琴 BGM", kind: "bgm", file: null }]);
+  const [audios, setAudios] = useState<AudioCard[]>([{ id: 1, name: "轻柔钢琴 BGM", kind: "bgm", file: null, fileId: null, mediaKind: null }]);
+  const [audioTrackId, setAudioTrackId] = useState(1);
+  const [audioRights, setAudioRights] = useState(false);
+  const [audioBusy, setAudioBusy] = useState(0);
+  const [composeState, setComposeState] = useState<{ status: "idle" | "running" | "succeeded" | "failed"; objectUrl?: string; message?: string; durationSeconds?: number; audioIncluded?: boolean }>({ status: "idle" });
   const [refs, setRefs] = useState<File[]>([]);
   const [portraitOpen, setPortraitOpen] = useState(false);
   const [portraitOk, setPortraitOk] = useState(false);
@@ -1613,6 +1632,10 @@ function ScriptMode({
   const totalSeconds = shots.reduce((sum, shot) => sum + shot.seconds, 0);
   const renderedCount = shots.filter((shot) => shotsRender[shot.no]?.status === "succeeded").length;
   const usedCredits = shots.reduce((sum, shot) => sum + (shotsRender[shot.no]?.creditCost ?? 0), 0);
+  /** 本片音轨：用户显式选中的那一段；没选中时退回第一条已上传的音轨。 */
+  const activeAudio = audios.find((item) => item.id === audioTrackId && item.fileId) ?? audios.find((item) => item.fileId) ?? null;
+  const succeededShotIds = shots.map((shot) => shotsRender[shot.no]).filter((item) => item?.status === "succeeded" && item.jobId).map((item) => item.jobId as string);
+  const allShotsReady = shots.length > 0 && succeededShotIds.length === shots.length && shots.length >= 2;
   const sceneNames = scenes.map((item) => item.name).filter(Boolean);
   const propNames = props.map((item) => item.name).filter(Boolean);
   const castNames = casts.map((item) => item.name).filter(Boolean);
@@ -1917,6 +1940,98 @@ function ScriptMode({
     anchor.click();
   }, [shotsRender]);
 
+  /**
+   * LQ-32 音轨上传：音频直接用；视频由后端 ffmpeg 抽音。
+   * 上传走平台既有 `POST /files`，租户隔离与文件归属沿用同一套。
+   */
+  const uploadAudioTrack = useCallback(
+    async (cardId: number, file: File) => {
+      const isVideo = file.type.startsWith("video/");
+      const isAudio = file.type.startsWith("audio/");
+      if (!isAudio && !isVideo) {
+        setError("音轨只支持音频文件（MP3 / WAV / M4A），或一段带声音的 MP4 / MOV。");
+        return;
+      }
+      if (file.size > AUDIO_MAX_MB * 1024 * 1024) {
+        setError(`音轨文件不能超过 ${AUDIO_MAX_MB}MB，请先裁短或压缩再上传。`);
+        return;
+      }
+      setError("");
+      setAudioBusy(cardId);
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        const response = await fetch(apiPath("/files"), { method: "POST", headers: uploadHeaders(), body: form });
+        const body = await readResponse(response);
+        const fileId = body?.file?.id;
+        if (!fileId) throw new Error("音轨上传失败，请重试。");
+        setAudios((current) =>
+          current.map((item) =>
+            item.id === cardId ? { ...item, file: file.name, fileId, mediaKind: isVideo ? "video" : "audio" } : item
+          )
+        );
+        setAudioTrackId(cardId);
+        flash(isVideo ? `已上传「${file.name}」，成片时会抽取其中的声音作为音轨。` : `已上传音轨「${file.name}」。`);
+      } catch (cause) {
+        setError(cause instanceof Error && cause.message ? cause.message : "音轨上传失败，请重试。");
+      } finally {
+        setAudioBusy(0);
+      }
+    },
+    [flash]
+  );
+
+  /**
+   * LQ-32 合成成片：把已出片的镜次按分镜顺序拼成一条，并混入本片音轨。
+   * 合片与混音都是本机 ffmpeg，不额外扣积分；没出片 / 没授权时不发请求。
+   */
+  const composeFilm = useCallback(async () => {
+    if (!allShotsReady) {
+      setError("先把每一镜都出片成功，再合成整条成片。");
+      return;
+    }
+    if (activeAudio?.fileId && !audioRights) {
+      setError("带音轨的成片要先勾选音频授权（你拥有这段音频 / 视频的使用权）。");
+      return;
+    }
+    setError("");
+    setComposeState({ status: "running", message: "正在把各镜拼成一条并混入音轨，请别关页面…" });
+    try {
+      const requestKey = (window.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 60);
+      const payload: Record<string, unknown> = { shotJobIds: succeededShotIds, requestKey };
+      if (activeAudio?.fileId) {
+        payload.audioFileId = activeAudio.fileId;
+        payload.audioRightsConfirmed = true;
+      }
+      const response = await fetch(apiPath("/lanqi/media/compose"), { method: "POST", headers: authHeaders(), body: JSON.stringify(payload) });
+      const body = await readResponse(response);
+      const composeId = body?.compose?.composeId;
+      if (!composeId) throw new Error("合成没有返回结果，请重试。");
+      const assetResponse = await fetch(apiPath(`/lanqi/media/compose/${composeId}`), { headers: authHeaders() });
+      if (!assetResponse.ok) throw new Error("成片已合成，但这次没取回来。重新点一次「合成成片」不会重复扣积分。");
+      const blob = await assetResponse.blob();
+      if (!blob.size) throw new Error("成片已合成，但这次没取回来。重新点一次「合成成片」不会重复扣积分。");
+      setComposeState({
+        status: "succeeded",
+        objectUrl: URL.createObjectURL(blob),
+        message: body.compose.notice,
+        durationSeconds: body.compose.durationSeconds,
+        audioIncluded: Boolean(body.compose.audioIncluded),
+      });
+      flash("成片已合成，可以播放或下载整条片子。");
+    } catch (cause) {
+      setComposeState({ status: "failed", message: cause instanceof Error && cause.message ? cause.message : "合成失败，请重试。" });
+    }
+  }, [allShotsReady, activeAudio, audioRights, succeededShotIds, flash]);
+
+  const downloadComposed = useCallback(() => {
+    if (!composeState.objectUrl) return;
+    const anchor = document.createElement("a");
+    anchor.href = composeState.objectUrl;
+    anchor.download = "兰琪一键成片.mp4";
+    anchor.click();
+  }, [composeState.objectUrl]);
+
   return (
     <div className="lq-vd__main">
       <section className="lq-vd__left">
@@ -2055,7 +2170,8 @@ function ScriptMode({
 
             <h3 className="lq-vd__card-title" style={{ marginTop: 18 }}>③ 音频卡 <span className="tag opt">可选 · ≤{MAX_AUDIOS} 段</span></h3>
             <p className="lq-vd__card-sub">
-              本期成片先出<b>无声</b>版本：镜头画面是真实生成的，背景音乐 / 口播配音这一段还没接通，所以音频卡先只做占位记录，不会进成片。
+              画面由 AI 逐镜生成（模型只出<b>无声</b>画面），声音由你提供的音轨混进去：<b>上传一段音频</b>（MP3 / WAV / M4A），或<b>上传一段带声音的视频</b>，
+              平台会把其中的声音抽出来当音轨。成片只会混<b>一条</b>音轨，请在你实际要用的那一段上点「设为本片音轨」。
             </p>
             {audios.map((audio) => (
               <div className="lq-vd__sg" key={audio.id}>
@@ -2082,23 +2198,64 @@ function ScriptMode({
                     </button>
                   ))}
                 </div>
-                <div className="aud-file">{audio.file ? `已记录 · ${audio.file}` : "未记录 · 本期成片无声"}</div>
+                <div className="aud-file">{audio.file ? `已记录 · ${audio.file}` : "未记录 · 未上传音轨"}</div>
                 <FilePick
-                  label="音频上传暂未接通（本期成片无声）"
-                  accept="audio/*"
-                  disabled
-                  onPick={(files) => setAudios((current) => current.map((item) => (item.id === audio.id ? { ...item, file: files[0]?.name ?? null } : item)))}
+                  label={
+                    audioBusy === audio.id
+                      ? "上传中…"
+                      : audio.file
+                        ? `已上传 · ${audio.file}（点此更换）`
+                        : `上传音频 / 带声音的视频（≤${AUDIO_MAX_MB}MB）`
+                  }
+                  accept="audio/*,video/*"
+                  disabled={audioBusy === audio.id}
+                  onPick={(files) => {
+                    const file = files[0];
+                    if (file) void uploadAudioTrack(audio.id, file);
+                  }}
                 />
+                {audio.file ? (
+                  <div className="lq-vd__chips" style={{ marginTop: 8 }}>
+                    <button
+                      type="button"
+                      className={`lq-vd__chip${audioTrackId === audio.id ? " on" : ""}`}
+                      onClick={() => setAudioTrackId(audio.id)}
+                    >
+                      {audioTrackId === audio.id ? "✅ 本片音轨" : "设为成片音轨"}
+                    </button>
+                    <button
+                      type="button"
+                      className="lq-vd__chip"
+                      onClick={() => {
+                        setAudios((current) =>
+                          current.map((item) => (item.id === audio.id ? { ...item, file: null, fileId: null, mediaKind: null } : item))
+                        );
+                        setAudioRights(false);
+                      }}
+                    >
+                      🗑 移除这段音轨
+                    </button>
+                    {audio.mediaKind === "video" ? <span className="lq-vd__pill on">🎧 抽音轨</span> : null}
+                  </div>
+                ) : null}
               </div>
             ))}
             <button
               className="lq-vd__btn ghost"
               type="button"
               disabled={audios.length >= MAX_AUDIOS}
-              onClick={() => setAudios((current) => [...current, { id: current.length + 1, name: "", kind: "ambient", file: null }])}
+              onClick={() => setAudios((current) => [...current, { id: current.length + 1, name: "", kind: "ambient", file: null, fileId: null, mediaKind: null }])}
             >
               + 加一段音频（{audios.length}/{MAX_AUDIOS}）
             </button>
+            {activeAudio?.fileId ? (
+              <label className="lq-vd__consent">
+                <input type="checkbox" checked={audioRights} onChange={(event) => setAudioRights(event.target.checked)} />
+                <span className="cb-txt">{AUDIO_RIGHTS_TEXT}</span>
+              </label>
+            ) : (
+              <div className="lq-vd__note">不上传音轨也能出片，但成片会是无声的。想带 BGM / 口播，就上传一段音轨并勾选授权。</div>
+            )}
 
             <h3 className="lq-vd__card-title" style={{ marginTop: 18 }}>④ 道具卡 <span className="tag opt">可选</span></h3>
             <p className="lq-vd__card-sub">出镜的产品、仪器、工具。不传也能生成，传了画面里才认得出是你家的东西。</p>
@@ -2178,7 +2335,14 @@ function ScriptMode({
 
             <h3 className="lq-vd__card-title" style={{ marginTop: 18 }}>⑧ 生成选项</h3>
             <div className="lq-vd__chips">
-              <span className="lq-vd__pill on">🔇 无声成片 <span className="hint">本期只出画面，不带 BGM / 配音</span></span>
+              {activeAudio?.fileId ? (
+                <span className="lq-vd__pill on">
+                  {activeAudio.mediaKind === "video" ? "🎧 抽音轨成片" : "🔊 带音轨成片"}{" "}
+                  <span className="hint">{activeAudio.file} · 成片混这一条音轨（不额外扣积分）</span>
+                </span>
+              ) : (
+                <span className="lq-vd__pill on">🔇 无声成片 <span className="hint">没上传音轨，成片只有画面</span></span>
+              )}
               <span className="lq-vd__pill on">🔒 人物一致性锁定 <span className="hint">每镜都用同一张人物首帧图</span></span>
             </div>
             <div className="lq-vd__note">
@@ -2356,13 +2520,20 @@ function ScriptMode({
               <div className="lq-vd__kv"><span className="k">画质档位</span><span className="v">{tier.n} · {tier.res}</span></div>
               <div className="lq-vd__kv"><span className="k">规格说明</span><span className="v">{tier.out}</span></div>
               <div className="lq-vd__kv"><span className="k">画面风格</span><span className="v">{SCRIPT_STYLES.find((item) => item.k === styleKey)?.n}</span></div>
-              <div className="lq-vd__kv"><span className="k">音频</span><span className="v">本期成片无声（不带 BGM / 配音）</span></div>
+              <div className="lq-vd__kv">
+                <span className="k">音轨</span>
+                <span className="v">
+                  {activeAudio?.fileId
+                    ? `${activeAudio.mediaKind === "video" ? "由「" + activeAudio.file + "」抽取声音" : activeAudio.file} · ${audioRights ? "已确认授权" : "⚠ 未确认授权"}`
+                    : "无声成片（未上传音轨）"}
+                </span>
+              </div>
               <div className="lq-vd__kv"><span className="k">一致性锁定</span><span className="v">每镜复用同一张人物正面照当首帧图</span></div>
               <div className="lq-vd__kv"><span className="k">AI 标识</span><span className="v">起始画面显式标识</span></div>
             </div>
             <div className="lq-vd__note">
-              逐镜按 <b>{SHOT_TIER_RES[tierKey] ?? "720P"}</b> · 各镜实际时长出 <b>无声</b>成片。每镜都复用同一张人物正面照当首帧图，出镜人才不会换脸。
-              费用在每一次生成前先给你看清楚，确认后才创建任务；没出成的镜次预留积分会自动退回。
+              逐镜按 <b>{SHOT_TIER_RES[tierKey] ?? "720P"}</b> 出片：模型只出<b>无声画面</b>，声音在「合成成片」这一步混进你上传的音轨（合片与混音不额外扣积分）。
+              每镜都复用同一张人物正面照当首帧图，出镜人才不会换脸。费用在每一次生成前先给你看清楚，确认后才创建任务；没出成的镜次预留积分会自动退回。
             </div>
             <div className="lq-vd__sec-title" style={{ marginTop: 14 }}>
               分镜出片 <span className="lq-vd__badge">{renderedCount}/{shots.length} 镜已出片</span>
@@ -2427,6 +2598,50 @@ function ScriptMode({
                     ? "🎬 全部已出片，重新逐镜生成"
                     : "🎬 逐镜生成整片"}
             </button>
+            <div className="lq-vd__card" style={{ marginTop: 14 }} data-lq-vd-compose>
+              <h3 className="lq-vd__card-title">🧩 合成成片 <span className="tag green">按分镜拼接 + 混音</span></h3>
+              <p className="lq-vd__card-sub">
+                各镜出片成功后，点一次就把它们按分镜顺序拼成<b>一条整片</b>
+                {activeAudio?.fileId ? "，并把你的音轨混进去" : "（你还没上传音轨，这条成片会是无声的）"}
+                。合片与混音是本机完成，<b>不额外扣积分</b>。
+              </p>
+              <div className="lq-vd__kv"><span className="k">参与合成</span><span className="v">{succeededShotIds.length} / {shots.length} 镜已出片</span></div>
+              <div className="lq-vd__kv">
+                <span className="k">音轨</span>
+                <span className="v">
+                  {activeAudio?.fileId
+                    ? `${activeAudio.mediaKind === "video" ? "由「" + activeAudio.file + "」抽音" : activeAudio.file}${audioRights ? "" : " · 未确认授权"}`
+                    : "无 · 成片无声"}
+                </span>
+              </div>
+              <button
+                className="lq-vd__btn primary block"
+                type="button"
+                data-lq-vd-compose-btn
+                disabled={composeState.status === "running" || !allShotsReady}
+                onClick={() => void composeFilm()}
+              >
+                {composeState.status === "running"
+                  ? "正在合成整条成片，请不要关闭页面…"
+                  : allShotsReady
+                    ? "🧩 合成成片（拼接 + 混音）"
+                    : `还差 ${Math.max(0, shots.length - succeededShotIds.length)} 镜没出片`}
+              </button>
+              {composeState.message ? <div className="lq-vd__note">{composeState.message}</div> : null}
+              {composeState.objectUrl ? (
+                <>
+                  <video src={composeState.objectUrl} controls playsInline style={{ width: "100%", marginTop: 8, borderRadius: 10, background: "#000" }} />
+                  <div className="lq-vd__kv">
+                    <span className="k">整条成片</span>
+                    <span className="v">
+                      {composeState.durationSeconds ? `${composeState.durationSeconds} 秒 · ` : ""}
+                      {composeState.audioIncluded ? "带音轨" : "无声"}
+                    </span>
+                  </div>
+                  <button className="lq-vd__btn ghost" type="button" onClick={downloadComposed}>⬇ 下载整条成片</button>
+                </>
+              ) : null}
+            </div>
             <div className="lq-vd__field">
               <label>🔄 不满意？一键重新生成，并指出要调整哪里</label>
               <div className="lq-vd__chips">

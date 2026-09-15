@@ -25,6 +25,8 @@ function read(relativePath) {
 const livePage = read("apps/web/src/pages/LanqiAcquireLivePage.tsx");
 const methodsPage = read("apps/web/src/pages/LanqiAcquireMethodsPage.tsx");
 const videoPage = read("apps/web/src/pages/LanqiAcquireVideoPage.tsx");
+const composeService = read("apps/api/src/services/lanqi-media-compose.ts");
+const mediaRoute = read("apps/api/src/routes/lanqi-media-generation.ts");
 const momentsCss = read("apps/web/src/styles/lanqi-moments.css");
 const advisorRulesSmoke = read("scripts/lanqi-advisor-rules-smoke.ts");
 const liveServiceSmoke = read("scripts/lanqi-live-service-smoke.ts");
@@ -176,6 +178,31 @@ requireMatch(momentsCss, /\.lq-vd__actions\s*\{/, "video：「更换 / 删除」
 requireMatch(momentsCss, /\.lq-vd__btn\.danger/, "video：删除按钮有危险色样式");
 requireMatch(videoPage, /code === "product_access_denied"/, "video：权益拦截（403）单独给「未开通能力」的下一步，不混进「素材没填对」");
 requireMatch(videoPage, /error\.code = typeof body\.error === "string"/, "video：接口错误码带进前端，供按码给下一步");
+
+// ⑨ LQ-32 一键成片音频接通：画面由模型出（只出声），声音必须来自门店自己的音轨，
+//    合成 = 按分镜拼接 + 混音，本机完成、不额外扣积分。页面不许再写「音频上传暂未接通」。
+forbidMatch(videoPage, /本期成片无声|音频上传暂未接通/, "video：音频卡不再写「本期成片无声 / 上传暂未接通」");
+requireMatch(videoPage, /const AUDIO_MAX_MB = \d+/, "video：音轨有明确大小上限常量");
+requireMatch(videoPage, /accept="audio\/\*,video\/\*"/, "video：音轨支持上传音频，也支持上传带声音的视频");
+requireMatch(videoPage, /uploadAudioTrack/, "video：音轨走真实上传（POST /files 拿 fileId）");
+requireMatch(videoPage, /抽取其中的声音作为音轨/, "video：上传视频时说明「平台抽取其中声音当音轨」");
+requireMatch(videoPage, /设为本片音轨/, "video：多次上传时必须显式指定本片音轨");
+requireMatch(videoPage, /AUDIO_RIGHTS_TEXT/, "video：音轨有独立的使用权授权文案");
+requireMatch(videoPage, /payload\.audioRightsConfirmed = true/, "video：带音轨合成时向后端声明已确认授权");
+requireMatch(videoPage, /apiPath\("\/lanqi\/media\/compose"\)/, "video：合成走新的 /lanqi/media/compose 接口");
+requireMatch(videoPage, /data-lq-vd-compose-btn/, "video：合成主按钮有稳定钩子，供验收脚本断言");
+requireMatch(videoPage, /不额外扣积分/, "video：页面明确写出合片 / 混音不额外扣积分");
+requireMatch(videoPage, /downloadComposed/, "video：合成后可下载整条成片");
+requireMatch(mediaRoute, /"\/lanqi\/media\/compose"/, "route：新增合成接口");
+requireMatch(mediaRoute, /"\/lanqi\/media\/compose\/:composeId"/, "route：成片按 composeId 读取（带登录态）");
+requireMatch(mediaRoute, /compose\/:composeId"[\s\S]{0,300}resolveRequestContext\(request\.headers\)/, "route：成片读取先解析请求上下文（租户隔离）");
+requireMatch(composeService, /audio_rights_required/, "compose：带音轨未授权必须拒绝");
+requireMatch(composeService, /shots_not_ready/, "compose：有镜次未出片必须拒绝");
+requireMatch(composeService, /"-stream_loop", "-1"/, "compose：音轨短于画面时循环补齐");
+requireMatch(composeService, /"-shortest"/, "compose：成片以画面长度为准，不用音轨长度");
+requireMatch(composeService, /"-c:a", "aac"/, "compose：混音输出 AAC 音轨");
+requireMatch(composeService, /tenantId: input\.tenantId/, "compose：查镜次 / 查音轨文件都必须带租户条件");
+forbidMatch(composeService, /findMany\(\{\s*where:\s*\{\s*id:\s*\{\s*in:\s*shotJobIds\s*\}\s*\}\s*\}\)/, "compose：禁止只按 jobId 查镜次（必须带租户）");
 
 console.log(`\nlanqi_acquire_ui_contract_smoke: ${failures === 0 ? "PASS" : "FAIL"} (${results.length - failures} passed / ${failures} failed)`);
 process.exit(failures === 0 ? 0 : 1);

@@ -1,5 +1,17 @@
 # Bug 回归台账
 
+## QA-20260915-005：兰琪浏览器验收「选到了跑不起来的 Chromium」→ 每次都以 `DevTools 端口未就绪` 假失败（P2，已修；门禁能真跑）
+
+- 触发（本轮 LQ-32 测试实例验收时）：`pnpm.cmd lanqi:acquire-instance-acceptance` 连续两次在 20 秒后抛 `Chromium DevTools 端口未就绪。`，看现象像「被测页面/实例坏了」，而实例侧 `health=200`、页面在浏览器里正常。
+- 复现与取证（只读，先排除被测面）：
+  1. 端口侧：`Get-NetTCPConnection -LocalPort 9341 -State Listen` 为空（没有残留监听），换 `--port 9371` 仍同样报错 → 不是端口占用；
+  2. 手动探活：用系统 Chrome（`C:/Program Files/Google/Chrome/Application/chrome.exe`）加同一组参数（`--headless=new --remote-debugging-port --user-data-dir`）8 秒内 `GET /json/version` **200**（Chrome/152）；
+  3. 用脚本自己的候选表第一个路径（`%LOCALAPPDATA%\ms-playwright\chromium-1234\chrome-win64\chrome.exe`）同样参数实测 **`chrome exit: 3` + `ECONNREFUSED`**。
+- 根因（单一）：`scripts/lanqi-acquire-instance-acceptance.mjs` 的 `findChrome()` **只判断文件是否存在**，而该 Playwright Chromium 已损坏（启动即退出）；它排在候选表第一位，于是永远选中它，CDP 端口永远不监听 → 每次验收在第一步就假失败，看起来像产品坏了。属**测试工具缺陷**，不是产品缺陷（同一版产物手工用真 Chrome 打开正常）。
+- 最小修复：`findChrome()` 逐个候选用 `spawnSync(candidate, ["--version"])` **探活**（`status === 0 && !error` 才算可用），不可用的跳过并在报错信息里列出探测结果；不改任何断言语义、不改被测页面。
+- 复跑（修后）：测试实例 `node scripts/lanqi-acquire-instance-acceptance.mjs --port 9371` **42 项 / 失败 0**（含本轮新增 4 条音频相关断言）；生产只读接口探针 `POST|GET /os-v2/api/lanqi/media/compose` 匿名均 **401**。
+- 边界与教训：这是一条「假失败」型门禁缺陷——**报错信息把原因指向被测对象**（端口未就绪），实际原因在测试工具选择逻辑里。以后给验收脚本加任何「选二进制 / 选环境」的分支，必须**探活而非看文件是否存在**；遇到「实例明明能打开但脚本说端口没起来」时先怀疑候选表而不是被测页面。
+
 ## QA-20260915-004：保留网址契约的 `mustNotInMain` 是**哑断言**（写多少都不会红）+ 旧地址浏览器验收共用会话导致的假阴性（P2，已修；门禁已能真红）
 
 - 触发（写本轮契约时自测发现的）：给 `/workbench 与 /app` 加「不得再经已下线的 `/my-ai` 中转」断言后，**故意把 `main.tsx` 改回旧写法**（`getAppPath("/my-ai")`），跑 `pnpm.cmd platform:route-contract-smoke` 仍然 **PASS 105/0**——门禁对这条要求根本没有执行。

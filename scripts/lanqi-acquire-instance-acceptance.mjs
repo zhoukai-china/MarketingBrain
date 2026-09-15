@@ -20,6 +20,7 @@
  * 不产生模型调用与费用。
  */
 import { spawn } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -58,11 +59,23 @@ const CHROME_CANDIDATES = [
   "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
 ];
 
+/**
+ * 选一个**真的能启动**的浏览器：只判断文件存在是不够的。
+ * 2026-09-15 实测 `%LOCALAPPDATA%\ms-playwright\chromium-1234\chrome-win64\chrome.exe`
+ * 存在但启动即退出（exit 3，CDP 端口永远不监听），而它排在候选表第一位
+ * → 浏览器验收会以「Chromium DevTools 端口未就绪」假失败，看起来像被测页面坏了。
+ * 现在逐个用 `--version` 探活，只选能跑起来的那一个。
+ */
 function findChrome() {
+  const probed = [];
   for (const candidate of CHROME_CANDIDATES) {
-    if (candidate && existsSync(candidate)) return candidate;
+    if (!candidate || !existsSync(candidate)) continue;
+    const probe = spawnSync(candidate, ["--version"], { timeout: 15000, windowsHide: true, encoding: "utf8" });
+    const usable = probe.status === 0 && !probe.error;
+    probed.push(`${candidate} => ${usable ? "ok" : `unusable(status=${probe.status ?? "null"})`}`);
+    if (usable) return candidate;
   }
-  throw new Error("未找到可用的 Chromium/Chrome 可执行文件。");
+  throw new Error(`未找到可用的 Chromium/Chrome 可执行文件。${probed.length ? ` 探测结果：${probed.join(" | ")}` : ""}`);
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -675,6 +688,7 @@ async function verifyVideoCopyPage(root, checks, base, label, record) {
     detail: `fill=${filled} click=${clicked} 新增请求=${cp.requestTimeline.length - callsBefore} 候选卡=${cards} 失败说明=${failedClosed}`,
   });
 
+  let reachedStep3 = false;
   if (cards === 3) {
     const picked = await clickButton(root, cp, "用这版");
     let after = "";
@@ -683,10 +697,104 @@ async function verifyVideoCopyPage(root, checks, base, label, record) {
       after = await evaluate(root, cp.sessionId, "document.body?.innerText ?? ''");
       if (after.includes("第 3 步 / 6")) break;
     }
+    reachedStep3 = after.includes("第 3 步 / 6");
     checks.push({
       name: `${label}：用这版直接进第 3 步分镜（没有回头贴文案的路）`,
-      pass: picked === "clicked" && after.includes("第 3 步 / 6") && !after.includes("原样贴进来"),
-      detail: `click=${picked} 命中第3步=${after.includes("第 3 步 / 6")}`,
+      pass: picked === "clicked" && reachedStep3 && !after.includes("原样贴进来"),
+      detail: `click=${picked} 命中第3步=${reachedStep3}`,
+    });
+  }
+
+  /**
+   * LQ-32：一键成片音频接通（拼接 + 混音）。
+   * 这里用真实浏览器验证「音频卡真的能上传」，以及「没出片时点不动合成、也不会偷偷发合成请求」。
+   * 合成本身（ffmpeg 拼接 / 混音 / 循环补齐 / 跨租户）在 `pnpm lanqi:media-compose-smoke` 离线覆盖。
+   */
+  if (reachedStep3) {
+    const toMaterials = await clickButton(root, cp, "下一步：上传素材卡");
+    let materials = "";
+    for (let attempt = 0; attempt < 20; attempt++) {
+      await sleep(500);
+      materials = await evaluate(root, cp.sessionId, "document.body?.innerText ?? ''");
+      if (materials.includes("音频卡")) break;
+    }
+    const audioInput = await evaluate(
+      root,
+      cp.sessionId,
+      `(() => {
+        const el = document.querySelector('input[type=file][accept*="audio"]');
+        return el ? { disabled: el.disabled, accept: el.accept } : null;
+      })()`,
+    );
+    checks.push({
+      name: `${label}：音频卡真的能上传（不再 disabled），且不再写「本期成片无声」`,
+      pass:
+        toMaterials === "clicked" &&
+        Boolean(audioInput) &&
+        audioInput.disabled === false &&
+        materials.includes("上传音频") &&
+        !materials.includes("上传暂未接通") &&
+        !materials.includes("本期成片无声"),
+      detail: `click=${toMaterials} input=${JSON.stringify(audioInput)} 旧文案残留=${materials.includes("本期成片无声")}`,
+    });
+
+    const setFile = await setFileInputFiles(root, cp, 'input[type=file][accept*="audio"]', [VIDEO_FIXTURE]);
+    let uploaded = "";
+    for (let attempt = 0; attempt < 20; attempt++) {
+      await sleep(1000);
+      uploaded = await evaluate(root, cp.sessionId, "document.body?.innerText ?? ''");
+      if (uploaded.includes("本片音轨") || uploaded.includes("上传失败")) break;
+    }
+    checks.push({
+      name: `${label}：上传带声音的视频 → 抽音轨 + 出现音轨授权`,
+      pass: setFile === "set" && uploaded.includes("本片音轨") && uploaded.includes("使用权") && uploaded.includes("抽音轨"),
+      detail: `set=${setFile} 本片音轨=${uploaded.includes("本片音轨")} 授权=${uploaded.includes("使用权")} 抽音轨=${uploaded.includes("抽音轨")}`,
+    });
+
+    /** 音轨授权：带音轨的成片必须先勾这一条，否则后端拒绝合成。 */
+    const rights = await evaluate(
+      root,
+      cp.sessionId,
+      `(() => {
+        const el = document.querySelector("label.lq-vd__consent input[type=checkbox]");
+        if (!el) return null;
+        const before = el.checked;
+        el.click();
+        return { found: true, before, after: el.checked };
+      })()`,
+    );
+    checks.push({
+      name: `${label}：音轨授权勾选真的可勾（带音轨成片的合规前置）`,
+      pass: Boolean(rights) && rights.before === false && rights.after === true,
+      detail: JSON.stringify(rights),
+    });
+
+    /** 进第 5 步（积分预算 / 成片区）：这里才该出现「合成成片」。 */
+    const toSpec = await clickButton(root, cp, "下一步：输出规格");
+    let spec = "";
+    for (let attempt = 0; attempt < 90; attempt++) {
+      await sleep(1000);
+      spec = await evaluate(root, cp.sessionId, "document.body?.innerText ?? ''");
+      if (spec.includes("合成成片") || spec.includes("积分预算")) break;
+    }
+    const composeState = await evaluate(
+      root,
+      cp.sessionId,
+      `(() => {
+        const el = document.querySelector("[data-lq-vd-compose-btn]");
+        return el ? { disabled: el.disabled, text: (el.innerText || "").trim() } : null;
+      })()`,
+    );
+    checks.push({
+      name: `${label}：成片区有「合成成片」入口，未出片时点不动且不提前发合成请求`,
+      pass:
+        toSpec === "clicked" &&
+        Boolean(composeState) &&
+        composeState.disabled === true &&
+        /还差|没出片/.test(composeState.text ?? "") &&
+        /带音轨|抽音轨/.test(spec) &&
+        countRequests(cp, "/lanqi/media/compose") === 0,
+      detail: `click=${toSpec} btn=${JSON.stringify(composeState)} 音轨口径=${/带音轨|抽音轨/.test(spec)} compose请求=${countRequests(cp, "/lanqi/media/compose")}`,
     });
   }
 
