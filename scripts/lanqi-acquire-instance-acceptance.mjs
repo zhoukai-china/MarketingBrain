@@ -29,6 +29,8 @@ import { fileURLToPath } from "node:url";
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 /** LQ-29 验收夹具：本地合成的 8 秒 360×640 竖屏 mp4 + 仓库内 jpg（不含真人、不含客户资料）。 */
 const VIDEO_FIXTURE = path.join(repoRoot, "scripts", "fixtures", "beauty-video-content-av.mp4");
+/** 用户 2026-09-15 反馈「这条片的时长超出当前单条预算上限」——用 20 秒夹具证明：用户端不再有内部预算卡点。 */
+const VIDEO_FIXTURE_20S = path.join(repoRoot, "scripts", "fixtures", "beauty-video-content-20s.mp4");
 const PHOTO_FIXTURE = path.join(repoRoot, "apps", "web", "public", "lanqi-logo.jpg");
 
 const args = process.argv.slice(2);
@@ -572,6 +574,44 @@ async function verifyVideoPage(root, checks, base, label, record) {
 
   const lq29Shot = await root.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true }, vd.sessionId);
   await writeFile(path.join(outDir, "lq29-replication-quote.png"), Buffer.from(lq29Shot.data, "base64"));
+
+  // ── LQ-31（用户 2026-09-15「用户端不设上限，用户有积分就可以使用爆款复刻」）──
+  // 用 20 秒夹具（旧口径 ¥10 上限只能出 16 秒）重传原片再报价：缺口里**不得**再出现
+  // provider_budget_exceeded；积分按 24 积分/秒 计（20 秒 = 480 积分）。
+  await setFileInputFiles(root, vd, 'input[type=file][accept*="video/mp4"]', [VIDEO_FIXTURE_20S]);
+  let twentyUploaded = false;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    await sleep(1000);
+    twentyUploaded = /已上传：beauty-video-content-20s\.mp4/.test(await evaluate(root, vd.sessionId, "document.body?.innerText ?? ''"));
+    if (twentyUploaded) break;
+  }
+  const rightsStillOk = await evaluate(
+    root,
+    vd.sessionId,
+    `(() => { const boxes = [...document.querySelectorAll("label.lq-vd__consent input[type=checkbox]")]; boxes.forEach((box) => { if (!box.checked) box.click(); }); return boxes.length; })()`,
+  );
+  await sleep(600);
+  await clickSelector(root, vd, "button[data-lq-vd-primary]");
+  let twenty = { text: "", gaps: "" };
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    await sleep(1000);
+    twenty = await evaluate(
+      root,
+      vd.sessionId,
+      `(() => ({ text: document.body?.innerText ?? "", gaps: document.querySelector("[data-lq-vd-gaps]")?.getAttribute("data-lq-vd-gaps") ?? "" }))()`,
+    );
+    if (twenty.gaps || /这一版还不能出片|确认并出片/.test(twenty.text)) break;
+  }
+  checks.push({
+    name: `${label}：20 秒原片不再撞内部预算上限（缺口不含 provider_budget_exceeded，积分按 24/秒 计）`,
+    pass:
+      twentyUploaded &&
+      rightsStillOk === 4 &&
+      !twenty.gaps.includes("provider_budget_exceeded") &&
+      // 20 秒 × 24 积分/秒 = 480（该免登录租户没积分，所以缺口应是积分不足）
+      (/insufficient_credits/.test(twenty.gaps) || /480/.test(twenty.text)),
+    detail: `20秒原片已上传=${twentyUploaded} 授权=${rightsStillOk} 缺口=${twenty.gaps || "(无)"} 含480=${/480/.test(twenty.text)}`,
+  });
 
   checks.push({
     name: `${label}：无接口 4xx/5xx、console/page 无错误`,

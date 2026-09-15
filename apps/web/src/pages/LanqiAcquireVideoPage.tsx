@@ -247,9 +247,11 @@ function replicationFailureNotice(error: unknown): string {
  */
 const REPLICATION_GAP_LABELS: Record<string, string> = {
   insufficient_credits: "积分不足，请先充值",
-  provider_budget_exceeded: "这条片的时长超出当前单条预算上限（提高上限或换更短的片）",
-  execution_permit_required: "出片许可没签下来（单批预算）",
-  execution_budget_too_small: "单条预算上限太低，装不下这条片",
+  // 用户 2026-09-15 口径：**用户端不设单条预算上限**，有积分就能出片；
+  // 所以这条缺口现在只会因为「片长超过模型支持的 30 秒」出现，不再是我们自己卡的预算。
+  provider_budget_exceeded: "这条片超过模型支持的时长上限（2–30 秒），请先裁剪再上传",
+  execution_permit_required: "出片许可没签下来，请重试一次",
+  execution_budget_too_small: "服务端出片额度未配置，请联系思潼服务团队",
   secure_staging_required: "安全暂存未就绪",
   server_asset_authorization_required: "素材授权声明未登记",
   controlled_execution_not_enabled: "出片执行未开启"
@@ -515,8 +517,19 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
   const [job, setJob] = useState<{ id: string; status: string } | null>(null);
   const [assetUrl, setAssetUrl] = useState("");
   const requestKeyRef = useRef(newReplicationRequestKey());
-  /** 已登记过素材授权声明的素材对：同一对素材只登记一次（换素材即失效，由幂等键 + 声明 requestKey 决定）。 */
-  const declaredRef = useRef<{ videoFileId: string; portraitFileId: string } | null>(null);
+  /**
+   * 已登记过声明的素材：**按素材各自记账**。换原片时人像没变，就不该把同一条人像再声明一遍
+   * （服务端对同一 fileId 只允许一条声明，重复声明换了依据文件会回 409 —— 页面虽然能继续，
+   * 但会给用户和验收留下无意义的失败请求）。
+   */
+  const declaredRef = useRef<{ video: string | null; portrait: string | null }>({ video: null, portrait: null });
+  /**
+   * 授权依据文件**整场会话只上传一次**：同一素材重复声明时，服务端按 (requestKey, 指纹) 幂等，
+   * 而指纹里含依据文件 id 与到期时间 —— 每次重新上传依据文件会让「换素材后重传同一张人像」
+   * 变成指纹漂移 → 409（功能不受影响，但会留下无意义的 4xx 噪声）。缓存后同一素材的声明输入
+   * 完全一致，服务端直接返回已登记记录。
+   */
+  const basisRef = useRef<{ basisFileId: string; expiresAt: string } | null>(null);
 
   const photoNeeded = replaceMode === "face" ? "头部图片" : "全身画面";
   const rightsOk = REPLICATION_RIGHTS.every((item) => rights[item.k]);
@@ -628,27 +641,30 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
     const videoId = videoFile?.id;
     const portraitId = portraitFile?.id;
     if (!videoId || !portraitId) throw new Error("请先上传原片与人物照片。");
-    const done = declaredRef.current;
-    if (done && done.videoFileId === videoId && done.portraitFileId === portraitId) return;
-    const basisText = [
-      "兰琪 · 爆款复刻 素材与肖像授权在线声明",
-      "（由门店用户在本页逐条勾选后生成；平台未独立核验法律真实性，只作为授权依据引用）",
-      `原片文件：${videoFile?.name ?? ""}`,
-      `人物照片：${portraitFile?.name ?? ""}`,
-      "1) 原视频画面与改编权：已确认拥有或已获授权",
-      "2) 原视频音频：已确认拥有或已获授权",
-      "3) 原视频主角同意被替换：已确认",
-      "4) 替换照片本人或已获授权：已确认",
-      "声明人：本账号门店操作人；声明仅用于本次生成。"
-    ].join("\n");
-    const form = new FormData();
-    form.append("file", new File([basisText], "兰琪-素材与肖像授权在线声明.txt", { type: "text/plain" }));
-    const basisResponse = await fetch(apiPath("/files"), { method: "POST", headers: uploadHeaders(), body: form });
-    const basisBody = await readResponse(basisResponse);
-    const basisFileId = basisBody?.file?.id;
-    if (!basisFileId) throw new Error("授权依据上传失败，请稍后重试。");
-    const expiresAt = new Date(Date.now() + 30 * 86400_000).toISOString();
-    for (const [fileId, subjectRole] of [[videoId, "reference"], [portraitId, "owner"]] as const) {
+    const needVideo = declaredRef.current.video !== videoId;
+    const needPortrait = declaredRef.current.portrait !== portraitId;
+    if (!needVideo && !needPortrait) return;
+    if (!basisRef.current) {
+      const basisText = [
+        "兰琪 · 爆款复刻 素材与肖像授权在线声明",
+        "（由门店用户在本页逐条勾选后生成；平台未独立核验法律真实性，只作为授权依据引用）",
+        "1) 原视频画面与改编权：已确认拥有或已获授权",
+        "2) 原视频音频：已确认拥有或已获授权",
+        "3) 原视频主角同意被替换：已确认",
+        "4) 替换照片本人或已获授权：已确认",
+        "声明人：本账号门店操作人；声明仅用于本人上传素材的本次生成。"
+      ].join("\n");
+      const form = new FormData();
+      form.append("file", new File([basisText], "兰琪-素材与肖像授权在线声明.txt", { type: "text/plain" }));
+      const basisResponse = await fetch(apiPath("/files"), { method: "POST", headers: uploadHeaders(), body: form });
+      const basisBody = await readResponse(basisResponse);
+      const basisFileId = basisBody?.file?.id;
+      if (!basisFileId) throw new Error("授权依据上传失败，请稍后重试。");
+      basisRef.current = { basisFileId, expiresAt: new Date(Date.now() + 30 * 86400_000).toISOString() };
+    }
+    const { basisFileId, expiresAt } = basisRef.current;
+    for (const [fileId, subjectRole, needed] of [[videoId, "reference", needVideo], [portraitId, "owner", needPortrait]] as const) {
+      if (!needed) continue;
       try {
         const response = await fetch(apiPath("/viral-video-replication/material-authorizations"), {
           method: "POST",
@@ -668,8 +684,9 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
         /* 同一素材已登记过（依据文件换了）→ 幂等冲突，服务端已有的声明继续有效，不当作失败。 */
         if ((error as { code?: string } | null)?.code !== "idempotency_conflict") throw error;
       }
+      if (subjectRole === "reference") declaredRef.current.video = fileId;
+      else declaredRef.current.portrait = fileId;
     }
-    declaredRef.current = { videoFileId: videoId, portraitFileId: portraitId };
   }, [portraitFile, videoFile]);
 
   const requestQuote = useCallback(async () => {

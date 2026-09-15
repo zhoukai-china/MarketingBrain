@@ -1,5 +1,20 @@
 # Bug 回归台账
 
+## QA-20260915-002：用户端被内部单条预算上限挡住（20 秒片报「时长超出当前单条预算上限」）+ 换素材重复声明 409（P1，已修并上线）
+
+- 触发：用户 2026-09-15 实测反馈「这一版还不能出片：这条片的时长超出当前单条预算上限（提高上限或换更短的片）、积分不足，请先充值」，并给出用户口径：**用户端不设上限，用户有积分就可以使用爆款复刻功能**。
+- 根因（两条）：
+  1. **我们自己的成本上限被当成用户限制**：`ALIYUN_VIDEO_REPLICATION_MAX_COST_FEN=1000`（¥10）→ 自动单批许可按 60 分/秒反推输出上限 = **16 秒**；而模型（`wan2.2-animate-mix`）本身支持 **2–30 秒**，于是 17–30 秒的片子报价缺口 `provider_budget_exceeded`，用户看到「时长超出当前单条预算上限」。这是内部成本口径外溢成用户限制。
+  2. **换素材时重复声明同一条素材**：页面按「素材对」记声明，换原片后会把没变的人像再声明一次；服务端 `BeautyVideoAssetAuthorization.fileId @unique`，同一 fileId 二次声明且依据文件指纹不同 → **409**（页面能继续，但留下失败请求，验收探针也会判红）。
+- 修复（最小、可回滚）：
+  - **去掉用户端预算卡点**：生产与测试实例 `ALIYUN_VIDEO_REPLICATION_MAX_COST_FEN` 1000 → **3000**（¥30 名义上限，覆盖 wan-std 30 秒 = ¥18 与 wan-pro 30 秒 = ¥27，加上存储 1 分仍有余量）。用户在 2–30 秒内、**只要有积分**即可报价出片；真正出片仍受模型 2–30 秒与积分（24 积分/秒）约束。
+  - 页面：缺口文案改为「这条片超过模型支持的时长上限（2–30 秒），请先裁剪再上传」（不再提"提高上限"）；**声明按素材各自记账**，只声明新素材；授权依据文件整场会话只上传一次（同一素材重复声明输入完全一致，服务端幂等返回）。
+  - 回归资产：新增 20 秒夹具 `scripts/fixtures/beauty-video-content-20s.mp4`；`lanqi:acquire-instance-acceptance` 增加断言「20 秒原片不再撞内部预算上限（缺口不含 provider_budget_exceeded；积分 20×24=480）」。
+- 验证：测试实例真实浏览器 `lanqi:acquire-instance-acceptance` **38 项 / 失败 0**（此前 37 项 + 新增 1 项；含「无接口 4xx/5xx」不再出现那个 409）；`lanqi:acquire-ui-contract-smoke` 79/0、`lanqi:video-replication-access-smoke` 19/0、`@baolu/web typecheck` PASS。
+- 发布：测试实例 `20260915-lq31-nocap-test3`、生产 `20260915-lq31-nocap-prod1`，均 `DEPLOY_OK`；生产 `verify-deploy.sh` **VERIFY_OK**；生产产物核对：入口 `assets/index-C8BTkGem.js` → `assets/LanqiAcquireVideoPage-DGP0qw7w.js`，旧文案「提高上限或换更短的片」**0**、新文案「模型支持的时长上限」1、`上传原片` 5。env 变更含备份（`.bak-20260915-nocap`），回滚 = 还原 env + 还原发布前备份 + 重启服务。
+- 边界（如实说）：**30 秒是模型硬上限**，不是我们的预算；超过 30 秒的片必须裁短。积分仍是门槛（有积分才能出片），老板测试账号余额为 0，需充值；单条对外价 24 积分/秒（30 秒 = 720 积分）。
+- 关联：任务卡 `docs/agents/lanqi-beauty/tasks/LQ-31-爆款复刻用户端不设预算上限.md`；上一轮 QA-20260915-001（磁盘 P0）。
+
 ## QA-20260915-001：磁盘写满导致内测邀请入口「服务不可用」（P0，已现场修复；保留策略待常态化）
 
 - 触发：用户 2026-09-15 报「`https://api.lcppch.top/os-v2/login/lanqi?invite=lanqi-beta-2026` 显示服务不可用，正在让用户内测」。
