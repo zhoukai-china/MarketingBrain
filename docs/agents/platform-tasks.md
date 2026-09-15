@@ -1923,6 +1923,16 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 
 **状态**：内测通过，**未上线**（生产 `REFERRAL_REWARD_ENABLED` 仍为 false、未配活动窗、未启用任何奖励）；等用户通知「启动推荐有礼」再决定启用环境与活动窗。第③批（推荐明细后台）仍未开工。
 
+### 活动窗（用户 2026-09-16：暂定 10.1–10.7）
+
+- **排期**：2026-10-01 00:00 起、2026-10-07 全天，**左闭右开**——`REFERRAL_CAMPAIGN_STARTS_AT=2026-10-01T00:00:00+08:00`、`REFERRAL_CAMPAIGN_ENDS_AT=2026-10-08T00:00:00+08:00`（这样 10-07 23:59 在内、10-08 00:00 起不再发奖）。若用户希望「10-08 也算」，把 end 改成 `2026-10-09T00:00:00+08:00` 即可。
+- **启动/关闭命令**（新增 `scripts/enable-referral-campaign.mjs`，注册为 `pnpm.cmd plat28:referral-campaign`；**默认只预览不写**）：
+  - 预览：`pnpm.cmd plat28:referral-campaign`
+  - 启用：`pnpm.cmd plat28:referral-campaign --apply`（写 `REFERRAL_REWARD_ENABLED=true` + 上面的窗口 + 100/100/0 + 90 天 + 2 万告警线，写完复核 8/8）
+  - 关闭/回滚：`pnpm.cmd plat28:referral-campaign --disable --apply`
+  - 生效无需重启服务（发奖时每次重新读配置位）；目标库由 `DATABASE_URL` 决定（生产 public / 测试 lanqi_test）。
+- **当前状态（2026-09-16）**：**仍旧关闭**（本地演练过启用→关闭，复核 8/8；生产与测试实例都没写任何推荐配置）。等用户通知「启动」再执行启用；届时按 `docs/QUALITY_WORKFLOW.md` 做启动后首日观察（新增奖励流水条数、被推荐人 bonus、有无 `referral_reward_alert`）。
+
 ### 部署记录（2026-09-12）
 
 - 发布包（线上现行）：`release-20260912-plat28b-refcode-alnum-full.tar.gz`（**9431218 B**，sha256 `59d76e808d88869089ce5b6649dfb6efdafd7f698f42dd43642811f255e9b382`，1474 文件，服务器侧逐字一致）。第一版 `release-20260912-plat28-referral-attribution-full.tar.gz`（9428112 B，sha256 `311b44ca…`，1472 文件）先上了两侧，随后因为推荐码字符集修正（见下）又发了 `plat28b`。

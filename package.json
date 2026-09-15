@@ -64,6 +64,7 @@
     "platform:referral-attribution-smoke": "node apps/api/node_modules/tsx/dist/cli.mjs scripts/referral-attribution-smoke.ts",
     "platform:referral-rewards-smoke": "node apps/api/node_modules/tsx/dist/cli.mjs scripts/referral-rewards-smoke.ts",
     "plat28:referral-rewards-e2e": "node scripts/acceptance/plat28-referral-rewards-e2e.mjs",
+    "plat28:referral-campaign": "node scripts/enable-referral-campaign.mjs",
     "marketplace:free-redo-smoke": "node apps/api/node_modules/tsx/dist/cli.mjs scripts/marketplace-free-redo-smoke.ts",
     "marketplace:signup-welcome-wallet-smoke": "node apps/api/node_modules/tsx/dist/cli.mjs scripts/signup-welcome-wallet-smoke.ts",
     "marketplace:credits:trial-grant": "node scripts/grant-marketplace-trial-credits.mjs",
