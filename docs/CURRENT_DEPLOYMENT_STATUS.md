@@ -27,6 +27,7 @@
 - 生产/测试接口实测：`POST /vidrev/parse-preview` 小红书表 → `{"ok":false,"platform":"其他平台","rowCount":0,"notes":["视频复盘目前只支持**抖音**和**视频号**…"]}`；视频号表 → `ok:true`、`platform:"视频号"`、解析 1 行。
 - 本地门禁：`qa:fast` **PASS**（7 包 typecheck）、`qa:regression` **PASS**（含新增 `marketplace:vidrev-platform-scope-smoke`）、`platform:route-contract-smoke` 106/0（并把反向断言改成能真红）、`marketplace:vidrev-contract-smoke`、`vidrev:excel-upload-smoke`、`agent:work-map-smoke` 全 PASS；本地真实 Chromium：返回入口落点 6/6、`platform:route-browser-e2e` 26/26、vidrev 平台范围相位 PASS（0 console error、0 模型调用）。
 - 回滚：`/opt/baolu-backups/20260915-plat44b-legacy-ai-prod1-before-baolu-os-v2/`（测试实例对应 `-test1-`）+ `systemctl restart baolu-os-v2`。本轮**无数据库迁移、无 env 变更**。
+- 包后修正（同一条记录，避免以后误判）：`scripts/marketplace-vidrev-platform-scope-smoke.ts` 在首次打包后才发现预检接口的真实路径是根路径 `/vidrev/parse-preview`（`/market/*` 只包住货架那组），已把修正版单文件同步到两个服务器源码树（sha256 `ca18473bc13c267c27d10c86116735ef42d8cea24288b3a34134519891d9a2da`，两侧一致；**只覆盖开发脚本、未重启、未重建**）。它不参与运行、不在构建产物里，因此不影响上线内容；其余文件与发布包一致。本轮发布后写的文档（`BUG_REGRESSIONS.md`、`platform-tasks.md`、`SCHEDULER.md`、本文件）按惯例不进包。
 
 ### 四、遗留与后续（不阻塞）
 
