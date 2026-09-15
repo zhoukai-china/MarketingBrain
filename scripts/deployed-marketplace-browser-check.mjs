@@ -1,6 +1,6 @@
 // 已部署实例的真实浏览器只读验收：打线上/测试环境的公开 URL，不写任何数据。
-// 覆盖：货架渲染、「只显示积分、不显示人民币折算」（PLAT-19）、未完成内核显示「开发中」、
-// IP 定位详情页「按结果付费 + 重做」文案、控制台无新增错误。
+// 覆盖：货架渲染、「不前置报价、不出现按次/钱包/扣费话术」（PLAT-19 + 2026-09-15 文案口径）、
+// 未完成内核显示「开发中」、IP 定位详情页「按结果交付 + 再次生成」文案、控制台无新增错误。
 // 用法：DEPLOY_CHECK_WEB_URL=https://api.lcppch.top/lanqi-test node scripts/deployed-marketplace-browser-check.mjs
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -138,22 +138,29 @@ async function main() {
     await writeFile(path.join(shotDir, "01-shelf-agents.txt"), shelfText, "utf8");
     assert.match(shelfText, /行业智能体平台/, "shelf shows the platform brand");
     // PLAT-19（用户 2026-09-12）：客户界面只显示消耗多少积分，不再显示折算人民币。
-    assert.match(shelfText, /200 积分\/次/, "IP 定位标价只显示积分");
+    // 2026-09-13/15 用户口径：卡片不前置报价，也不出现「按次 / 钱包 / 扣费」这类计费感话术。
+    assert.doesNotMatch(shelfText, /积分\/次/, "货架不前置按次报价");
+    assert.doesNotMatch(shelfText, /按次使用|统一积分钱包|扣积分|扣费/, "货架不出现按次/钱包/扣费话术");
     assert.doesNotMatch(shelfText, /≈\s*¥/, "货架不得再显示「≈ ¥」人民币折算");
     assert.doesNotMatch(shelfText, /积分[^。\n]{0,14}¥/, "积分后面不得再跟人民币金额");
     const totalSoon = (shelfText.match(/开发中/g) ?? []).length;
     assert.ok(totalSoon >= COMING_SOON_MIN, `未完成内核必须显示「开发中」，实际出现 ${totalSoon} 处`);
 
-    // 2. IP 定位智能体详情页：按结果付费兜底文案。
+    // 2. IP 定位智能体详情页：按结果交付 + 再次生成用中性表述。
     await cdp.send("Page.navigate", { url: `${webBase}/agent/${IP_POS_SKU}` }, sessionId);
-    await waitFor(cdp, sessionId, `() => document.body.innerText.includes("按结果付费")`);
+    await waitFor(cdp, sessionId, `() => document.body.innerText.includes("按结果交付")`);
     const detailText = await evaluate(cdp, sessionId, `() => document.body.innerText`);
     const detailShot = await shoot(cdp, sessionId, "02-agent-ip-pos");
     await writeFile(path.join(shotDir, "02-agent-ip-pos.txt"), detailText, "utf8");
-    assert.match(detailText, /积分\/次/, "detail page shows credits");
+    assert.doesNotMatch(detailText, /积分\/次/, "详情页不前置按次报价");
     assert.doesNotMatch(detailText, /≈\s*¥/, "详情页不得再显示「≈ ¥」人民币折算");
     assert.doesNotMatch(detailText, /\(¥|（¥|\(≈|（≈/, "详情页扣费提示不得再带人民币金额");
-    assert.match(detailText, /免费重做已下线/, "detail page states that free redo is removed");
+    assert.doesNotMatch(
+      detailText,
+      /按次使用|统一积分钱包|扣积分|免费重做已下线/,
+      "详情页不出现按次/钱包/扣费话术"
+    );
+    assert.match(detailText, /重新发起一次即可|按实际消耗计算/, "详情页用中性表述说明再次生成");
 
     // 3. 该实例的直达入口（免登录实例落兰琪驾驶舱）必须仍然能打开，不受本次发布影响。
     await cdp.send("Page.navigate", { url: `${webBase}/lanqi/dashboard` }, sessionId);
