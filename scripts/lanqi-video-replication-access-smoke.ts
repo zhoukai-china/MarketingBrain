@@ -59,7 +59,11 @@ function ossFixture() {
   return { transport };
 }
 
-type Scenario = { db: any; tenantId: string; userId: string; storeId: string; videoFileId: string; portraitFileId: string; app: any; permits: any };
+type Scenario = {
+  db: any; tenantId: string; userId: string; storeId: string;
+  videoFileId: string; portraitFileId: string; app: any; permits: any;
+  authorization: any; referenceBytes: Buffer; createFile(bytes: Buffer, mimeType: string): Promise<{ id: string }>;
+};
 
 async function scenario(options: {
   products: string[]; credits: number; permitMode?: "auto" | "operator"; declare?: boolean;
@@ -141,7 +145,10 @@ async function scenario(options: {
     entitled: async (targetTenantId: string) => Boolean(await findVideoReplicationEntitlement(db, targetTenantId)),
     creditBalance: async (targetTenantId: string) => (await db.creditAccount.findUnique({ where: { tenantId: targetTenantId } }))?.balance ?? null
   });
-  return { db, tenantId, userId, storeId, videoFileId: reference.id, portraitFileId: photo.id, app, permits: integrated };
+  return {
+    db, tenantId, userId, storeId, videoFileId: reference.id, portraitFileId: photo.id, app, permits: integrated,
+    authorization, referenceBytes: video, createFile: (bytes: Buffer, mimeType: string) => file(bytes, mimeType)
+  };
 }
 
 function payload(s: Scenario) {
@@ -222,6 +229,40 @@ async function main() {
     const s = await scenario({ products: ["beauty-industry"], credits: 5000, permitMode: "auto" });
     const quote = await s.app.inject({ method: "POST", url: "/viral-video-replication/quote", payload: payload(s) });
     check("美业租户回归：报价 200 且可确认", quote.statusCode === 200 && quote.json()?.canConfirm === true, `status=${quote.statusCode}`);
+  }
+
+  // 7. 同内容重传（2026-09-15 现场：门店把同一份素材重新上传后 fileId 变了、sha 不变）：
+  //    旧实现按 requestKey 查不到旧记录 → create 撞 (tenantId,storeId,fileSha256) 唯一键 → 409，
+  //    页面停在声明这一步，**quote 根本发不出去**（用户看到「没报价也没出片」）。
+  //    修复后：同内容命中已有声明时就地重绑到新 fileId，报价照常进行。
+  {
+    const s = await scenario({ products: ["lanqi"], credits: 5000, permitMode: "auto" });
+    const duplicate = await s.createFile(s.referenceBytes, "video/mp4"); // 同字节、不同 fileId
+    const basis = await s.createFile(Buffer.from("Synthetic basis for same-content re-upload"), "text/plain");
+    let declareError = "";
+    try {
+      await s.authorization.declare(
+        { tenantId: s.tenantId, userId: s.userId },
+        {
+          fileId: duplicate.id, subjectRole: "reference", basisFileId: basis.id, purpose: "video_replacement",
+          expiresAt: new Date(Date.now() + 3600_000).toISOString(), rightsDeclared: true, requestKey: `lq31-ref-${duplicate.id}`
+        }
+      );
+    } catch (error) {
+      declareError = (error as { code?: string } | null)?.code ?? String(error);
+    }
+    const rebound = await s.db.beautyVideoAssetAuthorization.findFirst({ where: { tenantId: s.tenantId, subjectRole: "reference" } });
+    check("同内容重新上传后再声明不报 409（就地重绑到新 fileId）", declareError === "" && rebound?.fileId === duplicate.id, `error=${declareError || "(none)"} boundFileId=${rebound?.fileId === duplicate.id}`);
+    const quote = await s.app.inject({
+      method: "POST", url: "/viral-video-replication/quote",
+      payload: replicationSchema.parse({
+        referenceFileId: duplicate.id, portraitFileId: s.portraitFileId, requestKey: `lq31-quote-${duplicate.id}`,
+        model: "aliyun_strict", visualRightsConfirmed: true, audioRightsConfirmed: true,
+        performerConsentConfirmed: true, portraitConsentConfirmed: true
+      })
+    });
+    const gaps: string[] = quote.json()?.gaps ?? [];
+    check("重传后报价 200 且不出现素材类缺口（可进入确认出片）", quote.statusCode === 200 && !gaps.includes("asset_authorization_required") && !gaps.includes("asset_not_found"), `status=${quote.statusCode} gaps=${JSON.stringify(gaps)}`);
   }
 
   console.log(`\n合计 ${passed + failed.length} 项，失败 ${failed.length} 项`);

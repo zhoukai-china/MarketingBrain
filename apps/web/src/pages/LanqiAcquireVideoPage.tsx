@@ -975,6 +975,14 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
         <button className="lq-vd__btn ghost" type="button" disabled={Boolean(busy)} onClick={() => void requestQuote()}>
           🧾 校验素材与授权，看报价
         </button>
+        {/* 2026-09-15 现场：结果原先渲染在主按钮下方，店长点完看不到任何反馈，以为「点了没反应」。
+            现在把本次结果（notice / 缺口）紧跟在「校验并报价」下面、主按钮之前，点击处就能看到。 */}
+        {notice && <p className="lq-vd__hint" data-lq-vd-notice>{notice}</p>}
+        {quote?.gaps && quote.gaps.length > 0 && (
+          <div className="lq-vd__warn" data-lq-vd-gaps={quote.gaps.join(",")}>
+            这一版还不能出片：{replicationGapText(quote.gaps)}。未创建任务、未扣积分。
+          </div>
+        )}
         {primary.hint && <p className="lq-vd__hint" data-lq-vd-primary-hint={primary.state}>{primary.hint}</p>}
         <button
           className="lq-vd__btn primary block"
@@ -985,12 +993,6 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
         >
           {primary.label}
         </button>
-        {notice && <p className="lq-vd__hint">{notice}</p>}
-        {quote?.gaps && quote.gaps.length > 0 && (
-          <div className="lq-vd__warn" data-lq-vd-gaps={quote.gaps.join(",")}>
-            这一版还不能出片：{replicationGapText(quote.gaps)}。未创建任务、未扣积分。
-          </div>
-        )}
         {assetUrl && (
           <>
             <video className="lq-vd__result" src={assetUrl} controls playsInline />

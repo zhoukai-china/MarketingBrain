@@ -69,13 +69,36 @@ export function createVideoAssetAuthorization(db:any, read:VideoAuthorizationRea
         const currentScope=await scope(actor,true,tx);if(currentScope.storeId!==s.storeId)throw new ReplicationError("authorization_changed",409);
         const currentFile=await getFile(actor,input.fileId,tx),currentBasis=await getFile(actor,input.basisFileId,tx);
         if(currentFile.sha256!==material.sha256||currentBasis.sha256!==proof.sha256)throw new ReplicationError("file_changed",409);
+        /**
+         * 同一份内容在同门店只允许一条声明（DB 唯一键 tenantId+storeId+fileSha256）。
+         *
+         * 2026-09-15 现场（用户 LQ-31 复测）：门店把**同一份素材重新上传**后 fileId 会变、
+         * 内容 sha 不变，旧实现按 requestKey 查不到已有记录 → create 撞唯一键 → 回
+         * `asset_scope_or_request_conflict`，页面在声明这一步就断了，**连报价都发不出去**。
+         * 正确行为：命中同内容记录时把它**就地重绑到新的 fileId**（并递增 version、
+         * 刷新依据/到期/指纹），一条内容仍然只有一条声明，用户换素材重传不再被拦。
+         */
+        const sameContent=await tx.beautyVideoAssetAuthorization.findFirst({where:{tenantId:actor.tenantId,storeId:s.storeId,fileSha256:material.sha256,subjectRole:input.subjectRole,purpose:input.purpose,declaredByUserId:actor.userId,revokedAt:null}});
+        if(sameContent){
+          if(sameContent.fileId===input.fileId&&sameContent.basisFileId===input.basisFileId&&sameContent.basisSha256===proof.sha256&&+sameContent.expiresAt===expiry)return sameContent;
+          const rebound=await tx.beautyVideoAssetAuthorization.update({where:{id:sameContent.id},data:{fileId:input.fileId,basisFileId:input.basisFileId,basisSha256:proof.sha256,expiresAt:new Date(expiry),fingerprint,version:{increment:1},metadata:{mimeType:material.mimeType,bytes:material.bytes.length,width:material.width,height:material.height,...(material.durationSeconds===undefined?{}:{durationSeconds:material.durationSeconds})}}});
+          await audit(tx,actor,"declaration_rebound",sameContent.id,"same_content_reupload_rebound_new_file_id");
+          return rebound;
+        }
         const old=await tx.beautyVideoAssetAuthorization.findFirst({where:{tenantId:actor.tenantId,requestKey:input.requestKey}});
         if(old){if(old.fingerprint!==fingerprint)throw new ReplicationError("idempotency_conflict",409);return old;}
         const record=await tx.beautyVideoAssetAuthorization.create({data:{tenantId:actor.tenantId,storeId:s.storeId,fileId:input.fileId,fileSha256:material.sha256,basisFileId:input.basisFileId,basisSha256:proof.sha256,subjectRole:input.subjectRole,purpose:input.purpose,rights:input.subjectRole==="reference"?["visual","audio","performer"]:["portrait"],declaredByUserId:actor.userId,requestKey:input.requestKey,fingerprint,metadata:{mimeType:material.mimeType,bytes:material.bytes.length,width:material.width,height:material.height,...(material.durationSeconds===undefined?{}:{durationSeconds:material.durationSeconds})},expiresAt:new Date(expiry)}});
         await audit(tx,actor,"declaration",record.id,"user_claim_recorded_not_legal_verification");return record;
       };
       try{return publicRecord(await db.$transaction(create,{isolationLevel:"Serializable"}));}catch(e:any){
-        if(["P2002","P2034"].includes(e?.code)){const old=await db.beautyVideoAssetAuthorization.findFirst({where:{tenantId:actor.tenantId,requestKey:input.requestKey}});if(old?.fingerprint===fingerprint)return publicRecord(old);throw new ReplicationError("asset_scope_or_request_conflict",409);}throw e;
+        if(["P2002","P2034"].includes(e?.code)){
+          const old=await db.beautyVideoAssetAuthorization.findFirst({where:{tenantId:actor.tenantId,requestKey:input.requestKey}});if(old?.fingerprint===fingerprint)return publicRecord(old);
+          // 并发/唯一键撞上「同内容」时，先看是否已有同内容声明：有就复用（它已经绑着某次上传），
+          // 不再把用户挡在声明这一步；真正的冲突（同一 requestKey 指向不同内容）仍然 409。
+          const sameContent=await db.beautyVideoAssetAuthorization.findFirst({where:{tenantId:actor.tenantId,storeId:s.storeId,fileSha256:material.sha256,subjectRole:input.subjectRole,purpose:input.purpose,declaredByUserId:actor.userId,revokedAt:null}});
+          if(sameContent)return publicRecord(sameContent);
+          throw new ReplicationError("asset_scope_or_request_conflict",409);
+        }throw e;
       }
     },
     async revoke(actor:VideoActor,id:string){
