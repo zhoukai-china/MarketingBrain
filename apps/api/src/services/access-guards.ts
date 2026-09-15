@@ -2,6 +2,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { env } from "../config/env.js";
 import { prisma } from "@baolu/db";
 import { resolveRequestContext } from "./request-context.js";
+import { verifyAdminSessionToken } from "./admin-session.js";
 import type { ProductLoginCode } from "@baolu/shared";
 
 export async function requireAdminToken(
@@ -11,10 +12,14 @@ export async function requireAdminToken(
   if (!env.ADMIN_TOKEN && env.NODE_ENV !== "production") return;
 
   const token = getHeaderValue(request.headers["x-sitong-admin-token"]);
-  if (!env.ADMIN_TOKEN || token !== env.ADMIN_TOKEN) {
+  // 两条通道都算数：① 平台管理后台的账号密码会话令牌（PLAT-39，老板日常用）；
+  // ② 旧的共享 `ADMIN_TOKEN`（脚本 / 运维 / 兼容）。两者都失败才拒。
+  const hasAdminSession = Boolean(verifyAdminSessionToken(token));
+  const hasLegacyToken = Boolean(env.ADMIN_TOKEN) && token === env.ADMIN_TOKEN;
+  if (!hasAdminSession && !hasLegacyToken) {
     await reply.code(401).send({
       error: "admin_token_required",
-      message: "Admin token is required"
+      message: "请先用管理员账号登录后台（或提供平台管理令牌）。"
     });
   }
 }

@@ -5,6 +5,66 @@ import { PLANS, PRODUCT_LOGIN_DEFINITIONS, PRODUCT_LOGIN_CODES, type PlanDefinit
 import { env } from "../config/env.js";
 import { requireAdminToken } from "../services/access-guards.js";
 import { createInviteCode } from "../services/invite-codes.js";
+import {
+  AdminLoginNotConfiguredError,
+  adminLoginConfigured,
+  createAdminSessionToken,
+  verifyAdminCredentials,
+  verifyAdminSessionToken
+} from "../services/admin-session.js";
+
+/**
+ * 后台登录限流（PLAT-39）：同一 IP 15 分钟内最多 10 次尝试。
+ * 只是给「账号密码」这条入口加一道粗暴但有效的防爆破，不引入新依赖。
+ */
+const adminLoginWindows = new Map<string, { startedAt: number; count: number }>();
+function consumeAdminLoginAllowance(ip: string): boolean {
+  const now = Date.now();
+  const current = adminLoginWindows.get(ip);
+  if (!current || now - current.startedAt >= 15 * 60 * 1000) {
+    adminLoginWindows.set(ip, { startedAt: now, count: 1 });
+    return true;
+  }
+  if (current.count >= 10) return false;
+  current.count += 1;
+  return true;
+}
+
+const adminLoginSchema = z.object({
+  username: z.string().trim().min(1).max(80),
+  password: z.string().min(1).max(200)
+});
+
+/**
+ * 积分汇总（PLAT-39）：累计消耗 / 累计发放（付费桶 + 赠送桶）/ 客户剩余积分合计。
+ * 全部是只读聚合；表缺失（早期环境）时逐项退回 0，不让整个后台摘要挂掉。
+ */
+async function readCreditSummary(): Promise<{
+  consumedCreditsTotal: number;
+  paidCreditTotal: number;
+  bonusCreditTotal: number;
+  balanceTotal: number;
+}> {
+  const safe = async <T,>(fn: () => Promise<T>, fallback: T): Promise<T> => {
+    try {
+      return await fn();
+    } catch {
+      return fallback;
+    }
+  };
+  const [consumed, granted, accounts] = await Promise.all([
+    safe(() => prisma.creditTransaction.aggregate({ where: { amount: { lt: 0 } }, _sum: { amount: true } }), { _sum: { amount: 0 } } as any),
+    safe(() => prisma.creditTransaction.aggregate({ where: { amount: { gt: 0 } }, _sum: { amount: true } }), { _sum: { amount: 0 } } as any),
+    safe(() => prisma.creditAccount.findMany({ select: { balance: true } }), [] as Array<{ balance: number }>)
+  ]);
+  return {
+    consumedCreditsTotal: Math.abs(consumed?._sum?.amount ?? 0),
+    // 发放按交易正负合计给一个近似口径（付费桶 / 赠送桶的细分在钱包流水里，这里只给总量与余额）。
+    paidCreditTotal: Math.abs(granted?._sum?.amount ?? 0),
+    bonusCreditTotal: 0,
+    balanceTotal: accounts.reduce((sum, item) => sum + (item.balance ?? 0), 0)
+  };
+}
 
 const createInviteSchema = z.object({
   code: z.string().min(4).max(80),
@@ -21,6 +81,50 @@ const updateInviteSchema = z.object({
 });
 
 export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
+  /**
+   * 平台管理后台登录（PLAT-39，用户 2026-09-15）：账号 + 密码换一枚有期限的会话令牌。
+   * 普通用户没有管理员账号密码，进不了后台；脚本/运维仍可用旧的 `ADMIN_TOKEN`。
+   */
+  app.post("/admin/login", async (request, reply) => {
+    if (!consumeAdminLoginAllowance(request.ip)) {
+      return reply.code(429).send({ error: "admin_login_rate_limited", message: "尝试次数过多，请 15 分钟后再试。" });
+    }
+    const parsed = adminLoginSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "invalid_request", message: "请输入账号和密码。" });
+    }
+    if (!adminLoginConfigured()) {
+      return reply.code(503).send({
+        error: "admin_login_not_configured",
+        message: "后台账号密码尚未配置，请先在服务器环境变量里设置 ADMIN_LOGIN_USERNAME 与 ADMIN_LOGIN_PASSWORD_HASH。"
+      });
+    }
+    try {
+      if (!verifyAdminCredentials(parsed.data.username, parsed.data.password)) {
+        // 不区分「账号不对」和「密码不对」，避免被用来枚举账号。
+        return reply.code(401).send({ error: "admin_credentials_invalid", message: "账号或密码不正确。" });
+      }
+      const session = createAdminSessionToken({ username: parsed.data.username.trim() });
+      request.log.info({ event: "admin_login.succeeded" }, "admin console login");
+      return { ok: true, username: parsed.data.username.trim(), token: session.token, expiresAt: session.expiresAt };
+    } catch (error) {
+      if (error instanceof AdminLoginNotConfiguredError) {
+        return reply.code(503).send({ error: "admin_login_not_configured", message: "后台登录尚未配置，请联系技术。" });
+      }
+      throw error;
+    }
+  });
+
+  /** 会话自检：页面用它判断「当前这枚令牌还有效吗」，失效就回到登录表单。 */
+  app.get("/admin/session", async (request, reply) => {
+    const token = request.headers["x-sitong-admin-token"];
+    const value = Array.isArray(token) ? token[0] : token;
+    const payload = verifyAdminSessionToken(value);
+    if (payload) return { ok: true, mode: "session", username: payload.username, expiresAt: new Date(payload.exp * 1000).toISOString() };
+    if (env.ADMIN_TOKEN && value === env.ADMIN_TOKEN) return { ok: true, mode: "legacy_token", username: null, expiresAt: null };
+    return reply.code(401).send({ error: "admin_token_required", message: "请先用管理员账号登录后台。" });
+  });
+
   app.get("/admin/invites", { preHandler: requireAdminToken }, async () => {
     if (env.DATA_MODE === "demo") {
       return {
@@ -858,6 +962,11 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         feedbackCount,
         flaggedRuns
       },
+      /**
+       * 积分侧汇总（PLAT-39，用户 2026-09-15「后台看不到积分/消耗/余额」）。
+       * 只做只读聚合，不参与任何扣费逻辑；余额是「全平台客户剩余积分合计」。
+       */
+      credit: await readCreditSummary(),
       topSkills: topSkills.map((skill: any) => ({
         skillId: skill.skillId,
         count: skill._count.skillId

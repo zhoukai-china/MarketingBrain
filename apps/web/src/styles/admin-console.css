@@ -90,6 +90,44 @@
   padding: 10px 14px;
 }
 
+/* PLAT-39 后台账号密码登录 */
+.adminLoginPanel {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass);
+  padding: 12px 14px;
+}
+
+.adminLoginForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.adminLoginForm label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.adminLoginForm input {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  min-width: 200px;
+}
+
+.adminAdvancedToggle {
+  justify-self: start;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+
 .adminConsoleToken label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); flex: 1 1 320px; }
 .adminConsoleToken input { padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
 .adminTokenState { font-size: 12px; color: var(--muted); }

@@ -129,7 +129,7 @@ export function AdminConsolePage() {
               <button type="button" className="btn ghost sm" onClick={() => { window.location.href = getAppPath("/login"); }}>去登录</button>
             </div>
           )}
-          <AdminTokenRow token={token} onTokenChange={setToken} />
+          <AdminLoginPanel token={token} onTokenChange={setToken} />
 
           {section === "overview" && <OverviewSection />}
           {section === "customers" && <CustomersSection />}
@@ -140,6 +140,78 @@ export function AdminConsolePage() {
           {section === "quality" && <QualitySection />}
         </main>
       </div>
+    </div>
+  );
+}
+
+/**
+ * 后台登录（PLAT-39，用户 2026-09-15「得设置个管理员账号密码登入才行」）。
+ *
+ * 账号 + 密码 → 服务端换一枚 12 小时有效的会话令牌，存在本标签页 sessionStorage；
+ * 旧的「平台管理令牌」保留为折叠的高级选项（脚本/运维用）。
+ */
+function AdminLoginPanel({ token, onTokenChange }: { token: string; onTokenChange: (value: string) => void }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  async function login() {
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(apiPath("/admin/login"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ username: username.trim(), password })
+      });
+      const data = (await response.json().catch(() => ({}))) as { token?: string; message?: string; error?: string };
+      if (!response.ok || !data.token) {
+        throw new Error(data.message ?? data.error ?? `登录失败（${response.status}）`);
+      }
+      sessionStorage.setItem("sitong_admin_token", data.token);
+      onTokenChange(data.token);
+      setPassword("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "登录失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (token) {
+    return (
+      <div className="adminConsoleToken">
+        <span className="adminTokenState ok">已登录管理后台（会话 12 小时有效）</span>
+        <button
+          type="button"
+          className="btn ghost sm"
+          onClick={() => {
+            sessionStorage.removeItem("sitong_admin_token");
+            onTokenChange("");
+          }}
+        >
+          退出管理后台
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="adminLoginPanel">
+      <div className="adminLoginForm">
+        <label><span>管理员账号</span><input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" placeholder="管理员账号" /></label>
+        <label><span>密码</span><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" placeholder="密码" onKeyDown={(event) => { if (event.key === "Enter") void login(); }} /></label>
+        <button type="button" className="btn primary sm" onClick={() => void login()} disabled={busy || !username.trim() || !password}>
+          {busy ? "登录中…" : "登录管理后台"}
+        </button>
+      </div>
+      {error && <div className="adminConsoleNotice warn">{error}</div>}
+      <button type="button" className="adminAdvancedToggle" onClick={() => setAdvancedOpen((value) => !value)}>
+        {advancedOpen ? "收起" : "高级：直接粘贴平台管理令牌"}
+      </button>
+      {advancedOpen && <AdminTokenRow token={token} onTokenChange={onTokenChange} />}
     </div>
   );
 }
@@ -292,21 +364,54 @@ function OverviewSection() {
   const overview = useAdminData<Record<string, unknown>>("/market/admin/overview");
   const ops = useAdminData<Record<string, unknown>>("/admin/ops/summary");
 
-  const cards = flattenNumbers(overview.data?.overview ?? overview.data);
+  /**
+   * 老板要的「客户 / 订单 / 积分 / 消耗 / 余额」在这里一次给全（用户 2026-09-15）。
+   * 之前只把第一层数字铺成卡片，嵌套的 `tenants.total`、`billing.paidAmountCny` 全部被丢掉，
+   * 看起来就像「空壳」。
+   */
+  const businessCards = pickNumbers(ops.data, [
+    ["tenants.total", "客户（工作区）"],
+    ["users.total", "注册用户"],
+    ["subscriptions.activeOrTrialing", "在服务订阅"],
+    ["billing.paidOrders", "已支付订单"],
+    ["billing.pendingOrders", "待支付订单"],
+    ["billing.paidAmountCny", "已收款（元）"],
+    ["usage.agentRuns", "累计智能体运行"],
+    ["usage.agentRunsToday", "今日智能体运行"],
+    ["credit.consumedCreditsTotal", "累计消耗积分"],
+    ["credit.balanceTotal", "客户剩余积分合计"],
+    ["credit.paidCreditTotal", "累计发放积分"]
+  ]);
+  const cards = businessCards.length > 0 ? businessCards : flattenNumbers(overview.data?.overview ?? overview.data);
   return (
     <>
-      <Panel title="平台概览" error={overview.error} loading={overview.loading} onReload={() => void overview.reload()}>
+      <Panel title="关键数字（客户 / 订单 / 积分）" error={ops.error} loading={ops.loading} onReload={() => void ops.reload()}>
         {cards.length === 0
-          ? <DataView data={overview.data} />
+          ? <DataView data={ops.data} />
           : <div className="adminCards">{cards.map((card) => (
               <div key={card.label} className="adminCard"><span>{card.label}</span><strong>{card.value}</strong></div>
             ))}</div>}
       </Panel>
-      <Panel title="运行态摘要" error={ops.error} loading={ops.loading} onReload={() => void ops.reload()}>
-        <DataView data={ops.data} />
+      <Panel title="货架概览" error={overview.error} loading={overview.loading} onReload={() => void overview.reload()}>
+        <DataView data={overview.data?.overview ?? overview.data} />
       </Panel>
     </>
   );
+}
+
+/** 按「点号路径」取数字并配上中文标签；取不到就跳过（不显示 0 假数据）。 */
+function pickNumbers(source: unknown, spec: Array<[string, string]>): Array<{ label: string; value: string }> {
+  if (!source || typeof source !== "object") return [];
+  const out: Array<{ label: string; value: string }> = [];
+  for (const [path, label] of spec) {
+    let current: unknown = source;
+    for (const key of path.split(".")) {
+      if (!current || typeof current !== "object") { current = undefined; break; }
+      current = (current as Record<string, unknown>)[key];
+    }
+    if (typeof current === "number" || typeof current === "string") out.push({ label, value: valueText(current) });
+  }
+  return out;
 }
 
 function flattenNumbers(source: unknown): Array<{ label: string; value: string }> {
