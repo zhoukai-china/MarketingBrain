@@ -13,7 +13,9 @@
   - 触发记录：`13:16:21–13:16:36` 有 6 次**无效用户名**登录尝试——`ubuntu` / `ecs-user` / `workbuddy`（**不是**发布脚本，发布脚本一律用 `root` + 密钥，`13:15:51` 与 `13:16:08` 两次 root 公钥登录均成功）；这 6 次命中「10 分钟内 5 次」，于 `13:16:36` 封禁本站 IP，**bantime 3600 秒**。
   - 结论：**不是换网络、不是阿里云拦截、不是服务器故障**，是本机 IP 上某个工具用错误用户名试 SSH，自己把发布通道封了 1 小时（14:16:36 本会自动解封）。
 - 处置（最小、可回滚）：`fail2ban-client set sshd unbanip 123.185.203.162` → 立即恢复；`fail2ban-client status sshd` 复查 `Currently banned: 0`，随即 SSH/发布通道恢复（`SSH_OK`）。
-- 待办：排查本机哪个程序会用 `ubuntu`/`ecs-user`/`workbuddy` 这类用户名连接服务器（`workbuddy` 指向性很强），避免再次自封；如确需，`jail.local` 的 `ignoreip` 可加入固定出口 IP（当前出口是动态 CGNAT，不建议写死）。
+- 根因补充：发起方是 **WorkBuddy**——它在部署微信业务域名校验文件时假设服务器上有 `workbuddy-deploy` 用户并反复用 `ubuntu`/`ecs-user`/`workbuddy` 等用户名试登录（实测**服务器上并没有 `workbuddy-deploy` 用户**，`id workbuddy-deploy` 报 no such user），所以每次都失败并被 fail2ban 计数。该部署已由 Codex 接手完成，见 `docs/WECHAT_DOMAIN_VERIFY.md`。
+- 已加固：`/etc/fail2ban/jail.local` 的 `bantime` **3600 → 600**（10 分钟；`findtime=600`/`maxretry=5` 不变），配置备份 `.bak-20260915-bantime`，`fail2ban-client get sshd bantime` 复查为 600；不再做 IP 白名单——当前出口是动态 CGNAT，写死无意义且会削弱防护。
+- 附带清理：删除 `/opt/baolu-os-v2-backups/osv2-source-20260909-164327.tgz`（168M，09-09 的源码快照；仓库与 GitHub 已有完整历史，属冗余）。
 - 关联：本次同时完成存储保留策略落地，见 `docs/STORAGE_RETENTION.md`；磁盘 P0 见 QA-20260915-001。
 
 ## QA-20260915-002：用户端被内部单条预算上限挡住（20 秒片报「时长超出当前单条预算上限」）+ 换素材重复声明 409（P1，已修并上线）
