@@ -118,9 +118,35 @@ export function visionCostCny(images: number): number {
   return Math.max(0, images) * UNIT_COST_CNY.visionPerImageCny;
 }
 
-/** 新计费是否已启用（默认关：关着时扣费仍走 SKU 固定 ppu，行为与改造前一致）。 */
+/**
+ * 成本计费是否对**至少一个 SKU**生效（默认关：空名单时扣费仍走 SKU 固定 ppu）。
+ *
+ * 2026-09-15 起真正的开关是 `BILLING_COST_BASED_SKUS` 白名单；`BILLING_COST_BASED_ENABLED`
+ * 保留为历史开关（不再参与判定），两人同时存在时以白名单为准。
+ */
 export function costBasedBillingEnabled(): boolean {
-  return env.BILLING_COST_BASED_ENABLED === "true";
+  return costBasedSkuList().length > 0;
+}
+
+/** 纯函数：从逗号分隔的白名单字符串里解析出 SKU 集合（大小写不敏感、去空白、去重）。 */
+export function parseCostBasedSkuList(raw: string | undefined | null): string[] {
+  if (!raw) return [];
+  return [...new Set(
+    raw
+      .split(",")
+      .map((item) => item.trim().toLowerCase())
+      .filter((item) => item.length > 0)
+  )];
+}
+
+/** 当前生效的成本计费 SKU 白名单（env：`BILLING_COST_BASED_SKUS`）。 */
+export function costBasedSkuList(): string[] {
+  return parseCostBasedSkuList(env.BILLING_COST_BASED_SKUS);
+}
+
+/** 这个 SKU 是否按「实际成本 × 倍数」计费（没进白名单的一律走固定 ppu）。 */
+export function usesCostBasedPricing(skuCode: string): boolean {
+  return parseCostBasedSkuList(env.BILLING_COST_BASED_SKUS).includes(skuCode.trim().toLowerCase());
 }
 
 /**

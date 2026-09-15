@@ -12,13 +12,16 @@ import {
   costBasedBillingEnabled,
   creditsForCostCny,
   imageCostCny,
+  parseCostBasedSkuList,
   reserveCreditsForEstimate,
   speechCostCny,
   splitPartnerShare,
   textCostCny,
+  usesCostBasedPricing,
   videoCostCny,
   visionCostCny
 } from "../apps/api/src/services/billing-cost-model.js";
+import { readFileSync } from "node:fs";
 
 function main(): void {
   // 1) 倍数表 = 用户拍板的数
@@ -81,6 +84,26 @@ function main(): void {
   // 7) 开关默认关：关着时线上扣费仍是固定 ppu，改造不动钱
   assert.equal(costBasedBillingEnabled(), false, "BILLING_COST_BASED_ENABLED 默认必须是 false");
   assert.equal(env.BILLING_COST_BASED_ENABLED, "false", "env 默认值必须是 false");
+
+  /**
+   * 7b) 2026-09-15 起的真实开关：`BILLING_COST_BASED_SKUS` 白名单（用户「先只切有实测成本的三个」）。
+   * 默认空 → 一个 SKU 都不切；名单里的才按成本口径扣费。
+   */
+  assert.deepEqual(parseCostBasedSkuList(undefined), [], "白名单缺省 = 空（全部维持固定价）");
+  assert.deepEqual(
+    parseCostBasedSkuList(" ipzone__copy , MEIYE__copy ,, ipzone__ip-pos ,ipzone__copy"),
+    ["ipzone__copy", "meiye__copy", "ipzone__ip-pos"],
+    "白名单解析：去空白、转小写、去重、去空项"
+  );
+  assert.equal(usesCostBasedPricing("ipzone__copy"), false, "默认没配白名单时不得按成本计费");
+
+  // 7c) 接线契约：跑货架 run 时，白名单里的 SKU 必须扣「本次真实用量算出的成本口径积分」，账本要能审计。
+  const marketplaceSource = readFileSync(new URL("../apps/api/src/routes/marketplace.ts", import.meta.url), "utf8");
+  assert.match(marketplaceSource, /const costBased = usesCostBasedPricing\(sku\.skuCode\)/, "run 路由必须按 SKU 白名单判定是否成本计费");
+  assert.match(marketplaceSource, /const charge = costBased \? dynamicCredits : price;/, "扣费金额必须是「白名单→成本口径，否则固定 ppu」");
+  assert.match(marketplaceSource, /price: charge,/, "consumeWalletCredits 必须扣 charge（不能仍扣固定价）");
+  assert.match(marketplaceSource, /amountCredits: charge,/, "账本金额必须记 charge");
+  assert.match(marketplaceSource, /pricingMode: costBased \? "cost_based" : "fixed_ppu"/, "账本必须记 pricingMode 以便对账");
 
   console.log(JSON.stringify({
     result: "PLAT37_BILLING_COST_MODEL_PASS",

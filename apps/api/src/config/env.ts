@@ -162,6 +162,15 @@ const envSchema = z.object({
   // 按真实成本计费（PLAT-37，用户 2026-09-15 拍板大方向）。默认 false：
   // 关着时线上扣费仍是 SKU 固定 ppu，与改造前一字不差；打开才切到「成本 × 倍数」。
   BILLING_COST_BASED_ENABLED: z.enum(["true", "false"]).default("false"),
+  /**
+   * 按成本计费的 **SKU 白名单**（逗号分隔；用户 2026-09-15「先只切有实测成本的三个」）。
+   *
+   * 只有列在这里的 SKU 才按「实际 token 成本 × 100 倍」扣费（实测：文案 32 / IP 定位 116 / 视频复盘 ≈61）；
+   * 没列的继续用固定 `ppu`。**空 = 全部维持固定价（默认）**。
+   * 为什么按 SKU 白名单而不是一个全局开关：没有真实成本样本的 SKU 贸然切价会把价格定偏
+   * （估低了贴近甚至低于成本，估高了客户不买），所以按 SKU 灰度、拿到真实样本再逐个加。
+   */
+  BILLING_COST_BASED_SKUS: optionalString,
   DASHSCOPE_API_KEY: optionalString,
   DASHSCOPE_BASE_URL: optionalUrl,
   PEXELS_API_KEY: optionalString,

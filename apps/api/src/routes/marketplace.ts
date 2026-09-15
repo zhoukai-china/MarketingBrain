@@ -16,6 +16,7 @@ import {
   estimateMarketplaceModelCostCny,
   marketplaceCreditsForUsage
 } from "../services/marketplace-cost.js";
+import { usesCostBasedPricing } from "../services/billing-cost-model.js";
 import {
   MAX_TRIAL_CREDITS,
   TrialGrantError,
@@ -408,6 +409,14 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
       if (price <= 0) {
         return reply.code(409).send({ error: "marketplace_ppu_not_configured", message: "该智能体暂未开放使用" });
       }
+      /**
+       * 按成本计费（用户 2026-09-15「先只切有实测成本的三个 SKU」）。
+       *
+       * 白名单里的 SKU 这次扣的就是「实际 token 成本 × 100 倍」（`dynamicCredits`，用真实 usage 算），
+       * 没进白名单的继续扣固定 `ppu`——两者只差下面那个 `charge`，账本与响应都跟着走同一个数。
+       * 计费时点不变（交付完成之后扣一次），所以不需要预留/退差；真实用量决定真实扣分。
+       */
+      const costBased = usesCostBasedPricing(sku.skuCode);
 
       /**
        * 免费重做已下线（用户 2026-09-15 拍板「取消智能体的免费重做」）。
@@ -643,12 +652,14 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
         const answer = marketplaceWrappedAnswer(sku, answerText);
         const costCny = estimateMarketplaceModelCostCny(usage);
         const dynamicCredits = marketplaceCreditsForUsage(usage);
+        /** 实际扣分：白名单 SKU 走成本口径（按这次真实用量算），其余仍是固定 ppu。 */
+        const charge = costBased ? dynamicCredits : price;
 
         // 消耗积分时机：交付完成之后。免费重做已下线，这里只剩正常按次消耗积分一条路径。
         const consumed = await consumeWalletCredits({
           userId: context.userId,
           requestId,
-          price,
+          price: charge,
           skillId: sku.skuCode,
           source: "web"
         });
@@ -659,7 +670,7 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
             balance: consumed.wallet.balance,
             paidBalance: consumed.wallet.paidBalance,
             bonusBalance: consumed.wallet.bonusBalance,
-            required: price,
+            required: charge,
             rechargeUrl: buildRechargeUrl(sku.skuCode)
           });
         }
@@ -673,14 +684,16 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
             skuId: sku.id,
             type: "ppu_consume",
             direction: "debit",
-            amountCredits: price,
+            amountCredits: charge,
             amountCny: 0,
             status: "completed",
             idempotencyKey: requestId,
             refType: "marketplace_run",
             refId: requestId,
             metadata: {
+              pricingMode: costBased ? "cost_based" : "fixed_ppu",
               estimatedCredits: dynamicCredits,
+              listPpu: price,
               modelCostCny: costCny,
               promptTokens: usage.promptTokens,
               completionTokens: usage.completionTokens,
@@ -699,7 +712,8 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
           answer,
           qualityFlags: null,
           deliveryStatus: "completed",
-          consumedCredits: price,
+          consumedCredits: charge,
+          pricingMode: costBased ? "cost_based" : "fixed_ppu",
           freeRedo: false,
           requestId,
           balance: walletAfter.balance,
