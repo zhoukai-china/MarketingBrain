@@ -150,6 +150,9 @@ const envSchema = z.object({
   VOICE_TRANSCRIBE_MAX_MB: z.coerce.number().positive().default(10),
   VOICE_TRANSCRIBE_HOURLY_LIMIT: z.coerce.number().int().min(1).default(60),
   VOICE_TRANSCRIBE_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).default(60_000),
+  // 按真实成本计费（PLAT-37，用户 2026-09-15 拍板大方向）。默认 false：
+  // 关着时线上扣费仍是 SKU 固定 ppu，与改造前一字不差；打开才切到「成本 × 倍数」。
+  BILLING_COST_BASED_ENABLED: z.enum(["true", "false"]).default("false"),
   DASHSCOPE_API_KEY: optionalString,
   DASHSCOPE_BASE_URL: optionalUrl,
   PEXELS_API_KEY: optionalString,
