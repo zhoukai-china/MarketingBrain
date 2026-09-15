@@ -34,6 +34,7 @@ import {
   listReferralBindings,
   listReferralCodesOfOwner
 } from "../services/referral-attribution.js";
+import { issueSelfReferralLink, readSelfReferralLink } from "../services/referral-self-service.js";
 import {
   consumeWalletCredits,
   getOrCreateWallet,
@@ -714,6 +715,31 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
         subscriptions: await listSubscriptions(context),
         recentPpu: await listRecentPpuUsage(context)
       };
+    });
+
+    // PLAT-38（用户 2026-09-15）：「我的」页的自助邀请链接。
+    // 只需要登录态（身份取自服务端验签会话，不接受客户端传 userId），不要求平台管理令牌——
+    // 但只能操作**自己**的推荐码，明文只在签发时返回一次（与 PLAT-28 的安全模型一致）。
+    market.get("/me/referral-link", async (request, reply) => {
+      // 显式 401：自服务入口不依赖全局错误处理器，路由被单独挂载时也不能把「未登录」说成 500。
+      let context;
+      try {
+        context = await resolveRequestContext(request.headers);
+      } catch {
+        return reply.code(401).send({ error: "login_required", message: "请先登录后再查看邀请链接。" });
+      }
+      return await readSelfReferralLink(context.userId);
+    });
+
+    market.post("/me/referral-link", async (request, reply) => {
+      let context;
+      try {
+        context = await resolveRequestContext(request.headers);
+      } catch {
+        return reply.code(401).send({ error: "login_required", message: "请先登录后再生成邀请链接。" });
+      }
+      const regenerate = Boolean((request.body as { regenerate?: unknown } | undefined)?.regenerate);
+      return await issueSelfReferralLink({ userId: context.userId, regenerate });
     });
 
     market.post("/ppu/consume", async (request, reply) => {

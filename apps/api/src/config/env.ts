@@ -175,6 +175,8 @@ const envSchema = z.object({
   WORKBUDDY_MCP_ENABLED: z.enum(["true", "false"]).default("false"),
   WORKBUDDY_MCP_CONNECTIONS_JSON: optionalString,
   WORKBUDDY_MCP_PUBLIC_URL: urlWithDefault("https://api.lcppch.top/os-v2/api/integrations/workbuddy/mcp"),
+  // 对外公开站点根地址（生成「我的邀请链接」用；服务端拼链接，不接受客户端传入的地址）。
+  PUBLIC_WEB_BASE_URL: urlWithDefault("https://api.lcppch.top/os-v2/"),
   JWT_SECRET: optionalString,
   KNOWLEDGE_CREDENTIALS_KEY: optionalString,
   ADMIN_TOKEN: optionalString,

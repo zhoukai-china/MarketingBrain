@@ -1,6 +1,111 @@
 import { useEffect, useState } from "react";
-import { getAppPath } from "../lib/api.js";
-import { fetchMarketMe, guestToLogin, Topbar } from "./shell.js";
+import { apiPath, getAppPath } from "../lib/api.js";
+import { authHeaders, fetchMarketMe, guestToLogin, readJson, Topbar } from "./shell.js";
+import "../styles/referral-card.css";
+
+/**
+ * 我的邀请链接（PLAT-38，用户 2026-09-15）：把统一注册链接给到本人，含复制与二维码。
+ *
+ * 推荐码明文只在签发时返回一次（PLAT-28 的安全模型），所以页面只有两种情况：
+ * 没码 → 点「生成我的邀请链接」拿到链接 + 二维码；已有码 → 显示预览与「再生成一条」。
+ */
+interface ReferralLinkView {
+  state: "none" | "existing" | "created";
+  link: string | null;
+  code: string | null;
+  codePreview: string | null;
+  qrSvg: string | null;
+  codesCount: number;
+  hint: string;
+}
+
+function ReferralLinkCard() {
+  const [view, setView] = useState<ReferralLinkView | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await readJson<ReferralLinkView>(await fetch(apiPath("/market/me/referral-link"), { headers: authHeaders(), cache: "no-store" }));
+        if (!cancelled) setView(data);
+      } catch {
+        // 读不到不影响「我的」页其它内容：卡片自己给出人话。
+        if (!cancelled) setNotice("邀请链接暂时读取失败，稍后可重试。");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  async function issue(regenerate: boolean) {
+    setBusy(true);
+    setNotice("");
+    setCopied(false);
+    try {
+      const response = await fetch(apiPath("/market/me/referral-link"), {
+        method: "POST",
+        headers: authHeaders(true),
+        body: JSON.stringify({ regenerate })
+      });
+      const data = await readJson<ReferralLinkView>(response);
+      setView(data);
+      if (data.state === "created") setNotice("已生成，请立刻复制或保存——明文只显示这一次。");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "生成失败，请稍后重试");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copyLink() {
+    const link = view?.link ?? "";
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setNotice("链接已复制，粘贴给朋友即可。");
+    } catch {
+      setNotice("浏览器没让复制，请手动选中下面的链接复制。");
+    }
+  }
+
+  return (
+    <section className="referral-card" data-referral-card>
+      <header>
+        <h3>我的邀请链接</h3>
+        <span className="chip">{view?.codePreview ? `已有推荐码 ${view.codePreview}` : "还没有推荐码"}</span>
+      </header>
+      <p className="referral-hint">{view?.hint ?? "正在读取邀请链接…"}</p>
+
+      {view?.link ? (
+        <div className="referral-link-row">
+          <input readOnly value={view.link} onFocus={(event) => event.currentTarget.select()} aria-label="我的邀请链接" />
+          <button type="button" className="btn primary sm" onClick={() => void copyLink()}>{copied ? "已复制" : "复制链接"}</button>
+        </div>
+      ) : null}
+
+      {view?.qrSvg ? (
+        <div className="referral-qr" data-referral-qr dangerouslySetInnerHTML={{ __html: view.qrSvg }} />
+      ) : null}
+
+      <div className="referral-actions">
+        {view && view.state !== "created" && !view.link && (
+          <button type="button" className="btn primary sm" onClick={() => void issue(view.state === "existing")} disabled={busy}>
+            {busy ? "生成中…" : view.state === "existing" ? "生成新的邀请链接" : "生成我的邀请链接"}
+          </button>
+        )}
+        {view && view.state === "existing" && view.link && (
+          <button type="button" className="btn ghost sm" onClick={() => void issue(true)} disabled={busy}>再生成一条（旧链接仍然有效）</button>
+        )}
+        {!view && <button type="button" className="btn ghost sm" onClick={() => void issue(false)} disabled={busy}>重试</button>}
+      </div>
+      {notice && <p className="referral-notice">{notice}</p>}
+      <p className="referral-tip">朋友从这条链接首次开通工作区时，推荐关系会自动登记到你名下；已有账号的老用户直接登录，不重复绑定。</p>
+    </section>
+  );
+}
 
 export function MarketplaceMinePage() {
   const [balance, setBalance] = useState<number | null>(null);
@@ -47,6 +152,7 @@ export function MarketplaceMinePage() {
           <div className="balance-card"><div className="bc-label">积分余额</div><div className="bc-val">💎 {balance ?? "—"}</div><div className="bc-sub">按次使用 · 全平台通用</div><button className="btn ghost sm" onClick={() => { window.location.href = getAppPath("/recharge"); }}>+ 充值积分</button></div>
           <div className="shared-card wide">💎 <b>跨智能体通用</b><br />积分在统一钱包，可在创始人IP专区与各行业专区的智能体抵扣——只充一次，处处可用。</div>
         </div>
+        <ReferralLinkCard />
         <h3>近期按次使用</h3>
         {loading ? <div className="loading">正在加载…</div> : recent.length === 0 ? <p className="mine-tip">暂无按次使用记录</p> : (
           <div className="card-grid">
