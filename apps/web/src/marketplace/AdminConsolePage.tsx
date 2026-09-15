@@ -380,7 +380,8 @@ function OverviewSection() {
     ["usage.agentRunsToday", "今日智能体运行"],
     ["credit.consumedCreditsTotal", "累计消耗积分"],
     ["credit.balanceTotal", "客户剩余积分合计"],
-    ["credit.paidCreditTotal", "累计发放积分"]
+    ["credit.walletPaidBalanceTotal", "其中付费积分"],
+    ["credit.walletBonusBalanceTotal", "其中赠送积分"]
   ]);
   const cards = businessCards.length > 0 ? businessCards : flattenNumbers(overview.data?.overview ?? overview.data);
   return (

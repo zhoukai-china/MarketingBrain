@@ -36,14 +36,20 @@ const adminLoginSchema = z.object({
 });
 
 /**
- * 积分汇总（PLAT-39）：累计消耗 / 累计发放（付费桶 + 赠送桶）/ 客户剩余积分合计。
- * 全部是只读聚合；表缺失（早期环境）时逐项退回 0，不让整个后台摘要挂掉。
+ * 积分汇总（PLAT-39，用户 2026-09-15「后台看不到积分/消耗/余额」）。
+ *
+ * 取数口径（2026-09-15 用生产数据校准过，避免把噪声当钱看）：
+ * - **客户可用积分** = 统一钱包 `Wallet.paidBalance + bonusBalance`（客户真正在用的那个钱包，实测 9,320）；
+ * - **累计按次消耗** = `MarketplaceLedgerEntry.type='ppu_consume'` 的积分合计（实测 720 / 6 次）；
+ * - 遗留的 `CreditAccount.balance` 单独给一个字段（实测 20 亿，是历史/测试遗留，**不与钱包混算**，
+ *   否则老板会看到 20 亿积分的假数字）。
  */
 async function readCreditSummary(): Promise<{
   consumedCreditsTotal: number;
-  paidCreditTotal: number;
-  bonusCreditTotal: number;
+  walletPaidBalanceTotal: number;
+  walletBonusBalanceTotal: number;
   balanceTotal: number;
+  legacyAccountBalanceTotal: number;
 }> {
   const safe = async <T,>(fn: () => Promise<T>, fallback: T): Promise<T> => {
     try {
@@ -52,17 +58,22 @@ async function readCreditSummary(): Promise<{
       return fallback;
     }
   };
-  const [consumed, granted, accounts] = await Promise.all([
-    safe(() => prisma.creditTransaction.aggregate({ where: { amount: { lt: 0 } }, _sum: { amount: true } }), { _sum: { amount: 0 } } as any),
-    safe(() => prisma.creditTransaction.aggregate({ where: { amount: { gt: 0 } }, _sum: { amount: true } }), { _sum: { amount: 0 } } as any),
-    safe(() => prisma.creditAccount.findMany({ select: { balance: true } }), [] as Array<{ balance: number }>)
+  const [consumed, wallets, legacy] = await Promise.all([
+    safe(
+      () => prisma.marketplaceLedgerEntry.aggregate({ where: { type: "ppu_consume", status: "completed" }, _sum: { amountCredits: true } }),
+      { _sum: { amountCredits: 0 } } as any
+    ),
+    safe(() => prisma.wallet.aggregate({ _sum: { paidBalance: true, bonusBalance: true } }), { _sum: { paidBalance: 0, bonusBalance: 0 } } as any),
+    safe(() => prisma.creditAccount.aggregate({ _sum: { balance: true } }), { _sum: { balance: 0 } } as any)
   ]);
+  const walletPaid = wallets?._sum?.paidBalance ?? 0;
+  const walletBonus = wallets?._sum?.bonusBalance ?? 0;
   return {
-    consumedCreditsTotal: Math.abs(consumed?._sum?.amount ?? 0),
-    // 发放按交易正负合计给一个近似口径（付费桶 / 赠送桶的细分在钱包流水里，这里只给总量与余额）。
-    paidCreditTotal: Math.abs(granted?._sum?.amount ?? 0),
-    bonusCreditTotal: 0,
-    balanceTotal: accounts.reduce((sum, item) => sum + (item.balance ?? 0), 0)
+    consumedCreditsTotal: Math.abs(consumed?._sum?.amountCredits ?? 0),
+    walletPaidBalanceTotal: walletPaid,
+    walletBonusBalanceTotal: walletBonus,
+    balanceTotal: walletPaid + walletBonus,
+    legacyAccountBalanceTotal: legacy?._sum?.balance ?? 0
   };
 }
 
