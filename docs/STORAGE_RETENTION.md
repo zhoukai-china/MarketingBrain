@@ -83,3 +83,16 @@ KEEP=12         bash /opt/baolu-ops/prune-server-backups.sh --apply
 - 2026-09-15：备份保留 8 份/环境、发布脚本空间预检 + 成功后自删暂存、磁盘水位告警上线（QA-20260915-001）。
 - 2026-09-15（本次）：新增 24 小时暂存回收定时器、客户上传 180 天保留定时器、过期垃圾一次性清理脚本，
   并把 unit 与脚本一并纳入版本管理（`scripts/ops/systemd/`）。
+
+## 八、上线执行记录（2026-09-15 14:18，生产）
+
+安装：`bash scripts/ops/install-storage-retention.sh`（先 `bash -n` 自检 + 三个脚本 dry-run，再 `enable --now`）。
+
+| 项 | 结果 |
+| --- | --- |
+| `baolu-stage-prune.timer` | 已启用，每小时 `:17`；首跑 `status=0`，当时无超过 24h 的暂存（4 个目录均为当天 12:22–13:14） |
+| `baolu-uploads-retention.timer` | 已启用，每天 `03:40`；首跑 `status=0`，`files=0`（客户上传合计 64M：生产 40M / 内测 24M，均未满 180 天） |
+| 过期垃圾清理 `purge-legacy-artifacts.sh --apply` | 删除 4 项：`node_modules.broken-f-links-20260804`(19M)、`_tmp_zhenshui_715_parser_check_20260810`(8M)、`baolu-os-v2-releases`(322M)、`baolu-os-v2-backup-20260811-134303`(413M) |
+| 自动跳过 | `/opt/baolu-os-v2-backups`(168M) 被「最新文件 <7 天」规则拦下（内含 `osv2-source-20260909-164327.tgz`），未删 |
+| 磁盘 | 可用 **9.2G → 9.5G**（可用率 66–67%；`du` 的 762M 含硬链接/稀疏文件，实际释放小于账面） |
+| 回滚资产 | `/opt/baolu-backups` **39 份快照未触碰**（脚本显式拒绝该路径） |
