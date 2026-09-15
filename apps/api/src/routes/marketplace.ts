@@ -66,7 +66,8 @@ import {
   type VidrevRawRow
 } from "../services/video-review-engine.js";
 
-const zoneEnum = z.enum(["ipzone", "canyin", "meiye", "chongwu"]);
+// expert = 行业专家专区（用户 2026-09-15 新增，先放能力分身）。
+const zoneEnum = z.enum(["ipzone", "canyin", "meiye", "chongwu", "expert"]);
 const skuStatusEnum = z.enum(["selling", "trial", "internal", "coming_soon", "offline"]);
 const supplierTypeEnum = z.enum(["self_operated", "third_party"]);
 

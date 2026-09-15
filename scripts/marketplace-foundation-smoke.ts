@@ -56,6 +56,15 @@ function main(): void {
     `13 coming_soon skus stay on the shelf: 创始人IP专区 6 + 美业专区 6 + 1 品牌专属内核（视频复盘已上架）(got ${soonSkus.length})`
   );
   assert(soonSkus.some((sku) => sku.skuCode === "ipzone__topic"), "coming_soon sku stays visible on the public shelf");
+  // 2026-09-15 用户口径：行业专家专区先只建栏，暂不放任何智能体（显式空 skills 白名单）。
+  assert(
+    MARKETPLACE_ZONES.some((zone) => zone.key === "expert"),
+    `行业专家专区必须已在货架专区列表里（got ${MARKETPLACE_ZONES.map((zone) => zone.key).join(", ")}）`
+  );
+  assert(
+    shelf.every((sku) => (sku.zone || "") !== "expert"),
+    `行业专家专区当前不得上架任何智能体（got ${shelf.filter((sku) => sku.zone === "expert").map((sku) => sku.skuCode).join(", ")}）`
+  );
   // 品牌专属内核只在自己的专区上架，不污染通用分区。
   const lanqiSkus = shelf.filter((sku) => sku.zone === "lanqi").map((sku) => sku.skuCode);
   assert(

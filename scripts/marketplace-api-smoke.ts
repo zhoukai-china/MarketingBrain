@@ -14,10 +14,11 @@ async function main(): Promise<void> {
   const zonesBody = zones.json() as { zones: Array<{ key: string }> };
   const zoneKeys = zonesBody.zones.map((zone) => zone.key);
   assert(
-    ["ipzone", "canyin", "meiye", "chongwu"].every((key) => zoneKeys.includes(key)),
+    ["ipzone", "canyin", "meiye", "chongwu", "expert"].every((key) => zoneKeys.includes(key)),
     `core marketplace zones are returned (got ${zoneKeys.join(", ")})`
   );
   assert(zoneKeys.includes("lanqi"), "兰琪专区在货架上（品牌专属内核）");
+  assert(zoneKeys.includes("expert"), "行业专家专区在货架上（2026-09-15 新增）");
 
   const search = await app.inject({ method: "GET", url: "/market/skus?q=%E5%88%9B%E5%A7%8B%E4%BA%BAIP" });
   assert(search.statusCode === 200, "GET /market/skus search returns 200");

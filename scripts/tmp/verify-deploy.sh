@@ -25,7 +25,7 @@ chk "ready" "200" "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${
 echo "== runtime data (P1 fix) =="
 SRC="$(sha256sum "$APP/apps/api/src/data/marketplace-v3.json" | awk '{print $1}')"
 DIST="$(sha256sum "$APP/apps/api/dist/apps/api/src/data/marketplace-v3.json" | awk '{print $1}')"
-chk "src_data_sha" "8ab3b8f3f1f3a58e3e2f544b67ca1dc0b7ca2946023878c75ab1778c7b33ce4a" "$SRC"
+chk "src_data_sha" "b3364f29632fb553c1e46a98920aebff24ea0b864d97894b84075bfa60166b4f" "$SRC"
 chk "dist_data_matches_src" "$SRC" "$DIST"
 
 echo "== web build =="
@@ -120,6 +120,11 @@ try:
         if got != 'selling':
             raise SystemExit('%s expected selling, got %s' % (code, got))
         print("PASS  %s_status = selling" % code)
+    # PLAT-42（2026-09-15）：行业专家专区先只建栏、暂不上架智能体。
+    expert_skus = [s for s in skus if (s.get('zone') or '') == 'expert']
+    if expert_skus:
+        raise SystemExit('行业专家专区暂不应有智能体，实际 %d 个' % len(expert_skus))
+    print("PASS  expert_zone_empty = True")
     zones = set()
     for s in skus:
         z = s.get('zone') or s.get('category')

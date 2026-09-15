@@ -108,7 +108,7 @@ export const CHAT_FLOWS: Record<string, ChatFlow> = {
       { key: "res", label: "现有资源", q: "现有账号、团队、内容能力、可投入时间各是什么水平？" },
       { key: "gap", label: "最卡的一环", q: "定位 / 选题 / 文案 / 视频直播 / 销售，哪一环现在最卡？" }
     ]
-  }
+  },
 };
 
 export function chatFlowFor(coreSkillId: string): ChatFlow | undefined {

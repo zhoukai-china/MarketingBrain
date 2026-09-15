@@ -15,7 +15,9 @@ const MARKETPLACE_ZONE_ICONS: Record<string, string> = {
   canyin: "🍜",
   meiye: "💆",
   lanqi: "🧠",
-  chongwu: "🐾"
+  chongwu: "🐾",
+  // 行业专家专区（用户 2026-09-15）：先放老板的能力分身，后续再引入财税/股权等专家。
+  expert: "🎓"
 };
 
 /**
@@ -514,6 +516,9 @@ function buildMarketplaceSkuSeeds(): MarketplaceSkuSeed[] {
     const pains = industryValues(industry.pains);
     const overrideMap = industry.ov ?? {};
     // 品牌专区可以只上架自己的内核（industries[].skills 白名单）。未声明的专区保持原行为：上架全部通用内核。
+    // 2026-09-15：**显式声明空数组 = 本专区暂不上架任何智能体**（行业专家专区先建栏、后放专家）。
+    const declaredSkills = (v3Data.industries as Record<string, { skills?: unknown }>)[industryKey]?.skills;
+    if (Array.isArray(declaredSkills) && declaredSkills.length === 0) continue;
     const zoneSkillAllowList = industryValues(industry.skills);
 
     for (const [skillId, core] of Object.entries(v3Data.skills)) {
