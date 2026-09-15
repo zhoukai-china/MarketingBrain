@@ -22,6 +22,11 @@ VITE_BASE="${7:?vite base path}"
 DELETED_LIST="${8:-}"
 
 STAGE="/opt/baolu-stage/${REL}"
+# 磁盘水位预检（2026-09-15 P0：生产被发布暂存与历史备份写满 → PostgreSQL 无法扩展文件 →
+# beta-login 建租户 500 → 内测用户看到「服务不可用」）。低于 MIN_FREE_GB 直接拒绝发布，
+# 宁可发布失败也不要让运行中的库写不进去。
+MIN_FREE_GB="${MIN_FREE_GB:-5}"
+KEEP_STAGE_DAYS="${KEEP_STAGE_DAYS:-2}"
 # 允许用 BACKUP_TAG 指定备份前缀，重跑时保留上一轮备份不被覆盖
 BACKUP_TAG="${BACKUP_TAG:-$REL}"
 BACKUP="/opt/baolu-backups/${BACKUP_TAG}-before-$(basename "$APP")"
@@ -33,6 +38,19 @@ case "$STAGE" in /opt/baolu-stage/*) ;; *) echo "unexpected STAGE=$STAGE"; exit 
 case "$BACKUP" in /opt/baolu-backups/*) ;; *) echo "unexpected BACKUP=$BACKUP"; exit 1 ;; esac
 case "$APP" in /opt/baolu-*) ;; *) echo "unexpected APP=$APP"; exit 1 ;; esac
 test "$(readlink -f "$APP")" = "$APP"
+
+free_gb() { df -BG --output=avail "$1" | tail -n 1 | tr -dc '0-9'; }
+AVAIL_GB="$(free_gb "$(dirname "$APP")")"
+echo "free space before deploy: ${AVAIL_GB}G (require >= ${MIN_FREE_GB}G)"
+if [ "${AVAIL_GB:-0}" -lt "$MIN_FREE_GB" ]; then
+  echo "!!! refusing to deploy: only ${AVAIL_GB}G free on $(dirname "$APP")" >&2
+  echo "    run scripts/ops/prune-server-backups.sh (dry-run first) and clear /opt/baolu-stage/*" >&2
+  exit 1
+fi
+# 顺手回收历史发布暂存（本脚本每次发布自建 STAGE，成功后也会自己删；这里兜住历史遗留）。
+if [ -d /opt/baolu-stage ]; then
+  find /opt/baolu-stage -maxdepth 1 -mindepth 1 -type d -mtime "+${KEEP_STAGE_DAYS}" -not -path "$STAGE" -exec sudo rm -rf -- {} + 2>/dev/null || true
+fi
 
 restore_on_failure() {
   local status=$?
@@ -263,5 +281,8 @@ fi
 wait_http_ok "http://127.0.0.1:${PORT}/ready" ready 20 3
 
 SUCCEEDED=true
+# 发布成功即回收本次暂存（失败时保留，便于现场取证；回滚走 BACKUP，不依赖 STAGE）。
+if [ -d "$STAGE" ]; then sudo rm -rf -- "$STAGE" || true; fi
 echo
 echo "DEPLOY_OK ${REL} app=${APP}"
+df -h / | tail -n 1

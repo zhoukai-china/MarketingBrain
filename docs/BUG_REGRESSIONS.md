@@ -9,9 +9,10 @@
   空间被两类**可再生**产物吃掉：`/opt/baolu-stage/*` 发布暂存目录累计 **8.4G**（每次发布新建一个、成功后未清理）、`/opt/baolu-backups` **6.4G / 49 份**（无保留策略）。
 - 现场修复（非破坏客户数据）：清空 `/opt/baolu-stage/*`（发布脚本每次发布都会自建该目录）、删除 `/tmp/release-*.tar.gz`（保留最新 3 个）与 `/tmp/overlay-*.tar.gz`、journal vacuum。**100% → 69%（8.7G 可用）**。
 - 修复后验证：① DB 写入自检 `begin; create temp table; insert; rollback` 成功；② 无效邀请码 `POST /auth/beta-login` → **403 `invite_code_not_found`**（不再是 500）；③ 该内测邀请码 `POST /auth/product-invite/validate {inviteCode:"lanqi-beta-2026",productCode:"lanqi"}` → **200 `{valid:true}`**（码本身有效、还有 20 个名额里用了 5）；④ `baolu-os-v2` 与 `baolu-os-v2-test` 均 active，两侧 health 200，`df` 稳定在 69%。
-- 防复发（部分已交付，部分待拍板）：
-  - 已交付：新增 `scripts/ops/prune-server-backups.sh`（**默认 dry-run**，按环境各保留最近 `KEEP` 份，删除前打印清单；实测当前会保留生产/测试各 8 份、列出 21 个待删目录约 2.7G）。真正执行需 `--apply`。
-  - 待办：① 要不要跑一次 `--apply` 回收 2.7G（会删掉 20260914 及更早的发布前备份，含 LQ-29/LQ-30 的回滚点）；② 发布脚本成功后自动清理自己的 `/opt/baolu-stage/<rel>`，并在 preflight 加「可用空间 < 5G 直接失败」；③ 磁盘水位告警（>85%）接进现有告警通道。②③ 涉及并行任务在改的 `scripts/tmp/deploy-release.sh`，需与其协调后再落。
+- 防复发（用户 2026-09-15「同意」后全部落地）：
+  1. **备份保留策略已执行**：`scripts/ops/prune-server-backups.sh --apply`（每环境保留最近 8 份）→ 删除 21 个历史备份，磁盘 **69% → 57%（13G 可用）**。注意：按保留策略，20260914 及更早的发布前备份（含 LQ-29 / LQ-30 的回滚点）已随之回收，当前可用的最新回滚点是 20260915 各次发布。
+  2. **发布脚本加双保险**（`scripts/tmp/deploy-release.sh`，同步到服务器 `/tmp/deploy-release.sh`，旧版备份 `.bak-20260915-diskguard`）：preflight 增加「可用空间 < `MIN_FREE_GB`（默认 5G）直接拒绝发布」；发布开始时回收 `> KEEP_STAGE_DAYS`（默认 2 天）的历史暂存目录；**发布成功即删除本次 `STAGE`**（失败时保留取证）。实测：`MIN_FREE_GB=999` 时脚本在动任何东西前拒绝并给出处置命令；正常阈值下空间检查通过后按原流程继续。
+  3. **磁盘水位告警已上线**：新增 `scripts/ops/disk-alert.sh`（使用率 ≥85% 或可用 ≤8G 才发，未越线安静；`--dry-run` 只打印），部署到 `/opt/baolu-ops/disk-alert.sh`，并用 `baolu-disk-alert.timer`（**每小时**，`EnvironmentFile=/etc/baolu-secrets/baolu-os-v2-alerts.env`，走既有 `SITONG_ALERT_WEBHOOK`）常驻；安装后手工跑一次 service：`exit=0`（当前 57%，未越线不发）。
 - 关联：`docs/CURRENT_DEPLOYMENT_STATUS.md` 同日条目；上游同类事件（2026-09-13 测试实例因磁盘满崩溃）见兰琪 STATUS 历史段。
 
 ## QA-20260915-001：OSS 暂存审计把上游原始错误 message 落库（可能含签名 URL / 桶名 / AccessKeyId）（P1，本次修复）
