@@ -32,6 +32,32 @@
 
 - 2026-09-14（总调度7 · 发布 4）：`20260914-zd7d/zd7e-vidrev-fix` 测试 + 生产均 `DEPLOY_OK` + `VERIFY_OK`；按 2026-09-13 工单改造视频复盘（数据导出指南 / 删快速诊断 / `parse-preview` 预检 / 一键填充标准请求 / 视频号抖音字段别名）。视频复盘仍为「开发中」，待业务验收后再上架。
 
+## 总调度8 · 并行/串行判定与热点互斥（2026-09-15）
+
+**判定：受限并行。** 各自产品目录的文件可并行；工作树、共享热点文件、发布通道一律**串行**。
+
+判定依据（2026-09-15 18:00–18:10 只读取证）：
+
+- 总调度7（`01a09d77`）与兰琪任务（`01a09f67`）**同时在同一工作树** `F:\思潼AI增长os\baolu-os-v2-source` 编码，两条线程各有一个进行中的回合。`docs/agents/AGENTS.md` 第 10 条要求跨产品并行必须使用独立 worktree/分支，当前条件不满足。
+- 8 分钟内两条线交替写盘：兰琪 18:05:30 打出 `release-20260915-lq32-samecontent.tar.gz`，而平台侧文件同期仍在改（`scripts/ops/install-wechat-verify-file.sh` 18:02:08 → `apps/api/src/services/video-review-engine.ts` 18:05:19 → `apps/web/src/marketplace/chat-flows.ts` 18:05:46 → `apps/api/src/routes/marketplace.ts` 18:06:02 → `apps/web/src/main.tsx` / `NotFoundPage.tsx` 18:08:47）。
+- 已核对 LQ-32 发布包内的平台文件 = HEAD 版本（`video-review-engine.ts` 仍是「笔记标题」旧口径、`main.tsx` 仍是 `MyAiPage` 旧实现），**本轮未把平台在途改动带上生产**；但这靠人工挑文件实现，历史上已失手一次：提交 `cd37a6b` 把兰琪 `LanqiAcquireVideoPage.tsx` 覆盖回「贴链接」旧版，后由 `881d7be` 重新落回。
+
+规则（两条线程共同遵守，违反即按 P1 处理）：
+
+1. **写区独占**：兰琪只写 `apps/web/src/pages/Lanqi*`、`apps/api/src/products/lanqi/**`、`scripts/lanqi-*`、`docs/agents/lanqi-beauty/**`；总调度7只写平台/公共与 `marketplace` / `vidrev` / `ops` 相关文件。不得顺手改对方文件。
+2. **热点文件令牌**：`apps/web/src/main.tsx`、`apps/web/src/pages/NotFoundPage.tsx`、`apps/api/src/products/register.ts`、`package.json`、`scripts/tmp/deploy-*.sh`、`scripts/tmp/verify-deploy.sh`、`docs/CURRENT_DEPLOYMENT_STATUS.md`、`docs/BUG_REGRESSIONS.md` 同一时刻只允许一方改；要改先在对话里声明，对方确认空闲后再动。
+3. **打包纪律**：打包前跑 `git status --porcelain`，包里只允许有自己的改动；对方在途文件必须取 HEAD 版本入包，并在发布记录里写明哪些文件是「HEAD 入包」。
+4. **发布串行**：同一时刻只允许一个任务执行部署（共享 `scripts/tmp/deploy-*.sh`、共享服务重启与迁移窗口）。另一方在跑部署时不得打包发布。
+5. **禁止回退对方文件**：不得用 `git checkout` / `restore` / 整文件回写去「修复」对方文件；发现被覆盖要保留证据并单独提交修复（参照 `881d7be`）。
+
+**持久修复（需用户点头 + 线程空闲时执行）**：把兰琪编码任务迁到独立 worktree（`C:/Users/book/.codex/worktrees/<id>/baolu-os-v2-source`，仓库已有先例），平台留在主树；完成后跨产品可恢复真并行（最多 2 个编码任务同时进行）。
+
+**当前排期**：
+
+- 兰琪任务（`01a09f67`）：LQ-32 已上生产，先把登记/提交收口，新编码任务在总调度7本轮发布完成前不启动。
+- 总调度7（`01a09d77`）：把手上的平台/公共改动做完（`/my-ai` 下线跳转、视频复盘抖音/视频号口径、marketplace 文案与门禁），确认 `git status` 只剩自己文件后发布。
+- 交接条件：总调度7 发布完成并提交后交回兰琪；两者不得同时打发布包、不得同时跑部署。
+
 ## 已知阻塞
 
 - 桌面版 create_thread/fork_thread 对项目/派生线程会报 missing field call_id 系统错误，线程执行通道不可用；任务暂时在“开发总调度”对话框直接推进。
