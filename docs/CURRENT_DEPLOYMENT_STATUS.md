@@ -1,5 +1,41 @@
 # 当前部署状态
 
+## 最新发布：20260916-plat45-costbased（2026-09-16，生产 + 测试实例）— 货架按成本计费接线（先切 3 个有实测成本的 SKU）
+
+### 一、用户口径（2026-09-16）
+
+- 「我们都是几倍收费」——文字 100× / 图片 5× / 视频 2× / 语音 10× / 视觉 100×（2026-09-15 已拍板）；
+- 货架按次价切成本口径：**只切有真实成本样本的三个**，其余等有数据再逐个定（用户原话「同意这个」）；
+- 同日已执行：兰琪图生视频 **30 → 12 积分/秒**（成本 ×2，测试+生产已生效）。
+
+### 二、改动（4 个文件）
+
+- 新增 env **`BILLING_COST_BASED_SKUS`**（逗号分隔白名单）：列进去的 SKU 按「**实际 token 成本 × 100 倍**」扣费，没列进去的继续扣固定 `ppu`。空 = 全部维持固定价（默认）。
+- `apps/api/src/routes/marketplace.ts` 的 run 扣费改为 `charge = costBased ? dynamicCredits : price`；账本与响应同步（新增 `pricingMode` / `listPpu` 便于对账，仍不含任何成本字段）。
+- 为什么按 SKU 白名单而不是一个全局开关：没有真实成本样本的 SKU 贸然切价会把价格定偏——估低了贴近甚至低于成本、估高了客户不买。
+- 契约：`pnpm.cmd billing:cost-model-smoke` 增加白名单解析 / 默认空 / 接线断言（`charge = costBased ? dynamicCredits : price`、账本 `pricingMode`）。
+
+本轮切这三个（六个 SKU 码）：`ipzone__copy` / `meiye__copy`、`ipzone__ip-pos` / `meiye__ip-pos`、`ipzone__vidrev` / `meiye__vidrev`。
+
+### 三、发布与验收
+
+| 环境 | 发布 id | 结果 |
+| --- | --- | --- |
+| 测试 | `20260916-plat45-costbased-test1` | `DEPLOY_OK` + `VERIFY_OK`；真机跑文案 → `consumedCredits=35`、`pricingMode=cost_based`、账本 `amount=35 / mode=cost_based / listPpu=40` |
+| 生产 | `20260916-plat45-costbased-prod1` | `DEPLOY_OK` + `VERIFY_OK`；真机跑文案 → `consumedCredits=38`、`pricingMode=cost_based`、账本 `amount=38 / mode=cost_based / listPpu=40`，钱包 400 → 362，合成数据残留 **0** |
+
+- 发布包 `release-20260916-plat45-costbased.tar.gz`（sha256 `29cfd14d5693c065cda62fd3b4f6a57bc10bb466d7aa6d8534d7c0775fbc9ea1`，1564 文件）；env 备份 `env-{prod,test}-before-plat45-*.env`。
+- 生产禁用 `dev-login`，因此生产真机验证用「合成租户 + 服务端签会话」（`createTenantWorkspace` + `createSessionToken`）跑一次真实生成，跑完按 id 精确删除并核对 `residue {users:0, tenants:0}`。
+- 顺带取到的正向证据：当天测试实例上两次生成被**质量门禁 422 拦下**（文案区含绝对化用语），**两次都没有扣费**（0 条账本）——失败不收费是对的。
+- 本地先验证一轮：白名单开启后同一次文案扣 **34 积分 / cost_based**（预期值用账本 usage 复算一致），不是固定 40。
+- 回滚：`/opt/baolu-backups/20260916-plat45-costbased-{prod1,test1}-before-…` + 还原 env（删掉 `BILLING_COST_BASED_SKUS` 行即回到固定价）+ `systemctl restart`。
+
+### 四、注意与后续
+
+- **同一个 SKU 每次扣分不再固定**：文案实测 34 / 35 / 38 积分（固定价是 40），随真实 token 用量浮动；极端长输出理论上更高（受 8192 maxTokens 约束，上界约 146 积分）。若希望「永不超过现价」，可加一行封顶 `min(成本口径, ppu)`——需要用户点头。
+- 其余 5 类（选题 / 销售话术 / 直播话术 / 直播复盘 / 朋友圈）**仍是固定价**，等有真实成交样本再逐个加进白名单。
+- 服务器磁盘 `/` 剩 **6.2G**（78%），接近发布脚本 5G 底线，下轮发布前建议先跑 `scripts/ops/prune-server-backups.sh`。
+
 ## 最新发布：20260916-lq33-copy-kit（2026-09-16，测试实例 + 生产）— 兰琪公域获客新增「美业文案十件套」卡（独立计费）
 
 ### 一、用户口径与交付

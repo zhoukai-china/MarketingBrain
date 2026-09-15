@@ -157,7 +157,13 @@ splitPartnerShare(chargedCredits, capability) // → { partnerCredits, platformC
 
 ### 仍待老板确认（改客户实际扣分，确认后才动）
 
-**A. 货架按次价：固定价 → 成本口径的试算对账表**（老板原话：「给我确认再切」；现在 `BILLING_COST_BASED_ENABLED` 未接进扣费路径，线上仍是固定价）
+**A. 货架按次价：固定价 → 成本口径**（老板 2026-09-16「同意这个：先只切有实测成本的三个」→ **已执行并上线**）
+
+开关：env `BILLING_COST_BASED_SKUS`（逗号分隔白名单，空 = 全部固定价）。本轮已切：`ipzone__copy` / `meiye__copy` / `ipzone__ip-pos` / `meiye__ip-pos` / `ipzone__vidrev` / `meiye__vidrev`。发布 `20260916-plat45-costbased`（测试 + 生产 `DEPLOY_OK` + `VERIFY_OK`）；真机实测：文案 = 34（本地）/ 35（测试）/ 38（生产）积分，账本 `pricingMode=cost_based`、`listPpu=40`。
+
+**每次扣分不再固定**：随真实 token 用量浮动（受 8192 maxTokens 约束，理论上界约 146 积分）。若要「永不超过现价」，需用户点头加封顶 `min(成本口径, ppu)`。
+
+试算对账表（切换前测算，保留备查）：
 
 | SKU（在售） | 现价 | 实测平均成本 | 按 100× 应收 | 变化 | 数据来源 |
 | --- | --- | --- | --- | --- | --- |
