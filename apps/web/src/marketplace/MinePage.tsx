@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
 import { authHeaders, fetchMarketMe, guestToLogin, readJson, Topbar } from "./shell.js";
 import "../styles/referral-card.css";
@@ -24,13 +24,23 @@ function ReferralLinkCard() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [copied, setCopied] = useState(false);
+  /**
+   * 版本号：**POST（用户点按钮）的结果永远优先**。
+   *
+   * 2026-09-15 验收实测的竞态：首屏 GET 还没回来时用户就点了「生成邀请链接」，
+   * POST 先返回（created + 链接），随后 GET 的旧结果把状态覆盖回「已有推荐码」，
+   * 用户看到的就是「点了按钮却没有链接」。慢网络下更容易出现。
+   * 规则：GET 只允许在自己这轮没有被 POST 打断时写状态。
+   */
+  const stateVersionRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
+    const version = stateVersionRef.current;
     void (async () => {
       try {
         const data = await readJson<ReferralLinkView>(await fetch(apiPath("/market/me/referral-link"), { headers: authHeaders(), cache: "no-store" }));
-        if (!cancelled) setView(data);
+        if (!cancelled && stateVersionRef.current === version) setView(data);
       } catch {
         // 读不到不影响「我的」页其它内容：卡片自己给出人话。
         if (!cancelled) setNotice("邀请链接暂时读取失败，稍后可重试。");
@@ -50,6 +60,7 @@ function ReferralLinkCard() {
         body: JSON.stringify({ regenerate })
       });
       const data = await readJson<ReferralLinkView>(response);
+      stateVersionRef.current += 1;
       setView(data);
       if (data.state === "created") setNotice("已生成，请立刻复制或保存——明文只显示这一次。");
     } catch (error) {
@@ -92,7 +103,10 @@ function ReferralLinkCard() {
 
       <div className="referral-actions">
         {view && view.state !== "created" && !view.link && (
-          <button type="button" className="btn primary sm" onClick={() => void issue(view.state === "existing")} disabled={busy}>
+          // 按钮文案无论「还没有推荐码」还是「已有推荐码」都是「生成…邀请链接」——这是用户的显式动作，
+          // 一律按「签一条新的」处理（服务端保证旧链接仍然有效）。这样不会出现 GET 说没有、POST 说有
+          // 的状态打架（2026-09-15 测试实例实测：那种打架会让用户点了按钮却看不到链接）。
+          <button type="button" className="btn primary sm" onClick={() => void issue(true)} disabled={busy}>
             {busy ? "生成中…" : view.state === "existing" ? "生成新的邀请链接" : "生成我的邀请链接"}
           </button>
         )}
