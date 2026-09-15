@@ -223,3 +223,19 @@ Qwen 已通过兰琪低风险通用准入，但只覆盖分类、标签、事实
 | 领域及全仓门禁 | PASS | 锁定 pnpm 9.15.0 原始执行 `lanqi:xhs-package-smoke`、`qa:lanqi-foundation`、`qa:fast`、`qa:regression`、`qa:full` 全部通过；`git diff --check` 通过（仅现有 Windows 换行提示） |
 
 LQ-15 的 mock/确定性链只证明统一工作流、状态、隔离和失败恢复，不冒充真实成图质量。新的真实图片必须取得新的明确费用授权。
+
+### LQ-33 公域获客新增「美业文案十件套」卡（独立计费，2026-09-16）
+
+| 领域 | 结果 | 证据 |
+|---|---|---|
+| 合同唯一出处 | PASS | `pnpm.cmd lanqi:acquire-ui-contract-smoke` **131/0** 断言：货架 `marketplace.ts` 不再有 `COPY_SYSTEM_PROMPT` / `parseCopyTen` 本地副本，改为引用 `copy-ten-contract.ts`；兰琪服务只引用同一份合同，不复写提示词 |
+| 离线回归（确定性） | PASS | `pnpm.cmd lanqi:copy-kit-smoke` **28/0**：正常路径 ready；信息不足**不调模型**；模型回【需补充信息】转 needs_input；结构不合格 / 违禁词 → invalid；计费默认 40 + env 覆盖；输入指纹；同键同输入幂等、跨租户读不到、非法键写入拒绝 |
+| **真实模型 Eval（高风险样例 ×3）** | PASS | `pnpm.cmd lanqi:copy-kit-live-eval`（真实 `deepseek-v4-pro`）**15/0**：3 次均 `finishReason=stop`、正文 3.1k–3.3k 字、十节齐全、与共享合同校验逐条一致、无样板门店 / 他人信息泄漏 |
+| 失败关闭（不扣积分） | PASS | 余额不足 → 402 且**未调模型**；模型失败 → 502/503；信息不足 → 200 `needsInput` 且 `consumedCredits=0`；结构不合格 → 422 且 `consumedCredits=0`；扣分仅在结构合格之后 |
+| 幂等与租户隔离 | PASS | 同 `requestKey` + 同输入复用缓存结果（不重复扣）；同键换输入 **409**；结果目录按租户哈希派生，跨租户读取返回 undefined；路由每次请求重算 Membership + `assertStoreVisible` |
+| 页面契约 | PASS | `pnpm.cmd lanqi:acquire-ui-contract-smoke` 新增 30 条：枢纽第 6 张卡、独立路由、真实接口、复制 / 导出、扣费与幂等说明、409 冲突、不暴露合同版本与模型名 |
+| 测试实例真实浏览器（桌面 1440 + 移动 390） | PASS | `node scripts/lanqi-acquire-instance-acceptance.mjs --base https://api.lcppch.top/lanqi-test` **46 项 / 失败 0**：枢纽 6 卡、十件套页骨架、未生成不出现复制 / 导出、内容太短本地拦截**不发请求**、按钮可用、无厂商名、无 4xx/5xx 与控制台错误、390 无横向溢出 |
+| 生产只读探针 | PASS | 匿名 `POST /os-v2/api/lanqi/acquire/copy-kit` **401**；`GET /os-v2/lanqi/acquire/copy-kit` **200**；线上 chunk `LanqiAcquireCopyKitPage-Ck9ZzJX2.js` 含 `data-lq-ck-submit` / `data-lq-ck-content`，枢纽 chunk 含「美业文案十件套」；API 产物含 `acquire/copy-kit` 与 `lanqi_copy_kit` |
+| 领域及全仓门禁 | PASS | `pnpm.cmd qa:fast` exit 0（含全仓 typecheck）；本卡回归已挂进 `qa:lanqi-foundation`（`lanqi:copy-kit-smoke`） |
+
+计费单价（现默认 40 积分 / 次）与「租户 `creditAccount` ↔ 用户 `wallet`」的充值同步口径仍待老板拍板；本卡按兰琪现有能力口径扣租户积分账户，未擅自改账本。

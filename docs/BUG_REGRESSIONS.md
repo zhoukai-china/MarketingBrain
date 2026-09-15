@@ -1,5 +1,31 @@
 # Bug 回归台账
 
+## QA-20260916-002：兰琪「美业文案十件套」真实生成**偶发失败**——输出被推理 token 吃满截断 / 口播字数不足 / 合规备注里写了被禁词被结构校验打回（P1，已修 + 3 次真实 Eval 全绿 + 已上两环境）
+
+- 触发：2026-09-15 夜 LQ-33（公域获客新增「美业文案十件套」卡）真实模型 Eval，用户口径是「新增一张卡、独立计费」，交付质量必须稳。
+- 复现（**修复前**，`pnpm.cmd lanqi:copy-kit-live-eval`，同一高风险样例重复 3 次，真实 `deepseek-v4-pro`）：
+  - 第 1 轮（`maxTokens 8192` + 默认推理档）：**2 passed / 1 failed**，失败那次 `finishReason=length`、`completionTokens=8192`（其中推理 6494）→ `deepseek_provider_output_token_limit`，门店看到的是「这次没生成出来」。
+  - 第 2 轮（改成 `reasoningProfile=standard` + `thinking=disabled`）：**0 passed / 3 failed**——正文从 3.5k 字掉到 ~2.5k 字，出现「文案区含违规引导词」。
+  - 第 3 轮（`maxTokens 16384` + 默认推理档）：**1 passed / 2 failed**——失败 ①「口播稿过短（133 字 < 150）」；失败 ②「文案区含违规引导词」，触发文本是第六节 EDL 表格里的合规备注（`不出现私信类引导`），即**合规说明句里的字面词被结构校验命中**。
+- 根因（现象 → 根因拆开）：
+  1. 输出额度与推理共享同一个 `max_tokens` 上限。默认高推理档下，推理 4.7k–6.5k token 会把 8192 额度吃掉大半，正文被截断（**根因**），表现为 `output_token_limit`（现象）。
+  2. 兰琪这侧的「提问壳」只写了分段与「每句 ≤40 字」，没把结构校验器的其余硬阈值（口播 ≥150 字、标题正好 3 行、话题三层词、任何位置不得逐字写出被禁词）写成显式要求（**根因**），于是模型在合规备注 / 表格备注里复述禁词时被自己的校验器打回（现象）。
+  3. 「关掉思考换速度」这条看似省事的改法**会让质量变差**——同一批 Eval 下结构失败率反而升到 3/3，所以不做（这是被证伪的备选，不是未尝试）。
+- 修复（最小改动，只动兰琪提问壳与额度，**不改共享合同与校验器**）：
+  - `apps/api/src/products/lanqi/copy-kit-service.ts`：默认输出额度 8192 → **16384**（provider 实测接受），并留 `LANQI_COPY_KIT_MAX_TOKENS` 环境变量可调；提问壳补四条硬要求（口播正文 ≥150 汉字且每句 ≤40 字；第七节正好 3 行标题且话题逐字写「大流量 / 精准 / 行业」；获客型第三节 5-6 组【问·…】、第十节主投本地推；**任何位置**（含禁忌说明与表格备注）不得出现被禁词字面，要表达禁止时改成「不做站外导流」「不做引流话术」）。
+  - 不改 `parseCopyTenContract` / `COPY_TEN_SYSTEM_PROMPT`：改它会同时改货架「文案智能体」的行为，属另一条回归线，不在本任务范围。
+- 修复后（先红后绿）：`pnpm.cmd lanqi:copy-kit-live-eval` **3/3 全绿（15 passed / 0 failed）**，三次 `finishReason=stop`、正文 3.1k–3.3k 字、无样板门店泄漏、结构校验与共享合同逐条一致；离线回归 `pnpm.cmd lanqi:copy-kit-smoke` **28/0**、页面契约 `pnpm.cmd lanqi:acquire-ui-contract-smoke` **131/0**、`pnpm.cmd qa:fast` exit 0。
+- 残余风险：真实生成仍属非确定性，仍可能偶发结构不合格——此时**不扣积分**并明确提示重试（`422 copy_kit_output_invalid`）；后续若要把偶发率继续压下去，应走「有界修复重写一次」的独立任务，而不是继续加长提问壳。
+
+## QA-20260916-001：兰琪浏览器验收在 Windows 上**探活假失败**——`--version` 被 Chrome 当普通启动，探针报「未找到可用的 Chromium/Chrome」（P2，已修；门禁能真跑）
+
+- 触发：2026-09-16 在开发机跑 `node scripts/lanqi-acquire-instance-acceptance.mjs --base https://api.lcppch.top/lanqi-test`，脚本直接抛「未找到可用的 Chromium/Chrome 可执行文件。探测结果：… chrome-win64\chrome.exe => unusable(status=null) | C:/Program Files/Google/Chrome/Application/chrome.exe => unusable(status=null)」，而机器上两个浏览器都真实存在。
+- 复现（**修复前**）：`spawnSync(candidate, ["--version"], { timeout: 15000 })` 对两个候选都超时（`status=null`）。手工验证同一二进制：`--version` 会**拉起浏览器窗口且不退出**（`Start-Process … WaitForExit(20000)` 超时），说明根因不是「没装浏览器」。
+- 根因：Windows 版 Chrome / Chromium **不支持 `--version` 这个命令行开关**（它按普通启动处理）；QA-20260915-005 把探活从「文件是否存在」改成 `--version`，在 Linux/Playwright 上有效，但没有覆盖 Windows 这条事实 → 探针在正确的机器上必然误报。
+- 修复：`scripts/lanqi-acquire-instance-acceptance.mjs` 的 `findChrome()` 改为 headless 跑一次 `--headless=new --dump-dom about:blank`，要求「进程退出（exit 0）+ 有输出」才认定可用（同一台机器实测该探活 0.9s 成功返回）。
+- 修复后：`node scripts/lanqi-acquire-instance-acceptance.mjs --base https://api.lcppch.top/lanqi-test` **46 项 / 失败 0 项**（含新增的 LQ-33 十件套页 8 项与移动端 390 无横向溢出），截图与报告落在 `%TEMP%\lq-acquire-accept\`。
+- 归因说明：这是**门禁工具**缺陷，不是产品缺陷；但它会让「页面验收」这一步在 Windows 上永远跑不起来，属于 P2。
+
 ## QA-20260915-006：兰琪工作台「我的」指向已下线的 `/my-ai` → 门店在兰琪里**找不到充值入口**（P1 体验断链，已修并上生产）
 
 - 触发：老板 2026-09-15 直接问「**兰琪智能体在哪里充值**」。查证发现：兰琪顶栏「我的」的 `href` 仍是 `getAppPath("/my-ai")`，而 `/my-ai` 已在同一天随平台发布 `20260915-plat44b-legacy-ai` **下线并统一跳智能体货架** `/agents`。
