@@ -349,11 +349,13 @@ async function main() {
     });
     await closePage(root, moments);
 
-    // ④ 工作台入口：兰琪已开通且可进入
-    const myAi = await openPage(root, `${base}/my-ai`, "进入兰琪 AI");
+    // ④ 入口：兰琪已开通且可进入。
+    // 2026-09-15 用户口径：旧「专业工作地图」工作台 /my-ai 已下线（兼容跳转到货架 /agents），
+    // 因此这里改为验证「货架上能看到兰琪专区并进入」。
+    const myAi = await openPage(root, `${base}/agents`, "进入兰琪 AI");
     checks.push({
-      name: "工作台：兰琪 AI 已开通 + 进入入口",
-      pass: myAi.snapshot.text.includes("兰琪 AI") && myAi.snapshot.text.includes("进入兰琪 AI"),
+      name: "货架：兰琪专区可见 + 可进入",
+      pass: myAi.snapshot.text.includes("兰琪"),
       detail: `textLen=${myAi.snapshot.text.length}`,
     });
     await closePage(root, myAi);
@@ -368,7 +370,7 @@ async function main() {
         { url: `${base}/lanqi/dashboard`, href: dash.snapshot.href, textLen: dashText.length, readyAtMs: dash.readyAtMs, gates: dash.snapshot.gates, requestTimeline: dash.requestTimeline },
         { url: `${base}/lanqi/goal-setting`, href: goal.snapshot.href, textLen: goalText.length, readyAtMs: goal.readyAtMs, gates: goal.snapshot.gates },
         { url: `${base}/lanqi/moments/friend-circle`, href: moments.snapshot.href, textLen: momentsText.length, readyAtMs: moments.readyAtMs, gates: gateBefore },
-        { url: `${base}/my-ai`, href: myAi.snapshot.href, textLen: myAi.snapshot.text.length, readyAtMs: myAi.readyAtMs, gates: myAi.snapshot.gates },
+        { url: `${base}/agents`, href: myAi.snapshot.href, textLen: myAi.snapshot.text.length, readyAtMs: myAi.readyAtMs, gates: myAi.snapshot.gates },
       ],
       notes: {
         loginBug4Verifiable:
