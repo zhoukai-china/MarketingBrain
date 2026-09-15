@@ -9,6 +9,7 @@ import {
   hasDirectTestSession,
 } from "./lib/direct-test-session.js";
 import { clearStoredSession, probeSession, readSessionToken, takePostLoginRedirect } from "./lib/session.js";
+import { rememberPendingReferral } from "./lib/pending-referral.js";
 import { renderLanqiRoutes, isLanqiHandled } from "./routes/lanqi.js";
 import "./styles/app.css";
 import "./styles/store-growth.css";
@@ -69,6 +70,28 @@ function applyDevice(): void {
 }
 
 applyDevice();
+
+/**
+ * 邀请链接的统一落地（PLAT-38 补充，用户 2026-09-15「以后找客户都用同一个链接」）。
+ *
+ * 老板对外只发一条链接，形如
+ *   `https://api.lcppch.top/os-v2/login?ref=<推荐码>&next=/recharge`
+ * 这里在**应用启动最早**的时候把两件事记下来，之后不管用户中间跳到哪一页、
+ * 微信授权往返换了几次 webview，都不会丢：
+ *   1. `ref` → 暂存推荐码（注册成功后由登录流程提交，归因落库）；
+ *   2. `next` → 注册/登录成功后的落地页（例如充值页 `/recharge`）。
+ */
+try {
+  const params = new URLSearchParams(window.location.search);
+  const refCode = (params.get("ref") ?? "").trim();
+  if (refCode) rememberPendingReferral(refCode);
+  const next = (params.get("next") ?? "").trim();
+  if (next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/login")) {
+    localStorage.setItem("store_os_post_login_redirect", getAppPath(next.split("?")[0]));
+  }
+} catch {
+  // 隐私模式下读不到 URL 参数也不影响主流程。
+}
 window.addEventListener("resize", applyDevice, { passive: true });
 window.addEventListener("orientationchange", applyDevice, { passive: true });
 
