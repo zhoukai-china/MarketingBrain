@@ -119,7 +119,7 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
                   <button className="btn primary block" disabled={soon} onClick={startChat}>{soon ? "开发中 · 敬请期待" : "直接开始"}</button>
                   {soon
                     ? <div className="pc-note">🚧 该智能体内核正在开发中，暂不能发起生成；上线时间以公告为准。</div>
-                    : <div className="pc-note">🎯 <b>按结果付费</b>：付一次 = 拿到上面那份交付物；不满意可申请重做一次。</div>}
+                    : <div className="pc-note">🎯 <b>按结果付费</b>：付一次 = 拿到上面那份交付物；如需再生成一份，会按次扣积分（免费重做已下线）。</div>}
                 </div>
               )}
               {/* 方案②：行业专属样例按完整 SKU 命中，通用专区一律回落通用中性样例。 */}

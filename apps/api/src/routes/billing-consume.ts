@@ -154,13 +154,19 @@ export async function registerBillingConsumeRoutes(app: FastifyInstance): Promis
     if (!(await hasActiveUser(token.userId))) {
       return reply.code(401).send({ error: "billing_access_token_invalid" });
     }
-    const result = await recordRedo({
-      userId: token.userId,
-      requestId: parsed.data.requestId,
-      skillId: parsed.data.skill,
-      source: "workbuddy"
+    /**
+     * 免费重做已下线（用户 2026-09-15 拍板「取消智能体的免费重做」）。
+     *
+     * 这条老的 WorkBuddy 计费通道当前没有页面调用，但仍然是一个「白拿一次生成」的入口，
+     * 所以和 marketplace 那条一样显式拒绝（保留鉴权，先证明调用方有合法令牌再回 409，
+     * 避免把这条路由变成探测账号是否存在的工具）。
+     */
+    return reply.code(409).send({
+      error: "billing_free_redo_removed",
+      message: "「免费重做」已下线。如需再生成一份，请按正常按次计费重新发起。",
+      retryable: false,
+      creditCost: 0
     });
-    return result;
   });
 }
 

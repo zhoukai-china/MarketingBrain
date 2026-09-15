@@ -7,22 +7,34 @@ import assert from "node:assert/strict";
 import { env } from "../apps/api/src/config/env.js";
 import {
   COST_TO_REVENUE_MULTIPLE,
+  PARTNER_SHARE_PERCENT,
   UNIT_COST_CNY,
   costBasedBillingEnabled,
   creditsForCostCny,
   imageCostCny,
   reserveCreditsForEstimate,
   speechCostCny,
+  splitPartnerShare,
   textCostCny,
-  videoCostCny
+  videoCostCny,
+  visionCostCny
 } from "../apps/api/src/services/billing-cost-model.js";
 
 function main(): void {
   // 1) 倍数表 = 用户拍板的数
   assert.equal(COST_TO_REVENUE_MULTIPLE.text, 100, "文字倍数必须是 100（用户 2026-09-15 拍板）");
   assert.equal(COST_TO_REVENUE_MULTIPLE.video, 2, "视频倍数必须是 2（用户 2026-09-15 拍板）");
-  assert.equal(COST_TO_REVENUE_MULTIPLE.image, 5, "图片倍数暂定 5（＝维持 20 积分/张，待老板确认）");
-  assert.equal(COST_TO_REVENUE_MULTIPLE.speech, 100, "语音倍数暂定 100（基本落到 1 积分地板）");
+  assert.equal(COST_TO_REVENUE_MULTIPLE.image, 5, "图片倍数必须是 5（用户 2026-09-15 拍板）");
+  assert.equal(COST_TO_REVENUE_MULTIPLE.speech, 10, "语音识别倍数必须是 10（用户 2026-09-15 拍板）");
+  assert.equal(COST_TO_REVENUE_MULTIPLE.vision, 100, "视觉倍数必须是 100（用户 2026-09-15 拍板）");
+
+  // 分润结构：比例未拍板前不得臆造分润（splitPartnerShare 返回 null），拍板后只改 PARTNER_SHARE_PERCENT。
+  assert.equal(splitPartnerShare(100, "text"), null, "分润比例未配置时不得返回分润金额");
+  const savedShare = PARTNER_SHARE_PERCENT.text;
+  PARTNER_SHARE_PERCENT.text = 30;
+  assert.deepEqual(splitPartnerShare(100, "text"), { partnerCredits: 30, platformCredits: 70 }, "配置 30% 后按扣费拆分");
+  PARTNER_SHARE_PERCENT.text = savedShare;
+  assert.equal(splitPartnerShare(100, "text"), null, "恢复未配置状态");
 
   // 2) 线上真实成本样本 → 应得积分（生产 MarketplaceLedgerEntry，2026-08-16~09-15）
   assert.equal(creditsForCostCny(0.0157, "text"), 32, "文案智能体：平均成本 ¥0.0157 → 32 积分（现价 40）");
@@ -45,11 +57,14 @@ function main(): void {
   assert.equal(videoCostCny(5), 1.5, "720P 5 秒成本 ¥1.5（¥0.3/秒）");
   assert.equal(creditsForCostCny(videoCostCny(5), "video"), 60, "视频 2 倍 → 5 秒 60 积分（现价 150）");
   assert.equal(creditsForCostCny(videoCostCny(1), "video"), 12, "视频 2 倍 → 每秒 12 积分（现价 30）");
-  // 语音：单价按 ¥0.0005/秒 保守估 → 100 倍 = 1 积分/秒（8 秒一句 = 8 积分 = ¥0.4）。
-  // 若老板希望「每次 1 积分」，等价于把语音倍数压到约 12.5×（1 ÷ (0.0005 ÷ 0.05)）；
-  // 这一行是待确认项，价表本身只改 UNIT_COST_CNY.speechPerSecond 与倍数表两处。
-  assert.equal(creditsForCostCny(speechCostCny(8), "speech"), 8, "语音 8 秒（¥0.004 成本）→ 8 积分（100 倍）");
-  assert.equal(creditsForCostCny(speechCostCny(600), "speech"), 600, "语音 10 分钟（¥0.3 成本）→ 600 积分（100 倍）");
+  // 语音识别：¥0.0005/秒 × 10 倍 → 每次基本落到 1 积分地板（用户 2026-09-15 拍板 10 倍）。
+  assert.equal(creditsForCostCny(speechCostCny(8), "speech"), 1, "语音 8 秒（¥0.004 成本）→ 1 积分（10 倍 + 地板）");
+  assert.equal(creditsForCostCny(speechCostCny(60), "speech"), 6, "语音 1 分钟（¥0.03 成本）→ 6 积分（10 倍 = 0.1 积分/秒）");
+  assert.equal(creditsForCostCny(speechCostCny(600), "speech"), 60, "语音 10 分钟（¥0.3 成本）→ 60 积分（10 倍）");
+  // 视觉（关键帧 / 图片 / 扫描件）：¥0.02/次 × 100 倍 = 2 积分/次。
+  assert.equal(visionCostCny(1), UNIT_COST_CNY.visionPerImageCny, "单次视觉成本取自价表");
+  assert.equal(creditsForCostCny(visionCostCny(1), "vision"), 40, "视觉 1 次（¥0.02 成本）→ 40 积分（100 倍）");
+  assert.equal(creditsForCostCny(visionCostCny(8), "vision"), 320, "一次视频抽 8 帧（¥0.16 成本）→ 320 积分（100 倍）");
 
   // 5) 文字 token 成本与 marketplace-cost 同表（¥3/百万 input、¥6/百万 output）
   assert.equal(textCostCny({ promptTokens: 1_000_000, completionTokens: 0 }), 3, "百万 input token = ¥3");

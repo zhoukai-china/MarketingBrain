@@ -18,19 +18,46 @@ import { MARKETPLACE_DEFAULT_INPUT_CNY_PER_1M, MARKETPLACE_DEFAULT_OUTPUT_CNY_PE
  * `ppu`，与改造前一字不差；打开才切到本文件的口径。
  */
 
-export type BillingCapability = "text" | "image" | "video" | "speech";
+export type BillingCapability = "text" | "image" | "video" | "speech" | "vision";
 
 /** 各能力的对客倍数（成本 → 营收）。改这两个数就等于改价，必须老板单独批准。 */
 export const COST_TO_REVENUE_MULTIPLE: Record<BillingCapability, number> = {
   /** 文字：用户 2026-09-15 拍板 100 倍。 */
   text: 100,
-  /** 图片：wan2.7-image 成本 ¥0.2/张，5 倍＝20 积分/张，与现价一致（待老板确认是否调整）。 */
+  /** 图片：用户 2026-09-15 拍板 5 倍（wan2.7-image 成本 ¥0.2/张 → 20 积分/张，与现价一致）。 */
   image: 5,
   /** 视频：用户 2026-09-15 拍板 2 倍（此前实际约 5 倍）。 */
   video: 2,
-  /** 语音：单价极低，100 倍下基本落到 1 积分地板价（待老板确认是否保持免费）。 */
-  speech: 100
+  /** 语音识别（ASR）：用户 2026-09-15 拍板 10 倍（¥0.0005/秒 → 约 0.1 积分/秒 → 单次基本是 1 积分地板）。 */
+  speech: 10,
+  /** 视觉（关键帧 / 图片 / 扫描件页面解析）：用户 2026-09-15 拍板 100 倍。 */
+  vision: 100
 };
+
+/**
+ * 市场合伙人分润（用户 2026-09-15：「后面我们要给市场合伙人分润，得记下来每种成本都分润多少」）。
+ *
+ * 单位是**对客营收的百分比（%）**，按能力分别配置；`null` = 尚未拍板（先留位，不编数字）。
+ * 分润基数一律用「实际扣给客户的积分」（`chargedCredits`），与后面按成本计费/固定档位都兼容：
+ *   partnerCredits = round(chargedCredits × percent ÷ 100)
+ *   platformCredits = chargedCredits − partnerCredits
+ * 具体比例等老板拍板后只改这张表，不改任何扣费逻辑。
+ */
+export const PARTNER_SHARE_PERCENT: Record<BillingCapability, number | null> = {
+  text: null,
+  image: null,
+  video: null,
+  speech: null,
+  vision: null
+};
+
+/** 按当前分润表把一笔扣费拆成「合伙人 / 平台」两部分；未配置比例时返回 null（不臆造分润）。 */
+export function splitPartnerShare(chargedCredits: number, capability: BillingCapability): { partnerCredits: number; platformCredits: number } | null {
+  const percent = PARTNER_SHARE_PERCENT[capability];
+  if (percent === null || !Number.isFinite(percent) || percent <= 0 || percent >= 100) return null;
+  const partnerCredits = Math.round((Math.max(0, chargedCredits) * percent) / 100);
+  return { partnerCredits, platformCredits: Math.max(0, chargedCredits) - partnerCredits };
+}
 
 /** 每积分对客售价（¥0.05）：唯一事实来源 `packages/shared` 的 `CREDIT_PRICING`（1 元 = 20 积分）。 */
 export const CUSTOMER_PRICE_CNY_PER_CREDIT = CREDIT_PRICING.customerPriceCnyPerCredit;
@@ -47,7 +74,12 @@ export const UNIT_COST_CNY = {
   /** 实测：wan2.6-i2v-flash 720P ¥0.30/秒（2 条 3 秒样片 ¥1.80）。 */
   videoPerSecond: 0.3,
   /** 语音识别（qwen3-asr-flash）暂按 ¥0.0005/秒保守估算，接真实账单后只改这一行。 */
-  speechPerSecond: 0.0005
+  speechPerSecond: 0.0005,
+  /**
+   * 视觉（qwen-vl 关键帧 / 图片 / 扫描件页面）暂按 ¥0.02/次（每次 1~8 张图 + 一段提示词）保守估算；
+   * 接真实账单后只改这一行，不动倍数与对客价。
+   */
+  visionPerImageCny: 0.02
 } as const;
 
 /** 成本（¥）→ 积分：100 倍营收、不足 1 积分按 1 积分、向上取整。 */
@@ -79,6 +111,11 @@ export function videoCostCny(seconds: number): number {
 /** 语音秒数 → 成本（¥）。 */
 export function speechCostCny(seconds: number): number {
   return Math.max(0, seconds) * UNIT_COST_CNY.speechPerSecond;
+}
+
+/** 视觉识别次数（一张图 / 一页扫描件算一次）→ 成本（¥）。 */
+export function visionCostCny(images: number): number {
+  return Math.max(0, images) * UNIT_COST_CNY.visionPerImageCny;
 }
 
 /** 新计费是否已启用（默认关：关着时扣费仍走 SKU 固定 ppu，行为与改造前一致）。 */

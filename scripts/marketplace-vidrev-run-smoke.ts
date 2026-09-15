@@ -1,6 +1,6 @@
 // 视频复盘智能体（vidrev）真实运行验收：走生产同一路由 + 真实模型 + 真实数据库。
 // 验收点：深度复盘 60 积分/次只扣一次、十章齐全、四象限/健康度与后端重算一致、账本恰好一条；
-//         无数据行 → 422 且不扣费；余额不足 → 402 引导充值；免费重做 charged=0；租户隔离。
+//         无数据行 → 422 且不扣费；余额不足 → 402 引导充值；免费重做已下线（带 redoOf 一律 409）；租户隔离。
 // 工单 2026-09-13 §2.2 已取消「快速诊断」，只保留深度复盘，因此本脚本不再跑 quick 相位。
 //
 // 首次验证只用真机深度跑（真实模型可能一次不达 V1–V12）可设：
@@ -259,7 +259,7 @@ async function main(): Promise<void> {
       console.log(JSON.stringify({ phase: "v0", status: 422, failedRules: body.failed_rules }));
     }
 
-    // 免费重做：带原 requestId 再跑一次，charged=0。
+    // 免费重做已下线（用户 2026-09-15）：带原 requestId 再跑一次必须被拒，且不扣费。
     if ((!only || only === "redo") && deepRequestId) {
       const run = await app.inject({
         method: "POST",
@@ -273,16 +273,11 @@ async function main(): Promise<void> {
           rows: ROWS
         }
       });
-      if (run.statusCode !== 200) console.log("REDO_RESPONSE", run.statusCode, run.body.slice(0, 4000));
-      assert(run.statusCode === 200, `vidrev free redo returns 200 (got ${run.statusCode})`);
-      const body = run.json() as VidrevRunBody;
-      assert(body.consumedCredits === 0, `vidrev free redo charges 0 credits (got ${body.consumedCredits})`);
-      assert(body.freeRedo === true, "vidrev free redo flags freeRedo");
-      const ledger = await prisma.marketplaceLedgerEntry.findMany({ where: { tenantId: tenant.tenantId } });
-      const adjustments = ledger.filter((row) => row.type === "adjustment");
-      assert(adjustments.length === 1, `vidrev free redo writes exactly one adjustment row (got ${adjustments.length})`);
-      assert(adjustments[0].amountCredits === 0, "redo ledger row is a 0-credit adjustment");
-      console.log(JSON.stringify({ phase: "redo", consumedCredits: body.consumedCredits, freeRedo: body.freeRedo }));
+      assert(run.statusCode === 409, `免费重做已下线：必须 409（实际 ${run.statusCode}）`);
+      assert((run.json() as { error?: string }).error === "marketplace_free_redo_removed", "必须回专属错误码");
+      const adjustments = await prisma.marketplaceLedgerEntry.findMany({ where: { tenantId: tenant.tenantId, type: "adjustment" } });
+      assert(adjustments.length === 0, `不得再有任何 0 积分重做账本行（实际 ${adjustments.length}）`);
+      console.log(JSON.stringify({ phase: "redo-removed", status: 409 }));
     }
 
     // 租户隔离：另一个租户看不到本次任何账本。

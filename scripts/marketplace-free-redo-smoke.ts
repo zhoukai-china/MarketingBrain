@@ -1,6 +1,6 @@
-// 按结果付费兜底「不满意可免费重做一次」的确定性回归。
-// 覆盖：重做不重复扣积分、每个付费交付限 1 次、跨账号/跨商品/未知凭证一律拒绝、
-// 重做不受余额不足 402 拦截、失败路径不产生任何扣费。
+// 「免费重做已下线」的确定性回归（用户 2026-09-15 拍板取消）。
+// 覆盖：带 redoOf 的请求一律 409 marketplace_free_redo_removed、不扣费、不产生账本行、不调用 Provider；
+// 想再生成一份必须走正常按次扣费；跨账号同样被拒；老缓存前端也白嫖不到。
 // 真实模型调用 0 次、真实 Provider 费用 ¥0：模型出口指向本进程内的本地桩。
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
@@ -21,7 +21,7 @@ const STUB_DELIVERY = [
   "- 后天发：活动预告 + 预约引导"
 ].join("\n");
 
-/** 重做目标内核：用「开发中」的 moments 暂时置为上架，避免额外输出契约把桩交付判失败。 */
+/** 目标内核：用「开发中」的 moments 暂时置为上架，避免额外输出契约把桩交付判失败。 */
 const SKU = "ipzone__moments";
 const OTHER_SKU = "ipzone__copy";
 const PRICE = 30;
@@ -119,63 +119,45 @@ async function main(): Promise<void> {
     const paidRequestId = firstBody.requestId;
     assert(typeof paidRequestId === "string" && paidRequestId.length > 0, "paid run returns a requestId");
 
-    // ── 2. 免费重做 1 次：交付成功、扣 0 积分、余额不变、给出新的交付凭证。
-    const allowedRedo = await run({ input: "帮我写 3 条本周朋友圈文案", redoOf: paidRequestId });
-    assert(allowedRedo.statusCode === 200, `first free redo returns 200 (got ${allowedRedo.statusCode}: ${allowedRedo.body.slice(0, 300)})`);
-    const redoBody = allowedRedo.json() as { consumedCredits: number; balance: number; freeRedo?: boolean; requestId: string };
-    assert(redoBody.freeRedo === true, "the first free redo is flagged as freeRedo");
-    assert(redoBody.consumedCredits === 0, `free redo charges 0 credits (got ${redoBody.consumedCredits})`);
-    assert(redoBody.balance === START_BALANCE - PRICE, `free redo does not change the balance (got ${redoBody.balance})`);
-    const redoRequestId = redoBody.requestId;
-    assert(redoRequestId !== paidRequestId, "the free redo delivery gets its own requestId");
+    // ── 2. 免费重做已下线：任何携带 redoOf 的请求一律 409，不扣费、不生成、不调 Provider。
+    const removedRedo = await run({ input: "帮我写 3 条本周朋友圈文案", redoOf: paidRequestId });
+    assert(removedRedo.statusCode === 409, `a free redo request is rejected with 409 (got ${removedRedo.statusCode})`);
+    assert(
+      (removedRedo.json() as { error: string }).error === "marketplace_free_redo_removed",
+      "the rejection carries the dedicated marketplace_free_redo_removed error"
+    );
+    assert((await balanceOf()) === START_BALANCE - PRICE, "a rejected redo does not charge credits");
 
-    // ── 3. 钱包/货架账本：恰好 1 条 consume + 1 条 redo，重做登记为 0 积分 adjustment。
-    const consumeRows = await prisma.walletLedger.findMany({ where: { userId, type: "consume" } });
-    assert(consumeRows.length === 1, `exactly one wallet consume ledger row (got ${consumeRows.length})`);
-    assert(consumeRows[0].refRequestId === paidRequestId, "the wallet consume row references the paid requestId");
-    assert(consumeRows[0].delta === -PRICE, `the wallet consume row deducts ${PRICE} (got ${consumeRows[0].delta})`);
+    const consumeRows = await prisma.walletLedger.findMany({ where: { userId } });
+    assert(consumeRows.length === 1 && consumeRows[0].type === "consume", `只有一个付费 consume 账本行（实际 ${consumeRows.length}）`);
+    assert(consumeRows[0].delta === -PRICE, `consume 行扣 ${PRICE} 积分（实际 ${consumeRows[0].delta}）`);
     const redoRows = await prisma.walletLedger.findMany({ where: { userId, type: "redo" } });
-    assert(redoRows.length === 1, `exactly one wallet redo ledger row (got ${redoRows.length})`);
-    assert(redoRows[0].refRequestId === paidRequestId, "the redo row is keyed to the paid requestId");
-    assert(redoRows[0].delta === 0, `the redo row does not move credits (got ${redoRows[0].delta})`);
+    assert(redoRows.length === 0, `不得再有任何 redo 账本行（实际 ${redoRows.length}）`);
 
     const shelfRows = await prisma.marketplaceLedgerEntry.findMany({ where: { tenantId }, orderBy: { createdAt: "asc" } });
-    assert(shelfRows.length === 2, `exactly two marketplace ledger rows (got ${shelfRows.length})`);
-    const paidRow = shelfRows.find((row) => row.idempotencyKey === paidRequestId);
-    const redoRow = shelfRows.find((row) => row.idempotencyKey === redoRequestId);
-    assert(paidRow?.type === "ppu_consume" && paidRow.amountCredits === PRICE, "the paid delivery records a ppu_consume of the full price");
-    assert(redoRow?.type === "adjustment" && redoRow.amountCredits === 0, "the free redo records a zero-credit adjustment");
-    assert(
-      (redoRow?.metadata as { freeRedoOf?: string } | null)?.freeRedoOf === paidRequestId,
-      "the free redo entry points back at the original paid requestId"
-    );
+    assert(shelfRows.length === 1, `货架账本只有 1 条（实际 ${shelfRows.length}）`);
+    assert(shelfRows[0].type === "ppu_consume" && shelfRows[0].amountCredits === PRICE, "唯一那条必须是全价 ppu_consume");
 
-    // ── 4. 同一原单第二次重做：409，不再免费，也不产生任何扣费。
-    const secondRedo = await run({ input: "再帮我写 3 条", redoOf: paidRequestId });
-    assert(secondRedo.statusCode === 409, `a second free redo is rejected with 409 (got ${secondRedo.statusCode})`);
-    assert(
-      (secondRedo.json() as { error: string }).error === "marketplace_redo_exhausted",
-      "the second free redo returns the dedicated exhausted error"
-    );
-    assert((await balanceOf()) === START_BALANCE - PRICE, "a rejected free redo does not charge credits");
+    // ── 3. 再生成一份 = 正常付费（证明"想再生成"这条路是通的，只是不再免费）。
+    const paidAgain = await run({ input: "再帮我写 3 条本周朋友圈文案" });
+    assert(paidAgain.statusCode === 200, `a fresh paid run still works (got ${paidAgain.statusCode})`);
+    const paidAgainBody = paidAgain.json() as { consumedCredits: number; balance: number; freeRedo?: boolean };
+    assert(paidAgainBody.consumedCredits === PRICE, `a fresh run charges the full price (got ${paidAgainBody.consumedCredits})`);
+    assert(paidAgainBody.freeRedo !== true, "a fresh run is never flagged as a free redo");
+    assert((await balanceOf()) === START_BALANCE - PRICE * 2, "two paid runs settle two charges");
 
-    // ── 5. 顺着重做产物的凭证再重做：仍然回落到原单计数，同样 409（不能链式无限免费）。
-    const chainedRedo = await run({ input: "再来一版", redoOf: redoRequestId });
-    assert(chainedRedo.statusCode === 409, `a chained free redo is rejected with 409 (got ${chainedRedo.statusCode})`);
-    assert((await balanceOf()) === START_BALANCE - PRICE, "a chained free redo does not charge credits");
-
-    // ── 6. 跨账号：别人的凭证一律 404，不生成、不扣费。
+    // ── 4. 跨账号：带 redoOf 一样被「已下线」拒绝，不生成、不扣费。
     const foreignRedo = await run({ input: "白嫖一下", redoOf: paidRequestId }, otherHeaders);
-    assert(foreignRedo.statusCode === 404, `another account cannot reuse the voucher (got ${foreignRedo.statusCode})`);
+    assert(foreignRedo.statusCode === 409, `another account's redo attempt is rejected too (got ${foreignRedo.statusCode})`);
     assert(
-      (foreignRedo.json() as { error: string }).error === "marketplace_redo_not_found",
-      "the foreign voucher returns the dedicated not-found error"
+      (foreignRedo.json() as { error: string }).error === "marketplace_free_redo_removed",
+      "免费重做已下线对所有人一视同仁"
     );
     assert((await balanceOf(otherHeaders)) === START_BALANCE, "the other account is never charged");
     const foreignLedger = await prisma.marketplaceLedgerEntry.count({ where: { tenantId: otherTenantId } });
     assert(foreignLedger === 0, `the other account gets no marketplace ledger rows (got ${foreignLedger})`);
 
-    // ── 7. 跨商品：不能拿便宜内核的凭证去免费生成另一个内核。
+    // ── 5. 跨商品：同样被「已下线」拒绝。
     const crossSku = await app.inject({
       method: "POST",
       url: `/market/skus/${encodeURIComponent(OTHER_SKU)}/run`,
@@ -184,28 +166,20 @@ async function main(): Promise<void> {
     });
     assert(crossSku.statusCode === 409, `a cross-sku free redo is rejected with 409 (got ${crossSku.statusCode})`);
     assert(
-      (crossSku.json() as { error: string }).error === "marketplace_redo_sku_mismatch",
-      "the cross-sku voucher returns the dedicated mismatch error"
+      (crossSku.json() as { error: string }).error === "marketplace_free_redo_removed",
+      "跨商品带 redoOf 同样是「免费重做已下线」"
     );
-    assert((await balanceOf()) === START_BALANCE - PRICE, "a cross-sku free redo does not charge credits");
+    assert((await balanceOf()) === START_BALANCE - PRICE * 2, "a cross-sku redo attempt does not charge credits");
 
-    // ── 8. 未知凭证：404，不生成、不扣费。
+    // ── 6. 未知凭证：同样被「已下线」拒绝，不生成、不扣费。
     const unknown = await run({ input: "凭空重做", redoOf: randomUUID() });
-    assert(unknown.statusCode === 404, `an unknown voucher is rejected with 404 (got ${unknown.statusCode})`);
-    assert((await balanceOf()) === START_BALANCE - PRICE, "an unknown voucher does not charge credits");
+    assert(unknown.statusCode === 409, `an unknown voucher is rejected with 409 (got ${unknown.statusCode})`);
+    assert((await balanceOf()) === START_BALANCE - PRICE * 2, "an unknown voucher does not charge credits");
 
-    // ── 9. 余额不足时仍可完成已购权益的免费重做（不能被 402 拦掉）。
-    const secondPaid = await run({ input: "再买一单" });
-    assert(secondPaid.statusCode === 200, `the second paid run returns 200 (got ${secondPaid.statusCode})`);
-    const secondPaidBody = secondPaid.json() as { requestId: string };
+    // ── 7. 余额不足时：付费生成被 402 拦住，带 redoOf 也仍然被「已下线」拦住（不再有任何免费通道）。
     await prisma.wallet.update({ where: { userId }, data: { paidBalance: 0, bonusBalance: 0 } });
-    const brokeRedo = await run({ input: "没钱也要重做", redoOf: secondPaidBody.requestId });
-    assert(brokeRedo.statusCode === 200, `a free redo works at zero balance (got ${brokeRedo.statusCode}: ${brokeRedo.body.slice(0, 300)})`);
-    const brokeBody = brokeRedo.json() as { consumedCredits: number; balance: number; freeRedo?: boolean };
-    assert(brokeBody.freeRedo === true && brokeBody.consumedCredits === 0, "the zero-balance free redo stays free");
-    assert(brokeBody.balance === 0, `the zero-balance free redo does not go negative (got ${brokeBody.balance})`);
-
-    // ── 10. 对照：余额不足时普通付费生成仍然 402（免费重做不是放宽扣费）。
+    const brokeRedo = await run({ input: "没钱也要重做", redoOf: paidRequestId });
+    assert(brokeRedo.statusCode === 409, `免费重做已下线：零余额重做同样 409（实际 ${brokeRedo.statusCode}）`);
     const brokePaid = await run({ input: "没钱还想买一单" });
     assert(brokePaid.statusCode === 402, `a paid run at zero balance is rejected with 402 (got ${brokePaid.statusCode})`);
 
@@ -225,7 +199,7 @@ async function main(): Promise<void> {
     await prisma.$disconnect();
   }
 
-  console.log("PASS marketplace-free-redo-smoke");
+  console.log(JSON.stringify({ result: "PLAT40_FREE_REDO_REMOVED_PASS", redoRejected: 409, providerCalls: 0, costYuan: 0 }));
 }
 
 main().catch((error) => {

@@ -153,7 +153,7 @@ async function main() {
     assert.match(detailText, /积分\/次/, "detail page shows credits");
     assert.doesNotMatch(detailText, /≈\s*¥/, "详情页不得再显示「≈ ¥」人民币折算");
     assert.doesNotMatch(detailText, /\(¥|（¥|\(≈|（≈/, "详情页扣费提示不得再带人民币金额");
-    assert.match(detailText, /不满意可申请重做一次，不重复扣积分/, "detail page explains the free-redo fallback");
+    assert.match(detailText, /免费重做已下线/, "detail page states that free redo is removed");
 
     // 3. 该实例的直达入口（免登录实例落兰琪驾驶舱）必须仍然能打开，不受本次发布影响。
     await cdp.send("Page.navigate", { url: `${webBase}/lanqi/dashboard` }, sessionId);
@@ -172,7 +172,7 @@ async function main() {
       + " credits_only=PASS"
       + " no_yuan_conversion=PASS"
       + ` coming_soon_count=${totalSoon}`
-      + " detail_redo_copy=PASS"
+      + " detail_redo_removed_copy=PASS"
       + " direct_test_entry=PASS"
       + " console_clean=PASS"
       + ` shots=${[shelfShot, detailShot, dashboardShot].join(",")}\n`

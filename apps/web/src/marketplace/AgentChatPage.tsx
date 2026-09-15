@@ -67,12 +67,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
    */
   const [balance, setBalance] = useState<number | null>(null);
   const [hasSession, setHasSession] = useState(() => Boolean(readSessionToken()));
-  /** 最近一次成功交付的 requestId：作为「免费重做」的凭证。 */
+  /** 最近一次成功交付的 requestId（免费重做已于 2026-09-15 下线，仅用于交付状态判断）。 */
   const [lastRequestId, setLastRequestId] = useState<string | null>(null);
-  /** 当前这份交付是否已经是免费重做产物（每单仅限免费重做 1 次）。 */
-  const [freeRedoUsed, setFreeRedoUsed] = useState(false);
-  /** 发起中的免费重做凭证；追问补充信息的续跑也要沿用，避免变成付费重跑。 */
-  const redoOfRef = useRef<string | null>(null);
   /** 视频复盘「加入选题池」带过来的候选选题（一次性消费）。 */
   const [prefill, setPrefill] = useState<ChatPrefill | null>(null);
   const timerRef = useRef<number | null>(null);
@@ -160,8 +156,6 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     setAwaitingSupplement(false);
     setElapsed(0);
     setLastRequestId(null);
-    setFreeRedoUsed(false);
-    redoOfRef.current = null;
     try {
       const rawPrefill = sessionStorage.getItem(VIDREV_PREFILL_KEY);
       sessionStorage.removeItem(VIDREV_PREFILL_KEY);
@@ -205,12 +199,10 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
       if (timerRef.current) window.clearInterval(timerRef.current);
     }, 150000);
     try {
-      const redoOf = redoOfRef.current;
       const body: Record<string, unknown> = {
         // 视频复盘额外带 mode / platform / period / has_revenue_data 结构化入参，
         // 后端据此重算口径并校验（其余技能仍是纯文本需求单）。
-        ...buildRunBody(coreSkuCode(runSku.skuCode), flow, finalAnswers),
-        ...(redoOf ? { redoOf } : {})
+        ...buildRunBody(coreSkuCode(runSku.skuCode), flow, finalAnswers)
       };
       // 附件必须真的进需求单：文本类附件内容拼在 input 末尾（接口上限 5 万字，这里再兜一次底），
       // 只记文件名等于让 AI 空手干活——那才是真正的「不支持上传」。
@@ -243,7 +235,6 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
         needsInput?: boolean;
         payload?: IpPosPayload | VidrevPayload;
         requestId?: string;
-        freeRedo?: boolean;
       }>(runResponse);
       if (result.needsInput) {
         setItems((prev) => [
@@ -260,20 +251,10 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
       setCost(result.consumedCredits);
       setDone(true);
       setAwaitingSupplement(false);
-      // 记录本次交付凭证；免费重做产物本身不再享有重做机会。
       setLastRequestId(result.requestId ?? null);
-      setFreeRedoUsed(Boolean(result.freeRedo));
-      redoOfRef.current = null;
-      if (result.freeRedo) {
-        setItems((prev) => [
-          ...prev,
-          { id: `redo${Date.now()}`, role: "ai", text: "已按你的反馈免费重做一份（本次未扣积分）。每个付费交付仅限免费重做 1 次。" }
-        ]);
-      }
+      setLastRequestId(result.requestId ?? null);
     } catch (reason) {
-      // 免费重做被后端拒绝（额度用尽/凭证无效）时不能继续挂着凭证，避免下一次误判为免费。
-      redoOfRef.current = null;
-      setItems((prev) => [...prev, { id: "err", role: "ai", text: reason instanceof Error ? reason.message : "生成失败" }]);
+        setItems((prev) => [...prev, { id: "err", role: "ai", text: reason instanceof Error ? reason.message : "生成失败" }]);
     } finally {
       setBusy(false);
       if (timerRef.current) { window.clearInterval(timerRef.current); timerRef.current = null; }
@@ -348,18 +329,6 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     setItems((prev) => [...prev, { id: `editq${Date.now()}`, role: "ai", text: `好的，我们重新填一遍。**${flow.slots[0].label}**：${flow.slots[0].q}` }]);
   }
 
-  /** 按结果付费兜底：不满意可免费重做一次，不重复扣积分。 */
-  function redoDelivery() {
-    if (!flow || !runSku || busy) return;
-    if (!lastRequestId || freeRedoUsed) return;
-    redoOfRef.current = lastRequestId;
-    setItems((prev) => [
-      ...prev,
-      { id: `redou${Date.now()}`, role: "user", text: "这份交付我不太满意，请免费重做一次（不扣积分）。" }
-    ]);
-    void generateRun(answers);
-  }
-
   function restart() {
     if (!flow) return;
     setItems([
@@ -375,8 +344,6 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     setAwaitingSupplement(false);
     setElapsed(0);
     setLastRequestId(null);
-    setFreeRedoUsed(false);
-    redoOfRef.current = null;
     if (timerRef.current) window.clearInterval(timerRef.current);
     if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
   }
@@ -652,7 +619,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
               </div>
             </div>
             <div className="zone-soon" style={{ margin: "0 16px" }}>
-                🔒 <b>这个智能体要登录后才能使用</b>：结果存进你自己的账号，方便回看，也方便不满意时免费重做一次。<br />
+                🔒 <b>这个智能体要登录后才能使用</b>：结果存进你自己的账号，方便随时回看与继续追问。<br />
               现在不用填任何信息——登录后自动回到这一页，我再带你走那 4 步。
             </div>
             <div className="chat-page-composer">
@@ -790,19 +757,13 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
             )}
           </div>
 
-          {done && <div className="chat-donebar">✓ 已生成结果 · 可继续用文字追问迭代，或上传新资料重做</div>}
+          {done && <div className="chat-donebar">✓ 已生成结果 · 可继续用文字追问迭代；重新生成会按次扣积分</div>}
 
           {done ? (
             <div className="chat-page-composer">
-              {freeRedoUsed ? (
-                <div className="chat-hint" style={{ marginBottom: 10 }}>
-                本单的免费重做机会已用完；如需再生成一次，可点「重新开始」。
-                </div>
-              ) : (
-                <button className="btn ghost block" style={{ marginBottom: 10 }} disabled={busy || !lastRequestId} onClick={redoDelivery}>
-                  😕 不满意 · 免费重做一次（不扣积分）
-                </button>
-              )}
+              <div className="chat-hint" style={{ marginBottom: 10 }}>
+                免费重做已下线：如需再生成一份，点「再问一次 / 重新开始」，会按该智能体价格正常扣积分。
+              </div>
               <button className="btn ghost block" style={{ marginBottom: 10 }} disabled={exporting} onClick={downloadWord}>
                 {exporting ? "正在导出…" : `⬇ 下载精美 Word${docxPrice ? ` · ${docxPrice} 积分` : ""}`}
               </button>

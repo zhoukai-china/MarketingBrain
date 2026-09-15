@@ -39,7 +39,6 @@ import {
   consumeWalletCredits,
   getOrCreateWallet,
   readWallet,
-  recordRedo,
   buildRechargeUrl
 } from "../services/sitong-wallet.js";
 import { maybeGrantReferralReward } from "../services/referral-rewards.js";
@@ -88,7 +87,8 @@ const skuQuerySchema = z.object({
 const marketplaceRunSchema = z.object({
   // 视频复盘支持结构化入参（rows），因此 input 允许为空；其余技能在路由里强制要求 input。
   input: z.string().trim().max(50_000).optional(),
-  // 按结果付费兜底：携带原交付的 requestId 表示「不满意，免费重做一次」（限 1 次/单，不再扣积分）。
+  // 兼容字段：前端历史版本会带 redoOf 表示「免费重做」。免费重做已于 2026-09-15 下线，
+  // 服务端对带该字段的请求显式拒绝（见 marketplace_free_redo_removed）。
   redoOf: z.string().trim().min(8).max(200).optional(),
   history: z.array(z.object({
     role: z.enum(["user", "assistant"]),
@@ -383,26 +383,25 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
         return reply.code(409).send({ error: "marketplace_ppu_not_configured", message: "该智能体未配置按次价格" });
       }
 
-      // 按结果付费兜底：不满意可免费重做一次（每个付费交付限 1 次，重做不再扣积分）。
-      // redoOf 必须指向「当前用户自己的、同一 SKU 的」已交付订单，防止跨账号 / 跨商品白嫖。
-      let freeRedoRoot: string | null = null;
+      /**
+       * 免费重做已下线（用户 2026-09-15 拍板「取消智能体的免费重做」）。
+       *
+       * 这里**显式拒绝**而不是静默忽略：老缓存的前端 bundle 仍然会带 `redoOf`，
+       * 静默忽略会让用户以为"重做免费"而实际被扣积分；显式拒绝才是可解释的行为。
+       * 想再生成一次 = 一次正常的按次扣费生成。
+       */
       if (parsed.data.redoOf) {
-        const target = await resolveFreeRedo(context, parsed.data.redoOf, sku.id);
-        if (!target.ok) {
-          const skuMismatch = target.code === "sku_mismatch";
-          return reply.code(skuMismatch ? 409 : 404).send({
-            error: skuMismatch ? "marketplace_redo_sku_mismatch" : "marketplace_redo_not_found",
-            message: skuMismatch
-              ? "免费重做只能针对同一个智能体的上一份交付。"
-              : "找不到可免费重做的原始交付（可能不属于当前账号）。"
-          });
-        }
-        freeRedoRoot = target.rootRequestId;
+        return reply.code(409).send({
+          error: "marketplace_free_redo_removed",
+          message: "「免费重做」已下线。如需再生成一份，请按正常按次计费重新发起（会按该智能体的价格扣积分）。",
+          retryable: false,
+          providerCalls: 0,
+          creditCost: 0
+        });
       }
 
       const walletBefore = await readWallet(context.userId);
-      // 免费重做复用原交付已付的权益，余额不足也必须放行；只有付费生成才拦余额。
-      if (!freeRedoRoot && walletBefore.balance < price) {
+      if (walletBefore.balance < price) {
         return reply.code(402).send({
           error: "insufficient_credits",
           message: "当前积分不足，请先充值后再使用。",
@@ -610,65 +609,42 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
         const costCny = estimateMarketplaceModelCostCny(usage);
         const dynamicCredits = marketplaceCreditsForUsage(usage);
 
-        // 扣费时机：交付完成之后。免费重做则跳过扣费，只登记一次 redo 权益消耗。
-        let freeRedo = false;
-        let walletAfter = walletBefore;
-        let spent: { paid: number; bonus: number } = { paid: 0, bonus: 0 };
-        if (freeRedoRoot) {
-          const redo = await recordRedo({
-            userId: context.userId,
-            requestId: freeRedoRoot,
-            skillId: sku.skuCode,
-            source: "marketplace"
+        // 扣费时机：交付完成之后。免费重做已下线，这里只剩正常按次扣费一条路径。
+        const consumed = await consumeWalletCredits({
+          userId: context.userId,
+          requestId,
+          price,
+          skillId: sku.skuCode,
+          source: "web"
+        });
+        if (consumed.status === "insufficient") {
+          return reply.code(402).send({
+            error: "insufficient_credits",
+            message: "当前积分不足，请先充值后再使用。",
+            balance: consumed.wallet.balance,
+            paidBalance: consumed.wallet.paidBalance,
+            bonusBalance: consumed.wallet.bonusBalance,
+            required: price,
+            rechargeUrl: buildRechargeUrl(sku.skuCode)
           });
-          if (!redo.ok) {
-            return reply.code(409).send({
-              error: "marketplace_redo_exhausted",
-              message: "这份交付的免费重做机会已用完（每个付费交付仅限免费重做 1 次）；如需再生成会按次扣积分。",
-              requestId: freeRedoRoot,
-              redoLeft: 0
-            });
-          }
-          freeRedo = true;
-          walletAfter = await readWallet(context.userId);
-        } else {
-          const consumed = await consumeWalletCredits({
-            userId: context.userId,
-            requestId,
-            price,
-            skillId: sku.skuCode,
-            source: "web"
-          });
-          if (consumed.status === "insufficient") {
-            return reply.code(402).send({
-              error: "insufficient_credits",
-              message: "当前积分不足，请先充值后再使用。",
-              balance: consumed.wallet.balance,
-              paidBalance: consumed.wallet.paidBalance,
-              bonusBalance: consumed.wallet.bonusBalance,
-              required: price,
-              rechargeUrl: buildRechargeUrl(sku.skuCode)
-            });
-          }
-          walletAfter = consumed.wallet;
-          spent = consumed.spent;
         }
+        const walletAfter = consumed.wallet;
+        const spent: { paid: number; bonus: number } = consumed.spent;
 
         await prisma.marketplaceLedgerEntry.create({
           data: {
             tenantId: context.tenantId,
             userId: context.userId,
             skuId: sku.id,
-            type: freeRedo ? "adjustment" : "ppu_consume",
-            direction: freeRedo ? "none" : "debit",
-            amountCredits: freeRedo ? 0 : price,
+            type: "ppu_consume",
+            direction: "debit",
+            amountCredits: price,
             amountCny: 0,
             status: "completed",
             idempotencyKey: requestId,
             refType: "marketplace_run",
             refId: requestId,
             metadata: {
-              ...(freeRedo ? { freeRedo: true, freeRedoOf: freeRedoRoot } : {}),
               estimatedCredits: dynamicCredits,
               modelCostCny: costCny,
               promptTokens: usage.promptTokens,
@@ -680,19 +656,16 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
 
 
 
-        if (!freeRedo) {
-          await maybeGrantReferralReward({ referredUserId: context.userId, kind: "referrer_first_use" }).catch((error: unknown) => {
-            request.log.warn({ err: error }, "referral reward(referrer_first_use) failed");
-          });
-        }
+        await maybeGrantReferralReward({ referredUserId: context.userId, kind: "referrer_first_use" }).catch((error: unknown) => {
+          request.log.warn({ err: error }, "referral reward(referrer_first_use) failed");
+        });
         return {
           state: "completed",
           answer,
           qualityFlags: null,
           deliveryStatus: "completed",
-          consumedCredits: freeRedo ? 0 : price,
-          freeRedo,
-          ...(freeRedoRoot ? { freeRedoOf: freeRedoRoot } : {}),
+          consumedCredits: price,
+          freeRedo: false,
           requestId,
           balance: walletAfter.balance,
           paidBalance: walletAfter.paidBalance,
@@ -1214,38 +1187,6 @@ async function consumeMarketplacePpu(
   return { state: "completed", balance: consumed.wallet.balance, idempotent: consumed.idempotent };
 }
 
-/**
- * 免费重做的授权判定（按结果付费兜底）。
- * 只有「当前用户自己的、同一 SKU 的、已成功交付」的订单才可免费重做；
- * 若被引用的订单本身已经是免费重做产物，则回落到最初的付费订单计数，
- * 保证「每个付费交付最多免费重做 1 次」，不会顺着链无限免费。
- */
-async function resolveFreeRedo(
-  context: RequestContext,
-  redoOf: string,
-  skuId: string
-): Promise<{ ok: true; rootRequestId: string } | { ok: false; code: "not_found" | "sku_mismatch" }> {
-  // 演示模式没有真实钱包账本，无法核对归属，直接拒绝（fail-closed）。
-  if (context.source === "demo") return { ok: false, code: "not_found" };
-
-  const entry = await prisma.marketplaceLedgerEntry.findFirst({
-    where: {
-      tenantId: context.tenantId,
-      userId: context.userId,
-      idempotencyKey: redoOf,
-      refType: "marketplace_run"
-    },
-    orderBy: { createdAt: "desc" }
-  });
-  if (!entry) return { ok: false, code: "not_found" };
-  // 跨 SKU 白嫖拦截：不能用低价交付的订单去免费重做高价智能体。
-  if (entry.skuId && entry.skuId !== skuId) return { ok: false, code: "sku_mismatch" };
-
-  const meta = (entry.metadata ?? null) as { freeRedoOf?: unknown } | null;
-  const freeRedoOf =
-    meta && typeof meta.freeRedoOf === "string" && meta.freeRedoOf.length > 0 ? meta.freeRedoOf : null;
-  return { ok: true, rootRequestId: freeRedoOf ?? redoOf };
-}
 
 async function createMarketplaceSubscription(context: RequestContext, sku: PublicMarketplaceSku) {
   if (context.source === "demo") {
