@@ -33,11 +33,31 @@ function checkWorkOrder20260913(): void {
   assert(typeof parsed.rows[0]?.published_at === "string", "视频号「发表时间」应映射到 published_at");
   near(parsed.rows[0]?.completion_rate, 0.31, 1e-9, "视频号「平均播放进度」应映射到 completion_rate");
 
+  // 顺手覆盖小红书 / B站：小红书导出用「笔记标题 / 观看量」，B站用「播放量 / 弹幕数」。
+  const xhs = parseVidrevRowsFromText([
+    "笔记标题,发布时间,观看量,点赞数,收藏数,评论数,分享数",
+    "小红书示例,2026-08-12,56000,2100,800,120,60"
+  ].join("\n"));
+  assert(xhs.rows.length === 1, "小红书表头应能解析出数据行");
+  assert(xhs.rows[0]?.plays === 56000, "小红书「观看量」应映射到 plays");
+  assert(typeof xhs.rows[0]?.title === "string" && xhs.rows[0]!.title!.length > 0, "小红书「笔记标题」应映射到 title");
+
+  const bilibili = parseVidrevRowsFromText([
+    "标题,发布时间,播放量,点赞数,评论数,分享数,收藏数,弹幕数",
+    "B站示例,2026-08-12,88000,4300,210,90,600,320"
+  ].join("\n"));
+  assert(bilibili.rows.length === 1, "B站表头应能解析出数据行");
+  assert(bilibili.rows[0]?.plays === 88000, "B站「播放量」应映射到 plays");
+
   const flows = readSource("apps/web/src/marketplace/chat-flows.ts");
   const vidrevBlock = flows.slice(flows.indexOf("vidrev: {"), flows.indexOf("livescript: {"));
   assert(!/快速诊断/.test(vidrevBlock), "vidrev 交互定义不得再出现「快速诊断」");
   assert(!/key: "mode"/.test(vidrevBlock), "vidrev 不得再有「复盘模式」选择步骤");
   assert(/数据导出指南/.test(vidrevBlock), "vidrev 欢迎语必须指向「视频数据导出指南」");
+  // 2026-09-15 用户口径：去掉「统计周期」这一步、欢迎语不再标 60 积分/次（要按成本计费、不给单个智能体标价）。
+  assert(!/key: "period"/.test(vidrevBlock), "vidrev 不得再有「统计周期」步骤");
+  assert(!/60 积分\/次/.test(vidrevBlock), "vidrev 欢迎语不得再出现「60 积分/次」");
+  assert(/看上方/.test(vidrevBlock), "vidrev 欢迎语必须说「看上方」导出指南");
 
   const chat = readSource("apps/web/src/marketplace/AgentChatPage.tsx");
   assert(/channels\.weixin\.qq\.com\/login\.html/.test(chat), "导出指南必须含视频号助手网址");

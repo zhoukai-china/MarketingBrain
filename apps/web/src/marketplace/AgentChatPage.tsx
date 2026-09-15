@@ -498,11 +498,13 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
    * （PLAT-33 的受授权语音入口，与智能体工作台同一通道），拿回文字；
    * 失败时给一句人话，绝不静默。
    */
-  async function transcribeVoiceBlob(blob: Blob): Promise<{ text: string; message?: string }> {
+  async function transcribeVoiceBlob(blob: Blob, meta: { durationSeconds?: number } = {}): Promise<{ text: string; message?: string }> {
     const mimeType = blob.type || "audio/webm";
     const file = new File([blob], `语音输入-${Date.now()}.${audioExtensionForMime(mimeType)}`, { type: mimeType });
     const formData = new FormData();
     formData.append("file", file, file.name);
+    // 录音时长交给服务端算预留额度（不传则服务端按字节数上界保守估算）。
+    if (meta.durationSeconds) formData.append("durationSeconds", String(meta.durationSeconds));
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
     let response: Response;

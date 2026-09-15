@@ -235,17 +235,10 @@ async function checkVidrevChat(cdp, token) {
   );
   assert.ok(pageTokenMatches, "页面 token 被改写（免登录替换了验收租户），余额断言将失去意义");
 
-  // 第 1 轮：复盘模式快捷选项。
-  await waitFor(cdp, sessionId, "document.querySelectorAll('.chat-choices .chat-choice').length >= 2");
-  await clickChoice(cdp, sessionId, "深度复盘");
-  // 第 2 轮：平台快捷选项。
+  // 第 1 轮：平台快捷选项（2026-09-15 起流程只有「平台 → 数据」两步，统计周期已删除）。
   await waitFor(cdp, sessionId, "[...document.querySelectorAll('.chat-choices .chat-choice')].some((node) => node.textContent?.includes('抖音'))");
   await clickChoice(cdp, sessionId, "抖音");
-  // 第 3 轮：统计周期。
-  await waitFor(cdp, sessionId, "document.querySelectorAll('.chat-page-composer textarea').length === 1");
-  await fillTextarea(cdp, sessionId, PERIOD);
-  await clickPrimary(cdp, sessionId, "下一步");
-  // 第 4 轮：数据表。
+  // 第 2 轮：数据表。
   await waitFor(cdp, sessionId, "document.querySelectorAll('.chat-page-composer textarea').length === 1");
   await fillTextarea(cdp, sessionId, DATA_CSV);
   await clickPrimary(cdp, sessionId, "确认需求");

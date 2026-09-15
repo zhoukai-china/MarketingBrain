@@ -91,8 +91,11 @@ export function voiceTranscriptionFailureMessage(analysis: MediaAnalysisResponse
  * 不支持录音时回落到浏览器原生语音识别。抽自 ChatComposer，公共平台对话页复用同一套行为与文案。
  */
 export function useVoiceInput(params: {
-  /** 把录音转成文字；返回空 text 表示本次没拿到文字（此时用 message 提示原因）。 */
-  transcribe: (blob: Blob) => Promise<{ text: string; message?: string }>;
+  /**
+   * 把录音转成文字；返回空 text 表示本次没拿到文字（此时用 message 提示原因）。
+   * `durationSeconds` 是录音时长：服务端用它算「预留额度」（2026-09-15 起语音输入按 10 倍扣积分）。
+   */
+  transcribe: (blob: Blob, meta: { durationSeconds?: number }) => Promise<{ text: string; message?: string }>;
   /** 拿到文字后回调（由调用方决定怎么并入输入框）。 */
   onText: (text: string) => void;
 }): {
@@ -123,11 +126,11 @@ export function useVoiceInput(params: {
     setRecording(false);
   }, []);
 
-  const transcribeBlob = useCallback(async (blob: Blob) => {
+  const transcribeBlob = useCallback(async (blob: Blob, meta: { durationSeconds?: number } = {}) => {
     setBusy(true);
     setMessage("录音完成，正在转成文字…");
     try {
-      const result = await transcribe(blob);
+      const result = await transcribe(blob, meta);
       const text = (result.text ?? "").trim();
       if (text) {
         onText(text);
@@ -194,6 +197,7 @@ export function useVoiceInput(params: {
       const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"]
         .find((candidate) => MediaRecorder.isTypeSupported(candidate)) ?? "";
       const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      const startedAt = Date.now();
       const chunks: BlobPart[] = [];
       let failed = false;
       recorder.ondataavailable = (event) => { if (event.data.size > 0) chunks.push(event.data); };
@@ -211,7 +215,7 @@ export function useVoiceInput(params: {
           setMessage("没有录到有效声音。请靠近麦克风说话，再试一次。");
           return;
         }
-        void transcribeBlob(blob);
+        void transcribeBlob(blob, { durationSeconds: Math.max(1, Math.round((Date.now() - startedAt) / 1000)) });
       };
       mediaStreamRef.current = stream;
       mediaRecorderRef.current = recorder;

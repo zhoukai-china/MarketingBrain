@@ -10,6 +10,14 @@ import { PDFParse } from "pdf-parse";
 import * as XLSX from "xlsx";
 import { env, domesticNetworkOnly, domesticOutboundAllowlist } from "../config/env.js";
 import { assertOutboundUrlAllowed } from "../services/outbound-policy.js";
+import { visionCostCny } from "../services/billing-cost-model.js";
+import {
+  InsufficientCreditsForChargeError,
+  refundAllCreditsForCharge,
+  reserveCreditsForCharge,
+  settleCreditsForCharge
+} from "../services/credit-charge.js";
+import { resolveRequestContext } from "../services/request-context.js";
 import { analyzeRestaurantDiagnosticWorkbook, type RestaurantDiagnosticSummary } from "../services/restaurant-diagnostic.js";
 import {
   callObservedMediaChat,
@@ -102,6 +110,55 @@ export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
     const controller = new AbortController();
     const onAborted = () => controller.abort(new Error("client_cancelled"));
     request.raw.once("aborted", onAborted);
+
+    /**
+     * 计费（PLAT-41，用户 2026-09-15：「图片解析 + 扫描版 PDF 页面识别按 100 倍扣积分」）。
+     * - 只有会调用视觉模型（qwen-vl）的路径才收费：单张图片 = 1 次；PDF 预按 4 页上界预留；
+     * - CSV / XLSX / TXT / DOCX 等纯文档解析不调模型，**不收费**；
+     * - 先预留 → 跑完按实际视觉调用次数结算 → 差额退回；余额不足在调用前 402。
+     */
+    const isImageUpload = mimeType.startsWith("image/");
+    const isPdfUpload = isPdfFile(mimeType, filename);
+    const estimatedVisionCalls = isImageUpload ? Math.max(1, frameDataUrls.length) : isPdfUpload ? 4 : 0;
+    let mediaReservation: Awaited<ReturnType<typeof reserveCreditsForCharge>> | null = null;
+    let mediaUserId: string | null = null;
+    if (estimatedVisionCalls > 0) {
+      try {
+        const context = await resolveRequestContext(request.headers);
+        // 演示模式没有真实钱包：跳过计费。
+        if (context.source !== "database") throw Object.assign(new Error("skip_charge_demo"), { skipCharge: true });
+        mediaUserId = context.userId;
+        mediaReservation = await reserveCreditsForCharge({
+          userId: context.userId,
+          requestId: `media:${context.userId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
+          capability: "vision",
+          estimatedCostCny: visionCostCny(estimatedVisionCalls),
+          skillId: "media_analyze",
+          source: "web"
+        });
+      } catch (error) {
+        if ((error as { skipCharge?: boolean }).skipCharge) {
+          mediaReservation = null;
+          mediaUserId = null;
+        } else {
+        request.raw.off("aborted", onAborted);
+        if (error instanceof InsufficientCreditsForChargeError) {
+          return reply.code(402).send({
+            error: "insufficient_credits",
+            message: `图片 / 扫描件解析的积分不足（本次约需 ${error.required} 积分），请先充值后再用。`,
+            stage: "credit_admission",
+            required: error.required,
+            balance: error.wallet.balance,
+            rechargeUrl: "/recharge",
+            providerCalls: 0,
+            creditCost: 0
+          });
+        }
+        throw error;
+        }
+      }
+    }
+
     try {
       const result = await analyzeMediaWithBailian({
         filename,
@@ -111,12 +168,33 @@ export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
         metadata,
         signal: controller.signal
       });
+      let creditCost = 0;
+      let creditRefunded = 0;
+      if (mediaReservation && mediaUserId) {
+        const actualVisionCalls = Math.max(1, result.providerTrace.filter((item) => item.stage === "visual").length);
+        const settled = await settleCreditsForCharge({
+          reservation: mediaReservation,
+          userId: mediaUserId,
+          actualCostCny: visionCostCny(actualVisionCalls),
+          skillId: "media_analyze",
+          source: "web"
+        });
+        creditCost = settled.chargedCredits;
+        creditRefunded = settled.refundedCredits;
+      }
       request.log.info({
         event: "media_analysis.terminal",
         analysisStatus: result.analysisStatus,
+        creditCost,
         providerTrace: result.providerTrace
       }, "media analysis completed");
-      return result;
+      return { ...result, creditCost, creditRefunded };
+    } catch (error) {
+      // 失败关闭：解析失败时把预留的积分全额退回。
+      if (mediaReservation && mediaUserId) {
+        await refundAllCreditsForCharge({ reservation: mediaReservation, userId: mediaUserId, skillId: "media_analyze", source: "web", reason: "media_analyze_failed" }).catch(() => {});
+      }
+      throw error;
     } finally {
       request.raw.off("aborted", onAborted);
     }

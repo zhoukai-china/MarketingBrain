@@ -132,11 +132,13 @@ export interface VidrevMetrics {
 
 const FIELD_ALIASES: Record<keyof VidrevRawRow, string[]> = {
   video_id: ["videoid", "序号", "编号", "视频id", "视频编号", "id"],
-  title: ["标题", "视频标题", "作品标题", "作品", "视频", "title"],
+  // 小红书导出用「笔记标题」；B站/抖音/视频号用标题类字段。
+  title: ["标题", "视频标题", "作品标题", "笔记标题", "作品", "视频", "title"],
   duration_sec: ["时长", "时长秒", "时长s", "视频时长", "秒数", "duration", "durationsec"],
   // 视频号后台用「发表时间」，抖音用「发布时间」；两者都要能识别。
   published_at: ["发布时间", "发布日期", "发表时间", "发布日期时间", "日期", "发布", "发表", "publishedat"],
-  plays: ["播放量", "播放", "播放数", "播放次数", "视频播放量", "曝光", "曝光量", "plays", "playcount"],
+  // 抖音/视频号/B站用「播放量」，小红书用「观看量 / 阅读量」；同一口径都映射到 plays。
+  plays: ["播放量", "播放", "播放数", "播放次数", "视频播放量", "观看量", "观看次数", "阅读量", "阅读次数", "笔记阅读量", "曝光", "曝光量", "plays", "playcount"],
   likes: ["点赞量", "点赞", "点赞数", "赞", "likes", "likecount"],
   comments: ["评论量", "评论数", "评论", "评", "comments", "commentcount"],
   // 视频号后台用「转发量」，抖音用「分享数」。

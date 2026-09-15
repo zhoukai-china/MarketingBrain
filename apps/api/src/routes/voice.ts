@@ -8,6 +8,13 @@ import {
   summarizeMediaAnalysis,
   type MediaProviderObservation
 } from "../services/media-provider-observation.js";
+import { speechCostCny } from "../services/billing-cost-model.js";
+import {
+  InsufficientCreditsForChargeError,
+  refundAllCreditsForCharge,
+  reserveCreditsForCharge,
+  settleCreditsForCharge
+} from "../services/credit-charge.js";
 
 /**
  * 公共平台语音输入（PLAT-33）。
@@ -21,8 +28,8 @@ import {
  * - 预算准入：服务端限体积 + 限「租户+用户」每小时次数，超限 fail-closed。
  * - 失败关闭：缺 Key/超时/上游报错都给人话，明确「未扣积分」，不静默失败。
  *
- * 本次不接积分计费（`creditCost: 0`），成本控制靠上面的次数/体积上限；
- * 如果以后要按次收费，属于新的计费口径，需要单独走计费契约与回归。
+ * 计费（PLAT-41，用户 2026-09-15）：语音识别按 **10 倍**扣积分，先预留 → 按实际结算 → 差额退回；
+ * 余额不足在调用 Provider 之前就 402 拒绝；转写失败全额退回（`creditCost: 0`）。
  */
 export const VOICE_TRANSCRIBE_PURPOSE = "web_voice_input";
 
@@ -38,13 +45,15 @@ interface VoiceTranscribeResponse {
   elapsedMs: number;
   warnings: string[];
   providerTrace: MediaProviderObservation[];
-  creditCost: 0;
+  /** 本次真实扣费（用户 2026-09-15：语音识别按 10 倍扣积分；失败时 0）。 */
+  creditCost: number;
+  creditRefunded?: number;
 }
 
 export async function registerVoiceRoutes(app: FastifyInstance): Promise<void> {
   app.post("/voice/transcribe", async (request, reply) => {
     // 1) 身份准入。身份只能来自服务端验签的会话令牌；解析失败一律按未登录处理。
-    let context: { tenantId: string; userId: string };
+    let context: { tenantId: string; userId: string; source: "demo" | "database" };
     try {
       const resolved = await resolveVoiceIdentity(request);
       context = resolved;
@@ -105,7 +114,7 @@ export async function registerVoiceRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
-    const { filename, mimeType, buffer } = upload;
+    const { filename, mimeType, buffer, durationSeconds } = upload;
 
     // 4) 上游配置准入：没有配置百炼 Key/地址时明确告知，绝不假装转写成功。
     const apiKey = getBailianApiKey();
@@ -129,11 +138,60 @@ export async function registerVoiceRoutes(app: FastifyInstance): Promise<void> {
     const onAborted = () => controller.abort(new Error("client_cancelled"));
     request.raw.once("aborted", onAborted);
 
+    /**
+     * 计费（用户 2026-09-15：「公共平台语音输入（ASR）改成扣积分」，10 倍）：
+     * 先按最坏估算预留 → 跑完按实际结算 → 差额退回。时长取
+     * `min(客户端上报秒数, 按字节数的上界)`；客户端不报时用字节上界（opus ≈ 4KB/秒）。
+     * 宁可多预留再退回，也不让「少报时长」变成少扣费。
+     */
+    const bytesUpperBoundSeconds = Math.max(1, Math.ceil(buffer.byteLength / 4000));
+    const estimatedSeconds = Math.max(
+      1,
+      Math.min(durationSeconds && durationSeconds > 0 ? durationSeconds : bytesUpperBoundSeconds, bytesUpperBoundSeconds)
+    );
+    const chargeRequestId = `voice:${context.userId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+    let reservation: Awaited<ReturnType<typeof reserveCreditsForCharge>> | null = null;
+    // 演示模式没有真实钱包：跳过计费（与其它业务一致），只有 database 模式才预留/结算。
+    if (context.source === "database") try {
+      reservation = await reserveCreditsForCharge({
+        userId: context.userId,
+        requestId: chargeRequestId,
+        capability: "speech",
+        estimatedCostCny: speechCostCny(estimatedSeconds),
+        skillId: "voice_input",
+        source: "web"
+      });
+    } catch (error) {
+      if (error instanceof InsufficientCreditsForChargeError) {
+        request.log.info({ event: "voice_transcribe.admission_rejected", stage: "credits", providerCalls: 0 }, "voice transcription stopped before external processing");
+        return reply.code(402).send({
+          error: "insufficient_credits",
+          message: `语音输入的积分不足（本次约需 ${error.required} 积分），请先充值后再用，或直接用文字输入。`,
+          stage: "credit_admission",
+          required: error.required,
+          balance: error.wallet.balance,
+          rechargeUrl: "/recharge",
+          providerCalls: 0,
+          creditCost: 0
+        });
+      }
+      throw error;
+    }
+
     try {
       const { content, observation } = await transcribeVoiceAudio({ buffer, mimeType, apiKey, baseUrl, signal: controller.signal });
       providerTrace.push(observation);
       const transcript = content.trim();
       if (!transcript) warnings.push("没有识别到清晰语音。请靠近麦克风、连续说一句完整的话后重试。");
+      const settled = reservation
+        ? await settleCreditsForCharge({
+            reservation,
+            userId: context.userId,
+            actualCostCny: speechCostCny(estimatedSeconds),
+            skillId: "voice_input",
+            source: "web"
+          })
+        : { chargedCredits: 0, refundedCredits: 0 };
       const analysisStatus = summarizeMediaAnalysis({
         visualRequested: false,
         asrRequested: true,
@@ -150,7 +208,8 @@ export async function registerVoiceRoutes(app: FastifyInstance): Promise<void> {
         elapsedMs: Math.max(0, Date.now() - startedAt),
         warnings,
         providerTrace,
-        creditCost: 0
+        creditCost: settled.chargedCredits,
+        creditRefunded: settled.refundedCredits
       };
       request.log.info({
         event: "voice_transcribe.terminal",
@@ -163,6 +222,10 @@ export async function registerVoiceRoutes(app: FastifyInstance): Promise<void> {
       }, "voice transcription completed");
       return result;
     } catch (error) {
+      // 失败关闭：语音没转成，预留的积分全额退回（不扣用户的钱）。
+      if (reservation) {
+        await refundAllCreditsForCharge({ reservation, userId: context.userId, skillId: "voice_input", source: "web", reason: "voice_transcribe_failed" }).catch(() => {});
+      }
       const observation = getMediaProviderObservation(error, {
         stage: "asr",
         provider: "aliyun-bailian",
@@ -218,10 +281,10 @@ export async function registerVoiceRoutes(app: FastifyInstance): Promise<void> {
 }
 
 /** 身份只取服务端验签会话；拒绝任何「客户端自报用途/租户」的输入方式。 */
-async function resolveVoiceIdentity(request: FastifyRequest): Promise<{ tenantId: string; userId: string }> {
+async function resolveVoiceIdentity(request: FastifyRequest): Promise<{ tenantId: string; userId: string; source: "demo" | "database" }> {
   const context = await resolveRequestContext(request.headers);
   if (!context.tenantId || !context.userId) throw new Error("missing_tenant_or_user");
-  return { tenantId: context.tenantId, userId: context.userId };
+  return { tenantId: context.tenantId, userId: context.userId, source: context.source };
 }
 
 async function transcribeVoiceAudio(params: {
@@ -258,7 +321,7 @@ async function transcribeVoiceAudio(params: {
 }
 
 type VoiceUpload =
-  | { kind: "ok"; filename: string; mimeType: string; buffer: Buffer }
+  | { kind: "ok"; filename: string; mimeType: string; buffer: Buffer; durationSeconds?: number }
   | { kind: "missing" }
   | { kind: "too_large" }
   | { kind: "unsupported" };
@@ -270,6 +333,7 @@ async function readVoiceUpload(request: FastifyRequest): Promise<VoiceUpload> {
   let mimeType = "application/octet-stream";
   let buffer: Buffer | undefined;
   let tooLarge = false;
+  let durationSeconds: number | undefined;
 
   for await (const part of request.parts()) {
     if (part.type !== "file") continue;
@@ -286,7 +350,7 @@ async function readVoiceUpload(request: FastifyRequest): Promise<VoiceUpload> {
   if (tooLarge) return { kind: "too_large" };
   if (!buffer || buffer.byteLength === 0) return { kind: "missing" };
   if (!isVoiceAudioFile(mimeType, filename)) return { kind: "unsupported" };
-  return { kind: "ok", filename, mimeType, buffer };
+  return { kind: "ok", filename, mimeType, buffer, durationSeconds };
 }
 
 /** 语音输入只收音频；视频也走这里的唯一结果就是被明确拒掉。 */

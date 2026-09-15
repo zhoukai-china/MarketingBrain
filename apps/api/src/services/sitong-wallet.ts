@@ -370,6 +370,71 @@ export async function consumeWalletCredits(params: {
 }
 
 /**
+ * 按实际消耗结算后的差额退款（PLAT-41「先预留 → 按实际结算 → 差额退回」）。
+ *
+ * 预留走 `consumeWalletCredits({requestId: "reserve:<id>"})`，所以这里只需要把多扣的部分写回来：
+ * - 同一 `refRequestId` 幂等（同一笔预留只退一次）；
+ * - 退回到**当初扣的那个桶**（先 paid 后 bonus，与扣费顺序对称）；
+ * - 只加不扣，永远不可能把余额退成负数。
+ */
+export async function refundWalletCredits(params: {
+  userId: string;
+  requestId: string;
+  /** 退款拆分：与预留时 `spent` 同形（paid / bonus 各退多少）。 */
+  breakdown: { paid: number; bonus: number };
+  skillId?: string;
+  source?: string;
+  reason?: string;
+}): Promise<{ refunded: number; idempotent: boolean; wallet: WalletSnapshot }> {
+  const paidRefund = Math.max(0, Math.round(params.breakdown.paid));
+  const bonusRefund = Math.max(0, Math.round(params.breakdown.bonus));
+  const source = params.source ?? "web";
+  const reason = (params.reason ?? "reserve_settlement").slice(0, 60);
+  return await prisma.$transaction(async (tx) => {
+    const wallet = await getOrCreateWallet(params.userId, tx);
+    const existing = await tx.walletLedger.findFirst({
+      where: { walletId: wallet.id, refRequestId: params.requestId, type: "refund" },
+      orderBy: { createdAt: "asc" },
+      take: 1
+    });
+    if (existing) {
+      return { refunded: 0, idempotent: true, wallet: await snapshotFromTx(wallet.id, tx) };
+    }
+    if (paidRefund > 0) {
+      await tx.wallet.update({ where: { id: wallet.id }, data: { paidBalance: { increment: paidRefund } } });
+      await tx.walletLedger.create({
+        data: {
+          walletId: wallet.id,
+          userId: params.userId,
+          delta: paidRefund,
+          bucket: "paid",
+          type: "refund",
+          refRequestId: params.requestId,
+          skillId: params.skillId,
+          source: `${source}:${reason}`
+        }
+      });
+    }
+    if (bonusRefund > 0) {
+      await tx.wallet.update({ where: { id: wallet.id }, data: { bonusBalance: { increment: bonusRefund } } });
+      await tx.walletLedger.create({
+        data: {
+          walletId: wallet.id,
+          userId: params.userId,
+          delta: bonusRefund,
+          bucket: "bonus",
+          type: "refund",
+          refRequestId: params.requestId,
+          skillId: params.skillId,
+          source: `${source}:${reason}`
+        }
+      });
+    }
+    return { refunded: paidRefund + bonusRefund, idempotent: false, wallet: await snapshotFromTx(wallet.id, tx) };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+}
+
+/**
  * 重做记录：同一 request_id 限 1 次免费重做，不产生扣减，只写一条 type=redo 记录。
  */
 export async function recordRedo(params: {

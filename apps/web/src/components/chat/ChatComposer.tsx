@@ -469,6 +469,8 @@ export function ChatComposer({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const voiceStartingRef = useRef(false);
+  /** 录音开始时间：用于把「本次录音多少秒」报给服务端算预留额度（PLAT-41）。 */
+  const recorderStartedAtRef = useRef<number | null>(null);
   const voiceStopTimerRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const handledFilePickerSignalRef = useRef(0);
@@ -742,12 +744,14 @@ export function ChatComposer({
    * 这条通道必须带登录态；任何失败都返回带 warning 的结果，由 `voiceTranscriptionFailureMessage`
    * 统一翻成人话，不静默丢录音。
    */
-  async function transcribeVoiceAttachment(file: File): Promise<MediaAnalysisResponse | null> {
+  async function transcribeVoiceAttachment(file: File, meta: { durationSeconds?: number } = {}): Promise<MediaAnalysisResponse | null> {
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
     try {
       const formData = new FormData();
       formData.append("file", file, file.name);
+      // 录音时长交给服务端算预留额度（语音输入 2026-09-15 起按 10 倍扣积分）。
+      if (meta.durationSeconds) formData.append("durationSeconds", String(meta.durationSeconds));
       const response = await fetch(apiPath("/voice/transcribe"), {
         method: "POST",
         headers: stripMultipartHeaders(headers),
@@ -849,6 +853,7 @@ export function ChatComposer({
       const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"]
         .find((candidate) => MediaRecorder.isTypeSupported(candidate)) ?? "";
       const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      recorderStartedAtRef.current = Date.now();
       const chunks: BlobPart[] = [];
       let recordingFailed = false;
       recorder.ondataavailable = (event) => { if (event.data.size > 0) chunks.push(event.data); };
@@ -891,7 +896,7 @@ export function ChatComposer({
       const mimeType = blob.type || "audio/webm";
       const file = new File([blob], `语音输入-${Date.now()}.${audioExtensionForMime(mimeType)}`, { type: mimeType });
       // PLAT-33：语音输入走独立的受授权转写入口（`/media/analyze` 对音视频一律 fail-closed）。
-      const analysis = await transcribeVoiceAttachment(file);
+      const analysis = await transcribeVoiceAttachment(file, { durationSeconds: Math.max(1, Math.round((Date.now() - (recorderStartedAtRef.current ?? Date.now())) / 1000)) });
       const transcript = analysis?.transcript?.trim();
       if (transcript) {
         onInputChange([inputValue.trim(), transcript].filter(Boolean).join("\n"));
