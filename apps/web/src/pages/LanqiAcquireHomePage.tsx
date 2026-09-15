@@ -17,6 +17,15 @@ interface AcquireEntry {
 
 const ENTRIES: AcquireEntry[] = [
   {
+    key: "copy-kit",
+    tag: "新增",
+    accent: true,
+    name: "美业文案十件套",
+    desc: "说清主推项目和想吸引的人，一次拿整套可直接发布的内容：选题 → 口播稿 → 访谈问答 → 拍摄脚本 → 剪辑 EDL → 标题话题 → 发布时间 → 评论引导 → 投流建议。",
+    enter: "生成十件套 →",
+    href: getAppPath("/lanqi/acquire/copy-kit")
+  },
+  {
     key: "copywriter",
     tag: "新增",
     accent: true,
