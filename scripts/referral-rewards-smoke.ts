@@ -7,6 +7,7 @@ import "dotenv/config";
 process.env.SKILL_MCP_REQUIRED = "false";
 import { randomUUID } from "node:crypto";
 import { prisma } from "../apps/api/node_modules/@baolu/db/dist/index.js";
+import { env } from "../apps/api/src/config/env.js";
 import {
   generateReferralCode,
   hashReferralCode,
@@ -81,12 +82,30 @@ async function main(): Promise<void> {
   const now = new Date();
   const starts = new Date(now.getTime() - 3600_000).toISOString();
   const ends = new Date(now.getTime() + 3600_000).toISOString();
+  /**
+   * 默认口径（用户 2026-09-15）：被推荐人 100、推荐人 100，首充那一段默认关闭。
+   * 只在没有 env 覆盖时断言，避免测试实例/CI 显式配了 env 就把这条契约误判成红。
+   */
+  if (
+    process.env.REFERRAL_NEW_USER_CREDITS === undefined &&
+    process.env.REFERRAL_REFERRER_FIRST_USE_CREDITS === undefined &&
+    process.env.REFERRAL_REFERRER_FIRST_RECHARGE_CREDITS === undefined
+  ) {
+    check("默认口径：被推荐人 100", env.REFERRAL_NEW_USER_CREDITS === 100, `got ${env.REFERRAL_NEW_USER_CREDITS}`);
+    check("默认口径：推荐人 100", env.REFERRAL_REFERRER_FIRST_USE_CREDITS === 100, `got ${env.REFERRAL_REFERRER_FIRST_USE_CREDITS}`);
+    check(
+      "默认口径：首充段 0（2026-09-15 只做双向各 100）",
+      env.REFERRAL_REFERRER_FIRST_RECHARGE_CREDITS === 0,
+      `got ${env.REFERRAL_REFERRER_FIRST_RECHARGE_CREDITS}`
+    );
+  }
   await setSetting("REFERRAL_REWARD_ENABLED", true);
   await setSetting("REFERRAL_CAMPAIGN_STARTS_AT", starts);
   await setSetting("REFERRAL_CAMPAIGN_ENDS_AT", ends);
   await setSetting("REFERRAL_NEW_USER_CREDITS", 100);
   await setSetting("REFERRAL_REFERRER_FIRST_USE_CREDITS", 100);
-  await setSetting("REFERRAL_REFERRER_FIRST_RECHARGE_CREDITS", 200);
+  // 用户 2026-09-15 口径：「先只做推荐有礼，被推荐人 100、推荐人 100」→ 首充那一段先关闭。
+  await setSetting("REFERRAL_REFERRER_FIRST_RECHARGE_CREDITS", 0);
   await setSetting("REFERRAL_REWARD_VALID_DAYS", 90);
   await setSetting("REFERRAL_REWARD_ALERT_THRESHOLD_CREDITS", 50);
   resetReferralConfigCacheForTests();
@@ -123,24 +142,21 @@ async function main(): Promise<void> {
   const firstUse = await maybeGrantReferralReward({ referredUserId: referred.userId, kind: "referrer_first_use" });
   check("推荐人首用奖励 100", firstUse.granted && firstUse.amount === 100 && firstUse.receiverUserId === referrer.userId, JSON.stringify(firstUse));
 
-  // ③ 推荐人首充 200
+  // ③ 首充段按 2026-09-15 口径关闭（0）：不发、不写账本、不报错
   const firstRecharge = await maybeGrantReferralReward({ referredUserId: referred.userId, kind: "referrer_first_recharge" });
-  check("推荐人首充奖励 200", firstRecharge.granted && firstRecharge.amount === 200, JSON.stringify(firstRecharge));
+  check("首充段关闭时不发奖（no_amount，不报错）", firstRecharge.granted === false && firstRecharge.reason === "no_amount", JSON.stringify(firstRecharge));
 
-  // 月度超阈值（阈值 50，累计 300）只告警不拦截
-  check("月累计超阈值置告警标记", firstRecharge.alerted === true, `alerted=${firstRecharge.alerted}`);
-
-  // ④ 余额核对：被推荐人 bonus 100；推荐人 bonus 300
+  // ④ 余额核对（2026-09-15 口径）：被推荐人 bonus 100；推荐人 bonus 100
   const referredWallet = await prisma.wallet.findUniqueOrThrow({ where: { userId: referred.userId } });
   const referrerWallet = await prisma.wallet.findUniqueOrThrow({ where: { userId: referrer.userId } });
   check("被推荐人 bonus=100", referredWallet.bonusBalance === 100, `got ${referredWallet.bonusBalance}`);
-  check("推荐人 bonus=300", referrerWallet.bonusBalance === 300, `got ${referrerWallet.bonusBalance}`);
+  check("推荐人 bonus=100", referrerWallet.bonusBalance === 100, `got ${referrerWallet.bonusBalance}`);
   check("paid 桶为 0（奖励只进 bonus）", referredWallet.paidBalance === 0 && referrerWallet.paidBalance === 0);
 
   const ledgerCount = await prisma.walletLedger.count({
     where: { userId: { in: [referred.userId, referrer.userId] }, source: { startsWith: "referral_reward:" } }
   });
-  check("账本恰 3 条奖励流水", ledgerCount === 3, `got ${ledgerCount}`);
+  check("账本恰 2 条奖励流水（双向各一条）", ledgerCount === 2, `got ${ledgerCount}`);
 
 
   // ④b 到期：账本写 expiresAt（约 90 天）；已到期的推荐奖励不可消费
@@ -166,7 +182,16 @@ async function main(): Promise<void> {
   });
   check("过期推荐奖励不可消费（insufficient）", expiredConsume.status === "insufficient", JSON.stringify(expiredConsume));
 
-  // ⑤ 退款冲正：冲掉首充 200；二次冲正幂等
+  // ⑤ 机制没被削掉：把首充段改回 200 → 仍按 200 发、仍触发超阈值告警、仍能退款冲正
+  //    （2026-09-12 的三段口径可随时恢复，只改这一个数）
+  await setSetting("REFERRAL_REFERRER_FIRST_RECHARGE_CREDITS", 200);
+  resetReferralConfigCacheForTests();
+  const firstRechargeEnabled = await maybeGrantReferralReward({ referredUserId: referred.userId, kind: "referrer_first_recharge" });
+  check("首充段改回 200 后照常发奖（机制保留）", firstRechargeEnabled.granted && firstRechargeEnabled.amount === 200, JSON.stringify(firstRechargeEnabled));
+  check("月累计超阈值置告警标记", firstRechargeEnabled.alerted === true, `alerted=${firstRechargeEnabled.alerted}`);
+  const referrerWalletAfterGrant = await prisma.wallet.findUniqueOrThrow({ where: { userId: referrer.userId } });
+  check("发奖后推荐人 bonus=300", referrerWalletAfterGrant.bonusBalance === 300, `got ${referrerWalletAfterGrant.bonusBalance}`);
+
   const reversal = await reverseReferralReward({ referredUserId: referred.userId, kind: "referrer_first_recharge" });
   check("首充奖励冲正成功", reversal.granted === true, JSON.stringify(reversal));
   const referrerWalletAfter = await prisma.wallet.findUniqueOrThrow({ where: { userId: referrer.userId } });

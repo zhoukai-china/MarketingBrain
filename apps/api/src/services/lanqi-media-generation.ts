@@ -41,7 +41,8 @@ function modelFor(input: Pick<LanqiMediaRequest, "kind">): string | undefined {
 export function quoteLanqiMedia(input: LanqiMediaRequest): { creditCost: number; customerPriceYuan: number; provider: "aliyun_bailian"; model: string } {
   if (input.kind === "image") return price(env.LANQI_MEDIA_IMAGE_CREDITS, modelFor(input) ?? "未配置");
   const seconds = input.durationSeconds ?? 5;
-  // 图生视频（文案转片）按成本 ×10 的按秒口径计价：30 积分/秒，每镜 3 秒 = 90 积分。
+  // 图生视频（文案转片）按**成本 ×2** 的按秒口径计价（用户 2026-09-15）：
+  // 成本 ¥0.30/秒 × 2 = 12 积分/秒（= ¥0.60/秒），每镜 3 秒 = 36 积分。此前 30 积分/秒 = 成本 ×5。
   if (input.kind === "image_to_video") return price(Math.max(1, Math.round(seconds * env.LANQI_MEDIA_VIDEO_CREDITS_PER_SECOND)), modelFor(input) ?? "未配置");
   const credits = input.resolution === "1080P"
     ? (seconds === 10 ? env.LANQI_MEDIA_1080P_10S_CREDITS : env.LANQI_MEDIA_1080P_5S_CREDITS)

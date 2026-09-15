@@ -92,7 +92,14 @@ const envSchema = z.object({
    * 三图包 = 60 积分（原 300）。
    */
   LANQI_MEDIA_IMAGE_CREDITS: z.coerce.number().int().positive().default(20),
-  LANQI_MEDIA_VIDEO_CREDITS_PER_SECOND: z.coerce.number().int().positive().default(30),
+  /**
+   * 兰琪视频（图生视频 / 文案转片，`wan2.6-i2v-flash` 720P）按秒计价。
+   *
+   * 口径（用户 2026-09-15）：「视频改成 2 倍成本」——实测成本 ¥0.30/秒 × 2 = **12 积分/秒**
+   * （= ¥0.60/秒；一镜 3 秒 = 36 积分）。此前是 30 积分/秒 = 成本 ×5，与统一倍数表不一致。
+   * 真正的「文生视频」走另一组固定包价（`LANQI_MEDIA_*P_*S_CREDITS`），当前未配模型。
+   */
+  LANQI_MEDIA_VIDEO_CREDITS_PER_SECOND: z.coerce.number().int().positive().default(12),
   BEAUTY_MEDIA_EXECUTION_MODE: z.enum(["disabled", "real"]).default("disabled"),
   BEAUTY_MEDIA_PRODUCT_ENABLED: z.enum(["true", "false"]).default("false"),
   BEAUTY_MEDIA_MAX_REAL_IMAGES: z.coerce.number().int().min(0).max(3).default(0),
@@ -102,8 +109,10 @@ const envSchema = z.object({
   /**
    * 推荐有礼（PLAT-28）。全部默认关闭，上线前改 env 即生效，不发版。
    *
-   * 口径（用户 2026-09-12 冻结）：
-   * - 三段奖励：新客 100、推荐人第一段 100（新客首次真实使用）、推荐人第二段 200（该新客首次真实充值）；
+   * 口径（用户 2026-09-12 冻结，2026-09-15 收窄）：
+   * - 用户 2026-09-15 原话：「先只做推荐有礼，被推荐人获得 100 积分、推荐人获得 100 积分」——
+   *   所以**双向各 100**；原第二段「推荐人首充再加 200」按本次口径**默认关闭（0）**，
+   *   要恢复 2026-09-12 的三段口径，把这个数改回 200 即可（机制没删，仍在 `maybeGrantReferralReward`）。
    * - 奖励积分**只能用于文字类智能体**（`REFERRAL_REWARD_TEXT_ONLY`，服务端硬限制）；
    * - 奖励进 bonus 桶，90 天有效；不设单人月上限，改为超阈值**告警**；
    * - 绑定 / 首次真实使用 / 首次真实充值三个事件都必须落在活动窗内（左闭右开）。
@@ -113,7 +122,7 @@ const envSchema = z.object({
   REFERRAL_CAMPAIGN_ENDS_AT: optionalString,
   REFERRAL_NEW_USER_CREDITS: z.coerce.number().int().nonnegative().default(100),
   REFERRAL_REFERRER_FIRST_USE_CREDITS: z.coerce.number().int().nonnegative().default(100),
-  REFERRAL_REFERRER_FIRST_RECHARGE_CREDITS: z.coerce.number().int().nonnegative().default(200),
+  REFERRAL_REFERRER_FIRST_RECHARGE_CREDITS: z.coerce.number().int().nonnegative().default(0),
   REFERRAL_REWARD_VALID_DAYS: z.coerce.number().int().positive().default(90),
   REFERRAL_REWARD_ALERT_THRESHOLD_CREDITS: z.coerce.number().int().positive().default(20000),
   REFERRAL_REWARD_TEXT_ONLY: z.enum(["true", "false"]).default("true"),

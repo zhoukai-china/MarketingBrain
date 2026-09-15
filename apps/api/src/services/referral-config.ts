@@ -75,7 +75,7 @@ export const PLATFORM_SETTING_DEFINITIONS: readonly PlatformSettingDefinition[] 
     key: "REFERRAL_REFERRER_FIRST_RECHARGE_CREDITS",
     group: "referral",
     label: "推荐人第二段（新客首次真实充值）",
-    description: "默认 200。",
+    description: "默认 0（用户 2026-09-15「先只做推荐有礼：被推荐人 100 + 推荐人 100」，本段先关闭）。改回 200 即恢复 2026-09-12 的三段口径。",
     type: "integer",
     min: 0,
     max: 100000
