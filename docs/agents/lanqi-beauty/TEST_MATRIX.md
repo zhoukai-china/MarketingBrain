@@ -45,6 +45,17 @@ pnpm.cmd qa:fast
 | 只在兰琪可用（结构约束） | PASS | 冒烟断言「检索路由挂在兰琪作用域」「没有注册到美业单品作用域」；`viral-video-replication` 老链路未改动 |
 | 计费边界 | PASS | 一期不做积分：路由不扣费、不写流水、不落库（冒烟反向断言 `creditCost|billing|wallet|creditLedger|$transaction`） |
 | 页面契约 | PASS | `pnpm.cmd lanqi:acquire-ui-contract-smoke` **53/0**（新增 7 条：真实接口 / 结果区可访问名 / 选它复刻 / 打开原页面 / 不做假数据 / 不再硬编码 fail-closed / 页面无厂商与模型名） |
+
+### LQ-32 一键成片音频接通（拼接 + 混音，2026-09-15）
+
+| 领域 | 结果 | 证据 |
+|---|---|---|
+| 后端合成回归（离线，真实 ffmpeg） | PASS | `pnpm.cmd lanqi:media-compose-smoke` **22 passed / 0 failed**：无音轨拼接时长≈各镜之和且无音频流 / 长音轨以画面为准 / 短音轨循环补齐 / 带声音视频作音轨 → `audioSource=video_audio_track` / **无声视频当音轨 → `audio_track_missing`** / 未授权 `audio_rights_required` / 跨租户 `shot_not_found`(404) / 未出片 `shots_not_ready`(409) / 音轨过大 `audio_file_too_large` / 同 `requestKey` 幂等 / 成片跨租户读不到 |
+| 页面契约 | PASS | `pnpm.cmd lanqi:acquire-ui-contract-smoke` 新增 22 条（音频卡不再写「本期成片无声」/ 支持 `audio/*,video/*` / 真实上传 / 音轨选择 / 授权声明 / `data-lq-vd-compose-btn` / 不额外扣积分 / compose 路由先解析登录态 / 合成查询必须带租户条件）→ **101 passed / 0 failed** |
+| 测试实例真实浏览器验收 | PASS | `node scripts/lanqi-acquire-instance-acceptance.mjs --port 9371` **42 项 / 失败 0**（桌面 1440）：`input.accept=audio/*,video/*` 且 `disabled=false`、上传带声音视频 → 「抽音轨 + 音轨授权」、授权可勾、成片区有「合成成片」且未出片时禁用（`还差 3 镜没出片`）、**未提前发合成请求**（`/lanqi/media/compose` 请求数 0）、console/page 0 错误 |
+| 生产只读接口 / 产物 | PASS | 匿名 `POST|GET /os-v2/api/lanqi/media/compose` → **401**；线上 chunk `LanqiAcquireVideoPage-E9tMehS9.js` 含 `data-lq-vd-compose`/`上传音频`/`合成成片`，`音频上传暂未接通`/`本期成片无声` 命中 **0**；`dist/.../lanqi-media-compose.js` 12341 B 含 `stream_loop` |
+| 发布门禁 | PASS | `pnpm.cmd qa:fast` exit 0；`verify-deploy.sh` VERIFY_OK（19 SKU / coming_soon 13 / 两个 vidrev=selling） |
+| 未覆盖（如实记录） | 未跑 | 真实付费素材端到端（逐镜真实出片要积分，测试租户 0 积分）；生产页面级浏览器验收（需真人微信扫码，自动化停在 `/os-v2/login`） |
 | 类型检查与结构门禁 | PASS（当时） | `apps/api`、`apps/web` typecheck `EXIT=0`；`qa:fast` 当时含 `lanqi:viral-search-smoke`（LQ-28 已移除该项） |
 
 
