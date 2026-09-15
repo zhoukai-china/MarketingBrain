@@ -245,7 +245,7 @@ function replicationFailureNotice(error: unknown): string {
     return "这条素材在服务端没登记上，请删掉重新上传一次再报价。";
   }
   if (code === "insufficient_credits") {
-    return "积分不足：这次没有创建任务、也没有扣积分。请先充值，再回来点确认出片。";
+    return "积分不足：这次没有创建任务、也没有扣积分。请点右上角「我的 · 充值」，充值后回来点确认出片。";
   }
   if (code === "execution_permit_required" || code === "execution_permit_not_reusable" || code === "execution_budget_too_small") {
     return "这次没有拿到出片许可（单批预算不足或已失效），没有创建任务、没有扣积分；请重试一次，仍然失败请联系思潼服务团队。";
@@ -261,7 +261,7 @@ function replicationFailureNotice(error: unknown): string {
  * 直接铺给门店看等于没说。未在表内的码原样显示，不猜、不美化。
  */
 const REPLICATION_GAP_LABELS: Record<string, string> = {
-  insufficient_credits: "积分不足，请先充值",
+  insufficient_credits: "积分不足，请点右上角「我的 · 充值」",
   // 用户 2026-09-15 口径：**用户端不设单条预算上限**，有积分就能出片；
   // 所以这条缺口现在只会因为「片长超过模型支持的 30 秒」出现，不再是我们自己卡的预算。
   provider_budget_exceeded: "这条片超过模型支持的时长上限（2–30 秒），请先裁剪再上传",

@@ -1,5 +1,30 @@
 # 当前部署状态
 
+## 最新发布：20260915-lq33b-recharge-entry（2026-09-15，测试实例 + 生产）— 兰琪工作台接上充值入口
+
+### 一、用户口径
+
+- 老板问：「**兰琪智能体在哪里充值**」。核查发现兰琪顶栏「我的」还指向 `/my-ai`，而 `/my-ai` 已于同日随 `20260915-plat44b-legacy-ai` 下线并统一跳智能体货架 → 门店在兰琪里**点不到充值入口**（详细根因与回归见 `docs/BUG_REGRESSIONS.md` QA-20260915-006）。
+
+### 二、改动（4 个文件）
+
+1. `apps/web/src/components/lanqi-brain/LanqiBrainShell.tsx`：顶栏「我的」→ `getAppPath("/recharge")`（钱包页：余额 + 充值套餐 + 订单），文案改「我的 · 充值」并加 `title`。
+2. `apps/web/src/pages/LanqiAcquireVideoPage.tsx`：两条积分不足文案改为「请点右上角「我的 · 充值」充值后再试」。
+3. `scripts/lanqi-brand-nav-contract-smoke.mjs`：新增 3 条（顶栏必须直达 `/recharge`、文案含「充值」、**禁止再出现 `getAppPath("/my-ai")`**）。
+4. `scripts/lanqi-acquire-instance-acceptance.mjs`：新增 1 条真实浏览器断言（顶栏 `.lq-pd__me` 的 href 必须以 `/recharge` 结尾）；`scripts/lanqi-acquire-ui-contract-smoke.mjs` 新增 1 条文案断言。
+
+### 三、验证
+
+- `pnpm.cmd lanqi:brand-nav-contract-smoke` **49/0**（含新增 3 条）；`pnpm.cmd lanqi:acquire-ui-contract-smoke` **102/0**；`pnpm.cmd --filter @baolu/web build` PASS。
+- 测试实例真实浏览器 `lanqi:acquire-instance-acceptance --port 9377` **43 项 / 失败 0**（含新增的充值入口断言）。
+- 生产只读：主包引用 chunk `LanqiBrainShell-n2ykxg9Y.js`（3220 B）内 `/recharge`×1、**`/my-ai`×0**、「我的 · 充值」命中；`GET /os-v2/recharge` **200**；`GET /os-v2/api/wallet` 匿名 **401**；`verify-deploy.sh` **VERIFY_OK**。
+- 发布：包 `release-20260915-lq33b-recharge-entry.tar.gz`（1558 文件 / 9,808,983 B / sha256 `297da0fd60bab9946912dfa44a920e992f99258c08864653e53c212872cfb35d`），发布 id 测试 `20260915-lq33b-recharge-entry-test1` / 生产 **`-prod1`**，两侧 `DEPLOY_OK` + `health/ready 200`。
+- 过程注意（如实记录）：生产部署命令在客户端被中断后，服务器侧部署**仍在继续**；按「不强杀、盯日志、跑完复核」处置，最终 `DEPLOY_OK` + `VERIFY_OK`，生产未被留在半成品状态。
+
+### 四、门店现在怎么充值
+
+登录兰琪工作台 → 右上角 **「我的 · 充值」** → 进入钱包页（余额 / 积分套餐 / 订单），或用直达地址：生产 `https://api.lcppch.top/os-v2/recharge`、测试实例 `https://api.lcppch.top/lanqi-test/recharge`（两处实测 200）。
+
 ## 最新发布：20260915-lq32b-audio-compose（2026-09-15，测试实例 + 生产）— 一键成片「音频接通 + 合成一条成片」
 
 ### 一、用户口径（2026-09-15）

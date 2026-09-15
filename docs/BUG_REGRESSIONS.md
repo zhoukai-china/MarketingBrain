@@ -1,5 +1,19 @@
 # Bug 回归台账
 
+## QA-20260915-006：兰琪工作台「我的」指向已下线的 `/my-ai` → 门店在兰琪里**找不到充值入口**（P1 体验断链，已修并上生产）
+
+- 触发：老板 2026-09-15 直接问「**兰琪智能体在哪里充值**」。查证发现：兰琪顶栏「我的」的 `href` 仍是 `getAppPath("/my-ai")`，而 `/my-ai` 已在同一天随平台发布 `20260915-plat44b-legacy-ai` **下线并统一跳智能体货架** `/agents`。
+- 影响链（不是「点了没反应」，而是「点了被送走」）：门店在兰琪里点「我的」→ 落到平台智能体货架（与兰琪工作台无关的页面）→ 无法自助查看余额 / 充值；同时「一键成片」报价缺口只写「积分不足，请先充值」，**没有可达的充值入口指引**，老板只能来问人。
+- 根因：平台侧下线 `/my-ai` 时只处理了平台自有页面的入口（见 QA-20260915-004 同批），**兰琪产品壳（`apps/web/src/components/lanqi-brain/LanqiBrainShell.tsx`）的顶栏入口不在平台侧扫描范围内**，成了跨产品口径变更的漏网入口。属「口径变更的连带影响未覆盖另一产品」。
+- 最小修复：顶栏改为 `href={getAppPath("/recharge")}`（钱包页：余额 + 充值套餐 + 订单，实测登录态可用），文案改「我的 · 充值」并加 `title`；`LanqiAcquireVideoPage` 的两条积分不足文案改为「请点右上角「我的 · 充值」充值后再试」。不改计费口径、不动钱包后端。
+- 回归（先红后绿）：
+  - `scripts/lanqi-brand-nav-contract-smoke.mjs`（在 `qa:fast` 里）新增 3 条：顶栏必须 `href={getAppPath("/recharge")} className="lq-pd__me"`、「我的 · 充值」文案、**不得再出现 `getAppPath("/my-ai")`** → **49 passed / 0 failed**（未改壳时该组为红）。
+  - `scripts/lanqi-acquire-ui-contract-smoke.mjs` 新增 1 条（积分不足提示指向「我的 · 充值」）→ **102 passed / 0 failed**。
+  - 测试实例真实浏览器 `lanqi:acquire-instance-acceptance` 新增 1 条（读顶栏 `.lq-pd__me` 的 href，必须 `/recharge` 结尾且文案含「充值」）→ **43 项 / 失败 0**。
+  - 生产只读取证：当前主包引用的 chunk `LanqiBrainShell-n2ykxg9Y.js`（3220 B）内 `/recharge`×1、`/my-ai`×**0**、`我的 · 充值` 命中；`GET /os-v2/recharge` **200**、`GET /os-v2/api/wallet` 匿名 **401**；`verify-deploy.sh` **VERIFY_OK**。
+- 发布：包 `release-20260915-lq33b-recharge-entry.tar.gz`（1558 文件 / 9,808,983 B / sha256 `297da0fd60bab9946912dfa44a920e992f99258c08864653e53c212872cfb35d`），发布 id 测试 `20260915-lq33b-recharge-entry-test1` / 生产 **`-prod1`**，两侧 `DEPLOY_OK` + `health/ready 200`。
+- 运维教训（本轮真实发生）：生产部署命令在**客户端被中断**后，服务器上的 `deploy-release.sh` **仍在继续执行**（进程存活、日志继续写）。当时正确处理是**不要强杀**（脚本正处在备份/叠加窗口，HUP 会留下半成品——同 QA-20260815 那条「前台部署绑定 SSH 会话」的教训），而是盯着日志跑完并复核 `DEPLOY_OK` + `health/ready` + `verify-deploy.sh`。本次据此放行，生产未被留在半成品状态。
+
 ## QA-20260915-005：兰琪浏览器验收「选到了跑不起来的 Chromium」→ 每次都以 `DevTools 端口未就绪` 假失败（P2，已修；门禁能真跑）
 
 - 触发（本轮 LQ-32 测试实例验收时）：`pnpm.cmd lanqi:acquire-instance-acceptance` 连续两次在 20 秒后抛 `Chromium DevTools 端口未就绪。`，看现象像「被测页面/实例坏了」，而实例侧 `health=200`、页面在浏览器里正常。

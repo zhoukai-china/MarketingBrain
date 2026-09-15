@@ -99,9 +99,15 @@ export function LanqiBrainShell({ active, mainTitle, subtitle, crumb, headerSlot
               <button type="button" className="lq-pd__pts" data-lanqi-sync onClick={onSync} disabled={syncing}>
                 {syncing ? "⏳ 正在同步…" : "🔄 多端实时同步"}
               </button>
-              <a href={getAppPath("/my-ai")} className="lq-pd__me">
+              {/*
+                2026-09-15（老板问「兰琪智能体在哪里充值」）：这里原来指向 `/my-ai`，
+                而平台发布 20260915-plat44b 已把 `/my-ai` 下线并统一跳智能体货架
+                → 门店点「我的」会被送到平台货架，**在兰琪里根本找不到充值入口**。
+                改为直达钱包页（余额 + 充值套餐 + 订单），文案也说明点它是去充值。
+              */}
+              <a href={getAppPath("/recharge")} className="lq-pd__me" title="查看余额 / 充值积分">
                 <span className="lq-pd__me-avatar">🧑</span>
-                <span className="lq-pd__me-label">我的</span>
+                <span className="lq-pd__me-label">我的 · 充值</span>
               </a>
               {/*
                 「今日待办」原来是个没有 onClick 的 <button>，点了没反应（报告 Bug6）。

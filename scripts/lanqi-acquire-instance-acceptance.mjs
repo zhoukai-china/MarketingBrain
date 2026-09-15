@@ -937,6 +937,20 @@ async function main() {
       detail: `缺少=[${hubCards.filter((name) => !hubText.includes(name)).join(",")}] readyAtMs=${hub.readyAtMs}`,
     });
     const hubHrefs = hub.snapshot.links.join(" ");
+    /*
+     * 老板 2026-09-15 问「兰琪智能体在哪里充值」：顶栏「我的」原先指向已下线的 `/my-ai`，
+     * 点它会被送去平台货架，门店在兰琪里找不到充值入口。这里盯住顶栏必须直达钱包页。
+     */
+    const meHref = await evaluate(
+      root,
+      hub.sessionId,
+      `(() => { const el = document.querySelector(".lq-pd__me"); return el ? { href: el.getAttribute("href") ?? "", text: (el.innerText || "").trim() } : null; })()`,
+    );
+    checks.push({
+      name: "acquire 枢纽：顶栏「我的 · 充值」直达钱包页（不再被送去已下线的 /my-ai）",
+      pass: Boolean(meHref) && /\/recharge$/.test(meHref.href) && meHref.text.includes("充值"),
+      detail: JSON.stringify(meHref),
+    });
     checks.push({
       name: "acquire 枢纽：入口链接指向 5 个任务入口（无 mode=script 旧链）",
       pass:

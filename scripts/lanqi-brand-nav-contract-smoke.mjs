@@ -242,5 +242,12 @@ if (sidebarBg && devBadgeRgba) {
 // ⑨ 脚本入口已注册
 requireMatch(packageJson, /lanqi:brand-nav-contract-smoke/, "package.json：已注册 lanqi:brand-nav-contract-smoke");
 
+// ⑩ 充值入口（2026-09-15 老板问「兰琪智能体在哪里充值」）：
+//    顶栏「我的」原来指向 `/my-ai`，而 `/my-ai` 已被平台下线并统一跳智能体货架
+//    → 门店在兰琪里点「我的」会被送走，**找不到充值入口**。必须直达钱包页 `/recharge`。
+requireMatch(shell, /href=\{getAppPath\("\/recharge"\)\} className="lq-pd__me"/, "顶栏「我的」直达钱包 / 充值页（/recharge）");
+requireMatch(shell, /我的 · 充值/, "顶栏入口文案说明点它是去充值");
+forbidMatch(shell, /getAppPath\("\/my-ai"\)/, "顶栏不再指向已下线的 /my-ai（否则点「我的」被送去平台货架）");
+
 console.log(`\nlanqi_brand_nav_contract_smoke: ${failures === 0 ? "PASS" : "FAIL"} (${results.length - failures} passed / ${failures} failed)`);
 process.exit(failures === 0 ? 0 : 1);

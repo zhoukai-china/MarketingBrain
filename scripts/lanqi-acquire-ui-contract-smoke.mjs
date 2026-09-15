@@ -193,6 +193,7 @@ requireMatch(videoPage, /apiPath\("\/lanqi\/media\/compose"\)/, "video：合成�
 requireMatch(videoPage, /data-lq-vd-compose-btn/, "video：合成主按钮有稳定钩子，供验收脚本断言");
 requireMatch(videoPage, /不额外扣积分/, "video：页面明确写出合片 / 混音不额外扣积分");
 requireMatch(videoPage, /downloadComposed/, "video：合成后可下载整条成片");
+requireMatch(videoPage, /我的 · 充值/, "video：积分不足的提示指向顶栏「我的 · 充值」，不让门店自己找充值入口");
 requireMatch(mediaRoute, /"\/lanqi\/media\/compose"/, "route：新增合成接口");
 requireMatch(mediaRoute, /"\/lanqi\/media\/compose\/:composeId"/, "route：成片按 composeId 读取（带登录态）");
 requireMatch(mediaRoute, /compose\/:composeId"[\s\S]{0,300}resolveRequestContext\(request\.headers\)/, "route：成片读取先解析请求上下文（租户隔离）");
