@@ -1,5 +1,19 @@
 # Bug 回归台账
 
+## QA-20260915-001：磁盘写满导致内测邀请入口「服务不可用」（P0，已现场修复；保留策略待常态化）
+
+- 触发：用户 2026-09-15 报「`https://api.lcppch.top/os-v2/login/lanqi?invite=lanqi-beta-2026` 显示服务不可用，正在让用户内测」。
+- 复现与取证（只读）：页面 `GET /os-v2/login/lanqi?invite=…` **200**（前端正常）；`/api/health` / `/api/ready` 均 200；nginx 当天 5xx 里 `POST /os-v2/api/auth/beta-login` **500**（12:07:51、12:07:55）。
+- 根因：服务器磁盘 **100% 满（0 可用）**，PostgreSQL 在执行 `prisma.membership.create()` / `prisma.memberAgentAccess.create()` 时报
+  `53100 could not extend file … No space left on device`（`createWorkspace` → `routes/auth.ts` 建租户），于是「填邀请码 → 开通工作区」这一步 500，页面对用户表现为「服务不可用」。
+  空间被两类**可再生**产物吃掉：`/opt/baolu-stage/*` 发布暂存目录累计 **8.4G**（每次发布新建一个、成功后未清理）、`/opt/baolu-backups` **6.4G / 49 份**（无保留策略）。
+- 现场修复（非破坏客户数据）：清空 `/opt/baolu-stage/*`（发布脚本每次发布都会自建该目录）、删除 `/tmp/release-*.tar.gz`（保留最新 3 个）与 `/tmp/overlay-*.tar.gz`、journal vacuum。**100% → 69%（8.7G 可用）**。
+- 修复后验证：① DB 写入自检 `begin; create temp table; insert; rollback` 成功；② 无效邀请码 `POST /auth/beta-login` → **403 `invite_code_not_found`**（不再是 500）；③ 该内测邀请码 `POST /auth/product-invite/validate {inviteCode:"lanqi-beta-2026",productCode:"lanqi"}` → **200 `{valid:true}`**（码本身有效、还有 20 个名额里用了 5）；④ `baolu-os-v2` 与 `baolu-os-v2-test` 均 active，两侧 health 200，`df` 稳定在 69%。
+- 防复发（部分已交付，部分待拍板）：
+  - 已交付：新增 `scripts/ops/prune-server-backups.sh`（**默认 dry-run**，按环境各保留最近 `KEEP` 份，删除前打印清单；实测当前会保留生产/测试各 8 份、列出 21 个待删目录约 2.7G）。真正执行需 `--apply`。
+  - 待办：① 要不要跑一次 `--apply` 回收 2.7G（会删掉 20260914 及更早的发布前备份，含 LQ-29/LQ-30 的回滚点）；② 发布脚本成功后自动清理自己的 `/opt/baolu-stage/<rel>`，并在 preflight 加「可用空间 < 5G 直接失败」；③ 磁盘水位告警（>85%）接进现有告警通道。②③ 涉及并行任务在改的 `scripts/tmp/deploy-release.sh`，需与其协调后再落。
+- 关联：`docs/CURRENT_DEPLOYMENT_STATUS.md` 同日条目；上游同类事件（2026-09-13 测试实例因磁盘满崩溃）见兰琪 STATUS 历史段。
+
 ## QA-20260915-001：OSS 暂存审计把上游原始错误 message 落库（可能含签名 URL / 桶名 / AccessKeyId）（P1，本次修复）
 
 - 触发：用户 2026-09-15「同意开卡修 4 条既有红灯」。修 `beauty-industry:video-oss-staging-smoke` 的第一条断言（清理失败错误码）后，**暴露出下一条更严重的失败**：`assert.ok(!exposed.includes("SYNTHETIC_RAW_RESPONSE"))`——审计内容里出现了上游原始错误文本。
