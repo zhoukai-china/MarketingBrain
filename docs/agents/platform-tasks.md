@@ -2149,7 +2149,7 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 
 ## PLAT-33 公共平台语音输入（用户 2026-09-14：支持用户语音输入内容）
 
-状态：待发布（本地实现 + 真机验收完成，详见「验证」）
+状态：**已完成 + 已上测试实例与生产**（`20260914-plat33-voice-input-test1` / `…-prod1` 均 `DEPLOY_OK` + `VERIFY_OK`；生产 `POST /os-v2/api/voice/transcribe` 未登录 401 `voice_login_required`、`providerCalls: 0`）。2026-09-15 对账时补正本行——此前停留在「待发布」，实际当天已发布，详见 `docs/CURRENT_DEPLOYMENT_STATUS.md` 的 `20260914-plat33-voice-input` 条目。
 
 ### 归属
 
@@ -2371,4 +2371,32 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 
 - 残余风险：兰琪 / 美业自有页面里的 `/my-ai` 入口仍在（点击会跳货架，功能不阻塞、语义不一致），已转派；`scripts/beauty-directory-browser-e2e.mjs` 仍断言 `/my-ai` 渲染 `.myAiPage`，美业线恢复活动前必须改。
 - 后续任务：`MyAiPage` 组件本体的去留（需与引用它的 smoke 和 BY-52 文档一起处理）。
+- 最后更新日期：2026-09-15
+
+## 任务登记补记（2026-09-15 对账）
+
+对账原因：本登记表从 PLAT-36 直接跳到 PLAT-44，中间 7 个已交付的平台任务**没有任务卡**，只在 `docs/CURRENT_DEPLOYMENT_STATUS.md` 留了发布记录。按 `docs/agents/AGENTS.md` 第 10 条「一个 Codex 任务只交付一个可独立验收的主要用户结果」，这里按发布记录补登记摘要。
+
+口径说明：下面的「编号 ↔ 内容」对应关系来自发布 id 与提交信息（如 `20260915-pl40-noredo`、`b896d7a`），**未逐条回溯原始工单**；细节与验收证据一律以 `docs/CURRENT_DEPLOYMENT_STATUS.md` 对应条目和回归台账为准，不在此处复述未经核对的内容。
+
+- **PLAT-37 按真实成本计费的换算契约**：倍数口径（文字 100× / 图片 5× / 视频 2× / 语音识别 10× / 视觉 100×）与公式落在 `apps/api/src/services/billing-cost-model.ts`（唯一出处），开关 `BILLING_COST_BASED_ENABLED` 默认关、线上价格一分未变；门禁 `billing:cost-model-smoke`。
+- **PLAT-38 「我的」页自助邀请链接 + 对外统一客户链接**：`GET/POST /market/me/referral-link`（身份取自服务端验签会话）、推荐码明文只签发一次、链接与二维码服务端按 `PUBLIC_WEB_BASE_URL` 生成；发布 `20260915-plat38-plink`（含 `plat38b` 竞态修复）；门禁 `referral:self-service-smoke`。
+- **PLAT-39 平台管理后台账号密码登录 + 概览业务数字**：`POST /admin/login`（12 小时会话、15 分钟 10 次限流、账号/密码错误文案一致防枚举）、`/admin/ops/summary` 补 `credit` 汇总（口径按生产校准）；门禁 `admin:login-smoke`。
+- **PLAT-40 取消智能体「免费重做」**：`redoOf` 一律 409 `marketplace_free_redo_removed`，老 `/billing/redo` 一律 409 `billing_free_redo_removed`，前端按钮与状态下线；门禁 `marketplace:free-redo-smoke`。
+- **PLAT-41 按实际成本结算接线**：`/voice/transcribe`（ASR 10×）与 `/media/analyze`（图片、扫描 PDF 视觉 100×）走「先预留 → 按实际结算 → 差额退回」，余额不足在**调用 Provider 之前** 402；门禁 `credit:charge-smoke`、`plat33:voice-transcribe-admission-smoke`。
+- **PLAT-42 货架「行业专家专区」空栏**：新增专区占位、暂不上架智能体（提交 `b896d7a`）；发布校验断言 `expert_zone_empty=True`。
+- **PLAT-43 客户可见文案「去计费感」**：取消「按次使用 / 从统一积分钱包扣 / 扣积分 / 扣费」类表述，改为交付导向；发布 `20260915-plat43-copy`，`marketplace:foundation-smoke` 与 `deployed-marketplace-browser-check` 断言同步。
+
+### 当前开放项（2026-09-15 对账时的真实状态）
+
+| 项 | 状态 | 卡在哪 |
+| --- | --- | --- |
+| PLAT-23 积分 ↔ 人民币 ↔ 成本换算常量口径统一 | **阻塞** | 待用户拍板口径（三选一），未动代码 |
+| PLAT-26 市场合伙人分润口径与结算 | **待确认** | 待用户给分润比例；`PARTNER_SHARE_PERCENT` 未定前返回 `null`，不臆造 |
+| PLAT-28 推荐有礼第②③批 | 未开工 | 第①批已上线；②（按配置发双向奖励）、③（推荐明细后台）未启动 |
+| PLAT-30 发布流水线防覆盖 | 已排期 | 用户拍板「等 PLAT-28 第②批之后再做」（要独占改共用发布脚本） |
+| PLAT-32 平台底座抽取 | 基本完成 | 剩 `auth.ts` 巨型 `registerAuthRoutes` 拆分，建议单列任务 |
+| PLAT-33 公共平台语音输入 | **已完成**（本行已校准） | 原写「待发布」，实际 2026-09-14 已上线 |
+| PLAT-44 旧工作台下线 + 视频复盘收窄 | 已完成 | 遗留：兰琪/美业自有页面的 `/my-ai` 入口、美业 `beauty-directory-browser-e2e`、`MyAiPage` 去留 |
+
 - 最后更新日期：2026-09-15
