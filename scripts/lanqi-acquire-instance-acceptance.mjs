@@ -66,12 +66,24 @@ const CHROME_CANDIDATES = [
  * → 浏览器验收会以「Chromium DevTools 端口未就绪」假失败，看起来像被测页面坏了。
  * 现在逐个用 `--version` 探活，只选能跑起来的那一个。
  */
+/**
+ * 探活浏览器可执行文件（2026-09-16 修）：
+ * Windows 上的 Chrome / Chromium **不把 `--version` 当命令行参数**——它当成普通启动，
+ * 会拉起窗口并一直不退出，于是 `spawnSync(..., ["--version"])` 每次都超时、status=null，
+ * 探针在「机器上明明装了浏览器」的情况下报「未找到可用的 Chromium/Chrome」假失败
+ * （QA-20260915-005 只改到 `--version`，没覆盖这条 Windows 事实）。
+ * 改成 headless 跑一次 `--dump-dom about:blank`：能退出（exit 0）且有输出才算可用。
+ */
 function findChrome() {
   const probed = [];
   for (const candidate of CHROME_CANDIDATES) {
     if (!candidate || !existsSync(candidate)) continue;
-    const probe = spawnSync(candidate, ["--version"], { timeout: 15000, windowsHide: true, encoding: "utf8" });
-    const usable = probe.status === 0 && !probe.error;
+    const probe = spawnSync(candidate, ["--headless=new", "--dump-dom", "about:blank"], {
+      timeout: 25000,
+      windowsHide: true,
+      encoding: "utf8",
+    });
+    const usable = probe.status === 0 && !probe.error && String(probe.stdout ?? "").length > 0;
     probed.push(`${candidate} => ${usable ? "ok" : `unusable(status=${probe.status ?? "null"})`}`);
     if (usable) return candidate;
   }
@@ -930,9 +942,9 @@ async function main() {
     // ① 枢纽页：五张入口卡
     const hub = await openPage(root, `${base}/lanqi/acquire`, "公域获客");
     const hubText = hub.snapshot.text;
-    const hubCards = ["短视频文案改稿", "爆款复刻", "一键成片", "直播话术", "AI 运营顾问"];
+    const hubCards = ["美业文案十件套", "短视频文案改稿", "爆款复刻", "一键成片", "直播话术", "AI 运营顾问"];
     checks.push({
-      name: "acquire 枢纽：5 张入口卡齐全",
+      name: "acquire 枢纽：6 张入口卡齐全（LQ-33 新增「美业文案十件套」）",
       pass: hubCards.every((name) => hubText.includes(name)),
       detail: `缺少=[${hubCards.filter((name) => !hubText.includes(name)).join(",")}] readyAtMs=${hub.readyAtMs}`,
     });
@@ -955,6 +967,7 @@ async function main() {
       name: "acquire 枢纽：入口链接指向 5 个任务入口（无 mode=script 旧链）",
       pass:
         hubHrefs.includes("/lanqi/acquire/copywriter") &&
+        hubHrefs.includes("/lanqi/acquire/copy-kit") &&
         hubHrefs.includes("/lanqi/acquire/video") &&
         hubHrefs.includes("/lanqi/acquire/video-copy") &&
         hubHrefs.includes("/lanqi/acquire/live") &&
@@ -1126,19 +1139,81 @@ async function main() {
     record(adv, `${base}/lanqi/acquire/methods`);
     await closePage(root, adv);
 
+    /*
+     * ⑤b LQ-33「美业文案十件套」新卡（2026-09-16）：独立计费、独立页面。
+     * 本段保持**只读**口径：太短的输入必须被页面本地拦下，所以这里不会真的发
+     * `/lanqi/acquire/copy-kit`、不调模型、不扣积分；真实生成质量由
+     * `pnpm.cmd lanqi:copy-kit-live-eval`（真实模型 3 次）负责。
+     */
+    const ck = await openPage(root, `${base}/lanqi/acquire/copy-kit`, "美业文案十件套");
+    const ckText = ck.snapshot.text;
+    const ckBtn = await readButtonState(root, ck, "生成十件套");
+    checks.push({
+      name: "copy-kit：页面骨架渲染（必填说明 / 平台 / 想要的结果 / 结果区）",
+      pass: ["这条内容说什么", "投放平台", "想要的结果", "交付内容"].every((token) => ckText.includes(token)),
+      detail: `readyAtMs=${ck.readyAtMs} textLen=${ckText.length}`,
+    });
+    checks.push({
+      name: "copy-kit：门店门禁不阻断（无 data-lanqi-gate）",
+      pass: ck.snapshot.gates.length === 0 && !/未开通|没有可用门店|已停用/.test(ckText),
+      detail: `gates=${JSON.stringify(ck.snapshot.gates)}`,
+    });
+    checks.push({
+      name: "copy-kit：未生成时不出现复制 / 导出（不拿空结果充交付）",
+      pass: !ckText.includes("复制整份") && !ckText.includes("导出 Markdown"),
+      detail: `hasCopy=${ckText.includes("复制整份")} hasExport=${ckText.includes("导出 Markdown")}`,
+    });
+    checks.push({
+      name: "copy-kit：写明「没生成出来不扣积分」「重复点也不会重复扣」",
+      pass: ckText.includes("没生成出来不扣积分") && ckText.includes("重复点也不会重复扣"),
+      detail: `扣费说明=${ckText.includes("没生成出来不扣积分")} 幂等说明=${ckText.includes("重复点也不会重复扣")}`,
+    });
+    const ckFill = await fillFirstTextarea(root, ck, "111");
+    await sleep(400);
+    const ckCallsBefore = countRequests(ck, "/acquire/copy-kit");
+    const ckClick = await clickButton(root, ck, "生成十件套");
+    await sleep(900);
+    const ckAfterText = await evaluate(root, ck.sessionId, "document.body?.innerText ?? ''");
+    const ckCallsAfter = countRequests(ck, "/acquire/copy-kit");
+    checks.push({
+      name: "copy-kit：内容太短时本地拦截，不发请求、不空跑模型",
+      pass: ckFill === "filled" && ckClick === "clicked" && ckAfterText.includes("先多写两句") && ckCallsAfter === ckCallsBefore,
+      detail: `fill=${ckFill} click=${ckClick} 提示=${ckAfterText.includes("先多写两句")} 新增请求=${ckCallsAfter - ckCallsBefore}`,
+    });
+    checks.push({
+      name: "copy-kit：生成按钮存在且未禁用",
+      pass: ckBtn.found === true && ckBtn.disabled === false,
+      detail: `found=${ckBtn.found} disabled=${ckBtn.disabled}`,
+    });
+    checks.push({
+      name: "copy-kit：无模型/厂商名泄露",
+      pass: leakHit(ckText) === null,
+      detail: `命中=${leakHit(ckText) ?? "无"}`,
+    });
+    checks.push({
+      name: "copy-kit：无接口 4xx/5xx、console/page 无错误",
+      pass: blankErrors(ck).length === 0 && ck.consoleErrors.length === 0 && ck.pageErrors.length === 0,
+      detail: `http=${JSON.stringify(blankErrors(ck).slice(0, 4))} console=${ck.consoleErrors.length} page=${ck.pageErrors.length}`,
+    });
+    record(ck, `${base}/lanqi/acquire/copy-kit`);
+    await closePage(root, ck);
+
     // ⑥ 移动端：枢纽页与视频页无横向溢出
     const mobileViewport = { width: 390, height: 844, mobile: true };
     const hubMobile = await openPage(root, `${base}/lanqi/acquire`, "公域获客", mobileViewport);
     const videoMobile = await openPage(root, `${base}/lanqi/acquire/video`, "爆款复刻", mobileViewport);
+    const copyKitMobile = await openPage(root, `${base}/lanqi/acquire/copy-kit`, "美业文案十件套", mobileViewport);
     checks.push({
-      name: "移动端 390×844：枢纽页与视频页无横向溢出",
-      pass: hubMobile.snapshot.overflowX <= 2 && videoMobile.snapshot.overflowX <= 2,
-      detail: `hubOverflow=${hubMobile.snapshot.overflowX} videoOverflow=${videoMobile.snapshot.overflowX}`,
+      name: "移动端 390×844：枢纽页 / 视频页 / 十件套页无横向溢出",
+      pass: hubMobile.snapshot.overflowX <= 2 && videoMobile.snapshot.overflowX <= 2 && copyKitMobile.snapshot.overflowX <= 2,
+      detail: `hubOverflow=${hubMobile.snapshot.overflowX} videoOverflow=${videoMobile.snapshot.overflowX} copyKitOverflow=${copyKitMobile.snapshot.overflowX}`,
     });
     record(hubMobile, `${base}/lanqi/acquire (mobile)`);
     record(videoMobile, `${base}/lanqi/acquire/video (mobile)`);
+    record(copyKitMobile, `${base}/lanqi/acquire/copy-kit (mobile)`);
     await closePage(root, hubMobile);
     await closePage(root, videoMobile);
+    await closePage(root, copyKitMobile);
 
     await finish();
   } finally {
