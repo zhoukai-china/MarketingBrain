@@ -1,5 +1,35 @@
 # 当前部署状态
 
+## 最新发布：20260915-plat38-plink（2026-09-15，生产 + 测试实例）— 「我的」页邀请链接 + 对外统一客户链接（注册+充值）
+
+### 对外只发这一条链接（可长期复用，推荐码不是一次性的）
+
+```text
+https://api.lcppch.top/os-v2/login?ref=<你的推荐码>&next=/recharge
+```
+
+不带 `ref` 也能注册（只是没有归因）：`https://api.lcppch.top/os-v2/login?next=/recharge`。
+用户点开 → 微信一键登录 / 注册 → 填企业 / 门店名完成开通 → **直接落到充值页**。
+老板的推荐码在平台「我的」页（`/os-v2/mine`）点「生成我的邀请链接」复制（同一天上线的 PLAT-38 卡片，含二维码）。
+
+### 本次内容
+
+1. **PLAT-38「我的」页自助邀请链接**：新增 `GET/POST /market/me/referral-link`（身份取自服务端验签会话，只能操作自己的推荐码；未登录显式 401）。安全模型沿用 PLAT-28：**推荐码明文只在签发时返回一次**，已有码只给 preview + 「再生成一条」（旧链接仍有效）。链接与二维码均由**服务端**用 `PUBLIC_WEB_BASE_URL` 生成（不接受客户端 URL）；测试实例已把该变量指向 `/lanqi-test/`，避免生成指向生产的链接。
+2. **PLAT-38 竞态修复**：首屏 GET 未回来时用户点「生成邀请链接」，POST 先返回 created+链接、随后 GET 的旧结果把状态覆盖回「已有推荐码」——用户看到「点了没链接」。改为状态版本号，POST（用户显式动作）永远优先；按钮语义确定化（点「生成…邀请链接」一律签新码）。
+3. **plink 统一链接**：`main.tsx` 启动最早处捕获 URL —— `?ref=` 写入推荐码暂存（跨页面 / 跨微信授权往返不丢），`?next=` 写入注册后落地页（复用既有 post-login redirect）。
+
+### 验证
+
+- 生产真机只读：打开 `https://api.lcppch.top/os-v2/login?ref=ref-check-0615&next=/recharge` → 落地 `/os-v2/login`、显示「已识别推荐码 ref-ch****15」与「微信一键登录 / 注册」、`store_os_post_login_redirect=/os-v2/recharge`。
+- 页面级验收 `scripts/acceptance/plat38-referral-link-browser-e2e.mjs`：本地 **10/10**、测试实例 **10/10**（卡片 / 链接 / 二维码 / 复制到剪贴板 / 用链接打开注册页认出推荐码 / 390px 无横向溢出 / 控制台 0 error）。
+- 数据契约 `pnpm.cmd referral:self-service-smoke`（真库 6 项，已入 `qa:regression`）：未登录 401、首次签发返回明文、复读隐藏明文、再生成保留旧码、跨用户看不到别人的码、链接用服务端配置的站点拼。
+- `qa:fast` 全绿；生产 `verify-deploy.sh` **VERIFY_OK**、`journalctl -p err` 无条目。
+
+### 发布与回滚
+
+- 发布包 `release-20260915-plat38-referral-link.tar.gz`（sha256 `eec56da4…`）、`release-20260915-plat38b-referral-link.tar.gz`（`9ce2494c…`，含竞态修复）、`release-20260915-plink.tar.gz`（`a71a7542681ed10165a037224cadb9b13d5609c54777dd5639e36cc28603eb65`）。
+- 生产 `20260915-plat38-prod1` / `20260915-plat38b-prod1` / `20260915-plink-prod1`、测试 `20260915-plat38-test1` / `20260915-plat38b-test1` / `20260915-plink-test1` 均 `DEPLOY_OK`；备份在 `/opt/baolu-backups/20260915-<release>-before-baolu-os-v2*`。
+
 ## 最新发布：20260915-plat36-redlights（2026-09-15，测试实例 + 生产）— 清掉既有红灯 + 审计泄漏修复
 
 - 发布包 `release-20260915-plat36-redlights.tar.gz`（sha256 `6975b25516291cd5376298a4ba9c0ca4e9b7eb5b0038be3cc63073d2a8148eb4`，1527 文件），从 commit `0df4a8a` 完整快照打包。
