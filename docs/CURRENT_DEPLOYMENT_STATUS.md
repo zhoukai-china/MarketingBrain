@@ -1,5 +1,17 @@
 # 当前部署状态
 
+## 最新发布：20260915-plat36-redlights（2026-09-15，测试实例 + 生产）— 清掉既有红灯 + 审计泄漏修复
+
+- 发布包 `release-20260915-plat36-redlights.tar.gz`（sha256 `6975b25516291cd5376298a4ba9c0ca4e9b7eb5b0038be3cc63073d2a8148eb4`，1527 文件），从 commit `0df4a8a` 完整快照打包。
+- 用户口径：「4 条既有红灯同意开卡修」。
+- **实际是 2 条**：`beauty-industry:video-foundation-smoke` 与 `video-material-authorization-smoke` 在并行 LQ-30 线程收口后**当前 HEAD 已绿**（只做回归确认，未改代码）；仍红的两条已修：
+  - `beauty-industry:web-contract-smoke`：断言过期——PLAT-32 把产品路由装配搬到 `products/register.ts`。改成断言 `server.ts` 走 `registerProductRoutes` **且** `products/register.ts` 真注册美业路由。
+  - `beauty-industry:video-oss-staging-smoke`：① 断言旧的 `/cleanup_failed/` 文案（LQ-27 有意改成保留驱动具体错误码）→ 改钉契约（必须抛错 + 驱动具体码 + 租约 `cleanup_failed` + `errorCode` 记录 + sweep 可恢复）；② **修掉①后暴露一条 P1：审计把上游原始错误 message 落库**（合成夹具实测 `LEAK_MARKER SYNTHETIC_RAW_RESPONSE`，真实环境可能含签名 URL/桶名/AccessKeyId）→ `rawErrorDetail()` 改为「错误类名 + 错误码 + 12 位消息指纹」，两处回退分支统一走它。
+- 验证：`REDLIGHT_ALL_OK`（4 条一次连跑全 PASS；oss-staging 连续 3 轮，每轮 124 次注入 SDK 请求、云端 0、Provider 0、费用 0）；`pnpm.cmd qa:regression` 全链路通过（`PLAT36_QA_REGRESSION_OK`）；**`pnpm.cmd qa:full` 首次全绿**（`PLAT36_QA_FULL_OK`，含 fast/regression/build/api_runtime_data_check）；生产产物核对：`beauty-video-oss-staging.js` 含 `messageFingerprint`、旧 `slice(0,120)` 原文路径为 0。
+- 部署：测试 `20260915-plat36-test1`、生产 `20260915-plat36-prod1` 均 `DEPLOY_OK` + `VERIFY_OK`；`journalctl -p err` 无条目。备份/回滚：`/opt/baolu-backups/20260915-plat36-{test1,prod1}-before-baolu-os-v2*`。
+- 登记：`docs/BUG_REGRESSIONS.md` QA-20260915-001（审计泄漏 P1）与 QA-20260915-002（断言过期）；任务卡 `docs/agents/platform-tasks.md` PLAT-36。
+- 说明：OSS 暂存驱动在 `BEAUTY_VIDEO_STAGING_DRIVER` 未开启时不生效；本卡全程离线合成，未接真实云/真实素材。
+
 ## 最新发布：20260915-plat35-admin-console（2026-09-15，测试实例 + 生产）— 统一管理后台入口
 
 - 发布包 `release-20260915-plat35-admin-console.tar.gz`（sha256 `69a16d42fd4d574f3ca7e83da3059531cb123c2eefd37940bc2537e05a5c32a4`，1527 文件），从 commit `3e751a1` 完整快照打包。
