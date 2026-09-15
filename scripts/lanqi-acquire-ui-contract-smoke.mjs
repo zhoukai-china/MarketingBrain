@@ -30,6 +30,14 @@ const mediaRoute = read("apps/api/src/routes/lanqi-media-generation.ts");
 const momentsCss = read("apps/web/src/styles/lanqi-moments.css");
 const advisorRulesSmoke = read("scripts/lanqi-advisor-rules-smoke.ts");
 const liveServiceSmoke = read("scripts/lanqi-live-service-smoke.ts");
+// LQ-33：公域获客新增「美业文案十件套」卡（独立计费）
+const acquireHomePage = read("apps/web/src/pages/LanqiAcquireHomePage.tsx");
+const copyKitPage = read("apps/web/src/pages/LanqiAcquireCopyKitPage.tsx");
+const copyKitService = read("apps/api/src/products/lanqi/copy-kit-service.ts");
+const copyTenContract = read("apps/api/src/products/beauty-industry/copy-ten-contract.ts");
+const acquireRoute = read("apps/api/src/routes/acquire.ts");
+const lanqiRoutes = read("apps/web/src/routes/lanqi.tsx");
+const marketplaceRoute = read("apps/api/src/routes/marketplace.ts");
 
 const results = [];
 let failures = 0;
@@ -204,6 +212,39 @@ requireMatch(composeService, /"-shortest"/, "compose：成片以画面长度为�
 requireMatch(composeService, /"-c:a", "aac"/, "compose：混音输出 AAC 音轨");
 requireMatch(composeService, /tenantId: input\.tenantId/, "compose：查镜次 / 查音轨文件都必须带租户条件");
 forbidMatch(composeService, /findMany\(\{\s*where:\s*\{\s*id:\s*\{\s*in:\s*shotJobIds\s*\}\s*\}\s*\}\)/, "compose：禁止只按 jobId 查镜次（必须带租户）");
+
+// ⑩ LQ-33 公域获客新增「美业文案十件套」卡（新增一张卡 + 独立计费）：
+//    合同必须与货架「文案智能体」同源（不复制第二份提示词），兰琪侧只加提问壳；
+//    没生成出来 / 信息不足 / 合同校验不过一律不扣积分，同一请求标识重复提交不重复扣。
+requireMatch(acquireHomePage, /美业文案十件套/, "hub：公域获客枢纽新增「美业文案十件套」卡");
+requireMatch(acquireHomePage, /getAppPath\("\/lanqi\/acquire\/copy-kit"\)/, "hub：新卡指向 /lanqi/acquire/copy-kit（不是塞进文案改稿做模式切换）");
+requireMatch(lanqiRoutes, /path\.startsWith\("\/lanqi\/acquire\/copy-kit"\)/, "route：/lanqi/acquire/copy-kit 有独立页面路由");
+requireMatch(lanqiRoutes, /LanqiAcquireCopyKitPage/, "route：独立页面组件已挂载");
+requireMatch(copyKitPage, /apiPath\("\/lanqi\/acquire\/copy-kit"\)/, "page：调用真实接口（不是本地假数据）");
+requireMatch(copyKitPage, /data-lq-ck-submit/, "page：生成按钮有稳定钩子，供验收脚本断言");
+requireMatch(copyKitPage, /data-lq-ck-content/, "page：结果区有稳定钩子，供验收脚本断言");
+requireMatch(copyKitPage, /navigator\.clipboard\.writeText/, "page：整份十件套可复制");
+requireMatch(copyKitPage, /anchor\.download/, "page：十件套可导出（下载 .md）");
+requireMatch(copyKitPage, /没生成出来不扣积分/, "page：写明「没生成出来不扣积分」");
+requireMatch(copyKitPage, /重复点也不会重复扣/, "page：写明同一句重复点不会重复扣");
+requireMatch(copyKitPage, /requestKeyRef/, "page：同一份输入复用同一个请求标识（响应丢了再点不重复扣）");
+requireMatch(copyKitPage, /我的 · 充值/, "page：积分不足时指向顶栏「我的 · 充值」");
+forbidMatch(copyKitPage, /contractVersion|合同 \{/, "page：不把内部合同版本号暴露给门店");
+forbidMatch(copyKitPage, /deepseek|aliyun|百炼|qwen|供应商|模型名/i, "page：不出现供应商 / 模型名");
+requireMatch(acquireRoute, /app\.post\(`\$\{basePath\}\/acquire\/copy-kit`/, "route：后端新增 /lanqi/acquire/copy-kit");
+requireMatch(acquireRoute, /copy-kit`[\s\S]{0,600}assertStoreAccess\(context, parsed\.data\.storeId\)/, "route：先做门店可见性校验（租户隔离）");
+requireMatch(acquireRoute, /balance: \{ gte: price \}/, "route：扣积分用条件更新（并发不会扣成负数）");
+requireMatch(acquireRoute, /reason: "lanqi_copy_kit"/, "route：写积分流水，可审计");
+requireMatch(acquireRoute, /copy_kit_request_key_conflict/, "route：同一请求标识换了输入必须显式冲突，不拿旧结果顶替");
+requireMatch(copyKitService, /import \{[^}]*COPY_TEN_SYSTEM_PROMPT[^}]*\} from "\.\.\/beauty-industry\/copy-ten-contract\.js"/, "service：提示词取自共享合同（不复制第二份）");
+requireMatch(copyKitService, /parseCopyTenContract/, "service：结构校验取自共享合同");
+forbidMatch(copyKitService, /你是思潼AI行业智能体平台的「文案智能体」/, "service：兰琪侧不再自带一份十件套提示词");
+requireMatch(copyKitService, /LANQI_COPY_KIT_CREDITS/, "service：独立计费单价可配置（env 覆盖，不必发版）");
+requireMatch(marketplaceRoute, /from "\.\.\/products\/beauty-industry\/copy-ten-contract\.js"/, "marketplace：货架改为引用共享合同");
+forbidMatch(marketplaceRoute, /const COPY_SYSTEM_PROMPT = \[/, "marketplace：本地提示词副本已删除（合同唯一出处）");
+forbidMatch(marketplaceRoute, /function parseCopyTen\(/, "marketplace：本地校验副本已删除（合同唯一出处）");
+requireMatch(copyTenContract, /export const COPY_TEN_SYSTEM_PROMPT/, "contract：共享合同导出提示词");
+requireMatch(copyTenContract, /export function parseCopyTenContract/, "contract：共享合同导出结构校验");
 
 console.log(`\nlanqi_acquire_ui_contract_smoke: ${failures === 0 ? "PASS" : "FAIL"} (${results.length - failures} passed / ${failures} failed)`);
 process.exit(failures === 0 ? 0 : 1);

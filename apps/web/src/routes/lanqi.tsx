@@ -17,6 +17,7 @@ const LanqiAcquireMethodsPage = lazy(() => import("../pages/LanqiAcquireMethodsP
 const LanqiAcquireLivePage = lazy(() => import("../pages/LanqiAcquireLivePage.js").then(module => ({ default: module.LanqiAcquireLivePage })));
 const LanqiAcquireVideoPage = lazy(() => import("../pages/LanqiAcquireVideoPage.js").then(module => ({ default: module.LanqiAcquireVideoPage })));
 const LanqiAcquireVideoCopyPage = lazy(() => import("../pages/LanqiAcquireVideoPage.js").then(module => ({ default: module.LanqiAcquireVideoCopyPage })));
+const LanqiAcquireCopyKitPage = lazy(() => import("../pages/LanqiAcquireCopyKitPage.js").then(module => ({ default: module.LanqiAcquireCopyKitPage })));
 const LanqiMomentsWechatGroupPage = lazy(() => import("../pages/LanqiMomentsWechatGroupPage.js").then(module => ({ default: module.LanqiMomentsWechatGroupPage })));
 const LanqiDashboardPage = lazy(() => import("../pages/LanqiDashboardPage.js").then(module => ({ default: module.LanqiDashboardPage })));
 const LanqiGoalSettingPage = lazy(() => import("../pages/LanqiGoalSettingPage.js").then(module => ({ default: module.LanqiGoalSettingPage })));
@@ -161,6 +162,11 @@ export function renderLanqiRoutes(path: string): LanqiRouteResult {
    */
   if (path.startsWith("/lanqi/acquire/video-copy")) {
     return <LanqiAcquireVideoCopyPage />;
+  }
+
+  /* LQ-33「美业文案十件套」：独立一张卡、独立计费（合同复用平台正式 Skill）。 */
+  if (path.startsWith("/lanqi/acquire/copy-kit")) {
+    return <LanqiAcquireCopyKitPage />;
   }
   if (path.startsWith("/lanqi/acquire/video")) {
     const legacyMode = new URLSearchParams(window.location.search).get("mode");

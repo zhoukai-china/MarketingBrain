@@ -9,7 +9,12 @@ function read(path) {
 const page = read("apps/web/src/pages/LanqiContentStudioPage.tsx");
 const packageRoute = read("apps/api/src/routes/lanqi-xhs-package.ts");
 const contentRoute = read("apps/api/src/routes/lanqi-content-studio.ts");
-const server = read("apps/api/src/server.ts");
+/**
+ * 2026-09-16 修正过期断言：兰琪路由的装配点已在 commit `0e7053a`
+ * 「拆分 server.ts 产品路由装配到 products/register.ts（行为不变）」中搬走，
+ * 这里仍查旧文件 → 全网红灯（main 上同样红）。改查真实装配点，并要求它在兰琪作用域内注册。
+ */
+const registry = read("apps/api/src/products/register.ts");
 const styles = read("apps/web/src/styles/lanqi-content-studio.css");
 
 assert.match(page, /生成小红书图文/, "统一页面必须只有一个用户可理解的图文生成主动作");
@@ -37,7 +42,12 @@ assert.match(contentRoute, /content_generation_timed_out/, "文案阶段必须�
 assert.match(contentRoute, /signal:\s*params\.signal/, "文案阶段必须把取消和超时信号传播到模型调用");
 assert.match(contentRoute, /provider_fallback_used[\s\S]{0,180}professional_xiaohongshu_provider_unavailable/, "离题或固定兜底不得冒充专业小红书文案并继续生图");
 assert.match(packageRoute, /tenantId|resolveRequestContext/, "统一作品恢复必须保持租户隔离");
-assert.match(server, /registerLanqiXhsPackageRoutes/, "统一图文后端尚未注册到兰琪产品路由");
+assert.match(registry, /registerLanqiXhsPackageRoutes/, "统一图文后端尚未注册到兰琪产品路由（装配点在 products/register.ts）");
+assert.match(
+  registry,
+  /app\.register\(async \(lanqi\) => \{[\s\S]{0,4000}?registerLanqiXhsPackageRoutes\(lanqi, provider\)/,
+  "统一图文后端必须挂在兰琪产品作用域（带 lanqi 权益门）内"
+);
 assert.match(styles, /lanqiPackage/, "统一图文结果缺少专用页面样式");
 
 console.log("Lanqi unified Xiaohongshu package contract smoke passed.");

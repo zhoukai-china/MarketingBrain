@@ -3,6 +3,14 @@ import { z } from "zod";
 import { prisma } from "@baolu/db";
 import { resolveRequestContext } from "../services/request-context.js";
 import { accessLevelForRole, assertStoreVisible } from "../services/store-access-guard.js";
+import {
+  LANQI_COPY_KIT_SECTIONS,
+  generateLanqiCopyKit,
+  lanqiCopyKitInputHash,
+  lanqiCopyKitPriceCredits,
+  readLanqiCopyKitCache,
+  writeLanqiCopyKitCache
+} from "../products/lanqi/copy-kit-service.js";
 import { rewriteShortVideoCopy } from "../products/beauty-industry/acquire-service.js";
 import { answerAdvisorQuestion } from "../products/beauty-industry/advisor-service.js";
 import {
@@ -49,6 +57,18 @@ const VIDEO_COPY_SCHEMA = z.object({
   sell: z.string().trim().max(120).default(""),
   plat: z.enum(VIDEO_COPY_PLATFORMS.map(platform => platform.k) as [string, ...string[]]).default("all"),
   round: z.coerce.number().int().min(0).max(99).default(0)
+});
+
+/**
+ * LQ-33「美业文案十件套」：独立一张卡、独立计费（默认取正式 Skill 的 baseCreditCost，可 env 覆盖）。
+ * 生成失败 / 信息不足 / 合同校验不过一律不扣积分；同一 requestKey 重复提交复用同一份结果。
+ */
+const COPY_KIT_SCHEMA = z.object({
+  storeId: z.string().trim().min(1),
+  brief: z.string().trim().min(1).max(1200),
+  platform: z.enum(["all", "dy", "xhs", "sph"]).default("all"),
+  goal: z.enum(["visit", "private", "franchise"]).default("visit"),
+  requestKey: z.string().regex(/^[A-Za-z0-9_-]{12,120}$/)
 });
 
 const ADVISOR_SCHEMA = z.object({
@@ -135,6 +155,168 @@ export async function registerAcquireRoutes(app: FastifyInstance, basePath = "/b
       const message = error instanceof Error ? error.message : "unknown";
       const invalid = INVALID_MSG.test(message);
       return reply.code(invalid ? 422 : 500).send({ code: invalid ? "invalid_acquire_input" : "acquire_error", message });
+    }
+  });
+
+  /**
+   * LQ-33「美业文案十件套」：新增一张卡、独立计费。
+   * 计费口径与媒体侧一致走门店租户的积分账户（`creditAccount`）：
+   *   ① 先查余额，不足直接 402，**不调模型、不扣分**；
+   *   ② 模型失败 / 信息不足 / 合同校验不过 → 不扣分（只有拿到合格十件套才扣）；
+   *   ③ 扣费用条件更新（`balance >= price`）保证并发不为负，并写 `creditTransaction` 流水；
+   *   ④ 同一 `requestKey` 复用缓存结果，重复点击不会重复扣分。
+   */
+  app.post(`${basePath}/acquire/copy-kit`, async (request, reply) => {
+    try {
+      const context = await resolveRequestContext(request.headers);
+      const parsed = COPY_KIT_SCHEMA.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        return reply.code(400).send({ code: "invalid_copy_kit_request", message: "参数不合法", details: parsed.error.flatten() });
+      }
+      const denied = await assertStoreAccess(context, parsed.data.storeId);
+      if (denied) return reply.code(denied.code).send({ code: denied.bodyCode, message: denied.message });
+
+      const price = lanqiCopyKitPriceCredits();
+      const requestInput = {
+        brief: parsed.data.brief,
+        platform: parsed.data.platform,
+        goal: parsed.data.goal,
+        storeName: (await prisma.store.findFirst({
+          where: { id: parsed.data.storeId, tenantId: context.tenantId },
+          select: { name: true }
+        }))?.name
+      };
+      const inputHash = lanqiCopyKitInputHash(requestInput);
+      const cached = await readLanqiCopyKitCache({ tenantId: context.tenantId, requestKey: parsed.data.requestKey });
+      if (cached) {
+        // 同键不同输入必须显式冲突：不能把上一次的结果当成这一次的需求交付。
+        if (cached.inputHash !== inputHash) {
+          return reply.code(409).send({
+            code: "copy_kit_request_key_conflict",
+            message: "这个请求标识已经生成过别的内容，请重新点一次生成（平台会换一个新的请求标识）。",
+            consumedCredits: 0
+          });
+        }
+        return {
+          ok: true,
+          tenantId: context.tenantId,
+          cached: true,
+          consumedCredits: 0,
+          creditCost: cached.creditCost,
+          contractVersion: cached.contractVersion,
+          sections: [...LANQI_COPY_KIT_SECTIONS],
+          result: { content: cached.content }
+        };
+      }
+
+      const accountBefore = await prisma.creditAccount.findUnique({ where: { tenantId: context.tenantId } });
+      const balanceBefore = accountBefore?.balance ?? 0;
+      if (balanceBefore < price) {
+        return reply.code(402).send({
+          code: "insufficient_credits",
+          error: "insufficient_credits",
+          message: `积分不足：这次没有生成、也没有扣积分。本次需要 ${price} 积分，请点右上角「我的 · 充值」充值后再试。`,
+          balance: balanceBefore,
+          required: price,
+          rechargeUrl: "/recharge",
+          consumedCredits: 0
+        });
+      }
+
+      let generation: Awaited<ReturnType<typeof generateLanqiCopyKit>>;
+      try {
+        generation = await generateLanqiCopyKit({
+          request: requestInput
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "unknown";
+        const notConfigured = /not_configured|未配置/.test(message);
+        return reply.code(notConfigured ? 503 : 502).send({
+          code: notConfigured ? "copy_kit_provider_not_configured" : "copy_kit_provider_failed",
+          message: notConfigured ? "文案能力当前没有放行，本次没有生成、没有扣积分。" : "这次生成失败了，没有扣积分，请重试。",
+          consumedCredits: 0
+        });
+      }
+
+      if (generation.result.status === "needs_input") {
+        return {
+          ok: true,
+          tenantId: context.tenantId,
+          needsInput: true,
+          consumedCredits: 0,
+          message: generation.result.message
+        };
+      }
+      if (generation.result.status === "invalid") {
+        return reply.code(422).send({
+          code: "copy_kit_output_invalid",
+          message: "这次交付没有通过内容合同校验，没有扣积分：请把「项目 / 卖点」和「想触达的人群」说得更具体一点再试。",
+          reasons: generation.result.failures.slice(0, 8),
+          consumedCredits: 0
+        });
+      }
+
+      const charged = await prisma.$transaction(async (tx) => {
+        const updated = await tx.creditAccount.updateMany({
+          where: { tenantId: context.tenantId, balance: { gte: price } },
+          data: { balance: { decrement: price } }
+        });
+        if (updated.count !== 1) return undefined;
+        const account = await tx.creditAccount.findUnique({ where: { tenantId: context.tenantId } });
+        if (!account) return undefined;
+        await tx.creditTransaction.create({
+          data: {
+            creditAccountId: account.id,
+            tenantId: context.tenantId,
+            userId: context.userId,
+            direction: "consume",
+            amount: price,
+            reason: "lanqi_copy_kit",
+            refType: "lanqi_copy_kit",
+            refId: parsed.data.requestKey
+          }
+        });
+        return account.balance;
+      });
+
+      if (charged === undefined) {
+        return reply.code(402).send({
+          code: "insufficient_credits",
+          error: "insufficient_credits",
+          message: "积分不足：这次没有生成、也没有扣积分。请点右上角「我的 · 充值」充值后再试。",
+          balance: balanceBefore,
+          required: price,
+          rechargeUrl: "/recharge",
+          consumedCredits: 0
+        });
+      }
+
+      await writeLanqiCopyKitCache({
+        tenantId: context.tenantId,
+        requestKey: parsed.data.requestKey,
+        entry: {
+          inputHash,
+          content: generation.result.content,
+          contractVersion: generation.contractVersion,
+          promptHash: generation.promptHash,
+          creditCost: price,
+          createdAt: new Date().toISOString()
+        }
+      });
+
+      return {
+        ok: true,
+        tenantId: context.tenantId,
+        consumedCredits: price,
+        balance: charged,
+        creditCost: price,
+        contractVersion: generation.contractVersion,
+        sections: [...LANQI_COPY_KIT_SECTIONS],
+        result: { content: generation.result.content }
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "unknown";
+      return reply.code(500).send({ code: "copy_kit_error", message });
     }
   });
 

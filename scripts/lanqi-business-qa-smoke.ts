@@ -7,18 +7,35 @@ const root = new URL("../", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
 
 async function main() {
-  const [agents, provider, server, appMain, page] = await Promise.all([
+  /**
+   * 2026-09-16 修正过期断言：`server.ts` 的产品路由装配已在 commit `0e7053a`
+   * 「拆分 server.ts 产品路由装配到 products/register.ts（行为不变）」中搬走，
+   * 但这条断言仍只看 server.ts → 全网红灯（main 上同样红）。
+   * 改看真实落点 `products/register.ts`，断言「兰琪问答薄路由确实挂在兰琪作用域里」。
+   */
+  const [agents, provider, registry, appMain, lanqiRoutes, page] = await Promise.all([
     read("apps/api/src/services/agent-definitions.ts"),
     read("apps/api/src/services/domestic-chat-provider.ts"),
-    read("apps/api/src/server.ts"),
+    read("apps/api/src/products/register.ts"),
     read("apps/web/src/main.tsx"),
+    read("apps/web/src/routes/lanqi.tsx"),
     read("apps/web/src/pages/LanqiBusinessQaPage.tsx").catch(() => "")
   ]);
 
   assert.match(agents, /key:\s*"beauty_business_qa"[\s\S]*?skillId:\s*"general_qa"/, "兰琪问答必须固定到正式 general_qa Skill");
   assert.match(provider, /lockedBeautyCapability\s*===\s*"beauty_business_qa"/, "受控输出必须有问答专属 fixture，不能落入通用旧模板");
-  assert.match(server, /registerLanqiBusinessQaRoutes/, "API 必须注册兰琪问答薄路由");
-  assert.match(appMain, /\/lanqi\/business-qa/, "网页必须有独立稳定路由");
+  assert.match(registry, /registerLanqiBusinessQaRoutes/, "API 必须注册兰琪问答薄路由（装配点在 products/register.ts）");
+  assert.match(
+    registry,
+    /app\.register\(async \(lanqi\) => \{[\s\S]{0,4000}?registerLanqiBusinessQaRoutes\(lanqi, provider\)/,
+    "兰琪问答薄路由必须挂在兰琪产品作用域（带 lanqi 权益门）内"
+  );
+  // 2026-09-16 修正过期断言：网页路由已从 `main.tsx` 拆到 `routes/lanqi.tsx`（兰琪路由模块）。
+  assert.match(
+    `${appMain}\n${lanqiRoutes}`,
+    /\/lanqi\/business-qa/,
+    "网页必须有独立稳定路由（main.tsx 或 routes/lanqi.tsx）"
+  );
   assert.match(page, /经营问答/);
   assert.match(page, /继续追问/);
   assert.match(page, /历史/);

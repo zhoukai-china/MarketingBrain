@@ -1,5 +1,40 @@
 # 当前部署状态
 
+## 最新发布：20260916-lq33-copy-kit（2026-09-16，测试实例 + 生产）— 兰琪公域获客新增「美业文案十件套」卡（独立计费）
+
+### 一、用户口径与交付
+
+- 用户口径（2026-09-15）：「**新增一张卡**（清晰、独立计费）」，内容是与货架「文案智能体」同一份「内容十件套 V5」（选题策划 / 口播逐字稿 / 访谈话术 / 拍摄脚本 / 拍摄注意事项 / 剪辑 EDL / 发布标题与话题 / 最佳发布时间 / 评论区引导 / 投流建议）。
+- 门店结果：公域获客枢纽页第 1 张卡「美业文案十件套」→ 说清「主推什么项目 / 想让谁看到 / 顾客最怕什么」→ 一次拿到整套可直接复制 / 可导出 Markdown 的内容；缺关键信息时平台先反问，不编造门店事实。
+- 计费：**独立口径，默认 40 积分 / 次**（与货架「文案智能体」同合同同档价），env `LANQI_COPY_KIT_CREDITS` 可覆盖，调价不必发版；`LANQI_COPY_KIT_MAX_TOKENS` 可调输出额度（默认 16384）。**没生成出来不扣积分；同一句话重复点不重复扣**（同 `requestKey` + 同输入复用结果，同键换输入返回 409）。
+
+### 二、实现要点
+
+- 合同唯一出处：新增 `apps/api/src/products/beauty-industry/copy-ten-contract.ts`（十节常量 + 提示词 + 结构校验），货架 `apps/api/src/routes/marketplace.ts` 改为引用它并删除本地副本——**没有第二份提示词**，两边不会漂移。
+- 兰琪侧：新增 `apps/api/src/products/lanqi/copy-kit-service.ts`（只加「怎么问、缺信息怎么办」的提问壳）与 `POST /lanqi/acquire/copy-kit`（每次请求重算 Membership + `assertStoreVisible`、余额不足先 402 不调模型、模型失败 / 信息不足 / 结构不合格一律不扣积分、扣分用 `balance >= price` 条件更新并写 `creditTransaction` 流水、结果按租户哈希目录隔离）。
+- 页面：新增 `apps/web/src/pages/LanqiAcquireCopyKitPage.tsx` + 路由 `/lanqi/acquire/copy-kit`；枢纽页 `LanqiAcquireHomePage.tsx` 增第 6 张卡。页面不出现供应商 / 模型名，也不暴露内部合同版本号。
+
+### 三、验证证据
+
+| 项 | 结果 |
+|---|---|
+| 离线回归 | `pnpm.cmd lanqi:copy-kit-smoke` **28 passed / 0 failed**（正常路径、信息不足不调模型、模型回【需补充信息】、结构不合格、违禁词、计费默认 40 与 env 覆盖、输入指纹、同键幂等、跨租户读不到、非法键写入拒绝） |
+| 页面契约 | `pnpm.cmd lanqi:acquire-ui-contract-smoke` **131 passed / 0 failed**（新增 30 条：枢纽卡 / 独立路由 / 真实接口 / 复制导出 / 扣费与流水 / 409 冲突 / 合同唯一出处 / 不暴露模型名与合同版本） |
+| **真实模型 Eval** | `pnpm.cmd lanqi:copy-kit-live-eval`（真实 `deepseek-v4-pro`，同一高风险样例 **3 次**）**15 passed / 0 failed**：三次 `finishReason=stop`，正文 3.1k–3.3k 字，十节齐全、与共享合同校验逐条一致、无样板门店 / 他人信息泄漏 |
+| 仓库门禁 | `pnpm.cmd qa:fast` **exit 0**（含全仓 typecheck、`billing:cost-model-smoke`、`marketplace:*` 契约） |
+| 测试实例页面级验收 | `node scripts/lanqi-acquire-instance-acceptance.mjs --base https://api.lcppch.top/lanqi-test` **46 项 / 失败 0 项**（新增 LQ-33 段 8 项：枢纽 6 卡、页面骨架、未生成不出现复制 / 导出、扣费与幂等说明、内容太短本地拦截不发请求、按钮可用、无厂商名、无 4xx/5xx 与控制台错误；移动端 390 十件套页无横向溢出） |
+| 发布 | 包 `release-20260916-lq33-copy-kit.tar.gz`（1563 文件 / 9,834,521 B，sha256 `1a256ebf91f432febe435a597aebfed2bd3b07e6ae2cccd4fa2153c1818d40ee`，本地与服务器一致）→ 测试 `20260916-lq33-copy-kit-test1`；含门禁修复的二次包 sha256 `f2ef1bc7959b93f19d90ef91c40346f41dde627e532c89a1029170b1d8d42c2b` → 生产 `20260916-lq33-copy-kit-prod1`；两侧 `DEPLOY_OK` + `health=200` / `ready=200` + `50 migrations found / No pending migrations`，`verify-deploy.sh` **VERIFY_OK** |
+| 生产只读取证 | 匿名 `POST /os-v2/api/lanqi/acquire/copy-kit` **401**；`GET /os-v2/lanqi/acquire/copy-kit` **200**（SPA 壳）；线上 chunk `assets/LanqiAcquireCopyKitPage-Ck9ZzJX2.js` 含 `data-lq-ck-submit`×1 / `data-lq-ck-content`×1，枢纽 chunk `LanqiAcquireHomePage-B-wYlAjy.js` 含「美业文案十件套」；API 产物 `dist/apps/api/src/routes/acquire.js` 含 `acquire/copy-kit` 与 `lanqi_copy_kit`，`products/lanqi/copy-kit-service.js` 已落盘 |
+
+### 四、边界与未做
+
+- **领域门禁 `pnpm.cmd qa:lanqi-foundation` 在 main 上本来就红**（不是本次引入）：3 处断言过期——2 处是 commit `0e7053a` 把产品路由装配从 `server.ts` 搬到 `products/register.ts` 后断言没跟着搬（**本次已修**：`lanqi-business-qa-smoke`、`lanqi-xhs-package-contract-smoke` 改查真实装配点 + 兰琪作用域），1 处是图片报价断言仍写旧价 100 积分（实际 20；且 `customerPriceYuan = creditCost / 100` 与「1 积分 = ¥0.05」不一致）——属图片/定价线，按 P2 登记待单独立项（QA-20260916-003），本任务未顺手改钱的口径。
+- **生产页面级浏览器验收未跑**（生产需真人微信登录，自动化停在登录页，属既有边界）：生产侧只做了匿名探针 + 产物字符串取证；功能验收在测试实例完成（46/0）。
+- **真实付费端到端未跑**：测试租户积分余额不足，未真实扣分走完整链路；扣费逻辑由离线回归（余额不足 402、条件更新、流水、幂等）覆盖。
+- 本卡只出**文案与脚本**，不做图片 / 视频联动；不做 TTS。
+- **积分账户口径待老板拍板**：兰琪所有能力（含本卡）扣的是**租户积分账户 `creditAccount`**，而 `/recharge` 钱包页充的是**用户钱包 `wallet`**——代码里目前没有把钱包余额同步到租户额度的链路。本卡按现状与兰琪视频 / 图片能力保持一致，**未擅自改账本**；若门店充值后仍提示「积分不足」，需单独立项打通。
+- 合并注意：本任务在独立 worktree 分支 `codex/lanqi5` 完成（commit `fe7ba4c`），其中 `apps/api/src/routes/marketplace.ts` 只做了「搬迁 + 引用」，合并回 `main` 前需与平台线核对。
+
 ## 最新发布：20260915-lq33b-recharge-entry（2026-09-15，测试实例 + 生产）— 兰琪工作台接上充值入口
 
 ### 一、用户口径
