@@ -586,7 +586,48 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
           }
         }
         if (core === "ip-pos") {
-          const validation = parseIpPosFull(answerText, rawInput);
+          /**
+           * 2026-09-16 客户现场：IP 定位全案体量大（两段并发生成 + 八章严格校验），
+           * 模型偶发漏一章 / 速览某项为空，就会整单 422 退回，用户白等一次（虽然不扣积分）。
+           * 处理：**在同一次请求内自动重试一次**（仍然只按成功交付扣一次积分），
+           * 重试仍不合规才把 422 交给客户，并把失败原因写进日志便于后续收窄提示词。
+           */
+          let validation = parseIpPosFull(answerText, rawInput);
+          if (validation.failures.length > 0) {
+            request.log.warn(
+              { event: "ip_pos_output_invalid_retry", attempt: 1, failures: validation.failures.slice(0, 6) },
+              "IP 定位全案未通过技能校验，自动重试一次"
+            );
+            try {
+              const [retryA, retryB] = (await Promise.all([
+                provider.complete(
+                  [{ role: "system", content: IP_POS_SYSTEM_PROMPT_A }, ...turnMessages] as LlmMessage[],
+                  { maxTokens: 8192 }
+                ),
+                provider.complete(
+                  [{ role: "system", content: IP_POS_SYSTEM_PROMPT_B }, ...turnMessages] as LlmMessage[],
+                  { maxTokens: 8192 }
+                )
+              ])) as unknown as [string, string];
+              const retryText = `${String(retryA ?? "").trim()}\n\n${String(retryB ?? "").trim()}`;
+              const retryValidation = parseIpPosFull(retryText, rawInput);
+              if (retryValidation.failures.length === 0) {
+                answerText = retryText;
+                validation = retryValidation;
+                request.log.info({ event: "ip_pos_output_invalid_retry_ok" }, "IP 定位全案重试后通过校验");
+              } else {
+                request.log.warn(
+                  { event: "ip_pos_output_invalid_retry_failed", failures: retryValidation.failures.slice(0, 6) },
+                  "IP 定位全案重试后仍未通过校验"
+                );
+              }
+            } catch (retryError) {
+              request.log.warn(
+                { err: retryError },
+                "IP 定位全案重试调用失败，按首次校验结果返回"
+              );
+            }
+          }
           if (validation.failures.length > 0) {
             return reply.code(422).send({
               error: "marketplace_output_invalid",
