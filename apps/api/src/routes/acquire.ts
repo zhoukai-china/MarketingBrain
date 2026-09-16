@@ -161,10 +161,11 @@ export async function registerAcquireRoutes(app: FastifyInstance, basePath = "/b
 
   /**
    * LQ-33「美业文案十件套」：新增一张卡、独立计费。
-   * 计费口径与媒体侧一致走门店租户的积分账户（`creditAccount`）：
-   *   ① 先查余额，不足直接 402，**不调模型、不扣分**；
+   * LQ-34 起计费口径与兰琪媒体侧一致，走**门店租户老板（owner）的通用钱包**（`lanqi-wallet`：
+   * `precheckLanqiWallet` → `chargeLanqiWallet`），不再读写门店租户的 `creditAccount`：
+   *   ① 先查 owner 钱包余额，不足直接 402，**不调模型、不扣分**；
    *   ② 模型失败 / 信息不足 / 合同校验不过 → 不扣分（只有拿到合格十件套才扣）；
-   *   ③ 扣费用条件更新（`balance >= price`）保证并发不为负，并写 `creditTransaction` 流水；
+   *   ③ 扣费走 `consumeWalletCredits`（paid → bonus、Serializable、条件更新），流水记「谁操作的、扣的是老板的钱」；
    *   ④ 同一 `requestKey` 复用缓存结果，重复点击不会重复扣分。
    */
   app.post(`${basePath}/acquire/copy-kit`, async (request, reply) => {

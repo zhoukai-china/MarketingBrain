@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 /** Test-only Prisma-shaped transactional fixture. Never imported by runtime. */
 export function replicationMemoryDb() {
-  const tables: Record<string, any[]> = { viralVideoReplicationJob: [], creditAccount: [], creditTransaction: [], creditReservation: [],wallet:[],walletLedger:[],tenant:[],user:[],membership:[],store:[],tenantProductEntitlement:[],uploadedFile:[],beautyVideoAssetAuthorization:[],beautyVideoStagingLease:[],beautyVideoExecutionPermit:[],auditLog:[] };
+  const tables: Record<string, any[]> = { viralVideoReplicationJob: [], creditAccount: [], creditTransaction: [], creditReservation: [],wallet:[],walletLedger:[],tenant:[],user:[],membership:[],store:[],tenantProductEntitlement:[],lanqiStoreProfile:[],uploadedFile:[],beautyVideoAssetAuthorization:[],beautyVideoStagingLease:[],beautyVideoExecutionPermit:[],auditLog:[] };
   function matches(row: any, where: any): boolean {
     return Object.entries(where ?? {}).every(([key, value]: any) => {
       if(key==="OR")return value.some((v:any)=>matches(row,v));

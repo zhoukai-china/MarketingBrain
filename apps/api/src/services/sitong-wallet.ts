@@ -21,7 +21,7 @@ export type WalletDb = Prisma.TransactionClient | typeof prisma;
  * 这时直接在它上面执行，保持调用方原有的事务边界；只有拿到进程级单例（或同形的离线夹具）时
  * 才新开一个事务。
  */
-async function withWalletTransaction<T>(
+export async function withWalletTransaction<T>(
   db: WalletDb,
   run: (tx: Prisma.TransactionClient) => Promise<T>,
   options?: { isolationLevel?: Prisma.TransactionIsolationLevel }

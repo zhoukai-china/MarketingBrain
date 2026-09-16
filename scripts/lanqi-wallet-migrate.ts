@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   applyLanqiWalletMigration,
+  auditLanqiWalletMigrationScope,
   planLanqiWalletMigration,
   revertLanqiWalletMigration
 } from "../apps/api/src/services/lanqi-wallet-migration.js";
@@ -37,10 +38,14 @@ async function main(): Promise<void> {
   const migratable = plan.filter((entry) => entry.status === "migratable");
   const ownerMissing = plan.filter((entry) => entry.status === "owner_missing");
   const already = plan.filter((entry) => entry.status === "already_migrated");
+  // 口径审计：证明「过滤确实排掉了别的产品线的钱」。LQ-34 修复前这一块是全库扫，
+  // 生产上会把 199 个非兰琪账户（约 20 亿积分）一起搬走，所以 dry-run 必须带上它。
+  const scopeAudit = await auditLanqiWalletMigrationScope();
   console.log(
     JSON.stringify(
       {
         mode: apply ? "apply" : "dry-run",
+        scopeAudit,
         migratableCount: migratable.length,
         migratableCredits: migratable.reduce((sum, entry) => sum + entry.balance, 0),
         ownerMissing,
