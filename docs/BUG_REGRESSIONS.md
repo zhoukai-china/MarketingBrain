@@ -2,6 +2,20 @@
 
 - 编号说明（2026-09-16 合并 `main` 后统一）：LQ-34 侧并发登记的条目顺延为 **-012 导出一次性直链 / -013 邀请活动门禁 / -014 导出仓 `.env` / -015 Windows worktree CRLF**；`-006` 本机草稿指纹条目以 main 编号为准（LQ-34 侧曾记为 `-010`，合并时去重）。
 
+## QA-20260916-016：跨任务共用同一台测试实例，平台线叠加发布把 LQ-34 的钱包文件覆盖回主线 → 迁移脚本首次 apply 报 `withWalletTransaction is not a function`（P2，已修并复验）
+
+- 触发：2026-09-16 20:54 在测试实例 `/opt/baolu-os-v2-test` 首次执行 `scripts/lanqi-wallet-migrate.ts --apply`，脚本已写完「迁移前 CSV」后立刻崩溃：`TypeError: (0, import_sitong_wallet.withWalletTransaction) is not a function`（`lanqi-wallet-migration.ts:211`），**exit 1、一笔都没写库**。
+- 根因（**不是 LQ-34 的代码缺陷，是发布叠加造成的混合构建**）：测试实例在 13:35 发布过 LQ-34 全量包，但 20:42 平台线 `plat67` 又向同一目录叠加发布了一次；`scripts/tmp/deploy-release.sh` 是**只叠加、不删除**，且按主线源码重建 `apps/api`。于是 `apps/api/src/services/sitong-wallet.ts` 被换回**不带** `withWalletTransaction` / `WalletDb` 的主线版本（server sha256 `7048828d…`），而 `lanqi-wallet-migration.ts` / `lanqi-wallet.ts` 仍是 LQ-34 版本（sha256 `2956daa5…` / `42892049…`）——两个文件版本不一致，运行时才暴露。
+- 复现与判定证据：
+  1. `grep -n "^export" apps/api/src/services/sitong-wallet.ts` → 服务器版本没有 `withWalletTransaction`、没有 `WalletDb`；本地 `ff88530` 版本两者都有。
+  2. 三个文件的「换行归一刀 sha256」本地 vs 服务器：`lanqi-wallet.ts` / `lanqi-wallet-migration.ts` / `lanqi-wallet-migrate.ts` **完全一致**（CR 只是 CRLF 检出差异，字节差 = CR 数 72/226/98），只有 `sitong-wallet.ts` 不一致 → 锁定就是这一个文件被覆盖。
+  3. 反向验证：用基于 `ff88530` 的发布包重发测试实例（`20260916-lq34-wallet-test1`，`DEPLOY_OK` + `VERIFY_OK`），`sitong-wallet.ts` 变为 `6d0350b4…`（含 `withWalletTransaction`），同一命令重跑 → dry-run 正常、`--apply` exit 0 并按计划迁移 43 个账户。
+- 修复：**不新增代码**——用 `ff88530` 的完整发布包重建测试实例，再用 `sha256sum` 逐文件核对「服务器 == 本地」后才跑迁移。
+- 复验：测试实例 `20260916-lq34-wallet-test1` 发布 `DEPLOY_OK` + `verify-deploy.sh` 全 PASS（health/ready 200、marketplace 契约 PASS、`VERIFY_OK`）；迁移后对账 43 行 / 12,520 全部符合预期（详见任务卡第 3 节）。
+- 留下的坑（**发布纪律**）：同一台测试实例被多个任务共用时，「上次发布成功」不能作为「现在跑的是我的代码」的证据——**跑任何数据操作前，先按关键文件 sha256 核对服务器与本地一致**（本任务是 `apps/api/src/services/{sitong-wallet,lanqi-wallet,lanqi-wallet-migration}.ts` + `scripts/lanqi-wallet-migrate.ts`）。叠加发布不会退回旧文件，所以混合构建是静默的。
+- 顺带上报一个**对账口径陷阱**（同日踩到，只读无副作用）：测试实例与生产**共用同一个物理数据库 `baolu_os_v2`**，靠 PostgreSQL **schema** 隔离——`baolu-os-v2-test.env` 的 `DATABASE_URL` 尾部是 `?schema=lanqi_test`，而 psql 不认 `schema` 参数、只有 Prisma 会用它设 `search_path`。所以**用 psql 对测试实例对账必须先 `SET search_path TO lanqi_test`**，否则读到的是 `public`（= 生产）。首次对账即因此读到生产的 201 / 2,001,160,483，误判成「迁移没写进去」；加上 `search_path` 后数字立刻对得上。
+- 关联：任务卡 `docs/agents/lanqi-beauty/tasks/LQ-34-兰琪通用钱包打通.md` 第 3、5 节「断点与交接物」。
+
 ## QA-20260916-011：LQ-34 历史额度迁移脚本按「全库有余额账户」取数，会把思潼 AI / 美业的租户积分一并搬进自己产品的钱包（P1，跨产品越权改账；**执行前发现**，已修 + 已加离线口径回归）
 
 - 触发：2026-09-16 LQ-34 在做迁移 dry-run 时，先看的是「全库 `CreditAccount.balance > 0` 有多少」。生产只读实测：**201 个账户 / 2,001,160,483 积分**。若照此执行，兰琪这次「把历史额度一次性迁进钱包」会一次改掉 199 个与兰琪无关的租户账本。
@@ -13,7 +27,7 @@
 - 根因：迁移口径只写了「租户积分账户」，没把「兰琪」这个**产品边界**写进查询条件。`CreditAccount` 是**全平台共用**的一张表（思潼 AI 的外卖增长 / 创始人 IP、美业的单品线都记在这张表上），而钱包迁移是**某个产品的口径变更**——两者不在同一层级，直接按表扫就等于替别的产品改账。属「口径变更的适用边界没写死在查询里」。
 - 修复（提交 `9c61771`）：把范围判定收窄为 **只迁「持 `lanqi` 产品权益」或「存在 `LanqiStoreProfile` 行」的租户**；同时新增离线口径回归 `pnpm.cmd lanqi:wallet-migration-scope-drill`（**20 断言**，覆盖：全库有余额但非兰琪 → 必须排除；兰琪权益余额 0 → 不产生候选；兰琪权益有余额 → 进候选且金额一致；`LanqiStoreProfile` 单独命中；owner 解析不到 → 记 `ownerMissing` 而不是硬迁；重复执行不重复发放），已挂 `qa:regression`（`LANQI_WALLET_MIGRATION_SCOPE_DRILL_PASS passed:20`）。
 - 复验：`pnpm.cmd qa:regression` exit 0（含上述 drill）；生产 dry-run 复算为 **2 个账户 / 508 积分**、`ownerMissing=[]`、`alreadyMigrated=0`，两条候选都只有 `lanqi` 权益。
-- 处置与边界：**迁移尚未执行**——本轮只出 dry-run 报告，`--apply` 等老板确认口径与候选清单。本次不扩大范围去补思潼 AI / 美业侧的历史账（它们不在本任务范围内，硬扫的隐患已由口径收窄消除）。
+- 处置与边界：**测试实例已 apply（2026-09-16 21:01，43 个账户 / 12,520 积分已迁 + 对账干净 + 重复 apply 幂等），生产尚未 apply**（老板已确认口径与候选清单，生产排在下一轮，见 QA-20260916-016）。本次不扩大范围去补思潼 AI / 美业侧的历史账（它们不在本任务范围内，硬扫的隐患已由口径收窄消除）。
 - 留下的坑：`CreditAccount` 这类**全平台共用表**上的任何批量迁移，口径里必须显式写出「哪些产品 / 租户属于本次范围」，并配一条「非本产品租户必须被排除」的断言；否则每次都会重演「一个产品的迁移改掉另一个产品的账」。
 - 关联：任务卡 `docs/agents/lanqi-beauty/tasks/LQ-34-兰琪通用钱包打通.md` 第 3 节。
 
