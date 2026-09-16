@@ -91,13 +91,14 @@
 
 > 线程消息通道当时不可用，改由仓库文档传递；看到即按此分工执行。
 
-1. **撞车文件**：`apps/api/src/services/lanqi-media-generation.ts` 现在同时有两条线的未提交改动——
-   - 兰琪线的：报价对象去掉 `customerPriceYuan`（用户「不显示人民币消耗」）；
-   - 平台线的：**文生视频改成与图生视频同一口径**（用户 2026-09-16「选 A：用百炼现成的 t2v」→ 按秒 ×2 成本 = 12 积分/秒，5 秒 = 60 积分，不再用旧的 990/1690/1490/2690 包价）。
-   **分工**：该文件连同兰琪线另外 4 个在途文件（`apps/api/src/routes/lanqi-media-generation.ts`、`apps/web/src/pages/LanqiImageStudioPage.tsx`、`scripts/lanqi-media-generation-smoke.ts`、`scripts/lanqi-image-studio-contract-smoke.mjs`）**由兰琪线一起提交**（平台线的 t2v 改动随该提交落库）。平台线已单独提交自己的文件（`39a637a` 视觉 ¥0.5、`716f9b2` 白名单通配 `*`），不碰上述 5 个文件。
-2. **发布串行**：平台线还欠一次发布（`BILLING_COST_BASED_SKUS=*` + 文生视频按秒定价 + `LANQI_MEDIA_TEXT_TO_VIDEO_MODEL=wan2.6-t2v` 环境变量）；兰琪线看起来也要发一次（媒体报价 / UI）。两边不得同时打包或部署，先在本文档或对话里定顺序。
-3. **平台侧 2026-09-16 已定口径（知悉即可）**：不加「不超过现价」封顶（用户「该是多少就多少」）；**所有智能体含以后新增一律按实际成本 × 对应倍数收费**（文字 100× / 图片 5× / 视频 2× / 语音 10× / 视觉 25×），货架用 `BILLING_COST_BASED_SKUS=*`；视觉 ¥0.5/次且**无真实视觉消耗不收费**（已发测试+生产 `20260916-plat46-vision05`）。
-4. **运维**：已按用户同意执行备份清理（`KEEP=8`），服务器 `/` 从剩 5.7G 恢复到 **11G**。
+1. ~~**撞车文件**~~（**已收口 2026-09-16**）：`apps/api/src/services/lanqi-media-generation.ts` 两边同时改——兰琪线去掉 `customerPriceYuan`，平台线把**文生视频改成与图生视频同一口径**（用户「选 A：用百炼现成的 t2v」→ 按秒 ×2 = 12 积分/秒，5 秒 = 60 积分，废掉旧的 990/1690/1490/2690 包价）。兰琪线提交 `e96d37a` 时一并把平台线那段改动带进主干，主树恢复干净。
+2. **规则修补（撞车根因）**：原「兰琪写区」只写了 `apps/api/src/products/lanqi/**`、`apps/web/src/pages/Lanqi*`、`scripts/lanqi-*`、`docs/agents/lanqi-beauty/**`，**漏了共享目录里的兰琪文件**。现补充为兰琪区（跨线热点，需令牌）：
+   - `apps/api/src/services/lanqi-*.ts`（如 `lanqi-media-generation.ts`、`lanqi-referrals.ts`、`lanqi-media-compose.ts`）
+   - `apps/api/src/routes/lanqi-*.ts`（如 `lanqi-media-generation.ts`、`lanqi-referrals.ts`、`lanqi-xhs-package.ts`）
+   规则：**兰琪线的功能/文案改动可自行提交；计费口径、倍数、报价结构这类跨线改动，由发起方在本文档声明后再动**（本次 t2v 就是平台线发起、随兰琪线提交落库）。
+3. **发布串行（仍有效）**：平台线本次要发（`BILLING_COST_BASED_SKUS=*` + 文生视频按秒定价 + `LANQI_MEDIA_TEXT_TO_VIDEO_MODEL=wan2.6-t2v`）；兰琪线若也要发（媒体报价/UI），先在本文档或对话里定顺序，两边不得同时打包或部署。注意兰琪线现在有多条 worktree（`f18c`、`a410`、`lq34`、`lq5`）——**打包前先 merge `main`**，否则旧文件会覆盖主干刚上线的东西。
+4. **平台侧 2026-09-16 已定口径（知悉即可）**：不加「不超过现价」封顶（用户「该是多少就多少」）；**所有智能体含以后新增一律按实际成本 × 对应倍数收费**（文字 100× / 图片 5× / 视频 2× / 语音 10× / 视觉 25×），货架用 `BILLING_COST_BASED_SKUS=*`；视觉 ¥0.5/次且**无真实视觉消耗不收费**（已发测试+生产 `20260916-plat46-vision05`）。
+5. **运维**：已按用户同意执行备份清理（`KEEP=8`），服务器 `/` 从剩 5.7G 恢复到 **11G**。
 
 ## 待用户决策/待启动清单（2026-09-16 对账）
 
