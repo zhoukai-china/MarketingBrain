@@ -1390,14 +1390,19 @@ async function listSubscriptions(context: RequestContext) {
 async function listRecentRefunds(context: RequestContext) {
   if (context.source === "demo") return [];
   const rows = await prisma.walletLedger.findMany({
-    where: { userId: context.userId, type: "refund", skillId: "docx_export" },
+    /**
+     * 口径：只列**客户能看懂、该知道自己拿到了**的退回——
+     * 即我们主动给客户打的退回（source 形如 `web:ops:<说明>` 或 `web:<说明>:…`）；
+     * 内部预留/结算的差额回退 source 恰好就是 `web`，对客户是噪音，这里排除掉。
+     */
+    where: { userId: context.userId, type: "refund", source: { startsWith: "web:" }, NOT: { source: "web" } },
     orderBy: { createdAt: "desc" },
     take: 5,
     select: { id: true, delta: true, source: true, createdAt: true }
   });
   return rows.map((row) => ({
     id: row.id,
-    label: "Word 导出重复扣费退回",
+    label: (row.source ?? "").replace(/^web:ops:/, "").replace(/^web:/, "").split(":")[0] || "积分退回",
     amountCredits: row.delta,
     detail: row.source?.replace(/^web:/, "") ?? "",
     createdAt: row.createdAt
