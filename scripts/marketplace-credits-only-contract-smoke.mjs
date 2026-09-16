@@ -112,7 +112,8 @@ forbidContains(marketplacePages, "≈ ¥", "货架与智能体页面不再拼「
 
 const chatMessages = read("apps/web/src/components/chat/ChatMessages.tsx");
 
-requireContains(agentChat, "本次消耗 {cost} 积分", "聊天页顶部仍显示本次消耗积分");
+// 用户 2026-09-16：使用前给「预估」、使用后给「实际」——所以这里改成精确匹配「本次实际消耗」。
+requireContains(agentChat, "本次实际消耗 {cost} 积分", "聊天页顶部仍显示本次实际消耗积分");
 requireContains(agentChat, "本次导出需 ${required} 积分", "积分不足的导出提示仍说明所需积分");
 requireContains(agentChat, "${docxPrice} 积分", "Word 导出按钮仍显示所需积分");
 // 2026-09-13 用户口径：使用前不再出现任何「要扣多少积分」的前置提示（只在交付后告知消耗）。

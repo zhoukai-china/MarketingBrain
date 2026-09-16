@@ -653,7 +653,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
               <img className="chat-avatar-img" src={sitongAvatar} alt="思潼" />
               <span className="chat-page-title">{runSku?.name ?? flow.name ?? "智能体"}{industry?.title ? ` · ${industry.title}` : ""}</span>
             </div>
-            {cost !== null && <span className="chat-page-cost">本次消耗 {cost} 积分</span>}
+            {cost !== null && <span className="chat-page-cost">本次实际消耗 {cost} 积分</span>}
           </div>
           {isVidrev && !done && !soon && (
             <details className="chat-vidrev-guide" open>
@@ -739,6 +739,16 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                   <span className="chat-bubble-label">思潼 · {sku?.name ?? "智能体"}</span>
                   <div className="md-rich" style={{ color: "var(--text)", fontSize: 14, lineHeight: 1.7 }}>
                 <p><b>请先确认需求</b>：确认后我按下面这套信息生成交付。如有不对，点「修改」重填。</p>
+                    {/*
+                     * 用户 2026-09-16 口径：**使用前给预估、使用后给实际**。
+                     * 预估用该 SKU 的参考价（`ppu`，就是历史固定价，现在当参考值用）；
+                     * 实际扣分按本次真实用量（成本 × 倍数）结算，两者允许有出入，文案里说清楚。
+                     */}
+                    {typeof runSku?.ppu === "number" && runSku.ppu > 0 && (
+                      <p>
+                        预计消耗约 <b>{runSku.ppu}</b> 积分（<b>按本次实际用量结算</b>，可能略有出入；生成完成后会告诉你实际扣了多少）。
+                      </p>
+                    )}
                     <table className="report-table">
                       <tbody>
                         {flow.slots.map((slot) => (

@@ -157,7 +157,7 @@ async function main() {
     await delay(1200);
     const noData = await evaluate(cdp, sessionId, `() => ({
       body: document.body.innerText,
-      hasCost: /本次消耗/.test(document.body.innerText)
+      hasCost: /本次实际消耗/.test(document.body.innerText)
     })`);
     record(/先别急|数据导出指南/.test(noData.body) && /channels\.weixin\.qq\.com/.test(noData.body), "只打「复盘」时回复数据导出指南而不是空跑");
     record(!noData.hasCost, "只打「复盘」未产生任何积分消耗提示");
