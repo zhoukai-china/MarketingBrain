@@ -79,6 +79,8 @@ interface ExportRecord {
   createdAt: number;
   tenantId: string;
   userId: string;
+  /** 已被某次下载「占位」：保证同一条一次性链接并发只能真正读到一次字节。 */
+  claimed?: boolean;
 }
 
 const fallbackTitle = "连锁品牌IP获客交付件";
@@ -190,33 +192,52 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
   });
 
   app.get<{ Params: { id: string } }>("/exports/docx/:id", async (request, reply) => {
+    // 交付物可能含经营数据：无论走哪条取件路径，都不允许中间层缓存。
+    reply.header("Cache-Control", "private, no-store");
     // Lookup and consume after the asynchronous authorization, so concurrent
     // downloads cannot both obtain the same one-use buffer.
     cleanupExportRecords();
     const record = exportRecords.get(request.params.id);
-    if (!record) {
-      return reply.code(404).send({
-        error: "export_not_found",
-        message: "Word 文件已过期，请重新点击下载"
-      });
-    }
+    const gone = () =>
+      reply.code(404).send({ error: "export_not_found", message: "Word 文件已过期，请重新点击下载" });
+    if (!record) return gone();
+    /**
+     * 一次性缓冲用**同步占位**来保证：并发的两次取件只有一次能真读到字节，另一次 404
+     * （会话校验是异步的，若等校验回来再删，两次并发会双双成功）。
+     * 授权没通过时立刻释放占位——不能让别人拿一条链接把创建者自己的下载占掉。
+     */
+    if (record.claimed) return gone();
+    record.claimed = true;
+    const releaseClaim = () => {
+      record.claimed = false;
+    };
     /**
      * 两种取件方式：
      * ① 浏览器直链 `?t=<一次性令牌>`——手机/微信必须走这条（浏览器导航带不了 Authorization 头）；
      * ② 原来的会话 Bearer 头——保留给老前端与脚本，语义不变。
+     *
+     * QA-20260916-011：令牌只解决「导航请求带不了头」这一件事，不是「谁拿到链接都能取件」。
+     * 只要这次请求**本身带了会话**，就必须继续走会话 + 租户 + 归属校验：同租户的同事拿着链接、
+     * 别的租户的账号、已被停用的成员，都不能借令牌取走创建者的文件（停用/数据库异常同样拦在这里）。
      */
     const queryToken = (request.query as { t?: string } | undefined)?.t;
     const tokenOk = verifyExportDownloadToken(request.params.id, record.userId, queryToken);
-    if (!tokenOk) {
+    const presentedSession = getBearerToken(request.headers);
+    if (!tokenOk || presentedSession) {
       const context = await resolveExportContext(request.headers, reply);
-      if (!context) return;
+      if (!context) {
+        releaseClaim();
+        return;
+      }
       if (record.tenantId !== context.tenantId) {
+        releaseClaim();
         return reply.code(403).send({
           error: "export_tenant_forbidden",
           message: "当前文件不属于本经营主体"
         });
       }
       if (record.userId !== context.userId) {
+        releaseClaim();
         return reply.code(404).send({ error: "export_not_found", message: "当前文件不可用，请重新导出自己的内容" });
       }
     }

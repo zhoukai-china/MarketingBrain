@@ -1,5 +1,44 @@
 # 当前部署状态
 
+## 最新发布：20260916-plat67（2026-09-16，生产 + 测试实例）— 修「我的 - 历史交付物 - 下载 Word 下载不了」（P1）+ 视频复盘后台导出文件编码兜底
+
+### 一、用户现场问题
+
+1. 「**我的-产物里-点击下载 word 下载不了**」（现场，最高优先级）；
+2. 「视频复盘智能体还是没跑通：给了视频数据文件但还是没有识别到视频记录，本次不消耗积分。请上传视频号/抖音后台导出的 CSV/Excel」——后台导出常是 **GBK/GB18030**，此前按 UTF-8 解出乱码 ⇒ 表头识别不到 ⇒ 报「至少包含 1 条视频数据」。
+
+### 二、改动
+
+1. **P1 根因（下载 Word）**：`MinePage.tsx` 的 `downloadDeliverable()` 写的是 `headers: { ...authHeaders(true), "content-type": "application/json" }`，而 `authHeaders(true)` 本身就带 `Content-Type`；浏览器按规范把同名头合并成 `application/json, application/json`，Fastify 直接 **415 Unsupported Media Type**，导出未生成、前端把英文原文弹给客户。修复＝只用 `authHeaders(true)`，并按对话页同一口径补齐 401/403（清会话 +「登录状态已失效，请重新登录后再下载；本次不消耗积分。」）、402（积分不足）、415（刷新重试、本次不消耗积分）与中文兜底。计费不变（导出 10 积分/次，同内容重下不扣）。
+2. **导出取件加固**：`GET /exports/docx/:id` 统一 `Cache-Control: private, no-store`；`?t=` 令牌只解决「浏览器导航带不了 Authorization」，**只要带会话仍必须过会话 + 租户 + 归属校验**；并发取件用 `claimed` 占位 + `releaseClaim()`，只允许一次读到字节。跨租户 / 同租户同事 / 被停用成员一律取不到。
+3. **视频复盘文件编码兜底**：`apps/api/src/routes/media.ts` 新增 `decodeTextBytes()`（UTF-8 失败 → **GB18030** 兜底），前端 `apps/web/src/marketplace/text-attachment.ts` 用同规则探测编码后再喂给视频复盘的 `analyze` 链路。JSON 仍是 JSON 专属解析，不误吃。
+4. **既有红灯清理**：`video-review-engine.ts` 去掉误加的「观看量/观看次数」别名（小红书观看量不得当播放量）；`scripts/export-owner-isolation-smoke.ts`、`scripts/referral-self-service-smoke.ts` 契约更新（推荐活动现为**下架**状态，脚本改为先断言 fail-closed，再自建临时活动窗并在 `finally` 里**先还原开关再删数据**）。
+
+### 三、发布与验收
+
+| 环境 | 发布 id | 结果 |
+| --- | --- | --- |
+| 测试 | `20260916-plat67-mine-docx-download-test1` | `DEPLOY_OK`、health=200（24s）、ready=200、`verify-deploy.sh` **VERIFY_OK**（0 FAIL） |
+| 生产 | `20260916-plat67-mine-docx-download-prod1` | 同一份归档，见下方「发布流水线」说明 |
+
+发布包：`release-20260916-plat67-mine-docx-download.tar.gz`（**1576 文件 / 9,930,886 B**，sha256 `7778da84aefc6e9d78d07eaff8562b8683a2a2933bd7f8de0c3ed597d6e1040b`，本地与服务器一致）。发布脚本 `deploy-release.sh` 未 stale（与仓库 MD5 一致 `247df7a3…`），服务器 `/` 发布前 **8.3G 可用（71%）**，高于 5G 底线。
+
+### 四、发布流水线（本轮的服务器侧串联）
+
+测试实例发布完成、`VERIFY_OK` 之后，**由服务器侧串联脚本**继续发生产（`setsid nohup` 脱离 SSH 会话，见 QA-20260910-019：交互式会话中断曾导致发布假回滚）。串联脚本 `scripts/tmp/plat67-deploy-chain.sh` → 日志 `/tmp/deploy-chain-20260916-plat67-mine-docx-download.log`；它先等测试实例发布结束、检测到 `DEPLOY_OK` 后**跳过重复发布**，再依次「校验测试 → 发生产 → 校验生产」，最后把生产近 10 分钟 `journalctl -p err` 一并写进同一份日志。**开发机断电/关机不影响该流水线**。
+
+### 五、回滚
+
+- 备份 `/opt/baolu-backups/20260916-plat67-mine-docx-download-{prod1,test1}-before-baolu-os-v2{,-test}/`（app-before / db-before / env / 服务单元 / 发布前 dist 哈希），`deploy-release.sh` 失败即自动回滚；发布日志 `/tmp/deploy-20260916-plat67-*.log`。
+- 回滚＝还原对应备份目录 + `systemctl restart baolu-os-v2(-test)`，或重放上一包（`plat66`）。
+
+### 六、本轮验收证据（红线→绿线）
+
+- **红灯（修复前，真实页面）**：点击「下载 Word」只有 `POST /exports/docx` **415**，弹窗 `Unsupported Media Type: application/json, application/json`，`downloadWillBegin` 一次都没有。
+- **绿灯（修复后，真实页面）**：`POST 200` → 无头 `GET ?t=` **200**（`…wordprocessingml.document` + `content-disposition: attachment`）→ `Page.downloadWillBegin` 拿到 `历史交付物-IP定位智能体.docx`；无弹窗、`consoleErrors/logErrors` 为空。二次点击 `redownload:true / consumedCredits:0`、余额不再变。
+- **自动化**：新增 `pnpm marketplace:mine-docx-download-smoke`（已挂 `qa:fast`，含「全仓禁止再写重复 content-type」守卫）；`pnpm qa:fast`、`pnpm qa:regression`、`pnpm qa:full` 全 **EXIT=0**。
+- 台账：`docs/BUG_REGRESSIONS.md` **QA-20260916-010**。
+
 ## 最新发布：20260916-plat66（2026-09-16，生产 + 测试实例）— 常用智能体独立页 + 产物进「我的」/ 新用户注册送 100 积分 / 页脚 ICP / 付费到账推送企业微信 / 手机端报告排版
 
 本条目合并两批改动（`plat65-my-agents` 的代码在 `plat66` 归档里一起上线，未单独发过版）。

@@ -43,6 +43,16 @@ async function main() {
     assert.equal(body.consumedCredits, exportPrice, `${label}：Word 导出按次独立扣 10 积分`);
     assert.equal(body.balance, initialWalletBalance - ownerCharges * exportPrice, `${label}：导出扣费按次递减，不与其它计费合并`);
   };
+  /**
+   * 2026-09-16 上线的幂等口径：同一用户对**同一份内容**（标题 + 正文指纹）再导出不重复扣费。
+   * 换手机重下、下载失败重试、清掉浏览器再下都命中这条，不会再被扣第二次。
+   */
+  const expectIdempotentReexport = (response: { json: () => unknown }, label: string) => {
+    const body = response.json() as { consumedCredits: number; balance: number; redownload: boolean };
+    assert.equal(body.redownload, true, `${label}：同一份内容重下必须标记 redownload`);
+    assert.equal(body.consumedCredits, 0, `${label}：同一份内容重下不得再扣积分`);
+    assert.equal(body.balance, initialWalletBalance - ownerCharges * exportPrice, `${label}：重下后余额不得变化`);
+  };
   // 合成计费夹具：owner 有余额，broke 无余额（走 402 分支）。
   for (const id of syntheticUserIds) {
     await prisma.user.deleteMany({ where: { id } });
@@ -54,7 +64,9 @@ async function main() {
   await registerExportRoutes(app);
   try {
     for (let round = 0; round < 3; round++) {
-      const created = await app.inject({ method: "POST", url: "/exports/docx", headers: headers("owner"), payload });
+      // 每轮换一份正文：新内容 = 新的计费单元（同一份内容重下免费，所以这里必须区分开）。
+      const roundPayload = { ...payload, content: `${payload.content}\n\n（第 ${round + 1} 轮验收内容）` };
+      const created = await app.inject({ method: "POST", url: "/exports/docx", headers: headers("owner"), payload: roundPayload });
       assert.equal(created.statusCode, 200);
       expectSingleCharge(created, "首份导出");
       const url = created.json().downloadUrl as string;
@@ -64,10 +76,23 @@ async function main() {
       const foreign = await app.inject({ method: "GET", url, headers: headers("outsider", "synthetic-b") });
       assert.equal(foreign.statusCode, 403);
       const countBefore = membershipCalls;
+      /**
+       * 2026-09-16 改成 `?t=` 一次性直链后（手机/微信浏览器导航带不了 Authorization 头），
+       * 「完全匿名 + 有效令牌」是**允许**的取件方式，因此这里不再要求无头 GET 必须 401。
+       * 但「带了会话就必须过会话校验」这条不变：无效/过期会话、身份头自报、跨租户、越权用户
+       * 一律拦在生成与数据库访问之前（对应的手机直链正向用例见本循环后面的 mobile 段）。
+       */
       for (const method of ["POST", "GET"] as const) {
-        for (const badHeaders of [{}, { "x-sitong-tenant-id": "synthetic-a", "x-sitong-user-id": "owner" }, { authorization: "Bearer invalid", "x-sitong-tenant-id": "synthetic-a", "x-sitong-user-id": "owner" }, { authorization: `Bearer ${createSessionToken({ tenantId: "synthetic-a", userId: "owner", ttlSeconds: -1 })}` }]) {
+        for (const badHeaders of [{ authorization: "Bearer invalid", "x-sitong-tenant-id": "synthetic-a", "x-sitong-user-id": "owner" }, { authorization: `Bearer ${createSessionToken({ tenantId: "synthetic-a", userId: "owner", ttlSeconds: -1 })}` }]) {
           const denied = await app.inject({ method, url: method === "POST" ? "/exports/docx" : url, headers: badHeaders, ...(method === "POST" ? { payload } : {}) });
           assert.equal(denied.statusCode, 401);
+        }
+        if (method === "POST") {
+          // 导出（要扣积分、要调生成）永远不能靠匿名或自报身份头完成。
+          for (const anonymous of [{}, { "x-sitong-tenant-id": "synthetic-a", "x-sitong-user-id": "owner" }]) {
+            const denied = await app.inject({ method: "POST", url: "/exports/docx", headers: anonymous, payload });
+            assert.equal(denied.statusCode, 401, "匿名导出必须 401，不得只凭自报身份头生成交付物");
+          }
         }
       }
       assert.equal(membershipCalls, countBefore, "Invalid credentials must stop before database access or generation");
@@ -89,20 +114,35 @@ async function main() {
       assert.match(String(downloaded.headers["content-disposition"]), /filename\*=UTF-8''/);
       assert.equal(downloaded.headers["cache-control"], "private, no-store");
       assert.equal((await app.inject({ method: "GET", url, headers: headers("owner") })).statusCode, 404);
+      /**
+       * 手机/微信直链（QA-20260916-010 的现场需求）：浏览器导航带不了 Authorization 头，
+       * 所以**没有任何会话**的 GET 必须能靠 `?t=` 令牌取件；同时令牌一次性、且对中间层不可缓存。
+       * 单独导出一份来验，避免消耗本轮主记录的「一次性」额度。
+       */
+      const mobile = await app.inject({ method: "POST", url: "/exports/docx", headers: headers("owner"), payload: { ...roundPayload, title: "手机直链取件" } });
+      assert.equal(mobile.statusCode, 200);
+      expectSingleCharge(mobile, "手机直链导出");
+      const mobileUrl = mobile.json().downloadUrl as string;
+      assert.match(mobileUrl, /\?t=/, "下载链接必须带一次性令牌，否则手机浏览器无法取件");
+      const anonymousDownload = await app.inject({ method: "GET", url: mobileUrl });
+      assert.equal(anonymousDownload.statusCode, 200, "无会话的手机直链必须能下载（这正是改成 ?t= 直链的原因）");
+      assert.equal(anonymousDownload.rawPayload.subarray(0, 2).toString(), "PK");
+      assert.equal(anonymousDownload.headers["cache-control"], "private, no-store", "直链下载同样不得被中间层缓存");
+      assert.equal((await app.inject({ method: "GET", url: mobileUrl })).statusCode, 404, "令牌是一次性的：重复使用必须失效");
       if (round === 0 && process.env.EXPORT_AUDIT_OUTPUT_DIR) {
         const root = resolve(process.env.EXPORT_AUDIT_OUTPUT_DIR);
         await mkdir(root, { recursive: true });
         await writeFile(resolve(root, "synthetic-export.docx"), downloaded.rawPayload);
         console.log(JSON.stringify({ stage: "docx_artifact", bytes: downloaded.rawPayload.length, sha256: createHash("sha256").update(downloaded.rawPayload).digest("hex") }));
       }
-      const again = await app.inject({ method: "POST", url: "/exports/docx", headers: headers("owner"), payload });
+      const again = await app.inject({ method: "POST", url: "/exports/docx", headers: headers("owner"), payload: roundPayload });
       assert.equal(again.statusCode, 200);
-      expectSingleCharge(again, "并发下载前的再次导出");
+      expectIdempotentReexport(again, "并发下载前的再次导出");
       const simultaneous = await Promise.all([1, 2].map(() => app.inject({ method: "GET", url: again.json().downloadUrl, headers: headers("owner") })));
       assert.deepEqual(simultaneous.map(r => r.statusCode).sort(), [200, 404]);
-      const expires = await app.inject({ method: "POST", url: "/exports/docx", headers: headers("owner"), payload });
+      const expires = await app.inject({ method: "POST", url: "/exports/docx", headers: headers("owner"), payload: roundPayload });
       assert.equal(expires.statusCode, 200);
-      expectSingleCharge(expires, "过期用例导出");
+      expectIdempotentReexport(expires, "过期用例导出");
       const realNow = Date.now;
       try {
         const future = realNow() + 11 * 60 * 1000;

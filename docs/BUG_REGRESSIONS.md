@@ -1,5 +1,19 @@
 # Bug 回归台账
 
+## QA-20260916-010：「我的 - 历史交付物 - 下载 Word」点了没反应——请求头里同一份 content-type 写了两遍被浏览器合并，服务端 415（P1，已修 + 真机红/绿 + 门禁）
+
+- 触发：2026-09-16 用户现场「我的-产物里-点击下载 word 下载不了」。
+- 现场证据（headless Chrome + CDP 直连真实页面，逐字）：点击后只有 `OPTIONS /exports/docx` 204 与 `POST /exports/docx` **415**，弹窗文案 `Unsupported Media Type: application/json, application/json`，`downloadWillBegin` 一次都没有——导出根本没生成，也就没有文件可下。
+- 根因：`apps/web/src/marketplace/MinePage.tsx` 的 `downloadDeliverable()` 写了 `headers: { ...authHeaders(true), "content-type": "application/json" }`。`authHeaders(true)`（`apps/web/src/marketplace/shell.tsx`）**已经**带了 `Content-Type: application/json`；浏览器按 Fetch 规范把同名头合并成 `content-type: application/json, application/json`（`new Headers()` 归一化实测一致），Fastify 认不出这个媒体类型 → 415，前端再把服务端英文原文 `window.alert` 给客户。
+- 连带缺口：失败路径只把 `data.message` 原样弹出，没有处理 401/403（会话失效）与 415，也没有中文兜底——所以客户看到的是英文技术报错而不是「该怎么办」。
+- 修复（最小、可回滚）：`MinePage.tsx` 请求头改为只用 `authHeaders(true)`；失败路径按对话页同一口径补齐——401/403 走 `handleStaleSession()` 清本地会话 +「登录状态已失效，请重新登录后再下载；本次不消耗积分。」、402 说清「本次导出需 N 积分（当前余额 M）」、415 给「请求被拒，请刷新重试；本次不消耗积分」、其余中文兜底「导出失败，请稍后重试。」。下载方式不变（`window.location.assign(downloadUrl)`，手机交给 WPS）。
+- 回归（先红灯后绿灯）：新增 `scripts/mine-docx-download-smoke.ts`（`pnpm marketplace:mine-docx-download-smoke`，已挂进 `qa:fast`）。它不写死页面长相，而是**从真实源码取表达式执行**：① 从 `shell.tsx` 取 `authHeaders` 函数体、从 `MinePage.tsx` 取下载请求的 headers 表达式，用浏览器同款 `Headers` 归一化，断言只有一份 `content-type` 且值恰为 `application/json`；② 全仓守卫 `apps/web/src/**` 禁止 `{...authHeaders(true), "content-type": …}` 再次出现；③ 把「浏览器真正会发出去的头」打到真实 Fastify 导出路由：POST 200、无头 `GET ?t=`（浏览器导航带不了 Authorization）200 且是 `PK` 魔数 docx + `wordprocessingml` + `attachment`；④ 连点两次 `redownload:true`、`consumedCredits:0`、余额不再变；⑤ 无效会话 401 必须是中文人话；⑥ `externalCalls === 0`。
+  - 修复前红灯逐字：`AssertionError: 「我的-产物-下载 Word」的 content-type 必须是 application/json，实际「application/json, application/json」……服务端直接 415`。
+  - 修复后绿灯：`{"stage":"headers","contentType":"application/json"}` → `post_docx 200`（扣 10 积分）→ `browser_navigation_download 200 / 11086 bytes` → `second_click redownload:true, credits:0` → `status: PASS`。
+  - 真实页面复测（同一探针）：点击「下载 Word」后 `POST 200` → `GET ?t= 200`（`content-type: …wordprocessingml.document`、`content-disposition: attachment`）→ `Page.downloadWillBegin` 拿到 `历史交付物-IP定位智能体.docx`；无 415、无弹窗、`consoleErrors`/`logErrors` 均为空。
+- 边界：只改「我的」页这一条下载链路的请求头与失败文案；不动导出计费（仍 10 积分/次、同内容重下不再扣）、不动对话页导出（`AgentChatPage` 本来就没重复写头）。
+- 关联：`scripts/mine-docx-download-smoke.ts`；同源守卫已覆盖全 `apps/web/src`，防止别处再复制这个写法。
+
 ## QA-20260916-009：手机端 IP 定位报告**表格被挤成竖排单字**——对话气泡固定 74% 宽 + 报告表格在窄屏无横向滚动（P2，已修 + 计算样式实测，已上两环境）
 
 - 触发：2026-09-16 用户手机截图：IP 定位全案的「7.3 三阶段发展路径」表格在手机上每列只剩几十像素，中文逐字竖排，基本不可读。

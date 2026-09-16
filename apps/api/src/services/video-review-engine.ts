@@ -133,17 +133,21 @@ export interface VidrevMetrics {
 const FIELD_ALIASES: Record<keyof VidrevRawRow, string[]> = {
   video_id: ["videoid", "序号", "编号", "视频id", "视频编号", "id"],
   // 2026-09-15 用户口径：视频复盘只做抖音 / 视频号，不再兼容小红书等平台的导出字段。
-  title: ["标题", "视频标题", "作品标题", "作品", "视频", "title"],
+  // 2026-09-16 现场：抖音创作者中心导出的标题列叫「作品名称」，漏了它标题整列会静默丢失。
+  title: ["标题", "视频标题", "作品标题", "作品名称", "作品名", "视频名称", "作品", "视频", "title"],
   duration_sec: ["时长", "时长秒", "时长s", "视频时长", "秒数", "duration", "durationsec"],
   // 视频号后台用「发表时间」，抖音用「发布时间」；两者都要能识别。
   published_at: ["发布时间", "发布日期", "发表时间", "发布日期时间", "日期", "发布", "发表", "publishedat"],
   // 抖音 / 视频号的作品明细都用「播放量」；同一口径映射到 plays。
+  // 2026-09-15 口径重申：**不带**「观看量 / 观看次数」——那是小红书导出的字段名，
+  // 混进别名会让「非抖音/视频号的数据」被当成本平台数据吃进来（`marketplace:vidrev-contract-smoke` 有红灯断言）。
   plays: ["播放量", "播放", "播放数", "播放次数", "视频播放量", "曝光", "曝光量", "plays", "playcount"],
-  likes: ["点赞量", "点赞", "点赞数", "赞", "likes", "likecount"],
-  comments: ["评论量", "评论数", "评论", "评", "comments", "commentcount"],
+  // 视频号的作品明细把点赞叫「喜欢」。
+  likes: ["点赞量", "点赞", "点赞数", "点赞次数", "喜欢数", "喜欢量", "赞", "likes", "likecount"],
+  comments: ["评论量", "评论数", "评论次数", "评论", "评", "comments", "commentcount"],
   // 视频号后台用「转发量」，抖音用「分享数」。
-  shares: ["分享量", "分享数", "分享", "转发", "转发量", "转发数", "shares", "sharecount"],
-  saves: ["收藏量", "收藏数", "收藏", "saves", "savecount"],
+  shares: ["分享量", "分享数", "分享次数", "分享", "转发", "转发量", "转发数", "转发次数", "shares", "sharecount"],
+  saves: ["收藏量", "收藏数", "收藏次数", "收藏", "saves", "savecount"],
   // 视频号的「平均播放进度」口径等同完播率，一并映射。
   completion_rate: ["完播率", "平均播放进度", "平均播放完成度", "播放完成率", "completionrate", "完播"],
   completion_5s: ["5秒完播率", "5s完播率", "五秒完播率", "5秒完播", "completion5s"],
@@ -156,7 +160,10 @@ const FIELD_ALIASES: Record<keyof VidrevRawRow, string[]> = {
 function normalizeKey(raw: string): string {
   return raw
     .toLowerCase()
-    .replace(/[\s_\-（）()：:/月日]/g, "")
+    // 先把「（次）/(次)/(%)/（个）」这类单位连括号一起去掉：「播放量（次）」→「播放量」。
+    // 只去括号符号会把单位留在词里（「播放量次」），任何别名都命中不了——2026-09-16 现场就是这么判空的。
+    .replace(/[（(][^）)]*[）)]/g, "")
+    .replace(/[\s_\-（）()：:/月日%％]/g, "")
     .trim();
 }
 
@@ -260,6 +267,9 @@ function splitLines(text: string): string[] {
 function rowFromCells(cells: string[], header: Array<keyof VidrevRawRow>): VidrevRawRow {
   const row: VidrevRawRow = {};
   header.forEach((field, index) => {
+    // 表里没被识别的列（header 为 null）直接跳过：写进去会生成一个 "null" 键，
+    // 既污染数据行，又让 hasAnyValue() 把「只有无关列」的行误判成有效数据。
+    if (field === null) return;
     const raw = cells[index];
     if (raw === undefined) return;
     switch (field) {

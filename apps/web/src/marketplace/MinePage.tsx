@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
-import { authHeaders, fetchMarketMe, guestToLogin, readJson, Topbar } from "./shell.js";
+import { authHeaders, fetchMarketMe, guestToLogin, handleStaleSession, readJson, Topbar } from "./shell.js";
 import "../styles/referral-card.css";
 
 /**
@@ -149,13 +149,36 @@ export function MarketplaceMinePage() {
   async function downloadDeliverable(item: { id: string; answer: string; skuName?: string | null }): Promise<void> {
     setDownloadingId(item.id);
     try {
+      /**
+       * QA-20260916-009：会话头和 Content-Type 都由 `authHeaders(true)` 提供。
+       * 这里再补一个小写 `content-type` 会被浏览器按规范合并成
+       * `application/json, application/json`，Fastify 认不出这个媒体类型直接 415，
+       * 客户看到的是一句英文报错、文件一个都没下来。
+       */
       const response = await fetch(apiPath("/exports/docx"), {
         method: "POST",
-        headers: { ...authHeaders(true), "content-type": "application/json" },
+        headers: authHeaders(true),
         body: JSON.stringify({ title: `历史交付物-${item.skuName ?? "智能体"}`, content: item.answer })
       });
-      const data = (await response.json().catch(() => ({}))) as { downloadUrl?: string; message?: string };
-      if (!response.ok || !data.downloadUrl) throw new Error(data.message ?? "导出失败");
+      const data = (await response.json().catch(() => ({}))) as {
+        downloadUrl?: string;
+        message?: string;
+        required?: number;
+        balance?: number;
+      };
+      // 401/403 单独走会话失效口径：清本地 token，不把服务端的英文原文甩给客户。
+      if (handleStaleSession(response.status)) {
+        throw new Error("登录状态已失效，请重新登录后再下载；本次不消耗积分。");
+      }
+      if (response.status === 402) {
+        const required = data.required ?? "若干";
+        throw new Error(`积分不足，本次导出需 ${required} 积分（当前余额 ${data.balance ?? 0}），请先充值。`);
+      }
+      // 415 是「请求被拒」，和「积分不够/没登录」不是一回事，必须分开讲，且服务端英文原文不能直接展示。
+      if (response.status === 415) {
+        throw new Error("下载请求被服务端拒绝，请刷新页面后重试；本次不消耗积分。");
+      }
+      if (!response.ok || !data.downloadUrl) throw new Error(data.message ?? "导出失败，请稍后重试。");
       // 与对话页同一口径：把真实链接交给浏览器/系统去下载（手机才能交给 WPS）。
       window.location.assign(apiPath(data.downloadUrl));
     } catch (error) {

@@ -8,6 +8,7 @@ import { audioExtensionForMime, useVoiceInput, voiceTranscriptionFailureMessage 
 import sitongAvatar from "../assets/sitong-beauty.png";
 import { bundleSteps, coreSkuCode, isBundle, isComingSoon, zoneOfSku, type MarketplaceIndustry, type MarketplaceSku } from "./sku-model.js";
 import { authHeaders, fetchMarketMe, guestToLogin, handleStaleSession, readJson, Topbar } from "./shell.js";
+import { readAttachmentText } from "./text-attachment.js";
 
 /**
  * 视频复盘：还没拿到数据表时的回复（工单 2026-09-13 §四「未传文件时输入复盘」）。
@@ -497,10 +498,14 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
       const kind = isVideo ? "video" : "file";
       if (!isVideo && TEXT_ATTACHMENT_PATTERN.test(file.name)) {
         try {
-          const raw = await file.text();
+          // 后台导出的 CSV 常见 GBK/GB18030，`file.text()` 恒按 UTF-8 解会得到乱码表头，
+          // 视频复盘因此一条数据都认不出来（2026-09-16 现场缺陷）。改走带编码探测的解码。
+          const decodedAttachment = await readAttachmentText(file);
+          const raw = decodedAttachment.text;
           const truncated = raw.length > MAX_ATTACHMENT_TEXT;
           next.push({ kind, name: file.name, text: raw.slice(0, MAX_ATTACHMENT_TEXT) });
-          notes.push(`已读取「${file.name}」的内容${truncated ? `（超过 ${MAX_ATTACHMENT_TEXT} 字，已截断）` : ""}`);
+          const encodingNote = decodedAttachment.encoding === "gb18030" ? "（识别为 GBK/GB18030 编码）" : "";
+          notes.push(`已读取「${file.name}」的内容${encodingNote}${truncated ? `（超过 ${MAX_ATTACHMENT_TEXT} 字，已截断）` : ""}`);
         } catch {
           next.push({ kind, name: file.name });
           notes.push(`无法读取「${file.name}」，请把关键内容粘贴到对话框`);

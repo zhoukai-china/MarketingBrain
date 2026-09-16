@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import Fastify from "../apps/api/node_modules/fastify/fastify.js";
 import multipart from "../apps/api/node_modules/@fastify/multipart/index.js";
 import * as XLSX from "../apps/api/node_modules/xlsx/xlsx.mjs";
 import { registerMediaRoutes } from "../apps/api/src/routes/media.js";
 import { parseVidrevRowsFromText, computeVidrevMetrics } from "../apps/api/src/services/video-review-engine.js";
+import { decodeAttachmentText } from "../apps/web/src/marketplace/text-attachment.js";
 
 // 工单 2026-09-13 §2.1/§2.4：视频号助手与抖音创作者中心默认导出的就是 Excel，
 // 用户把 .xlsx 拖进来必须真读到数据（不能只说「暂不能自动读取」，也不能无输出）。
@@ -40,6 +42,18 @@ function xlsxForm(bytes: Buffer, filename: string) {
     headers: { "content-type": `multipart/form-data; boundary=${boundary}` },
     payload: Buffer.concat([
       Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n\r\n`),
+      bytes,
+      Buffer.from(`\r\n--${boundary}--\r\n`)
+    ])
+  };
+}
+
+function csvForm(bytes: Buffer, filename: string) {
+  const boundary = "vidrev-csv-synthetic-boundary";
+  return {
+    headers: { "content-type": `multipart/form-data; boundary=${boundary}` },
+    payload: Buffer.concat([
+      Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: text/csv\r\n\r\n`),
       bytes,
       Buffer.from(`\r\n--${boundary}--\r\n`)
     ])
@@ -129,6 +143,83 @@ async function main(): Promise<void> {
         "workbook without core fields must be reported as a limited dimension instead of a silent empty report"
       );
     }
+
+    // -----------------------------------------------------------------------
+    // 2026-09-16 现场缺陷红绿回归：老板传了视频数据表，仍收到
+    // 「没有识别到视频记录，本次不消耗积分」（服务端 V0 判空 / 422）。
+    // 已复现的三条真实成因：
+    //   A) 后台导出的表头带单位后缀（播放量（次））→ 命中列不足 3，整表判空；
+    //   B) 抖音导出用「作品名称」→ 标题列静默丢失，行里还多出一个 "null" 键；
+    //   C) 视频号 / 抖音导出的 CSV 常见 GBK，前端按 UTF-8 解出乱码 → 一条都认不出。
+    // -----------------------------------------------------------------------
+    const unitHeaders = [
+      "作品名称", "发布时间", "播放量（次）", "点赞量（次）", "评论量（次）", "分享量（次）", "收藏量（次）", "完播率（%）"
+    ];
+    const unitUpload = await app.inject({
+      method: "POST",
+      url: "/media/analyze",
+      remoteAddress: "127.34.1.1",
+      ...xlsxForm(
+        workbookBuffer(unitHeaders, [["带单位示例", "2026-08-12", "124000", "3200", "286", "410", "520", "31%"]], "作品数据"),
+        "带单位表头.xlsx"
+      )
+    });
+    assert.equal(unitUpload.statusCode, 200);
+    const unitParsed = parseVidrevRowsFromText((unitUpload.json() as { documentText?: string }).documentText ?? "");
+    assert.equal(
+      unitParsed.rows.length,
+      1,
+      `表头带（次）等单位后缀时仍必须解析出数据行（现在 ${unitParsed.rows.length} 行，用户会看到「没有识别到视频记录」）`
+    );
+    assert.equal(unitParsed.rows[0]?.plays, 124000, "带单位后缀的播放量列必须映射到 plays");
+    assert.equal(unitParsed.rows[0]?.title, "带单位示例", "带单位后缀的表头不能影响标题列识别");
+    assert.equal(unitParsed.rows[0]?.completion_rate, 0.31, "完播率（%）必须按比率解析");
+
+    const namedHeaders = ["作品名称", "发布时间", "播放量", "点赞量", "评论量", "分享量", "收藏量", "完播率"];
+    const namedUpload = await app.inject({
+      method: "POST",
+      url: "/media/analyze",
+      remoteAddress: "127.35.1.1",
+      ...xlsxForm(
+        workbookBuffer(namedHeaders, [["作品名称示例", "2026-08-12", "124000", "3200", "286", "410", "520", "31%"]], "作品数据"),
+        "抖音作品数据.xlsx"
+      )
+    });
+    const namedParsed = parseVidrevRowsFromText((namedUpload.json() as { documentText?: string }).documentText ?? "");
+    assert.equal(namedParsed.rows.length, 1, "抖音「作品名称」表头必须解析出数据行");
+    assert.equal(namedParsed.rows[0]?.title, "作品名称示例", "抖音导出的标题列是「作品名称」，必须映射到 title");
+    assert.ok(
+      !Object.keys(namedParsed.rows[0] ?? {}).includes("null"),
+      `未识别的列不能落成 "null" 键污染数据行（实得键：${Object.keys(namedParsed.rows[0] ?? {}).join(",")}）`
+    );
+
+    // C) GBK CSV：浏览器 file.text() 恒按 UTF-8 解，视频号 / 抖音后台导出的 GBK 表会整片乱码。
+    const gbkBytes = readFileSync(new URL("./fixtures/vidrev-channels-gbk.csv", import.meta.url));
+    const asBrowserUtf8 = new TextDecoder("utf-8").decode(gbkBytes);
+    assert.equal(
+      parseVidrevRowsFromText(asBrowserUtf8).rows.length,
+      0,
+      "前提确认：GBK 字节按 UTF-8 解出来就是乱码，这正是现场「给了文件仍识别不到」的成因"
+    );
+    const decoded = decodeAttachmentText(new Uint8Array(gbkBytes));
+    assert.equal(decoded.encoding, "gb18030", "GBK 字节必须被识别为 GB18030 而不是 UTF-8");
+    assert.equal(
+      parseVidrevRowsFromText(decoded.text).rows.length,
+      2,
+      "按 GB18030 解码后，视频号 CSV 必须解析出 2 条数据行"
+    );
+
+    // 服务端同一条 CSV 走 /media/analyze 也必须读得出中文（外部客户端 / MCP 上传走这条）。
+    const csvUpload = await app.inject({
+      method: "POST",
+      url: "/media/analyze",
+      remoteAddress: "127.36.1.1",
+      ...csvForm(gbkBytes, "视频号视频数据.csv")
+    });
+    assert.equal(csvUpload.statusCode, 200);
+    const csvText = (csvUpload.json() as { documentText?: string }).documentText ?? "";
+    assert.ok(csvText.includes("标题") && csvText.includes("完播率"), `服务端必须按 GB18030 解出中文表头，实得前 40 字：${csvText.slice(0, 40)}`);
+    assert.equal(parseVidrevRowsFromText(csvText).rows.length, 2, "服务端 GBK CSV 必须解析出 2 条数据行");
 
     assert.equal(providerCalls, 0, "document parsing must not call any model provider");
     console.log(JSON.stringify({
