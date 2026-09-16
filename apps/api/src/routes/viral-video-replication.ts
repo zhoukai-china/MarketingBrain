@@ -11,6 +11,7 @@ import { createVideoAssetAuthorization } from "../services/beauty-video-asset-au
 import { createVideoPrivateFileReader } from "../services/beauty-video-private-files.js";
 import { createControlledVideoIntegration } from "../services/beauty-video-controlled-execution.js";
 import { findVideoReplicationEntitlement } from "../services/video-replication-entitlement.js";
+import { readLanqiWalletBalance } from "../services/lanqi-wallet.js";
 
 export type ReplicationRoutePorts = {
   context?(headers: Record<string, unknown>): Promise<RequestContext>;
@@ -70,9 +71,11 @@ export async function registerViralVideoReplicationRoutes(app: FastifyInstance, 
     if (!ports.runtime) gaps.push("controlled_execution_not_enabled");
     // 积分不足要在报价阶段就说清（此前只在确认时 402，用户看不出下一步该干什么）。
     if (admission) {
+      // LQ-34 ③：报价阶段「够不够这一次」必须和扣费同源 —— 读**租户 owner 的通用钱包余额**
+      // （兰琪充值的钱就进这本账）。找不到 owner 也按"不够"处理：不放行、不建任务、不扣费。
       const balance = ports.creditBalance
         ? await ports.creditBalance(c.tenantId)
-        : (await prisma.creditAccount.findUnique({ where: { tenantId: c.tenantId }, select: { balance: true } }))?.balance ?? null;
+        : (await readLanqiWalletBalance(c.tenantId))?.balance ?? null;
       if (balance === null || balance < admission.creditCost) gaps.push("insufficient_credits");
     }
     return { c, input, admission, gaps: [...new Set(gaps)] };

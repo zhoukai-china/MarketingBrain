@@ -15,6 +15,7 @@ import { createReplicationAssetStore } from "../apps/api/src/services/viral-vide
 import { registerViralVideoReplicationRoutes } from "../apps/api/src/routes/viral-video-replication.ts";
 import { replicationSchema } from "../apps/api/src/services/viral-video-replication.ts";
 import { replicationMemoryDb } from "./fixtures/replication-test-db.ts";
+import { readLanqiWalletBalance } from "../apps/api/src/services/lanqi-wallet.ts";
 
 async function main(){
 assert.equal(existsSync("apps/api/src/services/beauty-video-asset-authorization.ts"), true, "BY46 missing server-persisted file/store authorization admission");
@@ -33,7 +34,10 @@ if(process.env.BY45_DB_URL){const u=new URL(process.env.BY45_DB_URL);assert.equa
 }
 try{for(let round=0;round<3;round++){
   const db=dbClient??replicationMemoryDb(),suffix=randomUUID(),actor={tenantId:`by46-${suffix}`,userId:`by46-user-${suffix}`},storeId=`by46-store-${suffix}`;let now=Date.now()+10;
-  await db.tenant.create({data:{id:actor.tenantId,name:"Synthetic",type:"local_business"}});await db.user.create({data:{id:actor.userId,nickname:"Synthetic"}});await db.store.create({data:{id:storeId,tenantId:actor.tenantId,name:"Synthetic"}});await db.membership.create({data:{tenantId:actor.tenantId,userId:actor.userId,storeId,role:"owner",isActive:true}});await db.tenantProductEntitlement.create({data:{tenantId:actor.tenantId,productCode:"beauty-industry",status:"active",source:"synthetic",startsAt:new Date(now-1000),expiresAt:null}});await db.creditAccount.create({data:{tenantId:actor.tenantId,balance:1000}});
+  await db.tenant.create({data:{id:actor.tenantId,name:"Synthetic",type:"local_business"}});await db.user.create({data:{id:actor.userId,nickname:"Synthetic"}});await db.store.create({data:{id:storeId,tenantId:actor.tenantId,name:"Synthetic"}});await db.membership.create({data:{tenantId:actor.tenantId,userId:actor.userId,storeId,role:"owner",isActive:true}});await db.tenantProductEntitlement.create({data:{tenantId:actor.tenantId,productCode:"beauty-industry",status:"active",source:"synthetic",startsAt:new Date(now-1000),expiresAt:null}});
+  // LQ-34 ③⑤：付费主体 = 租户 **owner 的通用钱包**（不再是租户积分账户 / CreditReservation）。
+  await db.wallet.create({data:{userId:actor.userId,paidBalance:1000,bonusBalance:0}});
+  const walletBalance=async()=>(await readLanqiWalletBalance(actor.tenantId,db))!.balance;
   const auth=createVideoAssetAuthorization(db,read,()=>now);
   async function file(bytes:Buffer,mimeType:string){const id=randomUUID(),tenantDir=path.join(upload,actor.tenantId);await mkdir(tenantDir,{recursive:true});const storagePath=path.join(tenantDir,id);await writeFile(storagePath,bytes,{flag:"wx"});return db.uploadedFile.create({data:{id,...actor,filename:"synthetic",mimeType,byteSize:bytes.length,storagePath,sha256:videoFileHash(bytes)}});}
   const ref=await file(video,"video/mp4"),photo=await file(portrait,"image/png"),basis=await file(Buffer.from("Synthetic rights declaration; not evidence of legal authenticity."),"text/plain");
@@ -66,7 +70,7 @@ try{for(let round=0;round<3;round++){
   const assets=createReplicationAssetStore({root:path.join(dir,`results-${round}`),allowedResultHosts:["fixture.oss-cn-beijing.aliyuncs.com"],fetch:async()=>new Response(video,{headers:{"content-type":"video/mp4"}})});
   let submitCalls=0;const execution={access:"local_only" as const,submit:async(s:any)=>{submitCalls++;for(const url of [s.referenceVideoUrl,s.portraitImageUrl]){assert.equal(new URL(url).origin,origin);localRequests++;const response=await localFetch(url,{redirect:"error",signal:AbortSignal.timeout(5000)});assert.equal(response.status,200);await response.arrayBuffer();}return `local-task-${suffix}-${submitCalls}`;},poll:async()=>({status:"SUCCEEDED",videoUrl:"https://fixture.oss-cn-beijing.aliyuncs.com/result.mp4",seconds:2}),persist:assets.persist,read:assets.read};
   const integration=createVideoMaterialIntegration({db,authorization:auth,driver,execution,policy,now:()=>now});staging=integration.staging!;
-  const app=Fastify({logger:false});await registerViralVideoReplicationRoutes(app,{...integration,context:async headers=>({...actor,tenantId:headers["x-test-other"]?"other":actor.tenantId,source:"database"} as any),entitled:async()=>true,creditBalance:async(t:string)=>(await db.creditAccount.findUnique({where:{tenantId:t}}))?.balance??null});
+  const app=Fastify({logger:false});await registerViralVideoReplicationRoutes(app,{...integration,context:async headers=>({...actor,tenantId:headers["x-test-other"]?"other":actor.tenantId,source:"database"} as any),entitled:async()=>true,creditBalance:async(t:string)=>(await readLanqiWalletBalance(t,db))?.balance??null});
   try{
     const declaredOverHttp=await app.inject({method:"POST",url:"/viral-video-replication/material-authorizations",payload:declareRef});assert.equal(declaredOverHttp.statusCode,201);assert.equal(declaredOverHttp.json().authorization.id,declared[0].id);
     assert.equal((await app.inject({method:"POST",url:"/viral-video-replication/material-authorizations",payload:{...declareRef,storeId:"forged"}})).statusCode,400);
@@ -75,7 +79,7 @@ try{for(let round=0;round<3;round++){
     const confirmed=await app.inject({method:"POST",url:"/viral-video-replication/confirm",payload:input});assert.equal(confirmed.statusCode,202);const id=confirmed.json().job.id;assert.equal(submitCalls,1);
     const j=(await integration.repository.get(id,actor.tenantId))!;const lease=await db.beautyVideoStagingLease.findUnique({where:{id:j.authorizationSnapshot.stagingLeaseId}});assert.equal(lease.status,"active");const o=lease.objects[0],url=await driver.url(o);
     localRequests++;assert.equal((await localFetch(url.replace(/sig=./,"sig=x"),{redirect:"error"})).status,404);
-    const done=await app.inject({method:"POST",url:`/viral-video-replication/jobs/${id}/refresh`,payload:{}});assert.equal(done.statusCode,200);assert.equal(done.json().job.status,"succeeded");assert.equal((await db.creditAccount.findUnique({where:{tenantId:actor.tenantId}})).balance,900);
+    const done=await app.inject({method:"POST",url:`/viral-video-replication/jobs/${id}/refresh`,payload:{}});assert.equal(done.statusCode,200);assert.equal(done.json().job.status,"succeeded");assert.equal(await walletBalance(),900);
     assert.equal((await db.beautyVideoStagingLease.findUnique({where:{id:lease.id}})).status,"released");localRequests++;assert.equal((await localFetch(url,{redirect:"error"})).status,404);
     const repeat=await app.inject({method:"POST",url:"/viral-video-replication/confirm",payload:input});assert.equal(repeat.json().idempotent,true);assert.equal(submitCalls,1);
     const download=await app.inject({method:"GET",url:`/viral-video-replication/jobs/${id}/content`});assert.equal(videoFileHash(download.rawPayload),videoFileHash(video));assert.equal((await app.inject({method:"GET",url:`/viral-video-replication/jobs/${id}/content`,headers:{"x-test-other":"true"}})).statusCode,404);
@@ -92,17 +96,18 @@ try{for(let round=0;round<3;round++){
     await assert.rejects(()=>brokenCleanup.release(cleanLease.id),/staging_cleanup_failed/);assert.equal((await db.beautyVideoStagingLease.findUnique({where:{id:cleanLease.id}})).status,"cleanup_failed");localRequests++;assert.equal((await localFetch(cleanUrl,{redirect:"error"})).status,404);await staging.sweep();assert.equal((await db.beautyVideoStagingLease.findUnique({where:{id:cleanLease.id}})).status,"released");
     // Revoke after a reservation is claimed, but before submit. No external call, one full release.
     const originalClaim=integration.repository.claim;let revoked=false;integration.repository.claim=async(...args:any[])=>{const result=await (originalClaim as any)(...args);if(result&&!revoked){revoked=true;await auth.revoke(actor,declaredPhoto.id);}return result;};
-    const failed=await integration.runtime!.confirm((await integration.admission(actor as any,input))!,{...input,requestKey:randomUUID()});assert.equal(failed.job.status,"failed");assert.equal(failed.job.billingStatus,"refunded");assert.equal(submitCalls,1);assert.equal((await db.creditAccount.findUnique({where:{tenantId:actor.tenantId}})).balance,900);
+    const failed=await integration.runtime!.confirm((await integration.admission(actor as any,input))!,{...input,requestKey:randomUUID()});assert.equal(failed.job.status,"failed");assert.equal(failed.job.billingStatus,"refunded");assert.equal(submitCalls,1);assert.equal(await walletBalance(),900);
     const repeatRevoke=await auth.revoke(actor,declaredPhoto.id);assert.equal(repeatRevoke.version,2);assert.equal(await db.auditLog.count({where:{tenantId:actor.tenantId,action:"beauty_video.revoke"}}),1);
     // Persisted in-flight fixture models a worker that sent before revocation; no additional submit.
     const pending=await integration.repository.create(admission,{...input,requestKey:randomUUID()},now);await integration.repository.update(pending.job,{status:"submitted",providerTaskId:`historical-local-${suffix}`});
     assert.equal((await app.inject({method:"POST",url:`/viral-video-replication/material-authorizations/${declaredPhoto.id}/revoke`,payload:{}})).json().authorization.version,2);
-    assert.equal((await integration.repository.get(pending.job.id,actor.tenantId))!.status,"terminal_unknown");assert.equal((await db.creditAccount.findUnique({where:{tenantId:actor.tenantId}})).balance,900);
+    assert.equal((await integration.repository.get(pending.job.id,actor.tenantId))!.status,"terminal_unknown");assert.equal(await walletBalance(),900);
     assert.equal((await app.inject({method:"POST",url:"/viral-video-replication/confirm",payload:{...input,requestKey:randomUUID()}})).statusCode,422);
     assert.equal((await app.inject({method:"GET",url:`/viral-video-replication/jobs/${id}/content`})).statusCode,422);
     const revokedHistory=await app.inject({method:"GET",url:"/viral-video-replication/jobs"});assert.equal(revokedHistory.statusCode,200);assert.deepEqual(revokedHistory.json().jobs,[]);
     const audit=await db.auditLog.findMany({where:{tenantId:actor.tenantId}});for(const event of audit){assert.ok(!event.detail.includes("sig=")&&!event.detail.includes(upload)&&!event.detail.includes("Synthetic rights"));}
-    assert.equal(await db.creditReservation.count({where:{tenantId:actor.tenantId,status:"released"}}),2);assert.equal(await db.creditReservation.count({where:{tenantId:actor.tenantId,status:"settled"}}),1);
+    // 预留-结算改由 job.billingStatus 承担：两次失败已按原桶退回（2 条 refund 流水），一次成功留在 charged。
+    assert.equal(await db.walletLedger.count({where:{userId:actor.userId,type:"refund"}}),2);assert.equal(await db.viralVideoReplicationJob.count({where:{tenantId:actor.tenantId,billingStatus:"charged"}}),1);
   }finally{await app.close();await server.close();}
 }
 if(dbClient){const before=await dbClient.beautyVideoAssetAuthorization.count();assert.ok(before>0);await dbClient.$transaction(async(tx:any)=>{await tx.$executeRawUnsafe('ALTER TABLE "BeautyVideoStagingLease" RENAME TO "BeautyVideoStagingLease_by46_rollback"');await tx.$executeRawUnsafe('ALTER TABLE "BeautyVideoAssetAuthorization" RENAME TO "BeautyVideoAssetAuthorization_by46_rollback"');const records=await tx.$queryRawUnsafe('SELECT count(*)::int AS count FROM "BeautyVideoAssetAuthorization_by46_rollback"');assert.equal(records[0].count,before);await tx.$executeRawUnsafe('ALTER TABLE "BeautyVideoAssetAuthorization_by46_rollback" RENAME TO "BeautyVideoAssetAuthorization"');await tx.$executeRawUnsafe('ALTER TABLE "BeautyVideoStagingLease_by46_rollback" RENAME TO "BeautyVideoStagingLease"');});assert.equal(await dbClient.beautyVideoAssetAuthorization.count(),before);}

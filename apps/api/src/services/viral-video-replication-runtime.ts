@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { chargeLanqiWallet, refundLanqiWallet } from "./lanqi-wallet.js";
 import { REPLICATION_CONTRACT, REPLICATION_MODEL, ReplicationProviderError, validateDirectAssetUrl, validateReplicationAdmission, type ReplicationAdmission, type ReplicationRequest } from "./viral-video-replication.js";
 
 const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -28,6 +29,20 @@ export function createReplicationRepository(db: any) {
     async create(a: ReplicationAdmission, input: ReplicationRequest, now: number): Promise<{ job: ReplicationJob; created: boolean }> {
       if (!input.requestKey) throw new ReplicationError("idempotency_key_required", 400);
       const fingerprint = requestFingerprint(a,input);
+      // LQ-34 ③：扣费主体 = **租户 owner 的通用钱包**（不再读写 creditAccount / CreditReservation）。
+      // 两阶段：① 事务外扣费（幂等键 = 本次 requestKey）；② 事务内只建 job；③ 事务失败按同一 requestKey 原桶退回。
+      // 扣费必须在事务外：`consumeWalletCredits` / `refundWalletCredits` 各自开事务，嵌进来就是两层事务。
+      // 先看 job 是否已存在：重放（并发/重复点击）不重复扣费，也不会被"已退款"拦截误伤。
+      const existing = await db.viralVideoReplicationJob.findFirst({ where: { tenantId: a.tenantId, requestKey: input.requestKey } });
+      if (existing) {
+        if (existing.authorizationSnapshot?.fingerprint !== fingerprint || existing.userId !== a.userId) throw new ReplicationError("idempotency_conflict");
+        return { job: existing, created: false };
+      }
+      const charge = await chargeLanqiWallet({ tenantId: a.tenantId, operatorUserId: a.userId, requestId: input.requestKey, credits: a.creditCost, skillId: "lanqi_video_replication", db });
+      if (charge.status === "owner_missing") throw new ReplicationError("lanqi_wallet_owner_missing", 409);
+      if (charge.status === "insufficient") throw new ReplicationError("insufficient_credits", 402);
+      // 同键此前已退款：不能再放行（否则会因为钱包同键幂等而白送一次付费执行）。
+      if (charge.status === "refunded") throw new ReplicationError("request_already_refunded", 409);
       try {
         return await transaction(async tx => {
           const old = await tx.viralVideoReplicationJob.findFirst({ where: { tenantId: a.tenantId, requestKey: input.requestKey } });
@@ -35,23 +50,20 @@ export function createReplicationRepository(db: any) {
             if (old.authorizationSnapshot?.fingerprint !== fingerprint || old.userId !== a.userId) throw new ReplicationError("idempotency_conflict");
             return { job: old, created: false };
           }
-          const account = await tx.creditAccount.findUnique({ where: { tenantId: a.tenantId } });
-          if (!account) throw new ReplicationError("insufficient_credits", 402);
-          const claimed = await tx.creditAccount.updateMany({ where: { id: account.id, balance: { gte: a.creditCost } }, data: { balance: { decrement: a.creditCost } } });
-          if (claimed.count !== 1) throw new ReplicationError("insufficient_credits", 402);
-          const reservation = await tx.creditReservation.create({ data: { creditAccountId: account.id, tenantId: a.tenantId, userId: a.userId, productCode: "beauty-industry", operatingEntityId: a.storeId, channel: "web", requestId: `video:${digest([a.tenantId, input.requestKey])}`, requestFingerprint: fingerprint, amount: a.creditCost, expiresAt: new Date(now + 24*60*60_000) } });
-          const snapshot = { contractVersion: REPLICATION_CONTRACT, fingerprint, storeId: a.storeId, template: input.template, mode: input.mode, request: input, reservationId: reservation.id, reference: a.reference, portrait: a.portrait, ...(a.stagingLeaseId?{stagingLeaseId:a.stagingLeaseId}:{}), ...(a.executionPermitId?{executionPermitId:a.executionPermitId}:{}), maxCostFen: a.maxCostFen, maxOutputSeconds: a.maxOutputSeconds, pollCount: 0, nextPollAt: now, deadline: now + 24*60*60_000 };
+          // 预留-结算的角色由 job.billingStatus 承担：reserved → charged（成功）/ refund_processing → refunded（失败已退）。
+          const snapshot = { contractVersion: REPLICATION_CONTRACT, fingerprint, storeId: a.storeId, template: input.template, mode: input.mode, request: input, reference: a.reference, portrait: a.portrait, ...(a.stagingLeaseId?{stagingLeaseId:a.stagingLeaseId}:{}), ...(a.executionPermitId?{executionPermitId:a.executionPermitId}:{}), maxCostFen: a.maxCostFen, maxOutputSeconds: a.maxOutputSeconds, pollCount: 0, nextPollAt: now, deadline: now + 24*60*60_000 };
           const job = await tx.viralVideoReplicationJob.create({ data: { tenantId: a.tenantId, userId: a.userId, requestKey: input.requestKey, model: REPLICATION_MODEL, creditCost: a.creditCost, referenceFileId: input.referenceFileId, portraitFileId: input.portraitFileId, authorizationSnapshot: snapshot, status: "queued", billingStatus: "reserved" } });
-          await tx.creditTransaction.create({ data: { creditAccountId: account.id, tenantId: a.tenantId, userId: a.userId, direction: "consume", amount: a.creditCost, reason: "reservation:beauty-industry:video_replication", refType: "credit_reservation", refId: reservation.id, productCode: "beauty-industry", operatingEntityId: a.storeId, channel: "web", capabilityId: "video_replication", provider: "aliyun_bailian" } });
           return { job, created: true };
         });
       } catch (error) {
         // A losing concurrent transaction may replay an already committed job, never submit again.
-        if (["P2002", "P2034"].includes((error as any)?.code)) {
-          const old = await db.viralVideoReplicationJob.findFirst({ where: { tenantId: a.tenantId, requestKey: input.requestKey } });
-          if (old?.authorizationSnapshot?.fingerprint === fingerprint && old.userId === a.userId) return { job: old, created: false };
-          throw new ReplicationError("concurrent_request_conflict");
-        }
+        const old = await db.viralVideoReplicationJob.findFirst({ where: { tenantId: a.tenantId, requestKey: input.requestKey } });
+        if (old?.authorizationSnapshot?.fingerprint === fingerprint && old.userId === a.userId) return { job: old, created: false };
+        if (old) throw new ReplicationError("idempotency_conflict");
+        // 钱扣了但任务没落地：按同一 requestKey **原桶退回**（钱包侧同键只退一次）；
+        // 这条 requestKey 随后会被 `chargeLanqiWallet` 判为已退款而拒绝重放，必须换新的 requestId 才能再来一次。
+        await refundLanqiWallet({ tenantId: a.tenantId, requestId: input.requestKey, skillId: "lanqi_video_replication", reason: "replication_create_failed", db });
+        if (["P2002", "P2034"].includes((error as any)?.code)) throw new ReplicationError("concurrent_request_conflict");
         throw error;
       }
     },
@@ -66,23 +78,28 @@ export function createReplicationRepository(db: any) {
       if (changed.count !== 1) throw new ReplicationError("job_lease_lost");
     },
     async finish(job: ReplicationJob, status: "succeeded" | "failed" | "terminal_unknown" | "canceled", code?: string, artifact?: ReplicationArtifact, providerCostFen?: number): Promise<void> {
-      await transaction(async tx => {
+      // LQ-34 ③ 两阶段结算：事务内只推进状态（成功 → charged；失败 → refund_processing），
+      // 退出事务后再按**原扣费流水原桶退回**（钱包侧同一 requestId 只退一次），最后置 refunded。
+      // 「退到一半崩了」时 job 停在 refund_processing，下一次 finish 只把退款补完 —— 可重试收敛，且绝不会退两次。
+      const pending = await transaction(async tx => {
         const current = await tx.viralVideoReplicationJob.findUnique({ where: { id: job.id } });
-        if (!current || terminal.has(current.status) || current.billingStatus !== "reserved") return;
+        if (!current) return null;
+        if (current.billingStatus === "refund_processing") return { tenantId: current.tenantId, requestKey: current.requestKey, reason: current.errorCode ?? code ?? current.status, refund: true };
+        // 终态或已结算：不回退、不覆盖（晚到的回调/worker 不能改写已经成功的账）。
+        if (terminal.has(current.status) || current.billingStatus !== "reserved") return null;
         // Completion belongs to the lease holder. Late callbacks/workers cannot overwrite/refund a success.
         if (current.status !== job.status || +current.updatedAt !== +job.updatedAt) throw new ReplicationError("job_lease_lost");
         const success = status === "succeeded";
         if (success && (!artifact || !/^[a-f0-9]{64}$/.test(artifact.sha256) || artifact.codec !== "h264")) throw new ReplicationError("artifact_verification_required");
-        const reservationId = current.authorizationSnapshot.reservationId;
-        const reservation = await tx.creditReservation.findUnique({ where: { id: reservationId } });
-        if (!reservation || reservation.tenantId !== current.tenantId || reservation.status !== "reserved") throw new ReplicationError("reservation_state_conflict");
-        const claimed = await tx.creditReservation.updateMany({ where: { id: reservationId, status: "reserved" }, data: { status: success ? "settled" : "released", actualAmount: success ? current.creditCost : 0, errorCode: code } });
-        if (claimed.count !== 1) throw new ReplicationError("reservation_state_conflict");
-        if (!success) {
-          await tx.creditAccount.update({ where: { id: reservation.creditAccountId }, data: { balance: { increment: reservation.amount } } });
-          await tx.creditTransaction.create({ data: { creditAccountId: reservation.creditAccountId, tenantId: current.tenantId, userId: current.userId, direction: "refund", amount: reservation.amount, reason: `reservation_release:${code ?? status}`, refType: "credit_reservation", refId: reservationId, productCode: "beauty-industry", operatingEntityId: current.authorizationSnapshot.storeId, channel: "web" } });
-        }
-        await tx.viralVideoReplicationJob.update({ where: { id: job.id }, data: { status, billingStatus: success ? "charged" : "refunded", errorCode: code ?? null, outputVideoUrl: null, completedAt: new Date(), authorizationSnapshot: { ...current.authorizationSnapshot, ...(artifact ? { artifact } : {}), ...(providerCostFen !== undefined ? { providerCostFen } : {}), providerRefundClaimed: false } } });
+        await tx.viralVideoReplicationJob.update({ where: { id: job.id }, data: { status, billingStatus: success ? "charged" : "refund_processing", errorCode: code ?? null, outputVideoUrl: null, completedAt: new Date(), authorizationSnapshot: { ...current.authorizationSnapshot, ...(artifact ? { artifact } : {}), ...(providerCostFen !== undefined ? { providerCostFen } : {}), providerRefundClaimed: false } } });
+        return { tenantId: current.tenantId, requestKey: current.requestKey, reason: code ?? status, refund: !success };
+      });
+      if (!pending?.refund) return;
+      const refund = await refundLanqiWallet({ tenantId: pending.tenantId, requestId: pending.requestKey, skillId: "lanqi_video_replication", reason: pending.reason, db });
+      // 找不到可退的主体（owner 缺失）时保留 refund_processing：不要假装已经退过，留待人工/后续重试。
+      if (refund.status === "owner_missing") throw new ReplicationError("lanqi_wallet_owner_missing", 409);
+      await transaction(async tx => {
+        await tx.viralVideoReplicationJob.updateMany({ where: { id: job.id, billingStatus: "refund_processing" }, data: { billingStatus: "refunded" } });
       });
     }
   };

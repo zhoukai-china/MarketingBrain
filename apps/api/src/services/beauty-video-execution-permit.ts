@@ -1,6 +1,7 @@
 import { createHash,createHmac,randomUUID,timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { createBeautyUsageMeter,usageHash,type UsageMeasure } from "./beauty-usage-metering.js";
+import { readLanqiWalletBalance } from "./lanqi-wallet.js";
 import { ReplicationError,type ReplicationJob } from "./viral-video-replication-runtime.js";
 import { REPLICATION_CONTRACT,REPLICATION_MODEL,type ReplicationAdmission,type ReplicationRequest } from "./viral-video-replication.js";
 import { findVideoReplicationEntitlement } from "./video-replication-entitlement.js";
@@ -150,10 +151,14 @@ export function createVideoExecutionPermits(db:any,options:{authorityKey:string;
     },
     async claim(a:ReplicationAdmission,input:ReplicationRequest){
       const {row,s}=await rowFor(a,input);live(row,s);
+      // LQ-34 ⑤：许可预算校验必须和扣费同源——读**owner 通用钱包余额**，
+      // 否则会出现"许可说预算够、扣费说没钱"。读余额放在原子块之外：
+      // `readLanqiWalletBalance` 自己会开事务，嵌进 Serializable 事务里等于两层事务。
+      // 找不到 owner（没有可扣费的老板账号）→ 失败关闭，直接 402，不放行、不调模型。
+      const wallet=await readLanqiWalletBalance(a.tenantId,db);
+      if(!wallet||wallet.balance<a.creditCost)reject("insufficient_credits",402);
       await atomic(async tx=>{
         const current=await tx.beautyVideoExecutionPermit.findUnique({where:{id:row.id}});const scope=verified(current);live(current,scope);await currentAccess(tx,scope);
-        const credits=await tx.creditAccount.findUnique({where:{tenantId:a.tenantId}});
-        if(!credits||credits.balance<a.creditCost)reject("insufficient_credits",402);
         // Claim once before any cloud PUT. A crash before job creation is a stopped batch, not a replay ticket.
         const result=await tx.beautyVideoExecutionPermit.updateMany({where:{id:row.id,status:"approved",revokedAt:null,submitCount:0,storageCount:0,committedCostFen:0},
           data:{status:"claimed",claimedAt:new Date(now()),committedCostFen:scope.maxCostFen,lastCode:"batch_claimed"}});

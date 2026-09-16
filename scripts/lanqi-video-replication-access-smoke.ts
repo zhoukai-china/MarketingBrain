@@ -26,6 +26,7 @@ import { registerViralVideoReplicationRoutes } from "../apps/api/src/routes/vira
 import { replicationSchema, REPLICATION_MODEL } from "../apps/api/src/services/viral-video-replication.ts";
 import { replicationMemoryDb } from "./fixtures/replication-test-db.ts";
 import { findVideoReplicationEntitlement } from "../apps/api/src/services/video-replication-entitlement.ts";
+import { readLanqiWalletBalance } from "../apps/api/src/services/lanqi-wallet.ts";
 
 const hash = (b: Buffer | string) => createHash("sha256").update(b).digest("hex");
 const authority = "offline-synthetic-authority-lq30-not-real-credentials";
@@ -81,7 +82,8 @@ async function scenario(options: {
   for (const productCode of options.products) {
     await db.tenantProductEntitlement.create({ data: { tenantId, productCode, status: "active", source: "synthetic", startsAt: new Date(Date.now() - 1000), expiresAt: null } });
   }
-  await db.creditAccount.create({ data: { tenantId, balance: options.credits } });
+  // LQ-34 ③⑤：兰琪侧余额与扣费同源 —— 租户 **owner 的通用钱包**（不再是租户积分账户）。
+  await db.wallet.create({ data: { userId, paidBalance: options.credits, bonusBalance: 0 } });
   const now = Date.now();
   const authorization = createVideoAssetAuthorization(db, createVideoPrivateFileReader(upload, path.join(root, "inspect")), () => now);
   // 合成素材：2 秒竖屏 mp4（ffmpeg 在 BY50 用例里已验证可用）。
@@ -143,7 +145,7 @@ async function scenario(options: {
     // 只是把它指向本用例的内存库（路由默认拿进程级 prisma；源码断言保证路由确实调用该查询）。
     context: async () => ({ tenantId, userId, source: "database" } as any),
     entitled: async (targetTenantId: string) => Boolean(await findVideoReplicationEntitlement(db, targetTenantId)),
-    creditBalance: async (targetTenantId: string) => (await db.creditAccount.findUnique({ where: { tenantId: targetTenantId } }))?.balance ?? null
+    creditBalance: async (targetTenantId: string) => (await readLanqiWalletBalance(targetTenantId, db))?.balance ?? null
   });
   return {
     db, tenantId, userId, storeId, videoFileId: reference.id, portraitFileId: photo.id, app, permits: integrated,

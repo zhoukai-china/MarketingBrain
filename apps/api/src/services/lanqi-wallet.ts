@@ -18,10 +18,19 @@ import {
   getOrCreateWallet,
   readWallet,
   refundWalletCredits,
+  type WalletDb,
   type WalletSnapshot
 } from "./sitong-wallet.js";
 
 export const LANQI_WALLET_VERSION = "lanqi_owner_wallet_v1" as const;
+
+/**
+ * 显式客户端（`db`）只给**离线回归**用：`scripts/fixtures/replication-test-db.ts` 的内存库
+ * 与真实 prisma 同形，离线用例把它一路传进来，就能在不发外部请求、不碰真实库的前提下
+ * 验证「扣的是 owner 钱包 / 原桶退回 / 同键只扣一次只退一次」。
+ * 生产路径一律不传，走进程级单例。
+ */
+type LanqiWalletDb = WalletDb;
 
 /** 幂等键统一加租户前缀：同一 owner 若服务多个门店，不同门店的同一 requestId 也不能撞键。 */
 export function lanqiWalletRequestId(tenantId: string, requestId: string): string {
@@ -40,14 +49,14 @@ export interface LanqiWalletOwner {
  * 找不到 owner（数据异常 / 只有 staff 成员）时**返回 undefined**，调用方必须 fail closed：
  * 宁可报「本店还没有可扣费的老板账号，请联系思潼服务团队」，也不能悄悄扣到别人头上或直接放行。
  */
-export async function resolveLanqiWalletOwner(tenantId: string): Promise<LanqiWalletOwner | undefined> {
-  const membership = await prisma.membership.findFirst({
+export async function resolveLanqiWalletOwner(tenantId: string, db: LanqiWalletDb = prisma): Promise<LanqiWalletOwner | undefined> {
+  const membership = await db.membership.findFirst({
     where: { tenantId, role: "owner", isActive: true },
     select: { userId: true },
     orderBy: { createdAt: "asc" }
   });
   if (!membership) return undefined;
-  const wallet = await getOrCreateWallet(membership.userId);
+  const wallet = await getOrCreateWallet(membership.userId, db);
   return {
     tenantId,
     ownerUserId: membership.userId,
@@ -65,8 +74,12 @@ export type LanqiWalletPrecheck =
   | { ok: false; code: "insufficient_credits"; message: string; balance: number; required: number };
 
 /** 前置余额校验：不足时不调模型、不扣费。 */
-export async function precheckLanqiWallet(params: { tenantId: string; credits: number }): Promise<LanqiWalletPrecheck> {
-  const owner = await resolveLanqiWalletOwner(params.tenantId);
+export async function precheckLanqiWallet(params: {
+  tenantId: string;
+  credits: number;
+  db?: LanqiWalletDb;
+}): Promise<LanqiWalletPrecheck> {
+  const owner = await resolveLanqiWalletOwner(params.tenantId, params.db ?? prisma);
   if (!owner) {
     return {
       ok: false,
@@ -96,6 +109,7 @@ export type LanqiWalletChargeResult =
       spent: { paid: number; bonus: number };
     }
   | { status: "owner_missing" }
+  | { status: "refunded"; ownerUserId: string }
   | { status: "insufficient"; ownerUserId: string; wallet: WalletSnapshot; required: number };
 
 /**
@@ -108,16 +122,29 @@ export async function chargeLanqiWallet(params: {
   requestId: string;
   credits: number;
   skillId: string;
+  db?: LanqiWalletDb;
 }): Promise<LanqiWalletChargeResult> {
-  const owner = await resolveLanqiWalletOwner(params.tenantId);
+  const db = params.db ?? prisma;
+  const owner = await resolveLanqiWalletOwner(params.tenantId, db);
   if (!owner) return { status: "owner_missing" };
   const operator = params.operatorUserId ? `operator=${params.operatorUserId}` : "operator=system";
+  const refRequestId = lanqiWalletRequestId(params.tenantId, params.requestId);
+  // 「同一 requestId 只退一次」的反面必须一起封住：**已经退过款的那个 requestId 不能再放行**。
+  // 因为钱包扣费本身是同键幂等的（看到已有 consume 流水就返回成功、`spent` 为 0），
+  // 如果退款之后允许同一个 requestId 再跑一次，这一次就会**不扣钱**把付费能力发出去（白送一次）。
+  // 所以这里 fail closed：调用方回「本次请求已退款，请重新发起」，重新发起会带新的 requestId、重新计费。
+  const refundedAlready = await db.walletLedger.findFirst({
+    where: { userId: owner.ownerUserId, refRequestId, type: "refund" },
+    select: { id: true }
+  });
+  if (refundedAlready) return { status: "refunded", ownerUserId: owner.ownerUserId };
   const consumed = await consumeWalletCredits({
     userId: owner.ownerUserId,
-    requestId: lanqiWalletRequestId(params.tenantId, params.requestId),
+    requestId: refRequestId,
     price: params.credits,
     skillId: params.skillId,
-    source: `lanqi:${operator}`
+    source: `lanqi:${operator}`,
+    db
   });
   if (consumed.status === "insufficient") {
     return { status: "insufficient", ownerUserId: owner.ownerUserId, wallet: consumed.wallet, required: params.credits };
@@ -146,12 +173,14 @@ export async function refundLanqiWallet(params: {
   requestId: string;
   skillId: string;
   reason?: string;
+  db?: LanqiWalletDb;
 }): Promise<LanqiWalletRefundResult> {
-  const owner = await resolveLanqiWalletOwner(params.tenantId);
+  const db = params.db ?? prisma;
+  const owner = await resolveLanqiWalletOwner(params.tenantId, db);
   if (!owner) return { status: "owner_missing" };
   const refRequestId = lanqiWalletRequestId(params.tenantId, params.requestId);
-  const wallet = await getOrCreateWallet(owner.ownerUserId);
-  const consumes = await prisma.walletLedger.findMany({
+  const wallet = await getOrCreateWallet(owner.ownerUserId, db);
+  const consumes = await db.walletLedger.findMany({
     where: { walletId: wallet.id, refRequestId, type: "consume" },
     select: { bucket: true, delta: true }
   });
@@ -168,7 +197,8 @@ export async function refundLanqiWallet(params: {
     breakdown,
     skillId: params.skillId,
     source: "lanqi",
-    reason: params.reason ?? "lanqi_refund"
+    reason: params.reason ?? "lanqi_refund",
+    db
   });
   return {
     status: "refunded",
@@ -181,11 +211,12 @@ export async function refundLanqiWallet(params: {
 
 /** 兰琪页面 / 报价接口读取的余额 = owner 钱包余额（与「我的 · 充值」一致）。 */
 export async function readLanqiWalletBalance(
-  tenantId: string
+  tenantId: string,
+  db: LanqiWalletDb = prisma
 ): Promise<{ ownerUserId: string; balance: number; paidBalance: number; bonusBalance: number } | undefined> {
-  const owner = await resolveLanqiWalletOwner(tenantId);
+  const owner = await resolveLanqiWalletOwner(tenantId, db);
   if (!owner) return undefined;
-  const wallet = await readWallet(owner.ownerUserId);
+  const wallet = await readWallet(owner.ownerUserId, db);
   return {
     ownerUserId: owner.ownerUserId,
     balance: wallet.balance,

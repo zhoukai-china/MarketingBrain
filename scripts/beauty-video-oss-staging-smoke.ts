@@ -10,6 +10,7 @@ import { createVideoMaterialIntegration } from "../apps/api/src/services/beauty-
 import { registerViralVideoReplicationRoutes } from "../apps/api/src/routes/viral-video-replication.ts";
 import { replicationSchema } from "../apps/api/src/services/viral-video-replication.ts";
 import { replicationMemoryDb } from "./fixtures/replication-test-db.ts";
+import { readLanqiWalletBalance } from "../apps/api/src/services/lanqi-wallet.ts";
 import type { StagedObject } from "../apps/api/src/services/beauty-video-private-staging.ts";
 
 assert.equal(existsSync("apps/api/src/services/beauty-video-oss-staging.ts"), true,
@@ -84,7 +85,10 @@ async function main(){
 
   // Actual production assembly + registered HTTP handlers, synthetic DB/file reader only.
   const db=replicationMemoryDb(),actor={tenantId:`synthetic-tenant-${round}`,userId:`synthetic-user-${round}`},storeId=`store-${round}`;
-  await db.store.create({data:{id:storeId,tenantId:actor.tenantId}});await db.membership.create({data:{...actor,storeId,role:"owner",isActive:true}});await db.tenantProductEntitlement.create({data:{tenantId:actor.tenantId,productCode:"beauty-industry",startsAt:new Date(now-1),status:"active",expiresAt:null}});await db.creditAccount.create({data:{tenantId:actor.tenantId,balance:1000}});
+  await db.store.create({data:{id:storeId,tenantId:actor.tenantId}});await db.membership.create({data:{...actor,storeId,role:"owner",isActive:true}});await db.tenantProductEntitlement.create({data:{tenantId:actor.tenantId,productCode:"beauty-industry",startsAt:new Date(now-1),status:"active",expiresAt:null}});
+  // LQ-34 ③⑤：扣费与余额校验同源 → 租户 **owner 的通用钱包**（不再是租户积分账户 / CreditReservation）。
+  await db.wallet.create({data:{userId:actor.userId,paidBalance:1000,bonusBalance:0}});
+  const walletBalance=async()=>(await readLanqiWalletBalance(actor.tenantId,db))!.balance;
   const files=new Map<string,Buffer>();
   for(const [id,b,mimeType] of [["ref",bytes,"video/mp4"],["photo",Buffer.from("synthetic-photo"),"image/png"],["basis",Buffer.from("synthetic-rights"),"text/plain"]] as const){files.set(id,b);await db.uploadedFile.create({data:{id,...actor,sha256:sha(b),mimeType,byteSize:b.length}});}
   const auth=createVideoAssetAuthorization(db,async(f:any,role)=>({bytes:files.get(f.id)!,sha256:sha(files.get(f.id)!),mimeType:f.mimeType,width:240,height:320,...(role==="reference"?{durationSeconds:2}:{})}),()=>now);
@@ -101,8 +105,8 @@ async function main(){
   const bad=configured({...environment,BEAUTY_VIDEO_OSS_BUCKET:"wrong"});await assert.rejects(()=>bad.admission(actor as any,input),/configuration_invalid/);assert.equal(ff.calls.length,0);
   const missingCredentials=configured({...environment,BEAUTY_VIDEO_OSS_SECURITY_TOKEN:""});await assert.rejects(()=>missingCredentials.admission(actor as any,input),/credentials_unavailable/);assert.equal(ff.calls.length,0);
   const noBudget=createConfiguredVideoMaterialIntegration({...base,policy:{...base.policy,maxCostFen:0},environment,offlineTransport:ff.transport,execution});
-  await assert.rejects(async()=>noBudget.runtime!.confirm((await noBudget.admission(actor as any,input))!,input),/budget_exceeded/);assert.equal(ff.calls.length,0);assert.equal(await db.creditReservation.count(),0);
-  const integrated=configured(),app=Fastify({logger:false});await registerViralVideoReplicationRoutes(app,{...integrated,context:async headers=>({...actor,...(headers["x-other-user"]?{userId:"other"}:{}),source:"database"} as any),entitled:async()=>true,creditBalance:async(t:string)=>(await db.creditAccount.findUnique({where:{tenantId:t}}))?.balance??null});
+  await assert.rejects(async()=>noBudget.runtime!.confirm((await noBudget.admission(actor as any,input))!,input),/budget_exceeded/);assert.equal(ff.calls.length,0);assert.equal(await db.walletLedger.count({where:{userId:actor.userId}}),0);
+  const integrated=configured(),app=Fastify({logger:false});await registerViralVideoReplicationRoutes(app,{...integrated,context:async headers=>({...actor,...(headers["x-other-user"]?{userId:"other"}:{}),source:"database"} as any),entitled:async()=>true,creditBalance:async(t:string)=>(await readLanqiWalletBalance(t,db))?.balance??null});
   try{
     const quote=await app.inject({method:"POST",url:"/viral-video-replication/quote",payload:input});assert.equal(quote.statusCode,200);assert.equal(quote.json().canConfirm,true);assert.equal(ff.calls.length,0);
     assert.equal((await app.inject({method:"POST",url:"/viral-video-replication/confirm",payload:{...input,tenantId:"injected"}})).statusCode,400);assert.equal(ff.calls.length,0);
@@ -131,9 +135,9 @@ async function main(){
     ff.set({failPut:ff.putCount()+2});await assert.rejects(()=>integrated.runtime!.confirm(a,{...input,requestKey:randomUUID()}),/oss_/);assert.equal(ff.objects.size,0);assert.equal(submissions,2);
     const staged=await integrated.staging!.stage(a,{...input,requestKey:randomUUID()});now+=901000;await assert.rejects(()=>staged.assertScope(),/unavailable/);await integrated.staging!.sweep();assert.equal(ff.objects.size,0);
     await integrated.staging!.stage(a,{...input,requestKey:randomUUID()});assert.equal(ff.objects.size,2);
-    await integrated.authorization.revoke(actor,refAuth.id);assert.equal(ff.objects.size,0,"BY49 revoke must clean active lease even before a job exists");assert.equal((await integrated.repository.get(id,actor.tenantId))!.status,"terminal_unknown");assert.equal((await db.creditAccount.findUnique({where:{tenantId:actor.tenantId}})).balance,1000);assert.equal(await db.creditReservation.count(),2);
+    await integrated.authorization.revoke(actor,refAuth.id);assert.equal(ff.objects.size,0,"BY49 revoke must clean active lease even before a job exists");assert.equal((await integrated.repository.get(id,actor.tenantId))!.status,"terminal_unknown");assert.equal(await walletBalance(),1000);assert.equal(await db.walletLedger.count({where:{userId:actor.userId,type:"refund"}}),2);
     await assert.rejects(()=>integrated.admission(actor as any,{...input,requestKey:randomUUID()}),/authorization_required/);
-    assert.equal(await db.creditReservation.count({where:{status:"released"}}),2);
+    assert.equal(await db.walletLedger.count({where:{userId:actor.userId,type:"refund"}}),2,"两次失败都按原桶退回，且同键只退一次");
     const exposed=JSON.stringify([...audit,...await db.auditLog.findMany()]);
     for(const word of["SYNTHETICACCESSKEY49","SYNTHETIC_STS","SYNTHETIC_SECRET","x-oss-signature","private raw response","SYNTHETIC_RAW_RESPONSE"])assert.ok(!exposed.includes(word),`审计不得出现上游原始内容：${word}`);
     // 2026-09-15 回归：LQ-27 起审计要记底层错误，但**只能记类名/错误码 + 消息指纹**，

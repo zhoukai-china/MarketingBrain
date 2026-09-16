@@ -10,6 +10,7 @@ import { createReplicationRepository, createReplicationRuntime, ReplicationError
 import { createReplicationAssetStore } from "../apps/api/src/services/viral-video-replication-assets.ts";
 import { registerViralVideoReplicationRoutes } from "../apps/api/src/routes/viral-video-replication.ts";
 import { replicationMemoryDb } from "./fixtures/replication-test-db.ts";
+import { readLanqiWalletBalance } from "../apps/api/src/services/lanqi-wallet.ts";
 
 async function main() {
 const request = buildAliyunReplicationRequest({ referenceVideoUrl: "https://assets.example.test/ref.mp4", portraitImageUrl: "https://assets.example.test/portrait.png" });
@@ -83,16 +84,19 @@ for (let round=0;round<3;round++) {
   const db = realDb ?? replicationMemoryDb();
   const a = structuredClone(base), suffix=randomUUID(); a.tenantId = `by45-${suffix}`; a.userId = `by45-user-${suffix}`; a.reference.tenantId=a.tenantId; a.portrait.tenantId=a.tenantId;
   if(realDb) { await db.tenant.create({data:{id:a.tenantId,name:"Synthetic video fixture",type:"local_business"}}); await db.user.create({data:{id:a.userId,nickname:"Synthetic"}}); }
-  await db.creditAccount.create({data:{tenantId:a.tenantId,balance:1000}});
+  // LQ-34 ③④⑤：付费主体 = 租户 owner 的**通用钱包**（不再建租户积分账户 / CreditReservation）。
+  await db.membership.create({data:{tenantId:a.tenantId,userId:a.userId,role:"owner",isActive:true}});
+  await db.wallet.create({data:{userId:a.userId,paidBalance:1000,bonusBalance:0}});
+  const walletBalance = async () => (await readLanqiWalletBalance(a.tenantId, db))!.balance;
   const repo = createReplicationRepository(db);
   let rejectedStagingReleased = false;
   const invalidStagingRuntime = createReplicationRuntime({repository:repo,stage:async()=>({referenceVideoUrl:"http://127.0.0.1/ref.mp4",portraitImageUrl:"https://assets.example.test/portrait.png",release:async()=>{rejectedStagingReleased=true;}}),submit:async()=>{throw new Error("unexpected_submit");},poll:async()=>{throw new Error("unexpected_poll");},persist:assets.persist,read:assets.read});
   await assert.rejects(()=>invalidStagingRuntime.confirm(a,input),/staged_asset_url_rejected/);
-  assert.equal(rejectedStagingReleased,true);assert.equal(await db.creditReservation.count({where:{tenantId:a.tenantId}}),0);
+  assert.equal(rejectedStagingReleased,true);assert.equal(await db.walletLedger.count({where:{userId:a.userId}}),0);
   let submit=0,poll=0,now=Date.now(),failed=false,unknown=false,persistFail=false,queryFail=false;
 const runtime = createReplicationRuntime({repository:repo,now:()=>now,stage:async()=>({referenceVideoUrl:"https://assets.example.test/ref.mp4",portraitImageUrl:"https://assets.example.test/portrait.png",release:async()=>{}}),submit:async()=>{submit++;if(unknown) throw new Error("SYNTHETIC_SECRET_MUST_NOT_LEAK"); return `task-${suffix}-${submit}`;},poll:async()=>{poll++;if(queryFail) { throw new ReplicationProviderError("provider_response_unknown",true); } return {status:failed?"FAILED":"SUCCEEDED",videoUrl:"https://fixture.oss-cn-beijing.aliyuncs.com/result.mp4",seconds:2};},persist:async(job,url)=>{if(persistFail)throw new Error("SYNTHETIC_PRIVATE_PATH");return assets.persist(job,url);},read:assets.read});
   const app=Fastify({logger:false});
-  await registerViralVideoReplicationRoutes(app,{repository:repo,runtime,context:async(headers)=>({tenantId:headers["x-test-tenant"]=== "other"?"other":a.tenantId,userId:a.userId,source:"database"} as any),entitled:async tenant=>tenant!=="denied",admission:async c=>c.tenantId===a.tenantId?a:null});
+  await registerViralVideoReplicationRoutes(app,{repository:repo,runtime,context:async(headers)=>({tenantId:headers["x-test-tenant"]=== "other"?"other":a.tenantId,userId:a.userId,source:"database"} as any),entitled:async tenant=>tenant!=="denied",admission:async c=>c.tenantId===a.tenantId?a:null,creditBalance:async(t:string)=>(await readLanqiWalletBalance(t,db as any))?.balance??null});
   const post=(url:string,payload:any=input)=>app.inject({method:"POST",url,payload});
   const confirmations=await Promise.all([post("/viral-video-replication/confirm"),post("/viral-video-replication/confirm")]);
   const ok=confirmations.find(r=>r.statusCode===202)!;assert.ok(ok);const id=ok.json().job.id;
@@ -101,7 +105,7 @@ const runtime = createReplicationRuntime({repository:repo,now:()=>now,stage:asyn
   assert.equal((await runtime.cancel(id,a).catch(e=>e)).code,"upstream_cancellation_not_supported");
   const results=await Promise.all([post(`/viral-video-replication/jobs/${id}/refresh`,{}),post(`/viral-video-replication/jobs/${id}/refresh`,{})]);
   const done=(await repo.get(id,a.tenantId))!;assert.equal(done.status,"succeeded");assert.equal(poll,1);
-  assert.equal((await db.creditAccount.findUnique({where:{tenantId:a.tenantId}})).balance,900);
+  assert.equal(await walletBalance(),900);
   assert.equal((await post(`/viral-video-replication/jobs/${id}/refresh`,{})).json().job.canDownload,true);
   const download=await app.inject({method:"GET",url:`/viral-video-replication/jobs/${id}/content`});assert.equal(download.statusCode,200);assert.deepEqual(download.rawPayload,videoBytes);
   assert.equal((await app.inject({method:"GET",url:`/viral-video-replication/jobs/${id}/content`,headers:{"x-test-tenant":"other"}})).statusCode,404);
@@ -116,7 +120,7 @@ const runtime = createReplicationRuntime({repository:repo,now:()=>now,stage:asyn
     const j=(await repo.get(made.job.id,a.tenantId))!;assert.equal(j.billingStatus,"refunded");assert.equal(j.status,unknown?"terminal_unknown":"failed");
     if(persistFail)assert.equal(j.authorizationSnapshot.providerCostFen,120);
     await Promise.all([repo.finish(j,"failed","repeat"),repo.finish(j,"failed","repeat")]);
-    assert.equal((await db.creditAccount.findUnique({where:{tenantId:a.tenantId}})).balance,900);
+    assert.equal(await walletBalance(),900);
     const before=submit;await runtime.confirm(a,{...input,requestKey});assert.equal(submit,before);
     await assert.rejects(()=>runtime.download(j.id,a),/asset_not_found/);
     assert.ok(!JSON.stringify(j).includes("SYNTHETIC_SECRET"));
@@ -125,8 +129,8 @@ const runtime = createReplicationRuntime({repository:repo,now:()=>now,stage:asyn
   const interrupted=await repo.create(a,{...input,requestKey:`interrupted-${suffix}`},now);await repo.claim(interrupted.job,"submitting",now);const before=submit;now+=61_000;
   await runtime.refresh(interrupted.job.id,a);assert.equal(submit,before);assert.equal((await repo.get(interrupted.job.id,a.tenantId))!.status,"terminal_unknown");
   const resumable=await runtime.confirm(a,{...input,requestKey:`poll-recover-${suffix}`});queryFail=true;await runtime.refresh(resumable.job.id,a);assert.equal((await repo.get(resumable.job.id,a.tenantId))!.status,"processing");queryFail=false;now+=15_001;await runtime.refresh(resumable.job.id,a);assert.equal((await repo.get(resumable.job.id,a.tenantId))!.status,"succeeded");
-  assert.equal((await db.creditAccount.findUnique({where:{tenantId:a.tenantId}})).balance,800);
-  assert.equal(await db.creditTransaction.count({where:{tenantId:a.tenantId,direction:"refund"}}),4);
+  assert.equal(await walletBalance(),800);
+  assert.equal(await db.walletLedger.count({where:{userId:a.userId,type:"refund"}}),4);
   assert.equal((await post("/viral-video-replication/confirm",{...input,brand:"forged"})).statusCode,400);
   await app.close();
   const blocked=Fastify({logger:false});await registerViralVideoReplicationRoutes(blocked,{context:async()=>({tenantId:a.tenantId,userId:a.userId,source:"database"} as any),entitled:async()=>true});

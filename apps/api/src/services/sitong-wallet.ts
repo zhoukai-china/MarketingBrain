@@ -6,6 +6,36 @@ export interface WalletSnapshot {
   balance: number;
 }
 
+/**
+ * 钱包读写用的 Prisma 客户端。
+ *
+ * 生产路径一律用进程级单例；显式传入只是为了**离线回归**（`scripts/fixtures/replication-test-db.ts`
+ * 的内存库）能在不发真实请求、不动真实库的前提下验证「扣费 / 退款 / 幂等 / 原桶退回」。
+ */
+export type WalletDb = Prisma.TransactionClient | typeof prisma;
+
+/**
+ * 在钱包事务里执行。
+ *
+ * `WalletDb` 允许传入「已经是事务的客户端」（`Prisma.TransactionClient` 上没有 `$transaction`），
+ * 这时直接在它上面执行，保持调用方原有的事务边界；只有拿到进程级单例（或同形的离线夹具）时
+ * 才新开一个事务。
+ */
+async function withWalletTransaction<T>(
+  db: WalletDb,
+  run: (tx: Prisma.TransactionClient) => Promise<T>,
+  options?: { isolationLevel?: Prisma.TransactionIsolationLevel }
+): Promise<T> {
+  const runner = db as {
+    $transaction?: (
+      fn: (tx: Prisma.TransactionClient) => Promise<T>,
+      options?: { isolationLevel?: Prisma.TransactionIsolationLevel }
+    ) => Promise<T>;
+  };
+  if (typeof runner.$transaction === "function") return runner.$transaction(run, options);
+  return run(db as Prisma.TransactionClient);
+}
+
 export interface RechargeApplyParams {
   userId: string;
   planId: string;
@@ -44,8 +74,8 @@ export async function getOrCreateWallet(
   });
 }
 
-export async function readWallet(userId: string): Promise<WalletSnapshot> {
-  const wallet = await getOrCreateWallet(userId);
+export async function readWallet(userId: string, db: WalletDb = prisma): Promise<WalletSnapshot> {
+  const wallet = await getOrCreateWallet(userId, db);
   return toSnapshot(wallet);
 }
 
@@ -250,15 +280,18 @@ export async function consumeWalletCredits(params: {
   priceVersion?: number;
   source?: string;
   accessTokenId?: string;
+  /** 显式客户端（离线回归用）；缺省 = 进程级 prisma 单例。 */
+  db?: WalletDb;
 }): Promise<WalletConsumeResult> {
   const amount = Math.max(0, Math.round(params.price));
   if (amount <= 0) {
     throw Object.assign(new Error("consume_amount_invalid"), { statusCode: 400 });
   }
   const source = params.source ?? "workbuddy";
+  const db = params.db ?? prisma;
 
   try {
-    return await prisma.$transaction(async (tx) => {
+    return await withWalletTransaction(db, async (tx) => {
       const wallet = await getOrCreateWallet(params.userId, tx);
 
       const existingConsume = await tx.walletLedger.findFirst({
@@ -385,12 +418,15 @@ export async function refundWalletCredits(params: {
   skillId?: string;
   source?: string;
   reason?: string;
+  /** 显式客户端（离线回归用）；缺省 = 进程级 prisma 单例。 */
+  db?: WalletDb;
 }): Promise<{ refunded: number; idempotent: boolean; wallet: WalletSnapshot }> {
   const paidRefund = Math.max(0, Math.round(params.breakdown.paid));
   const bonusRefund = Math.max(0, Math.round(params.breakdown.bonus));
   const source = params.source ?? "web";
   const reason = (params.reason ?? "reserve_settlement").slice(0, 60);
-  return await prisma.$transaction(async (tx) => {
+  const db = params.db ?? prisma;
+  return await withWalletTransaction(db, async (tx) => {
     const wallet = await getOrCreateWallet(params.userId, tx);
     const existing = await tx.walletLedger.findFirst({
       where: { walletId: wallet.id, refRequestId: params.requestId, type: "refund" },

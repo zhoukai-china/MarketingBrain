@@ -8,6 +8,7 @@ import { createReplicationRepository, ReplicationError } from "../apps/api/src/s
 import { registerViralVideoReplicationRoutes } from "../apps/api/src/routes/viral-video-replication.js";
 import { replicationSchema } from "../apps/api/src/services/viral-video-replication.js";
 import { videoFileHash } from "../apps/api/src/services/beauty-video-private-files.js";
+import { readLanqiWalletBalance } from "../apps/api/src/services/lanqi-wallet.js";
 
 // Checklist E audit only. Two handler instances, one synthetic transactional resource store.
 // No mobile OAuth claim, UI synchronization SLA, real file decoding or Provider is simulated as PASS.
@@ -25,10 +26,12 @@ async function main() {
       for (const id of [storeId, otherStore]) await db.store.create({ data: { id, tenantId: actor.tenantId, name: "Synthetic" } });
       for (const userId of [actor.userId, otherUser]) {
         await db.user.create({ data: { id: userId, nickname: "Synthetic" } });
-        await db.membership.create({ data: { tenantId: actor.tenantId, userId, storeId, role: "manager", isActive: true } });
+        // LQ-34：扣费主体是**租户 owner 的通用钱包**，所以合成门店必须有一位 owner（其余成员仍是 manager）。
+        await db.membership.create({ data: { tenantId: actor.tenantId, userId, storeId, role: userId === actor.userId ? "owner" : "manager", isActive: true } });
       }
       await db.tenantProductEntitlement.create({ data: { tenantId: actor.tenantId, productCode: "beauty-industry", status: "active", startsAt: new Date(now - 1000), expiresAt: null } });
-      await db.creditAccount.create({ data: { tenantId: actor.tenantId, balance: 1000 } });
+      await db.wallet.create({ data: { userId: actor.userId, paidBalance: 1000, bonusBalance: 0 } });
+      const walletBalance = async () => (await readLanqiWalletBalance(actor.tenantId, db))!.balance;
       const materials = new Map<string, Buffer>();
       async function file(label: string, mimeType: string) {
         const id = randomUUID(), bytes = Buffer.from(label); materials.set(id, bytes);
@@ -48,7 +51,8 @@ async function main() {
           context: async headers => {
             if (!headers["x-synthetic-session"]) throw new ReplicationError("unauthorized", 401);
             return { ...actor, userId: headers["x-synthetic-other-user"] ? otherUser : actor.userId, tenantId: headers["x-synthetic-other-tenant"] ? "synthetic-other" : actor.tenantId, source: "database" } as any;
-          }, entitled: async tenantId => Boolean(await db.tenantProductEntitlement.findFirst({ where: { tenantId, status: "active" } })) });
+          }, entitled: async tenantId => Boolean(await db.tenantProductEntitlement.findFirst({ where: { tenantId, status: "active" } })),
+          creditBalance: async (tenantId: string) => (await readLanqiWalletBalance(tenantId, db))?.balance ?? null });
         return app;
       }
       const headers = { "x-synthetic-session": "same-user-old-session" };
@@ -63,7 +67,11 @@ async function main() {
         assert.deepEqual(initial[0].json(), initial[1].json());
         assert.equal(await db.auditLog.count({ where: { action: "beauty_video.declaration" } }), 1);
         assert.equal((await send(a, "POST", declarationUrl, portraitBody)).statusCode, 201);
-        assert.equal((await send(b, "POST", declarationUrl, { ...body, expiresAt: new Date(now + 7200_000).toISOString() })).statusCode, 409);
+        // 2026-09-15（1ab02ca）起：同门店同一份内容重新上传会**就地重绑**（fileId/到期/指纹更新、version+1），
+        // 不再因为「同内容换了 fileId 或到期时间」把用户挡在声明这一步。
+        // 真正必须拒绝的是「同一 requestKey 指向**不同内容**」，所以这里换一份内容来制造冲突。
+        const otherRef = await file("different-reference-content", "video/mp4");
+        assert.equal((await send(b, "POST", declarationUrl, { ...body, fileId: otherRef.id })).statusCode, 409);
         assert.equal((await send(b, "POST", declarationUrl, { ...body, rev: 0, updatedAt: "2099-01-01" })).statusCode, 400);
         assert.equal((await db.beautyVideoAssetAuthorization.findUnique({ where: { id } })).version, 1);
         assert.equal((await send(b, "POST", declarationUrl, body, { "x-synthetic-other-user": "true" })).statusCode, 404);
@@ -72,7 +80,7 @@ async function main() {
         const input = replicationSchema.parse({ model: "aliyun_strict", referenceFileId: ref.id, portraitFileId: portrait.id, requestKey: randomUUID(), visualRightsConfirmed: true, audioRightsConfirmed: true, performerConsentConfirmed: true, portraitConsentConfirmed: true });
         const admission = await auth.admission(actor, input, { ...policy, stagingReady: false });
         assert.equal((await send(a, "POST", "/viral-video-replication/confirm", input)).statusCode, 422);
-        assert.equal(await db.creditReservation.count(), 0);
+        assert.equal(await db.walletLedger.count({ where: { userId: actor.userId } }), 0);
         // Seed one previously admitted synthetic worker task. No Provider/real staging is enabled.
         const repoA = createReplicationRepository(db), repoB = createReplicationRepository(db);
         const seeded = await repoA.create(admission, input, now);
@@ -87,8 +95,8 @@ async function main() {
         await assert.rejects(() => repoB.finish(stale, "canceled", "stale_client"), /job_lease_lost/);
         await repoA.finish(current, "failed", "synthetic_pre_submit_failure");
         await repoB.finish(stale, "canceled", "duplicate_late_release");
-        assert.equal((await db.creditAccount.findUnique({ where: { tenantId: actor.tenantId } })).balance, 1000);
-        assert.equal(await db.creditTransaction.count({ where: { direction: "refund" } }), 1);
+        assert.equal(await walletBalance(), 1000);
+        assert.equal(await db.walletLedger.count({ where: { userId: actor.userId, type: "refund" } }), 1, "同一 requestKey 只退一次");
         assert.equal((await list(b)).json().jobs[0].status, "failed");
         const restarted = await client(); // Fresh server instance reads the same committed backend, no local cache.
         assert.deepEqual((await list(restarted)).json(), (await list(a)).json());

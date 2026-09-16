@@ -15,6 +15,7 @@ import { replicationSchema,REPLICATION_MODEL,REPLICATION_CONTRACT } from "../app
 import { registerViralVideoReplicationRoutes } from "../apps/api/src/routes/viral-video-replication.ts";
 import { replicationMemoryDb } from "./fixtures/replication-test-db.ts";
 import { createBeautyUsageMeter } from "../apps/api/src/services/beauty-usage-metering.ts";
+import { readLanqiWalletBalance } from "../apps/api/src/services/lanqi-wallet.ts";
 assert.ok(existsSync("apps/api/src/services/beauty-video-controlled-execution.ts"),"BY50 missing default-disabled controlled execution assembly");
 assert.match(readFileSync("apps/api/src/routes/viral-video-replication.ts","utf8"),/createControlledVideoIntegration/,"BY50 official route has no persistent authorized execution");
 console.log("BY50 execution assembly baseline PASS");
@@ -47,7 +48,9 @@ async function main(){
  }
  try{for(let round=0;round<3;round++){
   const db=client??replicationMemoryDb(),suffix=randomUUID(),actor={tenantId:`by50-${suffix}`,userId:`user-${suffix}`},storeId=`store-${suffix}`;let now=Date.now()+10;
-  await db.tenant.create({data:{id:actor.tenantId,name:"Synthetic",type:"local_business"}});await db.user.create({data:{id:actor.userId,nickname:"Synthetic"}});await db.store.create({data:{id:storeId,tenantId:actor.tenantId,name:"Synthetic"}});await db.membership.create({data:{...actor,storeId,role:"owner",isActive:true}});await db.tenantProductEntitlement.create({data:{tenantId:actor.tenantId,productCode:"beauty-industry",status:"active",source:"synthetic",startsAt:new Date(now-1000),expiresAt:null}});await db.creditAccount.create({data:{tenantId:actor.tenantId,balance:1000}});
+  await db.tenant.create({data:{id:actor.tenantId,name:"Synthetic",type:"local_business"}});await db.user.create({data:{id:actor.userId,nickname:"Synthetic"}});await db.store.create({data:{id:storeId,tenantId:actor.tenantId,name:"Synthetic"}});await db.membership.create({data:{...actor,storeId,role:"owner",isActive:true}});await db.tenantProductEntitlement.create({data:{tenantId:actor.tenantId,productCode:"beauty-industry",status:"active",source:"synthetic",startsAt:new Date(now-1000),expiresAt:null}});
+  // LQ-34 ⑤：出片许可的预算校验已与扣费同源 → 读**owner 通用钱包余额**（不再是租户积分账户）。
+  await db.wallet.create({data:{userId:actor.userId,paidBalance:1000,bonusBalance:0}});
   const auth=createVideoAssetAuthorization(db,createVideoPrivateFileReader(upload,path.join(root,"inspect")),()=>now);
   async function file(b:Buffer,mimeType:string){const id=randomUUID(),dir=path.join(upload,actor.tenantId);await mkdir(dir,{recursive:true});const storagePath=path.join(dir,id);await writeFile(storagePath,b,{flag:"wx"});return db.uploadedFile.create({data:{id,...actor,filename:"synthetic",mimeType,byteSize:b.length,sha256:hash(b),storagePath}});}
   const ref=await file(video,"video/mp4"),photo=await file(portrait,"image/png"),basis=await file(Buffer.from("Synthetic declaration; not legal proof"),"text/plain");
@@ -61,10 +64,11 @@ async function main(){
   const resultFetch:typeof fetch=async()=>{downloads++;return new Response(resultFault?Buffer.from("invalid"):video,{headers:{"content-type":"video/mp4"}});};
   const options={db,authorization:auth,environment:env,policy:{creditCost:100,maxCostFen:0,maxOutputSeconds:30},now:()=>now,resultRoot:path.join(root,`result-${round}`),offlineTransport:oss.transport,providerFetch,resultFetch};
   const integrated=createControlledVideoIntegration(options),second=createControlledVideoIntegration(options);
-  async function appFor(i=integrated){const app=Fastify({logger:false});await registerViralVideoReplicationRoutes(app,{...i,context:async h=>({...actor,...(h["x-foreign"]?{tenantId:"foreign"}:{}),source:"database"} as any),entitled:async()=>true,creditBalance:async(t:string)=>(await db.creditAccount.findUnique({where:{tenantId:t}}))?.balance??null});return app;}
+  async function appFor(i=integrated){const app=Fastify({logger:false});await registerViralVideoReplicationRoutes(app,{...i,context:async h=>({...actor,...(h["x-foreign"]?{tenantId:"foreign"}:{}),source:"database"} as any),entitled:async()=>true,creditBalance:async()=>(await readLanqiWalletBalance(actor.tenantId,db))?.balance??null});return app;}
   const app=await appFor(),app2=await appFor(second);
   const call=(url:string,payload:any,appInstance=app)=>appInstance.inject({method:"POST",url:`/viral-video-replication/${url}`,payload});
-  const credits=async()=>(await db.creditAccount.findUnique({where:{tenantId:actor.tenantId}})).balance;
+  // 余额口径统一为 owner 钱包（LQ-34）：与扣费 / 退款同一本账。
+  const credits=async()=>(await readLanqiWalletBalance(actor.tenantId,db))!.balance;
   async function permit(input:any,changes:any={}){const a=await auth.admission(actor,input,{creditCost:100,maxCostFen:120,maxOutputSeconds:2,stagingReady:true});
     const bound=(x:any)=>({fileId:x.fileId,sha256:x.sha256,evidenceId:x.evidenceId,version:x.authorizationVersion,role:x.role});
     const scope=videoExecutionScopeSchema.parse({version:VIDEO_EXECUTION_VERSION,contract:REPLICATION_CONTRACT,permitId:randomUUID(),...actor,storeId,requestKey:input.requestKey,purpose:"video_replacement",provider:"aliyun_bailian",model:REPLICATION_MODEL,region:"cn-beijing",access:"local_only",mode:input.mode,template:input.template,requestHash:videoExecutionRequestHash(input),reference:bound(a.reference),portrait:bound(a.portrait),priceVersion:VIDEO_PRICE_VERSION,maxOutputSeconds:2,maxSubmit:1,maxPoll:4,maxStorageHttp:24,maxDownload:1,maxCostFen:130,storageCostUpperFen:10,storageCostEvidenceHash:hash("synthetic costs only not actual cloud price"),issuedAt:now-1000,expiresAt:now+3600000,...changes});
@@ -144,9 +148,9 @@ async function main(){
     const disabled=createControlledVideoIntegration({...options,environment:{...env,BEAUTY_VIDEO_EXECUTION_MODE:"disabled"}});assert.equal(disabled.runtime,undefined);
     const noKey=createControlledVideoIntegration({...options,environment:{...env,ALIYUN_VIDEO_REPLICATION_API_KEY:""}});assert.equal(noKey.runtime,undefined);
     const changed=fresh();await permit(changed);const beforeChange=oss.count();assert.equal((await call("confirm",{...changed,mode:"wan-pro"})).statusCode,422);assert.equal(oss.count(),beforeChange);
-    const poor=fresh(),poorPermit=await permit(poor);await db.creditAccount.update({where:{tenantId:actor.tenantId},data:{balance:50}});
+    const poor=fresh(),poorPermit=await permit(poor);await db.wallet.update({where:{userId:actor.userId},data:{paidBalance:50}});
     assert.equal((await call("confirm",poor)).statusCode,402);assert.equal(oss.count(),beforeChange);assert.equal((await db.beautyVideoExecutionPermit.findUnique({where:{id:poorPermit.id}})).status,"approved");
-    await db.creditAccount.update({where:{tenantId:actor.tenantId},data:{balance:800}});
+    await db.wallet.update({where:{userId:actor.userId},data:{paidBalance:800}});
 
     // Restart/multi-process claim consumes exactly once; no HTTP is involved in this race.
     const race=fresh(),racePermit=await permit(race);const admission=(await integrated.admission(actor as any,race))!;
