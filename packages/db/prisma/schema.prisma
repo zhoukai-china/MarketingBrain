@@ -2287,6 +2287,33 @@ model MarketplaceSubscriptionOrder {
   @@index([skuId, createdAt])
 }
 
+/// 已付费交付物（2026-09-16，用户拍板：**服务端保留 7 天**）。
+///
+/// 背景（汽配信息网现场）：客户退出/换手机后，报告正文与他填写的需求原本只存在于他自己的页面上，
+/// 丢了就只能退款——我们连"他当时填了什么、输出了什么"都查不到。
+/// 现在把「已成功交付并扣费」的输入与产出在服务端**留 7 天**：
+/// 客户重新打开同一智能体可自动找回；我们也能在他求助时定位问题。
+/// 7 天后由读取路径顺带清理（`expiresAt`），不长期占用空间。
+model MarketplaceDeliverable {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  skuCode   String
+  skuName   String?
+  /// 客户填写的需求单（前端拼好的那段文本，不含任何凭据）。
+  input     String
+  /// 交付正文（Markdown 原文）。
+  answer    String
+  credits   Int      @default(0)
+  requestId String?
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([tenantId, userId, createdAt])
+  @@index([userId, skuCode, createdAt])
+  @@index([expiresAt])
+}
+
 model MarketplaceLedgerEntry {
   id              String                @id @default(cuid())
   tenantId        String

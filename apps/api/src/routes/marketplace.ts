@@ -239,6 +239,12 @@ const referralCodeInputSchema = z.object({
   operator: z.string().trim().min(2).max(40).optional()
 });
 
+/**
+ * 已付费交付物在服务端的留存天数（用户 2026-09-16：「同意保留 7 天，别太多，会占用我们的空间」）。
+ * 到期由读取路径顺带清理，不额外常驻空间。
+ */
+const DELIVERABLE_RETENTION_DAYS = 7;
+
 export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<void> {
   await ensureMarketplaceCatalog();
 
@@ -754,6 +760,31 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
         await maybeGrantReferralReward({ referredUserId: context.userId, kind: "referrer_first_use" }).catch((error: unknown) => {
           request.log.warn({ err: error }, "referral reward(referrer_first_use) failed");
         });
+
+        /**
+         * 已付费交付物留存 7 天（用户 2026-09-16 拍板）。
+         *
+         * 汽配信息网现场：客户退出/换手机后，报告与他填的需求只在他自己页面上，丢了只能退款、无从核对。
+         * 这里把「已成功交付并扣费」的输入与产出留 7 天，客户重开同一智能体可自助找回；
+         * 留存失败**绝不阻断交付**（best-effort，只记日志）。
+         */
+        await prisma.marketplaceDeliverable
+          .create({
+            data: {
+              tenantId: context.tenantId,
+              userId: context.userId,
+              skuCode: sku.skuCode,
+              skuName: sku.name,
+              input: String(rawInput ?? "").slice(0, 20_000),
+              answer: String(answerText ?? "").slice(0, 60_000),
+              credits: charge,
+              requestId,
+              expiresAt: new Date(Date.now() + DELIVERABLE_RETENTION_DAYS * 24 * 60 * 60 * 1000)
+            }
+          })
+          .catch((error: unknown) => {
+            request.log.warn({ err: error }, "marketplace deliverable retention failed");
+          });
         return {
           state: "completed",
           answer,
@@ -773,6 +804,45 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
       } catch (error) {
         throw error;
       }
+    });
+
+    /**
+     * 找回「已付费交付物」（用户 2026-09-16：客户换了手机/关了页面之后要能拿回自己的报告）。
+     *
+     * 只返回**当前登录人自己**、且**还在 7 天留存期内**的交付物（租户 + 用户双重过滤）；
+     * 每次读取顺手清掉过期行，避免这 7 天留存无限增长。
+     */
+    market.get<{ Querystring: { skuCode?: string } }>("/me/deliverables", async (request, reply) => {
+      const context = await resolveRequestContext(request.headers);
+      if (context.source !== "database") return { deliverables: [] };
+      await prisma.marketplaceDeliverable
+        .deleteMany({ where: { expiresAt: { lt: new Date() } } })
+        .catch(() => {});
+      const skuCode = (request.query?.skuCode ?? "").trim();
+      const rows = await prisma.marketplaceDeliverable.findMany({
+        where: {
+          tenantId: context.tenantId,
+          userId: context.userId,
+          ...(skuCode ? { skuCode } : {}),
+          expiresAt: { gt: new Date() }
+        },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        select: { id: true, skuCode: true, skuName: true, input: true, answer: true, credits: true, createdAt: true, expiresAt: true }
+      });
+      return {
+        retentionDays: DELIVERABLE_RETENTION_DAYS,
+        deliverables: rows.map((row) => ({
+          id: row.id,
+          skuCode: row.skuCode,
+          skuName: row.skuName,
+          input: row.input,
+          answer: row.answer,
+          credits: row.credits,
+          createdAt: row.createdAt,
+          expiresAt: row.expiresAt
+        }))
+      };
     });
 
     market.get("/me", async (request, reply) => {
