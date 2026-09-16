@@ -207,6 +207,11 @@ const envSchema = z.object({
   KNOWLEDGE_CREDENTIALS_KEY: optionalString,
   ADMIN_TOKEN: optionalString,
   OPS_TOKEN: optionalString,
+  /**
+   * 企业微信机器人 webhook（与 `scripts/ops/disk-alert.sh` 同一条通道）。
+   * 用途（用户 2026-09-16）：磁盘告警 + **客户付费到账**通知。未配置时只写日志，不影响任何主流程。
+   */
+  SITONG_ALERT_WEBHOOK: optionalString,
   INVITE_REQUIRED: z.enum(["true", "false"]).default("true"),
   // 仅测试实例开启：允许「本机直接开通」免邀请码登录（dev-login）。生产不设=关闭。
   DIRECT_TEST_LOGIN: z.enum(["true", "false"]).default("false"),
@@ -244,6 +249,12 @@ const envSchema = z.object({
   WECHAT_PAY_PLATFORM_PUBLIC_KEY_FILE: optionalString,
   WECHAT_PAY_REQUIRED: z.enum(["true", "false"]).default("true"),
   NEW_USER_LOCAL_TRIAL_CREDITS: z.coerce.number().int().nonnegative().optional(),
+  /**
+   * 新用户注册即赠送的积分（用户 2026-09-16：「新用户注册即赠送 100 积分，后面新用户注册都给送」）。
+   * 进 **bonus 桶**（赠送积分，不退款、与推荐奖励同桶）；类型专属的 `NEW_USER_*_TRIAL_CREDITS`
+   * 仍可覆盖（隔离测试/内测环境用）。改这个数只影响**之后新注册**的账号，不动存量。
+   */
+  NEW_USER_SIGNUP_CREDITS: z.coerce.number().int().nonnegative().default(100),
   NEW_USER_CHAIN_TRIAL_CREDITS: z.coerce.number().int().nonnegative().optional(),
   NEW_USER_IP_TRIAL_CREDITS: z.coerce.number().int().nonnegative().optional(),
   DEDAO_BRAIN_RECORDS_URL: optionalUrl,

@@ -829,7 +829,12 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
             {items.map((item) => (
               <div key={item.id} className={`chat-row ${item.role}`}>
                 {item.role === "ai" && <img className="chat-avatar-img" src={sitongAvatar} alt="思潼" />}
-                <div className={`chat-bubble ${item.role}`}>
+                {/*
+                 * 结构化报告（IP 定位全案 / 视频复盘）加 `report` 类：窄屏下气泡默认只占 74% 宽，
+                 * 报告里的多列表格会被挤成「每列一个字」竖排（用户 2026-09-16 手机端截图）。
+                 * 报告类气泡在手机上占满宽度，表格改为横向滚动。
+                 */}
+                <div className={`chat-bubble ${item.role}${item.payload ? " report" : ""}`}>
                   {item.role === "ai" ? (
                     <>
                       <span className="chat-bubble-label">思潼 · {sku?.name ?? "智能体"}</span>

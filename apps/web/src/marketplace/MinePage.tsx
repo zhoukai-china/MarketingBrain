@@ -134,7 +134,6 @@ function ReferralLinkCard() {
 
 export function MarketplaceMinePage() {
   const [balance, setBalance] = useState<number | null>(null);
-  const [recent, setRecent] = useState<Array<{ id: string; skuName?: string | null; amountCredits: number; createdAt: string }>>([]);
   /**
    * 用户 2026-09-16：客户被多扣的积分退了，但他自己看不到（这里原来只列消耗）。
    * 服务端把「与客户切身相关」的退回（Word 导出重复扣费）单独给出来，这里显式展示 +N 积分。
@@ -182,7 +181,6 @@ export function MarketplaceMinePage() {
           return;
         }
         setBalance(d.creditBalance);
-        setRecent(d.recentPpu ?? []);
         setRefunds(d.recentRefunds ?? []);
       })
       .catch(() => { if (!cancelled) setBalance(null); })
@@ -195,15 +193,6 @@ export function MarketplaceMinePage() {
       });
     return () => { cancelled = true; };
   }, []);
-
-  /**
-   * 「常用智能体」（`/mine#recent`）是同一页的锚点入口：整页加载时 React 还没渲染出那段，
-   * 浏览器自身的 hash 定位常常落空，所以数据到齐后再主动滚一次。
-   */
-  useEffect(() => {
-    if (window.location.hash !== "#recent") return;
-    document.getElementById("recent")?.scrollIntoView({ block: "start" });
-  }, [loading]);
 
   if (!signedIn) {
     return (
@@ -224,27 +213,27 @@ export function MarketplaceMinePage() {
           <div className="shared-card wide">💎 <b>跨智能体通用</b><br />同一份积分，在创始人IP专区与各行业专区的智能体都能用——只充一次，处处可用。</div>
         </div>
         <ReferralLinkCard />
-        {/* 「常用智能体」导航栏锚点：同一页直接定位到这段使用记录。 */}
-        <h3 id="recent">近期使用记录</h3>
-        {loading ? <div className="loading">正在加载…</div> : recent.length === 0 ? <p className="mine-tip">暂无使用记录</p> : (
-          <div className="card-grid">
-            {recent.map((entry) => (
-              <article className="agent-card owned-card" key={entry.id}>
-                <div className="ac-ico">🤖</div>
-                <div className="ac-name">{entry.skuName ?? "智能体"}</div>
-                <div className="ac-price">{entry.amountCredits} 积分</div>
-                <div className="ac-foot"><span className="chip owned">{new Date(entry.createdAt).toLocaleDateString("zh-CN")}</span></div>
-              </article>
-            ))}
-          </div>
-        )}
+        {/*
+         * 2026-09-16（用户）：
+         * ①「常用智能体」独立成页（`/my-agents`），这里不再重复列使用记录，只留一个入口；
+         * ②「把输出的产物也放到我的页面里，并给用户保存 7 天」——产物段落**始终显示**：
+         *   没有产物时也给空态说明，客户不会以为功能不存在（以前是 length>0 才渲染，等于藏起来了）。
+         */}
+        <h3>常用智能体</h3>
+        <p className="mine-tip">
+          你用过、还在用的智能体都在「<a onClick={() => { window.location.href = getAppPath("/my-agents"); }}>常用智能体</a>」页，点一下就能接着用。
+        </p>
         {/* 历史交付物（服务端保留 7 天）：明确告诉客户「及时下载」，并提供一键导出 Word。 */}
-        {deliverables.length > 0 && (
+        <h3>历史交付物 · 保存 7 天，请及时下载</h3>
+        <p className="mine-tip">
+          平台只为你保留 <b>7 天</b>，到期自动清理；需要长期保存请点「下载 Word」存到自己手机/电脑（用 WPS 或 Word 都能打开）。
+        </p>
+        {loading ? (
+          <div className="loading">正在加载…</div>
+        ) : deliverables.length === 0 ? (
+          <p className="mine-tip">还没有交付物。生成成功后会保存在这里，7 天内随时可以下载 Word。</p>
+        ) : (
           <>
-            <h3>历史交付物 · 保存 7 天，请及时下载</h3>
-            <p className="mine-tip">
-              平台只为你保留 <b>7 天</b>，到期自动清理；需要长期保存请点「下载 Word」存到自己手机/电脑（用 WPS 或 Word 都能打开）。
-            </p>
             <div className="card-grid">
               {deliverables.map((item) => {
                 const daysLeft = Math.max(0, Math.ceil((new Date(item.expiresAt).getTime() - Date.now()) / 86_400_000));

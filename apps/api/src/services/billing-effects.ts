@@ -2,9 +2,17 @@
 import { Prisma } from "@baolu/db";
 import { PLANS, CREDIT_PACKS, PROJECT_PACKAGES, type PlanDefinition } from "@baolu/shared";
 import { applyRechargeInTx } from "./sitong-wallet.js";
+import { buildRechargeNotice, notifyOps } from "./ops-alert.js";
+import { readWallet } from "./sitong-wallet.js";
 
 export async function applyPaidOrder(orderId: string) {
-  return prisma.$transaction(async (tx: any) => {
+  /**
+   * 2026-09-16 用户：「用户付费了我咋样才能知道呢？也给我推送到企业微信吧」。
+   * 先记下支付前的状态，事务提交后再判断「这一单是不是刚刚从 pending 变成 paid」——
+   * 支付回调可能被重放，只有真正完成那一次才推送，避免老板收到重复通知。
+   */
+  const statusBefore = await prisma.billingOrder.findUnique({ where: { id: orderId }, select: { status: true } });
+  const paidOrder = await prisma.$transaction(async (tx: any) => {
     const order = await tx.billingOrder.findUnique({
       where: { id: orderId },
       include: { offer: { include: { agents: true } } }
@@ -271,6 +279,41 @@ export async function applyPaidOrder(orderId: string) {
 
     return paidOrder;
   });
+
+  if (statusBefore?.status === "pending" && paidOrder?.status === "paid" && paidOrder.type === "credit_pack") {
+    // 通知失败只写日志，绝不把「已入账」的订单搞成失败（见 ops-alert.ts 的失败关闭原则）。
+    void notifyRechargePaid(paidOrder).catch(() => undefined);
+  }
+  return paidOrder;
+}
+
+/** 充值到账通知（企业微信）：客户名 / 金额 / 到账积分 / 该客户当前余额 / 订单号。 */
+async function notifyRechargePaid(order: {
+  id: string;
+  tenantId: string;
+  userId: string | null;
+  amountCny: number;
+  creditPackCode: string | null;
+  provider: string | null;
+}): Promise<void> {
+  const pack = order.creditPackCode ? CREDIT_PACKS[order.creditPackCode as keyof typeof CREDIT_PACKS] : undefined;
+  const [tenant, user, wallet] = await Promise.all([
+    prisma.tenant.findUnique({ where: { id: order.tenantId }, select: { name: true } }),
+    order.userId ? prisma.user.findUnique({ where: { id: order.userId }, select: { nickname: true, phone: true } }) : Promise.resolve(null),
+    order.userId ? readWallet(order.userId) : Promise.resolve(null)
+  ]);
+  await notifyOps(
+    buildRechargeNotice({
+      tenantName: tenant?.name ?? "（未命名工作区）",
+      userName: user?.nickname ?? user?.phone ?? null,
+      amountCny: order.amountCny,
+      basePts: pack?.baseCredits ?? 0,
+      bonusPts: pack?.bonusCredits ?? 0,
+      balance: wallet?.balance ?? 0,
+      method: order.provider,
+      orderId: order.id
+    })
+  );
 }
 
 function addDays(date: Date, days: number): Date {

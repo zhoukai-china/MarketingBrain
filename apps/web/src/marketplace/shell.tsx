@@ -143,8 +143,8 @@ export function Topbar({ active, balance, onNavigate }: { active: string; balanc
         </div>
         <nav className="topnav">
           <a className={`nav-link ${active === "market" ? "active" : ""}`} onClick={() => onNavigate("/agents")}>货架</a>
-          {/* 「常用智能体」直接落到「我的」页的使用记录段（同一页，省掉一次手动滚动）。 */}
-          <a className={`nav-link ${active === "mine" ? "active" : ""}`} onClick={() => onNavigate("/mine#recent")}>常用智能体</a>
+          {/* 2026-09-16：用户要求「常用智能体」做成独立列表页（只列自己用过的智能体），不再是「我的」的锚点。 */}
+          <a className={`nav-link ${active === "my-agents" ? "active" : ""}`} onClick={() => onNavigate("/my-agents")}>常用智能体</a>
           <a className={`nav-link ${active === "recharge" ? "active" : ""}`} onClick={() => onNavigate("/recharge")}>积分充值</a>
           {/*
            * 2026-09-16（用户）：「我的」要做到一级导航栏、放在「积分充值」后面。

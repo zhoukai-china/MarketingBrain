@@ -857,6 +857,20 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
       };
     });
 
+    /**
+     * 「常用智能体」独立页的数据源（用户 2026-09-16）。只读、按租户隔离；
+     * 未登录显式 401（与 `/me/referral-link` 同一口径，路由被单独挂载时也不把「未登录」说成 500）。
+     */
+    market.get("/me/agents", async (request, reply) => {
+      let context;
+      try {
+        context = await resolveRequestContext(request.headers);
+      } catch {
+        return reply.code(401).send({ error: "login_required", message: "请先登录后再查看常用智能体。" });
+      }
+      return { agents: await listFrequentAgents(context) };
+    });
+
     // PLAT-38（用户 2026-09-15）：「我的」页的自助邀请链接。
     // 只需要登录态（身份取自服务端验签会话，不接受客户端传 userId），不要求平台管理令牌——
     // 但只能操作**自己**的推荐码，明文只在签发时返回一次（与 PLAT-28 的安全模型一致）。
@@ -1516,6 +1530,71 @@ async function listRecentPpuUsage(context: RequestContext) {
 function resolveMarketplaceSkillId(capabilityKey: string | null | undefined): SkillId | undefined {
   if (!capabilityKey) return undefined;
   return MARKETPLACE_SKILL_BY_CAPABILITY[capabilityKey] as SkillId | undefined;
+}
+
+/**
+ * 「常用智能体」列表（用户 2026-09-16：「常用智能体要不要做成独立的智能体列表页」→ 要）。
+ *
+ * 与 `listRecentPpuUsage`（最近 20 条流水，用于「我的」页的时间线）不同，这里按 **SKU 聚合**：
+ * 每个智能体给「用过几次 / 累计消耗多少积分 / 最近一次什么时候」，页面据此排序（最近用的在最前），
+ * 客户点一下就能接着用。口径与扣费账本一致（`marketplaceLedgerEntry.type = ppu_consume`），
+ * 只读、按租户隔离。
+ */
+async function listFrequentAgents(context: RequestContext) {
+  if (context.source === "demo") {
+    const bySku = new Map<string, { skuCode: string; skuName: string | null; skuIcon: string | null; runs: number; credits: number; lastUsedAt: string }>();
+    for (const entry of demoMarketplace.listLedger(context.tenantId, 200)) {
+      if (entry.type !== "ppu_consume" || !entry.skuId) continue;
+      const sku = demoMarketplace.getSku(entry.skuId);
+      const skuCode = sku?.skuCode ?? entry.skuId;
+      const current = bySku.get(skuCode);
+      if (current) {
+        current.runs += 1;
+        current.credits += Math.abs(entry.amountCredits ?? 0);
+        if (entry.createdAt > current.lastUsedAt) current.lastUsedAt = entry.createdAt;
+      } else {
+        bySku.set(skuCode, {
+          skuCode,
+          skuName: sku?.name ?? null,
+          skuIcon: sku?.icon ?? null,
+          runs: 1,
+          credits: Math.abs(entry.amountCredits ?? 0),
+          lastUsedAt: entry.createdAt
+        });
+      }
+    }
+    return [...bySku.values()].sort((a, b) => (a.lastUsedAt < b.lastUsedAt ? 1 : -1));
+  }
+
+  const grouped = await prisma.marketplaceLedgerEntry.groupBy({
+    by: ["skuId"],
+    where: { tenantId: context.tenantId, type: "ppu_consume", skuId: { not: null } },
+    _count: { _all: true },
+    _sum: { amountCredits: true },
+    _max: { createdAt: true }
+  });
+  const skuIds = grouped.map((row) => row.skuId).filter((id): id is string => Boolean(id));
+  if (skuIds.length === 0) return [];
+  const skus = await prisma.marketplaceSku.findMany({
+    where: { id: { in: skuIds } },
+    select: { id: true, skuCode: true, name: true, icon: true, zone: true }
+  });
+  const skuById = new Map(skus.map((sku) => [sku.id, sku]));
+  return grouped
+    .map((row) => {
+      const sku = row.skuId ? skuById.get(row.skuId) : null;
+      return {
+        skuCode: sku?.skuCode ?? null,
+        skuName: sku?.name ?? null,
+        skuIcon: sku?.icon ?? null,
+        zone: sku?.zone ?? null,
+        runs: row._count._all,
+        credits: Math.abs(row._sum.amountCredits ?? 0),
+        lastUsedAt: (row._max.createdAt ?? new Date(0)).toISOString()
+      };
+    })
+    .filter((row) => Boolean(row.skuCode))
+    .sort((a, b) => (a.lastUsedAt < b.lastUsedAt ? 1 : -1));
 }
 
 function marketplaceIndustryContext(sku: PublicMarketplaceSku): string | null {

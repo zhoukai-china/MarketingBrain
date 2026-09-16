@@ -118,6 +118,7 @@ const MarketplaceAdminPage = lazy(() => import("./pages/MarketplaceApp.js").then
 const AdminConsolePage = lazy(() => import("./marketplace/AdminConsolePage.js").then(module => ({ default: module.AdminConsolePage })));
 const MarketplaceAgentDetailPage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceAgentDetailPage })));
 const MarketplaceMinePage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceMinePage })));
+const MarketplaceMyAgentsPage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceMyAgentsPage })));
 const MarketplaceAgentChatPage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceAgentChatPage })));
 const RechargePage = lazy(() => import("./pages/RechargePage.js").then(module => ({ default: module.RechargePage })));
 
@@ -434,6 +435,14 @@ function Root() {
 
   if (path === "/mine" || path.startsWith("/mine/")) {
     return <MarketplaceMinePage />;
+  }
+
+  /**
+   * 「常用智能体」独立页（用户 2026-09-16）。放在 `/mine` 之后判定，两条路径互不影响；
+   * 页面只列这个账号**真的用过**的智能体，见 `marketplace/MyAgentsPage.tsx`。
+   */
+  if (path === "/my-agents" || path === "/my-agents/") {
+    return <MarketplaceMyAgentsPage />;
   }
 
   /*

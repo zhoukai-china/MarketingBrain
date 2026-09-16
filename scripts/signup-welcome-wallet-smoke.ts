@@ -3,20 +3,22 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "../apps/api/node_modules/@baolu/db/dist/index.js";
 import { createTenantWorkspace } from "../apps/api/src/services/database-bootstrap.js";
 
-// QA-20260910-017 回归：新用户注册**不赠送任何欢迎积分**（2026-09-10 产品口径）。
+// 新用户注册赠送积分回归。口径演进：
+//   - 2026-09-10：**不赠送任何欢迎积分**（当时产品拍板，本脚本曾锁死 0）；
+//   - **2026-09-16（用户）：「新用户注册即赠送 100 积分，后面新用户注册都给送」**——默认额度改为 100，
+//     对**所有新注册**生效，进 bonus 桶（赠送积分，不可退）。
+// 本脚本锁死的契约：
+//   1. 新建工作区（新用户）→ 用户级 Wallet 的赠送额度 = `NEW_USER_SIGNUP_CREDITS`（默认 100），
+//      且有且仅有 1 条 `source="signup"` 的 bonus 流水；
+//   2. 同租户遗留 CreditAccount 不变（欢迎积分只进用户钱包，避免两个账本各发一份）；
+//   3. 同一用户第二次建工作区 → **不重复发放**（幂等靠 `source="signup"` 去重）；
+//   4. 类型专属 `NEW_USER_<类型>_TRIAL_CREDITS` 显式配置时优先，用于隔离测试环境。
 //
-// 背景：QA-20260910-016 曾把「欢迎积分只发租户级 CreditAccount、货架读用户 Wallet」
-// 当作缺陷，并按「口径 B」给用户钱包补发 300。同日产品拍板改为**不送任何积分**，
-// 因此 016 的目标改为「两个账本都不发」，本脚本锁死新的契约：
-//   1. 新建工作区（新用户）→ 用户级 Wallet 存在且为 0/0，没有 WalletLedger 流水；
-//   2. 同租户遗留 CreditAccount 为 0，且没有 welcome_credits 的 CreditTransaction；
-//   3. 同一用户第二次建工作区 → 仍然 0，不重复发放、不产生流水；
-//   4. 只有显式配置 `NEW_USER_<类型>_TRIAL_CREDITS` 的隔离环境才发放，且两个账本额度一致。
-//
-// 期望额度按当前进程的环境变量动态推导，因此同一个脚本既能验证生产口径（0），
-// 也能验证内测环境显式打开体验额度时的行为。
+// 期望额度按当前进程的环境变量动态推导：默认口径 = `NEW_USER_SIGNUP_CREDITS`（未设置时 100）。
 
-const EXPECTED_WELCOME_CREDITS = Number(process.env.NEW_USER_LOCAL_TRIAL_CREDITS ?? 0);
+const EXPECTED_WELCOME_CREDITS = Number(
+  process.env.NEW_USER_LOCAL_TRIAL_CREDITS ?? process.env.NEW_USER_SIGNUP_CREDITS ?? 100
+);
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`FAIL: ${message}`);

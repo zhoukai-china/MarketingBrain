@@ -10,6 +10,22 @@
   </head>
   <body>
     <div id="root"></div>
+    <!--
+      站点页脚（用户 2026-09-16：「思潼平台页脚补 ICP 备案号」）。
+      放在 #root 之外：SPA 每个页面（货架 / 详情 / 对话 / 我的 / 充值 / 登录）都自带这一行，
+      不需要逐个页面改组件；样式内联，避免依赖打包后的 CSS 变量。
+    -->
+    <footer style="padding:18px 16px 26px;text-align:center;font-size:12px;line-height:1.9;color:#8a94a6;">
+      <div>思潼 AI 行业智能体平台</div>
+      <div>
+        <a
+          href="https://beian.miit.gov.cn/"
+          target="_blank"
+          rel="noreferrer noopener"
+          style="color:#8a94a6;text-decoration:none;"
+        >辽ICP备2025069273号</a>
+      </div>
+    </footer>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
