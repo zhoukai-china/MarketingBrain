@@ -11,6 +11,7 @@ import {
   readLanqiCopyKitCache,
   writeLanqiCopyKitCache
 } from "../products/lanqi/copy-kit-service.js";
+import { chargeLanqiWallet, precheckLanqiWallet } from "../services/lanqi-wallet.js";
 import { rewriteShortVideoCopy } from "../products/beauty-industry/acquire-service.js";
 import { answerAdvisorQuestion } from "../products/beauty-industry/advisor-service.js";
 import {
@@ -209,14 +210,24 @@ export async function registerAcquireRoutes(app: FastifyInstance, basePath = "/b
         };
       }
 
-      const accountBefore = await prisma.creditAccount.findUnique({ where: { tenantId: context.tenantId } });
-      const balanceBefore = accountBefore?.balance ?? 0;
-      if (balanceBefore < price) {
+      /**
+       * LQ-34（用户 2026-09-16）：兰琪扣的是**通用钱包**——本店老板（owner）的钱包，
+       * 与「我的 · 充值」和思潼 AI 是同一本账。余额不足先挡下，**不调模型**。
+       */
+      const precheck = await precheckLanqiWallet({ tenantId: context.tenantId, credits: price });
+      if (!precheck.ok) {
+        if (precheck.code === "lanqi_wallet_owner_missing") {
+          return reply.code(409).send({
+            code: "lanqi_wallet_owner_missing",
+            message: precheck.message,
+            consumedCredits: 0
+          });
+        }
         return reply.code(402).send({
           code: "insufficient_credits",
           error: "insufficient_credits",
-          message: `积分不足：这次没有生成、也没有扣积分。本次需要 ${price} 积分，请点右上角「我的 · 充值」充值后再试。`,
-          balance: balanceBefore,
+          message: precheck.message,
+          balance: precheck.balance,
           required: price,
           rechargeUrl: "/recharge",
           consumedCredits: 0
@@ -256,35 +267,23 @@ export async function registerAcquireRoutes(app: FastifyInstance, basePath = "/b
         });
       }
 
-      const charged = await prisma.$transaction(async (tx) => {
-        const updated = await tx.creditAccount.updateMany({
-          where: { tenantId: context.tenantId, balance: { gte: price } },
-          data: { balance: { decrement: price } }
-        });
-        if (updated.count !== 1) return undefined;
-        const account = await tx.creditAccount.findUnique({ where: { tenantId: context.tenantId } });
-        if (!account) return undefined;
-        await tx.creditTransaction.create({
-          data: {
-            creditAccountId: account.id,
-            tenantId: context.tenantId,
-            userId: context.userId,
-            direction: "consume",
-            amount: price,
-            reason: "lanqi_copy_kit",
-            refType: "lanqi_copy_kit",
-            refId: parsed.data.requestKey
-          }
-        });
-        return account.balance;
+      // 扣费：扣本店老板的通用钱包（paid → bonus），流水记「谁操作的」；同 requestKey 不重复扣。
+      const charged = await chargeLanqiWallet({
+        tenantId: context.tenantId,
+        operatorUserId: context.userId,
+        requestId: parsed.data.requestKey,
+        credits: price,
+        skillId: "lanqi_copy_kit"
       });
-
-      if (charged === undefined) {
+      if (charged.status === "owner_missing") {
+        return reply.code(409).send({ code: "lanqi_wallet_owner_missing", message: "本店还没有可扣费的老板账号，本次没有生成、没有扣积分。", consumedCredits: 0 });
+      }
+      if (charged.status === "insufficient") {
         return reply.code(402).send({
           code: "insufficient_credits",
           error: "insufficient_credits",
           message: "积分不足：这次没有生成、也没有扣积分。请点右上角「我的 · 充值」充值后再试。",
-          balance: balanceBefore,
+          balance: charged.wallet.balance,
           required: price,
           rechargeUrl: "/recharge",
           consumedCredits: 0
@@ -308,7 +307,7 @@ export async function registerAcquireRoutes(app: FastifyInstance, basePath = "/b
         ok: true,
         tenantId: context.tenantId,
         consumedCredits: price,
-        balance: charged,
+        balance: charged.wallet.balance,
         creditCost: price,
         contractVersion: generation.contractVersion,
         sections: [...LANQI_COPY_KIT_SECTIONS],

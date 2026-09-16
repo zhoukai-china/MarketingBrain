@@ -233,8 +233,10 @@ forbidMatch(copyKitPage, /contractVersion|合同 \{/, "page：不把内部合同
 forbidMatch(copyKitPage, /deepseek|aliyun|百炼|qwen|供应商|模型名/i, "page：不出现供应商 / 模型名");
 requireMatch(acquireRoute, /app\.post\(`\$\{basePath\}\/acquire\/copy-kit`/, "route：后端新增 /lanqi/acquire/copy-kit");
 requireMatch(acquireRoute, /copy-kit`[\s\S]{0,600}assertStoreAccess\(context, parsed\.data\.storeId\)/, "route：先做门店可见性校验（租户隔离）");
-requireMatch(acquireRoute, /balance: \{ gte: price \}/, "route：扣积分用条件更新（并发不会扣成负数）");
-requireMatch(acquireRoute, /reason: "lanqi_copy_kit"/, "route：写积分流水，可审计");
+// LQ-34（2026-09-16）：兰琪扣费从「租户积分账户」切到「本店老板的通用钱包」——
+// 并发不为负、幂等、流水都由 `lanqi-wallet` 统一保证，这里断言它确实走的是那条链路。
+requireMatch(acquireRoute, /chargeLanqiWallet\(\{/, "route：扣费走通用钱包（LQ-34，扣本店老板钱包）");
+requireMatch(acquireRoute, /precheckLanqiWallet\(\{/, "route：余额不足先挡下、不调模型");
 requireMatch(acquireRoute, /copy_kit_request_key_conflict/, "route：同一请求标识换了输入必须显式冲突，不拿旧结果顶替");
 requireMatch(copyKitService, /import \{[^}]*COPY_TEN_SYSTEM_PROMPT[^}]*\} from "\.\.\/beauty-industry\/copy-ten-contract\.js"/, "service：提示词取自共享合同（不复制第二份）");
 requireMatch(copyKitService, /parseCopyTenContract/, "service：结构校验取自共享合同");
