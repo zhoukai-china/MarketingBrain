@@ -20,6 +20,12 @@ import {
   readLanqiWalletBalance,
   refundLanqiWallet
 } from "../apps/api/src/services/lanqi-wallet.js";
+import {
+  applyLanqiWalletMigration,
+  lanqiMigrationRequestId,
+  planLanqiWalletMigration,
+  revertLanqiWalletMigration
+} from "../apps/api/src/services/lanqi-wallet-migration.js";
 
 let pass = 0;
 let fail = 0;
@@ -107,6 +113,33 @@ async function main() {
 
   // ⑧ 版本常量（便于审计「这本账是哪一版口径」）
   check("口径版本常量存在", LANQI_WALLET_VERSION === "lanqi_owner_wallet_v1", LANQI_WALLET_VERSION);
+
+  // ⑨ 历史额度一次性迁移（Phase 2）：租户账户 50 → owner 钱包 paid 桶；幂等；可回滚
+  const d = await createTenantWithOwner("d");
+  await seedWallet(d.userId, 0);
+  await prisma.creditAccount.create({ data: { tenantId: d.tenantId, balance: 50 } });
+  const planAll = await planLanqiWalletMigration();
+  const mine = planAll.filter((entry) => entry.tenantId === d.tenantId);
+  check("迁移计划：本租户被列为可迁（50 积分）", mine.length === 1 && mine[0].status === "migratable" && mine[0].balance === 50, JSON.stringify(mine));
+  await applyLanqiWalletMigration(mine);
+  const walletAfterMigrate = await readLanqiWalletBalance(d.tenantId);
+  const accountAfterMigrate = await prisma.creditAccount.findUnique({ where: { tenantId: d.tenantId }, select: { balance: true } });
+  check("迁移：额度进 owner 钱包 paid 桶（0 → 50）", walletAfterMigrate?.paidBalance === 50, JSON.stringify(walletAfterMigrate));
+  check("迁移：租户账户清零（保留行、不删数据）", accountAfterMigrate?.balance === 0, JSON.stringify(accountAfterMigrate));
+  const migrateLedger = await prisma.walletLedger.findFirst({
+    where: { refRequestId: lanqiMigrationRequestId(d.tenantId), type: "admin" },
+    select: { delta: true, bucket: true, source: true }
+  });
+  check("迁移：留痕（钱包 admin 流水 + 迁移来源）", migrateLedger?.delta === 50 && migrateLedger?.bucket === "paid" && Boolean(migrateLedger?.source?.includes("lanqi_credit_migration")), JSON.stringify(migrateLedger));
+  const migrationAgain = await applyLanqiWalletMigration(mine);
+  const walletAfterSecond = await readLanqiWalletBalance(d.tenantId);
+  check("迁移幂等：重复执行不重复发放", migrationAgain[0]?.migrated === 0 && walletAfterSecond?.paidBalance === 50, JSON.stringify({ migrationAgain, walletAfterSecond }));
+  const reverted = await revertLanqiWalletMigration([d.tenantId]);
+  const walletAfterRevert = await readLanqiWalletBalance(d.tenantId);
+  const accountAfterRevert = await prisma.creditAccount.findUnique({ where: { tenantId: d.tenantId }, select: { balance: true } });
+  check("迁移可回滚：钱包 paid 退回、账户额度恢复", reverted[0]?.reverted === 50 && walletAfterRevert?.paidBalance === 0 && accountAfterRevert?.balance === 50, JSON.stringify({ reverted, walletAfterRevert, accountAfterRevert }));
+  const revertAgain = await revertLanqiWalletMigration([d.tenantId]);
+  check("回滚幂等：重复回滚 blocked=already_reverted", revertAgain[0]?.blocked === "already_reverted", JSON.stringify(revertAgain));
 }
 
 main()
