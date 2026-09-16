@@ -594,6 +594,9 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
            */
           let validation = parseIpPosFull(answerText, rawInput);
           if (validation.failures.length > 0) {
+            // 重试属于我们的质量兜底：**按首次用量计费**（重试那次成本由平台吸收），
+            // 否则客户会看到「预估 130、实扣 229」这种不公平的账单。
+            const firstAttemptUsage = { ...usage };
             request.log.warn(
               { event: "ip_pos_output_invalid_retry", attempt: 1, failures: validation.failures.slice(0, 6) },
               "IP 定位全案未通过技能校验，自动重试一次"
@@ -614,6 +617,9 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
               if (retryValidation.failures.length === 0) {
                 answerText = retryText;
                 validation = retryValidation;
+                usage.promptTokens = firstAttemptUsage.promptTokens;
+                usage.completionTokens = firstAttemptUsage.completionTokens;
+                usage.reasoningTokens = firstAttemptUsage.reasoningTokens;
                 request.log.info({ event: "ip_pos_output_invalid_retry_ok" }, "IP 定位全案重试后通过校验");
               } else {
                 request.log.warn(
