@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { apiPath, getAppPath } from "../lib/api.js";
-import { readSessionToken } from "../lib/session.js";
+import { apiPath, getAppPath, getAppRoutePath } from "../lib/api.js";
+import { readSessionIdentity, readSessionToken } from "../lib/session.js";
 import { chatFlowFor, buildRunBody } from "./chat-flows.js";
 import { IpPosReport, type IpPosPayload } from "./ip-pos-report.js";
 import { VidrevReport, isVidrevPayload, VIDREV_PREFILL_KEY, type VidrevPayload } from "./vidrev-report.js";
@@ -30,6 +30,12 @@ interface ChatItem {
   html?: boolean;
   /** ip-pos / vidrev 等有结构化契约的智能体会同时返回 payload，用于专用渲染。 */
   payload?: IpPosPayload | VidrevPayload;
+  /**
+   * 2026-09-16（WorkBuddy 验收 P2 + 用户现场「充值完回来还得重填」）：
+   * 余额不足时不能让客户自己去顶栏找充值入口——这里在气泡里给一个**带返回路径**的动作按钮，
+   * 充完（或不充）点一下就能回到这个智能体，本机留存的 5 项输入原样还在。
+   */
+  action?: { label: string; href: string };
 }
 
 /** 从视频复盘跳过来时带的「候选选题」预填；只在对应轮次自动填入一次。 */
@@ -144,7 +150,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     if (!runSku?.skuCode || soon || items.length === 0) return;
     try {
       localStorage.setItem(`sitong_chat_${runSku.skuCode}`, JSON.stringify({
-        fp: (readSessionToken() ?? "").slice(-8),
+        // 指纹用**稳定身份**（tenantId:userId），不是 token 末 8 位——重新登录/会话重建不该丢草稿。
+        fp: readSessionIdentity(),
         items,
         answers,
         step,
@@ -164,7 +171,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
      * 2026-09-16 客户现场（汽配信息网）：客户**退出页面再进来，填过的信息和已交付的报告全没了**，
      * 连付过积分的那份交付物也找不回来。这里的处理是**存在客户本机**（localStorage），
      * 不落我们的服务器（沿用「客户内容不落库」的口径）：
-     *   - 记录带一个会话指纹（会话 token 后 8 位）：换账号/换人自动丢弃，避免串数据；
+       *   - 记录带一个**稳定身份指纹**（会话 JWT 里的 tenantId:userId）：换账号/换人自动丢弃，避免串数据；
+       *     不能用 token 末 8 位——token 被重新签发时同一个人也会被判成换了人（2026-09-16 真机复现）；
      *   - 只有第一次打开这个智能体才用欢迎语初始化，之后恢复上次的对话与交付物；
      *   - 点「再问一次 / 重新开始」= 显式清空本机留存。
      */
@@ -179,7 +187,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
           done?: boolean;
           cost?: number | null;
         };
-        if (saved?.fp && saved.fp === (readSessionToken() ?? "").slice(-8) && Array.isArray(saved.items) && saved.items.length > 0) {
+        if (saved?.fp && saved.fp === readSessionIdentity() && Array.isArray(saved.items) && saved.items.length > 0) {
           setItems(saved.items);
           setAnswers(saved.answers ?? {});
           setStep(typeof saved.step === "number" ? saved.step : 0);
@@ -307,6 +315,31 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
       });
       if (handleStaleSession(runResponse.status)) {
         throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次不消耗积分。");
+      }
+      /**
+       * 余额不足（402）单独处理：服务端会带 `rechargeUrl`，但那是给 MCP/外部编排用的相对路径，
+       * 网页里直接跳 `/recharge` 会丢掉 `/os-v2/` 这类应用前缀（子路径部署下就是 404）。
+       * 所以网页自己拼一条**带 next 回跳**的地址：`next` 用去掉应用前缀的站内路由，
+       * 由充值页用 `getAppPath()` 还原，避免前缀被拼两遍。
+       */
+      if (runResponse.status === 402) {
+        const payload = (await runResponse.json().catch(() => ({}))) as { message?: string; required?: number; balance?: number };
+        const nextRoute = `${getAppRoutePath(window.location.pathname)}${window.location.search}`;
+        setItems((prev) => [
+          ...prev,
+          {
+            id: `recharge${Date.now()}`,
+            role: "ai",
+            text:
+              `${payload.message ?? "当前积分不足，请先充值后再使用。"}` +
+              `（本次**不消耗积分**；你填的 ${flow.slots.length} 项已经存在本机，充值回来点「继续生成」即可，**不用重填**。）`,
+            action: {
+              label: "去充值（回来不用重填）",
+              href: getAppPath(`/recharge?from=agent&skill=${encodeURIComponent(runSku.skuCode)}&next=${encodeURIComponent(nextRoute)}`)
+            }
+          }
+        ]);
+        return;
       }
       const result = await readJson<{
         answer: string;
@@ -806,6 +839,17 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                         <IpPosReport payload={item.payload} renderMarkdown={renderMarkdownHtml} />
                       ) : (
                         <div className="md-rich" style={{ color: "var(--text)", fontSize: 14, lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: item.html ? renderMarkdownHtml(item.text) : renderInline(item.text) }} />
+                      )}
+                      {item.action && (
+                        <div style={{ marginTop: 10 }}>
+                          <button
+                            type="button"
+                            className="btn primary sm"
+                            onClick={() => { window.location.href = item.action!.href; }}
+                          >
+                            {item.action.label}
+                          </button>
+                        </div>
                       )}
                     </>
                   ) : (

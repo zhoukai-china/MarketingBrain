@@ -1,5 +1,45 @@
 # 当前部署状态
 
+## 最新发布：20260963b-draft-fp（2026-09-16，生产 + 测试实例）— 修「充值往返丢草稿」真因（草稿指纹 != token）+ 余额不足给「去充值 / 返回继续生成」闭环；并答复 WorkBuddy 验收报告的三条疑问
+
+### 一、来源：WorkBuddy《思潼AI 本轮修复验收报告 20260916》
+
+报告 10 项里 5 项通过、2 项部分验证、3 项「需真机/付费验证」，另列 3 条「需 Codex 关注/修复」。逐条复核结论：
+
+| 报告条目 | 复核结论 | 证据 |
+| --- | --- | --- |
+| **P1 历史交付 API 全部 404** | **误判：探错了路径**（实现一直在） | 真实端点是 `GET /market/me/deliverables`（可选 `?skuCode=`），带会话实测 **200**：`{"retentionDays":7,"deliverables":[{…,"credits":117,"expiresAt":"2026-09-23T05:11:19Z"}]}`；报告探的 `/market/history`、`/market/deliveries`、`/market/orders`、`/market/skus/:code/history` 四个都不存在。对话页在「本机无草稿」时正是靠这个端点找回 7 天内交付物 |
+| **P2 退款端点 404** | **误判：退款不是独立端点** | 退款随 `GET /market/me` 的 `recentRefunds[]` 返回，带会话实测 200 且含退款行；「我的」页渲染出「↩️ 积分退回 · +40 积分」（截图 `.debug/mine-refund-visible.png`）。报告探的 `/billing/refund` 不存在 |
+| **P2 充值往返状态恢复未验证** | **确认是真问题，已修** | 真机验证发现草稿在刷新后**仍然丢**：根因是草稿指纹取的是 token 末 8 位，而 token 会被重新签发（重新登录 / 内测免登录门卫重建会话）→ 同一个人被判成「换了人」。详见 `docs/BUG_REGRESSIONS.md` QA-20260916-006 |
+
+### 二、改动
+
+1. **草稿指纹换成稳定身份**：`apps/web/src/lib/session.ts` 新增 `readSessionIdentity()`（会话 JWT 的 `tenantId:userId`，解不开时退回 token 尾巴兜底），`AgentChatPage` 的写入与恢复都改用它。
+2. **余额不足给闭环**：402 时气泡里给出「**去充值（回来不用重填）**」，链接为 `/recharge?from=agent&skill=<sku>&next=<站内路由>`；充值页据此渲染「**返回继续生成**」，登录前后都在。
+3. **开放跳转防护**：新增 `apps/web/src/lib/app-route.ts#toSafeAppRoute()`，`next` 只放行站内绝对路径（拒绝 `//host`、`http:`、`javascript:`、反斜杠、空白），再由 `getAppPath()` 补回 `/os-v2/`、`/lanqi-test/` 前缀——避免子路径部署下跳到站外或前缀拼两遍。
+4. **回归门禁**：新增 `pnpm marketplace:recharge-roundtrip-contract-smoke`（白名单放行/拒绝用例 + 两页接线与文案断言），已挂进 `qa:fast`。
+
+### 三、发布与验收
+
+| 环境 | 发布 id | 结果 |
+| --- | --- | --- |
+| 测试 | `20260916-plat63b-draft-fp-test1` | `DEPLOY_OK`、health=200 |
+| 生产 | `20260916-plat63b-draft-fp-prod1` | `DEPLOY_OK`、health=200；产物核对：`MarketplaceApp-DxoLedM-.js` 命中「去充值（回来不用重填）」，`RechargePage-a436WArV.js` 命中「返回继续生成」 |
+
+- 真实浏览器端到端（测试实例，合成租户已按 id 精确清理、残留 0）：填 5 项 → 确认卡「预计消耗约 40 积分」→ 402 →「去充值」→ 充值页 URL `…/lanqi-test/recharge?from=agent&skill=ipzone__copy&next=%2Fagent%2Fipzone__copy%2Fchat` →「返回继续生成」→ 回到对话页，**5 个答案原样保留、进度条 5 步全 ✓**。
+- 退化项对照（修复前 plat62 产物，同机同脚本）：填 2 格 → 刷新 → 草稿被清空、进度回第 1 步（红）。
+- 离线：`pnpm typecheck` 通过；`pnpm marketplace:recharge-roundtrip-contract-smoke` PASS；`pnpm marketplace:chat-slot-numbering-contract-smoke` PASS。
+
+### 四、给 WorkBuddy 的复测口径（可直接照用）
+
+1. 历史交付：`GET {base}/api/market/me/deliverables`（可选 `?skuCode=ipzone__copy`）——未登录 401、有会话 200，`retentionDays=7`。
+2. 退款可见：`GET {base}/api/market/me` → 读 `recentRefunds[]`；页面在「我的」页「积分退回」区块。
+3. 充值往返：0 余额账号走完 5 步 → 确认 → 出现「去充值（回来不用重填）」→ 点它到充值页 → 点「返回继续生成」→ 断言 5 项仍在（**不要用 dev-login 顶掉会话**：测试实例的免登录门卫在会话不满足产品授权时会重建会话，验收租户需带 `lanqi` 产品授权，否则会把草稿按「换人」丢弃，属测试环境干扰）。
+
+### 五、回滚
+
+备份 `/opt/baolu-backups/20260916-plat63b-draft-fp-prod1-before-baolu-os-v2{,-test}/`（含 `app-before.tar.gz`、`db-before.sql.gz`、env 与服务单元快照），发布日志 `/tmp/deploy-20260916-plat63b-draft-fp-*.log`；失败自动回滚。
+
 ## 最新发布：20260916-plat61 + plat62（2026-09-16，生产 + 测试实例）— 后台客户经营数据 / 我的页历史交付物 / 文案步骤序号去重 / 后台中文列名；并**关闭误开的生产推荐有礼**
 
 本条目补齐 `plat49`–`plat62` 的落地记录（此前文档只写到 `plat47/48`）。所有批次均为「先测试实例、后生产」的同一份归档，发布脚本 `deploy-release.sh` 失败即自动回滚，各环境保留最近 8 份备份。

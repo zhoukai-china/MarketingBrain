@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api";
+import { toSafeAppRoute } from "../lib/app-route.js";
 import { billingErrorCopy } from "../lib/humanize-error.js";
 
 interface CreditPack {
@@ -115,6 +116,16 @@ export function RechargePage() {
   const query = useMemo(() => new URLSearchParams(window.location.search), []);
   const fromWorkbuddy = query.get("from") === "workbuddy";
   const skill = query.get("skill") ?? "";
+  /**
+   * 2026-09-16（WorkBuddy 验收 P2 + 用户现场「充值完还得重填」）：
+   * 从智能体对话页余额不足跳过来时带 `next=<站内路由>`，这里给一条**明确的回头路**——
+   * 充完（或先不充）点「返回继续生成」就回到那个智能体，本机留存的输入原样还在。
+   *
+   * `next` 只接受**站内绝对路径**（单个前导 `/`），拒绝 `//host`、`http:`、反斜杠等一切跨站写法，
+   * 避免这个参数被当成开放跳转使用；再交给 `getAppPath()` 补回 `/os-v2/` 这类应用前缀。
+   */
+  const nextRoute = toSafeAppRoute(query.get("next"));
+  const goNext = () => { if (nextRoute) window.location.href = getAppPath(nextRoute); };
   const [token, setToken] = useState(() => localStorage.getItem("store_os_token") ?? "");
   const [wallet, setWallet] = useState<WalletBalance | null>(null);
   const [packs, setPacks] = useState<CreditPack[]>([]);
@@ -360,6 +371,16 @@ const isLocal = typeof window !== "undefined" && (window.location.hostname === "
           <div className="wallet-pill" title="积分余额 · 点击登录" onClick={() => { localStorage.setItem("store_os_post_login_redirect", getAppPath(`/recharge${window.location.search}`)); window.location.href = getAppPath("/login"); }}>🔒 未登录 · 点击登录</div>
         </header>
         <section className="view view-recharge">
+          {nextRoute && (
+            <div className="rc-from">
+              <span className="rcf-ico">↩️</span>
+            <div className="rcf-txt">
+              <b>你正在为刚才那次生成充值</b>
+              <p>充完点右边按钮就能回到那个智能体继续生成；<b>你已经填的内容留在本机，不会丢，不用重填</b>。</p>
+            </div>
+              <button className="btn ghost sm" style={{ marginLeft: "auto", flex: "0 0 auto" }} onClick={goNext}>返回继续生成</button>
+            </div>
+          )}
           {fromWorkbuddy && (
             <div className="rc-from"><span className="rcf-ico">🧩</span><div className="rcf-txt"><b>你来自 WorkBuddy</b><p>在 WorkBuddy 里用的思潼智能体，用的就是这份积分——充完回到 WorkBuddy 继续用，也能直接用思潼AI 里的行业智能体。</p></div></div>
           )}
@@ -395,6 +416,16 @@ const isLocal = typeof window !== "undefined" && (window.location.hostname === "
       </header>
 
       <section className="view view-recharge">
+        {nextRoute && (
+          <div className="rc-from">
+            <span className="rcf-ico">↩️</span>
+            <div className="rcf-txt">
+              <b>你正在为刚才那次生成充值</b>
+              <p>充完点右边按钮就能回到那个智能体继续生成；<b>你已经填的内容留在本机，不会丢，不用重填</b>。</p>
+            </div>
+            <button className="btn ghost sm" style={{ marginLeft: "auto", flex: "0 0 auto" }} onClick={goNext}>返回继续生成</button>
+          </div>
+        )}
         {fromWorkbuddy && (
           <div className="rc-from">
             <span className="rcf-ico">🧩</span>
