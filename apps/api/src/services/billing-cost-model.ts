@@ -148,9 +148,21 @@ export function costBasedSkuList(): string[] {
   return parseCostBasedSkuList(env.BILLING_COST_BASED_SKUS);
 }
 
-/** 这个 SKU 是否按「实际成本 × 倍数」计费（没进白名单的一律走固定 ppu）。 */
+/** 纯函数：给定白名单原文，判断某个 SKU 是否按成本计费（支持 `*` 通配）。 */
+export function isCostBasedSku(skuCode: string, rawList: string | undefined | null): boolean {
+  const list = parseCostBasedSkuList(rawList);
+  return list.includes("*") || list.includes(skuCode.trim().toLowerCase());
+}
+
+/**
+ * 这个 SKU 是否按「实际成本 × 倍数」计费（没进白名单的一律走固定 ppu）。
+ *
+ * 白名单支持通配 `*`：用户 2026-09-16「每个新增的智能体都可能涉及文字/图片/语音/视频/视觉，
+ * 产生多少成本就按对应成本的倍数收费就可以了」——写 `*` 表示**所有货架 SKU（含以后新增的）**
+ * 一律按本次真实用量算出的成本计费，不需要每上一个智能体就改一次配置。
+ */
 export function usesCostBasedPricing(skuCode: string): boolean {
-  return parseCostBasedSkuList(env.BILLING_COST_BASED_SKUS).includes(skuCode.trim().toLowerCase());
+  return isCostBasedSku(skuCode, env.BILLING_COST_BASED_SKUS);
 }
 
 /**

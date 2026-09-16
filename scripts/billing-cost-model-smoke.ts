@@ -12,6 +12,7 @@ import {
   costBasedBillingEnabled,
   creditsForCostCny,
   imageCostCny,
+  isCostBasedSku,
   parseCostBasedSkuList,
   reserveCreditsForEstimate,
   speechCostCny,
@@ -97,6 +98,14 @@ function main(): void {
     "白名单解析：去空白、转小写、去重、去空项"
   );
   assert.equal(usesCostBasedPricing("ipzone__copy"), false, "默认没配白名单时不得按成本计费");
+  /**
+   * 通配 `*`（用户 2026-09-16「每个新增的智能体产生多少成本就按对应倍数收费」）：
+   * 配了 `*` 之后**任何** SKU（含以后新增、没进过名单的）都按成本计费，不需要每次改配置。
+   */
+  assert.equal(isCostBasedSku("brand-new-agent-2027", "*"), true, "通配 * 必须覆盖未来新增的 SKU");
+  assert.equal(isCostBasedSku("ipzone__copy", "*"), true, "通配 * 也必须覆盖已有 SKU");
+  assert.equal(isCostBasedSku("ipzone__copy", "meiye__copy"), false, "明确列出时只匹配列出的 SKU");
+  assert.equal(isCostBasedSku("IPZONE__COPY", "ipzone__copy"), true, "SKU 匹配大小写不敏感");
 
   // 7c) 接线契约：跑货架 run 时，白名单里的 SKU 必须扣「本次真实用量算出的成本口径积分」，账本要能审计。
   const marketplaceSource = readFileSync(new URL("../apps/api/src/routes/marketplace.ts", import.meta.url), "utf8");
