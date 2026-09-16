@@ -192,6 +192,8 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
   app.get<{ Params: { id: string } }>("/exports/docx/:id", async (request, reply) => {
     // Lookup and consume after the asynchronous authorization, so concurrent
     // downloads cannot both obtain the same one-use buffer.
+    // 两条取件路径（令牌直链 / 会话头）都必须声明不可缓存：交付物是客户私有文件。
+    reply.header("Cache-Control", "private, no-store");
     cleanupExportRecords();
     const record = exportRecords.get(request.params.id);
     if (!record) {
