@@ -37,6 +37,18 @@ const fallbackTitle = "IP获客交付件";
 export function ChatMessages({ messages, busy, thinkingStep, currentConsultantId, capabilityId, chatEndRef, onQuickPrompt }: ChatMessagesProps) {
   // Word 导出对所有智能体答案统一按次独立扣积分；按钮先说明价格，避免用户点完才知道扣费。
   const [docxPrice, setDocxPrice] = useState<number | null>(null);
+  /** 复制反馈：点「复制全文」后按钮变「已复制」，2 秒后还原。 */
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  async function copyMessage(id: string, fallback: string): Promise<void> {
+    try {
+      await copyAnswerText(`chat-bubble-${id}`, fallback);
+      setCopiedId(id);
+      window.setTimeout(() => setCopiedId((current) => (current === id ? null : current)), 2000);
+    } catch {
+      window.alert("复制失败：请长按选中文字手动复制。");
+    }
+  }
   useEffect(() => {
     void fetch(apiPath("/exports/docx/price"))
       .then((response) => (response.ok ? response.json() : null))
@@ -89,13 +101,20 @@ export function ChatMessages({ messages, busy, thinkingStep, currentConsultantId
           >
             {msg.role === "advisor" && <img className="consultMessageAvatar" src={sitongAvatar} alt="思潼" />}
             <div className={msg.role === "advisor" ? "consultMessageBody advisorBody" : "consultMessageBody"}>
-              <div className={msg.role === "advisor" ? "consultBubble reportBubble" : "consultBubble userBubbleCompact"}>
+              <div
+                id={`chat-bubble-${msg.id}`}
+                className={msg.role === "advisor" ? "consultBubble reportBubble" : "consultBubble userBubbleCompact"}
+              >
                 {msg.role === "advisor" ? <FormattedAnswer content={msg.content} /> : msg.content}
               </div>
               {msg.role === "advisor" && (
                 <div className="messageDownloadBar" aria-label="下载交付件">
                   <button type="button" title="下载 .docx 文件，手机用 WPS / Word 打开都可以（WPS 原生支持 docx）" onClick={() => void downloadAnswerDocx(msg.content)}>
                     {`下载精美 Word${docxPrice ? ` · ${docxPrice} 积分` : ""}`}
+                  </button>
+                  {/* 用户 2026-09-16：AI 输出必须能一键复制（粘到微信 / WPS 直接用），不用手选。 */}
+                  <button type="button" onClick={() => void copyMessage(msg.id, msg.content)}>
+                    {copiedId === msg.id ? "✅ 已复制全文" : "📋 复制全文"}
                   </button>
                   {/*
                    * 用户 2026-09-16：手机用户只有 WPS、不知道该下什么、下完找不到文件。
@@ -104,6 +123,17 @@ export function ChatMessages({ messages, busy, thinkingStep, currentConsultantId
                   <span className="messageDownloadHint">
                     手机点一下就会下载一个 <b>.docx</b> 文件：用 <b>WPS</b> 或 Word 打开即可（WPS 原生支持，不用转格式）；找不到文件就去手机的「文件 / 下载」里找刚刚那份。<b>同一份报告重复下载不再扣积分</b>。
                   </span>
+                </div>
+              )}
+              {/*
+               * 用户 2026-09-16：对话框是「一问一答」——**用户自己发的内容也要能一键复制**
+               * （他要拿去做工单、转发同事、或者粘给别人看）。AI 那条在下面的下载栏里有「复制全文」。
+               */}
+              {msg.role !== "advisor" && (
+                <div className="messageCopyBar">
+                  <button type="button" onClick={() => void copyMessage(msg.id, msg.content)}>
+                    {copiedId === msg.id ? "✅ 已复制" : "📋 复制"}
+                  </button>
                 </div>
               )}
               <div className="consultMessageMeta">
@@ -392,6 +422,31 @@ function cleanDisplayText(text: string): string {
     .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/`([^`]+)`/g, "$1")
     .trim();
+}
+
+/**
+ * 复制全文（用户 2026-09-16：页面上 AI 输出和用户输入都应该能复制粘贴）。
+ *
+ * 复制的是**用户实际看到的文字**（取气泡的 innerText，表格也会带上），
+ * 这样粘到微信 / WPS / 备忘录里就是能直接用的稿子，不是带 `#` `**` 的源码。
+ */
+async function copyAnswerText(elementId: string, fallback: string): Promise<void> {
+  const node = document.getElementById(elementId);
+  const text = (node?.innerText ?? fallback ?? "").trim();
+  if (!text) throw new Error("copy_empty");
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.style.position = "fixed";
+  area.style.opacity = "0";
+  document.body.appendChild(area);
+  area.select();
+  const ok = document.execCommand("copy");
+  area.remove();
+  if (!ok) throw new Error("copy_failed");
 }
 
 async function downloadAnswerDocx(content: string): Promise<void> {

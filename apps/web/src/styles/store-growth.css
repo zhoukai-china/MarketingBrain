@@ -5155,6 +5155,28 @@ pre {
   color: #d9b875;
 }
 
+/* 用户自己发的内容也要能一键复制（一问一答两边都能复制）。 */
+.messageCopyBar {
+  margin-top: 6px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.messageCopyBar button {
+  padding: 2px 9px;
+  border: 1px solid rgba(233, 255, 251, 0.22);
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(233, 255, 251, 0.66);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.messageCopyBar button:hover {
+  color: #e9fffb;
+  border-color: rgba(233, 255, 251, 0.4);
+}
+
 .consultMessageMeta {
   margin-top: 5px;
   padding-left: 4px;
