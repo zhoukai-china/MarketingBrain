@@ -145,3 +145,33 @@ export async function buildServer() {
 
 const app = await buildServer();
 await app.listen({ port: env.PORT, host: env.API_HOST });
+
+/**
+ * 优雅关闭（2026-09-16 事故根治）：**重启不能打断正在生成的请求**。
+ *
+ * 事故：发布脚本 `systemctl restart` 时进程没有 SIGTERM 处理，Node 默认立即退出，
+ * 正在跑的智能体生成（IP 定位约 21–60 秒、文案约 15–30 秒）被掐断，nginx 报
+ * `connect() failed (111)` / `upstream prematurely closed connection` → 用户看到「请求失败（502）」，
+ * 而且这一次生成白等（模型成本我们已付出、用户没拿到结果）。
+ *
+ * 现在：收到 SIGTERM/SIGINT 后调用 `app.close()`——Fastify 会先停止接受新连接，
+ * **等在途请求跑完**再退出；配合 systemd `TimeoutStopSec=180`，一次正常生成不会被重启打断。
+ */
+let shutdownStarted = false;
+async function shutdown(signal: string): Promise<void> {
+  if (shutdownStarted) return;
+  shutdownStarted = true;
+  console.log(JSON.stringify({ event: "server_shutdown_started", signal, at: new Date().toISOString() }));
+  try {
+    await app.close();
+    console.log(JSON.stringify({ event: "server_shutdown_finished", signal }));
+  } catch (error) {
+    console.error(JSON.stringify({ event: "server_shutdown_failed", signal, message: error instanceof Error ? error.message : String(error) }));
+  }
+  process.exit(0);
+}
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+  process.on(signal, () => {
+    void shutdown(signal);
+  });
+}
