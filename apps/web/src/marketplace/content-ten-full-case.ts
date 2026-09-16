@@ -20,7 +20,7 @@ export const CONTENT_TEN_FULL_CASE_HTML = `
       <div class="cro"><span>出镜人</span><b>创始人本人</b></div>
       <div class="cro"><span>已确认核心卖点</span><b>① 标准化动作清单 ② 16 年一线经验 ③ 过程可检查</b></div>
       <div class="cro"><span>内容目的</span><b>引流到店体验（获客型）</b></div>
-      <div class="cro"><span>发布平台</span><b>抖音 / 视频号 / 小红书（同一卖点换表达）</b></div>
+      <div class="cro"><span>发布平台</span><b>抖音 / 视频号 / 小红书 / 快手（同一卖点换表达）</b></div>
     </div>
 
     <div class="cr-sec"><div class="cr-h">一、选题策划</div>
