@@ -1,18 +1,20 @@
 # Bug 回归台账
 
-## QA-20260916-006：本机「导出仓根 `.env`（`SKILL_MCP_REQUIRED=true` + 3011 网关）」会让美业 `beauty-industry:web-contract-smoke` 链条再叠一层误红（P2，环境坑；不在 LQ-34 改代码，登记待收敛）
+## QA-20260916-008：本机「导出仓根 `.env`（`SKILL_MCP_REQUIRED=true` + 3011 网关）」会让美业 `beauty-industry:web-contract-smoke` 链条再叠一层误红（P2，环境坑；不在 LQ-34 改代码，登记待收敛）
 
+- 编号说明：本条在 LQ-34 分支上原登记为 QA-20260916-006；合并 `main` 时与 main 侧**并发登记**的条目（QA-20260916-004/004B/005）撞号，故顺延为 **-008**，内容未变。
 - 触发：2026-09-16 跑 LQ-34 的 `pnpm.cmd qa:regression`，链条进到 `beauty-industry:web-contract-smoke` 段报红，现象像「Skill 合同被改坏了」。
 - 复现与归因（**同一台机器、同一份 checkout，只差一个环境变量**）：
   1. 污染态：我在跑门禁前把**仓根** `.env` 导进了本次 shell 进程（`SKILL_MCP_URL=http://127.0.0.1:3011/mcp`、`SKILL_MCP_REQUIRED=true`），且本机 3011 网关在 Listen → `beauty-industry-by09-message-profile.ts:74` 断言红，实测 prompt **25114 > 25000**（`beauty_xiaohongshu_package` 的 `maxPromptBytes` 预算）；同批 `fixed-route-output-p1-smoke`、`user-path-contract-p1-smoke` 一并红。
   2. 干净 shell（不导出仓根 `.env`，即 `SKILL_MCP_REQUIRED` 未设置）：`fixed-route-output-p1-smoke`、`user-path-contract-p1-smoke` 单跑均绿（`beauty fixed-route output P1 smoke passed`、`BEAUTY_USER_PATH_CONTRACT_P1_SMOKE_OK capabilities=2 provider=0`，exit 0）。
 - 根因：`SKILL_MCP_REQUIRED=true` 会让 `loadSkillPrompt` / `loadSkillQualityContract` 改从 3011 **网关**取 Skill 包，网关那份与本 checkout 不是同一版本、合同与提问壳更大，prompt 字节数再被推高。**属于环境差异，不是产品缺陷**：`apps/api/.env` 里没有这两个键，默认 / CI 环境不会走网关取包。
-- ⚠️ **归因修正（2026-09-16 晚，同日复查）**：本条原先写成「干净 shell 该段全绿，25114 只由网关污染造成」，**这个结论是错的**。补齐对照后实测：干净 shell 单跑 `scripts/beauty-industry-by09-message-profile.ts` **同样是 25114 红**，真正根因是「全新 worktree 的 CRLF 检出」，见 QA-20260916-007；网关污染只是在 25114 之上再叠一层放大，不是 25114 的成因。保留本条是因为「导出仓根 `.env` 会引入与被测代码无关的红灯」这个坑本身仍然成立。
+- ⚠️ **归因修正（2026-09-16 晚，同日复查）**：本条原先写成「干净 shell 该段全绿，25114 只由网关污染造成」，**这个结论是错的**。补齐对照后实测：干净 shell 单跑 `scripts/beauty-industry-by09-message-profile.ts` **同样是 25114 红**，真正根因是「全新 worktree 的 CRLF 检出」，见 QA-20260916-009；网关污染只是在 25114 之上再叠一层放大，不是 25114 的成因。保留本条是因为「导出仓根 `.env` 会引入与被测代码无关的红灯」这个坑本身仍然成立。
 - 处理与边界：**不在 LQ-34 动代码**。理由：默认 / CI 干净 shell 下这些脚本本就全绿；生产「MCP 必选」的语义已由 `skill:mcp-resilience-smoke`、`beauty-industry:mcp-platform-smoke` 覆盖；批量给 38 个 beauty 脚本 pin `SKILL_MCP_ENABLED=false` 会横跨美业交付范围（BY-17 等），属另一个任务。
 - 留下的坑与建议：开发者本机若同时「起 3011 网关」+「导出仓根 `.env`」，会看到一串与被测代码无关的红灯，极容易误判成产品坏了。后续要么在门禁入口固定环境（不导出仓根 `.env`），要么给这批脚本加统一的 `SKILL_MCP_ENABLED=false` 入口约束。
 
-## QA-20260916-007：全新 Windows worktree（`core.autocrlf=true`、仓库无 `.gitattributes`）把提示词资产检出成 CRLF，顶穿 `beauty_xiaohongshu_package` 的 25,000 字节版本化预算（P2，main 侧既有红；不在 LQ-34 改）
+## QA-20260916-009：全新 Windows worktree（`core.autocrlf=true`、仓库无 `.gitattributes`）把提示词资产检出成 CRLF，顶穿 `beauty_xiaohongshu_package` 的 25,000 字节版本化预算（P2，main 侧既有红；不在 LQ-34 改）
 
+- 编号说明：本条在 LQ-34 分支上原登记为 QA-20260916-007；合并 `main` 时与 main 侧**并发登记**的条目撞号，故顺延为 **-009**，内容未变。
 - 触发：2026-09-16 交付 LQ-34 跑 `pnpm.cmd qa:regression`，链条停在 `beauty-industry:text-budget-smoke`：`AssertionError: beauty_xiaohongshu_package prompt exceeded the versioned budget before Provider start:25114/25000`（`scripts/beauty-industry-by09-message-profile.ts:74`）。
 - 复现与归因（**逐步排除 LQ-34 嫌疑，再逐字节定位**）：
   1. 本任务改动清单 `git diff main...HEAD --name-only` **不含** `apps/api/src/products/**`、`packages/**`、`mcp-skills/**`；`git log main..HEAD -- apps/api/src/products packages/skills mcp-skills` 亦为空 → 不可能由 LQ-34 引入。
@@ -26,8 +28,9 @@
 - 处理与边界：**不在 LQ-34 改**（属平台/提示词预算线，改预算或改换行策略都会横跨美业 BY-17 等交付范围）。本任务只把 worktree 提示词资产恢复成与 git blob 一致的 LF（等价于 CI/Linux 所见），并如实登记。
 - 后续（需单独立项，二选一或同时做）：① 仓库加 `.gitattributes`（至少 `mcp-skills/**`、`packages/skills/**` 用 `text=auto eol=lf`），或在门禁入口统一 `core.autocrlf=false`，避免每个新 worktree 都踩一次；② 复核 `beauty_xiaohongshu_package` / `beauty_sales` 的 25,000 预算余量与提示词增长节奏（与本台账 QA-20260916-003 的图片定价线无关）。
 
-## QA-20260916-005：自服务邀请链接改成「按活动开关下架」后，`referral:self-service-smoke` 仍按「活动常开」假设写 → 本机必然红（P2，已修）
+## QA-20260916-007：自服务邀请链接改成「按活动开关下架」后，`referral:self-service-smoke` 仍按「活动常开」假设写 → 本机必然红（P2，已修）
 
+- 编号说明：本条在 LQ-34 分支上原登记为 QA-20260916-005；合并 `main` 时与 main 侧**并发登记**的条目撞号，故顺延为 **-007**，内容未变。
 - 触发：2026-09-16 LQ-34 交付跑 `pnpm.cmd qa:regression`，`referral:self-service-smoke` 报 `FAIL: 首次必须是 created`，看着像「邀请链接签发坏了」。
 - 复现与归因：`main`（HEAD 的祖先）上同一条命令**同样红**。脚本第 ② 步默认「首次 POST 必然签发」，但 commit `026682a`「邀请链接按活动开关下架」之后，签发受「推荐有礼总开关 + 活动窗」约束；本机 dev 库 `PlatformSetting` 实测 `REFERRAL_REWARD_ENABLED=false`、`REFERRAL_CAMPAIGN_STARTS_AT/ENDS_AT=null`，按新口径**就是不该签发**。属**过期断言**（测试没跟上契约），不是产品缺陷。
 - 修复（`scripts/referral-self-service-smoke.ts`，只改测试、不动服务端）：
@@ -37,8 +40,9 @@
 - 修复后：`pnpm.cmd referral:self-service-smoke` **exit 0**，`{"result":"PLAT38_SELF_REFERRAL_PASS","anonymousRejected":true,"campaignGateClosedNoIssue":true,"firstIssueReturnedPlaintext":true,"repeatReadHidesPlaintext":true,"regenerateKeepsOldCode":true,"providerCalls":0,"costYuan":0}`；dev 库复查三个键已还原（`REFERRAL_REWARD_ENABLED=false`、窗口 null、`updatedBy=null`）。
 - 教训：给某类「按开关下架」加服务端兜底后，**回归脚本里所有「必然成功」的假设都要跟着复核**，否则红灯会把锅甩给产品；同时「让测试改配置」必须在 `finally` 里连审计字段一起还原。
 
-## QA-20260916-004：Word 下载改「一次性直链」后，`export:owner-isolation-smoke` 按「会话鉴权」写的隔离断言失效（本机必红）；顺带发现令牌分支缺 `Cache-Control`（P2，已修）
+## QA-20260916-006：Word 下载改「一次性直链」后，`export:owner-isolation-smoke` 按「会话鉴权」写的隔离断言失效（本机必红）；顺带发现令牌分支缺 `Cache-Control`（P2，已修）
 
+- 编号说明：本条在 LQ-34 分支上原登记为 QA-20260916-004；合并 `main` 时与 main 侧**并发登记**的条目撞号，故顺延为 **-006**，内容未变。
 - 触发：2026-09-16 LQ-34 交付跑 `pnpm.cmd qa:regression`，`export:owner-isolation-smoke` 在 `scripts/export-owner-isolation-smoke.ts:63` 断言红：`Another user must not download or consume the creator's temporary export`，实际 `200 !== 404`。
 - 复现与归因：`main`（HEAD 的祖先）上同一条命令**同样红**（同一行、同一断言）。根因是 commit `9c51c54`「Word 下载改一次性直链」——`POST /exports/docx` 返回的 `downloadUrl` 现在带 `?t=<HMAC 令牌>`（10 分钟 TTL、取件后删记录）；脚本仍把这条**带有效令牌**的地址配上同事的 Bearer 头去请求，令牌先命中，自然回 200。属**过期断言**，不是产品缺陷。
 - 修复（`scripts/export-owner-isolation-smoke.ts` + `apps/api/src/routes/exports.ts`）：
@@ -47,6 +51,42 @@
   - `apps/api/src/routes/exports.ts`：令牌直链分支原来**不经过** `resolveExportContext`，所以缺 `Cache-Control: private, no-store`（客户私有交付物可能被浏览器 / 代理缓存）。修复 = 在 handler 开头统一声明该头，让两条取件分支都生效。
 - 红灯→绿灯证据（**证明新增断言不是哑断言**）：临时撤掉那一行 `Cache-Control` → 回归红（`actual: undefined, expected: private, no-store`）→ 恢复 → 绿。绿灯输出：`{"status":"PASS","rounds":3,"exportPrice":10,"chargedExports":2,"idempotentRedownloads":true,"insufficientReturns402":true,"oneTimeLink":true,"providerCalls":0,"externalCalls":0}`。
 - 教训：契约从「会话鉴权」改成「持有令牌即可取件」时，**隔离回归必须换用不含有效令牌的地址**，否则「同事拿不到」这条永远测不到；新契约下「不可缓存」也要覆盖到**所有**取件分支，而不是只有会话分支。
+
+## QA-20260916-005：推荐有礼**在生产实际处于「已开启」**——开关只看了 env（false），真实生效值来自数据库覆盖位（true + 09-13→10-01 活动窗），已发出 1 笔 100 积分奖励（P0/P1，已按用户口径关闭两环境）
+
+- 触发：2026-09-16 交付「后台客户表 + 我的页」时，按用户口径「先下架」做页面级验收（测试实例「我的」页），**邀请链接卡片仍然渲染**。
+- 复现与取证（**修复前**）：
+  1. 真实浏览器打开测试实例 `/lanqi-test/mine`（合成租户）→ 页面出现「邀请链接 · 还没有推荐码…」卡片（与用户「先下架」直接冲突）。
+  2. 接口侧同源：`/market/me/referral-link` 的 `campaignActive` 才是卡片开关，前端按 `campaignActive === false` 才隐藏——说明服务端算出来不是 false。
+  3. 只读探针（`.debug/plat62-referral-config-probe.mjs`）查两环境 `PlatformSetting`：
+     - 生产：`REFERRAL_REWARD_ENABLED=true`、`REFERRAL_CAMPAIGN_STARTS_AT=2026-09-13T12:02Z`、`..._ENDS_AT=2026-09-30T16:00Z`（更新于 2026-09-13T20:02Z）
+     - 测试：同形，更新于 `20:03Z`
+     - 而两个 env 文件里**都没有** `REFERRAL_*` 任何键 → 生效值 100% 来自 DB 覆盖位。
+  4. 影响盘点（生产只读）：`ReferralCode` 4 条、`ReferralBinding` **1 条**（2026-09-15T01:17Z，`source=platform_onboarding`，推荐人 `cmtzaheu9…`，被推荐人落到租户「保禄测试」`cmu1zf95d0…t1z1`）、`WalletLedger` 里 `referral_reward:new_user` **1 笔 +100 bonus**（2026-09-15T01:17Z）。即：活动事实上跑了 2 天，已发出 1 笔 100 积分；推荐人的「首次使用 +100」因被推荐人尚无消耗**未触发**。
+- 根因：`getReferralConfig()` 的取值顺序是「DB 覆盖位 > env 默认」（`readStoredRows()` 命中就用 DB 值）。此前交接只核对了 `REFERRAL_REWARD_ENABLED` **env** 为 false，就写成「生产未启用」——**核对的是不生效的那一层**（现象是卡片露出，根因是配置来源判错，不是前端 bug）。
+- 修复（按用户 2026-09-16 明示口径「暂时不开放，先下架，等我通知（预计 10.1–10.7）」）：
+  - 生产与测试各执行一次 `node scripts/enable-referral-campaign.mjs --apply --disable`（只写 `PlatformSetting`，不动代码、不动钱包、不退不补），写入后脚本自检 **8/8 项与目标一致**。
+  - 复核（只读探针）：两环境 `REFERRAL_REWARD_ENABLED=false`；页面复核：测试实例「我的」页邀请卡片 **不再渲染**（`hasInviteCard=false`），同页「历史交付物 · 保存 7 天」仍正常渲染。
+  - 已发出的那 1 笔 100 积分**未回收**（落在老板自用测试租户「保禄测试」，且回收需人工确认口径）；推荐有礼正式启动时用 `node scripts/enable-referral-campaign.mjs --apply --start 2026-10-01T00:00:00+08:00 --end 2026-10-08T00:00:00+08:00` 开窗即可。
+- 回归守护：本次新增 `pnpm marketplace:chat-slot-numbering-contract-smoke`（步骤序号契约）；**推荐活动开关的守护缺口仍在**——建议下一步加一条「断言两环境 `REFERRAL_REWARD_ENABLED` 的实际生效值等于期望值」的只读巡检（用户已明确「不要每日定时任务」，故不做定时，改为启动/关闭时由脚本自检 + 发布前手工只读核对）。
+- 教训（写进流程）：**核对开关必须核「生效值」，不是 env 文件**。凡「env 默认 + DB 覆盖」两层的配置，报告里必须写清读的是哪一层，否则等于没核。
+
+## QA-20260916-004：文案智能体进度条**序号重复**（「① ① 行业 / 产品卖点」）——徽标自带 1/2/3，label 里又写了 ①/②（P2，已修 + 跨全部智能体审计 + 已上两环境）
+
+- 触发：2026-09-16 用户截图报障「① 行业 / 产品卖点 ② 目标人群 ③ 平台 ④ 口播时长 ⑤ 内容类型」栏里序号出现两遍，并要求「同步检查其他智能体是否存在同样的情况」。
+- 复现与根因：进度条 JSX 是 `<i>{idx + 1}</i><b>{slot.label}</b>`——**序号本来就由徽标输出**；而 `copy` 流程的 5 个 `label` 又写成 `"① 行业 / 产品卖点"` 等，于是渲染成「① ① 行业 / 产品卖点」。同一份 `label` 还被拼进提问气泡（`**${label}**：${q}`），所以气泡也变成「① 行业 / 产品卖点：① 你的行业…」，一处根因两处现象。
+- 跨智能体审计（用户明确要求）：扫 `CHAT_FLOWS` 全量 **9 个智能体 / 31 个步骤**——`ip-pos / topic / copy / vidrev / livescript / liverev / sales / moments / ip-pack`。只有 `copy` 命中；`topic` 的 `label` 带的是 emoji（🎙/🔥/📊/🔍）而非序号，属**另一层装饰、不算重复**，本次不改（避免动用户已接受的外观）。
+- 修复：`apps/web/src/marketplace/chat-flows.ts` 把 `copy` 的 5 个 `label` 去掉序号（与其余 8 个智能体统一口径：**序号只由进度条徽标输出**，提问正文里的 ①/② 保留）。
+- 先红后绿（证据可复现）：新增 `scripts/marketplace-chat-slot-numbering-contract-smoke.ts`，对修复前版本（`git show 026682a^:apps/web/src/marketplace/chat-flows.ts`）运行 → **FAIL 5 项**（正是那 5 个 label）；对当前版本运行 → **PASS（9 个智能体 / 31 个步骤 + 3 项页面结构契约）**。
+- 已挂门禁：`pnpm marketplace:chat-slot-numbering-contract-smoke` 已加入 `qa:fast`（以后任何新增智能体只要 label 带序号就会红；提问正文序号与槽位顺序不一致也会红）。
+- 上线核验：生产与测试构建产物里 `label:"行业 / 产品卖点",q:"① 你的…"`（label 无序号、正文有序号）；测试实例发布前仍是 `label:"① 行业 / 产品卖点"`——这也解释了用户看到的截图来自**尚未发布的测试实例**。
+
+## QA-20260916-004B：发布脚本 `/tmp/deploy-release.sh` 是**旧版本**，canary 哈希过期导致测试实例发布在第 4 步直接失败（P2，已修；生产未受影响）
+
+- 触发：2026-09-16 发 `20260916-plat61-admin-mine-test1` 时脚本在 `===== 4. verify build artifacts =====` 退出，日志只有 `marketplace src=… dist=…`（两值相等）后紧跟 `!!! failed before any change to /opt/baolu-os-v2-test (exit=1)`。**失败发生在改动之前，服务未被触碰、无需回滚**。
+- 根因：服务器 `/tmp/deploy-release.sh` 内嵌的 `marketplace-v3.json` 哈希 canary 是旧值 `a3e9a6cf…`，而当前仓库值是 `f10b00da…`（参考价改动时同步过仓库内三个脚本，但没同步服务器上那份 `/tmp` 副本）；`test "$SRC_HASH" = "<旧哈希>"` 因此必然失败。仓库内三个脚本本身是对的（本地 `git status` 显示 `M scripts/tmp/deploy-*.sh` 即为同步结果）。
+- 修复：把仓库当前 `scripts/tmp/deploy-release.sh`、`scripts/tmp/verify-deploy.sh` scp 覆盖服务器 `/tmp`，重跑即 `DEPLOY_OK 20260916-plat61-admin-mine-test1b`（health=200）。**顺带修掉「同一版本号重跑导致备份目录重名」的隐患**：重跑用了 `-test1b` 后缀。
+- 教训：发布脚本是**运行在服务器上的副本**，仓库改完必须同步；诊断发布失败先看「失败在第几步、日志最后一行」，不要先怀疑代码。
 
 ## QA-20260916-003：`qa:lanqi-foundation` 领域门禁**在 main 上本来就红**——三处断言仍指向重构前的文件/旧价格（P2，两处已修；一处属定价线，登记待修）
 

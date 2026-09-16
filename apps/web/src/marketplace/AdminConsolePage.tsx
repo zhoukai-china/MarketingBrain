@@ -323,6 +323,41 @@ function valueText(value: unknown): string {
 
 const TABLE_SKIP_KEYS = new Set(["id", "tenantId", "userId", "createdAt", "updatedAt", "metadata", "data", "redemptions"]);
 
+/**
+ * 2026-09-16（用户）：后台是**老板自己看**的页面，表头直接印 `walletBalance / consumedCredits`
+ * 等于没做出来——这里把已知字段翻成人话，未知字段原样保留（运维排查仍能对上接口字段），
+ * 并挂 `title` 保留原始字段名。
+ */
+const COLUMN_LABELS: Record<string, string> = {
+  name: "客户名称",
+  type: "类型",
+  industry: "行业",
+  city: "城市",
+  planCode: "套餐",
+  planName: "套餐名",
+  subscriptionStatus: "订阅状态",
+  subscriptionExpiresAt: "订阅到期",
+  walletBalance: "剩余积分",
+  rechargedCredits: "累计充值",
+  consumedCredits: "累计消耗",
+  topAgents: "常用智能体",
+  memberCount: "成员数",
+  agentRunCount: "智能体运行次数",
+  conversationCount: "会话数",
+  fileCount: "文件数",
+  billingOrderCount: "订单数",
+  legacyCreditBalance: "旧账户余额（历史口径）",
+  creditBalance: "旧积分账户余额",
+  code: "编码",
+  label: "备注",
+  productCode: "产品",
+  maxUses: "可用次数",
+  useCount: "已用次数",
+  active: "有效",
+  expiresAt: "到期",
+  createdAt: "创建时间"
+};
+
 /** 通用表格：数组就直接列；对象里有数组字段就先列摘要、再列出那个数组。 */
 function DataView({ data, columns, emptyText = "暂无数据" }: { data: unknown; columns?: string[]; emptyText?: string }) {
   const tables = collectTables(data, columns);
@@ -334,7 +369,11 @@ function DataView({ data, columns, emptyText = "暂无数据" }: { data: unknown
           <p className="adminTableCaption">{table.title}（{table.rows.length} 行）</p>
           <table className="adminTable">
             <thead>
-              <tr>{table.columns.map((column) => <th key={column}>{column}</th>)}</tr>
+              <tr>
+                {table.columns.map((column) => (
+                  <th key={column} title={column}>{COLUMN_LABELS[column] ?? column}</th>
+                ))}
+              </tr>
             </thead>
             <tbody>
               {table.rows.slice(0, 50).map((row, index) => (
