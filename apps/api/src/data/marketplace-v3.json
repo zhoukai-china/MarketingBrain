@@ -3,7 +3,7 @@
     "ip-pos": {
       "name": "IP定位智能体",
       "ico": "🎯",
-      "ppu": 200,
+      "ppu": 130,
       "status": "selling",
       "verbs": [
         "定位",
@@ -42,7 +42,7 @@
     "vidrev": {
       "name": "视频复盘智能体",
       "ico": "📊",
-      "ppu": 60,
+      "ppu": 70,
       "status": "selling",
       "verbs": [
         "复盘",
