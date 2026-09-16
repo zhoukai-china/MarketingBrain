@@ -37,6 +37,35 @@ export function clearStoredSession(): void {
 }
 
 /**
+ * 本机草稿（`sitong_chat_*`）用的**稳定身份指纹**。
+ *
+ * 2026-09-16 修：原来用 token 末 8 位当指纹，只要 token 被重新签发就会变——
+ * 重新登录、平台刷新会话、内测实例的免登录门卫重建会话，都会让**同一个人的草稿**被判成「换了人」而丢弃。
+ * 真机复现：同一账号在对话页填了 5 项 → 刷新页面 → 草稿被清空（`fp` 从 `KKIyBreM` 变成新会话的尾巴）。
+ *
+ * 会话 JWT 的 payload 里本来就带 `tenantId` / `userId`，用它做指纹既**稳定**（同人重签不变）
+ * 又能挡住换账号串数据；解不开时退回 token 末 8 位（隐私模式 / 非 JWT 也不会崩）。
+ */
+export function readSessionIdentity(): string {
+  const token = readSessionToken();
+  if (!token) return "";
+  const parts = token.split(".");
+  if (parts.length === 3) {
+    try {
+      const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+      const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+      const payload = JSON.parse(atob(padded)) as { tenantId?: unknown; userId?: unknown };
+      if (typeof payload.tenantId === "string" && typeof payload.userId === "string") {
+        return `${payload.tenantId}:${payload.userId}`;
+      }
+    } catch {
+      /* 落到下面的兜底 */
+    }
+  }
+  return token.slice(-8);
+}
+
+/**
  * 只读探针：服务端是否仍然接受这个 token。
  *
  * - `valid`：200，可以放心按「已登录」处理。
