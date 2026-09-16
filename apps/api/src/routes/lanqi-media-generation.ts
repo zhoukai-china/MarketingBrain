@@ -9,6 +9,7 @@ import { LANQI_VIDEO_MAX_SECONDS, LANQI_VIDEO_MIN_SECONDS, cancelLanqiMediaTask,
 import { resolveLanqiFirstFrameInput, stageLanqiFirstFrame, lanqiFirstFrameRequestFingerprint } from "../services/lanqi-media-staging.js";
 import { LANQI_COMPOSE_MAX_SHOTS, LanqiComposeError, composeLanqiShots } from "../services/lanqi-media-compose.js";
 import { resolveRequestContext } from "../services/request-context.js";
+import { chargeLanqiWallet, readLanqiWalletBalance, refundLanqiWallet } from "../services/lanqi-wallet.js";
 import { loadLanqiImagePreview, registerLanqiImageStudioRoutes } from "./lanqi-image-studio.js";
 
 const firstFrameIdPattern = /^lanqi-ff-[A-Za-z0-9]{16,64}$/;
@@ -107,18 +108,31 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
     const authorization = await resolveLanqiMediaAuthorization(context, readiness, quote.creditCost, input.kind);
     if (!authorization.canConfirm) return reply.code(authorization.blockCode === "quota_exhausted" ? 429 : 409).send({ error: authorization.blockCode ?? "media_execution_blocked", message: authorization.message });
     let job: any;
+    /**
+     * LQ-34（用户 2026-09-16）：扣**通用钱包**（本店老板）而不是租户积分账户。
+     *
+     * 钱包扣费/退款各自带事务，不能塞进建任务那个事务里，所以顺序是：
+     *   ① 先扣钱包（同 requestKey 幂等）→ ② 再建任务；③ 建任务若不是「同键并发」而是别的错，
+     *   立刻补偿退款（幂等键相同，不会重复退）。
+     */
+    const walletCharge = await chargeLanqiWallet({
+      tenantId: context.tenantId,
+      operatorUserId: context.userId,
+      requestId: requestKey,
+      credits: quote.creditCost,
+      skillId: "lanqi_media_generation"
+    });
+    if (walletCharge.status === "owner_missing") {
+      return reply.code(409).send({ error: "lanqi_wallet_owner_missing", message: "本店还没有可扣费的老板账号，本次没有创建任务或扣费。" });
+    }
+    if (walletCharge.status === "insufficient") {
+      return reply.code(402).send({ error: "insufficient_credits", message: "积分不足，本次没有创建任务或扣费。", balance: walletCharge.wallet.balance, required: quote.creditCost, rechargeUrl: "/recharge" });
+    }
     try {
-      job = await prisma.$transaction(async tx => {
-        const account = await tx.creditAccount.findUnique({ where: { tenantId: context.tenantId } });
-        if (!account || account.balance < quote.creditCost) throw Object.assign(new Error("insufficient_credits"), { statusCode: 402 });
-        const created = await tx.lanqiMediaJob.create({ data: { tenantId: context.tenantId, userId: context.userId, requestKey, kind: input.kind, provider: quote.provider, model: quote.model,
+      job = await prisma.lanqiMediaJob.create({ data: { tenantId: context.tenantId, userId: context.userId, requestKey, kind: input.kind, provider: quote.provider, model: quote.model,
           previewId: input.previewId, promptVersion: input.promptVersion ?? "unknown", prompt: input.prompt, negativePrompt: input.negativePrompt,
           parameters: { ratio: input.ratio, resolution: input.resolution, durationSeconds: input.durationSeconds, watermark: true, firstFrameId: firstFrameFingerprint } as Prisma.InputJsonValue,
           imageUrl: input.imageUrl, resolution: input.resolution, ratio: input.ratio, durationSeconds: input.durationSeconds, creditCost: quote.creditCost } });
-        await tx.creditAccount.update({ where: { id: account.id }, data: { balance: { decrement: quote.creditCost } } });
-        await tx.creditTransaction.create({ data: { creditAccountId: account.id, tenantId: context.tenantId, userId: context.userId, direction: "consume", amount: quote.creditCost, reason: "lanqi_media_generation", refType: "lanqi_media_job", refId: created.id } });
-        return created;
-      });
     } catch (error) {
       if ((error as { statusCode?: number }).statusCode === 402) return reply.code(402).send({ error: "insufficient_credits", message: "积分不足，本次没有创建任务或扣费。" });
       if ((error as { code?: string }).code === "P2002") {
@@ -396,20 +410,23 @@ function parseLanqiMediaJobKinds(value: unknown): string[] | undefined {
 }
 
 async function refund(job: any, finalStatus: "failed" | "canceled", message: string) {
-  return prisma.$transaction(async tx => {
-    const claimed = await tx.lanqiMediaJob.updateMany({ where: { id: job.id, billingStatus: "reserved" }, data: { billingStatus: "refund_processing" } });
-    const current = await tx.lanqiMediaJob.findUnique({ where: { id: job.id } });
-    if (!current) return job;
-    if (claimed.count === 0) return current;
-    if (claimed.count === 1) {
-    const account = await tx.creditAccount.findUnique({ where: { tenantId: current.tenantId } });
-    if (account) {
-        await tx.creditAccount.update({ where: { id: account.id }, data: { balance: { increment: current.creditCost } } });
-        await tx.creditTransaction.create({ data: { creditAccountId: account.id, tenantId: current.tenantId, userId: current.userId, direction: "refund", amount: current.creditCost, reason: "lanqi_media_generation_refund", refType: "lanqi_media_job", refId: current.id } });
-      }
-    }
-    return tx.lanqiMediaJob.update({ where: { id: current.id }, data: { status: finalStatus, billingStatus: "refunded", assetStatus: "unavailable", errorMessage: message.slice(0, 500), completedAt: new Date(), ...(finalStatus === "canceled" ? { canceledAt: new Date() } : {}) } });
+  /**
+   * LQ-34 两阶段退款（用户 2026-09-16：兰琪扣通用钱包）：
+   *   ① 用条件更新「抢占」退款权（`reserved` → `refund_processing`），只有拿到的那次继续；
+   *   ② **退出事务后**再退钱包（`refundLanqiWallet` 自己开事务，按原扣费流水回退到原桶）；
+   *   ③ 最后置 `refunded`。若 ② 之后崩了，任务停在 `refund_processing`，重试会走同一条幂等退款，不会重复退。
+   */
+  const claimed = await prisma.lanqiMediaJob.updateMany({ where: { id: job.id, billingStatus: "reserved" }, data: { billingStatus: "refund_processing" } });
+  const current = await prisma.lanqiMediaJob.findUnique({ where: { id: job.id } });
+  if (!current) return job;
+  if (claimed.count === 0) return current;
+  await refundLanqiWallet({
+    tenantId: current.tenantId,
+    requestId: current.requestKey,
+    skillId: "lanqi_media_generation",
+    reason: "lanqi_media_generation_refund"
   });
+  return prisma.lanqiMediaJob.update({ where: { id: current.id }, data: { status: finalStatus, billingStatus: "refunded", assetStatus: "unavailable", errorMessage: message.slice(0, 500), completedAt: new Date(), ...(finalStatus === "canceled" ? { canceledAt: new Date() } : {}) } });
 }
 
 async function finalizeSuccess(job: any, providerStatus: string): Promise<{ job: any; accepted: boolean }> {
@@ -492,12 +509,13 @@ export async function resolveLanqiMediaAuthorization(
   if (readiness.mode !== "real" || context.source !== "database") return { canConfirm: true, message: "" };
   // 「本次验收最多 3 张」是首轮真实生图预算上限；成片按秒计价，不受该图片上限约束。
   if (kind !== "image") {
-    const account = await prisma.creditAccount.findUnique({ where: { tenantId: context.tenantId }, select: { balance: true } });
+    // LQ-34：可确认性判断（能不能点「确认并生成」）也必须看**同一本钱包**，否则会出现「许可说可以、扣费说没钱」。
+    const account = await readLanqiWalletBalance(context.tenantId);
     if (!account || account.balance < creditCost) return { canConfirm: false, blockCode: "quota_exhausted", message: "当前可用积分不足，本次不会创建任务或扣积分；继续生成需要新的明确授权。" };
     return { canConfirm: true, message: "" };
   }
   const [account, completedJobs] = await Promise.all([
-    prisma.creditAccount.findUnique({ where: { tenantId: context.tenantId }, select: { balance: true } }),
+    readLanqiWalletBalance(context.tenantId),
     prisma.lanqiMediaJob.count({ where: { tenantId: context.tenantId, kind: "image", providerTaskId: { not: null } } }),
   ]);
   if (!account || account.balance < creditCost) {
