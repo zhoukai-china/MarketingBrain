@@ -1,5 +1,41 @@
 # Bug 回归台账
 
+## QA-20260916-005：推荐有礼**在生产实际处于「已开启」**——开关只看了 env（false），真实生效值来自数据库覆盖位（true + 09-13→10-01 活动窗），已发出 1 笔 100 积分奖励（P0/P1，已按用户口径关闭两环境）
+
+- 触发：2026-09-16 交付「后台客户表 + 我的页」时，按用户口径「先下架」做页面级验收（测试实例「我的」页），**邀请链接卡片仍然渲染**。
+- 复现与取证（**修复前**）：
+  1. 真实浏览器打开测试实例 `/lanqi-test/mine`（合成租户）→ 页面出现「邀请链接 · 还没有推荐码…」卡片（与用户「先下架」直接冲突）。
+  2. 接口侧同源：`/market/me/referral-link` 的 `campaignActive` 才是卡片开关，前端按 `campaignActive === false` 才隐藏——说明服务端算出来不是 false。
+  3. 只读探针（`.debug/plat62-referral-config-probe.mjs`）查两环境 `PlatformSetting`：
+     - 生产：`REFERRAL_REWARD_ENABLED=true`、`REFERRAL_CAMPAIGN_STARTS_AT=2026-09-13T12:02Z`、`..._ENDS_AT=2026-09-30T16:00Z`（更新于 2026-09-13T20:02Z）
+     - 测试：同形，更新于 `20:03Z`
+     - 而两个 env 文件里**都没有** `REFERRAL_*` 任何键 → 生效值 100% 来自 DB 覆盖位。
+  4. 影响盘点（生产只读）：`ReferralCode` 4 条、`ReferralBinding` **1 条**（2026-09-15T01:17Z，`source=platform_onboarding`，推荐人 `cmtzaheu9…`，被推荐人落到租户「保禄测试」`cmu1zf95d0…t1z1`）、`WalletLedger` 里 `referral_reward:new_user` **1 笔 +100 bonus**（2026-09-15T01:17Z）。即：活动事实上跑了 2 天，已发出 1 笔 100 积分；推荐人的「首次使用 +100」因被推荐人尚无消耗**未触发**。
+- 根因：`getReferralConfig()` 的取值顺序是「DB 覆盖位 > env 默认」（`readStoredRows()` 命中就用 DB 值）。此前交接只核对了 `REFERRAL_REWARD_ENABLED` **env** 为 false，就写成「生产未启用」——**核对的是不生效的那一层**（现象是卡片露出，根因是配置来源判错，不是前端 bug）。
+- 修复（按用户 2026-09-16 明示口径「暂时不开放，先下架，等我通知（预计 10.1–10.7）」）：
+  - 生产与测试各执行一次 `node scripts/enable-referral-campaign.mjs --apply --disable`（只写 `PlatformSetting`，不动代码、不动钱包、不退不补），写入后脚本自检 **8/8 项与目标一致**。
+  - 复核（只读探针）：两环境 `REFERRAL_REWARD_ENABLED=false`；页面复核：测试实例「我的」页邀请卡片 **不再渲染**（`hasInviteCard=false`），同页「历史交付物 · 保存 7 天」仍正常渲染。
+  - 已发出的那 1 笔 100 积分**未回收**（落在老板自用测试租户「保禄测试」，且回收需人工确认口径）；推荐有礼正式启动时用 `node scripts/enable-referral-campaign.mjs --apply --start 2026-10-01T00:00:00+08:00 --end 2026-10-08T00:00:00+08:00` 开窗即可。
+- 回归守护：本次新增 `pnpm marketplace:chat-slot-numbering-contract-smoke`（步骤序号契约）；**推荐活动开关的守护缺口仍在**——建议下一步加一条「断言两环境 `REFERRAL_REWARD_ENABLED` 的实际生效值等于期望值」的只读巡检（用户已明确「不要每日定时任务」，故不做定时，改为启动/关闭时由脚本自检 + 发布前手工只读核对）。
+- 教训（写进流程）：**核对开关必须核「生效值」，不是 env 文件**。凡「env 默认 + DB 覆盖」两层的配置，报告里必须写清读的是哪一层，否则等于没核。
+
+## QA-20260916-004：文案智能体进度条**序号重复**（「① ① 行业 / 产品卖点」）——徽标自带 1/2/3，label 里又写了 ①/②（P2，已修 + 跨全部智能体审计 + 已上两环境）
+
+- 触发：2026-09-16 用户截图报障「① 行业 / 产品卖点 ② 目标人群 ③ 平台 ④ 口播时长 ⑤ 内容类型」栏里序号出现两遍，并要求「同步检查其他智能体是否存在同样的情况」。
+- 复现与根因：进度条 JSX 是 `<i>{idx + 1}</i><b>{slot.label}</b>`——**序号本来就由徽标输出**；而 `copy` 流程的 5 个 `label` 又写成 `"① 行业 / 产品卖点"` 等，于是渲染成「① ① 行业 / 产品卖点」。同一份 `label` 还被拼进提问气泡（`**${label}**：${q}`），所以气泡也变成「① 行业 / 产品卖点：① 你的行业…」，一处根因两处现象。
+- 跨智能体审计（用户明确要求）：扫 `CHAT_FLOWS` 全量 **9 个智能体 / 31 个步骤**——`ip-pos / topic / copy / vidrev / livescript / liverev / sales / moments / ip-pack`。只有 `copy` 命中；`topic` 的 `label` 带的是 emoji（🎙/🔥/📊/🔍）而非序号，属**另一层装饰、不算重复**，本次不改（避免动用户已接受的外观）。
+- 修复：`apps/web/src/marketplace/chat-flows.ts` 把 `copy` 的 5 个 `label` 去掉序号（与其余 8 个智能体统一口径：**序号只由进度条徽标输出**，提问正文里的 ①/② 保留）。
+- 先红后绿（证据可复现）：新增 `scripts/marketplace-chat-slot-numbering-contract-smoke.ts`，对修复前版本（`git show 026682a^:apps/web/src/marketplace/chat-flows.ts`）运行 → **FAIL 5 项**（正是那 5 个 label）；对当前版本运行 → **PASS（9 个智能体 / 31 个步骤 + 3 项页面结构契约）**。
+- 已挂门禁：`pnpm marketplace:chat-slot-numbering-contract-smoke` 已加入 `qa:fast`（以后任何新增智能体只要 label 带序号就会红；提问正文序号与槽位顺序不一致也会红）。
+- 上线核验：生产与测试构建产物里 `label:"行业 / 产品卖点",q:"① 你的…"`（label 无序号、正文有序号）；测试实例发布前仍是 `label:"① 行业 / 产品卖点"`——这也解释了用户看到的截图来自**尚未发布的测试实例**。
+
+## QA-20260916-004B：发布脚本 `/tmp/deploy-release.sh` 是**旧版本**，canary 哈希过期导致测试实例发布在第 4 步直接失败（P2，已修；生产未受影响）
+
+- 触发：2026-09-16 发 `20260916-plat61-admin-mine-test1` 时脚本在 `===== 4. verify build artifacts =====` 退出，日志只有 `marketplace src=… dist=…`（两值相等）后紧跟 `!!! failed before any change to /opt/baolu-os-v2-test (exit=1)`。**失败发生在改动之前，服务未被触碰、无需回滚**。
+- 根因：服务器 `/tmp/deploy-release.sh` 内嵌的 `marketplace-v3.json` 哈希 canary 是旧值 `a3e9a6cf…`，而当前仓库值是 `f10b00da…`（参考价改动时同步过仓库内三个脚本，但没同步服务器上那份 `/tmp` 副本）；`test "$SRC_HASH" = "<旧哈希>"` 因此必然失败。仓库内三个脚本本身是对的（本地 `git status` 显示 `M scripts/tmp/deploy-*.sh` 即为同步结果）。
+- 修复：把仓库当前 `scripts/tmp/deploy-release.sh`、`scripts/tmp/verify-deploy.sh` scp 覆盖服务器 `/tmp`，重跑即 `DEPLOY_OK 20260916-plat61-admin-mine-test1b`（health=200）。**顺带修掉「同一版本号重跑导致备份目录重名」的隐患**：重跑用了 `-test1b` 后缀。
+- 教训：发布脚本是**运行在服务器上的副本**，仓库改完必须同步；诊断发布失败先看「失败在第几步、日志最后一行」，不要先怀疑代码。
+
 ## QA-20260916-003：`qa:lanqi-foundation` 领域门禁**在 main 上本来就红**——三处断言仍指向重构前的文件/旧价格（P2，两处已修；一处属定价线，登记待修）
 
 - 触发：2026-09-16 交付 LQ-33 时按 AGENTS.md 跑兰琪领域门禁 `pnpm.cmd qa:lanqi-foundation`，链条前段就失败。
