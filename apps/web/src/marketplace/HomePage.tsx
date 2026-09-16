@@ -74,6 +74,18 @@ export function MarketplaceHomePage() {
 
   const groups = useMemo(() => groupByZone(filtered, zones), [filtered, zones]);
 
+  /**
+   * 2026-09-16（WorkBuddy 全链路检测 B2）：专区自身一个 SKU 都没有时（`canyin`/`chongwu` 未 ready，
+   * `expert` 是「先建栏、后放专家」的 ready 空栏），分类栏以前显示「0」，点进去是一片空白——
+   * 用户看到的是「这平台没东西」。这里按**专区总量**判断（不是搜索结果数，避免搜索无命中被误判成「待上线」），
+   * 空专区统一给「即将上线 / 待上线」+ 占位说明，绝不留白屏。
+   */
+  const zoneSkuCount = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const sku of skus) counts.set(sku.zone, (counts.get(sku.zone) ?? 0) + 1);
+    return counts;
+  }, [skus]);
+
   return (
     <main className="app-wrap">
       <Topbar active="market" balance={balance} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
@@ -118,7 +130,7 @@ export function MarketplaceHomePage() {
             <button className={`zone-chip ${zone === "" ? "on" : ""}`} onClick={() => setZone("")}>全部 <em>{skus.length}</em></button>
             {zones.map((z) => (
               <button key={z.key} className={`zone-chip ${zone === z.key ? "on" : ""}${z.ready ? "" : " soon"}`} onClick={() => setZone(z.key)}>
-                {z.name.replace("专区", "")} {z.ready ? <em>{skus.filter((s) => s.zone === z.key).length}</em> : <em>待上线</em>}
+                {z.name.replace("专区", "")} {zoneSkuCount.get(z.key) ? <em>{zoneSkuCount.get(z.key)}</em> : <em>{z.ready ? "即将上线" : "待上线"}</em>}
               </button>
             ))}
           </div>
@@ -134,7 +146,7 @@ export function MarketplaceHomePage() {
                 </div>
               </div>
             ))}
-            {zones.filter((z) => !z.ready && (!query.trim() || zoneHits.has(z.key))).map((z) => (
+            {zones.filter((z) => (zoneSkuCount.get(z.key) ?? 0) === 0 && (!query.trim() || zoneHits.has(z.key))).map((z) => (
               <div className="shelf" key={z.key}>
                 <div className="shelf-head"><h2>{z.name}</h2><span className="shelf-tag">{z.tagline}</span></div>
                 <div className="zone-soon">🚧 该专区正在上新，敬请期待。</div>

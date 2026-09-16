@@ -196,10 +196,19 @@ export function MarketplaceMinePage() {
     return () => { cancelled = true; };
   }, []);
 
+  /**
+   * 「常用智能体」（`/mine#recent`）是同一页的锚点入口：整页加载时 React 还没渲染出那段，
+   * 浏览器自身的 hash 定位常常落空，所以数据到齐后再主动滚一次。
+   */
+  useEffect(() => {
+    if (window.location.hash !== "#recent") return;
+    document.getElementById("recent")?.scrollIntoView({ block: "start" });
+  }, [loading]);
+
   if (!signedIn) {
     return (
       <main className="app-wrap">
-        <Topbar active="mine" balance={null} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
+        <Topbar active="me" balance={null} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
         <section className="view view-mine"><div className="login-gate big">🔒 你还未登录<p>登录后可查看积分余额与使用记录。</p><button className="btn primary" onClick={() => guestToLogin("/mine")}>登录</button></div></section>
       </main>
     );
@@ -207,15 +216,16 @@ export function MarketplaceMinePage() {
 
   return (
     <main className="app-wrap">
-      <Topbar active="mine" balance={balance} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
+      <Topbar active="me" balance={balance} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
       <section className="view view-mine">
-        <h1>常用智能体</h1>
+        <h1>我的</h1>
         <div className="mine-top">
           <div className="balance-card"><div className="bc-label">积分余额</div><div className="bc-val">💎 {balance ?? "—"}</div><div className="bc-sub">全平台通用</div><button className="btn ghost sm" onClick={() => { window.location.href = getAppPath("/recharge"); }}>+ 充值积分</button></div>
           <div className="shared-card wide">💎 <b>跨智能体通用</b><br />同一份积分，在创始人IP专区与各行业专区的智能体都能用——只充一次，处处可用。</div>
         </div>
         <ReferralLinkCard />
-        <h3>近期使用记录</h3>
+        {/* 「常用智能体」导航栏锚点：同一页直接定位到这段使用记录。 */}
+        <h3 id="recent">近期使用记录</h3>
         {loading ? <div className="loading">正在加载…</div> : recent.length === 0 ? <p className="mine-tip">暂无使用记录</p> : (
           <div className="card-grid">
             {recent.map((entry) => (

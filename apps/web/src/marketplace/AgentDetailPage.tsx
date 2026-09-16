@@ -11,6 +11,15 @@ import {
   type MarketplaceSku
 } from "./sku-model.js";
 
+/**
+ * 双保险（2026-09-16，WorkBuddy 全链路检测 B1）：服务端已剥离 `useCase` 里的历史前缀
+ * 「一次使用 = 」，但若线上出现「API 还是旧版本、网页已是新版本」的错位，模板这里会再拼一次
+ * 前缀而重复渲染。渲染前再剥一遍，保证用户永远只看到一次。
+ */
+function stripLegacyUsePrefix(value: string): string {
+  return value.replace(/^\s*(?:1|一)\s*次使用\s*[=＝:：]?\s*/, "").trim();
+}
+
 export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
   const [sku, setSku] = useState<MarketplaceSku | null>(null);
   const [industry, setIndustry] = useState<MarketplaceIndustry | null>(null);
@@ -58,6 +67,8 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
   const total = bundleTotal(sku, all);
   const runSku = bundle ? steps[0] ?? sku : sku;
   const soon = isComingSoon(sku);
+  /** 参考样例只对有样例的智能体有意义；没有样例时按钮不该出现（见下方 B4 注释）。 */
+  const refCase = referenceCaseForSku(sku.skuCode) ?? null;
 
   function startChat() {
     if (!runSku || soon) return;
@@ -72,7 +83,7 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
         <div className="detail-grid">
           <div className="detail-main">
             <div className="d-head"><span className="d-ico">{sku.icon}</span><div><h1>{sku.name}</h1><div className="d-cat">{sku.zoneName}{sku.verbs.length ? ` · ${sku.verbs.join(" / ")}` : ""}</div></div></div>
-            <div className="completes-card">🎯 <b>一次使用 = 帮你完成：</b>{sku.useCase}</div>
+            <div className="completes-card">🎯 <b>一次使用 = 帮你完成：</b>{stripLegacyUsePrefix(sku.useCase)}</div>
             {sku.need && <div className="need-card">🧩 <b>使用前准备：</b>{sku.need}<div className="need-hint">准备好这些，AI 一次引导提问就能补全，产出更贴你。</div></div>}
             {industry && !industry.general && (
               <div className="ind-card">
@@ -122,8 +133,21 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
                     : <div className="pc-note">🎯 <b>按结果交付</b>：一次拿到上面那份完整交付物；如需再要一份，重新发起一次即可，用量按实际消耗计算。</div>}
                 </div>
               )}
-              {/* 方案②：行业专属样例按完整 SKU 命中，通用专区一律回落通用中性样例。 */}
-              <button className="btn ghost block demo-chat-btn" onClick={() => setBenchmark(referenceCaseForSku(sku.skuCode) ?? null)}>👀 输出参考案例 · 不消耗积分</button>
+              {/*
+               * 方案②：行业专属样例按完整 SKU 命中，通用专区一律回落通用中性样例。
+               *
+               * 2026-09-16（WorkBuddy 全链路检测 B4）：之前**永远**渲染这个按钮，但兰琪美业门店经营大脑
+               * （`lanqi__lanqi-brain`）是**品牌工作台入口**、不是单次生成的智能体，也没有参考案例——
+               * 点下去什么都不会发生，用户以为坏了。现在没有样例就不给样例按钮，工作台入口给真正的入口。
+               */}
+              {refCase ? (
+                <button className="btn ghost block demo-chat-btn" onClick={() => setBenchmark(refCase)}>👀 输出参考案例 · 不消耗积分</button>
+              ) : sku.skuCode === "lanqi__lanqi-brain" ? (
+                <>
+                  <div className="pc-note">🧭 这是<b>品牌工作台入口</b>，不是单次生成的智能体：进去后用门店档案、经营诊断、到店获客与卡项客户管理（需要兰琪授权）。</div>
+                  <button className="btn primary block" onClick={() => { window.location.href = getAppPath("/lanqi"); }}>进入品牌工作台</button>
+                </>
+              ) : null}
             </div>
             <div className="shared-card">💎 <b>一份积分，全平台通用</b><br />创始人IP专区与各行业专区的智能体共用同一份积分；在 WorkBuddy 里用思潼智能体，用的也是这份积分。</div>
             {notice && <div className="notice">{notice}</div>}

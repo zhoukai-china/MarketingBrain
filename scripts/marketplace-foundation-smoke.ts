@@ -26,6 +26,33 @@ function main(): void {
     assert(!/按次使用|一次使用/.test(sku.useCase), `${sku.skuCode} useCase avoids per-use billing wording`);
   }
 
+  /**
+   * 回归（2026-09-16，WorkBuddy 全链路检测 B1）：数据库里各专区的 `ov`（专区覆盖）可能还留着改口前的
+   * 「一次使用 = 交付…」，而 `syncMarketplaceIndustryProfiles()` 只在首次建行时写入、之后不覆盖，
+   * 生产美业专区就是这样：9 个 SKU 的详情页被渲染成「一次使用 = 帮你完成：一次使用 = 交付 …」。
+   * 这里**主动造出那条脏数据**（模拟 DB 覆盖位），再断言构出来的种子文案是干净的——
+   * 这条用例在修复前会红，在修复后必须绿。
+   */
+  const meiyeOv = MARKETPLACE_INDUSTRIES.meiye?.ov as Record<string, { use?: string }> | undefined;
+  const copyOverride = meiyeOv?.copy;
+  assert(copyOverride && typeof copyOverride.use === "string", "meiye override for copy exists (test precondition)");
+  const cleanUse = copyOverride.use as string;
+  copyOverride.use = `一次使用 = ${cleanUse}`;
+  refreshMarketplaceSkuSeeds();
+  const dirtySku = MARKETPLACE_V3_SKU_SEEDS.find((sku) => sku.skuCode === "meiye__copy");
+  assert(dirtySku, "meiye__copy seed exists after refresh");
+  assert(
+    dirtySku!.useCase === cleanUse,
+    `legacy "一次使用 =" prefix from zone override is stripped (got: ${dirtySku!.useCase})`
+  );
+  assert(!/一次使用/.test(dirtySku!.useCase), "stale zone override never reaches useCase");
+  copyOverride.use = cleanUse;
+  refreshMarketplaceSkuSeeds();
+  assert(
+    MARKETPLACE_V3_SKU_SEEDS.find((sku) => sku.skuCode === "meiye__copy")!.useCase === cleanUse,
+    "useCase restored to the JSON wording after cleanup"
+  );
+
   const ipzoneOnly = demoMarketplace.listSkus({ zone: "ipzone" }, false);
   assert(ipzoneOnly.length > 0, "zone filter returns public ipzone skus");
   assert(ipzoneOnly.every((sku) => sku.zone === "ipzone"), "zone filter stays in ipzone");

@@ -1,5 +1,47 @@
 # 当前部署状态
 
+## 最新发布：20260916-plat64-nav-mine-b1（2026-09-16，生产 + 测试实例）— 「我的」进入一级导航（积分充值之后）+ 修美业详情页重复前缀（B1）+ 空专区白屏（B2）+ 兰琪大脑假样例按钮（B4）
+
+### 一、用户口径（2026-09-16）
+
+- 「**我的**应该做到一级导航栏，积分充值的后面，增加一栏」；
+- （WorkBuddy 全链路检测报告 B1/B2/B4/B5 一并处理）
+
+### 二、改动
+
+1. **一级导航新增「我的」**（`apps/web/src/marketplace/shell.tsx`）：`货架 / 常用智能体 / 积分充值 / 我的`，位置就在积分充值之后；「我的」是个人中心的**正名入口**（余额 / 常用智能体 / 历史交付物 / 积分退回 / 邀请链接），高亮归它。
+   同时把「常用智能体」指到同一页的使用记录锚点（`/mine#recent` + `id="recent"` + 数据到齐后主动滚动），两条入口不再含义不明。`MinePage` 页内标题由「常用智能体」改为「我的」。
+2. **B1 美业专区重复前缀**（P0）：`marketplace-catalog.ts` 构种子时剥掉历史前缀「一次使用 = 」（默认值同步改口），`AgentDetailPage.tsx` 渲染前再兜一次；另做**数据清洗**把两环境 meiye 的专区覆盖对齐（见下）。根因与红/绿证见 `docs/BUG_REGRESSIONS.md` QA-20260916-007。
+3. **B2 空专区白屏**：`HomePage.tsx` 按专区总量判断，0 个 SKU 的专区统一显示「即将上线 / 待上线」+「🚧 该专区正在上新，敬请期待。」（`行业专家专区` 原先是 ready 但 0 SKU，点进去一片空白）。
+4. **B4 兰琪大脑假样例按钮**：无参考案例就不渲染「输出参考案例」；品牌工作台入口改为「🧭 这是品牌工作台入口…」+「进入品牌工作台」（跳 `/lanqi`）。
+5. **B5 console 404**：复测**不成立**（见 QA-20260916-008 证据），无改动。
+6. **门禁**：`marketplace:foundation-smoke` 新增「DB 覆盖位带旧前缀 → 种子文案必须干净」的断言，并挂进 `qa:fast`。
+
+### 三、数据清洗（两环境，可回滚）
+
+- `node /tmp/plat64-clean-meiye-ov.mjs --apply`（默认 dry-run）：生产与测试各改 **1 行 / 9 个字段**，把 `meiye` 的「一次使用 = 交付…」还原为「交付…」；执行前备份原值到 `/tmp/plat64-meiye-ov-backup-{prod,test}.json`，执行后复核 `leftoverLegacy: []`。
+
+### 四、发布与验收
+
+| 环境 | 发布 id | 结果 |
+| --- | --- | --- |
+| 测试 | `20260916-plat64-nav-mine-b1-test1` | `DEPLOY_OK`、health=200 |
+| 生产 | `20260916-plat64-nav-mine-b1-prod1` | `DEPLOY_OK`、health=200 |
+
+- 真实浏览器逐项实测（**两环境结果一致**）：
+  - 导航 = `["货架","常用智能体","积分充值","我的"]`；
+  - 专区分类 = `["全部 19","创始人IP 9","餐饮 待上线","美业 9","品牌工作台 1","宠物 待上线","行业专家 即将上线"]`，点「行业专家」出现「🚧 该专区正在上新，敬请期待。」而不是空白；
+  - 美业文案智能体详情页 = 「🎯 一次使用 = 帮你完成：交付 1 条美业合规、可直发的文案…」，「一次使用」在卡片内**只出现 1 次**（修复前 2 次）；
+  - 兰琪大脑详情页 = `hasSampleButton=false`、`hasWorkbench=true`；
+  - `/mine` 顶部导航高亮落在「我的」，页内 `#recent` 锚点存在（未登录访客看到登录引导，属既有行为）。
+  - 线上接口复核：`meiye__*` 九个 `useCase` 的「一次使用」命中数均为 **0**。
+- 离线：`pnpm typecheck`、`pnpm qa:fast`（含新增门禁）exit 0；`marketplace:foundation-smoke` 先红（临时撤掉剥离调用 → FAIL，输出与线上症状逐字一致）后绿。
+
+### 五、回滚
+
+- 备份：`/opt/baolu-backups/20260916-plat64-nav-mine-b1-{prod1,test1}-before-baolu-os-v2{,-test}/`（含 `app-before.tar.gz`、`db-before.sql.gz`、env 与服务单元快照），发布日志 `/tmp/deploy-20260916-plat64-nav-mine-b1-*.log`；失败自动回滚。
+- 数据清洗回滚：`/tmp/plat64-meiye-ov-backup-{prod,test}.json` 是执行前的 `MarketplaceIndustryProfile` 原值，需要时按 `zoneKey` 原样写回。
+
 ## 最新发布：20260963b-draft-fp（2026-09-16，生产 + 测试实例）— 修「充值往返丢草稿」真因（草稿指纹 != token）+ 余额不足给「去充值 / 返回继续生成」闭环；并答复 WorkBuddy 验收报告的三条疑问
 
 ### 一、来源：WorkBuddy《思潼AI 本轮修复验收报告 20260916》
@@ -80,7 +122,7 @@
 
 ### 四、事故与按用户口径的配置修正
 
-- **推荐有礼误开（P0/P1，已关闭）**：生产与测试的 `PlatformSetting` 覆盖位里 `REFERRAL_REWARD_ENABLED=true`（2026-09-13 写入，活动窗 09-13→10-01），而两环境 env 文件里**没有**任何 `REFERRAL_*` 键——此前只核对了 env 就判定「未启用」，实际生产已跑了 2 天并发出 **1 笔 100 积分**（`referral_reward:new_user`，落在老板自用测试租户「保禄测试」；推荐人「首次使用 +100」未触发）。按用户明示「先下架」在两环境执行 `node scripts/enable-referral-campaign.mjs --apply --disable`（只写配置位，自检 8/8 一致），复核 `REFERRAL_REWARD_ENABLED=false`、页面邀请卡片消失。**已发出的 100 积分未回收**（待用户确认是否处理）。
+- **推荐有礼误开（P0/P1，已关闭）**：生产与测试的 `PlatformSetting` 覆盖位里 `REFERRAL_REWARD_ENABLED=true`（2026-09-13 写入，活动窗 09-13→10-01），而两环境 env 文件里**没有**任何 `REFERRAL_*` 键——此前只核对了 env 就判定「未启用」，实际生产已跑了 2 天并发出 **1 笔 100 积分**（`referral_reward:new_user`，落在老板自用测试租户「保禄测试」；推荐人「首次使用 +100」未触发）。按用户明示「先下架」在两环境执行 `node scripts/enable-referral-campaign.mjs --apply --disable`（只写配置位，自检 8/8 一致），复核 `REFERRAL_REWARD_ENABLED=false`、页面邀请卡片消失。**用户 2026-09-16 答复：这 100 积分「可以保留」，不回收**（当日再次只读复核，两环境生效值仍为 `false`）。
 - **服务器 `/tmp/deploy-release.sh` 陈旧**导致 `plat61-test1` 在第 4 步 canary 失败（改动前退出，服务未动、无需回滚）；同步仓库脚本后以 `-test1b` 重跑即 `DEPLOY_OK`。
 - **磁盘清理**（用户已同意）：`bash scripts/ops/prune-server-backups.sh` dry-run → `KEEP=8 --apply`，删除 21 个历史备份目录，**5.9G → 9.6G 可用（80% → 66%）**；两环境各保留最近 8 份回滚点（共 16 份 / 3.1G）。
 
