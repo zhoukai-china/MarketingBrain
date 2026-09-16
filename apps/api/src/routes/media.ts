@@ -171,16 +171,39 @@ export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
       let creditCost = 0;
       let creditRefunded = 0;
       if (mediaReservation && mediaUserId) {
-        const actualVisionCalls = Math.max(1, result.providerTrace.filter((item) => item.stage === "visual").length);
-        const settled = await settleCreditsForCharge({
-          reservation: mediaReservation,
-          userId: mediaUserId,
-          actualCostCny: visionCostCny(actualVisionCalls),
-          skillId: "media_analyze",
-          source: "web"
-        });
-        creditCost = settled.chargedCredits;
-        creditRefunded = settled.refundedCredits;
+        /**
+         * 结算口径（用户 2026-09-16）：「我们如果没有成本消耗，也不对外收费」。
+         *
+         * 只统计**真正成功**的视觉调用（`terminalStatus === "succeeded"`）：
+         * ① 纯文字 PDF / 能抽出正文的文件 → 一次视觉调用都没发生 → **全额退回，0 收费**；
+         * ② 视觉调用失败 / 超时 / 取消 → 没拿到结果（服务商通常也不计费）→ 同样 0 收费；
+         * ③ 成功几次收几次（每次 = 成本 ¥0.02 × 25 倍 = 10 积分）。
+         * 原来这里写的是 `max(1, …)`：只要走了 PDF 分支就至少收一次，与「没有成本不收费」冲突。
+         */
+        const successfulVisionCalls = result.providerTrace.filter(
+          (item) => item.stage === "visual" && item.terminalStatus === "succeeded"
+        ).length;
+        if (successfulVisionCalls === 0) {
+          const refunded = await refundAllCreditsForCharge({
+            reservation: mediaReservation,
+            userId: mediaUserId,
+            skillId: "media_analyze",
+            source: "web",
+            reason: "media_no_vision_cost"
+          }).catch(() => null);
+          creditCost = 0;
+          creditRefunded = refunded?.refundedCredits ?? 0;
+        } else {
+          const settled = await settleCreditsForCharge({
+            reservation: mediaReservation,
+            userId: mediaUserId,
+            actualCostCny: visionCostCny(successfulVisionCalls),
+            skillId: "media_analyze",
+            source: "web"
+          });
+          creditCost = settled.chargedCredits;
+          creditRefunded = settled.refundedCredits;
+        }
       }
       request.log.info({
         event: "media_analysis.terminal",

@@ -29,7 +29,7 @@ function main(): void {
   assert.equal(COST_TO_REVENUE_MULTIPLE.video, 2, "视频倍数必须是 2（用户 2026-09-15 拍板）");
   assert.equal(COST_TO_REVENUE_MULTIPLE.image, 5, "图片倍数必须是 5（用户 2026-09-15 拍板）");
   assert.equal(COST_TO_REVENUE_MULTIPLE.speech, 10, "语音识别倍数必须是 10（用户 2026-09-15 拍板）");
-  assert.equal(COST_TO_REVENUE_MULTIPLE.vision, 100, "视觉倍数必须是 100（用户 2026-09-15 拍板）");
+  assert.equal(COST_TO_REVENUE_MULTIPLE.vision, 25, "视觉倍数必须是 25（用户 2026-09-16：按 ¥0.5/次收费 = ¥0.02 × 25）");
 
   // 分润结构：比例未拍板前不得臆造分润（splitPartnerShare 返回 null），拍板后只改 PARTNER_SHARE_PERCENT。
   assert.equal(splitPartnerShare(100, "text"), null, "分润比例未配置时不得返回分润金额");
@@ -64,10 +64,11 @@ function main(): void {
   assert.equal(creditsForCostCny(speechCostCny(8), "speech"), 1, "语音 8 秒（¥0.004 成本）→ 1 积分（10 倍 + 地板）");
   assert.equal(creditsForCostCny(speechCostCny(60), "speech"), 6, "语音 1 分钟（¥0.03 成本）→ 6 积分（10 倍 = 0.1 积分/秒）");
   assert.equal(creditsForCostCny(speechCostCny(600), "speech"), 60, "语音 10 分钟（¥0.3 成本）→ 60 积分（10 倍）");
-  // 视觉（关键帧 / 图片 / 扫描件）：¥0.02/次 × 100 倍 = 2 积分/次。
+  // 视觉（关键帧 / 图片 / 扫描件）：用户 2026-09-16「按 0.5 元收费」= ¥0.02 × 25 倍 = ¥0.5 = 10 积分/次。
   assert.equal(visionCostCny(1), UNIT_COST_CNY.visionPerImageCny, "单次视觉成本取自价表");
-  assert.equal(creditsForCostCny(visionCostCny(1), "vision"), 40, "视觉 1 次（¥0.02 成本）→ 40 积分（100 倍）");
-  assert.equal(creditsForCostCny(visionCostCny(8), "vision"), 320, "一次视频抽 8 帧（¥0.16 成本）→ 320 积分（100 倍）");
+  assert.equal(creditsForCostCny(visionCostCny(1), "vision"), 10, "视觉 1 次（¥0.02 成本）→ 10 积分（25 倍 = ¥0.5）");
+  assert.equal(creditsForCostCny(visionCostCny(8), "vision"), 80, "一次 8 张图（¥0.16 成本）→ 80 积分（25 倍 = ¥4）");
+  assert.equal(creditsForCostCny(visionCostCny(1), "vision") / 20, 0.5, "视觉单次对客价必须正好 ¥0.5（1 元 = 20 积分）");
 
   // 5) 文字 token 成本与 marketplace-cost 同表（¥3/百万 input、¥6/百万 output）
   assert.equal(textCostCny({ promptTokens: 1_000_000, completionTokens: 0 }), 3, "百万 input token = ¥3");
@@ -104,6 +105,23 @@ function main(): void {
   assert.match(marketplaceSource, /price: charge,/, "consumeWalletCredits 必须扣 charge（不能仍扣固定价）");
   assert.match(marketplaceSource, /amountCredits: charge,/, "账本金额必须记 charge");
   assert.match(marketplaceSource, /pricingMode: costBased \? "cost_based" : "fixed_ppu"/, "账本必须记 pricingMode 以便对账");
+
+  /**
+   * 7d) 视觉计费契约（用户 2026-09-16「没有成本消耗也不对外收费」）：
+   * 只按**成功**的视觉调用收费；一次都没成功（纯文字 PDF / 调用失败）必须全额退回、0 收费。
+   */
+  const mediaSource = readFileSync(new URL("../apps/api/src/routes/media.ts", import.meta.url), "utf8");
+  assert.match(
+    mediaSource,
+    /item\.stage === "visual" && item\.terminalStatus === "succeeded"/,
+    "视觉结算必须只统计成功的调用"
+  );
+  assert.match(mediaSource, /media_no_vision_cost/, "没有成功视觉调用时必须走全额退回");
+  assert.doesNotMatch(
+    mediaSource,
+    /Math\.max\(1, result\.providerTrace/,
+    "不得再用 max(1, …) 保底收费（没有成本消耗就不收费）"
+  );
 
   console.log(JSON.stringify({
     result: "PLAT37_BILLING_COST_MODEL_PASS",
