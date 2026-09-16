@@ -128,6 +128,10 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
     if (walletCharge.status === "insufficient") {
       return reply.code(402).send({ error: "insufficient_credits", message: "积分不足，本次没有创建任务或扣费。", balance: walletCharge.wallet.balance, required: quote.creditCost, rechargeUrl: "/recharge" });
     }
+    if (walletCharge.status === "refunded") {
+      // 同一个 requestKey 之前已经退过款：不能再放行（钱包扣费本身同键幂等，放行就等于白送一次付费任务）。
+      return reply.code(409).send({ error: "request_already_refunded", message: "这次请求之前已经退款处理过了，同一个单号不能重复使用，请重新发起（会重新计费）。" });
+    }
     try {
       job = await prisma.lanqiMediaJob.create({ data: { tenantId: context.tenantId, userId: context.userId, requestKey, kind: input.kind, provider: quote.provider, model: quote.model,
           previewId: input.previewId, promptVersion: input.promptVersion ?? "unknown", prompt: input.prompt, negativePrompt: input.negativePrompt,

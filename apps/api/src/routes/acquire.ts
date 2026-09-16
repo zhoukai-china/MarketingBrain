@@ -289,6 +289,14 @@ export async function registerAcquireRoutes(app: FastifyInstance, basePath = "/b
           consumedCredits: 0
         });
       }
+      if (charged.status === "refunded") {
+        // 同一个 requestKey 之前已经退过款：不能再放行（钱包扣费本身同键幂等，放行就等于白送一次付费生成）。
+        return reply.code(409).send({
+          code: "request_already_refunded",
+          message: "这次请求之前已经退款处理过了，同一个单号不能重复使用，请重新发起（会重新计费）。",
+          consumedCredits: 0
+        });
+      }
 
       await writeLanqiCopyKitCache({
         tenantId: context.tenantId,
