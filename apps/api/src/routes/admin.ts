@@ -352,6 +352,75 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       }
     });
 
+    /**
+     * 2026-09-16 用户报障：后台「客户」表里余额与使用次数**全是 0**。
+     *
+     * 根因：老实现读 `tenant.creditAccount.balance`（历史单点登录时代的账户，货架早就不用它了）
+     * 与 `_count.agentRuns`（货架运行不写 AgentRun，只写钱包/货架账本）。
+     * 现在改成读**真正在用的数据源**：统一钱包（余额）+ 钱包流水（充值/消耗）+ 货架账本（各智能体用量）。
+     */
+    const allMemberships = await prisma.membership.findMany({
+      where: { tenantId: { in: tenants.map((tenant) => tenant.id) } },
+      select: { tenantId: true, userId: true }
+    });
+    const userIdsByTenant = new Map<string, string[]>();
+    for (const row of allMemberships) {
+      const list = userIdsByTenant.get(row.tenantId) ?? [];
+      list.push(row.userId);
+      userIdsByTenant.set(row.tenantId, list);
+    }
+    const allUserIds = [...new Set(allMemberships.map((row) => row.userId))];
+
+    const walletSums = allUserIds.length
+      ? await prisma.wallet.findMany({
+          where: { userId: { in: allUserIds } },
+          select: { userId: true, paidBalance: true, bonusBalance: true }
+        })
+      : [];
+    const walletByUser = new Map(walletSums.map((row) => [row.userId, row.paidBalance + row.bonusBalance]));
+
+    const ledgerSums = allUserIds.length
+      ? await prisma.walletLedger.groupBy({
+          by: ["userId", "type"],
+          where: { userId: { in: allUserIds }, type: { in: ["recharge", "consume"] } },
+          _sum: { delta: true }
+        })
+      : [];
+    const rechargedByUser = new Map<string, number>();
+    const consumedByUser = new Map<string, number>();
+    for (const row of ledgerSums) {
+      const value = Math.abs(row._sum.delta ?? 0);
+      if (row.type === "recharge") rechargedByUser.set(row.userId, (rechargedByUser.get(row.userId) ?? 0) + value);
+      if (row.type === "consume") consumedByUser.set(row.userId, (consumedByUser.get(row.userId) ?? 0) + value);
+    }
+
+    const skuUsage = allUserIds.length
+      ? await prisma.marketplaceLedgerEntry.groupBy({
+          by: ["tenantId", "skuId"],
+          where: { tenantId: { in: tenants.map((tenant) => tenant.id) }, type: "ppu_consume" },
+          _sum: { amountCredits: true },
+          _count: { _all: true }
+        })
+      : [];
+    const skuIds = [...new Set(skuUsage.map((row) => row.skuId).filter((id): id is string => Boolean(id)))];
+    const skus = skuIds.length
+      ? await prisma.marketplaceSku.findMany({ where: { id: { in: skuIds } }, select: { id: true, skuCode: true, name: true } })
+      : [];
+    const skuById = new Map(skus.map((row) => [row.id, row]));
+    const usageByTenant = new Map<string, Array<{ skuCode: string; name: string; runs: number; credits: number }>>();
+    for (const row of skuUsage) {
+      const sku = row.skuId ? skuById.get(row.skuId) : null;
+      const list = usageByTenant.get(row.tenantId) ?? [];
+      list.push({
+        skuCode: sku?.skuCode ?? "未知",
+        name: sku?.name ?? "未知智能体",
+        runs: row._count?._all ?? 0,
+        credits: Math.abs(row._sum?.amountCredits ?? 0)
+      });
+      usageByTenant.set(row.tenantId, list);
+    }
+    for (const list of usageByTenant.values()) list.sort((a, b) => b.credits - a.credits);
+
     return {
       dataMode: "database",
       customers: tenants.map((tenant: any) => {
@@ -369,6 +438,13 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
           creditBalance: tenant.creditAccount?.balance ?? 0,
           memberCount: tenant._count.memberships,
           agentRunCount: tenant._count.agentRuns,
+          /** 真实在用的口径（2026-09-16 修）：统一钱包余额 / 累计充值 / 累计消耗 / 常用智能体。 */
+          walletBalance: (userIdsByTenant.get(tenant.id) ?? []).reduce((sum, userId) => sum + (walletByUser.get(userId) ?? 0), 0),
+          rechargedCredits: (userIdsByTenant.get(tenant.id) ?? []).reduce((sum, userId) => sum + (rechargedByUser.get(userId) ?? 0), 0),
+          consumedCredits: (userIdsByTenant.get(tenant.id) ?? []).reduce((sum, userId) => sum + (consumedByUser.get(userId) ?? 0), 0),
+          topAgents: (usageByTenant.get(tenant.id) ?? []).slice(0, 3),
+          /** 旧账户口径保留为对照（历史单点登录时代，现在恒为 0 是正常的）。 */
+          legacyCreditBalance: tenant.creditAccount?.balance ?? 0,
           conversationCount: tenant._count.conversations,
           fileCount: tenant._count.files,
           billingOrderCount: tenant._count.billingOrders,

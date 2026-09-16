@@ -1,6 +1,7 @@
 import QRCode from "qrcode";
 import { env } from "../config/env.js";
 import { issueReferralCode, listReferralCodesOfOwner } from "./referral-attribution.js";
+import { getReferralConfig, isWithinReferralCampaignWindow } from "./referral-config.js";
 
 /**
  * 自服务「我的邀请链接」（用户 2026-09-15：平台页面里要有复制我的推荐链接的入口，含二维码）。
@@ -17,6 +18,11 @@ import { issueReferralCode, listReferralCodesOfOwner } from "./referral-attribut
 export interface SelfReferralLinkView {
   /** `none` = 还没签过推荐码（页面应该给「生成我的邀请链接」）。 */
   state: "none" | "existing" | "created";
+  /**
+   * 推荐活动是否在窗口内（用户 2026-09-16：活动期 10.1–10.7 才开放，平时「先下架」）。
+   * 只有为 `true` 时「我的」页才显示邀请链接卡片；活动开关一开，卡片自己回来。
+   */
+  campaignActive: boolean;
   /** 完整注册链接（`<公开站点>/login?ref=<码>`）；只有刚签发时才有明文可拼。 */
   link: string | null;
   /** 明文推荐码：只在 `created` 时返回一次。 */
@@ -32,6 +38,21 @@ function buildReferralLink(code: string): string {
   return `${base}/login?ref=${encodeURIComponent(code)}`;
 }
 
+/** 活动窗口是否开放（读后台配置位 + 左闭右开窗口判断，与发奖同一套口径）。 */
+async function isReferralCampaignActiveForUi(): Promise<boolean> {
+  try {
+    const config = await getReferralConfig();
+    if (!config.enabled) return false;
+    return isWithinReferralCampaignWindow(new Date(), {
+      campaignStartsAt: config.campaignStartsAt,
+      campaignEndsAt: config.campaignEndsAt
+    });
+  } catch {
+    // 读配置失败按「未开放」处理：宁可先不显示，也不能在没活动时把推荐入口露出来。
+    return false;
+  }
+}
+
 async function renderQrSvg(link: string): Promise<string> {
   // 只对服务端自己拼出来的链接画二维码：不接受调用方传入的 URL。
   return QRCode.toString(link, { type: "svg", margin: 1, width: 320 });
@@ -42,6 +63,11 @@ export async function readSelfReferralLink(userId: string): Promise<SelfReferral
   const active = codes.filter((item) => item.isActive);
   return {
     state: active.length > 0 ? "existing" : "none",
+    /**
+     * 活动开关（用户 2026-09-16：「暂时不开放，等我通知，预计 10.1–10.7 搞活动再开放，先下架」）。
+     * 前端据此决定「我的邀请链接」卡片显不显示——活动一到（后台把开关和活动窗打开）卡片自己回来，不用改代码。
+     */
+    campaignActive: await isReferralCampaignActiveForUi(),
     link: null,
     code: null,
     codePreview: active[0]?.codePreview ?? null,
@@ -56,9 +82,24 @@ export async function readSelfReferralLink(userId: string): Promise<SelfReferral
 export async function issueSelfReferralLink(params: { userId: string; regenerate?: boolean }): Promise<SelfReferralLinkView> {
   const codes = await listReferralCodesOfOwner(params.userId);
   const active = codes.filter((item) => item.isActive);
+  // 活动没开时也不该能签发（页面已隐藏入口，这里再兜一层，避免接口被直接调用）。
+  const campaignActive = await isReferralCampaignActiveForUi();
+  if (!campaignActive) {
+    return {
+      state: active.length > 0 ? "existing" : "none",
+      campaignActive: false,
+      link: null,
+      code: null,
+      codePreview: active[0]?.codePreview ?? null,
+      qrSvg: null,
+      codesCount: codes.length,
+      hint: "推荐有礼活动暂未开放（预计 10.1–10.7），活动开始后可在这里生成专属邀请链接。"
+    };
+  }
   if (active.length > 0 && !params.regenerate) {
     return {
       state: "existing",
+      campaignActive,
       link: null,
       code: null,
       codePreview: active[0]?.codePreview ?? null,
@@ -76,6 +117,7 @@ export async function issueSelfReferralLink(params: { userId: string; regenerate
   const link = buildReferralLink(issued.code);
   return {
     state: "created",
+    campaignActive,
     link,
     code: issued.code,
     codePreview: issued.codePreview,

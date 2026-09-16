@@ -11,6 +11,11 @@ import "../styles/referral-card.css";
  */
 interface ReferralLinkView {
   state: "none" | "existing" | "created";
+  /**
+   * 推荐活动是否开放（用户 2026-09-16：「暂时不开放，等我通知，预计 10.1–10.7 再开放，先下架」）。
+   * 服务端按活动开关 + 活动窗判断；为 false 时整张卡片不渲染。
+   */
+  campaignActive?: boolean;
   link: string | null;
   code: string | null;
   codePreview: string | null;
@@ -82,6 +87,12 @@ function ReferralLinkCard() {
     }
   }
 
+  /**
+   * 活动没开就**整张卡片不渲染**（用户 2026-09-16：先下架，等 10.1–10.7 活动再开放）。
+   * 判断由服务端给（`campaignActive`），活动开关一开卡片自己回来，不用改代码。
+   */
+  if (view && view.campaignActive === false) return null;
+
   return (
     <section className="referral-card" data-referral-card>
       <header>
@@ -129,6 +140,31 @@ export function MarketplaceMinePage() {
    * 服务端把「与客户切身相关」的退回（Word 导出重复扣费）单独给出来，这里显式展示 +N 积分。
    */
   const [refunds, setRefunds] = useState<Array<{ id: string; label: string; amountCredits: number; createdAt: string }>>([]);
+  /**
+   * 历史交付物（用户 2026-09-16：「用户历史产物在我的下载，告知用户保存 7 天请及时下载」）。
+   * 服务端只留 7 天，这里把「交付时间 + 剩余可下载天数」直接写出来，让客户自己抓紧存。
+   */
+  const [deliverables, setDeliverables] = useState<Array<{ id: string; skuName?: string | null; answer: string; credits: number; createdAt: string; expiresAt: string }>>([]);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  async function downloadDeliverable(item: { id: string; answer: string; skuName?: string | null }): Promise<void> {
+    setDownloadingId(item.id);
+    try {
+      const response = await fetch(apiPath("/exports/docx"), {
+        method: "POST",
+        headers: { ...authHeaders(true), "content-type": "application/json" },
+        body: JSON.stringify({ title: `历史交付物-${item.skuName ?? "智能体"}`, content: item.answer })
+      });
+      const data = (await response.json().catch(() => ({}))) as { downloadUrl?: string; message?: string };
+      if (!response.ok || !data.downloadUrl) throw new Error(data.message ?? "导出失败");
+      // 与对话页同一口径：把真实链接交给浏览器/系统去下载（手机才能交给 WPS）。
+      window.location.assign(apiPath(data.downloadUrl));
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "导出失败，请稍后重试。");
+    } finally {
+      setDownloadingId(null);
+    }
+  }
   const [loading, setLoading] = useState(true);
   // 本地有 token 不代表还登录着（token 可能已过期）；只有服务端确认过才算已登录，
   // 否则这里会一边显示余额区一边显示「未登录」，用户点登录又被弹回来。
@@ -151,6 +187,12 @@ export function MarketplaceMinePage() {
       })
       .catch(() => { if (!cancelled) setBalance(null); })
       .finally(() => { if (!cancelled) setLoading(false); });
+    void fetch(apiPath("/market/me/deliverables"), { headers: authHeaders(), cache: "no-store" })
+      .then((response) => (response.ok ? readJson<{ deliverables?: Array<{ id: string; skuName?: string | null; answer: string; credits: number; createdAt: string; expiresAt: string }> }>(response) : null))
+      .then((data) => { if (!cancelled && data?.deliverables) setDeliverables(data.deliverables); })
+      .catch(() => {
+        /* 拿不到历史交付物不影响页面其它内容 */
+      });
     return () => { cancelled = true; };
   }, []);
 
@@ -185,6 +227,38 @@ export function MarketplaceMinePage() {
               </article>
             ))}
           </div>
+        )}
+        {/* 历史交付物（服务端保留 7 天）：明确告诉客户「及时下载」，并提供一键导出 Word。 */}
+        {deliverables.length > 0 && (
+          <>
+            <h3>历史交付物 · 保存 7 天，请及时下载</h3>
+            <p className="mine-tip">
+              平台只为你保留 <b>7 天</b>，到期自动清理；需要长期保存请点「下载 Word」存到自己手机/电脑（用 WPS 或 Word 都能打开）。
+            </p>
+            <div className="card-grid">
+              {deliverables.map((item) => {
+                const daysLeft = Math.max(0, Math.ceil((new Date(item.expiresAt).getTime() - Date.now()) / 86_400_000));
+                return (
+                  <article className="agent-card owned-card" key={item.id}>
+                    <div className="ac-ico">📄</div>
+                    <div className="ac-name">{item.skuName ?? "智能体交付物"}</div>
+                    <div className="ac-price">消耗 {item.credits} 积分</div>
+                    <div className="ac-foot">
+                      <span className="chip owned">{new Date(item.createdAt).toLocaleDateString("zh-CN")} · 剩余 {daysLeft} 天</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn primary"
+                      disabled={downloadingId === item.id}
+                      onClick={() => void downloadDeliverable(item)}
+                    >
+                      {downloadingId === item.id ? "正在准备…" : "下载 Word"}
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          </>
         )}
         {refunds.length > 0 && (
           <>

@@ -295,7 +295,28 @@ function valueText(value: unknown): string {
   if (typeof value === "number") return Number.isInteger(value) ? String(value) : value.toFixed(2);
   if (typeof value === "boolean") return value ? "是" : "否";
   if (typeof value === "string") return value.length > 60 ? `${value.slice(0, 60)}…` : value;
-  if (Array.isArray(value)) return `[${value.length}]`;
+  /**
+   * 2026-09-16：后台要显示「常用智能体」这类**带明细的数组**（[{name, runs, credits}]）。
+   * 之前只显示「[3]」，老板看不出是哪个智能体用了多少次——这里直接拼成人话。
+   */
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "—";
+    return value
+      .slice(0, 5)
+      .map((item) => {
+        if (item && typeof item === "object") {
+          const row = item as Record<string, unknown>;
+          const label = String(row.name ?? row.skuName ?? row.label ?? row.skuCode ?? "—");
+          const runs = row.runs ?? row.count;
+          const credits = row.credits ?? row.amountCredits;
+          return [label, runs !== undefined ? `×${runs}` : null, credits !== undefined ? `${credits} 积分` : null]
+            .filter(Boolean)
+            .join(" ");
+        }
+        return valueText(item);
+      })
+      .join("；");
+  }
   if (typeof value === "object") return "{…}";
   return String(value);
 }
@@ -463,7 +484,11 @@ function CustomersSection() {
   return (
     <>
       <Panel title="客户 / 租户" error={customers.error} loading={customers.loading} onReload={() => void customers.reload()}>
-        <DataView data={customers.data} columns={["name", "type", "industry", "city", "planName", "creditBalance", "memberCount", "agentRunCount"]} />
+        {/* 2026-09-16：补上老板要的「每个客户充值 / 消耗 / 剩余 + 常用智能体」（原来的 creditBalance/agentRunCount 读的是报废字段，全是 0）。 */}
+        <DataView
+          data={customers.data}
+          columns={["name", "type", "industry", "city", "walletBalance", "rechargedCredits", "consumedCredits", "topAgents", "memberCount"]}
+        />
       </Panel>
       <Panel title="邀请码（新建 / 已有）" error={invites.error} loading={invites.loading} onReload={() => void invites.reload()}>
         <div className="adminForm">
