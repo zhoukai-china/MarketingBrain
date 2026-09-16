@@ -26,6 +26,7 @@ import { getBearerToken, verifySessionToken } from "../services/auth-token.js";
 import { consumeWalletCredits, readWallet, buildRechargeUrl } from "../services/sitong-wallet.js";
 import { resolveTenantBranding } from "./tenant.js";
 import { env } from "../config/env.js";
+import { prisma } from "@baolu/db";
 
 /**
  * Word 下载的**一次性链接令牌**（2026-09-16 客户现场）。
@@ -108,9 +109,28 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
 
     cleanupExportRecords();
 
-    const price = EXPORT_PRICING.docxCredits;
+    /**
+     * 同一份报告只扣一次（用户 2026-09-16：客户下载失败重试 4 次被扣 4 次，不合理）。
+     *
+     * 计费键 = 「用户 + 标题 + 正文」的指纹：第一次导出正常扣 `docxCredits`，
+     * 之后对**同一份内容**再导出（换手机、下载失败重下、清理浏览器后再下）命中同一 requestId，
+     * 钱包幂等直接返回，不重复扣费；余额为 0 也能重下自己已付费的那份。
+     */
+    const contentFingerprint = crypto
+      .createHash("sha256")
+      .update(`${context.userId}\n${parsed.data.title ?? ""}\n${parsed.data.content}`)
+      .digest("hex")
+      .slice(0, 40);
+    const exportRequestId = `docx:${contentFingerprint}`;
+    const alreadyCharged = Boolean(
+      await prisma.walletLedger.findFirst({
+        where: { userId: context.userId, refRequestId: exportRequestId, type: "consume" },
+        select: { id: true }
+      })
+    );
+    const price = alreadyCharged ? 0 : EXPORT_PRICING.docxCredits;
     const walletBefore = await readWallet(context.userId);
-    if (walletBefore.balance < price) {
+    if (!alreadyCharged && walletBefore.balance < price) {
       return reply.code(402).send({
         error: "insufficient_credits",
         message: "当前积分不足，充值后可导出精美 Word。",
@@ -127,22 +147,26 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
     const id = crypto.randomUUID();
 
     // 交付物生成完成后才扣费；同一次导出用 recordId 幂等，失败不扣。
-    const consumed = await consumeWalletCredits({
-      userId: context.userId,
-      requestId: `docx:${id}`,
-      price,
-      skillId: "docx_export",
-      priceVersion: EXPORT_PRICING.docxVersion,
-      source: "web"
-    });
-    if (consumed.status === "insufficient") {
-      return reply.code(402).send({
-        error: "insufficient_credits",
-        message: "当前积分不足，充值后可导出精美 Word。",
-        balance: consumed.wallet.balance,
-        required: price,
-        rechargeUrl: buildRechargeUrl("docx_export")
+    let balanceAfter = walletBefore.balance;
+    if (!alreadyCharged) {
+      const consumed = await consumeWalletCredits({
+        userId: context.userId,
+        requestId: exportRequestId,
+        price,
+        skillId: "docx_export",
+        priceVersion: EXPORT_PRICING.docxVersion,
+        source: "web"
       });
+      if (consumed.status === "insufficient") {
+        return reply.code(402).send({
+          error: "insufficient_credits",
+          message: "当前积分不足，充值后可导出精美 Word。",
+          balance: consumed.wallet.balance,
+          required: price,
+          rechargeUrl: buildRechargeUrl("docx_export")
+        });
+      }
+      balanceAfter = consumed.wallet.balance;
     }
 
     exportRecords.set(id, {
@@ -159,7 +183,9 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
       // 带一次性令牌的直链：手机端（微信内置浏览器 / WPS）直接点就能拿到文件。
       downloadUrl: `/exports/docx/${id}?t=${encodeURIComponent(signExportDownloadToken(id, context.userId))}`,
       consumedCredits: price,
-      balance: consumed.wallet.balance
+      balance: balanceAfter,
+      // 同一份报告重下不重复扣费（前端据此给一句说明，而不是让用户以为又被扣了）。
+      redownload: alreadyCharged
     };
   });
 

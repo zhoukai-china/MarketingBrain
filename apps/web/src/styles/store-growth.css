@@ -5142,6 +5142,19 @@ pre {
   filter: brightness(1.08);
 }
 
+/* 用户 2026-09-16：手机用户只有 WPS、不知道该下什么格式、下完找不到文件——把说明显式写出来。 */
+.messageDownloadHint {
+  flex: 1 1 100%;
+  margin-top: 2px;
+  color: rgba(233, 255, 251, 0.62);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.messageDownloadHint b {
+  color: #d9b875;
+}
+
 .consultMessageMeta {
   margin-top: 5px;
   padding-left: 4px;

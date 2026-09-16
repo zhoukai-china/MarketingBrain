@@ -94,9 +94,16 @@ export function ChatMessages({ messages, busy, thinkingStep, currentConsultantId
               </div>
               {msg.role === "advisor" && (
                 <div className="messageDownloadBar" aria-label="下载交付件">
-                  <button type="button" onClick={() => void downloadAnswerDocx(msg.content)}>
+                  <button type="button" title="下载 .docx 文件，手机用 WPS / Word 打开都可以（WPS 原生支持 docx）" onClick={() => void downloadAnswerDocx(msg.content)}>
                     {`下载精美 Word${docxPrice ? ` · ${docxPrice} 积分` : ""}`}
                   </button>
+                  {/*
+                   * 用户 2026-09-16：手机用户只有 WPS、不知道该下什么、下完找不到文件。
+                   * 这里把「下的是什么格式、用什么打开、去哪找」一次说清；同一份报告重下不重复扣费。
+                   */}
+                  <span className="messageDownloadHint">
+                    手机点一下就会下载一个 <b>.docx</b> 文件：用 <b>WPS</b> 或 Word 打开即可（WPS 原生支持，不用转格式）；找不到文件就去手机的「文件 / 下载」里找刚刚那份。<b>同一份报告重复下载不再扣积分</b>。
+                  </span>
                 </div>
               )}
               <div className="consultMessageMeta">
