@@ -1,5 +1,39 @@
 # 当前部署状态
 
+## 最新发布：20260916-lq34-wallet（2026-09-17，生产 + 测试实例）— 兰琪通用钱包打通：7 个扣费点收口到「老板钱包」+ 历史额度一次性迁移
+
+### 一、用户口径
+
+「**兰琪的用户只在兰琪里充值；在兰琪充的积分，可以同时在思潼 AI 里用其他智能体**——钱包是通用的」；多人门店「**不管谁操作，都扣租户老板（owner）的钱包，流水里记『谁操作的、扣的是老板的钱』**」。迁移选 **Phase 2**（不做双轨过渡，只留一本账），不显示人民币，兰琪不新增第二个充值入口。
+
+### 二、改动
+
+1. **计费主体收口**：新增 `apps/api/src/services/lanqi-wallet.ts`（`precheckLanqiWallet` / `chargeLanqiWallet` / `refundLanqiWallet` / `readLanqiWalletBalance`）——按 `tenantId` 解析 owner，解析不到 **fail closed**（`lanqi_wallet_owner_missing`，不扣费也不放行）；幂等键 `lanqi:{tenantId}:{requestId}`；扣费走 `consumeWalletCredits`（paid→bonus、Serializable、同键幂等）；退款按**原扣费流水分桶退回原桶**；操作人写进流水 `source`（`lanqi:operator=<userId>`）。
+2. **5 个扣费点切到 owner 钱包**：文案十件套（`88f6f82`）、图片 / 视频确认（`f1b8057`）、爆款复刻出片 + 出片许可预算（`16d4a17`）、视频执行 seedance（`d3bb128`）——③④⑤ 同属一套「预留 - 结算」模型，**必须一次切完**；页面余额同步改读 owner 钱包。
+3. **迁移口径收窄（QA-20260916-011）**：初版按「全库 `CreditAccount.balance > 0`」取数会搬走 **199 个与兰琪无关的租户 / 2,001,159,975 积分**（思潼 AI `founder-ip,takeaway` 190 个 + 美业 4 个）；已改为「只迁持 `lanqi` 权益 / 有 `LanqiStoreProfile` 的租户」，并加离线口径回归（20 断言，进 `qa:regression`）。
+4. **数据迁移**：`scripts/lanqi-wallet-migrate.ts`（默认 dry-run，`--apply --backup <dir>` 先出迁移前 CSV，`--revert <tenantId,...>` 反做）+ `apps/api/src/services/lanqi-wallet-migration.ts`（每租户一个事务、事务内二次校验是否兰琪租户、`WalletLedger(refRequestId=lanqi-migrate:<tenantId>)` 保证幂等、`CreditAccount.balance` 置 0 **不删行**）。
+
+### 三、发布与验收
+
+| 环境 | 发布 id | 结果 |
+| --- | --- | --- |
+| 测试 | `20260916-lq34-wallet-test1` | `DEPLOY_OK`、`verify-deploy.sh` **VERIFY_OK**、health/ready 200 |
+| 生产 | `20260916-lq34-wallet-prod1` | **`DEPLOY_OK` + `VERIFY_OK`（0 FAIL）**、`No pending migrations`、重启后 err 日志 0 条、health/ready 200 |
+
+发布包：`release-20260916-lq34-wallet.tar.gz`（**1,584 文件 / 9,978,440 B / sha256 `2d4fa183e2bb478576d4061180101f98e67b1004078455b5cc74484739b52ff1`**，本地与服务器一致；生产与测试实例用同一份）。回滚＝`/opt/baolu-backups/20260916-lq34-wallet-prod1-before-baolu-os-v2/`（198M）。
+
+### 四、历史额度迁移（本轮的「改账」动作）
+
+- **测试实例**（schema `lanqi_test`，2026-09-16 21:01）：**43 个账户 / 12,520 积分**，迁移后对账 43 行 / 12,520、非兰琪 26 个 / 7,800 未动、重复 apply 幂等。
+- **生产**（schema `public`，2026-09-17 06:42）：**2 个账户 / 508 积分**（`300` + `208`）；迁移前 CSV + 全库 dump 已留证；迁移后 `WalletLedger` **2 行 / 508**、`CreditTransaction` `adjust` **2 行 / 508**、两条候选 `CreditAccount` 归 0 且行保留、owner 钱包 300 / 208、**非兰琪 199 个 / 2,001,159,975 一分未动**、`Wallet` 合计 25→**26 个**（paid 11,048→11,556）、再跑 dry-run 计划为空。
+- 生产只读复核：两个兰琪门店 `lanqi` 权益 `active`、`creditAccount=0`、owner 钱包 300 / 208；owner 钱包流水仅两条迁移入账，无重复 `refRequestId`。
+
+### 五、未做 / 边界
+
+- **老板门店实跑一次低价生成未执行**：需真人微信扫码登录，Codex 不能代持（同 LQ-22 / LQ-28 / LQ-29 既有边界）。建议登录后跑一次「美业文案十件套」（40 积分/次）验证「充值 → 兰琪可用 → 思潼货架同样可用」。
+- ⑥`credit-reservations.ts` + 经营问答、⑦ 美业单品预留 / 结算线**本轮不动**（被美业线复用，需单独立卡 + 跨产品回归）。
+- 思潼 AI 侧保持「谁登录扣谁的钱包」现状；不显示人民币；兰琪不加第二个充值入口。
+
 ## 最新发布：20260916-plat67（2026-09-16，生产 + 测试实例）— 修「我的 - 历史交付物 - 下载 Word 下载不了」（P1）+ 视频复盘后台导出文件编码兜底
 
 ### 一、用户现场问题

@@ -14,6 +14,7 @@
 - 复验：测试实例 `20260916-lq34-wallet-test1` 发布 `DEPLOY_OK` + `verify-deploy.sh` 全 PASS（health/ready 200、marketplace 契约 PASS、`VERIFY_OK`）；迁移后对账 43 行 / 12,520 全部符合预期（详见任务卡第 3 节）。
 - 留下的坑（**发布纪律**）：同一台测试实例被多个任务共用时，「上次发布成功」不能作为「现在跑的是我的代码」的证据——**跑任何数据操作前，先按关键文件 sha256 核对服务器与本地一致**（本任务是 `apps/api/src/services/{sitong-wallet,lanqi-wallet,lanqi-wallet-migration}.ts` + `scripts/lanqi-wallet-migrate.ts`）。叠加发布不会退回旧文件，所以混合构建是静默的。
 - 顺带上报一个**对账口径陷阱**（同日踩到，只读无副作用）：测试实例与生产**共用同一个物理数据库 `baolu_os_v2`**，靠 PostgreSQL **schema** 隔离——`baolu-os-v2-test.env` 的 `DATABASE_URL` 尾部是 `?schema=lanqi_test`，而 psql 不认 `schema` 参数、只有 Prisma 会用它设 `search_path`。所以**用 psql 对测试实例对账必须先 `SET search_path TO lanqi_test`**，否则读到的是 `public`（= 生产）。首次对账即因此读到生产的 201 / 2,001,160,483，误判成「迁移没写进去」；加上 `search_path` 后数字立刻对得上。
+- 生产落地（2026-09-17）：把同一条纪律用到生产——**发布前**先做「发布归档 vs 线上源码」逐文件 sha256 比对（**1558 个文件一致 / 6 个新增 / 20 个差异，且 20 个差异全部是 LQ-34 自身改动**），确认叠加发布不会把生产（当时 `plat67`）回退；随后执行 `20260916-lq34-wallet-prod1`（与测试实例同一份归档，`DEPLOY_OK` + `VERIFY_OK`、`No pending migrations`、dist 重建于 06:46、匿名探针 401）。生产迁移本身也先出迁移前快照与全库 dump 再 `--apply`（详见任务卡第 3 节）。
 - 关联：任务卡 `docs/agents/lanqi-beauty/tasks/LQ-34-兰琪通用钱包打通.md` 第 3、5 节「断点与交接物」。
 
 ## QA-20260916-011：LQ-34 历史额度迁移脚本按「全库有余额账户」取数，会把思潼 AI / 美业的租户积分一并搬进自己产品的钱包（P1，跨产品越权改账；**执行前发现**，已修 + 已加离线口径回归）
@@ -27,7 +28,7 @@
 - 根因：迁移口径只写了「租户积分账户」，没把「兰琪」这个**产品边界**写进查询条件。`CreditAccount` 是**全平台共用**的一张表（思潼 AI 的外卖增长 / 创始人 IP、美业的单品线都记在这张表上），而钱包迁移是**某个产品的口径变更**——两者不在同一层级，直接按表扫就等于替别的产品改账。属「口径变更的适用边界没写死在查询里」。
 - 修复（提交 `9c61771`）：把范围判定收窄为 **只迁「持 `lanqi` 产品权益」或「存在 `LanqiStoreProfile` 行」的租户**；同时新增离线口径回归 `pnpm.cmd lanqi:wallet-migration-scope-drill`（**20 断言**，覆盖：全库有余额但非兰琪 → 必须排除；兰琪权益余额 0 → 不产生候选；兰琪权益有余额 → 进候选且金额一致；`LanqiStoreProfile` 单独命中；owner 解析不到 → 记 `ownerMissing` 而不是硬迁；重复执行不重复发放），已挂 `qa:regression`（`LANQI_WALLET_MIGRATION_SCOPE_DRILL_PASS passed:20`）。
 - 复验：`pnpm.cmd qa:regression` exit 0（含上述 drill）；生产 dry-run 复算为 **2 个账户 / 508 积分**、`ownerMissing=[]`、`alreadyMigrated=0`，两条候选都只有 `lanqi` 权益。
-- 处置与边界：**测试实例已 apply（2026-09-16 21:01，43 个账户 / 12,520 积分已迁 + 对账干净 + 重复 apply 幂等），生产尚未 apply**（老板已确认口径与候选清单，生产排在下一轮，见 QA-20260916-016）。本次不扩大范围去补思潼 AI / 美业侧的历史账（它们不在本任务范围内，硬扫的隐患已由口径收窄消除）。
+- 处置与边界：**测试实例已 apply（2026-09-16 21:01，43 个账户 / 12,520 积分）与生产已 apply（2026-09-17 06:42 CST，2 个账户 / 508 积分）均已完成**——两侧对账干净、重复 apply 幂等、非兰琪账户一分未动（老板已确认口径与候选清单；生产落地证据见 QA-20260916-016）。本次不扩大范围去补思潼 AI / 美业侧的历史账（它们不在本任务范围内，硬扫的隐患已由口径收窄消除）。
 - 留下的坑：`CreditAccount` 这类**全平台共用表**上的任何批量迁移，口径里必须显式写出「哪些产品 / 租户属于本次范围」，并配一条「非本产品租户必须被排除」的断言；否则每次都会重演「一个产品的迁移改掉另一个产品的账」。
 - 关联：任务卡 `docs/agents/lanqi-beauty/tasks/LQ-34-兰琪通用钱包打通.md` 第 3 节。
 
