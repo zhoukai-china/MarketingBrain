@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
-import { authHeaders, fetchMarketMe, guestToLogin, readJson, Topbar } from "./shell.js";
+import { authHeaders, fetchMarketMe, guestToLogin, handleStaleSession, readJson, Topbar } from "./shell.js";
 import "../styles/referral-card.css";
 
 /**
@@ -134,7 +134,6 @@ function ReferralLinkCard() {
 
 export function MarketplaceMinePage() {
   const [balance, setBalance] = useState<number | null>(null);
-  const [recent, setRecent] = useState<Array<{ id: string; skuName?: string | null; amountCredits: number; createdAt: string }>>([]);
   /**
    * 用户 2026-09-16：客户被多扣的积分退了，但他自己看不到（这里原来只列消耗）。
    * 服务端把「与客户切身相关」的退回（Word 导出重复扣费）单独给出来，这里显式展示 +N 积分。
@@ -150,13 +149,36 @@ export function MarketplaceMinePage() {
   async function downloadDeliverable(item: { id: string; answer: string; skuName?: string | null }): Promise<void> {
     setDownloadingId(item.id);
     try {
+      /**
+       * QA-20260916-009：会话头和 Content-Type 都由 `authHeaders(true)` 提供。
+       * 这里再补一个小写 `content-type` 会被浏览器按规范合并成
+       * `application/json, application/json`，Fastify 认不出这个媒体类型直接 415，
+       * 客户看到的是一句英文报错、文件一个都没下来。
+       */
       const response = await fetch(apiPath("/exports/docx"), {
         method: "POST",
-        headers: { ...authHeaders(true), "content-type": "application/json" },
+        headers: authHeaders(true),
         body: JSON.stringify({ title: `历史交付物-${item.skuName ?? "智能体"}`, content: item.answer })
       });
-      const data = (await response.json().catch(() => ({}))) as { downloadUrl?: string; message?: string };
-      if (!response.ok || !data.downloadUrl) throw new Error(data.message ?? "导出失败");
+      const data = (await response.json().catch(() => ({}))) as {
+        downloadUrl?: string;
+        message?: string;
+        required?: number;
+        balance?: number;
+      };
+      // 401/403 单独走会话失效口径：清本地 token，不把服务端的英文原文甩给客户。
+      if (handleStaleSession(response.status)) {
+        throw new Error("登录状态已失效，请重新登录后再下载；本次不消耗积分。");
+      }
+      if (response.status === 402) {
+        const required = data.required ?? "若干";
+        throw new Error(`积分不足，本次导出需 ${required} 积分（当前余额 ${data.balance ?? 0}），请先充值。`);
+      }
+      // 415 是「请求被拒」，和「积分不够/没登录」不是一回事，必须分开讲，且服务端英文原文不能直接展示。
+      if (response.status === 415) {
+        throw new Error("下载请求被服务端拒绝，请刷新页面后重试；本次不消耗积分。");
+      }
+      if (!response.ok || !data.downloadUrl) throw new Error(data.message ?? "导出失败，请稍后重试。");
       // 与对话页同一口径：把真实链接交给浏览器/系统去下载（手机才能交给 WPS）。
       window.location.assign(apiPath(data.downloadUrl));
     } catch (error) {
@@ -182,7 +204,6 @@ export function MarketplaceMinePage() {
           return;
         }
         setBalance(d.creditBalance);
-        setRecent(d.recentPpu ?? []);
         setRefunds(d.recentRefunds ?? []);
       })
       .catch(() => { if (!cancelled) setBalance(null); })
@@ -199,7 +220,7 @@ export function MarketplaceMinePage() {
   if (!signedIn) {
     return (
       <main className="app-wrap">
-        <Topbar active="mine" balance={null} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
+        <Topbar active="me" balance={null} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
         <section className="view view-mine"><div className="login-gate big">🔒 你还未登录<p>登录后可查看积分余额与使用记录。</p><button className="btn primary" onClick={() => guestToLogin("/mine")}>登录</button></div></section>
       </main>
     );
@@ -207,34 +228,35 @@ export function MarketplaceMinePage() {
 
   return (
     <main className="app-wrap">
-      <Topbar active="mine" balance={balance} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
+      <Topbar active="me" balance={balance} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
       <section className="view view-mine">
-        <h1>常用智能体</h1>
+        <h1>我的</h1>
         <div className="mine-top">
           <div className="balance-card"><div className="bc-label">积分余额</div><div className="bc-val">💎 {balance ?? "—"}</div><div className="bc-sub">全平台通用</div><button className="btn ghost sm" onClick={() => { window.location.href = getAppPath("/recharge"); }}>+ 充值积分</button></div>
           <div className="shared-card wide">💎 <b>跨智能体通用</b><br />同一份积分，在创始人IP专区与各行业专区的智能体都能用——只充一次，处处可用。</div>
         </div>
         <ReferralLinkCard />
-        <h3>近期使用记录</h3>
-        {loading ? <div className="loading">正在加载…</div> : recent.length === 0 ? <p className="mine-tip">暂无使用记录</p> : (
-          <div className="card-grid">
-            {recent.map((entry) => (
-              <article className="agent-card owned-card" key={entry.id}>
-                <div className="ac-ico">🤖</div>
-                <div className="ac-name">{entry.skuName ?? "智能体"}</div>
-                <div className="ac-price">{entry.amountCredits} 积分</div>
-                <div className="ac-foot"><span className="chip owned">{new Date(entry.createdAt).toLocaleDateString("zh-CN")}</span></div>
-              </article>
-            ))}
-          </div>
-        )}
+        {/*
+         * 2026-09-16（用户）：
+         * ①「常用智能体」独立成页（`/my-agents`），这里不再重复列使用记录，只留一个入口；
+         * ②「把输出的产物也放到我的页面里，并给用户保存 7 天」——产物段落**始终显示**：
+         *   没有产物时也给空态说明，客户不会以为功能不存在（以前是 length>0 才渲染，等于藏起来了）。
+         */}
+        <h3>常用智能体</h3>
+        <p className="mine-tip">
+          你用过、还在用的智能体都在「<a onClick={() => { window.location.href = getAppPath("/my-agents"); }}>常用智能体</a>」页，点一下就能接着用。
+        </p>
         {/* 历史交付物（服务端保留 7 天）：明确告诉客户「及时下载」，并提供一键导出 Word。 */}
-        {deliverables.length > 0 && (
+        <h3>历史交付物 · 保存 7 天，请及时下载</h3>
+        <p className="mine-tip">
+          平台只为你保留 <b>7 天</b>，到期自动清理；需要长期保存请点「下载 Word」存到自己手机/电脑（用 WPS 或 Word 都能打开）。
+        </p>
+        {loading ? (
+          <div className="loading">正在加载…</div>
+        ) : deliverables.length === 0 ? (
+          <p className="mine-tip">还没有交付物。生成成功后会保存在这里，7 天内随时可以下载 Word。</p>
+        ) : (
           <>
-            <h3>历史交付物 · 保存 7 天，请及时下载</h3>
-            <p className="mine-tip">
-              平台只为你保留 <b>7 天</b>，到期自动清理；需要长期保存请点「下载 Word」存到自己手机/电脑（用 WPS 或 Word 都能打开）。
-            </p>
             <div className="card-grid">
               {deliverables.map((item) => {
                 const daysLeft = Math.max(0, Math.ceil((new Date(item.expiresAt).getTime() - Date.now()) / 86_400_000));

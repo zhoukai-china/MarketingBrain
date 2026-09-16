@@ -568,6 +568,28 @@ function isWorkbookFile(filename: string): boolean {
   return extension === ".xlsx" || extension === ".xls";
 }
 
+/**
+ * 文本类文件（CSV / TSV / TXT / MD / JSON / LOG）的编码探测。
+ *
+ * 2026-09-16 现场缺陷：视频号助手 / 抖音创作者中心「另存为 CSV」与中文 Windows 记事本导出的
+ * 都是 GBK / GB18030，直接 `buffer.toString("utf8")` 会把中文表头解成乱码，视频复盘的解析器
+ * 一个字段都认不出来，用户明明传了数据表却收到「没有识别到视频记录」。这里先严格按 UTF-8 解，
+ * 解不通再按 GB18030 解（GBK / GB2312 是其子集）。与前端 `apps/web/src/marketplace/text-attachment.ts`
+ * 同一口径；生成式内容（PDF / DOCX / XLSX）不走这条，编码由各自解析库负责。
+ */
+function decodeTextBytes(buffer: Buffer): string {
+  const stripBom = (text: string) => text.replace(/^\uFEFF/, "");
+  try {
+    return stripBom(new TextDecoder("utf-8", { fatal: true }).decode(buffer));
+  } catch {
+    try {
+      return stripBom(new TextDecoder("gb18030").decode(buffer));
+    } catch {
+      return stripBom(buffer.toString("utf8"));
+    }
+  }
+}
+
 function isPdfFile(mimeType: string, filename: string): boolean {
   return mimeType === "application/pdf" || path.extname(filename).toLowerCase() === ".pdf";
 }
@@ -587,7 +609,7 @@ export async function extractBusinessDocumentText(buffer: Buffer, mimeType: stri
   } else if (extension === ".xlsx" || extension === ".xls") {
     content = extractWorkbookText(buffer);
   } else {
-    content = buffer.toString("utf8");
+    content = decodeTextBytes(buffer);
   }
   const normalized = content.replace(/\u0000/g, "").replace(/[ \t]+\n/g, "\n").trim();
   if (!normalized) return "";

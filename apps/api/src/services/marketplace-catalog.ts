@@ -506,6 +506,22 @@ function industryValues(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
+/**
+ * 历史遗留前缀清理（2026-09-16，WorkBuddy 全链路检测 B1）。
+ *
+ * 现象：美业专区 9 个 SKU 详情页首行渲染成「一次使用 = 帮你完成：一次使用 = 交付 …」，创始人 IP 专区正常。
+ * 根因：`useCase` 有两个来源——JSON 数据文件（2026-09-15 改口后已「直接讲交付物」）与数据库里各专区的 `ov`
+ * （专区覆盖）。`syncMarketplaceIndustryProfiles()` 只在首次建行时写入、之后不再覆盖，所以美业那行仍留着
+ * 改口前的「一次使用 = 交付…」；`loadMarketplaceIndustryProfiles()` 又把它读回内存参与构种子，
+ * 详情页模板再拼一次「一次使用 = 帮你完成：」，用户就看到两遍。
+ *
+ * 处理：在**构种子这一层**统一剥掉历史前缀（列表 / 详情 / 搜索取到的都是干净文案），
+ * 不碰专区覆盖里运营可能自行调过的其它字段；数据侧另有一次清洗（见运维记录）。
+ */
+function stripLegacyUsePrefix(value: string): string {
+  return value.replace(/^\s*(?:1|一)\s*次使用\s*[=＝:：]?\s*/, "").trim();
+}
+
 function buildMarketplaceSkuSeeds(): MarketplaceSkuSeed[] {
   const seeds: MarketplaceSkuSeed[] = [];
   for (const [industryKey, industry] of Object.entries(MARKETPLACE_INDUSTRIES)) {
@@ -532,7 +548,10 @@ function buildMarketplaceSkuSeeds(): MarketplaceSkuSeed[] {
       const id = `${industryKey}__${skillId}`;
       const coreName = industryValue(core.name) ?? skillId;
       const name = industryValue(override.name) ?? `${prefix}${coreName}`;
-      const useCase = industryValue(override.use) ?? industryValue(core.use) ?? "一次使用 = 交付结构化业务结果";
+      // 默认值也按 2026-09-15 口径「直接讲交付物」；历史默认值自带前缀，同样会重复渲染。
+      const useCase = stripLegacyUsePrefix(
+        industryValue(override.use) ?? industryValue(core.use) ?? "交付结构化业务结果"
+      );
       const need = industryValue(override.need) ?? industryValue(core.need) ?? "";
       const verbs = industryValues(override.verbs).length > 0
         ? industryValues(override.verbs)

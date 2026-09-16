@@ -101,9 +101,9 @@ export async function createTenantWorkspace(params: {
       }
     });
 
-    // 口径（2026-09-10 产品拍板）：**新用户不赠送任何欢迎积分**。默认初始额度为 0，
-    // 因此这里不写 `welcome_credits` 流水，避免账本里出现 0 元噪声记录。
-    // 测试/内测环境如需体验额度，用 `NEW_USER_*_TRIAL_CREDITS` 显式打开（见 getInitialWorkspaceCredits）。
+    // 口径（**2026-09-16 用户拍板：新用户注册即赠送 100 积分，后面新注册都给送**）：
+    // 初始额度取自 `NEW_USER_SIGNUP_CREDITS`（默认 100）；额度为 0 时不写 `welcome_credits` 流水，
+    // 避免账本里出现 0 元噪声记录。类型专属 `NEW_USER_*_TRIAL_CREDITS` 仍可覆盖（隔离测试环境）。
     if (initialCredits > 0) {
       await tx.creditTransaction.create({
         data: {
@@ -147,9 +147,11 @@ export async function createTenantWorkspace(params: {
 /**
  * 新工作区的初始积分额度。
  *
- * 产品口径（2026-09-10）：**默认 0，新用户不赠送任何欢迎积分**，需要用量就先充值。
- * `NEW_USER_*_TRIAL_CREDITS` 是给隔离测试/内测环境准备体验额度的显式开关，
- * 生产环境不配置这些变量，因此生产注册出来的账号余额就是 0。
+ * 产品口径变更：
+ *   - 2026-09-10：默认 0（不赠送欢迎积分）；
+ *   - **2026-09-16（用户）：「新用户注册即赠送 100 积分，后面新用户注册都给送」**——
+ *     默认额度改为 `NEW_USER_SIGNUP_CREDITS`（默认 100），对**所有新注册**生效。
+ * 进 bonus 桶（赠送积分，不可退），`NEW_USER_*_TRIAL_CREDITS` 仍可覆盖类型专属额度。
  */
 function getInitialWorkspaceCredits(tenantType: TenantType): number {
   if (tenantType === "chain_brand" && env.NEW_USER_CHAIN_TRIAL_CREDITS !== undefined) {
@@ -161,7 +163,7 @@ function getInitialWorkspaceCredits(tenantType: TenantType): number {
   if (tenantType === "local_business" && env.NEW_USER_LOCAL_TRIAL_CREDITS !== undefined) {
     return env.NEW_USER_LOCAL_TRIAL_CREDITS;
   }
-  return 0;
+  return env.NEW_USER_SIGNUP_CREDITS;
 }
 
 function getDefaultStoreName(tenantType: TenantType): string {

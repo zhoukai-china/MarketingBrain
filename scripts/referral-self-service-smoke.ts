@@ -5,11 +5,16 @@
 //
 // 覆盖：
 //   1. 未登录 → 401（自服务入口也要登录态）
-//   2. 首次 POST → state=created，返回完整注册链接（指向配置的公开站点）+ 明文码 + 二维码 SVG
-//   3. 再次 GET/POST（不 regenerate）→ state=existing，**不再返回明文**，只给 preview
-//   4. regenerate=true → 再签一条（旧码仍有效：库里两条都在）
-//   5. 只能看到自己的码：另一个用户 GET 到的 preview 与本用户不同
-//   6. 链接格式与归一化口径一致：`<PUBLIC_WEB_BASE_URL>/login?ref=<code>`
+//   2. 活动未开放 → fail-closed：campaignActive=false、state=none、不发码（用户 2026-09-16「先下架」口径）
+//   3. 活动开放后首次 POST → state=created，返回完整注册链接（指向配置的公开站点）+ 明文码 + 二维码 SVG
+//   4. 再次 GET/POST（不 regenerate）→ state=existing，**不再返回明文**，只给 preview
+//   5. regenerate=true → 再签一条（旧码仍有效：库里两条都在）
+//   6. 只能看到自己的码：另一个用户 GET 到的 preview 与本用户不同
+//   7. 链接格式与归一化口径一致：`<PUBLIC_WEB_BASE_URL>/login?ref=<code>`
+//
+// 为什么脚本自己开关活动：活动开关是**后台配置位**（DB 覆盖 > env 默认），生产/测试在活动期外
+// 一律 `false`。脚本如果依赖环境现状，就会变成「环境一变红一片」。所以这里自己把窗口开成
+// [now-1h, now+1h)，跑完再把原来的值**原样还原**（含「原本没有这行就删掉」）。
 import dotenv from "dotenv";
 
 dotenv.config({ path: "apps/api/.env", quiet: true });
@@ -26,10 +31,50 @@ async function main(): Promise<void> {
   const { registerMarketplaceRoutes } = await import("../apps/api/src/routes/marketplace.js");
   const { env } = await import("../apps/api/src/config/env.js");
   const { createSessionToken } = await import("../apps/api/src/services/auth-token.js");
-  const { updatePlatformSettings } = await import("../apps/api/src/services/referral-config.js");
   const { randomUUID } = await import("node:crypto");
+  const { updatePlatformSettings, resetReferralConfigCacheForTests } = await import(
+    "../apps/api/src/services/referral-config.js"
+  );
 
   const suffix = randomUUID().slice(0, 8);
+
+  // 活动开关是 DB 配置位：先记下原值，跑完原样还原（避免把本地/测试实例的活动状态改掉）。
+  const campaignKeys = [
+    "REFERRAL_REWARD_ENABLED",
+    "REFERRAL_CAMPAIGN_STARTS_AT",
+    "REFERRAL_CAMPAIGN_ENDS_AT"
+  ] as const;
+  const originalSettings = await prisma.platformSetting.findMany({
+    where: { key: { in: [...campaignKeys] } },
+    select: { key: true, value: true }
+  });
+  const setReferralCampaign = async (value: {
+    enabled: boolean;
+    startsAt: string | null;
+    endsAt: string | null;
+  }): Promise<void> => {
+    await updatePlatformSettings(
+      {
+        REFERRAL_REWARD_ENABLED: value.enabled,
+        REFERRAL_CAMPAIGN_STARTS_AT: value.startsAt,
+        REFERRAL_CAMPAIGN_ENDS_AT: value.endsAt
+      },
+      "referral-self-service-smoke"
+    );
+    resetReferralConfigCacheForTests();
+  };
+  const restoreReferralCampaign = async (): Promise<void> => {
+    for (const key of campaignKeys) {
+      const original = originalSettings.find((row) => row.key === key);
+      if (!original) {
+        await prisma.platformSetting.deleteMany({ where: { key } });
+        continue;
+      }
+      const value = original.value as never;
+      await prisma.platformSetting.upsert({ where: { key }, update: { value }, create: { key, value } });
+    }
+    resetReferralConfigCacheForTests();
+  };
   const createUser = async (label: string) => {
     const userId = `plat38-${label}-user-${suffix}`;
     const tenantId = `plat38-${label}-tenant-${suffix}`;
@@ -52,57 +97,51 @@ async function main(): Promise<void> {
   const get = (url: string, userId?: string, tenantId?: string) =>
     app.inject({ method: "GET", url, headers: userId ? headersFor(userId, tenantId!) : {} });
 
-  /**
-   * 活动窗控制（commit 026682a「邀请链接按活动开关下架」）。
-   *
-   * 自服务邀请链接现在受「推荐有礼总开关 + 活动窗」约束：活动没开时按设计**不签发**（接口兜一层，
-   * 不只是前端隐藏卡片）。本回归要测的是「签发 → 明文只回一次 → 重签保留旧码 → 跨用户隔离」，
-   * 所以这里显式把活动窗开到此刻，跑完再把本机原值恢复回去——结果不依赖本机后台配置，
-   * 也不会把「暂时不开放」这个真实状态锁死成别的值。
-   */
-  const campaignKeys = ["REFERRAL_REWARD_ENABLED", "REFERRAL_CAMPAIGN_STARTS_AT", "REFERRAL_CAMPAIGN_ENDS_AT"];
-  const campaignSnapshot = await prisma.platformSetting.findMany({ where: { key: { in: campaignKeys } }, select: { key: true, value: true, updatedBy: true } });
-  const previousCampaignValue = (key: string) => campaignSnapshot.find((row) => row.key === key)?.value ?? null;
-  const setCampaignWindow = (enabled: boolean, startsAt: string | null, endsAt: string | null) =>
-    updatePlatformSettings(
-      { REFERRAL_REWARD_ENABLED: enabled, REFERRAL_CAMPAIGN_STARTS_AT: startsAt ?? "", REFERRAL_CAMPAIGN_ENDS_AT: endsAt ?? "" },
-      "referral-self-service-smoke"
-    );
-  const restoreCampaign = async () => {
-    await setCampaignWindow(
-      previousCampaignValue("REFERRAL_REWARD_ENABLED") === true,
-      (previousCampaignValue("REFERRAL_CAMPAIGN_STARTS_AT") as string | null) ?? null,
-      (previousCampaignValue("REFERRAL_CAMPAIGN_ENDS_AT") as string | null) ?? null
-    );
-    // `updatedBy` 是「谁最后改了这条配置」的审计信息，跑一次回归不该把它改掉，一并还原。
-    for (const row of campaignSnapshot) {
-      await prisma.platformSetting.update({ where: { key: row.key }, data: { updatedBy: row.updatedBy } });
-    }
-  };
-
   try {
-    // 0) 活动关着：不得签发、不得落库（这是「先下架」口径的服务端兜底）
-    await setCampaignWindow(false, null, null);
-    const closed = await get("/market/me/referral-link", me.userId, me.tenantId);
-    const closedBody = closed.json() as { state: string; campaignActive: boolean; code: string | null; codePreview: string | null };
-    assert(closedBody.campaignActive === false, `活动未开时必须标记 campaignActive=false（实际 ${closedBody.campaignActive}）`);
-    assert(closedBody.code === null && closedBody.codePreview === null, "活动未开时不得返回任何推荐码");
-    const closedPost = await post("/market/me/referral-link", me.userId, me.tenantId);
-    const closedPostBody = closedPost.json() as { state: string; code: string | null };
-    assert(closedPostBody.code === null && closedPostBody.state === "none", `活动未开时 POST 不得签发（实际 ${closedPostBody.state}）`);
-    assert((await prisma.referralCode.count({ where: { ownerUserId: me.userId } })) === 0, "活动未开时不得落库推荐码");
-
-    // 开到此刻，后面才是真正要回归的签发链路
-    await setCampaignWindow(true, new Date(Date.now() - 60 * 60 * 1000).toISOString(), new Date(Date.now() + 60 * 60 * 1000).toISOString());
-
     // 1) 未登录不能拿
     const anonymous = await get("/market/me/referral-link");
     assert(anonymous.statusCode === 401, `未登录必须 401（实际 ${anonymous.statusCode}）`);
 
-    // 2) 首次签发
+    // 2) 活动未开放（用户 2026-09-16「先下架」口径）：接口 fail-closed，不签发任何码
+    await setReferralCampaign({ enabled: false, startsAt: null, endsAt: null });
+    const closedPost = await post("/market/me/referral-link", me.userId, me.tenantId);
+    assert(closedPost.statusCode === 200, `活动关闭时接口也要正常返回（实际 ${closedPost.statusCode}）`);
+    const closedBody = closedPost.json() as {
+      state: string;
+      campaignActive: boolean;
+      code: string | null;
+      link: string | null;
+      qrSvg: string | null;
+    };
+    assert(closedBody.campaignActive === false, "活动关闭时必须回 campaignActive=false（前端据此隐藏卡片）");
+    assert(closedBody.state === "none", `活动关闭时不得签发（期望 state=none，实际 ${closedBody.state}）`);
+    assert(
+      closedBody.code === null && closedBody.link === null && closedBody.qrSvg === null,
+      "活动关闭时不得返回明文码 / 注册链接 / 二维码"
+    );
+    const closedCodeCount = await prisma.referralCode.count({ where: { ownerUserId: me.userId } });
+    assert(closedCodeCount === 0, `活动关闭时库里不得新增推荐码（实际 ${closedCodeCount} 条）`);
+
+    // 3) 打开活动窗（[now-1h, now+1h)，左闭右开）后再走签发路径
+    const now = Date.now();
+    await setReferralCampaign({
+      enabled: true,
+      startsAt: new Date(now - 3600_000).toISOString(),
+      endsAt: new Date(now + 3600_000).toISOString()
+    });
+
+    // 4) 首次签发
     const created = await post("/market/me/referral-link", me.userId, me.tenantId);
     assert(created.statusCode === 200, `首次签发必须 200（实际 ${created.statusCode} ${created.body.slice(0, 160)}）`);
-    const createdBody = created.json() as { state: string; link: string; code: string; codePreview: string; qrSvg: string };
+    const createdBody = created.json() as {
+      state: string;
+      campaignActive: boolean;
+      link: string;
+      code: string;
+      codePreview: string;
+      qrSvg: string;
+    };
+    assert(createdBody.campaignActive === true, "活动窗内必须回 campaignActive=true（卡片自己回来）");
     assert(createdBody.state === "created", "首次必须是 created");
     assert(/\/login\?ref=/.test(createdBody.link), `链接必须指向统一注册入口（实际 ${createdBody.link}）`);
     const expectedBase = String(env.PUBLIC_WEB_BASE_URL).replace(/\/+$/, "");
@@ -111,7 +150,7 @@ async function main(): Promise<void> {
     assert(createdBody.qrSvg.includes("<svg"), "必须返回二维码 SVG");
     assert(createdBody.codePreview.startsWith("ref-"), `preview 形如 ref-****（实际 ${createdBody.codePreview}）`);
 
-    // 3) 再次读取：不再返回明文
+    // 5) 再次读取：不再返回明文
     const again = await get("/market/me/referral-link", me.userId, me.tenantId);
     const againBody = again.json() as { state: string; link: string | null; code: string | null; codePreview: string | null };
     assert(againBody.state === "existing", "已有码时必须是 existing");
@@ -121,7 +160,7 @@ async function main(): Promise<void> {
     const withoutRegenerate = await post("/market/me/referral-link", me.userId, me.tenantId);
     assert(withoutRegenerate.json().state === "existing", "不带 regenerate 的重复 POST 不得再签新码");
 
-    // 4) 显式再生成：库里两条并存（旧链接仍然有效）
+    // 6) 显式再生成：库里两条并存（旧链接仍然有效）
     const before = await prisma.referralCode.count({ where: { ownerUserId: me.userId } });
     const regenerated = await post("/market/me/referral-link", me.userId, me.tenantId, { regenerate: true });
     const regeneratedBody = regenerated.json() as { state: string; code: string; codePreview: string };
@@ -130,7 +169,7 @@ async function main(): Promise<void> {
     const after = await prisma.referralCode.count({ where: { ownerUserId: me.userId } });
     assert(after === before + 1, `旧码必须保留（期望 ${before + 1} 条，实际 ${after}）`);
 
-    // 5) 只能看到自己的
+    // 7) 只能看到自己的
     const otherView = await get("/market/me/referral-link", other.userId, other.tenantId);
     const otherBody = otherView.json() as { state: string; codePreview: string | null };
     assert(otherBody.state === "existing" || otherBody.state === "created" || otherBody.codePreview === null, "另一个用户应有自己的干净状态");
@@ -139,7 +178,7 @@ async function main(): Promise<void> {
     console.log(JSON.stringify({
       result: "PLAT38_SELF_REFERRAL_PASS",
       anonymousRejected: anonymous.statusCode === 401,
-      campaignGateClosedNoIssue: closedBody.campaignActive === false && closedPostBody.code === null,
+      campaignClosedFailClosed: closedCodeCount === 0,
       firstIssueReturnedPlaintext: true,
       repeatReadHidesPlaintext: true,
       regenerateKeepsOldCode: after === before + 1,
@@ -150,7 +189,8 @@ async function main(): Promise<void> {
     }));
   } finally {
     await app.close();
-    await restoreCampaign();
+    // 先还原配置位，再删测试数据：哪怕断言中途失败，也不把活动开关留在打开状态。
+    await restoreReferralCampaign();
     for (const user of [me, other]) {
       await prisma.referralCode.deleteMany({ where: { ownerUserId: user.userId } });
       await prisma.membership.deleteMany({ where: { tenantId: user.tenantId } });

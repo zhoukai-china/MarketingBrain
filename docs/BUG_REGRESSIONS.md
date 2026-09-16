@@ -1,5 +1,7 @@
 # Bug 回归台账
 
+- 编号说明（2026-09-16 合并 `main` 后统一）：LQ-34 侧并发登记的条目顺延为 **-012 导出一次性直链 / -013 邀请活动门禁 / -014 导出仓 `.env` / -015 Windows worktree CRLF**；`-006` 本机草稿指纹条目以 main 编号为准（LQ-34 侧曾记为 `-010`，合并时去重）。
+
 ## QA-20260916-011：LQ-34 历史额度迁移脚本按「全库有余额账户」取数，会把思潼 AI / 美业的租户积分一并搬进自己产品的钱包（P1，跨产品越权改账；**执行前发现**，已修 + 已加离线口径回归）
 
 - 触发：2026-09-16 LQ-34 在做迁移 dry-run 时，先看的是「全库 `CreditAccount.balance > 0` 有多少」。生产只读实测：**201 个账户 / 2,001,160,483 积分**。若照此执行，兰琪这次「把历史额度一次性迁进钱包」会一次改掉 199 个与兰琪无关的租户账本。
@@ -15,7 +17,7 @@
 - 留下的坑：`CreditAccount` 这类**全平台共用表**上的任何批量迁移，口径里必须显式写出「哪些产品 / 租户属于本次范围」，并配一条「非本产品租户必须被排除」的断言；否则每次都会重演「一个产品的迁移改掉另一个产品的账」。
 - 关联：任务卡 `docs/agents/lanqi-beauty/tasks/LQ-34-兰琪通用钱包打通.md` 第 3 节。
 
-## QA-20260916-008：本机「导出仓根 `.env`（`SKILL_MCP_REQUIRED=true` + 3011 网关）」会让美业 `beauty-industry:web-contract-smoke` 链条再叠一层误红（P2，环境坑；不在 LQ-34 改代码，登记待收敛）
+## QA-20260916-014：本机「导出仓根 `.env`（`SKILL_MCP_REQUIRED=true` + 3011 网关）」会让美业 `beauty-industry:web-contract-smoke` 链条再叠一层误红（P2，环境坑；不在 LQ-34 改代码，登记待收敛）
 
 - 编号说明：本条在 LQ-34 分支上原登记为 QA-20260916-006；合并 `main` 时与 main 侧**并发登记**的条目（QA-20260916-004/004B/005）撞号，故顺延为 **-008**，内容未变。
 - 触发：2026-09-16 跑 LQ-34 的 `pnpm.cmd qa:regression`，链条进到 `beauty-industry:web-contract-smoke` 段报红，现象像「Skill 合同被改坏了」。
@@ -27,7 +29,7 @@
 - 处理与边界：**不在 LQ-34 动代码**。理由：默认 / CI 干净 shell 下这些脚本本就全绿；生产「MCP 必选」的语义已由 `skill:mcp-resilience-smoke`、`beauty-industry:mcp-platform-smoke` 覆盖；批量给 38 个 beauty 脚本 pin `SKILL_MCP_ENABLED=false` 会横跨美业交付范围（BY-17 等），属另一个任务。
 - 留下的坑与建议：开发者本机若同时「起 3011 网关」+「导出仓根 `.env`」，会看到一串与被测代码无关的红灯，极容易误判成产品坏了。后续要么在门禁入口固定环境（不导出仓根 `.env`），要么给这批脚本加统一的 `SKILL_MCP_ENABLED=false` 入口约束。
 
-## QA-20260916-009：全新 Windows worktree（`core.autocrlf=true`、仓库无 `.gitattributes`）把提示词资产检出成 CRLF，顶穿 `beauty_xiaohongshu_package` 的 25,000 字节版本化预算（P2，main 侧既有红；不在 LQ-34 改）
+## QA-20260916-015：全新 Windows worktree（`core.autocrlf=true`、仓库无 `.gitattributes`）把提示词资产检出成 CRLF，顶穿 `beauty_xiaohongshu_package` 的 25,000 字节版本化预算（P2，main 侧既有红；不在 LQ-34 改）
 
 - 编号说明：本条在 LQ-34 分支上原登记为 QA-20260916-007；合并 `main` 时与 main 侧**并发登记**的条目撞号，故顺延为 **-009**，内容未变。
 - 触发：2026-09-16 交付 LQ-34 跑 `pnpm.cmd qa:regression`，链条停在 `beauty-industry:text-budget-smoke`：`AssertionError: beauty_xiaohongshu_package prompt exceeded the versioned budget before Provider start:25114/25000`（`scripts/beauty-industry-by09-message-profile.ts:74`）。
@@ -43,7 +45,7 @@
 - 处理与边界：**不在 LQ-34 改**（属平台/提示词预算线，改预算或改换行策略都会横跨美业 BY-17 等交付范围）。本任务只把 worktree 提示词资产恢复成与 git blob 一致的 LF（等价于 CI/Linux 所见），并如实登记。
 - 后续（需单独立项，二选一或同时做）：① 仓库加 `.gitattributes`（至少 `mcp-skills/**`、`packages/skills/**` 用 `text=auto eol=lf`），或在门禁入口统一 `core.autocrlf=false`，避免每个新 worktree 都踩一次；② 复核 `beauty_xiaohongshu_package` / `beauty_sales` 的 25,000 预算余量与提示词增长节奏（与本台账 QA-20260916-003 的图片定价线无关）。
 
-## QA-20260916-007：自服务邀请链接改成「按活动开关下架」后，`referral:self-service-smoke` 仍按「活动常开」假设写 → 本机必然红（P2，已修）
+## QA-20260916-013：自服务邀请链接改成「按活动开关下架」后，`referral:self-service-smoke` 仍按「活动常开」假设写 → 本机必然红（P2，已修）
 
 - 编号说明：本条在 LQ-34 分支上原登记为 QA-20260916-005；合并 `main` 时与 main 侧**并发登记**的条目撞号，故顺延为 **-007**，内容未变。
 - 触发：2026-09-16 LQ-34 交付跑 `pnpm.cmd qa:regression`，`referral:self-service-smoke` 报 `FAIL: 首次必须是 created`，看着像「邀请链接签发坏了」。
@@ -55,7 +57,7 @@
 - 修复后：`pnpm.cmd referral:self-service-smoke` **exit 0**，`{"result":"PLAT38_SELF_REFERRAL_PASS","anonymousRejected":true,"campaignGateClosedNoIssue":true,"firstIssueReturnedPlaintext":true,"repeatReadHidesPlaintext":true,"regenerateKeepsOldCode":true,"providerCalls":0,"costYuan":0}`；dev 库复查三个键已还原（`REFERRAL_REWARD_ENABLED=false`、窗口 null、`updatedBy=null`）。
 - 教训：给某类「按开关下架」加服务端兜底后，**回归脚本里所有「必然成功」的假设都要跟着复核**，否则红灯会把锅甩给产品；同时「让测试改配置」必须在 `finally` 里连审计字段一起还原。
 
-## QA-20260916-006：Word 下载改「一次性直链」后，`export:owner-isolation-smoke` 按「会话鉴权」写的隔离断言失效（本机必红）；顺带发现令牌分支缺 `Cache-Control`（P2，已修）
+## QA-20260916-012：Word 下载改「一次性直链」后，`export:owner-isolation-smoke` 按「会话鉴权」写的隔离断言失效（本机必红）；顺带发现令牌分支缺 `Cache-Control`（P2，已修）
 
 - 编号说明：本条在 LQ-34 分支上原登记为 QA-20260916-004；合并 `main` 时与 main 侧**并发登记**的条目撞号，故顺延为 **-006**，内容未变。
 - 触发：2026-09-16 LQ-34 交付跑 `pnpm.cmd qa:regression`，`export:owner-isolation-smoke` 在 `scripts/export-owner-isolation-smoke.ts:63` 断言红：`Another user must not download or consume the creator's temporary export`，实际 `200 !== 404`。
@@ -67,9 +69,54 @@
 - 红灯→绿灯证据（**证明新增断言不是哑断言**）：临时撤掉那一行 `Cache-Control` → 回归红（`actual: undefined, expected: private, no-store`）→ 恢复 → 绿。绿灯输出：`{"status":"PASS","rounds":3,"exportPrice":10,"chargedExports":2,"idempotentRedownloads":true,"insufficientReturns402":true,"oneTimeLink":true,"providerCalls":0,"externalCalls":0}`。
 - 教训：契约从「会话鉴权」改成「持有令牌即可取件」时，**隔离回归必须换用不含有效令牌的地址**，否则「同事拿不到」这条永远测不到；新契约下「不可缓存」也要覆盖到**所有**取件分支，而不是只有会话分支。
 
-## QA-20260916-010：本机草稿的「身份指纹」绑定的是 **token 末 8 位** → 会话一旦重新签发，同一个人的草稿被当成「换了人」直接丢掉（P1，已修 + 真机红/绿 + 已上两环境）
+## QA-20260916-010：「我的 - 历史交付物 - 下载 Word」点了没反应——请求头里同一份 content-type 写了两遍被浏览器合并，服务端 415（P1，已修 + 真机红/绿 + 门禁）
 
-- 编号说明：本条在 main 分支上原登记为 QA-20260916-006；合并 LQ-34 分支时与 LQ-34 侧**并发登记**的条目（006/007/008/009）撞号，故顺延为 **-010**，内容未变。
+- 触发：2026-09-16 用户现场「我的-产物里-点击下载 word 下载不了」。
+- 现场证据（headless Chrome + CDP 直连真实页面，逐字）：点击后只有 `OPTIONS /exports/docx` 204 与 `POST /exports/docx` **415**，弹窗文案 `Unsupported Media Type: application/json, application/json`，`downloadWillBegin` 一次都没有——导出根本没生成，也就没有文件可下。
+- 根因：`apps/web/src/marketplace/MinePage.tsx` 的 `downloadDeliverable()` 写了 `headers: { ...authHeaders(true), "content-type": "application/json" }`。`authHeaders(true)`（`apps/web/src/marketplace/shell.tsx`）**已经**带了 `Content-Type: application/json`；浏览器按 Fetch 规范把同名头合并成 `content-type: application/json, application/json`（`new Headers()` 归一化实测一致），Fastify 认不出这个媒体类型 → 415，前端再把服务端英文原文 `window.alert` 给客户。
+- 连带缺口：失败路径只把 `data.message` 原样弹出，没有处理 401/403（会话失效）与 415，也没有中文兜底——所以客户看到的是英文技术报错而不是「该怎么办」。
+- 修复（最小、可回滚）：`MinePage.tsx` 请求头改为只用 `authHeaders(true)`；失败路径按对话页同一口径补齐——401/403 走 `handleStaleSession()` 清本地会话 +「登录状态已失效，请重新登录后再下载；本次不消耗积分。」、402 说清「本次导出需 N 积分（当前余额 M）」、415 给「请求被拒，请刷新重试；本次不消耗积分」、其余中文兜底「导出失败，请稍后重试。」。下载方式不变（`window.location.assign(downloadUrl)`，手机交给 WPS）。
+- 回归（先红灯后绿灯）：新增 `scripts/mine-docx-download-smoke.ts`（`pnpm marketplace:mine-docx-download-smoke`，已挂进 `qa:fast`）。它不写死页面长相，而是**从真实源码取表达式执行**：① 从 `shell.tsx` 取 `authHeaders` 函数体、从 `MinePage.tsx` 取下载请求的 headers 表达式，用浏览器同款 `Headers` 归一化，断言只有一份 `content-type` 且值恰为 `application/json`；② 全仓守卫 `apps/web/src/**` 禁止 `{...authHeaders(true), "content-type": …}` 再次出现；③ 把「浏览器真正会发出去的头」打到真实 Fastify 导出路由：POST 200、无头 `GET ?t=`（浏览器导航带不了 Authorization）200 且是 `PK` 魔数 docx + `wordprocessingml` + `attachment`；④ 连点两次 `redownload:true`、`consumedCredits:0`、余额不再变；⑤ 无效会话 401 必须是中文人话；⑥ `externalCalls === 0`。
+  - 修复前红灯逐字：`AssertionError: 「我的-产物-下载 Word」的 content-type 必须是 application/json，实际「application/json, application/json」……服务端直接 415`。
+  - 修复后绿灯：`{"stage":"headers","contentType":"application/json"}` → `post_docx 200`（扣 10 积分）→ `browser_navigation_download 200 / 11086 bytes` → `second_click redownload:true, credits:0` → `status: PASS`。
+  - 真实页面复测（同一探针）：点击「下载 Word」后 `POST 200` → `GET ?t= 200`（`content-type: …wordprocessingml.document`、`content-disposition: attachment`）→ `Page.downloadWillBegin` 拿到 `历史交付物-IP定位智能体.docx`；无 415、无弹窗、`consoleErrors`/`logErrors` 均为空。
+- 边界：只改「我的」页这一条下载链路的请求头与失败文案；不动导出计费（仍 10 积分/次、同内容重下不再扣）、不动对话页导出（`AgentChatPage` 本来就没重复写头）。
+- 关联：`scripts/mine-docx-download-smoke.ts`；同源守卫已覆盖全 `apps/web/src`，防止别处再复制这个写法。
+
+## QA-20260916-009：手机端 IP 定位报告**表格被挤成竖排单字**——对话气泡固定 74% 宽 + 报告表格在窄屏无横向滚动（P2，已修 + 计算样式实测，已上两环境）
+
+- 触发：2026-09-16 用户手机截图：IP 定位全案的「7.3 三阶段发展路径」表格在手机上每列只剩几十像素，中文逐字竖排，基本不可读。
+- 根因（两处叠加）：① `.chat-bubble{max-width:74%}`——手机上 390×74% ≈ 289px，报告类消息（IP 定位全案 / 视频复盘）也被限制在这条窄栏里；② 报告里的表格没有任何窄屏适配，列宽被压到极限后只能逐字换行。
+- 修复：`AgentChatPage` 给带 `payload` 的消息加 `.report` 类；CSS 让报告气泡在手机占满宽度（`max-width:100%`），并给 `.md-rich table` / `.report-table` 在窄屏加 `display:block; overflow-x:auto` + 单元格不逐字换行（横向滚动代替竖排）；顺带补上**此前完全没有样式**的 markdown 表格样式（与 `.report-table` 对齐）。
+- 验收（测试实例 390 视口，读计算样式）：报告气泡 `max-width=100%`、实测宽 354px（占满可用宽）；**普通对话气泡仍是 74%**（未被连累）；表格 `display=block`、`overflow-x=auto` 且 `scrollWidth > clientWidth`（确实可横向滚动）。桌面端不受影响（报告气泡本来就 ≤74% 也不会溢出）。
+- 残余：报告在手机上是「横向滚动看表格」，不是「重排成卡片」；若要让表格在手机上竖排成条目式，属另一条产品改动，登记待评估。
+
+## QA-20260916-007：美业专区 9 个智能体详情页**序号重复**「一次使用 = 帮你完成：一次使用 = 交付 …」——专区覆盖（DB）里还留着改口前的文案（P0 体验硬伤，已修：代码兜底 + 数据清洗 + 门禁，已上两环境）
+
+- 触发：2026-09-16 WorkBuddy《全链路检测报告》B1：美业专区 9 个 SKU + 品牌工作台的详情页首行出现重复前缀，创始人 IP 专区正常。
+- 复现与取证（**修复前**）：
+  1. 线上接口 `GET /market/skus` 实测：`ipzone__*` 的 `useCase` 干净（「交付 1 份 IP 定位全案：…」），`meiye__*` 九个**全部**以「一次使用 = 」开头。
+  2. 详情页模板 `AgentDetailPage.tsx` 渲染的是 `🎯 一次使用 = 帮你完成：{sku.useCase}` → 前缀撞车，用户看到两遍。
+  3. 只读探针查两环境 `MarketplaceIndustryProfile`：**只有 meiye 这一行**的 `ov` 里带 9 条 `use`，且全部命中历史前缀；其余专区 `ov` 为空（所以走 JSON 数据文件，干净）。meiye 那行的 `updatedAt` 是 **2026-09-09/09-10**，早于 2026-09-15 的措辞改动。
+- 根因：`useCase` 有两个来源——JSON 数据文件（已按 2026-09-15 口径改成「直接讲交付物」）与数据库专区覆盖 `ov`。`syncMarketplaceIndustryProfiles()` **只在首次建行时写入、之后不再覆盖**，所以改口后 meiye 那行仍是旧文案；`loadMarketplaceIndustryProfiles()` 又把它读回内存参与构种子，于是旧措辞长期在线。
+- 修复（三层，逐层可独立回滚）：
+  1. **代码兜底**：`apps/api/src/services/marketplace-catalog.ts` 新增 `stripLegacyUsePrefix()`，构种子时统一剥掉 `^(1|一) 次使用 =` 前缀（默认值也从「一次使用 = 交付结构化业务结果」改为「交付结构化业务结果」）；`AgentDetailPage.tsx` 渲染前再剥一次，防「API 旧版本 + 网页新版本」错位又渲染两遍。
+  2. **数据清洗**：`node /tmp/plat64-clean-meiye-ov.mjs --apply`（默认 dry-run，先备份到 `/tmp/plat64-meiye-ov-backup-{test,prod}.json`）在两环境各改 1 行 / 9 个字段，复核 `leftoverLegacy: []`。
+  3. **门禁**：`scripts/marketplace-foundation-smoke.ts` 新增断言——**主动把「一次使用 = 」写回内存里的 meiye 覆盖**（模拟 DB 脏数据）再构种子，断言 `useCase` 仍是干净文案；并已把 `marketplace:foundation-smoke` 挂进 `qa:fast`。
+- 红/绿证：临时撤掉 catalog 的剥离调用后跑同一门禁 → **FAIL**（`got: 一次使用 = 交付 1 条美业合规、可直发的文案…`，与线上症状逐字一致）；恢复后 **PASS**。
+- 上线核验（两环境真实浏览器 + 线上接口）：`meiye__*` 九个 `useCase` 的「一次使用」命中数 **0**；美业文案智能体详情页渲染为「🎯 一次使用 = 帮你完成：交付 1 条美业合规、可直发的文案…」，「一次使用」在整张卡里**只出现 1 次**。
+- **全量验收（对照 WorkBuddy 交接单 HANDOFF_B1 的验收标准，2026-09-16）**：写死「全 19 个 SKU × 2 视口」的自动化核对（`apps/api/src/data` 里的 SKU 全表：创始人 IP 9 + 美业 9 + 兰琪大脑 1），判定条件是橙色使用条里「一次使用」**恰好 1 次**。结果：**生产 38/38 PASS、测试 38/38 PASS，failures: 0**（桌面 1280 + 手机 390）。交接单里「仅美业 9 个中招、品牌工作台不受影响」与实测一致。
+- 交接单口径更正（避免下次又去查不存在的字段）：他们的根因描述写的是「`usageHint` 字段自带前缀」，而**仓库里没有 `usageHint` 这个字段**（全仓 grep 0 命中）；实际字段是 SKU 的 **`useCase`**，脏数据在**数据库 `MarketplaceIndustryProfile.ov`（专区覆盖）里 meiye 那一行**，不在 JSON 数据文件里。
+- 残余风险：其它专区的 `ov` 若日后又被写入带旧前缀的文案，代码层兜底会拦住；但**专区覆盖本身仍不会自动跟随 JSON 更新**（这是既有设计，用于保留运营手改），属 P3，登记待评估是否需要「按字段白名单同步」。
+
+## QA-20260916-008：货架空专区点进去是白屏 + 兰琪大脑「输出参考案例」点了没反应 + console 404（B2/B4 已修；B5 复测不成立）
+
+- 触发：同一份《全链路检测报告》的 B2 / B4 / B5。
+- **B2（已修）**：`行业专家专区` 是 `ready: true` 但 0 个 SKU 的「先建栏、后放专家」专区。旧逻辑：分类栏显示「行业专家 **0**」可点，`groups` 又只渲染有 SKU 的专区、占位分支只覆盖 `ready: false` → 点进去**一片空白**。修复：`HomePage.tsx` 按**专区总量**（不是搜索结果数，避免搜索无命中被误判）判断，空专区统一显示「即将上线 / 待上线」+「🚧 该专区正在上新，敬请期待」，不再留白。真实浏览器实测：chip 文案「行业专家 即将上线」，点击后占位说明出现、无空白卡片。
+- **B4（已修）**：`lanqi__lanqi-brain` 是**品牌工作台入口**、不是单次生成的智能体，也没有参考案例，但「👀 输出参考案例」按钮以前无条件渲染 → 点了没反应。修复：`AgentDetailPage.tsx` 改为只在**确实有参考案例**时给样例按钮；兰琪大脑改为「🧭 这是品牌工作台入口…」+「进入品牌工作台」（跳 `/lanqi`）。实测：`hasSampleButton: false`、`hasWorkbench: true`。
+- **B5（复测不成立）**：报告称「页面加载时两个资源 404」。用带 Network 监听的真实浏览器跑 `/agents`、`/agent/meiye__copy`、`/mine` 三个页面 → **0 个 4xx/5xx**。nginx 日志里当日 404 只有两类，都不是应用页面的缺失资源：① 浏览器**直接打开非 HTML 地址**（如 `/lanqi-test/api/auth/dev-login`）时按惯例请求根 `/favicon.ico`（页面 HTML 已声明 `/lanqi-test/favicon.svg`，正常页面不会请求根 ico）；② 一批**不带应用前缀**的旧 chunk 请求（`/assets/*-<旧 hash>.js`、UA 为 node/爬虫），属陈旧引用/爬虫重放，不是本次发布的产物。结论：无可修项，保留监测。
+
+## QA-20260916-006：本机草稿的「身份指纹」绑定的是 **token 末 8 位** → 会话一旦重新签发，同一个人的草稿被当成「换了人」直接丢掉（P1，已修 + 真机红/绿 + 已上两环境）
 
 - 触发：2026-09-16 按 WorkBuddy 验收报告的 P2「充值往返状态恢复未经验证」做真机验证时，发现**填完 5 项 → 点去充值 → 回来草稿是空的**，等于用户报过的「充值完还得重填」并未真正修好。
 - 复现（**修复前**，测试实例真实浏览器，合成租户带 lanqi 授权）：
@@ -109,7 +156,8 @@
 - 修复（按用户 2026-09-16 明示口径「暂时不开放，先下架，等我通知（预计 10.1–10.7）」）：
   - 生产与测试各执行一次 `node scripts/enable-referral-campaign.mjs --apply --disable`（只写 `PlatformSetting`，不动代码、不动钱包、不退不补），写入后脚本自检 **8/8 项与目标一致**。
   - 复核（只读探针）：两环境 `REFERRAL_REWARD_ENABLED=false`；页面复核：测试实例「我的」页邀请卡片 **不再渲染**（`hasInviteCard=false`），同页「历史交付物 · 保存 7 天」仍正常渲染。
-  - 已发出的那 1 笔 100 积分**未回收**（落在老板自用测试租户「保禄测试」，且回收需人工确认口径）；推荐有礼正式启动时用 `node scripts/enable-referral-campaign.mjs --apply --start 2026-10-01T00:00:00+08:00 --end 2026-10-08T00:00:00+08:00` 开窗即可。
+  - 已发出的那 1 笔 100 积分：**用户 2026-09-16 明确答复「可以保留」**——不做回收/冲正（落在老板自用测试租户「保禄测试」，不涉及真实客户资金）。推荐有礼正式启动时用 `node scripts/enable-referral-campaign.mjs --apply --start 2026-10-01T00:00:00+08:00 --end 2026-10-08T00:00:00+08:00` 开窗即可。
+  - 2026-09-16 当日复核（只读探针读**生效值**）：生产与测试 `REFERRAL_REWARD_ENABLED=false` 保持不变。
 - 回归守护：本次新增 `pnpm marketplace:chat-slot-numbering-contract-smoke`（步骤序号契约）；**推荐活动开关的守护缺口仍在**——建议下一步加一条「断言两环境 `REFERRAL_REWARD_ENABLED` 的实际生效值等于期望值」的只读巡检（用户已明确「不要每日定时任务」，故不做定时，改为启动/关闭时由脚本自检 + 发布前手工只读核对）。
 - 教训（写进流程）：**核对开关必须核「生效值」，不是 env 文件**。凡「env 默认 + DB 覆盖」两层的配置，报告里必须写清读的是哪一层，否则等于没核。
 

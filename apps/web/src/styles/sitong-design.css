@@ -592,6 +592,23 @@ body[data-device="mobile"] .h-cta-item{font-size:11.5px;padding:6px 11px}
 .report-table th,.report-table td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
 .report-table th{background:var(--glass-2);color:var(--text);font-weight:700}
 .report-table tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+/* markdown 表格（报告正文里的表格）此前没有样式，走浏览器默认——边框与内边距和报告卡片不一致。 */
+.chat-bubble .md-rich table{border-collapse:collapse;margin:8px 0;font-size:13px;max-width:100%}
+.chat-bubble .md-rich th,.chat-bubble .md-rich td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+.chat-bubble .md-rich th{background:var(--glass-2);color:var(--text);font-weight:700}
+/* 结构化报告气泡：宽屏给到 100%（报告是密集表格，74% 太窄）。 */
+.chat-bubble.ai.report{max-width:100%}
+/*
+ * 手机端（用户 2026-09-16 手机截图：IP 定位报告的表格被挤成竖排单字）：
+ * 报告气泡占满屏宽 + 表格横向滚动，而不是把每列压到几十像素逐字换行。
+ */
+body[data-device="mobile"] .chat-bubble.ai.report{max-width:100%;padding:12px}
+body[data-device="mobile"] .chat-bubble .md-rich table,
+body[data-device="mobile"] .chat-bubble .report-table{display:block;width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+body[data-device="mobile"] .chat-bubble .md-rich th,
+body[data-device="mobile"] .chat-bubble .md-rich td{white-space:nowrap}
+body[data-device="mobile"] .chat-bubble .report-table th,
+body[data-device="mobile"] .chat-bubble .report-table td{white-space:normal;min-width:88px}
 
 /* 聊天交付内容的 Markdown 渲染 */
 .chat-bubble .md-rich p{margin:.38em 0;line-height:1.78;white-space:normal}

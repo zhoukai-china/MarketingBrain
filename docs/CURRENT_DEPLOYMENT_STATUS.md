@@ -1,5 +1,134 @@
 # 当前部署状态
 
+## 最新发布：20260916-plat67（2026-09-16，生产 + 测试实例）— 修「我的 - 历史交付物 - 下载 Word 下载不了」（P1）+ 视频复盘后台导出文件编码兜底
+
+### 一、用户现场问题
+
+1. 「**我的-产物里-点击下载 word 下载不了**」（现场，最高优先级）；
+2. 「视频复盘智能体还是没跑通：给了视频数据文件但还是没有识别到视频记录，本次不消耗积分。请上传视频号/抖音后台导出的 CSV/Excel」——后台导出常是 **GBK/GB18030**，此前按 UTF-8 解出乱码 ⇒ 表头识别不到 ⇒ 报「至少包含 1 条视频数据」。
+
+### 二、改动
+
+1. **P1 根因（下载 Word）**：`MinePage.tsx` 的 `downloadDeliverable()` 写的是 `headers: { ...authHeaders(true), "content-type": "application/json" }`，而 `authHeaders(true)` 本身就带 `Content-Type`；浏览器按规范把同名头合并成 `application/json, application/json`，Fastify 直接 **415 Unsupported Media Type**，导出未生成、前端把英文原文弹给客户。修复＝只用 `authHeaders(true)`，并按对话页同一口径补齐 401/403（清会话 +「登录状态已失效，请重新登录后再下载；本次不消耗积分。」）、402（积分不足）、415（刷新重试、本次不消耗积分）与中文兜底。计费不变（导出 10 积分/次，同内容重下不扣）。
+2. **导出取件加固**：`GET /exports/docx/:id` 统一 `Cache-Control: private, no-store`；`?t=` 令牌只解决「浏览器导航带不了 Authorization」，**只要带会话仍必须过会话 + 租户 + 归属校验**；并发取件用 `claimed` 占位 + `releaseClaim()`，只允许一次读到字节。跨租户 / 同租户同事 / 被停用成员一律取不到。
+3. **视频复盘文件编码兜底**：`apps/api/src/routes/media.ts` 新增 `decodeTextBytes()`（UTF-8 失败 → **GB18030** 兜底），前端 `apps/web/src/marketplace/text-attachment.ts` 用同规则探测编码后再喂给视频复盘的 `analyze` 链路。JSON 仍是 JSON 专属解析，不误吃。
+4. **既有红灯清理**：`video-review-engine.ts` 去掉误加的「观看量/观看次数」别名（小红书观看量不得当播放量）；`scripts/export-owner-isolation-smoke.ts`、`scripts/referral-self-service-smoke.ts` 契约更新（推荐活动现为**下架**状态，脚本改为先断言 fail-closed，再自建临时活动窗并在 `finally` 里**先还原开关再删数据**）。
+
+### 三、发布与验收
+
+| 环境 | 发布 id | 结果 |
+| --- | --- | --- |
+| 测试 | `20260916-plat67-mine-docx-download-test1` | `DEPLOY_OK`、health=200（24s）、ready=200、`verify-deploy.sh` **VERIFY_OK**（0 FAIL） |
+| 生产 | `20260916-plat67-mine-docx-download-prod1` | 同一份归档，见下方「发布流水线」说明 |
+
+发布包：`release-20260916-plat67-mine-docx-download.tar.gz`（**1576 文件 / 9,930,886 B**，sha256 `7778da84aefc6e9d78d07eaff8562b8683a2a2933bd7f8de0c3ed597d6e1040b`，本地与服务器一致）。发布脚本 `deploy-release.sh` 未 stale（与仓库 MD5 一致 `247df7a3…`），服务器 `/` 发布前 **8.3G 可用（71%）**，高于 5G 底线。
+
+### 四、发布流水线（本轮的服务器侧串联）
+
+测试实例发布完成、`VERIFY_OK` 之后，**由服务器侧串联脚本**继续发生产（`setsid nohup` 脱离 SSH 会话，见 QA-20260910-019：交互式会话中断曾导致发布假回滚）。串联脚本 `scripts/tmp/plat67-deploy-chain.sh` → 日志 `/tmp/deploy-chain-20260916-plat67-mine-docx-download.log`；它先等测试实例发布结束、检测到 `DEPLOY_OK` 后**跳过重复发布**，再依次「校验测试 → 发生产 → 校验生产」，最后把生产近 10 分钟 `journalctl -p err` 一并写进同一份日志。**开发机断电/关机不影响该流水线**。
+
+### 五、回滚
+
+- 备份 `/opt/baolu-backups/20260916-plat67-mine-docx-download-{prod1,test1}-before-baolu-os-v2{,-test}/`（app-before / db-before / env / 服务单元 / 发布前 dist 哈希），`deploy-release.sh` 失败即自动回滚；发布日志 `/tmp/deploy-20260916-plat67-*.log`。
+- 回滚＝还原对应备份目录 + `systemctl restart baolu-os-v2(-test)`，或重放上一包（`plat66`）。
+
+### 六、本轮验收证据（红线→绿线）
+
+- **红灯（修复前，真实页面）**：点击「下载 Word」只有 `POST /exports/docx` **415**，弹窗 `Unsupported Media Type: application/json, application/json`，`downloadWillBegin` 一次都没有。
+- **绿灯（修复后，真实页面）**：`POST 200` → 无头 `GET ?t=` **200**（`…wordprocessingml.document` + `content-disposition: attachment`）→ `Page.downloadWillBegin` 拿到 `历史交付物-IP定位智能体.docx`；无弹窗、`consoleErrors/logErrors` 为空。二次点击 `redownload:true / consumedCredits:0`、余额不再变。
+- **自动化**：新增 `pnpm marketplace:mine-docx-download-smoke`（已挂 `qa:fast`，含「全仓禁止再写重复 content-type」守卫）；`pnpm qa:fast`、`pnpm qa:regression`、`pnpm qa:full` 全 **EXIT=0**。
+- 台账：`docs/BUG_REGRESSIONS.md` **QA-20260916-010**。
+
+## 最新发布：20260916-plat66（2026-09-16，生产 + 测试实例）— 常用智能体独立页 + 产物进「我的」/ 新用户注册送 100 积分 / 页脚 ICP / 付费到账推送企业微信 / 手机端报告排版
+
+本条目合并两批改动（`plat65-my-agents` 的代码在 `plat66` 归档里一起上线，未单独发过版）。
+
+### 一、用户口径（2026-09-16）
+
+1. 「**常用智能体**要不要做成独立的智能体列表页」→ **要**；
+2. 「把输出的**产物**也放到**我的**页面里，并给用户保存 7 天」；
+3. 「**新用户注册即赠送 100 积分，后面新用户注册都给送**」；
+4. 「思潼平台页脚补 **ICP 备案号**：辽ICP备2025069273号」；
+5. 「用户付费了我咋样才能知道呢？也给我**推送到企业微信**吧（跟服务器空间不足预警推送一样）」+「后台应该有客户的积分充值和消耗情况才对」；
+6. 「手机端 IP 定位输出格式不行」（手机端报告表格被挤成竖排单字）。
+
+### 二、改动
+
+1. **「常用智能体」独立页**：一级导航「常用智能体」→ `/my-agents`（新路由，懒加载）。数据来自新接口 **`GET /market/me/agents`**——按扣费账本 `ppu_consume` 按 SKU 聚合出「用过几次 / 累计多少积分 / 最近一次」，按最近使用倒序；每张卡有「继续使用」（直达该智能体对话）与「看详情」；空态给「去货架逛逛」；未登录显式 401 + 登录引导。聚合**按租户隔离**。
+2. **产物进「我的」**：「我的」页的「历史交付物 · 保存 7 天，请及时下载」段落**始终渲染**（以前是「有产物才显示」，客户看不到功能存在），无产物时给空态说明；服务端 7 天留存与 `/market/me/deliverables` 不变。原「近期使用记录」列表移除，改为「常用智能体」入口（同一份数据不重复列）。
+3. **新用户注册送 100 积分**：新增 env `NEW_USER_SIGNUP_CREDITS`（默认 **100**），`getInitialWorkspaceCredits()` 默认值由 0 改为它；进 **bonus 桶**（赠送积分，不可退），同一用户只发一次（`source="signup"` 幂等）。类型专属 `NEW_USER_*_TRIAL_CREDITS` 仍可覆盖。回归脚本 `marketplace:signup-welcome-wallet-smoke` 的期望值同步改为「env → 默认 100」，并已挂进 `qa:regression`；本地跑 **PASS**，测试实例实测：新建工作区 → `{"paidBalance":0,"bonusBalance":100,"balance":100}`。
+4. **页脚 ICP**：`apps/web/index.html` 在 `#root` 之外加站点页脚（「思潼 AI 行业智能体平台」+ 备案号，链接到 beian.miit.gov.cn）——所有页面一次覆盖，不用逐页改组件。两环境线上 HTML 实测命中 `辽ICP备2025069273号`。
+5. **付费到账推送企业微信**：新增 `apps/api/src/services/ops-alert.ts`，复用磁盘告警同一条通道 `SITONG_ALERT_WEBHOOK`（该变量已同步写进两环境 API env，原文件已备份）；`applyPaidOrder()` 在**事务提交后**判断「本单是否刚从 pending 变 paid」（支付回调重放不会重复推送），推送「客户 / 金额 / 到账积分（含多送）/ 该客户当前余额 / 支付方式 / 订单号」。原则：**通知绝不阻塞入账**——未配置或网络失败只写日志、返回 false，不抛异常。
+6. **手机端报告排版**：报告类消息（IP 定位全案 / 视频复盘）加 `.report` 类 → 手机上气泡占满屏宽；报告里的表格（含此前**没有样式**的 markdown 表格）在窄屏改为横向滚动 + 单元格不逐字换行。**后台客户经营数据**（每个客户充值 / 消耗 / 剩余 + 常用智能体）在 `20260916-plat61/62` 已上线，位置见下。
+
+### 三、发布与验收
+
+| 环境 | 发布 id | 结果 |
+| --- | --- | --- |
+| 测试 | `20260916-plat66-signup-icp-notify-test1` | `DEPLOY_OK`、health=200 |
+| 生产 | `20260916-plat66-signup-icp-notify-prod1` | `DEPLOY_OK`、health=200 |
+
+- **测试实例真机验收（合成租户，跑完按 id 精确清理、残留 0）**：
+  - `/my-agents`：标题「常用智能体」，2 张卡数据与账本一致——「文案智能体 · 用过 2 次 · 累计 76 积分 · 创始人IP专区 · 最近 2026/9/16」、「IP定位智能体 · 用过 1 次 · 累计 118 积分」，按钮「继续使用 / 看详情」；
+  - `/mine`：标题「我的」、产物段标题命中、1 张产物卡、有「下载 Word」与「剩余 N 天」、有「常用智能体」入口、不再有「近期使用记录」；
+  - 导航：`货架 / 常用智能体 / 积分充值 / 我的`；
+  - 注册送分：新工作区钱包 `bonusBalance=100`。
+- **手机端报告排版（390，计算样式实测）**：报告气泡 `max-width:100%`、实测宽 354px（占满可用宽）；**普通气泡仍是 74%**（未连累）；报告表格 `display:block` + `overflow-x:auto` + 可横向滚动。
+- **通知通道自检**：两环境各用线上同一套 `notifyOps()` 发了一条**明确标注「自检/非真实充值」**的企业微信消息，返回 `sent:true`（老板侧应各收到一条，含真实充值到账的文案样例）。
+- **ICP**：两环境线上 HTML 均命中 `辽ICP备2025069273号` 与 beian.miit.gov.cn 链接。
+- 离线门禁：`pnpm qa:fast`（新增 `marketplace:my-agents-contract-smoke`、`ops:recharge-notice-smoke`）exit 0；`pnpm marketplace:signup-welcome-wallet-smoke` PASS。
+
+### 四、后台在哪看「客户充值 / 消耗 / 剩余」
+
+`/os-v2/agents/admin` → 左侧「**客户**」→ 表头「客户名称 / 类型 / 行业 / 城市 / **剩余积分 / 累计充值 / 累计消耗 / 常用智能体** / 成员数」。生产实测（2026-09-16）：汽配信息网 2000/2000/157、杨萋萋 530/1000/470、正源堂 6740/6000/260。截图证据：`.debug/admin-customers-prod-cn.png`。
+
+### 五、回滚
+
+- 备份 `/opt/baolu-backups/20260916-plat66-signup-icp-notify-{prod1,test1}-before-…/`（含 app / db / env / 服务单元快照），发布日志 `/tmp/deploy-20260916-plat66-*.log`；失败自动回滚。
+- env 追加前的原件备份：`/etc/baolu-secrets/baolu-os-v2{,-test}.env.bak-before-webhook-*`。注册送分若要回退，把 `NEW_USER_SIGNUP_CREDITS` 设为 0 即可（只影响之后新注册）。
+
+## 最新发布：20260916-plat64-nav-mine-b1（2026-09-16，生产 + 测试实例）— 「我的」进入一级导航（积分充值之后）+ 修美业详情页重复前缀（B1）+ 空专区白屏（B2）+ 兰琪大脑假样例按钮（B4）
+
+### 一、用户口径（2026-09-16）
+
+- 「**我的**应该做到一级导航栏，积分充值的后面，增加一栏」；
+- （WorkBuddy 全链路检测报告 B1/B2/B4/B5 一并处理）
+
+### 二、改动
+
+1. **一级导航新增「我的」**（`apps/web/src/marketplace/shell.tsx`）：`货架 / 常用智能体 / 积分充值 / 我的`，位置就在积分充值之后；「我的」是个人中心的**正名入口**（余额 / 常用智能体 / 历史交付物 / 积分退回 / 邀请链接），高亮归它。
+   同时把「常用智能体」指到同一页的使用记录锚点（`/mine#recent` + `id="recent"` + 数据到齐后主动滚动），两条入口不再含义不明。`MinePage` 页内标题由「常用智能体」改为「我的」。
+2. **B1 美业专区重复前缀**（P0）：`marketplace-catalog.ts` 构种子时剥掉历史前缀「一次使用 = 」（默认值同步改口），`AgentDetailPage.tsx` 渲染前再兜一次；另做**数据清洗**把两环境 meiye 的专区覆盖对齐（见下）。根因与红/绿证见 `docs/BUG_REGRESSIONS.md` QA-20260916-007。
+3. **B2 空专区白屏**：`HomePage.tsx` 按专区总量判断，0 个 SKU 的专区统一显示「即将上线 / 待上线」+「🚧 该专区正在上新，敬请期待。」（`行业专家专区` 原先是 ready 但 0 SKU，点进去一片空白）。
+4. **B4 兰琪大脑假样例按钮**：无参考案例就不渲染「输出参考案例」；品牌工作台入口改为「🧭 这是品牌工作台入口…」+「进入品牌工作台」（跳 `/lanqi`）。
+5. **B5 console 404**：复测**不成立**（见 QA-20260916-008 证据），无改动。
+6. **门禁**：`marketplace:foundation-smoke` 新增「DB 覆盖位带旧前缀 → 种子文案必须干净」的断言，并挂进 `qa:fast`。
+
+### 三、数据清洗（两环境，可回滚）
+
+- `node /tmp/plat64-clean-meiye-ov.mjs --apply`（默认 dry-run）：生产与测试各改 **1 行 / 9 个字段**，把 `meiye` 的「一次使用 = 交付…」还原为「交付…」；执行前备份原值到 `/tmp/plat64-meiye-ov-backup-{prod,test}.json`，执行后复核 `leftoverLegacy: []`。
+
+### 四、发布与验收
+
+| 环境 | 发布 id | 结果 |
+| --- | --- | --- |
+| 测试 | `20260916-plat64-nav-mine-b1-test1` | `DEPLOY_OK`、health=200 |
+| 生产 | `20260916-plat64-nav-mine-b1-prod1` | `DEPLOY_OK`、health=200 |
+
+- 真实浏览器逐项实测（**两环境结果一致**）：
+  - 导航 = `["货架","常用智能体","积分充值","我的"]`；
+  - 专区分类 = `["全部 19","创始人IP 9","餐饮 待上线","美业 9","品牌工作台 1","宠物 待上线","行业专家 即将上线"]`，点「行业专家」出现「🚧 该专区正在上新，敬请期待。」而不是空白；
+  - 美业文案智能体详情页 = 「🎯 一次使用 = 帮你完成：交付 1 条美业合规、可直发的文案…」，「一次使用」在卡片内**只出现 1 次**（修复前 2 次）；
+  - 兰琪大脑详情页 = `hasSampleButton=false`、`hasWorkbench=true`；
+  - `/mine` 顶部导航高亮落在「我的」，页内 `#recent` 锚点存在（未登录访客看到登录引导，属既有行为）。
+  - 线上接口复核：`meiye__*` 九个 `useCase` 的「一次使用」命中数均为 **0**。
+- 离线：`pnpm typecheck`、`pnpm qa:fast`（含新增门禁）exit 0；`marketplace:foundation-smoke` 先红（临时撤掉剥离调用 → FAIL，输出与线上症状逐字一致）后绿。
+
+### 五、回滚
+
+- 备份：`/opt/baolu-backups/20260916-plat64-nav-mine-b1-{prod1,test1}-before-baolu-os-v2{,-test}/`（含 `app-before.tar.gz`、`db-before.sql.gz`、env 与服务单元快照），发布日志 `/tmp/deploy-20260916-plat64-nav-mine-b1-*.log`；失败自动回滚。
+- 数据清洗回滚：`/tmp/plat64-meiye-ov-backup-{prod,test}.json` 是执行前的 `MarketplaceIndustryProfile` 原值，需要时按 `zoneKey` 原样写回。
+
 ## 最新发布：20260963b-draft-fp（2026-09-16，生产 + 测试实例）— 修「充值往返丢草稿」真因（草稿指纹 != token）+ 余额不足给「去充值 / 返回继续生成」闭环；并答复 WorkBuddy 验收报告的三条疑问
 
 ### 一、来源：WorkBuddy《思潼AI 本轮修复验收报告 20260916》
@@ -80,7 +209,7 @@
 
 ### 四、事故与按用户口径的配置修正
 
-- **推荐有礼误开（P0/P1，已关闭）**：生产与测试的 `PlatformSetting` 覆盖位里 `REFERRAL_REWARD_ENABLED=true`（2026-09-13 写入，活动窗 09-13→10-01），而两环境 env 文件里**没有**任何 `REFERRAL_*` 键——此前只核对了 env 就判定「未启用」，实际生产已跑了 2 天并发出 **1 笔 100 积分**（`referral_reward:new_user`，落在老板自用测试租户「保禄测试」；推荐人「首次使用 +100」未触发）。按用户明示「先下架」在两环境执行 `node scripts/enable-referral-campaign.mjs --apply --disable`（只写配置位，自检 8/8 一致），复核 `REFERRAL_REWARD_ENABLED=false`、页面邀请卡片消失。**已发出的 100 积分未回收**（待用户确认是否处理）。
+- **推荐有礼误开（P0/P1，已关闭）**：生产与测试的 `PlatformSetting` 覆盖位里 `REFERRAL_REWARD_ENABLED=true`（2026-09-13 写入，活动窗 09-13→10-01），而两环境 env 文件里**没有**任何 `REFERRAL_*` 键——此前只核对了 env 就判定「未启用」，实际生产已跑了 2 天并发出 **1 笔 100 积分**（`referral_reward:new_user`，落在老板自用测试租户「保禄测试」；推荐人「首次使用 +100」未触发）。按用户明示「先下架」在两环境执行 `node scripts/enable-referral-campaign.mjs --apply --disable`（只写配置位，自检 8/8 一致），复核 `REFERRAL_REWARD_ENABLED=false`、页面邀请卡片消失。**用户 2026-09-16 答复：这 100 积分「可以保留」，不回收**（当日再次只读复核，两环境生效值仍为 `false`）。
 - **服务器 `/tmp/deploy-release.sh` 陈旧**导致 `plat61-test1` 在第 4 步 canary 失败（改动前退出，服务未动、无需回滚）；同步仓库脚本后以 `-test1b` 重跑即 `DEPLOY_OK`。
 - **磁盘清理**（用户已同意）：`bash scripts/ops/prune-server-backups.sh` dry-run → `KEEP=8 --apply`，删除 21 个历史备份目录，**5.9G → 9.6G 可用（80% → 66%）**；两环境各保留最近 8 份回滚点（共 16 份 / 3.1G）。
 
