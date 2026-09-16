@@ -1,14 +1,30 @@
 # Bug 回归台账
 
-## QA-20260916-006：本机同时「起 3011 Skill MCP 网关 + 把仓根 `.env` 导出到 shell」会让美业 `beauty-industry:web-contract-smoke` 链条整段误红（P2，环境坑；不在 LQ-34 改代码，登记待收敛）
+## QA-20260916-006：本机「导出仓根 `.env`（`SKILL_MCP_REQUIRED=true` + 3011 网关）」会让美业 `beauty-industry:web-contract-smoke` 链条再叠一层误红（P2，环境坑；不在 LQ-34 改代码，登记待收敛）
 
 - 触发：2026-09-16 跑 LQ-34 的 `pnpm.cmd qa:regression`，链条进到 `beauty-industry:web-contract-smoke` 段报红，现象像「Skill 合同被改坏了」。
 - 复现与归因（**同一台机器、同一份 checkout，只差一个环境变量**）：
   1. 污染态：我在跑门禁前把**仓根** `.env` 导进了本次 shell 进程（`SKILL_MCP_URL=http://127.0.0.1:3011/mcp`、`SKILL_MCP_REQUIRED=true`），且本机 3011 网关在 Listen → `beauty-industry-by09-message-profile.ts:74` 断言红，实测 prompt **25114 > 25000**（`beauty_xiaohongshu_package` 的 `maxPromptBytes` 预算）；同批 `fixed-route-output-p1-smoke`、`user-path-contract-p1-smoke` 一并红。
-  2. 干净 shell（不导出仓根 `.env`，即 `SKILL_MCP_REQUIRED` 未设置）：同一条命令该段全绿；三个脚本单跑分别得到 `beauty fixed-route output P1 smoke passed`（exit 0）与 `BEAUTY_USER_PATH_CONTRACT_P1_SMOKE_OK capabilities=2 provider=0`（exit 0）。
-- 根因：`SKILL_MCP_REQUIRED=true` 会让 `loadSkillPrompt` / `loadSkillQualityContract` 改从 3011 **网关**取 Skill 包，网关那份与本 checkout 不是同一版本、合同与提问壳更大，prompt 字节数顶穿 XHS 预算 → 断言红。**属于环境差异，不是产品缺陷**：`apps/api/.env` 里没有这两个键，默认 / CI 环境不会走网关取包。
+  2. 干净 shell（不导出仓根 `.env`，即 `SKILL_MCP_REQUIRED` 未设置）：`fixed-route-output-p1-smoke`、`user-path-contract-p1-smoke` 单跑均绿（`beauty fixed-route output P1 smoke passed`、`BEAUTY_USER_PATH_CONTRACT_P1_SMOKE_OK capabilities=2 provider=0`，exit 0）。
+- 根因：`SKILL_MCP_REQUIRED=true` 会让 `loadSkillPrompt` / `loadSkillQualityContract` 改从 3011 **网关**取 Skill 包，网关那份与本 checkout 不是同一版本、合同与提问壳更大，prompt 字节数再被推高。**属于环境差异，不是产品缺陷**：`apps/api/.env` 里没有这两个键，默认 / CI 环境不会走网关取包。
+- ⚠️ **归因修正（2026-09-16 晚，同日复查）**：本条原先写成「干净 shell 该段全绿，25114 只由网关污染造成」，**这个结论是错的**。补齐对照后实测：干净 shell 单跑 `scripts/beauty-industry-by09-message-profile.ts` **同样是 25114 红**，真正根因是「全新 worktree 的 CRLF 检出」，见 QA-20260916-007；网关污染只是在 25114 之上再叠一层放大，不是 25114 的成因。保留本条是因为「导出仓根 `.env` 会引入与被测代码无关的红灯」这个坑本身仍然成立。
 - 处理与边界：**不在 LQ-34 动代码**。理由：默认 / CI 干净 shell 下这些脚本本就全绿；生产「MCP 必选」的语义已由 `skill:mcp-resilience-smoke`、`beauty-industry:mcp-platform-smoke` 覆盖；批量给 38 个 beauty 脚本 pin `SKILL_MCP_ENABLED=false` 会横跨美业交付范围（BY-17 等），属另一个任务。
 - 留下的坑与建议：开发者本机若同时「起 3011 网关」+「导出仓根 `.env`」，会看到一串与被测代码无关的红灯，极容易误判成产品坏了。后续要么在门禁入口固定环境（不导出仓根 `.env`），要么给这批脚本加统一的 `SKILL_MCP_ENABLED=false` 入口约束。
+
+## QA-20260916-007：全新 Windows worktree（`core.autocrlf=true`、仓库无 `.gitattributes`）把提示词资产检出成 CRLF，顶穿 `beauty_xiaohongshu_package` 的 25,000 字节版本化预算（P2，main 侧既有红；不在 LQ-34 改）
+
+- 触发：2026-09-16 交付 LQ-34 跑 `pnpm.cmd qa:regression`，链条停在 `beauty-industry:text-budget-smoke`：`AssertionError: beauty_xiaohongshu_package prompt exceeded the versioned budget before Provider start:25114/25000`（`scripts/beauty-industry-by09-message-profile.ts:74`）。
+- 复现与归因（**逐步排除 LQ-34 嫌疑，再逐字节定位**）：
+  1. 本任务改动清单 `git diff main...HEAD --name-only` **不含** `apps/api/src/products/**`、`packages/**`、`mcp-skills/**`；`git log main..HEAD -- apps/api/src/products packages/skills mcp-skills` 亦为空 → 不可能由 LQ-34 引入。
+  2. 干净 shell（显式清 `SKILL_MCP_*`）单跑同一脚本：**worktree 25114 红（exit 1）**；**主工作树同一条命令绿（24934/25000）**，其余 capability 取值逐项一致或同量级（`topic_inspiration` 37384、`content_plan` 41024、`live_review` 27360、`beauty_sales` 24314；`live_script` 两次分别 52713/54037，均 < 56000 预算，疑似随「使用窗口」变化，未深究、不影响本条结论）。
+  3. 让两边用同一份装配（脚本动态 import 各自仓库的 `packages/agent` + `beauty-industry/{profile,workflows,xhs-task-facts}`，同一 profile/提问/tenantProfile）对照：worktree `workflowPromptBytes=9837` / `messagesBytes=25114` / `msg[0]=22391`；主工作树 `9794` / `24934` / `22301`。差额 43+47=90 字节全部落在 prompt 文本上。
+  4. 逐字节定位：worktree 的 `mcp-skills/skills/wechat-xhs-content-line/SKILL.md` = **1676 字节、29 个 CR（CRLF）**；主工作树同文件 = 1647 字节、CR=0（LF）；`git show HEAD:<同文件>` 的 blob = 1647 字节、CR=0（LF）。全仓扫描：`mcp-skills` 218 个 md/txt 在全新 worktree **218 个全是 CRLF**，主工作树只有 53 个；`packages/skills` 142 个里 worktree 142 全 CRLF、主树 21 个。
+  5. 反向验证（证明就是换行，而不是别的环境因素）：把 worktree 的 `mcp-skills/**`+`packages/skills/**` 文本资产按 git blob 归一为 LF（`git add --renormalize` 后 `git status` 干净，`git hash-object`（含过滤器）== 原始 hash == index == HEAD）→ 同一脚本立刻回到 **24934/25000 绿**，`pnpm.cmd qa:regression` 全链 exit 0、`pnpm.cmd qa:fast` exit 0。
+- 根因：仓库没有 `.gitattributes`，本机 `core.autocrlf=true`，全新 `git worktree add` 会把提示词资产按 CRLF 检出；`measurePromptBytes = JSON.stringify(messages)` 按字节计数，CRLF 每行多 1 字节，XHS 链路一口气多 180 字节，越过 25,000 预算。**不是 LQ-34 引入，也不是产品缺陷**。
+- 影响面：**只影响 Windows 检出（开发机门禁）**。发布链路 `scripts/tmp/build-release-archive.ps1` 打包时已把文本统一转 LF（脚本注释与实现均确认 `\r\n → \n`），Linux 测试实例/生产拿到的是 LF 那 24934，线上不受影响。
+- 余量告警（真正该跟的事）：LF 形态下 XHS 只剩 **66 字节**余量（24934/25000），`beauty_sales` 剩 686 字节（24314/25000）；任何一次提示词层小改都会顶穿预算。这次 CRLF(+180) 正好说明余量已经不够用。
+- 处理与边界：**不在 LQ-34 改**（属平台/提示词预算线，改预算或改换行策略都会横跨美业 BY-17 等交付范围）。本任务只把 worktree 提示词资产恢复成与 git blob 一致的 LF（等价于 CI/Linux 所见），并如实登记。
+- 后续（需单独立项，二选一或同时做）：① 仓库加 `.gitattributes`（至少 `mcp-skills/**`、`packages/skills/**` 用 `text=auto eol=lf`），或在门禁入口统一 `core.autocrlf=false`，避免每个新 worktree 都踩一次；② 复核 `beauty_xiaohongshu_package` / `beauty_sales` 的 25,000 预算余量与提示词增长节奏（与本台账 QA-20260916-003 的图片定价线无关）。
 
 ## QA-20260916-005：自服务邀请链接改成「按活动开关下架」后，`referral:self-service-smoke` 仍按「活动常开」假设写 → 本机必然红（P2，已修）
 
