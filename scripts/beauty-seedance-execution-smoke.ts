@@ -15,6 +15,7 @@ import { SEEDANCE_MODEL, SEEDANCE_CONTRACT, SEEDANCE_PRICE } from "../apps/api/s
 import { createSeedanceHttpsTransport, SEEDANCE_RESULT_ORIGIN } from "../apps/api/src/services/beauty-seedance-https.ts";
 import { createBeautyUsageMeter, usageHash } from "../apps/api/src/services/beauty-usage-metering.ts";
 import { replicationMemoryDb } from "./fixtures/replication-test-db.ts";
+import { readLanqiWalletBalance } from "../apps/api/src/services/lanqi-wallet.ts";
 
 const authority = "BY54-synthetic-permit-authority-no-cloud-permission", reviewKey = "BY54-synthetic-review-authority-no-cloud-permission";
 const env = { SEEDANCE_EXECUTION_MODE: "controlled", ARK_API_KEY: "synthetic-NOT-A-REAL-KEY", SEEDANCE_EXECUTION_AUTHORITY_KEY: authority,
@@ -70,7 +71,8 @@ async function main() {
       await db.store.create({ data: { id: actor.storeId, tenantId: actor.tenantId, name: "Synthetic" } });
       await db.membership.create({ data: { ...actor, role: "owner", isActive: true } });
       await db.tenantProductEntitlement.create({ data: { tenantId: actor.tenantId, productCode: "beauty-industry", status: "active", source: "synthetic", startsAt: new Date(now - 1000) } });
-      await db.creditAccount.create({ data: { tenantId: actor.tenantId, balance: 10000 } });
+      // LQ-34 ④：扣费主体 = **租户 owner 的通用钱包**（不再是租户积分账户 creditAccount）。
+      await db.wallet.create({ data: { userId: actor.userId, paidBalance: 10000, bonusBalance: 0 } });
       const file = async (b: Buffer, mimeType: string) => {
         const dir = path.join(uploadRoot, actor.tenantId); await mkdir(dir, { recursive: true }); const id = randomUUID(), storagePath = path.join(dir, id); await writeFile(storagePath, b, { flag: "wx" });
         return db.uploadedFile.create({ data: { id, tenantId: actor.tenantId, userId: actor.userId, filename: "synthetic", mimeType, byteSize: b.length, sha256: usageHash(b.toString("base64")), storagePath } });
@@ -117,7 +119,7 @@ async function main() {
       app.post("/confirm", async req => service.confirm(actor, req.body));
       app.post("/refresh/:key", async (req: any) => service.refresh(actor, req.params.key));
       app.get("/content/:key", async (req: any, reply) => { try { const bytes = await service.download(req.headers["x-foreign"] ? { ...actor, tenantId: "foreign" } : actor, req.params.key); return reply.type("video/mp4").send(bytes); } catch { return reply.code(404).send({ code: "asset_not_found" }); } });
-      const balance = async () => (await db.creditAccount.findUnique({ where: { tenantId: actor.tenantId } })).balance;
+      const balance = async () => (await readLanqiWalletBalance(actor.tenantId, db))!.balance;
       const getPermit = (s: any) => db.beautyVideoExecutionPermit.findUnique({ where: { id: s.permitId } });
       const getJob = (i: any) => db.viralVideoReplicationJob.findFirst({ where: { tenantId: actor.tenantId, requestKey: i.requestKey } });
       const metering = (s: any) => createBeautyUsageMeter(db, actor, s.permitId).read();
@@ -130,13 +132,14 @@ async function main() {
         await db.beautyVideoExecutionPermit.update({ where: { id: forgedScope.permitId }, data: { signature: "0".repeat(64) } });
         await assert.rejects(() => service.confirm(actor, forged), /signature_invalid/);
         const noFunds = fresh(); await issue(noFunds);
-        await db.creditAccount.update({ where: { tenantId: actor.tenantId }, data: { balance: 0 } });
+        await db.wallet.update({ where: { userId: actor.userId }, data: { paidBalance: 0 } });
         await assert.rejects(() => service.confirm(actor, noFunds), /insufficient_credits/);
-        await db.creditAccount.update({ where: { tenantId: actor.tenantId }, data: { balance: 10000 } });
+        await db.wallet.update({ where: { userId: actor.userId }, data: { paidBalance: 10000 } });
         await db.tenantProductEntitlement.updateMany({ where: { tenantId: actor.tenantId }, data: { status: "revoked" } });
         await assert.rejects(() => service.confirm(actor, noFunds), /access_denied/);
         await db.tenantProductEntitlement.updateMany({ where: { tenantId: actor.tenantId }, data: { status: "active" } });
-        assert.equal(submits, 0); assert.equal(await db.creditReservation.count({ where: { tenantId: actor.tenantId } }), 0);
+        // 走到这里一次提交都没发生：钱包账本必须**一条流水都没有**（既没扣也没退）。
+        assert.equal(submits, 0); assert.equal(await db.walletLedger.count({ where: { userId: actor.userId } }), 0);
         const normal = fresh(), scope = await issue(normal);
         for (const patch of [{ grant: "fake" }, { model: "wan2.2-animate-mix" }, { tenantId: "foreign" }]) await assert.rejects(() => service.confirm(actor, { ...normal, ...patch }), /input_invalid/);
         const results = await Promise.all(Array.from({ length: 3 }, () => app.inject({ method: "POST", url: "/confirm", payload: normal })));
@@ -170,8 +173,8 @@ async function main() {
 
         const failed = fresh(), failedScope = await issue(failed); await service.confirm(actor, failed); fault = "failed";
         await service.refresh(actor, failed.requestKey); fault = ""; assert.equal((await getJob(failed)).billingStatus, "refunded"); assert.equal((await getPermit(failedScope)).submitCount, 1);
-        const refundCount = await db.creditTransaction.count({ where: { tenantId: actor.tenantId, direction: "refund" } }); await service.refresh(actor, failed.requestKey);
-        assert.equal(await db.creditTransaction.count({ where: { tenantId: actor.tenantId, direction: "refund" } }), refundCount);
+        const refundCount = await db.walletLedger.count({ where: { userId: actor.userId, type: "refund" } }); await service.refresh(actor, failed.requestKey);
+        assert.equal(await db.walletLedger.count({ where: { userId: actor.userId, type: "refund" } }), refundCount);
 
         const limited = fresh(), limitedScope = await issue(limited, { maxPoll: 1 }); await service.confirm(actor, limited); fault = "poll";
         await service.refresh(actor, limited.requestKey); const pollBefore = polls; await service.refresh(actor, limited.requestKey); assert.equal(polls, pollBefore);
@@ -203,7 +206,9 @@ async function main() {
 
         // Persistence final transaction failure: recover exact local receipt, no new download or POST.
         const recovery = fresh(); await issue(recovery); await service.confirm(actor, recovery);
-        db.$transaction = (fn: any, txOptions: any) => originalTransaction(async (tx: any) => { const update = tx.creditReservation.updateMany.bind(tx.creditReservation); tx.creditReservation.updateMany = async () => { throw new Error("synthetic_finish_db_fault"); }; try { return await fn(tx); } finally { tx.creditReservation.updateMany = update; } }, txOptions);
+        // 结算写入（`billingStatus`）失败：等价于改造前的 `creditReservation.updateMany` 故障，
+        // 只打最终结算那条 `viralVideoReplicationJob.update`，不影响领取 local receipt 的中间事务。
+        db.$transaction = (fn: any, txOptions: any) => originalTransaction(async (tx: any) => { const update = tx.viralVideoReplicationJob.update.bind(tx.viralVideoReplicationJob); tx.viralVideoReplicationJob.update = async (args: any) => { if (args?.data && "billingStatus" in args.data) throw new Error("synthetic_finish_db_fault"); return update(args); }; try { return await fn(tx); } finally { tx.viralVideoReplicationJob.update = update; } }, txOptions);
         try { await assert.rejects(() => service.refresh(actor, recovery.requestKey)); } finally { db.$transaction = originalTransaction; }
         const downloadBefore = downloads;
         assert.ok((await getJob(recovery)).authorizationSnapshot.persistLeaseUntil - now >= 90000, "persistence lease must cover 60s download plus 30s ffprobe");

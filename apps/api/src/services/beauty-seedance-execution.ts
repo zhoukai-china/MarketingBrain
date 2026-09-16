@@ -9,6 +9,7 @@ import { createReplicationRepository, type ReplicationJob } from "./viral-video-
 import { createReplicationAssetStore } from "./viral-video-replication-assets.js";
 import { createVideoPrivateFileReader } from "./beauty-video-private-files.js";
 import { createSeedanceHttpsTransport, SEEDANCE_RESULT_ORIGIN, validateSeedanceResultUrl } from "./beauty-seedance-https.js";
+import { chargeLanqiWallet, refundLanqiWallet } from "./lanqi-wallet.js";
 
 export const SEEDANCE_EXECUTION_VERSION = "beauty-seedance-execution-v1";
 export const SEEDANCE_REVIEW_VERSION = "beauty-seedance-manual-review-v1";
@@ -129,50 +130,73 @@ export function createSeedanceExecution(options: Options) {
     return job as ReplicationJob;
   }
   function adapter(actor: UsageActor, requestKey: string, input?: SeedanceInput) {
-    const journal: SeedanceJournal = { atomic: (key, update) => transaction(async tx => {
+    const journal: SeedanceJournal = { atomic: async (key, update) => {
       if (key !== usageHash(JSON.stringify([SEEDANCE_CONTRACT, actor.tenantId, actor.userId, actor.storeId, requestKey]))) reject("journal_scope_invalid");
-      const { row: p, scope: s } = await loadPermit(tx, actor, requestKey);
-      const job = await tx.viralVideoReplicationJob.findFirst({ where: { tenantId: actor.tenantId, requestKey } });
-      if (job && (job.userId !== actor.userId || job.model !== SEEDANCE_MODEL || job.authorizationSnapshot?.permitId !== s.permitId)) reject("task_not_found");
-      const previous = (job?.authorizationSnapshot?.journal ?? null) as SeedanceRow | null;
-      const next = update(previous ? structuredClone(previous) : null);
-      if (!next.row || JSON.stringify(next.row) === JSON.stringify(previous)) return next.value;
-      const submit = !previous, poll = previous && next.row.pollCount > previous.pollCount;
-      if (submit || poll) {
-        live(p, s); const refs = input?.references ?? next.row.references;
-        const a = await resolve(tx, actor, refs, s);
-        buildSeedancePayload(input ?? { requestKey, references: refs, text: "authority check", duration: 5, resolution: "720p", ratio: "9:16", generateAudio: false }, actor, a, now());
-      }
-      if (submit) {
-        if (!input || s.requestHash !== seedanceExecutionRequestHash(input) || p.status !== "approved" || p.submitCount !== 0 || p.committedCostFen !== 0) reject("batch_already_consumed");
-        const credits = await tx.creditAccount.findUnique({ where: { tenantId: actor.tenantId } });
-        if (!credits || (await tx.creditAccount.updateMany({ where: { id: credits.id, balance: { gte: s.creditCost } }, data: { balance: { decrement: s.creditCost } } })).count !== 1) reject("insufficient_credits");
-        const reservation = await tx.creditReservation.create({ data: { creditAccountId: credits.id, tenantId: actor.tenantId, userId: actor.userId,
-          productCode: "beauty-industry", operatingEntityId: actor.storeId, channel: "web", requestId: `seedance:${key}`, requestFingerprint: s.requestHash, amount: s.creditCost, expiresAt: new Date(s.expiresAt) } });
-        await tx.creditTransaction.create({ data: { creditAccountId: credits.id, tenantId: actor.tenantId, userId: actor.userId, direction: "consume", amount: s.creditCost,
-          reason: "reservation:beauty-industry:seedance", refType: "credit_reservation", refId: reservation.id, productCode: "beauty-industry", operatingEntityId: actor.storeId, channel: "web", capabilityId: "seedance_controlled", provider: "volcengine_ark" } });
-        await tx.beautyVideoExecutionPermit.update({ where: { id: s.permitId }, data: { status: "claimed", submitCount: 1, committedCostFen: Number((BigInt(s.maxCostMicros) + 9999n) / 10000n), claimedAt: new Date(now()), lastCode: "seedance_submit_committed" } });
-        await tx.viralVideoReplicationJob.create({ data: { tenantId: actor.tenantId, userId: actor.userId, requestKey, model: SEEDANCE_MODEL, creditCost: s.creditCost, status: "submitting", billingStatus: "reserved",
-          authorizationSnapshot: { contractVersion: SEEDANCE_CONTRACT, storeId: actor.storeId, permitId: s.permitId, reservationId: reservation.id,
-            requestHash: s.requestHash, committedCostMicros: s.maxCostMicros, maxOutputSeconds: 5, journal: next.row } } });
-        await meter(tx, actor, s).begin(usageCall, seedanceUsage(null).measures);
-      } else {
-        if (poll) {
-          if (p.pollCount >= s.maxPoll || next.row.pollCount !== p.pollCount + 1) reject("poll_budget_exhausted");
-          await tx.beautyVideoExecutionPermit.update({ where: { id: s.permitId }, data: { pollCount: { increment: 1 }, lastCode: "seedance_get_committed" } });
-        }
-        await tx.viralVideoReplicationJob.update({ where: { id: job.id }, data: { providerTaskId: next.row.taskId ?? null, providerStatus: next.row.status,
-          status: ["succeeded", "failed", "terminal_unknown"].includes(job.status) ? job.status : next.row.taskId ? "processing" : "submitting",
-          authorizationSnapshot: { ...job.authorizationSnapshot, journal: next.row } } });
-        if (next.row.events.length > previous!.events.length) {
-          const event = next.row.events.at(-1)!;
-          await meter(tx, actor, s).observe(usageCall, { status: next.row.status === "queued" || next.row.status === "running" ? "pending" : next.row.status === "expired" ? "failed" : next.row.status,
-            code: event.code, providerRequestFingerprint: event.taskFingerprint ?? null, measures: next.row.usage.measures });
-          await tx.auditLog.create({ data: { tenantId: actor.tenantId, userId: actor.userId, action: "seedance.protocol", resource: SEEDANCE_EXECUTION_VERSION, resourceId: s.permitId, detail: JSON.stringify(event) } });
+      // LQ-34 ④：扣费主体 = **租户 owner 的通用钱包**（不再读写 creditAccount / CreditReservation）。
+      // 两阶段：首笔 submit 先把钱包扣掉（幂等键 = 该次 requestKey，可安全重放），
+      // 再在 Serializable 事务里提交许可 + 建 job；事务任一步失败都按同一 requestKey 原桶退回。
+      // 扣费刻意留在 `transaction()` 的重试环**之外**：P2034/P2002 重放时钱包同键本就幂等，不会重复扣。
+      const known = await db.viralVideoReplicationJob.findFirst({ where: { tenantId: actor.tenantId, userId: actor.userId, requestKey } });
+      const settled = Boolean(known?.authorizationSnapshot?.journal);
+      if (!settled && !known) {
+        const permitRow = await db.beautyVideoExecutionPermit.findFirst({ where: { tenantId: actor.tenantId, userId: actor.userId, requestKey } });
+        if (permitRow) {
+          // 许可里的 creditCost 由签名保护；签名不合法会在扣费前就 reject。
+          const scope = permit(permitRow, actor, requestKey);
+          const charge = await chargeLanqiWallet({ tenantId: actor.tenantId, operatorUserId: actor.userId, requestId: requestKey, credits: scope.creditCost, skillId: "lanqi_seedance", db });
+          if (charge.status === "owner_missing") reject("wallet_owner_missing");
+          if (charge.status === "insufficient") reject("insufficient_credits");
+          // 同键此前已退款：不能再放行（否则会因为钱包同键幂等而白送一次付费执行）。
+          if (charge.status === "refunded") reject("request_refunded");
         }
       }
-      return next.value;
-    }) };
+      try {
+        return await transaction(async tx => {
+          const { row: p, scope: s } = await loadPermit(tx, actor, requestKey);
+          const job = await tx.viralVideoReplicationJob.findFirst({ where: { tenantId: actor.tenantId, requestKey } });
+          if (job && (job.userId !== actor.userId || job.model !== SEEDANCE_MODEL || job.authorizationSnapshot?.permitId !== s.permitId)) reject("task_not_found");
+          const previous = (job?.authorizationSnapshot?.journal ?? null) as SeedanceRow | null;
+          const next = update(previous ? structuredClone(previous) : null);
+          if (!next.row || JSON.stringify(next.row) === JSON.stringify(previous)) return next.value;
+          const submit = !previous, poll = previous && next.row.pollCount > previous.pollCount;
+          if (submit || poll) {
+            live(p, s); const refs = input?.references ?? next.row.references;
+            const a = await resolve(tx, actor, refs, s);
+            buildSeedancePayload(input ?? { requestKey, references: refs, text: "authority check", duration: 5, resolution: "720p", ratio: "9:16", generateAudio: false }, actor, a, now());
+          }
+          if (submit) {
+            if (!input || s.requestHash !== seedanceExecutionRequestHash(input) || p.status !== "approved" || p.submitCount !== 0 || p.committedCostFen !== 0) reject("batch_already_consumed");
+            await tx.beautyVideoExecutionPermit.update({ where: { id: s.permitId }, data: { status: "claimed", submitCount: 1, committedCostFen: Number((BigInt(s.maxCostMicros) + 9999n) / 10000n), claimedAt: new Date(now()), lastCode: "seedance_submit_committed" } });
+            await tx.viralVideoReplicationJob.create({ data: { tenantId: actor.tenantId, userId: actor.userId, requestKey, model: SEEDANCE_MODEL, creditCost: s.creditCost, status: "submitting", billingStatus: "reserved",
+              authorizationSnapshot: { contractVersion: SEEDANCE_CONTRACT, storeId: actor.storeId, permitId: s.permitId,
+                requestHash: s.requestHash, committedCostMicros: s.maxCostMicros, maxOutputSeconds: 5, journal: next.row } } });
+            await meter(tx, actor, s).begin(usageCall, seedanceUsage(null).measures);
+          } else {
+            if (poll) {
+              if (p.pollCount >= s.maxPoll || next.row.pollCount !== p.pollCount + 1) reject("poll_budget_exhausted");
+              await tx.beautyVideoExecutionPermit.update({ where: { id: s.permitId }, data: { pollCount: { increment: 1 }, lastCode: "seedance_get_committed" } });
+            }
+            await tx.viralVideoReplicationJob.update({ where: { id: job.id }, data: { providerTaskId: next.row.taskId ?? null, providerStatus: next.row.status,
+              status: ["succeeded", "failed", "terminal_unknown"].includes(job.status) ? job.status : next.row.taskId ? "processing" : "submitting",
+              authorizationSnapshot: { ...job.authorizationSnapshot, journal: next.row } } });
+            if (next.row.events.length > previous!.events.length) {
+              const event = next.row.events.at(-1)!;
+              await meter(tx, actor, s).observe(usageCall, { status: next.row.status === "queued" || next.row.status === "running" ? "pending" : next.row.status === "expired" ? "failed" : next.row.status,
+                code: event.code, providerRequestFingerprint: event.taskFingerprint ?? null, measures: next.row.usage.measures });
+              await tx.auditLog.create({ data: { tenantId: actor.tenantId, userId: actor.userId, action: "seedance.protocol", resource: SEEDANCE_EXECUTION_VERSION, resourceId: s.permitId, detail: JSON.stringify(event) } });
+            }
+          }
+          return next.value;
+        });
+      } catch (error) {
+        // 钱已经扣了但任务没落地：按同一 requestKey 原桶退回（幂等）。若同键 job 已经存在，
+        // 说明这次 submit 不是我们完成的，不能退走别人的账（钱包侧同键本就只扣一次）。
+        if (!settled && !(await db.viralVideoReplicationJob.findFirst({ where: { tenantId: actor.tenantId, userId: actor.userId, requestKey } }))) {
+          await refundLanqiWallet({ tenantId: actor.tenantId, requestId: requestKey, skillId: "lanqi_seedance", reason: "seedance_submit_failed", db });
+        }
+        throw error;
+      }
+    } };
     return createSeedanceAdapter({ mode: offline ? "fixture" : "controlled", apiKey: env.ARK_API_KEY, journal, now,
       transport: options.offlineTransport ?? createSeedanceHttpsTransport("api"),
       resolve: async (a, refs) => { const { row, scope } = await loadPermit(db, a, requestKey); live(row, scope); return resolve(db, a, refs, scope); } });
