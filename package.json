@@ -107,6 +107,7 @@
     "lanqi:wallet-migrate": "node apps/api/node_modules/tsx/dist/cli.mjs scripts/lanqi-wallet-migrate.ts",
     "lanqi:wallet-refund-drill": "node apps/api/node_modules/tsx/dist/cli.mjs scripts/lanqi-wallet-refund-drill.ts",
     "lanqi:wallet-migration-drill": "node apps/api/node_modules/tsx/dist/cli.mjs scripts/lanqi-wallet-migration-scope-drill.ts",
+    "lanqi:wallet-instance-drill": "node apps/api/node_modules/tsx/dist/cli.mjs scripts/lanqi-wallet-instance-drill.mts",
     "lanqi:copy-kit-live-eval": "node apps/api/node_modules/tsx/dist/cli.mjs scripts/lanqi-copy-kit-live-eval.ts",
     "lanqi:store-access-smoke": "node apps/api/node_modules/tsx/dist/cli.mjs scripts/lanqi-store-access-smoke.ts",
     "lanqi:dashboard-smoke": "node apps/api/node_modules/tsx/dist/cli.mjs scripts/lanqi-dashboard-rules-smoke.ts && node apps/api/node_modules/tsx/dist/cli.mjs scripts/lanqi-dashboard-api-smoke.ts",
