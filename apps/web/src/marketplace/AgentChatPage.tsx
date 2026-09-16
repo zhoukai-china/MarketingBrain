@@ -139,9 +139,63 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     }
   }, [runSku?.skuCode, runSku?.name, industry?.title]);
 
+  /** 每次对话/进度变化都把本机留存写回（退出再进来能接着看，也能重新下载已付费的报告）。 */
+  useEffect(() => {
+    if (!runSku?.skuCode || soon || items.length === 0) return;
+    try {
+      localStorage.setItem(`sitong_chat_${runSku.skuCode}`, JSON.stringify({
+        fp: (readSessionToken() ?? "").slice(-8),
+        items,
+        answers,
+        step,
+        done,
+        cost,
+        savedAt: Date.now()
+      }));
+    } catch {
+      /* 存储不可用（隐私模式/超配额）：不影响主流程 */
+    }
+  }, [runSku?.skuCode, soon, items, answers, step, done, cost]);
+
 
   useEffect(() => {
     if (!flow || soon) return;
+    /**
+     * 2026-09-16 客户现场（汽配信息网）：客户**退出页面再进来，填过的信息和已交付的报告全没了**，
+     * 连付过积分的那份交付物也找不回来。这里的处理是**存在客户本机**（localStorage），
+     * 不落我们的服务器（沿用「客户内容不落库」的口径）：
+     *   - 记录带一个会话指纹（会话 token 后 8 位）：换账号/换人自动丢弃，避免串数据；
+     *   - 只有第一次打开这个智能体才用欢迎语初始化，之后恢复上次的对话与交付物；
+     *   - 点「再问一次 / 重新开始」= 显式清空本机留存。
+     */
+    try {
+      const raw = localStorage.getItem(`sitong_chat_${runSku?.skuCode ?? ""}`);
+      if (raw) {
+        const saved = JSON.parse(raw) as {
+          fp?: string;
+          items?: ChatItem[];
+          answers?: Record<string, string>;
+          step?: number;
+          done?: boolean;
+          cost?: number | null;
+        };
+        if (saved?.fp && saved.fp === (readSessionToken() ?? "").slice(-8) && Array.isArray(saved.items) && saved.items.length > 0) {
+          setItems(saved.items);
+          setAnswers(saved.answers ?? {});
+          setStep(typeof saved.step === "number" ? saved.step : 0);
+          setDone(Boolean(saved.done));
+          setCost(typeof saved.cost === "number" ? saved.cost : null);
+          setInput("");
+          setConfirmPending(false);
+          setAwaitingSupplement(false);
+          setElapsed(0);
+          setLastRequestId(null);
+          return;
+        }
+      }
+    } catch {
+      // 隐私模式 / 存储被禁用：按新会话处理，不影响主流程。
+    }
     setItems([
       { id: "w", role: "ai", text: welcome },
       { id: "q0", role: "ai", text: `**${flow.slots[0].label}**：${flow.slots[0].q}` }
@@ -331,6 +385,12 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
 
   function restart() {
     if (!flow) return;
+    // 显式清空本机留存（客户主动要重来一份）。
+    try {
+      if (runSku?.skuCode) localStorage.removeItem(`sitong_chat_${runSku.skuCode}`);
+    } catch {
+      /* 存储不可用：忽略 */
+    }
     setItems([
       { id: "w", role: "ai", text: welcome },
       { id: "q0", role: "ai", text: `**${flow.slots[0].label}**：${flow.slots[0].q}` }

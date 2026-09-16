@@ -782,7 +782,8 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
         dataMode: context.source,
         creditBalance: wallet.balance,
         subscriptions: await listSubscriptions(context),
-        recentPpu: await listRecentPpuUsage(context)
+        recentPpu: await listRecentPpuUsage(context),
+        recentRefunds: await listRecentRefunds(context)
       };
     });
 
@@ -1377,6 +1378,30 @@ async function listSubscriptions(context: RequestContext) {
     orderBy: { endDate: "desc" },
     take: 50
   });
+}
+
+/**
+ * 「我的」页的**积分退回记录**（用户 2026-09-16：客户 4 次 Word 下载失败被多扣 30 积分，
+ * 退了钱但他自己看不到——只显示消耗记录等于让他无从核对）。
+ *
+ * 只列**与客户切身相关**的退回（Word 导出重复扣费这类），不把内部的预留/结算差额晾出来
+ * （那是我们自己的对账动作，客户看不懂也不该看）。
+ */
+async function listRecentRefunds(context: RequestContext) {
+  if (context.source === "demo") return [];
+  const rows = await prisma.walletLedger.findMany({
+    where: { userId: context.userId, type: "refund", skillId: "docx_export" },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+    select: { id: true, delta: true, source: true, createdAt: true }
+  });
+  return rows.map((row) => ({
+    id: row.id,
+    label: "Word 导出重复扣费退回",
+    amountCredits: row.delta,
+    detail: row.source?.replace(/^web:/, "") ?? "",
+    createdAt: row.createdAt
+  }));
 }
 
 async function listRecentPpuUsage(context: RequestContext) {

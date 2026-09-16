@@ -124,6 +124,11 @@ function ReferralLinkCard() {
 export function MarketplaceMinePage() {
   const [balance, setBalance] = useState<number | null>(null);
   const [recent, setRecent] = useState<Array<{ id: string; skuName?: string | null; amountCredits: number; createdAt: string }>>([]);
+  /**
+   * 用户 2026-09-16：客户被多扣的积分退了，但他自己看不到（这里原来只列消耗）。
+   * 服务端把「与客户切身相关」的退回（Word 导出重复扣费）单独给出来，这里显式展示 +N 积分。
+   */
+  const [refunds, setRefunds] = useState<Array<{ id: string; label: string; amountCredits: number; createdAt: string }>>([]);
   const [loading, setLoading] = useState(true);
   // 本地有 token 不代表还登录着（token 可能已过期）；只有服务端确认过才算已登录，
   // 否则这里会一边显示余额区一边显示「未登录」，用户点登录又被弹回来。
@@ -132,7 +137,7 @@ export function MarketplaceMinePage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    void fetchMarketMe<{ creditBalance: number; recentPpu: Array<{ id: string; skuName?: string | null; amountCredits: number; createdAt: string }> }>()
+    void fetchMarketMe<{ creditBalance: number; recentPpu: Array<{ id: string; skuName?: string | null; amountCredits: number; createdAt: string }>; recentRefunds?: Array<{ id: string; label: string; amountCredits: number; createdAt: string }> }>()
       .then((d) => {
         if (cancelled) return;
         if (!d) {
@@ -142,6 +147,7 @@ export function MarketplaceMinePage() {
         }
         setBalance(d.creditBalance);
         setRecent(d.recentPpu ?? []);
+        setRefunds(d.recentRefunds ?? []);
       })
       .catch(() => { if (!cancelled) setBalance(null); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -179,6 +185,21 @@ export function MarketplaceMinePage() {
               </article>
             ))}
           </div>
+        )}
+        {refunds.length > 0 && (
+          <>
+            <h3>积分退回</h3>
+            <div className="card-grid">
+              {refunds.map((entry) => (
+                <article className="agent-card owned-card" key={entry.id}>
+                  <div className="ac-ico">↩️</div>
+                  <div className="ac-name">{entry.label}</div>
+                  <div className="ac-price">+{entry.amountCredits} 积分</div>
+                  <div className="ac-foot"><span className="chip owned">{new Date(entry.createdAt).toLocaleDateString("zh-CN")}</span></div>
+                </article>
+              ))}
+            </div>
+          </>
         )}
       </section>
     </main>
