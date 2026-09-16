@@ -25,6 +25,40 @@ import { resolveRequestContext } from "../services/request-context.js";
 import { getBearerToken, verifySessionToken } from "../services/auth-token.js";
 import { consumeWalletCredits, readWallet, buildRechargeUrl } from "../services/sitong-wallet.js";
 import { resolveTenantBranding } from "./tenant.js";
+import { env } from "../config/env.js";
+
+/**
+ * Word 下载的**一次性链接令牌**（2026-09-16 客户现场）。
+ *
+ * 事故：导出文件本来已经生成成功，但前端是「带 token 拉字节 → 造一个 blob: 链接 → 点 a 下载」，
+ * 手机（尤其微信内置浏览器）拿到的就是这个 `blob:` 链接——微信收藏/转换、WPS 都打不开，
+ * 客户看到的是「没有生成文件 / 不支持转换的链接」。
+ *
+ * 所以导出接口额外签发一个**短期、只对这份文件有效**的令牌，前端直接把链接交出去：
+ * `GET /exports/docx/<id>?t=<token>` 在手机浏览器里就是一次普通下载，微信/系统/WPS 都能接。
+ * 令牌只在服务端 HMAC 校验（不落库、不进日志），10 分钟后随导出记录一起失效。
+ */
+function exportTokenSignature(exportId: string, userId: string, expiresAt: number): string {
+  return crypto
+    .createHmac("sha256", env.JWT_SECRET ?? "export-download")
+    .update(`${exportId}.${userId}.${expiresAt}`)
+    .digest("base64url");
+}
+
+function signExportDownloadToken(exportId: string, userId: string): string {
+  const expiresAt = Date.now() + exportTtlMs;
+  return `${expiresAt}.${exportTokenSignature(exportId, userId, expiresAt)}`;
+}
+
+function verifyExportDownloadToken(exportId: string, userId: string, token: string | undefined): boolean {
+  if (!token) return false;
+  const [expiresRaw, signature] = token.split(".");
+  const expiresAt = Number(expiresRaw);
+  if (!Number.isFinite(expiresAt) || Date.now() > expiresAt || !signature) return false;
+  const expected = exportTokenSignature(exportId, userId, expiresAt);
+  if (expected.length !== signature.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+}
 
 interface ParsedSection {
   title: string;
@@ -122,15 +156,14 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
     return {
       id,
       filename,
-      downloadUrl: `/exports/docx/${id}`,
+      // 带一次性令牌的直链：手机端（微信内置浏览器 / WPS）直接点就能拿到文件。
+      downloadUrl: `/exports/docx/${id}?t=${encodeURIComponent(signExportDownloadToken(id, context.userId))}`,
       consumedCredits: price,
       balance: consumed.wallet.balance
     };
   });
 
   app.get<{ Params: { id: string } }>("/exports/docx/:id", async (request, reply) => {
-    const context = await resolveExportContext(request.headers, reply);
-    if (!context) return;
     // Lookup and consume after the asynchronous authorization, so concurrent
     // downloads cannot both obtain the same one-use buffer.
     cleanupExportRecords();
@@ -141,14 +174,25 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
         message: "Word 文件已过期，请重新点击下载"
       });
     }
-    if (record.tenantId !== context.tenantId) {
-      return reply.code(403).send({
-        error: "export_tenant_forbidden",
-        message: "当前文件不属于本经营主体"
-      });
-    }
-    if (record.userId !== context.userId) {
-      return reply.code(404).send({ error: "export_not_found", message: "当前文件不可用，请重新导出自己的内容" });
+    /**
+     * 两种取件方式：
+     * ① 浏览器直链 `?t=<一次性令牌>`——手机/微信必须走这条（浏览器导航带不了 Authorization 头）；
+     * ② 原来的会话 Bearer 头——保留给老前端与脚本，语义不变。
+     */
+    const queryToken = (request.query as { t?: string } | undefined)?.t;
+    const tokenOk = verifyExportDownloadToken(request.params.id, record.userId, queryToken);
+    if (!tokenOk) {
+      const context = await resolveExportContext(request.headers, reply);
+      if (!context) return;
+      if (record.tenantId !== context.tenantId) {
+        return reply.code(403).send({
+          error: "export_tenant_forbidden",
+          message: "当前文件不属于本经营主体"
+        });
+      }
+      if (record.userId !== context.userId) {
+        return reply.code(404).send({ error: "export_not_found", message: "当前文件不可用，请重新导出自己的内容" });
+      }
     }
 
     exportRecords.delete(request.params.id);

@@ -402,19 +402,18 @@ async function downloadAnswerDocx(content: string): Promise<void> {
     if (!response.ok || !data.downloadUrl) {
       throw new Error(data.message || "Word 文件生成失败");
     }
-    const fileResponse = await fetch(apiPath(data.downloadUrl), { headers: exportAuthHeaders(), cache: "no-store" });
-    if (!fileResponse.ok) {
-      throw new Error("Word 文件下载失败");
-    }
-    const blob = await fileResponse.blob();
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = data.filename || `${normalizeFilenamePart(title) || fallbackTitle}.docx`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
+    /**
+     * 2026-09-16 客户现场（手机只有 WPS）：**必须把真实链接交给浏览器/系统**。
+     *
+     * 之前是「带 Bearer 头拉字节 → `URL.createObjectURL` 造一个 `blob:` 链接 → 点 a 下载」：
+     * 桌面浏览器能存下来，但手机（尤其微信内置浏览器）只拿到那个 `blob:` 链接——
+     * 微信收藏/网页转换打不开它，也交不给 WPS，客户看到的就是「没有生成文件 / 不支持转换的链接」。
+     *
+     * 现在直接跳到服务端签发的一次性直链（`/exports/docx/<id>?t=<token>`，
+     * 响应带 `Content-Disposition: attachment`）：手机浏览器会走系统下载，
+     * 微信里也能「用其他应用打开」→ WPS 直接打开 .docx（WPS 原生支持 docx，不需要额外的 wps 格式）。
+     */
+    window.location.assign(apiPath(data.downloadUrl));
   } catch (error) {
     console.error("Word document generation failed", error);
     window.alert("Word 文件生成失败，请稍后再试。");
