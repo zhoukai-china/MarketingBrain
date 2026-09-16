@@ -26,6 +26,7 @@ async function main(): Promise<void> {
   const { registerMarketplaceRoutes } = await import("../apps/api/src/routes/marketplace.js");
   const { env } = await import("../apps/api/src/config/env.js");
   const { createSessionToken } = await import("../apps/api/src/services/auth-token.js");
+  const { updatePlatformSettings } = await import("../apps/api/src/services/referral-config.js");
   const { randomUUID } = await import("node:crypto");
 
   const suffix = randomUUID().slice(0, 8);
@@ -51,7 +52,49 @@ async function main(): Promise<void> {
   const get = (url: string, userId?: string, tenantId?: string) =>
     app.inject({ method: "GET", url, headers: userId ? headersFor(userId, tenantId!) : {} });
 
+  /**
+   * 活动窗控制（commit 026682a「邀请链接按活动开关下架」）。
+   *
+   * 自服务邀请链接现在受「推荐有礼总开关 + 活动窗」约束：活动没开时按设计**不签发**（接口兜一层，
+   * 不只是前端隐藏卡片）。本回归要测的是「签发 → 明文只回一次 → 重签保留旧码 → 跨用户隔离」，
+   * 所以这里显式把活动窗开到此刻，跑完再把本机原值恢复回去——结果不依赖本机后台配置，
+   * 也不会把「暂时不开放」这个真实状态锁死成别的值。
+   */
+  const campaignKeys = ["REFERRAL_REWARD_ENABLED", "REFERRAL_CAMPAIGN_STARTS_AT", "REFERRAL_CAMPAIGN_ENDS_AT"];
+  const campaignSnapshot = await prisma.platformSetting.findMany({ where: { key: { in: campaignKeys } }, select: { key: true, value: true, updatedBy: true } });
+  const previousCampaignValue = (key: string) => campaignSnapshot.find((row) => row.key === key)?.value ?? null;
+  const setCampaignWindow = (enabled: boolean, startsAt: string | null, endsAt: string | null) =>
+    updatePlatformSettings(
+      { REFERRAL_REWARD_ENABLED: enabled, REFERRAL_CAMPAIGN_STARTS_AT: startsAt ?? "", REFERRAL_CAMPAIGN_ENDS_AT: endsAt ?? "" },
+      "referral-self-service-smoke"
+    );
+  const restoreCampaign = async () => {
+    await setCampaignWindow(
+      previousCampaignValue("REFERRAL_REWARD_ENABLED") === true,
+      (previousCampaignValue("REFERRAL_CAMPAIGN_STARTS_AT") as string | null) ?? null,
+      (previousCampaignValue("REFERRAL_CAMPAIGN_ENDS_AT") as string | null) ?? null
+    );
+    // `updatedBy` 是「谁最后改了这条配置」的审计信息，跑一次回归不该把它改掉，一并还原。
+    for (const row of campaignSnapshot) {
+      await prisma.platformSetting.update({ where: { key: row.key }, data: { updatedBy: row.updatedBy } });
+    }
+  };
+
   try {
+    // 0) 活动关着：不得签发、不得落库（这是「先下架」口径的服务端兜底）
+    await setCampaignWindow(false, null, null);
+    const closed = await get("/market/me/referral-link", me.userId, me.tenantId);
+    const closedBody = closed.json() as { state: string; campaignActive: boolean; code: string | null; codePreview: string | null };
+    assert(closedBody.campaignActive === false, `活动未开时必须标记 campaignActive=false（实际 ${closedBody.campaignActive}）`);
+    assert(closedBody.code === null && closedBody.codePreview === null, "活动未开时不得返回任何推荐码");
+    const closedPost = await post("/market/me/referral-link", me.userId, me.tenantId);
+    const closedPostBody = closedPost.json() as { state: string; code: string | null };
+    assert(closedPostBody.code === null && closedPostBody.state === "none", `活动未开时 POST 不得签发（实际 ${closedPostBody.state}）`);
+    assert((await prisma.referralCode.count({ where: { ownerUserId: me.userId } })) === 0, "活动未开时不得落库推荐码");
+
+    // 开到此刻，后面才是真正要回归的签发链路
+    await setCampaignWindow(true, new Date(Date.now() - 60 * 60 * 1000).toISOString(), new Date(Date.now() + 60 * 60 * 1000).toISOString());
+
     // 1) 未登录不能拿
     const anonymous = await get("/market/me/referral-link");
     assert(anonymous.statusCode === 401, `未登录必须 401（实际 ${anonymous.statusCode}）`);
@@ -96,6 +139,7 @@ async function main(): Promise<void> {
     console.log(JSON.stringify({
       result: "PLAT38_SELF_REFERRAL_PASS",
       anonymousRejected: anonymous.statusCode === 401,
+      campaignGateClosedNoIssue: closedBody.campaignActive === false && closedPostBody.code === null,
       firstIssueReturnedPlaintext: true,
       repeatReadHidesPlaintext: true,
       regenerateKeepsOldCode: after === before + 1,
@@ -106,6 +150,7 @@ async function main(): Promise<void> {
     }));
   } finally {
     await app.close();
+    await restoreCampaign();
     for (const user of [me, other]) {
       await prisma.referralCode.deleteMany({ where: { ownerUserId: user.userId } });
       await prisma.membership.deleteMany({ where: { tenantId: user.tenantId } });

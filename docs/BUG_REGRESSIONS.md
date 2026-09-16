@@ -1,5 +1,37 @@
 # Bug 回归台账
 
+## QA-20260916-006：本机同时「起 3011 Skill MCP 网关 + 把仓根 `.env` 导出到 shell」会让美业 `beauty-industry:web-contract-smoke` 链条整段误红（P2，环境坑；不在 LQ-34 改代码，登记待收敛）
+
+- 触发：2026-09-16 跑 LQ-34 的 `pnpm.cmd qa:regression`，链条进到 `beauty-industry:web-contract-smoke` 段报红，现象像「Skill 合同被改坏了」。
+- 复现与归因（**同一台机器、同一份 checkout，只差一个环境变量**）：
+  1. 污染态：我在跑门禁前把**仓根** `.env` 导进了本次 shell 进程（`SKILL_MCP_URL=http://127.0.0.1:3011/mcp`、`SKILL_MCP_REQUIRED=true`），且本机 3011 网关在 Listen → `beauty-industry-by09-message-profile.ts:74` 断言红，实测 prompt **25114 > 25000**（`beauty_xiaohongshu_package` 的 `maxPromptBytes` 预算）；同批 `fixed-route-output-p1-smoke`、`user-path-contract-p1-smoke` 一并红。
+  2. 干净 shell（不导出仓根 `.env`，即 `SKILL_MCP_REQUIRED` 未设置）：同一条命令该段全绿；三个脚本单跑分别得到 `beauty fixed-route output P1 smoke passed`（exit 0）与 `BEAUTY_USER_PATH_CONTRACT_P1_SMOKE_OK capabilities=2 provider=0`（exit 0）。
+- 根因：`SKILL_MCP_REQUIRED=true` 会让 `loadSkillPrompt` / `loadSkillQualityContract` 改从 3011 **网关**取 Skill 包，网关那份与本 checkout 不是同一版本、合同与提问壳更大，prompt 字节数顶穿 XHS 预算 → 断言红。**属于环境差异，不是产品缺陷**：`apps/api/.env` 里没有这两个键，默认 / CI 环境不会走网关取包。
+- 处理与边界：**不在 LQ-34 动代码**。理由：默认 / CI 干净 shell 下这些脚本本就全绿；生产「MCP 必选」的语义已由 `skill:mcp-resilience-smoke`、`beauty-industry:mcp-platform-smoke` 覆盖；批量给 38 个 beauty 脚本 pin `SKILL_MCP_ENABLED=false` 会横跨美业交付范围（BY-17 等），属另一个任务。
+- 留下的坑与建议：开发者本机若同时「起 3011 网关」+「导出仓根 `.env`」，会看到一串与被测代码无关的红灯，极容易误判成产品坏了。后续要么在门禁入口固定环境（不导出仓根 `.env`），要么给这批脚本加统一的 `SKILL_MCP_ENABLED=false` 入口约束。
+
+## QA-20260916-005：自服务邀请链接改成「按活动开关下架」后，`referral:self-service-smoke` 仍按「活动常开」假设写 → 本机必然红（P2，已修）
+
+- 触发：2026-09-16 LQ-34 交付跑 `pnpm.cmd qa:regression`，`referral:self-service-smoke` 报 `FAIL: 首次必须是 created`，看着像「邀请链接签发坏了」。
+- 复现与归因：`main`（HEAD 的祖先）上同一条命令**同样红**。脚本第 ② 步默认「首次 POST 必然签发」，但 commit `026682a`「邀请链接按活动开关下架」之后，签发受「推荐有礼总开关 + 活动窗」约束；本机 dev 库 `PlatformSetting` 实测 `REFERRAL_REWARD_ENABLED=false`、`REFERRAL_CAMPAIGN_STARTS_AT/ENDS_AT=null`，按新口径**就是不该签发**。属**过期断言**（测试没跟上契约），不是产品缺陷。
+- 修复（`scripts/referral-self-service-smoke.ts`，只改测试、不动服务端）：
+  - 新增第 0 段「活动关着：不得签发、不得落库」——断言 `campaignActive=false`、`code=null`、POST `state=none`、`ReferralCode` 计数为 0。这比原来更强：原脚本根本没测这条服务端兜底。
+  - 开跑前显式把活动窗开到此刻 ±1h 并开总开关；跑完在 `finally` 里 `restoreCampaign()` 还原三个键的**原值**与 `updatedBy`——回归不该改本机后台配置，也不该把「暂时不开放」这个真实状态锁成别的值。
+  - 结果输出加 `campaignGateClosedNoIssue` 字段。
+- 修复后：`pnpm.cmd referral:self-service-smoke` **exit 0**，`{"result":"PLAT38_SELF_REFERRAL_PASS","anonymousRejected":true,"campaignGateClosedNoIssue":true,"firstIssueReturnedPlaintext":true,"repeatReadHidesPlaintext":true,"regenerateKeepsOldCode":true,"providerCalls":0,"costYuan":0}`；dev 库复查三个键已还原（`REFERRAL_REWARD_ENABLED=false`、窗口 null、`updatedBy=null`）。
+- 教训：给某类「按开关下架」加服务端兜底后，**回归脚本里所有「必然成功」的假设都要跟着复核**，否则红灯会把锅甩给产品；同时「让测试改配置」必须在 `finally` 里连审计字段一起还原。
+
+## QA-20260916-004：Word 下载改「一次性直链」后，`export:owner-isolation-smoke` 按「会话鉴权」写的隔离断言失效（本机必红）；顺带发现令牌分支缺 `Cache-Control`（P2，已修）
+
+- 触发：2026-09-16 LQ-34 交付跑 `pnpm.cmd qa:regression`，`export:owner-isolation-smoke` 在 `scripts/export-owner-isolation-smoke.ts:63` 断言红：`Another user must not download or consume the creator's temporary export`，实际 `200 !== 404`。
+- 复现与归因：`main`（HEAD 的祖先）上同一条命令**同样红**（同一行、同一断言）。根因是 commit `9c51c54`「Word 下载改一次性直链」——`POST /exports/docx` 返回的 `downloadUrl` 现在带 `?t=<HMAC 令牌>`（10 分钟 TTL、取件后删记录）；脚本仍把这条**带有效令牌**的地址配上同事的 Bearer 头去请求，令牌先命中，自然回 200。属**过期断言**，不是产品缺陷。
+- 修复（`scripts/export-owner-isolation-smoke.ts` + `apps/api/src/routes/exports.ts`）：
+  - 会话隔离整组改走「把令牌换成无效值」的地址（`withoutValidToken`），确保测的是**鉴权**而不是令牌直通；断言从 5 条扩到覆盖 ① 会话路径 ② 一次性直链 ③ 幂等计费 ④ 令牌不落日志，共 3 轮。
+  - 新增：直链无人值守取件成功 + 取件后立即失效 + 已取件的直链泄漏给同事也不可用；令牌只能开自己那份记录（A 的令牌套到 B 的记录 → 401）；正文指纹幂等（换一份报告必须重新扣 10 分）；零余额可重下自己已付费的那份（`consumedCredits=0` / `redownload=true`）；下载令牌不得出现在日志里。
+  - `apps/api/src/routes/exports.ts`：令牌直链分支原来**不经过** `resolveExportContext`，所以缺 `Cache-Control: private, no-store`（客户私有交付物可能被浏览器 / 代理缓存）。修复 = 在 handler 开头统一声明该头，让两条取件分支都生效。
+- 红灯→绿灯证据（**证明新增断言不是哑断言**）：临时撤掉那一行 `Cache-Control` → 回归红（`actual: undefined, expected: private, no-store`）→ 恢复 → 绿。绿灯输出：`{"status":"PASS","rounds":3,"exportPrice":10,"chargedExports":2,"idempotentRedownloads":true,"insufficientReturns402":true,"oneTimeLink":true,"providerCalls":0,"externalCalls":0}`。
+- 教训：契约从「会话鉴权」改成「持有令牌即可取件」时，**隔离回归必须换用不含有效令牌的地址**，否则「同事拿不到」这条永远测不到；新契约下「不可缓存」也要覆盖到**所有**取件分支，而不是只有会话分支。
+
 ## QA-20260916-003：`qa:lanqi-foundation` 领域门禁**在 main 上本来就红**——三处断言仍指向重构前的文件/旧价格（P2，两处已修；一处属定价线，登记待修）
 
 - 触发：2026-09-16 交付 LQ-33 时按 AGENTS.md 跑兰琪领域门禁 `pnpm.cmd qa:lanqi-foundation`，链条前段就失败。
