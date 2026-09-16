@@ -16,6 +16,7 @@
 | 客户上传（图片 / 文档 / 数据表） | `/opt/baolu-os-v2/uploads`、`/opt/baolu-os-v2-test/uploads` | **180 天** | **新增** `scripts/ops/prune-uploads-retention.sh` | 每天 `03:40` |
 | 视频复刻暂存（用户拍板 24 小时） | `uploads/.beauty-video-results`、`uploads/lanqi-media/staging` | **24 小时** | `scripts/bs-video-retention.sh`（已有） | 每小时 |
 | 磁盘水位告警 | 整盘 | 使用率 ≥85% 或可用 ≤8G 报警 | `scripts/ops/disk-alert.sh`（已有） | 每小时 |
+| **已付费交付物**（智能体输入 + 交付正文） | 数据库 `MarketplaceDeliverable` | **7 天**（用户 2026-09-16 拍板） | 读取路径顺带清理（`GET /market/me/deliverables`） | 每次读取 |
 
 一句话口径：**能重建的产物按小时/天清，客户上传按 180 天清，回滚快照永远保留一档（8 份）。**
 

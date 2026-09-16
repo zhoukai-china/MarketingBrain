@@ -196,6 +196,32 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     } catch {
       // 隐私模式 / 存储被禁用：按新会话处理，不影响主流程。
     }
+    /**
+     * 本机没有留存（换了手机 / 清了浏览器 / 换了设备）时，问服务端要**7 天内已付费的交付物**。
+     * 用户 2026-09-16：客户关了页面就再也拿不回自己的报告，只能退款——这才是真正的兜底。
+     */
+    if (runSku?.skuCode && readSessionToken()) {
+      void fetch(apiPath(`/market/me/deliverables?skuCode=${encodeURIComponent(runSku.skuCode)}`), {
+        headers: authHeaders(),
+        cache: "no-store"
+      })
+        .then((response) => (response.ok ? readJson<{ deliverables?: Array<{ input: string; answer: string; credits: number }> }>(response) : null))
+        .then((data) => {
+          const latest = data?.deliverables?.[0];
+          if (!latest?.answer) return;
+          setItems([
+            { id: "w", role: "ai", text: welcome },
+            { id: "restored-final", role: "ai", text: latest.answer, html: true },
+            { id: "restored-note", role: "ai", text: "（这是你 7 天内的历史交付，已为你恢复；点「下载精美 Word」可随时再存一份，不会重复扣积分。）" }
+          ]);
+          setDone(true);
+          setCost(latest.credits);
+          setStep(flow.slots.length - 1);
+        })
+        .catch(() => {
+          /* 找回失败就走新会话，不打扰用户 */
+        });
+    }
     setItems([
       { id: "w", role: "ai", text: welcome },
       { id: "q0", role: "ai", text: `**${flow.slots[0].label}**：${flow.slots[0].q}` }
