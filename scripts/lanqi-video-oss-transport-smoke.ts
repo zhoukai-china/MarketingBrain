@@ -80,7 +80,15 @@ async function main() {
     message: "Invalid IP address: undefined"
   });
   assert("原始错误诊断保留错误名与码", detail.includes("TypeError") && detail.includes("ERR_INVALID_IP_ADDRESS"));
-  assert("原始错误诊断保留消息", detail.includes("Invalid IP address"));
+  /**
+   * 2026-09-16 修正过期断言：2026-09-15 的安全回归把「原始 message 原样落审计」改掉了
+   * （上游 message 可能含签名 URL / 桶名 / AccessKeyId），现在只留 `messageFingerprint=<12 位 sha256>`。
+   * 所以这里断言的是**指纹在、原文不在**——比旧断言更严格。
+   */
+  assert(
+    "原始错误诊断只留消息指纹、不落原文（2026-09-15 安全口径）",
+    /messageFingerprint=[a-f0-9]{12}/.test(detail) && !detail.includes("Invalid IP address")
+  );
 
   console.log(`\nlanqi_video_oss_transport_smoke: ${pass} passed, ${fail} failed`);
   if (fail > 0) process.exit(1);

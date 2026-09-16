@@ -63,7 +63,8 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
     const quote = quoteLanqiMedia(input);
     const authorization = await resolveLanqiMediaAuthorization(context, readiness, quote.creditCost, input.kind);
     request.log.info({ event: "lanqi_image_generation.quoted", tenantId: context.tenantId, previewId: input.previewId, promptVersion: input.promptVersion, mode: readiness.mode, canConfirm: authorization.canConfirm, blockCode: authorization.blockCode });
-    return { creditCost: quote.creditCost, customerPriceYuan: quote.customerPriceYuan, canConfirm: authorization.canConfirm, billable: authorization.canConfirm && readiness.billable, executionMode: readiness.mode,
+    // 用户 2026-09-16 口径：**不显示人民币消耗**，报价只回积分（不再回 customerPriceYuan）。
+    return { creditCost: quote.creditCost, canConfirm: authorization.canConfirm, billable: authorization.canConfirm && readiness.billable, executionMode: readiness.mode,
       blockCode: authorization.blockCode,
       message: authorization.canConfirm ? readiness.mode === "mock" ? "受控模拟生成已就绪；不会调用外部模型或扣积分。" : "费用已锁定；再次确认后才创建任务并预留积分。" : authorization.message,
       externalAction: "confirmation_required", aiWatermark: true, storage: readiness.mode === "mock" ? "controlled_mock" : readiness.storage };

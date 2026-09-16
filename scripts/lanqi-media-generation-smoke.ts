@@ -2,13 +2,21 @@ import assert from "node:assert/strict";
 import { env } from "../apps/api/src/config/env.ts";
 import { buildLanqiMediaProviderRequest, getLanqiMediaExecutionReadiness, getLanqiMediaProviderIssue, isSameLanqiMediaRequest, parseLanqiMediaTask, quoteLanqiMedia, validateLanqiMediaRequest } from "../apps/api/src/services/lanqi-media-generation.ts";
 
-assert.deepEqual(quoteLanqiMedia({ kind: "image", prompt: "门店护理配图", promptVersion: "1.0.0" }), { creditCost: 100, customerPriceYuan: 1, provider: "aliyun_bailian", model: "wan2.7-image" });
-assert.equal(quoteLanqiMedia({ kind: "text_to_video", prompt: "视频", resolution: "720P", ratio: "9:16", durationSeconds: 5 }).creditCost, 990);
-assert.equal(quoteLanqiMedia({ kind: "text_to_video", prompt: "视频", resolution: "720P", ratio: "16:9", durationSeconds: 10 }).creditCost, 1690);
-assert.equal(quoteLanqiMedia({ kind: "text_to_video", prompt: "视频", resolution: "1080P", ratio: "9:16", durationSeconds: 5 }).creditCost, 1490);
-// 文案转片按成本 ×10 的按秒口径计价：30 积分/秒。每镜 3 秒 = 90 积分（用户已确认口径）。
-assert.equal(quoteLanqiMedia({ kind: "image_to_video", prompt: "视频", resolution: "720P", durationSeconds: 3, imageUrl: "https://example.com/source.jpg" }).creditCost, 90);
-assert.equal(quoteLanqiMedia({ kind: "image_to_video", prompt: "视频", resolution: "1080P", durationSeconds: 10, imageUrl: "https://example.com/source.jpg" }).creditCost, 300);
+// 图片：用户 2026-09-12 拍板 20 积分/张（= ¥1）；用户 2026-09-16 拍板「不显示人民币消耗」，
+// 所以报价对象里**不允许**再出现折合人民币字段（旧实现写的是 creditCost/100，图片改价后就错了 5 倍）。
+assert.deepEqual(quoteLanqiMedia({ kind: "image", prompt: "门店护理配图", promptVersion: "1.0.0" }), { creditCost: 20, provider: "aliyun_bailian", model: "wan2.7-image" });
+assert.ok(
+  !Object.prototype.hasOwnProperty.call(quoteLanqiMedia({ kind: "image", prompt: "门店护理配图", promptVersion: "1.0.0" }), "customerPriceYuan"),
+  "报价对象不得含折合人民币字段（用户 2026-09-16：不显示人民币消耗）"
+);
+// 文生视频（用户 2026-09-16 拍板「用百炼现成的 t2v」）已与图生视频统一为**按秒 ×2 成本**：
+// 12 积分/秒，不再用旧的 720P/1080P 固定包价（990/1690/1490/2690）。
+assert.equal(quoteLanqiMedia({ kind: "text_to_video", prompt: "视频", resolution: "720P", ratio: "9:16", durationSeconds: 5 }).creditCost, 60);
+assert.equal(quoteLanqiMedia({ kind: "text_to_video", prompt: "视频", resolution: "720P", ratio: "16:9", durationSeconds: 10 }).creditCost, 120);
+assert.equal(quoteLanqiMedia({ kind: "text_to_video", prompt: "视频", resolution: "1080P", ratio: "9:16", durationSeconds: 5 }).creditCost, 60);
+// 文案转片按成本 ×2 的按秒口径计价：12 积分/秒（用户 2026-09-15 拍板，由 30 降为 12）。每镜 3 秒 = 36 积分。
+assert.equal(quoteLanqiMedia({ kind: "image_to_video", prompt: "视频", resolution: "720P", durationSeconds: 3, imageUrl: "https://example.com/source.jpg" }).creditCost, 36);
+assert.equal(quoteLanqiMedia({ kind: "image_to_video", prompt: "视频", resolution: "1080P", durationSeconds: 10, imageUrl: "https://example.com/source.jpg" }).creditCost, 120);
 assert.equal(validateLanqiMediaRequest({ kind: "image_to_video", prompt: "视频", resolution: "720P", ratio: "9:16", durationSeconds: 5 }), "图生视频需要提供本店自有或已获授权的图片链接");
 assert.equal(validateLanqiMediaRequest({ kind: "text_to_video", prompt: "视频", resolution: "720P", ratio: "9:16", durationSeconds: 5 }), undefined);
 assert.equal(validateLanqiMediaRequest({ kind: "text_to_video", prompt: "视频", resolution: "720P", durationSeconds: 5 }), "文生视频需要选择横竖屏");

@@ -16,7 +16,11 @@ const serviceSource = source("apps/api/src/services/lanqi-image-studio.ts");
 const pageSource = source("apps/web/src/pages/LanqiImageStudioPage.tsx");
 const contentStudioSource = source("apps/web/src/pages/LanqiContentStudioPage.tsx");
 const packageRouteSource = source("apps/api/src/routes/lanqi-xhs-package.ts");
-const rootSource = source("apps/web/src/main.tsx");
+/**
+ * 2026-09-16 修正过期断言：网页路由已从 `main.tsx` 拆到 `routes/lanqi.tsx`（兰琪路由模块），
+ * 只看 `main.tsx` 会误报「缺少独立文生图页面路由」。这里两处都读，只要路由真实存在即可。
+ */
+const rootSource = `${source("apps/web/src/main.tsx")}\n${source("apps/web/src/routes/lanqi.tsx")}`;
 const envSource = source("apps/api/src/config/env.ts");
 
 assert.match(routeSource, /\/lanqi\/image-studio\/previews/, "缺少租户隔离的文生图预览接口");

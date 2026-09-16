@@ -52,7 +52,6 @@ type ImagePreview = {
 
 type GenerationQuote = {
   creditCost: number;
-  customerPriceYuan: number;
   canConfirm: boolean;
   billable: boolean;
   executionMode: "disabled" | "mock" | "real";
