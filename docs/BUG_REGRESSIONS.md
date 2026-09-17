@@ -65,9 +65,10 @@
 - **第二轮（平台那一步被整句话占位）**：用户 2026-09-17 在 `/agent/meiye__vidrev/chat` 截图——「平台：这批视频发在哪个平台？」那一步没有点选项，直接把「复盘（附件：视频号动态数据明细.csv）」当答案发出，平台名因此成了这一整句，被服务端按「非抖音/视频号」拒绝，同一份视频号文件连发三次都回「只支持抖音和视频号」。修复：① 前端新增 `normalizeVidrevPlatform()`（`chat-flows.ts`）——句中 / 附件名里认出「视频号 / 抖音」就按规范平台名记账，认不出就**停在平台这步追问**（不推进、不消耗积分）；② 服务端新增 `resolveVidrevPlatform()`（`routes/marketplace.ts`）——先看句中平台、再看数据表本身；只有明确点名小红书 / 快手 / B站才继续 fail closed。回归：`marketplace:vidrev-platform-scope-smoke` 新增 5 条解析断言 + 2 条前端归一断言 + 3 条源码契约。
 - **第三轮（「重新开始」被当成补充信息）**：用户在文案智能体的「补充缺失的信息」状态下打「重新开始」两次，都被当成补充内容走了重新生成；并明确要求「应该做一个重新开始的功能，每个智能体都要有一个」。核查发现两件事：① 页面上确实**没有可见入口**（只有输入框口令 + 交付后的按钮）；② 更关键的是**上一轮的 web 修复被并行发布覆盖**——生产源码/产物里 `isRestartCommand` 为 0，另一条线的发布把 `AgentChatPage.tsx` 换回了改动前版本（这条教训：验证必须看 **index.html 真正引用的 chunk**，`dist/assets` 里堆积的旧 chunk 会骗过 `grep -rl`）。修复：`AgentChatPage.tsx` 在发送键旁常驻「↺ 重新开始」按钮（`hasProgress` 时显示，覆盖「补充信息 / 待确认 / 已交付」全部状态，走同一套 `resetConversationState()`），19 个货架 SKU 共用该页 ⇒ 每个智能体都有；回归：`marketplace:chat-restart-smoke` 新增 4 条按钮契约。另：`apps/web/src/marketplace/chat-flows.ts` 与 `AgentChatPage.tsx` 需与 API 同批发布，避免再被别人的包单独回退。
 - **第四轮（报告「乱码」）**：用户截图报告里出现 `export/UzFfBgAAxNurJEJiPn_2k8zT4DCaZ0Sq…` 这类 60+ 字符串。根因是上一轮为了「逐字可验」把视频号后台导出的**原始视频 ID** 直接放进了报告与提示词。修复：`computeVidrevMetrics` 统一用短编号 `v1…vN`，原始 ID 只存 `video.rawId`（并进 payload `videos[].raw_id` 供追溯，不进模型上下文、不进报告）；校验器加一层 ID 归一（短编号与原始 ID 都能过 V3/V4，历史报告仍可验）。回归：`marketplace:vidrev-contract-smoke` 新增 5 条「报告/提示词不得出现 export/ + rawId 必须保留」断言。本地真机真模型验收：20 条真实数据 → 200、报告 0 处 `export/`、90 处 `v*`、受限维度写成「完播率缺 10 条（v2 / v3 / v4 / v6 / v8 / v9 / v10 / v12 / v18 / v19）」。
+- **第五轮（下载口径）**：用户「修复好了 但这个下载应该下载 word 或者 wps 吧 csv 格式应该没法展示这么多内容输出吧」，随后进一步明确「下方有下载精美 word 所以这里的输出不用再说输出 markdown 和 csv 也不需要展开 markdown 原文」。修复：`vidrev-report.tsx` 报告卡片里**删掉全部导出按钮**（`导出 Markdown` / `导出 CSV 明细`）与 `details.vrv-raw` 原文折叠，只保留「已带入选题池」反馈；交付后的唯一下载入口是底部那颗按钮，文案改为「⬇ 下载精美 Word / WPS 报告 · N 积分」（内容仍是十一章全文 .docx，同一份计费）。回归：新增 `scripts/vidrev-report-export-contract-smoke.mjs`（4 组断言：报告卡片 0 导出按钮 / 0 原文折叠 / 底部 Word-WPS 是唯一入口 / 选题池反馈不许被误删，已挂 `qa:fast`），并同步 `scripts/marketplace-vidrev-browser-e2e.mjs` 的浏览器断言（原先断言「卡片里必须有 CSV 按钮 + 原文折叠」，与新口径相反）。线上验收：served chunk `MarketplaceApp-4F-4Q6De.js` 里 `导出明细 CSV|导出 Markdown` = **0**、`查看报告 Markdown 原文` = **0**、`下载精美 Word / WPS 报告` = **1**。
 - **发布**：`release-20260917-vidrev-readable-ids-prod1`（sha256 `a7be4900…`）。**服务器 `/tmp/deploy-release.sh` 的 `marketplace-v3.json` canary 已被另一条线改成他们未上线的值（`265cd9bb…`，直播话术上架），照原样发布会回退线上计费 / 上架口径**——处理：不改他们的脚本，另存一份只替换 canary 为「本次实际发货文件哈希（`e4d3f747…`＝生产现值）」的副本 `/tmp/deploy-release-vidrev.sh` 跑本单；发布后 `DEPLOY_OK` + `verify-deploy.sh VERIFY_OK` + `journalctl -p err` 无记录，且生产产物直检 `PROD_VIDREV_LONG_ID_PASS`（短编号 + rawId 保留 + V3/V4 = 0 失败）。
 
-## QA-20260917-005：`ipzone__ip-pos` 提问流程仍被压成「4 步 / 一次引导提问」，与 IP 定位 Skill 的「前置角色适配 + 5 轮访谈」不一致（P2，已本地修 + 已加回归，未发布）
+## QA-20260917-005：`ipzone__ip-pos` 提问流程仍被压成「4 步 / 一次引导提问」，与 IP 定位 Skill 的「前置角色适配 + 5 轮访谈」不一致（P2，已修 + 已发布测试/生产，真机 QA 通过）
 
 - 来源：用户 2026-09-15 WorkBuddy《IP定位-双端差异对比.md》。核心结论是已部署 `ipzone__ip-pos` 只有 4 个槽位（项目 / 用户 / 创始人 / 现状），且详情页写「一次引导提问」、登录引导写「那 4 步」，与 `ip_positioning` Skill 的五轮渐进访谈不一致。
 - 根因：`apps/web/src/marketplace/chat-flows.ts` 的 `ip-pos` 槽位定义缺少「角色适配」和「竞争格局」；页面文案沿用旧版「4 步 / 一次引导」。
@@ -78,7 +79,11 @@
   4. 新增 `scripts/marketplace-ip-pos-interview-contract-smoke.ts`，挂进 `qa:fast`，守护 6 槽顺序与旧文案不再回归。
   5. 同步更新 `scripts/ip-positioning-workbench-smoke.mjs` 到当前通用能力路由实现，保留「资料不足先选资料 / 访谈与全案分离 / 每轮一个关键问题 / 主体 ID 显式传递」的安全断言。
 - 回归：`pnpm.cmd marketplace:ip-pos-interview-contract-smoke` PASS；`pnpm.cmd marketplace:chat-slot-numbering-contract-smoke` PASS（33 步）；`pnpm.cmd agent:ip-positioning-workbench-smoke` PASS；`pnpm.cmd --filter @baolu/web typecheck` PASS。`pnpm.cmd qa:fast` 最后因工作区中 WorkBuddy 相关未提交类型错误失败（`apps/api/src/routes/workbuddy-mcp.ts` / `apps/api/src/services/workbuddy-connections.ts`），与本改动无关。
-- 未发布：仍是本地源码改动，生产 JS bundle 仍为旧文案，待发布验证。
+- 发布：测试实例 `20260917-ip-pos-six-rounds-test1`、生产 `20260917-ip-pos-six-rounds-prod1` 均 `DEPLOY_OK`；同一干净包 `release-20260917-ip-pos-six-rounds.tar.gz`（sha256 `FA98F1B981EA57333C0517BAAD0D68BA99AEFF9E32AA42BEEFECD57D2D1C3E81`），未夹带工作区其他未提交改动。
+- 真机 QA（用户 2026-09-17）：生产真实账号走完 6 步访谈 → 确认卡 → 8 章完整全案，0 报错，单次消耗 400 积分，会话持久化正常。线上 bundle 已无「4 步 / 一次引导提问 / IP 定位七步法」，新文案「角色适配 / 竞争格局 / IP 现状与能力 / 5 轮」命中。
+- 残余（低优先级，不阻塞上线）：
+  1. P2：低积分触发 402 时，文案同时出现「本次不消耗积分」和「当前积分不足」，语义矛盾。
+  2. P3：开场白写「5 轮」，但 UI 实际是 6 步（前置角色适配 + 5 轮），计数口径需要统一。
 
 ## QA-20260917-004：磁盘水位告警整夜/整天每小时重复推送（用户 2026-09-17 反馈「夜间不用一小时一推送」+「同一告警重复抑制为每 4–6 小时一条」，P3 打扰，已修 + 已上生产）
 

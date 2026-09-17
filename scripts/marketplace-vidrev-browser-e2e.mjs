@@ -285,7 +285,9 @@ async function checkVidrevChat(cdp, token) {
       medianBars: document.querySelectorAll('.vrv-bars .vrv-bar.median').length,
       candidates: document.querySelectorAll('.vrv-candidates .vrv-candidate').length,
       queueButtons: [...document.querySelectorAll('.vrv-candidates button')].filter((node) => node.textContent?.includes('加入选题池')).length,
-      csvDisabled: [...document.querySelectorAll('.vrv-export button')].find((node) => node.textContent?.includes('CSV'))?.disabled ?? null,
+      // 用户 2026-09-17：报告卡片里不再有 Markdown / CSV 导出；唯一下载入口是底部 Word / WPS。
+      cardExportButtons: [...document.querySelectorAll('.vrv-export button')].length,
+      bottomWordButton: document.querySelector('.chat-page-composer .btn.ghost.block')?.textContent?.trim() ?? null,
       hasRawDetails: Boolean(document.querySelector('details.vrv-raw')),
       auditFirst: heads[0] ?? "",
       costText: document.querySelector('.chat-page-cost')?.textContent?.trim() ?? null,
@@ -303,13 +305,23 @@ async function checkVidrevChat(cdp, token) {
   assert.ok(report.medianBars >= 1, `中位数柱状图缺失（应 ≥1 根），实际 ${report.medianBars}`);
   assert.ok(report.candidates >= 2, `候选选题应 ≥2 条，实际 ${report.candidates}`);
   assert.ok(report.queueButtons >= 2, `候选选题都应带「加入选题池」，实际 ${report.queueButtons}`);
-  assert.equal(report.csvDisabled, false, "深度复盘应可导出 CSV 明细（按钮不应禁用）");
-  assert.deepEqual(
-    report.exportButtons.map((text) => text.replace(/\s+/g, " ")),
-    ["⬇ 导出 Markdown", "⬇ 导出 CSV 明细"],
-    `导出区按钮不符：${JSON.stringify(report.exportButtons)}`
+  /**
+   * 用户 2026-09-17 最终口径：「这个下载应该下载 word 或者 wps 吧，csv 格式应该没法展示这么多内容
+   * 输出吧」+「下方有下载精美 word，所以这里的输出不用再说输出 markdown 和 csv，也不需要展开
+   * markdown 原文」——报告卡片里**不再有任何导出按钮 / 原文折叠**，唯一下载入口是底部那颗绿色
+   * Word / WPS 按钮（「下载精美 Word / WPS 报告」）。
+   */
+  assert.equal(
+    report.cardExportButtons,
+    0,
+    `报告卡片里不得再有导出按钮（实际 ${JSON.stringify(report.exportButtons)}）`
   );
-  assert.ok(report.hasRawDetails, "底部应有原文折叠 details.vrv-raw");
+  assert.equal(report.hasRawDetails, false, "报告卡片不得再展开 md 原文（details.vrv-raw）");
+  assert.match(
+    report.bottomWordButton ?? "",
+    /下载精美 Word \/ WPS 报告/,
+    `底部必须有唯一的 Word / WPS 下载入口，实际 ${report.bottomWordButton}`
+  );
   assert.match(report.costText ?? "", /60 积分/, `本次消耗应显示 60 积分，实际 ${report.costText}`);
   assert.equal(report.overflow, 0, "1280px 视频复盘结果页出现横向溢出");
 

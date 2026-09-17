@@ -2,10 +2,12 @@
 // 契约：CODEX-视频复盘智能体-样例输出.md §七 ——
 // 第零章审计置顶且不可折叠、四象限 2×2 可点击筛选、第三章横向堆叠条（悬停看均播/互动率/完播率）、
 // 第五章分桶与第七章周趋势柱状图同时画均值+中位数、¥ 与百分比两位小数、null 显示「数据缺失」、
-// 第十章候选选题可一键带入选题智能体、支持导出 Markdown / CSV、移动端图表横滚且表格前三列固定。
+// 第十章候选选题可一键带入选题智能体、移动端图表横滚且表格前三列固定。
+// 下载口径（用户 2026-09-17）：「下方有下载精美 word，所以这里的输出不用再说输出 markdown 和 csv，
+// 也不需要展开 markdown 原文」——报告卡片里不再有任何导出按钮与原文折叠，唯一下载入口是
+// 对话页底部那颗「⬇ 下载精美 Word / WPS 报告」。
 import { useState } from "react";
 import { getAppPath } from "../lib/api.js";
-import { downloadTextFile } from "./ip-pos-report.js";
 
 const MISSING = "数据缺失";
 /** 选中候选选题跳转时写进 sessionStorage，由选题智能体对话页读取（一次性）。 */
@@ -321,32 +323,15 @@ export function vidrevCsv(videos: VidrevVideoRow[]): string {
 export function VidrevReport({
   payload,
   renderMarkdown,
-  topicSkuCode,
-  reportTitle
+  topicSkuCode
 }: {
   payload: VidrevPayload;
   renderMarkdown: (markdown: string) => string;
   /** 同专区「选题」智能体的 skuCode；点「加入选题池」时带着候选选题跳过去。 */
   topicSkuCode?: string | null;
-  reportTitle?: string;
 }) {
   const [quadrant, setQuadrant] = useState<string | null>(null);
   const [queued, setQueued] = useState<string | null>(null);
-
-  const fileStem = (reportTitle ?? "短视频复盘报告").replace(/[\\/:*?"<>|\s]+/g, "-");
-
-  function exportMarkdown() {
-    downloadTextFile(`${fileStem}.md`, payload.report_markdown ?? "");
-  }
-
-  function exportCsv() {
-    const videos = payload.mode === "deep" ? payload.videos ?? [] : [];
-    if (videos.length === 0) {
-      window.alert("本次没有可导出的明细数据（快速诊断不含后台数据）。补齐后台数据升级为深度复盘后可导出 CSV。");
-      return;
-    }
-    downloadTextFile(`${fileStem}.csv`, vidrevCsv(videos));
-  }
 
   /** §七.6：候选选题带标题+来源跳选题智能体（写一次性 prefill，由对话页带入该轮问题）。 */
   function queueTopic(title: string, reason: string) {
@@ -364,13 +349,17 @@ export function VidrevReport({
     }
   }
 
-  const exportBar = (
+  /**
+   * 用户 2026-09-17 口径：「下方有下载精美 word，所以这里的输出不用再说输出 markdown 和 csv，
+   * 也不需要展开 markdown 原文」——报告卡片的下载入口只保留模板底部那颗 Word / WPS 按钮，
+   * 这里不再放 Markdown / CSV 导出，也不再展开 md 原文（那两种格式装不下整篇报告，只会让人误解）。
+   * 只留下「已带入选题池」这一句操作反馈。
+   */
+  const exportBar = queued ? (
     <div className="vrv-export">
-      <button className="btn ghost sm" onClick={exportMarkdown}>⬇ 导出 Markdown</button>
-      <button className="btn ghost sm" onClick={exportCsv} disabled={payload.mode !== "deep" || (payload.videos ?? []).length === 0}>⬇ 导出 CSV 明细</button>
-      {queued ? <span className="vrv-queued">✓ 已带入选题池：{queued}</span> : null}
+      <span className="vrv-queued">✓ 已带入选题池：{queued}</span>
     </div>
-  );
+  ) : null;
 
   if (payload.mode === "quick") {
     return (
@@ -759,11 +748,6 @@ export function VidrevReport({
       </div>
 
       {exportBar}
-
-      <details className="vrv-raw">
-        <summary>查看报告 Markdown 原文</summary>
-        <div className="md-rich" style={{ color: "var(--text)", fontSize: 13.5, lineHeight: 1.75 }} dangerouslySetInnerHTML={{ __html: renderMarkdown(payload.report_markdown ?? "") }} />
-      </details>
     </div>
   );
 }
