@@ -1,5 +1,33 @@
 # 当前部署状态
 
+## 最新发布：20260918-admin-recharges-api-prod1（2026-09-18，仅生产）— 补发 `GET /admin/recharges`：后台「充值明细」从「Route not found」恢复到真实入账流水
+
+用户现场（2026-09-18）：`/os-v2/agents/admin` → 左侧「充值明细」面板里写着 `Route GET:/admin/recharges?limit=50 not found`，表格空白。
+
+根因：不是页面坏了，是**同一条功能的前后端被分两次发布**。`d510cf5`（09-17 18:29）同时加了 web 的 `RechargeSection` 和 api 的 `GET /admin/recharges`；12:18–12:19 的 `20260917-admin-recharge-detail-prod2` 把页面发上了线，`apps/api` 侧没跟着上线（叠加发布「`apps/api`/`packages`/`prisma` 一律不叠加」的口径见下方 chat-restart 一节的发布纪律）→ 线上「有页面、没接口」。本次实测直接证据：生产 `/admin/recharges` **404**、源码树里 grep 不到该路由，而同族 `/admin/customers`、`/admin/ops/summary`、`/admin/invites`、`/market/admin/ledger` 全 **401**（路由在、只缺令牌）。
+
+处置（最小叠加：不动 web、不动其他 api 文件）：把已提交的 `apps/api/src/routes/admin.ts`（HEAD `48a12f2`，sha256 `7f165b8d…`）补到 `/opt/baolu-os-v2/apps/api/src/routes/admin.ts`（替换原 `777075af…`），就地 `pnpm --filter @baolu/api build` 后 `systemctl restart baolu-os-v2`。与现网源码 diff 只有两处：BOM + 充值明细路由（+78/-1 行）；构建产物 `find dist -type f | sha256sum` 对比**只有 `dist/apps/api/src/routes/admin.js` 一个文件变化**，其余逐字节一致。
+
+验收：health=200 / ready=200、`journalctl -u baolu-os-v2 -p err` 近 3 分钟 No entries；接口 `无令牌/错令牌 → 401`、`limit=0` 与 `status=nope → 400`、带管理员令牌 200 → **9 笔**真实充值（`paid` 9/9、合计 **¥1000**、`paidAt` 2026-09-13 ~ 2026-09-17、返回字段无 `raw`/`receipt`/`openid` 类敏感原文）；公网 `https://api.lcppch.top/os-v2/api/admin/recharges?limit=50` 由 404 变 401（路由已存在）。回归：`scripts/production-admin-verification.sh` 新增 `admin_recharge_list` 固定断言。
+
+备份 / 回滚：`/opt/baolu-backups/20260918-admin-recharges-api-before/`（`admin.ts.before` + `api-dist-before.tar.gz` + `dist-hashes-before.txt`）；回滚 = 还原该目录里的 `admin.ts` 与 `apps/api/dist`，再 `systemctl restart baolu-os-v2`。
+
+**补记（同日 07:0x）：又被并行发布盖回去，已重新打回。** 06:48 打好、06:50–06:51 上线的 `20260918-plat47-workbuddy-prod1` 把 `apps/api/src/routes/admin.ts` 从 `7f165b8d…` 换回它包里携带的旧副本 `777075af…`——**锁定证据：该发布的 `app-before.tar.gz` 里这个文件正是 `7f165b8d…`（即发布前线上就是本修复），而发布包里是 `777075af…`**。于是用户刷新后台又看到 404。按同一最小叠加方式重新发布 `20260918-admin-recharges-api-reapply`（备份 `/opt/baolu-backups/20260918-admin-recharges-api-reapply-before/`）：产物依旧只有 `dist/apps/api/src/routes/admin.js` 一个文件变化，health/ready=200、无错误日志、9 笔明细照常返回、生产后台巡检 8 项全绿。
+
+**发布纪律（重要）**：`apps/api/src/routes/admin.ts` 已在 `main`（`d510cf5`），但**不在各发布方的生产基线快照里**——任何按「只叠本次文件 + 其余回灌生产现网版/旧 stage」打包的叠加发布，都会把它回退回旧版（本日已发生一次，属于 QA-20260917-007/008 的同一类）。下一次发布 `apps/api` 时，要么把 `apps/api/src/routes/admin.ts` 明确列进交付清单，要么直接从 `main` 取 `apps/api` 源码打 stage。
+
+残余（P3，本次未改）：明细表「支付方式」列显示 `wechat_pay` 原值——前端 `RECHARGE_METHOD_LABELS` 只映射 `wechat`/`mock`，而库里存的是 `wechat_pay`；9 笔充值 `userPhone` 全为空，该列按设计回落显示用户 ID。
+
+## 最新发布：20260917-vidrev-export-prod1（2026-09-17，仅生产）— 报告卡片不再出现 Markdown / CSV 导出，下载只留 Word / WPS
+
+用户口径（原话）：「这个下载应该下载 word 或者 wps 吧，csv 格式应该没法展示这么多内容输出吧」→ 随后补充「下方有下载精美 word，所以这里的输出不用再说输出 markdown 和 csv，也不需要展开 markdown 原文」。
+
+改动（纯前端 + 门禁）：`apps/web/src/marketplace/vidrev-report.tsx` 删掉报告卡片里的 `导出 Markdown` / `导出 CSV 明细` 两个按钮和 `details.vrv-raw`（查看报告 Markdown 原文）折叠，只保留「已带入选题池」反馈；`AgentChatPage.tsx` 底部那唯一一颗下载按钮文案改为「⬇ 下载精美 Word / WPS 报告 · N 积分」（内容与计费不变，仍是十一章全文 .docx）。**未动计费 / 定价 / 后端**。
+
+发布与验收：`release-20260917-vidrev-export-prod1.tar.gz`（sha256 `cb39f6b7…`）→ **`DEPLOY_OK`**（health/ready 200，无待应用迁移）、`verify-deploy.sh` **VERIFY_OK**、`journalctl -p err` 近 5 分钟 No entries；线上真正加载的 chunk（`index-jH_RCoa0.js` → `MarketplaceApp-4F-4Q6De.js`）实测：`导出明细 CSV|导出 Markdown` = 0、`查看报告 Markdown 原文` = 0、`下载精美 Word / WPS 报告` = 1。回归：新增 `vidrev:report-export-contract-smoke`（已挂 `qa:fast`），并把 `marketplace-vidrev-browser-e2e.mjs` 里与新口径相反的旧断言（「卡片里必须有 CSV 按钮 / 原文折叠」）同步改掉。
+
+边界：报告卡片里的明细 CSV 入口按用户口径一起下线；若以后需要「导出明细表给 Excel 做二次分析」，应从 Word 报告或「我的-产物」再切一条独立入口，不要再放回报告卡片（避免又让人以为「报告只能导 CSV」）。
+
 ## 最新发布：20260917-vidrev-readable-ids-prod1（2026-09-17，仅生产）— 视频复盘报告改用短编号（修「输出乱码」）+ 平台那一步不再被整句话占位
 
 ### 一、用户现场（同一份视频号文件，第三次反馈）

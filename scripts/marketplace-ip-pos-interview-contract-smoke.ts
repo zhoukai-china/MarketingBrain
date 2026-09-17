@@ -36,7 +36,8 @@ function main(): void {
     `ip-pos 槽位顺序必须是 前置角色适配 + 5 轮，实际：${keys.join(",")}`
   );
 
-  assert.match(ipPosBlock, /5 轮/, "ip-pos welcome 必须明确 5 轮访谈");
+  assert.match(ipPosBlock, /6 步访谈/, "ip-pos welcome 必须按 6 步访谈推进");
+  assert.match(ipPosBlock, /5 轮/, "ip-pos welcome 必须明确包含 5 轮核心访谈");
   assert.match(ipPosBlock, /项目 → 竞争 → 用户 → 创始人\/目标 → IP 现状/, "ip-pos welcome 必须写出五轮顺序");
   assert.doesNotMatch(ipPosBlock, /IP 定位七步法/, "ip-pos welcome 不得再写与槽位不一致的七步法");
 

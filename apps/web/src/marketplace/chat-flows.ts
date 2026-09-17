@@ -16,7 +16,7 @@ export interface ChatFlow {
 export const CHAT_FLOWS: Record<string, ChatFlow> = {
   "ip-pos": {
     name: "IP 定位",
-    welcome: "你好，我是思潼 · IP 定位智能体。我会先确认你的身份，再按 IP 定位标准访谈走 5 轮：项目 → 竞争 → 用户 → 创始人/目标 → IP 现状，每轮只问一个维度，最后产出完整 IP 定位全案。",
+    welcome: "你好，我是思潼 · IP 定位智能体。我会按 6 步访谈推进：先确认身份，再走 5 轮（项目 → 竞争 → 用户 → 创始人/目标 → IP 现状），每轮只问一个维度，最后产出完整 IP 定位全案。",
     slots: [
       {
         key: "role",

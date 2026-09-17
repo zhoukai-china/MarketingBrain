@@ -442,7 +442,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
             role: "ai",
             text:
               `${payload.message ?? "当前积分不足，请先充值后再使用。"}` +
-              `（本次**不消耗积分**；你填的 ${flow.slots.length} 项已经存在本机，充值回来点「继续生成」即可，**不用重填**。）`,
+              `（本次**未消耗积分**；你填的 ${flow.slots.length} 项已经存在本机，充值回来点「继续生成」即可，**不用重填**。）`,
             action: {
               label: "去充值（回来不用重填）",
               href: getAppPath(`/recharge?from=agent&skill=${encodeURIComponent(runSku.skuCode)}&next=${encodeURIComponent(nextRoute)}`)
