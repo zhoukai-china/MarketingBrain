@@ -84,6 +84,78 @@
 - 红灯→绿灯证据（**证明新增断言不是哑断言**）：临时撤掉那一行 `Cache-Control` → 回归红（`actual: undefined, expected: private, no-store`）→ 恢复 → 绿。绿灯输出：`{"status":"PASS","rounds":3,"exportPrice":10,"chargedExports":2,"idempotentRedownloads":true,"insufficientReturns402":true,"oneTimeLink":true,"providerCalls":0,"externalCalls":0}`。
 - 教训：契约从「会话鉴权」改成「持有令牌即可取件」时，**隔离回归必须换用不含有效令牌的地址**，否则「同事拿不到」这条永远测不到；新契约下「不可缓存」也要覆盖到**所有**取件分支，而不是只有会话分支。
 
+## QA-20260917-002：WorkBuddy 调 `sitong.ask` 稳定报 `insufficient_credits`——MCP 通道读租户级 `CreditAccount`，而用户充值的积分只进用户级 `Wallet`（P1，已修 + 红灯复现 + 门禁）
+
+触发：用户 2026-09-17「workbuddy用不了的问题解决没」。生产只读复核取证：用户 `cmtzaheu905e5ef4mzno13ugz`（租户「杨萋萋」）**`Wallet.paidBalance = 490`，同租户 `CreditAccount.balance = 0`** —— 积分肉眼可见地躺在钱包里，WorkBuddy 却一直说不够。
+
+### 现象与根因
+
+- 现象：用户在货架充值 490 积分后，WorkBuddy MCP 的 `sitong.ask` 持续返回 `insufficient_credits`。
+- 根因（双账本迁移遗留的**扣费侧**缺口）：平台有两套账本 —— 用户级 `Wallet`（货架购买、充值、图片/语音解析走它）与租户级 `CreditAccount`（`/chat`、`/beauty-industry/*`、外部接入走它）。**MCP 通道的预留只读租户 `CreditAccount`**，而充值与货架都只写用户级 `Wallet`。QA-20260910-016 此前只补了「发币侧」，扣费侧没跟上。
+- 连带影响：不只是 WorkBuddy —— 任何经由 MCP / 外部接入通道、但余额只存在于用户钱包的调用都会误报余额不足；反过来，老客户的 `CreditAccount` 余额也不能被作废。
+
+### 最小修复
+
+- `apps/api/src/services/credit-reservations.ts`：MCP 通道预留改为**先扣用户级 `Wallet`**（与货架同源，充值立即可用），`Wallet` 不足时**回落到遗留租户 `CreditAccount`**，两条路只扣其中一条。预留 id 用 `wallet-reservation:<requestId>` 前缀编码，`release` / `settle` / `compensate` 靠前缀把差额退回**当初扣的那个桶**（bonus 优先退，与扣费顺序对称）；重复释放/重放靠 `<预留id>#release|#settle|#compensate` 幂等。
+- `apps/api/src/services/sitong-wallet.ts`：抽出 `refundWalletInTx(tx, ...)`，让 MCP 预留结算与 `AgentRun` / `Message` 落库**在同一个事务**里提交，消掉「跑了没落库、钱已退」与「落了库但差额没退」的半成品态。
+- 未改动：租户账本本身的语义、发放逻辑、货架扣费路径一律不变（老客户既有余额继续可用）。
+
+### 回归（先红灯后绿灯）
+
+- 新增 `scripts/mcp-wallet-ledger-smoke.ts`（`pnpm.cmd mcp:wallet-ledger-smoke`，**已挂进 `qa:regression`**，真实 PostgreSQL，非合成 fixture）。覆盖 6 条：①钱包有钱 / 租户账本为 0 → 预留必须成功且扣钱包；②结算按实际额退回原桶，流水可逐笔核对；③释放全额退回且重复释放幂等；④钱包不足回落租户账本；⑤两边都不足 → 在**调用 Provider 之前**拒绝；⑥跨用户隔离（改 A 的钱包不动 B）。
+- **红证（逐字）**：临时把 `if (params.billing.channel === "mcp") return reserveMcpCredits(params);` 注释掉（= 回退到修复前「只读租户账本」）后重跑 → 稳定复现生产现象：
+  ```
+  InsufficientCreditsError: insufficient_credits
+      at reserveTenantCredits (apps/api/src/services/credit-reservations.ts:124:10)
+      at async main (scripts/mcp-wallet-ledger-smoke.ts:95:23)
+   ELIFECYCLE  Command failed with exit code 1
+  ```
+- **绿证（逐字）**：恢复修复后同一脚本：
+  ```
+  mcp_wallet_ledger_smoke: PASS
+  {"mainWalletAfterSettle":478,"mainWalletAfterRelease":478,"fallbackTenantBalance":70,
+   "settleLedgers":[{"type":"consume","bucket":"paid","delta":-30},{"type":"refund","bucket":"paid","delta":18}]}
+  exitCode=0
+  ```
+  （语义：预留 30 → 实际 12 → 退 18 → 钱包 478；释放路径同样是 478；钱包不够的一幕走租户账本 100 → 70。）
+
+### 边界（本次未闭环）
+
+- `sitong.skills` **只返回 `ceo-cockpit-analyst`** 是**另一个根因**：`WorkbuddyConnection` 只有单个 `agentId`，生产 4 个 active 连接全绑 `agent_ceo_cockpit`，因此能力白名单只暴露一个 Agent。修法需要 `agentIds` 多值 + 迁移 + `resolveWorkbuddyAccess` 汇总 + 对应 UI，**不在本条范围**。
+- 本条只保证「钱扣得对、余额读得对、差额退得对」。生产生效仍需发布（本卡「交接」记录）。
+
+## QA-20260917-001：2026-09-17 计费三改——IP 定位改 400 积分/次、图片放开到全部智能体、文案智能体包月 4000 积分/月（每天 5 条）
+
+触发：用户 2026-09-17 拍板三件事——①「IP 定位改成按次计费 不按消耗量计费了」；②「确定放开 A+图片」；③「文案智能体定：4000 积分/月（每天 5 条）……按单个智能体的逻辑来：有的智能体按次卖、有的按消耗卖、有的同时支持按月订阅（不消耗积分）」。三件都动钱，按 AGENTS.md 属付费错误面（P0/P1），必须红/绿 + 门禁 + 登记。
+
+### ① IP 定位智能体：固定 400 积分/次（退出成本口径）
+
+- 口径冲突已由用户裁决：9-15 的「按真实成本计价、不加封顶」被本次「按次固定价」取代，`ipzone__ip-pos` 在 `apps/api/src/data/marketplace-v3.json` 的 `ppu` 为 **400**，并从 `BILLING_COST_BASED_SKUS` 的成本口径白名单中排除后再上线（成本口径仍适用于其余白名单 SKU）。
+- 回归：`scripts/marketplace-api-smoke.ts`（统一钱包 1000 → 600，恰好扣 400）、`scripts/marketplace-ip-pos-run-smoke.ts`（真实运行只扣一次 400、账本恰好一条、租户隔离）、`pnpm.cmd billing:cost-model-smoke`。
+
+### ② 图片（A + 图片）放开到全部智能体：文件入口真解析，10 积分/次
+
+- 现象（修复前）：四个入口（文件 / 视频 / 语音 / 增强提示词）里，图片虽然在可选类型中，但**只记文件名、不真解析**——用户传了产品图或后台截图，模型拿到的却是一行文件名。
+- 最小修复：`apps/web/src/marketplace/AgentChatPage.tsx` 的文件选择 `accept` 增加 `.webp,.gif,.bmp`，新增 `IMAGE_ATTACHMENT_PATTERN` / `parseImageAttachment()`，图片分支走平台受登录保护、带计费预留/结算的 `/media/analyze`（qwen-vl）视觉通道；界面上写明「10 积分/次、解析失败不扣积分」。
+- 后端 `/media/analyze` 与「先预留 → 按实际结算 → 差额退回」链路（PLAT-41）已具备，本次不改后端计费。
+- 回归：`pnpm.cmd typecheck`（7/7 包）、`pnpm.cmd qa:fast`、以及 PLAT-41 既有门禁 `credit:charge-smoke`、`plat33:voice-transcribe-admission-smoke`；余额不足在**调用 Provider 之前** 402，因此解析失败/余额不足都不会产生扣费。
+
+### ③ 文案智能体包月：4000 积分/月、每天 5 条，订阅期内不再扣积分
+
+- 现象（修复前）：生产上**所有 SKU 的包月价都是空的**（等于包月从来没上架）；`database` 模式下扣费链路也没有「有订阅就不扣积分」的逻辑；代码里还残留 `¥298 / 每天 10 条` 的旧人民币口径（已作废）。
+- 根因（两处，缺一不可）：① `ensureMarketplaceCatalog()` 的 `update` 分支把 `subscriptionPriceCny: null`、`subscriptionQuota: null` 写死，文件里改了价也同步不进库；② `/market/skus/:skuId/run` 只认「余额 − 定价」，完全没有订阅覆盖概念。
+- 最小修复（可分层回滚）：
+  1. `MarketplaceSku` 增 `subscriptionCredits`（积分口径包月价）/ `subscriptionDailyQuota`（每日条数快照），`MarketplaceSubscription` 增 `credits` / `dailyQuota`；迁移 `202609170001_marketplace_subscription_credits`（纯加列）。
+  2. `marketplace-v3.json` 的 `skills.copy.sub = { credits: 4000, dailyQuota: 5, quota: "每天 5 条文案" }`；`ensureMarketplaceCatalog()` 不再把包月字段写死为 null。
+  3. `/market/subscriptions`：`database` 模式且 `subscriptionCredits > 0` 时走**积分口径订阅**——扣 4000、写一条 `subscription_charge` 账本、冻结本期 `dailyQuota` 快照；**已订阅直接返回 `alreadySubscribed`，不重复扣分**。
+  4. `/market/skus/:skuId/run`：先算「今天用了几次」（按 `refType = marketplace_subscription_usage` 且 `createdAt ≥ 上海时区当天 0 点` 计数）；订阅覆盖时 `charge = 0` 且**不调用钱包**；额度用尽返回 **409 `marketplace_subscription_quota_exhausted`**，**绝不静默改成扣积分**；余额预检在订阅覆盖时跳过（余额 0 也能用完已买的额度）。
+  5. 网页端 `AgentChatPage.tsx`：拉 `/market/skus/:id/access`，确认前就写清「本次生成不扣积分 / 今天还剩 N 条」，未订阅给「按次 / 包月」二选一按钮，交付后顶栏显示「本次由包月覆盖 · 不扣积分」，额度用尽有独立文案，重复订阅明说「没有重复扣积分」。
+- 回归（先红灯后绿灯）：新增 `scripts/marketplace-subscription-smoke.ts`（`pnpm.cmd marketplace:subscription-smoke`，已挂进 `qa:regression`，真实路由 + 真实数据库 + 一次真实模型运行）。
+  - **红证（逐字）**：临时把扣费改回旧算法 `const charge = costBased ? dynamicCredits : price;` 后重跑 → 真实模型返回 200、`[FAIL] 订阅期内运行扣 0 积分（实际 40）`、`[FAIL] 路由：订阅覆盖时 charge 固定为 0`，`2 项包月计费断言失败`（`exitCode=1`）。恢复修复后同一脚本 **全部 PASS**，其中 `[PASS] 订阅期内运行扣 0 积分（实际 0）`、`[PASS] 结算口径 pricingMode=subscription`、`[PASS] 订阅期内运行不改余额（期望 1000，实际 1000）`、`[PASS] 包月覆盖的这次交付写了一条 0 积分用量账本`，末行 `PASS: 包月订阅计费回归全部通过`。
+  - 覆盖的「不应发生」：重复点订阅不重复扣分（余额不变、订阅行仍 1 条）、额度用尽被拒时余额分文不动、其他租户看不到也吃不到这份订阅（`marketplaceSubscription` 计数 0）。
+- 边界：本次只给**文案智能体**上包月；其余 SKU `subscriptionCredits` 为空 = 仍按次/按消耗，界面不显示包月报价。旧人民币口径包月（`subscriptionPriceCny`）保留字段但继续不用（`mock-pay` 在生产 404）。
+- 状态（2026-09-17）：代码 + 迁移 + 回归已就绪，本地全绿；迁移 `202609170001_marketplace_subscription_credits` 需在生产/测试库 `prisma migrate deploy` 后生效。
+
 ## QA-20260916-010：「我的 - 历史交付物 - 下载 Word」点了没反应——请求头里同一份 content-type 写了两遍被浏览器合并，服务端 415（P1，已修 + 真机红/绿 + 门禁）
 
 - 触发：2026-09-16 用户现场「我的-产物里-点击下载 word 下载不了」。

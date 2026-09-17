@@ -79,7 +79,7 @@ async function main(): Promise<void> {
     const walletBody = walletRes.json() as { paidBalance: number; bonusBalance: number; balance: number };
     assert(walletBody.paidBalance === 2000 && walletBody.bonusBalance === 200 && walletBody.balance === 2200, "wallet returns split buckets");
 
-    // 3) precheck：服务端定价 ip-pos = 200
+    // 3) precheck：服务端定价 ip-pos = 400（2026-09-17 用户拍板：IP 定位改按次固定价）
     const precheck = await app.inject({
       method: "POST",
       url: "/billing/precheck",
@@ -88,7 +88,7 @@ async function main(): Promise<void> {
     });
     assert(precheck.statusCode === 200, "precheck returns 200");
     const precheckBody = precheck.json() as { allowed: boolean; price: number; balance: number };
-    assert(precheckBody.allowed === true && precheckBody.price === 200 && precheckBody.balance === 2200, "precheck uses server price");
+    assert(precheckBody.allowed === true && precheckBody.price === 400 && precheckBody.balance === 2200, "precheck uses server price");
 
     // 4) consume moments 20：先扣 paid
     const consume = await app.inject({
@@ -154,21 +154,30 @@ async function main(): Promise<void> {
     const insuffBody = insufficient.json() as { rechargeUrl: string; required: number };
     assert(insuffBody.required === 60 && insuffBody.rechargeUrl.includes("/recharge"), "402 carries recharge URL");
 
-    // 7) 免费重做限 1 次
+    /**
+     * 7) 免费重做已下线（用户 2026-09-15 拍板「取消智能体的免费重做」，提交 97ca6c9）。
+     * 这条断言原为「第 1 次免费重做放行、第 2 次拒绝」，实现改成 409 后没同步，
+     * 属于**既有失败**（与本轮 IP 定位 400 改动无关）：这里钉住现行契约，避免再次漂移。
+     */
     const redo1 = await app.inject({
       method: "POST",
       url: "/billing/redo",
       headers: tokenHeaders,
       payload: { skill: "ipzone__moments", requestId: "req-wallet-00000001" }
     });
-    assert(redo1.statusCode === 200 && (redo1.json() as { ok: boolean }).ok === true, "first redo allowed");
+    assert(redo1.statusCode === 409, "free redo is removed (409)");
+    assert(
+      (redo1.json() as { error: string; creditCost: number }).error === "billing_free_redo_removed"
+        && (redo1.json() as { creditCost: number }).creditCost === 0,
+      "removed redo must not cost credits"
+    );
     const redo2 = await app.inject({
       method: "POST",
       url: "/billing/redo",
       headers: tokenHeaders,
       payload: { skill: "ipzone__moments", requestId: "req-wallet-00000001" }
     });
-    assert((redo2.json() as { ok: boolean }).ok === false, "second redo rejected");
+    assert(redo2.statusCode === 409, "repeat redo also rejected");
 
     console.log("PASS sitong-wallet-db-smoke");
   } finally {

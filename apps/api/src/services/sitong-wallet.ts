@@ -421,53 +421,75 @@ export async function refundWalletCredits(params: {
   /** 显式客户端（离线回归用）；缺省 = 进程级 prisma 单例。 */
   db?: WalletDb;
 }): Promise<{ refunded: number; idempotent: boolean; wallet: WalletSnapshot }> {
+  const db = params.db ?? prisma;
+  return await withWalletTransaction(db, (tx) => refundWalletInTx(tx, params), {
+    isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+  });
+}
+
+/**
+ * `refundWalletCredits` 的事务版本（PLAT-46）。
+ *
+ * WorkBuddy / MCP 通道的预留结算必须与 `AgentRun` / `Message` 的写入在**同一个事务**里提交，
+ * 否则会出现「跑了但没落库、钱已退」或「落了库但差额没退」的半成品态。调用方已经开了事务时，
+ * 不能再嵌套一个 `prisma.$transaction`，所以把纯逻辑抽出来复用。
+ */
+export async function refundWalletInTx(
+  tx: WalletDb,
+  params: {
+    userId: string;
+    requestId: string;
+    /** 退款拆分：与预留时 `spent` 同形（paid / bonus 各退多少）。 */
+    breakdown: { paid: number; bonus: number };
+    skillId?: string;
+    source?: string;
+    reason?: string;
+  }
+): Promise<{ refunded: number; idempotent: boolean; wallet: WalletSnapshot }> {
   const paidRefund = Math.max(0, Math.round(params.breakdown.paid));
   const bonusRefund = Math.max(0, Math.round(params.breakdown.bonus));
   const source = params.source ?? "web";
   const reason = (params.reason ?? "reserve_settlement").slice(0, 60);
-  const db = params.db ?? prisma;
-  return await withWalletTransaction(db, async (tx) => {
-    const wallet = await getOrCreateWallet(params.userId, tx);
-    const existing = await tx.walletLedger.findFirst({
-      where: { walletId: wallet.id, refRequestId: params.requestId, type: "refund" },
-      orderBy: { createdAt: "asc" },
-      take: 1
+  const wallet = await getOrCreateWallet(params.userId, tx);
+  const existing = await tx.walletLedger.findFirst({
+    where: { walletId: wallet.id, refRequestId: params.requestId, type: "refund" },
+    orderBy: { createdAt: "asc" },
+    take: 1
+  });
+  if (existing) {
+    return { refunded: 0, idempotent: true, wallet: await snapshotFromTx(wallet.id, tx) };
+  }
+  if (paidRefund > 0) {
+    await tx.wallet.update({ where: { id: wallet.id }, data: { paidBalance: { increment: paidRefund } } });
+    await tx.walletLedger.create({
+      data: {
+        walletId: wallet.id,
+        userId: params.userId,
+        delta: paidRefund,
+        bucket: "paid",
+        type: "refund",
+        refRequestId: params.requestId,
+        skillId: params.skillId,
+        source: `${source}:${reason}`
+      }
     });
-    if (existing) {
-      return { refunded: 0, idempotent: true, wallet: await snapshotFromTx(wallet.id, tx) };
-    }
-    if (paidRefund > 0) {
-      await tx.wallet.update({ where: { id: wallet.id }, data: { paidBalance: { increment: paidRefund } } });
-      await tx.walletLedger.create({
-        data: {
-          walletId: wallet.id,
-          userId: params.userId,
-          delta: paidRefund,
-          bucket: "paid",
-          type: "refund",
-          refRequestId: params.requestId,
-          skillId: params.skillId,
-          source: `${source}:${reason}`
-        }
-      });
-    }
-    if (bonusRefund > 0) {
-      await tx.wallet.update({ where: { id: wallet.id }, data: { bonusBalance: { increment: bonusRefund } } });
-      await tx.walletLedger.create({
-        data: {
-          walletId: wallet.id,
-          userId: params.userId,
-          delta: bonusRefund,
-          bucket: "bonus",
-          type: "refund",
-          refRequestId: params.requestId,
-          skillId: params.skillId,
-          source: `${source}:${reason}`
-        }
-      });
-    }
-    return { refunded: paidRefund + bonusRefund, idempotent: false, wallet: await snapshotFromTx(wallet.id, tx) };
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+  if (bonusRefund > 0) {
+    await tx.wallet.update({ where: { id: wallet.id }, data: { bonusBalance: { increment: bonusRefund } } });
+    await tx.walletLedger.create({
+      data: {
+        walletId: wallet.id,
+        userId: params.userId,
+        delta: bonusRefund,
+        bucket: "bonus",
+        type: "refund",
+        refRequestId: params.requestId,
+        skillId: params.skillId,
+        source: `${source}:${reason}`
+      }
+    });
+  }
+  return { refunded: paidRefund + bonusRefund, idempotent: false, wallet: await snapshotFromTx(wallet.id, tx) };
 }
 
 /**
