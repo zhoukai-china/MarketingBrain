@@ -5,10 +5,10 @@
 #   /opt/baolu-ops/prune-stage.sh                 发布暂存超 24h 回收    （每小时 :17）
 #   /opt/baolu-ops/prune-uploads-retention.sh     客户上传满 180 天清理   （每天 03:40）
 #   /opt/baolu-ops/purge-legacy-artifacts.sh      一次性过期垃圾清理      （手动跑，不挂定时）
+#   /opt/baolu-ops/disk-alert.sh                  磁盘水位告警            （每小时；夜间 23:00-07:00 只推紧急级）
 #   /etc/systemd/system/baolu-stage-prune.timer
 #   /etc/systemd/system/baolu-uploads-retention.timer
-#
-# 已在服务器上常驻的 baolu-disk-alert.timer（每小时磁盘水位告警）保持不动。
+#   /etc/systemd/system/baolu-disk-alert.timer
 #
 # 用法（在服务器上，从有这个仓库文件的位置跑）：
 #   bash scripts/ops/install-storage-retention.sh                    # 默认 SRC_DIR=脚本所在仓库根
@@ -35,12 +35,15 @@ SCRIPTS=(
   "prune-stage.sh"
   "prune-uploads-retention.sh"
   "purge-legacy-artifacts.sh"
+  "disk-alert.sh"
 )
 UNITS=(
   "baolu-stage-prune.service"
   "baolu-stage-prune.timer"
   "baolu-uploads-retention.service"
   "baolu-uploads-retention.timer"
+  "baolu-disk-alert.service"
+  "baolu-disk-alert.timer"
 )
 
 require_root
@@ -57,7 +60,7 @@ done
 [ "$missing" = "0" ] || { echo "源文件不完整，未做任何改动" >&2; exit 1; }
 
 if [ "$DRY_RUN" = "1" ]; then
-  echo "DRY_RUN=1：将把上述 ${#SCRIPTS[@]} 个脚本装到 $OPS_DIR，${#UNITS[@]} 个 unit 装到 $SYSTEMD_DIR，并 enable --now 两个 timer。"
+  echo "DRY_RUN=1：将把上述 ${#SCRIPTS[@]} 个脚本装到 $OPS_DIR，${#UNITS[@]} 个 unit 装到 $SYSTEMD_DIR，并 enable --now 三个 timer。"
   exit 0
 fi
 
@@ -89,7 +92,7 @@ bash "$OPS_DIR/prune-uploads-retention.sh"
 bash "$OPS_DIR/purge-legacy-artifacts.sh"
 
 echo "== 5. 启用定时任务 =="
-systemctl enable --now baolu-stage-prune.timer baolu-uploads-retention.timer
+systemctl enable --now baolu-stage-prune.timer baolu-uploads-retention.timer baolu-disk-alert.timer
 
 echo "== 6. 立即各跑一次（真删）=="
 systemctl start baolu-stage-prune.service

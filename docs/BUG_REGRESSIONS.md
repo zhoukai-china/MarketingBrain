@@ -2,6 +2,22 @@
 
 - 编号说明（2026-09-16 合并 `main` 后统一）：LQ-34 侧并发登记的条目顺延为 **-012 导出一次性直链 / -013 邀请活动门禁 / -014 导出仓 `.env` / -015 Windows worktree CRLF**；`-006` 本机草稿指纹条目以 main 编号为准（LQ-34 侧曾记为 `-010`，合并时去重）。
 
+## QA-20260917-004：磁盘水位告警夜间整夜每小时重复推送（用户 2026-09-17 反馈「夜间不用一小时一推送」，P3 打扰，已修 + 已上生产）
+
+- 触发：用户 2026-09-17 06:47 发来「思潼系统告警」群截图，问「夜间不用一小时一推送」——群里 05:00、06:00 两条内容完全相同的磁盘告警（`可用 7.6G ≤ 8G`）。
+- 取证（只读）：`journalctl -u baolu-disk-alert.service --since '30 hours ago'` 显示 `OnCalendar=hourly` 每小时都跑，越线后每小时都 `alert sent`（当天 09:00/10:00/11:00/12:00 同样各一条，可用空间 7.2G→6.8G→6.8G→6.9G）。服务器时区 `Asia/Shanghai`，`/opt/baolu-ops/disk-alert.sh` 与仓库版本 sha256 一致（`2698d7f3…`）。
+- 根因：**水位越线是持续状态，脚本没有「说过一次就安静」的概念**——`scripts/ops/disk-alert.sh`（2026-09-15 QA-20260915-001 上线）每次运行都重新判定「越线就 curl 推一条」，于是同一条内容整夜重复打扰。缺的不是检测，是**推送节流**。
+- 修复（最小、可回滚，只改 `scripts/ops/disk-alert.sh` 一个文件）：
+  1. **夜间静默** `QUIET_HOURS`（默认 `23-7`，支持跨零点）：窗口内常规越线**只写 journal 不推送**，07:00 起恢复；
+  2. **紧急线保留推送** `CRIT_FREE_GB`（默认 **5G**，与发布脚本「可用 <5G 拒绝发布」同一条线）：夜间也照推，文案升级为「磁盘紧急告警」——防止夜里真写满而没人知道（那就是 QA-20260915-001 的 P0）；
+  3. **检查频率不变**：`baolu-disk-alert.timer` 仍每小时跑，静默只影响「推不推」；`QUIET_HOURS=off` 一键回到旧行为。
+- 回归（新增、可重复跑）：`scripts/ops/disk-alert-smoke.sh` —— 假 `df` + 假 `curl`（只写日志文件）、webhook 指向 `example.invalid`，**不联网、不真发告警**，用 `NOW_HOUR` 模拟任意小时。**52/52 PASS**，覆盖：未越线白天/夜里都安静（rc=0）；白天越线照推（rc=2）；23:00 / 03:00 / 06:00 静默不推；22:00 与 07:00 边界照推；夜间紧急（4.5G、以及 5.0G 边界）照推且文案含「磁盘紧急告警」；5.1G 不升级（静默）；`QUIET_HOURS=off` / 自定义窗口 `1-5` / 非法值 `abc`（按不静默处理并告警）；`--dry-run` 永不发送；未配置 webhook 只写 journal 不崩。
+- 真机验证（2026-09-17 12:2x CST 生产，**非本地**）：`NOW_HOUR=3 /opt/baolu-ops/disk-alert.sh --dry-run` → `QUIET: 夜间（23:00-7:00）静默常规水位告警，本次不推送`；`NOW_HOUR=6` 同；`NOW_HOUR=7` → `DRY-RUN: 只判定不发送`。端到端再用**临时 drop-in**（`Environment=NOW_HOUR=3` + webhook 指向本地端口）`systemctl start baolu-disk-alert.service`：journal 只有 `now=3h quiet=1` 与 QUIET 行，**既没有 `alert sent` 也没有 `alert webhook failed`＝根本没发起 HTTP**；把同一份 drop-in 改成 `NOW_HOUR=7` 再跑 → 出现 `alert sent`（白天确实照推）。测试 drop-in 与临时接收单元已删除，`systemctl cat` 复核生产 unit 无测试变量残留。
+- 发布与回滚：脚本覆盖 `/opt/baolu-ops/disk-alert.sh`（旧版备份 `disk-alert.sh.bak-20260917-quiet`，2519B），单元同步 `/etc/systemd/system/baolu-disk-alert.{service,timer}`（旧版 `.bak-20260917-quiet`）并 `daemon-reload` + `restart baolu-disk-alert.timer`（`enabled`、下一次 13:00）；**仓库与服务器脚本 sha256 一致 `b9b73319…`**。回滚 = 还原三个 `.bak-*` 文件 + `systemctl daemon-reload`。
+- 顺带（不改行为）：`baolu-disk-alert.service/.timer` **首次纳入仓库** `scripts/ops/systemd/`（此前只存在于服务器，不可评审），`install-storage-retention.sh` 一并同步这三个 timer（幂等）；`DRY_RUN=1` 演练 PASS（4 个脚本 / 6 个 unit），`pnpm.cmd lint:structure` PASS。
+- 边界与残余（如实说）：夜间常规越线**完全不推**，最早要等次日 07:00 那次检查——若希望「夜里只推一条」，需要再加状态文件做一次性提醒，属后续需求；**白天仍是每小时提醒**（用户只要求改夜间），要降低白天频率可用 `QUIET_HOURS` 之外的重复抑制，也属后续需求。当前生产可用空间 ≈6.7G（76%），已在告警线内但未到 5G 紧急线。
+- 关联：`docs/STORAGE_RETENTION.md` 一节（口径与改法）、`docs/CURRENT_DEPLOYMENT_STATUS.md` 同日条目；上游事件 QA-20260915-001（磁盘写满 P0）。
+
 ## QA-20260917-003：用户打开 `/agent/ipzone__copy` 看不到「文案包月」——包月入口只做在对话页的确认面板里，详情页一个字都没有（P1 体验断链，已修 + 已上生产）
 
 - 现象（用户 2026-09-17 二次反馈，生产真机可复现）：`https://api.lcppch.top/os-v2/agent/ipzone__copy` 页面上没有任何包月字样；用户原话「这个网址下并没有文案包月功能」。

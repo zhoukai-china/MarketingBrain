@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Baolu disk watermark alert hourly
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+Unit=baolu-disk-alert.service
+
+[Install]
+WantedBy=timers.target

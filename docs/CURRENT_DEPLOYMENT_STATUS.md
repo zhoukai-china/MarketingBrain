@@ -1,5 +1,11 @@
 # 当前部署状态
 
+## 运维改动：磁盘告警夜间不再每小时推送（2026-09-17，生产常驻任务，非发布）
+
+用户 2026-09-17 06:47 发来「思潼系统告警」群截图（05:00、06:00 两条同内容磁盘告警），要求「夜间不用一小时一推送」。根因是水位越线属**持续状态**，而告警脚本按小时重复推送。改动只在一个文件：`scripts/ops/disk-alert.sh` 新增**夜间静默**（默认 23:00–07:00，窗口内常规越线只写 journal）与**紧急线**（可用 ≤5G＝发布脚本拒绝发布的同一条线，夜间照推并升级为「磁盘紧急告警」）；**检查频率仍是每小时**（`baolu-disk-alert.timer` 未改），`QUIET_HOURS=off` 可回到旧行为。
+
+生产落地：`/opt/baolu-ops/disk-alert.sh`（备份 `.bak-20260917-quiet`）+ `/etc/systemd/system/baolu-disk-alert.{service,timer}`（备份同名 `.bak-20260917-quiet`，service 新增 `Environment=TZ=Asia/Shanghai`），`daemon-reload` + `restart baolu-disk-alert.timer`（`enabled`，下一次 13:00）；仓库与服务器脚本 sha256 一致 `b9b73319…`。本次同时把这两个 unit **首次纳入仓库** `scripts/ops/systemd/` 并由 `install-storage-retention.sh` 一并同步（幂等）。回归 `scripts/ops/disk-alert-smoke.sh` **52/52 PASS**（离线，假 df/假 curl）；真机端到端：`NOW_HOUR=3` 起服务只有 QUIET、**零 HTTP 请求**，`NOW_HOUR=7` → `alert sent`。完整证据见 `docs/BUG_REGRESSIONS.md` **QA-20260917-004**。
+
 ## 最新发布：20260917-plat48-copy-monthly-detail（2026-09-17，仅生产）— 修「`/agent/ipzone__copy` 上看不到文案包月」（P1 体验断链）
 
 ### 一、用户现场问题

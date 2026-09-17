@@ -15,10 +15,21 @@
 | 发布包临时副本 | `/tmp/release-*.tar.gz` | **24 小时** | 同上（`scripts/ops/prune-stage.sh`） | 每小时 `:17` |
 | 客户上传（图片 / 文档 / 数据表） | `/opt/baolu-os-v2/uploads`、`/opt/baolu-os-v2-test/uploads` | **180 天** | **新增** `scripts/ops/prune-uploads-retention.sh` | 每天 `03:40` |
 | 视频复刻暂存（用户拍板 24 小时） | `uploads/.beauty-video-results`、`uploads/lanqi-media/staging` | **24 小时** | `scripts/bs-video-retention.sh`（已有） | 每小时 |
-| 磁盘水位告警 | 整盘 | 使用率 ≥85% 或可用 ≤8G 报警 | `scripts/ops/disk-alert.sh`（已有） | 每小时 |
+| 磁盘水位告警 | 整盘 | 使用率 ≥85% 或可用 ≤8G 报警；**夜间 23:00–07:00 只推「可用 ≤5G」紧急级** | `scripts/ops/disk-alert.sh`（已有） | 每小时检查（夜间常规告警静默） |
 | **已付费交付物**（智能体输入 + 交付正文） | 数据库 `MarketplaceDeliverable` | **7 天**（用户 2026-09-16 拍板） | 读取路径顺带清理（`GET /market/me/deliverables`） | 每次读取 |
 
 一句话口径：**能重建的产物按小时/天清，客户上传按 180 天清，回滚快照永远保留一档（8 份）。**
+
+### 磁盘告警为什么夜间要静默（2026-09-17）
+
+水位越线是**持续状态**，不是一次性事件：只要没清理，下一小时还是越线。原来一小时一条，夜里会整夜
+重复推送同一条内容（用户 06:47 收到的 05:00 / 06:00 两条即是）。现在：
+
+- **检查照旧每小时**（`baolu-disk-alert.timer` 未改）——静默只决定「推不推」，不影响「查没查」；
+- **夜间窗口**（默认 23:00–07:00，本地时间）常规越线**只写 journal**，次日 07:00 起恢复推送；
+- **紧急线照推**：可用 ≤ **5G**（与发布脚本「可用 <5G 拒绝发布」同一条线）时，夜间也立刻推送，
+  文案升级为「磁盘紧急告警」，避免夜里真写满而没人知道；
+- `QUIET_HOURS=off` 可一键回到「每次检查越线就推」的旧行为。
 
 ## 二、永不自动删除的东西
 
@@ -52,7 +63,15 @@ bash /opt/baolu-ops/purge-legacy-artifacts.sh --apply  # 确认后执行
 systemctl list-timers --all --no-pager 'baolu-*'   # 应看到 stage-prune / uploads-retention / disk-alert
 journalctl -u baolu-stage-prune.service -n 30 --no-pager
 journalctl -u baolu-uploads-retention.service -n 30 --no-pager
+journalctl -u baolu-disk-alert.service -n 30 --no-pager   # 每次都有 now=.. quiet=.. critical=.. 判定行
 df -h /                                            # 清理前后对比
+```
+
+磁盘告警的离线回归（**需要 Linux/bash**，用假 `df` + 假 `curl`，不联网、不真发告警）：
+
+```bash
+bash scripts/ops/disk-alert-smoke.sh                   # 期望 DISK_ALERT_SMOKE_OK 52/52
+NOW_HOUR=3 bash scripts/ops/disk-alert.sh --dry-run    # 期望打印 QUIET: 夜间（…）静默
 ```
 
 客户上传清理每次真删都会写一条**不含客户文件名**的汇总日志到
@@ -67,7 +86,12 @@ df -h /                                            # 清理前后对比
 KEEP_HOURS=48   bash /opt/baolu-ops/prune-stage.sh --apply
 RETAIN_DAYS=90  bash /opt/baolu-ops/prune-uploads-retention.sh --list
 KEEP=12         bash /opt/baolu-ops/prune-server-backups.sh --apply
+QUIET_HOURS=off  bash /opt/baolu-ops/disk-alert.sh --dry-run   # 关掉夜间静默（回到每小时都推）
+QUIET_HOURS=22-8 bash /opt/baolu-ops/disk-alert.sh --dry-run   # 自定义夜间窗口（支持跨零点）
+CRIT_FREE_GB=6   bash /opt/baolu-ops/disk-alert.sh --dry-run   # 自定义紧急线
 ```
+
+这三个变量也可以写进 `baolu-disk-alert.service` 的 `Environment=`（改完 `systemctl daemon-reload`）。
 
 **回滚整个机制**：`sudo systemctl disable --now baolu-stage-prune.timer baolu-uploads-retention.timer`，
 再删掉两个 unit 和 `/opt/baolu-ops/` 下的脚本即可。两个清理脚本默认都是 dry-run，
@@ -84,6 +108,9 @@ KEEP=12         bash /opt/baolu-ops/prune-server-backups.sh --apply
 - 2026-09-15：备份保留 8 份/环境、发布脚本空间预检 + 成功后自删暂存、磁盘水位告警上线（QA-20260915-001）。
 - 2026-09-15（本次）：新增 24 小时暂存回收定时器、客户上传 180 天保留定时器、过期垃圾一次性清理脚本，
   并把 unit 与脚本一并纳入版本管理（`scripts/ops/systemd/`）。
+- 2026-09-17：磁盘水位告警加**夜间静默**（默认 23:00–07:00 不推常规越线）与**紧急线**（可用 ≤5G 照推，
+  文案升级为「磁盘紧急告警」）；`baolu-disk-alert.{service,timer}` 首次纳入版本管理，安装脚本一并同步
+  （QA-20260917-004）。检查频率未变（仍每小时），`QUIET_HOURS=off` 可回退。
 
 ## 八、上线执行记录（2026-09-15 14:18，生产）
 

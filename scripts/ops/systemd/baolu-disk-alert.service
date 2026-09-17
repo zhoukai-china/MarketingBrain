@@ -1,0 +1,10 @@
+[Unit]
+Description=Baolu OS disk watermark alert
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/baolu-secrets/baolu-os-v2-alerts.env
+# 告警脚本的「夜间静默」按本地时间判定（Asia/Shanghai），显式钉住时区，避免服务器改时区后判错。
+Environment=TZ=Asia/Shanghai
+ExecStart=/bin/bash /opt/baolu-ops/disk-alert.sh
