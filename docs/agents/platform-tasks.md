@@ -2538,7 +2538,7 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 
 ## PLAT-47 WorkBuddy 接入货架已上架 SKU：sitong.skills/ask 改走 marketplace 计费与执行（用户 2026-09-17）
 
-状态：**已完成（本地门禁 + 测试实例已过；生产待发布）**
+状态：**已完成（本地门禁 + 测试实例 + 生产已发布）**
 
 ### 归属
 
@@ -2593,7 +2593,8 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 - `pnpm.cmd marketplace:foundation-smoke` / `pnpm.cmd marketplace:credits-only-contract-smoke`：**PASS**（抽取未破坏货架行为）。
 - 新增 `scripts/workbuddy-marketplace-sync-smoke.mjs`（源码契约，已挂 `qa:fast`）：**PASS**。
 - QA 后补丁复测：`pnpm.cmd --filter @baolu/api typecheck` **PASS**；`pnpm.cmd workbuddy:marketplace-sync-smoke` **PASS**；`pnpm.cmd marketplace:foundation-smoke` **PASS**；`pnpm.cmd marketplace:credits-only-contract-smoke` **PASS（33/0）**。
-- 未运行：生产发布与发布后 `verify-deploy.sh`、WorkBuddy 客户端真机调用（同 PLAT-46 边界，留用户实测）。
+- 生产发布 `20260918-plat47-workbuddy-prod1`：发布包 sha256 `fead0ecd6f48393c7d42cc75de047686998b35ad91cbc918c68752a26468d8a9`，`DEPLOY_OK`；迁移 `202609170002_workbuddy_marketplace_mode` 已应用；`health=200`、`ready=200`、`/integrations/workbuddy/status=200`；生产 `marketplace.ts` 命中 `runMarketplaceSku`、`workbuddy-mcp.ts` 命中货架模式与 `available=`、`RechargePage-*.js` 命中 `mode:"marketplace"`；`journalctl -u baolu-os-v2 -p err` 无条目。
+- 未运行：WorkBuddy 客户端真机调用（同 PLAT-46 边界，留用户实测）。
 
 ### 交接
 
@@ -2628,6 +2629,6 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 | PLAT-44 旧工作台下线 + 视频复盘收窄 | 已完成 | 遗留：兰琪/美业自有页面的 `/my-ai` 入口、美业 `beauty-directory-browser-e2e`、`MyAiPage` 去留 |
 | PLAT-45 三条计费口径（IP 定位固定 400 / A+图片放开 / 文案包月） | **已完成 + 已上生产** | 详情页包月入口已补做并上线（`20260917-plat48-copy-monthly-detail-prod1`）；剩「用户登录后真开通一次包月 → 连生成 2 次不扣分 → 第 6 次被拒」的人工实测 |
 | PLAT-46 WorkBuddy MCP 双账本打通（钱包优先 + 租户账本兜底） | **已完成**（本地全绿） | 待 WorkBuddy 客户端真机发一次 `sitong.ask` 复核 |
-| PLAT-47 WorkBuddy 接入货架已上架 SKU（sitong.skills/ask 改走 marketplace 计费与执行） | **已完成（测试实例已过）** | 生产待发布；计费口径选 A（与货架同价同账），用户已确认 |
+| PLAT-47 WorkBuddy 接入货架已上架 SKU（sitong.skills/ask 改走 marketplace 计费与执行） | **已完成 + 已上生产** | 计费口径选 A（与货架同价同账），用户已确认；客户端真机调用待用户复核 |
 
 - 最后更新日期：2026-09-17
