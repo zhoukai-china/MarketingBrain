@@ -1,5 +1,92 @@
 # 当前部署状态
 
+## 最新发布：20260917-chat-restart-prod1（2026-09-17，测试实例 + 生产）— 修「对话页输入阶段找不到『重新开始』」：常驻按钮 + 整行口令 + 清附件
+
+### 一、用户现场问题
+
+用户 2026-09-17 13:4x 打开 `https://api.lcppch.top/os-v2/agent/ipzone__copy/chat` 发截图：「输入中没看到有重新开始按钮」（截图里只有「Enter 发送 · Shift+Enter 换行」和「下一步」）。
+
+### 二、根因（功能本身早就写好，是发布把它回退了）
+
+1. 线上产物实证：入口 `assets/index-BBXeP2wT.js` → `assets/MarketplaceApp-Buu7bSIf.js`，命中 `重新开始` / `再问一次`，但 `↺ 重新开始`、`清空这次填写的内容`、`好，重新开始` **全 0**；现网源码 `AgentChatPage.tsx` 里 `hasProgress` 出现 **0 次** —— 现网是「只有交付完成后那颗按钮」的旧版。
+2. 功能（整行口令 + 输入阶段常驻按钮 + 重开清附件）确实已在 `main` 工作树里（QA-20260917-006），但 13:04 `20260917-copy-monthly-restore-prod1` 与 13:10 `20260917-vidrev-report-contract-prod1` 都按「只叠加本次文件、其余回灌生产现网版」打包，`AgentChatPage.tsx` 被判成非交付文件、沿用旧版 —— **回灌名单里包含了本次真正要交付的文件**（与 QA-20260917-007 同类，第二次）。
+
+### 三、改动（纯前端，不碰后端 / 库 / 计费）
+
+1. `apps/web/src/marketplace/AgentChatPage.tsx`：新增 `hasProgress`（`step>0 || answers 非空 || attachments 非空 || done || awaitingSupplement || confirmPending`）；输入段落常驻「↺ 重新开始」（在「下一步/确认需求」左侧，`busy` 时禁用）；整行「重新开始 / 重来 / 重新填…」判为会话命令；`resetConversationState()` 把**已上传附件**、填写内容、本机留存一起清。
+2. `apps/web/src/marketplace/chat-flows.ts`：只多一个纯函数 `normalizeVidrevPlatform()`（视频复盘「平台」这步从自由输入 / 附件名归一成抖音 / 视频号，认不出就停在该步追问，不推进不扣分），是新版 `AgentChatPage` 的 import 依赖。
+3. `apps/web/src/marketplace/chat-commands.ts`（`isRestartCommand`）生产上早已存在且与工作树一致，本次未改动。
+
+### 四、发布与验收
+
+| 环境 | 发布 id | 结果 |
+| --- | --- | --- |
+| 测试实例 | `20260917-chat-restart-test1` | 走标准 `deploy-release.sh`（`/opt/baolu-os-v2-test` · `baolu-os-v2-test` · 3010 · `/lanqi-test/`）→ **`DEPLOY_OK`**、`health=200`、`ready=200`；用户真机验收通过 |
+| 生产 | `20260917-chat-restart-prod1` | 单模块叠加（只叠 `apps/web/dist` + 上面两个源文件）→ 线上入口 `index-Be6NZsSZ.js` → `MarketplaceApp-CdswQ-69.js` 命中 `↺ 重新开始`；`health=200` / `ready=200`、近 10 分钟 `journalctl -p err` 无条目 |
+
+**生产发布方式（与整包发布的差别）**：stage 用全量源码构建，但把 `AdminConsolePage.tsx`、`RechargePage.tsx` 回灌生产现网版，`apps/api`、`packages`、`prisma` 一律不叠加、不执行迁移；因为 nginx 直接 alias `/opt/baolu-os-v2/apps/web/dist/`，**静态替换即生效、无需重启服务**（本次未重启）。
+
+验收证据：
+
+- 公网产物：`/os-v2/agent/ipzone__copy/chat`、`/os-v2/agents`、`/os-v2/agent/ipzone__copy`、`/lanqi-test/agent/ipzone__copy/chat` 全 **200**；生产 chunk 命中 `↺ 重新开始` / `清空这次填写的内容与已上传文件，从第一轮重新开始` / `好，重新开始`。
+- 离线门禁：`pnpm.cmd marketplace:chat-restart-smoke` → `MARKETPLACE_CHAT_RESTART_PASS`（11 条口令 / 6 条非口令 / 重开清附件 / 先重置再走 vidrev 闸门）；`pnpm.cmd --filter @baolu/web typecheck` PASS。
+
+### 五、回滚与未做
+
+- 回滚：`/opt/baolu-backups/20260917-chat-restart-prod1-before-baolu-os-v2/`（`web-dist-before.tar.gz` + `AgentChatPage.tsx.before` + `chat-flows.ts.before`）、`/opt/baolu-backups/20260917-chat-restart-test1-before-baolu-os-v2-test/`；静态还原即可，不需要重启。
+- **未发**（并行在途、未验收）：`apps/api/src/routes/{marketplace,admin,workbuddy-mcp,workbuddy-settings}.ts`、`apps/api/src/services/{billing-cost-model,video-review-engine,workbuddy-connections}.ts`、`apps/api/src/data/marketplace-v3.json`、`packages/skills/**`、`packages/db/prisma/schema.prisma` 与新迁移 `202609170002_workbuddy_marketplace_mode`。
+- 台账：`docs/BUG_REGRESSIONS.md` **QA-20260917-008**。
+
+## 补记：当天「文案包月」第二次消失与恢复（2026-09-17 13:0x，生产）
+
+12:5x 用户再报 `/agent/ipzone__copy` 看不到包月。取证结论：**09:10 已上线的入口被 12:18–12:19 的 `20260917-admin-recharge-detail-prod2` 第二次叠加发布回退**（该发布包 08:59 打好，早于 09:17 的修复提交 `d86c08d`），12:46 的 vidrev 发布按「非交付文件取现网版本」回灌，继续沿用旧文件（现网 `AgentDetailPage.tsx = 49b32c3b…`）。锁定证据 = 两次发布的 `app-before.tar.gz` 里该文件哈希不同（plat48 之前是 `49b32c3b…`、prod2 之前是 `8a8253a4…`）。
+
+处置：13:04 单文件叠加发布 `20260917-copy-monthly-restore-prod1`（`/tmp/release-20260917-restore-copy-monthly-detail.tar.gz`，sha256 `e202236819c8d84b65247544b1b6c794c42cf7df606b1f76b60e224371eadbf9`；包内 1592 文件，逐文件比对与现网只有 `AgentDetailPage.tsx` 一处不同）→ `DEPLOY_OK`；13:10 `20260917-vidrev-report-contract-prod1` 基于同一基线继续推进，最终现网 `AgentDetailPage.tsx = 100caa65…`（含包月块）、`chat-flows.ts = 1d1eff5b…`（6 槽访谈）。
+
+现网验收：`DEPLOY_CHECK_WEB_URL=https://api.lcppch.top/os-v2 node scripts/deployed-marketplace-browser-check.mjs` → **PASS**；线上 chunk 命中 `按月订阅`×1 / `subscriptionCredits`×2 / `竞争格局`×1 / `角色适配`×1。台账 QA-20260917-007。
+
+运维注意：本次发布后生产磁盘可用 **5.3G（81%）**，已贴近发布闸门（`MIN_FREE_GB=5`），下次发布前建议先跑 `scripts/ops/prune-server-backups.sh` 干跑。
+
+## 最新发布：20260917-vidrev-report-contract-prod1（2026-09-17，仅生产）— 修「视频号导出上传了却出不了报告」第二层：报告契约
+
+### 一、用户现场问题
+
+用户 2026-09-17 第二次截图（同一份 `视频号动态数据明细.csv`）：文件已经能识别，但报告被判「未通过技能校验，本次不消耗积分」，点名 `V3 视频四象限`（`视频 1/2/…/8 被归入多个象限`、`四象限条数之和 13 ≠ 总条数 20`）与 `V4 单条深拆条数不足（需 6 条，实际 0 条）`。
+
+### 二、根因（提示词与校验器互相矛盾 + 解析器只认短 ID）
+
+1. 技能提示词要求第二章分层表列名是「象限 | **#** | 标题 | …」，模型照做填 **1./2. 序号**；校验器 `parseQuadrantTable` 却把第二列当 `video_id` 读 → 同一批序号在两个象限重复出现 → V3 报「被归入多个象限」「条数之和 ≠ 总条数」。
+2. 视频号真实 `video_id` 形如 `export/UzFfBgAAxNSrKEFAVBDxk8zT4DCaRvcgHAJgfcU5mnWT4aWqDQ`（**含斜杠、60+ 字符**）：`parseQuadrantTable` 的 `^[\w-]+$` 与 `parseDeepDive` 的 24 字符上限把它直接过滤掉 → 四象限判空、深拆「实际 0 条」。
+
+### 三、改动
+
+1. `apps/api/src/services/video-review-engine.ts`：ID 片段判定放宽为「字母数字 + `_ - / .`、≤80 字符」（仍挡住中文说明与「v1 播放12万」这类解释）；深拆 ID 上限 24 → 80；新增 `vidrevQuadrantTable()` 产出**可原样照抄**的分层表（列名 `象限 | video_id | 标题 | 播放 | 咨询 | 完播`，空象限写「无」，分布逐条等于重算）。
+2. `apps/api/src/routes/marketplace.ts`：提示词把第二列钉死为 `video_id` 并写明「禁止用序号代替」，写入「输出前自检」；运行时把照抄表随需求单下发（模型只复制、不造表）；`output_token_limit` 单独给可执行人话（大导出被截断时提示按 7/14 天分批）。
+3. **未动计费 / 定价 / 钱包 / 数据库**；回滚 = 还原备份目录 + `systemctl restart`。
+
+### 四、发布与验收
+
+| 环境 | 发布 id | 结果 |
+| --- | --- | --- |
+| 生产 | `20260917-vidrev-report-contract-prod1` | **`DEPLOY_OK`**、`health=200 (after 69s)`、`ready=200`、`No pending migrations` |
+| 测试实例 | 未发布（本轮只发生产，用户就在生产上复测） | — |
+
+发布包 `release-20260917-vidrev-report-contract-prod1.tar.gz`（**10,043,658 B**，sha256 `1c6abd39d6e75fea33dcd0dfec8beefa8c0efd653f741e0ace49a8bcad2f26f2`，本地与服务器一致，1592 文件）。生产 `verify-deploy.sh` **VERIFY_OK（0 FAIL）**；近 6 分钟 `journalctl -u baolu-os-v2 -p err` **No entries**。
+
+### 五、验收证据（真机真模型，先红后绿）
+
+- 红灯（本地生产同路由 + 真实 DeepSeek + 真实 Postgres，20 条真实数据）：**422 `marketplace_output_invalid`（V3 + V4）**，报错文本与用户截图逐字一致。
+- 绿灯（同一入口、同一份数据）：**200**，11 章齐全，`payload.videos=20`、四象限 `0/12/0/8`（合计 20）、深拆 6 条、健康度 0 🔴、消耗 70 积分一次。
+- 50 条真实导出：模型输出触顶（`finishReason=length`）→ **502 且 0 扣费**，提示改为「本次要复盘的视频有 N 条，超过单次报告篇幅上限，请按近 7/14 天分批」。
+- 生产产物直检：`node /tmp/prod-vidrev-parse-check.mjs`（跑在 `/opt/baolu-os-v2/apps/api/dist`）→ `PROD_VIDREV_PARSE_PASS`（跨行引号字段 3 行）+ `PROD_VIDREV_LONG_ID_PASS`（照抄表 id 不重不漏、长 ID 报告 V3/V4 = 0 失败）。
+- 自动化：`marketplace:vidrev-contract-smoke`（新增长 ID 契约）、`vidrev:excel-upload-smoke`、`marketplace:vidrev-platform-scope-smoke`、`marketplace:chat-restart-smoke` 全 PASS。
+
+### 六、发布纪律与未做
+
+- **并行任务共用工作树**：本次按「只叠加本次 3 个文件 + 其余回灌生产现网版」打包（回灌 20 个文件，含 `marketplace-v3.json`（本地 `265cd9bb…` ≠ 生产 `e4d3f747…`，照本地发会被第 4 步 canary 拦下或回退线上计费口径）、`admin.ts`、`AdminConsolePage.tsx`、`billing-cost-model.ts`、`live_script_planner/*`），排除 2 个他人新增文件（含未验收的 Prisma 迁移，故 `No pending migrations`）。
+- **未做**：没有用你的账号在生产上代跑一次真实复盘（会真扣 60–70 积分且需要你本人登录）；50 条以上的单次生成上限仍是已知限制（P2，需后续做成两段并发生成），当前口径是「不交付、不扣费、明确告诉你怎么分批」。
+- 台账：`docs/BUG_REGRESSIONS.md` **QA-20260917-006**（含上一轮 `release-20260917-vidrev-file-recognize-prod1` 的文件识别 + 重新开始修复）。
+
 ## 运维改动：磁盘告警改为「可节流」（夜间静默 + 常规告警最短每 6 小时一条）（2026-09-17，生产常驻任务，非发布）
 
 用户 2026-09-17 06:47 发来「思潼系统告警」群截图（05:00、06:00 两条同内容磁盘告警），先要求「夜间不用一小时一推送」，随后追加「同一告警重复抑制为每 4–6 小时一条」。根因是水位越线属**持续状态**，而告警脚本只会「越线就推」。改动只在一个文件 `scripts/ops/disk-alert.sh`：**夜间静默** `QUIET_HOURS`（默认 23:00–07:00，窗口内常规越线只写 journal）+ **重复抑制** `REPEAT_HOURS`（默认 **6** 小时，记录在 `/var/lib/baolu-disk-alert/last-warn-push`，只在真的发出去之后才记，恢复正常即清空）+ **紧急线** `CRIT_FREE_GB`（默认 5G＝发布脚本拒绝发布的同一条线，不受任何抑制，文案升级为「磁盘紧急告警」）。**检查频率仍是每小时**（`baolu-disk-alert.timer` 未改），`QUIET_HOURS=off REPEAT_HOURS=0` 或 `REPEAT_HOURS=4` 可回退/调整。
