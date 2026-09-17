@@ -754,7 +754,8 @@ model WorkbuddyMcpConnection {
   id                 String    @id @default(cuid())
   tenantId           String
   userId             String
-  agentId            String
+  agentId            String?
+  mode               String    @default("agent")
   label              String
   tokenHash          String    @unique
   tokenPrefix        String
@@ -772,7 +773,7 @@ model WorkbuddyMcpConnection {
 
   tenant Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agent  AgentDefinition @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agent  AgentDefinition? @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, userId, status])
   @@index([agentId, status])

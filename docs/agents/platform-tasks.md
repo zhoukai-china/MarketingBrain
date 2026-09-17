@@ -2536,6 +2536,61 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 - 后续任务：把 `sitong.skills` 多 Agent 白名单作为下一张卡；上线后请用户在 WorkBuddy 里真机发一次 `sitong.ask` 复核。
 - 最后更新日期：2026-09-17
 
+## PLAT-47 WorkBuddy 接入货架已上架 SKU：sitong.skills/ask 改走 marketplace 计费与执行（用户 2026-09-17）
+
+状态：**进行中**
+
+### 归属
+
+- 产品：公共平台（WorkBuddy MCP 接入通道 × 货架 marketplace SKU）。
+- 层级：公共平台；改动**触及接入通道、计费（ppu / 成本口径 / 包月）与执行路由**，风险高。
+- 风险：高。
+- 预计修改热点：`apps/api/src/routes/workbuddy-mcp.ts`、`apps/api/src/routes/workbuddy-settings.ts`、`apps/api/src/services/workbuddy-connections.ts`、`apps/api/src/routes/marketplace.ts`（抽可复用执行函数）、`packages/db/prisma/schema.prisma`（连接表）、`apps/web/src/pages/RechargePage.tsx` 及连接管理 UI。
+- 是否允许并行：否。
+
+### 用户结果
+
+用户点「在 WorkBuddy 里接入思潼 AI」拿到的是**货架层已上架（selling）的 SKU**（IP定位 / 文案 / 视频复盘 + 美业版），而不是单一个 CEO 驾驶舱智能体。WorkBuddy 里 `sitong.skills` 能列出这些已上架 SKU，`sitong.ask` 能按 SKU 执行，计费与网页货架完全一致（按次 ppu / 成本口径 / 包月订阅）。
+
+### 本次范围
+
+- 连接从「单个 `agentId`」扩展为支持「货架 SKU 集合」模式：接入货架时不再绑定单一智能体，而是暴露货架 selling SKU。
+- `sitong.skills`：返回 `listMarketplaceSkus({ status: "selling" })` 的 SKU（skuCode / name / capabilityKey / 价格口径），不再返回单 agent 的 `allowedSkills`。
+- `sitong.ask`：接收 `skuCode`（或 `capabilityId`），路由到货架执行与计费——复用 `POST /market/skus/:skuId/run` 的核心逻辑（ppu / cost-based / subscription），结算走 `consumeWalletCredits`，余额不足 402 + `rechargeUrl`。
+- 保留美业 `productCode` 分支与既有 `agentId` 分支的兼容（老连接不破坏）。
+
+### 本次不做
+
+- 不合并货架 SKU 与智能体 agent 两套目录；不新上架 / 下架任何 SKU。
+- 不改货架 ppu / 包月价格本身；不新增订阅以外计费口径。
+- 不做真实 WorkBuddy 客户端 E2E（留到发布后实测，同 PLAT-46 边界）。
+
+### 验收条件
+
+1. 正常路径：货架 selling SKU ≥ 3（IP定位 / 文案 / 视频复盘），`sitong.skills` 返回这些 SKU 且与 `/market/skus?status=selling` 一致；`sitong.ask(skuCode=copy)` 执行成功并按 `copy` 的 ppu（或成本口径 / 包月）从用户钱包扣费，账本 `marketplaceLedgerEntry.type=ppu_consume` 且 `skuCode=copy`，响应含 `creditCost` / `remainingCredits` / `pricingMode`。
+2. 失败路径：`skuCode` 为 coming_soon / 不存在 → 409 `marketplace_sku_coming_soon` / `marketplace_sku_not_found`；钱包余额不足且无包月 → 402 `insufficient_credits` 且带 `required` + `rechargeUrl`；包月当日额度用尽 → 409 `marketplace_subscription_quota_exhausted`。
+3. 不应发生：WorkBuddy 通道再出现「钱包有钱却报 `insufficient_credits`」；扣费走 `invokeSkillViaGateway` 的 agent 线而绕过货架 ppu；跨租户读取 / 执行他人 SKU 或订阅；同一次调用重复扣费。
+4. 可观测：`sitong.skills` 列表与货架 selling 一致；`sitong.ask` 账本可逐笔对账，幂等键与网页货架同一口径。
+
+### 基线与失败证据
+
+- 现状证据（只读）：`WorkbuddyConnection.agentId` 单值（[workbuddy-connections.ts](/F:/思潼AI增长os/baolu-os-v2-source/apps/api/src/services/workbuddy-connections.ts:12)）；生产 4 个 active 连接全绑 `agent_ceo_cockpit`（PLAT-46 取证）；`sitong.skills` 只返回 `agent.allowedSkills`（[workbuddy-mcp.ts](/F:/思潼AI增长os/baolu-os-v2-source/apps/api/src/routes/workbuddy-mcp.ts:232)）；货架执行 / 计费在 `POST /market/skus/:skuId/run`（[marketplace.ts](/F:/思潼AI增长os/baolu-os-v2-source/apps/api/src/routes/marketplace.ts:349)），与 WorkBuddy 是两条线。
+- 红灯（实现前补）：用测试脚本证明 `sitong.skills` 不含货架 selling SKU、`sitong.ask(skuCode=copy)` 走不到货架 ppu 计费。
+
+### 实现记录
+
+- 待补充。
+
+### 验证
+
+- 待补充。
+
+### 交接
+
+- 关键决策：计费口径选 **A（与货架同价同账，ppu / 包月）**，用户 2026-09-17 确认。
+- 实现决策：把 `POST /market/skus/:skuId/run` 的核心执行 + 计费抽成可复用函数，让网页货架与 WorkBuddy `sitong.ask` 共用同一套，避免两套计费漂移。
+- 最后更新日期：2026-09-17
+
 ## 任务登记补记（2026-09-15 对账）
 
 对账原因：本登记表从 PLAT-36 直接跳到 PLAT-44，中间 7 个已交付的平台任务**没有任务卡**，只在 `docs/CURRENT_DEPLOYMENT_STATUS.md` 留了发布记录。按 `docs/agents/AGENTS.md` 第 10 条「一个 Codex 任务只交付一个可独立验收的主要用户结果」，这里按发布记录补登记摘要。
@@ -2563,6 +2618,6 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 | PLAT-44 旧工作台下线 + 视频复盘收窄 | 已完成 | 遗留：兰琪/美业自有页面的 `/my-ai` 入口、美业 `beauty-directory-browser-e2e`、`MyAiPage` 去留 |
 | PLAT-45 三条计费口径（IP 定位固定 400 / A+图片放开 / 文案包月） | **已完成 + 已上生产** | 详情页包月入口已补做并上线（`20260917-plat48-copy-monthly-detail-prod1`）；剩「用户登录后真开通一次包月 → 连生成 2 次不扣分 → 第 6 次被拒」的人工实测 |
 | PLAT-46 WorkBuddy MCP 双账本打通（钱包优先 + 租户账本兜底） | **已完成**（本地全绿） | 待 WorkBuddy 客户端真机发一次 `sitong.ask` 复核 |
-| `sitong.skills` 只返回 `ceo-cockpit-analyst` | 未开工 | `WorkbuddyConnection` 只有单个 `agentId`（生产 4 个 active 连接全绑 `agent_ceo_cockpit`），需多值 + 迁移 + 汇总 + UI，建议单列一张卡 |
+| PLAT-47 WorkBuddy 接入货架已上架 SKU（sitong.skills/ask 改走 marketplace 计费与执行） | **进行中** | 见本表 PLAT-47 卡；计费口径选 A（与货架同价同账），用户已确认 |
 
 - 最后更新日期：2026-09-17

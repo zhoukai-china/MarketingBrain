@@ -8,7 +8,8 @@ export interface WorkbuddyConnection {
   label: string;
   tenantId: string;
   userId: string;
-  agentId: string;
+  agentId?: string;
+  mode: "agent" | "marketplace";
   productCode?: ProductLoginCode;
   operatingEntityId?: string;
   scopes: string[];
@@ -38,6 +39,7 @@ export async function resolveWorkbuddyConnection(authorization: string | undefin
           tenantId: true,
           userId: true,
           agentId: true,
+          mode: true,
           status: true,
           productCode: true,
           operatingEntityId: true,
@@ -60,7 +62,8 @@ export async function resolveWorkbuddyConnection(authorization: string | undefin
       label: databaseConnection.label,
       tenantId: databaseConnection.tenantId,
       userId: databaseConnection.userId,
-      agentId: databaseConnection.agentId,
+      agentId: databaseConnection.agentId ?? undefined,
+      mode: databaseConnection.mode === "marketplace" ? "marketplace" : "agent",
       productCode: isProductLoginCode(databaseConnection.productCode) ? databaseConnection.productCode : undefined,
       operatingEntityId: databaseConnection.operatingEntityId ?? undefined,
       scopes: normalizeWorkbuddyScopes(databaseConnection.scopes),
@@ -149,6 +152,7 @@ function normalizeConnection(value: unknown, index: number): LegacyWorkbuddyConn
     tenantId: required("tenantId"),
     userId: required("userId"),
     agentId: required("agentId"),
+    mode: "agent",
     scopes: [],
     rateLimitPerMinute: 30,
     source: "legacy_env"

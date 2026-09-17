@@ -43,6 +43,7 @@ import {
   resolveWorkbuddyConnection,
   type WorkbuddyConnection
 } from "../services/workbuddy-connections.js";
+import { getMarketplaceSku, listMarketplaceSkus, runMarketplaceSku } from "./marketplace.js";
 
 type JsonRpcId = string | number | null;
 type JsonRpcRequest = { jsonrpc?: string; id?: JsonRpcId; method?: string; params?: Record<string, unknown> };
@@ -73,7 +74,9 @@ export async function registerWorkbuddyMcpRoutes(app: FastifyInstance, provider:
     }
 
     try {
-      const { context, agent } = await resolveWorkbuddyAccess(connection);
+      const access = await resolveWorkbuddyAccess(connection);
+      const context = access.context;
+      const agent = access.mode === "agent" ? access.agent : null;
       const brandContext = connection.productCode === BEAUTY_INDUSTRY_PRODUCT_CODE
         ? toBeautyIndustryPublicBrand(resolveBeautyIndustryBrandContext(context.profile.data))
         : undefined;
@@ -102,6 +105,7 @@ export async function registerWorkbuddyMcpRoutes(app: FastifyInstance, provider:
       const args = objectValue(body.params?.arguments);
 
       if (connection.productCode === BEAUTY_INDUSTRY_PRODUCT_CODE) {
+        if (!agent) throw new Error("workbuddy_agent_missing");
         await enforceWorkbuddyRateLimit(connection);
         if (toolName === "beauty.business_qa") {
           const beautyContext = toBeautyMcpContext(connection);
@@ -233,6 +237,19 @@ export async function registerWorkbuddyMcpRoutes(app: FastifyInstance, provider:
       if (connection.productCode) return reply.code(404).send(rpcError(id, -32601, `unknown_tool:${toolName}`));
 
       if (toolName === LIST_SKILLS_TOOL) {
+        if (access.mode === "marketplace") {
+          const skus = await listMarketplaceSkus({ status: "selling" as const }, false);
+          return rpcResult(id, toolText({
+            mode: "marketplace",
+            skills: skus.map((sku) => ({
+              skuCode: sku.skuCode,
+              name: sku.name,
+              capabilityKey: sku.capabilityKey ?? null,
+              ppu: sku.ppu
+            }))
+          }));
+        }
+        if (!agent) throw new Error("workbuddy_agent_missing");
         return rpcResult(id, toolText({
           agentId: agent.id,
           agentName: agent.name,
@@ -245,9 +262,34 @@ export async function registerWorkbuddyMcpRoutes(app: FastifyInstance, provider:
       }
       if (toolName !== ASK_TOOL) return reply.code(404).send(rpcError(id, -32601, `unknown_tool:${toolName}`));
 
+      if (access.mode === "marketplace") {
+        const skuCode = optionalText(args.skuCode, 100);
+        if (!skuCode) throw new Error("mcp_argument_required:skuCode");
+        const sku = await getMarketplaceSku(skuCode);
+        if (!sku) throw new Error("marketplace_sku_not_found");
+        const outcome = await runMarketplaceSku({
+          context,
+          sku,
+          body: { input: requiredText(args.input, "input", 20_000) },
+          log: request.log
+        });
+        if (!outcome.ok) throw new Error(String(outcome.body.error ?? "marketplace_run_failed"));
+        return rpcResult(id, {
+          content: [{ type: "text", text: String(outcome.body.answer ?? "") }],
+          structuredContent: {
+            status: "completed",
+            skuCode,
+            creditCost: outcome.body.consumedCredits,
+            remainingCredits: outcome.body.balance,
+            pricingMode: outcome.body.pricingMode
+          }
+        });
+      }
+
+      if (!agent) throw new Error("workbuddy_agent_missing");
       const input = requiredText(args.input, "input", 20_000);
       const conversationId = optionalText(args.conversationId, 200);
-      if (conversationId) await assertWorkbuddyConversation(connection, conversationId);
+      if (conversationId) await assertWorkbuddyConversation({ tenantId: connection.tenantId, userId: connection.userId, agentId: agent.id }, conversationId);
       const externalRequestId = optionalText(args.requestId, 200) ?? randomUUID();
       const connectionScope = createHash("sha256").update(connection.id).digest("hex").slice(0, 16);
       const result = await invokeSkillViaGateway({
@@ -295,14 +337,17 @@ export async function registerWorkbuddyMcpRoutes(app: FastifyInstance, provider:
   });
 }
 
-async function resolveWorkbuddyAccess(connection: WorkbuddyConnection): Promise<{
-  context: RequestContext;
-  agent: Awaited<ReturnType<typeof getRuntimeAgent>>;
-}> {
+type WorkbuddyAccess =
+  | { mode: "agent"; context: RequestContext; agent: Awaited<ReturnType<typeof getRuntimeAgent>> }
+  | { mode: "marketplace"; context: RequestContext };
+
+async function resolveWorkbuddyAccess(connection: WorkbuddyConnection): Promise<WorkbuddyAccess> {
   const context = await resolveDatabaseRequestContext(connection.tenantId, connection.userId);
+  if (connection.mode === "marketplace") return { mode: "marketplace", context };
+  if (!connection.agentId) throw new Error("workbuddy_agent_missing");
   const agent = await getRuntimeAgent(connection.agentId);
   await assertAgentAccess(context, agent);
-  if (!connection.productCode) return { context, agent };
+  if (!connection.productCode) return { mode: "agent", context, agent };
   if (connection.source !== "database") throw new Error("product_credential_database_required");
   if (!connection.operatingEntityId || connection.operatingEntityId !== context.tenantId) {
     throw new Error("workbuddy_operating_entity_mismatch");
@@ -320,7 +365,7 @@ async function resolveWorkbuddyAccess(connection: WorkbuddyConnection): Promise<
   if (connection.productCode === BEAUTY_INDUSTRY_PRODUCT_CODE && connection.agentId !== "agent_beauty_acquisition") {
     throw new Error("beauty_product_agent_mismatch");
   }
-  return { context, agent };
+  return { mode: "agent", context, agent };
 }
 
 function toBeautyMcpContext(connection: WorkbuddyConnection): BeautyIndustryMcpContext {
@@ -393,6 +438,7 @@ function toolDefinitions(): unknown[] {
         type: "object",
         properties: {
           input: { type: "string", description: "用户的完整问题或任务" },
+          skuCode: { type: "string", description: "可选，货架已上架 SKU 的 skuCode（如 ipzone__copy、meiye__copy），用于按货架能力执行" },
           conversationId: { type: "string", description: "上一轮返回的 conversationId，用于连续对话" },
           capabilityId: { type: "string", description: "可选，锁定当前 Agent 的某项能力" },
           skillId: { type: "string", description: "可选，锁定当前 Agent 已授权的 Skill" },
@@ -464,6 +510,7 @@ function externalErrorMessage(error: unknown): string {
     || message.startsWith("mcp_identity_")
     || message.startsWith("beauty_")
     || message.startsWith("billing_request_")
+    || message.startsWith("marketplace_")
     || message.startsWith("product_")
     || message.startsWith("workbuddy_")
     || message.startsWith("provider_failure:")

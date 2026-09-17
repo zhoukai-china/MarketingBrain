@@ -19,6 +19,10 @@ const createConnectionSchema = z.union([
   z.object({
     agentId: z.string().trim().min(1).max(120),
     label: z.string().trim().min(1).max(80).optional()
+  }).strict(),
+  z.object({
+    mode: z.literal("marketplace"),
+    label: z.string().trim().min(1).max(80).optional()
   }).strict()
 ]);
 
@@ -43,11 +47,16 @@ export async function registerWorkbuddySettingsRoutes(app: FastifyInstance): Pro
     if (!parsed.success) return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
     const context = await resolveRequestContext(request.headers);
     if (context.source !== "database") return reply.code(409).send({ error: "database_mode_required" });
-    const productCode = "productCode" in parsed.data ? parsed.data.productCode : undefined;
-    const agentId = "productCode" in parsed.data
-      ? PRODUCT_LOGIN_DEFINITIONS[parsed.data.productCode].agentIds[0]
-      : parsed.data.agentId;
-    if (!agentId) return reply.code(409).send({ error: "workbuddy_product_agent_missing" });
+    const data = parsed.data;
+    const marketplaceMode = "mode" in data && data.mode === "marketplace";
+    const productCode = "productCode" in data ? data.productCode : undefined;
+    let agentId: string | undefined;
+    if ("productCode" in data) {
+      agentId = PRODUCT_LOGIN_DEFINITIONS[data.productCode].agentIds[0];
+    } else if ("agentId" in data) {
+      agentId = data.agentId;
+    }
+    if (!marketplaceMode && !agentId) return reply.code(409).send({ error: "workbuddy_product_agent_missing" });
     if (productCode) {
       const entitlement = await prisma.tenantProductEntitlement.findFirst({
         where: {
@@ -60,8 +69,8 @@ export async function registerWorkbuddySettingsRoutes(app: FastifyInstance): Pro
       });
       if (!entitlement) return reply.code(403).send({ error: "product_entitlement_required" });
     }
-    const agent = await getRuntimeAgent(agentId);
-    await assertAgentAccess(context, agent);
+    const agent = marketplaceMode ? null : await getRuntimeAgent(agentId as string);
+    if (agent) await assertAgentAccess(context, agent);
     const activeCount = await prisma.workbuddyMcpConnection.count({
       where: { tenantId: context.tenantId, userId: context.userId, status: "active" }
     });
@@ -69,18 +78,19 @@ export async function registerWorkbuddySettingsRoutes(app: FastifyInstance): Pro
 
     const token = createWorkbuddyToken();
     const scopes = productCode
-      ? ("scopes" in parsed.data && parsed.data.scopes ? parsed.data.scopes : [...BEAUTY_INDUSTRY_SCOPES])
+      ? ("scopes" in data && data.scopes ? data.scopes : [...BEAUTY_INDUSTRY_SCOPES])
       : undefined;
     const expiresAt = productCode
-      ? new Date(Date.now() + (("expiresInDays" in parsed.data && parsed.data.expiresInDays) || 90) * 86_400_000)
+      ? new Date(Date.now() + (("expiresInDays" in data && data.expiresInDays) || 90) * 86_400_000)
       : undefined;
     const connection = await prisma.$transaction(async (tx) => {
       const created = await tx.workbuddyMcpConnection.create({
         data: {
           tenantId: context.tenantId,
           userId: context.userId,
-          agentId: agent.id,
-          label: parsed.data.label ?? `WorkBuddy · ${agent.name}`,
+          agentId: agent?.id ?? null,
+          mode: marketplaceMode ? "marketplace" : "agent",
+          label: data.label ?? (marketplaceMode ? "WorkBuddy · 思潼货架" : `WorkBuddy · ${agent!.name}`),
           tokenHash: hashWorkbuddyToken(token),
           tokenPrefix: token.slice(0, 18),
           productCode,
@@ -157,8 +167,8 @@ export async function registerWorkbuddySettingsRoutes(app: FastifyInstance): Pro
       include: { agent: { select: { id: true, name: true, slug: true } } }
     });
     if (!current) return reply.code(404).send({ error: "workbuddy_connection_not_found" });
-    const currentAgent = await getRuntimeAgent(current.agentId);
-    await assertAgentAccess(context, currentAgent);
+    const currentAgent = current.agentId ? await getRuntimeAgent(current.agentId) : null;
+    if (currentAgent) await assertAgentAccess(context, currentAgent);
     let rotationScopes = current.scopes ?? undefined;
     if (current.productCode) {
       const entitlement = await prisma.tenantProductEntitlement.findFirst({
@@ -195,6 +205,7 @@ export async function registerWorkbuddySettingsRoutes(app: FastifyInstance): Pro
           tenantId: current.tenantId,
           userId: current.userId,
           agentId: current.agentId,
+          mode: current.mode,
           label: current.label,
           tokenHash: hashWorkbuddyToken(token),
           tokenPrefix: token.slice(0, 18),
@@ -243,7 +254,8 @@ function publicConnection(connection: {
   revokedAt: Date | null;
   rotatedFromId: string | null;
   rateLimitPerMinute: number;
-  agent: { id: string; name: string; slug: string };
+  mode: string;
+  agent: { id: string; name: string; slug: string } | null;
 }): object {
   return {
     id: connection.id,
@@ -261,6 +273,7 @@ function publicConnection(connection: {
     revokedAt: connection.revokedAt,
     rotatedFromId: connection.rotatedFromId,
     rateLimitPerMinute: connection.rateLimitPerMinute,
+    mode: connection.mode,
     agent: connection.agent
   };
 }

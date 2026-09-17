@@ -331,16 +331,10 @@ const isLocal = typeof window !== "undefined" && (window.location.hostname === "
       let key = mcpToken;
       let url = mcpUrl;
       if (!key) {
-        const me = await fetch(apiPath("/agents/me"), { headers: authHeaders(), cache: "no-store" })
-          .then(readJson<{ agents?: Array<{ id: string; slug?: string }> }>);
-        const agent = me.agents?.[0];
-        if (!agent) throw new Error("当前账号还没有可用智能体，先开通一个智能体再生成连接密钥。");
         const created = await fetch(apiPath("/integrations/workbuddy/connections"), {
           method: "POST",
           headers: { ...authHeaders(), "Content-Type": "application/json" },
-          body: JSON.stringify(agent.slug === "beauty-industry"
-            ? { productCode: "beauty-industry", label: "WorkBuddy 连接" }
-            : { agentId: agent.id, label: "WorkBuddy 连接" })
+          body: JSON.stringify({ mode: "marketplace", label: "WorkBuddy 连接" })
         }).then(readJson<{ token: string; mcpUrl?: string }>);
         key = created.token;
         if (created.mcpUrl) url = created.mcpUrl;

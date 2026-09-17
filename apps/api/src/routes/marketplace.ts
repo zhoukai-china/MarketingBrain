@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+﻿import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { Prisma, prisma } from "@baolu/db";
 import { randomUUID } from "node:crypto";
@@ -64,6 +64,7 @@ import {
   parseVidrevRowsFromText,
   validateVidrevReport,
   vidrevMetricBrief,
+  vidrevQuadrantTable,
   type VidrevMetrics,
   type VidrevPayload,
   type VidrevRawRow
@@ -137,6 +138,26 @@ function detectVidrevPlatform(text: string): string | null {
 const VIDREV_SUPPORTED_PLATFORMS = ["抖音", "视频号"];
 const VIDREV_UNSUPPORTED_MESSAGE =
   "视频复盘目前只支持**抖音**和**视频号**：请上传抖音创作者中心或视频号助手导出的作品数据表。小红书 / 快手 / B站 等平台的数据暂不支持复盘。";
+
+/**
+ * 把「平台」这一步传上来的自由文本解析成平台名（2026-09-17 现场缺陷）。
+ *
+ * 现场：老板在「平台」那一步没点选项，直接把「复盘（附件：视频号动态数据明细.csv）」当答案发出来，
+ * 于是 `platform` 成了**这一整句**，被 `VIDREV_SUPPORTED_PLATFORMS.includes()` 判成「非抖音/视频号」，
+ * 同一份视频号文件连发三次都被回「只支持抖音和视频号」——文件本身完全没问题。
+ *
+ * 口径（按优先级）：
+ *   1. 这句话里点名了平台（含小红书 / 快手 / B站 → 判「其他平台」fail closed，不得被默认值兜过去）；
+ *   2. 否则看数据表本身（视频号后台的「发表时间 / 转发量」、抖音的「分享数 / 5秒完播率」等）；
+ *   3. 都没有时按调用方默认值（保持历史上「未指定按抖音」的行为）。
+ */
+export function resolveVidrevPlatform(platformText: string, content: string, fallback = "抖音"): string {
+  const fromText = detectVidrevPlatform(platformText ?? "");
+  if (fromText) return fromText;
+  const fromData = detectVidrevPlatform(content ?? "");
+  if (fromData) return fromData;
+  return fallback;
+}
 
 const MARKETPLACE_SKILL_BY_CAPABILITY: Record<string, string> = {
   ip_positioning: "ip_positioning",
@@ -244,6 +265,550 @@ const referralCodeInputSchema = z.object({
  * 到期由读取路径顺带清理，不额外常驻空间。
  */
 const DELIVERABLE_RETENTION_DAYS = 7;
+
+export type MarketplaceRunOutcome =
+  | { ok: true; body: Record<string, unknown> }
+  | { ok: false; status: number; body: Record<string, unknown> };
+
+/**
+ * 货架 SKU 的执行 + 计费核心（PLAT-47）。
+ *
+ * 网页货架 `POST /market/skus/:skuId/run` 与 WorkBuddy MCP `sitong.ask` 共用这一份实现，
+ * 避免两套「执行 + 计费」漂移。返回结构化 outcome，由调用方映射成 HTTP 或 JSON-RPC 响应。
+ */
+export async function runMarketplaceSku(params: {
+  context: RequestContext;
+  sku: PublicMarketplaceSku;
+  body: z.infer<typeof marketplaceRunSchema>;
+  log: FastifyBaseLogger;
+}): Promise<MarketplaceRunOutcome> {
+  const context = params.context;
+  const sku = params.sku;
+  const log = params.log;
+  const parsed = { data: params.body } as { data: z.infer<typeof marketplaceRunSchema> };
+  const access = await accessStateFor(context, sku);
+  if (access.state === "unavailable") {
+    const comingSoon = sku.status === "coming_soon";
+    return {
+      ok: false,
+      status: 409,
+      body: {
+        error: comingSoon ? "marketplace_sku_coming_soon" : "marketplace_sku_not_available",
+        message: comingSoon
+          ? "该智能体正在开发中，敬请期待；本次不消耗积分。"
+          : "该智能体暂不可用；本次不消耗积分。",
+        status: sku.status
+      }
+    };
+  }
+
+  const skillId = resolveMarketplaceSkillId(sku.capabilityKey);
+  if (!skillId) return { ok: false, status: 409, body: { error: "marketplace_skill_not_configured" } };
+
+  const core = sku.skuCode.includes("__") ? sku.skuCode.slice(sku.skuCode.lastIndexOf("__") + 2) : sku.skuCode;
+  const rawInput = parsed.data.input ?? "";
+  const structuredRows = (parsed.data.rows ?? []) as unknown as VidrevRawRow[];
+  if (core !== "vidrev" && rawInput.trim().length === 0) {
+    return { ok: false, status: 400, body: { error: "invalid_request", details: { input: ["必填"] } } };
+  }
+  if (core === "vidrev" && rawInput.trim().length === 0 && structuredRows.length === 0) {
+    return {
+      ok: false,
+      status: 400,
+      body: {
+        error: "invalid_request",
+        details: { input: ["视频复盘需要数据行（rows）或文字说明（input）"] }
+      }
+    };
+  }
+
+  const requestId = randomUUID();
+  const usage = { promptTokens: 0, completionTokens: 0, reasoningTokens: 0 };
+  const baseProvider = new DomesticChatProvider({
+    providerName: "deepseek",
+    apiKey: env.DEEPSEEK_API_KEY,
+    baseUrl: env.DEEPSEEK_BASE_URL,
+    model: process.env.MARKETPLACE_MODEL ?? "deepseek-v4-flash",
+    timeoutMs: env.LLM_TIMEOUT_MS,
+    domesticNetworkOnly,
+    allowedHosts: domesticOutboundAllowlist,
+    onUsage: (obs: DomesticProviderUsageObservation) => {
+      usage.promptTokens += obs.promptTokens ?? 0;
+      usage.completionTokens += obs.completionTokens ?? 0;
+      usage.reasoningTokens += obs.reasoningTokens ?? 0;
+    }
+  });
+  const provider = {
+    name: baseProvider.name,
+    isConfigured: () => baseProvider.isConfigured(),
+    getModel: () => baseProvider.getModel(),
+    complete: (messages: Parameters<typeof baseProvider.complete>[0], options: Parameters<typeof baseProvider.complete>[1]) => baseProvider.complete(messages, {
+      ...(options as object),
+      reasoningProfile: "standard",
+      thinkingMode: "disabled",
+      maxTokens: Math.min(Math.max(((options as { maxTokens?: number })?.maxTokens) ?? 8000, 8000), 8192)
+    })
+  };
+
+  const price = sku.ppu;
+  if (price <= 0) {
+    return { ok: false, status: 409, body: { error: "marketplace_ppu_not_configured", message: "该智能体暂未开放使用" } };
+  }
+  const costBased = usesCostBasedPricing(sku.skuCode);
+
+  if (parsed.data.redoOf) {
+    return {
+      ok: false,
+      status: 409,
+      body: {
+        error: "marketplace_free_redo_removed",
+        message: "需要再要一份时，重新发起一次即可（用量按实际消耗计算）。",
+        retryable: false,
+        providerCalls: 0,
+        creditCost: 0
+      }
+    };
+  }
+
+  const activeSubscription = context.source === "database" ? await activeSubscriptionFor(context, sku.id) : null;
+  const subscriptionQuota = activeSubscription?.dailyQuota ?? sku.subscriptionDailyQuota ?? null;
+  const subscriptionUsedToday = activeSubscription
+    ? await countSubscriptionUsageToday(context, sku.id, activeSubscription.id)
+    : 0;
+  const coveredBySubscription = Boolean(activeSubscription);
+  if (activeSubscription && subscriptionQuota != null && subscriptionUsedToday >= subscriptionQuota) {
+    return {
+      ok: false,
+      status: 409,
+      body: {
+        error: "marketplace_subscription_quota_exhausted",
+        message: `你已开通本智能体的包月：今天 ${subscriptionQuota} 次已经用完（今日已用 ${subscriptionUsedToday} 次）。本次不消耗积分，额度每天 0 点恢复。`,
+        quota: subscriptionQuota,
+        usedToday: subscriptionUsedToday,
+        subscriptionEndDate: activeSubscription.endDate,
+        providerCalls: 0,
+        creditCost: 0
+      }
+    };
+  }
+
+  const walletBefore = await readWallet(context.userId);
+  if (!coveredBySubscription && walletBefore.balance < price) {
+    return {
+      ok: false,
+      status: 402,
+      body: {
+        error: "insufficient_credits",
+        message: "当前积分不足，请先充值后再使用。",
+        balance: walletBefore.balance,
+        required: price,
+        rechargeUrl: buildRechargeUrl(sku.skuCode)
+      }
+    };
+  }
+
+  try {
+    let userContent = marketplaceRunInput(sku, rawInput);
+    if (core === "topic") {
+      const industryMatch = /(?:行业|账号阶段)[^：:]*[：:]\s*([^\n]+)/.exec(rawInput);
+      const benchMatch = /(?:同行爆款|对标账号)[^：:]*[：:]\s*([^\n]+)/.exec(rawInput);
+      const industry = industryMatch?.[1]?.trim() ?? "";
+      const bench = benchMatch?.[1]?.trim() ?? "";
+      try {
+        const search = await searchPublicTopicSources(industry, bench);
+        userContent += `\n\n【搜索源 · 实时检索】\n行业热点：${search.hot.fetched ? search.hot.items.join("；") : search.hot.note}\n同行爆款：${search.bench.fetched ? search.bench.items.join("；") : search.bench.note}`;
+      } catch {
+        userContent += "\n\n【搜索源 · 实时检索】行业热点：检索失败；同行爆款：未提供";
+      }
+      const apiKeyMatch = /API\s*[Kk]ey[：:\s]*([A-Za-z0-9_.]+)/.exec(rawInput);
+      const clientMatch = /Client\s*I[Dd][：:\s]*([A-Za-z0-9_]+)/.exec(rawInput);
+      const apiKey = apiKeyMatch?.[1] ?? (process.env.GETNOTE_API_KEY ?? "");
+      const clientId = clientMatch?.[1] ?? (process.env.GETNOTE_CLIENT_ID ?? "");
+      if (apiKey && clientId) {
+        const notes = await fetchGetnoteNotes(apiKey, clientId).catch(() => []);
+        if (notes.length > 0) {
+          userContent += `\n\n【Get笔记 · 录音卡（真实拉取）】\n${notes.map((n) => `- ${n.title}：${n.summary || "（无摘要）"}`).join("\n")}`;
+        } else {
+          userContent += "\n\n【Get笔记 · 录音卡】已提供 API Key，但拉取未取到笔记（可能未授权/网络），按「无」处理。";
+        }
+      }
+    }
+    let vidrevMetrics: VidrevMetrics | null = null;
+    let vidrevHasRevenue = parsed.data.has_revenue_data ?? false;
+    if (core === "vidrev") {
+      const rows = structuredRows.length > 0 ? structuredRows : parseVidrevRowsFromText(rawInput).rows;
+      vidrevHasRevenue = parsed.data.has_revenue_data ?? false;
+      // 平台名可能是一整句自由文本（现场：「复盘（附件：视频号动态数据明细.csv）」）——
+      // 先解析成受支持的平台名，明确点名小红书/快手/B站时仍走 fail closed。
+      const platform = resolveVidrevPlatform(parsed.data.platform ?? "", rawInput);
+      if (!VIDREV_SUPPORTED_PLATFORMS.includes(platform)) {
+        return {
+          ok: false,
+          status: 422,
+          body: {
+            error: "vidrev_platform_not_supported",
+            message: VIDREV_UNSUPPORTED_MESSAGE,
+            platform,
+            providerCalls: 0,
+            creditCost: 0
+          }
+        };
+      }
+      const period = parsed.data.period ?? null;
+      vidrevMetrics = computeVidrevMetrics(rows);
+      if (vidrevMetrics.count === 0) {
+        return {
+          ok: false,
+          status: 422,
+          body: {
+            error: "marketplace_output_invalid",
+            message: "没有识别到视频记录，本次不消耗积分。请上传视频号/抖音后台导出的 CSV/Excel（至少包含 1 条视频数据，表头含标题 / 播放 / 互动等字段）。",
+            reasons: ["V0 未解析到可复算的数据行：深度复盘必须有结构化数据（rows 或可解析的数据表）。"],
+            failed_rules: ["V0"]
+          }
+        };
+      }
+      userContent += `\n\n【本次复盘参数】模式=深度复盘；平台=${platform}；周期=${period?.start ?? "未提供"} ~ ${period?.end ?? "未提供"}；是否有成交金额=${vidrevHasRevenue ? "有" : "无"}。`;
+      userContent += `\n\n【后端重算口径 · 必须逐字照抄，写错即判失败】\n${vidrevMetricBrief(vidrevMetrics)}`;
+      userContent += `\n\n【结构化数据明细 · 只能引用这些 video_id，禁止编造视频】\n${vidrevRowsTable(vidrevMetrics)}`;
+      // 第二章「视频分层」由后端给定照抄表（2026-09-17 现场：模型把「#」列填成序号，校验器读到的
+      // 却是 video_id → V3 判失败、用户拿不到报告）。模型只负责原样复制，不改行、不改 id。
+      userContent += `\n\n【二、视频分层 · 必须原样照抄下面这张表（列名、行顺序、video_id 都不得改动，空象限保持「无」），表格前只补一句分层口径】\n${vidrevQuadrantTable(vidrevMetrics)}`;
+    }
+    const history = parsed.data.history ?? [];
+    const turnMessages: LlmMessage[] = [
+      ...history.map((item) => ({ role: item.role, content: item.content }) as LlmMessage),
+      { role: "user", content: userContent }
+    ];
+    let answerText: string;
+    let ipPosPayload: IpPosPayload | null = null;
+    let vidrevPayload: VidrevPayload | null = null;
+    try {
+      if (core === "ip-pos") {
+        const [partA, partB] = (await Promise.all([
+          provider.complete(
+            [{ role: "system", content: IP_POS_SYSTEM_PROMPT_A }, ...turnMessages] as LlmMessage[],
+            { maxTokens: 8192 }
+          ),
+          provider.complete(
+            [{ role: "system", content: IP_POS_SYSTEM_PROMPT_B }, ...turnMessages] as LlmMessage[],
+            { maxTokens: 8192 }
+          )
+        ])) as unknown as [string, string];
+        const clarifyA = extractClarification(partA ?? "");
+        const clarifyB = extractClarification(partB ?? "");
+        answerText = clarifyA
+          ? String(partA ?? "")
+          : clarifyB
+            ? String(partB ?? "")
+            : `${String(partA ?? "").trim()}\n\n${String(partB ?? "").trim()}`;
+      } else {
+        answerText = (await provider.complete(
+          [
+            {
+              role: "system",
+              content: marketplaceSkillSystemPrompt(sku)
+            },
+            ...turnMessages
+          ] as LlmMessage[],
+          { maxTokens: 2048 }
+        )) as unknown as string;
+      }
+    } catch (modelError) {
+      const code = (modelError as { code?: string })?.code ?? "model_call_failed";
+      /**
+       * 2026-09-17 现场（50 条导出实测）：深度复盘报告的长度随视频条数线性增长，一次生成的输出
+       * 上限是 8000 tokens；20 条约 7000 tokens 已是临界，50 条必然被截断（finishReason=length）。
+       * 这种失败必须说清「是数据太多、不是系统坏了」，并给出可执行的下一步；绝不能糊成
+       * 「模型调用失败（model_call_failed）」让老板反复重试。仍然不消耗积分。
+       */
+      const isVidrevTooLong = core === "vidrev" && code === "output_token_limit";
+      return {
+        ok: false,
+        status: 502,
+        body: {
+          error: "marketplace_provider_failed",
+          code,
+          message: isVidrevTooLong
+            ? `本次要复盘的视频有 ${vidrevMetrics?.count ?? 0} 条，超过单次深度复盘能生成的报告篇幅上限，报告会被截断——所以没有交付，本次也不消耗积分。请把导出周期改成「近 7 天 / 近 14 天」分批复盘（每批 20 条以内最稳），或先只复盘其中一批。`
+            : `模型调用失败（${code}），本次不消耗积分。`
+        }
+      };
+    }
+
+    const clarification = extractClarification(answerText);
+    if (clarification) {
+      return {
+        ok: true,
+        body: {
+          needsInput: true,
+          answer: clarification,
+          consumedCredits: 0,
+          balance: walletBefore.balance,
+          required: price
+        }
+      };
+    }
+
+    if (core === "topic") {
+      const validation = parseTopicTable(answerText);
+      if (validation.failures.length > 0) {
+        return {
+          ok: false,
+          status: 422,
+          body: {
+            error: "marketplace_output_invalid",
+            message: "选题交付未通过技能校验，本次不消耗积分：\n" + validation.failures.slice(0, 8).join("\n"),
+            reasons: validation.failures.slice(0, 20)
+          }
+        };
+      }
+    }
+    if (core === "copy") {
+      const validation = parseCopyTenContract(answerText);
+      if (validation.failures.length > 0) {
+        return {
+          ok: false,
+          status: 422,
+          body: {
+            error: "marketplace_output_invalid",
+            message: "文案交付未通过技能校验，本次不消耗积分：\n" + validation.failures.join("\n"),
+            reasons: validation.failures
+          }
+        };
+      }
+    }
+    if (core === "ip-pos") {
+      let validation = parseIpPosFull(answerText, rawInput);
+      if (validation.failures.length > 0) {
+        const firstAttemptUsage = { ...usage };
+        log.warn(
+          { event: "ip_pos_output_invalid_retry", attempt: 1, failures: validation.failures.slice(0, 6) },
+          "IP 定位全案未通过技能校验，自动重试一次"
+        );
+        try {
+          const [retryA, retryB] = (await Promise.all([
+            provider.complete(
+              [{ role: "system", content: IP_POS_SYSTEM_PROMPT_A }, ...turnMessages] as LlmMessage[],
+              { maxTokens: 8192 }
+            ),
+            provider.complete(
+              [{ role: "system", content: IP_POS_SYSTEM_PROMPT_B }, ...turnMessages] as LlmMessage[],
+              { maxTokens: 8192 }
+            )
+          ])) as unknown as [string, string];
+          const retryText = `${String(retryA ?? "").trim()}\n\n${String(retryB ?? "").trim()}`;
+          const retryValidation = parseIpPosFull(retryText, rawInput);
+          if (retryValidation.failures.length === 0) {
+            answerText = retryText;
+            validation = retryValidation;
+            usage.promptTokens = firstAttemptUsage.promptTokens;
+            usage.completionTokens = firstAttemptUsage.completionTokens;
+            usage.reasoningTokens = firstAttemptUsage.reasoningTokens;
+            log.info({ event: "ip_pos_output_invalid_retry_ok" }, "IP 定位全案重试后通过校验");
+          } else {
+            log.warn(
+              { event: "ip_pos_output_invalid_retry_failed", failures: retryValidation.failures.slice(0, 6) },
+              "IP 定位全案重试后仍未通过校验"
+            );
+          }
+        } catch (retryError) {
+          log.warn(
+            { err: retryError },
+            "IP 定位全案重试调用失败，按首次校验结果返回"
+          );
+        }
+      }
+      if (validation.failures.length > 0) {
+        return {
+          ok: false,
+          status: 422,
+          body: {
+            error: "marketplace_output_invalid",
+            message: "IP 定位全案未通过技能校验，本次不消耗积分：\n" + validation.failures.slice(0, 8).join("\n"),
+            reasons: validation.failures.slice(0, 20)
+          }
+        };
+      }
+      ipPosPayload = validation.payload;
+    }
+    if (core === "vidrev") {
+      const validateVidrev = (markdown: string) =>
+        validateVidrevReport({
+          markdown,
+          metrics: vidrevMetrics,
+          mode: "deep",
+          hasRevenueData: vidrevHasRevenue
+        });
+      let validation = validateVidrev(answerText);
+      if (validation.failures.length > 0) {
+        await dumpVidrevDebugOutput("first", answerText, validation.failures);
+        const corrective = [
+          "上一次输出未通过技能校验，请在不改动已经正确的数字与结论的前提下，重新输出完整报告并只修正下列问题：",
+          ...validation.failures.slice(0, 12).map((item, index) => `${index + 1}. ${item}`),
+          "硬性排版：单条深拆必须先写「为什么…：」独占一行，紧接着用「1.」「2.」「3.」列出至少 3 条理由（不要用项目符号）；第八章规律总结的「支撑视频」列必须填具体 video_id（如 v1、v5），不能留空或写「—」；第九章方法论沉淀每条用「1.」「2.」编号独占一段，五个字段各占一行（类型：/规律：/证据：/置信度：/相关选题：），禁止用「/」把五个字段串成一行。"
+        ].join("\n");
+        try {
+          const retryText = (await provider.complete(
+            [
+              {
+                role: "system",
+                content: marketplaceSkillSystemPrompt(sku)
+              },
+              ...turnMessages,
+              { role: "assistant", content: answerText },
+              { role: "user", content: corrective }
+            ] as LlmMessage[],
+            { maxTokens: 8192 }
+          )) as unknown as string;
+          const retryValidation = validateVidrev(retryText ?? "");
+          if (retryValidation.failures.length === 0) {
+            answerText = retryText;
+            validation = retryValidation;
+          } else {
+            await dumpVidrevDebugOutput("retry", retryText ?? "", retryValidation.failures);
+          }
+        } catch {
+          // 纠错重跑失败则保留首次输出，走下面的 422 分支（不消耗积分）。
+        }
+      }
+      if (validation.failures.length > 0) {
+        return {
+          ok: false,
+          status: 422,
+          body: {
+            error: "marketplace_output_invalid",
+            message: "视频复盘未通过技能校验，本次不消耗积分：\n" + validation.failures.slice(0, 8).join("\n"),
+            reasons: validation.failures.slice(0, 20),
+            failed_rules: [...new Set(validation.failures.map((item) => item.split(/[\s：:]/)[0]))]
+          }
+        };
+      }
+      vidrevPayload = validation.payload;
+    }
+    const answer = marketplaceWrappedAnswer(sku, answerText);
+    const costCny = estimateMarketplaceModelCostCny(usage);
+    const dynamicCredits = marketplaceCreditsForUsage(usage);
+    const charge = coveredBySubscription ? 0 : costBased ? dynamicCredits : price;
+
+    let walletAfter = walletBefore;
+    let spent: { paid: number; bonus: number } = { paid: 0, bonus: 0 };
+    if (!coveredBySubscription) {
+      const consumed = await consumeWalletCredits({
+        userId: context.userId,
+        requestId,
+        price: charge,
+        skillId: sku.skuCode,
+        source: "web"
+      });
+      if (consumed.status === "insufficient") {
+        return {
+          ok: false,
+          status: 402,
+          body: {
+            error: "insufficient_credits",
+            message: "当前积分不足，请先充值后再使用。",
+            balance: consumed.wallet.balance,
+            paidBalance: consumed.wallet.paidBalance,
+            bonusBalance: consumed.wallet.bonusBalance,
+            required: charge,
+            rechargeUrl: buildRechargeUrl(sku.skuCode)
+          }
+        };
+      }
+      walletAfter = consumed.wallet;
+      spent = consumed.spent;
+    }
+
+    await prisma.marketplaceLedgerEntry.create({
+      data: {
+        tenantId: context.tenantId,
+        userId: context.userId,
+        skuId: sku.id,
+        type: "ppu_consume",
+        direction: "debit",
+        amountCredits: charge,
+        amountCny: 0,
+        status: "completed",
+        idempotencyKey: requestId,
+        refType: coveredBySubscription ? SUBSCRIPTION_USAGE_REF_TYPE : "marketplace_run",
+        refId: coveredBySubscription ? activeSubscription?.id ?? requestId : requestId,
+        metadata: {
+          pricingMode: coveredBySubscription ? "subscription" : costBased ? "cost_based" : "fixed_ppu",
+          estimatedCredits: dynamicCredits,
+          listPpu: price,
+          modelCostCny: costCny,
+          promptTokens: usage.promptTokens,
+          completionTokens: usage.completionTokens,
+          reasoningTokens: usage.reasoningTokens,
+          ...(coveredBySubscription
+            ? {
+                subscriptionId: activeSubscription?.id ?? null,
+                subscriptionDailyQuota: subscriptionQuota,
+                subscriptionUsedTodayBefore: subscriptionUsedToday
+              }
+            : {})
+        }
+      }
+    });
+
+    await maybeGrantReferralReward({ referredUserId: context.userId, kind: "referrer_first_use" }).catch((error: unknown) => {
+      log.warn({ err: error }, "referral reward(referrer_first_use) failed");
+    });
+
+    await prisma.marketplaceDeliverable
+      .create({
+        data: {
+          tenantId: context.tenantId,
+          userId: context.userId,
+          skuCode: sku.skuCode,
+          skuName: sku.name,
+          input: String(rawInput ?? "").slice(0, 20_000),
+          answer: String(answerText ?? "").slice(0, 60_000),
+          credits: charge,
+          requestId,
+          expiresAt: new Date(Date.now() + DELIVERABLE_RETENTION_DAYS * 24 * 60 * 60 * 1000)
+        }
+      })
+      .catch((error: unknown) => {
+        log.warn({ err: error }, "marketplace deliverable retention failed");
+      });
+    return {
+      ok: true,
+      body: {
+        state: "completed",
+        answer,
+        qualityFlags: null,
+        deliveryStatus: "completed",
+        consumedCredits: charge,
+        pricingMode: coveredBySubscription ? "subscription" : costBased ? "cost_based" : "fixed_ppu",
+        freeRedo: false,
+        requestId,
+        balance: walletAfter.balance,
+        paidBalance: walletAfter.paidBalance,
+        bonusBalance: walletAfter.bonusBalance,
+        spent,
+        ...(coveredBySubscription
+          ? {
+              subscription: {
+                covered: true,
+                id: activeSubscription?.id ?? null,
+                dailyQuota: subscriptionQuota,
+                usedToday: subscriptionUsedToday + 1,
+                remaining:
+                  subscriptionQuota == null ? null : Math.max(0, subscriptionQuota - (subscriptionUsedToday + 1)),
+                endDate: activeSubscription?.endDate ?? null
+              }
+            }
+          : {}),
+        ...(ipPosPayload ? { payload: ipPosPayload } : {}),
+        ...(vidrevPayload ? { payload: vidrevPayload } : {})
+      }
+    };
+  } catch (error) {
+    throw error;
+  }
+}
 
 export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<void> {
   await ensureMarketplaceCatalog();
@@ -354,513 +919,9 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
       const context = await resolveRequestContext(request.headers);
       const sku = await getMarketplaceSku(request.params.skuId);
       if (!sku) return reply.code(404).send({ error: "marketplace_sku_not_found" });
-      const access = await accessStateFor(context, sku);
-      if (access.state === "unavailable") {
-        const comingSoon = sku.status === "coming_soon";
-        return reply.code(409).send({
-          error: comingSoon ? "marketplace_sku_coming_soon" : "marketplace_sku_not_available",
-          message: comingSoon
-            ? "该智能体正在开发中，敬请期待；本次不消耗积分。"
-            : "该智能体暂不可用；本次不消耗积分。",
-          status: sku.status
-        });
-      }
-
-      const skillId = resolveMarketplaceSkillId(sku.capabilityKey);
-      if (!skillId) return reply.code(409).send({ error: "marketplace_skill_not_configured" });
-
-      const core = sku.skuCode.includes("__") ? sku.skuCode.slice(sku.skuCode.lastIndexOf("__") + 2) : sku.skuCode;
-      const rawInput = parsed.data.input ?? "";
-      const structuredRows = (parsed.data.rows ?? []) as unknown as VidrevRawRow[];
-      // 只有视频复盘允许「结构化数据行」替代文本输入；其余技能仍要求文字输入，保持既有 400 行为。
-      if (core !== "vidrev" && rawInput.trim().length === 0) {
-        return reply.code(400).send({ error: "invalid_request", details: { input: ["必填"] } });
-      }
-      if (core === "vidrev" && rawInput.trim().length === 0 && structuredRows.length === 0) {
-        return reply.code(400).send({
-          error: "invalid_request",
-          details: { input: ["视频复盘需要数据行（rows）或文字说明（input）"] }
-        });
-      }
-
-      const requestId = randomUUID();
-      const usage = { promptTokens: 0, completionTokens: 0, reasoningTokens: 0 };
-      const baseProvider = new DomesticChatProvider({
-        providerName: "deepseek",
-        apiKey: env.DEEPSEEK_API_KEY,
-        baseUrl: env.DEEPSEEK_BASE_URL,
-        model: process.env.MARKETPLACE_MODEL ?? "deepseek-v4-flash",
-        timeoutMs: env.LLM_TIMEOUT_MS,
-        domesticNetworkOnly,
-        allowedHosts: domesticOutboundAllowlist,
-        onUsage: (obs: DomesticProviderUsageObservation) => {
-          usage.promptTokens += obs.promptTokens ?? 0;
-          usage.completionTokens += obs.completionTokens ?? 0;
-          usage.reasoningTokens += obs.reasoningTokens ?? 0;
-        }
-      });
-      const provider = {
-        name: baseProvider.name,
-        isConfigured: () => baseProvider.isConfigured(),
-        getModel: () => baseProvider.getModel(),
-        complete: (messages: Parameters<typeof baseProvider.complete>[0], options: Parameters<typeof baseProvider.complete>[1]) => baseProvider.complete(messages, {
-          ...(options as object),
-          reasoningProfile: "standard",
-          thinkingMode: "disabled",
-          maxTokens: Math.min(Math.max(((options as { maxTokens?: number })?.maxTokens) ?? 8000, 8000), 8192)
-        })
-      };
-
-      const price = sku.ppu;
-      if (price <= 0) {
-        return reply.code(409).send({ error: "marketplace_ppu_not_configured", message: "该智能体暂未开放使用" });
-      }
-      /**
-       * 按成本计费（用户 2026-09-15「先只切有实测成本的三个 SKU」）。
-       *
-       * 白名单里的 SKU 这次扣的就是「实际 token 成本 × 100 倍」（`dynamicCredits`，用真实 usage 算），
-       * 没进白名单的继续扣固定 `ppu`——两者只差下面那个 `charge`，账本与响应都跟着走同一个数。
-       * 计费时点不变（交付完成之后扣一次），所以不需要预留/退差；真实用量决定真实扣分。
-       */
-      const costBased = usesCostBasedPricing(sku.skuCode);
-
-      /**
-       * 免费重做已下线（用户 2026-09-15 拍板「取消智能体的免费重做」）。
-       *
-       * 这里**显式拒绝**而不是静默忽略：老缓存的前端 bundle 仍然会带 `redoOf`，
-       * 静默忽略会让用户以为"重做免费"而实际被消耗积分；显式拒绝才是可解释的行为。
-       * 想再生成一次 = 一次正常的按次消耗积分生成。
-       */
-      if (parsed.data.redoOf) {
-        return reply.code(409).send({
-          error: "marketplace_free_redo_removed",
-          message: "需要再要一份时，重新发起一次即可（用量按实际消耗计算）。",
-          retryable: false,
-          providerCalls: 0,
-          creditCost: 0
-        });
-      }
-
-      /**
-       * 包月订阅（用户 2026-09-17 拍板）：订阅期内**不再按次扣积分**，只受「每天 N 次」限制。
-       * 三种计费方式由单个智能体自己决定：按次（ppu）／按消耗（成本口径）／按月订阅（不扣积分）。
-       * - 已订阅且今日额度还没用完：跳过余额预检（余额 0 也能继续用），结算时按 0 积分记账。
-       * - 已订阅但今日额度用完：**显式拒绝**，不静默改成扣积分（用户选了包月就不该被扣分）。
-       */
-      const activeSubscription = context.source === "database" ? await activeSubscriptionFor(context, sku.id) : null;
-      const subscriptionQuota = activeSubscription?.dailyQuota ?? sku.subscriptionDailyQuota ?? null;
-      const subscriptionUsedToday = activeSubscription
-        ? await countSubscriptionUsageToday(context, sku.id, activeSubscription.id)
-        : 0;
-      const coveredBySubscription = Boolean(activeSubscription);
-      if (activeSubscription && subscriptionQuota != null && subscriptionUsedToday >= subscriptionQuota) {
-        return reply.code(409).send({
-          error: "marketplace_subscription_quota_exhausted",
-          message: `你已开通本智能体的包月：今天 ${subscriptionQuota} 次已经用完（今日已用 ${subscriptionUsedToday} 次）。本次不消耗积分，额度每天 0 点恢复。`,
-          quota: subscriptionQuota,
-          usedToday: subscriptionUsedToday,
-          subscriptionEndDate: activeSubscription.endDate,
-          providerCalls: 0,
-          creditCost: 0
-        });
-      }
-
-      const walletBefore = await readWallet(context.userId);
-      if (!coveredBySubscription && walletBefore.balance < price) {
-        return reply.code(402).send({
-          error: "insufficient_credits",
-          message: "当前积分不足，请先充值后再使用。",
-          balance: walletBefore.balance,
-          required: price,
-          rechargeUrl: buildRechargeUrl(sku.skuCode)
-        });
-      }
-
-      try {
-        let userContent = marketplaceRunInput(sku, rawInput);
-        if (core === "topic") {
-          const industryMatch = /(?:行业|账号阶段)[^：:]*[：:]\s*([^\n]+)/.exec(rawInput);
-          const benchMatch = /(?:同行爆款|对标账号)[^：:]*[：:]\s*([^\n]+)/.exec(rawInput);
-          const industry = industryMatch?.[1]?.trim() ?? "";
-          const bench = benchMatch?.[1]?.trim() ?? "";
-          try {
-            const search = await searchPublicTopicSources(industry, bench);
-            userContent += `\n\n【搜索源 · 实时检索】\n行业热点：${search.hot.fetched ? search.hot.items.join("；") : search.hot.note}\n同行爆款：${search.bench.fetched ? search.bench.items.join("；") : search.bench.note}`;
-          } catch {
-            userContent += "\n\n【搜索源 · 实时检索】行业热点：检索失败；同行爆款：未提供";
-          }
-          const apiKeyMatch = /API\s*[Kk]ey[：:\s]*([A-Za-z0-9_.]+)/.exec(rawInput);
-          const clientMatch = /Client\s*I[Dd][：:\s]*([A-Za-z0-9_]+)/.exec(rawInput);
-          const apiKey = apiKeyMatch?.[1] ?? (process.env.GETNOTE_API_KEY ?? "");
-          const clientId = clientMatch?.[1] ?? (process.env.GETNOTE_CLIENT_ID ?? "");
-          if (apiKey && clientId) {
-            const notes = await fetchGetnoteNotes(apiKey, clientId).catch(() => []);
-            if (notes.length > 0) {
-              userContent += `\n\n【Get笔记 · 录音卡（真实拉取）】\n${notes.map((n) => `- ${n.title}：${n.summary || "（无摘要）"}`).join("\n")}`;
-            } else {
-              userContent += "\n\n【Get笔记 · 录音卡】已提供 API Key，但拉取未取到笔记（可能未授权/网络），按「无」处理。";
-            }
-          }
-        }
-        // 视频复盘：先用确定性引擎把数据行重算成硬口径，再把口径与明细喂给模型，最后校验模型输出。
-        let vidrevMetrics: VidrevMetrics | null = null;
-        let vidrevHasRevenue = parsed.data.has_revenue_data ?? false;
-        if (core === "vidrev") {
-          const rows = structuredRows.length > 0 ? structuredRows : parseVidrevRowsFromText(rawInput).rows;
-          vidrevHasRevenue = parsed.data.has_revenue_data ?? false;
-          const platform = parsed.data.platform?.trim() || "抖音";
-          if (!VIDREV_SUPPORTED_PLATFORMS.includes(platform)) {
-            return reply.code(422).send({
-              error: "vidrev_platform_not_supported",
-              message: VIDREV_UNSUPPORTED_MESSAGE,
-              platform,
-              providerCalls: 0,
-              creditCost: 0
-            });
-          }
-          const period = parsed.data.period ?? null;
-          // 2026-09-14 用户口径（工单 2.2）：只保留「深度复盘」，删除快速诊断分支。
-          vidrevMetrics = computeVidrevMetrics(rows);
-          if (vidrevMetrics.count === 0) {
-            return reply.code(422).send({
-              error: "marketplace_output_invalid",
-              message: "没有识别到视频记录，本次不消耗积分。请上传视频号/抖音后台导出的 CSV/Excel（至少包含 1 条视频数据，表头含标题 / 播放 / 互动等字段）。",
-              reasons: ["V0 未解析到可复算的数据行：深度复盘必须有结构化数据（rows 或可解析的数据表）。"],
-              failed_rules: ["V0"]
-            });
-          }
-          userContent += `\n\n【本次复盘参数】模式=深度复盘；平台=${platform}；周期=${period?.start ?? "未提供"} ~ ${period?.end ?? "未提供"}；是否有成交金额=${vidrevHasRevenue ? "有" : "无"}。`;
-          userContent += `\n\n【后端重算口径 · 必须逐字照抄，写错即判失败】\n${vidrevMetricBrief(vidrevMetrics)}`;
-          userContent += `\n\n【结构化数据明细 · 只能引用这些 video_id，禁止编造视频】\n${vidrevRowsTable(vidrevMetrics)}`;
-        }
-        // 分轮交互：同一会话的历史（含上一轮【需补充信息】问答）随请求带上，保证只扣一次费。
-        const history = parsed.data.history ?? [];
-        const turnMessages: LlmMessage[] = [
-          ...history.map((item) => ({ role: item.role, content: item.content }) as LlmMessage),
-          { role: "user", content: userContent }
-        ];
-        let answerText: string;
-        let ipPosPayload: IpPosPayload | null = null;
-        let vidrevPayload: VidrevPayload | null = null;
-        try {
-          if (core === "ip-pos") {
-            // 全案体量大（速览 + 八章 + ≥80 条选题），单次生成会超出输出上限被截断；
-            // 按「0–四章 / 五–八章」两段并发生成后合并，保证章节完整可校验。
-            const [partA, partB] = (await Promise.all([
-              provider.complete(
-                [{ role: "system", content: IP_POS_SYSTEM_PROMPT_A }, ...turnMessages] as LlmMessage[],
-                { maxTokens: 8192 }
-              ),
-              provider.complete(
-                [{ role: "system", content: IP_POS_SYSTEM_PROMPT_B }, ...turnMessages] as LlmMessage[],
-                { maxTokens: 8192 }
-              )
-            ])) as unknown as [string, string];
-            const clarifyA = extractClarification(partA ?? "");
-            const clarifyB = extractClarification(partB ?? "");
-            answerText = clarifyA
-              ? String(partA ?? "")
-              : clarifyB
-                ? String(partB ?? "")
-                : `${String(partA ?? "").trim()}\n\n${String(partB ?? "").trim()}`;
-          } else {
-            answerText = (await provider.complete(
-              [
-                {
-                  role: "system",
-                  content: marketplaceSkillSystemPrompt(sku)
-                },
-                ...turnMessages
-              ] as LlmMessage[],
-              { maxTokens: 2048 }
-            )) as unknown as string;
-          }
-        } catch (modelError) {
-          const code = (modelError as { code?: string })?.code ?? "model_call_failed";
-          return reply.code(502).send({
-            error: "marketplace_provider_failed",
-            code,
-            message: `模型调用失败（${code}），本次不消耗积分。`
-          });
-        }
-
-        const clarification = extractClarification(answerText);
-        if (clarification) {
-          return reply.code(200).send({
-            needsInput: true,
-            answer: clarification,
-            consumedCredits: 0,
-            balance: walletBefore.balance,
-            required: price
-          });
-        }
-
-        if (core === "topic") {
-          const validation = parseTopicTable(answerText);
-          if (validation.failures.length > 0) {
-            return reply.code(422).send({
-              error: "marketplace_output_invalid",
-              message: "选题交付未通过技能校验，本次不消耗积分：\n" + validation.failures.slice(0, 8).join("\n"),
-              reasons: validation.failures.slice(0, 20)
-            });
-          }
-        }
-        if (core === "copy") {
-          const validation = parseCopyTenContract(answerText);
-          if (validation.failures.length > 0) {
-            return reply.code(422).send({
-              error: "marketplace_output_invalid",
-              message: "文案交付未通过技能校验，本次不消耗积分：\n" + validation.failures.join("\n"),
-              reasons: validation.failures
-            });
-          }
-        }
-        if (core === "ip-pos") {
-          /**
-           * 2026-09-16 客户现场：IP 定位全案体量大（两段并发生成 + 八章严格校验），
-           * 模型偶发漏一章 / 速览某项为空，就会整单 422 退回，用户白等一次（虽然不扣积分）。
-           * 处理：**在同一次请求内自动重试一次**（仍然只按成功交付扣一次积分），
-           * 重试仍不合规才把 422 交给客户，并把失败原因写进日志便于后续收窄提示词。
-           */
-          let validation = parseIpPosFull(answerText, rawInput);
-          if (validation.failures.length > 0) {
-            // 重试属于我们的质量兜底：**按首次用量计费**（重试那次成本由平台吸收），
-            // 否则客户会看到「预估 130、实扣 229」这种不公平的账单。
-            const firstAttemptUsage = { ...usage };
-            request.log.warn(
-              { event: "ip_pos_output_invalid_retry", attempt: 1, failures: validation.failures.slice(0, 6) },
-              "IP 定位全案未通过技能校验，自动重试一次"
-            );
-            try {
-              const [retryA, retryB] = (await Promise.all([
-                provider.complete(
-                  [{ role: "system", content: IP_POS_SYSTEM_PROMPT_A }, ...turnMessages] as LlmMessage[],
-                  { maxTokens: 8192 }
-                ),
-                provider.complete(
-                  [{ role: "system", content: IP_POS_SYSTEM_PROMPT_B }, ...turnMessages] as LlmMessage[],
-                  { maxTokens: 8192 }
-                )
-              ])) as unknown as [string, string];
-              const retryText = `${String(retryA ?? "").trim()}\n\n${String(retryB ?? "").trim()}`;
-              const retryValidation = parseIpPosFull(retryText, rawInput);
-              if (retryValidation.failures.length === 0) {
-                answerText = retryText;
-                validation = retryValidation;
-                usage.promptTokens = firstAttemptUsage.promptTokens;
-                usage.completionTokens = firstAttemptUsage.completionTokens;
-                usage.reasoningTokens = firstAttemptUsage.reasoningTokens;
-                request.log.info({ event: "ip_pos_output_invalid_retry_ok" }, "IP 定位全案重试后通过校验");
-              } else {
-                request.log.warn(
-                  { event: "ip_pos_output_invalid_retry_failed", failures: retryValidation.failures.slice(0, 6) },
-                  "IP 定位全案重试后仍未通过校验"
-                );
-              }
-            } catch (retryError) {
-              request.log.warn(
-                { err: retryError },
-                "IP 定位全案重试调用失败，按首次校验结果返回"
-              );
-            }
-          }
-          if (validation.failures.length > 0) {
-            return reply.code(422).send({
-              error: "marketplace_output_invalid",
-              message: "IP 定位全案未通过技能校验，本次不消耗积分：\n" + validation.failures.slice(0, 8).join("\n"),
-              reasons: validation.failures.slice(0, 20)
-            });
-          }
-          ipPosPayload = validation.payload;
-        }
-        if (core === "vidrev") {
-          const validateVidrev = (markdown: string) =>
-            validateVidrevReport({
-              markdown,
-              metrics: vidrevMetrics,
-              // 工单 2.2：只保留深度复盘，校验按 deep 口径走。
-              mode: "deep",
-              hasRevenueData: vidrevHasRevenue
-            });
-          let validation = validateVidrev(answerText);
-          // 真实模型可能因排版漂移导致格式类校验失败（如 deep-dive 理由未编号）。失败时带上
-          // 具体 failed_rules 自动纠错重跑一次，仍不过才 422 且不消耗积分——既保质量又减少误伤。
-          if (validation.failures.length > 0) {
-            await dumpVidrevDebugOutput("first", answerText, validation.failures);
-            const corrective = [
-              "上一次输出未通过技能校验，请在不改动已经正确的数字与结论的前提下，重新输出完整报告并只修正下列问题：",
-              ...validation.failures.slice(0, 12).map((item, index) => `${index + 1}. ${item}`),
-              "硬性排版：单条深拆必须先写「为什么…：」独占一行，紧接着用「1.」「2.」「3.」列出至少 3 条理由（不要用项目符号）；第八章规律总结的「支撑视频」列必须填具体 video_id（如 v1、v5），不能留空或写「—」；第九章方法论沉淀每条用「1.」「2.」编号独占一段，五个字段各占一行（类型：/规律：/证据：/置信度：/相关选题：），禁止用「/」把五个字段串成一行。"
-            ].join("\n");
-            try {
-              const retryText = (await provider.complete(
-                [
-                  {
-                    role: "system",
-                    content: marketplaceSkillSystemPrompt(sku)
-                  },
-                  ...turnMessages,
-                  { role: "assistant", content: answerText },
-                  { role: "user", content: corrective }
-                ] as LlmMessage[],
-                { maxTokens: 8192 }
-              )) as unknown as string;
-              const retryValidation = validateVidrev(retryText ?? "");
-              if (retryValidation.failures.length === 0) {
-                answerText = retryText;
-                validation = retryValidation;
-              } else {
-                await dumpVidrevDebugOutput("retry", retryText ?? "", retryValidation.failures);
-              }
-            } catch {
-              // 纠错重跑失败则保留首次输出，走下面的 422 分支（不消耗积分）。
-            }
-          }
-          if (validation.failures.length > 0) {
-            return reply.code(422).send({
-              error: "marketplace_output_invalid",
-              message: "视频复盘未通过技能校验，本次不消耗积分：\n" + validation.failures.slice(0, 8).join("\n"),
-              reasons: validation.failures.slice(0, 20),
-              failed_rules: [...new Set(validation.failures.map((item) => item.split(/[\s：:]/)[0]))]
-            });
-          }
-          vidrevPayload = validation.payload;
-        }
-        const answer = marketplaceWrappedAnswer(sku, answerText);
-        const costCny = estimateMarketplaceModelCostCny(usage);
-        const dynamicCredits = marketplaceCreditsForUsage(usage);
-        /**
-         * 实际扣分：包月覆盖 = 0 积分；其余白名单 SKU 走成本口径（按这次真实用量算），
-         * 没进白名单的仍是固定 ppu。
-         */
-        const charge = coveredBySubscription ? 0 : costBased ? dynamicCredits : price;
-
-        /**
-         * 消耗积分时机：交付完成之后。免费重做已下线。
-         * 包月覆盖时**不调用钱包**（0 积分既不允许也不该扣），余额原样返回。
-         */
-        let walletAfter = walletBefore;
-        let spent: { paid: number; bonus: number } = { paid: 0, bonus: 0 };
-        if (!coveredBySubscription) {
-          const consumed = await consumeWalletCredits({
-            userId: context.userId,
-            requestId,
-            price: charge,
-            skillId: sku.skuCode,
-            source: "web"
-          });
-          if (consumed.status === "insufficient") {
-            return reply.code(402).send({
-              error: "insufficient_credits",
-              message: "当前积分不足，请先充值后再使用。",
-              balance: consumed.wallet.balance,
-              paidBalance: consumed.wallet.paidBalance,
-              bonusBalance: consumed.wallet.bonusBalance,
-              required: charge,
-              rechargeUrl: buildRechargeUrl(sku.skuCode)
-            });
-          }
-          walletAfter = consumed.wallet;
-          spent = consumed.spent;
-        }
-
-        await prisma.marketplaceLedgerEntry.create({
-          data: {
-            tenantId: context.tenantId,
-            userId: context.userId,
-            skuId: sku.id,
-            type: "ppu_consume",
-            direction: "debit",
-            amountCredits: charge,
-            amountCny: 0,
-            status: "completed",
-            idempotencyKey: requestId,
-            // 包月覆盖的一次交付单独打标签：既是「今天用了几次」的计数依据，也让账本能区分
-            // 「扣了 0 积分」和「真的没扣费」。
-            refType: coveredBySubscription ? SUBSCRIPTION_USAGE_REF_TYPE : "marketplace_run",
-            refId: coveredBySubscription ? activeSubscription?.id ?? requestId : requestId,
-            metadata: {
-              pricingMode: coveredBySubscription ? "subscription" : costBased ? "cost_based" : "fixed_ppu",
-              estimatedCredits: dynamicCredits,
-              listPpu: price,
-              modelCostCny: costCny,
-              promptTokens: usage.promptTokens,
-              completionTokens: usage.completionTokens,
-              reasoningTokens: usage.reasoningTokens,
-              ...(coveredBySubscription
-                ? {
-                    subscriptionId: activeSubscription?.id ?? null,
-                    subscriptionDailyQuota: subscriptionQuota,
-                    subscriptionUsedTodayBefore: subscriptionUsedToday
-                  }
-                : {})
-            }
-          }
-        });
-
-
-
-        await maybeGrantReferralReward({ referredUserId: context.userId, kind: "referrer_first_use" }).catch((error: unknown) => {
-          request.log.warn({ err: error }, "referral reward(referrer_first_use) failed");
-        });
-
-        /**
-         * 已付费交付物留存 7 天（用户 2026-09-16 拍板）。
-         *
-         * 汽配信息网现场：客户退出/换手机后，报告与他填的需求只在他自己页面上，丢了只能退款、无从核对。
-         * 这里把「已成功交付并扣费」的输入与产出留 7 天，客户重开同一智能体可自助找回；
-         * 留存失败**绝不阻断交付**（best-effort，只记日志）。
-         */
-        await prisma.marketplaceDeliverable
-          .create({
-            data: {
-              tenantId: context.tenantId,
-              userId: context.userId,
-              skuCode: sku.skuCode,
-              skuName: sku.name,
-              input: String(rawInput ?? "").slice(0, 20_000),
-              answer: String(answerText ?? "").slice(0, 60_000),
-              credits: charge,
-              requestId,
-              expiresAt: new Date(Date.now() + DELIVERABLE_RETENTION_DAYS * 24 * 60 * 60 * 1000)
-            }
-          })
-          .catch((error: unknown) => {
-            request.log.warn({ err: error }, "marketplace deliverable retention failed");
-          });
-        return {
-          state: "completed",
-          answer,
-          qualityFlags: null,
-          deliveryStatus: "completed",
-          consumedCredits: charge,
-          pricingMode: coveredBySubscription ? "subscription" : costBased ? "cost_based" : "fixed_ppu",
-          freeRedo: false,
-          requestId,
-          balance: walletAfter.balance,
-          paidBalance: walletAfter.paidBalance,
-          bonusBalance: walletAfter.bonusBalance,
-          spent,
-          /** 包月覆盖时明确告诉前端「这次没扣积分、今天还剩几次」，避免用户以为漏扣或多扣。 */
-          ...(coveredBySubscription
-            ? {
-                subscription: {
-                  covered: true,
-                  id: activeSubscription?.id ?? null,
-                  dailyQuota: subscriptionQuota,
-                  usedToday: subscriptionUsedToday + 1,
-                  remaining:
-                    subscriptionQuota == null ? null : Math.max(0, subscriptionQuota - (subscriptionUsedToday + 1)),
-                  endDate: activeSubscription?.endDate ?? null
-                }
-              }
-            : {}),
-          ...(ipPosPayload ? { payload: ipPosPayload } : {}),
-          ...(vidrevPayload ? { payload: vidrevPayload } : {})
-        };
-      } catch (error) {
-        throw error;
-      }
+      const outcome = await runMarketplaceSku({ context, sku, body: parsed.data, log: request.log });
+      if (outcome.ok) return outcome.body;
+      return reply.code(outcome.status).send(outcome.body);
     });
 
     /**
@@ -1287,7 +1348,7 @@ async function getCreditBalance(context: RequestContext): Promise<number> {
   return (await readWallet(context.userId)).balance;
 }
 
-async function listMarketplaceSkus(query: MarketplaceSkuQuery, includeOffline: boolean): Promise<PublicMarketplaceSku[]> {
+export async function listMarketplaceSkus(query: MarketplaceSkuQuery, includeOffline: boolean): Promise<PublicMarketplaceSku[]> {
   if (env.DATA_MODE === "demo") {
     return demoMarketplace.listSkus(query, includeOffline).map((sku) => demoMarketplace.toPublic(sku));
   }
@@ -1338,7 +1399,7 @@ async function listMarketplaceSkus(query: MarketplaceSkuQuery, includeOffline: b
     );
 }
 
-async function getMarketplaceSku(idOrCode: string): Promise<PublicMarketplaceSku | null> {
+export async function getMarketplaceSku(idOrCode: string): Promise<PublicMarketplaceSku | null> {
   if (env.DATA_MODE === "demo") {
     const sku = demoMarketplace.getSku(idOrCode);
     return sku ? demoMarketplace.toPublic(sku) : null;
@@ -2053,7 +2114,7 @@ const VIDREV_SYSTEM_PROMPT = [
   "【零、数据质量审计】必须是一张「检查项 | 结果」表格，检查项至少含：总记录数、完播率覆盖、评论数据、发布时段、投流标记。表格后接「受限维度：」并用 1. 2. 3. 逐条列出每一个缺失维度、影响和降级口径；确实没有缺失时写「受限维度：无」。",
   "「发布时段」一律按下文数据明细里的「发布时间」列判定：有则该行写「精确到日/精确到小时」，无（写「数据缺失」）才在受限维度里声明缺失——禁止数据里有发布时间却宣称「发布时段缺失」。",
   "【一、数据总览】用「指标 | 数值」表格，至少含：视频总数、总播放、总互动（含互动率，注明加权）、总转化、投流金额、ROI、趋势、账号基线（中位数）。**ROI 无成交金额字段时必须写「数据缺失（无成交金额字段）」，禁止填 0 或编造数值。** 表格后可点明均值是否被极值污染、判断账号健康度一律看中位数。",
-  "【二、视频分层】先写分层口径（播放中位数、转化中位数、高播放 ≥1.5× 中位数、高转化 ≥1.5× 中位数），再用表格逐条列出：象限 | # | 标题 | 播放 | 咨询 | 完播。四象限名称固定为「又爆又赚 / 有量无转 / 有转无量 / 没量没转」。**四象限条数之和必须等于总条数，每条视频只能出现在一行**；落在中间带的按播放是否达基线二分。",
+  "【二、视频分层】先写分层口径（播放中位数、转化中位数、高播放 ≥1.5× 中位数、高转化 ≥1.5× 中位数），再原样照抄后端给出的分层表，列名固定为：象限 | video_id | 标题 | 播放 | 咨询 | 完播。**第二列必须是 video_id（逐字照抄后端数据明细里的 ID，例如 v3 或 export/UzFf…），禁止用 1. / 2. 这类序号或把「标题」顶到第二列代替。** 四象限名称固定为「又爆又赚 / 有量无转 / 有转无量 / 没量没转」，空象限写「无」。**四象限条数之和必须等于总条数，每条视频只能出现在一行**；落在中间带的按播放是否达基线二分。",
   "【三、内容结构健康度】用「类型 | 条数 | 占比 | 均播 | 互动率 | 完播率 | 判定」表格逐类型列出；再写 `健康度评分 =（爆款型 + 人设型）/ 总数 = xx% → 🟢/🟡/🔴`，档位必须与分数一致（>50%🟢 / 30–50%🟡 / <30%🔴）；再写核心矛盾（太少/太多/错配）与调整建议（增/减/改）。",
   "【四、单条深拆】格式：`1. <video_id>「<标题>」｜<象限>`，下一行写该条指标（播放 / 赞 / 评 / 分享 / 收藏 / 完播 / 5秒完播 / 咨询 / 是否投流），再写「为什么好：」或「为什么流量好但转化差：」或「为什么不行：」+ 1. 2. 3. **至少 3 条理由**，最后写「可复用：…」与「改进：…」。总条数 ≥6 时必须 TOP3 + BOTTOM3 共 6 条；<6 时至少 TOP1 + BOTTOM1。**video_id 必须来自本次数据，禁止编造视频。**",
   "【五、完播率深层归因】按时长自适应分桶（3–5 桶，每桶 ≥1 条，默认 <30s / 30-45s / 45-60s / >60s；某桶为空要合并并注明「该桶本周期无内容，无法评估」），用「时长区间 | 条数 | 均播 | 完播率」表格；再按类型给完播率；最后写「最佳配方：」指名「类型 × 时长」。**禁止写死 <10s/10-20s/20-40s。**",
@@ -2071,7 +2132,7 @@ const VIDREV_SYSTEM_PROMPT = [
   "5. 不做共识层级、不写口播稿/脚本、不做 IP 定位。",
   "",
   "【排版】一段不超过 5 行；能用表格就不用列表；加粗不超过 12 处；除 🔴🟡🟢 外不要装饰性 emoji；数值百分比保留两位小数。",
-  "【输出前自检】① 十章齐全、章节名逐字一致；② 四象限条数之和 = 总条数；③ 深拆条数与 reasons/reusable/improve 达标；④ 健康度档位与分数一致；⑤ 无成交金额时 ROI 写「数据缺失」；⑥ 第十章四方向齐全且候选选题 ≥2 条、无违禁词。",
+  "【输出前自检】① 十章齐全、章节名逐字一致；② 第二章分层表第二列是 video_id（不是序号），四象限条数之和 = 总条数、每条只出现一次；③ 深拆条数与 reasons/reusable/improve 达标，且深拆里的 video_id 逐字照抄；④ 健康度档位与分数一致；⑤ 无成交金额时 ROI 写「数据缺失」；⑥ 第十章四方向齐全且候选选题 ≥2 条、无违禁词。",
   "只输出这一份 Markdown 报告，禁止输出任何推导过程、评分标准、内部评估、工作区/任务卡字样。"
 ].join("\n");
 
