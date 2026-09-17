@@ -1,8 +1,9 @@
 // 思潼 AI 货架 + IP 定位智能体真实浏览器验收（本地 API + Web，真实模型只跑 1 次）。
-// 覆盖：创始人IP专区 6 个内核显示「开发中」、IP 定位 200 积分详情页、聊天页结构化报告渲染、桌面/移动端无横向溢出、控制台无新增错误。
+// 覆盖：创始人IP专区 6 个内核显示「开发中」、IP 定位 400 积分详情页（单价从 marketplace-v3.json 读）、聊天页结构化报告渲染、桌面/移动端无横向溢出、控制台无新增错误。
 // 前置：apps/api dev（127.0.0.1:3011）与 apps/web dev（127.0.0.1:5174）已启动。
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -25,6 +26,13 @@ const LANQI_SKU = "lanqi__lanqi-brain";
 const IPZONE_TOTAL = 9;
 const COMING_SOON_COUNT = 6;
 const START_BALANCE = 1000;
+/**
+ * IP 定位单价从「唯一出处」读取，不在脚本里写死：2026-09-17 PLAT-45 把 200 改成 400 后，
+ * 本脚本原来的硬编码价正是过期断言的来源。这里直接对齐 marketplace-v3.json。
+ */
+const IP_POS_PPU = JSON.parse(
+  readFileSync(new URL("../apps/api/src/data/marketplace-v3.json", import.meta.url), "utf8")
+).skills["ip-pos"].ppu;
 
 /** IP 定位对话流有 4 轮信息收集，逐轮回答后才会出现「确认，开始生成」。 */
 const SLOT_ANSWERS = [
@@ -201,7 +209,16 @@ async function openPage(cdp, token, url, viewport) {
 
 async function checkShelf(cdp, token) {
   const { sessionId } = await openPage(cdp, token, `${webBase}/agents`, { width: 1280, height: 900 });
-  await waitFor(cdp, sessionId, "document.querySelectorAll('.agent-card').length >= 9");
+  /**
+   * 必须等**新文档**（/agents）挂上专区容器再取数：openPage 先停在 webBase 再去 /agents，
+   * 只等 `.agent-card` 会在「上一个文档已经渲染完、/agents 还没替换」这一瞬命中，
+   * 于是拿到空 shelves（2026-09-17 实测：报「货架缺少创始人IP专区」但实际页面 6 个专区都在）。
+   */
+  await waitFor(
+    cdp,
+    sessionId,
+    "location.pathname === '/agents' && document.querySelectorAll('.shelf').length >= 4 && document.querySelectorAll('.agent-card').length >= 9"
+  );
   const shelf = await evaluate(cdp, sessionId, `() => {
     const shelves = [...document.querySelectorAll('.shelf')];
     const ipzone = shelves.find((node) => node.querySelector('.shelf-head h2')?.textContent?.includes(${JSON.stringify(IPZONE_NAME)}));
@@ -313,8 +330,8 @@ async function checkIpPosChat(cdp, token) {
   assert.equal(walletView.status, 200, `聊天页读取 /market/me 失败：${JSON.stringify(walletView)}`);
   const walletBalance = JSON.parse(walletView.body).creditBalance;
   assert.ok(
-    walletBalance >= 200,
-    `聊天页余额必须 ≥200（证明页面拿到的租户与 seed 租户一致），实际 ${walletBalance}`
+    walletBalance >= IP_POS_PPU,
+    `聊天页余额必须 ≥${IP_POS_PPU}（本次 IP 定位的积分价，同时证明页面拿到的租户与 seed 租户一致），实际 ${walletBalance}`
   );
 
   // IP 定位是 4 轮信息收集：逐轮填入 → 点「下一步」，第 4 轮点「确认需求」。
@@ -428,12 +445,15 @@ async function checkIpPosChat(cdp, token) {
   assert.equal(report.invalid, 0, "通过校验的输出不应出现校验失败红卡");
   assert.ok(report.txtButtons.some((text) => text.includes("TXT")), "缺少口播正例 TXT 下载入口");
   assert.match(report.wordButton ?? "", /10 积分/, `Word 导出按钮必须显示 10 积分，实际 ${report.wordButton}`);
-  // 按结果付费兜底：交付完成后必须给出「免费重做一次」入口，且未被禁用（凭证已在手）。
-  assert.match(report.redoButton ?? "", /免费重做/, `缺少「免费重做」入口，实际 ${report.redoButton}`);
-  assert.equal(report.redoDisabled, false, "「免费重做」入口必须可点（已持有本次交付凭证）");
-  // 本次消耗必须同时显示积分与人民币折算：200 积分 → ≈ ¥10。
-  assert.match(report.costText ?? "", /200 积分/, `本次消耗必须显示 200 积分，实际 ${report.costText}`);
-  assert.match(report.costText ?? "", /≈ ¥10/, `本次消耗必须显示「≈ ¥10」折算，实际 ${report.costText}`);
+  // PLAT-40（2026-09-15 用户拍板）：免费重做已整体下线，交付页不得再出现该入口。
+  assert.equal(report.redoButton ?? null, null, `「免费重做」已下线，不得再出现，实际 ${report.redoButton}`);
+  // PLAT-43 / PLAT-45（2026-09-17）：只报积分、不显示人民币折算；IP 定位固定 400 积分/次。
+  assert.match(
+    report.costText ?? "",
+    new RegExp(`本次实际消耗 ${IP_POS_PPU} 积分`),
+    `本次消耗必须显示「本次实际消耗 ${IP_POS_PPU} 积分」，实际 ${report.costText}`
+  );
+  assert.ok(!/≈ ?¥/.test(report.costText ?? ""), `本次消耗不得显示人民币折算，实际 ${report.costText}`);
   assert.equal(report.overflow, 0, "1280px 聊天结果页出现横向溢出");
   return { sessionId, report };
 }
@@ -471,7 +491,7 @@ async function main() {
     }
 
     if (!skipShelf) {
-      const ipDetail = await checkDetail(cdp, token, IP_POS_SKU, { comingSoon: false, ppu: 200 });
+      const ipDetail = await checkDetail(cdp, token, IP_POS_SKU, { comingSoon: false, ppu: IP_POS_PPU });
       summary.detail = { ipPos: ipDetail.detail.button };
 
       const copyDetail = await checkDetail(cdp, token, COPY_SKU, { comingSoon: false, ppu: 40 });
