@@ -81,8 +81,8 @@ function main(): void {
   const sellingSkus = shelf.filter((sku) => sku.status === "selling").map((sku) => sku.skuCode);
   assert(shelf.length === 19, `public shelf keeps all 19 skus visible (got ${shelf.length})`);
   assert(
-    soonSkus.length === 13,
-    `13 coming_soon skus stay on the shelf: 创始人IP专区 6 + 美业专区 6 + 1 品牌专属内核（视频复盘已上架）(got ${soonSkus.length})`
+    soonSkus.length === 11,
+    `11 coming_soon skus stay on the shelf: 创始人IP专区 5 + 美业专区 5 + 1 品牌专属内核（视频复盘与直播话术已上架）(got ${soonSkus.length})`
   );
   assert(soonSkus.some((sku) => sku.skuCode === "ipzone__topic"), "coming_soon sku stays visible on the public shelf");
   // 2026-09-15 用户口径：行业专家专区先只建栏，暂不放任何智能体（显式空 skills 白名单）。
@@ -105,16 +105,17 @@ function main(): void {
     "兰琪品牌内核不得出现在创始人IP/美业等通用专区"
   );
   assert(
-    sellingSkus.length === 6
-      && sellingSkus.filter((code) => code.endsWith("__ip-pos") || code.endsWith("__copy") || code.endsWith("__vidrev")).length === 6,
-    `only ip-pos / copy / vidrev (both zones) are selling（视频复盘按 2026-09-13 工单验收后已重新上架）(got ${sellingSkus.join(", ")})`
+    sellingSkus.length === 8
+      && sellingSkus.filter((code) => code.endsWith("__ip-pos") || code.endsWith("__copy") || code.endsWith("__vidrev") || code.endsWith("__livescript")).length === 8,
+    `only ip-pos / copy / vidrev / livescript (both zones) are selling（视频复盘与直播话术已上架）(got ${sellingSkus.join(", ")})`
   );
   // 2026-09-14 用户口径：视频复盘智能体按 2026-09-13 工单改好、验收通过后重新上架。
   assert(
     demoMarketplace.getSku("ipzone__vidrev")!.status === "selling"
       && demoMarketplace.getSku("meiye__vidrev")!.status === "selling"
-      && demoMarketplace.getSku("meiye__livescript")!.status === "coming_soon",
-    "两个专区的视频复盘都已上架（selling）"
+      && demoMarketplace.getSku("ipzone__livescript")!.status === "selling"
+      && demoMarketplace.getSku("meiye__livescript")!.status === "selling",
+    "两个专区的视频复盘与直播话术都已上架（selling）"
   );
 
   const topic = demoMarketplace.getSku("ipzone__topic")!;
@@ -171,8 +172,8 @@ function main(): void {
       + `meiye__vidrev=${seedStatus("meiye__vidrev")}`
   );
   assert(
-    seedStatus("ipzone__livescript") === "coming_soon",
-    "文件里没写 status 的内核仍按内核缺省状态展示「开发中」"
+    seedStatus("ipzone__livescript") === "selling",
+    "直播话术内核缺省状态已是 selling（文件里写 selling 的内核按 selling 展示）"
   );
 
   console.log("PASS marketplace-foundation-smoke");

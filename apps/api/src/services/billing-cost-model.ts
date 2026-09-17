@@ -174,8 +174,12 @@ export function usesCostBasedPricing(skuCode: string): boolean {
  * 口径理由：IP 定位是低频决策类交付，客户要的是「一次多少钱」的确定性；按成本计费会让
  * 同一件事因为模型输出长度不同而价格浮动。该 SKU 的交付体量本身被硬校验（V1–V10）夹住，
  * 成本方差可控，所以用固定价换客户可预期。其余 SKU 仍维持「按真实成本 × 倍数」。
+ *
+ * 用户 2026-09-17 拍板：直播话术智能体按固定积分计费 200 积分/次、不上包月。
+ * 口径理由同 IP 定位：直播话术是整场交付，客户要「一次多少钱」的确定性，按成本计费会因
+ * 输出长度（2 小时逐字稿 vs 单段话术）价格大幅浮动，影响可预期性。
  */
-export const FIXED_PRICE_SKUS: readonly string[] = ["ip-pos"];
+export const FIXED_PRICE_SKUS: readonly string[] = ["ip-pos", "livescript"];
 
 /**
  * 这个 SKU 是否被强制固定价（不看成本计费白名单）。

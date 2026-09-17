@@ -273,7 +273,7 @@ export const SKILL_MANIFESTS: Record<SkillId, SkillManifest> = {  general_qa: {
   live_script_planner: {
     id: "live_script_planner",
     name: "白燃 · 直播脚本咨询师",
-    version: "3.0.0",
+    version: "3.1.0",
     description: "按真实资料和实际时长生成招商、带货或知识付费直播话术包；信息不足时只追问，不生成占位框架。",
     allowedTenantTypes: ["local_business", "chain_brand", "personal_ip"],
     minimumPlans: allPlans,

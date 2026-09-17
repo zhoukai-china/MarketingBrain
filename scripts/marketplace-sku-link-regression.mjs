@@ -56,7 +56,9 @@ const SKUS = skuArgs.length ? skuArgs : ["ipzone__vidrev", "meiye__vidrev"];
  */
 const SKU_EXPECTED = {
   ipzone__vidrev: { name: "视频复盘", state: "selling" },
-  meiye__vidrev: { name: "视频复盘", state: "selling" }
+  meiye__vidrev: { name: "视频复盘", state: "selling" },
+  ipzone__livescript: { name: "直播话术", state: "selling" },
+  meiye__livescript: { name: "直播话术", state: "selling" }
 };
 
 const VIEWPORTS = [
