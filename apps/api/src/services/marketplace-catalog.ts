@@ -121,6 +121,10 @@ export interface MarketplaceSkuSeed {
   ppu: number;
   subscriptionPriceCny?: number;
   subscriptionQuota?: string;
+  /** 包月价（积分口径）。用户 2026-09-17 拍板：文案智能体 4000 积分/月（每天 5 条）。 */
+  subscriptionCredits?: number;
+  /** 包月每日可用次数；null/undefined = 不限次数（老的人民币口径包月就是这个语义）。 */
+  subscriptionDailyQuota?: number;
   trial: boolean;
   status: MarketplaceSkuStatus;
   sortOrder: number;
@@ -150,7 +154,9 @@ export const MARKETPLACE_SKU_SEEDS: MarketplaceSkuSeed[] = [
     need: "项目名称、目标人群、创始人或门店基础信息",
     tags: ["IP定位", "个人IP", "创始人IP", "人设", "内容方向"],
     keywords: ["抖音IP", "视频号IP", "创始人定位", "怎么做个人IP"],
-    ppu: 5,
+    // 用户 2026-09-17 拍板：IP 定位改按次计费 400 积分/次，不再按消耗量计费
+    // （见 `billing-cost-model.ts` 的 `FIXED_PRICE_SKUS`，该 SKU 已退出成本计费白名单）。
+    ppu: 400,
     trial: true,
     status: "selling",
     sortOrder: 10
@@ -478,6 +484,10 @@ export interface PublicMarketplaceSku {
   ppu: number;
   subscriptionPriceCny?: number | null;
   subscriptionQuota?: string | null;
+  /** 包月价（积分口径）；>0 表示该智能体支持「按月订阅，订阅期内不扣积分」。 */
+  subscriptionCredits?: number | null;
+  /** 包月每日可用次数；null = 不限次数。 */
+  subscriptionDailyQuota?: number | null;
   trial: boolean;
   status: MarketplaceSkuStatus;
   sortOrder: number;
@@ -568,7 +578,12 @@ function buildMarketplaceSkuSeeds(): MarketplaceSkuSeed[] {
         ])
       ].slice(0, 30);
       const keywords = [...lexicon, ...pains, name, useCase].slice(0, 30);
-      const sub = (core.sub ?? {}) as { price?: number; quota?: string };
+      const sub = (core.sub ?? {}) as {
+        price?: number;
+        quota?: string;
+        credits?: number;
+        dailyQuota?: number;
+      };
 
       seeds.push({
         skuCode: id,
@@ -587,6 +602,8 @@ function buildMarketplaceSkuSeeds(): MarketplaceSkuSeed[] {
         ppu: Number(core.ppu) || 0,
         subscriptionPriceCny: typeof sub.price === "number" ? sub.price : undefined,
         subscriptionQuota: typeof sub.quota === "string" ? sub.quota : undefined,
+        subscriptionCredits: typeof sub.credits === "number" ? sub.credits : undefined,
+        subscriptionDailyQuota: typeof sub.dailyQuota === "number" ? sub.dailyQuota : undefined,
         trial: Boolean(core.trial),
         // 专区级 override 可以单独改开卖状态：同一个内核在不同专区的准备度不同。
         // 优先取发布文件里的 `ov.<skill>.status`（见 MARKETPLACE_SKU_STATUS_OVERRIDES 注释），
@@ -690,6 +707,8 @@ export function toPublicMarketplaceSku(
     ppu: number;
     subscriptionPriceCny: number | null;
     subscriptionQuota: string | null;
+    subscriptionCredits?: number | null;
+    subscriptionDailyQuota?: number | null;
     trial: boolean;
     status: string;
     sortOrder: number;
@@ -717,6 +736,8 @@ export function toPublicMarketplaceSku(
     ppu: row.ppu,
     subscriptionPriceCny: row.subscriptionPriceCny,
     subscriptionQuota: row.subscriptionQuota,
+    subscriptionCredits: row.subscriptionCredits ?? null,
+    subscriptionDailyQuota: row.subscriptionDailyQuota ?? null,
     trial: row.trial,
     status: row.status as MarketplaceSkuStatus,
     sortOrder: row.sortOrder,
@@ -817,6 +838,10 @@ export async function ensureMarketplaceCatalog(): Promise<void> {
         ppu: seed.ppu,
         subscriptionPriceCny: null,
         subscriptionQuota: null,
+        // 积分口径包月（2026-09-17）：文案 4000 积分/月、每天 5 条。
+        // `update` 分支同样写这两列，否则运营改价后重启不会生效（历史上 `subscriptionPriceCny` 就是被这里写死成 null）。
+        subscriptionCredits: seed.subscriptionCredits ?? null,
+        subscriptionDailyQuota: seed.subscriptionDailyQuota ?? null,
         trial: false,
         status: seed.status,
         sortOrder: seed.sortOrder
@@ -839,6 +864,8 @@ export async function ensureMarketplaceCatalog(): Promise<void> {
         ppu: seed.ppu,
         subscriptionPriceCny: seed.subscriptionPriceCny,
         subscriptionQuota: seed.subscriptionQuota,
+        subscriptionCredits: seed.subscriptionCredits ?? null,
+        subscriptionDailyQuota: seed.subscriptionDailyQuota ?? null,
         trial: seed.trial,
         status: seed.status,
         sortOrder: seed.sortOrder
@@ -882,6 +909,8 @@ export interface DemoMarketplaceSku {
   ppu: number;
   subscriptionPriceCny?: number;
   subscriptionQuota?: string;
+  subscriptionCredits?: number;
+  subscriptionDailyQuota?: number;
   trial: boolean;
   status: MarketplaceSkuStatus;
   sortOrder: number;
@@ -913,6 +942,8 @@ export interface DemoMarketplaceSubscription {
   endDate: string;
   priceCny: number;
   quota?: string;
+  credits?: number;
+  dailyQuota?: number;
 }
 
 export interface DemoMarketplaceOrder {
@@ -974,6 +1005,8 @@ class DemoMarketplaceStore {
         ppu: seed.ppu,
         subscriptionPriceCny: seed.subscriptionPriceCny,
         subscriptionQuota: seed.subscriptionQuota,
+        subscriptionCredits: seed.subscriptionCredits,
+        subscriptionDailyQuota: seed.subscriptionDailyQuota,
         trial: seed.trial,
         status: seed.status,
         sortOrder: seed.sortOrder
@@ -983,7 +1016,9 @@ class DemoMarketplaceStore {
 
   getBalance(tenantId: string): number {
     this.seed();
-    return this.balances.get(tenantId) ?? 300;
+    // demo 起始额度必须 ≥ 货架上最贵的公开 SKU，否则本地/demo 环境会连旗舰 SKU 都显示「积分不足」。
+    // 2026-09-17：IP 定位改为固定 400 积分/次（原 200），起始额度同步抬到 1000。
+    return this.balances.get(tenantId) ?? 1000;
   }
 
   listSuppliers(): DemoMarketplaceSupplier[] {
@@ -1043,6 +1078,8 @@ class DemoMarketplaceStore {
       ppu: sku.ppu,
       subscriptionPriceCny: sku.subscriptionPriceCny ?? null,
       subscriptionQuota: sku.subscriptionQuota ?? null,
+      subscriptionCredits: sku.subscriptionCredits ?? null,
+      subscriptionDailyQuota: sku.subscriptionDailyQuota ?? null,
       trial: sku.trial,
       status: sku.status,
       sortOrder: sku.sortOrder,

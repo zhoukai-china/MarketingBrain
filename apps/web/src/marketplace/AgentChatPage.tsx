@@ -47,6 +47,82 @@ interface ChatPrefill {
   note?: string;
 }
 
+/**
+ * 包月订阅视图（用户 2026-09-17 拍板：有的智能体按次卖、有的按消耗卖、有的支持按月订阅）。
+ *
+ * 文案智能体＝4000 积分/月、每天 5 条，**订阅期内不再扣积分**。
+ * 所以「确认生成」前必须说清这次扣不扣分，交付后也要说明白是包月覆盖而不是漏扣。
+ * 字段与 `apps/api/src/routes/marketplace.ts` 的 `accessStateFor()` 一一对应。
+ */
+interface SubscriptionView {
+  subscribed: boolean;
+  dailyQuota: number | null;
+  usedToday: number;
+  remaining: number | null;
+  exhausted: boolean;
+  endDate?: string | null;
+  /** 未订阅时的包月报价：让用户自己选「按次」还是「包月」。 */
+  offer?: { credits: number; dailyQuota: number | null; quota?: string | null; periodDays: number } | null;
+}
+
+/** 把 `/market/skus/:skuId/access` 的返回压成前端视图；没有包月能力就返回 null（界面保持原样）。 */
+function toSubscriptionView(access: {
+  subscription?: {
+    endDate?: string | null;
+    dailyQuota?: number | null;
+    usedToday?: number;
+    remaining?: number | null;
+    exhausted?: boolean;
+  } | null;
+  subscriptionOffer?: {
+    credits: number;
+    dailyQuota?: number | null;
+    quota?: string | null;
+    periodDays: number;
+  } | null;
+} | null): SubscriptionView | null {
+  if (!access) return null;
+  const offer = access.subscriptionOffer
+    ? {
+        credits: access.subscriptionOffer.credits,
+        dailyQuota: access.subscriptionOffer.dailyQuota ?? null,
+        quota: access.subscriptionOffer.quota ?? null,
+        periodDays: access.subscriptionOffer.periodDays
+      }
+    : null;
+  const sub = access.subscription;
+  if (sub) {
+    const dailyQuota = sub.dailyQuota ?? offer?.dailyQuota ?? null;
+    const usedToday = sub.usedToday ?? 0;
+    const remaining = dailyQuota == null ? null : Math.max(0, sub.remaining ?? dailyQuota - usedToday);
+    return {
+      subscribed: true,
+      dailyQuota,
+      usedToday,
+      remaining,
+      exhausted: Boolean(sub.exhausted ?? (dailyQuota != null && usedToday >= dailyQuota)),
+      endDate: sub.endDate ?? null,
+      offer
+    };
+  }
+  if (!offer) return null;
+  return {
+    subscribed: false,
+    dailyQuota: offer.dailyQuota,
+    usedToday: 0,
+    remaining: null,
+    exhausted: false,
+    endDate: null,
+    offer
+  };
+}
+
+/** 包月按钮上的统一说法：套餐价 + 每日条数。 */
+function subscriptionOfferText(offer: { credits: number; dailyQuota: number | null }): string {
+  const quota = offer.dailyQuota == null ? "不限次数" : `每天 ${offer.dailyQuota} 条`;
+  return `${offer.credits} 积分/月 · ${quota}（订阅期内不扣积分）`;
+}
+
 export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
   const [sku, setSku] = useState<MarketplaceSku | null>(null);
   const [all, setAll] = useState<MarketplaceSku[]>([]);
@@ -67,6 +143,15 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
   const [dragActive, setDragActive] = useState(false);
   const [docxPrice, setDocxPrice] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
+  /**
+   * 包月订阅状态（用户 2026-09-17 拍板）：文案智能体 4000 积分/月、每天 5 条，订阅期内不再扣积分。
+   *
+   * 所以「确认生成」前必须说清这次**扣不扣积分**：订阅中不能说「预计消耗约 N 积分」，
+   * 交付后也不该让用户以为漏扣了。
+   */
+  const [subscriptionView, setSubscriptionView] = useState<SubscriptionView | null>(null);
+  const [subscriptionNotice, setSubscriptionNotice] = useState("");
+  const [subscribing, setSubscribing] = useState(false);
   /**
    * PLAT-24：chat 页也要有顶栏（登录 / 钱包 / 主题）与「进页即检测登录态」。
    * 之前匿名用户能一路填完 4 步、点「确认生成」才撞 401，而错误提示让他去点的
@@ -94,6 +179,17 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
         setSku(detail.sku);
         setIndustry(detail.industry);
         setAll(catalog.skus);
+        /**
+         * 包月状态单独拉一次：它依赖登录态，且失败（未登录 / 网络抖动 / 老后端没有这个字段）
+         * 不能影响对话页主流程——拿不到就按「没有包月」渲染，界面与改动前完全一致。
+         */
+        const access = await fetch(apiPath(`/market/skus/${encodeURIComponent(detail.sku.skuCode)}/access`), {
+          headers: authHeaders()
+        })
+          .then((r) => readJson<Parameters<typeof toSubscriptionView>[0]>(r))
+          .catch(() => null);
+        if (cancelled) return;
+        setSubscriptionView(toSubscriptionView(access));
       } catch {
         if (!cancelled) setSku(null);
       }
@@ -342,6 +438,26 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
         ]);
         return;
       }
+      /**
+       * 包月额度当天用完（409）：**不能静默改成扣积分**——用户买了包月就不该再被扣分。
+       * 明确告知今天还剩 0 次、本次不消耗积分、明天 0 点恢复。
+       */
+      if (runResponse.status === 409) {
+        const payload = (await runResponse.json().catch(() => ({}))) as { error?: string; message?: string };
+        if (payload.error === "marketplace_subscription_quota_exhausted") {
+          const text = `${payload.message ?? "你已开通本智能体的包月，今天的次数已经用完。"}（本次**不消耗积分**；额度每天 0 点恢复。）`;
+          setItems((prev) => [...prev, { id: `quota${Date.now()}`, role: "ai", text }]);
+          setSubscriptionNotice(text);
+          setCost(null);
+          setDone(false);
+          setConfirmPending(true);
+          setSubscriptionView((prev) =>
+            prev ? { ...prev, subscribed: true, remaining: 0, exhausted: true } : prev
+          );
+          return;
+        }
+        throw new Error(payload.message ?? "本次请求被拒绝；本次不消耗积分。");
+      }
       const result = await readJson<{
         answer: string;
         consumedCredits: number;
@@ -349,6 +465,15 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
         needsInput?: boolean;
         payload?: IpPosPayload | VidrevPayload;
         requestId?: string;
+        /** 服务端结算口径：subscription = 本次由包月覆盖、没扣积分。 */
+        pricingMode?: string;
+        subscription?: {
+          covered?: boolean;
+          dailyQuota?: number | null;
+          usedToday?: number;
+          remaining?: number | null;
+          endDate?: string | null;
+        };
       }>(runResponse);
       if (result.needsInput) {
         setItems((prev) => [
@@ -367,6 +492,36 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
       setAwaitingSupplement(false);
       setLastRequestId(result.requestId ?? null);
       setLastRequestId(result.requestId ?? null);
+      /**
+       * 包月覆盖的这次交付：刷新「今天还剩几条」，并把「不扣积分」写进面板，
+       * 免得用户看到「本次实际消耗 0 积分」以为是漏扣。
+       */
+      if (result.pricingMode === "subscription") {
+        const sub = result.subscription;
+        setSubscriptionView((prev) => {
+          const base: SubscriptionView = prev ?? {
+            subscribed: true,
+            dailyQuota: sub?.dailyQuota ?? null,
+            usedToday: 0,
+            remaining: sub?.remaining ?? null,
+            exhausted: false,
+            endDate: sub?.endDate ?? null,
+            offer: null
+          };
+          return {
+            ...base,
+            subscribed: true,
+            dailyQuota: sub?.dailyQuota ?? base.dailyQuota,
+            usedToday: sub?.usedToday ?? base.usedToday,
+            remaining: sub?.remaining ?? base.remaining,
+            exhausted: sub?.dailyQuota != null && (sub?.remaining ?? 1) <= 0,
+            endDate: sub?.endDate ?? base.endDate
+          };
+        });
+        setSubscriptionNotice(
+          `本次由包月覆盖，**不扣积分**${sub?.remaining == null ? "" : `（今天还剩 ${Math.max(0, sub.remaining)} 条）`}。`
+        );
+      }
     } catch (reason) {
         setItems((prev) => [...prev, { id: "err", role: "ai", text: reason instanceof Error ? reason.message : "生成失败" }]);
     } finally {
@@ -443,6 +598,96 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     setItems((prev) => [...prev, { id: `editq${Date.now()}`, role: "ai", text: `好的，我们重新填一遍。**${flow.slots[0].label}**：${flow.slots[0].q}` }]);
   }
 
+  /**
+   * 开通包月（用户 2026-09-17 拍板：4000 积分/月、每天 5 条，订阅期内不扣积分）。
+   *
+   * 后端是幂等的（已订阅直接返回当前这期，不重复扣分），所以这里不做本地「已点过」判断，
+   * 只把结果如实告诉用户：扣了多少分、这期到哪天、每天几次。
+   */
+  async function subscribeMonthly() {
+    const offer = subscriptionView?.offer;
+    if (!runSku || !offer || subscribing) return;
+    if (!hasSession) {
+      guestToLogin(`${getAppRoutePath(window.location.pathname)}${window.location.search}`);
+      return;
+    }
+    setSubscribing(true);
+    setSubscriptionNotice("");
+    try {
+      const response = await fetch(apiPath("/market/subscriptions"), {
+        method: "POST",
+        headers: authHeaders(true),
+        body: JSON.stringify({ skuId: runSku.skuCode })
+      });
+      if (handleStaleSession(response.status)) {
+        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录后再订阅；本次不消耗积分。");
+      }
+      if (response.status === 402) {
+        const payload = (await response.json().catch(() => ({}))) as { message?: string; required?: number; balance?: number };
+        const nextRoute = `${getAppRoutePath(window.location.pathname)}${window.location.search}`;
+        setItems((prev) => [
+          ...prev,
+          {
+            id: `subrecharge${Date.now()}`,
+            role: "ai",
+            text:
+              `${payload.message ?? `订阅包月需要 ${offer.credits} 积分，当前积分不足，请先充值。`}` +
+              `（本次**不消耗积分**；充完回来点「开通包月」即可，你填的内容还在。）`,
+            action: {
+              label: "去充值（回来接着订阅）",
+              href: getAppPath(`/recharge?from=agent&skill=${encodeURIComponent(runSku.skuCode)}&next=${encodeURIComponent(nextRoute)}`)
+            }
+          }
+        ]);
+        return;
+      }
+      const result = await readJson<{
+        applied?: boolean;
+        alreadySubscribed?: boolean;
+        credits?: number;
+        balance?: number;
+        subscription?: { endDate?: string | null; dailyQuota?: number | null } | null;
+        subscriptionStatus?: { dailyQuota?: number | null; usedToday?: number; endDate?: string | null };
+      }>(response);
+      const dailyQuota = result.subscriptionStatus?.dailyQuota ?? result.subscription?.dailyQuota ?? offer.dailyQuota;
+      const endDate = result.subscriptionStatus?.endDate ?? result.subscription?.endDate ?? null;
+      const usedToday = result.subscriptionStatus?.usedToday ?? 0;
+      setBalance(typeof result.balance === "number" ? result.balance : balance);
+      setSubscriptionView({
+        subscribed: true,
+        dailyQuota: dailyQuota ?? null,
+        usedToday,
+        remaining: dailyQuota == null ? null : Math.max(0, dailyQuota - usedToday),
+        exhausted: false,
+        endDate,
+        offer
+      });
+      const until = endDate ? new Date(endDate).toLocaleDateString("zh-CN") : "";
+      setItems((prev) => [
+        ...prev,
+        {
+          id: `subok${Date.now()}`,
+          role: "ai",
+          text: result.alreadySubscribed
+            ? `你**已经在包月期内**了，这次没有重复扣积分。${dailyQuota == null ? "次数不限" : `每天 ${dailyQuota} 条`}，额度每天 0 点恢复${until ? `，本期末到 ${until}` : ""}。`
+            : `✅ **包月已开通**：已扣 **${result.credits ?? offer.credits} 积分**（${dailyQuota == null ? "次数不限" : `每天 ${dailyQuota} 条`}）${until ? `，本期末到 ${until}` : ""}。\n\n从现在起，本智能体**生成不再扣积分**，额度每天 0 点恢复。`
+        }
+      ]);
+      setSubscriptionNotice(
+        result.alreadySubscribed
+          ? "你已在包月期内（本次未重复扣分）。"
+          : `包月已开通：本次生成不扣积分（${dailyQuota == null ? "次数不限" : `今天还剩 ${dailyQuota} 条`}）。`
+      );
+    } catch (reason) {
+      setItems((prev) => [
+        ...prev,
+        { id: `suberr${Date.now()}`, role: "ai", text: reason instanceof Error ? reason.message : "订阅失败，请稍后再试。" }
+      ]);
+    } finally {
+      setSubscribing(false);
+    }
+  }
+
   function restart() {
     if (!flow) return;
     // 显式清空本机留存（客户主动要重来一份）。
@@ -469,7 +714,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
   }
 
   function openFile(kind: "file" | "video") {
-    fileRef.current?.setAttribute("accept", kind === "video" ? "video/*" : ".pdf,.doc,.docx,.png,.jpg,.jpeg,.xlsx,.csv,.txt,.md");
+    fileRef.current?.setAttribute("accept", kind === "video" ? "video/*" : ".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.gif,.bmp,.xlsx,.csv,.txt,.md");
     fileRef.current?.setAttribute("data-kind", kind);
     fileRef.current?.click();
   }
@@ -478,6 +723,14 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
   const TEXT_ATTACHMENT_PATTERN = /\.(txt|md|csv|tsv|json|log|srt)$/i;
   /** 视频复盘专用：平台后台默认导出的 Excel 也要能真读到数据（工单 2026-09-13 §2.1）。 */
   const WORKBOOK_ATTACHMENT_PATTERN = /\.(xlsx|xls)$/i;
+  /**
+   * 图片附件（用户 2026-09-17「确定放开 A+图片」）。
+   *
+   * 口径：图片对**全部智能体**开放，并且要**真的解析进需求**（不是只记文件名）。
+   * 走平台受登录态保护、带计费预留/结算的 `/media/analyze` 视觉通道（qwen-vl）；
+   * 只按**成功的视觉调用**收费（每次 10 积分），没有成功调用时全额退回、0 收费。
+   */
+  const IMAGE_ATTACHMENT_PATTERN = /\.(png|jpe?g|webp|gif|bmp)$/i;
   const MAX_ATTACHMENT_TEXT = 20_000;
 
   /**
@@ -486,7 +739,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
    * 口径（2026-09-13 用户要求「支持文件直接拖拽进浏览器的对话框」）：
    * - 文本类（txt/md/csv/tsv/json/log/srt）直接读内容，发请求时拼进需求单，智能体真的能看到；
    * - 视频复盘例外：平台后台默认导出的 Excel（.xlsx/.xls）会经平台文档解析入口读成表格文本（工单 2026-09-13 §2.1）。
-   * - 其它类型（PDF/Word/图片/视频）当前只记录文件名并**明确告诉用户**要粘贴关键内容，
+   * - 图片（2026-09-17 起）：对全部智能体开放，走 `/media/analyze` 真解析进需求（见 `parseImageAttachment`）；
+   * - 其它类型（PDF/Word/视频）当前只记录文件名并**明确告诉用户**要粘贴关键内容，
    *   不做「假装已解析」。
    */
   async function addFiles(files: File[]) {
@@ -532,6 +786,24 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
       } else if (isVideo) {
         next.push({ kind, name: file.name });
         notes.push(`已添加视频「${file.name}」：视频内容暂不能自动解析，请用文字说明要点`);
+      } else if (IMAGE_ATTACHMENT_PATTERN.test(file.name) || /^image\//.test(file.type)) {
+        // 用户 2026-09-17「确定放开 A+图片」：图片对全部智能体开放，并且真解析进需求。
+        try {
+          const parsed = await parseImageAttachment(file);
+          if (parsed.text) {
+            const truncated = parsed.text.length > MAX_ATTACHMENT_TEXT;
+            next.push({ kind: "image", name: file.name, text: parsed.text.slice(0, MAX_ATTACHMENT_TEXT) });
+            const costNote = parsed.creditCost > 0 ? `，本次视觉解析 ${parsed.creditCost} 积分` : "，本次没有产生视觉调用、不扣积分";
+            notes.push(`已识别图片「${file.name}」的画面内容${costNote}${truncated ? `（超过 ${MAX_ATTACHMENT_TEXT} 字，已截断）` : ""}`);
+          } else {
+            next.push({ kind: "image", name: file.name });
+            notes.push(`「${file.name}」没有识别到可用信息（本次不扣积分）；请确认图片清晰、或直接把关键内容打在对话框里`);
+          }
+        } catch (error) {
+          next.push({ kind: "image", name: file.name });
+          const detail = error instanceof Error && error.message ? `（${error.message}）` : "";
+          notes.push(`「${file.name}」识别失败${detail}，本次不扣积分；可重试或把关键内容粘贴到对话框`);
+        }
       } else {
         next.push({ kind, name: file.name });
         notes.push(`已添加「${file.name}」：这类文件暂不能自动读取，请把关键内容（或另存为 CSV/TXT）粘贴/拖进来`);
@@ -573,7 +845,49 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
       const payload = (await response.json()) as { documentText?: string };
       return (payload.documentText ?? "").trim();
     } catch (error) {
-      if ((error as { name?: string }).name === "AbortError") throw new Error("解析超过 60 秒已停止，请换更小的表格重试");
+     if ((error as { name?: string }).name === "AbortError") throw new Error("解析超过 60 秒已停止，请换更小的表格重试");
+      throw error;
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  }
+
+  /**
+   * 图片解析（用户 2026-09-17「确定放开 A+图片」）：把图片交给平台自己的视觉解析入口，
+   * 拿回「画面里能验证的事实」并拼进需求单，让智能体真的看到图片内容（不是只记文件名）。
+   *
+   * 计费由服务端结算：只按成功的视觉调用收费（每次 10 积分）；没有成功调用会全额退回。
+   * 余额不足时服务端返回 402，这里把原因如实告诉用户。
+   */
+  async function parseImageAttachment(file: File): Promise<{ text: string; creditCost: number }> {
+    const formData = new FormData();
+    formData.append("file", file, file.name);
+    formData.append("metadata", "用户上传图片");
+    formData.append("frames", "[]");
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
+    try {
+      const response = await fetch(apiPath("/media/analyze"), {
+        method: "POST",
+        headers: authHeaders(),
+        body: formData,
+        signal: controller.signal
+      });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { message?: string };
+        throw new Error(payload.message?.trim() || `识别失败（${response.status}）`);
+      }
+      const payload = (await response.json()) as {
+        frameSummary?: string;
+        contextText?: string;
+        creditCost?: number;
+      };
+      return {
+        text: (payload.contextText ?? payload.frameSummary ?? "").trim(),
+        creditCost: typeof payload.creditCost === "number" ? payload.creditCost : 0
+      };
+    } catch (error) {
+      if ((error as { name?: string }).name === "AbortError") throw new Error("识别超过 60 秒已停止，本次未扣积分，请换更小的图片重试");
       throw error;
     } finally {
       window.clearTimeout(timeoutId);
@@ -777,7 +1091,15 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
               <img className="chat-avatar-img" src={sitongAvatar} alt="思潼" />
               <span className="chat-page-title">{runSku?.name ?? flow.name ?? "智能体"}{industry?.title ? ` · ${industry.title}` : ""}</span>
             </div>
-            {cost !== null && <span className="chat-page-cost">本次实际消耗 {cost} 积分</span>}
+            {cost !== null && (
+              <span className="chat-page-cost">
+                {cost === 0 && subscriptionView?.subscribed ? (
+                  <>本次由包月覆盖 · 不扣积分</>
+                ) : (
+                  <>本次实际消耗 {cost} 积分</>
+                )}
+              </span>
+            )}
           </div>
           {isVidrev && !done && !soon && (
             <details className="chat-vidrev-guide" open>
@@ -880,14 +1202,48 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                   <div className="md-rich" style={{ color: "var(--text)", fontSize: 14, lineHeight: 1.7 }}>
                 <p><b>请先确认需求</b>：确认后我按下面这套信息生成交付。如有不对，点「修改」重填。</p>
                     {/*
-                     * 用户 2026-09-16 口径：**使用前给预估、使用后给实际**。
-                     * 预估用该 SKU 的参考价（`ppu`，就是历史固定价，现在当参考值用）；
-                     * 实际扣分按本次真实用量（成本 × 倍数）结算，两者允许有出入，文案里说清楚。
+                     * 计费说法按「这个智能体自己的规则」来（用户 2026-09-17 拍板）：
+                     * - 包月且今日还有额度：明确说**本次不扣积分**，并报剩余条数；
+                     * - 包月但今日额度用完：明确说会被拒、不扣积分、明天恢复；
+                     * - 未订阅：沿用 2026-09-16 口径，使用前给预估、使用后给实际。
                      */}
-                    {typeof runSku?.ppu === "number" && runSku.ppu > 0 && (
+                    {subscriptionView?.subscribed && !subscriptionView.exhausted ? (
                       <p>
-                        预计消耗约 <b>{runSku.ppu}</b> 积分（<b>按本次实际用量结算</b>，可能略有出入；生成完成后会告诉你实际扣了多少）。
+                        ✅ 你已开通<b>包月</b>（{subscriptionView.dailyQuota == null ? "不限次数" : `每天 ${subscriptionView.dailyQuota} 条`}）：
+                        本次生成<b>不扣积分</b>
+                        {subscriptionView.remaining == null ? "" : `，今天还剩 ${subscriptionView.remaining} 条`}。
                       </p>
+                    ) : subscriptionView?.subscribed && subscriptionView.exhausted ? (
+                      <p>
+                        ⚠️ 今天额度已用完（{subscriptionView.usedToday}/{subscriptionView.dailyQuota}）：
+                        现在点生成会被拒绝，<b>本次不扣积分</b>，明天 0 点自动恢复。
+                      </p>
+                    ) : (
+                      <>
+                        {typeof runSku?.ppu === "number" && runSku.ppu > 0 && (
+                          <p>
+                            预计消耗约 <b>{runSku.ppu}</b> 积分（<b>按本次实际用量结算</b>，可能略有出入；生成完成后会告诉你实际扣了多少）。
+                          </p>
+                        )}
+                        {subscriptionView?.offer && (
+                          <p style={{ marginTop: 4 }}>
+                            <button
+                              type="button"
+                              className="btn ghost sm"
+                              disabled={subscribing}
+                              onClick={() => { void subscribeMonthly(); }}
+                            >
+                              {subscribing ? "正在开通…" : `📅 改包月：${subscriptionOfferText(subscriptionView.offer)}`}
+                            </button>
+                            <span style={{ color: "var(--muted)", fontSize: 12, marginLeft: 8 }}>
+                              低频使用按次更划算；高频用选包月，订阅期内不再扣积分。
+                            </span>
+                          </p>
+                        )}
+                      </>
+                    )}
+                    {subscriptionNotice && (
+                      <p style={{ color: "var(--accent2)", fontSize: 12 }}>{subscriptionNotice}</p>
                     )}
                     <table className="report-table">
                       <tbody>
@@ -901,7 +1257,13 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                     </table>
                   </div>
                   <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                    <button className="btn primary" onClick={confirmBrief}>✓ 确认，开始生成</button>
+                    <button
+                      className="btn primary"
+                      disabled={Boolean(subscriptionView?.subscribed && subscriptionView.exhausted)}
+                      onClick={confirmBrief}
+                    >
+                      {subscriptionView?.subscribed && subscriptionView.exhausted ? "今日额度已用完" : "✓ 确认，开始生成"}
+                    </button>
                     <button className="btn ghost" onClick={editBrief}>✎ 修改</button>
                   </div>
                 </div>
@@ -949,7 +1311,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                   {attachments.map((a, i) => (
                     <span key={i} style={{ background: "var(--glass)", border: "1px solid var(--line)", borderRadius: 999, padding: "3px 10px", fontSize: 12, color: "var(--text)" }}>
-                      {a.kind === "video" ? "🎬" : "📎"} {a.name}{a.text ? "（已读取）" : ""}
+                      {a.kind === "video" ? "🎬" : a.kind === "image" ? "🖼" : "📎"} {a.name}{a.text ? "（已读取）" : ""}
                       <button
                         type="button"
                         aria-label={`移除 ${a.name}`}
@@ -1005,8 +1367,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
               <div className="chat-hint">
                 AI 会按本智能体技能逻辑<b>主动提问，引导你补全信息</b>，补全后产出结果 · <b>可把文件直接拖进这里</b>
                 {isVidrev
-                  ? "（文本类 CSV/TXT/MD/JSON 与后台导出的 Excel（.xlsx）会读进需求；PDF/Word/图片/视频暂只记文件名）"
-                  : "（文本类 CSV/TXT/MD/JSON 会读进需求；PDF/Word/Excel/图片/视频暂只记文件名）"}
+                  ? "（文本类 CSV/TXT/MD/JSON、后台导出的 Excel（.xlsx）与图片会读进需求；PDF/Word/视频暂只记文件名）。图片按识别次数计费，每次 10 积分，识别失败/无有效内容不扣积分。"
+                  : "（文本类 CSV/TXT/MD/JSON 与图片会读进需求；PDF/Word/Excel/视频暂只记文件名）。图片按识别次数计费，每次 10 积分，识别失败/无有效内容不扣积分。"}
               </div>
             </div>
           )}

@@ -28,7 +28,8 @@ const redoSchema = z.object({
 });
 
 const SKILL_PPU: Record<string, number> = {
-  "ip-pos": 200,
+  // 用户 2026-09-17 拍板：IP 定位按次 400 积分，退出成本计费（`FIXED_PRICE_SKUS`）。
+  "ip-pos": 400,
   topic: 40,
   copy: 40,
   vidrev: 60,

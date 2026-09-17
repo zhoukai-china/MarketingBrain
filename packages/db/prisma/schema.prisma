@@ -2205,6 +2205,11 @@ model MarketplaceSku {
   ppu                 Int                   @default(0)
   subscriptionPriceCny Int?
   subscriptionQuota   String?
+  /// 包月价（积分口径，用户 2026-09-17 拍板：文案智能体 4000 积分/月）。
+  /// 与 `subscriptionPriceCny`（人民币口径，走支付渠道）互斥；两种都能配置时优先积分口径。
+  subscriptionCredits Int?
+  /// 包月每日可用次数（用户 2026-09-17 拍板：文案 5 条/天）。null = 不限制次数。
+  subscriptionDailyQuota Int?
   trial               Boolean               @default(false)
   status              MarketplaceSkuStatus  @default(coming_soon)
   sortOrder           Int                   @default(0)
@@ -2253,6 +2258,10 @@ model MarketplaceSubscription {
   endDate         DateTime
   priceCny        Int
   quota           String?
+  /// 这期包月实际扣掉的积分（积分口径包月；人民币口径包月为 0）。
+  credits         Int      @default(0)
+  /// 冻结订阅时的每日次数上限（下单时的 SKU 配置快照，避免运营改价影响已购用户）。
+  dailyQuota      Int?
   providerOrderId String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

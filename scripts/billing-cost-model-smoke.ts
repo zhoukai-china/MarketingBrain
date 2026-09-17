@@ -11,8 +11,10 @@ import {
   UNIT_COST_CNY,
   costBasedBillingEnabled,
   creditsForCostCny,
+  FIXED_PRICE_SKUS,
   imageCostCny,
   isCostBasedSku,
+  isFixedPriceSku,
   parseCostBasedSkuList,
   reserveCreditsForEstimate,
   speechCostCny,
@@ -23,6 +25,7 @@ import {
   visionCostCny
 } from "../apps/api/src/services/billing-cost-model.js";
 import { readFileSync } from "node:fs";
+import { MARKETPLACE_V3_SKU_SEEDS } from "../apps/api/src/services/marketplace-catalog.js";
 
 function main(): void {
   // 1) 倍数表 = 用户拍板的数
@@ -43,7 +46,7 @@ function main(): void {
   // 2) 线上真实成本样本 → 应得积分（生产 MarketplaceLedgerEntry，2026-08-16~09-15）
   assert.equal(creditsForCostCny(0.0157, "text"), 32, "文案智能体：平均成本 ¥0.0157 → 32 积分（现价 40）");
   assert.equal(creditsForCostCny(0.0177, "text"), 36, "文案智能体：最高成本 ¥0.0177 → 36 积分");
-  assert.equal(creditsForCostCny(0.0579, "text"), 116, "IP 定位：平均成本 ¥0.0579 → 116 积分（现价 200）");
+  assert.equal(creditsForCostCny(0.0579, "text"), 116, "IP 定位：平均成本 ¥0.0579 → 116 积分（该换算仍保留，但 SKU 已改为固定 400）");
   assert.equal(creditsForCostCny(0.0304, "text"), 61, "视频复盘：实测成本 ¥0.0304 → 61 积分（现价 60）");
   assert.equal(creditsForCostCny(0.0339, "text"), 68, "视频复盘：实测成本 ¥0.0339 → 68 积分");
 
@@ -110,10 +113,25 @@ function main(): void {
   // 7c) 接线契约：跑货架 run 时，白名单里的 SKU 必须扣「本次真实用量算出的成本口径积分」，账本要能审计。
   const marketplaceSource = readFileSync(new URL("../apps/api/src/routes/marketplace.ts", import.meta.url), "utf8");
   assert.match(marketplaceSource, /const costBased = usesCostBasedPricing\(sku\.skuCode\)/, "run 路由必须按 SKU 白名单判定是否成本计费");
-  assert.match(marketplaceSource, /const charge = costBased \? dynamicCredits : price;/, "扣费金额必须是「白名单→成本口径，否则固定 ppu」");
+  assert.match(
+    marketplaceSource,
+    /const charge = coveredBySubscription \? 0 : costBased \? dynamicCredits : price;/,
+    "扣费金额必须是「包月覆盖→0，否则白名单→成本口径，否则固定 ppu」"
+  );
   assert.match(marketplaceSource, /price: charge,/, "consumeWalletCredits 必须扣 charge（不能仍扣固定价）");
   assert.match(marketplaceSource, /amountCredits: charge,/, "账本金额必须记 charge");
-  assert.match(marketplaceSource, /pricingMode: costBased \? "cost_based" : "fixed_ppu"/, "账本必须记 pricingMode 以便对账");
+  assert.match(
+    marketplaceSource,
+    /pricingMode: coveredBySubscription \? "subscription" : costBased \? "cost_based" : "fixed_ppu"/,
+    "账本必须记 pricingMode 以便对账"
+  );
+  // 2026-09-17：包月覆盖的那一次**不调用钱包**（0 积分不允许也不该扣），余额原样返回。
+  // 换行写成 `\r?\n`：本仓 Windows 检出是 CRLF（Linux 发布是 LF），只写 `\n` 会在开发机上假红。
+  assert.match(
+    marketplaceSource,
+    /if \(!coveredBySubscription\) \{\r?\n\s+const consumed = await consumeWalletCredits\(/,
+    "包月覆盖时不得调用钱包扣费"
+  );
 
   /**
    * 7d) 视觉计费契约（用户 2026-09-16「没有成本消耗也不对外收费」）：
@@ -132,6 +150,50 @@ function main(): void {
     "不得再用 max(1, …) 保底收费（没有成本消耗就不收费）"
   );
 
+  /**
+   * 7e) 固定价例外（PLAT-43，2026-09-17 用户拍板）：
+   * 「IP 定位改成按次计费、不按消耗量计费」→ 400 积分/次。
+   *
+   * 生产 `BILLING_COST_BASED_SKUS=*`（全通配），所以这个豁免必须**优先级高于通配**，
+   * 否则 ip-pos 会被成本口径覆盖成 116 积分，用户拍板的 400 就静默失效。
+   */
+  assert.deepEqual([...FIXED_PRICE_SKUS], ["ip-pos"], "固定价例外目前只有 ip-pos");
+  assert.equal(isFixedPriceSku("ip-pos"), true, "ip-pos 必须被识别为固定价 SKU");
+  assert.equal(isFixedPriceSku("IPZONE__IP-POS"), true, "固定价 SKU 匹配大小写不敏感");
+  assert.equal(isFixedPriceSku("meiye__ip-pos"), true, "两个专区的 ip-pos 都要命中（货架码是 专区__核心码）");
+  assert.equal(isFixedPriceSku("ipzone__copy"), false, "固定价名单之外的核心码不得命中");
+  const savedWhitelist = env.BILLING_COST_BASED_SKUS;
+  env.BILLING_COST_BASED_SKUS = "*";
+  assert.equal(usesCostBasedPricing("ipzone__ip-pos"), false, "配了通配 * 之后 ip-pos 仍必须走固定价（豁免优先级最高）");
+  assert.equal(usesCostBasedPricing("meiye__ip-pos"), false, "美业专区的 ip-pos 同样固定价");
+  assert.equal(usesCostBasedPricing("ipzone__copy"), true, "通配 * 下其它 SKU 仍按成本计费（豁免只针对 ip-pos）");
+  env.BILLING_COST_BASED_SKUS = savedWhitelist;
+
+  // 固定价 = 400 必须是**三处价格源**一致，任一处漏改都会让线上售价对不上。
+  const v3Raw = JSON.parse(readFileSync(new URL("../apps/api/src/data/marketplace-v3.json", import.meta.url), "utf8")) as {
+    skills: Record<string, { ppu: number }>;
+    industries: Record<string, { ov?: Record<string, { ppu?: number }> }>;
+  };
+  assert.equal(v3Raw.skills["ip-pos"]?.ppu, 400, "货架发布文件 marketplace-v3.json 的 ip-pos ppu 必须是 400");
+  for (const [zoneKey, industry] of Object.entries(v3Raw.industries)) {
+    const overridePpu = industry.ov?.["ip-pos"]?.ppu;
+    if (typeof overridePpu === "number") {
+      assert.equal(overridePpu, 400, `${zoneKey} 专区不得用 ov 覆盖 ip-pos 价格（现为 ${overridePpu}）`);
+    }
+  }
+  const catalogSource = readFileSync(new URL("../apps/api/src/services/marketplace-catalog.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(catalogSource, /ppu:\s*200\b/, "marketplace-catalog 里不得再留 ip-pos 的旧价 200");
+  const consumeRouteSource = readFileSync(new URL("../apps/api/src/routes/billing-consume.ts", import.meta.url), "utf8");
+  assert.match(consumeRouteSource, /"ip-pos": 400/, "/billing/* 的服务端价目表 ip-pos 必须是 400");
+
+  // 货架实际发出去的价：直接看构建后的 SKU 种子，避免只钉注释/文件。
+  const ipPosSeeds = MARKETPLACE_V3_SKU_SEEDS.filter((seed) => seed.skuCode.endsWith("__ip-pos"));
+  assert.ok(ipPosSeeds.length >= 2, `IP 定位必须同时在多个专区上架（got ${ipPosSeeds.length}）`);
+  for (const seed of ipPosSeeds) {
+    assert.equal(seed.ppu, 400, `货架 SKU ${seed.skuCode} 的 ppu 必须是 400`);
+    assert.equal(isFixedPriceSku(seed.skuCode), true, `货架 SKU ${seed.skuCode} 必须命中固定价名单`);
+  }
+
   console.log(JSON.stringify({
     result: "PLAT37_BILLING_COST_MODEL_PASS",
     multiples: COST_TO_REVENUE_MULTIPLE,
@@ -139,7 +201,7 @@ function main(): void {
       copyAvgTextCredits: creditsForCostCny(0.0157, "text"),
       copyCurrentPpu: 40,
       ipPosAvgTextCredits: creditsForCostCny(0.0579, "text"),
-      ipPosCurrentPpu: 200,
+      ipPosCurrentPpu: 400,
       videoPerSecondCredits: creditsForCostCny(videoCostCny(1), "video"),
       videoCurrentPerSecond: 30,
       imagePerPictureCredits: creditsForCostCny(imageCostCny(1), "image"),

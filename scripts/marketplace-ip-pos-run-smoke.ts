@@ -1,5 +1,5 @@
 // IP 定位智能体（ip-pos）真实运行验收：走生产同一路由 + 真实模型 + 真实数据库。
-// 验收点：200 积分/次只扣一次、八章齐全、速览 8 项、四类选题数量达标、账本恰好一条、租户隔离。
+// 验收点：400 积分/次只扣一次、八章齐全、速览 8 项、四类选题数量达标、账本恰好一条、租户隔离。
 import "dotenv/config";
 process.env.SKILL_MCP_REQUIRED = "false";
 import { randomUUID } from "node:crypto";
@@ -14,7 +14,7 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 const SKU = "ipzone__ip-pos";
-const PRICE = 200;
+const PRICE = 400;
 const START_BALANCE = 1000;
 
 const INPUT = [

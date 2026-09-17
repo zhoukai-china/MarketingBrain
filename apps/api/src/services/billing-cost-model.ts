@@ -162,7 +162,32 @@ export function isCostBasedSku(skuCode: string, rawList: string | undefined | nu
  * 一律按本次真实用量算出的成本计费，不需要每上一个智能体就改一次配置。
  */
 export function usesCostBasedPricing(skuCode: string): boolean {
+  if (isFixedPriceSku(skuCode)) return false;
   return isCostBasedSku(skuCode, env.BILLING_COST_BASED_SKUS);
+}
+
+/**
+ * 强制按**固定 ppu** 收费、永不参与成本计费的 SKU，优先级高于 `BILLING_COST_BASED_SKUS`
+ * 白名单与 `*` 通配（PLAT-45）。
+ *
+ * 用户 2026-09-17 拍板：「IP 定位改成按次计费，不按消耗量计费」→ 400 积分/次。
+ * 口径理由：IP 定位是低频决策类交付，客户要的是「一次多少钱」的确定性；按成本计费会让
+ * 同一件事因为模型输出长度不同而价格浮动。该 SKU 的交付体量本身被硬校验（V1–V10）夹住，
+ * 成本方差可控，所以用固定价换客户可预期。其余 SKU 仍维持「按真实成本 × 倍数」。
+ */
+export const FIXED_PRICE_SKUS: readonly string[] = ["ip-pos"];
+
+/**
+ * 这个 SKU 是否被强制固定价（不看成本计费白名单）。
+ *
+ * 货架上的 `skuCode` 是 `专区__核心码`（如 `ipzone__ip-pos` / `meiye__ip-pos`），
+ * 而白名单与 `/billing/*` 价目表用的是核心码（`ip-pos`）。这里统一取最后一段做匹配，
+ * 保证「一个 SKU 在两个专区」都能命中，不需要每加一个专区就改一次名单。
+ */
+export function isFixedPriceSku(skuCode: string): boolean {
+  const normalized = skuCode.trim().toLowerCase();
+  const core = normalized.includes("__") ? normalized.slice(normalized.lastIndexOf("__") + 2) : normalized;
+  return FIXED_PRICE_SKUS.includes(core);
 }
 
 /**

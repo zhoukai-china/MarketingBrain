@@ -441,8 +441,32 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
         });
       }
 
+      /**
+       * 包月订阅（用户 2026-09-17 拍板）：订阅期内**不再按次扣积分**，只受「每天 N 次」限制。
+       * 三种计费方式由单个智能体自己决定：按次（ppu）／按消耗（成本口径）／按月订阅（不扣积分）。
+       * - 已订阅且今日额度还没用完：跳过余额预检（余额 0 也能继续用），结算时按 0 积分记账。
+       * - 已订阅但今日额度用完：**显式拒绝**，不静默改成扣积分（用户选了包月就不该被扣分）。
+       */
+      const activeSubscription = context.source === "database" ? await activeSubscriptionFor(context, sku.id) : null;
+      const subscriptionQuota = activeSubscription?.dailyQuota ?? sku.subscriptionDailyQuota ?? null;
+      const subscriptionUsedToday = activeSubscription
+        ? await countSubscriptionUsageToday(context, sku.id, activeSubscription.id)
+        : 0;
+      const coveredBySubscription = Boolean(activeSubscription);
+      if (activeSubscription && subscriptionQuota != null && subscriptionUsedToday >= subscriptionQuota) {
+        return reply.code(409).send({
+          error: "marketplace_subscription_quota_exhausted",
+          message: `你已开通本智能体的包月：今天 ${subscriptionQuota} 次已经用完（今日已用 ${subscriptionUsedToday} 次）。本次不消耗积分，额度每天 0 点恢复。`,
+          quota: subscriptionQuota,
+          usedToday: subscriptionUsedToday,
+          subscriptionEndDate: activeSubscription.endDate,
+          providerCalls: 0,
+          creditCost: 0
+        });
+      }
+
       const walletBefore = await readWallet(context.userId);
-      if (walletBefore.balance < price) {
+      if (!coveredBySubscription && walletBefore.balance < price) {
         return reply.code(402).send({
           error: "insufficient_credits",
           message: "当前积分不足，请先充值后再使用。",
@@ -705,30 +729,40 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
         const answer = marketplaceWrappedAnswer(sku, answerText);
         const costCny = estimateMarketplaceModelCostCny(usage);
         const dynamicCredits = marketplaceCreditsForUsage(usage);
-        /** 实际扣分：白名单 SKU 走成本口径（按这次真实用量算），其余仍是固定 ppu。 */
-        const charge = costBased ? dynamicCredits : price;
+        /**
+         * 实际扣分：包月覆盖 = 0 积分；其余白名单 SKU 走成本口径（按这次真实用量算），
+         * 没进白名单的仍是固定 ppu。
+         */
+        const charge = coveredBySubscription ? 0 : costBased ? dynamicCredits : price;
 
-        // 消耗积分时机：交付完成之后。免费重做已下线，这里只剩正常按次消耗积分一条路径。
-        const consumed = await consumeWalletCredits({
-          userId: context.userId,
-          requestId,
-          price: charge,
-          skillId: sku.skuCode,
-          source: "web"
-        });
-        if (consumed.status === "insufficient") {
-          return reply.code(402).send({
-            error: "insufficient_credits",
-            message: "当前积分不足，请先充值后再使用。",
-            balance: consumed.wallet.balance,
-            paidBalance: consumed.wallet.paidBalance,
-            bonusBalance: consumed.wallet.bonusBalance,
-            required: charge,
-            rechargeUrl: buildRechargeUrl(sku.skuCode)
+        /**
+         * 消耗积分时机：交付完成之后。免费重做已下线。
+         * 包月覆盖时**不调用钱包**（0 积分既不允许也不该扣），余额原样返回。
+         */
+        let walletAfter = walletBefore;
+        let spent: { paid: number; bonus: number } = { paid: 0, bonus: 0 };
+        if (!coveredBySubscription) {
+          const consumed = await consumeWalletCredits({
+            userId: context.userId,
+            requestId,
+            price: charge,
+            skillId: sku.skuCode,
+            source: "web"
           });
+          if (consumed.status === "insufficient") {
+            return reply.code(402).send({
+              error: "insufficient_credits",
+              message: "当前积分不足，请先充值后再使用。",
+              balance: consumed.wallet.balance,
+              paidBalance: consumed.wallet.paidBalance,
+              bonusBalance: consumed.wallet.bonusBalance,
+              required: charge,
+              rechargeUrl: buildRechargeUrl(sku.skuCode)
+            });
+          }
+          walletAfter = consumed.wallet;
+          spent = consumed.spent;
         }
-        const walletAfter = consumed.wallet;
-        const spent: { paid: number; bonus: number } = consumed.spent;
 
         await prisma.marketplaceLedgerEntry.create({
           data: {
@@ -741,16 +775,25 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
             amountCny: 0,
             status: "completed",
             idempotencyKey: requestId,
-            refType: "marketplace_run",
-            refId: requestId,
+            // 包月覆盖的一次交付单独打标签：既是「今天用了几次」的计数依据，也让账本能区分
+            // 「扣了 0 积分」和「真的没扣费」。
+            refType: coveredBySubscription ? SUBSCRIPTION_USAGE_REF_TYPE : "marketplace_run",
+            refId: coveredBySubscription ? activeSubscription?.id ?? requestId : requestId,
             metadata: {
-              pricingMode: costBased ? "cost_based" : "fixed_ppu",
+              pricingMode: coveredBySubscription ? "subscription" : costBased ? "cost_based" : "fixed_ppu",
               estimatedCredits: dynamicCredits,
               listPpu: price,
               modelCostCny: costCny,
               promptTokens: usage.promptTokens,
               completionTokens: usage.completionTokens,
-              reasoningTokens: usage.reasoningTokens
+              reasoningTokens: usage.reasoningTokens,
+              ...(coveredBySubscription
+                ? {
+                    subscriptionId: activeSubscription?.id ?? null,
+                    subscriptionDailyQuota: subscriptionQuota,
+                    subscriptionUsedTodayBefore: subscriptionUsedToday
+                  }
+                : {})
             }
           }
         });
@@ -791,13 +834,27 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
           qualityFlags: null,
           deliveryStatus: "completed",
           consumedCredits: charge,
-          pricingMode: costBased ? "cost_based" : "fixed_ppu",
+          pricingMode: coveredBySubscription ? "subscription" : costBased ? "cost_based" : "fixed_ppu",
           freeRedo: false,
           requestId,
           balance: walletAfter.balance,
           paidBalance: walletAfter.paidBalance,
           bonusBalance: walletAfter.bonusBalance,
           spent,
+          /** 包月覆盖时明确告诉前端「这次没扣积分、今天还剩几次」，避免用户以为漏扣或多扣。 */
+          ...(coveredBySubscription
+            ? {
+                subscription: {
+                  covered: true,
+                  id: activeSubscription?.id ?? null,
+                  dailyQuota: subscriptionQuota,
+                  usedToday: subscriptionUsedToday + 1,
+                  remaining:
+                    subscriptionQuota == null ? null : Math.max(0, subscriptionQuota - (subscriptionUsedToday + 1)),
+                  endDate: activeSubscription?.endDate ?? null
+                }
+              }
+            : {}),
           ...(ipPosPayload ? { payload: ipPosPayload } : {}),
           ...(vidrevPayload ? { payload: vidrevPayload } : {})
         };
@@ -925,6 +982,16 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
       const context = await resolveRequestContext(request.headers);
       const sku = await getMarketplaceSku(parsed.data.skuId);
       if (!sku) return reply.code(404).send({ error: "marketplace_sku_not_found" });
+      /**
+       * 积分口径包月（用户 2026-09-17 拍板）：文案智能体 4000 积分/月、每天 5 条。
+       *
+       * 为什么必须用积分口径：老的人民币口径包月价格在生产里全是 NULL（等于没上架），
+       * 且订阅支付只有 `mock-pay`（`NODE_ENV=production` 直接 404），所以「包月」以前根本走不通。
+       * 平台本来就有统一积分钱包，直接扣积分即可闭环，不需要再接一条支付渠道。
+       */
+      if (context.source === "database" && (sku.subscriptionCredits ?? 0) > 0) {
+        return await subscribeMarketplaceSkuWithCredits(context, sku, reply);
+      }
       if (!sku.subscriptionPriceCny) {
         return reply.code(409).send({ error: "marketplace_subscription_not_available" });
       }
@@ -1289,6 +1356,159 @@ async function getMarketplaceSku(idOrCode: string): Promise<PublicMarketplaceSku
   });
 }
 
+/**
+ * 包月订阅（积分口径）——用户 2026-09-17 拍板。
+ *
+ * 口径：
+ *   1. 每个智能体自己决定计费方式：按次（`ppu`）、按消耗（成本口径）、或按月订阅。
+ *   2. 订阅期内**不再扣积分**，只受「每天 N 次」限制（`subscriptionDailyQuota`）。
+ *   3. 额度用完后是**显式拒绝**，不静默改成扣积分（用户选了包月就不该被扣分）。
+ *
+ * 用量按「上海时区自然日」统计，落在 `MarketplaceLedgerEntry` 上（`refType=marketplace_subscription_usage`，
+ * `refId=订阅 id`），不新增计数器表——账本本来就是唯一真相，充值/扣费/退款都能从它回溯。
+ */
+const SUBSCRIPTION_PERIOD_DAYS = 30;
+const SUBSCRIPTION_USAGE_REF_TYPE = "marketplace_subscription_usage";
+
+/** 上海时区当天 0 点（订阅额度按自然日重置；服务器时区可能是 UTC，不能直接 setHours）。 */
+function shanghaiDayStart(now: Date = new Date()): Date {
+  const offsetMs = 8 * 60 * 60_000;
+  const shifted = new Date(now.getTime() + offsetMs);
+  shifted.setUTCHours(0, 0, 0, 0);
+  return new Date(shifted.getTime() - offsetMs);
+}
+
+async function activeSubscriptionFor(context: RequestContext, skuId: string) {
+  return prisma.marketplaceSubscription.findFirst({
+    where: {
+      tenantId: context.tenantId,
+      skuId,
+      status: "active",
+      endDate: { gt: new Date() }
+    },
+    orderBy: { endDate: "desc" }
+  });
+}
+
+async function countSubscriptionUsageToday(
+  context: RequestContext,
+  skuId: string,
+  subscriptionId: string
+): Promise<number> {
+  return prisma.marketplaceLedgerEntry.count({
+    where: {
+      tenantId: context.tenantId,
+      skuId,
+      refType: SUBSCRIPTION_USAGE_REF_TYPE,
+      refId: subscriptionId,
+      status: "completed",
+      createdAt: { gte: shanghaiDayStart() }
+    }
+  });
+}
+
+async function subscribeMarketplaceSkuWithCredits(
+  context: RequestContext,
+  sku: PublicMarketplaceSku,
+  reply: FastifyReply
+) {
+  const price = sku.subscriptionCredits ?? 0;
+  const existing = await activeSubscriptionFor(context, sku.id);
+  if (existing) {
+    // 幂等：重复点「订阅」不重复扣分，直接把当前这期还给前端。
+    const usedToday = await countSubscriptionUsageToday(context, sku.id, existing.id);
+    return {
+      dataMode: "database",
+      applied: false,
+      alreadySubscribed: true,
+      subscription: existing,
+      balance: (await readWallet(context.userId)).balance,
+      subscriptionStatus: {
+        dailyQuota: existing.dailyQuota ?? sku.subscriptionDailyQuota ?? null,
+        usedToday,
+        endDate: existing.endDate
+      }
+    };
+  }
+
+  const walletBefore = await readWallet(context.userId);
+  if (walletBefore.balance < price) {
+    return reply.code(402).send({
+      error: "insufficient_credits",
+      message: `订阅本智能体包月需要 ${price} 积分，当前积分不足，请先充值后再订阅（本次不消耗积分）。`,
+      balance: walletBefore.balance,
+      required: price,
+      rechargeUrl: buildRechargeUrl(sku.skuCode)
+    });
+  }
+
+  const consumed = await consumeWalletCredits({
+    userId: context.userId,
+    requestId: `marketplace_subscription:${randomUUID()}`,
+    price,
+    skillId: sku.skuCode,
+    source: "marketplace"
+  });
+  if (consumed.status === "insufficient") {
+    return reply.code(402).send({
+      error: "insufficient_credits",
+      message: `订阅本智能体包月需要 ${price} 积分，当前积分不足，请先充值后再订阅（本次不消耗积分）。`,
+      balance: consumed.wallet.balance,
+      required: price,
+      rechargeUrl: buildRechargeUrl(sku.skuCode)
+    });
+  }
+
+  const startDate = new Date();
+  const endDate = new Date(startDate.getTime() + SUBSCRIPTION_PERIOD_DAYS * 24 * 60 * 60_000);
+  const dailyQuota = sku.subscriptionDailyQuota ?? null;
+  const subscription = await prisma.marketplaceSubscription.create({
+    data: {
+      tenantId: context.tenantId,
+      userId: context.userId,
+      skuId: sku.id,
+      status: "active",
+      startDate,
+      endDate,
+      priceCny: 0,
+      credits: price,
+      dailyQuota,
+      quota: sku.subscriptionQuota ?? null
+    }
+  });
+  await prisma.marketplaceLedgerEntry.create({
+    data: {
+      tenantId: context.tenantId,
+      userId: context.userId,
+      skuId: sku.id,
+      type: "subscription_charge",
+      direction: "debit",
+      amountCredits: price,
+      amountCny: 0,
+      status: "completed",
+      idempotencyKey: `marketplace-subscription:${subscription.id}`,
+      refType: "marketplace_subscription",
+      refId: subscription.id,
+      metadata: {
+        pricingMode: "subscription_credits",
+        dailyQuota,
+        periodDays: SUBSCRIPTION_PERIOD_DAYS
+      }
+    }
+  });
+  return {
+    dataMode: "database",
+    applied: true,
+    subscription,
+    credits: price,
+    balance: consumed.wallet.balance,
+    paidBalance: consumed.wallet.paidBalance,
+    bonusBalance: consumed.wallet.bonusBalance,
+    spent: consumed.spent,
+    subscriptionStatus: { dailyQuota, usedToday: 0, endDate }
+  };
+}
+
 async function accessStateFor(context: RequestContext, sku: PublicMarketplaceSku) {
   if (context.source === "demo") {
     const demo = demoMarketplace.getSku(sku.skuCode);
@@ -1310,12 +1530,39 @@ async function accessStateFor(context: RequestContext, sku: PublicMarketplaceSku
     orderBy: { endDate: "desc" }
   });
   if (subscription) {
-    return { state: "subscribed", track: "subscription", balance: await getCreditBalance(context) };
+    const dailyQuota = subscription.dailyQuota ?? sku.subscriptionDailyQuota ?? null;
+    const usedToday = await countSubscriptionUsageToday(context, sku.id, subscription.id);
+    return {
+      state: "subscribed",
+      track: "subscription",
+      balance: await getCreditBalance(context),
+      /** 前端据此显示「已订阅 · 今天还剩 N 条」，并解释为什么这次不扣积分。 */
+      subscription: {
+        id: subscription.id,
+        endDate: subscription.endDate,
+        dailyQuota,
+        usedToday,
+        remaining: dailyQuota == null ? null : Math.max(0, dailyQuota - usedToday),
+        exhausted: dailyQuota != null && usedToday >= dailyQuota
+      }
+    };
   }
   const balance = await getCreditBalance(context);
-  return balance >= sku.ppu
-    ? { state: "ready", track: "ppu", balance }
-    : { state: "insufficient_credits", track: "ppu", balance };
+  const subscribable = (sku.subscriptionCredits ?? 0) > 0;
+  return {
+    ...(balance >= sku.ppu
+      ? { state: "ready" as const, track: "ppu" as const, balance }
+      : { state: "insufficient_credits" as const, track: "ppu" as const, balance }),
+    /** 支持包月的智能体：把包月价透给前端，让用户自己选「按次」还是「包月」。 */
+    subscriptionOffer: subscribable
+      ? {
+          credits: sku.subscriptionCredits,
+          dailyQuota: sku.subscriptionDailyQuota ?? null,
+          quota: sku.subscriptionQuota ?? null,
+          periodDays: SUBSCRIPTION_PERIOD_DAYS
+        }
+      : null
+  };
 }
 
 async function consumeMarketplacePpu(
@@ -1838,7 +2085,8 @@ function extractClarification(text: string): string | null {
 }
 
 /* ---------------------------------------------------------------------------
- * IP 定位智能体（ip-pos）：200 积分/次，一次交付 1 份完整 IP 定位全案。
+ * IP 定位智能体（ip-pos）：400 积分/次（用户 2026-09-17 拍板「按次计费、不按消耗量计费」，
+ * 已在 `billing-cost-model.ts` 的 `FIXED_PRICE_SKUS` 中退出成本计费），一次交付 1 份完整 IP 定位全案。
  * 全案体量大（1分钟速览 + 八章 + ≥80 条选题），按「0–四章 / 五–八章」两段并发生成再合并，
  * 合并结果必须通过下面的硬校验（V1–V10）才消耗积分，校验不通过不消耗积分、可免费重跑。
  * ------------------------------------------------------------------------- */

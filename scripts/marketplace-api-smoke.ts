@@ -56,7 +56,7 @@ async function main(): Promise<void> {
   const me = await app.inject({ method: "GET", url: "/market/me", headers });
   assert(me.statusCode === 200, "GET /market/me returns 200 for authenticated member");
   const meBody = me.json() as { creditBalance: number };
-  assert(meBody.creditBalance === 300, "demo unified wallet starts at 300");
+  assert(meBody.creditBalance === 1000, "demo unified wallet starts at 1000");
 
   const consume = await app.inject({
     method: "POST",
@@ -67,7 +67,7 @@ async function main(): Promise<void> {
   assert(consume.statusCode === 200, "POST /market/ppu/consume returns 200");
   const consumeBody = consume.json() as { state: string; balance: number };
   assert(consumeBody.state === "completed", "ppu consume completes");
-  assert(consumeBody.balance === 100, "ppu consume deducts the ip-pos price (200) from the unified wallet");
+  assert(consumeBody.balance === 600, "ppu consume deducts the ip-pos price (400) from the unified wallet");
 
   // 「开发中」内核：不扣积分、不放行生成。
   const soonConsume = await app.inject({
@@ -93,7 +93,7 @@ async function main(): Promise<void> {
 
   const afterSoon = await app.inject({ method: "GET", url: "/market/me", headers });
   const afterSoonBody = afterSoon.json() as { creditBalance: number };
-  assert(afterSoonBody.creditBalance === 100, "a blocked coming_soon run does not charge credits");
+  assert(afterSoonBody.creditBalance === 600, "a blocked coming_soon run does not charge credits");
 
   const repeat = await app.inject({
     method: "POST",
