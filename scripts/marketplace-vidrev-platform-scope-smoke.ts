@@ -17,7 +17,8 @@
 import "dotenv/config";
 import assert from "node:assert/strict";
 import Fastify from "../apps/api/node_modules/fastify/fastify.js";
-import { registerMarketplaceRoutes } from "../apps/api/src/routes/marketplace.js";
+import { registerMarketplaceRoutes, resolveVidrevPlatform } from "../apps/api/src/routes/marketplace.js";
+import { normalizeVidrevPlatform } from "../apps/web/src/marketplace/chat-flows.js";
 
 const DOUYIN_TABLE = [
   "视频标题,发布时间,播放量,点赞量,评论量,分享量,收藏量,5秒完播率",
@@ -109,6 +110,42 @@ async function main(): Promise<void> {
 
     // ④ 零成本：预检全程不得有任何 Provider 调用。
     assert.equal(providerCalls, 0, `预检不得调用 Provider（实得 ${providerCalls} 次）`);
+
+    /**
+     * ⑤ 2026-09-17 现场（`/agent/meiye__vidrev/chat`）：老板在「平台」那一步没点选项，直接把
+     * 「复盘（附件：视频号动态数据明细.csv）」当答案发出来，平台名成了整句话 → 被按「非抖音/视频号」
+     * 拒绝，同一份视频号文件连发三次都回「只支持抖音和视频号」。口径：句中点名平台就用它，
+     * 认不出来再看数据表本身；明确点名小红书/快手/B站才继续 fail closed。
+     */
+    const badAnswer = "复盘（附件：视频号动态数据明细.csv）";
+    assert.equal(
+      resolveVidrevPlatform(badAnswer, CHANNELS_TABLE),
+      "视频号",
+      "平台那一步被当成答案输入整句时，必须能从这句 / 文件里识别出视频号，而不是判成「其他平台」"
+    );
+    assert.equal(resolveVidrevPlatform("", CHANNELS_TABLE), "视频号", "平台留空时必须按数据表识别出视频号");
+    assert.equal(resolveVidrevPlatform("抖音", CHANNELS_TABLE), "抖音", "句中明确写抖音时以句中为准");
+    assert.equal(resolveVidrevPlatform("", DOUYIN_TABLE), "抖音", "平台留空且是抖音表格时识别为抖音");
+    assert.equal(resolveVidrevPlatform("小红书", DOUYIN_TABLE), "其他平台", "句中点名小红书仍必须 fail closed");
+    assert.equal(resolveVidrevPlatform("", XHS_TABLE), "其他平台", "小红书表格仍必须 fail closed");
+
+    // 前端同口径（把平台这一步的自由输入归一成规范平台名）。
+    assert.equal(normalizeVidrevPlatform(badAnswer), "视频号", "前端必须能从整句话里认出视频号");
+    assert.equal(normalizeVidrevPlatform("视频号"), "视频号");
+    assert.equal(normalizeVidrevPlatform("抖音"), "抖音");
+    assert.equal(normalizeVidrevPlatform("小红书"), null, "不支持的平台不得被静默当成抖音/视频号");
+    assert.equal(normalizeVidrevPlatform("随便看看"), null, "认不出平台时必须让调用方继续追问");
+
+    // 源码契约：平台这一步认不出平台时不许推进（避免平台名变成整句话）。
+    const { readFileSync } = await import("node:fs");
+    const chatPage = readFileSync("apps/web/src/marketplace/AgentChatPage.tsx", "utf8");
+    assert.ok(
+      chatPage.includes('flow.slots[step].key === "platform"'),
+      "视频复盘平台步必须有专门的归一 / 追问分支"
+    );
+    assert.match(chatPage, /normalizeVidrevPlatform\(value\)/, "平台步必须先尝试从用户这句话里归一平台");
+    assert.ok(chatPage.includes("这一步只确认"), "平台认不出来时必须停下来追问，而不是把整句当平台往下走");
+    assert.ok(chatPage.includes("从文件名认平台"), "追问时必须告诉用户可以拖文件、我会从文件名认平台");
   } finally {
     globalThis.fetch = originalFetch;
     await app.close();

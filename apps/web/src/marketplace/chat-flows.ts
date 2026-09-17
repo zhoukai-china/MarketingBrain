@@ -16,12 +16,18 @@ export interface ChatFlow {
 export const CHAT_FLOWS: Record<string, ChatFlow> = {
   "ip-pos": {
     name: "IP 定位",
-    welcome: "你好，我是思潼 · IP 定位智能体。我会按 IP 定位七步法，分几轮收集你的项目、用户、创始人信息，最后产出 IP 定位全案。",
+    welcome: "你好，我是思潼 · IP 定位智能体。我会先确认你的身份，再按 IP 定位标准访谈走 5 轮：项目 → 竞争 → 用户 → 创始人/目标 → IP 现状，每轮只问一个维度，最后产出完整 IP 定位全案。",
     slots: [
+      {
+        key: "role",
+        label: "角色适配",
+        q: "先确认一下：你是老板本人、操盘手，还是代运营？业务是单店、本地多店，还是连锁/招商品牌？这决定我给你的方案深度。"
+      },
       { key: "project", label: "项目基础", q: "你的项目叫什么？做什么的？赚谁的钱、怎么赚？现在什么阶段（0-1 / 1-10 / 10-100）？" },
+      { key: "competition", label: "竞争格局", q: "客户会拿你和谁比？对方强在哪？你最不一样、可验证的地方是什么？客户最后为什么选你？" },
       { key: "user", label: "目标用户", q: "你最典型的客户是谁（年龄 / 职业 / 城市 / 收入）？找你之前最痛的一件事是什么？" },
       { key: "founder", label: "创始人 + 目标", q: "你的背景、最擅长什么、身上 3 个性格关键词？做 IP 的核心目标（获客 / 招商 / 品牌）？" },
-      { key: "stage", label: "IP 现状", q: "现有账号 / 平台 / 粉丝？团队 / 一周可投入时间？拍过最满意的一条是什么？" }
+      { key: "stage", label: "IP 现状与能力", q: "现有账号 / 平台 / 粉丝？团队 / 一周可投入时间 / 预算？拍过最满意的一条是什么？现在最大的卡点是什么？" }
     ]
   },
   topic: {
@@ -118,6 +124,24 @@ export const CHAT_FLOWS: Record<string, ChatFlow> = {
 
 export function chatFlowFor(coreSkillId: string): ChatFlow | undefined {
   return CHAT_FLOWS[coreSkillId];
+}
+
+/**
+ * 视频复盘的「平台」这一步：把自由输入归一成受支持的平台名。
+ *
+ * 2026-09-17 现场（`/agent/meiye__vidrev/chat`）：老板在「平台」那一步没有点选项，直接把
+ * 「复盘（附件：视频号动态数据明细.csv）」发了出来，平台名成了这一整句 → 后端按「非抖音/视频号」
+ * 拒绝，同一份视频号文件连发三次都回「只支持抖音和视频号」。
+ * 口径：句中点名了平台就用它；点名的是小红书 / 快手 / B 站这类不支持的平台一律返回 null
+ * （由调用方继续追问，不静默按抖音处理）。
+ */
+export function normalizeVidrevPlatform(value: string): "抖音" | "视频号" | null {
+  const text = (value ?? "").trim();
+  if (!text) return null;
+  if (/小红书|快手|b\s*站|bilibili|哔哩|弹幕|xhs/i.test(text)) return null;
+  if (/视频号|微信视频号|channels\.weixin/i.test(text)) return "视频号";
+  if (/抖音|douyin/i.test(text)) return "抖音";
+  return null;
 }
 
 export function buildRunPrompt(flow: ChatFlow, answers: Record<string, string>): string {

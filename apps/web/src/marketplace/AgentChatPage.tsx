@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { apiPath, getAppPath, getAppRoutePath } from "../lib/api.js";
 import { readSessionIdentity, readSessionToken } from "../lib/session.js";
-import { chatFlowFor, buildRunBody } from "./chat-flows.js";
+import { chatFlowFor, buildRunBody, normalizeVidrevPlatform } from "./chat-flows.js";
 import { IpPosReport, type IpPosPayload } from "./ip-pos-report.js";
 import { VidrevReport, isVidrevPayload, VIDREV_PREFILL_KEY, type VidrevPayload } from "./vidrev-report.js";
 import { audioExtensionForMime, useVoiceInput, voiceTranscriptionFailureMessage } from "../components/chat/useVoiceInput.js";
@@ -9,6 +9,7 @@ import sitongAvatar from "../assets/sitong-beauty.png";
 import { bundleSteps, coreSkuCode, isBundle, isComingSoon, zoneOfSku, type MarketplaceIndustry, type MarketplaceSku } from "./sku-model.js";
 import { authHeaders, fetchMarketMe, guestToLogin, handleStaleSession, readJson, Topbar } from "./shell.js";
 import { readAttachmentText } from "./text-attachment.js";
+import { isRestartCommand } from "./chat-commands.js";
 
 /**
  * 视频复盘：还没拿到数据表时的回复（工单 2026-09-13 §四「未传文件时输入复盘」）。
@@ -219,6 +220,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
   const flow = runSku ? chatFlowFor(coreSkuCode(runSku.skuCode)) : undefined;
   /** 工单 2.1/2.3：视频复盘专属——未上传数据前展示导出指南，「增强提示词」改成一键填充标准请求。 */
   const isVidrev = coreSkuCode(runSku?.skuCode ?? skuId) === "vidrev";
+  /** 这一轮是否已经动过（填过 / 传过 / 生成过）：决定「↺ 重新开始」按钮是否常驻。 */
+  const hasProgress = step > 0 || Object.keys(answers).length > 0 || attachments.length > 0 || done || awaitingSupplement || confirmPending;
   /** 公共平台对话页的语音输入：录音 → `/voice/transcribe`（受授权转写入口）→ 并入输入框。 */
   const voice = useVoiceInput({
     transcribe: transcribeVoiceBlob,
@@ -286,8 +289,10 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
         };
         if (saved?.fp && saved.fp === readSessionIdentity() && Array.isArray(saved.items) && saved.items.length > 0) {
           setItems(saved.items);
-          setAnswers(saved.answers ?? {});
-          setStep(typeof saved.step === "number" ? saved.step : 0);
+          const restoredAnswers = saved.answers ?? {};
+          const restoredStep = typeof saved.step === "number" ? saved.step : 0;
+          setAnswers(restoredAnswers);
+          setStep(restoredStep);
           setDone(Boolean(saved.done));
           setCost(typeof saved.cost === "number" ? saved.cost : null);
           setInput("");
@@ -295,6 +300,14 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
           setAwaitingSupplement(false);
           setElapsed(0);
           setLastRequestId(null);
+          /**
+           * 本机留存**不含附件正文**（附件只在内存里）。视频复盘回到「数据」这一轮时，
+           * 历史里明明写着「（附件：xxx.csv）」，但附件其实已经不在了——不说明白，
+           * 用户再发一次「复盘」只会收到「我还没拿到你的数据」（2026-09-17 现场就是这么撞上的）。
+           */
+          if (isVidrev && flow.slots[restoredStep]?.key === "data") {
+            setUploadNote("已恢复上次的对话记录。上传的文件不会保存在浏览器里，请把数据表格重新拖进来，再发「复盘」；想清空重来就打「重新开始」。");
+          }
           return;
         }
       }
@@ -547,15 +560,69 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
 
   async function submitAnswer(value: string) {
     if (!flow || !runSku || soon || busy) return;
+
+    // 客户在输入框里直接打「重新开始」= 命令，不是这一轮的答案（2026-09-17 现场缺陷）。
+    if (isRestartCommand(value)) {
+      resetConversationState();
+      setItems([
+        { id: `restart-u${Date.now()}`, role: "user", text: value },
+        {
+          id: `restart-a${Date.now()}`,
+          role: "ai",
+          text: "好，重新开始。上一轮的填写内容、已上传的文件和本机留存都已经清空，我们从第一轮重新来一遍。"
+        },
+        { id: "w", role: "ai", text: welcome },
+        { id: "q0", role: "ai", text: `**${flow.slots[0].label}**：${flow.slots[0].q}` }
+      ]);
+      return;
+    }
+
     if (awaitingSupplement) {
       setItems((prev) => [...prev, { id: `su${Date.now()}`, role: "user", text: value }]);
       await generateRun({ ...answers, __supplement: value });
       return;
     }
 
+    /**
+     * 视频复盘的「平台」这一步必须真的拿到平台名（2026-09-17 现场：老板把
+     * 「复盘（附件：视频号动态数据明细.csv）」当答案发在平台那一步，平台名成了整句话，
+     * 后端按「非抖音/视频号」拒绝，同一份视频号文件连发三次都说「只支持抖音和视频号」）。
+     * 口径：能从这句话或附件里认出平台，就按规范平台名（抖音 / 视频号）记账往下走；
+     * 认不出来就**停在平台这一步**追问，不推进、不消耗积分。
+     */
+    let answerValue = value;
+    if (isVidrev && flow.slots[step].key === "platform") {
+      const fromText = normalizeVidrevPlatform(value);
+      const fromAttachment = fromText
+        ? fromText
+        : normalizeVidrevPlatform(
+            attachments.map((item) => `${item.name} ${item.text?.slice(0, 400) ?? ""}`).join(" ")
+          );
+      if (!fromAttachment) {
+        setItems((prev) => [
+          ...prev,
+          { id: `plat-u${Date.now()}`, role: "user", text: value },
+          {
+            id: `plat-a${Date.now()}`,
+            role: "ai",
+            text:
+              "这一步只确认**平台**：这批视频发在**抖音**还是**视频号**？\n\n" +
+              "点下面的选项，或直接打「抖音」/「视频号」两个字。（一次只复盘一个平台，跨平台请分开出报告；本次没有调用模型、不消耗积分）"
+          }
+        ]);
+        setInput("");
+        setUploadNote("平台还没确认，先点「抖音」或「视频号」；也可以把后台导出的表格拖进来，我会从文件名认平台。");
+        return;
+      }
+      answerValue = fromAttachment;
+      if (fromAttachment !== value.trim()) {
+        setUploadNote(`已按「${fromAttachment}」记录这次复盘的平台（从你的输入 / 附件名识别）。`);
+      }
+    }
+
     // 工单 2026-09-13 §四：未传数据时输入「复盘」不能空跑一轮（更不能消耗积分）——
     // 先把「数据从哪来、怎么传」讲清楚，用户看到指南再去导出。
-    if (isVidrev && flow.slots[step].key === "data" && !vidrevHasData(value)) {
+    if (isVidrev && flow.slots[step].key === "data" && !vidrevHasData(answerValue)) {
       setItems((prev) => [
         ...prev,
         { id: `nodata-u${Date.now()}`, role: "user", text: value },
@@ -566,7 +633,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
       return;
     }
 
-    const nextAnswers = { ...answers, [flow.slots[step].key]: value };
+    const nextAnswers = { ...answers, [flow.slots[step].key]: answerValue };
     setAnswers(nextAnswers);
     // 附件要出现在用户自己那条消息里，否则用户不知道文件到底有没有被带上。
     const attachmentSuffix = attachments.length > 0
@@ -688,18 +755,19 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     }
   }
 
-  function restart() {
-    if (!flow) return;
+  /**
+   * 重开一轮要清掉的会话状态（不含聊天记录本身）。
+   *
+   * 2026-09-17 现场缺陷：这里以前只清「本机留存 + 记录 + 填写内容」，**没清附件**——
+   * 于是新一轮会悄悄带着上一轮的文件跑，用户以为「重新开始」是干净的。
+   */
+  function resetConversationState() {
     // 显式清空本机留存（客户主动要重来一份）。
     try {
       if (runSku?.skuCode) localStorage.removeItem(`sitong_chat_${runSku.skuCode}`);
     } catch {
       /* 存储不可用：忽略 */
     }
-    setItems([
-      { id: "w", role: "ai", text: welcome },
-      { id: "q0", role: "ai", text: `**${flow.slots[0].label}**：${flow.slots[0].q}` }
-    ]);
     setStep(0);
     setAnswers({});
     setInput("");
@@ -709,8 +777,19 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     setAwaitingSupplement(false);
     setElapsed(0);
     setLastRequestId(null);
+    setAttachments([]);
+    setUploadNote("");
     if (timerRef.current) window.clearInterval(timerRef.current);
     if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+  }
+
+  function restart() {
+    if (!flow) return;
+    resetConversationState();
+    setItems([
+      { id: "w", role: "ai", text: welcome },
+      { id: "q0", role: "ai", text: `**${flow.slots[0].label}**：${flow.slots[0].q}` }
+    ]);
   }
 
   function openFile(kind: "file" | "video") {
@@ -1060,7 +1139,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
             </div>
             <div className="zone-soon" style={{ margin: "0 16px" }}>
                 🔒 <b>这个智能体要登录后才能使用</b>：结果存进你自己的账号，方便随时回看与继续追问。<br />
-              现在不用填任何信息——登录后自动回到这一页，我再带你走那 4 步。
+              现在不用填任何信息——登录后自动回到这一页，我再带你按智能体的节奏逐轮补全信息。
             </div>
             <div className="chat-page-composer">
               <button className="btn primary block" onClick={() => guestToLogin(`/agent/${encodeURIComponent(skuId)}/chat`)}>🔒 立即登录 · 用「{runSku?.name ?? "这个智能体"}」</button>
@@ -1166,7 +1245,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                     <>
                       <span className="chat-bubble-label">思潼 · {sku?.name ?? "智能体"}</span>
                       {isVidrevPayload(item.payload) ? (
-                        <VidrevReport payload={item.payload} renderMarkdown={renderMarkdownHtml} topicSkuCode={topicSkuCode} reportTitle={runSku?.name} />
+                        <VidrevReport payload={item.payload} renderMarkdown={renderMarkdownHtml} topicSkuCode={topicSkuCode} />
                       ) : item.payload?.sections ? (
                         <IpPosReport payload={item.payload} renderMarkdown={renderMarkdownHtml} />
                       ) : (
@@ -1279,7 +1358,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                 需要再要一份时，点「再问一次 / 重新开始」即可，用量按实际消耗计算。
               </div>
               <button className="btn ghost block" style={{ marginBottom: 10 }} disabled={exporting} onClick={downloadWord}>
-                {exporting ? "正在导出…" : `⬇ 下载精美 Word${docxPrice ? ` · ${docxPrice} 积分` : ""}`}
+                {exporting ? "正在导出…" : `⬇ 下载精美 Word / WPS 报告${docxPrice ? ` · ${docxPrice} 积分` : ""}`}
               </button>
               <button className="btn primary block" onClick={restart}>再问一次 / 重新开始</button>
             </div>
@@ -1359,7 +1438,27 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
               />
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10 }}>
                 <span style={{ color: "var(--muted-2)", fontSize: 12 }}>Enter 发送 · Shift+Enter 换行</span>
-                <button className="btn primary" style={{ marginLeft: "auto" }} disabled={busy || !input.trim()} onClick={() => void send()}>
+                {/**
+                 * 用户 2026-09-17：「我并没有找到哪里重新开始」——重开不能只靠输入框里打口令，
+                 * 必须有个看得见的按钮。只要这一轮已经动过（填过、传过、生成过），就常驻在发送键旁边。
+                 */}
+                {hasProgress && (
+                  <button
+                    className="btn ghost"
+                    style={{ marginLeft: "auto" }}
+                    disabled={busy}
+                    title="清空这次填写的内容与已上传文件，从第一轮重新开始"
+                    onClick={restart}
+                  >
+                    ↺ 重新开始
+                  </button>
+                )}
+                <button
+                  className="btn primary"
+                  style={{ marginLeft: hasProgress ? 8 : "auto" }}
+                  disabled={busy || !input.trim()}
+                  onClick={() => void send()}
+                >
                   {busy ? "正在生成…" : awaitingSupplement ? "重新生成" : step < flow.slots.length - 1 ? "下一步" : "确认需求"}
                 </button>
               </div>

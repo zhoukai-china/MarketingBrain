@@ -221,6 +221,82 @@ async function main(): Promise<void> {
     assert.ok(csvText.includes("标题") && csvText.includes("完播率"), `服务端必须按 GB18030 解出中文表头，实得前 40 字：${csvText.slice(0, 40)}`);
     assert.equal(parseVidrevRowsFromText(csvText).rows.length, 2, "服务端 GBK CSV 必须解析出 2 条数据行");
 
+    // -----------------------------------------------------------------------
+    // 2026-09-17 现场缺陷红绿回归（用户：「既不能重新开始，也不能正确识别复盘文件」）：
+    // 视频号助手导出的『视频号动态数据明细.csv』（UTF-8 BOM，表头就是「视频描述 / 视频ID /
+    // 发布时间 / 完播率 / 平均播放时长 / 播放量 / 推荐 / 喜欢 / 评论量 / 分享量 / 关注量…」）
+    // 拖进对话框后仍然报「没有识别到视频记录，本次不消耗积分」。
+    // 真实成因两条（都在下面这份同形状夹具里）：
+    //   D) 「视频描述」引号字段自带换行（标题 + 话题标签另起一行）→ 一条记录被劈成两行，
+    //      续行没有任何分隔符，扫描时被判成「表格结束」，整张表一条都不剩；
+    //   E) 标题列名是「视频描述」、点赞列名是「喜欢」→ 别名表漏了这两列，标题/点赞会静默丢失。
+    // 夹具按真实字节形状构造（BOM + CRLF + 每格都带引号），只把内容替换成合成示例。
+    // -----------------------------------------------------------------------
+    const multilineCsv = [
+      "\uFEFF" + [
+        "视频描述", "视频ID", "发布时间", "完播率", "平均播放时长", "播放量", "推荐", "喜欢",
+        "评论量", "分享量", "关注量", "转发聊天和朋友圈", "设为铃声", "设为状态", "设为朋友圈封面",
+        "企微链接点击次数", "企微链接点击人数", "添加到通讯录次数", "添加到通讯录人数"
+      ].map((cell) => `"${cell}"`).join(","),
+      [
+        '"示例一：门店动线改造\n #示例话题A #示例话题B "', '"export/DEMO0001"', '"2026/08/30"', '"7.69%"',
+        '"11.92秒"', "1300", "2", "11", "0", "2", "0", "2", "0", "0", "0", "", "", "", ""
+      ].join(","),
+      [
+        '"示例二：招商问答 30 秒\n #示例话题C "', '"export/DEMO0002"', '"2026/08/24"', '"6.10%"',
+        '"9.40秒"', "860", "1", "7", "1", "3", "0", "1", "0", "0", "0", "", "", "", ""
+      ].join(","),
+      [
+        '"示例三：开工第一天\n #示例话题D #示例话题E "', '"export/DEMO0003"', '"2026/08/18"', '"5.02%"',
+        '"8.15秒"', "420", "0", "3", "0", "1", "0", "0", "0", "0", "0", "", "", "", ""
+      ].join(",")
+    ].join("\r\n");
+
+    // 前提确认：这份表里确实存在「没有分隔符」的物理续行——修复前就是它把整张表判成了空。
+    const dangling = multilineCsv
+      .split(/\r?\n/)
+      .filter((line) => line.trim().length > 0 && !line.includes(","));
+    assert.ok(
+      dangling.length >= 3,
+      `前提确认：视频号导出的「视频描述」换行会留下没有分隔符的续行（实得 ${dangling.length} 行）`
+    );
+
+    const multilineParsed = parseVidrevRowsFromText(multilineCsv);
+    assert.equal(
+      multilineParsed.rows.length,
+      3,
+      `引号字段跨行的视频号 CSV 必须解析出 3 条数据行（现在 ${multilineParsed.rows.length} 行，用户会看到「没有识别到视频记录」）`
+    );
+    assert.equal(multilineParsed.rows[0]?.plays, 1300, "视频号「播放量」必须映射到 plays");
+    assert.equal(multilineParsed.rows[0]?.likes, 11, "视频号「喜欢」必须映射到 likes（点赞不能整列丢失）");
+    assert.equal(multilineParsed.rows[0]?.shares, 2, "视频号「分享量」必须映射到 shares");
+    assert.ok(
+      Math.abs((multilineParsed.rows[0]?.completion_rate ?? 0) - 0.0769) < 1e-9,
+      "视频号「完播率」必须按比率解析"
+    );
+    assert.equal(
+      multilineParsed.rows[0]?.title,
+      "示例一：门店动线改造 #示例话题A #示例话题B",
+      `「视频描述」必须映射到 title 并压成一行（实得：${JSON.stringify(multilineParsed.rows[0]?.title)}）`
+    );
+    assert.ok(
+      multilineParsed.rows.every((row) => typeof row.title === "string" && !/[\r\n]/.test(row.title)),
+      "跨行标题进报告前必须压成单行"
+    );
+    const multilineMetrics = computeVidrevMetrics(multilineParsed.rows);
+    assert.equal(multilineMetrics.count, 3, "跨行 CSV 重算条数必须与数据行一致");
+    assert.equal(multilineMetrics.totalPlays, 1300 + 860 + 420, "跨行 CSV 总播放必须逐条累加");
+    assert.deepEqual(
+      multilineMetrics.videos.map((video) => video.likes),
+      [11, 7, 3],
+      "跨行 CSV 点赞必须逐条落到对应视频上（「喜欢」列不能整列丢失）"
+    );
+    assert.equal(
+      multilineMetrics.totalEngagement,
+      (11 + 0 + 2) + (7 + 1 + 3) + (3 + 0 + 1),
+      "跨行 CSV 总互动（赞 + 评 + 分享）必须逐条累加"
+    );
+
     assert.equal(providerCalls, 0, "document parsing must not call any model provider");
     console.log(JSON.stringify({
       result: "VIDREV_EXCEL_UPLOAD_PASS",
@@ -228,6 +304,7 @@ async function main(): Promise<void> {
       douyinRows: cases.douyin.count,
       channelsRows: cases.channels.count,
       headerOnlyRejected: true,
+      multilineChannelsRows: multilineParsed.rows.length,
       providerCalls,
       costYuan: 0
     }));

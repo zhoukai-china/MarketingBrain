@@ -27,7 +27,14 @@ export interface VidrevRawRow {
 }
 
 export interface VidrevVideo {
+  /**
+   * 报告里使用的**短编号**（v1…vN）。2026-09-17 用户现场：视频号后台导出的「视频ID」是
+   * `export/UzFfBgAAxNSrKEFAVBDxk8zT4DCaRvcgHAJgfcU5mnWT4aWqDQ` 这种 60+ 字符串，
+   * 直接写进报告等于给老板看乱码（「这次输出为啥会乱码呢」）。报告统一用短编号 + 标题指认视频。
+   */
   id: string;
+  /** 后台导出的原始视频 ID（仅存档 / 追溯用，不进模型上下文、不进报告正文）。 */
+  rawId: string | null;
   index: number;
   title: string;
   durationSec: number | null;
@@ -134,7 +141,8 @@ const FIELD_ALIASES: Record<keyof VidrevRawRow, string[]> = {
   video_id: ["videoid", "序号", "编号", "视频id", "视频编号", "id"],
   // 2026-09-15 用户口径：视频复盘只做抖音 / 视频号，不再兼容小红书等平台的导出字段。
   // 2026-09-16 现场：抖音创作者中心导出的标题列叫「作品名称」，漏了它标题整列会静默丢失。
-  title: ["标题", "视频标题", "作品标题", "作品名称", "作品名", "视频名称", "作品", "视频", "title"],
+  // 2026-09-17 现场：视频号助手「动态数据明细」导出的标题列叫「视频描述」，同样漏了会整列丢失。
+  title: ["标题", "视频标题", "作品标题", "作品名称", "作品名", "视频名称", "视频描述", "动态描述", "作品描述", "描述", "作品", "视频", "title"],
   duration_sec: ["时长", "时长秒", "时长s", "视频时长", "秒数", "duration", "durationsec"],
   // 视频号后台用「发表时间」，抖音用「发布时间」；两者都要能识别。
   published_at: ["发布时间", "发布日期", "发表时间", "发布日期时间", "日期", "发布", "发表", "publishedat"],
@@ -143,7 +151,7 @@ const FIELD_ALIASES: Record<keyof VidrevRawRow, string[]> = {
   // 混进别名会让「非抖音/视频号的数据」被当成本平台数据吃进来（`marketplace:vidrev-contract-smoke` 有红灯断言）。
   plays: ["播放量", "播放", "播放数", "播放次数", "视频播放量", "曝光", "曝光量", "plays", "playcount"],
   // 视频号的作品明细把点赞叫「喜欢」。
-  likes: ["点赞量", "点赞", "点赞数", "点赞次数", "喜欢数", "喜欢量", "赞", "likes", "likecount"],
+  likes: ["点赞量", "点赞", "点赞数", "点赞次数", "喜欢", "喜欢数", "喜欢量", "赞", "likes", "likecount"],
   comments: ["评论量", "评论数", "评论次数", "评论", "评", "comments", "commentcount"],
   // 视频号后台用「转发量」，抖音用「分享数」。
   shares: ["分享量", "分享数", "分享次数", "分享", "转发", "转发量", "转发数", "转发次数", "shares", "sharecount"],
@@ -264,6 +272,33 @@ function splitLines(text: string): string[] {
   return text.split(/\r?\n/).map((line) => line.trim()).filter((line) => line.length > 0);
 }
 
+/** 统计物理行里的 CSV 引号个数：为奇数说明引号字段还没闭合，本行只是半条记录。 */
+function countQuotes(line: string): number {
+  return (line.match(/"/g) ?? []).length;
+}
+
+/**
+ * 把物理行拼成「逻辑行」：CSV 的引号字段内部允许换行。
+ *
+ * 2026-09-17 现场缺陷（用户：文件上传了却报「没有识别到视频记录」）：视频号助手导出的
+ * 「视频描述」几乎每条都自带换行（标题 + 话题标签另起一行）。按物理行切表会把一条记录
+ * 劈成两行：第一行引号未闭合、第二行没有任何分隔符，扫描时被判成「表格到此结束」，
+ * 整张表一条数据都不剩——文件其实已经完整读到了。
+ *
+ * 只在引号未闭合（奇数个 `"`）时续拼，并设长度上限，避免个别残缺引号把整份输入吞成一行。
+ */
+const MAX_LOGICAL_LINE_CHARS = 4000;
+
+function readLogicalRow(lines: string[], from: number): { text: string; nextIndex: number } {
+  let text = lines[from] ?? "";
+  let index = from;
+  while (countQuotes(text) % 2 === 1 && index + 1 < lines.length && text.length < MAX_LOGICAL_LINE_CHARS) {
+    index += 1;
+    text = `${text}\n${lines[index] ?? ""}`;
+  }
+  return { text, nextIndex: index + 1 };
+}
+
 function rowFromCells(cells: string[], header: Array<keyof VidrevRawRow>): VidrevRawRow {
   const row: VidrevRawRow = {};
   header.forEach((field, index) => {
@@ -293,7 +328,8 @@ function rowFromCells(cells: string[], header: Array<keyof VidrevRawRow>): Vidre
         row.is_paid = toBooleanFlag(raw);
         break;
       default: {
-        const text = raw.trim();
+        // 标题来自「视频描述」，引号字段里可能自带换行（标题 + 话题标签）——报告表格里压成一行。
+        const text = field === "title" ? raw.replace(/\s+/g, " ").trim() : raw.trim();
         row[field] = text.length === 0 ? null : text;
       }
     }
@@ -335,20 +371,25 @@ export function parseVidrevRowsFromText(text: string): { rows: VidrevRawRow[]; n
   if (lines.length === 0) return { rows: [], notes: ["输入为空，未解析到数据行。"] };
 
   for (let start = 0; start < lines.length; start += 1) {
-    const delimiter = detectDelimiter(lines[start]);
+    // 表头本身也要按逻辑行取：引号字段跨行的表，表头后的第一列数据行会被拼成一条记录。
+    const headerLine = readLogicalRow(lines, start);
+    const delimiter = detectDelimiter(headerLine.text);
     if (!delimiter) continue;
-    const cells = splitTableLine(lines[start], delimiter);
+    const cells = splitTableLine(headerLine.text, delimiter);
     if (cells.length < 3) continue;
     const header = cells.map((cell) => ALIAS_INDEX.get(normalizeKey(cell)) ?? null);
     const matched = header.filter((field) => field !== null).length;
     if (matched < 3) continue;
 
     const rows: VidrevRawRow[] = [];
-    for (let i = start + 1; i < lines.length; i += 1) {
-      if (isSeparatorLine(lines[i])) continue;
-      const lineDelimiter = detectDelimiter(lines[i]);
+    let i = headerLine.nextIndex;
+    while (i < lines.length) {
+      const logicalRow = readLogicalRow(lines, i);
+      i = logicalRow.nextIndex;
+      if (isSeparatorLine(logicalRow.text)) continue;
+      const lineDelimiter = detectDelimiter(logicalRow.text);
       if (lineDelimiter !== delimiter) break;
-      const cellsRow = splitTableLine(lines[i], delimiter);
+      const cellsRow = splitTableLine(logicalRow.text, delimiter);
       const row = rowFromCells(cellsRow, header as Array<keyof VidrevRawRow>);
       if (hasAnyValue(row)) rows.push(row);
     }
@@ -491,8 +532,12 @@ export function computeVidrevMetrics(rows: VidrevRawRow[]): VidrevMetrics {
     const shares = asCount(row.shares);
     const engagement = likes + comments + shares;
     const contentType = (row.content_type ?? "").trim();
+    const rawId = (row.video_id ?? "").toString().trim();
     return {
-      id: (row.video_id ?? "").toString().trim() || `v${index + 1}`,
+      // 报告一律用短编号（v1…vN）+ 标题指认视频；后台原始 ID 只存档（rawId），
+      // 不进模型上下文、不进报告正文——那串 60+ 字符对老板就是乱码。
+      id: `v${index + 1}`,
+      rawId: rawId.length > 0 ? rawId : null,
       index: index + 1,
       title: (row.title ?? "").toString().trim() || `视频 ${index + 1}`,
       durationSec: toDurationSec(row.duration_sec ?? null),
@@ -905,6 +950,21 @@ const QUADRANT_EMPTY_TOKENS = new Set([
   "无", "暂无", "没有", "空", "略", "－", "-", "--", "—", "——", "/", "／", "n/a", "na", "none", "null", "0 条", "无视频"
 ]);
 
+/**
+ * 是不是一个「像视频 ID」的片段。
+ *
+ * 2026-09-17 现场（视频号导出）：视频号助手导出的「视频ID」形如
+ * `export/UzFfBgAAxNSrKEFAVBDxk8zT4DCaRvcgHAJgfcU5mnWT4aWqDQ`——**含斜杠、长度 60+**。
+ * 旧规则只收 `^[\w-]+$` 且深拆只认 ≤24 字符，于是模型照抄的真实 ID 会被判成「不是 ID」，
+ * 四象限整表判空 → V3 失败、用户拿不到报告。这里改成「字母数字 + `_ - / .`，≤80 字符」，
+ * 仍然挡住中文说明性文字与「v1 播放12万」这类带空格的解释。
+ */
+const VIDREV_ID_TOKEN = /^[A-Za-z0-9_\-/.]{1,80}$/;
+
+function isVidrevIdToken(value: string): boolean {
+  return VIDREV_ID_TOKEN.test(value);
+}
+
 function isQuadrantEmptyToken(value: string): boolean {
   const normalized = value.trim().replace(/^#/, "").replace(/[（）()\s]/g, "");
   if (normalized.length === 0) return true;
@@ -929,9 +989,10 @@ function parseQuadrantTable(section: string): QuadrantTable {
     const rawCell = (cells[1] ?? "").trim();
     if (isQuadrantEmptyToken(rawCell)) continue;
     for (const piece of rawCell.split(/[、,，;；\s]+/)) {
-      const cleaned = piece.trim().replace(/^#/, "").replace(/[（(].*?[)）]/g, "").trim();
+      // 去掉 # 前缀、行内代码反引号 / 粗体星号、以及「（…）」这类括注后再判断。
+      const cleaned = piece.trim().replace(/^#/, "").replace(/[（(].*?[)）]/g, "").replace(/[`*]/g, "").trim();
       // 只接受「像 ID」的片段：避免把「v1 播放12万」这类说明性文字当成第二个视频。
-      if (!/^[\w-]+$/.test(cleaned)) continue;
+      if (!isVidrevIdToken(cleaned)) continue;
       if (isQuadrantEmptyToken(cleaned)) continue;
       total += 1;
       if (mapping.has(cleaned)) {
@@ -958,7 +1019,9 @@ function parseDeepDive(section: string): DeepDiveItem[] {
   for (const line of lines) {
     // 深拆条目固定为「N. <id>「标题」｜象限」整行格式；理由行的编号行（如「1. 展示的是「…」，不是…」）
     // 在闭合引号后仍有正文，必须排除，否则会把理由误判成新视频。
-    const header = /^\s*\d+[.、)]\s*#?([^\s「」，。：:、｜|]{1,24})\s*「[^」]{1,80}」\s*(?:[｜|].*)?$/.exec(line);
+    // id 长度上限放到 80：视频号导出的 `export/UzFf…` 有 60+ 字符，旧上限 24 会把真实深拆
+    // 条目整条漏掉（V4「实际 0 条」），用户看到「未通过技能校验」。
+    const header = /^\s*\d+[.、)]\s*`?#?([^\s「」，。：:、｜|`]{1,80})`?\s*「[^」]{1,80}」\s*(?:[｜|].*)?$/.exec(line);
     if (header) {
       if (current) items.push(finishDeepDiveItem(current));
       current = { id: header[1], body: [] };
@@ -1057,6 +1120,8 @@ export interface VidrevDeepPayload {
    */
   videos: Array<{
     video_id: string;
+    /** 后台导出的原始视频 ID（仅追溯用，报告正文用短编号）。 */
+    raw_id?: string | null;
     index: number;
     title: string;
     duration_sec: number | null;
@@ -1232,6 +1297,20 @@ export function validateVidrevReport(input: VidrevValidationInput): VidrevValida
 
   // V3 四象限必须与重算一致，条数之和 = 总条数，每条只归一个象限
   const parsedQuadrant = parseQuadrantTable(quadrantSection);
+  /**
+   * 报告里指认视频可以用两种写法：短编号（v1…vN，报告正文用这个）或后台原始 ID
+   * （`export/UzFf…`，模型偶尔照抄）。两者都归一到短编号再比对，既保证逐字可验，
+   * 又不会因为「模型写了原始 ID」把一份正确报告判死。
+   */
+  const idAliasToCanonical = new Map<string, string>();
+  for (const video of metrics.videos) {
+    idAliasToCanonical.set(video.id, video.id);
+    if (video.rawId) idAliasToCanonical.set(video.rawId, video.id);
+  }
+  const canonicalId = (value: string): string => idAliasToCanonical.get(value) ?? value;
+  const normalizedQuadrant = new Map<string, string>(
+    [...parsedQuadrant.mapping.entries()].map(([id, key]) => [canonicalId(id), key])
+  );
   if (parsedQuadrant.problems.length > 0) {
     failures.push(`V3 ${parsedQuadrant.problems.join("；")}`);
   }
@@ -1243,11 +1322,11 @@ export function validateVidrevReport(input: VidrevValidationInput): VidrevValida
     neither: expectedQuadrant.neither
   };
   const expectedFlat = Object.values(expectedByKey).flat();
-  if (parsedQuadrant.mapping.size !== expectedFlat.length) {
-    failures.push(`V3 四象限条数之和 ${parsedQuadrant.mapping.size} ≠ 总条数 ${metrics.count}（应等于总条数，且每条只归一个象限）。`);
+  if (normalizedQuadrant.size !== expectedFlat.length) {
+    failures.push(`V3 四象限条数之和 ${normalizedQuadrant.size} ≠ 总条数 ${metrics.count}（应等于总条数，且每条只归一个象限）。`);
   } else {
     for (const [key, ids] of Object.entries(expectedByKey)) {
-      const reported = [...parsedQuadrant.mapping.entries()].filter(([, value]) => value === key).map(([id]) => id);
+      const reported = [...normalizedQuadrant.entries()].filter(([, value]) => value === key).map(([id]) => id);
       const expectedSorted = [...ids].sort().join(",");
       const reportedSorted = reported.sort().join(",");
       if (expectedSorted !== reportedSorted) {
@@ -1264,8 +1343,12 @@ export function validateVidrevReport(input: VidrevValidationInput): VidrevValida
   }
   const metricsIds = new Set(metrics.videos.map((video) => video.id));
   for (const item of deepItems) {
-    if (!metricsIds.has(item.id)) {
+    // 深拆条目也允许写原始 ID（模型偶发照抄）：归一后再判断，报错文案仍用归一后的短编号。
+    const normalized = canonicalId(item.id);
+    if (!metricsIds.has(normalized)) {
       failures.push(`V4 深拆条目「${item.id}」不在本次数据里，禁止编造视频。`);
+    } else {
+      item.id = normalized;
     }
   }
 
@@ -1503,6 +1586,8 @@ export function validateVidrevReport(input: VidrevValidationInput): VidrevValida
     deep_dive: deepDivePayload,
     videos: metrics.videos.map((video) => ({
       video_id: video.id,
+      // 后台导出的原始视频 ID（追溯用；报告正文与模型上下文都用不到它）。
+      raw_id: video.rawId,
       index: video.index,
       title: video.title,
       duration_sec: video.durationSec,
@@ -1580,4 +1665,42 @@ export function vidrevMetricBrief(metrics: VidrevMetrics): string {
     metrics.limitedDimensions.length > 0 ? `受限维度：${metrics.limitedDimensions.join("；")}` : "受限维度：无",
     metrics.softWarnings.length > 0 ? `软提示：${metrics.softWarnings.join("；")}` : ""
   ].filter((line) => line.length > 0).join("\n");
+}
+
+/**
+ * 第二章「视频分层」的**照抄表**：象限 / video_id / 标题 / 播放 / 咨询 / 完播。
+ *
+ * 2026-09-17 现场缺陷：技能提示词把该表列名写成「象限 | # | 标题 | …」，模型老老实实填了
+ * 1./2. 这类**序号**，而校验器把第二列当 video_id 读——同一批序号在两个象限里重复出现，
+ * 于是「视频 1 被归入多个象限」「四象限条数之和 13 ≠ 总条数 20」，整份报告被判失败、
+ * 用户拿不到报告。这里由后端直接生成一张可原样照抄的表（id 用视频号/抖音导出的真实 ID），
+ * 模型只负责复制，不用自己映射，杜绝「序号 vs ID」的口径漂移。
+ */
+export function vidrevQuadrantTable(metrics: VidrevMetrics): string {
+  const pct = (value: number | null): string => (value === null ? "数据缺失" : `${(value * 100).toFixed(2)}%`);
+  const byId = new Map(metrics.videos.map((video) => [video.id, video]));
+  const groups: Array<[string, string[]]> = [
+    ["又爆又赚", metrics.quadrant.both],
+    ["有量无转", metrics.quadrant.plays_no_conv],
+    ["有转无量", metrics.quadrant.conv_no_plays],
+    ["没量没转", metrics.quadrant.neither]
+  ];
+  const lines = [
+    "| 象限 | video_id | 标题 | 播放 | 咨询 | 完播 |",
+    "|---|---|---|---|---|---|"
+  ];
+  for (const [label, ids] of groups) {
+    if (ids.length === 0) {
+      // 空象限必须显式写「无」：校验器按占位符跳过，不能拿「无」当视频 ID。
+      lines.push(`| ${label} | 无 | — | — | — | — |`);
+      continue;
+    }
+    for (const id of ids) {
+      const video = byId.get(id);
+      lines.push(
+        `| ${label} | ${id} | ${video?.title ?? "—"} | ${video?.plays ?? 0} | ${video?.conversions ?? 0} | ${pct(video?.completionRate ?? null)} |`
+      );
+    }
+  }
+  return lines.join("\n");
 }

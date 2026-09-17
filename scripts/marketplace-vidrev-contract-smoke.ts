@@ -6,6 +6,8 @@ import {
   computeVidrevMetrics,
   parseVidrevRowsFromText,
   validateVidrevReport,
+  vidrevQuadrantTable,
+  vidrevMetricBrief,
   type VidrevRawRow
 } from "../apps/api/src/services/video-review-engine.js";
 import { readFileSync } from "node:fs";
@@ -513,6 +515,121 @@ function mutate(build: (doc: string) => string): string {
   return build(buildValidDoc());
 }
 
+/**
+ * 2026-09-17 现场缺陷红绿回归（用户：「测试还是没通过」）：
+ * 视频号助手导出的「视频ID」形如 `export/UzFfBgAAxNSrKEFAVBDxk8zT4DCaRvcgHAJgfcU5mnWT4aWqDQ`
+ * ——**含斜杠、60+ 字符**。修复前两处解析器都只认短 slug：
+ *   ① `parseQuadrantTable` 只收 `^[\w-]+$` → 真实 ID 被判成「不是 ID」，四象限整表判空 → V3；
+ *   ② `parseDeepDive` 的 ID 长度上限 24 → 深拆条目整条漏掉 → V4「实际 0 条」。
+ * 结果是：文件明明识别出 20 条数据，用户却收到「未通过技能校验」、拿不到报告。
+ */
+function checkLongVideoIdContract(): void {
+  const longIds = [
+    "export/UzFfBgAAxNSrKEFAVBDxk8zT4DCaRvcgHAJgfcU5mnWT4aWqDQ",
+    "export/UzFfBgAAxNurJEJiPn_2k8zT4DCaZ0SqRwLmHhVvTtYyUuIi",
+    "export/UzFfBgAAxOCCHD1zZx3hk8zT4DCaQjBpmLnP_CxYEIYcVjovTw",
+    "export/UzFfBgAAxOGCNFxoUBLhk8zT4DCaG6p1jbQsHsZiIwZHcQDAEA",
+    "export/UzFfBgAAxOOhUEcgJxzZjMzT4DCa8QhgTYacRUwKDZkZXc-fLw",
+    "export/UzFfBgAAxORHWFNhVxnbk8zT4DCaRtAyQpWdEfGhIjKlMnOpQr"
+  ];
+  const rows = ROWS.map((row, index) => ({ ...row, video_id: longIds[index] }));
+  const metrics = computeVidrevMetrics(rows);
+  assert(metrics.count === rows.length, "长 ID 数据行必须照常重算");
+
+  const rewrite = (doc: string): string => doc.replace(/\bv([1-6])\b/g, (_all, digit: string) => longIds[Number(digit) - 1]!);
+  const withLongIds = rewrite(buildValidDoc());
+  assert(withLongIds.includes(longIds[0]!), "回归前提：样例文档里的短 id 已被替换成长 ID");
+
+  const result = validateVidrevReport({ markdown: withLongIds, metrics, mode: "deep", hasRevenueData: false });
+  assert(
+    result.failures.length === 0,
+    `视频号长 ID（export/…）必须通过 V3/V4 校验，实际：\n${result.failures.join("\n")}`
+  );
+  assert(
+    result.payload?.deep_dive.length === 6,
+    `长 ID 报告必须解析出 6 条深拆，实际 ${result.payload?.deep_dive.length ?? 0}`
+  );
+
+  // 反向：把分层表第二列换成 1./2. 这样的**序号**（现场模型就是这么写的）必须仍然判失败，
+  // 不能为了「让测试过」把序号也当 ID 收进来。
+  const numbered = rewrite(buildValidDoc()).replace(
+    /\| (又爆又赚|有量无转|有转无量|没量没转) \| [^|]+ \|/g,
+    (_all, label: string) => `| ${label} | ${["又爆又赚", "有量无转", "有转无量", "没量没转"].indexOf(label) + 1} |`
+  );
+  const numberedFailures = validateVidrevReport({ markdown: numbered, metrics, mode: "deep", hasRevenueData: false }).failures;
+  assert(
+    hasRule(numberedFailures, "V3"),
+    `分层表第二列写序号必须判 V3（fail closed），实际 ${numberedFailures.join(" | ")}`
+  );
+
+  // 后端的「照抄表」必须与重算口径逐条一致，且列名就是 video_id。
+  const table = vidrevQuadrantTable(metrics);
+  const tableLines = table.split("\n");
+  assert(
+    tableLines[0] === "| 象限 | video_id | 标题 | 播放 | 咨询 | 完播 |",
+    `照抄表列名必须是 象限 | video_id | 标题 | 播放 | 咨询 | 完播，实际 ${tableLines[0]}`
+  );
+  const labelToKey: Record<string, "both" | "plays_no_conv" | "conv_no_plays" | "neither"> = {
+    又爆又赚: "both",
+    有量无转: "plays_no_conv",
+    有转无量: "conv_no_plays",
+    没量没转: "neither"
+  };
+  const seen: Record<string, string[]> = { both: [], plays_no_conv: [], conv_no_plays: [], neither: [] };
+  for (const line of tableLines.slice(2)) {
+    const cells = line.split("|").map((cell) => cell.trim());
+    const label = cells[1] ?? "";
+    const id = cells[2] ?? "";
+    if (id === "无") continue;
+    seen[labelToKey[label]!]!.push(id);
+  }
+  for (const key of ["both", "plays_no_conv", "conv_no_plays", "neither"] as const) {
+    assert(
+      seen[key]!.join(",") === metrics.quadrant[key].join(","),
+      `照抄表象限「${key}」必须与重算逐条一致：表 ${seen[key]!.join(",")} vs 重算 ${metrics.quadrant[key].join(",")}`
+    );
+  }
+
+  // 源码契约：技能提示词必须写明第二列是 video_id，而不是「#」序号。
+  const routeSrc = readSource("apps/api/src/routes/marketplace.ts");
+  assert(
+    /第二章分层表第二列是 video_id/.test(routeSrc) && /禁止用 1\. \/ 2\. 这类序号/.test(routeSrc),
+    "技能提示词必须钉死「分层表第二列是 video_id、禁止用序号代替」"
+  );
+  assert(
+    /vidrevQuadrantTable\(vidrevMetrics\)/.test(routeSrc),
+    "运行时必须把后端的照抄表喂给模型（否则模型仍会自己造表）"
+  );
+
+  /**
+   * 2026-09-17 用户第二次现场（「这次输出为啥会乱码呢」）：报告里直接出现了视频号后台导出的
+   * 原始视频 ID（`export/UzFfBgAAxNurJEJiPn_2k8zT4DCaZ0Sq…`，60+ 字符），对老板就是乱码。
+   * 口径：**报告 / 模型 / 提示词里一律用短编号 v1…vN**，原始 ID 只留在 payload.videos[].raw_id
+   * 供追溯；原始 ID 出现在任何面向客户的文本里都算回归。
+   */
+  assert(/^v\d+$/.test(metrics.videos[0]!.id), `报告必须用短编号指认视频，实际 ${metrics.videos[0]!.id}`);
+  assert(
+    metrics.videos[0]!.rawId === longIds[0],
+    `原始视频 ID 必须原样存进 rawId（只做追溯），实际 ${metrics.videos[0]!.rawId}`
+  );
+  assert(
+    metrics.quadrant.both.every((id) => /^v\d+$/.test(id))
+      && metrics.quadrant.plays_no_conv.every((id) => /^v\d+$/.test(id))
+      && metrics.quadrant.conv_no_plays.every((id) => /^v\d+$/.test(id))
+      && metrics.quadrant.neither.every((id) => /^v\d+$/.test(id)),
+    `四象限必须只含短编号，实际 ${JSON.stringify(metrics.quadrant)}`
+  );
+  assert(!table.includes("export/"), "照抄表（会喂给模型并出现在报告里）不得出现后台原始 ID");
+  assert(
+    !vidrevMetricBrief(metrics).includes("export/"),
+    "后端口径简报（照抄给模型）不得出现后台原始 ID"
+  );
+  assert(
+    metrics.limitedDimensions.every((item) => !item.includes("export/")),
+    `受限维度文案不得出现后台原始 ID，实际 ${metrics.limitedDimensions.join(" | ")}`
+  );
+}
+
 function checkFailureRules(): void {
   const run = (markdown: string): string[] =>
     validateVidrevReport({ markdown, metrics: METRICS, mode: "deep", hasRevenueData: false }).failures;
@@ -761,9 +878,10 @@ function main(): void {
   checkValidReport();
   checkFailureRules();
   checkModelFormatDrift();
+  checkLongVideoIdContract();
   checkWorkOrder20260913();
   checkRouteSchemaShape();
-  console.log("marketplace vidrev contract smoke: PASS（解析 / 加权口径 / 四象限 / 自适应分桶 / V1–V12 / 工单 2026-09-13 修改项 / 模型排版漂移兼容）");
+  console.log("marketplace vidrev contract smoke: PASS（解析 / 加权口径 / 四象限 / 自适应分桶 / V1–V12 / 工单 2026-09-13 修改项 / 模型排版漂移兼容 / 视频号长 ID 兼容）");
 }
 
 main();
