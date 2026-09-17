@@ -1907,11 +1907,17 @@ async function listFrequentAgents(context: RequestContext) {
 
 function marketplaceIndustryContext(sku: PublicMarketplaceSku): string | null {
   const industry = MARKETPLACE_INDUSTRIES[sku.zone];
-  if (!industry || industry.general) return null;
+  if (!industry) return null;
   const core = sku.skuCode.includes("__") ? sku.skuCode.slice(sku.skuCode.lastIndexOf("__") + 2) : sku.skuCode;
   const ov = (industry.ov ?? {})[core] ?? {};
   const cap = typeof ov.cap === "string" ? ov.cap : "";
   const tips = Array.isArray(ov.tip) ? ov.tip.map((item) => String(item)).filter(Boolean) : [];
+  if (industry.general) {
+    return [
+      cap ? `该场景方法论（照此产出）：${cap}` : "",
+      tips.length > 0 ? `落地提示：${tips.join("；")}` : ""
+    ].filter(Boolean).join("\n") || null;
+  }
   return [
     `你是「${industry.title}」行业智能体，服务对象：${industry.who ?? "行业经营者"}。`,
     `行业术语：${industry.lexicon.join("、")}。`,

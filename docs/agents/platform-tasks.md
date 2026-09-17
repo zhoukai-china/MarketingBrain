@@ -2538,7 +2538,7 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 
 ## PLAT-47 WorkBuddy 接入货架已上架 SKU：sitong.skills/ask 改走 marketplace 计费与执行（用户 2026-09-17）
 
-状态：**进行中**
+状态：**已完成（本地门禁 + 测试实例已过；生产待发布）**
 
 ### 归属
 
@@ -2579,11 +2579,21 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 
 ### 实现记录
 
-- 待补充。
+- `apps/api/src/routes/marketplace.ts`：把 `POST /market/skus/:skuId/run` 的执行 + 计费核心抽成导出函数 `runMarketplaceSku`（返回结构化 outcome），网页 `/run` 改为复用该函数；导出 `listMarketplaceSkus` / `getMarketplaceSku` 供 WorkBuddy 复用。
+- `packages/db/prisma/schema.prisma` + `migrations/202609170002_workbuddy_marketplace_mode`：`WorkbuddyMcpConnection.agentId` 改为可空，新增 `mode`（默认 `agent`，兼容老连接）。
+- `apps/api/src/services/workbuddy-connections.ts`：连接解析支持 `mode` 与可空 `agentId`。
+- `apps/api/src/routes/workbuddy-settings.ts`：连接创建支持 `{ mode: "marketplace" }`，货架模式 `agentId=null`；旋转与 `publicConnection` 兼容可空 agent。
+- `apps/api/src/routes/workbuddy-mcp.ts`：`resolveWorkbuddyAccess` 改为 `agent | marketplace` 联合；`sitong.skills` 在货架模式列 selling SKU；`sitong.ask` 在货架模式按 `skuCode` 走 `runMarketplaceSku`；透传 `marketplace_*` 错误码。
+- `apps/web/src/pages/RechargePage.tsx`：「在 WorkBuddy 里接入思潼 AI」改为创建货架模式连接（不再绑定首个智能体）。
+- QA 后补丁（与主实现同批收口）：`apps/api/src/data/marketplace-v3.json` 给 `ipzone.ov.copy` 补通用获客 `cap`/`tip`；`apps/api/src/routes/marketplace.ts` 让 `marketplaceIndustryContext` 对 `general:true` 专区也注入方法论上下文；`apps/api/src/routes/workbuddy-mcp.ts` 在缺 `skuCode` 时报错附带可选 SKU 清单、成功响应返回 `conversationId`、支持 `history` 数组多轮续聊。
 
 ### 验证
 
-- 待补充。
+- `pnpm.cmd typecheck`（全仓 7 包）：**PASS**。
+- `pnpm.cmd marketplace:foundation-smoke` / `pnpm.cmd marketplace:credits-only-contract-smoke`：**PASS**（抽取未破坏货架行为）。
+- 新增 `scripts/workbuddy-marketplace-sync-smoke.mjs`（源码契约，已挂 `qa:fast`）：**PASS**。
+- QA 后补丁复测：`pnpm.cmd --filter @baolu/api typecheck` **PASS**；`pnpm.cmd workbuddy:marketplace-sync-smoke` **PASS**；`pnpm.cmd marketplace:foundation-smoke` **PASS**；`pnpm.cmd marketplace:credits-only-contract-smoke` **PASS（33/0）**。
+- 未运行：生产发布与发布后 `verify-deploy.sh`、WorkBuddy 客户端真机调用（同 PLAT-46 边界，留用户实测）。
 
 ### 交接
 
@@ -2618,6 +2628,6 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 | PLAT-44 旧工作台下线 + 视频复盘收窄 | 已完成 | 遗留：兰琪/美业自有页面的 `/my-ai` 入口、美业 `beauty-directory-browser-e2e`、`MyAiPage` 去留 |
 | PLAT-45 三条计费口径（IP 定位固定 400 / A+图片放开 / 文案包月） | **已完成 + 已上生产** | 详情页包月入口已补做并上线（`20260917-plat48-copy-monthly-detail-prod1`）；剩「用户登录后真开通一次包月 → 连生成 2 次不扣分 → 第 6 次被拒」的人工实测 |
 | PLAT-46 WorkBuddy MCP 双账本打通（钱包优先 + 租户账本兜底） | **已完成**（本地全绿） | 待 WorkBuddy 客户端真机发一次 `sitong.ask` 复核 |
-| PLAT-47 WorkBuddy 接入货架已上架 SKU（sitong.skills/ask 改走 marketplace 计费与执行） | **进行中** | 见本表 PLAT-47 卡；计费口径选 A（与货架同价同账），用户已确认 |
+| PLAT-47 WorkBuddy 接入货架已上架 SKU（sitong.skills/ask 改走 marketplace 计费与执行） | **已完成（测试实例已过）** | 生产待发布；计费口径选 A（与货架同价同账），用户已确认 |
 
 - 最后更新日期：2026-09-17

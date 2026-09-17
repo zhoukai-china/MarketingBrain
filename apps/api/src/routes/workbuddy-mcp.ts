@@ -264,13 +264,22 @@ export async function registerWorkbuddyMcpRoutes(app: FastifyInstance, provider:
 
       if (access.mode === "marketplace") {
         const skuCode = optionalText(args.skuCode, 100);
-        if (!skuCode) throw new Error("mcp_argument_required:skuCode");
+        if (!skuCode) {
+          const available = await listMarketplaceSkus({ status: "selling" as const }, false);
+          throw new Error(`mcp_argument_required:skuCode;available=${available.map((sku) => sku.skuCode).join(",")}`);
+        }
         const sku = await getMarketplaceSku(skuCode);
         if (!sku) throw new Error("marketplace_sku_not_found");
+        const history = Array.isArray(args.history)
+          ? (args.history as Array<Record<string, unknown>>)
+              .filter((item) => item && (item.role === "user" || item.role === "assistant") && typeof item.content === "string")
+              .map((item) => ({ role: item.role as "user" | "assistant", content: String(item.content) }))
+              .slice(0, 12)
+          : undefined;
         const outcome = await runMarketplaceSku({
           context,
           sku,
-          body: { input: requiredText(args.input, "input", 20_000) },
+          body: { input: requiredText(args.input, "input", 20_000), history },
           log: request.log
         });
         if (!outcome.ok) throw new Error(String(outcome.body.error ?? "marketplace_run_failed"));
@@ -278,6 +287,7 @@ export async function registerWorkbuddyMcpRoutes(app: FastifyInstance, provider:
           content: [{ type: "text", text: String(outcome.body.answer ?? "") }],
           structuredContent: {
             status: "completed",
+            conversationId: String(outcome.body.requestId ?? ""),
             skuCode,
             creditCost: outcome.body.consumedCredits,
             remainingCredits: outcome.body.balance,
@@ -438,8 +448,9 @@ function toolDefinitions(): unknown[] {
         type: "object",
         properties: {
           input: { type: "string", description: "用户的完整问题或任务" },
-          skuCode: { type: "string", description: "可选，货架已上架 SKU 的 skuCode（如 ipzone__copy、meiye__copy），用于按货架能力执行" },
+          skuCode: { type: "string", description: "货架模式必填：已上架 SKU 的 skuCode（如 ipzone__copy、meiye__copy），可通过 sitong.skills 查询" },
           conversationId: { type: "string", description: "上一轮返回的 conversationId，用于连续对话" },
+          history: { type: "array", description: "可选，多轮对话历史 [{role:user|assistant, content}]，用于货架模式续聊" },
           capabilityId: { type: "string", description: "可选，锁定当前 Agent 的某项能力" },
           skillId: { type: "string", description: "可选，锁定当前 Agent 已授权的 Skill" },
           requestId: { type: "string", description: "可选，调用方幂等请求号" }
