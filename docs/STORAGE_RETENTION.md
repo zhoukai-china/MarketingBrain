@@ -74,6 +74,9 @@ bash scripts/ops/disk-alert-smoke.sh                   # 期望 DISK_ALERT_SMOKE
 NOW_HOUR=3 bash scripts/ops/disk-alert.sh --dry-run    # 期望打印 QUIET: 夜间（…）静默
 ```
 
+（Windows 检出可能是 CRLF，直接 scp 到 Linux 会带 `\r` 报语法错——先 `sed -i 's/\r$//'` 或让
+`install-storage-retention.sh` 装（它自带去 CR）。同类坑见 `docs/BUG_REGRESSIONS.md` QA-20260916-015。）
+
 客户上传清理每次真删都会写一条**不含客户文件名**的汇总日志到
 `/var/log/baolu-uploads-retention/<时间>.log`（记录目录、文件数、字节数、删除的空目录数）。
 需要看具体清单时用 `--list`（只打印到屏幕，不落日志）。
