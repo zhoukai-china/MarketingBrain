@@ -2453,18 +2453,28 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 - 接口变化：新增 `POST /market/subscriptions` 的积分口径分支；`/market/skus/:sku/run` 新增 `pricingMode = "subscription"` 与 409 分支；`/market/skus/:sku/access` 增加订阅字段。**未订阅用户的响应与扣费一字未变**。
 - 兼容与回滚点：回滚 = 关掉 `marketplace-v3.json` 的 `sub` 配置（包月入口即消失）+ 还原 `routes/marketplace.ts` / `marketplace-catalog.ts`；数据库多出的列对旧代码无影响。IP 定位回滚 = 从 `FIXED_PRICE_SKUS` 移除 `ip-pos` 并还原 ppu。
 
+#### 用户现场二次反馈（2026-09-17）：`/agent/ipzone__copy` 上看不到包月（P1，已修 + 已上生产）
+
+- 现象：用户直接打开 `https://api.lcppch.top/os-v2/agent/ipzone__copy`，页面上没有任何包月字样。**接口与数据是好的**（生产 `GET /os-v2/api/market/skus/ipzone__copy` 返回 `subscriptionCredits:4000` / `subscriptionDailyQuota:5`），缺的是入口。
+- 根因：`/agent/<sku>` 命中的是**详情页** `MarketplaceAgentDetailPage`，包月入口当初只做在**对话页**（`/agent/<sku>/chat`）的「请先确认需求」确认面板里——要先答完 4–5 轮提问才看得到，等于没有入口。
+- 修复：`apps/web/src/marketplace/AgentDetailPage.tsx` 价格卡内渲染 `.pc-block.sub`（价与每日条数全部读 SKU 字段、不写死），按钮走与对话页**同一个** `POST /market/subscriptions`：未登录跳登录、401/403 清会话、402 带 `next` 回跳充值、已在订阅期返回 `alreadySubscribed` 不重复扣分。
+- 契约/门禁：`marketplace:credits-only-contract-smoke` 新增 6 条详情页断言（先红 28/5，后绿 **33/0**）；`scripts/deployed-marketplace-browser-check.mjs` 新增 `detail_monthly_package` 与「只按次售卖的 SKU 不得出现包月」双向断言（从接口现值比对，不写死数字）。
+- 生产真机绿证：`DEPLOY_CHECK_WEB_URL=https://api.lcppch.top/os-v2 node scripts/deployed-marketplace-browser-check.mjs` → **PASS**（`detail_monthly_package=PASS no_monthly_on_ppu_only_sku=PASS console_clean=PASS`）；手机 390×844 探针：块可见、按钮 318×43、无横向溢出、console 0。
+- 台账：`docs/BUG_REGRESSIONS.md` **QA-20260917-003**。
+
 ### 验证
 
 - `pnpm.cmd qa:fast`：**PASS**（`QAFAST_EXIT=0`，含 `billing:cost-model-smoke`、`marketplace:credits-only-contract-smoke`、`typecheck` 7/7 包）。
 - `pnpm.cmd qa:regression`：**PASS**（`QAREG_EXIT=0`，含新增 `marketplace:subscription-smoke`）。
 - `pnpm.cmd qa:full`：**PASS**（`QAFULL_EXIT=0`，web/api 均 build + `api_runtime_data_check:PASS`）。
 - `pnpm.cmd marketplace:subscription-smoke`：**PASS**（真实路由 + 真实数据库 + **一次真实模型运行**）。关键行：`[PASS] 未订阅时透出包月报价 4000 积分 · 每天 5 条`、`[PASS] 订阅扣 4000 积分`、`[PASS] 订阅后余额 5000 → 1000`、`[PASS] 重复订阅不再扣积分（余额不变）`、`[PASS] 订阅期内运行扣 0 积分（实际 0）`、`[PASS] 订阅期内运行不改余额（期望 1000，实际 1000）`、`[PASS] 额度用尽后运行返回 409`、`[PASS] 错误码是 marketplace_subscription_quota_exhausted`、`[PASS] 额度用尽被拒时余额分文不动`、`[PASS] 其他租户不会被别人的订阅放行（实际 guest）`、末行 `PASS: 包月订阅计费回归全部通过`。
-- 未运行项：真机浏览器验收（开通包月 → 连生成 2 次不扣分 → 第 6 次被拒）留到发布后在页面实测，见「交接」。
+- 未运行项（2026-09-17 更新）：「详情页看不到包月」这一段**已补做并上生产**（见上「用户现场二次反馈」）；剩下需要**用户本人登录**才能做的那一步：在 `/os-v2/agent/ipzone__copy` 点「📅 开通包月：4000 积分/月」→ 连生成 2 次确认不扣积分 → 当天第 6 次被 409 拦下。这一步会真实扣 4000 积分，Codex 不能代持微信登录与付款。
 
 ### 交接
 
 - 残余风险：`subscriptionPriceCny`（人民币口径包月）仍在库表里但没有入口，长时间不用建议单列任务清理；`ip-pos` 的 400 是**用户指定的固定价**，与 9-15「按成本计价」的口径冲突由用户裁决，已在 `docs/PRICING.md` §五 记录。
 - 后续任务：给其他智能体按需上包月（配置位已就绪，加 `sub` 即可）；录音卡 `/audio-cards` 仍未定价。
+- 发布（详情页包月补丁）：生产 `20260917-plat48-copy-monthly-detail-prod1`（归档 `release-20260917-plat48-copy-monthly-detail.tar.gz`，sha256 `43a59529c6af5c000369b12f3d67ffbd74647a0b74f9059674f6cb4da69add6a`）；服务器侧 `DEPLOY_OK`、`health=200 (after 15s)`、`No pending migrations`。发布日志里**没有** `VERIFY_OK` 行（该次只跑了部署链），事后补跑 `verify-deploy.sh` 除 `public_web`（裸 `/os-v2` 被 nginx 302 归一成 `/os-v2/`，浏览器自动跟随，非本次引入、也非产品缺陷）外全 PASS——详见 `docs/CURRENT_DEPLOYMENT_STATUS.md`。
 - 最后更新日期：2026-09-17
 
 ## PLAT-46 WorkBuddy MCP 双账本打通：钱包优先扣费 + 遗留租户账本兜底（用户 2026-09-17）
@@ -2551,7 +2561,7 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 | PLAT-32 平台底座抽取 | 基本完成 | 剩 `auth.ts` 巨型 `registerAuthRoutes` 拆分，建议单列任务 |
 | PLAT-33 公共平台语音输入 | **已完成**（本行已校准） | 原写「待发布」，实际 2026-09-14 已上线 |
 | PLAT-44 旧工作台下线 + 视频复盘收窄 | 已完成 | 遗留：兰琪/美业自有页面的 `/my-ai` 入口、美业 `beauty-directory-browser-e2e`、`MyAiPage` 去留 |
-| PLAT-45 三条计费口径（IP 定位固定 400 / A+图片放开 / 文案包月） | **已完成**（本地全绿） | 待真机页面实测（开通包月 → 连生成 2 次不扣分 → 第 6 次被拒） |
+| PLAT-45 三条计费口径（IP 定位固定 400 / A+图片放开 / 文案包月） | **已完成 + 已上生产** | 详情页包月入口已补做并上线（`20260917-plat48-copy-monthly-detail-prod1`）；剩「用户登录后真开通一次包月 → 连生成 2 次不扣分 → 第 6 次被拒」的人工实测 |
 | PLAT-46 WorkBuddy MCP 双账本打通（钱包优先 + 租户账本兜底） | **已完成**（本地全绿） | 待 WorkBuddy 客户端真机发一次 `sitong.ask` 复核 |
 | `sitong.skills` 只返回 `ceo-cockpit-analyst` | 未开工 | `WorkbuddyConnection` 只有单个 `agentId`（生产 4 个 active 连接全绑 `agent_ceo_cockpit`），需多值 + 迁移 + 汇总 + UI，建议单列一张卡 |
 

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { apiPath, getAppPath } from "../lib/api.js";
+import { apiPath, getAppPath, getAppRoutePath } from "../lib/api.js";
+import { readSessionToken } from "../lib/session.js";
 import { referenceCaseForSku, type ReferenceCase } from "./reference-cases.js";
-import { fetchMarketMe, readJson, Topbar } from "./shell.js";
+import { authHeaders, fetchMarketMe, guestToLogin, handleStaleSession, readJson, Topbar } from "./shell.js";
 import {
   bundleSteps,
   bundleTotal,
@@ -28,6 +29,16 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const [benchmark, setBenchmark] = useState<ReferenceCase | null>(null);
+  /**
+   * 包月状态（用户 2026-09-17 二次反馈：`/agent/ipzone__copy` 上「并没有文案包月功能」）。
+   *
+   * 之前包月只做在对话页的「请先确认需求」面板里，用户要先填完几轮问答才看得到，
+   * 详情页一个字都没有——用户根本走不到那个入口。这里把套餐入口放到用户实际打开的页面上。
+   */
+  const [subscribing, setSubscribing] = useState(false);
+  const [subscribed, setSubscribed] = useState(false);
+  const [subscriptionNotice, setSubscriptionNotice] = useState("");
+  const [rechargeHref, setRechargeHref] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -73,6 +84,87 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
   function startChat() {
     if (!runSku || soon) return;
     window.location.href = getAppPath(`/agent/${encodeURIComponent(runSku.skuCode)}/chat`);
+  }
+
+  /**
+   * 这个智能体是否卖包月：由 `marketplace-v3.json` 的 `sub` 配置经接口透到 SKU 字段，
+   * 页面上只读字段、不写死价格（`subscriptionCredits` 为空 = 只有按结果交付）。
+   */
+  const subscriptionOffer = (sku.subscriptionCredits ?? 0) > 0
+    ? {
+        credits: sku.subscriptionCredits as number,
+        dailyQuota: sku.subscriptionDailyQuota ?? null,
+        quota: sku.subscriptionQuota ?? null
+      }
+    : null;
+  const subscriptionQuotaText = subscriptionOffer
+    ? subscriptionOffer.quota ?? (subscriptionOffer.dailyQuota == null ? "不限次数" : `每天 ${subscriptionOffer.dailyQuota} 条`)
+    : "";
+
+  /**
+   * 开通包月。
+   *
+   * 与对话页走**同一个** `POST /market/subscriptions`，服务端语义也一致：
+   * 已在包月期内会把当前这期原样返回（`alreadySubscribed`，不重复消耗积分），
+   * 余额不足在扣费前 402 并带回充值入口。
+   */
+  async function subscribeMonthly() {
+    if (!subscriptionOffer || !runSku || subscribing) return;
+    if (!readSessionToken()) {
+      guestToLogin(`${getAppRoutePath(window.location.pathname)}${window.location.search}`);
+      return;
+    }
+    setSubscribing(true);
+    setSubscriptionNotice("");
+    setRechargeHref("");
+    try {
+      const response = await fetch(apiPath("/market/subscriptions"), {
+        method: "POST",
+        headers: authHeaders(true),
+        body: JSON.stringify({ skuId: runSku.skuCode })
+      });
+      if (handleStaleSession(response.status)) {
+        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录后再开通；本次不消耗积分。");
+      }
+      if (response.status === 402) {
+        const payload = (await response.json().catch(() => ({}))) as { message?: string };
+        setSubscriptionNotice(
+          `${payload.message ?? `开通包月需要 ${subscriptionOffer.credits} 积分，当前积分不足，请先充值。`}`
+          + "（本次不消耗积分；充完回来再点「开通包月」即可。）"
+        );
+        setRechargeHref(
+          getAppPath(
+            `/recharge?from=agent&skill=${encodeURIComponent(runSku.skuCode)}`
+            + `&next=${encodeURIComponent(`${getAppRoutePath(window.location.pathname)}${window.location.search}`)}`
+          )
+        );
+        return;
+      }
+      const result = await readJson<{
+        alreadySubscribed?: boolean;
+        credits?: number;
+        balance?: number;
+        subscription?: { endDate?: string | null; dailyQuota?: number | null } | null;
+        subscriptionStatus?: { dailyQuota?: number | null; usedToday?: number; endDate?: string | null };
+      }>(response);
+      const dailyQuota = result.subscriptionStatus?.dailyQuota ?? result.subscription?.dailyQuota ?? subscriptionOffer.dailyQuota;
+      const endDate = result.subscriptionStatus?.endDate ?? result.subscription?.endDate ?? null;
+      const usedToday = result.subscriptionStatus?.usedToday ?? 0;
+      setBalance(typeof result.balance === "number" ? result.balance : balance);
+      setSubscribed(true);
+      const until = endDate ? new Date(endDate).toLocaleDateString("zh-CN") : "";
+      const quotaText = dailyQuota == null ? "不限次数" : `每天 ${dailyQuota} 条`;
+      setSubscriptionNotice(
+        result.alreadySubscribed
+          ? `你已经在包月期内了，这次没有重复消耗积分：${quotaText}，额度每天 0 点恢复${until ? `，本期末到 ${until}` : ""}。`
+          : `✅ 包月已开通：本期已消耗 ${result.credits ?? subscriptionOffer.credits} 积分（${quotaText}${until ? `，本期末到 ${until}` : ""}）。`
+            + `从现在起，本智能体的生成不再额外消耗积分${dailyQuota == null ? "" : `；今天还剩 ${Math.max(0, dailyQuota - usedToday)} 条`}。`
+      );
+    } catch (reason) {
+      setSubscriptionNotice(reason instanceof Error ? reason.message : "开通失败，请稍后再试。");
+    } finally {
+      setSubscribing(false);
+    }
   }
 
   return (
@@ -131,6 +223,56 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
                   {soon
                     ? <div className="pc-note">🚧 该智能体内核正在开发中，暂不能发起生成；上线时间以公告为准。</div>
                     : <div className="pc-note">🎯 <b>按结果交付</b>：一次拿到上面那份完整交付物；如需再要一份，重新发起一次即可，用量按实际消耗计算。</div>}
+                </div>
+              )}
+              {/*
+               * 包月套餐块（用户 2026-09-17 二次反馈：`/agent/ipzone__copy` 上看不到「文案包月」）。
+               *
+               * 只对配置了 `sub` 的 SKU 渲染：套餐价与每日条数全部来自接口字段，页面上不写死数字，
+               * 以后给别的智能体上包月（`marketplace-v3.json` 加 `sub`）这个块会自动出现。
+               *
+               * 不违反 PLAT-31「不前置报价」：那条禁的是**按次**报价（「N 积分/次」「约扣 N 积分」与折算人民币写法）；
+               * 包月是用户拍板「可以自己选包月或按消耗计费」的独立售卖方案，价格必须看得见。
+               */}
+              {subscriptionOffer && !bundle && !soon && (
+                <div className="pc-block sub">
+                  <div className="pc-label">📅 也可以按月订阅 · 订阅期内生成不再额外消耗积分</div>
+                  <div className="pc-pts">{subscriptionOffer.credits}<span> 积分/月</span></div>
+                  <div className="pc-quota">{subscriptionQuotaText}</div>
+                  {subscribed ? (
+                    <>
+                      <button className="btn primary block" onClick={startChat}>💬 开始用（本次不消耗积分）</button>
+                      <div className="pc-subnote">包月期内额度每天 0 点恢复；本期结束前再来生成都不会再消耗积分。</div>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="btn primary block"
+                        disabled={subscribing}
+                        onClick={() => { void subscribeMonthly(); }}
+                      >
+                        {subscribing ? "正在开通…" : `📅 开通包月：${subscriptionOffer.credits} 积分/月`}
+                      </button>
+                      <div className="pc-subnote">低频使用按结果交付更划算；高频用选包月，订阅期内不再消耗积分。</div>
+                    </>
+                  )}
+                  {subscriptionNotice && (
+                    <div className="pc-subnote" style={{ color: "var(--accent2)" }}>
+                      {subscriptionNotice}
+                      {rechargeHref && (
+                        <>
+                          {" "}
+                          <button
+                            type="button"
+                            className="btn ghost sm"
+                            onClick={() => { window.location.href = rechargeHref; }}
+                          >
+                            去充值（回来接着开通）
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
               {/*

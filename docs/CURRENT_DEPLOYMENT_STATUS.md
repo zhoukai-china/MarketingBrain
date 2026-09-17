@@ -1,5 +1,45 @@
 # 当前部署状态
 
+## 最新发布：20260917-plat48-copy-monthly-detail（2026-09-17，仅生产）— 修「`/agent/ipzone__copy` 上看不到文案包月」（P1 体验断链）
+
+### 一、用户现场问题
+
+用户直接打开 `https://api.lcppch.top/os-v2/agent/ipzone__copy`，页面上没有任何包月字样：「这个网址下并没有文案包月功能」。
+
+### 二、根因（信息全在，只是入口在错的页面上）
+
+`/agent/<sku>` 命中的是 **SKU 详情页** `MarketplaceAgentDetailPage`，带 `/chat` 才走对话页；PLAT-45 的包月入口当初只加在**对话页**的「请先确认需求」确认面板里，用户要先答完 4–5 轮提问才看得到。生产接口层当时已经是对的：`GET /os-v2/api/market/skus/ipzone__copy` → `subscriptionCredits:4000, subscriptionDailyQuota:5`。
+
+### 三、改动
+
+1. `apps/web/src/marketplace/AgentDetailPage.tsx`：价格卡内新增 `.pc-block.sub`（复用 `sitong-design.css` 既有样式）。仅当 `subscriptionCredits > 0` 渲染，**套餐价与每日条数全部读 SKU 字段**（以后别的智能体加 `sub` 配置会自动出现）；「📅 开通包月」按钮走与对话页**同一个** `POST /market/subscriptions`——未登录 → 跳登录；401/403 → 清会话 +「本次不消耗积分」；402 → 提示 + 带 `next` 回跳的充值链接；成功 → 区分 `alreadySubscribed`（不重复消耗积分）与首次开通，并在块内显示「本次不消耗积分」专用按钮。
+2. 门禁：`scripts/marketplace-credits-only-contract-smoke.mjs` 新增 6 条详情页断言（先红 28/5 → 后绿 **33/0**）；`scripts/deployed-marketplace-browser-check.mjs` 新增线上断言——从 SKU 接口**现取** `subscriptionCredits`/`subscriptionDailyQuota` 再比对页面文本（不写死），且**反向断言**只按次售卖的 IP 定位详情页不得出现「按月订阅 / 开通包月」，同时断言块内不出现「积分/次」「≈ ¥」。
+3. **未动任何计费 / 定价 / 钱包 / 数据库代码**，回滚 = 还原 `AgentDetailPage.tsx` 一个文件。
+
+### 四、发布与验收
+
+| 环境 | 发布 id | 结果 |
+| --- | --- | --- |
+| 生产 | `20260917-plat48-copy-monthly-detail-prod1` | **`DEPLOY_OK`**、`health=200 (after 15s)`、`ready=200`、`No pending migrations`、发布后磁盘 `/` **6.8G 可用（76%）** |
+| 测试实例 | 未发布（本次只发生产；用户要看的就是生产页） | — |
+
+发布包：`release-20260917-plat48-copy-monthly-detail.tar.gz`（**10,024,762 B**，sha256 `43a59529c6af5c000369b12f3d67ffbd74647a0b74f9059674f6cb4da69add6a`，本地与服务器一致）。发布日志 `/tmp/deploy-20260917-plat48-copy-monthly-detail-prod1-baolu-os-v2.log`。
+
+**发布纪律（本次踩到的坑）**：发布期间另一条线（管理员充值明细）已先发过一版生产，其本地工作树与生产上正在跑的 `AdminConsolePage.tsx` 互不一致。为保证**不覆盖线上别人的修复**，打包时把**生产现网版** `AdminConsolePage.tsx`（sha256 `b0327e665d6e3ec2…`）回灌进 stage 再打 tar；包内核对：`AgentDetailPage.tsx` = `8a8253a4289d7344…`（本次版本）、`AdminConsolePage.tsx` = `b0327e665d6e3ec2…`（生产原样）。这印证了 QA-20260916-016 的纪律：**叠加发布不会退回旧文件，但也可能顺手覆盖别人的在途修复**。
+
+### 五、验收证据（生产真机，红线 → 绿线）
+
+- 自动化：`node scripts/marketplace-credits-only-contract-smoke.mjs` → **PASS (33 passed / 0 failed)**；`pnpm.cmd --filter @baolu/web typecheck` → PASS；`pnpm.cmd qa:fast` → **EXIT=0**。
+- 生产真机（Chromium CDP，非本地）：`DEPLOY_CHECK_WEB_URL=https://api.lcppch.top/os-v2 node scripts/deployed-marketplace-browser-check.mjs` → **`PASS`**，逐项 `shelf=PASS credits_only=PASS no_yuan_conversion=PASS detail_monthly_package=PASS no_monthly_on_ppu_only_sku=PASS direct_test_entry=PASS console_clean=PASS`；截图 `01-shelf-agents.png`、`02-agent-ip-pos.png`、`02b-agent-copy-monthly.png`、`03-lanqi-dashboard.png`。
+- 手机 390×844 生产探针：包月块可见，文案「📅 也可以按月订阅… / 4000 积分/月 / 每天 5 条 / 📅 开通包月：4000 积分/月」，按钮 318×43 可见，无横向溢出，console 0 error。
+- 补跑 `verify-deploy.sh`（app `/opt/baolu-os-v2`、service `baolu-os-v2`、port 3002、base `/os-v2/`）：服务 / 运行时数据 / web 构建 / 货架契约全 **PASS**（含 `ipzone__copy_subscription = 4000 credits / 5 per day`、`ipzone__ip-pos_ppu = 400`）；**唯一 FAIL 是 `public_web expected=200 actual=302`**——裸 `https://api.lcppch.top/os-v2` 被 nginx 302 归一成 `/os-v2/`（带斜杠即 200，浏览器自动跟随），非本次引入、也非产品缺陷。
+- 已知既有红（非本次引入，未处理）：`pnpm.cmd marketplace:copy-scan` 仍 FAIL，命中项改动前即存在（`AgentChatPage.tsx` 的「扣积分」措辞、`AgentDetailPage.tsx` 的「兰琪」真实客户名，`git show HEAD:` 可证）；该脚本未挂进 `qa:fast`。
+
+### 六、未做 / 边界
+
+- **真实开通一次包月没有代跑**：会真扣 4000 积分（资金动作）+ 需要用户本人微信登录，留给你点一次。未登录点击会跳登录页，这是设计行为（已实测）。
+- 台账：`docs/BUG_REGRESSIONS.md` **QA-20260917-003**；任务卡 `docs/agents/platform-tasks.md` PLAT-45「用户现场二次反馈」。
+
 ## 最新发布：20260916-lq34-wallet（2026-09-17，生产 + 测试实例）— 兰琪通用钱包打通：7 个扣费点收口到「老板钱包」+ 历史额度一次性迁移
 
 ### 一、用户口径

@@ -2,6 +2,20 @@
 
 - 编号说明（2026-09-16 合并 `main` 后统一）：LQ-34 侧并发登记的条目顺延为 **-012 导出一次性直链 / -013 邀请活动门禁 / -014 导出仓 `.env` / -015 Windows worktree CRLF**；`-006` 本机草稿指纹条目以 main 编号为准（LQ-34 侧曾记为 `-010`，合并时去重）。
 
+## QA-20260917-003：用户打开 `/agent/ipzone__copy` 看不到「文案包月」——包月入口只做在对话页的确认面板里，详情页一个字都没有（P1 体验断链，已修 + 已上生产）
+
+- 现象（用户 2026-09-17 二次反馈，生产真机可复现）：`https://api.lcppch.top/os-v2/agent/ipzone__copy` 页面上没有任何包月字样；用户原话「这个网址下并没有文案包月功能」。
+- 关键区分（**接口与数据都是好的，缺的是入口**）：生产 `GET /os-v2/api/market/skus/ipzone__copy` 当时已返回 `subscriptionCredits:4000`、`subscriptionDailyQuota:5`，`POST /market/subscriptions` 也早已有积分口径分支（见 QA-20260917-001）。红灯只在页面层。
+- 根因：`/agent/<sku>` 命中的是 **SKU 详情页** `MarketplaceAgentDetailPage`（`apps/web/src/marketplace/AgentDetailPage.tsx`），带 `/chat` 才走对话页。包月入口当初只加在**对话页**（`AgentChatPage.tsx`）的「请先确认需求」确认面板里——那是用户答完 4–5 轮提问之后才会出现的东西，所以从详情页进来的人永远看不到包月。属「功能做在了用户实际不会先打开的页面上」。
+- 修复前红灯：给 `scripts/marketplace-credits-only-contract-smoke.mjs` 增 6 条详情页断言（详情页必须有包月块；套餐价与每日条数必须读 SKU 字段；必须有真的开通入口而不是死链；必须走 `apiPath("/market/subscriptions")`；不得写死「4000 积分」）→ **28 passed / 5 failed**。
+- 最小修复：`AgentDetailPage.tsx` 价格卡内新增 `.pc-block.sub`（复用 `sitong-design.css` 既有样式）：仅 `subscriptionCredits > 0` 才渲染，价格与每日条数**全部读接口字段**（以后别的智能体加 `sub` 配置会自动出现）；「📅 开通包月」按钮走与对话页**同一个** `POST /market/subscriptions`——未登录 → `guestToLogin(当前路由)`；401/403 → 清会话 +「本次不消耗积分」中文提示；402 → 提示 + 带 `next` 回跳的充值链接；成功 → 区分 `alreadySubscribed`（不重复扣分）与首次开通。**未动任何计费 / 定价 / 钱包代码**。
+- 口径说明（为什么不违反 PLAT-31「不前置报价」）：那条禁的是**按次**报价（「N 积分/次」「约扣 N 积分」）与折算人民币；包月是用户 9-17 拍板「可以自己选包月或按消耗计费」的独立售卖方案，套餐价必须看得见。块内不出现「积分/次」「≈ ¥」。
+- 绿证（生产真机，非本地）：发布 `20260917-plat48-copy-monthly-detail-prod1` 后 `DEPLOY_CHECK_WEB_URL=https://api.lcppch.top/os-v2 node scripts/deployed-marketplace-browser-check.mjs` → **PASS**（`detail_monthly_package=PASS no_monthly_on_ppu_only_sku=PASS credits_only=PASS console_clean=PASS`）。该脚本的断言从 SKU 接口**现取** `subscriptionCredits` / `subscriptionDailyQuota` 再比对页面文本（不写死数字），并**反向断言**只按次售卖的 IP 定位详情页不得出现「按月订阅 / 开通包月」。手机 390×844 实机探针：包月块可见、文案「📅 也可以按月订阅 / 4000 积分/月 / 每天 5 条」、按钮 318×43 可见、无横向溢出、console 0 error。
+- 截图：桌面 `C:\Users\book\AppData\Local\Temp\deployed-marketplace-check-1789607571002\02b-agent-copy-monthly.png`；手机 `C:\Users\book\AppData\Local\Temp\plat48-mobile-1789607510081.png`；IP 定位详情页（无反证用的正向证据）`…\02-agent-ip-pos.png`。
+- 回归门禁：`node scripts/marketplace-credits-only-contract-smoke.mjs` **PASS (33 passed / 0 failed)**；`pnpm.cmd qa:fast` **EXIT=0**；`pnpm.cmd --filter @baolu/web typecheck` PASS。
+- 未验证边界：**真实开通一次包月（会真扣 4000 积分）没有代跑**——需用户本人登录后点一次；未登录点击会跳登录页（这是设计行为，已实测）。
+- 关联：任务卡 `docs/agents/platform-tasks.md` PLAT-45「用户现场二次反馈」；发布记录 `docs/CURRENT_DEPLOYMENT_STATUS.md`。
+
 ## QA-20260916-016：跨任务共用同一台测试实例，平台线叠加发布把 LQ-34 的钱包文件覆盖回主线 → 迁移脚本首次 apply 报 `withWalletTransaction is not a function`（P2，已修并复验）
 
 - 触发：2026-09-16 20:54 在测试实例 `/opt/baolu-os-v2-test` 首次执行 `scripts/lanqi-wallet-migrate.ts --apply`，脚本已写完「迁移前 CSV」后立刻崩溃：`TypeError: (0, import_sitong_wallet.withWalletTransaction) is not a function`（`lanqi-wallet-migration.ts:211`），**exit 1、一笔都没写库**。

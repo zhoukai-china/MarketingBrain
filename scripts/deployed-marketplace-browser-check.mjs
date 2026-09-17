@@ -1,6 +1,8 @@
 // 已部署实例的真实浏览器只读验收：打线上/测试环境的公开 URL，不写任何数据。
 // 覆盖：货架渲染、「不前置报价、不出现按次/钱包/扣费话术」（PLAT-19 + 2026-09-15 文案口径）、
 // 未完成内核显示「开发中」、IP 定位详情页「按结果交付 + 再次生成」文案、控制台无新增错误。
+// 2026-09-17 增补（用户现场：`/agent/ipzone__copy` 上看不到「文案包月」）：
+// 卖包月的 SKU，详情页必须能看见套餐价与开通按钮；只有按结果交付的 SKU 不得凭空出现包月块。
 // 用法：DEPLOY_CHECK_WEB_URL=https://api.lcppch.top/lanqi-test node scripts/deployed-marketplace-browser-check.mjs
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -9,10 +11,13 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 const webBase = (process.env.DEPLOY_CHECK_WEB_URL ?? "https://api.lcppch.top/lanqi-test").replace(/\/+$/, "");
+const apiBase = `${webBase}/api`;
 const chromePath = process.env.DEPLOY_CHECK_CHROME_PATH ?? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 const shotDir = process.env.DEPLOY_CHECK_SHOT_DIR ?? path.join(tmpdir(), `deployed-marketplace-check-${Date.now()}`);
 
 const IP_POS_SKU = "ipzone__ip-pos";
+/** 唯一配置了 `sub`（包月套餐）的 SKU：文案智能体。 */
+const COPY_SKU = "ipzone__copy";
 /** 全页「开发中」占位下限：创始人IP专区 6 + 美业专区 6（+ 品牌工作台 1）= 13，只要货架生效就远高于 7。 */
 const COMING_SOON_MIN = 7;
 
@@ -161,6 +166,42 @@ async function main() {
       "详情页不出现按次/钱包/扣费话术"
     );
     assert.match(detailText, /重新发起一次即可|按实际消耗计算/, "详情页用中性表述说明再次生成");
+    // 只卖「按结果交付」的 SKU（IP 定位）不得凭空长出包月块。
+    assert.doesNotMatch(detailText, /按月订阅|开通包月/, "没配包月的 SKU 不能出现包月入口");
+
+    // 2b. 文案智能体详情页（用户 2026-09-17 现场：`/agent/ipzone__copy` 上看不到「文案包月」）。
+    //     包月入口必须出现在**用户在货架上真正打开的那个页面**上；价格与每日条数只能来自
+    //     SKU 字段（这里先读接口真值，再比对页面文案，避免把 4000 写死成断言常量）。
+    const copyDetail = await fetch(`${apiBase}/market/skus/${COPY_SKU}`).then((r) => r.json());
+    const subCredits = copyDetail?.sku?.subscriptionCredits ?? null;
+    const subDailyQuota = copyDetail?.sku?.subscriptionDailyQuota ?? null;
+    assert.ok(typeof subCredits === "number" && subCredits > 0, `文案 SKU 必须配置包月价（subscriptionCredits），实际 ${JSON.stringify(subCredits)}`);
+    await cdp.send("Page.navigate", { url: `${webBase}/agent/${COPY_SKU}` }, sessionId);
+    await waitFor(cdp, sessionId, `() => document.body.innerText.includes("按月订阅")`);
+    const copyText = await evaluate(cdp, sessionId, `() => document.body.innerText`);
+    const copyShot = await shoot(cdp, sessionId, "02b-agent-copy-monthly");
+    await writeFile(path.join(shotDir, "02b-agent-copy-monthly.txt"), copyText, "utf8");
+    // 断言只看包月块本身（详情页下方还有「输出参考案例」等样例文案，不属于计费口径范围）。
+    const subBlockText = await evaluate(
+      cdp,
+      sessionId,
+      `() => { const el = document.querySelector(".price-card .pc-block.sub"); return el ? el.innerText : ""; }`
+    );
+    assert.ok(subBlockText.trim().length > 0, "文案详情页必须有包月套餐块（.price-card .pc-block.sub）");
+    const hasSubscribeButton = await evaluate(
+      cdp,
+      sessionId,
+      `() => [...document.querySelectorAll("button")].some((b) => b.innerText.includes("开通包月"))`
+    );
+    assert.ok(hasSubscribeButton, "详情页的「开通包月」要是真按钮，不能只写一行字");
+    assert.match(subBlockText, new RegExp(`${subCredits}\\s*积分/月`), `包月块必须显示接口真值 ${subCredits} 积分/月`);
+    assert.match(
+      subBlockText,
+      subDailyQuota == null ? /不限次数/ : new RegExp(`每天\\s*${subDailyQuota}\\s*条`),
+      "包月块必须显示每日条数上限"
+    );
+    assert.doesNotMatch(subBlockText, /积分\/次/, "包月块不前置按次报价");
+    assert.doesNotMatch(subBlockText, /≈\s*¥|扣积分|扣费/, "包月块不得出现人民币折算或「扣积分/扣费」话术");
 
     // 3. 该实例的直达入口（免登录实例落兰琪驾驶舱）必须仍然能打开，不受本次发布影响。
     await cdp.send("Page.navigate", { url: `${webBase}/lanqi/dashboard` }, sessionId);
@@ -180,9 +221,11 @@ async function main() {
       + " no_yuan_conversion=PASS"
       + ` coming_soon_count=${totalSoon}`
       + " detail_redo_removed_copy=PASS"
+      + " detail_monthly_package=PASS"
+      + " no_monthly_on_ppu_only_sku=PASS"
       + " direct_test_entry=PASS"
       + " console_clean=PASS"
-      + ` shots=${[shelfShot, detailShot, dashboardShot].join(",")}\n`
+      + ` shots=${[shelfShot, detailShot, copyShot, dashboardShot].join(",")}\n`
     );
   } finally {
     cdp.socket.close();

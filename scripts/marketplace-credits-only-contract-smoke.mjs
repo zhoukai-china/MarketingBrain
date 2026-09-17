@@ -133,6 +133,29 @@ requireContains(agentChat, "【附件：${item.name}】", "文本类附件内容
 requireContains(chatMessages, "${docxPrice} 积分", "工作台聊天页 Word 导出按钮仍显示所需积分");
 
 /* ------------------------------------------------------------------ *
+ * ②b 包月套餐：必须能在智能体页面上看到并开通（用户 2026-09-17）
+ * ------------------------------------------------------------------ */
+
+/*
+ * 用户 2026-09-17 二次反馈原话是「https://api.lcppch.top/os-v2/agent/ipzone__copy
+ * 这个网址下并没有文案包月功能」——详情页当时**一个字都没有**包月，开通入口只藏在
+ * 对话页「请先确认需求」面板里（要先把 5 轮问答填完才会出现），用户走不到那里。
+ *
+ * 这里锁死两件事：① 详情页必须有包月套餐块；② 套餐价必须读真实字段
+ * （`subscriptionCredits` / `subscriptionDailyQuota`），不许在页面上写死 4000。
+ *
+ * 口径边界（不要误伤 PLAT-31 的「不前置报价」）：禁的仍然是**按次**报价
+ * （`N 积分/次` / 「约扣 N 积分」/「≈ ¥」），包月是独立售卖的套餐方案，
+ * 用户拍板「用户可以自己选择包月或者按消耗计费」，所以套餐价必须看得见。
+ */
+requireContains(agentDetail, "pc-block sub", "智能体详情页必须有包月套餐块");
+requireContains(agentDetail, "sku.subscriptionCredits", "详情页包月价必须读 SKU 真实字段（不写死 4000）");
+requireContains(agentDetail, "sku.subscriptionDailyQuota", "详情页包月块必须读每日次数上限");
+requireContains(agentDetail, "subscribeMonthly", "详情页包月入口必须真的能开通（不是只写一行字）");
+requireContains(agentDetail, 'apiPath("/market/subscriptions")', "详情页开通包月必须走与对话页同一个订阅接口");
+forbidContains(agentDetail, "4000 积分", "详情页不得把包月价写死成「4000 积分」（必须来自 SKU 字段）");
+
+/* ------------------------------------------------------------------ *
  * ③ 例外与内部口径：真实支付页保留人民币；内部折算函数必须标明用途
  * ------------------------------------------------------------------ */
 
