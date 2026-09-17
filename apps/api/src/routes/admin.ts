@@ -91,6 +91,12 @@ const updateInviteSchema = z.object({
   isActive: z.boolean()
 });
 
+const rechargeListSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  status: z.enum(["created", "paid", "failed", "refunded"]).optional(),
+  userId: z.string().trim().min(1).max(64).optional()
+});
+
 export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   /**
    * 平台管理后台登录（PLAT-39，用户 2026-09-15）：账号 + 密码换一枚有期限的会话令牌。
@@ -882,6 +888,77 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       checkedPaidOrders: paidOrders.length,
       expiredPendingOrders: expiredPendingOrders.length,
       issues
+    };
+  });
+
+  /**
+   * 用户充值记录明细（用户 2026-09-17：「管理员后台能看到用户的充值记录明细，
+   * 具体到什么时间充值了、充值了多少人民币」）。
+   *
+   * 只读展示 `RechargeOrder` 真实入账流水。金额是人民币元整数（`amountCny`），
+   * 时间优先取 `paidAt`（支付完成时间），没有支付完成时间时回落到下单时间 `createdAt`。
+   * 该接口只受 `requireAdminToken` 保护，不写任何账本、不暴露微信支付回执原文。
+   */
+  app.get("/admin/recharges", { preHandler: requireAdminToken }, async (request, reply) => {
+    if (env.DATA_MODE === "demo") {
+      return {
+        dataMode: "demo",
+        recharges: [],
+        note: "Set DATA_MODE=database to inspect real recharge orders."
+      };
+    }
+
+    const parsed = rechargeListSchema.safeParse(request.query ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+    }
+
+    const orders = await prisma.rechargeOrder.findMany({
+      where: {
+        ...(parsed.data.status ? { status: parsed.data.status } : {}),
+        ...(parsed.data.userId ? { userId: parsed.data.userId } : {})
+      },
+      orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
+      take: parsed.data.limit,
+      include: {
+        user: {
+          select: {
+            id: true,
+            nickname: true,
+            phone: true,
+            memberships: {
+              where: { isActive: true },
+              select: {
+                role: true,
+                tenant: {
+                  select: { id: true, name: true }
+                }
+              },
+              orderBy: { createdAt: "desc" },
+              take: 10
+            }
+          }
+        }
+      }
+    });
+
+    return {
+      dataMode: "database",
+      recharges: orders.map((order: any) => ({
+        id: order.id,
+        userId: order.userId,
+        userName: order.user?.nickname ?? null,
+        userPhone: order.user?.phone ?? null,
+        tenantNames: (order.user?.memberships ?? []).map((membership: any) => membership.tenant?.name).filter(Boolean),
+        amountCny: order.amountCny,
+        basePts: order.basePts,
+        bonusPts: order.bonusPts,
+        totalPts: order.basePts + order.bonusPts,
+        method: order.method,
+        status: order.status,
+        paidAt: order.paidAt?.toISOString() ?? null,
+        createdAt: order.createdAt.toISOString()
+      }))
     };
   });
 

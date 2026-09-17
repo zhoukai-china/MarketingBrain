@@ -176,7 +176,7 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
           <div className="detail-main">
             <div className="d-head"><span className="d-ico">{sku.icon}</span><div><h1>{sku.name}</h1><div className="d-cat">{sku.zoneName}{sku.verbs.length ? ` · ${sku.verbs.join(" / ")}` : ""}</div></div></div>
             <div className="completes-card">🎯 <b>一次使用 = 帮你完成：</b>{stripLegacyUsePrefix(sku.useCase)}</div>
-            {sku.need && <div className="need-card">🧩 <b>使用前准备：</b>{sku.need}<div className="need-hint">准备好这些，AI 一次引导提问就能补全，产出更贴你。</div></div>}
+            {sku.need && <div className="need-card">🧩 <b>使用前准备：</b>{sku.need}<div className="need-hint">准备好这些，AI 会逐轮主动提问，每轮只补一个维度；信息齐了再生成全案，产出更贴你。</div></div>}
             {industry && !industry.general && (
               <div className="ind-card">
                 <div className="ind-h">🏭 {industry.title.replace("专区", "")}专属 · 说{industry.title.replace("专区", "")}的行话，不说外行话</div>

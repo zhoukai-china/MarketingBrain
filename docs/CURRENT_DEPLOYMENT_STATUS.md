@@ -1,5 +1,48 @@
 # 当前部署状态
 
+## 最新发布：20260917-vidrev-readable-ids-prod1（2026-09-17，仅生产）— 视频复盘报告改用短编号（修「输出乱码」）+ 平台那一步不再被整句话占位
+
+### 一、用户现场（同一份视频号文件，第三次反馈）
+
+1. 下午截图（`/agent/meiye__vidrev/chat`）：在「平台」那一步没点选项、直接把「复盘（附件：视频号动态数据明细.csv）」发出去，随后三次都回「视频复盘目前只支持抖音和视频号…」——**文件没问题，是平台槽位被整句话占位**。
+2. 同一轮截图（文案智能体）：在「补充缺失的信息」状态下打「重新开始」被当成补充内容走重新生成；用户要求「做一个重新开始的功能，每个智能体都要有一个」。
+3. 本轮最新截图：报告能出了，但正文里出现 `export/UzFfBgAAxNurJEJiPn_2k8zT4DCaZ0Sq…` 这种 60+ 字符串——「这次输出为啥会乱码呢」。
+
+### 二、根因
+
+1. **平台**：前端把用户这一轮的整句话直接存进 `answers.platform`，服务端再拿它去比对「只支持抖音/视频号」→ 误拒（同一份视频号文件反复被拒）。
+2. **重新开始**：页面上原本没有可见入口（只有输入框口令 + 交付完成后的按钮）；且更早一轮的 web 修复**被并行发布覆盖**过（生产 `AgentChatPage.tsx` 里 `isRestartCommand` = 0；教训：验证要看 `index.html` 真正引用的 chunk，`dist/assets` 里堆的旧 chunk 会骗过 `grep -rl`）。
+3. **乱码**：为「逐字可验」把视频号后台导出的**原始视频 ID** 放进了报告与提示词——那串 base64 式字符对用户就是乱码。
+
+### 三、改动
+
+1. `apps/api/src/services/video-review-engine.ts`：`computeVidrevMetrics` 一律用短编号 `v1…vN`；原始 ID 只存 `video.rawId`（payload `videos[].raw_id` 供追溯），**不进模型上下文、不进报告**；校验器加 ID 归一（短编号与原始 ID 都能通过 V3/V4，历史报告仍可验证）。
+2. `apps/api/src/routes/marketplace.ts`：新增 `resolveVidrevPlatform()`——平台名先从「这句话」解析，解析不到再看数据表本身，只有明确点名小红书 / 快手 / B站 才 fail closed。
+3. `apps/web/src/marketplace/chat-flows.ts` + `AgentChatPage.tsx`：新增 `normalizeVidrevPlatform()`；平台那一步认不出平台就**停在原地追问**（不推进、不扣分）；发送键旁常驻「↺ 重新开始」按钮（补充信息 / 待确认 / 已交付全状态可见，19 个货架 SKU 共用该页 ⇒ 每个智能体都有）。
+4. **未动计费 / 定价 / 钱包 / 数据库**。
+
+### 四、发布与验收
+
+| 环境 | 发布 id | 结果 |
+| --- | --- | --- |
+| 生产 | `20260917-vidrev-readable-ids-prod1` | **`DEPLOY_OK`**、`health=200 (after 15s)`、`ready=200`、`No pending migrations` |
+
+发布包 `release-20260917-vidrev-readable-ids-prod1.tar.gz`（**10,048,580 B**，sha256 `a7be49007291e083957c3ca6be2fbbc007e6aaae596f3427f1e94c8dee91811b`）。
+
+- 生产 `verify-deploy.sh` **VERIFY_OK（0 FAIL）**；近 6 分钟 `journalctl -u baolu-os-v2 -p err` **No entries**。
+- 生产产物直检：`node /tmp/prod-vidrev-parse-check.mjs` → `PROD_VIDREV_PARSE_PASS` + `PROD_VIDREV_LONG_ID_PASS`（`reportUsesShortIds:true`、`rawIdsKeptInPayload:true`、V3/V4 失败 0）。
+- 线上实际加载的 chunk（`index-Be6NZsSZ.js` → `MarketplaceApp-CdswQ-69.js`）里「↺ 重新开始」与平台追问文案各命中 1 处 ⇒ 用户看到的页面确实带按钮。
+- 本地真机真模型：20 条真实视频号数据 → 200、报告 0 处 `export/`、90 处 `v*`。
+
+### 五、发布纪律（本轮新增）
+
+**服务器 `/tmp/deploy-release.sh` 的 `marketplace-v3.json` canary 已被另一条线改成他们尚未上线的值（`265cd9bb…`＝直播话术上架）**，而生产现值仍是 `e4d3f747…`：照那份脚本发布会把线上计费 / 上架口径回退。处理方式：不改别人的脚本，另存一份 `/tmp/deploy-release-vidrev.sh`（只把 canary 替换成本次实际发货文件的哈希）跑本单；打包继续沿用「只叠加本次文件 + 其余回灌生产现网版」（本次回灌 23 个文件，排除 3 个他人新增文件）。
+
+### 六、未做
+
+- 没有用你的账号在生产上代跑真实复盘（会真扣积分、需要你本人登录）；50 条以上单次生成上限仍是已知 P2 限制（现在会明确提示按 7/14 天分批，不扣费）。
+- 「重新开始」按钮与平台追问属于 web 改动：**已打开的旧标签页仍持有旧 JS，需要硬刷新（Ctrl+F5）**才会加载新页面。
+
 ## 最新发布：20260917-chat-restart-prod1（2026-09-17，测试实例 + 生产）— 修「对话页输入阶段找不到『重新开始』」：常驻按钮 + 整行口令 + 清附件
 
 ### 一、用户现场问题

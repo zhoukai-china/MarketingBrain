@@ -17,7 +17,7 @@ import "../styles/admin-console.css";
  *   其余一律只读展示，避免在后台里再造一套计费逻辑。
  */
 
-type SectionId = "overview" | "customers" | "orders" | "credits" | "shelf" | "referral" | "quality";
+type SectionId = "overview" | "customers" | "recharges" | "orders" | "credits" | "shelf" | "referral" | "quality";
 
 interface AdminSection {
   id: SectionId;
@@ -30,7 +30,8 @@ interface AdminSection {
 const SECTIONS: AdminSection[] = [
   { id: "overview", label: "概览", hint: "平台关键数字：货架、客户、流水、运行态", endpoints: ["GET /market/admin/overview", "GET /admin/ops/summary"] },
   { id: "customers", label: "客户", hint: "客户 / 租户清单、邀请码与开通记录", endpoints: ["GET /admin/customers", "GET /admin/invites", "POST /admin/invites"] },
-  { id: "orders", label: "订单与收款", hint: "计费审计与统一账本（按次 + 包月）", endpoints: ["GET /admin/billing/audit", "GET /market/admin/ledger"] },
+  { id: "recharges", label: "充值明细", hint: "用户充值时间与人民币金额明细", endpoints: ["GET /admin/recharges"] },
+  { id: "orders", label: "订单与收款", hint: "计费审计、统一账本与用户充值明细", endpoints: ["GET /admin/billing/audit", "GET /market/admin/ledger", "GET /admin/recharges"] },
   { id: "credits", label: "积分干预", hint: "发体验额度、查发放记录", endpoints: ["GET /market/admin/trial-grants", "POST /market/admin/trial-grants"] },
   { id: "shelf", label: "智能体与货架", hint: "SKU 上下架/改价、供应商、Agent 定义", endpoints: ["GET /market/admin/skus", "PATCH /market/admin/skus/:skuId", "GET /market/admin/suppliers", "GET /admin/agents"] },
   { id: "referral", label: "推荐归因", hint: "推荐有礼配置位、生成推荐码、归因清单", endpoints: ["GET /market/admin/referral-config", "POST /market/admin/referral-codes", "GET /market/admin/referrals"] },
@@ -133,6 +134,7 @@ export function AdminConsolePage() {
 
           {section === "overview" && <OverviewSection />}
           {section === "customers" && <CustomersSection />}
+          {section === "recharges" && <RechargeSection />}
           {section === "orders" && <OrdersSection />}
           {section === "credits" && <CreditsSection />}
           {section === "shelf" && <ShelfSection />}
@@ -566,6 +568,108 @@ function OrdersSection() {
         <DataView data={ledger.data} columns={["type", "amountCredits", "amountCny", "skuId", "userId", "createdAt"]} />
       </Panel>
     </>
+  );
+}
+
+function RechargeSection() {
+  const recharges = useAdminData<Record<string, unknown>>("/admin/recharges?limit=50");
+  return (
+    <Panel title="用户充值记录明细（人民币）" error={recharges.error} loading={recharges.loading} onReload={() => void recharges.reload()}>
+      <RechargeRecordsTable data={recharges.data} />
+    </Panel>
+  );
+}
+
+interface RechargeRecordRow {
+  id: string;
+  userId: string;
+  userName: string | null;
+  userPhone: string | null;
+  tenantNames: string[];
+  amountCny: number;
+  basePts: number;
+  bonusPts: number;
+  totalPts: number;
+  method: string;
+  status: string;
+  paidAt: string | null;
+  createdAt: string;
+}
+
+const RECHARGE_STATUS_LABELS: Record<string, string> = {
+  created: "待支付",
+  paid: "已支付",
+  failed: "支付失败",
+  refunded: "已退款"
+};
+
+const RECHARGE_METHOD_LABELS: Record<string, string> = {
+  wechat: "微信支付",
+  mock: "模拟支付"
+};
+
+function rechargeRecordRows(data: unknown): RechargeRecordRow[] {
+  if (!data || typeof data !== "object") return [];
+  const rows = (data as Record<string, unknown>).recharges;
+  return Array.isArray(rows) ? (rows as RechargeRecordRow[]) : [];
+}
+
+function formatAdminDateTime(value: string | null | undefined): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function rechargeCustomerLabel(row: RechargeRecordRow): string {
+  return row.userName ?? row.userPhone ?? row.userId.slice(0, 8);
+}
+
+function rechargeCustomerIdLabel(row: RechargeRecordRow): string {
+  return row.userPhone ?? row.userId;
+}
+
+function RechargeRecordsTable({ data }: { data: unknown }) {
+  const rows = rechargeRecordRows(data);
+  if (rows.length === 0) return <p className="adminConsoleEmpty">暂无充值记录。</p>;
+  return (
+    <div className="adminTableWrap">
+      <p className="adminTableCaption">来自 RechargeOrder，按支付时间倒序（共 {rows.length} 行）</p>
+      <table className="adminTable">
+        <thead>
+          <tr>
+            <th>充值时间</th>
+            <th>下单时间</th>
+            <th>客户</th>
+            <th>手机号 / 用户ID</th>
+            <th>工作区</th>
+            <th>充值金额</th>
+            <th>到账积分</th>
+            <th>状态</th>
+            <th>支付方式</th>
+            <th>订单号</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.slice(0, 100).map((row) => (
+            <tr key={row.id}>
+              <td>{formatAdminDateTime(row.paidAt ?? row.createdAt)}</td>
+              <td>{formatAdminDateTime(row.createdAt)}</td>
+              <td>{rechargeCustomerLabel(row)}</td>
+              <td title={row.userId}>{rechargeCustomerIdLabel(row)}</td>
+              <td>{row.tenantNames.length > 0 ? row.tenantNames.join("、") : "—"}</td>
+              <td>¥{valueText(row.amountCny)}</td>
+              <td>{valueText(row.basePts)} + {valueText(row.bonusPts)} = {valueText(row.totalPts)}</td>
+              <td>{RECHARGE_STATUS_LABELS[row.status] ?? row.status}</td>
+              <td>{RECHARGE_METHOD_LABELS[row.method] ?? row.method}</td>
+              <td title={row.id}>{row.id.slice(0, 12)}…</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {rows.length > 100 && <p className="adminTableCaption">只显示前 100 行（共 {rows.length} 行）。</p>}
+    </div>
   );
 }
 
