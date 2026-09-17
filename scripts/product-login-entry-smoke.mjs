@@ -114,8 +114,8 @@ assert.match(
 );
 assert.match(login, /"登录 \/ 注册"/, "平台登录页必须同时承载登录与注册入口，不能只提供登录");
 assert.match(login, /"微信一键登录 \/ 注册"/, "平台登录页必须提供微信一键登录 / 注册");
-// 开放注册（服务端 INVITE_REQUIRED=false，用户 2026-09-10 拍板「去掉邀请码，只留微信一键登录/注册」）：
-// 平台主入口不得再渲染邀请码入口；产品入口（美业 / 兰琪等）仍按产品邀请码校验。
+// 开放注册（服务端 INVITE_REQUIRED=false）：平台主入口不得再渲染邀请码入口；
+// 2026-09-17 起产品入口（兰琪 / 美业等）也不再强制邀请码。
 const betaSchemaSection = authSchemas.slice(authSchemas.indexOf("const betaLoginSchema"), authSchemas.indexOf("const productInviteValidationSchema"));
 const productInviteSchemaSection = authSchemas.slice(authSchemas.indexOf("const productInviteValidationSchema"), authSchemas.indexOf("const wechatLoginSchema"));
 assert.match(
@@ -128,22 +128,17 @@ assert.match(
   /inviteCode:\s*z\.string\(\)\.trim\(\)\.min\(1\)\.max\(200\)/,
   "产品入口的邀请码必须保持必填，去掉邀请码只针对平台主入口",
 );
-// PLAT-34（2026-09-15 用户口径）：只有兰琪必须凭邀请码开通；其他产品入口与统一注册链接直接注册。
+// 2026-09-17 用户口径：取消兰琪邀请码制度，所有产品入口都不再强制邀请码。
 // 仍然是「显式带了码就按码校验」——无效码一律 403，产品/品牌归属不被静默丢弃。
-assert.match(
+assert.doesNotMatch(
   invites,
-  /export const LANQI_PRODUCT_CODE: ProductLoginCode = "lanqi";/,
-  "受控产品清单必须显式声明为兰琪（PLAT-34 口径的唯一出处）",
-);
-assert.match(
-  invites,
-  /if \(productCode === LANQI_PRODUCT_CODE\) return \{ ok: false, error: "invite_code_required" \};/,
-  "兰琪缺省邀请码必须 403 invite_code_required，不能被开放注册放行",
+  /LANQI_PRODUCT_CODE/,
+  "取消兰琪邀请码制度后，受控产品清单不再存在",
 );
 assert.match(
   invites,
   /if \(productCode\) return \{ ok: true, source: "not_required" \};/,
-  "非兰琪产品入口缺省邀请码必须放行（直接注册），且不写任何邀请码归属",
+  "所有产品入口缺省邀请码都必须放行（直接注册），且不写任何邀请码归属",
 );
 assert.match(
   invites,
@@ -157,13 +152,13 @@ assert.match(
 );
 assert.match(
   login,
-  /const invitesNeeded = product \? product\.code === "lanqi" : \(isProduction && inviteRequired !== false\);/,
-  "登录页必须只在兰琪入口强制邀请码，平台主入口按服务端开关",
+  /const invitesNeeded = product \? false : \(isProduction && inviteRequired !== false\);/,
+  "产品入口不再强制邀请码；平台主入口是否要码仍按服务端开关",
 );
-assert.match(
+assert.doesNotMatch(
   login,
-  /product && product\.code === "lanqi" && !inviteValidated \? <form onSubmit=\{handleProductInviteValidate\}/,
-  "邀请码表单只允许出现在兰琪入口",
+  /productInviteForm/,
+  "取消兰琪邀请码制度后，产品入口不再渲染独立邀请码表单",
 );
 assert.doesNotMatch(
   login,

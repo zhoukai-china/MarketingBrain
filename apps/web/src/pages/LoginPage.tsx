@@ -233,7 +233,7 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
   // 不用再手填一遍邀请码（QA-20260912-013）。只自动试一次，失败仍由用户手动重试。
   const autoInviteTried = useRef(false);
   useEffect(() => {
-    if (!product || inviteValidated || autoInviteTried.current) return;
+    if (!product || product.code === "lanqi" || inviteValidated || autoInviteTried.current) return;
     const fromQuery = new URLSearchParams(window.location.search).get("invite") ?? "";
     if (!fromQuery.trim()) return;
     autoInviteTried.current = true;
@@ -469,29 +469,16 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
       if (!res.ok || !data.valid) throw new Error(data.message ?? data.error ?? "邀请码验证失败。");
       setInviteValidated(true);
       setStatus("邀请码有效，请完成工作区资料。");
-    } catch (cause) {
-      // PLAT-34（2026-09-15 用户口径）：只有兰琪是受控渠道。其他入口/统一注册链接
-      // 即使带着一个失效的旧邀请码，也不能把新用户挡在门外——丢掉这个码、给一句提示，
-      // 让他直接注册；真心需要品牌归属的场景（美业）只要码有效仍然生效。
-      if (product.code !== "lanqi") {
-        setInviteCode("");
-        setStatus("链接里的邀请码已失效，已忽略；可直接开通，不影响注册。");
-        setRetryReady(false);
-        clearFeedback();
-        return;
-      }
-      setStatus("");
-      setRetryReady(true);
-      setError(cause instanceof Error ? cause.message : "邀请码验证失败，请稍后重试。");
+    } catch {
+      // 2026-09-17 起取消邀请码制度；老链接里带的无效邀请码不再挡注册，丢掉并直接开通。
+      setInviteCode("");
+      setStatus("链接里的邀请码已失效，已忽略；可直接开通，不影响注册。");
+      setRetryReady(false);
+      clearFeedback();
     } finally {
       loginInFlight.current = false;
       setBusy(false);
     }
-  }
-
-  async function handleProductInviteValidate(event: FormEvent) {
-    event.preventDefault();
-    await submitProductInviteCode(inviteCode);
   }
 
   async function handleLoginSubmit(event: FormEvent) {
@@ -503,9 +490,9 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
       setRetryReady(true);
       return;
     }
-    // PLAT-34（2026-09-15 用户口径）：只有兰琪必须凭邀请码开通；其他产品入口与统一注册链接
-    // 都可以直接注册。平台主入口是否还要码由服务端开关 INVITE_REQUIRED 决定（随 wechat-config 下发）。
-    const invitesNeeded = product ? product.code === "lanqi" : (isProduction && inviteRequired !== false);
+    // 2026-09-17 用户口径：取消兰琪邀请码制度，所有产品入口都不再强制邀请码。
+    // 平台主入口是否还要码由服务端开关 INVITE_REQUIRED 决定（随 wechat-config 下发）。
+    const invitesNeeded = product ? false : (isProduction && inviteRequired !== false);
     if (invitesNeeded && !inviteCode.trim()) {
       setError("请输入邀请码。");
       setRetryReady(true);
@@ -531,7 +518,7 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
           tenantName: normalizedTenantName,
           industry: product?.code === "beauty-industry" ? "美业" : industry.trim() || undefined,
           city: city.trim() || undefined,
-          inviteCode: useBetaLogin ? inviteCode.trim() : undefined,
+          inviteCode: useBetaLogin && product?.code !== "lanqi" ? inviteCode.trim() : undefined,
           referralCode: readPendingReferral() || undefined,
         }),
       });
@@ -682,17 +669,10 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
       <WeChatLoginArea qr={wechatQr} busy={busy} disabled={publicBrand.loading} label="微信授权登录" onStart={() => void handleWechatLogin()} onRefresh={() => void startWechatQrLogin()} />
       <p className="wechatLoginHint">仅已加入 {branding.brandName} 企业空间的成员可以登录。</p>
       <Feedback error={error} status={status} />
-    </div> : product && product.code === "lanqi" && !inviteValidated ? <form onSubmit={handleProductInviteValidate} className="loginForm productInviteForm" noValidate>
-      {showWechatLogin && <><WeChatLoginArea qr={wechatQr} busy={busy} disabled={false} label="微信授权登录" onStart={() => void handleWechatLogin()} onRefresh={() => void startWechatQrLogin()} /><p className="wechatLoginHint">已有账号可直接登录；首次开通请使用邀请消息中的邀请码。</p><div className="loginDivider"><span>首次开通</span></div></>}
-      <label><span className="loginFieldLabel">产品邀请码<b className="requiredMarker">*</b></span><input value={inviteCode} onChange={(event) => { setInviteCode(event.target.value); clearFeedback(); }} placeholder="请输入邀请消息中的邀请码" maxLength={200} autoComplete="one-time-code" required /></label>
-      <Feedback error={error} status={status} />
-      <button className="loginSubmit" type="submit" disabled={busy}>{busy ? "正在验证..." : retryReady ? "重新验证邀请码" : `继续进入${product.shortName}`}</button>
-      <a className="switchProductLink" href={getAppPath("/login")}>这不是我要进入的产品</a>
-    </form> : <>
-      {product && product.code !== "lanqi" && showWechatLogin && <><WeChatLoginArea qr={wechatQr} busy={busy} disabled={false} label="微信授权登录" onStart={() => void handleWechatLogin()} onRefresh={() => void startWechatQrLogin()} /><p className="wechatLoginHint">已有账号可直接登录；首次开通填下面的资料即可，<b>不需要邀请码</b>。</p><div className="loginDivider"><span>首次开通</span></div></>}
+    </div> : <>
+      {product && showWechatLogin && <><WeChatLoginArea qr={wechatQr} busy={busy} disabled={false} label="微信授权登录" onStart={() => void handleWechatLogin()} onRefresh={() => void startWechatQrLogin()} /><p className="wechatLoginHint">已有账号可直接登录；首次开通填下面的资料即可，<b>不需要邀请码</b>。</p><div className="loginDivider"><span>首次开通</span></div></>}
       {internalEntry && <div className="loginRolePicker"><p className="loginSectionLabel">内部开通：选择企业经营类型</p><div className="roleCards">{ROLE_OPTIONS.map((option) => <button key={option.value} className={role === option.value ? "roleCard active" : "roleCard"} onClick={() => setRole(option.value)} type="button"><strong>{option.label}</strong><small>{option.desc}</small></button>)}</div></div>}
       <form onSubmit={handleLoginSubmit} className="loginForm">
-        {product?.code === "lanqi" && <div className="validatedInvite"><span>邀请码已验证</span><button type="button" onClick={() => { setInviteValidated(false); clearFeedback(); }}>更换</button></div>}
         {product && product.code !== "lanqi" && inviteValidated && <div className="validatedInvite"><span>邀请码有效（品牌归属已按码生效）</span></div>}
         <label><span className="loginFieldLabel">{product?.code === "beauty-industry" ? "门店/品牌名称" : product?.code === "lanqi" ? "门店名称" : "企业/品牌名称"}<b className="requiredMarker">*</b></span><input value={tenantName} onChange={(event) => setTenantName(event.target.value)} placeholder={product?.code === "beauty-industry" ? "例如：XX皮肤管理中心" : product?.code === "lanqi" ? "例如：兰琪某某门店" : "例如：XX连锁品牌"} maxLength={80} autoComplete="organization" required /></label>
         <div className="loginInlineFields">{product?.code !== "beauty-industry" && <label><span>行业</span><input value={industry} onChange={(event) => setIndustry(event.target.value)} placeholder={product?.code === "lanqi" ? "例如：美业" : "例如：餐饮 / 教育"} maxLength={80} /></label>}<label><span>所在城市</span><input value={city} onChange={(event) => setCity(event.target.value)} placeholder="例如：杭州" maxLength={80} autoComplete="address-level2" /></label></div>

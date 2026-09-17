@@ -1,11 +1,11 @@
 // PLAT-34 统一注册链接 / 邀请码闸门回归（真实 HTTP handler + 真实数据库，0 外部调用）。
 //
-// 用户口径（2026-09-15）：只有兰琪必须凭邀请码开通；其他产品入口与平台统一注册链接
-// （`/login?ref=…`）都可以直接注册；推荐归因保留且不得阻断注册。
+// 用户口径（2026-09-17）：取消兰琪邀请码制度，所有产品入口都不再强制邀请码；
+// 平台统一注册链接（`/login?ref=…`）也直接注册；推荐归因保留且不得阻断注册。
 //
 // 覆盖：
 //   1. 无产品、无邀请码 → 200（统一链接直接注册），invite.source=disabled
-//   2. 兰琪、无邀请码 → 403 invite_code_required（受控渠道不放宽）
+//   2. 兰琪、无邀请码 → 200（产品入口不再要码），invite.source=not_required
 //   3. 美业 / 创始人 IP、无邀请码 → 200（产品入口不再要码）
 //   4. 任何入口带无效邀请码 → 403（显式给码就必须校验通过，不能静默忽略）
 //   5. 兰琪 + 有效邀请码 → 200 且 invite.redeemed=true、码的 usedCount +1
@@ -62,13 +62,15 @@ async function main(): Promise<void> {
     createdTenantIds.push(plain.body.tenantId);
     createdUserIds.push(plain.body.userId);
 
-    // 2) 兰琪：缺邀请码必须 403。
+    // 2) 兰琪：缺邀请码现在直接放行（取消邀请码制度）。
     const lanqiNoCode = await post(app, "/auth/beta-login", {
       tenantName: `PLAT34 兰琪无码 ${suffix}`,
       productCode: "lanqi"
     });
-    assert(lanqiNoCode.status === 403, `兰琪无邀请码必须 403（实际 ${lanqiNoCode.status}）`);
-    assert(lanqiNoCode.body.error === "invite_code_required", `兰琪无码错误码应为 invite_code_required（实际 ${lanqiNoCode.body.error}）`);
+    assert(lanqiNoCode.status === 200, `兰琪无邀请码必须能直接开通（实际 ${lanqiNoCode.status} ${JSON.stringify(lanqiNoCode.body).slice(0, 200)}）`);
+    assert(lanqiNoCode.body.invite?.source === "not_required", `兰琪无码 invite.source 应为 not_required（实际 ${lanqiNoCode.body.invite?.source}）`);
+    createdTenantIds.push(lanqiNoCode.body.tenantId);
+    createdUserIds.push(lanqiNoCode.body.userId);
 
     // 3) 其他产品入口：不再要码。
     for (const productCode of ["beauty-industry", "founder-ip", "takeaway"] as const) {
@@ -133,7 +135,7 @@ async function main(): Promise<void> {
     console.log(JSON.stringify({
       result: "PLAT34_INVITE_GATE_PASS",
       openRegistrationWithoutCode: plain.status === 200,
-      lanqiRequiresCode: lanqiNoCode.status === 403,
+      lanqiAllowsNoCode: lanqiNoCode.status === 200,
       otherProductsNeedNoCode: 3,
       invalidCodeRejected: bogus.status === 403,
       lanqiInviteRedeemed: true,

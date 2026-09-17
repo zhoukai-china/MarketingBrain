@@ -89,7 +89,7 @@ for (const item of cases) {
 assert("403 文案按原因分成 4 类（Bug7 的核心：不再一律「尚未开通」）", headlines.size === 4, [...headlines]);
 
 const missing = gateWith("product_entitlement_missing");
-assert("未开通 → CTA 是用邀请码登录", missing.cta !== null && missing.cta.href === "/login/lanqi");
+assert("未开通 → CTA 去兰琪入口开通", missing.cta !== null && missing.cta.href === "/login/lanqi" && missing.cta.label === "开通兰琪美业");
 const expired = gateWith("product_entitlement_expired");
 assert("已到期 → 说明续期后数据不丢", expired.detail.includes("数据不会丢失"));
 assert("已到期 → 不需要「重试」（重试也解决不了）", expired.kind === "error" && !expired.retry);

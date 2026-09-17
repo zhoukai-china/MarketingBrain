@@ -537,7 +537,7 @@ function CustomersSection() {
           <label><span>产品（留空=平台通用）</span>
             <select value={productCode} onChange={(event) => setProductCode(event.target.value)}>
               <option value="">平台通用</option>
-              <option value="lanqi">兰琪（必须邀请码）</option>
+              <option value="lanqi">兰琪</option>
               <option value="beauty-industry">美业智能体</option>
               <option value="founder-ip">创始人 IP 获客</option>
               <option value="takeaway">外卖增长</option>

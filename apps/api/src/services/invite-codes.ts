@@ -6,7 +6,7 @@ import { toPrismaJsonOptional } from "./prisma-json.js";
 
 export interface InviteValidationResult {
   ok: boolean;
-  /** `not_required`：非兰琪入口没带邀请码时直接放行（PLAT-34，2026-09-15 用户口径）。 */
+  /** `not_required`：产品入口没带邀请码时直接放行（2026-09-17 起取消兰琪邀请码制度）。 */
   source?: "database" | "env" | "disabled" | "not_required";
   inviteCodeId?: string;
   planCode?: PlanCode | null;
@@ -25,12 +25,6 @@ export class InviteRedemptionError extends Error {
 export function normalizeInviteCode(inviteCode: string | undefined): string {
   return (inviteCode ?? "").trim().toLowerCase();
 }
-
-/**
- * 受控产品：目前只有兰琪必须凭邀请码开通（PLAT-34，2026-09-15 用户口径）。
- * 其他入口与平台统一注册链接都可以直接注册；带了码仍然按码校验。
- */
-export const LANQI_PRODUCT_CODE: ProductLoginCode = "lanqi";
 
 export function hashInviteCode(inviteCode: string): string {
   return createHash("sha256").update(normalizeInviteCode(inviteCode)).digest("hex");
@@ -78,19 +72,9 @@ export async function validateInviteCode(
   productCode?: ProductLoginCode,
 ): Promise<InviteValidationResult> {
   const normalized = normalizeInviteCode(inviteCode);
-  // Local acceptance may make an invite optional, but an explicitly supplied
-  // code still carries product and tenant-brand authority. Skipping its lookup
-  // would silently discard that server-owned assignment and turn a Lanqi invite
-  // into the neutral beauty brand.
-  // 开放注册只放开「平台主入口」（无 productCode）。产品入口（美业 / 兰琪 / 创始人 IP / 外卖）
-  // 的开通凭证就是产品邀请码，必须始终校验：否则把 beta-login / create-workspace 的
-  // inviteCode 字段留空就能绕过产品授权，白拿受控产品的租户与品牌归属。
-  //
-  // 2026-09-15 用户口径（PLAT-34 统一注册链接）：**只有兰琪**是受控渠道、必须凭邀请码开通；
-  // 其他产品入口（美业 / 外卖 / 创始人 IP）与平台统一注册链接都允许直接注册。
-  // 仍然是「显式带了码就按码校验」——码过无效一律 403，绝不静默丢掉产品/品牌归属。
+  // 2026-09-17 用户口径：取消兰琪邀请码制度，所有产品入口都不再强制邀请码。
+  // 显式带了码仍按码校验（品牌归属 / 推荐归因 / 老链接兼容）；无码的产品入口直接放行。
   if (!normalized) {
-    if (productCode === LANQI_PRODUCT_CODE) return { ok: false, error: "invite_code_required" };
     if (productCode) return { ok: true, source: "not_required" };
     return inviteRequired
       ? { ok: false, error: "invite_code_required" }

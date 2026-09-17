@@ -441,11 +441,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
           // 以前这里在「该微信号已有其他产品的租户、但没有本产品的租户」时直接 403
           // `product_membership_required`，等于把「一号多产品」堵死——老板已开通外卖，
           // 再想进兰琪就只能看到「请使用产品邀请码」却无处输入。
-          // 现在改为与全新用户同路：回 `needsTenant` 让他去补资料、用产品邀请码开通
-          // **第二个租户**（仍绑同一个微信账号）。受控产品（兰琪）的开通闸门不变——
-          // 补资料那条 `onboarding/create-workspace` 仍强制校验产品邀请码
-          // （`validateInviteCode(code, plan, productCode)`，无码即 403 `invite_code_required`），
-          // 所以「兰琪只给加盟商用」这条业务边界没有被放宽。
+          // 现在改为与全新用户同路：回 `needsTenant` 让他去补资料、开通**第二个租户**
+          // （仍绑同一个微信账号）。2026-09-17 起取消兰琪邀请码制度，产品入口不再强制邀请码。
         }
         return {
           statusCode: 200,
