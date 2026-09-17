@@ -25,7 +25,9 @@ chk "ready" "200" "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${
 echo "== runtime data (P1 fix) =="
 SRC="$(sha256sum "$APP/apps/api/src/data/marketplace-v3.json" | awk '{print $1}')"
 DIST="$(sha256sum "$APP/apps/api/dist/apps/api/src/data/marketplace-v3.json" | awk '{print $1}')"
-chk "src_data_sha" "f10b00dabd77cca064e12d34fe262f3e77d3a0ff6f3a5215966d556ddc4338a4" "$SRC"
+# 2026-09-17 PLAT-45：IP 定位改按次 400 积分，marketplace-v3.json 期望哈希随之更新
+# （旧值 f10b00da... 是 200 积分版本）。
+chk "src_data_sha" "e4d3f747c43c2963aec63b096c1869173d36fb331076af02ca71a33794f2812e" "$SRC"
 chk "dist_data_matches_src" "$SRC" "$DIST"
 
 echo "== web build =="
@@ -120,6 +122,25 @@ try:
         if got != 'selling':
             raise SystemExit('%s expected selling, got %s' % (code, got))
         print("PASS  %s_status = selling" % code)
+    # PLAT-45（2026-09-17 用户拍板）：IP 定位改按次 400 积分；文案智能体改积分口径包月
+    # 4000 积分/月、每天 5 条。这两条是「线上真的生效」的关键，必须看货架真实返回值。
+    # 货架返回的是「专区__能力」编码（ipzone__ip-pos / meiye__copy），两个专区都要看。
+    for code in ('ipzone__ip-pos', 'meiye__ip-pos'):
+        row = next((s for s in skus if (s.get('skuCode') or s.get('id')) == code), None)
+        if row is None:
+            raise SystemExit('%s missing from /market/skus' % code)
+        if int(row.get('ppu') or 0) != 400:
+            raise SystemExit('%s expected ppu 400, got %s' % (code, row.get('ppu')))
+        print("PASS  %s_ppu = 400" % code)
+    for code in ('ipzone__copy', 'meiye__copy'):
+        row = next((s for s in skus if (s.get('skuCode') or s.get('id')) == code), None)
+        if row is None:
+            raise SystemExit('%s missing from /market/skus' % code)
+        if int(row.get('subscriptionCredits') or 0) != 4000:
+            raise SystemExit('%s expected subscriptionCredits 4000, got %s' % (code, row.get('subscriptionCredits')))
+        if int(row.get('subscriptionDailyQuota') or 0) != 5:
+            raise SystemExit('%s expected subscriptionDailyQuota 5, got %s' % (code, row.get('subscriptionDailyQuota')))
+        print("PASS  %s_subscription = 4000 credits / 5 per day" % code)
     # PLAT-42（2026-09-15）：行业专家专区先只建栏、暂不上架智能体。
     expert_skus = [s for s in skus if (s.get('zone') or '') == 'expert']
     if expert_skus:
