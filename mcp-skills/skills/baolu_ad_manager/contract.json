@@ -1,0 +1,33 @@
+{
+  "version": "1.0.0",
+  "qualityBar": "sample_grade",
+  "minLength": 420,
+  "scoreThreshold": 88,
+  "requiredSections": [
+    "场景与推荐专项",
+    "已确认事实与待补信息",
+    "证据与数据口径",
+    "预算预览与测试顺序",
+    "观察条件与止损",
+    "PREVIEW_ONLY变更草案",
+    "风险与下一步确认"
+  ],
+  "requiredTerms": ["PREVIEW_ONLY", "requires_confirmation", "待补"],
+  "requiredDeliverables": ["专项路由或最小事实追问", "安全投流预览"],
+  "forbiddenTerms": ["已经帮你充值", "已经付款", "已经启动投放", "保证ROI", "无需确认直接提交"],
+  "styleRules": [
+    "明确场景只路由专项能力，不复制专项大方案",
+    "区分已确认事实、待补事实和待验证假设",
+    "所有预算与测试建议都有观察条件和止损",
+    "不声称读取、创建或修改真实广告账户",
+    "不混用不同 client_id 或 account_id 的数据"
+  ],
+  "failurePatterns": [
+    "将本地推和 DOU+ 混为同一专项方案",
+    "未确认平台和目标即给固定预算或 ROI",
+    "工具失败后假装读取后台成功",
+    "跨租户复用预算、素材或结果",
+    "未经确认执行充值、付款或投放"
+  ],
+  "repairInstruction": "先识别场景并路由；信息不足时只问最小事实。预览必须区分证据与待补，写单变量测试、观察、止损及 PREVIEW_ONLY 草案；删除任何收益承诺、跨租户数据或已执行表述。"
+}
