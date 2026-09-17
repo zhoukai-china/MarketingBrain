@@ -35,17 +35,29 @@ CASE_OUT=""
 CASE_PUSHES=0
 CASE_RC=0
 CASE_EXTRA_ARGS=""
+CASE_STATE_DIR=""
+CASE_NOW_EPOCH=""
+CASE_LAST_STATE_DIR=""
 
 # run_case <名称> <小时> <可用GB> <使用率%> [额外 env 赋值…]
 # 结果放在 CASE_OUT / CASE_PUSHES / CASE_RC，由调用处断言。
+# CASE_STATE_DIR / CASE_NOW_EPOCH 为**粘性**的：设一次之后后续 case 继续用（用来演「同一条告警的时间线」）；
+# 不设时每个 case 用独立状态目录，避免互相污染。换场景前记得改或清空。
 run_case() {
   local name="$1" hour="$2" avail="$3" pct="$4"
   shift 4
   local log="$WORK/curl-$name.log"
+  if [ -n "$CASE_STATE_DIR" ]; then
+    CASE_LAST_STATE_DIR="$CASE_STATE_DIR"
+  else
+    CASE_LAST_STATE_DIR="$WORK/state-$name"
+  fi
   : > "$log"
   CASE_OUT="$(env PATH="$FAKE_BIN:$PATH" \
       CURL_LOG="$log" \
       NOW_HOUR="$hour" \
+      NOW_EPOCH="${CASE_NOW_EPOCH:-}" \
+      STATE_DIR="$CASE_LAST_STATE_DIR" \
       FAKE_AVAIL_KB="$(awk "BEGIN{printf \"%d\", $avail*1048576}")" \
       FAKE_USED_PCT="$pct" \
       SITONG_ALERT_WEBHOOK="https://example.invalid/robot" \
@@ -73,6 +85,26 @@ assert_not_contains() { # <子串>
     *"$1"*) echo "FAIL: 输出不该出现「$1」"; FAIL=$((FAIL + 1)) ;;
     *) PASS=$((PASS + 1)) ;;
   esac
+}
+assert_no_quiet_state() { # 抑制状态文件不应存在
+  if [ -f "$CASE_LAST_STATE_DIR/last-warn-push" ]; then
+    echo "FAIL: 不应写下抑制状态 $CASE_LAST_STATE_DIR/last-warn-push"
+    FAIL=$((FAIL + 1))
+  else
+    PASS=$((PASS + 1))
+  fi
+}
+assert_state_kept() { # 抑制状态文件应原样保留
+  if [ -f "$CASE_LAST_STATE_DIR/last-warn-push" ]; then
+    PASS=$((PASS + 1))
+  else
+    echo "FAIL: 不应该动抑制状态，但 $CASE_LAST_STATE_DIR/last-warn-push 没了"
+    FAIL=$((FAIL + 1))
+  fi
+}
+reset_case_env() {
+  CASE_STATE_DIR=""
+  CASE_NOW_EPOCH=""
 }
 
 echo "被测脚本：$SCRIPT"
@@ -177,6 +209,147 @@ run_case no-webhook 12 7.0 76 SITONG_ALERT_WEBHOOK=
 assert_rc 2
 assert_pushes 0
 assert_contains "not configured"
+
+# 10) 重复抑制：同一常规告警默认 6 小时内只推一条（用户 2026-09-17 要求「4–6 小时一条」）
+T0=1789000000
+CASE_STATE_DIR="$WORK/state-timeline"
+CASE_NOW_EPOCH=$T0
+run_case repeat-first 12 7.0 76
+assert_rc 2
+assert_pushes 1
+assert_contains "state recorded"
+
+CASE_NOW_EPOCH=$((T0 + 3600))            # 1 小时后
+run_case repeat-after-1h 12 7.0 76
+assert_rc 2
+assert_pushes 0
+assert_contains "SUPPRESS:"
+
+CASE_NOW_EPOCH=$((T0 + 21599))           # 5h59m59s 后：仍在窗口内
+run_case repeat-after-599 13 7.0 76
+assert_rc 2
+assert_pushes 0
+assert_contains "SUPPRESS:"
+
+CASE_NOW_EPOCH=$((T0 + 21600))           # 6 小时整：允许再推
+run_case repeat-after-6h 13 7.0 76
+assert_rc 2
+assert_pushes 1
+
+CASE_NOW_EPOCH=$((T0 + 25200))           # 刚推完又只过 1 小时
+run_case repeat-after-6h-plus-1h 14 7.0 76
+assert_rc 2
+assert_pushes 0
+assert_contains "SUPPRESS:"
+
+# 恢复正常要能立刻恢复提醒能力（清掉抑制状态）
+CASE_NOW_EPOCH=$((T0 + 25560))
+run_case repeat-recovered 15 9.0 70
+assert_rc 0
+assert_pushes 0
+
+CASE_NOW_EPOCH=$((T0 + 25620))
+run_case repeat-after-recovery 15 7.0 76
+assert_rc 2
+assert_pushes 1
+reset_case_env
+
+# 11) 间隔可配：REPEAT_HOURS=4 按 4 小时算；0 = 关闭抑制（回到每小时推）
+CASE_STATE_DIR="$WORK/state-r4"
+CASE_NOW_EPOCH=$T0
+run_case r4-first 12 7.0 76 REPEAT_HOURS=4
+assert_rc 2
+assert_pushes 1
+
+CASE_NOW_EPOCH=$((T0 + 10799))           # 3 小时内
+run_case r4-after-3h 12 7.0 76 REPEAT_HOURS=4
+assert_rc 2
+assert_pushes 0
+assert_contains "SUPPRESS:"
+
+CASE_NOW_EPOCH=$((T0 + 14400))           # 4 小时整
+run_case r4-after-4h 12 7.0 76 REPEAT_HOURS=4
+assert_rc 2
+assert_pushes 1
+reset_case_env
+
+CASE_STATE_DIR="$WORK/state-r0"
+CASE_NOW_EPOCH=$T0
+run_case r0-first 12 7.0 76 REPEAT_HOURS=0
+assert_rc 2
+assert_pushes 1
+
+CASE_NOW_EPOCH=$((T0 + 3600))
+run_case r0-after-1h 12 7.0 76 REPEAT_HOURS=0
+assert_rc 2
+assert_pushes 1
+reset_case_env
+
+# 12) 紧急级不受抑制：推过常规告警后一小时掉到紧急线，必须照推
+CASE_STATE_DIR="$WORK/state-crit"
+CASE_NOW_EPOCH=$T0
+run_case crit-warn-first 12 7.0 76
+assert_rc 2
+assert_pushes 1
+
+CASE_NOW_EPOCH=$((T0 + 3600))
+run_case crit-breakthrough 12 4.5 86
+assert_rc 2
+assert_pushes 1
+assert_contains "磁盘紧急告警"
+assert_not_contains "SUPPRESS:"
+reset_case_env
+
+# 13) 状态文件坏掉或写不进：宁可重复，不可沉默（不能因为记不住就漏告警）
+CASE_STATE_DIR="$WORK/state-corrupt"
+mkdir -p "$CASE_STATE_DIR"
+printf 'garbage\n' > "$CASE_STATE_DIR/last-warn-push"
+CASE_NOW_EPOCH=$T0
+run_case corrupt-state 12 7.0 76
+assert_rc 2
+assert_pushes 1
+reset_case_env
+
+CASE_STATE_DIR="/proc/baolu-disk-alert-state-test"
+CASE_NOW_EPOCH=$T0
+run_case unwritable-state-1 12 7.0 76
+assert_rc 2
+assert_pushes 1
+assert_contains "抑制状态写不进"
+
+CASE_NOW_EPOCH=$((T0 + 3600))
+run_case unwritable-state-2 12 7.0 76
+assert_rc 2
+assert_pushes 1
+reset_case_env
+
+# 14) 夜间静默时不写抑制状态：夜里没推过，白天第一次检查就该提醒
+CASE_STATE_DIR="$WORK/state-night"
+CASE_NOW_EPOCH=$T0
+run_case night-no-state 3 7.0 76
+assert_rc 2
+assert_pushes 0
+assert_no_quiet_state
+reset_case_env
+
+# 15) --dry-run 是「只看不动」：未越线时也不能顺手删掉抑制状态
+CASE_STATE_DIR="$WORK/state-dryrun-readonly"
+mkdir -p "$CASE_STATE_DIR"
+printf '%s\n' "$T0" > "$CASE_STATE_DIR/last-warn-push"
+CASE_NOW_EPOCH=$((T0 + 600))
+CASE_EXTRA_ARGS="--dry-run"
+run_case dry-run-ok-keeps-state 12 9.0 70
+assert_rc 0
+assert_pushes 0
+assert_contains "OK（未越线，不发告警）"
+assert_state_kept
+
+# 非 dry-run 的未越线才清状态（恢复后立刻可提醒）
+CASE_EXTRA_ARGS=""
+run_case ok-clears-state 12 9.0 70
+assert_rc 0
+assert_no_quiet_state
+reset_case_env
 
 echo
 TOTAL=$((PASS + FAIL))

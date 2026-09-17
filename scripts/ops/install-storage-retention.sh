@@ -5,7 +5,9 @@
 #   /opt/baolu-ops/prune-stage.sh                 发布暂存超 24h 回收    （每小时 :17）
 #   /opt/baolu-ops/prune-uploads-retention.sh     客户上传满 180 天清理   （每天 03:40）
 #   /opt/baolu-ops/purge-legacy-artifacts.sh      一次性过期垃圾清理      （手动跑，不挂定时）
-#   /opt/baolu-ops/disk-alert.sh                  磁盘水位告警            （每小时；夜间 23:00-07:00 只推紧急级）
+#   /opt/baolu-ops/disk-alert.sh                  磁盘水位告警            （每小时；夜间 23:00-07:00 只推紧急级，
+#                                                                          常规告警最短每 6 小时一条）
+#   /var/lib/baolu-disk-alert/                    告警重复抑制状态目录     （记上次常规告警推送时间）
 #   /etc/systemd/system/baolu-stage-prune.timer
 #   /etc/systemd/system/baolu-uploads-retention.timer
 #   /etc/systemd/system/baolu-disk-alert.timer
@@ -66,6 +68,7 @@ fi
 
 echo "== 1. 安装运维脚本到 $OPS_DIR =="
 install -d -m 755 -o root -g root "$OPS_DIR"
+install -d -m 750 -o root -g root /var/lib/baolu-disk-alert
 for f in "${SCRIPTS[@]}"; do
   install -m 755 -o root -g root "$SRC_DIR/scripts/ops/$f" "$OPS_DIR/$f"
   # 仓库在 Windows 上签出时可能带 CRLF，带 \r 的 shell 脚本在 Linux 上会直接报错；
