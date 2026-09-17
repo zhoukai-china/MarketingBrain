@@ -114,6 +114,9 @@ const chatMessages = read("apps/web/src/components/chat/ChatMessages.tsx");
 
 // 用户 2026-09-16：使用前给「预估」、使用后给「实际」——所以这里改成精确匹配「本次实际消耗」。
 requireContains(agentChat, "本次实际消耗 {cost} 积分", "聊天页顶部仍显示本次实际消耗积分");
+// 2026-09-17 用户拍板：文案智能体包月「订阅期内不扣积分」——被包月覆盖的那一次必须换成
+// 「本次由包月覆盖 · 不扣积分」，不能让用户看到「本次实际消耗 0 积分」而误以为漏扣 / 失败。
+requireContains(agentChat, "本次由包月覆盖 · 不扣积分", "包月覆盖本次运行时顶部说明不扣积分");
 requireContains(agentChat, "本次导出需 ${required} 积分", "积分不足的导出提示仍说明所需积分");
 requireContains(agentChat, "${docxPrice} 积分", "Word 导出按钮仍显示所需积分");
 // 2026-09-13 用户口径：使用前不再出现任何「要扣多少积分」的前置提示（只在交付后告知消耗）。

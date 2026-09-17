@@ -2404,6 +2404,128 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 - 后续任务：`MyAiPage` 组件本体的去留（需与引用它的 smoke 和 BY-52 文档一起处理）。
 - 最后更新日期：2026-09-15
 
+## PLAT-45 三条计费口径：IP 定位固定 400 积分/次 + A+图片对全部智能体放开并真解析 + 文案智能体积分包月（用户 2026-09-17）
+
+状态：**已完成**（本地全绿；发布状态见本卡「交接」）
+
+### 归属
+
+- 产品：公共平台（货架计费口径 + 通用对话页附件链路），影响全部专区（`ipzone` / `meiye`）与全部智能体。
+- 层级：公共平台，**同时动钱（计费）与动数据库结构**，是本轮最高风险项。
+- 风险：高（付费错误面 + 迁移）。
+- 预计修改热点：`apps/api/src/services/billing-cost-model.ts`、`apps/api/src/data/marketplace-v3.json`、`apps/api/src/routes/{marketplace,billing-consume}.ts`、`apps/api/src/services/marketplace-catalog.ts`、`apps/web/src/marketplace/AgentChatPage.tsx`、`packages/db/prisma/schema.prisma`。
+- 是否允许并行：否（`marketplace.ts` / `AgentChatPage.tsx` 属热点文件）。
+
+### 用户结果
+
+1. **IP 定位智能体每次 400 积分**（固定价），不再随 token 用量浮动；其他智能体价格不变。
+2. 在**文件 / 视频 / 语音 / 增强提示词** 4 个入口，前后端**所有智能体**都能传图片，且图片**真的被识别进需求**（不是只记文件名）。
+3. 文案智能体可 **4000 积分包月**（每天 5 条），订阅期内生成**不再扣积分**；当天 5 条用满会被明确拦下且**不偷偷改回扣分**；用户仍可继续选按消耗计费。
+
+### 本次范围
+
+- ① IP 定位：`marketplace-v3.json` 的 `skills["ip-pos"].ppu = 400`；`billing-cost-model.ts` 新增 `FIXED_PRICE_SKUS = ["ip-pos"]` + `isFixedPriceSku()`，在 `usesCostBasedPricing()` 里**先于白名单与 `*` 通配判定**（生产 env 是 `BILLING_COST_BASED_SKUS=*`，没有这条例外就退不出成本口径）；`billing-consume.ts` 的 `SKILL_PPU["ip-pos"]` 同步 200 → 400。
+- ② A+图片：`AgentChatPage.tsx` 的 `accept` 增加 `.webp/.gif/.bmp`，新增 `IMAGE_ATTACHMENT_PATTERN` 与 `parseImageAttachment()`，图片分支走平台受登录保护、带预留/结算的 `/media/analyze`（qwen-vl），把「画面里能验证的事实」拼进需求单；界面写明「10 积分/次、解析失败不扣积分」。**后端计费不改**（PLAT-41 链路已具备）。
+- ③ 文案包月：`MarketplaceSku` +`subscriptionCredits`/`subscriptionDailyQuota`，`MarketplaceSubscription` +`credits`/`dailyQuota`；迁移 `202609170001_marketplace_subscription_credits`（纯加列）；`ensureMarketplaceCatalog()` 不再把包月字段写死为 `null`（这是「生产上所有 SKU 包月价都是空的」的根因）；`POST /market/subscriptions` 支持积分口径订阅（幂等、不重复扣分、余额不足 402 带 `rechargeUrl`）；`/market/skus/:skuCode/run` 先查订阅 → 覆盖时 `charge = 0` 且不调用钱包，额度用尽 **409 `marketplace_subscription_quota_exhausted`**；`accessStateFor()` 返回 `state:"subscribed"` 与 `subscriptionOffer`；网页端按订阅态显示「本次生成不扣积分，今天还剩 N 条」/「📅 改包月」，交付后顶栏显示「本次由包月覆盖 · 不扣积分」。
+
+### 本次不做
+
+- 不给文案之外的 SKU 上包月（`subscriptionCredits` 为空 = 不显示包月报价）。
+- 不启用旧人民币口径包月（`subscriptionPriceCny` 保留字段但继续不用）。
+- 不改 ASR / 视觉的单价（本轮只是把图片接进已有的收费通道）。
+
+### 验收条件
+
+1. 正常路径：IP 定位真实运行**只扣 400**、账本恰好一条；图片上传能拿回画面事实且只按成功视觉调用计 10 积分；文案订阅成功后生成不扣积分、顶栏写明「本次由包月覆盖」。
+2. 失败路径：图片解析失败/超时明确提示「本次不扣积分」；余额不足在调用 Provider 之前 402；订阅额度用尽 409 且**不扣分**。
+3. 不应发生：`BILLING_COST_BASED_SKUS=*` 把 IP 定位拉回成本口径；重复点订阅重复扣分或建出第二条订阅；别人的订阅放行我的运行；订阅覆盖的那一次仍去调用钱包。
+4. 可观测结果事件：账本 `pricingMode ∈ {fixed_ppu, cost_based, subscription}`；订阅用量账本 `refType = marketplace_subscription_usage`、`refId = 订阅 id`；运行响应带 `subscription{covered,usedToday,remaining,endDate}`。
+
+### 基线与失败证据
+
+- 修复前红灯：`docs/BUG_REGRESSIONS.md` QA-20260917-001（逐字记录「临时把扣费改回旧算法 → 真实模型 200 后 `[FAIL] 订阅期内运行扣 0 积分（实际 40）`」）。
+- 基线命令：`pnpm.cmd billing:cost-model-smoke`、`pnpm.cmd marketplace:api-smoke`、`pnpm.cmd marketplace:ip-pos-run-smoke`。
+- 契约同步（本次一并改）：`marketplace:credits-only-contract-smoke` 增「包月覆盖时顶部必须写不扣积分」断言；`billing:cost-model-smoke` 的扣费表达式断言改为含订阅分支。
+
+### 实现记录
+
+- 迁移：`packages/db/prisma/migrations/202609170001_marketplace_subscription_credits/migration.sql`（**纯加列，可安全回滚**）。本地 `pnpm.cmd --filter @baolu/db prisma:deploy` → `52 migrations found`，已应用。
+- 接口变化：新增 `POST /market/subscriptions` 的积分口径分支；`/market/skus/:sku/run` 新增 `pricingMode = "subscription"` 与 409 分支；`/market/skus/:sku/access` 增加订阅字段。**未订阅用户的响应与扣费一字未变**。
+- 兼容与回滚点：回滚 = 关掉 `marketplace-v3.json` 的 `sub` 配置（包月入口即消失）+ 还原 `routes/marketplace.ts` / `marketplace-catalog.ts`；数据库多出的列对旧代码无影响。IP 定位回滚 = 从 `FIXED_PRICE_SKUS` 移除 `ip-pos` 并还原 ppu。
+
+### 验证
+
+- `pnpm.cmd qa:fast`：**PASS**（`QAFAST_EXIT=0`，含 `billing:cost-model-smoke`、`marketplace:credits-only-contract-smoke`、`typecheck` 7/7 包）。
+- `pnpm.cmd qa:regression`：**PASS**（`QAREG_EXIT=0`，含新增 `marketplace:subscription-smoke`）。
+- `pnpm.cmd qa:full`：**PASS**（`QAFULL_EXIT=0`，web/api 均 build + `api_runtime_data_check:PASS`）。
+- `pnpm.cmd marketplace:subscription-smoke`：**PASS**（真实路由 + 真实数据库 + **一次真实模型运行**）。关键行：`[PASS] 未订阅时透出包月报价 4000 积分 · 每天 5 条`、`[PASS] 订阅扣 4000 积分`、`[PASS] 订阅后余额 5000 → 1000`、`[PASS] 重复订阅不再扣积分（余额不变）`、`[PASS] 订阅期内运行扣 0 积分（实际 0）`、`[PASS] 订阅期内运行不改余额（期望 1000，实际 1000）`、`[PASS] 额度用尽后运行返回 409`、`[PASS] 错误码是 marketplace_subscription_quota_exhausted`、`[PASS] 额度用尽被拒时余额分文不动`、`[PASS] 其他租户不会被别人的订阅放行（实际 guest）`、末行 `PASS: 包月订阅计费回归全部通过`。
+- 未运行项：真机浏览器验收（开通包月 → 连生成 2 次不扣分 → 第 6 次被拒）留到发布后在页面实测，见「交接」。
+
+### 交接
+
+- 残余风险：`subscriptionPriceCny`（人民币口径包月）仍在库表里但没有入口，长时间不用建议单列任务清理；`ip-pos` 的 400 是**用户指定的固定价**，与 9-15「按成本计价」的口径冲突由用户裁决，已在 `docs/PRICING.md` §五 记录。
+- 后续任务：给其他智能体按需上包月（配置位已就绪，加 `sub` 即可）；录音卡 `/audio-cards` 仍未定价。
+- 最后更新日期：2026-09-17
+
+## PLAT-46 WorkBuddy MCP 双账本打通：钱包优先扣费 + 遗留租户账本兜底（用户 2026-09-17）
+
+状态：**已完成**（本地全绿；发布状态见本卡「交接」）
+
+### 归属
+
+- 产品：公共平台（MCP / 外部接入通道的积分账本），影响 WorkBuddy 全部工具调用与所有经 MCP 接入的能力。
+- 层级：公共平台。改动**触及动钱（扣费/退款）与事务边界**，风险高。
+- 风险：高。
+- 预计修改热点：`apps/api/src/services/credit-reservations.ts`、`apps/api/src/services/sitong-wallet.ts`。
+- 是否允许并行：否。
+
+### 用户结果
+
+在货架充值拿到积分的用户，WorkBuddy 里的 `sitong.ask` **立刻可用**，不再报 `insufficient_credits`；迁移前只在租户账本里有余额的老客户**余额不作废**。
+
+### 本次范围
+
+- `reserveCreditsBeforeProvider`：`channel === "mcp"` 时改走 `reserveMcpCredits` —— 先扣用户级 `Wallet`（与货架同源），不足再回落遗留租户 `CreditAccount`，**两条路只扣其中一条**；预留 id 用 `wallet-reservation:<requestId>` 前缀。
+- `release` / `settle` / `compensate` 按前缀分流：差额退回**当初扣的那个桶**（bonus 优先，与扣费顺序对称），退款 requestId 固定为 `<预留id>#release|#settle|#compensate` 保证幂等。
+- `refundWalletInTx(tx, ...)`：把钱包退款逻辑从事务里抽出来，供 MCP 结算与 `AgentRun` / `Message` 落库**共用同一个事务**，消掉半成品态。
+
+### 本次不做
+
+- 不合并两套账本（不做数据迁移），只做「读得到、扣得对、退得准」。
+- 不动发放侧、货架扣费侧与租户账本本身。
+- 不修 `sitong.skills` 只返回一个 Agent 的问题（见「交接」）。
+
+### 验收条件
+
+1. 正常路径：钱包有余额、租户账本为 0 → MCP 预留成功且扣的是钱包；结算按实际额退回原桶，流水可逐笔核对。
+2. 失败路径：两边都不足 → **在调用 Provider 之前**抛 `InsufficientCreditsError`（不产生外发与成本）；Provider 失败释放 → 全额退回且重复释放幂等。
+3. 不应发生：钱包不足时误扣租户账本之外的第三处；重复释放多退；改 A 的钱包影响 B。
+4. 可观测结果事件：`walletLedger` 上 `type=consume/refund`、`bucket=paid/bonus`、`refRequestId` 可对账。
+
+### 基线与失败证据
+
+- 生产证据（只读复核）：用户 `cmtzaheu905e5ef4mzno13ugz`（租户「杨萋萋」）`Wallet.paidBalance = 490` 而 `CreditAccount.balance = 0`，WorkBuddy `sitong.ask` 稳定 `insufficient_credits`。
+- 红灯复现逐字见 `docs/BUG_REGRESSIONS.md` QA-20260917-002（注释掉 MCP 分流后：`InsufficientCreditsError: insufficient_credits at reserveTenantCredits (credit-reservations.ts:124:10)`，`exit code 1`）。
+- 基线命令：`pnpm.cmd billing:wallet-db-smoke`、`pnpm.cmd billing:consume-db-smoke`、`pnpm.cmd credit:charge-smoke`。
+
+### 实现记录
+
+- 无迁移、无 env 变更。改动两个运行时文件 + 新增一个 smoke。
+- 兼容与回滚点：回滚 = 还原 `credit-reservations.ts` 的 MCP 分流分支（旧行为 = 只读租户账本）；数据无破坏性变更。`<预留id>#release` 等幂等键在回滚后不再生成，历史记录不影响。
+
+### 验证
+
+- `pnpm.cmd mcp:wallet-ledger-smoke`：**PASS**（真实 PostgreSQL）。逐字：`mcp_wallet_ledger_smoke: PASS` + `{"mainWalletAfterSettle":478,"mainWalletAfterRelease":478,"fallbackTenantBalance":70,"settleLedgers":[{"type":"consume","bucket":"paid","delta":-30},{"type":"refund","bucket":"paid","delta":18}]}`。
+- 红/绿对照：同一脚本在修复前 `exit code 1`（复现生产现象），修复后 `exitCode=0`。
+- `pnpm.cmd qa:fast` / `qa:regression` / `qa:full`：**PASS**（`mcp:wallet-ledger-smoke` 已挂进 `qa:regression`）。
+- 未运行项：WorkBuddy 客户端侧真实调用（需要在 WorkBuddy 里发一次 `sitong.ask`），留到发布后实测。
+
+### 交接
+
+- 残余风险：**`sitong.skills` 只返回 `ceo-cockpit-analyst` 仍未修** —— 根因是 `WorkbuddyConnection` 只有单个 `agentId`，生产 4 个 active 连接全绑 `agent_ceo_cockpit`。修法需要 `agentIds Json?` 多值 + 迁移 + `resolveWorkbuddyAccess` 多 Agent 汇总 + `sitong.skills` 输出 + `apps/web/src/pages/AgentProductsApp.tsx` 的连接管理 UI。**建议单列一张卡**。
+- 后续任务：把 `sitong.skills` 多 Agent 白名单作为下一张卡；上线后请用户在 WorkBuddy 里真机发一次 `sitong.ask` 复核。
+- 最后更新日期：2026-09-17
+
 ## 任务登记补记（2026-09-15 对账）
 
 对账原因：本登记表从 PLAT-36 直接跳到 PLAT-44，中间 7 个已交付的平台任务**没有任务卡**，只在 `docs/CURRENT_DEPLOYMENT_STATUS.md` 留了发布记录。按 `docs/agents/AGENTS.md` 第 10 条「一个 Codex 任务只交付一个可独立验收的主要用户结果」，这里按发布记录补登记摘要。
@@ -2429,5 +2551,8 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 | PLAT-32 平台底座抽取 | 基本完成 | 剩 `auth.ts` 巨型 `registerAuthRoutes` 拆分，建议单列任务 |
 | PLAT-33 公共平台语音输入 | **已完成**（本行已校准） | 原写「待发布」，实际 2026-09-14 已上线 |
 | PLAT-44 旧工作台下线 + 视频复盘收窄 | 已完成 | 遗留：兰琪/美业自有页面的 `/my-ai` 入口、美业 `beauty-directory-browser-e2e`、`MyAiPage` 去留 |
+| PLAT-45 三条计费口径（IP 定位固定 400 / A+图片放开 / 文案包月） | **已完成**（本地全绿） | 待真机页面实测（开通包月 → 连生成 2 次不扣分 → 第 6 次被拒） |
+| PLAT-46 WorkBuddy MCP 双账本打通（钱包优先 + 租户账本兜底） | **已完成**（本地全绿） | 待 WorkBuddy 客户端真机发一次 `sitong.ask` 复核 |
+| `sitong.skills` 只返回 `ceo-cockpit-analyst` | 未开工 | `WorkbuddyConnection` 只有单个 `agentId`（生产 4 个 active 连接全绑 `agent_ceo_cockpit`），需多值 + 迁移 + 汇总 + UI，建议单列一张卡 |
 
-- 最后更新日期：2026-09-15
+- 最后更新日期：2026-09-17
