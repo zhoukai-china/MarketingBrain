@@ -1,6 +1,6 @@
 # 当前部署状态
 
-## 最新发布：20260917-lq-invite-removal（2026-09-17/18，测试实例 + 生产）— 取消兰琪邀请码制度，产品入口不再强制邀请码
+## 最新发布：20260917-lq-invite-removal（2026-09-17/18，测试实例 + 生产）— 取消兰琪邀请码制度，产品入口不再强制邀请码【已闭环】
 
 用户口径（2026-09-17）：「先取消兰琪的邀请码制度，等后面需要再增加邀请码功能」。
 
@@ -15,6 +15,7 @@
 - `pnpm.cmd typecheck` 通过；`auth:invite-gate-smoke`（`lanqiAllowsNoCode:true`）、`auth:product-login-smoke`、`lanqi:store-gate-smoke` 全绿。
 - 测试实例 `DEPLOY_OK 20260917-lq-invite-removal-test1`、生产 `DEPLOY_OK 20260917-lq-invite-removal-prod1`；两侧 health/ready 200、`No pending migrations`、生产 err 日志 No entries。
 - 生产源码/产物：`invite-codes.ts` 无 `LANQI_PRODUCT_CODE`；`LoginPage.tsx` 无 `productInviteForm`；最新加载 chunk 无「首次开通请使用邀请消息中的邀请码」。
+- **真人验收（2026-09-18，老板本人）：在生产用微信真实登录兰琪，确认「兰琪不用填邀请码就能开通/进入」端到端成立 → 通过。** 该能力此前仅有代码 / 构建 / 接口 / 产物层证据，本条补上真人端到端证据后本卡闭环（同 LQ-22 / LQ-28 / LQ-29 的「微信扫码不能由 Agent 代持」边界）。
 
 发布方式与防回退：生产当时与 `main` 存在多任务漂移，改为「当前生产源码 + 这 8 个文件」在服务器重新打 `-prod` / `-test` 两份包，再叠加发布；发布前逐文件比对确认不一致只有这 8 个邀请码文件。
 
