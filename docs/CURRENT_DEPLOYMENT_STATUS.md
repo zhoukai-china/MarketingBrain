@@ -1,5 +1,21 @@
 # 当前部署状态
 
+## 最新发布：lq35-store-gate-prod1（2026-09-18，测试实例 lq35-store-gate-test1 + 生产）— 兰琪公域获客「门店信息还在加载」改按真实原因提示
+
+用户现场：老板在「公域获客 → 美业文案十件套」点生成只看到「门店信息还在加载，请稍后再试一次。」，不管点几次都是这一句。
+
+根因：`GET /os-v2/api/lanqi/stores` 实际返回 **403 / 175 字节**（`code=product_entitlement_missing|expired`，即该租户没有生效中的兰琪权益），但前端把 403 当成「门店列表为空」，再用「门店信息还在加载」兜底，把权限问题说成了加载问题。
+
+处置（只改前端，不碰后端 / 鉴权 / 计费，未重启服务）：两页（`LanqiAcquireCopyKitPage.tsx` / `LanqiAcquireVideoPage.tsx`）改用既有 `useLanqiStoreGate` + `LanqiStoreGateBanner`，删除「门店信息还在加载」；读门店失败保留后端 `code` 并按 `missing/expired/inactive/forbidden/network` 分流文案与 CTA。
+
+发布方式与防回退：生产与 `main` 有 8 处真实差异 + 3 个文件缺失（`AgentChatPage.tsx` prod 新、`AudioCardView.tsx` prod 新、`vidrev-report.tsx` prod 旧、`packages/skills` 4 处旧、3 个 `baolu_ad_manager` 文件缺失），**若从 main 整树构建会连带发布这些漂移，属越权**。本次用「生产源码树副本（stage）+ 只叠加 2 个 tsx」构建，发布前哈希归一逐文件比对确认 62 文件里只有入口 + 两个兰琪页面 chunk 变化（入口仅 3 处 `,10` 依赖插入，无害）。
+
+验收（生产公网）：入口 `index-CNrf0vyY.js` 引用 `LanqiAcquireCopyKitPage-bslL1jeb.js` / `LanqiAcquireVideoPage-C-qYRMXO.js`，两 chunk 公网下载与服务器 dist 逐字节一致；「门店信息还在加载」=0；新口径 `当前账号还不能生成：先按页面顶部的提示处理，再点一次。` 各 1；`referenced_missing=0`；health/ready 200、err 日志 No entries；匿名 `/os-v2/api/lanqi/stores` 仍 401。离线门禁 `pnpm.cmd lanqi:acquire-ui-contract-smoke` 144/0、`pnpm.cmd lanqi:store-gate-smoke` 44/0、`pnpm.cmd qa:fast` exit 0。
+
+真人验收边界：页面级需真人微信登录（同 LQ-22/28/29 边界）；修完后老板会看到**准确原因**（如「没有生效中的兰琪权益」）而非「加载中」；能否真正生成仍取决于是否给该租户开通 `lanqi` 权益——属权限变更，本次未做，需单独确认。
+
+备份 / 回滚：`/opt/baolu-backups/lq35-store-gate-prod1-before-baolu-os-v2/`（33M）、`/opt/baolu-backups/lq35-store-gate-test1-before-baolu-os-v2-test/`；静态还原 dist + 两个 tsx 即可，无需 `systemctl restart`。
+
 ## 最新发布：20260918-chat-restart-prod2（2026-09-18，仅生产）— 修「文案智能体（= 所有智能体）输入过程没有『重新开始』」：第三次被回灌后按单文件定点补丁重发 + 两套前端入口同步
 
 用户现场（2026-09-18 14:2x）：`https://api.lcppch.top/os-v2/agent/ipzone__copy/chat` 输入阶段看不到「重新开始」；用户同时要求「**所有智能体在输入过程中都应该有重新开始按钮**」，且怀疑功能被并行发布覆盖。

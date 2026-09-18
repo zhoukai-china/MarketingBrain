@@ -2,6 +2,24 @@
 
 - 编号说明（2026-09-16 合并 `main` 后统一）：LQ-34 侧并发登记的条目顺延为 **-012 导出一次性直链 / -013 邀请活动门禁 / -014 导出仓 `.env` / -015 Windows worktree CRLF**；`-006` 本机草稿指纹条目以 main 编号为准（LQ-34 侧曾记为 `-010`，合并时去重）。
 
+## QA-20260918-001：兰琪公域获客「文案十件套 / 视频获客」点生成只提示「门店信息还在加载」——403 权益门禁被前端吞成「门店为空」（P1，已修 + 已上测试实例和生产）
+
+- 来源：用户 2026-09-18 现场反馈「门店信息还在加载，请稍后再试一次」，不管点几次都是这一句。
+- 取证（全在生产只读）：
+  1. 生产 nginx 访问日志六次 `GET /os-v2/api/lanqi/stores` → **403 / 175 字节**（老板本人浏览器）；同页 SPA 壳 `GET /os-v2/lanqi/acquire/copy-kit` 是 **200**——页面能开、只有门店接口被挡。
+  2. 同一账号同时段 `GET /os-v2/api/market/me`、`GET /os-v2/api/wallet` 均 200，登录态有效、租户存在，403 不是「没登录」。
+  3. 175 字节 = 权益门禁 403 响应体，只有 `code` 为 `product_entitlement_missing`（未开通）或 `product_entitlement_expired`（已到期）时才是 175——即**真实原因是该租户没有生效中的兰琪权益**，不是门店没读出、也不是 500。
+  4. `journalctl -u baolu-os-v2` 同时刻能看到同一批 `GET /lanqi/stores` 的 incoming request，不是网关直接拒绝。
+- 根因：兰琪全部路由挂在 `requireProductEntitlement("lanqi")` 下（`apps/api/src/products/register.ts`），租户没有生效 `lanqi` 权益时 `/lanqi/*` 一律 403（含 `/lanqi/stores`）；前端却把「读门店失败」与「门店为空」合并成空数组，再用「门店信息还在加载」兜底，于是权限 / 状态类失败被呈现成加载中。
+- 处置（只改前端提示与门禁口径，不碰后端路由 / 鉴权 / 计费）：
+  - 复用 LQ-20 既有判定（`apps/web/src/lib/lanqi-store-gate.ts` + `use-lanqi-store-gate.ts` + `LanqiStoreGateBanner.tsx`）：读门店失败保留后端 `code`，按 `product_entitlement_missing / _expired / _inactive / forbidden / network` 分流文案与 CTA；删除 `!storeId` 时那句「门店信息还在加载」。
+  - 两页（`LanqiAcquireCopyKitPage.tsx` / `LanqiAcquireVideoPage.tsx`）改用 `useLanqiStoreGate` + `LanqiStoreGateBanner`。
+  - 测试实例先发 `lq35-store-gate-test1`，生产按「生产源码树 + 2 个 tsx」最小叠加发 `lq35-store-gate-prod1`（静态替换 dist，未重启）。
+- 绿证（生产公网）：入口 `index-CNrf0vyY.js` 引用 `LanqiAcquireCopyKitPage-bslL1jeb.js` / `LanqiAcquireVideoPage-C-qYRMXO.js`，两个 chunk 公网下载与服务器 dist 逐字节一致；「门店信息还在加载」copykit=0 / video=0；新口径 `当前账号还不能生成：先按页面顶部的提示处理，再点一次。` 各 1；`referenced_missing=0`；health/ready 200；err 日志 No entries；匿名 `/os-v2/api/lanqi/stores` 仍 401。离线门禁：`pnpm.cmd lanqi:acquire-ui-contract-smoke` 144/0、`pnpm.cmd lanqi:store-gate-smoke` 44/0、`pnpm.cmd qa:fast`（含 typecheck）exit 0。
+- 边界（真人验收，必须转达）：页面级能否真正生成，需真人微信登录在生产确认「按真实原因提示、不再显示加载中」；能否真正生成仍取决于是否给该租户开通 `lanqi` 权益——属权限变更，本次刻意未做，需单独确认。
+- 回滚：`/opt/baolu-backups/lq35-store-gate-prod1-before-baolu-os-v2/`、`/opt/baolu-backups/lq35-store-gate-test1-before-baolu-os-v2-test/`；静态还原 dist 与两个 tsx 即可，无需 `systemctl restart`。
+- 关联：LQ-35（任务卡）、LQ-20（门禁判定出处）、LQ-33（文案十件套卡）、LQ-29（403 提示口径）。
+
 ## QA-20260917-008：对话页「输入中重新开始」一直没上生产——13:04/13:10 两次发布把它当「非交付文件」回灌成旧版（P1，已修 + 已上测试实例和生产）
 
 - 来源：用户 2026-09-17 13:4x 在 `https://api.lcppch.top/os-v2/agent/ipzone__copy/chat` 发截图：「输入中没看到有重新开始按钮」。
