@@ -12,7 +12,7 @@
 
 验收（生产公网）：入口 `index-CNrf0vyY.js` 引用 `LanqiAcquireCopyKitPage-bslL1jeb.js` / `LanqiAcquireVideoPage-C-qYRMXO.js`，两 chunk 公网下载与服务器 dist 逐字节一致；「门店信息还在加载」=0；新口径 `当前账号还不能生成：先按页面顶部的提示处理，再点一次。` 各 1；`referenced_missing=0`；health/ready 200、err 日志 No entries；匿名 `/os-v2/api/lanqi/stores` 仍 401。离线门禁 `pnpm.cmd lanqi:acquire-ui-contract-smoke` 144/0、`pnpm.cmd lanqi:store-gate-smoke` 44/0、`pnpm.cmd qa:fast` exit 0。
 
-真人验收边界：页面级需真人微信登录（同 LQ-22/28/29 边界）；修完后老板会看到**准确原因**（如「没有生效中的兰琪权益」）而非「加载中」；能否真正生成仍取决于是否给该租户开通 `lanqi` 权益——属权限变更，本次未做，需单独确认。
+真人验收（2026-09-18，老板本人）已通过：老板在生产微信真实登录，进入「公域获客 → 美业文案十件套」正常、未再出现「门店信息还在加载」，点生成正常出结果、无问题。
 
 备份 / 回滚：`/opt/baolu-backups/lq35-store-gate-prod1-before-baolu-os-v2/`（33M）、`/opt/baolu-backups/lq35-store-gate-test1-before-baolu-os-v2-test/`；静态还原 dist + 两个 tsx 即可，无需 `systemctl restart`。
 
