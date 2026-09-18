@@ -641,16 +641,22 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
 
     const nextAnswers = { ...answers, [slots[step].key]: answerValue };
     setAnswers(nextAnswers);
+    /**
+     * 分场景分流：按「包含本次答案」之后的有效槽位推进。
+     * 直播话术选完「带货/团购/招商」后，条件槽位才被纳入，否则会把「只填了类型」
+     * 误判成已收齐、直接跳到空确认卡。
+     */
+    const nextSlots = flow ? effectiveSlots(flow, nextAnswers) : [];
     // 附件要出现在用户自己那条消息里，否则用户不知道文件到底有没有被带上。
     const attachmentSuffix = attachments.length > 0
       ? `\n（附件：${attachments.map((item) => item.name).join("、")}）`
       : "";
     setItems((prev) => [...prev, { id: `u${step}`, role: "user", text: value + attachmentSuffix }]);
 
-    if (step < slots.length - 1) {
+    if (step < nextSlots.length - 1) {
       const next = step + 1;
       setStep(next);
-      setItems((prev) => [...prev, { id: `q${next}`, role: "ai", text: `**${slots[next].label}**：${slots[next].q}` }]);
+      setItems((prev) => [...prev, { id: `q${next}`, role: "ai", text: `**${nextSlots[next].label}**：${nextSlots[next].q}` }]);
       return;
     }
 
