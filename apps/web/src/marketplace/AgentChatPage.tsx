@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { apiPath, getAppPath, getAppRoutePath } from "../lib/api.js";
 import { readSessionIdentity, readSessionToken } from "../lib/session.js";
-import { chatFlowFor, buildRunBody, normalizeVidrevPlatform } from "./chat-flows.js";
+import { chatFlowFor, effectiveSlots, buildRunBody, normalizeVidrevPlatform } from "./chat-flows.js";
 import { IpPosReport, type IpPosPayload } from "./ip-pos-report.js";
 import { VidrevReport, isVidrevPayload, VIDREV_PREFILL_KEY, type VidrevPayload } from "./vidrev-report.js";
 import { audioExtensionForMime, useVoiceInput, voiceTranscriptionFailureMessage } from "../components/chat/useVoiceInput.js";
@@ -218,6 +218,12 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
   const runSku = sku ? (bundle ? steps[0] ?? sku : sku) : sku;
   const soon = isComingSoon(runSku);
   const flow = runSku ? chatFlowFor(coreSkuCode(runSku.skuCode)) : undefined;
+  /**
+   * 当前实际会走的槽位（按已填答案做场景分流）。
+   * 直播话术先选「带货 / 团购」还是「招商」，选完只走对应那条线的后续提问；
+   * 其余没有条件槽位的技能，这里等价于 `slots`。
+   */
+  const slots = flow ? effectiveSlots(flow, answers) : [];
   /** 工单 2.1/2.3：视频复盘专属——未上传数据前展示导出指南，「增强提示词」改成一键填充标准请求。 */
   const isVidrev = coreSkuCode(runSku?.skuCode ?? skuId) === "vidrev";
   /** 这一轮是否已经动过（填过 / 传过 / 生成过）：决定「↺ 重新开始」按钮是否常驻。 */
@@ -305,7 +311,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
            * 历史里明明写着「（附件：xxx.csv）」，但附件其实已经不在了——不说明白，
            * 用户再发一次「复盘」只会收到「我还没拿到你的数据」（2026-09-17 现场就是这么撞上的）。
            */
-          if (isVidrev && flow.slots[restoredStep]?.key === "data") {
+          if (isVidrev && slots[restoredStep]?.key === "data") {
             setUploadNote("已恢复上次的对话记录。上传的文件不会保存在浏览器里，请把数据表格重新拖进来，再发「复盘」；想清空重来就打「重新开始」。");
           }
           return;
@@ -334,7 +340,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
           ]);
           setDone(true);
           setCost(latest.credits);
-          setStep(flow.slots.length - 1);
+          setStep(slots.length - 1);
         })
         .catch(() => {
           /* 找回失败就走新会话，不打扰用户 */
@@ -342,7 +348,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     }
     setItems([
       { id: "w", role: "ai", text: welcome },
-      { id: "q0", role: "ai", text: `**${flow.slots[0].label}**：${flow.slots[0].q}` }
+      { id: "q0", role: "ai", text: `**${slots[0].label}**：${slots[0].q}` }
     ]);
     setStep(0);
 
@@ -370,7 +376,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
   useEffect(() => {
     if (!flow || !prefill) return;
     if (coreSkuCode(runSku?.skuCode ?? skuId) !== prefill.sku) return;
-    const index = flow.slots.findIndex((slot) => slot.key === prefill.slotKey);
+    const index = slots.findIndex((slot) => slot.key === prefill.slotKey);
     if (index < 0 || step !== index || input.trim()) return;
     setInput(prefill.value);
     if (prefill.note) setUploadNote(prefill.note);
@@ -442,7 +448,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
             role: "ai",
             text:
               `${payload.message ?? "当前积分不足，请先充值后再使用。"}` +
-              `（本次**未消耗积分**；你填的 ${flow.slots.length} 项已经存在本机，充值回来点「继续生成」即可，**不用重填**。）`,
+              `（本次**未消耗积分**；你填的 ${slots.length} 项已经存在本机，充值回来点「继续生成」即可，**不用重填**。）`,
             action: {
               label: "去充值（回来不用重填）",
               href: getAppPath(`/recharge?from=agent&skill=${encodeURIComponent(runSku.skuCode)}&next=${encodeURIComponent(nextRoute)}`)
@@ -572,7 +578,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
           text: "好，重新开始。上一轮的填写内容、已上传的文件和本机留存都已经清空，我们从第一轮重新来一遍。"
         },
         { id: "w", role: "ai", text: welcome },
-        { id: "q0", role: "ai", text: `**${flow.slots[0].label}**：${flow.slots[0].q}` }
+        { id: "q0", role: "ai", text: `**${slots[0].label}**：${slots[0].q}` }
       ]);
       return;
     }
@@ -591,7 +597,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
      * 认不出来就**停在平台这一步**追问，不推进、不消耗积分。
      */
     let answerValue = value;
-    if (isVidrev && flow.slots[step].key === "platform") {
+    if (isVidrev && slots[step].key === "platform") {
       const fromText = normalizeVidrevPlatform(value);
       const fromAttachment = fromText
         ? fromText
@@ -622,7 +628,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
 
     // 工单 2026-09-13 §四：未传数据时输入「复盘」不能空跑一轮（更不能消耗积分）——
     // 先把「数据从哪来、怎么传」讲清楚，用户看到指南再去导出。
-    if (isVidrev && flow.slots[step].key === "data" && !vidrevHasData(answerValue)) {
+    if (isVidrev && slots[step].key === "data" && !vidrevHasData(answerValue)) {
       setItems((prev) => [
         ...prev,
         { id: `nodata-u${Date.now()}`, role: "user", text: value },
@@ -633,7 +639,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
       return;
     }
 
-    const nextAnswers = { ...answers, [flow.slots[step].key]: answerValue };
+    const nextAnswers = { ...answers, [slots[step].key]: answerValue };
     setAnswers(nextAnswers);
     // 附件要出现在用户自己那条消息里，否则用户不知道文件到底有没有被带上。
     const attachmentSuffix = attachments.length > 0
@@ -641,10 +647,10 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
       : "";
     setItems((prev) => [...prev, { id: `u${step}`, role: "user", text: value + attachmentSuffix }]);
 
-    if (step < flow.slots.length - 1) {
+    if (step < slots.length - 1) {
       const next = step + 1;
       setStep(next);
-      setItems((prev) => [...prev, { id: `q${next}`, role: "ai", text: `**${flow.slots[next].label}**：${flow.slots[next].q}` }]);
+      setItems((prev) => [...prev, { id: `q${next}`, role: "ai", text: `**${slots[next].label}**：${slots[next].q}` }]);
       return;
     }
 
@@ -662,7 +668,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     setConfirmPending(false);
     setAnswers({});
     setStep(0);
-    setItems((prev) => [...prev, { id: `editq${Date.now()}`, role: "ai", text: `好的，我们重新填一遍。**${flow.slots[0].label}**：${flow.slots[0].q}` }]);
+    setItems((prev) => [...prev, { id: `editq${Date.now()}`, role: "ai", text: `好的，我们重新填一遍。**${slots[0].label}**：${slots[0].q}` }]);
   }
 
   /**
@@ -788,7 +794,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     resetConversationState();
     setItems([
       { id: "w", role: "ai", text: welcome },
-      { id: "q0", role: "ai", text: `**${flow.slots[0].label}**：${flow.slots[0].q}` }
+      { id: "q0", role: "ai", text: `**${slots[0].label}**：${slots[0].q}` }
     ]);
   }
 
@@ -1222,9 +1228,9 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
               松手即可把文件添加到对话框（文本类 CSV / TXT / MD / JSON 会直接读进需求）
             </div>
           )}
-          {!done && flow.slots.length > 1 && (
+          {!done && slots.length > 1 && (
             <div className="chat-progress">
-              {flow.slots.map((slot, idx) => {
+              {slots.map((slot, idx) => {
                 const answeredCount = items.filter((it) => it.role === "user").length;
                 const state = idx < answeredCount ? "done" : idx === step ? "cur" : "todo";
                 return <span key={slot.key} className={`chat-prog ${state}`}><i>{state === "done" ? "✓" : idx + 1}</i><b>{slot.label.replace(/第\d+\s*轮·?/g, "")}</b></span>;
@@ -1326,7 +1332,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                     )}
                     <table className="report-table">
                       <tbody>
-                        {flow.slots.map((slot) => (
+                        {slots.map((slot) => (
                           <tr key={slot.key}>
                             <td style={{ width: 150, color: "var(--muted)" }}>{slot.label}</td>
                             <td>{answers[slot.key] || "（未填）"}</td>
@@ -1409,9 +1415,9 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                   {voice.message}
                 </div>
               )}
-              {!awaitingSupplement && (flow.slots[step]?.choices?.length ?? 0) > 0 && (
+              {!awaitingSupplement && (slots[step]?.choices?.length ?? 0) > 0 && (
                 <div className="chat-choices">
-                  {flow.slots[step].choices?.map((choice) => (
+                  {slots[step].choices?.map((choice) => (
                     <button key={choice} type="button" className="chat-choice" disabled={busy} onClick={() => void sendChoice(choice)}>{choice}</button>
                   ))}
                 </div>
@@ -1459,7 +1465,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                   disabled={busy || !input.trim()}
                   onClick={() => void send()}
                 >
-                  {busy ? "正在生成…" : awaitingSupplement ? "重新生成" : step < flow.slots.length - 1 ? "下一步" : "确认需求"}
+                  {busy ? "正在生成…" : awaitingSupplement ? "重新生成" : step < slots.length - 1 ? "下一步" : "确认需求"}
                 </button>
               </div>
               </div>
