@@ -2,11 +2,11 @@
 // 用户 2026-09-15 口径：新增一张卡、独立计费。
 // 合同不复制：后端直接读平台正式 Skill `baolu_content_creator`（prompt.md + contract.json）生成与校验。
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
 import { LanqiBrainShell } from "../components/lanqi-brain/LanqiBrainShell.js";
-
-interface StoreInfo { id: string; name: string; city: string | null }
+import { LanqiStoreGateBanner } from "../components/lanqi-brain/LanqiStoreGateBanner.js";
+import { useLanqiStoreGate } from "../lib/use-lanqi-store-gate.js";
 
 const SECTIONS = [
   "一、选题策划",
@@ -63,8 +63,10 @@ function newRequestKey(): string {
 }
 
 export function LanqiAcquireCopyKitPage() {
-  const [stores, setStores] = useState<StoreInfo[]>([]);
-  const [storeId, setStoreId] = useState("");
+  // LQ-35（QA-20260918-001）：门店判定交给 LQ-20 的统一 hook——
+  // 旧写法把门店接口的 403 当「列表为空」吞掉，点生成只回一句「还在加载，稍后再试」，
+  // 把「没开通 / 已到期 / 没权限」说成了「加载中」，老板只能一直重复点。
+  const { gate, storeId, reload } = useLanqiStoreGate("美业文案十件套");
   const [brief, setBrief] = useState("");
   const [platform, setPlatform] = useState("all");
   const [goal, setGoal] = useState("visit");
@@ -80,28 +82,15 @@ export function LanqiAcquireCopyKitPage() {
    */
   const requestKeyRef = useRef<{ key: string; signature: string }>({ key: "", signature: "" });
 
-  useEffect(() => {
-    const token = localStorage.getItem("store_os_token");
-    if (!token) {
-      window.location.replace(getAppPath("/login"));
-      return;
-    }
-    fetch(apiPath("/lanqi/stores"), { headers: authHeaders() })
-      .then((response) => (response.ok ? response.json() : { stores: [] }))
-      .then((body) => {
-        const list: StoreInfo[] = body.stores ?? [];
-        setStores(list);
-        if (list.length) setStoreId((current) => current || list[0].id);
-      })
-      .catch(() => setStores([]));
-  }, []);
-
-  const storeName = useMemo(() => stores.find((item) => item.id === storeId)?.name ?? "", [stores, storeId]);
+  const storeName = gate.kind === "ready" ? gate.storeName : "";
 
   const generate = useCallback(async () => {
     setError("");
     setNotice("");
-    if (!storeId) { setError("门店信息还在加载，请稍后再试一次。"); return; }
+    if (!storeId) {
+      setError(gate.blockedReason || "当前账号还不能生成：先按页面顶部的提示处理，再点一次。");
+      return;
+    }
     if (brief.trim().length < 12) {
       setError("先多写两句：这条内容主推哪个项目 / 套餐、想让谁看到、顾客的痛点是什么（至少 12 个字）。");
       return;
@@ -135,7 +124,7 @@ export function LanqiAcquireCopyKitPage() {
     } finally {
       setBusy("");
     }
-  }, [storeId, brief, platform, goal]);
+  }, [storeId, gate.blockedReason, brief, platform, goal]);
 
   const copyAll = useCallback(async () => {
     if (!content) return;
@@ -163,6 +152,8 @@ export function LanqiAcquireCopyKitPage() {
       <div className="lq-vd__main">
         <section className="lq-vd__left">
           <div className="lq-vd__stage">美业文案十件套 · 说清项目和人群，一次拿全套</div>
+
+          <LanqiStoreGateBanner gate={gate} onRetry={reload} />
 
           <h3 className="lq-vd__card-title">① 这条内容说什么 <span className="tag green">必填</span></h3>
           <p className="lq-vd__card-sub">用你自己的话说清楚就行，不用写成文案：主推什么项目 / 套餐、想让谁看到、顾客最在意或最怕什么。</p>

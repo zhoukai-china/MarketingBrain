@@ -58,6 +58,11 @@ function forbidMatch(source, pattern, name) {
   record(name, !hit, hit ? `仍存在 ${String(pattern)}` : "未出现");
 }
 
+function countOccurrences(source, pattern) {
+  const global = new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`);
+  return (source.match(global) ?? []).length;
+}
+
 // ① 直播话术表单：演示数据不得再作为默认 value
 for (const field of ["host", "main", "sell", "price", "card"]) {
   const setter = `set${field[0].toUpperCase()}${field.slice(1)}`;
@@ -247,6 +252,33 @@ forbidMatch(marketplaceRoute, /const COPY_SYSTEM_PROMPT = \[/, "marketplace：�
 forbidMatch(marketplaceRoute, /function parseCopyTen\(/, "marketplace：本地校验副本已删除（合同唯一出处）");
 requireMatch(copyTenContract, /export const COPY_TEN_SYSTEM_PROMPT/, "contract：共享合同导出提示词");
 requireMatch(copyTenContract, /export function parseCopyTenContract/, "contract：共享合同导出结构校验");
+
+// ⑪ LQ-35（登记 QA-20260918-001）门店读不出来时，不许再说「门店信息还在加载」
+//    现场（2026-09-17 生产，老板本人 6 次）：`GET /os-v2/api/lanqi/stores` 返回 **403**
+//    （该租户没有生效中的兰琪权益，响应体长度 175 与 `product_entitlement_missing|expired` 逐字节对上），
+//    同页 SPA 壳 200、同账号 `/market/me` 与 `/wallet` 也是 200（登录态有效）。
+//    前端把 403 当「门店列表为空」吞掉，点生成只回一句「门店信息还在加载，请稍后再试一次。」——
+//    真实原因（未开通 / 已到期 / 被停用 / 无权限 / 读取失败）与下一步全被掩盖，老板只能一直重复点。
+//    口径：门店读取失败必须**保留后端 code**，交给 LQ-20 的唯一判定（`lanqi-store-gate`）说清原因与出口。
+for (const [label, page] of [["copy-kit", copyKitPage], ["video", videoPage]]) {
+  requireMatch(page, /useLanqiStoreGate\(/, `${label}：门店读取走统一判定 hook（保留后端细分 code）`);
+  requireMatch(
+    page,
+    /<LanqiStoreGateBanner gate=\{gate\} onRetry=\{reload\} \/>/,
+    `${label}：门店不可用时页面渲染原因与出口提示条`
+  );
+  requireMatch(page, /gate\.blockedReason/, `${label}：生成被挡时改用判定给出的真实原因`);
+  forbidMatch(page, /门店信息还在加载/, `${label}：不再把权限 / 读取失败说成「门店信息还在加载」`);
+}
+requireMatch(copyKitPage, /useLanqiStoreGate\("美业文案十件套"\)/, "copy-kit：门禁判定点名本卡功能");
+requireMatch(videoPage, /useLanqiStoreGate\("爆款复刻"\)/, "video：爆款复刻页门禁判定带功能名");
+record(
+  "video：爆款复刻与一键成片两页都挂门禁提示条",
+  countOccurrences(videoPage, /<LanqiStoreGateBanner gate=\{gate\} onRetry=\{reload\} \/>/) === 2,
+  `提示条 ${countOccurrences(videoPage, /<LanqiStoreGateBanner gate=\{gate\} onRetry=\{reload\} \/>/)} 处（应为 2）`
+);
+forbidMatch(copyKitPage, /\.ok \? \w+\.json\(\) : \{ stores: \[\] \}/, "copy-kit：403 不再被当成「门店列表为空」");
+forbidMatch(videoPage, /门店加载失败不阻断页面/, "video：不再静默吞掉门店读取失败（页面必须给原因）");
 
 console.log(`\nlanqi_acquire_ui_contract_smoke: ${failures === 0 ? "PASS" : "FAIL"} (${results.length - failures} passed / ${failures} failed)`);
 process.exit(failures === 0 ? 0 : 1);

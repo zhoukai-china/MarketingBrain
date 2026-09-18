@@ -12,6 +12,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
 import { LanqiBrainShell } from "../components/lanqi-brain/LanqiBrainShell.js";
+import { LanqiStoreGateBanner } from "../components/lanqi-brain/LanqiStoreGateBanner.js";
+import { useLanqiStoreGate } from "../lib/use-lanqi-store-gate.js";
 
 // ────────────────────────────── 常量（与 demo 一一对应） ──────────────────────────────
 
@@ -154,8 +156,6 @@ type ShotRender = {
 };
 
 // ────────────────────────────── 类型与工具 ──────────────────────────────
-
-interface StoreInfo { id: string; name: string; city: string | null }
 
 interface StoryboardShot {
   no: number;
@@ -367,33 +367,14 @@ function FilePick({
 
 export function LanqiAcquireVideoPage() {
   const [mode, setMode] = useState<Mode>(readMode);
-  const [store, setStore] = useState<StoreInfo | null>(null);
   const [notice, setNotice] = useState("");
+  // LQ-35（QA-20260918-001）：门店读取失败不再被静默吞掉，交给统一判定给出原因与出口。
+  const { gate, storeId, reload } = useLanqiStoreGate("爆款复刻");
 
   const flash = useCallback((message: string) => {
     setNotice(message);
     window.setTimeout(() => setNotice((current) => (current === message ? "" : current)), 3200);
   }, []);
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const response = await fetch(apiPath("/lanqi/stores"), { headers: authHeaders() });
-        const body = await readResponse(response);
-        const list: StoreInfo[] = body.stores ?? [];
-        if (alive && list.length) setStore(list[0]);
-      } catch {
-        /* 门店加载失败不阻断页面，单店口径下不弹错误 */
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const storeId = store?.id ?? "";
-  const storeName = store?.name ?? "本店";
 
   /*
    * 0912 一期口径（`2026-09-12-视频获客一期最终范围-Codex交接.md`）：
@@ -405,6 +386,7 @@ export function LanqiAcquireVideoPage() {
     <LanqiBrainShell active="acquire" subtitle={MODE_SUBTITLE.replicate} crumb="/ 公域获客 / 视频获客 / 爆款复刻">
       <div className="lq-vd">
         <a className="lq-vd__back" href={getAppPath("/lanqi/acquire")}>← 返回公域获客</a>
+        <LanqiStoreGateBanner gate={gate} onRetry={reload} />
         <ReplicateMode storeId={storeId} flash={flash} />
         {notice && <p className="lq-vd__toast">{notice}</p>}
       </div>
@@ -421,29 +403,13 @@ export function LanqiAcquireVideoPage() {
  * 第 3–6 步复用下面的 `ScriptMode`（分镜 / 素材卡 / 预算 / 出片），所以它从第 2 步之后接管。
  */
 export function LanqiAcquireVideoCopyPage() {
-  const [store, setStore] = useState<StoreInfo | null>(null);
   const [notice, setNotice] = useState("");
+  // LQ-35（QA-20260918-001）：同上——门店读不出来时页面顶部要说清真实原因。
+  const { gate, storeId, reload } = useLanqiStoreGate("一键成片");
 
   const flash = useCallback((message: string) => {
     setNotice(message);
     window.setTimeout(() => setNotice((current) => (current === message ? "" : current)), 3200);
-  }, []);
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const response = await fetch(apiPath("/lanqi/stores"), { headers: authHeaders() });
-        const body = await readResponse(response);
-        const list: StoreInfo[] = body.stores ?? [];
-        if (alive && list.length) setStore(list[0]);
-      } catch {
-        /* 门店加载失败不阻断页面，单店口径下不弹错误 */
-      }
-    })();
-    return () => {
-      alive = false;
-    };
   }, []);
 
   return (
@@ -454,7 +420,13 @@ export function LanqiAcquireVideoCopyPage() {
     >
       <div className="lq-vd">
         <a className="lq-vd__back" href={getAppPath("/lanqi/acquire")}>← 返回公域获客</a>
-        <OneClickCopyMode storeId={store?.id ?? ""} storeName={store?.name ?? "本店"} flash={flash} />
+        <LanqiStoreGateBanner gate={gate} onRetry={reload} />
+        <OneClickCopyMode
+          storeId={storeId}
+          storeName={gate.kind === "ready" ? gate.storeName : "本店"}
+          blockedReason={gate.blockedReason}
+          flash={flash}
+        />
         {notice && <p className="lq-vd__toast">{notice}</p>}
       </div>
     </LanqiBrainShell>
@@ -1381,7 +1353,18 @@ const COPY_STEPS = ["说需求", "AI 生成文案", "AI 分镜脚本", "传素�
  * 选定一版后交给 `ScriptMode` 从第 3 步（AI 分镜脚本）接管 → 素材卡 → 积分预算 → 成片。
  * 本期没有「手动贴文案」入口；生成失败只能「换一批」或退回第 1 步补信息。
  */
-function OneClickCopyMode({ storeId, storeName, flash }: { storeId: string; storeName: string; flash: (message: string) => void }) {
+function OneClickCopyMode({
+  storeId,
+  storeName,
+  blockedReason,
+  flash
+}: {
+  storeId: string;
+  storeName: string;
+  /** 门店不可用时的真实原因（LQ-35）：页面顶部已显示，这里跟着同一口径，不再说「还在加载」。 */
+  blockedReason: string;
+  flash: (message: string) => void;
+}) {
   const [need, setNeed] = useState("");
   const [style, setStyle] = useState("hook");
   const [dur, setDur] = useState(30);
@@ -1402,7 +1385,7 @@ function OneClickCopyMode({ storeId, storeName, flash }: { storeId: string; stor
         return;
       }
       if (!storeId) {
-        setError("门店信息还在加载，请稍后再试一次。");
+        setError(blockedReason || "当前账号还不能生成：先按页面顶部的提示处理，再点一次。");
         return;
       }
       setError("");
@@ -1427,12 +1410,21 @@ function OneClickCopyMode({ storeId, storeName, flash }: { storeId: string; stor
         setBusy(false);
       }
     },
-    [dur, flash, need, plat, sell, storeId, style]
+    [blockedReason, dur, flash, need, plat, sell, storeId, style]
   );
 
   // 选定一版后：第 3–6 步由分镜流程接管。
   if (chosen) {
-    return <ScriptMode key={chosen.id} storeId={storeId} storeName={storeName} flash={flash} initialScript={chosen.fullText} />;
+    return (
+      <ScriptMode
+        key={chosen.id}
+        storeId={storeId}
+        storeName={storeName}
+        blockedReason={blockedReason}
+        flash={flash}
+        initialScript={chosen.fullText}
+      />
+    );
   }
 
   const stage = candidates.length ? 2 : 1;
@@ -1590,11 +1582,14 @@ function OneClickCopyMode({ storeId, storeName, flash }: { storeId: string; stor
 function ScriptMode({
   storeId,
   storeName,
+  blockedReason,
   flash,
   initialScript = ""
 }: {
   storeId: string;
   storeName: string;
+  /** 门店不可用时的真实原因（LQ-35）：与页面顶部提示条同一口径。 */
+  blockedReason: string;
   flash: (message: string) => void;
   initialScript?: string;
 }) {
@@ -1651,7 +1646,7 @@ function ScriptMode({
   const buildStoryboard = useCallback(async () => {
     setError("");
     if (!script.trim()) { setError("请先选一版文案。"); return; }
-    if (!storeId) { setError("门店信息还在加载，请稍后再试一次。"); return; }
+    if (!storeId) { setError(blockedReason || "当前账号还不能生成：先按页面顶部的提示处理，再点一次。"); return; }
     setBusy("正在按语义断句、切分镜、补生视频提示词…");
     try {
       const response = await fetch(apiPath("/lanqi/acquire/video/storyboard"), {
@@ -1678,7 +1673,7 @@ function ScriptMode({
     } finally {
       setBusy("");
     }
-  }, [script, storeId, styleKey, splitMode, castNames, sceneNames, propNames]);
+  }, [blockedReason, script, storeId, styleKey, splitMode, castNames, sceneNames, propNames]);
 
   /** 一键成片：选定文案后自动出分镜（用户不必再点一次「生成分镜脚本」）。 */
   const autoBuilt = useRef(false);
