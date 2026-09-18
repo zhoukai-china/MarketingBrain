@@ -1,5 +1,23 @@
 # 当前部署状态
 
+## 最新发布：20260918-chat-restart-prod2（2026-09-18，仅生产）— 修「文案智能体（= 所有智能体）输入过程没有『重新开始』」：第三次被回灌后按单文件定点补丁重发 + 两套前端入口同步
+
+用户现场（2026-09-18 14:2x）：`https://api.lcppch.top/os-v2/agent/ipzone__copy/chat` 输入阶段看不到「重新开始」；用户同时要求「**所有智能体在输入过程中都应该有重新开始按钮**」，且怀疑功能被并行发布覆盖。
+
+根因：与 QA-20260917-008 同一条，这是**第三次**被并行叠加发布回灌。生产 `apps/web/src/marketplace/AgentChatPage.tsx`（74833 字节，sha256 `7bebd3d5…`）里 `hasProgress` / `resetConversationState` 均 **0 次**；线上 chunk `MarketplaceApp-B1N0b9jE.js` 里 `↺ 重新开始` / `清空这次填写的内容与已上传文件，从第一轮重新开始` / `好，重新开始` 全部 **0 次**。依赖（`chat-commands.ts`、`chat-flows.ts` 含 `normalizeVidrevPlatform`）都在线上，只缺这一个文件。
+
+处置（只发前端，未碰 `apps/api` / `packages` / `prisma`，未迁移，**未重启服务**）：该文件是生产独有的混合版本、**不在任何 git 分支上**，故不做整文件覆盖，改为「现网文件为基线 + 六处定点补丁」— `isRestartCommand` import、`hasProgress` 常量、`submitAnswer()` 开头整行口令分支（在 `awaitingSupplement` 与视频复盘闸门之前）、`restart()` 拆出 `resetConversationState()`（新增清附件 / 清上传提示）、输入框发送键旁常驻「↺ 重新开始」按钮。补丁后 sha256 `4d6a0ccc…`（77125 字节），与生产现网文件逐字节一致。
+
+覆盖面：19 个货架 SKU 共用 `apps/web/src/marketplace/AgentChatPage.tsx`（`MarketplaceAgentChatPage`），单点修复即覆盖全部智能体；`marketplace:chat-restart-smoke` 保留「页面必须引用 `MarketplaceAgentChatPage`」断言守住这个约定。
+
+双入口同步（生产有两套前端产物）：`/os-v2/` → `apps/web/dist`（`VITE_BASE_PATH=/os-v2/`，新入口 `assets/index-1G3wQwNx.js` → `assets/MarketplaceApp-DwBj2bTz.js`）；`https://ai.lcppch.top/` → `apps/web/dist-ai-root`（`scripts/build-ai-root.sh`，新入口 `assets/index-jXAWLKZH.js` → `assets/MarketplaceApp-DUnqsu3p.js`）。为不影响在途用户，旧 chunk 用 `cp -rn` 叠加保留（asset 数 3007）；`skill_key.html` 被构建 `emptyOutDir` 清掉后已从备份恢复，外链复验 200。
+
+验收：两套线上 chunk 直接命中 `重新开始`（7 次，含按钮与口令回复）/ `清空这次填写的内容与已上传文件`（title，1 次）；`pnpm.cmd marketplace:chat-restart-smoke` → `MARKETPLACE_CHAT_RESTART_PASS`（`restartCommands=11`、`nonCommands=6`、`attachmentsClearedOnRestart=true`、`resetBeforeVidrevGate=true`）；`DEPLOY_CHECK_WEB_URL=https://api.lcppch.top/os-v2 node scripts/deployed-marketplace-browser-check.mjs` → PASS（货架 / 积分口径 / 无人民币换算 / 详情页包月 / 控制台无错误）；`/os-v2/agent/ipzone__copy/chat` 与 `https://ai.lcppch.top/` 均 **200**。
+
+发布纪律（第三次同一坑，硬约束）：`AgentChatPage.tsx` 不在 git 上，任何 web 叠加发布若把它算作「非交付文件」回灌，都会再次覆盖本修复。下一次发 web 必须把它列进交付清单，并在发布后抓线上 chunk 断言「↺ 重新开始」字样。
+
+备份 / 回滚：`/opt/baolu-backups/20260918-chat-restart-prod2/`（`AgentChatPage.tsx.before`（74833 字节）+ `web-dist-before.tar.gz` + `web-dist-ai-root-before.tar.gz` + `dist-hashes-before.txt` + `dist-ai-root-hashes-before.txt` + `entry-before.txt`）；回滚 = 还原两套 dist 与该源文件，静态还原即可，无需重启。
+
 ## 最新发布：20260917-lq-invite-removal（2026-09-17/18，测试实例 + 生产）— 取消兰琪邀请码制度，产品入口不再强制邀请码【已闭环】
 
 用户口径（2026-09-17）：「先取消兰琪的邀请码制度，等后面需要再增加邀请码功能」。
