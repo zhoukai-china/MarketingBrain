@@ -12,16 +12,29 @@
 - 并发编码任务最多 2 个；公共热点文件（routes、schema、`packages/*` index 等）重叠时
   停止并行，改为串行合并 + 回归。
 
+## 位置与磁盘
+
+- 主源码仓库：`F:\思潼AI增长os\baolu-os-v2-source`（唯一开发主目录）。
+- app 自动创建的工作树：`C:\Users\book\.codex\worktrees\<hash>\baolu-os-v2-source`，
+  只是源码 checkout（约几十 MB），不含依赖。
+- 依赖走 pnpm store `F:\.pnpm-store` —— 包体数据在 F 盘，工作树里 `pnpm install`
+  不会把依赖复制到 C 盘。
+- 若要让工作树目录本身也落到 F 盘：在没有活动工作树时，把
+  `C:\Users\book\.codex\worktrees` 改成指向 F 盘的**目录联接（junction）**；
+  有活动工作树时先别动。
+
 ## 开一个新任务
 
-在源码仓库根目录执行：
+Codex 桌面版新建任务自带「新建本地工作树」，**工作树由 app 自动创建**。标准流程：
 
-```powershell
-git worktree add ../worktrees/<任务代号> -b codex/<任务代号>
-```
-
-新 Codex 任务的工作目录指向 `git worktree list` 里该任务对应的绝对路径
-（例如 `F:\思潼AI增长os\worktrees\<任务代号>`），不要指向主源码目录。
+1. 调度者在主仓库判断归属、定任务编号（如 `PLAT-48`），确认 `main` 干净、无并行冲突。
+2. 用户在 app 新建任务，环境选「新建本地工作树」，把需求发进去。
+3. **建完立刻核对**（调度者执行）：
+   - `git worktree list` 里该任务有独立工作树，且**不在**主源码目录上；
+   - app 默认给的是游离 HEAD，把它绑到命名分支：
+     `git -C <worktree 绝对路径> checkout -B codex/<任务代号>`
+     （绑定前后提交点与文件都不变，只让后续提交落到命名分支上）。
+4. 之后该任务的提交都落在 `codex/<任务代号>`。
 
 ## 收尾与合并
 
@@ -30,8 +43,8 @@ git worktree add ../worktrees/<任务代号> -b codex/<任务代号>
 git merge codex/<任务代号>
 
 # 任务完成、分支已合并后，先确认无未提交改动再删除
-git -C ../worktrees/<任务代号> status --short   # 应为空
-git worktree remove ../worktrees/<任务代号>
+git -C <worktree 绝对路径> status --short   # 应为空
+git worktree remove <worktree 绝对路径>
 git branch -d codex/<任务代号>
 ```
 
