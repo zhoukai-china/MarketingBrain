@@ -13,6 +13,7 @@
 // 唯一账本 = 用户钱包（`Wallet` / `WalletLedger`，与思潼 AI 货架同一本）；
 // 兰琪不再写 `CreditAccount`（历史额度由 LQ-34 的一次性迁移搬进钱包，见任务卡）。
 import { prisma } from "@baolu/db";
+import { settleMarketPartnerCommission } from "./market-partner-commission.js";
 import {
   consumeWalletCredits,
   getOrCreateWallet,
@@ -148,6 +149,18 @@ export async function chargeLanqiWallet(params: {
   });
   if (consumed.status === "insufficient") {
     return { status: "insufficient", ownerUserId: owner.ownerUserId, wallet: consumed.wallet, required: params.credits };
+  }
+  if (consumed.spent.paid > 0 && !params.db) {
+    void settleMarketPartnerCommission({
+      tenantId: params.tenantId,
+      userId: owner.ownerUserId,
+      spentPaid: consumed.spent.paid,
+      refType: "lanqi_wallet",
+      refId: params.requestId,
+      idempotencyKey: `market-partner:lanqi:${refRequestId}`
+    }).catch(() => {
+      // best-effort：兰琪主流程不受佣金结算失败影响。
+    });
   }
   return {
     status: "completed",

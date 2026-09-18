@@ -2477,6 +2477,190 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 - 发布（详情页包月补丁）：生产 `20260917-plat48-copy-monthly-detail-prod1`（归档 `release-20260917-plat48-copy-monthly-detail.tar.gz`，sha256 `43a59529c6af5c000369b12f3d67ffbd74647a0b74f9059674f6cb4da69add6a`）；服务器侧 `DEPLOY_OK`、`health=200 (after 15s)`、`No pending migrations`。发布日志里**没有** `VERIFY_OK` 行（该次只跑了部署链），事后补跑 `verify-deploy.sh` 除 `public_web`（裸 `/os-v2` 被 nginx 302 归一成 `/os-v2/`，浏览器自动跟随，非本次引入、也非产品缺陷）外全 PASS——详见 `docs/CURRENT_DEPLOYMENT_STATUS.md`。
 - 最后更新日期：2026-09-17
 
+## PLAT-48 市场合伙人分销系统
+
+状态：三批本地实现完成 + 真实 PG DB smoke 全通过（2026-09-18）；待上线（迁移 002/003 需部署）
+
+### 归属
+
+- 产品：公共平台（市场合伙人渠道分润 / 财务结算 / 分销后台）。
+- 层级：动钱（把平台收入的一部分分出去）。
+- 风险：高。
+- 是否允许并行：否（与货架计费、钱包账本、充值订单、注册链路同源）。
+
+### 用户结果
+
+市场合伙人用自己的专属链接把客户带来；客户经链接注册并被引导进入直播间了解智能体用法；合伙人能在分销后台看到自己带来的客户——谁注册了、充值多少、消耗多少、自己拿多少分成佣金。分成为客户「已消耗付费积分」的 20%。
+
+### 已确认口径（2026-09-18 老板拍板）
+
+1. 分润基数 = 每笔成功扣费里的 `spent.paid`（只有用户充值进来的付费桶消耗参与分成）。
+2. `bonus` / 赠送积分 / 体验额度的消耗**不参与**市场合伙人分成。
+3. 暂时全线统一 20%（含视频线），后续若要按文字 / 图片 / 视频分线再改。
+4. 已知视频线当前毛利约 50%，20% 分润后平台保留约 30%，跌破「分润后平台保留毛利 ≥40%」地板——老板明确接受暂时按 20% 统一，视频线地板问题留待以后分线时处理。
+5. 折算：paid 桶恒为 ¥0.05/积分，`spent.paid × 20%` 即佣金积分（结算时再按 ¥0.05 或积分记账，见第②批）。
+
+### 三批拆分（一批一件事，逐批验收）
+
+- 第①批 归因打通：专属链接 → 注册绑定市场合伙人。
+- 第②批 结算任务：按 `spent.paid × 20%` + 冻结期 + 幂等 / 冲正。
+- 第③批 只读分销后台：谁注册 / 充值多少 / 消耗多少 / 佣金多少。
+
+### 第①批 归因打通
+
+#### 本次范围
+
+- 管理员创建「市场合伙人」（内部复用 `Distributor`，对外只叫市场合伙人），签发其专属 `ShareLink`。
+- 专属链接形如 `<PUBLIC_WEB_BASE_URL>/login?partner=<code>`。
+- 客户经该链接注册 / 开通工作区时，服务端在注册事务提交后落一条 `DistroCustomer`（customerType=tenant），把客户绑定到该合伙人；`ShareLink.registerCount` 递增。
+- 归因 best-effort：无效 / 过期 / 停用 / 自荐 / 重复只拒绝归因，**绝不阻断注册**（与 PLAT-28 推荐归因同一契约）。
+
+#### 本次不做
+
+- 不发任何佣金、不写 `DistroCommissionLog`、不接冻结期 / 结算（第②批）。
+- 不做合伙人自助注册 / 自助生成链接（本批为管理员代建；老板 2026-09-18 已确认「要」自助生成链接，单列为后续批次）。
+- 不做分销后台页面（第③批）。
+- 不把合伙人链接与推荐有礼 `?ref=` 混为一谈（两个参数、两套归因，互不影响）。
+
+#### 实现记录
+
+- 新增 `apps/api/src/services/market-partner.ts`：`createMarketPartner` / `listMarketPartners` / `bindMarketPartnerForNewUser`（归因 best-effort，注册事务提交后落 `DistroCustomer` 并 `ShareLink.registerCount +1`）。
+- `auth.ts` 三处注册 / 开通链路透传 `partnerCode` 并调归因；`auth-schemas.ts` 三个 schema 接收 `partnerCode`。
+- `admin.ts` 新增 `POST/GET /admin/market-partners`（管理员代建 + 列表，`requireAdminToken`）。
+- 前端 `main.tsx` / `LoginPage.tsx` / `WeChatCallback.tsx` + `pending-partner.ts` 跨 webview 携带 `?partner=`。
+
+#### 验证
+
+- `pnpm.cmd --filter @baolu/api typecheck` / `--filter @baolu/web typecheck`：PASS。
+- `pnpm.cmd market-partner:contract-smoke`：PASS（含第①批接线契约）。
+- `pnpm.cmd market-partner:attribution-smoke`：PASS（10 passed，真实本地 PG）。
+
+#### 验收条件（第①批）
+
+1. 正常路径：管理员创建合伙人并拿到专属链接；带 `?partner=<有效码>` 完成注册 → `DistroCustomer` 落库（customerType=tenant、customerId=新租户、distributorId=合伙人）、`ShareLink.registerCount +1`。
+2. 失败路径：空码 / 无效码 / 过期 / 停用链接 / 停用合伙人 / 自荐（合伙人自己用自己链接注册）→ 返回明确状态且**注册照常成功**、零 `DistroCustomer` 写入。
+3. 不应发生：归因失败把已创建的工作区回滚；同一客户同一合伙人重复绑定产生第二行；跨租户 / 跨合伙人错绑；生产出现「分销商」文案（沿用 `platform:route-contract-smoke`）。
+4. 可观测：管理员可列出合伙人及其链接、`registerCount`、已绑定客户数；绑定的 `source=market_partner_link`。
+
+### 第②批 结算任务（本地实现完成 + DB smoke 通过，2026-09-18）
+
+#### 口径
+
+- 触发点：货架 / 兰琪 / MCP 任意成功扣费，取其 `spent.paid`。
+- 佣金 = `spent.paid × 20%`；`spent.bonus` 一律不计。**入账单位按既有 `Distributor` / `DistroCommissionLog` 的人民币口径存「元」**：1 paid 积分 = ¥0.05，20% = ¥0.01 = 1 分，故佣金(元) = `spentPaid / 100`。
+- 冻结期：建议 7 天（覆盖退款 / 免费重做窗口，按 `CommissionRule.unfreezeDays` 或独立常量），到期自动解冻。
+- 幂等：同一账本记录只结算一次；退款冲正已冻结 / 已解冻佣金。
+
+#### 实现记录
+
+- 新增 `apps/api/src/services/market-partner-commission.ts`：`settleMarketPartnerCommission`（幂等结算 + 冻结）、`reverseMarketPartnerCommission`（冲正）、`unfreezeDuePartnerCommissions`（到期解冻）。
+- 迁移 `202609180002_distro_commission_idempotency`：`DistroCommissionLog.idempotencyKey` 唯一。
+- 已接扣费钩子：货架 `runMarketplaceSku`、货架 `ppu_consume`、货架订阅 `subscription_charge`、兰琪 `chargeLanqiWallet`。
+- 已接入的路径都是 `best-effort`：佣金结算失败不影响客户生成 / 扣费主流程。
+- 遗留（暂不接）：legacy WorkBuddy MCP `agentId` 通道的 settle（`settleWalletReservation`）在共享事务内结算，需另做 `InTx` 变体；当前没有市场合伙人引入的客户走该通道，留待真实需求出现时单独补。
+
+#### 验证
+
+- `pnpm.cmd --filter @baolu/api typecheck` / `--filter @baolu/web typecheck`：PASS。
+- `pnpm.cmd market-partner:contract-smoke`：PASS（含第②批接线契约）。
+- `pnpm.cmd market-partner:commission-smoke`：PASS（11 passed，真实本地 PG）。
+
+#### 验收条件（第②批）
+
+1. 正常路径：一笔成功扣费按 `spent.paid × 20%` 写 `DistroCommissionLog` 并累计到合伙人 `frozenAmount`；重复结算不重复计。
+2. 失败路径：纯 `bonus` 消耗 / 免费重做 / 失败未扣费 / 退款订单不产生佣金；退款后已产生佣金可冲正。
+3. 不应发生：把 `bonus` 当付费积分分出去；把未消耗余额当收入分出去；跨租户 / 跨合伙人错算；同一记录重复加钱。
+4. 可观测：月度对账表（客户、SKU 线、消耗 paid 积分、比例、金额、冻结 / 解冻状态）与钱包账本逐笔对得上。
+
+### 第③批 只读分销后台（本地实现完成 + DB smoke 通过，2026-09-18）
+
+#### 验收条件
+
+1. 合伙人视角：看到自己的客户列表（谁注册、充值多少、消耗多少、佣金多少、冻结 / 可提现），不能看到其他合伙人或平台全量数据。
+2. 平台视角：管理员看到全部合伙人的汇总。
+3. 不应发生：跨合伙人读取他人客户；把合伙人自己的敏感信息（微信 openid 等）回给不相关方。
+
+#### 实现记录
+
+- 新增 `apps/api/src/services/market-partner-dashboard.ts`：`readPartnerDashboard`（合伙人自看）与 `readAdminMarketPartnerDashboard`（平台汇总）。
+- `marketplace.ts` 新增 `GET /market/me/partner-dashboard`（登录态，只读当前用户自己的合伙人数据）。
+- `admin.ts` 新增 `GET /admin/market-partner-dashboard`（管理员令牌，只读全量合伙人汇总）。
+- `MinePage.tsx` 新增「市场合伙人后台」卡片：可提现 / 冻结 / 累计佣金 + 客户表（充值积分、消耗积分、佣金）。
+- `AdminConsolePage.tsx` 新增「市场合伙人」板块（平台视角只读汇总）。
+- 迁移 `202609180003_distro_commission_tenant`：`DistroCommissionLog.tenantId` 用于按客户对账。
+
+#### 验证
+
+- `pnpm.cmd --filter @baolu/api typecheck` / `--filter @baolu/web typecheck`：PASS。
+- `pnpm.cmd market-partner:contract-smoke`：PASS（含第③批接线契约）。
+- `pnpm.cmd market-partner:dashboard-smoke`：PASS（7 passed，真实本地 PG）。
+
+### 交接
+
+- PLAT-26 的「市场合伙人分润冻结」自本卡起解除（口径已由老板拍板，见上）。
+- 后续任务（已确认）：市场合伙人自助生成专属链接（不再只靠管理员代建），单独列批次；需要先定合伙人的身份 / 角色与自助入口的鉴权边界。
+- 本卡第①批交付后更新 `docs/CURRENT_DEPLOYMENT_STATUS.md` 与 `TEST_PLAN.md` 对应条目。
+- 最后更新日期：2026-09-18
+
+## PLAT-49 市场合伙人自助生成专属链接
+
+状态：本地实现完成 + 真实 PG DB smoke 全通过（2026-09-18）；待上线（迁移 001 需部署）
+
+### 归属
+
+- 产品：公共平台（市场合伙人身份 + 自服务入口）。
+- 层级：平台（本卡只建身份 / 发链接，不发佣金、不动钱）。
+- 风险：中——涉及身份与角色边界，避免「人人都能自封合伙人拿佣金」。
+
+### 用户结果
+
+市场合伙人登录后，在「我的」页自助生成 / 查看自己的专属链接和二维码；新客户经链接注册后自动归因到该合伙人（复用 PLAT-48 第①批的 `bindMarketPartnerForNewUser`）。不需要管理员手工代建。
+
+### 本次范围
+
+- 新增 `GET/POST /market/me/partner-link`（身份取服务端验签会话），复用 PLAT-38 自服务链接的安全模型：链接服务端按 `PUBLIC_WEB_BASE_URL` 生成、支持 `regenerate`、明文只在签发时返回一次。
+- 首次生成时按当前用户懒创建并绑定 `Distributor`（已存在则复用），再签发 `ShareLink`。
+- 前端「我的」页增加「市场合伙人专属链接」卡片（含二维码）；资格开关未开时整卡不渲染，接口同样 fail-closed。
+
+### 本次不做
+
+- 不发佣金、不写结算、不接分销后台（PLAT-48 第②③批）。
+- 不做合伙人资质审批流（先按「管理员授予资格」fail-closed，见待确认）。
+
+### 已确认口径（老板 2026-09-18）
+
+- 谁有资格自助生成：**管理员先授予「市场合伙人」资格（fail-closed）**；未授予的用户调接口返回 403 `partner_self_service_forbidden`，前端整卡不渲染。
+- 不做完整审批流，只加资格开关（`MarketPartnerGrant`）。
+
+### 实现记录
+
+- Prisma 新增 `MarketPartnerGrant`（`userId @id` + 授权人），迁移 `202609180001_market_partner_grant`。
+- 新增 `apps/api/src/services/market-partner-self-service.ts`：`hasMarketPartnerGrant` / `readSelfPartnerLink` / `issueSelfPartnerLink`；首次生成懒建 `Distributor`（按当前用户 + 当前租户），`ShareLink` 明文落库所以「重复进入复用同一链接」，`regenerate` 才发新码。
+- `marketplace.ts` 新增 `GET/POST /market/me/partner-link`（登录态 + 资格 fail-closed）。
+- `admin.ts` 新增 `POST /admin/market-partner-grants`（授予）、`DELETE /admin/market-partner-grants/:userId`（撤销）、`GET /admin/market-partner-grants`（列表）。
+- `MinePage.tsx` 新增「市场合伙人专属链接」卡片（含二维码 / 复制 / 再生成），未授予资格不渲染。
+
+### 验证
+
+- `pnpm.cmd --filter @baolu/api typecheck`、`--filter @baolu/web typecheck`：PASS。
+- `pnpm.cmd market-partner:contract-smoke`：PASS（含 PLAT-49 接线契约）。
+- `pnpm.cmd market-partner:self-service-smoke`：PASS（10 passed，真实本地 PG）。
+- `pnpm.cmd market-partner:grant-admin-smoke`：PASS（15 passed，真实本地 PG）。
+- `pnpm.cmd market-partner:attribution-smoke`：PASS（10 passed，真实本地 PG，复用 PLAT-48 归因）。
+
+### 验收条件
+
+1. 正常路径：被授予资格的用户进入「我的」页 → 生成 / 查看专属链接 + 二维码；链接指向 `/login?partner=<code>`；重复进入复用同一链接，`regenerate` 生成新链接且旧链接仍有效。
+2. 失败路径：未授予资格的用户调接口返回 403 `partner_self_service_forbidden` 且前端不渲染入口；无效 / 过期 / 停用链接注册照常成功但不归因（复用 PLAT-48 契约）。
+3. 不应发生：未授权用户能自封合伙人；明文码被重复回显；链接跨用户 / 跨租户串号；生产出现「分销商」。
+4. 可观测：`Distributor.userId` = 当前用户，`ShareLink` 挂在对应 `Distributor` 下，`source=self_service` 可对账。
+
+### 交接
+
+- 依赖 PLAT-48 第①批的 `bindMarketPartnerForNewUser`；两卡都需在真实测试库跑一遍 DB smoke 后再放行。
+- 上线前需要把迁移 `202609180001_market_partner_grant` 部署并复核 `prisma migrate status`。
+- 最后更新日期：2026-09-18
+
 ## PLAT-46 WorkBuddy MCP 双账本打通：钱包优先扣费 + 遗留租户账本兜底（用户 2026-09-17）
 
 状态：**已完成**（本地全绿；发布状态见本卡「交接」）
@@ -2621,7 +2805,7 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 | 项 | 状态 | 卡在哪 |
 | --- | --- | --- |
 | PLAT-23 积分 ↔ 人民币 ↔ 成本换算常量口径统一 | **阻塞** | 待用户拍板口径（三选一），未动代码 |
-| PLAT-26 市场合伙人分润口径与结算 | **待确认** | 待用户给分润比例；`PARTNER_SHARE_PERCENT` 未定前返回 `null`，不臆造 |
+| PLAT-26 市场合伙人分润口径与结算 | **已由 PLAT-48 取代** | 2026-09-18 老板拍板 20% 统一口径，冻结解除，见 PLAT-48/49 卡 |
 | PLAT-28 推荐有礼第②③批 | 未开工 | 第①批已上线；②（按配置发双向奖励）、③（推荐明细后台）未启动 |
 | PLAT-30 发布流水线防覆盖 | 已排期 | 用户拍板「等 PLAT-28 第②批之后再做」（要独占改共用发布脚本） |
 | PLAT-32 平台底座抽取 | 基本完成 | 剩 `auth.ts` 巨型 `registerAuthRoutes` 拆分，建议单列任务 |
@@ -2630,5 +2814,7 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 | PLAT-45 三条计费口径（IP 定位固定 400 / A+图片放开 / 文案包月） | **已完成 + 已上生产** | 详情页包月入口已补做并上线（`20260917-plat48-copy-monthly-detail-prod1`）；剩「用户登录后真开通一次包月 → 连生成 2 次不扣分 → 第 6 次被拒」的人工实测 |
 | PLAT-46 WorkBuddy MCP 双账本打通（钱包优先 + 租户账本兜底） | **已完成**（本地全绿） | 待 WorkBuddy 客户端真机发一次 `sitong.ask` 复核 |
 | PLAT-47 WorkBuddy 接入货架已上架 SKU（sitong.skills/ask 改走 marketplace 计费与执行） | **已完成 + 已上生产** | 计费口径选 A（与货架同价同账），用户已确认；客户端真机调用待用户复核 |
+| PLAT-48 市场合伙人分销系统（归因 + 结算 + 只读分销后台） | **本地完成（DB smoke 全绿）** | 待上线：迁移 `002`/`003` 部署 + 生产真机验证；佣金 20% 仅在已绑定合伙人客户触发 |
+| PLAT-49 市场合伙人自助生成专属链接 | **本地完成（DB smoke 全绿）** | 待上线：迁移 `001`（`MarketPartnerGrant`）部署 + 生产真机验证；资格 fail-closed |
 
 - 最后更新日期：2026-09-17

@@ -14,6 +14,8 @@ export const devLoginSchema = z.object({
   productCode: productLoginCodeSchema.optional(),
   // PLAT-28：推荐有礼推荐码（`/login?ref=xxx` 带过来）。无效/重复只拒绝归因，不影响开通。
   referralCode: z.string().trim().max(200).optional(),
+  // PLAT-48：市场合伙人专属链接码（`/login?partner=xxx` 带过来）。无效/重复只拒绝归因，不影响开通。
+  partnerCode: z.string().trim().max(200).optional(),
 });
 
 export const betaLoginSchema = z.object({
@@ -31,6 +33,8 @@ export const betaLoginSchema = z.object({
   productCode: productLoginCodeSchema.optional(),
   // PLAT-28：推荐有礼推荐码；缺省或非法都不阻断注册，只是不产生归因。
   referralCode: z.string().trim().max(200).optional(),
+  // PLAT-48：市场合伙人专属链接码；缺省或非法都不阻断注册，只是不产生归因。
+  partnerCode: z.string().trim().max(200).optional(),
 });
 
 export const productInviteValidationSchema = z.object({
@@ -66,6 +70,8 @@ export const onboardingWorkspaceSchema = z.object({
   inviteCode: z.string().optional(),
   // PLAT-28：推荐有礼推荐码（微信授权 → 补资料 → 开通工作区这条路上带的码）。
   referralCode: z.string().optional(),
+  // PLAT-48：市场合伙人专属链接码（微信授权 → 补资料 → 开通工作区这条路上带的码）。
+  partnerCode: z.string().optional(),
   productCode: productLoginCodeSchema.optional(),
   diagnosisReport: diagnosisReportSchema.optional()
 });

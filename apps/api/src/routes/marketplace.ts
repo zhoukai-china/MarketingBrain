@@ -38,6 +38,9 @@ import {
   listReferralCodesOfOwner
 } from "../services/referral-attribution.js";
 import { issueSelfReferralLink, readSelfReferralLink } from "../services/referral-self-service.js";
+import { issueSelfPartnerLink, readSelfPartnerLink } from "../services/market-partner-self-service.js";
+import { settleMarketPartnerCommission } from "../services/market-partner-commission.js";
+import { readPartnerDashboard } from "../services/market-partner-dashboard.js";
 import {
   consumeWalletCredits,
   getOrCreateWallet,
@@ -720,6 +723,19 @@ export async function runMarketplaceSku(params: {
       spent = consumed.spent;
     }
 
+    if (spent.paid > 0) {
+      void settleMarketPartnerCommission({
+        tenantId: context.tenantId,
+        userId: context.userId,
+        spentPaid: spent.paid,
+        refType: coveredBySubscription ? "marketplace_subscription_usage" : "marketplace_run",
+        refId: coveredBySubscription ? (activeSubscription?.id ?? requestId) : requestId,
+        idempotencyKey: `market-partner:run:${requestId}`
+      }).catch(() => {
+        // 佣金结算 best-effort：失败不影响客户这次生成，账本由幂等键兜底可重试。
+      });
+    }
+
     await prisma.marketplaceLedgerEntry.create({
       data: {
         tenantId: context.tenantId,
@@ -1012,6 +1028,48 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
       }
       const regenerate = Boolean((request.body as { regenerate?: unknown } | undefined)?.regenerate);
       return await issueSelfReferralLink({ userId: context.userId, regenerate });
+    });
+
+    // PLAT-49（老板 2026-09-18）：市场合伙人自助生成专属链接。
+    // 身份取服务端验签会话；未授予「市场合伙人」资格时 fail-closed（forbidden），不暴露资格开关细节。
+    market.get("/me/partner-link", async (request, reply) => {
+      let context;
+      try {
+        context = await resolveRequestContext(request.headers);
+      } catch {
+        return reply.code(401).send({ error: "login_required", message: "请先登录后再查看市场合伙人专属链接。" });
+      }
+      const view = await readSelfPartnerLink({ userId: context.userId, tenantId: context.tenantId });
+      if (view.state === "forbidden") {
+        return reply.code(403).send({ error: "partner_self_service_forbidden", message: view.hint });
+      }
+      return view;
+    });
+
+    market.post("/me/partner-link", async (request, reply) => {
+      let context;
+      try {
+        context = await resolveRequestContext(request.headers);
+      } catch {
+        return reply.code(401).send({ error: "login_required", message: "请先登录后再生成市场合伙人专属链接。" });
+      }
+      const regenerate = Boolean((request.body as { regenerate?: unknown } | undefined)?.regenerate);
+      const view = await issueSelfPartnerLink({ userId: context.userId, tenantId: context.tenantId, regenerate });
+      if (view.state === "forbidden") {
+        return reply.code(403).send({ error: "partner_self_service_forbidden", message: view.hint });
+      }
+      return view;
+    });
+
+    // PLAT-48 第③批：市场合伙人自己的只读分销后台（身份取服务端验签会话，只能看自己的客户）。
+    market.get("/me/partner-dashboard", async (request, reply) => {
+      let context;
+      try {
+        context = await resolveRequestContext(request.headers);
+      } catch {
+        return reply.code(401).send({ error: "login_required", message: "请先登录后再查看市场合伙人后台。" });
+      }
+      return await readPartnerDashboard({ userId: context.userId, tenantId: context.tenantId });
     });
 
     market.post("/ppu/consume", async (request, reply) => {
@@ -1503,9 +1561,10 @@ async function subscribeMarketplaceSkuWithCredits(
     });
   }
 
+  const subscriptionRequestId = `marketplace_subscription:${randomUUID()}`;
   const consumed = await consumeWalletCredits({
     userId: context.userId,
-    requestId: `marketplace_subscription:${randomUUID()}`,
+    requestId: subscriptionRequestId,
     price,
     skillId: sku.skuCode,
     source: "marketplace"
@@ -1557,6 +1616,18 @@ async function subscribeMarketplaceSkuWithCredits(
       }
     }
   });
+  if (consumed.spent.paid > 0) {
+    void settleMarketPartnerCommission({
+      tenantId: context.tenantId,
+      userId: context.userId,
+      spentPaid: consumed.spent.paid,
+      refType: "marketplace_subscription",
+      refId: subscription.id,
+      idempotencyKey: `market-partner:subscription:${subscription.id}`
+    }).catch(() => {
+      // best-effort：订阅主流程不受佣金结算失败影响。
+    });
+  }
   return {
     dataMode: "database",
     applied: true,
@@ -1673,6 +1744,18 @@ async function consumeMarketplacePpu(
       refId: idempotencyKey
     }
   });
+  if (consumed.spent.paid > 0) {
+    void settleMarketPartnerCommission({
+      tenantId: context.tenantId,
+      userId: context.userId,
+      spentPaid: consumed.spent.paid,
+      refType: "marketplace_ppu_consume",
+      refId: idempotencyKey,
+      idempotencyKey: `market-partner:ppu:${idempotencyKey}`
+    }).catch(() => {
+      // best-effort：主流程不受佣金结算失败影响。
+    });
+  }
   return { state: "completed", balance: consumed.wallet.balance, idempotent: consumed.idempotent };
 }
 

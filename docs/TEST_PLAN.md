@@ -64,6 +64,7 @@ pnpm qa:full
 - [ ] 邀请码正常兑换；重复、过期、无效和并发兑换行为正确。
 - [ ] 统一注册链接（PLAT-34）：`/login?ref=…` 无邀请码可直接注册；**只有兰琪**入口要求邀请码；任何入口带无效码 403；推荐归因保留且归因失败不阻断注册（`pnpm.cmd auth:invite-gate-smoke`）。
 - [ ] 推荐归因（PLAT-28）：带推荐码注册落唯一归因（推荐人 + 被推荐人 + 绑定时间），重复/自荐/无效码只拒绝归因、不阻断注册，无码注册不受影响；第①批不发奖励。
+- [ ] 市场合伙人归因（PLAT-48 第①批）：带 `?partner=<有效码>` 注册落唯一 `DistroCustomer`（customerType=tenant）并 `ShareLink.registerCount +1`；空码/无效/过期/停用/自荐只拒绝归因、不阻断注册；`source=market_partner_link`（`pnpm.cmd market-partner:attribution-smoke`）。
 - [ ] 租户 A 无法读取、修改或推断租户 B 的会话、文件、任务、订单、积分、品牌和 Agent 运行。
 - [ ] 不同 Agent 会话不会串联。
 - [ ] 权限不足返回明确错误，不泄露内部数据。
@@ -166,6 +167,9 @@ pnpm agent:zhenshui-pilot-smoke
 - [ ] 生产禁止 mock-pay；测试订单与真实订单明确区分。
 - [ ] 订单、积分流水和权益变更保持可审计、租户隔离和幂等。
 - [ ] 人工体验额度发放默认停用（`403 trial_grant_disabled`、零写入、历史流水只读），后台开关放行后原契约（鉴权/上限/幂等/dry-run/资金落点）不变。
+- [ ] 市场合伙人佣金（PLAT-48 第②批）：成功扣费按 `spent.paid × 20%` 写 `DistroCommissionLog` 并冻结 7 天；`bonus`/赠送/体验不计；幂等不重复加钱；退款冲正、到期解冻（`pnpm.cmd market-partner:commission-smoke`）。
+- [ ] 市场合伙人只读分销后台（PLAT-48 第③批）：合伙人只看自己的客户/充值/消耗/佣金，管理员看全量汇总，跨租户/跨合伙人不可读（`pnpm.cmd market-partner:dashboard-smoke`）。
+- [ ] 市场合伙人自助链接资格（PLAT-49）：管理员授予资格 fail-closed，未授予 403 `partner_self_service_forbidden` 且前端不渲染入口（`pnpm.cmd market-partner:self-service-smoke` / `market-partner:grant-admin-smoke`）。
 - [ ] 微信配置检查、预下单和回调按测试环境单独验收。
 
 相关命令：

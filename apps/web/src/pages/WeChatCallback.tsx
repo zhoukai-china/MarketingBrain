@@ -6,6 +6,7 @@ import { clearPendingWeChatBridge, readPendingWeChatBridge } from "../lib/wechat
 import { markExistingUserReferralNotice } from "../lib/referral-notice.js";
 import { readPendingReferral } from "../lib/pending-referral.js";
 import { rememberPendingReferral } from "../lib/pending-referral.js";
+import { readPendingPartner, rememberPendingPartner } from "../lib/pending-partner.js";
 
 interface WeChatCallbackProps {
   onLogin: (result: LoginResult) => void;
@@ -40,10 +41,13 @@ export default function WeChatCallback({ onLogin }: WeChatCallbackProps) {
         sessionStorage.removeItem("wechat_oauth_state");
         sessionStorage.removeItem("wechat_tenant_hostname");
         sessionStorage.removeItem("store_os_product_login_code");
-        // 推荐码由微信 state 原样带回（格式：`<uuid>|<ref>`）：即使 URL 或存储中途丢了，
-        // 这里也能重新种回去，保证补资料提交时还带着码。
-        const referralFromState = state.includes("|") ? state.slice(state.indexOf("|") + 1).trim() : "";
+        // 推荐码 / 合伙人码由微信 state 原样带回（格式：`<uuid>|<ref>|<partner>`）：即使 URL
+        // 或存储中途丢了，这里也能重新种回去，保证补资料提交时还带着码。
+        const stateParts = state.split("|");
+        const referralFromState = (stateParts[1] ?? "").trim();
+        const partnerFromState = (stateParts[2] ?? "").trim();
         if (referralFromState) rememberPendingReferral(referralFromState);
+        if (partnerFromState) rememberPendingPartner(partnerFromState);
 
         if (!code) {
           const errDesc = params.get("errcode") ?? "";
@@ -108,11 +112,13 @@ export default function WeChatCallback({ onLogin }: WeChatCallbackProps) {
           // 否则老板会看到「授权成功了却还要邀请码」。
           const pendingInvite = sessionStorage.getItem("store_os_pending_invite") ?? "";
           const pendingReferral = readPendingReferral();
+          const pendingPartner = readPendingPartner();
           const target = getAppPath(nextPath);
-          // 推荐码既存本地，也继续挂在回跳 URL 上：微信授权往返可能换 webview / 丢存储，URL 是最稳的那层。
+          // 推荐码 / 合伙人码既存本地，也继续挂在回跳 URL 上：微信授权往返可能换 webview / 丢存储，URL 是最稳的那层。
           const query = [
             pendingInvite ? `invite=${encodeURIComponent(pendingInvite)}` : "",
-            pendingReferral ? `ref=${encodeURIComponent(pendingReferral)}` : ""
+            pendingReferral ? `ref=${encodeURIComponent(pendingReferral)}` : "",
+            pendingPartner ? `partner=${encodeURIComponent(pendingPartner)}` : ""
           ].filter(Boolean).join("&");
           window.location.replace(query ? `${target}?${query}` : target);
           return;

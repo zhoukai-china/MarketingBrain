@@ -5,6 +5,9 @@ import { PLANS, PRODUCT_LOGIN_DEFINITIONS, PRODUCT_LOGIN_CODES, type PlanDefinit
 import { env } from "../config/env.js";
 import { requireAdminToken } from "../services/access-guards.js";
 import { createInviteCode } from "../services/invite-codes.js";
+import { createMarketPartner, listMarketPartners } from "../services/market-partner.js";
+import { readAdminMarketPartnerDashboard } from "../services/market-partner-dashboard.js";
+import { listMarketPartnerCandidates } from "../services/market-partner-self-service.js";
 import {
   AdminLoginNotConfiguredError,
   adminLoginConfigured,
@@ -1220,5 +1223,135 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         }
       }))
     };
+  });
+
+  // ---------------------------------------------------------------------------
+  // PLAT-48 市场合伙人（第①批：管理员建合伙人 + 发专属链接 + 列表）。
+  // 对外文案一律「市场合伙人」，内部复用历史表 Distributor / ShareLink。
+  // ---------------------------------------------------------------------------
+  const createMarketPartnerSchema = z.object({
+    name: z.string().trim().min(1).max(80),
+    phone: z.string().trim().max(32).optional(),
+    userId: z.string().trim().min(1).max(120).optional(),
+    tenantId: z.string().trim().min(1).max(120),
+    createdBy: z.string().max(120).optional()
+  });
+
+  app.post("/admin/market-partners", { preHandler: requireAdminToken }, async (request, reply) => {
+    if (env.DATA_MODE === "demo") {
+      return reply.code(409).send({ error: "database_mode_required", message: "市场合伙人管理需要 DATA_MODE=database" });
+    }
+    const parsed = createMarketPartnerSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+    }
+    try {
+      const created = await createMarketPartner({
+        name: parsed.data.name,
+        phone: parsed.data.phone,
+        userId: parsed.data.userId,
+        tenantId: parsed.data.tenantId,
+        createdBy: parsed.data.createdBy
+      });
+      return { partner: created.partner, link: created.link };
+    } catch (error) {
+      const statusCode = typeof (error as { statusCode?: unknown })?.statusCode === "number"
+        ? (error as { statusCode: number }).statusCode
+        : 500;
+      return reply.code(statusCode).send({
+        error: (error as Error).message,
+        message: "创建市场合伙人失败，请检查输入后重试。"
+      });
+    }
+  });
+
+  app.get("/admin/market-partners", { preHandler: requireAdminToken }, async () => {
+    if (env.DATA_MODE === "demo") {
+      return { dataMode: "demo", partners: [] };
+    }
+    return { dataMode: "database", partners: await listMarketPartners() };
+  });
+
+  // PLAT-49：管理员授予 / 撤销「市场合伙人」自助资格（fail-closed，只加资格开关，不做审批流）。
+  const grantMarketPartnerSchema = z.object({
+    userId: z.string().trim().min(1).max(120),
+    grantedBy: z.string().max(120).optional()
+  });
+
+  /**
+   * PLAT-49：资格管理页的「按人挑」数据源（只读）。
+   *
+   * 为什么需要它：授予资格只能粘贴 userId 时，后台实际上没法用——老板手上没有用户 ID。
+   * 只返回最近注册用户（可按昵称 / 手机号 / 精确 userId 过滤）+ 当前是否已有资格，
+   * 仍然只是读；授予 / 撤销继续走下面两个接口，不开第二条写路径。
+   */
+  app.get("/admin/market-partner-candidates", { preHandler: requireAdminToken }, async (request) => {
+    if (env.DATA_MODE === "demo") {
+      return { dataMode: "demo", candidates: [] };
+    }
+    const query = (request.query ?? {}) as { q?: string; limit?: string };
+    const rawLimit = Number.parseInt(query.limit ?? "", 10);
+    return {
+      dataMode: "database",
+      candidates: await listMarketPartnerCandidates({
+        query: query.q ?? "",
+        limit: Number.isFinite(rawLimit) ? rawLimit : 20
+      })
+    };
+  });
+
+  app.post("/admin/market-partner-grants", { preHandler: requireAdminToken }, async (request, reply) => {
+    if (env.DATA_MODE === "demo") {
+      return reply.code(409).send({ error: "database_mode_required", message: "市场合伙人资格管理需要 DATA_MODE=database" });
+    }
+    const parsed = grantMarketPartnerSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+    }
+    const user = await prisma.user.findUnique({ where: { id: parsed.data.userId }, select: { id: true } });
+    if (!user) {
+      return reply.code(400).send({ error: "user_not_found", message: "找不到该用户。" });
+    }
+    const grant = await prisma.marketPartnerGrant.upsert({
+      where: { userId: parsed.data.userId },
+      update: { grantedBy: parsed.data.grantedBy ?? null },
+      create: { userId: parsed.data.userId, grantedBy: parsed.data.grantedBy ?? null }
+    });
+    return { grant };
+  });
+
+  app.delete<{ Params: { userId: string } }>("/admin/market-partner-grants/:userId", { preHandler: requireAdminToken }, async (request, reply) => {
+    if (env.DATA_MODE === "demo") {
+      return reply.code(409).send({ error: "database_mode_required", message: "市场合伙人资格管理需要 DATA_MODE=database" });
+    }
+    await prisma.marketPartnerGrant.deleteMany({ where: { userId: request.params.userId } });
+    return { revoked: true };
+  });
+
+  app.get("/admin/market-partner-grants", { preHandler: requireAdminToken }, async () => {
+    if (env.DATA_MODE === "demo") {
+      return { dataMode: "demo", grants: [] };
+    }
+    const grants = await prisma.marketPartnerGrant.findMany({
+      orderBy: { createdAt: "desc" },
+      include: { user: { select: { id: true, nickname: true, phone: true } } }
+    });
+    return {
+      dataMode: "database",
+      grants: grants.map((grant) => ({
+        userId: grant.userId,
+        grantedBy: grant.grantedBy,
+        createdAt: grant.createdAt.toISOString(),
+        user: grant.user
+      }))
+    };
+  });
+
+  // PLAT-48 第③批：平台视角的市场合伙人汇总（只读）。
+  app.get("/admin/market-partner-dashboard", { preHandler: requireAdminToken }, async () => {
+    if (env.DATA_MODE === "demo") {
+      return { dataMode: "demo", partners: [] };
+    }
+    return { dataMode: "database", partners: await readAdminMarketPartnerDashboard() };
   });
 }

@@ -1,5 +1,13 @@
 # 当前部署状态
 
+## 待上线（本地完成，未发布）：PLAT-48 市场合伙人分销系统 + PLAT-49 自助生成专属链接（2026-09-18）
+
+- 状态：三批代码与迁移均在分支 `codex/plat48-market-partner` 本地完成，真实本地 PostgreSQL DB smoke 全绿；**尚未部署到测试/生产**。
+- 迁移：`202609180001_market_partner_grant`、`202609180002_distro_commission_idempotency`、`202609180003_distro_commission_tenant` 需在发布前执行 `prisma migrate deploy`。
+- 验证：`typecheck`（api/web）、`market-partner:contract-smoke`、`platform:route-contract-smoke`、`pnpm build` 全 PASS；`market-partner:attribution-smoke`(10)、`commission-smoke`(11)、`dashboard-smoke`(7)、`grant-admin-smoke`(15)、`self-service-smoke`(10) 全 PASS。
+- 口径：佣金 = `spent.paid × 20%`（paid 桶 ¥0.05/积分 → 佣金(元)=`spentPaid/100`），冻结 7 天、幂等、退款冲正；`bonus`/赠送/体验不计。上线后仅「已绑定合伙人」的客户成功扣费才触发，当前无合伙人、无客户绑定，不产生实际资金流出。
+- 已知环境限制（非本次引入）：`qa:fast` 在 `auth:wechat-login-failure-paths-smoke` 失败，因本机 `.env` 缺少微信鉴权配置（`wechat_auth_not_configured`）。
+
 ## 最新发布：20260917-lq-invite-removal（2026-09-17/18，测试实例 + 生产）— 取消兰琪邀请码制度，产品入口不再强制邀请码
 
 用户口径（2026-09-17）：「先取消兰琪的邀请码制度，等后面需要再增加邀请码功能」。

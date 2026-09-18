@@ -10,6 +10,7 @@ import {
 } from "./lib/direct-test-session.js";
 import { clearStoredSession, probeSession, readSessionToken, takePostLoginRedirect } from "./lib/session.js";
 import { rememberPendingReferral } from "./lib/pending-referral.js";
+import { rememberPendingPartner } from "./lib/pending-partner.js";
 import { renderLanqiRoutes, isLanqiHandled } from "./routes/lanqi.js";
 import "./styles/app.css";
 import "./styles/store-growth.css";
@@ -85,6 +86,8 @@ try {
   const params = new URLSearchParams(window.location.search);
   const refCode = (params.get("ref") ?? "").trim();
   if (refCode) rememberPendingReferral(refCode);
+  const partnerCode = (params.get("partner") ?? "").trim();
+  if (partnerCode) rememberPendingPartner(partnerCode);
   const next = (params.get("next") ?? "").trim();
   if (next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/login")) {
     localStorage.setItem("store_os_post_login_redirect", getAppPath(next.split("?")[0]));
@@ -119,6 +122,7 @@ const AdminConsolePage = lazy(() => import("./marketplace/AdminConsolePage.js").
 const MarketplaceAgentDetailPage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceAgentDetailPage })));
 const MarketplaceMinePage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceMinePage })));
 const MarketplaceMyAgentsPage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceMyAgentsPage })));
+const MarketPartnerConsolePage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketPartnerConsolePage })));
 const MarketplaceAgentChatPage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceAgentChatPage })));
 const RechargePage = lazy(() => import("./pages/RechargePage.js").then(module => ({ default: module.RechargePage })));
 
@@ -443,6 +447,16 @@ function Root() {
    */
   if (path === "/my-agents" || path === "/my-agents/") {
     return <MarketplaceMyAgentsPage />;
+  }
+
+  /**
+   * 市场合伙人后台（老板 2026-09-18）：「就是个单独的后台，由我单独找市场合伙人发放，不应该在用户端。」
+   *
+   * 所以这条路径**不进任何用户端导航**（顶栏、工作地图都不出现），地址由平台方单独发给合伙人；
+   * 资格仍然是服务端 fail-closed：未授予者打开只看到「无资格」，`/market/me/partner-link` 依旧 403。
+   */
+  if (path === "/partner" || path === "/partner/") {
+    return <MarketPartnerConsolePage />;
   }
 
   /*

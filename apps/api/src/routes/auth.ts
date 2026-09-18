@@ -40,6 +40,7 @@ import {
 } from "../services/invite-codes.js";
 import { claimLanqiReferral } from "../services/lanqi-referrals.js";
 import { bindReferralForNewUser } from "../services/referral-attribution.js";
+import { bindMarketPartnerForNewUser } from "../services/market-partner.js";
 import { maybeGrantReferralReward } from "../services/referral-rewards.js";
 import { normalizeTenantHostname } from "./tenant.js";
 import {
@@ -213,6 +214,15 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       source: product ? "product_web_login" : "beta_web_login"
     });
 
+    // PLAT-48 市场合伙人：与推荐有礼并行归因，两套互不影响；失败同样不阻断注册。
+    const partner = await bindMarketPartnerForNewUser({
+      partnerCode: parsed.data.partnerCode,
+      referredUserId: workspace.user.id,
+      tenantId: workspace.tenant.id,
+      tenantName: parsed.data.tenantName,
+      source: product ? "product_web_login" : "beta_web_login"
+    });
+
 
     // PLAT-28 第②批：新客奖励（best-effort，失败不影响注册/开通）
     if (referral.state === "bound") {
@@ -237,7 +247,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         redeemed,
         brandCode: product?.code === "beauty-industry" ? invite.brandCode ?? "default" : undefined
       },
-      referral: { state: referral.state }
+      referral: { state: referral.state },
+      partner: { state: partner.state }
     };
   });
 
@@ -306,6 +317,15 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       source: "dev_login"
     });
 
+    // PLAT-48 市场合伙人：开发登录同样支持带合伙人码归因（仅测试/开发环境）。
+    const partner = await bindMarketPartnerForNewUser({
+      partnerCode: parsed.data.partnerCode,
+      referredUserId: workspace.user.id,
+      tenantId: workspace.tenant.id,
+      tenantName: parsed.data.tenantName,
+      source: "dev_login"
+    });
+
 
     // PLAT-28 第②批：新客奖励（best-effort，失败不影响注册/开通）
     if (referral.state === "bound") {
@@ -325,6 +345,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       tenantRole,
       productCode: product?.code,
       referral: { state: referral.state },
+      partner: { state: partner.state },
     };
   });
 
@@ -848,6 +869,15 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       source: product ? "product_onboarding" : "platform_onboarding"
     });
 
+    // PLAT-48 市场合伙人：微信授权 → 补资料 → 开通工作区这条路上带过来的合伙人码。
+    const partner = await bindMarketPartnerForNewUser({
+      partnerCode: parsed.data.partnerCode,
+      referredUserId: workspace.user.id,
+      tenantId: workspace.tenant.id,
+      tenantName: parsed.data.tenantName,
+      source: product ? "product_onboarding" : "platform_onboarding"
+    });
+
 
     // PLAT-28 第②批：新客奖励（best-effort，失败不影响注册/开通）
     if (referral.state === "bound") {
@@ -882,6 +912,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       productCode: product?.code,
       tenantRole: product?.tenantRole ?? PLANS[planCode].tenantType,
       referral: { state: referral.state },
+      partner: { state: partner.state },
     };
   });
 

@@ -17,7 +17,7 @@ import "../styles/admin-console.css";
  *   其余一律只读展示，避免在后台里再造一套计费逻辑。
  */
 
-type SectionId = "overview" | "customers" | "recharges" | "orders" | "credits" | "shelf" | "referral" | "quality";
+type SectionId = "overview" | "customers" | "recharges" | "orders" | "credits" | "shelf" | "referral" | "partners" | "quality";
 
 interface AdminSection {
   id: SectionId;
@@ -35,6 +35,7 @@ const SECTIONS: AdminSection[] = [
   { id: "credits", label: "积分干预", hint: "发体验额度、查发放记录", endpoints: ["GET /market/admin/trial-grants", "POST /market/admin/trial-grants"] },
   { id: "shelf", label: "智能体与货架", hint: "SKU 上下架/改价、供应商、Agent 定义", endpoints: ["GET /market/admin/skus", "PATCH /market/admin/skus/:skuId", "GET /market/admin/suppliers", "GET /admin/agents"] },
   { id: "referral", label: "推荐归因", hint: "推荐有礼配置位、生成推荐码、归因清单", endpoints: ["GET /market/admin/referral-config", "POST /market/admin/referral-codes", "GET /market/admin/referrals"] },
+  { id: "partners", label: "市场合伙人", hint: "合伙人专属链接、客户数与佣金汇总、资格授予/撤销", endpoints: ["GET /admin/market-partner-dashboard", "GET /admin/market-partners", "GET /admin/market-partner-candidates", "GET/POST /admin/market-partner-grants"] },
   { id: "quality", label: "质量与安全", hint: "质量摘要与租户隔离审计", endpoints: ["GET /admin/quality/summary", "GET /admin/security/isolation-audit"] }
 ];
 
@@ -139,6 +140,7 @@ export function AdminConsolePage() {
           {section === "credits" && <CreditsSection />}
           {section === "shelf" && <ShelfSection />}
           {section === "referral" && <ReferralSection />}
+          {section === "partners" && <MarketPartnersSection />}
           {section === "quality" && <QualitySection />}
         </main>
       </div>
@@ -342,6 +344,16 @@ const COLUMN_LABELS: Record<string, string> = {
   walletBalance: "剩余积分",
   rechargedCredits: "累计充值",
   consumedCredits: "累计消耗",
+  customerCount: "客户数",
+  activeLinkCount: "有效链接数",
+  totalEarningsCny: "累计佣金(¥)",
+  frozenAmountCny: "冻结佣金(¥)",
+  availableAmountCny: "可提现佣金(¥)",
+  totalWithdrawnCny: "已提现(¥)",
+  phone: "手机号",
+  userId: "用户ID",
+  tenantId: "租户ID",
+  status: "状态",
   topAgents: "常用智能体",
   memberCount: "成员数",
   agentRunCount: "智能体运行次数",
@@ -803,6 +815,195 @@ function ShelfSection() {
       </Panel>
       <Panel title="Agent 定义" error={agents.error} loading={agents.loading} onReload={() => void agents.reload()}>
         <DataView data={agents.data} columns={["agentId", "name", "status", "activeSkillReleaseId", "updatedAt"]} />
+      </Panel>
+    </>
+  );
+}
+
+/**
+ * 市场合伙人（PLAT-48 第③批 + PLAT-49）。
+ *
+ * 2026-09-18 补：资格授予原本只有接口、没有界面，等于「管理员先授予资格」这条链路
+ * 在浏览器里根本走不通（老板手上没有用户 ID，也无处可点）。这里补上按人挑选 + 授权/撤销，
+ * 以及一条「授予后该用户刷新 /mine 即可生成专属链接」的下一步提示。
+ *
+ * 2026-09-18（老板验收）：「就是个单独的后台，由我单独找市场合伙人发放，不应该在用户端。」
+ * 所以合伙人入口从用户端「我的」页挪到了独立地址 `/partner`：这一页负责把**入口地址**给到平台方，
+ * 由平台方单独发给已授予资格的合伙人（面板里可直接复制）。
+ *
+ * 仍然只写已有接口：授予 `POST /admin/market-partner-grants`、撤销 `DELETE .../:userId`，
+ * 不在后台里另造一套资格逻辑。
+ */
+interface MarketPartnerCandidate {
+  userId: string;
+  nickname: string | null;
+  phone: string | null;
+  tenantName: string | null;
+  granted: boolean;
+  createdAt: string;
+}
+
+function MarketPartnersSection() {
+  const [refresh, setRefresh] = useState(0);
+  const [keyword, setKeyword] = useState("");
+  const [appliedKeyword, setAppliedKeyword] = useState("");
+  const [manualUserId, setManualUserId] = useState("");
+  const [result, setResult] = useState("");
+  const [entryNotice, setEntryNotice] = useState("");
+  const [busyUserId, setBusyUserId] = useState("");
+
+  /**
+   * 合伙人入口地址：按当前站点域名 + 应用的 base path 现算，
+   * 避免把 `https://api.lcppch.top/lanqi-test/partner` 这类地址写死在代码里（测试/生产两套 base 不同）。
+   */
+  const partnerConsoleUrl = new URL(getAppPath("/partner"), window.location.origin).toString();
+
+  async function copyPartnerConsoleUrl() {
+    try {
+      await navigator.clipboard.writeText(partnerConsoleUrl);
+      setEntryNotice("入口地址已复制，发给合伙人即可。");
+    } catch {
+      setEntryNotice("浏览器没让复制，请手动选中上面的地址复制。");
+    }
+  }
+
+  const partners = useAdminData<{ partners: Array<Record<string, unknown>> }>("/admin/market-partner-dashboard", refresh);
+  const grants = useAdminData<{ grants: Array<Record<string, unknown>> }>("/admin/market-partner-grants", refresh);
+  const candidates = useAdminData<{ candidates: MarketPartnerCandidate[] }>(
+    `/admin/market-partner-candidates?limit=20&q=${encodeURIComponent(appliedKeyword)}`,
+    refresh
+  );
+
+  async function mutateGrant(userId: string, action: "grant" | "revoke") {
+    const target = userId.trim();
+    if (!target) return;
+    setBusyUserId(target);
+    setResult("");
+    try {
+      const response = action === "grant"
+        ? await fetch(apiPath("/admin/market-partner-grants"), {
+            method: "POST",
+            headers: adminAuthHeaders(true),
+            body: JSON.stringify({ userId: target, grantedBy: "admin-console" })
+          })
+        : await fetch(apiPath(`/admin/market-partner-grants/${encodeURIComponent(target)}`), {
+            method: "DELETE",
+            headers: adminAuthHeaders(true)
+          });
+      await consoleReadJson<Record<string, unknown>>(response);
+      setResult(
+        action === "grant"
+          ? `已授予 ${target} 市场合伙人资格：把上面的合伙人入口地址发给对方，登录后即可生成专属链接、查看分销数据。`
+          : `已撤销 ${target} 的市场合伙人资格：该用户再打开合伙人入口只会看到「无资格」，已有链接也不再归因。`
+      );
+      if (action === "grant") setManualUserId("");
+      setRefresh((value) => value + 1);
+    } catch (cause) {
+      setResult(cause instanceof Error ? cause.message : action === "grant" ? "授予失败" : "撤销失败");
+    } finally {
+      setBusyUserId("");
+    }
+  }
+
+  const rows = candidates.data?.candidates ?? [];
+
+  return (
+    <>
+      <Panel title="合伙人入口（单独发给合伙人）">
+        <p className="adminTableCaption">
+          这个地址不在用户端展示，也不进任何导航；只发给已授予资格的市场合伙人，对方用自己的账号登录后即可生成专属链接、查看自己的客户与佣金。
+        </p>
+        <div className="adminForm">
+          <input
+            readOnly
+            value={partnerConsoleUrl}
+            aria-label="市场合伙人后台入口地址"
+            onFocus={(event) => event.currentTarget.select()}
+          />
+          <button type="button" className="btn ghost sm" onClick={() => void copyPartnerConsoleUrl()}>复制入口地址</button>
+        </div>
+        {entryNotice && <div className="adminConsoleNotice">{entryNotice}</div>}
+      </Panel>
+      <Panel title="市场合伙人汇总" error={partners.error} loading={partners.loading} onReload={() => void partners.reload()}>
+        <DataView
+          data={partners.data?.partners}
+          columns={["name", "phone", "customerCount", "totalEarningsCny", "frozenAmountCny", "availableAmountCny", "totalWithdrawnCny", "activeLinkCount", "status", "createdAt"]}
+        />
+      </Panel>
+      <Panel title="授予 / 撤销市场合伙人资格" error={candidates.error} loading={candidates.loading} onReload={() => void candidates.reload()}>
+        <p className="adminTableCaption">
+          只有被授予资格的用户，才能在合伙人入口（上面那个地址）生成专属链接并查看自己的分销数据（fail-closed）；用户端「我的」页不再出现任何合伙人入口。
+        </p>
+        <div className="adminForm">
+          <label><span>按昵称 / 手机号 / 用户ID 找</span>
+            <input
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+              placeholder="留空显示最近注册的 20 个用户"
+              onKeyDown={(event) => { if (event.key === "Enter") setAppliedKeyword(keyword.trim()); }}
+            />
+          </label>
+          <button type="button" className="btn ghost sm" onClick={() => setAppliedKeyword(keyword.trim())} disabled={candidates.loading}>
+            {candidates.loading ? "查询中…" : "查询"}
+          </button>
+          <label><span>直接填用户ID授予</span>
+            <input value={manualUserId} onChange={(event) => setManualUserId(event.target.value)} placeholder="粘贴用户ID" />
+          </label>
+          <button
+            type="button"
+            className="btn primary sm"
+            onClick={() => void mutateGrant(manualUserId, "grant")}
+            disabled={busyUserId !== "" || manualUserId.trim().length === 0}
+          >
+            {busyUserId === manualUserId.trim() && busyUserId !== "" ? "处理中…" : "授予资格"}
+          </button>
+        </div>
+        {result && <div className="adminConsoleNotice">{result}</div>}
+        {rows.length === 0
+          ? <p className="adminConsoleEmpty">没有匹配的用户。</p>
+          : (
+            <div className="adminTableWrap">
+              <p className="adminTableCaption">候选用户（{rows.length} 行）</p>
+              <table className="adminTable">
+                <thead>
+                  <tr>
+                    <th title="nickname">昵称</th>
+                    <th title="phone">手机号</th>
+                    <th title="tenantName">工作区</th>
+                    <th title="userId">用户ID</th>
+                    <th title="createdAt">注册时间</th>
+                    <th title="granted">资格</th>
+                    <th title="action">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr key={row.userId}>
+                      <td>{row.nickname || "—"}</td>
+                      <td>{row.phone || "—"}</td>
+                      <td>{row.tenantName || "—"}</td>
+                      <td title={row.userId}>{row.userId}</td>
+                      <td>{new Date(row.createdAt).toLocaleString("zh-CN")}</td>
+                      <td>{row.granted ? "已授予" : "未授予"}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className={row.granted ? "btn ghost sm" : "btn primary sm"}
+                          onClick={() => void mutateGrant(row.userId, row.granted ? "revoke" : "grant")}
+                          disabled={busyUserId !== ""}
+                        >
+                          {busyUserId === row.userId ? "处理中…" : row.granted ? "撤销" : "授予资格"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+      </Panel>
+      <Panel title="已授予资格的账号" error={grants.error} loading={grants.loading} onReload={() => void grants.reload()}>
+        <DataView data={grants.data?.grants} columns={["userId", "grantedBy", "createdAt"]} emptyText="还没有授予任何账号。" />
       </Panel>
     </>
   );

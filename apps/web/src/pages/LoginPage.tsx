@@ -7,6 +7,7 @@ import {
 import { apiBase, apiPath, getAppPath, getAppRoutePath } from "../lib/api.js";
 import { markExistingUserReferralNotice } from "../lib/referral-notice.js";
 import { clearPendingReferral, readPendingReferral, rememberPendingReferral } from "../lib/pending-referral.js";
+import { clearPendingPartner, readPendingPartner, rememberPendingPartner } from "../lib/pending-partner.js";
 import {
   DEFAULT_TENANT_BRANDING,
   tenantBrandLogoSrc,
@@ -157,6 +158,8 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
   const [inviteCode, setInviteCode] = useState(() => new URLSearchParams(window.location.search).get("invite") ?? "");
   // PLAT-28：推荐码只来自推荐链接（`?ref=`），不提供手工输入框（手工填码属于后台口径，不是用户路径）。
   const [referralCode] = useState(() => new URLSearchParams(window.location.search).get("ref") ?? "");
+  // PLAT-48：市场合伙人码只来自专属链接（`?partner=`），同样不提供手工输入框。
+  const [partnerCode] = useState(() => new URLSearchParams(window.location.search).get("partner") ?? "");
   const [inviteValidated, setInviteValidated] = useState(false);
   const [wechatReady, setWechatReady] = useState<boolean | null>(null);
   // 是否强制邀请码由服务端开关决定（INVITE_REQUIRED）。null = 还没问回来，
@@ -202,6 +205,10 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
   useEffect(() => {
     if (referralCode.trim()) rememberPendingReferral(referralCode);
   }, [referralCode]);
+
+  useEffect(() => {
+    if (partnerCode.trim()) rememberPendingPartner(partnerCode);
+  }, [partnerCode]);
 
   useEffect(() => {
     if (isCustomDomain) return;
@@ -294,10 +301,12 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
           const target = getAppPath(code ? `/login/${code}` : "/login");
           const pendingInvite = readPendingInvite();
           const pendingReferral = readPendingReferral();
-          // 回跳的 URL 也要带上推荐码：微信授权往返有可能换 webview / 丢存储，URL 是最稳的那一层。
+          const pendingPartner = readPendingPartner();
+          // 回跳的 URL 也要带上推荐码 / 合伙人码：微信授权往返有可能换 webview / 丢存储，URL 是最稳的那一层。
           const query = [
             pendingInvite ? `invite=${encodeURIComponent(pendingInvite)}` : "",
-            pendingReferral ? `ref=${encodeURIComponent(pendingReferral)}` : ""
+            pendingReferral ? `ref=${encodeURIComponent(pendingReferral)}` : "",
+            pendingPartner ? `partner=${encodeURIComponent(pendingPartner)}` : ""
           ].filter(Boolean).join("&");
           window.location.replace(query ? `${target}?${query}` : target);
           return;
@@ -367,9 +376,8 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
       // 把推荐码塞进微信 `state`：微信会原样回传，即使中途丢了 URL 或浏览器存储，
       // 回调页也能把码找回来（2026-09-13 真机实测：货架→登录那一跳会丢 ?ref=）。
       const pendingReferralForState = readPendingReferral();
-      const state = pendingReferralForState
-        ? `${crypto.randomUUID()}|${pendingReferralForState}`
-        : crypto.randomUUID();
+      const pendingPartnerForState = readPendingPartner();
+      const state = [crypto.randomUUID(), pendingReferralForState, pendingPartnerForState].join("|");
       sessionStorage.setItem("wechat_oauth_state", state);
       // 微信内打开也要留住邀请码：授权回跳落 /wechat-callback，同样会走「补资料」分支。
       rememberPendingInvite(inviteCode);
@@ -520,6 +528,7 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
           city: city.trim() || undefined,
           inviteCode: useBetaLogin && product?.code !== "lanqi" ? inviteCode.trim() : undefined,
           referralCode: readPendingReferral() || undefined,
+          partnerCode: readPendingPartner() || undefined,
         }),
       });
       const data = await res.json();
@@ -543,6 +552,8 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
       setOnboardingExpired(false);
       // 归因已经交给服务端；清掉暂存的推荐码，避免同一个标签页里后续再开通别的产品时被重复带上。
       clearPendingReferral();
+      // 市场合伙人码同理：归因已交给服务端，成功后清掉暂存。
+      clearPendingPartner();
       onLogin({
         token: data.token,
         tenantId: data.tenantId,
