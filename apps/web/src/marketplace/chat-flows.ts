@@ -5,6 +5,11 @@ export interface ChatSlot {
   q: string;
   /** 有选项的槽位在前端渲染成快捷按钮，避免用户自由输入被误判（如复盘模式 / 平台）。 */
   choices?: string[];
+  /**
+   * 条件槽位（按场景分流）：只有当 `slotKey` 这一轮已填的答案命中 `in` 里的关键词时，才问这一轮。
+   * 直播话术是典型场景——先定「带货 / 团购」还是「招商」，两条线的后续提问完全不同，不再混在一起问。
+   */
+  when?: { slotKey: string; in: string[] };
 }
 
 export interface ChatFlow {
@@ -77,11 +82,52 @@ export const CHAT_FLOWS: Record<string, ChatFlow> = {
   },
   livescript: {
     name: "直播话术",
-    welcome: "你好，我是思潼 · 直播话术智能体。给我场次和产品信息，我出可开播的逐字稿。",
+    welcome: "你好，我是思潼 · 直播话术智能体。先选这场直播是哪一种，我再按对应的打法逐步引导你，最后出可开播的逐字稿。",
     slots: [
-      { key: "type", label: "场次类型", q: "这场是带货还是招商？大概播多久？" },
-      { key: "prod", label: "产品 / 卖点", q: "主推什么？核心卖点、价格或加盟政策是？" },
-      { key: "goal", label: "主打动作", q: "最想让观众做什么？下单、留资、领券？" }
+      {
+        key: "type",
+        label: "场次类型",
+        q: "这场直播是哪一种？",
+        choices: ["带货（本地生活）", "团购", "招商加盟"]
+      },
+      // —— 带货 / 团购：赚消费者的钱，讲体验路径与到店理由 ——
+      {
+        key: "prod",
+        label: "产品 / 卖点",
+        q: "主推什么产品 / 套餐？核心卖点和真实价格分别是多少？",
+        when: { slotKey: "type", in: ["带货", "团购"] }
+      },
+      {
+        key: "offer",
+        label: "购买 / 核销",
+        q: "观众怎么买、怎么核销？（团购券 / 到店核销 / 跳转下单）有效期和适用门店是什么？这场大概播多久？",
+        when: { slotKey: "type", in: ["带货", "团购"] }
+      },
+      {
+        key: "goal",
+        label: "主打动作",
+        q: "最想让观众做什么？下单、领券，还是到店核销？",
+        when: { slotKey: "type", in: ["带货", "团购"] }
+      },
+      // —— 招商加盟：赚创业者的钱，讲单店模型、投入边界与扶持 ——
+      {
+        key: "brand",
+        label: "品牌与实力",
+        q: "品牌是做什么的？现有直营店数量、供应链 / 技术 / 培训等硬实力有哪些？",
+        when: { slotKey: "type", in: ["招商"] }
+      },
+      {
+        key: "invest",
+        label: "投入与扶持",
+        q: "单店投入区间、回本周期（按模型测算）、总部扶持政策（选址 / 培训 / 督导 / 供应链）分别是什么？这场大概播多久？",
+        when: { slotKey: "type", in: ["招商"] }
+      },
+      {
+        key: "lead",
+        label: "意向承接",
+        q: "想用什么方式承接意向？领资料包、免费选址评估，还是留资后一对一沟通？",
+        when: { slotKey: "type", in: ["招商"] }
+      }
     ]
   },
   liverev: {
@@ -127,6 +173,20 @@ export function chatFlowFor(coreSkillId: string): ChatFlow | undefined {
 }
 
 /**
+ * 按当前已填答案把「条件槽位」过滤出来。
+ *
+ * 没有 `when` 的槽位一律保留；带 `when` 的槽位只在依赖槽位的答案命中关键词时才出现。
+ * 直播话术先问「场次类型」，选完带货 / 团购或招商后，只会走对应那条线的后续提问。
+ */
+export function effectiveSlots(flow: ChatFlow, answers: Record<string, string>): ChatSlot[] {
+  return flow.slots.filter((slot) => {
+    if (!slot.when) return true;
+    const dependency = answers[slot.when.slotKey] ?? "";
+    return slot.when.in.some((token) => dependency.includes(token));
+  });
+}
+
+/**
  * 视频复盘的「平台」这一步：把自由输入归一成受支持的平台名。
  *
  * 2026-09-17 现场（`/agent/meiye__vidrev/chat`）：老板在「平台」那一步没有点选项，直接把
@@ -145,7 +205,9 @@ export function normalizeVidrevPlatform(value: string): "抖音" | "视频号" |
 }
 
 export function buildRunPrompt(flow: ChatFlow, answers: Record<string, string>): string {
-  const items = flow.slots.map((slot) => `- ${slot.label}：${answers[slot.key] || "（待补充）"}`).join("\n");
+  const items = effectiveSlots(flow, answers)
+    .map((slot) => `- ${slot.label}：${answers[slot.key] || "（待补充）"}`)
+    .join("\n");
   const supplement = (answers.__supplement ?? "").trim();
   const extra = supplement ? `\n- 补充说明：${supplement}` : "";
   return `请按「${flow.name}」方法论，基于下面业务信息生成最终交付。\n${items}${extra}`;
