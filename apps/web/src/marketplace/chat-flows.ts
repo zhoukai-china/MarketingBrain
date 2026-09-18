@@ -81,7 +81,7 @@ export const CHAT_FLOWS: Record<string, ChatFlow> = {
     slots: [
       { key: "type", label: "场次类型", q: "这场是带货还是招商？大概播多久？" },
       { key: "prod", label: "产品 / 卖点", q: "主推什么？核心卖点、价格或加盟政策是？" },
-      { key: "goal", label: "主打动作", q: "最想让观众做什么？下单、留资、领券？" }
+      { key: "goal", label: "主打动作", q: "最想让观众做什么？下单、留资、领券、加微？" }
     ]
   },
   liverev: {
