@@ -1,5 +1,25 @@
 # 当前部署状态
 
+## 最新发布：20260917-lq-invite-removal（2026-09-17/18，测试实例 + 生产）— 取消兰琪邀请码制度，产品入口不再强制邀请码
+
+用户口径（2026-09-17）：「先取消兰琪的邀请码制度，等后面需要再增加邀请码功能」。
+
+改动（外科手术式，只发 8 个文件，不覆盖其他任务漂移）：
+- `apps/api/src/services/invite-codes.ts`：删掉 `LANQI_PRODUCT_CODE` 与「兰琪缺省必须 403 invite_code_required」分支，所有产品入口缺省直接放行（`not_required`）；显式带码仍按码校验（品牌归属 / 老链接兼容）。
+- `apps/web/src/pages/LoginPage.tsx`：兰琪登录去掉独立「产品邀请码」表单，直接微信授权 + 门店资料开通；不再传/自动核验兰琪 `?invite=`。
+- `apps/web/src/lib/lanqi-store-gate.ts`：CTA「用邀请码登录」→「开通兰琪美业」/「重新登录」。
+- `apps/web/src/marketplace/AdminConsolePage.tsx`：兰琪选项去掉「（必须邀请码）」。
+- 三个回归脚本同步更新。
+
+验证：
+- `pnpm.cmd typecheck` 通过；`auth:invite-gate-smoke`（`lanqiAllowsNoCode:true`）、`auth:product-login-smoke`、`lanqi:store-gate-smoke` 全绿。
+- 测试实例 `DEPLOY_OK 20260917-lq-invite-removal-test1`、生产 `DEPLOY_OK 20260917-lq-invite-removal-prod1`；两侧 health/ready 200、`No pending migrations`、生产 err 日志 No entries。
+- 生产源码/产物：`invite-codes.ts` 无 `LANQI_PRODUCT_CODE`；`LoginPage.tsx` 无 `productInviteForm`；最新加载 chunk 无「首次开通请使用邀请消息中的邀请码」。
+
+发布方式与防回退：生产当时与 `main` 存在多任务漂移，改为「当前生产源码 + 这 8 个文件」在服务器重新打 `-prod` / `-test` 两份包，再叠加发布；发布前逐文件比对确认不一致只有这 8 个邀请码文件。
+
+回滚：`/opt/baolu-backups/20260917-lq-invite-removal-prod1-before-baolu-os-v2/`、`/opt/baolu-backups/20260917-lq-invite-removal-test1-before-baolu-os-v2-test/`。
+
 ## 最新发布：20260918-admin-recharges-api-prod1（2026-09-18，仅生产）— 补发 `GET /admin/recharges`：后台「充值明细」从「Route not found」恢复到真实入账流水
 
 用户现场（2026-09-18）：`/os-v2/agents/admin` → 左侧「充值明细」面板里写着 `Route GET:/admin/recharges?limit=50 not found`，表格空白。
