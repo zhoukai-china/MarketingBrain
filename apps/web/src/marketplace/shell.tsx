@@ -139,12 +139,11 @@ export function Topbar({ active, balance, onNavigate }: { active: string; balanc
       <header className="topbar">
         <div className="brand" onClick={() => onNavigate("/agents")}>
           <span className="brand-mark">思潼<span className="brand-accent">AI</span></span>
-          <span className="brand-sub">行业智能体平台</span>
         </div>
         <nav className="topnav">
-          <a className={`nav-link ${active === "market" ? "active" : ""}`} onClick={() => onNavigate("/agents")}>货架</a>
+          <a className={`nav-link ${active === "market" ? "active" : ""}`} onClick={() => onNavigate("/agents")}>商城</a>
           {/* 2026-09-16：用户要求「常用智能体」做成独立列表页（只列自己用过的智能体），不再是「我的」的锚点。 */}
-          <a className={`nav-link ${active === "my-agents" ? "active" : ""}`} onClick={() => onNavigate("/my-agents")}>常用智能体</a>
+          <a className={`nav-link ${active === "my-agents" ? "active" : ""}`} onClick={() => onNavigate("/my-agents")}>常用</a>
           <a className={`nav-link ${active === "recharge" ? "active" : ""}`} onClick={() => onNavigate("/recharge")}>积分充值</a>
           {/*
            * 2026-09-16（用户）：「我的」要做到一级导航栏、放在「积分充值」后面。
@@ -164,7 +163,7 @@ export function Topbar({ active, balance, onNavigate }: { active: string; balanc
           <button className="logout-link" onClick={handleLogout} title="退出后用另一个账号重新登入">退出登录</button>
         ) : null}
       </header>
-      <div className="shared-banner">💎 <b>积分全平台通用</b> · 创始人IP专区与各行业专区的所有智能体共用同一份积分</div>
+      <div className="shared-banner">💎 <b>积分全平台通用</b> · 数字员工、数字咨询师与各行业专区共用同一份积分</div>
     </>
   );
 }

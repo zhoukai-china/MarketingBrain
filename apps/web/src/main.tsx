@@ -35,6 +35,7 @@ import "./styles/beauty-industry.css";
 import "./styles/lanqi-moments.css";
 import "./styles/beauty-video-review.css";
 import "./styles/sitong-design.css";
+import "./styles/eco-mall.css";
 
 // 2026-09-11 产品拍板：平台默认浅色主题（此前默认深色）。仅在用户没有
 // 主动选择过主题时才用浅色兜底；用户切换过的偏好仍按 localStorage 生效。
@@ -114,6 +115,7 @@ const InternalAgentAdminPage = lazy(() => import("./pages/AgentProductsApp.js").
 const BeautyIndustryAcquisitionPage = lazy(() => import("./pages/BeautyIndustryAcquisitionPage.js").then(module => ({ default: module.BeautyIndustryAcquisitionPage })));
 const BeautyIndustryWorkBuddyPage = lazy(() => import("./pages/BeautyIndustryWorkBuddyPage.js").then(module => ({ default: module.BeautyIndustryWorkBuddyPage })));
 const MarketplaceHomePage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceHomePage })));
+const EcoMallHomePage = lazy(() => import("./marketplace/EcoMallHomePage.js").then(module => ({ default: module.EcoMallHomePage })));
 const MarketplaceAdminPage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceAdminPage })));
 const AdminConsolePage = lazy(() => import("./marketplace/AdminConsolePage.js").then(module => ({ default: module.AdminConsolePage })));
 const MarketplaceAgentDetailPage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceAgentDetailPage })));
@@ -464,7 +466,7 @@ function Root() {
   }
 
   if (path === "/agents" || path === "/agents/") {
-    return <MarketplaceHomePage />;
+    return <EcoMallHomePage />;
   }
 
   if (path === "/agents/beauty-industry/workbuddy" || path === "/agents/beauty-industry/workbuddy/") {

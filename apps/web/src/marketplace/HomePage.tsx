@@ -136,7 +136,7 @@ export function MarketplaceHomePage() {
           </div>
         </div>
 
-        {loading ? <div className="loading">正在加载货架…</div> : (
+        {loading ? <div className="loading">正在加载商城…</div> : (
           <div className="home-res">
             {groups.map(({ zone: z, items }) => (
               <div className="shelf" key={z.key}>

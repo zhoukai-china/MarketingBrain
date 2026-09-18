@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
 import { authHeaders, fetchMarketMe, guestToLogin, readJson, Topbar } from "./shell.js";
+import { employeeDisplayName } from "./eco-mall-data.js";
 
 /**
  * 「常用智能体」独立页（用户 2026-09-16：「常用智能体要不要做成独立的智能体列表页」→ 要）。
  *
- * 口径：列的是**这个账号真的用过**的智能体（按扣费账本 `ppu_consume` 聚合），不是货架全量。
- * 每张卡给「用过几次 / 累计消耗多少积分 / 最近一次什么时候」+ 「继续使用」，让老客户跳过挑货架这一步。
- * 空态明确告诉客户「还没用过 → 去货架」；未登录给登录引导（不静默失败）。
+ * 口径：列的是**这个账号真的用过**的智能体（按扣费账本 `ppu_consume` 聚合），不是商城全量。
+ * 每张卡给「用过几次 / 累计消耗多少积分 / 最近一次什么时候」+ 「继续使用」，让老客户跳过挑商城这一步。
+ * 空态明确告诉客户「还没用过 → 去商城」；未登录给登录引导（不静默失败）。
  */
 interface FrequentAgent {
   skuCode: string;
@@ -76,7 +77,7 @@ export function MarketplaceMyAgentsPage() {
         <section className="view view-mine">
           <div className="login-gate big">
             🔒 你还未登录
-            <p>登录后这里会列出你用过的智能体，点一下接着用。</p>
+            <p>登录后这里会列出你用过的数字员工，点一下接着用。</p>
             <button className="btn primary" onClick={() => guestToLogin("/my-agents")}>登录</button>
           </div>
         </section>
@@ -88,24 +89,24 @@ export function MarketplaceMyAgentsPage() {
     <main className="app-wrap">
       <Topbar active="mine" balance={balance} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
       <section className="view view-mine">
-        <h1>常用智能体</h1>
-        <p className="mine-tip">你用过、还在用的智能体都在这里——点「继续使用」直接回到对话，不用再翻货架。</p>
+        <h1>常用</h1>
+        <p className="mine-tip">你用过、还在用的数字员工都在这里——点「继续使用」直接回到对话，不用再翻商城。</p>
         {loading ? (
           <div className="loading">正在加载…</div>
         ) : agents.length === 0 ? (
           <>
-            <p className="mine-tip">还没有用过智能体。去货架挑一个，第一次用就会自动出现在这里。</p>
-            <button className="btn primary" onClick={() => { window.location.href = getAppPath("/agents"); }}>去货架逛逛</button>
+            <p className="mine-tip">还没有用过数字员工。去商城挑一个，第一次用就会自动出现在这里。</p>
+            <button className="btn primary" onClick={() => { window.location.href = getAppPath("/agents"); }}>去商城逛逛</button>
           </>
         ) : (
           <div className="card-grid">
             {agents.map((agent) => (
               <article className="agent-card owned-card" key={agent.skuCode}>
                 <div className="ac-ico">{agent.skuIcon ?? "🤖"}</div>
-                <div className="ac-name">{agent.skuName ?? agent.skuCode}</div>
+                <div className="ac-name">{employeeDisplayName(agent.skuCode, agent.skuName ?? agent.skuCode)}</div>
                 <div className="ac-price">用过 {agent.runs} 次 · 累计 {agent.credits} 积分</div>
                 <div className="ac-foot">
-                  <span className="chip owned">{agent.zone ? zoneNames[agent.zone] ?? agent.zone : "智能体"}</span>
+                  <span className="chip owned">{agent.zone ? zoneNames[agent.zone] ?? agent.zone : "AI员工"}</span>
                   <span className="chip">最近 {new Date(agent.lastUsedAt).toLocaleDateString("zh-CN")}</span>
                 </div>
                 <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>

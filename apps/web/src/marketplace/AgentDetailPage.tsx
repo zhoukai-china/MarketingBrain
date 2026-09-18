@@ -171,7 +171,7 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
     <main className="app-wrap">
       <Topbar active="market" balance={balance} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
       <section className="view view-detail">
-        <button className="back" onClick={() => { window.location.href = getAppPath("/agents"); }}>‹ 返回货架</button>
+        <button className="back" onClick={() => { window.location.href = getAppPath("/agents"); }}>‹ 返回商城</button>
         <div className="detail-grid">
           <div className="detail-main">
             <div className="d-head"><span className="d-ico">{sku.icon}</span><div><h1>{sku.name}</h1><div className="d-cat">{sku.zoneName}{sku.verbs.length ? ` · ${sku.verbs.join(" / ")}` : ""}</div></div></div>

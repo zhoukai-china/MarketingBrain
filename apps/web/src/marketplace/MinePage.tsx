@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
 import { authHeaders, fetchMarketMe, guestToLogin, handleStaleSession, readJson, Topbar } from "./shell.js";
+import { employeeDisplayNameFromLegacyName } from "./eco-mall-data.js";
 import "../styles/referral-card.css";
 
 /**
@@ -158,7 +159,7 @@ export function MarketplaceMinePage() {
       const response = await fetch(apiPath("/exports/docx"), {
         method: "POST",
         headers: authHeaders(true),
-        body: JSON.stringify({ title: `历史交付物-${item.skuName ?? "智能体"}`, content: item.answer })
+        body: JSON.stringify({ title: `历史交付物-${item.skuName ?? "AI员工"}`, content: item.answer })
       });
       const data = (await response.json().catch(() => ({}))) as {
         downloadUrl?: string;
@@ -233,7 +234,7 @@ export function MarketplaceMinePage() {
         <h1>我的</h1>
         <div className="mine-top">
           <div className="balance-card"><div className="bc-label">积分余额</div><div className="bc-val">💎 {balance ?? "—"}</div><div className="bc-sub">全平台通用</div><button className="btn ghost sm" onClick={() => { window.location.href = getAppPath("/recharge"); }}>+ 充值积分</button></div>
-          <div className="shared-card wide">💎 <b>跨智能体通用</b><br />同一份积分，在创始人IP专区与各行业专区的智能体都能用——只充一次，处处可用。</div>
+          <div className="shared-card wide">💎 <b>跨数字员工通用</b><br />同一份积分，在创始人IP专区与各行业专区的数字员工 / AI员工都能用——只充一次，处处可用。</div>
         </div>
         <ReferralLinkCard />
         {/*
@@ -242,9 +243,9 @@ export function MarketplaceMinePage() {
          * ②「把输出的产物也放到我的页面里，并给用户保存 7 天」——产物段落**始终显示**：
          *   没有产物时也给空态说明，客户不会以为功能不存在（以前是 length>0 才渲染，等于藏起来了）。
          */}
-        <h3>常用智能体</h3>
+        <h3>常用</h3>
         <p className="mine-tip">
-          你用过、还在用的智能体都在「<a onClick={() => { window.location.href = getAppPath("/my-agents"); }}>常用智能体</a>」页，点一下就能接着用。
+          你用过、还在用的数字员工都在「<a onClick={() => { window.location.href = getAppPath("/my-agents"); }}>常用</a>」页，点一下就能接着用。
         </p>
         {/* 历史交付物（服务端保留 7 天）：明确告诉客户「及时下载」，并提供一键导出 Word。 */}
         <h3>历史交付物 · 保存 7 天，请及时下载</h3>
@@ -263,7 +264,7 @@ export function MarketplaceMinePage() {
                 return (
                   <article className="agent-card owned-card" key={item.id}>
                     <div className="ac-ico">📄</div>
-                    <div className="ac-name">{item.skuName ?? "智能体交付物"}</div>
+                    <div className="ac-name">{employeeDisplayNameFromLegacyName(item.skuName) ?? "AI员工交付物"}</div>
                     <div className="ac-price">消耗 {item.credits} 积分</div>
                     <div className="ac-foot">
                       <span className="chip owned">{new Date(item.createdAt).toLocaleDateString("zh-CN")} · 剩余 {daysLeft} 天</span>

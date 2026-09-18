@@ -359,7 +359,7 @@ const isLocal = typeof window !== "undefined" && (window.location.hostname === "
             <span className="brand-sub">行业智能体平台</span>
           </div>
           <nav className="topnav">
-            <a className="nav-link" onClick={() => { window.location.href = getAppPath("/agents"); }}>货架</a>
+            <a className="nav-link" onClick={() => { window.location.href = getAppPath("/agents"); }}>商城</a>
             <a className="nav-link active">积分充值</a>
           </nav>
           <div className="wallet-pill" title="积分余额 · 点击登录" onClick={() => { localStorage.setItem("store_os_post_login_redirect", getAppPath(`/recharge${window.location.search}`)); window.location.href = getAppPath("/login"); }}>🔒 未登录 · 点击登录</div>
@@ -403,7 +403,7 @@ const isLocal = typeof window !== "undefined" && (window.location.hostname === "
           <span className="brand-sub">行业智能体平台</span>
         </div>
         <nav className="topnav">
-          <a className="nav-link" onClick={() => { window.location.href = getAppPath("/agents"); }}>货架</a>
+          <a className="nav-link" onClick={() => { window.location.href = getAppPath("/agents"); }}>商城</a>
           <a className="nav-link active">积分充值</a>
         </nav>
         <div className="wallet-pill" title="积分余额 · 点击充值" onClick={() => { window.location.href = getAppPath("/recharge"); }}>💎 <b>{wallet?.balance ?? "—"}</b> 积分 <span className="wp-tag">全平台通用</span></div>
