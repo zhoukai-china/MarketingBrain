@@ -1133,7 +1133,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
             </div>
             <div className="chat-page-composer">
               <button className="btn ghost block" style={{ marginBottom: 10 }} onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}`); }}>‹ 返回详情 · 看输出参考案例</button>
-              <button className="btn primary block" onClick={() => { window.location.href = getAppPath("/agents"); }}>去货架挑已上线的智能体</button>
+              <button className="btn primary block" onClick={() => { window.location.href = getAppPath("/agents"); }}>去商城挑已上线的智能体</button>
             </div>
           </div>
         </section>

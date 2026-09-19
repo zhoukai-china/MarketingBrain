@@ -33,7 +33,7 @@ const SECTIONS: AdminSection[] = [
   { id: "recharges", label: "充值明细", hint: "用户充值时间与人民币金额明细", endpoints: ["GET /admin/recharges"] },
   { id: "orders", label: "订单与收款", hint: "计费审计、统一账本与用户充值明细", endpoints: ["GET /admin/billing/audit", "GET /market/admin/ledger", "GET /admin/recharges"] },
   { id: "credits", label: "积分干预", hint: "发体验额度、查发放记录", endpoints: ["GET /market/admin/trial-grants", "POST /market/admin/trial-grants"] },
-  { id: "shelf", label: "智能体与货架", hint: "SKU 上下架/改价、供应商、Agent 定义", endpoints: ["GET /market/admin/skus", "PATCH /market/admin/skus/:skuId", "GET /market/admin/suppliers", "GET /admin/agents"] },
+  { id: "shelf", label: "智能体与商品", hint: "SKU 上下架/改价、供应商、Agent 定义", endpoints: ["GET /market/admin/skus", "PATCH /market/admin/skus/:skuId", "GET /market/admin/suppliers", "GET /admin/agents"] },
   { id: "referral", label: "推荐归因", hint: "推荐有礼配置位、生成推荐码、归因清单", endpoints: ["GET /market/admin/referral-config", "POST /market/admin/referral-codes", "GET /market/admin/referrals"] },
   { id: "quality", label: "质量与安全", hint: "质量摘要与租户隔离审计", endpoints: ["GET /admin/quality/summary", "GET /admin/security/isolation-audit"] }
 ];
@@ -455,7 +455,7 @@ function OverviewSection() {
               <div key={card.label} className="adminCard"><span>{card.label}</span><strong>{card.value}</strong></div>
             ))}</div>}
       </Panel>
-      <Panel title="货架概览" error={overview.error} loading={overview.loading} onReload={() => void overview.reload()}>
+      <Panel title="商品概览" error={overview.error} loading={overview.loading} onReload={() => void overview.reload()}>
         <DataView data={overview.data?.overview ?? overview.data} />
       </Panel>
     </>
@@ -758,7 +758,7 @@ function ShelfSection() {
 
   return (
     <>
-      <Panel title="货架 SKU（可上下架 / 改价）" error={skus.error} loading={skus.loading} onReload={() => void skus.reload()}>
+      <Panel title="商品 SKU（可上下架 / 改价）" error={skus.error} loading={skus.loading} onReload={() => void skus.reload()}>
         {skuRows.length === 0 ? <DataView data={skus.data} /> : (
           <div className="adminTableWrap">
             <table className="adminTable">
