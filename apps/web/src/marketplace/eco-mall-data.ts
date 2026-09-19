@@ -40,7 +40,7 @@ export interface EcoConsultant {
 }
 
 export const ECO_EMPLOYEE_ZONES: Array<{ key: EcoEmployeeZoneKey; label: string; shortLabel: string; note: string }> = [
-  { key: "餐饮专区", label: "餐饮专区", shortLabel: "餐饮专精", note: "餐饮专区正在准备，员工暂未开放。" },
+  { key: "餐饮专区", label: "餐饮专区", shortLabel: "餐饮专精", note: "按餐饮堂食 / 外卖 / 私域同城到店场景交付。" },
   { key: "美业专区", label: "美业专区", shortLabel: "美业专精", note: "按美业合规话术与同城到店场景交付。" },
   { key: "宠物专区", label: "宠物专区", shortLabel: "宠物", note: "宠物专区正在准备，员工暂未开放。" },
   { key: "汽车后市场专区", label: "汽车后市场专区", shortLabel: "汽车后市场", note: "汽车后市场专区正在准备，员工暂未开放。" },
@@ -55,7 +55,7 @@ export function employeeZoneSkin(zone: EcoEmployeeZoneKey): EcoSkinKey {
 }
 
 export function employeeStatusForZone(employee: EcoEmployee, zone: EcoEmployeeZoneKey): "ok" | "dev" {
-  if (zone !== "通用" && zone !== "美业专区") return "dev";
+  if (zone !== "通用" && zone !== "美业专区" && zone !== "餐饮专区") return "dev";
   return employee.status;
 }
 
@@ -322,8 +322,7 @@ export function consultantImagePath(consultant: EcoConsultant): string {
 }
 
 export function employeeSkuCode(employee: EcoEmployee, skin: EcoSkinKey): string | null {
-  if (skin === "餐饮专精") return null;
-  const zone = skin === "美业专精" ? "meiye" : "ipzone";
+  const zone = skin === "美业专精" ? "meiye" : skin === "餐饮专精" ? "canyin" : "ipzone";
   return `${zone}__${employee.capability}`;
 }
 

@@ -248,7 +248,7 @@ export function EcoMallHomePage() {
   }
 
   function renderEmployees(zone: EcoEmployeeZoneKey) {
-    if (zone !== "通用" && zone !== "美业专区") {
+    if (zone !== "通用" && zone !== "美业专区" && zone !== "餐饮专区") {
       return (
         <div className="eco-zone-note">
           {ECO_EMPLOYEE_ZONES.find((item) => item.key === zone)?.note ?? "该行业数字员工正在准备。"}
