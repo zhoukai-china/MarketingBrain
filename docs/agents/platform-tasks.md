@@ -2632,3 +2632,57 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 | PLAT-47 WorkBuddy 接入货架已上架 SKU（sitong.skills/ask 改走 marketplace 计费与执行） | **已完成 + 已上生产** | 计费口径选 A（与货架同价同账），用户已确认；客户端真机调用待用户复核 |
 
 - 最后更新日期：2026-09-17
+
+## PLAT-49 餐饮专区数字人上线（同美业逻辑）
+
+状态：**已部署测试实例与生产**（测试 `…-test3` `DEPLOY_OK`；生产 `20260919-plat49-restaurant-digital-humans-prod1` `DEPLOY_OK`）
+
+### 归属
+
+- 产品：公共平台（货架专区 `canyin`）。
+- 层级：货架配置与行业参考案例；不新增模型路由、不新增计费口径、不新增 Skill。
+- 风险：中。开卖状态会进入公开货架并允许扣积分，因此只随发布文件走、可回滚。
+
+### 用户结果
+
+用户进入货架后看到「餐饮专区」不再显示「待上线」，而是与美业专区一致地逐内核展示 9 个餐饮行业数字人：IP 定位、选题、文案、视频复盘、直播话术、直播复盘、销售话术、朋友圈、IP 增长套装。当前可购买口径与美业一致：IP 定位 / 文案 / 视频复盘 / 直播话术为 `selling`，其余 5 个为 `coming_soon`。
+
+### 本次范围
+
+- `apps/api/src/data/marketplace-v3.json`：把 `canyin.ready` 置为 `true`，补齐 `prefix`、`who`、`lexicon`、`pains`、`redline` 与 9 个内核的 `ov`（欢迎语 / 交付口径 / 需要输入 / 方法论 / 落地提示）。
+- `apps/web/src/marketplace/reference-cases.ts` + `industry-samples.ts`：把 WorkBuddy 交付的 8 份行业校准样例（IP定位 / 文案 / 视频复盘 / 直播话术 × 美业 / 餐饮）挂成按完整 SKU 命中的参考案例；通用直播样例改为中性；保留 `topic` / `moments` 既有专属样例。
+- `scripts/marketplace-foundation-smoke.ts`：货架 SKU / 开发中 / 开卖口径从 19 / 11 / 8 更新为 28 / 16 / 12，并把 `canyin` 纳入状态来源回归。
+- `scripts/marketplace-reference-case-neutral-smoke.ts`：新增 `canyin` 行业词守护，并断言餐饮专属样例存在。
+
+### 本次不做
+
+- 不改 `restaurant-growth-advisor` / `takeaway-growth-advisor` 的 Prompt、路由或 Skill 版本。
+- 不改现有 ipzone / meiye / lanqi 专区价格、状态或文案。
+- 已部署测试实例；本轮不部署生产、不发起付款或外部动作。
+
+### 验收条件
+
+1. `/market/zones` 仍返回 `canyin`，且 `/market/skus` 包含 9 个 `canyin__*` SKU。
+2. `canyin` 状态与美业一致：`canyin__ip-pos` / `canyin__copy` / `canyin__vidrev` / `canyin__livescript` 为 `selling`，其余 5 个为 `coming_soon`。
+3. `coming_soon` 仍不可购买或扣积分，`selling` 允许进入正常购买/运行链路。
+4. 通用参考案例不得出现餐饮行业词；餐饮专属参考案例只对完整 SKU 命中。
+5. 状态必须来自发布文件 `marketplace-v3.json`，不能被数据库专区 profile 的空 `ov` 吞掉。
+
+### 验证
+
+- `pnpm.cmd marketplace:foundation-smoke`：PASS。
+- `pnpm.cmd marketplace:reference-case-neutral-smoke`：PASS。
+- `pnpm.cmd marketplace:api-smoke`：PASS。
+- `pnpm.cmd marketplace:sku-link-contract-smoke`：PASS（18/0）。
+- `pnpm.cmd marketplace:credits-only-contract-smoke`：PASS（33/0）。
+- `pnpm.cmd workbuddy:marketplace-sync-smoke`：PASS。
+- `pnpm.cmd --filter @baolu/api typecheck` / `pnpm.cmd --filter @baolu/web typecheck`：PASS。
+- `pnpm.cmd qa:fast`：**未完成**，在 `auth:wechat-login-failure-paths-smoke` 因缺少 `WECHAT_AUTH_REDIRECT_URI` 提前中断（环境配置缺失，非本改动引入）。
+- 测试实例：`DEPLOY_OK`（test1 核心专区 + test2 样例挂载 + test3 P2 修复），`health=200`、`ready=200`，`/market/skus` 返回 9 个 `canyin__*`，4 `selling` / 5 `coming_soon`；`grep` 命中餐饮 IP 定位与直播话术样例。
+- 生产：`20260919-plat49-restaurant-digital-humans-prod1` `DEPLOY_OK`；`health=200`、`ready=200`；`/market/skus` 返回 9 个 `canyin__*`，4 `selling` / 5 `coming_soon`；`grep` 命中餐饮样例。
+
+### 交接
+
+- 测试实例链接：`https://api.lcppch.top/lanqi-test/agents`；生产链接：`https://api.lcppch.top/os-v2/agents`。生产已发布，仍需按发布纪律补跑 `prelaunch:check`、`qa:full` 与线上真实登录 smoke（测试环境 `dev-login` 不代表生产微信登录）。
+- 残余既有失败（与本改动文件无关）：`marketplace:chat-slot-numbering-contract-smoke`、`marketplace:chat-restart-smoke`、`marketplace:ip-pos-interview-contract-smoke` 与 `marketplace:mine-docx-download-smoke`（缺 `DATABASE_URL`），应单列修复，不在本任务扩大范围。
+- 最后更新日期：2026-09-19

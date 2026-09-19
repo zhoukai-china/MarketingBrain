@@ -1,5 +1,17 @@
 # 当前部署状态
 
+## 最新发布：20260919-plat49-restaurant-digital-humans-prod1（2026-09-19，测试实例 + 生产）— 餐饮专区 9 个数字员工上线，接入 8 份行业校准样例，并修 2 个 P2
+
+用户结果：货架「餐饮专区」由“待上线”变为与美业同构的行业专区，9 个餐饮数字员工按美业口径上线；IP 定位 / 文案 / 视频复盘 / 直播话术为 `selling`，其余 5 个为 `coming_soon`，积分沿用通用版。
+
+范围：`apps/api/src/data/marketplace-v3.json` 启用 `canyin` 并补齐 9 个内核 `ov`；`apps/web/src/marketplace/reference-cases.ts` 与新增 `industry-samples.ts` 挂载 8 份 WorkBuddy 行业样例；`scripts/marketplace-foundation-smoke.ts` / `scripts/marketplace-reference-case-neutral-smoke.ts` 同步数量与行业词守护；`apps/web/src/marketplace/AgentDetailPage.tsx` 修 Escape 关闭样例弹窗，`reference-cases.ts` 轻量渲染样例 Markdown。
+
+发布：测试实例 `20260919-plat49-restaurant-digital-humans-test3` `DEPLOY_OK`；生产 `20260919-plat49-restaurant-digital-humans-prod1` `DEPLOY_OK`。生产 `health=200`、`ready=200`；`/market/skus` 返回 9 个 `canyin__*`，4 `selling` / 5 `coming_soon`；生产 dist 命中餐饮 IP 定位与餐饮直播话术样例。生产库 `MarketplaceIndustryProfile.zoneKey=canyin` 已更新为 `ready=true` 与完整 `ov`（9 个），并重启服务生效。
+
+未覆盖：生产微信真实登录/授权 smoke（测试环境为 `dev-login`）、`qa:full`、`prelaunch:check` 未完整跑；详见 `docs/agents/platform-tasks.md` PLAT-49 交接。
+
+备份 / 回滚：`/opt/baolu-backups/20260919-plat49-restaurant-digital-humans-prod1-before-baolu-os-v2/`（生产）、`/opt/baolu-backups/20260919-plat49-restaurant-digital-humans-test3-before-baolu-os-v2-test/`（测试）；回滚 = 还原对应备份目录并 `systemctl restart`，生产回滚后需同步把 `canyin` profile 恢复为原口径（本次未删除旧行）。
+
 ## 最新发布：lq35-store-gate-prod1（2026-09-18，测试实例 lq35-store-gate-test1 + 生产）— 兰琪公域获客「门店信息还在加载」改按真实原因提示
 
 用户现场：老板在「公域获客 → 美业文案十件套」点生成只看到「门店信息还在加载，请稍后再试一次。」，不管点几次都是这一句。
