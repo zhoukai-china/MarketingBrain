@@ -5,6 +5,7 @@ import {
   ECO_CONSULTANTS,
   ECO_EMPLOYEES,
   ECO_EMPLOYEE_ZONES,
+  ECO_SKIN_ORDER,
   consultantImagePath,
   employeeDetailPath,
   employeeImagePath,
@@ -121,7 +122,7 @@ function EmployeeModal({
           </div>
         </div>
         <div className="eco-tabs">
-          {(Object.keys(employee.skins) as EcoSkinKey[]).map((key) => (
+          {ECO_SKIN_ORDER.filter((key) => employee.skins[key]).map((key) => (
             <button key={key} type="button" className={key === skin ? "on" : ""} onClick={() => setSkin(key)}>
               {key}
             </button>

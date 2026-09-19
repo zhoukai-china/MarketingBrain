@@ -1,6 +1,15 @@
 import baoluChiefAvatar from "../assets/baolu-chief.jpg";
 
 export type EcoSkinKey = "通用" | "美业专精" | "餐饮专精";
+
+/**
+ * 员工弹窗里行业皮肤的**固定展示顺序**（2026-09-19 用户口径：通用 → 餐饮 → 美业）。
+ *
+ * 不能依赖 `Object.keys(employee.skins)` 的顺序：那只是对象字面量的书写顺序，
+ * 谁在前面谁先渲染，容易出现「同一个员工两处顺序不一样」。
+ */
+export const ECO_SKIN_ORDER: EcoSkinKey[] = ["通用", "餐饮专精", "美业专精"];
+
 export type EcoEmployeeZoneKey =
   | "通用"
   | "美业专区"
