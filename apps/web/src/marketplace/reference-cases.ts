@@ -10,7 +10,16 @@
 import { IP_POS_FULL_CASE_HTML } from "./ip-pos-full-case.js";
 import { CONTENT_TEN_FULL_CASE_HTML } from "./content-ten-full-case.js";
 import { VIDREV_FULL_CASE_HTML } from "./vidrev-full-case.js";
-import { LIVESCRIPT_FULL_CASE_HTML } from "./livescript-full-case.js";
+import {
+  ipPosCateringSample,
+  ipPosBeautySample,
+  copyCateringSample,
+  copyBeautySample,
+  vidrevCateringSample,
+  vidrevBeautySample,
+  livescriptCateringSample,
+  livescriptBeautySample
+} from "./industry-samples.js";
 export interface ReferenceCaseRow {
   k: string;
   v: string;
@@ -47,9 +56,14 @@ export const REFERENCE_CASES: Record<string, ReferenceCase> = {
     html: VIDREV_FULL_CASE_HTML
   },
   livescript: {
-    title: "直播话术 · 招商场景完整样例（2 小时连续逐字稿）",
-    input: "输入（5 项）：品牌=连锁餐饮（有直营、开放加盟） · 招商目标=想开店但没经验的小老板 · 平台=抖音 · 时长=2 小时 · 引流款=9.9 元 资料包",
-    html: LIVESCRIPT_FULL_CASE_HTML
+    title: "直播话术 · 招商场景样例",
+    input: "输入：本地连锁品牌（有直营，开放招商） · 招商目标=想开店但没经验的小老板 · 平台=抖音 · 时长=2 小时",
+    rows: [
+      { k: "0-10 分钟 · 开场留人", v: "「今天不讲产品，先讲一个真事：一位想开店的老板带着别家方案来找我们重新算账…」" },
+      { k: "10-40 分钟 · 主推", v: "痛点共鸣 → 方案拆解 → 模型测算（不承诺收益）→ 价格锚定 → 限时限量。" },
+      { k: "轮播节奏", v: "每 12 分钟一轮：讲痛点 3 分钟 / 出方案 4 分钟 / 上链接 3 分钟 / 答疑 2 分钟。" },
+      { k: "场控清单", v: "扣 1 领资料、扣关键词领测算表、满 20 单加赠一次咨询服务。" }
+    ]
   },
   liverev: {
     title: "一场直播复盘 · 定量 + 定性",
@@ -95,6 +109,125 @@ export function referenceCaseFor(coreSkillId: string): ReferenceCase | undefined
   return REFERENCE_CASES[coreSkillId];
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function inlineMarkdown(value: string): string {
+  return escapeHtml(value)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>");
+}
+
+/** 只覆盖样例实际用到的 Markdown：标题、粗体、列表、引用、表格和分隔线。 */
+function renderSimpleMarkdown(markdown: string): string {
+  const lines = markdown.split(/\r?\n/);
+  let html = "";
+  let listTag = "";
+  let tableLines: string[] = [];
+
+  const flushList = () => {
+    if (listTag) {
+      html += `</${listTag}>`;
+      listTag = "";
+    }
+  };
+
+  const flushTable = () => {
+    if (tableLines.length === 0) return;
+    const cells = tableLines
+      .map((line) => line.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map((cell) => cell.trim()))
+      .filter((row) => !row.every((cell) => /^-{3,}$/.test(cell)));
+    if (cells.length > 0) {
+      const head = cells[0];
+      const body = cells.slice(1);
+      html += `<table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:14px">`;
+      html += `<thead><tr>${head.map((cell) => `<th style="text-align:left;padding:7px 9px;border:1px solid var(--line);background:var(--glass)">${inlineMarkdown(cell)}</th>`).join("")}</tr></thead>`;
+      html += `<tbody>${body.map((row) => `<tr>${row.map((cell) => `<td style="padding:7px 9px;border:1px solid var(--line);vertical-align:top;line-height:1.6">${inlineMarkdown(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    }
+    tableLines = [];
+  };
+
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    const trimmed = line.trim();
+    const isTableLine = /^\s*\|/.test(line);
+    if (!isTableLine) flushTable();
+
+    if (trimmed === "") {
+      flushList();
+      continue;
+    }
+
+    if (isTableLine) {
+      flushList();
+      tableLines.push(line);
+      continue;
+    }
+
+    const heading = /^(#{1,4})\s+(.+)$/.exec(trimmed);
+    if (heading) {
+      flushList();
+      const level = heading[1].length;
+      html += `<h${level} style="margin:16px 0 8px;line-height:1.4">${inlineMarkdown(heading[2])}</h${level}>`;
+      continue;
+    }
+
+    if (/^---+$/.test(trimmed) || /^\*\*\*+$/.test(trimmed)) {
+      flushList();
+      html += `<hr style="border:none;border-top:1px solid var(--line);margin:14px 0" />`;
+      continue;
+    }
+
+    if (trimmed.startsWith("> ")) {
+      flushList();
+      html += `<blockquote style="margin:10px 0;padding:8px 12px;border-left:3px solid var(--accent2);background:var(--glass);line-height:1.6">${inlineMarkdown(trimmed.slice(2))}</blockquote>`;
+      continue;
+    }
+
+    const unordered = /^[-*]\s+(.+)$/.exec(trimmed);
+    if (unordered) {
+      if (listTag !== "ul") {
+        flushList();
+        html += "<ul style=\"margin:8px 0 8px 20px;padding:0\">";
+        listTag = "ul";
+      }
+      html += `<li style="margin:4px 0;line-height:1.6">${inlineMarkdown(unordered[1])}</li>`;
+      continue;
+    }
+
+    const ordered = /^\d+\.\s+(.+)$/.exec(trimmed);
+    if (ordered) {
+      if (listTag !== "ol") {
+        flushList();
+        html += "<ol style=\"margin:8px 0 8px 20px;padding:0\">";
+        listTag = "ol";
+      }
+      html += `<li style="margin:4px 0;line-height:1.6">${inlineMarkdown(ordered[1])}</li>`;
+      continue;
+    }
+
+    flushList();
+    html += `<p style="margin:8px 0;line-height:1.65">${inlineMarkdown(trimmed)}</p>`;
+  }
+
+  flushTable();
+  flushList();
+  return html;
+}
+
+/** 把行业校准样例渲染成可直接阅读的轻量 HTML。 */
+function markdownReference(title: string, input: string, markdown: string): ReferenceCase {
+  return {
+    title,
+    input,
+    html: renderSimpleMarkdown(markdown)
+  };
+}
+
 /**
  * 行业专区专属样例（方案②的另一半）：行业词只能出现在这里，且只对完整 SKU 生效。
  *
@@ -111,32 +244,38 @@ export const INDUSTRY_REFERENCE_CASES: Record<string, ReferenceCase> = {
       { k: "选题三 · 否决", v: "「今天带大家看看我们的新仪器」— 否决原因：目标人群（想加盟的人）不关心设备参数，属于自嗨。" }
     ]
   },
-  "meiye__copy": {
-    title: "1 条抖音口播文案 · 可直发",
-    input: "输入：美业门店 · 卖点=不破皮项目 · 目标=引流到店",
-    rows: [
-      { k: "钩子（前 3 秒）", v: "「做了 16 年美容，我最怕客人进门就问一句：你们这个会不会破皮？」" },
-      { k: "正文", v: "不破皮不是温柔，是技术门槛——皮肤屏障完整的状态下把效果做出来，靠的是手法路径和层次判断，不是仪器参数。" },
-      { k: "结尾动作", v: "「想看适不适合你，评论区打「肤质」，我让顾问发你一张自测表。」" },
-      { k: "话题标签", v: "#美业老板 #不破皮 #皮肤管理 #美容院经营" }
-    ]
-  },
-  "meiye__livescript": {
-    title: "直播话术 · 招商场景完整样例（2 小时连续逐字稿）",
-    input: "输入：美业门店 · 带货 · 客单 398",
-    rows: [
-      { k: "0-10 分钟 · 开场留人", v: "「今天不讲项目，先讲一个真事：上周有位客人带着别家做的项目来找我修复…」" },
-      { k: "10-40 分钟 · 主推", v: "痛点共鸣 → 方案拆解 → 案例佐证（不承诺疗效）→ 价格锚定 → 限时限量。" },
-      { k: "轮播节奏", v: "每 12 分钟一轮：讲痛点 3 分钟 / 出方案 4 分钟 / 上链接逼单 3 分钟 / 答疑 2 分钟。" },
-      { k: "场控清单", v: "扣 1 领资料、扣肤质领自测表、满 20 单加赠一次护理。" }
-    ]
-  },
+  "meiye__ip-pos": markdownReference("IP定位智能体 · 美业行业样例", "输入：美业连锁 · 招商加盟", ipPosBeautySample),
+  "meiye__copy": markdownReference("文案智能体 · 美业行业样例", "输入：美业门店 · 卖点=不破皮项目 · 目标=引流到店", copyBeautySample),
+  "meiye__vidrev": markdownReference("视频复盘智能体 · 美业行业样例", "输入：美业视频后台数据 · 近30天", vidrevBeautySample),
+  "meiye__livescript": markdownReference("直播话术智能体 · 美业行业样例", "输入：美业门店 · 带货 · 客单 398", livescriptBeautySample),
   "meiye__moments": {
     title: "1 条朋友圈 · 可直发",
     input: "输入：美业老板 · 想立「懂经营」人设 · 目标=约见",
     rows: [
       { k: "正文", v: "下午在店里看排班表，发现一个规律：周一到周三的床位利用率不到 40%，周末却排不上。不是客人少，是预约节奏没设计好。这周试着把老客的复购周期往前挪两天，看看能不能把周中的空档填上。做门店就是这样，很多问题不是努力不够，是结构没调对。" },
       { k: "配图建议", v: "一张排班表局部（隐去客人信息）比精修门店图更可信。" },
+      { k: "发布时间", v: "周二 20:30-21:30，老板刷手机高峰。" }
+    ]
+  },
+  "canyin__topic": {
+    title: "3 条选题 · 带三关筛选标签",
+    input: "输入：餐饮连锁 · 增长期 · 想招加盟商",
+    rows: [
+      { k: "选题一 · 通过", v: "「开了 8 年店，我为什么劝你别急着开第二家」— 一票否决：老板想看 ✓ 共识层：高 客户精准度：B 端加盟 高 阶段占比：变现期 40%" },
+      { k: "选题二 · 通过", v: "「一家店月翻台 300 次，是怎么排班的」— 共识层：中高 精准度：B 端 高 起号期 30%" },
+      { k: "选题三 · 否决", v: "「今天带大家看看我们的新菜单」— 否决原因：目标人群（想加盟的人）不关心菜单样式，属于自嗨。" }
+    ]
+  },
+  "canyin__ip-pos": markdownReference("IP定位智能体 · 餐饮行业样例", "输入：中式快餐连锁 · 招商加盟", ipPosCateringSample),
+  "canyin__copy": markdownReference("文案智能体 · 餐饮行业样例", "输入：餐饮门店 · 卖点=现炒快餐 · 目标=本地获客", copyCateringSample),
+  "canyin__vidrev": markdownReference("视频复盘智能体 · 餐饮行业样例", "输入：餐饮视频后台数据 · 近30天", vidrevCateringSample),
+  "canyin__livescript": markdownReference("直播话术智能体 · 餐饮行业样例", "输入：中式快餐连锁 · 本地生活带货", livescriptCateringSample),
+  "canyin__moments": {
+    title: "1 条朋友圈 · 可直发",
+    input: "输入：餐饮老板 · 想立「懂经营」人设 · 目标=约见",
+    rows: [
+      { k: "正文", v: "下午在后厨看备料表，发现一个规律：周一到周三的堂食订单空着大半，周末却排不上。不是客人少，是节奏没设计好。这周试着把老客的复购提醒往前挪两天，看看能不能把周中的空档填上。做餐饮就是这样，很多问题不是努力不够，是结构没调对。" },
+      { k: "配图建议", v: "一张后厨备料表局部（隐去供应商信息）比精修门头照更可信。" },
       { k: "发布时间", v: "周二 20:30-21:30，老板刷手机高峰。" }
     ]
   }

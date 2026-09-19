@@ -41,6 +41,15 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
   const [rechargeHref, setRechargeHref] = useState("");
 
   useEffect(() => {
+    if (!benchmark) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setBenchmark(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [benchmark]);
+
+  useEffect(() => {
     let cancelled = false;
     setLoading(true);
     void (async () => {

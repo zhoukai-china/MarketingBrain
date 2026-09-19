@@ -40,6 +40,22 @@ const INDUSTRY_GUARD_WORDS: Record<string, string[]> = {
     "床位",
     "耗卡",
     "升单"
+  ],
+  canyin: [
+    "餐饮",
+    "堂食",
+    "外卖",
+    "菜品",
+    "菜单",
+    "翻台",
+    "出餐",
+    "食客",
+    "快餐",
+    "火锅",
+    "烧烤",
+    "奶茶",
+    "小吃",
+    "后厨"
   ]
 };
 
@@ -195,6 +211,10 @@ function main(): void {
   assert(
     scopedSkus.includes("meiye__copy"),
     `美业文案智能体必须保留自己的行业专属样例（当前：${scopedSkus.join(", ")}）`
+  );
+  assert(
+    scopedSkus.includes("canyin__copy"),
+    `餐饮文案智能体必须保留自己的行业专属样例（当前：${scopedSkus.join(", ")}）`
   );
 
   console.log(`PASS marketplace-reference-case-neutral-smoke（通用内核 ${checked.length} 个：${checked.join(", ")}）`);
