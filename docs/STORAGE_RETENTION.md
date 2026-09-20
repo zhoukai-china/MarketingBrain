@@ -123,6 +123,11 @@ REPEAT_HOURS=0   bash /opt/baolu-ops/disk-alert.sh --dry-run   # 关掉重复抑
   状态在 `/var/lib/baolu-disk-alert/`，恢复正常自动清空）；`baolu-disk-alert.{service,timer}` 首次纳入
   版本管理，安装脚本一并同步（QA-20260917-004）。检查频率未变（仍每小时），
   `QUIET_HOURS=off REPEAT_HOURS=0` 可回退。
+- 2026-09-20：数字员工头像 V2 覆盖发布（`docs/CURRENT_DEPLOYMENT_STATUS.md`）的回滚快照
+  `/opt/baolu-backups/20260920-avatars-v2` 原为**策略外**名字（不匹配 `*-before-baolu-os-v2{,-test}`，
+  既不会被保全统计、也不会被回收），已按命名规范改名为
+  `20260920-avatars-v2-prod1-before-baolu-os-v2`，从此纳入本表第一条策略（生产组，每环境最近 8 份）。
+  同目录另收 `public-avatars-before.tar.gz`（覆盖前的服务器源码副本 `apps/web/public/avatars/`）。
 
 ## 八、上线执行记录（2026-09-15 14:18，生产）
 

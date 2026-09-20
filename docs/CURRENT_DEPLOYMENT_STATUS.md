@@ -1,5 +1,17 @@
 # 当前部署状态
 
+## 最新发布：20260920-avatars-v2-prod1（2026-09-20，仅静态素材，生产三处同步）— 数字员工 8 张头像升级 V2 年轻版（含 topic / copywriter 对调）
+
+用户结果：`https://ai.lcppch.top/agents`「数字员工团队」8 张头像全部换成 V2 年轻版；其中「选题策略官(`topic.png`)」与「金牌文案主笔(`copywriter.png`)」两张按交接包内文件**原样对调**落地（不按角色名重排）。
+
+范围：`apps/web/public/avatars/` 下 8 个 PNG 同名覆盖（`ip-position` / `topic` / `copywriter` / `video-diag` / `live-host` / `live-coach` / `sales-coach` / `private`，均 1024×1024，与 `codex_handoff.zip` 内同名文件 SHA256 完全一致），提交 `22493f6` 已合入 `main`。
+
+根因（为什么必须回写源码）：`build-ai-root.sh`（服务器 `/opt/baolu-os-v2/scripts/`，仓库内见分支 `codex/fix-ai-root-avatars-and-drift`）会原样搬运 `apps/web/public/` 到产物（脚本第 2 步就是校验 `avatars/ip-position.png` 存在），只覆盖两套 dist 而不提交源码，任何一次重建都会用 `public/` 里的旧图覆盖回去。
+
+发布（静态素材，未重启服务）：生产三处同字节——`apps/web/public/avatars/`（源码副本，服务器上原为 09-18 旧图）、`apps/web/dist/avatars/`（`/os-v2/`）、`apps/web/dist-ai-root/avatars/`（`ai.lcppch.top/`）。`/avatars/` 不带 immutable 缓存，普通刷新即可，无需强刷。
+
+回滚：`/opt/baolu-backups/20260920-avatars-v2-prod1-before-baolu-os-v2/`（`avatars-before.tar.gz` = 两套 dist；`public-avatars-before.tar.gz` = 源码副本；两份 `*-hashes-before.txt`）；也可直接取 git 旧图（`main` 上一版 `9aa9bc0` 的 `apps/web/public/avatars/`）。该快照目录已按「发布前回滚快照」命名，纳入 `scripts/ops/prune-server-backups.sh` 常规保留策略（生产组，每环境最近 8 份）。
+
 ## 最新发布：20260919-plat49-restaurant-digital-humans-prod1（2026-09-19，测试实例 + 生产）— 餐饮专区 9 个数字员工上线，接入 8 份行业校准样例，并修 2 个 P2
 
 用户结果：货架「餐饮专区」由“待上线”变为与美业同构的行业专区，9 个餐饮数字员工按美业口径上线；IP 定位 / 文案 / 视频复盘 / 直播话术为 `selling`，其余 5 个为 `coming_soon`，积分沿用通用版。
