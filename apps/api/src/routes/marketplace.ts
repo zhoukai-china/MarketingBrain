@@ -170,6 +170,10 @@ const MARKETPLACE_SKILL_BY_CAPABILITY: Record<string, string> = {
   customer_diagnosis: "sales_growth_advisor"
 };
 
+// 直播话术需要交付「几万字 · 2 小时完整逐字稿」，单次输出体量远大于普通货架技能。
+// 用 DeepSeek 高能力模型（deepseek-v4-pro）并放开输出上限，保证九段 + 四附属件不被截断。
+const LIVESCRIPT_MAX_TOKENS = 16_384;
+
 
 const skuInputSchema = z.object({
   skuCode: z.string().min(1).max(80),
@@ -328,7 +332,7 @@ export async function runMarketplaceSku(params: {
     providerName: "deepseek",
     apiKey: env.DEEPSEEK_API_KEY,
     baseUrl: env.DEEPSEEK_BASE_URL,
-    model: process.env.MARKETPLACE_MODEL ?? "deepseek-v4-flash",
+    model: core === "livescript" ? env.DEEPSEEK_MODEL : process.env.MARKETPLACE_MODEL ?? "deepseek-v4-flash",
     timeoutMs: env.LLM_TIMEOUT_MS,
     domesticNetworkOnly,
     allowedHosts: domesticOutboundAllowlist,
@@ -346,7 +350,7 @@ export async function runMarketplaceSku(params: {
       ...(options as object),
       reasoningProfile: "standard",
       thinkingMode: "disabled",
-      maxTokens: Math.min(Math.max(((options as { maxTokens?: number })?.maxTokens) ?? 8000, 8000), 8192)
+      maxTokens: Math.min(Math.max(((options as { maxTokens?: number })?.maxTokens) ?? 8000, 8000), LIVESCRIPT_MAX_TOKENS)
     })
   };
 
@@ -502,6 +506,12 @@ export async function runMarketplaceSku(params: {
           : clarifyB
             ? String(partB ?? "")
             : `${String(partA ?? "").trim()}\n\n${String(partB ?? "").trim()}`;
+      } else if (core === "livescript") {
+        answerText = await generateLiveScriptFull(
+          marketplaceSkillSystemPrompt(sku),
+          turnMessages,
+          (messages, options) => provider.complete(messages, options)
+        );
       } else {
         answerText = (await provider.complete(
           [
@@ -1989,18 +1999,121 @@ const MARKETPLACE_SKILL_PROMPTS: Record<string, string> = {
   topic: "按选题三关筛选方法论，输出一个 Markdown 表格，列依次为：序号、选题、切入角度、平台建议、是否踩雷。给 3-5 行。",
   copy: "按文案方法论，输出一个 Markdown 表格，列依次为：模块（钩子 / 正文 / 标题话题 / 发布建议）、内容。每模块一行。",
   vidrev: "按视频复盘方法论，输出一个 Markdown 表格，列依次为：模块（数据概览 / 归因 / 下一条动作）、内容。每模块一行。",
-  livescript: "按直播话术方法论，输出一个 Markdown 表格，列依次为：模块（开场 / 主推 / 节奏表 / 场控清单）、内容。每模块一行。",
+  livescript: "按直播话术方法论输出完整 2 小时直播逐字稿（统一九段环节 + 每段【主播口播稿】/【主播节奏提示】双块 + 节奏表 / 控场清单 / 高频应答 / 开播前检查四附属件）。",
   liverev: "按直播复盘方法论，输出一个 Markdown 表格，列依次为：模块（定量指标 / 定性问题 / 话术迭代带）、内容。每模块一行。",
   sales: "按销售成交方法论，输出一个 Markdown 表格，列依次为：模块（客户判断 / 标准话术 / 异议处理 / 合规提示）、内容。每模块一行。",
   moments: "按朋友圈七柱方法论，输出一个 Markdown 表格，列依次为：模块（正文 / 配图建议 / 发布时间）、内容。每模块一行。",
   "ip-pack": "按 IP 增长全链路方法论，输出一个 Markdown 表格，列依次为：模块（现状判断 / 先打哪一环 / 排兵布阵）、内容。每模块一行。"
 };
 
+const LIVESCRIPT_SYSTEM_PROMPT = [
+  "你是思潼AI「直播话术智能体」，交付一份可直接照读的完整 2 小时直播逐字稿。",
+  "先看输入里的「场次类型」：带货 / 团购按 C 端带货写；招商加盟按 B 端招商写。两条线的话术体系完全不同，绝不串场。",
+  "",
+  "## 输出结构（统一九段环节，默认 2 小时）",
+  "严格按下面九段输出，每段固定两个子块：【主播口播稿】和【主播节奏提示】。",
+  "1. 开场暖场（两步式自我介绍：量化入脑 + 共情入心）",
+  "2. 痛点共鸣（说目标人群的苦，抛互动）",
+  "3. 首轮塑品（带货=FABE / 项目塑品；招商=实力背书 + 单店模型测算）",
+  "4. 第一轮逼单留资（带货=下单 / 领券；招商=领测算表 / 留资）",
+  "5. 互动答疑（念评论 / 连麦问答）",
+  "6. 循环带货 / 循环塑品（第二轮·换角度换案例，骨架不变）",
+  "7. 案例背书（讲真实客户体验，不承诺结果）",
+  "8. 异议处理（算账 + 降门槛 + 给路径三连）",
+  "9. 锁客收尾（留资 / 逼单升级 + 合规提示）",
+  "",
+  "## 形态铁律",
+  "- 从 0:00 连续铺到 120:00，每段不空、不跳、不写「此处自由发挥」。",
+  "- 【主播口播稿】写主播真实会念的话，动作 / 神态用 [ ] 标注在句前（如 [笑着挥手] [认真脸]）。",
+  "- 【主播节奏提示】写场控 / 运营动作（贴片、切连麦、弹入口、看评论念两条等），与口播稿并列。",
+  "- 核心塑品每 20 分钟轮播一次，每轮换角度 / 换真实案例，骨架不变，保证任意时间进来的观众都能接上。",
+  "",
+  "## 必交付四附属件（放在逐字稿之后）",
+  "1. 2 小时节奏表（主播版）：时间段 / 主题 / 主播节奏。",
+  "2. 控场执行清单：评论区置顶 / BGM 节点 / 画面切换 / 弹窗时机 / 违规监控 / 库存通报。",
+  "3. 高频应答（最常见 5 问标准应答），带合规安全词。",
+  "4. 开播前检查清单（人货场）。",
+  "",
+  "## 合规红线（必须遵守）",
+  "- 禁用《广告法》极限词：最 / 第一 / 国家级 / 首选 / 独家 / 顶级 / 极致。",
+  "- 招商禁止承诺收益：包赚 / 稳赚 / 保底 / 零风险 / 回本承诺一律删除，改用「模型测算 / 历史数据参考」，并口播「投资有风险，加盟需谨慎」。",
+  "- 带货禁止虚构价格、库存、名额、折扣与效果承诺（美业尤其禁止治疗 / 根治 / 七天见效等疗效词）。",
+  "- 只用输入里已确认的事实；没给的数字、门店数、案例、政策不编造，可写「以门店 / 官方口径为准」。",
+  "- 不出现竞品名、个人名、课程名；方法论只说框架名。",
+  "",
+  "直接输出完整逐字稿正文（九段 + 四附属件），不要输出「正在生成」之类的前言。"
+].join("\n");
+
+// 直播话术完整版：统一九段 + 四附属件，分九段生成后再单独生成四附属件，拼装成真正铺满 0:00–120:00 的逐字稿。
+// 单次调用受 max_tokens 上限限制只能产出约 30–40 分钟口播量，分段生成才能达到「几万字」体量。
+const LIVE_SCRIPT_SEGMENTS: Array<{ title: string; time: string; minutes: number; points: string }> = [
+  { title: "一、开场暖场（两步式自我介绍）", time: "0:00–0:10", minutes: 10, points: "量化入脑（做多久/规模/服务多少人）+ 共情入心（说目标人群怕踩坑）" },
+  { title: "二、痛点共鸣", time: "0:10–0:25", minutes: 15, points: "说出目标人群的苦：没方向/怕被割/怕投进去没回响；抛「扣1」互动" },
+  { title: "三、首轮塑品", time: "0:25–0:45", minutes: 20, points: "带货=FABE；招商=实力背书→单店模型测算→扶持具象→留资钩子" },
+  { title: "四、第一轮逼单留资", time: "0:45–0:55", minutes: 10, points: "带货=下单/领券；招商=领测算表/留资；不虚构稀缺" },
+  { title: "五、互动答疑（连麦望闻问切）", time: "0:55–1:05", minutes: 10, points: "念两条评论作答/连麦问答，托举不说教" },
+  { title: "六、循环塑品（第二轮·换角度）", time: "1:05–1:25", minutes: 20, points: "换角度/换案例再讲一轮，骨架不变（每20分钟一轮）" },
+  { title: "七、案例背书", time: "1:25–1:40", minutes: 15, points: "讲真实客户体验，只说「他怎么说」，不承诺结果" },
+  { title: "八、异议处理", time: "1:40–1:50", minutes: 10, points: "算账+降门槛+给路径三连" },
+  { title: "九、锁客收尾", time: "1:50–2:00", minutes: 10, points: "留资/逼单升级 + 合规提示（招商口播「投资有风险，加盟需谨慎」）" }
+];
+
+async function generateLiveScriptFull(
+  systemPrompt: string,
+  turnMessages: LlmMessage[],
+  complete: (messages: LlmMessage[], options?: { maxTokens?: number }) => Promise<string>
+): Promise<string> {
+  const parts: string[] = [];
+  for (let i = 0; i < LIVE_SCRIPT_SEGMENTS.length; i++) {
+    const seg = LIVE_SCRIPT_SEGMENTS[i];
+    const targetChars = Math.round(seg.minutes * 165);
+    const directive = [
+      `## 当前生成任务：${seg.title}（第 ${i + 1}/${LIVE_SCRIPT_SEGMENTS.length} 段）`,
+      "你正在分九段生成一场 2 小时直播的完整逐字稿。现在只生成上面这一段，禁止输出其它段落、总标题、目录或任何附属件。",
+      `该段时段为 ${seg.time}，要点：${seg.points}。`,
+      "要求：",
+      "1. 只输出两个子块，标题固定为【主播口播稿】和【主播节奏提示】。",
+      `2. 口播稿按该段时长写足、写满，目标约 ${targetChars} 字，逐字可照读，不写“此处自由发挥/此处讲痛点”这类提示词。`,
+      "3. 动作/神态用 [ ] 标注在对应句前；托举式语气贯穿。",
+      "4. 严格只用输入里已确认的真实事实，不编造数字、收益、门店、名额或案例；该提「投资有风险，加盟需谨慎」的段落必须提。"
+    ].join("\n");
+    const text = await complete(
+      [{ role: "system", content: `${systemPrompt}\n\n---\n\n${directive}` }, ...turnMessages] as LlmMessage[],
+      { maxTokens: LIVESCRIPT_MAX_TOKENS }
+    );
+    parts.push(`## ${seg.title}（${seg.time}）\n\n${(text ?? "").trim()}`);
+  }
+
+  const attachmentDirective = [
+    "## 当前生成任务：四附属件",
+    "现在只输出以下四个附属件，禁止重复整场逐字稿：",
+    "1. 2小时节奏表（主播版）：时间段 / 主题 / 主播节奏。",
+    "2. 控场执行清单：评论区置顶话术、BGM节点、画面切换、弹窗时机、违规监控、名额/线索通报。",
+    "3. 高频应答（最常见5问标准应答），带合规安全词。",
+    "4. 开播前检查清单（人货场）。",
+    "5. 节奏表必须出现术语「20分钟黄金循环」，并说明核心塑品每 20 分钟轮播一次。",
+    "所有内容与整场逐字稿一致，事实只能来自输入里已确认的信息，收益与费用一律走“模型测算/历史数据参考”，并保留合规安全词。"
+  ].join("\n");
+  const attachmentText = await complete(
+    [{ role: "system", content: `${systemPrompt}\n\n---\n\n${attachmentDirective}` }, ...turnMessages] as LlmMessage[],
+    { maxTokens: LIVESCRIPT_MAX_TOKENS }
+  );
+
+  const header = [
+    "# 2 小时直播 · 完整逐字稿",
+    "",
+    "> 按统一九段环节分九段生成，时间轴 0:00–120:00；每段含【主播口播稿】+【主播节奏提示】双块，四附属件见文末。",
+    ""
+  ].join("\n");
+  return `${header}${parts.join("\n\n")}\n\n---\n\n# 附属件（四件）\n\n${(attachmentText ?? "").trim()}`;
+}
+
 function marketplaceSkillSystemPrompt(sku: PublicMarketplaceSku): string {
   const core = sku.skuCode.includes("__") ? sku.skuCode.slice(sku.skuCode.lastIndexOf("__") + 2) : sku.skuCode;
   if (core === "topic") return TOPIC_SYSTEM_PROMPT;
   if (core === "copy") return COPY_TEN_SYSTEM_PROMPT;
   if (core === "vidrev") return VIDREV_SYSTEM_PROMPT;
+  if (core === "livescript") return LIVESCRIPT_SYSTEM_PROMPT;
   const prompt = MARKETPLACE_SKILL_PROMPTS[core] ?? "输出一个 Markdown 表格，列依次为：模块、内容。";
   return `你是思潼AI行业智能体平台的「${sku.name}」。${prompt}\n只输出一个 Markdown 表格，不要输出表格之外的任何说明、推导、评分或内部评估。`;
 }

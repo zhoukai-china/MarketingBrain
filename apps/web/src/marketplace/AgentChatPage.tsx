@@ -226,6 +226,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
   const slots = flow ? effectiveSlots(flow, answers) : [];
   /** 工单 2.1/2.3：视频复盘专属——未上传数据前展示导出指南，「增强提示词」改成一键填充标准请求。 */
   const isVidrev = coreSkuCode(runSku?.skuCode ?? skuId) === "vidrev";
+  /** 直播话术：交付为几万字 · 2 小时完整逐字稿，生成耗时明显长于普通货架技能，需单独提示耐心等待。 */
+  const isLiveScript = coreSkuCode(runSku?.skuCode ?? skuId) === "livescript";
   /** 这一轮是否已经动过（填过 / 传过 / 生成过）：决定「↺ 重新开始」按钮是否常驻。 */
   const hasProgress = step > 0 || Object.keys(answers).length > 0 || attachments.length > 0 || done || awaitingSupplement || confirmPending;
   /** 公共平台对话页的语音输入：录音 → `/voice/transcribe`（受授权转写入口）→ 并入输入框。 */
@@ -1284,7 +1286,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                 </div>
               </div>
             ))}
-            {busy && <div className="chat-row ai"><img className="chat-avatar-img" src={sitongAvatar} alt="思潼" /><div className="chat-bubble ai"><span style={{ color: "var(--muted)" }}>AI 正在按方法论生成交付… 已用 {elapsed}s</span></div></div>}
+            {busy && <div className="chat-row ai"><img className="chat-avatar-img" src={sitongAvatar} alt="思潼" /><div className="chat-bubble ai"><span style={{ color: "var(--muted)" }}>{isLiveScript ? `正在生成约几万字的 2 小时直播话术逐字稿，预计 2-3 分钟，请耐心等待… 已用 ${elapsed}s` : `AI 正在按方法论生成交付… 已用 ${elapsed}s`}</span></div></div>}
             {confirmPending && !busy && flow && (
               <div className="chat-row ai">
                 <img className="chat-avatar-img" src={sitongAvatar} alt="思潼" />
