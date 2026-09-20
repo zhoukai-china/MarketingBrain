@@ -1,5 +1,15 @@
 import baoluChiefAvatar from "../assets/baolu-chief.jpg";
 
+/**
+ * `apps/web/public` 下的静态资源必须带上 Vite base 前缀：
+ * 本地预览 base = `/`，正式站 base = `/os-v2/`。
+ * 直接写死 `/avatars/x.png` 在正式站会请求站根并 404，图片 onError 后回退成 emoji，
+ * 所以这里统一用 BASE_URL 拼出真实可访问路径。
+ */
+const PUBLIC_BASE = (import.meta.env.BASE_URL as string | undefined) ?? "/";
+const publicAsset = (path: string): string =>
+  `${PUBLIC_BASE.endsWith("/") ? PUBLIC_BASE : `${PUBLIC_BASE}/`}${path.replace(/^\/+/, "")}`;
+
 export type EcoSkinKey = "通用" | "美业专精" | "餐饮专精";
 
 /**
@@ -155,11 +165,11 @@ export const ECO_EMPLOYEES: EcoEmployee[] = [
   },
   {
     key: "video-diag",
-    role: "流量诊断官",
+    role: "视频流量诊断官",
     icon: "📊",
     color: "#E8651A",
     status: "ok",
-    hookBase: "我是你的流量诊断官。一条视频没流量，我帮你看出问题出在哪、下条怎么改。",
+    hookBase: "我是你的视频流量诊断官。一条视频没流量，我帮你看出问题出在哪、下条怎么改。",
     personality: "我理性、抠数据，没依据的话不讲，结论都拿数据撑着。",
     ability: "我从播放、完播、互动、转化里找毛病，再给你下一步怎么改的动作。",
     capability: "vidrev",
@@ -239,11 +249,11 @@ export const ECO_EMPLOYEES: EcoEmployee[] = [
   },
   {
     key: "sales-coach",
-    role: "首席成交官",
+    role: "销冠复制官",
     icon: "🤝",
     color: "#E8651A",
     status: "dev",
-    hookBase: "我是你的首席成交官。客户卡单了，我告诉你话术怎么接、异议怎么挡。",
+    hookBase: "我是你的销冠复制官。客户卡单了，我告诉你话术怎么接、异议怎么挡。",
     personality: "我务实，听得懂客户卡在哪，不堆漂亮话。",
     ability: "我给一个场景的成交话术和异议处理脚本，你照着用。",
     capability: "sales",
@@ -308,14 +318,14 @@ export const ECO_CONSULTANTS: EcoConsultant[] = [
 ];
 
 export const EMPLOYEE_IMAGE_PATHS: Record<string, string> = {
-  "ip-position": "/avatars/ip-position.png",
-  topic: "/avatars/topic.png",
-  copywriter: "/avatars/copywriter.png",
-  "video-diag": "/avatars/video-diag.png",
-  "live-host": "/avatars/live-host.png",
-  "live-coach": "/avatars/live-coach.png",
-  "sales-coach": "/avatars/sales-coach.png",
-  private: "/avatars/private.png"
+  "ip-position": publicAsset("avatars/ip-position.png"),
+  topic: publicAsset("avatars/topic.png"),
+  copywriter: publicAsset("avatars/copywriter.png"),
+  "video-diag": publicAsset("avatars/video-diag.png"),
+  "live-host": publicAsset("avatars/live-host.png"),
+  "live-coach": publicAsset("avatars/live-coach.png"),
+  "sales-coach": publicAsset("avatars/sales-coach.png"),
+  private: publicAsset("avatars/private.png")
 };
 
 export const CONSULTANT_IMAGE_PATHS: Record<string, string> = {
@@ -344,10 +354,10 @@ const LEGACY_SKU_NAME_BY_CAPABILITY: Record<string, string> = {
   "ip-pos": "首席定位官",
   topic: "选题策略官",
   copy: "金牌文案主笔",
-  vidrev: "流量诊断官",
+  vidrev: "视频流量诊断官",
   livescript: "直播操盘总监",
   liverev: "直播复盘导师",
-  sales: "首席成交官",
+  sales: "销冠复制官",
   moments: "私域增长顾问"
 };
 
@@ -361,10 +371,10 @@ const LEGACY_EMPLOYEE_NAME_ALIASES: Array<[RegExp, string]> = [
   [/IP定位智能体/, "首席定位官"],
   [/选题智能体/, "选题策略官"],
   [/文案智能体/, "金牌文案主笔"],
-  [/视频复盘智能体/, "流量诊断官"],
+  [/视频复盘智能体/, "视频流量诊断官"],
   [/直播话术智能体/, "直播操盘总监"],
   [/直播复盘智能体/, "直播复盘导师"],
-  [/销售话术智能体/, "首席成交官"],
+  [/销售话术智能体/, "销冠复制官"],
   [/朋友圈(?:文案)?智能体/, "私域增长顾问"]
 ];
 

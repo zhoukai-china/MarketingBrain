@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api";
 import { toSafeAppRoute } from "../lib/app-route.js";
 import { billingErrorCopy } from "../lib/humanize-error.js";
+import { Topbar } from "../marketplace/shell.js";
 
 interface CreditPack {
   code: string;
@@ -353,17 +354,19 @@ const isLocal = typeof window !== "undefined" && (window.location.hostname === "
   if (!token) {
     return (
       <main className="app-wrap">
-        <header className="topbar">
-          <div className="brand" onClick={() => { window.location.href = getAppPath("/agents"); }}>
-            <span className="brand-mark">思潼<span className="brand-accent">AI</span></span>
-            <span className="brand-sub">行业智能体平台</span>
-          </div>
-          <nav className="topnav">
-            <a className="nav-link" onClick={() => { window.location.href = getAppPath("/agents"); }}>商城</a>
-            <a className="nav-link active">积分充值</a>
-          </nav>
-          <div className="wallet-pill" title="积分余额 · 点击登录" onClick={() => { localStorage.setItem("store_os_post_login_redirect", getAppPath(`/recharge${window.location.search}`)); window.location.href = getAppPath("/login"); }}>🔒 未登录 · 点击登录</div>
-        </header>
+        {/*
+         * 2026-09-19（用户）：「点开积分充值，最上面只剩商城和积分充值，常用和我的没了，颜色切换也没了」。
+         *
+         * 旧实现是本页自己手写的一个精简顶栏（只抄了商城 + 积分充值两栏，也没有主题切换）。
+         * 现在统一用商城的共享顶栏：一级导航、深浅色切换、积分胶囊、登录态全部与其它页一致，
+         * 不再出现「换个页面少了几个入口」。
+         */}
+        <Topbar
+          active="recharge"
+          balance={null}
+          walletPath={`/recharge${window.location.search}`}
+          onNavigate={(path) => { window.location.href = getAppPath(path); }}
+        />
         <section className="view view-recharge">
           {nextRoute && (
             <div className="rc-from">
@@ -397,17 +400,13 @@ const isLocal = typeof window !== "undefined" && (window.location.hostname === "
 
   return (
     <main className="app-wrap">
-      <header className="topbar">
-        <div className="brand" onClick={() => { window.location.href = getAppPath("/agents"); }}>
-          <span className="brand-mark">思潼<span className="brand-accent">AI</span></span>
-          <span className="brand-sub">行业智能体平台</span>
-        </div>
-        <nav className="topnav">
-          <a className="nav-link" onClick={() => { window.location.href = getAppPath("/agents"); }}>商城</a>
-          <a className="nav-link active">积分充值</a>
-        </nav>
-        <div className="wallet-pill" title="积分余额 · 点击充值" onClick={() => { window.location.href = getAppPath("/recharge"); }}>💎 <b>{wallet?.balance ?? "—"}</b> 积分 <span className="wp-tag">全平台通用</span></div>
-      </header>
+      {/* 与商城共用同一个顶栏组件，导航 / 主题切换 / 退出登录的口径完全一致（2026-09-19 用户）。 */}
+      <Topbar
+        active="recharge"
+        balance={wallet?.balance ?? null}
+        walletPath={`/recharge${window.location.search}`}
+        onNavigate={(path) => { window.location.href = getAppPath(path); }}
+      />
 
       <section className="view view-recharge">
         {nextRoute && (

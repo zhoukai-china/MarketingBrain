@@ -1,5 +1,23 @@
 # 当前部署状态
 
+## 最新发布：20260920-ai-root-avatars-and-dual-entry（2026-09-20，仅生产）— 修 `ai.lcppch.top/agents` 数字员工无形象（`dist-ai-root` 缺 `avatars/`）+ 删「数字咨询师」多余文案 + 双入口发布纪律与构建脚本入库
+
+用户结果：`https://ai.lcppch.top/agents` 的「数字员工团队」8 张卡片恢复形象（头像 PNG 正常加载）；产品「数字咨询师」里「先放保禄本人的数字分身，后续再接入其他咨询师。」这句已删除；`https://api.lcppch.top/os-v2/agents` 与 ai-root 两套入口同步为新产物。
+
+根因：nginx `/etc/nginx/conf.d/ai.lcppch.top.conf` 里 `location /assets/` 与 `location /` 指向 `root /opt/baolu-os-v2/apps/web/dist-ai-root`（`VITE_BASE_PATH=/`，SPA 兜底 `try_files $uri $uri/ /index.html`），`location /os-v2/` 则 `alias /opt/baolu-os-v2/apps/web/dist/`（`VITE_BASE_PATH=/os-v2/`）。上一轮只重建了 `dist`（os-v2），`dist-ai-root` 停在旧产物且**只有 `assets/ index.html favicon.svg lanqi-logo.jpg`，没有 `avatars/`**，于是 `/avatars/*.png` 被兜底成 `index.html`（HTTP 200 但 `Content-Type: text/html`），前端 `<img onError>` 隐藏图片只剩 emoji——用户看到的就是「数字员工没有形象 / 又回退了」。
+
+范围（本次同时回收生产漂移进 git）：`apps/web/src/marketplace/eco-mall-data.ts`（新增 `publicAsset()` 按 `import.meta.env.BASE_URL` 拼路径，8 个头像改用它；`流量诊断官`→`视频流量诊断官`、`首席成交官`→`销冠复制官` 含别名/legacy 映射）、`apps/web/src/marketplace/EcoMallHomePage.tsx`（品牌工作台收敛为单个外链 `app.workbuddy.link`，删除「数字咨询师」多余文案与 6 个内部模块卡）、`apps/web/src/marketplace/shell.tsx`（`loggedIn = balance !== null` 只认服务端）、`apps/web/src/pages/RechargePage.tsx`（改用共享 `Topbar`）、`apps/web/src/main.tsx`（注释里邀请链接域名改 `ai.lcppch.top/login`）；新增 `scripts/build-ai-root.sh` 与 `scripts/build-os-v2-web.sh`（同一套逻辑，`build-os-v2-web.sh` 通过 `exec bash build-ai-root.sh` 传 `BASE_PATH=/os-v2/`、`DIST_DIR=dist`）。
+
+发布：生产两套前端均已重建——`dist-ai-root` 入口 `assets/index-DilQ8oqQ.js`（此前 `index-DIVnFo-f.js`）、assets 154 个；`dist` 入口 `assets/index-OfrQxHHH.js`（此前 `index-CjaOvqzv.js`）、assets 108 个；8 张头像 PNG 已进两份产物。
+
+验收（公网实测）：两入口 `200 text/html` 且 `<script src>` 指向上述新入口；`ai.lcppch.top/avatars/*.png` 与 `api.lcppch.top/os-v2/avatars/*.png` 8 张全部 `200 image/png` 且字节数与仓库 `apps/web/public/avatars/*.png` 一致；ai-root 入口 chunk 断言「先放保禄本人的数字分身」=0、「数字咨询师」=5、`app.workbuddy.link`=1、`经营驾驶舱`=0，数据 chunk `avatars/`=8、硬编码 `/os-v2/avatars`=0；浏览器实操 `/agents` 整页截图确认 8 张卡片形象正常。
+
+备份 / 回滚：`/opt/baolu-backups/20260920-ai-root-avatars-restore/`（`web-dist-before.tar.gz`、`web-dist-ai-root-before.tar.gz`、5 个源文件 `.before`、两个入口名 before 记录）。回滚 = 解 tar 还原 `dist` 与 `dist-ai-root` 两个目录，**无需重启服务**。
+
+未覆盖：本地 `marketplace:chat-restart-smoke` / `reference-case-neutral-smoke` / `sku-link-contract-smoke` 因本地环境缺 `@baolu/db` 构建产物与 Prisma client 未 generate 而 FAIL（非本次引入）；`/skill_key` 公网 404 为历史遗留（nginx alias 指向的 `dist/skill_key.html` 已不存在，备份中也没有），本次未修、未凭空造文件。
+
+流程改进（本次入库）：`docs/BETA_RELEASE_CHECKLIST.md` 新增 3.1 节，把「ai-root + os-v2 双目录同步发布」与 `avatars/*.png` 的 `Content-Type` + 字节数复验写成发布必做项。
+
 ## 最新发布：20260919-plat49-restaurant-digital-humans-prod1（2026-09-19，测试实例 + 生产）— 餐饮专区 9 个数字员工上线，接入 8 份行业校准样例，并修 2 个 P2
 
 用户结果：货架「餐饮专区」由“待上线”变为与美业同构的行业专区，9 个餐饮数字员工按美业口径上线；IP 定位 / 文案 / 视频复盘 / 直播话术为 `selling`，其余 5 个为 `coming_soon`，积分沿用通用版。

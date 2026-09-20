@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
-import { clearStoredSession, readSessionToken } from "../lib/session.js";
+import { clearStoredSession } from "../lib/session.js";
 import { loginPathWithPendingReferral } from "../lib/pending-referral.js";
 
 export function authHeaders(json = false): Record<string, string> {
@@ -110,15 +110,28 @@ export function guestToLogin(path: string): void {
   window.location.href = getAppPath(loginPathWithPendingReferral("/login"));
 }
 
-export function Topbar({ active, balance, onNavigate }: { active: string; balance: number | null; onNavigate: (path: string) => void }) {
+export function Topbar({
+  active,
+  balance,
+  onNavigate,
+  walletPath = "/agents"
+}: {
+  active: string;
+  balance: number | null;
+  onNavigate: (path: string) => void;
+  /** 未登录时点积分胶囊要带去登录、并在登录后回到哪一页（充值页要回自己，见 2026-09-19 用户）。 */
+  walletPath?: string;
+}) {
   const { theme, toggle } = useTheme();
-  // 2026-09-11：货架页登入后此前没有退出入口（商家换账号只能自己清浏览器缓存）。
-  // 只要本地还有 token 或服务端已返回余额，就认为当前是登录态，展示「退出登录」。
-  const [loggedIn, setLoggedIn] = useState(() => Boolean(readSessionToken()));
-
-  useEffect(() => {
-    if (balance !== null) setLoggedIn(true);
-  }, [balance]);
+  /*
+   * 2026-09-19（用户）：「未登录，为什么还显示要退出登录？」
+   *
+   * 旧实现把「本地还残留着一个 token」直接当登录态：token 过期或被吊销后，未登录的人
+   * 也会看到「退出登录」——同一屏里左边写着「🔒 未登录 · 点击登录」，右边挂着退出按钮，
+   * 自相矛盾。现在**登录态只认服务端**：页面从 `/market/me` 拿到余额才算登录；
+   * `fetchMarketMe` 在 401/403 时会清掉本地 token，balance 保持 null。
+   */
+  const loggedIn = balance !== null;
 
   function handleLogout() {
     clearStoredSession();
@@ -130,7 +143,6 @@ export function Topbar({ active, balance, onNavigate }: { active: string; balanc
     }
     // 退出后落回货架，重新登入成功仍回到货架，不会卡在登录页。
     localStorage.setItem("store_os_post_login_redirect", getAppPath("/agents"));
-    setLoggedIn(false);
     window.location.href = getAppPath(loginPathWithPendingReferral("/login"));
   }
 
@@ -156,7 +168,7 @@ export function Topbar({ active, balance, onNavigate }: { active: string; balanc
           <span className="tt-ico">{theme === "light" ? "☀️" : "🌙"}</span>
           <span>{theme === "light" ? "浅色" : "深色"}</span>
         </button>
-        <div className="wallet-pill" onClick={() => (balance === null ? guestToLogin("/agents") : onNavigate("/recharge"))} title="积分余额 · 点击充值">
+        <div className="wallet-pill" onClick={() => (balance === null ? guestToLogin(walletPath) : onNavigate("/recharge"))} title="积分余额 · 点击充值">
           {balance === null ? "🔒 未登录 · 点击登录" : <>💎 <b>{balance}</b> 积分 <span className="wp-tag">全平台通用</span></>}
         </div>
         {loggedIn ? (

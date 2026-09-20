@@ -39,7 +39,7 @@ const TOP_SECTIONS: Array<{ key: EcoTopSection; label: string }> = [
 const TODAY_ITEMS: Array<{ title: string; hint: string; employeeKey: string }> = [
   { title: "今天要发内容", hint: "让金牌文案主笔直接给你一条能念的稿", employeeKey: "copywriter" },
   { title: "周一起号 / 定方向", hint: "让首席定位官先定人设，再排内容", employeeKey: "ip-position" },
-  { title: "刚直播完 / 发了视频", hint: "让流量诊断官或直播复盘导师帮你复盘", employeeKey: "video-diag" }
+  { title: "刚直播完 / 发了视频", hint: "让视频流量诊断官或直播复盘导师帮你复盘", employeeKey: "video-diag" }
 ];
 
 function EcoAvatar({
@@ -140,7 +140,7 @@ function EmployeeModal({
           需要你给：<span>{current?.need ?? ""}</span>
         </div>
         <div className="eco-note">
-          <b>说明：</b>你可以在这里切换通用 / 美业专精 / 餐饮专精，查看不同行业的交付内容和需要准备的材料。
+          <b>说明：</b>你可以在这里切换通用 / 餐饮专精 / 美业专精，查看不同行业的交付内容和需要准备的材料。
         </div>
         <button
           className="eco-primary"
@@ -335,38 +335,25 @@ export function EcoMallHomePage() {
   }
 
   function renderBrandWorkbench() {
-    const lanqiModules: Array<{ name: string; desc: string; href: string; live?: boolean }> = [
-      { name: "私域营销", desc: "朋友圈 / 社群内容自动生成与排期，兰琪门店正在用的一套。", href: "/lanqi/moments", live: true },
-      { name: "经营驾驶舱", desc: "八板块总览，一屏看清门店经营健康度。", href: "/lanqi/brain", live: true },
-      { name: "门店诊断", desc: "上传门店数据，AI 给出经营体检与改进动作。", href: "/lanqi/diagnosis", live: true },
-      { name: "内容工作室", desc: "选题 / 脚本 / 标题一站式产出，带品牌语气。", href: "/lanqi/content-studio", live: true },
-      { name: "AI 绘图", desc: "品牌风格化的图片与海报，一键出图。", href: "/lanqi/image-studio", live: true },
-      { name: "公域获客", desc: "短视频 / 直播获客内容矩阵搭建。", href: "/lanqi/acquire", live: true }
-    ];
+    /*
+     * 2026-09-19（用户）：品牌工作台只留**一个入口**，不再把兰琪工作台自己的
+     * 内部功能名铺在商城首页——那些属于品牌工作台内部，不是商城的货架。
+     */
     return (
-      <>
-        <div className="eco-sec-head">
-          <div>
-            <h2>兰琪美业 · 数字员工工作台（演示）</h2>
-            <div className="eco-sub">这是思潼AI 为兰琪美业落地的品牌专属工作台实景。点任意模块即可进入体验。</div>
-            <a className="eco-home-link" href={getAppPath("/lanqi")}>进入兰琪 demo 首页 ›</a>
-          </div>
+      <div className="eco-sec-head">
+        <div>
+          <h2>兰琪品牌工作台</h2>
+          <div className="eco-sub">这是思潼AI 为兰琪美业落地的品牌专属工作台实景，点下面链接直接进入。</div>
+          <a
+            className="eco-home-link"
+            href="https://17aac22df70a45fababeb082f655af58.app.workbuddy.link/home.html"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            进入兰琪品牌工作台 ›
+          </a>
         </div>
-        <div className="eco-mod-grid">
-          {lanqiModules.map((m) => (
-            <button
-              key={m.href}
-              type="button"
-              className="eco-mod"
-              onClick={() => { window.location.href = getAppPath(m.href); }}
-            >
-              <div className="eco-mod-name">{m.name}</div>
-              <div className="eco-mod-desc">{m.desc}</div>
-              <div className="eco-mod-go">进入体验 ›</div>
-            </button>
-          ))}
-        </div>
-      </>
+      </div>
     );
   }
 
@@ -405,7 +392,6 @@ export function EcoMallHomePage() {
               <div className="eco-sec-head">
                 <div>
                   <h2>数字咨询师（真人孪生）</h2>
-                  <div className="eco-sub">先放保禄本人的数字分身，后续再接入其他咨询师。</div>
                 </div>
               </div>
               <div className="eco-grid">

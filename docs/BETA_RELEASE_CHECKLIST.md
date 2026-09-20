@@ -69,6 +69,31 @@ bash scripts/deploy-linux.sh
 - 重启 systemd 服务
 - `/health` 和 `/ready` 检查
 
+### 3.1 Web 前端必须「双入口同步发布」（必做，缺一即视为发布未完成）
+
+生产有**两个**互相独立的前端产物目录，由 nginx 分别指向，**不能只发一个**：
+
+| 入口 | 域名 / 路径 | nginx root | 构建脚本 | `VITE_BASE_PATH` |
+| --- | --- | --- | --- | --- |
+| ai-root | `https://ai.lcppch.top/`（含 `/agents`） | `/opt/baolu-os-v2/apps/web/dist-ai-root` | `bash scripts/build-ai-root.sh` | `/` |
+| os-v2 | `https://api.lcppch.top/os-v2/`（含 `/os-v2/agents`） | `/opt/baolu-os-v2/apps/web/dist` | `bash scripts/build-os-v2-web.sh` | `/os-v2/` |
+
+```bash
+# 生产机上，两个都要跑（顺序无关，但两个都跑才算发完）
+bash /opt/baolu-os-v2/scripts/build-os-v2-web.sh
+bash /opt/baolu-os-v2/scripts/build-ai-root.sh
+```
+
+发布后**必须逐条复验**（只验一个域名等于没验）：
+
+1. 两个入口都返回新入口 chunk 名：`https://ai.lcppch.top/agents` 与 `https://api.lcppch.top/os-v2/agents` 的 `index.html` 里 `<script src>` 指向本次构建产物。
+2. 静态资源在**两个域名**下都可直取且 `Content-Type` 正确，尤其是 `avatars/*.png`：
+   `https://ai.lcppch.top/avatars/ip-position.png` 与 `https://api.lcppch.top/os-v2/avatars/ip-position.png` 必须都是 `200 image/png`。
+   **只看到 200 不算过**——SPA 兜底会把缺失文件也返回 200，但 `Content-Type` 是 `text/html`、字节数等于 `index.html`。必须同时核对 `Content-Type` 与字节数。
+3. 打开两个 `/agents` 页面人工确认数字员工形象（头像）正常显示，而不是只剩 emoji。
+
+原因：2026-09-20 的事故是只重建了 `dist`（os-v2）而 `dist-ai-root` 停在旧产物，且旧产物里**没有 `avatars/` 目录**，`/avatars/*.png` 被 `try_files` 兜底成 `index.html`，用户看到「数字员工没有形象」并以为「又回退了」。参见 `docs/BUG_REGRESSIONS.md` QA-20260920-001。
+
 ## 4. 创建内测邀请码
 
 ```bash

@@ -76,7 +76,7 @@ applyDevice();
  * 邀请链接的统一落地（PLAT-38 补充，用户 2026-09-15「以后找客户都用同一个链接」）。
  *
  * 老板对外只发一条链接，形如
- *   `https://api.lcppch.top/os-v2/login?ref=<推荐码>&next=/recharge`
+ *   `https://ai.lcppch.top/login?ref=<推荐码>&next=/recharge`
  * 这里在**应用启动最早**的时候把两件事记下来，之后不管用户中间跳到哪一页、
  * 微信授权往返换了几次 webview，都不会丢：
  *   1. `ref` → 暂存推荐码（注册成功后由登录流程提交，归因落库）；

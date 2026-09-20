@@ -2,6 +2,23 @@
 
 - 编号说明（2026-09-16 合并 `main` 后统一）：LQ-34 侧并发登记的条目顺延为 **-012 导出一次性直链 / -013 邀请活动门禁 / -014 导出仓 `.env` / -015 Windows worktree CRLF**；`-006` 本机草稿指纹条目以 main 编号为准（LQ-34 侧曾记为 `-010`，合并时去重）。
 
+## QA-20260920-001：`https://ai.lcppch.top/agents` 数字员工没有形象 / 用户以为「又回退了」——只重建了 `dist` 没重建 `dist-ai-root`，旧产物缺 `avatars/` 被 SPA 兜底成 200 text/html（P1，已修 + 已上生产）
+
+- 来源：老板 2026-09-20 反馈「`https://ai.lcppch.top/agents` 这个网址怎么又回退了」「这个网址下没有数字员工形象」；同时给出对照组「`https://api.lcppch.top/os-v2/agents` 这个页面显示的是对的」。
+- 取证（全在生产只读）：
+  1. 两套前端由 nginx 分别指向：`/etc/nginx/conf.d/ai.lcppch.top.conf` 的 `location /assets/` + `location /` → `root /opt/baolu-os-v2/apps/web/dist-ai-root`（`VITE_BASE_PATH=/`，SPA 兜底 `try_files $uri $uri/ /index.html`）；`location /os-v2/` → `alias /opt/baolu-os-v2/apps/web/dist/`（`VITE_BASE_PATH=/os-v2/`，含 `sub_filter` 把 `https://api.lcppch.top` 改同源）。
+  2. `ls /opt/baolu-os-v2/apps/web/dist-ai-root` 当时只有 `assets/ index.html favicon.svg lanqi-logo.jpg`——**没有 `avatars/`**；而 `dist/` 里有。
+  3. `curl -I https://ai.lcppch.top/avatars/ip-position.png` → **HTTP 200 但 `Content-Type: text/html`**、字节数等于 `index.html`——即 `/avatars/*.png` 被 `try_files` 兜底成了 SPA 壳，不是真实 PNG。`https://api.lcppch.top/os-v2/avatars/ip-position.png` 同时是 `200 image/png`。
+  4. 前端 `<img onError>` 会隐藏加载失败的图片，所以表现不是「图片裂开」而是「只剩 emoji、没有形象」。
+- 根因：生产有 **两个互相独立** 的前端产物目录（ai-root 与 os-v2），上一轮发布只重建了 `dist`（os-v2）而 `dist-ai-root` 停在旧产物；旧产物里没有 `avatars/` 目录，头像请求被 SPA 兜底吞成 200，前端静默隐藏 → 用户看到「没有形象」并判断为「又回退了」。这不是代码回退，是**发布只发了一半**。
+- 处置：
+  - 把两套构建固化成脚本并入仓：`scripts/build-ai-root.sh`（默认 `BASE_PATH=/`、`DIST_DIR=dist-ai-root`，支持 `BASE_PATH / DIST_DIR / BUILD_DIR / PUBLIC_BASE_URL / PUBLIC_AVATAR_PATH` 覆盖，构建后自检 `avatars/` 是否进产物）+ `scripts/build-os-v2-web.sh`（`exec bash build-ai-root.sh` 传 `BASE_PATH=/os-v2/`、`DIST_DIR=dist`），两套产物成对发布。
+  - 同时回收生产源码树 5 个漂移文件进 git（`eco-mall-data.ts` 新增 `publicAsset()` 按 `import.meta.env.BASE_URL` 拼头像路径 + `流量诊断官`/`销冠复制官` 改名、`EcoMallHomePage.tsx` 品牌工作台收敛为单个 `app.workbuddy.link` 外链并删除「数字咨询师」多余文案、`shell.tsx` 登录态只认服务端 `balance !== null`、`RechargePage.tsx` 改用共享 `Topbar`、`main.tsx` 注释域名），避免后续构建再把线上口径覆盖掉。
+  - 流程堵漏：`docs/BETA_RELEASE_CHECKLIST.md` 新增 3.1 节「Web 前端必须『双入口同步发布』」，把两个入口的构建命令、入口 chunk 复验、`avatars/*.png` 的 `Content-Type` + 字节数复验列为发布必做项。
+- 绿证（生产公网，2026-09-20）：`dist-ai-root` 入口 `assets/index-DilQ8oqQ.js`（此前 `index-DIVnFo-f.js`）、assets 154 个；`dist` 入口 `assets/index-OfrQxHHH.js`（此前 `index-CjaOvqzv.js`）、assets 108 个；`ai.lcppch.top/avatars/*.png` 与 `api.lcppch.top/os-v2/avatars/*.png` 8 张全部 `200 image/png`，字节数与仓库 `apps/web/public/avatars/*.png` 一致（ip-position 1361674 / video-diag 1460489 / sales-coach 1348331）；ai-root 入口 chunk 断言「先放保禄本人的数字分身」=0、「数字咨询师」=5、`app.workbuddy.link`=1、`经营驾驶舱`=0，数据 chunk `avatars/`=8、硬编码 `/os-v2/avatars`=0（证明走 `publicAsset()` 相对 base，不是硬编码站根）；浏览器实操 `/agents` 整页截图确认「数字员工团队」8 张卡片（首席定位官 / 选题策略官 / 金牌文案主笔 / 视频流量诊断官 / 直播操盘总监 / 直播复盘导师 / 销冠复制官 / 私域增长顾问）形象正常，页面无「先放保禄…」文案。
+- 回滚：`/opt/baolu-backups/20260920-ai-root-avatars-restore/`（`web-dist-before.tar.gz`、`web-dist-ai-root-before.tar.gz`、5 个源文件 `.before`、`dist-entry-before.txt` = `index-CjaOvqzv.js`、`dist-ai-root-entry-before.txt` = `index-DIVnFo-f.js`）。回滚 = 解 tar 还原两个目录，**无需 `systemctl restart`**。
+- 遗留（本次未修，未凭空造文件）：`/skill_key` 公网 404——nginx `location = /skill_key` 的 `alias` 指向 `dist/skill_key.html`，该文件已不存在（备份中也没有），需先确认来源再补。
+
 ## QA-20260918-001：兰琪公域获客「文案十件套 / 视频获客」点生成只提示「门店信息还在加载」——403 权益门禁被前端吞成「门店为空」（P1，已修 + 已上测试实例和生产）
 
 - 来源：用户 2026-09-18 现场反馈「门店信息还在加载，请稍后再试一次」，不管点几次都是这一句。
