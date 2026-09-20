@@ -1286,7 +1286,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                 </div>
               </div>
             ))}
-            {busy && <div className="chat-row ai"><img className="chat-avatar-img" src={sitongAvatar} alt="思潼" /><div className="chat-bubble ai"><span style={{ color: "var(--muted)" }}>{isLiveScript ? `正在生成约几万字的 2 小时直播话术逐字稿，预计 2-3 分钟，请耐心等待… 已用 ${elapsed}s` : `AI 正在按方法论生成交付… 已用 ${elapsed}s`}</span></div></div>}
+            {busy && <div className="chat-row ai"><img className="chat-avatar-img" src={sitongAvatar} alt="思潼" /><div className="chat-bubble ai"><span style={{ color: "var(--muted)" }}>{isLiveScript ? `正在生成约几万字的 2 小时直播话术逐字稿，预计 5-10 分钟（整稿分九段依次生成，中途请勿关闭页面），请耐心等待… 已用 ${elapsed}s` : `AI 正在按方法论生成交付… 已用 ${elapsed}s`}</span></div></div>}
             {confirmPending && !busy && flow && (
               <div className="chat-row ai">
                 <img className="chat-avatar-img" src={sitongAvatar} alt="思潼" />
