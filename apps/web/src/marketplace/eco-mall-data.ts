@@ -1,4 +1,5 @@
 import baoluChiefAvatar from "../assets/baolu-chief.jpg";
+import { getPublicAssetPath } from "../lib/api.js";
 
 export type EcoSkinKey = "通用" | "美业专精" | "餐饮专精";
 
@@ -53,7 +54,7 @@ export const ECO_EMPLOYEE_ZONES: Array<{ key: EcoEmployeeZoneKey; label: string;
   { key: "美业专区", label: "美业专区", shortLabel: "美业专精", note: "按美业合规话术与同城到店场景交付。" },
   { key: "宠物专区", label: "宠物专区", shortLabel: "宠物", note: "宠物专区正在准备，员工暂未开放。" },
   { key: "汽车后市场专区", label: "汽车后市场专区", shortLabel: "汽车后市场", note: "汽车后市场专区正在准备，员工暂未开放。" },
-  { key: "通用", label: "通用 · 创始人IP", shortLabel: "通用", note: "什么行业都能用，先按创始人的日常节奏推进。" },
+  { key: "通用", label: "通用行业", shortLabel: "通用", note: "什么行业都能用，先按创始人的日常节奏推进。" },
   { key: "品牌工作台专区", label: "兰琪品牌工作台", shortLabel: "品牌工作台", note: "兰琪品牌工作台正在接入，暂未开放员工。" }
 ];
 
@@ -307,16 +308,41 @@ export const ECO_CONSULTANTS: EcoConsultant[] = [
   }
 ];
 
-export const EMPLOYEE_IMAGE_PATHS: Record<string, string> = {
-  "ip-position": "/avatars/ip-position.png",
-  topic: "/avatars/topic.png",
-  copywriter: "/avatars/copywriter.png",
-  "video-diag": "/avatars/video-diag.png",
-  "live-host": "/avatars/live-host.png",
-  "live-coach": "/avatars/live-coach.png",
-  "sales-coach": "/avatars/sales-coach.png",
-  private: "/avatars/private.png"
+/**
+ * 数字员工形象（`apps/web/public/avatars/**`）按**能力核**登记。
+ *
+ * 2026-09-21 用户口径：商城卡片、智能体详情页、对话页（页头与 AI 气泡）都要是**这个数字员工自己的形象**，
+ * 不能再一律用品牌形象「思潼」。能力核是唯一口径，所以这里以能力核为准，
+ * `EMPLOYEE_IMAGE_PATHS`（按 `EcoEmployee.key`）由它派生，避免两张表各写一份、改一处漏一处。
+ */
+export const EMPLOYEE_AVATAR_BY_CAPABILITY: Record<string, string> = {
+  "ip-pos": "avatars/ip-position.png",
+  topic: "avatars/topic.png",
+  copy: "avatars/copywriter.png",
+  vidrev: "avatars/video-diag.png",
+  livescript: "avatars/live-host.png",
+  liverev: "avatars/live-coach.png",
+  sales: "avatars/sales-coach.png",
+  moments: "avatars/private.png"
 };
+
+/** 取某个能力核 / SKU 编码（`ipzone__ip-pos`、`ip-pos`）对应的数字员工形象路径；套装或未知能力返回 null。 */
+export function employeeAvatarPath(skuCodeOrCapability: string | null | undefined): string | null {
+  if (!skuCodeOrCapability) return null;
+  const capability = skuCodeOrCapability.includes("__")
+    ? skuCodeOrCapability.slice(skuCodeOrCapability.lastIndexOf("__") + 2)
+    : skuCodeOrCapability;
+  const asset = EMPLOYEE_AVATAR_BY_CAPABILITY[capability];
+  return asset ? getPublicAssetPath(asset) : null;
+}
+
+/** `EcoEmployee.key`（卡片 key）→ 形象路径，由能力核映射派生。 */
+export const EMPLOYEE_IMAGE_PATHS: Record<string, string> = Object.fromEntries(
+  ECO_EMPLOYEES.flatMap((employee) => {
+    const avatar = employeeAvatarPath(employee.capability);
+    return avatar ? [[employee.key, avatar] as const] : [];
+  })
+);
 
 export const CONSULTANT_IMAGE_PATHS: Record<string, string> = {
   baolu: baoluChiefAvatar

@@ -1,4 +1,14 @@
 // 对话式使用 · 信息收集轮次（来源：WorkBuddy 原型 CHAT_FLOW，做精简版）
+import { EMPLOYEE_NAME_BY_CAPABILITY } from "./employee-names.js";
+
+/**
+ * 数字员工人名（用户 2026-09-21：每个数字员工要有自己的名字，不能都叫「思潼」）。
+ *
+ * 与数字员工卡片、智能体详情页、对话气泡标签共用同一张表，避免各处各写一份名字；
+ * 套装 `ip-pack` 是 7 大能力的入口、不是某一个人，所以保留品牌名「思潼」。
+ */
+const NAME = EMPLOYEE_NAME_BY_CAPABILITY;
+
 export interface ChatSlot {
   key: string;
   label: string;
@@ -21,7 +31,7 @@ export interface ChatFlow {
 export const CHAT_FLOWS: Record<string, ChatFlow> = {
   "ip-pos": {
     name: "IP 定位",
-    welcome: "你好，我是思潼 · IP 定位智能体。我会按 6 步访谈推进：先确认身份，再走 5 轮（项目 → 竞争 → 用户 → 创始人/目标 → IP 现状），每轮只问一个维度，最后产出完整 IP 定位全案。",
+    welcome: `你好，我是${NAME["ip-pos"]} · IP 定位智能体。我会按 6 步访谈推进：先确认身份，再走 5 轮（项目 → 竞争 → 用户 → 创始人/目标 → IP 现状），每轮只问一个维度，最后产出完整 IP 定位全案。`,
     slots: [
       {
         key: "role",
@@ -37,7 +47,7 @@ export const CHAT_FLOWS: Record<string, ChatFlow> = {
   },
   topic: {
     name: "选题",
-    welcome: "你好，我是思潼 · 选题智能体。我会一次给 10 条选题。先确认你的行业与账号阶段，再按四个来源（录音卡 / 行业热点 / 数据复盘 / 同行爆款）逐项收集你的真实素材，最后按三关筛选框架生成。",
+    welcome: `你好，我是${NAME.topic} · 选题智能体。我会一次给 10 条选题。先确认你的行业与账号阶段，再按四个来源（录音卡 / 行业热点 / 数据复盘 / 同行爆款）逐项收集你的真实素材，最后按三关筛选框架生成。`,
     slots: [
       { key: "ind", label: "行业 / 账号阶段", q: "① 你的行业 / 品牌是什么？账号在起号（0-5000粉）、增长（5000-5万）、还是变现期（5万+）？" },
       { key: "note", label: "🎙 录音卡", q: "② 把你最近的录音卡 / 语音里讲的内容贴进来（或直接给近期想法、关键词、灵感）。可选：若你有 Get笔记 API Key，在答案里带上「API_KEY=xxx」，我会用于拉取你的笔记（未接实时拉取时仅按你的录音卡内容处理）。没有就写「无」。" },
@@ -48,7 +58,7 @@ export const CHAT_FLOWS: Record<string, ChatFlow> = {
   },
   copy: {
     name: "文案",
-    welcome: "你好，我是思潼 · 文案智能体。我会一次交付一套完整「内容十件套」（选题→口播→访谈→脚本→注意事项→剪辑EDL→标题话题→发布时间→评论引导→投流）。先确认 5 项输入。",
+    welcome: `你好，我是${NAME.copy} · 文案智能体。我会一次交付一套完整「内容十件套」（选题→口播→访谈→脚本→注意事项→剪辑EDL→标题话题→发布时间→评论引导→投流）。先确认 5 项输入。`,
     slots: [
       /**
        * 2026-09-16 用户报障：进度条会自己带序号（1/2/3…），而 label 里再带 ①/② 就重复了。
@@ -65,7 +75,7 @@ export const CHAT_FLOWS: Record<string, ChatFlow> = {
   vidrev: {
     name: "视频复盘",
     welcome:
-      "你好，我是思潼 · 视频复盘智能体。给你交付 **1 份完整深度复盘报告**（第零章数据质量审计 + 一模十章归因 + 下周期选题建议）。\n\n目前支持**抖音**和**视频号**两个平台。开始前请先从对应后台导出近 30 天数据表格（CSV / Excel），再直接拖到对话框上传；不确定从哪导出，看上方「📥 视频数据导出指南」。",
+      `你好，我是${NAME.vidrev} · 视频复盘智能体。给你交付 **1 份完整深度复盘报告**（第零章数据质量审计 + 一模十章归因 + 下周期选题建议）。\n\n目前支持**抖音**和**视频号**两个平台。开始前请先从对应后台导出近 30 天数据表格（CSV / Excel），再直接拖到对话框上传；不确定从哪导出，看上方「📥 视频数据导出指南」。`,
     slots: [
       {
         key: "platform",
@@ -82,7 +92,7 @@ export const CHAT_FLOWS: Record<string, ChatFlow> = {
   },
   livescript: {
     name: "直播话术",
-    welcome: "你好，我是思潼 · 直播话术智能体。先选这场直播是哪一种，我再按对应的打法逐步引导你，最后出可开播的逐字稿。",
+    welcome: `你好，我是${NAME.livescript} · 直播话术智能体。先选这场直播是哪一种，我再按对应的打法逐步引导你，最后出可开播的逐字稿。`,
     slots: [
       {
         key: "type",
@@ -132,7 +142,7 @@ export const CHAT_FLOWS: Record<string, ChatFlow> = {
   },
   liverev: {
     name: "直播复盘",
-    welcome: "你好，我是思潼 · 直播复盘智能体。给我直播数据，我做定量 + 定性双维复盘。",
+    welcome: `你好，我是${NAME.liverev} · 直播复盘智能体。给我直播数据，我做定量 + 定性双维复盘。`,
     slots: [
       { key: "type", label: "场次类型", q: "这场是带货还是招商？核心目标是什么？" },
       { key: "data", label: "数据", q: "观看 / 平均停留 / 转化 / GMV 大概多少？" },
@@ -141,7 +151,7 @@ export const CHAT_FLOWS: Record<string, ChatFlow> = {
   },
   sales: {
     name: "销售话术",
-    welcome: "你好，我是思潼 · 销售话术智能体。把客户卡点和异议给我，我出成交话术。",
+    welcome: `你好，我是${NAME.sales} · 销售话术智能体。把客户卡点和异议给我，我出成交话术。`,
     slots: [
       { key: "scene", label: "客户 / 卡点", q: "客户大概什么样？现在卡在哪一步？" },
       { key: "obj", label: "异议 / 顾虑", q: "客户说过或最可能的顾虑是什么？" },
@@ -150,7 +160,7 @@ export const CHAT_FLOWS: Record<string, ChatFlow> = {
   },
   moments: {
     name: "朋友圈文案",
-    welcome: "你好，我是思潼 · 朋友圈文案智能体。把今天真实发生的事给我，我按七柱给你可直发文案。",
+    welcome: `你好，我是${NAME.moments} · 朋友圈文案智能体。把今天真实发生的事给我，我按七柱给你可直发文案。`,
     slots: [
       { key: "who", label: "身份 / 人设", q: "你是做什么的？想在朋友圈立什么人设？" },
       { key: "topic", label: "话题 / 素材", q: "今天想发什么？一件工作小事、客户反馈、方法论，还是生活片段？" },

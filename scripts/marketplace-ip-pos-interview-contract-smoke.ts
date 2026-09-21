@@ -18,7 +18,11 @@ function main(): void {
   const detailPage = readFileSync(resolve(detailPagePath), "utf8");
 
   // 源码级断言：不依赖运行时的动态 import，避免 tsx/ESM 差异。
-  const ipPosBlock = flows.match(/"ip-pos"\s*:\s*\{[\s\S]*?\n\s*\},(?=\n\s*topic\s*:)/)?.[0];
+  /**
+   * 2026-09-21：原正则的 `\n\s*topic` 在 Windows 的 CRLF 检出上永远匹配不到（`},` 后面是 `\r\n`），
+   * 导致这条契约在本地一直是红的（哑断言）。这里改成 `\r?\n`，LF / CRLF 都能跑。
+   */
+  const ipPosBlock = flows.match(/"ip-pos"\s*:\s*\{[\s\S]*?\r?\n\s*\},(?=\r?\n\s*topic\s*:)/)?.[0];
   assert(ipPosBlock, "CHAT_FLOWS 必须包含 ip-pos");
 
   assert.match(ipPosBlock, /"role"/, "ip-pos 必须有角色适配槽位");
@@ -43,8 +47,8 @@ function main(): void {
 
   assert.match(
     flows,
-    /const items = flow\.slots\.map/,
-    "最终生成必须按当前 flow.slots 逐槽汇总，不能写死旧 4 槽"
+    /const items = effectiveSlots\(flow, answers\)/,
+    "最终生成必须按当前 flow 的槽位逐槽汇总（effectiveSlots(flow, answers)），不能写死旧 4 槽"
   );
 
   assert.doesNotMatch(chatPage, /我再带你走那 4 步/, "登录引导不得再写 4 步");

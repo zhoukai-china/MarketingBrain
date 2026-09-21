@@ -128,9 +128,46 @@ skuCode 生成规则见 `eco-mall-data.ts` 的 `employeeSkuCode`：`餐饮专精
 ## 8. 验收口径（PR 合并前）
 
 - [ ] 6 导航切换无报错
-- [ ] 数字员工卡片 = 头像 + 名字，点开弹窗含行业 Tab
+- [x] 数字员工卡片 = 头像 + 名字（2026-09-21 补齐「岗位名 + 人名」，见 §9），点开弹窗含行业 Tab
 - [ ] 品牌工作台 6 模块卡 + demo 首页链接可达
 - [ ] AI课程占位文案正确
 - [ ] 全站"货架"已无残留（用户侧 = 商城，后台 = 商品）
 - [ ] 头像无白框（卡片）；弹窗橙框按决策处理
 - [ ] 类型检查 / 构建通过；`/ready` 全绿
+
+---
+
+## 9. 数字员工人名（2026-09-21 用户口径：每个数字员工要有自己的名字，不能都叫「思潼」；按岗位起名，不要都叫「思什么」）
+
+此前卡片只有岗位名（首席定位官…）、详情页和对话页只有智能体名，用户侧看不出「这是谁」。现在
+三个入口共用同一张人名表 `apps/web/src/marketplace/employee-names.ts`，按能力核（`capability`）取名：
+
+| 能力核 | 岗位名（对外） | 人名 | 名字里的岗位关键字 |
+|---|---|---|---|
+| `ip-pos` | 首席定位官 | 沈定 | 定（定位） |
+| `topic` | 选题策略官 | 何策 | 策（策略） |
+| `copy` | 金牌文案主笔 | 秦文 | 文（文案） |
+| `vidrev` | 流量诊断官 | 江流 | 流（流量） |
+| `livescript` | 直播操盘总监 | 罗盘 | 盘（操盘） |
+| `liverev` | 直播复盘导师 | 许复 | 复（复盘） |
+| `sales` | 首席成交官 | 易成 | 成（成交） |
+| `moments` | 私域增长顾问 | 周域 | 域（私域） |
+
+起名规则：常见单字姓（8 个互不重复）+ 岗位关键字各取一个字；名字里**不带品牌字「思」**，
+避免人名和品牌名「思潼」混在一起。契约测试会拦住「又改回思某」和「重名」。
+
+- 商城卡片：岗位名下方加人名名牌（`.eco-name`），点开弹窗的标签是「AI 数字员工 · 人名 · 皮肤」。
+- 智能体详情页：标题为「人名 · 智能体名」（如「沈定 · IP定位智能体」）。
+- 对话页：页头 / 页签标题 / AI 气泡标签 / 头像 `alt` 都用该人名；开场欢迎语同步为「你好，我是沈定 · IP 定位智能体…」。
+- **对话页头像 = 这个员工自己的形象（2026-09-21 第二轮用户口径）**：页头与每条 AI 气泡的头像**不再一律用品牌形象「思潼」**，改成该数字员工的形象。
+  映射只写一处：`eco-mall-data.ts` 的 `EMPLOYEE_AVATAR_BY_CAPABILITY` + `employeeAvatarPath(skuCodeOrCapability)`（未知 / 套装 `ip-pack` 返回 `null`），`EMPLOYEE_IMAGE_PATHS` 由它派生——商城卡片、弹窗、对话页共用同一张「能力核 → 形象」表。
+  `AgentChatPage.tsx` 用 `employeeAvatarPath(sku?.skuCode ?? skuId) ?? sitongAvatar`，6 处 `chat-avatar-img` 全部改用该值，品牌形象只作套装兜底。
+  形象图在 `apps/web/public/avatars/`（`ip-position / topic / copywriter / video-diag / live-host / live-coach / sales-coach / private`，各 1.3–1.5MB，属于**已入库**资产）。
+  路径必须经 `lib/api.ts` 的 `getPublicAssetPath()` 拼 `BASE_URL`：生产 base 是 `/os-v2/`，裸写 `/avatars/*.png` 会打到域名根目录 404。
+- **专区名 = 餐饮 / 美业 / 通用行业（没有「创始人IP专区」）**：发布文件 `marketplace-v3.json` 的 `industries.ipzone.title` 已改为「通用行业」，`key` / 路由 `ipzone` 不动（已发出的链接不失效）。
+  专区展示名以**发布文件**为准：库里 `marketplace_industry_profile` 的 `title` / `tag` 从此只是留档，改这两列不生效（见 `docs/BUG_REGRESSIONS.md` QA-20260921-001）。
+  改名不降搜索：`ipzone` 带 `searchAlias`（`创始人IP / 个人IP / 老板IP / IP获客 / IP增长`），只进 SKU 关键词、不进详情页标签。
+- 套装 `ip-pack` 是 7 大能力的入口、不是某一个人，仍用品牌名「思潼」，代码里显式回退。
+
+> 人名已按保禄 2026-09-21「按岗位起名」的口径定稿（第一版「思衡/思敏/…」因都带品牌字「思」被否）。
+> 再改名只需动 `employee-names.ts` 一张表和 `apps/api/src/data/marketplace-v3.json` 里 16 条专区欢迎语（本文件 §4 的岗位名不动）。

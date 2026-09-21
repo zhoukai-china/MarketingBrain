@@ -496,7 +496,7 @@ const isLocal = typeof window !== "undefined" && (window.location.hostname === "
             </div>
 
             <aside className="rc-side">
-              <div className="rc-card"><b>💎 积分用在哪</b><p>思潼AI 创始人IP专区 + 各行业专区的所有智能体，共用这一份积分。</p></div>
+              <div className="rc-card"><b>💎 积分用在哪</b><p>思潼AI 里通用行业与各行业专区的所有智能体，共用这一份积分。</p></div>
               <div className="rc-card token">
                 <b>🔗 在 WorkBuddy 里接入思潼 AI</b>
                 <p>把下面这段整段复制，直接发给 WorkBuddy，它就会自动接入思潼 AI 的 MCP（不用手动改 JSON）。</p>

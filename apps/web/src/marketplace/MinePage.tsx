@@ -234,7 +234,7 @@ export function MarketplaceMinePage() {
         <h1>我的</h1>
         <div className="mine-top">
           <div className="balance-card"><div className="bc-label">积分余额</div><div className="bc-val">💎 {balance ?? "—"}</div><div className="bc-sub">全平台通用</div><button className="btn ghost sm" onClick={() => { window.location.href = getAppPath("/recharge"); }}>+ 充值积分</button></div>
-          <div className="shared-card wide">💎 <b>跨数字员工通用</b><br />同一份积分，在创始人IP专区与各行业专区的数字员工 / AI员工都能用——只充一次，处处可用。</div>
+          <div className="shared-card wide">💎 <b>跨数字员工通用</b><br />同一份积分，在通用行业与各行业专区的数字员工 / AI员工都能用——只充一次，处处可用。</div>
         </div>
         <ReferralLinkCard />
         {/*

@@ -65,6 +65,7 @@ export const MARKETPLACE_INDUSTRIES = Object.fromEntries(
       who: industryValue(industry.who),
       lexicon: industryValues(industry.lexicon),
       pains: industryValues(industry.pains),
+      searchAlias: industryValues(industry.searchAlias),
       redline: industryValues(industry.redline),
       skills: industryValues(industry.skills),
       ov: (industry.ov ?? {}) as Record<string, Record<string, unknown>>
@@ -80,6 +81,14 @@ export const MARKETPLACE_INDUSTRIES = Object.fromEntries(
   who?: string;
   lexicon: string[];
   pains: string[];
+  /**
+   * 专区级搜索别名（2026-09-21）。只在**发布文件**里维护、只进 SKU 关键词，不写库里的专区 profile。
+   *
+   * 背景：通用专区的旧展示名里带「创始人IP」四个字，专区名本身就会命中历史搜索词；改名「通用行业」
+   * 之后，用户搜「创始人IP」在货架上再也找不到 IP 定位 / 全案套装（`matchesMarketplaceQuery` 的
+   * haystack 只拼 sku 自身字段 + `zoneName`）。这里把专区级别名并进 sku 关键词，保证「改名不降搜索」。
+   */
+  searchAlias: string[];
   redline: string[];
   skills: string[];
   ov: Record<string, Record<string, unknown>>;
@@ -540,6 +549,8 @@ function buildMarketplaceSkuSeeds(): MarketplaceSkuSeed[] {
     const prefix = industryValue(industry.prefix) ?? "";
     const lexicon = industryValues(industry.lexicon);
     const pains = industryValues(industry.pains);
+    // 专区级搜索别名（如通用专区仍要能被「创始人IP」搜到）。只进关键词、不进标签，避免改到详情页的能力标签。
+    const searchAlias = industryValues(industry.searchAlias);
     const overrideMap = industry.ov ?? {};
     // 品牌专区可以只上架自己的内核（industries[].skills 白名单）。未声明的专区保持原行为：上架全部通用内核。
     // 2026-09-15：**显式声明空数组 = 本专区暂不上架任何智能体**（行业专家专区先建栏、后放专家）。
@@ -577,7 +588,7 @@ function buildMarketplaceSkuSeeds(): MarketplaceSkuSeed[] {
           ...pains
         ])
       ].slice(0, 30);
-      const keywords = [...lexicon, ...pains, name, useCase].slice(0, 30);
+      const keywords = [...lexicon, ...pains, ...searchAlias, name, useCase].slice(0, 30);
       const sub = (core.sub ?? {}) as {
         price?: number;
         quota?: string;
@@ -773,10 +784,23 @@ export async function loadMarketplaceIndustryProfiles(): Promise<void> {
   for (const row of rows) {
     const current = MARKETPLACE_INDUSTRIES[row.zoneKey];
     if (!current) continue;
+    /**
+     * 专区展示名与一句话定位（`title` / `tag`）**只认发布文件** `marketplace-v3.json`，不取库里那两列。
+     *
+     * 原因同上面的 `MARKETPLACE_SKU_STATUS_OVERRIDES`：库里的 profile 行只在**首次建行**时写入这两个字段
+     * （`syncMarketplaceIndustryProfiles()` 用 `update: {}`），而运维接口 `PATCH /market/admin/industries/:key`
+     * 的 schema 里根本没有 `title` / `tag`（只有 who / lexicon / pains / redline / ov）——也就是说它们
+     * **改不了、又会被旧值永久盖住**，「改文件 + 发版」在这个环境下静默失效。
+     *
+     * 2026-09-21 实测：通用专区改名「通用行业」后，货架与详情页（读 `MARKETPLACE_ZONES`）已是新名字，
+     * 但对话页页头与浏览器标题读的是 `industry.title`（`GET /market/skus/:skuId` 返回的
+     * `MARKETPLACE_INDUSTRIES[zone]`），库里旧行把改名前的名字盖了回来，用户看到的还是旧名。
+     * 改名/回滚必须随发版走，所以这里固定用文件值；库里那两列只作为历史留档。
+     */
     MARKETPLACE_INDUSTRIES[row.zoneKey] = {
       ...current,
-      title: row.title,
-      tag: row.tag,
+      title: current.title,
+      tag: current.tag,
       who: row.who ?? undefined,
       lexicon: normalizeJsonArray(row.lexicon),
       pains: normalizeJsonArray(row.pains),

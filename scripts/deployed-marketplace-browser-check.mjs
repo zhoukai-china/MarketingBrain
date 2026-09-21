@@ -18,7 +18,7 @@ const shotDir = process.env.DEPLOY_CHECK_SHOT_DIR ?? path.join(tmpdir(), `deploy
 const IP_POS_SKU = "ipzone__ip-pos";
 /** 唯一配置了 `sub`（包月套餐）的 SKU：文案智能体。 */
 const COPY_SKU = "ipzone__copy";
-/** 全页「开发中」占位下限：创始人IP专区 6 + 美业专区 6（+ 品牌工作台 1）= 13，只要货架生效就远高于 7。 */
+/** 全页「开发中」占位下限：通用行业 6 + 美业专区 6（+ 品牌工作台 1）= 13，只要货架生效就远高于 7。 */
 const COMING_SOON_MIN = 7;
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -136,7 +136,7 @@ async function main() {
     // 1. 货架首页（`/agents`，2026-09-11 前是 `/market`）：专区、积分标价与人民币折算、
     //    未完成内核的「开发中」占位。
     await cdp.send("Page.navigate", { url: `${webBase}/agents` }, sessionId);
-    await waitFor(cdp, sessionId, `() => document.body.innerText.includes("创始人IP专区")`);
+    await waitFor(cdp, sessionId, `() => document.body.innerText.includes("通用行业")`);
     await waitFor(cdp, sessionId, `() => document.body.innerText.includes("IP定位智能体")`);
     const shelfText = await evaluate(cdp, sessionId, `() => document.body.innerText`);
     const shelfShot = await shoot(cdp, sessionId, "01-shelf-agents");

@@ -6,6 +6,8 @@ import { IpPosReport, type IpPosPayload } from "./ip-pos-report.js";
 import { VidrevReport, isVidrevPayload, VIDREV_PREFILL_KEY, type VidrevPayload } from "./vidrev-report.js";
 import { audioExtensionForMime, useVoiceInput, voiceTranscriptionFailureMessage } from "../components/chat/useVoiceInput.js";
 import sitongAvatar from "../assets/sitong-beauty.png";
+import { employeePersonaLabel } from "./employee-names.js";
+import { employeeAvatarPath } from "./eco-mall-data.js";
 import { bundleSteps, coreSkuCode, isBundle, isComingSoon, zoneOfSku, type MarketplaceIndustry, type MarketplaceSku } from "./sku-model.js";
 import { authHeaders, fetchMarketMe, guestToLogin, handleStaleSession, readJson, Topbar } from "./shell.js";
 import { readAttachmentText } from "./text-attachment.js";
@@ -239,6 +241,19 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     ? (industry?.ov?.[coreSkuCode(runSku.skuCode)]?.welcome as string | undefined) ?? ""
     : "";
   const welcome = ovWelcome || flow?.welcome || "";
+  /**
+   * 数字员工人名（用户 2026-09-21：对话页标题与头像标签也要带名字，不能都叫「思潼」）。
+   *
+   * 取展示用 SKU（`sku`）而不是 `runSku`：套装 `ip-pack` 的 runSku 是链路里的第一步，
+   * 按它取名字会把「IP 增长套装」显示成「沈定」，而套装是 7 大能力的入口、不是某一个人。
+   */
+  const personaLabel = employeePersonaLabel(sku?.skuCode ?? skuId);
+  /**
+   * 数字员工形象（用户 2026-09-21：对话页头像要是**这个数字员工自己的形象**，不能一律用品牌形象「思潼」）。
+   *
+   * 取形象的 SKU 与取名一致（展示用 `sku`）：套装 `ip-pack` 没有对应员工，回退品牌形象「思潼」。
+   */
+  const personaAvatar = employeeAvatarPath(sku?.skuCode ?? skuId) ?? sitongAvatar;
   /** 同专区「选题」智能体：视频复盘第十章候选选题一键带入它。 */
   const topicSkuCode = runSku
     ? all.find((item) => item.skuCode === `${zoneOfSku(runSku.skuCode)}__topic`)?.skuCode ?? null
@@ -249,9 +264,9 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
    */
   useEffect(() => {
     if (runSku?.name) {
-      document.title = industry?.title ? `${runSku.name} · ${industry.title}` : `${runSku.name} - 思潼AI 行业智能体平台`;
+      document.title = industry?.title ? `${personaLabel} · ${runSku.name} · ${industry.title}` : `${personaLabel} · ${runSku.name} - 思潼AI 行业智能体平台`;
     }
-  }, [runSku?.skuCode, runSku?.name, industry?.title]);
+  }, [runSku?.skuCode, runSku?.name, industry?.title, personaLabel]);
 
   /** 每次对话/进度变化都把本机留存写回（退出再进来能接着看，也能重新下载已付费的报告）。 */
   useEffect(() => {
@@ -1125,8 +1140,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
             <div className="chat-page-head">
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <button className="back" onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}`); }}>‹ 返回详情</button>
-                <img className="chat-avatar-img" src={sitongAvatar} alt="思潼" />
-                <span className="chat-page-title">{sku?.name ?? "智能体"} · 开发中</span>
+                <img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} />
+                <span className="chat-page-title">{personaLabel} · {sku?.name ?? "智能体"} · 开发中</span>
               </div>
             </div>
             <div className="zone-soon" style={{ margin: "0 16px" }}>
@@ -1147,8 +1162,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
             <div className="chat-page-head">
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <button className="back" onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}`); }}>‹ 返回详情</button>
-                <img className="chat-avatar-img" src={sitongAvatar} alt="思潼" />
-                <span className="chat-page-title">{runSku?.name ?? "智能体"} · 需登录</span>
+                <img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} />
+                <span className="chat-page-title">{personaLabel} · {runSku?.name ?? "智能体"} · 需登录</span>
               </div>
             </div>
             <div className="zone-soon" style={{ margin: "0 16px" }}>
@@ -1181,8 +1196,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
           <div className="chat-page-head">
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <button className="back" onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}`); }}>‹ 返回详情</button>
-              <img className="chat-avatar-img" src={sitongAvatar} alt="思潼" />
-              <span className="chat-page-title">{runSku?.name ?? flow.name ?? "智能体"}{industry?.title ? ` · ${industry.title}` : ""}</span>
+              <img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} />
+              <span className="chat-page-title">{personaLabel} · {runSku?.name ?? flow.name ?? "智能体"}{industry?.title ? ` · ${industry.title}` : ""}</span>
             </div>
             {cost !== null && (
               <span className="chat-page-cost">
@@ -1248,7 +1263,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
           <div className="chat-page-list">
             {items.map((item) => (
               <div key={item.id} className={`chat-row ${item.role}`}>
-                {item.role === "ai" && <img className="chat-avatar-img" src={sitongAvatar} alt="思潼" />}
+                {item.role === "ai" && <img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} />}
                 {/*
                  * 结构化报告（IP 定位全案 / 视频复盘）加 `report` 类：窄屏下气泡默认只占 74% 宽，
                  * 报告里的多列表格会被挤成「每列一个字」竖排（用户 2026-09-16 手机端截图）。
@@ -1257,7 +1272,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                 <div className={`chat-bubble ${item.role}${item.payload ? " report" : ""}`}>
                   {item.role === "ai" ? (
                     <>
-                      <span className="chat-bubble-label">思潼 · {sku?.name ?? "智能体"}</span>
+                      <span className="chat-bubble-label">{personaLabel} · {sku?.name ?? "智能体"}</span>
                       {isVidrevPayload(item.payload) ? (
                         <VidrevReport payload={item.payload} renderMarkdown={renderMarkdownHtml} topicSkuCode={topicSkuCode} />
                       ) : item.payload?.sections ? (
@@ -1286,12 +1301,12 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                 </div>
               </div>
             ))}
-            {busy && <div className="chat-row ai"><img className="chat-avatar-img" src={sitongAvatar} alt="思潼" /><div className="chat-bubble ai"><span style={{ color: "var(--muted)" }}>{isLiveScript ? `正在生成约几万字的 2 小时直播话术逐字稿，预计 5-10 分钟（整稿分九段依次生成，中途请勿关闭页面），请耐心等待… 已用 ${elapsed}s` : `AI 正在按方法论生成交付… 已用 ${elapsed}s`}</span></div></div>}
+            {busy && <div className="chat-row ai"><img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} /><div className="chat-bubble ai"><span style={{ color: "var(--muted)" }}>{isLiveScript ? `正在生成约几万字的 2 小时直播话术逐字稿，预计 5-10 分钟（整稿分九段依次生成，中途请勿关闭页面），请耐心等待… 已用 ${elapsed}s` : `AI 正在按方法论生成交付… 已用 ${elapsed}s`}</span></div></div>}
             {confirmPending && !busy && flow && (
               <div className="chat-row ai">
-                <img className="chat-avatar-img" src={sitongAvatar} alt="思潼" />
+                <img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} />
                 <div className="chat-bubble ai" style={{ maxWidth: "84%" }}>
-                  <span className="chat-bubble-label">思潼 · {sku?.name ?? "智能体"}</span>
+                  <span className="chat-bubble-label">{personaLabel} · {sku?.name ?? "智能体"}</span>
                   <div className="md-rich" style={{ color: "var(--text)", fontSize: 14, lineHeight: 1.7 }}>
                 <p><b>请先确认需求</b>：确认后我按下面这套信息生成交付。如有不对，点「修改」重填。</p>
                     {/*

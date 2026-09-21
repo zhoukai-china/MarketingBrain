@@ -73,7 +73,13 @@ assert.match(
 );
 assert.match(
   main,
-  /path === "\/agents" \|\| path === "\/agents\/"\) \{[\s\S]{0,80}<MarketplaceHomePage \/>/,
+  /**
+   * 2026-09-21：`/agents` 首页在 5f167b3「思潼AI商城 /agents 数字员工商城重构」里由
+   * `MarketplaceHomePage` 换成 `EcoMallHomePage`，断言没跟着改，从那天起 qa:fast 一直红在
+   * 这一条（与业务回归无关，属于哑断言）。这里只把组件名对齐现状，语义不变：`/agents`
+   * 仍必须是精确匹配（不得吞掉 `/agents/:slug` 单品页）。
+   */
+  /path === "\/agents" \|\| path === "\/agents\/"\) \{[\s\S]{0,80}<EcoMallHomePage \/>/,
   "平台首页必须由 /agents 精确匹配渲染（不得吞掉 /agents/:slug 单品页）",
 );
 // 登录死循环修复（QA-20260910-018）：以前只看 localStorage 有没有 token 就把

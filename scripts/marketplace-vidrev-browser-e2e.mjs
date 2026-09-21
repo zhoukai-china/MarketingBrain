@@ -363,7 +363,7 @@ async function checkMobile(cdp, sessionId) {
 /** PLAT-25B：带登录态打开两个视频复盘 chat 页，验证浏览器 <title> 与页内标题去重。零模型成本。 */
 async function checkChatTitles(cdp, token) {
   const expected = [
-    { sku: "ipzone__vidrev", agent: "视频复盘智能体", zone: "创始人IP专区" },
+    { sku: "ipzone__vidrev", agent: "视频复盘智能体", zone: "通用行业" },
     { sku: "meiye__vidrev", agent: "美业视频复盘智能体", zone: "美业专区" }
   ];
   const results = {};

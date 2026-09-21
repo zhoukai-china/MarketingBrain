@@ -16,6 +16,7 @@ import {
   type EcoEmployeeZoneKey,
   type EcoSkinKey
 } from "./eco-mall-data.js";
+import { employeePersonaLabel } from "./employee-names.js";
 
 type EcoTopSection = "数字员工" | "consultant" | "智能体" | "品牌工作台专区" | "AI硬件" | "AI课程";
 type EcoCategory = "employees" | "software" | "hardware" | "courses";
@@ -90,6 +91,7 @@ function EmployeeCard({
       <span className={`eco-badge ${ok ? "ok" : "dev"}`}>{ok ? "可用" : "开发中"}</span>
       <EcoAvatar icon={employee.icon} img={employeeImagePath(employee)} color={employee.color} />
       <div className="eco-role">{employee.role}</div>
+      <div className="eco-name">{employeePersonaLabel(employee.capability)}</div>
     </article>
   );
 }
@@ -118,7 +120,7 @@ function EmployeeModal({
           <EcoAvatar icon={employee.icon} img={employeeImagePath(employee)} color={employee.color} className="eco-m-ava" />
           <div>
             <div className="eco-m-role">{employee.role}</div>
-            <div className="eco-m-tag">AI 数字员工 · {skin}</div>
+            <div className="eco-m-tag">AI 数字员工 · {employeePersonaLabel(employee.capability)} · {skin}</div>
           </div>
         </div>
         <div className="eco-tabs">

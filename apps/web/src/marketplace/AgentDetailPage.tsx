@@ -11,6 +11,7 @@ import {
   type MarketplaceIndustry,
   type MarketplaceSku
 } from "./sku-model.js";
+import { employeePersonaName } from "./employee-names.js";
 
 /**
  * 双保险（2026-09-16，WorkBuddy 全链路检测 B1）：服务端已剥离 `useCase` 里的历史前缀
@@ -84,6 +85,8 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
 
   const bundle = isBundle(sku);
   const steps = bundleSteps(sku, all);
+  /** 数字员工人名（用户 2026-09-21：详情页标题也要带名字，不能都叫「思潼」）。 */
+  const personaName = employeePersonaName(sku.skuCode);
   const total = bundleTotal(sku, all);
   const runSku = bundle ? steps[0] ?? sku : sku;
   const soon = isComingSoon(sku);
@@ -183,7 +186,7 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
         <button className="back" onClick={() => { window.location.href = getAppPath("/agents"); }}>‹ 返回商城</button>
         <div className="detail-grid">
           <div className="detail-main">
-            <div className="d-head"><span className="d-ico">{sku.icon}</span><div><h1>{sku.name}</h1><div className="d-cat">{sku.zoneName}{sku.verbs.length ? ` · ${sku.verbs.join(" / ")}` : ""}</div></div></div>
+            <div className="d-head"><span className="d-ico">{sku.icon}</span><div><h1>{personaName ? `${personaName} · ${sku.name}` : sku.name}</h1><div className="d-cat">{sku.zoneName}{sku.verbs.length ? ` · ${sku.verbs.join(" / ")}` : ""}</div></div></div>
             <div className="completes-card">🎯 <b>一次使用 = 帮你完成：</b>{stripLegacyUsePrefix(sku.useCase)}</div>
             {sku.need && <div className="need-card">🧩 <b>使用前准备：</b>{sku.need}<div className="need-hint">准备好这些，AI 会逐轮主动提问，每轮只补一个维度；信息齐了再生成全案，产出更贴你。</div></div>}
             {industry && !industry.general && (
@@ -300,7 +303,7 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
                 </>
               ) : null}
             </div>
-            <div className="shared-card">💎 <b>一份积分，全平台通用</b><br />创始人IP专区与各行业专区的智能体共用同一份积分；在 WorkBuddy 里用思潼智能体，用的也是这份积分。</div>
+            <div className="shared-card">💎 <b>一份积分，全平台通用</b><br />通用行业与各行业专区的智能体共用同一份积分；在 WorkBuddy 里用思潼智能体，用的也是这份积分。</div>
             {notice && <div className="notice">{notice}</div>}
           </aside>
         </div>

@@ -14,14 +14,18 @@ function check(ok, label) {
   if (!ok) failed += 1;
 }
 
-// ① chat 页浏览器 <title> 必须带智能体名 + 专区名（锚点注释 + 赋值表达式）。
-const titleAssign = app.match(/document\.title\s*=\s*industry\?\.title\s*\?\s*`\$\{runSku\.name\}\s*·\s*\$\{industry\.title\}`/);
-check(Boolean(titleAssign), "chat 页浏览器 <title> = 智能体名 · 专区名（含 runSku.name 与 industry.title）");
+// ① chat 页浏览器 <title> 必须带数字员工人名 + 智能体名 + 专区名（锚点注释 + 赋值表达式）。
+// 2026-09-21 起标题前置数字员工人名（如「沈定 · IP定位智能体 · 通用行业」），不再是清一色「思潼」。
+const titleAssign = app.match(/document\.title\s*=\s*industry\?\.title\s*\?\s*`\$\{personaLabel\}\s*·\s*\$\{runSku\.name\}\s*·\s*\$\{industry\.title\}`/);
+check(Boolean(titleAssign), "chat 页浏览器 <title> = 数字员工人名 · 智能体名 · 专区名（含 personaLabel / runSku.name / industry.title）");
 check(app.includes("PLAT-25B：chat 页浏览器 <title> 带上智能体名与专区名"), "PLAT-25B 锚点注释存在，防止整块被删");
 
-// ② 页内标题不再拼 flow.name · runSku.name 的重复段；改为 智能体名 + 可选专区名。
+// ② 页内标题不再拼 flow.name · runSku.name 的重复段；改为 数字员工人名 + 智能体名 + 可选专区名。
 check(!/flow\.name\}\s*·\s*\{runSku\?\.name/.test(app), "页内标题不再出现「{flow.name} · {runSku?.name}」重复拼法");
-check(app.includes('{runSku?.name ?? flow.name ?? "智能体"}{industry?.title ? ` · ${industry.title}` : ""}'), "页内标题 = 智能体名（兜底 flow.name）+ 可选专区名");
+check(
+  app.includes('{personaLabel} · {runSku?.name ?? flow.name ?? "智能体"}{industry?.title ? ` · ${industry.title}` : ""}'),
+  "页内标题 = 数字员工人名 + 智能体名（兜底 flow.name）+ 可选专区名"
+);
 
 // ③ 美业欢迎语：2026-09-13 工单取消了「快速诊断」，只保留深度复盘；行业口径（POI/团购）只能挪位置不能删。
 const meiyeWelcome = data.industries?.meiye?.ov?.vidrev?.welcome ?? "";

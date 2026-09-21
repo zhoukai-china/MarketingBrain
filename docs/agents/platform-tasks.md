@@ -2686,3 +2686,85 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 - 测试实例链接：`https://api.lcppch.top/lanqi-test/agents`；生产链接：`https://api.lcppch.top/os-v2/agents`。生产已发布，仍需按发布纪律补跑 `prelaunch:check`、`qa:full` 与线上真实登录 smoke（测试环境 `dev-login` 不代表生产微信登录）。
 - 残余既有失败（与本改动文件无关）：`marketplace:chat-slot-numbering-contract-smoke`、`marketplace:chat-restart-smoke`、`marketplace:ip-pos-interview-contract-smoke` 与 `marketplace:mine-docx-download-smoke`（缺 `DATABASE_URL`），应单列修复，不在本任务扩大范围。
 - 最后更新日期：2026-09-19
+
+---
+
+## PLAT-50 数字员工人名 + 形象 + 专区名：商城卡片 / 智能体详情页 / 对话页都要能看出「这是谁、这是哪个专区」（用户 2026-09-21：不能都叫「思潼」，要按岗位起名；对话页头像要用**这个数字员工自己的形象**；没有「创始人IP专区」，只有 餐饮 / 美业 / 通用行业）
+
+状态：**代码完成、本地实操验收通过；未部署**（8 个人名已按保禄 2026-09-21「按岗位起名」口径定稿；专区名统一为「通用行业」）
+
+### 归属
+
+- 产品：公共平台（货架 `apps/web/src/marketplace` 展示层 + `apps/api/src/data/marketplace-v3.json` 专区名与欢迎语 + `apps/api/src/services/marketplace-catalog.ts` 专区数据装配）。
+- 层级：展示文案与共用取名表；不新增模型路由、不新增计费口径、不新增 Skill、不改数据库结构。
+- 风险：低。只改数字员工的展示名 / 展示形象与专区名，不碰身份、租户、订单、积分与文件。
+
+### 用户结果
+
+用户侧三个入口都能看出「这个数字员工是谁」：商城数字员工卡片在岗位名（首席定位官…）下方多一行人名；
+智能体详情页标题是「人名 · 智能体名」；对话页页头、页签标题、AI 气泡标签与头像都用人名，开场欢迎语首句也是人名。
+对话页页头与每条 AI 气泡的**头像换成这个数字员工自己的形象**（不再一律用品牌形象「思潼」）；
+专区名统一成「餐饮专区 / 美业专区 / 通用行业」，「创始人IP专区」这个叫法在用户可见处全部消失。
+
+### 本次范围
+
+- 新增 `apps/web/src/marketplace/employee-names.ts`：按能力核（`ip-pos` / `topic` / `copy` / `vidrev` / `livescript` / `liverev` / `sales` / `moments`）登记人名，提供 `employeePersonaName()`（取不到返回 `null`）与 `employeePersonaLabel()`（回退品牌名「思潼」）。
+- 起名规则：常见单字姓（8 个互不重复）+ 岗位关键字各取一个字（沈定 / 何策 / 秦文 / 江流 / 罗盘 / 许复 / 易成 / 周域）；
+  名字里不带品牌字「思」，避免人名与品牌名「思潼」混用（第一版「思衡/思敏/…」即因这点被否）。
+- `EcoMallHomePage.tsx` + `eco-mall.css`：卡片加人名名牌 `.eco-name`；弹窗标签改为「AI 数字员工 · 人名 · 皮肤」。
+- `AgentDetailPage.tsx`：详情页 `h1` 改为「人名 · 智能体名」。
+- `AgentChatPage.tsx`：页头 / 页签标题 / AI 气泡标签 / 头像 `alt` 用人名；取名字用展示 SKU（`sku?.skuCode ?? skuId`），套装不被误显示成链路第一步的员工。
+- `chat-flows.ts`：8 个技能的开场欢迎语改成「你好，我是<人名> · …」。
+- `apps/api/src/data/marketplace-v3.json`：8 个专区共 16 条欢迎语前缀由「思潼 · 」改为对应人名。
+- 新增 `scripts/marketplace-employee-name-contract-smoke.mjs`，纳入 `qa:fast`。
+
+第二轮（同一批用户口径，2026-09-21 追加）：
+
+- **对话页头像换成对应数字员工的形象**（用户截图：页头与 AI 气泡还是品牌形象「思潼」）：
+  - `eco-mall-data.ts` 新增 `EMPLOYEE_AVATAR_BY_CAPABILITY` 与 `employeeAvatarPath(skuCodeOrCapability)`（未知 / 套装 `ip-pack` 返回 `null`），`EMPLOYEE_IMAGE_PATHS` 改为由它派生——商城卡片、弹窗、对话页共用同一张「能力核 → 形象」映射，不再两处各写一份。
+  - `AgentChatPage.tsx`：`const personaAvatar = employeeAvatarPath(sku?.skuCode ?? skuId) ?? sitongAvatar;`，6 处 `chat-avatar-img` 全部改用 `personaAvatar`；品牌形象只作套装兜底。
+  - `lib/api.ts` 新增 `getPublicAssetPath()`：生产 base 是 `/os-v2/`，裸写 `/avatars/*.png` 会请求域名根目录 404（8 张形象在 `apps/web/public/avatars/`，各 1.3–1.5MB）。
+- **专区改名「通用行业」**（用户口径：没有「创始人IP专区」，只有 餐饮 / 美业 / 通用行业）：
+  - 发布文件 `marketplace-v3.json`：`industries.ipzone.title` 由「创始人IP专区」改为「通用行业」（`key` / 路由 `ipzone` / 数据口径不动）。
+  - 同屏兜底文案同步：`AgentDetailPage.tsx`（一份积分卡）、`MinePage.tsx`、`HomePage.tsx`、`RechargePage.tsx`；测试脚本里的 `IPZONE_NAME` 等常量一并跟随。
+  - **改名不能降搜索**（根因修复）：以前「创始人IP」能搜到 IP 定位 / 全案套装，是因为专区名本身带这四个字；改名后 `matchesMarketplaceQuery` 的 haystack 只拼 SKU 字段 + `zoneName`，搜索词落空。给 `ipzone` 加 `searchAlias: ["创始人IP","个人IP","老板IP","IP获客","IP增长"]`（**只进 SKU 关键词、不进详情页标签**），`buildMarketplaceSkuSeeds()` 把别名并进 `keywords`。
+  - **改名要真的到用户眼前**（本轮实测到的静默失效，见 `docs/BUG_REGRESSIONS.md` **QA-20260921-001**）：专区展示名在库里 `marketplace_industry_profile` 也存了一份，`loadMarketplaceIndustryProfiles()` 用库里的值覆盖文件值，而 `syncMarketplaceIndustryProfiles()` 只在首次建行时写入、运维 `PATCH /market/admin/industries/:key` 又改不到 `title`——库里那行旧名会把新名永久盖回去。现象：货架 / 详情页（读 `MARKETPLACE_ZONES`）已是「通用行业」，对话页页头与浏览器标题（读 `GET /market/skus/:skuId` 返回的 `industry.title`）仍是「创始人IP专区」。修复：`loadMarketplaceIndustryProfiles()` 固定取发布文件的 `title` / `tag`（同 `MARKETPLACE_SKU_STATUS_OVERRIDES` 的既有口径，改名与回滚都随发版走）。
+- 新增 `scripts/marketplace-zone-name-contract-smoke.mjs`（11 条断言），与 `marketplace-employee-name-contract-smoke.mjs` 一起纳入 `qa:fast`。
+
+### 本次不做
+
+- 不改岗位名（首席定位官 / 选题策略官 / …）、不改价格与开卖状态、不改积分口径、不改商城卡片的形象（沿用原图，只把对话页拉齐到同一张表）。
+- 不给套装 `ip-pack` 分配人名：它是 7 大能力的入口、不是某一个人，显式回退「思潼」。
+- 不改模型 Prompt 与 Skill 版本，不部署生产、不发起任何付款或外部动作。
+- 不动专区的 `key` / 路由 / `prefix`：`ipzone` 还是 `ipzone`，只改对客展示名，避免已发出的链接失效。
+
+### 验收条件
+
+1. 8 个数字员工卡片各自显示独立人名，无重名、无「思潼」；岗位名仍然保留。
+2. `/agent/<skuCode>` 详情页标题含人名（例：沈定 · IP定位智能体）。
+3. `/agent/<skuCode>/chat` 页头、浏览器标题、AI 气泡标签、头像 `alt` 含人名；欢迎语首句为人名。
+4. 套装 `/agent/ipzone__ip-pack` 仍显示「思潼」，不被显示成某个员工。
+5. `/agent/<skuCode>/chat` 页头与每条 AI 气泡的头像是**该数字员工自己的形象**，不是品牌形象「思潼」；图片真的加载出来（`naturalWidth > 0`）。
+6. `/agents`（浅色 + 深色）8 张卡片各带独立人名；`/agent/ipzone__ip-pos` 显示「沈定 · IP定位智能体」+「通用行业」；用户可见处不再出现「创始人IP专区」。
+7. 搜「创始人IP」仍能搜到 IP 定位 / 全案套装（改名不降搜索）。
+8. 既有 `qa:fast` 无新增红灯。
+
+### 验证
+
+- `pnpm.cmd qa:fast`（45 步，一步不落）：**全绿 PASS**（`QAFAST_EXIT=0`），含 `marketplace:employee-name-contract-smoke` **23/23**、`marketplace:zone-name-contract-smoke` **11/11**、`marketplace:foundation-smoke`（含改名后的搜索回归）与 7 包 `typecheck` PASS。
+- 修复前红灯（真红，不是环境问题）：`marketplace:foundation-smoke` 在 `apps/api/src/data/marketplace-v3.json` 改名后找不到 `ipzone__ip-pos` / `ipzone__ip-pack`——搜「创始人IP」的 haystack 只拼 SKU 字段 + 专区名。按上面 `searchAlias` 修根因后转绿（未放松任何断言）。
+- `pnpm.cmd qa:regression`（33 步）：**31 步 PASS**；2 步红灯（见下），均与本改动无关：`marketplace:vidrev-platform-scope-smoke` 已在基线 worktree 复现同样报错；`beauty-industry:web-contract-smoke` 链尾 `live_script` 提示词 58,917/56,000 超预算，**把本机 424 个文本资产按 git blob 归一为 LF 后重跑仍是 57,239/56,000**（CRLF 只贡献 +1,678），属真实超预算的既有红灯，见 `docs/BUG_REGRESSIONS.md` **QA-20260921-002**。
+- 前置条件：以上两条命令前需把 `.env` 导出到进程环境（`DATABASE_URL` / `JWT_SECRET` 等），否则 `marketplace:mine-docx-download-smoke`、`auth:invite-gate-smoke`、`referral:self-service-smoke`、`marketplace:subscription-smoke` 会因缺环境变量红（导出后同样全绿，属沙箱环境差异，非代码问题）。
+- 接口级红/绿证（本地 API `127.0.0.1:3011`，库里已有旧专区 profile 行）：
+  - 修复前 `GET /market/skus/ipzone__ip-pos` → `zoneName=通用行业`（读文件）但 `industry.title=创始人IP专区`（被库里旧行盖回）；
+  - 修复后同一条 → `zoneName=通用行业`、`industry.title=通用行业`、`industry.tag=什么行业都能用 · 定位 → 内容 → 直播 → 成交`。
+- 真人实操（本地 `http://127.0.0.1:5174`，真实 Chrome + CDP，浅色 + 深色两套皮肤，dev-login 登录态）：`role-name-verify.mjs` **34 条断言全 PASS**——8 张卡片人名、详情页「沈定 · IP定位智能体」+「通用行业」、对话页页头 / 浏览器标题「沈定 · IP定位智能体 · 通用行业」、AI 气泡标签「沈定 · IP定位智能体」、头像 `src=/avatars/ip-position.png`（3 张全对，`naturalWidth=1024`）、文案智能体头像 `src=/avatars/copywriter.png`；整页不再出现「创始人IP」。截图：`C:\Users\book\.codex\visualizations\2026\09\21\01a0c21f-e99e-7c82-9de9-c1472b8da85a\employee-names-role\`（`r04`–`r09`；`employee-names\` 是第一轮白天皮肤那批）。
+- 深色皮肤人名 `rgb(255,176,112)`、浅色 `rgb(232,101,26)`，都对背景可读。
+
+### 交接
+
+- 改名只需动 `employee-names.ts` 一张表 + `marketplace-v3.json` 16 条专区欢迎语，不涉及其它代码。
+- 换形象只需换 `apps/web/public/avatars/*.png` 或改 `EMPLOYEE_AVATAR_BY_CAPABILITY` 一行；对话页、商城卡片、弹窗会一起跟随。
+- 专区名以**发布文件**为准：库里 `marketplace_industry_profile.title` / `tag` 从此只是留档，改这两列不生效（避免再有人以为改了库就能改名字）。
+- 剩余既有红灯（都与本次改动文件无关）：`marketplace:vidrev-platform-scope-smoke`（平台步归一分支缺失，已在基线 worktree 复现同样报错）、`beauty-industry:web-contract-smoke`（链尾 `beauty-industry:text-budget-smoke` 的 `live_script` 提示词 58,917/56,000 超预算 + 脚本 `UV_HANDLE_CLOSING` 崩退；**LF 归一后仍 57,239/56,000，不是 CRLF 假象**，属美业提示词预算线，见 QA-20260921-002；本任务不改预算也不改断言）；缺环境变量（`DATABASE_URL` / `JWT_SECRET`）时另有 4 步会红，导出 `.env` 后即 PASS。
+- 最后更新日期：2026-09-21

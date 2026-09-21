@@ -2,6 +2,37 @@
 
 - 编号说明（2026-09-16 合并 `main` 后统一）：LQ-34 侧并发登记的条目顺延为 **-012 导出一次性直链 / -013 邀请活动门禁 / -014 导出仓 `.env` / -015 Windows worktree CRLF**；`-006` 本机草稿指纹条目以 main 编号为准（LQ-34 侧曾记为 `-010`，合并时去重）。
 
+## QA-20260921-001：专区改名「通用行业」后对话页页头仍是「创始人IP专区」——库里 `marketplace_industry_profile` 的旧 `title` / `tag` 把发布文件盖回去，运维 PATCH 又改不到这两列（P2，已修；本地实操已验收，未部署）
+
+- 来源：用户 2026-09-21 口径「没有创始人IP专区，只有 餐饮 / 美业 / 通用行业」，要求专区名统一为「通用行业」（PLAT-50，第二轮）。
+- 取证（本地 `127.0.0.1:3011` + 商城前端 `127.0.0.1:5174`，只读 + 单接口对照）：
+  1. 只改发布文件 `apps/api/src/data/marketplace-v3.json` 的 `industries.ipzone.title` 后，货架 `/agents`、智能体详情页（都读 `MARKETPLACE_ZONES`）已经是「通用行业」，**但对话页页头与浏览器标题仍是「创始人IP专区」**——同一份数据两个入口两个名字。
+  2. 对照同一台机器上的接口：`GET /market/skus/ipzone__ip-pos` 返回 `zoneName=通用行业`（走文件）但 `industry.title=创始人IP专区`（走库），把差异锁在「专区展示名的第二个来源」。
+  3. 库里 `marketplace_industry_profile` 确实有 `ipzone` 这一行，且 `title` / `tag` 是旧值；该行首建后再没被发布文件刷新过。
+- 根因：专区展示名有两处来源。`loadMarketplaceIndustryProfiles()`（`apps/api/src/services/marketplace-catalog.ts`）用**库里**的 `title` / `tag` 覆盖发布文件的值；而 `syncMarketplaceIndustryProfiles()` 只在**首次建行**时写入，运维口的 `PATCH /market/admin/industries/:key` schema 里根本没有 `title` / `tag`（只能改排序 / 开关一类字段）。于是「改文件 → 看着生效 → 库里旧行又把它盖回去」：只改 JSON 的改名在依赖库装配的入口（对话页页头 / 页签标题）**静默失效**，改库也不生效，**没有任何一处能改到用户看到的那个名字**。
+- 处置（只改装配口径，不动库表结构、不动专区的 `key` / 路由）：
+  - `loadMarketplaceIndustryProfiles()` 固定取**发布文件**的 `title` / `tag`（`title: current.title`、`tag: current.tag`），库里这两列降级为**留档**，同 `MARKETPLACE_SKU_STATUS_OVERRIDES` 的既有口径——专区名从此随发版走，回滚也随发版走。
+  - 注释里不再出现「创始人IP专区」字样（契约扫描会拦死旧名回归）。
+  - 改名不降搜索（同批修的第二个根因）：以前搜「创始人IP」能命中，是因为专区名自带这四个字；改名后 `matchesMarketplaceQuery` 的 haystack 只拼 SKU 字段 + `zoneName`，搜索词落空。给 `ipzone` 加 `searchAlias: ["创始人IP","个人IP","老板IP","IP获客","IP增长"]`（**只进 SKU 关键词、不进详情页标签**），`buildMarketplaceSkuSeeds()` 把别名并进 `keywords`。
+- 绿证：
+  - 接口红→绿（同一台机器、修复前 / 修复后同一条命令）：修复前 `zoneName=通用行业` 但 `industry.title=创始人IP专区`；修复后 `zoneName=通用行业`、`industry.title=通用行业`、`industry.tag=什么行业都能用 · 定位 → 内容 → 直播 → 成交`。
+  - 新增契约 `pnpm.cmd marketplace:zone-name-contract-smoke` **11/11 PASS**（含「库 profile 不能盖回文件值」「搜『创始人IP』仍能命中 IP 定位 / 全案套装」两条），与 `marketplace:employee-name-contract-smoke`（23/23）一起纳入 `qa:fast`。
+  - 真人实操（本地 `127.0.0.1:5174`，真实 Chrome + CDP，浅色 + 深色两套皮肤）：`role-name-verify.mjs` **34 条断言全 PASS**，含详情页 / 对话页页头 / 浏览器标题都是「沈定 · IP定位智能体 · 通用行业」、整页不再出现「创始人IP」。截图 `C:\Users\book\.codex\visualizations\2026\09\21\01a0c21f-e99e-7c82-9de9-c1472b8da85a\employee-names-role\`。
+  - `pnpm.cmd qa:fast`（45 步）**全绿 `QAFAST_EXIT=0`**（含两个新契约与 7 包 `typecheck`）。
+- 回滚：把 `loadMarketplaceIndustryProfiles()` 改回取库里的 `title` / `tag`（一行改动）即可，但会退回「库旧行盖发布文件」的旧口径——旧名字会重新出现在对话页头上。**不建议回滚这一条**；若要回退改名本身，改 `marketplace-v3.json` 的 `ipzone.title` 与同屏兜底文案即可（`key` / 路由不动，已发出的链接不受影响）。
+- 关联：PLAT-50（任务卡，含本次人名与头像口径）、`docs/HANDOFF-eco-mall-codex-20260918.md` §9、QA-20260918-001（同一批货架交付）。
+
+## QA-20260921-002：`beauty-industry:web-contract-smoke` 链尾 `live_script` 提示词顶穿 56,000 字节版本化预算（58,917/56,000）——LF 归一后仍是 57,239/56,000，属真实超预算的既有红灯（P2，未修；不属本次改动范围，需美业提示词预算线决策）
+
+- 来源：2026-09-21 交付 PLAT-50 跑 `pnpm.cmd beauty-industry:web-contract-smoke`（API 已在 `127.0.0.1:3011`），链条停在 `scripts/beauty-industry-by09-message-profile.ts:74`：`AssertionError: live_script prompt exceeded the versioned budget before Provider start:58917/56000`，脚本随后 `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` 崩退（exit `-1073740791`）。
+- 归因（两步排除，先排「本任务引入」，再排「CRLF 环境」）：
+  1. 本任务 `git diff --name-only HEAD` **不含** `apps/api/src/products/**`、`packages/**`、`mcp-skills/**`——被测的提示词装配链路一个文件都没动，不可能由 PLAT-50 引入。
+  2. 本 worktree 是 Windows 全新检出（`core.autocrlf=true`、仓库无 `.gitattributes`），`mcp-skills/**` 文本资产带 CRLF（与 QA-20260916-015 同一环境）。把 `mcp-skills` / `apps/api/src/products` / `packages/skills` 下 424 个带 CR 的文本文件按 git blob 归一为 LF 后**重跑同一脚本**：`live_script` 由 **58,917 → 57,239**，仍 > 56,000。即 CRLF 只贡献 **+1,678 字节**，**其余 1,239 字节的超预算是真实增长**（QA-20260916-015 记的 LF 值是 52,713 / 54,037，两天内又长 ~3,200 字节）。
+- 结论与边界：这是**美业提示词预算线的既有红灯**，与 PLAT-50（人名 / 形象 / 专区名）无关，也不是本机 CRLF 假象；`pid` 侧 `qa:regression` 的这一步在任何 LF 机器上同样会红。**不顺手改断言、不改 56,000 预算**——提预算等于放松门禁、压提示词等于改美业交付范围，两者都要单独走决策（同 QA-20260916-015 的后续项 ②）。
+- 绿证（本次交付不受影响）：同一次运行里 `qa:fast` **45 步全绿 `QAFAST_EXIT=0`**；`pnpm.cmd marketplace:zone-name-contract-smoke` 11/11、`pnpm.cmd marketplace:employee-name-contract-smoke` 23/23；接口红→绿与浏览器 34 条断言见 QA-20260921-001。
+- 复现命令：`pnpm.cmd beauty-industry:web-contract-smoke`（或单跑 `node apps/api/node_modules/tsx/dist/cli.mjs scripts/beauty-industry-by09-message-profile.ts`）。
+- 关联：QA-20260916-015（同脚本、同环境、`beauty_xiaohongshu_package` 25,000 预算；本条是它的 `live_script` 变体且已不是 CRLF 单一成因）、PLAT-50（任务卡）。
+
 ## QA-20260918-001：兰琪公域获客「文案十件套 / 视频获客」点生成只提示「门店信息还在加载」——403 权益门禁被前端吞成「门店为空」（P1，已修 + 已上测试实例和生产）
 
 - 来源：用户 2026-09-18 现场反馈「门店信息还在加载，请稍后再试一次」，不管点几次都是这一句。

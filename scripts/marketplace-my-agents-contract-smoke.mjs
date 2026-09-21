@@ -24,8 +24,12 @@ const navOrder = [...shell.matchAll(/onNavigate\("(\/agents|\/my-agents|\/rechar
   .map((m) => ({ href: m[1], label: m[2].trim() }))
   .filter((item) => item.label.length > 0 && !item.label.includes("{"));
 check(
-  JSON.stringify(navOrder.map((item) => item.label)) === JSON.stringify(["货架", "常用智能体", "积分充值", "我的"]),
-  `一级导航顺序 = 货架 / 常用智能体 / 积分充值 / 我的（实际：${navOrder.map((item) => item.label).join(" / ")}）`
+  /**
+   * 2026-09-21：5f167b3 商城重构把主导航改成「商城 / 常用 / 积分充值 / 我的」，
+   * 断言还停在旧文案「货架 / 常用智能体」，改成现状文案（顺序与 href 语义不变）。
+   */
+  JSON.stringify(navOrder.map((item) => item.label)) === JSON.stringify(["商城", "常用", "积分充值", "我的"]),
+  `一级导航顺序 = 商城 / 常用 / 积分充值 / 我的（实际：${navOrder.map((item) => item.label).join(" / ")}）`
 );
 check(navOrder[1]?.href === "/my-agents", "「常用智能体」指向独立页 /my-agents（不再指 /mine 锚点）");
 check(navOrder[3]?.href === "/mine", "「我的」指向 /mine");
@@ -36,7 +40,7 @@ check(/path === "\/my-agents"/.test(main), "main.tsx 注册了 /my-agents 路由
 check(/MarketplaceMyAgentsPage = lazy\(/.test(main), "/my-agents 走懒加载（不拖慢首屏）");
 check(/apiPath\("\/market\/me\/agents"\)/.test(myAgents), "页面读的是 /market/me/agents（聚合接口）");
 check(/继续使用/.test(myAgents) && /\/agent\/\$\{encodeURIComponent\(agent\.skuCode\)\}\/chat/.test(myAgents), "每张卡有「继续使用」直达该智能体对话页");
-check(/去货架逛逛/.test(myAgents), "空态有明确去处（去货架逛逛），不是白屏");
+check(/去商城逛逛/.test(myAgents), "空态有明确去处（去商城逛逛），不是白屏");
 
 // ③ API：聚合口径 + 租户隔离 + 未登录显式 401
 check(/market\.get\("\/me\/agents"/.test(api), "注册 GET /market/me/agents");

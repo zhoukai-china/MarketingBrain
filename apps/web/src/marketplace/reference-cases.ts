@@ -1,7 +1,7 @@
 // 输出参考案例（静态示范，不调模型、不消耗积分）
 // 内容来源：WorkBuddy 原型 BENCH_HTML，均已脱敏（客户代号 / 模糊化数据）。
 // 契约（方案②，用户 2026-09-10 拍板）：
-// 1. `REFERENCE_CASES` 是「通用样例」，会被「创始人IP专区（通用）」和行业专区共用，
+// 1. `REFERENCE_CASES` 是「通用样例」，会被通用行业专区和各行业专区共用，
 //    所以一律不得出现行业词（美业 / 美容 / 护理 / 耗卡 / 床位…）。
 // 2. 行业专属样例只放 `INDUSTRY_REFERENCE_CASES`，并且**只能按完整 SKU 代码命中**
 //    （例如 `meiye__copy`）。通用专区（`ipzone__copy`）永远取第 1 类中性样例。
@@ -238,7 +238,7 @@ function markdownReference(title: string, input: string, markdown: string): Refe
  * 行业专区专属样例（方案②的另一半）：行业词只能出现在这里，且只对完整 SKU 生效。
  *
  * 内容来源与通用样例相同（WorkBuddy 原型 BENCH_HTML，已脱敏）。这些正是 2026-09-10
- * 之前被通用内核「借用」、导致创始人IP专区看到美业样例的那几条，现在归还给美业专区。
+ * 之前被通用内核「借用」、导致通用行业专区看到美业样例的那几条，现在归还给美业专区。
  */
 export const INDUSTRY_REFERENCE_CASES: Record<string, ReferenceCase> = {
   "meiye__topic": {

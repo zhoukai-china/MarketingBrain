@@ -7,7 +7,7 @@
  * 一、选题策划；二、口播逐字稿；三、访谈话术；四、拍摄脚本；五、拍摄注意事项；六、剪辑EDL；
  * 七、发布标题与话题；八、最佳发布时间；九、评论区引导话术；十、投流建议。
  *
- * 通用样例（创始人IP专区）不得出现行业专区词，见 scripts/marketplace-reference-case-neutral-smoke.ts。
+ * 通用样例（通用行业专区）不得出现行业专区词，见 scripts/marketplace-reference-case-neutral-smoke.ts。
  * 数据与案例均为合成/脱敏示例；未确认的经营数据一律写「待补真实数据」，不编数字。
  */
 export const CONTENT_TEN_FULL_CASE_HTML = `

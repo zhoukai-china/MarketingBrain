@@ -1,5 +1,5 @@
 // 思潼 AI 货架 + IP 定位智能体真实浏览器验收（本地 API + Web，真实模型只跑 1 次）。
-// 覆盖：创始人IP专区 6 个内核显示「开发中」、IP 定位 400 积分详情页（单价从 marketplace-v3.json 读）、聊天页结构化报告渲染、桌面/移动端无横向溢出、控制台无新增错误。
+// 覆盖：通用行业（原创始人IP专区）6 个内核显示「开发中」、IP 定位 400 积分详情页（单价从 marketplace-v3.json 读）、聊天页结构化报告渲染、桌面/移动端无横向溢出、控制台无新增错误。
 // 前置：apps/api dev（127.0.0.1:3011）与 apps/web dev（127.0.0.1:5174）已启动。
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -18,7 +18,8 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const IP_POS_SKU = "ipzone__ip-pos";
 const COPY_SKU = "ipzone__copy";
 const SOON_SKU = "ipzone__liverev";
-const IPZONE_NAME = "创始人IP专区";
+/** 2026-09-21 用户口径：没有「创始人IP专区」，通用专区改叫「通用行业」（餐饮 / 美业 / 通用行业）。 */
+const IPZONE_NAME = "通用行业";
 /** 品牌工作台（原兰琪专区）是品牌专属专区：只上架 1 个品牌内核，且当前为「开发中」。 */
 const LANQI_ZONE_NAME = "品牌工作台";
 const LANQI_SKU = "lanqi__lanqi-brain";
@@ -212,7 +213,7 @@ async function checkShelf(cdp, token) {
   /**
    * 必须等**新文档**（/agents）挂上专区容器再取数：openPage 先停在 webBase 再去 /agents，
    * 只等 `.agent-card` 会在「上一个文档已经渲染完、/agents 还没替换」这一瞬命中，
-   * 于是拿到空 shelves（2026-09-17 实测：报「货架缺少创始人IP专区」但实际页面 6 个专区都在）。
+   * 于是拿到空 shelves（2026-09-17 实测：报「货架缺少通用行业」但实际页面 6 个专区都在）。
    */
   await waitFor(
     cdp,

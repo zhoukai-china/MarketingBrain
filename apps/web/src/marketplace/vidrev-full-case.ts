@@ -7,7 +7,7 @@
  * → 四、单条深拆 → 五、完播率深层归因 → 六、互动深度分析 → 七、趋势预警 → 八、规律总结
  * → 九、方法论沉淀 → 十、选题建议。数据为合成/脱敏样例，不照抄任何真实账号。
  *
- * 通用样例（创始人IP专区）不得出现行业专区词，见 scripts/marketplace-reference-case-neutral-smoke.ts。
+ * 通用样例（通用行业专区）不得出现行业专区词，见 scripts/marketplace-reference-case-neutral-smoke.ts。
  */
 export const VIDREV_FULL_CASE_HTML = `
     <div class="bench-note">🔒 以下为一份<b>完整深度复盘报告</b>全文（脱敏 + 合成数据）——不是概述：第零章数据质量审计 + 十章全部展开，含每一条数据的归因、规律与下周期动作。</div>

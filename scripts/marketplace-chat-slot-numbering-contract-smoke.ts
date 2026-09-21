@@ -76,12 +76,16 @@ async function main() {
     /chat-prog[^>]*>\s*<i>\{state === "done" \? "✓" : idx \+ 1\}<\/i>\s*<b>\{slot\.label/.test(page),
     "进度条仍是「徽标序号 + label」结构（序号唯一来源）"
   );
+  /**
+   * 2026-09-21：对话页把 flow.slots 解构成局部 `slots` 之后，这两条断言还写着 `flow.slots`，
+   * 从那时起一直是红的（哑断言）。这里只对齐变量名，语义不变：序号只能来自进度条徽标。
+   */
   check(
-    !/text: `\*\*\$\{flow\.slots\[[^\]]+\]\.label\}\*\*：\$\{idx/.test(page),
+    !/text: `\*\*\$\{slots\[[^\]]+\]\.label\}\*\*：\$\{idx/.test(page),
     "提问气泡未在 label 前再拼一次序号"
   );
   check(
-    /\*\*\$\{flow\.slots\[0\]\.label\}\*\*：\$\{flow\.slots\[0\]\.q\}/.test(page),
+    /\*\*\$\{slots\[0\]\.label\}\*\*：\$\{slots\[0\]\.q\}/.test(page),
     "提问气泡文案 = `**label**：q`（label 不带序号，正文自带序号）"
   );
 

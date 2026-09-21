@@ -70,7 +70,8 @@ const PRESERVED_ROUTES = [
   {
     url: "/agents",
     label: "智能体平台首页",
-    must: ['path === "/agents" || path === "/agents/"', "<MarketplaceHomePage />"],
+    // 2026-09-21：首页组件在 5f167b3 商城重构中更名为 EcoMallHomePage，断言同步改名（语义不变）。
+    must: ['path === "/agents" || path === "/agents/"', "<EcoMallHomePage />"],
   },
   {
     url: "/agents/admin",

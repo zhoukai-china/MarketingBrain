@@ -34,7 +34,11 @@ function main(): void {
 
   const restartBranch = body.indexOf("isRestartCommand(value)");
   const supplementBranch = body.indexOf("if (awaitingSupplement)");
-  const vidrevGate = body.indexOf('flow.slots[step].key === "data"');
+  /**
+   * 2026-09-21：对话页把 flow.slots 解构成局部 `slots` 之后，这条取值一直取不到（-1），
+   * 「重开分支必须在数据闸门之前」的守护实际失效。这里只对齐变量名，语义不变。
+   */
+  const vidrevGate = body.indexOf('slots[step].key === "data"');
   assert.ok(restartBranch > 0, "submitAnswer() 必须先认「重新开始」命令");
   assert.ok(
     restartBranch < supplementBranch && restartBranch < vidrevGate,

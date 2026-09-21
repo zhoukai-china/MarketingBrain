@@ -120,7 +120,7 @@ export function MarketplaceHomePage() {
           <div className="hero-anchor">行业 AI 解决方案 · 不是通用 AI 工具</div>
           <h1>懂你行业的 AI 智能体</h1>
           <p>同样是 IP 定位、直播话术、销售跟单，讲给美业门店听、和讲给餐饮店听，根本不是一套话。大厂做通用工具，我们只做行业解决方案——每个智能体说你行业的行话、盯你行业的痛点，不说外行话。</p>
-          <div className="arch-note">🎯 <b>创始人IP专区</b>：定位 → 内容 → 直播 → 成交，什么行业都能用　·　<b>行业专区</b>：说该行业的行话、盯该行业的痛点、守该行业的规矩</div>
+          <div className="arch-note">🎯 <b>通用行业</b>：定位 → 内容 → 直播 → 成交，什么行业都能用　·　<b>行业专区</b>：说该行业的行话、盯该行业的痛点、守该行业的规矩</div>
           <div className="hero-cta"><span className="h-cta-item">🏭 懂你的行业，不说外行话</span><span className="h-cta-item">💎 充一次，处处可用</span><span className="h-cta-item">📦 用一次，办成一件事</span></div>
         </div>
 

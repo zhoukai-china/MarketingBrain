@@ -82,7 +82,7 @@ function main(): void {
   assert(shelf.length === 28, `public shelf keeps all 28 skus visible (got ${shelf.length})`);
   assert(
     soonSkus.length === 16,
-    `16 coming_soon skus stay on the shelf: 创始人IP专区 5 + 美业专区 5 + 餐饮专区 5 + 1 品牌专属内核（视频复盘与直播话术已上架）(got ${soonSkus.length})`
+    `16 coming_soon skus stay on the shelf: 通用行业 5 + 美业专区 5 + 餐饮专区 5 + 1 品牌专属内核（视频复盘与直播话术已上架）(got ${soonSkus.length})`
   );
   assert(soonSkus.some((sku) => sku.skuCode === "ipzone__topic"), "coming_soon sku stays visible on the public shelf");
   // 2026-09-15 用户口径：行业专家专区先只建栏，暂不放任何智能体（显式空 skills 白名单）。
