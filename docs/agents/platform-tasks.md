@@ -2691,7 +2691,7 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 
 ## PLAT-50 数字员工人名 + 形象 + 专区名：商城卡片 / 智能体详情页 / 对话页都要能看出「这是谁、这是哪个专区」（用户 2026-09-21：不能都叫「思潼」，要按岗位起名；对话页头像要用**这个数字员工自己的形象**；没有「创始人IP专区」，只有 餐饮 / 美业 / 通用行业）
 
-状态：**代码完成、本地实操验收通过；未部署**（8 个人名已按保禄 2026-09-21「按岗位起名」口径定稿；专区名统一为「通用行业」）
+状态：**已部署生产**（2026-09-21 `20260921-employee-names-zone-rename-prod1`，提交 `ddf8155`；8 个人名按保禄 2026-09-21「按岗位起名」口径定稿；专区名统一为「通用行业」；测试实例未同步）
 
 ### 归属
 
@@ -2763,6 +2763,9 @@ SKU 现有单价（积分/次，1 元 = 20 积分）：IP 定位 200、直播话
 
 ### 交接
 
+- **部署（2026-09-21）**：生产 `2 套前端 + API 单文件` 已发，入口 `assets/index-DSg9iqYy.js`（`/os-v2/`）与 `assets/index-DEGZgftV.js`（`ai.lcppch.top/`）；发布后实测 `GET /os-v2/api/market/skus/ipzone__ip-pos` → `zoneName=通用行业` + `industry.title=通用行业`、`/agents` 8 张卡片带人名、详情页「沈定 · IP定位智能体」、对话页头「沈定 · IP定位智能体 · 需登录」+ 头像 `/os-v2/avatars/ip-position.png`（`ai.lcppch.top` 为 `/avatars/ip-position.png`）、三页无页面级 console 报错，`health=200` / `ready=200`、`journalctl -p err` 无新条目。完整记录与回滚步骤见 `docs/CURRENT_DEPLOYMENT_STATUS.md` 顶部「20260921-employee-names-zone-rename-prod1」。
+- **未覆盖**：登录态下的 AI 气泡标签 / 「我的智能体」页未做生产真人实操（生产无可用测试账号，仅接口 + 免登录页取证）；`/opt/baolu-os-v2-test` 未同步本次改动（仍是旧入口 `assets/index-CXRZHLwi.js`），如需演示环境一致要单独发一次。
+- **下一个人踩坑提示**：用 `tar` 把源码叠加到 `/opt/baolu-os-v2` 会改目录属主/权限（`root:root 775`），之后 `su - admin` 构建会 `EACCES ... vite.config.ts.timestamp-*.mjs`；先把 11 个被碰过的目录恢复 `admin:admin 777`、16 个文件恢复 `admin:admin 666` 再构建。
 - 改名只需动 `employee-names.ts` 一张表 + `marketplace-v3.json` 16 条专区欢迎语，不涉及其它代码。
 - 换形象只需换 `apps/web/public/avatars/*.png` 或改 `EMPLOYEE_AVATAR_BY_CAPABILITY` 一行；对话页、商城卡片、弹窗会一起跟随。
 - 专区名以**发布文件**为准：库里 `marketplace_industry_profile.title` / `tag` 从此只是留档，改这两列不生效（避免再有人以为改了库就能改名字）。

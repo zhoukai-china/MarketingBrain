@@ -1,5 +1,21 @@
 # 当前部署状态
 
+## 最新发布：20260921-employee-names-zone-rename-prod1（2026-09-21，生产源码叠加 + API 单文件重建 + 两套前端重建 + 重启服务）
+
+用户结果：`https://api.lcppch.top/os-v2/agents` 与 `https://ai.lcppch.top/agents` 的「数字员工团队」8 张卡片在岗位名下方各带独立人名（首席定位官 **沈定** / 选题策略官 **何策** / 金牌文案主笔 **秦文** / 流量诊断官 **江流** / 直播操盘总监 **罗盘** / 直播复盘导师 **许复** / 首席成交官 **易成** / 私域增长顾问 **周域**）；`/agent/ipzone__ip-pos` 详情页标题为「**沈定 · IP定位智能体**」、分类行是「**通用行业**」；`/agent/ipzone__ip-pos/chat` 页头是「**沈定 · IP定位智能体**」、头像是 `/os-v2/avatars/ip-position.png`（`ai.lcppch.top` 侧为 `/avatars/ip-position.png`）。用户可见处不再出现「创始人IP专区」，统一为「通用行业」；搜「创始人IP」仍能搜到 IP 定位 / 套装（`searchAlias` 兜住）。
+
+改动（提交 `ddf8155`，分支 `codex/employee-names-zone-rename`，基于 `main@7bd6d7e`；**未 push**）：16 个生产文件（14 web + 2 api）——新增 `apps/web/src/marketplace/employee-names.ts`；`apps/api/src/data/marketplace-v3.json` 里 `industries.ipzone.title` → 「通用行业」+ 新增 `searchAlias` + 16 条专区欢迎语改人名；`apps/api/src/services/marketplace-catalog.ts` 的 `loadMarketplaceIndustryProfiles()` 改为固定取发布文件的 `title` / `tag`（库里旧行不再覆盖，这是改名能生效的根因修复，见 BUG_REGRESSIONS QA-20260921-001）；`AgentChatPage.tsx` 页头 / 页签标题 / AI 气泡标签用人名、6 处头像改用 `employeeAvatarPath(sku?.skuCode ?? skuId) ?? sitongAvatar`（套装 `ip-pack` 回退品牌形象）；`AgentDetailPage.tsx` / `EcoMallHomePage.tsx` / `eco-mall.css` / `chat-flows.ts` / `api.ts` 等处同步。另有 `package.json` 两个新脚本与 `qa:fast` 两步。
+
+发布方式（防漂移）：只从提交里取这 16 个文件打成 `/tmp/overlay-employee-names.tar` 叠加到 `/opt/baolu-os-v2`，**不带** main 与生产的既有漂移（`apps/api/src/routes/*` 3 个文件、`apps/web/src/marketplace/AgentChatPage.tsx` 之外的同名文件均按上面口径处理：`AgentChatPage.tsx` 用本次提交版覆盖，其与生产旧版差异经 `git diff` 逐行确认只有「头像/人名」这一处补丁）。API 侧用 `tsc -p apps/api/tsconfig.json && node apps/api/scripts/copy-runtime-data.mjs` 重建，**先 `cp -a apps/api/dist /tmp/api-dist-guard-employee-names` 留底再 `diff -rq` 复核**：`dist` 只有 `services/marketplace-catalog.js` 与 `data/marketplace-v3.json` 两个文件变化，其余 0 漂移（避免把生产 dist 里没有 `topic_output_invalid_retry` 的 `routes/marketplace.js` 一起换掉）。前端用服务器既有 `scripts/build-os-v2-web.sh` + `scripts/build-ai-root.sh` 各跑一次，入口由 `assets/index-CqW1vaYj.js` → **`assets/index-DSg9iqYy.js`**（`/os-v2/`）、`assets/index-Cn-YAPno.js` → **`assets/index-DEGZgftV.js`**（`ai.lcppch.top/`）。`systemctl restart baolu-os-v2` 后 `health=200`、`ready=200`，`journalctl -u baolu-os-v2 -p err --since "2026-09-21 20:16"` 无新条目。
+
+运维坑（本次踩到，叠加源码前必须先改权限）：`tar xf` 以 root 解包会把 `apps/`、`apps/web/src{,/marketplace,/pages,/styles,/lib}`、`apps/api/src{,/data,/services}` 等 11 个目录改成 `root:root 775`、16 个文件改成 `root:root`，随后 `su - admin` 构建会报 `EACCES: permission denied, open 'apps/web/vite.config.ts.timestamp-*.mjs'`。修法：把上述目录恢复 `admin:admin 777`、文件恢复 `admin:admin 666`（与本机既有同类目录一致）后再构建。
+
+验收证据（2026-09-21 20:16 后实测）：`GET /os-v2/api/market/skus/ipzone__ip-pos` → `zoneName=通用行业`、`industry.title=通用行业`、`keywords` 含 5 个 `searchAlias`；`GET /os-v2/api/market/skus` 8 个 `ipzone__*` 员工 + `ipzone__ip-pack` 套装齐全，全库 0 处「创始人IP专区」；本次构建的 47 个新 chunk 里 0 个含「创始人IP专区」、2 个含「通用行业」（老 chunk 保留在 `dist/assets`，已不被 index.html 引用，是 `cp -rn` 叠加发布策略的正常残留）；headless Chrome 实测 `/agents` 渲染出 8 组「岗位名 + 人名」、`/agent/ipzone__ip-pos` 渲染出「沈定 · IP定位智能体」+「通用行业 · 定位 / 人设 / 内容方向」、`/agent/ipzone__ip-pos/chat` 渲染出「沈定 · IP定位智能体 · 需登录」且 `chat-avatar-img src` 为 `/os-v2/avatars/ip-position.png`、`ai.lcppch.top` 侧同一页为 `/avatars/ip-position.png`；三页 Chrome stderr 无页面级 console 报错（只有扩展/GCM 类的浏览器内部告警）。截图：`C:\Users\book\.codex\visualizations\2026\09\21\01a0c3d8-aa0a-7ba0-9f78-3ddc77ec050d\`（`01-home-employee-names.png` / `02-detail-ip-pos.png` / `04-airoot-detail-ip-pos.png`）。
+
+未覆盖：登录态下的 AI 气泡标签与「我的智能体」页面未做生产真人实操（生产无可用测试账号）；测试实例 `/opt/baolu-os-v2-test` 本次**未同步**（仍是旧入口 `assets/index-CXRZHLwi.js`）。
+
+备份 / 回滚：`/opt/baolu-backups/20260921-employee-names-prod1-before-baolu-os-v2/`（31M：`src/` 15 个被改文件原样、`web-dist-before.tar.gz`、`web-dist-ai-root-before.tar.gz`、`api-dist-before.tar.gz`、两套 entry 清单）。回滚 = 解回两套 `dist` + `apps/api/dist` 并还原 `src/` 15 个文件，`systemctl restart baolu-os-v2` 后复验入口名为 `assets/index-CqW1vaYj.js` / `assets/index-Cn-YAPno.js`、`zoneName` 回到 `创始人IP专区`。
+
 ## 最新发布：20260921-theme-dark-prod1（2026-09-21，仅前端静态构建，生产两套入口同步）— 平台默认主题由浅色改回深色
 
 用户结果：`https://ai.lcppch.top/agents` 与 `https://api.lcppch.top/os-v2/agents` 的全新访客（无 `sitong-theme` 偏好）默认进入深色；已主动选择过主题的用户仍按 localStorage 生效，不被覆盖。
