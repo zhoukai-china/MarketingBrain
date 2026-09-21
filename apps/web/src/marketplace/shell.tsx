@@ -78,7 +78,7 @@ export async function fetchMarketMe<T>(): Promise<T | null> {
 }
 
 /**
- * 主题切换（2026-09-11：平台默认浅色）。
+ * 主题切换（2026-09-21：平台默认深色）。
  *
  * 用 state 记住当前主题，切换后按钮能立即反映新状态；`data-theme` 与 localStorage
  * 仍然是唯一事实来源（首次渲染从 DOM 读取，避免和 main.tsx 的初始化打架）。

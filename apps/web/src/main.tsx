@@ -37,9 +37,9 @@ import "./styles/beauty-video-review.css";
 import "./styles/sitong-design.css";
 import "./styles/eco-mall.css";
 
-// 2026-09-11 产品拍板：平台默认浅色主题（此前默认深色）。仅在用户没有
-// 主动选择过主题时才用浅色兜底；用户切换过的偏好仍按 localStorage 生效。
-const initialTheme = localStorage.getItem("sitong-theme") === "dark" ? "dark" : "light";
+// 2026-09-21 产品拍板：平台默认深色主题（此前默认浅色）。仅在用户没有
+// 主动选择过主题时才用深色兜底；用户切换过的偏好仍按 localStorage 生效。
+const initialTheme = localStorage.getItem("sitong-theme") !== "light" ? "dark" : "light";
 document.documentElement.setAttribute("data-theme", initialTheme);
 document
   .querySelector('meta[name="theme-color"]')

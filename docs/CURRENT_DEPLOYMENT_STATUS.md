@@ -1,5 +1,15 @@
 # 当前部署状态
 
+## 最新发布：20260921-theme-dark-prod1（2026-09-21，仅前端静态构建，生产两套入口同步）— 平台默认主题由浅色改回深色
+
+用户结果：`https://ai.lcppch.top/agents` 与 `https://api.lcppch.top/os-v2/agents` 的全新访客（无 `sitong-theme` 偏好）默认进入深色；已主动选择过主题的用户仍按 localStorage 生效，不被覆盖。
+
+改动：`apps/web/src/main.tsx` 将无偏好兜底从 `light` 改为 `dark`；`apps/web/index.html` 默认 `theme-color` 改为 `#101721`；`apps/web/src/marketplace/shell.tsx` 同步注释；`scripts/marketplace-mobile-layout-check.mjs` 的“新访客默认主题”契约断言同步为深色。
+
+发布：服务器只叠加 `apps/web/dist` 与 `apps/web/dist-ai-root` 两套静态产物，未改 API/数据库、未重启服务。两套入口 headless 浏览器实测 `<html data-theme="dark">` 且 `theme-color=#101721`；服务 `health=200`、`ready=200`。
+
+备份 / 回滚：`/opt/baolu-backups/20260921-083500-theme-dark-prod-before-baolu-os-v2/`（`main.tsx.before`、`index.html.before`、`shell.tsx.before`、`dist-before.tar.gz`、`dist-ai-root-before.tar.gz`）；回滚 = 还原三份源文件并解回两套 dist，静态替换即可，无需重启。
+
 ## 最新发布：20260920-avatars-v2-prod1（2026-09-20，仅静态素材，生产三处同步）— 数字员工 8 张头像升级 V2 年轻版（含 topic / copywriter 对调）
 
 用户结果：`https://ai.lcppch.top/agents`「数字员工团队」8 张头像全部换成 V2 年轻版；其中「选题策略官(`topic.png`)」与「金牌文案主笔(`copywriter.png`)」两张按交接包内文件**原样对调**落地（不按角色名重排）。
