@@ -12,7 +12,7 @@ import path from "node:path";
 // 「常用智能体 / 积分充值」逐字竖排，钱包胶囊溢出屏幕右侧。
 //
 // 锁死的契约（一眼可见、不依赖实现细节）：
-//   1. 全新访客（无 localStorage）默认就是浅色主题，且页面底色 token 是浅色；
+//   1. 全新访客（无 localStorage）默认就是深色主题，且页面底色 token 是深色；
 //   2. 手机视口（390×844）下顶栏最多两行：Tab 行每个入口单行文字、宽度够点；
 //   3. 手机视口下页面不横向滚动，钱包胶囊不被裁到屏幕外；
 //   4. 顶栏 Tab 与钱包在同一屏首屏内可见（扫码注册完落地的就是这一屏）。
@@ -268,20 +268,19 @@ async function main() {
     const screenshot = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false }, sessionId);
     await writeFile(shotPath, Buffer.from(screenshot.data, "base64"));
 
-    // 断言 1：默认浅色。全新浏览器 profile 没有 sitong-theme，平台首页必须是浅色。
-    checkEqual(probe.dataTheme, "light", "fresh visitor defaults to the light theme");
+    // 断言 1：默认深色。全新浏览器 profile 没有 sitong-theme，平台首页必须是深色。
+    checkEqual(probe.dataTheme, "dark", "fresh visitor defaults to the dark theme");
     if (check(Boolean(probe.bgColor), `platform background token is readable (--bg=${probe.bgToken})`)) {
       for (const [channel, value] of Object.entries(probe.bgColor)) {
-        check(value >= 200, `platform background token ${channel}=${value} is a light color (--bg=${probe.bgToken})`);
+        check(value <= 60, `platform background token ${channel}=${value} is a dark color (--bg=${probe.bgToken})`);
       }
     }
     check(Boolean(probe.themeToggle?.visible), "theme toggle is visible on mobile");
-    check(/浅色/.test(probe.themeToggle?.text ?? ""), `theme toggle reports the current light theme (got "${probe.themeToggle?.text}")`);
-    // 浅色默认下顶栏不能还挂着深色底（曾经 --topbar-bg 只有深色一套值，
-    // 结果是「浅色页面顶着一条近黑横带」，手机上尤其像页面坏了）。
+    check(/深色/.test(probe.themeToggle?.text ?? ""), `theme toggle reports the current dark theme (got "${probe.themeToggle?.text}")`);
+    // 深色默认下顶栏应是深色玻璃底，不能显示成浅色主题顶栏。
     const topbarBg = parseColor(probe.topbar?.background);
     if (check(Boolean(topbarBg), `topbar background is resolvable (${probe.topbar?.background})`)) {
-      check(luminance(topbarBg) >= 150, `light theme keeps a light topbar background (topbar bg ${probe.topbar.background})`);
+      check(luminance(topbarBg) <= 80, `dark theme keeps a dark topbar background (topbar bg ${probe.topbar.background})`);
     }
 
     // 断言 2：手机上顶栏最多两行，Tab 单行显示，不再逐字竖排。
