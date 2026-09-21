@@ -561,7 +561,39 @@ export async function runMarketplaceSku(params: {
     }
 
     if (core === "topic") {
-      const validation = parseTopicTable(answerText);
+      let validation = parseTopicTable(answerText);
+      if (validation.failures.length > 0) {
+        const firstAttemptUsage = { ...usage };
+        log.warn({ event: "topic_output_invalid_retry", attempt: 1, failures: validation.failures.slice(0, 6) }, "选题未通过技能校验，自动重试一次");
+        try {
+          const corrective = [
+            "上一次输出未通过技能校验，请在不改动已经正确的选题与结构的前提下，重新输出完整选题表格并只修正下列问题：",
+            ...validation.failures.slice(0, 12).map((item, index) => `${index + 1}. ${item}`)
+          ].join("\n");
+          const retryText = (await provider.complete(
+            [
+              { role: "system", content: marketplaceSkillSystemPrompt(sku) },
+              ...turnMessages,
+              { role: "assistant", content: answerText },
+              { role: "user", content: corrective }
+            ] as LlmMessage[],
+            { maxTokens: 8192 }
+          )) as unknown as string;
+          const retryValidation = parseTopicTable(retryText ?? "");
+          if (retryValidation.failures.length === 0) {
+            answerText = retryText;
+            validation = retryValidation;
+            usage.promptTokens = firstAttemptUsage.promptTokens;
+            usage.completionTokens = firstAttemptUsage.completionTokens;
+            usage.reasoningTokens = firstAttemptUsage.reasoningTokens;
+            log.info({ event: "topic_output_invalid_retry_ok" }, "选题重试后通过校验");
+          } else {
+            log.warn({ event: "topic_output_invalid_retry_failed", failures: retryValidation.failures.slice(0, 6) }, "选题重试后仍未通过校验");
+          }
+        } catch (retryError) {
+          log.warn({ err: retryError }, "选题重试调用失败，按首次校验结果返回");
+        }
+      }
       if (validation.failures.length > 0) {
         return {
           ok: false,
@@ -575,7 +607,40 @@ export async function runMarketplaceSku(params: {
       }
     }
     if (core === "copy") {
-      const validation = parseCopyTenContract(answerText);
+      let validation = parseCopyTenContract(answerText);
+      if (validation.failures.length > 0) {
+        const firstAttemptUsage = { ...usage };
+        log.warn({ event: "copy_output_invalid_retry", attempt: 1, failures: validation.failures.slice(0, 6) }, "文案未通过技能校验，自动重试一次");
+        try {
+          const corrective = [
+            "上一次输出未通过技能校验，请在不改动已经正确的章节与内容的前提下，重新输出完整十件套并只修正下列问题：",
+            ...validation.failures.slice(0, 12).map((item, index) => `${index + 1}. ${item}`),
+            "特别注意：评论区引导与意向转化话术只能用「主页/评论/合集/到店」等自然承接，不得出现私信、加微信、电话、联系我、找我、留个、扫码领、加我等违规引导词。"
+          ].join("\n");
+          const retryText = (await provider.complete(
+            [
+              { role: "system", content: marketplaceSkillSystemPrompt(sku) },
+              ...turnMessages,
+              { role: "assistant", content: answerText },
+              { role: "user", content: corrective }
+            ] as LlmMessage[],
+            { maxTokens: 8192 }
+          )) as unknown as string;
+          const retryValidation = parseCopyTenContract(retryText ?? "");
+          if (retryValidation.failures.length === 0) {
+            answerText = retryText;
+            validation = retryValidation;
+            usage.promptTokens = firstAttemptUsage.promptTokens;
+            usage.completionTokens = firstAttemptUsage.completionTokens;
+            usage.reasoningTokens = firstAttemptUsage.reasoningTokens;
+            log.info({ event: "copy_output_invalid_retry_ok" }, "文案重试后通过校验");
+          } else {
+            log.warn({ event: "copy_output_invalid_retry_failed", failures: retryValidation.failures.slice(0, 6) }, "文案重试后仍未通过校验");
+          }
+        } catch (retryError) {
+          log.warn({ err: retryError }, "文案重试调用失败，按首次校验结果返回");
+        }
+      }
       if (validation.failures.length > 0) {
         return {
           ok: false,

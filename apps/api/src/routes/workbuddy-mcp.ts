@@ -270,28 +270,61 @@ export async function registerWorkbuddyMcpRoutes(app: FastifyInstance, provider:
         }
         const sku = await getMarketplaceSku(skuCode);
         if (!sku) throw new Error("marketplace_sku_not_found");
-        const history = Array.isArray(args.history)
-          ? (args.history as Array<Record<string, unknown>>)
-              .filter((item) => item && (item.role === "user" || item.role === "assistant") && typeof item.content === "string")
-              .map((item) => ({ role: item.role as "user" | "assistant", content: String(item.content) }))
-              .slice(0, 12)
-          : undefined;
+        const input = requiredText(args.input, "input", 20_000);
+        const providedConversationId = optionalText(args.conversationId, 200);
+        const stored = providedConversationId
+          ? await prisma.marketplaceConversation.findFirst({
+              where: {
+                conversationId: providedConversationId,
+                tenantId: context.tenantId,
+                userId: context.userId,
+                skuCode
+              }
+            })
+          : null;
+        const conversationId = stored ? providedConversationId as string : randomUUID();
+        const normalizeHistory = (value: unknown) =>
+          Array.isArray(value)
+            ? value
+                .filter((item) => item && typeof item === "object" && (item as { role?: unknown }).role && ((item as { role?: unknown }).role === "user" || (item as { role?: unknown }).role === "assistant") && typeof (item as { content?: unknown }).content === "string")
+                .map((item) => ({ role: (item as { role: "user" | "assistant" }).role, content: String((item as { content: string }).content) }))
+            : [];
+        const priorHistory = [...normalizeHistory(stored?.history), ...normalizeHistory(args.history)].slice(-12);
         const outcome = await runMarketplaceSku({
           context,
           sku,
-          body: { input: requiredText(args.input, "input", 20_000), history },
+          body: { input, history: priorHistory.length > 0 ? priorHistory : undefined },
           log: request.log
         });
         if (!outcome.ok) throw new Error(String(outcome.body.error ?? "marketplace_run_failed"));
-        return rpcResult(id, {
-          content: [{ type: "text", text: String(outcome.body.answer ?? "") }],
-          structuredContent: {
-            status: "completed",
-            conversationId: String(outcome.body.requestId ?? ""),
+        const answer = String(outcome.body.answer ?? "");
+        const newHistory = [
+          ...priorHistory,
+          { role: "user", content: input },
+          { role: "assistant", content: answer }
+        ].slice(-12);
+        await prisma.marketplaceConversation.upsert({
+          where: { conversationId },
+          create: {
+            tenantId: context.tenantId,
+            userId: context.userId,
             skuCode,
-            creditCost: outcome.body.consumedCredits,
-            remainingCredits: outcome.body.balance,
-            pricingMode: outcome.body.pricingMode
+            conversationId,
+            history: newHistory
+          },
+          update: { history: newHistory, updatedAt: new Date() }
+        }).catch((error: unknown) => {
+          request.log.warn({ err: error }, "marketplace conversation persist failed");
+        });
+        return rpcResult(id, {
+          content: [{ type: "text", text: `${answer}\n\n[conversationId: ${conversationId}]` }],
+          structuredContent: {
+            status: outcome.body.needsInput === true ? "clarification_required" : "completed",
+            conversationId,
+            skuCode,
+            creditCost: outcome.body.consumedCredits ?? 0,
+            remainingCredits: outcome.body.balance ?? null,
+            pricingMode: outcome.body.pricingMode ?? null
           }
         });
       }
@@ -449,7 +482,7 @@ function toolDefinitions(): unknown[] {
         properties: {
           input: { type: "string", description: "用户的完整问题或任务" },
           skuCode: { type: "string", description: "货架模式必填：已上架 SKU 的 skuCode（如 ipzone__copy、meiye__copy），可通过 sitong.skills 查询" },
-          conversationId: { type: "string", description: "上一轮返回的 conversationId，用于连续对话" },
+          conversationId: { type: "string", description: "上一轮返回文本末尾的 [conversationId: xxx]，续聊时原样传回" },
           history: { type: "array", description: "可选，多轮对话历史 [{role:user|assistant, content}]，用于货架模式续聊" },
           capabilityId: { type: "string", description: "可选，锁定当前 Agent 的某项能力" },
           skillId: { type: "string", description: "可选，锁定当前 Agent 已授权的 Skill" },
