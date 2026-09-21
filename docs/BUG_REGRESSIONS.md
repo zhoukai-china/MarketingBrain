@@ -2,7 +2,7 @@
 
 - 编号说明（2026-09-16 合并 `main` 后统一）：LQ-34 侧并发登记的条目顺延为 **-012 导出一次性直链 / -013 邀请活动门禁 / -014 导出仓 `.env` / -015 Windows worktree CRLF**；`-006` 本机草稿指纹条目以 main 编号为准（LQ-34 侧曾记为 `-010`，合并时去重）。
 
-## QA-20260921-001：专区改名「通用行业」后对话页页头仍是「创始人IP专区」——库里 `marketplace_industry_profile` 的旧 `title` / `tag` 把发布文件盖回去，运维 PATCH 又改不到这两列（P2，已修；本地实操已验收，未部署）
+## QA-20260921-001：专区改名「通用行业」后对话页页头仍是「创始人IP专区」——库里 `marketplace_industry_profile` 的旧 `title` / `tag` 把发布文件盖回去，运维 PATCH 又改不到这两列（P2，已修；本地实操 + 生产发布后实测均通过）
 
 - 来源：用户 2026-09-21 口径「没有创始人IP专区，只有 餐饮 / 美业 / 通用行业」，要求专区名统一为「通用行业」（PLAT-50，第二轮）。
 - 取证（本地 `127.0.0.1:3011` + 商城前端 `127.0.0.1:5174`，只读 + 单接口对照）：
@@ -19,6 +19,7 @@
   - 新增契约 `pnpm.cmd marketplace:zone-name-contract-smoke` **11/11 PASS**（含「库 profile 不能盖回文件值」「搜『创始人IP』仍能命中 IP 定位 / 全案套装」两条），与 `marketplace:employee-name-contract-smoke`（23/23）一起纳入 `qa:fast`。
   - 真人实操（本地 `127.0.0.1:5174`，真实 Chrome + CDP，浅色 + 深色两套皮肤）：`role-name-verify.mjs` **34 条断言全 PASS**，含详情页 / 对话页页头 / 浏览器标题都是「沈定 · IP定位智能体 · 通用行业」、整页不再出现「创始人IP」。截图 `C:\Users\book\.codex\visualizations\2026\09\21\01a0c21f-e99e-7c82-9de9-c1472b8da85a\employee-names-role\`。
   - `pnpm.cmd qa:fast`（45 步）**全绿 `QAFAST_EXIT=0`**（含两个新契约与 7 包 `typecheck`）。
+  - **生产绿证（2026-09-21 `20260921-employee-names-zone-rename-prod1` 发布后）**：`GET https://api.lcppch.top/os-v2/api/market/skus/ipzone__ip-pos` → `zoneName=通用行业` **且** `industry.title=通用行业`（修复前这里正是 `创始人IP专区`）；`GET /os-v2/api/market/skus?q=创始人IP` 仍返回 9 个 `ipzone__*`（改名未降搜索）；`/os-v2/agent/ipzone__ip-pos/chat` 免登录页头渲染出「沈定 · IP定位智能体」；`/os-v2/api/market/skus` 全量响应 0 处「创始人IP专区」。发布与回滚见 `docs/CURRENT_DEPLOYMENT_STATUS.md` 顶部同一条。
 - 回滚：把 `loadMarketplaceIndustryProfiles()` 改回取库里的 `title` / `tag`（一行改动）即可，但会退回「库旧行盖发布文件」的旧口径——旧名字会重新出现在对话页头上。**不建议回滚这一条**；若要回退改名本身，改 `marketplace-v3.json` 的 `ipzone.title` 与同屏兜底文案即可（`key` / 路由不动，已发出的链接不受影响）。
 - 关联：PLAT-50（任务卡，含本次人名与头像口径）、`docs/HANDOFF-eco-mall-codex-20260918.md` §9、QA-20260918-001（同一批货架交付）。
 
