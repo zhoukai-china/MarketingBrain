@@ -1,5 +1,21 @@
 # 当前部署状态
 
+## 最新发布：20260922-mall-v3（2026-09-22，前端 2 文件，lanqi-test + 生产双入口）— /agents 升级为京东/美团式电商商城 + 数字员工形象升级 + 品牌工作台只留兰琪 demo
+
+用户结果：`/agents` 从横版卡片页重构为电商商城：吸顶胶囊搜索（实时过滤）→ 金刚区 5 入口（数字员工/数字咨询师/AI硬件/AI课程/品牌工作台，点击平滑滚动 + 滚动高亮跟随）→ 橙色促销横幅 → F1-F5 楼层货架。商品卡竖版：渐变横幅 + 圆形白边头像（工牌式溢出）+ 人名主标题 + 橙色职位副行 + 卖点/交付标签 + 真实价格（`/market/skus` ppu，如「400 积分/次」，失败降级「按次计费」）+ 去使用按钮；F3 AI硬件 / F4 AI课程 为虚线占位卡（未来品类预留）。F5 品牌工作台由 6 张模块卡收敛为一张「兰琪品牌 demo」大卡（入口 `/lanqi`）。详情弹窗含行业 tab + 价格行。手机 2 列 / ≥760px 3 列 / ≥1024px 4 列。
+
+改动（2 文件）：`apps/web/src/marketplace/EcoMallHomePage.tsx`（整体重写：搜索/金刚区/楼层/商品卡/价格 fetch/IntersectionObserver/F5 单一入口；价格用 `fetch(apiPath("/market/skus"))`）；`apps/web/src/styles/eco-mall.css`（整体重写 + 形象升级段：`.eco-p-img` 92px 渐变横幅、`.eco-p-img .eco-ava` 74px 圆形白边溢出、`.eco-p-shop` 橙色副行、`.eco-mod-hero` 兰琪 demo 大卡、`.eco-m-ava` 圆形化；深浅色走 sitong 变量）。依赖生产已有导出 `ECO_SKIN_ORDER`（eco-mall-data.ts）与 `employee-names.ts`（9-21 已在生产），未改动这两个文件。
+
+发布方式：scp 2 文件 → 测试 `/opt/baolu-os-v2-test` 构建（`VITE_BASE_PATH=/lanqi-test/`，11s，tsc 通过，浏览器 9/9 + 形象 9/9 + F5 3/3 验收 PASS）→ 用户确认后推生产：备份 → scp 2 文件 → `build-os-v2-web.sh` + `build-ai-root.sh`。过程修复：构建临时目录残留 root/501 属主文件导致 vite emptyDir EACCES，`sudo chown -R admin:admin .os-v2-build dist-ai-root .ai-root-build` 后成功。
+
+双入口构建：os-v2 入口 `assets/index-DgrFwwxS.js`（assets 393）；ai-root 入口 `assets/index-CMgwOlS-.js`（assets 113）。两套线上 EcoMallHomePage chunk（`-D2FtrXLL.js` / `-B6IQ2a-_.js`）均命中 `eco-mod-hero`；`/agents` 两域名 index.html 均引用本次入口；avatars 自检 200。
+
+验收：生产 `https://ai.lcppch.top/agents` 终验 5/5 PASS（搜索/金刚区/横幅、人名商品卡+价格、F5 单一兰琪 demo 卡、控制台无报错、截图）。`https://api.lcppch.top/os-v2/agents` 入口名复验一致。
+
+已知事项：① 8 张员工头像仍是旧照片（每张 1.3MB，共 11MB，手机端偏重；圆形裁切后深蓝背景仍在照片内，展示框架已升级但照片素材未换）——待用统一 prompt（已提供给用户，即梦/豆包可出图）生成 8 张橙色影棚背景新形象后同名替换 `/opt/baolu-os-v2{,-test}/apps/web/{public,dist*}/avatars/*.png` 即可，布局无需改动；本会话文生图 API 持续返回「生成中」占位图不可用。② F2 数字咨询师楼层仅 1 张卡略显空。
+
+备份 / 回滚：`/opt/baolu-backups/20260922-mall-v3-before-baolu-os-v2/`（`src-marketplace/EcoMallHomePage.tsx`、`src-styles/eco-mall.css`、`dist-ai-root.tgz` 13M、`dist.tgz` 16M）；回滚 = 还原 2 源文件 + 重跑两个构建脚本（或解回两套 dist），静态还原即可，无需重启。测试实例改动随本次一并生效，测试侧备份未单独建立（测试环境可随时从生产源重导）。
+
 ## 最新发布：20260922-footer-oneline（2026-09-22，仅 index.html，生产双入口 + lanqi-test）— 页脚两行改一行
 
 用户结果：站点页脚「思潼 AI 行业智能体平台」与「辽ICP备2025069273号」由两行合并为一行（间隔 12px）。
