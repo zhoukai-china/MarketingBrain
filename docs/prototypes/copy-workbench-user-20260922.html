@@ -853,6 +853,7 @@ function setDepth(d){
   S.depth=d;
   $('depthFull').classList.toggle('act',d==='full');
   $('depthLight').classList.toggle('act',d==='light');
+  $('feeHint').innerHTML = d==='full' ? '完整十件套 · <b>按件计费</b>' : '轻量 · 1 条可直发文案 · <b>40 积分</b>';
   renderBrief();
   if(S.phase==='confirm') renderPH('ready');
   else if(S.phase!=='gen'&&S.phase!=='done') initialPH();
