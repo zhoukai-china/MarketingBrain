@@ -56,3 +56,6 @@ node_modules.broken-*
 /work/
 /_tmp_*
 /logs/
+
+# avatars 下的临时 / 候选草稿（下划线前缀，非正式资源，勿入库）
+/apps/web/public/avatars/_*

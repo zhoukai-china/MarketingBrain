@@ -6,10 +6,28 @@ import { IpPosReport, type IpPosPayload } from "./ip-pos-report.js";
 import { VidrevReport, isVidrevPayload, VIDREV_PREFILL_KEY, type VidrevPayload } from "./vidrev-report.js";
 import { audioExtensionForMime, useVoiceInput, voiceTranscriptionFailureMessage } from "../components/chat/useVoiceInput.js";
 import sitongAvatar from "../assets/sitong-beauty.png";
+import { employeePersonaLabel } from "./employee-names.js";
+import { employeeAvatarPath } from "./eco-mall-data.js";
 import { bundleSteps, coreSkuCode, isBundle, isComingSoon, zoneOfSku, type MarketplaceIndustry, type MarketplaceSku } from "./sku-model.js";
 import { authHeaders, fetchMarketMe, guestToLogin, handleStaleSession, readJson, Topbar } from "./shell.js";
 import { readAttachmentText } from "./text-attachment.js";
 import { isRestartCommand } from "./chat-commands.js";
+
+/**
+ * 客户端等待上限（到点只提示「可能卡住了」，不 abort 请求）。
+ * 2026-09-21：直播话术要串行跑九段 + 四附属件共 10 次模型调用，实测 5-10 分钟，
+ * 旧的 150s 上限会在交付之前先弹「生成超时」，客户以为白等了一场。
+ * 现在按技能区分，并且 nginx 对 `/run` 的 proxy_read_timeout 同步放宽到 1800s，
+ * 保证「网关等待 > 客户端等待 > 实际生成耗时」的顺序。
+ */
+const DEFAULT_RUN_TIMEOUT_MS = 150_000;
+const LIVESCRIPT_RUN_TIMEOUT_MS = 1_500_000;
+
+/** 「已超过 150 秒 / 已超过 25 分钟」——文案必须和真实上限一致，不能写死。 */
+function formatTimeoutLabel(ms: number): string {
+  const seconds = Math.round(ms / 1000);
+  return seconds < 120 ? `${seconds} 秒` : `${Math.round(seconds / 60)} 分钟`;
+}
 
 /**
  * 视频复盘：还没拿到数据表时的回复（工单 2026-09-13 §四「未传文件时输入复盘」）。
@@ -166,7 +184,31 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
   const [prefill, setPrefill] = useState<ChatPrefill | null>(null);
   const timerRef = useRef<number | null>(null);
   const timeoutRef = useRef<number | null>(null);
+  /**
+   * 生成期间的后台找回轮询（2026-09-21 QA-20260921-002 真机复现）。
+   *
+   * 直播话术要串行跑九段 + 四附属件，实测 6-7 分钟。实测（lanqi-test）后台已经跑完、
+   * 交付物也确实入库、nginx 也回了 200，但个别浏览器（无头 Chrome 稳定复现）拿不到
+   * 这条超长 POST 的响应体 —— fetch 既不 resolve 也不 reject，页面就一直停在
+   * 「正在生成…」，客户以为白等一场（200 积分照扣）。所以等待期间不再只依赖那一条长连接：
+   * 每 30s 查一次「7 天内的交付物」，只要能查到**本次生成之后**入库的稿子就直接渲染。
+   * 顺带把生产上「网关 502/504、后台仍然跑完」的场景一起兜住。
+   */
+  const recoverRef = useRef<number | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+
+  /** 离开页面时收掉生成期间的定时器（含后台找回轮询），避免幽灵请求一直打下去。 */
+  useEffect(
+    () => () => {
+      if (timerRef.current) window.clearInterval(timerRef.current);
+      if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+      if (recoverRef.current) window.clearInterval(recoverRef.current);
+      timerRef.current = null;
+      timeoutRef.current = null;
+      recoverRef.current = null;
+    },
+    []
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -239,6 +281,19 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     ? (industry?.ov?.[coreSkuCode(runSku.skuCode)]?.welcome as string | undefined) ?? ""
     : "";
   const welcome = ovWelcome || flow?.welcome || "";
+  /**
+   * 数字员工人名（用户 2026-09-21：对话页标题与头像标签也要带名字，不能都叫「思潼」）。
+   *
+   * 取展示用 SKU（`sku`）而不是 `runSku`：套装 `ip-pack` 的 runSku 是链路里的第一步，
+   * 按它取名字会把「IP 增长套装」显示成「沈定」，而套装是 7 大能力的入口、不是某一个人。
+   */
+  const personaLabel = employeePersonaLabel(sku?.skuCode ?? skuId);
+  /**
+   * 数字员工形象（用户 2026-09-21：对话页头像要是**这个数字员工自己的形象**，不能一律用品牌形象「思潼」）。
+   *
+   * 取形象的 SKU 与取名一致（展示用 `sku`）：套装 `ip-pack` 没有对应员工，回退品牌形象「思潼」。
+   */
+  const personaAvatar = employeeAvatarPath(sku?.skuCode ?? skuId) ?? sitongAvatar;
   /** 同专区「选题」智能体：视频复盘第十章候选选题一键带入它。 */
   const topicSkuCode = runSku
     ? all.find((item) => item.skuCode === `${zoneOfSku(runSku.skuCode)}__topic`)?.skuCode ?? null
@@ -249,9 +304,9 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
    */
   useEffect(() => {
     if (runSku?.name) {
-      document.title = industry?.title ? `${runSku.name} · ${industry.title}` : `${runSku.name} - 思潼AI 行业智能体平台`;
+      document.title = industry?.title ? `${personaLabel} · ${runSku.name} · ${industry.title}` : `${personaLabel} · ${runSku.name} - 思潼AI 行业智能体平台`;
     }
-  }, [runSku?.skuCode, runSku?.name, industry?.title]);
+  }, [runSku?.skuCode, runSku?.name, industry?.title, personaLabel]);
 
   /** 每次对话/进度变化都把本机留存写回（退出再进来能接着看，也能重新下载已付费的报告）。 */
   useEffect(() => {
@@ -399,11 +454,97 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     setBusy(true);
     setElapsed(0);
     timerRef.current = window.setInterval(() => setElapsed((e) => e + 1), 1000);
+    // 直播话术按 25 分钟兜底，其它技能维持 150s；提示文案里的数字必须与这里一致。
+    const timeoutMs = isLiveScript ? LIVESCRIPT_RUN_TIMEOUT_MS : DEFAULT_RUN_TIMEOUT_MS;
     timeoutRef.current = window.setTimeout(() => {
       setBusy(false);
-      setItems((prev) => [...prev, { id: `timeout${Date.now()}`, role: "ai", text: "生成超时（已超过 120 秒），可能是模型繁忙，请稍后重试。本次不消耗积分。" }]);
+      setItems((prev) => [
+        ...prev,
+        {
+          id: `timeout${Date.now()}`,
+          role: "ai",
+          text:
+            `生成比较慢（已超过 ${formatTimeoutLabel(timeoutMs)}），这一稿还在生成中，请不要关闭页面。` +
+            "若最终仍未返回，稍后重新回到本页面会自动找回已生成的稿子（按实际生成结果计费）；不要急着重做一次。"
+        }
+      ]);
       if (timerRef.current) window.clearInterval(timerRef.current);
-    }, 150000);
+    }, timeoutMs);
+    /**
+     * 本次生成的起始时间：用来区分「这一次的新稿」和「上一次的旧稿」，
+     * 否则轮询会立刻把上一条历史交付当成这一次的结果渲染出来。
+     */
+    const runStartedAt = Date.now();
+    /** 找回轮询的硬上限（45 分钟）：超过就说明这一稿没成，别让页面一直每 30s 打一次接口。 */
+    const recoverDeadlineAt = runStartedAt + 45 * 60 * 1000;
+    /** 闭包里用固定的 skuCode，避免依赖外层 state 的类型收窄。 */
+    const recoverSkuCode = runSku.skuCode;
+    /** 结果一旦落地（正常返回 / 余额不足 / 找回）就停止轮询，避免同一次生成渲染两遍。 */
+    let settled = false;
+    const stopRecovery = () => {
+      if (recoverRef.current) {
+        window.clearInterval(recoverRef.current);
+        recoverRef.current = null;
+      }
+    };
+    const clearBusyTimers = () => {
+      if (timerRef.current) {
+        window.clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+    const recoverFinishedDeliverable = async () => {
+      if (settled) {
+        stopRecovery();
+        return;
+      }
+      if (Date.now() > recoverDeadlineAt) {
+        stopRecovery();
+        return;
+      }
+      try {
+        const response = await fetch(apiPath(`/market/me/deliverables?skuCode=${encodeURIComponent(recoverSkuCode)}`), {
+          headers: authHeaders(),
+          cache: "no-store"
+        });
+        if (!response.ok) return;
+        const data = await readJson<{
+          deliverables?: Array<{ id: string; answer: string; credits: number; createdAt: string }>;
+        }>(response);
+        const latest = data?.deliverables?.[0];
+        if (!latest?.answer) return;
+        // 还是上一稿（含本机与服务器的小幅时间偏差）就继续等下一轮。
+        if (new Date(latest.createdAt).getTime() < runStartedAt - 5_000) return;
+        settled = true;
+        stopRecovery();
+        clearBusyTimers();
+        setBusy(false);
+        setItems((prev) => [
+          ...prev.filter((item) => item.id !== "final"),
+          { id: "final", role: "ai", text: latest.answer, html: true },
+          {
+            id: `recovered${Date.now()}`,
+            role: "ai",
+            text:
+              "（这一稿**后台其实已经生成完成**，只是页面没等到那条超长连接的响应，已自动为你取回；" +
+              "按实际生成结果计费，**不会重复扣积分**。）"
+          }
+        ]);
+        setCost(latest.credits);
+        setDone(true);
+        setAwaitingSupplement(false);
+      } catch {
+        /* 网络抖动 / 会话失效：等下一轮，不打扰用户 */
+      }
+    };
+    stopRecovery();
+    recoverRef.current = window.setInterval(() => {
+      void recoverFinishedDeliverable();
+    }, 30_000);
     try {
       const body: Record<string, unknown> = {
         // 视频复盘额外带 mode / platform / period / has_revenue_data 结构化入参，
@@ -435,6 +576,20 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
         throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次不消耗积分。");
       }
       /**
+       * 网关超时（502 / 503 / 504）：nginx 等后端超过 proxy_read_timeout 会直接断开并回 504，
+       * 响应体是空的，`readJson` 只会抛「请求失败（504）」，客户看不懂也不知道该不该再等。
+       *
+       * 2026-09-21 实测（lanqi-test）：网关 504 之后后台往往仍然跑完并**正常结算**
+       * —— 交付物已入库、7 天内可找回，积分也照扣。所以这里绝不能写「本次不消耗积分」。
+       */
+      if (runResponse.status === 502 || runResponse.status === 503 || runResponse.status === 504) {
+        throw new Error(
+          `生成还没跑完，网关的等待上限先到了（HTTP ${runResponse.status}）。这一稿在后台通常还在继续：` +
+            "生成成功会正常计费并留存 7 天，稍后重新回到本页面会自动找回，不必急着重做。" +
+            (isLiveScript ? "直播话术一次要跑 5-10 分钟。" : "")
+        );
+      }
+      /**
        * 余额不足（402）单独处理：服务端会带 `rechargeUrl`，但那是给 MCP/外部编排用的相对路径，
        * 网页里直接跳 `/recharge` 会丢掉 `/os-v2/` 这类应用前缀（子路径部署下就是 404）。
        * 所以网页自己拼一条**带 next 回跳**的地址：`next` 用去掉应用前缀的站内路由，
@@ -457,6 +612,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
             }
           }
         ]);
+        settled = true;
+        stopRecovery();
         return;
       }
       /**
@@ -475,6 +632,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
           setSubscriptionView((prev) =>
             prev ? { ...prev, subscribed: true, remaining: 0, exhausted: true } : prev
           );
+          settled = true;
+          stopRecovery();
           return;
         }
         throw new Error(payload.message ?? "本次请求被拒绝；本次不消耗积分。");
@@ -496,7 +655,11 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
           endDate?: string | null;
         };
       }>(runResponse);
+      // 后台找回已经把本次稿件渲染出来了：别再插一条重复结果。
+      if (settled) return;
       if (result.needsInput) {
+        settled = true;
+        stopRecovery();
         setItems((prev) => [
           ...prev,
           { id: `clr${Date.now()}`, role: "ai", text: result.answer },
@@ -507,6 +670,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
         setCost(null);
         return;
       }
+      settled = true;
+      stopRecovery();
       setItems((prev) => [...prev, { id: "final", role: "ai", text: result.answer, html: true, payload: result.payload }]);
       setCost(result.consumedCredits);
       setDone(true);
@@ -549,6 +714,11 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
       setBusy(false);
       if (timerRef.current) { window.clearInterval(timerRef.current); timerRef.current = null; }
       if (timeoutRef.current) { window.clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+      /**
+       * 只有「本次生成已经有结论」时才停掉找回轮询。
+       * 网关 502/504 是**故意**继续轮询的：后台往往还在跑，跑完就该把稿子取回来。
+       */
+      if (settled) stopRecovery();
     }
   }
 
@@ -795,6 +965,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     setUploadNote("");
     if (timerRef.current) window.clearInterval(timerRef.current);
     if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+    if (recoverRef.current) window.clearInterval(recoverRef.current);
   }
 
   function restart() {
@@ -1125,8 +1296,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
             <div className="chat-page-head">
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <button className="back" onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}`); }}>‹ 返回详情</button>
-                <img className="chat-avatar-img" src={sitongAvatar} alt="思潼" />
-                <span className="chat-page-title">{sku?.name ?? "智能体"} · 开发中</span>
+                <img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} />
+                <span className="chat-page-title">{personaLabel} · {sku?.name ?? "智能体"} · 开发中</span>
               </div>
             </div>
             <div className="zone-soon" style={{ margin: "0 16px" }}>
@@ -1147,8 +1318,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
             <div className="chat-page-head">
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <button className="back" onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}`); }}>‹ 返回详情</button>
-                <img className="chat-avatar-img" src={sitongAvatar} alt="思潼" />
-                <span className="chat-page-title">{runSku?.name ?? "智能体"} · 需登录</span>
+                <img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} />
+                <span className="chat-page-title">{personaLabel} · {runSku?.name ?? "智能体"} · 需登录</span>
               </div>
             </div>
             <div className="zone-soon" style={{ margin: "0 16px" }}>
@@ -1181,8 +1352,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
           <div className="chat-page-head">
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <button className="back" onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}`); }}>‹ 返回详情</button>
-              <img className="chat-avatar-img" src={sitongAvatar} alt="思潼" />
-              <span className="chat-page-title">{runSku?.name ?? flow.name ?? "智能体"}{industry?.title ? ` · ${industry.title}` : ""}</span>
+              <img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} />
+              <span className="chat-page-title">{personaLabel} · {runSku?.name ?? flow.name ?? "智能体"}{industry?.title ? ` · ${industry.title}` : ""}</span>
             </div>
             {cost !== null && (
               <span className="chat-page-cost">
@@ -1248,22 +1419,22 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
           <div className="chat-page-list">
             {items.map((item) => (
               <div key={item.id} className={`chat-row ${item.role}`}>
-                {item.role === "ai" && <img className="chat-avatar-img" src={sitongAvatar} alt="思潼" />}
+                {item.role === "ai" && <img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} />}
                 {/*
                  * 结构化报告（IP 定位全案 / 视频复盘）加 `report` 类：窄屏下气泡默认只占 74% 宽，
                  * 报告里的多列表格会被挤成「每列一个字」竖排（用户 2026-09-16 手机端截图）。
                  * 报告类气泡在手机上占满宽度，表格改为横向滚动。
                  */}
-                <div className={`chat-bubble ${item.role}${item.payload ? " report" : ""}`}>
+                <div className={`chat-bubble ${item.role}${item.payload || (isLiveScript && item.html) ? " report" : ""}`}>
                   {item.role === "ai" ? (
                     <>
-                      <span className="chat-bubble-label">思潼 · {sku?.name ?? "智能体"}</span>
+                      <span className="chat-bubble-label">{personaLabel} · {sku?.name ?? "智能体"}</span>
                       {isVidrevPayload(item.payload) ? (
                         <VidrevReport payload={item.payload} renderMarkdown={renderMarkdownHtml} topicSkuCode={topicSkuCode} />
                       ) : item.payload?.sections ? (
                         <IpPosReport payload={item.payload} renderMarkdown={renderMarkdownHtml} />
                       ) : (
-                        <div className="md-rich" style={{ color: "var(--text)", fontSize: 14, lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: item.html ? renderMarkdownHtml(item.text) : renderInline(item.text) }} />
+                        <div className="md-rich ls-root" style={{ color: "var(--text)", fontSize: 14, lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: item.html ? (isLiveScript ? renderLiveScriptHtml(item.text) : renderMarkdownHtml(item.text)) : renderInline(item.text) }} />
                       )}
                       {item.action && (
                         <div style={{ marginTop: 10 }}>
@@ -1286,12 +1457,12 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                 </div>
               </div>
             ))}
-            {busy && <div className="chat-row ai"><img className="chat-avatar-img" src={sitongAvatar} alt="思潼" /><div className="chat-bubble ai"><span style={{ color: "var(--muted)" }}>{isLiveScript ? `正在生成约几万字的 2 小时直播话术逐字稿，预计 5-10 分钟（整稿分九段依次生成，中途请勿关闭页面），请耐心等待… 已用 ${elapsed}s` : `AI 正在按方法论生成交付… 已用 ${elapsed}s`}</span></div></div>}
+            {busy && <div className="chat-row ai"><img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} /><div className="chat-bubble ai"><span style={{ color: "var(--muted)" }}>{isLiveScript ? `正在生成约几万字的 2 小时直播话术逐字稿，预计 5-10 分钟（整稿分九段依次生成，中途请勿关闭页面），请耐心等待… 已用 ${elapsed}s` : `AI 正在按方法论生成交付… 已用 ${elapsed}s`}</span></div></div>}
             {confirmPending && !busy && flow && (
               <div className="chat-row ai">
-                <img className="chat-avatar-img" src={sitongAvatar} alt="思潼" />
+                <img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} />
                 <div className="chat-bubble ai" style={{ maxWidth: "84%" }}>
-                  <span className="chat-bubble-label">思潼 · {sku?.name ?? "智能体"}</span>
+                  <span className="chat-bubble-label">{personaLabel} · {sku?.name ?? "智能体"}</span>
                   <div className="md-rich" style={{ color: "var(--text)", fontSize: 14, lineHeight: 1.7 }}>
                 <p><b>请先确认需求</b>：确认后我按下面这套信息生成交付。如有不对，点「修改」重填。</p>
                     {/*
@@ -1495,6 +1666,97 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
 function renderInline(text: string): string {
   // 兼容原型里用 **加粗** 的简单标记。
   return text.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+}
+
+// 直播话术逐字稿专属渲染（2026-09-22 排版升级）：
+// 服务端 generateLiveScriptFull 输出固定结构 —— `# 总标题` → `> 说明` → `## 段标题（时段）`
+// →【主播口播稿】/【主播节奏提示】双块 → `---` → `# 附属件（四件）`。
+// 这里把该结构解析成：直播徽标标题条 → 说明横幅 → 九段段头（序号徽标 + 时段胶囊）
+// → 口播稿/节奏提示双卡片 → 附属件虚线区块；口播稿里 [动作] 标注渲染成高亮小胶囊。
+function renderLiveScriptHtml(md: string): string {
+  const lines = md.split(/\r?\n/);
+  const out: string[] = [];
+  let buf: string[] = [];
+  let bufKind: "root" | "script" | "rhythm" = "root";
+
+  const flush = () => {
+    if (buf.length) {
+      // [动作/神态] 标注 → 高亮胶囊（只处理纯文本中的方括号，不会碰到标签属性）
+      const inner = renderMarkdownHtml(buf.join("\n")).replace(/\[([^\[\]<>]{1,24})\]/g, '<span class="ls-cue">$1</span>');
+      if (bufKind === "script") {
+        out.push(`<section class="ls-card ls-script"><div class="ls-card-head"><span class="ls-card-ico">🎙</span>主播口播稿<span class="ls-card-tag">照读</span></div><div class="ls-card-body">${inner}</div></section>`);
+      } else if (bufKind === "rhythm") {
+        out.push(`<section class="ls-card ls-rhythm"><div class="ls-card-head"><span class="ls-card-ico">🎛</span>主播节奏提示<span class="ls-card-tag">场控</span></div><div class="ls-card-body">${inner}</div></section>`);
+      } else {
+        out.push(inner);
+      }
+    }
+    buf = [];
+    bufKind = "root";
+  };
+
+  let i = 0;
+  while (i < lines.length) {
+    const t = lines[i].trim();
+    if (!t) { if (bufKind !== "root") buf.push(lines[i]); i++; continue; }
+
+    // 双子块标题行（兼容被 ** 加粗包裹的写法）
+    const bare = t.replace(/^\*\*(.+)\*\*$/, "$1");
+    if (bare === "【主播口播稿】") { flush(); bufKind = "script"; i++; continue; }
+    if (bare === "【主播节奏提示】") { flush(); bufKind = "rhythm"; i++; continue; }
+
+    // 段标题：## 一、开场暖场（两步式自我介绍）（0:00–0:10）
+    if (t.startsWith("## ")) {
+      flush();
+      const head = t.slice(3).trim();
+      const timeM = /[（(]([^（）()]*\d[^（）()]*[:：][^（）()]*)[）)]\s*$/.exec(head);
+      const time = timeM ? timeM[1].trim() : "";
+      const rest = timeM ? head.slice(0, timeM.index).trim() : head;
+      const noM = /^第?([一二三四五六七八九十]{1,3})[、.．]\s*/.exec(rest);
+      const no = noM ? noM[1] : "";
+      const title = (noM ? rest.slice(noM[0].length) : rest).trim() || rest;
+      out.push(
+        `<div class="ls-sec-head">` +
+        (no ? `<span class="ls-sec-no">${no}</span>` : "") +
+        `<span class="ls-sec-title">${inline(title)}</span>` +
+        (time ? `<span class="ls-sec-time">⏱ ${inline(time)}</span>` : "") +
+        `</div>`
+      );
+      i++; continue;
+    }
+
+    // 一级标题：总标题 / 附属件区块
+    if (t.startsWith("# ")) {
+      flush();
+      const title = t.slice(2).trim();
+      if (/附属件|附件/.test(title)) {
+        out.push(`<div class="ls-appendix"><span>📎</span><span>${inline(title.replace(/^#\s*/, ""))}</span></div>`);
+      } else {
+        out.push(`<div class="ls-hero"><span class="ls-live">LIVE</span><h3>${inline(title)}</h3></div>`);
+      }
+      i++; continue;
+    }
+
+    // 分割线 → 渐变细线
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(t)) { flush(); out.push(`<div class="ls-divider"></div>`); i++; continue; }
+
+    // 说明横幅（> 引用行合并）
+    if (t.startsWith(">")) {
+      flush();
+      const q: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith(">")) {
+        q.push(inline(lines[i].trim().replace(/^>\s?/, "")));
+        i++;
+      }
+      out.push(`<div class="ls-banner">${q.join("<br/>")}</div>`);
+      continue;
+    }
+
+    buf.push(lines[i]);
+    i++;
+  }
+  flush();
+  return out.join("\n");
 }
 
 function renderMarkdownHtml(md: string): string {

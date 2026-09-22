@@ -622,6 +622,44 @@ body[data-device="mobile"] .chat-bubble .report-table td{white-space:normal;min-
 .chat-bubble .md-rich code{background:rgba(255,255,255,.08);border-radius:4px;padding:1px 5px;font:12.5px ui-monospace,SFMono-Regular,Consolas,monospace}
 .chat-bubble .md-rich pre{margin:.5em 0;padding:.6em .8em;background:rgba(0,0,0,.24);border-radius:8px;overflow:auto;white-space:pre-wrap;font:12.5px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace}
 .chat-bubble .md-rich hr{border:0;border-top:1px solid var(--line);margin:.7em 0}
+
+/* =====================================================================
+   直播话术逐字稿专属排版（ls-，2026-09-22）
+   结构：ls-hero 总标题条 → ls-banner 说明横幅 → ls-sec-head 九段段头
+   → ls-script/ls-rhythm 双卡片 → ls-appendix 附属件区块；[动作] 渲染为 ls-cue 胶囊
+   ===================================================================== */
+.chat-bubble .md-rich .ls-hero{display:flex;align-items:center;gap:10px;margin:2px 0 8px}
+.chat-bubble .md-rich .ls-live{flex:none;display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;background:linear-gradient(135deg,var(--accent),var(--accent-deep));color:#fff;font-size:11px;font-weight:800;letter-spacing:.12em}
+.chat-bubble .md-rich .ls-live::before{content:"";width:6px;height:6px;border-radius:50%;background:#fff;animation:ls-blink 1.2s ease-in-out infinite}
+@keyframes ls-blink{0%,100%{opacity:1}50%{opacity:.2}}
+.chat-bubble .md-rich .ls-hero h3{margin:0;font-size:17px;font-weight:900;color:var(--text)}
+.chat-bubble .md-rich .ls-banner{margin:0 0 12px;padding:8px 12px;border-radius:10px;background:rgba(255,138,61,.10);border:1px solid rgba(255,138,61,.28);color:var(--accent2);font-size:12.5px;line-height:1.75}
+.chat-bubble .md-rich .ls-sec-head{display:flex;align-items:center;gap:9px;margin:18px 0 10px;padding:9px 12px;border-radius:12px;background:linear-gradient(135deg,rgba(255,138,61,.16),rgba(255,138,61,.04));border:1px solid rgba(255,138,61,.25)}
+.chat-bubble .md-rich .ls-sec-no{flex:none;min-width:26px;height:26px;padding:0 4px;border-radius:8px;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:900;font-size:13px}
+.chat-bubble .md-rich .ls-sec-title{flex:1;font-weight:800;font-size:14.5px;color:var(--text);line-height:1.4}
+.chat-bubble .md-rich .ls-sec-time{flex:none;padding:2px 9px;border-radius:999px;border:1px solid var(--line);background:var(--glass-2);color:var(--muted);font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chat-bubble .md-rich .ls-card{margin:0 0 10px;border-radius:12px;border:1px solid var(--line);background:rgba(127,127,127,.06);overflow:hidden}
+.chat-bubble .md-rich .ls-script{border-left:3px solid var(--accent)}
+.chat-bubble .md-rich .ls-rhythm{border-left:3px solid #5B9BFF}
+.chat-bubble .md-rich .ls-card-head{display:flex;align-items:center;gap:6px;padding:7px 12px;font-size:12px;font-weight:800;letter-spacing:.06em;background:rgba(127,127,127,.08);border-bottom:1px solid var(--line);color:var(--muted)}
+.chat-bubble .md-rich .ls-script .ls-card-head{color:var(--accent2)}
+.chat-bubble .md-rich .ls-rhythm .ls-card-head{color:#5B9BFF}
+.chat-bubble .md-rich .ls-card-ico{font-size:13px}
+.chat-bubble .md-rich .ls-card-tag{margin-left:auto;padding:1px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);font-size:10.5px;font-weight:600;letter-spacing:0}
+.chat-bubble .md-rich .ls-card-body{padding:10px 13px}
+.chat-bubble .md-rich .ls-card-body p{margin:.34em 0;font-size:13.5px;line-height:1.85}
+.chat-bubble .md-rich .ls-cue{display:inline-block;margin-right:5px;padding:0 8px;border-radius:999px;background:rgba(255,138,61,.14);border:1px solid rgba(255,138,61,.30);color:var(--accent2);font-size:12px;font-weight:600;line-height:1.6;white-space:nowrap}
+.chat-bubble .md-rich .ls-appendix{display:flex;align-items:center;gap:8px;margin:20px 0 12px;padding:10px 13px;border-radius:12px;border:1px dashed rgba(255,138,61,.45);background:rgba(255,138,61,.07);font-weight:900;font-size:15px;color:var(--text)}
+.chat-bubble .md-rich .ls-divider{margin:16px 0;height:1px;background:linear-gradient(90deg,transparent,var(--line-strong,rgba(127,127,127,.35)) 18%,rgba(127,127,127,.35) 82%,transparent)}
+:root[data-theme="light"] .chat-bubble .md-rich .ls-card{background:rgba(16,32,64,.03)}
+:root[data-theme="light"] .chat-bubble .md-rich .ls-card-head{background:rgba(16,32,64,.045)}
+:root[data-theme="light"] .chat-bubble .md-rich .ls-rhythm .ls-card-head,
+:root[data-theme="light"] .chat-bubble .md-rich .ls-rhythm{border-color:#2F6BD8}
+:root[data-theme="light"] .chat-bubble .md-rich .ls-rhythm .ls-card-head{color:#2F6BD8}
+:root[data-theme="light"] .chat-bubble .md-rich .ls-cue{background:rgba(244,121,32,.10);color:#B85A10}
+body[data-device="mobile"] .chat-bubble .md-rich .ls-sec-head{flex-wrap:wrap}
+body[data-device="mobile"] .chat-bubble .md-rich .ls-sec-time{margin-left:35px}
+body[data-device="mobile"] .chat-bubble .md-rich .ls-hero h3{font-size:15.5px}
 .chat-page-composer{padding:16px 22px;background:linear-gradient(180deg,var(--bg),var(--bg2));border-top:1px solid var(--line);position:sticky;bottom:0}
 .drawer-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 20px;border-top:1px solid var(--line);background:rgba(5,9,20,.5)}
 .df-note{font-size:12px;color:var(--muted-2);line-height:1.6}

@@ -1,9 +1,14 @@
-/* 思潼AI生态商城首页：深蓝 + 橙玻璃质感。仅作用于 /agents 首页，不污染其他页面。 */
+/* ============================================================
+   思潼AI生态商城首页（/agents）：2026-09-22 电商商城版
+   京东/美团式：顶搜 + 金刚区 + 促销横幅 + 楼层货架 + 竖版商品卡（带积分价格）。
+   手机优先（2 列商品流），平板 3 列，桌面 4 列。
+   全量走 sitong-design 主题变量（深浅色自适应），不写死底色。
+   仅作用于 body.eco-mall-body 页面，不影响其他路由。
+   ============================================================ */
+
 body.eco-mall-body {
-  background:
-    radial-gradient(1200px 600px at 80% -10%, #1c3a66 0%, #0b1f3a 55%),
-    #0b1f3a;
-  color: #eaf0fb;
+  background: var(--bg, #f4f7fc);
+  color: var(--text, #12203a);
 }
 
 body.eco-mall-body .app-wrap {
@@ -16,8 +21,8 @@ body.eco-mall-body .app-wrap {
 }
 
 .eco-mall {
-  padding: 28px 22px 64px;
-  color: #eaf0fb;
+  padding: 12px 12px 72px;
+  color: var(--text, #12203a);
   font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
@@ -25,333 +30,760 @@ body.eco-mall-body .app-wrap {
   box-sizing: border-box;
 }
 
-.eco-hero {
-  padding: 18px 0 22px;
-}
+/* ---------- 吸顶搜索栏 ---------- */
 
-.eco-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  color: #f47920;
-  background: rgba(232, 101, 26, 0.12);
-  border: 1px solid rgba(232, 101, 26, 0.35);
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-weight: 700;
-}
-
-.eco-hero h1 {
-  font-size: 38px;
-  line-height: 1.18;
-  margin: 16px 0 10px;
-  font-weight: 850;
-  letter-spacing: 0.5px;
-  color: #eaf0fb;
-}
-
-.eco-hero h1 b {
-  color: #f47920;
-}
-
-.eco-hero p {
-  color: #9fb2cc;
-  font-size: 15.5px;
-  max-width: 680px;
-  line-height: 1.7;
-  margin: 0;
-}
-
-.eco-shelves {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 20px;
-}
-
-.eco-shelf-chip {
-  font-size: 13px;
-  color: #eaf0fb;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 8px 14px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.eco-shelf-chip b {
-  color: #f47920;
-}
-
-.eco-nav {
+.eco-searchbar {
   position: sticky;
   top: 66px;
   z-index: 18;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 10px 0;
-  margin: 12px 0 8px;
-  background: linear-gradient(180deg, rgba(11, 31, 58, 0.96), rgba(11, 31, 58, 0.82));
-  backdrop-filter: blur(12px);
+  padding: 10px 0 8px;
+  background: var(--bg, #f4f7fc);
 }
 
-.eco-nav-row {
+.eco-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  padding: 0 14px;
+  background: var(--bg2, #fff);
+  border: 1px solid var(--line, rgba(16, 32, 64, 0.12));
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(16, 32, 64, 0.05);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.eco-search:focus-within {
+  border-color: rgba(244, 121, 32, 0.55);
+  box-shadow: 0 0 0 3px rgba(244, 121, 32, 0.12);
+}
+
+.eco-search-ico {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--muted, #5a6b87);
+}
+
+.eco-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text, #12203a);
+}
+
+.eco-search input::placeholder {
+  color: var(--muted, #5a6b87);
+}
+
+.eco-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.eco-search-clear {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(16, 32, 64, 0.08);
+  color: var(--muted, #5a6b87);
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1;
+}
+
+/* ---------- 金刚区（楼层快捷入口） ---------- */
+
+.eco-kingkong {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin: 6px 0 12px;
+}
+
+.eco-kk-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 2px 8px;
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease;
+}
+
+.eco-kk-item:hover {
+  background: rgba(16, 32, 64, 0.04);
+}
+
+.eco-kk-ico {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  border: 1px solid;
+}
+
+.eco-kk-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text, #12203a);
+}
+
+.eco-kk-item.active .eco-kk-ico {
+  box-shadow: 0 0 0 2px var(--bg, #fff), 0 0 0 4px var(--accent, #f47920);
+}
+
+/* ---------- 促销横幅 ---------- */
+
+.eco-banner {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 2px 0 6px;
+  padding: 15px 18px;
+  border-radius: 14px;
+  background: linear-gradient(120deg, #ff8a3d, #f47920 70%, #e8651a);
+  color: #fff;
+}
+
+.eco-banner::before {
+  content: "";
+  position: absolute;
+  right: 40px;
+  bottom: -50px;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.eco-banner::after {
+  content: "";
+  position: absolute;
+  right: -30px;
+  top: -40px;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.eco-banner-text {
+  display: grid;
+  gap: 3px;
+  position: relative;
+  z-index: 1;
+}
+
+.eco-banner-text b {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.eco-banner-text span {
+  font-size: 12px;
+  opacity: 0.92;
+}
+
+.eco-banner-link {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #e8651a;
+  background: #fff;
+  padding: 8px 13px;
+  border-radius: 999px;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+/* ---------- 楼层 ---------- */
+
+.eco-floor {
+  margin-top: 26px;
+  scroll-margin-top: 122px;
+}
+
+.eco-floor-head {
+  margin-bottom: 12px;
+}
+
+.eco-floor-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
-.eco-nav-label {
-  font-size: 12px;
-  color: #9fb2cc;
-  font-weight: 700;
-  white-space: nowrap;
-  margin-right: 2px;
-}
-
-.eco-nav button {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #9fb2cc;
-  padding: 8px 14px;
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: 13.5px;
-  font-weight: 600;
-}
-
-.eco-nav button:hover {
-  color: #eaf0fb;
-  border-color: rgba(232, 101, 26, 0.6);
-}
-
-.eco-nav button.active {
-  background: linear-gradient(135deg, #e8651a, #f47920);
-  color: #fff;
-  border-color: transparent;
-}
-
-.eco-content {
-  padding-top: 6px;
-}
-
-.eco-zone-tabs {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin: 10px 0 4px;
-}
-
-.eco-zone-tabs button {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #9fb2cc;
-  padding: 8px 14px;
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.eco-zone-tabs button.on {
-  background: linear-gradient(135deg, #e8651a, #f47920);
-  color: #fff;
-  border-color: transparent;
-}
-
-.eco-category-tabs {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin: 12px 0 4px;
-}
-
-.eco-category-tabs button {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #9fb2cc;
-  padding: 8px 14px;
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.eco-category-tabs button.on {
-  background: linear-gradient(135deg, #e8651a, #f47920);
-  color: #fff;
-  border-color: transparent;
-}
-
-.eco-category-body {
-  margin-top: 12px;
-}
-
-.eco-zone-note {
-  margin: 14px 0 4px;
-  padding: 13px 16px;
-  border-radius: 13px;
-  border: 1px solid rgba(232, 101, 26, 0.3);
-  background: rgba(232, 101, 26, 0.1);
-  color: #dce6f5;
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.eco-sec-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  margin: 28px 0 14px;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.eco-sec-head h2 {
-  font-size: 22px;
+.eco-floor-no {
+  font-size: 11px;
   font-weight: 800;
-  color: #eaf0fb;
-  margin: 0;
+  letter-spacing: 1px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent2, #e8651a), var(--accent, #f47920));
+  padding: 3px 7px;
+  border-radius: 7px;
+  line-height: 1.2;
 }
 
-.eco-sub {
-  color: #9fb2cc;
-  font-size: 13.5px;
-  margin-top: 4px;
+.eco-floor-title h2 {
+  font-size: 19px;
+  font-weight: 800;
+  margin: 0;
+  color: var(--text, #12203a);
+}
+
+.eco-floor-sub {
+  font-size: 12.5px;
+  color: var(--muted, #5a6b87);
+  margin-top: 5px;
+  line-height: 1.55;
 }
 
 .eco-home-link {
   display: inline-block;
-  margin-top: 12px;
-  color: #f47920;
+  margin-top: 14px;
+  color: var(--accent, #f47920);
   font-size: 14px;
   font-weight: 600;
   text-decoration: none;
-  transition: opacity 0.15s ease;
 }
 
 .eco-home-link:hover {
   text-decoration: underline;
-  opacity: 0.85;
+}
+
+/* ---------- 今天该用谁（快捷入口条） ---------- */
+
+.eco-today-strip {
+  margin-top: 18px;
 }
 
 .eco-today {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
 .eco-today-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   text-align: left;
-  padding: 14px 16px;
+  padding: 13px 14px;
   border-radius: 14px;
-  border: 1px solid rgba(232, 101, 26, 0.28);
-  background: linear-gradient(135deg, rgba(232, 101, 26, 0.12), rgba(255, 255, 255, 0.04));
-  color: #eaf0fb;
+  border: 1px solid rgba(244, 121, 32, 0.3);
+  background: linear-gradient(135deg, rgba(244, 121, 32, 0.1), var(--glass, rgba(255, 255, 255, 0.6)));
+  color: var(--text, #12203a);
+  font: inherit;
   cursor: pointer;
-  transition: border-color 0.18s ease, transform 0.18s ease;
+  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .eco-today-item:hover {
-  border-color: rgba(232, 101, 26, 0.7);
+  border-color: rgba(244, 121, 32, 0.65);
   transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(244, 121, 32, 0.14);
 }
 
-.eco-today-item span {
+.eco-today-ico {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  border-radius: 12px;
+  background: rgba(244, 121, 32, 0.14);
+  border: 1px solid rgba(244, 121, 32, 0.25);
+}
+
+.eco-today-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.eco-today-title {
   display: block;
   font-size: 12px;
-  color: #f47920;
   font-weight: 700;
+  color: var(--accent, #f47920);
 }
 
-.eco-today-item strong {
+.eco-today-hint {
   display: block;
-  margin-top: 6px;
-  font-size: 13px;
-  line-height: 1.55;
+  margin-top: 3px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  font-weight: 600;
+  color: var(--text, #12203a);
+}
+
+.eco-today-go {
+  flex: none;
+  color: var(--muted, #5a6b87);
+  font-size: 18px;
   font-weight: 600;
 }
 
-.eco-grid {
+/* ---------- 商品网格（京东式 2/3/4 列） ---------- */
+
+.eco-products {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
-.eco-card {
+/* ---------- 商品卡（竖版：方图 + 信息 + 价格行） ---------- */
+
+.eco-product {
   position: relative;
-  overflow: hidden;
-  padding: 16px 12px 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.06));
-  cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 9px;
+  background: var(--bg2, #fff);
+  border: 1px solid var(--line, rgba(16, 32, 64, 0.12));
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  color: var(--text, #12203a);
+  box-shadow: 0 1px 2px rgba(16, 32, 64, 0.04);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  animation: eco-rise 0.4s ease both;
 }
 
-.eco-card:hover {
+.eco-product:hover {
   transform: translateY(-3px);
-  border-color: rgba(232, 101, 26, 0.55);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
+  border-color: rgba(244, 121, 32, 0.45);
+  box-shadow: 0 12px 28px rgba(16, 32, 64, 0.12);
 }
 
-.eco-card.is-dev {
-  opacity: 0.78;
+.eco-p-img {
+  position: relative;
+  height: 92px;
+  background:
+    radial-gradient(150px 90px at 88% -30%, rgba(255, 255, 255, 0.5), transparent 65%),
+    radial-gradient(170px 110px at 6% 130%, rgba(255, 255, 255, 0.28), transparent 60%),
+    linear-gradient(135deg, rgba(244, 121, 32, 0.16), rgba(244, 121, 32, 0.04));
+  border-bottom: 1px solid var(--line, rgba(16, 32, 64, 0.12));
 }
 
-.eco-badge {
+/* 圆形白边头像：下半溢出到信息区，工牌式 */
+.eco-p-img .eco-ava {
   position: absolute;
-  top: 14px;
-  right: 14px;
+  left: 50%;
+  bottom: -28px;
+  transform: translateX(-50%);
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  border: 3px solid var(--bg2, #fff);
+  box-shadow: 0 6px 16px rgba(16, 32, 64, 0.16);
+  font-size: 32px;
+  overflow: hidden;
+  background: var(--bg3, #e9f0fa);
+}
+
+.eco-p-img .eco-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.eco-p-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 38px 12px 12px;
+  min-width: 0;
+}
+
+.eco-p-name {
+  font-size: 15px;
+  letter-spacing: 0.5px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--text, #12203a);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.eco-p-shop {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent, #f47920);
+}
+
+.eco-p-desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted, #5a6b87);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.eco-p-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.eco-p-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--accent, #f47920);
+  background: rgba(244, 121, 32, 0.1);
+  border: 1px solid rgba(244, 121, 32, 0.26);
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.eco-p-buy {
+  margin-top: auto;
+  padding-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.eco-p-price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  color: var(--accent, #f47920);
+  min-width: 0;
+}
+
+.eco-p-price b {
+  font-size: 17px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.eco-p-unit {
+  font-size: 10.5px;
+  color: var(--muted, #5a6b87);
+}
+
+.eco-p-price-flex {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--accent, #f47920);
+}
+
+.eco-p-btn {
+  flex: none;
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent2, #e8651a), var(--accent, #f47920));
+  padding: 7px 12px;
+  border-radius: 999px;
+  box-shadow: 0 4px 10px rgba(244, 121, 32, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.eco-p-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(244, 121, 32, 0.38);
+}
+
+.eco-p-soon {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted, #5a6b87);
+}
+
+.eco-product.is-dev .eco-p-body {
+  opacity: 0.75;
+}
+
+.eco-product.is-dev .eco-p-tag {
+  color: var(--muted, #5a6b87);
+  background: transparent;
+  border-color: var(--line, rgba(16, 32, 64, 0.12));
+}
+
+/* 占位商品（AI 硬件 / AI 课程等着上架的货架位） */
+.eco-product.eco-ghost {
+  border-style: dashed;
+  background: transparent;
+  box-shadow: none;
+  cursor: default;
+  animation: none;
+}
+
+.eco-product.eco-ghost:hover {
+  transform: none;
+  border-color: var(--line, rgba(16, 32, 64, 0.12));
+  box-shadow: none;
+}
+
+.eco-ghost .eco-p-img {
+  background:
+    radial-gradient(150px 90px at 88% -30%, rgba(255, 255, 255, 0.35), transparent 65%),
+    linear-gradient(135deg, rgba(16, 32, 64, 0.045), rgba(16, 32, 64, 0.015));
+}
+
+.eco-ghost .eco-p-img .eco-ava {
+  box-shadow: none;
+}
+
+.eco-ghost .eco-p-name {
+  color: var(--muted, #5a6b87);
+}
+
+/* 状态徽章 */
+.eco-badge {
+  flex: none;
   font-size: 11px;
   font-weight: 700;
-  padding: 4px 9px;
+  padding: 3px 8px;
   border-radius: 999px;
 }
 
 .eco-badge.ok {
-  background: rgba(43, 191, 122, 0.15);
-  color: #2bbf7a;
-  border: 1px solid rgba(43, 191, 122, 0.4);
+  color: var(--ok, #0e9f6e);
+  background: rgba(52, 216, 160, 0.16);
+  border: 1px solid rgba(52, 216, 160, 0.4);
 }
 
 .eco-badge.dev {
-  background: rgba(232, 163, 61, 0.15);
-  color: #e8a33d;
+  color: #b7791f;
+  background: rgba(232, 163, 61, 0.14);
   border: 1px solid rgba(232, 163, 61, 0.4);
 }
 
-.eco-card-top {
+/* 「即将上线」分隔 */
+.eco-divider {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin: 20px 0 12px;
+  color: var(--muted, #5a6b87);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
 }
 
-.eco-card-head {
-  min-width: 0;
+.eco-divider::before,
+.eco-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line, rgba(16, 32, 64, 0.12));
+}
+
+/* ---------- 搜索结果视图 ---------- */
+
+.eco-results-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 14px 0 12px;
+  font-size: 13px;
+  color: var(--muted, #5a6b87);
+}
+
+.eco-results-head b {
+  color: var(--accent, #f47920);
+  font-size: 15px;
+  margin: 0 2px;
+}
+
+.eco-results-head button {
+  border: 1px solid var(--line, rgba(16, 32, 64, 0.12));
+  background: var(--bg2, #fff);
+  color: var(--muted, #5a6b87);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.eco-empty {
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--muted, #5a6b87);
+  font-size: 13.5px;
+  background: var(--bg2, #fff);
+  border: 1px dashed var(--line, rgba(16, 32, 64, 0.12));
+  border-radius: 14px;
+}
+
+/* ---------- 品牌工作台模块 ---------- */
+
+.eco-mod-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.eco-mod {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  text-align: left;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line, rgba(16, 32, 64, 0.12));
+  background: var(--bg2, #fff);
+  cursor: pointer;
+  font: inherit;
+  color: var(--text, #12203a);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.eco-mod:hover {
+  transform: translateY(-3px);
+  border-color: rgba(244, 121, 32, 0.5);
+  box-shadow: 0 12px 28px rgba(16, 32, 64, 0.12);
+}
+
+.eco-mod-name {
+  font-size: 15.5px;
+  font-weight: 800;
+  color: var(--text, #12203a);
+}
+
+.eco-mod-desc {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--muted, #5a6b87);
+}
+
+.eco-mod-go {
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent, #f47920);
+}
+
+/* 兰琪 demo 单一入口大卡 */
+.eco-mod-hero {
+  width: 100%;
+  padding: 20px 22px;
+  background:
+    radial-gradient(220px 120px at 90% -20%, rgba(255, 255, 255, 0.5), transparent 60%),
+    linear-gradient(135deg, rgba(232, 163, 61, 0.12), rgba(244, 121, 32, 0.06));
+}
+
+.eco-mod-hero .eco-mod-name {
+  font-size: 17px;
+}
+
+.eco-mod-hero .eco-mod-desc {
+  margin: 4px 0 8px;
+}
+
+/* ---------- 员工 / 咨询师详情弹窗 ---------- */
+
+.eco-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(9, 18, 36, 0.5);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  padding: 16px;
+  animation: eco-fade 0.18s ease;
+}
+
+.eco-modal {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: 88vh;
+  overflow: auto;
+  background: var(--bg2, #fff);
+  border: 1px solid var(--line, rgba(16, 32, 64, 0.12));
+  border-radius: 20px;
+  padding: 22px;
+  color: var(--text, #12203a);
+  box-shadow: 0 24px 64px rgba(9, 18, 36, 0.22);
+  animation: eco-pop 0.22s ease;
+}
+
+.eco-modal-x {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--muted, #5a6b87);
+  font-size: 22px;
+  background: transparent;
+  border: 0;
+  line-height: 1;
+  font-family: inherit;
+  z-index: 1;
+}
+
+.eco-modal-x:hover {
+  background: rgba(16, 32, 64, 0.06);
+  color: var(--text, #12203a);
+}
+
+.eco-modal-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-right: 36px;
 }
 
 .eco-ava {
-  width: 140px;
-  height: 140px;
-  border-radius: 30px;
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
   display: grid;
   place-items: center;
-  font-size: 52px;
-  border: none;
-  box-shadow: none;
-  flex: none;
+  font-size: 30px;
+  background: var(--bg3, #e9f0fa);
+  border: 1px solid var(--line, rgba(16, 32, 64, 0.12));
   position: relative;
   overflow: hidden;
 }
@@ -370,538 +802,247 @@ body.eco-mall-body .app-wrap {
   z-index: 2;
 }
 
-.eco-face {
-  font-size: 26px;
-}
-
-.eco-role {
-  font-size: 17px;
-  font-weight: 800;
-  line-height: 1.3;
-  letter-spacing: 0.3px;
-}
-
-.eco-tagline {
-  font-size: 12.5px;
-  color: #9fb2cc;
-  margin-top: 2px;
-}
-
-.eco-hook {
-  font-size: 13.5px;
-  line-height: 1.6;
-  margin: 14px 0 12px;
-  color: #dce6f5;
-}
-
-.eco-persona {
-  display: grid;
-  gap: 6px;
-  margin: 0 0 12px;
-  font-size: 12.5px;
-  line-height: 1.55;
-  color: #9fb2cc;
-}
-
-.eco-persona b {
-  color: #f47920;
-  font-weight: 700;
-}
-
-.eco-deliver {
-  font-size: 12.5px;
-  color: #9fb2cc;
-  background: rgba(0, 0, 0, 0.18);
-  border-radius: 10px;
-  padding: 9px 11px;
-  line-height: 1.5;
-}
-
-.eco-deliver b {
-  color: #f47920;
-  font-weight: 700;
-}
-
-.eco-meta {
-  font-size: 12px;
-  color: #9fb2cc;
-  margin-top: 12px;
-  line-height: 1.55;
-}
-
-.eco-skins {
-  display: flex;
-  gap: 6px;
-  margin-top: 12px;
-  flex-wrap: wrap;
-}
-
-.eco-skin {
-  font-size: 11px;
-  padding: 3px 9px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #9fb2cc;
-}
-
-.eco-skin.on {
-  background: rgba(232, 101, 26, 0.16);
-  color: #f47920;
-  border-color: rgba(232, 101, 26, 0.4);
-}
-
-.eco-cta {
-  margin-top: 13px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #f47920;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.eco-card.is-dev .eco-cta {
-  color: #9fb2cc;
-}
-
-.eco-soon {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.06));
-  border: 1px dashed rgba(255, 255, 255, 0.12);
-  border-radius: 16px;
-  padding: 34px;
-  text-align: center;
-  color: #9fb2cc;
-}
-
-.eco-soon h3 {
-  color: #eaf0fb;
-  font-size: 17px;
-  margin: 0 0 6px;
-}
-
-.eco-soon-pill {
-  display: inline-block;
-  margin-top: 12px;
-  font-size: 12px;
-  color: #f47920;
-  background: rgba(232, 101, 26, 0.12);
-  border: 1px solid rgba(232, 101, 26, 0.35);
-  padding: 5px 12px;
-  border-radius: 999px;
-}
-
-.eco-mask {
-  position: fixed;
-  inset: 0;
-  background: rgba(4, 12, 26, 0.66);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 60;
-  padding: 20px;
-}
-
-.eco-modal {
-  position: relative;
-  width: min(560px, 96vw);
-  max-height: 90vh;
-  overflow: auto;
-  background: linear-gradient(180deg, #13294b, #0b1f3a);
-  border: 1px solid rgba(232, 101, 26, 0.35);
-  border-radius: 20px;
-  padding: 24px;
-  color: #eaf0fb;
-}
-
-.eco-modal-x {
-  position: absolute;
-  top: 16px;
-  right: 20px;
-  cursor: pointer;
-  color: #9fb2cc;
-  font-size: 24px;
-  background: transparent;
-  border: 0;
-  line-height: 1;
-}
-
-.eco-modal-top {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
 .eco-m-ava {
-  width: 128px;
-  height: 128px;
-  border-radius: 24px;
-  display: grid;
-  place-items: center;
-  font-size: 54px;
-  border: 2px solid rgba(244, 121, 32, 0.55);
-  box-shadow: 0 10px 30px rgba(244, 121, 32, 0.18);
-  flex: none;
-  position: relative;
-  overflow: hidden;
-}
-
-.eco-m-ava .eco-emoji {
-  position: relative;
-  z-index: 1;
-}
-
-.eco-m-ava img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  z-index: 2;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 3px solid rgba(244, 121, 32, 0.35);
+  font-size: 34px;
 }
 
 .eco-m-role {
-  font-size: 21px;
+  font-size: 20px;
   font-weight: 850;
-  line-height: 1.3;
+  line-height: 1.25;
+}
+
+.eco-name {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--accent2, #e8651a);
 }
 
 .eco-m-tag {
-  font-size: 13px;
-  color: #9fb2cc;
+  font-size: 12.5px;
+  color: var(--muted, #5a6b87);
   margin-top: 3px;
 }
 
 .eco-tabs {
   display: flex;
-  gap: 8px;
-  margin: 20px 0 14px;
+  gap: 6px;
+  margin: 18px 0 14px;
+  padding: 4px;
+  background: var(--bg3, #e9f0fa);
+  border-radius: 12px;
 }
 
 .eco-tabs button {
   flex: 1;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #9fb2cc;
-  padding: 10px;
-  border-radius: 11px;
+  background: transparent;
+  border: 0;
+  color: var(--muted, #5a6b87);
+  padding: 8px 10px;
+  border-radius: 9px;
   cursor: pointer;
   font-weight: 700;
-  font-size: 13.5px;
+  font-size: 13px;
+  font-family: inherit;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .eco-tabs button.on {
-  background: linear-gradient(135deg, #e8651a, #f47920);
-  color: #fff;
-  border-color: transparent;
+  background: var(--bg2, #fff);
+  color: var(--text, #12203a);
+  box-shadow: 0 2px 8px rgba(16, 32, 64, 0.1);
 }
 
 .eco-m-hook {
-  font-size: 15px;
+  font-size: 14.5px;
   line-height: 1.7;
-  color: #e6eefa;
-  background: rgba(0, 0, 0, 0.22);
-  border-radius: 12px;
-  padding: 14px 16px;
+  color: var(--text, #12203a);
+  background: var(--bg3, #e9f0fa);
+  border-left: 3px solid var(--accent, #f47920);
+  border-radius: 0 12px 12px 0;
+  padding: 13px 15px;
 }
 
-.eco-m-deliver {
-  font-size: 13.5px;
-  color: #9fb2cc;
+.eco-persona {
+  display: grid;
+  gap: 6px;
   margin-top: 14px;
-  line-height: 1.7;
-}
-
-.eco-m-deliver b {
-  color: #f47920;
-}
-
-.eco-m-need {
-  font-size: 13px;
-  color: #9fb2cc;
-  margin-top: 12px;
+  font-size: 12.5px;
   line-height: 1.6;
+  color: var(--muted, #5a6b87);
 }
 
-.eco-m-need span {
-  color: #a9bbd6;
+.eco-persona b {
+  color: var(--accent2, #e8651a);
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+.eco-m-rows {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.eco-m-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--bg3, #e9f0fa);
+}
+
+.eco-m-label {
+  flex: none;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--accent2, #e8651a);
+  padding-top: 2px;
+}
+
+.eco-m-val {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text, #12203a);
+}
+
+.eco-m-price b {
+  font-size: 16px;
+  font-weight: 850;
+  color: var(--accent, #f47920);
+  margin-right: 2px;
 }
 
 .eco-note {
-  margin-top: 18px;
+  margin-top: 16px;
   font-size: 12px;
-  color: #9fb2cc;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--muted, #5a6b87);
+  border-top: 1px solid var(--line, rgba(16, 32, 64, 0.12));
   padding-top: 12px;
   line-height: 1.6;
 }
 
 .eco-note b {
-  color: #f47920;
+  color: var(--accent2, #e8651a);
 }
 
 .eco-primary {
-  margin-top: 18px;
+  margin-top: 16px;
   width: 100%;
-  padding: 12px 18px;
-  border-radius: 12px;
+  padding: 13px 18px;
+  border-radius: 13px;
   border: 0;
-  background: linear-gradient(135deg, #e8651a, #f47920);
+  background: linear-gradient(135deg, var(--accent2, #e8651a), var(--accent, #f47920));
   color: #fff;
   font-weight: 800;
-  font-size: 14px;
+  font-size: 14.5px;
+  font-family: inherit;
   cursor: pointer;
+  box-shadow: 0 8px 20px rgba(244, 121, 32, 0.28);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.eco-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(244, 121, 32, 0.36);
 }
 
 .eco-primary:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
-@media (max-width: 760px) {
-  .eco-mall {
-    padding: 18px 14px 48px;
+/* ---------- 动效 ---------- */
+
+@keyframes eco-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes eco-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes eco-pop {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eco-product,
+  .eco-mask,
+  .eco-modal {
+    animation: none;
   }
 
-  .eco-hero h1 {
-    font-size: 31px;
+  .eco-product,
+  .eco-today-item,
+  .eco-mod,
+  .eco-p-btn,
+  .eco-primary {
+    transition: none;
+  }
+}
+
+/* ---------- 响应式 ---------- */
+
+/* 平板：3 列商品流 */
+@media (min-width: 760px) {
+  .eco-mall {
+    padding: 16px 20px 80px;
+  }
+
+  .eco-products {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
   }
 
   .eco-today {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .eco-grid {
-    grid-template-columns: 1fr;
+  .eco-mod-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* 桌面：4 列商品流，商城密度 */
+@media (min-width: 1024px) {
+  .eco-mall {
+    padding: 20px 24px 88px;
   }
 
-  .eco-nav {
+  .eco-products {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .eco-mod-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* 吸顶元素在窄顶栏下的偏移（与 Topbar 高度对齐） */
+@media (max-width: 759px) {
+  .eco-searchbar {
     top: 58px;
   }
-}
-
-/* 主题适配：沿用 sitong-design 现有深浅色体系，不再强制深蓝。 */
-body.eco-mall-body {
-  background: var(--bg);
-  color: var(--text);
-}
-
-.eco-mall {
-  color: var(--text);
-}
-
-.eco-hero h1 {
-  color: var(--text);
-}
-
-.eco-hero p,
-.eco-sub,
-.eco-tagline,
-.eco-meta,
-.eco-persona,
-.eco-m-tag,
-.eco-m-need,
-.eco-note,
-.eco-deliver,
-.eco-m-deliver {
-  color: var(--muted);
-}
-
-.eco-kicker,
-.eco-cta,
-.eco-hero h1 b,
-.eco-shelf-chip b,
-.eco-deliver b,
-.eco-persona b,
-.eco-m-deliver b,
-.eco-note b,
-.eco-today-item span {
-  color: var(--accent2);
-}
-
-.eco-kicker {
-  background: rgba(244, 121, 32, 0.12);
-  border-color: rgba(244, 121, 32, 0.35);
-}
-
-.eco-shelf-chip {
-  background: var(--glass);
-  border-color: var(--line);
-  color: var(--text);
-}
-
-.eco-nav {
-  background: var(--topbar-bg);
-  border-bottom: 1px solid var(--line);
-}
-
-.eco-nav button {
-  color: var(--muted);
-  border-color: var(--line);
-}
-
-.eco-nav button:hover {
-  color: var(--text);
-}
-
-.eco-nav-label {
-  color: var(--muted);
-}
-
-.eco-nav button.active,
-.eco-zone-tabs button.on,
-.eco-category-tabs button.on,
-.eco-tabs button.on {
-  background: linear-gradient(135deg, var(--accent2), var(--accent));
-  color: #fff;
-  border-color: transparent;
-}
-
-.eco-zone-tabs button,
-.eco-category-tabs button,
-.eco-tabs button {
-  background: var(--glass);
-  border-color: var(--line);
-  color: var(--muted);
-}
-
-.eco-zone-note {
-  background: rgba(244, 121, 32, 0.1);
-  border-color: rgba(244, 121, 32, 0.3);
-  color: var(--text);
-}
-
-.eco-sec-head h2,
-.eco-role,
-.eco-soon h3,
-.eco-m-role {
-  color: var(--text);
-}
-
-.eco-today-item {
-  background: linear-gradient(135deg, rgba(244, 121, 32, 0.12), var(--glass));
-  border-color: rgba(244, 121, 32, 0.3);
-  color: var(--text);
-}
-
-.eco-card {
-  background: linear-gradient(180deg, var(--glass-2), var(--glass));
-  border-color: var(--line);
-}
-
-.eco-card:hover {
-  border-color: rgba(244, 121, 32, 0.55);
-  box-shadow: var(--shadow);
-}
-
-.eco-hook {
-  color: var(--text);
-}
-
-.eco-skin {
-  color: var(--muted);
-  border-color: var(--line);
-}
-
-.eco-skin.on {
-  color: var(--accent2);
-  background: rgba(244, 121, 32, 0.16);
-  border-color: rgba(244, 121, 32, 0.4);
-}
-
-.eco-soon {
-  background: linear-gradient(180deg, var(--glass-2), var(--glass));
-  border-color: var(--line);
-  color: var(--muted);
-}
-
-.eco-soon-pill {
-  color: var(--accent2);
-  background: rgba(244, 121, 32, 0.12);
-  border-color: rgba(244, 121, 32, 0.35);
-}
-
-.eco-mask {
-  background: var(--ovl-bg);
-}
-
-.eco-modal {
-  background: var(--drawer-bg);
-  border-color: rgba(244, 121, 32, 0.35);
-  color: var(--text);
-}
-
-.eco-modal-x {
-  color: var(--muted);
-}
-
-.eco-m-hook {
-  color: var(--text);
-  background: var(--glass);
-}
-
-.eco-primary {
-  background: linear-gradient(135deg, var(--accent2), var(--accent));
-  color: #fff;
-}
-
-.eco-badge.ok {
-  color: var(--ok);
-  border-color: rgba(52, 216, 160, 0.4);
-  background: rgba(52, 216, 160, 0.12);
-}
-
-.eco-badge.dev {
-  color: #b7791f;
-  border-color: rgba(232, 163, 61, 0.4);
-  background: rgba(232, 163, 61, 0.12);
-}
-
-/* 品牌工作台 · 兰琪 demo 模块展示 */
-.eco-mod-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-  margin-top: 4px;
-}
-
-.eco-mod {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  text-align: left;
-  padding: 20px 20px 18px;
-  border-radius: 16px;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.12));
-  background: var(--glass, rgba(255, 255, 255, 0.06));
-  cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-  font: inherit;
-  color: var(--text, #fff);
-}
-
-.eco-mod:hover {
-  transform: translateY(-3px);
-  border-color: rgba(232, 101, 26, 0.55);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
-}
-
-.eco-mod-name {
-  font-size: 17px;
-  font-weight: 800;
-  color: var(--text, #fff);
-}
-
-.eco-mod-desc {
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--muted, rgba(255, 255, 255, 0.66));
-}
-
-.eco-mod-go {
-  margin-top: 2px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--accent, #e8651a);
 }

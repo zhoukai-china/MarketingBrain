@@ -1,5 +1,62 @@
 # 当前部署状态
 
+## 最新发布：20260922-footer-oneline（2026-09-22，仅 index.html，生产双入口 + lanqi-test）— 页脚两行改一行
+
+用户结果：站点页脚「思潼 AI 行业智能体平台」与「辽ICP备2025069273号」由两行合并为一行（间隔 12px）。
+
+改动（1 文件）：`apps/web/index.html`（#root 之外的静态 footer，vite 构建模板）。两个 `<div>` 合并为一个，备案链接加 `margin-left:12px`；顺带把本地漂移的 `theme-color` 对齐服务器基线 `#F4F7FC`（运行时 JS 会按主题动态覆盖，无功能影响）。发布前核验：本地与服务器该文件唯一差异即 theme-color 一行。
+
+发布方式：LF 归一后 scp 覆盖生产 `/opt/baolu-os-v2/apps/web/index.html` 与测试 `/opt/baolu-os-v2-test/apps/web/index.html`（sha256 `17f863ed…` 一致）→ 生产重跑 `build-os-v2-web.sh` + `build-ai-root.sh`（入口 JS 不变：`index-D5SXPNYx.js`/`index-ZCnh0Eh5.js`，仅 index.html 更新）→ 测试实例 `VITE_BASE_PATH=/lanqi-test/ pnpm --filter @baolu/web build`。
+
+验收：`https://api.lcppch.top/os-v2/`、`https://ai.lcppch.top/`、`https://api.lcppch.top/lanqi-test/` 三入口均命中 `margin-left:12px` + 备案号（单行）；health 200。
+
+备份 / 回滚：`/opt/baolu-backups/20260922-footer-oneline-before/`（`index.prod.html`、`index.test.html`）；回滚 = 还原两份源 index.html 后重跑对应构建。
+
+## 最新发布：20260922-ls-timeout-prod1（2026-09-22，前端双入口 + nginx，生产）— 直播话术 25 分钟超时与生成结果后台找回修复上线生产
+
+用户结果：生产用户生成直播话术（实测 5-10 分钟）不再在 150 秒被前端报「生成超时」。修复后行为：直播话术 run 请求前端等待上限提升到 25 分钟（其余智能体维持 150 秒）；超时提示改为友好文案「生成比较慢…请不要关闭页面，会自动找回」；每 30 秒轮询 `/market/me/deliverables` 找回已完成交付（45 分钟硬上限）；502/503/504 网关错误给专属提示；402/409 等分支与完成态均有 settled 去重。**上一条记录（ls-layout-prod1）第 13 行所述的「生产缺 9-21 修复」遗留问题自本次发布起已解决。**
+
+发布内容（2 部分）：
+
+1. 前端：`apps/web/src/marketplace/AgentChatPage.tsx` 由 67,270 字节（ls-layout-prod1 产物，sha256 `2967591a…`）更新为 93,330 字节（sha256 `d53a6e7d…`）。做法：以生产现网版为基线，外科手术式移植测试实例 9-21 修复的 A 组 14 处改动（常量块 `LIVESCRIPT_RUN_TIMEOUT_MS=25min`/`DEFAULT_RUN_TIMEOUT_MS=150s`/`formatTimeoutLabel()`、`recoverRef` 找回轮询与卸载清理、超时文案、502/503/504 分支、402/409/final 分支 settled 去重、finally 条件停轮询、reset 收尾），**不引入**测试版 B 组头像改动（生产保留自己的 personaLabel 实现）。移植脚本锚点校验 + 10 项终检标记全通过（见 `C:\Users\book\AppData\Local\Temp\ls-upgrade-stage\port-921.mjs` 产物 `prod-applied2.tsx`）。
+2. nginx：4 个代理到 3002 的 API location 前各插入 run 路由专属 regex location（1800s）：`qiwx-bot.conf` 的 `/api/`（93 行）与 `/os-v2/api/`（258 行）、`ai.lcppch.top.conf` 的 `/api/`（76 行）与 `/os-v2/api/`（118 行）。模式 `location ~ ^<前缀>/(market/skus/[^/]+/run)$` + `proxy_pass http://127.0.0.1:3002/$1;`（regex location 用捕获组剥前缀）。其余接口维持 120s 不变。diff 仅新增、`nginx -t` 通过后 reload，失败自动回滚逻辑就绪（未触发）。
+
+后端确认无需改动：找回轮询所依赖的 `GET /market/me/deliverables`（`marketplace.ts` 943 行）生产与测试完全一致，已存在。
+
+双入口构建：`bash scripts/build-os-v2-web.sh` → `/os-v2/` 入口 `assets/index-D5SXPNYx.js`（assets 345）；`bash scripts/build-ai-root.sh` → ai-root 入口 `assets/index-ZCnh0Eh5.js`（assets 390）。
+
+验收：两套线上 `MarketplaceApp-CjXivPr_.js` / `MarketplaceApp-DYaDzE3G.js`（同字节 267,926 B）命中 12 项标记全通过：9-21 修复（生成比较慢/自动找回/请不要关闭页面）+ 排版渲染器（ls-sec-head/ls-card ls-script/ls-card ls-rhythm/主播口播稿 x21/主播节奏提示 x21/ls-live/ls-cue/ls-appendix）+ 纪律断言（重新开始 x4）；`health=200`、`ready=200`；run 路由 4 个入口 POST 均 401（到达后端鉴权层，非 502/504，前缀剥除正确）。本地 `F:\思潼AI增长os\baolu-os-v2-source\apps\web\src\marketplace\AgentChatPage.tsx` 已同步为与生产逐字节一致（sha256 `d53a6e7d…`）。
+
+已知残留差异：生产与 lanqi-test 的 `AgentChatPage.tsx` 现在有 14 处 B 组差异（测试版有 agentAvatar/marketplaceAgentAvatar 头像改动，生产用 personaLabel 实现）——属测试实例在途功能，未上线，交由后续开发决策。验收工具备注：线上 chunk 用 bash 变量 `grep -q` 中文会出现假阴性（同变量 `grep -c` 正常），验收一律用 `curl -o 文件 + grep -c 文件` 方式。
+
+备份 / 回滚：`/opt/baolu-backups/20260922-ls-timeout-prod1-before-baolu-os-v2/`（`src-original/AgentChatPage.tsx`、`web-dist.tgz` 16M、`web-dist-ai-root.tgz` 17M、`nginx-qiwx-bot.conf`、`nginx-ai-lcppch-top.conf`、`sha256-before.txt`）。回滚 = 还原源文件 + 重跑两个构建脚本（或解回两套 dist）+ 还原两份 nginx conf 后 `nginx -s reload`，全程无需重启应用服务。
+
+## 最新发布：20260922-ls-layout-prod1（2026-09-22，仅前端双入口，生产）— 直播话术逐字稿排版升级上线生产
+
+用户结果：生产两套入口 `https://api.lcppch.top/os-v2/agent/ipzone__livescript/chat` 与 `https://ai.lcppch.top/agents`（→ 直播话术智能体）的交付排版升级为结构化卡片（同测试实例 20260922-ls-layout-test1：LIVE 徽标标题条 → 说明横幅 → 九段段头（序号徽标+时段胶囊）→ 口播稿/节奏提示双卡片 → `[动作]` 胶囊 → 📎附属件区块）。
+
+发布方式（生产基线与测试不同，**逐文件核验后叠加**）：生产 `AgentChatPage.tsx` 是不含 9-21 超时/找回修复的独有混合版（67,270 字节，sha256 `b3cdde92…`），不能直接用测试版覆盖。做法 = 生产现网文件为基线 + 同样 3 处正向改动（`renderLiveScriptHtml()` 渲染器 + 渲染分支 + 气泡 report 宽度类）→ `prod-applied.tsx`；CSS 与测试发布前逐字节一致（`577dbee0…`），直接叠加。未动 API/DB、未重启服务。
+
+双入口构建：`bash scripts/build-os-v2-web.sh` → `/os-v2/` 入口 `assets/index-1N3Dh8os.js`（assets 298）；`bash scripts/build-ai-root.sh` → ai-root 入口 `assets/index-CRHnTj32.js`（assets 343）。两套均叠加发布保留旧 chunk，`skill_key.html` 复验 200。
+
+验收：两套线上 `MarketplaceApp-FXhQef1y.js` / `MarketplaceApp-7DNOrLnc.js`（同字节 178,207 B）命中 `renderLiveScriptHtml`/`ls-sec-head`/`主播口播稿`；9-18 纪律断言「重新开始」在 chunk 中命中；新 CSS（`ls-sec-head`）两套入口均生效；`health=200`、`ready=200`、两套 chat/agents 页 200。
+
+注意（遗留差异）：生产 `AgentChatPage.tsx` 仍缺 9-21 的「直播话术 25 分钟超时 + 生成结果后台找回」修复（目前仅 lanqi-test 有，且本次发布未引入也未回退它）。生产用户生成直播话术时 150 秒仍会提示「生成超时」。若要把该修复同步到生产，需单独核对其 API/nginx 侧配套后走发布流程。
+
+备份 / 回滚：`/opt/baolu-backups/20260922-ls-layout-prod1-before-baolu-os-v2/`（`web-dist.tgz` 15M、`web-dist-ai-root.tgz` 16M、`src-original/` 两份源文件、`entry-os-v2-before.html`、`entry-ai-root-before.html`）；回滚 = 还原 2 源文件 + 解回两套 dist（或重跑两个构建脚本），静态还原即可，无需重启。
+
+## 最新发布：20260922-ls-layout-test1（2026-09-22，仅前端，lanqi-test 测试实例）— 直播话术逐字稿排版升级
+
+用户结果：`https://api.lcppch.top/lanqi-test/agent/ipzone__livescript/chat` 的直播话术交付从「灰色长段落糊成一坨」升级为结构化排版：LIVE 徽标总标题条 → 橙色说明横幅 → 九段段头（中文序号徽标 + 标题 + ⏱ 时段胶囊）→【主播口播稿】橙色卡片（照读标签）/【主播节奏提示】蓝色卡片（场控标签）→ 口播稿 `[动作]` 标注渲染成高亮胶囊 → 📎 附属件虚线区块；深浅色主题与手机端均适配。
+
+改动（仅 2 文件）：`apps/web/src/marketplace/AgentChatPage.tsx` 新增 `renderLiveScriptHtml()` 专属渲染器并接入渲染分支（直播话术气泡加 `report` 宽度类）；`apps/web/src/styles/sitong-design.css` 追加 `ls-*` 样式块。
+
+重要过程记录：本地工作树与 lanqi-test 现网存在漂移（现网 `AgentChatPage.tsx` 含 2026-09-21 的直播话术 25 分钟超时 + 后台找回轮询 + 专属头像，本地缺失）。**未用本地全量覆盖**，改为把本次 3 处改动正向叠加到现网版本（逐字节校验：server+edits==applied），避免回退他人已验收修复。CSS 则验证为「现网==本地-本次块」，直接叠加。
+
+发布方式：scp 2 文件到 `/opt/baolu-os-v2-test/apps/web/src/` → 服务器现地 `VITE_BASE_PATH=/lanqi-test/ pnpm --filter @baolu/web build`（未动 API/DB、未重启服务；修复了 dist/assets 内 171 个 root 属主文件导致的 vite 清空失败，已整体 chown admin）。验收：chat 页 200；线上 chunk 命中 `renderLiveScriptHtml`/`ls-sec-head`/`主播口播稿`；9-21 修复文案（生成比较慢/自动找回/请不要关闭页面）全部仍在；`health=200`。
+
+备份 / 回滚：`/opt/baolu-backups/20260922-ls-layout-test1-before-baolu-os-v2-test/`（`apps-web-dist.tgz` 14M + `src-original/` 两份源文件）；回滚 = 还原 2 源文件并重建 web（或解回 dist），无需重启。生产（`/os-v2/`）尚未发布本改动，待测试验收后再走 `deploy-release.sh` 标准流程。
+
 ## 最新发布：20260921-theme-dark-prod1（2026-09-21，仅前端静态构建，生产两套入口同步）— 平台默认主题由浅色改回深色
 
 用户结果：`https://ai.lcppch.top/agents` 与 `https://api.lcppch.top/os-v2/agents` 的全新访客（无 `sitong-theme` 偏好）默认进入深色；已主动选择过主题的用户仍按 localStorage 生效，不被覆盖。

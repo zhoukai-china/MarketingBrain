@@ -183,7 +183,7 @@ export const ECO_EMPLOYEES: EcoEmployee[] = [
   },
   {
     key: "live-host",
-    role: "直播操盘总监",
+    role: "直播话术师",
     icon: "🎤",
     color: "#E8651A",
     status: "dev",
@@ -345,7 +345,7 @@ const LEGACY_SKU_NAME_BY_CAPABILITY: Record<string, string> = {
   topic: "选题策略官",
   copy: "金牌文案主笔",
   vidrev: "流量诊断官",
-  livescript: "直播操盘总监",
+  livescript: "直播话术师",
   liverev: "直播复盘导师",
   sales: "首席成交官",
   moments: "私域增长顾问"
