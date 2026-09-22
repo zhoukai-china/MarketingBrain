@@ -1,18 +1,10 @@
 ﻿import { useState, useEffect } from "react";
 import type { AudioCardBinding } from "../../types";
-
-const apiBase = import.meta.env.VITE_API_BASE_URL ?? (() => {
-  if (typeof window !== "undefined" && window.location.hostname === "localhost") {
-    return "http://localhost:3011";
-  }
-  const basePath = (import.meta.env.BASE_URL as string | undefined) ?? "/";
-  const normalizedBase = basePath.startsWith("/") ? basePath : `/${basePath}`;
-  return `${normalizedBase.replace(/\/$/, "")}/api`;
-})();
-
-function apiPath(path: string): string {
-  return `${apiBase}${path.startsWith("/") ? path : `/${path}`}`;
-}
+import { apiPath } from "../../lib/api.js";
+import {
+  AUDIO_CARD_WEBHOOK_BASE_URL,
+  GETNOTE_RECENT_RECORDINGS_URL
+} from "../../config/site.js";
 
 const MOCK_BINDINGS: AudioCardBinding[] = [
   {
@@ -21,8 +13,8 @@ const MOCK_BINDINGS: AudioCardBinding[] = [
     label: "Get笔记·会议录音",
     description: "自动拉取Get笔记中的会议录音并生成摘要卡片",
     mode: "pull",
-    webhookUrl: "https://api.lcppch.top/os-v2/api/audio-card-webhooks/getnote",
-    pullUrl: "https://api.getnote.cn/recordings/recent?source=sitong",
+    webhookUrl: `${AUDIO_CARD_WEBHOOK_BASE_URL}/getnote`,
+    pullUrl: GETNOTE_RECENT_RECORDINGS_URL,
     pullReady: true,
     tokenHeader: "X-GetNote-Token",
     createdAt: new Date().toISOString(),
@@ -33,7 +25,7 @@ const MOCK_BINDINGS: AudioCardBinding[] = [
     label: "飞书妙记·访谈录音",
     description: "拉取飞书妙记的会议/访谈转写并自动生成行动卡片",
     mode: "pull",
-    webhookUrl: "https://api.lcppch.top/os-v2/api/audio-card-webhooks/feishu",
+    webhookUrl: `${AUDIO_CARD_WEBHOOK_BASE_URL}/feishu`,
     pullUrl: "",
     pullReady: false,
     tokenHeader: "Authorization",

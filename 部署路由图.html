@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>思潼 AI 增长 OS · 部署路由图</title>
+<style>
+  body { margin:0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background:#f5f6f8; color:#1f2329; }
+  .wrap { max-width:1180px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:#6b7280; font-size:13px; margin:0 0 18px; }
+  .tips { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 18px; margin-bottom:18px; font-size:13.5px; line-height:1.9; }
+  .tips b { color:#111827; }
+  .card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:10px; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+  svg { width:100%; height:auto; display:block; }
+  .legend { display:flex; flex-wrap:wrap; gap:14px; margin-top:14px; font-size:12.5px; color:#374151; }
+  .legend span { display:inline-flex; align-items:center; gap:6px; }
+  .legend i { width:14px; height:14px; border-radius:3px; display:inline-block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>思潼 AI 增长 OS v2 · 部署路由图</h1>
+  <p class="sub">同一份源码靠 <code>VITE_BASE_PATH</code> 打出不同包，挂在不同域名/路径下 → 形成「生产」与「内测」两套互相隔离的实例</p>
+
+  <div class="tips">
+    <b>三句话看懂：</b><br>
+    1. <b>生产环境</b>：新平台根(<code>ai.lcppch.top/</code>) + 老路径(<code>ai.lcppch.top/os-v2/</code>) + 旧前端域(<code>api.lcppch.top/</code>)，三套前端包但<b>共用同一个主后端 :3002</b> 和<b>同一生产库</b>；skills 走 :3007；老保禄 :3001 已挂起。<br>
+    2. <b>内测环境</b>：<code>api.lcppch.top/lanqi-test/</code> 是一套<b>完全独立</b>的实例（独立目录 <code>baolu-os-v2-test</code> + 独立后端 :3010 + 独立测试库），<b>免登录</b>，随便折腾不影响真实客户。<br>
+    3. 你之前困惑的两个 URL —— <code>lanqi-test/agents</code> 是内测、<code>ai.lcppch.top/os-v2/agents</code> 是生产，渲染逻辑相同，但目录/后端/数据库/登录全是两个世界。
+  </div>
+
+  <div class="card">
+  <svg viewBox="0 0 1120 800" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif">
+    <defs>
+      <marker id="arw" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L8,3 L0,6 Z" fill="#374151"/>
+      </marker>
+      <marker id="arwR" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L8,3 L0,6 Z" fill="#C62828"/>
+      </marker>
+    </defs>
+
+    <!-- ===== 环境大框 ===== -->
+    <rect x="20" y="70" width="660" height="700" rx="14" fill="#F0F6FF" stroke="#1565C0" stroke-width="2"/>
+    <text x="350" y="96" text-anchor="middle" font-size="16" font-weight="700" fill="#0D47A1">生产环境 PRODUCTION（真实客户数据）</text>
+
+    <rect x="700" y="70" width="400" height="700" rx="14" fill="#F1FBF4" stroke="#2E7D32" stroke-width="2"/>
+    <text x="900" y="96" text-anchor="middle" font-size="16" font-weight="700" fill="#1B5E20">内测环境 STAGING / TEST（独立库 · 免登录）</text>
+
+    <!-- ===== 入口层 ===== -->
+    <!-- 生产入口 -->
+    <rect x="40" y="110" width="185" height="48" rx="8" fill="#E3F2FD" stroke="#1565C0" stroke-width="1.5"/>
+    <text x="132" y="132" text-anchor="middle" font-size="12.5" font-weight="600" fill="#0D47A1">ai.lcppch.top/</text>
+    <text x="132" y="148" text-anchor="middle" font-size="10.5" fill="#1565C0">新平台根</text>
+
+    <rect x="255" y="110" width="185" height="48" rx="8" fill="#E3F2FD" stroke="#1565C0" stroke-width="1.5"/>
+    <text x="347" y="132" text-anchor="middle" font-size="12.5" font-weight="600" fill="#0D47A1">ai.lcppch.top/os-v2/</text>
+    <text x="347" y="148" text-anchor="middle" font-size="10.5" fill="#1565C0">老路径（历史链接）</text>
+
+    <rect x="450" y="110" width="210" height="48" rx="8" fill="#E3F2FD" stroke="#1565C0" stroke-width="1.5"/>
+    <text x="555" y="132" text-anchor="middle" font-size="12.5" font-weight="600" fill="#0D47A1">api.lcppch.top/</text>
+    <text x="555" y="148" text-anchor="middle" font-size="10.5" fill="#1565C0">旧 OS-v2 前端域</text>
+
+    <!-- 内测入口 -->
+    <rect x="710" y="110" width="380" height="48" rx="8" fill="#E8F5E9" stroke="#2E7D32" stroke-width="1.5"/>
+    <text x="900" y="132" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1B5E20">api.lcppch.top/lanqi-test/</text>
+    <text x="900" y="148" text-anchor="middle" font-size="10.5" fill="#2E7D32">内测实例（QA 入口）</text>
+
+    <!-- ===== nginx 层 ===== -->
+    <!-- 生产 nginx -->
+    <rect x="40" y="195" width="620" height="58" rx="8" fill="#ECEFF1" stroke="#546E7A" stroke-width="1.5"/>
+    <text x="350" y="214" text-anchor="middle" font-size="12" font-weight="600" fill="#37474F">nginx 路由 · ai.lcppch.top.conf + qiwx-bot.conf</text>
+    <text x="350" y="231" text-anchor="middle" font-size="10.5" fill="#546E7A">/ → dist-ai-root ｜ /os-v2/ → dist ｜ /api/ → :3002 ｜ /api/skills/ → :3007</text>
+    <text x="350" y="246" text-anchor="middle" font-size="10.5" fill="#C62828">（api 域）/auth//invite//chat → :3001（挂起）</text>
+
+    <!-- 内测 nginx -->
+    <rect x="710" y="195" width="380" height="58" rx="8" fill="#ECEFF1" stroke="#546E7A" stroke-width="1.5"/>
+    <text x="900" y="214" text-anchor="middle" font-size="12" font-weight="600" fill="#37474F">nginx · snippets/lanqi-test.conf</text>
+    <text x="900" y="231" text-anchor="middle" font-size="10.5" fill="#546E7A">/lanqi-test/ → dist ｜ /lanqi-test/api/ → :3010</text>
+
+    <!-- ===== 前端层 ===== -->
+    <rect x="40" y="300" width="185" height="58" rx="8" fill="#E8F5E9" stroke="#2E7D32" stroke-width="1.5"/>
+    <text x="132" y="322" text-anchor="middle" font-size="12" font-weight="600" fill="#1B5E20">dist-ai-root</text>
+    <text x="132" y="339" text-anchor="middle" font-size="10" fill="#2E7D32">新平台根 · base /</text>
+
+    <rect x="255" y="300" width="185" height="58" rx="8" fill="#E8F5E9" stroke="#2E7D32" stroke-width="1.5"/>
+    <text x="347" y="322" text-anchor="middle" font-size="12" font-weight="600" fill="#1B5E20">dist (os-v2 打包)</text>
+    <text x="347" y="339" text-anchor="middle" font-size="10" fill="#2E7D32">base /os-v2/</text>
+    <text x="455" y="334" font-size="10" fill="#1565C0">← api.lcppch.top/ 也用此包</text>
+
+    <rect x="710" y="300" width="380" height="58" rx="8" fill="#E8F5E9" stroke="#2E7D32" stroke-width="1.5"/>
+    <text x="900" y="322" text-anchor="middle" font-size="12" font-weight="600" fill="#1B5E20">dist-lanqi-test</text>
+    <text x="900" y="339" text-anchor="middle" font-size="10" fill="#2E7D32">baolu-os-v2-test · base /lanqi-test/ · 免登录</text>
+
+    <!-- ===== 后端层 ===== -->
+    <rect x="40" y="425" width="250" height="58" rx="8" fill="#FFF3E0" stroke="#E65100" stroke-width="1.5"/>
+    <text x="165" y="447" text-anchor="middle" font-size="12" font-weight="600" fill="#BF360C">:3002 主后端 (node)</text>
+    <text x="165" y="464" text-anchor="middle" font-size="10" fill="#E65100">业务API · 登录 · 生成 · 计费</text>
+
+    <rect x="320" y="425" width="150" height="58" rx="8" fill="#FFF3E0" stroke="#E65100" stroke-width="1.5"/>
+    <text x="395" y="447" text-anchor="middle" font-size="12" font-weight="600" fill="#BF360C">:3007 skills</text>
+    <text x="395" y="464" text-anchor="middle" font-size="10" fill="#E65100">python 微服务</text>
+
+    <rect x="40" y="510" width="250" height="58" rx="8" fill="#FFEBEE" stroke="#C62828" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="165" y="532" text-anchor="middle" font-size="12" font-weight="600" fill="#C62828">:3001 老保禄服务</text>
+    <text x="165" y="549" text-anchor="middle" font-size="10" fill="#C62828">未监听 · 挂起（api 域专属）</text>
+
+    <rect x="710" y="425" width="380" height="58" rx="8" fill="#FFF3E0" stroke="#E65100" stroke-width="1.5"/>
+    <text x="900" y="447" text-anchor="middle" font-size="12" font-weight="600" fill="#BF360C">:3010 测试后端 (node)</text>
+    <text x="900" y="464" text-anchor="middle" font-size="10" fill="#E65100">独立测试后端 · 与 :3002 隔离</text>
+
+    <!-- ===== 数据库层 ===== -->
+    <rect x="40" y="630" width="620" height="58" rx="8" fill="#F3E5F5" stroke="#6A1B9A" stroke-width="1.5"/>
+    <text x="350" y="652" text-anchor="middle" font-size="12" font-weight="600" fill="#4A148C">生产 PostgreSQL · sitong_os_v2</text>
+    <text x="350" y="669" text-anchor="middle" font-size="10" fill="#6A1B9A">真实客户数据</text>
+
+    <rect x="710" y="630" width="380" height="58" rx="8" fill="#F3E5F5" stroke="#6A1B9A" stroke-width="1.5"/>
+    <text x="900" y="652" text-anchor="middle" font-size="12" font-weight="600" fill="#4A148C">测试 PostgreSQL（独立库）</text>
+    <text x="900" y="669" text-anchor="middle" font-size="10" fill="#6A1B9A">与生产线完全隔离</text>
+
+    <!-- ===== 连线 生产 ===== -->
+    <line x1="132" y1="158" x2="132" y2="195" stroke="#374151" stroke-width="1.6" marker-end="url(#arw)"/>
+    <line x1="347" y1="158" x2="347" y2="195" stroke="#374151" stroke-width="1.6" marker-end="url(#arw)"/>
+    <line x1="555" y1="158" x2="555" y2="195" stroke="#374151" stroke-width="1.6" marker-end="url(#arw)"/>
+
+    <line x1="132" y1="253" x2="132" y2="300" stroke="#374151" stroke-width="1.6" marker-end="url(#arw)"/>
+    <line x1="347" y1="253" x2="347" y2="300" stroke="#374151" stroke-width="1.6" marker-end="url(#arw)"/>
+
+    <line x1="132" y1="358" x2="165" y2="425" stroke="#374151" stroke-width="1.6" marker-end="url(#arw)"/>
+    <line x1="200" y1="358" x2="395" y2="425" stroke="#374151" stroke-width="1.6" marker-end="url(#arw)"/>
+    <line x1="280" y1="358" x2="200" y2="425" stroke="#374151" stroke-width="1.6" marker-end="url(#arw)"/>
+
+    <!-- nginx -> 挂起的 3001 (红虚) -->
+    <line x1="300" y1="253" x2="165" y2="510" stroke="#C62828" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#arwR)"/>
+
+    <line x1="165" y1="483" x2="350" y2="630" stroke="#374151" stroke-width="1.6" marker-end="url(#arw)"/>
+    <line x1="395" y1="483" x2="380" y2="630" stroke="#374151" stroke-width="1.6" marker-end="url(#arw)"/>
+    <line x1="165" y1="568" x2="300" y2="630" stroke="#C62828" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#arwR)"/>
+
+    <!-- ===== 连线 内测 ===== -->
+    <line x1="900" y1="158" x2="900" y2="195" stroke="#374151" stroke-width="1.6" marker-end="url(#arw)"/>
+    <line x1="900" y1="253" x2="900" y2="300" stroke="#374151" stroke-width="1.6" marker-end="url(#arw)"/>
+    <line x1="900" y1="358" x2="900" y2="425" stroke="#374151" stroke-width="1.6" marker-end="url(#arw)"/>
+    <line x1="900" y1="483" x2="900" y2="630" stroke="#374151" stroke-width="1.6" marker-end="url(#arw)"/>
+
+    <!-- 图例 -->
+    <g font-size="11.5" fill="#374151">
+      <rect x="40" y="752" width="14" height="14" rx="3" fill="#E3F2FD" stroke="#1565C0"/><text x="60" y="763">入口 URL</text>
+      <rect x="150" y="752" width="14" height="14" rx="3" fill="#ECEFF1" stroke="#546E7A"/><text x="170" y="763">nginx 路由</text>
+      <rect x="270" y="752" width="14" height="14" rx="3" fill="#E8F5E9" stroke="#2E7D32"/><text x="290" y="763">前端静态包</text>
+      <rect x="390" y="752" width="14" height="14" rx="3" fill="#FFF3E0" stroke="#E65100"/><text x="410" y="763">后端服务</text>
+      <rect x="500" y="752" width="14" height="14" rx="3" fill="#F3E5F5" stroke="#6A1B9A"/><text x="520" y="763">数据库</text>
+      <rect x="610" y="752" width="14" height="14" rx="3" fill="#FFEBEE" stroke="#C62828"/><text x="630" y="763">挂起/隔离</text>
+    </g>
+  </svg>
+  </div>
+
+  <div class="legend" style="margin-top:14px">
+    <span><i style="background:#E3F2FD;border:1px solid #1565C0"></i>入口 URL</span>
+    <span><i style="background:#ECEFF1;border:1px solid #546E7A"></i>nginx 路由</span>
+    <span><i style="background:#E8F5E9;border:1px solid #2E7D32"></i>前端静态包</span>
+    <span><i style="background:#FFF3E0;border:1px solid #E65100"></i>后端服务</span>
+    <span><i style="background:#F3E5F5;border:1px solid #6A1B9A"></i>数据库</span>
+    <span><i style="background:#FFEBEE;border:1px solid #C62828"></i>挂起 / 隔离</span>
+  </div>
+</div>
+</body>
+</html>

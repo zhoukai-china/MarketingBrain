@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>公域获客 · 六模块技术架构图</title>
+<style>
+  :root{
+    --bg:#faf8f5; --card:#ffffff; --line:#ece6dc;
+    --ink:#2b2b2b; --mut:#8d8478; --arr:#b0a89a;
+    --warm:#fff4ec; --warm-l:#f0c9a8; --warm-d:#8a6d3b;
+    --blue:#eef3f9; --blue-l:#c3d4e6; --blue-d:#3d5a80;
+    --green:#eef5ef; --green-l:#c6dcc9; --green-d:#4a6b4f;
+    --plum:#f6eff6; --plum-l:#d9c6da; --plum-d:#6b4a6b;
+    --sand:#f5f3ef; --sand-l:#ded7cb;
+    --gold:#fdf6e3; --gold-l:#e8d9a8; --gold-d:#8a6d3b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:-apple-system,"PingFang SC","Microsoft YaHei",Helvetica,sans-serif;
+       -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1200px;margin:0 auto;padding:28px 20px 80px}
+  header{margin-bottom:6px}
+  h1{font-size:22px;margin:0 0 6px}
+  .sub{color:var(--mut);font-size:13px}
+  .fig{margin:34px 0 0}
+  .fig h2{font-size:16px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+  .fig h2::before{content:"";width:4px;height:16px;border-radius:2px;background:var(--warm-l)}
+  .fig p{margin:0 0 12px;color:var(--mut);font-size:12.5px}
+  .frame{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;overflow-x:auto}
+  svg{display:block;width:100%;height:auto}
+  text{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>公域获客 · 六模块技术架构</h1>
+  <div class="sub">页面 <code>/lanqi/acquire</code> · 依据 main 分支实际代码绘制</div>
+</header>
+
+<!-- ===================== 图一 ===================== -->
+<section class="fig">
+  <h2>图一 · 整体分层架构</h2>
+  <p>从上往下：六个页面 → 后端路由 → 产品服务 → 横切能力 → 数据与外部依赖。</p>
+  <div class="frame">
+  <svg viewBox="0 0 1180 790">
+    <rect width="1180" height="790" fill="#fff"/>
+
+    <!-- 前端层 -->
+    <rect x="20" y="50" width="1140" height="112" rx="10" fill="#fff" stroke="#ece6dc"/>
+    <text x="40" y="77" font-size="15" font-weight="700" fill="#8a6d3b">浏览器 · React 18 + Vite 5（apps/web）</text>
+    <text x="40" y="95" font-size="11" fill="#a9937a">路由分发：routes/lanqi.tsx · 六个模块各占一个子路由</text>
+    <g>
+      <rect x="40"  y="104" width="165" height="46" rx="6" fill="#fff4ec" stroke="#f0c9a8"/>
+      <text x="122" y="124" text-anchor="middle" font-size="12.5" font-weight="600" fill="#5a4a3a">美业文案十件套</text>
+      <text x="122" y="140" text-anchor="middle" font-size="10" fill="#9a8570">/acquire/copy-kit</text>
+
+      <rect x="220" y="104" width="165" height="46" rx="6" fill="#fff4ec" stroke="#f0c9a8"/>
+      <text x="302" y="124" text-anchor="middle" font-size="12.5" font-weight="600" fill="#5a4a3a">短视频文案改稿</text>
+      <text x="302" y="140" text-anchor="middle" font-size="10" fill="#9a8570">/acquire/copywriter</text>
+
+      <rect x="400" y="104" width="165" height="46" rx="6" fill="#fff4ec" stroke="#f0c9a8"/>
+      <text x="482" y="124" text-anchor="middle" font-size="12.5" font-weight="600" fill="#5a4a3a">爆款复刻</text>
+      <text x="482" y="140" text-anchor="middle" font-size="10" fill="#9a8570">/acquire/video</text>
+
+      <rect x="580" y="104" width="165" height="46" rx="6" fill="#fff4ec" stroke="#f0c9a8"/>
+      <text x="662" y="124" text-anchor="middle" font-size="12.5" font-weight="600" fill="#5a4a3a">一键成片</text>
+      <text x="662" y="140" text-anchor="middle" font-size="10" fill="#9a8570">/acquire/video-copy</text>
+
+      <rect x="760" y="104" width="165" height="46" rx="6" fill="#fff4ec" stroke="#f0c9a8"/>
+      <text x="842" y="124" text-anchor="middle" font-size="12.5" font-weight="600" fill="#5a4a3a">直播话术</text>
+      <text x="842" y="140" text-anchor="middle" font-size="10" fill="#9a8570">/acquire/live</text>
+
+      <rect x="940" y="104" width="165" height="46" rx="6" fill="#fff4ec" stroke="#f0c9a8"/>
+      <text x="1022" y="124" text-anchor="middle" font-size="12.5" font-weight="600" fill="#5a4a3a">AI 运营顾问</text>
+      <text x="1022" y="140" text-anchor="middle" font-size="10" fill="#9a8570">/acquire/methods</text>
+    </g>
+
+    <defs><marker id="a" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#b0a89a"/></marker></defs>
+    <line x1="590" y1="162" x2="590" y2="192" stroke="#b0a89a" stroke-width="1.6" marker-end="url(#a)"/>
+    <text x="604" y="182" font-size="11" fill="#9a9285">fetch /lanqi/* → vite 代理 /api → 127.0.0.1:3011</text>
+
+    <!-- 路由层 -->
+    <rect x="20" y="196" width="1140" height="98" rx="10" fill="#fff" stroke="#ece6dc"/>
+    <text x="40" y="223" font-size="15" font-weight="700" fill="#3d5a80">后端路由 · Fastify（apps/api）</text>
+    <text x="40" y="241" font-size="11" fill="#8ea3b8">同一套 acquire handler 注册两份：/beauty-industry 与 /lanqi</text>
+    <g>
+      <rect x="40"  y="250" width="380" height="34" rx="6" fill="#eef3f9" stroke="#c3d4e6"/>
+      <text x="230" y="265" text-anchor="middle" font-size="11.5" font-weight="600" fill="#41546b">routes/acquire.ts</text>
+      <text x="230" y="278" text-anchor="middle" font-size="10" fill="#7b8b9c">9 个端点 · 覆盖 ①②④⑤⑥</text>
+
+      <rect x="440" y="250" width="250" height="34" rx="6" fill="#eef3f9" stroke="#c3d4e6"/>
+      <text x="565" y="265" text-anchor="middle" font-size="11.5" font-weight="600" fill="#41546b">viral-video-replication.ts</text>
+      <text x="565" y="278" text-anchor="middle" font-size="10" fill="#7b8b9c">③ 授权 / 报价 / 任务 / 回调</text>
+
+      <rect x="705" y="250" width="210" height="34" rx="6" fill="#eef3f9" stroke="#c3d4e6"/>
+      <text x="810" y="265" text-anchor="middle" font-size="11.5" font-weight="600" fill="#41546b">lanqi-media-generation.ts</text>
+      <text x="810" y="278" text-anchor="middle" font-size="10" fill="#7b8b9c">④ 媒体报价 / 确认 / 组片</text>
+
+      <rect x="930" y="250" width="140" height="34" rx="6" fill="#eef3f9" stroke="#c3d4e6"/>
+      <text x="1000" y="265" text-anchor="middle" font-size="11.5" font-weight="600" fill="#41546b">files.ts</text>
+      <text x="1000" y="278" text-anchor="middle" font-size="10" fill="#7b8b9c">③ 素材上传</text>
+    </g>
+
+    <line x1="590" y1="294" x2="590" y2="316" stroke="#b0a89a" stroke-width="1.6" marker-end="url(#a)"/>
+
+    <!-- 服务层 -->
+    <rect x="20" y="320" width="1140" height="180" rx="10" fill="#fff" stroke="#ece6dc"/>
+    <text x="40" y="347" font-size="15" font-weight="700" fill="#4a6b4f">产品服务层 · products/beauty-industry/* · products/lanqi/*</text>
+    <text x="40" y="365" font-size="11" fill="#8ba392">每个模块一个服务文件，各管各的生成逻辑</text>
+    <g>
+      <rect x="40"  y="376" width="350" height="52" rx="6" fill="#eef5ef" stroke="#c6dcc9"/>
+      <text x="215" y="396" text-anchor="middle" font-size="12.5" font-weight="600" fill="#3f5c44">① copy-kit-service</text>
+      <text x="215" y="414" text-anchor="middle" font-size="10.5" fill="#7d9582">十件套 · 合同模板 + 输入 hash 缓存</text>
+
+      <rect x="405" y="376" width="350" height="52" rx="6" fill="#eef5ef" stroke="#c6dcc9"/>
+      <text x="580" y="396" text-anchor="middle" font-size="12.5" font-weight="600" fill="#3f5c44">② acquire-service</text>
+      <text x="580" y="414" text-anchor="middle" font-size="10.5" fill="#7d9582">文案改稿 · 诊断 → 选开头 → 成稿</text>
+
+      <rect x="770" y="376" width="350" height="52" rx="6" fill="#eef5ef" stroke="#c6dcc9"/>
+      <text x="945" y="396" text-anchor="middle" font-size="12.5" font-weight="600" fill="#3f5c44">③ viral-video-replication</text>
+      <text x="945" y="414" text-anchor="middle" font-size="10.5" fill="#7d9582">复刻任务编排 · 授权 → 报价 → 执行</text>
+
+      <rect x="40"  y="440" width="350" height="52" rx="6" fill="#eef5ef" stroke="#c6dcc9"/>
+      <text x="215" y="460" text-anchor="middle" font-size="12.5" font-weight="600" fill="#3f5c44">④ video-copy + video-script</text>
+      <text x="215" y="478" text-anchor="middle" font-size="10.5" fill="#7d9582">候选文案（LLM）+ 规则分镜（非 LLM）</text>
+
+      <rect x="405" y="440" width="350" height="52" rx="6" fill="#eef5ef" stroke="#c6dcc9"/>
+      <text x="580" y="460" text-anchor="middle" font-size="12.5" font-weight="600" fill="#3f5c44">⑤ live-service</text>
+      <text x="580" y="478" text-anchor="middle" font-size="10.5" fill="#7d9582">直播话术 · plan → segments → filler</text>
+
+      <rect x="770" y="440" width="350" height="52" rx="6" fill="#eef5ef" stroke="#c6dcc9"/>
+      <text x="945" y="460" text-anchor="middle" font-size="12.5" font-weight="600" fill="#3f5c44">⑥ advisor-service</text>
+      <text x="945" y="478" text-anchor="middle" font-size="10.5" fill="#7d9582">运营顾问 · 输出优先级动作清单</text>
+    </g>
+
+    <line x1="590" y1="500" x2="590" y2="522" stroke="#b0a89a" stroke-width="1.6" marker-end="url(#a)"/>
+
+    <!-- 横切层 -->
+    <rect x="20" y="526" width="1140" height="116" rx="10" fill="#fff" stroke="#ece6dc"/>
+    <text x="40" y="553" font-size="15" font-weight="700" fill="#6b4a6b">横切能力 · 六个模块共用</text>
+    <text x="40" y="571" font-size="11" fill="#9c86a0">不管走哪个模块，都要经过这四道</text>
+    <g>
+      <rect x="40"  y="580" width="258" height="52" rx="6" fill="#f6eff6" stroke="#d9c6da"/>
+      <text x="169" y="600" text-anchor="middle" font-size="12.5" font-weight="600" fill="#5c3f5e">LLM 网关</text>
+      <text x="169" y="618" text-anchor="middle" font-size="10.5" fill="#8a7a8d">DeepSeek 主 · qwen 候选需 Eval 放行</text>
+
+      <rect x="313" y="580" width="258" height="52" rx="6" fill="#f6eff6" stroke="#d9c6da"/>
+      <text x="442" y="600" text-anchor="middle" font-size="12.5" font-weight="600" fill="#5c3f5e">媒体生成</text>
+      <text x="442" y="618" text-anchor="middle" font-size="10.5" fill="#8a7a8d">wan2.5 视频 · wan2.7-image 首帧</text>
+
+      <rect x="586" y="580" width="258" height="52" rx="6" fill="#f6eff6" stroke="#d9c6da"/>
+      <text x="715" y="600" text-anchor="middle" font-size="12.5" font-weight="600" fill="#5c3f5e">计费 · 兰琪钱包</text>
+      <text x="715" y="618" text-anchor="middle" font-size="10.5" fill="#8a7a8d">预检 → 扣费 → 失败退款</text>
+
+      <rect x="859" y="580" width="258" height="52" rx="6" fill="#f6eff6" stroke="#d9c6da"/>
+      <text x="988" y="600" text-anchor="middle" font-size="12.5" font-weight="600" fill="#5c3f5e">租户 / 门店隔离</text>
+      <text x="988" y="618" text-anchor="middle" font-size="10.5" fill="#8a7a8d">上下文校验 · 出网白名单</text>
+    </g>
+
+    <line x1="590" y1="642" x2="590" y2="664" stroke="#b0a89a" stroke-width="1.6" marker-end="url(#a)"/>
+
+    <!-- 数据与外部 -->
+    <rect x="20" y="668" width="530" height="100" rx="10" fill="#f5f3ef" stroke="#ded7cb"/>
+    <text x="40" y="694" font-size="14" font-weight="700" fill="#2b2b2b">PostgreSQL · Prisma</text>
+    <text x="40" y="716" font-size="11" fill="#6b6459">Tenant · Store · Membership</text>
+    <text x="40" y="734" font-size="11" fill="#6b6459">兰琪钱包流水 · 媒体任务 · 复刻任务</text>
+    <text x="40" y="752" font-size="11" fill="#6b6459">十件套结果缓存</text>
+
+    <rect x="590" y="668" width="530" height="100" rx="10" fill="#fdf6e3" stroke="#e8d9a8"/>
+    <text x="610" y="694" font-size="14" font-weight="700" fill="#8a6d3b">外部依赖</text>
+    <text x="610" y="716" font-size="11" fill="#8a7d63">DeepSeek API · deepseek-v4-pro（主模型）</text>
+    <text x="610" y="734" font-size="11" fill="#8a7d63">阿里云 DashScope · qwen-max / qwen3.8-flash</text>
+    <text x="610" y="752" font-size="11" fill="#8a7d63">阿里云 OSS / VOD · 素材存储与任务回调</text>
+  </svg>
+  </div>
+</section>
+
+<!-- ===================== 图二 ===================== -->
+<section class="fig">
+  <h2>图二 · 六个模块的完整链路</h2>
+  <p>一行一个模块，从左到右就是它真实跑的每一步。橙=要 LLM，黄=要媒体模型，灰=纯规则/编排。</p>
+  <div class="frame">
+  <svg viewBox="0 0 1180 430">
+    <rect width="1180" height="430" fill="#fff"/>
+    <defs><marker id="b" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#b0a89a"/></marker></defs>
+
+    <!-- ① 十件套 -->
+    <rect x="20" y="24" width="150" height="48" rx="6" fill="#fff4ec" stroke="#f0c9a8"/>
+    <text x="95" y="52" text-anchor="middle" font-size="13" font-weight="700" fill="#5a4a3a">① 十件套</text>
+    <g font-size="11" fill="#5a4a3a">
+      <rect x="190"  y="24" width="180" height="48" rx="6" fill="#f5f3ef" stroke="#ded7cb"/><text x="280" y="52" text-anchor="middle">填门店简介（≥12字）</text>
+      <rect x="386"  y="24" width="180" height="48" rx="6" fill="#f5f3ef" stroke="#ded7cb"/><text x="476" y="52" text-anchor="middle">校验 + 余额预检</text>
+      <rect x="582"  y="24" width="180" height="48" rx="6" fill="#f5f3ef" stroke="#ded7cb"/><text x="672" y="52" text-anchor="middle">查输入 hash 缓存</text>
+      <rect x="778"  y="24" width="180" height="48" rx="6" fill="#fff4ec" stroke="#f0c9a8"/><text x="868" y="52" text-anchor="middle">LLM 生成十段</text>
+      <rect x="974"  y="24" width="180" height="48" rx="6" fill="#f5f3ef" stroke="#ded7cb"/><text x="1064" y="52" text-anchor="middle">写缓存 · 交付</text>
+      <line x1="370" y1="48" x2="384" y2="48" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+      <line x1="566" y1="48" x2="580" y2="48" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+      <line x1="762" y1="48" x2="776" y2="48" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+      <line x1="958" y1="48" x2="972" y2="48" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+    </g>
+
+    <!-- ② 改稿 -->
+    <rect x="20" y="96" width="150" height="48" rx="6" fill="#fff4ec" stroke="#f0c9a8"/>
+    <text x="95" y="124" text-anchor="middle" font-size="13" font-weight="700" fill="#5a4a3a">② 改稿</text>
+    <g font-size="11" fill="#5a4a3a">
+      <rect x="190" y="96" width="230" height="48" rx="6" fill="#f5f3ef" stroke="#ded7cb"/><text x="305" y="124" text-anchor="middle">贴原文（≤3000字）</text>
+      <rect x="436" y="96" width="230" height="48" rx="6" fill="#f5f3ef" stroke="#ded7cb"/><text x="551" y="124" text-anchor="middle">选 purpose / goal</text>
+      <rect x="682" y="96" width="230" height="48" rx="6" fill="#fff4ec" stroke="#f0c9a8"/><text x="797" y="124" text-anchor="middle">LLM 改写</text>
+      <rect x="928" y="96" width="230" height="48" rx="6" fill="#f5f3ef" stroke="#ded7cb"/><text x="1043" y="124" text-anchor="middle">成稿 + 标题封面建议</text>
+      <line x1="420" y1="120" x2="434" y2="120" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+      <line x1="666" y1="120" x2="680" y2="120" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+      <line x1="912" y1="120" x2="926" y2="120" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+    </g>
+
+    <!-- ③ 爆款复刻 -->
+    <rect x="20" y="168" width="150" height="48" rx="6" fill="#fff4ec" stroke="#f0c9a8"/>
+    <text x="95" y="196" text-anchor="middle" font-size="13" font-weight="700" fill="#5a4a3a">③ 爆款复刻</text>
+    <g font-size="10.5" fill="#5a4a3a">
+      <rect x="190"  y="168" width="148" height="48" rx="6" fill="#f5f3ef" stroke="#ded7cb"/><text x="264" y="196" text-anchor="middle">上传原片</text>
+      <rect x="354"  y="168" width="148" height="48" rx="6" fill="#f5f3ef" stroke="#ded7cb"/><text x="428" y="196" text-anchor="middle">素材授权（确权）</text>
+      <rect x="518"  y="168" width="148" height="48" rx="6" fill="#f5f3ef" stroke="#ded7cb"/><text x="592" y="196" text-anchor="middle">积分报价</text>
+      <rect x="682"  y="168" width="148" height="48" rx="6" fill="#f5f3ef" stroke="#ded7cb"/><text x="756" y="196" text-anchor="middle">确认开工</text>
+      <rect x="846"  y="168" width="148" height="48" rx="6" fill="#fdf6e3" stroke="#e8d9a8"/><text x="920" y="196" text-anchor="middle">阿里云执行</text>
+      <rect x="1010" y="168" width="148" height="48" rx="6" fill="#f5f3ef" stroke="#ded7cb"/><text x="1084" y="196" text-anchor="middle">回调 + 轮询取片</text>
+      <line x1="338" y1="192" x2="352" y2="192" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+      <line x1="502" y1="192" x2="516" y2="192" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+      <line x1="666" y1="192" x2="680" y2="192" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+      <line x1="830" y1="192" x2="844" y2="192" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+      <line x1="994" y1="192" x2="1008" y2="192" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+    </g>
+
+    <!-- ④ 一键成片 -->
+    <rect x="20" y="240" width="150" height="48" rx="6" fill="#fff4ec" stroke="#f0c9a8"/>
+    <text x="95" y="268" text-anchor="middle" font-size="13" font-weight="700" fill="#5a4a3a">④ 一键成片</text>
+    <g font-size="10.5" fill="#5a4a3a">
+      <rect x="190"  y="240" width="148" height="48" rx="6" fill="#f5f3ef" stroke="#ded7cb"/><text x="264" y="268" text-anchor="middle">说需求</text>
+      <rect x="354"  y="240" width="148" height="48" rx="6" fill="#fff4ec" stroke="#f0c9a8"/><text x="428" y="268" text-anchor="middle">3 版候选文案</text>
+      <rect x="518"  y="240" width="148" height="48" rx="6" fill="#f5f3ef" stroke="#ded7cb"/><text x="592" y="268" text-anchor="middle">规则分镜（非 LLM）</text>
+      <rect x="682"  y="240" width="148" height="48" rx="6" fill="#fdf6e3" stroke="#e8d9a8"/><text x="756" y="268" text-anchor="middle">首帧图 wan2.7</text>
+      <rect x="846"  y="240" width="148" height="48" rx="6" fill="#fdf6e3" stroke="#e8d9a8"/><text x="920" y="268" text-anchor="middle">图生视频 wan2.5</text>
+      <rect x="1010" y="240" width="148" height="48" rx="6" fill="#f5f3ef" stroke="#ded7cb"/><text x="1084" y="268" text-anchor="middle">组片成片</text>
+      <line x1="338" y1="264" x2="352" y2="264" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+      <line x1="502" y1="264" x2="516" y2="264" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+      <line x1="666" y1="264" x2="680" y2="264" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+      <line x1="830" y1="264" x2="844" y2="264" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+      <line x1="994" y1="264" x2="1008" y2="264" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+    </g>
+
+    <!-- ⑤ 直播话术 -->
+    <rect x="20" y="312" width="150" height="48" rx="6" fill="#fff4ec" stroke="#f0c9a8"/>
+    <text x="95" y="340" text-anchor="middle" font-size="13" font-weight="700" fill="#5a4a3a">⑤ 直播话术</text>
+    <g font-size="11" fill="#5a4a3a">
+      <rect x="190" y="312" width="180" height="48" rx="6" fill="#f5f3ef" stroke="#ded7cb"/><text x="280" y="340" text-anchor="middle">填直播资料</text>
+      <rect x="386" y="312" width="180" height="48" rx="6" fill="#f5f3ef" stroke="#ded7cb"/><text x="476" y="340" text-anchor="middle">输入校验</text>
+      <rect x="582" y="312" width="180" height="48" rx="6" fill="#fff4ec" stroke="#f0c9a8"/><text x="672" y="340" text-anchor="middle">plan 大纲</text>
+      <rect x="778" y="312" width="180" height="48" rx="6" fill="#fff4ec" stroke="#f0c9a8"/><text x="868" y="340" text-anchor="middle">segments 九段</text>
+      <rect x="974" y="312" width="180" height="48" rx="6" fill="#fff4ec" stroke="#f0c9a8"/><text x="1064" y="340" text-anchor="middle">filler 填充</text>
+      <line x1="370" y1="336" x2="384" y2="336" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+      <line x1="566" y1="336" x2="580" y2="336" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+      <line x1="762" y1="336" x2="776" y2="336" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+      <line x1="958" y1="336" x2="972" y2="336" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+    </g>
+
+    <!-- ⑥ 运营顾问 -->
+    <rect x="20" y="376" width="150" height="48" rx="6" fill="#fff4ec" stroke="#f0c9a8"/>
+    <text x="95" y="404" text-anchor="middle" font-size="13" font-weight="700" fill="#5a4a3a">⑥ 运营顾问</text>
+    <g font-size="11" fill="#5a4a3a">
+      <rect x="190" y="376" width="312" height="42" rx="6" fill="#f5f3ef" stroke="#ded7cb"/><text x="346" y="401" text-anchor="middle">说清门店情况</text>
+      <rect x="518" y="376" width="312" height="42" rx="6" fill="#fff4ec" stroke="#f0c9a8"/><text x="674" y="401" text-anchor="middle">LLM 问答</text>
+      <rect x="846" y="376" width="312" height="42" rx="6" fill="#f5f3ef" stroke="#ded7cb"/><text x="1002" y="401" text-anchor="middle">第一周动作清单（排好优先级）</text>
+      <line x1="502" y1="397" x2="516" y2="397" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+      <line x1="830" y1="397" x2="844" y2="397" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#b)"/>
+    </g>
+  </svg>
+  </div>
+</section>
+
+<!-- ===================== 图三 ===================== -->
+<section class="fig">
+  <h2>图三 · 每个请求都要过的六道关</h2>
+  <p>不管点哪个模块，请求都会先走完这六步，才会真正开始生成。</p>
+  <div class="frame">
+  <svg viewBox="0 0 1180 210">
+    <rect width="1180" height="210" fill="#fff"/>
+    <defs><marker id="c" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#b0a89a"/></marker></defs>
+    <g font-size="11.5" font-weight="600" fill="#5c3f5e">
+      <rect x="40"  y="60" width="145" height="76" rx="8" fill="#f6eff6" stroke="#d9c6da"/>
+      <text x="112" y="92"  text-anchor="middle" font-size="12.5">1 会话鉴权</text>
+      <text x="112" y="112" text-anchor="middle" font-size="10" fill="#8a7a8d" font-weight="400">验 token</text>
+      <text x="112" y="126" text-anchor="middle" font-size="10" fill="#8a7a8d" font-weight="400">确认是谁</text>
+
+      <rect x="199" y="60" width="145" height="76" rx="8" fill="#f6eff6" stroke="#d9c6da"/>
+      <text x="271" y="92"  text-anchor="middle" font-size="12.5">2 请求上下文</text>
+      <text x="271" y="112" text-anchor="middle" font-size="10" fill="#8a7a8d" font-weight="400">解析租户</text>
+      <text x="271" y="126" text-anchor="middle" font-size="10" fill="#8a7a8d" font-weight="400">解析角色</text>
+
+      <rect x="358" y="60" width="145" height="76" rx="8" fill="#f6eff6" stroke="#d9c6da"/>
+      <text x="430" y="92"  text-anchor="middle" font-size="12.5">3 门店可见性</text>
+      <text x="430" y="112" text-anchor="middle" font-size="10" fill="#8a7a8d" font-weight="400">越权直接挡</text>
+      <text x="430" y="126" text-anchor="middle" font-size="10" fill="#8a7a8d" font-weight="400">A 看不到 B</text>
+
+      <rect x="517" y="60" width="145" height="76" rx="8" fill="#f6eff6" stroke="#d9c6da"/>
+      <text x="589" y="92"  text-anchor="middle" font-size="12.5">4 钱包预检</text>
+      <text x="589" y="112" text-anchor="middle" font-size="10" fill="#8a7a8d" font-weight="400">余额不够</text>
+      <text x="589" y="126" text-anchor="middle" font-size="10" fill="#8a7a8d" font-weight="400">直接拦住不生成</text>
+
+      <rect x="676" y="60" width="145" height="76" rx="8" fill="#fff4ec" stroke="#f0c9a8"/>
+      <text x="748" y="92"  text-anchor="middle" font-size="12.5" fill="#5a4a3a">5 真正生成</text>
+      <text x="748" y="112" text-anchor="middle" font-size="10" fill="#9a8570" font-weight="400">LLM 出文案</text>
+      <text x="748" y="126" text-anchor="middle" font-size="10" fill="#9a8570" font-weight="400">媒体出成片</text>
+
+      <rect x="835" y="60" width="145" height="76" rx="8" fill="#eef5ef" stroke="#c6dcc9"/>
+      <text x="907" y="92"  text-anchor="middle" font-size="12.5" fill="#3f5c44">6 结算</text>
+      <text x="907" y="112" text-anchor="middle" font-size="10" fill="#7d9582" font-weight="400">成功 → 扣费</text>
+      <text x="907" y="126" text-anchor="middle" font-size="10" fill="#7d9582" font-weight="400">失败 → 退款</text>
+
+      <rect x="994" y="60" width="145" height="76" rx="8" fill="#f5f3ef" stroke="#ded7cb"/>
+      <text x="1066" y="92"  text-anchor="middle" font-size="12.5" fill="#2b2b2b">7 交付</text>
+      <text x="1066" y="112" text-anchor="middle" font-size="10" fill="#6b6459" font-weight="400">写入库</text>
+      <text x="1066" y="126" text-anchor="middle" font-size="10" fill="#6b6459" font-weight="400">返回前端</text>
+
+      <line x1="185" y1="98" x2="197" y2="98" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#c)"/>
+      <line x1="344" y1="98" x2="356" y2="98" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#c)"/>
+      <line x1="503" y1="98" x2="515" y2="98" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#c)"/>
+      <line x1="662" y1="98" x2="674" y2="98" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#c)"/>
+      <line x1="821" y1="98" x2="833" y2="98" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#c)"/>
+      <line x1="980" y1="98" x2="992" y2="98" stroke="#b0a89a" stroke-width="1.4" marker-end="url(#c)"/>
+    </g>
+    <text x="590" y="176" text-anchor="middle" font-size="11.5" fill="#9a9285">前三道挡越权，第四道挡欠费 —— 四道都过了才花钱调模型</text>
+  </svg>
+  </div>
+</section>
+
+<!-- ===================== 图四 ===================== -->
+<section class="fig">
+  <h2>图四 · 六个模块的技术差异（一眼对比）</h2>
+  <p>实心=用到，空心=不用。看颜色就知道每个模块烧的是什么资源。</p>
+  <div class="frame">
+  <svg viewBox="0 0 1180 320">
+    <rect width="1180" height="320" fill="#fff"/>
+    <!-- 表头 -->
+    <g font-size="11.5" font-weight="600" fill="#8d8478">
+      <text x="40"   y="40">模块</text>
+      <text x="360"  y="40" text-anchor="middle">用 LLM 生成文本</text>
+      <text x="560"  y="40" text-anchor="middle">用媒体模型出图/视频</text>
+      <text x="800"  y="40" text-anchor="middle">计费方式</text>
+    </g>
+    <line x1="40" y1="50" x2="1140" y2="50" stroke="#ece6dc" stroke-width="1"/>
+
+    <!-- 行 -->
+    <g font-size="12" fill="#2b2b2b">
+      <!-- ① -->
+      <text x="40" y="80">① 美业文案十件套</text>
+      <circle cx="360" cy="76" r="9" fill="#f0c9a8" stroke="#d9a877"/>
+      <circle cx="560" cy="76" r="9" fill="#fff" stroke="#ded7cb" stroke-dasharray="3 2"/>
+      <text x="800" y="80" font-size="11.5" fill="#6b6459">按次 · 兰琪钱包</text>
+      <line x1="40" y1="94" x2="1140" y2="94" stroke="#f4f1ec"/>
+
+      <!-- ② -->
+      <text x="40" y="122">② 短视频文案改稿</text>
+      <circle cx="360" cy="118" r="9" fill="#f0c9a8" stroke="#d9a877"/>
+      <circle cx="560" cy="118" r="9" fill="#fff" stroke="#ded7cb" stroke-dasharray="3 2"/>
+      <text x="800" y="122" font-size="11.5" fill="#6b6459">按次 · 兰琪钱包</text>
+      <line x1="40" y1="136" x2="1140" y2="136" stroke="#f4f1ec"/>
+
+      <!-- ③ -->
+      <text x="40" y="164">③ 爆款复刻</text>
+      <circle cx="360" cy="160" r="9" fill="#fff" stroke="#ded7cb" stroke-dasharray="3 2"/>
+      <circle cx="560" cy="160" r="9" fill="#e8d9a8" stroke="#cdb87a"/>
+      <text x="800" y="164" font-size="11.5" fill="#6b6459">先报价再开工</text>
+      <line x1="40" y1="178" x2="1140" y2="178" stroke="#f4f1ec"/>
+
+      <!-- ④ -->
+      <text x="40" y="206">④ 一键成片</text>
+      <circle cx="360" cy="202" r="9" fill="#f0c9a8" stroke="#d9a877"/>
+      <circle cx="560" cy="202" r="9" fill="#e8d9a8" stroke="#cdb87a"/>
+      <text x="800" y="206" font-size="11.5" fill="#6b6459">按秒 · 图片另计</text>
+      <line x1="40" y1="220" x2="1140" y2="220" stroke="#f4f1ec"/>
+
+      <!-- ⑤ -->
+      <text x="40" y="248">⑤ 直播话术</text>
+      <circle cx="360" cy="244" r="9" fill="#f0c9a8" stroke="#d9a877"/>
+      <circle cx="560" cy="244" r="9" fill="#fff" stroke="#ded7cb" stroke-dasharray="3 2"/>
+      <text x="800" y="248" font-size="11.5" fill="#6b6459">按次 · 兰琪钱包</text>
+      <line x1="40" y1="262" x2="1140" y2="262" stroke="#f4f1ec"/>
+
+      <!-- ⑥ -->
+      <text x="40" y="290">⑥ AI 运营顾问</text>
+      <circle cx="360" cy="286" r="9" fill="#f0c9a8" stroke="#d9a877"/>
+      <circle cx="560" cy="286" r="9" fill="#fff" stroke="#ded7cb" stroke-dasharray="3 2"/>
+      <text x="800" y="290" font-size="11.5" fill="#6b6459">按次 · 兰琪钱包</text>
+    </g>
+  </svg>
+  </div>
+</section>
+
+</div>
+</body>
+</html>

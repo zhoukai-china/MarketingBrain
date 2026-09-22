@@ -906,8 +906,9 @@ function assertAudioCardPullEndpointAllowed(endpoint: string): void {
 }
 
 function publicBinding(binding: AudioCardBindingPayload, headers: Record<string, unknown>) {
-  const path = `/os-v2/api/audio-card-webhooks/${binding.bindingId}`;
-  const pullPath = `/os-v2/api/audio-card-bindings/${binding.bindingId}/pull`;
+  const { pathPrefix } = publicWebBase();
+  const path = `${pathPrefix}/api/audio-card-webhooks/${binding.bindingId}`;
+  const pullPath = `${pathPrefix}/api/audio-card-bindings/${binding.bindingId}/pull`;
   return {
     bindingId: binding.bindingId,
     provider: binding.provider,
@@ -924,10 +925,29 @@ function publicBinding(binding: AudioCardBindingPayload, headers: Record<string,
   };
 }
 
+/**
+ * 从 PUBLIC_WEB_BASE_URL 解析出「公开站点根址」与「部署路径前缀」。
+ * 例如 https://api.lcppch.top/os-v2/  →  origin=https://api.lcppch.top  pathPrefix=/os-v2
+ * 内测 https://api.lcppch.top/lanqi-test/ →  origin=https://api.lcppch.top  pathPrefix=/lanqi-test
+ * 这样 webhook / 回跳地址不再写死域名与子路径，按部署环境自动适配。
+ */
+function publicWebBase(): { origin: string; pathPrefix: string } {
+  const raw = env.PUBLIC_WEB_BASE_URL ?? "https://api.lcppch.top/os-v2/";
+  try {
+    const u = new URL(raw);
+    const pathPrefix = u.pathname.replace(/\/+$/, "") || "";
+    return { origin: `${u.protocol}//${u.host}`, pathPrefix };
+  } catch {
+    return { origin: "https://api.lcppch.top", pathPrefix: "/os-v2" };
+  }
+}
+
 function getRequestOrigin(headers: Record<string, unknown>): string {
   const proto = String(headers["x-forwarded-proto"] ?? "https").split(",")[0].trim() || "https";
-  const host = String(headers["x-forwarded-host"] ?? headers.host ?? "api.lcppch.top").split(",")[0].trim();
-  return `${proto}://${host}`;
+  const host = String(headers["x-forwarded-host"] ?? headers.host ?? "").split(",")[0].trim();
+  if (host) return `${proto}://${host}`;
+  // 极端兜底：请求头无 host 时，回退到部署时配置的公开站点根址，避免写死域名。
+  return publicWebBase().origin;
 }
 
 function readHeader(headers: Record<string, unknown>, name: string): unknown {

@@ -186,7 +186,7 @@ export const ECO_EMPLOYEES: EcoEmployee[] = [
     role: "直播话术师",
     icon: "🎤",
     color: "#E8651A",
-    status: "dev",
+    status: "ok",
     hookBase: "我是你的直播操盘总监。开播前我给你排好逐字稿和节奏，你照着念就能上。",
     personality: "我现场感强，懂怎么留人、怎么逼单，按分钟给你排流程。",
     ability: "我给你能直接开播的逐字稿、节奏表和场控清单。",

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { apiBase, getAppPath } from "../lib/api.js";
+import { WECHAT_AUTH_REDIRECT_URI } from "../config/site.js";
 import { tenantBrandLogoSrc, usePublicTenantBranding } from "../lib/tenant-branding.js";
 import { savePendingWeChatBridge } from "../lib/wechat-bridge-session.js";
+import { buildWechatBridgeState } from "../lib/wechat-oauth-state.js";
 
 /**
  * 手机侧中转页（PLAT-13）。
@@ -46,12 +48,11 @@ export default function WeChatBridgePage() {
         const appId = config.appid ?? (import.meta.env.VITE_WECHAT_AUTH_APPID as string | undefined);
         if (!appId) throw new Error("微信登录缺少 AppID，请联系服务团队。");
 
-        // 和手机端原生登录共用同一份 state 校验与回调页。
-        const state = crypto.randomUUID();
-        sessionStorage.setItem("wechat_oauth_state", state);
+        // 和手机端原生登录共用同一份回调页。state 里直接编进一次性 id/secret，由微信
+        // 原样带回——不依赖任何浏览器存储（微信安卓授权往返换 webview 内核会丢存储）。
+        const state = buildWechatBridgeState(id, secret);
 
-        const redirectUri = (import.meta.env.VITE_WECHAT_AUTH_REDIRECT_URI as string | undefined)
-          ?? `${window.location.origin}${getAppPath("/wechat-callback")}`;
+        const redirectUri = WECHAT_AUTH_REDIRECT_URI;
         window.location.replace(
           `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${encodeURIComponent(appId)}`
           + `&redirect_uri=${encodeURIComponent(redirectUri)}`

@@ -3,6 +3,7 @@ import { type LoginResult } from "./LoginPage.js";
 import { apiBase, getAppPath } from "../lib/api.js";
 import { tenantBrandLogoSrc, usePublicTenantBranding } from "../lib/tenant-branding.js";
 import { clearPendingWeChatBridge, readPendingWeChatBridge } from "../lib/wechat-bridge-session.js";
+import { decodeWechatOauthState } from "../lib/wechat-oauth-state.js";
 import { markExistingUserReferralNotice } from "../lib/referral-notice.js";
 import { readPendingReferral } from "../lib/pending-referral.js";
 import { rememberPendingReferral } from "../lib/pending-referral.js";
@@ -26,23 +27,29 @@ export default function WeChatCallback({ onLogin }: WeChatCallbackProps) {
       try {
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
-        const state = params.get("state");
-        const savedState = sessionStorage.getItem("wechat_oauth_state");
+        const state = params.get("state") ?? "";
+        // state 由服务端签发（见 lib/wechat-oauth-state.ts）：这里只解码拿推荐码/扫码会话，
+        // 真正的校验交给后端做——微信安卓授权往返会换 webview 内核，客户端存储不可靠，
+        // 所以不再做「本地存的 state 与回传 state 比对」。
+        const decoded = decodeWechatOauthState(state);
         const tenantHostname = sessionStorage.getItem("wechat_tenant_hostname") ?? undefined;
         const productCode = sessionStorage.getItem("store_os_product_login_code") ?? undefined;
 
-        // Validate state parameter to prevent CSRF
-        if (!state || state !== savedState) {
-          setError("微信授权验证失败（state 不匹配），请重新登录");
+        if (!state) {
+          setError("微信授权校验失败，请重新登录");
           setStatus("");
           return;
         }
-        sessionStorage.removeItem("wechat_oauth_state");
+        // 清理旧版本（前端存 state 的那套）可能残留的痕迹；新版不再使用。
+        try {
+          localStorage.removeItem("wechat_oauth_state");
+        } catch {
+          // 忽略。
+        }
         sessionStorage.removeItem("wechat_tenant_hostname");
         sessionStorage.removeItem("store_os_product_login_code");
-        // 推荐码由微信 state 原样带回（格式：`<uuid>|<ref>`）：即使 URL 或存储中途丢了，
-        // 这里也能重新种回去，保证补资料提交时还带着码。
-        const referralFromState = state.includes("|") ? state.slice(state.indexOf("|") + 1).trim() : "";
+        // 推荐码优先取 state 载荷里的（微信原样带回，不依赖存储）；兼容旧格式 `<uuid>|<ref>`。
+        const referralFromState = decoded.ref ?? "";
         if (referralFromState) rememberPendingReferral(referralFromState);
 
         if (!code) {
@@ -56,8 +63,11 @@ export default function WeChatCallback({ onLogin }: WeChatCallbackProps) {
           return;
         }
 
-        // PLAT-13：从电脑端二维码进来的，走扫码中转；登录结果由电脑端取走。
-        const bridge = readPendingWeChatBridge();
+        // PLAT-13：扫码中转的一次性 id/secret 优先从 state 载荷解出（跨内核不丢），
+        // 兜底读本地暂存（老二维码链接）。
+        const bridge = decoded.b && decoded.s
+          ? { id: decoded.b, secret: decoded.s }
+          : readPendingWeChatBridge();
         if (bridge) {
           setStatus("正在把授权结果同步到电脑...");
           const bridgeRes = await fetch(`${apiBase}/auth/wechat-bridge/complete`, {
@@ -89,7 +99,8 @@ export default function WeChatCallback({ onLogin }: WeChatCallbackProps) {
         const res = await fetch(`${apiBase}/auth/wechat-login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code, tenantHostname, productCode })
+          // state 一并回传后端验签（服务端签发的一次性令牌）。
+          body: JSON.stringify({ code, state, tenantHostname, productCode })
         });
 
         const data = await res.json();

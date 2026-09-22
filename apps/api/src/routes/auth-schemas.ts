@@ -42,6 +42,8 @@ export const wechatLoginSchema = z.object({
   code: z.string().min(1),
   tenantHostname: z.string().trim().max(253).optional(),
   productCode: productLoginCodeSchema.optional(),
+  // 服务端签发的一次性 state（见 services/wechat-oauth-state.ts）；旧前端不传也兼容。
+  state: z.string().trim().max(2048).optional(),
 });
 
 export const bindPhoneSchema = z.object({

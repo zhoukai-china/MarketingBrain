@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api";
 import { toSafeAppRoute } from "../lib/app-route.js";
 import { billingErrorCopy } from "../lib/humanize-error.js";
+import { WORKBUDDY_MCP_PUBLIC_URL } from "../config/site";
 
 interface CreditPack {
   code: string;
@@ -140,7 +141,7 @@ export function RechargePage() {
   const [payMode, setPayMode] = useState<"none" | "jsapi" | "native">("none");
   const [orderId, setOrderId] = useState("");
   /** WorkBuddy MCP 接入指令用到的服务地址与本次生成的连接密钥（`sitong_wb_`）。 */
-  const [mcpUrl, setMcpUrl] = useState("https://api.lcppch.top/os-v2/api/integrations/workbuddy/mcp");
+  const [mcpUrl, setMcpUrl] = useState(WORKBUDDY_MCP_PUBLIC_URL);
   const [mcpToken, setMcpToken] = useState("");
   const pollRef = useRef<number | null>(null);
 const isLocal = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");

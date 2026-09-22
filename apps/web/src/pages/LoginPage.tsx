@@ -5,6 +5,8 @@ import {
   type TenantType,
 } from "@baolu/shared";
 import { apiBase, apiPath, getAppPath, getAppRoutePath } from "../lib/api.js";
+import { fetchWechatOauthState } from "../lib/wechat-oauth-state.js";
+import { WECHAT_AUTH_REDIRECT_URI } from "../config/site.js";
 import { markExistingUserReferralNotice } from "../lib/referral-notice.js";
 import { clearPendingReferral, readPendingReferral, rememberPendingReferral } from "../lib/pending-referral.js";
 import {
@@ -364,13 +366,15 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
       const appId = config.appid ?? (import.meta.env.VITE_WECHAT_AUTH_APPID as string | undefined);
       if (!appId) throw new Error("微信登录缺少 AppID，请联系服务团队。");
 
-      // 把推荐码塞进微信 `state`：微信会原样回传，即使中途丢了 URL 或浏览器存储，
-      // 回调页也能把码找回来（2026-09-13 真机实测：货架→登录那一跳会丢 ?ref=）。
+      // 向后端要一个带签名的 state，微信会原样回传，回调页交给后端验签。
+      // 不再存浏览器（微信安卓授权往返会换 webview 内核，任何本地存储都会丢）。
+      // 推荐码 / 产品码 / 品牌域名一并塞进 state 载荷，避免中途丢 sessionStorage。
       const pendingReferralForState = readPendingReferral();
-      const state = pendingReferralForState
-        ? `${crypto.randomUUID()}|${pendingReferralForState}`
-        : crypto.randomUUID();
-      sessionStorage.setItem("wechat_oauth_state", state);
+      const state = await fetchWechatOauthState({
+        ref: pendingReferralForState || undefined,
+        pcode: product?.code,
+        host: isCustomDomain ? publicBrand.hostname : undefined
+      });
       // 微信内打开也要留住邀请码：授权回跳落 /wechat-callback，同样会走「补资料」分支。
       rememberPendingInvite(inviteCode);
       if (product) sessionStorage.setItem(productLoginSessionKey, product.code);
@@ -378,8 +382,7 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
       if (isCustomDomain) sessionStorage.setItem("wechat_tenant_hostname", publicBrand.hostname);
       else sessionStorage.removeItem("wechat_tenant_hostname");
 
-      const redirectUri = (import.meta.env.VITE_WECHAT_AUTH_REDIRECT_URI as string | undefined)
-        ?? `${window.location.origin}${getAppPath("/wechat-callback")}`;
+      const redirectUri = WECHAT_AUTH_REDIRECT_URI;
       window.location.href = `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${encodeURIComponent(appId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=snsapi_userinfo&state=${encodeURIComponent(state)}#wechat_redirect`;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "微信登录请求失败，请稍后重试。");

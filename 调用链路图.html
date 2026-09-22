@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ai/os-v2/ 与 api/ 调用链路对比图</title>
+<style>
+  body { margin:0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background:#f5f6f8; color:#1f2329; }
+  .wrap { max-width:1080px; margin:0 auto; padding:22px 16px 44px; }
+  h1 { font-size:21px; margin:0 0 4px; }
+  .sub { color:#6b7280; font-size:13px; margin:0 0 16px; }
+  .verdict { background:#fff; border:1px solid #e5e7eb; border-left:4px solid #2E7D32; border-radius:8px; padding:12px 16px; margin-bottom:16px; font-size:13.5px; line-height:1.9; }
+  .verdict b { color:#1B5E20; }
+  .card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:10px; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+  svg { width:100%; height:auto; display:block; }
+  .legend { display:flex; flex-wrap:wrap; gap:14px; margin-top:14px; font-size:12.5px; color:#374151; }
+  .legend span { display:inline-flex; align-items:center; gap:6px; }
+  .legend i { width:14px; height:14px; border-radius:3px; display:inline-block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>调用链路图：<code>ai.lcppch.top/os-v2/</code> vs <code>api.lcppch.top/</code></h1>
+  <p class="sub">同一个 nginx 实例、同一份前端包、同一个主后端 3002 —— 差别只在域名与历史老路由</p>
+
+  <div class="verdict">
+    <b>一锤定音：</b><br>
+    ① <b>同一套前端包</b>：两个入口的 nginx root 都指向 <code>/opt/baolu-os-v2/apps/web/dist</code>（os-v2 构建，同一份文件）。改这个目录，两个域名同步变。<br>
+    ② <b>同一个后端服务</b>：<code>/api/</code> 与 <code>/os-v2/api/</code> 都反代到 <code>127.0.0.1:3002</code>（同一个 node 进程）。改 3002，两个域名同步变。<br>
+    ③ <b>唯一实质差别</b>：<code>api.lcppch.top</code> 额外挂着一批老路由（<code>/auth/ /invite/ /chat /pricing /mcp /admin</code>）→ <code>3001</code>，而 <code>3001 当前没监听（挂起）</code>；<code>ai.lcppch.top/os-v2/</code> 没有这些。<br>
+    ④ <b>另一个易混点</b>：<code>ai.lcppch.top/</code>（根，无 /os-v2）用的是 <code>dist-ai-root</code>——那是<b>另一套</b>新平台包，跟上面两个不是同一份文件。
+  </div>
+
+  <div class="card">
+  <svg viewBox="0 0 1000 780" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif">
+    <defs>
+      <marker id="arw" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 Z" fill="#374151"/></marker>
+      <marker id="arwR" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 Z" fill="#C62828"/></marker>
+      <marker id="arwG" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 Z" fill="#2E7D32"/></marker>
+    </defs>
+
+    <!-- 入口层 -->
+    <rect x="60" y="60" width="300" height="58" rx="10" fill="#E3F2FD" stroke="#1565C0" stroke-width="1.6"/>
+    <text x="210" y="84" text-anchor="middle" font-size="13" font-weight="700" fill="#0D47A1">ai.lcppch.top/os-v2/</text>
+    <text x="210" y="102" text-anchor="middle" font-size="10.5" fill="#1565C0">nginx: alias → dist/</text>
+
+    <rect x="440" y="60" width="300" height="58" rx="10" fill="#E3F2FD" stroke="#1565C0" stroke-width="1.6"/>
+    <text x="590" y="84" text-anchor="middle" font-size="13" font-weight="700" fill="#0D47A1">api.lcppch.top/</text>
+    <text x="590" y="102" text-anchor="middle" font-size="10.5" fill="#1565C0">nginx: location = / → dist</text>
+
+    <!-- 共享前端包 -->
+    <rect x="200" y="170" width="400" height="74" rx="10" fill="#E8F5E9" stroke="#2E7D32" stroke-width="2"/>
+    <text x="400" y="196" text-anchor="middle" font-size="13" font-weight="700" fill="#1B5E20">dist（os-v2 构建）</text>
+    <text x="400" y="214" text-anchor="middle" font-size="10.5" fill="#2E7D32">/opt/baolu-os-v2/apps/web/dist（同一份文件）</text>
+    <text x="400" y="231" text-anchor="middle" font-size="10.5" fill="#1B5E20">★ 两个入口共用同一套前端包</text>
+
+    <!-- sub_filter 标注 -->
+    <text x="210" y="155" text-anchor="middle" font-size="9.5" fill="#6A1B9A">sub_filter:</text>
+    <text x="210" y="166" text-anchor="middle" font-size="9.5" fill="#6A1B9A">api.lcppch.top→同源</text>
+
+    <!-- 主后端 -->
+    <rect x="200" y="320" width="400" height="74" rx="10" fill="#FFF3E0" stroke="#E65100" stroke-width="2"/>
+    <text x="400" y="346" text-anchor="middle" font-size="13" font-weight="700" fill="#BF360C">:3002 主后端（node · baolu-os-v2）</text>
+    <text x="400" y="364" text-anchor="middle" font-size="10.5" fill="#E65100">业务 API / 登录 / 生成 / 计费</text>
+    <text x="400" y="381" text-anchor="middle" font-size="10.5" fill="#1B5E20">★ 两个入口的 /api/ 与 /os-v2/api/ 都落这里（同一进程）</text>
+
+    <!-- 数据库 -->
+    <rect x="200" y="480" width="400" height="64" rx="10" fill="#F3E5F5" stroke="#6A1B9A" stroke-width="1.6"/>
+    <text x="400" y="505" text-anchor="middle" font-size="13" font-weight="700" fill="#4A148C">PostgreSQL · baolu_os_v2</text>
+    <text x="400" y="523" text-anchor="middle" font-size="10.5" fill="#6A1B9A">单实例单库（测试用 schema=lanqi_test 隔离）</text>
+
+    <!-- 旁路：skills 3007 -->
+    <rect x="40" y="320" width="180" height="74" rx="10" fill="#FFF3E0" stroke="#E65100" stroke-width="1.5"/>
+    <text x="130" y="346" text-anchor="middle" font-size="12" font-weight="600" fill="#BF360C">:3007 skills</text>
+    <text x="130" y="364" text-anchor="middle" font-size="10" fill="#E65100">python 微服务</text>
+    <text x="130" y="381" text-anchor="middle" font-size="9.5" fill="#546E7A">/api/skills/ → 这里</text>
+
+    <!-- 旁路：老路由 3001 挂起 -->
+    <rect x="620" y="320" width="200" height="74" rx="10" fill="#FFEBEE" stroke="#C62828" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="720" y="346" text-anchor="middle" font-size="12" font-weight="600" fill="#C62828">:3001 老保禄服务</text>
+    <text x="720" y="364" text-anchor="middle" font-size="10" fill="#C62828">未监听 · 挂起</text>
+    <text x="720" y="381" text-anchor="middle" font-size="9" fill="#C62828">/auth//invite//chat..</text>
+
+    <!-- 对比区：ai 根 另一套 -->
+    <rect x="60" y="620" width="300" height="58" rx="10" fill="#E3F2FD" stroke="#1565C0" stroke-width="1.6"/>
+    <text x="210" y="644" text-anchor="middle" font-size="13" font-weight="700" fill="#0D47A1">ai.lcppch.top/（根）</text>
+    <text x="210" y="662" text-anchor="middle" font-size="10.5" fill="#1565C0">nginx: root → dist-ai-root</text>
+
+    <rect x="440" y="620" width="300" height="58" rx="10" fill="#E8F5E9" stroke="#2E7D32" stroke-width="1.6"/>
+    <text x="590" y="644" text-anchor="middle" font-size="13" font-weight="700" fill="#1B5E20">dist-ai-root（新平台包）</text>
+    <text x="590" y="662" text-anchor="middle" font-size="10.5" fill="#2E7D32">另一套前端（非 dist）</text>
+
+    <!-- ===== 连线 ===== -->
+    <line x1="210" y1="118" x2="330" y2="170" stroke="#374151" stroke-width="1.8" marker-end="url(#arw)"/>
+    <line x1="590" y1="118" x2="470" y2="170" stroke="#374151" stroke-width="1.8" marker-end="url(#arw)"/>
+
+    <line x1="400" y1="244" x2="400" y2="320" stroke="#374151" stroke-width="2" marker-end="url(#arw)"/>
+    <text x="410" y="288" font-size="9.5" fill="#374151">前端 JS 发起 /api/ 与 /os-v2/api/</text>
+
+    <line x1="400" y1="394" x2="400" y2="480" stroke="#374151" stroke-width="1.8" marker-end="url(#arw)"/>
+
+    <line x1="280" y1="357" x2="220" y2="357" stroke="#374151" stroke-width="1.6" marker-end="url(#arw)"/>
+    <line x1="520" y1="357" x2="620" y2="357" stroke="#C62828" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#arwR)"/>
+
+    <!-- 对比区连线 -->
+    <line x1="210" y1="678" x2="590" y2="649" stroke="#2E7D32" stroke-width="1.8" stroke-dasharray="7 4" marker-end="url(#arwG)"/>
+    <text x="400" y="675" text-anchor="middle" font-size="9.5" fill="#2E7D32">同 → :3002（但与 os-v2/dist 不是同一套前端包）</text>
+
+    <!-- 图例 -->
+    <g font-size="11.5" fill="#374151">
+      <rect x="40" y="730" width="14" height="14" rx="3" fill="#E3F2FD" stroke="#1565C0"/><text x="60" y="741">入口 URL</text>
+      <rect x="150" y="730" width="14" height="14" rx="3" fill="#E8F5E9" stroke="#2E7D32"/><text x="170" y="741">前端包</text>
+      <rect x="260" y="730" width="14" height="14" rx="3" fill="#FFF3E0" stroke="#E65100"/><text x="280" y="741">后端服务</text>
+      <rect x="380" y="730" width="14" height="14" rx="3" fill="#F3E5F5" stroke="#6A1B9A"/><text x="400" y="741">数据库</text>
+      <rect x="500" y="730" width="14" height="14" rx="3" fill="#FFEBEE" stroke="#C62828"/><text x="520" y="741">挂起/隔离</text>
+    </g>
+  </svg>
+  </div>
+
+  <div class="legend">
+    <span><i style="background:#E3F2FD;border:1px solid #1565C0"></i>入口 URL</span>
+    <span><i style="background:#E8F5E9;border:1px solid #2E7D32"></i>前端包</span>
+    <span><i style="background:#FFF3E0;border:1px solid #E65100"></i>后端服务</span>
+    <span><i style="background:#F3E5F5;border:1px solid #6A1B9A"></i>数据库</span>
+    <span><i style="background:#FFEBEE;border:1px solid #C62828"></i>挂起 / 隔离</span>
+  </div>
+</div>
+</body>
+</html>
