@@ -1,0 +1,833 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>市场合伙人后台 · 设计原型 v0.1 · 思潼AI 行业智能体平台</title>
+<style>
+  :root{
+    --bg:#F4F7FC; --card:#ffffff; --ink:#1c2733; --sub:#5b6b7c; --line:#e3e9f2;
+    --orange:#E8651A; --orange-soft:#fdeee2; --orange-line:#f7d4b8;
+    --green:#0f8a5f; --green-soft:#e6f5ee;
+    --amber:#b26a00; --amber-soft:#fff4e0;
+    --blue:#2563eb; --blue-soft:#e8effd;
+    --purple:#7c3aed; --purple-soft:#f1eafd;
+    --navy:#17313f;
+    --red:#d64545;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{background:var(--bg);color:var(--ink);font:15px/1.7 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+
+  /* ---------- app bar ---------- */
+  .appbar{position:sticky;top:0;z-index:9;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .appbar .wrap{max-width:1180px;margin:0 auto;padding:0 16px;display:flex;align-items:center;gap:10px;height:54px}
+  .logo{font-weight:800;font-size:17px;white-space:nowrap}
+  .logo i{font-style:normal;color:var(--orange)}
+  .logo em{font-style:normal;font-size:13px;color:var(--sub);font-weight:600;margin-left:2px}
+  .prototag{font-size:11px;font-weight:700;color:var(--orange);background:var(--orange-soft);border:1px solid var(--orange-line);border-radius:99px;padding:2px 9px;white-space:nowrap}
+  .me-chip{margin-left:auto;display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:#fff;border-radius:99px;padding:3px 12px 3px 4px;font-size:13px;font-weight:700}
+  .me-chip .ava{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#E8651A,#f09a4e);color:#fff;display:grid;place-items:center;font-size:13px}
+
+  .demobanner{background:#fff8f0;border-bottom:1px solid var(--orange-line);color:#9a5a1c;font-size:12px;text-align:center;padding:5px 12px}
+
+  /* ---------- shell ---------- */
+  .shell{max-width:1180px;margin:0 auto;padding:0 16px;display:grid;gap:20px;grid-template-columns:1fr}
+  .side{display:none}
+  .main{padding:16px 0 92px;min-height:70vh}
+  section.view{display:none}
+  section.view.active{display:block}
+  .vhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .vhead h2{font-size:21px}
+  .vhead .desc{font-size:12.5px;color:var(--sub)}
+  .vhead .k{color:var(--orange);font-weight:800}
+
+  /* ---------- desktop ---------- */
+  @media (min-width:900px){
+    .shell{grid-template-columns:210px 1fr;align-items:start;padding-top:20px}
+    .side{display:flex;flex-direction:column;gap:8px;position:sticky;top:78px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 12px;box-shadow:0 6px 18px rgba(28,39,51,.05)}
+    .main{padding:0 0 40px}
+    .tabbar{display:none!important}
+  }
+  .snav{display:flex;align-items:center;gap:10px;border:none;background:none;font:600 14px/1 inherit;color:var(--sub);border-radius:12px;padding:10px 12px;cursor:pointer;text-align:left}
+  .snav .ic{width:30px;height:30px;border-radius:9px;background:#f0f4f9;display:grid;place-items:center;font-size:15px;flex:none}
+  .snav.active{background:var(--orange-soft);color:var(--orange)}
+  .snav.active .ic{background:var(--orange);color:#fff}
+  .side .withdraw-cta{margin-top:6px;border:none;background:var(--orange);color:#fff;font:700 14px inherit;border-radius:12px;padding:11px;cursor:pointer;box-shadow:0 8px 20px rgba(232,101,26,.35)}
+  .side .side-note{font-size:11.5px;color:var(--sub);border-top:1px dashed var(--line);padding-top:10px;margin-top:6px;line-height:1.8}
+
+  /* ---------- bottom tabbar (mobile) ---------- */
+  .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:8;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  .tnav{display:flex;flex-direction:column;align-items:center;gap:2px;border:none;background:none;font-size:10.5px;color:var(--sub);cursor:pointer;padding:3px 8px}
+  .tnav .ic{font-size:19px;line-height:1.2}
+  .tnav.active{color:var(--orange);font-weight:700}
+
+  /* ---------- cards ---------- */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 6px 18px rgba(28,39,51,.05);padding:16px;margin-bottom:14px}
+  .card h3{font-size:15px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .card h3 .more{margin-left:auto;font-size:12px;color:var(--sub);font-weight:400;cursor:pointer}
+  .muted{font-size:12px;color:var(--sub)}
+
+  /* hero balance */
+  .hero-bal{background:linear-gradient(135deg,#17313f 0%,#1f4a3d 100%);border:none;color:#fff;position:relative;overflow:hidden}
+  .hero-bal::after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(232,101,26,.4),transparent 68%)}
+  .hero-bal .lab{font-size:12.5px;color:#9db8ad}
+  .hero-bal .amt{font-size:34px;font-weight:800;letter-spacing:.5px;position:relative;z-index:1}
+  .hero-bal .amt small{font-size:15px;font-weight:400;color:#9db8ad}
+  .hero-bal .subline{display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:12px;color:#c9ded4}
+  .hero-bal .subline b{color:#ffd9c0}
+  .hero-bal .btns{display:flex;gap:10px;margin-top:14px;position:relative;z-index:1}
+  .btn{border:none;border-radius:11px;padding:10px 18px;font:700 13.5px inherit;cursor:pointer}
+  .btn.pri{background:var(--orange);color:#fff;box-shadow:0 8px 20px rgba(232,101,26,.4)}
+  .btn.pri:hover{filter:brightness(1.05)}
+  .btn.ghost{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.25)}
+  .btn.mini{padding:6px 13px;font-size:12.5px;border-radius:9px;background:var(--orange);color:#fff}
+  .btn.line{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .btn.line:hover{border-color:var(--orange-line)}
+
+  /* metric grid */
+  .metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+  @media (min-width:640px){.metrics{grid-template-columns:repeat(4,1fr)}}
+  .metric{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:0 6px 18px rgba(28,39,51,.05)}
+  .metric .lab{font-size:11.5px;color:var(--sub);display:flex;align-items:center;gap:6px}
+  .metric .val{font-size:22px;font-weight:800;margin-top:2px}
+  .metric .delta{font-size:11px;font-weight:700;color:var(--green);background:var(--green-soft);border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:2px}
+  .metric.hot .val{color:var(--orange)}
+
+  /* trend chart */
+  .chart{display:flex;align-items:flex-end;gap:6px;height:120px;padding-top:6px}
+  .chart .bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+  .chart .bar i{width:100%;max-width:22px;background:linear-gradient(180deg,#f09a4e,var(--orange));border-radius:5px 5px 2px 2px;transition:height .6s;cursor:default}
+  .chart .bar span{font-size:9.5px;color:var(--sub);white-space:nowrap}
+  .chart .bar.top i{background:linear-gradient(180deg,#17313f,#2c5c46)}
+
+  /* product grid */
+  .prods{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  @media (min-width:640px){.prods{grid-template-columns:repeat(4,1fr)}}
+  .prod{border:1px solid var(--line);border-radius:13px;padding:12px;background:#fff}
+  .prod .pico{font-size:20px;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--orange-soft)}
+  .prod.on .pico{background:var(--orange-soft)}
+  .prod.soon .pico{background:#eef2f8;filter:grayscale(.6)}
+  .prod b{display:block;font-size:13.5px;margin-top:8px}
+  .prod .rate{font-size:12px;color:var(--sub)}
+  .prod .rate b{display:inline;font-size:14px;color:var(--orange)}
+  .prod.soon .rate b{color:var(--sub)}
+  .prod .cover{font-size:10.5px;color:var(--sub);margin-top:5px;line-height:1.6}
+  .pill{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;vertical-align:1px}
+  .pill.ok{background:var(--green-soft);color:var(--green)}
+  .pill.todo{background:var(--amber-soft);color:var(--amber)}
+  .pill.soon{background:#eef2f8;color:var(--sub)}
+
+  /* feed */
+  .feed{list-style:none;display:flex;flex-direction:column;gap:9px}
+  .feed li{display:flex;gap:10px;align-items:flex-start;font-size:13px;padding-bottom:9px;border-bottom:1px dashed var(--line)}
+  .feed li:last-child{border-bottom:none;padding-bottom:0}
+  .feed .fic{width:28px;height:28px;border-radius:9px;background:#f0f4f9;display:grid;place-items:center;font-size:14px;flex:none;margin-top:1px}
+  .feed .fic.money{background:var(--orange-soft)}
+  .feed time{margin-left:auto;color:var(--sub);font-size:11.5px;white-space:nowrap}
+  .feed b{color:var(--orange)}
+
+  /* promo link card */
+  .linkbox{background:#f8fafd;border:1px dashed var(--orange-line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
+  .linkbox .url{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .linkbox code{font:700 13px/1.5 ui-monospace,Consolas,monospace;background:#fff;border:1px solid var(--line);border-radius:9px;padding:7px 11px;color:var(--navy);word-break:break-all;flex:1;min-width:160px}
+  .qr-flex{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .qr{width:118px;height:118px;flex:none;border:1px solid var(--line);border-radius:12px;background:#fff;padding:8px}
+  .qr svg{width:100%;height:100%;display:block}
+  .qr-note{font-size:12px;color:var(--sub);line-height:1.9}
+  .qr-note b{color:var(--ink)}
+
+  /* channel rows */
+  .chrow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px dashed var(--line);flex-wrap:wrap}
+  .chrow:last-child{border-bottom:none}
+  .chtag{font-size:12px;font-weight:700;background:var(--blue-soft);color:var(--blue);border-radius:8px;padding:2px 10px;flex:none}
+  .chrow code{font:12px/1.4 ui-monospace,Consolas,monospace;color:var(--navy);background:#f8fafd;border-radius:7px;padding:3px 8px;word-break:break-all}
+  .chrow .chstats{font-size:12px;color:var(--sub);white-space:nowrap}
+  .chrow .chstats b{color:var(--ink)}
+  .chrow .cp{margin-left:auto}
+  .addch{display:flex;gap:8px;margin-top:10px}
+  .addch input{flex:1;min-width:120px;font-size:13px;padding:8px 11px;border:1px solid var(--line);border-radius:9px;outline:none}
+  .addch input:focus{border-color:var(--orange-line);box-shadow:0 0 0 3px rgba(232,101,26,.12)}
+
+  /* steps */
+  .steps{display:grid;gap:10px}
+  @media (min-width:640px){.steps{grid-template-columns:repeat(3,1fr)}}
+  .step{background:#f8fafd;border:1px solid var(--line);border-radius:12px;padding:12px;font-size:12.5px;color:var(--sub)}
+  .step b{display:flex;gap:8px;align-items:center;color:var(--ink);font-size:13.5px;margin-bottom:4px}
+  .step .num{width:22px;height:22px;border-radius:7px;background:var(--orange);color:#fff;display:grid;place-items:center;font-size:12px;flex:none}
+
+  /* stat strip */
+  .strip{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .strip .sbox{flex:1;min-width:90px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:9px 12px;text-align:center}
+  .strip .sbox b{font-size:17px;display:block}
+  .strip .sbox span{font-size:11px;color:var(--sub)}
+
+  /* filter chips */
+  .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;-webkit-overflow-scrolling:touch}
+  .chip{flex:none;border:1px solid var(--line);background:#fff;color:var(--sub);font-size:12.5px;font-weight:600;border-radius:99px;padding:5px 13px;cursor:pointer;white-space:nowrap}
+  .chip.on{background:var(--orange);border-color:var(--orange);color:#fff}
+  .chip.lock{opacity:.55}
+  .chip b{font-weight:800}
+
+  /* customer rows */
+  .crow{display:flex;align-items:center;gap:11px;padding:12px 4px;border-bottom:1px dashed var(--line);cursor:pointer}
+  .crow:hover{background:#fafcff}
+  .crow:last-child{border-bottom:none}
+  .cava{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:16px;font-weight:700;flex:none}
+  .cinfo{flex:1;min-width:0}
+  .cinfo b{font-size:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .cinfo .csub{font-size:11.5px;color:var(--sub);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cnums{text-align:right;flex:none}
+  .cnums .cn1{font-size:11px;color:var(--sub);display:block}
+  .cnums .cn2{font-size:14px;font-weight:800;color:var(--orange)}
+
+  /* record rows (commission / payout) */
+  .rrow{display:flex;align-items:center;gap:11px;padding:11px 4px;border-bottom:1px dashed var(--line)}
+  .rrow:last-child{border-bottom:none}
+  .rico{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-size:16px;flex:none}
+  .rico.credit{background:var(--orange-soft)}
+  .rico.sub{background:var(--purple-soft)}
+  .rico.pay{background:var(--green-soft)}
+  .rinfo{flex:1;min-width:0}
+  .rinfo b{font-size:13.5px;display:block}
+  .rinfo span{font-size:11.5px;color:var(--sub);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rnum{text-align:right;flex:none}
+  .rnum .base{font-size:11px;color:var(--sub);display:block}
+  .rnum b{font-size:15px;color:var(--ink)}
+  .rnum b.plus{color:var(--orange)}
+  .rnum b.minus{color:var(--ink)}
+  .st{font-size:10.5px;font-weight:700;border-radius:6px;padding:1px 7px;display:inline-block;margin-top:2px}
+  .st.ok{background:var(--green-soft);color:var(--green)}
+  .st.wait{background:var(--amber-soft);color:var(--amber)}
+  .st.fail{background:#fdeaea;color:var(--red)}
+
+  /* rules list */
+  .rules{list-style:none;display:flex;flex-direction:column;gap:8px}
+  .rules li{font-size:13px;padding-left:18px;position:relative;color:var(--sub)}
+  .rules li::before{content:"";position:absolute;left:2px;top:10px;width:6px;height:6px;border-radius:50%;background:var(--orange-line)}
+  .rules li b{color:var(--ink)}
+  .warnbox{font-size:12.5px;background:var(--amber-soft);border:1px solid #f1dfb6;color:var(--amber);border-radius:11px;padding:10px 12px;line-height:1.8}
+
+  /* profile */
+  .profile{display:flex;gap:14px;align-items:center}
+  .profile .pava{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#E8651A,#f09a4e);color:#fff;display:grid;place-items:center;font-size:24px;font-weight:800;flex:none}
+  .profile b{font-size:17px}
+  .profile .muted{margin-top:2px}
+
+  .menu-list{display:flex;flex-direction:column}
+  .mitem{display:flex;align-items:center;gap:11px;padding:13px 4px;border-bottom:1px dashed var(--line);cursor:pointer;font-size:14px;font-weight:600}
+  .mitem:last-child{border-bottom:none}
+  .mitem .mic{width:32px;height:32px;border-radius:10px;background:#f0f4f9;display:grid;place-items:center;font-size:15px;flex:none}
+  .mitem .arr{margin-left:auto;color:#b6c3d2}
+
+  /* toast / modal */
+  #toast{position:fixed;top:64px;left:50%;transform:translateX(-50%) translateY(-8px);background:#1c2733;color:#fff;font-size:13px;border-radius:10px;padding:9px 16px;opacity:0;pointer-events:none;transition:.25s;z-index:99;max-width:86vw;text-align:center;box-shadow:0 10px 26px rgba(0,0,0,.25)}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .overlay{position:fixed;inset:0;background:rgba(18,28,38,.55);z-index:50;display:none;align-items:flex-end;justify-content:center}
+  .overlay.show{display:flex}
+  .sheet{background:#fff;width:100%;max-width:560px;border-radius:20px 20px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));max-height:86vh;overflow:auto;animation:up .25s}
+  @media (min-width:640px){.overlay{align-items:center}.sheet{border-radius:20px}}
+  @keyframes up{from{transform:translateY(24px);opacity:.6}}
+  .sheet .sh-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .sheet .sh-head b{font-size:16.5px}
+  .sheet .close{margin-left:auto;border:none;background:#f0f4f9;width:30px;height:30px;border-radius:9px;font-size:15px;cursor:pointer;color:var(--sub)}
+  .kv{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:10px 0}
+  .kv .kbox{background:#f8fafd;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+  .kv .kbox span{font-size:11px;color:var(--sub);display:block}
+  .kv .kbox b{font-size:16px}
+  .tl{list-style:none;margin-top:6px}
+  .tl li{position:relative;padding:0 0 14px 22px;font-size:13px}
+  .tl li::before{content:"";position:absolute;left:5px;top:8px;width:8px;height:8px;border-radius:50%;background:var(--orange)}
+  .tl li::after{content:"";position:absolute;left:8.5px;top:18px;bottom:0;width:1px;background:var(--line)}
+  .tl li:last-child::after{display:none}
+  .tl time{display:block;font-size:11px;color:var(--sub)}
+  .form-row{margin:12px 0}
+  .form-row label{font-size:12.5px;font-weight:700;color:var(--sub);display:block;margin-bottom:6px}
+  .form-row input[type=number]{width:100%;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:11px;outline:none}
+  .form-row input:focus{border-color:var(--orange-line);box-shadow:0 0 0 3px rgba(232,101,26,.12)}
+  .radio-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .rc{border:1.5px solid var(--line);border-radius:11px;padding:9px 6px;text-align:center;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--sub)}
+  .rc.on{border-color:var(--orange);background:var(--orange-soft);color:var(--orange)}
+  .rc i{display:block;font-style:normal;font-size:17px}
+  .err{font-size:12px;color:var(--red);min-height:18px;margin-top:4px}
+
+  /* empty / devnotes / footer */
+  .empty{border:1.5px dashed var(--line);border-radius:13px;padding:22px;text-align:center;color:var(--sub);font-size:13px;background:#fbfcfe}
+  .empty .big{font-size:26px;display:block;margin-bottom:6px;opacity:.5}
+  .devnotes{max-width:1180px;margin:10px auto 0;padding:0 16px 30px}
+  .devnotes details{background:#fff;border:1px solid var(--line);border-radius:13px;padding:12px 16px}
+  .devnotes summary{font-size:13px;font-weight:700;color:var(--sub);cursor:pointer;outline:none}
+  .devnotes ol{margin:10px 0 4px 18px;font-size:12.5px;color:var(--sub);line-height:2}
+  .devnotes b{color:var(--ink)}
+  .devnotes code{background:#f5f8fc;border-radius:5px;padding:0 5px;font-size:11.5px}
+  footer{border-top:1px solid var(--line);background:#fff;padding:16px;text-align:center;font-size:12px;color:var(--sub)}
+</style>
+</head>
+<body>
+
+<!-- ===== top bar ===== -->
+<div class="appbar">
+  <div class="wrap">
+    <div class="logo">思潼<i>AI</i><em>· 市场合伙人后台</em></div>
+    <span class="prototag">设计原型 v0.1</span>
+    <div class="me-chip"><span class="ava">思</span><span>思潼AI市场合伙人</span></div>
+  </div>
+</div>
+<div class="demobanner">原型演示 · 页面内所有数字均为演示数据，不代表已上线功能 · 20260923</div>
+
+<div class="shell">
+  <!-- ===== desktop sidebar ===== -->
+  <aside class="side">
+    <button class="snav active" data-view="dash"><span class="ic">📊</span>工作台</button>
+    <button class="snav" data-view="promo"><span class="ic">📣</span>推广链接</button>
+    <button class="snav" data-view="cust"><span class="ic">👥</span>我的客户</button>
+    <button class="snav" data-view="comm"><span class="ic">💰</span>佣金明细</button>
+    <button class="snav" data-view="me"><span class="ic">👤</span>我的</button>
+    <button class="withdraw-cta" onclick="openWithdraw()">提现 ¥<span id="sideBal">0</span></button>
+    <div class="side-note">用户通过你的链接注册，即永久归属。<br>智能体相关消费，按 <b>20%</b> 计佣。</div>
+  </aside>
+
+  <!-- ===== main ===== -->
+  <main class="main">
+
+    <!-- ========== 工作台 ========== -->
+    <section class="view active" id="view-dash">
+      <div class="vhead"><h2>工作台</h2><span class="desc">早上好，思潼AI市场合伙人 · 今天是 2026-09-23</span></div>
+
+      <div class="card hero-bal">
+        <div class="lab">可提现余额（元）</div>
+        <div class="amt" id="balBig">¥0.00</div>
+        <div class="subline">
+          <span>提现中 <b id="pendBig">¥0.00</b></span>
+          <span>本月佣金 <b>¥1,268.50</b></span>
+          <span>待结算 <b>¥19.80</b></span>
+        </div>
+        <div class="btns">
+          <button class="btn pri" onclick="openWithdraw()">立即提现</button>
+          <button class="btn ghost" onclick="setView('comm')">佣金明细</button>
+          <button class="btn ghost" onclick="setView('promo')">去推广</button>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div class="metric"><div class="lab">👥 累计客户</div><div class="val">181<span class="delta">+46 月</span></div></div>
+        <div class="metric hot"><div class="lab">💰 累计佣金</div><div class="val">¥4,286.40</div></div>
+        <div class="metric"><div class="lab">⚡ 本月计佣流水</div><div class="val">¥6,342.50</div></div>
+        <div class="metric"><div class="lab">📈 客户转化率</div><div class="val">3.4%</div></div>
+      </div>
+
+      <div class="card">
+        <h3>📊 近 14 天佣金趋势 <span class="more" onclick="setView('comm')">查看明细 →</span></h3>
+        <div class="chart" id="chart"></div>
+      </div>
+
+      <div class="card">
+        <h3>🧩 分佣产品</h3>
+        <div class="prods">
+          <div class="prod on"><div class="pico">🤖</div><b>智能体</b><div class="rate"><b>20%</b> · 已上线</div><div class="cover">积分充值 · 积分消耗 · 月度订阅</div></div>
+          <div class="prod soon"><div class="pico">🖥️</div><b>AI 硬件</b><div class="rate"><b>待定</b> · <span class="pill soon">敬请期待</span></div></div>
+          <div class="prod soon"><div class="pico">🎓</div><b>AI 课程</b><div class="rate"><b>待定</b> · <span class="pill soon">敬请期待</span></div></div>
+          <div class="prod soon"><div class="pico">🛒</div><b>更多商品</b><div class="rate">比例<b>独立配置</b> · 上新自动加入</div></div>
+        </div>
+        <p class="muted" style="margin-top:10px">智能体相关消费（积分充值、积分消耗、月度订阅）当前统一按 20% 计佣；每个商品的分佣比例独立配置，AI 硬件 / AI 课程等上架后自动出现在你的分佣产品中。</p>
+      </div>
+
+      <div class="card">
+        <h3>🔔 实时动态</h3>
+        <ul class="feed">
+          <li><span class="fic money">💰</span><span><b>美**姐</b> 消耗积分 ¥92.50，佣金 <b>+¥18.50</b> 入账</span><time>21:14</time></li>
+          <li><span class="fic money">👑</span><span><b>餐**东</b> 订阅月度会员 ¥99，佣金 <b>+¥19.80</b> 待结算</span><time>20:02</time></li>
+          <li><span class="fic">✨</span><span><b>美**姐</b> 通过「抖音简介」链接注册并完成首充</span><time>18:36</time></li>
+          <li><span class="fic money">💰</span><span><b>汽**赵</b> 消耗积分 ¥186.00，佣金 <b>+¥37.20</b> 入账</span><time>15:47</time></li>
+          <li><span class="fic">✨</span><span><b>装修**郑</b> 通过「朋友圈」链接注册</span><time>11:20</time></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ========== 推广链接 ========== -->
+    <section class="view" id="view-promo">
+      <div class="vhead"><h2>推广链接</h2><span class="desc">一人一码 · 注册即永久绑定归属</span></div>
+
+      <div class="card">
+        <h3>🔗 我的专属推广链接</h3>
+        <div class="linkbox">
+          <div class="url"><code id="mainLink">https://ai.lcppch.top/r/LQ8888</code><button class="btn mini" onclick="copyMainLink()">复制链接</button></div>
+          <div class="qr-flex">
+            <div class="qr" id="qrbox"></div>
+            <div class="qr-note">
+              <b>发朋友圈 / 社群 / 短音简介，扫码直达思潼AI商城。</b><br>
+              · 新用户通过此链接注册，<b>永久归属</b>到你的名下<br>
+              · 注册、充值、消耗、订阅全程自动关联计佣<br>
+              · <span class="muted">示意二维码 · 上线后自动生成真实二维码与推广海报</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>🏷️ 渠道链接管理 <span class="more">分渠道统计点击与注册</span></h3>
+        <div id="channelList"></div>
+        <div class="addch">
+          <input id="newChannelName" maxlength="12" placeholder="新建渠道名称，如：视频号 / 异业门店" />
+          <button class="btn mini" onclick="addChannel()">+ 创建渠道链接</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>🧭 归因规则</h3>
+        <div class="steps">
+          <div class="step"><b><span class="num">1</span>点击链接</b>客户点击你的专属链接或扫码进入商城，推广码自动写入访问记录。</div>
+          <div class="step"><b><span class="num">2</span>注册绑定</b>客户完成注册，即刻与你永久绑定（首触归因，后续不因再次点击他人链接而变更）。</div>
+          <div class="step"><b><span class="num">3</span>自动计佣</b>客户后续充值、消耗积分、订阅会员，系统按比例自动结算佣金到你的账户。</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>🎨 推广素材（即将上线）</h3>
+        <div class="empty"><span class="big">🎨</span>推广海报 / 话术包 / 落地页自定义，上线后可在此一键下载，无需自己做图。</div>
+      </div>
+    </section>
+
+    <!-- ========== 我的客户 ========== -->
+    <section class="view" id="view-cust">
+      <div class="vhead"><h2>我的客户</h2><span class="desc">通过你的链接注册的用户（信息已脱敏）</span></div>
+      <div class="strip">
+        <div class="sbox"><b>181</b><span>累计客户</span></div>
+        <div class="sbox"><b>73</b><span>活跃客户</span></div>
+        <div class="sbox"><b>46</b><span>本月新增</span></div>
+        <div class="sbox"><b>¥10,830</b><span>客户累计充值</span></div>
+      </div>
+      <div class="chips" id="custChips">
+        <button class="chip on" data-f="all">全部 (10)</button>
+        <button class="chip" data-f="active">活跃</button>
+        <button class="chip" data-f="sleep">沉睡</button>
+        <button class="chip" data-f="month">本月新增</button>
+      </div>
+      <div class="card" style="padding:6px 14px">
+        <div id="custList"></div>
+      </div>
+      <p class="muted" style="text-align:center">仅演示最近注册的 10 位客户 · 上线后支持搜索与分页</p>
+    </section>
+
+    <!-- ========== 佣金明细 ========== -->
+    <section class="view" id="view-comm">
+      <div class="vhead"><h2>佣金明细</h2><span class="desc">每一笔佣金可追溯来源订单</span></div>
+      <div class="strip">
+        <div class="sbox"><b>¥1,268.50</b><span>本月佣金</span></div>
+        <div class="sbox"><b>¥4,286.40</b><span>累计佣金</span></div>
+        <div class="sbox"><b>¥19.80</b><span>待结算</span></div>
+        <div class="sbox"><b>20%</b><span>智能体分佣比例</span></div>
+      </div>
+      <div class="chips" id="commChips">
+        <button class="chip on" data-f="all">全部</button>
+        <button class="chip" data-f="credit">⚡ 积分消耗</button>
+        <button class="chip" data-f="sub">👑 月度订阅</button>
+        <button class="chip lock" data-f="hw">🤖 AI硬件 🔒</button>
+        <button class="chip lock" data-f="course">🎓 AI课程 🔒</button>
+      </div>
+      <div class="card" style="padding:6px 14px">
+        <div id="commList"></div>
+      </div>
+      <div class="card">
+        <h3>📖 计佣规则</h3>
+        <ul class="rules">
+          <li><b>计佣基数：</b>智能体相关消费——积分充值、积分消耗（1 积分 = ¥0.05）与月度订阅实付金额；客户退款对应佣金自动扣回，防刷单。</li>
+          <li><b>分佣比例：</b>智能体当前统一 20%；每个商品比例独立配置，AI 硬件 / AI 课程上线后按各自比例自动加入。</li>
+          <li><b>入账周期：</b>消费次日（T+1）结算进入可提现余额，明细中「待结算」→「已入账」可全程追溯。</li>
+          <li><b>提现规则：</b>满 ¥100 可提，1-3 个工作日审核打款，支持微信零钱 / 支付宝 / 银行卡。</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ========== 我的 ========== -->
+    <section class="view" id="view-me">
+      <div class="vhead"><h2>我的</h2></div>
+
+      <div class="card">
+        <div class="profile">
+          <div class="pava">思</div>
+          <div>
+            <b>思潼AI市场合伙人</b>
+            <div class="muted">合伙人 ID：LQ8888 · 2026-08-01 加入</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>💳 提现管理</h3>
+        <div class="kv">
+          <div class="kbox"><span>可提现余额</span><b id="meBal">¥0.00</b></div>
+          <div class="kbox"><span>累计已提现</span><b>¥2,541.80</b></div>
+        </div>
+        <button class="btn pri" style="width:100%" onclick="openWithdraw()">申请提现</button>
+        <div style="margin-top:14px">
+          <div class="rrow" style="padding-left:0;padding-right:0">
+            <span class="rico pay">💳</span>
+            <div class="rinfo"><b>¥456.00</b><span>2026-09-22 10:31 · 微信零钱</span></div>
+            <div class="rnum"><span class="st wait">审核中</span></div>
+          </div>
+          <div class="rrow" style="padding-left:0;padding-right:0">
+            <span class="rico pay">💳</span>
+            <div class="rinfo"><b>¥1,200.00</b><span>2026-09-15 09:20 · 微信零钱</span></div>
+            <div class="rnum"><span class="st ok">已打款</span></div>
+          </div>
+          <div class="rrow" style="padding-left:0;padding-right:0">
+            <span class="rico pay">💳</span>
+            <div class="rinfo"><b>¥1,341.80</b><span>2026-09-01 11:02 · 微信零钱</span></div>
+            <div class="rnum"><span class="st ok">已打款</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:6px 14px">
+        <div class="menu-list">
+          <div class="mitem" onclick="toast('原型演示：上线后可管理收款方式')"><span class="mic">👛</span>收款方式（微信零钱 · 默认）<span class="arr">›</span></div>
+          <div class="mitem" onclick="setView('comm')"><span class="mic">📖</span>结算与分佣规则<span class="arr">›</span></div>
+          <div class="mitem" onclick="toast('原型演示：上线后展示运营专员企业微信')"><span class="mic">💬</span>联系运营<span class="arr">›</span></div>
+          <div class="mitem" onclick="toast('原型演示：确认退出登录？')"><span class="mic">🚪</span>退出登录<span class="arr">›</span></div>
+        </div>
+      </div>
+
+      <div class="warnbox">⚠️ 合伙人端仅展示脱敏后的客户昵称与手机号，不展示聊天内容与工作文件；客户隐私与平台数据严格隔离。</div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ===== mobile tabbar ===== -->
+<nav class="tabbar">
+  <button class="tnav active" data-view="dash"><span class="ic">📊</span>工作台</button>
+  <button class="tnav" data-view="promo"><span class="ic">📣</span>推广</button>
+  <button class="tnav" data-view="cust"><span class="ic">👥</span>客户</button>
+  <button class="tnav" data-view="comm"><span class="ic">💰</span>佣金</button>
+  <button class="tnav" data-view="me"><span class="ic">👤</span>我的</button>
+</nav>
+
+<div id="toast"></div>
+
+<!-- ===== modal root ===== -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<!-- ===== devnotes ===== -->
+<div class="devnotes">
+  <details>
+    <summary>交接备注 · 实现对接点（给技术实现方，评审时可忽略）</summary>
+    <ol>
+      <li><b>归因链路：</b>推广链接 <code>/r/:code</code> 落地商城首页并写入推广码；注册时写入绑定。可复用 schema 中已有 <code>ReferralCode</code> / <code>ReferralBinding</code>，推广码 owner 需持有 <code>MarketPartnerGrant</code>（表已存在）。</li>
+      <li><b>分佣计算：</b><code>apps/api/src/services/billing-cost-model.ts</code> 已预留 <code>PARTNER_SHARE_PERCENT</code> 与 <code>splitPartnerShare()</code>（当前全为 null 待拍板）。本原型口径：智能体相关消费（积分充值、积分消耗、月度订阅）统一 20%；用户 2026-09-23 拍板未来每个商品比例可能不同，建议把比例配置从「按能力」扩展为「按商品 SKU」维度。</li>
+      <li><b>佣金流水：</b>扣费流水已存在于 <code>WalletLedger</code> / <code>marketplaceLedgerEntry</code>；需新增 <code>PartnerCommission</code>（partnerId、customerId、sourceType、baseAmountCny、rate、commissionCny、status: pending→settled→withdrawable、退款扣回），佣金页面即该表的合伙人端视图。</li>
+      <li><b>提现：</b>需新增 <code>PayoutOrder</code> + 打款通道（建议微信商家转账）+ 平台侧审核后台；本原型只画合伙人端，满 ¥100 可提、T+1 结算、1-3 个工作日打款为建议规则，可调整。</li>
+      <li><b>商品预留：</b>商城 F3（AI 硬件）/ F4（AI 课程）楼层已上线占位，分佣比例待产品定价后配置，合伙人端「分佣产品」卡自动点亮，无需合伙人操作。</li>
+      <li><b>数据合规：</b>合伙人端只下发脱敏昵称/手机号（如「美**姐」「138****2261」），不下发完整手机号、聊天与工作数据。</li>
+      <li><b>合伙人身份：</b>暂不做合伙人分级（用户 2026-09-23 拍板），统一展示「思潼AI市场合伙人」，首版分佣比例固定 20%。</li>
+    </ol>
+  </details>
+</div>
+
+<footer>思潼AI 行业智能体平台 · 市场合伙人后台设计原型 v0.1 · 2026-09-23 · 数据均为演示数据</footer>
+
+<script>
+/* ================= 演示数据 ================= */
+const state = {
+  balance: 1288.60,      // 可提现
+  pending: 456.00,       // 提现中
+  mainLink: 'https://ai.lcppch.top/r/LQ8888',
+  channels: [
+    { tag:'朋友圈',   ch:'pyq',   clicks:1284, regs:42 },
+    { tag:'抖音简介', ch:'douyin', clicks:3560, regs:96 },
+    { tag:'社群',     ch:'group',  clicks:820,  regs:31 },
+    { tag:'线下物料', ch:'offline', clicks:214,  regs:12 },
+  ],
+  customers: [
+    { name:'美**姐',   phone:'138****2261', channel:'抖音简介', reg:'09-18', recharge:1200, consumed:986,  sub:0,    status:'active', last:'09-22' },
+    { name:'餐**东',   phone:'159****0342', channel:'朋友圈',   reg:'09-17', recharge:3000, consumed:2140, sub:99,    status:'active', last:'09-22' },
+    { name:'教**李',   phone:'186****7710', channel:'抖音简介', reg:'09-16', recharge:600,  consumed:312,  sub:99,   status:'active', last:'09-20' },
+    { name:'律**张',   phone:'131****5908', channel:'社群',     reg:'09-15', recharge:300,  consumed:84,   sub:0,    status:'active', last:'09-16' },
+    { name:'房**周',   phone:'177****2231', channel:'抖音简介', reg:'09-14', recharge:100,  consumed:36,   sub:0,    status:'sleep',  last:'09-14' },
+    { name:'健身**吴', phone:'135****8845', channel:'朋友圈',   reg:'09-12', recharge:2000, consumed:1230, sub:0,    status:'active', last:'09-21' },
+    { name:'装修**郑', phone:'188****4109', channel:'线下物料', reg:'09-10', recharge:500,  consumed:190,  sub:0,    status:'active', last:'09-18' },
+    { name:'保险**杨', phone:'150****6673', channel:'社群',     reg:'09-08', recharge:100,  consumed:20,   sub:0,    status:'sleep',  last:'09-17' },
+    { name:'母婴**陈', phone:'137****9926', channel:'抖音简介', reg:'09-05', recharge:800,  consumed:566,  sub:99,   status:'active', last:'09-21' },
+    { name:'汽**赵',   phone:'186****3057', channel:'抖音简介', reg:'09-01', recharge:1500, consumed:1090, sub:0,    status:'active', last:'09-22' },
+  ],
+  commissions: [
+    { time:'09-22 21:14', cust:'美**姐',   type:'credit', order:'MC-240922-0186', base:92.50,  comm:18.50,  status:'ok'   },
+    { time:'09-22 20:02', cust:'餐**东',   type:'sub',    order:'SUB-240922-0031', base:99.00,  comm:19.80,  status:'wait' },
+    { time:'09-22 15:47', cust:'汽**赵',   type:'credit', order:'MC-240922-0122', base:186.00, comm:37.20,  status:'ok'   },
+    { time:'09-21 19:30', cust:'健身**吴', type:'credit', order:'MC-240921-0377', base:230.00, comm:46.00,  status:'ok'   },
+    { time:'09-21 10:05', cust:'母婴**陈', type:'credit', order:'MC-240921-0215', base:56.40,  comm:11.28,  status:'ok'   },
+    { time:'09-20 22:41', cust:'教**李',   type:'credit', order:'MC-240920-0410', base:148.20, comm:29.64,  status:'ok'   },
+    { time:'09-20 09:12', cust:'美**姐',   type:'credit', order:'MC-240920-0155', base:78.00,  comm:15.60,  status:'ok'   },
+    { time:'09-19 17:26', cust:'餐**东',   type:'credit', order:'MC-240919-0288', base:312.00, comm:62.40,  status:'ok'   },
+    { time:'09-18 14:03', cust:'装修**郑', type:'credit', order:'MC-240918-0199', base:95.00,  comm:19.00,  status:'ok'   },
+    { time:'09-17 20:55', cust:'保险**杨', type:'credit', order:'MC-240917-0073', base:20.00,  comm:4.00,   status:'ok'   },
+    { time:'09-16 11:38', cust:'律**张',   type:'credit', order:'MC-240916-0120', base:42.00,  comm:8.40,   status:'ok'   },
+    { time:'09-15 16:20', cust:'汽**赵',   type:'credit', order:'MC-240915-0336', base:264.00, comm:52.80,  status:'ok'   },
+  ],
+  trend: [58,42,66,90,74,118,96,132,88,146,104,168,152,202],
+  custFilter:'all', commFilter:'all',
+};
+
+/* ================= 工具 ================= */
+const fmt = n => '¥' + n.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmt0 = n => '¥' + n.toLocaleString('zh-CN');
+const avColors = ['#fdeee2','#e8effd','#f1eafd','#e6f5ee','#fff4e0'];
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function copyText(txt, okMsg){
+  const done = () => toast(okMsg || '已复制：' + txt);
+  if (navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(txt).then(done).catch(()=>fallback());
+  } else fallback();
+  function fallback(){
+    const ta = document.createElement('textarea');
+    ta.value = txt; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); done(); }catch(e){ toast('复制失败，请长按链接手动复制'); }
+    document.body.removeChild(ta);
+  }
+}
+
+/* ================= 导航 ================= */
+function setView(v){
+  document.querySelectorAll('section.view').forEach(s=>s.classList.toggle('active', s.id === 'view-'+v));
+  document.querySelectorAll('.snav,.tnav').forEach(n=>n.classList.toggle('active', n.dataset.view === v));
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+document.querySelectorAll('.snav,.tnav').forEach(n=>n.addEventListener('click',()=>setView(n.dataset.view)));
+
+/* ================= 余额渲染 ================= */
+function renderBalance(){
+  const b = fmt(state.balance), p = fmt(state.pending);
+  document.getElementById('balBig').textContent = b;
+  document.getElementById('pendBig').textContent = p;
+  document.getElementById('sideBal').textContent = state.balance.toFixed(2);
+  document.getElementById('meBal').textContent = b;
+}
+
+/* ================= 趋势图 ================= */
+function renderChart(){
+  const box = document.getElementById('chart');
+  const max = Math.max(...state.trend);
+  const days = ['09-09','09-10','09-11','09-12','09-13','09-14','09-15','09-16','09-17','09-18','09-19','09-20','09-21','09-22'];
+  const topIdx = state.trend.indexOf(max);
+  box.innerHTML = state.trend.map((v,i)=>`
+    <div class="bar ${i===topIdx?'top':''}">
+      <i style="height:${Math.round(v/max*100)}%" title="${days[i]} 佣金 ${fmt(v)}"></i>
+      <span>${days[i].slice(3)}</span>
+    </div>`).join('');
+}
+
+/* ================= 二维码（示意） ================= */
+function renderQR(){
+  const box = document.getElementById('qrbox');
+  const n = 21, seedStr = state.mainLink;
+  let seed = 0; for (const c of seedStr) seed = (seed*31 + c.charCodeAt(0)) >>> 0;
+  const rnd = () => (seed = (seed*1664525 + 1013904223) >>> 0) / 4294967296;
+  let cells = '';
+  const finder = (x,y)=>{ // 7x7 定位角
+    cells += `<rect x="${x}" y="${y}" width="7" height="7" fill="#1c2733"/><rect x="${x+1}" y="${y+1}" width="5" height="5" fill="#fff"/><rect x="${x+2}" y="${y+2}" width="3" height="3" fill="#1c2733"/>`;
+  };
+  for (let y=0; y<n; y++) for (let x=0; x<n; x++){
+    const inFinder = (x<8&&y<8)||(x>=n-8&&y<8)||(x<8&&y>=n-8);
+    if (!inFinder && rnd() > .52) cells += `<rect x="${x}" y="${y}" width="1" height="1" fill="#1c2733"/>`;
+  }
+  finder(0,0); finder(n-7,0); finder(0,n-7);
+  box.innerHTML = `<svg viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges">${cells}</svg>`;
+}
+
+/* ================= 渠道 ================= */
+function renderChannels(){
+  const box = document.getElementById('channelList');
+  box.innerHTML = state.channels.map((c,i)=>{
+    const link = state.mainLink + '?ch=' + c.ch;
+    const rate = c.clicks ? (c.regs/c.clicks*100).toFixed(1)+'%' : '—';
+    return `<div class="chrow">
+      <span class="chtag">${c.tag}</span>
+      <code>${link}</code>
+      <span class="chstats">点击 <b>${c.clicks.toLocaleString()}</b> · 注册 <b>${c.regs}</b> · 转化 <b>${rate}</b></span>
+      <button class="btn mini cp" onclick="copyText('${link}','已复制「${c.tag}」渠道链接')">复制</button>
+    </div>`;
+  }).join('');
+}
+function addChannel(){
+  const inp = document.getElementById('newChannelName');
+  const name = inp.value.trim();
+  if (!name){ toast('请先输入渠道名称'); return; }
+  const ch = 'ch' + Date.now().toString(36).slice(-4);
+  state.channels.push({ tag:name, ch, clicks:0, regs:0 });
+  inp.value = '';
+  renderChannels();
+  toast('渠道「' + name + '」已创建，复制链接去推广吧');
+}
+function copyMainLink(){ copyText(state.mainLink); }
+
+/* ================= 客户 ================= */
+function custComm(c){ return Math.round(((c.consumed + (c.sub||0)) * 0.2) * 100) / 100; }
+function renderCustomers(){
+  const f = state.custFilter;
+  const list = state.customers.filter(c=>{
+    if (f==='active') return c.status==='active';
+    if (f==='sleep') return c.status==='sleep';
+    if (f==='month') return c.reg >= '09-01';
+    return true;
+  });
+  const box = document.getElementById('custList');
+  if (!list.length){ box.innerHTML = '<div class="empty" style="border:none;padding:26px 0">该筛选下暂无客户</div>'; return; }
+  box.innerHTML = list.map(c=>{
+    const i = state.customers.indexOf(c);
+    const color = avColors[i % avColors.length];
+    return `<div class="crow" onclick="openCustomer(${i})">
+      <div class="cava" style="background:${color}">${c.name[0]}</div>
+      <div class="cinfo">
+        <b>${c.name} ${c.status==='active'?'<span class="pill ok">活跃</span>':'<span class="pill todo">沉睡</span>'} ${c.sub?'<span class="pill ok">已订阅</span>':''}</b>
+        <span class="csub">${c.channel} · 09 月 ${c.reg.slice(3)} 注册 · ${c.phone}</span>
+      </div>
+      <div class="cnums">
+        <span class="cn1">充值 ${fmt0(c.recharge)} · 消耗 ${fmt0(c.consumed)}</span>
+        <span class="cn2">佣金 ${fmt(custComm(c))}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+document.querySelectorAll('#custChips .chip').forEach(ch=>ch.addEventListener('click',()=>{
+  document.querySelectorAll('#custChips .chip').forEach(x=>x.classList.remove('on'));
+  ch.classList.add('on');
+  if (ch.dataset.f==='hw'||ch.dataset.f==='course') return;
+  state.custFilter = ch.dataset.f;
+  renderCustomers();
+}));
+
+/* ================= 佣金 ================= */
+const typeMeta = {
+  credit:{ ico:'⚡', cls:'credit', label:'积分消耗' },
+  sub:   { ico:'👑', cls:'sub',    label:'月度订阅' },
+  hw:    { ico:'🤖', cls:'credit', label:'AI 硬件' },
+  course:{ ico:'🎓', cls:'credit', label:'AI 课程' },
+};
+function renderCommissions(){
+  const f = state.commFilter;
+  const box = document.getElementById('commList');
+  if (f==='hw'||f==='course'){
+    const m = typeMeta[f];
+    box.innerHTML = `<div class="empty" style="border:none;padding:30px 0">
+      <span class="big">${m.ico}</span><b>${m.label}分佣</b><br>商城「${m.label}」楼层上架后，客户每笔购买自动计入你的佣金，敬请期待。
+    </div>`;
+    return;
+  }
+  const list = state.commissions.filter(r=> f==='all' ? true : r.type===f);
+  box.innerHTML = list.map(r=>{
+    const m = typeMeta[r.type];
+    return `<div class="rrow">
+      <span class="rico ${m.cls}">${m.ico}</span>
+      <div class="rinfo"><b>${r.cust} · ${m.label}</b><span>订单 ${r.order} · ${r.time}</span></div>
+      <div class="rnum">
+        <span class="base">${fmt(r.base)} × 20%</span>
+        <b class="plus">+${fmt(r.comm)}</b><br>
+        <span class="st ${r.status==='ok'?'ok':'wait'}">${r.status==='ok'?'已入账':'待结算'}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+document.querySelectorAll('#commChips .chip').forEach(ch=>ch.addEventListener('click',()=>{
+  document.querySelectorAll('#commChips .chip').forEach(x=>x.classList.remove('on'));
+  ch.classList.add('on');
+  state.commFilter = ch.dataset.f;
+  renderCommissions();
+  if (ch.classList.contains('lock')) toast('「'+ch.textContent.replace('🔒','').trim()+'」上线后自动开启分佣');
+}));
+
+/* ================= 弹窗 ================= */
+function openModal(html){
+  document.getElementById('sheet').innerHTML = html;
+  document.getElementById('overlay').classList.add('show');
+}
+function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
+
+function openCustomer(i){
+  const c = state.customers[i];
+  const comm = custComm(c);
+  openModal(`
+    <div class="sh-head"><span class="cava" style="background:${avColors[i%avColors.length]};width:34px;height:34px;border-radius:10px;font-size:15px">${c.name[0]}</span><b>${c.name}</b><button class="close" onclick="closeModal()">✕</button></div>
+    <div class="muted" style="margin:-6px 0 8px">${c.channel} 渠道注册 · 手机 ${c.phone} · 信息已脱敏</div>
+    <div class="kv">
+      <div class="kbox"><span>累计充值</span><b>${fmt0(c.recharge)}</b></div>
+      <div class="kbox"><span>累计消耗</span><b>${fmt0(c.consumed)}</b></div>
+      <div class="kbox"><span>订阅金额</span><b>${c.sub?fmt0(c.sub):'—'}</b></div>
+      <div class="kbox"><span>贡献佣金</span><b style="color:var(--orange)">${fmt(comm)}</b></div>
+    </div>
+    <ul class="tl">
+      <li><b>通过「${c.channel}」推广链接注册</b><time>2026-${c.reg}</time></li>
+      ${c.sub?`<li><b>订阅月度会员</b>（¥99）<time>消费后自动计佣</time></li>`:''}
+      <li><b>最近活跃</b><time>2026-${c.last}</time></li>
+    </ul>
+    <p class="muted" style="margin-top:6px">智能体相关消费统一按 20% 计佣 · 客户退款对应佣金自动扣回</p>
+  `);
+}
+
+function openWithdraw(){
+  if (state.balance < 100){ toast('可提现余额不足 ¥100，无法提现'); return; }
+  openModal(`
+    <div class="sh-head"><b>申请提现</b><button class="close" onclick="closeModal()">✕</button></div>
+    <div class="muted">可提现余额 <b style="color:var(--orange);font-size:16px">${fmt(state.balance)}</b> · 满 ¥100 可提 · 1-3 个工作日审核打款</div>
+    <div class="form-row">
+      <label>提现金额（元）</label>
+      <input type="number" id="wdAmt" value="${state.balance.toFixed(2)}" min="100" max="${state.balance}" step="0.01" />
+      <div class="err" id="wdErr"></div>
+    </div>
+    <div class="form-row">
+      <label>到账方式</label>
+      <div class="radio-cards" id="wdMethods">
+        <div class="rc on" data-m="微信零钱"><i>🟢</i>微信零钱</div>
+        <div class="rc" data-m="支付宝"><i>🔵</i>支付宝</div>
+        <div class="rc" data-m="银行卡"><i>🏦</i>银行卡</div>
+      </div>
+    </div>
+    <button class="btn pri" style="width:100%;padding:12px" onclick="submitWithdraw()">确认提现</button>
+  `);
+  document.querySelectorAll('#wdMethods .rc').forEach(r=>r.addEventListener('click',()=>{
+    document.querySelectorAll('#wdMethods .rc').forEach(x=>x.classList.remove('on'));
+    r.classList.add('on');
+  }));
+}
+function submitWithdraw(){
+  const amt = parseFloat(document.getElementById('wdAmt').value);
+  const err = document.getElementById('wdErr');
+  if (!amt || amt < 100){ err.textContent = '最低提现 ¥100'; return; }
+  if (amt > state.balance){ err.textContent = '超出可提现余额 ' + fmt(state.balance); return; }
+  const method = document.querySelector('#wdMethods .rc.on').dataset.m;
+  const now = new Date();
+  const pad = x => String(x).padStart(2,'0');
+  const t = `09-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  state.balance = Math.round((state.balance - amt)*100)/100;
+  state.pending = Math.round((state.pending + amt)*100)/100;
+  const list = document.querySelector('#view-me .card:nth-of-type(2) .rrow').closest('div[style]');
+  if (list){
+    list.insertAdjacentHTML('afterbegin', `
+      <div class="rrow" style="padding-left:0;padding-right:0">
+        <span class="rico pay">💳</span>
+        <div class="rinfo"><b>${fmt(amt)}</b><span>${t} · ${method}</span></div>
+        <div class="rnum"><span class="st wait">审核中</span></div>
+      </div>`);
+  }
+  renderBalance();
+  closeModal();
+  toast('提现申请已提交，' + fmt(amt) + ' 将在 1-3 个工作日内打款至' + method);
+}
+
+/* ================= init ================= */
+renderBalance();
+renderChart();
+renderQR();
+renderChannels();
+renderCustomers();
+renderCommissions();
+</script>
+</body>
+</html>
