@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>爆款复刻智能体 · 复刻工作台 · 设计原型 v0.1 · 思潼AI 行业智能体平台</title>
+<style>
+  :root{
+    --bg:#F4F7FC; --card:#ffffff; --ink:#1c2733; --sub:#5b6b7c; --line:#e3e9f2;
+    --orange:#E8651A; --orange-soft:#fdeee2; --orange-line:#f7d4b8;
+    --green:#0f8a5f; --green-soft:#e6f5ee;
+    --amber:#b26a00; --amber-soft:#fff4e0;
+    --blue:#2563eb; --blue-soft:#e8effd;
+    --purple:#7c3aed; --purple-soft:#f1eafd;
+    --red:#d64545;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{background:var(--bg);color:var(--ink);font:15px/1.7 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+
+  /* ---------- top bar ---------- */
+  .topbar{position:sticky;top:0;z-index:9;background:rgba(244,247,252,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .topbar .wrap{display:flex;align-items:center;gap:10px;height:52px}
+  .topbar .logo{font-weight:800}
+  .topbar .logo i{font-style:normal;color:var(--orange)}
+  .topbar .tag{font-size:11px;color:var(--sub);border:1px solid var(--line);background:#fff;border-radius:99px;padding:2px 9px}
+  .topbar .tag.new{color:var(--orange);border-color:var(--orange-line);background:var(--orange-soft);font-weight:700}
+
+  /* ---------- hero ---------- */
+  .hero{background:linear-gradient(135deg,#17313f 0%,#274156 55%,#3a4a3f 100%);color:#fff;padding:32px 0 28px;position:relative;overflow:hidden}
+  .hero::after{content:"";position:absolute;right:-70px;top:-70px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(232,101,26,.45),transparent 68%)}
+  .hero .wrap{position:relative;z-index:1}
+  .hero .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+  .chip{font-size:12px;border-radius:99px;padding:3px 11px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22)}
+  .chip.dev{background:var(--orange);border-color:var(--orange);font-weight:700}
+  .hero h1{font-size:29px;letter-spacing:1px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .hero h1 .emoji{width:52px;height:52px;border-radius:14px;background:var(--orange);display:grid;place-items:center;font-size:27px;box-shadow:0 8px 24px rgba(232,101,26,.45);flex:none}
+  .hero p.hook{margin-top:12px;font-size:16px;color:#dce6e2;max-width:700px}
+  .hero p.ability{margin-top:4px;font-size:13.5px;color:#9db3a8;max-width:760px}
+  .hero .cta{margin-top:16px;display:inline-flex;align-items:center;gap:10px;background:var(--orange);color:#fff;font-weight:700;border-radius:12px;padding:11px 22px;font-size:15px;border:none;cursor:pointer;box-shadow:0 10px 26px rgba(232,101,26,.4)}
+  .hero .cta small{font-weight:400;opacity:.85;font-size:12px}
+
+  /* ---------- section ---------- */
+  section{padding:32px 0 4px}
+  .sec-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+  .sec-head h2{font-size:21px}
+  .sec-head .k{color:var(--orange);font-weight:800}
+  .sec-head .desc{font-size:13px;color:var(--sub)}
+  .sec-note{font-size:12.5px;color:var(--sub);margin-bottom:14px}
+
+  /* ---------- workbench stage ---------- */
+  .stage{background:#132530;border-radius:var(--radius);overflow:hidden;box-shadow:0 12px 30px rgba(19,37,48,.35)}
+  .stage .bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#0f1d26;color:#8fa8b3;font-size:12px;flex-wrap:wrap}
+  .stage .dot{width:10px;height:10px;border-radius:50%}
+  .dot.r{background:#ff5f57}.dot.y{background:#febc2e}.dot.g{background:#28c840}
+  .stage .url{background:#0a161e;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:3px 12px;font:11.5px/1.5 ui-monospace,Consolas,monospace;color:#7d95a0}
+  .stage .ctrls{margin-left:auto;display:flex;gap:6px;align-items:center}
+  .stage .st{display:flex;align-items:center;gap:6px;font-size:12px;color:#c9ded4}
+  .st-dot{width:8px;height:8px;border-radius:50%;background:#5f7d8c;display:inline-block}
+  .st-dot.playing{background:var(--orange);animation:pulse 1s infinite}
+  .st-dot.done{background:#28c840}
+  @keyframes pulse{50%{opacity:.35}}
+  .sbtn{background:transparent;border:1px solid rgba(255,255,255,.18);color:#c9ded4;border-radius:8px;font-size:12px;padding:4px 12px;cursor:pointer;font-weight:700}
+  .sbtn:hover{border-color:var(--orange);color:#ffb27d}
+  .sbtn.act{background:var(--orange);border-color:var(--orange);color:#fff}
+  .stage .body{display:grid;grid-template-columns:390px 1fr;min-height:620px}
+  @media(max-width:960px){.stage .body{grid-template-columns:1fr}}
+
+  /* ---------- 左侧：引导对话 ---------- */
+  .chat{border-right:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;background:#101f29}
+  .chat .head{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px}
+  .chat .head .av{width:34px;height:34px;border-radius:10px;background:var(--orange);display:grid;place-items:center;font-size:17px;flex:none}
+  .chat .head b{color:#e8f1ec;font-size:14.5px;display:block;line-height:1.3}
+  .chat .head span{color:#7d95a0;font-size:11.5px}
+  .chat .log{flex:1;overflow-y:auto;padding:14px 14px 8px;display:flex;flex-direction:column;gap:10px;max-height:540px}
+  .msg{display:flex;gap:8px;animation:fadein .35s}
+  @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .msg .m-av{width:26px;height:26px;border-radius:8px;background:var(--orange);display:grid;place-items:center;font-size:13px;flex:none;margin-top:2px}
+  .msg .bub{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);border-radius:4px 12px 12px 12px;padding:8px 12px;font-size:13px;color:#d5e3db;max-width:290px;line-height:1.65}
+  .msg .bub b{color:#ffb27d}
+  .msg.user{flex-direction:row-reverse}
+  .msg.user .bub{background:rgba(232,101,26,.16);border-color:rgba(232,101,26,.35);border-radius:12px 4px 12px 12px;color:#ffe3cd}
+  .opts{display:flex;flex-direction:column;gap:7px;margin:2px 0 6px 34px;animation:fadein .35s}
+  .opt{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);color:#dce8e1;border-radius:10px;padding:7px 12px;font-size:13px;text-align:left;cursor:pointer;transition:.18s;line-height:1.5}
+  .opt:hover{border-color:var(--orange);background:rgba(232,101,26,.12)}
+  .opt.recing{box-shadow:0 0 0 2px rgba(232,101,26,.35);border-color:var(--orange)}
+  .opt small{display:block;color:#7d95a0;font-size:11.5px}
+  .chat .input{display:flex;gap:8px;padding:10px 12px;border-top:1px solid rgba(255,255,255,.07)}
+  .chat .input input{flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:9px;color:#e8f1ec;font-size:12.5px;padding:7px 11px;outline:none}
+  .chat .input input:focus{border-color:var(--orange)}
+  .chat .input button{background:var(--orange);border:none;color:#fff;border-radius:9px;font-weight:700;font-size:12.5px;padding:7px 14px;cursor:pointer}
+  .chat .skip{padding:0 12px 10px;font-size:11.5px;color:#7d95a0;text-align:center}
+  .chat .skip a{color:#ffb27d;cursor:pointer;text-decoration:underline}
+
+  /* ---------- 右侧：工作区 ---------- */
+  .ws{display:flex;flex-direction:column;background:#f7fafc;overflow:hidden}
+  .brief{background:#fff;border-bottom:1px solid var(--line);padding:14px 18px}
+  .brief .t{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .brief .t b{font-size:15px}
+  .brief .t .meter{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub)}
+  .segs{display:flex;gap:3px}
+  .seg{width:16px;height:7px;border-radius:4px;background:#e3e9f2;transition:.3s}
+  .seg.on{background:var(--orange)}
+  .brief .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+  @media(max-width:1180px){.brief .grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:640px){.brief .grid{grid-template-columns:1fr}}
+  .bf{background:#f8fafd;border:1px solid var(--line);border-radius:10px;padding:8px 11px;min-height:52px;transition:.25s;cursor:default}
+  .bf .k{font-size:11px;color:var(--sub);display:flex;align-items:center;gap:5px}
+  .bf .v{font-size:12.8px;font-weight:600;margin-top:2px;color:#93a3b3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .bf.filled{background:var(--orange-soft);border-color:var(--orange-line)}
+  .bf.filled .v{color:var(--ink)}
+  .bf.flash{animation:bfpop .5s}
+  @keyframes bfpop{30%{transform:scale(1.04);box-shadow:0 0 0 3px rgba(232,101,26,.18)}}
+  .brief .ops{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+  .big-btn{border:none;border-radius:10px;font-weight:800;font-size:13.5px;padding:9px 20px;cursor:pointer;transition:.2s}
+  .big-btn.gen{background:var(--orange);color:#fff;box-shadow:0 6px 18px rgba(232,101,26,.35)}
+  .big-btn.gen:disabled{background:#b6c3d2;box-shadow:none;cursor:default}
+  .big-btn.ghost{background:#fff;border:1px solid var(--line);color:var(--sub)}
+  .big-btn.ghost:hover{border-color:var(--orange-line);color:var(--orange)}
+  .fee{font-size:12px;color:var(--sub);align-self:center}
+  .fee b{color:var(--orange)}
+
+  /* 占位/生成/交付 三态画布 */
+  .canvas{flex:1;padding:16px 18px 18px;overflow-y:auto;max-height:580px}
+  .ph-note{font-size:12.5px;color:var(--sub);margin-bottom:12px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .ph-note .tag{background:#fff;border:1px solid var(--line);border-radius:99px;font-size:11px;padding:2px 10px}
+  .ph-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  @media(max-width:1100px){.ph-grid{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:700px){.ph-grid{grid-template-columns:repeat(2,1fr)}}
+  .ph{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 12px 10px;position:relative;transition:.3s;min-height:104px}
+  .ph .no{font-size:11px;font-weight:800;color:#b6c3d2}
+  .ph b{font-size:12.8px;display:flex;gap:6px;align-items:center;margin-top:3px}
+  .ph span.d{font-size:11px;color:var(--sub);display:block;margin-top:3px;line-height:1.5}
+  .ph.locked{opacity:.55}
+  .ph.locked::after{content:"🔒";position:absolute;top:8px;right:9px;font-size:12px;opacity:.6}
+  .ph.ready{border-color:var(--orange-line);background:linear-gradient(180deg,#fff, #fffaf5)}
+  .ph.ready::after{content:"✓";position:absolute;top:6px;right:9px;font-size:12px;color:var(--green);font-weight:800}
+  .ph.gening{border-color:var(--orange);background:#fff}
+  .ph.gening .spin{position:absolute;top:8px;right:9px;width:13px;height:13px;border:2px solid var(--orange-line);border-top-color:var(--orange);border-radius:50%;animation:rot .7s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  .ph.done{border-color:#bfe6d2;background:linear-gradient(180deg,#fff,#f4fcf8)}
+  .ph.done::after{content:"✓";position:absolute;top:6px;right:9px;font-size:12px;color:var(--green);font-weight:800}
+  .g-blue{color:var(--blue)} .g-purple{color:var(--purple)} .g-green{color:var(--green)} .g-amber{color:var(--amber)} .g-orange{color:var(--orange)}
+
+  /* 解析 / 上传 动效条 */
+  .parselog{background:#132530;border-radius:12px;padding:12px 16px;font:12.5px/2 ui-monospace,Consolas,"Courier New",monospace;color:#c9ded4;margin-bottom:12px}
+  .parselog .ln{opacity:0;transform:translateY(4px);transition:.3s}
+  .parselog .ln.in{opacity:1;transform:none}
+  .parselog .ln.ok{color:#7ee2a8}
+  .parselog .ln.hl{color:#ffb27d;font-weight:700}
+  .parselog .title{color:#8fa8b3;font-size:11.5px;letter-spacing:1px;margin-bottom:2px}
+
+  /* 生成日志 */
+  .genlog{background:#132530;border-radius:12px;padding:14px 16px;font:12.5px/2 ui-monospace,Consolas,"Courier New",monospace;color:#c9ded4;max-height:230px;overflow-y:auto}
+  .genlog .ln{opacity:0;transform:translateY(4px);transition:.3s}
+  .genlog .ln.in{opacity:1;transform:none}
+  .genlog .ln.ok{color:#7ee2a8}
+  .genlog .ln.hl{color:#ffb27d;font-weight:700}
+
+  /* 交付视图 */
+  .dl-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .dl-head .ok-tag{background:var(--green-soft);color:var(--green);font-size:12px;font-weight:800;border-radius:99px;padding:3px 12px}
+  .dl-head .time{font-size:12px;color:var(--sub)}
+  .dl-head .ops{margin-left:auto;display:flex;gap:8px}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .tab{font-size:12.5px;font-weight:700;border:1px solid var(--line);background:#fff;color:var(--sub);border-radius:99px;padding:4px 14px;cursor:pointer}
+  .tab.act{background:#17313f;border-color:#17313f;color:#fff}
+  .pieces{display:flex;flex-direction:column;gap:12px}
+  .pc{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .pc .h{display:flex;align-items:center;gap:9px;padding:11px 15px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .pc .h .no{width:24px;height:24px;border-radius:8px;display:grid;place-items:center;font-size:12px;font-weight:800;color:#fff;flex:none}
+  .pc .h b{font-size:14.5px}
+  .pc .h .g-tag{font-size:11px;font-weight:700;border-radius:6px;padding:1px 8px}
+  .pc .h .btns{margin-left:auto;display:flex;gap:7px}
+  .cbtn{font-size:12px;font-weight:700;border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 11px;cursor:pointer;color:var(--sub)}
+  .cbtn:hover{border-color:var(--orange-line);color:var(--orange)}
+  .pc .c{padding:14px 16px;font-size:13.5px}
+  .pc .c h4{font-size:13px;margin:12px 0 5px;color:var(--ink)}
+  .pc .c h4:first-child{margin-top:0}
+  .pc .c table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0}
+  .pc .c th{background:#f4f7fb;text-align:left;padding:6px 9px;border:1px solid var(--line);font-weight:700;white-space:nowrap}
+  .pc .c td{padding:6px 9px;border:1px solid var(--line);vertical-align:top}
+  .pc .c ul{list-style:none;display:flex;flex-direction:column;gap:5px}
+  .pc .c li{padding-left:17px;position:relative}
+  .pc .c li::before{content:"";position:absolute;left:3px;top:9px;width:5px;height:5px;border-radius:50%;background:var(--orange-line)}
+  .seg-line{display:flex;gap:8px;align-items:flex-start;margin:7px 0}
+  .seg-line .tm{flex:none;background:var(--orange-soft);color:var(--orange);font-size:11px;font-weight:800;border-radius:7px;padding:2px 8px;margin-top:2px;white-space:nowrap}
+  .seg-line .tag2{display:inline-block;font-size:11px;font-weight:700;color:var(--blue);background:var(--blue-soft);border-radius:6px;padding:0 7px;margin-right:5px}
+  .edit-mark{font-size:11px;color:var(--amber);background:var(--amber-soft);border-radius:6px;padding:1px 7px;font-weight:700;cursor:pointer}
+  .edit-mark:hover{filter:brightness(.95)}
+  .warn{font-size:12px;color:var(--red);background:#fdeaea;border-radius:8px;padding:6px 10px;margin-top:8px}
+  .safe{font-size:12px;color:var(--green);background:var(--green-soft);border-radius:8px;padding:6px 10px;margin-top:8px}
+
+  /* 数字人形象卡 */
+  .face-grid{display:flex;gap:14px;flex-wrap:wrap}
+  .face-box{width:150px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#f8fafd}
+  .face-box .img{height:170px;display:grid;place-items:center;font-size:52px;background:linear-gradient(160deg,#fdeee2,#f7d4b8);position:relative}
+  .face-box .img.tgt{background:linear-gradient(160deg,#f1eafd,#d9c8f5)}
+  .face-box .cap{font-size:11.5px;color:var(--sub);text-align:center;padding:7px 6px;border-top:1px solid var(--line)}
+  .face-arrow{align-self:center;font-size:20px;color:var(--orange);font-weight:800}
+  .face-stats{flex:1;min-width:220px}
+  .face-stats li b{color:var(--green)}
+
+  /* 成片播放器 mock */
+  .film-row{display:flex;gap:16px;flex-wrap:wrap}
+  .player{width:270px;flex:none}
+  .pv{position:relative;height:480px;border-radius:14px;overflow:hidden;background:radial-gradient(120% 80% at 50% 20%,#2c4256 0%,#152635 70%);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;cursor:pointer}
+  .pv .who{width:120px;height:120px;border-radius:50%;background:linear-gradient(160deg,#fdeee2,#f0b98a);display:grid;place-items:center;font-size:56px;box-shadow:0 10px 34px rgba(0,0,0,.35);transition:.25s}
+  .pv.speaking .who{transform:scale(1.06);box-shadow:0 10px 44px rgba(232,101,26,.5)}
+  .pv .wave{display:flex;gap:3px;height:16px;align-items:center}
+  .pv .wave i{width:3.5px;border-radius:2px;background:var(--orange);height:4px}
+  .pv.speaking .wave i{animation:wv .5s infinite alternate}
+  .pv .wave i:nth-child(2){animation-delay:.1s}.pv .wave i:nth-child(3){animation-delay:.2s}
+  .pv .wave i:nth-child(4){animation-delay:.3s}.pv .wave i:nth-child(5){animation-delay:.15s}
+  @keyframes wv{to{height:15px}}
+  .pv .sub{position:absolute;left:10px;right:10px;bottom:54px;background:rgba(10,22,30,.72);color:#fff;font-size:12.5px;line-height:1.6;border-radius:9px;padding:7px 11px;text-align:center;min-height:52px;display:grid;place-items:center}
+  .pv .badge{position:absolute;top:10px;left:10px;font-size:10.5px;font-weight:800;color:#fff;background:rgba(232,101,26,.9);border-radius:7px;padding:2px 8px}
+  .pv .bigplay{position:absolute;inset:0;display:grid;place-items:center;background:rgba(10,22,30,.28)}
+  .pv .bigplay span{width:64px;height:64px;border-radius:50%;background:var(--orange);color:#fff;font-size:26px;display:grid;place-items:center;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+  .pctrl{display:flex;align-items:center;gap:8px;margin-top:9px}
+  .pctrl .pb{width:30px;height:30px;border-radius:50%;border:none;background:var(--orange);color:#fff;font-size:13px;cursor:pointer;flex:none}
+  .pctrl .track{flex:1;height:7px;border-radius:4px;background:#e3e9f2;position:relative;overflow:hidden}
+  .pctrl .track .barfill{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--orange);border-radius:4px}
+  .pctrl .tm2{font-size:11px;color:var(--sub);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .film-side{flex:1;min-width:230px}
+  .film-side .kv{display:grid;grid-template-columns:110px 1fr;gap:5px 10px;font-size:12.8px;margin:8px 0}
+  .film-side .kv .k{color:var(--sub)}
+  .film-side .kv .v{font-weight:600}
+  .film-ops{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .btn-dl{background:var(--green);color:#fff;border:none;border-radius:9px;font-weight:800;font-size:12.5px;padding:7px 16px;cursor:pointer}
+  .vsbox{width:150px;flex:none}
+  .vsbox .v{height:267px;border-radius:12px;border:1px dashed #c3cedd;background:#eef2f8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#93a3b3;font-size:12px;position:relative;filter:grayscale(.4)}
+  .vsbox .v .ic{font-size:40px;opacity:.7}
+  .vsbox .v .lk{position:absolute;top:8px;left:8px;font-size:10px;font-weight:800;background:rgba(0,0,0,.35);color:#fff;border-radius:6px;padding:1px 6px}
+  .vsbox .cap{font-size:11.5px;color:var(--sub);text-align:center;padding:7px 0}
+
+  /* ---------- 说明区块 ---------- */
+  .cards3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:900px){.cards3{grid-template-columns:1fr}}
+  .xcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:0 6px 18px rgba(28,39,51,.05)}
+  .xcard b.t{display:flex;align-items:center;gap:8px;font-size:15.5px;margin-bottom:8px}
+  .xcard .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:15px;flex:none}
+  .xcard p{font-size:13px;color:var(--sub)}
+  .xcard p+p{margin-top:6px}
+  table.cmp{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+  table.cmp th,table.cmp td{padding:9px 13px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  table.cmp th{background:#f4f7fb;font-size:12.5px}
+  table.cmp tr:last-child td{border-bottom:none}
+  table.cmp td:first-child{font-weight:700;white-space:nowrap;color:var(--sub);font-size:12.5px}
+  .grp-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .gbox{flex:1;min-width:180px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .gbox .gt{font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px}
+  .gbox .dotg{width:9px;height:9px;border-radius:50%}
+  .gbox ul{list-style:none;margin-top:7px;display:flex;flex-direction:column;gap:4px}
+  .gbox li{font-size:12.5px;color:var(--sub)}
+  .gbox li b{color:var(--ink)}
+  .qa-list{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:12px}
+  .qa-list b.q{font-size:13.5px;display:block;margin-bottom:3px}
+  .qa-list p{font-size:12.8px;color:var(--sub)}
+  footer{padding:30px 0 40px;text-align:center;font-size:12px;color:#9db0be}
+  .toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(20px);background:#17313f;color:#fff;font-size:13px;font-weight:600;border-radius:99px;padding:9px 22px;opacity:0;transition:.3s;z-index:99;box-shadow:0 10px 30px rgba(19,37,48,.4);pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%)}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="wrap">
+  <div class="logo">思潼<i>AI</i> 行业智能体平台</div>
+  <span class="tag new">爆款复刻 · 工作台原型 v0.1 · 新增能力提案</span>
+  <span class="tag" style="margin-left:auto">dev 内测 · 静态演示</span>
+</div></div>
+
+<header class="hero"><div class="wrap">
+  <div class="chips">
+    <span class="chip dev">原型 demo</span>
+    <span class="chip">ipzone__remix · 爆款复刻智能体（提案）</span>
+    <span class="chip">链接 / 文件双入口</span>
+    <span class="chip">数字人一键换人重演</span>
+    <span class="chip">0 拍摄 0 出镜</span>
+  </div>
+  <h1><span class="emoji">🎭</span>爆款复刻工作台</h1>
+  <p class="hook">别人的爆款，10 分钟变成你的成片：投喂抖音链接或视频文件，上传你的头像 / 全身照，剩下的交给数字人。</p>
+  <p class="ability">链接解析 → 口播转写 → 爆款结构拆解 → 你的数字人形象驱动 → 一键合成竖版成片。选题工作台解决「拍什么」，文案工作台解决「说什么」，复刻工作台解决「直接拍出来」。</p>
+  <button class="cta" onclick="document.getElementById('demo').scrollIntoView({behavior:'smooth'});window.__autostart&&window.__autostart()">▶ 开始演示（自动播放完整复刻流程）<small>约 50 秒 · 也可手动逐步点击</small></button>
+</div></header>
+
+<section id="demo"><div class="wrap">
+  <div class="sec-head"><h2>▶ <span class="k">工作台实况演示</span></h2><span class="desc">滚动到此处自动播放 · 左：引导对话｜右：复刻简报 + 交付区</span></div>
+  <div class="sec-note">演示数据为设计样例（标注「演示」处均为占位口径，非真实客户数据）。解析与合成环节模拟真实系统的排队与轮询等待。</div>
+
+  <div class="stage">
+    <div class="bar">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="url">ai.lcppch.top/agent/ipzone__remix/workbench（提案路由）</span>
+      <span class="st"><span class="st-dot" id="stDot"></span><span id="stTxt">○ 待演示</span></span>
+      <div class="ctrls">
+        <button class="sbtn" id="btnAuto">▶ 自动演示</button>
+        <button class="sbtn" id="btnManual">✋ 手动</button>
+        <button class="sbtn" id="btnReset">↻ 重置</button>
+      </div>
+    </div>
+    <div class="body">
+
+      <!-- 左：引导对话 -->
+      <div class="chat">
+        <div class="head">
+          <div class="av">🎭</div>
+          <div><b>爆款复刻师 · 复刻引导</b><span>一次只问一个问题 · 答案自动填入右侧简报</span></div>
+        </div>
+        <div class="log" id="chatLog"></div>
+        <div class="skip">老手？<a id="skipGuide">跳过引导，直接填简报 →</a></div>
+        <div class="input">
+          <input id="freeInput" placeholder="也可以直接打字，例如：换成我的克隆音色" />
+          <button id="freeSend">发送</button>
+        </div>
+      </div>
+
+      <!-- 右：工作区 -->
+      <div class="ws">
+        <div class="brief">
+          <div class="t">
+            <b>🎬 复刻简报</b>
+            <span style="font-size:12px;color:var(--sub)">字段可点击修改，改完可重新合成</span>
+            <div class="meter"><span id="briefPct">0/6</span><div class="segs" id="segs"></div></div>
+          </div>
+          <div class="grid" id="briefGrid"></div>
+          <div class="ops">
+            <button class="big-btn gen" id="btnGen" disabled>✨ 一键合成成片</button>
+            <button class="big-btn ghost" id="btnRegenAll" style="display:none">↻ 改简报重新合成</button>
+            <span class="fee" id="feeHint">完成配置后可合成 · 单条复刻 <b>按条计费</b>（提案：解析 10 + 合成 60 积分）</span>
+          </div>
+        </div>
+        <div class="canvas" id="canvas">
+          <div class="ph-note">👋 投喂爆款 + 上传形象后，五件交付物在这里逐件长出来<span class="tag">链接解析约 1 分钟</span><span class="tag">合成约 5-10 分钟</span></div>
+          <div class="ph-grid" id="phGrid"></div>
+          <div id="parseWrap" style="display:none"><div class="parselog" id="parseLog"></div></div>
+          <div id="genWrap" style="display:none">
+            <div class="ph-note" style="margin-top:4px">⏳ 合成中 · 前端每 30 秒轮询一次交付接口，最长等待 25 分钟（复用生产已验证的超时策略）</div>
+            <div class="genlog" id="genLog"></div>
+          </div>
+          <div id="dlWrap" style="display:none"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="sec-head"><h2>🔧 <span class="k">复刻流水线</span> · 四步把爆款变成你的成片</h2><span class="desc">全程工作台内完成 · 每一步产出都可见可改</span></div>
+  <div class="grp-row">
+    <div class="gbox"><div class="gt"><span class="dotg" style="background:var(--blue)"></span>① 投喂与解析</div><ul>
+      <li><b>抖音链接 / 视频文件</b> 双入口</li>
+      <li>自动下载原片 → <b>ASR 逐字转写</b></li>
+      <li>产出：拆解报告 + 口播逐字稿</li></ul></div>
+    <div class="gbox"><div class="gt"><span class="dotg" style="background:var(--purple)"></span>② 形象与音色</div><ul>
+      <li>上传<b>头像 / 半身照 / 全身照</b> → 训练数字人形象</li>
+      <li>音色三选：克隆原声风格 / 克隆我的声音 / 平台音色库</li>
+      <li>形象一次训练，跨任务反复复用</li></ul></div>
+    <div class="gbox"><div class="gt"><span class="dotg" style="background:var(--orange)"></span>③ 文案与结构</div><ul>
+      <li>三种复刻深度：像素级 / <b>结构复刻·文案换血</b> / 灵感复刻</li>
+      <li>逐字稿带时间轴，逐段可编辑</li>
+      <li>保留爆款节奏，替换成你的产品口径</li></ul></div>
+    <div class="gbox"><div class="gt"><span class="dotg" style="background:var(--green)"></span>④ 一键合成</div><ul>
+      <li>数字人口型驱动 + 字幕烧制 + BGM 混音</li>
+      <li>9:16 竖版 1080P 成片，可下载可重渲</li>
+      <li>质检：口型同步 / 时长偏差 / 画面规范</li></ul></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="sec-head"><h2>💡 <span class="k">设计说明</span> · 复刻工作台补齐内容生产最后一环</h2></div>
+  <div class="cards3" style="margin-top:12px">
+    <div class="xcard">
+      <b class="t"><span class="ic" style="background:var(--orange-soft);color:var(--orange)">🎬</span>选题、文案都齐了，卡在「拍」</b>
+      <p>选题工作台给出 10 条可开拍选题，文案工作台给出可照读逐字稿——但老板还是不想面对镜头、不想约拍摄、不想学剪辑。</p>
+      <p>复刻工作台把「拍出来」也接了：爆款结构 + 数字人形象 = 不出镜、不拍摄、不剪辑，10 分钟拿到能发的成片。</p>
+    </div>
+    <div class="xcard">
+      <b class="t"><span class="ic" style="background:var(--blue-soft);color:var(--blue)">🔗</span>双入口投喂，降低使用门槛</b>
+      <p>看到好视频，复制链接粘贴进来即可——系统自动解析、转写、拆结构；手里有文件就直接上传，不逼用户「先搞到链接」。</p>
+      <p>解析结果先出（拆解报告 + 逐字稿），用户确认后续环节——先看到价值，再等待合成。</p>
+    </div>
+    <div class="xcard">
+      <b class="t"><span class="ic" style="background:var(--green-soft);color:var(--green)">🧑‍💼</span>形象是资产，复用是复利</b>
+      <p>形象照一次上传训练，后续所有复刻任务直接选用，不用每次重传；音色克隆同样沉淀为个人资产。</p>
+      <p>换形象 / 换音色 / 改文案段落 → 局部重渲，不用整条重来。</p>
+    </div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="sec-head"><h2>⚖️ <span class="k">形态对比</span> · 自己翻拍 vs 复刻工作台</h2></div>
+  <div class="sec-note">对标市面成熟的「爆款复刻 / 数字人视频」产品形态，收进平台工作台体系，与选题、文案工作台并列。</div>
+  <table class="cmp" style="margin-top:8px">
+    <tr><th style="width:110px">维度</th><th>现在 · 自己翻拍</th><th>升级后 · 复刻工作台</th></tr>
+    <tr><td>出片周期</td><td>找参考→抄文案→约拍摄→剪辑，3-7 天</td><td>投喂链接到成片约 10 分钟（解析 1 分钟 + 合成 5-10 分钟）</td></tr>
+    <tr><td>出镜门槛</td><td>老板亲自出镜，状态、着装、口条都是坎</td><td>上传一张形象照，数字人替你出镜，0 拍摄</td></tr>
+    <tr><td>文案来源</td><td>自己听抄爆款文案，抄不全也抄不准</td><td>ASR 逐字转写 + 结构拆解，钩子/痛点/CTA 逐段标注</td></tr>
+    <tr><td>迭代成本</td><td>改一句重拍一条</td><td>改逐字稿对应段落 / 换形象 / 换音色，局部重渲</td></tr>
+    <tr><td>版权口径</td><td>直接搬原片画面，侵权风险高</td><td>只复用结构与文案灵感，成片全部重渲，不复用原片素材</td></tr>
+  </table>
+</div></section>
+
+<section><div class="wrap">
+  <div class="sec-head"><h2>🧱 <span class="k">五件交付</span> · 交付物结构</h2></div>
+  <div class="sec-note">对应复刻 skill 的固定输出合同；①② 在投喂解析后即产出，③④⑤ 在合成完成后交付。</div>
+  <div class="grp-row">
+    <div class="gbox"><div class="gt"><span class="dotg" style="background:var(--blue)"></span>📊 解析区</div><ul><li><b>① 爆款拆解报告</b> 原片数据·结构五段·爆款元素</li><li><b>② 口播逐字稿</b> 带时间轴·逐段可编辑</li></ul></div>
+    <div class="gbox"><div class="gt"><span class="dotg" style="background:var(--purple)"></span>🧑‍💼 形象区</div><ul><li><b>③ 数字人形象卡</b> 形象训练状态·口型测试·复用入口</li></ul></div>
+    <div class="gbox"><div class="gt"><span class="dotg" style="background:var(--green)"></span>🎬 成片区</div><ul><li><b>④ 复刻成片</b> 9:16 播放器·原片对照·下载/重渲</li></ul></div>
+    <div class="gbox"><div class="gt"><span class="dotg" style="background:var(--amber)"></span>🚀 发布区</div><ul><li><b>⑤ 发布包</b> 标题·话题·发布建议·评论区引导</li></ul></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="sec-head"><h2>🔧 <span class="k">工程落地要点</span> · 给技术合伙人</h2></div>
+  <div class="cards3" style="margin-top:12px">
+    <div class="xcard">
+      <b class="t"><span class="ic" style="background:var(--orange-soft);color:var(--orange)">1️⃣</span>前端</b>
+      <p>复用文案工作台骨架：<b>/agent/:sku/workbench</b> 路由 + 引导问答 + 简报 + 交付渲染三块结构不变。</p>
+      <p>新增组件：视频 / 链接投喂、形象照上传与授权勾选、逐字稿时间轴编辑器、成片播放器与下载、形象库选择器。</p>
+    </div>
+    <div class="xcard">
+      <b class="t"><span class="ic" style="background:var(--blue-soft);color:var(--blue)">2️⃣</span>后端 / 第三方能力</b>
+      <p>链接解析与 ASR 转写可复用 <b>vidrev 智能体既有链路</b>（视频下载 + 语音转写已在生产验证）。</p>
+      <p>数字人合成是<b>唯一新增的重资产能力</b>：需接第三方合成 API（候选：硅基智能 / 闪剪开放平台 / 即创等，选型见待确认）；建议先出供应商对比与报价再立项。</p>
+    </div>
+    <div class="xcard">
+      <b class="t"><span class="ic" style="background:var(--green-soft);color:var(--green)">3️⃣</span>计费与合规</b>
+      <p>按条计费两段点：解析（低成本）+ 合成（高成本，对应第三方渲染费用）；形象训练建议免费沉淀，合成时收费。</p>
+      <p>合规三条红线：形象照必须<b>本人授权勾选</b>；成片<b>不复用原片画面素材</b>（只借结构文案）；数字人内容需加<b>AI 生成标识</b>符合平台规范。</p>
+    </div>
+  </div>
+  <div class="qa-list">
+    <b class="q">❓ 待确认问题（建议合伙人拍板）</b>
+    <p>1. 数字人合成供应商选型：口型质量、API 稳定性、单条渲染成本、竖版 1080P 支持——建议拿 2-3 家做横向对比再定。</p>
+    <p>2. 单条定价：解析 + 合成一口价，还是分段计费（提案：解析 10 + 合成 60 积分）？改文案段落局部重渲怎么计费？</p>
+    <p>3. 形象库与音色库：是否做成租户级资产跨任务复用？音色克隆（需录音授权）第一期是否上线，还是先上平台音色库？</p>
+    <p>4. 商城上架：新增第 9 个数字员工（提案：能力核 <b>remix</b>，人名建议「唐刻」，头像待生成），上架位置与详情页文案待定。</p>
+    <p>5. 抖音链接解析的失败兜底：风控 / 地域限制导致下载失败时，是否引导用户改传本地文件（本 demo 已按双入口设计）。</p>
+  </div>
+</div></section>
+
+<footer>思潼AI 行业智能体平台 · 爆款复刻工作台原型 v0.1 · 2026-09-23 · 单文件离线可打开</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= 数据 ================= */
+const FIELDS = [
+  {key:'source', icon:'🔗', label:'爆款素材'},
+  {key:'mode',   icon:'🎚️', label:'复刻深度'},
+  {key:'face',   icon:'🧑‍💼', label:'我的形象'},
+  {key:'voice',  icon:'🔊', label:'音色'},
+  {key:'spec',   icon:'📐', label:'输出规格'},
+  {key:'script', icon:'📝', label:'文案版本'},
+];
+const QFLOW = [
+  {field:'source', q:'这次要复刻的爆款从哪来？', hint:'粘贴抖音链接，或直接上传视频文件；也可以先跳过，稍后从爆款库选。',
+   opts:[
+     {t:'🔗 粘贴抖音链接（演示样例）', d:'@流量操盘手·老周 · 点赞 12.4w · 42s 口播', v:'抖音链接 · @流量操盘手·老周（演示样例）', rec:true},
+     {t:'📤 上传视频文件', d:'mp4 / mov，自动转写拆解', v:'本地视频文件 · mp4'},
+     {t:'📚 从爆款库选', d:'按行业筛已验证爆款', v:'爆款库 · 待选'},
+   ]},
+  {field:'mode', q:'复刻到什么深度？', hint:'决定逐字稿的处理方式：越靠前越还原，越靠后越原创。',
+   opts:[
+     {t:'像素级复刻', d:'结构+文案+节奏全还原，只换成我出镜', v:'像素级复刻 · 只换人'},
+     {t:'结构复刻 · 文案换血（推荐）', d:'保留爆款结构，文案智能改写成我的产品', v:'结构复刻 · 文案换血', rec:true},
+     {t:'灵感复刻', d:'只借选题角度和钩子句式', v:'灵感复刻 · 只借角度'},
+   ]},
+  {field:'face', q:'数字人用哪个形象出镜？', hint:'上传头像 / 半身照 / 全身照均可；照片会训练成你的专属数字人形象，之后可反复复用。',
+   opts:[
+     {t:'📤 上传半身照（演示：自动完成）', d:'正面清晰、光线均匀效果最佳', v:'我的半身照 · 新上传（演示）', rec:true},
+     {t:'📤 上传头像 / 全身照', d:'头像适合近景口播，全身照支持肢体动作', v:'我的照片 · 新上传'},
+     {t:'👔 使用已训练形象：沈总 · 商务 1 号', d:'形象库直接复用，免训练', v:'已训练形象 · 沈总商务1号（演示）'},
+   ]},
+  {field:'voice', q:'成片用什么声音？', hint:'口播由音色驱动，和形象独立搭配。',
+   opts:[
+     {t:'🔊 平台音色库：磁性商务男声', d:'即选即用，效果稳定', v:'平台音色 · 磁性商务男声', rec:true},
+     {t:'🎙️ 克隆我的声音', d:'需录制 30 秒朗读授权', v:'克隆音色 · 我的原声'},
+     {t:'🎭 原片风格音色', d:'自动匹配原爆款的声音质感', v:'原片风格音色'},
+   ]},
+  {field:'spec', q:'输出什么规格？', hint:'默认跟随原片时长与竖版比例，抖音 / 视频号直接可发。',
+   opts:[
+     {t:'9:16 竖版 1080P · 时长跟随原片 42s', d:'抖音 / 视频号直发规格', v:'9:16 · 1080P · 42s', rec:true},
+     {t:'9:16 · 压缩至 30s 快节奏版', d:'自动加速剪辑，节奏更密', v:'9:16 · 1080P · 30s 快剪'},
+     {t:'1:1 方版', d:'适配主页橱窗 / 朋友圈', v:'1:1 · 1080P'},
+   ]},
+  {field:'script', q:'逐字稿用哪个版本合成？', hint:'原片已转写完成，改写稿按「结构复刻·文案换血」生成，逐段可编辑。',
+   opts:[
+     {t:'✅ 采用智能改写稿（思潼OS口径）', d:'右侧 ② 逐字稿可预览，点段落可改', v:'智能改写稿 · 思潼OS口径', rec:true},
+     {t:'原文照用', d:'完全还原原片文案', v:'原文照用'},
+     {t:'我要手动改', d:'进入逐字稿编辑器逐段修改', v:'手动编辑版'},
+   ]},
+];
+/* 播放器分镜字幕（演示样例，与交付②一致） */
+const SEGS = [
+  {t:'0-3s',   tag:'钩子', txt:'你的账号不是没流量，是缺一个系统'},
+  {t:'3-12s',  tag:'痛点', txt:'天天拍天天剪，播放量还是三位数——问题不在努力，在方法'},
+  {t:'12-25s', tag:'方法', txt:'一套增长OS：选题有人出、文案有人写，连爆款复刻都有人替你拍'},
+  {t:'25-35s', tag:'证据', txt:'以前一条视频磨两天，现在10分钟出片，一天能发三条'},
+  {t:'35-42s', tag:'CTA',  txt:'评论区留言「OS」，把你的人工获客换成自动流水线'},
+];
+const PIECES = [
+  {id:'p1',no:'①',g:'parse', gt:'解析区', gcls:'g-blue', icon:'📊', title:'爆款拆解报告',
+   d:'原片数据·结构五段·爆款元素',
+   html:`<table><tr><th style="width:92px">维度</th><th>内容</th></tr>
+     <tr><td>原片信息</td><td>@流量操盘手·老周（演示样例）· 点赞 12.4w · 评论 8.6k · 转发 2.1w · 42s 口播</td></tr>
+     <tr><td>结构拆解</td><td>钩子(0-3s) → 痛点(3-12s) → 方法(12-25s) → 证据(25-35s) → CTA(35-42s)</td></tr>
+     <tr><td>爆款元素</td><td>反差开场「不是…是…」+ 具体数字对比 + 评论区留言钩子，全程高信息密度口播</td></tr>
+     <tr><td>可复刻点</td><td>五段结构 / 节奏配比 3-9-13-10-7 / 钩子句式 / CTA 落点方式</td></tr>
+     <tr><td>版权口径</td><td>仅复用结构与文案灵感，<b>不复用原片画面与素材</b>，成片全部重渲</td></tr></table>`,
+   plain:'一、爆款拆解报告（演示样例）\n原片：@流量操盘手·老周 · 点赞12.4w · 评论8.6k · 转发2.1w · 42s口播\n结构：钩子(0-3s)→痛点(3-12s)→方法(12-25s)→证据(25-35s)→CTA(35-42s)\n爆款元素：反差开场+数字对比+留言钩子\n可复刻点：五段结构/节奏3-9-13-10-7/钩子句式/CTA落点\n版权口径：只借结构文案，成片全部重渲'},
+  {id:'p2',no:'②',g:'parse', gt:'解析区', gcls:'g-blue', icon:'📝', title:'口播逐字稿（智能改写版）',
+   d:'42 秒 · 带时间轴 · 逐段可编辑',
+   html: SEGS.map(s=>`<div class="seg-line"><span class="tm">${s.t} ${s.tag}</span><div>${s.txt} <span class="edit-mark" onclick="toast('演示：进入该段落编辑（真实版支持逐段改写后局部重渲）')">✎ 编辑</span></div></div>`).join('') +
+     `<div class="safe">✓ 改写稿已按「结构复刻·文案换血」保留原片节奏，产品口径替换为思潼AI增长OS；段落编辑后仅重渲对应片段。</div>`,
+   plain:'二、口播逐字稿（智能改写版·42秒）\n0-3s【钩子】你的账号不是没流量，是缺一个系统\n3-12s【痛点】天天拍天天剪，播放量还是三位数——问题不在努力，在方法\n12-25s【方法】一套增长OS：选题有人出、文案有人写，连爆款复刻都有人替你拍\n25-35s【证据】以前一条视频磨两天，现在10分钟出片，一天能发三条\n35-42s【CTA】评论区留言「OS」，把你的人工获客换成自动流水线'},
+  {id:'p3',no:'③',g:'face', gt:'形象区', gcls:'g-purple', icon:'🧑‍💼', title:'数字人形象卡',
+   d:'形象训练 · 口型测试 · 可复用',
+   html:`<div class="face-grid">
+     <div class="face-box"><div class="img">🧑</div><div class="cap">我的半身照（演示占位）</div></div>
+     <div class="face-arrow">→</div>
+     <div class="face-box"><div class="img tgt">🤵</div><div class="cap">数字人形象 · 已就绪</div></div>
+     <div class="face-stats"><ul>
+       <li><b>✓ 形象训练完成</b>：正面口播姿态，支持轻微手势</li>
+       <li><b>✓ 口型驱动测试通过</b>：中文音素覆盖率 100%</li>
+       <li><b>✓ 已入形象库</b>：后续复刻任务直接选用，免重传</li>
+       <li><b>ⓘ 授权记录</b>：本人形象授权已勾选存证（演示）</li>
+     </ul></div>
+   </div>`,
+   plain:'三、数字人形象卡\n形象：我的半身照 → 数字人（演示占位）\n训练：正面口播姿态+轻微手势，已就绪\n口型测试：中文音素覆盖100%\n形象库：已入库可复用\n授权：本人授权已存证（演示）'},
+  {id:'p4',no:'④',g:'video', gt:'成片区', gcls:'g-green', icon:'🎬', title:'复刻成片',
+   d:'9:16 · 1080P · 口型同步 98%',
+   html:`<div class="film-row">
+     <div class="player">
+       <div class="pv" id="pv" onclick="togglePlay()">
+         <span class="badge">AI 数字人 · 已标识</span>
+         <div class="who">🤵</div>
+         <div class="wave"><i></i><i></i><i></i><i></i><i></i></div>
+         <div class="sub" id="pvSub">点击播放 · 字幕跟随分镜</div>
+         <div class="bigplay" id="bigplay"><span>▶</span></div>
+       </div>
+       <div class="pctrl">
+         <button class="pb" id="pbBtn" onclick="togglePlay()">▶</button>
+         <div class="track"><div class="barfill" id="barFill"></div></div>
+         <span class="tm2" id="pvTime">00:00 / 00:42</span>
+       </div>
+     </div>
+     <div class="vsbox">
+       <div class="v"><span class="lk">🔒 仅参考</span><span class="ic">🎬</span>原片 42s<br>不复用其画面</div>
+       <div class="cap">原片对照 · 结构一致<br>画面全部重渲</div>
+     </div>
+     <div class="film-side">
+       <div class="kv">
+         <span class="k">规格</span><span class="v">9:16 · 1080×1920 · 30fps · 42s</span>
+         <span class="k">形象</span><span class="v">我的数字人（半身照训练）</span>
+         <span class="k">音色</span><span class="v">平台音色 · 磁性商务男声</span>
+         <span class="k">质检</span><span class="v">口型同步 98% · 时长偏差 0.2s · AI 标识已嵌</span>
+         <span class="k">耗时</span><span class="v">解析 1 分钟 + 合成 8 分 40 秒（演示）</span>
+       </div>
+       <div class="film-ops">
+         <button class="btn-dl" onclick="toast('演示：已开始下载 remix_42s_1080x1920.mp4')">↓ 下载 MP4</button>
+         <button class="cbtn" onclick="toast('演示：换形象/音色后仅局部重渲，不整条重来')">↻ 换形象重渲</button>
+         <button class="cbtn" onclick="toast('演示：发布包见下方 ⑤')">🚀 去发布</button>
+       </div>
+     </div>
+   </div>`,
+   plain:'四、复刻成片\n规格：9:16 · 1080×1920 · 30fps · 42s\n形象：我的数字人（半身照训练）\n音色：平台音色·磁性商务男声\n质检：口型同步98%·时长偏差0.2s·AI标识已嵌\n（成片为视频文件，此处为演示占位）'},
+  {id:'p5',no:'⑤',g:'pub', gt:'发布区', gcls:'g-amber', icon:'🚀', title:'发布包',
+   d:'标题 · 话题 · 发布建议 · 评论引导',
+   html:`<h4>标题</h4><ul>
+   <li><b>主标题（推荐）：</b>别再自己拍视频了，10 分钟复刻一条爆款</li>
+   <li><b>备选 1：</b>为什么你天天更新还是没流量？缺的不是努力</li>
+   <li><b>备选 2：</b>把爆款换成我的脸之后，一天发三条</li></ul>
+   <h4>话题</h4><p><span class="topic-chip" style="display:inline-block;font-size:12px;color:var(--blue);background:var(--blue-soft);border-radius:99px;padding:2px 11px;margin:2px 3px 2px 0;font-weight:600">#创业</span><span style="display:inline-block;font-size:12px;color:var(--blue);background:var(--blue-soft);border-radius:99px;padding:2px 11px;margin:2px 3px 2px 0;font-weight:600">#商业思维</span><span style="display:inline-block;font-size:12px;color:var(--blue);background:var(--blue-soft);border-radius:99px;padding:2px 11px;margin:2px 3px 2px 0;font-weight:600">#AI数字人</span><span style="display:inline-block;font-size:12px;color:var(--blue);background:var(--blue-soft);border-radius:99px;padding:2px 11px;margin:2px 3px 2px 0;font-weight:600">#获客</span></p>
+   <h4>发布建议</h4><ul><li>抖音 18:00-19:00 首发，视频号错开 1 小时</li><li>置顶评论：「你最想复刻哪条爆款？丢链接给我」（引导互动）</li><li>连续 3 天各发一条复刻片，测试同一形象不同选题的留存</li></ul>
+   <div class="warn">⚠️ 数字人成片发布时保留 AI 生成标识；不使用「私信我 / 加微信」等违规引导话术。</div>`,
+   plain:'五、发布包\n标题：别再自己拍视频了，10分钟复刻一条爆款\n备选：为什么你天天更新还是没流量 / 把爆款换成我的脸之后一天发三条\n话题：#创业 #商业思维 #AI数字人 #获客\n建议：抖音18-19点首发，视频号错开1小时；置顶评论引导丢链接；连续3天同形象不同选题测留存\n注意：保留AI标识，不用违规引导话术'},
+];
+const PARSE_LINES = [
+  ['→ 解析分享链接，定位视频 …', ''],
+  ['✓ 原片获取成功 · 42s · 1080×1920', 'ok'],
+  ['→ 语音转写（ASR）…', ''],
+  ['✓ 转写完成 · 6 句 · 187 字 · 置信度 96%', 'ok'],
+  ['→ 爆款结构拆解（钩子/痛点/方法/证据/CTA）…', ''],
+  ['✓ 拆解完成 · 交付 ①② 已生成，右侧可预览', 'ok'],
+  ['✓ 解析计费：10 积分（演示）', 'hl'],
+];
+const GEN_LINES = [
+  '→ 校验素材、形象授权与简报 …',
+  '→ 加载爆款复刻 skill（remix_skill V1 · 提案）',
+  '→ 文案时间轴对齐（42s · 5 段）…',
+];
+
+/* ================= 状态 ================= */
+let S = {phase:'idle', qi:0, brief:{}, auto:true, timer:null, playing:false, done:false};
+let genIdx = -1, pvTimer = null, pvPos = 0, pvOn = false;
+const $ = id => document.getElementById(id);
+const chatLog=$('chatLog'), phGrid=$('phGrid'), canvas=$('canvas');
+
+/* 简报区 */
+function renderBrief(){
+  const g = $('briefGrid'); g.innerHTML='';
+  FIELDS.forEach(f=>{
+    const v = S.brief[f.key];
+    const d = document.createElement('div');
+    d.className='bf'+(v?' filled':''); d.id='bf_'+f.key;
+    d.innerHTML = `<div class="k">${f.icon} ${f.label}${v?'':' · 待填'}</div><div class="v">${v?fmt(f.key,v):'——'}</div>`;
+    d.title = v ? '点击可修改（演示）' : '等待左侧引导填入';
+    d.onclick = ()=>{ if(S.phase==='done'||S.phase==='gen') return; toast(S.phase==='ask'?'演示版：请先回答当前问题':'演示版：修改字段请在真实版中点击编辑'); };
+    g.appendChild(d);
+  });
+  const n = FIELDS.filter(f=>S.brief[f.key]).length;
+  $('briefPct').textContent = n+'/6';
+  [...$('segs').children].forEach((s,i)=>s.classList.toggle('on', i<n));
+  $('btnGen').disabled = !(n===6 && S.phase==='confirm');
+}
+function fmt(k,v){
+  if(k==='mode') return v;
+  return v.length>26 ? v.slice(0,26)+'…' : v;
+}
+(function(){const s=$('segs'); for(let i=0;i<6;i++){const d=document.createElement('div');d.className='seg';s.appendChild(d);}})();
+
+/* 占位卡片 */
+function renderPH(state){ // state: locked | ready | gen | done
+  phGrid.innerHTML = PIECES.map((p,i)=>{
+    let cls = state||'locked';
+    if(state==='gen') cls = i<=genIdx ? 'gening' : (S.brief.source&&(p.g==='parse') ? 'ready' : 'locked');
+    if(state==='ready') cls = (S.brief.source&&p.g==='parse') ? 'ready' : 'ready';
+    return `<div class="ph ${cls}" id="ph_${p.id}">
+      ${state==='gen'&&i<=genIdx?'<span class="spin"></span>':''}
+      <div class="no ${p.gcls}">${p.no} ${p.gt}</div><b>${p.icon} ${p.title}</b><span class="d">${p.d}</span>
+    </div>`;}).join('');
+}
+function initialPH(){
+  phGrid.innerHTML = `
+    <div class="ph locked" style="grid-column:span 5"><div class="no g-blue">投喂爆款后自动开始</div><b>🔗 粘贴抖音链接 / 上传视频文件</b><span class="d">解析约 1 分钟 → 拆解报告 + 逐字稿先生成 · 合成约 5-10 分钟 → 形象卡 + 成片 + 发布包</span></div>`;
+}
+
+/* 聊天 */
+function addMsg(html, who){
+  const d = document.createElement('div'); d.className='msg'+(who==='user'?' user':'');
+  d.innerHTML = who==='user' ? `<div class="bub">${html}</div>` : `<div class="m-av">🎭</div><div class="bub">${html}</div>`;
+  chatLog.appendChild(d); chatLog.scrollTop = chatLog.scrollHeight; return d;
+}
+function setStatus(txt, cls){ $('stTxt').textContent=txt; $('stDot').className='st-dot '+(cls||''); }
+
+function askQuestion(){
+  const q = QFLOW[S.qi];
+  S.phase='ask'; setStatus(`引导中（${S.qi+1}/6）`,'playing');
+  addMsg(`<b>${q.q}</b><br><span style="color:#9db3a8;font-size:12px">${q.hint||''}</span>`);
+  const box = document.createElement('div'); box.className='opts';
+  q.opts.forEach((o)=>{
+    const b = document.createElement('button'); b.className='opt';
+    b.innerHTML = `${o.t}${o.d?`<small>${o.d}</small>`:''}`;
+    b.onclick = ()=>answer(o, b);
+    box.appendChild(b);
+  });
+  chatLog.appendChild(box); chatLog.scrollTop = chatLog.scrollHeight;
+  if(S.auto){
+    const recIdx = q.opts.findIndex(o=>o.rec); const idx = recIdx>=0?recIdx:0;
+    const btns = box.children;
+    setTimeout(()=>btns[idx].classList.add('recing'),500);
+    setTimeout(()=>answer(q.opts[idx], btns[idx]),1300);
+  }
+}
+function answer(o, btn){
+  if(S.phase!=='ask') return;
+  S.phase='answering';
+  const q = QFLOW[S.qi];
+  if(btn&&btn.parentElement) btn.parentElement.remove();
+  addMsg(o.t,'user');
+  S.brief[q.field] = o.v; renderBrief();
+  const bf=$('bf_'+q.field); if(bf) bf.classList.add('flash');
+  if(q.field==='source'){ S.phase='parsing'; renderPH('locked'); runParse(); return; }
+  S.qi++;
+  if(S.auto) S.timer=setTimeout(nextStep, 600); else nextStep();
+}
+/* Q1 后：解析动效（①②提前交付） */
+function runParse(){
+  setStatus('解析爆款中…','playing');
+  $('parseWrap').style.display='block';
+  const log = $('parseLog');
+  log.innerHTML = `<div class="title">爆款解析 · @流量操盘手·老周（演示样例）</div>`;
+  let li=0;
+  const step=()=>{
+    if(S.phase!=='parsing') return;
+    if(li<PARSE_LINES.length){
+      const [txt, cls] = PARSE_LINES[li];
+      const d=document.createElement('div'); d.className='ln '+cls;
+      d.textContent=txt; log.appendChild(d);
+      requestAnimationFrame(()=>d.classList.add('in'));
+      li++; S.timer=setTimeout(step, 700);
+    } else {
+      S.timer=setTimeout(()=>{
+        S.brief.source = S.brief.source; renderBrief();
+        const b=$('bf_source'); if(b) b.classList.add('flash');
+        addMsg('解析完成 ✅ 原片 <b>42s 口播</b>，已拆出五段结构（钩子→痛点→方法→证据→CTA）。<b>① 拆解报告、② 口播逐字稿</b>已先生成，右侧可预览。继续配几个问题就能合成。');
+        S.qi++;
+        if(S.auto) S.timer=setTimeout(askQuestion, 700); else askQuestion();
+      }, 400);
+    }
+  };
+  step();
+}
+function nextStep(){
+  if(S.qi<QFLOW.length){ if(S.auto) S.timer=setTimeout(askQuestion, 500); else askQuestion(); }
+  else {
+    S.phase='confirm'; setStatus('引导完成','done');
+    addMsg(`齐了 ✅ 简报 6/6。右侧确认后点 <b>「✨ 一键合成成片」</b>——口播驱动你的数字人，约 5-10 分钟出片。中途可随时打断我改配置。`);
+    renderPH('ready'); renderBrief();
+    $('feeHint').innerHTML = '本次合成：<b>60 积分</b>（解析 10 积分已扣 · 演示提案价）';
+    if(S.auto) S.timer=setTimeout(runGen, 1600);
+  }
+}
+
+/* 合成 */
+function runGen(){
+  if(S.phase!=='confirm') return;
+  S.phase='gen'; genIdx=-1; setStatus('合成中…','playing');
+  $('btnGen').disabled=true;
+  renderPH('gen'); $('genWrap').style.display='block';
+  const log = $('genLog'); log.innerHTML='';
+  const lines = [
+    ...GEN_LINES,
+    ...['✓ 数字人形象驱动（照片 → 口型 + 表情）','✓ 语音合成（音色：磁性商务男声）','✓ 视频渲染 1080×1920 @30fps','✓ 字幕烧制 + BGM 混音','✓ 质检：口型同步 98% · 时长偏差 0.2s'],
+    '✓ 交付完成，已写入交付区（演示：合成用时 8 分 40 秒）'
+  ];
+  let li=0;
+  const step=()=>{
+    if(S.phase!=='gen') return;
+    if(li<lines.length){
+      const d=document.createElement('div'); d.className='ln '+(lines[li].startsWith('✓')?'ok':(li===0?'':'hl'));
+      d.textContent=lines[li]; log.appendChild(d);
+      requestAnimationFrame(()=>d.classList.add('in'));
+      log.scrollTop=log.scrollHeight;
+      if(lines[li].startsWith('✓') && li>=GEN_LINES.length){ genIdx++; renderPH('gen'); }
+      li++; S.timer=setTimeout(step, 680);
+    } else {
+      S.timer=setTimeout(finish, 500);
+    }
+  };
+  step();
+}
+function finish(){
+  S.phase='done'; S.done=true; setStatus('已交付','done');
+  $('genWrap').style.display='none'; phGrid.innerHTML='';
+  renderDeliverables();
+  addMsg('交付完成 ✅ 五件已放好：拆解报告、逐字稿、形象卡、<b>复刻成片</b>、发布包。改逐字稿某段、换形象或音色，都是局部重渲，不用整条重来。');
+  $('btnRegenAll').style.display='';
+}
+
+/* 交付视图 */
+function renderDeliverables(){
+  const groups = [...new Set(PIECES.map(p=>p.g))];
+  const gname = {parse:'📊 解析',face:'🧑‍💼 形象',video:'🎬 成片',pub:'🚀 发布'};
+  $('dlWrap').style.display='block';
+  $('dlWrap').innerHTML = `
+    <div class="dl-head">
+      <span class="ok-tag">✓ 已交付</span>
+      <span class="time">5 件 · 2026-09-23 21:08（演示）</span>
+      <div class="ops">
+        <button class="cbtn" onclick="copyAll()">⧉ 复制全部文本</button>
+        <button class="cbtn" onclick="toast('演示：已导出复刻任务档案')">↓ 导出档案</button>
+      </div>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <div class="pieces" id="pieces"></div>`;
+  const tabs = $('tabs');
+  tabs.innerHTML = `<button class="tab act" data-g="all">全部 5</button>` +
+    groups.map(g=>`<button class="tab" data-g="${g}">${gname[g]} ${PIECES.filter(p=>p.g===g).length}</button>`).join('');
+  tabs.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+    tabs.querySelectorAll('.tab').forEach(x=>x.classList.remove('act')); t.classList.add('act');
+    drawPieces(t.dataset.g);
+  });
+  drawPieces('all');
+}
+function drawPieces(g){
+  const list = PIECES.filter(p=>g==='all'||p.g===g);
+  const gcolor = {parse:'var(--blue)',face:'var(--purple)',video:'var(--green)',pub:'var(--amber)'};
+  const gsoft  = {parse:'var(--blue-soft)',face:'var(--purple-soft)',video:'var(--green-soft)',pub:'var(--amber-soft)'};
+  $('pieces').innerHTML = list.map(p=>`
+    <div class="pc" id="pc_${p.id}">
+      <div class="h">
+        <span class="no" style="background:${gcolor[p.g]}">${p.no}</span>
+        <b>${p.icon} ${p.title}</b>
+        <span class="g-tag" style="color:${gcolor[p.g]};background:${gsoft[p.g]}">${p.gt}</span>
+        <div class="btns">
+          <button class="cbtn" onclick="copyPiece('${p.id}')">⧉ 复制本件</button>
+          <button class="cbtn" onclick="regenPiece('${p.id}')">↻ 重生成</button>
+        </div>
+      </div>
+      <div class="c">${p.html}</div>
+    </div>`).join('');
+}
+function findPiece(id){ return PIECES.find(p=>p.id===id); }
+function copyPiece(id){
+  const p=findPiece(id); copyText(p.plain).then(()=>toast(`已复制「${p.title}」`));
+}
+function copyAll(){
+  copyText(PIECES.map(p=>p.plain).join('\n\n────────\n\n')).then(()=>toast('已复制全部交付文本'));
+}
+function regenPiece(id){
+  const p=findPiece(id); const card=$('pc_'+id); if(!card) return;
+  card.style.opacity=.45; toast(`正在重生成「${p.title}」（演示）…`);
+  setTimeout(()=>{ card.style.opacity=1; toast(`「${p.title}」已重新生成（演示）`); },1400);
+}
+function copyText(t){
+  return new Promise(res=>{
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(res,res).then(()=>res()); }
+    else { const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta); res(); }
+  });
+}
+function toast(t){ const el=$('toast'); el.textContent=t; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),1900); }
+
+/* 成片 mock 播放器（5 段 × 1.6s，模拟 42s） */
+function togglePlay(){
+  if(S.phase!=='done'){ toast('先看完演示流程，成片交付后可播放'); return; }
+  pvOn = !pvOn;
+  $('bigplay').style.display = pvOn ? 'none' : 'grid';
+  $('pbBtn').textContent = pvOn ? '❚❚' : '▶';
+  $('pv').classList.toggle('speaking', pvOn);
+  if(pvOn){ pvTimer=setInterval(pvTick, 50); } else { clearInterval(pvTimer); }
+}
+function pvTick(){
+  pvPos += 0.1; // 演示 5 倍速：42s 压缩到 8.4s
+  if(pvPos>=42){ pvPos=0; }
+  const pct = pvPos/42*100;
+  $('barFill').style.width = pct+'%';
+  const ss = Math.floor(pvPos/42*SEGS.length);
+  const seg = SEGS[Math.min(ss, SEGS.length-1)];
+  $('pvSub').textContent = seg.txt;
+  const cur = Math.floor(pvPos);
+  $('pvTime').textContent = '00:'+String(cur).padStart(2,'0')+' / 00:42';
+}
+
+/* 自由输入（演示） */
+$('freeSend').onclick = freeSend;
+$('freeInput').addEventListener('keydown', e=>{ if(e.key==='Enter') freeSend(); });
+function freeSend(){
+  const v = $('freeInput').value.trim(); if(!v) return;
+  $('freeInput').value='';
+  addMsg(v,'user');
+  setTimeout(()=>{
+    if(/音色|声音/.test(v)){ S.brief.voice='克隆音色 · 我的原声'; renderBrief(); const b=$('bf_voice'); if(b)b.classList.add('flash'); addMsg('好的，音色已切换为 <b>克隆我的声音</b>，简报同步更新 ✅（真实版会引导录制 30 秒授权朗读）'); }
+    else if(/小红书/.test(v)){ addMsg('收到 ✅ 发布包会补 <b>小红书版标题与话题</b>（演示版仅记录；真实版由发布件自动适配）'); }
+    else if(/重新|换一/.test(v)){ addMsg('收到，重新合成已排队（演示）。真实版里我会按新配置重渲对应片段。'); }
+    else { addMsg('已记录：<b>'+v.slice(0,40)+'</b>…（演示版仅回声确认；真实版由智能体理解并更新简报或追问澄清）'); }
+  },500);
+}
+
+/* 跳过引导 */
+$('skipGuide').onclick = ()=>{
+  if(S.phase==='done'||S.phase==='gen') return;
+  resetAll(false);
+  QFLOW.forEach(q=>{ const rec=q.opts.find(o=>o.rec)||q.opts[0]; S.brief[q.field]=rec.v; });
+  S.qi=QFLOW.length;
+  addMsg('检测到跳过引导：已用<b>示例简报</b>填满 6/6（含演示爆款链接），可自由修改后一键合成。');
+  renderBrief(); renderPH('ready'); S.phase='confirm'; setStatus('引导完成（跳过）','done');
+  $('feeHint').innerHTML = '本次合成：<b>60 积分</b>（解析 10 积分已扣 · 演示提案价）';
+};
+
+/* 控制条 */
+$('btnAuto').onclick = ()=>{ setMode(true); if(!started) window.__autostart(); };
+$('btnManual').onclick = ()=>{ setMode(false); if(!started){ started=true; resetAll(true); } };
+function setMode(auto){
+  S.auto=auto;
+  $('btnAuto').classList.toggle('act',auto); $('btnManual').classList.toggle('act',!auto);
+  clearTimeout(S.timer);
+  if(auto){
+    if(S.phase==='ask'){
+      const boxes=chatLog.querySelectorAll('.opts'); const last=boxes[boxes.length-1];
+      if(last){ const q=QFLOW[S.qi]; const rec=q.opts.find(o=>o.rec)||q.opts[0]; const idx=q.opts.indexOf(rec); last.children[idx].classList.add('recing'); S.timer=setTimeout(()=>answer(rec,last.children[idx]),900); }
+    } else if(S.phase==='confirm'){ S.timer=setTimeout(runGen,800); }
+  }
+}
+$('btnReset').onclick = ()=>resetAll(true);
+$('btnGen').onclick = ()=>{ if(S.phase==='confirm') runGen(); };
+$('btnRegenAll').onclick = ()=>{
+  S.phase='confirm'; S.done=false; genIdx=-1; setStatus('引导完成','done');
+  $('dlWrap').style.display='none'; $('btnRegenAll').style.display='none';
+  renderPH('ready'); addMsg('已回到简报确认态。改完字段（点击右侧字段编辑，真实版支持）后再次合成。演示：3 秒后自动重跑。');
+  S.timer=setTimeout(runGen,3000);
+};
+
+function resetAll(greet){
+  clearTimeout(S.timer); clearInterval(pvTimer); pvOn=false; pvPos=0;
+  S={phase:'idle',qi:0,brief:{},auto:S.auto,timer:null,playing:false,done:false};
+  genIdx=-1;
+  chatLog.innerHTML='';
+  $('parseWrap').style.display='none'; $('parseLog').innerHTML='';
+  $('genWrap').style.display='none'; $('genLog').innerHTML='';
+  $('dlWrap').style.display='none'; $('dlWrap').innerHTML='';
+  $('btnRegenAll').style.display='none';
+  const pv=$('pv'); if(pv){ pv.classList.remove('speaking'); $('bigplay').style.display='grid'; $('pbBtn').textContent='▶'; $('barFill').style.width='0'; $('pvSub').textContent='点击播放 · 字幕跟随分镜'; $('pvTime').textContent='00:00 / 00:42'; }
+  initialPH(); renderBrief();
+  $('feeHint').innerHTML='完成配置后可合成 · 单条复刻 <b>按条计费</b>（提案：解析 10 + 合成 60 积分）';
+  if(greet){ setStatus('待演示',''); addMsg('你好，我是<b>爆款复刻师</b> 🎭<br>把别人的爆款变成你的成片——<b>一次只问一个问题</b>：投喂爆款、上传你的照片，然后一键换人重演。答案会自动填进右侧「复刻简报」。'); S.timer=setTimeout(askQuestion,700); }
+}
+setMode(true);
+
+/* 进入视口自动播放 */
+let started=false;
+window.__autostart = ()=>{ if(!started){started=true; resetAll(true);} };
+const io=new IntersectionObserver(es=>{ es.forEach(e=>{ if(e.isIntersecting&&!started){ started=true; resetAll(true);} }); },{threshold:.35});
+io.observe(document.querySelector('.stage'));
+</script>
+</body>
+</html>

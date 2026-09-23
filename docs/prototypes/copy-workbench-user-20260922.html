@@ -42,6 +42,9 @@
   .ahead .tag{font-size:11.5px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:99px;padding:2px 10px}
   .ahead .ops{margin-left:auto;display:flex;gap:8px}
   .abtn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);color:#e8f1ec;border-radius:9px;font-size:12.5px;font-weight:700;padding:6px 14px;cursor:pointer;font-family:inherit}
+  .abtn.demo{background:rgba(232,101,26,.18);border-color:rgba(232,101,26,.55);color:#ffd9bd}
+  .abtn.demo:hover{background:rgba(232,101,26,.32)}
+  .abtn.demo.on{background:var(--red);border-color:var(--red);color:#fff;animation:micpulse 1.1s infinite}
   .abtn:hover{border-color:var(--orange);color:#ffb27d}
   .abtn.act{background:var(--orange);border-color:var(--orange);color:#fff}
 
@@ -201,6 +204,7 @@
     <div class="tags"><span class="tag">访谈式引导 · 7 问</span><span class="tag">🎤 支持语音输入</span><span class="tag">内容十件套</span><span class="tag">⬇ 交付可下载 Word</span></div>
   </div>
   <div class="ops">
+    <button class="abtn demo" id="btnDemo">▶ 自动演示</button>
     <button class="abtn" id="btnReset">↻ 重置</button>
   </div>
 </div></div>
@@ -860,7 +864,45 @@ function setDepth(d){
 }
 
 /* ---------- 顶栏操作 ---------- */
-$('btnReset').onclick = ()=>resetAll(true);
+/* ---------- 自动演示：模拟真人逐字打字走全流程（演示用，用户手动输入即停） ---------- */
+let demoOn=false, demoAbort=false;
+const dSleep=ms=>new Promise(r=>setTimeout(r,ms));
+function dWait(fn,timeout){return new Promise(res=>{const t0=Date.now();(function p(){if(demoAbort)return res(false);if(fn())return res(true);if(Date.now()-t0>timeout)return res(false);setTimeout(p,150);})();});}
+async function dType(text){ $('freeInput').value=''; for(const ch of text){ if(demoAbort)return; $('freeInput').value+=ch; await dSleep(38);} await dSleep(450); }
+function setDemoBtn(on){ const b=$('btnDemo'); b.textContent=on?'⏹ 停止演示':'▶ 自动演示'; b.classList.toggle('on',on); }
+async function runDemo(){
+  if(demoOn){ demoAbort=true; return; }
+  demoOn=true; demoAbort=false; setDemoBtn(true);
+  resetAll(true); await dSleep(600);
+  const steps=[
+    {text:'开始',                                            done:()=>S.phase==='ask'},
+    {text:SAMPLES.q1_who,        done:()=>S.qi>=1||S.phase==='confirm'},
+    {text:SAMPLES.q2_goal,       done:()=>S.qi>=2||S.phase==='confirm'},
+    {text:SAMPLES.q3_audience,   done:()=>S.qi>=3||S.phase==='confirm'},
+    {text:SAMPLES.q4_material,   done:()=>S.qi>=4||S.phase==='confirm'},
+    {text:SAMPLES.q5_redline,    done:()=>S.qi>=5||S.phase==='confirm'},
+    {text:SAMPLES.q6_region,     done:()=>S.qi>=6||S.phase==='confirm'},
+    {text:SAMPLES.q7_budget,     done:()=>S.phase==='confirm'},
+    {text:'没问题',                                          done:()=>S.phase==='gen'||S.phase==='done'},
+  ];
+  for(const st of steps){
+    if(demoAbort) break;
+    await dType(st.text);
+    if(demoAbort) break;
+    freeSend();
+    await dWait(st.done, 15000);
+    await dSleep(700);
+  }
+  if(!demoAbort){
+    await dWait(()=>S.phase==='done', 45000);
+    if(!demoAbort) toast('演示完毕：访谈 → 确认 → 生成 → 十件套交付，全流程走完 ✅');
+  }
+  demoOn=false; setDemoBtn(false);
+}
+$('btnDemo').onclick=runDemo;
+['input','pointerdown'].forEach(ev=>$('freeInput').addEventListener(ev,()=>{ if(demoOn) demoAbort=true; }));
+
+$('btnReset').onclick = ()=>{ demoAbort=true; resetAll(true); };
 $('btnGen').onclick = ()=>{ if(S.phase==='confirm'){ generateMsg(); } };
 $('btnRegenAll').onclick = ()=>{
   S.phase='confirm'; S.genIdx=-1;
