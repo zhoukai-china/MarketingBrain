@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>IP定位智能体 · 定位工作台 · 设计原型 v0.1 · 思潼AI 行业智能体平台</title>
+<title>IP定位智能体 · 定位工作台 · 思潼AI商城</title>
 <style>
   :root{
     --bg:#F4F7FC; --card:#ffffff; --ink:#1c2733; --sub:#5b6b7c; --line:#e3e9f2;
@@ -94,6 +94,10 @@
   .chat .input input{flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:9px;color:#e8f1ec;font-size:12.5px;padding:7px 11px;outline:none}
   .chat .input input:focus{border-color:var(--orange)}
   .chat .input button{background:var(--orange);border:none;color:#fff;border-radius:9px;font-weight:700;font-size:12.5px;padding:7px 14px;cursor:pointer}
+  .chat .input .mic{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:#e8f1ec;border-radius:9px;font-size:14px;padding:6px 10px;cursor:pointer;flex:none;font-weight:400}
+  .chat .input .mic:hover{border-color:var(--orange)}
+  .chat .input .mic.rec{background:#e5484d;border-color:#e5484d;animation:micpulse 1s infinite}
+  @keyframes micpulse{50%{opacity:.5}}
   .chat .skip{padding:0 12px 10px;font-size:11.5px;color:#7d95a0;text-align:center}
   .chat .skip a{color:#ffb27d;cursor:pointer;text-decoration:underline}
 
@@ -220,7 +224,7 @@
 </head>
 <body>
 <div class="topbar"><div class="wrap">
-  <div class="logo">思潼<i>AI</i> 行业智能体平台</div>
+  <div class="logo">思潼<i>AI</i>商城</div>
   <span class="tag">IP定位智能体 · 定位工作台</span>
   <span class="tag" style="margin-left:auto">静态演示</span>
 </div></div>
@@ -232,8 +236,8 @@
     <span class="chip">保留 6 步访谈引导</span>
   </div>
   <h1><img class="emoji" data-av alt="沈定头像">IP定位工作台</h1>
-  <p class="hook">左边沈定继续 6 步访谈带你走，右边定位简报 8 字段和全案 9 件实时长出来。</p>
-  <p class="ability">6 步访谈 → 定位简报 → 速览 + 8 章全案分区交付：单章复制、单章重生成、整包导出，400 积分一次看清。老手可直接改简报，对话能力不降级。</p>
+  <p class="hook">左边沈定 6 步访谈带你走，右边定位简报 8 字段和全案 9 件实时长出来。</p>
+  <p class="ability">6 步访谈 → 定位简报 → 速览 + 8 章全案分区交付：单章复制、单章重生成、一键导出 Word（WPS 可开），400 积分一次看清。支持语音输入；老手可直接改简报，对话能力不降级。</p>
   <button class="cta" onclick="document.getElementById('demo').scrollIntoView({behavior:'smooth'});window.__autostart&&window.__autostart()">▶ 开始演示（自动播放 6 步访谈）<small>约 60 秒 · 也可手动逐步点击</small></button>
 </div></header>
 
@@ -263,7 +267,8 @@
         <div class="log" id="chatLog"></div>
         <div class="skip">老手？<a id="skipGuide">跳过访谈，直接填简报 →</a></div>
         <div class="input">
-          <input id="freeInput" placeholder="也可以直接打字，例如：竞品换成 XX / 目标改成品牌" />
+          <button id="micBtn" class="mic" title="语音输入">🎤</button>
+          <input id="freeInput" placeholder="打字或点 🎤 说话，例如：竞品换成 XX / 目标改成品牌" />
           <button id="freeSend">发送</button>
         </div>
       </div>
@@ -297,7 +302,7 @@
     </div>
   </div>
 </div></section>
-<footer>思潼AI 行业智能体平台 · IP定位智能体（沈定）· 定位工作台 · 演示数据为虚构案例，不代表线上真实产出</footer>
+<footer>思潼AI商城 · IP定位智能体（沈定）· 定位工作台 · 演示数据为虚构案例，不代表线上真实产出</footer>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -755,7 +760,7 @@ function renderDeliverables(){
   w.innerHTML=`<div class="dl-head">
     <span class="ok-tag">✓ 已交付</span>
     <span class="time">9 件 · 速览 + 8 章 · 2026-09-24（演示数据）</span>
-    <div class="ops"><button class="cbtn" id="cpAll">⧉ 复制全部</button><button class="cbtn" id="dlMd">↓ 导出 .md</button></div>
+    <div class="ops"><button class="cbtn" id="cpAll">⧉ 复制全部</button><button class="cbtn" id="dlWord">↓ 导出 Word</button></div>
   </div><div class="tabs" id="tabs"></div><div class="pieces" id="pieces"></div>`;
   const tabs=$('tabs');
   const counts=g=>PIECES.filter(p=>g==='all'||p.g===g).length;
@@ -768,7 +773,7 @@ function renderDeliverables(){
   });
   drawPieces('all');
   $('cpAll').onclick=copyAll;
-  $('dlMd').onclick=()=>toast('导出 .md：工程上由后端按章节标记拼装落地，demo 未内置下载');
+  $('dlWord').onclick=exportWord;
 }
 function drawPieces(g){
   const w=$('pieces');w.innerHTML='';
@@ -784,6 +789,24 @@ function drawPieces(g){
 }
 function copyPiece(p){copyText(p.plain);toast(`已复制「${p.no} ${p.title}」· 单件粒度`);}
 function copyAll(){copyText('【IP定位全案 · XX贴膜（演示）】\n\n'+PIECES.map(p=>p.plain).join('\n\n'));toast('已复制全案 9 件（速览 + 8 章）');}
+/* 导出 Word（.doc，HTML 内容打包，Word / WPS 均可直接打开；不用 .md） */
+function exportWord(){
+  let h='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>IP定位全案</title>'+
+  '<style>body{font-family:\'微软雅黑\',sans-serif;font-size:12pt;line-height:1.7;color:#1c2733}'+
+  'h1{font-size:20pt}h2{font-size:15pt;border-bottom:2px solid #E8651A;padding-bottom:4px;margin-top:22px}'+
+  'table{border-collapse:collapse;width:100%;margin:10px 0}td,th{border:1px solid #c9d3dd;padding:6px 9px;font-size:10.5pt;text-align:left;vertical-align:top}th{background:#f0f4f8}'+
+  'blockquote{border-left:4px solid #E8651A;margin:10px 0;padding:4px 14px;color:#444;background:#fdf6f0}'+
+  'ul,ol{margin:6px 0;padding-left:22px}li{margin:3px 0}</style></head><body>';
+  h+='<h1>IP定位全案 · XX贴膜（虚构演示案例）</h1><p>沈定 · 首席定位官 · 思潼AI商城 定位工作台生成 · 2026-09-24</p>';
+  PIECES.forEach(p=>{h+='<h2>'+p.no+' '+p.title+'</h2>'+p.html;});
+  h+='<p style="color:#888;font-size:10pt">本文档为设计原型演示数据，品牌与人物均已匿名化，不代表线上真实产出。</p></body></html>';
+  const blob=new Blob(['\ufeff'+h],{type:'application/msword'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='IP定位全案_XX贴膜_20260924.doc';
+  document.body.appendChild(a);a.click();a.remove();
+  toast('已导出 Word（.doc）· Word / WPS 均可打开');
+}
 function regenPiece(p,d){
   const c=d.querySelector('.c');
   c.innerHTML='<div style="color:var(--sub);font-size:12.5px">↻ 单章重生成中（演示压缩为 1.4 秒）…</div>';
@@ -883,6 +906,23 @@ $('btnRegenAll').onclick=()=>{
   later(()=>{if(S.phase==='confirm')runGen();},S.auto?1000:3000);
 };
 $('skipGuide').onclick=skipGuide;
+/* ---------- 语音输入（演示：点击模拟识别 1.3s，自动填入并发送） ---------- */
+$('micBtn').onclick=()=>{
+  const b=$('micBtn');
+  if(b.classList.contains('rec'))return;
+  b.classList.add('rec');
+  const inp=$('freeInput');
+  const ph=inp.placeholder;
+  inp.placeholder='🎤 正在听…（演示语音识别）';inp.value='';
+  toast('🎤 语音输入中…（演示）');
+  setTimeout(()=>{
+    b.classList.remove('rec');
+    inp.placeholder=ph;
+    inp.value='竞品主要是平台A和平台B，客户选我们是因为我们自建供应链，同品质更便宜';
+    toast('识别完成（演示）· 自动发送');
+    setTimeout(freeSend,700);
+  },1300);
+};
 $('freeSend').onclick=freeSend;
 $('freeInput').addEventListener('keydown',e=>{if(e.key==='Enter')freeSend();});
 
