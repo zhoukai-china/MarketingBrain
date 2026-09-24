@@ -20,7 +20,7 @@
 - **痛点**（用户实际反馈 + 2026-09-23 报障 `HANDOFF-vidrev-douyin-daily-export-20260923.md`）：
   1. 用户不知道数据从哪导出、什么形态合格——「按天汇总」表被伪装解析，死在 V7，用户完全不知道该怎么办；
   2. 上传后只有一句「已读取」，字段覆盖、缺什么、影响哪一章，用户看不到；
-  3. 11 章报告整块 Markdown，用户不知道重点看哪章、怎么用（候选选题还要手动复制去选题智能体）。
+  3. 11 章报告整块 Markdown，用户不知道重点看哪章、怎么用。
 - **已就绪的基础设施**（直接复用，不要重做）：
   - `/vidrev/parse-preview` 预检接口（只解析、不调模型、不消耗积分，已返回 rowCount / fields / platform / period / limitedDimensions）；
   - 后端 `computeVidrevMetrics` 四象限判定与加权口径重算（报告必须照抄）；
@@ -66,7 +66,7 @@
 │ 交付区（体检通过并确认后出现）:                                 │
 │  生成日志（→参数注入 →体检复核 →引擎加载 ✓零…✓十 ✓V1–V9门禁） │
 │  11 章分 5 组: 📊审计1 🧭总览分层3 🔍深拆归因3 📈趋势规律3 🚀选题1│
-│  每章: 单独复制 ｜ 单独重生成 ｜ 候选选题 ➜带入选题智能体       │
+│  每章: 单独复制 ｜ 单独重生成                                   │
 │  整套下载 Word/WPS 版                                        │
 ├────────────────────────────────────────────────────────────┤
 │ 页脚: 思潼AI商城 · 辽ICP备2025069273号（单行）                │
@@ -88,7 +88,6 @@
 | 十件套 5 组分区 | 11 章 5 组分区 | 📊数据审计 / 🧭总览分层 / 🔍深拆归因 / 📈趋势规律 / 🚀选题行动 |
 | 生成日志逐件打勾 | 生成日志逐章打勾 | 尾行「✓ V1–V9 质量门禁全部通过 · 消耗积分 1 次」，把「校验不过不扣积分」的产品承诺显性化 |
 | Word 下载（Blob .doc） | Word 下载（沿用） | 与 2026-09-17 拍板口径一致：报告卡片内无导出按钮，唯一下载入口在交付区头部 |
-| — | **候选选题 ➜ 带入选题智能体** | 每条候选选题一键复制 + 跳转选题智能体（现有 `VIDREV_PREFILL_KEY` sessionStorage 机制的入口前置） |
 | — | **报告解读问答**（done 阶段） | 交付完成后输入框继续可问：「v3 为什么爆」「投流投哪条」「下期拍什么」「为什么掉量」，江流按报告内容回答 |
 
 ### 4.1 fail-closed 上传体检（本次最重要的产品决策）
@@ -110,7 +109,7 @@
 - **体检面板**：直接消费现有 `/vidrev/parse-preview` 返回（rowCount / fields / platform / period / limitedDimensions / notes），**该接口已存在且已在生产**，前端只是把结果从一句 hint 变成结构化面板；四象限预演可由 parse-preview 返回的 rows 前端算，或在接口返回里追加（建议后者，与后端口径一致）。
 - **形态判定**：按 2026-09-23 交接文档 P0-2 在后端 vidrev 入口实现，工作台只消费结果（`ok:false` + 指引文案）；前端不重复实现判定逻辑。
 - **成交金额确认**：即现有 `has_revenue_data` 参数（`vidrevParsePreviewSchema` 已有），工作台把它从聊天追问变成显式确认步骤。
-- **11 章交付**：`VidrevPayload`（deep）已有完整结构化契约（data_quality / overview / quadrant / content_health / deep_dive / completion_attrib / engagement_depth / trend_alert / patterns / methodology / next_topics），工作台交付区按此渲染分组 tab，每章复制用 `report_markdown` 对应段落；第十章候选选题的「带入选题智能体」沿用 `VIDREV_PREFILL_KEY` 机制。
+- **11 章交付**：`VidrevPayload`（deep）已有完整结构化契约（data_quality / overview / quadrant / content_health / deep_dive / completion_attrib / engagement_depth / trend_alert / patterns / methodology / next_topics），工作台交付区按此渲染分组 tab，每章复制用 `report_markdown` 对应段落。
 - **报告解读问答**：done 阶段输入框继续走现有 chat run（上下文带报告），原型里的关键词匹配仅为演示。
 - **Word 下载**：沿用现有「下载精美 Word」链路（原型演示用前端 Blob .doc，生产建议保持与 vidrev 现有 Word 交付一致的方案）。
 - **状态管理**：体检字段、复盘模式、生成进度在前端持久化（刷新不丢，参考现有会话存储）。
@@ -131,7 +130,7 @@
 6. 生成日志逐章打勾（✓零~✓十），尾行 V1–V9 门禁；30s 轮询、25 分钟超时沿用
 7. 11 章 5 组分区正确：📊1 / 🧭3 / 🔍3 / 📈3 / 🚀1，tab 过滤可用
 8. 每章单独复制 / 单独重生成可用；「复制全部」可用
-9. 第十章候选选题 ≥2 条、无违禁词，每条「➜ 带入选题智能体」可用（复制 + 跳转选题智能体）
+9. 第十章候选选题 ≥2 条、无违禁词
 10. Word 下载：Word/WPS 双击可开，封面（平台/周期/条数/模式）+ 11 章完整
 11. 交付完成后输入框可继续问报告解读，回答引用报告内具体 video_id 与数字
 

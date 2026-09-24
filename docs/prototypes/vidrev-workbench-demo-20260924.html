@@ -7,7 +7,7 @@
 <!--
   视频复盘工作台 · 交互原型（设计 demo，不动生产代码）
   参照 copy-workbench-user-20260922.html 的设计思路，把
-  ai.lcppch.top/agent/ipzone__vidrev/chat 的对话页升级为工作台：
+  ai.lcppch.top/agent/ipzone__vidrev/chat 的对话页改为工作台形态：
   左栏江流引导（上传 → 体检 → 确认 → 生成 → 解读），
   右栏数据体检面板（字段点亮 + 四象限预演），交付区 11 章分区呈现。
   打样案例：餐饮招商账号「老王聊餐饮招商」· 抖音 · 近 30 天 24 条作品。
@@ -206,8 +206,6 @@
   .cbtn:hover{border-color:var(--orange-line);color:var(--orange)}
   .cbtn.word{color:var(--green);border-color:#bfe3d2}
   .cbtn.word:hover{background:var(--green-soft);border-color:var(--green);color:var(--green)}
-  .cbtn.topic{color:var(--blue);border-color:#bcd2f7}
-  .cbtn.topic:hover{background:var(--blue-soft);border-color:var(--blue);color:var(--blue)}
   .pc .c{padding:14px 16px;font-size:13.5px}
   .pc .c h4{font-size:13px;margin:12px 0 5px}
   .pc .c h4:first-child{margin-top:0}
@@ -303,7 +301,7 @@
       </div>
     </div>
     <div class="canvas" id="canvas">
-      <div class="ph-note">👋 交付物在这里分章生成<span class="tag">11 章完整复盘</span><span class="tag">每章可单独复制 / 重生成</span><span class="tag">候选选题可带入选题智能体</span></div>
+      <div class="ph-note">👋 交付物在这里分章生成<span class="tag">11 章完整复盘</span><span class="tag">每章可单独复制 / 重生成</span></div>
       <div class="ph-grid" id="phGrid"></div>
       <div id="genWrap" style="display:none">
         <div class="ph-note" style="margin-top:4px">⏳ 生成中 · 可离开本页，历史交付在「我的交付」查看</div>
@@ -526,8 +524,6 @@ const QUICK_PIECE = {id:'qk',no:'✦',g:'action',gt:'选题行动',gcls:'g-amber
      <p style="font-size:12px;color:var(--sub)">⚠️ 快速速读为设计提案（现有生产链路仅深度复盘模式）：定位为不熟悉复盘的老板的入门档，先看结论再决定是否出完整 11 章。</p>`,
    plain:'快速速读（要点版·设计提案）\n数据概览：24条·播放486,200·互动率3.42%·咨询186·W4跌破警戒线\n核心归因：跑出来的是数据实证×30-45s；拖后腿的是无主线跟拍/探店；>60s完播断崖\n下一条动作：拍第2家店回本实录；探店停更；v2加300元DOU+试投'};
 
-const QUICK_PIECE = {id:'qk',no:'✦',g:'action',gt:'选题行动',gcls:'g-amber',icon:'⚡',title:'快速速读（要点版）',
-
 /* ================================================================
  * 状态机：idle → greet → waitUpload → (upload → checked) → askRevenue → confirm → gen → done(解读)
  * ================================================================ */
@@ -708,7 +704,7 @@ function handleInput(text){
   if(S.phase==='done'){
     if(/v3|为什么爆|爆款/.test(text)){ addMsg('v3 为什么是全账号最好的一条——<b>三个动作叠加</b>：① 数字结果直接进标题（8 个月回本），3 秒留人；② 全程后台数据截图实拍，可信度拉满；③ 结尾留言领《开店考察清单》，512 条评论里 180+ 条在扣「清单」。完整拆解在交付区「四、单条深拆」，往下翻第 1 条。'); return; }
     if(/投流|DOU|dou|放量/.test(text)){ addMsg('投流优先级看<b>有转无量池</b>：v2 / v11 / v16 三条播放 6,100-9,800 不高，但咨询 12-15，转化率是账号第一梯队——内容说服力已验证，缺的只是曝光。建议每条 300 元 DOU+ 测 24h，从 v2 开始，完播 ≥25%、互动 ≥3% 再追加。注意这批数据<b>没有投流标记</b>，投放后下个周期把标记列带上，我能算得更细。'); return; }
-    if(/下期|下个周期|拍什么|选题/.test(text)){ addMsg('下个周期照「主力复制」走：拍《第 2 家店回本实录》（v3 配方复用：数据实证 × 30-45s × 数字进标题），再排一条《加盟合同避坑》第 2 期（v12 方向，分享率是账号 3 倍）。三条候选选题在交付区最下面，点「➜ 带入选题智能体」直接接着用。探店停更。'); return; }
+    if(/下期|下个周期|拍什么|选题/.test(text)){ addMsg('下个周期照「主力复制」走：拍《第 2 家店回本实录》（v3 配方复用：数据实证 × 30-45s × 数字进标题），再排一条《加盟合同避坑》第 2 期（v12 方向，分享率是账号 3 倍）。完整选题建议在交付区最下面「十、下个周期选题建议」。探店停更。'); return; }
     if(/为什么掉|下跌|警戒|掉量/.test(text)){ addMsg('W4 掉量的直接原因是<b>内容结构走形</b>：4 条更新里 2 条是无主线跟拍（账号验证过的死亡方向），1 条 92 秒超长口播（>60s 完播断崖）。加上更新量从 8 条/周掉到 4 条/周。解法在「七、趋势预警」的告警动作里：先回到数据实证型 × 30-45s 配方恢复基线。'); return; }
     addMsg('报告 11 章都在下面交付区，每章可单独复制。想让我展开讲哪块？比如「v3 为什么爆」「投流投哪条」「下期拍什么」。'); return;
   }
@@ -768,7 +764,7 @@ function finish(){
   S.phase='done';
   $('genWrap').style.display='none'; phGrid.innerHTML='';
   renderDeliverables();
-  addMsg('交付完成 ✅ <b>11 章已分区放好</b>，每章可单独复制 / 重生成；第十章的候选选题可以一键带去<b>选题智能体</b>接着出内容。想让我展开讲哪块？比如「v3 为什么爆」「投流投哪条」。');
+  addMsg('交付完成 ✅ <b>11 章已分区放好</b>，每章可单独复制 / 重生成。想让我展开讲哪块？比如「v3 为什么爆」「投流投哪条」。');
   $('freeInput').placeholder='问报告解读：如「v3 为什么爆」「投流投哪条」「下期拍什么」';
 }
 
@@ -822,9 +818,6 @@ function regenPiece(id){
   const p=findPiece(id); const card=$('pc_'+id); if(!card) return;
   card.style.opacity=.45; toast(`正在重生成「${p.no}、${p.title}」（演示）…`);
   setTimeout(()=>{ card.style.opacity=1; toast(`「${p.no}、${p.title}」已重新生成（演示）`); },1400);
-}
-function sendTopic(i){
-  copyText(CANDIDATES[i]).then(()=>toast('已复制选题「'+CANDIDATES[i].slice(1,14)+'…」→ 跳转选题智能体（演示）'));
 }
 function copyText(t){
   return new Promise(res=>{
