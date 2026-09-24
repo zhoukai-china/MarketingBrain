@@ -221,15 +221,14 @@
 <body>
 <div class="topbar"><div class="wrap">
   <div class="logo">思潼<i>AI</i> 行业智能体平台</div>
-  <span class="tag">IP定位智能体 · 工作台原型 v0.1</span>
-  <span class="tag" style="margin-left:auto">dev 内测 · 静态演示</span>
+  <span class="tag">IP定位智能体 · 定位工作台</span>
+  <span class="tag" style="margin-left:auto">静态演示</span>
 </div></div>
 
 <header class="hero"><div class="wrap">
   <div class="chips">
     <span class="chip dev">原型 demo</span>
-    <span class="chip">ipzone__ip-pos · IP定位智能体</span>
-    <span class="chip">ip_positioning skill</span>
+    <span class="chip">沈定 · 首席定位官</span>
     <span class="chip">保留 6 步访谈引导</span>
   </div>
   <h1><img class="emoji" data-av alt="沈定头像">IP定位工作台</h1>
@@ -298,82 +297,7 @@
     </div>
   </div>
 </div></section>
-<section><div class="wrap">
-  <div class="sec-head"><h2>💡 <span class="k">设计说明</span> · 工作台为什么还要"6 步访谈"</h2></div>
-  <div class="cards3" style="margin-top:12px">
-    <div class="xcard">
-      <b class="t"><span class="ic" style="background:var(--orange-soft);color:var(--orange)">💬</span>用户不会填表，就由沈定先开口</b>
-      <p>工作台最大的风险是"老板看到一屏字段不知道从哪下手"。所以保留 skill 原生的访谈机制：一次只问一个维度、每轮消化确认，答案自动点亮右侧简报字段。</p>
-      <p>UI 明确标注「第 X/6 步」，开场口径与实际步数一致——顺手修掉旧版"说 5 轮实际 6 步"的文案问题。</p>
-    </div>
-    <div class="xcard">
-      <b class="t"><span class="ic" style="background:var(--blue-soft);color:var(--blue)">🧭</span>双轨输入，一次回答点亮多个字段</b>
-      <p>新手走 6 步访谈；老手直接点简报字段改，或在输入框自由打字（"竞品换成 XX"→ 简报自动更新）。访谈只是"预填"，8 个字段全部可编辑。</p>
-      <p>任意时刻可"跳过访谈"，用示例简报一键填满 8/8。</p>
-    </div>
-    <div class="xcard">
-      <b class="t"><span class="ic" style="background:var(--green-soft);color:var(--green)">📦</span>全案从"一坨长文"变分区卡片</b>
-      <p>线上 8 章全案是一整篇长 Markdown，复制易漏、迭代要重新对话。工作台拆成速览 + 8 章共 9 张卡、5 个分区，带 tabs 筛选。</p>
-      <p>单章复制 / 单章重生成 / 整包导出；400 积分买到什么粒度，看得见。</p>
-    </div>
-  </div>
-</div></section>
-
-<section><div class="wrap">
-  <div class="sec-head"><h2>⚖️ <span class="k">形态对比</span> · 现在的对话 vs 升级后的工作台</h2></div>
-  <div class="sec-note">现有 /agent/ipzone__ip-pos/chat 保留作兜底入口；工作台为新路由 /agent/ipzone__ip-pos/workbench（设为默认）。</div>
-  <table class="cmp" style="margin-top:8px">
-    <tr><th style="width:110px">维度</th><th>现在 · 纯对话</th><th>升级后 · 工作台</th></tr>
-    <tr><td>信息收集</td><td>用户自己组织一段话，容易漏要素，访谈质量靠模型自觉追问</td><td>6 步访谈逐维度引导，简报 8 字段强制齐全，缺项有【待补】标记</td></tr>
-    <tr><td>确认环节</td><td>确认卡埋在对话流里，想改要往上翻聊天记录</td><td>简报常驻右侧，生成前最后一眼确认；「改一下再生成」直接点字段</td></tr>
-    <tr><td>过程可见性</td><td>8 章一坨长文流式输出，推导过程黑盒</td><td>9 卡逐张点亮 + 生成日志（定位三角 / JTBD / 五维人设 / 矩阵配比…）</td></tr>
-    <tr><td>结果形态</td><td>Markdown 长文，复制易漏、验收靠通读</td><td>5 分区卡片，单章复制 / 单章重生成 / 整包导出，按章验收</td></tr>
-    <tr><td>迭代方式</td><td>重新对话描述"把第三章人设改一下"，改动不可控</td><td>点字段改简报重跑全案，或只重生单章（piece 白名单）</td></tr>
-    <tr><td>计费透明</td><td>400 积分一次扣完，不知道买了什么粒度</td><td>400 积分 = 速览 + 8 章 9 件，件件可见；积分不足提示统一「本次未消耗」</td></tr>
-  </table>
-</div></section>
-
-<section><div class="wrap">
-  <div class="sec-head"><h2>🧱 <span class="k">全案分区</span> · 交付物结构（速览 + 8 章 = 9 件）</h2></div>
-  <div class="sec-note">对应 ip_positioning skill 的固定输出合同（📌 速览 + 8 章模板）；每件可单独复制、单独重生成。</div>
-  <div class="grp-row">
-    <div class="gbox"><div class="gt"><span class="dotg" style="background:var(--orange)"></span>📌 速览区</div><ul><li><b>⓪ 1分钟速览</b> 8 维结论表，老板先看这张</li></ul></div>
-    <div class="gbox"><div class="gt"><span class="dotg" style="background:var(--blue)"></span>🎯 定位区</div><ul><li><b>一、项目定位</b> 一句话定位+差异化+竞品对比+阶段判断</li><li><b>二、目标用户定位</b> 画像+JTBD三层痛点+决策旅程</li></ul></div>
-    <div class="gbox"><div class="gt"><span class="dotg" style="background:var(--purple)"></span>🧑 人设区</div><ul><li><b>三、IP人设定位</b> 五维模型+IP原型+语言正反例+视觉锤声音钉+主页四件套</li></ul></div>
-    <div class="gbox"><div class="gt"><span class="dotg" style="background:var(--green)"></span>✍️ 内容区</div><ul><li><b>四、内容定位</b> 内容使命+矩阵四象限+平台差异</li><li><b>五、选题方向</b> 80条选题库+TOP10+30天日历+结尾钩子</li></ul></div>
-    <div class="gbox"><div class="gt"><span class="dotg" style="background:var(--amber)"></span>🚀 增长区</div><ul><li><b>六、投流建议</b> 前置判断+DOU+方案+预算</li><li><b>七、IP发展规划</b> 能力评估五维打分+三阶段路径</li><li><b>八、执行建议</b> 成功因素+风险红线+迭代节奏</li></ul></div>
-  </div>
-</div></section>
-
-<section><div class="wrap">
-  <div class="sec-head"><h2>🔧 <span class="k">工程落地要点</span> · 给技术合伙人</h2></div>
-  <div class="cards3" style="margin-top:12px">
-    <div class="xcard">
-      <b class="t"><span class="ic" style="background:var(--orange-soft);color:var(--orange)">1️⃣</span>前端</b>
-      <p>新增路由 <b>/agent/:sku/workbench</b>（AgentChatPage 保留 /chat 兜底，工作台设为默认入口）。工作台 = 6 步访谈组件 + 简报状态 + 分区交付渲染三块。</p>
-      <p>6 步问题模板第一期前端内置（本原型 QFLOW 结构即可作 schema），后续再做成租户可配置。</p>
-    </div>
-    <div class="xcard">
-      <b class="t"><span class="ic" style="background:var(--blue-soft);color:var(--blue)">2️⃣</span>后端 / 接口</b>
-      <p>run 接口不变：<b>POST /api/market/skus/:skuId/run</b>；交付轮询复用 <b>/market/me/deliverabilities → /market/me/deliverables</b>（30s 轮询 + 25 分钟超时已在生产验证）。</p>
-      <p>answer 由纯 Markdown 升级为带章节标记的结构化输出（如 <b>&lt;!--PIECE:ch3--&gt;</b>），前端按标记渲染成 9 张分区卡片。</p>
-    </div>
-    <div class="xcard">
-      <b class="t"><span class="ic" style="background:var(--green-soft);color:var(--green)">3️⃣</span>计费</b>
-      <p>全案沿用 SKU 固定价 <b>ppu 400 积分/次</b>，一次产出速览 + 8 章；单章重生成需在 run 接口加 <b>piece 参数白名单</b>（计费口径见待确认）。</p>
-      <p>顺手修 QA 遗留：低积分 402 提示统一为「积分不足，本次未消耗，请充值后重试」。</p>
-    </div>
-  </div>
-  <div class="qa-list">
-    <b class="q">❓ 待确认问题（建议合伙人拍板）</b>
-    <p>1. 单章重生成的计费口径：沿用 400 一次，还是按章计价（如 50/章）？重生是否打折？</p>
-    <p>2. 6 步访谈问题模板是否做成租户级可配置（不同行业专区问题集不同）？</p>
-    <p>3. 未完成访谈就离开，简报草稿是否保存、保存多久？（老板跨天续填很常见）</p>
-    <p>4. 是否需要「历史简报」：同一项目二刷全案时直接复用上次简报，只更新变化项？</p>
-  </div>
-</div></section>
-
-<footer>思潼AI 行业智能体平台 · IP定位智能体（沈定）工作台原型 v0.1 · 2026-09-24 · 单文件离线可打开 · 演示数据不代表线上真实产出</footer>
+<footer>思潼AI 行业智能体平台 · IP定位智能体（沈定）· 定位工作台 · 演示数据为虚构案例，不代表线上真实产出</footer>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -790,7 +714,7 @@ function runGen(){
   };
   const L=[
     '→ 读取定位简报（8/8 字段齐全）· 角色深度：连锁品牌（招商获客向）',
-    '→ 加载 ip_positioning skill · 五步定位法 · 固定输出合同（速览 + 8 章）',
+    '→ 加载定位方法论 · 五步定位法 · 固定输出结构（速览 + 8 章）',
   ];
   PIECES.forEach(p=>{if(M[p.id])L.push(M[p.id]);L.push('✓ '+p.no+' '+p.title+' —— '+p.gd);});
   L.push('✅ 全案 9 件生成完成 · 实际消耗 400 积分 · 耗时约 52 秒（线上流式）');
@@ -862,7 +786,7 @@ function copyPiece(p){copyText(p.plain);toast(`已复制「${p.no} ${p.title}」
 function copyAll(){copyText('【IP定位全案 · XX贴膜（演示）】\n\n'+PIECES.map(p=>p.plain).join('\n\n'));toast('已复制全案 9 件（速览 + 8 章）');}
 function regenPiece(p,d){
   const c=d.querySelector('.c');
-  c.innerHTML='<div style="color:var(--sub);font-size:12.5px">↻ 单章重生成中（演示压缩为 1.4 秒）· 单章计费口径见「待确认 ①」…</div>';
+  c.innerHTML='<div style="color:var(--sub);font-size:12.5px">↻ 单章重生成中（演示压缩为 1.4 秒）…</div>';
   later(()=>{c.innerHTML=p.html;toast(`「${p.no} ${p.title}」重生成完成`);},1400);
 }
 
