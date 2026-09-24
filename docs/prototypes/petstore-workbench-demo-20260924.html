@@ -1,0 +1,1375 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>宠物门店AI经营大脑 · 毛孩子宠物生活馆 · 思潼AI商城</title>
+<!--
+  宠物行业门店 AI 经营大脑 · 交互原型（设计 demo，不动生产代码）
+  依据：docs/REQ-petstore-ai-brain-20260924.md
+  样板门店：毛孩子宠物生活馆（洗护+商品均衡的个体单店，虚构样板）
+  设计原则：手机端为主（门店老板在店里用手机），电脑端（≥960px）多列增强。
+  四大模块：🏠经营驾驶舱 / 💬私域自动化引擎 / 🎬内容营销工场 / 🏪门店后台（简示）
+  产品红线：AI 不诊断疾病、不开药 → 引导就医（demo 私域会话内有实景演示）
+-->
+<style>
+  :root{
+    --bg:#F5F7FA; --card:#ffffff; --ink:#22282f; --sub:#67717e; --line:#e6eaf0;
+    --orange:#E8651A; --orange-d:#c9520f; --orange-soft:#fdeee2; --orange-line:#f8d2b4;
+    --green:#0f8a5f; --green-soft:#e4f4ee; --green-line:#bfe3d4;
+    --amber:#b26a00; --amber-soft:#fff4dd;
+    --blue:#2563eb; --blue-soft:#e9f0fe;
+    --purple:#7c3aed; --purple-soft:#f1eafd;
+    --red:#d64545; --red-soft:#fdecec;
+    --dark1:#2c231b; --dark2:#43342a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--ink);font:15px/1.65 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;display:flex;flex-direction:column;overflow:hidden}
+  button{font-family:inherit}
+  /* ── 顶栏 ─────────────────────── */
+  .topbar{background:#fff;border-bottom:1px solid var(--line);flex:none;z-index:30}
+  .topbar .in{max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:10px;height:52px;padding:0 14px}
+  .brand{font-weight:800;font-size:15.5px;white-space:nowrap}
+  .brand i{font-style:normal;color:var(--orange)}
+  .brand small{display:block;font-size:10px;font-weight:500;color:var(--sub);letter-spacing:.5px}
+  .topbar .me{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .credits{font-size:12px;color:var(--sub);background:#f4f6f9;border:1px solid var(--line);border-radius:99px;padding:4px 12px;white-space:nowrap}
+  .credits b{color:var(--orange)}
+  .recharge{background:var(--orange);color:#fff;border:none;border-radius:99px;font-size:12px;font-weight:700;padding:6px 14px;cursor:pointer}
+  .recharge:active{background:var(--orange-d)}
+  .uav{width:30px;height:30px;border-radius:50%;background:#e3e8ef;display:grid;place-items:center;font-size:14px;flex:none}
+  /* ── 门店头 ───────────────────── */
+  .shophead{background:linear-gradient(125deg,var(--dark1),var(--dark2) 65%,#4a3a27);color:#fff;flex:none}
+  .shophead .in{max-width:1200px;margin:0 auto;padding:13px 14px;display:flex;align-items:center;gap:12px}
+  .shop-paw{width:46px;height:46px;border-radius:14px;background:rgba(232,101,26,.22);border:1px solid rgba(232,101,26,.5);display:grid;place-items:center;font-size:24px;flex:none}
+  .shophead h1{font-size:17px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .shophead .sub{font-size:12px;color:#cdbfae;margin-top:1px}
+  .shophead .sub b{color:#ffd9bd;font-weight:600}
+  .live-dot{font-size:10.5px;font-weight:700;color:#8be8b4;background:rgba(139,232,180,.1);border:1px solid rgba(139,232,180,.4);border-radius:99px;padding:1px 9px}
+  .demo-btn{margin-left:auto;background:rgba(232,101,26,.2);border:1px solid rgba(232,101,26,.6);color:#ffd9bd;border-radius:10px;font-size:12.5px;font-weight:700;padding:8px 14px;cursor:pointer;white-space:nowrap}
+  .demo-btn:active{background:rgba(232,101,26,.35)}
+  .demo-btn.running{background:rgba(214,69,69,.25);border-color:rgba(214,69,69,.6);color:#ffc9c9}
+  /* ── 主区 ─────────────────────── */
+  .wb{flex:1;min-height:0;position:relative;width:100%;max-width:1200px;margin:0 auto}
+  .page{position:absolute;inset:0;overflow-y:auto;display:none;padding:12px 12px 84px;-webkit-overflow-scrolling:touch}
+  .page.act{display:block;animation:pgin .22s ease}
+  @keyframes pgin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  /* 电脑端多列 */
+  @media(min-width:960px){
+    .page{padding:18px 20px 28px}
+    .cols-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+    .cols-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:start}
+    .span-2{grid-column:span 2}
+  }
+  /* ── 卡片通用 ─────────────────── */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:14px;margin-bottom:12px;box-shadow:0 3px 10px rgba(34,40,47,.04)}
+  .card.tight{padding:12px;margin-bottom:10px}
+  .card-h{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .card-h .ic{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;font-size:15px;flex:none}
+  .card-h b{font-size:15px}
+  .card-h .more{margin-left:auto;font-size:11.5px;color:var(--sub);cursor:pointer}
+  .card-h .more:active{color:var(--orange)}
+  /* ── 今日结论 ─────────────────── */
+  .ai-verdict{background:linear-gradient(125deg,#fff8f2,#fff);border:1px solid var(--orange-line)}
+  .ai-row{display:flex;gap:10px}
+  .ai-ava{width:38px;height:38px;border-radius:12px;background:var(--orange-soft);border:1px solid var(--orange-line);display:grid;place-items:center;font-size:20px;flex:none}
+  .ai-name{font-size:13px;font-weight:800;color:var(--orange-d)}
+  .ai-name span{font-weight:500;color:var(--sub);font-size:11px;margin-left:6px}
+  .ai-text{font-size:13.5px;line-height:1.75;margin-top:3px}
+  .ai-text b{color:var(--orange-d)}
+  .forecast{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+  .fc{flex:1;min-width:130px;background:#fbfcfe;border:1px solid var(--line);border-radius:11px;padding:9px 12px}
+  .fc .k{font-size:11px;color:var(--sub)}
+  .fc .v{font-size:19px;font-weight:800;margin-top:1px}
+  .fc .v small{font-size:12px;font-weight:600;color:var(--sub)}
+  .fc .d{font-size:11px;margin-top:2px}
+  .fc.good .v{color:var(--green)} .fc.good .d{color:var(--green)}
+  .fc.warn .v{color:var(--orange-d)} .fc.warn .d{color:var(--orange-d)}
+  /* ── 目标四卡 ─────────────────── */
+  .goal-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  @media(min-width:960px){.goal-grid{grid-template-columns:repeat(4,1fr)}}
+  .goal{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#fbfcfe}
+  .goal .gk{font-size:11.5px;color:var(--sub);display:flex;justify-content:space-between}
+  .goal .gv{font-size:18px;font-weight:800;margin:3px 0 6px}
+  .goal .gv small{font-size:11.5px;font-weight:500;color:var(--sub)}
+  .goal .gbar{height:6px;border-radius:4px;background:#edf0f4;overflow:hidden}
+  .goal .gbar i{display:block;height:100%;border-radius:4px;background:var(--orange);transition:width .6s}
+  .goal.done .gv{color:var(--green)} .goal.done .gbar i{background:var(--green)}
+  .goal .gp{font-size:11px;color:var(--sub);margin-top:4px}
+  .goal.done .gp{color:var(--green);font-weight:700}
+  /* ── 沉睡分档 ─────────────────── */
+  .sleep{display:flex;gap:8px}
+  .sleep .s{flex:1;border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center;background:#fbfcfe;cursor:pointer;transition:.15s}
+  .sleep .s:active{transform:scale(.97)}
+  .sleep .s.m1{border-color:var(--orange-line);background:var(--orange-soft)}
+  .sleep .s .sn{font-size:22px;font-weight:800}
+  .sleep .s.m1 .sn{color:var(--orange-d)} .sleep .s.m2 .sn{color:var(--amber)} .sleep .s.m3 .sn{color:var(--sub)}
+  .sleep .s .sl{font-size:11px;color:var(--sub);margin-top:1px}
+  .sleep .s .sr{font-size:10.5px;margin-top:3px;border-radius:99px;padding:1px 7px;display:inline-block}
+  .sleep .s.m1 .sr{background:rgba(232,101,26,.14);color:var(--orange-d)}
+  .sleep .s.m2 .sr{background:var(--amber-soft);color:var(--amber)}
+  .sleep .s.m3 .sr{background:#eef1f5;color:var(--sub)}
+  /* ── 今日任务 ─────────────────── */
+  .task-progress{font-size:11.5px;color:var(--sub);margin-bottom:9px;display:flex;align-items:center;gap:8px}
+  .task-progress .tbar{flex:1;height:6px;border-radius:4px;background:#edf0f4;overflow:hidden}
+  .task-progress .tbar i{display:block;height:100%;width:0;background:var(--green);transition:width .5s}
+  .task{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:10px 11px;margin-bottom:8px;background:#fbfcfe;transition:.25s}
+  .task.done{background:#f6faf8;border-color:var(--green-line)}
+  .task.done .tt{text-decoration:line-through;color:#9aa6b2}
+  .pri{font-size:10px;font-weight:800;border-radius:6px;padding:2px 7px;flex:none;margin-top:1px}
+  .pri.p0{background:var(--red);color:#fff} .pri.p1{background:var(--amber);color:#fff} .pri.p2{background:var(--blue);color:#fff}
+  .pri.routine{background:#eef1f5;color:var(--sub)}
+  .task .tbody{flex:1;min-width:0}
+  .task .tt{font-size:13px;font-weight:600;line-height:1.5}
+  .task .td{font-size:11.5px;color:var(--sub);margin-top:2px;line-height:1.55}
+  .task .td b{color:var(--orange-d)}
+  .task .tact{margin-top:7px}
+  .mini-btn{border:1px solid var(--orange-line);background:var(--orange-soft);color:var(--orange-d);border-radius:8px;font-size:12px;font-weight:700;padding:6px 13px;cursor:pointer;min-height:34px}
+  .mini-btn:active{background:var(--orange-line)}
+  .mini-btn.ghost{background:#fff;border-color:var(--line);color:var(--sub)}
+  .mini-btn.sent{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  .mini-btn:disabled{opacity:.75;cursor:default}
+  .check{width:24px;height:24px;border-radius:50%;border:2px solid #cfd7e0;flex:none;margin-top:2px;cursor:pointer;display:grid;place-items:center;color:#fff;font-size:13px;background:#fff;transition:.2s}
+  .task.done .check{background:var(--green);border-color:var(--green)}
+  .routine-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+  .routine-chip{font-size:11.5px;background:#f2f5f9;border:1px solid var(--line);border-radius:99px;padding:4px 11px;color:var(--sub);display:flex;align-items:center;gap:5px}
+  .routine-chip b{color:var(--ink);font-weight:700}
+  .routine-chip.done{background:var(--green-soft);border-color:var(--green-line);color:var(--green)}
+  /* 储值条 */
+  .prepaid{display:flex;gap:10px;align-items:center;background:#fbfcfe;border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+  .prepaid .pp{flex:1}
+  .prepaid .pk{font-size:11.5px;color:var(--sub)}
+  .prepaid .pv{font-size:20px;font-weight:800;color:var(--amber)}
+  .prepaid .pv small{font-size:11px;color:var(--sub);font-weight:500}
+  .prepad-warn{font-size:11.5px;color:var(--red);background:var(--red-soft);border-radius:8px;padding:5px 10px;margin-top:5px}
+  /* ── 子模块 chips ─────────────── */
+  .subtabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:4px;scrollbar-width:none}
+  .subtabs::-webkit-scrollbar{display:none}
+  .subtab{flex:none;border:1px solid var(--line);background:#fff;border-radius:99px;font-size:12.5px;font-weight:600;color:var(--sub);padding:7px 15px;cursor:pointer;min-height:36px}
+  .subtab.act{background:var(--ink);border-color:var(--ink);color:#fff}
+  .subview{display:none} .subview.act{display:block;animation:pgin .2s}
+  /* ── 私域会话 ─────────────────── */
+  .chatbox{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#f7f9fb}
+  .chat-stats{display:flex;background:#fff;border-bottom:1px solid var(--line);font-size:11px;color:var(--sub)}
+  .chat-stats span{flex:1;text-align:center;padding:7px 4px;border-right:1px solid var(--line)}
+  .chat-stats span:last-child{border-right:none}
+  .chat-stats b{display:block;font-size:14px;color:var(--ink)}
+  .chat-log{padding:12px;display:flex;flex-direction:column;gap:10px;max-height:430px;overflow-y:auto}
+  .cm{display:flex;gap:7px;align-items:flex-end}
+  .cm .cav{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:14px;flex:none}
+  .cm.cust .cav{background:#e7ecf2}
+  .cm.ai .cav{background:var(--orange-soft);border:1px solid var(--orange-line)}
+  .cb{max-width:78%;border-radius:4px 12px 12px 12px;padding:8px 12px;font-size:12.5px;line-height:1.65;background:#fff;border:1px solid var(--line);box-shadow:0 1px 3px rgba(34,40,47,.05)}
+  .cm.cust{flex-direction:row-reverse}
+  .cm.cust .cb{background:#eaf1fb;border-color:#d4e2f7;border-radius:12px 4px 12px 12px}
+  .cm.ai .who{font-size:10px;color:var(--orange);font-weight:700;margin-bottom:2px;display:flex;gap:5px;align-items:center}
+  .aibadge{font-size:9.5px;background:var(--orange-soft);color:var(--orange-d);border:1px solid var(--orange-line);border-radius:5px;padding:0 5px;font-weight:700}
+  .redline-tip{display:flex;gap:7px;background:var(--red-soft);border:1px solid #f3c6c6;border-radius:9px;padding:7px 10px;font-size:11.5px;color:#a23535;line-height:1.55;margin-top:3px}
+  .cb .acts{margin-top:7px;display:flex;gap:6px}
+  .cb .acts button{font-size:11px;border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 10px;cursor:pointer;color:var(--sub)}
+  .cm.hidden-init{display:none}
+  /* 红线横幅 */
+  .redline-banner{display:flex;gap:9px;align-items:center;background:#fff8f8;border:1px solid #f3c6c6;border-radius:12px;padding:9px 12px;font-size:12px;color:#a23535;margin-bottom:12px;line-height:1.5}
+  .redline-banner b{color:var(--red)}
+  /* ── 到期提醒列表 ─────────────── */
+  .remind{border:1px solid var(--line);border-radius:13px;padding:11px 12px;margin-bottom:9px;background:#fbfcfe;transition:.25s}
+  .remind.sent{background:#f6faf8;border-color:var(--green-line)}
+  .remind .rt{display:flex;align-items:center;gap:9px}
+  .pet-ic{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-size:19px;flex:none}
+  .remind .rn{font-size:13.5px;font-weight:700}
+  .remind .rn small{font-size:11px;font-weight:500;color:var(--sub);margin-left:5px}
+  .rtype{font-size:10.5px;font-weight:800;border-radius:6px;padding:1px 8px;margin-left:auto;flex:none}
+  .rtype.vaccine{background:var(--blue-soft);color:var(--blue)}
+  .rtype.food{background:var(--amber-soft);color:var(--amber)}
+  .rtype.wash{background:var(--orange-soft);color:var(--orange-d)}
+  .rtype.worm{background:var(--purple-soft);color:var(--purple)}
+  .rwhy{font-size:11.5px;color:var(--sub);margin:7px 0 7px 45px;line-height:1.55}
+  .rwhy b{color:var(--ink)}
+  .rscript{margin:0 0 9px 45px;background:#fff;border:1px dashed var(--orange-line);border-radius:10px;padding:8px 11px;font-size:12px;line-height:1.65;color:#4a4038}
+  .rscript::before{content:"AI 话术";display:block;font-size:10px;font-weight:800;color:var(--orange);margin-bottom:2px}
+  .ractions{margin-left:45px;display:flex;gap:7px}
+  .sent-tag{font-size:11.5px;color:var(--green);font-weight:700;display:flex;align-items:center;gap:4px}
+  /* ── 回访/寄养/评价 ────────────── */
+  .visit{display:flex;gap:10px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:9px;background:#fbfcfe;align-items:flex-start}
+  .visit .v-ic{font-size:22px;flex:none}
+  .visit .vt{font-size:13px;font-weight:700}
+  .visit .vd{font-size:11.5px;color:var(--sub);line-height:1.6;margin-top:2px}
+  .visit .vd b{color:var(--ink)}
+  .visit .vfoot{margin-top:7px;display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+  .reply-preview{background:#fff;border:1px solid var(--line);border-radius:9px;padding:7px 10px;font-size:11.5px;color:var(--sub);margin-top:6px;font-style:italic}
+  .tagcloud{display:flex;flex-wrap:wrap;gap:6px}
+  .ptag{font-size:11.5px;border-radius:99px;padding:4px 11px;background:#f2f5f9;border:1px solid var(--line);color:var(--sub)}
+  .ptag b{color:var(--ink)}
+  .ptag.hot{background:var(--orange-soft);border-color:var(--orange-line);color:var(--orange-d)}
+  .review{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:9px}
+  .review.bad{border-color:#f3c6c6;background:#fff9f9}
+  .review.good{border-color:var(--green-line);background:#f8fcfa}
+  .review .stars{font-size:12px;color:var(--amber);letter-spacing:1px}
+  .review .rname{font-size:11px;color:var(--sub);margin-left:6px}
+  .review .rtxt{font-size:12.5px;margin:5px 0;line-height:1.6}
+  .review .rai{font-size:11.5px;background:#f4f6f9;border-radius:8px;padding:7px 10px;line-height:1.6;color:var(--sub)}
+  .review.bad .rai{background:#fff0e6;color:#8a5a17}
+  .review .rai b{color:var(--amber)}
+  /* ── 内容工场 ─────────────────── */
+  .copy-card{border:1px solid var(--line);border-radius:13px;margin-bottom:10px;overflow:hidden}
+  .copy-card .cc-h{display:flex;align-items:center;gap:8px;padding:9px 12px;background:#fbfcfe;border-bottom:1px solid var(--line)}
+  .copy-card .cc-h .tag2{font-size:10.5px;font-weight:800;border-radius:6px;padding:1px 8px}
+  .tag2.zhongcao{background:var(--orange-soft);color:var(--orange-d)}
+  .tag2.huodong{background:var(--red-soft);color:var(--red)}
+  .tag2.kepu{background:var(--green-soft);color:var(--green)}
+  .tag2.shequn{background:var(--blue-soft);color:var(--blue)}
+  .copy-card .cc-b{padding:11px 12px;font-size:13px;line-height:1.8;white-space:pre-wrap}
+  .copy-card .cc-f{display:flex;gap:8px;border-top:1px solid var(--line);padding:8px 12px;background:#fcfdfd}
+  .copy-card .cc-f button{flex:1;font-size:12px;font-weight:700;border:1px solid var(--line);background:#fff;color:var(--sub);border-radius:8px;padding:7px;cursor:pointer;min-height:34px}
+  .copy-card .cc-f button.primary{background:var(--orange);border-color:var(--orange);color:#fff}
+  .copy-card .cc-f button:active{opacity:.85}
+  /* 短视频脚本 */
+  .script-card{border:1px solid var(--line);border-radius:13px;margin-bottom:10px;overflow:hidden}
+  .script-card .sc-h{padding:10px 12px;font-weight:700;font-size:13.5px;background:linear-gradient(120deg,#2c231b,#43342a);color:#fff;display:flex;align-items:center;gap:8px}
+  .shot{display:flex;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);font-size:12px;line-height:1.65}
+  .shot:last-child{border-bottom:none}
+  .shot .no{width:22px;height:22px;border-radius:7px;background:var(--purple-soft);color:var(--purple);font-weight:800;font-size:11px;display:grid;place-items:center;flex:none;margin-top:1px}
+  .shot .sl{color:var(--sub);font-size:11px;margin-top:1px}
+  .shot b{color:var(--ink)}
+  /* 数字人 */
+  .dh-steps{display:flex;align-items:center;margin-bottom:14px}
+  .dh-step{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--sub);font-weight:600}
+  .dh-step .dn{width:23px;height:23px;border-radius:50%;background:#eef1f5;color:#93a0af;display:grid;place-items:center;font-size:12px;font-weight:800}
+  .dh-step.act{color:var(--orange-d)} .dh-step.act .dn{background:var(--orange);color:#fff}
+  .dh-step.done{color:var(--green)} .dh-step.done .dn{background:var(--green);color:#fff}
+  .dh-line{flex:1;height:2px;background:#e8edf3;margin:0 8px;min-width:14px}
+  .dh-pane{display:none} .dh-pane.act{display:block;animation:pgin .2s}
+  .avatar-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(min-width:560px){.avatar-grid{grid-template-columns:repeat(4,1fr)}}
+  .av-opt{border:2px solid var(--line);border-radius:14px;padding:13px 8px 10px;text-align:center;cursor:pointer;background:#fbfcfe;transition:.15s}
+  .av-opt.sel{border-color:var(--orange);background:var(--orange-soft)}
+  .av-opt .face{font-size:38px;line-height:1.1}
+  .av-opt .an{font-size:12.5px;font-weight:700;margin-top:5px}
+  .av-opt .ad{font-size:10.5px;color:var(--sub);margin-top:2px}
+  .av-opt.sel .ad{color:var(--orange-d)}
+  .dh-textarea{width:100%;border:1.5px solid var(--line);border-radius:12px;font-size:16px;line-height:1.8;padding:11px 12px;resize:vertical;min-height:160px;outline:none;font-family:inherit;color:var(--ink)}
+  .dh-textarea:focus{border-color:var(--orange)}
+  .dh-meta{display:flex;justify-content:space-between;font-size:11.5px;color:var(--sub);margin-top:7px;align-items:center}
+  .dh-foot{display:flex;gap:9px;margin-top:14px;align-items:center}
+  .big-btn{flex:1;border:none;border-radius:12px;font-size:14.5px;font-weight:800;padding:12px;cursor:pointer;min-height:46px}
+  .big-btn.primary{background:var(--orange);color:#fff;box-shadow:0 5px 14px rgba(232,101,26,.3)}
+  .big-btn.primary:active{background:var(--orange-d)}
+  .big-btn.ghost{background:#fff;border:1px solid var(--line);color:var(--sub);flex:0 0 auto;padding:12px 18px}
+  .big-btn:disabled{opacity:.5;cursor:not-allowed}
+  .cost-note{font-size:11.5px;color:var(--sub);text-align:center;margin-top:8px}
+  .cost-note b{color:var(--orange)}
+  .gen-progress{text-align:center;padding:24px 0}
+  .gen-spin{width:54px;height:54px;border-radius:50%;border:4px solid var(--orange-line);border-top-color:var(--orange);animation:spin .9s linear infinite;margin:0 auto 14px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .gen-steps{font-size:12.5px;color:var(--sub);display:inline-block;text-align:left;line-height:2.1}
+  .gen-steps .ok{color:var(--green);font-weight:700}
+  /* 数字人播放器 */
+  .dh-player{width:236px;max-width:78%;aspect-ratio:9/16;margin:0 auto;border-radius:18px;background:linear-gradient(160deg,#3a2c20,#1f1812);position:relative;overflow:hidden;box-shadow:0 14px 34px rgba(34,40,47,.25)}
+  .dh-stage{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding-top:17%}
+  .dh-biz{position:absolute;top:10px;left:10px;font-size:10px;color:rgba(255,255,255,.85);background:rgba(0,0,0,.3);padding:2px 9px;border-radius:99px;z-index:3}
+  .dh-face{font-size:74px;line-height:1;transition:transform .18s;position:relative;z-index:2}
+  .dh-face.talking{animation:talk .34s infinite ease-in-out}
+  @keyframes talk{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-3px) scale(1.04)}}
+  .dh-wave{display:flex;gap:3px;align-items:flex-end;height:20px;margin-top:12px;z-index:2}
+  .dh-wave i{width:4px;border-radius:3px;background:var(--orange);height:5px;animation:wave .7s infinite ease-in-out}
+  .dh-wave i:nth-child(2){animation-delay:.12s}.dh-wave i:nth-child(3){animation-delay:.24s}.dh-wave i:nth-child(4){animation-delay:.36s}.dh-wave i:nth-child(5){animation-delay:.18s}
+  .dh-wave.paused i{animation-play-state:paused;height:5px !important}
+  @keyframes wave{0%,100%{height:5px}50%{height:19px}}
+  .dh-sub{position:absolute;left:10px;right:10px;bottom:44px;background:rgba(0,0,0,.62);color:#fff;font-size:12px;line-height:1.55;border-radius:9px;padding:7px 10px;text-align:center;z-index:3;min-height:54px;display:flex;align-items:center;justify-content:center}
+  .dh-pbar{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.15);z-index:3}
+  .dh-pbar i{display:block;height:100%;width:0;background:var(--orange)}
+  .dh-pctl{position:absolute;bottom:8px;left:0;right:0;text-align:center;z-index:4}
+  .dh-pctl button{background:rgba(255,255,255,.9);border:none;border-radius:99px;font-size:11px;font-weight:700;padding:3px 13px;cursor:pointer;color:#333}
+  .dh-result-foot{display:flex;gap:9px;margin-top:14px}
+  /* 活动方案 */
+  .plan-tl{border-left:2px solid var(--orange-line);margin:6px 0 4px 8px;padding-left:14px}
+  .plan-node{position:relative;margin-bottom:12px}
+  .plan-node::before{content:"";position:absolute;left:-20px;top:5px;width:10px;height:10px;border-radius:50%;background:var(--orange);border:2px solid #fff;box-shadow:0 0 0 2px var(--orange-line)}
+  .plan-node .d{font-size:11px;color:var(--orange-d);font-weight:800}
+  .plan-node .t{font-size:13px;font-weight:700;margin-top:1px}
+  .plan-node .x{font-size:12px;color:var(--sub);line-height:1.65;margin-top:2px}
+  .combo{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .combo .cb2{flex:1;min-width:140px;border:1px solid var(--line);border-radius:11px;padding:9px 11px;font-size:12px;background:#fbfcfe}
+  .combo .cb2 b{font-size:14px;color:var(--red);display:block}
+  .combo .cb2 small{color:var(--sub);font-size:11px}
+  /* ── 门店后台 ─────────────────── */
+  .pet-file{display:flex;gap:10px;align-items:center}
+  .pet-file .pf-ic{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;font-size:23px;flex:none}
+  .kvline{font-size:11.5px;color:var(--sub);line-height:1.7;margin-top:2px}
+  .kvline b{color:var(--ink);font-weight:600}
+  .danger-pet{border:1px solid #f3c6c6;background:#fff9f9;border-radius:11px;padding:9px 11px;font-size:11.5px;color:#a23535;line-height:1.6;margin-top:8px}
+  .danger-pet b{color:var(--red)}
+  .ba-compare{display:flex;gap:8px;margin-top:9px}
+  .ba-ph{flex:1;height:64px;border-radius:10px;display:grid;place-items:center;font-size:26px;color:#93a0af;border:1px dashed #d3dbe5;background:#f7f9fc}
+  .stock-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+  .stock-row:last-child{border-bottom:none}
+  .stock-row .si{font-size:20px;flex:none}
+  .stock-row .sn{flex:1;min-width:0}
+  .stock-row .sn small{display:block;font-size:11px;color:var(--sub)}
+  .badge{font-size:10.5px;font-weight:700;border-radius:6px;padding:2px 8px;flex:none}
+  .badge.red{background:var(--red-soft);color:var(--red)}
+  .badge.amber{background:var(--amber-soft);color:var(--amber)}
+  .badge.gray{background:#eef1f5;color:var(--sub)}
+  .kb-search{display:flex;gap:8px;margin-bottom:10px}
+  .kb-search input{flex:1;border:1.5px solid var(--line);border-radius:10px;font-size:16px;padding:10px 13px;outline:none}
+  .kb-search input:focus{border-color:var(--green)}
+  .kb-search button{border:none;background:var(--green);color:#fff;border-radius:10px;font-size:13px;font-weight:700;padding:0 17px;cursor:pointer;min-height:42px}
+  .kb-a{font-size:12.5px;line-height:1.75;background:#f6faf8;border:1px solid var(--green-line);border-radius:11px;padding:10px 12px}
+  .kb-a b{color:var(--green)}
+  .kb-a .kbnote{display:block;margin-top:7px;font-size:11px;color:var(--red);background:#fff5f5;border-radius:7px;padding:5px 9px}
+  .kb-q{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+  .kb-q button{font-size:11.5px;border:1px solid var(--line);background:#fff;border-radius:99px;padding:5px 12px;cursor:pointer;color:var(--sub)}
+  /* 培训演练 */
+  .drill-box{border:1px solid var(--line);border-radius:13px;overflow:hidden}
+  .drill-log{background:#f7f9fb;padding:11px;display:flex;flex-direction:column;gap:8px;min-height:170px;max-height:300px;overflow-y:auto}
+  .dm{max-width:85%;border-radius:4px 11px 11px 11px;padding:7px 11px;font-size:12.5px;line-height:1.6;background:#fff;border:1px solid var(--line)}
+  .dm.cust{align-self:flex-end;background:#eaf1fb;border-color:#d4e2f7;border-radius:11px 4px 11px 11px}
+  .dm .who{font-size:10px;font-weight:700;color:var(--purple);margin-bottom:1px}
+  .drill-score{display:none;background:var(--green-soft);border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.7;margin-top:9px}
+  .drill-score b{color:var(--green);font-size:15px}
+  .drill-start{text-align:center;padding:16px}
+  /* ── 底部 Tab ─────────────────── */
+  .tabbar{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:1200px;background:rgba(255,255,255,.97);backdrop-filter:blur(8px);border-top:1px solid var(--line);display:flex;z-index:40;padding:4px 4px calc(4px + env(safe-area-inset-bottom))}
+  .tab{flex:1;border:none;background:none;color:var(--sub);font-size:10.5px;cursor:pointer;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;border-radius:10px;position:relative}
+  .tab .ti{font-size:20px;line-height:1.2;filter:grayscale(.4)}
+  .tab.act{color:var(--orange-d);font-weight:800}
+  .tab.act .ti{filter:none}
+  .tab .dot{position:absolute;top:2px;right:calc(50% - 26px);min-width:16px;height:16px;border-radius:99px;background:var(--red);color:#fff;font-size:9.5px;font-weight:800;display:grid;place-items:center;padding:0 4px}
+  /* 电脑端：底部 tab 变左侧导航 */
+  @media(min-width:960px){
+    body{padding-left:168px}
+    .tabbar{left:0;transform:none;top:0;bottom:0;width:168px;flex-direction:column;justify-content:flex-start;padding:18px 12px;gap:6px;border-right:1px solid var(--line);border-top:none}
+    .tab{flex-direction:row;justify-content:flex-start;gap:11px;font-size:13.5px;padding:10px 13px;text-align:left}
+    .tab .ti{font-size:19px}
+    .tab .dot{top:50%;right:auto;left:34px;transform:translateY(-12px)}
+    .page{padding-bottom:28px}
+  }
+  /* toast */
+  .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);background:rgba(34,40,47,.92);color:#fff;font-size:13px;padding:10px 20px;border-radius:99px;opacity:0;pointer-events:none;transition:.25s;z-index:80;max-width:88%;text-align:center;line-height:1.5}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  @media(min-width:960px){.toast{bottom:36px;left:calc(50% + 84px)}}
+  /* 高亮（自动演示） */
+  .spotlight{position:relative;z-index:10;animation:spot 1.3s ease 2}
+  @keyframes spot{0%,100%{box-shadow:0 0 0 0 rgba(232,101,26,0)}30%{box-shadow:0 0 0 4px rgba(232,101,26,.55),0 6px 18px rgba(232,101,26,.18)}}
+  .section-title{font-size:12px;font-weight:800;color:var(--sub);letter-spacing:1px;margin:2px 2px 8px}
+</style>
+</head>
+<body>
+
+<!-- ══ 顶栏 ══ -->
+<div class="topbar">
+  <div class="in">
+    <div class="brand"><i>思潼AI商城</i><small>宠物门店 AI 经营大脑</small></div>
+    <div class="me">
+      <span class="credits">⚡ 算力积分 <b id="creditVal">1,280</b></span>
+      <button class="recharge" onclick="toast('B端商城计费：文字 10 积分/条 · 图片 40 积分/张 · 视频 120 积分/条（演示）')">充值</button>
+      <span class="uav">🐾</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 门店头 ══ -->
+<div class="shophead">
+  <div class="in">
+    <div class="shop-paw">🐕</div>
+    <div>
+      <h1>毛孩子宠物生活馆 <span class="live-dot">● AI 值守中</span></h1>
+      <div class="sub">洗护+商品均衡店 · 单店 · 今天 <b id="todayDate"></b> · AI 店长「汪小助」为您值守</div>
+    </div>
+    <button class="demo-btn" id="demoBtn" onclick="toggleDemo()">▶ 一键演示</button>
+  </div>
+</div>
+
+<!-- ══ 主工作区 ══ -->
+<div class="wb">
+
+  <!-- ══════════ TAB 1 · 经营驾驶舱 ══════════ -->
+  <section class="page act" id="page-home">
+    <!-- 今日结论 -->
+    <div class="card ai-verdict">
+      <div class="ai-row">
+        <div class="ai-ava">🐶</div>
+        <div style="flex:1">
+          <div class="ai-name">汪小助 · 今日经营诊断 <span>9月24日 周三 08:30 生成</span></div>
+          <div class="ai-text">
+            按当前节奏，本月营收预计收在 <b>¥79,000（93%）</b>，差一点达标。本周有 <b>17 个到期/耗尽提醒</b>（疫苗 3 · 驱虫 6 · 粮食猫砂 8）+ <b>12 位 M1 沉睡客</b>，全部执行完预计补回 <b>¥7,800</b>，月末可冲到 <b>¥86,800，超额完成</b>。今天最该盯：<b>下午 3 点前把 M1 唤醒私信发出去</b>，黄金期成功率 75%。
+          </div>
+        </div>
+      </div>
+      <div class="forecast">
+        <div class="fc warn">
+          <div class="k">月末自然预测</div>
+          <div class="v">¥7.9<small>万</small></div>
+          <div class="d">完成目标 93% · 缺 ¥6,000</div>
+        </div>
+        <div class="fc good">
+          <div class="k">执行动作后预测</div>
+          <div class="v">¥8.68<small>万</small></div>
+          <div class="d">102% 超额 ¥1,800</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 目标四卡 -->
+    <div class="card">
+      <div class="card-h"><span class="ic" style="background:var(--orange-soft)">🎯</span><b>本月目标达成</b><span class="more" onclick="toast('日报/周报在「门店后台」自动生成')">查看月报 ›</span></div>
+      <div class="goal-grid">
+        <div class="goal">
+          <div class="gk"><span>营业额</span><span>93%</span></div>
+          <div class="gv">¥71,400<small> / ¥85,000</small></div>
+          <div class="gbar"><i style="width:84%"></i></div>
+          <div class="gp">剩 6 天，日均需 ¥2,267</div>
+        </div>
+        <div class="goal">
+          <div class="gk"><span>新客</span><span>84%</span></div>
+          <div class="gv">38<small> / 45 人</small></div>
+          <div class="gbar"><i style="width:84%"></i></div>
+          <div class="gp">美团+老客转介绍为主</div>
+        </div>
+        <div class="goal done">
+          <div class="gk"><span>复购率</span><span>✓</span></div>
+          <div class="gv">61%</div>
+          <div class="gbar"><i style="width:100%"></i></div>
+          <div class="gp">目标 58%，已达成</div>
+        </div>
+        <div class="goal">
+          <div class="gk"><span>沉睡唤醒</span><span>60%</span></div>
+          <div class="gv">9<small> / 15 人</small></div>
+          <div class="gbar"><i style="width:60%"></i></div>
+          <div class="gp">今日待触达 12 人</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cols-2">
+      <div>
+        <!-- 沉睡分档 -->
+        <div class="card">
+          <div class="card-h"><span class="ic" style="background:var(--purple-soft)">🌙</span><b>沉睡会员分档</b><span class="more" onclick="switchTab('private');setSub('pv-wake')">去唤醒 ›</span></div>
+          <div class="sleep">
+            <div class="s m1" onclick="switchTab('private');setSub('pv-wake')">
+              <div class="sn">12</div><div class="sl">M1 · 30-44天</div><div class="sr">黄金期 75%</div>
+            </div>
+            <div class="s m2" onclick="switchTab('private');setSub('pv-wake')">
+              <div class="sn">7</div><div class="sl">M2 · 45-89天</div><div class="sr">关键期 67%</div>
+            </div>
+            <div class="s m3" onclick="switchTab('private');setSub('pv-wake')">
+              <div class="sn">5</div><div class="sl">M3 · ≥90天</div><div class="sr">重症期 20%</div>
+            </div>
+          </div>
+          <div class="rwhy" style="margin:9px 0 0">洗护周期约 30-45 天，M1 客人只是「忘了」，一条带具体理由的私信最容易召回；M3 需电话+大额券。</div>
+        </div>
+
+        <!-- 储值次卡 -->
+        <div class="card">
+          <div class="card-h"><span class="ic" style="background:var(--amber-soft)">💳</span><b>储值 · 次卡耗卡</b></div>
+          <div class="prepaid">
+            <div class="pp">
+              <div class="pk">会员储值未耗余额（预收）</div>
+              <div class="pv">¥43,200</div>
+            </div>
+            <button class="mini-btn" onclick="toast('已生成 2 位高余额沉睡客的邀约话术（私域引擎 → 回访）')">生成邀约</button>
+          </div>
+          <div class="prepad-warn">⚠ 3 张洗护次卡 90 天未用（含 ¥1,280 大额卡 1 张），建议本周邀约到店或协商延期，降低退卡纠纷。</div>
+        </div>
+      </div>
+
+      <div>
+        <!-- 今天干什么 -->
+        <div class="card" id="taskCard">
+          <div class="card-h"><span class="ic" style="background:var(--green-soft)">✅</span><b>今天干什么</b></div>
+          <div class="task-progress"><span id="taskCount">0/6 已完成</span><div class="tbar"><i id="taskBar"></i></div></div>
+
+          <div class="task" data-task>
+            <span class="pri p0">P0</span>
+            <div class="tbody">
+              <div class="tt">给 12 位 M1 沉睡客发唤醒私信</div>
+              <div class="td">其中 8 位带着到期理由（疫苗 3 / 驱虫 4 / 洗护超期 1），预计挽回 <b>¥3,600</b> · 黄金期 15:00 前发效果最好</div>
+              <div class="tact"><button class="mini-btn" onclick="switchTab('private');setSub('pv-remind');spotlightFirst()">去私域引擎一键发送</button></div>
+            </div>
+            <div class="check" onclick="toggleTask(this)">✓</div>
+          </div>
+
+          <div class="task" data-task>
+            <span class="pri p0">P0</span>
+            <div class="tbody">
+              <div class="tt">电话跟进 2 笔大额未耗储值</div>
+              <div class="td">X 先生余额 <b>¥3,800</b>（92 天未到店）、李女士 <b>¥2,400</b>（76 天），话术与顾虑预案已备好</div>
+              <div class="tact"><button class="mini-btn ghost" onclick="toast('话术：以宠物近况关心切入 → 秋季洗护权益 → 不推销，先约到店')">查看话术</button></div>
+            </div>
+            <div class="check" onclick="toggleTask(this)">✓</div>
+          </div>
+
+          <div class="task" data-task>
+            <span class="pri p1">P1</span>
+            <div class="tbody">
+              <div class="tt">国庆寄养只剩 3 个空位，发社群逼单</div>
+              <div class="td">10/1-10/3 寄养已订 80%，社群文案已生成，附定金锁位链接</div>
+              <div class="tact"><button class="mini-btn ghost" onclick="switchTab('content');setSub('cv-copy')">看文案</button></div>
+            </div>
+            <div class="check" onclick="toggleTask(this)">✓</div>
+          </div>
+
+          <div class="task" data-task>
+            <span class="pri p2">P2</span>
+            <div class="tbody">
+              <div class="tt">发 1 条朋友圈（换毛季洗护）</div>
+              <div class="td">内容工场已备好 3 条，建议 12:30 或 20:30 发</div>
+              <div class="tact"><button class="mini-btn ghost" onclick="switchTab('content');setSub('cv-copy')">选一条</button></div>
+            </div>
+            <div class="check" onclick="toggleTask(this)">✓</div>
+          </div>
+
+          <div style="margin-top:11px">
+            <div class="section-title">🔁 今日例行（系统已自动完成大部分）</div>
+            <div class="routine-list">
+              <span class="routine-chip done">✓ 洗护后回访 <b>3 单</b></span>
+              <span class="routine-chip done">✓ 寄养打卡 <b>2 只</b></span>
+              <span class="routine-chip">美团好评引导 <b>2 条</b></span>
+              <span class="routine-chip">新客档案补全 <b>1 份</b></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ TAB 2 · 私域自动化引擎 ══════════ -->
+  <section class="page" id="page-private">
+    <div class="redline-banner">🛡️ <span><b>产品红线：</b>AI 不做疾病诊断、不开药、不判断重症——涉及健康问题一律引导就医或到店观察；知识库只推荐本店在售产品。</span></div>
+
+    <div class="subtabs">
+      <button class="subtab act" onclick="setSub('pv-chat',this)">💬 24h自动接待</button>
+      <button class="subtab" onclick="setSub('pv-remind',this)">⏰ 到期提醒引擎</button>
+      <button class="subtab" onclick="setSub('pv-visit',this)">📸 回访·寄养打卡</button>
+      <button class="subtab" onclick="setSub('pv-wake',this)">🌙 唤醒·分层</button>
+      <button class="subtab" onclick="setSub('pv-review',this)">⭐ 评价管理</button>
+    </div>
+
+    <!-- 24h 自动接待 -->
+    <div class="subview act" id="pv-chat">
+      <div class="card">
+        <div class="card-h"><span class="ic" style="background:var(--orange-soft)">💬</span><b>企微 · AI 自动接待</b><span class="more" onclick="toast('营业时间 / 洗护价格 / 寄养收费 / 疫苗咨询均可自动应答')">接待设置 ›</span></div>
+        <div class="chatbox">
+          <div class="chat-stats">
+            <span>今日接待<b>17 人</b></span>
+            <span>自动预约转化<b>5 单</b></span>
+            <span>转人工<b>2 人</b></span>
+            <span>平均响应<b>3 秒</b></span>
+          </div>
+          <div class="chat-log" id="chatLog">
+            <div class="cm cust"><span class="cav">👩</span><div class="cb">你好，明天下午想给金毛洗个澡，有空位吗？多少钱？</div></div>
+            <div class="cm ai"><span class="cav">🐶</span><div>
+              <div class="who">汪小助 <span class="aibadge">自动回复</span></div>
+              <div class="cb" style="max-width:none;border:none;background:none;box-shadow:none;padding:0">
+                有的呀～大型犬洗护 <b>¥128</b>（含洗澡、吹干、挤肛门腺、清耳道、剪指甲），明天 <b>14:00 / 16:30</b> 两个时段。帮您约 14:00 好吗？回复「1」确认，预约链接已发您👉
+                <div class="acts"><button onclick="toast('真实环境：跳转企微预约卡片')">📅 预约链接</button><button onclick="toast('已标记：价格敏感型客户')">客户标签</button></div>
+              </div>
+            </div></div>
+
+            <div class="cm cust"><span class="cav">👨</span><div class="cb">我猫这两天拉肚子，给它吃什么药啊？</div></div>
+            <div class="cm ai"><span class="cav">🐶</span><div>
+              <div class="who">汪小助 <span class="aibadge">自动回复</span></div>
+              <div class="cb" style="max-width:none;border:none;background:none;box-shadow:none;padding:0">
+                猫咪腹泻原因挺多的，换粮、应激、寄生虫都有可能，<b>我不方便推荐用药哦</b>🙏 已经持续两天，建议尽快带去宠物医院检查一下；如果精神差、便血或呕吐要马上就医。等它恢复了，欢迎来店里做个体内外驱虫和洗护～
+                <div class="redline-tip">🛡️ 触发健康红线：已拒绝用药建议并引导就医，未输出任何诊疗判断</div>
+              </div>
+            </div></div>
+
+            <div class="cm cust"><span class="cav">👩‍🦰</span><div class="cb">国庆寄养怎么收费？猫</div></div>
+            <div class="cm ai"><span class="cav">🐶</span><div>
+              <div class="who">汪小助 <span class="aibadge">自动回复</span></div>
+              <div class="cb" style="max-width:none;border:none;background:none;box-shadow:none;padding:0">
+                猫咪 <b>¥60/天</b>，独立猫房不混笼，每天两次铲屎喂食 + <b>拍照/视频打卡</b>，自带粮食哦。国庆 10/1-10/3 只剩 <b>3 个空位</b>，付 50% 定金可锁位👉
+                <div class="acts"><button onclick="toast('寄养协议 + 定金支付链接已发送')">📋 锁位链接</button></div>
+              </div>
+            </div></div>
+
+            <div class="cm cust"><span class="cav">🧑</span><div class="cb">你们这驱虫和网上比太贵了，网上才 30 一片</div></div>
+            <div class="cm ai"><span class="cav">🐶</span><div>
+              <div class="who">汪小助 <span class="aibadge">转人工</span></div>
+              <div class="cb" style="max-width:none;border:none;background:none;box-shadow:none;padding:0">
+                理解的～网上价格确实透明。我们的驱虫是店员按体重现场滴、保证正品冷链，做完还顺手帮您看下耳道和皮肤状况。您稍等，让店长跟您说下本月的驱虫+洗护组合价😊
+                <div class="redline-tip" style="background:var(--amber-soft);border-color:#f0d69a;color:#8a5a17">🏷️ 识别到议价异议，已转人工并把「异议应对话术」推送给当班店员</div>
+              </div>
+            </div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 到期提醒引擎 -->
+    <div class="subview" id="pv-remind">
+      <div class="card">
+        <div class="card-h"><span class="ic" style="background:var(--amber-soft)">⏰</span><b>到期提醒引擎</b><span class="more">本周 17 条</span></div>
+        <div style="font-size:12px;color:var(--sub);margin-bottom:10px;line-height:1.6">按疫苗周期、驱虫 90 天、洗护 30-45 天、粮食/猫砂消耗速度自动推算。每条都带着<b style="color:var(--ink)">「与我有关的具体理由」</b>，比群发召回率高 3 倍。</div>
+
+        <div class="remind" id="rm1">
+          <div class="rt"><span class="pet-ic" style="background:var(--blue-soft)">🐕</span><span class="rn">豆豆 <small>金毛 · 3岁 · 张女士</small></span><span class="rtype vaccine">疫苗到期</span></div>
+          <div class="rwhy">狂犬疫苗 <b>明天（9/25）满一年</b>，到期后洗护寄养都不方便接收</div>
+          <div class="rscript">豆豆妈～豆豆的狂犬疫苗明天就整一年啦，建议这周抽空补一下。我们合作的医院周三周五有针，或者您打完针带豆豆来洗个澡，本月<b>凭疫苗记录洗护立减 20</b> 🐶</div>
+          <div class="ractions"><button class="mini-btn" onclick="sendRemind(this,'rm1','疫苗提醒已私发豆豆妈')">一键私发</button><button class="mini-btn ghost" onclick="toast('话术已复制，可手动修改后发送')">改话术</button></div>
+        </div>
+
+        <div class="remind" id="rm2">
+          <div class="rt"><span class="pet-ic" style="background:var(--amber-soft)">🐈</span><span class="rn">咪咪 <small>英短 · 2岁 · 陈先生</small></span><span class="rtype food">粮食将耗尽</span></div>
+          <div class="rwhy">9/6 购买 1.5kg 猫粮，按咪咪食量推算 <b>约 9/28 吃完</b></div>
+          <div class="rscript">陈先生～掐指一算咪咪的口粮差不多到周末啦😺 上次那款鸡肉猫粮店里有货，今天下单 <b>2 袋包邮送 2 条猫条</b>，顺路也能帮您带到小区门口～</div>
+          <div class="ractions"><button class="mini-btn" onclick="sendRemind(this,'rm2','粮食补货提醒已发，附商品链接')">一键私发</button><button class="mini-btn ghost" onclick="toast('话术已复制')">改话术</button></div>
+        </div>
+
+        <div class="remind" id="rm3">
+          <div class="rt"><span class="pet-ic" style="background:var(--orange-soft)">🐩</span><span class="rn">汤圆 <small>比熊 · 4岁 · 王女士</small></span><span class="rtype wash">洗护超期</span></div>
+          <div class="rwhy">上次洗护 8/23，已 <b>32 天未洗护</b>，正值秋季换毛期</div>
+          <div class="rscript">汤圆妈妈～秋天到了汤圆是不是又开始「行走的蒲公英」啦😂 距上次洗护已经一个月，卷毛容易打结，这周来做个<b>换毛季深层洗护+开结</b>吧，老客给您留下午阳光最好的时段～</div>
+          <div class="ractions"><button class="mini-btn" onclick="sendRemind(this,'rm3','洗护提醒已发汤圆妈')">一键私发</button><button class="mini-btn ghost" onclick="toast('话术已复制')">改话术</button></div>
+        </div>
+
+        <div class="remind" id="rm4">
+          <div class="rt"><span class="pet-ic" style="background:var(--purple-soft)">🐱</span><span class="rn">团子 <small>布偶 · 1岁 · 林女士</small></span><span class="rtype worm">驱虫到期</span></div>
+          <div class="rwhy">体内驱虫距上次 <b>已满 90 天</b></div>
+          <div class="rscript">团子妈～团子的体内驱虫满 3 个月啦，布偶肠胃娇，定期驱虫也能减少软便。本周到店做驱虫，<b>加 19.9 元换购原价 39 的化毛膏</b>，需要帮您约个时间吗？</div>
+          <div class="ractions"><button class="mini-btn" onclick="sendRemind(this,'rm4','驱虫提醒已发团子妈')">一键私发</button><button class="mini-btn ghost" onclick="toast('话术已复制')">改话术</button></div>
+        </div>
+
+        <div class="remind" id="rm5">
+          <div class="rt"><span class="pet-ic" style="background:var(--amber-soft)">🐈‍⬛</span><span class="rn">煤球 <small>美短 · 3岁 · 赵女士</small></span><span class="rtype food">猫砂将耗尽</span></div>
+          <div class="rwhy">9/1 购买 10L 豆腐猫砂，单猫用量推算 <b>约 9/29 用完</b></div>
+          <div class="rscript">赵姐～煤球的猫砂估摸下周中见底，本周膨润土+豆腐混合砂做活动 <b>2 包 89</b>，结团快还带出少，给您留两包？</div>
+          <div class="ractions"><button class="mini-btn" onclick="sendRemind(this,'rm5','猫砂补货提醒已发')">一键私发</button><button class="mini-btn ghost" onclick="toast('话术已复制')">改话术</button></div>
+        </div>
+
+        <button class="big-btn primary" style="margin-top:4px" onclick="sendAllRemind(this)">📨 全部 17 条一键发送（AI 已按每位客户改写称呼与理由）</button>
+      </div>
+    </div>
+
+    <!-- 回访·寄养打卡 -->
+    <div class="subview" id="pv-visit">
+      <div class="cols-2">
+        <div class="card">
+          <div class="card-h"><span class="ic" style="background:var(--green-soft)">📞</span><b>消费后自动回访</b></div>
+          <div class="visit">
+            <span class="v-ic">🛁</span>
+            <div style="flex:1">
+              <div class="vt">豆豆 · 金毛｜洗护后第 2 天</div>
+              <div class="vd">昨天 14:00 洗护完成，AI 已在 18:30 发送回访：「豆豆妈，豆豆回去毛毛还顺滑吗？皮肤有没有发红？」</div>
+              <div class="reply-preview">客户回复：「挺好的！毛毛蓬蓬的，谢谢～」→ 已自动推送 <b>8 元复购券</b> + 美团好评引导</div>
+            </div>
+          </div>
+          <div class="visit">
+            <span class="v-ic">🏠</span>
+            <div style="flex:1">
+              <div class="vt">布丁 · 柯基｜寄养中 第 2 天</div>
+              <div class="vd">今日 17:00 已自动发送 <b>3 张照片 + 15 秒视频</b> 打卡给主人（遛放/进食/睡姿）</div>
+              <div class="reply-preview">主人回复：「哈哈这睡姿太丑了，谢谢你们照顾！」❤️ 已沉淀为寄养好评素材</div>
+              <div class="vfoot"><button class="mini-btn ghost" onclick="toast('真实环境：调取今日寄养照片自动拼合发送')">预览今日打卡</button></div>
+            </div>
+          </div>
+          <div class="visit">
+            <span class="v-ic">🛍️</span>
+            <div style="flex:1">
+              <div class="vt">大壮 · 柯基｜商品购买后第 3 天</div>
+              <div class="vd">冻干适口性回访已自动发送，未回复则 2 天后换「喂食建议」话题二次触达，不骚扰。</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h"><span class="ic" style="background:var(--blue-soft)">🏷️</span><b>自动打标签</b><span class="more">246 位客户</span></div>
+          <div class="tagcloud">
+            <span class="ptag hot">狗主人 <b>142</b></span>
+            <span class="ptag hot">猫主人 <b>98</b></span>
+            <span class="ptag">幼宠 ≤1岁 <b>31</b></span>
+            <span class="ptag">老年宠 ≥8岁 <b>19</b></span>
+            <span class="ptag hot">高价值 年消¥3000+ <b>36</b></span>
+            <span class="ptag">猫粮周期客 <b>54</b></span>
+            <span class="ptag">洗护月卡族 <b>67</b></span>
+            <span class="ptag">寄养常客 <b>23</b></span>
+            <span class="ptag">价格敏感 <b>28</b></span>
+            <span class="ptag">皮肤病史 <b>11</b></span>
+            <span class="ptag">转介绍达人 <b>9</b></span>
+          </div>
+          <div style="font-size:11.5px;color:var(--sub);margin-top:10px;line-height:1.6">标签由消费记录、对话、档案自动生成，是分层唤醒、套餐推荐、店员接待的依据——不需要老板手动维护。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 唤醒·分层 -->
+    <div class="subview" id="pv-wake">
+      <div class="card">
+        <div class="card-h"><span class="ic" style="background:var(--purple-soft)">🌙</span><b>沉睡唤醒 · 会员分层</b></div>
+        <div class="visit">
+          <span class="v-ic" style="background:var(--orange-soft);border-radius:10px;width:38px;height:38px;display:grid;place-items:center">M1</span>
+          <div style="flex:1">
+            <div class="vt">12 人 · 黄金期（30-44 天）｜历史唤醒成功率 75%</div>
+            <div class="vd">策略：<b>具体到期理由私信</b>（不发优惠券，靠「你家猫该驱虫了」召回）。其中 8 人已在「到期提醒引擎」生成个性化话术。</div>
+            <div class="vfoot"><button class="mini-btn" onclick="switchTab('private');setSub('pv-remind');toast('8 条个性化话术已就绪，其余 4 条为通用换毛季召回')">去发送 12 条</button><span class="sent-tag" id="wakeStat">预计挽回 ¥3,600</span></div>
+          </div>
+        </div>
+        <div class="visit">
+          <span class="v-ic" style="background:var(--amber-soft);border-radius:10px;width:38px;height:38px;display:grid;place-items:center;color:var(--amber)">M2</span>
+          <div style="flex:1">
+            <div class="vt">7 人 · 关键期（45-89 天）｜成功率 67%</div>
+            <div class="vd">策略：<b>¥15 洗护券 + 宠物近况关心</b>，AI 自动生成「想它了」式私信，高价值 4 人建议老板本人语音。</div>
+            <div class="vfoot"><button class="mini-btn ghost" onclick="toast('7 条话术已生成，含 4 条老板语音建议清单')">生成话术</button></div>
+          </div>
+        </div>
+        <div class="visit">
+          <span class="v-ic" style="background:#eef1f5;border-radius:10px;width:38px;height:38px;display:grid;place-items:center;color:var(--sub)">M3</span>
+          <div style="flex:1">
+            <div class="vt">5 人 · 重症期（≥90 天）｜成功率 20%</div>
+            <div class="vd">策略：<b>电话 + 大额回归礼包</b>（洗护 5 折券），先确认是否搬家/换店，挽回成本高，控制投入。</div>
+            <div class="vfoot"><button class="mini-btn ghost" onclick="toast('外呼清单已排期：本周四 15:00-16:00')">排入外呼</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 评价管理 -->
+    <div class="subview" id="pv-review">
+      <div class="card">
+        <div class="card-h"><span class="ic" style="background:var(--red-soft)">⭐</span><b>美团 · 大众点评 评价</b><span class="more">近 7 天 8 条</span></div>
+        <div class="review bad">
+          <div><span class="stars">★★★☆☆</span><span class="rname">9/23 · 匿名用户（柯基）</span><span class="badge red" style="margin-left:6px">差评预警</span></div>
+          <div class="rtxt">「接狗的时候身上摸起来还有点潮，回家自己又吹了半天……」</div>
+          <div class="rai"><b>AI 归因：吹干环节（疑似厚毛犬未吹透）</b>｜建议今天 10 点前电话致歉 + 邀约免费补洗，48 小时内处理差评可改评率 60%。安抚话术与补救方案已生成。</div>
+          <div class="vfoot" style="margin-top:8px"><button class="mini-btn" onclick="this.innerHTML='✓ 已拨打';this.disabled=true;this.classList.add('sent')">按话术电话致歉</button><button class="mini-btn ghost" onclick="toast('已预约 9/25 上午免费补洗，备注：双层厚毛加长吹干 15 分钟')">安排补洗</button></div>
+        </div>
+        <div class="review good">
+          <div><span class="stars">★★★★★</span><span class="rname">9/22 · 咪咪的铲屎官</span></div>
+          <div class="rtxt">「寄养每天都发视频，猫在那完全不应激，太放心了！」</div>
+          <div class="rai" style="background:#f4f9f6;color:var(--sub)"><b style="color:var(--green)">AI 已自动感谢</b>并回复买家秀模板，同时引导复购：已私信发送寄养老客 ¥10 复购券。</div>
+        </div>
+        <div class="review good">
+          <div><span class="stars">★★★★★</span><span class="rname">9/21 · 豆豆妈</span></div>
+          <div class="rtxt">「店员特别专业，我家狗皮肤敏感还给了好多建议」</div>
+          <div class="rai" style="background:#f4f9f6;color:var(--sub)"><b style="color:var(--green)">已沉淀为好评素材</b>，可一键转为朋友圈/美团店主说内容（内容工场已同步）。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ TAB 3 · 内容营销工场 ══════════ -->
+  <section class="page" id="page-content">
+    <div class="subtabs">
+      <button class="subtab act" onclick="setSub('cv-copy',this)">📝 每日文案</button>
+      <button class="subtab" onclick="setSub('cv-video',this)">🎬 短视频脚本</button>
+      <button class="subtab" onclick="setSub('cv-dh',this)">🧑‍🎤 AI数字人</button>
+      <button class="subtab" onclick="setSub('cv-plan',this)">🎉 节日活动</button>
+      <button class="subtab" onclick="setSub('cv-mt',this)">🏷️ 美团点评</button>
+    </div>
+
+    <!-- 每日文案 -->
+    <div class="subview act" id="cv-copy">
+      <div class="card">
+        <div class="card-h"><span class="ic" style="background:var(--orange-soft)">📝</span><b>今日内容 · 已为你备好</b><span class="more">9/24 周三 · 消耗 30 积分</span></div>
+
+        <div class="copy-card">
+          <div class="cc-h"><span class="tag2 zhongcao">朋友圈·种草</span><b style="font-size:12.5px">建议 12:30 发</b></div>
+          <div class="cc-b">说个不怕你们笑的事——
+这款冻干，我们店自己的猫已经偷吃空 3 罐了🙈
+
+含肉量 96%，捏碎拌粮、当训练零食都行，配料表干净到我能念出声。
+很多老客回购都说：终于有一款我家挑食怪肯赏脸的。
+
+今天到店报「冻干」两字，尝鲜装 9.9 带走，每包还送 1 根猫条 🐱
+（库存就 20 罐，卖完等下周）</div>
+          <div class="cc-f"><button onclick="copyText(this)">复制文案</button><button class="primary" onclick="toast('已匹配 3 张门店实拍图，可一键发布（演示）')">配图发布</button></div>
+        </div>
+
+        <div class="copy-card">
+          <div class="cc-h"><span class="tag2 huodong">朋友圈·活动</span><b style="font-size:12.5px">建议 20:30 发</b></div>
+          <div class="cc-b">🍂 换毛季倒计时｜你家沙发还好吗？
+
+比熊/金毛/布偶家长注意：
+秋季不洗护 = 家里天天飘雪 + 毛发打结只能剃光。
+
+本周「换毛季深层洗护」：
+✔ 去废毛梳通 + 药浴护理
+✔ 比平时多吹 15 分钟，拒绝带潮回家
+老客带图预约再减 10 元。
+评论区扣「1」，我给您留位 🐶</div>
+          <div class="cc-f"><button onclick="copyText(this)">复制文案</button><button class="primary" onclick="toast('已转入 AI 数字人：可直接生成口播视频')">做成数字人视频</button></div>
+        </div>
+
+        <div class="copy-card">
+          <div class="cc-h"><span class="tag2 kepu">朋友圈·科普</span><b style="font-size:12.5px">建立专业感</b></div>
+          <div class="cc-b">猫咪突然咬你一口，不是讨厌你⚠️
+大概率是这 3 个原因：
+1️⃣ 摸太久了，它尾巴开始甩就是在说「停」
+2️⃣ 玩兴奋了，从小没养成收爪习惯
+3️⃣ 换牙/换牙期牙龈痒（4-6 个月小猫）
+
+被咬了别甩手大叫（它会觉得你在陪玩），
+僵住不动 + 停止互动 30 秒最有效。
+你家猫是哪种咬人选手？评论区告诉我🐾</div>
+          <div class="cc-f"><button onclick="copyText(this)">复制文案</button><button class="primary" onclick="toast('科普内容是涨粉主力，已同步加入短视频选题库')">转短视频选题</button></div>
+        </div>
+
+        <div class="copy-card">
+          <div class="cc-h"><span class="tag2 shequn">社群·逼单</span><b style="font-size:12.5px">国庆寄养</b></div>
+          <div class="cc-b">📢 各位家长，国庆寄养房况播报：
+10/1-10/3 独立猫房 + 小型犬位，一共只剩 3 个位置了！
+付 50% 定金锁位，老客不涨价。
+每天遛放/铲屎视频打卡，出门玩也能云吸宠 🐾
+要订的私我「日期+宠物体重」，先到先得～</div>
+          <div class="cc-f"><button onclick="copyText(this)">复制文案</button><button class="primary" onclick="toast('已发送至 3 个会员社群（演示）')">一键发社群</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 短视频脚本 -->
+    <div class="subview" id="cv-video">
+      <div class="card">
+        <div class="card-h"><span class="ic" style="background:var(--purple-soft)">🎬</span><b>本周短视频脚本</b><span class="more">好拍好剪 · 25 积分/条</span></div>
+
+        <div class="script-card">
+          <div class="sc-h">📱 《新手养猫，最容易花的 3 笔冤枉钱》｜时长 45 秒｜口播+实物展示</div>
+          <div class="shot"><span class="no">1</span><div><b>0-5s 钩子：</b>对着镜头「养猫第一年我白花了 2000 块，这 3 样真的别买。」<div class="sl">画面：手拿三件"智商税"产品入镜</div></div></div>
+          <div class="shot"><span class="no">2</span><div><b>6-18s 第一样：</b>网红自动逗猫棒（猫三天就腻）→ 一根 5 块钱的羽毛棒替代。</div></div>
+          <div class="shot"><span class="no">3</span><div><b>19-31s 第二样：</b>廉价猫窝（猫只睡纸箱）→ 预算留给好猫粮。</div></div>
+          <div class="shot"><span class="no">4</span><div><b>32-42s 第三样：</b>不明来源驱虫药（真出事省的钱全赔回去）。<div class="sl">⚠ 口播只讲购买渠道风险，不讲用药剂量，不替代医嘱</div></div></div>
+          <div class="shot"><span class="no">5</span><div><b>43-45s 引导：</b>「想知道哪些钱必须花？来店里我给你列张清单，评论区扣『清单』」</div></div>
+          <div class="cc-f"><button onclick="copyText(this)">复制脚本</button><button class="primary" onclick="setSub('cv-dh');toast('脚本已带入数字人口播稿')">用数字人拍</button></div>
+        </div>
+
+        <div class="script-card">
+          <div class="sc-h">📱 《猫罐头怎么挑？看包装上这 3 行字就够了》｜时长 38 秒</div>
+          <div class="shot"><span class="no">1</span><div><b>0-6s 钩子：</b>「罐头买错，等于天天给猫吃调料汤。3 秒教会你看。」</div></div>
+          <div class="shot"><span class="no">2</span><div><b>7-17s 第一行：</b>配料表第一位必须是肉，不是水、不是鱼糜。</div></div>
+          <div class="shot"><span class="no">3</span><div><b>18-28s 第二行：</b>粗蛋白≥10%、无诱食剂（XXX胶排最后也行但别在前三）。</div></div>
+          <div class="shot"><span class="no">4</span><div><b>29-38s 收尾：</b>举起店内两款「这两款我们自己猫也在吃，来店我帮你按猫龄挑」。</div></div>
+          <div class="cc-f"><button onclick="copyText(this)">复制脚本</button><button class="primary" onclick="setSub('cv-dh');toast('脚本已带入数字人口播稿')">用数字人拍</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI 数字人（王牌·完整生成器） -->
+    <div class="subview" id="cv-dh">
+      <div class="card">
+        <div class="card-h"><span class="ic" style="background:var(--orange-soft)">🧑‍🎤</span><b>AI 数字人口播</b><span class="more">不出镜 · 不剪辑 · 60 秒成片</span></div>
+        <div style="font-size:12px;color:var(--sub);margin-bottom:12px;line-height:1.6">老板给一张形象图 + 一段文案，AI 自动生成口播视频——解决门店<b style="color:var(--ink)">"老板不出镜、没人会拍视频"</b>的头号难题。</div>
+
+        <div class="dh-steps">
+          <div class="dh-step act" id="dhs1"><span class="dn">1</span>选形象</div>
+          <div class="dh-line"></div>
+          <div class="dh-step" id="dhs2"><span class="dn">2</span>贴文案</div>
+          <div class="dh-line"></div>
+          <div class="dh-step" id="dhs3"><span class="dn">3</span>生成预览</div>
+        </div>
+
+        <!-- Step 1 -->
+        <div class="dh-pane act" id="dhp1">
+          <div class="avatar-grid">
+            <div class="av-opt sel" onclick="pickAvatar(this,'小林店长','👩‍🦰')">
+              <div class="face">👩‍🦰</div><div class="an">小林店长</div><div class="ad">亲切邻家 · 适合活动播报</div>
+            </div>
+            <div class="av-opt" onclick="pickAvatar(this,'阿哲主播','🧑‍🎤')">
+              <div class="face">🧑‍🎤</div><div class="an">阿哲主播</div><div class="ad">阳光有活力 · 适合种草引流</div>
+            </div>
+            <div class="av-opt" onclick="pickAvatar(this,'汪管家','🐶')">
+              <div class="face">🐶</div><div class="an">汪管家（卡通）</div><div class="ad">虚拟 IP · 科普知识不踩线</div>
+            </div>
+            <div class="av-opt" onclick="pickAvatar(this,'专业顾问','🧑‍⚕️')">
+              <div class="face">🧑‍⚕️</div><div class="an">专业顾问</div><div class="ad">白大褂形象 · 仅护理建议</div>
+            </div>
+          </div>
+          <div style="font-size:10.5px;color:var(--sub);margin-top:9px;line-height:1.5">🛡️ 数字人形象仅用于门店经营/护理常识口播，不输出疾病诊疗内容；也可上传老板本人照片克隆专属形象（正式版功能）。</div>
+          <div class="dh-foot"><button class="big-btn primary" onclick="dhNext(2)">下一步：贴文案</button></div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="dh-pane" id="dhp2">
+          <textarea class="dh-textarea" id="dhScript" oninput="dhCount()">秋天一到，你家狗是不是又开始满屋掉毛了？
+换毛季洗护千万别拖，废毛不及时清理，容易打结、得皮肤病。
+毛孩子宠物生活馆本周推出换毛季深层洗护：
+去废毛、药浴护理、比平时多吹十五分钟。
+老客预约再减十块钱，名额有限，评论区扣 1，我给你留位置！</textarea>
+          <div class="dh-meta"><span id="dhWords">127 字 · 预计成片约 32 秒</span><span>积分：视频 120/条</span></div>
+          <div class="dh-foot">
+            <button class="big-btn ghost" onclick="dhNext(1)">上一步</button>
+            <button class="big-btn primary" onclick="dhGenerate()">生成预览（-120 积分）</button>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="dh-pane" id="dhp3">
+          <div id="genIdle">
+            <div class="dh-player" style="background:#f7f9fb;border:1.5px dashed var(--orange-line);box-shadow:none;display:grid;place-items:center">
+              <div style="color:var(--sub);font-size:12.5px;text-align:center;line-height:2">🧑‍🎤<br/>点「生成预览」后<br/>这里会出现口播视频</div>
+            </div>
+          </div>
+          <div id="genRunning" style="display:none">
+            <div class="gen-progress">
+              <div class="gen-spin"></div>
+              <div class="gen-steps" id="genSteps">
+                <div data-g="0">⏳ 解析口播文案…</div>
+              </div>
+            </div>
+          </div>
+          <div id="genDone" style="display:none">
+            <div class="dh-player" id="dhPlayer">
+              <div class="dh-biz">毛孩子宠物生活馆</div>
+              <div class="dh-stage">
+                <div class="dh-face talking" id="dhFace">👩‍🦰</div>
+                <div class="dh-wave" id="dhWave"><i></i><i></i><i></i><i></i><i></i></div>
+              </div>
+              <div class="dh-sub" id="dhSub"></div>
+              <div class="dh-pbar"><i id="dhProg"></i></div>
+              <div class="dh-pctl"><button onclick="togglePlay()" id="playBtn">⏸ 暂停</button></div>
+            </div>
+            <div class="dh-result-foot">
+              <button class="big-btn ghost" onclick="dhNext(2)">改文案</button>
+              <button class="big-btn primary" onclick="toast('视频已保存，可下载/一键发抖音·视频号（演示）')">下载 / 一键发布</button>
+            </div>
+            <div class="cost-note">本次消耗 <b>120 积分</b> · 剩余积分见右上角</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 节日活动 -->
+    <div class="subview" id="cv-plan">
+      <div class="card">
+        <div class="card-h"><span class="ic" style="background:var(--red-soft)">🎉</span><b>国庆宠物节 · 活动方案</b><span class="more">AI 按门店数据定制</span></div>
+        <div style="font-size:12.5px;line-height:1.7;margin-bottom:10px">结合本店数据：国庆寄养已订 80%、9 月库存有 3 款罐头临期、换毛季洗护需求高峰——方案围绕<b style="color:var(--ink)">「寄养锁位 + 洗护套餐 + 临期组合」</b>设计。</div>
+        <div class="combo">
+          <div class="cb2"><b>¥329</b>洗护 3 次卡<small>（原价 ¥384，限 50 张，老客优先）</small></div>
+          <div class="cb2"><b>¥158</b>洗护+零食套餐<small>（深层洗护 + 临期冻干组合，清库存）</small></div>
+          <div class="cb2"><b>充500送80</b>储值方案<small>（锁定四季度复购）</small></div>
+        </div>
+        <div style="margin-top:14px" class="section-title">📅 执行时间轴</div>
+        <div class="plan-tl">
+          <div class="plan-node"><div class="d">9/28（周六）</div><div class="t">预热</div><div class="x">朋友圈预告 + 社群发套餐海报；数字人视频发抖音/视频号；M1 沉睡客私信「老客提前购」。</div></div>
+          <div class="plan-node"><div class="d">10/1-10/3</div><div class="t">高峰执行</div><div class="x">寄养满房，每日打卡裂变（请主人发圈带定位）；到店洗护即送小红旗挂件，引导好评。</div></div>
+          <div class="plan-node"><div class="d">10/4-10/7</div><div class="t">收网复购</div><div class="x">次卡未核销客户提醒；活动数据复盘，AI 输出「活动战报」。</div></div>
+        </div>
+        <div class="copy-card" style="margin-bottom:0">
+          <div class="cc-h"><span class="tag2 huodong">海报主文案</span></div>
+          <div class="cc-b">🐾 国庆带毛孩子一起过节！
+洗护 3 次卡 329｜寄养每日视频打卡｜储值充 500 送 80
+这个假期，把它交给懂它的人。
+——毛孩子宠物生活馆</div>
+          <div class="cc-f"><button onclick="copyText(this)">复制文案</button><button class="primary" onclick="toast('海报生成中：自动套用门店实景+套餐价格（40 积分/张，演示）')">生成海报</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 美团点评 -->
+    <div class="subview" id="cv-mt">
+      <div class="card">
+        <div class="card-h"><span class="ic" style="background:var(--blue-soft)">🏷️</span><b>美团 · 点评店铺内容</b></div>
+        <div class="copy-card">
+          <div class="cc-h"><span class="tag2 kepu">店铺简介</span></div>
+          <div class="cc-b">毛孩子宠物生活馆｜3 年社区老店 🐾
+✦ 猫狗分区洗护，独立猫房不混笼
+✦ 吹水机+双遍吹干，厚毛犬也不带潮回家
+✦ 寄养每日视频打卡，出门玩云吸宠
+✦ 主粮罐头正品可溯源，3 公里内顺路帮带
+营业时间 9:30-20:30，洗护建议提前 1 天预约～</div>
+          <div class="cc-f"><button onclick="copyText(this)">复制</button><button class="primary" onclick="toast('已同步到美团/点评店铺资料（演示）')">同步店铺</button></div>
+        </div>
+        <div class="copy-card">
+          <div class="cc-h"><span class="tag2 shequn">问答区 · 自动回复</span></div>
+          <div class="cc-b">Q：可以接送吗？
+A：3 公里内满 150 元免费接送哦，早上接、晚上洗完送回，下班就能撸到香喷喷的毛孩子～
+
+Q：猫洗澡会不会应激？
+A：我们是独立猫房，和狗狗洗护区完全隔开，全程低速静音吹水，胆小的猫可以约工作日上午人少的时段，第一次来还可以先来熟悉环境～</div>
+          <div class="cc-f"><button onclick="copyText(this)">复制</button><button class="primary" onclick="toast('问答区新提问将由 AI 24h 自动回复（演示）')">开启自动回复</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ TAB 4 · 门店后台（简示） ══════════ -->
+  <section class="page" id="page-store">
+    <div class="cols-2">
+      <div>
+        <!-- 宠物档案 -->
+        <div class="card">
+          <div class="card-h"><span class="ic" style="background:var(--orange-soft)">🐾</span><b>宠物档案</b><span class="more">246 只</span></div>
+          <div class="kb-search"><input placeholder="搜宠物名/品种/主人…" value="豆豆"><button onclick="toast('已按档案库检索（演示）')">搜索</button></div>
+          <div class="pet-file">
+            <span class="pf-ic" style="background:var(--blue-soft)">🐕</span>
+            <div style="flex:1">
+              <div style="font-size:14px;font-weight:800">豆豆 <small style="font-weight:500;color:var(--sub)">金毛 · 3岁 · 公 · 张女士</small></div>
+              <div class="kvline"><b>疫苗</b>：狂犬 2025/9/25 到期（已提醒）｜<b>驱虫</b>：6/24</div>
+              <div class="kvline"><b>过敏</b>：鸡肉｜<b>习惯</b>：怕吹风机噪音，先低速适应 5 分钟</div>
+              <div class="kvline"><b>美容档案</b>：双层厚毛、换季重度掉毛；8/23 洗护+开结，偏好短毛清爽款</div>
+            </div>
+          </div>
+          <div class="ba-compare">
+            <div class="ba-ph" title="洗护前">📷<small style="position:absolute;font-size:10px;color:#93a0af">前</small></div>
+            <div class="ba-ph" title="洗护后">✨<small style="position:absolute;font-size:10px;color:#93a0af">后</small></div>
+          </div>
+          <div class="danger-pet">⚠️ <b>高风险宠物提醒（本周）：</b>贝贝（金毛）胆小暴躁、吹风应激，需两人操作——已提前告知主人并签署《洗护风险知情书》；老年宠物 2 只需备防滑垫、缩短吹风距离。</div>
+        </div>
+
+        <!-- 库存临期 -->
+        <div class="card">
+          <div class="card-h"><span class="ic" style="background:var(--amber-soft)">📦</span><b>库存 · 临期预警</b><span class="more" onclick="toast('进销存与下周销量预测为正式版模块，本 demo 简示')">完整进销存 ›</span></div>
+          <div class="stock-row">
+            <span class="si">🥫</span>
+            <div class="sn">A 品牌鸡肉冻干罐 <small>剩 12 罐 · 保质期 10/28</small></div>
+            <span class="badge red">34天临期</span>
+          </div>
+          <div class="stock-row">
+            <span class="si">🍖</span>
+            <div class="sn">B 品牌牛肉磨牙棒 <small>剩 8 盒 · 保质期 11/5</small></div>
+            <span class="badge amber">42天临期</span>
+          </div>
+          <div class="stock-row">
+            <span class="si">🐟</span>
+            <div class="sn">C 品牌鱼胶零食 <small>60 天 0 销量</small></div>
+            <span class="badge gray">滞销</span>
+          </div>
+          <div class="stock-row">
+            <span class="si">🛒</span>
+            <div class="sn">成猫粮 1.5kg <small>库存 4 袋 · 按消耗 10/2 前需补货</small></div>
+            <span class="badge amber">补货提醒</span>
+          </div>
+          <button class="mini-btn" style="margin-top:9px" onclick="toast('已生成：临期品捆绑洗护套餐方案（已同步内容工场 → 国庆活动）')">生成临期清货方案</button>
+        </div>
+      </div>
+
+      <div>
+        <!-- 知识库 -->
+        <div class="card">
+          <div class="card-h"><span class="ic" style="background:var(--green-soft)">📚</span><b>产品知识库问答</b><span class="more">仅限本店在售</span></div>
+          <div class="kb-search">
+            <input id="kbInput" placeholder="店员随问随答：成分/禁忌/卖点…" value="肾不好的猫能吃哪个罐头？">
+            <button onclick="kbAsk()">提问</button>
+          </div>
+          <div class="kb-a" id="kbAnswer">
+            <b>本店在售可选：</b>
+            ① A 品牌肾脏配方罐（低磷低蛋白），适合肾功异常猫咪的营养管理；
+            ② B 品牌纯鸡丝汤罐（磷含量较低、无额外添加），可作补水辅喂。
+            <span class="kbnote">🛡️ 肾脏问题请以主治兽医的诊断与处方为准，以上仅为店内产品信息，不构成诊疗建议。</span>
+          </div>
+          <div class="kb-q">
+            <button onclick="kbQuick(this)">幼犬零食有什么推荐？</button>
+            <button onclick="kbQuick(this)">那款冻干一天喂多少？</button>
+            <button onclick="kbQuick(this)">猫能吃狗罐头吗？</button>
+          </div>
+        </div>
+
+        <!-- 店员培训 -->
+        <div class="card">
+          <div class="card-h"><span class="ic" style="background:var(--purple-soft)">🎓</span><b>店员培训 · AI 异议演练</b></div>
+          <div style="font-size:12px;color:var(--sub);margin-bottom:9px;line-height:1.6">AI 扮演真实客户陪练，练完给评分和改进建议，新人 3 天敢接客。</div>
+          <div class="drill-box">
+            <div class="drill-log" id="drillLog">
+              <div class="drill-start" id="drillStart">
+                <div style="font-size:13px;margin-bottom:10px">选择一个常见异议剧本开始 10 分钟演练：</div>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <button class="mini-btn" style="width:100%" onclick="startDrill(0)">「洗个狗要 128？别家才 80」——嫌贵</button>
+                  <button class="mini-btn ghost" style="width:100%" onclick="startDrill(1)">「驱虫我自己网上买药滴就行了」——抗拒到店</button>
+                  <button class="mini-btn ghost" style="width:100%" onclick="startDrill(2)">「办卡？不了不了，套路太多」——不愿办卡</button>
+                </div>
+              </div>
+            </div>
+            <div class="drill-score" id="drillScore"></div>
+          </div>
+        </div>
+
+        <!-- 日报/客诉 -->
+        <div class="card">
+          <div class="card-h"><span class="ic" style="background:var(--blue-soft)">📊</span><b>日报 · 客诉分析</b></div>
+          <div class="visit">
+            <span class="v-ic">📄</span>
+            <div style="flex:1">
+              <div class="vt">9/24 门店日报已生成</div>
+              <div class="vd">营业额 ¥2,980｜洗护 9 单｜零售 ¥1,120｜新客 2 人｜明天 15:00 前还有 6 个洗护预约空档。</div>
+            </div>
+          </div>
+          <div class="visit" style="margin-bottom:0">
+            <span class="v-ic">🔍</span>
+            <div style="flex:1">
+              <div class="vt">本周客诉 AI 归因</div>
+              <div class="vd">3 起投诉中 <b>2 起为吹干/应激类</b>（集中在双层厚毛犬）→ 已建议把「厚毛犬加长吹干 15 分钟」写入洗护 SOP，并更新到排班与培训话术。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ══ 底部 Tab 栏（电脑端变左侧导航） ══ -->
+<nav class="tabbar">
+  <button class="tab act" data-tab="home" onclick="switchTab('home')"><span class="ti">🏠</span>经营驾驶舱</button>
+  <button class="tab" data-tab="private" onclick="switchTab('private')"><span class="ti">💬</span>私域引擎<span class="dot" id="tabDot">12</span></button>
+  <button class="tab" data-tab="content" onclick="switchTab('content')"><span class="ti">🎬</span>内容工场</button>
+  <button class="tab" data-tab="store" onclick="switchTab('store')"><span class="ti">🏪</span>门店后台</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ════════ 基础 ════════ */
+var $ = function(s,r){return (r||document).querySelector(s)};
+var $$ = function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+var toastTimer=null;
+function toast(msg,ms){var t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.classList.remove('show')},ms||2400)}
+function todayStr(){var d=new Date(2026,8,24);var w=['日','一','二','三','四','五','六'];return (d.getMonth()+1)+'月'+d.getDate()+'日 周'+w[d.getDay()]}
+$('#todayDate').textContent=todayStr();
+
+/* ════════ Tab 切换 ════════ */
+function switchTab(name){
+  $$('.page').forEach(function(p){p.classList.remove('act')});
+  var pg=$('#page-'+name);pg.classList.add('act');pg.scrollTop=0;
+  $$('.tab').forEach(function(t){t.classList.toggle('act',t.dataset.tab===name)});
+  if(name==='private'&&!window.__chatPlayed){window.__chatPlayed=true;playChat()}
+  if(window.__demoTimer&&name!=='private'&&name!=='content'&&name!=='store'&&name!=='home'){}
+}
+/* 私域/内容 子tab */
+function setSub(id,btn){
+  var host=$('#'+id).closest('.page');
+  $$('.subview',host).forEach(function(v){v.classList.remove('act')});
+  $('#'+id).classList.add('act');
+  if(btn){$$('.subtab',host).forEach(function(b){b.classList.remove('act')});btn.classList.add('act')}
+  host.scrollTop=0;
+}
+
+/* ════════ 今日任务勾选 ════════ */
+function toggleTask(c){
+  var task=c.parentNode;task.classList.toggle('done');
+  var total=$$('[data-task]').length;
+  var done=$$('[data-task].done').length;
+  $('#taskCount').textContent=done+'/'+(total+2)+' 已完成';
+  $('#taskBar').style.width=Math.round(done/(total+2)*100)+'%';
+  if(done===total)toast('今日 P0-P2 已全部处理，汪小助明早 8:30 继续为你值守 🐾');
+}
+
+/* ════════ 到期提醒发送 ════════ */
+var sentCount=0;
+function markSent(card,msg){
+  if(card.classList.contains('sent'))return;
+  card.classList.add('sent');
+  var foot=$('.ractions',card);
+  foot.innerHTML='<span class="sent-tag">✓ 已发送 · 客户回复将在这里实时提醒</span>';
+  sentCount++;
+  if(msg)toast(msg);
+}
+function sendRemind(btn,cardId,msg){markSent(document.getElementById(cardId),msg)}
+function sendAllRemind(btn){
+  var n=0;
+  $$('.remind').forEach(function(c,i){
+    if(!c.classList.contains('sent')){
+      setTimeout(function(){markSent(c,n++===0?'AI 已按称呼/宠物/理由逐条改写发送，共 17 条':null)},i*350);
+    }
+  });
+  setTimeout(function(){btn.innerHTML='✓ 17 条已全部发送';btn.disabled=true;btn.classList.add('sent')},$$('.remind').length*350+200);
+}
+function spotlightFirst(){
+  setTimeout(function(){var el=$('#rm1');if(el){el.classList.add('spotlight');el.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(function(){el.classList.remove('spotlight')},2800)}},350);
+}
+
+/* ════════ 会话逐条播放 ════════ */
+function playChat(){
+  var msgs=$$('.cm',$('#chatLog'));
+  msgs.forEach(function(m){m.style.opacity='0';m.style.transform='translateY(8px)';m.style.transition='.3s'});
+  var log=$('#chatLog');
+  msgs.forEach(function(m,i){
+    setTimeout(function(){m.style.opacity='1';m.style.transform='none';if(i===msgs.length-1)log.scrollTop=log.scrollHeight;},350+i*650);
+  });
+}
+
+/* ════════ 文案复制 ════════ */
+function copyText(btn){
+  var card=btn.closest('.copy-card,.script-card');
+  var body=$('.cc-b',card);
+  var text=body?body.innerText:card.innerText;
+  var done=function(){var o=btn.innerHTML;btn.innerHTML='✓ 已复制';setTimeout(function(){btn.innerHTML=o},1500);toast('文案已复制，去微信粘贴即可')};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done).catch(fallback)}
+  else fallback();
+  function fallback(){
+    var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy');done()}catch(e){toast('请长按手动选择复制')}
+    document.body.removeChild(ta);
+  }
+}
+
+/* ════════ AI 数字人向导 ════════ */
+var avatar={name:'小林店长',face:'👩‍🦰'};
+function pickAvatar(el,name,face){$$('.av-opt').forEach(function(a){a.classList.remove('sel')});el.classList.add('sel');avatar={name:name,face:face}}
+function dhNext(step){
+  ['dhp1','dhp2','dhp3'].forEach(function(p,i){$('#'+p).classList.toggle('act',i===step-1)});
+  for(var i=1;i<=3;i++){
+    var s=$('#dhs'+i);s.classList.remove('act','done');
+    if(i<step)s.classList.add('done');
+    if(i===step)s.classList.add('act');
+  }
+  if(step===3){$('#genIdle').style.display='block';$('#genRunning').style.display='none';$('#genDone').style.display='none'}
+  if(step===2)dhCount();
+}
+function dhCount(){
+  var n=$('#dhScript').value.replace(/\s/g,'').length;
+  $('#dhWords').textContent=n+' 字 · 预计成片约 '+Math.max(8,Math.round(n/4))+' 秒';
+}
+var credits=1280;
+function addCredits(n){credits+=n;$('#creditVal').textContent=credits.toLocaleString()}
+var dhTimer=null;
+function dhGenerate(){
+  addCredits(-120);
+  $('#genIdle').style.display='none';$('#genRunning').style.display='block';$('#genDone').style.display='none';
+  var steps=['⏳ 解析口播文案…','🎙️ AI 语音合成（自然停顿/重音）…','🧑‍🎤 形象驱动：唇形+表情生成…','🎞️ 合成字幕与画面…','✅ 成片完成'];
+  var box=$('#genSteps');box.innerHTML='';
+  steps.forEach(function(s,i){
+    setTimeout(function(){
+      var d=document.createElement('div');
+      d.innerHTML='<span class="ok">✓</span> '+s;
+      box.appendChild(d);
+      if(i<steps.length-1){var n=document.createElement('div');n.innerHTML='<span data-g="0">⏳ '+steps[i+1].replace(/^[^ ]+/,'')+'</span>';box.appendChild(n)}
+    },i*700);
+  });
+  setTimeout(function(){
+    $('#genRunning').style.display='none';$('#genDone').style.display='block';
+    $('#dhFace').textContent=avatar.face;
+    startPlay();
+  },steps.length*700+200);
+}
+/* 简易字幕逐句播放（与口播稿同步仅作演示） */
+var SUBS=['秋天一到，你家狗是不是又开始满屋掉毛了？','换毛季洗护千万别拖，废毛不清理容易打结、得皮肤病。','本周换毛季深层洗护：去废毛、药浴、多吹十五分钟。','老客预约再减十块，评论区扣1留位！'];
+var playState={idx:0,char:0,playing:true,t0:0,duration:16000};
+function startPlay(){
+  playState={idx:0,char:0,playing:true,t0:Date.now(),duration:16000};
+  $('#playBtn').textContent='⏸ 暂停';
+  $('#dhFace').classList.add('talking');$('#dhWave').classList.remove('paused');
+  $('#dhSub').textContent='';
+  clearInterval(dhTimer);
+  dhTimer=setInterval(dhTick,120);
+}
+function dhTick(){
+  if(!playState.playing)return;
+  var elapsed=Date.now()-playState.t0;
+  var p=Math.min(elapsed/playState.duration,1);
+  $('#dhProg').style.width=(p*100)+'%';
+  var seg=Math.min(SUBS.length-1,Math.floor(p*SUBS.length));
+  var localP=(p*SUBS.length)%1;
+  var line=SUBS[seg];
+  $('#dhSub').textContent=line.slice(0,Math.ceil(localP*line.length))||line;
+  if(p>=1){clearInterval(dhTimer);$('#playBtn').textContent='↻ 重播';$('#dhFace').classList.remove('talking');$('#dhWave').classList.add('paused')}
+}
+function togglePlay(){
+  var ended=$('#playBtn').textContent.indexOf('重播')>=0;
+  if(ended){startPlay();return}
+  playState.playing=!playState.playing;
+  $('#playBtn').textContent=playState.playing?'⏸ 暂停':'▶ 播放';
+  $('#dhFace').classList.toggle('talking',playState.playing);
+  $('#dhWave').classList.toggle('paused',!playState.playing);
+  if(!playState.playing){/* 冻结进度：把已用时间折算 */playState.t0=Date.now()-playState.t0}
+  else{playState.t0=Date.now()-playState.t0}
+}
+
+/* ════════ 知识库 ════════ */
+var KB={
+  '肾不好的猫能吃哪个罐头？':{h:'本店在售可选：① A 品牌肾脏配方罐（低磷低蛋白）；② B 品牌纯鸡丝汤罐（低磷无添加、可补水辅喂）。',note:'肾脏问题请以主治兽医诊断与处方为准，以上仅为店内产品信息。'},
+  '幼犬零食有什么推荐？':{h:'本店在售：① A 品牌羊奶磨牙棒（2 月龄以上，耐咬不伤牙）；② B 品牌小型犬训练冻干（颗粒小、训练奖励刚刚好）。幼犬建议避开大块肉干和高盐零食。',note:''},
+  '那款冻干一天喂多少？':{h:'按体重：5kg 以下 8-12 粒/天，5-10kg 15-20 粒/天，拌粮或当奖励都可以，占每日进食量别超过 10%。',note:''},
+  '猫能吃狗罐头吗？':{h:'不建议长期喂。狗罐头营养配比是按犬设计的，长期吃会缺牛磺酸等猫必需营养；偶尔误食一口不用紧张。本店有 6 款猫专用罐，可以按猫龄帮您挑。',note:''}
+};
+function renderKB(q){
+  var a=KB[q]||KB['肾不好的猫能吃哪个罐头？'];
+  $('#kbAnswer').innerHTML='<b>汪小助：</b>'+a.h+(a.note?'<span class="kbnote">🛡️ '+a.note+'</span>':'');
+}
+function kbAsk(){renderKB($('#kbInput').value.trim()||'肾不好的猫能吃哪个罐头？')}
+function kbQuick(btn){$('#kbInput').value=btn.textContent;renderKB(btn.textContent)}
+
+/* ════════ 店员培训演练 ════════ */
+var DRILLS=[
+  {lines:['（顾客）洗个狗要128？我看小区门口那家才80！','（顾客）那……你们这128都多了啥？我咋知道值不值？','（顾客）行吧，那大型犬有优惠没？'],
+   score:'88 分 👍 应对得当：先认同价格差→再讲五项服务差异→最后给老客优惠。建议下次主动提「下次来可以对比吹干效果」，用体验锁复购。'},
+  {lines:['（顾客）驱虫我自己网上买药滴就行了，用得着来店里？','（顾客）万一滴错位置怎么办？','（顾客）那你们滴和我自己滴有啥区别？'],
+   score:'85 分 👍 没有否定顾客（网上买确实便宜），强调「按体重用药+现场检查耳道皮肤」。注意红线：不要评价具体药品品牌好坏。'},
+  {lines:['（顾客）办卡？不了不了，现在套路太多了。','（顾客）那我先洗一次看看再说吧。','（顾客）卡能退吗？搬家了怎么办？'],
+   score:'82 分 👍 尊重顾客节奏、给出退卡规则是对的（敢说可退反而建立信任）。改进：第一次到店别急着推卡，第二次洗完效果满意时再提成功率更高。'}
+];
+var drillTimer=null;
+function startDrill(idx){
+  var log=$('#drillLog');log.innerHTML='';$('#drillScore').style.display='none';
+  var replies=[
+    {t:'您说得对，现在各家价格确实不一样～80 那种一般就是洗和吹，我们128含挤肛门腺、清耳道、剪指甲、脚底毛修剪，而且大型犬我们会吹两遍、吹透为止，上周还有客人从别家转来说之前没吹干得了湿疹。',who:'你的回复（参考话术）'},
+    {t:'这个您洗完对比一下就知道啦：摸上去是蓬松软的，没有潮气；而且我们每只狗都有美容档案，下次来知道它怕不怕吹水机、哪里打结。',who:'你的回复（参考话术）'},
+    {t:'有的～第一次来不办卡也没关系，今天先体验。满意的话本月老客次卡算下来单次109，您体验完再决定，我不催您😊',who:'你的回复（参考话术）'}
+  ];
+  var d=DRILLS[idx];
+  function push(cls,who,html){
+    var el=document.createElement('div');el.className='dm '+cls;
+    el.innerHTML=(who?'<div class="who">'+who+'</div>':'')+html;
+    el.style.opacity='0';el.style.transition='.25s';log.appendChild(el);
+    requestAnimationFrame(function(){el.style.opacity='1'});
+    log.scrollTop=log.scrollHeight;
+  }
+  clearInterval(drillTimer);
+  var step=0;
+  function cycle(){
+    push('cust','AI 扮演的顾客',d.lines[step]);
+    setTimeout(function(){
+      push('ai',repli(step),replies[step].t);
+      step++;
+      if(step>=d.lines.length){
+        setTimeout(function(){
+          var sc=$('#drillScore');sc.innerHTML='<b>'+d.score.split(' 👍')[0]+'</b>'+d.score.split('👍')[1];
+          sc.style.display='block';
+          log.scrollTop=log.scrollHeight;
+          var btn=document.createElement('button');
+          btn.className='mini-btn';btn.style.marginTop='8px';btn.textContent='↻ 再练一遍';
+          btn.onclick=function(){startDrill(idx)};
+          log.appendChild(btn);
+        },700);
+        clearInterval(drillTimer);
+      }
+    },1500);
+  }
+  function repli(i){return replies[i].who}
+  cycle();
+  drillTimer=setInterval(function(){if(step<d.lines.length)cycle()},4300);
+}
+
+/* ════════ 一键自动演示 ════════ */
+var demoTimer=[],demoOn=false;
+function dwait(fn,ms){var id=setTimeout(fn,ms);demoTimer.push(id)}
+function stopDemo(){
+  demoOn=false;demoTimer.forEach(clearTimeout);demoTimer=[];
+  var b=$('#demoBtn');b.textContent='▶ 一键演示';b.classList.remove('running');
+}
+function toggleDemo(){
+  if(demoOn){stopDemo();return}
+  demoOn=true;
+  var b=$('#demoBtn');b.textContent='■ 停止演示';b.classList.add('running');
+  toast('演示开始：跟着汪小助走一遍老板的一天 👀',1800);
+  // 1 驾驶舱
+  switchTab('home');
+  dwait(function(){$('.ai-verdict').classList.add('spotlight')},800);
+  dwait(function(){$('.ai-verdict').classList.remove('spotlight');toggleTask($$('[data-task] .check')[0])},2600);
+  dwait(function(){toast('P0 任务：去私域引擎给 12 位沉睡客发提醒',1600)},3600);
+  // 2 私域：到期提醒
+  dwait(function(){switchTab('private');setSub('pv-remind')},4800);
+  dwait(function(){spotlightFirst()},5400);
+  dwait(function(){
+    markSent($('#rm1'));toast('每条私信都带具体理由：豆豆明天疫苗到期',1800);
+    setTimeout(function(){markSent($('#rm3'))},900);
+    setTimeout(function(){markSent($('#rm2'))},1800);
+  },6800);
+  // 红线场景
+  dwait(function(){setSub('pv-chat');toast('夜间也有 AI 自动接待，涉及生病一律引导就医',2000)},10200);
+  // 3 内容工场：数字人
+  dwait(function(){switchTab('content');setSub('cv-dh')},12400);
+  dwait(function(){dhNext(2)},13100);
+  dwait(function(){dhGenerate()},14200);
+  dwait(function(){var f=$('#genDone');if(f)f.scrollIntoView({behavior:'smooth',block:'center'});toast('老板不出镜，60 秒一条口播视频',2000)},18400);
+  // 4 门店后台
+  dwait(function(){switchTab('store')},21200);
+  dwait(function(){$('.danger-pet').classList.add('spotlight');$('.danger-pet').scrollIntoView({behavior:'smooth',block:'center'});toast('高风险宠物提前提示，免责告知前置',2000)},21900);
+  dwait(function(){$('.danger-pet').classList.remove('spotlight')},24200);
+  // 回驾驶舱
+  dwait(function(){switchTab('home');toast('演示完成：执行 → 追踪 → 复盘，每天一个闭环 🐾',2400)},25400);
+  dwait(function(){stopDemo()},28200);
+}
+</script>
+</body>
+</html>
