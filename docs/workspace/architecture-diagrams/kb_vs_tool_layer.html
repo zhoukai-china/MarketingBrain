@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>知识库 vs 工具调用 层次区别</title>
+<style>
+  body{font-family:-apple-system,"PingFang SC",sans-serif;background:#f5f6f8;margin:0;padding:24px;color:#1f2329}
+  .wrap{max-width:940px;margin:0 auto;background:#fff;border-radius:14px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:#8a9099;font-size:13px;margin-bottom:18px;line-height:1.6}
+  svg{width:100%;height:auto;display:block}
+  .col-title{font-size:15px;font-weight:600}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:16px;font-size:12px;color:#5a6168}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:10px;height:10px;border-radius:50%}
+  .note{margin-top:16px;font-size:13px;line-height:1.75;color:#3a4048;background:#f0f4ff;padding:12px 14px;border-radius:8px;border-left:3px solid #4c7dff}
+  table{width:100%;border-collapse:collapse;margin-top:18px;font-size:13px}
+  th,td{border:1px solid #e6e8eb;padding:9px 10px;text-align:left;vertical-align:top}
+  th{background:#f7f8fa;color:#3a4048;font-weight:600}
+  td:first-child{color:#5a6168;white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>知识库 vs 工具调用：层次区别</h1>
+  <div class="sub">两者都扩展 LLM 能力，但处于不同层 —— 一个增强「输入」（让它知道更多），一个增强「行动」（让它做成更多）。中间的大模型是共同核心。</div>
+  <svg viewBox="0 0 880 470" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#777"/>
+      </marker>
+    </defs>
+
+    <!-- 中间 LLM -->
+    <rect x="360" y="195" width="160" height="82" rx="12" fill="#2b2f36"/>
+    <text x="440" y="230" text-anchor="middle" fill="#fff" font-size="15" font-weight="600">大模型 LLM</text>
+    <text x="440" y="251" text-anchor="middle" fill="#cfd3da" font-size="11">DeepSeek 等</text>
+
+    <!-- 左：知识库 输入侧 -->
+    <text x="150" y="38" text-anchor="middle" fill="#1f7a4d" font-size="15" font-weight="600">① 知识库 = 上下文增强（输入侧）</text>
+    <rect x="40" y="58" width="130" height="48" rx="8" fill="#e6f4ec" stroke="#1f7a4d" stroke-width="1.5"/>
+    <text x="105" y="87" text-anchor="middle" font-size="12" fill="#1f7a4d">文档 / 知识库</text>
+    <rect x="40" y="132" width="130" height="48" rx="8" fill="#e6f4ec" stroke="#1f7a4d" stroke-width="1.5"/>
+    <text x="105" y="161" text-anchor="middle" font-size="12" fill="#1f7a4d">拼进 prompt 上下文</text>
+    <line x1="105" y1="106" x2="105" y2="132" stroke="#1f7a4d" stroke-width="2" marker-end="url(#arrow)"/>
+    <line x1="170" y1="156" x2="360" y2="215" stroke="#1f7a4d" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#arrow)"/>
+    <text x="255" y="182" text-anchor="middle" font-size="11" fill="#1f7a4d">作为背景文本喂入</text>
+    <rect x="40" y="305" width="130" height="48" rx="8" fill="#e6f4ec" stroke="#1f7a4d" stroke-width="1.5"/>
+    <text x="105" y="334" text-anchor="middle" font-size="12" fill="#1f7a4d">单次生成回答</text>
+    <line x1="360" y1="277" x2="170" y2="305" stroke="#1f7a4d" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="255" y="312" text-anchor="middle" font-size="11" fill="#1f7a4d">基于已知文本回答</text>
+    <text x="105" y="392" text-anchor="middle" font-size="11" fill="#5a6168">模型被动消费信息</text>
+    <text x="105" y="410" text-anchor="middle" font-size="11" fill="#5a6168">不改变外部世界</text>
+
+    <!-- 右：工具调用 输出侧 -->
+    <text x="730" y="38" text-anchor="middle" fill="#b4541f" font-size="15" font-weight="600">② 工具调用 = 行动增强（输出侧）</text>
+    <rect x="710" y="58" width="130" height="48" rx="8" fill="#fdeede" stroke="#b4541f" stroke-width="1.5"/>
+    <text x="775" y="87" text-anchor="middle" font-size="12" fill="#b4541f">LLM 输出调用指令</text>
+    <rect x="710" y="132" width="130" height="48" rx="8" fill="#fdeede" stroke="#b4541f" stroke-width="1.5"/>
+    <text x="775" y="161" text-anchor="middle" font-size="12" fill="#b4541f">运行时执行工具</text>
+    <line x1="775" y1="106" x2="775" y2="132" stroke="#b4541f" stroke-width="2" marker-end="url(#arrow)"/>
+    <line x1="710" y1="156" x2="520" y2="215" stroke="#b4541f" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#arrow)"/>
+    <text x="625" y="182" text-anchor="middle" font-size="11" fill="#b4541f">结果回喂模型</text>
+    <rect x="710" y="305" width="130" height="48" rx="8" fill="#fdeede" stroke="#b4541f" stroke-width="1.5"/>
+    <text x="775" y="334" text-anchor="middle" font-size="12" fill="#b4541f">多步循环 (agent loop)</text>
+    <line x1="520" y1="277" x2="710" y2="305" stroke="#b4541f" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="625" y="312" text-anchor="middle" font-size="11" fill="#b4541f">继续推理 / 再调</text>
+    <text x="775" y="392" text-anchor="middle" font-size="11" fill="#5a6168">模型主动决策</text>
+    <text x="775" y="410" text-anchor="middle" font-size="11" fill="#5a6168">能查实时 / 改外部</text>
+  </svg>
+
+  <table>
+    <tr><th>维度</th><th>① 知识库（输入侧）</th><th>② 工具调用（输出侧）</th></tr>
+    <tr><td>所处层</td><td>上下文组装层（prompt 拼装前）</td><td>推理行动层（生成过程中的 loop）</td></tr>
+    <tr><td>模型角色</td><td>被动消费文本</td><td>主动决策「调不调、调哪个、传什么」</td></tr>
+    <tr><td>对外部世界</td><td>只读（不改变任何东西）</td><td>可读写 / 执行（查实时、发消息、生成文件）</td></tr>
+    <tr><td>触发方</td><td>用户挂文档 / 系统按主题注入</td><td>模型在推理中自主决定</td></tr>
+    <tr><td>调用形态</td><td>单次生成（文本拼进去就完）</td><td>多步循环（调→执行→回喂→再调）</td></tr>
+    <tr><td>扩展的是</td><td>「模型知道什么」</td><td>「模型能做什么」</td></tr>
+  </table>
+
+  <div class="note">
+    <b>组合关系</b>：两者不互斥。工具调用可以是「去检索知识库」的那个工具 —— 模型先决定调检索工具，工具把文档取回，再注入上下文。此时「知识库」是工具的一种具体能力，落在工具调用这一层之内。简单说：工具调用是更上层的「行动框架」，知识库注入可以是它的一个子场景。
+  </div>
+</div>
+</body>
+</html>

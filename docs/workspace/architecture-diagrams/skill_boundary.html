@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>skill 的真实边界</title>
+<style>
+  body{font-family:-apple-system,"PingFang SC",sans-serif;background:#f5f6f8;margin:0;padding:24px;color:#1f2329}
+  .wrap{max-width:900px;margin:0 auto;background:#fff;border-radius:14px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+  h1{font-size:19px;margin:0 0 4px}
+  .sub{color:#8a9099;font-size:13px;margin-bottom:16px;line-height:1.6}
+  svg{width:100%;height:auto;display:block}
+  .note{margin-top:16px;font-size:13px;line-height:1.75;color:#3a4048;background:#fff4f0;padding:12px 14px;border-radius:8px;border-left:3px solid #e03131}
+  table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
+  th,td{border:1px solid #e6e8eb;padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#f7f8fa;font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>skill 的真实边界（本项目实况）</h1>
+  <div class="sub">查了代码后的结论：skill 本身只提供「提示词文本 + 质量契约」，被运行时「选中」使用；它不写工具配置，也做不到让模型在对话里主动调工具/知识库。</div>
+  <svg viewBox="0 0 880 480" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="a" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#777"/></marker></defs>
+
+    <!-- skill 盒子 -->
+    <rect x="300" y="160" width="280" height="160" rx="12" fill="#eef2ff" stroke="#4c7dff" stroke-width="2"/>
+    <text x="440" y="188" text-anchor="middle" font-size="15" font-weight="700" fill="#3b5bdb">skill（运行时资源）</text>
+    <text x="440" y="218" text-anchor="middle" font-size="12" fill="#3a4048">① prompt 文本（从 DB 快照读）</text>
+    <text x="440" y="240" text-anchor="middle" font-size="12" fill="#3a4048">② 质量契约 quality contract</text>
+    <text x="440" y="270" text-anchor="middle" font-size="11" fill="#5a6168">→ 被「选中」拼进请求</text>
+    <text x="440" y="288" text-anchor="middle" font-size="11" fill="#5a6168">调一次模型，单次完成</text>
+
+    <!-- 知识库 外部 -->
+    <rect x="40" y="60" width="220" height="80" rx="10" fill="#e6f4ec" stroke="#1f7a4d"/>
+    <text x="150" y="92" text-anchor="middle" font-size="13" font-weight="600" fill="#1f7a4d">知识库</text>
+    <text x="150" y="114" text-anchor="middle" font-size="11" fill="#3a4048">agent 的 marketing.knowledgeAction</text>
+    <text x="150" y="130" text-anchor="middle" font-size="11" fill="#3a4048">用户点按钮 → 注入某能力</text>
+
+    <!-- 工具 外部 -->
+    <rect x="620" y="60" width="220" height="80" rx="10" fill="#fdeede" stroke="#b4541f"/>
+    <text x="730" y="92" text-anchor="middle" font-size="13" font-weight="600" fill="#b4541f">工具（MCP 协议层）</text>
+    <text x="730" y="114" text-anchor="middle" font-size="11" fill="#3a4048">外部连接 / 自动化</text>
+    <text x="730" y="130" text-anchor="middle" font-size="11" fill="#3a4048">非对话内模型自主调用</text>
+
+    <!-- 虚线：不属于 skill -->
+    <line x1="160" y1="140" x2="320" y2="172" stroke="#aaa" stroke-width="1.5" stroke-dasharray="5 3"/>
+    <line x1="720" y1="140" x2="600" y2="172" stroke="#aaa" stroke-width="1.5" stroke-dasharray="5 3"/>
+    <text x="232" y="158" text-anchor="middle" font-size="10" fill="#8a9099">不属于 skill</text>
+    <text x="648" y="158" text-anchor="middle" font-size="10" fill="#8a9099">不属于 skill</text>
+
+    <!-- 红线：tool_calls 当异常 -->
+    <rect x="300" y="360" width="280" height="64" rx="8" fill="#fff4f0" stroke="#e03131"/>
+    <text x="440" y="386" text-anchor="middle" font-size="12" font-weight="600" fill="#e03131">模型返回 tool_calls → 被当异常</text>
+    <text x="440" y="406" text-anchor="middle" font-size="10.5" fill="#c92a2a">（provider: unexpected_tool_call）</text>
+    <line x1="440" y1="320" x2="440" y2="360" stroke="#e03131" stroke-width="1.5" marker-end="url(#a)"/>
+    <text x="440" y="340" text-anchor="middle" font-size="10" fill="#e03131">对话内模型不能主动调工具</text>
+  </svg>
+
+  <table>
+    <tr><th>能力</th><th>配置写在哪</th><th>谁触发</th><th>模型是否主动</th></tr>
+    <tr><td>skill 提示词</td><td>prompt.md → DB 快照</td><td>运行时「选中」</td><td>被动（被拼进请求）</td></tr>
+    <tr><td>知识库</td><td>agent 的 marketing.knowledgeAction</td><td><b>用户点按钮</b></td><td>否（文档注入上下文）</td></tr>
+    <tr><td>工具</td><td>MCP 协议层（外部）</td><td>外部系统 / 自动化</td><td>否（非对话内）</td></tr>
+  </table>
+
+  <div class="note"><b>纠正我之前的说法</b>：我前面说「skill 在 agent loop 里让模型主动调知识库/工具」是错的。本项目大模型调用是<b>单次 completion</b>，provider 把 <code>tool_calls</code> 当<b>异常</b>处理；agent-runtime 没有模型循环调工具的代码。skill 只是被「选中」后拼提示词调一次模型。所以严格说：<b>skill 既不能让模型主动调知识库，也不能让模型主动调工具</b>。</div>
+</div>
+</body>
+</html>

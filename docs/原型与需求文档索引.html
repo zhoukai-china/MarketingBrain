@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>原型与需求文档关联索引</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --card:#fff; --line:#e6e8eb; --ink:#222; --sub:#666;
+    --ok:#0f6e56; --okbg:#e1f5ee; --warn:#854f0b; --warnbg:#faedda;
+    --dev:#993c1d; --devbg:#faece7; --blue:#185fa5; --bluebg:#e6f1fb;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font:14px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;padding:32px 24px}
+  .wrap{max-width:1080px;margin:0 auto}
+  h1{font-size:20px;font-weight:700;margin-bottom:4px}
+  .meta{color:var(--sub);font-size:12px;margin-bottom:24px}
+  h2{font-size:16px;font-weight:600;margin:28px 0 12px;padding-left:10px;border-left:3px solid var(--blue)}
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f0f2f5;font-weight:600;color:#333;font-size:12px}
+  tr:last-child td{border-bottom:none}
+  code{background:#f0f2f5;padding:1px 5px;border-radius:4px;font-size:12px;font-family:ui-monospace,Consolas,monospace}
+  .tag{display:inline-block;padding:1px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+  .t-ok{background:var(--okbg);color:var(--ok)} .t-dev{background:var(--devbg);color:var(--dev)}
+  .t-warn{background:var(--warnbg);color:var(--warn)} .t-blue{background:var(--bluebg);color:var(--blue)}
+  .muted{color:var(--sub);font-size:12px}
+  .todo{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:4px 18px;margin-bottom:10px}
+  .todo li{margin:12px 0;padding-left:4px}
+  .todo b{color:var(--ink)}
+  .sev{font-weight:700;margin-right:6px}
+  .s-high{color:#a32d2d} .s-mid{color:var(--warn)} .s-low{color:var(--sub)}
+  .note{background:var(--warnbg);border:1px solid #f0c674;color:var(--warn);padding:12px 16px;border-radius:10px;font-size:13px;margin-top:16px}
+  a{color:var(--blue);text-decoration:none}
+  footer{margin-top:28px;color:var(--sub);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>原型与需求文档关联索引</h1>
+  <div class="meta">整理时间：2026-09-25 ｜ 范围：<code>docs/prototypes/*.html</code> + <code>docs/HANDOFF-*.md</code> + 相关需求交接文档 ｜ 日期来源：文件名日期 / git 提交日期</div>
+
+  <h2>一、原型 ↔ 需求文档关联总表</h2>
+  <table>
+    <thead>
+      <tr><th style="width:13%">智能体 / 模块</th><th style="width:27%">原型文件（定稿日期）</th><th style="width:30%">关联需求 / HANDOFF 文档</th><th style="width:13%">状态</th><th>备注</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>金牌文案主笔</b><br><span class="muted">copy</span></td>
+        <td><code>copy-workbench-user-20260922.html</code>（最终交互稿，09-23 入库）<br><code>copy-workbench-demo-20260922.html</code>（设计说明版）</td>
+        <td><code>HANDOFF-copy-workbench-20260922.md</code><br><code>文案智能体-访谈式引导-交接文档.md</code>（关联问诊单）</td>
+        <td><span class="tag t-ok">设计定稿</span></td>
+        <td>开发以 user 版为准</td>
+      </tr>
+      <tr>
+        <td><b>选题策略官</b><br><span class="muted">topic</span></td>
+        <td><code>topic-strategist-demo-20260922.html</code>（v1.5，09-25 覆盖提交）</td>
+        <td><code>HANDOFF-topic-strategist-mobile-20260924.md</code>（v1.5 验收基准）<br><code>HANDOFF-tech-partner-20260922.md</code>（决策 v0.4）</td>
+        <td><span class="tag t-dev">前端 dev 锁</span></td>
+        <td>前端 <code>status:"dev"</code> 仍锁死；本地已临时打开</td>
+      </tr>
+      <tr>
+        <td><b>直播话术</b><br><span class="muted">livescript</span></td>
+        <td><code>livescript-workbench-demo-20260924.html</code>（09-24）</td>
+        <td><code>HANDOFF-livescript-workbench-20260924.md</code></td>
+        <td><span class="tag t-ok">设计定稿</span></td>
+        <td>已上线运行（用户日常排查对象）</td>
+      </tr>
+      <tr>
+        <td><b>视频复盘</b><br><span class="muted">vidrev</span></td>
+        <td><code>vidrev-workbench-demo-20260924.html</code>（09-24）</td>
+        <td><code>HANDOFF-vidrev-workbench-20260924.md</code><br><code>HANDOFF-vidrev-douyin-daily-export-20260923.md</code>（P0-2 修复）</td>
+        <td><span class="tag t-ok">设计定稿</span></td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><b>IP 定位</b><br><span class="muted">ip-pos</span></td>
+        <td><code>ip-pos-workbench-demo-20260924.html</code>（09-24）</td>
+        <td><code>HANDOFF-ip-pos-workbench-20260924.md</code></td>
+        <td><span class="tag t-ok">设计定稿</span></td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><b>爆款复刻 / 混剪</b><br><span class="muted">remix</span></td>
+        <td><code>remix-workbench-demo-20260923.html</code>（09-23）</td>
+        <td><code>HANDOFF-remix-workbench-20260923.md</code></td>
+        <td><span class="tag t-ok">设计定稿</span></td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><b>市场合伙人后台</b><br><span class="muted">partner-admin</span></td>
+        <td><code>market-partner-admin-demo-20260923.html</code>（09-23）</td>
+        <td><code>HANDOFF-market-partner-admin-20260923.md</code></td>
+        <td><span class="tag t-warn">待开发</span></td>
+        <td>UI 以原型为准，后台功能代码待实现</td>
+      </tr>
+      <tr>
+        <td><b>需求问诊单</b><br><span class="muted">文案</span></td>
+        <td><code>文案需求问诊单.html</code><br><code>文案需求问诊单_填空版.html</code></td>
+        <td><code>文案智能体-访谈式引导-交接文档.md</code></td>
+        <td><span class="tag t-ok">设计定稿</span></td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><b>思潼 AI 商城 / 货架</b></td>
+        <td><span class="muted">无独立原型（复用商城页）</span></td>
+        <td><code>HANDOFF-eco-mall-codex-20260918.md</code></td>
+        <td><span class="tag t-ok">已上线</span></td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><b>技术合伙人 / 平台</b></td>
+        <td><span class="muted">引用 topic 原型</span></td>
+        <td><code>HANDOFF-tech-partner-20260922.md</code></td>
+        <td><span class="tag t-ok">决策定稿</span></td>
+        <td>含选题策略官产品决策（v0.4）</td>
+      </tr>
+      <tr>
+        <td><b>数字员工头像</b></td>
+        <td><span class="tag t-warn">原型缺失</span> <code>avatar-showcase-demo-20260923.html</code><br><code>agent-product-detail-demo-20260923.html</code></td>
+        <td><code>HANDOFF-avatar-replace-20260924.md</code></td>
+        <td><span class="tag t-warn">缺口</span></td>
+        <td>❗ HANDOFF 引用但<strong>仓库内无此文件</strong>，头像已发版、详情页原型未入库</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>二、待办任务清单（从整理中梳理）</h2>
+  <ol class="todo">
+    <li><span class="sev s-high">高</span><b>选题策略官正式开放 + 补齐未开发功能</b><br>
+      <span class="muted">关联：<code>topic-strategist-demo-20260922.html</code> / <code>HANDOFF-topic-strategist-mobile-20260924.md</code>。前端 <code>status:"dev"</code> 锁死（本地已临时打开，未提交）；v1.5 设计稿升级后仍有 8 项未开发：手机端工作台页、对标真实取数（飞瓜类）、数据复盘自动读取、缺源降级 UI、自填入池交互、一键 CTA + 实况面板、阶段 Tab 数据驱动、大脑笔记同步接口。</span></li>
+
+    <li><span class="sev s-high">高</span><b>补齐头像替换详情页原型（或修正 HANDOFF 引用）</b><br>
+      <span class="muted">关联：<code>HANDOFF-avatar-replace-20260924.md</code>。引用的 <code>avatar-showcase-demo-20260923.html</code> 与 <code>agent-product-detail-demo-20260923.html</code> 在仓库中不存在。要么补这两个原型文件入库，要么更新 HANDOFF 移除无效引用。</span></li>
+
+    <li><span class="sev s-mid">中</span><b>选题策略官版本口径对齐</b><br>
+      <span class="muted">关联：<code>HANDOFF-tech-partner-20260922.md</code>（决策 v0.4）vs <code>HANDOFF-topic-strategist-mobile-20260924.md</code>（v1.5 验收基准）。两文档对同一原型版本描述不一致，开发前需确认以 v1.5 为准。</span></li>
+
+    <li><span class="sev s-mid">中</span><b>市场合伙人后台功能开发</b><br>
+      <span class="muted">关联：<code>market-partner-admin-demo-20260923.html</code> / <code>HANDOFF-market-partner-admin-20260923.md</code>。原型与需求已定稿，提现 / 分佣 / 二维码等后台功能代码待实现，需排期。</span></li>
+
+    <li><span class="sev s-low">低</span><b>逐个确认各工作台"设计定稿 → 生产上线"状态</b><br>
+      <span class="muted">文案 / 直播 / 视频 / IP / 混剪原型均定稿，但仅直播话术已确认上线运行；其余是否在生产实现需逐一对齐，避免"原型交付=已开发"误判。</span></li>
+
+    <li><span class="sev s-low">低</span><b>统一原型版本命名</b><br>
+      <span class="muted">现有原型文件名仅编码日期，未带版本号（如 topic 实际已是 v1.5 却仍叫 0922）。建议在文件名或文档内显式标注版本，避免后续混淆。</span></li>
+  </ol>
+
+  <div class="note">⚠ 说明：上方"状态"指<strong>设计 / 需求侧</strong>的完结情况（原型 + 需求文档是否齐备），不代表生产代码已实现。待办任务中的"未开发"均指代码层。</div>
+
+  <footer>本索引由人工核对 <code>docs/</code> 下原型与 HANDOFF 文档生成，关联依据为文件名日期与文档内显式引用。</footer>
+</div>
+</body>
+</html>

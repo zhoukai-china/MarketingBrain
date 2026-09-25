@@ -417,13 +417,13 @@ export function EcoMallHomePage() {
   function renderBrandFloor() {
     return (
       <section className="eco-floor" id="floor-brand">
-        <FloorHead no="F5" title="品牌工作台" sub="兰琪品牌 demo 实景：门店 AI 工作台一整套的样子，点进去直接体验。" />
+        <FloorHead no="F5" title="品牌工作台" sub="美业品牌 demo 实景：门店 AI 工作台一整套的样子，点进去直接体验。" />
         <button
           type="button"
           className="eco-mod eco-mod-hero"
           onClick={() => { window.location.href = getAppPath("/lanqi"); }}
         >
-          <div className="eco-mod-name">兰琪品牌 demo</div>
+          <div className="eco-mod-name">美业品牌 demo</div>
           <div className="eco-mod-desc">
             朋友圈 / 社群内容、经营驾驶舱、门店诊断、内容工作室、AI 绘图、公域获客——兰琪门店正在用的完整工作台，进去就能点。
           </div>

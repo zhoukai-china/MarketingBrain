@@ -1377,12 +1377,13 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                   <li>选择日期范围（建议「近 30 天」）→ 下载表格</li>
                   <li>把下载好的表格拖到对话框上传，输入「复盘」</li>
                 </ol>
-                <h4>抖音</h4>
+                {/* 用户 2026-09-23：抖音先隐藏（平台选项暂只留视频号）；恢复时解开这段，并同步恢复 chat-flows.ts 里 vidrev 的 welcome / choices。 */}
+                {/* <h4>抖音</h4>
                 <ol>
                   <li>登录抖音创作者中心：<a href="https://creator.douyin.com/" target="_blank" rel="noreferrer">creator.douyin.com</a>（扫码登录）</li>
                   <li>进入：数据中心 → 作品数据 → 近 30 天 → 导出数据</li>
                   <li>把下载好的表格拖到对话框上传，输入「复盘」</li>
-                </ol>
+                </ol> */}
                 <h4>上传后我会做什么</h4>
                 <ul>
                   <li>自动识别平台字段，缺字段会告诉你哪些数据缺失、是否影响结论</li>

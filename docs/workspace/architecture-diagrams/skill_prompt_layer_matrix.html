@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>skill vs 固定prompt：在知识库/工具调用上的层次区别</title>
+<style>
+  body{font-family:-apple-system,"PingFang SC",sans-serif;background:#f5f6f8;margin:0;padding:24px;color:#1f2329}
+  .wrap{max-width:940px;margin:0 auto;background:#fff;border-radius:14px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:#8a9099;font-size:13px;margin-bottom:18px;line-height:1.6}
+  svg{width:100%;height:auto;display:block}
+  .note{margin-top:16px;font-size:13px;line-height:1.75;color:#3a4048;background:#f0f4ff;padding:12px 14px;border-radius:8px;border-left:3px solid #4c7dff}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>skill vs 固定 prompt：层次区别</h1>
+  <div class="sub">框架：<b>固定 prompt = 工程层</b>（工程师写死、代码一次性注入，模型被动接收）；<b>skill = 大模型层</b>（运行时资源、能在 agent loop 里被模型主动触发）。下面看这两层在「知识库」「工具调用」上各能干什么。</div>
+  <svg viewBox="0 0 880 540" xmlns="http://www.w3.org/2000/svg">
+    <!-- 表头 -->
+    <text x="250" y="48" text-anchor="middle" font-size="15" font-weight="600" fill="#3a4048">知识库</text>
+    <text x="630" y="48" text-anchor="middle" font-size="15" font-weight="600" fill="#3a4048">工具调用</text>
+
+    <!-- 行1：大模型层 / skill -->
+    <rect x="30" y="70" width="820" height="200" rx="12" fill="#eef2ff" stroke="#4c7dff" stroke-width="1.5"/>
+    <text x="48" y="100" font-size="14" font-weight="700" fill="#3b5bdb">大模型层（skill）</text>
+    <text x="48" y="120" font-size="11" fill="#5a6168">运行时资源 · 模型在 agent loop 里主动触发</text>
+
+    <rect x="60" y="135" width="350" height="115" rx="8" fill="#fff" stroke="#4c7dff"/>
+    <text x="78" y="160" font-size="13" font-weight="600" fill="#3b5bdb">✓ 对话中挂文档 → 注入上下文</text>
+    <text x="78" y="184" font-size="11.5" fill="#3a4048">用户在对话里选/传文档，随请求</text>
+    <text x="78" y="201" font-size="11.5" fill="#3a4048">带进，模型基于它生成（知识</text>
+    <text x="78" y="218" font-size="11.5" fill="#3a4048">Action 开关）。是「交互层」能力。</text>
+
+    <rect x="470" y="135" width="350" height="115" rx="8" fill="#fff" stroke="#4c7dff"/>
+    <text x="488" y="160" font-size="13" font-weight="600" fill="#3b5bdb">✓ 模型主动调工具（agent loop）</text>
+    <text x="488" y="184" font-size="11.5" fill="#3a4048">模型推理中自主决定调：搜实时</text>
+    <text x="488" y="201" font-size="11.5" fill="#3a4048">热点、查知识库、生成视频…</text>
+    <text x="488" y="218" font-size="11.5" fill="#3a4048">多步循环，结果回喂再推理。</text>
+
+    <!-- 行2：工程层 / 固定prompt -->
+    <rect x="30" y="290" width="820" height="200" rx="12" fill="#f3f5f7" stroke="#9aa1ab" stroke-width="1.5"/>
+    <text x="48" y="320" font-size="14" font-weight="700" fill="#5a6168">工程层（固定 prompt）</text>
+    <text x="48" y="340" font-size="11" fill="#8a9099">源码常量 · 代码一次性注入 · 模型被动接收</text>
+
+    <rect x="60" y="355" width="350" height="115" rx="8" fill="#fff" stroke="#9aa1ab"/>
+    <text x="78" y="380" font-size="13" font-weight="600" fill="#5a6168">△ 工程把资料焊进 input</text>
+    <text x="78" y="404" font-size="11.5" fill="#3a4048">附件/文本由工程师在代码里拼进</text>
+    <text x="78" y="421" font-size="11.5" fill="#3a4048">请求，用户不能在对话中自助挂</text>
+    <text x="78" y="438" font-size="11.5" fill="#3a4048">文档、决定「用哪些资料」。</text>
+
+    <rect x="470" y="355" width="350" height="115" rx="8" fill="#fff" stroke="#9aa1ab"/>
+    <text x="488" y="380" font-size="13" font-weight="600" fill="#5a6168">✗ 无（做不到）</text>
+    <text x="488" y="404" font-size="11.5" fill="#3a4048">工程层只是「塞提示词→单次生</text>
+    <text x="488" y="421" font-size="11.5" fill="#3a4048">成」，没有 agent loop，模型不</text>
+    <text x="488" y="438" font-size="11.5" fill="#3a4048">能反过来主动调工具。</text>
+
+    <!-- 左侧层标签 -->
+    <line x1="30" y1="170" x2="30" y2="390" stroke="#cfd3da" stroke-width="2"/>
+  </svg>
+
+  <div class="note">
+    <b>一句话</b>：<br>
+    • <b>工具调用</b> 是 skill（大模型层）的专属能力 —— 固定 prompt（工程层）做不到，因为工程层没有 agent loop。<br>
+    • <b>知识库</b> 两边都碰得到，但层次不同：固定 prompt 是「工程层把资料焊进输入」，skill 是「大模型层让用户在对话里挂、模型消费」。
+  </div>
+</div>
+</body>
+</html>

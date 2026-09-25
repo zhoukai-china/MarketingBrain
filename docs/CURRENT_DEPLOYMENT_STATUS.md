@@ -1,5 +1,17 @@
 # 当前部署状态
 
+## 最新发布：20260925-avatar-replace（2026-09-25，前端静态素材，生产双入口）— 数字员工 8 张头像由 PNG 替换为 JPG（橙色影棚新形象，素材体积 11MB→0.3MB）
+
+来源：`docs/HANDOFF-avatar-replace-20260924.md`（commit `e83b27b`）；新素材 `docs/prototypes/avatars-20260923/*.jpg`（8 张 512×512 JPEG，约 307KB）。
+
+范围：`apps/web/public/avatars/` 新增 8 个 JPG（与旧 PNG 同名不同扩展名），`apps/web/src/marketplace/eco-mall-data.ts` 的 `EMPLOYEE_AVATAR_BY_CAPABILITY` 8 处 `.png`→`.jpg`（头像引用唯一源头，经 `employeeAvatarPath`/`EMPLOYEE_IMAGE_PATHS`/`employeeImagePath` 派生消费，改这 8 处即全覆盖）。旧 PNG **保留不删**（满足构建脚本自检 `avatars/ip-position.png` 且便于回滚）。后端 3002 未动。
+
+发布（静态素材 + 双构建，未重启服务）：`bash build-os-v2-web.sh`（→ `dist`，`api.lcppch.top/os-v2/`）+ `bash build-ai-root.sh`（→ `dist-ai-root`，`ai.lcppch.top/`）。双入口构建：os-v2 入口 `assets/index-BrqkSQpn.js`（assets 541）；ai-root 入口 `assets/index-Dw76u4yk.js`（assets 211）。两套 `eco-mall-data` chunk 均引用 `avatars/ip-position.jpg`；线上自检 4 个 jpg 端点（`ai.lcppch.top/avatars/{ip-position,live-host,private}.jpg`、`api.lcppch.top/os-v2/avatars/ip-position.jpg`）均 `200 image/jpeg`（35–50KB）。`/agents` 两域名均 `200`。
+
+交接文档已过时提示：该 HANDOFF 写的是早期硬编码 `EMPLOYEE_IMAGE_PATHS` 写法，线上实际代码已重构为 `EMPLOYEE_AVATAR_BY_CAPABILITY`，本次以线上代码为准。
+
+备份 / 回滚：`/opt/baolu-backups/20260925-avatar-replace-before-baolu-os-v2/`（`avatars/` 旧 PNG、`eco-mall-data.ts`、两个前端包 `dist.tgz` 18M / `dist-ai-root.tgz` 14M）；回滚 = 源码引用改回 `.png` + 解回两套 dist（或重跑两个构建脚本），静态还原即可，无需重启。旧 PNG 仍保留在 `public/avatars/`，可直接同名覆盖回。
+
 ## 最新发布：20260922-mall-v3（2026-09-22，前端 2 文件，lanqi-test + 生产双入口）— /agents 升级为京东/美团式电商商城 + 数字员工形象升级 + 品牌工作台只留兰琪 demo
 
 用户结果：`/agents` 从横版卡片页重构为电商商城：吸顶胶囊搜索（实时过滤）→ 金刚区 5 入口（数字员工/数字咨询师/AI硬件/AI课程/品牌工作台，点击平滑滚动 + 滚动高亮跟随）→ 橙色促销横幅 → F1-F5 楼层货架。商品卡竖版：渐变横幅 + 圆形白边头像（工牌式溢出）+ 人名主标题 + 橙色职位副行 + 卖点/交付标签 + 真实价格（`/market/skus` ppu，如「400 积分/次」，失败降级「按次计费」）+ 去使用按钮；F3 AI硬件 / F4 AI课程 为虚线占位卡（未来品类预留）。F5 品牌工作台由 6 张模块卡收敛为一张「兰琪品牌 demo」大卡（入口 `/lanqi`）。详情弹窗含行业 tab + 价格行。手机 2 列 / ≥760px 3 列 / ≥1024px 4 列。

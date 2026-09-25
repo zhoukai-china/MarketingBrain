@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>商城对话逻辑</title>
+<style>body{margin:0;background:#f5f6f8;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:#1f2329;display:flex;justify-content:center}
+.wrap{padding:28px 16px 60px;max-width:760px;width:100%}
+h1{font-size:20px;margin:0 0 4px}
+.sub{color:#8a8f99;font-size:13px;margin-bottom:24px}
+svg{width:100%;height:auto;display:block}
+.box{fill:#fff;stroke:#d0d3d9;stroke-width:1.5;rx:12}
+.box-hl{fill:#eef3ff;stroke:#3b6cff;stroke-width:1.5}
+.box-llm{fill:#f3ecff;stroke:#8b5cf6;stroke-width:1.5}
+.box-ok{fill:#eafaf0;stroke:#1faa59;stroke-width:1.5}
+.box-no{fill:#fdecec;stroke:#e5484d;stroke-width:1.5}
+.arrow{stroke:#9aa0aa;stroke-width:2;fill:none;marker-end:url(#a)}
+.txt{font-size:13px;fill:#1f2329}
+.txt-sm{font-size:11px;fill:#6b7280}
+.txt-c{font-size:13px;fill:#3b6cff;font-weight:600}
+.txt-llm{font-size:13px;fill:#8b5cf6;font-weight:600}
+.txt-ok{font-size:12px;fill:#1faa59;font-weight:600}
+.txt-no{font-size:12px;fill:#e5484d;font-weight:600}
+.tag{font-size:10px;fill:#fff}
+.note{fill:#fff8e6;stroke:#f0c000;stroke-width:1.2;stroke-dasharray:4 3}
+</style></head>
+<body><div class="wrap">
+<h1>商城里的对话逻辑（只这一条线）</h1>
+<div class="sub">从进商城到产出文案，全流程；收集信息在第 5 步内、由模型生成</div>
+<svg viewBox="0 0 680 880" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#9aa0aa"/></marker></defs>
+
+<!-- 1 -->
+<rect class="box" x="200" y="20" width="280" height="46" rx="12"/>
+<text class="txt" x="340" y="48" text-anchor="middle">① 进商城首页 /agents</text>
+<path class="arrow" d="M340,66 V90"/>
+
+<!-- 2 -->
+<rect class="box" x="200" y="90" width="280" height="46" rx="12"/>
+<text class="txt" x="340" y="118" text-anchor="middle">② 点卡片「去使用」→ 能力详情页</text>
+<path class="arrow" d="M340,136 V160"/>
+
+<!-- 3 -->
+<rect class="box" x="200" y="160" width="280" height="46" rx="12"/>
+<text class="txt" x="340" y="188" text-anchor="middle">③ 点「开始对话」→ 聊天页 /agent/&lt;sku&gt;/chat</text>
+<path class="arrow" d="M340,206 V230"/>
+
+<!-- 4 -->
+<rect class="box" x="200" y="230" width="280" height="46" rx="12"/>
+<text class="txt" x="340" y="258" text-anchor="middle">④ 你在聊天框打字发需求</text>
+<text class="txt-sm" x="340" y="273" text-anchor="middle">前端 → 后端 /market/skus/&lt;sku&gt;/run</text>
+<path class="arrow" d="M340,276 V300"/>
+
+<!-- 5 LLM -->
+<rect class="box-llm" x="170" y="300" width="340" height="92" rx="12"/>
+<text class="txt-llm" x="340" y="326" text-anchor="middle">⑤ 后端调大模型（DeepSeek）</text>
+<text class="txt-sm" x="340" y="346" text-anchor="middle">固定提示词（写死在代码里，如「十件套」）+ 你的需求</text>
+<text class="txt-sm" x="340" y="366" text-anchor="middle">提示词里带一条指令：先验信息够不够</text>
+<text class="txt-sm" x="340" y="384" text-anchor="middle">套话 = 第 5 步内部，不是 4/5 之间</text>
+<path class="arrow" d="M340,392 V416"/>
+
+<!-- 5内 判断 -->
+<rect class="box-hl" x="200" y="416" width="280" height="44" rx="12"/>
+<text class="txt-c" x="340" y="443" text-anchor="middle">模型自己判断：信息够不够？</text>
+
+<!-- 缺信息分支 -->
+<path class="arrow" d="M200,438 H150 V600 H250" style="stroke:#8b5cf6"/>
+<rect class="note" x="20" y="560" width="220" height="80" rx="10"/>
+<text class="txt-llm" x="130" y="584" text-anchor="middle">信息不够 → 模型生成</text>
+<text class="txt-sm" x="130" y="602" text-anchor="middle">「【需补充信息】请补充：行业/卖点」</text>
+<text class="txt-sm" x="130" y="620" text-anchor="middle">回显到聊天框（看人下菜碟）</text>
+<text class="txt-sm" x="130" y="636" text-anchor="middle">你回复补全 → 回到 ④ 再走一轮</text>
+<path class="arrow" d="M240,600 V560" style="stroke:#8b5cf6"/>
+<path class="arrow" d="M130,560 V300" style="stroke:#8b5cf6;stroke-dasharray:4 3"/>
+
+<!-- 够了 分支 → 6 -->
+<path class="arrow" d="M480,438 H520 V470 H480" style="stroke:#9aa0aa"/>
+<text class="txt-sm" x="500" y="455" text-anchor="middle" fill="#6b7280">够</text>
+
+<!-- 6 校验 -->
+<rect class="box" x="200" y="470" width="280" height="44" rx="12"/>
+<text class="txt" x="340" y="497" text-anchor="middle">⑥ 后端死规则校验</text>
+<text class="txt-sm" x="340" y="513" text-anchor="middle">（如必含「大流量/精准/行业」、字数…）</text>
+<path class="arrow" d="M340,514 V540"/>
+
+<!-- 通过 -->
+<path class="arrow" d="M200,536 H140 V600 H200" style="stroke:#1faa59"/>
+<rect class="box-ok" x="20" y="600" width="240" height="86" rx="12"/>
+<text class="txt-ok" x="140" y="626" text-anchor="middle">✓ 校验通过</text>
+<text class="txt-sm" x="140" y="646" text-anchor="middle">存进数据库「交付物」表</text>
+<text class="txt-sm" x="140" y="664" text-anchor="middle">扣对应积分</text>
+<text class="txt-sm" x="140" y="682" text-anchor="middle">内容回显到聊天框</text>
+
+<!-- 不通过 -->
+<path class="arrow" d="M480,536 H540 V600 H480" style="stroke:#e5484d"/>
+<rect class="box-no" x="420" y="600" width="240" height="86" rx="12"/>
+<text class="txt-no" x="540" y="626" text-anchor="middle">✗ 校验不通过</text>
+<text class="txt-sm" x="540" y="646" text-anchor="middle">报错「未通过技能校验</text>
+<text class="txt-sm" x="540" y="664" text-anchor="middle">本次不消耗积分」</text>
+<text class="txt-sm" x="540" y="682" text-anchor="middle">不存、不扣积分</text>
+
+<!-- 7 继续 -->
+<path class="arrow" d="M340,560 V690"/>
+<rect class="box" x="200" y="690" width="280" height="50" rx="12"/>
+<text class="txt" x="340" y="712" text-anchor="middle">⑦ 你接着回话（补全/改需求）</text>
+<text class="txt-sm" x="340" y="730" text-anchor="middle">后端每轮把历史对话一起拼进去 → 回到 ④</text>
+<path class="arrow" d="M340,740 V760 H80 V258" style="stroke:#9aa0aa;stroke-dasharray:4 3"/>
+<text class="txt-sm" x="60" y="505" text-anchor="middle" fill="#6b7280" transform="rotate(-90 60 500)">多轮循环</text>
+
+</svg>
+</div></body></html>

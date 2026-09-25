@@ -1,4 +1,5 @@
 import baoluChiefAvatar from "../assets/baolu-chief.jpg";
+import { getPublicAssetPath } from "../lib/api";
 
 export type EcoSkinKey = "通用" | "美业专精" | "餐饮专精";
 
@@ -102,7 +103,7 @@ export const ECO_EMPLOYEES: EcoEmployee[] = [
     role: "选题策略官",
     icon: "💡",
     color: "#E8651A",
-    status: "dev",
+    status: "ok",
     hookBase: "我是你的选题策略官。每天给你挑好「今天拍哪条能火」，还讲清为什么。",
     personality: "我脑子快、嗅觉灵，爱拆爆款，也会追着你问真实素材在哪。",
     ability: "我每天给你能直接开拍的选题，每条都说明白为什么这条更容易火。",
@@ -307,16 +308,41 @@ export const ECO_CONSULTANTS: EcoConsultant[] = [
   }
 ];
 
-export const EMPLOYEE_IMAGE_PATHS: Record<string, string> = {
-  "ip-position": "/avatars/ip-position.png",
-  topic: "/avatars/topic.png",
-  copywriter: "/avatars/copywriter.png",
-  "video-diag": "/avatars/video-diag.png",
-  "live-host": "/avatars/live-host.png",
-  "live-coach": "/avatars/live-coach.png",
-  "sales-coach": "/avatars/sales-coach.png",
-  private: "/avatars/private.png"
+/**
+ * 数字员工形象（`apps/web/public/avatars/**`）按**能力核**登记。
+ *
+ * 2026-09-21 用户口径：商城卡片、智能体详情页、对话页（页头与 AI 气泡）都要是**这个数字员工自己的形象**，
+ * 不能再一律用品牌形象「思潼」。能力核是唯一口径，所以这里以能力核为准，
+ * `EMPLOYEE_IMAGE_PATHS`（按 `EcoEmployee.key`）由它派生，避免两张表各写一份、改一处漏一处。
+ */
+export const EMPLOYEE_AVATAR_BY_CAPABILITY: Record<string, string> = {
+  "ip-pos": "avatars/ip-position.jpg",
+  topic: "avatars/topic.jpg",
+  copy: "avatars/copywriter.jpg",
+  vidrev: "avatars/video-diag.jpg",
+  livescript: "avatars/live-host.jpg",
+  liverev: "avatars/live-coach.jpg",
+  sales: "avatars/sales-coach.jpg",
+  moments: "avatars/private.jpg"
 };
+
+/** 取某个能力核 / SKU 编码（`ipzone__ip-pos`、`ip-pos`）对应的数字员工形象路径；套装或未知能力返回 null。 */
+export function employeeAvatarPath(skuCodeOrCapability: string | null | undefined): string | null {
+  if (!skuCodeOrCapability) return null;
+  const capability = skuCodeOrCapability.includes("__")
+    ? skuCodeOrCapability.slice(skuCodeOrCapability.lastIndexOf("__") + 2)
+    : skuCodeOrCapability;
+  const asset = EMPLOYEE_AVATAR_BY_CAPABILITY[capability];
+  return asset ? getPublicAssetPath(asset) : null;
+}
+
+/** `EcoEmployee.key`（卡片 key）→ 形象路径，由能力核映射派生。 */
+export const EMPLOYEE_IMAGE_PATHS: Record<string, string> = Object.fromEntries(
+  ECO_EMPLOYEES.flatMap((employee) => {
+    const avatar = employeeAvatarPath(employee.capability);
+    return avatar ? [[employee.key, avatar] as const] : [];
+  })
+);
 
 export const CONSULTANT_IMAGE_PATHS: Record<string, string> = {
   baolu: baoluChiefAvatar

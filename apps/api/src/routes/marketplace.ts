@@ -12,6 +12,7 @@ import { resolveRequestContext, type RequestContext } from "../services/request-
 import { DomesticChatProvider, type DomesticProviderUsageObservation } from "../services/domestic-chat-provider.js";
 import { searchPublicTopicSources } from "../services/public-topic-search.js";
 import { fetchGetnoteNotes } from "../services/getnote.js";
+import { parseTopicTable, splitRow, type TopicRow } from "../services/topic-table-parser.js";
 import {
   estimateMarketplaceModelCostCny,
   marketplaceCreditsForUsage
@@ -2221,64 +2222,6 @@ const TOPIC_SYSTEM_PROMPT = [
   "先判断信息是否够用：若「行业 / 账号阶段」缺失、敷衍（乱码、随意字符、与业务无关）或明显无法理解，则不要输出选题表；只输出：第一行「【需补充信息】」，下面 1-3 条「- 需要补充：…」问清行业与账号阶段。",
   "其中「阶段」由用户账号阶段决定：起号期 / 增长期 / 变现期。只输出该 Markdown，不要输出表格之外的任何说明、推导、评分或内部评估。"
 ].join("\n");
-
-interface TopicRow {
-  id: string;
-  title: string;
-  type: string;
-  source: string;
-  consensus: string;
-  precision: string;
-  advice: string;
-}
-
-function parseTopicTable(text: string): { rows: TopicRow[]; failures: string[] } {
-  const failures: string[] = [];
-  const lines = text.split(/\r?\n/);
-  const rows: TopicRow[] = [];
-  let idx = 0;
-  // 找到主表格（表头含 选题 的 7 列表）
-  for (let i = 0; i < lines.length; i++) {
-    const cells = splitRow(lines[i]);
-    if (cells.length >= 7 && cells[0].trim() === "#" && (cells[1] ?? "").trim() === "选题") {
-      idx = i + 1;
-      break;
-    }
-  }
-  if (idx === 0) {
-    return { rows, failures: ["未找到符合 7 列（# / 选题 / 类型 / 来源 / 共识层级 / 客资准度 / 创作建议）的主表格"] };
-  }
-  for (; idx < lines.length; idx++) {
-    const line = lines[idx].trim();
-    if (!line.startsWith("|")) break;
-    const cells = splitRow(line).map((c) => c.trim());
-    if (cells.every((c) => /^:?-{2,}:?$/.test(c))) continue;
-    if (cells.length < 7) {
-      failures.push(`第 ${rows.length + 1} 行字段不足（应为 7 列，实际 ${cells.length}）`);
-      rows.push({ id: cells[0] ?? "", title: cells[1] ?? "", type: cells[2] ?? "", source: cells[3] ?? "", consensus: cells[4] ?? "", precision: cells[5] ?? "", advice: cells[6] ?? "" });
-      continue;
-    }
-    rows.push({ id: cells[0], title: cells[1], type: cells[2], source: cells[3], consensus: cells[4], precision: cells[5], advice: cells[6] });
-  }
-  if (rows.length < 10) failures.push(`选题不足 10 条（实际 ${rows.length} 条）`);
-  const binding: Record<string, number> = { "人性共识": 1, "时代共识": 3, "利益共识": 4, "热点共识": 3, "专业共识": 5 };
-  rows.forEach((r, i) => {
-    const expected = binding[r.consensus];
-    const stars = (r.precision.match(/★/g) ?? []).length;
-    if (expected === undefined) failures.push(`第 ${i + 1} 条共识层级非法：${r.consensus}`);
-    else if (stars !== expected) failures.push(`第 ${i + 1} 条「${r.consensus}」应绑定 ${"★".repeat(expected)}，实际 ${r.precision}`);
-    if (!r.title || !r.type || !r.source || !r.advice) failures.push(`第 ${i + 1} 条存在空字段`);
-  });
-  if (!/配比校验/.test(text)) failures.push("缺少「配比校验」块");
-  if (/私信|电话|找我|留个|加我|扫码领/.test(text)) failures.push("CTA 含违禁词（私信/电话/找我/留个/加我/扫码领）");
-  return { rows, failures };
-}
-
-function splitRow(line: string): string[] {
-  const l = line.trim();
-  if (!l.startsWith("|") || !l.endsWith("|")) return [];
-  return l.slice(1, -1).split("|");
-}
 
 const VIDREV_SYSTEM_PROMPT = [
   "你是思潼AI行业智能体平台的「视频复盘智能体」。一次交付 = 1 份完整复盘报告：1 个一级标题（H1）+ 第零章到第十章共 11 个二级标题（H2），章节名与顺序逐字照抄下面这份清单，章节内禁止使用 H3/H4：",

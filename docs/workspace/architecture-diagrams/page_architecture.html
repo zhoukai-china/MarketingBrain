@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>页面视角下的系统架构</title>
+<style>
+  :root{
+    --bg:#f6f8fb; --card:#ffffff; --ink:#1f2733; --muted:#6b7785;
+    --blue:#2f7ff0; --orange:#ef7a2b; --green:#1faf6b; --purple:#8a5cf6;
+    --line:#d7dee8; --shadow:0 2px 10px rgba(20,40,80,.08);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.6;padding:28px 18px 60px}
+  .wrap{max-width:1000px;margin:0 auto}
+  h1{font-size:22px;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 22px}
+  .insight{background:#fff6ef;border:1px solid #ffd9bf;border-left:4px solid var(--orange);
+    border-radius:10px;padding:14px 16px;font-size:15px;margin:0 0 26px}
+  .insight b{color:#c2530f}
+  svg{width:100%;height:auto;display:block;background:var(--card);border:1px solid var(--line);
+    border-radius:14px;box-shadow:var(--shadow)}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin:18px 0 8px;font-size:13px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
+  .section{margin-top:34px}
+  .section h2{font-size:17px;margin:0 0 12px}
+  .qa{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:12px}
+  .qa .q{font-weight:600;color:#22303f}
+  .qa .a{color:#3a4756;margin-top:4px;font-size:14px}
+  details{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-top:8px}
+  summary{cursor:pointer;font-weight:600;color:#22303f}
+  details ul{margin:10px 0 0;padding-left:18px;font-size:13px;color:#56636f}
+  details code{background:#eef2f7;padding:1px 6px;border-radius:5px;font-size:12px}
+  .foot{margin-top:30px;color:var(--muted);font-size:12px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>你在页面上点什么，背后就走哪条路</h1>
+  <p class="sub">不堆名词，只讲你眼睛看到的页面，以及你在框里打字后发生了什么。</p>
+
+  <div class="insight">
+    <b>一句话先讲透：</b>「聊天框」是同一个长相的壳子，但它有两种身份——<b>你从「商城」点进来的</b>走货架后端（提示词写死在代码里）；<b>你从「数字员工工作台」点进来的</b>走另一条后端（提示词存在数据库里）。你之前分不清，就是因为这两个框长得一模一样。
+  </div>
+
+  <svg viewBox="0 0 680 760" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,PingFang SC,sans-serif">
+    <defs>
+      <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L8,3 L0,6 Z" fill="#9aa7b4"/>
+      </marker>
+      <marker id="arrowB" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L8,3 L0,6 Z" fill="#ef7a2b"/>
+      </marker>
+      <marker id="arrowG" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L8,3 L0,6 Z" fill="#1faf6b"/>
+      </marker>
+    </defs>
+
+    <!-- 标题区 -->
+    <text x="24" y="30" font-size="15" font-weight="700" fill="#22303f">① 你看到的页面（从上到下，都是你点的）</text>
+
+    <!-- 页面三连 -->
+    <rect x="24" y="44" width="190" height="64" rx="10" fill="#eaf2ff" stroke="#2f7ff0"/>
+    <text x="119" y="70" font-size="13" font-weight="600" fill="#1c4fa0" text-anchor="middle">商城首页</text>
+    <text x="119" y="90" font-size="11" fill="#3a5d8f" text-anchor="middle">/agents 一堆能力卡片</text>
+
+    <rect x="246" y="44" width="190" height="64" rx="10" fill="#eaf2ff" stroke="#2f7ff0"/>
+    <text x="341" y="70" font-size="13" font-weight="600" fill="#1c4fa0" text-anchor="middle">能力详情页</text>
+    <text x="341" y="90" font-size="11" fill="#3a5d8f" text-anchor="middle">/agent/xxx 介绍+价格</text>
+
+    <rect x="468" y="44" width="190" height="64" rx="10" fill="#eaf2ff" stroke="#2f7ff0"/>
+    <text x="563" y="70" font-size="13" font-weight="600" fill="#1c4fa0" text-anchor="middle">聊天框</text>
+    <text x="563" y="90" font-size="11" fill="#3a5d8f" text-anchor="middle">/agent/xxx/chat</text>
+
+    <line x1="214" y1="76" x2="244" y2="76" stroke="#9aa7b4" stroke-width="2" marker-end="url(#arrow)"/>
+    <line x1="436" y1="76" x2="466" y2="76" stroke="#9aa7b4" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <!-- 中间：同一个壳 -->
+    <rect x="448" y="138" width="220" height="120" rx="12" fill="#ffffff" stroke="#2f7ff0" stroke-width="2"/>
+    <text x="558" y="162" font-size="12" font-weight="700" fill="#1c4fa0" text-anchor="middle">通用的「聊天框」壳子</text>
+    <rect x="466" y="176" width="184" height="34" rx="6" fill="#f1f5fa" stroke="#c7d2e0"/>
+    <text x="558" y="198" font-size="11" fill="#566" text-anchor="middle">（你在这里打字、它回你）</text>
+    <text x="558" y="232" font-size="10" fill="#8a97a5" text-anchor="middle">↓ 你发一条消息后，才决定走哪条路</text>
+
+    <!-- 分叉标注 -->
+    <text x="24" y="150" font-size="13" font-weight="700" fill="#ef7a2b">② 橙色 = 从「商城」点进来的能力</text>
+    <text x="24" y="300" font-size="13" font-weight="700" fill="#1faf6b">③ 绿色 = 从「数字员工工作台」进来的</text>
+
+    <!-- 橙色路径 -->
+    <rect x="40" y="160" width="300" height="40" rx="8" fill="#fff1e6" stroke="#ef7a2b"/>
+    <text x="190" y="185" font-size="12" fill="#a8490c" text-anchor="middle">消息发到：商城后端 /market/skus/xxx/run</text>
+
+    <rect x="40" y="216" width="300" height="40" rx="8" fill="#fff1e6" stroke="#ef7a2b"/>
+    <text x="190" y="241" font-size="12" fill="#a8490c" text-anchor="middle">后端拿「写死的提示词」（如十件套）</text>
+
+    <rect x="40" y="272" width="300" height="40" rx="8" fill="#f3e9ff" stroke="#8a5cf6"/>
+    <text x="190" y="297" font-size="12" fill="#5a32b0" text-anchor="middle">调大模型，生成一整篇文案</text>
+
+    <rect x="40" y="328" width="300" height="40" rx="8" fill="#fff1e6" stroke="#ef7a2b"/>
+    <text x="190" y="353" font-size="12" fill="#a8490c" text-anchor="middle">按「死规则」校验（话题词缺了就 422）</text>
+
+    <rect x="40" y="384" width="300" height="40" rx="8" fill="#fff1e6" stroke="#ef7a2b"/>
+    <text x="190" y="409" font-size="12" fill="#a8490c" text-anchor="middle">通过→存进「我的交付物」；不通过→不存</text>
+
+    <line x1="190" y1="200" x2="190" y2="214" stroke="#ef7a2b" stroke-width="2" marker-end="url(#arrowB)"/>
+    <line x1="190" y1="256" x2="190" y2="270" stroke="#ef7a2b" stroke-width="2" marker-end="url(#arrowB)"/>
+    <line x1="190" y1="312" x2="190" y2="326" stroke="#ef7a2b" stroke-width="2" marker-end="url(#arrowB)"/>
+    <line x1="190" y1="368" x2="190" y2="382" stroke="#ef7a2b" stroke-width="2" marker-end="url(#arrowB)"/>
+
+    <!-- 分隔：壳子到橙色 -->
+    <path d="M470,258 C380,300 300,250 340,200" fill="none" stroke="#ef7a2b" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrowB)"/>
+    <text x="392" y="288" font-size="9" fill="#ef7a2b">商城身份</text>
+
+    <!-- 绿色路径 -->
+    <rect x="40" y="430" width="300" height="40" rx="8" fill="#e7f8ef" stroke="#1faf6b"/>
+    <text x="190" y="455" font-size="12" fill="#0d7a49" text-anchor="middle">消息发到：数字员工后端（运行时）</text>
+
+    <rect x="40" y="486" width="300" height="40" rx="8" fill="#e7f8ef" stroke="#1faf6b"/>
+    <text x="190" y="511" font-size="12" fill="#0d7a49" text-anchor="middle">后端从「数据库快照」取该员工的提示词</text>
+
+    <rect x="40" y="542" width="300" height="40" rx="8" fill="#f3e9ff" stroke="#8a5cf6"/>
+    <text x="190" y="567" font-size="12" fill="#5a32b0" text-anchor="middle">调大模型，按提示词角色作答</text>
+
+    <rect x="40" y="598" width="300" height="40" rx="8" fill="#e7f8ef" stroke="#1faf6b"/>
+    <text x="190" y="623" font-size="12" fill="#0d7a49" text-anchor="middle">按「质量契约」校验后回给你</text>
+
+    <line x1="190" y1="470" x2="190" y2="484" stroke="#1faf6b" stroke-width="2" marker-end="url(#arrowG)"/>
+    <line x1="190" y1="526" x2="190" y2="540" stroke="#1faf6b" stroke-width="2" marker-end="url(#arrowG)"/>
+    <line x1="190" y1="582" x2="190" y2="596" stroke="#1faf6b" stroke-width="2" marker-end="url(#arrowG)"/>
+
+    <!-- 壳子到绿色 -->
+    <path d="M470,250 C380,430 300,420 340,470" fill="none" stroke="#1faf6b" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrowG)"/>
+    <text x="372" y="430" font-size="9" fill="#1faf6b">员工身份</text>
+
+    <!-- 底部：大模型是共用的 -->
+    <rect x="40" y="660" width="610" height="58" rx="12" fill="#f3e9ff" stroke="#8a5cf6" stroke-width="2"/>
+    <text x="345" y="686" font-size="13" font-weight="700" fill="#5a32b0" text-anchor="middle">两条路最后都汇到同一个大模型（DeepSeek）</text>
+    <text x="345" y="706" font-size="11" fill="#7a56c0" text-anchor="middle">差别只在「喂给它的提示词从哪来、返回后谁来卡关」，不在模型本身</text>
+
+    <line x1="190" y1="424" x2="250" y2="660" stroke="#8a5cf6" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <line x1="190" y1="638" x2="250" y2="662" stroke="#8a5cf6" stroke-width="1.5" marker-end="url(#arrow)"/>
+  </svg>
+
+  <div class="legend">
+    <span><i class="dot" style="background:#2f7ff0"></i>你看到的页面 / 聊天框壳子</span>
+    <span><i class="dot" style="background:#ef7a2b"></i>货架能力（商城路径）</span>
+    <span><i class="dot" style="background:#1faf6b"></i>数字员工（工作台路径）</span>
+    <span><i class="dot" style="background:#8a5cf6"></i>大模型（共用）</span>
+  </div>
+
+  <div class="section">
+    <h2>你之前那几个困惑，对着图就清楚了</h2>
+    <div class="qa">
+      <div class="q">Q：为什么「对话业务流程」和「货架文案路径」像是两回事？</div>
+      <div class="a">A：它们不是两回事——「对话」只是聊天框这个壳子。你从商城点进来的那个框（ipzone__copy、meiye__copy、ipzone__livescript）就是图上橙色那条；数字员工工作台里的框是绿色那条。壳子一样，后端不同。</div>
+    </div>
+    <div class="qa">
+      <div class="q">Q：那「skill 在哪起作用」为什么我看不到？</div>
+      <div class="a">A：因为你一直看的是橙色那条。橙色这条路压根不用 skill 文件，提示词是写死在代码里的常量。skill 文件只在绿色那条（数字员工）和少数高级工作流里才被加载。</div>
+    </div>
+    <div class="qa">
+      <div class="q">Q：我发的消息、追问、收集信息，是谁在问？</div>
+      <div class="a">A：橙色路里，「你没填全/说清楚点」这类通用反问是后端写的；「请补充行业/卖点/人群」这种看人下菜碟的追问，是模型按提示词自己问的。绿色路同理。</div>
+    </div>
+  </div>
+
+  <details>
+    <summary>附录：图上每块对应的真实代码位置（给以后改代码用，平时不用看）</summary>
+    <ul>
+      <li>商城首页 = <code>/agents</code> 路由，列卡片用接口 <code>/market/zones</code> + <code>/market/skus</code></li>
+      <li>能力详情页 = <code>/agent/&lt;sku&gt;</code> 路由，渲染组件 <code>MarketplaceAgentDetailPage</code></li>
+      <li>聊天框（橙色） = <code>/agent/&lt;sku&gt;/chat</code> 路由，渲染组件 <code>MarketplaceAgentChatPage</code>，发消息到 <code>/market/skus/&lt;sku&gt;/run</code></li>
+      <li>橙色后端提示词与校验 = 写死在 <code>copy-ten-contract.ts</code>（十件套常量 + 死规则），不走 skill 文件</li>
+      <li>聊天框（绿色） = 数字员工工作台页（<code>/agents/beauty-industry/...</code>）里的对话组件，发到 agent-runtime</li>
+      <li>绿色后端提示词 = 从数据库 <code>SkillRelease.packageSnapshot</code> 快照读取（发布时由 prompt.md 拍进去），不是实时读 skill 文件</li>
+      <li>两条路最后的模型调用 = 同一个 DeepSeek 客户端，差异仅在提示词来源与返回校验方</li>
+    </ul>
+  </details>
+
+  <p class="foot">本图据前端路由（main.tsx 路由判定）与 marketplace 聊天组件真实接口调用绘制。</p>
+</div>
+</body>
+</html>
