@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>选题策略官 · 设计原型 v0.5 · 手机端优先 · 思潼AI 行业智能体平台</title>
+<title>选题策略官 · 设计原型 v1.5 · 手机端优先 · 思潼AI商城</title>
 <style>
   :root{
     --bg:#F4F7FC; --card:#ffffff; --ink:#1c2733; --sub:#5b6b7c; --line:#e3e9f2;
@@ -34,7 +34,6 @@
   .hero .wrap{position:relative;z-index:1}
   .hero .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
   .chip{font-size:12px;border-radius:99px;padding:3px 11px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22)}
-  .chip.dev{background:var(--orange);border-color:var(--orange);font-weight:700}
   .hero h1{font-size:23px;letter-spacing:.5px;display:flex;align-items:center;gap:10px}
   .hero h1 .emoji{width:44px;height:44px;border-radius:12px;background:var(--orange);display:grid;place-items:center;font-size:23px;box-shadow:0 8px 24px rgba(232,101,26,.45);flex:none}
   .hero p.hook{margin-top:12px;font-size:15px;color:#dbe7e2;max-width:640px}
@@ -111,6 +110,8 @@
   .ctrl .inline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .ctrl-lab{font-size:12px;font-weight:800;color:var(--sub);flex:none}
   .txt{flex:1;min-width:0;font-size:16px;padding:9px 12px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);outline:none}
+  .hot-line .txt{flex:1 1 100%;min-height:42px}
+  .hot-line .mini-btn{flex:1 1 100%;justify-content:center;display:flex;align-items:center}
   .txt:focus{border-color:var(--orange-line);box-shadow:0 0 0 3px rgba(232,101,26,.12)}
   .mini-btn{font-size:13px;font-weight:700;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:9px;padding:9px 14px;min-height:38px;cursor:pointer;white-space:nowrap}
   .mini-btn.act{background:var(--orange);border-color:var(--orange);color:#fff}
@@ -178,9 +179,14 @@
   .lv .goal{color:var(--sub)}
   .lv .goal b{color:var(--ink)}
 
-  .stages{display:flex;gap:6px;margin:2px 0 10px;flex-wrap:wrap}
-  .stage-btn{font-size:13px;font-weight:700;border:1px solid var(--line);background:#f8fafd;color:var(--sub);border-radius:99px;padding:8px 14px;cursor:pointer}
-  .stage-btn.on{background:var(--green);border-color:var(--green);color:#fff}
+  .stages{display:flex;gap:8px;margin:2px 0 10px;flex-wrap:wrap}
+  .stage-btn{font-size:13.5px;font-weight:700;border:1.5px solid var(--blue);background:#f2f7ff;color:var(--blue);border-radius:99px;padding:9px 18px;min-height:38px;cursor:pointer;transition:transform .12s, box-shadow .12s}
+  .stage-btn:active{transform:scale(.95)}
+  .stage-btn.on{background:var(--green);border-color:var(--green);color:#fff;box-shadow:0 2px 8px rgba(15,138,95,.35)}
+  .stage-btn.on::before{content:"✓ "}
+  @keyframes stagePulse{0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,.30)}50%{box-shadow:0 0 0 7px rgba(37,99,235,0)}}
+  .stages:not(.chosen) .stage-btn{animation:stagePulse 1.6s infinite}
+  .stage-hint{margin:2px 0;padding:13px 10px;border:1.5px dashed var(--blue);border-radius:9px;background:#f2f7ff;color:var(--blue);font-size:13px;font-weight:700;text-align:center}
   .quota-bar{display:flex;flex-direction:column;gap:7px}
   .qb{display:flex;align-items:center;gap:8px;font-size:12.5px}
   .qb .lab{width:58px;flex:none;color:var(--sub)}
@@ -193,7 +199,10 @@
   .topics-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 6px 18px rgba(28,39,51,.05);overflow:hidden}
   .topics-card .bar{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
   .topics-card .bar b{font-size:15px}
-  .topics-card .bar .refresh{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--orange);background:var(--orange-soft);border:1px dashed var(--orange-line);border-radius:99px;padding:8px 14px;cursor:pointer}
+  .topics-card .bar .refresh{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--orange);background:var(--orange-soft);border:1px dashed var(--orange-line);border-radius:99px;padding:8px 14px;cursor:pointer;transition:opacity .2s}
+  .topics-card .bar .refresh.busy{opacity:.55;pointer-events:none;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .topics-card{transition:opacity .25s}
   .src3note{display:none;font-size:12px;font-weight:700;color:var(--amber);background:var(--amber-soft);border-radius:8px;padding:3px 10px}
   .src3note.show{display:inline-block}
   table.ten{display:none;width:100%;border-collapse:collapse;font-size:13px}
@@ -237,11 +246,25 @@
   .adv-box b{font-size:15px;display:block;margin-bottom:8px}
   .adv-box li{font-size:13.5px;margin-left:18px;margin-bottom:5px}
 
-  .principles{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
-  .principle{font-size:12.5px;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:6px 14px;color:var(--sub)}
-  .principle b{color:var(--ink)}
 
   footer{margin-top:36px;border-top:1px solid var(--line);padding:20px 0 34px;font-size:12.5px;color:var(--sub);text-align:center}
+
+  /* ---------- 来源交互细节（同步结果 / 导出指南） ---------- */
+  .sync-result{background:#fff;border:1px solid var(--orange-line);border-radius:9px;padding:8px 10px;font-size:12.5px;color:var(--sub);margin-top:6px}
+  .sync-result b{color:var(--ink);display:block;margin-bottom:3px}
+  .sync-result ul{list-style:none;padding:0;margin:0}
+  .sync-result li{margin:3px 0;line-height:1.55}
+  .guide{background:#fff;border:1px solid var(--orange-line);border-radius:10px;padding:10px 12px;font-size:12.5px;color:var(--sub);line-height:1.7}
+  .guide .g-t{font-weight:800;color:var(--ink);font-size:13px}
+  .guide .g-s{font-size:12px;color:var(--orange);margin-top:1px}
+  .guide .g-p{margin:6px 0 0}
+  .guide b{color:var(--ink)}
+  .guide .g-h{font-weight:800;color:var(--ink);margin-top:8px}
+  .guide .g-ol{margin:4px 0 0;padding-left:18px}
+  .guide .g-ul{margin:4px 0 0;padding-left:18px}
+  .guide li{margin:2px 0}
+  .drop{margin-top:8px;border:1.5px dashed var(--orange-line);background:var(--orange-soft);border-radius:9px;padding:11px 12px;text-align:center;font-size:12.5px;color:var(--orange);font-weight:700;cursor:pointer;min-height:38px;display:flex;align-items:center;justify-content:center}
+  .drop.on{border-color:var(--orange);border-style:solid;background:#fbe0cd}
 
   /* ---------- 桌面端增强（≥821px，手机端为基准） ---------- */
   @media (min-width:821px){
@@ -271,6 +294,8 @@
     .sources{grid-template-columns:repeat(2,1fr);gap:14px}
     .src{padding:18px}
     .txt{font-size:13px;padding:6px 10px;min-width:120px}
+    .hot-line .txt{flex:1;min-width:120px;min-height:0}
+    .hot-line .mini-btn{flex:0 0 auto;display:inline-flex}
     .mini-btn{font-size:12.5px;padding:5px 12px;min-height:0}
     .funnel{flex-direction:row;align-items:center;gap:10px;padding:16px 18px}
     .frow{display:contents}
@@ -293,17 +318,15 @@
 
 <div class="topbar">
   <div class="wrap">
-    <div class="logo">思潼<i>AI</i> · 行业智能体平台</div>
-    <span class="tag">设计原型 v0.5 · 手机端优先</span>
-    <span class="tag tag-date">2026-09-24</span>
+    <div class="logo">思潼<i>AI</i>商城</div>
+    <span class="tag">设计原型 v1.5 · 手机端优先</span>
+    <span class="tag tag-date">2026-09-25</span>
   </div>
 </div>
 
 <header class="hero">
   <div class="wrap">
     <div class="chips">
-      <span class="chip dev">dev 内测</span>
-      <span class="chip">ipzone__topic</span>
       <span class="chip">四大来源 · 三关筛选</span>
       <span class="chip">示例数据 · 泛行业</span>
     </div>
@@ -320,7 +343,7 @@
     <div class="arrow">→</div>
     <div class="step"><b><span class="num">2</span>候选池涌现</b><span>按配额出 <b>16–20</b> 条，缺源自动重分配</span></div>
     <div class="arrow">→</div>
-    <div class="step"><b><span class="num">3</span>三关筛选</b><span>一票否决 → 贴标签 → 按阶段配比</span></div>
+    <div class="step"><b><span class="num">3</span>三关筛选</b><span>一票否决 → 贴标签 → 按你选的阶段</span></div>
     <div class="arrow">→</div>
     <div class="step"><b><span class="num">4</span>交付 10 条</b><span>带证据状态 + 创作建议，直接开拍</span></div>
   </div>
@@ -353,33 +376,44 @@
 
       <!-- 来源 1 -->
       <div class="src" id="src1">
-        <div class="head"><span class="no">1</span><b>私有知识与客户问题</b><span class="quota" data-full="配额 35% · 候选 6 条" data-r="配额 44% · 候选 6 条">配额 35% · 候选 6 条</span></div>
+        <div class="head"><span class="no">1</span><b>私有知识库</b><span class="quota" data-full="配额 35% · 候选 6 条" data-r="配额 44% · 候选 6 条">配额 35% · 候选 6 条</span></div>
         <div class="ctrl">
           <div class="inline">
-            <span class="ctrl-lab">🧠 大脑笔记</span>
-            <span class="sync-ok">已同步 12 篇 · 09-22 更新</span>
-            <button class="mini-btn">去大脑笔记选择同步</button>
+            <span class="ctrl-lab">录音卡笔记</span>
+            <span class="sync-ok" id="syncState">近 30 天 3 条新笔记待同步</span>
+            <button class="mini-btn act" id="syncBtn">⟳ 同步近 30 天笔记</button>
+          </div>
+          <div class="scan-line" id="syncScan" hidden>正在读取录音卡 → 转写 → 提取客户原话 / 案例 / 灵感…</div>
+          <div class="sync-result" id="syncResult" hidden>
+            <b>本次同步 5 条 · 已写入私有知识库（09-25）</b>
+            <ul>
+              <li><span class="pill ok">客户原话</span>录音卡「X总 到店咨询」→「到底该先做哪一步」「多少钱才算值」</li>
+              <li><span class="pill ok">案例素材</span>录音卡「张女士 办年卡」→ 成交过程 1 个（可脱敏引用）</li>
+              <li><span class="pill ok">心得灵感</span>随手记「换季波动怎么讲」→ 入灵感池</li>
+              <li><span class="pill ok">客户声音</span>私信高频「为什么别人有效我没效」</li>
+              <li><span class="pill ok">待跟进</span>录音卡「李姐 售后回访」→ 提醒 3 天内回访</li>
+            </ul>
           </div>
           <div class="inline">
             <span class="ctrl-lab">客户声音</span>
             <span style="font-size:12.5px;color:var(--sub)">评论 / 私信 / 销售客服记录自动汇入，无需手动填</span>
           </div>
         </div>
-        <p class="way">大脑笔记记录工作生活日常：客户往来 / 成交案例 / 心得灵感 / 评论私信 / 销售客服记录</p>
+        <p class="way">同步录音卡笔记（工作生活日常）：客户往来 / 成交案例 / 心得灵感 / 评论私信 / 销售客服记录</p>
         <ul id="src1List">
-          <li>已同步日常笔记 <b>12 篇</b> → 提取核心观点 <b>8</b> 个、金句 <b>5</b> 句</li>
+          <li id="syncTotalLi">已同步日常笔记 <b>12 篇</b> → 提取核心观点 <b>8</b> 个、金句 <b>5</b> 句</li>
           <li><span class="pill ok">客户原话</span>私信高频问题 TOP3：「到底该先做哪一步」「为什么别人有效我没效」「多少钱才算值」</li>
           <li><span class="pill ok">案例素材</span>近 30 天成交客户 6 个，可脱敏引用 3 个</li>
-          <li><span class="pill todo">待同步</span>销售通话录音 2 份尚未转写</li>
+          <li id="syncPendingLi"><span class="pill todo">待同步</span>销售通话录音 2 份尚未转写</li>
         </ul>
         <div class="foot">人设匹配度天然高 · <b>主力来源</b></div>
       </div>
 
       <!-- 来源 2 -->
       <div class="src" id="src2">
-        <div class="head"><span class="no">2</span><b>行业与用户热点</b><span class="quota" data-full="配额 25% · 候选 3 条" data-r="配额 31% · 候选 3 条">配额 25% · 候选 3 条</span></div>
+        <div class="head"><span class="no">2</span><b>行业热点</b><span class="quota" data-full="配额 25% · 候选 3 条" data-r="配额 31% · 候选 3 条">配额 25% · 候选 3 条</span></div>
         <div class="ctrl">
-          <div class="inline">
+          <div class="inline hot-line">
             <span class="ctrl-lab">我的行业</span>
             <input class="txt" id="industryInput" value="美业 · 皮肤管理（示例）" placeholder="填写你的行业，如：餐饮·火锅 / 美业·皮肤管理">
             <button class="mini-btn act" id="hotSearch">🔍 搜索抖音行业热点</button>
@@ -400,37 +434,70 @@
 
       <!-- 来源 3 -->
       <div class="src" id="src4">
-        <div class="head"><span class="no">3</span><b>同行与对标内容</b><span class="quota" data-full="配额 20% · 候选 4 条" data-r="配额 25% · 候选 4 条">配额 20% · 候选 4 条</span></div>
+        <div class="head"><span class="no">3</span><b>对标账号</b><span class="quota" data-full="配额 20% · 候选 4 条" data-r="配额 25% · 候选 4 条">配额 20% · 候选 4 条</span></div>
         <div class="ctrl">
           <div class="inline">
             <span class="ctrl-lab">对标账号</span>
-            <span class="acc-chip">🔗 抖音主页链接 ×1<span class="x">✕</span></span>
-            <span class="acc-chip">🔗 抖音主页链接 ×2<span class="x">✕</span></span>
-            <button class="mini-btn">＋ 粘贴主页链接</button>
-            <button class="mini-btn act" id="accSearch">🔍 搜索近期动态</button>
+            <span id="accChips" style="display:contents"><span class="acc-chip" data-k="home">🔗 主页链接 ×1<span class="x">✕</span></span><span class="acc-chip" data-k="home">🔗 主页链接 ×2<span class="x">✕</span></span></span>
+            <button class="mini-btn act" id="addAccBtn">＋ 粘贴链接</button>
+            <button class="mini-btn act" id="accSearch">🔍 分析对标账号</button>
           </div>
+          <div class="inline" id="accInputRow" hidden>
+            <input class="txt" id="accInput" placeholder="粘贴抖音主页链接或某条视频链接（v.douyin.com / douyin.com/user/… 或 /video/…）" style="flex:1">
+            <button class="mini-btn act" id="accConfirm">确认添加</button>
+            <button class="mini-btn" id="accCancel">取消</button>
+          </div>
+          <div class="scan-line" id="accErr" hidden></div>
           <div class="scan-line" id="accScan" hidden>
-            正在解析 <b>2 条抖音主页链接</b> → 抓取近期动态 →
-            <span class="pill blue">链接 1 · @美业老张</span>近 7 天 5 条更新、2 条 500 赞+（同行已验证）；
-            <span class="pill blue">链接 2 · @皮肤管理日记</span>3 条更新（公开线索，待核验）
+            正在解析链接 → 抓取近期动态 →
+            <span class="pill blue">主页 ×2</span>
+          </div>
+          <div class="sync-result" id="accReport" hidden>
+            <b>📊 对标账号分析 · 2 个账号 · 近 30 天（@皮肤管理日记 由视频链接自动定位）</b>
+            <ul>
+              <li><span class="pill blue">@美业老张</span>22 条更新，主要在讲 4 类选题：<br>①「问题皮肤避坑」×8 条 · 平均 1.2 万赞、最高 4.7 万 <span class="pill ok">流量最好 · 可借鉴</span><br>②「开店成本账」×5 条 · 平均 6000 赞，评论区高频问价 <span class="pill ok">转化好 · 可借鉴</span><br>③「学员案例对比」×4 条 · 平均 3000 赞 <span class="pill purple">借鉴结构</span><br>④「行业八卦点评」×5 条 · 平均 800 赞 <span class="pill todo">流量差 · 不借鉴</span></li>
+              <li><span class="pill blue">@皮肤管理日记</span>15 条更新（公开线索，待核验）：「新手第一」选题破 50 万赞 <span class="pill purple">有爆款潜质 · 可借势</span></li>
+              <li><span class="pill ok">已入池</span>可借鉴角度交给选题策略官 → 按你的行业改写成新选题，进入候选池参与三关筛选</li>
+            </ul>
           </div>
         </div>
-        <p class="way">用户粘贴抖音账号主页链接 → 检索该号近期动态（标题角度 / 互动数据 / 更新频率）</p>
+        <p class="way">用户粘贴抖音<b>主页链接或某条视频链接</b> → 视频链接自动定位所属账号并抓取整个主页 → 输出对标分析（近期选题 / 流量数据 / 可借鉴角度）</p>
         <ul id="src4List">
-          <li><span class="pill purple">公开线索</span>「同类问题 + 案例对比」结构近 30 天出现频次高</li>
-          <li><span class="pill todo">待核验</span>爆款状态未知（无互动数据回溯）</li>
+          <li><span class="pill purple">对标分析</span>自动归类该号近期选题 + 流量数据，标记「可借鉴」角度入池</li>
+          <li><span class="pill todo">待核验</span>无互动数据回溯的公开线索，只借鉴结构、不写「同行已验证」</li>
           <li>只借鉴角度与结构 · <b>不照搬文案</b></li>
         </ul>
         <div class="foot">有可回溯证据才能写「同行已验证」</div>
       </div>
 <div class="src" id="src3">
-        <div class="head"><span class="no">4</span><b>自身账号数据复盘</b><span class="quota" id="src3Quota" data-full="配额 20% · 候选 4 条">配额 20% · 候选 4 条</span></div>
+        <div class="head"><span class="no">4</span><b>数据复盘</b><span class="quota" id="src3Quota" data-full="配额 20% · 候选 4 条">配额 20% · 候选 4 条</span></div>
         <div class="ctrl">
           <div class="inline">
             <span class="ctrl-lab">数据复盘</span>
             <label class="switch"><input type="checkbox" id="s3Switch" checked><i></i></label>
-            <button class="mini-btn">📹 上传抖音 / 视频号视频数据</button>
+            <button class="mini-btn act" id="guideBtn">📥 视频数据导出指南</button>
           </div>
+          <div class="guide" id="vidGuide" hidden>
+            <div class="g-t">📥 视频数据导出指南</div>
+            <div class="g-s">不知道数据从哪来、怎么传，先看这里</div>
+            <p class="g-p">请先从你发视频的平台后台导出<b>近 30 天数据表格（CSV / Excel）</b>，然后直接拖到这里上传。</p>
+            <div class="g-h">视频号</div>
+            <ol class="g-ol">
+              <li>登录视频号助手：channels.weixin.qq.com/login.html（扫码登录）</li>
+              <li>进入：数据中心 → 视频数据 → 单篇视频</li>
+              <li>选择日期范围（建议「近 30 天」）→ 下载表格</li>
+              <li>把下载好的表格<b>拖到对话框上传</b>，输入「复盘」</li>
+            </ol>
+            <div class="g-h">上传后我会做什么</div>
+            <ul class="g-ul">
+              <li>自动识别平台字段，缺字段会告诉你哪些数据缺失、是否影响结论</li>
+              <li>一次只复盘一个平台；想换平台请重新上传对应表格</li>
+              <li>建议 5–50 条视频，太少趋势不可信，太多建议拆周期</li>
+            </ul>
+          </div>
+          <div class="drop" id="dropZone">⬇ 把近 30 天数据表格（CSV / Excel）拖到这里，或点击选择文件</div>
+          <input type="file" id="dropFile" accept=".csv,.xls,.xlsx" hidden>
+          <div class="scan-line" id="dropScan" hidden style="margin-top:6px"></div>
           <div class="inline">
             <span class="ctrl-lab">只显示选题</span>
             <span style="font-size:12.5px;color:var(--sub)">复盘报告等其余内容不在此展示，详见「视频数据复盘智能体」</span>
@@ -439,10 +506,6 @@
             <span class="ctrl-lab">复盘推荐</span>
             <span class="rec-chip">「真实过程记录」角度再拍</span>
             <span class="rec-chip">避开纯口播念稿</span>
-          </div>
-          <div class="inline">
-            <input class="txt" id="myTopic" placeholder="复盘后自己补选题，如：装修期要不要停更？" style="flex:1">
-            <button class="mini-btn act" id="addTopic">＋ 加入候选</button>
           </div>
         </div>
         <p class="way">上传抖音 / 视频号数据 → 由「视频数据复盘智能体」分析 → 本模块只取推荐选题</p>
@@ -468,7 +531,7 @@
       <span class="fjoin">→</span>
       <div class="fnode pool">第二关 贴标签<small>共识层级 × 客资准度</small></div>
       <span class="fjoin">→</span>
-      <div class="fnode final">交付 10 条<small>按阶段配比</small></div>
+      <div class="fnode final">交付 10 条<small>按你选的阶段</small></div>
     </div>
     <div class="degrade" id="degradeBar" hidden>
       <span>⚠️</span>
@@ -477,16 +540,16 @@
   </section>
 
   <section id="gates">
-    <div class="sec-head"><h2>第 2 步 · <span class="k">三关筛选</span></h2><span class="desc">⚙ 全程自动完成，无需配置 · 来源≠好坏：自动回答「值不值得拍」，不评分、贴标签</span></div>
+    <div class="sec-head"><h2>第 2 步 · <span class="k">三关筛选</span></h2><span class="desc">⚙ 前两关自动完成 · 第三关你来选阶段 · 来源≠好坏：自动回答「值不值得拍」，不评分、贴标签</span></div>
     <p class="sec-note">两套逻辑完全解耦：来源决定从哪挖，三关决定拍不拍、怎么定位、何时用。</p>
     <div class="gates">
       <div class="gate">
         <span class="gtag">第一关 · 一票否决</span>
         <h3>目标用户想不想看？</h3>
-        <p class="sub">任一通过即可，通过不了直接删，不分来源。</p>
-        <div class="rule"><b>① 评论区证据</b><br>自己评论区/私信，或同行评论区，有人问过类似问题吗？</div>
-        <div class="rule"><b>② 同行热度证据</b><br>同行同类视频有 500 赞+ 的吗？</div>
-        <div class="stat">没有证据时标「待验证」不冒充通过；待验证候选可继续走后面两关，但必须与「已通过」明确区分，并给出最小验证动作。</div>
+        <p class="sub">只认已有资料里的证据，不额外抓取任何账号数据。</p>
+        <div class="rule"><b>① 评论区证据</b><br>私有知识库同步的评论 / 私信 / 客户原话里，有人问过类似问题吗？</div>
+        <div class="rule"><b>② 同行热度证据</b><br>对标账号检索结果里，同类视频有高赞的吗？（与来源③共用同一取数，不另抓）</div>
+        <div class="stat">证据全部来自四大来源既有资料，不做自动抓取账号数据；没有证据时标「待验证」不冒充通过，可继续走后面两关但与「已通过」明确区分，并给出最小验证动作。</div>
       </div>
       <div class="gate">
         <span class="gtag">第二关 · 对号入座</span>
@@ -503,12 +566,12 @@
       </div>
       <div class="gate">
         <span class="gtag">第三关 · 配比校准</span>
-        <h3>按账号阶段配比</h3>
-        <p class="sub">保证各层级都有，跟账号阶段要什么走。点击切换：</p>
+        <h3>你在哪个阶段？</h3>
+        <p class="sub">第一步 · 点选你所在的阶段（选好后下方会显示配比侧重）：</p>
         <div class="stages">
-          <button class="stage-btn" data-stage="0">起号期 0-5000</button>
-          <button class="stage-btn on" data-stage="1">增长期 5000-5万</button>
-          <button class="stage-btn" data-stage="2">变现期 5万+</button>
+          <button class="stage-btn" data-stage="0">起号期</button>
+          <button class="stage-btn" data-stage="1">增长期</button>
+          <button class="stage-btn" data-stage="2">变现期</button>
         </div>
         <div class="quota-bar" id="quotaBars"></div>
         <p class="stage-note" id="stageNote"></p>
@@ -518,14 +581,14 @@
 
   <section id="deliver">
     <div class="sec-head"><h2>第 3 步 · <span class="k">交付 10 条</span>可开拍选题</h2><span class="desc">每条带证据状态、标签与创作建议</span></div>
-    <p class="sec-note">本批按「增长期 5000-5万」视角配比，来源 1/2/4 供热。不满意可要求「换一批」，重新生成 10 个。</p>
+    <p class="sec-note">本批按「增长期」视角配比（第三关所选阶段），来源 1/2/4 供热。不满意可要求「换一批」，重新生成 10 个。</p>
     <div class="topics-card">
       <div class="bar">
         <b>📋 本批选题（10 条）</b>
         <span class="pill ok">通过 8</span>
         <span class="pill todo">待验证 2</span>
         <span class="src3note" id="src3Note">本次未使用来源 3 · 配额已重分配</span>
-        <span class="refresh">↻ 换一批</span>
+        <span class="refresh" id="refreshBtn">↻ 换一批</span>
       </div>
       <table class="ten">
         <thead><tr><th>#</th><th>最终选题</th><th>类型</th><th>来源</th><th>第一关证据</th><th>共识层级</th><th>客资准度</th><th>适用阶段</th><th>创作建议</th></tr></thead>
@@ -569,22 +632,12 @@
         <li>选题 #6：先找到官方来源（标题+URL+日期）再拍；找不到就不拍，不硬蹭</li>
       </div>
     </div>
-
-    <div class="principles">
-      <span class="principle"><b>先过门槛再排序</b> · 不想看的直接删</span>
-      <span class="principle"><b>来源≠好坏</b> · 两套独立判断</span>
-      <span class="principle"><b>每层各有使命</b> · 不比高低</span>
-      <span class="principle"><b>有证据才用数字</b> · 不补造案例</span>
-      <span class="principle"><b>反常识优先</b></span>
-      <span class="principle"><b>可拍摄可落地</b></span>
-      <span class="principle"><b>缺源降级不阻塞</b> · 重分配照常出题</span>
-    </div>
   </section>
 </div>
 
 <footer>
-  选题策略官 · 静态设计原型 v0.5 · 手机端优先（20260924）<br>
-  本页所有选题、数据均为演示用示例，非真实账号数据 · 思潼AI 行业智能体平台
+  选题策略官 · 静态设计原型 v1.5 · 手机端优先（20260925）<br>
+  本页所有选题、数据均为演示用示例，非真实账号数据 · 思潼AI商城
 </footer>
 
 <script>
@@ -592,34 +645,35 @@
   const STAGES = [
     { note:"重点：把体量做起来。人性共识开路，别急着收客资。", q:[["人性",5,"#d64545"],["时代",2,"#2563eb"],["利益",2,"#0f8a5f"],["专业",1,"#0c6b49"],["热点",0,"#7c3aed"]] },
     { note:"重点：认知+转化并行。利益共识做主力，开始攒精准客资。", q:[["人性",3,"#d64545"],["时代",3,"#2563eb"],["利益",3,"#0f8a5f"],["专业",1,"#0c6b49"],["热点",0,"#7c3aed"]] },
-    { note:"重点：流量变客资。专业共识加到 3 条，放心收客资。", q:[["人性",2,"#d64545"],["时代",2,"#2563eb"],["利益",3,"#0f8a5f"],["专业",3,"#0c6b49"],["热点",0,"#7c3aed"]] }
+    { note:"重点：流量变客资。专业共识加重，放心收客资。", q:[["人性",2,"#d64545"],["时代",2,"#2563eb"],["利益",3,"#0f8a5f"],["专业",3,"#0c6b49"],["热点",0,"#7c3aed"]] }
   ];
   function renderStage(i){
     const s = STAGES[i];
+    document.querySelector(".stages").classList.add("chosen");
     document.getElementById("quotaBars").innerHTML = s.q.map(([lab,v,c]) =>
-      '<div class="qb"><span class="lab">'+lab+'</span><span class="track"><span class="fill" style="width:'+(v/5*100)+'%;background:'+c+'"></span></span><span class="val">'+(v? v+" 条":"看时机")+'</span></div>'
+      '<div class="qb"><span class="lab">'+lab+'</span><span class="track"><span class="fill" style="width:'+(v/5*100)+'%;background:'+c+'"></span></span><span class="val">'+(v? (v>=5?"主打":v>=3?"主力":v==2?"辅助":"少量") : "看时机")+'</span></div>'
     ).join("");
     document.getElementById("stageNote").textContent = s.note;
     document.querySelectorAll(".stage-btn").forEach((b,k)=>b.classList.toggle("on", k===i));
   }
   document.querySelectorAll(".stage-btn").forEach((b,i)=>b.addEventListener("click",()=>renderStage(i)));
-  renderStage(1);
+  document.getElementById("quotaBars").innerHTML = '<p class="stage-hint">👆 先点上方「起号期 / 增长期 / 变现期」· 选好后这里显示配比侧重</p>';
 
   /* ---------- 动态演示模型 ---------- */
   const DEMO_STEPS = [
-    { d:  300, pipe: 0, cls: "",     html: "<span class='t'>09:41:02</span>✅ 已连接大脑笔记 · 同步工作生活日常笔记 12 篇" },
+    { d:  300, pipe: 0, cls: "",     html: "<span class='t'>09:41:02</span>✅ 已读取录音卡 · 同步近 30 天笔记 17 条" },
     { d:  650,               cls: "",     html: "🧠 提取核心观点 8 个 · 金句 5 句 · 客户原话 TOP3" },
     { d:  700, pipe: 1, cls: "",     html: "🔍 检索抖音「美业 · 皮肤管理」行业热点…" },
     { d:  500,               cls: "ok",   html: "&nbsp;&nbsp;├ 平台新规调整 · 来源已核验 ✓" },
     { d:  450,               cls: "ok",   html: "&nbsp;&nbsp;├ 消费趋势 Q3 · 来源已核验 ✓" },
     { d:  450,               cls: "warn", html: "&nbsp;&nbsp;└ 「某政策」传闻 · 无官方来源 → 待核验 ⚠" },
-    { d:  600, pipe: 1, cls: "",     html: "👥 解析对标主页链接 ×2 → @美业老张 近 7 天 5 条更新 · 2 条 500 赞+" },
-    { d:  500,               cls: "",     html: "👥 主页链接 2（@皮肤管理日记）· 3 条公开线索（待核验）" },
+    { d:  600, pipe: 1, cls: "",     html: "👥 解析对标链接（主页 1 · 视频 1）→ 视频自动定位账号 @皮肤管理日记" },
+    { d:  500,               cls: "ok",   html: "&nbsp;&nbsp;└ 对标分析：@美业老张 4 类选题 · 2 类可借鉴（避坑 / 成本账）→ 入池" },
     { d:  650, pipe: 1, cls: "",     html: "📹 复盘上传数据（抖音/视频号）· 扫描 40 条视频 → TOP5 / BOTTOM5" },
     { d:  700,               cls: "hl",   html: "📊 四大来源就绪 → 候选池涌现（配额 35 / 25 / 20 / 20）", pool: 17 },
     { d:  850, pipe: 2, cls: "hl",   html: "⛔ 第一关 · 一票否决 → 通过 9 · 待验证 8", pass: 9, todo: 8 },
     { d:  700,               cls: "hl",   html: "🏷 第二关 · 贴标签 → 人性2 · 时代2 · 利益3 · 热点1 · 专业3" },
-    { d:  700,               cls: "hl",   html: "⚖️ 第三关 · 阶段配比（增长期）→ 选定 10 条", final: 10 },
+    { d:  700,               cls: "hl",   html: "⚖️ 第三关 · 按你的阶段视角 → 选定 10 条", final: 10 },
     { d:  500, pipe: 3, cls: "ok",   html: "✅ 完成！10 条选题已生成 ↓ 下方查看完整明细" }
   ];
   const TOPICS10 = ["越省钱越亏钱","2026 平台最大变化","只问价不下单","别学别人家爆款","新手 3 个坑","新规人话翻译","「我再想想」潜台词","反着来卷价值","跑最差的一条","要不要做 IP"];
@@ -697,12 +751,12 @@
   demoObs.observe(document.getElementById("demo"));
 
   /* ---------- 候选池计数 ---------- */
-  let extraTopics = 0, s3Off = false;
+  let s3Off = false;
   function poolText(){
     const base = s3Off ? 13 : 17;
-    const n = base + extraTopics;
+    const n = base;
     document.getElementById("poolCount").textContent = n + " 条内部候选";
-    document.getElementById("poolAfter").textContent = (13 + extraTopics);
+    document.getElementById("poolAfter").textContent = 13;
   }
 
   /* ---------- 来源 2：行业热点真实检索（原型为模拟） ---------- */
@@ -721,29 +775,69 @@
     }, 1100);
   });
 
-  /* ---------- 来源 4：对标账号真实检索（原型为模拟） ---------- */
+  /* ---------- 来源 3：对标账号（粘贴主页链接 + 检索） ---------- */
   const accBtn = document.getElementById("accSearch");
+  const accChips = document.getElementById("accChips");
+  const accInputRow = document.getElementById("accInputRow");
+  const accInput = document.getElementById("accInput");
+  const accErr = document.getElementById("accErr");
+  function accCount(){ return accChips.querySelectorAll(".acc-chip").length; }
+  function accRenumber(){
+    let h = 0, w = 0;
+    accChips.querySelectorAll(".acc-chip").forEach((c) => {
+      if (c.dataset.k === "video") { w++; c.childNodes[0].nodeValue = "🎬 视频链接（自动抓全号）×" + w; }
+      else { h++; c.childNodes[0].nodeValue = "🔗 主页链接 ×" + h; }
+    });
+  }
+  accChips.addEventListener("click", (e) => {
+    if (e.target.classList.contains("x")) { e.target.parentElement.remove(); accRenumber(); }
+  });
+  document.getElementById("addAccBtn").addEventListener("click", () => {
+    accInputRow.hidden = false; accErr.hidden = true; accInput.focus();
+  });
+  document.getElementById("accCancel").addEventListener("click", () => {
+    accInputRow.hidden = true; accErr.hidden = true; accInput.value = "";
+  });
+  function accConfirmAdd() {
+    const v = accInput.value.trim();
+    if (!v) { accInput.focus(); return; }
+    if (!/douyin\.com/i.test(v)) {
+      accErr.hidden = false;
+      accErr.innerHTML = "⚠ 未识别为抖音链接：从抖音 App 打开对方主页或某条视频 →「分享」→「复制链接」，再粘贴到这里";
+      return;
+    }
+    const isVideo = /\/video\//i.test(v) || /v\.douyin\.com/i.test(v);
+    const chip = document.createElement("span");
+    chip.className = "acc-chip";
+    chip.dataset.k = isVideo ? "video" : "home";
+    chip.innerHTML = (isVideo ? "🎬 视频链接（自动抓全号）· 新增" : "🔗 主页链接 · 新增") + "<span class='x'>✕</span>";
+    accChips.appendChild(chip);
+    accRenumber();
+    accInput.value = ""; accInputRow.hidden = true; accErr.hidden = true;
+  }
+  document.getElementById("accConfirm").addEventListener("click", accConfirmAdd);
+  accInput.addEventListener("keydown", (e) => { if (e.key === "Enter") accConfirmAdd(); });
   accBtn.addEventListener("click", () => {
     if (accBtn.disabled) return;
-    accBtn.disabled = true; accBtn.textContent = "搜索中…";
+    const n = accCount();
+    if (!n) {
+      accErr.hidden = false;
+      accErr.innerHTML = "⚠ 请先添加至少 1 条对标链接（主页或视频均可）";
+      return;
+    }
+    const nv = accChips.querySelectorAll('.acc-chip[data-k="video"]').length;
+    const nh = n - nv;
+    accBtn.disabled = true; accBtn.textContent = "分析中…";
+    accErr.hidden = true;
+    document.getElementById("accReport").hidden = true;
     document.getElementById("accScan").hidden = false;
-    document.getElementById("accScan").innerHTML = "正在解析 2 条抖音主页链接 → 抓取近 30 天动态（视频标题 / 互动数据 / 更新频率）…";
+    document.getElementById("accScan").innerHTML = "正在解析 <b>" + n + " 条链接</b>（主页 " + nh + " · 视频 " + nv + "）→ 视频链接自动定位所属账号 → 抓取整个账号主页与近期内容…";
     setTimeout(() => {
-      document.getElementById("accScan").innerHTML =
-        '<span class="pill blue">链接 1 · @美业老张</span>近 7 天 5 条更新、2 条 500 赞+（<b>同行已验证</b>）；<span class="pill blue">链接 2 · @皮肤管理日记</span>3 条更新（公开线索，待核验）';
-      accBtn.disabled = false; accBtn.textContent = "🔍 重新搜索";
-    }, 1100);
-  });
-
-  /* ---------- 来源 3：自填选题 ---------- */
-  document.getElementById("addTopic").addEventListener("click", () => {
-    const v = document.getElementById("myTopic").value.trim();
-    if (!v) { document.getElementById("myTopic").focus(); return; }
-    const li = document.createElement("li");
-    li.innerHTML = '<span class="pill mine">自填</span>' + v.replace(/</g,"&lt;") + " <span style='color:var(--sub);font-size:12px'>（入池后同样走三关筛选）</span>";
-    document.getElementById("src3List").appendChild(li);
-    document.getElementById("myTopic").value = "";
-    extraTopics++; poolText();
+      document.getElementById("accScan").innerHTML = '已抓取 2 个账号（1 个由视频链接自动定位）· 归类近 30 天选题与互动数据 ↓';
+      document.getElementById("accReport").hidden = false;
+      accBtn.disabled = false; accBtn.textContent = "🔍 重新分析";
+      document.getElementById("accReport").scrollIntoView({ behavior:"smooth", block:"nearest" });
+    }, 1500);
   });
 
   /* ---------- 来源 3：关闭开关 → 降级出题 ---------- */
@@ -760,6 +854,62 @@
     document.getElementById("degradeBar").hidden = !s3Off;
     document.getElementById("src3Note").classList.toggle("show", s3Off);
     poolText();
+  });
+
+  /* ---------- 来源 1：同步近 30 天笔记（录音卡） ---------- */
+  const syncBtn = document.getElementById("syncBtn");
+  syncBtn.addEventListener("click", () => {
+    if (syncBtn.disabled) return;
+    syncBtn.disabled = true; syncBtn.textContent = "同步中…";
+    const sc = document.getElementById("syncScan");
+    sc.hidden = false; sc.innerHTML = "正在读取录音卡 → 转写 → 提取客户原话 / 案例 / 灵感…";
+    setTimeout(() => {
+      sc.hidden = true;
+      document.getElementById("syncResult").hidden = false;
+      document.getElementById("syncState").textContent = "已同步 5 条 · 09-25 更新";
+      syncBtn.disabled = false; syncBtn.textContent = "⟳ 重新同步";
+      document.getElementById("syncTotalLi").innerHTML = "已同步日常笔记 <b>17 篇</b> → 提取核心观点 <b>11</b> 个、金句 <b>7</b> 句";
+      document.getElementById("syncPendingLi").innerHTML = '<span class="pill ok">已转写</span>销售通话录音 2 份转写完成，纳入本次同步';
+    }, 1200);
+  });
+
+  /* ---------- 来源 4：导出指南 + 上传演示 ---------- */
+  document.getElementById("guideBtn").addEventListener("click", () => {
+    const g = document.getElementById("vidGuide");
+    g.hidden = !g.hidden;
+    if (!g.hidden) g.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  });
+  const dropZone = document.getElementById("dropZone");
+  const dropFile = document.getElementById("dropFile");
+  function dropParse(name){
+    const s = document.getElementById("dropScan");
+    s.hidden = false; s.innerHTML = "已接收 <b>" + name + "</b> → 正在解析表格 · 识别平台字段…";
+    setTimeout(() => {
+      s.innerHTML = '<span class="pill ok">解析完成</span>视频号 · 40 条视频 · 字段完整（播放 / 互动 / 完播）→ 结果见下方「复盘推荐」';
+    }, 1200);
+  }
+  dropZone.addEventListener("click", () => dropFile.click());
+  dropFile.addEventListener("change", () => {
+    if (dropFile.files && dropFile.files[0]) dropParse(dropFile.files[0].name);
+    dropFile.value = "";
+  });
+  dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.classList.add("on"); });
+  dropZone.addEventListener("dragleave", () => dropZone.classList.remove("on"));
+  dropZone.addEventListener("drop", (e) => {
+    e.preventDefault(); dropZone.classList.remove("on");
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) dropParse(f.name);
+  });
+  const refreshBtn = document.getElementById("refreshBtn");
+  refreshBtn.addEventListener("click", () => {
+    if (refreshBtn.classList.contains("busy")) return;
+    refreshBtn.classList.add("busy"); refreshBtn.textContent = "↻ 生成中…";
+    const card = document.querySelector(".topics-card");
+    card.style.opacity = ".35";
+    setTimeout(() => {
+      card.style.opacity = "1";
+      refreshBtn.classList.remove("busy"); refreshBtn.textContent = "↻ 换一批";
+    }, 1200);
   });
 </script>
 </body>
