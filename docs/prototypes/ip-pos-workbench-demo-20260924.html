@@ -90,6 +90,16 @@
   .opt.go{border-color:rgba(232,101,26,.5);background:rgba(232,101,26,.14);font-weight:700;color:#ffd9ba}
   .opt small{display:block;color:#7d95a0;font-size:11.5px}
   .opt .tick{color:#7ee2a8;font-weight:800}
+  /* 老手快填：逐条确认卡 */
+  .pstep{margin:2px 0 6px 34px;animation:fadein .35s;display:flex;flex-direction:column;gap:7px}
+  .pedit-row{display:flex;gap:7px;margin-top:2px}
+  .pedit{flex:1;min-width:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.25);border-radius:9px;padding:7px 10px;font-size:12.5px;color:#d5e3db;outline:none}
+  .pedit:focus{border-color:#e8651a}
+  .pedit::placeholder{color:rgba(255,255,255,.35)}
+  .pre-val{background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.22);border-radius:9px;padding:7px 10px;font-size:12.5px;color:#d5e3db;line-height:1.6}
+  .pv-tag{display:inline-block;font-size:10.5px;color:#ffb27d;border:1px solid rgba(232,101,26,.4);border-radius:6px;padding:0 6px;margin-right:6px;font-weight:700;line-height:16px;vertical-align:1px}
+  .opt-row{display:flex;gap:7px}
+  .opt.mini{flex:1;text-align:center;padding:7px 6px;font-size:12.5px}
   .chat .input{display:flex;gap:8px;padding:10px 12px;border-top:1px solid rgba(255,255,255,.07)}
   .chat .input input{flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:9px;color:#e8f1ec;font-size:12.5px;padding:7px 11px;outline:none}
   .chat .input input:focus{border-color:var(--orange)}
@@ -127,6 +137,7 @@
   .big-btn.ghost{background:#fff;border:1px solid var(--line);color:var(--sub)}
   .big-btn.ghost:hover{border-color:var(--orange-line);color:var(--orange)}
   .fee{font-size:12px;color:var(--sub);align-self:center}
+  .safe-tag{font-size:11px;color:#0f8a5f;background:#e6f5ee;border:1px solid rgba(15,138,95,.22);border-radius:99px;padding:2px 9px;font-weight:600;align-self:center;white-space:nowrap}
   .fee b{color:var(--orange)}
 
   /* 占位/生成/交付 三态画布 */
@@ -224,9 +235,11 @@
 </head>
 <body>
 <div class="topbar"><div class="wrap">
+  <button class="back-btn" onclick="wbBack()">← 返回</button>
   <div class="logo">思潼<i>AI</i>商城</div>
   <span class="tag">IP定位智能体 · 定位工作台</span>
   <span class="tag" style="margin-left:auto">静态演示</span>
+  <span class="credits" style="margin-left:8px;font-size:12.5px;color:var(--sub);background:#f4f7fb;border:1px solid var(--line);border-radius:99px;padding:3px 12px;white-space:nowrap">算力 <b id="creditVal">2,400</b></span>
 </div></div>
 
 <header class="hero"><div class="wrap">
@@ -237,13 +250,13 @@
   </div>
   <h1><img class="emoji" data-av alt="沈定头像">IP定位工作台</h1>
   <p class="hook">左边沈定 6 步访谈带你走，右边定位简报 8 字段和全案 9 件实时长出来。</p>
-  <p class="ability">6 步访谈 → 定位简报 → 速览 + 8 章全案分区交付：单章复制、单章重生成、一键导出 Word（WPS 可开），400 积分一次看清。支持语音输入；老手可直接改简报，对话能力不降级。</p>
-  <button class="cta" onclick="document.getElementById('demo').scrollIntoView({behavior:'smooth'});window.__autostart&&window.__autostart()">▶ 开始演示（自动播放 6 步访谈）<small>约 60 秒 · 也可手动逐步点击</small></button>
+  <p class="ability">6 步访谈 → 定位简报 → 速览 + 8 章全案分区交付：单章复制、单章重生成、一键导出 Word（WPS 可开），99 算力/份，一次看清。支持语音输入；老手可直接改简报，对话能力不降级。</p>
+  <button class="cta" onclick="setMode(true);document.getElementById('demo').scrollIntoView({behavior:'smooth'});window.__autostart&&window.__autostart()">▶ 看演示（自动跑一遍）<small>约 30 秒 · 随时点卡片接管，也可手动逐步操作</small></button>
 </div></header>
 
 <section id="demo"><div class="wrap">
-  <div class="sec-head"><h2>▶ <span class="k">工作台实况演示</span></h2><span class="desc">滚动到此处自动播放 · 左：6 步访谈｜右：简报 + 全案交付区</span></div>
-  <div class="sec-note">演示数据为虚构案例（手机后市场连锁加盟），品牌与人物均已匿名化（XX贴膜 / X总 / 平台A·B），不指代任何真实品牌或人物。生成环节压缩了线上约 50 秒的流式推导，计费口径与线上一致（400 积分/次）。</div>
+  <div class="sec-head"><h2>▶ <span class="k">工作台实况演示</span></h2><span class="desc">默认手动操作 · 点上方「▶ 看演示」自动跑一遍 · 左：6 步访谈｜右：简报 + 全案交付区</span></div>
+  <div class="sec-note">演示数据为虚构案例（手机后市场连锁加盟），品牌与人物均已匿名化（XX贴膜 / X总 / 平台A·B），不指代任何真实品牌或人物。生成环节压缩了线上约 50 秒的流式推导，计费口径与线上一致（99 算力/份）。</div>
 
   <div class="stage">
     <div class="bar">
@@ -265,7 +278,7 @@
           <div><b>沈定 · 首席定位官</b><span>6 步访谈 · 一次只问一个维度 · 回答自动填入右侧简报</span></div>
         </div>
         <div class="log" id="chatLog"></div>
-        <div class="skip">老手？<a id="skipGuide">跳过访谈，直接填简报 →</a></div>
+        <div class="skip">赶时间？<a id="skipGuide">AI 先铺底稿，你来逐条确认 →</a></div>
         <div class="input">
           <button id="micBtn" class="mic" title="语音输入">🎤</button>
           <input id="freeInput" placeholder="打字或点 🎤 说话，例如：竞品换成 XX / 目标改成品牌" />
@@ -283,16 +296,18 @@
           </div>
           <div class="grid" id="briefGrid"></div>
           <div class="ops">
-            <button class="big-btn gen" id="btnGen" disabled>✨ 生成定位全案 · 400 积分</button>
+            <button class="big-btn gen" id="btnGen" disabled>✨ 生成定位全案 · 99 算力</button>
             <button class="big-btn ghost" id="btnRegenAll" style="display:none">↻ 改简报重新生成</button>
-            <span class="fee" id="feeHint">完成 6 步访谈后可生成 · 全案（速览 + 8 章）<b>400 积分</b>/次</span>
+            <span class="fee" id="feeHint">完成 6 步访谈后可生成 · 全案（速览 + 8 章）<b>99 算力</b>/份</span>
+            <span class="safe-tag">🛡️ 失败不扣费</span>
           </div>
         </div>
         <div class="canvas" id="canvas">
-          <div class="ph-note">👋 完成左侧 6 步访谈后，全案会在这里分区生成<span class="tag">8 字段齐</span><span class="tag">速览 + 8 章</span><span class="tag">400 积分</span></div>
+          <div class="ph-note">👋 完成左侧 6 步访谈后，全案会在这里分区生成<span class="tag">8 字段齐</span><span class="tag">速览 + 8 章</span><span class="tag">99 算力</span></div>
           <div class="ph-grid" id="phGrid"></div>
           <div id="genWrap" style="display:none">
             <div class="ph-note" style="margin-top:4px">⏳ 生成中 · 线上为流式推导约 50 秒；前端每 30 秒轮询一次交付接口，最长等待 25 分钟（超时策略已在生产验证）</div>
+            <div class="gen-prog"><div class="gp-row"><div class="gp-bar"><i id="gpFill"></i></div><b id="gpPct">0%</b></div><div class="gp-meta"><span id="gpStep">准备中…</span><span id="gpEta"></span></div></div>
             <div class="genlog" id="genLog"></div>
           </div>
           <div id="dlWrap" style="display:none"></div>
@@ -686,11 +701,11 @@ function enterConfirm(){
   renderBrief();
   renderPH('ready');
   setNote('✓ 简报 8/8 齐全 · 点「✨ 生成定位全案」，或确认沈定的生成建议');
-  $('feeHint').innerHTML='本次交付：<b>定位全案 9 件（速览 + 8 章）· 400 积分</b>';
-  addMsg('8 项信息齐了 ✅ 右侧「定位简报」你过目——<b>没问题就生成</b>：速览 + 8 章全案，一次 <b>400 积分</b>。哪条不对，直接点字段改。');
+  $('feeHint').innerHTML='本次交付：<b>定位全案 9 件（速览 + 8 章）· 99 算力</b>';
+  addMsg('8 项信息齐了 ✅ 右侧「定位简报」你过目——<b>没问题就生成</b>：速览 + 8 章全案，一次 <b>99 算力</b>。哪条不对，直接点字段改。');
   const box=document.createElement('div');
   box.className='opts';
-  box.innerHTML=`<button class="opt go" id="okGen">✓ 确认，开始生成<small>速览 + 8 章 · 400 积分 · 线上流式约 50 秒</small></button>
+  box.innerHTML=`<button class="opt go" id="okGen">✓ 确认，开始生成<small>速览 + 8 章 · 99 算力 · 线上流式约 50 秒</small></button>
   <button class="opt" id="editGen">✎ 改一下再生成<small>点击右侧简报字段直接修改</small></button>`;
   chatLog.appendChild(box);
   chatLog.scrollTop=chatLog.scrollHeight;
@@ -722,8 +737,18 @@ function runGen(){
     '→ 加载定位方法论 · 五步定位法 · 固定输出结构（速览 + 8 章）',
   ];
   PIECES.forEach(p=>{if(M[p.id])L.push(M[p.id]);L.push('✓ '+p.no+' '+p.title+' —— '+p.gd);});
-  L.push('✅ 全案 9 件生成完成 · 实际消耗 400 积分 · 耗时约 52 秒（线上流式）');
+  L.push('✅ 全案 9 件生成完成 · 实际消耗 99 算力 · 耗时约 52 秒（线上流式）');
   let i=0;
+  const gpDelay=650, gpTotal=L.length;
+  const gpFill=$('gpFill'),gpPct=$('gpPct'),gpStep=$('gpStep'),gpEta=$('gpEta');
+  gpFill.style.width='0%';gpPct.textContent='0%';gpStep.textContent='准备中…';
+  gpEta.textContent='预计还需 ~'+Math.ceil((gpTotal*gpDelay+300)/1000)+' 秒';
+  const gpTick=()=>{
+    const pct=Math.round(Math.min(i,gpTotal)/gpTotal*100);
+    gpFill.style.width=pct+'%';gpPct.textContent=pct+'%';
+    if(i>0&&i<=gpTotal)gpStep.textContent=L[i-1].replace(/^(→ |✓ |✅ )/,'').slice(0,20);
+    gpEta.textContent=i>=gpTotal?'马上就好…':'预计还需 ~'+Math.max(1,Math.ceil((gpTotal-i)*gpDelay/1000))+' 秒';
+  };
   const step=()=>{
     if(S.phase!=='gen')return;
     if(i>=L.length){later(finish,500);return;}
@@ -736,6 +761,7 @@ function runGen(){
     $('genLog').scrollTop=1e9;
     if(t.indexOf('✓')===0){genIdx++;renderPH('gen');}
     if(t.indexOf('✅')===0){renderPH('done');}
+    gpTick();
     later(step,t.indexOf('✓')===0?650:750);
   };
   later(step,300);
@@ -749,7 +775,7 @@ function finish(){
   setNote('📦 交付完成 · 全案 9 件已分区点亮（速览 + 8 章）· 单章可复制 / 重生成');
   renderDeliverables();
   $('btnRegenAll').style.display='';
-  addMsg('交付完成 ✅ <b>定位全案 9 件</b>已按 5 个分区放在右侧——速览先看，定位 / 人设 / 内容 / 增长按需取用。每章可<b>单独复制</b>、<b>单章重生成</b>；改简报可整包重跑。本次消耗 <b>400 积分</b>。');
+  addMsg('交付完成 ✅ <b>定位全案 9 件</b>已按 5 个分区放在右侧——速览先看，定位 / 人设 / 内容 / 增长按需取用。每章可<b>单独复制</b>、<b>单章重生成</b>；改简报可整包重跑。本次消耗 <b>99 算力</b>。');
   if(S.auto)later(()=>toast('演示完成。试试：点任一章的「⧉ 复制本件」或「↻ 重生成」'),1200);
 }
 
@@ -830,19 +856,164 @@ function freeSend(){
     addMsg('收到（演示版只识别「竞品 / 目标」两类说法）。要改其他字段，直接点右侧简报里的字段。');
   }
 }
+/* ---------- 老手快填：逐条确认卡 ---------- */
+const PRO_HINT={
+  role:'带「连锁/总部/加盟」就走招商获客深度；单店则走本地获客。',
+  project:'一句话说清：项目名 + 做什么 + 靠什么赚钱。',
+  biz:'供应链驱动还是服务驱动？赚加盟商的钱还是赚用户的钱？',
+  comp:'竞品 1-3 个，差异化要有事实支撑，「我们更好」不算。',
+  user:'具体到一个真实的人最好：年龄 + 状态 + 最痛的一件事。',
+  founder:'只有你经历过的事才是人设黄金素材：背景 + 性格特质。',
+  goal:'获客 / 招商 / 品牌三选一，目标越具体全案越准。',
+  status:'平台 + 粉丝量 + 出镜自评分 + 每周可投入时间。',
+};
+let proIdx=0, proEdited=0;
 function skipGuide(){
+  if(S.phase==='profill')return;
   resetAll(false);
   started=true;
-  Object.assign(S.brief,DEMO_BRIEF);
-  S.qi=QFLOW.length;
+  S.brief={};
+  proIdx=0;proEdited=0;
+  S.phase='profill';S.qi=QFLOW.length;
+  renderBrief();
+  renderPH('locked');
+  setNote('⚡ 老手快填中 · 逐条确认预填底稿，右栏同步点亮');
+  setStatus('老手快填 · 0/8','playing');
+  $('feeHint').innerHTML='快填完成后生成：<b>定位全案 9 件（速览 + 8 章）· 99 算力</b>';
+  addMsg('好，老手通道 🚀 我就一个问题一个问题磨你了——系统按同类项目先铺了 <b>8 条预填底稿</b>。咱们<b>逐条过</b>：对的点「✓ 就这样」，不对的点「✏️ 换一条」直接改；赶时间点「⏩ 剩下的全收」。8 条过完就能生成。');
+  later(askPro,700);
+}
+function askPro(){
+  if(S.phase!=='profill')return;
+  if(proIdx>=FIELDS.length){proDone(false);return;}
+  const f=FIELDS[proIdx];
+  setStatus(`老手快填 · ${proIdx}/8`,'playing');
+  addMsg(`<b>【快填 ${proIdx+1}/8 · ${f.icon} ${f.label}】</b>${PRO_HINT[f.key]}`);
+  const step=document.createElement('div');
+  step.className='pstep';
+  step.innerHTML=`<div class="pre-val"><span class="pv-tag">预填</span>${escapeHtml(DEMO_BRIEF[f.key])}</div>`;
+  const row=document.createElement('div');
+  row.className='opt-row';
+  const mk=(cls,txt,act)=>{
+    const b=document.createElement('button');
+    b.className='opt mini'+(cls?' '+cls:'');
+    b.innerHTML=txt;
+    b.onclick=()=>proAnswer(act,b,step);
+    row.appendChild(b);
+  };
+  mk('go','✓ 就这样','ok');
+  mk('','✏️ 换一条','edit');
+  mk('','⏩ 剩下的全收','rest');
+  step.appendChild(row);
+  chatLog.appendChild(step);
+  chatLog.scrollTop=chatLog.scrollHeight;
+  if(S.auto){
+    later(()=>{if(S.auto&&S.phase==='profill')row.children[0].classList.add('recing');},450);
+    later(()=>{if(S.auto&&S.phase==='profill'&&!step.dataset.lock)row.children[0].click();},1300);
+  }
+}
+function proAnswer(act,btn,step){
+  if(S.phase!=='profill')return;
+  if(step.dataset.lock)return;
+  const f=FIELDS[proIdx];
+  if(act==='edit'){
+    const old=step.querySelector('.pedit-row');
+    if(old){old.remove();return;}
+    const ed=document.createElement('div');ed.className='pedit-row';
+    ed.innerHTML='<input class="pedit" placeholder="不满意这条？直接输入你的版本，回车确认"><button class="opt mini go">✓ 用这条</button>';
+    step.appendChild(ed);
+    const inp=ed.querySelector('.pedit');
+    inp.value=S.brief[f.key]||'';
+    setTimeout(()=>{inp.focus();},30);
+    const commit=()=>{
+      const nv=(inp.value||'').trim();
+      if(!nv){inp.focus();return;}
+      S.brief[f.key]=nv;proEdited++;
+      btn.innerHTML+='<span class="tick"> ✓</span>';step.dataset.lock='1';
+      step.querySelectorAll('.opt').forEach(x=>{if(x!==btn)x.disabled=true;});
+      ed.remove();
+      renderBrief();flashField(f.key);
+      addMsg(escapeHtml(nv),'user');
+      proAddEdit(step,f.key);
+      proIdx++;later(askPro,S.auto?600:350);
+    };
+    ed.querySelector('.go').onclick=commit;
+    inp.addEventListener('keydown',e=>{if(e.key==='Enter')commit();});
+    return;
+  }else if(act==='ok'){
+    step.querySelectorAll('.pedit-row').forEach(e=>e.remove());
+    S.brief[f.key]=DEMO_BRIEF[f.key];
+    btn.innerHTML+='<span class="tick"> ✓</span>';
+    step.dataset.lock='1';
+    step.querySelectorAll('.opt').forEach(x=>{if(x!==btn)x.disabled=true;});
+    proAddEdit(step,f.key);
+    renderBrief();flashField(f.key);
+    addMsg('✓ '+escapeHtml(DEMO_BRIEF[f.key]),'user');
+  }else{
+    step.dataset.lock='1';
+    step.querySelectorAll('.opt').forEach(x=>x.disabled=true);
+    step.querySelectorAll('.pedit-row').forEach(e=>e.remove());
+    proAddEdit(step,f.key);
+    let restN=0;
+    for(let i=proIdx;i<FIELDS.length;i++){
+      if(!S.brief[FIELDS[i].key]){S.brief[FIELDS[i].key]=DEMO_BRIEF[FIELDS[i].key];restN++;}
+    }
+    renderBrief();
+    for(let i=proIdx;i<FIELDS.length;i++)flashField(FIELDS[i].key);
+    addMsg('好——剩下 '+restN+' 条全部按预填底稿收下 ✅','user');
+    proDone(true);
+    return;
+  }
+  proIdx++;
+  later(askPro,S.auto?600:350);
+}
+/* vUX：已确认条目可回退——已锁定步骤加「✏️ 改」，改完不推进流程、只更新简报 */
+function proAddEdit(step,fkey){
+  if(step.querySelector('.pro-re'))return;
+  const eb=document.createElement('button');eb.className='opt mini pro-re';eb.innerHTML='✏️ 改';
+  eb.onclick=()=>proReEdit(step,fkey);
+  step.appendChild(eb);
+}
+function proReEdit(step,fkey){
+  if(step.querySelector('.pedit-row'))return;
+  step.querySelectorAll('.opt').forEach(x=>x.disabled=true);
+  const ed=document.createElement('div');ed.className='pedit-row';
+  ed.innerHTML='<input class="pedit" placeholder="直接输入你的版本，回车确认"><button class="opt mini go">✓ 用这条</button><button class="opt mini cancel">✕ 取消</button>';
+  step.appendChild(ed);
+  const inp=ed.querySelector('.pedit');inp.value=S.brief[fkey]||'';
+  setTimeout(()=>{inp.focus();},30);
+  const closeEd=()=>{ed.remove();step.querySelectorAll('.opt').forEach(x=>{x.disabled=!(x.classList.contains('pro-re'));});};
+  ed.querySelector('.go').onclick=()=>{
+    const nv=(inp.value||'').trim();if(!nv){inp.focus();return;}
+    S.brief[fkey]=nv;renderBrief();flashField(fkey);addMsg('✏️ 已改：'+escapeHtml(nv),'user');
+    const pv=step.querySelector('.pre-val');
+    if(pv)pv.innerHTML='<span class="pv-tag">已改</span>'+escapeHtml(nv);
+    closeEd();
+  };
+  ed.querySelector('.cancel').onclick=closeEd;
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter')ed.querySelector('.go').onclick();});
+}
+function proDone(rested){
   S.phase='confirm';
   renderBrief();
   renderPH('ready');
-  setNote('✓ 已用示例简报填满 8/8 · 点「✨ 生成定位全案」开始');
-  setStatus('访谈完成（跳过）· 8/8','done');
-  $('feeHint').innerHTML='本次交付：<b>定位全案 9 件（速览 + 8 章）· 400 积分</b>';
-  addMsg('好，老手通道 🚀 示例简报已直接填满——右侧 8 个字段你过目，确认后点 <b>「✨ 生成定位全案」</b>（速览 + 8 章 · 400 积分）。哪条不对，点字段改。');
-  if(S.auto)later(()=>{const g=$('btnGen');if(S.auto&&S.phase==='confirm'&&!g.disabled)g.click();},1500);
+  setNote('✓ 老手快填完成 8/8 · 点「✨ 生成定位全案」开始');
+  setStatus('快填完成 · 简报 8/8','done');
+  $('feeHint').innerHTML='本次交付：<b>定位全案 9 件（速览 + 8 章）· 99 算力</b>';
+  addMsg('8 条过完了 ✅ 右侧「定位简报」'+(proEdited?('其中 <b>'+proEdited+' 条按你的口径改过</b>'):'全部确认通过')+'——<b>没问题就生成</b>：速览 + 8 章全案，一次 <b>99 算力</b>。哪条不对，直接点字段改。');
+  const box=document.createElement('div');
+  box.className='opts';
+  box.innerHTML=`<button class="opt go" id="okGenP">✓ 确认，开始生成<small>速览 + 8 章 · 99 算力 · 线上流式约 50 秒</small></button>
+  <button class="opt" id="editGenP">✎ 改一下再生成<small>点击右侧简报字段直接修改</small></button>`;
+  chatLog.appendChild(box);
+  chatLog.scrollTop=chatLog.scrollHeight;
+  $('okGenP').onclick=()=>{box.remove();runGen();};
+  $('editGenP').onclick=()=>toast('直接点击右侧简报里的字段修改，改完点「生成定位全案」');
+  if(S.auto){
+    const ok=$('okGenP');
+    later(()=>{if(S.auto)ok.classList.add('recing');},500);
+    later(()=>{if(S.auto&&S.phase==='confirm'&&ok.parentNode)ok.click();},1400);
+  }
 }
 
 /* ---------- 模式 / 重置 ---------- */
@@ -857,6 +1028,13 @@ function setMode(auto){
       if(last){
         const btn=last.querySelector('.opt.recing')||last.querySelector('.opt:not(:disabled)');
         if(btn)later(()=>{if(S.auto&&S.phase==='ask'&&!btn.disabled)btn.click();},900);
+      }
+    }else if(S.phase==='profill'){
+      const steps=chatLog.querySelectorAll('.pstep');
+      const last=steps[steps.length-1];
+      if(last){
+        const btn=last.querySelector('.opt.recing')||last.querySelector('.opt:not(:disabled)');
+        if(btn)later(()=>{if(S.auto&&S.phase==='profill'&&!btn.disabled&&!last.dataset.lock)btn.click();},900);
       }
     }else if(S.phase==='confirm'){
       const ok=$('okGen');
@@ -875,11 +1053,11 @@ function resetAll(greet){
   $('btnRegenAll').style.display='none';
   renderBrief();
   renderPH('locked');
-  setNote('👋 完成左侧 6 步访谈后，全案会在这里分区生成<span class="tag">8 字段齐</span><span class="tag">速览 + 8 章</span><span class="tag">400 积分</span>');
-  $('feeHint').innerHTML='完成 6 步访谈后可生成 · 全案（速览 + 8 章）<b>400 积分</b>/次';
+  setNote('👋 完成左侧 6 步访谈后，全案会在这里分区生成<span class="tag">8 字段齐</span><span class="tag">速览 + 8 章</span><span class="tag">99 算力</span>');
+  $('feeHint').innerHTML='完成 6 步访谈后可生成 · 全案（速览 + 8 章）<b>99 算力</b>/份';
   if(greet){
     setStatus('○ 待演示','');
-    addMsg('你好，我是<b>沈定</b>，首席定位官 🎯<br>IP 定位我不给你拍脑袋——先用 <b>6 步访谈</b>把信息收齐：<b>一次只问一个维度</b>，你的回答会自动填进右侧「定位简报」。8 项齐了，我出 <b>速览 + 8 章全案</b>（400 积分 / 次）。急的话点下方「跳过访谈」。');
+    addMsg('你好，我是<b>沈定</b>，首席定位官 🎯<br>IP 定位我不给你拍脑袋——先用 <b>6 步访谈</b>把信息收齐：<b>一次只问一个维度</b>，你的回答会自动填进右侧「定位简报」。8 项齐了，我出 <b>速览 + 8 章全案</b>（99 算力 / 份）。赶时间点下方「AI 先铺底稿，你来逐条确认」。');
     later(askQuestion,700);
   }
 }
@@ -894,15 +1072,15 @@ window.__autostart=autostart;
 $('btnAuto').onclick=()=>{setMode(true);if(!started)autostart();};
 $('btnManual').onclick=()=>{setMode(false);if(!started)autostart();};
 $('btnReset').onclick=()=>resetAll(true);
-$('btnGen').onclick=()=>{if(S.phase==='confirm')runGen();};
+$('btnGen').onclick=()=>{if(S.phase==='confirm'){bumpCredit(-99);runGen();}};
 $('btnRegenAll').onclick=()=>{
   S.timers.forEach(clearTimeout);S.timers=[];
   S.phase='confirm';genIdx=-1;
   $('dlWrap').style.display='none';$('dlWrap').innerHTML='';
   renderPH('ready');
-  setNote('✓ 简报已确认 · 重新生成全案（400 积分）');
+  setNote('✓ 简报已确认 · 重新生成全案（99 算力）');
   setStatus('访谈完成 · 简报 8/8','done');
-  addMsg('好——按你改过的简报<b>重新生成</b>：还是 9 件、400 积分。');
+  addMsg('好——按你改过的简报<b>重新生成</b>：还是 9 件、99 算力。');
   later(()=>{if(S.phase==='confirm')runGen();},S.auto?1000:3000);
 };
 $('skipGuide').onclick=skipGuide;
@@ -926,18 +1104,63 @@ $('micBtn').onclick=()=>{
 $('freeSend').onclick=freeSend;
 $('freeInput').addEventListener('keydown',e=>{if(e.key==='Enter')freeSend();});
 
-/* ---------- 初始化：先渲染静态，进视口自动播放 ---------- */
+/* ---------- 初始化：默认手动，进视口只开始 6 步访谈（等用户答）；演示改为显式点「▶ 看演示」 ---------- */
 renderBrief();
 renderPH('locked');
-setMode(true);
+setMode(false);
 (function(){
   const io=new IntersectionObserver(es=>{
     es.forEach(e=>{
-      if(e.isIntersecting){io.disconnect();autostart();}
+      if(e.isIntersecting){io.disconnect();setMode(false);autostart();}
     });
   },{threshold:.35});
   io.observe(document.querySelector('.stage'));
 })();
+</script>
+<style>
+.back-btn{flex:none;background:rgba(232,101,26,.07);border:1px solid rgba(232,101,26,.38);color:#e8651a;border-radius:8px;font-size:12px;font-weight:700;padding:4px 12px;cursor:pointer}
+.back-btn:hover{background:rgba(232,101,26,.14)}
+/* vUX：生成进度条 + 退出确认弹层 */
+.gen-prog{margin:10px 0 2px;background:rgba(255,255,255,.65);border:1px solid #F0DCC8;border-radius:10px;padding:10px 12px}
+.gp-row{display:flex;align-items:center;gap:8px}
+.gp-bar{flex:1;height:8px;border-radius:99px;background:rgba(0,0,0,.08);overflow:hidden}
+.gp-bar i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#FF9A3D,#E8651A);transition:width .3s}
+#gpPct{font-size:11.5px;color:#2E2A26;min-width:34px;text-align:right}
+.gp-meta{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:11px;color:#8A7A6A}
+.gen-exit{position:fixed;inset:0;background:rgba(23,35,61,.55);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:99}
+.ge-card{width:320px;max-width:88vw;background:#fff;border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:8px;text-align:center;box-shadow:0 24px 60px rgba(23,35,61,.35)}
+.ge-card b{font-size:15px;color:#2E2A26}
+.ge-card span{font-size:12.5px;color:#8A7A6A;line-height:1.6}
+.ge-btns{display:flex;gap:10px;margin-top:6px}
+.ge-btns button{flex:1;border:none;border-radius:10px;padding:10px 0;font-size:13px;font-weight:700;cursor:pointer}
+#geStay{background:#FFF0DF;color:#E8651A}
+#geGo{background:#E8651A;color:#fff}
+</style>
+<script>
+function bumpCredit(d){
+  var el=document.getElementById('creditVal'); if(!el) return;
+  var v=Math.max(0,(parseInt((el.textContent||'0').replace(/,/g,''),10)||0)+d);
+  el.textContent=v.toLocaleString('en-US');
+}
+function wbBack(){
+  if(typeof S!=='undefined'&&S.phase==='gen'){$('genExitMask').style.display='flex';return;}
+  goBackNow();
+}
+function goBackNow(){
+  if(document.referrer&&history.length>1){history.back();return;}
+  location.href='agent-product-detail-demo-20260923.html?agent=ip-position';
+}
+</script>
+<div class="gen-exit" id="genExitMask">
+  <div class="ge-card">
+    <b>⏳ 生成中 · 退出将丢失本次进度</b>
+    <span>正在生成定位全案 9 件，中途返回需要重新开始（线上约 50 秒，演示已压缩）。确认要离开吗？</span>
+    <div class="ge-btns"><button id="geStay">继续等待</button><button id="geGo">仍要退出</button></div>
+  </div>
+</div>
+<script>
+$('geStay').onclick=()=>{$('genExitMask').style.display='none';};
+$('geGo').onclick=()=>{$('genExitMask').style.display='none';goBackNow();};
 </script>
 </body>
 </html>

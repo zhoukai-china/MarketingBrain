@@ -112,6 +112,16 @@
   .msg.user .bub{background:var(--orange-soft);border-color:var(--orange-line);border-radius:12px 4px 12px 12px;color:#7a3d12}
   .opts{display:flex;flex-direction:column;gap:7px;margin:2px 0 6px 34px;animation:fadein .35s}
   .opt{background:#fff;border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:9px 12px;font-size:13px;text-align:left;cursor:pointer;transition:.18s;line-height:1.5;font-family:inherit;min-height:40px}
+  /* 老手快填：逐条确认卡（浅色版） */
+  .pstep{margin:2px 0 6px 34px;animation:fadein .35s;display:flex;flex-direction:column;gap:7px}
+  .pedit-row{display:flex;gap:7px;margin-top:2px}
+  .pedit{flex:1;min-width:0;background:#fff;border:1px solid #e5d9c8;border-radius:9px;padding:7px 10px;font-size:12.5px;color:#4a3520;outline:none}
+  .pedit:focus{border-color:#e8651a}
+  .pedit::placeholder{color:#b09a7e}
+  .pre-val{background:#faf7f2;border:1px dashed rgba(232,101,26,.35);border-radius:9px;padding:7px 10px;font-size:12.5px;color:var(--ink);line-height:1.6}
+  .pv-tag{display:inline-block;font-size:10.5px;color:#e8651a;border:1px solid rgba(232,101,26,.4);border-radius:6px;padding:0 6px;margin-right:6px;font-weight:700;line-height:16px;vertical-align:1px}
+  .opt-row{display:flex;gap:7px}
+  .opt.mini{flex:1;text-align:center;padding:7px 6px;font-size:12.5px;min-height:0}
   .opt:hover{border-color:var(--orange);background:var(--orange-soft)}
   .opt.recing{box-shadow:0 0 0 2px rgba(232,101,26,.35);border-color:var(--orange)}
   .opt small{display:block;color:var(--sub);font-size:11.5px}
@@ -147,6 +157,7 @@
   .big-btn.ghost{background:#fff;border:1px solid var(--line);color:var(--sub)}
   .big-btn.ghost:hover{border-color:var(--orange-line);color:var(--orange)}
   .fee{font-size:12px;color:var(--sub)}
+  .safe-tag{font-size:11px;color:#0f8a5f;background:#e6f5ee;border:1px solid rgba(15,138,95,.22);border-radius:99px;padding:2px 9px;font-weight:600;align-self:center;white-space:nowrap}
   .fee b{color:var(--orange)}
 
   /* ---------- 右下：占位/生成/交付 三态画布 ---------- */
@@ -229,10 +240,11 @@
 <body>
 
 <div class="topbar"><div class="in">
+  <button class="back-btn" onclick="wbBack()">← 返回</button>
   <div class="logo">思潼<i>AI</i>商城</div>
   <span class="tag">直播脚本工作台 · 原型 v0.2</span>
   <div class="me">
-    <span class="credits">积分 <b>2,400</b></span>
+    <span class="credits">算力 <b>2,400</b></span>
     <div class="uav">👤</div>
   </div>
 </div></div>
@@ -245,7 +257,7 @@
     <div class="tags"><span class="tag">按场次类型分流</span><span class="tag">十件套分区交付</span><span class="tag">合规红线内建</span><span class="tag">逐字稿可照读</span></div>
   </div>
   <div class="ops">
-    <button class="abtn demo" id="btnAuto">▶ 自动演示</button>
+    <button class="abtn demo" id="btnAuto">▶ 看演示</button>
     <button class="abtn" id="btnManual">✋ 手动</button>
     <button class="abtn" id="btnReset">↻ 重置</button>
   </div>
@@ -267,7 +279,7 @@
       <div class="st"><span class="st-dot" id="stDot"></span><span id="stTxt">○ 待演示</span></div>
     </div>
     <div class="log" id="chatLog"></div>
-    <div class="skip">老手？<a id="skipGuide">跳过引导，直接填简报 →</a></div>
+    <div class="skip">赶时间？<a id="skipGuide">AI 先铺底稿，你来逐条确认 →</a></div>
     <div class="input">
       <input id="freeInput" placeholder="也可以直接打字，例如：改成 90 分钟" />
       <button id="freeSend">发送</button>
@@ -287,7 +299,8 @@
       <div class="ops">
         <button class="big-btn gen" id="btnGen" disabled>✨ 生成脚本包</button>
         <button class="big-btn ghost" id="btnRegenAll" style="display:none">↻ 改简报重新生成</button>
-        <span class="fee" id="feeHint">完成引导后可生成 · 轻量单段脚本 <b>200 积分</b> ｜ 完整十件套 <b>按件计费</b></span>
+        <span class="fee" id="feeHint">完成引导后可生成 · 轻量单段脚本 <b>50 算力</b> ｜ 完整十件套 <b>按件计费</b></span>
+        <span class="safe-tag">🛡️ 失败不扣费</span>
       </div>
     </div>
     </section>
@@ -297,6 +310,7 @@
       <div class="ph-grid" id="phGrid"></div>
       <div id="genWrap" style="display:none">
         <div class="ph-note" style="margin-top:4px">⏳ 生成中 · 前端每 30 秒轮询一次交付接口，最长等待 25 分钟（线上已验证的超时策略）</div>
+        <div class="gen-prog"><div class="gp-row"><div class="gp-bar"><i id="gpFill"></i></div><b id="gpPct">0%</b></div><div class="gp-meta"><span id="gpStep">准备中…</span><span id="gpEta"></span></div></div>
         <div class="genlog" id="genLog"></div>
       </div>
       <div id="dlWrap" style="display:none"></div>
@@ -376,7 +390,7 @@ const QFLOW = [
    ]},
   {field:'depth', q:'脚本交付到什么深度？', hint:'只要一段能念的，还是整场从开场到下播的完整脚本包？',
    opts:[
-     {t:'轻量 · 单段脚本', d:'1-2 分钟可照读 + 运营配合 · 200 积分 · 约 3 分钟', v:'light'},
+     {t:'轻量 · 单段脚本', d:'1-2 分钟可照读 + 运营配合 · 50 算力 · 约 3 分钟', v:'light'},
      {t:'完整 · 整场脚本十件套', d:'总览→开场→四套轮播→钩子→应答→收尾→节奏表→场控清单 · 按件计费 · 约 5-10 分钟', v:'full', rec:true},
    ]},
 ];
@@ -513,7 +527,7 @@ function renderBrief(){
   $('btnGen').disabled = !(n===6 && S.phase==='confirm');
 }
 function fmt(k,v){
-  if(k==='depth') return v==='full'?'整场脚本十件套（按件计费）':'轻量 · 单段脚本（200 积分）';
+  if(k==='depth') return v==='full'?'整场脚本十件套（按件计费）':'轻量 · 单段脚本（50 算力）';
   if(k==='duration') return v+' 分钟';
   return v;
 }
@@ -531,7 +545,7 @@ function renderPH(state){
 }
 function initialPH(){
   phGrid.innerHTML = `
-    <div class="ph locked" style="grid-column:1 / -1"><div class="no g-blue">轻量</div><b>📄 单段脚本</b><span class="d">1-2 分钟可照读 + 运营配合 · 200 积分 · 约 3 分钟</span></div>
+    <div class="ph locked" style="grid-column:1 / -1"><div class="no g-blue">轻量</div><b>📄 单段脚本</b><span class="d">1-2 分钟可照读 + 运营配合 · 50 算力 · 约 3 分钟</span></div>
     <div class="ph locked" style="grid-column:1 / -1"><div class="no g-purple">完整</div><b>📦 整场脚本十件套</b><span class="d">总览→开场→四套轮播→钩子→应答→收尾→节奏表→场控清单 · 按件计费 · 5-10 分钟</span></div>`;
 }
 
@@ -596,7 +610,7 @@ function confirmPhase(){
   const dep = S.depth==='full' ? `整场脚本十件套（${S.brief.mode} · ${S.brief.duration} 分钟）` : '轻量单段脚本';
   addMsg(`齐了 ✅ 简报 6/6。到 <b>「📋 开播简报」</b>确认后点 <b>「✨ 生成脚本包」</b>，我按 <b>${dep}</b> 交付。中途可以随时打断我改简报。`);
   renderPH('ready'); renderBrief();
-  $('feeHint').innerHTML = S.depth==='full' ? '本次交付：<b>整场脚本十件套 · 按件计费</b>（演示）' : '本次交付：<b>单段脚本 · 200 积分</b>';
+  $('feeHint').innerHTML = S.depth==='full' ? '本次交付：<b>整场脚本十件套 · 按件计费</b>（演示）' : '本次交付：<b>单段脚本 · 50 算力</b>';
   if(S.auto) S.timer=setTimeout(runGen, 1600);
 }
 
@@ -619,6 +633,16 @@ function runGen(){
     '✓ 交付完成，已写入交付区（演示：用时 7 分 05 秒）'
   ];
   let li=0;
+  const gpDelay=list.length>3?650:900, gpTotal=lines.length;
+  const gpFill=$('gpFill'),gpPct=$('gpPct'),gpStep=$('gpStep'),gpEta=$('gpEta');
+  gpFill.style.width='0%';gpPct.textContent='0%';gpStep.textContent='准备中…';
+  gpEta.textContent='预计还需 ~'+Math.ceil(gpTotal*gpDelay/1000)+' 秒';
+  const gpTick=()=>{
+    const pct=Math.round(Math.min(li,gpTotal)/gpTotal*100);
+    gpFill.style.width=pct+'%';gpPct.textContent=pct+'%';
+    if(li>0&&li<=gpTotal)gpStep.textContent=lines[li-1].replace(/^(→ |✓ |✅ )/,'').slice(0,20);
+    gpEta.textContent=li>=gpTotal?'马上就好…':'预计还需 ~'+Math.max(1,Math.ceil((gpTotal-li)*gpDelay/1000))+' 秒';
+  };
   const step=()=>{
     if(S.phase!=='gen') return;
     if(li<lines.length){
@@ -627,7 +651,7 @@ function runGen(){
       requestAnimationFrame(()=>d.classList.add('in'));
       log.scrollTop=log.scrollHeight;
       if(lines[li].startsWith('✓')){ genIdx++; renderPH('gen'); }
-      li++; S.timer=setTimeout(step, list.length>3?650:900);
+      li++; gpTick(); S.timer=setTimeout(step, gpDelay);
     } else {
       S.timer=setTimeout(finish, 500);
     }
@@ -746,20 +770,132 @@ function freeSend(){
   },500);
 }
 
-/* ---------- 跳过引导 ---------- */
-$('skipGuide').onclick = ()=>{
-  if(S.phase==='done'||S.phase==='gen') return;
-  resetAll(false);
-  QFLOW.forEach(q=>{
-    if(q.when && !(q.when.mode.includes('招商加盟'))) return;
-    const rec=q.opts.find(o=>o.rec)||q.opts[0]; S.brief[q.field]=rec.v;
-  });
-  S.depth=S.brief.depth; S.qi=QFLOW.length;
-  addMsg('检测到跳过引导：已用<b>招商示例简报</b>填满 6/6，可自由修改后生成脚本包。');
-  renderBrief(); renderPH('ready'); S.phase='confirm'; setStatus('引导完成（跳过）','done');
-  $('feeHint').innerHTML = S.depth==='full' ? '本次交付：<b>整场脚本十件套 · 按件计费</b>（演示）' : '本次交付：<b>单段脚本 · 200 积分</b>';
-  switchView('panel'); /* 手机端跳到「📋 开播简报」直接改；桌面端双栏同屏不受影响 */
+/* ---------- 老手快填：逐字段确认卡（默认招商分支预填，逐条确认/改写） ---------- */
+const RD_LABEL={light:'轻量 · 单段脚本（50 算力）',full:'完整 · 整场脚本十件套（按件计费）'};
+const RD_HINT={
+  mode:'先定「这场赚谁的钱」——带货赚消费者、招商赚创业者。',
+  brand:'直营数据、供应链、培训体系…没有的先写「暂无」。',
+  audience:'决定痛点脚本讲给谁听。',
+  action:'一场只主推一个动作，钩子和收尾都围着它转。',
+  duration:'时长决定节奏表——每 20 分钟一浪。',
+  depth:'只要一段能念的（light），还是整场脚本包（full）？',
 };
+const RD_ICON={mode:'🎬',brand:'🏷️',audience:'👥',action:'🎯',duration:'⏱️',depth:'📋'};
+let proIdx=0,proEdited=0;
+let PRO_VALS={};
+const rdRec=q=>q.opts.find(o=>o.rec)||q.opts[0];
+const rdVal=k=>k==='depth'?(RD_LABEL[S.brief.depth]||S.brief.depth):S.brief[k];
+const rdFlash=k=>{const b=$('bf_'+k);if(b)b.classList.add('flash');};
+$('skipGuide').onclick = ()=>{
+  if(S.phase==='done'||S.phase==='gen'||S.phase==='profill') return;
+  resetAll(false);
+  PRO_VALS={};
+  QFLOW.forEach(q=>{ if(q.when&&!q.when.mode.includes('招商加盟'))return; PRO_VALS[q.field]=rdRec(q).v; });
+  S.brief={};FIELDS.forEach(f=>{if(PRO_VALS[f.key]!==undefined)S.brief[f.key]=PRO_VALS[f.key];});proIdx=0;proEdited=0;S.phase='profill';
+  setStatus('老手快填 · 0/6','playing');
+  addMsg('好，老手通道 🚀 招商场打法我先铺了 <b>6 条预填底稿</b>。咱们<b>逐条过</b>：对的点「✓ 就这样」，不对的点「✏️ 换一条」直接改；赶时间点「⏩ 剩下的全收」。6 条过完就能生成脚本包。');
+  setTimeout(askPro,700);
+};
+function askPro(){
+  if(S.phase!=='profill')return;
+  if(proIdx>=FIELDS.length){proDone();return;}
+  const f=FIELDS[proIdx];
+  setStatus('老手快填 · '+proIdx+'/6','playing');
+  addMsg('<b>【快填 '+(proIdx+1)+'/6 · '+RD_ICON[f.key]+' '+f.label+'】</b>'+RD_HINT[f.key]);
+  const step=document.createElement('div');step.className='pstep';
+  step.innerHTML='<div class="pre-val"><span class="pv-tag">预填</span>'+rdVal(f.key)+'</div>';
+  const row=document.createElement('div');row.className='opt-row';
+  const mk=(txt,act)=>{const b=document.createElement('button');b.className='opt mini';b.innerHTML=txt;b.onclick=()=>proAnswer(act,b,step,f.key);row.appendChild(b);};
+  mk('✓ 就这样','ok');mk('✏️ 换一条','edit');mk('⏩ 剩下的全收','rest');
+  step.appendChild(row);chatLog.appendChild(step);chatLog.scrollTop=chatLog.scrollHeight;
+  if(S.auto){setTimeout(()=>{if(S.auto&&S.phase==='profill')row.children[0].classList.add('recing');},450);
+    setTimeout(()=>{if(S.auto&&S.phase==='profill'&&!step.dataset.lock)row.children[0].click();},1300);}
+}
+function proAnswer(act,btn,step,fkey){
+  if(S.phase!=='profill'||step.dataset.lock)return;
+  if(act==='edit'){
+    const old=step.querySelector('.pedit-row');
+    if(old){old.remove();return;}
+    const ed=document.createElement('div');ed.className='pedit-row';
+    ed.innerHTML='<input class="pedit" placeholder="不满意这条？直接输入你的版本，回车确认"><button class="opt mini go">✓ 用这条</button>';
+    step.appendChild(ed);
+    const inp=ed.querySelector('.pedit');
+    inp.value=S.brief[fkey]||'';
+    setTimeout(()=>{inp.focus();},30);
+    const commit=()=>{
+      const nv=(inp.value||'').trim();
+      if(!nv){inp.focus();return;}
+      S.brief[fkey]=nv;proEdited++;
+      btn.innerHTML+=' ✓';step.dataset.lock='1';
+      step.querySelectorAll('.opt').forEach(x=>{if(x!==btn)x.disabled=true;});
+      ed.remove();
+      renderBrief();rdFlash(fkey);addMsg(nv,'user');
+      proAddEdit(step,fkey);
+      proIdx++;setTimeout(askPro,S.auto?600:350);
+    };
+    ed.querySelector('.go').onclick=commit;
+    inp.addEventListener('keydown',e=>{if(e.key==='Enter')commit();});
+    return;
+  }else if(act==='ok'){
+    step.querySelectorAll('.pedit-row').forEach(e=>e.remove());
+    S.brief[fkey]=PRO_VALS[fkey];
+    btn.innerHTML+=' ✓';step.dataset.lock='1';
+    step.querySelectorAll('.opt').forEach(x=>{if(x!==btn)x.disabled=true;});
+    proAddEdit(step,fkey);
+    renderBrief();rdFlash(fkey);addMsg('✓ '+rdVal(fkey),'user');
+  }else{
+    step.dataset.lock='1';step.querySelectorAll('.opt').forEach(x=>x.disabled=true);
+    step.querySelectorAll('.pedit-row').forEach(e=>e.remove());
+    proAddEdit(step,fkey);
+    let n=0;
+    for(let i=proIdx;i<FIELDS.length;i++){const k=FIELDS[i].key;if(S.brief[k]===undefined||S.brief[k]===null){S.brief[k]=PRO_VALS[k];n++;}}
+    renderBrief();addMsg('好——剩下 '+n+' 条全部按预填底稿收下 ✅','user');
+    proDone();return;
+  }
+  proIdx++;setTimeout(askPro,S.auto?600:350);
+}
+/* vUX：已确认条目可回退——已锁定步骤加「✏️ 改」，改完不推进流程、只更新简报 */
+function proAddEdit(step,fkey){
+  if(step.querySelector('.pro-re'))return;
+  const eb=document.createElement('button');eb.className='opt mini pro-re';eb.innerHTML='✏️ 改';
+  eb.onclick=()=>proReEdit(step,fkey);
+  step.appendChild(eb);
+}
+function proReEdit(step,fkey){
+  if(step.querySelector('.pedit-row'))return;
+  step.querySelectorAll('.opt').forEach(x=>x.disabled=true);
+  const ed=document.createElement('div');ed.className='pedit-row';
+  ed.innerHTML='<input class="pedit" placeholder="直接输入你的版本，回车确认"><button class="opt mini go">✓ 用这条</button><button class="opt mini cancel">✕ 取消</button>';
+  step.appendChild(ed);
+  const inp=ed.querySelector('.pedit');inp.value=S.brief[fkey]||'';
+  setTimeout(()=>{inp.focus();},30);
+  const closeEd=()=>{ed.remove();step.querySelectorAll('.opt').forEach(x=>{x.disabled=!(x.classList.contains('pro-re'));});};
+  ed.querySelector('.go').onclick=()=>{
+    const nv=(inp.value||'').trim();if(!nv){inp.focus();return;}
+    S.brief[fkey]=nv;renderBrief();rdFlash(fkey);addMsg('✏️ 已改：'+nv,'user');
+    const pv=step.querySelector('.pre-val');
+    if(pv)pv.innerHTML='<span class="pv-tag">已改</span>'+nv;
+    closeEd();
+  };
+  ed.querySelector('.cancel').onclick=closeEd;
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter')ed.querySelector('.go').onclick();});
+}
+function proDone(){
+  S.depth=(S.brief.depth==='full')?'full':'light';S.qi=QFLOW.length;S.phase='confirm';
+  renderBrief();renderPH('ready');
+  setStatus('快填完成 · 简报 6/6','done');
+  $('feeHint').innerHTML = S.depth==='full' ? '本次交付：<b>整场脚本十件套 · 按件计费</b>（演示）' : '本次交付：<b>单段脚本 · 50 算力</b>';
+  addMsg('6 条过完了 ✅ 简报'+(proEdited?('其中 <b>'+proEdited+' 条按你的口径改过</b>'):'全部确认通过')+'——没问题就生成脚本包。哪条不对，直接点字段改。');
+  const box=document.createElement('div');box.className='opts';
+  box.innerHTML='<button class="opt go" id="okGenP">✓ 确认，生成脚本包<small>'+(S.depth==='full'?'整场脚本十件套 · 按件计费 · 约 5-10 分钟':'单段脚本 · 50 算力 · 约 3 分钟')+'</small></button>'
+    +'<button class="opt" id="editGenP">✎ 改一下再生成<small>点击右侧简报字段直接修改</small></button>';
+  chatLog.appendChild(box);chatLog.scrollTop=chatLog.scrollHeight;
+  $('okGenP').onclick=()=>{box.remove();runGen();};
+  $('editGenP').onclick=()=>toast('直接点击右侧简报里的字段修改，改完点「生成脚本包」');
+  if(typeof switchView==='function')switchView('panel');
+  if(S.auto){const ok=$('okGenP');setTimeout(()=>{if(S.auto)ok.classList.add('recing');},500);
+    setTimeout(()=>{if(S.auto&&ok.parentNode)ok.click();},1400);}
+}
 
 /* ---------- 控制按钮（头部） ---------- */
 $('btnAuto').onclick = ()=>{ setMode(true); resetAll(true); };
@@ -794,15 +930,55 @@ function resetAll(greet){
   $('dlWrap').style.display='none'; $('dlWrap').innerHTML='';
   $('btnRegenAll').style.display='none';
   initialPH(); renderBrief();
-  $('feeHint').innerHTML='完成引导后可生成 · 轻量单段脚本 <b>200 积分</b> ｜ 完整十件套 <b>按件计费</b>';
+  $('feeHint').innerHTML='完成引导后可生成 · 轻量单段脚本 <b>50 算力</b> ｜ 完整十件套 <b>按件计费</b>';
   switchView('chat'); /* 重置回「💬 开播引导」；桌面端双栏同屏不受影响 */
   if(greet){ setStatus('待演示',''); addMsg('你好，我是<b>罗盘</b>，你的直播操盘总监 🎤<br>开播前我带你把整场信息配齐——先定<b>场次类型</b>，我按对应打法<b>一次只问一个问题</b>，答案自动填进「📋 开播简报」Tab。'); S.timer=setTimeout(askQuestion,700); }
 }
 
-/* ---------- 启动：自动演示 ---------- */
-setMode(true);
+/* ---------- 启动：默认手动（打招呼后等用户答）· 点头部「▶ 看演示」自动跑一遍 ---------- */
+setMode(false);
 renderBrief(); initialPH(); switchView('chat');
 resetAll(true);
+</script>
+<style>
+.back-btn{flex:none;background:rgba(232,101,26,.07);border:1px solid rgba(232,101,26,.38);color:#e8651a;border-radius:8px;font-size:12px;font-weight:700;padding:4px 12px;cursor:pointer}
+.back-btn:hover{background:rgba(232,101,26,.14)}
+/* vUX：生成进度条 + 退出确认弹层 */
+.gen-prog{margin:10px 0 2px;background:rgba(255,255,255,.65);border:1px solid #F0DCC8;border-radius:10px;padding:10px 12px}
+.gp-row{display:flex;align-items:center;gap:8px}
+.gp-bar{flex:1;height:8px;border-radius:99px;background:rgba(0,0,0,.08);overflow:hidden}
+.gp-bar i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#FF9A3D,#E8651A);transition:width .3s}
+#gpPct{font-size:11.5px;color:#2E2A26;min-width:34px;text-align:right}
+.gp-meta{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:11px;color:#8A7A6A}
+.gen-exit{position:fixed;inset:0;background:rgba(23,35,61,.55);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:99}
+.ge-card{width:320px;max-width:88vw;background:#fff;border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:8px;text-align:center;box-shadow:0 24px 60px rgba(23,35,61,.35)}
+.ge-card b{font-size:15px;color:#2E2A26}
+.ge-card span{font-size:12.5px;color:#8A7A6A;line-height:1.6}
+.ge-btns{display:flex;gap:10px;margin-top:6px}
+.ge-btns button{flex:1;border:none;border-radius:10px;padding:10px 0;font-size:13px;font-weight:700;cursor:pointer}
+#geStay{background:#FFF0DF;color:#E8651A}
+#geGo{background:#E8651A;color:#fff}
+</style>
+<script>
+function wbBack(){
+  if(typeof S!=='undefined'&&S.phase==='gen'){$('genExitMask').style.display='flex';return;}
+  goBackNow();
+}
+function goBackNow(){
+  if(document.referrer&&history.length>1){history.back();return;}
+  location.href='agent-product-detail-demo-20260923.html?agent=live-host';
+}
+</script>
+<div class="gen-exit" id="genExitMask">
+  <div class="ge-card">
+    <b>⏳ 生成中 · 退出将丢失本次进度</b>
+    <span>正在生成脚本包，中途返回需要重新开始（线上约 5-10 分钟，演示已压缩）。确认要离开吗？</span>
+    <div class="ge-btns"><button id="geStay">继续等待</button><button id="geGo">仍要退出</button></div>
+  </div>
+</div>
+<script>
+$('geStay').onclick=()=>{$('genExitMask').style.display='none';};
+$('geGo').onclick=()=>{$('genExitMask').style.display='none';goBackNow();};
 </script>
 </body>
 </html>

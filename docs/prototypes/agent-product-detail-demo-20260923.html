@@ -1,0 +1,2650 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>商品详情页 · 数字员工（设计原型 20260923）</title>
+<style>
+  /* ============================================================
+     思潼AI · 智能体商品详情页 设计原型（京东式布局，仅原型不进生产）
+     风格参考京东详情页：左图右信息 + SKU + 双CTA + tabs详情区。
+     差异：商品图位置 = 智能体的「输出参考样例」仿真预览。
+     品牌色：橙 #F47920 / #E8651A；双击即可打开，无外部依赖。
+     v7（20260927）UX 走查修复批：5 个智能体 sec 的 CTA 下 after-cta 加算力换算
+     （1 元 = 10 算力 · 本单 N 算力 ≈ ¥X · 交付才扣 · 失败不扣费）；4 个人民币直购
+     商品 sec 不加换算；新增右下角「?」新手帮助 FAB + 术语词典弹层 helpMask2。
+     ============================================================ */
+  :root{
+    --orange:#F47920; --orange-deep:#E8651A; --orange-soft:rgba(244,121,32,.12);
+    --bg:#f4f6fa; --card:#ffffff; --text:#17233d; --muted:#68758f;
+    --line:rgba(23,35,61,.1); --gold:#f7a23a; --green:#0f8a5f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    padding:26px 16px 60px;-webkit-font-smoothing:antialiased}
+  .shell{max-width:1080px;margin:0 auto}
+
+  /* 原型说明条 */
+  .proto-note{display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+    background:#fffbe8;border:1px solid rgba(232,163,61,.45);border-radius:10px;
+    padding:9px 14px;font-size:12.5px;color:#8a5a13;margin-bottom:18px}
+  .proto-note b{color:#8a5a13}
+  .back-btn{display:inline-flex;align-items:center;margin:0 0 10px;font-weight:700;font-size:12.5px;color:#E8651A;background:rgba(232,101,26,.07);border:1px solid rgba(232,101,26,.38);border-radius:99px;padding:6px 16px;cursor:pointer}
+  .back-btn:hover{background:rgba(232,101,26,.15)}
+
+  /* ============ 主体两栏 ============ */
+  .pd{display:grid;grid-template-columns:440px 1fr;gap:26px;background:var(--card);
+    border:1px solid var(--line);border-radius:16px;padding:22px}
+
+  /* ---- 左：输出参考样例 gallery ---- */
+  .gallery{display:flex;flex-direction:column;gap:12px}
+  .g-main{position:relative;aspect-ratio:1/1;border-radius:14px;overflow:hidden;
+    background:linear-gradient(150deg,#ffe7d1,#ffd4ae 50%,#ffc490)}
+  .g-main::before{content:"";position:absolute;width:200px;height:200px;border-radius:50%;
+    background:rgba(255,255,255,.35);top:-70px;right:-60px}
+  .g-main::after{content:"";position:absolute;width:140px;height:140px;border-radius:50%;
+    background:rgba(244,121,32,.1);bottom:-50px;left:-40px}
+  .g-view{display:none;position:absolute;inset:0;align-items:center;justify-content:center;flex-direction:column;gap:10px;padding:26px}
+  .g-view.on{display:flex}
+
+  /* AI 工作实况演示终端（借选题工作台动态演示风格） */
+  .g-term{position:relative;z-index:1;width:100%;height:100%;background:#101a30;
+    border-radius:12px;box-shadow:0 16px 36px rgba(60,30,0,.25);overflow:hidden;
+    display:flex;flex-direction:column}
+  .t-head{display:flex;align-items:center;gap:6px;padding:8px 12px;background:rgba(255,255,255,.06)}
+  .t-dot{width:8px;height:8px;border-radius:50%}
+  .t-title{margin-left:4px;font-size:10.5px;color:#8fa3c8;letter-spacing:1px}
+  .t-live{margin-left:auto;font-size:9.5px;color:#ff8a4d;font-weight:700;letter-spacing:2px;
+    animation:blink 1s infinite}
+  .t-log{flex:1;padding:10px 12px;display:flex;flex-direction:column;gap:6px;overflow:hidden;
+    font-family:ui-monospace,Consolas,"Courier New",monospace}
+  .t-ln{font-size:10.8px;line-height:1.55;color:#c6d3ea;opacity:0;transform:translateY(5px);transition:.3s}
+  .t-ln.in{opacity:1;transform:none}
+  .t-ln.ok{color:#4ade9c}.t-ln.hl{color:#ffb877;font-weight:600}.t-ln.warn{color:#ffd98f}
+  .t-ln .t{color:#5d739c;margin-right:6px}
+  .t-metrics{display:flex;gap:6px;padding:9px 12px;border-top:1px solid rgba(255,255,255,.08)}
+  .t-metrics span{flex:1;text-align:center;font-size:9px;color:#8fa3c8;line-height:1.4}
+  .t-metrics b{display:block;font-size:15px;color:#ffb877;font-weight:800}
+  @keyframes blink{50%{opacity:.35}}
+
+  /* ---- 工作台界面仿真（头图/详情图 · 按 ip-pos 定位工作台逻辑 20260926，em 缩放共用） ---- */
+  .wb{--wfs:9.5px;position:relative;z-index:1;width:100%;height:100%;background:#f7f9fc;
+    border-radius:12px;box-shadow:0 16px 36px rgba(60,30,0,.22);overflow:hidden;
+    display:flex;flex-direction:column;font-size:var(--wfs)}
+  .wb-bar{display:flex;align-items:center;gap:.5em;padding:.55em .9em;background:#101a30;flex:none}
+  .wb-url{margin-left:.5em;font-size:.95em;color:#8fa3c8;font-family:ui-monospace,Consolas,monospace;
+    background:rgba(255,255,255,.07);border-radius:99px;padding:.2em .9em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wb-live{margin-left:auto;font-size:.9em;color:#ff8a4d;font-weight:700;white-space:nowrap}
+  .wb-body{flex:1;display:flex;gap:.7em;padding:.7em;min-height:0}
+  /* 左：6 步访谈 */
+  .wb-chat{flex:0 0 44%;display:flex;flex-direction:column;background:#fff;
+    border:1px solid var(--line);border-radius:.8em;overflow:hidden;min-height:0}
+  .wb-chat-h{display:flex;gap:.6em;align-items:center;padding:.7em .8em;border-bottom:1px solid var(--line);background:#fffdf9}
+  .wb-av{flex:none;width:2.6em;height:2.6em;border-radius:50%;background:linear-gradient(135deg,#ffb877,var(--orange));
+    color:#fff;display:grid;place-items:center;font-weight:800;font-size:1.05em}
+  .wb-chat-h b{display:block;font-size:1.05em}
+  .wb-chat-h span{display:block;font-size:.82em;color:var(--muted)}
+  .wb-msgs{flex:1;padding:.7em;display:flex;flex-direction:column;gap:.55em;overflow:hidden}
+  .wb-q{align-self:flex-start;max-width:94%;background:#f1f4f9;border-radius:.4em .9em .9em .9em;
+    padding:.5em .7em;font-size:.95em;line-height:1.5}
+  .wb-opts{display:flex;flex-wrap:wrap;gap:.4em}
+  .wb-opts i{font-style:normal;font-size:.88em;border:1px solid rgba(244,121,32,.4);color:var(--orange-deep);
+    background:var(--orange-soft);border-radius:99px;padding:.28em .7em}
+  .wb-opts i:not(.on){border-color:var(--line);color:var(--muted);background:#fff}
+  .wb-a{align-self:flex-end;max-width:94%;background:linear-gradient(135deg,#ff8a3d,var(--orange-deep));color:#fff;
+    border-radius:.9em .4em .9em .9em;padding:.5em .7em;font-size:.95em;line-height:1.5}
+  .wb-input{flex:none;display:flex;gap:.5em;align-items:center;margin:.2em .6em .6em;border:1px solid var(--line);
+    border-radius:99px;padding:.45em .9em;font-size:.95em;color:var(--muted);background:#fbfcfe}
+  .wb-input em{font-style:normal;margin-left:auto;color:#fff;background:var(--orange);border-radius:99px;
+    padding:.22em .8em;font-weight:700}
+  /* 右：定位简报 */
+  .wb-ws{flex:1;display:flex;flex-direction:column;gap:.6em;min-width:0;min-height:0}
+  .wb-brief{background:#fff;border:1px solid var(--line);border-radius:.8em;padding:.7em .8em}
+  .wb-brief-h{display:flex;align-items:baseline;gap:.6em}
+  .wb-brief-h b{font-size:1.05em}
+  .wb-brief-h span{margin-left:auto;font-size:.95em;font-weight:800;color:var(--orange-deep)}
+  .wb-meter{display:flex;gap:.25em;margin:.5em 0 .6em}
+  .wb-meter i{flex:1;height:.45em;border-radius:99px;background:#eef1f6;overflow:hidden}
+  .wb-meter i::after{content:"";display:block;height:100%;width:0;border-radius:99px;
+    background:linear-gradient(90deg,#ffb877,var(--orange));transition:width .35s}
+  .wb-meter i.lit::after{width:100%}
+  .wb-grid{display:grid;grid-template-columns:1fr 1fr;gap:.4em}
+  .wb-grid span{display:flex;align-items:center;gap:.3em;font-size:.9em;color:#b7c1d4;background:#f4f6fa;
+    border:1px dashed var(--line);border-radius:.5em;padding:.42em .55em;white-space:nowrap;
+    overflow:hidden;transition:.3s}
+  .wb-grid span.lit{color:var(--text);background:var(--orange-soft);border:1px solid rgba(244,121,32,.4);font-weight:600}
+  .wb-gen{margin-top:.6em;text-align:center;background:linear-gradient(135deg,#ff8a3d,var(--orange-deep));color:#fff;
+    border-radius:.6em;padding:.55em;font-weight:700;font-size:1em;box-shadow:0 .5em 1.2em rgba(232,101,26,.28)}
+  .wb-gen.off{background:#e7ebf2;color:#9aa6bb;box-shadow:none}
+  .wb-fee{font-size:.85em;color:var(--muted);text-align:center;margin-top:.1em}
+  .wb-canvas{flex:1;background:#fff;border:1px solid var(--line);border-radius:.8em;
+    padding:.7em .8em;display:flex;flex-direction:column;gap:.5em;min-height:0;overflow:hidden}
+  .wb-zone{display:flex;gap:.5em;align-items:flex-start}
+  .wb-zone>b{flex:none;font-size:.95em;white-space:nowrap;padding-top:.2em}
+  .wb-chips{flex:1;display:flex;flex-wrap:wrap;gap:.35em}
+  .wb-chips i{font-style:normal;font-size:.88em;border-radius:.4em;padding:.25em .6em;background:#f1f4f9;
+    color:var(--muted);border:1px solid var(--line);opacity:0;transform:translateY(4px);transition:.3s}
+  .wb-chips i.in{opacity:1;transform:none}
+  .wb-chips i.ov{background:var(--orange-soft);border-color:rgba(244,121,32,.4);
+    color:var(--orange-deep);font-weight:700}
+  .wb-foot{margin-top:auto;font-size:.85em;color:var(--muted);display:flex;justify-content:space-between;gap:1em}
+  /* 详情分镜（tabs 工作台实拍） */
+  .wb-shot{margin-top:16px}
+  .wb-shot .wb{height:auto;box-shadow:0 10px 26px rgba(60,30,0,.14)}
+  .wb-lg{--wfs:12px}
+  /* ===== v11 动图：GIF 式自动循环（头图徽标 + 简报待填项循环填充 + 交付分镜逐件点亮） ===== */
+  .gif-tag{position:absolute;z-index:3;background:linear-gradient(135deg,#ff8a3d,#e8651a);color:#fff;
+    font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;box-shadow:0 2px 8px rgba(232,101,26,.35);
+    pointer-events:none;white-space:nowrap}
+  .gif-pill{margin-left:6px;font-size:.85em;background:linear-gradient(135deg,#ff8a3d,#e8651a);color:#fff;
+    font-weight:700;padding:.15em .7em;border-radius:99px;white-space:nowrap;box-shadow:0 2px 6px rgba(232,101,26,.3)}
+  .wb-shot{position:relative}
+  .wb-shot>.gif-tag{top:-11px;right:12px}
+  @keyframes gifChip{0%{opacity:0;transform:translateY(4px)}3%{opacity:1;transform:none}93%{opacity:1;transform:none}100%{opacity:0;transform:none}}
+  .wb-shot.gif .wb-chips i.in{animation:gifChip 7s linear infinite backwards}
+  .wb-shot.gif .wb-zone:nth-child(1) .wb-chips i{animation-delay:.4s}
+  .wb-shot.gif .wb-zone:nth-child(2) .wb-chips i:nth-child(1){animation-delay:1s}
+  .wb-shot.gif .wb-zone:nth-child(2) .wb-chips i:nth-child(2){animation-delay:1.3s}
+  .wb-shot.gif .wb-zone:nth-child(3) .wb-chips i:nth-child(1){animation-delay:1.6s}
+  .wb-shot.gif .wb-zone:nth-child(3) .wb-chips i:nth-child(2){animation-delay:1.9s}
+  .wb-shot.gif .wb-zone:nth-child(3) .wb-chips i:nth-child(3){animation-delay:2.2s}
+  .wb-shot.gif .wb-zone:nth-child(4) .wb-chips i:nth-child(1){animation-delay:2.5s}
+  .wb-shot.gif .wb-zone:nth-child(4) .wb-chips i:nth-child(2){animation-delay:2.8s}
+  .wb-shot.gif .wb-zone:nth-child(4) .wb-chips i:nth-child(3){animation-delay:3.1s}
+  .wb-shot.gif .wb-zone:nth-child(5) .wb-chips i{animation-delay:3.4s}
+  /* 头图简报 meter：待填项循环填充 = 「正在填写」 */
+  @keyframes gifFill{0%{width:0}55%{width:100%}86%{width:100%}100%{width:0}}
+  .g-view[data-v="w"] .wb-meter i:not(.lit)::after{animation:gifFill 2.4s ease-in-out infinite}
+  /* 商品头图 emoji 悬浮动效 */
+  @keyframes phFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8%)}}
+  .p-hero .ph-ico{animation:phFloat 3.2s ease-in-out infinite}
+  .shot-cap{display:flex;gap:10px;align-items:baseline;padding:10px 4px 0;flex-wrap:wrap}
+  .shot-cap b{font-size:13.5px;color:var(--text)}
+  .shot-cap span{font-size:12.5px;color:var(--muted);line-height:1.6}
+  .wb-pulse{animation:wbpulse 1.6s ease-in-out infinite}
+  @keyframes wbpulse{50%{box-shadow:0 .5em 1.5em rgba(232,101,26,.5)}}
+
+  /* ---- 多商品切换 ---- */
+  .ag-switch{display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+    background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 14px;margin-bottom:16px}
+  .ag-switch .lbl{font-size:11.5px;color:var(--muted);font-weight:700;margin-right:2px}
+  .ag-switch button{border:1.5px solid var(--line);background:#fff;border-radius:99px;padding:6px 14px;
+    font-size:12.5px;font-family:inherit;cursor:pointer;color:var(--muted);transition:.15s;display:flex;gap:5px;align-items:center}
+  .ag-switch button b{font-weight:700}
+  .ag-switch button:hover{border-color:rgba(244,121,32,.5)}
+  .ag-switch button.on{border-color:var(--orange);background:var(--orange-soft);color:var(--orange-deep);font-weight:700}
+  .ag-switch button .soon{font-size:10px;background:#eef2f8;color:var(--muted);border-radius:99px;padding:1px 7px}
+  .ag-switch button.on .soon{background:rgba(244,121,32,.15);color:var(--orange-deep)}
+  .ag-switch .mode-btn{border:1.5px solid var(--line);background:#fff;border-radius:99px;padding:6px 14px}
+  .agent-sec{display:none}
+  .agent-sec.on{display:block}
+
+  /* 样例仿真卡（智能体真实输出物的示意） */
+  .s-card{position:relative;z-index:1;width:100%;background:#fff;border-radius:12px;
+    box-shadow:0 16px 36px rgba(160,70,10,.18);overflow:hidden}
+  .s-head{display:flex;align-items:center;gap:8px;padding:10px 14px;
+    background:linear-gradient(135deg,#ff8a3d,var(--orange-deep));color:#fff}
+  .s-head .s-ico{font-size:15px}
+  .s-head b{font-size:12.5px;letter-spacing:.5px}
+  .s-head span{margin-left:auto;font-size:10px;background:rgba(255,255,255,.25);
+    padding:2px 8px;border-radius:99px}
+  .s-body{padding:12px 14px;display:grid;gap:9px}
+  .s-quote{border-left:3px solid var(--orange);background:var(--orange-soft);
+    padding:8px 10px;border-radius:0 8px 8px 0;font-size:12px;font-weight:700;
+    color:var(--orange-deep);line-height:1.55}
+  .s-chips{display:flex;flex-wrap:wrap;gap:5px}
+  .s-chips i{font-style:normal;font-size:10.5px;color:var(--muted);background:#f1f4f9;
+    border:1px solid var(--line);padding:3px 8px;border-radius:99px}
+  .s-line{display:grid;gap:4px}
+  .s-line b{font-size:11px;color:var(--text)}
+  .s-line .bar{height:7px;border-radius:99px;background:#eef1f6;overflow:hidden}
+  .s-line .bar i{display:block;height:100%;border-radius:99px;
+    background:linear-gradient(90deg,#ffb877,var(--orange))}
+  .s-topic{display:flex;gap:7px;align-items:flex-start;font-size:11.5px;line-height:1.5;color:var(--text)}
+  .s-topic em{font-style:normal;flex:none;font-size:9.5px;font-weight:700;color:var(--orange-deep);
+    background:var(--orange-soft);border-radius:5px;padding:2px 5px;margin-top:1px}
+  .s-foot{border-top:1px dashed var(--line);padding:8px 14px;font-size:10px;color:var(--muted);
+    display:flex;justify-content:space-between}
+  .s-note{position:relative;z-index:1;font-size:11px;color:#a05a20;background:rgba(255,255,255,.75);
+    padding:4px 12px;border-radius:99px}
+
+  /* 视图：口碑 */
+  .g-rate{position:relative;z-index:1;text-align:center;color:var(--orange-deep);
+    background:rgba(255,255,255,.8);border-radius:14px;padding:22px 30px;
+    box-shadow:0 10px 26px rgba(160,70,10,.12)}
+  .g-rate b{font-size:42px;font-weight:800}
+  .g-rate .stars{color:var(--gold);font-size:16px;letter-spacing:3px;margin:4px 0}
+  .g-rate span{display:block;font-size:11.5px;color:var(--muted)}
+
+  /* 视图：商品主视觉（v6 商品 sec 用，无图片素材，纯 CSS 自包含） */
+  .p-hero{position:relative;z-index:1;height:100%;min-height:250px;display:grid;place-items:center;
+    background:linear-gradient(135deg,#FFF6EC,#FFE4C8 60%,#FFD9B8);border-radius:14px;overflow:hidden}
+  .p-hero .ph-ico{font-size:76px;filter:drop-shadow(0 12px 20px rgba(242,83,0,.28))}
+  .p-hero .ph-name{position:absolute;left:14px;bottom:12px;font-weight:800;font-size:15px;color:#7A4A1E}
+  .p-hero .ph-badge{position:absolute;right:12px;top:12px;font-size:11px;font-weight:700;
+    background:linear-gradient(135deg,#FF8C32,#F25300);color:#fff;border-radius:99px;padding:4px 11px}
+  .p-feat{position:relative;z-index:1;width:100%;background:#fff;border-radius:14px;padding:16px 18px;
+    box-shadow:0 10px 26px rgba(160,70,10,.12);display:grid;gap:9px}
+  .p-feat b{font-size:13.5px;color:var(--ink,#222)}
+  .p-feat span{font-size:12px;color:var(--muted);line-height:1.5}
+  .p-feat .pf-row{display:flex;gap:9px;align-items:flex-start}
+  .p-feat .pf-ico{flex:none;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+    background:#FFF2E4;font-size:15px}
+
+  /* 缩略图条 */
+  .g-thumbs{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+  .g-thumbs button{aspect-ratio:1;border-radius:9px;border:2px solid transparent;cursor:pointer;
+    display:grid;place-items:center;font-size:17px;background:#eef2f8;color:var(--muted);
+    font-family:inherit;transition:.15s}
+  .g-thumbs button:hover{background:#e6ecf6}
+  .g-thumbs button.on{border-color:var(--orange);background:var(--orange-soft);color:var(--orange-deep)}
+  .g-cap{font-size:11.5px;color:var(--muted);text-align:center}
+
+  /* ---- 右：信息区 ---- */
+  .info{display:flex;flex-direction:column;gap:13px;min-width:0}
+  .i-title{font-size:21px;font-weight:800;line-height:1.35}
+  .i-sub{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+  .i-sub .tagp{background:var(--orange-soft);color:var(--orange-deep);font-weight:700;
+    padding:2px 9px;border-radius:99px;font-size:11.5px}
+  .i-desc{font-size:13.5px;line-height:1.7;color:var(--muted)}
+  .i-rate{display:flex;gap:14px;align-items:center;font-size:12.5px;color:var(--muted)}
+  .i-rate b{color:var(--orange);font-size:15px}
+  .i-rate .stars{color:var(--gold);letter-spacing:2px}
+
+  /* 价格卡 */
+  .price-card{background:linear-gradient(135deg,#fff6ee,#fff);border:1px solid rgba(244,121,32,.3);
+    border-radius:12px;padding:14px 16px;display:grid;gap:4px}
+  .price-line{display:flex;align-items:baseline;gap:8px}
+  .price-line .cur{color:var(--orange);font-size:15px;font-weight:700}
+  .price-line .num{color:var(--orange);font-size:30px;font-weight:800;letter-spacing:-.5px}
+  .price-line .unit{color:var(--orange);font-size:13px;font-weight:600}
+  .price-line .was{color:var(--muted);font-size:12.5px;text-decoration:line-through;margin-left:6px}
+  .price-line .approx{color:var(--muted);font-size:12px;font-weight:500;margin-left:6px}
+  .price-meta{font-size:11.5px;color:var(--muted)}
+  .price-meta em{font-style:normal;color:var(--orange-deep);font-weight:600}
+  .guar{display:flex;flex-wrap:wrap;gap:6px;margin-top:3px}
+  .guar i{font-style:normal;font-size:11px;color:var(--green);background:rgba(15,138,95,.07);
+    border:1px solid rgba(15,138,95,.22);padding:3px 9px;border-radius:99px}
+
+  /* 交付清单 */
+  .deliver{background:#f8fafd;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .deliver b{font-size:12.5px;color:var(--text)}
+  .deliver ul{list-style:none;margin-top:7px;display:grid;gap:5px}
+  .deliver li{font-size:12.5px;color:var(--muted);display:flex;gap:7px;line-height:1.55}
+  .deliver li::before{content:"✓";color:var(--orange);font-weight:800;flex:none}
+
+  /* CTA */
+  .cta-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:2px}
+  .cta-row.solo{grid-template-columns:1fr}
+  .btn{border-radius:11px;padding:13px 10px;font-size:15px;font-weight:700;font-family:inherit;
+    cursor:pointer;border:1.5px solid;transition:.15s;text-align:center}
+  .btn-ghost{background:#fff;border-color:var(--orange);color:var(--orange-deep)}
+  .btn-ghost:hover{background:var(--orange-soft)}
+  .btn-main{background:linear-gradient(135deg,#ff8a3d,var(--orange-deep));border-color:transparent;
+    color:#fff;box-shadow:0 8px 20px rgba(232,101,26,.32)}
+  .btn-main:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(232,101,26,.4)}
+  .after-cta{font-size:11.5px;color:var(--muted);text-align:center}
+  .after-cta em{font-style:normal;color:var(--orange-deep)}
+
+  /* ============ tabs 详情区 ============ */
+  .detail{background:var(--card);border:1px solid var(--line);border-radius:16px;margin-top:18px;overflow:hidden}
+  .tabs{display:flex;border-bottom:1px solid var(--line);overflow-x:auto}
+  .tab{flex:none;padding:14px 20px;font-size:14px;font-family:inherit;border:0;background:none;
+    cursor:pointer;color:var(--muted);position:relative;font-weight:600}
+  .tab.on{color:var(--orange-deep)}
+  .tab.on::after{content:"";position:absolute;left:20px;right:20px;bottom:0;height:3px;
+    border-radius:3px;background:var(--orange)}
+  .panel{display:none;padding:20px 22px 26px}
+  .panel.on{display:block}
+  .panel h3{font-size:15px;margin:14px 0 8px}
+  .panel h3:first-child{margin-top:0}
+  .panel p,.panel li{font-size:13.5px;line-height:1.8;color:var(--muted)}
+  .panel ul{padding-left:18px}
+  .rev{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:10px}
+  .rev-head{display:flex;gap:10px;align-items:center}
+  .rev-ava{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#ffb877,var(--orange));
+    color:#fff;display:grid;place-items:center;font-size:14px;font-weight:700}
+  .rev-head b{font-size:13px}
+  .rev-head .stars{color:var(--gold);font-size:12px;letter-spacing:2px;margin-left:auto}
+  .rev p{margin-top:8px}
+
+  .foot{margin-top:22px;text-align:center;font-size:12px;color:var(--muted)}
+
+  /* 状态切换（原型调试用） */
+  .mode-btn{border:1px solid rgba(232,101,26,.5);background:#fff;color:var(--orange-deep);
+    border-radius:99px;padding:3px 12px;font-size:11.5px;font-family:inherit;cursor:pointer;transition:.15s}
+  .mode-btn.on{background:var(--orange-deep);border-color:var(--orange-deep);color:#fff}
+
+  /* 预约弹窗 */
+  .mask{position:fixed;inset:0;background:rgba(23,35,61,.55);backdrop-filter:blur(3px);
+    display:none;align-items:center;justify-content:center;z-index:99;padding:20px}
+  .mask.on{display:flex}
+  /* 新手帮助 FAB + 术语词典（v7） */
+  .help-fab{position:fixed;right:14px;bottom:86px;width:42px;height:42px;border-radius:50%;
+    background:#fff;border:1px solid var(--line);box-shadow:0 6px 18px rgba(23,35,61,.16);
+    display:grid;place-items:center;font-size:19px;font-weight:800;color:var(--orange-deep);
+    z-index:60;cursor:pointer}
+  .help-fab:active{transform:scale(.94)}
+  .hp-card{position:relative;background:#fff;border-radius:18px;padding:24px 20px 18px;
+    width:420px;max-width:100%;max-height:78vh;overflow:auto;box-shadow:0 24px 60px rgba(23,35,61,.35);
+    text-align:left;animation:bkIn .25s ease}
+  .hp-card h4{font-size:16px;margin:0 0 4px;text-align:center}
+  .hp-card .hp-sub{font-size:12px;color:var(--muted);text-align:center;margin-bottom:12px}
+  .hp-item{background:#fff8f1;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+  .hp-item b{display:block;font-size:13px;color:var(--text);margin-bottom:2px}
+  .hp-item span{font-size:12px;color:var(--muted);line-height:1.55}
+  .hp-close{position:absolute;top:12px;right:12px;width:28px;height:28px;border-radius:50%;
+    background:#fff0df;color:var(--muted);font-size:14px;border:none;cursor:pointer}
+  .bk-card{position:relative;background:#fff;border-radius:18px;padding:28px 26px 22px;
+    width:360px;max-width:100%;box-shadow:0 24px 60px rgba(23,35,61,.35);text-align:center;
+    animation:bkIn .25s ease}
+  @keyframes bkIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+  .bk-close{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;
+    border:0;background:#f1f4f9;color:var(--muted);font-size:16px;cursor:pointer;line-height:1}
+  .bk-close:hover{background:#e6ecf6;color:var(--text)}
+  .bk-ico{width:52px;height:52px;border-radius:16px;margin:0 auto 12px;display:grid;place-items:center;
+    font-size:24px;background:linear-gradient(135deg,#ff8a3d,var(--orange-deep));
+    box-shadow:0 10px 22px rgba(232,101,26,.3)}
+  .bk-card h4{font-size:17px;font-weight:800}
+  .bk-card p{font-size:12.5px;color:var(--muted);line-height:1.7;margin-top:7px}
+  .bk-card p em{font-style:normal;color:var(--orange-deep);font-weight:700}
+  .bk-input{margin-top:16px}
+  .bk-input input{width:100%;border:1.5px solid var(--line);border-radius:11px;padding:12px 14px;
+    font-size:15px;font-family:inherit;outline:none;text-align:center;letter-spacing:1px;transition:.15s}
+  .bk-input input:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(244,121,32,.14)}
+  .bk-err{display:none;font-size:11.5px;color:#e5484d;margin-top:6px}
+  .bk-err.on{display:block}
+  .bk-submit{width:100%;margin-top:14px}
+  .bk-tip{font-size:10.5px;color:#a8b3c9;margin-top:12px}
+  .bk-ok{display:none}
+  .bk-ok.on{display:block}
+  .bk-card.submitted .bk-form{display:none}
+  .bk-card.submitted .bk-ok{display:block}
+  .bk-ok-ico{width:52px;height:52px;border-radius:50%;margin:0 auto 12px;display:grid;place-items:center;
+    font-size:26px;font-weight:800;color:#fff;background:linear-gradient(135deg,#4ade9c,#22b573);
+    box-shadow:0 10px 22px rgba(34,181,115,.3)}
+
+  /* 手机适配 */
+  @media (max-width:820px){
+    body{padding:14px 10px 50px}
+    .pd{grid-template-columns:1fr;padding:14px;gap:16px}
+    .i-title{font-size:19px}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <button class="back-btn" onclick="detailBack()">← 返回</button>
+
+  <div class="proto-note">🧪 <b>设计原型（20260923 · v6 0927 商品接入）</b>：数字员工 = <b>工作台实况</b>头图 +「⚡ 立即使用」（0 元开通 · 用后扣算力）；<b>v6 新增 AI硬件 / AI课程 4 个商品页</b> = 首页卡片只留「🛒 加购」，进详情页才有「🛍️ 立即购买」（人民币直购 · 微信支付演示）。价格按 <b>0926 定稿算力价目</b>（1元=10算力）+ 商品人民币价，实际以 <b>/market/skus</b> 为准。商品直达（商城点入）= 单商品详情页（无切换栏）；评审看全部商品：去掉 URL 的 <b>?agent</b> 参数。</div>
+
+  <!-- 商品切换 -->
+  <div class="ag-switch" id="agChips">
+    <span class="lbl">详情页 ·</span>
+    <button class="on" data-ag="shending">🎯 沈定</button>
+    <button data-ag="qinwen">✍️ 秦文</button>
+    <button data-ag="luopan">🎤 罗盘</button>
+    <button data-ag="jiangliu">📊 江流</button>
+    <button data-ag="hece">💡 何策 <span class="soon">未上线</span></button>
+    <button data-ag="live-coach">🔁 许复 <span class="soon">未上线</span></button>
+    <button data-ag="sales-coach">🤝 易成 <span class="soon">未上线</span></button>
+    <button data-ag="private">💬 周域 <span class="soon">未上线</span></button>
+    <button data-ag="hwRec">🎙️ AI录音卡</button>
+    <button data-ag="hwRobot">🤖 AI机器人</button>
+    <button data-ag="courseAgent">🎓 智能体课</button>
+    <button data-ag="courseWb">📚 提效课</button>
+    <span style="margin-left:auto;display:flex;gap:6px;flex:none">
+      <button class="mode-btn on" id="modeOnline">已上架</button>
+      <button class="mode-btn" id="modeDemo">未上架（放demo）</button>
+    </span>
+  </div>
+
+  <!-- ================= 沈定 · 首席定位官 ================= -->
+  <div class="agent-sec on" data-agent="shending" data-online="1">
+
+  <!-- ============ 商品主区 ============ -->
+  <div class="pd">
+
+    <!-- 左：输出参考样例 -->
+    <div class="gallery">
+      <div class="g-main" id="gmain">
+
+        <!-- 视图6：工作台实况（按沈定定位工作台逻辑 20260926，默认头图） -->
+        <div class="g-view on" data-v="6" style="padding:0">
+          <div class="wb" id="wbMain">
+            <div class="wb-bar">
+              <span class="t-dot" style="background:#ff5f57"></span>
+              <span class="t-dot" style="background:#febc2e"></span>
+              <span class="t-dot" style="background:#28c840"></span>
+              <span class="wb-url">ai.lcppch.top/agent/ipzone__ip-pos/workbench</span>
+              <span class="wb-live" id="wbLive">● 6 步访谈</span>
+              <span class="gif-pill">▶ 动图</span>
+            </div>
+            <div class="wb-body">
+              <div class="wb-chat">
+                <div class="wb-chat-h">
+                  <span class="wb-av">沈</span>
+                  <div><b>沈定 · 首席定位官</b><span>6 步访谈 · 一次只问一个维度</span></div>
+                </div>
+                <div class="wb-msgs">
+                  <div class="wb-q">先确认——你是老板本人，还是代运营？品牌是单店还是连锁？</div>
+                  <div class="wb-opts"><i class="on">🏭 连锁总部 · 老板本人</i><i>🏪 本地单店</i><i>💼 OPC 代运营</i></div>
+                  <div class="wb-a">明白——按「招商获客型创始人IP」深度来做。</div>
+                  <div class="wb-q">项目叫什么？赚谁的钱、怎么赚？</div>
+                </div>
+                <div class="wb-input">🎤 <span>打字或点 🎤 说话…</span><em>发送</em></div>
+              </div>
+              <div class="wb-ws">
+                <div class="wb-brief">
+                  <div class="wb-brief-h"><b>📋 定位简报</b><span id="wbPct">0/8</span></div>
+                  <div class="wb-meter" id="wbMeter"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                  <div class="wb-grid" id="wbGrid">
+                    <span>🧭 角色</span><span>🏷️ 项目</span><span>💰 商业模式</span><span>⚔️ 竞争格局</span>
+                    <span>🎯 目标用户</span><span>👤 创始人</span><span>🏁 IP目标</span><span>📊 现状投入</span>
+                  </div>
+                  <div class="wb-gen off" id="wbGen">✨ 生成定位全案 · 99 算力</div>
+                </div>
+                <div class="wb-fee" id="wbFee">完成 6 步访谈后可生成 · 全案（速览 + 8 章）99 算力/份</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 视图0：AI 工作实况演示 -->
+        <div class="g-view" data-v="0">
+          <div class="g-term">
+            <div class="t-head">
+              <span class="t-dot" style="background:#ff5f57"></span>
+              <span class="t-dot" style="background:#febc2e"></span>
+              <span class="t-dot" style="background:#28c840"></span>
+              <span class="t-title">SHENDING · AI 工作实况</span>
+              <span class="t-live" id="tlive">● LIVE</span>
+            </div>
+            <div class="t-log" id="tlog"></div>
+            <div class="t-metrics">
+              <span><b id="tm0">–</b>核心观点</span>
+              <span><b id="tm1">–</b>定位方向</span>
+              <span><b id="tm2">–</b>红线命中</span>
+              <span><b id="tm3">–</b>全案交付</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 样例2：选题清单 -->
+        <div class="g-view" data-v="1">
+          <div class="s-card">
+            <div class="s-head"><span class="s-ico">💡</span><b>今日选题清单</b><span>何策 · 输出样例</span></div>
+            <div class="s-body">
+              <div class="s-topic"><em>能火</em><span>「顾客说贵，我回了一句让她办了年卡」（话术型 · 同城）</span></div>
+              <div class="s-topic"><em>能拍</em><span>跟拍一次真实到店：前台 → 项目 → 术后回访</span></div>
+              <div class="s-topic"><em>合规</em><span>员工日常 vlog：不出现效果承诺词</span></div>
+            </div>
+            <div class="s-foot"><span>三关筛选：能拍 / 愿拍 / 拍了有人看</span><span>3 / 5 条</span></div>
+          </div>
+        </div>
+
+        <!-- 样例3：直播逐字稿 -->
+        <div class="g-view" data-v="2">
+          <div class="s-card">
+            <div class="s-head"><span class="s-ico">🎤</span><b>直播逐字稿</b><span>罗盘 · 输出样例</span></div>
+            <div class="s-body">
+              <div class="s-quote">「19:30 开场留人：今晚 8 点整上一波 9.9 元体验秒杀，先扣 1 扣起来…」</div>
+              <div class="s-chips"><i>带货场</i><i>90 分钟</i><i>节奏表 ✓</i><i>场控清单 ✓</i></div>
+            </div>
+            <div class="s-foot"><span>含节奏表 + 场控清单</span><span>已存入 · 我的交付物</span></div>
+          </div>
+        </div>
+
+        <!-- 样例5：职业形象照（真实照片） -->
+        <div class="g-view" data-v="5" style="padding:0">
+          <img src="avatars-20260923/ip-position.jpg" alt="沈定 · 职业形象照"
+               style="width:100%;height:100%;object-fit:cover;display:block">
+        </div>
+
+        <!-- 样例5：用户口碑 -->
+        <div class="g-view" data-v="4">
+          <div class="g-rate">
+            <b>4.9</b>
+            <div class="stars">★★★★★</div>
+            <span>近 30 天 · 128 位老板使用 · 好评率 98%</span>
+          </div>
+        </div>
+
+      </div>
+      <div class="g-thumbs" id="gthumbs">
+        <button class="on" data-t="6" title="工作台实况" data-cap="工作台实况 · 6 步访谈 → 定位简报 → 速览 + 8 章全案（99 算力/份）">🧰</button>
+        <button data-t="0" title="AI 工作实况演示" data-cap="AI 工作实况 · 自动循环播放">▶</button>
+        <button data-t="5" title="职业形象照（真实照片）" data-cap="职业形象照 · 豆包生成 · 512×512 压缩版">👤</button>
+        <button data-t="1" title="选题清单样例" data-cap="输出样例 · 今日选题清单">💡</button>
+        <button data-t="2" title="直播逐字稿样例" data-cap="输出样例 · 直播逐字稿">🎤</button>
+        <button data-t="4" title="用户口碑" data-cap="用户口碑 · 评分与好评率">⭐</button>
+      </div>
+      <div class="g-cap" id="gcap">工作台实况 · 6 步访谈 → 定位简报 → 速览 + 8 章全案（99 算力/份）</div>
+    </div>
+
+    <!-- 右：信息区 -->
+    <div class="info">
+      <div class="i-title">沈定 · 首席定位官<span style="font-weight:600;color:var(--muted);font-size:14px">（IP定位智能体）</span></div>
+      <div class="i-sub">
+        <span id="agentStatus" class="js-status">已上线 · 可直接对话</span>
+      </div>
+      <p class="i-desc">先把你这个人想明白——对谁说、说啥，再给你一份能直接用的 IP 定位全案：一句话定位、目标用户、人设五维、内容矩阵、选题方向。</p>
+
+      <div class="i-rate">
+        <span><b>4.9</b> <span class="stars">★★★★★</span></span>
+        <span>128 人使用</span><span>|</span><span>好评率 98%</span>
+      </div>
+
+      <!-- 价格区（20260926 恢复：对齐 0926 定稿算力价目，沈定 99/份 ≈¥9.9；替代 0924 隐藏的旧积分版） -->
+      <div class="price-card">
+        <div class="price-line">
+          <span class="num">99</span><span class="unit">算力 / 份</span>
+          <span class="approx">≈ ¥9.9 · 一口价</span>
+        </div>
+        <div class="price-meta">计费说明：<em>0 元开通</em> · 不收月费 · 使用后扣算力，失败不扣费</div>
+        <div class="guar"><i>⚡ 1元 = 10算力</i><i>🎁 注册赠 100 算力</i><i>📄 账单逐笔可查</i></div>
+      </div>
+
+      <div class="deliver">
+        <b>本单交付</b>
+        <ul id="dlist">
+          <li>1 份 IP 定位全案（一句话定位 / 目标用户 / 人设五维）</li>
+          <li>1 套内容矩阵 + 选题方向，直接排进日历</li>
+          <li>行业合规表达边界提示（含红线词过滤）</li>
+        </ul>
+      </div>
+
+      <div class="cta-row js-ctaRow" id="ctaRow">
+        <button class="btn btn-ghost js-cartCta" id="cartCta">⚡ 充值算力</button>
+        <button class="btn btn-main js-mainCta" id="mainCta" data-price="99" data-unit="/份">⚡ 立即使用（99 算力/份）</button>
+      </div>
+      <div class="after-cta js-afterCta" id="afterCta"><em>1 元 = 10 算力</em> · 本单 99 算力 ≈ ¥9.9 · 交付才扣 · <em>失败不扣费</em> · 交付物云端保存可回看</div>
+    </div>
+  </div>
+
+  <!-- ============ 详情 tabs ============ -->
+  <div class="detail">
+    <div class="tabs" id="tabs">
+      <button class="tab on" data-p="0">能力清单</button>
+      <button class="tab" data-p="1">交付标准</button>
+      <button class="tab" data-p="2">工作台实拍</button>
+      <button class="tab" data-p="3">用户评价</button>
+    </div>
+
+    <div class="panel on" data-p="0">
+      <h3>四大职联（Agent 流程架构）</h3>
+      <ul>
+        <li>洞察：现状访谈 / 目标用户画像 / 竞对定位扫描</li>
+        <li>定位：一句话定位 / 人设五维 / 差异化主张</li>
+        <li>规划：内容矩阵 / 选题方向 / 平台优先级</li>
+        <li>校准：合规边界检查 / 落地动作清单</li>
+      </ul>
+      <h3>底层能力</h3>
+      <ul>
+        <li>接入私有知识库（品牌资料 / 历史内容）</li>
+        <li>三关筛选：能拍 / 愿拍 / 拍了有人看</li>
+        <li>输出可执行的定位全案与下一步动作</li>
+      </ul>
+    </div>
+
+    <div class="panel" data-p="1">
+      <h3>交付口径</h3>
+      <p>每次对话交付 1 份完整定位全案，含：一句话定位、目标用户画像、人设五维、内容矩阵、选题方向。生成后自动存入「我的交付物」，可随时回看与导出。</p>
+      <h3>质量标准</h3>
+      <ul>
+        <li>结构完整：五模块缺一不可，缺失会自动追问补齐</li>
+        <li>可执行：每条结论都带「下一步动作」</li>
+        <li>合规：美业/餐饮版自带红线词过滤</li>
+      </ul>
+    </div>
+
+    <div class="panel" data-p="2">
+      <p style="margin:2px 0 0">头图与详情图均按沈定定位工作台（ai.lcppch.top/agent/ipzone__ip-pos/workbench）的真实界面逻辑制作——<b>买到的就是这台工作台，所见即所得</b>。</p>
+
+      <div class="wb-shot">
+        <div class="wb wb-lg">
+          <div class="wb-bar">
+            <span class="t-dot" style="background:#ff5f57"></span>
+            <span class="t-dot" style="background:#febc2e"></span>
+            <span class="t-dot" style="background:#28c840"></span>
+            <span class="wb-url">ai.lcppch.top/agent/ipzone__ip-pos/workbench</span>
+            <span class="wb-live">① 6 步访谈 · 收信息</span>
+          </div>
+          <div class="wb-body">
+            <div class="wb-chat">
+              <div class="wb-chat-h">
+                <span class="wb-av">沈</span>
+                <div><b>沈定 · 首席定位官</b><span>6 步访谈 · 一次只问一个维度</span></div>
+              </div>
+              <div class="wb-msgs">
+                <div class="wb-q">先确认——你是老板本人，还是代运营？品牌是单店还是连锁？</div>
+                <div class="wb-opts"><i class="on">🏭 连锁总部 · 老板本人</i><i>🏪 本地单店</i><i>💼 OPC 代运营</i></div>
+                <div class="wb-a">明白——按「招商获客型创始人IP」深度来做。</div>
+                <div class="wb-q">项目叫什么？赚谁的钱、怎么赚？</div>
+                <div class="wb-opts"><i>🧊 冷链供应链</i><i>🍢 食材超市</i><i>📦 厂家直发</i></div>
+              </div>
+              <div class="wb-input">🎤 <span>打字或点 🎤 说话…</span><em>发送</em></div>
+            </div>
+            <div class="wb-ws">
+              <div class="wb-brief">
+                <div class="wb-brief-h"><b>📋 定位简报</b><span>3/8</span></div>
+                <div class="wb-meter"><i class="lit"></i><i class="lit"></i><i class="lit"></i><i></i><i></i><i></i><i></i><i></i></div>
+                <div class="wb-grid">
+                  <span class="lit">🧭 角色</span><span class="lit">🏷️ 项目</span><span class="lit">💰 商业模式</span><span>⚔️ 竞争格局</span>
+                  <span>🎯 目标用户</span><span>👤 创始人</span><span>🏁 IP目标</span><span>📊 现状投入</span>
+                </div>
+                <div class="wb-gen off">✨ 生成定位全案 · 99 算力</div>
+              </div>
+              <div class="wb-fee">回答自动填入简报 · 支持语音输入 · 老手可跳过访谈直接填</div>
+            </div>
+          </div>
+        </div>
+        <div class="shot-cap"><b>① 6 步访谈 · 信息收齐</b><span>一次只问一个维度，每个回答自动填入右侧「定位简报」；支持语音输入，老手可跳过访谈、直接点字段改简报，对话能力不降级。</span></div>
+      </div>
+
+      <div class="wb-shot">
+        <div class="wb wb-lg">
+          <div class="wb-bar">
+            <span class="t-dot" style="background:#ff5f57"></span>
+            <span class="t-dot" style="background:#febc2e"></span>
+            <span class="t-dot" style="background:#28c840"></span>
+            <span class="wb-url">ai.lcppch.top/agent/ipzone__ip-pos/workbench</span>
+            <span class="wb-live">② 简报确认 · 开始生成</span>
+          </div>
+          <div class="wb-body">
+            <div class="wb-chat">
+              <div class="wb-chat-h">
+                <span class="wb-av">沈</span>
+                <div><b>沈定 · 首席定位官</b><span>6 步访谈 · 一次只问一个维度</span></div>
+              </div>
+              <div class="wb-msgs">
+                <div class="wb-a">8 项信息齐了 ✅ 右侧「定位简报」你过目——没问题就生成：速览 + 8 章全案，一次 99 算力。哪条不对，直接点字段改。</div>
+                <div class="wb-opts"><i class="on">✓ 确认，开始生成</i><i>✏️ 先改简报</i></div>
+              </div>
+              <div class="wb-input">🎤 <span>打字或点 🎤 说话…</span><em>发送</em></div>
+            </div>
+            <div class="wb-ws">
+              <div class="wb-brief">
+                <div class="wb-brief-h"><b>📋 定位简报</b><span>8/8</span></div>
+                <div class="wb-meter"><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i></div>
+                <div class="wb-grid">
+                  <span class="lit">🧭 角色</span><span class="lit">🏷️ 项目</span><span class="lit">💰 商业模式</span><span class="lit">⚔️ 竞争格局</span>
+                  <span class="lit">🎯 目标用户</span><span class="lit">👤 创始人</span><span class="lit">🏁 IP目标</span><span class="lit">📊 现状投入</span>
+                </div>
+                <div class="wb-gen">✨ 生成定位全案 · 99 算力</div>
+              </div>
+              <div class="wb-fee">线上流式约 50 秒 · 失败不扣费</div>
+            </div>
+          </div>
+        </div>
+        <div class="shot-cap"><b>② 简报确认 · 一次生成</b><span>8 字段齐了才放行生成——先看简报再花钱；价格透明：全案（速览 + 8 章）99 算力/份，失败不扣费。</span></div>
+      </div>
+
+      <div class="wb-shot gif">
+        <span class="gif-tag">▶ 动图 · 自动循环</span>
+        <div class="wb wb-lg">
+          <div class="wb-bar">
+            <span class="t-dot" style="background:#ff5f57"></span>
+            <span class="t-dot" style="background:#febc2e"></span>
+            <span class="t-dot" style="background:#28c840"></span>
+            <span class="wb-url">ai.lcppch.top/agent/ipzone__ip-pos/workbench</span>
+            <span class="wb-live">③ 已交付 · 全案 9 件</span>
+          </div>
+          <div class="wb-canvas" style="flex:none;padding:1em">
+            <div class="wb-zone"><b>📌 速览区</b><span class="wb-chips"><i class="ov in">1分钟速览 · 8 维结论，老板先看这张</i></span></div>
+            <div class="wb-zone"><b>🎯 定位区</b><span class="wb-chips"><i class="in">一 · 项目定位</i><i class="in">二 · 目标用户定位</i></span></div>
+            <div class="wb-zone"><b>🧑 人设区</b><span class="wb-chips"><i class="in">三 · IP人设定位</i></span></div>
+            <div class="wb-zone"><b>✍️ 内容区</b><span class="wb-chips"><i class="in">四 · 内容定位</i><i class="in">五 · 选题方向</i></span></div>
+            <div class="wb-zone"><b>🚀 增长区</b><span class="wb-chips"><i class="in">六 · 投流建议</i><i class="in">七 · IP发展规划</i><i class="in">八 · 执行建议</i></span></div>
+            <div class="wb-foot"><span>9 件 · 单章复制 / 单章重生成 · 已存「我的交付物」</span><span>一键导出 Word（WPS 可开）</span></div>
+          </div>
+        </div>
+        <div class="shot-cap"><b>③ 分区交付 · 章章可用</b><span>全案按 5 个分区点亮交付：每章可单独复制、单章重生成，一键导出 Word；交付物云端保存，随时回看。</span></div>
+      </div>
+    </div>
+
+    <div class="panel" data-p="3">
+      <div class="rev">
+        <div class="rev-head"><div class="rev-ava">王</div><b>王姐 · 轻氧SPA（2家店）</b><span class="stars">★★★★★</span></div>
+        <p>以前找策划公司花了两万做的定位，还不如沈定十分钟问出来的准。连美业的话术红线都标好了。</p>
+      </div>
+      <div class="rev">
+        <div class="rev-head"><div class="rev-ava">李</div><b>李哥 · 老巷口烧烤</b><span class="stars">★★★★★</span></div>
+        <p>把店的情况说清楚，出来的人设和内容矩阵直接能排下周的拍摄计划，99 算力（≈¥9.9）花得值。</p>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /agent-sec shending -->
+
+  <!-- ================= 秦文 · 金牌文案主笔 ================= -->
+  <div class="agent-sec" data-agent="qinwen" data-online="1">
+
+    <div class="pd">
+      <div class="gallery">
+        <div class="g-main">
+
+          <!-- 头图：工作台实况（创作简报 → 内容十件套，按 copy 工作台逻辑） -->
+          <div class="g-view on" data-v="w" style="padding:0">
+            <div class="wb">
+              <div class="wb-bar">
+                <span class="t-dot" style="background:#ff5f57"></span>
+                <span class="t-dot" style="background:#febc2e"></span>
+                <span class="t-dot" style="background:#28c840"></span>
+                <span class="wb-url">ai.lcppch.top/agent/ipzone__copywriter/workbench</span>
+                <span class="wb-live">● 引导问答 · 6 项简报</span>
+                <span class="gif-pill">▶ 动图</span>
+              </div>
+              <div class="wb-body">
+                <div class="wb-chat">
+                  <div class="wb-chat-h">
+                    <span class="wb-av">秦</span>
+                    <div><b>秦文 · 金牌文案主笔</b><span>引导问答 · 一次只问一个问题</span></div>
+                  </div>
+                  <div class="wb-msgs">
+                    <div class="wb-q">这次给什么产品 / 服务写文案？一句话卖点就行。</div>
+                    <div class="wb-opts"><i class="on">🍲 麻辣烫团购套餐</i><i>🎂 周年庆活动</i><i>💪 健身私教课</i></div>
+                    <div class="wb-a">收到——先出「轻量 1 条」还是「完整十件套」？</div>
+                    <div class="wb-q">主要发布到哪个平台？多平台我会做适配。</div>
+                  </div>
+                  <div class="wb-input">🎤 <span>打字或点 🎤 说话…</span><em>发送</em></div>
+                </div>
+                <div class="wb-ws">
+                  <div class="wb-brief">
+                    <div class="wb-brief-h"><b>📋 创作简报</b><span>5/6</span></div>
+                    <div class="wb-meter"><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i><i></i></div>
+                    <div class="wb-grid">
+                      <span class="lit">📦 产品</span><span class="lit">🌟 卖点</span><span class="lit">📱 平台</span><span class="lit">🎯 动作</span>
+                      <span class="lit">📏 深度</span><span>🎬 出镜</span>
+                    </div>
+                    <div class="wb-gen wb-pulse">✨ 开始创作 · 10 算力起</div>
+                  </div>
+                  <div class="wb-fee">轻量 1 条 10 算力 · 完整十件套打包 15 算力/次 · 失败不扣费</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 输出样例：内容十件套 -->
+          <div class="g-view" data-v="s">
+            <div class="s-card">
+              <div class="s-head"><span class="s-ico">✍️</span><b>秦文 · 内容十件套</b><span style="margin-left:auto">🍲 麻辣烫团购</span></div>
+              <div class="s-body" style="padding:10px 14px;display:grid;gap:6px">
+                <div class="wb-chips" style="opacity:1">
+                  <i class="ov in">🧭 策划区 · ①选题策划</i><i class="in">✍️ 文稿区 · ②口播稿 ③访谈稿</i>
+                  <i class="in">🎬 拍摄区 · ④拍摄脚本 ⑤剪辑清单</i>
+                  <i class="in">📣 发布区 · ⑥标题 ⑦时间 ⑧评论</i><i class="in">🚀 投流区 · ⑨投流建议</i>
+                </div>
+                <div class="s-line">
+                  <b>① 选题策划 · 样例</b>
+                  <span style="font-size:11px;color:var(--muted);line-height:1.6">角度：一顿麻辣烫的账，老板替你算明白 ｜ 爆款元素：价格反差 + 数量冲击 ｜ 脚本类型：教知识 + 聊观点</span>
+                </div>
+              </div>
+              <div class="s-note">五分区逐件点亮 · 单件复制 / 单件重生成 3 算力/件 · 十件套 15 算力/次</div>
+            </div>
+          </div>
+
+          <!-- 用户口碑 -->
+          <div class="g-view" data-v="r">
+            <div class="g-rate">
+              <b>4.9</b>
+              <div class="stars">★★★★★</div>
+              <span>近 30 天 · 300+ 位老板使用 · 好评率 96%</span>
+            </div>
+          </div>
+
+        </div>
+        <div class="g-thumbs">
+          <button class="on" data-t="w" title="工作台实况" data-cap="工作台实况 · 引导问答 → 创作简报 → 内容十件套">🧰</button>
+          <button data-t="s" title="输出样例" data-cap="输出样例 · 内容十件套（五分区按件交付）">💡</button>
+          <button data-t="r" title="用户口碑" data-cap="用户口碑 · 评分与好评率">⭐</button>
+        </div>
+        <div class="g-cap">工作台实况 · 引导问答 → 创作简报 → 内容十件套</div>
+      </div>
+
+      <div class="info">
+        <div class="i-title">秦文 · 金牌文案主笔<span style="font-weight:600;color:var(--muted);font-size:14px">（文案智能体）</span></div>
+        <div class="i-sub"><span class="js-status">已上线 · 可直接对话</span></div>
+        <p class="i-desc">把这条文案的信息一次配齐——6 问引导填创作简报，轻量出 1 条可直发文案，完整出内容十件套（选题→口播→访谈→拍摄→剪辑→标题→时间→评论→投流），五分区逐件点亮，单件复制、单件重生成。</p>
+        <div class="i-rate"><b>4.9</b><span class="stars">★★★★★</span><span>96% 好评</span></div>
+        <div class="price-card">
+          <div class="price-line">
+            <span class="num">15</span><span class="unit">算力 / 次</span>
+            <span class="approx">≈ ¥1.5 · 轻量 10 算力/条 · 重生成 3 算力/件</span>
+          </div>
+          <div class="price-meta">计费说明：<em>0 元开通</em> · 不收月费 · 使用后扣算力，失败不扣费</div>
+          <div class="guar"><i>⚡ 1元 = 10算力</i><i>🎁 注册赠 100 算力</i><i>📄 账单逐笔可查</i></div>
+        </div>
+        <div class="deliver">
+          <div class="deliver-h">📦 交付清单</div>
+          <ul>
+            <li>轻量：1 条可直发文案（标题 + 正文 + 话题）· 10 算力/条</li>
+            <li>完整：内容十件套，五分区逐件点亮 · 打包 15 算力/次</li>
+            <li>单件复制 / 单件重生成 3 算力/件 · 价目透明</li>
+            <li>多平台适配（抖音 / 视频号 / 小红书）</li>
+          </ul>
+        </div>
+        <div class="cta-row js-ctaRow">
+          <button class="btn btn-ghost js-cartCta">⚡ 充值算力</button>
+          <button class="btn btn-main js-mainCta" data-price="15" data-unit="/次">⚡ 立即使用（15 算力/次）</button>
+        </div>
+        <div class="after-cta js-afterCta"><em>1 元 = 10 算力</em> · 本单 15 算力 ≈ ¥1.5 · 交付才扣 · <em>失败不扣费</em> · 交付物云端保存可回看</div>
+      </div>
+    </div>
+
+    <div class="detail">
+      <div class="tabs">
+        <button class="tab on" data-p="0">能力清单</button>
+        <button class="tab" data-p="1">交付标准</button>
+        <button class="tab" data-p="2">工作台实拍</button>
+        <button class="tab" data-p="3">用户评价</button>
+      </div>
+      <div class="panel on" data-p="0">
+        <ul>
+          <li>6 问引导简报：产品 / 卖点 / 平台 / 动作 / 深度 / 出镜，一次只问一个问题</li>
+          <li>双交付深度：轻量 1 条可直发（10 算力）；完整内容十件套（打包 15 算力/次）</li>
+          <li>五分区结构化交付：策划 / 文稿 / 拍摄 / 发布 / 投流，告别一坨长文</li>
+          <li>单件复制 / 单件重生成；老手可直接填简报，对话能力不降级</li>
+          <li>行业合规表达边界提示（含红线词过滤）</li>
+        </ul>
+      </div>
+      <div class="panel" data-p="1">
+        <h3>过程</h3>
+        <p>先看简报再创作——6 项信息齐了才放行；轻量约 3 分钟，十件套约 5-10 分钟流式逐件点亮，进度实时可见。</p>
+        <h3>口径</h3>
+        <p>价格机制没确认的信息不编造；改简报可整包重跑；交付才扣算力，失败不扣费。</p>
+      </div>
+      <div class="panel" data-p="2">
+        <p style="margin:2px 0 0">头图与详情图均按秦文创作工作台（ai.lcppch.top/agent/ipzone__copywriter/workbench）的真实界面逻辑制作——<b>买到的就是这台工作台，所见即所得</b>。</p>
+
+        <div class="wb-shot">
+          <div class="wb wb-lg">
+            <div class="wb-bar"><span class="t-dot" style="background:#ff5f57"></span><span class="t-dot" style="background:#febc2e"></span><span class="t-dot" style="background:#28c840"></span><span class="wb-url">ai.lcppch.top/agent/ipzone__copywriter/workbench</span><span class="wb-live">① 引导问答 · 配齐信息</span></div>
+            <div class="wb-body">
+              <div class="wb-chat">
+                <div class="wb-chat-h"><span class="wb-av">秦</span><div><b>秦文 · 金牌文案主笔</b><span>引导问答 · 一次只问一个问题</span></div></div>
+                <div class="wb-msgs">
+                  <div class="wb-q">这次给什么产品 / 服务写文案？一句话卖点就行。</div>
+                  <div class="wb-opts"><i class="on">🍲 麻辣烫团购套餐</i><i>🎂 周年庆活动</i><i>💪 健身私教课</i></div>
+                  <div class="wb-a">收到——主要发布到哪个平台？</div>
+                  <div class="wb-opts"><i class="on">📱 抖音</i><i>视频号</i><i>小红书</i></div>
+                </div>
+                <div class="wb-input">🎤 <span>打字或点 🎤 说话…</span><em>发送</em></div>
+              </div>
+              <div class="wb-ws">
+                <div class="wb-brief">
+                  <div class="wb-brief-h"><b>📋 创作简报</b><span>3/6</span></div>
+                  <div class="wb-meter"><i class="lit"></i><i class="lit"></i><i class="lit"></i><i></i><i></i><i></i></div>
+                  <div class="wb-grid">
+                    <span class="lit">📦 产品</span><span class="lit">🌟 卖点</span><span class="lit">📱 平台</span><span>🎯 动作</span><span>📏 深度</span><span>🎬 出镜</span>
+                  </div>
+                  <div class="wb-gen off">✨ 开始创作 · 10 算力起</div>
+                </div>
+                <div class="wb-fee">回答自动填入简报 · 老手可直接填简报</div>
+              </div>
+            </div>
+          </div>
+          <div class="shot-cap"><b>① 引导问答 · 信息配齐</b><span>一次只问一个问题，回答自动填入右侧「创作简报」；急用可跳过问答直接填简报，对话能力不降级。</span></div>
+        </div>
+
+        <div class="wb-shot">
+          <div class="wb wb-lg">
+            <div class="wb-bar"><span class="t-dot" style="background:#ff5f57"></span><span class="t-dot" style="background:#febc2e"></span><span class="t-dot" style="background:#28c840"></span><span class="wb-url">ai.lcppch.top/agent/ipzone__copywriter/workbench</span><span class="wb-live">② 简报确认 · 开始创作</span></div>
+            <div class="wb-body">
+              <div class="wb-chat">
+                <div class="wb-chat-h"><span class="wb-av">秦</span><div><b>秦文 · 金牌文案主笔</b><span>引导问答 · 一次只问一个问题</span></div></div>
+                <div class="wb-msgs">
+                  <div class="wb-a">简报 6/6 ✅ 右侧你过目——确认后点「开始创作」，我按完整十件套交付，中途随时可以打断我改简报。</div>
+                  <div class="wb-opts"><i class="on">✓ 确认，开始创作</i><i>✏️ 先改简报</i></div>
+                </div>
+                <div class="wb-input">🎤 <span>打字或点 🎤 说话…</span><em>发送</em></div>
+              </div>
+              <div class="wb-ws">
+                <div class="wb-brief">
+                  <div class="wb-brief-h"><b>📋 创作简报</b><span>6/6</span></div>
+                  <div class="wb-meter"><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i></div>
+                  <div class="wb-grid">
+                    <span class="lit">📦 产品</span><span class="lit">🌟 卖点</span><span class="lit">📱 平台</span><span class="lit">🎯 动作</span><span class="lit">📏 深度</span><span class="lit">🎬 出镜</span>
+                  </div>
+                  <div class="wb-gen wb-pulse">✨ 开始创作 · 10 算力起</div>
+                </div>
+                <div class="wb-fee">轻量约 3 分钟 · 十件套 5-10 分钟流式 · 失败不扣费</div>
+              </div>
+            </div>
+          </div>
+          <div class="shot-cap"><b>② 简报确认 · 开始创作</b><span>先选交付深度再花钱：轻量 1 条 10 算力、完整十件套打包 15 算力/次；价格透明，失败不扣费。</span></div>
+        </div>
+
+        <div class="wb-shot gif">
+          <span class="gif-tag">▶ 动图 · 自动循环</span>
+          <div class="wb wb-lg">
+            <div class="wb-bar"><span class="t-dot" style="background:#ff5f57"></span><span class="t-dot" style="background:#febc2e"></span><span class="t-dot" style="background:#28c840"></span><span class="wb-url">ai.lcppch.top/agent/ipzone__copywriter/workbench</span><span class="wb-live">③ 已交付 · 十件逐件点亮</span></div>
+            <div class="wb-canvas" style="flex:none;padding:1em">
+              <div class="wb-zone"><b>🧭 策划区</b><span class="wb-chips"><i class="ov in">① 选题策划</i></span></div>
+              <div class="wb-zone"><b>✍️ 文稿区</b><span class="wb-chips"><i class="in">② 口播稿</i><i class="in">③ 访谈稿</i></span></div>
+              <div class="wb-zone"><b>🎬 拍摄区</b><span class="wb-chips"><i class="in">④ 拍摄脚本</i><i class="in">⑤ 剪辑清单</i></span></div>
+              <div class="wb-zone"><b>📣 发布区</b><span class="wb-chips"><i class="in">⑥ 标题</i><i class="in">⑦ 发布时间</i><i class="in">⑧ 评论引导</i></span></div>
+              <div class="wb-zone"><b>🚀 投流区</b><span class="wb-chips"><i class="in">⑨ 投流建议</i></span></div>
+              <div class="wb-foot"><span>单件复制 / 单件重生成 · 已存「我的交付物」</span><span>整包导出 Word（WPS 可开）</span></div>
+            </div>
+          </div>
+          <div class="shot-cap"><b>③ 五分区交付 · 件件可用</b><span>选题→口播→访谈→拍摄→剪辑→标题→时间→评论→投流，逐件点亮；单件复制、单件重生成，整包导出 Word。</span></div>
+        </div>
+      </div>
+      <div class="panel" data-p="3">
+        <div class="rev">
+          <div class="rev-head"><div class="rev-ava">陈</div><b>陈姐 · 一碗深巷麻辣烫</b><span class="stars">★★★★★</span></div>
+          <p>十件套连拍摄脚本和剪辑清单都给了，我们店小哥照着拍，第一条就跑了 4 万播放。</p>
+        </div>
+        <div class="rev">
+          <div class="rev-head"><div class="rev-ava">周</div><b>周老板 · 拾光烘焙</b><span class="stars">★★★★★</span></div>
+          <p>急用的时候只要 1 条文案，15 算力一杯豆浆钱，改两版直接发，不再求人。</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /agent-sec qinwen -->
+
+  <!-- ================= 罗盘 · 直播话术师 ================= -->
+  <div class="agent-sec" data-agent="luopan" data-online="1">
+
+    <div class="pd">
+      <div class="gallery">
+        <div class="g-main">
+
+          <!-- 头图：工作台实况（开播引导 → 脚本包，按 livescript 工作台逻辑） -->
+          <div class="g-view on" data-v="w" style="padding:0">
+            <div class="wb">
+              <div class="wb-bar">
+                <span class="t-dot" style="background:#ff5f57"></span>
+                <span class="t-dot" style="background:#febc2e"></span>
+                <span class="t-dot" style="background:#28c840"></span>
+                <span class="wb-url">ai.lcppch.top/agent/ipzone__live-host/workbench</span>
+                <span class="wb-live">● 开播引导 · 场次分流</span>
+                <span class="gif-pill">▶ 动图</span>
+              </div>
+              <div class="wb-body">
+                <div class="wb-chat">
+                  <div class="wb-chat-h">
+                    <span class="wb-av">罗</span>
+                    <div><b>罗盘 · 开播引导</b><span>一次只问一个问题 · 按场次类型分流</span></div>
+                  </div>
+                  <div class="wb-msgs">
+                    <div class="wb-q">这场直播是哪一种？先定「这场赚谁的钱」——两套打法完全不同，我不串场。</div>
+                    <div class="wb-opts"><i class="on">🤝 招商加盟</i><i>🛒 带货</i><i>📚 知识付费</i></div>
+                    <div class="wb-a">招商场——按「赚创业者的钱」配整场打法。</div>
+                    <div class="wb-q">全场唯一的转化动作是什么？钩子和收尾都围着它转。</div>
+                  </div>
+                  <div class="wb-input">🎤 <span>打字或点 🎤 说话…</span><em>发送</em></div>
+                </div>
+                <div class="wb-ws">
+                  <div class="wb-brief">
+                    <div class="wb-brief-h"><b>📋 脚本简报</b><span>4/6</span></div>
+                    <div class="wb-meter"><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i><i></i><i></i></div>
+                    <div class="wb-grid">
+                      <span class="lit">🎬 场次类型</span><span class="lit">🏷️ 品牌硬实力</span><span class="lit">👥 目标人群</span><span class="lit">🎯 转化动作</span>
+                      <span>📦 主推产品</span><span>📏 交付深度</span>
+                    </div>
+                    <div class="wb-gen wb-pulse">✨ 生成脚本包 · 50 算力</div>
+                  </div>
+                  <div class="wb-fee">先选场次类型 · 再选交付深度 · 逐字稿可照读 · 失败不扣费</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 输出样例：逐字稿时间轴 -->
+          <div class="g-view" data-v="s">
+            <div class="s-card">
+              <div class="s-head"><span class="s-ico">🎤</span><b>罗盘 · 整场脚本包</b><span style="margin-left:auto">🤝 招商加盟场</span></div>
+              <div class="s-body" style="padding:10px 14px;display:grid;gap:7px">
+                <div class="s-line">
+                  <b>0:00-0:30 · 开场留人</b>
+                  <span style="font-size:11px;color:var(--muted);line-height:1.6">【两步式自我介绍 · 量化结果】我是罗盘，做本地生意增长操盘出身…<br><span style="color:#a05a20">⚠ 待补：操盘年限等真实履历（不编造）</span></span>
+                </div>
+                <div class="s-line">
+                  <b>0:30-2:00 · 塑品</b>
+                  <span style="font-size:11px;color:var(--muted);line-height:1.6">【一套系统 · 八个数字员工】获客、转化、复购替老板跑起来…</span>
+                </div>
+              </div>
+              <div class="s-note">时间轴 + 动作标签 · 逐字稿可照读 · 合规红线内建</div>
+            </div>
+          </div>
+
+          <!-- 用户口碑 -->
+          <div class="g-view" data-v="r">
+            <div class="g-rate">
+              <b>4.9</b>
+              <div class="stars">★★★★★</div>
+              <span>近 30 天 · 100+ 场直播使用 · 好评率 97%</span>
+            </div>
+          </div>
+
+        </div>
+        <div class="g-thumbs">
+          <button class="on" data-t="w" title="工作台实况" data-cap="工作台实况 · 开播引导 → 脚本简报 → 整场脚本包">🧰</button>
+          <button data-t="s" title="输出样例" data-cap="输出样例 · 整场脚本包（时间轴逐字稿）">💡</button>
+          <button data-t="r" title="用户口碑" data-cap="用户口碑 · 评分与好评率">⭐</button>
+        </div>
+        <div class="g-cap">工作台实况 · 开播引导 → 脚本简报 → 整场脚本包</div>
+      </div>
+
+      <div class="info">
+        <div class="i-title">罗盘 · 直播话术师<span style="font-weight:600;color:var(--muted);font-size:14px">（直播脚本智能体）</span></div>
+        <div class="i-sub"><span class="js-status">已上线 · 可直接对话</span></div>
+        <p class="i-desc">开播前我按场次类型带你配齐整场信息——从开场到下播的脚本包一次交付：时间轴逐字稿可照读、动作标签清晰、合规红线内建，一场只主推一个转化动作。</p>
+        <div class="i-rate"><b>4.9</b><span class="stars">★★★★★</span><span>97% 好评</span></div>
+        <div class="price-card">
+          <div class="price-line">
+            <span class="num">50</span><span class="unit">算力 / 场</span>
+            <span class="approx">≈ ¥5.0 · 整场直播逐字稿</span>
+          </div>
+          <div class="price-meta">计费说明：<em>0 元开通</em> · 不收月费 · 使用后扣算力，失败不扣费</div>
+          <div class="guar"><i>⚡ 1元 = 10算力</i><i>🎁 注册赠 100 算力</i><i>📄 账单逐笔可查</i></div>
+        </div>
+        <div class="deliver">
+          <div class="deliver-h">📦 交付清单</div>
+          <ul>
+            <li>整场脚本包：开场 / 留人 / 塑品 / 逼单 / 下播分区</li>
+            <li>逐字稿可照读（时间轴 + 动作标签）</li>
+            <li>合规红线内建：真实履历缺失标「待补」，不编造</li>
+            <li>一场只主推一个转化动作，钩子收尾围着它转</li>
+          </ul>
+        </div>
+        <div class="cta-row js-ctaRow">
+          <button class="btn btn-ghost js-cartCta">⚡ 充值算力</button>
+          <button class="btn btn-main js-mainCta" data-price="50" data-unit="/场">⚡ 立即使用（50 算力/场）</button>
+        </div>
+        <div class="after-cta js-afterCta"><em>1 元 = 10 算力</em> · 本单 50 算力 ≈ ¥5.0 · 交付才扣 · <em>失败不扣费</em> · 交付物云端保存可回看</div>
+      </div>
+    </div>
+
+    <div class="detail">
+      <div class="tabs">
+        <button class="tab on" data-p="0">能力清单</button>
+        <button class="tab" data-p="1">交付标准</button>
+        <button class="tab" data-p="2">工作台实拍</button>
+        <button class="tab" data-p="3">用户评价</button>
+      </div>
+      <div class="panel on" data-p="0">
+        <ul>
+          <li>按场次类型分流：招商加盟 / 带货 / 知识付费，两套打法不串场</li>
+          <li>一次只问一个问题，回答自动填入脚本简报</li>
+          <li>整场脚本包分区交付：时间轴逐字稿 + 动作标签，可照读</li>
+          <li>合规红线内建：价格机制未确认不写进逼单，履历缺失标「待补」</li>
+          <li>一场只主推一个转化动作——钩子和收尾都围着它转</li>
+        </ul>
+      </div>
+      <div class="panel" data-p="1">
+        <h3>过程</h3>
+        <p>先选场次类型、再选交付深度；简报齐了才放行生成，脚本包流式分区点亮，进度实时可见。</p>
+        <h3>口径</h3>
+        <p>真实价格没确认就不写逼单话术；交付才扣算力，失败不扣费；改简报可整包重跑。</p>
+      </div>
+      <div class="panel" data-p="2">
+        <p style="margin:2px 0 0">头图与详情图均按罗盘直播脚本工作台（ai.lcppch.top/agent/ipzone__live-host/workbench）的真实界面逻辑制作——<b>买到的就是这台工作台，所见即所得</b>。</p>
+
+        <div class="wb-shot">
+          <div class="wb wb-lg">
+            <div class="wb-bar"><span class="t-dot" style="background:#ff5f57"></span><span class="t-dot" style="background:#febc2e"></span><span class="t-dot" style="background:#28c840"></span><span class="wb-url">ai.lcppch.top/agent/ipzone__live-host/workbench</span><span class="wb-live">① 开播引导 · 场次分流</span></div>
+            <div class="wb-body">
+              <div class="wb-chat">
+                <div class="wb-chat-h"><span class="wb-av">罗</span><div><b>罗盘 · 开播引导</b><span>一次只问一个问题 · 按场次类型分流</span></div></div>
+                <div class="wb-msgs">
+                  <div class="wb-q">这场直播是哪一种？先定「这场赚谁的钱」——带货赚消费者、招商赚创业者，两套打法完全不同，我不串场。</div>
+                  <div class="wb-opts"><i class="on">🤝 招商加盟</i><i>🛒 带货</i><i>📚 知识付费</i></div>
+                  <div class="wb-a">招商场——先说品牌：有哪些看得见的硬实力？直营数据、供应链、培训体系…没有的先写「暂无」，我不瞎编。</div>
+                </div>
+                <div class="wb-input">🎤 <span>打字或点 🎤 说话…</span><em>发送</em></div>
+              </div>
+              <div class="wb-ws">
+                <div class="wb-brief">
+                  <div class="wb-brief-h"><b>📋 脚本简报</b><span>2/6</span></div>
+                  <div class="wb-meter"><i class="lit"></i><i class="lit"></i><i></i><i></i><i></i><i></i></div>
+                  <div class="wb-grid">
+                    <span class="lit">🎬 场次类型</span><span class="lit">🏷️ 品牌硬实力</span><span>👥 目标人群</span><span>🎯 转化动作</span><span>📦 主推产品</span><span>📏 交付深度</span>
+                  </div>
+                  <div class="wb-gen off">✨ 生成脚本包 · 50 算力</div>
+                </div>
+                <div class="wb-fee">没有的信息写「暂无」 · 我不瞎编</div>
+              </div>
+            </div>
+          </div>
+          <div class="shot-cap"><b>① 开播引导 · 场次分流</b><span>先定「这场赚谁的钱」再配打法；一次只问一个问题，没有的信息写「暂无」，绝不瞎编。</span></div>
+        </div>
+
+        <div class="wb-shot">
+          <div class="wb wb-lg">
+            <div class="wb-bar"><span class="t-dot" style="background:#ff5f57"></span><span class="t-dot" style="background:#febc2e"></span><span class="t-dot" style="background:#28c840"></span><span class="wb-url">ai.lcppch.top/agent/ipzone__live-host/workbench</span><span class="wb-live">② 简报确认 · 生成脚本包</span></div>
+            <div class="wb-body">
+              <div class="wb-chat">
+                <div class="wb-chat-h"><span class="wb-av">罗</span><div><b>罗盘 · 开播引导</b><span>一次只问一个问题 · 按场次类型分流</span></div></div>
+                <div class="wb-msgs">
+                  <div class="wb-a">简报齐了 ✅ 确认后点「生成脚本包」——从开场到下播一次交付，全程围绕你选的转化动作。</div>
+                  <div class="wb-opts"><i class="on">✓ 确认，生成脚本包</i><i>✏️ 先改简报</i></div>
+                </div>
+                <div class="wb-input">🎤 <span>打字或点 🎤 说话…</span><em>发送</em></div>
+              </div>
+              <div class="wb-ws">
+                <div class="wb-brief">
+                  <div class="wb-brief-h"><b>📋 脚本简报</b><span>6/6</span></div>
+                  <div class="wb-meter"><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i></div>
+                  <div class="wb-grid">
+                    <span class="lit">🎬 场次类型</span><span class="lit">🏷️ 品牌硬实力</span><span class="lit">👥 目标人群</span><span class="lit">🎯 转化动作</span><span class="lit">📦 主推产品</span><span class="lit">📏 交付深度</span>
+                  </div>
+                  <div class="wb-gen wb-pulse">✨ 生成脚本包 · 50 算力</div>
+                </div>
+                <div class="wb-fee">整场脚本包流式分区点亮 · 失败不扣费</div>
+              </div>
+            </div>
+          </div>
+          <div class="shot-cap"><b>② 简报确认 · 生成脚本包</b><span>6 项齐了才放行——先看简报再花钱；整场脚本包 50 算力/场，失败不扣费。</span></div>
+        </div>
+
+        <div class="wb-shot gif">
+          <span class="gif-tag">▶ 动图 · 自动循环</span>
+          <div class="wb wb-lg">
+            <div class="wb-bar"><span class="t-dot" style="background:#ff5f57"></span><span class="t-dot" style="background:#febc2e"></span><span class="t-dot" style="background:#28c840"></span><span class="wb-url">ai.lcppch.top/agent/ipzone__live-host/workbench</span><span class="wb-live">③ 已交付 · 逐字稿可照读</span></div>
+            <div class="wb-canvas" style="flex:none;padding:1em">
+              <div class="wb-zone"><b>⏱ 0:00-0:30</b><span class="wb-chips"><i class="ov in">开场留人 ·【两步式自我介绍 · 量化结果】</i></span></div>
+              <div class="wb-zone"><b>⏱ 0:30-2:00</b><span class="wb-chips"><i class="in">塑品 ·【一套系统 · 八个数字员工】</i></span></div>
+              <div class="wb-zone"><b>⏱ 2:00-8:00</b><span class="wb-chips"><i class="in">痛点+案例 ·【招商政策拆解】</i><i class="in">⚠ 待补：操盘年限（不编造）</i></span></div>
+              <div class="wb-zone"><b>⏱ 收尾</b><span class="wb-chips"><i class="in">逼单+预约 ·【一场只主推一个动作】</i></span></div>
+              <div class="wb-foot"><span>时间轴 + 动作标签 · 合规红线内建</span><span>已存「我的交付物」· 可导出 Word</span></div>
+            </div>
+          </div>
+          <div class="shot-cap"><b>③ 脚本包交付 · 照读即播</b><span>从开场到下播按时间轴分区：每段带动作标签、可照读；真实履历缺失标「待补」，合规不编造。</span></div>
+        </div>
+      </div>
+      <div class="panel" data-p="3">
+        <div class="rev">
+          <div class="rev-head"><div class="rev-ava">郑</div><b>郑总 · 鲜卤驿站城市合伙人项目</b><span class="stars">★★★★★</span></div>
+          <p>第一场招商直播照着罗盘的脚本念，在线峰值破了我们记录——最值的是它把「待补」都标出来了，不敢瞎编。</p>
+        </div>
+        <div class="rev">
+          <div class="rev-head"><div class="rev-ava">楠</div><b>楠楠 · 瑜伽馆小班课</b><span class="stars">★★★★★</span></div>
+          <p>带货场和招商场是两套话术，罗盘分得很清，一场 50 算力比请运营便宜太多了。</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /agent-sec luopan -->
+
+  <!-- ================= 江流 · 视频复盘官 ================= -->
+  <div class="agent-sec" data-agent="jiangliu" data-online="1">
+
+    <div class="pd">
+      <div class="gallery">
+        <div class="g-main">
+
+          <!-- 头图：工作台实况（拖表上传 → 先体检再复盘，按 vidrev 工作台逻辑） -->
+          <div class="g-view on" data-v="w" style="padding:0">
+            <div class="wb">
+              <div class="wb-bar">
+                <span class="t-dot" style="background:#ff5f57"></span>
+                <span class="t-dot" style="background:#febc2e"></span>
+                <span class="t-dot" style="background:#28c840"></span>
+                <span class="wb-url">ai.lcppch.top/agent/ipzone__vidrev/workbench</span>
+                <span class="wb-live">● 数据体检 · 先体检再复盘</span>
+                <span class="gif-pill">▶ 动图</span>
+              </div>
+              <div class="wb-body">
+                <div class="wb-chat">
+                  <div class="wb-chat-h">
+                    <span class="wb-av">江</span>
+                    <div><b>江流 · 复盘引导</b><span>拖表上传 · 先体检、再复盘</span></div>
+                  </div>
+                  <div class="wb-msgs">
+                    <div class="wb-q">把后台导出的数据表拖进来——抖音「作品明细」或视频号导出都行，我先体检、再复盘，不出糊涂账。</div>
+                    <div class="wb-a">🩺 体检完成：播放/互动正常，<b style="color:#b26a00">成交金额两列缺失</b>、投流标记待确认。</div>
+                    <div class="wb-q">按天汇总的表常有这问题——补一条逐条作品明细，我就能把 ROI 归因算准。</div>
+                  </div>
+                  <div class="wb-input">🎤 <span>拖入数据表，或点 🎤 说话…</span><em>发送</em></div>
+                </div>
+                <div class="wb-ws">
+                  <div class="wb-brief">
+                    <div class="wb-brief-h"><b>🩺 数据体检</b><span>7 项 · 2 警告</span></div>
+                    <div class="wb-meter"><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i><i></i><i></i></div>
+                    <div class="wb-grid">
+                      <span class="lit">▶️ 播放 ✅</span><span class="lit">❤️ 互动 ✅</span><span class="lit">⏱ 发布 ✅</span><span class="lit">#️⃣ 话题 ✅</span>
+                      <span>💰 成交 ⚠️</span><span>🚀 投流 ⚠️</span><span class="lit">🧩 表结构 ✅</span>
+                    </div>
+                    <div class="wb-gen wb-pulse">📦 生成复盘报告 · 50 算力</div>
+                  </div>
+                  <div class="wb-fee">上传体检不扣算力 · 校验不过不出报告 · 失败不扣费</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 输出样例：四象限分层 -->
+          <div class="g-view" data-v="s">
+            <div class="s-card">
+              <div class="s-head"><span class="s-ico">📊</span><b>江流 · 视频复盘报告（11 章）</b><span style="margin-left:auto">抖音 · 31 条</span></div>
+              <div class="s-body" style="padding:10px 14px">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+                  <div style="border:1px solid #cdebd9;border-radius:8px;padding:7px 9px;background:#f2fbf6">
+                    <b style="font-size:11px;color:#0f8a5f">🌟 又爆而赚 · 加投</b>
+                    <span style="display:block;font-size:10.5px;color:var(--muted);margin-top:2px">播放 52w · ROI 3.8 → 追投同款钩子</span>
+                  </div>
+                  <div style="border:1px solid #f3d9b8;border-radius:8px;padding:7px 9px;background:#fdf6ec">
+                    <b style="font-size:11px;color:#b26a00">😮 爆而不赚 · 止损</b>
+                    <span style="display:block;font-size:10.5px;color:var(--muted);margin-top:2px">播放 31w · ROI 0.4 → 钩子出太晚</span>
+                  </div>
+                  <div style="border:1px solid #dbe6f5;border-radius:8px;padding:7px 9px;background:#f4f8fd">
+                    <b style="font-size:11px;color:#2563eb">🔧 赚而不爆 · 复制</b>
+                    <span style="display:block;font-size:10.5px;color:var(--muted);margin-top:2px">播放 0.9w · ROI 4.2 → 小众刚需可复制</span>
+                  </div>
+                  <div style="border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:#fafbfd">
+                    <b style="font-size:11px;color:var(--muted)">💤 不爆不赚 · 迭代</b>
+                    <span style="display:block;font-size:10.5px;color:var(--muted);margin-top:2px">播放 1.2w · ROI 1.1 → 常规内容迭代</span>
+                  </div>
+                </div>
+                <div class="s-line">
+                  <b>第 11 章 · 下一步行动清单（节选）</b>
+                  <span style="font-size:11px;color:var(--muted);line-height:1.6">① 「同城探店 v3」加投 300 投流 ② 「挂车晚 40s」的 3 条本周重拍 ③ 复制「后厨直拍」结构 ×2</span>
+                </div>
+              </div>
+              <div class="s-note">每条视频都归因到「加投 / 止损 / 迭代 / 复制」· 11 章可导出 Word</div>
+            </div>
+          </div>
+
+          <!-- 用户口碑 -->
+          <div class="g-view" data-v="r">
+            <div class="g-rate">
+              <b>4.9</b>
+              <div class="stars">★★★★★</div>
+              <span>近 30 天 · 复盘视频 500+ 条 · 好评率 96%</span>
+            </div>
+          </div>
+
+        </div>
+        <div class="g-thumbs">
+          <button class="on" data-t="w" title="工作台实况" data-cap="工作台实况 · 拖表上传 → 先体检再复盘 → 11 章报告">🧰</button>
+          <button data-t="s" title="输出样例" data-cap="输出样例 · 四象限分层 + 行动清单（11 章报告）">💡</button>
+          <button data-t="r" title="用户口碑" data-cap="用户口碑 · 评分与好评率">⭐</button>
+        </div>
+        <div class="g-cap">工作台实况 · 拖表上传 → 先体检再复盘 → 11 章报告</div>
+      </div>
+
+      <div class="info">
+        <div class="i-title">江流 · 视频复盘官<span style="font-weight:600;color:var(--muted);font-size:14px">（视频复盘智能体）</span></div>
+        <div class="i-sub"><span class="js-status">已上线 · 可直接对话</span></div>
+        <p class="i-desc">把后台导出的数据表拖进来，我先体检、再复盘——7 项数据校验缺列先告诉你怎么补；11 章报告把每条视频归因到「加投 / 止损 / 迭代 / 复制」，不再靠感觉猜哪条该投。</p>
+        <div class="i-rate"><b>4.9</b><span class="stars">★★★★★</span><span>96% 好评</span></div>
+        <div class="price-card">
+          <div class="price-line">
+            <span class="num">50</span><span class="unit">算力 / 次</span>
+            <span class="approx">≈ ¥5.0 · 单条视频深度复盘</span>
+          </div>
+          <div class="price-meta">计费说明：<em>0 元开通</em> · 不收月费 · 上传体检免费，出报告才扣算力</div>
+          <div class="guar"><i>⚡ 1元 = 10算力</i><i>🎁 注册赠 100 算力</i><i>📄 账单逐笔可查</i></div>
+        </div>
+        <div class="deliver">
+          <div class="deliver-h">📦 交付清单</div>
+          <ul>
+            <li>数据体检：播放 / 互动 / 成交 / 投流 7 项校验，缺列先教你怎么补</li>
+            <li>11 章复盘报告：流量 / 互动 / 转化 / ROI 归因 / 钩子拆解 / 行动清单</li>
+            <li>四象限分层：又爆而赚 · 爆而不赚 · 赚而不爆 · 不爆不赚</li>
+            <li>支持抖音「作品明细」/ 视频号导出表 · 可导出 Word 存档</li>
+          </ul>
+        </div>
+        <div class="cta-row js-ctaRow">
+          <button class="btn btn-ghost js-cartCta">⚡ 充值算力</button>
+          <button class="btn btn-main js-mainCta" data-price="50" data-unit="/次">⚡ 立即使用（50 算力/次）</button>
+        </div>
+        <div class="after-cta js-afterCta">上传体检不扣算力 · <em>校验不过不出报告</em> · 出报告 50 算力 ≈ ¥5.0（1 元 = 10 算力）· 失败不扣费</div>
+      </div>
+    </div>
+
+    <div class="detail">
+      <div class="tabs">
+        <button class="tab on" data-p="0">能力清单</button>
+        <button class="tab" data-p="1">交付标准</button>
+        <button class="tab" data-p="2">工作台实拍</button>
+        <button class="tab" data-p="3">用户评价</button>
+      </div>
+      <div class="panel on" data-p="0">
+        <ul>
+          <li>拖表上传：抖音「作品明细」/ 视频号导出表直接拖进来就能跑</li>
+          <li>先体检、再复盘：7 项数据校验，缺列 / 错位先修再算，不出糊涂账</li>
+          <li>四象限归因：每条视频给出「加投 / 止损 / 迭代 / 复制」动作建议</li>
+          <li>体检不扣算力，出报告才扣；失败不扣费</li>
+        </ul>
+      </div>
+      <div class="panel" data-p="1">
+        <h3>过程</h3>
+        <p>拖表上传 → 体检报告先出（免费）→ 缺什么补什么 → 口径确认后点生成，11 章报告流式点亮，约 60 秒。</p>
+        <h3>口径</h3>
+        <p>上传体检不扣算力，出报告 50 算力/次；校验不过不出报告、不出糊涂账；交付可导出 Word。</p>
+      </div>
+      <div class="panel" data-p="2">
+        <p style="margin:2px 0 0">头图与详情图均按江流视频复盘工作台（ai.lcppch.top/agent/ipzone__vidrev/workbench）的真实界面逻辑制作——<b>买到的就是这台工作台，所见即所得</b>。</p>
+
+        <div class="wb-shot">
+          <div class="wb wb-lg">
+            <div class="wb-bar"><span class="t-dot" style="background:#ff5f57"></span><span class="t-dot" style="background:#febc2e"></span><span class="t-dot" style="background:#28c840"></span><span class="wb-url">ai.lcppch.top/agent/ipzone__vidrev/workbench</span><span class="wb-live">① 上传即体检 · 免费不扣算力</span></div>
+            <div class="wb-body">
+              <div class="wb-chat">
+                <div class="wb-chat-h"><span class="wb-av">江</span><div><b>江流 · 复盘引导</b><span>拖表上传 · 先体检、再复盘</span></div></div>
+                <div class="wb-msgs">
+                  <div class="wb-q">把后台导出的数据表拖进来——我先体检：7 项校验过一遍，缺列先告诉你怎么补。</div>
+                  <div class="wb-a">🩺 体检完成：表结构 ✅ · 播放/互动 ✅ · <b style="color:#b26a00">成交金额两列缺失 ⚠️</b> · 投流标记待确认 ⚠️</div>
+                </div>
+                <div class="wb-input">🎤 <span>拖入数据表，或点 🎤 说话…</span><em>发送</em></div>
+              </div>
+              <div class="wb-ws">
+                <div class="wb-brief">
+                  <div class="wb-brief-h"><b>🩺 数据体检</b><span>7 项 · 2 警告</span></div>
+                  <div class="wb-meter"><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i><i></i><i></i></div>
+                  <div class="wb-grid">
+                    <span class="lit">▶️ 播放 ✅</span><span class="lit">❤️ 互动 ✅</span><span class="lit">⏱ 发布 ✅</span><span class="lit">#️⃣ 话题 ✅</span>
+                    <span>💰 成交 ⚠️</span><span>🚀 投流 ⚠️</span><span class="lit">🧩 表结构 ✅</span>
+                  </div>
+                  <div class="wb-gen off">📦 补齐数据后可生成 · 50 算力</div>
+                </div>
+                <div class="wb-fee">体检不扣算力 · 缺列先教你补，不出糊涂账</div>
+              </div>
+            </div>
+          </div>
+          <div class="shot-cap"><b>① 上传即体检 · 免费不扣算力</b><span>拖表进来先做 7 项校验；按天汇总表缺成交金额会直接标 ⚠️，先教你怎么补——校验不过不出报告。</span></div>
+        </div>
+
+        <div class="wb-shot">
+          <div class="wb wb-lg">
+            <div class="wb-bar"><span class="t-dot" style="background:#ff5f57"></span><span class="t-dot" style="background:#febc2e"></span><span class="t-dot" style="background:#28c840"></span><span class="wb-url">ai.lcppch.top/agent/ipzone__vidrev/workbench</span><span class="wb-live">② 口径确认 · 生成报告</span></div>
+            <div class="wb-body">
+              <div class="wb-chat">
+                <div class="wb-chat-h"><span class="wb-av">江</span><div><b>江流 · 复盘引导</b><span>拖表上传 · 先体检、再复盘</span></div></div>
+                <div class="wb-msgs">
+                  <div class="wb-a">数据齐了 ✅ 成交金额按「支付口径」还是「成交口径」算？确认后我开跑，约 60 秒。</div>
+                  <div class="wb-opts"><i class="on">✓ 支付口径，生成报告</i><i>✏️ 换成交口径</i></div>
+                </div>
+                <div class="wb-input">🎤 <span>拖入数据表，或点 🎤 说话…</span><em>发送</em></div>
+              </div>
+              <div class="wb-ws">
+                <div class="wb-brief">
+                  <div class="wb-brief-h"><b>🩺 数据体检</b><span>7/7 通过</span></div>
+                  <div class="wb-meter"><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i></div>
+                  <div class="wb-grid">
+                    <span class="lit">▶️ 播放 ✅</span><span class="lit">❤️ 互动 ✅</span><span class="lit">💰 成交 ✅</span><span class="lit">🚀 投流 ✅</span>
+                    <span class="lit">⏱ 发布 ✅</span><span class="lit">#️⃣ 话题 ✅</span><span class="lit">🧩 表结构 ✅</span>
+                  </div>
+                  <div class="wb-gen wb-pulse">📦 生成复盘报告 · 50 算力</div>
+                </div>
+                <div class="wb-fee">11 章流式点亮 · 失败不扣费</div>
+              </div>
+            </div>
+          </div>
+          <div class="shot-cap"><b>② 口径确认 · 生成报告</b><span>7 项全过才放行生成——ROI 归因口径你来定；11 章报告 50 算力/次，失败不扣费。</span></div>
+        </div>
+
+        <div class="wb-shot gif">
+          <span class="gif-tag">▶ 动图 · 自动循环</span>
+          <div class="wb wb-lg">
+            <div class="wb-bar"><span class="t-dot" style="background:#ff5f57"></span><span class="t-dot" style="background:#febc2e"></span><span class="t-dot" style="background:#28c840"></span><span class="wb-url">ai.lcppch.top/agent/ipzone__vidrev/workbench</span><span class="wb-live">③ 已交付 · 四象限分层</span></div>
+            <div class="wb-canvas" style="flex:none;padding:1em">
+              <div class="wb-zone"><b>🌟 加投</b><span class="wb-chips"><i class="ov in">「同城探店 v3」播放 52w · ROI 3.8 → 追投同款钩子</i></span></div>
+              <div class="wb-zone"><b>😮 止损</b><span class="wb-chips"><i class="in">「挂车晚 40s」播放 31w · ROI 0.4 → 本周重拍</i></span></div>
+              <div class="wb-zone"><b>🔧 复制</b><span class="wb-chips"><i class="in">「后厨直拍」播放 0.9w · ROI 4.2 → 小众刚需 ×2</i></span></div>
+              <div class="wb-zone"><b>💤 迭代</b><span class="wb-chips"><i class="in">常规内容 1.2w · ROI 1.1 → 结构微调</i></span></div>
+              <div class="wb-foot"><span>四象限 + 11 章 · 行动清单可执行</span><span>已存「我的交付物」· 可导出 Word</span></div>
+            </div>
+          </div>
+          <div class="shot-cap"><b>③ 四象限交付 · 加投还是停，一眼定</b><span>31 条视频按「又爆而赚 / 爆而不赚 / 赚而不爆 / 不爆不赚」分完，第 11 章直接给行动清单。</span></div>
+        </div>
+      </div>
+      <div class="panel" data-p="3">
+        <div class="rev">
+          <div class="rev-head"><div class="rev-ava">谭</div><b>谭总 · 轻食沙拉店主理人</b><span class="stars">★★★★★</span></div>
+          <p>按天汇总的表传上去，江流直接告诉我缺成交金额两列、还教我怎么导明细——补完一次跑通。四象限把 31 条视频分完，哪条加投哪条停，一目了然。</p>
+        </div>
+        <div class="rev">
+          <div class="rev-head"><div class="rev-ava">池</div><b>池经理 · 家居门店运营</b><span class="stars">★★★★★</span></div>
+          <p>以前复盘全靠感觉，现在「爆而不赚」的视频一眼就揪出来——上个月止损 3 条、复制 2 条，整体 ROI 从 1.2 提到 2.6。</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /agent-sec jiangliu -->
+
+  <!-- ================= 何策 · 选题策略官（未上架 · 预约模式） ================= -->
+  <div class="agent-sec" data-agent="hece" data-online="0">
+
+    <div class="pd">
+      <div class="gallery">
+        <div class="g-main">
+
+          <!-- 头图：工作台实况（四大来源 → 三关筛选，按 topic-strategist 工作台逻辑） -->
+          <div class="g-view on" data-v="w" style="padding:0">
+            <div class="wb">
+              <div class="wb-bar">
+                <span class="t-dot" style="background:#ff5f57"></span>
+                <span class="t-dot" style="background:#febc2e"></span>
+                <span class="t-dot" style="background:#28c840"></span>
+                <span class="wb-url">ai.lcppch.top/agent/ipzone__topic/workbench</span>
+                <span class="wb-live">● 内测版 · 选题来源池</span>
+                <span class="gif-pill">▶ 动图</span>
+              </div>
+              <div class="wb-body">
+                <div class="wb-chat">
+                  <div class="wb-chat-h">
+                    <span class="wb-av">何</span>
+                    <div><b>何策 · 选题访谈</b><span>四大来源喂料 · 三关筛选出题</span></div>
+                  </div>
+                  <div class="wb-msgs">
+                    <div class="wb-q">先说说你的行业和阶段——门店起步期看获客、成熟期看转化，两头的选题策略完全不同。</div>
+                    <div class="wb-opts"><i class="on">🍽️ 餐饮门店</i><i>💪 瑜伽健身</i><i>🏠 家居建材</i></div>
+                    <div class="wb-a">本地生活服务 · 开业 3 个月——那这批题以「同城获客」为主，我从知识库和热点里配。</div>
+                  </div>
+                  <div class="wb-input">🎤 <span>打字或点 🎤 说话…</span><em>发送</em></div>
+                </div>
+                <div class="wb-ws">
+                  <div class="wb-brief">
+                    <div class="wb-brief-h"><b>🗂️ 选题来源池</b><span>4 路</span></div>
+                    <div class="wb-grid">
+                      <span class="lit">📚 私有知识库 · 主力</span><span class="lit">🔥 行业热点</span><span class="lit">🎯 对标账号</span><span>📈 数据复盘</span>
+                    </div>
+                    <div style="display:flex;gap:.4em;align-items:center;flex-wrap:wrap;font-size:.85em;color:var(--muted);margin:.2em 0">
+                      <i style="font-style:normal;border:1px solid var(--line);border-radius:99px;padding:.15em .6em">1️⃣ 一票否决</i>→
+                      <i style="font-style:normal;border:1px solid var(--line);border-radius:99px;padding:.15em .6em">2️⃣ 贴标签</i>→
+                      <i style="font-style:normal;border:1px solid var(--line);border-radius:99px;padding:.15em .6em">3️⃣ 按阶段配</i>
+                    </div>
+                    <div class="wb-gen wb-pulse">✨ 出一批选题 · 99 算力</div>
+                  </div>
+                  <div class="wb-fee">内测打磨中 · 上线后开放购买 · 一批 5 条</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 输出样例：一批 5 条（节选 3 条） -->
+          <div class="g-view" data-v="s">
+            <div class="s-card">
+              <div class="s-head"><span class="s-ico">💡</span><b>何策 · 本周选题清单</b><span style="margin-left:auto">一批 5 条 · 节选</span></div>
+              <div class="s-body" style="padding:10px 14px;display:grid;gap:7px">
+                <div class="s-line">
+                  <b>① 「开业 90 天，同城获客成本砍下来一半的 3 个动作」</b>
+                  <span style="font-size:11px;color:var(--muted)">阶段：获客 · 来源：私有知识库 · 参考结构：反常识开头 + 数据佐证</span>
+                </div>
+                <div class="s-line">
+                  <b>② 「顾客进店 30 秒，开口先说这一句」</b>
+                  <span style="font-size:11px;color:var(--muted)">阶段：转化 · 来源：对标账号 · 参考结构：场景痛点 + 一句话留人</span>
+                </div>
+                <div class="s-line">
+                  <b>③ 「老带新海报，别再写『转发有礼』」</b>
+                  <span style="font-size:11px;color:var(--muted)">阶段：裂变 · 来源：数据复盘 · 参考结构：反例开场 + 给模板</span>
+                </div>
+              </div>
+              <div class="s-note">每条带「阶段标签 + 来源 + 参考结构」· 三关筛选全过 · 拿去就能拍</div>
+            </div>
+          </div>
+
+          <!-- 内测反馈 -->
+          <div class="g-view" data-v="r">
+            <div class="g-rate">
+              <b>50+</b>
+              <div class="stars">👥</div>
+              <span>内测商家 50+ · 上线后开放购买 · 预约优先</span>
+            </div>
+          </div>
+
+        </div>
+        <div class="g-thumbs">
+          <button class="on" data-t="w" title="工作台实况" data-cap="工作台实况 · 四大来源喂料 → 三关筛选 → 一批 5 条">🧰</button>
+          <button data-t="s" title="输出样例" data-cap="输出样例 · 选题清单（阶段标签 + 来源 + 参考结构）">💡</button>
+          <button data-t="r" title="内测反馈" data-cap="内测反馈 · 上线后开放购买，预约用户优先开通">👥</button>
+        </div>
+        <div class="g-cap">工作台实况 · 四大来源喂料 → 三关筛选 → 一批 5 条</div>
+      </div>
+
+      <div class="info">
+        <div class="i-title">何策 · 选题策略官<span style="font-weight:600;color:var(--muted);font-size:14px">（选题策划智能体）</span></div>
+        <div class="i-sub"><span class="js-status">内测打磨中 · 支持预约</span></div>
+        <p class="i-desc">不用再拍脑袋想选题——四大来源自动喂料（私有知识库为主力），三关筛选把关后一批给你 5 条，每条带阶段标签、来源和参考结构，拿去就能拍。</p>
+        <div class="i-rate"><b>内测</b><span class="stars">🔍</span><span>预约用户优先开通</span></div>
+        <div class="price-card">
+          <div class="price-line">
+            <span class="num">99</span><span class="unit">算力 / 次</span>
+            <span class="approx">≈ ¥9.9 · 一批 5 条（上线价）</span>
+          </div>
+          <div class="price-meta">内测期 <em>预约免费</em> · 上线后按次扣算力 · 失败不扣费</div>
+          <div class="guar"><i>⚡ 1元 = 10算力</i><i>🎁 注册赠 100 算力</i><i>📄 账单逐笔可查</i></div>
+        </div>
+        <div class="deliver">
+          <div class="deliver-h">📦 交付清单</div>
+          <ul>
+            <li>一批 5 条选题：每条带阶段标签 / 来源 / 参考结构</li>
+            <li>四大来源喂料：私有知识库（主力）· 行业热点 · 对标账号 · 数据复盘</li>
+            <li>三关筛选：一票否决 → 贴标签 → 按阶段配，不合格不出题</li>
+            <li>与秦文 / 江流联动：选题 → 拍摄脚本 → 发布后复盘一条龙</li>
+          </ul>
+        </div>
+        <div class="cta-row js-ctaRow solo">
+          <button class="btn btn-ghost js-cartCta" style="display:none">⚡ 充值算力</button>
+          <button class="btn btn-main js-mainCta" data-price="99" data-unit="/次">📲 预约体验</button>
+        </div>
+        <div class="after-cta js-afterCta">上线价 99 算力/次 ≈ ¥9.9（<em>1 元 = 10 算力</em>）· <em>预约用户优先开通</em> · 留手机号接收上线通知</div>
+      </div>
+    </div>
+
+    <div class="detail">
+      <div class="tabs">
+        <button class="tab on" data-p="0">能力清单</button>
+        <button class="tab" data-p="1">交付标准</button>
+        <button class="tab" data-p="2">工作台实拍</button>
+        <button class="tab" data-p="3">内测反馈</button>
+      </div>
+      <div class="panel on" data-p="0">
+        <ul>
+          <li>四大来源自动喂料：私有知识库（主力）· 行业热点 · 对标账号 · 数据复盘</li>
+          <li>三关筛选：一票否决（合规 / 常识错）→ 贴标签（行业 / 阶段）→ 按阶段配比</li>
+          <li>一批 5 条：每条带阶段标签 + 来源 + 参考结构，拿去就能拍</li>
+          <li>与秦文 / 江流联动：选题 → 拍摄脚本 → 发布后复盘一条龙</li>
+        </ul>
+      </div>
+      <div class="panel" data-p="1">
+        <h3>过程</h3>
+        <p>两问定行业和阶段 → 来源池自动配齐 → 三关筛选出题，一批 5 条流式点亮，约 30 秒。</p>
+        <h3>口径</h3>
+        <p>上线价 99 算力/次（≈¥9.9）；来源池可配置、阶段可切换（获客 / 转化 / 复购 / 裂变）；现开放预约，上线后第一时间通知。</p>
+      </div>
+      <div class="panel" data-p="2">
+        <p style="margin:2px 0 0">头图与详情图均按何策选题工作台（ai.lcppch.top/agent/ipzone__topic/workbench）的真实界面逻辑制作——<b>上线后买到的就是这台工作台，所见即所得</b>。</p>
+
+        <div class="wb-shot">
+          <div class="wb wb-lg">
+            <div class="wb-bar"><span class="t-dot" style="background:#ff5f57"></span><span class="t-dot" style="background:#febc2e"></span><span class="t-dot" style="background:#28c840"></span><span class="wb-url">ai.lcppch.top/agent/ipzone__topic/workbench</span><span class="wb-live">① 配置四大来源 · 知识库为主力</span></div>
+            <div class="wb-body">
+              <div class="wb-chat">
+                <div class="wb-chat-h"><span class="wb-av">何</span><div><b>何策 · 选题访谈</b><span>四大来源喂料 · 三关筛选出题</span></div></div>
+                <div class="wb-msgs">
+                  <div class="wb-q">先说说你的行业和阶段——门店起步期看获客、成熟期看转化，两头的选题策略完全不同。</div>
+                  <div class="wb-opts"><i class="on">🍽️ 餐饮门店</i><i>💪 瑜伽健身</i><i>🏠 家居建材</i></div>
+                  <div class="wb-a">好，本地生活服务 · 获客期——来源池我按「知识库 12 篇 + 热点 5 条 + 对标 3 个」配，数据复盘等你跑起来再喂。</div>
+                </div>
+                <div class="wb-input">🎤 <span>打字或点 🎤 说话…</span><em>发送</em></div>
+              </div>
+              <div class="wb-ws">
+                <div class="wb-brief">
+                  <div class="wb-brief-h"><b>🗂️ 选题来源池</b><span>4 路</span></div>
+                  <div class="wb-grid">
+                    <span class="lit">📚 私有知识库 · 主力</span><span class="lit">🔥 行业热点</span><span class="lit">🎯 对标账号</span><span>📈 数据复盘</span>
+                  </div>
+                  <div class="wb-gen off">✨ 配好来源后可出题 · 99 算力</div>
+                </div>
+                <div class="wb-fee">知识库是你的独有素材 · 别人抄不走</div>
+              </div>
+            </div>
+          </div>
+          <div class="shot-cap"><b>① 配置四大来源 · 知识库为主力</b><span>私有知识库是独有素材，别人抄不走；行业热点 / 对标账号 / 数据复盘做补充，来源池可配置。</span></div>
+        </div>
+
+        <div class="wb-shot gif">
+          <span class="gif-tag">▶ 动图 · 自动循环</span>
+          <div class="wb wb-lg">
+            <div class="wb-bar"><span class="t-dot" style="background:#ff5f57"></span><span class="t-dot" style="background:#febc2e"></span><span class="t-dot" style="background:#28c840"></span><span class="wb-url">ai.lcppch.top/agent/ipzone__topic/workbench</span><span class="wb-live">② 三关筛选 · 一批 5 条</span></div>
+            <div class="wb-canvas" style="flex:none;padding:1em">
+              <div class="wb-zone"><b>1️⃣ 一票否决</b><span class="wb-chips"><i class="in">合规 / 常识错 → 淘汰 6 条</i></span></div>
+              <div class="wb-zone"><b>2️⃣ 贴标签</b><span class="wb-chips"><i class="in">行业 × 阶段 → 打标 18 条</i></span></div>
+              <div class="wb-zone"><b>3️⃣ 按阶段配</b><span class="wb-chips"><i class="ov in">获客 3 + 转化 1 + 裂变 1 → 出一批 5 条</i></span></div>
+              <div class="wb-foot"><span>三关全过才出题 · 每条带标签和参考结构</span><span>上线价 99 算力/次 · 内测预约免费</span></div>
+            </div>
+          </div>
+          <div class="shot-cap"><b>② 三关筛选 · 一批 5 条</b><span>一票否决卡合规，贴标签定行业阶段，最后按你的经营阶段配比出题——不合格的不出。</span></div>
+        </div>
+      </div>
+      <div class="panel" data-p="3">
+        <div class="rev">
+          <div class="rev-head"><div class="rev-ava">贺</div><b>贺店长 · 轻食沙拉门店（内测）</b><span class="stars">★★★★★</span></div>
+          <p>最值钱的是「按阶段配」——开业期 3 条获客题全被拍爆了，终于不用拍脑袋想选题。</p>
+        </div>
+        <div class="rev">
+          <div class="rev-head"><div class="rev-ava">齐</div><b>齐经理 · 家居门店运营（内测）</b><span class="stars">★★★★★</span></div>
+          <p>三关筛选把关很严，出来的题没有一条是发不出去的——热点题都被合规关筛过一遍，放心拍。</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /agent-sec hece -->
+
+  <!-- ============ v12 预约 sec：许复 / 易成 / 周域（未上线 · 预约模式，与何策同构；预约统一收口到详情页） ============ -->
+
+  <div class="agent-sec" data-agent="live-coach" data-online="0">
+    <div class="pd">
+      <div class="gallery">
+        <div class="g-main">
+          <!-- 头图：工作台形态预览（动图循环） -->
+          <div class="g-view on" data-v="w" style="padding:0">
+            <div class="wb">
+              <div class="wb-bar"><span class="t-dot" style="background:#ff5f57"></span><span class="t-dot" style="background:#febc2e"></span><span class="t-dot" style="background:#28c840"></span><span class="wb-url">ai.lcppch.top/agent/ipzone__live-coach/workbench</span><span class="wb-live">● 内测版 · 形态预览</span><span class="gif-pill">▶ 动图</span></div>
+              <div class="wb-body">
+                <div class="wb-chat">
+                  <div class="wb-chat-h"><span class="wb-av">许</span><div><b>许复 · 复盘访谈</b><span>以数据为准 · 不看感觉</span></div></div>
+                  <div class="wb-msgs">
+                    <div class="wb-q">先对齐本场目标——这场直播主拉新还是主转化？复盘重点完全不同。</div>
+                    <div class="wb-opts"><i class="on">🎯 主转化</i><i>🧲 主拉新</i><i>📌 混合</i></div>
+                    <div class="wb-a">好，主转化——重点盘「268 观看 → 9 单」的漏斗断点，和 3 段逼单话术的执行偏差。</div>
+                  </div>
+                  <div class="wb-input">🎤 <span>打字或点 🎤 说话…</span><em>发送</em></div>
+                </div>
+                <div class="wb-ws">
+                  <div class="wb-brief">
+                    <div class="wb-brief-h"><b>📊 复盘重点</b><span>3 项交付</span></div>
+                    <div class="wb-meter"><i class="lit"></i><i class="lit"></i><i class="lit"></i><i></i></div>
+                    <div class="wb-grid">
+                      <span class="lit">🧲 流量承接</span><span class="lit">💰 转化漏斗</span><span class="lit">🗣️ 话术执行</span><span>👥 老带新动作</span>
+                    </div>
+                    <div class="wb-gen off">📊 拉完数据后可复盘 · 50 算力/场</div>
+                  </div>
+                  <div class="wb-fee">复盘只对数据说话 · 不看感觉</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- 输出样例 -->
+          <div class="g-view" data-v="s" style="text-align:left">
+            <div class="s-card">
+              <div class="s-head"><span class="s-ico">🧾</span><b>第 14 场直播复盘 · 摘要</b><span>3 项交付</span></div>
+              <div class="s-body">
+                <div class="s-quote">主转化场 · 268 观看 → 9 单——漏斗断点和下场迭代动作都找齐了。</div>
+                <div class="s-line"><b>🧲 流量承接：开场 15 分钟掉线 38%（福利前置过晚）</b><div class="bar"><i style="width:62%"></i></div></div>
+                <div class="s-line"><b>💰 转化漏斗：卡在「报穿搭尺寸」环节，23 人放弃</b><div class="bar"><i style="width:34%"></i></div></div>
+                <div class="s-line"><b>🗣️ 话术执行：3 段逼单话术平均停留 41s，高于均值</b><div class="bar"><i style="width:81%"></i></div></div>
+                <div class="s-chips"><i>迭代 1：福利前置到开场 8 分钟</i><i>迭代 2：报尺寸改一键表单</i><i>迭代 3：引价话术换框架</i></div>
+              </div>
+              <div class="s-foot"><span>复盘只对数据说话 · 不看感觉</span><span>上线价 50 算力/场</span></div>
+              <div class="s-note">每场 3 项交付 + 下场迭代动作 · 以直播后台数据为准</div>
+            </div>
+          </div>
+          <!-- 内测反馈 -->
+          <div class="g-view" data-v="r">
+            <div class="g-rate">
+              <b>30+</b>
+              <div class="stars">👥</div>
+              <span>内测商家 30+ · 上线后开放购买 · 预约优先</span>
+            </div>
+          </div>
+        </div>
+        <div class="g-thumbs">
+          <button class="on" data-t="w" title="工作台形态预览" data-cap="工作台形态预览 · 数据对齐 → 三项交付 → 下场迭代">🧰</button>
+          <button data-t="s" title="输出样例" data-cap="输出样例 · 复盘摘要（流量 / 转化 / 话术执行）">💡</button>
+          <button data-t="r" title="内测反馈" data-cap="内测反馈 · 上线后开放购买，预约用户优先开通">👥</button>
+        </div>
+        <div class="g-cap">工作台形态预览 · 数据对齐 → 三项交付 → 下场迭代</div>
+      </div>
+      <div class="info">
+        <div class="i-title">许复 · 直播复盘导师<span style="font-weight:600;color:var(--muted);font-size:14px">（直播复盘智能体）</span></div>
+        <div class="i-sub"><span class="js-status">内测打磨中 · 支持预约</span></div>
+        <p class="i-desc">整场直播复盘拆解——流量 / 转化 / 话术执行 3 项交付，每场给出下场就能执行的迭代动作。以直播后台数据为准，不看感觉。</p>
+        <div class="i-rate"><b>内测</b><span class="stars">🔍</span><span>预约用户优先开通</span></div>
+        <div class="price-card">
+          <div class="price-line">
+            <span class="num">50</span><span class="unit">算力 / 场</span>
+            <span class="approx">≈ ¥5.0 · 一场完整复盘（上线价）</span>
+          </div>
+          <div class="price-meta">内测期 <em>预约免费</em> · 上线后按次扣算力 · 失败不扣费</div>
+          <div class="guar"><i>⚡ 1元 = 10算力</i><i>🎁 注册赠 100 算力</i><i>📄 账单逐笔可查</i></div>
+        </div>
+        <div class="deliver">
+          <div class="deliver-h">📦 交付清单</div>
+          <ul>
+            <li>1 场直播复盘：流量承接 / 转化漏斗 / 话术执行 · 3 项交付</li>
+            <li>每场附「下场迭代动作」：改哪、怎么改、预期效果</li>
+            <li>复盘前需要：直播后台数据（授权拉取）+ 本场目标</li>
+            <li>与江流 / 周域联动：直播复盘 → 切片短视频 → 朋友圈二次触达</li>
+          </ul>
+        </div>
+        <div class="cta-row js-ctaRow solo">
+          <button class="btn btn-ghost js-cartCta" style="display:none">⚡ 充值算力</button>
+          <button class="btn btn-main js-mainCta" data-price="50" data-unit="/场">📲 预约体验</button>
+        </div>
+        <div class="after-cta js-afterCta">上线价 50 算力/场 ≈ ¥5.0（<em>1 元 = 10 算力</em>）· <em>预约用户优先开通</em> · 留手机号接收上线通知</div>
+      </div>
+    </div>
+
+    <div class="detail">
+      <div class="tabs">
+        <button class="tab on" data-p="0">能力清单</button>
+        <button class="tab" data-p="1">上线形态</button>
+        <button class="tab" data-p="2">内测反馈</button>
+      </div>
+      <div class="panel on" data-p="0">
+        <ul>
+          <li>整场复盘拆解：流量承接 / 转化漏斗 / 话术执行 · 3 项交付</li>
+          <li>以直播后台数据为准：不看「我感觉」，每条结论都有数据支撑</li>
+          <li>下场迭代动作：改哪、怎么改、预期效果，直接排进下场流程</li>
+          <li>与江流 / 周域联动：直播复盘 → 切片短视频 → 朋友圈二次触达</li>
+        </ul>
+      </div>
+      <div class="panel" data-p="1">
+        <p style="margin:2px 0 0">上线后按此形态交付——<b>当前为形态预览动图，以实际上线为准</b>。</p>
+        <div class="wb-shot gif">
+          <span class="gif-tag">▶ 动图 · 自动循环</span>
+          <div class="wb wb-lg">
+            <div class="wb-bar"><span class="t-dot" style="background:#ff5f57"></span><span class="t-dot" style="background:#febc2e"></span><span class="t-dot" style="background:#28c840"></span><span class="wb-url">ai.lcppch.top/agent/ipzone__live-coach/workbench</span><span class="wb-live">复盘进行中 · 3 项交付</span></div>
+            <div class="wb-canvas" style="flex:none;padding:1em">
+              <div class="wb-zone"><b>1️⃣ 对齐目标</b><span class="wb-chips"><i class="in">本场目标 = 主转化 · 实际到场 210 / 300</i></span></div>
+              <div class="wb-zone"><b>2️⃣ 数据体检</b><span class="wb-chips"><i class="in">流量承接：开场掉线 38% ⚠</i><i class="in">转化漏斗：卡在报尺寸环节</i></span></div>
+              <div class="wb-zone"><b>3️⃣ 迭代动作</b><span class="wb-chips"><i class="in">福利前置到开场 8 分钟</i><i class="in">报尺寸改一键表单</i><i class="in">保留 3 段高停留话术</i></span></div>
+              <div class="wb-foot"><span>上线形态预览 · 以实际上线为准</span><span>上线价 50 算力/场 · 内测预约免费</span></div>
+            </div>
+          </div>
+          <div class="shot-cap"><b>复盘进行中 · 三步出迭代动作</b><span>对齐目标 → 数据体检 → 迭代动作，每条结论都有数据支撑，下场照改就能验证。</span></div>
+        </div>
+      </div>
+      <div class="panel" data-p="2">
+        <div class="rev">
+          <div class="rev-head"><div class="rev-ava">马</div><b>马店长 · 女装直播（内测）</b><span class="stars">★★★★★</span></div>
+          <p>复盘不再凭印象——它直接指出第 8 分钟掉人是因为福利前置太晚，下场照改，在线人数翻了一倍。</p>
+        </div>
+        <div class="rev">
+          <div class="rev-head"><div class="rev-ava">蒋</div><b>运营小蒋 · 食品旗舰店（内测）</b><span class="stars">★★★★★</span></div>
+          <p>三项交付里最值钱的是话术执行拆解，哪句话留人、哪句话赶人，标得清清楚楚。</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /agent-sec live-coach -->
+
+  <div class="agent-sec" data-agent="sales-coach" data-online="0">
+    <div class="pd">
+      <div class="gallery">
+        <div class="g-main">
+          <!-- 头图：工作台形态预览（动图循环） -->
+          <div class="g-view on" data-v="w" style="padding:0">
+            <div class="wb">
+              <div class="wb-bar"><span class="t-dot" style="background:#ff5f57"></span><span class="t-dot" style="background:#febc2e"></span><span class="t-dot" style="background:#28c840"></span><span class="wb-url">ai.lcppch.top/agent/ipzone__sales-coach/workbench</span><span class="wb-live">● 内测版 · 形态预览</span><span class="gif-pill">▶ 动图</span></div>
+              <div class="wb-body">
+                <div class="wb-chat">
+                  <div class="wb-chat-h"><span class="wb-av">易</span><div><b>易成 · 对练</b><span>真实场景 · 一问一答</span></div></div>
+                  <div class="wb-msgs">
+                    <div class="wb-q">客户逛完说「我再看看别家」，你的店员现在怎么接？</div>
+                    <div class="wb-opts"><i class="on">「好的您随便看」</i><i>马上递优惠</i><i>跟着出门</i></div>
+                    <div class="wb-a">三种接法都在送客——对练一遍标准接法：不拦人、不贬同行，把「比」变成「留」。</div>
+                  </div>
+                  <div class="wb-input">🎤 <span>打字或点 🎤 说话…</span><em>发送</em></div>
+                </div>
+                <div class="wb-ws">
+                  <div class="wb-brief">
+                    <div class="wb-brief-h"><b>🎯 对练场景</b><span>喂场景就开练</span></div>
+                    <div class="wb-meter"><i class="lit"></i><i class="lit"></i><i class="lit"></i><i></i></div>
+                    <div class="wb-grid">
+                      <span class="lit">🆚 到店比价</span><span class="lit">🚶「我再看看」</span><span class="lit">🤔 犹豫价格</span><span>🔁 老客复购</span>
+                    </div>
+                    <div class="wb-gen off">选定场景后开练 · 25 算力/次</div>
+                  </div>
+                  <div class="wb-fee">先对练再上岗 · 上线后按次计费</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- 输出样例 -->
+          <div class="g-view" data-v="s" style="text-align:left">
+            <div class="s-card">
+              <div class="s-head"><span class="s-ico">🧾</span><b>场景对练 ·「我再看看」标准接法</b><span>话术 + 异议脚本</span></div>
+              <div class="s-body">
+                <div class="s-quote">「没问题，比货比的是服务」——递上对比卡，把主动权拿回来。</div>
+                <div class="s-line"><b>接法：不拦不贬，给比较工具</b><div class="bar"><i style="width:86%"></i></div></div>
+                <div class="s-line"><b>追问：锁定需求，帮客户省事</b><div class="bar"><i style="width:72%"></i></div></div>
+                <div class="s-line"><b>异议：嫌贵 → 拆单次成本，不贬低同行</b><div class="bar"><i style="width:64%"></i></div></div>
+                <div class="s-chips"><i>对比卡话术</i><i>需求追问 2 式</i><i>嫌贵拆解脚本</i></div>
+              </div>
+              <div class="s-foot"><span>每个场景一套话术 + 异议处理脚本</span><span>上线价 25 算力/次</span></div>
+              <div class="s-note">先对练再上岗 · 拿去就能用</div>
+            </div>
+          </div>
+          <!-- 内测反馈 -->
+          <div class="g-view" data-v="r">
+            <div class="g-rate">
+              <b>40+</b>
+              <div class="stars">👥</div>
+              <span>内测商家 40+ · 上线后开放购买 · 预约优先</span>
+            </div>
+          </div>
+        </div>
+        <div class="g-thumbs">
+          <button class="on" data-t="w" title="工作台形态预览" data-cap="工作台形态预览 · 喂场景 → 对练 → 出脚本">🧰</button>
+          <button data-t="s" title="输出样例" data-cap="输出样例 ·「我再看看」标准接法（话术 + 异议脚本）">💡</button>
+          <button data-t="r" title="内测反馈" data-cap="内测反馈 · 上线后开放购买，预约用户优先开通">👥</button>
+        </div>
+        <div class="g-cap">工作台形态预览 · 喂场景 → 对练 → 出脚本</div>
+      </div>
+      <div class="info">
+        <div class="i-title">易成 · 首席成交官<span style="font-weight:600;color:var(--muted);font-size:14px">（销售成交智能体）</span></div>
+        <div class="i-sub"><span class="js-status">内测打磨中 · 支持预约</span></div>
+        <p class="i-desc">门店最难的不是流量是成交——把客户画像和卡点喂给它，模拟对练出话术，异议处理一条条过。每个场景产出成交话术 + 异议处理脚本。</p>
+        <div class="i-rate"><b>内测</b><span class="stars">🔍</span><span>预约用户优先开通</span></div>
+        <div class="price-card">
+          <div class="price-line">
+            <span class="num">25</span><span class="unit">算力 / 次</span>
+            <span class="approx">≈ ¥2.5 · 模拟对练单次 · 全案 50 算力（上线价）</span>
+          </div>
+          <div class="price-meta">内测期 <em>预约免费</em> · 上线后按次扣算力 · 失败不扣费</div>
+          <div class="guar"><i>⚡ 1元 = 10算力</i><i>🎁 注册赠 100 算力</i><i>📄 账单逐笔可查</i></div>
+        </div>
+        <div class="deliver">
+          <div class="deliver-h">📦 交付清单</div>
+          <ul>
+            <li>1 个场景对练：真实卡点一问一答，不是背话术</li>
+            <li>产出成交话术 + 异议处理脚本：拿去就能用</li>
+            <li>全案 50 算力：客群画像 → 场景库 → 话术手册一次配齐</li>
+            <li>与沈定 / 周域联动：定位定客群 → 话术促成交 → 朋友圈养客</li>
+          </ul>
+        </div>
+        <div class="cta-row js-ctaRow solo">
+          <button class="btn btn-ghost js-cartCta" style="display:none">⚡ 充值算力</button>
+          <button class="btn btn-main js-mainCta" data-price="25" data-unit="/次">📲 预约体验</button>
+        </div>
+        <div class="after-cta js-afterCta">上线价 25 算力/次 ≈ ¥2.5 · 全案 50 算力（<em>1 元 = 10 算力</em>）· <em>预约用户优先开通</em> · 留手机号接收上线通知</div>
+      </div>
+    </div>
+
+    <div class="detail">
+      <div class="tabs">
+        <button class="tab on" data-p="0">能力清单</button>
+        <button class="tab" data-p="1">上线形态</button>
+        <button class="tab" data-p="2">内测反馈</button>
+      </div>
+      <div class="panel on" data-p="0">
+        <ul>
+          <li>模拟对练：真实场景一问一答，练完即评分，不是背话术</li>
+          <li>每个场景产出成交话术 + 异议处理脚本</li>
+          <li>全案 50 算力：客群画像 → 场景库 → 话术手册一次配齐</li>
+          <li>与沈定 / 周域联动：定位定客群 → 话术促成交 → 朋友圈养客</li>
+        </ul>
+      </div>
+      <div class="panel" data-p="1">
+        <p style="margin:2px 0 0">上线后按此形态交付——<b>当前为形态预览动图，以实际上线为准</b>。</p>
+        <div class="wb-shot gif">
+          <span class="gif-tag">▶ 动图 · 自动循环</span>
+          <div class="wb wb-lg">
+            <div class="wb-bar"><span class="t-dot" style="background:#ff5f57"></span><span class="t-dot" style="background:#febc2e"></span><span class="t-dot" style="background:#28c840"></span><span class="wb-url">ai.lcppch.top/agent/ipzone__sales-coach/workbench</span><span class="wb-live">对练进行中 · 边练边评分</span></div>
+            <div class="wb-canvas" style="flex:none;padding:1em">
+              <div class="wb-zone"><b>1️⃣ 喂场景</b><span class="wb-chips"><i class="in">客群 = 周边上班族 · 卡点 = 嫌贵</i></span></div>
+              <div class="wb-zone"><b>2️⃣ 对练</b><span class="wb-chips"><i class="in">客户：「我再看看别家」</i><i class="in">店员接法 → 评分 8 / 10</i></span></div>
+              <div class="wb-zone"><b>3️⃣ 出脚本</b><span class="wb-chips"><i class="in">「我再看看」标准接法</i><i class="in">嫌贵拆解 → 一页脚本</i></span></div>
+              <div class="wb-foot"><span>上线形态预览 · 以实际上线为准</span><span>上线价 25 算力/次 · 全案 50 · 内测预约免费</span></div>
+            </div>
+          </div>
+          <div class="shot-cap"><b>对练进行中 · 喂场景就开练</b><span>真实卡点一问一答，练完评分并出脚本——店员跟练几遍，接法自然变对。</span></div>
+        </div>
+      </div>
+      <div class="panel" data-p="2">
+        <div class="rev">
+          <div class="rev-head"><div class="rev-ava">张</div><b>张总 · 童装门店（内测）</b><span class="stars">★★★★★</span></div>
+          <p>店员跟练一周，「我再看看」的接法从「好的您慢走」变成递对比卡，当周成交多了 6 单。</p>
+        </div>
+        <div class="rev">
+          <div class="rev-head"><div class="rev-ava">陈</div><b>店主老陈 · 五金建材（内测）</b><span class="stars">★★★★★</span></div>
+          <p>异议处理脚本最实用——客户嫌贵它不让你降价，教你拆解价值，这单保住了毛利。</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /agent-sec sales-coach -->
+
+  <div class="agent-sec" data-agent="private" data-online="0">
+    <div class="pd">
+      <div class="gallery">
+        <div class="g-main">
+          <!-- 头图：工作台形态预览（动图循环） -->
+          <div class="g-view on" data-v="w" style="padding:0">
+            <div class="wb">
+              <div class="wb-bar"><span class="t-dot" style="background:#ff5f57"></span><span class="t-dot" style="background:#febc2e"></span><span class="t-dot" style="background:#28c840"></span><span class="wb-url">ai.lcppch.top/agent/ipzone__private/workbench</span><span class="wb-live">● 内测版 · 形态预览</span><span class="gif-pill">▶ 动图</span></div>
+              <div class="wb-body">
+                <div class="wb-chat">
+                  <div class="wb-chat-h"><span class="wb-av">周</span><div><b>周域 · 人设访谈</b><span>朋友圈是信任位 · 不是广告位</span></div></div>
+                  <div class="wb-msgs">
+                    <div class="wb-q">你希望客户刷到这条朋友圈时，记住你哪一点？</div>
+                    <div class="wb-opts"><i class="on">🤝 懂行的老朋友</i><i>🏆 行业专家</i><i>😄 生活老板娘</i></div>
+                    <div class="wb-a">好，「懂行的老朋友」——本周 4 条按「信任 2 + 业务 1 + 软引导 1」配，广告不硬。</div>
+                  </div>
+                  <div class="wb-input">🎤 <span>打字或点 🎤 说话…</span><em>发送</em></div>
+                </div>
+                <div class="wb-ws">
+                  <div class="wb-brief">
+                    <div class="wb-brief-h"><b>🗓️ 本周朋友圈</b><span>4 条 / 周</span></div>
+                    <div class="wb-meter"><i class="lit"></i><i class="lit"></i><i class="lit"></i><i></i></div>
+                    <div class="wb-grid">
+                      <span class="lit">🤝 信任向 ×2</span><span class="lit">🛒 业务向 ×1</span><span class="lit">🪝 软引导 ×1</span><span>📅 月历 30 天</span>
+                    </div>
+                    <div class="wb-gen off">确认人设后出文 · 5 算力/条</div>
+                  </div>
+                  <div class="wb-fee">人设是你的 · 文案为你定制</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- 输出样例 -->
+          <div class="g-view" data-v="s" style="text-align:left">
+            <div class="s-card">
+              <div class="s-head"><span class="s-ico">🧾</span><b>朋友圈 · 单条示例</b><span>业务向 · 周三</span></div>
+              <div class="s-body">
+                <div class="s-quote">「上周帮 3 家店改了陈列，销量最好的那家只动了一件事——把爆款挪到了门口（附图）。」</div>
+                <div class="s-line"><b>🤝 信任向：门店日常 + 专业观点，攒人设</b><div class="bar"><i style="width:60%"></i></div></div>
+                <div class="s-line"><b>🛒 业务向：上款 / 到货 / 案例，带单</b><div class="bar"><i style="width:25%"></i></div></div>
+                <div class="s-line"><b>🪝 软引导：提问 / 福利钩子，来问价</b><div class="bar"><i style="width:15%"></i></div></div>
+                <div class="s-chips"><i>人设：懂行的老朋友</i><i>来源：门店动态</i><i>目标：专业感 + 到店</i></div>
+              </div>
+              <div class="s-foot"><span>人设不崩 · 广告不硬 · 节奏不乱</span><span>上线价 5 算力/条 · 月历 50</span></div>
+              <div class="s-note">本周 4 条：信任 2 + 业务 1 + 软引导 1</div>
+            </div>
+          </div>
+          <!-- 内测反馈 -->
+          <div class="g-view" data-v="r">
+            <div class="g-rate">
+              <b>25+</b>
+              <div class="stars">👥</div>
+              <span>内测商家 25+ · 上线后开放购买 · 预约优先</span>
+            </div>
+          </div>
+        </div>
+        <div class="g-thumbs">
+          <button class="on" data-t="w" title="工作台形态预览" data-cap="工作台形态预览 · 对人设 → 排节奏 → 出单条">🧰</button>
+          <button data-t="s" title="输出样例" data-cap="输出样例 · 朋友圈单条（人设 + 节奏配比）">💡</button>
+          <button data-t="r" title="内测反馈" data-cap="内测反馈 · 上线后开放购买，预约用户优先开通">👥</button>
+        </div>
+        <div class="g-cap">工作台形态预览 · 对人设 → 排节奏 → 出单条</div>
+      </div>
+      <div class="info">
+        <div class="i-title">周域 · 私域增长顾问<span style="font-weight:600;color:var(--muted);font-size:14px">（私域增长智能体）</span></div>
+        <div class="i-sub"><span class="js-status">内测打磨中 · 支持预约</span></div>
+        <p class="i-desc">朋友圈不是广告位是信任位——按你的人设和目标出单条文案，30 天月历方案一次排齐，客户刷到的永远是「懂行的老朋友」。</p>
+        <div class="i-rate"><b>内测</b><span class="stars">🔍</span><span>预约用户优先开通</span></div>
+        <div class="price-card">
+          <div class="price-line">
+            <span class="num">5</span><span class="unit">算力 / 条</span>
+            <span class="approx">≈ ¥0.5 · 1 条朋友圈 · 月历方案 50 算力（上线价）</span>
+          </div>
+          <div class="price-meta">内测期 <em>预约免费</em> · 上线后按条扣算力 · 失败不扣费</div>
+          <div class="guar"><i>⚡ 1元 = 10算力</i><i>🎁 注册赠 100 算力</i><i>📄 账单逐笔可查</i></div>
+        </div>
+        <div class="deliver">
+          <div class="deliver-h">📦 交付清单</div>
+          <ul>
+            <li>1 条朋友圈文案：带阶段标签 + 来源 + 目标（上线价 5 算力）</li>
+            <li>月历方案 50 算力：30 天节奏一次排齐，照着发就行</li>
+            <li>按人设出文：懂行的老朋友，不是硬广机器</li>
+            <li>与秦文 / 罗盘联动：团购文案 → 直播话术 → 朋友圈二次触达</li>
+          </ul>
+        </div>
+        <div class="cta-row js-ctaRow solo">
+          <button class="btn btn-ghost js-cartCta" style="display:none">⚡ 充值算力</button>
+          <button class="btn btn-main js-mainCta" data-price="5" data-unit="/条">📲 预约体验</button>
+        </div>
+        <div class="after-cta js-afterCta">上线价 5 算力/条 ≈ ¥0.5 · 月历 50 算力（<em>1 元 = 10 算力</em>）· <em>预约用户优先开通</em> · 留手机号接收上线通知</div>
+      </div>
+    </div>
+
+    <div class="detail">
+      <div class="tabs">
+        <button class="tab on" data-p="0">能力清单</button>
+        <button class="tab" data-p="1">上线形态</button>
+        <button class="tab" data-p="2">内测反馈</button>
+      </div>
+      <div class="panel on" data-p="0">
+        <ul>
+          <li>朋友圈单条 5 算力：带阶段标签 + 来源 + 目标</li>
+          <li>月历方案 50 算力：30 天节奏一次排齐（信任为主 · 业务点缀 · 软引导收口）</li>
+          <li>按人设出文：对齐「懂行的老朋友」，禁用词提前锁定</li>
+          <li>与秦文 / 罗盘联动：团购文案 → 直播话术 → 朋友圈二次触达</li>
+        </ul>
+      </div>
+      <div class="panel" data-p="1">
+        <p style="margin:2px 0 0">上线后按此形态交付——<b>当前为形态预览动图，以实际上线为准</b>。</p>
+        <div class="wb-shot gif">
+          <span class="gif-tag">▶ 动图 · 自动循环</span>
+          <div class="wb wb-lg">
+            <div class="wb-bar"><span class="t-dot" style="background:#ff5f57"></span><span class="t-dot" style="background:#febc2e"></span><span class="t-dot" style="background:#28c840"></span><span class="wb-url">ai.lcppch.top/agent/ipzone__private/workbench</span><span class="wb-live">排期出文中 · 人设优先</span></div>
+            <div class="wb-canvas" style="flex:none;padding:1em">
+              <div class="wb-zone"><b>1️⃣ 对人设</b><span class="wb-chips"><i class="in">人设 = 懂行的老朋友 · 禁用词：喜报体</i></span></div>
+              <div class="wb-zone"><b>2️⃣ 排节奏</b><span class="wb-chips"><i class="in">信任 2 + 业务 1 + 软引导 1 → 周历</i></span></div>
+              <div class="wb-zone"><b>3️⃣ 出单条</b><span class="wb-chips"><i class="in">周三 · 业务向：陈列改动 + 实拍</i><i class="in">周日 · 软引导：提问钩子</i></span></div>
+              <div class="wb-foot"><span>上线形态预览 · 以实际上线为准</span><span>上线价 5 算力/条 · 月历 50 · 内测预约免费</span></div>
+            </div>
+          </div>
+          <div class="shot-cap"><b>排期出文中 · 一周一历一条条出</b><span>对人设 → 排节奏 → 出单条，客户刷到的永远是懂行的老朋友，不是硬广机器。</span></div>
+        </div>
+      </div>
+      <div class="panel" data-p="2">
+        <div class="rev">
+          <div class="rev-head"><div class="rev-ava">周</div><b>周老板 · 生鲜社区店（内测）</b><span class="stars">★★★★★</span></div>
+          <p>以前发圈靠灵感，现在按周历走——信任条攒人设、业务条带单，两周涨了 40 多个到店客。</p>
+        </div>
+        <div class="rev">
+          <div class="rev-head"><div class="rev-ava">莉</div><b>Lily · 美甲工作室（内测）</b><span class="stars">★★★★★</span></div>
+          <p>最怕发硬广掉粉，它出的软引导条客户会主动来问价，一点不反感。</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /agent-sec private -->
+
+  <!-- ============ v6 商品 sec：AI硬件 / AI课程（人民币直购，卡片只留加购，详情页才有立即购买） ============ -->
+
+  <div class="agent-sec" data-agent="hwRec" data-online="1" data-type="product">
+    <div class="pd">
+      <div class="gallery">
+        <div class="g-main">
+          <div class="g-view on" data-v="0" style="padding:0">
+            <div class="p-hero"><span class="ph-ico">🎙️</span><span class="ph-badge">硬件新品</span><span class="ph-name">AI 录音卡 · 录音即分析</span></div>
+          </div>
+          <div class="g-view" data-v="1">
+            <div class="p-feat">
+              <div class="pf-row"><span class="pf-ico">🎧</span><div><b>录音即分析</b><span>客户沟通、门店会议边录边转文字，重点自动标出，不用回头听录音。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">🗂️</span><div><b>沟通自动归档</b><span>按客户 / 日期自动归档，聊天记录式检索，找一段话 3 秒钟。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">✨</span><div><b>话术要点提炼</b><span>AI 自动提炼承诺点、异议点、跟进点，销售复盘直接照着改。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">🚀</span><div><b>一键转经营动作</b><span>分析结果一键生成待办：回访谁、补什么货、哪句话术要改。</span></div></div>
+            </div>
+          </div>
+          <div class="g-view" data-v="2">
+            <div class="g-rate"><b>7天</b><div class="stars">🛡️</div><span>无理由退换 · 1 年质保 · 顺丰包邮 · 电子发票</span></div>
+          </div>
+        </div>
+        <div class="g-thumbs">
+          <button class="on" data-t="0" title="商品主图" data-cap="AI 录音卡 · 硬件新品 · 人民币直购">🎙️</button>
+          <button data-t="1" title="核心卖点" data-cap="核心卖点 · 录音即分析 → 沟通归档 → 话术提炼 → 经营动作">✨</button>
+          <button data-t="2" title="售后保障" data-cap="售后保障 · 7 天无理由 · 1 年质保 · 包邮开票">🛡️</button>
+        </div>
+        <div class="g-cap">AI 录音卡 · 硬件新品 · 人民币直购</div>
+      </div>
+      <div class="info">
+        <div class="i-title">AI 录音卡<span style="font-weight:600;color:var(--muted);font-size:14px">（AI 硬件 · 人民币直购）</span></div>
+        <div class="i-sub"><span class="tagp">思潼AI 精选商品</span><span>·</span><span class="js-status">现货 · 可直接购买</span></div>
+        <p class="i-desc">给门店配一台「AI 记录员」——录音即分析：客户沟通自动归档、话术要点自动提炼，分析结果一键转成经营动作，老板不用盯现场也知道聊了什么、接下来做什么。</p>
+        <div class="i-rate"><b>新品</b><span class="stars">🎙️</span><span>首批商家内测好评中</span></div>
+        <div class="price-card">
+          <div class="price-line">
+            <span class="num">¥199</span><span class="unit">/ 台</span>
+            <span class="approx">人民币直购 · 不耗算力</span>
+          </div>
+          <div class="price-meta">微信支付 · <em>7 天无理由退换</em> · 1 年质保 · 顺丰包邮 · 电子发票</div>
+          <div class="guar"><i>🚚 48h 发货</i><i>🛡️ 正品保障</i><i>📄 电子发票</i></div>
+        </div>
+        <div class="deliver">
+          <div class="deliver-h">📦 包装清单</div>
+          <ul>
+            <li>AI 录音卡主机 ×1（名片大小 · 随身携带）</li>
+            <li>磁吸充电底座 + 数据线</li>
+            <li>快速上手指南（扫码即用，无需安装）</li>
+          </ul>
+        </div>
+        <div class="cta-row js-ctaRow">
+          <button class="btn btn-ghost js-cartCta">🛒 加入购物车</button>
+          <button class="btn btn-main js-mainCta" data-price="¥199 /台">🛍️ 立即购买</button>
+        </div>
+        <div class="after-cta js-afterCta">正品保障 · <em>7 天无理由退换</em> · 微信支付 · 电子发票</div>
+      </div>
+    </div>
+    <div class="detail">
+      <div class="tabs">
+        <button class="tab on" data-p="0">商品说明</button>
+        <button class="tab" data-p="1">规格参数</button>
+        <button class="tab" data-p="2">售后保障</button>
+      </div>
+      <div class="panel on" data-p="0">
+        <ul>
+          <li>录音即分析：边录边转文字，重点、待办、承诺点自动标出</li>
+          <li>客户沟通自动归档：按客户 / 日期整理，检索 3 秒定位</li>
+          <li>话术要点提炼：异议点、跟进点 AI 总结，复盘直接照着改</li>
+          <li>一键转经营动作：回访、补货、话术修改自动生成待办</li>
+        </ul>
+      </div>
+      <div class="panel" data-p="1">
+        <h3>硬件</h3>
+        <p>名片大小随身携带 · 内置麦克风阵列 · 满电连续录音 8 小时。</p>
+        <h3>连接</h3>
+        <p>微信小程序扫码即用，录音与分析结果云端同步，手机 / 电脑都能看。</p>
+      </div>
+      <div class="panel" data-p="2">
+        <p style="margin:2px 0 0">7 天无理由退换 · 1 年质保 · 顺丰包邮 · 电子发票。质量问题 48h 内响应，换新不用等维修。</p>
+      </div>
+    </div>
+  </div><!-- /agent-sec hwRec -->
+
+  <div class="agent-sec" data-agent="hwRobot" data-online="1" data-type="product">
+    <div class="pd">
+      <div class="gallery">
+        <div class="g-main">
+          <div class="g-view on" data-v="0" style="padding:0">
+            <div class="p-hero"><span class="ph-ico">🤖</span><span class="ph-badge">硬件新品</span><span class="ph-name">门店 AI 机器人 · 迎宾接待</span></div>
+          </div>
+          <div class="g-view" data-v="1">
+            <div class="p-feat">
+              <div class="pf-row"><span class="pf-ico">👋</span><div><b>迎宾接待</b><span>客户进门主动打招呼、介绍活动，第一句开口不冷场。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">💬</span><div><b>导购问答</b><span>产品、价格、活动问题随问随答，答不了的转接店员。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">🗣️</span><div><b>常用话术语音</b><span>门店话术库内置，语音随叫随到，新员工也能对答如流。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">📊</span><div><b>接待数据日报</b><span>每天接待多少人、问了什么，自动汇总成日报发给你。</span></div></div>
+            </div>
+          </div>
+          <div class="g-view" data-v="2">
+            <div class="g-rate"><b>7天</b><div class="stars">🛡️</div><span>无理由退换 · 1 年质保 · 顺丰包邮 · 电子发票</span></div>
+          </div>
+        </div>
+        <div class="g-thumbs">
+          <button class="on" data-t="0" title="商品主图" data-cap="门店 AI 机器人 · 硬件新品 · 人民币直购">🤖</button>
+          <button data-t="1" title="核心卖点" data-cap="核心卖点 · 迎宾接待 → 导购问答 → 话术语音 → 接待日报">✨</button>
+          <button data-t="2" title="售后保障" data-cap="售后保障 · 7 天无理由 · 1 年质保 · 包邮开票">🛡️</button>
+        </div>
+        <div class="g-cap">门店 AI 机器人 · 硬件新品 · 人民币直购</div>
+      </div>
+      <div class="info">
+        <div class="i-title">门店 AI 机器人<span style="font-weight:600;color:var(--muted);font-size:14px">（AI 硬件 · 人民币直购）</span></div>
+        <div class="i-sub"><span class="tagp">思潼AI 精选商品</span><span>·</span><span class="js-status">现货 · 可直接购买</span></div>
+        <p class="i-desc">给门店配一个「不知疲倦的接待员」——迎宾接待、导购问答，常用话术语音随叫随到，前台接待不冷场，接待情况每天自动汇总成日报。</p>
+        <div class="i-rate"><b>新品</b><span class="stars">🤖</span><span>首批商家内测好评中</span></div>
+        <div class="price-card">
+          <div class="price-line">
+            <span class="num">¥1,999</span><span class="unit">/ 台</span>
+            <span class="approx">人民币直购 · 不耗算力</span>
+          </div>
+          <div class="price-meta">微信支付 · <em>7 天无理由退换</em> · 1 年质保 · 顺丰包邮 · 电子发票</div>
+          <div class="guar"><i>🚚 48h 发货</i><i>🛡️ 正品保障</i><i>📄 电子发票</i></div>
+        </div>
+        <div class="deliver">
+          <div class="deliver-h">📦 包装清单</div>
+          <ul>
+            <li>门店 AI 机器人主机 ×1（立式 · 即插即用）</li>
+            <li>电源适配器 + 底座固定件</li>
+            <li>快速部署指南（门店话术库首次配置免费协助）</li>
+          </ul>
+        </div>
+        <div class="cta-row js-ctaRow">
+          <button class="btn btn-ghost js-cartCta">🛒 加入购物车</button>
+          <button class="btn btn-main js-mainCta" data-price="¥1,999 /台">🛍️ 立即购买</button>
+        </div>
+        <div class="after-cta js-afterCta">正品保障 · <em>7 天无理由退换</em> · 微信支付 · 电子发票</div>
+      </div>
+    </div>
+    <div class="detail">
+      <div class="tabs">
+        <button class="tab on" data-p="0">商品说明</button>
+        <button class="tab" data-p="1">规格参数</button>
+        <button class="tab" data-p="2">售后保障</button>
+      </div>
+      <div class="panel on" data-p="0">
+        <ul>
+          <li>迎宾接待：客户进门主动招呼，活动信息自动播报</li>
+          <li>导购问答：产品 / 价格 / 活动随问随答，答不了转接店员</li>
+          <li>常用话术语音：门店话术库内置，新员工也能对答如流</li>
+          <li>接待数据日报：接待量、高频问题自动汇总，每天推送</li>
+        </ul>
+      </div>
+      <div class="panel" data-p="1">
+        <h3>硬件</h3>
+        <p>立式即插即用 · 触摸屏 + 语音交互 · 双阵列麦克风，嘈杂环境也能听清。</p>
+        <h3>部署</h3>
+        <p>通电联网即用，门店话术库首次配置由思潼团队免费协助，后续可自助更新。</p>
+      </div>
+      <div class="panel" data-p="2">
+        <p style="margin:2px 0 0">7 天无理由退换 · 1 年质保 · 顺丰包邮 · 电子发票。质量问题 48h 内响应，支持上门检修（限主要城市）。</p>
+      </div>
+    </div>
+  </div><!-- /agent-sec hwRobot -->
+
+  <div class="agent-sec" data-agent="courseAgent" data-online="1" data-type="product">
+    <div class="pd">
+      <div class="gallery">
+        <div class="g-main">
+          <div class="g-view on" data-v="0" style="padding:0">
+            <div class="p-hero"><span class="ph-ico">🎓</span><span class="ph-badge">视频课</span><span class="ph-name">智能体开发课 · 从 0 到 1</span></div>
+          </div>
+          <div class="g-view" data-v="1">
+            <div class="p-feat">
+              <div class="pf-row"><span class="pf-ico">🧱</span><div><b>从 0 到 1</b><span>不写代码也能搭出自己的智能体工作流，每一节跟着点就能会。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">🛠️</span><div><b>真实业务案例</b><span>获客文案、接待问答、复盘助手三个案例全程实操。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">♾️</span><div><b>一次购买永久回看</b><span>课程更新免费同步，随时回看不限时。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">👥</span><div><b>学员社群答疑</b><span>购买即进学员群，搭不出来的时候有人帮你。</span></div></div>
+            </div>
+          </div>
+          <div class="g-view" data-v="2">
+            <div class="g-rate"><b>4.9</b><div class="stars">★★★★★</div><span>首批学员评分 · 购买后 7 天内未观看可退</span></div>
+          </div>
+        </div>
+        <div class="g-thumbs">
+          <button class="on" data-t="0" title="课程主图" data-cap="智能体开发课 · 视频课 · 人民币直购">🎓</button>
+          <button data-t="1" title="课程亮点" data-cap="课程亮点 · 从 0 到 1 + 真实业务案例 + 永久回看 + 社群答疑">✨</button>
+          <button data-t="2" title="学员评价" data-cap="学员评价 · 首批学员 4.9 分 · 7 天内未观看可退">⭐</button>
+        </div>
+        <div class="g-cap">智能体开发课 · 视频课 · 人民币直购</div>
+      </div>
+      <div class="info">
+        <div class="i-title">智能体开发课<span style="font-weight:600;color:var(--muted);font-size:14px">（AI 课程 · 人民币直购）</span></div>
+        <div class="i-sub"><span class="tagp">思潼AI 精选课程</span><span>·</span><span class="js-status">已上线 · 报名即学</span></div>
+        <p class="i-desc">从 0 到 1 学会搭建自己的智能体工作流：不写代码，跟着真实业务案例一步步做，学完你就有三台能干活的「自己的数字员工」。</p>
+        <div class="i-rate"><b>4.9</b><span class="stars">★★★★★</span><span>首批学员评分</span></div>
+        <div class="price-card">
+          <div class="price-line">
+            <span class="num">¥199</span><span class="unit">/ 门</span>
+            <span class="approx">人民币直购 · 不耗算力</span>
+          </div>
+          <div class="price-meta">微信支付 · <em>7 天内未观看可退</em> · 一次购买永久回看 · 电子发票</div>
+          <div class="guar"><i>♾️ 永久回看</i><i>👥 学员社群</i><i>📄 电子发票</i></div>
+        </div>
+        <div class="deliver">
+          <div class="deliver-h">🎓 你将获得</div>
+          <ul>
+            <li>全程视频课（跟着点就能会，不写代码）</li>
+            <li>3 个真实业务案例实操：获客文案 / 接待问答 / 复盘助手</li>
+            <li>全套课件 + 提示词模板，拿来就能用</li>
+            <li>学员社群答疑 + 课程更新免费同步</li>
+          </ul>
+        </div>
+        <div class="cta-row js-ctaRow">
+          <button class="btn btn-ghost js-cartCta">🛒 加入购物车</button>
+          <button class="btn btn-main js-mainCta" data-price="¥199 /门">🛍️ 立即购买</button>
+        </div>
+        <div class="after-cta js-afterCta">一次购买 · <em>永久回看</em> · 7 天内未观看可退 · 电子发票</div>
+      </div>
+    </div>
+    <div class="detail">
+      <div class="tabs">
+        <button class="tab on" data-p="0">课程内容</button>
+        <button class="tab" data-p="1">适合谁</button>
+        <button class="tab" data-p="2">学习方式</button>
+      </div>
+      <div class="panel on" data-p="0">
+        <ul>
+          <li>第 1 章 认识智能体：它能替你干什么、怎么想清楚第一步</li>
+          <li>第 2 章 搭建第一台智能体：跟着点，30 分钟跑通</li>
+          <li>第 3 章 三个业务案例：获客文案 / 接待问答 / 复盘助手</li>
+          <li>第 4 章 工作流串联：让多台智能体接力干活</li>
+        </ul>
+      </div>
+      <div class="panel" data-p="1">
+        <p style="margin:2px 0 0">门店 / 服务行业老板和骨干、想用 AI 提效但不会写代码的人；不需要任何技术背景，会用微信就能学。</p>
+      </div>
+      <div class="panel" data-p="2">
+        <p style="margin:2px 0 0">录播视频 + 课件模板，手机 / 电脑随时学；一次购买永久回看，课程更新免费同步；学员群随时提问。</p>
+      </div>
+    </div>
+  </div><!-- /agent-sec courseAgent -->
+
+  <div class="agent-sec" data-agent="courseWb" data-online="1" data-type="product">
+    <div class="pd">
+      <div class="gallery">
+        <div class="g-main">
+          <div class="g-view on" data-v="0" style="padding:0">
+            <div class="p-hero"><span class="ph-ico">📊</span><span class="ph-badge">实操课</span><span class="ph-name">WorkBuddy 办公提效课 · 即学即用</span></div>
+          </div>
+          <div class="g-view" data-v="1">
+            <div class="p-feat">
+              <div class="pf-row"><span class="pf-ico">📝</span><div><b>日报周报一键成稿</b><span>说几句要点，AI 帮你写成型，格式规范不用再抠。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">📑</span><div><b>方案 / 表格提速</b><span>方案框架、表格公式 AI 帮你起头，加班时间省一半。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">⚡</span><div><b>即学即用</b><span>每节 10 分钟以内，学完当天就能用在手头的活上。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">♾️</span><div><b>一次购买永久回看</b><span>案例持续更新，跟着新版 AI 一起升级。</span></div></div>
+            </div>
+          </div>
+          <div class="g-view" data-v="2">
+            <div class="g-rate"><b>4.8</b><div class="stars">★★★★★</div><span>首批学员评分 · 购买后 7 天内未观看可退</span></div>
+          </div>
+        </div>
+        <div class="g-thumbs">
+          <button class="on" data-t="0" title="课程主图" data-cap="WorkBuddy 办公提效课 · 实操课 · 人民币直购">📊</button>
+          <button data-t="1" title="课程亮点" data-cap="课程亮点 · 日报周报 / 方案表格 + 每节 10 分钟 + 永久回看">✨</button>
+          <button data-t="2" title="学员评价" data-cap="学员评价 · 首批学员 4.8 分 · 7 天内未观看可退">⭐</button>
+        </div>
+        <div class="g-cap">WorkBuddy 办公提效课 · 实操课 · 人民币直购</div>
+      </div>
+      <div class="info">
+        <div class="i-title">WorkBuddy 办公提效课<span style="font-weight:600;color:var(--muted);font-size:14px">（AI 课程 · 人民币直购）</span></div>
+        <div class="i-sub"><span class="tagp">思潼AI 精选课程</span><span>·</span><span class="js-status">已上线 · 报名即学</span></div>
+        <p class="i-desc">用 AI 把日报、周报、方案、表格这些日常活干得更快：每节 10 分钟以内，全是手把手实操，学完当天就能用在自己手头的工作上。</p>
+        <div class="i-rate"><b>4.8</b><span class="stars">★★★★★</span><span>首批学员评分</span></div>
+        <div class="price-card">
+          <div class="price-line">
+            <span class="num">¥99</span><span class="unit">/ 门</span>
+            <span class="approx">人民币直购 · 不耗算力</span>
+          </div>
+          <div class="price-meta">微信支付 · <em>7 天内未观看可退</em> · 一次购买永久回看 · 电子发票</div>
+          <div class="guar"><i>♾️ 永久回看</i><i>👥 学员社群</i><i>📄 电子发票</i></div>
+        </div>
+        <div class="deliver">
+          <div class="deliver-h">🎓 你将获得</div>
+          <ul>
+            <li>12 节实操短视频（每节 10 分钟以内）</li>
+            <li>日报 / 周报 / 方案 / 表格四套提示词模板</li>
+            <li>办公场景 AI 工具清单（含免费工具推荐）</li>
+            <li>学员社群答疑 + 案例更新免费同步</li>
+          </ul>
+        </div>
+        <div class="cta-row js-ctaRow">
+          <button class="btn btn-ghost js-cartCta">🛒 加入购物车</button>
+          <button class="btn btn-main js-mainCta" data-price="¥99 /门">🛍️ 立即购买</button>
+        </div>
+        <div class="after-cta js-afterCta">一次购买 · <em>永久回看</em> · 7 天内未观看可退 · 电子发票</div>
+      </div>
+    </div>
+    <div class="detail">
+      <div class="tabs">
+        <button class="tab on" data-p="0">课程内容</button>
+        <button class="tab" data-p="1">适合谁</button>
+        <button class="tab" data-p="2">学习方式</button>
+      </div>
+      <div class="panel on" data-p="0">
+        <ul>
+          <li>日报周报：要点变成稿，格式规范一次搞定</li>
+          <li>方案提速：框架、初稿、润色 AI 分步帮你</li>
+          <li>表格公式：说人话就能生成公式和图表</li>
+          <li>会议纪要：录音转纪要，待办自动摘出来</li>
+        </ul>
+      </div>
+      <div class="panel" data-p="1">
+        <p style="margin:2px 0 0">每天被日报周报、方案表格占满的职场人和管理者；不需要任何技术背景，会打字就能学。</p>
+      </div>
+      <div class="panel" data-p="2">
+        <p style="margin:2px 0 0">录播视频 + 模板包，手机 / 电脑随时学；一次购买永久回看，案例更新免费同步；学员群随时提问。</p>
+      </div>
+    </div>
+  </div><!-- /agent-sec courseWb -->
+
+  <div class="foot">思潼AI商城 · 商品详情页设计原型 · 20260923 · v6 20260927 商品接入（AI硬件/AI课程卡片只留加购，详情页才有立即购买）· 仅作设计评审，不进生产代码</div>
+</div>
+
+<!-- ============ 预约弹窗（未上线智能体） ============ -->
+<div class="mask" id="mask">
+  <div class="bk-card" id="bkCard">
+    <button class="bk-close" id="bkClose" title="关闭">×</button>
+
+    <!-- 表单态 -->
+    <div class="bk-form">
+      <div class="bk-ico">📲</div>
+      <h4>预约「<span id="bkName">沈定 · 首席定位官</span>」</h4>
+      <p>该数字员工正在打磨中，左侧可先看 <em>demo 演示</em>。留下手机号，上线后第一时间通知你。</p>
+      <div class="bk-input">
+        <input type="tel" id="bkPhone" maxlength="11" placeholder="请输入手机号" inputmode="numeric">
+      </div>
+      <div class="bk-err" id="bkErr">请输入正确的 11 位手机号</div>
+      <button class="btn btn-main bk-submit" id="bkSubmit">确认预约</button>
+      <div class="bk-tip">仅用于上线通知，不做营销骚扰</div>
+    </div>
+
+    <!-- 成功态 -->
+    <div class="bk-ok">
+      <div class="bk-ok-ico">✓</div>
+      <h4>预约成功</h4>
+      <p>上线后将第一时间短信通知你<br>预约用户可优先开通体验</p>
+    </div>
+  </div>
+</div>
+
+<!-- 新手帮助 · 术语词典（v7） -->
+<button class="help-fab" id="helpFab" title="新手帮助 · 术语词典">?</button>
+<div class="mask" id="helpMask2">
+  <div class="hp-card">
+    <button class="hp-close" id="hpClose">×</button>
+    <h4>❓ 新手帮助 · 术语词典</h4>
+    <p class="hp-sub">看不懂的词这里都有 · 也可以去商城问 AI 管家小潼</p>
+    <div class="hp-item"><b>⚡ 算力</b><span>商城里唯一的「钱」：1 元 = 10 算力。智能体按次扣算力，例：本单 99 算力 ≈ ¥9.9。</span></div>
+    <div class="hp-item"><b>🪙 积分（旧称）</b><span>以前叫「积分」，现在统一叫「算力」，是同一样东西。</span></div>
+    <div class="hp-item"><b>💬 访谈</b><span>智能体开工前先问你几个问题（一次只问一个），你的回答会自动填进「简报」——AI 照着做才不跑偏。</span></div>
+    <div class="hp-item"><b>📋 简报</b><span>访谈答完自动生成的一页「任务卡」，字段可逐条改，你确认后才生成，改简报不花钱。</span></div>
+    <div class="hp-item"><b>🆓 0 元开通 · 用后扣费</b><span>智能体不收月费、不用不花钱；点了「立即使用」并成功交付后才扣算力。</span></div>
+    <div class="hp-item"><b>📦 交付才扣</b><span>东西做好、你在交付区看到结果了才扣算力，中途退出不算你头上。</span></div>
+    <div class="hp-item"><b>🛡️ 失败不扣费</b><span>任务失败 / 超时不扣算力，余额原路不动。</span></div>
+    <div class="hp-item"><b>🎁 赠送算力</b><span>注册 / 签到 / 邀请送的算力 90 天有效、限自营文字类智能体；充值所得（含赠送）通用不限。</span></div>
+  </div>
+</div>
+
+<script>
+  /* ---------- 通用工具 ---------- */
+  var $=function(s,r){return (r||document).querySelector(s)},
+      $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+
+  /* ---------- 多商品切换（v4：每个智能体一个 agent-sec） ---------- */
+  var SECS=$$('.agent-sec'),curSec=null,
+      agChips=document.getElementById('agChips'),
+      modeOnline=document.getElementById('modeOnline'),modeDemo=document.getElementById('modeDemo'),
+      mask=document.getElementById('mask'),bkCard=document.getElementById('bkCard'),
+      bkClose=document.getElementById('bkClose'),bkPhone=document.getElementById('bkPhone'),
+      bkErr=document.getElementById('bkErr'),bkSubmit=document.getElementById('bkSubmit');
+
+  // 已上架 sec 的 after-cta 文案各自定制（如江流「体检不扣算力」），先捕获原件，切模式时还原
+  SECS.forEach(function(sec){
+    if(sec.dataset.online==='1'){
+      var a=$('.js-afterCta',sec);
+      if(a)a.dataset.onafter=a.innerHTML;
+    }
+  });
+
+  function setMode(online){
+    if(!curSec)return;
+    curSec.dataset.curOnline=online?'1':'0';
+    modeOnline.classList.toggle('on',online);
+    modeDemo.classList.toggle('on',!online);
+    var st=$('.js-status',curSec),main=$('.js-mainCta',curSec),
+        cart=$('.js-cartCta',curSec),row=$('.js-ctaRow',curSec),after=$('.js-afterCta',curSec);
+    if(!main)return;
+    if(cart)cart.style.display=online?'':'none';
+    if(row)row.classList.toggle('solo',!online);
+    if(online){
+      if(curSec.dataset.type==='product'){ /* v6 商品：人民币直购，不拼算力文案 */
+        if(st)st.textContent='现货 · 可直接购买';
+        main.innerHTML='🛍️ 立即购买（'+(main.dataset.price||'?')+'）';
+        if(after)after.innerHTML=after.dataset.onafter||'正品保障 · <em>7 天无理由</em> · 微信支付 · 电子发票';
+      }else{
+        if(st)st.textContent='已上线 · 可直接对话';
+        main.innerHTML='⚡ 立即使用（'+(main.dataset.price||'?')+' 算力'+(main.dataset.unit||'/次')+'）';
+        if(after)after.innerHTML=after.dataset.onafter||'交付才扣算力 · <em>失败不扣费</em> · 交付物云端保存可回看';
+      }
+    }else{
+      if(st)st.textContent='内测打磨中 · 支持预约';
+      main.innerHTML='📲 预约体验';
+      if(after)after.innerHTML='上线前可免费预约 · <em>预约用户优先开通</em> · 留手机号接收上线通知';
+    }
+  }
+  modeOnline.addEventListener('click',function(){setMode(true)});
+  modeDemo.addEventListener('click',function(){setMode(false)});
+
+  function resetSec(sec){
+    var ths=$$('.g-thumbs button',sec),first=ths[0]?ths[0].dataset.t:null;
+    ths.forEach(function(b,i){b.classList.toggle('on',i===0)});
+    $$('.g-view',sec).forEach(function(v){v.classList.toggle('on',v.dataset.v===first)});
+    var capE=$('.g-cap',sec);
+    if(capE&&ths[0]&&ths[0].dataset.cap)capE.textContent=ths[0].dataset.cap;
+    $$('.tab',sec).forEach(function(t,i){t.classList.toggle('on',i===0)});
+    $$('.panel',sec).forEach(function(p){p.classList.toggle('on',p.dataset.p==='0')});
+  }
+
+  function cur(sec){
+    if(!sec)return;
+    curSec=sec;
+    SECS.forEach(function(s){s.classList.toggle('on',s===sec)});
+    $$('#agChips [data-ag]').forEach(function(b){b.classList.toggle('on',b.dataset.ag===sec.dataset.agent)});
+    resetSec(sec);
+    window.scrollTo(0,0);
+    setMode(sec.dataset.online==='1');
+    if(sec.dataset.agent==='shending'){wbPlay()}else{wbStop();termStop()}
+  }
+
+  agChips.addEventListener('click',function(e){
+    var b=e.target.closest('[data-ag]');if(!b)return;
+    cur(SECS.filter(function(s){return s.dataset.agent===b.dataset.ag})[0]);
+  });
+
+  /* ---------- 每个 sec 内部交互（缩略图 / tabs / CTA） ---------- */
+  SECS.forEach(function(sec){
+    var gthumbs=$('.g-thumbs',sec),gcap=$('.g-cap',sec);
+    gthumbs.addEventListener('click',function(e){
+      var b=e.target.closest('button');if(!b)return;
+      $$('.g-thumbs button',sec).forEach(function(x){x.classList.remove('on')});
+      b.classList.add('on');
+      var i=b.dataset.t;
+      $$('.g-view',sec).forEach(function(v){v.classList.toggle('on',v.dataset.v===i)});
+      if(gcap&&b.dataset.cap)gcap.textContent=b.dataset.cap;
+      if(sec.dataset.agent==='shending'){
+        if(i==='6'){wbStop();termStop();wbPlay()}
+        else if(i==='0'){wbStop();termPlay()}
+        else{wbStop();termStop()}
+      }
+    });
+    var tabs=$('.tabs',sec);
+    tabs.addEventListener('click',function(e){
+      var b=e.target.closest('.tab');if(!b)return;
+      $$('.tab',tabs).forEach(function(x){x.classList.remove('on')});
+      b.classList.add('on');
+      $$('.panel',sec).forEach(function(p){p.classList.toggle('on',p.dataset.p===b.dataset.p)});
+    });
+    var main=$('.js-mainCta',sec),cart=$('.js-cartCta',sec);
+    var WBMAP={shending:'ip-pos-workbench-demo-20260924.html?v=3',qinwen:'copy-workbench-demo-20260922.html?v=p7',luopan:'livescript-workbench-demo-20260924.html?v=2',jiangliu:'vidrev-workbench-demo-20260924.html?v=2',hece:'topic-strategist-demo-20260922.html?v=3'};
+    if(main)main.addEventListener('click',function(){
+      if(sec.dataset.type==='product'){ /* v6 商品：下单走人民币支付流程，不进工作台 */
+        alert('原型示意：立即购买（'+(main.dataset.price||'')+'）→ 确认订单 → 微信支付 → 下单成功进「我的 · 全部订单」。支持 7 天无理由退换。');
+        return;
+      }
+      if(sec.dataset.curOnline!=='1'){openBk(sec)}
+      else{
+        var wb=WBMAP[sec.dataset.agent];
+        if(wb){ dtToast('已开通 · 交付后才扣算力，失败不扣费'); setTimeout(function(){ location.href=wb; },600); return }
+        alert('原型示意：立即使用 → 校验算力余额 → 直接进工作台发任务 → 交付后扣 '+(main.dataset.price||'?')+' 算力（失败不扣费 · 余额不足先充值）。不产生商品订单，消耗记入「算力明细」。')
+      }
+    });
+    if(cart)cart.addEventListener('click',function(){
+      if(sec.dataset.type==='product'){ /* v6 商品：加购走购物车合并结算 */
+        alert('原型示意：已加入购物车 · 回商城底部「🛒 购物车」合并结算（与课程 / 硬件一起下单）。');
+        return;
+      }
+      alert('原型示意：打开充值面板 · 1元=10算力 · ¥100=1000 / ¥300=3600 / ¥1000=13000（口径参考商城 demo v3.15）')
+    });
+  });
+
+  /* 轻量 toast（详情页原本无 toast 设施）：立即使用跳工作台前提示计费口径 */
+  function dtToast(msg){
+    var t=document.getElementById('dtToast');
+    if(!t){ t=document.createElement('div'); t.id='dtToast';
+      t.style.cssText='position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#1c2733;color:#fff;font-size:13px;padding:9px 16px;border-radius:99px;z-index:999;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap';
+      document.body.appendChild(t); }
+    t.textContent=msg; t.style.opacity='1'; clearTimeout(t._h);
+    t._h=setTimeout(function(){ t.style.opacity='0'; },1800);
+  }
+
+  /* ---------- 工作台实况（头图默认视图：8字段点亮→生成→交付 循环演示） ---------- */
+  var WB_FIELDS=document.querySelectorAll('#wbGrid span'),
+      WB_METER=document.querySelectorAll('#wbMeter i'),
+      wbPct=document.getElementById('wbPct'),wbLive=document.getElementById('wbLive'),
+      wbGen=document.getElementById('wbGen'),wbFee=document.getElementById('wbFee'),
+      wbTimers=[];
+  function wbStop(){
+    wbTimers.forEach(clearTimeout);wbTimers=[];
+    WB_FIELDS.forEach(function(s){s.classList.remove('lit')});
+    WB_METER.forEach(function(s){s.classList.remove('lit')});
+    wbPct.textContent='0/8';wbGen.classList.add('off');wbGen.textContent='✨ 生成定位全案 · 99 算力';
+    wbFee.textContent='完成 6 步访谈后可生成 · 全案（速览 + 8 章）99 算力/份';
+  }
+  function wbPlay(){
+    wbStop();
+    wbLive.textContent='● 6 步访谈';
+    WB_FIELDS.forEach(function(s,i){
+      wbTimers.push(setTimeout(function(){
+        s.classList.add('lit');WB_METER[i].classList.add('lit');
+        wbPct.textContent=(i+1)+'/8';
+        if(i===7){
+          wbTimers.push(setTimeout(function(){
+            wbGen.classList.remove('off');wbGen.textContent='⏳ 生成中 · 流式约 50 秒';
+            wbLive.textContent='● 生成中';
+            wbTimers.push(setTimeout(function(){
+              wbLive.textContent='● 已交付 · 速览 + 8 章';
+              wbGen.textContent='✅ 已交付 · 全案 9 件已存「我的交付物」';
+              wbFee.textContent='本次消耗 99 算力 · 单章可复制 / 单章重生成 · 可导出 Word';
+              wbTimers.push(setTimeout(wbPlay,3200)); // 循环重播
+            },1600));
+          },700));
+        }
+      },600+i*650));
+    });
+  }
+  /* ---------- AI 工作实况演示（终端日志循环，借选题工作台动态演示风格） ---------- */
+  var TERM_STEPS=[
+    {d: 500, html:"<span class='t'>09:41:02</span>✅ 已接入私有知识库 · 品牌资料 12 篇", m:"tm0", v:8},
+    {d: 700, html:"🧠 提取核心观点 8 个 · 金句 5 句 · 客户原话 TOP3"},
+    {d: 750, html:"🔍 扫描同城对标 ×3 → @轻氧日记 近 7 天 5 条更新"},
+    {d: 800, cls:"hl", html:"🧭 生成定位方向 · 一句话定位 / 人设五维 / 内容矩阵…", m:"tm1", v:3},
+    {d: 850, cls:"hl", html:"⛔ 合规检查 · 疗效承诺类红线词扫描…"},
+    {d: 550, cls:"ok", html:"✅ 红线命中 0 · 三关全部通过", m:"tm2", v:0},
+    {d: 700, cls:"hl", html:"✅ 完成！IP 定位全案 1 份 → 已存入「我的交付物」", m:"tm3", v:"✓"}
+  ];
+  var tlog=document.getElementById("tlog"),tlive=document.getElementById("tlive"),
+      termTimers=[];
+  function termStop(){
+    termTimers.forEach(clearTimeout);termTimers=[];
+    tlog.innerHTML="";
+    ["tm0","tm1","tm2","tm3"].forEach(function(id){document.getElementById(id).textContent="–"});
+    tlive.style.animation="none";tlive.textContent="● 待机";
+  }
+  function termPlay(){
+    termStop();
+    tlive.style.animation="";tlive.textContent="● LIVE";
+    var acc=0;
+    TERM_STEPS.forEach(function(st){
+      acc+=st.d;
+      termTimers.push(setTimeout(function(){
+        var div=document.createElement("div");
+        div.className="t-ln "+(st.cls||"");
+        div.innerHTML=st.html;
+        tlog.appendChild(div);
+        requestAnimationFrame(function(){div.classList.add("in")});
+        if(st.m)document.getElementById(st.m).textContent=st.v;
+      },acc));
+    });
+    termTimers.push(setTimeout(termPlay,acc+3000)); // 循环重播
+  }
+  /* ---------- 预约弹窗 ---------- */
+  function openBk(sec){
+    var t=sec?$('.i-title',sec):null;
+    var nm=(t&&t.childNodes[0]&&t.childNodes[0].textContent)?t.childNodes[0].textContent.trim():'该数字员工';
+    document.getElementById('bkName').textContent=nm;
+    bkCard.classList.remove('submitted');
+    bkPhone.value='';bkErr.classList.remove('on');
+    mask.classList.add('on');
+    setTimeout(function(){bkPhone.focus()},80);
+  }
+  function closeBk(){mask.classList.remove('on')}
+  bkClose.addEventListener('click',closeBk);
+  mask.addEventListener('click',function(e){if(e.target===mask)closeBk()});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&mask.classList.contains('on'))closeBk()});
+
+  bkPhone.addEventListener('input',function(){
+    this.value=this.value.replace(/\D/g,'');
+    if(bkErr.classList.contains('on')&&/^1[3-9]\d{9}$/.test(this.value))bkErr.classList.remove('on');
+  });
+  bkSubmit.addEventListener('click',function(){
+    var v=bkPhone.value.trim();
+    if(!/^1[3-9]\d{9}$/.test(v)){bkErr.classList.add('on');bkPhone.focus();return}
+    // 原型：本地演示成功态；生产改为 POST 预约接口
+    bkCard.classList.add('submitted');
+  });
+
+  /* ---------- 初始：进入第一个商品（沈定） ---------- */
+  cur($('.agent-sec.on')||SECS[0]);
+
+  /* ---------- URL ?agent= 直达指定商品（商城卡片点击跳入） ----------
+     单商品详情页模式：带参数进入时隐藏顶部商品切换栏，
+     页面只呈现这一个商品；评审看全部商品时去掉 ?agent 参数即可 */
+  (function(){
+    var k='';
+    try{ k=(new URLSearchParams(location.search)).get('agent')||'' }catch(e){}
+    var MAP={'ip-position':'shending','copywriter':'qinwen','video-diag':'jiangliu','topic':'hece','live-host':'luopan'};
+    var key=MAP[k]||k;
+    if(!key)return;
+    var sec=SECS.filter(function(s){return s.dataset.agent===key})[0];
+    if(sec){ cur(sec); agChips.style.display='none'; var pn=document.querySelector('.proto-note'); if(pn) pn.style.display='none'; } /* 单商品模式：proto-note 一并隐藏 */
+  })();
+
+  /* 页首返回：优先回上一页（商城/工作台来源），无历史则回商城首页 */
+  function detailBack(){
+    if(document.referrer && history.length > 1){ history.back(); return; }
+    location.href = 'agents-home-tech-demo-20260925.html?v=68';
+  }
+
+  /* ---------- 新手帮助 · 术语词典（v7） ---------- */
+  var helpMask2=$('#helpMask2');
+  $('#helpFab').addEventListener('click',function(){ helpMask2.classList.add('on'); });
+  $('#hpClose').addEventListener('click',function(){ helpMask2.classList.remove('on'); });
+  helpMask2.addEventListener('click',function(ev){ if(ev.target===helpMask2) helpMask2.classList.remove('on'); });
+</script>
+</body>
+</html>
