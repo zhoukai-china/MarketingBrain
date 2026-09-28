@@ -379,7 +379,7 @@
 
   <button class="back-btn" onclick="detailBack()">← 返回</button>
 
-  <div class="proto-note">🧪 <b>设计原型（20260923 · v6 0927 商品接入）</b>：数字员工 = <b>工作台实况</b>头图 +「⚡ 立即使用」（0 元开通 · 用后扣算力）；<b>v6 新增 AI硬件 / AI课程 4 个商品页</b> = 首页卡片只留「🛒 加购」，进详情页才有「🛍️ 立即购买」（人民币直购 · 微信支付演示）。价格按 <b>0926 定稿算力价目</b>（1元=10算力）+ 商品人民币价，实际以 <b>/market/skus</b> 为准。商品直达（商城点入）= 单商品详情页（无切换栏）；评审看全部商品：去掉 URL 的 <b>?agent</b> 参数。</div>
+  <div class="proto-note">🧪 <b>设计原型（20260923 · v7 0928 FDE 专区接入）</b>：数字员工 = <b>工作台实况</b>头图 +「⚡ 立即使用」（0 元开通 · 用后扣算力）；AI硬件 / AI课程 = 首页卡片只留「🛒 加购」，进详情页才有「🛍️ 立即购买」。<b>v7 新增 FDE 专区 3 个服务页</b>（实体门店 / 连锁品牌 / 物流预告）：工程师入企服务，<b>不标实价</b>（起步价仅为示意锚点），CTA = 「📞 预约免费沟通」留电话，弹窗文案走 FDE 分支（顾问 24h 回电 → 书面方案报价 → 确认定金 → 入企交付）。价格按 <b>0926 定稿算力价目</b>（1元=10算力）+ 商品人民币价，实际以 <b>/market/skus</b> 为准。商品直达（商城点入）= 单商品详情页（无切换栏）；评审看全部商品：去掉 URL 的 <b>?agent</b> 参数。</div>
 
   <!-- 商品切换 -->
   <div class="ag-switch" id="agChips">
@@ -396,6 +396,9 @@
     <button data-ag="hwRobot">🤖 AI机器人</button>
     <button data-ag="courseAgent">🎓 智能体课</button>
     <button data-ag="courseWb">📚 提效课</button>
+    <button data-ag="fde-store">🏪 门店FDE</button>
+    <button data-ag="fde-chain">🏢 连锁FDE</button>
+    <button data-ag="fde-logistics">🚚 物流FDE <span class="soon">预告</span></button>
     <span style="margin-left:auto;display:flex;gap:6px;flex:none">
       <button class="mode-btn on" id="modeOnline">已上架</button>
       <button class="mode-btn" id="modeDemo">未上架（放demo）</button>
@@ -2370,32 +2373,275 @@
     </div>
   </div><!-- /agent-sec courseWb -->
 
-  <div class="foot">思潼AI商城 · 商品详情页设计原型 · 20260923 · v6 20260927 商品接入（AI硬件/AI课程卡片只留加购，详情页才有立即购买）· 仅作设计评审，不进生产代码</div>
+  <!-- ============ FDE · 实体门店（工程师入企 · 按需报价） ============ -->
+  <div class="agent-sec" data-agent="fde-store" data-online="1" data-type="fde">
+    <div class="pd">
+      <div class="gallery">
+        <div class="g-main">
+          <div class="g-view on" data-v="0" style="padding:0">
+            <div class="p-hero"><span class="ph-ico">🏪</span><span class="ph-badge">正在接单</span><span class="ph-name">实体门店 FDE · 工程师到店把 AI 用进生意</span></div>
+          </div>
+          <div class="g-view" data-v="1">
+            <div class="p-feat">
+              <div class="pf-row"><span class="pf-ico">📱</span><div><b>① 留电话预约</b><span>商城留手机号，顾问 24 小时内回电。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">☎️</span><div><b>② 回电沟通需求</b><span>免费，摸清经营现状与目标，判断能不能接。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">📋</span><div><b>③ 出方案 + 报价</b><span>微信发书面《服务方案与报价单》，确认后才收费。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">✅</span><div><b>④ 确认方案 · 收定金</b><span>收 50% 定金锁定档期，工程师入企前可全额退。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">🛠️</span><div><b>⑤ 工程师入企</b><span>现场调研细化需求；范围大变先出补充报价再动手。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">🚀</span><div><b>⑥ 交付 · 验收结款</b><span>部署带教完成、你验收后收尾款。</span></div></div>
+            </div>
+          </div>
+          <div class="g-view" data-v="2">
+            <div class="p-feat">
+              <div class="pf-row"><span class="pf-ico">🔍</span><div><b>AI 现状诊断报告</b><span>获客 / 跟单 / 内容 / 复购逐环节过，标出最该用 AI 提效的地方。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">🗺️</span><div><b>定制落地方案</b><span>用哪些智能体、嵌进哪些流程、谁来用怎么用，一页讲清。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">🛠️</span><div><b>到店部署 + 员工带教</b><span>工程师驻店 5–7 天，流程跑通、员工教会为止。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">📈</span><div><b>30 天跟踪调优</b><span>上线后跟踪使用情况，动作跑偏随时纠。</span></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="g-thumbs">
+          <button class="on" data-t="0" title="服务主图" data-cap="实体门店 FDE · 工程师到店 · 正在接单">🏪</button>
+          <button data-t="1" title="合作流程" data-cap="合作流程 · 预约 → 回电 → 方案报价 → 定金 → 入企 → 交付结款">🧭</button>
+          <button data-t="2" title="交付内容" data-cap="交付内容 · 诊断报告 + 落地方案 + 部署带教 + 跟踪调优">📦</button>
+        </div>
+        <div class="g-cap">实体门店 FDE · 工程师到店 · 正在接单</div>
+      </div>
+      <div class="info">
+        <div class="i-title">实体门店 FDE<span style="font-weight:600;color:var(--muted);font-size:14px">（FDE 工程师 · 到店服务）</span></div>
+        <div class="i-sub"><span class="tagp">思潼AI 工程师入企</span><span>·</span><span class="js-status">正在接单 · 按需求报价</span></div>
+        <p class="i-desc">面向实体商家（美容 / 餐饮 / 零售等单店）的工程师到店服务：先诊断你的经营流程哪里能用 AI 提效，再落地部署 + 员工带教。不是卖软件，是帮你把 AI 真正用进日常生意。</p>
+        <div class="i-rate"><b>按需报价</b><span class="stars">🛠️</span><span>电话沟通免费 · 满意再谈合作</span></div>
+        <div class="price-card">
+          <div class="price-line">
+            <span class="num">¥3,000</span><span class="unit">起 / 店</span>
+            <span class="approx">起步价参考 · 按需求定制报价</span>
+          </div>
+          <div class="price-meta">回电沟通 <em>免费</em> · 书面报价确认后收 50% 定金 · <em>入企前定金可退</em></div>
+          <div class="guar"><i>📋 书面方案</i><i>🛠️ 到店部署</i><i>🎓 员工带教</i></div>
+        </div>
+        <div class="deliver">
+          <div class="deliver-h">📦 服务包含</div>
+          <ul>
+            <li>AI 现状诊断：门店经营环节逐项过，找出最贵的低效环节</li>
+            <li>定制落地方案：智能体选型 + 流程嵌入 + 分工用法</li>
+            <li>到店部署 + 员工带教：工程师驻店 5–7 天，教会为止</li>
+            <li>30 天跟踪调优：上线后跟踪使用，动作跑偏随时纠</li>
+          </ul>
+        </div>
+        <div class="cta-row js-ctaRow">
+          <button class="btn btn-main js-mainCta" data-price="¥3,000 起">📞 预约免费沟通</button>
+        </div>
+        <div class="after-cta js-afterCta">免费回电沟通需求 → 书面方案报价 → 确认后收定金 → 工程师入企交付</div>
+      </div>
+    </div>
+    <div class="detail">
+      <div class="tabs">
+        <button class="tab on" data-p="0">服务说明</button>
+        <button class="tab" data-p="1">合作流程</button>
+        <button class="tab" data-p="2">常见问题</button>
+      </div>
+      <div class="panel on" data-p="0">
+        <ul>
+          <li>面向美容 / 美甲 / 餐饮 / 零售等实体单店商家</li>
+          <li>交付的是「会用 AI 的门店」：诊断 → 方案 → 部署 → 带教</li>
+          <li>用商城在售智能体 + 定制流程搭建，按门店实际经营节奏落地</li>
+          <li>服务周期：单店 5–7 天（诊断 1 天 + 部署带教 3–5 天 + 验收）</li>
+        </ul>
+      </div>
+      <div class="panel" data-p="1">
+        <p style="margin:2px 0 0">① 商城留电话预约 → ② 顾问 24 小时内回电沟通（免费）→ ③ 书面《方案与报价单》 → ④ 确认后收 50% 定金 → ⑤ 工程师入企调研细化（大变更先补报价）→ ⑥ 交付带教、验收后收尾款。</p>
+      </div>
+      <div class="panel" data-p="2">
+        <h3>报价怎么定？</h3><p>起步价仅为参考，回电沟通需求后出书面报价，双方确认后才产生费用。</p>
+        <h3>定金能退吗？</h3><p>工程师入企前可全额退；入企后按已投入工作量核算退余。</p>
+        <h3>入企后需求变了怎么办？</h3><p>现场细化不另收费；范围大幅变化先出补充报价、签补充协议，讲清再动手。</p>
+      </div>
+    </div>
+  </div><!-- /agent-sec fde-store -->
+
+  <!-- ============ FDE · 连锁品牌（总部+门店 全链路落地） ============ -->
+  <div class="agent-sec" data-agent="fde-chain" data-online="1" data-type="fde">
+    <div class="pd">
+      <div class="gallery">
+        <div class="g-main">
+          <div class="g-view on" data-v="0" style="padding:0">
+            <div class="p-hero" style="background:linear-gradient(135deg,#F5F0FF,#E5DBFF 60%,#D6C6FF)"><span class="ph-ico">🏢</span><span class="ph-badge">正在接单</span><span class="ph-name" style="color:#4C3399">连锁品牌 FDE · 总部 + 门店全链路落地</span></div>
+          </div>
+          <div class="g-view" data-v="1">
+            <div class="p-feat">
+              <div class="pf-row"><span class="pf-ico">📱</span><div><b>① 留电话预约</b><span>商城留手机号，顾问 24 小时内回电。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">☎️</span><div><b>② 回电沟通需求</b><span>免费，了解品牌规模、门店数与核心瓶颈。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">📋</span><div><b>③ 出方案 + 报价</b><span>书面《服务方案与报价单》，含分期付款节点。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">✅</span><div><b>④ 确认方案 · 收定金</b><span>收 30% 定金锁定档期，入企前可全额退。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">🛠️</span><div><b>⑤ 工程师入企</b><span>总部 + 试点门店双调研，细化方案；大变更先补报价。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">🚀</span><div><b>⑥ 分期交付 · 结款</b><span>方案确认收 40%，验收后收尾款 30%。</span></div></div>
+            </div>
+          </div>
+          <div class="g-view" data-v="2">
+            <div class="p-feat">
+              <div class="pf-row"><span class="pf-ico">🔍</span><div><b>总部 + 试点门店双诊断</b><span>总部流程与门店动作两头看，找到能复制的那一刀。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">🗺️</span><div><b>可复制的落地 SOP</b><span>一套打法文档化，店长照着执行不走样。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">🏬</span><div><b>试点门店落地</b><span>2 家门店起试点，跑通再推广，不拿全店冒险。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">🎓</span><div><b>全店推广 + 培训体系</b><span>推广排期 + 店长培训 + 总部督导口径，一套带走。</span></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="g-thumbs">
+          <button class="on" data-t="0" title="服务主图" data-cap="连锁品牌 FDE · 总部+门店 · 正在接单">🏢</button>
+          <button data-t="1" title="合作流程" data-cap="合作流程 · 预约 → 回电 → 方案报价 → 定金 → 试点 → 分期结款">🧭</button>
+          <button data-t="2" title="交付内容" data-cap="交付内容 · 双诊断 + 可复制SOP + 试点落地 + 推广培训">📦</button>
+        </div>
+        <div class="g-cap">连锁品牌 FDE · 总部+门店 · 正在接单</div>
+      </div>
+      <div class="info">
+        <div class="i-title">连锁品牌 FDE<span style="font-weight:600;color:var(--muted);font-size:14px">（FDE 工程师 · 总部 + 门店）</span></div>
+        <div class="i-sub"><span class="tagp">思潼AI 工程师入企</span><span>·</span><span class="js-status">正在接单 · 按需求报价</span></div>
+        <p class="i-desc">面向连锁品牌 / 连锁行业的全链路落地服务：总部流程诊断 + 试点门店落地 + 方案复制推广。先在试点跑通一套打法，再铺到全部门店，不拿整个盘子冒险。</p>
+        <div class="i-rate"><b>按需报价</b><span class="stars">🛠️</span><span>分期付款 · 试点跑通再推广</span></div>
+        <div class="price-card">
+          <div class="price-line">
+            <span class="num">¥20,000</span><span class="unit">起 / 项目</span>
+            <span class="approx">起步价参考 · 按门店数与方案定制</span>
+          </div>
+          <div class="price-meta">回电沟通 <em>免费</em> · 分期付款：定金 30% + 方案确认 40% + 验收 30%</div>
+          <div class="guar"><i>📋 书面方案</i><i>🏬 试点先行</i><i>🎓 培训体系</i></div>
+        </div>
+        <div class="deliver">
+          <div class="deliver-h">📦 服务包含</div>
+          <ul>
+            <li>总部 + 试点门店双诊断：流程两头看，找可复制的切入点</li>
+            <li>可复制落地 SOP：一套打法文档化，店长照执行不走样</li>
+            <li>试点门店落地：2 家起跑通，数据说话再推广</li>
+            <li>全店推广排期 + 店长培训 + 30 天跟踪调优</li>
+          </ul>
+        </div>
+        <div class="cta-row js-ctaRow">
+          <button class="btn btn-main js-mainCta" data-price="¥20,000 起">📞 预约免费沟通</button>
+        </div>
+        <div class="after-cta js-afterCta">免费回电沟通需求 → 书面方案报价 → 定金 30% → 试点交付 40% → 验收尾款 30%</div>
+      </div>
+    </div>
+    <div class="detail">
+      <div class="tabs">
+        <button class="tab on" data-p="0">服务说明</button>
+        <button class="tab" data-p="1">合作流程</button>
+        <button class="tab" data-p="2">常见问题</button>
+      </div>
+      <div class="panel on" data-p="0">
+        <ul>
+          <li>面向连锁品牌 / 连锁行业（美容 / 餐饮 / 零售 / 服务业连锁）</li>
+          <li>打法：总部定 SOP → 试点门店跑通 → 全店复制推广</li>
+          <li>与单店版的区别：多了总部流程改造与可复制 SOP 输出</li>
+          <li>服务周期：按门店数与方案范围合同约定，试点期一般 2–3 周</li>
+        </ul>
+      </div>
+      <div class="panel" data-p="1">
+        <p style="margin:2px 0 0">① 商城留电话预约 → ② 顾问回电了解规模与瓶颈（免费）→ ③ 书面方案与报价（含分期节点）→ ④ 确认后收 30% 定金 → ⑤ 总部 + 试点入企落地 → ⑥ 方案确认收 40%、全店推广验收后收 30%。</p>
+      </div>
+      <div class="panel" data-p="2">
+        <h3>多店怎么做？</h3><p>先 2 家试点门店跑通，拿到数据再全店推广；推广排期在方案里写明。</p>
+        <h3>大项目怎么控风险？</h3><p>分期付款 + 试点先行 + 每阶段书面确认，每一步都可回退。</p>
+        <h3>需求变了怎么办？</h3><p>阶段内细化不另收费；范围大幅变化先出补充报价、签补充协议。</p>
+      </div>
+    </div>
+  </div><!-- /agent-sec fde-chain -->
+
+  <!-- ============ FDE · 物流行业（预告 · 预约排队） ============ -->
+  <div class="agent-sec" data-agent="fde-logistics" data-online="0" data-type="fde">
+    <div class="pd">
+      <div class="gallery">
+        <div class="g-main">
+          <div class="g-view on" data-v="0" style="padding:0">
+            <div class="p-hero" style="background:linear-gradient(135deg,#EEF3F9,#DDE7F3 60%,#CBD9EA)"><span class="ph-ico">🚚</span><span class="ph-badge" style="background:linear-gradient(135deg,#6E8BB0,#3C5A80)">即将上线</span><span class="ph-name" style="color:#2A4260">物流行业 FDE · 工程师团队扩招中</span></div>
+          </div>
+          <div class="g-view" data-v="1">
+            <div class="p-feat">
+              <div class="pf-row"><span class="pf-ico">📦</span><div><b>仓储场景</b><span>入库 / 分拣 / 库存盘点环节的 AI 提效落点（规划中）。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">🛵</span><div><b>配送场景</b><span>调度、异常件处理、客户通知链路（规划中）。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">🧾</span><div><b>货运场景</b><span>询价 / 对账 / 单证流转环节（规划中）。</span></div></div>
+              <div class="pf-row"><span class="pf-ico">📅</span><div><b>上线计划</b><span>工程师团队扩招中，上线后按预约顺序安排沟通。</span></div></div>
+            </div>
+          </div>
+          <div class="g-view" data-v="2">
+            <div class="g-rate"><b>预告</b><div class="stars">🚧</div><span>服务内容以正式上线方案为准 · 预约不收费</span></div>
+          </div>
+        </div>
+        <div class="g-thumbs">
+          <button class="on" data-t="0" title="服务主图" data-cap="物流行业 FDE · 即将上线 · 预约排队">🚚</button>
+          <button data-t="1" title="规划场景" data-cap="规划场景 · 仓储 / 配送 / 货运（以正式方案为准）">🧭</button>
+          <button data-t="2" title="上线说明" data-cap="上线说明 · 预约排队 · 上线后按顺序安排沟通">🚧</button>
+        </div>
+        <div class="g-cap">物流行业 FDE · 即将上线 · 预约排队</div>
+      </div>
+      <div class="info">
+        <div class="i-title">物流行业 FDE<span style="font-weight:600;color:var(--muted);font-size:14px">（FDE 工程师 · 预告）</span></div>
+        <div class="i-sub"><span class="tagp">思潼AI 工程师入企</span><span>·</span><span class="js-status">预告 · 排队预约中</span></div>
+        <p class="i-desc">面向物流行业（仓储 / 配送 / 货运）的工程师入企服务正在筹备，工程师团队扩招中。先留电话排队，上线后按预约顺序优先安排沟通，不收取任何费用。</p>
+        <div class="i-rate"><b>预告</b><span class="stars">🚧</span><span>预约排队 · 上线前通知</span></div>
+        <div class="price-card">
+          <div class="price-line">
+            <span class="num">待定</span><span class="unit"></span>
+            <span class="approx">上线后公布 · 预约不收费</span>
+          </div>
+          <div class="price-meta">留电话排队 · <em>上线后按预约顺序安排沟通</em> · 不满意随时取消</div>
+          <div class="guar"><i>🚧 上线前通知</i><i>📋 排队优先</i><i>🛡️ 预约零费用</i></div>
+        </div>
+        <div class="cta-row js-ctaRow">
+          <button class="btn btn-main js-mainCta">📋 预约排队</button>
+        </div>
+        <div class="after-cta js-afterCta">上线后按预约顺序安排沟通 · <em>先留电话不收费</em></div>
+      </div>
+    </div>
+    <div class="detail">
+      <div class="tabs">
+        <button class="tab on" data-p="0">服务说明</button>
+        <button class="tab" data-p="1">预约规则</button>
+        <button class="tab" data-p="2">常见问题</button>
+      </div>
+      <div class="panel on" data-p="0">
+        <ul>
+          <li>面向物流行业：仓储 / 配送 / 货运企业</li>
+          <li>服务内容规划中，以正式上线方案为准</li>
+          <li>工程师团队扩招中，开放时间以上线通知为准</li>
+        </ul>
+      </div>
+      <div class="panel" data-p="1">
+        <p style="margin:2px 0 0">留电话即进入排队名单；上线后按预约顺序安排顾问沟通，全程不收费；不想等了随时取消。</p>
+      </div>
+      <div class="panel" data-p="2">
+        <h3>什么时候上线？</h3><p>工程师团队扩招中，具体时间以上线通知为准，预约用户第一时间收到消息。</p>
+        <h3>预约要花钱吗？</h3><p>不需要。预约只是排队，上线沟通后再谈方案与报价。</p>
+      </div>
+    </div>
+  </div><!-- /agent-sec fde-logistics -->
+
+  <div class="foot">思潼AI商城 · 商品详情页设计原型 · 20260923 · v7 20260928 FDE 专区接入（工程师入企服务 · 留电话预约 · 起步价为示意）· 仅作设计评审，不进生产代码</div>
 </div>
 
-<!-- ============ 预约弹窗（未上线智能体） ============ -->
+<!-- ============ 预约弹窗（未上线智能体 / FDE 入企服务共用） ============ -->
 <div class="mask" id="mask">
   <div class="bk-card" id="bkCard">
     <button class="bk-close" id="bkClose" title="关闭">×</button>
 
     <!-- 表单态 -->
     <div class="bk-form">
-      <div class="bk-ico">📲</div>
+      <div class="bk-ico" id="bkIco">📲</div>
       <h4>预约「<span id="bkName">沈定 · 首席定位官</span>」</h4>
-      <p>该数字员工正在打磨中，左侧可先看 <em>demo 演示</em>。留下手机号，上线后第一时间通知你。</p>
+      <p id="bkSub">该数字员工正在打磨中，左侧可先看 <em>demo 演示</em>。留下手机号，上线后第一时间通知你。</p>
       <div class="bk-input">
         <input type="tel" id="bkPhone" maxlength="11" placeholder="请输入手机号" inputmode="numeric">
       </div>
       <div class="bk-err" id="bkErr">请输入正确的 11 位手机号</div>
       <button class="btn btn-main bk-submit" id="bkSubmit">确认预约</button>
-      <div class="bk-tip">仅用于上线通知，不做营销骚扰</div>
+      <div class="bk-tip" id="bkTip">仅用于上线通知，不做营销骚扰</div>
     </div>
 
     <!-- 成功态 -->
     <div class="bk-ok">
       <div class="bk-ok-ico">✓</div>
-      <h4>预约成功</h4>
-      <p>上线后将第一时间短信通知你<br>预约用户可优先开通体验</p>
+      <h4 id="bkOkTitle">预约成功</h4>
+      <p id="bkOkSub">上线后将第一时间短信通知你<br>预约用户可优先开通体验</p>
     </div>
   </div>
 </div>
@@ -2447,6 +2693,17 @@
     var st=$('.js-status',curSec),main=$('.js-mainCta',curSec),
         cart=$('.js-cartCta',curSec),row=$('.js-ctaRow',curSec),after=$('.js-afterCta',curSec);
     if(!main)return;
+    if(curSec.dataset.type==='fde'){ /* FDE 入企服务：CTA=预约留电话，不分上下架模式 */
+      var lg=curSec.dataset.agent==='fde-logistics';
+      if(st)st.textContent=lg?'预告 · 排队预约中':'正在接单 · 按需求报价';
+      main.innerHTML=lg?'📋 预约排队':'📞 预约免费沟通';
+      if(cart)cart.style.display='none';
+      if(row)row.classList.add('solo');
+      if(after)after.innerHTML=lg
+        ?'上线后按预约顺序安排沟通 · <em>先留电话不收费</em>'
+        :'免费回电沟通需求 → 书面方案报价 → 确认后收定金 → 工程师入企交付';
+      return;
+    }
     if(cart)cart.style.display=online?'':'none';
     if(row)row.classList.toggle('solo',!online);
     if(online){
@@ -2522,6 +2779,10 @@
     if(main)main.addEventListener('click',function(){
       if(sec.dataset.type==='product'){ /* v6 商品：下单走人民币支付流程，不进工作台 */
         alert('原型示意：立即购买（'+(main.dataset.price||'')+'）→ 确认订单 → 微信支付 → 下单成功进「我的 · 全部订单」。支持 7 天无理由退换。');
+        return;
+      }
+      if(sec.dataset.type==='fde'){ /* v7 FDE：留电话预约，顾问回电沟通需求 */
+        openBk(sec);
         return;
       }
       if(sec.dataset.curOnline!=='1'){openBk(sec)}
@@ -2620,11 +2881,32 @@
     });
     termTimers.push(setTimeout(termPlay,acc+3000)); // 循环重播
   }
-  /* ---------- 预约弹窗 ---------- */
+  /* ---------- 预约弹窗（未上线智能体 / FDE 入企服务两套文案） ---------- */
   function openBk(sec){
     var t=sec?$('.i-title',sec):null;
     var nm=(t&&t.childNodes[0]&&t.childNodes[0].textContent)?t.childNodes[0].textContent.trim():'该数字员工';
+    var ico=document.getElementById('bkIco'),sub=document.getElementById('bkSub'),
+        okT=document.getElementById('bkOkTitle'),okS=document.getElementById('bkOkSub'),
+        tip=document.getElementById('bkTip');
     document.getElementById('bkName').textContent=nm;
+    if(sec&&sec.dataset.type==='fde'){
+      var logi=sec.dataset.agent==='fde-logistics';
+      if(ico)ico.textContent='📞';
+      if(sub)sub.innerHTML=logi
+        ?'物流行业 FDE 还在筹备，留下手机号进入排队名单，<em>上线后按预约顺序</em>安排顾问沟通。'
+        :'顾问将在 <em>24 小时内</em>来电沟通需求（免费），确认需求后出书面方案与报价，<em>满意再谈合作</em>。';
+      if(okT)okT.textContent=logi?'已加入排队':'已收到预约';
+      if(okS)okS.innerHTML=logi
+        ?'上线后按预约顺序安排沟通<br>全程不收取任何费用'
+        :'顾问将尽快来电沟通需求<br>出方案报价 · 满意再谈合作';
+      if(tip)tip.textContent='电话沟通免费 · 不满意不产生任何费用';
+    }else{
+      if(ico)ico.textContent='📲';
+      if(sub)sub.innerHTML='该数字员工正在打磨中，左侧可先看 <em>demo 演示</em>。留下手机号，上线后第一时间通知你。';
+      if(okT)okT.textContent='预约成功';
+      if(okS)okS.innerHTML='上线后将第一时间短信通知你<br>预约用户可优先开通体验';
+      if(tip)tip.textContent='仅用于上线通知，不做营销骚扰';
+    }
     bkCard.classList.remove('submitted');
     bkPhone.value='';bkErr.classList.remove('on');
     mask.classList.add('on');
