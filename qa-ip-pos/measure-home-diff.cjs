@@ -36,7 +36,15 @@ const SPEC = [
   ["员工头像", ".emp-ava", ".eco-ava"],
   ["员工名", ".emp-name", ".eco-p-name"],
   ["员工简介", ".emp-hook", ".eco-p-desc"],
-  ["价格区", ".emp-buy", ".eco-p-buy"]
+  ["价格区", ".emp-buy", ".eco-p-buy"],
+  ["咨询师栅格", ".cons", ".eh-cons"],
+  ["咨询师卡", ".cons-card", ".eh-cons-card"],
+  ["咨询师头像", ".cons-ava", ".eh-cons-ava"],
+  ["商品卡栅格", ".prod", ".eh-prod"],
+  ["商品卡", ".pcard", ".eh-pcard"],
+  ["商品封面", ".pcover", ".eh-pcover"],
+  ["商品页脚", ".pfoot", ".eh-pfoot"],
+  ["品牌工作台卡", ".brand-hero", ".eh-brand-hero"]
 ];
 
 function measure(sel) {

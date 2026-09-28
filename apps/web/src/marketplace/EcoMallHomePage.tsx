@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
 import { fetchMarketMe, readJson } from "./shell.js";
 import { employeePersonaLabel } from "./employee-names.js";
@@ -321,6 +321,32 @@ export function EcoMallHomePage() {
     return () => window.clearTimeout(timer);
   }, []);
 
+  /* 顶栏/侧栏「AI 全员在线 · HH:MM」实时时钟。 */
+  const [clock, setClock] = useState("");
+  useEffect(() => {
+    const fmt = () => {
+      const d = new Date();
+      return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    };
+    setClock(fmt());
+    const timer = window.setInterval(() => setClock(fmt()), 15000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  /* 背景鼠标光晕（原型 #cursor-glow）。 */
+  const glowRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    function move(event: MouseEvent) {
+      const el = glowRef.current;
+      if (!el) return;
+      el.style.left = `${event.clientX}px`;
+      el.style.top = `${event.clientY}px`;
+      el.style.display = "block";
+    }
+    window.addEventListener("mousemove", move);
+    return () => window.removeEventListener("mousemove", move);
+  }, []);
+
   useEffect(() => {
     document.body.classList.add("eco-mall-body");
     document.title = "思潼AI生态商城 · 数字员工 / 数字咨询师";
@@ -469,7 +495,10 @@ export function EcoMallHomePage() {
                 className="eco-today-item"
                 onClick={() => employee && openEmployeeAt(employee, "通用")}
               >
-                <span className="eco-today-ico">{employee?.icon}</span>
+                <span className="eco-today-ico">
+                  {employee ? <img src={employeeImagePath(employee)} alt={employeePersonaLabel(employee.capability)} onError={(e) => { e.currentTarget.style.display = "none"; }} /> : null}
+                  <b>{employee?.icon}</b>
+                </span>
                 <span className="eco-today-text">
                   <span className="eco-today-title">{item.title}</span>
                   <strong className="eco-today-hint">{item.hint}</strong>
@@ -483,47 +512,58 @@ export function EcoMallHomePage() {
     );
   }
 
-  /** 人民币直购货架卡（原型 F4 硬件 / F5 课程 / F6 OPC：加购按钮 + 价格行）。 */
-  function renderShelfCard(icon: string, name: string, tag: string, desc: string, price: string, note: string) {
+  /**
+   * 商品卡（照原型 .pcard：16:9 封面 + 扫描线 + 名称/标签 + 描述 + 价格 + 加购/立即购买）。
+   * F4 硬件 / F5 课程 / F6 OPC 都用这一张。
+   */
+  function renderProductCard(opt: {
+    icon: string;
+    name: string;
+    tag: string;
+    desc: string;
+    price: string;
+    cny?: string;
+    buyNow?: boolean;
+    demo?: boolean;
+  }) {
     return (
-      <article className="eco-product is-ok">
-        <div className="eco-p-img">
-          <EcoAvatar icon={icon} img="" />
-          <span className="eco-badge ok">{tag}</span>
+      <article className="eh-pcard">
+        <div className="eh-pcover">
+          <span className="eh-pcover-ico">{opt.icon}</span>
+          <span className="eh-scanline" />
         </div>
-        <div className="eco-p-body">
-          <div className="eco-p-name">{name}</div>
-          <p className="eco-p-desc">{desc}</p>
-          <div className="eco-p-buy">
-            <span className="eco-p-price">
-              <b>{price}</b>
-              <span className="eco-p-unit">{note}</span>
+        <div className="eh-pbody">
+          <div className="eh-pname">{opt.name}<span className="eh-ptag">{opt.tag}</span></div>
+          <p className="eh-pdesc">{opt.desc}</p>
+          <div className="eh-pfoot">
+            <span className="eh-pprice">
+              {opt.price}
+              {opt.cny ? <i className="eh-u-cny">≈ {opt.cny}</i> : null}
             </span>
-            <button
-              type="button"
-              className="eco-p-cart"
-              onClick={(e) => { e.stopPropagation(); addToCart(name); }}
-            >🛒 加购</button>
+            <span className="eh-buy-row">
+              <button type="button" className="eh-cart-mini" onClick={() => addToCart(opt.name)}>🛒 加购</button>
+              {opt.buyNow ? <button type="button" className="eh-buy-now" onClick={() => addToCart(opt.name)}>立即购买</button> : null}
+            </span>
           </div>
+          {opt.demo ? <div className="eh-pdemo">🧪 演示商品 · 购买不入算力余额</div> : null}
         </div>
       </article>
     );
   }
 
+  /** F7 行业工作台（照原型 .brand-hero：金色渐变大卡 + 可体验徽标）。 */
   function renderBrandFloor() {
     return (
       <section className="eco-floor" id="floor-industry">
-        <FloorHead no="F7" title="行业工作台" sub="美业品牌 demo 实景：门店 AI 工作台一整套的样子，点进去直接体验。" />
+        <FloorHead no="F7" title="行业工作台专区" sub="分行业的整套 AI 经营工作台，点进去直接体验" />
         <button
           type="button"
-          className="eco-mod eco-mod-hero"
+          className="eh-brand-hero"
           onClick={() => { window.location.href = getAppPath("/lanqi"); }}
         >
-          <div className="eco-mod-name">美业品牌 demo</div>
-          <div className="eco-mod-desc">
-            朋友圈 / 社群内容、经营驾驶舱、门店诊断、内容工作室、AI 绘图、公域获客——兰琪门店正在用的完整工作台，进去就能点。
-          </div>
-          <div className="eco-mod-go">进入 demo ›</div>
+          <span className="eh-bh-name">💄 美业门店AI经营大脑 demo <span className="eh-bh-live">● 可体验</span></span>
+          <span className="eh-bh-desc">朋友圈 / 社群内容、经营驾驶舱、门店诊断、内容工作室、AI 绘图、公域获客——美业门店（美容 / 美甲 / 轻医美）正在用的完整 AI 工作台，进去就能点。</span>
+          <span className="eh-bh-go">进入 demo ›</span>
         </button>
       </section>
     );
@@ -531,12 +571,16 @@ export function EcoMallHomePage() {
 
   return (
     <main className="app-wrap eco-mall-page eco-light eh">
+      <div className="eh-bg-grid" aria-hidden="true" />
+      <div className="eh-orb eh-orb-1" aria-hidden="true" />
+      <div className="eh-orb eh-orb-2" aria-hidden="true" />
+      <div className="eh-glow" ref={glowRef} aria-hidden="true" />
       {/* 顶栏（原型 v3.28：品牌 + AI 在线状态 + 余额橙 chip + 充值 + ?） */}
       <header className="eh-topbar">
         <div className="eh-brand">
           <div className="eh-brand-txt">
             <b>思潼AI商城</b>
-            <span className="eh-ai"><i></i>AI 全员在线</span>
+            <span className="eh-ai"><i></i>AI 全员在线 <em>{clock}</em></span>
           </div>
         </div>
         <span className="eh-sp" />
@@ -621,14 +665,16 @@ export function EcoMallHomePage() {
           </div>
         ) : (
           <>
-            {/* 广告位（原型：当前仅邀约有礼） */}
-            <button type="button" className="eco-banner eco-invite-banner" onClick={() => setShowInvite(true)}>
-              <div className="eco-banner-text">
-                <b>🎁 邀请有礼</b>
-                <span>好友开通 · 各得 100 算力</span>
-              </div>
-              <span className="eco-banner-link">立即邀请 ›</span>
-            </button>
+            {/* 广告位（原型 .ad-banner：带边框的外框 + 内部橙条） */}
+            <div className="eh-ad">
+              <button type="button" className="eco-banner eco-invite-banner" onClick={() => setShowInvite(true)}>
+                <div className="eco-banner-text">
+                  <b>🎁 邀请有礼</b>
+                  <span>好友开通 · 各得 100 算力</span>
+                </div>
+                <span className="eco-banner-link">立即邀请 ›</span>
+              </button>
+            </div>
 
             <nav className="eco-kingkong" aria-label="商城楼层导航">
               {KINGKONG.map((item) => (
@@ -670,88 +716,77 @@ export function EcoMallHomePage() {
             </section>
 
             <section className="eco-floor" id="floor-consultants">
-              <FloorHead no="F3" title="数字咨询师专区" sub="把真人的方法论装进数字分身。" />
-              <div className="eco-products">
-                <article className="eco-product is-dev">
-                  <div className="eco-p-img">
-                    <EcoAvatar icon="🧭" img="" />
-                    <span className="eco-badge dev">即将上线</span>
-                  </div>
-                  <div className="eco-p-body">
-                    <div className="eco-p-name">保禄数字分身</div>
-                    <div className="eco-p-shop">思潼AI 创始人</div>
-                    <p className="eco-p-desc">我是保禄的数字分身，他的 AI 增长和连锁经营方法论都装进来了。你有具体问题，我按保禄的思路接着答。</p>
-                    <div className="eco-p-buy">
-                      <span className="eco-p-soon">🔐 真人授权训练中 · 即将上线</span>
-                      <button type="button" className="eco-p-cart" onClick={() => addToCart("保禄数字分身")}>🛒 立即购买</button>
-                    </div>
-                  </div>
+              <FloorHead no="F3" title="数字咨询师专区" sub="把真人的方法论装进数字分身" />
+              <div className="eh-cons">
+                <article className="eh-cons-card">
+                  <span className="eh-scanline" />
+                  <span className="eh-cons-ava-wrap">
+                    <span className="eh-ring r1" /><span className="eh-ring r2" />
+                    <span className="eh-cons-ava"><b>🧭</b></span>
+                    <i className="eh-cons-dot dev" />
+                  </span>
+                  <span className="eh-cons-main">
+                    <span className="eh-cons-name">保禄数字分身</span>
+                    <span className="eh-cons-face">思潼AI 创始人</span>
+                    <span className="eh-cons-meta">我是保禄的数字分身，他的 AI 增长和连锁经营方法论都装进来了。你有具体问题，我按保禄的思路接着答。</span>
+                    <span className="eh-cons-soon">🔐 真人授权训练中 · 即将上线</span>
+                    <span className="eh-buy-row">
+                      <button type="button" className="eh-cart-mini" onClick={() => addToCart("保禄数字分身")}>🛒</button>
+                      <button type="button" className="eh-buy-now dim" onClick={() => addToCart("保禄数字分身")}>立即购买</button>
+                    </span>
+                  </span>
                 </article>
-                {ECO_CONSULTANTS.map((consultant, index) => {
-                  const ok = consultant.status === "ok";
-                  return (
-                    <article
-                      key={consultant.key}
-                      className={`eco-product ${ok ? "is-ok" : "is-dev"}`}
-                      style={{ animationDelay: `${Math.min(index, 9) * 40}ms` }}
-                      onClick={() => setOpenConsultant(consultant)}
-                    >
-                      <div className="eco-p-img">
-                        <EcoAvatar icon={consultant.icon} img={consultantImagePath(consultant)} />
-                        <span className={`eco-badge ${ok ? "ok" : "dev"}`}>{ok ? "可对话" : "即将上线"}</span>
-                      </div>
-                      <div className="eco-p-body">
-                        <div className="eco-p-name">{consultant.name}</div>
-                        <div className="eco-p-shop">{consultant.face}</div>
-                        <p className="eco-p-desc">{consultant.meta}</p>
-                        <div className="eco-p-buy">
-                          <span className="eco-p-soon">{ok ? "去对话" : "敬请期待"}</span>
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
+                {ECO_CONSULTANTS.map((consultant) => (
+                  <article
+                    key={consultant.key}
+                    className="eh-cons-card"
+                    onClick={() => setOpenConsultant(consultant)}
+                  >
+                    <span className="eh-scanline" />
+                    <span className="eh-cons-ava-wrap">
+                      <span className="eh-ring r1" /><span className="eh-ring r2" />
+                      <span className="eh-cons-ava">
+                        <img src={consultantImagePath(consultant)} alt={consultant.name} onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                        <b>{consultant.icon}</b>
+                      </span>
+                      <i className={`eh-cons-dot ${consultant.status === "ok" ? "ok" : "dev"}`} />
+                    </span>
+                    <span className="eh-cons-main">
+                      <span className="eh-cons-name">{consultant.name}</span>
+                      <span className="eh-cons-face">{consultant.face}</span>
+                      <span className="eh-cons-meta">{consultant.meta}</span>
+                      <span className="eh-cons-soon">{consultant.status === "ok" ? "✅ 可对话" : "🔐 数字分身接入中 · 敬请期待"}</span>
+                      <span className="eh-buy-row">
+                        <button type="button" className="eh-cart-mini" onClick={(e) => { e.stopPropagation(); addToCart(consultant.name); }}>🛒</button>
+                        <button type="button" className="eh-buy-now dim" onClick={(e) => { e.stopPropagation(); addToCart(consultant.name); }}>立即购买</button>
+                      </span>
+                    </span>
+                  </article>
+                ))}
               </div>
             </section>
 
             <section className="eco-floor" id="floor-hardware">
-              <FloorHead no="F4" title="AI 硬件专区" sub="让 AI 落到店里的硬件货架（人民币直购 · 不进算力体系）。" />
-              <div className="eco-products">
-                {renderShelfCard("🎙️", "AI 录音卡", "硬件新品", "录音即分析，自动转经营动作：客户沟通自动归档、话术要点自动提炼。", "¥199", "/台 · 人民币直购")}
-                {renderShelfCard("📹", "门店 AI 机器人", "硬件新品", "迎宾接待、导购问答，常用话术语音随叫随到，前台接待不冷场。", "¥1,999", "/台 · 人民币直购")}
+              <FloorHead no="F4" title="AI 硬件专区" sub="让 AI 落到店里的硬件货架" />
+              <div className="eh-prod">
+                {renderProductCard({ icon: "🎙️", name: "AI 录音卡", tag: "硬件新品", desc: "录音即分析，自动转经营动作：客户沟通自动归档、话术要点自动提炼。", price: "¥199 /台 · 人民币直购" })}
+                {renderProductCard({ icon: "🤖", name: "门店 AI 机器人", tag: "硬件新品", desc: "迎宾接待、导购问答，常用话术语音随叫随到，前台接待不冷场。", price: "¥1,999 /台 · 人民币直购" })}
               </div>
             </section>
 
             <section className="eco-floor" id="floor-courses">
-              <FloorHead no="F5" title="AI 课程专区" sub="从 0 到 1 学会用 AI 干活（人民币直购 · 不进算力体系）。" />
-              <div className="eco-products">
-                {renderShelfCard("🎓", "智能体开发课", "视频课", "从 0 到 1 学会搭建自己的智能体工作流。", "¥199", "/门 · 人民币直购")}
-                {renderShelfCard("🎬", "WorkBuddy 办公提效课", "实操课", "用 AI 把日报、周报、方案、表格这些日常活干得更快，即学即用。", "¥99", "/门 · 人民币直购")}
+              <FloorHead no="F5" title="AI 课程专区" sub="从 0 到 1 学会用 AI 干活" />
+              <div className="eh-prod">
+                {renderProductCard({ icon: "🎓", name: "智能体开发课", tag: "视频课", desc: "从 0 到 1 学会搭建自己的智能体工作流。", price: "¥199 /门 · 人民币直购" })}
+                {renderProductCard({ icon: "📊", name: "WorkBuddy 办公提效课", tag: "实操课", desc: "用 AI 把日报、周报、方案、表格这些日常活干得更快，即学即用。", price: "¥99 /门 · 人民币直购" })}
               </div>
             </section>
 
             <section className="eco-floor" id="floor-opc">
-              <FloorHead no="F6" title="OPC 专区" sub="AI 算力与创作资源，商家价直供。" />
-              <div className="eco-products">
-                <article className="eco-product is-ok">
-                  <div className="eco-p-img">
-                    <EcoAvatar icon="🏭" img="" />
-                    <span className="eco-badge ok">OPC</span>
-                  </div>
-                  <div className="eco-p-body">
-                    <div className="eco-p-name">大模型折扣仓</div>
-                    <div className="eco-p-shop">主流大模型 API 额度 · 折扣直充</div>
-                    <p className="eco-p-desc">token 按仓价拿，AI 用量大的商家先省一半。</p>
-                    <div className="eco-p-buy">
-                      <span className="eco-p-price">
-                        <b>50</b>
-                        <span className="eco-p-unit">算力/份 起 ≈ ¥5</span>
-                      </span>
-                      <button type="button" className="eco-p-cart" onClick={() => addToCart("大模型折扣仓")}>🛒 加购</button>
-                      <button type="button" className="eco-p-cart primary" onClick={() => addToCart("大模型折扣仓（直购）")}>立即购买</button>
-                    </div>
-                  </div>
-                </article>
+              <FloorHead no="F6" title="OPC 专区" sub="AI 算力与创作资源，商家价直供" />
+              <div className="eh-prod">
+                {renderProductCard({ icon: "🏭", name: "大模型折扣仓", tag: "OPC", desc: "主流大模型 API 额度折扣直充，token 按仓价拿，AI 用量大的商家先省一半。", price: "50 算力/份 起", cny: "¥5", buyNow: true, demo: true })}
+                {renderProductCard({ icon: "🎬", name: "AIGC 漫剧创作工作台", tag: "OPC", desc: "分镜、角色、成片一条龙，批量产出漫剧短视频，带货与账号起号都能用。", price: "199 算力/席", cny: "¥19.9", buyNow: true, demo: true })}
               </div>
             </section>
 
@@ -782,7 +817,7 @@ export function EcoMallHomePage() {
       {/* 底部 TabBar（手机）/ 左侧导航（桌面 ≥960px，照原型 v3.28） */}
       <nav className="eh-tabbar" aria-label="商城导航">
         <div className="eh-nav-brand">
-          <span className="eh-brand-txt"><b>思潼AI商城</b><span className="eh-ai"><i></i>AI 全员在线</span></span>
+          <span className="eh-brand-txt"><b>思潼AI商城</b><span className="eh-ai"><i></i>AI 全员在线 <em>{clock}</em></span></span>
         </div>
         <button type="button" className="eh-tab act" onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); }}>
           <i>🏠</i><span>首页</span>

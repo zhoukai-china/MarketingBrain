@@ -93,7 +93,7 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
   const ringAnim = await page.evaluate(() => getComputedStyle(document.querySelector(".eh .eco-p-img"), "::before").animationName);
   log(ringAnim === "ehSpin", "头像虚线旋环动画", ringAnim);
   log(text.includes("沈定") && text.includes("秦文") && text.includes("罗盘"), "F1 五位在线");
-  log(text.includes("99") && text.includes("算力/次"), "价格橙标");
+  log(/\d+\s*算力\/(份|次|场|条)/.test(text), "价格橙标（算力/单位）");
   const cardGeo = await page.evaluate(() => {
     const c = document.querySelector(".eh .eco-product");
     const r = c.getBoundingClientRect();
@@ -122,6 +122,53 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
   log(text.includes("保禄数字分身") && text.includes("真人授权训练中"), "F3 保禄卡");
   log(text.includes("大模型折扣仓"), "F6 OPC");
   log(text.includes("AI 案例") && text.includes("演示数据虚构"), "AI 案例流");
+
+  // ---- 8 条补修验收 ----
+  const sideAi = await page.evaluate(() => {
+    const el = document.querySelector(".eh-nav-brand .eh-ai");
+    return el ? el.innerText.replace(/\n/g, " ") : "";
+  });
+  log(sideAi.includes("AI 全员在线"), "① 侧边栏 AI 全员在线", sideAi);
+  const clocks = await page.evaluate(() => Array.from(document.querySelectorAll(".eh-ai em")).map((e) => e.textContent.trim()));
+  log(clocks.length >= 2 && clocks.every((c) => /^\d{2}:\d{2}$/.test(c)), "② 顶栏/侧栏时钟 HH:MM", clocks.join(","));
+  const bg = await page.evaluate(() => ({
+    grid: document.querySelectorAll(".eh-bg-grid").length,
+    orb: document.querySelectorAll(".eh-orb").length,
+    anim: document.querySelectorAll(".eh-orb").length ? getComputedStyle(document.querySelector(".eh-orb")).animationName : ""
+  }));
+  log(bg.grid === 1 && bg.orb === 2 && bg.anim === "ehDrift", "③ 背景网格+漂移光斑动效", JSON.stringify(bg));
+  const adWrap = await page.evaluate(() => {
+    const el = document.querySelector(".eh-ad");
+    if (!el) return null;
+    const cs = getComputedStyle(el);
+    return { bw: cs.borderTopWidth, radius: cs.borderTopLeftRadius, bg: cs.backgroundColor };
+  });
+  log(adWrap && adWrap.bw === "1px" && adWrap.radius === "16px", "④ 邀请有礼外框（1px 边框/圆角16）", JSON.stringify(adWrap));
+  const todayImg = await page.evaluate(() => document.querySelectorAll(".eh .eco-today-ico img").length);
+  log(todayImg >= 1, "⑤ 今日任务用数字人头像", String(todayImg));
+  const priceMt = await page.evaluate(() => {
+    const el = document.querySelector(".eh .eco-p-price");
+    return el ? getComputedStyle(el).marginTop : "";
+  });
+  log(priceMt === "3px", "⑥ 卡内价目行紧跟交付 pill（margin 3px）", priceMt);
+  const cons = await page.evaluate(() => {
+    const cards = document.querySelectorAll(".eh-cons-card");
+    return { n: cards.length, dir: cards.length ? getComputedStyle(cards[0]).flexDirection : "", border: cards.length ? getComputedStyle(cards[0]).borderTopStyle : "" };
+  });
+  log(cons.n >= 2 && cons.dir === "row" && cons.border === "dashed", "⑦ 数字咨询师卡多张+横向虚线样式", JSON.stringify(cons));
+  const pc = await page.evaluate(() => {
+    const cards = document.querySelectorAll(".eh-pcard");
+    const cover = document.querySelector(".eh-pcover");
+    const cs = cover ? getComputedStyle(cover) : null;
+    return { n: cards.length, ratio: cs ? cs.aspectRatio : "", foot: document.querySelectorAll(".eh-pfoot").length, buy: document.querySelectorAll(".eh-buy-now").length };
+  });
+  log(pc.n >= 4 && pc.ratio === "16 / 9" && pc.foot >= 4, "⑧ F4-F6 商品卡（16:9 封面 + 页脚）", JSON.stringify(pc));
+  const bh = await page.evaluate(() => {
+    const el = document.querySelector(".eh-brand-hero");
+    return el ? el.innerText.replace(/\n/g, " | ").slice(0, 40) : "";
+  });
+  log(bh.includes("美业门店AI经营大脑"), "F7 行业工作台金卡", bh);
+
   log(errors.length === 0, "无 JS 异常");
 
   await page.screenshot({ path: __dirname + "/home-v328-final.png" });
