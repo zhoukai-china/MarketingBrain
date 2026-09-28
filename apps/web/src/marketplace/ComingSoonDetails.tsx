@@ -131,8 +131,7 @@ export function ComingSoonDetailPage({ content }: { content: ComingSoonContent }
 
   return (
     <main className="app-wrap ipd-page eh">
-      <MallTopbar />
-      <button className="ipd-back" onClick={() => { window.location.href = getAppPath("/agents"); }}>← 返回</button>
+      <MallTopbar back="/agents" badge={`${content.name} · 商品详情`} />
 
       <section className="ipd-pd">
         <div className="ipd-gallery">

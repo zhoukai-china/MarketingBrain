@@ -32,7 +32,9 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
     const el = document.querySelector(".eh-topbar");
     return el ? el.innerText.replace(/\n/g, "|") : "";
   });
-  log(topbar.includes("思潼AI商城") && topbar.includes("AI 全员在线") && topbar.includes("充值"), "顶栏品牌+AI在线+充值", topbar.slice(0, 40));
+  log(topbar.includes("思潼AI商城") && topbar.includes("充值") && !topbar.includes("AI 全员在线"), "首页顶栏统一新样式（字标+充值，无 AI 在线）", topbar.slice(0, 40));
+  const logoColor = await page.evaluate(() => { const em = document.querySelector(".eh-logo em"); return em ? getComputedStyle(em).color : ""; });
+  log(logoColor === "rgb(255, 106, 0)", "字标 AI 橙色配置", logoColor);
 
   // 橙色 Hero
   const hero = await page.evaluate(() => {
@@ -156,8 +158,8 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
     return el ? el.innerText.replace(/\n/g, " ") : "";
   });
   log(sideAi === "" || !sideAi.includes("AI 全员在线"), "① 侧边栏已去掉 AI 全员在线", sideAi);
-  const clocks = await page.evaluate(() => Array.from(document.querySelectorAll(".eh-ai em")).map((e) => e.textContent.trim()));
-  log(clocks.length >= 1 && clocks.every((c) => /^\d{2}:\d{2}$/.test(c)), "② 顶栏时钟 HH:MM", clocks.join(","));
+  const homeNoBack = await page.evaluate(() => document.querySelectorAll(".eh-backpill").length);
+  log(homeNoBack === 0, "② 首页顶栏无返回胶囊（返回只在详情/工作台）", String(homeNoBack));
   const bg = await page.evaluate(() => ({
     grid: document.querySelectorAll(".eh-bg-grid").length,
     orb: document.querySelectorAll(".eh-orb").length,
@@ -215,7 +217,7 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
     const chrome = await p2.evaluate(() => ({
       topbar: Boolean(document.querySelector(".eh-topbar")),
       banner: document.querySelectorAll(".shared-banner").length,
-      back: document.querySelector(".ipd-back")?.textContent?.trim() || "",
+      back: document.querySelector(".eh-backpill")?.textContent?.trim() || "",
       ehScope: Boolean(document.querySelector("main.eh"))
     }));
     log(chrome.topbar && chrome.banner === 0 && chrome.back.includes("返回") && chrome.ehScope, "详情页商城版式（MallTopbar/无旧横幅/← 返回）", JSON.stringify(chrome));
@@ -254,6 +256,27 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
     log(errors3.length === 0, "工作台无 JS 异常");
     await p4.screenshot({ path: __dirname + "/workbench-mall-chrome.png" });
     await p4.close();
+  }
+
+  // ---- 顶栏顶格统一测量 ----
+  {
+    const p5 = await browser.newPage();
+    await p5.setViewport({ width: 1440, height: 1000 });
+    const geo = {};
+    for (const [name, url] of [["home", "http://localhost:5174/agents"], ["detail", "http://localhost:5174/agent/ipzone__ip-pos/detail"], ["workbench", "http://localhost:5174/agent/ipzone__ip-pos/workbench"]]) {
+      await p5.goto(url, { waitUntil: "networkidle2", timeout: 30000 });
+      await new Promise((r) => setTimeout(r, 1200));
+      geo[name] = await p5.evaluate(() => {
+        const el = document.querySelector(".eh-topbar");
+        const r = el.getBoundingClientRect();
+        const inr = el.querySelector(".eh-topbar-in");
+        const ri = inr ? inr.getBoundingClientRect() : null;
+        return { x: Math.round(r.x), w: Math.round(r.width), inW: ri ? Math.round(ri.width) : 0 };
+      });
+    }
+    log(geo.home.x === 190 && geo.detail.x === 0 && geo.workbench.x === 0, "顶栏统一顶格（详情/工作台全出血，首页右侧起）", JSON.stringify(geo));
+    log(geo.detail.inW === 1200 && geo.workbench.inW === 1200, "顶栏内层 1200 对齐");
+    await p5.close();
   }
 
   log(errors.length === 0, "无 JS 异常");

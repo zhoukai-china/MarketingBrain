@@ -633,11 +633,10 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
 
   return (
     <main className="cpw-page">
-      <MallTopbar />
+      <MallTopbar back={`/agent/${encodeURIComponent(skuId)}/detail`} badge="IP定位智能体 · 定位工作台" />
 
       <header className="cpw-hero">
         <div className="cpw-wrap">
-          <button className="cpw-backbtn" onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}/detail`); }}>← 返回</button>
           <div className="cpw-chips">
             <span className="cpw-chip dev">沈定 · 首席定位官</span>
             <span className="cpw-chip">定位工作台</span>

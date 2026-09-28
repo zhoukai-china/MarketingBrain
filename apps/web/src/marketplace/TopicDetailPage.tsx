@@ -202,9 +202,8 @@ export function TopicDetailPage() {
 
   return (
     <main className="app-wrap ipd-page eh">
-      <MallTopbar />
+      <MallTopbar back="/agents" badge="选题策略智能体 · 商品详情" />
 
-      <button className="ipd-back" onClick={() => { window.location.href = getAppPath("/agents"); }}>← 返回</button>
 
       {/* ============ 上半屏：左头图（可切换视图） + 右信息/价格/CTA ============ */}
       <section className="ipd-pd">

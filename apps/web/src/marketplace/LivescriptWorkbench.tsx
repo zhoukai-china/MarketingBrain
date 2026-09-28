@@ -506,11 +506,10 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
 
   return (
     <main className="cpw-page">
-      <MallTopbar />
+      <MallTopbar back={`/agent/${encodeURIComponent(skuId)}/detail`} badge="直播话术智能体 · 话术工作台" />
 
       <header className="cpw-hero">
         <div className="cpw-wrap">
-          <button className="cpw-backbtn" onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}/detail`); }}>← 返回</button>
           <div className="cpw-chips">
             <span className="cpw-chip dev">直播话术智能体</span>
             <span className="cpw-chip">罗盘 · 直播操盘总监</span>

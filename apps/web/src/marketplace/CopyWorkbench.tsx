@@ -529,11 +529,10 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
   return (
     <main className="cpw-page">
       {/* Topbar 在作用域外（商城红线：留白/主题由全局容器与 Topbar 自己管） */}
-      <MallTopbar />
+      <MallTopbar back={`/agent/${encodeURIComponent(skuId)}/detail`} badge="文案主笔智能体 · 文案工作台" />
 
       <header className="cpw-hero">
         <div className="cpw-wrap">
-          <button className="cpw-backbtn" onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}/detail`); }}>← 返回</button>
           <h1><img className="cpw-emoji" src={avatar} alt={persona} />文案创作工作台</h1>
           <p className="cpw-hook">跟{persona}聊几句，它帮你把选题、口播稿、拍摄、发布一次备齐。</p>
           <p className="cpw-ability">回答几个问题 → 出创作简报 → 十件套分区交付：单件可复制，交付后可导出 Word（免费）。</p>

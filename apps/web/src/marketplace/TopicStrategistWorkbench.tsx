@@ -545,7 +545,7 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
       <main className="app-wrap">
       {/* 商城共用顶栏（与 /agent/<skuCode>/chat 一致：导航 / 主题切换 / 算力 / 退出）。
           放在 .app-wrap 内：顶栏 1200 居中不顶格（与 chat/详情页一致）。 */}
-      <MallTopbar />
+      <MallTopbar back={skuId ? `/agent/${encodeURIComponent(skuId)}/detail` : "/agents"} badge="选题策略智能体 · 选题工作台" />
       <div className="ts-wb">
       {/* ---------- hero ---------- */}
       <header className="hero">

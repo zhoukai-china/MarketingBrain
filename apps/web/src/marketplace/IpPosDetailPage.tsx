@@ -165,10 +165,9 @@ export function IpPosDetailPage() {
 
   return (
     <main className="app-wrap ipd-page eh">
-      <MallTopbar />
+      <MallTopbar back="/agents" badge="IP定位智能体 · 商品详情" />
 
       {/* 返回按钮照原型 back-btn：小号橙色药丸（align-self 防 .app-wrap 纵向 flex 拉伸） */}
-      <button className="ipd-back" onClick={() => { window.location.href = getAppPath("/agents"); }}>← 返回</button>
 
       {/* ============ 上半屏：左头图（可切换视图） + 右信息/价格/CTA ============ */}
       <section className="ipd-pd">
