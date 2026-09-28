@@ -28,7 +28,7 @@ export function MallTopbar({ back, badge }: { back?: string; badge?: string }) {
         {badge ? <span className="eh-page-badge">{badge}</span> : null}
         <span className="eh-sp" />
         <div className="eh-wallet">
-          <span className="eh-bal2">⚡ 算力 <b>{balance ?? "—"}</b></span>
+          <span className="eh-bal2">算力 <b>{balance ?? "—"}</b></span>
           <button type="button" className="eh-mini" onClick={() => { window.location.href = getAppPath("/recharge"); }}>充值</button>
         </div>
       </div>

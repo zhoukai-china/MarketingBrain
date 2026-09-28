@@ -719,7 +719,7 @@ export function EcoMallHomePage() {
       {/* 底部 TabBar（手机）/ 左侧导航（桌面 ≥960px，照原型 v3.28） */}
       <nav className="eh-tabbar" aria-label="商城导航">
         <div className="eh-nav-brand">
-          <span className="eh-brand-txt"><b>思潼AI商城</b></span>
+          <span className="eh-logo"><b>思潼</b><em>AI</em>商城</span>
         </div>
         <button type="button" className={`eh-tab ${view === "home" ? "act" : ""}`} onClick={() => { setView("home"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
           <i>🏠</i><span>首页</span>

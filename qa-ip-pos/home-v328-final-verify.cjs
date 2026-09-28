@@ -279,6 +279,51 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
     await p5.close();
   }
 
+  // ---- 第九轮：顶栏规格照原型 + 详情页贴顶/背景 ----
+  {
+    const p6 = await browser.newPage();
+    await p6.setViewport({ width: 1440, height: 900 });
+    await p6.goto("http://localhost:5174/agent/ipzone__ip-pos/detail", { waitUntil: "networkidle2", timeout: 30000 });
+    await new Promise((r) => setTimeout(r, 1600));
+    const spec = await p6.evaluate(() => {
+      const tb = document.querySelector(".eh-topbar");
+      const r = tb.getBoundingClientRect();
+      const back = document.querySelector(".eh-backpill");
+      const cs = getComputedStyle(back);
+      const bal = document.querySelector(".eh-bal2");
+      const badge = document.querySelector(".eh-page-badge");
+      const main = document.querySelector("main");
+      return {
+        topbarY: Math.round(r.y), topbarH: Math.round(r.height), topbarBg: getComputedStyle(tb).backgroundColor,
+        backBg: cs.backgroundColor, backRadius: cs.borderTopLeftRadius, backColor: cs.color,
+        balBg: bal ? getComputedStyle(bal).backgroundColor : "", balText: bal ? bal.innerText.trim() : "",
+        badgeFs: badge ? getComputedStyle(badge).fontSize : "",
+        mainBg: getComputedStyle(main).backgroundColor, mainBgImg: getComputedStyle(main).backgroundImage
+      };
+    });
+    log(spec.topbarY === 0 && spec.topbarH >= 52 && spec.topbarH <= 53, "详情页顶栏贴顶 52px（不再留 12px 空隙）", JSON.stringify({ y: spec.topbarY, h: spec.topbarH }));
+    log(spec.backBg === "rgba(232, 101, 26, 0.07)" && spec.backRadius === "8px" && spec.backColor === "rgb(232, 101, 26)", "返回按钮照原型（橙描边 8px 圆角）", JSON.stringify({ bg: spec.backBg, r: spec.backRadius }));
+    log(spec.mainBg === "rgb(244, 247, 252)" && spec.mainBgImg === "none", "详情页干净浅底（去橙粉渐变）", spec.mainBg + " / " + spec.mainBgImg);
+    log(spec.balBg === "rgb(244, 247, 251)" && spec.balText.indexOf("算力") >= 0, "算力胶囊照原型（浅灰底）", spec.balBg + " " + spec.balText);
+    log(spec.badgeFs === "11px", "页面徽标 11px（原型 .tag）", spec.badgeFs);
+    await p6.screenshot({ path: __dirname + "/detail-topbar-v2.png" });
+    await p6.close();
+  }
+  {
+    const p7 = await browser.newPage();
+    await p7.setViewport({ width: 1440, height: 900 });
+    await p7.goto("http://localhost:5174/agents", { waitUntil: "networkidle2", timeout: 30000 });
+    await new Promise((r) => setTimeout(r, 1600));
+    const side = await p7.evaluate(() => {
+      const el = document.querySelector(".eh-nav-brand .eh-logo em");
+      const b = document.querySelector(".eh-nav-brand .eh-logo b");
+      return { em: el ? getComputedStyle(el).color : "", b: b ? getComputedStyle(b).color : "" };
+    });
+    log(side.em === "rgb(255, 106, 0)" && side.b === "rgb(43, 27, 16)", "首页侧栏字标同配色（思潼深+AI橙）", JSON.stringify(side));
+    await p7.screenshot({ path: __dirname + "/home-topbar-v2.png" });
+    await p7.close();
+  }
+
   log(errors.length === 0, "无 JS 异常");
 
   await page.screenshot({ path: __dirname + "/home-v328-final.png" });

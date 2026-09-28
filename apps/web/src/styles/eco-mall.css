@@ -1268,19 +1268,23 @@ body.eco-mall-body .app-wrap {
 /* ---- 顶栏 ---- */
 .eh-topbar{
   position:sticky;top:0;z-index:100;
-  background:rgba(255,255,255,.9);
-  -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
-  border-bottom:1px solid #F0EBE3;
+  background:rgba(244,247,252,.92);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  border-bottom:1px solid #E5DDD1;
 }
 /* 顶栏内层：与页面内容容器对齐（1200 居中） */
-.eh-topbar-in{max-width:1200px;margin:0 auto;padding:10px 22px;display:flex;align-items:center;gap:10px}
-.eh-backpill{flex:none;height:32px;padding:0 14px;border-radius:999px;border:1px solid #E5DDD1;background:#fff;color:#94796B;font-size:12.5px;font-weight:600;cursor:pointer}
-.eh-backpill:hover{color:#E86A00;border-color:rgba(255,122,26,.45)}
+.eh-topbar-in{max-width:1200px;margin:0 auto;height:52px;padding:0 22px;display:flex;align-items:center;gap:10px}
+.eh-backpill{flex:none;padding:4px 12px;border-radius:8px;border:1px solid rgba(232,101,26,.38);background:rgba(232,101,26,.07);color:#E8651A;font-size:12px;font-weight:700;cursor:pointer}
+.eh-backpill:hover{background:rgba(232,101,26,.14)}
 .eh-logo{font-size:16px;font-weight:800;color:#2B1B10;letter-spacing:.5px;white-space:nowrap}
 .eh-logo em{font-style:normal;color:#FF6A00}
-.eh-page-badge{flex:none;height:28px;display:inline-flex;align-items:center;padding:0 12px;border-radius:999px;border:1px solid #E5DDD1;background:#fff;color:#5B6B7C;font-size:12px;white-space:nowrap}
-.eh-bal2{display:inline-flex;align-items:center;gap:4px;height:32px;padding:0 14px;border-radius:999px;border:1px solid #E5DDD1;background:#fff;font-size:13px;color:#94796B;white-space:nowrap}
-.eh-bal2 b{color:#E86A00;font-weight:800}
+.eh-page-badge{flex:none;display:inline-flex;align-items:center;padding:2px 9px;border-radius:99px;border:1px solid #E5DDD1;background:#fff;color:#94796B;font-size:11px;white-space:nowrap}
+.eh-bal2{display:inline-flex;align-items:center;gap:4px;padding:3px 12px;border-radius:99px;border:1px solid #E5DDD1;background:#F4F7FB;font-size:12.5px;color:#94796B;white-space:nowrap}
+.eh-bal2 b{color:#2B1B10;font-weight:800}
+/* 充值：与返回按钮同一家族（橙描边胶囊） */
+.eh-topbar .eh-mini{padding:4px 12px;border-radius:8px;font-size:12px;font-weight:700;background:rgba(232,101,26,.07);border:1px solid rgba(232,101,26,.38);color:#E8651A;box-shadow:none}
+.eh-topbar .eh-mini::after{display:none}
+.eh-topbar .eh-mini:hover{background:rgba(232,101,26,.14)}
 /* 详情/Topic 工作台被 1200 容器框住，顶栏做全出血（顶格），与工作台/商城一致 */
 .app-wrap.ipd-page > .eh-topbar,
 .app-wrap:not(.eco-mall-page) > .eh-topbar{
@@ -1672,3 +1676,8 @@ body:has(.ipd-page), body:has(.ts-wb){overflow-x:hidden}
 @media (prefers-reduced-motion: reduce){
   .eh .eco-product::before{animation:none}
 }
+
+
+/* 详情页：顶栏贴顶 + 干净浅色背景（去掉商城橙粉渐变，原型工作台同为 #F4F7FC） */
+.ipd-page.eh{padding-top:0;background:#F4F7FC;background-image:none}
+.ipd-page.eh > .eh-topbar{margin-top:0}
