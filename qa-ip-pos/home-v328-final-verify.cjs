@@ -128,9 +128,9 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
     const el = document.querySelector(".eh-nav-brand .eh-ai");
     return el ? el.innerText.replace(/\n/g, " ") : "";
   });
-  log(sideAi.includes("AI 全员在线"), "① 侧边栏 AI 全员在线", sideAi);
+  log(sideAi === "" || !sideAi.includes("AI 全员在线"), "① 侧边栏已去掉 AI 全员在线", sideAi);
   const clocks = await page.evaluate(() => Array.from(document.querySelectorAll(".eh-ai em")).map((e) => e.textContent.trim()));
-  log(clocks.length >= 2 && clocks.every((c) => /^\d{2}:\d{2}$/.test(c)), "② 顶栏/侧栏时钟 HH:MM", clocks.join(","));
+  log(clocks.length >= 1 && clocks.every((c) => /^\d{2}:\d{2}$/.test(c)), "② 顶栏时钟 HH:MM", clocks.join(","));
   const bg = await page.evaluate(() => ({
     grid: document.querySelectorAll(".eh-bg-grid").length,
     orb: document.querySelectorAll(".eh-orb").length,
@@ -155,7 +155,15 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
     const cards = document.querySelectorAll(".eh-cons-card");
     return { n: cards.length, dir: cards.length ? getComputedStyle(cards[0]).flexDirection : "", border: cards.length ? getComputedStyle(cards[0]).borderTopStyle : "" };
   });
-  log(cons.n >= 2 && cons.dir === "row" && cons.border === "dashed", "⑦ 数字咨询师卡多张+横向虚线样式", JSON.stringify(cons));
+  log(cons.n === 1 && cons.dir === "row" && cons.border === "dashed", "⑦ 数字咨询师卡=保禄一张+横向虚线样式", JSON.stringify(cons));
+  const paluImg = await page.evaluate(() => { const i = document.querySelector(".eh-cons-ava img"); return i ? i.src : ""; });
+  log(paluImg.includes("/mall/palu.jpg"), "保禄分身用真身照片", paluImg.slice(-20));
+  const covers = await page.evaluate(() => Array.from(document.querySelectorAll(".eh-cimg")).map((i) => i.src.split("/mall/")[1]).join(","));
+  log((covers.match(/\.jpg/g) || []).length === 6, "F4-F6 六张真实封面图", covers);
+  const liveTxt = await page.evaluate(() => { const el = document.querySelector("#floor-acquire .eh-floor-live"); return el ? el.textContent.trim() : ""; });
+  log(/\d+ 位在线/.test(liveTxt), "F1 楼层头展示 N 位在线", liveTxt);
+  const tagW = await page.evaluate(() => { const el = document.querySelector(".eh .eco-p-tag"); if (!el) return null; const r = el.getBoundingClientRect(); const body = el.parentElement.getBoundingClientRect(); return Math.round(r.width / body.width * 10) / 10; });
+  log(tagW === 1, "交付 pill 全宽", String(tagW));
   const pc = await page.evaluate(() => {
     const cards = document.querySelectorAll(".eh-pcard");
     const cover = document.querySelector(".eh-pcover");

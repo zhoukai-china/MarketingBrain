@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { apiPath, getAppPath } from "../lib/api.js";
+import { apiPath, getAppPath, getPublicAssetPath } from "../lib/api.js";
 import { fetchMarketMe, readJson } from "./shell.js";
 import { employeePersonaLabel } from "./employee-names.js";
 import {
@@ -255,7 +255,7 @@ function ConsultantModal({ consultant, onClose }: { consultant: EcoConsultant; o
   );
 }
 
-function FloorHead({ no, title, sub }: { no: string; title: string; sub?: string }) {
+function FloorHead({ no, title, sub, live }: { no: string; title: string; sub?: string; live?: string }) {
   return (
     <div className="eco-floor-head">
       <div className="eco-floor-title">
@@ -263,6 +263,7 @@ function FloorHead({ no, title, sub }: { no: string; title: string; sub?: string
         <h2>{title}</h2>
       </div>
       {sub ? <div className="eco-floor-sub">{sub}</div> : null}
+      {live ? <span className="eh-floor-live"><i></i>{live}</span> : null}
     </div>
   );
 }
@@ -518,6 +519,7 @@ export function EcoMallHomePage() {
    */
   function renderProductCard(opt: {
     icon: string;
+    img?: string;
     name: string;
     tag: string;
     desc: string;
@@ -529,7 +531,7 @@ export function EcoMallHomePage() {
     return (
       <article className="eh-pcard">
         <div className="eh-pcover">
-          <span className="eh-pcover-ico">{opt.icon}</span>
+          {opt.img ? <img className="eh-cimg" src={opt.img} alt={opt.name} /> : <span className="eh-pcover-ico">{opt.icon}</span>}
           <span className="eh-scanline" />
         </div>
         <div className="eh-pbody">
@@ -694,7 +696,7 @@ export function EcoMallHomePage() {
             {renderTodayStrip()}
 
             <section className="eco-floor" id="floor-acquire">
-              <FloorHead no="F1" title="内容获客专区" sub={`做内容引流的智能体都在这 · ${byKey.acquireOk.length} 位在线`} />
+              <FloorHead no="F1" title="内容获客专区" sub="做内容引流的智能体都在这" live={`${byKey.acquireOk.length} 位在线`} />
               <div className="eco-products">
                 {renderEmployeeProducts(byKey.acquireOk, "ok")}
               </div>
@@ -709,7 +711,7 @@ export function EcoMallHomePage() {
             </section>
 
             <section className="eco-floor" id="floor-private">
-              <FloorHead no="F2" title="私域营销专区" sub="客户成交 / 私域内容，跟着转化走。" />
+              <FloorHead no="F2" title="私域营销专区" sub="客户成交 / 私域内容，跟着转化走。" live={`${byKey.privateDev.filter((x) => x.status === "ok").length} 位在线`} />
               <div className="eco-products">
                 {renderEmployeeProducts(byKey.privateDev, "dev")}
               </div>
@@ -722,7 +724,10 @@ export function EcoMallHomePage() {
                   <span className="eh-scanline" />
                   <span className="eh-cons-ava-wrap">
                     <span className="eh-ring r1" /><span className="eh-ring r2" />
-                    <span className="eh-cons-ava"><b>🧭</b></span>
+                    <span className="eh-cons-ava">
+                      <img src={getPublicAssetPath("/mall/palu.jpg")} alt="保禄数字分身" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                      <b>🧭</b>
+                    </span>
                     <i className="eh-cons-dot dev" />
                   </span>
                   <span className="eh-cons-main">
@@ -736,57 +741,30 @@ export function EcoMallHomePage() {
                     </span>
                   </span>
                 </article>
-                {ECO_CONSULTANTS.map((consultant) => (
-                  <article
-                    key={consultant.key}
-                    className="eh-cons-card"
-                    onClick={() => setOpenConsultant(consultant)}
-                  >
-                    <span className="eh-scanline" />
-                    <span className="eh-cons-ava-wrap">
-                      <span className="eh-ring r1" /><span className="eh-ring r2" />
-                      <span className="eh-cons-ava">
-                        <img src={consultantImagePath(consultant)} alt={consultant.name} onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                        <b>{consultant.icon}</b>
-                      </span>
-                      <i className={`eh-cons-dot ${consultant.status === "ok" ? "ok" : "dev"}`} />
-                    </span>
-                    <span className="eh-cons-main">
-                      <span className="eh-cons-name">{consultant.name}</span>
-                      <span className="eh-cons-face">{consultant.face}</span>
-                      <span className="eh-cons-meta">{consultant.meta}</span>
-                      <span className="eh-cons-soon">{consultant.status === "ok" ? "✅ 可对话" : "🔐 数字分身接入中 · 敬请期待"}</span>
-                      <span className="eh-buy-row">
-                        <button type="button" className="eh-cart-mini" onClick={(e) => { e.stopPropagation(); addToCart(consultant.name); }}>🛒</button>
-                        <button type="button" className="eh-buy-now dim" onClick={(e) => { e.stopPropagation(); addToCart(consultant.name); }}>立即购买</button>
-                      </span>
-                    </span>
-                  </article>
-                ))}
               </div>
             </section>
 
             <section className="eco-floor" id="floor-hardware">
               <FloorHead no="F4" title="AI 硬件专区" sub="让 AI 落到店里的硬件货架" />
               <div className="eh-prod">
-                {renderProductCard({ icon: "🎙️", name: "AI 录音卡", tag: "硬件新品", desc: "录音即分析，自动转经营动作：客户沟通自动归档、话术要点自动提炼。", price: "¥199 /台 · 人民币直购" })}
-                {renderProductCard({ icon: "🤖", name: "门店 AI 机器人", tag: "硬件新品", desc: "迎宾接待、导购问答，常用话术语音随叫随到，前台接待不冷场。", price: "¥1,999 /台 · 人民币直购" })}
+                {renderProductCard({ icon: "🎙️", img: getPublicAssetPath("/mall/hwRec.jpg"), name: "AI 录音卡", tag: "硬件新品", desc: "录音即分析，自动转经营动作：客户沟通自动归档、话术要点自动提炼。", price: "¥199 /台 · 人民币直购" })}
+                {renderProductCard({ icon: "🤖", img: getPublicAssetPath("/mall/hwRobot.jpg"), name: "门店 AI 机器人", tag: "硬件新品", desc: "迎宾接待、导购问答，常用话术语音随叫随到，前台接待不冷场。", price: "¥1,999 /台 · 人民币直购" })}
               </div>
             </section>
 
             <section className="eco-floor" id="floor-courses">
               <FloorHead no="F5" title="AI 课程专区" sub="从 0 到 1 学会用 AI 干活" />
               <div className="eh-prod">
-                {renderProductCard({ icon: "🎓", name: "智能体开发课", tag: "视频课", desc: "从 0 到 1 学会搭建自己的智能体工作流。", price: "¥199 /门 · 人民币直购" })}
-                {renderProductCard({ icon: "📊", name: "WorkBuddy 办公提效课", tag: "实操课", desc: "用 AI 把日报、周报、方案、表格这些日常活干得更快，即学即用。", price: "¥99 /门 · 人民币直购" })}
+                {renderProductCard({ icon: "🎓", img: getPublicAssetPath("/mall/courseAgent.jpg"), name: "智能体开发课", tag: "视频课", desc: "从 0 到 1 学会搭建自己的智能体工作流。", price: "¥199 /门 · 人民币直购" })}
+                {renderProductCard({ icon: "📊", img: getPublicAssetPath("/mall/courseWb.jpg"), name: "WorkBuddy 办公提效课", tag: "实操课", desc: "用 AI 把日报、周报、方案、表格这些日常活干得更快，即学即用。", price: "¥99 /门 · 人民币直购" })}
               </div>
             </section>
 
             <section className="eco-floor" id="floor-opc">
               <FloorHead no="F6" title="OPC 专区" sub="AI 算力与创作资源，商家价直供" />
               <div className="eh-prod">
-                {renderProductCard({ icon: "🏭", name: "大模型折扣仓", tag: "OPC", desc: "主流大模型 API 额度折扣直充，token 按仓价拿，AI 用量大的商家先省一半。", price: "50 算力/份 起", cny: "¥5", buyNow: true, demo: true })}
-                {renderProductCard({ icon: "🎬", name: "AIGC 漫剧创作工作台", tag: "OPC", desc: "分镜、角色、成片一条龙，批量产出漫剧短视频，带货与账号起号都能用。", price: "199 算力/席", cny: "¥19.9", buyNow: true, demo: true })}
+                {renderProductCard({ icon: "🏭", img: getPublicAssetPath("/mall/opcLlm.jpg"), name: "大模型折扣仓", tag: "OPC", desc: "主流大模型 API 额度折扣直充，token 按仓价拿，AI 用量大的商家先省一半。", price: "50 算力/份 起", cny: "¥5", buyNow: true, demo: true })}
+                {renderProductCard({ icon: "🎬", img: getPublicAssetPath("/mall/opcComic.jpg"), name: "AIGC 漫剧创作工作台", tag: "OPC", desc: "分镜、角色、成片一条龙，批量产出漫剧短视频，带货与账号起号都能用。", price: "199 算力/席", cny: "¥19.9", buyNow: true, demo: true })}
               </div>
             </section>
 
@@ -817,7 +795,7 @@ export function EcoMallHomePage() {
       {/* 底部 TabBar（手机）/ 左侧导航（桌面 ≥960px，照原型 v3.28） */}
       <nav className="eh-tabbar" aria-label="商城导航">
         <div className="eh-nav-brand">
-          <span className="eh-brand-txt"><b>思潼AI商城</b><span className="eh-ai"><i></i>AI 全员在线 <em>{clock}</em></span></span>
+          <span className="eh-brand-txt"><b>思潼AI商城</b></span>
         </div>
         <button type="button" className="eh-tab act" onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); }}>
           <i>🏠</i><span>首页</span>

@@ -1444,7 +1444,7 @@ body.eco-mall-body .app-wrap {
 .eh .eco-emoji{font-size:22px}
 @media(min-width:960px){.eh .eco-emoji{font-size:32px}}
 .eh .eco-ava img{width:100%;height:100%;object-fit:cover;border-radius:50%}
-.eh .eco-p-dot{position:absolute;right:2px;bottom:4px;width:11px;height:11px;border-radius:50%;border:2px solid #fff;z-index:2}
+.eh .eco-p-dot{position:absolute;right:7px;bottom:9px;width:12px;height:12px;border-radius:50%;border:2px solid #fff;z-index:3}
 .eh .eco-p-dot.ok{background:#12A06A}
 .eh .eco-p-dot.dev{background:#F59E0B}
 .eh .eco-p-body{flex:1;min-width:0;width:100%;display:flex;flex-direction:column;padding:0 !important;gap:0 !important;margin:0}
@@ -1459,7 +1459,7 @@ body.eco-mall-body .app-wrap {
 .eh .eco-p-role{font-size:10.5px;color:#94796B;white-space:nowrap}
 .eh .eco-p-desc{display:block;font-size:12px;color:#94796B;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 @media(min-width:960px){.eh .eco-p-desc{min-height:36px}}
-.eh .eco-p-tag{display:inline-block;align-self:flex-start;margin-top:7px;font-size:10.5px;padding:3px 9px;border-radius:7px;color:#D96A00;background:rgba(255,140,50,.1);border:1px solid rgba(255,140,50,.35)}
+.eh .eco-p-tag{display:block;width:100%;box-sizing:border-box;margin-top:8px;font-size:12px;padding:8px 12px;border-radius:9px;color:#D96A00;background:rgba(255,140,50,.08);border:1px solid rgba(255,140,50,.3);line-height:1.5}
 .eh .eco-p-price{display:block;margin-top:3px;padding-top:0;font-size:12.5px;font-weight:700;color:#E86A00}
 .eh .eco-p-price i{font-style:normal;font-size:10.5px;font-weight:400;color:#BEA488}
 
@@ -1566,6 +1566,7 @@ body.eco-mall-body .app-wrap {
 .eh-pcard:hover{transform:translateY(-3px);border-color:rgba(255,122,26,.5);box-shadow:0 10px 28px rgba(170,90,20,.14)}
 .eh-pcover{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;background:#FFF2E2}
 .eh-pcover-ico{display:grid;place-items:center;width:100%;height:100%;font-size:46px;background:linear-gradient(140deg,#FFE8D2,#FFD9B8)}
+.eh-cimg{width:100%;height:100%;object-fit:cover;display:block}
 .eh-pbody{padding:12px 14px 14px;display:flex;flex-direction:column;gap:6px;flex:1}
 .eh-pname{font-size:14px;font-weight:800;color:#2B1B10;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .eh-ptag{font-size:9.5px;padding:2px 7px;border-radius:5px;color:#D96A00;background:rgba(255,140,50,.12);border:1px solid rgba(255,140,50,.35);white-space:nowrap;font-weight:600}
