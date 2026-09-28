@@ -58,7 +58,7 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
       catalogPpu = s ? s.ppu : null;
     } catch { /* 拿不到就跳过动态比对 */ }
     log(ppuShown && catalogPpu != null && Number(ppuShown[1]) === Number(catalogPpu), "价格与目录 ppu 一致", `页面=${ppuShown ? ppuShown[1] : "?"} 目录=${catalogPpu}`);
-    log(!text.includes("99 算力"), "无原型演示价 99 算力残留");
+    // 2026-09-28 起何策目录价即 99（对齐原型 v3.28），「99 算力」不再是演示价残留判据。
     await page.screenshot({ path: __dirname + "/topic-config-panel.png" });
     await page.close();
   }
