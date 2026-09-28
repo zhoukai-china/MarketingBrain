@@ -3,7 +3,7 @@
     "ip-pos": {
       "name": "IP定位智能体",
       "ico": "🎯",
-      "ppu": 400,
+      "ppu": 99,
       "status": "selling",
       "verbs": [
         "定位",

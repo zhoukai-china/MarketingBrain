@@ -1,4 +1,4 @@
-import { useEffect, useState, type RefObject } from "react";
+import { useState, type RefObject } from "react";
 import type { ConsultantId, ChatMessage } from "../../types";
 import { ipAcquisitionCapabilities, type IpAcquisitionCapability, type IpAcquisitionCapabilityId } from "../../data/ipAcquisitionAgent";
 import { apiPath } from "../../lib/api";
@@ -35,8 +35,7 @@ type AnswerContentBlock = { type: "text"; lines: string[] } | { type: "table"; t
 const fallbackTitle = "IP获客交付件";
 
 export function ChatMessages({ messages, busy, thinkingStep, currentConsultantId, capabilityId, chatEndRef, onQuickPrompt }: ChatMessagesProps) {
-  // Word 导出对所有智能体答案统一按次独立扣积分；按钮先说明价格，避免用户点完才知道扣费。
-  const [docxPrice, setDocxPrice] = useState<number | null>(null);
+  // Word 导出 2026-09-27 起免费（后端不扣积分），不再拉取/展示价格。
   /** 复制反馈：点「复制全文」后按钮变「已复制」，2 秒后还原。 */
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -49,14 +48,6 @@ export function ChatMessages({ messages, busy, thinkingStep, currentConsultantId
       window.alert("复制失败：请长按选中文字手动复制。");
     }
   }
-  useEffect(() => {
-    void fetch(apiPath("/exports/docx/price"))
-      .then((response) => (response.ok ? response.json() : null))
-      .then((data: { credits?: number } | null) => {
-        if (data && typeof data.credits === "number") setDocxPrice(data.credits);
-      })
-      .catch(() => {});
-  }, []);
 
   return (
     <div
@@ -110,7 +101,7 @@ export function ChatMessages({ messages, busy, thinkingStep, currentConsultantId
               {msg.role === "advisor" && (
                 <div className="messageDownloadBar" aria-label="下载交付件">
                   <button type="button" title="下载 .docx 文件，手机用 WPS / Word 打开都可以（WPS 原生支持 docx）" onClick={() => void downloadAnswerDocx(msg.content)}>
-                    {`下载精美 Word${docxPrice ? ` · ${docxPrice} 积分` : ""}`}
+                    {`下载精美 Word`}
                   </button>
                   {/* 用户 2026-09-16：AI 输出必须能一键复制（粘到微信 / WPS 直接用），不用手选。 */}
                   <button type="button" onClick={() => void copyMessage(msg.id, msg.content)}>
@@ -118,10 +109,11 @@ export function ChatMessages({ messages, busy, thinkingStep, currentConsultantId
                   </button>
                   {/*
                    * 用户 2026-09-16：手机用户只有 WPS、不知道该下什么、下完找不到文件。
-                   * 这里把「下的是什么格式、用什么打开、去哪找」一次说清；同一份报告重下不重复扣费。
+                   * 这里把「下的是什么格式、用什么打开、去哪找」一次说清。
+                   * 2026-09-27 起导出免费，扣积分相关说法移除。
                    */}
                   <span className="messageDownloadHint">
-                    手机点一下就会下载一个 <b>.docx</b> 文件：用 <b>WPS</b> 或 Word 打开即可（WPS 原生支持，不用转格式）；找不到文件就去手机的「文件 / 下载」里找刚刚那份。<b>同一份报告重复下载不再扣积分</b>。
+                    手机点一下就会下载一个 <b>.docx</b> 文件：用 <b>WPS</b> 或 Word 打开即可（WPS 原生支持，不用转格式）；找不到文件就去手机的「文件 / 下载」里找刚刚那份。
                   </span>
                 </div>
               )}

@@ -46,7 +46,7 @@ function main(): void {
   // 2) 线上真实成本样本 → 应得积分（生产 MarketplaceLedgerEntry，2026-08-16~09-15）
   assert.equal(creditsForCostCny(0.0157, "text"), 32, "文案智能体：平均成本 ¥0.0157 → 32 积分（现价 40）");
   assert.equal(creditsForCostCny(0.0177, "text"), 36, "文案智能体：最高成本 ¥0.0177 → 36 积分");
-  assert.equal(creditsForCostCny(0.0579, "text"), 116, "IP 定位：平均成本 ¥0.0579 → 116 积分（该换算仍保留，但 SKU 已改为固定 400）");
+  assert.equal(creditsForCostCny(0.0579, "text"), 116, "IP 定位：平均成本 ¥0.0579 → 116 积分（该换算仍保留，但 SKU 已改为固定 99）");
   assert.equal(creditsForCostCny(0.0304, "text"), 61, "视频复盘：实测成本 ¥0.0304 → 61 积分（现价 60）");
   assert.equal(creditsForCostCny(0.0339, "text"), 68, "视频复盘：实测成本 ¥0.0339 → 68 积分");
 
@@ -152,10 +152,10 @@ function main(): void {
 
   /**
    * 7e) 固定价例外（PLAT-43，2026-09-17 用户拍板）：
-   * 「IP 定位改成按次计费、不按消耗量计费」→ 400 积分/次。
+   * 「IP 定位改成按次计费、不按消耗量计费」→ 2026-09-27 改价 99 算力/次（原 400 积分）。
    *
    * 生产 `BILLING_COST_BASED_SKUS=*`（全通配），所以这个豁免必须**优先级高于通配**，
-   * 否则 ip-pos 会被成本口径覆盖成 116 积分，用户拍板的 400 就静默失效。
+   * 否则 ip-pos 会被成本口径覆盖成 116 积分，用户拍板的 99 就静默失效。
    */
   assert.deepEqual([...FIXED_PRICE_SKUS], ["ip-pos", "livescript"], "固定价例外目前有 ip-pos 与 livescript");
   assert.equal(isFixedPriceSku("ip-pos"), true, "ip-pos 必须被识别为固定价 SKU");
@@ -172,16 +172,16 @@ function main(): void {
   assert.equal(usesCostBasedPricing("ipzone__livescript"), false, "配了通配 * 之后 livescript 仍必须走固定价（豁免优先级最高）");
   env.BILLING_COST_BASED_SKUS = savedWhitelist;
 
-  // 固定价 = 400 必须是**三处价格源**一致，任一处漏改都会让线上售价对不上。
+  // 固定价 = 99 必须是**三处价格源**一致，任一处漏改都会让线上售价对不上。
   const v3Raw = JSON.parse(readFileSync(new URL("../apps/api/src/data/marketplace-v3.json", import.meta.url), "utf8")) as {
     skills: Record<string, { ppu: number }>;
     industries: Record<string, { ov?: Record<string, { ppu?: number }> }>;
   };
-  assert.equal(v3Raw.skills["ip-pos"]?.ppu, 400, "货架发布文件 marketplace-v3.json 的 ip-pos ppu 必须是 400");
+  assert.equal(v3Raw.skills["ip-pos"]?.ppu, 99, "货架发布文件 marketplace-v3.json 的 ip-pos ppu 必须是 99");
   for (const [zoneKey, industry] of Object.entries(v3Raw.industries)) {
     const overridePpu = industry.ov?.["ip-pos"]?.ppu;
     if (typeof overridePpu === "number") {
-      assert.equal(overridePpu, 400, `${zoneKey} 专区不得用 ov 覆盖 ip-pos 价格（现为 ${overridePpu}）`);
+      assert.equal(overridePpu, 99, `${zoneKey} 专区不得用 ov 覆盖 ip-pos 价格（现为 ${overridePpu}）`);
     }
   }
   assert.equal(v3Raw.skills["livescript"]?.ppu, 200, "货架发布文件 marketplace-v3.json 的 livescript ppu 必须是 200");
@@ -194,14 +194,14 @@ function main(): void {
   const catalogSource = readFileSync(new URL("../apps/api/src/services/marketplace-catalog.ts", import.meta.url), "utf8");
   assert.doesNotMatch(catalogSource, /ppu:\s*200\b/, "marketplace-catalog 里不得再留 ip-pos 的旧价 200");
   const consumeRouteSource = readFileSync(new URL("../apps/api/src/routes/billing-consume.ts", import.meta.url), "utf8");
-  assert.match(consumeRouteSource, /"ip-pos": 400/, "/billing/* 的服务端价目表 ip-pos 必须是 400");
+  assert.match(consumeRouteSource, /"ip-pos": 99/, "/billing/* 的服务端价目表 ip-pos 必须是 99");
   assert.match(consumeRouteSource, /livescript: 200/, "/billing/* 的服务端价目表 livescript 必须是 200");
 
   // 货架实际发出去的价：直接看构建后的 SKU 种子，避免只钉注释/文件。
   const ipPosSeeds = MARKETPLACE_V3_SKU_SEEDS.filter((seed) => seed.skuCode.endsWith("__ip-pos"));
   assert.ok(ipPosSeeds.length >= 2, `IP 定位必须同时在多个专区上架（got ${ipPosSeeds.length}）`);
   for (const seed of ipPosSeeds) {
-    assert.equal(seed.ppu, 400, `货架 SKU ${seed.skuCode} 的 ppu 必须是 400`);
+    assert.equal(seed.ppu, 99, `货架 SKU ${seed.skuCode} 的 ppu 必须是 99`);
     assert.equal(isFixedPriceSku(seed.skuCode), true, `货架 SKU ${seed.skuCode} 必须命中固定价名单`);
   }
   const liveScriptSeeds = MARKETPLACE_V3_SKU_SEEDS.filter((seed) => seed.skuCode.endsWith("__livescript"));
@@ -218,7 +218,7 @@ function main(): void {
       copyAvgTextCredits: creditsForCostCny(0.0157, "text"),
       copyCurrentPpu: 40,
       ipPosAvgTextCredits: creditsForCostCny(0.0579, "text"),
-      ipPosCurrentPpu: 400,
+      ipPosCurrentPpu: 99,
       videoPerSecondCredits: creditsForCostCny(videoCostCny(1), "video"),
       videoCurrentPerSecond: 30,
       imagePerPictureCredits: creditsForCostCny(imageCostCny(1), "image"),

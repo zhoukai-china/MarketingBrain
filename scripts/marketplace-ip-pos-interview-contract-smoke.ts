@@ -36,15 +36,20 @@ function main(): void {
     `ip-pos 槽位顺序必须是 前置角色适配 + 5 轮，实际：${keys.join(",")}`
   );
 
+  // 2026-09-27 欢迎语按原型重写：保留「6 步访谈」口径，新增「一次只问一个维度 / 自动填进右侧简报」承诺。
   assert.match(ipPosBlock, /6 步访谈/, "ip-pos welcome 必须按 6 步访谈推进");
-  assert.match(ipPosBlock, /5 轮/, "ip-pos welcome 必须明确包含 5 轮核心访谈");
-  assert.match(ipPosBlock, /项目 → 竞争 → 用户 → 创始人\/目标 → IP 现状/, "ip-pos welcome 必须写出五轮顺序");
+  assert.match(ipPosBlock, /一次只问一个维度/, "ip-pos welcome 必须写明一次只问一个维度");
+  assert.match(ipPosBlock, /自动填进右侧/, "ip-pos welcome 必须说明回答自动填进右侧简报");
   assert.doesNotMatch(ipPosBlock, /IP 定位七步法/, "ip-pos welcome 不得再写与槽位不一致的七步法");
+  // 新版对话内容：6 问全部带「💡 提示」提示语（对齐 ip-pos-workbench-demo-20260924）。
+  for (const key of keys) {
+    assert.match(ipPosBlock, new RegExp(`key: "${key}"[\\s\\S]{0,400}?hint: "`), `ip-pos 槽位 ${key} 必须带 hint 提示语`);
+  }
 
   assert.match(
     flows,
-    /const items = flow\.slots\.map/,
-    "最终生成必须按当前 flow.slots 逐槽汇总，不能写死旧 4 槽"
+    /const items = (?:flow\.slots|effectiveSlots\(flow, answers\))\s*\.map/,
+    "最终生成必须按当前 flow 槽位逐槽汇总（effectiveSlots 是 09-25 引入的预填增强版），不能写死旧 4 槽"
   );
 
   assert.doesNotMatch(chatPage, /我再带你走那 4 步/, "登录引导不得再写 4 步");

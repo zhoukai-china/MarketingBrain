@@ -1,5 +1,5 @@
 // 思潼 AI 货架 + IP 定位智能体真实浏览器验收（本地 API + Web，真实模型只跑 1 次）。
-// 覆盖：创始人IP专区 6 个内核显示「开发中」、IP 定位 400 积分详情页（单价从 marketplace-v3.json 读）、聊天页结构化报告渲染、桌面/移动端无横向溢出、控制台无新增错误。
+// 覆盖：创始人IP专区 6 个内核显示「开发中」、IP 定位 99 算力详情页（单价从 marketplace-v3.json 读）、聊天页结构化报告渲染、桌面/移动端无横向溢出、控制台无新增错误。
 // 前置：apps/api dev（127.0.0.1:3011）与 apps/web dev（127.0.0.1:5174）已启动。
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -444,14 +444,16 @@ async function checkIpPosChat(cdp, token) {
   assert.match(report.topicTotalText ?? "", /四类合计\s*\d+\s*条/, `缺少四类选题合计，实际 ${report.topicTotalText}`);
   assert.equal(report.invalid, 0, "通过校验的输出不应出现校验失败红卡");
   assert.ok(report.txtButtons.some((text) => text.includes("TXT")), "缺少口播正例 TXT 下载入口");
-  assert.match(report.wordButton ?? "", /10 积分/, `Word 导出按钮必须显示 10 积分，实际 ${report.wordButton}`);
+  // PLAT-44（2026-09-18 用户拍板）：Word 导出免费，按钮只展示「下载精美 Word」，不显示积分价。
+  assert.ok(report.wordButton && report.wordButton.includes("下载精美 Word"), `Word 导出按钮必须显示「下载精美 Word」，实际 ${report.wordButton}`);
+  assert.ok(!/\d+\s*积分/.test(report.wordButton ?? ""), `Word 导出免费、不应显示积分价，实际 ${report.wordButton}`);
   // PLAT-40（2026-09-15 用户拍板）：免费重做已整体下线，交付页不得再出现该入口。
   assert.equal(report.redoButton ?? null, null, `「免费重做」已下线，不得再出现，实际 ${report.redoButton}`);
-  // PLAT-43 / PLAT-45（2026-09-17）：只报积分、不显示人民币折算；IP 定位固定 400 积分/次。
+  // PLAT-43 / PLAT-45（2026-09-17，2026-09-27 改价）：只报算力/积分、不显示人民币折算；IP 定位固定 99 算力/次。
   assert.match(
     report.costText ?? "",
-    new RegExp(`本次实际消耗 ${IP_POS_PPU} 积分`),
-    `本次消耗必须显示「本次实际消耗 ${IP_POS_PPU} 积分」，实际 ${report.costText}`
+    new RegExp(`本次实际消耗 ${IP_POS_PPU} 算力`),
+    `本次消耗必须显示「本次实际消耗 ${IP_POS_PPU} 算力」，实际 ${report.costText}`
   );
   assert.ok(!/≈ ?¥/.test(report.costText ?? ""), `本次消耗不得显示人民币折算，实际 ${report.costText}`);
   assert.equal(report.overflow, 0, "1280px 聊天结果页出现横向溢出");

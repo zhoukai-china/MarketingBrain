@@ -12,6 +12,7 @@ export interface TopicRow {
   consensus: string;
   precision: string;
   advice: string;
+  stage: string;
 }
 
 // 共识层级 → 应绑定的客资准度星数（来源：HANDOFF 选题策略官三关筛选口径）
@@ -46,7 +47,7 @@ export function parseTopicTable(text: string): { rows: TopicRow[]; failures: str
     }
   }
   if (idx === 0) {
-    return { rows, failures: ["未找到符合 7 列（# / 选题 / 类型 / 来源 / 共识层级 / 客资准度 / 创作建议）的主表格"] };
+    return { rows, failures: ["未找到符合列（# / 选题 / 类型 / 来源 / 共识层级 / 客资准度 / 创作建议 / 适用阶段）的主表格"] };
   }
   for (; idx < lines.length; idx++) {
     const line = lines[idx].trim();
@@ -54,11 +55,11 @@ export function parseTopicTable(text: string): { rows: TopicRow[]; failures: str
     const cells = splitRow(line).map((c) => c.trim());
     if (cells.every((c) => /^:?-{2,}:?$/.test(c))) continue;
     if (cells.length < 7) {
-      failures.push(`第 ${rows.length + 1} 行字段不足（应为 7 列，实际 ${cells.length}）`);
-      rows.push({ id: cells[0] ?? "", title: cells[1] ?? "", type: cells[2] ?? "", source: cells[3] ?? "", consensus: cells[4] ?? "", precision: cells[5] ?? "", advice: cells[6] ?? "" });
+      failures.push(`第 ${rows.length + 1} 行字段不足（应为 8 列，实际 ${cells.length}）`);
+      rows.push({ id: cells[0] ?? "", title: cells[1] ?? "", type: cells[2] ?? "", source: cells[3] ?? "", consensus: cells[4] ?? "", precision: cells[5] ?? "", advice: cells[6] ?? "", stage: cells[7] ?? "" });
       continue;
     }
-    rows.push({ id: cells[0], title: cells[1], type: cells[2], source: cells[3], consensus: cells[4], precision: cells[5], advice: cells[6] });
+    rows.push({ id: cells[0], title: cells[1], type: cells[2], source: cells[3], consensus: cells[4], precision: cells[5], advice: cells[6], stage: cells[7] ?? "" });
   }
   if (rows.length < 10) failures.push(`选题不足 10 条（实际 ${rows.length} 条）`);
   rows.forEach((r, i) => {
@@ -69,6 +70,12 @@ export function parseTopicTable(text: string): { rows: TopicRow[]; failures: str
     if (!r.title || !r.type || !r.source || !r.advice) failures.push(`第 ${i + 1} 条存在空字段`);
   });
   if (!/配比校验/.test(text)) failures.push("缺少「配比校验」块");
-  if (/私信|电话|找我|留个|加我|扫码领/.test(text)) failures.push("CTA 含违禁词（私信/电话/找我/留个/加我/扫码领）");
+  // CTA 违禁词只校验「创作建议」这一真实引导列，避免分析段（如「四个来源实拉结果」里
+  // 顺带提及"同行靠私信引导"）被整段正则误杀。命中时带上具体行号与词，便于日志定位。
+  const CTA_FORBIDDEN = /私信|电话|找我|留个|加我|扫码领/;
+  rows.forEach((r, i) => {
+    const m = r.advice.match(CTA_FORBIDDEN);
+    if (m) failures.push(`第 ${i + 1} 条「创作建议」含违禁词「${m[0]}」（私信/电话/找我/留个/加我/扫码领）`);
+  });
   return { rows, failures };
 }

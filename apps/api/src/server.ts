@@ -39,6 +39,7 @@ import { registerAgentProductRoutes } from "./routes/agents.js";
 import { registerAgentAdminRoutes } from "./routes/agent-admin.js";
 import { registerClipLabRoutes } from "./routes/clip-lab.js";
 import { registerKnowledgeBaseRoutes } from "./routes/knowledge-base.js";
+import { registerKnowledgeDebugRoutes } from "./routes/knowledge-debug.js";
 import { registerWorkbuddyMcpRoutes } from "./routes/workbuddy-mcp.js";
 import { registerWechatMessageRoutes } from "./routes/wechat-messages.js";
 import { registerWechatKfRoutes } from "./routes/wechat-kf.js";
@@ -136,6 +137,7 @@ export async function buildServer() {
   await registerAgentAdminRoutes(app, provider);
   await registerClipLabRoutes(app, provider);
   await registerKnowledgeBaseRoutes(app, provider);
+  await registerKnowledgeDebugRoutes(app);
   await registerProductRoutes(app, provider);
   await registerChatRoutes(app, provider);
   await registerGeoRoutes(app, provider);

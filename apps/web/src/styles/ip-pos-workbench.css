@@ -1,0 +1,877 @@
+/* IP 定位智能体 · 定位工作台（/agent/ipzone__ip-pos/workbench）
+ * 变量全部作用域在 .ipw-root 下，不污染平台其它页面。
+ * 结构（2026-09-27 按用户反馈调整）：页面用标准 .app-wrap 容器（顶栏两侧留白与对话页一致）；
+ * 外层黑色浏览器框已去掉，左右分栏直接呈现为一张圆角卡片。
+ * 左：真实对话（复用 MarketplaceAgentChatPage workbench 模式，深色头部「沈定 · 首席定位官」）；
+ * 右：定位简报（访谈回答实时填入）+ 全案画布（占位 / 生成中 / 交付三态）。 */
+
+.ipw-root {
+  --bg: #F4F7FC;
+  --card: #ffffff;
+  --ink: #1c2733;
+  --sub: #5b6b7c;
+  --line: #e3e9f2;
+  --orange: #E8651A;
+  --orange-soft: #fdeee2;
+  --orange-line: #f7d4b8;
+  --green: #0f8a5f;
+  --green-soft: #e6f5ee;
+  --amber: #b26a00;
+  --amber-soft: #fff4e0;
+  --blue: #2563eb;
+  --blue-soft: #e8effd;
+  --purple: #7c3aed;
+  --purple-soft: #f1eafd;
+  --red: #d64545;
+  --radius: 16px;
+}
+
+/* ---------- hero（圆角深色横幅，宽度跟随 .app-wrap） ---------- */
+.ipw-hero {
+  background: linear-gradient(135deg, #17313f 0%, #274156 55%, #3a4a3f 100%);
+  color: #fff;
+  /* 2026-09-27 二次修正：hero 尺寸严格对齐原型（原型 .hero{padding:32px 0 28px}，无任何视口媒体查询）。
+   * 之前为了"一屏塞下"把 hero 压成 83px 粗条，反而让整页观感与原型不符。 */
+  padding: 32px 0 28px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  margin: 12px 16px 0;
+}
+.ipw-hero::after {
+  content: "";
+  position: absolute;
+  right: -70px;
+  top: -70px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(232, 101, 26, .45), transparent 68%);
+}
+.ipw-hero .wrap {
+  position: relative;
+  z-index: 1;
+  padding: 0 26px;
+}
+.ipw-hero .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.ipw-hero .chip {
+  font-size: 12px;
+  border-radius: 99px;
+  padding: 3px 11px;
+  background: rgba(255, 255, 255, .14);
+  border: 1px solid rgba(255, 255, 255, .22);
+}
+.ipw-hero .chip.dev {
+  background: var(--orange);
+  border-color: var(--orange);
+  font-weight: 700;
+}
+/* 「返回详情」外置在 hero 右上角（2026-09-27：对话面板内不再放返回按钮） */
+.ipw-hero .ipw-back {
+  position: absolute;
+  top: 20px;
+  right: 22px;
+  z-index: 2;
+  background: rgba(255, 255, 255, .12);
+  border: 1px solid rgba(255, 255, 255, .28);
+  color: #fff;
+  border-radius: 10px;
+  padding: 7px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: .18s;
+}
+.ipw-hero .ipw-back:hover { background: rgba(255, 255, 255, .22); }
+.ipw-hero h1 {
+  font-size: 29px;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+/* 数字人真实头像（employeeAvatarPath，回退思潼默认形象） */
+.ipw-hero h1 .avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, .35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+  flex: none;
+}
+.ipw-hero p.hook {
+  margin-top: 12px;
+  font-size: 16px;
+  color: #dce6e2;
+  max-width: 680px;
+}
+.ipw-hero p.ability {
+  margin-top: 4px;
+  font-size: 13.5px;
+  color: #9db3a8;
+  max-width: 760px;
+}
+
+/* ---------- 整页高度（2026-09-27 二次修正：对齐原型的自然流式，不做视口锁定） ----------
+ * 原型 ip-pos-workbench-demo-20260924.html 的关键高度约定（实测 1440x700）：
+ *   .hero                 302px（固定，无任何视口媒体查询）
+ *   .stage .body          min-height:600px，内容高则继续长（实测 600~677）
+ *   .chat .log            max-height:520px（只有消息列表内部滚动）
+ *   .canvas               max-height:560px（内容装得下就不出滚动条）
+ *   整体页面自然滚动（原型本身在 1440x700 下溢出 530px）。
+ * 之前用 height:100vh + overflow:hidden 锁死整页，导致 700px 视口下：
+ *   hero 只剩 83px、左侧对话只剩 460px、右侧 .canvas 只剩 225px（内容 290px → 出滚动条）。
+ * 现在改为复刻原型的流式高度：页面可滚动，但每一块的高度与原型一致。 */
+.ipw-page {
+  height: auto;
+  min-height: 100vh;
+  overflow: visible;
+}
+.ipw-page > .ipw-root {
+  display: flex;
+  flex-direction: column;
+}
+.ipw-page .ipw-hero { flex: none; }
+
+/* ---------- 左右分栏卡片（外层黑色框已移除） ---------- */
+.ipw-body {
+  display: grid;
+  grid-template-columns: 390px 1fr;
+  /* 原型 .stage .body{min-height:600px}：给左栏对话与右栏画布同一块高度基线 */
+  min-height: 600px;
+  margin: 12px 16px 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 10px 26px rgba(23, 49, 63, .08);
+}
+@media (max-width: 960px) {
+  /* 移动端单列：对话栏给固定高度内部滚动 */
+  .ipw-hero { margin: 10px 10px 0; }
+  .ipw-body { grid-template-columns: 1fr; margin: 12px 10px 32px; min-height: 0; }
+  .ipw-chat { height: 72vh; min-height: 480px; }
+}
+
+/* ---------- 左：对话 ---------- */
+.ipw-chat {
+  border-right: 1px solid rgba(255, 255, 255, .07);
+  display: flex;
+  flex-direction: column;
+  background: #101f29;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+/* 嵌入对话：抵消全局 .chat-page{min-height:100vh} / .app-wrap{min-height:100vh}，
+ * 重建 flex 高度链，让 .chat-page-list 在面板内滚动 */
+.ipw-chat .chat-page-embed {
+  background: transparent;
+  height: auto;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ipw-chat .chat-page-embed .chat-page-body {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  overflow: hidden;
+}
+.ipw-chat .chat-page-embed .chat-page-shell {
+  flex: 1;
+  min-height: 0;
+}
+.ipw-chat .chat-page-embed .chat-page-list {
+  flex: 1;
+  min-height: 0;
+  /* 原型 .chat .log{max-height:520px}：消息再多也只有列表内部滚动，不撑高整块 */
+  max-height: 520px;
+}
+
+/* workbench 深色头部：「沈定 · 首席定位官」+ 访谈说明（无返回按钮） */
+.ipw-chat .chat-page-head {
+  background: #0f1d26;
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
+  padding: 14px 18px;
+}
+.ipw-chat .ipw-chat-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.ipw-chat .ipw-chat-head .chat-avatar-img { border-color: rgba(255, 255, 255, .3); }
+.ipw-chat .ipw-chat-head-txt { min-width: 0; }
+.ipw-chat .ipw-chat-head-txt b {
+  display: block;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: .5px;
+}
+.ipw-chat .ipw-chat-head-txt span {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: #9db3c0;
+}
+.ipw-chat .chat-page-cost { font-size: 12px; }
+
+/* ---------- 聊天面板深色化（对齐原型：整块 #101f29，深色气泡）----------
+ * 原理：聊天区内部的气泡/输入框/工具按钮大量引用全局变量（--text/--glass/--line/--bg 等，
+ * 部分还是 inline style），所以在 .ipw-chat 子树内重定义这组变量，浅色组件整体跟随变深。
+ */
+.ipw-chat {
+  --text: #d5e3db;
+  --muted: #7d95a0;
+  --muted-2: #7d95a0;
+  --glass: rgba(255, 255, 255, .05);
+  --glass-2: rgba(255, 255, 255, .08);
+  --line: rgba(255, 255, 255, .12);
+  --line-strong: rgba(255, 255, 255, .2);
+  --bg: #101f29;
+  --bg2: #0f1d26;
+}
+.ipw-chat .chat-page-body { background: #101f29; }
+.ipw-chat .chat-avatar-img { border-color: rgba(255, 255, 255, .25); box-shadow: none; }
+
+/* 访谈步骤 chips：紧凑单行 + 深色（对齐原型节奏，不占两行） */
+.ipw-chat .chat-progress {
+  gap: 5px;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, .07);
+  background: #0f1d26;
+}
+.ipw-chat .chat-prog { font-size: 11px; gap: 4px; }
+.ipw-chat .chat-prog i {
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
+  background: rgba(255, 255, 255, .06);
+  border-color: rgba(255, 255, 255, .16);
+  color: #9db3c0;
+}
+.ipw-chat .chat-prog.cur i { background: var(--orange); color: #fff; border-color: transparent; }
+.ipw-chat .chat-prog.done i { background: rgba(40, 200, 100, .25); color: #7ee2a8; border-color: transparent; }
+.ipw-chat .chat-prog b { font-weight: 600; color: #9db3c0; }
+.ipw-chat .chat-prog.cur b { color: #ffd9ba; }
+
+/* 消息气泡：AI 深色气泡（原型 .msg .bub） */
+.ipw-chat .chat-bubble.ai {
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-top-left-radius: 4px;
+  box-shadow: none;
+  color: #d5e3db;
+}
+.ipw-chat .chat-bubble.ai b,
+.ipw-chat .chat-bubble.ai strong { color: #ffb27d; }
+.ipw-chat .chat-bubble .chat-bubble-label { color: #7d95a0; }
+/* 用户气泡：橙色半透明（原型 .msg.user .bub） */
+.ipw-chat .chat-bubble.user {
+  background: rgba(232, 101, 26, .16);
+  border: 1px solid rgba(232, 101, 26, .35);
+  color: #ffe3cd;
+  box-shadow: none;
+}
+.ipw-chat .chat-bubble.user .chat-bubble-label { color: rgba(255, 227, 205, .65); }
+/* 2026-09-27 用户截图反馈：AI 气泡出现白底黑字、字号偏大（原型是深色玻璃底浅字 13.5px）。
+ * 用高优先级强制对齐原型 .msg .bub 观感，盖过任何浅色主题与 inline 字号。 */
+.ipw-chat .chat-bubble.ai,
+.ipw-chat .chat-bubble.ai .md-rich {
+  background: rgba(255, 255, 255, .06) !important;
+  color: #d5e3db !important;
+}
+.ipw-chat .chat-bubble.ai .md-rich {
+  background: transparent !important;
+  font-size: 13.5px !important;
+  line-height: 1.7 !important;
+}
+.ipw-chat .chat-bubble.ai .ipw-hint {
+  display: block;
+  margin-top: 7px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #7d95a0;
+}
+.ipw-chat .chat-bubble {
+  font-size: 13.5px;
+}
+/* 快捷选项 chips 在深色面板里的描边（对齐原型候选卡观感） */
+.ipw-chat .chat-choice {
+  color: #d5e3db;
+  background: rgba(255, 255, 255, .07);
+  border-color: rgba(255, 255, 255, .14);
+}
+.ipw-chat .chat-choice:hover { color: #ffb27d; border-color: rgba(232, 101, 26, .55); }
+
+/* 2026-09-27 用户反馈「对话框外面套了好几层」：原型左栏是一整块平坦深色面板。
+ * 拍平内部层级：shell 去掉圆角/边框/阴影/外边距（卡片中的卡片），头部不做独立色带。 */
+.ipw-chat .chat-page-embed .chat-page-shell {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  margin-top: 0;
+}
+.ipw-chat .chat-page-embed .chat-page-shell .chat-page-head,
+.ipw-chat .chat-page-head {
+  background: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
+}
+
+/* 确认需求的报告表格（inline color 已随变量变深，这里补边框/底色） */
+.ipw-chat .chat-bubble .report-table th,
+.ipw-chat .chat-bubble .report-table td { border-color: rgba(255, 255, 255, .12); }
+.ipw-chat .chat-bubble .report-table th { background: rgba(255, 255, 255, .06); }
+.ipw-chat .chat-bubble .md-rich th,
+.ipw-chat .chat-bubble .md-rich td { border-color: rgba(255, 255, 255, .12); }
+.ipw-chat .chat-bubble .md-rich th { background: rgba(255, 255, 255, .06); color: #d5e3db; }
+/* 提示条 / 完成条 */
+.ipw-chat .chat-hint { color: #7d95a0; }
+.ipw-chat .chat-donebar { color: #7ee2a8; }
+/* 快捷选项 pills（变量已随子树变深，hover 用原型橙） */
+.ipw-chat .chat-choice:hover { border-color: var(--orange); color: #ffb27d; }
+/* 输入区：深色底 + 深色工具按钮（.btn.ghost 用变量自动变深，这里补 hover） */
+.ipw-chat .chat-page-composer { border-top-color: rgba(255, 255, 255, .07); padding: 10px 12px 8px; }
+.ipw-chat .btn.ghost:hover { border-color: rgba(255, 255, 255, .3); background: rgba(255, 255, 255, .08); }
+.ipw-chat .btn.primary { background: var(--orange); color: #fff; border: none; box-shadow: 0 4px 14px rgba(232, 101, 26, .35); }
+.ipw-chat textarea { color: #e8f1ec !important; }
+.ipw-chat textarea:focus { border-color: var(--orange) !important; outline: none; }
+.ipw-chat textarea::placeholder { color: #66808f; }
+
+/* workbench 紧凑输入行（对齐原型 .chat .input：🎤 + 单行 input + 发送，整行 34px 高） */
+.ipw-chat .ipw-input-row { display: flex; gap: 8px; align-items: center; }
+.ipw-chat .ipw-mic {
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(255, 255, 255, .16);
+  color: #e8f1ec;
+  border-radius: 9px;
+  font-size: 14px;
+  width: 34px;
+  height: 34px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  flex: none;
+  transition: .15s;
+}
+.ipw-chat .ipw-mic:hover { border-color: var(--orange); }
+.ipw-chat .ipw-mic:disabled { opacity: .5; cursor: default; }
+/* 单行 input（原型同款 <input>）：物理上单行，永不长高 */
+.ipw-chat .ipw-input {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  min-height: 34px;
+  max-height: 34px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, .05);
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 9px;
+  color: #e8f1ec;
+  font-size: 12.5px;
+  font-family: inherit;
+  line-height: 32px;
+  padding: 0 11px;
+}
+.ipw-chat .ipw-send {
+  background: var(--orange);
+  border: none;
+  color: #fff;
+  border-radius: 9px;
+  font-weight: 700;
+  font-size: 12.5px;
+  height: 34px;
+  line-height: 1;
+  padding: 0 14px;
+  cursor: pointer;
+  flex: none;
+  transition: .15s;
+}
+.ipw-chat .ipw-send:hover { filter: brightness(1.07); }
+.ipw-chat .ipw-send:disabled { background: rgba(255, 255, 255, .12); color: #66808f; cursor: default; filter: none; box-shadow: none; }
+/* 次要工具排：小号、弱化 */
+.ipw-chat .ipw-sub-row { display: flex; gap: 6px; margin-top: 7px; align-items: center; }
+.ipw-chat .ipw-sub-row .btn.ghost.sm { font-size: 11px; padding: 3px 9px; opacity: .75; }
+.ipw-chat .ipw-sub-row .btn.ghost.sm:hover { opacity: 1; }
+
+/* ---------- 简报字段编辑弹窗（替代原生 window.prompt） ---------- */
+.ipw-modal-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(15, 29, 38, .55);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: ipwFade .18s;
+}
+@keyframes ipwFade { from { opacity: 0; } }
+.ipw-modal {
+  width: 440px;
+  max-width: 100%;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(15, 29, 38, .35);
+  overflow: hidden;
+  animation: ipwPop .2s;
+}
+@keyframes ipwPop { from { opacity: 0; transform: translateY(10px) scale(.97); } }
+.ipw-modal .im-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #17313f, #274156);
+  color: #fff;
+}
+.ipw-modal .im-head .im-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .14);
+  border: 1px solid rgba(255, 255, 255, .22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex: none;
+}
+.ipw-modal .im-head .im-title { min-width: 0; flex: 1; }
+.ipw-modal .im-head b { display: block; font-size: 14.5px; letter-spacing: .5px; }
+.ipw-modal .im-head span { display: block; font-size: 11.5px; color: #9db3c0; margin-top: 1px; }
+.ipw-modal .im-close {
+  background: rgba(255, 255, 255, .1);
+  border: none;
+  color: #c8d6d0;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  flex: none;
+  transition: .15s;
+}
+.ipw-modal .im-close:hover { background: rgba(255, 255, 255, .22); color: #fff; }
+.ipw-modal .im-body { padding: 16px 18px 6px; }
+.ipw-modal textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: #f8fafd;
+  padding: 11px 13px;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--ink);
+  resize: vertical;
+  min-height: 96px;
+  font-family: inherit;
+  transition: border-color .15s;
+}
+.ipw-modal textarea:focus { outline: none; border-color: var(--orange); background: #fff; }
+.ipw-modal .im-hint { font-size: 11.5px; color: var(--sub); margin-top: 6px; }
+.ipw-modal .im-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px 16px;
+}
+.ipw-modal .im-foot .im-note { font-size: 11.5px; color: var(--sub); margin-right: auto; }
+/* 2026-09-27 用户截图：保存按钮浅底白字看不清。根因——弹窗 JSX 挂在 .ipw-root 外
+ * （main 直下），吃不到 .ipw-root 作用域的变量，var(--orange) 解析失败回退浅色。
+ * 这里给弹窗补齐同一组变量（JSX 保持不动，position:fixed 不受影响）。 */
+.ipw-modal-mask {
+  --bg: #F4F7FC; --card: #ffffff; --ink: #1c2733; --sub: #5b6b7c; --line: #e3e9f2;
+  --orange: #E8651A; --orange-soft: #fdeee2; --orange-line: #f7d4b8;
+  --green: #0f8a5f; --green-soft: #e6f5ee; --amber: #b26a00; --amber-soft: #fff4e0;
+  --blue: #2563eb; --blue-soft: #e8effd; --purple: #7c3aed; --purple-soft: #f1eafd;
+  --red: #d64545; --radius: 16px;
+}
+
+.ipw-modal .im-btn {
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 8px 18px;
+  cursor: pointer;
+  transition: .18s;
+}
+.ipw-modal .im-btn.cancel { background: #fff; border: 1px solid var(--line); color: var(--sub); }
+.ipw-modal .im-btn.cancel:hover { border-color: var(--line-strong); color: var(--ink); }
+.ipw-modal .im-btn.save { background: var(--orange); border: none; color: #fff; box-shadow: 0 5px 16px rgba(232, 101, 26, .35); }
+.ipw-modal .im-btn.save:hover { filter: brightness(1.06); }
+
+/* ---------- 右：工作区（简报固定 + 画布内部滚动；整列不滚动） ---------- */
+.ipw-ws {
+  display: flex;
+  flex-direction: column;
+  background: #f7fafc;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.ipw-ws .brief {
+  flex: none;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+  padding: 14px 18px;
+}
+.ipw-ws .brief .t {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.ipw-ws .brief .t b { font-size: 15px; }
+.ipw-ws .brief .t .meter {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--sub);
+}
+.ipw-ws .segs { display: flex; gap: 3px; }
+.ipw-ws .seg { width: 16px; height: 7px; border-radius: 4px; background: #e3e9f2; transition: .3s; }
+.ipw-ws .seg.on { background: var(--orange); }
+.ipw-ws .brief .grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+@media (max-width: 1180px) { .ipw-ws .brief .grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px) { .ipw-ws .brief .grid { grid-template-columns: 1fr; } }
+.ipw-ws .bf {
+  background: #f8fafd;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 11px;
+  min-height: 52px;
+  transition: .25s;
+  cursor: pointer;
+}
+.ipw-ws .bf .k {
+  font-size: 11px;
+  color: var(--sub);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.ipw-ws .bf .v {
+  font-size: 12.8px;
+  font-weight: 600;
+  margin-top: 2px;
+  color: #93a3b3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.ipw-ws .bf.filled { background: var(--orange-soft); border-color: var(--orange-line); }
+.ipw-ws .bf.filled .v { color: var(--ink); }
+.ipw-ws .bf .todo-mark {
+  font-size: 10px;
+  color: var(--amber);
+  background: var(--amber-soft);
+  border-radius: 6px;
+  padding: 0 6px;
+  font-weight: 700;
+}
+.ipw-ws .brief .ops {
+  display: flex;
+  gap: 8px;
+  margin-top: 11px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.ipw-ws .big-btn {
+  border: none;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 13.5px;
+  padding: 9px 20px;
+  cursor: pointer;
+  transition: .2s;
+}
+.ipw-ws .big-btn.gen { background: var(--orange); color: #fff; box-shadow: 0 6px 18px rgba(232, 101, 26, .35); }
+.ipw-ws .big-btn.gen:disabled { background: #b6c3d2; box-shadow: none; cursor: default; }
+.ipw-ws .big-btn.ghost { background: #fff; border: 1px solid var(--line); color: var(--sub); }
+.ipw-ws .big-btn.ghost:hover { border-color: var(--orange-line); color: var(--orange); }
+.ipw-ws .fee { font-size: 12px; color: var(--sub); }
+.ipw-ws .fee b { color: var(--orange); }
+/* 固定价承诺徽标（2026-09-27 对齐参考图）：「失败不扣费」跟在费用行下方单独一行 */
+.ipw-ws .ipw-promise {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 9px;
+  padding: 3px 11px;
+  border-radius: 99px;
+  background: var(--green-soft);
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 800;
+}
+.ipw-ws .err {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--red);
+  background: #fdeaea;
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+/* 生成前体检追问卡（2026-09-27）：预审发现的缺口逐条列出，每条精确对应一个简报槽位 */
+.ipw-review {
+  margin-top: 12px;
+  border: 1px solid var(--orange-line);
+  background: var(--orange-soft);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.ipw-review .ir-t { font-size: 13px; font-weight: 800; color: #b3541e; margin-bottom: 4px; }
+.ipw-review .ir-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px dashed #f2d9c2;
+}
+.ipw-review .ir-item:first-of-type { border-top: none; }
+.ipw-review .ir-badge {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 99px;
+  padding: 2px 8px;
+  margin-top: 2px;
+}
+.ipw-review .ir-badge.missing { background: #fbe6e2; color: var(--red); }
+.ipw-review .ir-badge.weak { background: var(--amber-soft); color: var(--amber); }
+.ipw-review .ir-main { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.55; }
+.ipw-review .ir-main b { display: block; color: var(--ink); }
+.ipw-review .ir-main span { color: var(--sub); }
+.ipw-review .ir-go {
+  flex: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--orange-line);
+  background: #fff;
+  color: var(--orange);
+  cursor: pointer;
+  transition: .15s;
+}
+.ipw-review .ir-go:hover { background: var(--amber-soft); border-color: var(--orange); }
+/* 已按提示补充的条目：留在卡里可回看，弱化处理 + 「✓ 已补充」标记（2026-09-27） */
+.ipw-review .ir-item.done { opacity: .62; }
+.ipw-review .ir-item.done .ir-main b { color: var(--sub); }
+.ipw-review .ir-done {
+  flex: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 99px;
+  background: #e8f4ec;
+  color: #2f7d4f;
+  white-space: nowrap;
+}
+/* 体检全部补充完的提示（非报错，走绿调） */
+.ipw-ws .err.ok { background: #e8f4ec; color: #2f7d4f; }
+
+/* 三态画布（原型 .canvas{flex:1;padding:16px 18px 18px;overflow-y:auto;max-height:560px}）
+ * 2026-09-27 二次修正：不再靠"整页锁死 + flex:1 分剩余高度"压画布——
+ * 那样在矮窗口下画布只剩 225px（内容 290px → 出滚动条，用户连续反馈的"右下侧滚动条"）。
+ * 现在回到原型口径：简报固定，画布高度由 .ipw-body 的 min-height:600px 保证，上限 560px。 */
+.ipw-ws .canvas {
+  flex: 1;
+  min-height: 0;
+  max-height: 560px;
+  padding: 16px 18px 18px;
+  overflow-y: auto;
+}
+.ipw-ws .ph-note {
+  font-size: 12.5px;
+  color: var(--sub);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.ipw-ws .ph-note .tag {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  font-size: 11px;
+  padding: 2px 10px;
+}
+.ipw-ws .ph-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+@media (max-width: 1100px) { .ipw-ws .ph-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 700px) { .ipw-ws .ph-grid { grid-template-columns: repeat(2, 1fr); } }
+.ipw-ws .ph {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 12px 10px;
+  position: relative;
+  transition: .3s;
+  min-height: 104px;
+}
+.ipw-ws .ph .no { font-size: 11px; font-weight: 800; color: #b6c3d2; }
+.ipw-ws .ph b { font-size: 12.8px; display: flex; gap: 6px; align-items: center; margin-top: 3px; }
+.ipw-ws .ph span.d { font-size: 11px; color: var(--sub); display: block; margin-top: 3px; line-height: 1.5; }
+.ipw-ws .ph.locked { opacity: .55; }
+.ipw-ws .ph.locked::after { content: "🔒"; position: absolute; top: 8px; right: 9px; font-size: 12px; opacity: .6; }
+/* 生成中走马灯：已点亮（橙边+轻浮起+pop） / 未点亮（置灰）。 */
+.ipw-ws .ph.dim { opacity: .42; }
+.ipw-ws .ph.lit {
+  border-color: var(--orange);
+  box-shadow: 0 6px 18px rgba(244, 121, 32, .14);
+  animation: ipwPop .26s ease;
+}
+.ipw-ws .g-blue { color: var(--blue); }
+.ipw-ws .g-purple { color: var(--purple); }
+.ipw-ws .g-green { color: var(--green); }
+.ipw-ws .g-amber { color: var(--amber); }
+.ipw-ws .g-orange { color: var(--orange); }
+
+/* 生成中日志 */
+.ipw-ws .genlog {
+  background: #132530;
+  border-radius: 12px;
+  padding: 14px 16px;
+  font: 12.5px/2 ui-monospace, Consolas, "Courier New", monospace;
+  color: #c9ded4;
+  max-height: 230px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+.ipw-ws .genlog .ln { opacity: 0; transform: translateY(4px); transition: .3s; }
+.ipw-ws .genlog .ln.in { opacity: 1; transform: none; }
+.ipw-ws .genlog .ln.ok { color: #7ee2a8; }
+.ipw-ws .genlog .ln.hl { color: #ffb27d; font-weight: 700; }
+
+/* 交付视图 */
+.ipw-ws .dl-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.ipw-ws .dl-head .ok-tag {
+  background: var(--green-soft);
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 800;
+  border-radius: 99px;
+  padding: 3px 12px;
+}
+.ipw-ws .dl-head .time { font-size: 12px; color: var(--sub); }
+/* 导出 Word 入口（2026-09-27 状态统一在右侧：从对话页 done 态迁到画布头部） */
+.ipw-ws .dl-head .ipw-export-btn {
+  margin-left: auto;
+  border: 1px solid var(--orange);
+  color: var(--orange);
+  background: transparent;
+  border-radius: 99px;
+  padding: 4px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ipw-ws .dl-head .ipw-export-btn:hover:not(:disabled) { background: var(--orange); color: #fff; }
+.ipw-ws .dl-head .ipw-export-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ipw-ws .ipr { font-size: 13px; }
+
+/* 交付分组 tab（2026-09-27 对齐原型：全部/速览区/定位区/人设区/内容区/增长区，点击筛选章节） */
+.ipr-gtabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.ipr-gtab {
+  font-size: 12.5px;
+  font-weight: 700;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--sub);
+  border-radius: 99px;
+  padding: 4px 14px;
+  cursor: pointer;
+}
+.ipr-gtab .n { opacity: 0.6; }
+.ipr-gtab:hover { border-color: var(--orange-line, #E8651A); color: var(--orange, #E8651A); }
+.ipr-gtab.on { background: #17313f; border-color: #17313f; color: #fff; }
+
+/* 结果区卡片头：改为原型 .pc .h 白底分段头（覆盖默认橙色渐变） */
+.ipw-ws .ipr .cr-head {
+  background: #fff;
+  color: #1c2733;
+  border-bottom: 1px solid var(--line);
+  padding: 11px 15px;
+  font-size: 14.5px;
+}
+.ipw-ws .ipr-ch-head { gap: 9px; }
+/* 校验未通过的头部仍保持红色告警（不被上面的白底覆盖） */
+.ipw-ws .ipr .ipr-invalid .cr-head {
+  background: linear-gradient(120deg, rgba(255, 90, 90, .16), rgba(255, 90, 90, .06));
+  color: var(--c-red-2, #d33);
+}
+.ipw-ws .ipr-ch-head b { font-size: 14.5px; color: #1c2733; }
+.ipw-ws .ipr-no {
+  width: 24px; height: 24px; border-radius: 8px; flex: none;
+  display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #fff;
+}
+.ipw-ws .ipr-gtag { font-size: 11px; font-weight: 700; border-radius: 6px; padding: 1px 8px; }
+
+/* 结果区 Markdown 正文：对齐原型 .pc .c 排版（锚点色小标题、卡片化引用、表格、无点列表） */
+.ipw-ws .cr-sec.md-rich { font-size: 13.5px; line-height: 1.8; color: #1c2733; }
+.ipw-ws .cr-sec.md-rich h4 { font-size: 13.5px; font-weight: 800; margin: 14px 0 6px; color: #1c2733; }
+.ipw-ws .cr-sec.md-rich h4:first-child { margin-top: 0; }
+.ipw-ws .cr-sec.md-rich p { margin: .4em 0; line-height: 1.8; }
+.ipw-ws .cr-sec.md-rich blockquote {
+  border-left: 3px solid #E8651A; background: #fdf6f0; color: #3a3a3a;
+  border-radius: 0 8px 8px 0; padding: 8px 12px; margin: 6px 0;
+}
+.ipw-ws .cr-sec.md-rich blockquote p { margin: 0; }
+.ipw-ws .cr-sec.md-rich table,
+.ipw-ws .cr-sec.md-rich table.report-table {
+  width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 6px 0;
+}
+.ipw-ws .cr-sec.md-rich th {
+  background: #f4f7fb; text-align: left; padding: 6px 9px;
+  border: 1px solid var(--line); font-weight: 700; white-space: nowrap; color: #1c2733;
+}
+.ipw-ws .cr-sec.md-rich td { padding: 6px 9px; border: 1px solid var(--line); vertical-align: top; }
+.ipw-ws .cr-sec.md-rich ul { list-style: none; display: flex; flex-direction: column; gap: 5px; padding: 0; margin: 6px 0; }
+.ipw-ws .cr-sec.md-rich ul li { padding-left: 17px; position: relative; line-height: 1.8; }
+.ipw-ws .cr-sec.md-rich ul li::before {
+  content: ""; position: absolute; left: 3px; top: 9px; width: 5px; height: 5px;
+  border-radius: 50%; background: #E8651A;
+}
+.ipw-ws .cr-sec.md-rich ol { margin: 6px 0; padding-left: 22px; }
+.ipw-ws .cr-sec.md-rich ol li { margin: 3px 0; line-height: 1.8; }
+.ipr-gtab.on .n { opacity: 0.75; }

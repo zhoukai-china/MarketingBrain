@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>思潼 AI 增长 OS v2 · 开发进度交接 (2026-09-27)</title>
+<style>
+  :root{
+    --bg:#faf7f2; --card:#ffffff; --ink:#2c2722; --sub:#7a7168;
+    --line:#ece4d8; --accent:#c4622d;
+    --green:#2e7d52; --green-bg:#e7f3ec;
+    --blue:#2f6db0;  --blue-bg:#e6eff8;
+    --amber:#b9821b; --amber-bg:#fbf1dd;
+    --red:#c0392b;   --red-bg:#fbe6e2;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;line-height:1.6}
+  .wrap{max-width:1080px;margin:0 auto;padding:32px 24px 64px}
+  header{border-bottom:3px solid var(--accent);padding-bottom:16px;margin-bottom:8px}
+  h1{font-size:26px;margin:0 0 4px}
+  .meta{color:var(--sub);font-size:13px}
+  h2{font-size:18px;margin:36px 0 14px;padding-left:10px;border-left:4px solid var(--accent)}
+  .alert{background:var(--amber-bg);border:1px solid #ecd29a;color:#7a580f;
+    border-radius:10px;padding:14px 16px;font-size:14px;margin:18px 0}
+  .alert b{color:var(--accent)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+  .pc{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--card)}
+  .pc .name{font-weight:600;font-size:15px;margin-bottom:6px}
+  .pc .tag{display:inline-block;font-size:12px;padding:2px 9px;border-radius:20px;font-weight:600}
+  .pc .desc{color:var(--sub);font-size:12.5px;margin-top:8px}
+  .g{background:var(--green-bg);color:var(--green)}
+  .b{background:var(--blue-bg);color:var(--blue)}
+  .a{background:var(--amber-bg);color:var(--amber)}
+  .r{background:var(--red-bg);color:var(--red)}
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13.5px}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f3ede3;font-weight:600;color:#5b5249}
+  tr:last-child td{border-bottom:none}
+  code{background:#f1ebe1;padding:1px 6px;border-radius:5px;font-size:12.5px;color:#8a4b22}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;margin:6px 0 18px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:11px;height:11px;border-radius:50%}
+  .sec-note{color:var(--sub);font-size:13px;margin:0 0 12px}
+  ul.tight{margin:8px 0;padding-left:20px}
+  ul.tight li{margin:5px 0;font-size:13.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>思潼 AI 增长 OS v2 · 开发进度交接</h1>
+    <div class="meta">盘点时间 2026-09-27 · 仓库 <code>/Users/zhoukai/code/MarketingBrain</code> · 分支 <code>main</code> · tip <code>4a25a60</code> (2026-09-25 23:55)</div>
+  </header>
+
+  <div class="alert">
+    <b>⚠️ 交接关键提示：</b> 工作区当前有 <b>13 个已修改 + 19 个新增（未跟踪）文件</b> 尚未提交，累计约 <b>+1224 / −184 行</b>。
+    这批未提交改动（选题策略官、大脑笔记 getnote 知识库、IP 定位工作台、知识库调试面板）才是 <b>此刻最新的开发进度</b>，
+    比最后一次 commit 还新。<b>交接前必须先决定：提交 / stash / 留给接手人。</b>
+  </div>
+
+  <h2>一、产品线进度地图</h2>
+  <p class="sec-note">成熟度图例（颜色 = 状态）。点击查看各线说明见下文表格。</p>
+  <div class="legend">
+    <span><i class="dot" style="background:var(--green)"></i>生产运营中</span>
+    <span><i class="dot" style="background:var(--blue)"></i>已交付（文档/页面齐）</span>
+    <span><i class="dot" style="background:var(--amber)"></i>在途开发中（未提交）</span>
+    <span><i class="dot" style="background:var(--red)"></i>阻塞 / 待凭证</span>
+  </div>
+  <div class="grid">
+    <div class="pc"><div class="name">生态商城 / 数字员工</div><span class="tag g">生产运营中</span><div class="desc">EcoMall / AgentChat / MyAgents / Mine / Admin，双入口 /agents 发布纪律、头像 V2、生产漂移回写</div></div>
+    <div class="pc"><div class="name">兰琪美业线</div><span class="tag g">生产运营中</span><div class="desc">Lanqi* 十余页面：获客/脑/仪表盘/诊断/执行/目标/图文/朋友圈/门店</div></div>
+    <div class="pc"><div class="name">外卖增长 / 飞轮诊断</div><span class="tag g">生产运营中</span><div class="desc">FlywheelDiagnosis / GrowthFlywheel / DiagnosisPage</div></div>
+    <div class="pc"><div class="name">美业通用线</div><span class="tag g">生产运营中</span><div class="desc">BeautyIndustry* 获客/WorkBuddy 页面</div></div>
+    <div class="pc"><div class="name">IP 定位工作台</div><span class="tag b">已交付</span><div class="desc">HANDOFF-ip-pos-workbench-20260924 + IpPosWorkbench.tsx（页面为未提交新增）</div></div>
+    <div class="pc"><div class="name">直播话术 / 操盘</div><span class="tag b">已交付</span><div class="desc">九段逐字稿 + 四附属件；直播操盘总监已在 4a25a60 开放</div></div>
+    <div class="pc"><div class="name">视频复盘 VidRev</div><span class="tag b">已交付</span><div class="desc">HANDOFF-vidrev-workbench-20260924，手机端三 Tab</div></div>
+    <div class="pc"><div class="name">文案工作台 Copy</div><span class="tag b">已交付</span><div class="desc">HANDOFF-copy-workbench-20260922，含文案门禁</div></div>
+    <div class="pc"><div class="name">市场合伙人 PLAT-48</div><span class="tag b">已交付</span><div class="desc">分销 + 自助专属链接，HANDOFF-market-partner-admin-20260923</div></div>
+    <div class="pc"><div class="name">技术合伙人</div><span class="tag b">已交付</span><div class="desc">HANDOFF-tech-partner-20260922</div></div>
+    <div class="pc"><div class="name">剪辑实验室 ClipLab</div><span class="tag g">生产运营中</span><div class="desc">ClipLabApp / PersonaClipLabApp</div></div>
+    <div class="pc"><div class="name">选题策略官</div><span class="tag a">在途·未提交</span><div class="desc">TopicStrategistWorkbench.tsx（新增）；marketplace.ts +447；本地开放在 4a25a60</div></div>
+    <div class="pc"><div class="name">大脑笔记 getnote 知识库</div><span class="tag r">阻塞·待凭证</span><div class="desc">getnote-connector +157 / knowledge-base +323 / 3 个新 service；凭证 401 待重填</div></div>
+    <div class="pc"><div class="name">微信登录 state 签发</div><span class="tag b">已交付</span><div class="desc">39f7a9d 改为服务端签发/验签；URL 硬编码抽到 site.ts</div></div>
+  </div>
+
+  <h2>二、在途未提交 WIP 明细（最新进度，不在任何 commit 内）</h2>
+  <table>
+    <tr><th>模块</th><th>关键文件</th><th>改动量</th><th>状态</th></tr>
+    <tr><td>选题策略官</td><td><code>marketplace/TopicStrategistWorkbench.tsx</code>(新)、<code>routes/marketplace.ts</code>、<code>services/topic-table-parser.ts</code></td><td>+447 / +17</td><td>🟡 开发中</td></tr>
+    <tr><td>大脑笔记 getnote 知识库</td><td><code>services/getnote-connector.ts</code>、<code>routes/knowledge-base.ts</code>、<code>getnote-evidence/summary-parser/summary-sync.ts</code>(新)、<code>KnowledgeDebugPanel.tsx</code>(新)</td><td>+157 / +323</td><td>🔴 凭证 401</td></tr>
+    <tr><td>IP 定位工作台</td><td><code>marketplace/IpPosWorkbench.tsx</code>(新)、<code>styles/ip-pos-workbench.css</code>(新)</td><td>新增</td><td>🟡 页面未提交</td></tr>
+    <tr><td>数字员工</td><td><code>AgentChatPage.tsx</code>、<code>MinePage.tsx</code>、<code>MyAgentsPage.tsx</code></td><td>+217 / +153</td><td>🟡 增强中</td></tr>
+    <tr><td>企业知识库页</td><td><code>pages/EnterpriseKnowledgeBasePage.tsx</code>、<code>RechargePage.tsx</code>、<code>lib/knowledge-sync.ts</code></td><td>小改</td><td>🟡 配套</td></tr>
+    <tr><td>Schema</td><td><code>packages/db/prisma/schema.prisma</code></td><td>+14</td><td>🟡 待 migrate</td></tr>
+    <tr><td>调试/复现脚本</td><td><code>routes/knowledge-debug.ts</code>、<code>scripts/repro-topic-cta-falsepositive.ts</code>、<code>verify-topic-stage.ts</code>、<code>packages/db/q8.mjs</code></td><td>新增</td><td>🟡 临时</td></tr>
+  </table>
+
+  <h2>三、生产环境要点（接手人必读）</h2>
+  <ul class="tight">
+    <li><b>服务器</b>：<code>ssh lcppch</code> → <code>root@api.lcppch.top</code>（阿里云 ECS），应用根 <code>/opt/baolu-os-v2</code>。</li>
+    <li><b>双前端包必须成对发布</b>：<code>dist</code> → <code>api.lcppch.top/os-v2/</code> 与 <code>ai.lcppch.top/os-v2/</code>；<code>dist-ai-root</code> → <code>ai.lcppch.top/</code> 根路径。只发一套会"回退"。</li>
+    <li><b>后端端口</b>：业务 <code>:3002</code>；skills 微服务 <code>:3007</code>(python)；旧 :3001 已不监听。</li>
+    <li><b>数据库</b>：单一 PG 实例、单库 <code>baolu_os_v2</code>，用 schema 隔离（<code>public</code>=生产 / <code>lanqi_test</code>=内测）。</li>
+    <li><b>构建脚本只在远程</b>：<code>scripts/build-ai-root.sh</code> / <code>build-os-v2-web.sh</code>；本地复刻需显式设 <code>VITE_PUBLIC_WEB_BASE_URL</code> 为本域名。</li>
+    <li><b>Skill 来源</b>：文件系统 <code>packages/skills/skills/&lt;id&gt;/prompt.md</code> + 数据库快照 <code>SkillRelease.packageSnapshot</code>；数字员工对话 prompt 取自 DB 快照，改 prompt.md 后须重新发布才生效。</li>
+  </ul>
+
+  <h2>四、风险 / 待办 / 交接清单</h2>
+  <table>
+    <tr><th>项</th><th>说明</th><th>建议动作</th></tr>
+    <tr><td>🔴 在途 WIP 未提交</td><td>13 改 +19 新文件，含最新功能</td><td>交接前提交或明确留给接手人</td></tr>
+    <tr><td>🔴 getnote 凭证不可用</td><td>直连 401，clientId 为键盘顺序占位串</td><td>用户在企业知识库页重填真实 Client ID 后验证</td></tr>
+    <tr><td>🟡 文档滞后</td><td><code>项目文档.md</code> 停在 09-21（记 main tip 为 c86b395）；<code>HANDOFF.md</code> 仍是 07-05 Express 架构</td><td>更新文档反映 09-25 状态与在途 WIP</td></tr>
+    <tr><td>🟡 直播话术超时</td><td><code>LLM_TIMEOUT_MS=120s</code> 单段被掐→整单 502；前端假"生成中"残留</td><td>已知问题，排查先看 nginx/fastify/库落盘</td></tr>
+    <tr><td>🟡 双包发布纪律</td><td>只发一套前端会"又回退了"</td><td>发布前核对两套目录都更新</td></tr>
+    <tr><td>🟢 发布门禁</td><td>上线前需 <code>pnpm qa:full</code> + <code>pnpm prelaunch:check</code></td><td>接手人发布前必跑</td></tr>
+  </table>
+
+  <h2>五、一句话结论</h2>
+  <p class="sec-note">
+    这是一套<b>已上线多业务线运营</b>的 AI SaaS 控制台（Fastify 后端 + React 自研前端 + Prisma/PG，按 tenant_id 隔离）。
+    成熟线（商城/数字员工/兰琪/外卖/美业/直播/视频复盘/文案/合伙人）已交付运营；
+    <b>最新火力集中在「选题策略官 + 大脑笔记企业知识库」两条线，且都还停留在未提交的本地工作区</b>。
+    交接重点：先收口这批 WIP、补齐 getnote 真实凭证、刷新滞后文档。
+  </p>
+</div>
+</body>
+</html>

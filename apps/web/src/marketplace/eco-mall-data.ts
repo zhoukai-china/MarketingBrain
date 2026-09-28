@@ -363,7 +363,9 @@ export function employeeSkuCode(employee: EcoEmployee, skin: EcoSkinKey): string
 
 export function employeeDetailPath(employee: EcoEmployee, skin: EcoSkinKey): string | null {
   const skuCode = employeeSkuCode(employee, skin);
-  return skuCode ? `/agent/${encodeURIComponent(skuCode)}` : null;
+  // 2026-09-28 用户要求：首页数字员工入口改链到新版商品详情页（/agent/<sku>/detail）。
+  // 五大主力已落地专属详情页；其余能力回落通用详情页（路由兜底存在，不会 404）。
+  return skuCode ? `/agent/${encodeURIComponent(skuCode)}/detail` : null;
 }
 
 const LEGACY_SKU_NAME_BY_CAPABILITY: Record<string, string> = {

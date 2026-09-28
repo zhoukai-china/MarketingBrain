@@ -8,7 +8,9 @@ import { prisma } from "@baolu/db";
 import { SKILL_MANIFESTS } from "@baolu/skills";
 import { env } from "../config/env.js";
 import { assertAgentAccess, listRuntimeAgents, type RuntimeAgent } from "../services/agent-runtime.js";
-import { classifyGetNoteFailure, pullGetNoteTranscripts, testGetNoteConnection, type GetNoteCredentials } from "../services/getnote-connector.js";
+import { classifyGetNoteFailure, testGetNoteConnection, type GetNoteCredentials } from "../services/getnote-connector.js";
+import { syncGetNoteSummaries } from "../services/getnote-summary-sync.js";
+import { getConfirmedGetNoteEvidence, getGetNoteConclusionStats, getGetNoteMaterials } from "../services/getnote-evidence.js";
 import { decryptKnowledgeCredentials, encryptKnowledgeCredentials } from "../services/knowledge-credentials.js";
 import { platformSyncErrorMessage, pullFeishuKnowledge, pullWecomKnowledge, verifyFeishuKnowledgeAccess, type PlatformKnowledgeSyncResult } from "../services/platform-knowledge-connectors.js";
 import { crawlPublicIndustryKnowledge } from "../services/trend-intelligence.js";
@@ -27,7 +29,10 @@ import { storeMultipartFile, summarizeStoredFile } from "../services/file-storag
 const connectSchema = z.object({
   apiKey: z.string().trim().min(8).max(500),
   clientId: z.string().trim().min(3).max(300).optional(),
-  label: z.string().trim().min(1).max(80).default("得到大脑")
+  label: z.string().trim().min(1).max(80).default("得到大脑"),
+  // 2026-09-26（用户）：「我的 · 关联应用」要求生效前必须用户主动测试；testOnly=true 时
+  // 只跑连接验证、不落库，前端据其结果放开「保存并生效」按钮。
+  testOnly: z.boolean().optional()
 });
 
 const analysisSchema = z.object({
@@ -39,6 +44,18 @@ const analysisSchema = z.object({
   businessGoal: z.string().trim().max(1_000).optional(),
   factCorrections: z.string().trim().max(1_500).optional()
 });
+
+const NOTE_ANALYSIS_SYSTEM_PROMPT = `你是企业私有知识库的结构化分析助手。下面是一篇来自客户或团队的笔记。请从中提取可直接用于「选题与内容创作引用」的三类结构化信息，严格只输出 JSON，不要有任何额外说明。
+
+JSON 字段：
+- coreViews：核心观点/洞察数组（string[]），每条是笔记中独立、可引用的观点、结论或方法，来自笔记主旨，不要编造。
+- quotes：金句数组（string[]），精炼、有传播力、适合做文案/短视频标题/卖点的原话或高度概括句。
+- customerQuotes：客户原话/痛点数组（string[]），客户表达的需求、抱怨、场景、疑问等原话或概括，用于共情与选题切角。
+
+规则：
+- 只基于给定文本提取，缺失则对应数组为空，严禁虚构。
+- 每条尽量简短（不超过 60 字），去重。
+- 若文本不含有效信息，所有数组返回空。`;
 
 const documentQuerySchema = z.object({
   type: z.enum(["transcript", "note", "web_page", "all"]).default("all"),
@@ -223,6 +240,11 @@ const demoBatches = new Map<string, Record<string, any>>();
 const demoSyncJobs = new Map<string, DemoSyncJob>();
 const scheduledSyncJobs = new Set<string>();
 let demoStoreLoaded = false;
+
+// 预检结果缓存：进页面重复调用 /pending 时直接返回，避免每次都串行打外部 API（约 0.8–1.5s/页 × 多页）。
+// 内容仅在缓存期内复用；?force=1 或发起同步后失效，强制重新比对远端。
+const pendingCheckCache = new Map<string, { at: number; payload: Record<string, unknown> }>();
+const PENDING_CACHE_TTL_MS = 30_000;
 
 export async function registerKnowledgeBaseRoutes(app: FastifyInstance, provider: LlmProvider): Promise<void> {
   await restoreDemoKnowledgeStore();
@@ -509,6 +531,23 @@ const connectionSyncSchema = z.object({
     return { connections: records.map(publicConnection) };
   });
 
+  // 选题策略官工作台展示用：getnote 已同步结论的体量（全部已存 vs 已确认可用于生成）。
+  app.get("/knowledge-base/getnote-conclusions", async (request) => {
+    const context = await resolveRequestContext(request.headers);
+    if (context.source === "demo") {
+      return { stored: { docs: 0, coreViews: 0, quotes: 0, customerQuotes: 0 }, confirmed: { docs: 0, coreViews: 0, quotes: 0, customerQuotes: 0 } };
+    }
+    return getGetNoteConclusionStats(context.tenantId);
+  });
+
+  // 选题策略官工作台抽屉用：摊开 getnote 连接下全部素材（含来源标注），供用户勾选。
+  app.get("/knowledge-base/getnote-materials", async (request) => {
+    const context = await resolveRequestContext(request.headers);
+    if (context.source === "demo") return { materials: [], total: 0 };
+    const materials = await getGetNoteMaterials(context.tenantId);
+    return { materials, total: materials.length };
+  });
+
   app.post("/knowledge-base/connections/getnote", async (request, reply) => {
     const parsed = connectSchema.safeParse(request.body ?? {});
     if (!parsed.success) return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
@@ -538,23 +577,37 @@ const connectionSyncSchema = z.object({
       });
     }
     const credentials: GetNoteCredentials = { apiKey: parsed.data.apiKey, clientId };
+    let probeNoteCount: number | null = null;
     try {
-      await testGetNoteConnection(credentials);
+      const probe = await testGetNoteConnection(credentials);
+      probeNoteCount = typeof probe?.noteCount === "number" ? probe.noteCount : null;
     } catch (error) {
       const reason = error instanceof Error ? error.message : "getnote_connection_failed";
       const failureKind = classifyGetNoteFailure(reason);
+      if (failureKind === "membership") {
+        return reply.code(400).send({
+          error: "getnote_membership_required",
+          message: "这对凭证本身有效，但该得到大脑账号未开通 OpenAPI 会员，接口返回「仅对会员开放」（403 not_member）。请先用该账号在 biji.com 开通会员后重试；凭证未保存。"
+        });
+      }
       if (failureKind === "authorization") {
         return reply.code(400).send({
           error: "getnote_connection_failed",
-          message: "得到大脑授权验证失败，请检查 API Key、Client ID 以及 note.content.read 权限。"
+          message: "得到大脑返回 401/403：API Key 或 Client ID 无效，或该应用未授予 note.content.read 读取权限。请检查后重试。"
         });
       }
       return reply.code(503).send({
         error: "getnote_connection_unavailable",
         message: failureKind === "rate_limit"
           ? "得到大脑当前触发限流，请稍后重试；原来已保存的凭证不会被清除。"
-          : "得到大脑服务暂时不可用，请稍后重试；原来已保存的凭证不会被清除。"
+          : failureKind === "temporary"
+            ? "得到大脑服务暂时不可用或网络超时，请稍后重试；原来已保存的凭证不会被清除。"
+            : "得到大脑返回了无法识别的错误，请稍后重试；如果持续出现，请重新检查凭证。"
       });
+    }
+    // 仅测试：验证通过即返回，不写库（「我的 · 关联应用」的两步流程：先测 → 再保存）
+    if (parsed.data.testOnly) {
+      return { tested: true, noteCount: probeNoteCount };
     }
     const now = new Date();
     const encryptedCredentials = encryptKnowledgeCredentials(credentials);
@@ -610,6 +663,9 @@ const connectionSyncSchema = z.object({
     const subject = parsed.data.subjectId ? await findKnowledgeSubject(context, parsed.data.subjectId) : await findDefaultKnowledgeSubject(context);
     if (parsed.data.subjectId && !subject) return reply.code(400).send({ error: "knowledge_subject_not_found", message: "当前知识主体不存在或不属于本企业。" });
     if (connection.provider === "getnote") {
+      if (!connection.encryptedCredentials) {
+        return reply.code(400).send({ error: "getnote_not_configured", message: "尚未配置得到大脑凭证，请先在「关联应用」中连接并测试。" });
+      }
       const acceptedAt = Date.now();
       const requestFingerprint = parsed.data.clientRequestId
         ? createHash("sha256").update(parsed.data.clientRequestId).digest("hex").slice(0, 16)
@@ -621,7 +677,11 @@ const connectionSyncSchema = z.object({
         subjectId: subject?.id,
         clientRequestId: requestFingerprint
       });
-      scheduleKnowledgeSyncJob(app, context, connection.id, job.id);
+      scheduleKnowledgeSyncJob(app, provider, context, connection.id, job.id);
+      // 同步发起即失效预检缓存，待同步完成后下次 /pending 会重新比对远端。
+      for (const key of pendingCheckCache.keys()) {
+        if (key.startsWith(`${connection.id}:`)) pendingCheckCache.delete(key);
+      }
       request.log.info({
         event: "knowledge_sync_accepted",
         tenantId: context.tenantId,
@@ -636,7 +696,13 @@ const connectionSyncSchema = z.object({
     }
     try {
       const pulled: PlatformKnowledgeSyncResult & { nextCursor?: string } = connection.provider === "getnote"
-        ? await pullGetNoteTranscripts(decryptKnowledgeCredentials<GetNoteCredentials>(connection.encryptedCredentials), { cursor: connection.syncCursor ?? undefined, maxPages: 5 })
+        // 正式版：只翻 note/list（它返回的 content 就是完整智能总结，含金句/观点/章节），
+        // 不再逐条 note/detail —— 请求数从每篇一次降到每页一次，限流问题消失。
+        ? await syncGetNoteSummaries({
+            credentials: decryptKnowledgeCredentials<GetNoteCredentials>(connection.encryptedCredentials),
+            windowDays: 30,
+            maxPages: 10
+          })
         : connection.provider === "feishu"
           ? await pullFeishuKnowledge(decryptKnowledgeCredentials<{ appId: string; appSecret: string; resourceUrl?: string }>(connection.encryptedCredentials))
           : connection.provider === "wecom"
@@ -644,7 +710,10 @@ const connectionSyncSchema = z.object({
             : (() => { throw new Error("unsupported_knowledge_provider"); })();
       let created = 0;
       let updated = 0;
+      let latestExternalUpdatedAt: number | null = null;
       for (const document of pulled.documents) {
+        const docTime = document.externalUpdatedAt?.getTime();
+        if (docTime && (latestExternalUpdatedAt === null || docTime > latestExternalUpdatedAt)) latestExternalUpdatedAt = docTime;
         if (context.source === "demo") {
           const existing = [...demoDocuments.values()].find((item) => item.connectionId === connection.id && item.externalId === document.externalId);
           const now = new Date();
@@ -700,10 +769,11 @@ const connectionSyncSchema = z.object({
         ? await assignConnectionDocumentsToSubject(context, connection.id, subject.id)
         : 0;
       const syncedAt = new Date();
+      const lastSyncedAt = latestExternalUpdatedAt ? new Date(latestExternalUpdatedAt) : syncedAt;
       if (context.source === "demo") {
         const record = connection as DemoConnection;
         record.syncCursor = pulled.nextCursor;
-        record.lastSyncedAt = syncedAt;
+        record.lastSyncedAt = lastSyncedAt;
         record.lastError = undefined;
         record.updatedAt = syncedAt;
         demoConnections.set(record.id, record);
@@ -711,7 +781,7 @@ const connectionSyncSchema = z.object({
       } else {
         await prisma.knowledgeConnection.update({
           where: { id: connection.id },
-          data: { syncCursor: pulled.nextCursor, lastSyncedAt: syncedAt, lastError: null, status: "active" }
+          data: { syncCursor: pulled.nextCursor, lastSyncedAt, lastError: null, status: "active" }
         });
       }
       return {
@@ -756,9 +826,95 @@ const connectionSyncSchema = z.object({
     const job = await latestKnowledgeSyncJob(context, connection.id);
     if (!job) return reply.code(404).send({ error: "sync_job_not_found", message: "该连接还没有同步任务。" });
     const recovered = await failStaleKnowledgeSyncJob(context, job);
-    if (recovered.status === "queued") scheduleKnowledgeSyncJob(app, context, connection.id, recovered.id);
+    if (recovered.status === "queued") scheduleKnowledgeSyncJob(app, provider, context, connection.id, recovered.id);
     return { sync: publicSyncJob(recovered) };
   });
+
+  // 进页面预检：用户进入企业知识库页时调用，判断近 N 天有多少笔记尚未同步。
+  // 无凭证 / 未连接是正常分支，返回 configured:false，由前端引导去配置。
+  app.get<{ Params: { id: string }; Querystring: { windowDays?: string; force?: string } }>(
+    "/knowledge-base/connections/:id/pending",
+    async (request, reply) => {
+      const context = await resolveRequestContext(request.headers);
+      requireKnowledgeAdmin(context);
+      const connection = await findConnection(context, request.params.id);
+      if (!connection) return reply.code(404).send({ error: "connection_not_found" });
+      const windowDays = Math.min(Math.max(Number(request.query.windowDays) || 30, 1), 365);
+      const forceRefresh = request.query.force === "1" || request.query.force === "true";
+      if (connection.provider !== "getnote") {
+        return reply.code(400).send({ error: "unsupported_provider", message: "仅得到大脑支持按时间窗口预检待同步数。" });
+      }
+      if (!connection.encryptedCredentials) {
+        return {
+          configured: false,
+          windowDays,
+          remoteCount: 0,
+          syncedCount: 0,
+          pendingCount: 0,
+          message: "尚未配置得到大脑凭证，请先在「关联应用」中连接并测试。"
+        };
+      }
+      // 命中短期缓存（且非强制刷新）直接返回，进页面重复调用不再打外网。
+      const cacheKey = `${connection.id}:${windowDays}`;
+      const cached = pendingCheckCache.get(cacheKey);
+      if (!forceRefresh && cached && Date.now() - cached.at < PENDING_CACHE_TTL_MS) {
+        return reply.send({ ...cached.payload, cached: true, cachedAt: new Date(cached.at).toISOString() });
+      }
+      try {
+        // 预检同样走「只翻 note/list」的新实现：拿到真实笔记（已过滤空录音），
+        // 不再逐条 note/detail，进页面 pending 不再打重外网。返回结构与旧实现兼容。
+        const pulled = await syncGetNoteSummaries({
+          credentials: decryptKnowledgeCredentials<GetNoteCredentials>(connection.encryptedCredentials),
+          windowDays,
+          maxPages: 10
+        });
+        const remoteDocs = pulled.documents;
+        const remoteCount = remoteDocs.length;
+        const externalIds = remoteDocs.map((doc) => doc.externalId);
+        // 本地已同步的同一批笔记：取 externalId + 本地记录的更新时间，用于判定「新增 / 需更新 / 已同步」。
+        const knownRows = externalIds.length === 0
+          ? []
+          : await prisma.knowledgeDocument.findMany({
+              where: { connectionId: connection.id, externalId: { in: externalIds } },
+              select: { externalId: true, externalUpdatedAt: true }
+            });
+        const knownUpdatedAt = new Map(knownRows.map((row) => [row.externalId, row.externalUpdatedAt?.getTime() ?? null] as const));
+        // 三类统计：synced=本地已有且更新时间不落后；new=本地完全没有；update=本地有但远端更新时间更新。
+        let syncedCount = 0;
+        let newCount = 0;
+        let updateCount = 0;
+        for (const doc of remoteDocs) {
+          const localTime = knownUpdatedAt.get(doc.externalId);
+          if (localTime === undefined) {
+            newCount += 1;
+            continue;
+          }
+          const remoteTime = doc.externalUpdatedAt?.getTime();
+          if (remoteTime && remoteTime > (localTime ?? 0)) updateCount += 1;
+          else syncedCount += 1;
+        }
+        const pendingCount = newCount + updateCount;
+        const payload: Record<string, unknown> = {
+          configured: true,
+          windowDays,
+          remoteCount,
+          syncedCount,
+          newCount,
+          updateCount,
+          pendingCount,
+          importedByType: pulled.importedByType,
+          message: `近 ${windowDays} 天共 ${remoteCount} 条：已入库 ${syncedCount} 条、待本次导入 ${pendingCount} 条（其中新增 ${newCount} 条、需更新 ${updateCount} 条）。`
+        };
+        pendingCheckCache.set(cacheKey, { at: Date.now(), payload });
+        return reply.send({ ...payload, cached: false });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "pending_check_failed";
+        const publicMessage = getNoteSyncErrorMessage(message);
+        request.log.warn({ connectionId: connection.id, reason: message }, "knowledge pending check failed");
+        return reply.code(502).send({ error: "getnote_pending_failed", message: publicMessage, failureKind: classifyGetNoteFailure(message) });
+      }
+    }
+  );
 
   app.get<{ Params: { id: string } }>("/knowledge-base/sync-jobs/:id", async (request, reply) => {
     const context = await resolveRequestContext(request.headers);
@@ -766,7 +922,7 @@ const connectionSyncSchema = z.object({
     const job = await findKnowledgeSyncJob(context, request.params.id);
     if (!job) return reply.code(404).send({ error: "sync_job_not_found" });
     const recovered = await failStaleKnowledgeSyncJob(context, job);
-    if (recovered.status === "queued") scheduleKnowledgeSyncJob(app, context, recovered.connectionId, recovered.id);
+    if (recovered.status === "queued") scheduleKnowledgeSyncJob(app, provider, context, recovered.connectionId, recovered.id);
     return { sync: publicSyncJob(recovered) };
   });
 
@@ -1353,7 +1509,7 @@ async function failStaleKnowledgeSyncJob(context: RequestContext, job: any): Pro
   });
 }
 
-function scheduleKnowledgeSyncJob(app: FastifyInstance, context: RequestContext, connectionId: string, jobId: string): void {
+function scheduleKnowledgeSyncJob(app: FastifyInstance, provider: LlmProvider, context: RequestContext, connectionId: string, jobId: string): void {
   if (scheduledSyncJobs.has(jobId)) return;
   scheduledSyncJobs.add(jobId);
   setTimeout(() => {
@@ -1373,12 +1529,12 @@ async function runKnowledgeSyncJob(app: FastifyInstance, context: RequestContext
   }
   const startedAt = new Date();
   const phaseStartedAt = new Map<string, number>();
-  const phaseDurations: Record<string, number> = {};
+  const phaseDurations: Record<string, unknown> = {};
   let lastStage = "queued";
   const markStage = async (stage: string, data: Record<string, unknown> = {}): Promise<void> => {
     const now = Date.now();
     const previousStart = phaseStartedAt.get(lastStage);
-    if (previousStart !== undefined) phaseDurations[lastStage] = (phaseDurations[lastStage] ?? 0) + Math.max(0, now - previousStart);
+    if (previousStart !== undefined) phaseDurations[lastStage] = ((phaseDurations[lastStage] as number | undefined) ?? 0) + Math.max(0, now - previousStart);
     phaseStartedAt.set(stage, now);
     lastStage = stage;
     await updateKnowledgeSyncJob(context, jobId, { stage, heartbeatAt: new Date(now), phaseDurations, ...data });
@@ -1391,27 +1547,29 @@ async function runKnowledgeSyncJob(app: FastifyInstance, context: RequestContext
       ? [...demoDocuments.values()].filter((item) => item.tenantId === context.tenantId && item.connectionId === connectionId)
       : await prisma.knowledgeDocument.findMany({ where: { tenantId: context.tenantId, connectionId }, select: { externalId: true, externalUpdatedAt: true, contentHash: true } });
     const knownDocuments = new Map(knownRows.map((item) => [item.externalId, { externalUpdatedAt: item.externalUpdatedAt, contentHash: item.contentHash }]));
-    const pulled = await pullGetNoteTranscripts(
-      decryptKnowledgeCredentials<GetNoteCredentials>(connection.encryptedCredentials),
-      {
-        cursor: connection.syncCursor ?? undefined,
-        maxPages: 5,
-        knownDocuments,
-        onObservation: async (observation) => {
-          await markStage(observation.stage, {
-            scanned: observation.scanned, processed: observation.processed, total: observation.scanned,
-            unchangedCount: observation.unchanged, failedCount: observation.failed,
-            listRequests: observation.listRequests, detailRequests: observation.detailRequests,
-            retryCount: observation.retryCount, throttleMs: observation.throttleMs, backoffMs: observation.backoffMs
-          });
-        }
-      }
-    );
-    await markStage("persisting", { scanned: pulled.scanned, total: pulled.scanned, processed: pulled.unchanged + pulled.skipped + pulled.failed });
+    // 正式版：只翻 note/list（返回的 content 就是完整智能总结，含金句/观点/章节），
+    // 不再逐条 note/detail —— 请求数从「每篇一次」降到「每页一次」，限流问题消失；
+    // 解析成果已写入 metadata.analysis，下面的 analyzing 阶段会自动跳过 LLM（0 次调用）。
+    const pulled = await syncGetNoteSummaries({
+      credentials: decryptKnowledgeCredentials<GetNoteCredentials>(connection.encryptedCredentials),
+      windowDays: 30,
+      maxPages: 10
+    });
+    // 拉取阶段已把「免费智能总结」解析进每条文档的 metadata.analysis（0 次 LLM）。
+    // 下面 persisting 阶段会把这些 analysis 写回库，分析阶段据此直接复用，不再调 LLM。
+    await markStage("persisting", {
+      // 进度统一口径：total 只算「有效笔记」（已过滤空录音/窗口外），与预检徽标、完成消息同一数字。
+      scanned: pulled.scanned, total: pulled.documents.length,
+      processed: Math.max(pulled.documents.length - pulled.failed, 0),
+      skippedCount: pulled.skipped, failedCount: pulled.failed
+    });
     let created = 0;
     let updated = 0;
     let unchanged = pulled.unchanged;
+    let latestExternalUpdatedAt: number | null = null;
     for (const document of pulled.documents) {
+      const docTime = document.externalUpdatedAt?.getTime();
+      if (docTime && (latestExternalUpdatedAt === null || docTime > latestExternalUpdatedAt)) latestExternalUpdatedAt = docTime;
       if (context.source === "demo") {
         const existing = [...demoDocuments.values()].find((item) => item.tenantId === context.tenantId && item.connectionId === connection.id && item.externalId === document.externalId);
         if (existing?.contentHash === document.contentHash) {
@@ -1432,9 +1590,25 @@ async function runKnowledgeSyncJob(app: FastifyInstance, context: RequestContext
           existing ? updated += 1 : created += 1;
         }
       } else {
-        const existing = await prisma.knowledgeDocument.findUnique({ where: { connectionId_externalId: { connectionId, externalId: document.externalId } }, select: { id: true, contentHash: true } });
+        const existing = await prisma.knowledgeDocument.findUnique({
+          where: { connectionId_externalId: { connectionId, externalId: document.externalId } },
+          select: { id: true, contentHash: true, metadata: true }
+        });
+        const existingAnalysis = existing?.metadata && typeof existing.metadata === "object"
+          ? (existing.metadata as Record<string, unknown>).analysis
+          : undefined;
         if (existing?.contentHash === document.contentHash) {
-          unchanged += 1;
+          if (existingAnalysis) {
+            unchanged += 1;
+          } else {
+            // 旧库文档未带免费智能总结：把本次拉取已解析好的 analysis 回写（0 次 LLM），
+            // 分析阶段据此直接复用，不再对历史笔记重复调 LLM。
+            await prisma.knowledgeDocument.update({
+              where: { id: existing.id },
+              data: { metadata: { ...(existing.metadata as object), analysis: document.metadata.analysis } as any }
+            });
+            unchanged += 1;
+          }
           if (job.subjectId) await prisma.knowledgeDocumentSubject.upsert({ where: { documentId_subjectId: { documentId: existing.id, subjectId: job.subjectId } }, create: { documentId: existing.id, subjectId: job.subjectId }, update: {} });
         } else {
           const saved = await prisma.knowledgeDocument.upsert({
@@ -1450,30 +1624,54 @@ async function runKnowledgeSyncJob(app: FastifyInstance, context: RequestContext
     }
     await markStage("binding", { createdCount: created, updatedCount: updated, unchangedCount: unchanged });
     const assigned = job.subjectId ? await assignConnectionDocumentsToSubject(context, connectionId, job.subjectId) : 0;
+    // 同步后进入分析阶段。
+    // 设计原则（关键，getnote 专用）：免费智能总结已在「拉取/回填」阶段写入 metadata.analysis（0 次 LLM）。
+    // 因此本阶段**不再调用 LLM**：所有已落地笔记直接复用，分析耗时=0、费用=0。
+    // 历史（本轮窗口外）缺 analysis 的笔记保留原始 content，由选题端直接消费，不补 LLM。
+    const allDocs = context.source === "demo"
+      ? [...demoDocuments.values()].filter((item) => item.tenantId === context.tenantId && item.connectionId === connectionId)
+      : await prisma.knowledgeDocument.findMany({ where: { tenantId: context.tenantId, connectionId }, select: { id: true, title: true, content: true, contentHash: true, metadata: true }, take: 300 });
+    const reusedCount = allDocs.length;
+    let analyzedCount = 0;
+    let analyzedFailed = 0;
+    // getnote 同步全程不触发 LLM：免费智能总结已在「拉取/回填」阶段写入 metadata.analysis。
+    // 原分析阶段（DeepSeek 逐条提取）已整体移除，杜绝任何条件下调用 LLM。
+    // 全量汇总不在此处持久化：旧笔记的 analysis 已落在各自 KnowledgeDocument.metadata.analysis 上，
+    // 选题生成端按需「实时聚合」全量已分析文档即可（永远最新、旧笔记不丢、零迁移）。
+    const analyzedReused = reusedCount;
     const completedAt = new Date();
+    const lastSyncedAt = latestExternalUpdatedAt ? new Date(latestExternalUpdatedAt) : completedAt;
     const partial = pulled.failed > 0;
     if (!partial) {
       if (context.source === "demo") {
         const record = connection as DemoConnection;
-        Object.assign(record, { syncCursor: pulled.nextCursor, lastSyncedAt: completedAt, lastError: undefined, status: "active", updatedAt: completedAt });
+        Object.assign(record, { syncCursor: pulled.nextCursor, lastSyncedAt, lastError: undefined, status: "active", updatedAt: completedAt });
         demoConnections.set(record.id, record);
       } else {
-        await prisma.knowledgeConnection.update({ where: { id: connectionId }, data: { syncCursor: pulled.nextCursor, lastSyncedAt: completedAt, lastError: null, status: "active" } });
+        await prisma.knowledgeConnection.update({ where: { id: connectionId }, data: { syncCursor: pulled.nextCursor, lastSyncedAt, lastError: null, status: "active" } });
       }
     }
+    app.log.info({ event: "knowledge_sync_summary", connectionId, syncJobId: jobId, listRequests: pulled.listRequests, detailRequests: pulled.detailRequests, scanned: pulled.scanned, failed: pulled.failed, retryCount: pulled.retryCount, backoffMs: pulled.backoffMs, analyzedCount, analyzedFailed, analyzedReused }, "knowledge sync finished");
+    const phaseDurationsWithAnalysis: Record<string, unknown> = {
+      ...phaseDurations,
+      analysis: { analyzedCount, analyzedFailed, analyzedReused }
+    };
     const terminal = await updateKnowledgeSyncJob(context, jobId, {
       status: partial ? "failed" : "succeeded", stage: partial ? "partial_failure" : "completed", retryable: partial,
-      scanned: pulled.scanned, processed: pulled.scanned, total: pulled.scanned,
+      // 终态 processed/total 也统一为「有效笔记」口径（created+updated+unchanged），
+      // 避免「扫描 88 / 总数 99」这类与徽标 70 对不上的数字出现在进度条上。
+      scanned: pulled.scanned, processed: created + updated + unchanged, total: created + updated + unchanged,
       createdCount: created, updatedCount: updated, unchangedCount: unchanged, skippedCount: pulled.skipped,
-      failedCount: pulled.failed, assignedCount: assigned, listRequests: pulled.listRequests, detailRequests: pulled.detailRequests,
+      failedCount: pulled.failed, assignedCount: assigned,
+      listRequests: pulled.listRequests, detailRequests: pulled.detailRequests,
       retryCount: pulled.retryCount, throttleMs: pulled.throttleMs, backoffMs: pulled.backoffMs,
-      importedByType: pulled.importedByType, phaseDurations, completedAt, heartbeatAt: completedAt,
+      importedByType: pulled.importedByType, phaseDurations: phaseDurationsWithAnalysis, completedAt, heartbeatAt: completedAt,
       lastSuccessfulAt: partial ? connection.lastSyncedAt ?? null : completedAt,
       errorCode: partial ? "getnote_partial_detail_failure" : null,
-      errorMessage: partial ? "部分资料读取失败；已保存成功条目，未推进同步水位，可安全重试。" : null
+      errorMessage: partial ? "部分资料读取失败；已成功保存的条目已保留，可稍后重新同步补齐。" : null
     });
     await persistDemoKnowledgeStore();
-    app.log.info({ event: partial ? "knowledge_sync_failed" : "knowledge_sync_completed", tenantId: context.tenantId, connectionId, syncJobId: jobId, status: terminal.status, scanned: pulled.scanned, created, updated, unchanged, skipped: pulled.skipped, failed: pulled.failed, listRequests: pulled.listRequests, detailRequests: pulled.detailRequests, retryCount: pulled.retryCount, throttleMs: pulled.throttleMs, backoffMs: pulled.backoffMs, durationMs: completedAt.getTime() - startedAt.getTime() }, "knowledge sync terminal");
+    app.log.info({ event: partial ? "knowledge_sync_failed" : "knowledge_sync_completed", tenantId: context.tenantId, connectionId, syncJobId: jobId, status: terminal.status, scanned: pulled.scanned, created, updated, unchanged, skipped: pulled.skipped, failed: pulled.failed, analyzed: analyzedCount, analyzedFailed: analyzedFailed, listRequests: pulled.listRequests, detailRequests: pulled.detailRequests, retryCount: pulled.retryCount, throttleMs: pulled.throttleMs, backoffMs: pulled.backoffMs, durationMs: completedAt.getTime() - startedAt.getTime() }, "knowledge sync terminal");
   } catch (error) {
     const reason = error instanceof Error ? error.message : "sync_failed";
     const failureKind = classifyGetNoteFailure(reason);
@@ -1502,13 +1700,39 @@ function publicSyncJob(job: any): Record<string, unknown> {
     scanned: job.scanned ?? 0, processed: job.processed ?? 0, total: job.total ?? null,
     created: job.createdCount ?? 0, updated: job.updatedCount ?? 0, unchanged: job.unchangedCount ?? 0,
     skipped: job.skippedCount ?? 0, failed: job.failedCount ?? 0, assignedToSubject: job.assignedCount ?? 0,
-    listRequests: job.listRequests ?? 0, detailRequests: job.detailRequests ?? 0, retryCount: job.retryCount ?? 0,
-    throttleMs: job.throttleMs ?? 0, backoffMs: job.backoffMs ?? 0, phaseDurations: job.phaseDurations ?? {},
+    analyzed: (job.phaseDurations && (job.phaseDurations as Record<string, unknown>).analysis ? ((job.phaseDurations as Record<string, unknown>).analysis as Record<string, number>).analyzedCount : 0) ?? 0,
+    analyzedFailed: (job.phaseDurations && (job.phaseDurations as Record<string, unknown>).analysis ? ((job.phaseDurations as Record<string, unknown>).analysis as Record<string, number>).analyzedFailed : 0) ?? 0,
+    analyzedReused: (job.phaseDurations && (job.phaseDurations as Record<string, unknown>).analysis ? ((job.phaseDurations as Record<string, unknown>).analysis as Record<string, number>).analyzedReused : 0) ?? 0,
+    listRequests: job.listRequests ?? 0, detailRequests: job.detailRequests ?? 0, phaseDurations: job.phaseDurations ?? {},
     importedByType: job.importedByType ?? { transcripts: 0, notes: 0, webPages: 0 },
     errorCode: job.errorCode ?? null, message: job.errorMessage ?? null,
     startedAt: job.startedAt ?? null, completedAt: job.completedAt ?? null,
     lastSuccessfulAt: job.lastSuccessfulAt ?? null, createdAt: job.createdAt, updatedAt: job.updatedAt
   };
+}
+
+function normalizeAnalysisContent(content: unknown): string {
+  if (typeof content !== "string") return "";
+  return content.trim().slice(0, 6000);
+}
+
+function safeJsonParse(value: unknown): any {
+  if (typeof value !== "string") return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    const brace = value.indexOf("{");
+    const lastBrace = value.lastIndexOf("}");
+    if (brace >= 0 && lastBrace > brace) {
+      try { return JSON.parse(value.slice(brace, lastBrace + 1)); } catch { return null; }
+    }
+    return null;
+  }
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0).map((item) => item.trim()).slice(0, 20);
 }
 
 async function findConnection(context: RequestContext, id: string): Promise<any | null> {
@@ -1900,17 +2124,20 @@ function platformConnectionErrorMessage(reason: string, providerName: "feishu" |
 }
 
 function getNoteSyncErrorMessage(reason: string): string {
-  if (/getnote_(?:api_)?(?:10001)|http_401|http_403/.test(reason)) {
-    return "得到大脑授权已失效，请重新连接并确认 note.content.read 权限。";
+  if (/not_member|getnote_(?:api_)?10201/.test(reason)) {
+    return "得到大脑 OpenAPI 仅对会员开放，请先在 biji.com 开通会员后再同步。";
   }
-  if (/getnote_(?:api_)?(?:10201)/.test(reason)) {
-    return "当前得到大脑账号暂不支持该读取接口，请检查会员或开放平台权限。";
+  if (/getnote_(?:api_)?10001|getnote_http_401/.test(reason)) {
+    return "得到大脑 API Key 或 Client ID 无效（401），请到「我的 · 关联应用」重新连接。";
+  }
+  if (/getnote_http_403/.test(reason)) {
+    return "得到大脑拒绝访问（403）：该应用可能未授予 note.content.read 读取权限，或账号不支持该接口。";
   }
   if (/getnote_(?:api_)?(?:10202|42900)|http_429/.test(reason)) {
-    return "得到大脑接口当前触发限流，系统已自动重试，请稍后再同步。";
+    return "得到大脑接口暂时繁忙，请稍后再同步。";
   }
   if (/AbortError|fetch failed|getnote_http_5|getnote_api_(?:30000|50000)/i.test(reason)) {
-    return "得到大脑服务暂时不可用或网络超时，请稍后重试。";
+    return "得到大脑服务暂时不可用，请稍后重试。";
   }
   return "得到大脑同步失败，请稍后重试；如果持续失败，请重新检查授权。";
 }

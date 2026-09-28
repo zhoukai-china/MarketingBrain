@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api";
+import { Topbar } from "../marketplace/shell.js";
 import { toSafeAppRoute } from "../lib/app-route.js";
 import { billingErrorCopy } from "../lib/humanize-error.js";
 import { WORKBUDDY_MCP_PUBLIC_URL } from "../config/site";
@@ -354,17 +355,8 @@ const isLocal = typeof window !== "undefined" && (window.location.hostname === "
   if (!token) {
     return (
       <main className="app-wrap">
-        <header className="topbar">
-          <div className="brand" onClick={() => { window.location.href = getAppPath("/agents"); }}>
-            <span className="brand-mark">思潼<span className="brand-accent">AI</span></span>
-            <span className="brand-sub">行业智能体平台</span>
-          </div>
-          <nav className="topnav">
-            <a className="nav-link" onClick={() => { window.location.href = getAppPath("/agents"); }}>商城</a>
-            <a className="nav-link active">积分充值</a>
-          </nav>
-          <div className="wallet-pill" title="积分余额 · 点击登录" onClick={() => { localStorage.setItem("store_os_post_login_redirect", getAppPath(`/recharge${window.location.search}`)); window.location.href = getAppPath("/login"); }}>🔒 未登录 · 点击登录</div>
-        </header>
+        {/* 2026-09-26（用户）：顶部导航与其他商城页统一，改用共用 Topbar（原手写 topbar 缺「常用/我的/主题切换/退出」） */}
+        <Topbar active="recharge" balance={null} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
         <section className="view view-recharge">
           {nextRoute && (
             <div className="rc-from">
@@ -398,17 +390,8 @@ const isLocal = typeof window !== "undefined" && (window.location.hostname === "
 
   return (
     <main className="app-wrap">
-      <header className="topbar">
-        <div className="brand" onClick={() => { window.location.href = getAppPath("/agents"); }}>
-          <span className="brand-mark">思潼<span className="brand-accent">AI</span></span>
-          <span className="brand-sub">行业智能体平台</span>
-        </div>
-        <nav className="topnav">
-          <a className="nav-link" onClick={() => { window.location.href = getAppPath("/agents"); }}>商城</a>
-          <a className="nav-link active">积分充值</a>
-        </nav>
-        <div className="wallet-pill" title="积分余额 · 点击充值" onClick={() => { window.location.href = getAppPath("/recharge"); }}>💎 <b>{wallet?.balance ?? "—"}</b> 积分 <span className="wp-tag">全平台通用</span></div>
-      </header>
+      {/* 2026-09-26（用户）：顶部导航与其他商城页统一，改用共用 Topbar */}
+      <Topbar active="recharge" balance={wallet?.balance ?? null} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
 
       <section className="view view-recharge">
         {nextRoute && (

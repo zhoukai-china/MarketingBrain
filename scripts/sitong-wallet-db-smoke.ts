@@ -79,7 +79,7 @@ async function main(): Promise<void> {
     const walletBody = walletRes.json() as { paidBalance: number; bonusBalance: number; balance: number };
     assert(walletBody.paidBalance === 2000 && walletBody.bonusBalance === 200 && walletBody.balance === 2200, "wallet returns split buckets");
 
-    // 3) precheck：服务端定价 ip-pos = 400（2026-09-17 用户拍板：IP 定位改按次固定价）
+    // 3) precheck：服务端定价 ip-pos = 99（2026-09-17 拍板按次固定价；2026-09-27 由 400 改价 99）
     const precheck = await app.inject({
       method: "POST",
       url: "/billing/precheck",
@@ -88,7 +88,7 @@ async function main(): Promise<void> {
     });
     assert(precheck.statusCode === 200, "precheck returns 200");
     const precheckBody = precheck.json() as { allowed: boolean; price: number; balance: number };
-    assert(precheckBody.allowed === true && precheckBody.price === 400 && precheckBody.balance === 2200, "precheck uses server price");
+    assert(precheckBody.allowed === true && precheckBody.price === 99 && precheckBody.balance === 2200, "precheck uses server price");
 
     // 4) consume moments 20：先扣 paid
     const consume = await app.inject({

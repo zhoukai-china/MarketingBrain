@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>私有知识库同步 · 业务流程设计（getnote 30天窗口）</title>
+<style>
+  :root{
+    --blue:#2563eb; --green:#059669; --amber:#d97706; --purple:#7c3aed; --teal:#0d9488;
+    --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --card:#ffffff;
+    --red:#dc2626; --redbg:#fef2f2;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"PingFang SC","Microsoft YaHei",Segoe UI,Roboto,sans-serif;
+       color:var(--ink);background:var(--bg);line-height:1.55;padding:28px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:22px}
+  .wrap{max-width:880px;margin:0 auto}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:20px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .card h2{font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+  svg{width:100%;height:auto;display:block}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:#f1f5f9;font-weight:600}
+  code{background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:12px}
+  ul{margin:8px 0;padding-left:20px;font-size:13px}
+  li{margin:5px 0}
+  .ok{color:var(--green);font-weight:600}
+  .warn{color:var(--amber);font-weight:600}
+  .bad{color:var(--red);font-weight:600}
+  .legend{font-size:12px;color:var(--muted);margin-top:10px}
+  .hl{background:#fef9c3;padding:1px 4px;border-radius:3px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>私有知识库同步 · 业务流程设计（得到大脑 / getnote · 30天窗口）</h1>
+  <div class="sub">供你核对正确性。本次按你的口径修正：getnote 来源、<span class="hl">同步时间范围 30 天</span>、<span class="hl">进页面先远端预检待同步数</span>、点击同步才拉取落库；<span class="hl">正式版只翻 note/list 取免费智能总结，分析阶段 0 次 LLM</span>。</div>
+
+  <div class="card">
+    <h2><span class="dot" style="background:var(--blue)"></span>主流程（自上而下）</h2>
+    <svg viewBox="0 0 820 1760" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,PingFang SC,Microsoft YaHei,sans-serif">
+      <defs>
+        <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#475569"/>
+        </marker>
+        <marker id="arrR" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#dc2626"/>
+        </marker>
+      </defs>
+
+      <!-- ===== Stage A ===== -->
+      <rect x="40" y="30" width="740" height="44" rx="10" fill="#2563eb"/>
+      <text x="60" y="58" fill="#fff" font-size="15" font-weight="700">A · 配置连接 — 我的·关联应用（得到大脑卡片）</text>
+      <rect x="40" y="74" width="740" height="178" rx="10" fill="#eff6ff" stroke="#bfdbfe"/>
+      <text x="60" y="100" font-size="13" fill="#1f2937">① 用户填 得到大脑 凭证：API Key（gk_ 开头）+ Client ID（cli_ 开头）</text>
+      <text x="60" y="124" font-size="13" fill="#1f2937">② 提交 <tspan fill="#2563eb" font-weight="700">testOnly=true</tspan> → <tspan font-weight="700">testGetNoteConnection</tspan>（调 /note/list 验证读权限）</text>
+      <text x="60" y="148" font-size="13" fill="#1f2937">③ 通过 → <tspan font-weight="700">encrypt</tspan> + upsert <tspan fill="#2563eb" font-weight="700">KnowledgeConnection</tspan>（tenantId + provider=getnote + ownership=tenant，每租户一条）</text>
+      <text x="60" y="172" font-size="13" fill="#dc2626">④ 失败（如 401 授权）→ 不落库，返回中文错误（classifyGetNoteFailure）</text>
+      <text x="60" y="230" font-size="12" fill="#6b7280">注：凭证租户级加密，<tspan font-weight="700">绝不写入 .env / 系统环境变量</tspan>；可二次编辑，每次保存前必重测</text>
+
+      <line x1="410" y1="252" x2="410" y2="288" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+      <!-- ===== Stage A0 pre-check ===== -->
+      <rect x="40" y="288" width="740" height="44" rx="10" fill="#0d9488"/>
+      <text x="60" y="316" fill="#fff" font-size="15" font-weight="700">A0 · 页面进入 · 预检待同步数（getnote 专属）</text>
+      <rect x="40" y="332" width="740" height="172" rx="10" fill="#ccfbf1" stroke="#99f6e4"/>
+      <text x="60" y="358" font-size="13" fill="#1f2937">① 用户进入企业知识库页 → 前端调 <tspan fill="#0d9488" font-weight="700">GET /connections/:id/pending?windowDays=30</tspan></text>
+      <text x="60" y="382" font-size="13" fill="#1f2937">② 后端 decrypt 凭证 → 调 <tspan fill="#0d9488" font-weight="700">syncGetNoteSummaries</tspan> 远端分页拉 /note/list（含免费智能总结），按 <tspan class="hl" font-weight="700">created_at ∈ 近30天</tspan> 收集 remoteIds</text>
+      <text x="60" y="406" font-size="13" fill="#1f2937">③ 查已同步 <tspan font-weight="700">KnowledgeDocument</tspan>（connectionId + externalId ∈ remoteIds）→ 得 syncedSet</text>
+      <text x="60" y="430" font-size="13" fill="#1f2937">④ 返回 <tspan font-weight="700">{ windowDays:30, remoteCount, syncedCount, pendingCount }</tspan> → 页面展示「近30天 N 条待同步」</text>
+      <text x="60" y="476" font-size="12" fill="#6b7280">边界：仅统计窗口内；窗口外笔记不计入待同步（符合"同步时间范围是30天"）</text>
+
+      <line x1="410" y1="504" x2="410" y2="540" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+      <!-- ===== Stage B ===== -->
+      <rect x="40" y="540" width="740" height="44" rx="10" fill="#059669"/>
+      <text x="60" y="568" fill="#fff" font-size="15" font-weight="700">B · 同步拉取（用户点击「同步」）— POST /connections/:id/sync</text>
+      <rect x="40" y="584" width="740" height="226" rx="10" fill="#ecfdf5" stroke="#a7f3d0"/>
+      <text x="60" y="610" font-size="13" fill="#1f2937">① findConnection → <tspan font-weight="700">decryptKnowledgeCredentials</tspan>（AES-256-GCM，key=sha256(KNOWLEDGE_CREDENTIALS_KEY)）</text>
+      <text x="60" y="634" font-size="13" fill="#1f2937">② 调 <tspan font-weight="700">syncGetNoteSummaries</tspan>（getnote 走异步 job，202 accepted）——<tspan fill="#059669" font-weight="700">只翻 note/list，不再逐条 note/detail</tspan></text>
+      <text x="60" y="658" font-size="13" fill="#1f2937">③ 列表层按 <tspan class="hl" font-weight="700">created_at ∈ 近30天</tspan> 过滤；空录音/空白语音由<tspan font-weight="700">解析产物是否非空</tspan>判定（与 note_type 无关）</text>
+      <text x="60" y="682" font-size="13" fill="#1f2937">④ 逐条 <tspan font-weight="700">upsert KnowledgeDocument</tspan>（唯一键 <tspan fill="#059669">connectionId_externalId</tspan>）</text>
+      <text x="80" y="702" font-size="12" fill="#374151">字段：tenantId, connectionId, externalId, title, content, documentType(transcript|note|web_page),</text>
+      <text x="80" y="720" font-size="12" fill="#374151">contentHash(sha256), sensitivity, usagePolicy(默认 recommend), confirmedAt(默认 null), sourceClass=first_party</text>
+      <text x="60" y="744" font-size="13" fill="#1f2937">⑤ 更新 connection：syncCursor / lastSyncedAt / status=active（授权失败→status=error）</text>
+      <text x="60" y="786" font-size="12" fill="#6b7280">注：只同步已授权笔记；不读聊天存档。<tspan fill="#059669" font-weight="700">note/list 的 content 已是完整智能总结，解析后写入 metadata.analysis → 分析阶段 0 次 LLM。</tspan></text>
+
+      <line x1="410" y1="810" x2="410" y2="846" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+      <!-- ===== Stage C ===== -->
+      <rect x="40" y="846" width="740" height="44" rx="10" fill="#d97706"/>
+      <text x="60" y="874" fill="#fff" font-size="15" font-weight="700">C · 确权 / 标注 — PATCH /documents/:id/classification</text>
+      <rect x="40" y="890" width="740" height="150" rx="10" fill="#fffbeb" stroke="#fde68a"/>
+      <text x="60" y="916" font-size="13" fill="#1f2937">① 用户标 sensitivity(sensitive/normal)、usagePolicy(auto/recommend/manual)、confirmed</text>
+      <text x="60" y="940" font-size="13" fill="#1f2937">② 安全降级：sensitivity=<tspan font-weight="700">sensitive</tspan> 且 usagePolicy=<tspan font-weight="700">auto</tspan> → 自动降为 <tspan fill="#d97706" font-weight="700">recommend</tspan></text>
+      <text x="60" y="964" font-size="13" fill="#1f2937">③ confirmed=true → 写 <tspan font-weight="700">confirmedAt</tspan>；subject 下拉隔离「当前资料归属」</text>
+      <text x="60" y="1004" font-size="13" fill="#1f2937">④ 合格资料：<tspan fill="#059669" font-weight="700">confirmedAt 非空</tspan> ∧ 非 sensitive ∧ usagePolicy≠deny ∧ 行业匹配</text>
+
+      <line x1="410" y1="1040" x2="410" y2="1076" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+      <!-- ===== Stage D ===== -->
+      <rect x="40" y="1076" width="740" height="44" rx="10" fill="#7c3aed"/>
+      <text x="60" y="1104" fill="#fff" font-size="15" font-weight="700">D · 业务消费 — 选题策略官 topic-evidence</text>
+      <rect x="40" y="1120" width="740" height="172" rx="10" fill="#f5f3ff" stroke="#ddd6fe"/>
+      <text x="60" y="1146" font-size="13" fill="#1f2937">① assessBeautyTopicEvidence 按 tenantId 读「合格」KnowledgeDocument</text>
+      <text x="60" y="1170" font-size="13" fill="#1f2937">② isQualifiedTranscript 过滤：documentType=transcript ∧ confirmedAt存在 ∧ 非sensitive ∧ usagePolicy≠deny ∧ 行业匹配</text>
+      <text x="60" y="1194" font-size="13" fill="#1f2937">③ 生成受控 directive：缺失来源标「待补/待核验」、列出被排除资料、禁止伪造来源</text>
+      <text x="60" y="1234" font-size="12" fill="#6b7280">边界：只消费「已确认」资料；未确权资料不进入来源边界</text>
+
+      <line x1="410" y1="1292" x2="410" y2="1332" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+      <rect x="240" y="1332" width="340" height="40" rx="20" fill="#1f2937"/>
+      <text x="410" y="1357" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">回到 A0：凭证不变则再次进页预检</text>
+
+      <text x="40" y="1430" font-size="11" fill="#9ca3af">图例：蓝=配置 · 青=预检 · 绿=同步 · 琥珀=确权 · 紫=消费 · 红虚线=拒绝落库</text>
+    </svg>
+  </div>
+
+  <div class="card">
+    <h2><span class="dot" style="background:var(--green)"></span>分析阶段：为什么不再调 LLM（正式版关键改动）</h2>
+    <ul>
+      <li><span class="bad">旧流程（已废弃）</span>：<code>pullGetNoteTranscripts</code> 逐条调 <code>note/detail</code>（<b>每篇一次请求</b>，限流重）→ 取逐字稿前 6000 字硬喂 DeepSeek。<b>浪费钱，且长录音干货被截断</b>；92 篇 ≈ 92 次 LLM。</li>
+      <li><span class="ok">新流程（当前）</span>：<code>syncGetNoteSummaries</code> <b>只翻 <code>note/list</code></b>（<b>每页一次请求，约 10 次</b>）→ GetNote 的 <code>content</code> 自带<strong>免费智能总结</strong>（<code>#### 录音总结</code> / <code>### ✨ 金句精选</code> / <code>### 📅 章节概要</code>）→ <code>parseGetNoteSummary</code> 切成 <code>metadata.analysis</code>（coreViews / quotes / chapters）→ <strong>0 次 LLM</strong>。</li>
+      <li><span class="ok">历史笔记回填</span>：旧库文档若缺 <code>metadata.analysis</code>，persist 的 <code>unchanged</code> 分支会回写本次解析成果；<b>窗口外的旧笔记则在分析阶段整体跳过（不再调 LLM，保留原始 content）</b> → <code>needsAnalysis = 0</code>，根治"整理笔记要点 0/92 很慢"。</li>
+      <li><span class="ok">空判定与 note_type 解耦</span>：实测 note_type 不止录音（recorder_audio / audio / class_audio / link / plain_text），空笔记判据改为「解析产物是否非空」兜底（录音卡 / 空白语音 / 时长 0 秒 / 标题关键词），不再误判。</li>
+      <li><span class="ok">19 位 ID 精度修复</span>：雪花 ID 超 <code>Number.MAX_SAFE_INTEGER</code>，解析前转字符串，避免拿错 id 导致空数据（"未命名笔记 0 字"）。</li>
+      <li><span class="ok">tags 用于分类</span>：<code>type=ai</code> 业务标签（美业/短视频运营/视频号运营…）价值高，作一级分类；<code>type=system</code>（录音卡笔记）丢弃。</li>
+    </ul>
+    <div class="legend">可观测性：<code>/tmp/getnote-summary-sync.log</code> 记录 <code>SYNC_START → LIST_OK → NOTE_OK → SYNC_DONE</code>，且 <code>detailRequests=0</code>；<code>getnote-summary-sync.ts</code> 加载时有 <code>MODULE_LOADED</code> 日志，用于确认后端已用新代码重启。</div>
+  </div>
+
+  <div class="card">
+    <h2><span class="dot" style="background:var(--purple)"></span>数据模型（落库表）</h2>
+    <table>
+      <tr><th>表</th><th>关键字段</th><th>说明</th></tr>
+      <tr>
+        <td><code>KnowledgeConnection</code></td>
+        <td>tenantId, provider=getnote, encryptedCredentials, ownership=tenant, status, syncCursor, lastSyncedAt, lastError</td>
+        <td><strong>得到大脑 Key = 租户属性（链接信息）</strong>，按唯一约束 <code>(tenantId, provider, ownership)</code> 落在租户下：每个租户最多一条 getnote 连接，凭证 AES-256-GCM 加密，<strong>绝不进 .env / 系统环境变量</strong>；ownerUserId 记配置人，便于审计</td>
+      </tr>
+      <tr>
+        <td><code>KnowledgeDocument</code></td>
+        <td>tenantId, connectionId, externalId, title, content, documentType, contentHash, sensitivity, usagePolicy, confirmedAt, sourceClass, occurredAt</td>
+        <td>同步落地的笔记；唯一键 <code>connectionId_externalId</code>；<b>窗口过滤在业务层按 occurredAt 做</b></td>
+      </tr>
+      <tr>
+        <td><code>KnowledgeSubject</code> / <code>KnowledgeDocumentSubject</code></td>
+        <td>id, tenantId, name / documentId, subjectId</td>
+        <td>资料归属主体（多对多）</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2><span class="dot" style="background:var(--amber)"></span>正确性核查清单（请你逐项确认）</h2>
+    <ul>
+      <li><span class="ok">✓ 窗口 30 天（已实现）</span>：连接器新增 <code>windowDays</code> 选项（列表层按 updatedAt 跳过、详情层按 occurredAt 兜底），路由同步固定传 <code>windowDays:30</code>。</li>
+      <li><span class="ok">✓ 进页预检（已实现）</span>：新增 <code>GET /connections/:id/pending?windowDays=30</code>，远端按窗口拉取并与已同步 KnowledgeDocument 差集，返回 <code>{configured,remoteCount,syncedCount,pendingCount}</code>；无凭证返回 <code>configured:false</code>。</li>
+      <li><span class="ok">✓ 点击才落库</span>：预检只读不写；真正 upsert 发生在用户点「同步」后的 <code>/sync</code>。</li>
+      <li><span class="ok">✓ 凭证隔离</span>：租户级加密，不进 .env（无凭证开发，凭证仅运行时传入）。</li>
+      <li><span class="ok">✓ pending 计算（已实现）</span>：复用 <code>syncGetNoteSummaries({windowDays:30})</code> 拿窗口内文档，再 <code>prisma.knowledgeDocument.count</code> 差集，无需另写 list-only 方法。</li>
+      <li><span class="ok">✓ 会员错误已修</span>：<code>getJson</code> 现在优先抛业务码（<code>getnote_api_10201</code> 而非 <code>getnote_http_403</code>）；<code>classifyGetNoteFailure</code> 新增 <code>membership</code> 分类，<code>getNoteSyncErrorMessage</code> 提示"请先开通会员"。</li>
+      <li><span class="ok">✓ 改为只翻 note/list（限流消失）</span>：实测 <code>note/list</code> 的 <code>content</code> 已是完整智能总结（≈ detail 的 100.6%），<strong>不再逐条 <code>note/detail</code></strong>，请求数 193 → 10，<code>detailRequests=0</code>。</li>
+      <li><span class="ok">✓ 分析阶段 LLM 代码已整体删除</span>：原 <code>provider.complete(NOTE_ANALYSIS_SYSTEM_PROMPT)</code> 逐条提取块已从 <code>runKnowledgeSyncJob</code> 移除，同步函数内已无任何 LLM 调用；免费智能总结由 <code>parseGetNoteSummary</code> 解析进 <code>metadata.analysis</code>，旧库缺 analysis 的文档在 persist 的 <code>unchanged</code> 分支回写 → 同步全程 <code>0</code> 次 LLM。</li>
+      <li><span class="warn">? 商城线未接</span>：<code>topic-evidence.ts</code> 目前仅美业线调用，商城选题策略官尚未接合格资料过滤（待拍 subjectId 归属 + 范围）。</li>
+      <li><span class="ok">✓ 凭证实测可用（已解决）</span>：用户提供的真实凭证（<code>gk_live_…</code> / <code>cli_…</code>）实测 <code>/note/list</code> 返回 <strong>200</strong>，旧的 403 <code>not_member</code> 为瞬时/账户态问题，现已可正常拉取，无需再处理会员拦截。</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

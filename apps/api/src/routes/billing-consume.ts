@@ -28,8 +28,9 @@ const redoSchema = z.object({
 });
 
 const SKILL_PPU: Record<string, number> = {
-  // 用户 2026-09-17 拍板：IP 定位按次 400 积分，退出成本计费（`FIXED_PRICE_SKUS`）。
-  "ip-pos": 400,
+  // 用户 2026-09-17 拍板：IP 定位按次计费，退出成本计费（`FIXED_PRICE_SKUS`）。
+  // 2026-09-27 用户改价：400 → 99（与 `marketplace-v3.json` 的 `skills["ip-pos"].ppu` 同口径）。
+  "ip-pos": 99,
   topic: 40,
   copy: 40,
   vidrev: 60,

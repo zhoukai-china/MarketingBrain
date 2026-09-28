@@ -10,8 +10,9 @@ import { env, domesticNetworkOnly, domesticOutboundAllowlist } from "../config/e
 import { requireAdminToken } from "../services/access-guards.js";
 import { resolveRequestContext, type RequestContext } from "../services/request-context.js";
 import { DomesticChatProvider, type DomesticProviderUsageObservation } from "../services/domestic-chat-provider.js";
-import { searchPublicTopicSources } from "../services/public-topic-search.js";
+import { searchPublicTopicSources, type PublicTopicSearch } from "../services/public-topic-search.js";
 import { fetchGetnoteNotes } from "../services/getnote.js";
+import { getConfirmedGetNoteEvidence } from "../services/getnote-evidence.js";
 import { parseTopicTable, splitRow, type TopicRow } from "../services/topic-table-parser.js";
 import {
   estimateMarketplaceModelCostCny,
@@ -30,6 +31,58 @@ import {
   readPlatformSettings,
   updatePlatformSettings
 } from "../services/referral-config.js";
+
+// 选题策略官工作台「应用选中」素材：前端展示「已选 N 条」与服务端 /run 实际注入的【唯一真源】。
+// 两端都读 topic_staged_material_selections 这张表，避免双源口径不一致。
+type StagedItem = { id: string; type: string; text: string; source: string };
+const STAGED_SELECT_COLUMN = `SELECT selected FROM topic_staged_material_selections WHERE user_id = $1`;
+
+// 来源2（行业热点）配置结果：配置页「拉取」时调用公开检索并存库，运行时只读这份快照，
+// 不自行外网拉取。与前端展示同源，是「已配置行业热点」的唯一真源。
+const INDUSTRY_HOTSPOTS_COLUMN = `SELECT industry, benchmark, result, selected, retrieved_at FROM topic_industry_hotspots WHERE user_id = $1`;
+
+// 来源4（数据复盘）：工作台上传的 CSV/Excel 解析快照（复用 vidrev 确定性解析/重算引擎）。
+// 配置页上传时解析落库，运行时（/run）只读这份快照——与来源1/2 同一范式，运行时不碰用户文件。
+type TopicReviewRow = {
+  file_name: string;
+  platform: string | null;
+  row_count: number;
+  rows: VidrevRawRow[] | null;
+  top_titles: string[] | null;
+  enabled: boolean;
+  uploaded_at: Date | null;
+};
+const TOPIC_REVIEW_COLUMN = `SELECT file_name, platform, row_count, rows, top_titles, enabled, uploaded_at FROM topic_review_uploads WHERE user_id = $1`;
+
+/**
+ * 把上传文件字节解码成可解析文本：
+ * - Excel（.xls/.xlsx）：用 xlsx 包读第一个 sheet 转成 CSV 文本，再走同一条 vidrev 文本解析链路；
+ * - 文本类（.csv/.tsv/.txt）：先按 UTF-8 解码，出现替换符（U+FFFD）回退 GBK（后台导出 CSV 常见 GBK 编码）。
+ */
+function decodeTopicUploadBytes(fileName: string, dataBase64: string): { text: string | null; error: string | null } {
+  const buffer = Buffer.from(dataBase64, "base64");
+  if (buffer.length === 0) return { text: null, error: "文件内容为空" };
+  if (buffer.length > 4_000_000) return { text: null, error: "文件超过 4MB，请导出更小范围（如近 30 天）后重试" };
+  if (/\.(xlsx|xls)$/i.test(fileName)) {
+    try {
+      const workbook = XLSX.read(buffer, { type: "buffer" });
+      const first = workbook.SheetNames[0];
+      if (!first) return { text: null, error: "Excel 中没有工作表" };
+      return { text: XLSX.utils.sheet_to_csv(workbook.Sheets[first]), error: null };
+    } catch {
+      return { text: null, error: "Excel 解析失败，请另存为 CSV 后重试" };
+    }
+  }
+  const utf8 = new TextDecoder("utf-8").decode(buffer);
+  if (utf8.includes("\uFFFD")) {
+    try {
+      return { text: new TextDecoder("gbk").decode(buffer), error: null };
+    } catch {
+      return { text: utf8, error: null };
+    }
+  }
+  return { text: utf8, error: null };
+}
 // 内容十件套 V5 合同（提示词 + 结构校验）唯一出处：货架「文案智能体」与兰琪「美业文案十件套」共用。
 import { COPY_TEN_SYSTEM_PROMPT, parseCopyTenContract } from "../products/beauty-industry/copy-ten-contract.js";
 import {
@@ -70,6 +123,7 @@ import {
   type VidrevPayload,
   type VidrevRawRow
 } from "../services/video-review-engine.js";
+import * as XLSX from "xlsx";
 
 // expert = 行业专家专区（用户 2026-09-15 新增，先放能力分身）。
 const zoneEnum = z.enum(["ipzone", "canyin", "meiye", "chongwu", "expert"]);
@@ -107,7 +161,12 @@ const marketplaceRunSchema = z.object({
     end: z.string().trim().max(40).optional().nullable()
   }).optional().nullable(),
   rows: z.array(z.record(z.unknown())).max(50).optional(),
-  has_revenue_data: z.boolean().optional()
+  has_revenue_data: z.boolean().optional(),
+  // 入口标记：workbench=选题策略官工作台（用已确认同步结论，不自行外拉）；
+  // 其余（含 chat 对话式入口）保持原有 live 拉取 getnote 逻辑不变。
+  entry: z.enum(["workbench", "chat"]).optional(),
+  // 工作台抽屉里用户手动勾选、临时带入本次生成的私有素材文本（不写库、不改确认状态）。
+  privateMaterials: z.array(z.string().trim().min(1).max(200)).max(400).optional()
 });
 
 /**
@@ -415,26 +474,96 @@ export async function runMarketplaceSku(params: {
   try {
     let userContent = marketplaceRunInput(sku, rawInput);
     if (core === "topic") {
-      const industryMatch = /(?:行业|账号阶段)[^：:]*[：:]\s*([^\n]+)/.exec(rawInput);
-      const benchMatch = /(?:同行爆款|对标账号)[^：:]*[：:]\s*([^\n]+)/.exec(rawInput);
-      const industry = industryMatch?.[1]?.trim() ?? "";
-      const bench = benchMatch?.[1]?.trim() ?? "";
-      try {
-        const search = await searchPublicTopicSources(industry, bench);
-        userContent += `\n\n【搜索源 · 实时检索】\n行业热点：${search.hot.fetched ? search.hot.items.join("；") : search.hot.note}\n同行爆款：${search.bench.fetched ? search.bench.items.join("；") : search.bench.note}`;
-      } catch {
-        userContent += "\n\n【搜索源 · 实时检索】行业热点：检索失败；同行爆款：未提供";
-      }
-      const apiKeyMatch = /API\s*[Kk]ey[：:\s]*([A-Za-z0-9_.]+)/.exec(rawInput);
-      const clientMatch = /Client\s*I[Dd][：:\s]*([A-Za-z0-9_]+)/.exec(rawInput);
-      const apiKey = apiKeyMatch?.[1] ?? (process.env.GETNOTE_API_KEY ?? "");
-      const clientId = clientMatch?.[1] ?? (process.env.GETNOTE_CLIENT_ID ?? "");
-      if (apiKey && clientId) {
-        const notes = await fetchGetnoteNotes(apiKey, clientId).catch(() => []);
-        if (notes.length > 0) {
-          userContent += `\n\n【Get笔记 · 录音卡（真实拉取）】\n${notes.map((n) => `- ${n.title}：${n.summary || "（无摘要）"}`).join("\n")}`;
+      // 行业热点：只读【配置时】已拉取并存库的结果，运行时不再外网拉取（来源2 是配置型来源）。
+      // 注入口径与前端展示一致：用户在抽屉里「应用选中」勾了哪些，就只注入哪些；
+      // selected 为 NULL（拉取后从未挑选）时默认全量带入。
+      const ihRows = await prisma
+        .$queryRawUnsafe<Array<{ industry: string; result: PublicTopicSearch | null; selected: string[] | null }>>(
+          INDUSTRY_HOTSPOTS_COLUMN,
+          context.userId
+        )
+        .catch(() => [] as Array<{ industry: string; result: PublicTopicSearch | null; selected: string[] | null }>);
+      const ih = ihRows[0];
+      if (ih?.result) {
+        const hot = ih.result.hot;
+        let hotTitles: string[];
+        let hotNote: string;
+        if (Array.isArray(ih.selected)) {
+          hotTitles = ih.selected;
+          hotNote = hotTitles.length > 0 ? "" : "已在抽屉打开选择但未勾选任何热点，本次不带入热点。";
         } else {
-          userContent += "\n\n【Get笔记 · 录音卡】已提供 API Key，但拉取未取到笔记（可能未授权/网络），按「无」处理。";
+          hotTitles = hot.fetched ? hot.items : [];
+          hotNote = hot.fetched ? "" : hot.note;
+        }
+        userContent +=
+          `\n\n【搜索源 · 已配置行业热点】（行业：${ih.industry || "未填写"}｜共带入 ${hotTitles.length} 条）\n` +
+          (hotTitles.length > 0 ? `行业热点：${hotTitles.join("；")}` : `行业热点：${hotNote || "未取到"}`);
+      } else {
+        userContent +=
+          "\n\n【搜索源 · 已配置行业热点】来源2（行业热点）尚未在配置页拉取，本次不挂载实时热点来源。";
+      }
+      if (parsed.data.entry === "workbench") {
+        // 工作台入口：读取【后端已存】的用户选择（与前端展示同源，唯一真源），
+        // 不再信任请求体里的 privateMaterials，避免「前端显示已选 N 条」与「后端实际注入」口径不一致。
+        const storedRows = await prisma
+          .$queryRawUnsafe<Array<{ selected: Array<{ id: string; text: string }> }>>(
+            STAGED_SELECT_COLUMN,
+            context.userId
+          )
+          .catch(() => [] as Array<{ selected: Array<{ id: string; text: string }> }>);
+        const storedTexts = (storedRows[0]?.selected ?? [])
+          .map((s) => s.text)
+          .filter((t): t is string => Boolean(t));
+        if (storedTexts.length > 0) {
+          userContent +=
+            `\n\n【私有知识库 · 客户所选素材（本次生成带入，共 ${storedTexts.length} 条）】\n` +
+            storedTexts.map((t, i) => `${i + 1}. ${t}`).join("\n");
+        } else {
+          const evidence = await getConfirmedGetNoteEvidence(context.tenantId).catch(() => null);
+          if (evidence?.hasData) {
+            userContent += `\n\n${evidence.text}`;
+          } else {
+            userContent +=
+              "\n\n【私有知识库 · 得到大脑】当前暂无「客户已选」的素材（请在素材抽屉勾选并应用），本次不挂载私有知识来源。";
+          }
+        }
+        // 来源4（数据复盘）：只读上传时解析落库的快照（enabled=false 视为用户主动关闭，不注入）。
+        // 复用 vidrev 确定性重算引擎（computeVidrevMetrics / vidrevMetricBrief），不调 LLM、不扣积分。
+        const reviewRows = await prisma
+          .$queryRawUnsafe<TopicReviewRow[]>(TOPIC_REVIEW_COLUMN, context.userId)
+          .catch(() => [] as TopicReviewRow[]);
+        const review = reviewRows[0];
+        const reviewData = (review?.rows ?? []) as VidrevRawRow[];
+        if (review && review.enabled && reviewData.length > 0) {
+          const reviewMetrics = computeVidrevMetrics(reviewData);
+          if (reviewMetrics.count > 0) {
+            userContent +=
+              `\n\n【来源4 · 数据复盘（文件：${review.file_name}｜平台：${review.platform ?? "未识别"}｜共 ${reviewMetrics.count} 条视频）】\n` +
+              `${vidrevMetricBrief(reviewMetrics)}\n` +
+              `以上为后端确定性重算口径（中位数基线 / 四象限 / 完播分桶），引用时禁止自行改判或重算。`;
+            const tops = (review.top_titles ?? []).filter(Boolean).slice(0, 5);
+            if (tops.length > 0) {
+              userContent += `\n【高表现视频标题 TOP${tops.length}（借鉴其选题角度与结构，不照搬文案）】\n${tops.map((t, i) => `${i + 1}. ${t}`).join("\n")}`;
+            }
+          } else {
+            userContent += "\n\n【来源4 · 数据复盘】上传的数据未重算出有效指标，本次不挂载数据复盘来源。";
+          }
+        } else {
+          userContent += "\n\n【来源4 · 数据复盘】尚未上传数据表（或已关闭该来源），本次不挂载数据复盘来源。";
+        }
+      } else {
+        // 其余入口（含 /chat 对话式）：保持原有 live 拉取 getnote 逻辑不变。
+        const apiKeyMatch = /API\s*[Kk]ey[：:\s]*([A-Za-z0-9_.]+)/.exec(rawInput);
+        const clientMatch = /Client\s*I[Dd][：:\s]*([A-Za-z0-9_]+)/.exec(rawInput);
+        const apiKey = apiKeyMatch?.[1] ?? (process.env.GETNOTE_API_KEY ?? "");
+        const clientId = clientMatch?.[1] ?? (process.env.GETNOTE_CLIENT_ID ?? "");
+        if (apiKey && clientId) {
+          const notes = await fetchGetnoteNotes(apiKey, clientId).catch(() => []);
+          if (notes.length > 0) {
+            userContent += `\n\n【Get笔记 · 录音卡（真实拉取）】\n${notes.map((n) => `- ${n.title}：${n.summary || "（无摘要）"}`).join("\n")}`;
+          } else {
+            userContent += "\n\n【Get笔记 · 录音卡】已提供 API Key，但拉取未取到笔记（可能未授权/网络），按「无」处理。";
+          }
         }
       }
     }
@@ -569,7 +698,9 @@ export async function runMarketplaceSku(params: {
         try {
           const corrective = [
             "上一次输出未通过技能校验，请在不改动已经正确的选题与结构的前提下，重新输出完整选题表格并只修正下列问题：",
-            ...validation.failures.slice(0, 12).map((item, index) => `${index + 1}. ${item}`)
+            ...validation.failures.slice(0, 12).map((item, index) => `${index + 1}. ${item}`),
+            "处理方式：对每条被点名（含「第 N 条」）的选题，直接从表格中删除该条，并在表格末尾补充一条全新的合规选题，使最终仍为正好 10 条且全部通过校验；不要改动其他合格选题。",
+            "特别注意：创作建议与 cta 引导话术只能用「主页/评论区/关注」等自然承接，不得出现私信、电话、找我、留个、加我、扫码领等违规引导词。"
           ].join("\n");
           const retryText = (await provider.complete(
             [
@@ -878,12 +1009,69 @@ export async function runMarketplaceSku(params: {
             }
           : {}),
         ...(ipPosPayload ? { payload: ipPosPayload } : {}),
-        ...(vidrevPayload ? { payload: vidrevPayload } : {})
+        ...(vidrevPayload ? { payload: vidrevPayload } : {}),
+        ...(core === "topic" ? { topics: parseTopicTable(answer).rows } : {})
       }
     };
   } catch (error) {
     throw error;
   }
+}
+
+/**
+ * ip-pos 生成前预审（2026-09-27 用户拍板）：正式生成前用轻模型逐槽位体检 6 项访谈回答，
+ * 缺什么追问什么、不消耗积分。槽位键是固定枚举，模型输出会经服务端白名单二次过滤，
+ * 前端按同一映射回填——保证「模型问的是哪个槽位，答案就落回哪个槽位」，不会串格。
+ */
+const IP_POS_PRECHECK_SLOTS = ["role", "project", "competition", "user", "founder", "stage"] as const;
+type IpPosPrecheckSlot = (typeof IP_POS_PRECHECK_SLOTS)[number];
+type IpPosPrecheckIssue = { slot: IpPosPrecheckSlot; verdict: "weak" | "missing"; followup: string };
+
+const ipPosPrecheckSchema = z.object({
+  answers: z.record(z.string(), z.string().max(4000))
+});
+
+const IP_POS_PRECHECK_SYSTEM_PROMPT = `你是 IP 定位访谈的预审员。用户已完成 6 步访谈，你会收到 6 个槽位的回答。逐个判断回答质量：
+- missing：空、只有「无 / 不知道 / 不清楚」之类敷衍词，或完全答非所问；
+- weak：有内容但明显太薄（如少于 15 字），或缺少该槽位必须覆盖的关键点；
+- ok：信息足够支撑 IP 定位分析。
+
+各槽位必须覆盖的关键点：
+- role：身份（老板本人 / 操盘手 / 代运营）与业务形态（单店 / 本地多店 / 连锁招商）
+- project：项目是什么、赚谁的钱怎么赚、所处阶段（0-1 / 1-10 / 10-100）
+- competition：竞争对手是谁、差异化是什么、有什么可验证的依据
+- user：典型客户画像（年龄/职业/城市/收入）与最痛的一件事
+- founder：创始人背景、擅长、性格关键词，以及做 IP 的核心目标（获客/招商/品牌）
+- stage：现有账号与粉丝量、出镜镜头感（自然度 1-10 分）、每周可投入时间
+
+只输出一个 JSON 数组，不要输出任何其他文字。每个不达标的槽位一个对象：
+[{"slot":"competition","verdict":"missing","followup":"一条具体的追问，针对该槽位缺什么、让老板好回答"}]
+达标的槽位不要出现在数组里。slot 只能取：role、project、competition、user、founder、stage。最多 6 条。`;
+
+/** 解析预审输出：只保留槽位白名单内的 weak/missing 项，其余一律丢弃（防模型编造槽位导致回填串格）。 */
+/** 返回 null = 输出根本不是 JSON 数组（degraded）；[] = 解析成功且全部达标。 */
+function parseIpPosPrecheck(text: string): IpPosPrecheckIssue[] | null {
+  const match = /\[[\s\S]*\]/.exec(text ?? "");
+  if (!match) return null;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(match[0]);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(raw)) return null;
+  const issues: IpPosPrecheckIssue[] = [];
+  for (const item of raw.slice(0, 6)) {
+    const record = item as { slot?: unknown; verdict?: unknown; followup?: unknown };
+    const slot = record.slot;
+    const verdict = record.verdict;
+    const followup = String(record.followup ?? "").trim();
+    if (typeof slot !== "string" || !(IP_POS_PRECHECK_SLOTS as readonly string[]).includes(slot)) continue;
+    if (verdict !== "weak" && verdict !== "missing") continue;
+    if (!followup) continue;
+    issues.push({ slot: slot as IpPosPrecheckSlot, verdict, followup });
+  }
+  return issues;
 }
 
 export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<void> {
@@ -1000,6 +1188,81 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
       return reply.code(outcome.status).send(outcome.body);
     });
 
+    // ip-pos 生成前体检（2026-09-27）：轻模型逐槽位审 6 项回答，缺什么追问什么；
+    // 不走钱包、不消耗积分。预审是建议性闸门——服务异常时前端会放行，正式 run 的
+    // needsInput 澄清与契约校验仍然兜底，不会因为体检挂掉而挡住付费主链路。
+    market.post<{ Params: { skuId: string } }>("/skus/:skuId/precheck", async (request, reply) => {
+      const parsedSchema = ipPosPrecheckSchema.safeParse(request.body ?? {});
+      if (!parsedSchema.success) {
+        return reply.code(400).send({ error: "invalid_request", details: parsedSchema.error.flatten() });
+      }
+      const context = await resolveRequestContext(request.headers);
+      if (context.source !== "database") {
+        return reply.code(401).send({ error: "marketplace_auth_required", message: "请先登录后再生成。" });
+      }
+      const sku = await getMarketplaceSku(request.params.skuId);
+      if (!sku || !sku.skuCode.endsWith("__ip-pos")) {
+        return reply.code(404).send({ error: "marketplace_sku_not_found" });
+      }
+
+      const answers = parsedSchema.data.answers;
+      // 本地就能判定的空槽位不花模型调用，直接出 missing；其余交给 LLM 逐槽体检。
+      const localMissing: IpPosPrecheckIssue[] = IP_POS_PRECHECK_SLOTS
+        .filter((slot) => !(answers[slot] ?? "").trim())
+        .map((slot) => ({ slot, verdict: "missing" as const, followup: "这一项还没有填写，请先补充。" }));
+      if (localMissing.length === IP_POS_PRECHECK_SLOTS.length) {
+        return { ok: true, issues: localMissing, degraded: false };
+      }
+
+      let degraded = false;
+      let llmIssues: IpPosPrecheckIssue[] = [];
+      const usage = { promptTokens: 0, completionTokens: 0, reasoningTokens: 0 };
+      const provider = new DomesticChatProvider({
+        providerName: "deepseek",
+        apiKey: env.DEEPSEEK_API_KEY,
+        baseUrl: env.DEEPSEEK_BASE_URL,
+        model: process.env.MARKETPLACE_MODEL ?? "deepseek-v4-flash",
+        timeoutMs: env.LLM_TIMEOUT_MS,
+        domesticNetworkOnly,
+        allowedHosts: domesticOutboundAllowlist,
+        onUsage: (obs: DomesticProviderUsageObservation) => {
+          usage.promptTokens += obs.promptTokens ?? 0;
+          usage.completionTokens += obs.completionTokens ?? 0;
+          usage.reasoningTokens += obs.reasoningTokens ?? 0;
+        }
+      });
+      const userContent = IP_POS_PRECHECK_SLOTS
+        .map((slot) => `- ${slot}：${(answers[slot] ?? "").trim() || "（空）"}`)
+        .join("\n");
+      try {
+        const text = await provider.complete(
+          [
+            { role: "system", content: IP_POS_PRECHECK_SYSTEM_PROMPT },
+            { role: "user", content: userContent }
+          ] as LlmMessage[],
+          { reasoningProfile: "standard", thinkingMode: "disabled", maxTokens: 1200, responseFormat: "json_object" }
+        );
+        const parsedIssues = parseIpPosPrecheck(text);
+        if (parsedIssues === null) {
+          // 模型没按要求输出 JSON：按「体检没做成」处理，不拦生成（正式 run 校验兜底）。
+          degraded = true;
+        } else {
+          llmIssues = parsedIssues;
+        }
+      } catch (modelError) {
+        request.log.warn(
+          { event: "ip_pos_precheck_failed", err: String(modelError) },
+          "ip-pos 生成前体检调用失败，放行生成（正式 run 校验兜底）"
+        );
+        degraded = true;
+      }
+      // 合并：本地空槽位（用户没填）+ LLM 判出的 weak/missing，同槽位去重（missing 优先）。
+      const merged = new Map<IpPosPrecheckSlot, IpPosPrecheckIssue>();
+      for (const issue of llmIssues) merged.set(issue.slot, issue);
+      for (const issue of localMissing) merged.set(issue.slot, issue);
+      return { ok: true, issues: [...merged.values()], degraded };
+    });
+
     /**
      * 找回「已付费交付物」（用户 2026-09-16：客户换了手机/关了页面之后要能拿回自己的报告）。
      *
@@ -1049,6 +1312,268 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
         recentPpu: await listRecentPpuUsage(context),
         recentRefunds: await listRecentRefunds(context)
       };
+    });
+
+    // 选题策略官工作台：读写用户「应用选中」的素材选择。
+    // 这是前端展示「已选 N 条」与服务端 /run 实际注入的【唯一真源】，两端都读这张表，保证口径一致。
+    market.get("/topic-staged-materials", async (request, reply) => {
+      const context = await resolveRequestContext(request.headers);
+      const rows = await prisma
+        .$queryRawUnsafe<Array<{ selected: StagedItem[] }>>(STAGED_SELECT_COLUMN, context.userId)
+        .catch(() => [] as Array<{ selected: StagedItem[] }>);
+      return reply.send({ selected: rows[0]?.selected ?? [] });
+    });
+
+    market.post("/topic-staged-materials", async (request, reply) => {
+      const context = await resolveRequestContext(request.headers);
+      const parsed = z
+        .object({
+          selected: z
+            .array(z.object({ id: z.string(), type: z.string(), text: z.string(), source: z.string() }))
+            .max(400)
+        })
+        .safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+      }
+      const payload = JSON.stringify(parsed.data.selected);
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO topic_staged_material_selections (user_id, tenant_id, selected, created_at, updated_at)
+         VALUES ($1, $2, $3::jsonb, now(), now())
+         ON CONFLICT (user_id) DO UPDATE SET selected = EXCLUDED.selected, updated_at = now()`,
+        context.userId,
+        context.tenantId,
+        payload
+      );
+      return reply.send({ selected: parsed.data.selected });
+    });
+
+    // 选题策略官工作台 · 来源2（行业热点）：配置页「拉取」时调用公开检索并存库，
+    // 运行时（/run）只读这份快照。这是前端展示与 /run 注入的【唯一真源】。
+    market.get("/industry-hotspots", async (request, reply) => {
+      const context = await resolveRequestContext(request.headers);
+      const rows = await prisma
+        .$queryRawUnsafe<Array<{ industry: string; benchmark: string; result: PublicTopicSearch | null; selected: string[] | null; retrieved_at: Date | null }>>(
+          INDUSTRY_HOTSPOTS_COLUMN,
+          context.userId
+        )
+        .catch(() => [] as Array<{ industry: string; benchmark: string; result: PublicTopicSearch | null; selected: string[] | null; retrieved_at: Date | null }>);
+      const row = rows[0];
+      return reply.send(
+        row
+          ? { industry: row.industry, benchmark: row.benchmark, result: row.result, selected: row.selected ?? null, retrievedAt: row.retrieved_at?.toISOString?.() ?? null }
+          : { industry: "", benchmark: "", result: null, selected: null, retrievedAt: null }
+      );
+    });
+
+    market.post("/industry-hotspots", async (request, reply) => {
+      const context = await resolveRequestContext(request.headers);
+      const parsed = z
+        .object({
+          industry: z.string().trim().min(1).max(60),
+          benchmark: z.string().trim().max(200).optional().default("")
+        })
+        .safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+      }
+      // 幂等建表（id 用服务端生成，避免依赖 gen_random_uuid 扩展）。
+      await prisma.$executeRawUnsafe(
+        `CREATE TABLE IF NOT EXISTS topic_industry_hotspots (
+           id uuid PRIMARY KEY,
+           user_id text NOT NULL UNIQUE,
+           tenant_id text NOT NULL,
+           industry text NOT NULL,
+           benchmark text NOT NULL DEFAULT '',
+           result jsonb,
+           selected jsonb,
+           retrieved_at timestamptz,
+           created_at timestamptz NOT NULL DEFAULT now(),
+           updated_at timestamptz NOT NULL DEFAULT now()
+         )`
+      );
+      // 旧表补列（幂等）。
+      await prisma.$executeRawUnsafe(`ALTER TABLE topic_industry_hotspots ADD COLUMN IF NOT EXISTS selected jsonb`);
+      const search = await searchPublicTopicSources(parsed.data.industry, parsed.data.benchmark ?? "");
+      const payload = JSON.stringify(search);
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO topic_industry_hotspots (id, user_id, tenant_id, industry, benchmark, result, selected, retrieved_at, created_at, updated_at)
+         VALUES ($1::uuid, $2, $3, $4, $5, $6::jsonb, NULL, now(), now(), now())
+         ON CONFLICT (user_id) DO UPDATE SET industry = EXCLUDED.industry, benchmark = EXCLUDED.benchmark, result = EXCLUDED.result, selected = NULL, retrieved_at = now(), updated_at = now()`,
+        randomUUID(),
+        context.userId,
+        context.tenantId,
+        parsed.data.industry,
+        parsed.data.benchmark ?? "",
+        payload
+      );
+      return reply.send({
+        industry: parsed.data.industry,
+        benchmark: parsed.data.benchmark ?? "",
+        result: search,
+        selected: null,
+        retrievedAt: new Date().toISOString()
+      });
+    });
+
+    // 保存用户在抽屉里「应用选中」的热点勾选（string[] 为热点标题，与 result.hot.items 对应）。
+    // 与 /run 注入同源：勾了哪些就注入哪些，保证前后端口径一致。
+    market.post("/industry-hotspots/select", async (request, reply) => {
+      const context = await resolveRequestContext(request.headers);
+      const parsed = z
+        .object({ selected: z.array(z.string().min(1)).max(50) })
+        .safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+      }
+      const payload = JSON.stringify(parsed.data.selected);
+      const updated = await prisma
+        .$executeRawUnsafe(
+          `UPDATE topic_industry_hotspots SET selected = $2::jsonb, updated_at = now() WHERE user_id = $1`,
+          context.userId,
+          payload
+        )
+        .catch(() => 0);
+      if (!updated) {
+        return reply.code(400).send({ error: "not_configured", message: "请先在来源2填写行业并拉取热点" });
+      }
+      return reply.send({ selected: parsed.data.selected });
+    });
+
+    // 选题策略官工作台 · 来源4（数据复盘）：上传 CSV/Excel → 复用 vidrev 确定性解析/重算引擎
+    // （parseVidrevRowsFromText + computeVidrevMetrics，不调 LLM、不扣积分）→ 解析结果落库。
+    // 运行时（/run workbench 分支）只读这份快照。vidrev 对话流程（ipzone__vidrev）完全不受影响。
+    market.post("/topic-review-upload", async (request, reply) => {
+      const context = await resolveRequestContext(request.headers);
+      const parsed = z
+        .object({
+          fileName: z.string().trim().min(1).max(200),
+          dataBase64: z.string().min(8).max(6_000_000)
+        })
+        .safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+      }
+      const decoded = decodeTopicUploadBytes(parsed.data.fileName, parsed.data.dataBase64);
+      if (decoded.error || decoded.text === null) {
+        return reply.code(422).send({ ok: false, error: "parse_failed", message: decoded.error ?? "文件解码失败" });
+      }
+      const { rows, notes } = parseVidrevRowsFromText(decoded.text);
+      if (rows.length === 0) {
+        return reply.code(422).send({ ok: false, error: "no_rows", message: notes.join("；") });
+      }
+      const platform = resolveVidrevPlatform("", decoded.text);
+      if (!VIDREV_SUPPORTED_PLATFORMS.includes(platform)) {
+        return reply.code(422).send({ ok: false, error: "platform_not_supported", message: VIDREV_UNSUPPORTED_MESSAGE, platform });
+      }
+      const metrics = computeVidrevMetrics(rows);
+      const dates = rows
+        .map((row) => row.published_at)
+        .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+        .sort();
+      // 高表现标题（播放降序 TOP5，空标题跳过）：供卡片展示与 /run 注入。
+      const topTitles = [...metrics.videos]
+        .sort((a, b) => b.plays - a.plays)
+        .map((video) => video.title.trim())
+        .filter((title) => title.length > 0)
+        .slice(0, 5);
+      const uploadedAt = new Date();
+      await prisma.$executeRawUnsafe(
+        `CREATE TABLE IF NOT EXISTS topic_review_uploads (
+           id uuid PRIMARY KEY,
+           user_id text NOT NULL UNIQUE,
+           tenant_id text NOT NULL,
+           file_name text NOT NULL,
+           platform text,
+           row_count integer NOT NULL DEFAULT 0,
+           fields jsonb,
+           period_start text,
+           period_end text,
+           limited_dimensions jsonb,
+           top_titles jsonb,
+           rows jsonb,
+           enabled boolean NOT NULL DEFAULT true,
+           uploaded_at timestamptz,
+           created_at timestamptz NOT NULL DEFAULT now(),
+           updated_at timestamptz NOT NULL DEFAULT now()
+         )`
+      );
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO topic_review_uploads (id, user_id, tenant_id, file_name, platform, row_count, fields, period_start, period_end, limited_dimensions, top_titles, rows, enabled, uploaded_at, created_at, updated_at)
+         VALUES ($1::uuid, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10::jsonb, $11::jsonb, $12::jsonb, true, $13, now(), now())
+         ON CONFLICT (user_id) DO UPDATE SET
+           file_name = EXCLUDED.file_name, platform = EXCLUDED.platform, row_count = EXCLUDED.row_count,
+           fields = EXCLUDED.fields, period_start = EXCLUDED.period_start, period_end = EXCLUDED.period_end,
+           limited_dimensions = EXCLUDED.limited_dimensions, top_titles = EXCLUDED.top_titles, rows = EXCLUDED.rows,
+           enabled = true, uploaded_at = EXCLUDED.uploaded_at, updated_at = now()`,
+        randomUUID(),
+        context.userId,
+        context.tenantId,
+        parsed.data.fileName,
+        platform,
+        metrics.count,
+        JSON.stringify([...new Set(rows.flatMap((row) => Object.keys(row as Record<string, unknown>)).filter((key) => {
+          return rows.some((row) => {
+            const value = (row as Record<string, unknown>)[key];
+            return value !== null && value !== undefined && value !== "";
+          });
+        }))]),
+        dates[0] ?? null,
+        dates[dates.length - 1] ?? null,
+        JSON.stringify(metrics.limitedDimensions ?? []),
+        JSON.stringify(topTitles),
+        JSON.stringify(rows.slice(0, 300)),
+        uploadedAt
+      );
+      return reply.send({
+        ok: true,
+        fileName: parsed.data.fileName,
+        platform,
+        rowCount: metrics.count,
+        period: { start: dates[0] ?? null, end: dates[dates.length - 1] ?? null },
+        limitedDimensions: metrics.limitedDimensions ?? [],
+        topTitles,
+        uploadedAt: uploadedAt.toISOString()
+      });
+    });
+
+    market.get("/topic-review-upload", async (request, reply) => {
+      const context = await resolveRequestContext(request.headers);
+      const rows = await prisma
+        .$queryRawUnsafe<TopicReviewRow[]>(TOPIC_REVIEW_COLUMN, context.userId)
+        .catch(() => [] as TopicReviewRow[]);
+      const row = rows[0];
+      if (!row) return reply.send({ enabled: true, upload: null });
+      return reply.send({
+        enabled: row.enabled,
+        upload: {
+          fileName: row.file_name,
+          platform: row.platform,
+          rowCount: row.row_count,
+          topTitles: row.top_titles ?? [],
+          uploadedAt: row.uploaded_at?.toISOString?.() ?? null
+        }
+      });
+    });
+
+    // 来源4 开关（关闭=主动跳过，/run 不注入；重新打开不要求重传文件）。
+    market.post("/topic-review-upload/enable", async (request, reply) => {
+      const context = await resolveRequestContext(request.headers);
+      const parsed = z.object({ enabled: z.boolean() }).safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+      }
+      const updated = await prisma
+        .$executeRawUnsafe(
+          `UPDATE topic_review_uploads SET enabled = $2, updated_at = now() WHERE user_id = $1`,
+          context.userId,
+          parsed.data.enabled
+        )
+        .catch(() => 0);
+      if (!updated) {
+        return reply.code(400).send({ error: "not_configured", message: "尚未上传过数据表，无需切换开关" });
+      }
+      return reply.send({ enabled: parsed.data.enabled });
     });
 
     /**
@@ -2185,14 +2710,15 @@ function marketplaceSkillSystemPrompt(sku: PublicMarketplaceSku): string {
 }
 
 const TOPIC_SYSTEM_PROMPT = [
-  "你是思潼AI行业智能体平台的「选题智能体」。一次交付 10 条选题，输出严格按下面的 Markdown 结构，主表格必须正好是这 7 列：",
-  "| # | 选题 | 类型 | 来源 | 共识层级 | 客资准度 | 创作建议 |",
+  "你是思潼AI行业智能体平台的「选题智能体」。一次交付 10 条选题，输出严格按下面的 Markdown 结构，主表格必须正好是这 8 列：",
+  "| # | 选题 | 类型 | 来源 | 共识层级 | 客资准度 | 创作建议 | 适用阶段 |",
   "",
   "字段取值：",
   "- 类型：认知型 / 信任型 / 连接型 / 转化型",
   "- 来源：Get笔记 / 行业热点 / 数据复盘 / 同行爆款（可复合，如 `Get笔记+同行爆款`）",
   "- 共识层级：人性共识 / 时代共识 / 利益共识 / 热点共识 / 专业共识",
   "- 客资准度：★☆☆☆☆ / ★★★☆☆ / ★★★★☆ / ★★★★★",
+  "- 适用阶段：起号期 / 增长期 / 变现期（可复合，如 `增长期+变现期`）；按该选题最适配的阶段填，同批次内允许不同",
   "",
   "共识层级与客资准度必须严格按下表绑定，不可自由组合：",
   "| 共识层级 | 客资准度 | 战略目的 |",
@@ -2205,13 +2731,13 @@ const TOPIC_SYSTEM_PROMPT = [
   "",
   "三关（结果体现在选题里）：关① 一票否决（目标用户想不想看，取值 通过 / 通过（弱证据） / 否决，禁止写'应该有人想看'，无数据时标'弱证据：依据公开报道'）；关② 共识层级×客资准度只贴标签不淘汰；关③ 阶段配比（起号期 人性5/时代2/利益2/专业1，增长期 3/3/3/1，变现期 2/2/3/3，热点看时机）。",
   "来源配额（10 条）：Get笔记 3-4 / 行业热点 2-3 / 数据复盘 2 / 同行爆款 2。若用户未提供账号数据，来源③的 2 条并入①②，并如实写「来源③：未提供数据，2 条配额已并入①②」，禁止用'内容空白'猜测。",
-  "CTA 严禁出现：私信 / 电话 / 找我 / 留个 / 加我 / 扫码领（合规引导用'看主页/评论区/关注'）。扩展字段（hook/gates/gate1_evidence/platform/risk_level/shoot_tip/cta）补不出时留空白显示 —，禁止编造，不进主表格 7 列。",
+  "CTA 严禁出现：私信 / 电话 / 找我 / 留个 / 加我 / 扫码领（合规引导用'看主页/评论区/关注'）。扩展字段（hook/gates/gate1_evidence/platform/risk_level/shoot_tip/cta）补不出时留空白显示 —，禁止编造，不进主表格 8 列。",
   "",
   "输出结构（严格）：",
   "## 一、四个来源实拉结果",
   "| 来源 | 实拉情况 | 拿到什么 |",
   "## 二、选题 10 条（三关已过）",
-  "| # | 选题 | 类型 | 来源 | 共识层级 | 客资准度 | 创作建议 |",
+  "| # | 选题 | 类型 | 来源 | 共识层级 | 客资准度 | 创作建议 | 适用阶段 |",
   "（10 行）",
   "## 三、配比校验（{阶段}）",
   "| 层级 | 基线 | 本次 | 结论 |",
@@ -2273,8 +2799,9 @@ function extractClarification(text: string): string | null {
 }
 
 /* ---------------------------------------------------------------------------
- * IP 定位智能体（ip-pos）：400 积分/次（用户 2026-09-17 拍板「按次计费、不按消耗量计费」，
- * 已在 `billing-cost-model.ts` 的 `FIXED_PRICE_SKUS` 中退出成本计费），一次交付 1 份完整 IP 定位全案。
+ * IP 定位智能体（ip-pos）：99 算力/次（用户 2026-09-17 拍板「按次计费、不按消耗量计费」，
+ * 2026-09-27 由 400 改价到 99；已在 `billing-cost-model.ts` 的 `FIXED_PRICE_SKUS` 中退出成本计费），
+ * 一次交付 1 份完整 IP 定位全案。
  * 全案体量大（1分钟速览 + 八章 + ≥80 条选题），按「0–四章 / 五–八章」两段并发生成再合并，
  * 合并结果必须通过下面的硬校验（V1–V10）才消耗积分，校验不通过不消耗积分、可免费重跑。
  * ------------------------------------------------------------------------- */

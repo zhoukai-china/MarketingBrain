@@ -2379,6 +2379,20 @@ model MarketplaceLedgerEntry {
   @@index([skuId, createdAt])
 }
 
+// 选题策略官工作台：用户在素材抽屉里「应用选中」的素材（私有知识库客户素材）。
+// 这是前端展示「已选 N 条」与服务端 /run 实际注入的【唯一真源】——两者都读这张表，避免口径不一致。
+// selected 存完整 {id,type,text,source} 以便刷新后回填与计数；表本身不依赖其它关系，避免反向引用要求。
+model TopicStagedMaterialSelection {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  tenantId  String
+  selected  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
 // ══════════════════════════════════════════════════════
 // 模块五：思潼AI 统一钱包（v5 双桶账本 · 账号级）
 // paid = 基础积分（充值 base，严格 price×20）；bonus = 阶梯赠送（独立记账，不退）。

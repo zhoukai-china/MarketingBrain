@@ -50,6 +50,20 @@ export interface MarketplaceSku {
 
 export const BUNDLE_ORDER = ["ip-pos", "topic", "copy", "vidrev", "livescript", "liverev", "sales"];
 
+/**
+ * IP 定位工作台的单次计费口径（2026-09-27 用户拍板）：99 算力/次（原 400 积分）。
+ *
+ * 三处必须同改，否则页面写的价和服务端扣的价会对不上：
+ * - 后端发布文件 `apps/api/src/data/marketplace-v3.json` 的 `skills["ip-pos"].ppu`（真源，落库）
+ * - 后端价目表 `apps/api/src/routes/billing-consume.ts` 的 `SKILL_PPU["ip-pos"]`
+ * - 前端 `IP_POS_PRICE`（本常量：工作台按钮/费用行/交付行 + 对话页确认卡）
+ * `scripts/billing-cost-model-smoke.ts` 会钉住这三处一致。
+ *
+ * 单位口径：IP 定位这一条链路统一显示「算力」（对齐用户给的参考图）；全站余额/充值仍是「积分」。
+ */
+export const IP_POS_PRICE = 99;
+export const IP_POS_UNIT = "算力";
+
 export function coreSkuCode(skuCode: string): string {
   const separator = skuCode.indexOf("__");
   return separator >= 0 ? skuCode.slice(separator + 2) : skuCode;

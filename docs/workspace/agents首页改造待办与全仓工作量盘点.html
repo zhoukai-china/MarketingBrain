@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>思潼 AI 商城 · 改造待办与全仓工作量盘点</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --line:#e7e9ee; --ink:#1f2329; --sub:#6b7280;
+    --ok:#0f6e56; --okbg:#e3f5ee; --warn:#9a5b00; --warnbg:#fbeed8; --dev:#9a3412; --devbg:#fbe9e3;
+    --blue:#1d4ed8; --bluebg:#e8effc; --purple:#6d28d9; --purplebg:#f0e9fb; --accent:#e7651a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font:14px/1.65 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;padding:36px 24px}
+  .wrap{max-width:1100px;margin:0 auto}
+  h1{font-size:22px;font-weight:750;letter-spacing:.3px}
+  .meta{color:var(--sub);font-size:12.5px;margin:6px 0 4px}
+  .pill{display:inline-block;background:var(--accent);color:#fff;font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;margin-right:8px;vertical-align:middle}
+  h2{font-size:17px;font-weight:700;margin:34px 0 14px;padding-left:11px;border-left:4px solid var(--accent)}
+  h3{font-size:14.5px;font-weight:650;margin:18px 0 8px;color:#374151}
+  p{margin:8px 0;color:#374151}
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px;margin:10px 0}
+  th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f1f3f6;font-weight:650;color:#333;font-size:12px;white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  tbody tr:nth-child(even){background:#fafbfc}
+  code{background:#f1f3f6;padding:1px 6px;border-radius:5px;font-size:12px;font-family:ui-monospace,Consolas,monospace;color:#b4420f}
+  .tag{display:inline-block;padding:1px 9px;border-radius:20px;font-size:11px;font-weight:650;white-space:nowrap}
+  .t-ok{background:var(--okbg);color:var(--ok)} .t-dev{background:var(--devbg);color:var(--dev)}
+  .t-warn{background:var(--warnbg);color:var(--warn)} .t-blue{background:var(--bluebg);color:var(--blue)}
+  .t-purple{background:var(--purplebg);color:var(--purple)}
+  .muted{color:var(--sub);font-size:12.5px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:12px 0}
+  .wb{display:grid;grid-template-columns:auto 1fr;gap:10px 16px;align-items:start}
+  .wb .no{font-weight:750;color:var(--accent);font-size:15px}
+  .wb .ttl{font-weight:650}
+  .wb .desc{color:#374151;font-size:13px}
+  .est{display:inline-block;background:#fff4ec;color:#b4420f;font-weight:700;font-size:12px;padding:1px 9px;border-radius:20px;border:1px solid #f3c9ac;white-space:nowrap}
+  .note{background:var(--warnbg);border:1px solid #f0c674;color:var(--warn);padding:12px 16px;border-radius:10px;font-size:13px;margin-top:16px}
+  .ok-note{background:var(--okbg);border:1px solid #b6e3d4;color:var(--ok);padding:12px 16px;border-radius:10px;font-size:13px;margin-top:14px}
+  .seq{list-style:none;counter-reset:s}
+  .seq li{counter-increment:s;position:relative;padding:10px 14px 10px 44px;border:1px solid var(--line);border-radius:10px;margin:8px 0;background:#fff}
+  .seq li::before{content:counter(s);position:absolute;left:12px;top:10px;width:22px;height:22px;background:var(--accent);color:#fff;border-radius:50%;text-align:center;line-height:22px;font-size:12px;font-weight:700}
+  .seq li b{color:var(--ink)}
+  footer{margin-top:30px;color:var(--sub);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1><span class="pill">待办规划</span>思潼 AI 商城 · 改造待办与全仓工作量盘点</h1>
+  <div class="meta">整理时间：2026-09-28 凌晨 ｜ 来源：agents.html 原型 + 全仓 <code>docs/prototypes/*.html</code> 9 个原型页 ｜ 性质：仅规划、不动代码</div>
+  <div class="meta">制定人：AI 助手（基于凌晨对 agents.html 改造工作项的梳理）｜ 关联会话：5 工作台 + 5 详情页已落地、待发布</div>
+
+  <div class="note">⚠ 本表「设计状态」指原型/HANDOFF 是否齐备；「代码状态」指生产是否已实现。以下均为待启动事项，排期与优先级供拍板参考。</div>
+
+  <!-- 一、agents.html 首页大改造 -->
+  <h2>一、agents.html 首页大改造（约 4–5 人日）</h2>
+  <p class="muted">现状：商城页为深色风格，5 个数字员工入口已接各自 <code>/agent/&lt;sku&gt;/detail</code>。原型 agents.html 要求整体浅色化大改，并补齐私域/案例/购物车等楼层。</p>
+  <div class="card">
+    <div class="wb">
+      <div class="no">1</div><div><div class="ttl">整体浅色化（Design Token 体系）</div><div class="desc">配色、卡片、按钮、阴影、分隔线统一切换为浅色规范；抽离主题变量，避免组件级硬编码深色。涉及 Topbar / 共享积分条 / 卡片 / 弹窗全量改造。</div></div>
+      <div class="no">2</div><div><div class="ttl">Hero 区重构</div><div class="desc">按原型重做首屏 Banner / 价值主张 / 主 CTA；与现有 1200 居中容器对齐，预留 5 数字员工入口位。</div></div>
+      <div class="no">3</div><div><div class="ttl">私域楼层（会员 / 社群 / 留存）</div><div class="desc">新增会员权益、社群入口、留存钩子楼层，需后端会员/权益接口配合。</div></div>
+      <div class="no">4</div><div><div class="ttl">TabBar 底部导航</div><div class="desc">首页 / 商城 / 我的 等底部导航；与现有路由（/agents、/recharge、/mine）打通。</div></div>
+      <div class="no">5</div><div><div class="ttl">AI 案例楼层</div><div class="desc">标杆客户 / 效果数据 / 场景化案例展示，内容可由运营后台配置。</div></div>
+      <div class="no">6</div><div><div class="ttl">购物车 / 下单入口</div><div class="desc">与详情页「立即使用」「充值算力」链路打通；涉及计费/下单/权益发放，需后端联调。</div></div>
+    </div>
+  </div>
+  <p><span class="est">合计 ≈ 4–5 人日</span> 其中浅色化（1）+ Hero（0.5）+ 私域（1）+ TabBar（0.5）+ 案例（0.5）+ 购物车/联调（1.5）为粗估，需设计稿定稿后细化。</p>
+  <p class="muted">依赖与风险：① 浅色化须先统一 design token，否则组件散落难维护；② 购物车牵动计费与权益链路，是最大不确定项；③ 改造期间需保持 5 入口 /detail 跳转不变。</p>
+
+  <!-- 二、全仓 9 原型页工作量盘点 -->
+  <h2>二、全仓 9 原型页工作量盘点</h2>
+  <p class="muted">覆盖 <code>docs/prototypes/</code> 全部原型页 + 商城货架。本轮（对话期内）已落地 5 工作台 + 5 详情页，下表标注进展。</p>
+  <table>
+    <thead>
+      <tr><th style="width:16%">原型页 / 模块</th><th style="width:13%">智能体 / 代号</th><th style="width:12%">设计状态</th><th style="width:16%">代码实现状态</th><th style="width:23%">本轮进展</th><th>剩余工作量</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>金牌文案主笔</b><br><span class="muted">copy-workbench</span></td>
+        <td><code>ipzone__copy</code></td>
+        <td><span class="tag t-ok">设计定稿</span></td>
+        <td><span class="tag t-ok">工作台+详情页</span></td>
+        <td>工作台 + 详情页已落地（复用 cpw-/ipd- 骨架，逐字照原型，含返回按钮与三层对齐）。</td>
+        <td class="muted">无（验收 PASS）</td>
+      </tr>
+      <tr>
+        <td><b>选题策略官</b><br><span class="muted">topic-strategist</span></td>
+        <td><code>ipzone__topic</code></td>
+        <td><span class="tag t-ok">设计定稿</span></td>
+        <td><span class="tag t-dev">工作台待专属化</span></td>
+        <td>详情页已落地；工作台已接但仍是通用骨架，未做选题策略官专属流程。</td>
+        <td><b>专属化约 1 人日</b>（见三）</td>
+      </tr>
+      <tr>
+        <td><b>直播话术</b><br><span class="muted">livescript</span></td>
+        <td><code>ipzone__livescript</code></td>
+        <td><span class="tag t-ok">设计定稿</span></td>
+        <td><span class="tag t-ok">已上线运行</span></td>
+        <td>工作台 + 详情页已落地（9 段串行话术，诚实进度机制）。</td>
+        <td class="muted">无（验收 PASS）</td>
+      </tr>
+      <tr>
+        <td><b>视频复盘</b><br><span class="muted">vidrev-workbench</span></td>
+        <td><code>ipzone__vidrev</code></td>
+        <td><span class="tag t-ok">设计定稿</span></td>
+        <td><span class="tag t-ok">工作台+详情页</span></td>
+        <td>工作台 + 详情页已落地（fail-closed 体检、结构化入参）。</td>
+        <td class="muted">无（验收 PASS）</td>
+      </tr>
+      <tr>
+        <td><b>IP 定位</b><br><span class="muted">ip-pos-workbench</span></td>
+        <td><code>ipzone__ip-pos</code></td>
+        <td><span class="tag t-ok">设计定稿</span></td>
+        <td><span class="tag t-ok">工作台+详情页</span></td>
+        <td>最早落地；改价 400→99、深色聊天面板、自定义弹窗、三层对齐。</td>
+        <td class="muted">无（验收 PASS）</td>
+      </tr>
+      <tr>
+        <td><b>爆款复刻 / 混剪</b><br><span class="muted">remix-workbench</span></td>
+        <td><code>ipzone__remix</code></td>
+        <td><span class="tag t-ok">设计定稿</span></td>
+        <td><span class="tag t-warn">待开发</span></td>
+        <td>本轮未纳入；无对应工作台/详情页。</td>
+        <td><b>待拍板</b>（见三·remix）</td>
+      </tr>
+      <tr>
+        <td><b>市场合伙人后台</b><br><span class="muted">partner-admin</span></td>
+        <td><code>partner-admin</code></td>
+        <td><span class="tag t-warn">待开发</span></td>
+        <td><span class="tag t-warn">后台功能未实现</span></td>
+        <td>原型与需求已定稿，提现/分佣/二维码等后台代码待排期。</td>
+        <td><b>独立排期</b>（不在本期估算）</td>
+      </tr>
+      <tr>
+        <td><b>文案需求问诊单</b><br><span class="muted">问诊单</span></td>
+        <td><span class="muted">文案</span></td>
+        <td><span class="tag t-ok">设计定稿</span></td>
+        <td><span class="tag t-ok">已落地</span></td>
+        <td>作为文案工作台访谈式引导的一部分落地。</td>
+        <td class="muted">无</td>
+      </tr>
+      <tr>
+        <td><b>思潼 AI 商城 / 货架</b><br><span class="muted">eco-mall</span></td>
+        <td><span class="muted">商城</span></td>
+        <td><span class="tag t-ok">已上线</span></td>
+        <td><span class="tag t-dev">首页待大改</span></td>
+        <td>5 入口已接 /detail；首页仍深色，待 agents.html 大改（见一）。</td>
+        <td><b>4–5 人日</b>（见一）</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 三、待拍板决策项 -->
+  <h2>三、待拍板决策项（需你确认后启动）</h2>
+  <div class="card">
+    <h3>① 选题策略官工作台专属化 <span class="est">≈ 1 人日</span></h3>
+    <p>现状：<code>TopicStrategistWorkbench.tsx</code> 已接路由并复用通用骨架，但仍是「通用访谈」流程，未落地选题策略官专属的 8 项能力（手机端工作台、对标真实取数、数据复盘自动读取、缺源降级 UI、自填入池、一键 CTA+实况面板、阶段 Tab 数据驱动、大脑笔记同步接口）。需按 <code>topic-strategist-demo</code> v1.5 专属化。</p>
+  </div>
+  <div class="card">
+    <h3>② 爆款复刻 / 混剪（remix）工作台是否纳入本期 <span class="est">待拍板</span></h3>
+    <p><code>remix-workbench-demo-20260923.html</code> 设计已定稿，但本轮未开发对应工作台/详情页。需确认：是否本期做？做的话是否同样复用 cpw-/ipd- 骨架、后端是否与 /chat 同源。原型已入库，可直接照做。</p>
+  </div>
+  <div class="card">
+    <h3>③ 算力口径全站切换 <span class="est">待拍板</span></h3>
+    <p>当前口径不统一：ip-pos 交付链路历史用「算力」（400→99 改价），其余（copy/vidrev/livescript/topic）及全站余额/充值仍用「积分」。需拍板是否全站统一为「算力」——涉及价格文案、计费、余额展示、充值页全量替换，影响面较大，建议单独决策、单独排期。</p>
+  </div>
+
+  <!-- 四、本轮已完成（回顾） -->
+  <h2>四、本轮已完成（回顾，已落地未发布）</h2>
+  <div class="ok-note">✅ 以下内容已完成并通过 typecheck + 无头验收，<b>尚未 commit / 尚未发布</b>：</div>
+  <ul style="margin:10px 0 0 20px;color:#374151">
+    <li>5 个工作台（ip-pos / copy / vidrev / livescript / topic）对话+工作台，后端与各自 /chat 同源，话术/简报/交付逐字照原型。</li>
+    <li>5 个详情页（ip-pos / copy / vidrev / livescript / topic），纯展示 + 两处跳转（充值算力→/recharge、立即使用→/workbench），系统虚拟人头像。</li>
+    <li>诚实进度机制（日志末行由后端返回揭晓，未返回前进度 &lt;100%）已同步至 ip-pos / copy。</li>
+    <li>5 工作台顶栏 / 横幅 / hero 三层 1200 居中、左缘对齐、hero 统一蓝灰、build 文字已删、返回按钮均指 /detail。</li>
+  </ul>
+
+  <!-- 五、建议优先级与排期 -->
+  <h2>五、建议优先级与排期（供拍板）</h2>
+  <ol class="seq">
+    <li><b>先发布本轮成果</b>：5 工作台 + 5 详情页已验收，建议先 commit + 发布，避免长期未提交风险。 <span class="muted">（0 开发，仅发布动作）</span></li>
+    <li><b>拍板 ③ 算力口径</b>：全站口径不统一会越积越难改，建议在 agents 大改前定调。 <span class="muted">（决策项）</span></li>
+    <li><b>agents.html 首页大改</b>：4–5 人日，是本期最大块，建议设计稿定稿后启动。 <span class="muted">（依赖 ③ 口径）</span></li>
+    <li><b>选题策略官专属化</b>：约 1 人日，可与首页大改并行。 <span class="muted">（依赖 v1.5 原型确认）</span></li>
+    <li><b>拍板 ② remix 是否纳入</b>：若纳入，复用现有骨架新增 1 工作台 + 1 详情页，工作量可控。 <span class="muted">（决策项）</span></li>
+    <li><b>市场合伙人后台</b>：独立排期，不阻塞上述事项。 <span class="muted">（后续）</span></li>
+  </ol>
+
+  <footer>本文档由凌晨 agents.html 改造工作项梳理整理而成，仅供排期与拍板参考。所有代码改动当前均未 commit，发布前请确认。</footer>
+</div>
+</body>
+</html>

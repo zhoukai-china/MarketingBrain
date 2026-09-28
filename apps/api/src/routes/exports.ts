@@ -20,13 +20,11 @@ import {
   WidthType
 } from "docx";
 import { z } from "zod";
-import { EXPORT_PRICING, type TenantBrandingConfig } from "@baolu/shared";
+import type { TenantBrandingConfig } from "@baolu/shared";
 import { resolveRequestContext } from "../services/request-context.js";
 import { getBearerToken, verifySessionToken } from "../services/auth-token.js";
-import { consumeWalletCredits, readWallet, buildRechargeUrl } from "../services/sitong-wallet.js";
 import { resolveTenantBranding } from "./tenant.js";
 import { env } from "../config/env.js";
-import { prisma } from "@baolu/db";
 
 /**
  * Word 下载的**一次性链接令牌**（2026-09-16 客户现场）。
@@ -92,10 +90,12 @@ const exportRecords = new Map<string, ExportRecord>();
 const exportTtlMs = 10 * 60 * 1000;
 
 export async function registerExportRoutes(app: FastifyInstance): Promise<void> {
+  // 2026-09-27 用户拍板：Word 导出免费——不查价、不扣积分、无 402。
+  // price 接口保留并返回 0，兼容还拿着旧 bundle 的客户端（显示 0 积分即符合口径）。
   app.get("/exports/docx/price", async () => ({
-    credits: EXPORT_PRICING.docxCredits,
-    version: EXPORT_PRICING.docxVersion,
-    effectiveAt: EXPORT_PRICING.docxEffectiveAt
+    credits: 0,
+    version: "free",
+    effectiveAt: "2026-09-27"
   }));
 
   app.post("/exports/docx", async (request, reply) => {
@@ -112,64 +112,16 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
     cleanupExportRecords();
 
     /**
-     * 同一份报告只扣一次（用户 2026-09-16：客户下载失败重试 4 次被扣 4 次，不合理）。
-     *
-     * 计费键 = 「用户 + 标题 + 正文」的指纹：第一次导出正常扣 `docxCredits`，
-     * 之后对**同一份内容**再导出（换手机、下载失败重下、清理浏览器后再下）命中同一 requestId，
-     * 钱包幂等直接返回，不重复扣费；余额为 0 也能重下自己已付费的那份。
+     * 2026-09-27 用户拍板：Word 导出**免费**。
+     * 原来的「同一份内容指纹幂等扣费」逻辑整体移除：不查钱包、不写流水、无 402。
+     * 响应里的 consumedCredits/redownload 字段保留（恒为 0/false），老前端不炸。
      */
-    const contentFingerprint = crypto
-      .createHash("sha256")
-      .update(`${context.userId}\n${parsed.data.title ?? ""}\n${parsed.data.content}`)
-      .digest("hex")
-      .slice(0, 40);
-    const exportRequestId = `docx:${contentFingerprint}`;
-    const alreadyCharged = Boolean(
-      await prisma.walletLedger.findFirst({
-        where: { userId: context.userId, refRequestId: exportRequestId, type: "consume" },
-        select: { id: true }
-      })
-    );
-    const price = alreadyCharged ? 0 : EXPORT_PRICING.docxCredits;
-    const walletBefore = await readWallet(context.userId);
-    if (!alreadyCharged && walletBefore.balance < price) {
-      return reply.code(402).send({
-        error: "insufficient_credits",
-        message: "当前积分不足，充值后可导出精美 Word。",
-        balance: walletBefore.balance,
-        required: price,
-        rechargeUrl: buildRechargeUrl("docx_export")
-      });
-    }
 
     const branding = resolveTenantBranding(context.profile.data);
     const { title } = parseAnswer(parsed.data.content);
     const filename = `${normalizeFilenamePart(parsed.data.title || title) || fallbackTitle}.docx`;
     const buffer = await buildAnswerDocx(parsed.data.content, parsed.data.title || title, branding);
     const id = crypto.randomUUID();
-
-    // 交付物生成完成后才扣费；同一次导出用 recordId 幂等，失败不扣。
-    let balanceAfter = walletBefore.balance;
-    if (!alreadyCharged) {
-      const consumed = await consumeWalletCredits({
-        userId: context.userId,
-        requestId: exportRequestId,
-        price,
-        skillId: "docx_export",
-        priceVersion: EXPORT_PRICING.docxVersion,
-        source: "web"
-      });
-      if (consumed.status === "insufficient") {
-        return reply.code(402).send({
-          error: "insufficient_credits",
-          message: "当前积分不足，充值后可导出精美 Word。",
-          balance: consumed.wallet.balance,
-          required: price,
-          rechargeUrl: buildRechargeUrl("docx_export")
-        });
-      }
-      balanceAfter = consumed.wallet.balance;
-    }
 
     exportRecords.set(id, {
       buffer,
@@ -184,10 +136,9 @@ export async function registerExportRoutes(app: FastifyInstance): Promise<void> 
       filename,
       // 带一次性令牌的直链：手机端（微信内置浏览器 / WPS）直接点就能拿到文件。
       downloadUrl: `/exports/docx/${id}?t=${encodeURIComponent(signExportDownloadToken(id, context.userId))}`,
-      consumedCredits: price,
-      balance: balanceAfter,
-      // 同一份报告重下不重复扣费（前端据此给一句说明，而不是让用户以为又被扣了）。
-      redownload: alreadyCharged
+      consumedCredits: 0,
+      balance: null,
+      redownload: false
     };
   });
 

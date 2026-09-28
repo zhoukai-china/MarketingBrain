@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>已存结论（1280/422/26）应用链路</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --card:#ffffff; --ink:#1f2430; --muted:#6b7280;
+    --line:#d8dde6; --green:#1f9d55; --greenbg:#e8f7ee;
+    --amber:#b7791f; --amberbg:#fdf3e0; --red:#c0392b; --redbg:#fceae8;
+    --blue:#2563eb; --bluebg:#eaf1ff; --purple:#7c3aed; --purplebg:#f1ebfe;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    padding:28px 20px 60px;line-height:1.6}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:24px}
+  .wrap{max-width:980px;margin:0 auto}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:18px 20px;margin-bottom:18px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .card h2{font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+  .tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px}
+  .tag.on{background:var(--greenbg);color:var(--green)}
+  .tag.off{background:var(--redbg);color:var(--red)}
+  .tag.part{background:var(--amberbg);color:var(--amber)}
+  .store{background:var(--purplebg);border-color:#d9cbfa}
+  .store .big{font-size:26px;font-weight:700;color:var(--purple);letter-spacing:.5px}
+  .store .row{display:flex;gap:22px;flex-wrap:wrap;margin-top:6px;font-size:13px}
+  .store .row b{color:var(--purple)}
+  .flow{display:flex;align-items:stretch;gap:0;flex-wrap:wrap}
+  .node{flex:1;min-width:200px;border:1px solid var(--line);border-radius:12px;
+    padding:14px 14px;margin:8px;background:#fff}
+  .node .t{font-weight:600;font-size:14px;margin-bottom:6px}
+  .node .d{font-size:12.5px;color:var(--muted)}
+  .node.on{border-color:var(--green);background:var(--greenbg)}
+  .node.off{border-color:var(--red);background:var(--redbg)}
+  .node.part{border-color:var(--amber);background:var(--amberbg)}
+  .arrow{text-align:center;color:var(--muted);font-size:12px;margin:2px 0}
+  .callout{border-left:4px solid var(--blue);background:var(--bluebg);
+    padding:12px 16px;border-radius:0 10px 10px 0;font-size:13.5px}
+  .callout b{color:var(--blue)}
+  code{background:#eef1f5;padding:1px 6px;border-radius:5px;font-size:12.5px}
+  .legend{font-size:12px;color:var(--muted);margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>已存结论的应用链路</h1>
+  <div class="sub">来源：<code>KnowledgeDocument.metadata.analysis</code>（getnote-summary-parser 解析，0 次 LLM） · 99 篇同步 → 76 篇含分析</div>
+
+  <div class="card store">
+    <h2>📦 存储层（已落库）</h2>
+    <div class="big">核心观点 1280 ｜ 金句 422 ｜ 客户原话 26</div>
+    <div class="row">
+      <span><b>overview</b> 录音总结（客户原话散落其中）</span>
+      <span><b>coreViews[]</b> 核心观点</span>
+      <span><b>quotes[]</b> 金句（带分类标签）</span>
+      <span><b>chapters[]</b> 章节概要</span>
+    </div>
+    <div class="legend">注：客户原话仅 26 条——免费智能总结本身很少显式打「客户原话」标签，多混在 overview 里。</div>
+  </div>
+
+  <div class="card">
+    <h2>🔌 当前真实消费方 <span class="tag part">部分接入</span></h2>
+    <div class="flow">
+      <div class="node part">
+        <div class="t">① 调试面板 knowledge-debug.ts</div>
+        <div class="d">调用 <code>clusterNotes</code> + <code>buildEvidencePack</code> 生成聚类与证据包，供人工预览。<b>仅调试，不入生产。</b></div>
+      </div>
+      <div class="node part">
+        <div class="t">② 数字员工知识上下文 agents.ts</div>
+        <div class="d"><code>loadAutomaticKnowledgeDocuments</code> 把 KnowledgeDocument 作为来源素材注入对话上下文（需挂在 subject 下）。用的是整篇 content+metadata，解析结论随 <code>analysis</code> 一并带入。</div>
+      </div>
+      <div class="node part">
+        <div class="t">③ 美业选题证据 topic-evidence.ts</div>
+        <div class="d"><code>assessBeautyTopicEvidence</code> 读 KnowledgeDocument 做合格过滤（美业线 execution.ts:152 调用），但读的是 <code>content/title</code>，未直接消费解析后的三段结论。</div>
+      </div>
+    </div>
+    <div class="legend">⚠️ 同步时的 <code>clusterNotes</code> 只用于打 <code>SYNC_CLUSTERS</code> 日志，<b>不落库</b>——聚类结果每次现算。</div>
+  </div>
+
+  <div class="card">
+    <h2>🚧 本应消费却未接的：商城选题策略官 <span class="tag off">未接入</span></h2>
+    <div class="flow">
+      <div class="node off">
+        <div class="t">marketplace.ts <code>core==="topic"</code></div>
+        <div class="d">在 428–439 行临时 <code>fetchGetnoteNotes(apiKey, clientId)</code> <b>live 再拉一遍</b>，只取 <code>title + summary</code>。</div>
+      </div>
+    </div>
+    <div class="callout">
+      <b>缺口：</b>你存的 1280/422/26 被完全绕过——选题策略官既没读 <code>metadata.analysis</code>，也没用现成的 <code>buildEvidencePack</code>。
+      结果：每次出选题都重新 live 拉取（还只用到标题和摘要），浪费且慢。
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>✅ 设计中的正确应用（建议接法）</h2>
+    <div class="flow">
+      <div class="node on">
+        <div class="t">① 读取已存分析</div>
+        <div class="d">按 tenantId 从 KnowledgeDocument 拉取 <code>metadata.analysis</code>（已含 1280/422/26），跳过 live 拉取。</div>
+      </div>
+      <div class="node on">
+        <div class="t">② clusterNotes 聚类</div>
+        <div class="d">把核心观点+金句按主题聚类（复用现有函数，0 次 LLM）。</div>
+      </div>
+      <div class="node on">
+        <div class="t">③ buildEvidencePack 注入</div>
+        <div class="d">按用户「行业/对标」query 取 top-N 证据包，拼进选题策略官 prompt 的【知识底座】段。</div>
+      </div>
+    </div>
+    <div class="callout">
+      <b>收益：</b>选题扎根于用户真实录音结论，且 <b>0 次额外 LLM、0 次重复拉取</b>。代码已就绪（parser 里的 <code>clusterNotes</code>/<code>buildEvidencePack</code>），只差在 <code>core==="topic"</code> 路径接一根线。
+    </div>
+  </div>
+</div>
+</body>
+</html>

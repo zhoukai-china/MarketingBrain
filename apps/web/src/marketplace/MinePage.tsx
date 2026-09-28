@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { apiPath, getAppPath } from "../lib/api.js";
+import { apiPath, getAppPath, getPublicAssetPath } from "../lib/api.js";
 import { authHeaders, fetchMarketMe, guestToLogin, handleStaleSession, readJson, Topbar } from "./shell.js";
 import { employeeDisplayNameFromLegacyName } from "./eco-mall-data.js";
 import "../styles/referral-card.css";
@@ -193,6 +193,20 @@ export function MarketplaceMinePage() {
   // 否则这里会一边显示余额区一边显示「未登录」，用户点登录又被弹回来。
   const [signedIn, setSignedIn] = useState(() => Boolean(localStorage.getItem("store_os_token")));
 
+  // ---- 关联应用 · 得到大脑（2026-09-26 用户：替代原「常用」入口）----
+  // 凭证是租户级配置（存 KnowledgeConnection，与「企业知识库」同一份），不是系统级配置；
+  // 流程：填凭证 → 先「测试连接」（后端 testOnly，不落库）→ 通过后才能「保存并生效」。
+  const [gnOpen, setGnOpen] = useState(false);
+  const [gnStatus, setGnStatus] = useState<string | null>(null);
+  const [gnApiKey, setGnApiKey] = useState("");
+  const [gnClientId, setGnClientId] = useState("");
+  const [gnTesting, setGnTesting] = useState(false);
+  const [gnTestedOk, setGnTestedOk] = useState(false);
+  const [gnSaving, setGnSaving] = useState(false);
+  const [gnMsg, setGnMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const gnConnected = gnStatus === "active";
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -214,6 +228,17 @@ export function MarketplaceMinePage() {
       .then((data) => { if (!cancelled && data?.deliverables) setDeliverables(data.deliverables); })
       .catch(() => {
         /* 拿不到历史交付物不影响页面其它内容 */
+      });
+    // 关联应用 · 得到大脑连接状态（401 时静默忽略，未登录不展示状态）
+    void fetch(apiPath("/knowledge-base/connections"), { headers: authHeaders(), cache: "no-store" })
+      .then((response) => (response.ok ? readJson<{ connections?: Array<{ provider: string; status: string }> }>(response) : null))
+      .then((data) => {
+        if (cancelled || !data?.connections) return;
+        const conn = data.connections.find((item) => item.provider === "getnote");
+        if (conn) setGnStatus(conn.status);
+      })
+      .catch(() => {
+        /* 拿不到连接状态不影响页面其它内容 */
       });
     return () => { cancelled = true; };
   }, []);
@@ -238,15 +263,29 @@ export function MarketplaceMinePage() {
         </div>
         <ReferralLinkCard />
         {/*
-         * 2026-09-16（用户）：
-         * ①「常用智能体」独立成页（`/my-agents`），这里不再重复列使用记录，只留一个入口；
-         * ②「把输出的产物也放到我的页面里，并给用户保存 7 天」——产物段落**始终显示**：
-         *   没有产物时也给空态说明，客户不会以为功能不存在（以前是 length>0 才渲染，等于藏起来了）。
+         * 2026-09-26（用户）：「常用」入口移除，换成「关联应用」——得到大脑配置入口。
+         * 凭证为租户级配置（KnowledgeConnection，与企业知识库共用）；生效前必须先测试通过。
          */}
-        <h3>常用</h3>
+        <h3>关联应用</h3>
         <p className="mine-tip">
-          你用过、还在用的数字员工都在「<a onClick={() => { window.location.href = getAppPath("/my-agents"); }}>常用</a>」页，点一下就能接着用。
+          把你的私有知识源接到平台，数字员工生成选题等内容时可以直接引用（与「企业知识库」是同一份配置）。
         </p>
+        <div className="card-grid">
+          <article
+            className="agent-card owned-card"
+            style={{ cursor: "pointer" }}
+            onClick={() => { setGnApiKey(""); setGnClientId(""); setGnTestedOk(false); setGnMsg(null); setGnOpen(true); }}
+          >
+            <div className="ac-ico" style={{ display: "grid", placeItems: "center", overflow: "hidden" }}>
+              <img src={getPublicAssetPath("/logos/getnote-logo.png")} alt="得到大脑" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }} />
+            </div>
+            <div className="ac-name">得到大脑</div>
+            <div className="ac-price">{gnConnected ? "已连接" : "未连接"}</div>
+            <div className="ac-foot">
+              <span className={gnConnected ? "chip owned" : "chip"}>{gnConnected ? "已连接 · 点按可修改配置" : "点按配置 API Key / Client ID"}</span>
+            </div>
+          </article>
+        </div>
         {/* 历史交付物（服务端保留 7 天）：明确告诉客户「及时下载」，并提供一键导出 Word。 */}
         <h3>历史交付物 · 保存 7 天，请及时下载</h3>
         <p className="mine-tip">
@@ -299,6 +338,106 @@ export function MarketplaceMinePage() {
           </>
         )}
       </section>
+
+      {/* ---- 关联应用 · 得到大脑 配置弹窗：先测试（不落库）→ 通过后才能保存并生效 ---- */}
+      {gnOpen && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.55)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+          onClick={() => setGnOpen(false)}
+        >
+          <div
+            style={{ background: "var(--card, #fff)", color: "var(--text, #1c2733)", borderRadius: 16, maxWidth: 460, width: "100%", padding: "18px 18px 16px", maxHeight: "86vh", overflow: "auto" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <b style={{ fontSize: 16 }}>配置得到大脑（Get 笔记）</b>
+            <p style={{ fontSize: 12.5, color: "var(--sub, #5b6b7c)", margin: "6px 0 10px", lineHeight: 1.7 }}>
+              凭证按你的账号单独保存（与企业知识库是同一份配置）。真实配置在{" "}
+              <a href="https://www.biji.com/openapi" target="_blank" rel="noreferrer" style={{ color: "var(--accent, #E8651A)" }}>Get 笔记开放平台</a>{" "}
+              登录后，在你的应用「凭证」里复制 API Key 和 Client ID。
+            </p>
+            {gnConnected && (
+              <div style={{ fontSize: 12.5, background: "var(--green-soft, #e6f5ee)", color: "var(--green, #0f8a5f)", borderRadius: 9, padding: "7px 10px", marginBottom: 10 }}>
+                当前已连接。修改时可两项都重填，或只填 API Key（沿用已保存的 Client ID）。
+              </div>
+            )}
+            <label style={{ fontSize: 12.5, fontWeight: 700, display: "block", marginBottom: 4 }}>API Key</label>
+            <input
+              value={gnApiKey}
+              onChange={(e) => { setGnApiKey(e.target.value); setGnTestedOk(false); }}
+              placeholder={gnConnected ? "留空则沿用已保存的 API Key" : "粘贴 gk_ 开头的 API Key"}
+              style={{ width: "100%", fontSize: 14, padding: "9px 12px", border: "1px solid var(--line, #e3e9f2)", borderRadius: 9, background: "var(--bg-soft, #fff)", color: "inherit", boxSizing: "border-box" }}
+            />
+            <label style={{ fontSize: 12.5, fontWeight: 700, display: "block", margin: "10px 0 4px" }}>Client ID</label>
+            <input
+              value={gnClientId}
+              onChange={(e) => { setGnClientId(e.target.value); setGnTestedOk(false); }}
+              placeholder={gnConnected ? "已保存（留空则沿用）" : "粘贴 cli_ 开头的 Client ID"}
+              style={{ width: "100%", fontSize: 14, padding: "9px 12px", border: "1px solid var(--line, #e3e9f2)", borderRadius: 9, background: "var(--bg-soft, #fff)", color: "inherit", boxSizing: "border-box" }}
+            />
+            {gnMsg && (
+              <div style={{ marginTop: 10, fontSize: 12.5, borderRadius: 9, padding: "8px 10px", lineHeight: 1.6, background: gnMsg.ok ? "var(--green-soft, #e6f5ee)" : "var(--amber-soft, #fff4e0)", color: gnMsg.ok ? "var(--green, #0f8a5f)" : "var(--amber, #b26a00)" }}>
+                {gnMsg.text}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+              <button
+                className="btn ghost"
+                disabled={gnTesting || gnSaving || (!gnApiKey.trim() && !gnConnected)}
+                onClick={async () => {
+                  setGnTesting(true); setGnMsg(null); setGnTestedOk(false);
+                  try {
+                    const body: Record<string, unknown> = {};
+                    if (gnApiKey.trim()) body.apiKey = gnApiKey.trim();
+                    if (gnClientId.trim()) body.clientId = gnClientId.trim();
+                    if (!body.apiKey) { setGnMsg({ ok: false, text: "请先填写 API Key。" }); return; }
+                    const response = await fetch(apiPath("/knowledge-base/connections/getnote"), { method: "POST", headers: { ...authHeaders(true) }, body: JSON.stringify({ ...body, testOnly: true }) });
+                    if (handleStaleSession(response.status)) { setGnMsg({ ok: false, text: "登录状态已失效，请重新登录后再试。" }); return; }
+                    const data = await response.json().catch(() => ({}));
+                    if (!response.ok) { setGnMsg({ ok: false, text: data?.message ?? data?.error ?? "测试未通过，请检查凭证。" }); return; }
+                    setGnTestedOk(true);
+                    setGnMsg({ ok: true, text: `✅ 连接可用${typeof data?.noteCount === "number" ? `，已读到 ${data.noteCount} 条笔记` : ""}。点「保存并生效」完成配置。` });
+                  } catch {
+                    setGnMsg({ ok: false, text: "网络异常，请稍后重试。" });
+                  } finally {
+                    setGnTesting(false);
+                  }
+                }}
+              >
+                {gnTesting ? "测试中…" : "① 测试连接"}
+              </button>
+              <button
+                className="btn primary"
+                disabled={!gnTestedOk || gnSaving || gnTesting}
+                onClick={async () => {
+                  setGnSaving(true); setGnMsg(null);
+                  try {
+                    const body: Record<string, unknown> = {};
+                    if (gnApiKey.trim()) body.apiKey = gnApiKey.trim();
+                    if (gnClientId.trim()) body.clientId = gnClientId.trim();
+                    if (!body.apiKey) { setGnMsg({ ok: false, text: "请先填写 API Key。" }); return; }
+                    const response = await fetch(apiPath("/knowledge-base/connections/getnote"), { method: "POST", headers: { ...authHeaders(true) }, body: JSON.stringify(body) });
+                    if (handleStaleSession(response.status)) { setGnMsg({ ok: false, text: "登录状态已失效，请重新登录后再试。" }); return; }
+                    const data = await response.json().catch(() => ({}));
+                    if (!response.ok) { setGnMsg({ ok: false, text: data?.message ?? data?.error ?? "保存失败，请稍后重试。" }); return; }
+                    setGnStatus("active");
+                    setGnOpen(false);
+                  } catch {
+                    setGnMsg({ ok: false, text: "网络异常，请稍后重试。" });
+                  } finally {
+                    setGnSaving(false);
+                  }
+                }}
+              >
+                {gnSaving ? "保存中…" : "② 保存并生效"}
+              </button>
+              <button className="btn ghost" onClick={() => setGnOpen(false)}>取消</button>
+            </div>
+            <p style={{ fontSize: 11.5, color: "var(--sub, #5b6b7c)", marginTop: 10 }}>
+              每次修改都要先「测试连接」，通过后才能保存生效——避免把不可用的凭证存进系统。
+            </p>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

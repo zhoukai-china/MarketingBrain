@@ -154,9 +154,11 @@ export const MARKETPLACE_SKU_SEEDS: MarketplaceSkuSeed[] = [
     need: "项目名称、目标人群、创始人或门店基础信息",
     tags: ["IP定位", "个人IP", "创始人IP", "人设", "内容方向"],
     keywords: ["抖音IP", "视频号IP", "创始人定位", "怎么做个人IP"],
-    // 用户 2026-09-17 拍板：IP 定位改按次计费 400 积分/次，不再按消耗量计费
+    // 用户 2026-09-17 拍板：IP 定位改按次计费，不再按消耗量计费
     // （见 `billing-cost-model.ts` 的 `FIXED_PRICE_SKUS`，该 SKU 已退出成本计费白名单）。
-    ppu: 400,
+    // 2026-09-27 用户改价：400 积分 → 99 算力/次；三处价格源必须同改（本文件 + v3 发布文件 +
+    // `billing-consume.ts` 的服务端价目表），`billing-cost-model-smoke` 会钉住一致性。
+    ppu: 99,
     trial: true,
     status: "selling",
     sortOrder: 10

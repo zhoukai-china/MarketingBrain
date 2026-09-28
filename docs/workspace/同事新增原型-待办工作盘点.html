@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>同事新增原型 · 待办工作盘点</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --ink:#1f2430; --sub:#6b7280; --line:#e6e8ec;
+    --og:#ff6a00; --og2:#ff8a3d; --blue:#2e6be6; --green:#0fa968; --red:#e23e4e; --amber:#e8930c;
+    --soft:#fff4ec;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;padding:28px 18px 60px}
+  .wrap{max-width:1040px;margin:0 auto}
+  header{margin-bottom:22px}
+  h1{font-size:24px;letter-spacing:.5px}
+  .meta{color:var(--sub);font-size:13px;margin-top:6px}
+  .src{margin-top:10px;font-size:12.5px;color:var(--sub);background:var(--soft);border:1px solid #ffe1cc;border-radius:10px;padding:9px 13px}
+  h2{font-size:18px;margin:30px 0 12px;padding-left:11px;border-left:4px solid var(--og)}
+  h3{font-size:15px;margin:18px 0 8px;color:#374151}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:13px;margin:14px 0}
+  .c{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:14px 15px;box-shadow:0 2px 10px rgba(20,30,60,.04)}
+  .c .t{font-weight:800;font-size:14.5px}
+  .c .e{display:inline-block;margin-top:8px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:99px}
+  .e.big{background:#fdecec;color:var(--red)}
+  .e.mid{background:#fff4e0;color:var(--amber)}
+  .e.sm{background:#e8f7ef;color:var(--green)}
+  .c .d{font-size:12.5px;color:var(--sub);margin-top:7px}
+  .tbl{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:11px;overflow:hidden;font-size:13.5px;margin:8px 0}
+  .tbl th,.tbl td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  .tbl th{background:#fafbfc;font-weight:700;color:#374151;font-size:12.5px}
+  .tbl tr:last-child td{border-bottom:none}
+  .tbl td.code{font-family:ui-monospace,Menlo,monospace;color:#b44700;font-size:12px;white-space:nowrap}
+  .tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;margin-right:5px}
+  .t-p0{background:#fdecec;color:var(--red)}
+  .t-p1{background:#fff4e0;color:var(--amber)}
+  .t-new{background:#e8f0ff;color:var(--blue)}
+  .t-mod{background:#eef6ee;color:var(--green)}
+  ul{margin:6px 0 6px 20px}
+  li{margin:4px 0;font-size:13.5px}
+  .note{background:#fffbf3;border:1px solid #f3e2bf;border-radius:10px;padding:11px 14px;font-size:13px;color:#7a5a1e;margin:10px 0}
+  .warn{background:#fdeeee;border:1px solid #f3c9c9;color:#922;margin:10px 0}
+  .timeline{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .ph{display:flex;gap:12px;padding:10px 0;border-bottom:1px dashed var(--line)}
+  .ph:last-child{border-bottom:none}
+  .ph .n{flex:0 0 30px;height:30px;border-radius:50%;background:var(--og);color:#fff;display:grid;place-content:center;font-weight:800;font-size:13px}
+  .ph .b .h{font-weight:700;font-size:14px}
+  .ph .b .x{font-size:12.5px;color:var(--sub);margin-top:2px}
+  .q{background:var(--soft);border:1px solid #ffd9bf;border-radius:10px;padding:12px 15px;margin:10px 0}
+  .q li{color:#7a3d12}
+  .foot{margin-top:34px;color:var(--sub);font-size:12px;text-align:center}
+  a{color:var(--og);text-decoration:none}
+  .chk{font-family:ui-monospace,Menlo,monospace;color:#9aa3af}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>同事新增原型 · 待办工作盘点</h1>
+  <div class="meta">生成时间：2026-09-28 · 基于 origin/main 已合入的同事 4 提交（3813c92）</div>
+  <div class="src">
+    数据源（共 20 个新增文件）：
+    <b>①</b> docs/HANDOFF-compute-pricing-20260926.md（计费规则 v1.0 交接，200 行）<br>
+    <b>②</b> docs/prototypes/agents-home-tech-demo-20260925.html（商城首页 v3.28，1.3M）<br>
+    <b>③</b> docs/prototypes/agent-product-detail-demo-20260923.html（商品详情页 v12，180K）<br>
+    <b>④</b> docs/prototypes/lanqi-v2/（经营大脑 v2，15 页 + 共享骨架 css/js）
+  </div>
+</header>
+
+<h2>一、总览：6 条工作线</h2>
+<div class="cards">
+  <div class="c"><div class="t">A. 算力计费与增长体系</div><span class="e big">P0 重 · 8–12 人日</span><div class="d">来自 HANDOFF 文档，全站「积分→算力」改名 + 计费/充值/迁移/佣金/裂变/签到。最大后端工程。</div></div>
+  <div class="c"><div class="t">B. 商城首页改造</div><span class="e mid">4–5 人日</span><div class="d">agents-home-tech-demo v3.28：Hero/金刚区/6 楼层/AI案例流/底部 TabBar + 9 个弹层。</div></div>
+  <div class="c"><div class="t">C. 商品详情页 v12</div><span class="e mid">3–4 人日</span><div class="d">8 数字员工（含许复/易成/周域预约）+ 4 商品 sec + 预约弹窗 + 术语词典。</div></div>
+  <div class="c"><div class="t">D. 工作台对齐 + 补建</div><span class="e mid">3–4 人日</span><div class="d">已做 5 工作台对齐算力余额扣减；补周域/易成/许复 + 视频生成工作台。</div></div>
+  <div class="c"><div class="t">E. 智能体详情页更新</div><span class="e sm">0.5–1 人日</span><div class="d">修改既有：何策对齐 topic 工作台逻辑、沈定轮播净化。</div></div>
+  <div class="c"><div class="t">F. 兰琪 v2 经营大脑</div><span class="e big">全新 12–18 人日</span><div class="d">独立移动端产品，15 页 + 共享橙色骨架，需前端 + 后端数据接口从零实现。</div></div>
+</div>
+
+<h2>二、A 算力计费与增长体系（HANDOFF 文档 §12 开发任务清单）</h2>
+<div class="note">这是全局性改造，会影响 B/C/D 全部前端页面（余额、价格、文案都从「积分」切「算力」）。建议 <b>最先启动</b>，否则前端页面会反复返工。</div>
+
+<h3>P0 · 计费主链路</h3>
+<table class="tbl">
+  <tr><th>任务</th><th>要点</th><th>级</th></tr>
+  <tr><td>「积分→算力」全站改名</td><td class="code">COMPUTE_RATE=10</td><td>常量；全整数记账；余额/toast/账单/充值/邀请/页脚零「积分」</td><td><span class="tag t-p0">P0</span></td></tr>
+  <tr><td>余额体系（充值/赠送分账）</td><td colspan="2">逐笔消耗账单、扣减顺序（赠送先扣，到期最近优先）</td><td><span class="tag t-p0">P0</span></td></tr>
+  <tr><td>按次固定目录价扣费</td><td colspan="2">失败/重试不扣费；使用前展示「预计消耗 X 算力 ≈ ¥y」</td><td><span class="tag t-p0">P0</span></td></tr>
+  <tr><td>八人价目表 + 视频生成两档 SKU 落库</td><td colspan="2">见 §3（沈定 99、秦文 15、何策 30、罗盘 50、许复 50、江流 50、周域 5/50、易成 25/50；视频 120/300）</td><td><span class="tag t-p0">P0</span></td></tr>
+  <tr><td>充值档位</td><td colspan="2">¥100=1000 / ¥300=3600(含赠600) / ¥1000=13000(含赠3000)；加赠进赠送账本</td><td><span class="tag t-p0">P0</span></td></tr>
+  <tr><td>存量迁移脚本</td><td colspan="2">价格 ÷2、余额 1:1、幂等+对账（§5）；已有真实付费用户</td><td><span class="tag t-p0">P0</span></td></tr>
+</table>
+
+<h3>P0 · 佣金</h3>
+<table class="tbl">
+  <tr><th>任务</th><th>要点</th></tr>
+  <tr><td>SKU 首充/后续佣金率两字段</td><td>商品级计提；首充期=首充后 30 天，期内首充率、期满后续率</td></tr>
+  <tr><td>佣金系统校验</td><td>单笔 ≤ 平台毛利 80% 封顶；赠送消耗不计提；月结账单；退款扣回；自买判定（同设备/手机号/支付账号）</td></tr>
+</table>
+
+<h3>P1 · 增长</h3>
+<table class="tbl">
+  <tr><th>任务</th><th>要点</th></tr>
+  <tr><td>邀请裂变全链路 + 风控</td><td>好友注册立得 100 算力；邀请人累计真实消耗满 50 得 100；去重前置/异常挂起/追回条款；微信合规（只奖结果）</td></tr>
+  <tr><td>签到</td><td>5/天、第 7 天 +30、周封顶 60、断签重置；所得为赠送算力</td></tr>
+  <tr><td>余额预警 + 单日消耗提示</td><td>&lt;50 预警；单日达阈值确认一次</td></tr>
+  <tr><td>合伙人看板 / 邀请看板</td><td>关系链、各节点状态、奖励流水、异常审核队列</td></tr>
+</table>
+
+<h3>验收抽测用例（§12）</h3>
+<ul>
+  <li>充 ¥300 → 到账 3600（3000 充值 + 600 赠送，账单构成可查）</li>
+  <li>消耗顺序：先扣赠送、不足自动切充值</li>
+  <li>任务失败 → 余额不变、账单无扣费记录</li>
+  <li>推荐客户首充后第 31 天消耗按后续率计提；纯赠送消耗佣金为 0</li>
+  <li>同设备两账号互邀 → 奖励不触发</li>
+  <li>迁移脚本重复执行 → 余额与价格无二次变化</li>
+  <li>全站搜索「积分」关键词 → 0 结果</li>
+</ul>
+
+<h2>三、B 商城首页改造（agents-home-tech-demo v3.28）</h2>
+<h3>页面楼层（自上而下）</h3>
+<table class="tbl">
+  <tr><th>区块</th><th>内容</th></tr>
+  <tr><td>Hero AI 指挥横幅</td><td>主文案「智能体 0 元开通 · 用多少算多少」（§11）</td></tr>
+  <tr><td>搜索 / 广告位（邀约有礼）/ 金刚区 / 今日任务</td><td>顶部四件套</td></tr>
+  <tr><td>F1 内容获客专区</td><td>公域内容引流</td></tr>
+  <tr><td>F2 私域营销专区 + 数字咨询师</td><td>周域/私域相关</td></tr>
+  <tr><td>F3 AI 硬件 / F4 AI 课程</td><td>人民币直购，不进算力体系（§2.8）</td></tr>
+  <tr><td>F5 OPC 专区 / F6 行业工作台</td><td>工作台入口聚合</td></tr>
+  <tr><td>AI 案例 · 信息流视图</td><td>案例详情弹层</td></tr>
+  <tr><td>底部 TabBar</td><td>独立导航</td></tr>
+</table>
+<h3>弹层 / 独立页（9+）</h3>
+<ul>
+  <li>充值弹层（三档 · 1 元=10 算力）</li>
+  <li>每日签到弹层 / 邀请有礼弹层（海报式）/ 算力明细弹层</li>
+  <li>我的（独立页）/ 注册登录页 / 购物车（独立页·京东式）/ 首次登入教学</li>
+  <li>新手帮助 · 术语词典弹层 / 小潼对话弹层 / 员工详情弹层</li>
+</ul>
+<div class="note">线上体验参考：renpolu123-png.github.io/petstore-demo/agents.html。注意本 demo 是纯前端演示，购物车牵动计费链路是最大不确定项，需与 A 线联调。</div>
+
+<h2>四、C 商品详情页（agent-product-detail-demo v12）</h2>
+<table class="tbl">
+  <tr><th>模块</th><th>内容</th><th>状态</th></tr>
+  <tr><td>8 数字员工 sec</td><td>沈定(99/份)、秦文(15起)、罗盘(50/场)、江流(50/次)、何策(30/批，未上架·预约)、许复/易成/周域（未上线·预约）</td><td><span class="tag t-new">新增3</span></td></tr>
+  <tr><td>每个员工 sec 结构</td><td>商品切换 + 头图(工作台实况) + 左:输出参考样例 + 右:信息区(价格区对齐 0926 算力价目) + 详情 tabs</td><td><span class="tag t-mod">对齐</span></td></tr>
+  <tr><td>4 商品 sec</td><td>AI硬件 / AI课程（人民币直购，卡片只留加购，详情页才有立即购买）</td><td><span class="tag t-new">新增</span></td></tr>
+  <tr><td>预约弹窗（未上线智能体）</td><td>表单态 + 成功态，预约统一收口到详情页</td><td><span class="tag t-new">新增</span></td></tr>
+  <tr><td>新手帮助 · 术语词典</td><td>v7 词典弹层</td><td><span class="tag t-new">新增</span></td></tr>
+</table>
+<div class="warn">⚠️ 价格区已恢复为「0926 定稿算力价目」（沈定 99/份 ≈¥9.9），替代旧隐藏积分版。落地时价格以 HANDOFF §3 为准，勿抄 demo 演示价。</div>
+
+<h2>五、D 工作台对齐 + 补建</h2>
+<ul>
+  <li><b>已做 5 工作台</b>（ip-pos=沈定 / copy=秦文 / vidrev=江流 / livescript=罗盘 / topic=何策）：需对齐「算力余额统一与扣减」——即接入 A 线新余额体系，任务发起前展示预计消耗、失败不扣费。</li>
+  <li><b>补建未落地工作台</b>：周域（私域营销）、易成（销售专家）、许复（直播复盘）—— 商品详情页已预留预约位，需对应工作台页面 + 后端。</li>
+  <li><b>视频生成工作台</b>：分档 SKU（60s=120 / 180s=300 算力），按 demo 价目未在当前 5 工作台覆盖，需评估是否本期。</li>
+</ul>
+<div class="note">同事提交提到「6 工作台最新版（算力余额统一与扣减）」，与已做 5 个工作台 + 视频生成/周域等的新增项口径需对齐，见下方待澄清。</div>
+
+<h2>六、E 智能体详情页更新（修改既有，非新增）</h2>
+<ul>
+  <li><b>何策</b>：对话式访谈界面 → 配置面板式（四大来源配置卡 + 配额徽章 + 阶段按钮 + 运行指标，与 topic-strategist 工作台一致，无对话框）；交付 5→10 条可换一批；流程补候选池涌现 16-20 条缺源自动重分配；三关命名对齐工作台；阶段口径对齐（起号期/增长期/变现期）；数据链路 17→淘汰6→打标11→交付10。</li>
+  <li><b>沈定</b>：轮播删除错位样例（今日选题清单=何策输出 / 直播逐字稿=罗盘输出），仅保留工作台实况/AI实况/职业形象照/用户口碑 4 图。</li>
+</ul>
+
+<h2>七、F 兰琪 v2 经营大脑（全新移动端产品线）</h2>
+<div class="note">提交明确「供周凯按此做代码实现」。与思潼 AI 商城是<b>两条独立产品线</b>，橙色主调、手机端优先（&lt;960px 单列+底部Tab，≥960px 顶部横导航+双栏）。共享骨架：lanqi-ui.css（设计系统）+ lanqi-ui.js。</div>
+<table class="tbl">
+  <tr><th>页面</th><th>标题</th><th>行数</th></tr>
+  <tr><td>home.html</td><td>经营驾驶舱（AI 结论卡 / 本月目标横滑 / 沉睡分档 / 9 维雷达 / 门店健康度）</td><td>689</td></tr>
+  <tr><td>crm.html</td><td>客户管理（最大页）</td><td>1169</td></tr>
+  <tr><td>moments.html</td><td>私域营销</td><td>749</td></tr>
+  <tr><td>sales-sim.html</td><td>AI 模拟销售</td><td>722</td></tr>
+  <tr><td>record.html</td><td>AI 客户分析</td><td>655</td></tr>
+  <tr><td>store-ops.html</td><td>门店后台</td><td>591</td></tr>
+  <tr><td>goal-detail.html</td><td>目标明细</td><td>590</td></tr>
+  <tr><td>cases.html</td><td>门店 AI 案例</td><td>567</td></tr>
+  <tr><td>daily-tasks.html</td><td>每日清单</td><td>504</td></tr>
+  <tr><td>wake.html</td><td>沉睡唤醒引擎</td><td>450</td></tr>
+  <tr><td>acquire.html</td><td>公域获客</td><td>449</td></tr>
+  <tr><td>points-recharge.html</td><td>积分中心</td><td>373</td></tr>
+  <tr><td>revenue.html</td><td>收入结构</td><td>359</td></tr>
+  <tr><td>liability.html</td><td>预收负债看板</td><td>328</td></tr>
+  <tr><td>mine.html</td><td>我的</td><td>256</td></tr>
+</table>
+<div class="warn">⚠️ 兰琪 v2 里该页叫「<b>积分中心</b>」，而商城 HANDOFF 要求全站改「算力」。两套产品计费口径是否一致（兰琪沿用积分 / 还是也切算力）需经营方拍板，否则后端无法定表结构。</div>
+
+<h2>八、建议优先级排期</h2>
+<div class="timeline">
+  <div class="ph"><div class="n">1</div><div class="b"><div class="h">先定计费底座（A 线 P0）</div><div class="x">全站算力体系 + 价目表 + 充值 + 存量迁移脚本。是所有前端页面（B/C/D）的依赖，不先定会反复返工。</div></div></div>
+  <div class="ph"><div class="n">2</div><div class="b"><div class="h">商城前端（B 首页 + C 详情页 + D 工作台对齐）</div><div class="x">接 A 线余额/价格，落地 v3.28 首页与 v12 详情页；5 工作台接入算力扣减。</div></div></div>
+  <div class="ph"><div class="n">3</div><div class="b"><div class="h">增长能力（A 线 P1）</div><div class="x">邀请裂变 + 签到 + 预警 + 看板，依赖 P0 余额/赠送账本。</div></div></div>
+  <div class="ph"><div class="n">4</div><div class="b"><div class="h">补建工作台（D 线未落地项）</div><div class="x">周域/易成/许复 + 视频生成，与 C 线预约位联动。</div></div></div>
+  <div class="ph"><div class="n">5</div><div class="b"><div class="h">兰琪 v2（F 线，独立排期）</div><div class="x">15 页移动端从零实现，工作量最大，建议作为独立里程碑，不与商城主线抢资源。</div></div></div>
+</div>
+
+<h2>九、待澄清项</h2>
+<div class="q"><ul>
+  <li><b>「6 工作台」具体是哪 6 个？</b> 已做 5（沈定/秦文/江流/罗盘/何策），同事提「6 工作台最新版」。需确认是否含视频生成，还是把周域/易成/许复中某几个纳入本期。</li>
+  <li><b>兰琪 v2 计费口径</b>：原型用「积分中心」，商城用「算力」。两套是否统一？影响后端账户表设计。</li>
+  <li><b>存量迁移（§5）已有真实付费用户</b>：执行前须全量备份 + 人工复核价格÷2 清单，是否由你执行还是经营方提供清单？</li>
+  <li><b>兰琪 v2 是否本期必做</b>：15 页全新移动端，工作量 12–18 人日，需确认优先级（可与商城并行还是后置）。</li>
+  <li><b>视频生成 SKU</b>（60s=120/180s=300）归属哪个工作台/入口，本期是否上线？</li>
+</ul></div>
+
+<div class="foot">本盘点由 WorkBuddy 基于同事新增原型文档自动生成，仅供排期参考；人日估算为粗估，落地前需结合实际接口与联调细化。</div>
+</div>
+</body>
+</html>

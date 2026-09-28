@@ -22,6 +22,9 @@ import "./styles/takeaway-analytics.css";
 import "./styles/takeaway-baseline-flow.css";
 import "./styles/agent-work-map.css";
 import "./styles/topic-system-workbench.css";
+import "./styles/topic-strategist-workbench.css";
+import "./styles/ip-pos-detail.css";
+import "./styles/copy-workbench.css";
 import "./styles/clip-lab.css";
 import "./styles/client-project-workbench.css";
 import "./styles/lanqi-store-profile.css";
@@ -122,6 +125,26 @@ const MarketplaceAgentDetailPage = lazy(() => import("./pages/MarketplaceApp.js"
 const MarketplaceMinePage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceMinePage })));
 const MarketplaceMyAgentsPage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceMyAgentsPage })));
 const MarketplaceAgentChatPage = lazy(() => import("./pages/MarketplaceApp.js").then(module => ({ default: module.MarketplaceAgentChatPage })));
+// 选题策略官专属工作台（/agent/<skuCode>/workbench），UI 落地自设计原型 v1.5
+const TopicStrategistWorkbench = lazy(() => import("./marketplace/TopicStrategistWorkbench.js").then(module => ({ default: module.TopicStrategistWorkbench })));
+// IP 定位智能体工作台（/agent/ipzone__ip-pos/workbench）
+const IpPosWorkbench = lazy(() => import("./marketplace/IpPosWorkbench.js").then(module => ({ default: module.IpPosWorkbench })));
+// 文案智能体工作台（/agent/ipzone__copy/workbench）
+const CopyWorkbench = lazy(() => import("./marketplace/CopyWorkbench.js").then(module => ({ default: module.CopyWorkbench })));
+// 视频复盘智能体工作台（/agent/ipzone__vidrev/workbench）
+const VidrevWorkbench = lazy(() => import("./marketplace/VidrevWorkbench.js").then(module => ({ default: module.VidrevWorkbench })));
+// 直播话术智能体工作台（/agent/ipzone__livescript/workbench）
+const LivescriptWorkbench = lazy(() => import("./marketplace/LivescriptWorkbench.js").then(module => ({ default: module.LivescriptWorkbench })));
+// 首席定位官商品详情页（/agent/ipzone__ip-pos/detail，落地自原型 20260923）
+const IpPosDetailPage = lazy(() => import("./marketplace/IpPosDetailPage.js").then(module => ({ default: module.IpPosDetailPage })));
+// 金牌文案主笔商品详情页（/agent/ipzone__copy/detail，落地自原型 20260923 ?agent=copywriter）
+const CopyDetailPage = lazy(() => import("./marketplace/CopyDetailPage.js").then(module => ({ default: module.CopyDetailPage })));
+// 视频复盘官商品详情页（/agent/ipzone__vidrev/detail，落地自原型 20260923 ?agent=video-diag）
+const VidrevDetailPage = lazy(() => import("./marketplace/VidrevDetailPage.js").then(module => ({ default: module.VidrevDetailPage })));
+// 直播话术师商品详情页（/agent/ipzone__livescript/detail，落地自原型 20260923 ?agent=live-host）
+const LivescriptDetailPage = lazy(() => import("./marketplace/LivescriptDetailPage.js").then(module => ({ default: module.LivescriptDetailPage })));
+// 选题策略官商品详情页（/agent/ipzone__topic/detail，落地自原型 20260923 ?agent=topic）
+const TopicDetailPage = lazy(() => import("./marketplace/TopicDetailPage.js").then(module => ({ default: module.TopicDetailPage })));
 const RechargePage = lazy(() => import("./pages/RechargePage.js").then(module => ({ default: module.RechargePage })));
 
 type AppStage = "login" | "diagnosis" | "main";
@@ -392,6 +415,10 @@ function Root() {
   const marketingMatch = path.match(/^\/p\/([a-z0-9_-]+)\/?$/i);
   const agentMatch = path.match(/^\/agents\/([a-z0-9_-]+)\/?$/i);
   const marketplaceChatMatch = path.match(/^\/agent\/([a-z0-9_-]+)\/chat\/?$/i);
+  // 选题策略官工作台：`/agent/ipzone__topic/workbench`
+  const marketplaceWorkbenchMatch = path.match(/^\/agent\/([a-z0-9_-]+)\/workbench\/?$/i);
+  // 商品详情页：`/agent/<sku>/detail`（首席定位官已落地原型版；其余 SKU 暂回落通用详情页）
+  const marketplaceDetailMatch = path.match(/^\/agent\/([a-z0-9_-]+)\/detail\/?$/i);
   const marketplaceAgentMatch = path.match(/^\/agent\/([a-z0-9_-]+)\/?$/i);
 
   // 平台首页是唯一入口：根路径直接落到平台首页，不再进入旧的单品落地页。
@@ -429,6 +456,47 @@ function Root() {
 
   if (marketplaceChatMatch) {
     return <MarketplaceAgentChatPage skuId={marketplaceChatMatch[1]} />;
+  }
+
+  if (marketplaceWorkbenchMatch) {
+    const workbenchSku = marketplaceWorkbenchMatch[1];
+    // IP 定位智能体走专属工作台（左：真实对话 / 右：定位简报 + 全案画布）。
+    if (workbenchSku === "ipzone__ip-pos") {
+      return <IpPosWorkbench skuId={workbenchSku} />;
+    }
+    // 文案智能体走专属工作台（左：真实对话 / 右：文案简报 + 内容十件套画布）。
+    if (workbenchSku === "ipzone__copy") {
+      return <CopyWorkbench skuId={workbenchSku} />;
+    }
+    // 视频复盘智能体走专属工作台（左：上传体检引导 / 右：体检面板 + 复盘报告）。
+    if (workbenchSku === "ipzone__vidrev") {
+      return <VidrevWorkbench skuId={workbenchSku} />;
+    }
+    // 直播话术智能体走专属工作台（左：开播引导 / 右：开播简报 + 脚本包画布）。
+    if (workbenchSku === "ipzone__livescript") {
+      return <LivescriptWorkbench skuId={workbenchSku} />;
+    }
+    return <TopicStrategistWorkbench skuId={workbenchSku} />;
+  }
+
+  if (marketplaceDetailMatch) {
+    // 首席定位官/金牌文案主笔详情页走原型落地版（纯展示 + 两处跳转）；其余 SKU 暂回落通用详情页。
+    if (marketplaceDetailMatch[1] === "ipzone__ip-pos") {
+      return <IpPosDetailPage />;
+    }
+    if (marketplaceDetailMatch[1] === "ipzone__copy") {
+      return <CopyDetailPage />;
+    }
+    if (marketplaceDetailMatch[1] === "ipzone__vidrev") {
+      return <VidrevDetailPage />;
+    }
+    if (marketplaceDetailMatch[1] === "ipzone__livescript") {
+      return <LivescriptDetailPage />;
+    }
+    if (marketplaceDetailMatch[1] === "ipzone__topic") {
+      return <TopicDetailPage />;
+    }
+    return <MarketplaceAgentDetailPage skuId={marketplaceDetailMatch[1]} />;
   }
 
   if (marketplaceAgentMatch) {

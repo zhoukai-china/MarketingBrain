@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>数字员工对话上下文注入链路</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel2: #1d212b; --line: #2a2f3a;
+    --txt: #e6e9ef; --dim: #9aa3b2; --accent: #4f9cf9; --green: #34d399;
+    --amber: #fbbf24; --red: #f87171; --purple: #a78bfa;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--txt);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    line-height: 1.6; padding: 28px 20px 60px; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--dim); font-size: 13px; margin-bottom: 24px; }
+  .stage { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; margin: 18px 0; }
+  .node { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; flex: 1; min-width: 200px; }
+  .node .tag { font-size: 11px; color: var(--dim); letter-spacing: .5px; }
+  .node .t { font-weight: 600; margin: 4px 0; font-size: 14px; }
+  .node .d { font-size: 12px; color: var(--dim); }
+  .arrow { display: flex; align-items: center; justify-content: center; color: var(--accent);
+    font-size: 20px; padding: 0 8px; min-width: 28px; }
+  .code { background: var(--panel2); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    border-radius: 8px; padding: 12px 14px; font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px; color: #cdd6e4; overflow-x: auto; margin: 10px 0; white-space: pre; }
+  .key { border: 1px solid var(--amber); background: rgba(251,191,36,.08); border-radius: 12px;
+    padding: 16px 18px; margin: 22px 0; }
+  .key .h { color: var(--amber); font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+  .filter { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 18px; margin: 18px 0; }
+  .filter .h { color: var(--green); font-weight: 700; font-size: 14px; margin-bottom: 10px; }
+  .filter ul { margin: 0; padding-left: 20px; }
+  .filter li { font-size: 13px; margin: 5px 0; color: #d3d9e3; }
+  .filter code { background: #0c0e12; padding: 1px 6px; border-radius: 4px; color: var(--purple); }
+  .gap { border: 1px solid var(--red); background: rgba(248,113,113,.08); border-radius: 12px;
+    padding: 16px 18px; margin: 22px 0; }
+  .gap .h { color: var(--red); font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--dim); font-weight: 600; }
+  td code { color: var(--purple); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>数字员工对话上下文 · getnote 结论注入链路</h1>
+  <div class="sub">页面：<code>/agents/:slug</code>（获客智能体 / 销售智能体）→ 后端 <code>routes/agents.ts</code> → <code>routes/knowledge-base.ts</code></div>
+
+  <!-- 主链路 -->
+  <div class="stage">
+    <div class="node">
+      <div class="tag">① 选主体</div>
+      <div class="t">绑定资料主体 subject</div>
+      <div class="d">在 /knowledge-base 把某个 subject 挂给数字员工；对话时按 subjectId 取文档</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node">
+      <div class="tag">② 加载</div>
+      <div class="t">loadAutomaticKnowledgeDocuments</div>
+      <div class="d">knowledge-base.ts:1235 · 按条件筛出最多 20 篇</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node">
+      <div class="tag">③ 拼装</div>
+      <div class="t">buildAgentKnowledgeRunContext</div>
+      <div class="d">knowledge-base.ts:1926</div>
+    </div>
+  </div>
+  <div class="stage">
+    <div class="node">
+      <div class="tag">④ 证据包</div>
+      <div class="t">buildKnowledgeEvidencePack</div>
+      <div class="d">knowledge-base.ts:1917 · 只取 content+title</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node">
+      <div class="tag">⑤ 压缩</div>
+      <div class="t">compactKnowledgeContent</div>
+      <div class="d">knowledge-base.ts:1960 · 信号抽取，总预算 16000 字符</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node">
+      <div class="tag">⑥ 落消息</div>
+      <div class="t">knowledgeContext → 首条 user 消息</div>
+      <div class="d">agents.ts:775-785 · 与任务同批送 LLM</div>
+    </div>
+  </div>
+
+  <div class="code">// agents.ts:607  —— 对话 run 时自动加载
+automaticKnowledgeDocuments = await loadAutomaticKnowledgeDocuments(
+    context, knowledgeSubject.id, knowledgeDocumentIds, 20 - explicitKnowledgeDocuments.length);
+
+// agents.ts:612  —— 拼成知识上下文串
+let knowledgeContext = knowledgeDocuments.length
+    ? buildAgentKnowledgeRunContext(agent, knowledgeDocuments,
+        { subject: knowledgeSubject, fallbackIndustry: runtimeContext.profile.industry })
+    : undefined;
+
+// agents.ts:775-785  —— 放进本轮第一条 user 消息
+{ role: "user", content: [
+    profileContext ? `当前企业已确认资料...` : undefined,
+    buildTaskSubjectPriorityContext(parsed.data.input),
+    taskCustomerContext,
+    knowledgeContext,                                  // ← 文档证据在此
+    `用户本次要求：${parsed.data.input}`
+  ].filter(Boolean).join("\n\n") }
+
+// knowledge-base.ts:1917  —— 证据包只认 content，不认 metadata.analysis
+export function buildKnowledgeEvidencePack(
+    documents: Array<{ id: string; title: string; content: string }>,  // ← 只有这仨字段
+    agentSlug?: string): string {
+  return documents.map((document, index) => [
+    `【资料 ${index + 1}｜${document.title}】`,
+    compactKnowledgeContent(document.content, perDocumentBudget, agentSlug)  // ← 只读 content
+  ].join("\n")).join("\n\n");
+}</div>
+
+  <!-- 关键纠正 -->
+  <div class="key">
+    <div class="h">⚠️ 关键纠正：结构化 1280/422/26 没有直接被注入</div>
+    <p style="margin:6px 0;font-size:13.5px;color:#e6e9ef">
+      <code>metadata.analysis</code>（你存的 coreViews / quotes / overview 三段 JSON）在整条注入链路里<strong>完全没被读取</strong>。
+      <code>buildKnowledgeEvidencePack</code> 的类型签名只有 <code>{id, title, content}</code>，<code>metadata</code> 连参数都不是。
+    </p>
+    <p style="margin:6px 0;font-size:13.5px;color:#e6e9ef">
+      但 1280/422/26 的<strong>原始文字</strong>确实进了上下文——因为 <code>document.content</code> 存的就是 Get笔记
+      <code>note/list</code> 返回的<strong>完整智能总结原文</strong>（getnote-summary-sync.ts:3-4 明确写"含金句精选/章节概要/录音总结"）。
+      parser 只是把同一段文本解析成 JSON 计数，原文仍留在 content 里。所以 LLM 看到的是被<strong>压缩后的原始 markdown 文本</strong>，
+      不是精确的"核心观点：XX"结构化字段。
+    </p>
+  </div>
+
+  <!-- 过滤条件 -->
+  <div class="filter">
+    <div class="h">✅ 一道硬门槛：不是所有 99 篇都能进上下文</div>
+    <p style="font-size:12.5px;color:var(--dim);margin:0 0 8px">loadAutomaticKnowledgeDocuments（knowledge-base.ts:1245-1256）的筛选条件：</p>
+    <ul>
+      <li>必须绑定到某个 <code>subjectId</code>（没挂主体的文档进不来）</li>
+      <li><code>usagePolicy === "auto"</code>（"recommend" 的不自动带入）</li>
+      <li><code>confirmedAt !== null</code>（未确认的草稿不带入）</li>
+      <li><code>sensitivity !== "sensitive"</code>（敏感资料排除）</li>
+      <li>最多 <code>20</code> 篇，按 <code>occurredAt desc</code> 取最新</li>
+      <li>总字符预算 <code>16000</code>，单篇 <code>520~2200</code>，超出按信号词抽取</li>
+    </ul>
+    <p style="font-size:12.5px;color:var(--dim);margin:10px 0 0">
+      → 你存的 99 篇里，实际能自动注入对话的，取决于"已挂主体 + auto + 已确认 + 非敏感"的数量，且封顶 20 篇 / 16000 字符。
+      第 ②③ 消费方（数字员工 / 美业选题）同样受这套条件约束。
+    </p>
+  </div>
+
+  <!-- 结论对比 -->
+  <table>
+    <tr><th>你以为的</th><th>实际发生的</th></tr>
+    <tr>
+      <td>1280/422/26 作为结构化结论被精准喂给 LLM</td>
+      <td>结构化 JSON 没被读；原始总结文本被压缩后混入首条 user 消息</td>
+    </tr>
+    <tr>
+      <td>23 篇无 analysis 的缺口 → 模型看不到内容</td>
+      <td>这 23 篇只要 content 有、且过筛选，照样能带入（缺失的只是结构化计数，非正文）</td>
+    </tr>
+    <tr>
+      <td>选题策略官 / chat 在用这套数据</td>
+      <td>否。它们走 marketplace.ts 的 live 拉取，绕开 KnowledgeDocument（见上一份链路图）</td>
+    </tr>
+  </table>
+
+  <!-- 缺口 -->
+  <div class="gap">
+    <div class="h">🔧 真正可优化的缺口</div>
+    <p style="margin:6px 0;font-size:13.5px;color:#e6e9ef">
+      既然 <code>metadata.analysis</code> 已解析好却被 <code>buildKnowledgeEvidencePack</code> 无视，最划算的改进是：
+      在该函数里<strong>优先用 analysis 的结构化字段</strong>（overview / coreViews / quotes）拼证据包，
+      而不是退回读整段 content。好处：① 结论密度更高、更精准命中 query；② 16000 字符预算能塞进更多篇的"真结论"；
+      ③ 那 23 篇无 analysis 的回落到 content，无缝兜底。这一改能让 1280/422/26 从"藏在原文里"变成"被精准引用"。
+    </p>
+  </div>
+
+</div>
+</body>
+</html>

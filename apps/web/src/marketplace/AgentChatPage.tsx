@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { apiPath, getAppPath, getAppRoutePath } from "../lib/api.js";
 import { readSessionIdentity, readSessionToken } from "../lib/session.js";
-import { chatFlowFor, effectiveSlots, buildRunBody, normalizeVidrevPlatform } from "./chat-flows.js";
+import { chatFlowFor, effectiveSlots, buildRunBody, normalizeVidrevPlatform, slotPrompt } from "./chat-flows.js";
 import { IpPosReport, type IpPosPayload } from "./ip-pos-report.js";
 import { VidrevReport, isVidrevPayload, VIDREV_PREFILL_KEY, type VidrevPayload } from "./vidrev-report.js";
 import { audioExtensionForMime, useVoiceInput, voiceTranscriptionFailureMessage } from "../components/chat/useVoiceInput.js";
 import sitongAvatar from "../assets/sitong-beauty.png";
 import { employeePersonaLabel } from "./employee-names.js";
 import { employeeAvatarPath } from "./eco-mall-data.js";
-import { bundleSteps, coreSkuCode, isBundle, isComingSoon, zoneOfSku, type MarketplaceIndustry, type MarketplaceSku } from "./sku-model.js";
+import { bundleSteps, coreSkuCode, IP_POS_PRICE, IP_POS_UNIT, isBundle, isComingSoon, zoneOfSku, type MarketplaceIndustry, type MarketplaceSku } from "./sku-model.js";
 import { authHeaders, fetchMarketMe, guestToLogin, handleStaleSession, readJson, Topbar } from "./shell.js";
 import { readAttachmentText } from "./text-attachment.js";
 import { isRestartCommand } from "./chat-commands.js";
@@ -142,13 +142,46 @@ function subscriptionOfferText(offer: { credits: number; dailyQuota: number | nu
   return `${offer.credits} 积分/月 · ${quota}（订阅期内不扣积分）`;
 }
 
-export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
+export function MarketplaceAgentChatPage({
+  skuId,
+  workbench = false,
+  onIpPosPayload,
+  onAnswersChange,
+  onRequestGenerate
+}: {
+  skuId: string;
+  /** 工作台内嵌模式：省略自身 Topbar（由外层页面统一提供），并用 div 包裹便于放进左右分栏。 */
+  workbench?: boolean;
+  /** 工作台模式下，ip-pos 结构化交付不直接在对话里渲染，而是回抛给外层工作台右侧面板。 */
+  onIpPosPayload?: (payload: IpPosPayload) => void;
+  /** 工作台模式下，访谈槽位答案每次变化都回抛（含 localStorage 恢复），外层据此实时填充右侧简报。 */
+  onAnswersChange?: (answers: Record<string, string>) => void;
+  /**
+   * 工作台模式下「开始生成」统一委托给外层右侧面板（2026-09-27 用户拍板：
+   * 对话框点开始 == 右侧点开始，预审/生成中/追问/报错/交付全部只在右侧展示，
+   * 对话框只承担访谈问答）。普通对话页不传，仍走自己的 generateRun。
+   */
+  onRequestGenerate?: () => void;
+}) {
   const [sku, setSku] = useState<MarketplaceSku | null>(null);
   const [all, setAll] = useState<MarketplaceSku[]>([]);
   const [industry, setIndustry] = useState<MarketplaceIndustry | null>(null);
   const [items, setItems] = useState<ChatItem[]>([]);
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  /** onAnswersChange 用 ref 中转：回调身份每渲染都变，若直接进依赖会把父组件拖进无限重渲染。 */
+  const onAnswersRef = useRef(onAnswersChange);
+  onAnswersRef.current = onAnswersChange;
+  useEffect(() => { onAnswersRef.current?.(answers); }, [answers]);
+  /** onRequestGenerate 同样用 ref 中转（理由同上）：确认卡点击时调用右侧最新的 doGenerate。 */
+  const requestGenerateRef = useRef(onRequestGenerate);
+  requestGenerateRef.current = onRequestGenerate;
+  /** 对话列表容器：进入页面（含恢复历史）与新消息到达时都定位到最后一条（2026-09-27 用户反馈：恢复历史总停在最上面）。 */
+  const chatListRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = chatListRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [items]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [cost, setCost] = useState<number | null>(null);
@@ -160,7 +193,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
   const [uploadNote, setUploadNote] = useState("");
   /** 拖拽悬停态：让「把文件拖进来」这件事在界面上看得见。 */
   const [dragActive, setDragActive] = useState(false);
-  const [docxPrice, setDocxPrice] = useState<number | null>(null);
+  // Word 导出 2026-09-27 起免费（后端不扣积分），不再拉取/展示价格。
   const [exporting, setExporting] = useState(false);
   /**
    * 包月订阅状态（用户 2026-09-17 拍板）：文案智能体 4000 积分/月、每天 5 条，订阅期内不再扣积分。
@@ -270,6 +303,12 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
   const isVidrev = coreSkuCode(runSku?.skuCode ?? skuId) === "vidrev";
   /** 直播话术：交付为几万字 · 2 小时完整逐字稿，生成耗时明显长于普通货架技能，需单独提示耐心等待。 */
   const isLiveScript = coreSkuCode(runSku?.skuCode ?? skuId) === "livescript";
+  /**
+   * IP 定位：**按次固定价**（`FIXED_PRICE_SKUS`），不是按实际用量结算。
+   * 所以确认卡不能说「预计消耗约 N 积分…按实际用量结算，可能略有出入」——那会让客户以为价会浮动；
+   * 统一报固定价 `IP_POS_PRICE` 算力（2026-09-27 用户改价 99，单位口径同工作台）。
+   */
+  const isIpPos = coreSkuCode(runSku?.skuCode ?? skuId) === "ip-pos";
   /** 这一轮是否已经动过（填过 / 传过 / 生成过）：决定「↺ 重新开始」按钮是否常驻。 */
   const hasProgress = step > 0 || Object.keys(answers).length > 0 || attachments.length > 0 || done || awaitingSupplement || confirmPending;
   /** 公共平台对话页的语音输入：录音 → `/voice/transcribe`（受授权转写入口）→ 并入输入框。 */
@@ -405,7 +444,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     }
     setItems([
       { id: "w", role: "ai", text: welcome },
-      { id: "q0", role: "ai", text: `**${slots[0].label}**：${slots[0].q}` }
+      { id: "q0", role: "ai", text: `**【第 1/${slots.length} 步】**${slotPrompt(slots[0])}` }
     ]);
     setStep(0);
 
@@ -439,14 +478,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     if (prefill.note) setUploadNote(prefill.note);
   }, [step, prefill, flow, runSku?.skuCode, skuId, input]);
 
-  useEffect(() => {
-    void fetch(apiPath("/exports/docx/price"))
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: { credits?: number } | null) => {
-        if (data && typeof data.credits === "number") setDocxPrice(data.credits);
-      })
-      .catch(() => {});
-  }, []);
+  // Word 导出已免费（2026-09-27），不再请求 /exports/docx/price。
 
   async function generateRun(finalAnswers: Record<string, string>) {
     if (!flow || !runSku || soon) return;
@@ -673,6 +705,10 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
       settled = true;
       stopRecovery();
       setItems((prev) => [...prev, { id: "final", role: "ai", text: result.answer, html: true, payload: result.payload }]);
+      // 工作台模式：结构化全案回抛给右侧面板，对话里不再重复渲染大报告。
+      if (workbench && result.payload && "sections" in result.payload) {
+        onIpPosPayload?.(result.payload);
+      }
       setCost(result.consumedCredits);
       setDone(true);
       setAwaitingSupplement(false);
@@ -750,7 +786,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
           text: "好，重新开始。上一轮的填写内容、已上传的文件和本机留存都已经清空，我们从第一轮重新来一遍。"
         },
         { id: "w", role: "ai", text: welcome },
-        { id: "q0", role: "ai", text: `**${slots[0].label}**：${slots[0].q}` }
+        { id: "q0", role: "ai", text: `**【第 1/${slots.length} 步】**${slotPrompt(slots[0])}` }
       ]);
       return;
     }
@@ -828,7 +864,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     if (step < nextSlots.length - 1) {
       const next = step + 1;
       setStep(next);
-      setItems((prev) => [...prev, { id: `q${next}`, role: "ai", text: `**${nextSlots[next].label}**：${nextSlots[next].q}` }]);
+      setItems((prev) => [...prev, { id: `q${next}`, role: "ai", text: `**【第 ${next + 1}/${nextSlots.length} 步】**${slotPrompt(nextSlots[next])}` }]);
       return;
     }
 
@@ -838,6 +874,12 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
 
   function confirmBrief() {
     setConfirmPending(false);
+    // workbench（IP 定位工作台）：开始生成统一委托右侧面板——与「右侧点生成」同一条
+    // 预审→生成链路，生成中/追问/报错/交付全部只在右侧展示（2026-09-27 用户拍板）。
+    if (workbench && requestGenerateRef.current) {
+      requestGenerateRef.current();
+      return;
+    }
     void generateRun(answers);
   }
 
@@ -846,7 +888,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     setConfirmPending(false);
     setAnswers({});
     setStep(0);
-    setItems((prev) => [...prev, { id: `editq${Date.now()}`, role: "ai", text: `好的，我们重新填一遍。**${slots[0].label}**：${slots[0].q}` }]);
+    setItems((prev) => [...prev, { id: `editq${Date.now()}`, role: "ai", text: `好的，我们重新填一遍。**【第 1/${slots.length} 步】**${slotPrompt(slots[0])}` }]);
   }
 
   /**
@@ -973,7 +1015,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     resetConversationState();
     setItems([
       { id: "w", role: "ai", text: welcome },
-      { id: "q0", role: "ai", text: `**${slots[0].label}**：${slots[0].q}` }
+      { id: "q0", role: "ai", text: `**【第 1/${slots.length} 步】**${slotPrompt(slots[0])}` }
     ]);
   }
 
@@ -1256,14 +1298,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
         headers: authHeaders(true),
         body: JSON.stringify({ title, content: md })
       });
-      if (response.status === 402) {
-        const data = (await response.json().catch(() => ({}))) as { message?: string; required?: number };
-        const required = data.required ?? docxPrice ?? 0;
-        window.alert(`${data.message ?? "当前积分不足，无法导出。"}本次导出需 ${required} 积分，请先充值。`);
-        return;
-      }
       if (handleStaleSession(response.status)) {
-        window.alert("登录状态已失效，本地登录信息已清除。请重新登录后再导出；本次不消耗积分。");
+        window.alert("登录状态已失效，本地登录信息已清除。请重新登录后再导出。");
         return;
       }
       const created = await readJson<{ downloadUrl?: string; filename?: string }>(response);
@@ -1286,19 +1322,36 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
     }
   }
 
+  /** workbench 模式专用头部（2026-09-27 用户拍板）：「返回详情」挪到工作台外层 hero，对话面板内不放；
+   *  头部换成深色「沈定 · 首席定位官」条（当前只有 ip-pos 工作台用 workbench 模式）。 */
+  const wbHead = (
+    <div className="ipw-chat-head">
+      <img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} />
+      <div className="ipw-chat-head-txt">
+        <b>{personaLabel} · 首席定位官</b>
+        <span>6 步访谈 · 一次只问一个维度 · 回答自动填入右侧简报</span>
+      </div>
+    </div>
+  );
+
+  const ShellTag = workbench ? "div" : "main";
   return (
-    <main className="app-wrap chat-page">
-      <Topbar active="chat" balance={balance} onNavigate={(path) => { window.location.href = getAppPath(path); }} />
+    <ShellTag className="app-wrap chat-page chat-page-embed">
+      {workbench ? null : (
+        <Topbar active="chat" balance={balance} onNavigate={(path) => { window.location.href = getAppPath(path); }} />
+      )}
 
       {soon ? (
         <section className="view view-chat chat-page-body">
           <div className="chat-page-shell">
             <div className="chat-page-head">
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <button className="back" onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}`); }}>‹ 返回详情</button>
-                <img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} />
-                <span className="chat-page-title">{personaLabel} · {sku?.name ?? "智能体"} · 开发中</span>
-              </div>
+              {workbench ? wbHead : (
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <button className="back" onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}`); }}>‹ 返回详情</button>
+                  <img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} />
+                  <span className="chat-page-title">{personaLabel} · {sku?.name ?? "智能体"} · 开发中</span>
+                </div>
+              )}
             </div>
             <div className="zone-soon" style={{ margin: "0 16px" }}>
               🚧 <b>该智能体内核还在开发中</b>，对话与生成暂未开放，也不会消耗积分。<br />
@@ -1316,11 +1369,13 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
         <section className="view view-chat chat-page-body">
           <div className="chat-page-shell">
             <div className="chat-page-head">
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <button className="back" onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}`); }}>‹ 返回详情</button>
-                <img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} />
-                <span className="chat-page-title">{personaLabel} · {runSku?.name ?? "智能体"} · 需登录</span>
-              </div>
+              {workbench ? wbHead : (
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <button className="back" onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}`); }}>‹ 返回详情</button>
+                  <img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} />
+                  <span className="chat-page-title">{personaLabel} · {runSku?.name ?? "智能体"} · 需登录</span>
+                </div>
+              )}
             </div>
             <div className="zone-soon" style={{ margin: "0 16px" }}>
                 🔒 <b>这个智能体要登录后才能使用</b>：结果存进你自己的账号，方便随时回看与继续追问。<br />
@@ -1350,15 +1405,20 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
             }}
           >
           <div className="chat-page-head">
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <button className="back" onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}`); }}>‹ 返回详情</button>
-              <img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} />
-              <span className="chat-page-title">{personaLabel} · {runSku?.name ?? flow.name ?? "智能体"}{industry?.title ? ` · ${industry.title}` : ""}</span>
-            </div>
+            {workbench ? wbHead : (
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <button className="back" onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}`); }}>‹ 返回详情</button>
+                <img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} />
+                <span className="chat-page-title">{personaLabel} · {runSku?.name ?? flow.name ?? "智能体"}{industry?.title ? ` · ${industry.title}` : ""}</span>
+              </div>
+            )}
             {cost !== null && (
               <span className="chat-page-cost">
                 {cost === 0 && subscriptionView?.subscribed ? (
                   <>本次由包月覆盖 · 不扣积分</>
+                ) : isIpPos ? (
+                  /* IP 定位这条链路单位统一用「算力」（2026-09-27 用户改价 99 算力，口径同工作台）。 */
+                  <>本次实际消耗 {cost} {IP_POS_UNIT}</>
                 ) : (
                   <>本次实际消耗 {cost} 积分</>
                 )}
@@ -1408,7 +1468,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
               松手即可把文件添加到对话框（文本类 CSV / TXT / MD / JSON 会直接读进需求）
             </div>
           )}
-          {!done && slots.length > 1 && (
+          {/* workbench 隐藏进度 chips（2026-09-27 对齐原型：原型无此条，问句自带【第 N/6 步】，省下两行高度） */}
+          {!workbench && !done && slots.length > 1 && (
             <div className="chat-progress">
               {slots.map((slot, idx) => {
                 const answeredCount = items.filter((it) => it.role === "user").length;
@@ -1417,7 +1478,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
               })}
             </div>
           )}
-          <div className="chat-page-list">
+          <div className="chat-page-list" ref={chatListRef}>
             {items.map((item) => (
               <div key={item.id} className={`chat-row ${item.role}`}>
                 {item.role === "ai" && <img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} />}
@@ -1432,8 +1493,15 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                       <span className="chat-bubble-label">{personaLabel} · {sku?.name ?? "智能体"}</span>
                       {isVidrevPayload(item.payload) ? (
                         <VidrevReport payload={item.payload} renderMarkdown={renderMarkdownHtml} topicSkuCode={topicSkuCode} />
-                      ) : item.payload?.sections ? (
-                        <IpPosReport payload={item.payload} renderMarkdown={renderMarkdownHtml} />
+                      ) : item.payload && "sections" in item.payload ? (
+                        workbench ? (
+                          <div className="chat-report">
+                            <div className="cr-head">✅ 全案已生成</div>
+                            <div className="cr-sec">定位全案已在右侧工作台展示，可在此继续追问、让沈定补充细节或调整方向。</div>
+                          </div>
+                        ) : (
+                          <IpPosReport payload={item.payload} renderMarkdown={renderMarkdownHtml} />
+                        )
                       ) : (
                         <div className="md-rich ls-root" style={{ color: "var(--text)", fontSize: 14, lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: item.html ? (isLiveScript ? renderLiveScriptHtml(item.text) : renderMarkdownHtml(item.text)) : renderInline(item.text) }} />
                       )}
@@ -1458,7 +1526,8 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                 </div>
               </div>
             ))}
-            {busy && <div className="chat-row ai"><img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} /><div className="chat-bubble ai"><span style={{ color: "var(--muted)" }}>{isLiveScript ? `正在生成约几万字的 2 小时直播话术逐字稿，预计 5-10 分钟（整稿分九段依次生成，中途请勿关闭页面），请耐心等待… 已用 ${elapsed}s` : `AI 正在按方法论生成交付… 已用 ${elapsed}s`}</span></div></div>}
+            {/* workbench：生成中状态只在右侧画布展示（2026-09-27 用户拍板「状态统一在右边」），对话里不再出忙碌气泡 */}
+            {!workbench && busy && <div className="chat-row ai"><img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} /><div className="chat-bubble ai"><span style={{ color: "var(--muted)" }}>{isLiveScript ? `正在生成约几万字的 2 小时直播话术逐字稿，预计 5-10 分钟（整稿分九段依次生成，中途请勿关闭页面），请耐心等待… 已用 ${elapsed}s` : `AI 正在按方法论生成交付… 已用 ${elapsed}s`}</span></div></div>}
             {confirmPending && !busy && flow && (
               <div className="chat-row ai">
                 <img className="chat-avatar-img" src={personaAvatar} alt={personaLabel} />
@@ -1485,7 +1554,12 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                       </p>
                     ) : (
                       <>
-                        {typeof runSku?.ppu === "number" && runSku.ppu > 0 && (
+                        {isIpPos ? (
+                          <p>
+                            本单是<b>固定价</b>：交付 1 份 IP 定位全案（速览 + 8 章）共 <b>{IP_POS_PRICE} {IP_POS_UNIT}</b>，
+                            生成完成后在右侧告诉你本次实际消耗（校验不通过、生成失败<b>不扣费</b>）。
+                          </p>
+                        ) : typeof runSku?.ppu === "number" && runSku.ppu > 0 && (
                           <p>
                             预计消耗约 <b>{runSku.ppu}</b> 积分（<b>按本次实际用量结算</b>，可能略有出入；生成完成后会告诉你实际扣了多少）。
                           </p>
@@ -1544,7 +1618,7 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                 需要再要一份时，点「再问一次 / 重新开始」即可，用量按实际消耗计算。
               </div>
               <button className="btn ghost block" style={{ marginBottom: 10 }} disabled={exporting} onClick={downloadWord}>
-                {exporting ? "正在导出…" : `⬇ 下载精美 Word / WPS 报告${docxPrice ? ` · ${docxPrice} 积分` : ""}`}
+                {exporting ? "正在导出…" : "⬇ 下载精美 Word / WPS 报告"}
               </button>
               <button className="btn primary block" onClick={restart}>再问一次 / 重新开始</button>
             </div>
@@ -1554,23 +1628,29 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
             </div>
           ) : (
             <div className="chat-page-composer">
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                <button className="btn ghost sm" onClick={() => openFile("file")}>📎 文件</button>
-                <button className="btn ghost sm" onClick={() => openFile("video")}>🎬 视频</button>
-                <button
-                  className={`btn ghost sm${voice.recording ? " voice-recording" : ""}`}
-                  type="button"
-                  onClick={voice.toggle}
-                  disabled={busy || voice.busy}
-                  title={voice.recording ? "结束录音并转成文字" : "语音输入：点一下开始说话"}
-                >
-                  {voice.recording ? "⏹ 结束录音" : "🎤 语音"}
-                </button>
-                {isVidrev
-                  ? <button className="btn ghost sm" onClick={fillVidrevStandardRequest}>✨ 一键填充标准请求</button>
-                  : <button className="btn ghost sm" onClick={enhanceInput}>✨ 增强提示词</button>}
-                <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={onFileChange} />
-              </div>
+              {/**
+               * 工具行仅普通对话页渲染；workbench 内嵌模式改为原型式紧凑输入行（🎤 + 输入 + 发送），
+               * 次要工具（文件/视频/增强提示词/重新开始）收进输入行下方的小按钮排。
+               */}
+              {!workbench && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <button className="btn ghost sm" onClick={() => openFile("file")}>📎 文件</button>
+                  <button className="btn ghost sm" onClick={() => openFile("video")}>🎬 视频</button>
+                  <button
+                    className={`btn ghost sm${voice.recording ? " voice-recording" : ""}`}
+                    type="button"
+                    onClick={voice.toggle}
+                    disabled={busy || voice.busy}
+                    title={voice.recording ? "结束录音并转成文字" : "语音输入：点一下开始说话"}
+                  >
+                    {voice.recording ? "⏹ 结束录音" : "🎤 语音"}
+                  </button>
+                  {isVidrev
+                    ? <button className="btn ghost sm" onClick={fillVidrevStandardRequest}>✨ 一键填充标准请求</button>
+                    : <button className="btn ghost sm" onClick={enhanceInput}>✨ 增强提示词</button>}
+                </div>
+              )}
+              <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={onFileChange} />
               <div>
               {attachments.length > 0 && (
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
@@ -1602,6 +1682,77 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                   ))}
                 </div>
               )}
+              {workbench && !awaitingSupplement && (
+                <div className="chat-hint" style={{ color: "var(--muted)", fontSize: 12, textAlign: "right", marginBottom: 6 }}>
+                  老手？跳过访谈，直接点右侧简报补全 6 项 →
+                </div>
+              )}
+              {workbench ? (
+                <>
+                  <div className="ipw-input-row">
+                    <button
+                      type="button"
+                      className="ipw-mic"
+                      onClick={voice.toggle}
+                      disabled={busy || voice.busy}
+                      title={voice.recording ? "结束录音并转成文字" : "语音输入：点一下开始说话"}
+                    >
+                      {voice.recording ? "⏹" : "🎤"}
+                    </button>
+                    {/**
+                     * 用户 2026-09-27（二次反馈）：textarea 固定高度仍被吐槽长高，改成原型同款单行 <input>，
+                     * 物理上不可能长高；输入即一行，Enter 直接发送。
+                     */}
+                    <input
+                      type="text"
+                      className="ipw-input"
+                      value={input}
+                      onPaste={(event) => {
+                        const files = Array.from(event.clipboardData?.files ?? []);
+                        if (files.length > 0) {
+                          event.preventDefault();
+                          void addFiles(files);
+                        }
+                      }}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void send();
+                        }
+                      }}
+                      placeholder={awaitingSupplement ? "补充缺失的信息，发送后重新生成（不消耗积分）" : "打字或点 🎤 说话，例如：竞品换成 XX / 目标改成品牌"}
+                    />
+                    <button
+                      type="button"
+                      className="ipw-send"
+                      disabled={busy || !input.trim()}
+                      onClick={() => void send()}
+                    >
+                      {busy ? "…" : awaitingSupplement ? "重新生成" : step < slots.length - 1 ? "下一步" : "确认需求"}
+                    </button>
+                  </div>
+                  <div className="ipw-sub-row">
+                    <button className="btn ghost sm" onClick={() => openFile("file")}>📎 文件</button>
+                    <button className="btn ghost sm" onClick={() => openFile("video")}>🎬 视频</button>
+                    {isVidrev
+                      ? <button className="btn ghost sm" onClick={fillVidrevStandardRequest}>✨ 一键填充标准请求</button>
+                      : <button className="btn ghost sm" onClick={enhanceInput}>✨ 增强提示词</button>}
+                    {hasProgress && (
+                      <button
+                        className="btn ghost sm"
+                        style={{ marginLeft: "auto" }}
+                        disabled={busy}
+                        title="清空这次填写的内容与已上传文件，从第一轮重新开始"
+                        onClick={restart}
+                      >
+                        ↺ 重新开始
+                      </button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
               <textarea
                 value={input}
                 onPaste={(event) => {
@@ -1648,25 +1799,33 @@ export function MarketplaceAgentChatPage({ skuId }: { skuId: string }) {
                   {busy ? "正在生成…" : awaitingSupplement ? "重新生成" : step < slots.length - 1 ? "下一步" : "确认需求"}
                 </button>
               </div>
+                </>
+              )}
               </div>
-              <div className="chat-hint">
-                AI 会按本智能体技能逻辑<b>主动提问，引导你补全信息</b>，补全后产出结果 · <b>可把文件直接拖进这里</b>
-                {isVidrev
-                  ? "（文本类 CSV/TXT/MD/JSON、后台导出的 Excel（.xlsx）与图片会读进需求；PDF/Word/视频暂只记文件名）。图片按识别次数计费，每次 10 积分，识别失败/无有效内容不扣积分。"
-                  : "（文本类 CSV/TXT/MD/JSON 与图片会读进需求；PDF/Word/Excel/视频暂只记文件名）。图片按识别次数计费，每次 10 积分，识别失败/无有效内容不扣积分。"}
-              </div>
+              {!workbench && (
+                <div className="chat-hint">
+                  AI 会按本智能体技能逻辑<b>主动提问，引导你补全信息</b>，补全后产出结果 · <b>可把文件直接拖进这里</b>
+                  {isVidrev
+                    ? "（文本类 CSV/TXT/MD/JSON、后台导出的 Excel（.xlsx）与图片会读进需求；PDF/Word/视频暂只记文件名）。图片按识别次数计费，每次 10 积分，识别失败/无有效内容不扣积分。"
+                    : "（文本类 CSV/TXT/MD/JSON 与图片会读进需求；PDF/Word/Excel/视频暂只记文件名）。图片按识别次数计费，每次 10 积分，识别失败/无有效内容不扣积分。"}
+                </div>
+              )}
             </div>
           )}
           </div>
-        </section>
+          </section>
       )}
-    </main>
+    </ShellTag>
   );
 }
 
 function renderInline(text: string): string {
-  // 兼容原型里用 **加粗** 的简单标记。
-  return text.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+  // 兼容原型里用 **加粗** 的简单标记；换行转 <br/>（欢迎语/提示语是多行文案，2026-09-27 对齐原型）。
+  // 「💡 提示：」行包成小字灰色的独立行（对齐原型 hint 样式），必须在 \n→<br/> 之前做。
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+    .replace(/(^|\n)(💡 提示：[^\n]*)/g, '$1<span class="ipw-hint">$2</span>')
+    .replace(/\n/g, "<br/>");
 }
 
 // 直播话术逐字稿专属渲染（2026-09-22 排版升级）：
@@ -1760,7 +1919,7 @@ function renderLiveScriptHtml(md: string): string {
   return out.join("\n");
 }
 
-function renderMarkdownHtml(md: string): string {
+export function renderMarkdownHtml(md: string): string {
   const lines = md.split(/\r?\n/);
   const out: string[] = [];
   let i = 0;

@@ -73,7 +73,7 @@ export function MarketplaceMyAgentsPage() {
   if (!signedIn) {
     return (
       <main className="app-wrap">
-        <Topbar active="mine" balance={null} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
+        <Topbar active="my-agents" balance={null} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
         <section className="view view-mine">
           <div className="login-gate big">
             🔒 你还未登录
@@ -87,7 +87,7 @@ export function MarketplaceMyAgentsPage() {
 
   return (
     <main className="app-wrap">
-      <Topbar active="mine" balance={balance} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
+      <Topbar active="my-agents" balance={balance} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
       <section className="view view-mine">
         <h1>常用</h1>
         <p className="mine-tip">你用过、还在用的数字员工都在这里——点「继续使用」直接回到对话，不用再翻商城。</p>

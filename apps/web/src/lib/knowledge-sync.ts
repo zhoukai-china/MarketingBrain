@@ -16,10 +16,10 @@ export interface KnowledgeSyncView {
   unchanged: number;
   skipped: number;
   failed: number;
+  analyzed?: number;
+  analyzedFailed?: number;
+  analyzedReused?: number;
   assignedToSubject: number;
-  retryCount: number;
-  throttleMs: number;
-  backoffMs: number;
   importedByType: { transcripts: number; notes: number; webPages: number };
   message?: string | null;
   lastSuccessfulAt?: string | null;
@@ -110,22 +110,34 @@ export function knowledgeSyncProgressText(sync: KnowledgeSyncView): string {
     queued: "已入队，正在准备",
     listing: "正在读取资料列表",
     details: "正在读取资料详情",
-    throttling: "正在遵守 Get笔记读取频率限制",
-    backoff: "外部服务限流或暂时不可用，正在退避等待",
+    throttling: "正在读取资料详情",
+    backoff: "正在读取资料详情",
     parsing: "正在校验资料格式",
     persisting: "正在保存有变化的资料",
     binding: "正在确认资料归属",
+    analyzing: "正在整理笔记要点（核心观点 / 金句 / 客户原话）",
     completed: "同步完成",
     partial_failure: "部分资料同步失败",
     interrupted: "同步进程已中断",
     failed: "同步失败"
   };
+  // 进度只给客户看「阶段 + 几/几条」这类必要信息；内部「重试 N 次 / 退避 X 秒」属于运维细节，
+  // 只在服务端日志里记录，不污染客户界面（避免客户看到一堆退避秒数以为系统坏了）。
   const progress = sync.total ? ` ${Math.min(sync.processed, sync.total)}/${sync.total}` : sync.scanned ? ` 已扫描 ${sync.scanned}` : "";
-  const retry = sync.retryCount ? `，已重试 ${sync.retryCount} 次${sync.backoffMs ? `（退避 ${Math.round(sync.backoffMs / 100) / 10} 秒）` : ""}` : "";
-  return `${labels[sync.stage] ?? "同步处理中"}${progress}${retry}`;
+  return `${labels[sync.stage] ?? "同步处理中"}${progress}`;
 }
 
 export function knowledgeSyncResultText(sync: KnowledgeSyncView): string {
   if (sync.status !== "succeeded") return sync.message ?? `${knowledgeSyncProgressText(sync)}；${sync.retryable ? "可以安全重试。" : "请重新检查授权后再试。"}`;
-  return `同步完成：扫描 ${sync.scanned} 条，新增 ${sync.created} 条，更新 ${sync.updated} 条，无变化 ${sync.unchanged} 条，跳过 ${sync.skipped} 条。`;
+  const analyzed = sync.analyzed ?? 0;
+  const reused = sync.analyzedReused ?? 0;
+  // 口径统一：主数字一律用「有效笔记」= 新增 + 更新 + 无变化（与预检徽标「近 30 天 X 条：已同步 X」同一数字）。
+  // 「扫描」原始数（含空录音/窗口外）与库内历史总量不再作为主数字展示，避免同屏出现 70/88/99 三个对不上的数。
+  const valid = (sync.created ?? 0) + (sync.updated ?? 0) + (sync.unchanged ?? 0);
+  const syncPart = `同步完成：本次有效笔记 ${valid} 条（新增 ${sync.created ?? 0} · 更新 ${sync.updated ?? 0} · 无变化 ${sync.unchanged ?? 0}），另跳过 ${sync.skipped ?? 0} 条空录音或超出 30 天窗口的笔记`;
+  // getnote 同步全程 0 次 LLM：核心观点/金句来自得到大脑免费智能总结，落库时已写入 metadata.analysis。
+  const insightPart = analyzed > 0
+    ? `，本轮新提取 ${analyzed} 篇、沿用 ${reused} 篇，合计 ${analyzed + reused} 篇洞察可用于选题${sync.analyzedFailed ? `（${sync.analyzedFailed} 篇提取失败）` : ""}`
+    : `，全程未调用大模型；选题可用洞察合计 ${reused} 条${reused > valid ? `（含历史已同步笔记 ${reused - valid} 条）` : ""}`;
+  return `${syncPart}${insightPart}。`;
 }
