@@ -320,6 +320,20 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
       return { em: el ? getComputedStyle(el).color : "", b: b ? getComputedStyle(b).color : "" };
     });
     log(side.em === "rgb(255, 106, 0)" && side.b === "rgb(43, 27, 16)", "首页侧栏字标同配色（思潼深+AI橙）", JSON.stringify(side));
+    const homeTb = await p7.evaluate(() => {
+      const tb = document.querySelector(".eco-mall-page > .eh-topbar");
+      const bal = document.querySelector(".eco-mall-page .eh-bal2");
+      const mini = document.querySelector(".eco-mall-page .eh-mini");
+      return {
+        bg: getComputedStyle(tb).backgroundColor,
+        balBg: getComputedStyle(bal).backgroundColor,
+        balBefore: getComputedStyle(bal, "::before").content,
+        miniBg: getComputedStyle(mini).backgroundImage.slice(0, 40)
+      };
+    });
+    log(homeTb.bg === "rgba(255, 255, 255, 0.9)", "首页顶栏回退白底", homeTb.bg);
+    log(homeTb.balBg === "rgb(255, 255, 255)" && homeTb.balBefore.indexOf("⚡") >= 0, "首页⚡算力橙胶囊", homeTb.balBg + homeTb.balBefore);
+    log(homeTb.miniBg.indexOf("linear-gradient") >= 0, "首页充值橙渐变按钮", homeTb.miniBg);
     await p7.screenshot({ path: __dirname + "/home-topbar-v2.png" });
     await p7.close();
   }

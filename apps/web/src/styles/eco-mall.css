@@ -1681,3 +1681,32 @@ body:has(.ipd-page), body:has(.ts-wb){overflow-x:hidden}
 /* 详情页：顶栏贴顶 + 干净浅色背景（去掉商城橙粉渐变，原型工作台同为 #F4F7FC） */
 .ipd-page.eh{padding-top:0;background:#F4F7FC;background-image:none}
 .ipd-page.eh > .eh-topbar{margin-top:0}
+
+
+/* ============================================================
+   首页顶栏回退上一版（2026-09-29 用户要求）：白底 + ⚡算力橙胶囊 + 橙色渐变充值
+   仅作用于 .eco-mall-page（商城首页）；详情/工作台保持原型 ip-pos-workbench-demo 规格
+   ============================================================ */
+.eco-mall-page > .eh-topbar{
+  background:rgba(255,255,255,.9);
+  -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+  border-bottom:1px solid #F0EBE3;
+}
+.eco-mall-page > .eh-topbar > .eh-topbar-in{height:auto;padding:10px 22px}
+.eco-mall-page .eh-bal2{
+  background:#fff;border:1px solid rgba(255,122,26,.35);color:#E86A00;font-size:13px;
+  height:34px;padding:0 14px;
+}
+.eco-mall-page .eh-bal2::before{content:"⚡ "}
+.eco-mall-page .eh-bal2 b{color:#E86A00}
+.eco-mall-page .eh-topbar .eh-mini{
+  padding:6px 13px;border-radius:10px;font-size:13px;font-weight:600;
+  color:#fff;background:linear-gradient(135deg,#FF8A2A,#F25300);
+  border:0;box-shadow:0 3px 14px rgba(255,106,0,.35);
+}
+.eco-mall-page .eh-topbar .eh-mini::after{
+  display:block;content:"";position:absolute;top:0;left:-70%;width:45%;height:100%;
+  background:linear-gradient(105deg,transparent,rgba(255,255,255,.5),transparent);
+  animation:ehSheen 2.8s infinite;
+}
+.eco-mall-page .eh-topbar .eh-mini:hover{background:linear-gradient(135deg,#FF8A2A,#F25300)}
