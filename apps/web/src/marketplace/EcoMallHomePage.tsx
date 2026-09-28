@@ -15,7 +15,7 @@ import {
   type EcoSkinKey
 } from "./eco-mall-data.js";
 
-type FloorId = "floor-employees" | "floor-consultants" | "floor-hardware" | "floor-courses" | "floor-brand";
+type FloorId = "floor-employees" | "floor-consultants" | "floor-hardware" | "floor-courses" | "floor-brand" | "floor-cases";
 
 const KINGKONG: Array<{ floor: FloorId; label: string; icon: string; tint: string }> = [
   { floor: "floor-employees", label: "数字员工", icon: "👥", tint: "244, 121, 32" },
@@ -29,6 +29,14 @@ const TODAY_ITEMS: Array<{ title: string; hint: string; employeeKey: string }> =
   { title: "今天要发内容", hint: "让金牌文案主笔直接给你一条能念的稿", employeeKey: "copywriter" },
   { title: "周一起号 / 定方向", hint: "让首席定位官先定人设，再排内容", employeeKey: "ip-position" },
   { title: "刚直播完 / 发了视频", hint: "让流量诊断官或直播复盘导师帮你复盘", employeeKey: "video-diag" }
+];
+
+/** AI 案例（原型 v3.12 信息流；演示数据虚构，口径照原型）。 */
+const AI_CASES: Array<{ tag: string; title: string; metric: string; point: string; agents: string }> = [
+  { tag: "美容门店", title: "美容院上线 AI 经营大脑", metric: "到店转化 21% → 34%", point: "门店的资产不是流量，是「记得住每个顾客」——记忆底座一建，转化和客单一起涨。", agents: "经营大脑 · 数字员工" },
+  { tag: "前台提效", title: "重复答一年的问题交给机器人", metric: "前台腾出 0.5 人力去干转化", point: "重复答了一年的问题就该交给机器人——前台腾出来的人去干转化。", agents: "数字咨询师" },
+  { tag: "短视频", title: "视频没流量，先复盘再拍", metric: "1 条视频复盘 + 下一条迭代动作", point: "从播放、完播、互动、转化里找毛病，给出下一条怎么改的动作。", agents: "江流 · 视频复盘官" },
+  { tag: "直播", title: "开播前要话术，播后要复盘", metric: "1 场复盘（流量/转化/话术）+ 迭代动作", point: "开播前找罗盘要话术，播后找许复拉数据，下场照着改。", agents: "罗盘 · 许复" }
 ];
 
 /**
@@ -274,6 +282,17 @@ export function EcoMallHomePage() {
   const [openEmployee, setOpenEmployee] = useState<EcoEmployee | null>(null);
   const [openEmployeeSkin, setOpenEmployeeSkin] = useState<EcoSkinKey>("通用");
   const [openConsultant, setOpenConsultant] = useState<EcoConsultant | null>(null);
+  // B 线新增（agents-home-tech-demo v3.28 对齐，2026-09-28）：签到 / 邀请 / 新手词典弹层。
+  // 签到、邀请均为**本地演示态**（后端签到/裂变接口属 A 线 P1，落地后切换）。
+  const today = new Date().toISOString().slice(0, 10);
+  const [showSignIn, setShowSignIn] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
+  const [showDict, setShowDict] = useState(false);
+  const [signedToday, setSignedToday] = useState(() => Boolean(localStorage.getItem(`eco_sign_${new Date().toISOString().slice(0, 10)}`)));
+  function signIn() {
+    localStorage.setItem(`eco_sign_${today}`, "1");
+    setSignedToday(true);
+  }
 
   useEffect(() => {
     document.body.classList.add("eco-mall-body");
@@ -434,10 +453,27 @@ export function EcoMallHomePage() {
   }
 
   return (
-    <main className="app-wrap eco-mall-page">
+    <main className="app-wrap eco-mall-page eco-light">
       <Topbar active="market" balance={balance} onNavigate={(path) => { window.location.href = getAppPath(path); }} />
 
       <section className="eco-mall">
+        {/* Hero AI 指挥横幅（原型 v3.28 + HANDOFF §11 文案口径） */}
+        <section className="eco-hero">
+          <div className="eco-hero-top">
+            <span className="eco-hero-ava">🤖</span>
+            <div className="eco-hero-msg">
+              <b>你好，我是 AI 管家小潼</b>
+              <span>AI 值班中 · 随时问我怎么用 AI 干活</span>
+              <em>⭐ AI 商城 · 智能体 / 数字员工 / AI硬件 / AI课程，一站配齐</em>
+            </div>
+          </div>
+          <div className="eco-hero-cta">
+            <button type="button" className="eco-hero-btn" onClick={() => setShowInvite(true)}>🧧 免费开通 · 立送 100 算力</button>
+            <button type="button" className="eco-hero-ghost" onClick={() => setShowDict(true)}>❓ 新手帮助</button>
+          </div>
+          <p className="eco-hero-note">⚡ 计费口径：1 元 = 10 算力 · 0 元开通 · 用后扣费 · 失败不扣</p>
+        </section>
+
         <div className="eco-searchbar">
           <div className="eco-search">
             <svg className="eco-search-ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -505,13 +541,14 @@ export function EcoMallHomePage() {
               ))}
             </nav>
 
-            <div className="eco-banner">
+            {/* 广告位（原型：当前仅邀约有礼） */}
+            <button type="button" className="eco-banner eco-invite-banner" onClick={() => setShowInvite(true)}>
               <div className="eco-banner-text">
-                <b>数字员工团队已就位</b>
-                <span>文案、定位、复盘…挑一位立即开工，按次计算力</span>
+                <b>🎁 邀约有礼 · 各得 100 算力</b>
+                <span>好友开通立得 100 · 好友消耗满 50 你再得 100 · 人数不限</span>
               </div>
-              <a className="eco-banner-link" href={getAppPath("/recharge")}>算力充值 ›</a>
-            </div>
+              <span className="eco-banner-link">去邀请 ›</span>
+            </button>
 
             {renderTodayStrip()}
 
@@ -578,9 +615,104 @@ export function EcoMallHomePage() {
             </section>
 
             {renderBrandFloor()}
+
+            {/* AI 案例 · 信息流（原型 v3.12；演示数据虚构，照原型口径标注） */}
+            <section className="eco-floor" id="floor-cases">
+              <FloorHead no="📚" title="AI 案例" sub="看别人怎么用 AI 降本增效——每个案例写清卡点、做法、投入、结果，看中直接用同款智能体（演示数据虚构）。" />
+              <div className="eco-cases">
+                {AI_CASES.map((c) => (
+                  <article key={c.title} className="eco-case">
+                    <div className="eco-case-top">
+                      <span className="eco-case-tag">{c.tag}</span>
+                      <b className="eco-case-metric">{c.metric}</b>
+                    </div>
+                    <h3 className="eco-case-title">{c.title}</h3>
+                    <p className="eco-case-point">{c.point}</p>
+                    <div className="eco-case-agents">同款智能体：{c.agents}</div>
+                  </article>
+                ))}
+              </div>
+              <div className="eco-case-foot">上面这些案例用的智能体，商城里都有现成的 · <a onClick={() => scrollToFloor("floor-employees")}>去逛同款 ›</a></div>
+            </section>
           </>
         )}
       </section>
+
+      {/* 底部 TabBar（原型 v3.28：首页 / AI案例 / 购物车 / 我的 + 我的算力） */}
+      <nav className="eco-tabbar" aria-label="商城底部导航">
+        <button type="button" className="eco-tb-item on" onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+          <span className="eco-tb-ico">🏠</span><span>首页</span>
+        </button>
+        <button type="button" className="eco-tb-item" onClick={() => scrollToFloor("floor-cases")}>
+          <span className="eco-tb-ico">📚</span><span>AI案例</span>
+        </button>
+        <button type="button" className="eco-tb-item" title="购物车（即将上线）">
+          <span className="eco-tb-ico">🛒<i className="eco-tb-badge">0</i></span><span>购物车</span>
+        </button>
+        <button type="button" className="eco-tb-item" onClick={() => { window.location.href = getAppPath("/mine"); }}>
+          <span className="eco-tb-ico">👤</span><span>我的</span>
+        </button>
+        <button type="button" className="eco-tb-item eco-tb-me" onClick={() => { window.location.href = getAppPath("/recharge"); }}>
+          <span className="eco-tb-ico">⚡</span>
+          <span>我的算力<b> {balance ?? "—"}</b><small>{balance != null ? `≈ ¥${(balance / 10).toFixed(balance % 10 === 0 ? 0 : 1)}` : ""}</small></span>
+        </button>
+      </nav>
+
+      {showSignIn ? (
+        <div className="eco-modal-mask" onClick={() => setShowSignIn(false)}>
+          <div className="eco-modal" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="eco-modal-x" onClick={() => setShowSignIn(false)}>✕</button>
+            <h3>📅 每日签到</h3>
+            <p className="eco-modal-sub">每日 +5 · 第 7 天 +30（含当天）· 每周封顶 60 · 断签重置</p>
+            <button type="button" className="eco-modal-btn" disabled={signedToday} onClick={signIn}>
+              {signedToday ? "今天已签到 ✓" : "立即签到 · +5 算力"}
+            </button>
+            <p className="eco-modal-tip">签到所得为赠送算力 · 90 天有效期 · 限思潼自营文字类智能体<br />（演示环境：签到入账随后端能力上线）</p>
+          </div>
+        </div>
+      ) : null}
+
+      {showInvite ? (
+        <div className="eco-modal-mask" onClick={() => setShowInvite(false)}>
+          <div className="eco-modal eco-invite" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="eco-modal-x" onClick={() => setShowInvite(false)}>✕</button>
+            <h3>🎁 邀请有礼</h3>
+            <p className="eco-modal-sub">分享海报给好友 · 各得 100 算力 · 人数不限</p>
+            <div className="eco-invite-poster">
+              <b>思潼AI商城 · 智能体 0 元开通</b>
+              <span>好友开通 · 各得 100 算力</span>
+              <div className="eco-invite-rows">
+                <i>100<small>好友注册立得</small></i>
+                <i>100<small>好友消耗满 50 你得</small></i>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="eco-modal-btn"
+              onClick={() => { void navigator.clipboard?.writeText(window.location.href); }}
+            >
+              复制邀请链接
+            </button>
+            <p className="eco-modal-tip">风控：同设备 / 同手机号 / 同支付账号只认一个；刷量追回（演示环境：邀请入账随后端能力上线）</p>
+          </div>
+        </div>
+      ) : null}
+
+      {showDict ? (
+        <div className="eco-modal-mask" onClick={() => setShowDict(false)}>
+          <div className="eco-modal" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="eco-modal-x" onClick={() => setShowDict(false)}>✕</button>
+            <h3>❓ 新手帮助 · 术语词典</h3>
+            <p className="eco-modal-sub">看不懂的词这里都有</p>
+            <div className="eco-dict">
+              <p><b>⚡ 算力</b>商城里唯一的「钱」：1 元 = 10 算力。智能体按次扣算力，例：本单 99 算力 ≈ ¥9.9。</p>
+              <p><b>🪙 算力（旧称「积分」）</b>以前叫「积分」，现在统一叫「算力」，是同一样东西。</p>
+              <p><b>💬 访谈</b>智能体开工前先问你几个问题（一次只问一个），回答自动填进「简报」。</p>
+              <p><b>📋 简报</b>访谈答完自动生成的任务卡，字段可逐条改，确认后才生成，改简报不花钱。</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {openEmployee ? (
         <EmployeeModal

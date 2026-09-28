@@ -163,7 +163,10 @@ export function Topbar({ active, balance, onNavigate }: { active: string; balanc
           <button className="logout-link" onClick={handleLogout} title="退出后用另一个账号重新登入">退出登录</button>
         ) : null}
       </header>
-      <div className="shared-banner">💎 <b>算力全平台通用</b> · 数字员工、数字咨询师与各行业专区共用同一份算力</div>
+      {/* 算力余额预警（HANDOFF §2.6：余额低于 50 算力时预警提示；2026-09-28 D 线接入） */}
+      {balance != null && balance < 50
+        ? <div className="shared-banner warn">⚠️ 算力余额不足 50（当前 {balance}）· 使用前建议先充值，<b style={{ cursor: "pointer" }} onClick={() => onNavigate("/recharge")}>去充值 ›</b></div>
+        : <div className="shared-banner">💎 <b>算力全平台通用</b> · 数字员工、数字咨询师与各行业专区共用同一份算力</div>}
     </>
   );
 }

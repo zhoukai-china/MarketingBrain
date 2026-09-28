@@ -1046,3 +1046,172 @@ body.eco-mall-body .app-wrap {
     top: 58px;
   }
 }
+
+/* ============================================================
+   B 线：商城首页 v3.28 对齐（2026-09-28，仅本地）
+   作用域浅色化 + Hero / 邀约广告位 / AI 案例流 / 底部 TabBar / 签到·邀请·词典弹层
+   ============================================================ */
+.eco-light {
+  --bg: #f6f7f9;
+  --bg2: #fff;
+  --bg3: #eef1f6;
+  --text: #1f2329;
+  --line: #e7e9ee;
+  --muted: #6b7280;
+  --muted-2: #9aa3af;
+  background: var(--bg);
+  color: var(--text);
+  padding-bottom: 64px; /* 给底部 TabBar 留位 */
+}
+.eco-light .eco-floor h2,
+.eco-light .eco-p-name,
+.eco-light .eco-mod-name { color: var(--text); }
+
+/* ---- Hero AI 指挥横幅 ---- */
+.eco-hero {
+  background: linear-gradient(135deg, #17313f 0%, #274156 55%, #3a4a3f 100%);
+  border-radius: 16px;
+  padding: 18px 18px 14px;
+  margin: 14px 0 12px;
+  color: #fff;
+}
+.eco-hero-top { display: flex; gap: 12px; align-items: flex-start; }
+.eco-hero-ava {
+  width: 52px; height: 52px; flex-shrink: 0;
+  display: grid; place-content: center;
+  font-size: 26px;
+  background: rgba(255, 255, 255, .12);
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 14px;
+}
+.eco-hero-msg { display: grid; gap: 3px; }
+.eco-hero-msg b { font-size: 16.5px; }
+.eco-hero-msg span { font-size: 12.5px; color: rgba(255, 255, 255, .78); }
+.eco-hero-msg em { font-style: normal; font-size: 12px; color: #ffd9c2; }
+.eco-hero-cta { display: flex; gap: 10px; margin-top: 13px; flex-wrap: wrap; }
+.eco-hero-btn {
+  flex: 1; min-width: 200px;
+  border: none; cursor: pointer;
+  background: linear-gradient(135deg, #ff9a4d, #ff6a00 55%, #e04e00);
+  color: #fff; font-size: 14px; font-weight: 800;
+  padding: 11px 14px; border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(255, 106, 0, .4);
+}
+.eco-hero-ghost {
+  border: 1px solid rgba(255, 255, 255, .35);
+  background: rgba(255, 255, 255, .08);
+  color: #fff; font-size: 13px; font-weight: 600;
+  padding: 11px 14px; border-radius: 12px; cursor: pointer;
+}
+.eco-hero-note { margin: 10px 0 0; font-size: 11.5px; color: rgba(255, 255, 255, .6); }
+
+/* ---- 邀约有礼广告位 ---- */
+.eco-invite-banner { cursor: pointer; width: 100%; text-align: left; border: 1px dashed rgba(232, 101, 26, .45); background: #fff4ec; }
+.eco-invite-banner .eco-banner-text b { color: #d94f00; }
+
+/* ---- AI 案例 · 信息流 ---- */
+.eco-cases { display: grid; gap: 12px; }
+.eco-case {
+  background: var(--bg2, #fff);
+  border: 1px solid var(--line, #e7e9ee);
+  border-radius: 14px;
+  padding: 14px 15px;
+  box-shadow: 0 2px 10px rgba(20, 30, 60, .04);
+}
+.eco-case-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+.eco-case-tag {
+  font-size: 11px; font-weight: 700;
+  padding: 2px 9px; border-radius: 99px;
+  background: #fff4ec; color: #b4420f;
+}
+.eco-case-metric { font-size: 13px; color: #0f9d6e; }
+.eco-case-title { font-size: 14.5px; margin: 2px 0 6px; }
+.eco-case-point { font-size: 12.5px; color: var(--muted, #6b7280); line-height: 1.7; margin: 0 0 8px; }
+.eco-case-agents { font-size: 11.5px; color: var(--muted-2, #9aa3af); border-top: 1px dashed var(--line, #e7e9ee); padding-top: 8px; }
+.eco-case-foot { text-align: center; font-size: 12.5px; color: var(--muted, #6b7280); margin-top: 10px; }
+.eco-case-foot a { color: #e7651a; cursor: pointer; font-weight: 700; }
+
+/* ---- 底部 TabBar ---- */
+.eco-tabbar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 60;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  background: #fff;
+  border-top: 1px solid var(--line, #e7e9ee);
+  box-shadow: 0 -4px 14px rgba(20, 30, 60, .06);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.eco-tb-item {
+  border: none; background: none; cursor: pointer;
+  display: grid; gap: 1px; justify-items: center;
+  padding: 7px 2px 6px;
+  font-size: 10.5px; color: var(--muted, #6b7280);
+  position: relative;
+}
+.eco-tb-item.on, .eco-tb-item:hover { color: #e7651a; }
+.eco-tb-ico { font-size: 17px; line-height: 1; }
+.eco-tb-badge {
+  position: absolute; top: 2px; right: calc(50% - 20px);
+  font-style: normal; font-size: 9px; font-weight: 700;
+  background: #e7651a; color: #fff;
+  border-radius: 99px; padding: 0 4px;
+}
+.eco-tb-me { color: #b4420f; }
+.eco-tb-me b { font-size: 11px; }
+.eco-tb-me small { display: block; font-size: 9px; color: var(--muted-2, #9aa3af); }
+
+/* ---- 弹层（签到 / 邀请 / 词典） ---- */
+.eco-modal-mask {
+  position: fixed; inset: 0; z-index: 90;
+  background: rgba(23, 22, 20, .55);
+  display: grid; place-content: center;
+  padding: 20px;
+}
+.eco-modal {
+  position: relative;
+  width: min(400px, 92vw);
+  background: #fff; color: #1f2329;
+  border-radius: 18px;
+  padding: 24px 22px 18px;
+  text-align: center;
+  box-shadow: 0 18px 50px rgba(40, 20, 0, .25);
+}
+.eco-modal-x {
+  position: absolute; top: 10px; right: 14px;
+  border: none; background: none;
+  font-size: 18px; color: #9aa3af; cursor: pointer;
+}
+.eco-modal h3 { font-size: 16.5px; margin-bottom: 6px; }
+.eco-modal-sub { font-size: 12.5px; color: #6b7280; margin: 0 0 14px; }
+.eco-modal-btn {
+  width: 100%;
+  border: none; cursor: pointer;
+  background: linear-gradient(135deg, #ff9a4d, #ff6a00 55%, #e04e00);
+  color: #fff; font-size: 14px; font-weight: 800;
+  padding: 12px; border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(255, 106, 0, .4);
+}
+.eco-modal-btn:disabled { background: #e5e7eb; color: #9aa3af; box-shadow: none; cursor: default; }
+.eco-modal-tip { font-size: 11px !important; color: #9aa3af !important; margin: 10px 0 0 !important; line-height: 1.7; }
+.eco-invite-poster {
+  background: linear-gradient(135deg, #fff4ec, #ffe9d9);
+  border: 1px solid #ffd9bf;
+  border-radius: 14px;
+  padding: 16px 14px;
+  margin-bottom: 14px;
+  display: grid; gap: 6px;
+}
+.eco-invite-poster b { font-size: 14.5px; color: #7a3d12; }
+.eco-invite-poster > span { font-size: 12.5px; color: #9a5b00; }
+.eco-invite-rows { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
+.eco-invite-rows i {
+  font-style: normal; font-weight: 900; font-size: 24px; color: #e04e00;
+  display: grid; gap: 2px;
+  background: #fff; border-radius: 10px; padding: 8px;
+}
+.eco-invite-rows small { font-weight: 600; font-size: 10.5px; color: #7a6455; }
+.eco-dict { text-align: left; display: grid; gap: 8px; }
+.eco-dict p { font-size: 12.5px; color: #374151; line-height: 1.7; background: #f8f9fb; border-radius: 10px; padding: 9px 12px; margin: 0; }
+.eco-dict b { color: #b4420f; }

@@ -145,6 +145,10 @@ const VidrevDetailPage = lazy(() => import("./marketplace/VidrevDetailPage.js").
 const LivescriptDetailPage = lazy(() => import("./marketplace/LivescriptDetailPage.js").then(module => ({ default: module.LivescriptDetailPage })));
 // 选题策略官商品详情页（/agent/ipzone__topic/detail，落地自原型 20260923 ?agent=topic）
 const TopicDetailPage = lazy(() => import("./marketplace/TopicDetailPage.js").then(module => ({ default: module.TopicDetailPage })));
+// 未上线三智能体预约详情页（许复/易成/周域，原型 v12 预约 sec，2026-09-28）
+const LiverevDetailPage = lazy(() => import("./marketplace/ComingSoonDetails.js").then(module => ({ default: module.LiverevDetailPage })));
+const SalesDetailPage = lazy(() => import("./marketplace/ComingSoonDetails.js").then(module => ({ default: module.SalesDetailPage })));
+const MomentsDetailPage = lazy(() => import("./marketplace/ComingSoonDetails.js").then(module => ({ default: module.MomentsDetailPage })));
 const RechargePage = lazy(() => import("./pages/RechargePage.js").then(module => ({ default: module.RechargePage })));
 
 type AppStage = "login" | "diagnosis" | "main";
@@ -495,6 +499,16 @@ function Root() {
     }
     if (marketplaceDetailMatch[1] === "ipzone__topic") {
       return <TopicDetailPage />;
+    }
+    // 未上线三智能体（许复/易成/周域）：预约收口版详情页（原型 v12 预约 sec，2026-09-28）
+    if (marketplaceDetailMatch[1] === "ipzone__liverev") {
+      return <LiverevDetailPage />;
+    }
+    if (marketplaceDetailMatch[1] === "ipzone__sales") {
+      return <SalesDetailPage />;
+    }
+    if (marketplaceDetailMatch[1] === "ipzone__moments") {
+      return <MomentsDetailPage />;
     }
     return <MarketplaceAgentDetailPage skuId={marketplaceDetailMatch[1]} />;
   }

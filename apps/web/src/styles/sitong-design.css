@@ -127,6 +127,9 @@ body[data-device="mobile"] .proto-bar{border-radius:0}
   background:linear-gradient(90deg,rgba(244,121,32,.18),rgba(255,255,255,.04) 60%, transparent);
   border-bottom:1px solid var(--line);color:var(--text);box-shadow:inset 0 -1px 0 rgba(255,255,255,.05)}
 .shared-banner b{color:var(--accent2)}
+/* 余额预警态（HANDOFF §2.6：余额 <50 提示，2026-09-28 D 线接入） */
+.shared-banner.warn{background:linear-gradient(90deg,rgba(226,62,78,.16),rgba(255,255,255,.04) 60%, transparent);border-bottom-color:rgba(226,62,78,.35)}
+.shared-banner.warn b{color:#e85d6a}
 
 /* ---------- 主区 ---------- */
 #main{flex:1;padding:26px 26px 30px}
