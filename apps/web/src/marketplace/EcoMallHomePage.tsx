@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
-import { fetchMarketMe, readJson, Topbar } from "./shell.js";
+import { fetchMarketMe, readJson } from "./shell.js";
 import { employeePersonaLabel } from "./employee-names.js";
 import {
   ECO_CONSULTANTS,
@@ -17,15 +17,22 @@ import {
 
 type FloorId = "floor-acquire" | "floor-private" | "floor-consultants" | "floor-hardware" | "floor-courses" | "floor-opc" | "floor-industry" | "floor-cases";
 
-/** 金刚区七格（原型 v3.28：内容获客/私域营销/数字咨询师/AI硬件/AI课程/OPC专区/行业工作台）。 */
+/** 金刚区七格（原型 v3.28，tint 照原型 data-tint）。 */
 const KINGKONG: Array<{ floor: FloorId; label: string; icon: string; tint: string }> = [
-  { floor: "floor-acquire", label: "内容获客", icon: "✍️", tint: "244, 121, 32" },
-  { floor: "floor-private", label: "私域营销", icon: "💬", tint: "64, 123, 240" },
-  { floor: "floor-consultants", label: "数字咨询师", icon: "🧭", tint: "13, 148, 136" },
-  { floor: "floor-hardware", label: "AI硬件", icon: "🔌", tint: "14, 159, 110" },
-  { floor: "floor-courses", label: "AI课程", icon: "🎓", tint: "151, 82, 220" },
-  { floor: "floor-opc", label: "OPC专区", icon: "🏭", tint: "232, 163, 61" },
-  { floor: "floor-industry", label: "行业工作台", icon: "🏪", tint: "219, 39, 119" }
+  { floor: "floor-acquire", label: "内容获客", icon: "✍️", tint: "#FF7A1A" },
+  { floor: "floor-private", label: "私域营销", icon: "💬", tint: "#F2538A" },
+  { floor: "floor-consultants", label: "数字咨询师", icon: "🧭", tint: "#F5A623" },
+  { floor: "floor-hardware", label: "AI硬件", icon: "🔌", tint: "#0E9F6E" },
+  { floor: "floor-courses", label: "AI课程", icon: "🎓", tint: "#FF5C4D" },
+  { floor: "floor-opc", label: "OPC专区", icon: "🏭", tint: "#D96A00" },
+  { floor: "floor-industry", label: "行业工作台", icon: "🏪", tint: "#E8A33D" }
+];
+
+/** Hero 打字机台词（原型 heroType 演示口径）。 */
+const TYPE_LINES = [
+  "今天要发内容？让秦文给你一条能念的稿",
+  "周一起号？让沈定先给你定人设",
+  "刚播完一场？让罗盘把话术复盘一遍"
 ];
 
 /** 楼层分组（原型 v3.28：F1 内容获客 / F2 私域营销，按 employeeKey 归组）。 */
@@ -284,6 +291,40 @@ export function EcoMallHomePage() {
     setSignedToday(true);
   }
 
+  /* Hero 打字机（原型 heroType：逐字打出 → 停留 → 删除 → 下一句）。 */
+  const [typeText, setTypeText] = useState("");
+  useEffect(() => {
+    let line = 0;
+    let char = 0;
+    let deleting = false;
+    let timer = 0;
+    function tick() {
+      const current = TYPE_LINES[line];
+      if (!deleting) {
+        char += 1;
+        setTypeText(current.slice(0, char));
+        if (char >= current.length) {
+          deleting = true;
+          timer = window.setTimeout(tick, 1800);
+          return;
+        }
+        timer = window.setTimeout(tick, 70);
+      } else {
+        char -= 1;
+        setTypeText(current.slice(0, char));
+        if (char <= 0) {
+          deleting = false;
+          line = (line + 1) % TYPE_LINES.length;
+          timer = window.setTimeout(tick, 400);
+          return;
+        }
+        timer = window.setTimeout(tick, 28);
+      }
+    }
+    timer = window.setTimeout(tick, 500);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     document.body.classList.add("eco-mall-body");
     document.title = "思潼AI生态商城 · 数字员工 / 数字咨询师";
@@ -417,12 +458,11 @@ export function EcoMallHomePage() {
   function renderTodayStrip() {
     return (
       <div className="eco-today-strip">
-        <div className="eco-floor-head">
-          <div className="eco-floor-title">
-            <h2>今日任务 · 按场景直达</h2>
-          </div>
-          <div className="eco-floor-sub">按老板日常节奏推荐入口；点一下直达对应数字员工。<span className="eco-today-badge">AI 派单中</span></div>
-        </div>
+      <div className="eco-floor-head eh-today-head">
+        <span className="eco-floor-no">TODAY</span>
+        <h2 className="eh-today-title">今日任务 · 按场景直达</h2>
+        <span className="eh-floor-live"><i></i>AI 派单中</span>
+      </div>
         <div className="eco-today">
           {TODAY_ITEMS.map((item) => {
             const employee = employeeByKey.get(item.employeeKey);
@@ -494,25 +534,43 @@ export function EcoMallHomePage() {
   }
 
   return (
-    <main className="app-wrap eco-mall-page eco-light">
-      <Topbar active="market" balance={balance} onNavigate={(path) => { window.location.href = getAppPath(path); }} />
+    <main className="app-wrap eco-mall-page eco-light eh">
+      {/* 顶栏（原型 v3.28：品牌 + AI 在线状态 + 余额橙 chip + 充值 + ?） */}
+      <header className="eh-topbar">
+        <div className="eh-brand">
+          <div className="eh-brand-txt">
+            <b>思潼AI商城</b>
+            <span className="eh-ai"><i></i>AI 全员在线</span>
+          </div>
+        </div>
+        <span className="eh-sp" />
+        <div className="eh-wallet">
+          <span className="eh-bal">⚡ <b>{balance ?? "—"}</b><i>{balance != null ? `≈ ¥${(balance / 10).toFixed(balance % 10 === 0 ? 0 : 1)}` : ""}</i></span>
+          <button type="button" className="eh-mini" onClick={() => { window.location.href = getAppPath("/recharge"); }}>充值</button>
+        </div>
+        <button type="button" className="eh-iconbtn" title="新手帮助" onClick={() => setShowDict(true)}>?</button>
+      </header>
 
       <section className="eco-mall">
-        {/* Hero AI 指挥横幅（原型 v3.28 + HANDOFF §11 文案口径） */}
-        <section className="eco-hero">
-          <div className="eco-hero-top">
-            <span className="eco-hero-ava">🤖</span>
-            <div className="eco-hero-msg">
-              <b>你好，我是 AI 管家小潼</b>
-              <span>AI 值班中 · 随时问我怎么用 AI 干活</span>
-              <em>⭐ AI 商城 · 智能体 / 数字员工 / AI硬件 / AI课程，一站配齐</em>
+        {/* Hero AI 指挥横幅（原型 v3.28：橙色渐变 + 波形 + 打字机 + 流光边） */}
+        <section className="eh-hero">
+          <div className="eh-hero-row">
+            <button type="button" className="eh-hero-ava" title="点我和 AI 管家小潼聊聊" onClick={() => setShowDict(true)}>🤖</button>
+            <div className="eh-hero-main">
+              <div className="eh-hero-tag">
+                <span className="eh-wave"><i></i><i></i><i></i><i></i><i></i></span>
+                AI 值班中 · 点左边头像，随时问小潼
+              </div>
+              <h1 className="eh-hero-title">你好，我是 AI 管家<em>小潼</em></h1>
+              <div className="eh-hero-type">{typeText}<span className="eh-caret"></span></div>
+              <div className="eh-hero-slogan">⭐ AI 商城 · 智能体 / 数字员工 / AI硬件 / AI课程，一站配齐</div>
             </div>
           </div>
-          <div className="eco-hero-cta">
-            <button type="button" className="eco-hero-btn" onClick={() => setShowInvite(true)}>🧧 免费开通 · 立送 100 算力</button>
-            <button type="button" className="eco-hero-ghost" onClick={() => setShowDict(true)}>❓ 新手帮助</button>
+          <div className="eh-hero-cta">
+            <button type="button" className="eh-big" onClick={() => setShowInvite(true)}>🧧 免费开通 · 立送 100 算力</button>
+            <button type="button" className="eh-ghost" onClick={() => setShowDict(true)}>❓ 新手帮助</button>
           </div>
-          <p className="eco-hero-note">⚡ 计费口径：1 元 = 10 算力 · 0 元开通 · 用后扣费 · 失败不扣</p>
+          <div className="eh-hero-note">⚡ 计费口径：1 元 = 10 算力 · 0 元开通 · 用后扣费 · 失败不扣</div>
         </section>
 
         <div className="eco-searchbar">
@@ -525,13 +583,14 @@ export function EcoMallHomePage() {
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜索商品：文案、定位、直播复盘…"
+              placeholder="搜商品：文案 / 直播 / 复盘 / 课程…"
               aria-label="搜索商城商品"
             />
             {searching ? (
               <button type="button" className="eco-search-clear" onClick={() => setQuery("")} aria-label="清空搜索">×</button>
             ) : null}
           </div>
+          <div className="eh-search-hint">不知道找谁？直接说事：<b>「今天要发内容」</b>，小潼帮你派单</div>
         </div>
 
         {searching ? (
@@ -572,11 +631,10 @@ export function EcoMallHomePage() {
                   key={item.floor}
                   type="button"
                   className={`eco-kk-item ${activeFloor === item.floor ? "active" : ""}`}
+                  style={{ "--kk-tint": item.tint } as CSSProperties}
                   onClick={() => scrollToFloor(item.floor)}
                 >
-                  <span className="eco-kk-ico" style={{ background: `rgba(${item.tint}, 0.14)`, borderColor: `rgba(${item.tint}, 0.32)` }}>
-                    {item.icon}
-                  </span>
+                  <span className="eco-kk-ico">{item.icon}</span>
                   <span className="eco-kk-label">{item.label}</span>
                 </button>
               ))}
@@ -725,24 +783,29 @@ export function EcoMallHomePage() {
         )}
       </section>
 
-      {/* 底部 TabBar（原型 v3.28：首页 / AI案例 / 购物车 / 我的 + 我的算力） */}
-      <nav className="eco-tabbar" aria-label="商城底部导航">
-        <button type="button" className="eco-tb-item on" onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); }}>
-          <span className="eco-tb-ico">🏠</span><span>首页</span>
+      {/* 底部 TabBar（手机）/ 左侧导航（桌面 ≥960px，照原型 v3.28） */}
+      <nav className="eh-tabbar" aria-label="商城导航">
+        <div className="eh-nav-brand">
+          <span className="eh-brand-txt"><b>思潼AI商城</b><span className="eh-ai"><i></i>AI 全员在线</span></span>
+        </div>
+        <button type="button" className="eh-tab act" onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+          <i>🏠</i><span>首页</span>
         </button>
-        <button type="button" className="eco-tb-item" onClick={() => scrollToFloor("floor-cases")}>
-          <span className="eco-tb-ico">📚</span><span>AI案例</span>
+        <button type="button" className="eh-tab" onClick={() => scrollToFloor("floor-cases")}>
+          <i>📚</i><span>AI案例</span>
         </button>
-        <button type="button" className="eco-tb-item" title="购物车（即将上线）">
-          <span className="eco-tb-ico">🛒{cartCount > 0 ? <i className="eco-tb-badge">{cartCount}</i> : null}</span><span>购物车</span>
+        <button type="button" className="eh-tab" title="购物车（即将上线）">
+          <i>🛒{cartCount > 0 ? <b className="eh-tab-badge">{cartCount}</b> : null}</i><span>购物车</span>
         </button>
-        <button type="button" className="eco-tb-item" onClick={() => { window.location.href = getAppPath("/mine"); }}>
-          <span className="eco-tb-ico">👤</span><span>我的</span>
+        <button type="button" className="eh-tab" onClick={() => { window.location.href = getAppPath("/mine"); }}>
+          <i>👤</i><span>我的</span>
         </button>
-        <button type="button" className="eco-tb-item eco-tb-me" onClick={() => { window.location.href = getAppPath("/recharge"); }}>
-          <span className="eco-tb-ico">⚡</span>
-          <span>我的算力<b> {balance ?? "—"}</b><small>{balance != null ? `≈ ¥${(balance / 10).toFixed(balance % 10 === 0 ? 0 : 1)}` : ""}</small></span>
-        </button>
+        <div className="eh-nav-bal">
+          <span className="t">⚡ 我的算力</span>
+          <span className="v">{balance ?? "—"}</span>
+          <i>{balance != null ? `≈ ¥${(balance / 10).toFixed(balance % 10 === 0 ? 0 : 1)}` : ""}</i>
+          <button type="button" className="eh-mini" onClick={() => { window.location.href = getAppPath("/recharge"); }}>充值</button>
+        </div>
       </nav>
 
       {showSignIn ? (
