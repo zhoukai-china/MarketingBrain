@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>兰琪AI·经营大脑 v2 · 目标明细</title>
+<link rel="stylesheet" href="assets/lanqi-ui.css">
+<style>
+/* ===== 目标明细私有样式（共享部分在 lanqi-ui.css） ===== */
+/* 返回驾驶舱 */
+.back-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: var(--o3); background: #fff; border: 1.5px solid var(--line2); border-radius: 999px; padding: 8px 14px; min-height: 40px; transition: all .15s; margin-left: auto; }
+.back-chip:active { transform: scale(.95); background: var(--soft); }
+
+/* 月度目标总卡 */
+.gd-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.gd-t { font-size: 15.5px; font-weight: 800; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.gd-num { display: flex; align-items: baseline; gap: 7px; }
+.gd-num b { font-size: 34px; font-weight: 900; letter-spacing: -1px; color: var(--t1); }
+.gd-num span { font-size: 12.5px; color: var(--t3); font-weight: 600; }
+.gd-bar { margin: 13px 0 11px; height: 10px; }
+.gd-cmp { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--t3); font-weight: 600; }
+.pill { background: var(--soft); border-radius: 999px; padding: 4px 12px; font-size: 11.5px; color: var(--t2); font-weight: 700; }
+.pill b { color: var(--t1); }
+.pill-o { background: var(--og); color: #fff; box-shadow: 0 4px 12px rgba(255,106,0,.28); }
+.pill-o b { color: #fff; }
+.gd-diff { font-weight: 800; color: var(--green); }
+.gd-diff.bad { color: var(--red); }
+.gd-rest { margin-top: 11px; font-size: 12px; color: var(--t2); }
+.gd-rest b { color: var(--o3); }
+
+/* 四项子目标 */
+.sg-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.sg-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--rad-s); padding: 13px 13px 12px; box-shadow: var(--shadow-s); border-top: 3px solid var(--red); transition: transform .15s; }
+.sg-card.ok { border-top-color: var(--green); }
+.sg-card.on { outline: 2px solid rgba(255,106,0,.5); outline-offset: 1px; }
+.sg-card:active { transform: scale(.98); }
+.sg-top { display: flex; align-items: center; gap: 6px; }
+.sg-top .ic { font-size: 15px; }
+.sg-top .nm { font-size: 12.5px; font-weight: 700; color: var(--t2); flex: 1; }
+.sg-num { display: flex; align-items: baseline; gap: 4px; margin: 8px 0; }
+.sg-num b { font-size: 19px; font-weight: 900; letter-spacing: -.3px; }
+.sg-num span { font-size: 10.5px; color: var(--t3); font-weight: 600; }
+.sg-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--t3); font-weight: 600; margin-top: 7px; }
+.sg-meta .pct { font-size: 14px; font-weight: 900; color: var(--green); }
+.sg-meta .pct.bad { color: var(--red); }
+
+/* 下钻表 */
+.mb { display: inline-flex; flex-direction: column; line-height: 1.35; }
+.mb small { font-size: 10px; color: var(--t3); font-weight: 600; }
+table.tbl td.good { color: var(--green); }
+table.tbl td.bad { color: var(--red); }
+.tbl-note { font-size: 10.5px; color: var(--t3); line-height: 1.7; padding: 9px 4px 2px; }
+
+/* AI 建议条 */
+.ai-bd { font-size: 13.5px; line-height: 1.9; }
+.ai-bd p { margin-bottom: 6px; }
+.ai-bd [n] { color: #FFAE6E; font-weight: 800; font-size: 1.06em; text-shadow: 0 0 14px rgba(255,138,61,.4); }
+.ai-acts { display: flex; gap: 9px; margin-top: 13px; flex-wrap: wrap; }
+.ai-btn { flex: 1; min-width: 120px; min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border-radius: 12px; border: 1px solid rgba(255,150,80,.4); color: #FFC79B; font-size: 12.5px; font-weight: 700; transition: transform .15s; background: rgba(255,138,61,.08); cursor: pointer; }
+.ai-btn.pri { background: var(--og); color: #fff; border-color: transparent; box-shadow: 0 5px 14px rgba(255,106,0,.35); }
+.ai-btn:active { transform: scale(.96); }
+
+/* 当前门店说明 */
+.gd-store { font-size: 11px; color: var(--t2); background: #FFFBF7; border: 1px dashed var(--line2); border-radius: 10px; padding: 8px 12px; line-height: 1.6; }
+.gd-store b { color: var(--o3); }
+
+/* 目标切换器 */
+.gswitch { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+@media (max-width: 640px) { .gswitch { grid-template-columns: repeat(2, 1fr); } }
+.gs-btn { display: flex; align-items: center; justify-content: center; gap: 5px; padding: 10px 6px; border-radius: var(--rad-s); border: 1px solid var(--line); background: #fff; color: var(--t2); font-size: 12px; font-weight: 700; transition: all .15s; white-space: nowrap; min-height: 42px; }
+.gs-btn:active { transform: scale(.97); }
+.gs-btn.on { background: var(--og); color: #fff; border-color: transparent; font-weight: 800; box-shadow: 0 4px 12px rgba(255,106,0,.28); }
+.gs-btn .g-n { font-size: 10px; opacity: .8; font-weight: 800; }
+
+/* 沉睡分档三卡 */
+.tier-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+@media (max-width: 640px) { .tier-grid { gap: 7px; } }
+.tc { position: relative; text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: var(--rad-s); padding: 11px; cursor: pointer; transition: .15s; box-shadow: var(--shadow-s); }
+.tc.on { border-color: var(--o1); background: var(--soft); box-shadow: 0 3px 14px rgba(255,106,0,.16); }
+.tc:active { transform: scale(.98); }
+.tc-top { display: flex; align-items: center; justify-content: space-between; gap: 5px; margin-bottom: 6px; }
+.tc-nm { font-size: 11px; font-weight: 800; white-space: nowrap; }
+.tc-badge { font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 20px; color: #fff; white-space: nowrap; }
+.tc-num { font-size: 19px; font-weight: 900; letter-spacing: -.4px; white-space: nowrap; line-height: 1.25; }
+.tc-num small { font-size: 10px; font-weight: 600; color: var(--t3); margin-left: 2px; }
+.tc-sub { font-size: 9.5px; color: var(--t3); margin-top: 2px; white-space: nowrap; }
+.tc .pbar { height: 5px; margin-top: 8px; }
+.tc-rate { display: flex; justify-content: space-between; gap: 5px; font-size: 9.5px; color: var(--t3); margin-top: 6px; }
+.tc-rate b { color: var(--t1); }
+
+/* 口径说明 / 打法条 */
+.rule-bar { display: flex; gap: 9px; align-items: flex-start; background: var(--soft); border: 1px solid var(--line2); border-radius: var(--rad-s); padding: 11px 13px; margin-bottom: 12px; font-size: 12px; color: var(--t2); line-height: 1.75; }
+.rule-bar .rb-ic { font-size: 14px; flex-shrink: 0; }
+.rule-bar b { color: var(--o3); }
+.rule-bar .rb-t { display: block; font-weight: 800; color: var(--t1); margin-bottom: 2px; }
+
+/* 筛选条 */
+.filter-bar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 11px; }
+.f-chip { padding: 7px 13px; border-radius: 999px; border: 1px solid var(--line2); background: #fff; color: var(--t2); font-size: 12px; font-weight: 700; transition: .15s; min-height: 34px; }
+.f-chip.on { background: var(--og); border-color: transparent; color: #fff; }
+.f-chip .cnt { opacity: .75; margin-left: 3px; font-weight: 600; }
+.f-search { padding: 8px 12px; border: 1px solid var(--line2); border-radius: var(--rad-s); background: #fff; font-size: 12.5px; color: var(--t1); width: 150px; min-height: 34px; }
+.f-search:focus { outline: none; border-color: var(--o1); }
+
+/* 明细表（移动端转卡片） */
+.gd-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 11px; color: var(--t3); font-weight: 600; }
+.gd-head .th-t { font-size: 12.5px; font-weight: 800; color: var(--t1); }
+.gd-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; border-top: 1px dashed var(--line); font-size: 11px; color: var(--t2); font-weight: 600; }
+table.gdtd { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.gdtd th { background: var(--soft); color: var(--t2); font-size: 10.5px; font-weight: 700; text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.gdtd td { padding: 9px 10px; border-bottom: 1px solid #FFF3EA; vertical-align: middle; white-space: nowrap; }
+table.gdtd tbody tr { cursor: pointer; }
+table.gdtd tbody tr:active { background: var(--soft); }
+table.gdtd td.num, table.gdtd th.num { text-align: right; }
+.cust-cell { display: flex; align-items: center; gap: 8px; }
+.cust-av { width: 26px; height: 26px; border-radius: 50%; background: var(--soft); color: var(--o3); display: grid; place-items: center; font-size: 11px; font-weight: 800; flex-shrink: 0; }
+.tag2 { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 2.5px 8px; border-radius: 6px; white-space: nowrap; }
+.tag2.ok { background: #E7F8F0; color: var(--green); }
+.tag2.blue { background: #E8F0FE; color: var(--blue); }
+.tag2.bad { background: #FCE9EB; color: var(--red); }
+.tag2.gray { background: #F3EDE6; color: var(--t3); }
+.money2 { font-weight: 800; color: var(--o3); }
+.money2.gray { color: var(--t3); font-weight: 600; }
+.ttag { display: inline-block; font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 20px; border: 1px solid; white-space: nowrap; }
+.row-go { color: var(--t3); font-size: 11px; }
+.gd-empty { padding: 26px 14px; text-align: center; color: var(--t3); font-size: 12.5px; }
+@media (max-width: 720px) {
+  table.gdtd thead { display: none; }
+  table.gdtd, table.gdtd tbody, table.gdtd tr, table.gdtd td { display: block; width: 100%; }
+  table.gdtd tr { border-bottom: 1px solid var(--line); padding: 9px 10px; }
+  table.gdtd tr:last-child { border-bottom: none; }
+  table.gdtd td { padding: 3px 0; border: none; display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; white-space: normal; }
+  table.gdtd td::before { content: attr(data-label); color: var(--t3); font-size: 11px; font-weight: 700; flex-shrink: 0; }
+  table.gdtd td.num { text-align: right; }
+  table.gdtd td.hide-sm { display: none; }
+}
+
+/* 外链配置 */
+.ext-head { display: flex; align-items: center; gap: 9px; padding: 12px 14px; background: var(--soft); border-radius: var(--rad-s); cursor: pointer; flex-wrap: wrap; }
+.ext-head .eh-t { font-size: 13px; font-weight: 800; }
+.ext-head .eh-s { font-size: 11px; color: var(--t3); font-weight: 600; }
+.ext-head .eh-ar { margin-left: auto; font-size: 11px; color: var(--o3); font-weight: 800; }
+.ext-body { display: none; padding: 6px 4px 2px; }
+.ext-card.open .ext-body { display: block; }
+.ext-row { display: flex; align-items: center; gap: 9px; padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 12px; flex-wrap: wrap; }
+.ext-row:last-child { border-bottom: none; }
+.ext-row .er-k { width: 84px; font-weight: 700; flex-shrink: 0; }
+.ext-row .er-u { flex: 1; min-width: 130px; color: var(--t3); font-family: ui-monospace, Consolas, monospace; font-size: 11px; word-break: break-all; }
+.ext-row .er-b { font-size: 11px; font-weight: 700; color: var(--o3); background: var(--soft); border: 1px solid var(--line2); border-radius: 8px; padding: 5px 10px; white-space: nowrap; }
+.ext-note { margin-top: 9px; font-size: 11px; color: var(--t3); line-height: 1.7; background: #FFFBF7; border: 1px dashed var(--line2); border-radius: var(--rad-s); padding: 10px 12px; }
+.ext-note b { color: var(--o3); }
+.ext-note code { background: var(--soft); padding: 1px 5px; border-radius: 5px; }
+
+/* 子目标卡可点切换 */
+.sg-card { cursor: pointer; }
+
+@media (min-width: 960px) {
+  .sg-grid { grid-template-columns: repeat(4, 1fr); }
+  .gd-num b { font-size: 40px; }
+  .tier-grid { gap: 12px; }
+}
+</style>
+</head>
+<body>
+
+<div id="lqHeader"></div>
+
+<main id="app"></main>
+
+<div class="foot-note">兰琪AI·经营大脑 v2 · 目标明细 · 2026-09-24 · 仅设计演示</div>
+
+<div id="lqTabbar"></div>
+
+<script src="assets/lanqi-ui.js"></script>
+<script>
+/* ============================================================
+   目标明细（总目标 → 四项子目标 → 员工下钻 → AI 建议）
+   数据读 LQ.store()，随顶部门店切换刷新
+   ============================================================ */
+(function () {
+"use strict";
+var $ = LQ.$, $$ = LQ.$$, esc = LQ.esc, fmt = LQ.fmt, pct = LQ.pct;
+var MONTH = LQ.MONTH;
+
+var timePct = Math.round(MONTH.passedDays / MONTH.totalDays * 100); /* 时间进度 60% */
+
+/* 四项子目标定义 */
+var GOAL_DEFS = [
+  { k: "rev",  ic: "💰", nm: "营收" },
+  { k: "new",  ic: "🆕", nm: "新客" },
+  { k: "up",   ic: "⬆️", nm: "升单" },
+  { k: "wake", ic: "🔔", nm: "唤醒" }
+];
+/* 业绩下钻（人名 X 系 · 门店目标 = 各行合计） */
+var STAFF = {
+  s1: [
+    { n: "张店长", r: "店长 · 手法顾问", g: 90000, c: 63000 },
+    { n: "X师傅",  r: "资深手法顾问",   g: 80000, c: 52000 },
+    { n: "X姐",    r: "美容师组长",     g: 70000, c: 40000 },
+    { n: "X小美",  r: "美容师",         g: 60000, c: 27000 }
+  ],
+  s2: [
+    { n: "刘店长", r: "店长",           g: 72000, c: 48400 },
+    { n: "X师傅",  r: "资深手法顾问",   g: 58000, c: 39200 },
+    { n: "X小敏",  r: "美容师",         g: 50000, c: 33400 }
+  ],
+  s3: [
+    { n: "陈店长", r: "店长（新店带教）", g: 42000, c: 19600 },
+    { n: "X师傅",  r: "手法顾问",        g: 44000, c: 21700 },
+    { n: "X小琳",  r: "美容师",          g: 34000, c: 16700 }
+  ],
+  all: [
+    { n: "大连总店",   r: "旗舰 · 12 人", g: 300000, c: 182000 },
+    { n: "开发区店",   r: "标准 · 7 人",  g: 180000, c: 121000 },
+    { n: "高新万达店", r: "新店 · 5 人",  g: 120000, c: 58000 }
+  ]
+};
+
+/* ---------- 目标定义（口径 / 外链 / 列 / 筛选，与原版一致） ---------- */
+var GDEFS = {
+  rev: { ic: "💰", short: "业绩", label: "月度业绩目标", sub: "实收现金",
+    rule: "本月实收金额 = <b>新客成交 + 老客升单 + 复购 + 卡耗分摊</b>。充值未耗卡不计入，避免虚高；退单当日冲减。",
+    extName: "有赞美业 · 订单", extUrl: "https://www.youzan.com/v4/trade/order",
+    head: "本月成交 106 笔 · 下方为最近 12 条",
+    cols: ["成交时间", "客户", "项目", "金额", "类型", "顾问", "来源", ""],
+    filters: [["all", "全部"], ["new", "新客成交"], ["up", "老客升单"], ["re", "复购/卡耗"]] },
+  new: { ic: "🆕", short: "新客", label: "月度新客目标", sub: "到店新客",
+    rule: "本月新增到店且成交 / 体验的<b>新客数（去重）</b>。转介绍、抖音、美团、自然到店都算；同一手机号 90 天内重复到店不重复计数。",
+    extName: "抖音来客 · 团购核销", extUrl: "https://life.douyin.com/poi/verify",
+    head: "本月新增到店 38 人 · 下方为最近 12 条",
+    cols: ["客户", "渠道", "日期", "项目", "金额", "状态", "顾问", ""],
+    filters: [["all", "全部"], ["deal", "已成交"], ["try", "体验中"], ["lost", "已流失"]] },
+  up: { ic: "⬆️", short: "升单", label: "月度升单目标", sub: "老客升单",
+    rule: "本月老客在店升单的人数（<b>980 体验 → 3000 深宠卡</b>为主动作）。以实际交款为准，意向未交款不计入。",
+    extName: "客户档案 · 分析", extUrl: "crm.html?state=analysis",
+    head: "本月触达老客 47 人 · 下方为最近 11 条",
+    cols: ["客户", "升级路径", "差价", "日期", "次数", "状态", "顾问", ""],
+    filters: [["all", "全部"], ["done", "已成交"], ["run", "进行中"], ["no", "已放弃"]] },
+  wake: { ic: "🔔", short: "唤醒", label: "月度唤醒目标", sub: "沉睡客回店",
+    rule: "<b>30 天以上未到店</b>的沉睡客，被触达后 30 天内<b>回店即算唤醒成功</b>，不要求消费。",
+    extName: "客户档案 · 唤醒跟进", extUrl: "crm.html?state=follow",
+    head: "本月触达沉睡客 23 人 · 已回店 14 · 成功率 61%",
+    cols: ["客户", "档位", "沉睡", "方式", "日期", "结果", "回店消费", "顾问", ""],
+    filters: [["all", "全部"], ["back", "已回店"], ["resp", "已回复"], ["no", "无应答"]] }
+};
+
+/* 沉睡分档（与 wake.html 同口径） */
+var TIERS = {
+  m1: { nm: "1 个月没来", range: "30-59 天", badge: "黄金期", color: "#FF6A00", ic: "⚡", tip: "最好叫，成功率最高 → <b>主力攻坚</b>，顾问每日必做：名单里 36-59 天的优先电话，别群发。" },
+  m2: { nm: "2 个月没来", range: "60-89 天", badge: "关键期", color: "#E8930C", ic: "🎁", tip: "还有得救 → 必须带礼 / 带券，<b>别空手打电话</b>：到店礼 + 老客价，两选一。" },
+  m3: { nm: "3 个月没来", range: "≥90 天", badge: "重症期", color: "#E23E4E", ic: "🫀", tip: "大概率已流失 → 低成本批量触达，<b>不占顾问主精力</b>：改「破冰率」考核，回一句就算赢。" }
+};
+function tierOf(d) { return d >= 90 ? "m3" : (d >= 60 ? "m2" : "m1"); }
+
+/* ---------- 明细行（原型示例数据，与原版同源） ---------- */
+var ROWS = {
+  rev: [
+    { t: "09-24 09:12", c: "姜楠",   p: "抗初老疗程 6 次",       m: 2980, k: "new", ty: "新客成交", a: "X师傅",  s: "抖音" },
+    { t: "09-23 16:40", c: "汪蕊",   p: "肩颈舒缓 10 次卡",      m: 980,  k: "new", ty: "新客成交", a: "X小美",  s: "转介绍" },
+    { t: "09-23 14:05", c: "崔颖",   p: "深宠卡续卡（年）",      m: 3000, k: "re",  ty: "复购/卡耗", a: "X姐",   s: "老客" },
+    { t: "09-22 18:22", c: "白雪",   p: "980→3000 深宠卡",       m: 2020, k: "up",  ty: "老客升单", a: "X姐",   s: "升单" },
+    { t: "09-22 11:30", c: "杜若",   p: "小气泡清洁",            m: 298,  k: "new", ty: "新客成交", a: "X小美",  s: "美团" },
+    { t: "09-21 15:48", c: "袁华",   p: "肩颈加次 5 次",         m: 880,  k: "re",  ty: "复购/卡耗", a: "张店长", s: "老客" },
+    { t: "09-21 10:02", c: "沈璐",   p: "980→3000 深宠卡",       m: 2020, k: "up",  ty: "老客升单", a: "X师傅", s: "升单" },
+    { t: "09-20 17:15", c: "章程",   p: "补水护理 12 次",        m: 1980, k: "new", ty: "新客成交", a: "X师傅",  s: "抖音" },
+    { t: "09-20 13:40", c: "唐燕",   p: "980→3000 深宠卡",       m: 2020, k: "up",  ty: "老客升单", a: "张店长", s: "升单" },
+    { t: "09-19 16:55", c: "范婷",   p: "体验卡续 5 次",         m: 480,  k: "re",  ty: "复购/卡耗", a: "X小美", s: "老客" },
+    { t: "09-18 11:08", c: "邹凯文", p: "肩颈舒缓 10 次卡",      m: 980,  k: "new", ty: "新客成交", a: "X姐",   s: "转介绍" },
+    { t: "09-17 15:32", c: "葛萌",   p: "深层清洁 + 肩颈放松",   m: 398,  k: "new", ty: "新客成交", a: "X小美",  s: "自然到店" }
+  ],
+  new: [
+    { c: "姜楠",   ch: "抖音",     d: "09-24", p: "抗初老疗程 6 次",     m: 2980, st: "deal", stx: "已成交", a: "X师傅",  k: "deal" },
+    { c: "汪蕊",   ch: "转介绍",   d: "09-23", p: "肩颈舒缓 10 次卡",    m: 980,  st: "deal", stx: "已成交", a: "X小美",  k: "deal" },
+    { c: "杜若",   ch: "美团",     d: "09-22", p: "小气泡清洁",          m: 298,  st: "deal", stx: "已成交", a: "X小美",  k: "deal" },
+    { c: "章程",   ch: "抖音",     d: "09-20", p: "补水护理 12 次",      m: 1980, st: "deal", stx: "已成交", a: "X师傅",  k: "deal" },
+    { c: "邹凯文", ch: "转介绍",   d: "09-18", p: "肩颈舒缓 10 次卡",    m: 980,  st: "deal", stx: "已成交", a: "X姐",    k: "deal" },
+    { c: "葛萌",   ch: "自然到店", d: "09-17", p: "深层清洁 + 肩颈放松", m: 398,  st: "deal", stx: "已成交", a: "X小美",  k: "deal" },
+    { c: "白婳",   ch: "美团",     d: "09-16", p: "980 体验卡",          m: 980,  st: "deal", stx: "已成交", a: "X姐",    k: "deal" },
+    { c: "郑楠",   ch: "抖音",     d: "09-15", p: "体验卡 5 次",         m: 480,  st: "deal", stx: "已成交", a: "张店长", k: "deal" },
+    { c: "韩霜",   ch: "美团",     d: "09-14", p: "小气泡体验",          m: 99,   st: "try",  stx: "体验中", a: "X小美",  k: "try" },
+    { c: "应欢",   ch: "转介绍",   d: "09-13", p: "补水体验",            m: 99,   st: "try",  stx: "体验中", a: "X姐",    k: "try" },
+    { c: "缪斯",   ch: "抖音",     d: "09-12", p: "肩颈体验",            m: 198,  st: "try",  stx: "体验中", a: "X师傅",  k: "try" },
+    { c: "毛雪",   ch: "美团",     d: "09-11", p: "体验卡 5 次",         m: 480,  st: "lost", stx: "已流失", a: "X小美",  k: "lost" }
+  ],
+  up: [
+    { c: "白雪",   from: "980 体验卡",     to: "3000 深宠卡", diff: 2020, d: "09-22", n: "第 2 次", st: "done", stx: "已成交", a: "X姐",    k: "done" },
+    { c: "沈璐",   from: "980 体验卡",     to: "3000 深宠卡", diff: 2020, d: "09-21", n: "第 1 次", st: "done", stx: "已成交", a: "X师傅",  k: "done" },
+    { c: "唐燕",   from: "980 体验卡",     to: "3000 深宠卡", diff: 2020, d: "09-20", n: "第 3 次", st: "done", stx: "已成交", a: "张店长", k: "done" },
+    { c: "石敏",   from: "980 体验卡",     to: "3000 深宠卡", diff: 2020, d: "09-18", n: "第 2 次", st: "done", stx: "已成交", a: "X姐",    k: "done" },
+    { c: "李巧",   from: "体验卡 5 次",    to: "补水护理 12 次", diff: 1500, d: "09-17", n: "第 1 次", st: "done", stx: "已成交", a: "X小美", k: "done" },
+    { c: "毛俊",   from: "980 体验卡",     to: "3000 深宠卡", diff: 2020, d: "09-15", n: "第 2 次", st: "done", stx: "已成交", a: "X师傅",  k: "done" },
+    { c: "彭丽",   from: "补水护理 12 次", to: "深宠卡（年）",   diff: 4020, d: "09-14", n: "第 1 次", st: "done", stx: "已成交", a: "张店长", k: "done" },
+    { c: "韩梅",   from: "980 体验卡",     to: "3000 深宠卡", diff: 2020, d: "09-24", n: "第 1 次", st: "run",  stx: "进行中", a: "X姐",    k: "run" },
+    { c: "宋佳",   from: "980 体验卡",     to: "3000 深宠卡", diff: 2020, d: "09-23", n: "第 2 次", st: "run",  stx: "进行中", a: "X师傅",  k: "run" },
+    { c: "卢静",   from: "980 体验卡",     to: "3000 深宠卡", diff: 2020, d: "09-22", n: "第 1 次", st: "run",  stx: "进行中", a: "X小美",  k: "run" },
+    { c: "尹笑笑", from: "体验卡 5 次",    to: "3000 深宠卡", diff: 2520, d: "09-19", n: "第 1 次", st: "no",   stx: "已放弃", a: "X姐",    k: "no" }
+  ],
+  wake: [
+    { c: "姜楠",   days: 36,  way: "企微", d: "09-24", st: "back", stx: "已回店", m: 2980, a: "X师傅",  k: "back" },
+    { c: "崔颖",   days: 38,  way: "企微", d: "09-23", st: "back", stx: "已回店", m: 980,  a: "X姐",    k: "back" },
+    { c: "汪蕊",   days: 49,  way: "企微", d: "09-22", st: "back", stx: "已回店", m: 0,    a: "X小美",  k: "back" },
+    { c: "白雪",   days: 41,  way: "微信", d: "09-22", st: "back", stx: "已回店", m: 980,  a: "X姐",    k: "back" },
+    { c: "杜若",   days: 52,  way: "电话", d: "09-21", st: "back", stx: "已回店", m: 298,  a: "X小美",  k: "back" },
+    { c: "袁华",   days: 58,  way: "短信", d: "09-20", st: "back", stx: "已回店", m: 880,  a: "张店长", k: "back" },
+    { c: "沈璐",   days: 33,  way: "微信", d: "09-19", st: "back", stx: "已回店", m: 2020, a: "X师傅",  k: "back" },
+    { c: "章程",   days: 45,  way: "短信", d: "09-19", st: "back", stx: "已回店", m: 1980, a: "X小美",  k: "back" },
+    { c: "唐燕",   days: 47,  way: "电话", d: "09-17", st: "back", stx: "已回店", m: 2020, a: "张店长", k: "back" },
+    { c: "范婷",   days: 39,  way: "企微", d: "09-16", st: "resp", stx: "已回复", m: 0,    a: "X小美",  k: "resp" },
+    { c: "邹凯文", days: 55,  way: "企微", d: "09-15", st: "resp", stx: "已回复", m: 0,    a: "X姐",    k: "resp" },
+    { c: "葛萌",   days: 31,  way: "短信", d: "09-14", st: "no",   stx: "无应答", m: 0,    a: "X小美",  k: "no" },
+    { c: "顾晓",   days: 89,  way: "电话", d: "09-24", st: "back", stx: "已回店", m: 6000, a: "张店长", k: "back" },
+    { c: "曹颖",   days: 72,  way: "微信", d: "09-22", st: "back", stx: "已回店", m: 980,  a: "X师傅",  k: "back" },
+    { c: "石敏",   days: 61,  way: "电话", d: "09-21", st: "back", stx: "已回店", m: 1980, a: "X姐",    k: "back" },
+    { c: "邓超群", days: 64,  way: "电话", d: "09-19", st: "back", stx: "已回店", m: 2980, a: "张店长", k: "back" },
+    { c: "宋佳",   days: 67,  way: "短信", d: "09-17", st: "resp", stx: "已回复", m: 0,    a: "X师傅",  k: "resp" },
+    { c: "卢静",   days: 88,  way: "微信", d: "09-15", st: "no",   stx: "无应答", m: 0,    a: "X小美",  k: "no" },
+    { c: "韩梅",   days: 96,  way: "电话", d: "09-20", st: "back", stx: "已回店", m: 1980, a: "张店长", k: "back" },
+    { c: "毛俊",   days: 103, way: "短信", d: "09-18", st: "resp", stx: "已回复", m: 0,    a: "X师傅",  k: "resp" },
+    { c: "彭丽",   days: 128, way: "企微", d: "09-16", st: "resp", stx: "已回复", m: 0,    a: "张店长", k: "resp" },
+    { c: "谢兰",   days: 151, way: "短信", d: "09-13", st: "no",   stx: "无应答", m: 0,    a: "X小美",  k: "no" },
+    { c: "尹笑笑", days: 210, way: "电话", d: "09-12", st: "no",   stx: "无应答", m: 0,    a: "X姐",    k: "no" }
+  ]
+};
+
+/* 页面状态 */
+var cur = "rev", curTier = "all", filter = "all", kw = "", extOpen = false;
+(function () {
+  var g0 = LQ.q("goal"); /* 支持 home.html / daily-tasks.html?goal=xx 直达 */
+  if (GDEFS[g0]) cur = g0;
+})();
+
+function scopeRows() {
+  var allRows = ROWS[cur];
+  return cur === "wake" && curTier !== "all" ? allRows.filter(function (r) { return tierOf(r.days) === curTier; }) : allRows;
+}
+function filteredRows(tierRows) {
+  return tierRows.filter(function (r) {
+    var hay = r.c + (r.p || "") + (r.a || "") + (r.ch || "") + (r.from || "") + (r.to || "") + (r.way || "");
+    return (filter === "all" || r.k === filter) && (!kw || hay.indexOf(kw) >= 0);
+  });
+}
+function tagCls(st) { return st === "deal" || st === "done" || st === "back" ? "ok" : (st === "try" ? "blue" : (st === "run" || st === "resp" ? "gray" : "bad")); }
+function custTd(c) {
+  return '<td data-label="客户"><span class="cust-cell"><span class="cust-av">' + c.slice(0, 1) + '</span><span class="cust-nm">' + esc(c) + "</span></span></td>";
+}
+function rowHtml(r) {
+  var go = '<td data-label="" class="row-go">档案 ↗</td>';
+  if (cur === "rev") {
+    return '<tr data-cust="' + esc(r.c) + '"><td data-label="成交时间">' + r.t + "</td>" + custTd(r.c) +
+      '<td data-label="项目">' + esc(r.p) + "</td>" +
+      '<td data-label="金额" class="num"><span class="money2">¥' + fmt(r.m) + "</span></td>" +
+      '<td data-label="类型"><span class="tag2 ' + (r.k === "new" ? "blue" : (r.k === "up" ? "ok" : "gray")) + '">' + r.ty + "</span></td>" +
+      '<td data-label="顾问">' + esc(r.a) + "</td>" +
+      '<td data-label="来源" class="hide-sm">' + esc(r.s) + "</td>" + go + "</tr>";
+  }
+  if (cur === "new") {
+    return '<tr data-cust="' + esc(r.c) + '">' + custTd(r.c) +
+      '<td data-label="渠道">' + esc(r.ch) + "</td>" +
+      '<td data-label="日期">' + r.d + "</td>" +
+      '<td data-label="项目">' + esc(r.p) + "</td>" +
+      '<td data-label="金额" class="num"><span class="money2' + (r.st === "deal" ? "" : " gray") + '">¥' + fmt(r.m) + "</span></td>" +
+      '<td data-label="状态"><span class="tag2 ' + tagCls(r.st) + '">' + r.stx + "</span></td>" +
+      '<td data-label="顾问">' + esc(r.a) + "</td>" + go + "</tr>";
+  }
+  if (cur === "up") {
+    return '<tr data-cust="' + esc(r.c) + '">' + custTd(r.c) +
+      '<td data-label="升级路径">' + esc(r.from) + " → <b>" + esc(r.to) + "</b></td>" +
+      '<td data-label="差价" class="num"><span class="money2">¥' + fmt(r.diff) + "</span></td>" +
+      '<td data-label="日期">' + r.d + "</td>" +
+      '<td data-label="次数">' + esc(r.n) + "</td>" +
+      '<td data-label="状态"><span class="tag2 ' + tagCls(r.st) + '">' + r.stx + "</span></td>" +
+      '<td data-label="顾问">' + esc(r.a) + "</td>" + go + "</tr>";
+  }
+  var td0 = TIERS[tierOf(r.days)];
+  return '<tr data-cust="' + esc(r.c) + '">' + custTd(r.c) +
+    '<td data-label="档位"><span class="ttag" style="border-color:' + td0.color + ";color:" + td0.color + '">' + tierOf(r.days).toUpperCase() + "</span></td>" +
+    '<td data-label="沉睡天数">' + r.days + " 天</td>" +
+    '<td data-label="唤醒方式">' + esc(r.way) + "</td>" +
+    '<td data-label="唤醒日期">' + r.d + "</td>" +
+    '<td data-label="结果"><span class="tag2 ' + tagCls(r.st) + '">' + r.stx + "</span></td>" +
+    '<td data-label="回店消费" class="num">' + (r.m > 0 ? '<span class="money2">¥' + fmt(r.m) + "</span>" : '<span class="money2 gray">—</span>') + "</td>" +
+    '<td data-label="顾问">' + esc(r.a) + "</td>" + go + "</tr>";
+}
+function footSum(list) {
+  var sum = 0, back = 0, deal = 0;
+  if (cur === "rev") { list.forEach(function (r) { sum += r.m; }); return "合计 <b style='color:var(--o3)'>¥" + fmt(sum) + "</b>（时间倒序 12 笔）"; }
+  if (cur === "new") { list.forEach(function (r) { sum += r.m; if (r.st === "deal") deal++; }); return "成交 " + deal + " 人 · 金额合计 <b style='color:var(--o3)'>¥" + fmt(sum) + "</b>"; }
+  if (cur === "up") { list.forEach(function (r) { sum += r.diff; }); return "差价合计 <b style='color:var(--o3)'>¥" + fmt(sum) + "</b>（升单 7 笔已交款）"; }
+  list.forEach(function (r) { sum += r.m; if (r.st === "back") back++; });
+  return "已回店 " + back + " 人 · 回店消费合计 <b style='color:var(--o3)'>¥" + fmt(sum) + "</b>";
+}
+function tableHtml(list) {
+  var def = GDEFS[cur];
+  var h = '<div class="tbl-card">';
+  h += '<div class="gd-head"><span class="th-t">📋 ' + def.head + '</span><span style="flex:1"></span><span>明细为原型示例数据 · 点行打开客户档案</span></div>';
+  h += '<table class="gdtd"><thead><tr>';
+  def.cols.forEach(function (c) { h += "<th>" + c + "</th>"; });
+  h += "</tr></thead><tbody>";
+  if (!list.length) {
+    h += '<tr><td colspan="9"><div class="gd-empty">没有符合条件的明细，换个筛选或关键词试试</div></td></tr>';
+  } else {
+    list.forEach(function (r) { h += rowHtml(r); });
+  }
+  h += "</tbody></table>";
+  h += '<div class="gd-foot"><span>' + footSum(list) + '</span><span style="flex:1"></span><button type="button" class="f-chip" data-toast="演示：已加载更早的明细记录">加载更早记录</button><button type="button" class="f-chip" data-toast="演示：已导出本页明细到 Excel">导出本页</button></div>';
+  h += "</div>";
+  return h;
+}
+function renderTable() {
+  var wrap = $("#gdTbl");
+  if (!wrap) return;
+  wrap.innerHTML = tableHtml(filteredRows(scopeRows()));
+  $$(".f-chip[data-f]").forEach(function (c0) { c0.classList.toggle("on", c0.getAttribute("data-f") === filter); });
+  var kwEl = $("#gdKw");
+  if (kwEl) kwEl.value = kw;
+}
+function bindKw() {
+  var kwEl = $("#gdKw");
+  if (kwEl) kwEl.addEventListener("input", function () {
+    kw = kwEl.value.trim();
+    renderTable();
+  });
+}
+
+function render() {
+  var s = LQ.store();
+  var def = GDEFS[cur];
+  var t = s.targets[cur];
+  var sp = null;
+  if (cur === "wake" && curTier !== "all") { s.sleep.forEach(function (x) { if (x.key === curTier) sp = x; }); }
+  var gGoal = sp ? sp.goal : t[0];
+  var gCur = sp ? sp.cur : t[1];
+  var isMoney = cur === "rev" && !sp;
+  var gTxt = function (n) { return isMoney ? "¥" + fmt(n) : n + " 人"; };
+  var p = pct(gCur, gGoal);
+  var gap = Math.max(0, gGoal - gCur);
+  var perDay = isMoney ? "¥" + fmt(Math.ceil(gap / MONTH.leftDays)) : Math.ceil(gap / MONTH.leftDays) + " 人";
+  var diff = p - timePct;
+  var diffTxt = diff > 0 ? "快 " + diff + " 个点 · 节奏健康" : (diff === 0 ? "与时间进度持平 · 稳住" : "落后 " + (-diff) + " 个点 · 要加速");
+
+  var h = "";
+  /* ⓪ 门店说明 */
+  h += '<section class="span2 rise"><div class="gd-store">📍 当前门店 <b>' + esc(s.short) + "</b> · 顶部目标数值随顶部门店切换；下方客户明细为原型示例数据</div></section>";
+
+  /* ① 月度目标总卡（随切换器联动） + 返回驾驶舱 */
+  h += '<section class="span2 rise"><div class="card">';
+  h += '<div class="gd-top"><div class="gd-t">' + def.ic + " " + def.label + '<span class="badge o">' + MONTH.name + " · " + esc(s.short) + (sp ? " · " + sp.nm : "") + "</span></div>";
+  h += '<a class="back-chip" href="home.html">← 返回驾驶舱</a></div>';
+  h += '<div class="gd-num"><b>' + gTxt(gCur) + "</b><span>/ " + (sp ? sp.nm + "目标 " : "目标 ") + gTxt(gGoal) + (def.sub ? " · " + def.sub : "") + "</span></div>";
+  h += '<div class="pbar gd-bar"><i class="pfill" data-w="' + p + '"></i></div>';
+  h += '<div class="gd-cmp"><span class="pill pill-o">达成进度 <b>' + p + '%</b></span><span>vs</span><span class="pill">时间进度 <b>' + timePct + '%</b></span><span class="gd-diff' + (diff < 0 ? " bad" : "") + '">' + diffTxt + "</span></div>";
+  h += '<div class="gd-rest">' + (gap > 0 ? "还差 <b>" + gTxt(gap) + "</b> · 剩 " + MONTH.leftDays + " 天 · 日均需 <b>" + perDay + "</b>" : "🎉 该目标已达标") + (sp ? " · 历史成功率 " + sp.rate + "%" : "") + "</div>";
+  h += '</div></section>';
+
+  /* ② 目标切换器 */
+  h += '<section class="span2 rise"><div class="gswitch">';
+  GOAL_DEFS.forEach(function (d) {
+    var tt = s.targets[d.k];
+    h += '<button type="button" class="gs-btn' + (d.k === cur ? " on" : "") + '" data-goal="' + d.k + '"><span>' + d.ic + " " + d.nm + '</span><span class="g-n">' + pct(tt[1], tt[0]) + "%</span></button>";
+  });
+  h += '</div></section>';
+
+  /* ③ 沉睡客分档（仅唤醒目标） */
+  if (cur === "wake") {
+    h += '<section class="span2 rise"><div class="sec-head"><h2><span class="bar"></span>沉睡客分档</h2><p>按未到店时长分三档 · 点卡片只看该档明细，再点一次看全部</p></div>';
+    h += '<div class="tier-grid">';
+    s.sleep.forEach(function (sp0) {
+      var td0 = TIERS[sp0.key], pp = pct(sp0.cur, sp0.goal);
+      h += '<button type="button" class="tc' + (curTier === sp0.key ? " on" : "") + '" data-tier="' + sp0.key + '">';
+      h += '<div class="tc-top"><span class="tc-nm">' + td0.nm + '</span><span class="tc-badge" style="background:' + td0.color + '">' + td0.badge + "</span></div>";
+      h += '<div class="tc-num" style="color:' + td0.color + '">' + sp0.cur + "<small>/ " + sp0.goal + ' 人</small></div>';
+      h += '<div class="tc-sub">存量 ' + sp0.stock + " 人 · " + td0.range + '</div>';
+      h += '<div class="pbar"><i class="pfill" data-w="' + pp + '" style="background:' + td0.color + '"></i></div>';
+      h += '<div class="tc-rate"><span>历史成功率 ' + sp0.rate + "%</span><span>" + pp + "%</span></div>";
+      h += "</button>";
+    });
+    h += "</div>";
+    if (sp) h += '<div class="rule-bar" style="margin-top:10px;margin-bottom:0"><span class="rb-ic">' + TIERS[curTier].ic + '</span><div><span class="rb-t">' + TIERS[curTier].nm + " · " + TIERS[curTier].badge + "打法</span>" + TIERS[curTier].tip + "</div></div>";
+    h += "</section>";
+  }
+
+  /* ④ 口径说明 */
+  h += '<section class="span2 rise"><div class="rule-bar" style="margin-bottom:0"><span class="rb-ic">📐</span><div><span class="rb-t">' + def.label + " · 达成口径</span>" + def.rule + "</div></div></section>";
+
+  /* ⑤ 四项子目标（点卡片切换下方明细） */
+  h += '<section class="span2 rise"><div class="sec-head"><h2><span class="bar"></span>四项子目标</h2><p>达标线 = 时间进度 ' + timePct + "% · 点卡片切换上方总卡与明细</p></div>";
+  h += '<div class="sg-grid">';
+  GOAL_DEFS.forEach(function (d) {
+    var g = s.targets[d.k][0], c = s.targets[d.k][1], pp = pct(c, g), ok = pp >= timePct;
+    var cTxt = d.k === "rev" ? "¥" + fmt(c) : c + " 人";
+    var gTxt = d.k === "rev" ? "¥" + fmt(g) : g + " 人";
+    h += '<div class="sg-card' + (ok ? " ok" : "") + (cur === d.k ? " on" : "") + '" data-goal="' + d.k + '" role="button" tabindex="0">';
+    h += '<div class="sg-top"><span class="ic">' + d.ic + '</span><span class="nm">' + d.nm + '</span><span class="badge ' + (ok ? "g" : "r") + '">' + (ok ? "达标" : "落后") + "</span></div>";
+    h += '<div class="sg-num"><b>' + cTxt + "</b><span>/ " + gTxt + "</span></div>";
+    h += '<div class="pbar"><i class="pfill" data-w="' + pp + '"></i></div>';
+    h += '<div class="sg-meta"><span class="pct' + (ok ? "" : " bad") + '">' + pp + "%</span><span>" + (pp >= timePct ? "快 " + (pp - timePct) : "慢 " + (timePct - pp)) + " 个点</span></div></div>";
+  });
+  h += "</div></section>";
+
+  /* ⑥ 筛选条 + 达成明细 */
+  var tierRows = scopeRows(), list = filteredRows(tierRows);
+  h += '<section class="span2 rise"><div class="sec-head"><h2><span class="bar"></span>达成明细</h2><p>' + (cur === "wake" ? "回店即算唤醒成功 · 不要求消费" : "最近记录 · 点行打开客户档案") + '</p><span class="more" style="cursor:default">已筛选 ' + list.length + " / " + tierRows.length + " 条</span></div>";
+  h += '<div class="filter-bar">';
+  def.filters.forEach(function (f) {
+    var n = 0;
+    tierRows.forEach(function (r) { if (f[0] === "all" || r.k === f[0]) n++; });
+    h += '<button type="button" class="f-chip' + (filter === f[0] ? " on" : "") + '" data-f="' + f[0] + '">' + f[1] + '<span class="cnt"> ' + n + "</span></button>";
+  });
+  h += '<input class="f-search" id="gdKw" type="text" placeholder="搜客户 / 项目" value="' + esc(kw) + '"/>';
+  h += "</div>";
+  h += '<div id="gdTbl">' + tableHtml(list) + "</div>";
+  h += "</section>";
+
+  /* ⑦ 跳转配置（外链） */
+  h += '<section class="span2 rise"><div class="ext-card' + (extOpen ? " open" : "") + '" style="background:var(--card);border:1px solid var(--line);border-radius:var(--rad);padding:4px 12px 10px;box-shadow:var(--shadow-s)">';
+  h += '<div class="ext-head" data-ext-toggle><span class="eh-t">🔗 跳转配置（店长可改）</span><span class="eh-s">明细可跳本系统其他页面，也可跳外部系统</span><span class="eh-ar">' + (extOpen ? "收起 ▲" : "展开 ▼") + "</span></div>";
+  h += '<div class="ext-body">';
+  GOAL_DEFS.forEach(function (d) {
+    var d0 = GDEFS[d.k];
+    var isExt = d0.extUrl.indexOf("http") === 0;
+    h += '<div class="ext-row"><span class="er-k">' + d0.ic + " " + d0.short + '</span><span class="er-u">' + d0.extName + " · " + d0.extUrl + "</span>";
+    h += isExt ? '<a class="er-b" href="#" data-exturl="' + d0.extUrl + '">打开 ↗</a></div>' : '<a class="er-b" href="' + d0.extUrl + '">打开 ↗</a></div>';
+  });
+  h += '<div class="ext-note">工程化说明：明细默认进<b>本系统客户档案</b>（crm.html?customer=客户ID）。若门店已用有赞 / 美团 / 抖音来客，可在后台把某一目标的下钻地址改成外部 URL，点击后新窗口打开并带上 <code>?store_id=&amp;month=</code> 参数。<b>外部系统只做跳转，不回写数据</b>——目标达成数仍以本系统口径为准。</div>';
+  h += "</div></div></section>";
+
+  /* ⑧ 下钻表（按员工 / 按门店） */
+  var rows = STAFF[s.id] || STAFF.s1;
+  h += '<section class="rise"><div class="sec-head"><h2><span class="bar"></span>' + (s.id === "all" ? "按门店拆解（业绩）" : "按员工拆解（业绩）") + "</h2><p>" + esc(s.short) + " · 目标已拆到" + (s.id === "all" ? "店" : "人") + "</p></div>";
+  h += '<div class="tbl-card"><table class="tbl"><tr><th>成员</th><th>目标</th><th>完成</th><th>完成率</th></tr>';
+  rows.forEach(function (r) {
+    var rp = pct(r.c, r.g);
+    h += '<tr><td><span class="mb"><b>' + esc(r.n) + "</b><small>" + esc(r.r) + "</small></span></td><td>¥" + fmt(r.g) + '</td><td>¥' + fmt(r.c) + '</td><td class="' + (rp >= timePct ? "good" : "bad") + '">' + rp + "%</td></tr>";
+  });
+  h += "</table>";
+  h += '<div class="tbl-note">📌 完成率 ≥ 时间进度 ' + timePct + "% 记绿灯 · 拆解口径：按上月业绩占比，工程化时由服务端聚合，不允许前端写死</div></div></section>";
+
+  /* ⑨ AI 建议条 */
+  var nGap = s.targets.new[0] - s.targets.new[1], nDay = Math.ceil(nGap / MONTH.leftDays);
+  h += '<section class="rise"><div class="sec-head"><h2><span class="bar"></span>AI 建议</h2><p>按当前缺口自动生成 · 每天 09:00 更新</p></div>';
+  h += '<div class="ai-wrap"><div class="ai-card">';
+  h += '<div class="ai-head"><span class="ai-badge"><span class="dot"></span>✨ AI 经营建议</span></div>';
+  h += '<div class="ai-bd">';
+  h += "<p>⚠️ <n>新客目标</n>落后 <n>" + nGap + " 人</n>（当前 " + s.targets.new[1] + "/" + s.targets.new[0] + "）→ 建议：<n>加投 2 条抖音探店视频</n> + <n>老客转介绍激励</n>（带礼到店）</p>";
+  h += "<p>按日均补 <n>" + nDay + " 人</n> × 剩 " + MONTH.leftDays + " 天，月末新客可望追平；同步把升单缺口拆进今天在跟的 3 名 980 体验客。</p>";
+  h += "</div>";
+  h += '<div class="ai-acts"><a class="ai-btn pri" href="acquire.html">📢 去加投获客内容</a><button class="ai-btn" data-toast="演示：已生成老客转介绍激励方案">🎁 生成转介绍激励</button></div>';
+  h += "</div></div></section>";
+
+  $("#app").innerHTML = h;
+  LQ.riseIn();
+  bindKw();
+}
+
+render();
+
+/* ---------- 页面事件 ---------- */
+document.addEventListener("click", function (e) {
+  var el = e.target.closest("[data-goal]");
+  if (el) {
+    cur = el.getAttribute("data-goal");
+    curTier = "all"; filter = "all"; kw = "";
+    render();
+    return;
+  }
+  el = e.target.closest("[data-tier]");
+  if (el) {
+    var tk = el.getAttribute("data-tier");
+    curTier = curTier === tk ? "all" : tk;
+    filter = "all";
+    render();
+    return;
+  }
+  el = e.target.closest("[data-f]");
+  if (el) { filter = el.getAttribute("data-f"); render(); return; }
+  el = e.target.closest("[data-ext-toggle]");
+  if (el) { extOpen = !extOpen; render(); return; }
+  el = e.target.closest("[data-exturl]");
+  if (el) { e.preventDefault(); LQ.toast("演示：已在新窗口打开 " + el.getAttribute("data-exturl")); return; }
+  el = e.target.closest("[data-toast]");
+  if (el) { LQ.toast(el.getAttribute("data-toast") || "演示模块"); return; }
+  var tr = e.target.closest("tr[data-cust]");
+  if (tr) LQ.toast("已打开客户档案 → crm.html?customer=" + tr.getAttribute("data-cust"));
+});
+
+LQ.init({ nav: "home", title: "目标明细" });
+})();
+</script>
+</body>
+</html>

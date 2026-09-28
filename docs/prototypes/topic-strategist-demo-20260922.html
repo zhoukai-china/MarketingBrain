@@ -200,6 +200,7 @@
   .topics-card .bar{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
   .topics-card .bar b{font-size:15px}
   .topics-card .bar .refresh{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--orange);background:var(--orange-soft);border:1px dashed var(--orange-line);border-radius:99px;padding:8px 14px;cursor:pointer;transition:opacity .2s}
+  .safe-tag{font-size:11px;color:#0f8a5f;background:#e6f5ee;border:1px solid rgba(15,138,95,.22);border-radius:99px;padding:2px 9px;font-weight:600;white-space:nowrap}
   .topics-card .bar .refresh.busy{opacity:.55;pointer-events:none;animation:spin .8s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   .topics-card{transition:opacity .25s}
@@ -318,9 +319,11 @@
 
 <div class="topbar">
   <div class="wrap">
+    <button class="back-btn" onclick="wbBack()">← 返回</button>
     <div class="logo">思潼<i>AI</i>商城</div>
     <span class="tag">设计原型 v1.5 · 手机端优先</span>
     <span class="tag tag-date">2026-09-25</span>
+    <span class="credits" style="margin-left:auto;font-size:12.5px;color:var(--sub);background:#f4f7fb;border:1px solid var(--line);border-radius:99px;padding:3px 12px;white-space:nowrap">算力 <b id="creditVal">2,400</b></span>
   </div>
 </div>
 
@@ -334,6 +337,7 @@
     <p class="hook">我是你的选题策略官。每天给你挑好「今天拍哪条能火」，还讲清为什么。</p>
     <p class="ability">私有知识库 + 行业热点 + 对标账号 + 数据复盘 → 四大来源三关筛选出 10 条。</p>
     <span class="cta">▶ 一键生成今天选题 <small>约 3–5 分钟 · 可随时追问「换一批」</small></span>
+    <span class="cta cta-ghost" id="proFillEntry">🚀 老手快填 · AI 先铺底稿，你来逐条确认 <small>4 条口径 · 确认完直接出选题</small></span>
   </div>
 </header>
 
@@ -351,9 +355,9 @@
 
 <div class="wrap">
   <section id="demo" style="padding-top:20px">
-    <div class="demo-head"><h2>▶ <span class="k">动态演示模型</span> · 完整运行实况</h2><span class="desc">滚动到此处自动播放一次 · 约 20 秒 · 对应上方四步流水线</span></div>
+    <div class="demo-head"><h2>▶ <span class="k">动态演示模型</span> · 完整运行实况</h2><span class="desc">默认手动 · 点「▶ 看演示」自动跑一遍 · 约 20 秒 · 对应上方四步流水线</span></div>
     <div class="stage">
-      <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span>选题策略官 · 运行实况</span><span class="st"><span class="st-dot" id="stDot"></span><span id="stTxt">○ 待播放</span></span><button class="runbtn" id="replayBtn">↻ 重播</button></div>
+      <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span>选题策略官 · 运行实况</span><span class="st"><span class="st-dot" id="stDot"></span><span id="stTxt">○ 待播放 · 点「▶ 看演示」</span></span><button class="runbtn" id="replayBtn">▶ 看演示</button></div>
       <div class="body">
         <div class="log" id="demoLog"></div>
         <div class="side">
@@ -589,6 +593,7 @@
         <span class="pill todo">待验证 2</span>
         <span class="src3note" id="src3Note">本次未使用来源 3 · 配额已重分配</span>
         <span class="refresh" id="refreshBtn">↻ 换一批</span>
+        <span class="safe-tag">🛡️ 失败不扣费</span>
       </div>
       <table class="ten">
         <thead><tr><th>#</th><th>最终选题</th><th>类型</th><th>来源</th><th>第一关证据</th><th>共识层级</th><th>客资准度</th><th>适用阶段</th><th>创作建议</th></tr></thead>
@@ -742,13 +747,7 @@
     });
   }
   document.getElementById("replayBtn").addEventListener("click", demoPlay);
-  let demoPlayed = false;
-  const demoObs = new IntersectionObserver((es) => {
-    es.forEach(e => {
-      if (e.isIntersecting && !demoPlayed) { demoPlayed = true; demoPlay(); }
-    });
-  }, { threshold: .35 });
-  demoObs.observe(document.getElementById("demo"));
+  /* vUX：默认手动——去掉滚动自动播放，改为显式点「▶ 看演示」 */
 
   /* ---------- 候选池计数 ---------- */
   let s3Off = false;
@@ -911,6 +910,201 @@
       refreshBtn.classList.remove("busy"); refreshBtn.textContent = "↻ 换一批";
     }, 1200);
   });
+</script>
+<style>
+.back-btn{flex:none;background:rgba(232,101,26,.07);border:1px solid rgba(232,101,26,.38);color:#e8651a;border-radius:8px;font-size:12px;font-weight:700;padding:4px 12px;cursor:pointer}
+.back-btn:hover{background:rgba(232,101,26,.14)}
+/* vUX：退出确认弹层 + 收条样式 */
+.gen-exit{position:fixed;inset:0;background:rgba(23,35,61,.55);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:99}
+.ge-card{width:320px;max-width:88vw;background:#fff;border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:8px;text-align:center;box-shadow:0 24px 60px rgba(23,35,61,.35)}
+.ge-card b{font-size:15px;color:#2E2A26}
+.ge-card span{font-size:12.5px;color:#8A7A6A;line-height:1.6}
+.ge-btns{display:flex;gap:10px;margin-top:6px}
+.ge-btns button{flex:1;border:none;border-radius:10px;padding:10px 0;font-size:13px;font-weight:700;cursor:pointer}
+#geStay{background:#FFF0DF;color:#E8651A}
+#geGo{background:#E8651A;color:#fff}
+.pp-rec{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 16px;font-size:13px}
+.pp-rec b{color:#1f7a33;font-size:14px}
+.pp-rec-sum{color:#8a7a6a;font-size:12px;flex:1;min-width:140px}
+.pp-rec-btn{flex:none;border:1px solid rgba(232,101,26,.45);color:#e8651a;background:#fff;border-radius:10px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer}
+</style>
+<script>
+function wbBack(){
+  var rb=document.getElementById('refreshBtn');
+  var st=document.getElementById('stTxt');
+  var gen=(rb&&rb.classList.contains('busy'))||(st&&st.textContent.indexOf('运行中')>-1);
+  if(gen){document.getElementById('genExitMask').style.display='flex';return;}
+  goBackNow();
+}
+function goBackNow(){
+  if(document.referrer&&history.length>1){history.back();return;}
+  location.href='agent-product-detail-demo-20260923.html?agent=topic';
+}
+</script>
+<div class="gen-exit" id="genExitMask">
+  <div class="ge-card">
+    <b>⏳ 生成中 · 退出将丢失本次进度</b>
+    <span>选题正在按四大来源 → 三关筛选跑批（线上约 3-5 分钟，演示已压缩）。确认要离开吗？</span>
+    <div class="ge-btns"><button id="geStay">继续等待</button><button id="geGo">仍要退出</button></div>
+  </div>
+</div>
+<script>
+document.getElementById('geStay').onclick=()=>{document.getElementById('genExitMask').style.display='none';};
+document.getElementById('geGo').onclick=()=>{document.getElementById('genExitMask').style.display='none';goBackNow();};
+</script>
+<style>
+/* 老手快填（何策）：入口 + 对话式确认卡（浅色版） */
+.cta-ghost{background:#fff;color:#e8651a;border:1.5px solid rgba(232,101,26,.45);box-shadow:0 6px 18px rgba(232,101,26,.12);cursor:pointer}
+.cta-ghost:active{transform:translateY(1px)}
+#proPanel{margin:18px auto 0;max-width:640px;background:#fff;border:1px solid #eee2d3;border-radius:16px;box-shadow:0 12px 32px rgba(120,70,20,.10);overflow:hidden}
+.pp-head{display:flex;align-items:center;gap:8px;padding:12px 16px;background:linear-gradient(135deg,#fff4e8,#ffe9d6);font-weight:800;font-size:14px;color:#8a4b12}
+.pp-head span{font-weight:400;font-size:12px;color:#a06a2c}
+.pp-head .pp-x{margin-left:auto;cursor:pointer;font-weight:700;color:#a06a2c;padding:2px 6px}
+.pp-chat{padding:14px 16px;display:flex;flex-direction:column;gap:9px;max-height:420px;overflow-y:auto}
+.pp-msg{max-width:86%;font-size:13px;line-height:1.65;border-radius:12px;padding:8px 12px}
+.pp-msg.ai{background:#f7f3ec;color:#4a3520;align-self:flex-start;border-top-left-radius:4px}
+.pp-msg.user{background:#e8651a;color:#fff;align-self:flex-end;border-top-right-radius:4px}
+.pp-pre{background:#faf7f2;border:1px dashed rgba(232,101,26,.35);border-radius:9px;padding:7px 10px;font-size:12.5px;color:#4a3520;line-height:1.6}
+.pp-tag{display:inline-block;font-size:10.5px;color:#e8651a;border:1px solid rgba(232,101,26,.4);border-radius:6px;padding:0 6px;margin-right:6px;font-weight:700}
+.pp-row{display:flex;gap:7px}
+.pp-btn{flex:1;text-align:center;padding:8px 6px;font-size:12.5px;font-weight:700;border-radius:10px;cursor:pointer;border:1px solid var(--line, #e5d9c8);background:#fff;color:#4a3520}
+.pedit-row{display:flex;gap:7px;margin-top:2px}
+.pedit{flex:1;min-width:0;background:#fff;border:1px solid #e5d9c8;border-radius:9px;padding:7px 10px;font-size:12.5px;color:#4a3520;outline:none}
+.pedit:focus{border-color:#e8651a}
+.pedit::placeholder{color:#b09a7e}
+.pp-btn.go{background:#e8651a;border-color:#e8651a;color:#fff}
+.pp-btn:disabled{opacity:.45;cursor:default}
+</style>
+<script>
+(function(){
+  const entry=document.getElementById('proFillEntry');if(!entry)return;
+  const FIELDS=[
+    {k:'biz',icon:'🏪',label:'生意 / 行业',hint:'决定行业热点的抓取范围和对标账号库。',val:'餐饮门店 · 招商加盟'},
+    {k:'stage',icon:'📈',label:'账号阶段',hint:'决定第三关「按阶段配」的选题配比。',val:'增长期（重点认知 + 转化）'},
+    {k:'form',icon:'🎬',label:'内容形态',hint:'决定每条选题的脚本建议怎么写。',val:'真人口播 + 部分混剪'},
+    {k:'num',icon:'🔢',label:'本批数量',hint:'默认一批 10 条，四大来源配额自动分配。',val:'10 条'},
+  ];
+  const VALS={};let idx=0,edited=0,busy=false;
+  entry.addEventListener('click',()=>{
+    if(busy)return;busy=true;idx=0;edited=0;
+    for(const k in VALS)delete VALS[k];
+    FIELDS.forEach(f=>VALS[f.k]=f.val);
+    let p=document.getElementById('proPanel');if(p)p.remove();
+    p=document.createElement('div');p.id='proPanel';
+    p.innerHTML='<div class="pp-head">🚀 老手快填<span>逐条确认口径，按你的口径出选题</span><span class="pp-x" id="ppX">✕</span></div><div class="pp-chat" id="ppChat"></div>';
+    const pipe=document.getElementById('pipeWrap');
+    pipe.parentNode.insertBefore(p,pipe);
+    p.scrollIntoView({behavior:'smooth',block:'center'});
+    document.getElementById('ppX').onclick=()=>{p.remove();busy=false;};
+    setTimeout(function(){
+      msg('好，老手通道 🚀 出选题前只要对 <b>4 条口径</b>。咱们逐条过：对的点「✓ 就这样」，不对点「✏️ 换一条」直接改；赶时间点「⏩ 剩下的全收」。');
+      setTimeout(ask,600);
+    },300);
+  });
+  function chat(){return document.getElementById('ppChat');}
+  function msg(html,who){
+    const d=document.createElement('div');d.className='pp-msg '+(who||'ai');
+    d.innerHTML=who==='user'?html:('<b>何策</b> '+html);
+    chat().appendChild(d);chat().scrollTop=chat().scrollHeight;return d;
+  }
+  function ask(){
+    if(idx>=FIELDS.length){done();return;}
+    const f=FIELDS[idx];
+    msg('<b>【快填 '+(idx+1)+'/4 · '+f.icon+' '+f.label+'】</b>'+f.hint);
+    const step=document.createElement('div');step.className='pp-msg ai';step.style.background='transparent';step.style.padding='0';
+    step.innerHTML='<div class="pp-pre" style="max-width:100%"><span class="pp-tag">预填</span>'+VALS[f.k]+'</div><div class="pp-row" style="margin-top:7px"></div>';
+    const row=step.querySelector('.pp-row');
+    const mk=(txt,act,go)=>{const b=document.createElement('button');b.className='pp-btn'+(go?' go':'');b.textContent=txt;b.onclick=()=>answer(act,b,step,f);row.appendChild(b);};
+    mk('✓ 就这样','ok',true);mk('✏️ 换一条','edit');mk('⏩ 剩下的全收','rest');
+    chat().appendChild(step);chat().scrollTop=chat().scrollHeight;
+  }
+  function answer(act,btn,step,f){
+    if(step.dataset.lock)return;
+    if(act==='edit'){
+      const old=step.querySelector('.pedit-row');
+      if(old){old.remove();return;}
+      const ed=document.createElement('div');ed.className='pedit-row';
+      ed.innerHTML='<input class="pedit" placeholder="不满意这条？直接输入你的版本，回车确认"><button class="pp-btn go" style="flex:none;padding:7px 14px">✓ 用这条</button>';
+      step.appendChild(ed);
+      const inp=ed.querySelector('.pedit');
+      inp.value=VALS[f.k]||'';
+      setTimeout(()=>{inp.focus();},30);
+      const commit=()=>{
+        const nv=(inp.value||'').trim();
+        if(!nv){inp.focus();return;}
+        VALS[f.k]=nv;edited++;
+        btn.textContent='✓ 已改';step.dataset.lock='1';
+        step.querySelectorAll('.pp-btn').forEach(x=>{if(x!==btn)x.disabled=true;});
+        ed.remove();
+        msg(nv,'user');
+        idx++;setTimeout(ask,350);
+      };
+      ed.querySelector('.go').onclick=commit;
+      inp.addEventListener('keydown',e=>{if(e.key==='Enter')commit();});
+      return;
+    }else if(act==='ok'){
+      step.querySelectorAll('.pedit-row').forEach(e=>e.remove());
+      btn.textContent='✓ 就这样 ✓';step.dataset.lock='1';
+      step.querySelectorAll('.pp-btn').forEach(x=>{if(x!==btn)x.disabled=true;});
+      msg('✓ '+VALS[f.k],'user');
+    }else{
+      step.dataset.lock='1';step.querySelectorAll('.pp-btn').forEach(x=>x.disabled=true);
+      step.querySelectorAll('.pedit-row').forEach(e=>e.remove());
+      msg('好——剩下 '+(FIELDS.length-idx)+' 条全部按预填口径收下 ✅','user');
+      done();return;
+    }
+    idx++;setTimeout(ask,350);
+  }
+  function done(){
+    msg('4 条口径过完了 ✅'+(edited?('（其中 <b>'+edited+' 条按你的口径改过</b>）'):'（全部确认通过）')+'——这就按你的口径跑<b>四大来源 → 三关筛选</b>，出本批 10 条。');
+    const btn=document.createElement('button');btn.className='pp-btn go';btn.style.flex='none';btn.style.padding='9px 18px';btn.textContent='⚡ 按口径出选题';
+    btn.onclick=()=>{
+      const rb=document.getElementById('refreshBtn');
+      if(rb){rb.classList.remove('busy');rb.click();}
+      foldReceipt(); /* vUX：不销毁面板，折叠成收条留在原地，可随时改口径 */
+    };
+    chat().appendChild(btn);chat().scrollTop=chat().scrollHeight;
+  }
+  /* vUX：收条 = 已按你的口径生成（不销毁、不滚走） */
+  function foldReceipt(){
+    const p=document.getElementById('proPanel');if(!p)return;busy=false;
+    p.innerHTML='<div class="pp-rec"><b>✅ 已按你的口径生成</b><span class="pp-rec-sum">'+(edited?('改过 '+edited+' 条 · '):'4 条全确认 · ')+VALS.biz+' · '+VALS.stage+' · '+VALS.form+' · '+VALS.num+'</span><button class="pp-rec-btn" id="ppReopen">✏️ 改口径</button><span class="pp-x" id="ppX2" title="收起">✕</span></div>';
+    document.getElementById('ppReopen').onclick=renderReview;
+    document.getElementById('ppX2').onclick=()=>{p.remove();};
+  }
+  /* vUX：口径回看——已确认 4 条逐条可改，改完按新口径重出 */
+  function renderReview(){
+    const p=document.getElementById('proPanel');if(!p)return;
+    p.innerHTML='<div class="pp-head">🚀 口径回看<span>改完点下方按钮，按新口径重出选题</span><span class="pp-x" id="ppX3">✕</span></div><div class="pp-chat" id="ppChat"></div>';
+    document.getElementById('ppX3').onclick=()=>{p.remove();busy=false;};
+    const c=chat();
+    FIELDS.forEach(f=>{
+      const step=document.createElement('div');step.className='pp-msg ai';step.style.background='transparent';step.style.padding='0';
+      step.innerHTML='<div class="pp-pre" style="max-width:100%"><span class="pp-tag">'+f.icon+' '+f.label+'</span><span class="pv">'+VALS[f.k]+'</span></div><div class="pp-row" style="margin-top:5px"></div>';
+      const row=step.querySelector('.pp-row');
+      const eb=document.createElement('button');eb.className='pp-btn';eb.style.flex='none';eb.style.padding='6px 12px';eb.textContent='✏️ 改这条';
+      eb.onclick=()=>{
+        if(step.querySelector('.pedit-row'))return;
+        const ed=document.createElement('div');ed.className='pedit-row';
+        ed.innerHTML='<input class="pedit" placeholder="直接输入你的版本，回车确认"><button class="pp-btn go" style="flex:none;padding:7px 14px">✓ 用这条</button>';
+        step.appendChild(ed);
+        const inp=ed.querySelector('.pedit');inp.value=VALS[f.k];
+        setTimeout(()=>inp.focus(),30);
+        const commit=()=>{
+          const nv=(inp.value||'').trim();if(!nv){inp.focus();return;}
+          if(nv!==VALS[f.k]){VALS[f.k]=nv;edited++;}
+          step.querySelector('.pv').textContent=nv;ed.remove();
+        };
+        ed.querySelector('.go').onclick=commit;
+        inp.addEventListener('keydown',e2=>{if(e2.key==='Enter')commit();});
+      };
+      row.appendChild(eb);c.appendChild(step);
+    });
+    const btn=document.createElement('button');btn.className='pp-btn go';btn.style.flex='none';btn.style.padding='9px 18px';btn.textContent='⚡ 按新口径重出';
+    btn.onclick=()=>{const rb=document.getElementById('refreshBtn');if(rb)rb.click();foldReceipt();};
+    c.appendChild(btn);c.scrollTop=c.scrollHeight;
+  }
+})();
 </script>
 </body>
 </html>

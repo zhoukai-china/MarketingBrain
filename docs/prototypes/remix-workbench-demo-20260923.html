@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>爆款复刻智能体 · 复刻工作台 · 设计原型 v0.1 · 思潼AI 行业智能体平台</title>
+<title>爆款复刻工作台 · 思潼AI</title>
 <style>
   :root{
     --bg:#F4F7FC; --card:#ffffff; --ink:#1c2733; --sub:#5b6b7c; --line:#e3e9f2;
@@ -120,6 +120,7 @@
   .big-btn.ghost{background:#fff;border:1px solid var(--line);color:var(--sub)}
   .big-btn.ghost:hover{border-color:var(--orange-line);color:var(--orange)}
   .fee{font-size:12px;color:var(--sub);align-self:center}
+  .safe-tag{font-size:11px;color:#0f8a5f;background:#e6f5ee;border:1px solid rgba(15,138,95,.22);border-radius:99px;padding:2px 9px;font-weight:600;align-self:center;white-space:nowrap}
   .fee b{color:var(--orange)}
 
   /* 占位/生成/交付 三态画布 */
@@ -262,24 +263,19 @@
   footer{padding:30px 0 40px;text-align:center;font-size:12px;color:#9db0be}
   .toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(20px);background:#17313f;color:#fff;font-size:13px;font-weight:600;border-radius:99px;padding:9px 22px;opacity:0;transition:.3s;z-index:99;box-shadow:0 10px 30px rgba(19,37,48,.4);pointer-events:none}
   .toast.show{opacity:1;transform:translateX(-50%)}
+.back-btn{flex:none;background:rgba(232,101,26,.07);border:1px solid rgba(232,101,26,.38);color:#e8651a;border-radius:8px;font-size:12px;font-weight:700;padding:4px 12px;cursor:pointer}
+.back-btn:hover{background:rgba(232,101,26,.14)}
 </style>
 </head>
 <body>
 
 <div class="topbar"><div class="wrap">
+  <button class="back-btn" onclick="wbBack()">← 返回</button>
   <div class="logo">思潼<i>AI</i> 行业智能体平台</div>
-  <span class="tag new">爆款复刻 · 工作台原型 v0.1 · 新增能力提案</span>
-  <span class="tag" style="margin-left:auto">dev 内测 · 静态演示</span>
+  <span class="credits" style="margin-left:auto;font-size:12.5px;color:var(--sub);background:#f4f7fb;border:1px solid var(--line);border-radius:99px;padding:3px 12px;white-space:nowrap">算力 <b id="creditVal">2,400</b></span>
 </div></div>
 
 <header class="hero"><div class="wrap">
-  <div class="chips">
-    <span class="chip dev">原型 demo</span>
-    <span class="chip">ipzone__remix · 爆款复刻智能体（提案）</span>
-    <span class="chip">链接 / 文件双入口</span>
-    <span class="chip">数字人一键换人重演</span>
-    <span class="chip">0 拍摄 0 出镜</span>
-  </div>
   <h1><span class="emoji">🎭</span>爆款复刻工作台</h1>
   <p class="hook">别人的爆款，10 分钟变成你的成片：投喂抖音链接或视频文件，上传你的头像 / 全身照，剩下的交给数字人。</p>
   <p class="ability">链接解析 → 口播转写 → 爆款结构拆解 → 你的数字人形象驱动 → 一键合成竖版成片。选题工作台解决「拍什么」，文案工作台解决「说什么」，复刻工作台解决「直接拍出来」。</p>
@@ -293,7 +289,7 @@
   <div class="stage">
     <div class="bar">
       <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-      <span class="url">ai.lcppch.top/agent/ipzone__remix/workbench（提案路由）</span>
+      <span class="url">ai.lcppch.top/agent/ipzone__remix/workbench</span>
       <span class="st"><span class="st-dot" id="stDot"></span><span id="stTxt">○ 待演示</span></span>
       <div class="ctrls">
         <button class="sbtn" id="btnAuto">▶ 自动演示</button>
@@ -329,7 +325,8 @@
           <div class="ops">
             <button class="big-btn gen" id="btnGen" disabled>✨ 一键合成成片</button>
             <button class="big-btn ghost" id="btnRegenAll" style="display:none">↻ 改简报重新合成</button>
-            <span class="fee" id="feeHint">完成配置后可合成 · 单条复刻 <b>按条计费</b>（提案：解析 10 + 合成 60 积分）</span>
+            <span class="fee" id="feeHint">完成配置后可合成 · 单条复刻 <b>按条计费</b>（解析 10 + 合成 60 算力）</span>
+            <span class="safe-tag">🛡️ 失败不扣费</span>
           </div>
         </div>
         <div class="canvas" id="canvas">
@@ -369,82 +366,6 @@
       <li>质检：口型同步 / 时长偏差 / 画面规范</li></ul></div>
   </div>
 </div></section>
-
-<section><div class="wrap">
-  <div class="sec-head"><h2>💡 <span class="k">设计说明</span> · 复刻工作台补齐内容生产最后一环</h2></div>
-  <div class="cards3" style="margin-top:12px">
-    <div class="xcard">
-      <b class="t"><span class="ic" style="background:var(--orange-soft);color:var(--orange)">🎬</span>选题、文案都齐了，卡在「拍」</b>
-      <p>选题工作台给出 10 条可开拍选题，文案工作台给出可照读逐字稿——但老板还是不想面对镜头、不想约拍摄、不想学剪辑。</p>
-      <p>复刻工作台把「拍出来」也接了：爆款结构 + 数字人形象 = 不出镜、不拍摄、不剪辑，10 分钟拿到能发的成片。</p>
-    </div>
-    <div class="xcard">
-      <b class="t"><span class="ic" style="background:var(--blue-soft);color:var(--blue)">🔗</span>双入口投喂，降低使用门槛</b>
-      <p>看到好视频，复制链接粘贴进来即可——系统自动解析、转写、拆结构；手里有文件就直接上传，不逼用户「先搞到链接」。</p>
-      <p>解析结果先出（拆解报告 + 逐字稿），用户确认后续环节——先看到价值，再等待合成。</p>
-    </div>
-    <div class="xcard">
-      <b class="t"><span class="ic" style="background:var(--green-soft);color:var(--green)">🧑‍💼</span>形象是资产，复用是复利</b>
-      <p>形象照一次上传训练，后续所有复刻任务直接选用，不用每次重传；音色克隆同样沉淀为个人资产。</p>
-      <p>换形象 / 换音色 / 改文案段落 → 局部重渲，不用整条重来。</p>
-    </div>
-  </div>
-</div></section>
-
-<section><div class="wrap">
-  <div class="sec-head"><h2>⚖️ <span class="k">形态对比</span> · 自己翻拍 vs 复刻工作台</h2></div>
-  <div class="sec-note">对标市面成熟的「爆款复刻 / 数字人视频」产品形态，收进平台工作台体系，与选题、文案工作台并列。</div>
-  <table class="cmp" style="margin-top:8px">
-    <tr><th style="width:110px">维度</th><th>现在 · 自己翻拍</th><th>升级后 · 复刻工作台</th></tr>
-    <tr><td>出片周期</td><td>找参考→抄文案→约拍摄→剪辑，3-7 天</td><td>投喂链接到成片约 10 分钟（解析 1 分钟 + 合成 5-10 分钟）</td></tr>
-    <tr><td>出镜门槛</td><td>老板亲自出镜，状态、着装、口条都是坎</td><td>上传一张形象照，数字人替你出镜，0 拍摄</td></tr>
-    <tr><td>文案来源</td><td>自己听抄爆款文案，抄不全也抄不准</td><td>ASR 逐字转写 + 结构拆解，钩子/痛点/CTA 逐段标注</td></tr>
-    <tr><td>迭代成本</td><td>改一句重拍一条</td><td>改逐字稿对应段落 / 换形象 / 换音色，局部重渲</td></tr>
-    <tr><td>版权口径</td><td>直接搬原片画面，侵权风险高</td><td>只复用结构与文案灵感，成片全部重渲，不复用原片素材</td></tr>
-  </table>
-</div></section>
-
-<section><div class="wrap">
-  <div class="sec-head"><h2>🧱 <span class="k">五件交付</span> · 交付物结构</h2></div>
-  <div class="sec-note">对应复刻 skill 的固定输出合同；①② 在投喂解析后即产出，③④⑤ 在合成完成后交付。</div>
-  <div class="grp-row">
-    <div class="gbox"><div class="gt"><span class="dotg" style="background:var(--blue)"></span>📊 解析区</div><ul><li><b>① 爆款拆解报告</b> 原片数据·结构五段·爆款元素</li><li><b>② 口播逐字稿</b> 带时间轴·逐段可编辑</li></ul></div>
-    <div class="gbox"><div class="gt"><span class="dotg" style="background:var(--purple)"></span>🧑‍💼 形象区</div><ul><li><b>③ 数字人形象卡</b> 形象训练状态·口型测试·复用入口</li></ul></div>
-    <div class="gbox"><div class="gt"><span class="dotg" style="background:var(--green)"></span>🎬 成片区</div><ul><li><b>④ 复刻成片</b> 9:16 播放器·原片对照·下载/重渲</li></ul></div>
-    <div class="gbox"><div class="gt"><span class="dotg" style="background:var(--amber)"></span>🚀 发布区</div><ul><li><b>⑤ 发布包</b> 标题·话题·发布建议·评论区引导</li></ul></div>
-  </div>
-</div></section>
-
-<section><div class="wrap">
-  <div class="sec-head"><h2>🔧 <span class="k">工程落地要点</span> · 给技术合伙人</h2></div>
-  <div class="cards3" style="margin-top:12px">
-    <div class="xcard">
-      <b class="t"><span class="ic" style="background:var(--orange-soft);color:var(--orange)">1️⃣</span>前端</b>
-      <p>复用文案工作台骨架：<b>/agent/:sku/workbench</b> 路由 + 引导问答 + 简报 + 交付渲染三块结构不变。</p>
-      <p>新增组件：视频 / 链接投喂、形象照上传与授权勾选、逐字稿时间轴编辑器、成片播放器与下载、形象库选择器。</p>
-    </div>
-    <div class="xcard">
-      <b class="t"><span class="ic" style="background:var(--blue-soft);color:var(--blue)">2️⃣</span>后端 / 第三方能力</b>
-      <p>链接解析与 ASR 转写可复用 <b>vidrev 智能体既有链路</b>（视频下载 + 语音转写已在生产验证）。</p>
-      <p>数字人合成是<b>唯一新增的重资产能力</b>：需接第三方合成 API（候选：硅基智能 / 闪剪开放平台 / 即创等，选型见待确认）；建议先出供应商对比与报价再立项。</p>
-    </div>
-    <div class="xcard">
-      <b class="t"><span class="ic" style="background:var(--green-soft);color:var(--green)">3️⃣</span>计费与合规</b>
-      <p>按条计费两段点：解析（低成本）+ 合成（高成本，对应第三方渲染费用）；形象训练建议免费沉淀，合成时收费。</p>
-      <p>合规三条红线：形象照必须<b>本人授权勾选</b>；成片<b>不复用原片画面素材</b>（只借结构文案）；数字人内容需加<b>AI 生成标识</b>符合平台规范。</p>
-    </div>
-  </div>
-  <div class="qa-list">
-    <b class="q">❓ 待确认问题（建议合伙人拍板）</b>
-    <p>1. 数字人合成供应商选型：口型质量、API 稳定性、单条渲染成本、竖版 1080P 支持——建议拿 2-3 家做横向对比再定。</p>
-    <p>2. 单条定价：解析 + 合成一口价，还是分段计费（提案：解析 10 + 合成 60 积分）？改文案段落局部重渲怎么计费？</p>
-    <p>3. 形象库与音色库：是否做成租户级资产跨任务复用？音色克隆（需录音授权）第一期是否上线，还是先上平台音色库？</p>
-    <p>4. 商城上架：新增第 9 个数字员工（提案：能力核 <b>remix</b>，人名建议「唐刻」，头像待生成），上架位置与详情页文案待定。</p>
-    <p>5. 抖音链接解析的失败兜底：风控 / 地域限制导致下载失败时，是否引导用户改传本地文件（本 demo 已按双入口设计）。</p>
-  </div>
-</div></section>
-
-<footer>思潼AI 行业智能体平台 · 爆款复刻工作台原型 v0.1 · 2026-09-23 · 单文件离线可打开</footer>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -490,18 +411,18 @@ const QFLOW = [
    ]},
   {field:'script', q:'逐字稿用哪个版本合成？', hint:'原片已转写完成，改写稿按「结构复刻·文案换血」生成，逐段可编辑。',
    opts:[
-     {t:'✅ 采用智能改写稿（思潼OS口径）', d:'右侧 ② 逐字稿可预览，点段落可改', v:'智能改写稿 · 思潼OS口径', rec:true},
+     {t:'✅ 采用智能改写稿（洗护年卡口径）', d:'右侧 ② 逐字稿可预览，点段落可改', v:'智能改写稿 · 洗护年卡口径', rec:true},
      {t:'原文照用', d:'完全还原原片文案', v:'原文照用'},
      {t:'我要手动改', d:'进入逐字稿编辑器逐段修改', v:'手动编辑版'},
    ]},
 ];
 /* 播放器分镜字幕（演示样例，与交付②一致） */
 const SEGS = [
-  {t:'0-3s',   tag:'钩子', txt:'你的账号不是没流量，是缺一个系统'},
-  {t:'3-12s',  tag:'痛点', txt:'天天拍天天剪，播放量还是三位数——问题不在努力，在方法'},
-  {t:'12-25s', tag:'方法', txt:'一套增长OS：选题有人出、文案有人写，连爆款复刻都有人替你拍'},
-  {t:'25-35s', tag:'证据', txt:'以前一条视频磨两天，现在10分钟出片，一天能发三条'},
-  {t:'35-42s', tag:'CTA',  txt:'评论区留言「OS」，把你的人工获客换成自动流水线'},
+  {t:'0-3s',   tag:'钩子', txt:'你家狗洗澡不是贵在洗，是贵在散洗单次'},
+  {t:'3-12s',  tag:'痛点', txt:'散洗一次 88，一个月两次一年两千多——钱在花，还老约不上'},
+  {t:'12-25s', tag:'方法', txt:'一张洗护年卡：全年不限次、吹毛造型全包，续费再送两次'},
+  {t:'25-35s', tag:'证据', txt:'王姐家金毛办卡 8 个月来了 21 次，均摊一次才 33 块'},
+  {t:'35-42s', tag:'CTA',  txt:'评论区留言「洗澡」，带毛孩子来店体验一次'},
 ];
 const PIECES = [
   {id:'p1',no:'①',g:'parse', gt:'解析区', gcls:'g-blue', icon:'📊', title:'爆款拆解报告',
@@ -516,8 +437,8 @@ const PIECES = [
   {id:'p2',no:'②',g:'parse', gt:'解析区', gcls:'g-blue', icon:'📝', title:'口播逐字稿（智能改写版）',
    d:'42 秒 · 带时间轴 · 逐段可编辑',
    html: SEGS.map(s=>`<div class="seg-line"><span class="tm">${s.t} ${s.tag}</span><div>${s.txt} <span class="edit-mark" onclick="toast('演示：进入该段落编辑（真实版支持逐段改写后局部重渲）')">✎ 编辑</span></div></div>`).join('') +
-     `<div class="safe">✓ 改写稿已按「结构复刻·文案换血」保留原片节奏，产品口径替换为思潼AI增长OS；段落编辑后仅重渲对应片段。</div>`,
-   plain:'二、口播逐字稿（智能改写版·42秒）\n0-3s【钩子】你的账号不是没流量，是缺一个系统\n3-12s【痛点】天天拍天天剪，播放量还是三位数——问题不在努力，在方法\n12-25s【方法】一套增长OS：选题有人出、文案有人写，连爆款复刻都有人替你拍\n25-35s【证据】以前一条视频磨两天，现在10分钟出片，一天能发三条\n35-42s【CTA】评论区留言「OS」，把你的人工获客换成自动流水线'},
+     `<div class="safe">✓ 改写稿已按「结构复刻·文案换血」保留原片节奏，产品口径替换为宠物门店洗护年卡；段落编辑后仅重渲对应片段。</div>`,
+   plain:'二、口播逐字稿（智能改写版·42秒）\n0-3s【钩子】你家狗洗澡不是贵在洗，是贵在散洗单次\n3-12s【痛点】散洗一次88，一个月两次一年两千多——钱在花，还老约不上\n12-25s【方法】一张洗护年卡：全年不限次、吹毛造型全包，续费再送两次\n25-35s【证据】王姐家金毛办卡8个月来了21次，均摊一次才33块\n35-42s【CTA】评论区留言「洗澡」，带毛孩子来店体验一次'},
   {id:'p3',no:'③',g:'face', gt:'形象区', gcls:'g-purple', icon:'🧑‍💼', title:'数字人形象卡',
    d:'形象训练 · 口型测试 · 可复用',
    html:`<div class="face-grid">
@@ -587,11 +508,11 @@ const PARSE_LINES = [
   ['✓ 转写完成 · 6 句 · 187 字 · 置信度 96%', 'ok'],
   ['→ 爆款结构拆解（钩子/痛点/方法/证据/CTA）…', ''],
   ['✓ 拆解完成 · 交付 ①② 已生成，右侧可预览', 'ok'],
-  ['✓ 解析计费：10 积分（演示）', 'hl'],
+  ['✓ 解析计费：10 算力（演示）', 'hl'],
 ];
 const GEN_LINES = [
   '→ 校验素材、形象授权与简报 …',
-  '→ 加载爆款复刻 skill（remix_skill V1 · 提案）',
+  '→ 加载爆款复刻引擎',
   '→ 文案时间轴对齐（42s · 5 段）…',
 ];
 
@@ -712,7 +633,7 @@ function nextStep(){
     S.phase='confirm'; setStatus('引导完成','done');
     addMsg(`齐了 ✅ 简报 6/6。右侧确认后点 <b>「✨ 一键合成成片」</b>——口播驱动你的数字人，约 5-10 分钟出片。中途可随时打断我改配置。`);
     renderPH('ready'); renderBrief();
-    $('feeHint').innerHTML = '本次合成：<b>60 积分</b>（解析 10 积分已扣 · 演示提案价）';
+    $('feeHint').innerHTML = '本次合成：<b>60 算力</b>（解析 10 算力已扣 · 演示价）';
     if(S.auto) S.timer=setTimeout(runGen, 1600);
   }
 }
@@ -753,6 +674,24 @@ function finish(){
   $('btnRegenAll').style.display='';
 }
 
+/* 导出 Word（.doc，HTML 内容打包，Word / WPS 均可直接打开；不用 .md） */
+function exportWord(){
+  let h='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>爆款复刻任务档案</title>'+
+  '<style>body{font-family:\'微软雅黑\',sans-serif;font-size:12pt;line-height:1.7;color:#1c2733}'+
+  'h1{font-size:20pt}h2{font-size:15pt;border-bottom:2px solid #E8651A;padding-bottom:4px;margin-top:22px}'+
+  'table{border-collapse:collapse;width:100%;margin:10px 0}td,th{border:1px solid #c9d3dd;padding:6px 9px;font-size:10.5pt;text-align:left;vertical-align:top}th{background:#f0f4f8}'+
+  'blockquote{border-left:4px solid #E8651A;margin:10px 0;padding:4px 14px;color:#444;background:#fdf6f0}'+
+  'ul,ol{margin:6px 0;padding-left:22px}li{margin:3px 0}</style></head><body>';
+  h+='<h1>爆款复刻任务档案 · 宠物门店洗护年卡（虚构演示案例）</h1><p>原片拆解：@流量操盘手·老周（只借结构，文案全换血）· 爆款复刻工作台生成 · 2026-09-23</p>';
+  PIECES.forEach(p=>{h+='<h2>'+(p.no||'')+' '+p.title+'</h2>'+(p.html||'<p>'+String(p.plain||'').replace(/\n/g,'<br>')+'</p>');});
+  h+='<p style="color:#888;font-size:10pt">本文档为设计原型演示数据，商家案例为虚构，不代表线上真实产出。</p></body></html>';
+  const blob=new Blob(['\ufeff'+h],{type:'application/msword'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='爆款复刻任务档案_宠物洗护年卡_20260923.doc';
+  document.body.appendChild(a);a.click();a.remove();
+  toast('已导出 Word（.doc）· Word / WPS 均可打开');
+}
 /* 交付视图 */
 function renderDeliverables(){
   const groups = [...new Set(PIECES.map(p=>p.g))];
@@ -764,7 +703,7 @@ function renderDeliverables(){
       <span class="time">5 件 · 2026-09-23 21:08（演示）</span>
       <div class="ops">
         <button class="cbtn" onclick="copyAll()">⧉ 复制全部文本</button>
-        <button class="cbtn" onclick="toast('演示：已导出复刻任务档案')">↓ 导出档案</button>
+        <button class="cbtn" onclick="exportWord()">↓ 导出 Word</button>
       </div>
     </div>
     <div class="tabs" id="tabs"></div>
@@ -860,7 +799,7 @@ $('skipGuide').onclick = ()=>{
   S.qi=QFLOW.length;
   addMsg('检测到跳过引导：已用<b>示例简报</b>填满 6/6（含演示爆款链接），可自由修改后一键合成。');
   renderBrief(); renderPH('ready'); S.phase='confirm'; setStatus('引导完成（跳过）','done');
-  $('feeHint').innerHTML = '本次合成：<b>60 积分</b>（解析 10 积分已扣 · 演示提案价）';
+  $('feeHint').innerHTML = '本次合成：<b>60 算力</b>（解析 10 算力已扣 · 演示价）';
 };
 
 /* 控制条 */
@@ -878,7 +817,7 @@ function setMode(auto){
   }
 }
 $('btnReset').onclick = ()=>resetAll(true);
-$('btnGen').onclick = ()=>{ if(S.phase==='confirm') runGen(); };
+$('btnGen').onclick = ()=>{ if(S.phase==='confirm'){ bumpCredit(-70); runGen(); } };
 $('btnRegenAll').onclick = ()=>{
   S.phase='confirm'; S.done=false; genIdx=-1; setStatus('引导完成','done');
   $('dlWrap').style.display='none'; $('btnRegenAll').style.display='none';
@@ -897,7 +836,7 @@ function resetAll(greet){
   $('btnRegenAll').style.display='none';
   const pv=$('pv'); if(pv){ pv.classList.remove('speaking'); $('bigplay').style.display='grid'; $('pbBtn').textContent='▶'; $('barFill').style.width='0'; $('pvSub').textContent='点击播放 · 字幕跟随分镜'; $('pvTime').textContent='00:00 / 00:42'; }
   initialPH(); renderBrief();
-  $('feeHint').innerHTML='完成配置后可合成 · 单条复刻 <b>按条计费</b>（提案：解析 10 + 合成 60 积分）';
+  $('feeHint').innerHTML='完成配置后可合成 · 单条复刻 <b>按条计费</b>（解析 10 + 合成 60 算力）';
   if(greet){ setStatus('待演示',''); addMsg('你好，我是<b>爆款复刻师</b> 🎭<br>把别人的爆款变成你的成片——<b>一次只问一个问题</b>：投喂爆款、上传你的照片，然后一键换人重演。答案会自动填进右侧「复刻简报」。'); S.timer=setTimeout(askQuestion,700); }
 }
 setMode(true);
@@ -907,6 +846,15 @@ let started=false;
 window.__autostart = ()=>{ if(!started){started=true; resetAll(true);} };
 const io=new IntersectionObserver(es=>{ es.forEach(e=>{ if(e.isIntersecting&&!started){ started=true; resetAll(true);} }); },{threshold:.35});
 io.observe(document.querySelector('.stage'));
+function bumpCredit(d){
+  var el=document.getElementById('creditVal'); if(!el) return;
+  var v=Math.max(0,(parseInt((el.textContent||'0').replace(/,/g,''),10)||0)+d);
+  el.textContent=v.toLocaleString('en-US');
+}
+function wbBack(){
+  if(document.referrer&&history.length>1){history.back();return;}
+  location.href='agents-home-tech-demo-20260925.html?v=68';
+}
 </script>
 </body>
 </html>
