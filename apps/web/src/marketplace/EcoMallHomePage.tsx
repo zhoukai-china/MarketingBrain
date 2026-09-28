@@ -28,6 +28,18 @@ const KINGKONG: Array<{ floor: FloorId; label: string; icon: string; tint: strin
   { floor: "floor-industry", label: "行业工作台", icon: "🏪", tint: "#E8A33D" }
 ];
 
+/** 交付单位（照原型 emp-price：定位=份 / 直播=场 / 文案·诊断·选题=次 / 私域=条）。 */
+const UNIT_BY_KEY: Record<string, string> = {
+  "ip-position": "份",
+  copywriter: "次",
+  "video-diag": "次",
+  "live-host": "场",
+  topic: "次",
+  "live-coach": "场",
+  private: "条",
+  "sales-coach": "次"
+};
+
 /** Hero 打字机台词（原型 heroType 演示口径）。 */
 const TYPE_LINES = [
   "今天要发内容？让秦文给你一条能念的稿",
@@ -112,6 +124,8 @@ function EmployeeProduct({
   const hook = current?.hook ?? employee.hookBase;
   const deliver = shortDeliver(current?.deliver ?? "");
 
+  const unit = UNIT_BY_KEY[employee.key] ?? "次";
+  const cny = ppu != null ? (ppu / 10).toFixed(ppu % 10 === 0 ? 0 : 1) : "—";
   return (
     <article
       className={`eco-product ${ok ? "is-ok" : "is-dev"}`}
@@ -120,36 +134,18 @@ function EmployeeProduct({
     >
       <div className="eco-p-img">
         <EcoAvatar icon={employee.icon} img={employeeImagePath(employee)} />
-        <span className={`eco-badge ${ok ? "ok" : "dev"}`}>{ok ? "可用" : "开发中"}</span>
+        <i className={`eco-p-dot ${ok ? "ok" : "dev"}`} />
       </div>
       <div className="eco-p-body">
-        <div className="eco-p-name">{employeePersonaLabel(employee.capability)}</div>
-        <div className="eco-p-shop">{employee.role} · 数字员工</div>
-        <p className="eco-p-desc">{hook}</p>
-        {deliver ? (
-          <div className="eco-p-tags">
-            <span className="eco-p-tag">{deliver}</span>
-          </div>
-        ) : null}
-        <div className="eco-p-buy">
-          {ok ? (
-            <>
-              <span className="eco-p-price">
-                {ppu != null ? (
-                  <>
-                    <b>{ppu}</b>
-                    <span className="eco-p-unit">算力/次</span>
-                  </>
-                ) : (
-                  <span className="eco-p-price-flex">按次计费</span>
-                )}
-              </span>
-              <button type="button" className="eco-p-btn">去使用</button>
-            </>
-          ) : (
-            <span className="eco-p-soon">即将上线</span>
-          )}
+        <div className="eco-p-top">
+          <b className="eco-p-name">{employeePersonaLabel(employee.capability)}</b>
+          <span className="eco-p-role">{employee.role} · AI 智能体</span>
         </div>
+        <span className="eco-p-desc">{hook}</span>
+        {deliver ? <span className="eco-p-tag">{deliver}</span> : null}
+        <span className="eco-p-price">
+          ⚡ {ppu ?? "—"} 算力/{unit} <i>≈ ¥{cny} · 0元开通 · 用后扣费</i>
+        </span>
       </div>
     </article>
   );
@@ -625,6 +621,15 @@ export function EcoMallHomePage() {
           </div>
         ) : (
           <>
+            {/* 广告位（原型：当前仅邀约有礼） */}
+            <button type="button" className="eco-banner eco-invite-banner" onClick={() => setShowInvite(true)}>
+              <div className="eco-banner-text">
+                <b>🎁 邀请有礼</b>
+                <span>好友开通 · 各得 100 算力</span>
+              </div>
+              <span className="eco-banner-link">立即邀请 ›</span>
+            </button>
+
             <nav className="eco-kingkong" aria-label="商城楼层导航">
               {KINGKONG.map((item) => (
                 <button
@@ -639,15 +644,6 @@ export function EcoMallHomePage() {
                 </button>
               ))}
             </nav>
-
-            {/* 广告位（原型：当前仅邀约有礼） */}
-            <button type="button" className="eco-banner eco-invite-banner" onClick={() => setShowInvite(true)}>
-              <div className="eco-banner-text">
-                <b>🎁 邀约有礼 · 各得 100 算力</b>
-                <span>好友开通立得 100 · 好友消耗满 50 你再得 100 · 人数不限</span>
-              </div>
-              <span className="eco-banner-link">去邀请 ›</span>
-            </button>
 
             {renderTodayStrip()}
 

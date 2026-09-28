@@ -90,10 +90,32 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
   });
   log(card && card.bg === "rgb(255, 255, 255)", "员工卡白底", card ? String(card.bg) : "N/A");
   log(card && card.dir === "column", "桌面卡片竖排");
-  log(card && card.ring === "ehSpin", "头像虚线旋环动画");
+  const ringAnim = await page.evaluate(() => getComputedStyle(document.querySelector(".eh .eco-p-img"), "::before").animationName);
+  log(ringAnim === "ehSpin", "头像虚线旋环动画", ringAnim);
   log(text.includes("沈定") && text.includes("秦文") && text.includes("罗盘"), "F1 五位在线");
   log(text.includes("99") && text.includes("算力/次"), "价格橙标");
-  log(text.includes("去使用"), "去使用按钮");
+  const cardGeo = await page.evaluate(() => {
+    const c = document.querySelector(".eh .eco-product");
+    const r = c.getBoundingClientRect();
+    return { w: Math.round(r.width), h: Math.round(r.height), text: c.innerText.replace(/\n/g, " | ") };
+  });
+  log(cardGeo.w === 276 && cardGeo.h === 278, "员工卡尺寸与原型一致 276×278", `${cardGeo.w}×${cardGeo.h}`);
+  log(/⚡ \d+ 算力\/(份|次|场|条)/.test(cardGeo.text) && cardGeo.text.includes("≈ ¥") && cardGeo.text.includes("0元开通 · 用后扣费"), "价目行口径（算力/单位 + ≈¥ + 0元开通）", cardGeo.text.slice(-40));
+  log(cardGeo.text.includes("· AI 智能体"), "职务行口径（原型逐字）");
+  const avaGeo = await page.evaluate(() => {
+    const a = document.querySelector(".eh .eco-p-img > .eco-ava");
+    const r = a.getBoundingClientRect();
+    return { w: Math.round(r.width), h: Math.round(r.height) };
+  });
+  log(avaGeo.w === 68 && avaGeo.h === 68, "员工头像 68×68（原型 .emp-ava）", `${avaGeo.w}×${avaGeo.h}`);
+  const todayGeo = await page.evaluate(() => {
+    const t = document.querySelector(".eh .eco-today-item");
+    const r = t.getBoundingClientRect();
+    return { w: Math.round(r.width), h: Math.round(r.height) };
+  });
+  log(todayGeo.w === 250 && todayGeo.h === 64, "今日卡 250×64（原型 .t-card）", `${todayGeo.w}×${todayGeo.h}`);
+  const ring = await page.evaluate(() => getComputedStyle(document.querySelector(".eh .eco-p-img"), "::before").borderTopStyle);
+  log(ring === "dashed", "头像外圈虚线旋环");
 
   // 楼层
   log(text.includes("F1") && text.includes("内容获客专区") && text.includes("位在线"), "F1 楼层头");

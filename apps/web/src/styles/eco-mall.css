@@ -1262,6 +1262,7 @@ body.eco-mall-body .app-wrap {
     #FFFFFF;
   color:#2B1B10;
   min-height:100vh;
+  font-size:14px;
 }
 
 /* ---- 顶栏 ---- */
@@ -1269,7 +1270,7 @@ body.eco-mall-body .app-wrap {
   position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:10px;
   padding:10px 18px;background:rgba(255,255,255,.9);
   -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
-  border-bottom:1px solid #F0EBE3;padding-left:22px;padding-right:22px;
+  border-bottom:1px solid #F0EBE3;padding-left:14px;padding-right:14px;
 }
 .eh-brand-txt{display:flex;flex-direction:column;line-height:1.25}
 .eh-brand-txt b{font-size:15px;letter-spacing:.5px;color:#2B1B10}
@@ -1281,7 +1282,7 @@ body.eco-mall-body .app-wrap {
 .eh-bal{display:flex;align-items:center;gap:4px;font-size:13px;font-weight:700;color:#E86A00;padding:6px 10px;border-radius:10px;background:rgba(255,106,0,.10);border:1px solid rgba(255,122,26,.35);white-space:nowrap}
 .eh-bal i{font-style:normal;font-size:10.5px;font-weight:600;color:#BEA488}
 .eh-mini{
-  position:relative;overflow:hidden;min-height:34px;padding:6px 14px;border-radius:10px;font-size:13px;font-weight:600;
+  position:relative;overflow:hidden;min-height:34px;padding:6px 13px;border-radius:10px;font-size:13px;font-weight:600;
   color:#fff;background:linear-gradient(135deg,#FF8A2A,#F25300);
   box-shadow:0 3px 14px rgba(255,106,0,.35);white-space:nowrap;cursor:pointer;
 }
@@ -1318,7 +1319,8 @@ body.eco-mall-body .app-wrap {
   .eh-nav-bal .v{font-size:16px;font-weight:800;color:#E86A00}
   .eh-nav-bal i{font-style:normal;font-size:10.5px;color:#BEA488}
   .eh-nav-bal .eh-mini{width:100%}
-  main.eh{margin-left:190px;max-width:1390px}
+  body.eco-mall-body .app-wrap.eh{margin-left:190px;max-width:none;padding:0}
+  .eh .eco-mall{max-width:1180px;margin:0 auto;padding:22px 22px 60px}
 }
 
 /* ---- 橙色 Hero ---- */
@@ -1344,7 +1346,7 @@ body.eco-mall-body .app-wrap {
 .eh-wave i:nth-child(3){height:4px;animation-delay:.3s}.eh-wave i:nth-child(4){height:9px;animation-delay:.45s}
 .eh-wave i:nth-child(5){height:5px;animation-delay:.6s}
 @keyframes ehWv{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1.15)}}
-.eh-hero-title{font-size:17px;font-weight:800;margin:4px 0 2px;letter-spacing:.5px;color:#FFF}
+.eh-hero-title{font-size:17px;font-weight:800;margin:4px 0 2px;letter-spacing:.5px;color:#FFF;line-height:1.6}
 .eh-hero-title em{font-style:normal;background:linear-gradient(90deg,#FFF0C8,#FFC66B);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 .eh-hero-type{font-size:12.5px;color:rgba(255,255,255,.92);min-height:20px}
 .eh-caret{display:inline-block;width:7px;height:14px;background:#FFF;vertical-align:-2px;margin-left:2px;animation:ehBlink .8s step-end infinite}
@@ -1359,13 +1361,19 @@ body.eco-mall-body .app-wrap {
 .eh-ghost{min-height:44px;padding:11px 18px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;color:#FFF;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.6)}
 .eh-hero-note{margin-top:9px;font-size:10.5px;color:rgba(255,255,255,.72);letter-spacing:.3px}
 
+/* ---- 搜索框（照原型 .search） ---- */
+.eh .eco-search{background:#fff;border:1px solid #F0EBE3;border-radius:13px;padding:11px 14px;box-shadow:0 3px 14px rgba(200,120,50,.08);display:flex;align-items:center;gap:9px}
+.eh .eco-search input{flex:1;border:0;outline:0;background:none;font-size:16px;color:#2B1B10;min-width:0}
+.eh .eco-search input::placeholder{color:#BEA488}
+.eh .eco-search-ico{flex:none;opacity:.55;color:#C9A98C}
+
 /* ---- 搜索提示行 ---- */
 .eh-search-hint{font-size:11px;color:#BEA488;margin-top:7px;padding-left:4px}
 .eh-search-hint b{color:#E8710F;font-weight:600}
 
 /* ---- 邀约有礼横幅（橙渐变，照原型 ad-inv） ---- */
-.eh .eco-invite-banner{background:linear-gradient(135deg,#FF8C32,#F25300 60%,#E84B00);border:0;box-shadow:0 6px 16px rgba(242,83,0,.25);color:#fff}
-.eh .eco-invite-banner .eco-banner-text b{color:#fff;font-size:15.5px}
+.eh .eco-invite-banner{width:calc(100% - 16px);margin:14px auto 0;height:76px;border-radius:12px;padding:0 16px;background:linear-gradient(135deg,#FF8C32,#F25300 60%,#E84B00);border:0;box-shadow:0 6px 16px rgba(242,83,0,.25);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left}
+.eh .eco-invite-banner .eco-banner-text b{color:#fff;font-size:15.5px;display:block}
 .eh .eco-invite-banner .eco-banner-text span{color:rgba(255,255,255,.92)}
 .eh .eco-invite-banner .eco-banner-link{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.35);border-radius:15px;padding:6px 12px;font-size:12px;font-weight:700;color:#fff}
 
@@ -1377,7 +1385,7 @@ body.eco-mall-body .app-wrap {
 }
 .eh .eco-kk-item:hover{transform:translateY(-3px);border-color:var(--kk-tint)}
 .eh .eco-kk-ico{
-  position:relative;width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:22px;
+  position:relative;width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:24px;
   background:linear-gradient(150deg, color-mix(in srgb, var(--kk-tint) 52%, white) 0%, var(--kk-tint) 46%, color-mix(in srgb, var(--kk-tint) 62%, #5B1E00) 100%);
   border:1px solid color-mix(in srgb, var(--kk-tint) 50%, white);
   box-shadow:0 7px 16px color-mix(in srgb, var(--kk-tint) 40%, transparent), inset 0 1px 1px rgba(255,255,255,.6), inset 0 -3px 5px color-mix(in srgb, var(--kk-tint) 55%, rgba(0,0,0,.25));
@@ -1393,57 +1401,67 @@ body.eco-mall-body .app-wrap {
 .eh-floor-live{margin-left:auto;font-size:10px;color:#12A06A;display:inline-flex;align-items:center;gap:5px}
 .eh-floor-live i{width:5px;height:5px;border-radius:50%;background:#12A06A;animation:ehBreath 2s infinite}
 
+/* ---- 今日任务卡（照原型 .t-row/.t-card/.t-ico） ---- */
+.eh .eco-today{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.eh .eco-today::-webkit-scrollbar{display:none}
+.eh .eco-today-item{flex:none;display:flex;align-items:center;gap:11px;padding:12px 14px;border-radius:14px;width:250px;flex:none;background:#fff;border:1px solid #F0EBE3;text-align:left;cursor:pointer;transition:transform .25s,border .25s,box-shadow .25s}
+@media(hover:hover){.eh .eco-today-item:hover{transform:translateY(-2px);border-color:rgba(255,122,26,.5);box-shadow:0 8px 24px rgba(255,106,0,.15)}}
+.eh .eco-today-ico{width:38px;height:38px;flex:none;border-radius:11px;display:grid;place-items:center;font-size:18px;background:rgba(255,140,50,.12);border:1px solid rgba(255,140,50,.35)}
+.eh .eco-today-text{flex:1;min-width:0}
+.eh .eco-today-title{font-size:13px;font-weight:700;color:#2B1B10;display:block;line-height:1.35}
+.eh .eco-today-hint{font-size:11px;color:#94796B;display:block;font-weight:400;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eh .eco-today-go{color:#FF6A00;font-size:18px;flex:none}
+
 /* ---- 楼层头（F 徽标 + 基线对齐） ---- */
 .eh .eco-floor-head{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:12px}
 .eh .eco-floor-title{display:inline-flex;align-items:baseline;gap:9px}
 .eh .eco-floor-title h2{font-size:16px;font-weight:800;margin:0;color:#2B1B10}
-.eh .eco-floor-no{font-size:10px;font-weight:800;letter-spacing:1px;color:#FF6A00;padding:3px 8px;border-radius:6px;background:rgba(255,122,26,.12);border:1px solid rgba(255,122,26,.3);white-space:nowrap}
+.eh .eco-floor-no{font-size:10px;font-weight:800;letter-spacing:1px;color:#FF6A00;padding:3px 8px;border-radius:6px;background:rgba(255,122,26,.12);border:1px solid rgba(255,122,26,.3);white-space:nowrap;line-height:1.6}
 .eh .eco-floor-sub{font-size:11px;color:#BEA488}
 
-/* ---- 员工卡（原型 .emp：白卡 + 虚线旋环头像 + 底部价格行） ---- */
+/* ---- 员工卡（照原型 .emp / .emp-ava-wrap / .emp-price 1:1） ---- */
 .eh .eco-products{display:grid;grid-template-columns:1fr;gap:11px}
 @media(min-width:640px){.eh .eco-products{grid-template-columns:repeat(2,1fr)}}
 @media(min-width:960px){.eh .eco-products{grid-template-columns:repeat(3,1fr)}}
 @media(min-width:1180px){.eh .eco-products{grid-template-columns:repeat(4,1fr)}}
 .eh .eco-product{
-  display:flex;align-items:center;gap:13px;padding:14px;border-radius:16px;
-  background:#fff;border:1px solid #F0EBE3;cursor:pointer;overflow:hidden;position:relative;
+  position:relative;display:flex;align-items:center;gap:13px;padding:14px;border-radius:16px;
+  background:#fff;border:1px solid #F0EBE3;cursor:pointer;overflow:hidden;text-align:left;
   transition:transform .28s,border .28s,box-shadow .28s;
 }
 @media(min-width:960px){.eh .eco-product{flex-direction:column;align-items:stretch;gap:0;padding:16px}}
 @media(hover:hover){.eh .eco-product:hover{transform:translateY(-4px);border-color:rgba(255,122,26,.45);box-shadow:0 12px 32px rgba(170,90,20,.16), 0 0 24px rgba(255,106,0,.12)}}
-.eh .eco-p-img{background:none !important;border:0 !important;height:auto !important;min-height:0 !important;display:grid;place-items:center;position:relative;margin-bottom:0}
-@media(min-width:960px){.eh .eco-p-img{margin-bottom:10px}}
-.eh .eco-ava{width:58px;height:58px;position:relative}
-@media(min-width:960px){.eh .eco-ava{width:84px;height:84px}}
-.eh .eco-ava::before{content:"";position:absolute;inset:-7px;border:2px dashed rgba(255,122,26,.55);border-radius:50%;animation:ehSpin 9s linear infinite}
-.eh .eco-ava::after{content:"";position:absolute;inset:-11px;border:1px solid rgba(245,176,74,.45);border-radius:50%;animation:ehSpin 14s linear infinite reverse}
+.eh .eco-p-img{position:relative;width:58px;height:58px;flex:none;margin:0 auto 10px;display:grid;place-items:center;background:none !important;border:0 !important;min-height:0 !important}
+@media(min-width:960px){.eh .eco-p-img{width:84px;height:84px}}
+.eh .eco-p-img::before{content:"";position:absolute;inset:0;border:2px dashed rgba(255,122,26,.55);border-radius:50%;animation:ehSpin 9s linear infinite}
+.eh .eco-p-img::after{content:"";position:absolute;inset:-4px;border:1px solid rgba(245,176,74,.45);border-radius:50%;animation:ehSpin 14s linear infinite reverse}
 @keyframes ehSpin{to{transform:rotate(360deg)}}
+.eh .eco-ava{
+  position:relative;z-index:1;width:46px;height:46px;border-radius:50%;overflow:hidden;display:grid;place-items:center;
+  background:radial-gradient(circle at 30% 25%,#FFF6EC,#FFE5CC);border:1px solid rgba(232,134,43,.4);box-shadow:0 0 16px rgba(255,122,26,.22);
+}
+@media(min-width:960px){.eh .eco-ava{width:68px;height:68px}}
 .eh .eco-emoji{font-size:22px}
 @media(min-width:960px){.eh .eco-emoji{font-size:32px}}
-.eh .eco-ava img{width:100%;height:100%;object-fit:cover;border-radius:50%;position:relative;z-index:1}
-.eh .eco-badge{position:absolute;top:10px;right:10px;z-index:2}
-.eh .eco-badge.ok{background:#E9F9F1;color:#0E9F6E;border:1px solid rgba(14,159,110,.35)}
-.eh .eco-badge.dev{background:#FFF6E6;color:#D97706;border:1px solid rgba(217,119,6,.35)}
-.eh .eco-p-body{flex:1;min-width:0;display:flex;flex-direction:column}
+.eh .eco-ava img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.eh .eco-p-dot{position:absolute;right:2px;bottom:4px;width:11px;height:11px;border-radius:50%;border:2px solid #fff;z-index:2}
+.eh .eco-p-dot.ok{background:#12A06A}
+.eh .eco-p-dot.dev{background:#F59E0B}
+.eh .eco-p-body{flex:1;min-width:0;width:100%;display:flex;flex-direction:column;padding:0 !important;gap:0 !important;margin:0}
+.eh .eco-product,.eh .eco-p-body,.eh .eco-p-top,.eh .eco-p-name,.eh .eco-p-role,.eh .eco-p-desc,.eh .eco-p-tag,.eh .eco-p-price{line-height:1.6}
+.eh .eco-p-img>.eco-ava{position:absolute !important;inset:6px !important;width:auto !important;height:auto !important;margin:auto !important;border-radius:50%;transform:none !important}
+@media(min-width:960px){.eh .eco-p-img>.eco-ava{inset:8px !important}}
+.eh .eco-p-price{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eh .eco-p-price i{font-size:10px;margin-left:4px}
 @media(min-width:960px){.eh .eco-p-body{min-height:150px}}
+.eh .eco-p-top{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .eh .eco-p-name{font-size:15px;font-weight:800;color:#2B1B10}
-.eh .eco-p-shop{font-size:10.5px;color:#94796B}
-.eh .eco-p-desc{font-size:12px;color:#94796B;margin:3px 0 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.eh .eco-p-role{font-size:10.5px;color:#94796B;white-space:nowrap}
+.eh .eco-p-desc{display:block;font-size:12px;color:#94796B;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 @media(min-width:960px){.eh .eco-p-desc{min-height:36px}}
-.eh .eco-p-tag{display:inline-block;font-size:10.5px;padding:3px 9px;border-radius:7px;color:#D96A00;background:rgba(255,140,50,.1);border:1px solid rgba(255,140,50,.35)}
-.eh .eco-p-tags{margin-top:7px}
-.eh .eco-p-buy{display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex:none;margin-top:8px}
-@media(min-width:960px){.eh .eco-p-buy{flex-direction:row;align-items:center;justify-content:space-between;margin-top:auto}}
-.eh .eco-p-price b{font-size:18px;color:#E86A00;font-weight:800}
-.eh .eco-p-unit{font-size:10.5px;color:#BEA488}
-.eh .eco-p-btn{
-  min-height:34px;padding:7px 16px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;
-  color:#fff;background:linear-gradient(135deg,#FF8A2A,#F25300);box-shadow:0 4px 14px rgba(255,106,0,.3);border:0;
-}
-.eh .eco-p-soon{font-size:11px;color:#D97706;padding:5px 10px;border-radius:8px;background:rgba(255,176,32,.1);border:1px solid rgba(255,176,32,.3);white-space:nowrap}
-.eh .eco-p-cart{min-height:34px;padding:7px 12px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;color:#E86A00;background:rgba(255,106,0,.1);border:1px solid rgba(255,122,26,.35)}
-.eh .eco-p-cart.primary{color:#fff;background:linear-gradient(135deg,#FF8A2A,#F25300);border:0;box-shadow:0 4px 14px rgba(255,106,0,.3)}
+.eh .eco-p-tag{display:inline-block;align-self:flex-start;margin-top:7px;font-size:10.5px;padding:3px 9px;border-radius:7px;color:#D96A00;background:rgba(255,140,50,.1);border:1px solid rgba(255,140,50,.35)}
+.eh .eco-p-price{display:block;margin-top:auto;padding-top:7px;font-size:12.5px;font-weight:700;color:#E86A00}
+.eh .eco-p-price i{font-style:normal;font-size:10.5px;font-weight:400;color:#BEA488}
 
 /* ---- 即将上线分隔条 ---- */
 .eh .eco-divider{display:flex;align-items:center;gap:12px;margin:16px 0 12px;font-size:11px;color:#D97706;letter-spacing:2px}
