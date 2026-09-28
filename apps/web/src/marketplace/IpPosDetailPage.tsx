@@ -74,8 +74,16 @@ const REVIEWS = [
 ] as const;
 
 type TabKey = "ability" | "standard" | "shots" | "reviews";
-/** 头图三视图（原型 g-view：工作台实况 / 职业形象照 / 用户口碑）。 */
-type GalleryView = "wb" | "photo" | "rate";
+/** 头图四视图（原型 g-view：工作台实况 / AI 工作实况 / 职业形象照 / 用户口碑）。 */
+type GalleryView = "wb" | "live" | "photo" | "rate";
+
+/** AI 工作实况四段（原型 live 视图：SHENDING · AI 工作实况 + ● LIVE）。 */
+const LIVE_SECTIONS: Array<{ name: string; text: string }> = [
+  { name: "核心观点", text: "一句话说清「你是谁、对谁说、凭什么信你」" },
+  { name: "定位方向", text: "招商获客型创始人 IP · 差异化人设落位" },
+  { name: "红线命中", text: "绝对化用语 / 承诺性表述 0 处" },
+  { name: "全案交付", text: "速览 + 8 章 · 自动存「我的交付物」" }
+];
 
 const TABS: Array<{ key: TabKey; label: string }> = [
   { key: "ability", label: "能力清单" },
@@ -87,6 +95,7 @@ const TABS: Array<{ key: TabKey; label: string }> = [
 /** 头图视图说明（原型 g-cap，随视图切换）。 */
 const VIEW_CAP: Record<GalleryView, string> = {
   wb: `工作台实况 · 6 步访谈 → 定位简报 → 速览 + 8 章全案（${IP_POS_PRICE} ${IP_POS_UNIT}/份）`,
+  live: "AI 工作实况 · 核心观点 → 定位方向 → 红线命中 → 全案交付",
   photo: "职业形象照 · 数字员工「沈定」形象",
   rate: "用户口碑 · 评分与好评率"
 };
@@ -189,6 +198,25 @@ export function IpPosDetailPage() {
                 </div>
               </div>
             )}
+            {view === "live" && (
+              <div className="ipd-gview flush">
+                <div className="ipd-wb-frame">
+                  <WbBar live="AI 工作实况" />
+                  <div className="ipd-canvas">
+                    {LIVE_SECTIONS.map((s) => (
+                      <div key={s.name} className="ipd-zone">
+                        <div className="ipd-zone-h">– {s.name}</div>
+                        <p>{s.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="ipd-canvas-foot">
+                    <span>全案四段流式生成实况 · 完成后自动存「我的交付物」</span>
+                    <b>● LIVE</b>
+                  </div>
+                </div>
+              </div>
+            )}
             {view === "photo" && (
               <div className="ipd-gview flush">
                 {avatar
@@ -208,6 +236,7 @@ export function IpPosDetailPage() {
           </div>
           <div className="ipd-gthumbs">
             <button className={view === "wb" ? "on" : ""} title="工作台实况" onClick={() => setView("wb")}>🧰</button>
+            <button className={view === "live" ? "on" : ""} title="AI 工作实况" onClick={() => setView("live")}>▶</button>
             <button className={view === "photo" ? "on" : ""} title="职业形象照 · 数字员工形象" onClick={() => setView("photo")}>👤</button>
             <button className={view === "rate" ? "on" : ""} title="用户口碑" onClick={() => setView("rate")}>⭐</button>
           </div>
