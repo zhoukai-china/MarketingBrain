@@ -89,7 +89,7 @@ type StagedItem = { id: string; text: string; type: string; source: string };
 type GenTopic = { id: string; title: string; type: string; source: string; consensus: string; precision: string; advice: string; stage: string };
 
 export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
-  // 商城共用顶栏的积分余额（与 AgentChatPage 同款取法）
+  // 商城共用顶栏的算力余额（与 AgentChatPage 同款取法）
   const [balance, setBalance] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -557,7 +557,7 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
     /* 与对话页同款容器：桌面端 max-width 1200px 居中（sitong-design.css .app-wrap），顶栏才有两侧留白 */
     <>
       <main className="app-wrap">
-      {/* 商城共用顶栏（与 /agent/<skuCode>/chat 一致：导航 / 主题切换 / 积分 / 退出）。
+      {/* 商城共用顶栏（与 /agent/<skuCode>/chat 一致：导航 / 主题切换 / 算力 / 退出）。
           放在 .app-wrap 内：顶栏 1200 居中不顶格（与 chat/详情页一致）。 */}
       <Topbar active="chat" balance={balance} onNavigate={(path) => { window.location.href = getAppPath(path); }} />
       <div className="ts-wb">
@@ -829,7 +829,7 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
                     已上传：<b>{reviewData.fileName}</b> · 平台 {reviewData.platform ?? "未识别"} · {reviewData.rowCount} 条视频 · 上传于 {formatSyncTime(reviewData.uploadedAt)}
                   </div>
                 ) : (
-                  !reviewMsg && <div className="scan-line" style={{ marginTop: 6 }}>尚未上传数据表。上传后自动解析（不扣积分），生成时带入高表现选题与数据口径。</div>
+                  !reviewMsg && <div className="scan-line" style={{ marginTop: 6 }}>尚未上传数据表。上传后自动解析（不扣算力），生成时带入高表现选题与数据口径。</div>
                 )}
                 <div className="inline">
                   <span className="ctrl-lab">只显示选题</span>

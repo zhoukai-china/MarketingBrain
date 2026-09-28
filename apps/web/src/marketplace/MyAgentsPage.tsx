@@ -7,7 +7,7 @@ import { employeeDisplayName } from "./eco-mall-data.js";
  * 「常用智能体」独立页（用户 2026-09-16：「常用智能体要不要做成独立的智能体列表页」→ 要）。
  *
  * 口径：列的是**这个账号真的用过**的智能体（按扣费账本 `ppu_consume` 聚合），不是商城全量。
- * 每张卡给「用过几次 / 累计消耗多少积分 / 最近一次什么时候」+ 「继续使用」，让老客户跳过挑商城这一步。
+ * 每张卡给「用过几次 / 累计消耗多少算力 / 最近一次什么时候」+ 「继续使用」，让老客户跳过挑商城这一步。
  * 空态明确告诉客户「还没用过 → 去商城」；未登录给登录引导（不静默失败）。
  */
 interface FrequentAgent {
@@ -104,7 +104,7 @@ export function MarketplaceMyAgentsPage() {
               <article className="agent-card owned-card" key={agent.skuCode}>
                 <div className="ac-ico">{agent.skuIcon ?? "🤖"}</div>
                 <div className="ac-name">{employeeDisplayName(agent.skuCode, agent.skuName ?? agent.skuCode)}</div>
-                <div className="ac-price">用过 {agent.runs} 次 · 累计 {agent.credits} 积分</div>
+                <div className="ac-price">用过 {agent.runs} 次 · 累计 {agent.credits} 算力</div>
                 <div className="ac-foot">
                   <span className="chip owned">{agent.zone ? zoneNames[agent.zone] ?? agent.zone : "AI员工"}</span>
                   <span className="chip">最近 {new Date(agent.lastUsedAt).toLocaleDateString("zh-CN")}</span>

@@ -64,10 +64,10 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
     const quote = quoteLanqiMedia(input);
     const authorization = await resolveLanqiMediaAuthorization(context, readiness, quote.creditCost, input.kind);
     request.log.info({ event: "lanqi_image_generation.quoted", tenantId: context.tenantId, previewId: input.previewId, promptVersion: input.promptVersion, mode: readiness.mode, canConfirm: authorization.canConfirm, blockCode: authorization.blockCode });
-    // 用户 2026-09-16 口径：**不显示人民币消耗**，报价只回积分（不再回 customerPriceYuan）。
+    // 用户 2026-09-16 口径：**不显示人民币消耗**，报价只回算力（不再回 customerPriceYuan）。
     return { creditCost: quote.creditCost, canConfirm: authorization.canConfirm, billable: authorization.canConfirm && readiness.billable, executionMode: readiness.mode,
       blockCode: authorization.blockCode,
-      message: authorization.canConfirm ? readiness.mode === "mock" ? "受控模拟生成已就绪；不会调用外部模型或扣积分。" : "费用已锁定；再次确认后才创建任务并预留积分。" : authorization.message,
+      message: authorization.canConfirm ? readiness.mode === "mock" ? "受控模拟生成已就绪；不会调用外部模型或扣算力。" : "费用已锁定；再次确认后才创建任务并预留算力。" : authorization.message,
       externalAction: "confirmation_required", aiWatermark: true, storage: readiness.mode === "mock" ? "controlled_mock" : readiness.storage };
   });
 
@@ -98,7 +98,7 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
         throw error;
       }
     }
-    if (context.source === "demo") return reply.code(409).send({ error: "demo_execution_disabled", message: "当前体验环境不会创建付费生成任务，也不会扣积分。" });
+    if (context.source === "demo") return reply.code(409).send({ error: "demo_execution_disabled", message: "当前体验环境不会创建付费生成任务，也不会扣算力。" });
     const existing = await prisma.lanqiMediaJob.findFirst({ where: { tenantId: context.tenantId, requestKey } });
     if (existing) {
       if (!sameRequest(existing, input, firstFrameFingerprint)) return reply.code(409).send({ error: "request_key_conflict", message: "本次输入已经变化，请重新发起生成。" });
@@ -109,7 +109,7 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
     if (!authorization.canConfirm) return reply.code(authorization.blockCode === "quota_exhausted" ? 429 : 409).send({ error: authorization.blockCode ?? "media_execution_blocked", message: authorization.message });
     let job: any;
     /**
-     * LQ-34（用户 2026-09-16）：扣**通用钱包**（本店老板）而不是租户积分账户。
+     * LQ-34（用户 2026-09-16）：扣**通用钱包**（本店老板）而不是租户算力账户。
      *
      * 钱包扣费/退款各自带事务，不能塞进建任务那个事务里，所以顺序是：
      *   ① 先扣钱包（同 requestKey 幂等）→ ② 再建任务；③ 建任务若不是「同键并发」而是别的错，
@@ -126,7 +126,7 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
       return reply.code(409).send({ error: "lanqi_wallet_owner_missing", message: "本店还没有可扣费的老板账号，本次没有创建任务或扣费。" });
     }
     if (walletCharge.status === "insufficient") {
-      return reply.code(402).send({ error: "insufficient_credits", message: "积分不足，本次没有创建任务或扣费。", balance: walletCharge.wallet.balance, required: quote.creditCost, rechargeUrl: "/recharge" });
+      return reply.code(402).send({ error: "insufficient_credits", message: "算力不足，本次没有创建任务或扣费。", balance: walletCharge.wallet.balance, required: quote.creditCost, rechargeUrl: "/recharge" });
     }
     if (walletCharge.status === "refunded") {
       // 同一个 requestKey 之前已经退过款：不能再放行（钱包扣费本身同键幂等，放行就等于白送一次付费任务）。
@@ -138,7 +138,7 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
           parameters: { ratio: input.ratio, resolution: input.resolution, durationSeconds: input.durationSeconds, watermark: true, firstFrameId: firstFrameFingerprint } as Prisma.InputJsonValue,
           imageUrl: input.imageUrl, resolution: input.resolution, ratio: input.ratio, durationSeconds: input.durationSeconds, creditCost: quote.creditCost } });
     } catch (error) {
-      if ((error as { statusCode?: number }).statusCode === 402) return reply.code(402).send({ error: "insufficient_credits", message: "积分不足，本次没有创建任务或扣费。" });
+      if ((error as { statusCode?: number }).statusCode === 402) return reply.code(402).send({ error: "insufficient_credits", message: "算力不足，本次没有创建任务或扣费。" });
       if ((error as { code?: string }).code === "P2002") {
         const concurrent = await prisma.lanqiMediaJob.findFirst({ where: { tenantId: context.tenantId, requestKey } });
         if (concurrent && sameRequest(concurrent, input, firstFrameFingerprint)) return { job: serialize(concurrent), idempotent: true };
@@ -153,7 +153,7 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
     } catch (error) {
       job = await refund(job, "failed", error instanceof Error ? error.message : "provider_failed");
       request.log.error({ event: "lanqi_image_generation.failed", tenantId: context.tenantId, previewId: input.previewId, jobId: job.id, stage: "submit" });
-      return reply.code(502).send({ error: "provider_submission_failed", message: "图片任务提交失败，预留积分已自动退回。", job: serialize(job) });
+      return reply.code(502).send({ error: "provider_submission_failed", message: "图片任务提交失败，预留算力已自动退回。", job: serialize(job) });
     }
   });
 
@@ -179,7 +179,7 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
     if (isTimedOut(job)) {
       if (job.providerTaskId) await cancelLanqiMediaTask(job.providerTaskId).catch(() => undefined);
       const timedOut = await refund(job, "failed", "media_task_timeout");
-      return reply.code(504).send({ error: "media_task_timeout", message: "生成超时，本次预留积分已自动退回，可以重新生成。", job: serialize(timedOut) });
+      return reply.code(504).send({ error: "media_task_timeout", message: "生成超时，本次预留算力已自动退回，可以重新生成。", job: serialize(timedOut) });
     }
     if (!job.providerTaskId || terminal(job.status)) return { job: serialize(job) };
     try {
@@ -200,7 +200,7 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
     } catch (error) {
       if (error instanceof Error && isAssetPersistenceFailure(error.message)) {
         const failed = await refund(job, "failed", error.message);
-        return reply.code(502).send({ error: "media_asset_persistence_failed", message: "生成完成但保存失败，预留积分已自动退回。", job: serialize(failed) });
+        return reply.code(502).send({ error: "media_asset_persistence_failed", message: "生成完成但保存失败，预留算力已自动退回。", job: serialize(failed) });
       }
       return reply.code(502).send({ error: "media_refresh_failed", message: "生成状态暂时无法刷新，请稍后再试。" });
     }
@@ -299,7 +299,7 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
   /**
    * LQ-32：合成成片。逐镜出片是**无声**的（视频模型不下发 audio），所以「一键成片」
    * 真正能交付一条完整片子，必须支持把逐镜画面拼起来并混入门店自己的音轨。
-   * 合片与混音全部走本机 ffmpeg，不调用外部付费接口，因此不额外扣积分。
+   * 合片与混音全部走本机 ffmpeg，不调用外部付费接口，因此不额外扣算力。
    */
   app.post<{ Body: z.infer<typeof composeRequest> }>("/lanqi/media/compose", async (request, reply) => {
     const context = await resolveRequestContext(request.headers);
@@ -465,7 +465,7 @@ async function refreshMockJob(tenantId: string, jobId: string): Promise<MockJob 
   if (!job || terminal(job.status)) return job;
   job.refreshCount += 1; job.updatedAt = new Date().toISOString();
   if (job.refreshCount === 1) { job.status = "processing"; job.progress = 55; }
-  else if (job.prompt.includes("[模拟失败]")) { job.status = "failed"; job.progress = 0; job.assetStatus = "unavailable"; job.errorMessage = "受控模拟失败；未调用外部模型、未扣积分。"; job.canCancel = false; job.canRetry = true; }
+  else if (job.prompt.includes("[模拟失败]")) { job.status = "failed"; job.progress = 0; job.assetStatus = "unavailable"; job.errorMessage = "受控模拟失败；未调用外部模型、未扣算力。"; job.canCancel = false; job.canRetry = true; }
   else { await persistLanqiMockImage({ tenantId, jobId, prompt: job.prompt, ratio: job.ratio, label: job.kind === "image" ? "受控模拟成图" : "受控模拟成片" }); job.status = "succeeded"; job.progress = 100; job.assetStatus = "persisted"; job.outputUrl = lanqiMediaAssetUrl(job.id); job.canCancel = false; }
   return job;
 }
@@ -494,7 +494,7 @@ function serialize(job: any): PublicJob {
   const status = String(job.status);
   return { id: job.id, previewId: job.previewId ?? undefined, kind: job.kind, status, progress: status === "succeeded" ? 100 : status === "processing" ? 60 : status === "submitted" ? 25 : 0,
     creditCost: job.creditCost, billingStatus: job.billingStatus, assetStatus: job.assetStatus ?? (job.outputUrl ? "persisted" : "pending"), outputUrl: job.outputUrl ?? undefined,
-    errorMessage: job.errorMessage ? "生成失败或已取消；未交付结果不会重复扣费，已预留积分会自动退回。" : undefined,
+    errorMessage: job.errorMessage ? "生成失败或已取消；未交付结果不会重复扣费，已预留算力会自动退回。" : undefined,
     canCancel: ["queued", "submitted"].includes(status), canRetry: ["failed", "canceled"].includes(status), selectedAt: toIso(job.selectedAt), savedAt: toIso(job.savedAt), createdAt: toIso(job.createdAt)!, updatedAt: toIso(job.updatedAt)!, executionMode: "real" };
 }
 
@@ -509,13 +509,13 @@ export async function resolveLanqiMediaAuthorization(
   creditCost: number,
   kind: LanqiMediaRequest["kind"] = "image",
 ): Promise<{ canConfirm: boolean; message: string; blockCode?: "media_execution_blocked" | "quota_exhausted" }> {
-  if (!readiness.canConfirm) return { canConfirm: false, message: readiness.blockedReason ?? "当前媒体生成能力未放行，本次不会创建任务或扣积分。", blockCode: "media_execution_blocked" };
+  if (!readiness.canConfirm) return { canConfirm: false, message: readiness.blockedReason ?? "当前媒体生成能力未放行，本次不会创建任务或扣算力。", blockCode: "media_execution_blocked" };
   if (readiness.mode !== "real" || context.source !== "database") return { canConfirm: true, message: "" };
   // 「本次验收最多 3 张」是首轮真实生图预算上限；成片按秒计价，不受该图片上限约束。
   if (kind !== "image") {
     // LQ-34：可确认性判断（能不能点「确认并生成」）也必须看**同一本钱包**，否则会出现「许可说可以、扣费说没钱」。
     const account = await readLanqiWalletBalance(context.tenantId);
-    if (!account || account.balance < creditCost) return { canConfirm: false, blockCode: "quota_exhausted", message: "当前可用积分不足，本次不会创建任务或扣积分；继续生成需要新的明确授权。" };
+    if (!account || account.balance < creditCost) return { canConfirm: false, blockCode: "quota_exhausted", message: "当前可用算力不足，本次不会创建任务或扣算力；继续生成需要新的明确授权。" };
     return { canConfirm: true, message: "" };
   }
   const [account, completedJobs] = await Promise.all([
@@ -528,7 +528,7 @@ export async function resolveLanqiMediaAuthorization(
       blockCode: "quota_exhausted",
       message: completedJobs >= 3
         ? "本次验收生图额度已用完，现有 3 张可继续查看；继续生图需要新的明确授权。"
-        : "当前可用生图额度不足，本次不会创建任务或扣积分；继续生图需要新的明确授权。",
+        : "当前可用生图额度不足，本次不会创建任务或扣算力；继续生图需要新的明确授权。",
     };
   }
   return { canConfirm: true, message: "" };

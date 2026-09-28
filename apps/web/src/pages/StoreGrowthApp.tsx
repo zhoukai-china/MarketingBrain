@@ -120,7 +120,7 @@ export function StoreGrowthApp() {
         </nav>
 
         <button className="payEntryButton ipAgentPayButton" onClick={() => switchView("billing")}>
-          套餐 / 积分
+          套餐 / 算力
         </button>
       </aside>
 

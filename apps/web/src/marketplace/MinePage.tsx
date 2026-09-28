@@ -136,8 +136,8 @@ function ReferralLinkCard() {
 export function MarketplaceMinePage() {
   const [balance, setBalance] = useState<number | null>(null);
   /**
-   * 用户 2026-09-16：客户被多扣的积分退了，但他自己看不到（这里原来只列消耗）。
-   * 服务端把「与客户切身相关」的退回（Word 导出重复扣费）单独给出来，这里显式展示 +N 积分。
+   * 用户 2026-09-16：客户被多扣的算力退了，但他自己看不到（这里原来只列消耗）。
+   * 服务端把「与客户切身相关」的退回（Word 导出重复扣费）单独给出来，这里显式展示 +N 算力。
    */
   const [refunds, setRefunds] = useState<Array<{ id: string; label: string; amountCredits: number; createdAt: string }>>([]);
   /**
@@ -169,15 +169,15 @@ export function MarketplaceMinePage() {
       };
       // 401/403 单独走会话失效口径：清本地 token，不把服务端的英文原文甩给客户。
       if (handleStaleSession(response.status)) {
-        throw new Error("登录状态已失效，请重新登录后再下载；本次不消耗积分。");
+        throw new Error("登录状态已失效，请重新登录后再下载；本次不消耗算力。");
       }
       if (response.status === 402) {
         const required = data.required ?? "若干";
-        throw new Error(`积分不足，本次导出需 ${required} 积分（当前余额 ${data.balance ?? 0}），请先充值。`);
+        throw new Error(`算力不足，本次导出需 ${required} 算力（当前余额 ${data.balance ?? 0}），请先充值。`);
       }
-      // 415 是「请求被拒」，和「积分不够/没登录」不是一回事，必须分开讲，且服务端英文原文不能直接展示。
+      // 415 是「请求被拒」，和「算力不够/没登录」不是一回事，必须分开讲，且服务端英文原文不能直接展示。
       if (response.status === 415) {
-        throw new Error("下载请求被服务端拒绝，请刷新页面后重试；本次不消耗积分。");
+        throw new Error("下载请求被服务端拒绝，请刷新页面后重试；本次不消耗算力。");
       }
       if (!response.ok || !data.downloadUrl) throw new Error(data.message ?? "导出失败，请稍后重试。");
       // 与对话页同一口径：把真实链接交给浏览器/系统去下载（手机才能交给 WPS）。
@@ -247,7 +247,7 @@ export function MarketplaceMinePage() {
     return (
       <main className="app-wrap">
         <Topbar active="me" balance={null} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
-        <section className="view view-mine"><div className="login-gate big">🔒 你还未登录<p>登录后可查看积分余额与使用记录。</p><button className="btn primary" onClick={() => guestToLogin("/mine")}>登录</button></div></section>
+        <section className="view view-mine"><div className="login-gate big">🔒 你还未登录<p>登录后可查看算力余额与使用记录。</p><button className="btn primary" onClick={() => guestToLogin("/mine")}>登录</button></div></section>
       </main>
     );
   }
@@ -258,8 +258,8 @@ export function MarketplaceMinePage() {
       <section className="view view-mine">
         <h1>我的</h1>
         <div className="mine-top">
-          <div className="balance-card"><div className="bc-label">积分余额</div><div className="bc-val">💎 {balance ?? "—"}</div><div className="bc-sub">全平台通用</div><button className="btn ghost sm" onClick={() => { window.location.href = getAppPath("/recharge"); }}>+ 充值积分</button></div>
-          <div className="shared-card wide">💎 <b>跨数字员工通用</b><br />同一份积分，在创始人IP专区与各行业专区的数字员工 / AI员工都能用——只充一次，处处可用。</div>
+          <div className="balance-card"><div className="bc-label">算力余额</div><div className="bc-val">💎 {balance ?? "—"}</div><div className="bc-sub">全平台通用</div><button className="btn ghost sm" onClick={() => { window.location.href = getAppPath("/recharge"); }}>+ 充值算力</button></div>
+          <div className="shared-card wide">💎 <b>跨数字员工通用</b><br />同一份算力，在创始人IP专区与各行业专区的数字员工 / AI员工都能用——只充一次，处处可用。</div>
         </div>
         <ReferralLinkCard />
         {/*
@@ -304,7 +304,7 @@ export function MarketplaceMinePage() {
                   <article className="agent-card owned-card" key={item.id}>
                     <div className="ac-ico">📄</div>
                     <div className="ac-name">{employeeDisplayNameFromLegacyName(item.skuName) ?? "AI员工交付物"}</div>
-                    <div className="ac-price">消耗 {item.credits} 积分</div>
+                    <div className="ac-price">消耗 {item.credits} 算力</div>
                     <div className="ac-foot">
                       <span className="chip owned">{new Date(item.createdAt).toLocaleDateString("zh-CN")} · 剩余 {daysLeft} 天</span>
                     </div>
@@ -324,13 +324,13 @@ export function MarketplaceMinePage() {
         )}
         {refunds.length > 0 && (
           <>
-            <h3>积分退回</h3>
+            <h3>算力退回</h3>
             <div className="card-grid">
               {refunds.map((entry) => (
                 <article className="agent-card owned-card" key={entry.id}>
                   <div className="ac-ico">↩️</div>
                   <div className="ac-name">{entry.label}</div>
-                  <div className="ac-price">+{entry.amountCredits} 积分</div>
+                  <div className="ac-price">+{entry.amountCredits} 算力</div>
                   <div className="ac-foot"><span className="chip owned">{new Date(entry.createdAt).toLocaleDateString("zh-CN")}</span></div>
                 </article>
               ))}

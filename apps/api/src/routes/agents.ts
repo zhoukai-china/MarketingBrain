@@ -1576,7 +1576,7 @@ function sendAgentError(reply: any, error: unknown) {
     return reply.code(status).send({ error: error.code });
   }
   if (isInsufficientCredits(error)) {
-    return reply.code(402).send({ error: "insufficient_credits", message: "企业积分不足，请充值或联系服务团队。" });
+    return reply.code(402).send({ error: "insufficient_credits", message: "企业算力不足，请充值或联系服务团队。" });
   }
   if (error instanceof IdempotencyConflictError) {
     return reply.code(409).send({ error: "request_id_conflict", message: "该请求编号已用于其他任务，请重新提交。" });

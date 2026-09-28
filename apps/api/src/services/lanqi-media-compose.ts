@@ -21,7 +21,7 @@ const execFileAsync = promisify(execFile);
  *
  * 技术事实（必须如实告知用户，不能靠话术遮盖）：
  *  · 视频模型 wan2.6-i2v-flash 只出**无声**成片（`parameters.audio=false`），所以声音只能来自本地混流；
- *  · 拼接与混音全部由本机 ffmpeg 完成，不调用外部付费接口，因此**不额外扣积分**；
+ *  · 拼接与混音全部由本机 ffmpeg 完成，不调用外部付费接口，因此**不额外扣算力**；
  *  · 音轨比成片短时循环播放，以画面长度为准（`-stream_loop -1` + `-shortest`）。
  */
 export const LANQI_COMPOSE_VERSION = "lanqi_media_compose_v1";
@@ -229,8 +229,8 @@ function toResult(params: { composeId: string; metadata: Awaited<ReturnType<type
     ...(composed?.audioSource ? { audioSource: composed.audioSource } : {}),
     idempotent: params.idempotent,
     notice: audioIncluded
-      ? "已将各镜画面按顺序拼成一条成片，并混入你提供的音轨；合片与混音不额外扣积分。"
-      : "已将各镜画面按顺序拼成一条成片（未带音轨）；合片不额外扣积分。",
+      ? "已将各镜画面按顺序拼成一条成片，并混入你提供的音轨；合片与混音不额外扣算力。"
+      : "已将各镜画面按顺序拼成一条成片（未带音轨）；合片不额外扣算力。",
   };
 }
 

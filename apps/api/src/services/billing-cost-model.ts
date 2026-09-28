@@ -8,10 +8,10 @@ import { MARKETPLACE_DEFAULT_INPUT_CNY_PER_1M, MARKETPLACE_DEFAULT_OUTPUT_CNY_PE
  * 用户拍板的四个数：
  *   1. 文字类利润率 **100 倍**（¥1 算力成本 → ¥100 对客营收）；
  *   2. 视频 **2 倍**；
- *   3. `积分 = max(1, ceil(成本 × 倍数 ÷ 0.05))`——不足 1 积分按 1 积分，向上取整；
+ *   3. `算力 = max(1, ceil(成本 × 倍数 ÷ 0.05))`——不足 1 算力按 1 算力，向上取整；
  *   4. 余额不足：**先预留（按最坏估算）→ 跑完按实际结算 → 差额退回**。
  *
- * 本文件只负责「成本 → 积分」的纯计算与价表，不碰钱包、不写账本；扣费流程的接线
+ * 本文件只负责「成本 → 算力」的纯计算与价表，不碰钱包、不写账本；扣费流程的接线
  * （预留/结算/退回）由 `marketplace` 路由在开关打开后走这套函数。
  *
  * **开关**：`BILLING_COST_BASED_ENABLED` 默认 `false`——关着的时候线上扣费仍是 SKU 的固定
@@ -24,15 +24,15 @@ export type BillingCapability = "text" | "image" | "video" | "speech" | "vision"
 export const COST_TO_REVENUE_MULTIPLE: Record<BillingCapability, number> = {
   /** 文字：用户 2026-09-15 拍板 100 倍。 */
   text: 100,
-  /** 图片：用户 2026-09-15 拍板 5 倍（wan2.7-image 成本 ¥0.2/张 → 20 积分/张，与现价一致）。 */
+  /** 图片：用户 2026-09-15 拍板 5 倍（wan2.7-image 成本 ¥0.2/张 → 20 算力/张，与现价一致）。 */
   image: 5,
   /** 视频：用户 2026-09-15 拍板 2 倍（此前实际约 5 倍）。 */
   video: 2,
-  /** 语音识别（ASR）：用户 2026-09-15 拍板 10 倍（¥0.0005/秒 → 约 0.1 积分/秒 → 单次基本是 1 积分地板）。 */
+  /** 语音识别（ASR）：用户 2026-09-15 拍板 10 倍（¥0.0005/秒 → 约 0.1 算力/秒 → 单次基本是 1 算力地板）。 */
   speech: 10,
   /**
    * 视觉（关键帧 / 图片 / 扫描件页面解析）。用户 2026-09-16：「按 0.5 元收费」——
-   * 成本 ¥0.02/次 × 25 倍 = **¥0.5/次 = 10 积分/次**（原来 100 倍 = ¥2 = 40 积分）。
+   * 成本 ¥0.02/次 × 25 倍 = **¥0.5/次 = 10 算力/次**（原来 100 倍 = ¥2 = 40 算力）。
    * 注意这是「成本 × 25」：真实账单回来后若单价变了，价格会跟着变；要「永远 ¥0.5」需改成固定价。
    */
   vision: 25
@@ -42,7 +42,7 @@ export const COST_TO_REVENUE_MULTIPLE: Record<BillingCapability, number> = {
  * 市场合伙人分润（用户 2026-09-15：「后面我们要给市场合伙人分润，得记下来每种成本都分润多少」）。
  *
  * 单位是**对客营收的百分比（%）**，按能力分别配置；`null` = 尚未拍板（先留位，不编数字）。
- * 分润基数一律用「实际扣给客户的积分」（`chargedCredits`），与后面按成本计费/固定档位都兼容：
+ * 分润基数一律用「实际扣给客户的算力」（`chargedCredits`），与后面按成本计费/固定档位都兼容：
  *   partnerCredits = round(chargedCredits × percent ÷ 100)
  *   platformCredits = chargedCredits − partnerCredits
  * 具体比例等老板拍板后只改这张表，不改任何扣费逻辑。
@@ -63,7 +63,7 @@ export function splitPartnerShare(chargedCredits: number, capability: BillingCap
   return { partnerCredits, platformCredits: Math.max(0, chargedCredits) - partnerCredits };
 }
 
-/** 每积分对客售价（¥0.05）：唯一事实来源 `packages/shared` 的 `CREDIT_PRICING`（1 元 = 20 积分）。 */
+/** 每算力对客售价（¥0.05）：唯一事实来源 `packages/shared` 的 `CREDIT_PRICING`（1 元 = 20 算力）。 */
 export const CUSTOMER_PRICE_CNY_PER_CREDIT = CREDIT_PRICING.customerPriceCnyPerCredit;
 
 /**
@@ -86,11 +86,11 @@ export const UNIT_COST_CNY = {
   visionPerImageCny: 0.02
 } as const;
 
-/** 成本（¥）→ 积分：100 倍营收、不足 1 积分按 1 积分、向上取整。 */
+/** 成本（¥）→ 算力：100 倍营收、不足 1 算力按 1 算力、向上取整。 */
 export function creditsForCostCny(costCny: number, capability: BillingCapability): number {
   const multiplier = COST_TO_REVENUE_MULTIPLE[capability];
   const cost = Number.isFinite(costCny) && costCny > 0 ? costCny : 0;
-  // 与 docs/PRICING.md 的标量保持一致：积分 = 成本 ÷ 0.05 × 倍数 = 成本 × (倍数 ÷ 0.05)。
+  // 与 docs/PRICING.md 的标量保持一致：算力 = 成本 ÷ 0.05 × 倍数 = 成本 × (倍数 ÷ 0.05)。
   const raw = (cost * multiplier) / CUSTOMER_PRICE_CNY_PER_CREDIT;
   return Math.max(1, Math.ceil(raw - 1e-9));
 }
@@ -170,14 +170,14 @@ export function usesCostBasedPricing(skuCode: string): boolean {
  * 强制按**固定 ppu** 收费、永不参与成本计费的 SKU，优先级高于 `BILLING_COST_BASED_SKUS`
  * 白名单与 `*` 通配（PLAT-45）。
  *
- * 用户 2026-09-17 拍板：「IP 定位改成按次计费，不按消耗量计费」→ 400 积分/次；
+ * 用户 2026-09-17 拍板：「IP 定位改成按次计费，不按消耗量计费」→ 400 算力/次；
  * 2026-09-27 改价 → 99 算力/次（口径不变，只改数字；见 `marketplace-v3.json` 与
  * `billing-consume.ts` 的同一份价目表）。
  * 口径理由：IP 定位是低频决策类交付，客户要的是「一次多少钱」的确定性；按成本计费会让
  * 同一件事因为模型输出长度不同而价格浮动。该 SKU 的交付体量本身被硬校验（V1–V10）夹住，
  * 成本方差可控，所以用固定价换客户可预期。其余 SKU 仍维持「按真实成本 × 倍数」。
  *
- * 用户 2026-09-17 拍板：直播话术智能体按固定积分计费 200 积分/次、不上包月。
+ * 用户 2026-09-17 拍板：直播话术智能体按固定算力计费 200 算力/次、不上包月。
  * 口径理由同 IP 定位：直播话术是整场交付，客户要「一次多少钱」的确定性，按成本计费会因
  * 输出长度（2 小时逐字稿 vs 单段话术）价格大幅浮动，影响可预期性。
  */

@@ -5,7 +5,7 @@
 //   ① 「⚡ 充值算力」→ /recharge
 //   ② 「⚡ 立即使用」→ /agent/ipzone__livescript/workbench（直播话术工作台）
 // 内容口径：
-//   - livescript 在 FIXED_PRICE_SKUS（目录 ppu=200 积分）：价格卡「一口价 200 积分/场」，
+//   - livescript 在 FIXED_PRICE_SKUS（目录 ppu=200 算力）：价格卡「一口价 200 算力/场」，
 //     原型里的「50 算力」是演示价，不照抄；「交付才扣 / 失败不扣费」按原型保留；
 //   - 简报 6 字段与真实直播话术工作台一致（场次类型/品牌 主推/目标人群/转化动作/场次时长/交付深度）；
 //   - 原型工作台地址写的旧 sku「live-host」→ 统一替换为真实地址「livescript」；
@@ -128,7 +128,7 @@ export function LivescriptDetailPage() {
   const [tab, setTab] = useState<TabKey>("ability");
   const [view, setView] = useState<GalleryView>("wb");
   const avatar = employeeAvatarPath("ipzone__livescript");
-  /** 真实目录价（livescript 固定价，FIXED_PRICE_SKUS）；一口价、单位「积分」。 */
+  /** 真实目录价（livescript 固定价，FIXED_PRICE_SKUS）；一口价、单位「算力」。 */
   const [skuPpu, setSkuPpu] = useState<number | null>(null);
 
   useEffect(() => {
@@ -224,7 +224,7 @@ export function LivescriptDetailPage() {
           <div className="ipd-price">
             <div className="ipd-price-line">
               <span className="ipd-num">{skuPpu ?? "—"}</span>
-              <span className="ipd-unit">积分 / 场</span>
+              <span className="ipd-unit">算力 / 场</span>
               <span className="ipd-approx">{skuPpu != null ? `≈ ¥${(skuPpu / 10).toFixed(1)}` : "≈ ¥"} · 整场直播逐字稿 · 一口价</span>
             </div>
             <div className="ipd-price-meta">计费说明：<b>0 元开通</b> · 不收月费 · 使用后扣算力，失败不扣费</div>
@@ -242,11 +242,11 @@ export function LivescriptDetailPage() {
           <div className="ipd-cta-row">
             <button className="ipd-btn ghost" onClick={() => { window.location.href = getAppPath("/recharge"); }}>⚡ 充值算力</button>
             <button className="ipd-btn main" onClick={() => { window.location.href = getAppPath(WORKBENCH_PATH); }}>
-              ⚡ 立即使用{skuPpu != null ? `（${skuPpu} 积分/场）` : ""}
+              ⚡ 立即使用{skuPpu != null ? `（${skuPpu} 算力/场）` : ""}
             </button>
           </div>
           <div className="ipd-after-cta">
-            1 元 = 10 算力 · 本单 {skuPpu ?? "—"} 积分 ≈ ¥{skuPpu != null ? (skuPpu / 10).toFixed(1) : "—"} · <b>交付才扣 · 失败不扣费</b> · 交付物云端保存可回看
+            1 元 = 10 算力 · 本单 {skuPpu ?? "—"} 算力 ≈ ¥{skuPpu != null ? (skuPpu / 10).toFixed(1) : "—"} · <b>交付才扣 · 失败不扣费</b> · 交付物云端保存可回看
           </div>
         </div>
       </section>

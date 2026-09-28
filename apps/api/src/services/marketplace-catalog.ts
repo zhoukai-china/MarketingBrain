@@ -121,7 +121,7 @@ export interface MarketplaceSkuSeed {
   ppu: number;
   subscriptionPriceCny?: number;
   subscriptionQuota?: string;
-  /** 包月价（积分口径）。用户 2026-09-17 拍板：文案智能体 4000 积分/月（每天 5 条）。 */
+  /** 包月价（算力口径）。用户 2026-09-17 拍板：文案智能体 4000 算力/月（每天 5 条）。 */
   subscriptionCredits?: number;
   /** 包月每日可用次数；null/undefined = 不限次数（老的人民币口径包月就是这个语义）。 */
   subscriptionDailyQuota?: number;
@@ -156,7 +156,7 @@ export const MARKETPLACE_SKU_SEEDS: MarketplaceSkuSeed[] = [
     keywords: ["抖音IP", "视频号IP", "创始人定位", "怎么做个人IP"],
     // 用户 2026-09-17 拍板：IP 定位改按次计费，不再按消耗量计费
     // （见 `billing-cost-model.ts` 的 `FIXED_PRICE_SKUS`，该 SKU 已退出成本计费白名单）。
-    // 2026-09-27 用户改价：400 积分 → 99 算力/次；三处价格源必须同改（本文件 + v3 发布文件 +
+    // 2026-09-27 用户改价：400 算力 → 99 算力/次；三处价格源必须同改（本文件 + v3 发布文件 +
     // `billing-consume.ts` 的服务端价目表），`billing-cost-model-smoke` 会钉住一致性。
     ppu: 99,
     trial: true,
@@ -486,7 +486,7 @@ export interface PublicMarketplaceSku {
   ppu: number;
   subscriptionPriceCny?: number | null;
   subscriptionQuota?: string | null;
-  /** 包月价（积分口径）；>0 表示该智能体支持「按月订阅，订阅期内不扣积分」。 */
+  /** 包月价（算力口径）；>0 表示该智能体支持「按月订阅，订阅期内不扣算力」。 */
   subscriptionCredits?: number | null;
   /** 包月每日可用次数；null = 不限次数。 */
   subscriptionDailyQuota?: number | null;
@@ -840,7 +840,7 @@ export async function ensureMarketplaceCatalog(): Promise<void> {
         ppu: seed.ppu,
         subscriptionPriceCny: null,
         subscriptionQuota: null,
-        // 积分口径包月（2026-09-17）：文案 4000 积分/月、每天 5 条。
+        // 算力口径包月（2026-09-17）：文案 4000 算力/月、每天 5 条。
         // `update` 分支同样写这两列，否则运营改价后重启不会生效（历史上 `subscriptionPriceCny` 就是被这里写死成 null）。
         subscriptionCredits: seed.subscriptionCredits ?? null,
         subscriptionDailyQuota: seed.subscriptionDailyQuota ?? null,
@@ -1018,8 +1018,8 @@ class DemoMarketplaceStore {
 
   getBalance(tenantId: string): number {
     this.seed();
-    // demo 起始额度必须 ≥ 货架上最贵的公开 SKU，否则本地/demo 环境会连旗舰 SKU 都显示「积分不足」。
-    // 2026-09-17：IP 定位改为固定 400 积分/次（原 200），起始额度同步抬到 1000。
+    // demo 起始额度必须 ≥ 货架上最贵的公开 SKU，否则本地/demo 环境会连旗舰 SKU 都显示「算力不足」。
+    // 2026-09-17：IP 定位改为固定 400 算力/次（原 200），起始额度同步抬到 1000。
     return this.balances.get(tenantId) ?? 1000;
   }
 

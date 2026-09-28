@@ -26,9 +26,9 @@ import {
  * - 身份准入：身份只来自服务端验签的会话令牌（租户 + 用户），匿名不进入外发路径。
  * - 用途准入：用途由服务端固定为 `web_voice_input`，客户端不能用字段改写。
  * - 预算准入：服务端限体积 + 限「租户+用户」每小时次数，超限 fail-closed。
- * - 失败关闭：缺 Key/超时/上游报错都给人话，明确「未扣积分」，不静默失败。
+ * - 失败关闭：缺 Key/超时/上游报错都给人话，明确「未扣算力」，不静默失败。
  *
- * 计费（PLAT-41，用户 2026-09-15）：语音识别按 **10 倍**扣积分，先预留 → 按实际结算 → 差额退回；
+ * 计费（PLAT-41，用户 2026-09-15）：语音识别按 **10 倍**扣算力，先预留 → 按实际结算 → 差额退回；
  * 余额不足在调用 Provider 之前就 402 拒绝；转写失败全额退回（`creditCost: 0`）。
  */
 export const VOICE_TRANSCRIBE_PURPOSE = "web_voice_input";
@@ -45,7 +45,7 @@ interface VoiceTranscribeResponse {
   elapsedMs: number;
   warnings: string[];
   providerTrace: MediaProviderObservation[];
-  /** 本次真实扣费（用户 2026-09-15：语音识别按 10 倍扣积分；失败时 0）。 */
+  /** 本次真实扣费（用户 2026-09-15：语音识别按 10 倍扣算力；失败时 0）。 */
   creditCost: number;
   creditRefunded?: number;
 }
@@ -123,7 +123,7 @@ export async function registerVoiceRoutes(app: FastifyInstance): Promise<void> {
       request.log.warn({ event: "voice_transcribe.admission_rejected", stage: "provider_config", providerCalls: 0 }, "voice transcription stopped before external processing");
       return reply.code(503).send({
         error: "voice_transcription_not_configured",
-        message: "语音转写服务尚未配置（缺少百炼 API Key 或服务地址），请联系管理员；本次未调用转写服务、未扣积分，可直接用文字输入。",
+        message: "语音转写服务尚未配置（缺少百炼 API Key 或服务地址），请联系管理员；本次未调用转写服务、未扣算力，可直接用文字输入。",
         stage: "provider_admission",
         retryable: false,
         providerCalls: 0,
@@ -139,7 +139,7 @@ export async function registerVoiceRoutes(app: FastifyInstance): Promise<void> {
     request.raw.once("aborted", onAborted);
 
     /**
-     * 计费（用户 2026-09-15：「公共平台语音输入（ASR）改成扣积分」，10 倍）：
+     * 计费（用户 2026-09-15：「公共平台语音输入（ASR）改成扣算力」，10 倍）：
      * 先按最坏估算预留 → 跑完按实际结算 → 差额退回。时长取
      * `min(客户端上报秒数, 按字节数的上界)`；客户端不报时用字节上界（opus ≈ 4KB/秒）。
      * 宁可多预留再退回，也不让「少报时长」变成少扣费。
@@ -166,7 +166,7 @@ export async function registerVoiceRoutes(app: FastifyInstance): Promise<void> {
         request.log.info({ event: "voice_transcribe.admission_rejected", stage: "credits", providerCalls: 0 }, "voice transcription stopped before external processing");
         return reply.code(402).send({
           error: "insufficient_credits",
-          message: `语音输入的积分不足（本次约需 ${error.required} 积分），请先充值后再用，或直接用文字输入。`,
+          message: `语音输入的算力不足（本次约需 ${error.required} 算力），请先充值后再用，或直接用文字输入。`,
           stage: "credit_admission",
           required: error.required,
           balance: error.wallet.balance,
@@ -222,7 +222,7 @@ export async function registerVoiceRoutes(app: FastifyInstance): Promise<void> {
       }, "voice transcription completed");
       return result;
     } catch (error) {
-      // 失败关闭：语音没转成，预留的积分全额退回（不扣用户的钱）。
+      // 失败关闭：语音没转成，预留的算力全额退回（不扣用户的钱）。
       if (reservation) {
         await refundAllCreditsForCharge({ reservation, userId: context.userId, skillId: "voice_input", source: "web", reason: "voice_transcribe_failed" }).catch(() => {});
       }
@@ -249,7 +249,7 @@ export async function registerVoiceRoutes(app: FastifyInstance): Promise<void> {
       if (observation.terminalStatus === "cancelled") {
         return reply.code(499).send({
           error: "voice_transcription_cancelled",
-          message: "语音转写已取消；本次未扣积分。",
+          message: "语音转写已取消；本次未扣算力。",
           stage: "asr",
           retryable: true,
           providerCalls: 1,
@@ -259,7 +259,7 @@ export async function registerVoiceRoutes(app: FastifyInstance): Promise<void> {
       if (observation.terminalStatus === "timed_out") {
         return reply.code(504).send({
           error: "voice_transcription_timeout",
-          message: "语音转写超时了，本次未扣积分。请缩短录音后重试，或直接用文字输入。",
+          message: "语音转写超时了，本次未扣算力。请缩短录音后重试，或直接用文字输入。",
           stage: "asr",
           retryable: true,
           providerCalls: 1,
@@ -268,7 +268,7 @@ export async function registerVoiceRoutes(app: FastifyInstance): Promise<void> {
       }
       return reply.code(502).send({
         error: "voice_transcription_failed",
-        message: "语音转写服务暂时不可用，本次未扣积分。可以稍后重试，或直接用文字输入。",
+        message: "语音转写服务暂时不可用，本次未扣算力。可以稍后重试，或直接用文字输入。",
         stage: "asr",
         retryable: true,
         providerCalls: 1,

@@ -5,7 +5,7 @@
 //   ① 「⚡ 充值算力」→ /recharge
 //   ② 「⚡ 立即使用」→ /agent/ipzone__vidrev/workbench（视频复盘工作台）
 // 内容口径：
-//   - 计费与视频复盘工作台同源：按实际用量结算，价格取真实目录 ppu（/market/skus），单位「积分」；
+//   - 计费与视频复盘工作台同源：按实际用量结算，价格取真实目录 ppu（/market/skus），单位「算力」；
 //     原型里的「50 算力/次」是演示价，不照抄；「上传体检免费 / 校验不过不出报告 / 失败不扣费」按原型保留；
 //   - 头图三视图：工作台实况（拖表上传 + 体检面板）/ 职业形象照（系统内置 video-diag 形象）/ 用户口碑；
 //   - 人物头像圈统一「橙渐变圆 + 姓氏字」（江/谭/池）。
@@ -135,7 +135,7 @@ export function VidrevDetailPage() {
   const [tab, setTab] = useState<TabKey>("ability");
   const [view, setView] = useState<GalleryView>("wb");
   const avatar = employeeAvatarPath("ipzone__vidrev");
-  /** 真实目录价（与视频复盘工作台同源 /market/skus）；按实际用量结算，单位「积分」。 */
+  /** 真实目录价（与视频复盘工作台同源 /market/skus）；按实际用量结算，单位「算力」。 */
   const [skuPpu, setSkuPpu] = useState<number | null>(null);
 
   useEffect(() => {
@@ -226,7 +226,7 @@ export function VidrevDetailPage() {
           <div className="ipd-price">
             <div className="ipd-price-line">
               <span className="ipd-num">{skuPpu ?? "—"}</span>
-              <span className="ipd-unit">积分 / 次 起</span>
+              <span className="ipd-unit">算力 / 次 起</span>
               <span className="ipd-approx">{skuPpu != null ? `≈ ¥${(skuPpu / 10).toFixed(1)}` : "≈ ¥"} · 按实际用量结算</span>
             </div>
             <div className="ipd-price-meta">计费说明：<b>0 元开通</b> · 不收月费 · 上传体检免费，出报告才扣算力</div>
@@ -244,7 +244,7 @@ export function VidrevDetailPage() {
           <div className="ipd-cta-row">
             <button className="ipd-btn ghost" onClick={() => { window.location.href = getAppPath("/recharge"); }}>⚡ 充值算力</button>
             <button className="ipd-btn main" onClick={() => { window.location.href = getAppPath(WORKBENCH_PATH); }}>
-              ⚡ 立即使用{skuPpu != null ? `（约 ${skuPpu} 积分/次）` : ""}
+              ⚡ 立即使用{skuPpu != null ? `（约 ${skuPpu} 算力/次）` : ""}
             </button>
           </div>
           <div className="ipd-after-cta">

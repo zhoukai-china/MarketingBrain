@@ -31,7 +31,7 @@ function formatTimeoutLabel(ms: number): string {
 
 /**
  * 视频复盘：还没拿到数据表时的回复（工单 2026-09-13 §四「未传文件时输入复盘」）。
- * 这里刻意不调用后端、不消耗积分，只把「数据从哪来、怎么传」讲清楚。
+ * 这里刻意不调用后端、不消耗算力，只把「数据从哪来、怎么传」讲清楚。
  */
 const VIDREV_NO_DATA_GUIDE = [
   "**先别急——我还没拿到你的数据。** 没有数据我只能编，我不会编。",
@@ -40,7 +40,7 @@ const VIDREV_NO_DATA_GUIDE = [
   "- **视频号**：登录视频号助手 https://channels.weixin.qq.com/login.html → 数据中心 → 视频数据 → 单篇视频 → 选「近 30 天」→ 下载表格",
   "- **抖音**：登录抖音创作者中心 https://creator.douyin.com/ → 数据中心 → 作品数据 → 近 30 天 → 导出数据",
   "",
-  "把下载好的 **CSV 或 Excel** 直接拖进对话框上传，再跟我说「复盘」即可。（本次没有调用模型、不消耗积分）"
+  "把下载好的 **CSV 或 Excel** 直接拖进对话框上传，再跟我说「复盘」即可。（本次没有调用模型、不消耗算力）"
 ].join("\n");
 
 interface ChatItem {
@@ -69,7 +69,7 @@ interface ChatPrefill {
 /**
  * 包月订阅视图（用户 2026-09-17 拍板：有的智能体按次卖、有的按消耗卖、有的支持按月订阅）。
  *
- * 文案智能体＝4000 积分/月、每天 5 条，**订阅期内不再扣积分**。
+ * 文案智能体＝4000 算力/月、每天 5 条，**订阅期内不再扣算力**。
  * 所以「确认生成」前必须说清这次扣不扣分，交付后也要说明白是包月覆盖而不是漏扣。
  * 字段与 `apps/api/src/routes/marketplace.ts` 的 `accessStateFor()` 一一对应。
  */
@@ -139,7 +139,7 @@ function toSubscriptionView(access: {
 /** 包月按钮上的统一说法：套餐价 + 每日条数。 */
 function subscriptionOfferText(offer: { credits: number; dailyQuota: number | null }): string {
   const quota = offer.dailyQuota == null ? "不限次数" : `每天 ${offer.dailyQuota} 条`;
-  return `${offer.credits} 积分/月 · ${quota}（订阅期内不扣积分）`;
+  return `${offer.credits} 算力/月 · ${quota}（订阅期内不扣算力）`;
 }
 
 export function MarketplaceAgentChatPage({
@@ -193,12 +193,12 @@ export function MarketplaceAgentChatPage({
   const [uploadNote, setUploadNote] = useState("");
   /** 拖拽悬停态：让「把文件拖进来」这件事在界面上看得见。 */
   const [dragActive, setDragActive] = useState(false);
-  // Word 导出 2026-09-27 起免费（后端不扣积分），不再拉取/展示价格。
+  // Word 导出 2026-09-27 起免费（后端不扣算力），不再拉取/展示价格。
   const [exporting, setExporting] = useState(false);
   /**
-   * 包月订阅状态（用户 2026-09-17 拍板）：文案智能体 4000 积分/月、每天 5 条，订阅期内不再扣积分。
+   * 包月订阅状态（用户 2026-09-17 拍板）：文案智能体 4000 算力/月、每天 5 条，订阅期内不再扣算力。
    *
-   * 所以「确认生成」前必须说清这次**扣不扣积分**：订阅中不能说「预计消耗约 N 积分」，
+   * 所以「确认生成」前必须说清这次**扣不扣算力**：订阅中不能说「预计消耗约 N 算力」，
    * 交付后也不该让用户以为漏扣了。
    */
   const [subscriptionView, setSubscriptionView] = useState<SubscriptionView | null>(null);
@@ -223,7 +223,7 @@ export function MarketplaceAgentChatPage({
    * 直播话术要串行跑九段 + 四附属件，实测 6-7 分钟。实测（lanqi-test）后台已经跑完、
    * 交付物也确实入库、nginx 也回了 200，但个别浏览器（无头 Chrome 稳定复现）拿不到
    * 这条超长 POST 的响应体 —— fetch 既不 resolve 也不 reject，页面就一直停在
-   * 「正在生成…」，客户以为白等一场（200 积分照扣）。所以等待期间不再只依赖那一条长连接：
+   * 「正在生成…」，客户以为白等一场（200 算力照扣）。所以等待期间不再只依赖那一条长连接：
    * 每 30s 查一次「7 天内的交付物」，只要能查到**本次生成之后**入库的稿子就直接渲染。
    * 顺带把生产上「网关 502/504、后台仍然跑完」的场景一起兜住。
    */
@@ -305,7 +305,7 @@ export function MarketplaceAgentChatPage({
   const isLiveScript = coreSkuCode(runSku?.skuCode ?? skuId) === "livescript";
   /**
    * IP 定位：**按次固定价**（`FIXED_PRICE_SKUS`），不是按实际用量结算。
-   * 所以确认卡不能说「预计消耗约 N 积分…按实际用量结算，可能略有出入」——那会让客户以为价会浮动；
+   * 所以确认卡不能说「预计消耗约 N 算力…按实际用量结算，可能略有出入」——那会让客户以为价会浮动；
    * 统一报固定价 `IP_POS_PRICE` 算力（2026-09-27 用户改价 99，单位口径同工作台）。
    */
   const isIpPos = coreSkuCode(runSku?.skuCode ?? skuId) === "ip-pos";
@@ -371,7 +371,7 @@ export function MarketplaceAgentChatPage({
     if (!flow || soon) return;
     /**
      * 2026-09-16 客户现场（汽配信息网）：客户**退出页面再进来，填过的信息和已交付的报告全没了**，
-     * 连付过积分的那份交付物也找不回来。这里的处理是**存在客户本机**（localStorage），
+     * 连付过算力的那份交付物也找不回来。这里的处理是**存在客户本机**（localStorage），
      * 不落我们的服务器（沿用「客户内容不落库」的口径）：
        *   - 记录带一个**稳定身份指纹**（会话 JWT 里的 tenantId:userId）：换账号/换人自动丢弃，避免串数据；
        *     不能用 token 末 8 位——token 被重新签发时同一个人也会被判成换了人（2026-09-16 真机复现）；
@@ -432,7 +432,7 @@ export function MarketplaceAgentChatPage({
           setItems([
             { id: "w", role: "ai", text: welcome },
             { id: "restored-final", role: "ai", text: latest.answer, html: true },
-            { id: "restored-note", role: "ai", text: "（这是你 7 天内的历史交付，已为你恢复；点「下载精美 Word」可随时再存一份，不会重复扣积分。）" }
+            { id: "restored-note", role: "ai", text: "（这是你 7 天内的历史交付，已为你恢复；点「下载精美 Word」可随时再存一份，不会重复扣算力。）" }
           ]);
           setDone(true);
           setCost(latest.credits);
@@ -563,7 +563,7 @@ export function MarketplaceAgentChatPage({
             role: "ai",
             text:
               "（这一稿**后台其实已经生成完成**，只是页面没等到那条超长连接的响应，已自动为你取回；" +
-              "按实际生成结果计费，**不会重复扣积分**。）"
+              "按实际生成结果计费，**不会重复扣算力**。）"
           }
         ]);
         setCost(latest.credits);
@@ -605,14 +605,14 @@ export function MarketplaceAgentChatPage({
         body: JSON.stringify(body)
       });
       if (handleStaleSession(runResponse.status)) {
-        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次不消耗积分。");
+        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次不消耗算力。");
       }
       /**
        * 网关超时（502 / 503 / 504）：nginx 等后端超过 proxy_read_timeout 会直接断开并回 504，
        * 响应体是空的，`readJson` 只会抛「请求失败（504）」，客户看不懂也不知道该不该再等。
        *
        * 2026-09-21 实测（lanqi-test）：网关 504 之后后台往往仍然跑完并**正常结算**
-       * —— 交付物已入库、7 天内可找回，积分也照扣。所以这里绝不能写「本次不消耗积分」。
+       * —— 交付物已入库、7 天内可找回，算力也照扣。所以这里绝不能写「本次不消耗算力」。
        */
       if (runResponse.status === 502 || runResponse.status === 503 || runResponse.status === 504) {
         throw new Error(
@@ -636,8 +636,8 @@ export function MarketplaceAgentChatPage({
             id: `recharge${Date.now()}`,
             role: "ai",
             text:
-              `${payload.message ?? "当前积分不足，请先充值后再使用。"}` +
-              `（本次**未消耗积分**；你填的 ${slots.length} 项已经存在本机，充值回来点「继续生成」即可，**不用重填**。）`,
+              `${payload.message ?? "当前算力不足，请先充值后再使用。"}` +
+              `（本次**未消耗算力**；你填的 ${slots.length} 项已经存在本机，充值回来点「继续生成」即可，**不用重填**。）`,
             action: {
               label: "去充值（回来不用重填）",
               href: getAppPath(`/recharge?from=agent&skill=${encodeURIComponent(runSku.skuCode)}&next=${encodeURIComponent(nextRoute)}`)
@@ -649,13 +649,13 @@ export function MarketplaceAgentChatPage({
         return;
       }
       /**
-       * 包月额度当天用完（409）：**不能静默改成扣积分**——用户买了包月就不该再被扣分。
-       * 明确告知今天还剩 0 次、本次不消耗积分、明天 0 点恢复。
+       * 包月额度当天用完（409）：**不能静默改成扣算力**——用户买了包月就不该再被扣分。
+       * 明确告知今天还剩 0 次、本次不消耗算力、明天 0 点恢复。
        */
       if (runResponse.status === 409) {
         const payload = (await runResponse.json().catch(() => ({}))) as { error?: string; message?: string };
         if (payload.error === "marketplace_subscription_quota_exhausted") {
-          const text = `${payload.message ?? "你已开通本智能体的包月，今天的次数已经用完。"}（本次**不消耗积分**；额度每天 0 点恢复。）`;
+          const text = `${payload.message ?? "你已开通本智能体的包月，今天的次数已经用完。"}（本次**不消耗算力**；额度每天 0 点恢复。）`;
           setItems((prev) => [...prev, { id: `quota${Date.now()}`, role: "ai", text }]);
           setSubscriptionNotice(text);
           setCost(null);
@@ -668,7 +668,7 @@ export function MarketplaceAgentChatPage({
           stopRecovery();
           return;
         }
-        throw new Error(payload.message ?? "本次请求被拒绝；本次不消耗积分。");
+        throw new Error(payload.message ?? "本次请求被拒绝；本次不消耗算力。");
       }
       const result = await readJson<{
         answer: string;
@@ -677,7 +677,7 @@ export function MarketplaceAgentChatPage({
         needsInput?: boolean;
         payload?: IpPosPayload | VidrevPayload;
         requestId?: string;
-        /** 服务端结算口径：subscription = 本次由包月覆盖、没扣积分。 */
+        /** 服务端结算口径：subscription = 本次由包月覆盖、没扣算力。 */
         pricingMode?: string;
         subscription?: {
           covered?: boolean;
@@ -695,7 +695,7 @@ export function MarketplaceAgentChatPage({
         setItems((prev) => [
           ...prev,
           { id: `clr${Date.now()}`, role: "ai", text: result.answer },
-          { id: `clrq${Date.now()}`, role: "ai", text: "以上关键信息还需要你补充一下。直接把补充内容发给我，我会重新生成（本次不消耗积分）。" }
+          { id: `clrq${Date.now()}`, role: "ai", text: "以上关键信息还需要你补充一下。直接把补充内容发给我，我会重新生成（本次不消耗算力）。" }
         ]);
         setAwaitingSupplement(true);
         setDone(false);
@@ -715,8 +715,8 @@ export function MarketplaceAgentChatPage({
       setLastRequestId(result.requestId ?? null);
       setLastRequestId(result.requestId ?? null);
       /**
-       * 包月覆盖的这次交付：刷新「今天还剩几条」，并把「不扣积分」写进面板，
-       * 免得用户看到「本次实际消耗 0 积分」以为是漏扣。
+       * 包月覆盖的这次交付：刷新「今天还剩几条」，并把「不扣算力」写进面板，
+       * 免得用户看到「本次实际消耗 0 算力」以为是漏扣。
        */
       if (result.pricingMode === "subscription") {
         const sub = result.subscription;
@@ -741,7 +741,7 @@ export function MarketplaceAgentChatPage({
           };
         });
         setSubscriptionNotice(
-          `本次由包月覆盖，**不扣积分**${sub?.remaining == null ? "" : `（今天还剩 ${Math.max(0, sub.remaining)} 条）`}。`
+          `本次由包月覆盖，**不扣算力**${sub?.remaining == null ? "" : `（今天还剩 ${Math.max(0, sub.remaining)} 条）`}。`
         );
       }
     } catch (reason) {
@@ -802,7 +802,7 @@ export function MarketplaceAgentChatPage({
      * 「复盘（附件：视频号动态数据明细.csv）」当答案发在平台那一步，平台名成了整句话，
      * 后端按「非抖音/视频号」拒绝，同一份视频号文件连发三次都说「只支持抖音和视频号」）。
      * 口径：能从这句话或附件里认出平台，就按规范平台名（抖音 / 视频号）记账往下走；
-     * 认不出来就**停在平台这一步**追问，不推进、不消耗积分。
+     * 认不出来就**停在平台这一步**追问，不推进、不消耗算力。
      */
     let answerValue = value;
     if (isVidrev && slots[step].key === "platform") {
@@ -821,7 +821,7 @@ export function MarketplaceAgentChatPage({
             role: "ai",
             text:
               "这一步只确认**平台**：这批视频发在**抖音**还是**视频号**？\n\n" +
-              "点下面的选项，或直接打「抖音」/「视频号」两个字。（一次只复盘一个平台，跨平台请分开出报告；本次没有调用模型、不消耗积分）"
+              "点下面的选项，或直接打「抖音」/「视频号」两个字。（一次只复盘一个平台，跨平台请分开出报告；本次没有调用模型、不消耗算力）"
           }
         ]);
         setInput("");
@@ -834,7 +834,7 @@ export function MarketplaceAgentChatPage({
       }
     }
 
-    // 工单 2026-09-13 §四：未传数据时输入「复盘」不能空跑一轮（更不能消耗积分）——
+    // 工单 2026-09-13 §四：未传数据时输入「复盘」不能空跑一轮（更不能消耗算力）——
     // 先把「数据从哪来、怎么传」讲清楚，用户看到指南再去导出。
     if (isVidrev && slots[step].key === "data" && !vidrevHasData(answerValue)) {
       setItems((prev) => [
@@ -843,7 +843,7 @@ export function MarketplaceAgentChatPage({
         { id: `nodata-a${Date.now()}`, role: "ai", text: VIDREV_NO_DATA_GUIDE }
       ]);
       setInput("");
-      setUploadNote("本次没有调用模型、不消耗积分。");
+      setUploadNote("本次没有调用模型、不消耗算力。");
       return;
     }
 
@@ -892,7 +892,7 @@ export function MarketplaceAgentChatPage({
   }
 
   /**
-   * 开通包月（用户 2026-09-17 拍板：4000 积分/月、每天 5 条，订阅期内不扣积分）。
+   * 开通包月（用户 2026-09-17 拍板：4000 算力/月、每天 5 条，订阅期内不扣算力）。
    *
    * 后端是幂等的（已订阅直接返回当前这期，不重复扣分），所以这里不做本地「已点过」判断，
    * 只把结果如实告诉用户：扣了多少分、这期到哪天、每天几次。
@@ -913,7 +913,7 @@ export function MarketplaceAgentChatPage({
         body: JSON.stringify({ skuId: runSku.skuCode })
       });
       if (handleStaleSession(response.status)) {
-        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录后再订阅；本次不消耗积分。");
+        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录后再订阅；本次不消耗算力。");
       }
       if (response.status === 402) {
         const payload = (await response.json().catch(() => ({}))) as { message?: string; required?: number; balance?: number };
@@ -924,8 +924,8 @@ export function MarketplaceAgentChatPage({
             id: `subrecharge${Date.now()}`,
             role: "ai",
             text:
-              `${payload.message ?? `订阅包月需要 ${offer.credits} 积分，当前积分不足，请先充值。`}` +
-              `（本次**不消耗积分**；充完回来点「开通包月」即可，你填的内容还在。）`,
+              `${payload.message ?? `订阅包月需要 ${offer.credits} 算力，当前算力不足，请先充值。`}` +
+              `（本次**不消耗算力**；充完回来点「开通包月」即可，你填的内容还在。）`,
             action: {
               label: "去充值（回来接着订阅）",
               href: getAppPath(`/recharge?from=agent&skill=${encodeURIComponent(runSku.skuCode)}&next=${encodeURIComponent(nextRoute)}`)
@@ -962,14 +962,14 @@ export function MarketplaceAgentChatPage({
           id: `subok${Date.now()}`,
           role: "ai",
           text: result.alreadySubscribed
-            ? `你**已经在包月期内**了，这次没有重复扣积分。${dailyQuota == null ? "次数不限" : `每天 ${dailyQuota} 条`}，额度每天 0 点恢复${until ? `，本期末到 ${until}` : ""}。`
-            : `✅ **包月已开通**：已扣 **${result.credits ?? offer.credits} 积分**（${dailyQuota == null ? "次数不限" : `每天 ${dailyQuota} 条`}）${until ? `，本期末到 ${until}` : ""}。\n\n从现在起，本智能体**生成不再扣积分**，额度每天 0 点恢复。`
+            ? `你**已经在包月期内**了，这次没有重复扣算力。${dailyQuota == null ? "次数不限" : `每天 ${dailyQuota} 条`}，额度每天 0 点恢复${until ? `，本期末到 ${until}` : ""}。`
+            : `✅ **包月已开通**：已扣 **${result.credits ?? offer.credits} 算力**（${dailyQuota == null ? "次数不限" : `每天 ${dailyQuota} 条`}）${until ? `，本期末到 ${until}` : ""}。\n\n从现在起，本智能体**生成不再扣算力**，额度每天 0 点恢复。`
         }
       ]);
       setSubscriptionNotice(
         result.alreadySubscribed
           ? "你已在包月期内（本次未重复扣分）。"
-          : `包月已开通：本次生成不扣积分（${dailyQuota == null ? "次数不限" : `今天还剩 ${dailyQuota} 条`}）。`
+          : `包月已开通：本次生成不扣算力（${dailyQuota == null ? "次数不限" : `今天还剩 ${dailyQuota} 条`}）。`
       );
     } catch (reason) {
       setItems((prev) => [
@@ -1034,7 +1034,7 @@ export function MarketplaceAgentChatPage({
    *
    * 口径：图片对**全部智能体**开放，并且要**真的解析进需求**（不是只记文件名）。
    * 走平台受登录态保护、带计费预留/结算的 `/media/analyze` 视觉通道（qwen-vl）；
-   * 只按**成功的视觉调用**收费（每次 10 积分），没有成功调用时全额退回、0 收费。
+   * 只按**成功的视觉调用**收费（每次 10 算力），没有成功调用时全额退回、0 收费。
    */
   const IMAGE_ATTACHMENT_PATTERN = /\.(png|jpe?g|webp|gif|bmp)$/i;
   const MAX_ATTACHMENT_TEXT = 20_000;
@@ -1099,16 +1099,16 @@ export function MarketplaceAgentChatPage({
           if (parsed.text) {
             const truncated = parsed.text.length > MAX_ATTACHMENT_TEXT;
             next.push({ kind: "image", name: file.name, text: parsed.text.slice(0, MAX_ATTACHMENT_TEXT) });
-            const costNote = parsed.creditCost > 0 ? `，本次视觉解析 ${parsed.creditCost} 积分` : "，本次没有产生视觉调用、不扣积分";
+            const costNote = parsed.creditCost > 0 ? `，本次视觉解析 ${parsed.creditCost} 算力` : "，本次没有产生视觉调用、不扣算力";
             notes.push(`已识别图片「${file.name}」的画面内容${costNote}${truncated ? `（超过 ${MAX_ATTACHMENT_TEXT} 字，已截断）` : ""}`);
           } else {
             next.push({ kind: "image", name: file.name });
-            notes.push(`「${file.name}」没有识别到可用信息（本次不扣积分）；请确认图片清晰、或直接把关键内容打在对话框里`);
+            notes.push(`「${file.name}」没有识别到可用信息（本次不扣算力）；请确认图片清晰、或直接把关键内容打在对话框里`);
           }
         } catch (error) {
           next.push({ kind: "image", name: file.name });
           const detail = error instanceof Error && error.message ? `（${error.message}）` : "";
-          notes.push(`「${file.name}」识别失败${detail}，本次不扣积分；可重试或把关键内容粘贴到对话框`);
+          notes.push(`「${file.name}」识别失败${detail}，本次不扣算力；可重试或把关键内容粘贴到对话框`);
         }
       } else {
         next.push({ kind, name: file.name });
@@ -1162,7 +1162,7 @@ export function MarketplaceAgentChatPage({
    * 图片解析（用户 2026-09-17「确定放开 A+图片」）：把图片交给平台自己的视觉解析入口，
    * 拿回「画面里能验证的事实」并拼进需求单，让智能体真的看到图片内容（不是只记文件名）。
    *
-   * 计费由服务端结算：只按成功的视觉调用收费（每次 10 积分）；没有成功调用会全额退回。
+   * 计费由服务端结算：只按成功的视觉调用收费（每次 10 算力）；没有成功调用会全额退回。
    * 余额不足时服务端返回 402，这里把原因如实告诉用户。
    */
   async function parseImageAttachment(file: File): Promise<{ text: string; creditCost: number }> {
@@ -1193,7 +1193,7 @@ export function MarketplaceAgentChatPage({
         creditCost: typeof payload.creditCost === "number" ? payload.creditCost : 0
       };
     } catch (error) {
-      if ((error as { name?: string }).name === "AbortError") throw new Error("识别超过 60 秒已停止，本次未扣积分，请换更小的图片重试");
+      if ((error as { name?: string }).name === "AbortError") throw new Error("识别超过 60 秒已停止，本次未扣算力，请换更小的图片重试");
       throw error;
     } finally {
       window.clearTimeout(timeoutId);
@@ -1202,7 +1202,7 @@ export function MarketplaceAgentChatPage({
 
   /**
    * 视频复盘的「数据」轮：只有真带了数据（已读到的附件文本，或含指标+数字的描述）才放行。
-   * 只打「复盘」两个字属于「还没给数据」，先回导出指南，不调用模型也不消耗积分。
+   * 只打「复盘」两个字属于「还没给数据」，先回导出指南，不调用模型也不消耗算力。
    */
   function vidrevHasData(value: string): boolean {
     if (attachments.some((item) => item.text)) return true;
@@ -1264,8 +1264,8 @@ export function MarketplaceAgentChatPage({
       return {
         text: "",
         message: (error as { name?: string }).name === "AbortError"
-          ? "语音转写超过60秒，已自动停止；本次不消耗积分，请缩短录音或直接用文字输入。"
-          : "语音转写服务暂时不可用，本次不消耗积分。可以直接输入文字或稍后重试。"
+          ? "语音转写超过60秒，已自动停止；本次不消耗算力，请缩短录音或直接用文字输入。"
+          : "语音转写服务暂时不可用，本次不消耗算力。可以直接输入文字或稍后重试。"
       };
     } finally {
       window.clearTimeout(timeoutId);
@@ -1354,8 +1354,8 @@ export function MarketplaceAgentChatPage({
               )}
             </div>
             <div className="zone-soon" style={{ margin: "0 16px" }}>
-              🚧 <b>该智能体内核还在开发中</b>，对话与生成暂未开放，也不会消耗积分。<br />
-              上线后可直接使用，和平台其他智能体共用同一份积分，不需要重复充值；可以先回详情页看「输出参考案例」了解交付物长什么样。
+              🚧 <b>该智能体内核还在开发中</b>，对话与生成暂未开放，也不会消耗算力。<br />
+              上线后可直接使用，和平台其他智能体共用同一份算力，不需要重复充值；可以先回详情页看「输出参考案例」了解交付物长什么样。
             </div>
             <div className="chat-page-composer">
               <button className="btn ghost block" style={{ marginBottom: 10 }} onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId)}`); }}>‹ 返回详情 · 看输出参考案例</button>
@@ -1415,12 +1415,12 @@ export function MarketplaceAgentChatPage({
             {cost !== null && (
               <span className="chat-page-cost">
                 {cost === 0 && subscriptionView?.subscribed ? (
-                  <>本次由包月覆盖 · 不扣积分</>
+                  <>本次由包月覆盖 · 不扣算力</>
                 ) : isIpPos ? (
                   /* IP 定位这条链路单位统一用「算力」（2026-09-27 用户改价 99 算力，口径同工作台）。 */
                   <>本次实际消耗 {cost} {IP_POS_UNIT}</>
                 ) : (
-                  <>本次实际消耗 {cost} 积分</>
+                  <>本次实际消耗 {cost} 算力</>
                 )}
               </span>
             )}
@@ -1537,20 +1537,20 @@ export function MarketplaceAgentChatPage({
                 <p><b>请先确认需求</b>：确认后我按下面这套信息生成交付。如有不对，点「修改」重填。</p>
                     {/*
                      * 计费说法按「这个智能体自己的规则」来（用户 2026-09-17 拍板）：
-                     * - 包月且今日还有额度：明确说**本次不扣积分**，并报剩余条数；
-                     * - 包月但今日额度用完：明确说会被拒、不扣积分、明天恢复；
+                     * - 包月且今日还有额度：明确说**本次不扣算力**，并报剩余条数；
+                     * - 包月但今日额度用完：明确说会被拒、不扣算力、明天恢复；
                      * - 未订阅：沿用 2026-09-16 口径，使用前给预估、使用后给实际。
                      */}
                     {subscriptionView?.subscribed && !subscriptionView.exhausted ? (
                       <p>
                         ✅ 你已开通<b>包月</b>（{subscriptionView.dailyQuota == null ? "不限次数" : `每天 ${subscriptionView.dailyQuota} 条`}）：
-                        本次生成<b>不扣积分</b>
+                        本次生成<b>不扣算力</b>
                         {subscriptionView.remaining == null ? "" : `，今天还剩 ${subscriptionView.remaining} 条`}。
                       </p>
                     ) : subscriptionView?.subscribed && subscriptionView.exhausted ? (
                       <p>
                         ⚠️ 今天额度已用完（{subscriptionView.usedToday}/{subscriptionView.dailyQuota}）：
-                        现在点生成会被拒绝，<b>本次不扣积分</b>，明天 0 点自动恢复。
+                        现在点生成会被拒绝，<b>本次不扣算力</b>，明天 0 点自动恢复。
                       </p>
                     ) : (
                       <>
@@ -1561,7 +1561,7 @@ export function MarketplaceAgentChatPage({
                           </p>
                         ) : typeof runSku?.ppu === "number" && runSku.ppu > 0 && (
                           <p>
-                            预计消耗约 <b>{runSku.ppu}</b> 积分（<b>按本次实际用量结算</b>，可能略有出入；生成完成后会告诉你实际扣了多少）。
+                            预计消耗约 <b>{runSku.ppu}</b> 算力（<b>按本次实际用量结算</b>，可能略有出入；生成完成后会告诉你实际扣了多少）。
                           </p>
                         )}
                         {subscriptionView?.offer && (
@@ -1575,7 +1575,7 @@ export function MarketplaceAgentChatPage({
                               {subscribing ? "正在开通…" : `📅 改包月：${subscriptionOfferText(subscriptionView.offer)}`}
                             </button>
                             <span style={{ color: "var(--muted)", fontSize: 12, marginLeft: 8 }}>
-                              低频使用按次更划算；高频用选包月，订阅期内不再扣积分。
+                              低频使用按次更划算；高频用选包月，订阅期内不再扣算力。
                             </span>
                           </p>
                         )}
@@ -1721,7 +1721,7 @@ export function MarketplaceAgentChatPage({
                           void send();
                         }
                       }}
-                      placeholder={awaitingSupplement ? "补充缺失的信息，发送后重新生成（不消耗积分）" : "打字或点 🎤 说话，例如：竞品换成 XX / 目标改成品牌"}
+                      placeholder={awaitingSupplement ? "补充缺失的信息，发送后重新生成（不消耗算力）" : "打字或点 🎤 说话，例如：竞品换成 XX / 目标改成品牌"}
                     />
                     <button
                       type="button"
@@ -1770,7 +1770,7 @@ export function MarketplaceAgentChatPage({
                   }
                 }}
                 rows={2}
-                placeholder={awaitingSupplement ? "补充缺失的信息，发送后重新生成（不消耗积分）" : "在这里输入，AI 主动引导你逐步补全"}
+                placeholder={awaitingSupplement ? "补充缺失的信息，发送后重新生成（不消耗算力）" : "在这里输入，AI 主动引导你逐步补全"}
                 style={{ width: "100%", background: "var(--glass)", border: "1px solid var(--line)", borderRadius: 14, padding: "12px 14px", color: "var(--text)", fontSize: 14, resize: "none" }}
               />
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10 }}>
@@ -1806,8 +1806,8 @@ export function MarketplaceAgentChatPage({
                 <div className="chat-hint">
                   AI 会按本智能体技能逻辑<b>主动提问，引导你补全信息</b>，补全后产出结果 · <b>可把文件直接拖进这里</b>
                   {isVidrev
-                    ? "（文本类 CSV/TXT/MD/JSON、后台导出的 Excel（.xlsx）与图片会读进需求；PDF/Word/视频暂只记文件名）。图片按识别次数计费，每次 10 积分，识别失败/无有效内容不扣积分。"
-                    : "（文本类 CSV/TXT/MD/JSON 与图片会读进需求；PDF/Word/Excel/视频暂只记文件名）。图片按识别次数计费，每次 10 积分，识别失败/无有效内容不扣积分。"}
+                    ? "（文本类 CSV/TXT/MD/JSON、后台导出的 Excel（.xlsx）与图片会读进需求；PDF/Word/视频暂只记文件名）。图片按识别次数计费，每次 10 算力，识别失败/无有效内容不扣算力。"
+                    : "（文本类 CSV/TXT/MD/JSON 与图片会读进需求；PDF/Word/Excel/视频暂只记文件名）。图片按识别次数计费，每次 10 算力，识别失败/无有效内容不扣算力。"}
                 </div>
               )}
             </div>

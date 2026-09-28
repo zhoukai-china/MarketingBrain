@@ -189,9 +189,9 @@ export function BeautyXhsWorkbench(props: Props) {
           </div>
           <p>这些字段随本次任务保存；不会修改经营档案。需要长期复用时，请由你主动进入经营档案保存。</p>
         </details>
-        {props.missingRequiredFields.length > 0 && <div className="beautyXhsRequiredNotice" role="alert" data-testid="xhs-required-fields"><strong>还不能生成文案</strong><p>请先补齐：{props.missingRequiredFields.join("、")}。补齐后才会调用模型和预留积分。</p></div>}
+        {props.missingRequiredFields.length > 0 && <div className="beautyXhsRequiredNotice" role="alert" data-testid="xhs-required-fields"><strong>还不能生成文案</strong><p>请先补齐：{props.missingRequiredFields.join("、")}。补齐后才会调用模型和预留算力。</p></div>}
         <div className="beautyXhsGenerateActions">
-          <button type="submit" className="beautyIndustryPrimary" disabled={props.busy || props.missingRequiredFields.length > 0}>{props.busy ? `正在生成文案 · ${props.elapsed}s` : "生成标题、正文和话题｜预计 8 积分"}</button>
+          <button type="submit" className="beautyIndustryPrimary" disabled={props.busy || props.missingRequiredFields.length > 0}>{props.busy ? `正在生成文案 · ${props.elapsed}s` : "生成标题、正文和话题｜预计 8 算力"}</button>
           {props.busy && <button type="button" className="beautyIndustrySecondary" onClick={props.onCancel}>取消</button>}
         </div>
         <p className="beautyXhsSaveState">{props.savedAt ? `草稿已自动保存于 ${new Date(props.savedAt).toLocaleTimeString()}` : "输入会自动保存到当前租户"}<button type="button" onClick={props.onRestore}>恢复上次任务</button></p>
@@ -234,7 +234,7 @@ export function BeautyXhsWorkbench(props: Props) {
           </details>}
 
           <section className="beautyXhsImageDelivery">
-            <header><div><span>03</span><div><strong>三张商业摄影感配图</strong><small>文案已保存后，再由你确认积分并真实生成；画面非本店实景。</small></div></div>{props.mediaQuote && <em>{props.mediaQuote.imageCount} 张 · {props.mediaQuote.creditCost} 积分</em>}</header>
+            <header><div><span>03</span><div><strong>三张商业摄影感配图</strong><small>文案已保存后，再由你确认算力并真实生成；画面非本店实景。</small></div></div>{props.mediaQuote && <em>{props.mediaQuote.imageCount} 张 · {props.mediaQuote.creditCost} 算力</em>}</header>
             {props.mediaQuote?.imagePlan && <p className="beautyXhsLinkedTitle">接待咨询区、护理空间和到店承接空间将围绕已选择标题“{selectedTitle}”生成，并与本次图文一起恢复。</p>}
             <div className="beautyXhsImageCards">{imageDirections.map((direction, index) => {
               const job = props.mediaJobs[index];
@@ -247,11 +247,11 @@ export function BeautyXhsWorkbench(props: Props) {
                 {isUsable ? <button type="button" onClick={() => props.onDownloadImage(job, index)}>下载这张图片</button> : job?.canCancel ? <button type="button" onClick={() => props.onCancelImage(job.id)}>取消本张任务</button> : null}
               </article>;
             })}</div>
-            {props.mediaBatchStatus === "quality_failed" && <div className="beautyXhsImageFailure" role="alert"><p>图片未达到交付标准，不建议使用；当前不提供查看或下载。积分按完整交付规则释放或补偿，本批不会自动补图。</p>{props.mediaQuote?.retryEligible && <button type="button" className="beautyIndustrySecondary" onClick={props.onPrepareImageRetry}>修改本次图片要求后重新生成</button>}</div>}
+            {props.mediaBatchStatus === "quality_failed" && <div className="beautyXhsImageFailure" role="alert"><p>图片未达到交付标准，不建议使用；当前不提供查看或下载。算力按完整交付规则释放或补偿，本批不会自动补图。</p>{props.mediaQuote?.retryEligible && <button type="button" className="beautyIndustrySecondary" onClick={props.onPrepareImageRetry}>修改本次图片要求后重新生成</button>}</div>}
             {props.mediaBatchStatus === "succeeded" && props.mediaQuote?.regenerationEligible && <div className="beautyXhsImageRegeneration"><p>本批三张图片已交付。若需要换一组，请先修改本次图片要求并重新查看费用；不会自动生成或扣费。</p><button type="button" className="beautyIndustrySecondary" onClick={props.onPrepareImageRetry}>修改图片要求并重新报价</button></div>}
-            {props.mediaJobs.length === 0 ? <button type="button" className="beautyIndustryPrimary" disabled={!props.mediaQuote?.canConfirm || props.mediaLoading} onClick={() => props.onConfirmImages(selectedTitle)}>{props.mediaLoading ? "正在创建真实图片任务…" : props.mediaQuote ? `确认真实生成三张图片｜${props.mediaQuote.creditCost} 积分` : "正在读取图片费用…"}</button> : props.mediaJobs.some((job) => job.canRecover || !["succeeded", "failed", "canceled"].includes(job.status)) ? <button type="button" className="beautyIndustrySecondary" disabled={props.mediaLoading} onClick={props.onResumeImages}>{props.mediaLoading ? "正在恢复任务状态…" : "恢复本批图片进度"}</button> : null}
-            {props.mediaJobs.length > 0 && props.mediaBatchStatus === "quality_failed" && props.mediaQuote?.canConfirm && <button type="button" className="beautyIndustryPrimary" disabled={props.mediaLoading} onClick={() => props.onConfirmImages(selectedTitle)}>{props.mediaLoading ? "正在创建新的三图批次…" : `再次确认新批次｜${props.mediaQuote.creditCost} 积分`}</button>}
-            {props.mediaJobs.length > 0 && props.mediaBatchStatus === "succeeded" && props.mediaQuote?.canConfirm && <button type="button" className="beautyIndustryPrimary" disabled={props.mediaLoading} onClick={() => props.onConfirmImages(selectedTitle)}>{props.mediaLoading ? "正在创建新的三图批次…" : `确认生成新一组三图｜${props.mediaQuote.creditCost} 积分`}</button>}
+            {props.mediaJobs.length === 0 ? <button type="button" className="beautyIndustryPrimary" disabled={!props.mediaQuote?.canConfirm || props.mediaLoading} onClick={() => props.onConfirmImages(selectedTitle)}>{props.mediaLoading ? "正在创建真实图片任务…" : props.mediaQuote ? `确认真实生成三张图片｜${props.mediaQuote.creditCost} 算力` : "正在读取图片费用…"}</button> : props.mediaJobs.some((job) => job.canRecover || !["succeeded", "failed", "canceled"].includes(job.status)) ? <button type="button" className="beautyIndustrySecondary" disabled={props.mediaLoading} onClick={props.onResumeImages}>{props.mediaLoading ? "正在恢复任务状态…" : "恢复本批图片进度"}</button> : null}
+            {props.mediaJobs.length > 0 && props.mediaBatchStatus === "quality_failed" && props.mediaQuote?.canConfirm && <button type="button" className="beautyIndustryPrimary" disabled={props.mediaLoading} onClick={() => props.onConfirmImages(selectedTitle)}>{props.mediaLoading ? "正在创建新的三图批次…" : `再次确认新批次｜${props.mediaQuote.creditCost} 算力`}</button>}
+            {props.mediaJobs.length > 0 && props.mediaBatchStatus === "succeeded" && props.mediaQuote?.canConfirm && <button type="button" className="beautyIndustryPrimary" disabled={props.mediaLoading} onClick={() => props.onConfirmImages(selectedTitle)}>{props.mediaLoading ? "正在创建新的三图批次…" : `确认生成新一组三图｜${props.mediaQuote.creditCost} 算力`}</button>}
             {props.mediaQuote && !props.mediaQuote.canConfirm && <p className="beautyXhsMediaActionHint" role="status">{props.mediaQuote.message}</p>}
             <p className="beautyXhsPaidBoundary">确认一次只创建当前三图批次；失败不会自动重试、不会自动补图，也不会追加第 4 张。</p>
           </section>
@@ -262,7 +262,7 @@ export function BeautyXhsWorkbench(props: Props) {
     <details className="beautyXhsTaskHistory" data-testid="xhs-task-history">
       <summary>最近的小红书图文任务 <span>{props.history.length}</span></summary>
       <p>打开历史只恢复已保存结果，不会再次生成或扣费。</p>
-      <div>{props.history.length ? props.history.map((run) => <button key={run.id} type="button" data-run-id={run.id} className={props.activeRun?.id === run.id ? "active" : ""} onClick={() => props.onSelectHistory(run.id)}><strong>{new Date(run.createdAt).toLocaleString()}</strong><span>{run.creditCost} 积分 · 已保存</span></button>) : <span>还没有已保存任务。</span>}</div>
+      <div>{props.history.length ? props.history.map((run) => <button key={run.id} type="button" data-run-id={run.id} className={props.activeRun?.id === run.id ? "active" : ""} onClick={() => props.onSelectHistory(run.id)}><strong>{new Date(run.createdAt).toLocaleString()}</strong><span>{run.creditCost} 算力 · 已保存</span></button>) : <span>还没有已保存任务。</span>}</div>
     </details>
   </section>;
 }

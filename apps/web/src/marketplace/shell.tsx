@@ -47,7 +47,7 @@ export async function adminReadJson<T>(response: Response): Promise<T> {
  *
  * 体验额度是资金侧写操作，服务端除角色守卫外还要求平台运营凭证
  * （`x-sitong-admin-token` == `ADMIN_TOKEN`，与 `/admin/invites` 同源），
- * 否则任何商家 owner 都能给自己发体验积分（QA-20260911-009）。
+ * 否则任何商家 owner 都能给自己发体验算力（QA-20260911-009）。
  * 凭证只挂在这一条请求路径上，不并进通用 `authHeaders`，避免泄漏到普通接口。
  */
 export function adminAuthHeaders(json = false): Record<string, string> {
@@ -144,10 +144,10 @@ export function Topbar({ active, balance, onNavigate }: { active: string; balanc
           <a className={`nav-link ${active === "market" ? "active" : ""}`} onClick={() => onNavigate("/agents")}>商城</a>
           {/* 2026-09-16：用户要求「常用智能体」做成独立列表页（只列自己用过的智能体），不再是「我的」的锚点。 */}
           <a className={`nav-link ${active === "my-agents" ? "active" : ""}`} onClick={() => onNavigate("/my-agents")}>常用</a>
-          <a className={`nav-link ${active === "recharge" ? "active" : ""}`} onClick={() => onNavigate("/recharge")}>积分充值</a>
+          <a className={`nav-link ${active === "recharge" ? "active" : ""}`} onClick={() => onNavigate("/recharge")}>算力充值</a>
           {/*
-           * 2026-09-16（用户）：「我的」要做到一级导航栏、放在「积分充值」后面。
-           * 页面本身就是「我的」（余额 / 常用智能体 / 历史交付物 / 积分退回 / 邀请链接），
+           * 2026-09-16（用户）：「我的」要做到一级导航栏、放在「算力充值」后面。
+           * 页面本身就是「我的」（余额 / 常用智能体 / 历史交付物 / 算力退回 / 邀请链接），
            * 所以这一栏是它的正名入口，高亮也归它（`active="me"`），避免与「常用智能体」抢高亮。
            */}
           <a className={`nav-link ${active === "me" ? "active" : ""}`} onClick={() => onNavigate("/mine")}>我的</a>
@@ -156,14 +156,14 @@ export function Topbar({ active, balance, onNavigate }: { active: string; balanc
           <span className="tt-ico">{theme === "light" ? "☀️" : "🌙"}</span>
           <span>{theme === "light" ? "浅色" : "深色"}</span>
         </button>
-        <div className="wallet-pill" onClick={() => (balance === null ? guestToLogin("/agents") : onNavigate("/recharge"))} title="积分余额 · 点击充值">
-          {balance === null ? "🔒 未登录 · 点击登录" : <>💎 <b>{balance}</b> 积分 <span className="wp-tag">全平台通用</span></>}
+        <div className="wallet-pill" onClick={() => (balance === null ? guestToLogin("/agents") : onNavigate("/recharge"))} title="算力余额 · 点击充值">
+          {balance === null ? "🔒 未登录 · 点击登录" : <>💎 <b>{balance}</b> 算力 <span className="wp-tag">全平台通用</span></>}
         </div>
         {loggedIn ? (
           <button className="logout-link" onClick={handleLogout} title="退出后用另一个账号重新登入">退出登录</button>
         ) : null}
       </header>
-      <div className="shared-banner">💎 <b>积分全平台通用</b> · 数字员工、数字咨询师与各行业专区共用同一份积分</div>
+      <div className="shared-banner">💎 <b>算力全平台通用</b> · 数字员工、数字咨询师与各行业专区共用同一份算力</div>
     </>
   );
 }

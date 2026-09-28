@@ -110,19 +110,19 @@ export const quickDiagnosisCategories: QuickDiagnosisCategoryConfig[] = [
 export const membershipOffers: MembershipOffer[] = [
   {
     code: "local_standard",
-    name: "按积分使用",
+    name: "按算力使用",
     price: 0,
     audience: "单店商家、个人IP、OPC单人创业者",
     benefits: [
       "不收月度订阅费",
-      "注册不赠送积分，按实际使用扣积分",
+      "注册不赠送算力，按实际使用扣算力",
       "开放首版IP获客智能体",
-      "实际执行时按积分扣费"
+      "实际执行时按算力扣费"
     ]
   },
   {
     code: "local_premium",
-    name: "按积分使用",
+    name: "按算力使用",
     price: 0,
     audience: "多门店本地实体商家",
     highlighted: true,
@@ -135,14 +135,14 @@ export const membershipOffers: MembershipOffer[] = [
   },
   {
     code: "chain_premium",
-    name: "按积分使用",
+    name: "按算力使用",
     price: 0,
     audience: "连锁品牌、招商加盟企业",
     benefits: [
       "不收月度订阅费",
       "团队可集中测试IP获客输出",
-      "统一按积分控制调用成本",
-      "不够用再充值积分"
+      "统一按算力控制调用成本",
+      "不够用再充值算力"
     ]
   }
 ];
@@ -178,38 +178,24 @@ export const projectPackageOffers: ProjectPackageOffer[] = [
 
 export const creditOffers: CreditOffer[] = [
   {
-    code: "pack_50",
-    title: "试试看",
-    price: 50,
-    credits: 1000,
-    description: "起充档，零赠送，适合先试一次"
-  },
-  {
     code: "pack_100",
-    title: "够用一阵",
+    title: "随充档",
     price: 100,
-    credits: 2200,
-    description: "默认档，多送 200 积分"
+    credits: 1000,
+    description: "基准 1 元 = 10 算力，随充随用"
   },
   {
     code: "pack_300",
-    title: "常用",
+    title: "算力包",
     price: 300,
-    credits: 7000,
-    description: "多送 1000 积分"
-  },
-  {
-    code: "pack_500",
-    title: "重度",
-    price: 500,
-    credits: 12000,
-    description: "多送 2000 积分"
+    credits: 3600,
+    description: "多送 600 算力"
   },
   {
     code: "pack_1000",
-    title: "团队年用",
+    title: "算力包",
     price: 1000,
-    credits: 25000,
-    description: "多送 5000 积分，适合团队长期使用"
+    credits: 13000,
+    description: "多送 3000 算力，适合团队长期使用"
   }
 ];

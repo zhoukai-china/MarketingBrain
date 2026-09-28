@@ -138,7 +138,7 @@ export function validateFounderIpTopicDelivery(input: {
   const uniqueFailures = Array.from(new Set(failures));
   return uniqueFailures.length === 0
     ? { ok: true }
-    : { ok: false, message: "本轮选题未通过当前项目与证据相关性门禁，未保存、未扣产品积分。请确认资料后重试。", failures: uniqueFailures };
+    : { ok: false, message: "本轮选题未通过当前项目与证据相关性门禁，未保存、未扣产品算力。请确认资料后重试。", failures: uniqueFailures };
 }
 
 function rejectDocumentReason(

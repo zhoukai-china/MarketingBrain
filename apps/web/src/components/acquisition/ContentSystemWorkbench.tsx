@@ -217,7 +217,7 @@ export function ContentSystemWorkbench({ busy, result, generationError, videoRes
         <label>生成模式<select value={replicationModel} onChange={(event) => setReplicationModel(event.target.value as "aliyun_strict" | "seedance_creative")}><option value="aliyun_strict">阿里云｜严格复刻（当前可接入）</option><option value="seedance_creative">Seedance 2.0｜创意复刻（暂未开放）</option></select></label>
         <div className="viralRights">{([ ["visual", "我拥有原视频画面及改编使用权"], ["audio", "我拥有原音频/音乐的使用权"], ["performer", "原视频主角已单独同意被替换"], ["portrait", "替换照片本人/主角已授权使用"] ] as const).map(([key, label]) => <label key={key}><input type="checkbox" checked={rights[key]} onChange={(event) => setRights((current) => ({ ...current, [key]: event.target.checked }))} />{label}</label>)}</div>
         <div className="viralReplicationActions"><button type="button" disabled={quoting} onClick={() => void requestReplicationQuote()}>{quoting ? "正在校验…" : "生成报价与可执行性检查"}</button>{replicationQuote?.canConfirm && <button type="button" className="secondary" disabled={submittingReplication} onClick={() => void confirmReplication()}>{submittingReplication ? "正在提交…" : "确认并创建任务"}</button>}</div>
-        {replicationQuote && <p className="viralQuote">{replicationQuote.creditCost ? `预计 ${replicationQuote.creditCost} 积分，确认后才扣减。` : "尚未配置供应商计费，不能扣费。"}</p>}
+        {replicationQuote && <p className="viralQuote">{replicationQuote.creditCost ? `预计 ${replicationQuote.creditCost} 算力，确认后才扣减。` : "尚未配置供应商计费，不能扣费。"}</p>}
         {replicationNotice && <p className="viralNotice" role="status">{replicationNotice}</p>}
       </section>
     </div>}

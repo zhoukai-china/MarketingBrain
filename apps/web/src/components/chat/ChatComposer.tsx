@@ -750,7 +750,7 @@ export function ChatComposer({
     try {
       const formData = new FormData();
       formData.append("file", file, file.name);
-      // 录音时长交给服务端算预留额度（语音输入 2026-09-15 起按 10 倍扣积分）。
+      // 录音时长交给服务端算预留额度（语音输入 2026-09-15 起按 10 倍扣算力）。
       if (meta.durationSeconds) formData.append("durationSeconds", String(meta.durationSeconds));
       const response = await fetch(apiPath("/voice/transcribe"), {
         method: "POST",
@@ -771,7 +771,7 @@ export function ChatComposer({
       return (await response.json()) as MediaAnalysisResponse;
     } catch (error) {
       if ((error as { name?: string }).name === "AbortError") {
-        return { configured: false, warnings: ["语音转写超过60秒，已自动停止；本次未扣积分，请缩短录音或直接用文字输入。"] };
+        return { configured: false, warnings: ["语音转写超过60秒，已自动停止；本次未扣算力，请缩短录音或直接用文字输入。"] };
       }
       const detail = error instanceof Error && error.message ? error.message : "网络连接异常";
       return { configured: false, warnings: [`语音转写服务暂时不可用：${detail}`] };

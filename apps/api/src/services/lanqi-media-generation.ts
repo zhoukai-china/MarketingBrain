@@ -39,27 +39,27 @@ function modelFor(input: Pick<LanqiMediaRequest, "kind">): string | undefined {
 }
 
 /**
- * 报价只看**积分**。
+ * 报价只看**算力**。
  *
- * 用户 2026-09-16 口径：「不显示人民币消耗」，且「兰琪的积分计费逻辑和思潼 AI 保持一致」——
+ * 用户 2026-09-16 口径：「不显示人民币消耗」，且「兰琪的算力计费逻辑和思潼 AI 保持一致」——
  * 所以这里**不再产出任何折合人民币字段**：此前那个 `customerPriceYuan = creditCost / 100`
- * 是旧价（图片 100 积分/张）时代的产物，图片改 20 积分/张后就错了 5 倍
- * （20 积分应 = ¥1，它却给 ¥0.2），属于「埋在接口里的错账口径」。
- * 现在对外只回积分；确需人民币折算时，唯一出处是 `@baolu/shared` 的
+ * 是旧价（图片 100 算力/张）时代的产物，图片改 20 算力/张后就错了 5 倍
+ * （20 算力应 = ¥1，它却给 ¥0.2），属于「埋在接口里的错账口径」。
+ * 现在对外只回算力；确需人民币折算时，唯一出处是 `@baolu/shared` 的
  * `CREDIT_PRICING` / `creditsToYuan()`，不要在业务里再写第二个汇率。
  */
 export function quoteLanqiMedia(input: LanqiMediaRequest): { creditCost: number; provider: "aliyun_bailian"; model: string } {
   if (input.kind === "image") return price(env.LANQI_MEDIA_IMAGE_CREDITS, modelFor(input) ?? "未配置");
   const seconds = input.durationSeconds ?? 5;
   // 图生视频（文案转片）按**成本 ×2** 的按秒口径计价（用户 2026-09-15）：
-  // 成本 ¥0.30/秒 × 2 = 12 积分/秒（= ¥0.60/秒），每镜 3 秒 = 36 积分。此前 30 积分/秒 = 成本 ×5。
+  // 成本 ¥0.30/秒 × 2 = 12 算力/秒（= ¥0.60/秒），每镜 3 秒 = 36 算力。此前 30 算力/秒 = 成本 ×5。
   if (input.kind === "image_to_video") return price(Math.max(1, Math.round(seconds * env.LANQI_MEDIA_VIDEO_CREDITS_PER_SECOND)), modelFor(input) ?? "未配置");
   /**
    * 文生视频（用户 2026-09-16「选 A：用百炼现成的 t2v」）——与图生视频**同一口径**：
-   * 按秒 ×2 成本（默认 12 积分/秒），不再用旧的 720P/1080P 固定包价（990/1690/1490/2690）。
+   * 按秒 ×2 成本（默认 12 算力/秒），不再用旧的 720P/1080P 固定包价（990/1690/1490/2690）。
    *
    * 成本常量沿用同门实测值 ¥0.30/秒；等百炼侧首张真实账单回来只改
-   * `LANQI_MEDIA_VIDEO_CREDITS_PER_SECOND`（积分/秒）这一个数即可——它已经是「成本×2」的结果，
+   * `LANQI_MEDIA_VIDEO_CREDITS_PER_SECOND`（算力/秒）这一个数即可——它已经是「成本×2」的结果，
    * 不是又一次加价。分辨率差价（若 1080P 更贵）另开一个常量，不猜。
    */
   return price(Math.max(1, Math.round(seconds * env.LANQI_MEDIA_VIDEO_CREDITS_PER_SECOND)), modelFor(input) ?? "未配置");

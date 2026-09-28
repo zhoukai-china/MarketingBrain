@@ -4,7 +4,7 @@ import { type ReplicationAdmission, type ReplicationAssetEvidence, type Replicat
 import { videoFileHash, type InspectedVideoFile, type VideoPrivateFile } from "./beauty-video-private-files.js";
 import { findVideoReplicationEntitlement } from "./video-replication-entitlement.js";
 
-/** 按输出秒数计积分（用户 2026-09-13 拍板：爆款复刻 30 积分/秒）。
+/** 按输出秒数计算力（用户 2026-09-13 拍板：爆款复刻 30 算力/秒）。
  *  供应商按实际出片秒数计费（出片时长≈原视频时长）；扣分向上取整、不超过 maxOutputSeconds 封顶；
  *  未配置 creditsPerSecond（<=0）时回退固定 creditCost（兼容旧口径）。 */
 export function computeReplicationCreditCost(input: {

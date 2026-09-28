@@ -8,7 +8,7 @@
 //  - /run 走 vidrev 结构化入参（buildVidrevRunBody 同构：{ input, platform, period, has_revenue_data }），
 //    数据表文本与对话页同源（CSV 带编码探测 readAttachmentText；Excel 走 /media/analyze 文档解析）；
 //  - 交付渲染复用对话页同一个 `VidrevReport` 组件（含导出 CSV / 加入选题池），所见即所得；
-//  - 计费按实际用量结算（vidrev 不在 FIXED_PRICE_SKUS），价格取真实目录 ppu，单位「积分」；
+//  - 计费按实际用量结算（vidrev 不在 FIXED_PRICE_SKUS），价格取真实目录 ppu，单位「算力」；
 //    校验不过不扣算力（后端 fail-closed 契约）。
 // 客户端体检只做「能不能收」（逐条明细 vs 按天汇总 fail-closed、字段覆盖、平台/周期识别），
 // 深度审计仍由后端第零章给出——前端不重算后端口径。原型里的「快速速读」后端无此模式，不做假选项。
@@ -354,12 +354,12 @@ export function VidrevWorkbench({ skuId }: { skuId: string }) {
       });
       window.clearInterval(tick);
       if (handleStaleSession(res.status)) {
-        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次不消耗积分。");
+        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次不消耗算力。");
       }
       if (res.status === 402) {
         const data = (await res.json().catch(() => ({}))) as { message?: string };
         const nextRoute = `${getAppRoutePath(window.location.pathname)}${window.location.search}`;
-        setError(`${data.message ?? "当前积分不足，请先充值后再使用。"}（本次未消耗积分） 请前往充值页后回来，体检结果已在本页保留。`);
+        setError(`${data.message ?? "当前算力不足，请先充值后再使用。"}（本次未消耗算力） 请前往充值页后回来，体检结果已在本页保留。`);
         setPhase("confirm");
         window.setTimeout(() => {
           window.location.href = getAppPath(`/recharge?from=agent&skill=${encodeURIComponent(skuId)}&next=${encodeURIComponent(nextRoute)}`);
@@ -382,7 +382,7 @@ export function VidrevWorkbench({ skuId }: { skuId: string }) {
         const question = (result.answer ?? "").trim();
         throw new Error(
           (question ? `江流还想确认一下：${question} ` : "还需要补充一些关键信息。") +
-          "请补充后重新复盘（本次不消耗积分）。"
+          "请补充后重新复盘（本次不消耗算力）。"
         );
       }
       const vp = isVidrevPayload(result.payload) ? result.payload : null;
@@ -396,7 +396,7 @@ export function VidrevWorkbench({ skuId }: { skuId: string }) {
       window.clearInterval(tick);
       setError(e instanceof Error ? e.message : "生成失败，请稍后重试。");
       setPhase("confirm");
-      pushMsg("ai", "这一稿没有生成成功（<b>本次不消耗积分</b>）。按提示补充或稍后再点「📊 开始复盘」。");
+      pushMsg("ai", "这一稿没有生成成功（<b>本次不消耗算力</b>）。按提示补充或稍后再点「📊 开始复盘」。");
     }
   }
 
@@ -625,8 +625,8 @@ export function VidrevWorkbench({ skuId }: { skuId: string }) {
                       )}
                       <span className="cpw-fee">
                         {phase === "done"
-                          ? <>本次实际消耗 <b>{consumed ?? skuPpu ?? "—"} 积分</b>（按实际用量结算）</>
-                          : <>预计消耗约 <b>{skuPpu ?? "—"} 积分</b>（按实际用量结算 · 体检不扣 · 校验不过不扣）</>}
+                          ? <>本次实际消耗 <b>{consumed ?? skuPpu ?? "—"} 算力</b>（按实际用量结算）</>
+                          : <>预计消耗约 <b>{skuPpu ?? "—"} 算力</b>（按实际用量结算 · 体检不扣 · 校验不过不扣）</>}
                       </span>
                       <span className="cpw-safe-tag">🛡️ 失败不扣费</span>
                     </div>
@@ -638,7 +638,7 @@ export function VidrevWorkbench({ skuId }: { skuId: string }) {
                       <div className="cpw-dl">
                         <div className="cpw-dl-head">
                           <span className="cpw-ok-tag">✓ 已交付</span>
-                          <span className="cpw-time">深度复盘 · {check?.platform} · {check?.period} · 消耗 {consumed ?? skuPpu ?? "—"} 积分</span>
+                          <span className="cpw-time">深度复盘 · {check?.platform} · {check?.period} · 消耗 {consumed ?? skuPpu ?? "—"} 算力</span>
                           <div className="cpw-dl-ops">
                             <button className="cpw-cbtn" onClick={() => copyText(answerMd)}>⧉ 复制全部</button>
                             <button className="cpw-cbtn" onClick={() => void exportWord()} disabled={exporting}>{exporting ? "导出中…" : "↓ 导出 Word"}</button>

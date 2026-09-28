@@ -9,7 +9,7 @@
 // 后端契约固定输出「一、选题策划 … 十、投流建议」十段 Markdown（copy-ten-contract.ts），
 // 交付区按这十段拆卡、按原型分区（策划/文稿/拍摄/发布/投流）分 tab。
 //
-// 计费口径（不犯 ip-pos 的错）：文案按**实际用量结算**，费用文案用真实目录 ppu 与「积分」，
+// 计费口径（不犯 ip-pos 的错）：文案按**实际用量结算**，费用文案用真实目录 ppu 与「算力」，
 // 不照抄原型里的演示价（10/15 算力）；「🛡️ 失败不扣费」按原型保留（生成失败确实不扣）。
 
 import { useEffect, useRef, useState } from "react";
@@ -348,12 +348,12 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
       });
       window.clearInterval(tick);
       if (handleStaleSession(res.status)) {
-        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次不消耗积分。");
+        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次不消耗算力。");
       }
       if (res.status === 402) {
         const data = (await res.json().catch(() => ({}))) as { message?: string };
         const nextRoute = `${getAppRoutePath(window.location.pathname)}${window.location.search}`;
-        setError(`${data.message ?? "当前积分不足，请先充值后再使用。"}（本次未消耗积分） 请前往充值页后回来，简报已在本页保留。`);
+        setError(`${data.message ?? "当前算力不足，请先充值后再使用。"}（本次未消耗算力） 请前往充值页后回来，简报已在本页保留。`);
         setPhase("confirm");
         window.setTimeout(() => {
           window.location.href = getAppPath(`/recharge?from=agent&skill=${encodeURIComponent(skuId)}&next=${encodeURIComponent(nextRoute)}`);
@@ -363,11 +363,11 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
       if (res.status === 409) {
         const payload = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
         if (payload.error === "marketplace_subscription_quota_exhausted") {
-          setError(`${payload.message ?? "你已开通本智能体的包月，今天的次数已经用完。"}（本次不消耗积分；额度每天 0 点恢复。）`);
+          setError(`${payload.message ?? "你已开通本智能体的包月，今天的次数已经用完。"}（本次不消耗算力；额度每天 0 点恢复。）`);
           setPhase("confirm");
           return;
         }
-        throw new Error(payload.message ?? "本次请求被拒绝；本次不消耗积分。");
+        throw new Error(payload.message ?? "本次请求被拒绝；本次不消耗算力。");
       }
       if (res.status === 502 || res.status === 503 || res.status === 504) {
         throw new Error(
@@ -385,7 +385,7 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
         const question = (result.answer ?? "").trim();
         throw new Error(
           (question ? `文案主笔还想确认一下：${question} ` : "还需要补充一些关键信息。") +
-          "请补充后重新生成（本次不消耗积分）。"
+          "请补充后重新生成（本次不消耗算力）。"
         );
       }
       runResultRef.current = {
@@ -398,7 +398,7 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
       window.clearInterval(tick);
       setError(e instanceof Error ? e.message : "生成失败，请稍后重试。");
       setPhase("confirm");
-      pushMsg("ai", "这一稿没有生成成功（<b>本次不消耗积分</b>）。按提示补充或稍后再点「✨ 开始创作」。");
+      pushMsg("ai", "这一稿没有生成成功（<b>本次不消耗算力</b>）。按提示补充或稍后再点「✨ 开始创作」。");
     }
   }
 
@@ -524,9 +524,9 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
     phase === "ask" ? `引导中（${Math.min(qi + 1, 6)}/6）` : "待引导";
   const feeHint =
     phase === "done" ? (
-      subCovered ? <>本次由<b>包月覆盖</b>，不扣积分</> : <>本次实际消耗 <b>{consumed ?? skuPpu ?? "—"} 积分</b>（按实际用量结算）</>
+      subCovered ? <>本次由<b>包月覆盖</b>，不扣算力</> : <>本次实际消耗 <b>{consumed ?? skuPpu ?? "—"} 算力</b>（按实际用量结算）</>
     ) : (
-      <>完成引导后可创作 · 预计消耗约 <b>{skuPpu ?? "—"} 积分</b>（按本次实际用量结算）</>
+      <>完成引导后可创作 · 预计消耗约 <b>{skuPpu ?? "—"} 算力</b>（按本次实际用量结算）</>
     );
 
   return (
@@ -668,7 +668,7 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
                       <div className="cpw-dl">
                         <div className="cpw-dl-head">
                           <span className="cpw-ok-tag">✓ 已交付</span>
-                          <span className="cpw-time">{pieces.length || (depth === "light" ? 1 : 10)} 件 · {subCovered ? "包月覆盖" : `消耗 ${consumed ?? skuPpu ?? "—"} 积分`}</span>
+                          <span className="cpw-time">{pieces.length || (depth === "light" ? 1 : 10)} 件 · {subCovered ? "包月覆盖" : `消耗 ${consumed ?? skuPpu ?? "—"} 算力`}</span>
                           <div className="cpw-dl-ops">
                             <button className="cpw-cbtn" onClick={() => copyText(answerMd)}>⧉ 复制全部</button>
                             <button className="cpw-cbtn" onClick={() => void exportWord()} disabled={exporting}>{exporting ? "导出中…" : "↓ 导出 Word"}</button>

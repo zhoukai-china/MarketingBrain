@@ -522,7 +522,7 @@
 .cpw-chip.dev { background: rgba(232, 101, 26, 0.28); border-color: rgba(255, 154, 92, 0.5); color: #ffd9c2; }
 
 /* 顶栏与全站一致：1200 居中不顶格（两侧留白），sticky 吸顶保留。
-   shared-banner（Topbar 自带的积分通用条）同样收进 1200；三者水平 padding 统一 20px，
+   shared-banner（Topbar 自带的算力通用条）同样收进 1200；三者水平 padding 统一 20px，
    使 topbar / banner / hero 内容左边缘完全对齐（hero 用 .cpw-wrap padding 0 20px）。 */
 .cpw-page > .topbar { max-width: 1200px; margin: 0 auto; width: 100%; padding-left: 20px; padding-right: 20px; }
 .cpw-page > .shared-banner { max-width: 1200px; margin: 0 auto; width: 100%; padding-left: 20px; padding-right: 20px; }

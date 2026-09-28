@@ -7,9 +7,9 @@ import { consumeWalletCredits, refundWalletCredits, refundWalletInTx } from "./s
  * WorkBuddy / MCP 通道的预留标识前缀（PLAT-46）。
  *
  * 背景：生产上存在两套账本——用户级 `Wallet`（货架、充值、图片/语音解析走它）与租户级
- * `CreditAccount`（`/chat`、`/beauty-industry/*`、外部接入走它）。用户在货架充值的积分只进
+ * `CreditAccount`（`/chat`、`/beauty-industry/*`、外部接入走它）。用户在货架充值的算力只进
  * `Wallet`，而 WorkBuddy MCP 的 `sitong.ask` 读的是租户 `CreditAccount`，于是出现
- * 「钱包里有 490 积分，WorkBuddy 却报 insufficient_credits」。
+ * 「钱包里有 490 算力，WorkBuddy 却报 insufficient_credits」。
  *
  * 修法：MCP 通道**优先**扣用户级 `Wallet`（与货架同源，充值立即可用），`Wallet` 不够时
  * 回落到遗留租户 `CreditAccount`（保证老客户既有余额不被作废）。两条路只会扣其中一条。

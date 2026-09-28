@@ -46,7 +46,7 @@ const BILLING_RETRY_HINT = "请重试；仍然失败请稍后再试或联系客�
 
 export function billingErrorCopy(reason: unknown, fallback: string): string {
   const message = reason instanceof Error ? reason.message : typeof reason === "string" ? reason : "";
-  if (/insufficient_credits/.test(message)) return "企业积分不足，请先充值后再使用。";
+  if (/insufficient_credits/.test(message)) return "企业算力不足，请先充值后再使用。";
   if (/login_required|membership_not_found|missing_tenant_or_user/.test(message)) return "请先完成登录。";
   return humanizeAsyncError(reason, fallback, BILLING_RETRY_HINT);
 }

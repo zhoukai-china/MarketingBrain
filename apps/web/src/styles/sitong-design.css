@@ -815,7 +815,7 @@ body[data-device="mobile"] .rc-from{padding:12px 34px 12px 13px}
 body[data-device="mobile"] .rcb-val{font-size:22px}
 body[data-device="mobile"] .rc-login{padding:26px 18px;margin-top:16px}
 
-/* 输出案例预览（购买前可看，不消耗积分） */
+/* 输出案例预览（购买前可看，不消耗算力） */
 .rb-sec{margin-top:14px;padding:12px 14px;border-radius:10px;background:var(--glass);border:1px solid var(--line)}
 .rb-sec b{display:block;font-size:13px;color:var(--accent2);margin-bottom:6px}
 .rb-txt{font-size:12.5px;line-height:1.85;color:var(--text);white-space:pre-wrap;word-break:break-word}

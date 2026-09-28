@@ -258,7 +258,7 @@ export function combineExecutionResults(execution: OrchestrationExecution): Comb
       deliveryStatus: "failed",
       answerText: [
         "短结论",
-        "本次各项内容生成均未完成，因此没有把不完整结果冒充为正式方案，也没有扣除对应积分。",
+        "本次各项内容生成均未完成，因此没有把不完整结果冒充为正式方案，也没有扣除对应算力。",
         "",
         "未完成项",
         ...execution.plan.steps.map((step, index) => {

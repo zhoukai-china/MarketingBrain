@@ -152,8 +152,8 @@ export function LanqiImageStudioPage() {
         }
         submittingRef.current = false;
         setBusy(false);
-        if (state.status === "cancelled") setNotice("已取消本次预览，输入和旧预览仍然保留；不会生成图片或扣图片积分。");
-        if (state.status === "timed_out") setNotice("专业提示词增强已超时，本次没有生成图片或扣图片积分；输入仍保留，可以重试。");
+        if (state.status === "cancelled") setNotice("已取消本次预览，输入和旧预览仍然保留；不会生成图片或扣图片算力。");
+        if (state.status === "timed_out") setNotice("专业提示词增强已超时，本次没有生成图片或扣图片算力；输入仍保留，可以重试。");
       },
     });
   }
@@ -254,7 +254,7 @@ export function LanqiImageStudioPage() {
       if (!response.ok) throw new Error(body.message ?? "图片任务没有创建成功。" );
       const job = body.job as GenerationJob;
       setJobs(items => [job, ...items.filter(item => item.id !== job.id)]);
-      setNotice(body.idempotent ? "已恢复同一图片任务，没有重复创建或扣费。" : job.executionMode === "mock" ? "受控模拟任务已创建，不调用外部模型、不扣积分。" : "图片任务已创建，正在生成。" );
+      setNotice(body.idempotent ? "已恢复同一图片任务，没有重复创建或扣费。" : job.executionMode === "mock" ? "受控模拟任务已创建，不调用外部模型、不扣算力。" : "图片任务已创建，正在生成。" );
     } catch (cause) { setNotice(errorMessage(cause, false, "网络暂时不可用，图片任务没有创建成功。")); }
     finally { setGenerationBusy(false); }
   }
@@ -275,7 +275,7 @@ export function LanqiImageStudioPage() {
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.message ?? "任务当前无法取消。" );
       setJobs(items => items.map(item => item.id === jobId ? body.job as GenerationJob : item));
-      setNotice("任务已取消；未交付结果不会收费，已预留积分会自动退回。" );
+      setNotice("任务已取消；未交付结果不会收费，已预留算力会自动退回。" );
     } catch (cause) { setNotice(errorMessage(cause, false, "网络暂时不可用，取消没有完成。")); }
   }
 
@@ -290,7 +290,7 @@ export function LanqiImageStudioPage() {
   }
 
   function prepareRegeneration(job: GenerationJob) {
-    const blockedReason = quote?.message ?? "费用与授权状态尚未恢复，请稍后刷新；本次不会创建任务或扣积分。";
+    const blockedReason = quote?.message ?? "费用与授权状态尚未恢复，请稍后刷新；本次不会创建任务或扣算力。";
     if (!quote?.canConfirm) {
       setJobActionNotices(items => ({ ...items, [job.id]: blockedReason }));
       return;
@@ -341,7 +341,7 @@ export function LanqiImageStudioPage() {
       setIntentDraft(preview.intentUnderstanding);
       setRevisionInstruction("");
       setPreviews(items => dedupe([preview, ...items.filter(item => item.id !== preview.id)]));
-      setNotice(body.idempotent ? "已恢复本次预览，没有重复保存或计费。" : preview.enhancer.source === "runtime_skill" ? "专业模型提示词与费用预览已保存，没有生成图片或扣积分。" : "受控草稿已保存；专业模型增强未完成，没有生成图片或扣积分。");
+      setNotice(body.idempotent ? "已恢复本次预览，没有重复保存或计费。" : preview.enhancer.source === "runtime_skill" ? "专业模型提示词与费用预览已保存，没有生成图片或扣算力。" : "受控草稿已保存；专业模型增强未完成，没有生成图片或扣算力。");
     } catch (cause) {
       if (!coordinator.isCurrent(run.id)) return;
       coordinator.fail(run.id);
@@ -402,8 +402,8 @@ export function LanqiImageStudioPage() {
           </div>
           <label className="lanqiRightsCheck"><input type="checkbox" checked={rightsConfirmed} onChange={event => { setRightsConfirmed(event.target.checked); markChanged(); }} /><span>我确认本次文字、品牌和人物描述均有权使用，不要求模仿未授权真人或其他门店。</span></label>
           <div className="lanqiImageActions"><button className="lanqiImagePrimary" disabled={busy || request.trim().length < 2 || !rightsConfirmed} onClick={() => void createPreview()}>{busy ? `${previewProgress?.stage ? previewStageLabels[previewProgress.stage] : "理解需求"}…` : "生成提示词与费用预览"}</button>{busy && <button type="button" className="lanqiImageCancel" onClick={cancelPreview}>取消预览</button>}</div>
-          {busy && previewProgress?.status === "running" && <div className="lanqiPreviewProgress" role="status" aria-live="polite"><b>{previewStageLabels[stageForElapsedSeconds(elapsedSeconds)]}</b><span>已耗时 {elapsedSeconds} 秒</span><small>{elapsedSeconds >= 30 ? "仍在处理，可随时取消；不会生成图片或扣图片积分。" : "旧预览仍可阅读，本次只锁定提交区域。"}</small></div>}
-          <small className="lanqiZeroPay">本步骤不生成图片、不扣积分，也不会发布到任何平台。</small>
+          {busy && previewProgress?.status === "running" && <div className="lanqiPreviewProgress" role="status" aria-live="polite"><b>{previewStageLabels[stageForElapsedSeconds(elapsedSeconds)]}</b><span>已耗时 {elapsedSeconds} 秒</span><small>{elapsedSeconds >= 30 ? "仍在处理，可随时取消；不会生成图片或扣图片算力。" : "旧预览仍可阅读，本次只锁定提交区域。"}</small></div>}
+          <small className="lanqiZeroPay">本步骤不生成图片、不扣算力，也不会发布到任何平台。</small>
         </article>
 
         <article className="lanqiImageGuideCard"><div className="lanqiImageKicker">02 · 增强原则</div><h2>真正适合模型的提示词</h2><ol><li><b>保留意图</b><span>不替换服务、城市、品牌、人群或禁止项。</span></li><li><b>视觉化</b><span>明确构图、主体、场景、光线、色彩、镜头与材质。</span></li><li><b>文字分离</b><span>中文标题后期叠加，不让绘图模型生成乱码。</span></li><li><b>事实受控</b><span>不编门店实景、顾客案例、疗效、价格或销量。</span></li></ol></article>
@@ -424,10 +424,10 @@ export function LanqiImageStudioPage() {
         <div className="lanqiImageResultGrid">
           <article className="lanqiPromptCard"><h3>正向视觉提示词</h3><pre>{selected.positivePrompt}</pre><h3>负向提示词</h3><p className="lanqiNegativePrompt">{selected.negativePrompt}</p><h3>中文标题或文案叠字</h3><p>{selected.overlayText.text || "本方向只预留标题安全区；绘图阶段不生成中文，后期再叠加。"}</p></article>
           <aside>
-            <h3>费用与执行边界</h3><dl><div><dt>积分预估</dt><dd>{quote?.creditCost ?? active.quotePreview.creditCost} 积分</dd></div><div><dt>本次计费</dt><dd>{quote?.billable ? "确认后预留" : "不计费"}</dd></div><div><dt>所需能力</dt><dd><code>{active.execution.requiredCapability}</code></dd></div><div><dt>当前状态</dt><dd>{quote?.executionMode === "mock" ? "受控模拟验收" : quote?.canConfirm ? "已受控放行" : "等待真实生成放行"}</dd></div></dl>
+            <h3>费用与执行边界</h3><dl><div><dt>算力预估</dt><dd>{quote?.creditCost ?? active.quotePreview.creditCost} 算力</dd></div><div><dt>本次计费</dt><dd>{quote?.billable ? "确认后预留" : "不计费"}</dd></div><div><dt>所需能力</dt><dd><code>{active.execution.requiredCapability}</code></dd></div><div><dt>当前状态</dt><dd>{quote?.executionMode === "mock" ? "受控模拟验收" : quote?.canConfirm ? "已受控放行" : "等待真实生成放行"}</dd></div></dl>
              <p>{quote?.message ?? active.execution.blockedReason}</p>
              <button className={quote?.canConfirm ? "lanqiGenerateReady" : "lanqiGenerateDisabled"} aria-disabled={!quote?.canConfirm || generationBusy} title={!quote?.canConfirm ? quote?.message ?? active.execution.blockedReason : undefined} disabled={!quote?.canConfirm || generationBusy} onClick={() => void confirmGeneration()}>{generationBusy ? "正在创建任务…" : quote?.blockCode === "quota_exhausted" ? "本次验收额度已用完" : "确认并生成图片"}</button>
-             <small>{quote?.executionMode === "mock" ? "模拟图片只用于验证任务、进度、保存和恢复，不代表真实模型画质。" : quote?.canConfirm ? "只有本次明确确认会创建任务；同一请求键只恢复已有任务，不会重复生成。" : quote?.message ?? "服务端未放行，本次不会创建任务或扣积分。"}</small>
+             <small>{quote?.executionMode === "mock" ? "模拟图片只用于验证任务、进度、保存和恢复，不代表真实模型画质。" : quote?.canConfirm ? "只有本次明确确认会创建任务；同一请求键只恢复已有任务，不会重复生成。" : quote?.message ?? "服务端未放行，本次不会创建任务或扣算力。"}</small>
           </aside>
         </div>
 
@@ -441,7 +441,7 @@ export function LanqiImageStudioPage() {
       <section className="lanqiGenerationHistory">
         <div className="lanqiImageHistoryHeading"><div><div className="lanqiImageKicker">同页任务</div><h2>图片生成与保存</h2></div><button onClick={() => void loadJobs()}>刷新任务</button></div>
         {jobs.length === 0 ? <p>还没有图片生成任务。先完成专业提示词预览，再在上方确认生成。</p> : <div className="lanqiGenerationGrid">{jobs.map(job => <article key={job.id} className={`lanqiGenerationJob ${job.status}`}>
-          <div className="lanqiGenerationJobHead"><b>{generationStatus(job.status)}</b><span>{job.executionMode === "mock" ? "受控模拟" : `${job.creditCost} 积分`}</span></div>
+          <div className="lanqiGenerationJobHead"><b>{generationStatus(job.status)}</b><span>{job.executionMode === "mock" ? "受控模拟" : `${job.creditCost} 算力`}</span></div>
           <div className="lanqiGenerationProgress"><i style={{ width: `${job.progress}%` }} /></div>
           {assetUrls[job.id] && <img src={assetUrls[job.id]} alt="兰琪图片生成结果" />}
           {job.errorMessage && <p className="lanqiGenerationError">{job.errorMessage}</p>}

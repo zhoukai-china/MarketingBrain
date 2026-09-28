@@ -46,7 +46,7 @@ type TaskDefinition = { name: string; label: string; hint: string; stage: string
 type BranchDefinition = { label: string; summary: string; tasks: TaskDefinition[]; planned?: string[] };
 
 const BRANCH_DEFINITIONS: Record<BeautyBranch, BranchDefinition> = {
-  xhs: { label: "图文获客", summary: "一次生成小红书标题、正文、标签和三张商业摄影感配图；图片须另经积分确认。", tasks: [
+  xhs: { label: "图文获客", summary: "一次生成小红书标题、正文、标签和三张商业摄影感配图；图片须另经算力确认。", tasks: [
     { name: "beauty.xiaohongshu_package", label: "小红书图文生成", hint: "文字与配图方向保存在同一任务中", stage: "图文生成", credits: 8, formSchema: [
       { key: "audience", label: "目标顾客", placeholder: "留空则沿用美业经营档案" }, { key: "project", label: "本次项目", placeholder: "只填写已确认项目" },
       { key: "city", label: "本次城市" }, { key: "storeFacts", label: "门店事实" }, { key: "contentAngle", label: "内容角度" },
@@ -322,7 +322,7 @@ export function BeautyIndustryAcquisitionPage() {
         audience: effectiveProfessionalOptions.audience.trim() || profile?.targetCustomers || ""
       });
       if (missing.length > 0) {
-        setNotice("必填资料尚未提交，因此没有预留积分或调用模型。");
+        setNotice("必填资料尚未提交，因此没有预留算力或调用模型。");
         setError(`请先补齐：${missing.join("、")}。`);
         return;
       }
@@ -333,7 +333,7 @@ export function BeautyIndustryAcquisitionPage() {
         ["communicationStage", "沟通阶段"], ["allowedNextAction", "允许的下一步动作"]
       ].filter(([key]) => !String(effectiveProfessionalOptions[key as OptionKey] ?? "").trim()).map(([, label]) => label);
       if (missing.length > 0) {
-        setNotice("专业模式资料尚未提交，因此没有预留积分或调用模型。");
+        setNotice("专业模式资料尚未提交，因此没有预留算力或调用模型。");
         setError(`请先补齐：${missing.join("、")}。`);
         return;
       }
@@ -357,10 +357,10 @@ export function BeautyIndustryAcquisitionPage() {
       const run: BeautyRun = { id: result.agentRunId, capabilityId: result.capabilityId, skillId: result.skillId, abilityUsed: result.abilityUsed, output: result.answerText, creditCost: result.creditCost, usageChannel: "web", conversationId: result.conversationId, createdAt: new Date().toISOString(), structuredDelivery: result.structuredDelivery, taskSnapshot: result.taskSnapshot };
       setActiveResult(run); setHistory((items) => [run, ...items.filter((item) => item.id !== run.id)]); setSourceRunId(undefined); requestIdRef.current = null;
       setMediaRetryRequested(false); setMediaRetryOfJobId(undefined); mediaRequestKeyRef.current = null;
-      setOverview((value) => value && typeof result.remainingCredits === "number" ? { ...value, creditBalance: result.remainingCredits } : value); setNotice("结果已保存；刷新后可恢复。实际积分已由统一账本幂等结算。");
+      setOverview((value) => value && typeof result.remainingCredits === "number" ? { ...value, creditBalance: result.remainingCredits } : value); setNotice("结果已保存；刷新后可恢复。实际算力已由统一账本幂等结算。");
     } catch (reason) {
       if (controller.signal.aborted) {
-        setNotice("本次请求已取消；不会自动重试，预留积分由服务端释放。");
+        setNotice("本次请求已取消；不会自动重试，预留算力由服务端释放。");
         requestIdRef.current = null;
       } else {
         // A known terminal response has already released (or never created) a
@@ -370,9 +370,9 @@ export function BeautyIndustryAcquisitionPage() {
         const terminalFailure = isTerminalApiFailure(reason);
         if (terminalFailure) requestIdRef.current = null;
         setNotice(isSystemOutputFailure(reason)
-          ? "系统未生成有效结果，未保存且预留积分已释放；无需重复点击。"
+          ? "系统未生成有效结果，未保存且预留算力已释放；无需重复点击。"
           : terminalFailure
-            ? "本次请求已失败；未保存结果，预留积分已释放，可修改后重试。"
+            ? "本次请求已失败；未保存结果，预留算力已释放，可修改后重试。"
             : "网络连接中断；未自动重试，可使用同一请求恢复状态。");
         setError(friendlyError(reason, "生成失败，请稍后重试"));
       }
@@ -455,7 +455,7 @@ export function BeautyIndustryAcquisitionPage() {
       setSourceRunId(inheritedId);
       setMode("professional");
       setVideoReviewWorkflow(createVideoReviewWorkflowFromProfile(profile));
-      setNotice("已进入视频数据复盘；请先选择平台、填写周期并上传后台数据。尚未运行复盘或扣积分。");
+      setNotice("已进入视频数据复盘；请先选择平台、填写周期并上传后台数据。尚未运行复盘或扣算力。");
       return;
     }
     if (toolName === "beauty.live_review") {
@@ -463,7 +463,7 @@ export function BeautyIndustryAcquisitionPage() {
       setSourceRunId(inheritedId);
       setMode("professional");
       setLiveReviewWorkflow({ ...createLiveReviewWorkflowFromProfile(profile), scriptPlan: activeResult.output.slice(0, 20_000) });
-      setNotice("已把上一步直播话术作为待对照计划带入；请补当前场次真实数据或转写。尚未运行复盘或扣积分。");
+      setNotice("已把上一步直播话术作为待对照计划带入；请补当前场次真实数据或转写。尚未运行复盘或扣算力。");
       return;
     }
     const nextQuestion = `请基于上一步已保存结果，继续完成${next.label}。只沿用上一步草稿作为任务上下文，不把其中推断当作门店事实。`;
@@ -518,7 +518,7 @@ export function BeautyIndustryAcquisitionPage() {
     setMediaRetryRequested(true);
     setMediaRetryOfJobId(continuationOfJobId);
     mediaRequestKeyRef.current = null;
-    setNotice("请修改本次三图总体视觉要求或禁用内容；更新后的费用和积分会重新展示，只有再次确认才创建新批次。");
+    setNotice("请修改本次三图总体视觉要求或禁用内容；更新后的费用和算力会重新展示，只有再次确认才创建新批次。");
   }
   async function pollMediaJobs(initial: BeautyMediaJob[]) {
     let current = initial;
@@ -545,7 +545,7 @@ export function BeautyIndustryAcquisitionPage() {
     const failed = current.filter((job) => job.status === "failed" || job.status === "canceled").length;
     const pending = current.filter((job) => job.canRecover || !["succeeded", "failed", "canceled"].includes(job.status)).length;
     const usable = current.filter((job) => job.customerUsable).length;
-    setNotice(current.some((job) => job.batchStatus === "quality_failed") ? `图片未达到交付标准，不建议使用；技术成功 ${succeeded} 张、客户可用 ${usable} 张，积分已按完整交付合同释放或补偿。` : succeeded === current.length ? `${succeeded} 张图片已通过质量检查并保存到当前图文任务。` : pending > 0 ? `仍有 ${pending} 个现有图片任务待恢复；状态查询暂时失败 ${transientFailures} 次，没有创建新任务或重复扣费。` : `图片任务部分完成：成功 ${succeeded} 张，未完成 ${failed} 张；没有自动付费重试。`);
+    setNotice(current.some((job) => job.batchStatus === "quality_failed") ? `图片未达到交付标准，不建议使用；技术成功 ${succeeded} 张、客户可用 ${usable} 张，算力已按完整交付合同释放或补偿。` : succeeded === current.length ? `${succeeded} 张图片已通过质量检查并保存到当前图文任务。` : pending > 0 ? `仍有 ${pending} 个现有图片任务待恢复；状态查询暂时失败 ${transientFailures} 次，没有创建新任务或重复扣费。` : `图片任务部分完成：成功 ${succeeded} 张，未完成 ${failed} 张；没有自动付费重试。`);
   }
   async function resumeMediaJobs() {
     if (mediaLoading || mediaJobs.length === 0) return;
@@ -556,7 +556,7 @@ export function BeautyIndustryAcquisitionPage() {
   async function cancelMediaJob(jobId: string) {
     try {
       const value = await readJson<{ job: BeautyMediaJob; batchStatus: BeautyMediaBatchStatus }>(await fetch(apiPath(`/beauty-industry/media/jobs/${encodeURIComponent(jobId)}/cancel`), { method: "POST", headers: authHeaders }));
-      setMediaJobs((jobs) => jobs.map((job) => job.id === value.job.id ? value.job : job)); setMediaBatchStatus(value.batchStatus); setNotice("图片任务已取消；未交付部分会释放预留积分。");
+      setMediaJobs((jobs) => jobs.map((job) => job.id === value.job.id ? value.job : job)); setMediaBatchStatus(value.batchStatus); setNotice("图片任务已取消；未交付部分会释放预留算力。");
     } catch (reason) { setError(friendlyError(reason, "任务已进入处理，当前不能取消")); }
   }
   async function loadMediaAssets(jobs: BeautyMediaJob[]) {
@@ -595,7 +595,7 @@ export function BeautyIndustryAcquisitionPage() {
       requestIdRef.current = null; setNotice(`已解析 ${file.name}。只有这份后端解析数据会进入当前复盘；媒体 Provider 调用为 0。`);
     } catch (reason) {
       setProfessionalOptions((value) => ({ ...value, parsedEvidence: "", parseStatus: "failed", sourceFilename: file.name }));
-      setNotice("文件解析失败；已禁止复盘，不会调用模型或扣积分。");
+      setNotice("文件解析失败；已禁止复盘，不会调用模型或扣算力。");
       setError(friendlyError(reason, "文件解析失败；不会声称看过文件。"));
     } finally { setFileParsing(false); }
   }
@@ -618,10 +618,10 @@ export function BeautyIndustryAcquisitionPage() {
       setLiveReviewWorkflow((value) => ({ ...value, liveData: evidence.slice(0, 20_000), parseStatus: "parsed", sourceFilename: file.name }));
       if (activeResult?.capabilityId === "live_review") setActiveResult(null);
       requestIdRef.current = null;
-      setNotice(`已解析 ${file.name}；只把本次后端解析数据放入直播复盘合同，Provider 调用 0、积分 0。`);
+      setNotice(`已解析 ${file.name}；只把本次后端解析数据放入直播复盘合同，Provider 调用 0、算力 0。`);
     } catch (reason) {
       setLiveReviewWorkflow((value) => ({ ...value, liveData: "", parseStatus: "failed", sourceFilename: undefined }));
-      setNotice("场次数据解析失败；未创建复盘、未调用 Provider、未扣积分。");
+      setNotice("场次数据解析失败；未创建复盘、未调用 Provider、未扣算力。");
       setError(friendlyError(reason, "文件解析失败；不会声称已读取场次数据。"));
     } finally { setFileParsing(false); }
   }
@@ -696,7 +696,7 @@ export function BeautyIndustryAcquisitionPage() {
   }
 
   if (initialLoading || loadError || view !== "workspace") return shell(
-    initialLoading ? <section className="beautyIndustryLoadState" role="status"><span className="beautyIndustryLoadingMark" /><h1>正在读取美业智能体</h1><p>正在核对当前租户的积分、经营档案、连接和任务。</p></section> : loadError ? <section className="beautyIndustryLoadState beautyIndustryLoadError" role="alert"><h1>当前页面暂时没有加载成功</h1><p>{loadError}</p><button type="button" onClick={() => void loadWorkspace()}>重新加载</button></section> : view === "profile" ? <section className="beautyIndustryProfilePage">
+    initialLoading ? <section className="beautyIndustryLoadState" role="status"><span className="beautyIndustryLoadingMark" /><h1>正在读取美业智能体</h1><p>正在核对当前租户的算力、经营档案、连接和任务。</p></section> : loadError ? <section className="beautyIndustryLoadState beautyIndustryLoadError" role="alert"><h1>当前页面暂时没有加载成功</h1><p>{loadError}</p><button type="button" onClick={() => void loadWorkspace()}>重新加载</button></section> : view === "profile" ? <section className="beautyIndustryProfilePage">
           <header><button type="button" onClick={() => openView("home")}>← 返回工作台首页</button><span>经营档案</span><h1>确认可长期复用的美业经营资料</h1><p>资料只属于当前租户；网页与 WorkBuddy 共用，未确认的信息不会自动补造。</p></header>
           <section className="beautyIndustryProfileCard"><div className="beautyIndustryProfileSummary"><div><span className="beautyIndustryKicker">美业经营档案 · 用户确认</span><h2>{profile ? `${profile.segment === "other" ? profile.customSegment : SEGMENTS[profile.segment]} · ${profile.operationType === "chain_brand" ? "连锁" : "单店"}` : "尚未建立"}</h2><p>当前完整度 {profileCompletion}%；门店/品牌名称和城市在账户资料维护。</p></div><div className="beautyIndustryProfileActions">{profile && <button type="button" className="danger" onClick={() => void removeProfile()}>删除档案</button>}</div></div>
             <form className="beautyIndustryProfileForm" onSubmit={saveProfile}>
@@ -713,7 +713,7 @@ export function BeautyIndustryAcquisitionPage() {
           </section>
         </section> : view === "daily" ? <BeautyIndustryDailyBrief headers={authHeaders} /> : view === "tasks" ? <section className="beautyIndustryTaskCenter">
           <header><button type="button" onClick={() => openView("home")}>← 返回工作台首页</button><span>任务中心</span><h1>当前租户的美业任务</h1><p>网页与 WorkBuddy 共用同一结果历史；打开记录不会再次调用或扣费。</p></header>
-          <div>{history.length ? history.map((run) => <button key={run.id} type="button" onClick={() => openHistoryRun(run)}><span>{run.usageChannel === "mcp" ? "WorkBuddy" : "网页"}</span><strong>{findTask(CAPABILITY_TO_TOOL[run.capabilityId || ""])?.label ?? "美业任务"}</strong><small>{new Date(run.createdAt).toLocaleString()} · {run.creditCost} 积分</small><em>打开任务 →</em></button>) : <article className="beautyIndustryTrueEmpty"><h2>还没有最近任务</h2><p>从图文、视频、直播或销售入口开始后，已完成结果会出现在这里。</p><button type="button" onClick={() => openTool("beauty.xiaohongshu_package")}>进入图文获客</button></article>}</div>
+          <div>{history.length ? history.map((run) => <button key={run.id} type="button" onClick={() => openHistoryRun(run)}><span>{run.usageChannel === "mcp" ? "WorkBuddy" : "网页"}</span><strong>{findTask(CAPABILITY_TO_TOOL[run.capabilityId || ""])?.label ?? "美业任务"}</strong><small>{new Date(run.createdAt).toLocaleString()} · {run.creditCost} 算力</small><em>打开任务 →</em></button>) : <article className="beautyIndustryTrueEmpty"><h2>还没有最近任务</h2><p>从图文、视频、直播或销售入口开始后，已完成结果会出现在这里。</p><button type="button" onClick={() => openTool("beauty.xiaohongshu_package")}>进入图文获客</button></article>}</div>
         </section> : view === "acquisition-home" ? <BeautyAcquisitionHomePage permittedTools={permittedTools} />
         : view === "branch-home" && currentRoute.branch ? <BeautyBranchHomePage branch={currentRoute.branch} permittedTools={permittedTools} />
         : view === "video-review-home" ? <BeautyVideoReviewHomePage permittedTools={permittedTools} />
@@ -726,7 +726,7 @@ export function BeautyIndustryAcquisitionPage() {
           </section>
           <section className="beautyIndustryHomeFacts">
             <article className="beautyIndustryProfileProgress"><span>经营档案完整度</span><strong>{profileCompletion}%</strong><div><i style={{ width: `${profileCompletion}%` }} /></div><p>{profile ? `版本 ${profile.version} · ${profile.services.length ? profile.services.join("、") : "核心项目待补"}` : "尚未建立经营档案"}</p><button type="button" onClick={() => { setProfileOpen(true); openView("profile"); }}>{profile ? "查看与修改" : "建立档案"}</button></article>
-            <article><span>积分余额</span><strong>{overview?.creditBalance ?? "—"}</strong><p>读取当前租户统一积分账户</p></article>
+            <article><span>算力余额</span><strong>{overview?.creditBalance ?? "—"}</strong><p>读取当前租户统一算力账户</p></article>
             <article><span>最近任务</span><strong>{history.length}</strong><p>{history.length ? `最近完成于 ${new Date(history[0].createdAt).toLocaleString()}` : "还没有已完成任务"}</p><button type="button" onClick={() => openView("tasks")}>进入任务中心</button></article>
           </section>
           <section className="beautyIndustryHomeSection"><header><span>美业获客</span><h2>按真实经营结果进入工作</h2><p>三条业务路径保持固定 Skill 与工具映射。</p></header><div className="beautyIndustryAcquisitionCards">
@@ -736,7 +736,7 @@ export function BeautyIndustryAcquisitionPage() {
             <article><span>销售</span><h2>美业销售</h2><p>基于真实顾客沟通生成诊断、合规回复和跟进建议。</p><a href={getAppPath("/agents/beauty-industry/sales")}>{permittedTools.has("beauty.sales_advice") ? "进入美业销售 →" : "查看未开通状态 →"}</a></article>
             <article className="beautyIndustryConnectionCard"><span>数据连接</span><h2>WorkBuddy</h2><p>{!connections?.enabled ? "当前环境未启用 WorkBuddy MCP。" : activeConnections.length ? `当前有 ${activeConnections.length} 个有效连接${activeConnections[0]?.lastUsedAt ? `；最近使用于 ${new Date(activeConnections[0].lastUsedAt).toLocaleString()}` : "。"}` : "尚未建立有效连接。"}</p><button type="button" onClick={() => window.location.href = getAppPath("/agents/beauty-industry/workbuddy")}>{activeConnections.length ? "管理连接 →" : "连接 WorkBuddy →"}</button></article>
           </section>
-          <section className="beautyIndustryRecentTasks"><header><div><span>最近任务</span><h2>继续上次的经营动作</h2></div><button type="button" onClick={() => openView("tasks")}>查看任务中心 →</button></header><div>{history.length ? history.slice(0, 3).map((run) => <button key={run.id} type="button" onClick={() => openHistoryRun(run)}><span>{run.usageChannel === "mcp" ? "WorkBuddy" : "网页"}</span><strong>{findTask(CAPABILITY_TO_TOOL[run.capabilityId || ""])?.label ?? "美业任务"}</strong><small>{new Date(run.createdAt).toLocaleString()} · {run.creditCost} 积分</small></button>) : <article className="beautyIndustryTrueEmpty"><h3>暂无最近任务</h3><p>完成第一项美业任务后，这里会显示当前租户的真实结果。</p></article>}</div></section>
+          <section className="beautyIndustryRecentTasks"><header><div><span>最近任务</span><h2>继续上次的经营动作</h2></div><button type="button" onClick={() => openView("tasks")}>查看任务中心 →</button></header><div>{history.length ? history.slice(0, 3).map((run) => <button key={run.id} type="button" onClick={() => openHistoryRun(run)}><span>{run.usageChannel === "mcp" ? "WorkBuddy" : "网页"}</span><strong>{findTask(CAPABILITY_TO_TOOL[run.capabilityId || ""])?.label ?? "美业任务"}</strong><small>{new Date(run.createdAt).toLocaleString()} · {run.creditCost} 算力</small></button>) : <article className="beautyIndustryTrueEmpty"><h3>暂无最近任务</h3><p>完成第一项美业任务后，这里会显示当前租户的真实结果。</p></article>}</div></section>
         </section>
   );
   if (isVideoContentReviewWorkspace) return shell(<BeautyVideoContentReviewWorkbench
@@ -798,8 +798,8 @@ export function BeautyIndustryAcquisitionPage() {
   </div>);
   return shell(<div className="beautyIndustryWorkspacePage">
     <section className="beautyIndustryWorkspaceHeader"><a href={getAppPath(currentRoute.navKey === "sales" ? "/agents/beauty-industry" : currentRoute.branch === "video" ? "/agents/beauty-industry/acquisition/video" : currentRoute.branch === "live" ? "/agents/beauty-industry/acquisition/live" : "/agents/beauty-industry/acquisition")}>← 返回上一级</a><span>{currentRoute.navKey === "sales" ? "美业销售" : `${BRANCH_DEFINITIONS[branch].label} · 正式工作区`}</span><h1>{currentRoute.pageTitle}</h1><p>{currentTask.hint}</p></section>
-    {overview?.executionMode === "controlled_mock" && !isXhsWorkspace && <p className="beautyIndustryTestBanner" role="note">当前为 controlled mock 确定性流程验收：文本结果只验证路由、权限、正式合同、积分、保存与恢复，不调用真实文本模型、不产生文本模型费用，也不代表真实模型质量或客户最终内容。真实图片与视频仍按页面单独授权和费用边界执行。</p>}
-    {overview?.executionMode === "configured_provider" && <p className="beautyIndustryLiveBanner" role="status">正式文案生成已就绪。图片只会在文案成功后展示费用与积分确认，由你明确确认后生成；不会自动重试、补图或追加调用。</p>}
+    {overview?.executionMode === "controlled_mock" && !isXhsWorkspace && <p className="beautyIndustryTestBanner" role="note">当前为 controlled mock 确定性流程验收：文本结果只验证路由、权限、正式合同、算力、保存与恢复，不调用真实文本模型、不产生文本模型费用，也不代表真实模型质量或客户最终内容。真实图片与视频仍按页面单独授权和费用边界执行。</p>}
+    {overview?.executionMode === "configured_provider" && <p className="beautyIndustryLiveBanner" role="status">正式文案生成已就绪。图片只会在文案成功后展示费用与算力确认，由你明确确认后生成；不会自动重试、补图或追加调用。</p>}
     {!isXhsWorkspace && <><section className="beautyIndustryDataLayers" aria-label="资料三层边界">
       <article><span>账号共用</span><h3>企业基础资料</h3><p>{overview ? `${overview.enterpriseBase.brandName} · ${overview.enterpriseBase.city || "城市待补"} · ${overview.enterpriseBase.storeCount ?? "门店数待补"}` : "加载中"}</p><small>门店/品牌、城市和门店数，在账户资料中统一维护。</small></article>
       <article><span>美业产品</span><h3>美业经营档案</h3><p>{profile ? `${profile.segment === "other" ? profile.customSegment : SEGMENTS[profile.segment]} · ${profile.services.join("、") || "项目待补"} · 版本 ${profile.version}` : "尚未确认"}</p><small>赛道、项目、目标顾客、渠道和阶段，网页与 WorkBuddy 共用。</small></article>
@@ -894,7 +894,7 @@ export function BeautyIndustryAcquisitionPage() {
           setMode("professional");
           requestIdRef.current = null;
           navigateTo("/agents/beauty-industry/acquisition/video/content");
-          setNotice("已把选题、来源与事实边界带入内容系统；尚未调用模型或扣积分。");
+          setNotice("已把选题、来源与事实边界带入内容系统；尚未调用模型或扣算力。");
         }}
         onOpenVideoReview={() => openTool("beauty.video_data_review")}
         onChooseSubject={() => navigateTo("/agents/beauty-industry/profile")}
@@ -961,20 +961,20 @@ export function BeautyIndustryAcquisitionPage() {
         {mode === "professional" && <><label>本次可以使用的真实信息（选填）<textarea rows={3} value={confirmedFacts} onChange={(e) => { setConfirmedFacts(e.target.value); requestIdRef.current = null; }} placeholder="可填项目、服务特色、门店环境或已确认活动；不要填价格、疗效或顾客隐私" /></label>
         <button className="beautyIndustrySecondary" type="button" onClick={() => { setProfileDraft((value) => ({ ...value, services: professionalOptions.project || value.services, targetCustomers: professionalOptions.audience || value.targetCustomers, channels: professionalOptions.platform ? mergeChannelSelection(value.channels, professionalOptions.platform) : value.channels })); setProfileOpen(true); navigateTo("/agents/beauty-industry/profile"); setNotice("已带入独立经营档案页面；只有点击“确认并保存档案”才会长期使用。"); }}>保存到经营档案</button>
         <div className="beautyIndustryProfessionalFields">{currentTask.formSchema.map((field) => <TaskField key={field.key} field={field} options={professionalOptions} onChange={(next) => { setProfessionalOptions(next); requestIdRef.current = null; }} />)}</div></>}
-        {salesProfessionalMissing.length > 0 && <p className="beautyIndustryPreflight" role="status">专业模式还需补齐：{salesProfessionalMissing.join("、")}。补齐前不预留积分。</p>}
+        {salesProfessionalMissing.length > 0 && <p className="beautyIndustryPreflight" role="status">专业模式还需补齐：{salesProfessionalMissing.join("、")}。补齐前不预留算力。</p>}
         {currentTask.name === "beauty.video_data_review" && <div className="beautyIndustryMediaBoundary"><strong>上传 CSV / Excel</strong><p>{professionalOptions.parseStatus === "parsed" ? `已解析：${professionalOptions.sourceFilename}` : professionalOptions.parseStatus === "failed" ? "解析失败，已禁止复盘。" : "必须先成功解析；文件类型不能混用。"}</p><input type="file" accept=".csv,.xlsx,.xls" disabled={fileParsing || loading} onChange={(event) => void parseReviewFile(event.target.files?.[0])} /></div>}
-        {currentTask.name === "beauty.xiaohongshu_package" && <div className="beautyIndustryMediaBoundary"><strong>图文同任务交付</strong><p>先生成标题、正文、标签和三图视觉计划；商业摄影感配图在当前任务结果区确认积分后真实生成，默认非本店实景且无人出镜。</p></div>}
-        <div className="beautyIndustryComposerActions"><button className="beautyIndustryPrimary" disabled={loading || fileParsing || question.trim().length < 6 || salesProfessionalMissing.length > 0 || (currentTask.name === "beauty.video_data_review" && professionalOptions.parseStatus !== "parsed")}>{loading ? `${currentTask.stage}中 · ${elapsed}s` : fileParsing ? "解析文件中…" : `生成${currentTask.label}｜预计${currentTask.credits}积分`}</button>{loading && <button className="beautyIndustrySecondary" type="button" onClick={() => abortRef.current?.abort()}>取消</button>}</div>
+        {currentTask.name === "beauty.xiaohongshu_package" && <div className="beautyIndustryMediaBoundary"><strong>图文同任务交付</strong><p>先生成标题、正文、标签和三图视觉计划；商业摄影感配图在当前任务结果区确认算力后真实生成，默认非本店实景且无人出镜。</p></div>}
+        <div className="beautyIndustryComposerActions"><button className="beautyIndustryPrimary" disabled={loading || fileParsing || question.trim().length < 6 || salesProfessionalMissing.length > 0 || (currentTask.name === "beauty.video_data_review" && professionalOptions.parseStatus !== "parsed")}>{loading ? `${currentTask.stage}中 · ${elapsed}s` : fileParsing ? "解析文件中…" : `生成${currentTask.label}｜预计${currentTask.credits}算力`}</button>{loading && <button className="beautyIndustrySecondary" type="button" onClick={() => abortRef.current?.abort()}>取消</button>}</div>
       </>}
       {notice && <p className="beautyIndustryNotice" role="status">{notice}</p>}{error && <div className="beautyIndustryError" role="alert"><span>{error}</span><button type="button" onClick={() => setError("")}>关闭</button></div>}
     </form>
     <article className="beautyIndustryResult">
       <header className="beautyIndustryResultHead"><div><span>{activeResult?.structuredDelivery?.preview || isControlledTextPreview ? "流程预览 · 非正式生成" : "已保存结果"}</span><h2>{activeResult?.structuredDelivery ? activeResult.capabilityId === "beauty_sales" ? activeResult.structuredDelivery.preview ? "销售回复流程预览（非正式生成）" : "销售回复与策略" : activeResult.structuredDelivery.preview ? "客户成品预览（非正式生成）" : "客户可复制成品" : activeResult ? isControlledTextPreview ? `${findTask(CAPABILITY_TO_TOOL[activeResult.capabilityId || ""])?.label ?? "美业结果"}流程预览（非正式生成）` : findTask(CAPABILITY_TO_TOOL[activeResult.capabilityId || ""])?.label ?? "美业获客结果" : "等待生成"}</h2></div>{activeResult && <button type="button" onClick={() => void copyResult()}>{activeResult.capabilityId === "beauty_sales" ? "复制可发送回复" : activeResult.structuredDelivery ? activeResult.structuredDelivery.preview ? "复制客户成品预览（非正式）" : "复制客户成品" : isControlledTextPreview ? "复制流程预览（非正式）" : "复制当前结果"}</button>}</header>
       {activeResult ? <>
-        <div className="beautyIndustryMeta"><span>{activeResult.creditCost} 积分</span><span>{activeResult.usageChannel === "mcp" ? "WorkBuddy" : "网页"}</span><span>本次使用：{activeResult.abilityUsed ?? findTask(CAPABILITY_TO_TOOL[activeResult.capabilityId || ""])?.label ?? "美业能力"}</span><span>{new Date(activeResult.createdAt).toLocaleString()}</span></div>
+        <div className="beautyIndustryMeta"><span>{activeResult.creditCost} 算力</span><span>{activeResult.usageChannel === "mcp" ? "WorkBuddy" : "网页"}</span><span>本次使用：{activeResult.abilityUsed ?? findTask(CAPABILITY_TO_TOOL[activeResult.capabilityId || ""])?.label ?? "美业能力"}</span><span>{new Date(activeResult.createdAt).toLocaleString()}</span></div>
         {activeResult.structuredDelivery?.version === "beauty-xhs-delivery-v2" ? <BeautyXhsStructuredResult delivery={activeResult.structuredDelivery as BeautyXhsDelivery} /> : activeResult.structuredDelivery?.version === "beauty-sales-delivery-v1" ? <BeautySalesStructuredResult delivery={activeResult.structuredDelivery as BeautySalesDelivery} /> : activeResult.capabilityId === "beauty_xiaohongshu_package" ? <details className="beautyXhsLegacyResult"><summary>旧流程结果，不作为客户成品</summary><div className="beautyIndustryMarkdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{activeResult.output}</ReactMarkdown></div></details> : <div className="beautyIndustryMarkdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{activeResult.output}</ReactMarkdown></div>}
         {activeResult.capabilityId === "beauty_xiaohongshu_package" && <section className="beautyIndustryMediaPackage">
-          <header><div><strong>同一图文任务的真实生成配图</strong><p>{mediaBatchStatus === "quality_failed" ? "图片未达到交付标准，不建议使用；不合格原图只保留供内部审核。" : mediaQuote?.message ?? "正在加载图片计划与历史状态…"}</p></div>{mediaQuote && <span>{mediaQuote.creditCost} 积分 · {mediaQuote.imageCount} 张</span>}</header>
+          <header><div><strong>同一图文任务的真实生成配图</strong><p>{mediaBatchStatus === "quality_failed" ? "图片未达到交付标准，不建议使用；不合格原图只保留供内部审核。" : mediaQuote?.message ?? "正在加载图片计划与历史状态…"}</p></div>{mediaQuote && <span>{mediaQuote.creditCost} 算力 · {mediaQuote.imageCount} 张</span>}</header>
           {mediaQuote?.imagePlan && <section className="beautyXhsImagePlan" data-plan-version={mediaQuote.imagePlan.version}><header><div><span>与文字成品关联</span><strong>{mediaQuote.imagePlan.linkedTitle}</strong></div><em>{mediaQuote.imagePlan.ratio} 竖图</em></header><div>{mediaQuote.imagePlan.directions.map((direction) => <article key={direction.role}><strong>{direction.label}</strong><p>{direction.purpose}</p><small>{direction.composition} · {direction.textStrategy}</small></article>)}</div><p>{mediaQuote.imagePlan.customerBoundary}</p><small>{mediaQuote.imagePlan.rightsBoundary}</small></section>}
           {mediaBatchStatus === "quality_failed" && <p className="beautyIndustryMediaQualityFail" role="alert">技术生成成功不等于客户可用。本批次未交付完整合格图片，未提供不合格图下载，也不会自动重试、补图或换模型。</p>}
           {mediaJobs.length > 0 ? <>
@@ -985,14 +985,14 @@ export function BeautyIndustryAcquisitionPage() {
             </article>)}</div>
             <details className="beautyIndustryMediaAudit"><summary>内部图片质量审核</summary><ul>{mediaJobs.map((job, index) => <li key={job.id}>第 {index + 1} 张：技术状态 {job.technicalStatus}；质量状态 {job.qualityStatus === "passed" ? "通过" : job.qualityStatus === "rejected" ? "已拒绝" : job.qualityStatus === "manual_review_required" ? "需人工复核（不可交付）" : "待检查"}{job.failureStage ? `；交付链阶段 ${beautyMediaPersistenceStageLabel(job.failureStage)}（不可自动重试）` : ""}{job.qualityReasons.length ? `；风险筛查 ${job.qualityReasons.map(beautyMediaRiskLabel).join("、")}` : ""}{job.qualityEvidence.length ? <ul>{job.qualityEvidence.map((item, evidenceIndex) => <li key={`${job.id}-${evidenceIndex}`}>{beautyMediaDetectorLabel(item.detectorType)} · 置信度 {Math.round(item.confidence * 100)}% · 区域 x{item.bbox.x}/y{item.bbox.y}/w{item.bbox.width}/h{item.bbox.height} · {beautyMediaMetricSummary(item.metrics)}</li>)}</ul> : null}</li>)}</ul><small>这是确定性风险筛查，不代表系统理解全部画面；证据不足时进入人工复核状态并保持客户不可见。</small></details>
             {mediaJobs.some((job) => job.canRecover || !["succeeded", "failed", "canceled"].includes(job.status)) && <button type="button" disabled={mediaLoading} aria-disabled={mediaLoading} onClick={() => void resumeMediaJobs()}>{mediaLoading ? "正在恢复状态…" : "恢复图片任务状态"}</button>}
-          </> : <button type="button" className="beautyIndustryPrimary" disabled={!mediaQuote?.canConfirm || mediaLoading} aria-disabled={!mediaQuote?.canConfirm || mediaLoading} onClick={() => void confirmImages(mediaQuote?.imagePlan.linkedTitle ?? "")}>{mediaLoading ? "正在生成真实图片…" : mediaQuote ? `确认真实生成三张图片｜${mediaQuote.creditCost} 积分` : "正在加载图片计划…"}</button>}
+          </> : <button type="button" className="beautyIndustryPrimary" disabled={!mediaQuote?.canConfirm || mediaLoading} aria-disabled={!mediaQuote?.canConfirm || mediaLoading} onClick={() => void confirmImages(mediaQuote?.imagePlan.linkedTitle ?? "")}>{mediaLoading ? "正在生成真实图片…" : mediaQuote ? `确认真实生成三张图片｜${mediaQuote.creditCost} 算力` : "正在加载图片计划…"}</button>}
           <small>确认后按本次文字与视觉计划生成三张可下载成品；逐图通过质量检查后才进入客户图库，失败不自动重试。</small>
         </section>}
-        {nextSteps.length > 0 && <div className="beautyIndustryNextSteps"><span>继续当前流程</span>{nextSteps.map((tool) => { const task = findTask(tool)!; return <button key={tool} type="button" disabled={loading} onClick={() => generateNext(tool)}>生成{task.label}｜预计{task.credits}积分</button>; })}<small>点击即确认本次费用；会携带当前结果和门店档案真实生成，重复请求由服务端幂等。</small></div>}
+        {nextSteps.length > 0 && <div className="beautyIndustryNextSteps"><span>继续当前流程</span>{nextSteps.map((tool) => { const task = findTask(tool)!; return <button key={tool} type="button" disabled={loading} onClick={() => generateNext(tool)}>生成{task.label}｜预计{task.credits}算力</button>; })}<small>点击即确认本次费用；会携带当前结果和门店档案真实生成，重复请求由服务端幂等。</small></div>}
       </> : <div className="beautyIndustryEmpty"><h3>填写本页任务资料后开始生成</h3><p>结果会保存到当前租户任务历史，刷新后可恢复。</p></div>}
     </article>
   </section>}
-    {!isXhsWorkspace && !isContentTenWorkspace && !isVideoDataReviewWorkspace && !isLiveReviewWorkspace && <section className="beautyIndustryHistory"><div><span className="beautyIndustryKicker">任务历史</span><h2>网页与 WorkBuddy 共用</h2><p>选择记录只恢复结果，不会再次调用或扣费。</p></div><div className="beautyIndustryHistoryList">{history.length ? history.map((run) => <button key={run.id} type="button" className={activeResult?.id === run.id ? "active" : ""} onClick={() => openHistoryRun(run)}><strong>{findTask(CAPABILITY_TO_TOOL[run.capabilityId || ""])?.label ?? "美业获客结果"}</strong><span>{run.usageChannel === "mcp" ? "WorkBuddy" : "网页"} · {run.creditCost} 积分</span><time>{new Date(run.createdAt).toLocaleString()}</time></button>) : <p>还没有已保存任务。</p>}</div></section>}
+    {!isXhsWorkspace && !isContentTenWorkspace && !isVideoDataReviewWorkspace && !isLiveReviewWorkspace && <section className="beautyIndustryHistory"><div><span className="beautyIndustryKicker">任务历史</span><h2>网页与 WorkBuddy 共用</h2><p>选择记录只恢复结果，不会再次调用或扣费。</p></div><div className="beautyIndustryHistoryList">{history.length ? history.map((run) => <button key={run.id} type="button" className={activeResult?.id === run.id ? "active" : ""} onClick={() => openHistoryRun(run)}><strong>{findTask(CAPABILITY_TO_TOOL[run.capabilityId || ""])?.label ?? "美业获客结果"}</strong><span>{run.usageChannel === "mcp" ? "WorkBuddy" : "网页"} · {run.creditCost} 算力</span><time>{new Date(run.createdAt).toLocaleString()}</time></button>) : <p>还没有已保存任务。</p>}</div></section>}
   </div>);
 }
 
@@ -1131,11 +1131,11 @@ function BeautyVideoReviewHomePage({ permittedTools }: { permittedTools: Readonl
 }
 
 function BeautyNotFoundPage() {
-  return <section className="beautyIndustryIndependentPage beautyIndustryNotFoundPage"><header><span>404</span><h1>这个美业页面不存在</h1><p>当前地址没有对应的已开放或规划页面；没有执行任务、调用 Provider 或扣除积分。</p></header><a href={getAppPath("/agents/beauty-industry")}>返回工作台首页</a></section>;
+  return <section className="beautyIndustryIndependentPage beautyIndustryNotFoundPage"><header><span>404</span><h1>这个美业页面不存在</h1><p>当前地址没有对应的已开放或规划页面；没有执行任务、调用 Provider 或扣除算力。</p></header><a href={getAppPath("/agents/beauty-industry")}>返回工作台首页</a></section>;
 }
 
 function BeautyPermissionState({ pageTitle }: { pageTitle: string }) {
-  return <section className="beautyIndustryIndependentPage beautyIndustryPermissionState"><header><span>当前租户未开通</span><h1>{pageTitle}</h1><p>页面路由有效，但服务端权限清单没有返回该能力，因此没有展示执行表单，也不会创建任务或扣除积分。</p></header><a href={getAppPath("/agents/beauty-industry/acquisition")}>返回美业获客</a></section>;
+  return <section className="beautyIndustryIndependentPage beautyIndustryPermissionState"><header><span>当前租户未开通</span><h1>{pageTitle}</h1><p>页面路由有效，但服务端权限清单没有返回该能力，因此没有展示执行表单，也不会创建任务或扣除算力。</p></header><a href={getAppPath("/agents/beauty-industry/acquisition")}>返回美业获客</a></section>;
 }
 
 function TaskField({ field, options, onChange }: { field: FormField; options: ProfessionalOptions; onChange: (value: ProfessionalOptions) => void }) {

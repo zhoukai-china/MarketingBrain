@@ -105,7 +105,7 @@ export function LanqiBrainShell({ active, mainTitle, subtitle, crumb, headerSlot
                 → 门店点「我的」会被送到平台货架，**在兰琪里根本找不到充值入口**。
                 改为直达钱包页（余额 + 充值套餐 + 订单），文案也说明点它是去充值。
               */}
-              <a href={getAppPath("/recharge")} className="lq-pd__me" title="查看余额 / 充值积分">
+              <a href={getAppPath("/recharge")} className="lq-pd__me" title="查看余额 / 充值算力">
                 <span className="lq-pd__me-avatar">🧑</span>
                 <span className="lq-pd__me-label">我的 · 充值</span>
               </a>

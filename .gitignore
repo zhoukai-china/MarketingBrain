@@ -62,3 +62,6 @@ node_modules.broken-*
 
 # WorkBuddy 会话/记忆数据，不入库
 .workbuddy/
+
+# 管理后台自动生成凭证（仅哈希，勿入库）
+.admin-credentials.json

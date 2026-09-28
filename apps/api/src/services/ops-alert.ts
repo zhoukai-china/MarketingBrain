@@ -10,7 +10,7 @@ import { env } from "../config/env.js";
  * 原则：
  *   - **只发通知，绝不影响主流程**：网络失败 / 未配置 webhook 都只写日志，绝不抛出（付费入账不能因为通知失败而回滚）；
  *   - 不打印 webhook 地址本身，也不发任何密钥；
- *   - 文案里只放**经营需要的信息**（客户名、金额、积分、余额），不放客户内容与凭据。
+ *   - 文案里只放**经营需要的信息**（客户名、金额、算力、余额），不放客户内容与凭据。
  */
 export function isOpsAlertConfigured(): boolean {
   return Boolean(env.SITONG_ALERT_WEBHOOK);
@@ -43,7 +43,7 @@ export async function notifyOps(message: string): Promise<boolean> {
   }
 }
 
-/** 充值到账通知：客户充值成功后推给老板，一眼看到「谁、多少钱、多少积分、现在还剩多少」。 */
+/** 充值到账通知：客户充值成功后推给老板，一眼看到「谁、多少钱、多少算力、现在还剩多少」。 */
 export function buildRechargeNotice(params: {
   tenantName: string;
   userName?: string | null;
@@ -59,8 +59,8 @@ export function buildRechargeNotice(params: {
     "【思潼AI增长OS · 客户充值到账】",
     `客户：${params.tenantName}${params.userName ? `（${params.userName}）` : ""}`,
     `金额：¥${params.amountCny}`,
-    `到账：${params.basePts + params.bonusPts} 积分${bonus}`,
-    `该客户当前余额：${params.balance} 积分`,
+    `到账：${params.basePts + params.bonusPts} 算力${bonus}`,
+    `该客户当前余额：${params.balance} 算力`,
     params.method ? `支付方式：${params.method}` : "",
     params.orderId ? `订单：${params.orderId}` : "",
     "（后台「客户」页可看每个客户的充值 / 消耗 / 剩余与常用智能体）"

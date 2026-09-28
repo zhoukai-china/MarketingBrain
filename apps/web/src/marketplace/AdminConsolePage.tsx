@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
 import { readSessionToken } from "../lib/session.js";
 import { adminAuthHeaders, Topbar } from "./shell.js";
 import "../styles/admin-console.css";
 
 /**
- * 统一管理后台（用户 2026-09-15：「侧边导航把 5 个视图 + 客户/订单/积分干预串起来，复用已有 API」；
+ * 统一管理后台（用户 2026-09-15：「侧边导航把 5 个视图 + 客户/订单/算力干预串起来，复用已有 API」；
  * 「后台只有我需要用，不需要给用户」）。
  *
  * 口径与边界：
@@ -26,13 +26,13 @@ interface AdminSection {
   endpoints: string[];
 }
 
-/** 侧边导航：5 个主视图（概览/客户/订单与收款/积分干预/智能体与货架）+ 推荐归因 + 质量与安全。 */
+/** 侧边导航：5 个主视图（概览/客户/订单与收款/算力干预/智能体与货架）+ 推荐归因 + 质量与安全。 */
 const SECTIONS: AdminSection[] = [
   { id: "overview", label: "概览", hint: "平台关键数字：货架、客户、流水、运行态", endpoints: ["GET /market/admin/overview", "GET /admin/ops/summary"] },
   { id: "customers", label: "客户", hint: "客户 / 租户清单、邀请码与开通记录", endpoints: ["GET /admin/customers", "GET /admin/invites", "POST /admin/invites"] },
   { id: "recharges", label: "充值明细", hint: "用户充值时间与人民币金额明细", endpoints: ["GET /admin/recharges"] },
   { id: "orders", label: "订单与收款", hint: "计费审计、统一账本与用户充值明细", endpoints: ["GET /admin/billing/audit", "GET /market/admin/ledger", "GET /admin/recharges"] },
-  { id: "credits", label: "积分干预", hint: "发体验额度、查发放记录", endpoints: ["GET /market/admin/trial-grants", "POST /market/admin/trial-grants"] },
+  { id: "credits", label: "算力管理", hint: "用户算力总览（充值/赠送分账）、使用明细、手动加算力", endpoints: ["GET /admin/credits/users", "GET /admin/credits/users/:id/ledger", "POST /admin/credits/users/:id/grant"] },
   { id: "shelf", label: "智能体与商品", hint: "SKU 上下架/改价、供应商、Agent 定义", endpoints: ["GET /market/admin/skus", "PATCH /market/admin/skus/:skuId", "GET /market/admin/suppliers", "GET /admin/agents"] },
   { id: "referral", label: "推荐归因", hint: "推荐有礼配置位、生成推荐码、归因清单", endpoints: ["GET /market/admin/referral-config", "POST /market/admin/referral-codes", "GET /market/admin/referrals"] },
   { id: "quality", label: "质量与安全", hint: "质量摘要与租户隔离审计", endpoints: ["GET /admin/quality/summary", "GET /admin/security/isolation-audit"] }
@@ -311,7 +311,7 @@ function valueText(value: unknown): string {
           const label = String(row.name ?? row.skuName ?? row.label ?? row.skuCode ?? "—");
           const runs = row.runs ?? row.count;
           const credits = row.credits ?? row.amountCredits;
-          return [label, runs !== undefined ? `×${runs}` : null, credits !== undefined ? `${credits} 积分` : null]
+          return [label, runs !== undefined ? `×${runs}` : null, credits !== undefined ? `${credits} 算力` : null]
             .filter(Boolean)
             .join(" ");
         }
@@ -339,7 +339,7 @@ const COLUMN_LABELS: Record<string, string> = {
   planName: "套餐名",
   subscriptionStatus: "订阅状态",
   subscriptionExpiresAt: "订阅到期",
-  walletBalance: "剩余积分",
+  walletBalance: "剩余算力",
   rechargedCredits: "累计充值",
   consumedCredits: "累计消耗",
   topAgents: "常用智能体",
@@ -349,7 +349,7 @@ const COLUMN_LABELS: Record<string, string> = {
   fileCount: "文件数",
   billingOrderCount: "订单数",
   legacyCreditBalance: "旧账户余额（历史口径）",
-  creditBalance: "旧积分账户余额",
+  creditBalance: "旧算力账户余额",
   code: "编码",
   label: "备注",
   productCode: "产品",
@@ -427,7 +427,7 @@ function OverviewSection() {
   const ops = useAdminData<Record<string, unknown>>("/admin/ops/summary");
 
   /**
-   * 老板要的「客户 / 订单 / 积分 / 消耗 / 余额」在这里一次给全（用户 2026-09-15）。
+   * 老板要的「客户 / 订单 / 算力 / 消耗 / 余额」在这里一次给全（用户 2026-09-15）。
    * 之前只把第一层数字铺成卡片，嵌套的 `tenants.total`、`billing.paidAmountCny` 全部被丢掉，
    * 看起来就像「空壳」。
    */
@@ -440,15 +440,15 @@ function OverviewSection() {
     ["billing.paidAmountCny", "已收款（元）"],
     ["usage.agentRuns", "累计智能体运行"],
     ["usage.agentRunsToday", "今日智能体运行"],
-    ["credit.consumedCreditsTotal", "累计消耗积分"],
-    ["credit.balanceTotal", "客户剩余积分合计"],
-    ["credit.walletPaidBalanceTotal", "其中付费积分"],
-    ["credit.walletBonusBalanceTotal", "其中赠送积分"]
+    ["credit.consumedCreditsTotal", "累计消耗算力"],
+    ["credit.balanceTotal", "客户剩余算力合计"],
+    ["credit.walletPaidBalanceTotal", "其中付费算力"],
+    ["credit.walletBonusBalanceTotal", "其中赠送算力"]
   ]);
   const cards = businessCards.length > 0 ? businessCards : flattenNumbers(overview.data?.overview ?? overview.data);
   return (
     <>
-      <Panel title="关键数字（客户 / 订单 / 积分）" error={ops.error} loading={ops.loading} onReload={() => void ops.reload()}>
+      <Panel title="关键数字（客户 / 订单 / 算力）" error={ops.error} loading={ops.loading} onReload={() => void ops.reload()}>
         {cards.length === 0
           ? <DataView data={ops.data} />
           : <div className="adminCards">{cards.map((card) => (
@@ -645,7 +645,7 @@ function RechargeRecordsTable({ data }: { data: unknown }) {
             <th>手机号 / 用户ID</th>
             <th>工作区</th>
             <th>充值金额</th>
-            <th>到账积分</th>
+            <th>到账算力</th>
             <th>状态</th>
             <th>支付方式</th>
             <th>订单号</th>
@@ -673,7 +673,262 @@ function RechargeRecordsTable({ data }: { data: unknown }) {
   );
 }
 
+/** 算力管理（算力计费 v1.0，用户 2026-09-28）：充值/赠送分账总览 + 逐笔使用记录 + 手动加算力。 */
+
+interface CreditUserRow {
+  id: string;
+  nickname: string | null;
+  phone: string | null;
+  createdAt: string;
+  paidBalance: number;
+  bonusBalance: number;
+  balance: number;
+  nearestBonusExpiry: string | null;
+}
+
+interface CreditUsersResponse {
+  total: number;
+  users: CreditUserRow[];
+}
+
+interface LedgerRow {
+  id: string;
+  delta: number;
+  bucket: string;
+  type: string;
+  skillId?: string | null;
+  source?: string | null;
+  expiresAt?: string | null;
+  createdAt: string;
+}
+
+interface CreditLedgerResponse {
+  user: { id: string; nickname: string | null; phone: string | null };
+  wallet: { paidBalance: number; bonusBalance: number; balance: number };
+  ledger: LedgerRow[];
+}
+
+const LEDGER_TYPE_LABELS: Record<string, string> = {
+  recharge: "充值到账",
+  bonus: "赠送发放",
+  consume: "消耗",
+  refund: "退款",
+  admin: "后台发放",
+  redo: "免费重做"
+};
+
+const LEDGER_BUCKET_LABELS: Record<string, string> = {
+  paid: "充值算力",
+  bonus: "赠送算力"
+};
+
+function fmtDateTime(value: string | null | undefined): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString("zh-CN", { hour12: false });
+}
+
+function CreditAdminTable({ rows, onView, onGrant }: {
+  rows: CreditUserRow[];
+  onView: (id: string) => void;
+  onGrant: (row: CreditUserRow) => void;
+}) {
+  return (
+    <div>
+      <table className="adminTable">
+        <thead>
+          <tr><th>客户</th><th>充值算力</th><th>赠送算力</th><th>合计</th><th>最近赠送到期</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.id}>
+              <td>
+                <b>{row.nickname || "未命名客户"}</b>
+                <div className="adminTableCaption">{row.phone || row.id}</div>
+              </td>
+              <td>{row.paidBalance}</td>
+              <td>{row.bonusBalance}</td>
+              <td><b>{row.balance}</b></td>
+              <td>{fmtDateTime(row.nearestBonusExpiry)}</td>
+              <td>
+                <button type="button" className="btn ghost sm" onClick={() => onView(row.id)}>使用记录</button>{" "}
+                <button type="button" className="btn primary sm" onClick={() => onGrant(row)}>加算力</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {rows.length === 0 && <p className="adminTableCaption">没有匹配的客户。</p>}
+    </div>
+  );
+}
+
 function CreditsSection() {
+  const [queryInput, setQueryInput] = useState("");
+  const [query, setQuery] = useState("");
+  const [refresh, setRefresh] = useState(0);
+  const usersPath = useMemo(() => {
+    const params = new URLSearchParams({ limit: "50" });
+    if (query.trim()) params.set("query", query.trim());
+    return `/admin/credits/users?${params.toString()}`;
+  }, [query]);
+  const users = useAdminData<CreditUsersResponse>(usersPath, refresh);
+
+  const [selectedId, setSelectedIdState] = useState("");
+  const [ledgerRefresh, setLedgerRefresh] = useState(0);
+  const ledger = useAdminData<CreditLedgerResponse>(
+    selectedId ? `/admin/credits/users/${encodeURIComponent(selectedId)}/ledger?limit=100` : null,
+    ledgerRefresh
+  );
+
+  const [grantFor, setGrantFor] = useState<CreditUserRow | null>(null);
+  const [grantAmount, setGrantAmount] = useState("100");
+  const [grantDays, setGrantDays] = useState("90");
+  const [grantRemark, setGrantRemark] = useState("");
+  const [grantOperator, setGrantOperator] = useState("");
+  const [grantBusy, setGrantBusy] = useState(false);
+  const [grantResult, setGrantResult] = useState("");
+
+  // 行内操作：查看使用记录 / 发起手动加算力。
+  const openLedger = useCallback((id: string) => {
+    setSelectedIdState(id);
+    setLedgerRefresh((value) => value + 1);
+  }, []);
+  const openGrant = useCallback((row: CreditUserRow) => {
+    setGrantFor(row);
+    setGrantResult("");
+    setSelectedIdState(row.id);
+  }, []);
+
+  async function submitGrant() {
+    if (!grantFor) return;
+    const amount = Math.round(Number(grantAmount));
+    const days = Math.round(Number(grantDays));
+    if (!Number.isFinite(amount) || amount < 1) { setGrantResult("请填写 ≥1 的整数算力。"); return; }
+    if (!Number.isFinite(days) || days < 1) { setGrantResult("请填写 ≥1 的有效期天数。"); return; }
+    setGrantBusy(true);
+    setGrantResult("");
+    try {
+      const response = await fetch(apiPath(`/admin/credits/users/${encodeURIComponent(grantFor.id)}/grant`), {
+        method: "POST",
+        headers: adminAuthHeaders(true),
+        body: JSON.stringify({
+          amount,
+          days,
+          remark: grantRemark.trim() || undefined,
+          operator: grantOperator.trim() || undefined
+        })
+      });
+      const data = await consoleReadJson<{ amount: number; days: number; wallet: { balance: number } }>(response);
+      const who = grantFor.nickname || grantFor.phone || grantFor.id.slice(0, 10);
+      setGrantResult(`已给「${who}」加 ${data.amount} 赠送算力（${data.days} 天有效），当前合计 ${data.wallet.balance}。`);
+      setRefresh((value) => value + 1);
+      if (selectedId === grantFor.id) setLedgerRefresh((value) => value + 1);
+      setGrantFor(null);
+      setGrantRemark("");
+    } catch (cause) {
+      setGrantResult(cause instanceof Error ? cause.message : "发放失败");
+    } finally {
+      setGrantBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <Panel
+        title={`用户算力总览（充值 / 赠送分账 · 共 ${users.data?.total ?? "…"} 人）`}
+        error={users.error}
+        loading={users.loading}
+        onReload={() => void users.reload()}
+      >
+        <div className="adminForm">
+          <label><span>搜索客户</span>
+            <input
+              value={queryInput}
+              onChange={(event) => setQueryInput(event.target.value)}
+              onKeyDown={(event) => { if (event.key === "Enter") { setQuery(queryInput); setRefresh((value) => value + 1); } }}
+              placeholder="昵称 / 手机号 / 用户 ID"
+            />
+          </label>
+          <button type="button" className="btn primary sm" onClick={() => { setQuery(queryInput); setRefresh((value) => value + 1); }}>
+            查询
+          </button>
+        </div>
+        <CreditAdminTable rows={users.data?.users ?? []} onView={openLedger} onGrant={openGrant} />
+        <p className="adminTableCaption">充值算力不过期；赠送算力默认 90 天有效、到期清零；扣费时先扣赠送、再扣充值。</p>
+      </Panel>
+
+      {grantFor && (
+        <Panel title={`手动加算力 → ${grantFor.nickname || grantFor.phone || grantFor.id.slice(0, 12)}`}>
+          <div className="adminForm">
+            <label><span>算力数量（计入赠送）</span>
+              <input value={grantAmount} onChange={(event) => setGrantAmount(event.target.value)} inputMode="numeric" />
+            </label>
+            <label><span>有效期（天）</span>
+              <input value={grantDays} onChange={(event) => setGrantDays(event.target.value)} inputMode="numeric" />
+            </label>
+            <label><span>备注（可选）</span>
+              <input value={grantRemark} onChange={(event) => setGrantRemark(event.target.value)} maxLength={120} placeholder="如：活动补偿 / 客服赔付" />
+            </label>
+            <label><span>经办人（可选）</span>
+              <input value={grantOperator} onChange={(event) => setGrantOperator(event.target.value)} maxLength={40} />
+            </label>
+            <button type="button" className="btn primary sm" onClick={() => void submitGrant()} disabled={grantBusy}>
+              {grantBusy ? "发放中…" : "确认加算力"}
+            </button>
+            <button type="button" className="btn ghost sm" onClick={() => setGrantFor(null)}>取消</button>
+          </div>
+          {grantResult && <div className="adminConsoleNotice">{grantResult}</div>}
+        </Panel>
+      )}
+
+      {selectedId && (
+        <Panel
+          title="使用记录（钱包逐笔流水）"
+          error={ledger.error}
+          loading={ledger.loading}
+          onReload={() => void ledger.reload()}
+        >
+          {ledger.data && (
+            <p className="adminTableCaption">
+              {ledger.data.user.nickname || ledger.data.user.phone || ledger.data.user.id.slice(0, 12)} · 合计{" "}
+              <b>{ledger.data.wallet.balance}</b>（充值 {ledger.data.wallet.paidBalance} / 赠送 {ledger.data.wallet.bonusBalance}）· 最近 {ledger.data.ledger.length} 笔
+            </p>
+          )}
+          <div>
+            <table className="adminTable">
+              <thead>
+                <tr><th>时间</th><th>类型</th><th>账户</th><th>变动</th><th>智能体</th><th>来源</th><th>赠送到期</th></tr>
+              </thead>
+              <tbody>
+                {(ledger.data?.ledger ?? []).map((row) => (
+                  <tr key={row.id}>
+                    <td>{fmtDateTime(row.createdAt)}</td>
+                    <td>{LEDGER_TYPE_LABELS[row.type] ?? row.type}</td>
+                    <td>{LEDGER_BUCKET_LABELS[row.bucket] ?? row.bucket}</td>
+                    <td style={{ fontWeight: 700, color: row.delta > 0 ? "#0f6e56" : row.delta < 0 ? "#b42318" : undefined }}>
+                      {row.delta > 0 ? `+${row.delta}` : String(row.delta)}
+                    </td>
+                    <td>{row.skillId ?? "—"}</td>
+                    <td title={row.source ?? undefined}>{row.source && row.source.length > 26 ? `${row.source.slice(0, 26)}…` : row.source ?? "—"}</td>
+                    <td>{row.type === "consume" ? "—" : fmtDateTime(row.expiresAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {(ledger.data?.ledger.length ?? 0) === 0 && <p className="adminTableCaption">该用户暂无钱包流水。</p>}
+          </div>
+        </Panel>
+      )}
+
+      <TrialGrantLegacySection />
+    </>
+  );
+}
+
+/** 旧「体验额度发放」通道（legacy CreditAccount 口径），保留入口不删功能。 */
+function TrialGrantLegacySection() {
   const [refresh, setRefresh] = useState(0);
   const grants = useAdminData<Record<string, unknown>>("/market/admin/trial-grants?limit=20", refresh);
   const [identityKey, setIdentityKey] = useState<IdentityKey>("phone");
@@ -699,7 +954,7 @@ function CreditsSection() {
       });
       const data = await consoleReadJson<Record<string, unknown>>(response);
       const grantRow = data.grant as Record<string, unknown> | undefined;
-      setResult(`发放完成：${grantRow?.state ?? "ok"}，本次 ${grantRow?.amount ?? amount} 积分`);
+      setResult(`发放完成：${grantRow?.state ?? "ok"}，本次 ${grantRow?.amount ?? amount} 算力`);
       setRefresh((value) => value + 1);
     } catch (cause) {
       setResult(cause instanceof Error ? cause.message : "发放失败");
@@ -709,7 +964,7 @@ function CreditsSection() {
   }
 
   return (
-    <Panel title="体验额度发放（资金侧写操作）" error={grants.error} loading={grants.loading} onReload={() => void grants.reload()}>
+    <Panel title="体验额度发放（旧通道 Legacy）" error={grants.error} loading={grants.loading} onReload={() => void grants.reload()}>
       <div className="adminForm">
         <label><span>身份类型</span>
           <select value={identityKey} onChange={(event) => setIdentityKey(event.target.value as IdentityKey)}>
@@ -717,7 +972,7 @@ function CreditsSection() {
           </select>
         </label>
         <label><span>{IDENTITY_LABELS[identityKey]}</span><input value={identity} onChange={(event) => setIdentity(event.target.value)} placeholder="填写客户身份后发放" /></label>
-        <label><span>积分数量</span><input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="numeric" /></label>
+        <label><span>算力数量</span><input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="numeric" /></label>
         <label><span>经办人（可选）</span><input value={operator} onChange={(event) => setOperator(event.target.value)} maxLength={40} /></label>
         <button type="button" className="btn primary sm" onClick={() => void grant()} disabled={busy || identity.trim().length === 0}>
           {busy ? "发放中…" : "发放体验额度"}
@@ -762,7 +1017,7 @@ function ShelfSection() {
         {skuRows.length === 0 ? <DataView data={skus.data} /> : (
           <div className="adminTableWrap">
             <table className="adminTable">
-              <thead><tr><th>SKU</th><th>名称</th><th>状态</th><th>积分/次</th><th>操作</th></tr></thead>
+              <thead><tr><th>SKU</th><th>名称</th><th>状态</th><th>算力/次</th><th>操作</th></tr></thead>
               <tbody>
                 {skuRows.slice(0, 60).map((sku) => {
                   const skuCode = String(sku.skuCode ?? "");
@@ -782,7 +1037,7 @@ function ShelfSection() {
                           type="button"
                           className="btn ghost sm"
                           onClick={() => {
-                            const next = window.prompt(`把 ${skuCode} 的每次积分改成多少？`, String(sku.ppu ?? ""));
+                            const next = window.prompt(`把 ${skuCode} 的每次算力改成多少？`, String(sku.ppu ?? ""));
                             if (next && Number(next) > 0) void patchSku(skuId, { ppu: Number(next) });
                           }}
                         >

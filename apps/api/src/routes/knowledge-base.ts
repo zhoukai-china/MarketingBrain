@@ -1021,7 +1021,7 @@ const connectionSyncSchema = z.object({
     if (documents.length === 0) return reply.code(400).send({ error: "no_knowledge_documents", message: "当前主体还没有已确认自动调用的知识，请先选择资料或完成资料确认。" });
     const plannedCreditCost = selectedAgents.reduce((total, agent) => total + knowledgeAgentCreditCost(agent), 0);
     if (!await hasKnowledgeCredits(context, plannedCreditCost)) {
-      return reply.code(402).send({ error: "insufficient_credits", message: "企业积分不足，请充值或减少本次调用的智能体。" });
+      return reply.code(402).send({ error: "insufficient_credits", message: "企业算力不足，请充值或减少本次调用的智能体。" });
     }
 
     const analysisContext: AnalysisContext = {
@@ -2066,7 +2066,7 @@ async function consumeKnowledgeCredits(context: RequestContext, batchId: string,
   await prisma.$transaction(async (tx: any) => {
     const account = await tx.creditAccount.findUnique({ where: { tenantId: context.tenantId } });
     if (!account || account.balance < total) {
-      const error = new Error("企业积分不足，请充值或减少本次调用的智能体。") as Error & { statusCode: number };
+      const error = new Error("企业算力不足，请充值或减少本次调用的智能体。") as Error & { statusCode: number };
       error.statusCode = 402;
       throw error;
     }
@@ -2088,7 +2088,7 @@ async function consumeKnowledgeCredits(context: RequestContext, batchId: string,
 
 function safeAnalysisError(error: unknown): string {
   const message = error instanceof Error ? error.message : "analysis_failed";
-  if (message === "insufficient_credits") return "积分不足";
+  if (message === "insufficient_credits") return "算力不足";
   if (message.includes("entitled") || message.includes("access")) return "当前账号无权使用该智能体";
   return "智能体分析暂时失败，请稍后重试";
 }

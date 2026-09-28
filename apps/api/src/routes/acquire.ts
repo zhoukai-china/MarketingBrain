@@ -62,7 +62,7 @@ const VIDEO_COPY_SCHEMA = z.object({
 
 /**
  * LQ-33「美业文案十件套」：独立一张卡、独立计费（默认取正式 Skill 的 baseCreditCost，可 env 覆盖）。
- * 生成失败 / 信息不足 / 合同校验不过一律不扣积分；同一 requestKey 重复提交复用同一份结果。
+ * 生成失败 / 信息不足 / 合同校验不过一律不扣算力；同一 requestKey 重复提交复用同一份结果。
  */
 const COPY_KIT_SCHEMA = z.object({
   storeId: z.string().trim().min(1),
@@ -245,7 +245,7 @@ export async function registerAcquireRoutes(app: FastifyInstance, basePath = "/b
         const notConfigured = /not_configured|未配置/.test(message);
         return reply.code(notConfigured ? 503 : 502).send({
           code: notConfigured ? "copy_kit_provider_not_configured" : "copy_kit_provider_failed",
-          message: notConfigured ? "文案能力当前没有放行，本次没有生成、没有扣积分。" : "这次生成失败了，没有扣积分，请重试。",
+          message: notConfigured ? "文案能力当前没有放行，本次没有生成、没有扣算力。" : "这次生成失败了，没有扣算力，请重试。",
           consumedCredits: 0
         });
       }
@@ -262,7 +262,7 @@ export async function registerAcquireRoutes(app: FastifyInstance, basePath = "/b
       if (generation.result.status === "invalid") {
         return reply.code(422).send({
           code: "copy_kit_output_invalid",
-          message: "这次交付没有通过内容合同校验，没有扣积分：请把「项目 / 卖点」和「想触达的人群」说得更具体一点再试。",
+          message: "这次交付没有通过内容合同校验，没有扣算力：请把「项目 / 卖点」和「想触达的人群」说得更具体一点再试。",
           reasons: generation.result.failures.slice(0, 8),
           consumedCredits: 0
         });
@@ -277,13 +277,13 @@ export async function registerAcquireRoutes(app: FastifyInstance, basePath = "/b
         skillId: "lanqi_copy_kit"
       });
       if (charged.status === "owner_missing") {
-        return reply.code(409).send({ code: "lanqi_wallet_owner_missing", message: "本店还没有可扣费的老板账号，本次没有生成、没有扣积分。", consumedCredits: 0 });
+        return reply.code(409).send({ code: "lanqi_wallet_owner_missing", message: "本店还没有可扣费的老板账号，本次没有生成、没有扣算力。", consumedCredits: 0 });
       }
       if (charged.status === "insufficient") {
         return reply.code(402).send({
           code: "insufficient_credits",
           error: "insufficient_credits",
-          message: "积分不足：这次没有生成、也没有扣积分。请点右上角「我的 · 充值」充值后再试。",
+          message: "算力不足：这次没有生成、也没有扣算力。请点右上角「我的 · 充值」充值后再试。",
           balance: charged.wallet.balance,
           required: price,
           rechargeUrl: "/recharge",

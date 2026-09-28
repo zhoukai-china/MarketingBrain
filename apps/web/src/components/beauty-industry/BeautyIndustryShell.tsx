@@ -136,7 +136,7 @@ export function BeautyIndustryShell(props: BeautyIndustryShellProps) {
             </a>;
           })}
         </nav>
-        <p>规划中页面只说明用途与开放边界；导航不会创建任务、调用 Provider 或扣除积分。</p>
+        <p>规划中页面只说明用途与开放边界；导航不会创建任务、调用 Provider 或扣除算力。</p>
       </aside>
       {mobileOpen && <button type="button" className="beautyIndustryNavBackdrop" onClick={() => setMenu(false, true)} aria-label="关闭导航遮罩" />}
       <div className="beautyIndustryShellContent">
@@ -145,7 +145,7 @@ export function BeautyIndustryShell(props: BeautyIndustryShellProps) {
           <div className="beautyIndustryTopProduct"><strong>{brand.displayName}</strong><small>{brand.productSubtitle}</small></div>
           <div className="beautyIndustryTenantStatus"><strong>{props.enterpriseName || "当前经营主体待补"}</strong><small>当前租户 · {props.city || "城市待补"}</small></div>
           {props.localAcceptance && <span className="beautyIndustryEnvironmentBadge">本地验收环境</span>}
-          <div><span>积分余额</span><strong>{props.creditBalance ?? "—"}</strong></div>
+          <div><span>算力余额</span><strong>{props.creditBalance ?? "—"}</strong></div>
           <a className="beautyIndustryBackToAi" href={getAppPath("/my-ai")}>返回我的 AI</a>
         </header>
         {props.children}

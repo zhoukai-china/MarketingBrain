@@ -17,7 +17,7 @@ import { prisma } from "@baolu/db";
 export const TRIAL_GRANT_SOURCE_PREFIX = "trial_grant:";
 /** 单笔体验额度硬上限：防止误输入把「体验」发成「大额赠送」。 */
 export const MAX_TRIAL_CREDITS = 800;
-/** 默认体验额度（2026-09-11 用户拍板：400 积分 / 3 天）。 */
+/** 默认体验额度（2026-09-11 用户拍板：400 算力 / 3 天）。 */
 export const DEFAULT_TRIAL_CREDITS = 400;
 export const DEFAULT_TRIAL_VALID_DAYS = 3;
 
@@ -103,7 +103,7 @@ export async function grantMarketplaceTrialCredits(input: TrialGrantInput): Prom
   if (!Number.isInteger(amount) || amount < 1 || amount > MAX_TRIAL_CREDITS) {
     throw new TrialGrantError(
       "trial_grant_invalid_amount",
-      `发放积分必须是 1-${MAX_TRIAL_CREDITS} 的整数`
+      `发放算力必须是 1-${MAX_TRIAL_CREDITS} 的整数`
     );
   }
   const { label: identityLabel, where: identityWhere } = resolveIdentitySelector(input.identity ?? {});
@@ -163,7 +163,7 @@ export async function grantMarketplaceTrialCredits(input: TrialGrantInput): Prom
       if (existing.delta !== amount) {
         throw new TrialGrantError(
           "trial_grant_id_conflict",
-          `发放编号 ${grantId} 已经按 ${existing.delta} 积分发放过，不能改成 ${amount}`
+          `发放编号 ${grantId} 已经按 ${existing.delta} 算力发放过，不能改成 ${amount}`
         );
       }
       return {

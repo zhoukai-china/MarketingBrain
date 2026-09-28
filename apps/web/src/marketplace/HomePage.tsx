@@ -110,7 +110,7 @@ export function MarketplaceHomePage() {
         >
           <span>
             ℹ️ 你已有工作区，本次是<b>直接登录</b>：推荐关系只在<b>被推荐人首次开通工作区</b>时建立，
-            所以这次不会新增推荐归因——你现有的账号、积分和工作区都不受影响。
+            所以这次不会新增推荐归因——你现有的账号、算力和工作区都不受影响。
           </span>
           <button className="back" type="button" onClick={dismissReferralNotice}>知道了</button>
         </div>
@@ -163,8 +163,8 @@ export function MarketplaceHomePage() {
 function AgentCard({ sku, all }: { sku: MarketplaceSku; all: MarketplaceSku[] }) {
   const bundle = isBundle(sku);
   const soon = isComingSoon(sku);
-  // 2026-09-13 用户口径：**不要在使用前反复告诉用户「要扣多少积分」**（感受不好），
-  // 只在交付完成之后告诉他这次消耗了多少（见 chat 页的「本次消耗 N 积分」）。
+  // 2026-09-13 用户口径：**不要在使用前反复告诉用户「要扣多少算力」**（感受不好），
+  // 只在交付完成之后告诉他这次消耗了多少（见 chat 页的「本次消耗 N 算力」）。
   const priceText = soon
     ? `🧩 开发中 · 敬请期待`
     : bundle

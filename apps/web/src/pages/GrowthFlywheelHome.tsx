@@ -36,7 +36,7 @@ export function GrowthFlywheelHome() {
           <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
             思潼AI 行业智能体平台
           </button>
-          <button onClick={() => window.location.href = "#plans"}>积分使用</button>
+          <button onClick={() => window.location.href = "#plans"}>算力使用</button>
         </nav>
 
         <div className="heroGrid">
@@ -116,8 +116,8 @@ export function GrowthFlywheelHome() {
 
         <section id="plans" className="plansBand">
           <div className="sectionHeading">
-            <p className="flywheelEyebrow">积分使用</p>
-            <h2>不收月费，按实际调用扣积分</h2>
+            <p className="flywheelEyebrow">算力使用</p>
+            <h2>不收月费，按实际调用扣算力</h2>
           </div>
           <div className="plansGrid">
             {membershipOffers.map((plan) => (
@@ -155,7 +155,7 @@ export function GrowthFlywheelHome() {
               <article>
                 <span>5-8分钟</span>
                 <strong>单项快速诊断</strong>
-                <p>适合先做一个专项访谈，看清具体问题，不限次数、不扣积分。</p>
+                <p>适合先做一个专项访谈，看清具体问题，不限次数、不扣算力。</p>
                 <div className="categoryChips" aria-label="选择单项诊断类目">
                   {quickDiagnosisCategories.map((item) => (
                     <button

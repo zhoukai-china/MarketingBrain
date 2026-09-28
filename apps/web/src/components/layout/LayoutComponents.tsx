@@ -11,7 +11,7 @@ export const TopBar: FC<{
     <span className={token ? "stateDot online" : "stateDot"} />
     <p>{status}</p>
     <button className="payEntryButton" onClick={onBilling}>
-      充值积分
+      充值算力
     </button>
   </div>
 );

@@ -7,7 +7,7 @@
 // 「后端功能与 /chat 一样」的落地：
 //  - 同一个 /market/skus/ipzone__livescript/run；需求单文本与对话页同构（业务字段逐行列出），
 //    并把场次类型 / 品牌 / 人群 / 动作 / 时长 / 交付深度全部带全（不因分流丢信息）；
-//  - livescript 在 FIXED_PRICE_SKUS（按次一口价，目录 ppu），费用口径「一口价 N 积分/次 · 失败不扣费」，
+//  - livescript 在 FIXED_PRICE_SKUS（按次一口价，目录 ppu），费用口径「一口价 N 算力/次 · 失败不扣费」，
 //    不写「按实际用量结算」；✅ 生成失败不扣费按原型保留；
 //  - livescript 是最重的技能（串行 9 段 + 附属件，常 5-10 分钟）：超时放宽到 15 分钟，
 //    进度沿用「诚实机制」——日志末行由后端真实返回揭晓，未返回前进度 <100%。
@@ -360,12 +360,12 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
       });
       window.clearInterval(tick);
       if (handleStaleSession(res.status)) {
-        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次不消耗积分。");
+        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次不消耗算力。");
       }
       if (res.status === 402) {
         const data = (await res.json().catch(() => ({}))) as { message?: string };
         const nextRoute = `${getAppRoutePath(window.location.pathname)}${window.location.search}`;
-        setError(`${data.message ?? "当前积分不足，请先充值后再使用。"}（本次未消耗积分） 请前往充值页后回来，简报已在本页保留。`);
+        setError(`${data.message ?? "当前算力不足，请先充值后再使用。"}（本次未消耗算力） 请前往充值页后回来，简报已在本页保留。`);
         setPhase("confirm"); setConfirmOpts(true);
         window.setTimeout(() => {
           window.location.href = getAppPath(`/recharge?from=agent&skill=${encodeURIComponent(skuId)}&next=${encodeURIComponent(nextRoute)}`);
@@ -388,7 +388,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
         const question = (result.answer ?? "").trim();
         throw new Error(
           (question ? `罗盘还想确认一下：${question} ` : "还需要补充一些关键信息。") +
-          "请对照左侧简报补充后重新生成（本次不消耗积分）。"
+          "请对照左侧简报补充后重新生成（本次不消耗算力）。"
         );
       }
       runResultRef.current = {
@@ -400,7 +400,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
       window.clearInterval(tick);
       setError(e instanceof Error ? e.message : "生成失败，请稍后重试。");
       setPhase("confirm"); setConfirmOpts(true);
-      pushMsg("ai", "这一稿没有生成成功（<b>本次不消耗积分</b>）。按提示补充或稍后再点「✨ 生成脚本包」。");
+      pushMsg("ai", "这一稿没有生成成功（<b>本次不消耗算力</b>）。按提示补充或稍后再点「✨ 生成脚本包」。");
     }
   }
 
@@ -415,7 +415,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
     setLogIdx(logLines.length);
     setLogDone(true);
     setPhase("done");
-    pushMsg("ai", `交付完成 ✅ <b>${depthRef.current === "full" ? "整场脚本十件套" : "单段脚本"}</b>已放到右侧——从开场到下播按节奏表走，钩子与应答都是合规安全版。可复制全部、导出 Word。本次消耗 <b>${result.consumed ?? skuPpu ?? "—"} 积分</b>。`);
+    pushMsg("ai", `交付完成 ✅ <b>${depthRef.current === "full" ? "整场脚本十件套" : "单段脚本"}</b>已放到右侧——从开场到下播按节奏表走，钩子与应答都是合规安全版。可复制全部、导出 Word。本次消耗 <b>${result.consumed ?? skuPpu ?? "—"} 算力</b>。`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, runSettled, logDone, logIdx, logLines]);
 
@@ -500,9 +500,9 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
     phase === "confirm" ? "引导完成" :
     phase === "ask" ? `引导中（${filled}/6）` : "待引导";
   const feeHint =
-    phase === "done" ? <>本次实际消耗 <b>{consumed ?? skuPpu ?? "—"} 积分</b></> :
-    phase === "confirm" ? <>本次交付：<b>{depthRef.current === "full" ? "整场脚本十件套" : "单段脚本"} · 一口价 {skuPpu ?? "—"} 积分/次</b></> :
-    <>完成引导后可生成 · 一口价 <b>{skuPpu ?? "—"} 积分</b>/次（校验不过 / 失败不扣费）</>;
+    phase === "done" ? <>本次实际消耗 <b>{consumed ?? skuPpu ?? "—"} 算力</b></> :
+    phase === "confirm" ? <>本次交付：<b>{depthRef.current === "full" ? "整场脚本十件套" : "单段脚本"} · 一口价 {skuPpu ?? "—"} 算力/次</b></> :
+    <>完成引导后可生成 · 一口价 <b>{skuPpu ?? "—"} 算力</b>/次（校验不过 / 失败不扣费）</>;
   const gpTotal = logLines.length || 1;
   const gpPct = Math.round(Math.min(logIdx, gpTotal) / gpTotal * 100);
   const pieceList = depthRef.current === "light" ? [LIGHT_PIECE] : PIECES;
@@ -521,7 +521,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
           </div>
           <h1><img className="cpw-emoji" src={avatar} alt="罗盘" />直播话术工作台</h1>
           <p className="cpw-hook">左边罗盘把整场信息配齐，右边整场脚本十件套实时长出来。</p>
-          <p className="cpw-ability">先定场次类型（招商 / 带货 / 知识付费）→ 开播简报 → 整场脚本十件套（总览 / 开场 / 四套轮播 / 钩子应答 / 收尾 / 节奏表 / 场控）分区交付：可复制全部、导出 Word（免费），一口价 {skuPpu ?? "—"} 积分/次。直播话术要串行跑 9 段+附属件，常 5-10 分钟，请耐心等进度条。</p>
+          <p className="cpw-ability">先定场次类型（招商 / 带货 / 知识付费）→ 开播简报 → 整场脚本十件套（总览 / 开场 / 四套轮播 / 钩子应答 / 收尾 / 节奏表 / 场控）分区交付：可复制全部、导出 Word（免费），一口价 {skuPpu ?? "—"} 算力/次。直播话术要串行跑 9 段+附属件，常 5-10 分钟，请耐心等进度条。</p>
         </div>
       </header>
 
@@ -563,7 +563,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
                   {confirmOpts && phase === "confirm" && (
                     <div className="cpw-opts">
                       <button className="cpw-opt go" onClick={() => { setConfirmOpts(false); void startGen(); }}>
-                        ✓ 确认，开始生成<small>整场脚本十件套 · 一口价 {skuPpu ?? "—"} 积分 · 常 5-10 分钟</small>
+                        ✓ 确认，开始生成<small>整场脚本十件套 · 一口价 {skuPpu ?? "—"} 算力 · 常 5-10 分钟</small>
                       </button>
                       <button className="cpw-opt" onClick={() => { setConfirmOpts(false); pushMsg("ai", "直接点击右侧简报里的字段修改，改完点「✨ 生成脚本包」。"); }}>
                         ✎ 改一下再生成<small>点击右侧简报字段直接修改</small>
@@ -622,7 +622,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
                       <div className="cpw-dl">
                         <div className="cpw-dl-head">
                           <span className="cpw-ok-tag">✓ 已交付</span>
-                          <span className="cpw-time">{depthRef.current === "full" ? "整场脚本十件套" : "单段脚本"} · {brief.mode} · {brief.duration} 分钟 · 消耗 {consumed ?? skuPpu ?? "—"} 积分</span>
+                          <span className="cpw-time">{depthRef.current === "full" ? "整场脚本十件套" : "单段脚本"} · {brief.mode} · {brief.duration} 分钟 · 消耗 {consumed ?? skuPpu ?? "—"} 算力</span>
                           <div className="cpw-dl-ops">
                             <button className="cpw-cbtn" onClick={() => copyText(answerMd)}>⧉ 复制全部</button>
                             <button className="cpw-cbtn" onClick={() => void exportWord()} disabled={exporting}>{exporting ? "导出中…" : "↓ 导出 Word"}</button>

@@ -93,6 +93,13 @@ export function buildRechargeUrl(skillId?: string): string {
   return `/recharge?${params.toString()}`;
 }
 
+/** 赠送算力统一有效期（HANDOFF §7）：90 天，到期清零，到期前 3 天提醒（提醒由账单侧后续补）。 */
+export const GIFT_BONUS_VALIDITY_DAYS = 90;
+
+export function giftBonusExpiry(now = new Date()): Date {
+  return new Date(now.getTime() + GIFT_BONUS_VALIDITY_DAYS * 24 * 3600 * 1000);
+}
+
 /**
  * 充值入账：base 严格入 paid 桶，bonus 独立入 bonus 桶，写两条 ledger。
  * 幂等键复用同一 RechargeOrder；重复调用不重复入账。
@@ -182,7 +189,9 @@ export async function applyRechargeInTx(
           type: "bonus",
           refOrderId: order.id,
           priceVersion: params.priceVersion,
-          source
+          source,
+          // 充值加赠 = 赠送算力（HANDOFF §4/§7）：90 天有效期，到期清零。
+          expiresAt: giftBonusExpiry()
         }
       });
     }
@@ -195,11 +204,11 @@ export async function applyRechargeInTx(
 }
 
 /**
- * 注册发放欢迎体验积分：发到**用户级双桶钱包**的 bonus 桶。
+ * 注册发放欢迎体验算力：发到**用户级双桶钱包**的 bonus 桶。
  *
  * 货架（平台唯一入口 `/market`）的展示（`/market/me`、货架访问态）与扣费
- * （`/market/skus/:skuId/run`、`/market/ppu/consume`）统一读用户钱包；欢迎积分
- * 如果只写租户级 `CreditAccount`，新用户进平台就会看到「💎 0 积分」并且点不动任何
+ * （`/market/skus/:skuId/run`、`/market/ppu/consume`）统一读用户钱包；欢迎算力
+ * 如果只写租户级 `CreditAccount`，新用户进平台就会看到「💎 0 算力」并且点不动任何
  * 智能体（QA-20260910-016）。因此注册发币必须与货架同源。
  *
  * 幂等：以该用户 `source="signup"` 的钱包流水为准，同一用户只发一次；
@@ -238,7 +247,9 @@ export async function grantSignupWalletCreditsInTx(
       delta: amount,
       bucket: "bonus",
       type: "bonus",
-      source
+      source,
+      // 注册礼 = 赠送算力（HANDOFF §7/§11）：90 天有效期。
+      expiresAt: giftBonusExpiry()
     }
   });
 
@@ -267,7 +278,8 @@ export async function precheckConsume(params: {
 }
 
 /**
- * 消耗扣减：同一 request_id 幂等；先扣 paid，paid 不足再扣 bonus；
+ * 消耗扣减：同一 request_id 幂等；**先扣赠送（bonus），不足再扣充值（paid）**（算力计费 v1.0，
+ * HANDOFF §2.7：赠送算力先扣、到期日最近者优先，充值算力后扣、先充先扣）；
  * 跨桶拆两条 ledger；并发下用 Serializable + 条件更新保证不为负。
  */
 export async function consumeWalletCredits(params: {
@@ -313,21 +325,21 @@ export async function consumeWalletCredits(params: {
         };
       }
 
-      const paidUse = Math.min(wallet.paidBalance, amount);
-      // PLAT-28 第②批：推荐奖励有 90 天到期（expiresAt），已到期的推荐奖励积分不可消费。
-      // 采用聚合口径：从 bonus 余额里扣除「已过期且仍未花掉的推荐奖励」总量（保守，且不误放行过期积分）。
-      const expiredReferralAgg = await tx.walletLedger.aggregate({
+      // 赠送算力有效期（HANDOFF §7）：所有赠送发放（type=bonus/admin）带 expiresAt，
+      // 已过期且仍未花掉的赠送按聚合口径从可用赠送中扣除（保守，且不误放行过期算力）。
+      const expiredBonusAgg = await tx.walletLedger.aggregate({
         where: {
           userId: params.userId,
           bucket: "bonus",
-          type: "bonus",
-          source: { startsWith: "referral_reward:" },
+          type: { in: ["bonus", "admin"] },
           expiresAt: { not: null, lte: new Date() }
         },
         _sum: { delta: true }
       });
-      const expiredReferral = Math.max(0, expiredReferralAgg._sum.delta ?? 0);
-      const bonusUse = Math.min(Math.max(0, wallet.bonusBalance - expiredReferral), amount - paidUse);
+      const expiredBonus = Math.max(0, expiredBonusAgg._sum.delta ?? 0);
+      const usableBonus = Math.max(0, wallet.bonusBalance - expiredBonus);
+      const bonusUse = Math.min(usableBonus, amount);
+      const paidUse = Math.min(wallet.paidBalance, amount - bonusUse);
       const totalUse = paidUse + bonusUse;
 
       if (totalUse < amount) {
@@ -407,7 +419,7 @@ export async function consumeWalletCredits(params: {
  *
  * 预留走 `consumeWalletCredits({requestId: "reserve:<id>"})`，所以这里只需要把多扣的部分写回来：
  * - 同一 `refRequestId` 幂等（同一笔预留只退一次）；
- * - 退回到**当初扣的那个桶**（先 paid 后 bonus，与扣费顺序对称）；
+ * - 退回到**当初扣的那个桶**（扣费顺序：赠送先扣、充值后扣，退款按预留时记录的拆分原路退回）；
  * - 只加不扣，永远不可能把余额退成负数。
  */
 export async function refundWalletCredits(params: {

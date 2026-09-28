@@ -7,7 +7,7 @@
 // 口径适配（用户要求：预约改成充值算力和立即使用）：
 //   - 原型是「内测 / 预约」态：状态徽标改「已上线 · 可直接对话」；「📲 预约体验」改「⚡ 立即使用」；
 //     「预约免费 / 留手机号」等内测文案全部替换为已上线计费口径；
-//   - topic 按实际用量结算（不在 FIXED_PRICE_SKUS）：价格取真实目录 ppu，单位「积分」，
+//   - topic 按实际用量结算（不在 FIXED_PRICE_SKUS）：价格取真实目录 ppu，单位「算力」，
 //     原型「99 算力（上线价）」是演示价不照抄；
 //   - 头像：对话窗用系统内置形象（topic.jpg，真实照片）；评价区顾客保留姓氏字圆。
 
@@ -139,7 +139,7 @@ export function TopicDetailPage() {
   const [tab, setTab] = useState<TabKey>("ability");
   const [view, setView] = useState<GalleryView>("wb");
   const avatar = employeeAvatarPath("ipzone__topic");
-  /** 真实目录价（topic 按实际用量结算），单位「积分」。 */
+  /** 真实目录价（topic 按实际用量结算），单位「算力」。 */
   const [skuPpu, setSkuPpu] = useState<number | null>(null);
 
   useEffect(() => {
@@ -187,7 +187,7 @@ export function TopicDetailPage() {
                     <div className="ipd-wb-right">
                       <SourcePanel />
                       <div className="ipd-gen">✨ 出一批选题</div>
-                      <div className="ipd-fee">预计消耗约 {skuPpu ?? "—"} 积分 · 按实际用量结算 · 失败不扣费</div>
+                      <div className="ipd-fee">预计消耗约 {skuPpu ?? "—"} 算力 · 按实际用量结算 · 失败不扣费</div>
                     </div>
                   </div>
                 </div>
@@ -235,7 +235,7 @@ export function TopicDetailPage() {
           <div className="ipd-price">
             <div className="ipd-price-line">
               <span className="ipd-num">{skuPpu ?? "—"}</span>
-              <span className="ipd-unit">积分 / 次 起</span>
+              <span className="ipd-unit">算力 / 次 起</span>
               <span className="ipd-approx">{skuPpu != null ? `≈ ¥${(skuPpu / 10).toFixed(1)}` : "≈ ¥"} · 按实际用量结算</span>
             </div>
             <div className="ipd-price-meta">计费说明：<b>0 元开通</b> · 不收月费 · 使用后扣算力，失败不扣费</div>
@@ -253,7 +253,7 @@ export function TopicDetailPage() {
           <div className="ipd-cta-row">
             <button className="ipd-btn ghost" onClick={() => { window.location.href = getAppPath("/recharge"); }}>⚡ 充值算力</button>
             <button className="ipd-btn main" onClick={() => { window.location.href = getAppPath(WORKBENCH_PATH); }}>
-              ⚡ 立即使用{skuPpu != null ? `（约 ${skuPpu} 积分/次）` : ""}
+              ⚡ 立即使用{skuPpu != null ? `（约 ${skuPpu} 算力/次）` : ""}
             </button>
           </div>
           <div className="ipd-after-cta">

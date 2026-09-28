@@ -175,7 +175,7 @@ export async function registerBeautyIndustryMediaRoutes(app: FastifyInstance): P
     } catch (error) {
       const current = await findRunJobs(context.tenantId, packageRun.id, requestId);
       if (current.length > 0) return { jobs: serializeBatch(current), batchStatus: batchStatus(current), idempotent: true };
-      if (error instanceof Error && error.message === "insufficient_credits") return reply.code(402).send({ error: "insufficient_credits", message: "积分不足，本次没有创建图片任务或调用模型。" });
+      if (error instanceof Error && error.message === "insufficient_credits") return reply.code(402).send({ error: "insufficient_credits", message: "算力不足，本次没有创建图片任务或调用模型。" });
       throw error;
     }
     if (!reservation) return reply.code(409).send({ error: "beauty_media_reservation_required" });
@@ -425,19 +425,19 @@ async function resolveReadiness(tenantId: string, requested: number, existing: n
   if (existing > 0) return { canConfirm: true, message: "已有任务可恢复。" };
   if (!(await hasActiveBeautyProductEntitlement(tenantId))) return { canConfirm: false, code: "media_entitlement_blocked", message: "当前租户尚未获得图片生成权限。" };
   if (env.BEAUTY_MEDIA_PRODUCT_ENABLED !== "true" || env.BEAUTY_MEDIA_EXECUTION_MODE !== "real") {
-    return { canConfirm: false, code: "media_authorization_blocked", message: "真实图片生成尚未在当前验收环境启用；本次不会创建任务或预留积分。" };
+    return { canConfirm: false, code: "media_authorization_blocked", message: "真实图片生成尚未在当前验收环境启用；本次不会创建任务或预留算力。" };
   }
   if (env.BEAUTY_MEDIA_MAX_REAL_IMAGES < requested) return { canConfirm: false, code: "quota_exhausted", message: "当前授权不足以生成本次三张图片；不会创建超额任务。" };
   if (estimatedProviderCostYuan <= 0 || estimatedProviderCostYuan > env.BEAUTY_MEDIA_MAX_PROVIDER_COST_YUAN || estimatedProviderCostYuan > 1) {
-    return { canConfirm: false, code: "media_cost_budget_blocked", message: "本次图片生成预计费用超过当前受控上限；不会创建任务或预留积分。" };
+    return { canConfirm: false, code: "media_cost_budget_blocked", message: "本次图片生成预计费用超过当前受控上限；不会创建任务或预留算力。" };
   }
   if (env.BEAUTY_MEDIA_ASSET_STORAGE !== "local") return { canConfirm: false, code: "media_storage_blocked", message: "租户图片持久存储尚未就绪。" };
   const providerReadiness = getLanqiMediaExecutionReadiness({ kind: "image" });
   if (!providerReadiness.canConfirm || !providerReadiness.billable || providerReadiness.storage !== "local") {
-    return { canConfirm: false, code: "media_provider_blocked", message: providerReadiness.blockedReason ?? "真实图片能力尚未就绪；不会创建任务或预留积分。" };
+    return { canConfirm: false, code: "media_provider_blocked", message: providerReadiness.blockedReason ?? "真实图片能力尚未就绪；不会创建任务或预留算力。" };
   }
   if (!canStartBeautyImageBatch({ requested, maxPerBatch: 3 })) return { canConfirm: false, code: "quota_exhausted", message: "每个已确认批次最多 3 张，不会创建超额任务。" };
-  return { canConfirm: true, message: "确认后将真实生成三张商业摄影感美业场景并预留积分；逐张通过安全与交付质量检查后才可查看下载。" };
+  return { canConfirm: true, message: "确认后将真实生成三张商业摄影感美业场景并预留算力；逐张通过安全与交付质量检查后才可查看下载。" };
 }
 
 function estimateBeautyImageProviderCostYuan(imageCount: number): number {
@@ -541,11 +541,11 @@ async function finalizeBatchIfTerminal(tenantId: string, runId: string, batchKey
 function readStringParameter(value: unknown, key: string): string | undefined { return value && typeof value === "object" && !Array.isArray(value) && typeof (value as Record<string, unknown>)[key] === "string" ? String((value as Record<string, unknown>)[key]) : undefined; }
 function beautyMediaActionMessage(code: string): string {
   const messages: Record<string, string> = {
-    previous_batch_quality_failed: "上一批图片未达到交付标准且积分已释放。请先修改本次图片要求，再重新查看费用并明确确认新批次。",
+    previous_batch_quality_failed: "上一批图片未达到交付标准且算力已释放。请先修改本次图片要求，再重新查看费用并明确确认新批次。",
     previous_batch_succeeded: "当前文字任务已有完整合格图片。需要换一组时，请先修改本次图片要求，再重新查看费用并明确确认新批次。",
     image_requirements_unchanged: "请先修改本次图片的总体视觉要求或禁用内容，再确认新的三图批次；不会自动重复生成。",
-    retry_confirmation_ready: "图片要求已更新。再次确认费用和积分后，才会创建一个新的三图批次。",
-    regeneration_confirmation_ready: "图片要求已更新。再次确认 300 积分后，才会创建一组新的三图；当前不会自动生成或扣费。",
+    retry_confirmation_ready: "图片要求已更新。再次确认费用和算力后，才会创建一个新的三图批次。",
+    regeneration_confirmation_ready: "图片要求已更新。再次确认 300 算力后，才会创建一组新的三图；当前不会自动生成或扣费。",
     batch_in_progress: "当前图片批次仍在生成，请恢复进度；不会创建重复批次或重复扣费。",
     batch_already_succeeded: "当前文字任务已有完整合格图片，可直接查看或下载；不会重复生成。"
   };
@@ -567,7 +567,7 @@ function beautyImageExecutionContractChanged(parameters: unknown): boolean {
 function beautyAssetUrl(jobId: string): string { return `/beauty-industry/media/assets/${encodeURIComponent(jobId)}`; }
 function terminal(status: string): boolean { return ["succeeded", "failed", "canceled"].includes(status); }
 function serializeBatch(jobs: any[]) { const state = batchStatus(jobs); return jobs.map((job) => serialize(job, state)); }
-function serialize(job: any, state = "processing") { const status = String(job.status); const quality = qualityStatus(job); const usable = state === "succeeded" && customerUsable(job); const failureCode = readStringParameter(job.parameters, "assetPersistenceCode") ?? (isAssetPersistenceFailure(job.errorMessage) ? String(job.errorMessage) : undefined); const failureStage = readStringParameter(job.parameters, "assetPersistenceStage") ?? (failureCode ? "legacy_unknown" : undefined); return { id: job.id, runId: job.previewId, status, technicalStatus: status, batchStatus: state, providerTaskId: job.providerTaskId ?? undefined, qualityStatus: quality, compositionStatus: readStringParameter(job.parameters, "compositionStatus") ?? "legacy_not_required", compositionVersion: readStringParameter(job.parameters, "compositionVersion"), selectedTitle: readSelectedTitleParameter(job.parameters), operatorQualityStatus: readStringParameter(job.parameters, "operatorQualityStatus") ?? (env.BEAUTY_MEDIA_ACCEPTANCE_OPERATOR_GATE === "true" ? "pending" : "not_required"), qualityReasons: readQualityReasons(job), qualityEvidence: readQualityEvidence(job), customerUsable: usable, progress: status === "succeeded" ? 100 : status === "processing" ? 60 : status === "submitted" ? 25 : 0, creditCost: job.creditCost, billingStatus: job.billingStatus, assetStatus: job.assetStatus, outputUrl: usable ? (job.outputUrl ?? beautyAssetUrl(job.id)) : undefined, errorMessage: quality === "rejected" || readStringParameter(job.parameters, "operatorQualityStatus") === "rejected" ? "图片未达到交付标准，不建议使用；原始资产仅保留供内部审核。" : quality === "manual_review_required" ? "本地风险筛查证据不足，需要人工复核；当前不可查看或下载。" : failureCode ? assetPersistenceCustomerMessage(failureStage) : job.errorMessage ? "图片任务未完成；不会自动重试，未交付部分会释放预留积分。" : undefined, failureStage, failureCode, failureRetryable: readBooleanParameter(job.parameters, "assetPersistenceRetryable") ?? false, canCancel: ["queued", "submitted"].includes(status), canRecover: false, createdAt: job.createdAt instanceof Date ? job.createdAt.toISOString() : job.createdAt, updatedAt: job.updatedAt instanceof Date ? job.updatedAt.toISOString() : job.updatedAt, model: job.model, provider: job.provider }; }
+function serialize(job: any, state = "processing") { const status = String(job.status); const quality = qualityStatus(job); const usable = state === "succeeded" && customerUsable(job); const failureCode = readStringParameter(job.parameters, "assetPersistenceCode") ?? (isAssetPersistenceFailure(job.errorMessage) ? String(job.errorMessage) : undefined); const failureStage = readStringParameter(job.parameters, "assetPersistenceStage") ?? (failureCode ? "legacy_unknown" : undefined); return { id: job.id, runId: job.previewId, status, technicalStatus: status, batchStatus: state, providerTaskId: job.providerTaskId ?? undefined, qualityStatus: quality, compositionStatus: readStringParameter(job.parameters, "compositionStatus") ?? "legacy_not_required", compositionVersion: readStringParameter(job.parameters, "compositionVersion"), selectedTitle: readSelectedTitleParameter(job.parameters), operatorQualityStatus: readStringParameter(job.parameters, "operatorQualityStatus") ?? (env.BEAUTY_MEDIA_ACCEPTANCE_OPERATOR_GATE === "true" ? "pending" : "not_required"), qualityReasons: readQualityReasons(job), qualityEvidence: readQualityEvidence(job), customerUsable: usable, progress: status === "succeeded" ? 100 : status === "processing" ? 60 : status === "submitted" ? 25 : 0, creditCost: job.creditCost, billingStatus: job.billingStatus, assetStatus: job.assetStatus, outputUrl: usable ? (job.outputUrl ?? beautyAssetUrl(job.id)) : undefined, errorMessage: quality === "rejected" || readStringParameter(job.parameters, "operatorQualityStatus") === "rejected" ? "图片未达到交付标准，不建议使用；原始资产仅保留供内部审核。" : quality === "manual_review_required" ? "本地风险筛查证据不足，需要人工复核；当前不可查看或下载。" : failureCode ? assetPersistenceCustomerMessage(failureStage) : job.errorMessage ? "图片任务未完成；不会自动重试，未交付部分会释放预留算力。" : undefined, failureStage, failureCode, failureRetryable: readBooleanParameter(job.parameters, "assetPersistenceRetryable") ?? false, canCancel: ["queued", "submitted"].includes(status), canRecover: false, createdAt: job.createdAt instanceof Date ? job.createdAt.toISOString() : job.createdAt, updatedAt: job.updatedAt instanceof Date ? job.updatedAt.toISOString() : job.updatedAt, model: job.model, provider: job.provider }; }
 
 async function persistAndScreenBeautyImage(params: { tenantId: string; jobId: string; sourceUrl: string; role: BeautyImageRole; overlayText: string }) {
   const metadata = await persistBeautyProviderImage(params);
@@ -600,10 +600,10 @@ function writeAssetPersistenceParameters(value: unknown, issue: BeautyMediaAsset
 }
 
 function assetPersistenceCustomerMessage(stage?: string): string {
-  if (stage === "quality_screen") return "图片已生成并安全保存，但本地质量检查未完成；当前不可交付，积分已退回，无需重复点击。";
-  if (stage === "asset_verify") return "图片已生成，但本地文件校验未完成；当前不可交付，积分已退回，无需重复点击。";
-  if (stage === "download_request" || stage === "download_response" || stage === "url_validation") return "图片已生成，但安全下载未完成；当前不可交付，积分已退回，无需重复点击。";
-  return "图片已生成，但本地保存未完成；当前不可交付，积分已退回，无需重复点击。";
+  if (stage === "quality_screen") return "图片已生成并安全保存，但本地质量检查未完成；当前不可交付，算力已退回，无需重复点击。";
+  if (stage === "asset_verify") return "图片已生成，但本地文件校验未完成；当前不可交付，算力已退回，无需重复点击。";
+  if (stage === "download_request" || stage === "download_response" || stage === "url_validation") return "图片已生成，但安全下载未完成；当前不可交付，算力已退回，无需重复点击。";
+  return "图片已生成，但本地保存未完成；当前不可交付，算力已退回，无需重复点击。";
 }
 
 function isAssetPersistenceFailure(value: unknown): boolean {

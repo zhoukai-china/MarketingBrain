@@ -163,7 +163,7 @@ export function BeautyVideoDataReviewWorkbench(props: Props) {
           <div className={`beautyVideoReviewFileState ${props.parseStatus || "empty"}`}>
             <strong>{props.parseStatus === "parsed" ? "解析成功" : props.parseStatus === "failed" ? "解析失败，已停止" : "尚未读取数据"}</strong>
             <span>{props.sourceFilename || "文件名会在成功解析后显示"}</span>
-            <p>{props.parseStatus === "parsed" ? "只有下方后端解析证据会进入当前复盘；不会读取视频画面、音频或其他租户文件。" : props.parseStatus === "failed" ? "请回到对应平台后台重新导出逐条作品数据，再重新选择文件；失败状态不会调用复盘能力或扣积分。" : "接受 CSV、XLS 或 XLSX；空文件、错误类型和无法读取的工作簿会失败关闭。"}</p>
+            <p>{props.parseStatus === "parsed" ? "只有下方后端解析证据会进入当前复盘；不会读取视频画面、音频或其他租户文件。" : props.parseStatus === "failed" ? "请回到对应平台后台重新导出逐条作品数据，再重新选择文件；失败状态不会调用复盘能力或扣算力。" : "接受 CSV、XLS 或 XLSX；空文件、错误类型和无法读取的工作簿会失败关闭。"}</p>
           </div>
         </section>
 
@@ -184,7 +184,7 @@ export function BeautyVideoDataReviewWorkbench(props: Props) {
         </details>
 
         {missing.length > 0 && <div className="beautyVideoReviewMissing" role="status"><strong>开始前还需要</strong><ul>{missing.map((item) => <li key={item}>{item}</li>)}</ul></div>}
-        <div className="beautyVideoReviewActions"><button type="submit" className="beautyIndustryPrimary" disabled={!props.permitted || props.busy || props.fileParsing || missing.length > 0}>{props.busy ? `正在复盘 · ${props.elapsed}s` : "开始专业复盘｜预计15积分"}</button>{props.busy && <button type="button" className="beautyIndustrySecondary" onClick={props.onCancel}>取消</button>}</div>
+        <div className="beautyVideoReviewActions"><button type="submit" className="beautyIndustryPrimary" disabled={!props.permitted || props.busy || props.fileParsing || missing.length > 0}>{props.busy ? `正在复盘 · ${props.elapsed}s` : "开始专业复盘｜预计15算力"}</button>{props.busy && <button type="button" className="beautyIndustrySecondary" onClick={props.onCancel}>取消</button>}</div>
         {props.busy && <p className="beautyVideoReviewProgress" role="status">正在读取已解析证据 → 数据质量审计 → 作品分层 → 生成行动建议 → 保存；可取消，不自动重试。</p>}
         {props.notice && <p className="beautyIndustryNotice" role="status">{props.notice}</p>}
         {props.error && <p className="beautyIndustryError" role="alert">{props.error}</p>}
@@ -193,7 +193,7 @@ export function BeautyVideoDataReviewWorkbench(props: Props) {
       <article className="beautyVideoReviewResult">
         <header className="beautyIndustryResultHead"><div><span>04 · 当前租户已保存结果</span><h2>{props.activeRun ? "正式视频数据复盘报告" : "等待真实数据"}</h2></div>{props.activeRun && <button type="button" disabled={copying} onClick={() => void copyResult()}>{copying ? "复制中…" : "复制复盘报告"}</button>}</header>
         {props.activeRun ? <>
-          <div className="beautyIndustryMeta"><span>{props.activeRun.creditCost} 积分</span><span>{props.activeRun.usageChannel === "mcp" ? "WorkBuddy" : "网页"}</span><span>本次使用：{props.activeRun.abilityUsed || "视频数据复盘"}</span><span>{new Date(props.activeRun.createdAt).toLocaleString()}</span></div>
+          <div className="beautyIndustryMeta"><span>{props.activeRun.creditCost} 算力</span><span>{props.activeRun.usageChannel === "mcp" ? "WorkBuddy" : "网页"}</span><span>本次使用：{props.activeRun.abilityUsed || "视频数据复盘"}</span><span>{new Date(props.activeRun.createdAt).toLocaleString()}</span></div>
           <nav className="beautyVideoReviewOutline" aria-label="复盘报告章节">{FORMAL_SECTIONS.map((section) => <span key={section} className={props.activeRun?.output.includes(section) ? "present" : "limited"}>{section}</span>)}</nav>
           <div className="beautyVideoReviewReport">{resultSections.length > 1 ? resultSections.map((section) => <section key={section.title}><h3>{section.title}</h3><ReactMarkdown remarkPlugins={[remarkGfm]}>{section.body}</ReactMarkdown></section>) : <ReactMarkdown remarkPlugins={[remarkGfm]}>{props.activeRun.output}</ReactMarkdown>}</div>
           <div className="beautyVideoReviewNext"><strong>继续当前流程</strong><p>复盘结论可作为选题系统四来源之一；进入选题只携带当前租户已保存记录，不会在本页自动生成内容或执行外部动作。</p><button type="button" className="beautyIndustrySecondary" onClick={props.onOpenTopics}>进入下一轮选题</button></div>
@@ -204,8 +204,8 @@ export function BeautyVideoDataReviewWorkbench(props: Props) {
 
     <details className="beautyVideoReviewHistory">
       <summary>任务历史 <span>{props.history.length} 条</span></summary>
-      <p>网页与 WorkBuddy 共用同一 AgentRun 历史；恢复记录不会再次运行或扣积分，刷新后可恢复。</p>
-      <div className="beautyIndustryHistoryList">{props.history.length ? props.history.map((run) => <button key={run.id} type="button" className={props.activeRun?.id === run.id ? "active" : ""} onClick={() => props.onSelectHistory(run)}><strong>视频数据复盘</strong><span>{run.usageChannel === "mcp" ? "WorkBuddy" : "网页"} · {run.creditCost} 积分</span><time>{new Date(run.createdAt).toLocaleString()}</time></button>) : <p>还没有视频数据复盘记录。</p>}</div>
+      <p>网页与 WorkBuddy 共用同一 AgentRun 历史；恢复记录不会再次运行或扣算力，刷新后可恢复。</p>
+      <div className="beautyIndustryHistoryList">{props.history.length ? props.history.map((run) => <button key={run.id} type="button" className={props.activeRun?.id === run.id ? "active" : ""} onClick={() => props.onSelectHistory(run)}><strong>视频数据复盘</strong><span>{run.usageChannel === "mcp" ? "WorkBuddy" : "网页"} · {run.creditCost} 算力</span><time>{new Date(run.createdAt).toLocaleString()}</time></button>) : <p>还没有视频数据复盘记录。</p>}</div>
     </details>
   </section>;
 }

@@ -27,7 +27,7 @@ import {
 
 const createOrderSchema = z.object({
   type: z.literal("credit_pack"),
-  creditPackCode: z.enum(["pack_50", "pack_100", "pack_300", "pack_500", "pack_1000"]),
+  creditPackCode: z.enum(["pack_100", "pack_300", "pack_1000"]),
   eventId: z.string().min(1).optional(),
   eventCode: z.string().min(3).max(80).optional(),
   registrationId: z.string().min(1).optional(),
@@ -312,7 +312,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
       return reply.code(404).send({ error: "order_not_found" });
     }
     if (order.type !== "credit_pack") {
-      return reply.code(409).send({ error: "legacy_billing_order_disabled", message: "系统现已改为仅积分充值，历史套餐订单不能继续支付。" });
+      return reply.code(409).send({ error: "legacy_billing_order_disabled", message: "系统现已改为仅算力充值，历史套餐订单不能继续支付。" });
     }
     if (order.status !== "pending") {
       return reply.code(409).send({ error: `order_not_pending:${order.status}` });
@@ -437,9 +437,9 @@ function buildOrderDescription(order: {
 }): string {
   if (order.creditPackCode) {
     const pack = CREDIT_PACKS[order.creditPackCode as CreditPackCode];
-    return `思潼AI 行业智能体平台-${pack?.name ?? "积分包"}`;
+    return `思潼AI 行业智能体平台-${pack?.name ?? "算力包"}`;
   }
-  return "思潼AI 行业智能体平台积分充值";
+  return "思潼AI 行业智能体平台算力充值";
 }
 
 async function resolveOrderAttribution(

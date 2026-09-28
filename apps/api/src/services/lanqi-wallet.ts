@@ -1,7 +1,7 @@
-// 兰琪通用钱包（LQ-34）：把兰琪的扣费主体从「租户积分账户」切到「**租户老板（owner）的通用钱包**」。
+// 兰琪通用钱包（LQ-34）：把兰琪的扣费主体从「租户算力账户」切到「**租户老板（owner）的通用钱包**」。
 //
 // 用户 2026-09-16 口径（原话）：
-//   「兰琪的用户只使用兰琪智能体……在兰琪智能体充值的积分，可以支持同时在思潼 AI 里使用其他智能体。也就是说钱包是通用的。」
+//   「兰琪的用户只使用兰琪智能体……在兰琪智能体充值的算力，可以支持同时在思潼 AI 里使用其他智能体。也就是说钱包是通用的。」
 //   「兰琪里不管谁操作，都扣**租户老板（owner）的钱包**，流水里记『谁操作的、扣的是老板的钱』；
 //     思潼 AI 侧保持『谁登录扣谁的钱包』。」
 //
@@ -84,14 +84,14 @@ export async function precheckLanqiWallet(params: {
     return {
       ok: false,
       code: "lanqi_wallet_owner_missing",
-      message: "本店还没有可扣费的老板账号（通用钱包主体缺失），本次不会生成也不会扣积分；请联系思潼服务团队。"
+      message: "本店还没有可扣费的老板账号（通用钱包主体缺失），本次不会生成也不会扣算力；请联系思潼服务团队。"
     };
   }
   if (owner.wallet.balance < params.credits) {
     return {
       ok: false,
       code: "insufficient_credits",
-      message: `积分不足：这次没有生成、也没有扣积分。本次需要 ${params.credits} 积分，请点右上角「我的 · 充值」充值后再试。`,
+      message: `算力不足：这次没有生成、也没有扣算力。本次需要 ${params.credits} 算力，请点右上角「我的 · 充值」充值后再试。`,
       balance: owner.wallet.balance,
       required: params.credits
     };

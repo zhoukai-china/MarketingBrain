@@ -28,7 +28,7 @@ const MODES: { k: Mode; n: string }[] = [
 
 /**
  * demo video.html 顶栏副标题随模式切换（`ws-top h1 .sub-title`）。
- * 唯一改动：demo「文案转片」原文含「看积分预算」分句，兰琪一期不做积分，按硬约束去掉该分句。
+ * 唯一改动：demo「文案转片」原文含「看算力预算」分句，兰琪一期不做算力，按硬约束去掉该分句。
  */
 const MODE_SUBTITLE: Record<Mode, string> = {
   replicate: "视频获客 · 爆款复刻（上传原片 → 换脸/换人成片）",
@@ -91,7 +91,7 @@ const SPLIT_MODES = [
   { k: "s5", n: "每段 5 秒", d: "卡点快剪" }
 ];
 
-/** 画质档位：界面唯一允许出现的三档。不含价格、不含积分。 */
+/** 画质档位：界面唯一允许出现的三档。不含价格、不含算力。 */
 const TIERS = [
   { k: "draft", ico: "📝", n: "草稿预览", res: "480p", d: "先看分镜顺不顺、人物脸稳不稳，不对就重来", out: "480p · 内部确认用，不建议外发" },
   { k: "std", ico: "📱", n: "标准成片", res: "720p", d: "朋友圈 / 视频号 / 企微日常发，够用", out: "720p · 主流平台够用" },
@@ -245,10 +245,10 @@ function replicationFailureNotice(error: unknown): string {
     return "这条素材在服务端没登记上，请删掉重新上传一次再报价。";
   }
   if (code === "insufficient_credits") {
-    return "积分不足：这次没有创建任务、也没有扣积分。请点右上角「我的 · 充值」，充值后回来点确认出片。";
+    return "算力不足：这次没有创建任务、也没有扣算力。请点右上角「我的 · 充值」，充值后回来点确认出片。";
   }
   if (code === "execution_permit_required" || code === "execution_permit_not_reusable" || code === "execution_budget_too_small") {
-    return "这次没有拿到出片许可（单批预算不足或已失效），没有创建任务、没有扣积分；请重试一次，仍然失败请联系思潼服务团队。";
+    return "这次没有拿到出片许可（单批预算不足或已失效），没有创建任务、没有扣算力；请重试一次，仍然失败请联系思潼服务团队。";
   }
   if (code === "asset_authorization_required") {
     return "素材授权声明没登记上，请重新上传素材后再点一次「先报价，再出片」。";
@@ -261,8 +261,8 @@ function replicationFailureNotice(error: unknown): string {
  * 直接铺给门店看等于没说。未在表内的码原样显示，不猜、不美化。
  */
 const REPLICATION_GAP_LABELS: Record<string, string> = {
-  insufficient_credits: "积分不足，请点右上角「我的 · 充值」",
-  // 用户 2026-09-15 口径：**用户端不设单条预算上限**，有积分就能出片；
+  insufficient_credits: "算力不足，请点右上角「我的 · 充值」",
+  // 用户 2026-09-15 口径：**用户端不设单条预算上限**，有算力就能出片；
   // 所以这条缺口现在只会因为「片长超过模型支持的 30 秒」出现，不再是我们自己卡的预算。
   provider_budget_exceeded: "这条片超过模型支持的时长上限（2–30 秒），请先裁剪再上传",
   execution_permit_required: "出片许可没签下来，请重试一次",
@@ -398,7 +398,7 @@ export function LanqiAcquireVideoPage() {
 
 /**
  * 一键成片 = 独立页面（**不是**爆款复刻页里的页签），6 步：
- *   说需求 → AI 生成文案（3 版候选）→ AI 分镜脚本 → 传素材卡 → 积分预算 → 成片。
+ *   说需求 → AI 生成文案（3 版候选）→ AI 分镜脚本 → 传素材卡 → 算力预算 → 成片。
  * 本期**没有「手动贴文案」入口**：门店老板写不出文案，所以第 1 步只说需求。
  * 第 3–6 步复用下面的 `ScriptMode`（分镜 / 素材卡 / 预算 / 出片），所以它从第 2 步之后接管。
  */
@@ -415,7 +415,7 @@ export function LanqiAcquireVideoCopyPage() {
   return (
     <LanqiBrainShell
       active="acquire"
-      subtitle="视频获客 · 一键成片（说需求 → AI 写文案 → AI 分镜 → 素材卡 → 积分预算 → 成片）"
+      subtitle="视频获客 · 一键成片（说需求 → AI 写文案 → AI 分镜 → 素材卡 → 算力预算 → 成片）"
       crumb="/ 公域获客 / 视频获客 / 一键成片"
     >
       <div className="lq-vd">
@@ -796,8 +796,8 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
    * 用户看到的是一个点不动的橙色按钮，也没有任何解释。现在按阶段给出可执行状态：
    *   · 素材 / 授权没齐 → 禁用，并逐项点名还差什么；
    *   · 齐了但还没报价 → **可点**，点它先去报价（等价于上面的「校验素材与授权，看报价」）；
-   *   · 报价可以确认 → 可点，文案变成「确认并出片（按报价扣积分）」；
-   *   · 服务端前置条件不满足 → 禁用，并照实说明缺口，不创建任务、不扣积分。
+   *   · 报价可以确认 → 可点，文案变成「确认并出片（按报价扣算力）」；
+   *   · 服务端前置条件不满足 → 禁用，并照实说明缺口，不创建任务、不扣算力。
    */
   const primary: { state: string; label: string; disabled: boolean; action: "quote" | "confirm"; hint: string } = busy
     ? { state: "busy", label: busy, disabled: true, action: "quote", hint: "" }
@@ -815,22 +815,22 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
             label: "先报价，再出片",
             disabled: false,
             action: "quote",
-            hint: "点这里就是先报价：拿到积分与前置条件后，按钮会变成「确认并出片」，再点一次才会扣积分出片。"
+            hint: "点这里就是先报价：拿到算力与前置条件后，按钮会变成「确认并出片」，再点一次才会扣算力出片。"
           }
         : quote.canConfirm
           ? {
               state: "ready",
-              label: `✅ 确认并出片（按报价扣 ${quote.creditCost ?? 0} 积分）`,
+              label: `✅ 确认并出片（按报价扣 ${quote.creditCost ?? 0} 算力）`,
               disabled: false,
               action: "confirm",
-              hint: "点这一下才会真正建任务、扣积分；未确认前不会扣。"
+              hint: "点这一下才会真正建任务、扣算力；未确认前不会扣。"
             }
           : {
               state: "blocked",
               label: "当前还不能出片",
               disabled: true,
               action: "confirm",
-              hint: "服务端反馈还缺前置条件或授权，未创建任务、未扣积分；缺口见下方说明。"
+              hint: "服务端反馈还缺前置条件或授权，未创建任务、未扣算力；缺口见下方说明。"
             };
 
   return (
@@ -950,9 +950,9 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
         <h3 className="lq-vd__card-title" style={{ marginTop: 18 }}>④ 报价与出片</h3>
         <div className="lq-vd__card">
           <div className="lq-vd__kv">
-            <span className="k">预计积分</span>
+            <span className="k">预计算力</span>
             <span className="v">
-              {quote?.creditCost ? `${quote.creditCost} 积分 · 确认后才扣减` : quote ? "本次未能报价" : "点「校验并报价」后显示"}
+              {quote?.creditCost ? `${quote.creditCost} 算力 · 确认后才扣减` : quote ? "本次未能报价" : "点「校验并报价」后显示"}
             </span>
           </div>
           <div className="lq-vd__kv"><span className="k">输出</span><span className="v">MP4 · 沿用原片画幅与时长 · 起始画面带 AI 标识</span></div>
@@ -967,7 +967,7 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
         {notice && <p className="lq-vd__hint" data-lq-vd-notice>{notice}</p>}
         {quote?.gaps && quote.gaps.length > 0 && (
           <div className="lq-vd__warn" data-lq-vd-gaps={quote.gaps.join(",")}>
-            这一版还不能出片：{replicationGapText(quote.gaps)}。未创建任务、未扣积分。
+            这一版还不能出片：{replicationGapText(quote.gaps)}。未创建任务、未扣算力。
           </div>
         )}
         {primary.hint && <p className="lq-vd__hint" data-lq-vd-primary-hint={primary.state}>{primary.hint}</p>}
@@ -1035,7 +1035,7 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
             </>
           ) : (
             <>
-              <b>素材与授权已齐：</b>点「校验素材与授权，看报价」拿到积分与前置条件，再决定要不要出片。
+              <b>素材与授权已齐：</b>点「校验素材与授权，看报价」拿到算力与前置条件，再决定要不要出片。
             </>
           )}
         </div>
@@ -1346,11 +1346,11 @@ const COPY_DURS = [
   { k: 45, n: "45 秒以上", d: "3+ 个分镜 · 讲透一件事" }
 ];
 
-const COPY_STEPS = ["说需求", "AI 生成文案", "AI 分镜脚本", "传素材卡", "积分预算", "成片"];
+const COPY_STEPS = ["说需求", "AI 生成文案", "AI 分镜脚本", "传素材卡", "算力预算", "成片"];
 
 /**
  * 一键成片 · 第 1–2 步：门店老板写不出文案，所以先说需求，由**后端大模型**写 3 版候选；
- * 选定一版后交给 `ScriptMode` 从第 3 步（AI 分镜脚本）接管 → 素材卡 → 积分预算 → 成片。
+ * 选定一版后交给 `ScriptMode` 从第 3 步（AI 分镜脚本）接管 → 素材卡 → 算力预算 → 成片。
  * 本期没有「手动贴文案」入口；生成失败只能「换一批」或退回第 1 步补信息。
  */
 function OneClickCopyMode({
@@ -1826,7 +1826,7 @@ function ScriptMode({
           return;
         }
         if (job?.status === "failed" || job?.status === "canceled") {
-          markShot(no, { status: "failed", message: job.errorMessage ?? "这一镜没出成片，预留积分已自动退回。" });
+          markShot(no, { status: "failed", message: job.errorMessage ?? "这一镜没出成片，预留算力已自动退回。" });
           return;
         }
         markShot(no, { status: "running", message: body.message ?? "还在生成中，稍后再点一次「查询结果」。" });
@@ -1864,10 +1864,10 @@ function ScriptMode({
         const quoteResponse = await fetch(apiPath("/lanqi/media/quote"), { method: "POST", headers: authHeaders(), body: JSON.stringify(payload) });
         const quote = await readResponse(quoteResponse);
         if (!quote.canConfirm) {
-          markShot(no, { status: "failed", message: quote.message ?? "视频生成能力当前没有放行，本次没有创建任务、没有扣积分。" });
+          markShot(no, { status: "failed", message: quote.message ?? "视频生成能力当前没有放行，本次没有创建任务、没有扣算力。" });
           return;
         }
-        markShot(no, { status: "queued", message: `已锁定费用 ${quote.creditCost} 积分，正在创建任务…`, creditCost: quote.creditCost });
+        markShot(no, { status: "queued", message: `已锁定费用 ${quote.creditCost} 算力，正在创建任务…`, creditCost: quote.creditCost });
         const requestKey = (window.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 60);
         const confirmResponse = await fetch(apiPath("/lanqi/media/confirm"), {
           method: "POST",
@@ -1885,7 +1885,7 @@ function ScriptMode({
           if (!refreshResponse.ok) {
             const failedJob = body.job;
             if (failedJob && ["failed", "canceled"].includes(failedJob.status)) {
-              markShot(no, { status: "failed", message: failedJob.errorMessage ?? body.message ?? "这一镜没出成片，预留积分已自动退回。" });
+              markShot(no, { status: "failed", message: failedJob.errorMessage ?? body.message ?? "这一镜没出成片，预留算力已自动退回。" });
               return;
             }
             throw new Error(body.message ?? "生成状态暂时刷不出来，任务还在跑。点「查询结果」可以继续看，不会重复扣费。");
@@ -1893,7 +1893,7 @@ function ScriptMode({
           latest = body.job;
           if (latest.status === "succeeded") break;
           if (latest.status === "failed" || latest.status === "canceled") {
-            markShot(no, { status: "failed", message: latest.errorMessage ?? "这一镜没出成片，预留积分已自动退回。" });
+            markShot(no, { status: "failed", message: latest.errorMessage ?? "这一镜没出成片，预留算力已自动退回。" });
             return;
           }
         }
@@ -1978,7 +1978,7 @@ function ScriptMode({
 
   /**
    * LQ-32 合成成片：把已出片的镜次按分镜顺序拼成一条，并混入本片音轨。
-   * 合片与混音都是本机 ffmpeg，不额外扣积分；没出片 / 没授权时不发请求。
+   * 合片与混音都是本机 ffmpeg，不额外扣算力；没出片 / 没授权时不发请求。
    */
   const composeFilm = useCallback(async () => {
     if (!allShotsReady) {
@@ -2003,9 +2003,9 @@ function ScriptMode({
       const composeId = body?.compose?.composeId;
       if (!composeId) throw new Error("合成没有返回结果，请重试。");
       const assetResponse = await fetch(apiPath(`/lanqi/media/compose/${composeId}`), { headers: authHeaders() });
-      if (!assetResponse.ok) throw new Error("成片已合成，但这次没取回来。重新点一次「合成成片」不会重复扣积分。");
+      if (!assetResponse.ok) throw new Error("成片已合成，但这次没取回来。重新点一次「合成成片」不会重复扣算力。");
       const blob = await assetResponse.blob();
-      if (!blob.size) throw new Error("成片已合成，但这次没取回来。重新点一次「合成成片」不会重复扣积分。");
+      if (!blob.size) throw new Error("成片已合成，但这次没取回来。重新点一次「合成成片」不会重复扣算力。");
       setComposeState({
         status: "succeeded",
         objectUrl: URL.createObjectURL(blob),
@@ -2333,7 +2333,7 @@ function ScriptMode({
               {activeAudio?.fileId ? (
                 <span className="lq-vd__pill on">
                   {activeAudio.mediaKind === "video" ? "🎧 抽音轨成片" : "🔊 带音轨成片"}{" "}
-                  <span className="hint">{activeAudio.file} · 成片混这一条音轨（不额外扣积分）</span>
+                  <span className="hint">{activeAudio.file} · 成片混这一条音轨（不额外扣算力）</span>
                 </span>
               ) : (
                 <span className="lq-vd__pill on">🔇 无声成片 <span className="hint">没上传音轨，成片只有画面</span></span>
@@ -2388,7 +2388,7 @@ function ScriptMode({
             <div className="lq-vd__step"><span className="n">2</span><span><b>AI 生成文案</b> · 出 3 版候选，每版标字数与预估时长</span></div>
             <div className="lq-vd__step"><span className="n">3</span><span><b>分镜脚本</b> · 自动切不超过 15 秒的分镜，每镜直接出<b>生视频提示词</b></span></div>
             <div className="lq-vd__step"><span className="n">4</span><span><b>传素材卡</b> · 人物 / 场景 / 道具 / 音频，提示词自动补进去</span></div>
-            <div className="lq-vd__step"><span className="n">5</span><span><b>积分预算</b> · 选画质档位，看清这次要花多少积分</span></div>
+            <div className="lq-vd__step"><span className="n">5</span><span><b>算力预算</b> · 选画质档位，看清这次要花多少算力</span></div>
             <div className="lq-vd__step"><span className="n">6</span><span><b>成片</b> · 逐镜出片，满意就下载，不满意按反馈重跑</span></div>
             <div className="lq-vd__step"><span className="n">3</span><span><b>传素材卡</b> · 人物卡（正/侧/背）+ 场景卡 + 音频卡 + 道具卡 + 其他参考</span></div>
             <div className="lq-vd__step"><span className="n">4</span><span><b>成片</b> · 选定画质档位后出片，直接发抖音 / 视频号 / 朋友圈</span></div>
@@ -2527,15 +2527,15 @@ function ScriptMode({
               <div className="lq-vd__kv"><span className="k">AI 标识</span><span className="v">起始画面显式标识</span></div>
             </div>
             <div className="lq-vd__note">
-              逐镜按 <b>{SHOT_TIER_RES[tierKey] ?? "720P"}</b> 出片：模型只出<b>无声画面</b>，声音在「合成成片」这一步混进你上传的音轨（合片与混音不额外扣积分）。
-              每镜都复用同一张人物正面照当首帧图，出镜人才不会换脸。费用在每一次生成前先给你看清楚，确认后才创建任务；没出成的镜次预留积分会自动退回。
+              逐镜按 <b>{SHOT_TIER_RES[tierKey] ?? "720P"}</b> 出片：模型只出<b>无声画面</b>，声音在「合成成片」这一步混进你上传的音轨（合片与混音不额外扣算力）。
+              每镜都复用同一张人物正面照当首帧图，出镜人才不会换脸。费用在每一次生成前先给你看清楚，确认后才创建任务；没出成的镜次预留算力会自动退回。
             </div>
             <div className="lq-vd__sec-title" style={{ marginTop: 14 }}>
               分镜出片 <span className="lq-vd__badge">{renderedCount}/{shots.length} 镜已出片</span>
             </div>
             <div className="lq-vd__note">
               {usedCredits
-                ? <>本次已确认 <b>{usedCredits}</b> 积分。没出成的镜次预留积分会自动退回，同一镜重试不会重复扣费。</>
+                ? <>本次已确认 <b>{usedCredits}</b> 算力。没出成的镜次预留算力会自动退回，同一镜重试不会重复扣费。</>
                 : "可以点每一镜的「生成本镜」单独出片，也可以点「逐镜生成整片」按分镜顺序一次跑完。"}
             </div>
             <div className="lq-vd__shots">
@@ -2550,7 +2550,7 @@ function ScriptMode({
                       <span className="pr-sec">{shot.seconds} 秒</span>
                       <span className="pr-tag">{shot.kind}</span>
                       <span style={{ flex: 1 }} />
-                      {item?.creditCost ? <span className="pr-sec">已确认 {item.creditCost} 积分</span> : null}
+                      {item?.creditCost ? <span className="pr-sec">已确认 {item.creditCost} 算力</span> : null}
                     </header>
                     <div className="pr-lab">出片状态</div>
                     <div className="pr-text">
@@ -2598,7 +2598,7 @@ function ScriptMode({
               <p className="lq-vd__card-sub">
                 各镜出片成功后，点一次就把它们按分镜顺序拼成<b>一条整片</b>
                 {activeAudio?.fileId ? "，并把你的音轨混进去" : "（你还没上传音轨，这条成片会是无声的）"}
-                。合片与混音是本机完成，<b>不额外扣积分</b>。
+                。合片与混音是本机完成，<b>不额外扣算力</b>。
               </p>
               <div className="lq-vd__kv"><span className="k">参与合成</span><span className="v">{succeededShotIds.length} / {shots.length} 镜已出片</span></div>
               <div className="lq-vd__kv">

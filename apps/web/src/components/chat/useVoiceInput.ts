@@ -93,7 +93,7 @@ export function voiceTranscriptionFailureMessage(analysis: MediaAnalysisResponse
 export function useVoiceInput(params: {
   /**
    * 把录音转成文字；返回空 text 表示本次没拿到文字（此时用 message 提示原因）。
-   * `durationSeconds` 是录音时长：服务端用它算「预留额度」（2026-09-15 起语音输入按 10 倍扣积分）。
+   * `durationSeconds` 是录音时长：服务端用它算「预留额度」（2026-09-15 起语音输入按 10 倍扣算力）。
    */
   transcribe: (blob: Blob, meta: { durationSeconds?: number }) => Promise<{ text: string; message?: string }>;
   /** 拿到文字后回调（由调用方决定怎么并入输入框）。 */

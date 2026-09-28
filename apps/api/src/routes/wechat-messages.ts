@@ -125,7 +125,7 @@ function bindingMessage(): string {
 
 function friendlyFailure(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
-  if (message === "insufficient_credits") return "本次任务未执行：当前积分不足，请进入思潼 AI 充值或联系管理员。";
+  if (message === "insufficient_credits") return "本次任务未执行：当前算力不足，请进入思潼 AI 充值或联系管理员。";
   if (message === "agent_not_entitled" || message === "agent_member_access_denied") {
     return "当前账号尚未开通这个 AI 员工，或没有使用权限，请联系企业管理员。";
   }

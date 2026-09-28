@@ -154,7 +154,7 @@ async function runPackage(
   });
   if (draft.statusCode >= 400) {
     request.log.warn({ event: "lanqi_xhs_package.failed", tenantId: context.tenantId, packageId: input.requestId, stage: "copy" });
-    return { statusCode: draft.statusCode, body: { error: draft.body.error ?? "content_generation_failed", message: publicMessage(draft.body, "文案没有生成成功，因此没有创建图片或扣图片积分。") } };
+    return { statusCode: draft.statusCode, body: { error: draft.body.error ?? "content_generation_failed", message: publicMessage(draft.body, "文案没有生成成功，因此没有创建图片或扣图片算力。") } };
   }
   if (isCanceled(request)) return { statusCode: 499, body: { error: "package_canceled", message: "已取消；文案如果已保存可在刷新后恢复，图片没有创建。" } };
   request.log.info({ event: "lanqi_xhs_package.text_ready", tenantId: context.tenantId, packageId: input.requestId, draftId: draft.body.draft?.id });
@@ -215,7 +215,7 @@ async function buildPackageQuote(context: Awaited<ReturnType<typeof resolveReque
     executionMode: readiness.mode,
     blockCode: authorization.blockCode,
     message: authorization.canConfirm
-      ? readiness.mode === "mock" ? "受控模拟已就绪；本次不会调用图片 Provider 或扣积分。" : `本次生成 1 张图片，预计 ${quoted.creditCost} 积分；点击即确认本次报价。`
+      ? readiness.mode === "mock" ? "受控模拟已就绪；本次不会调用图片 Provider 或扣算力。" : `本次生成 1 张图片，预计 ${quoted.creditCost} 算力；点击即确认本次报价。`
       : authorization.message,
   };
 }

@@ -87,16 +87,16 @@ const envSchema = z.object({
   LANQI_MEDIA_FIRST_FRAME_MAX_MB: z.coerce.number().positive().max(10).default(6),
   /**
    * 图片对客价（兰琪图片 / 美业小红书三图包**共用同一口径**）：
-   * ¥1/张 = 20 积分（用户 2026-09-12 拍板「图片改成对客价一元一张」）。
+   * ¥1/张 = 20 算力（用户 2026-09-12 拍板「图片改成对客价一元一张」）。
    * 供应商成本 ¥0.2/张 → 约 5 倍毛利，与视频线同量级（见 docs/PRICING.md）。
-   * 三图包 = 60 积分（原 300）。
+   * 三图包 = 60 算力（原 300）。
    */
   LANQI_MEDIA_IMAGE_CREDITS: z.coerce.number().int().positive().default(20),
   /**
    * 兰琪视频（图生视频 / 文案转片，`wan2.6-i2v-flash` 720P）按秒计价。
    *
-   * 口径（用户 2026-09-15）：「视频改成 2 倍成本」——实测成本 ¥0.30/秒 × 2 = **12 积分/秒**
-   * （= ¥0.60/秒；一镜 3 秒 = 36 积分）。此前是 30 积分/秒 = 成本 ×5，与统一倍数表不一致。
+   * 口径（用户 2026-09-15）：「视频改成 2 倍成本」——实测成本 ¥0.30/秒 × 2 = **12 算力/秒**
+   * （= ¥0.60/秒；一镜 3 秒 = 36 算力）。此前是 30 算力/秒 = 成本 ×5，与统一倍数表不一致。
    * 真正的「文生视频」走另一组固定包价（`LANQI_MEDIA_*P_*S_CREDITS`），当前未配模型。
    */
   LANQI_MEDIA_VIDEO_CREDITS_PER_SECOND: z.coerce.number().int().positive().default(12),
@@ -110,10 +110,10 @@ const envSchema = z.object({
    * 推荐有礼（PLAT-28）。全部默认关闭，上线前改 env 即生效，不发版。
    *
    * 口径（用户 2026-09-12 冻结，2026-09-15 收窄）：
-   * - 用户 2026-09-15 原话：「先只做推荐有礼，被推荐人获得 100 积分、推荐人获得 100 积分」——
+   * - 用户 2026-09-15 原话：「先只做推荐有礼，被推荐人获得 100 算力、推荐人获得 100 算力」——
    *   所以**双向各 100**；原第二段「推荐人首充再加 200」按本次口径**默认关闭（0）**，
    *   要恢复 2026-09-12 的三段口径，把这个数改回 200 即可（机制没删，仍在 `maybeGrantReferralReward`）。
-   * - 奖励积分**只能用于文字类智能体**（`REFERRAL_REWARD_TEXT_ONLY`，服务端硬限制）；
+   * - 奖励算力**只能用于文字类智能体**（`REFERRAL_REWARD_TEXT_ONLY`，服务端硬限制）；
    * - 奖励进 bonus 桶，90 天有效；不设单人月上限，改为超阈值**告警**；
    * - 绑定 / 首次真实使用 / 首次真实充值三个事件都必须落在活动窗内（左闭右开）。
    */
@@ -250,8 +250,8 @@ const envSchema = z.object({
   WECHAT_PAY_REQUIRED: z.enum(["true", "false"]).default("true"),
   NEW_USER_LOCAL_TRIAL_CREDITS: z.coerce.number().int().nonnegative().optional(),
   /**
-   * 新用户注册即赠送的积分（用户 2026-09-16：「新用户注册即赠送 100 积分，后面新用户注册都给送」）。
-   * 进 **bonus 桶**（赠送积分，不退款、与推荐奖励同桶）；类型专属的 `NEW_USER_*_TRIAL_CREDITS`
+   * 新用户注册即赠送的算力（用户 2026-09-16：「新用户注册即赠送 100 算力，后面新用户注册都给送」）。
+   * 进 **bonus 桶**（赠送算力，不退款、与推荐奖励同桶）；类型专属的 `NEW_USER_*_TRIAL_CREDITS`
    * 仍可覆盖（隔离测试/内测环境用）。改这个数只影响**之后新注册**的账号，不动存量。
    */
   NEW_USER_SIGNUP_CREDITS: z.coerce.number().int().nonnegative().default(100),
@@ -297,7 +297,7 @@ export function validateRuntimeConfig(): string[] {
   if (env.CONTINUOUS_IMPROVEMENT_AUTO_ACTIVATE === "true") {
     issues.push("CONTINUOUS_IMPROVEMENT_AUTO_ACTIVATE must remain false; candidates require eval, approval and canary release");
   }
-  // PLAT-28 推荐有礼：开奖必须在完整活动窗内（左闭右开），且奖励积分必须只能用于文字类智能体。
+  // PLAT-28 推荐有礼：开奖必须在完整活动窗内（左闭右开），且奖励算力必须只能用于文字类智能体。
   // 这两条是用户 2026-09-12 冻结口径，不做「配置错了也能启动」的容错。
   if (env.REFERRAL_REWARD_ENABLED === "true") {
     const referralStartsAt = parseOptionalIsoDate(env.REFERRAL_CAMPAIGN_STARTS_AT);
@@ -312,7 +312,7 @@ export function validateRuntimeConfig(): string[] {
   }
   if (env.REFERRAL_REWARD_TEXT_ONLY !== "true") {
     issues.push(
-      "REFERRAL_REWARD_TEXT_ONLY must remain true: 推荐奖励积分只能用于文字类智能体（用户 2026-09-12 冻结口径）"
+      "REFERRAL_REWARD_TEXT_ONLY must remain true: 推荐奖励算力只能用于文字类智能体（用户 2026-09-12 冻结口径）"
     );
   }
   if (env.BEAUTY_DAILY_BRIEF_SCHEDULER_ENABLED === "true") {

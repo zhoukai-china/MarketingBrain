@@ -73,9 +73,9 @@ export const v4Entries: Record<V4EntryId, V4EntryConfig> = {
     startPrompt: "我想做本地获客，请先帮我做获客成交链路体检。",
     priceLead: "首月体验价",
     monthlyOffer: "199 元 / 首月",
-    trialCreditsLabel: "新用户体验积分：待定",
+    trialCreditsLabel: "新用户体验算力：待定",
     creditWarningAt: 50,
-    rechargeOptions: ["100 元 = 200 积分", "200 元 = 500 积分"],
+    rechargeOptions: ["100 元 = 200 算力", "200 元 = 500 算力"],
     workflow: [
       {
         id: "diagnose",
@@ -136,9 +136,9 @@ export const v4Entries: Record<V4EntryId, V4EntryConfig> = {
     startPrompt: "我想做连锁招商，请先帮我做直营样板店和招商成交双轨体检。",
     priceLead: "月度陪跑",
     monthlyOffer: "3980 元 / 月",
-    trialCreditsLabel: "新用户体验积分：待定",
+    trialCreditsLabel: "新用户体验算力：待定",
     creditWarningAt: 100,
-    rechargeOptions: ["500 元 = 800 积分", "1000 元 = 2000 积分"],
+    rechargeOptions: ["500 元 = 800 算力", "1000 元 = 2000 算力"],
     workflow: [
       {
         id: "diagnose",

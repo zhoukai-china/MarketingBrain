@@ -581,11 +581,11 @@ async function loadBeautySourceRun(tenantId: string, userId: string, agentId: st
 
 function sendBeautyWebError(reply: FastifyReply, error: unknown, abortCode?: string, toolName?: string): FastifyReply {
   if (abortCode === "beauty_web_timed_out") return reply.code(504).send({ error: abortCode, category: "timeout", message: "本次生成已在安全时限内停止，不会自动重试或重复扣费；当前资料仍保留，可稍后重新发起。" });
-  if (abortCode === "client_disconnected") return reply.code(499).send({ error: "beauty_web_cancelled", category: "cancelled", message: "本次生成已取消，已预留积分会自动释放。" });
+  if (abortCode === "client_disconnected") return reply.code(499).send({ error: "beauty_web_cancelled", category: "cancelled", message: "本次生成已取消，已预留算力会自动释放。" });
   if (error instanceof AgentClarificationRequired) return reply.code(422).send({ error: "beauty_information_required", message: error.prompt });
-  if (error instanceof InsufficientCreditsError || (error instanceof Error && error.message === "insufficient_credits")) return reply.code(402).send({ error: "insufficient_credits", message: "当前测试积分不足，未调用模型。" });
+  if (error instanceof InsufficientCreditsError || (error instanceof Error && error.message === "insufficient_credits")) return reply.code(402).send({ error: "insufficient_credits", message: "当前测试算力不足，未调用模型。" });
   if (error instanceof BillingRequestInProgressError) return reply.code(409).send({ error: error.message, message: "相同请求正在处理中，请等待当前结果。" });
-  if (error instanceof BillingRequestPreviouslyFailedError) return reply.code(409).send({ error: error.message, message: "这个请求已经失败并释放积分，请修改内容后重新生成。" });
+  if (error instanceof BillingRequestPreviouslyFailedError) return reply.code(409).send({ error: error.message, message: "这个请求已经失败并释放算力，请修改内容后重新生成。" });
   if (error instanceof IdempotencyConflictError) return reply.code(409).send({ error: "request_id_conflict", message: "请求号已用于不同内容，请重新发起。" });
   const message = error instanceof Error ? error.message : "beauty_web_failed";
   if (message === "beauty_source_run_not_found") return reply.code(404).send({ error: message, message: "上一步任务不存在或不属于当前门店，未继续生成。" });
@@ -597,7 +597,7 @@ function sendBeautyWebError(reply: FastifyReply, error: unknown, abortCode?: str
   if (message.startsWith("beauty_sales_professional_fields_required:")) return reply.code(422).send({
     error: "beauty_sales_professional_information_required",
     category: "preflight",
-    message: "专业模式请先补齐：本次项目、已确认价格或优惠边界、顾客原话或主要顾虑、沟通阶段、允许的下一步动作。补齐前不会调用模型或预留积分。"
+    message: "专业模式请先补齐：本次项目、已确认价格或优惠边界、顾客原话或主要顾虑、沟通阶段、允许的下一步动作。补齐前不会调用模型或预留算力。"
   });
   if (message.startsWith("beauty_xhs_fields_required:")) {
     const missingKeys = message.slice("beauty_xhs_fields_required:".length).split(",").filter(Boolean);
@@ -608,19 +608,19 @@ function sendBeautyWebError(reply: FastifyReply, error: unknown, abortCode?: str
       error: "beauty_xhs_information_required",
       category: "preflight",
       missingFields,
-      message: `请先补齐：${missingFields.join("、")}。这些信息决定文案的项目与人群，补齐前不会调用模型或预留积分。`
+      message: `请先补齐：${missingFields.join("、")}。这些信息决定文案的项目与人群，补齐前不会调用模型或预留算力。`
     });
   }
   if (message === "beauty_topic_workflow_required") return reply.code(422).send({ error: message, category: "preflight", message: "请先在选题工作区填写目标顾客、获客目标和细分赛道，并确认本轮要使用的来源；资料未进入正式合同前不会调用模型。" });
   if (message === "beauty_topic_workflow_forbidden") return reply.code(400).send({ error: message, message: "选题来源资料只能用于选题系统。" });
   if (message === "beauty_content_workflow_required") return reply.code(422).send({ error: message, message: "请在内容十件套工作区补齐选题、目标顾客、本轮目标和发布平台。" });
   if (message === "beauty_content_workflow_forbidden") return reply.code(400).send({ error: message, message: "内容任务简报只能用于内容十件套。" });
-  if (message === "beauty_topic_sources_missing") return reply.code(422).send({ error: message, category: "preflight", message: "四类来源目前都没有可用资料，模型尚未调用、积分不会扣除。请在选题工作区至少启用并补齐一类：确认细分赛道、选择已确认录音、填写对标账号，或选择已解析的账号数据复盘；否则无法形成有依据的第一版。" });
+  if (message === "beauty_topic_sources_missing") return reply.code(422).send({ error: message, category: "preflight", message: "四类来源目前都没有可用资料，模型尚未调用、算力不会扣除。请在选题工作区至少启用并补齐一类：确认细分赛道、选择已确认录音、填写对标账号，或选择已解析的账号数据复盘；否则无法形成有依据的第一版。" });
   if (message === "beauty_topic_industry_conflict") return reply.code(422).send({ error: message, category: "preflight", message: "本轮细分赛道与已确认美业经营档案不一致；请到经营档案核对赛道，或返回选题工作区修正本轮行业。冲突会影响来源与事实边界，因此尚未调用模型。" });
   if (message.startsWith("beauty_topic_field_required:")) return reply.code(422).send({ error: "beauty_topic_information_required", category: "preflight", message: "请在选题工作区补充目标顾客、获客目标和细分赛道；这些字段决定 TOP10 的人群、承接与行业边界，补齐前不会调用模型。" });
-  if (message === "beauty_text_budget_exceeded") return reply.code(422).send({ error: message, message: "本次资料超过受控文本预算，模型尚未调用、积分不会扣除；请缩短本次补充资料后再试。" });
+  if (message === "beauty_text_budget_exceeded") return reply.code(422).send({ error: message, message: "本次资料超过受控文本预算，模型尚未调用、算力不会扣除；请缩短本次补充资料后再试。" });
   if (message === "beauty_text_budget_provider_call_limit") return reply.code(503).send({ error: message, message: "本次生成已到单次模型调用上限，不会自动重试或重复扣费；请稍后重新发起一项新任务。" });
-  if (message === "beauty_text_budget_model_mismatch" || message === "beauty_text_budget_not_configured") return reply.code(503).send({ error: message, message: "当前文本模型预算配置未就绪，模型尚未调用、积分不会扣除。" });
+  if (message === "beauty_text_budget_model_mismatch" || message === "beauty_text_budget_not_configured") return reply.code(503).send({ error: message, message: "当前文本模型预算配置未就绪，模型尚未调用、算力不会扣除。" });
   if (toolName === "beauty.topic_ideas") {
     const topicFailure = classifyBeautyTopicExecutionFailure(message);
     if (topicFailure) return reply.code(topicFailure.status).send(topicFailure);
@@ -631,7 +631,7 @@ function sendBeautyWebError(reply: FastifyReply, error: unknown, abortCode?: str
       error: "beauty_output_contract_failed",
       category: "validation",
       retryable: false,
-      message: "系统未生成有效结果，积分已退回，无需重复点击。当前输入与已上传资料仍保留；请等待测试环境修复后再生成。"
+      message: "系统未生成有效结果，算力已退回，无需重复点击。当前输入与已上传资料仍保留；请等待测试环境修复后再生成。"
     });
   }
   console.warn(JSON.stringify({

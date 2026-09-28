@@ -35,7 +35,7 @@ type AnswerContentBlock = { type: "text"; lines: string[] } | { type: "table"; t
 const fallbackTitle = "IP获客交付件";
 
 export function ChatMessages({ messages, busy, thinkingStep, currentConsultantId, capabilityId, chatEndRef, onQuickPrompt }: ChatMessagesProps) {
-  // Word 导出 2026-09-27 起免费（后端不扣积分），不再拉取/展示价格。
+  // Word 导出 2026-09-27 起免费（后端不扣算力），不再拉取/展示价格。
   /** 复制反馈：点「复制全文」后按钮变「已复制」，2 秒后还原。 */
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -110,7 +110,7 @@ export function ChatMessages({ messages, busy, thinkingStep, currentConsultantId
                   {/*
                    * 用户 2026-09-16：手机用户只有 WPS、不知道该下什么、下完找不到文件。
                    * 这里把「下的是什么格式、用什么打开、去哪找」一次说清。
-                   * 2026-09-27 起导出免费，扣积分相关说法移除。
+                   * 2026-09-27 起导出免费，扣算力相关说法移除。
                    */}
                   <span className="messageDownloadHint">
                     手机点一下就会下载一个 <b>.docx</b> 文件：用 <b>WPS</b> 或 Word 打开即可（WPS 原生支持，不用转格式）；找不到文件就去手机的「文件 / 下载」里找刚刚那份。

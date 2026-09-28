@@ -90,8 +90,8 @@ const exportRecords = new Map<string, ExportRecord>();
 const exportTtlMs = 10 * 60 * 1000;
 
 export async function registerExportRoutes(app: FastifyInstance): Promise<void> {
-  // 2026-09-27 用户拍板：Word 导出免费——不查价、不扣积分、无 402。
-  // price 接口保留并返回 0，兼容还拿着旧 bundle 的客户端（显示 0 积分即符合口径）。
+  // 2026-09-27 用户拍板：Word 导出免费——不查价、不扣算力、无 402。
+  // price 接口保留并返回 0，兼容还拿着旧 bundle 的客户端（显示 0 算力即符合口径）。
   app.get("/exports/docx/price", async () => ({
     credits: 0,
     version: "free",

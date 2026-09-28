@@ -21,14 +21,14 @@ export const LANQI_PRODUCT_CODE = "lanqi" as const;
  * 迁移口径（2026-09-16 修正）：**只迁兰琪租户**。
  *
  * 旧实现在全库扫 `CreditAccount.balance > 0`，会把外卖 / 创始人 IP 线的历史额度一起搬进
- * owner 钱包（生产上实测非兰琪账户 199 个、约 20 亿积分，其中一条是外卖测试租户）。那是跨产品
+ * owner 钱包（生产上实测非兰琪账户 199 个、约 20 亿算力，其中一条是外卖测试租户）。那是跨产品
  * 挪账，属于不可逆错误，所以这里把「谁是兰琪租户」写死成两条 **OR**，并且**在 apply 里再校验一次**
  * （计划可以人工改，账不能被骗着挪）：
  *   ① 有兰琪门店档案（`LanqiStoreProfile`）；
  *   ② 持有 lanqi 产品权益（`TenantProductEntitlement.productCode = "lanqi"`，**不看状态**——
  *      权益过期的老门店，历史额度仍是它的钱）。
  *
- * 只按 ① 过滤会漏掉真实门店：生产上两个有余额的兰琪租户（「兰琪」300 积分 / 另一个 208 积分）
+ * 只按 ① 过滤会漏掉真实门店：生产上两个有余额的兰琪租户（「兰琪」300 算力 / 另一个 208 算力）
  * 都只有产品权益、没有门店档案行。所以必须是 ① ∪ ②。
  */
 export const LANQI_TENANT_SCOPE_KEYS = ["store_profile", "product_entitlement"] as const;
@@ -94,7 +94,7 @@ export interface LanqiMigrationScopeAudit {
   /** 全库 `CreditAccount.balance > 0` 的账户数（未过滤，用来证明「过滤确实排掉了别的产品线」） */
   allCreditAccountsWithBalance: number;
   allCreditsWithBalance: number;
-  /** 过滤后真正进入迁移范围的账户数与积分数 */
+  /** 过滤后真正进入迁移范围的账户数与算力数 */
   inScopeAccounts: number;
   inScopeCredits: number;
   /** 被口径排除掉的账户数（非兰琪产品线的历史额度，**不动**） */

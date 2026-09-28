@@ -86,7 +86,7 @@ export function BeautyIndustryDailyBrief({ headers }: { headers: Record<string, 
       <label>历史日期<select value={selected} onChange={(event) => { setSelectedDate(event.target.value); void loadState(event.target.value); }}><option value={currentDate}>{currentDate || "今天"}</option>{history.filter((item) => item.businessDate !== currentDate).map((item) => <option key={item.businessDate} value={item.businessDate}>{item.businessDate} · {PHASE_LABELS[item.status] ?? item.status}</option>)}</select></label>
       {canGenerate && <button type="button" disabled={submitting} onClick={() => void runControlled("generate")}>{submitting ? "正在入队…" : "生成受控测试日报"}</button>}
       {canRetry && <button type="button" disabled={submitting} onClick={() => void runControlled("retry")}>{submitting ? "正在入队…" : "受权人工重试"}</button>}
-      {state?.runtimeMode === "disabled" && <p>当前不会读取公开来源、调用模型、创建付费任务或扣除积分。</p>}
+      {state?.runtimeMode === "disabled" && <p>当前不会读取公开来源、调用模型、创建付费任务或扣除算力。</p>}
     </div>
     {ACTIVE.has(state?.status ?? "") && <section className="beautyDailyBriefProgress" aria-live="polite"><strong>{statusLabel}</strong><p>已核验/进入合同的来源：{state?.sourceCount ?? 0}；刷新或离开后再回来仍会从同一日键恢复。</p></section>}
     {["source_insufficient", "failed", "terminal_unknown"].includes(state?.status ?? "") && <section className="beautyDailyBriefFailure" role="alert"><h2>{statusLabel}</h2><p>{state?.errorMessage || "任务没有形成可保存日报；没有用旧闻或模板凑满 15 条。"}</p><small>错误码：{state?.errorCode || "未提供"}</small></section>}

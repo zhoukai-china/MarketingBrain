@@ -170,16 +170,16 @@ async function grantCreditOnlyAgentAccess(): Promise<void> {
 
 async function ensureDraftOffers(): Promise<void> {
   const offers = [
-    { code: "ceo_cockpit_agent", name: "CEO经营驾驶舱智能体", description: "请在内部后台确认价格、积分和有效期后上架。", status: "draft" as const, amountCny: 0, credits: 0, durationDays: 365, agentIds: ["agent_ceo_cockpit"] },
+    { code: "ceo_cockpit_agent", name: "CEO经营驾驶舱智能体", description: "请在内部后台确认价格、算力和有效期后上架。", status: "draft" as const, amountCny: 0, credits: 0, durationDays: 365, agentIds: ["agent_ceo_cockpit"] },
     { code: "takeaway_growth_agent", name: "思潼·外卖增长智能体", description: "品牌总部与门店外卖增长工作台。", status: "active" as const, amountCny: 0, credits: 0, durationDays: 365, agentIds: ["agent_takeaway_growth"] },
-    { code: "restaurant_growth_agent", name: "思潼·餐饮增长智能体", description: "请在内部后台确认价格、积分和有效期后上架。", status: "draft" as const, amountCny: 0, credits: 0, durationDays: 365, agentIds: ["agent_restaurant_growth"] },
-    { code: "acquisition_agent", name: "思潼·创始人IP获客系统", description: "199元使用30天，含2000积分；支持招商加盟、C端团购到店、学员招募与合作方招募，活动与指标分别隔离。", status: "active" as const, amountCny: 199, credits: 2000, durationDays: 30, agentIds: ["agent_acquisition"] },
+    { code: "restaurant_growth_agent", name: "思潼·餐饮增长智能体", description: "请在内部后台确认价格、算力和有效期后上架。", status: "draft" as const, amountCny: 0, credits: 0, durationDays: 365, agentIds: ["agent_restaurant_growth"] },
+    { code: "acquisition_agent", name: "思潼·创始人IP获客系统", description: "199元使用30天，含2000算力；支持招商加盟、C端团购到店、学员招募与合作方招募，活动与指标分别隔离。", status: "active" as const, amountCny: 199, credits: 2000, durationDays: 30, agentIds: ["agent_acquisition"] },
     // Keep the legacy offer and Agent ID for existing tenants during FIP-01.
     { code: "store_acquisition_agent", name: "思潼·门店获客智能体（兼容入口）", description: "旧门店获客入口在迁移期间保持可用；新任务统一进入创始人IP获客系统的C端团购到店目标。", status: "draft" as const, amountCny: 0, credits: 0, durationDays: 30, agentIds: ["agent_store_acquisition"] },
-    { code: "sales_agent", name: "销售 Agent", description: "请在内部后台确认价格、积分和有效期后上架。", status: "draft" as const, amountCny: 0, credits: 0, durationDays: 365, agentIds: ["agent_sales"] },
-    { code: "clipper_agent", name: "自由组片 Agent", description: "请在内部后台确认价格、积分和有效期后上架。", status: "draft" as const, amountCny: 0, credits: 0, durationDays: 365, agentIds: ["agent_clipper"] },
-    { code: "growth_duo", name: "获客 + 销售组合", description: "请在内部后台确认价格、积分和有效期后上架。", status: "draft" as const, amountCny: 0, credits: 0, durationDays: 365, agentIds: ["agent_acquisition", "agent_sales"] },
-    { code: "content_growth_bundle", name: "获客 + 自由组片组合", description: "请在内部后台确认价格、积分和有效期后上架。", status: "draft" as const, amountCny: 0, credits: 0, durationDays: 365, agentIds: ["agent_acquisition", "agent_clipper"] }
+    { code: "sales_agent", name: "销售 Agent", description: "请在内部后台确认价格、算力和有效期后上架。", status: "draft" as const, amountCny: 0, credits: 0, durationDays: 365, agentIds: ["agent_sales"] },
+    { code: "clipper_agent", name: "自由组片 Agent", description: "请在内部后台确认价格、算力和有效期后上架。", status: "draft" as const, amountCny: 0, credits: 0, durationDays: 365, agentIds: ["agent_clipper"] },
+    { code: "growth_duo", name: "获客 + 销售组合", description: "请在内部后台确认价格、算力和有效期后上架。", status: "draft" as const, amountCny: 0, credits: 0, durationDays: 365, agentIds: ["agent_acquisition", "agent_sales"] },
+    { code: "content_growth_bundle", name: "获客 + 自由组片组合", description: "请在内部后台确认价格、算力和有效期后上架。", status: "draft" as const, amountCny: 0, credits: 0, durationDays: 365, agentIds: ["agent_acquisition", "agent_clipper"] }
   ];
   for (const seed of offers) {
     const offer = await prisma.agentOffer.upsert({

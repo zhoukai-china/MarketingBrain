@@ -10,7 +10,7 @@ import { env, parseOptionalIsoDate } from "../config/env.js";
  *
  * 冻结口径（用户 2026-09-12 拍板，不要改）：
  * - 三段奖励：新客 100、推荐人第一段 100（新客首次真实使用）、推荐人第二段 200（新客首次真实充值）；
- * - 奖励积分只能用于文字类智能体 → `REFERRAL_REWARD_TEXT_ONLY` 锁死为 true（env 校验 + 本层校验 + 后台只读）；
+ * - 奖励算力只能用于文字类智能体 → `REFERRAL_REWARD_TEXT_ONLY` 锁死为 true（env 校验 + 本层校验 + 后台只读）；
  * - 奖励进 bonus 桶、90 天有效、不设单人月上限（超阈值只告警）；
  * - 绑定 / 首次真实使用 / 首次真实充值三个事件都必须落在活动窗内，左闭右开。
  *
@@ -56,7 +56,7 @@ export const PLATFORM_SETTING_DEFINITIONS: readonly PlatformSettingDefinition[] 
   {
     key: "REFERRAL_NEW_USER_CREDITS",
     group: "referral",
-    label: "新客奖励积分",
+    label: "新客奖励算力",
     description: "被推荐人注册绑定即得（第②批）。默认 100，进 bonus 桶、90 天、只能用于文字类智能体。",
     type: "integer",
     min: 0,
@@ -92,7 +92,7 @@ export const PLATFORM_SETTING_DEFINITIONS: readonly PlatformSettingDefinition[] 
   {
     key: "REFERRAL_REWARD_ALERT_THRESHOLD_CREDITS",
     group: "referral",
-    label: "超阈值告警线（积分）",
+    label: "超阈值告警线（算力）",
     description: "默认 20000。不设单人月上限：达到/超过该值只告警，不拦截发放。",
     type: "integer",
     min: 1,
@@ -101,8 +101,8 @@ export const PLATFORM_SETTING_DEFINITIONS: readonly PlatformSettingDefinition[] 
   {
     key: "REFERRAL_REWARD_TEXT_ONLY",
     group: "referral",
-    label: "奖励积分只能用于文字类智能体",
-    description: "冻结口径，锁死为 true（服务端硬限制，前端隐藏不算）。真实充值积分不受影响。",
+    label: "奖励算力只能用于文字类智能体",
+    description: "冻结口径，锁死为 true（服务端硬限制，前端隐藏不算）。真实充值算力不受影响。",
     type: "boolean",
     lockedValue: true
   },

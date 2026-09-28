@@ -1,6 +1,6 @@
-// 兰琪美业门店 AI 经营大脑 · 私域营销 · 无积分直连配图（wan2.7-image / 百炼）
-// 复用平台媒体 Provider 的提交/轮询（submitLanqiMedia/getLanqiMediaTask，本身不含积分），
-// 结果下载后落租户本地资产，经鉴权接口读取；不创建积分/计费流水。
+// 兰琪美业门店 AI 经营大脑 · 私域营销 · 无算力直连配图（wan2.7-image / 百炼）
+// 复用平台媒体 Provider 的提交/轮询（submitLanqiMedia/getLanqiMediaTask，本身不含算力），
+// 结果下载后落租户本地资产，经鉴权接口读取；不创建算力/计费流水。
 
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";

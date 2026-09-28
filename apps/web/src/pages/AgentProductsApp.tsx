@@ -632,7 +632,7 @@ async function readJson<T>(response: Response): Promise<T> {
 
 function customerErrorMessage(reason: unknown, fallback = "服务暂时不可用，请稍后再试。"): string {
   const message = reason instanceof Error ? reason.message : String(reason ?? "");
-  if (/insufficient_credits/.test(message)) return "企业积分不足，请充值后继续使用。";
+  if (/insufficient_credits/.test(message)) return "企业算力不足，请充值后继续使用。";
   if (/agent_not_entitled|agent_member_access_denied/.test(message)) return "当前账号尚未开通这项服务，请联系企业管理员。";
   if (/skill_not_allowed/.test(message)) return "这个任务不属于当前 AI 顾问，请选择页面中的其他任务。";
   if (/mcp_service_unavailable|mcp_execution_failed|agent_run_failed|internal_server_error|request_failed/.test(message)) return fallback;
@@ -849,7 +849,7 @@ export function AgentMarketingPage({ slug }: { slug: string }) {
           {offer && slug === "acquisition" && (
             <div className="agentOfferSummary">
               <strong>老客户首发：¥{offer.amountCny} / {offer.durationDays}天</strong>
-              <span>含 {offer.credits} 积分，日常使用够用；用量增加时可按需购买积分加量包。</span>
+              <span>含 {offer.credits} 算力，日常使用够用；用量增加时可按需购买算力加量包。</span>
             </div>
           )}
         </div>
@@ -889,7 +889,7 @@ function defaultMarketingOffer(slug: string) {
   return {
     code: "acquisition_agent",
     name: "思潼·品牌获客智能体",
-    description: "199元使用30天，含2000积分；积分用完可购买加量包。",
+    description: "199元使用30天，含2000算力；算力用完可购买加量包。",
     amountCny: 199,
     credits: 2000,
     durationDays: 30
@@ -3637,7 +3637,7 @@ export function MyAiPage() {
   const owned = data?.agents ?? [];
   return (
     <main className="agentProductPage myAiPage">
-      <nav className="agentTopbar"><button className="agentBrand whiteLabelBrand" onClick={() => navigate("/my-ai")}><TenantBrandMark branding={tenantBranding} /></button><div><span className="creditPill">{!loading && !error ? data?.creditBalance ?? "—" : "—"} 企业积分</span><button className="ghostButton" onClick={() => navigate("/knowledge-base")}>企业经营资料库</button><button className="ghostButton" onClick={() => navigate("/account")}>企业账户</button></div></nav>
+      <nav className="agentTopbar"><button className="agentBrand whiteLabelBrand" onClick={() => navigate("/my-ai")}><TenantBrandMark branding={tenantBranding} /></button><div><span className="creditPill">{!loading && !error ? data?.creditBalance ?? "—" : "—"} 企业算力</span><button className="ghostButton" onClick={() => navigate("/knowledge-base")}>企业经营资料库</button><button className="ghostButton" onClick={() => navigate("/account")}>企业账户</button></div></nav>
       <section className="myAiHero"><p className="agentKicker">思潼 AI 智能体工作台</p><h1>选择今天要进入的<br />专业工作地图</h1><p>每个智能体都有独立的业务路径、分支与复盘闭环；知识资产仍由企业统一管理。</p></section>
       {loading ? <p className="agentNotice">正在加载已开通的智能体…</p> : !error && <><AgentCardGrid agents={owned} branding={tenantBranding} />{!!data?.productEntries?.length && <section className="agentCardGrid" aria-label="其他已开通产品" style={{ marginTop: 20 }}>{data.productEntries.map(entry => <article className="agentProductCard owned" data-owned-product={entry.productCode} key={entry.productCode}><small>已开通产品</small><h2>{entry.name}</h2><p>{entry.description}</p><button className="primaryButton" onClick={() => navigate(entry.path)}>进入{entry.name}</button></article>)}</section>}{owned.length === 0 && !data?.productEntries?.length && <p className="agentNotice">暂无已开通的智能体，请联系服务团队核对开通状态。</p>}</>}
       {error && <p className="agentError">{error}</p>}
@@ -3905,7 +3905,7 @@ export function AccountCenterPage() {
     <main className="agentProductPage accountPage">
       <nav className="agentTopbar"><button className="agentBrand whiteLabelBrand" onClick={() => navigate("/agents")}><TenantBrandMark branding={tenantBranding} /></button><div className="accountTopbarActions"><button className="ghostButton" onClick={() => navigate("/knowledge-base")}>企业经营资料库</button><button className="ghostButton" onClick={() => navigate(data?.defaultEntry ?? "/mine")}>返回智能体</button><button className="ghostButton danger" onClick={logoutCustomer}>退出登录</button></div></nav>
       <section className="accountGrid">
-        <article className="accountCard"><span>企业空间</span><h2>{tenant?.profile?.tenantName ?? "正在加载…"}</h2><p>当前角色：{tenant?.role ?? "-"}</p><strong>{tenant?.creditBalance ?? data?.creditBalance ?? 0} 积分</strong></article>
+        <article className="accountCard"><span>企业空间</span><h2>{tenant?.profile?.tenantName ?? "正在加载…"}</h2><p>当前角色：{tenant?.role ?? "-"}</p><strong>{tenant?.creditBalance ?? data?.creditBalance ?? 0} 算力</strong></article>
         <article className="accountCard"><span>已开通智能体</span><h2>{data?.agents?.length ?? 0} 个</h2><div className="miniAgentList">{data?.agents?.map((agent) => <button key={agent.id} onClick={() => navigate(`/agents/${agent.slug}`)}><AgentAvatar agent={agent} className="miniAgentAvatar" branding={tenantBranding} />{tenantAgentDisplayName(agent.slug, customerAgentName(agent.name), tenantBranding)}</button>)}</div></article>
       </section>
       <section className="tenantBrandingEditor">
@@ -3946,7 +3946,7 @@ export function AccountCenterPage() {
         <div>
           <p className="agentKicker">WorkBuddy 调用思潼 AI</p>
           <h2>为当前账号生成专属 MCP 连接</h2>
-          <p>每个密钥只绑定当前用户、当前企业和一个已开通的智能体或行业产品包。美业行业产品只需一个连接即可发现获授权的多个获客工具；WorkBuddy 不能修改租户身份，也不能绕过产品权限和积分。</p>
+          <p>每个密钥只绑定当前用户、当前企业和一个已开通的智能体或行业产品包。美业行业产品只需一个连接即可发现获授权的多个获客工具；WorkBuddy 不能修改租户身份，也不能绕过产品权限和算力。</p>
         </div>
         <form onSubmit={createWorkbuddyConnection}>
           <label>连接名称<input maxLength={80} value={workbuddyLabel} onChange={(event) => setWorkbuddyLabel(event.target.value)} placeholder="例如：老板的 WorkBuddy" /></label>
@@ -4026,7 +4026,7 @@ export function InternalAgentAdminPage() {
       {error && <p className="agentError">{error}</p>}
       <section className="adminGrid">{data?.agents?.map((agent: any) => <article className="adminCard" key={agent.id}><div><AgentAvatar agent={agent} className="adminAgentAvatar" /><h2>{agent.name}</h2><p>{agent.slug} · {agent._count?.entitlements ?? 0} 家企业已开通</p></div><select value={agent.status} onChange={(event) => void setAgentStatus(agent.id, event.target.value)}><option value="draft">草稿</option><option value="active">已上线</option><option value="coming_soon">即将上线</option><option value="archived">已归档</option></select><ul>{agent.capabilities?.map((item: any) => <li key={item.id}>{item.title}<small>{item.skillRelease?.skillId} · {item.skillRelease?.version}</small></li>)}</ul></article>)}</section>
       {data && <SkillReleaseAdmin releases={data.skillReleases ?? []} agents={data.agents ?? []} token={token} onSaved={load} />}
-      <section className="offerAdmin"><p className="agentKicker">销售层</p><h2>销售 Offer</h2><p>Agent 产品与销售组合已分离。确认价格、积分和有效期后再上架。</p>{data?.offers?.map((offer: any) => <OfferEditor key={offer.id} offer={offer} allAgents={data.agents ?? []} token={token} onSaved={load} />)}</section>
+      <section className="offerAdmin"><p className="agentKicker">销售层</p><h2>销售 Offer</h2><p>Agent 产品与销售组合已分离。确认价格、算力和有效期后再上架。</p>{data?.offers?.map((offer: any) => <OfferEditor key={offer.id} offer={offer} allAgents={data.agents ?? []} token={token} onSaved={load} />)}</section>
       <section className="offerAdmin"><p className="agentKicker">线下成交</p><h2>给企业手工开通 Agent</h2><div className="grantForm"><input value={tenantId} onChange={(event) => setTenantId(event.target.value)} placeholder="企业 tenantId" /><select value={grantAgentId} onChange={(event) => setGrantAgentId(event.target.value)}><option value="">选择 Agent</option>{data?.agents?.map((agent: any) => <option value={agent.id} key={agent.id}>{agent.name}</option>)}</select><button className="primaryButton" onClick={() => void grantAgent()}>立即开通</button></div><p>{grantStatus}</p></section>
     </main>
   );
@@ -4085,7 +4085,7 @@ function OfferEditor({ offer, allAgents, token, onSaved }: { offer: any; allAgen
       setStatus("已保存"); await onSaved();
     } catch (reason) { setStatus(reason instanceof Error ? reason.message : "保存失败"); }
   }
-  return <article className="offerEditor"><div><strong>{offer.code}</strong><input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></div><label>价格（元）<input type="number" min="0" value={draft.amountCny} onChange={(event) => setDraft({ ...draft, amountCny: Number(event.target.value) })} /></label><label>赠送积分<input type="number" min="0" value={draft.credits} onChange={(event) => setDraft({ ...draft, credits: Number(event.target.value) })} /></label><label>有效天数<input type="number" min="1" value={draft.durationDays} onChange={(event) => setDraft({ ...draft, durationDays: Number(event.target.value) })} /></label><select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}><option value="draft">草稿</option><option value="active">上架</option><option value="archived">下架</option></select><div className="offerAgents">{allAgents.map((agent) => <label key={agent.id}><input type="checkbox" checked={draft.agentIds.includes(agent.id)} onChange={(event) => setDraft({ ...draft, agentIds: event.target.checked ? [...draft.agentIds, agent.id] : draft.agentIds.filter((id: string) => id !== agent.id) })} />{agent.name}</label>)}</div><button className="ghostButton" onClick={() => void save()}>保存 Offer</button><small>{status}</small></article>;
+  return <article className="offerEditor"><div><strong>{offer.code}</strong><input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></div><label>价格（元）<input type="number" min="0" value={draft.amountCny} onChange={(event) => setDraft({ ...draft, amountCny: Number(event.target.value) })} /></label><label>赠送算力<input type="number" min="0" value={draft.credits} onChange={(event) => setDraft({ ...draft, credits: Number(event.target.value) })} /></label><label>有效天数<input type="number" min="1" value={draft.durationDays} onChange={(event) => setDraft({ ...draft, durationDays: Number(event.target.value) })} /></label><select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}><option value="draft">草稿</option><option value="active">上架</option><option value="archived">下架</option></select><div className="offerAgents">{allAgents.map((agent) => <label key={agent.id}><input type="checkbox" checked={draft.agentIds.includes(agent.id)} onChange={(event) => setDraft({ ...draft, agentIds: event.target.checked ? [...draft.agentIds, agent.id] : draft.agentIds.filter((id: string) => id !== agent.id) })} />{agent.name}</label>)}</div><button className="ghostButton" onClick={() => void save()}>保存 Offer</button><small>{status}</small></article>;
 }
 
 function AgentCardGrid({ agents, publicMode = false, branding }: { agents: AgentView[]; publicMode?: boolean; branding?: TenantBrandingConfig }) {

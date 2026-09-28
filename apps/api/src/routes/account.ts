@@ -17,7 +17,7 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
       expiresAt: null,
       note:
         auth.source === "database"
-          ? "已从数据库读取账户与积分余额；系统不收月度订阅费。"
+          ? "已从数据库读取账户与算力余额；系统不收月度订阅费。"
           : "MVP uses demo context. Credit balance is charged per execution."
     };
   });

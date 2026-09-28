@@ -34,7 +34,7 @@ async function main(): Promise<void> {
       method: "POST",
       url: "/billing/orders",
       headers,
-      payload: { type: "credit_pack", creditPackCode: "pack_50" }
+      payload: { type: "credit_pack", creditPackCode: "pack_100" }
     });
     assert(create.statusCode === 200, "credit pack order can be created");
     const order = (create.json() as { order: { id: string } }).order;

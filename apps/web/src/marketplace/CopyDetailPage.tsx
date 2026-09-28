@@ -5,7 +5,7 @@
 //   ① 「⚡ 充值算力」→ /recharge
 //   ② 「⚡ 立即使用」→ /agent/ipzone__copy/workbench（文案工作台）
 // 内容口径：
-//   - 计费与文案工作台同源：按实际用量结算，价格取真实目录 ppu（/market/skus），单位「积分」；
+//   - 计费与文案工作台同源：按实际用量结算，价格取真实目录 ppu（/market/skus），单位「算力」；
 //     原型里的「10/15 算力」是演示价，不照抄（避免页面价 ≠ 服务端结算价，ip-pos 的老教训）；
 //   - 「失败不扣费」按原型保留（生成失败确实不扣）；
 //   - 简报 6 字段（产品/卖点/平台/动作/深度/出镜）与真实文案工作台一致；
@@ -155,7 +155,7 @@ export function CopyDetailPage() {
   const [tab, setTab] = useState<TabKey>("ability");
   const [view, setView] = useState<GalleryView>("wb");
   const avatar = employeeAvatarPath("ipzone__copy");
-  /** 真实目录价（与文案工作台/对话页同源 /market/skus）；文案按实际用量结算，单位「积分」。 */
+  /** 真实目录价（与文案工作台/对话页同源 /market/skus）；文案按实际用量结算，单位「算力」。 */
   const [skuPpu, setSkuPpu] = useState<number | null>(null);
 
   useEffect(() => {
@@ -193,7 +193,7 @@ export function CopyDetailPage() {
                     <div className="ipd-wb-right">
                       <WbBrief filled={5} />
                       <div className="ipd-gen">✨ 生成内容十件套</div>
-                      <div className="ipd-fee">预计消耗约 {skuPpu ?? "—"} 积分 · 按实际用量结算 · 失败不扣费</div>
+                      <div className="ipd-fee">预计消耗约 {skuPpu ?? "—"} 算力 · 按实际用量结算 · 失败不扣费</div>
                     </div>
                   </div>
                 </div>
@@ -241,7 +241,7 @@ export function CopyDetailPage() {
           <div className="ipd-price">
             <div className="ipd-price-line">
               <span className="ipd-num">{skuPpu ?? "—"}</span>
-              <span className="ipd-unit">积分 / 次 起</span>
+              <span className="ipd-unit">算力 / 次 起</span>
               <span className="ipd-approx">{skuPpu != null ? `≈ ¥${(skuPpu / 10).toFixed(1)}` : "≈ ¥"} · 按实际用量结算</span>
             </div>
             <div className="ipd-price-meta">计费说明：<b>0 元开通</b> · 不收月费 · 使用后扣算力，失败不扣费</div>
@@ -259,7 +259,7 @@ export function CopyDetailPage() {
           <div className="ipd-cta-row">
             <button className="ipd-btn ghost" onClick={() => { window.location.href = getAppPath("/recharge"); }}>⚡ 充值算力</button>
             <button className="ipd-btn main" onClick={() => { window.location.href = getAppPath(WORKBENCH_PATH); }}>
-              ⚡ 立即使用{skuPpu != null ? `（约 ${skuPpu} 积分/次）` : ""}
+              ⚡ 立即使用{skuPpu != null ? `（约 ${skuPpu} 算力/次）` : ""}
             </button>
           </div>
           <div className="ipd-after-cta">

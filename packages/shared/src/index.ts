@@ -401,7 +401,14 @@ export function inferSalesCapabilities(input: string): SalesCapabilityId[] {
   return acquisitionRoutingPatterns.explicitMulti.test(text) ? matched.slice(0, 3) : matched.slice(0, 1);
 }
 
-export type CreditPackCode = "pack_50" | "pack_100" | "pack_300" | "pack_500" | "pack_1000";
+/**
+ * 算力汇率（HANDOFF §1）：1 元 = 10 算力。上线后不再调整；
+ * 将来让利一律做「充值加赠」活动，不动汇率。全整数记账。
+ */
+export const COMPUTE_RATE = 10;
+
+/** 充值档位（HANDOFF §4 定稿三档）：¥100 随充档 / ¥300、¥1000 算力包（加赠进赠送账本）。 */
+export type CreditPackCode = "pack_100" | "pack_300" | "pack_1000";
 
 export type ProjectPackageCode =
   | "ai_health_express"
@@ -481,15 +488,15 @@ export interface CreditPackDefinition {
   code: CreditPackCode;
   name: string;
   priceCny: number;
-  /** 基础积分，严格等于 priceCny × 20。 */
+  /** 基础算力，严格等于 priceCny × 20。 */
   baseCredits: number;
-  /** 阶梯赠送积分，独立记账，不混入基础积分。 */
+  /** 阶梯赠送算力，独立记账，不混入基础算力。 */
   bonusCredits: number;
 }
 
 /**
- * 思潼AI 统一积分钱包定价口径（定稿）。
- * 1 元 = 20 积分；售价锚交付价值，成本只做毛利告警，不进定价公式。
+ * 思潼AI 统一算力钱包定价口径（定稿）。
+ * 1 元 = 20 算力；售价锚交付价值，成本只做毛利告警，不进定价公式。
  */
 export const CREDIT_PRICING = {
   ptsPerYuan: 20,
@@ -499,7 +506,7 @@ export const CREDIT_PRICING = {
 
 /**
  * 平台公共能力定价（全平台统一）。
- * 精美 Word 导出（/exports/docx）按次扣积分；成本不进定价公式。
+ * 精美 Word 导出（/exports/docx）按次扣算力；成本不进定价公式。
  */
 export const EXPORT_PRICING = {
   docxVersion: 1,
@@ -508,7 +515,7 @@ export const EXPORT_PRICING = {
 } as const;
 
 /**
- * 积分 → 人民币折算（基准 1 元 = 20 积分）。
+ * 算力 → 人民币折算（基准 1 元 = 20 算力）。
  * 只用于标价展示，不参与定价公式；成本波动由毛利吸收，不传导到售价。
  */
 export function creditsToYuan(
@@ -529,10 +536,10 @@ export function formatYuanText(amount: number): string {
 }
 
 /**
- * 标价文案：200 积分 → "≈ ¥10"；40 积分 → "≈ ¥2"；10 积分 → "≈ ¥0.5"。
+ * 标价文案：200 算力 → "≈ ¥10"；40 算力 → "≈ ¥2"；10 算力 → "≈ ¥0.5"。
  *
  * ⚠️ 仅供内部 / 管理端使用（PLAT-19，用户 2026-09-12 要求）：
- * 面向客户的智能体页面、聊天页、生成确认与扣费提示**只显示积分**，
+ * 面向客户的智能体页面、聊天页、生成确认与扣费提示**只显示算力**，
  * 不显示折算人民币。`apps/web` 客户界面禁止再引用本函数（有契约 smoke 兜底：
  * `pnpm marketplace:credits-only-contract-smoke`）。
  */
@@ -625,7 +632,7 @@ export const PREMIUM_IP_SKILLS: SkillId[] = [...STANDARD_IP_SKILLS];
 export const PLANS: Record<PlanCode, PlanDefinition> = {
   local_standard: {
     code: "local_standard",
-    name: "按积分使用",
+    name: "按算力使用",
     tenantType: "local_business",
     tier: "standard",
     monthlyPriceCny: 0,
@@ -641,7 +648,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
   },
   local_premium: {
     code: "local_premium",
-    name: "按积分使用",
+    name: "按算力使用",
     tenantType: "local_business",
     tier: "premium",
     monthlyPriceCny: 0,
@@ -657,7 +664,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
   },
   ip_standard: {
     code: "ip_standard",
-    name: "按积分使用",
+    name: "按算力使用",
     tenantType: "personal_ip",
     tier: "standard",
     monthlyPriceCny: 0,
@@ -673,7 +680,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
   },
   ip_premium: {
     code: "ip_premium",
-    name: "按积分使用",
+    name: "按算力使用",
     tenantType: "personal_ip",
     tier: "premium",
     monthlyPriceCny: 0,
@@ -689,7 +696,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
   },
   chain_standard: {
     code: "chain_standard",
-    name: "按积分使用",
+    name: "按算力使用",
     tenantType: "chain_brand",
     tier: "standard",
     monthlyPriceCny: 0,
@@ -705,7 +712,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
   },
   chain_premium: {
     code: "chain_premium",
-    name: "按积分使用",
+    name: "按算力使用",
     tenantType: "chain_brand",
     tier: "premium",
     monthlyPriceCny: 0,
@@ -722,40 +729,26 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
 };
 
 export const CREDIT_PACKS: Record<CreditPackCode, CreditPackDefinition> = {
-  pack_50: {
-    code: "pack_50",
-    name: "试试看",
-    priceCny: 50,
+  pack_100: {
+    code: "pack_100",
+    name: "随充档",
+    priceCny: 100,
     baseCredits: 1000,
     bonusCredits: 0
   },
-  pack_100: {
-    code: "pack_100",
-    name: "够用一阵",
-    priceCny: 100,
-    baseCredits: 2000,
-    bonusCredits: 200
-  },
   pack_300: {
     code: "pack_300",
-    name: "常用",
+    name: "算力包",
     priceCny: 300,
-    baseCredits: 6000,
-    bonusCredits: 1000
-  },
-  pack_500: {
-    code: "pack_500",
-    name: "重度",
-    priceCny: 500,
-    baseCredits: 10000,
-    bonusCredits: 2000
+    baseCredits: 3000,
+    bonusCredits: 600
   },
   pack_1000: {
     code: "pack_1000",
-    name: "团队年用",
+    name: "算力包",
     priceCny: 1000,
-    baseCredits: 20000,
-    bonusCredits: 5000
+    baseCredits: 10000,
+    bonusCredits: 3000
   }
 };
 

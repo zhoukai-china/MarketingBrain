@@ -5,10 +5,12 @@ import { PLANS, PRODUCT_LOGIN_DEFINITIONS, PRODUCT_LOGIN_CODES, type PlanDefinit
 import { env } from "../config/env.js";
 import { requireAdminToken } from "../services/access-guards.js";
 import { createInviteCode } from "../services/invite-codes.js";
+import { getOrCreateWallet } from "../services/sitong-wallet.js";
 import {
   AdminLoginNotConfiguredError,
   adminLoginConfigured,
   createAdminSessionToken,
+  ensureAdminBootstrapCredentials,
   verifyAdminCredentials,
   verifyAdminSessionToken
 } from "../services/admin-session.js";
@@ -36,13 +38,13 @@ const adminLoginSchema = z.object({
 });
 
 /**
- * 积分汇总（PLAT-39，用户 2026-09-15「后台看不到积分/消耗/余额」）。
+ * 算力汇总（PLAT-39，用户 2026-09-15「后台看不到算力/消耗/余额」）。
  *
  * 取数口径（2026-09-15 用生产数据校准过，避免把噪声当钱看）：
- * - **客户可用积分** = 统一钱包 `Wallet.paidBalance + bonusBalance`（客户真正在用的那个钱包，实测 9,320）；
- * - **累计按次消耗** = `MarketplaceLedgerEntry.type='ppu_consume'` 的积分合计（实测 720 / 6 次）；
+ * - **客户可用算力** = 统一钱包 `Wallet.paidBalance + bonusBalance`（客户真正在用的那个钱包，实测 9,320）；
+ * - **累计按次消耗** = `MarketplaceLedgerEntry.type='ppu_consume'` 的算力合计（实测 720 / 6 次）；
  * - 遗留的 `CreditAccount.balance` 单独给一个字段（实测 20 亿，是历史/测试遗留，**不与钱包混算**，
- *   否则老板会看到 20 亿积分的假数字）。
+ *   否则老板会看到 20 亿算力的假数字）。
  */
 async function readCreditSummary(): Promise<{
   consumedCreditsTotal: number;
@@ -110,6 +112,13 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     if (!parsed.success) {
       return reply.code(400).send({ error: "invalid_request", message: "请输入账号和密码。" });
     }
+    // 算力计费 v1.0（用户 2026-09-28）：env 未配置后台账密时，首次登录自动生成
+    // 用户名/密码（凭证文件落盘、明文只在生成瞬间打印一次）。
+    try {
+      ensureAdminBootstrapCredentials();
+    } catch (bootstrapError) {
+      request.log.warn({ event: "admin_bootstrap.failed", err: String(bootstrapError) }, "admin credential bootstrap failed");
+    }
     if (!adminLoginConfigured()) {
       return reply.code(503).send({
         error: "admin_login_not_configured",
@@ -140,6 +149,162 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     if (payload) return { ok: true, mode: "session", username: payload.username, expiresAt: new Date(payload.exp * 1000).toISOString() };
     if (env.ADMIN_TOKEN && value === env.ADMIN_TOKEN) return { ok: true, mode: "legacy_token", username: null, expiresAt: null };
     return reply.code(401).send({ error: "admin_token_required", message: "请先用管理员账号登录后台。" });
+  });
+
+  /* ------------------------------------------------------------------
+   * 算力管理（算力计费 v1.0，用户 2026-09-28）：用户算力总览 / 使用明细 / 手动加算力。
+   * 口径：paidBalance = 充值算力（不过期）；bonusBalance = 赠送算力（默认 90 天有效，
+   * type=bonus 充值加赠/注册礼、type=admin 后台手动发放）。
+   * ------------------------------------------------------------------ */
+
+  const creditUsersQuerySchema = z.object({
+    query: z.string().trim().max(80).optional(),
+    limit: z.coerce.number().int().min(1).max(200).default(50),
+    offset: z.coerce.number().int().min(0).default(0)
+  });
+
+  app.get("/admin/credits/users", { preHandler: requireAdminToken }, async (request, reply) => {
+    const parsed = creditUsersQuerySchema.safeParse(request.query ?? {});
+    if (!parsed.success) return reply.code(400).send({ error: "invalid_request", message: "查询参数不合法。" });
+    const { query, limit, offset } = parsed.data;
+    const where = query
+      ? { OR: [{ nickname: { contains: query } }, { phone: { contains: query } }, { id: query }] }
+      : {};
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        skip: offset,
+        select: { id: true, nickname: true, phone: true, createdAt: true }
+      }),
+      prisma.user.count({ where })
+    ]);
+    const ids = users.map((user) => user.id);
+    type WalletRow = { userId: string; paidBalance: number; bonusBalance: number };
+    const wallets: WalletRow[] = ids.length
+      ? await prisma.wallet.findMany({
+          where: { userId: { in: ids } },
+          select: { userId: true, paidBalance: true, bonusBalance: true }
+        })
+      : [];
+    const expiryRows = ids.length
+      ? await prisma.walletLedger.groupBy({
+          by: ["userId"],
+          where: {
+            userId: { in: ids },
+            bucket: "bonus",
+            type: { in: ["bonus", "admin"] },
+            expiresAt: { not: null, gt: new Date() }
+          },
+          _min: { expiresAt: true }
+        })
+      : [];
+    const walletMap = new Map(wallets.map((row) => [row.userId, row]));
+    const expiryMap = new Map(expiryRows.map((row) => [row.userId, row._min.expiresAt]));
+    return {
+      total,
+      users: users.map((user) => {
+        const paidBalance = walletMap.get(user.id)?.paidBalance ?? 0;
+        const bonusBalance = walletMap.get(user.id)?.bonusBalance ?? 0;
+        return {
+          id: user.id,
+          nickname: user.nickname,
+          phone: user.phone,
+          createdAt: user.createdAt,
+          paidBalance,
+          bonusBalance,
+          balance: paidBalance + bonusBalance,
+          nearestBonusExpiry: expiryMap.get(user.id) ?? null
+        };
+      })
+    };
+  });
+
+  app.get("/admin/credits/users/:userId/ledger", { preHandler: requireAdminToken }, async (request, reply) => {
+    const userId = String((request.params as { userId?: string }).userId ?? "").trim();
+    if (!userId) return reply.code(400).send({ error: "invalid_request", message: "缺少用户 ID。" });
+    const rawLimit = Number((request.query as { limit?: string }).limit ?? 100);
+    const limit = Math.min(200, Math.max(1, Number.isFinite(rawLimit) ? Math.round(rawLimit) : 100));
+    const [user, wallet] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, nickname: true, phone: true, createdAt: true }
+      }),
+      prisma.wallet.findUnique({ where: { userId }, select: { paidBalance: true, bonusBalance: true } })
+    ]);
+    if (!user) return reply.code(404).send({ error: "user_not_found", message: "用户不存在。" });
+    const ledger = await prisma.walletLedger.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: limit
+    });
+    const paidBalance = wallet?.paidBalance ?? 0;
+    const bonusBalance = wallet?.bonusBalance ?? 0;
+    return {
+      user,
+      wallet: { paidBalance, bonusBalance, balance: paidBalance + bonusBalance },
+      ledger
+    };
+  });
+
+  const creditGrantSchema = z.object({
+    amount: z.number().int().min(1).max(1_000_000),
+    days: z.number().int().min(1).max(3650).default(90),
+    remark: z.string().trim().max(120).optional(),
+    operator: z.string().trim().max(40).optional()
+  });
+
+  app.post("/admin/credits/users/:userId/grant", { preHandler: requireAdminToken }, async (request, reply) => {
+    const userId = String((request.params as { userId?: string }).userId ?? "").trim();
+    if (!userId) return reply.code(400).send({ error: "invalid_request", message: "缺少用户 ID。" });
+    const parsed = creditGrantSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "invalid_request", message: "请填写 1–1000000 的整数算力，有效期 1–3650 天。" });
+    }
+    const { amount, days, remark, operator } = parsed.data;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, nickname: true, phone: true }
+    });
+    if (!user) return reply.code(404).send({ error: "user_not_found", message: "用户不存在。" });
+    const source = `admin_grant:${(operator || remark || "console").slice(0, 40)}`;
+    const result = await prisma.$transaction(async (tx) => {
+      const wallet = await getOrCreateWallet(userId, tx);
+      const expiresAt = new Date(Date.now() + days * 24 * 3600 * 1000);
+      const updated = await tx.wallet.update({
+        where: { id: wallet.id },
+        data: { bonusBalance: { increment: amount } }
+      });
+      const ledger = await tx.walletLedger.create({
+        data: {
+          walletId: wallet.id,
+          userId,
+          delta: amount,
+          bucket: "bonus",
+          type: "admin",
+          source,
+          expiresAt
+        }
+      });
+      return { ledgerId: ledger.id, expiresAt, paidBalance: updated.paidBalance, bonusBalance: updated.bonusBalance };
+    });
+    request.log.info(
+      { event: "admin_credit_grant", userId, amount, days, operator: operator ?? null },
+      "admin granted bonus credits"
+    );
+    return {
+      ok: true,
+      amount,
+      days,
+      remark: remark ?? null,
+      expiresAt: result.expiresAt,
+      wallet: {
+        paidBalance: result.paidBalance,
+        bonusBalance: result.bonusBalance,
+        balance: result.paidBalance + result.bonusBalance
+      }
+    };
   });
 
   app.get("/admin/invites", { preHandler: requireAdminToken }, async () => {
@@ -775,7 +940,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
           recordId: transaction.id,
           expectedTenantId: transaction.creditAccount.tenantId,
           actualTenantId: transaction.tenantId,
-          message: "积分流水 tenantId 与积分账户 tenantId 不一致"
+          message: "算力流水 tenantId 与算力账户 tenantId 不一致"
         });
       }
     }
@@ -844,7 +1009,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
           severity: "critical",
           orderId: order.id,
           type: "missing_credit_transaction",
-          message: "已支付订单没有对应积分发放流水"
+          message: "已支付订单没有对应算力发放流水"
         });
       }
 
@@ -1127,8 +1292,8 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         flaggedRuns
       },
       /**
-       * 积分侧汇总（PLAT-39，用户 2026-09-15「后台看不到积分/消耗/余额」）。
-       * 只做只读聚合，不参与任何扣费逻辑；余额是「全平台客户剩余积分合计」。
+       * 算力侧汇总（PLAT-39，用户 2026-09-15「后台看不到算力/消耗/余额」）。
+       * 只做只读聚合，不参与任何扣费逻辑；余额是「全平台客户剩余算力合计」。
        */
       credit: await readCreditSummary(),
       topSkills: topSkills.map((skill: any) => ({

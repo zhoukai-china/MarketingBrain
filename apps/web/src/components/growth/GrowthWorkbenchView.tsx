@@ -112,7 +112,7 @@ export function GrowthWorkbenchView({ memory, onStartDiagnosis, onOpenBilling }:
               {entry.cta}
             </button>
             <button className="outlineAction" onClick={onOpenBilling}>
-              查看套餐和积分
+              查看套餐和算力
             </button>
           </div>
         </div>

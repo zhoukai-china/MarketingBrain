@@ -37,7 +37,7 @@ export interface MarketplaceSku {
   tags: string[];
   keywords: string[];
   ppu: number;
-  /** 包月价（积分/月）。为 0 或空表示该智能体不支持包月，只能按次/按消耗。 */
+  /** 包月价（算力/月）。为 0 或空表示该智能体不支持包月，只能按次/按消耗。 */
   subscriptionCredits?: number | null;
   /** 包月期内的每日次数上限；null = 不限次数。 */
   subscriptionDailyQuota?: number | null;
@@ -51,7 +51,7 @@ export interface MarketplaceSku {
 export const BUNDLE_ORDER = ["ip-pos", "topic", "copy", "vidrev", "livescript", "liverev", "sales"];
 
 /**
- * IP 定位工作台的单次计费口径（2026-09-27 用户拍板）：99 算力/次（原 400 积分）。
+ * IP 定位工作台的单次计费口径（2026-09-27 用户拍板）：99 算力/次（原 400 算力）。
  *
  * 三处必须同改，否则页面写的价和服务端扣的价会对不上：
  * - 后端发布文件 `apps/api/src/data/marketplace-v3.json` 的 `skills["ip-pos"].ppu`（真源，落库）
@@ -59,7 +59,7 @@ export const BUNDLE_ORDER = ["ip-pos", "topic", "copy", "vidrev", "livescript", 
  * - 前端 `IP_POS_PRICE`（本常量：工作台按钮/费用行/交付行 + 对话页确认卡）
  * `scripts/billing-cost-model-smoke.ts` 会钉住这三处一致。
  *
- * 单位口径：IP 定位这一条链路统一显示「算力」（对齐用户给的参考图）；全站余额/充值仍是「积分」。
+ * 单位口径：IP 定位这一条链路统一显示「算力」（对齐用户给的参考图）；全站余额/充值仍是「算力」。
  */
 export const IP_POS_PRICE = 99;
 export const IP_POS_UNIT = "算力";
@@ -78,7 +78,7 @@ export function isBundle(sku: MarketplaceSku): boolean {
   return coreSkuCode(sku.skuCode) === "ip-pack";
 }
 
-// 货架可见但内核未完成：仍可进详情看能力介绍，但不允许进入对话、不消耗积分。
+// 货架可见但内核未完成：仍可进详情看能力介绍，但不允许进入对话、不消耗算力。
 export function isComingSoon(sku: MarketplaceSku | null | undefined): boolean {
   return Boolean(sku && sku.status === "coming_soon");
 }

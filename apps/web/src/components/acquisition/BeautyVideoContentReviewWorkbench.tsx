@@ -148,7 +148,7 @@ export function BeautyVideoContentReviewWorkbench(props: Props) {
             <strong>{props.workflow.mediaPreflight.filename}</strong>
             <span>{formatBytes(props.workflow.mediaPreflight.byteSize)} · {props.workflow.mediaPreflight.durationSeconds.toFixed(3)} 秒{props.workflow.mediaPreflight.width && props.workflow.mediaPreflight.height ? ` · ${props.workflow.mediaPreflight.width}×${props.workflow.mediaPreflight.height}` : ""}</span>
             <span>{props.workflow.mediaPreflight.videoCodec ? `视频 ${props.workflow.mediaPreflight.videoCodec}` : "视频流待核对"} · {props.workflow.mediaPreflight.audioCodec ? `音频 ${props.workflow.mediaPreflight.audioCodec}${props.workflow.mediaPreflight.audioSampleRateHz ? ` / ${props.workflow.mediaPreflight.audioSampleRateHz} Hz` : ""}${props.workflow.mediaPreflight.audioChannels ? ` / ${props.workflow.mediaPreflight.audioChannels} 声道` : ""}` : "未检测到音频流"}</span>
-            <p>元数据可读取；Provider 调用 {props.workflow.mediaPreflight.providerCalls}，积分 {props.workflow.mediaPreflight.creditCost}，文件未保留。</p>
+            <p>元数据可读取；Provider 调用 {props.workflow.mediaPreflight.providerCalls}，算力 {props.workflow.mediaPreflight.creditCost}，文件未保留。</p>
           </div> : <div className="beautyVideoContentEmpty"><strong>尚未完成视频预检</strong><p>刷新后不会保留本地视频；开始新一轮时必须重新选择，系统不会伪造已读取状态。</p></div>}
         </section>
 

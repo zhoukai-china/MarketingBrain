@@ -16,7 +16,7 @@ import { readLanqiWalletBalance } from "../services/lanqi-wallet.js";
 export type ReplicationRoutePorts = {
   context?(headers: Record<string, unknown>): Promise<RequestContext>;
   entitled?(tenantId: string): Promise<boolean>;
-  /** 积分余额（报价阶段用来判断「够不够这一次」，默认读当前进程的 prisma）。 */
+  /** 算力余额（报价阶段用来判断「够不够这一次」，默认读当前进程的 prisma）。 */
   creditBalance?(tenantId: string): Promise<number | null>;
   /** Server-owned evidence, never client consent. Default has no approved store/staging authority. */
   admission?(context: RequestContext, input?: ReplicationRequest, jobId?: string): Promise<ReplicationAdmission | null>;
@@ -69,7 +69,7 @@ export async function registerViralVideoReplicationRoutes(app: FastifyInstance, 
       gaps.push(...validateReplicationAdmission(input, admission));
     }
     if (!ports.runtime) gaps.push("controlled_execution_not_enabled");
-    // 积分不足要在报价阶段就说清（此前只在确认时 402，用户看不出下一步该干什么）。
+    // 算力不足要在报价阶段就说清（此前只在确认时 402，用户看不出下一步该干什么）。
     if (admission) {
       // LQ-34 ③：报价阶段「够不够这一次」必须和扣费同源 —— 读**租户 owner 的通用钱包余额**
       // （兰琪充值的钱就进这本账）。找不到 owner 也按"不够"处理：不放行、不建任务、不扣费。
@@ -94,16 +94,16 @@ export async function registerViralVideoReplicationRoutes(app: FastifyInstance, 
   app.post("/viral-video-replication/quote", async (request, reply) => {
     try {
       const p = await preflight(request.headers, request.body);
-      return { contractVersion: REPLICATION_CONTRACT, model: "aliyun_strict", mode: "只替换授权人物，保留参考视频原背景、动作和光照；不提供新口播或换背景。", canConfirm: p.gaps.length === 0, creditCost: p.admission?.creditCost ?? null, gaps: p.gaps, message: p.gaps.length ? "这一版还不能出片（缺口见下方），不会创建任务、不会预留积分。" : "请确认本次报价；不会自动重试或补做。" };
+      return { contractVersion: REPLICATION_CONTRACT, model: "aliyun_strict", mode: "只替换授权人物，保留参考视频原背景、动作和光照；不提供新口播或换背景。", canConfirm: p.gaps.length === 0, creditCost: p.admission?.creditCost ?? null, gaps: p.gaps, message: p.gaps.length ? "这一版还不能出片（缺口见下方），不会创建任务、不会预留算力。" : "请确认本次报价；不会自动重试或补做。" };
     } catch (error) { return safeError(error, reply); }
   });
   app.post("/viral-video-replication/confirm", async (request, reply) => {
     try {
       const p = await preflight(request.headers, request.body);
-      // 积分不足不进 422：让它继续走到 claim，由既有口径回 402 `insufficient_credits`
+      // 算力不足不进 422：让它继续走到 claim，由既有口径回 402 `insufficient_credits`
       // （BY50 契约不变；报价阶段已经在 gaps 里提前告诉用户该去充值）。
       const blocking = p.gaps.filter((gap) => gap !== "insufficient_credits");
-      if (blocking.length || !p.admission || !ports.runtime) return reply.code(422).send({ error: "replication_preflight_blocked", gaps: p.gaps, message: "未创建任务、未预留积分；需要服务端素材授权与安全暂存，或调整不支持的组合。" });
+      if (blocking.length || !p.admission || !ports.runtime) return reply.code(422).send({ error: "replication_preflight_blocked", gaps: p.gaps, message: "未创建任务、未预留算力；需要服务端素材授权与安全暂存，或调整不支持的组合。" });
       if (!p.input.requestKey) throw new ReplicationError("idempotency_key_required", 400);
       return reply.code(202).send(await ports.runtime.confirm(p.admission, p.input));
     } catch (error) { return safeError(error, reply); }

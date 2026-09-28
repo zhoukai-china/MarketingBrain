@@ -115,7 +115,7 @@ function EmployeeProduct({
                 {ppu != null ? (
                   <>
                     <b>{ppu}</b>
-                    <span className="eco-p-unit">积分/次</span>
+                    <span className="eco-p-unit">算力/次</span>
                   </>
                 ) : (
                   <span className="eco-p-price-flex">按次计费</span>
@@ -207,7 +207,7 @@ function EmployeeModal({
           {ppu != null ? (
             <div className="eco-m-row">
               <span className="eco-m-label">价格</span>
-              <span className="eco-m-val eco-m-price"><b>{ppu}</b> 积分/次</span>
+              <span className="eco-m-val eco-m-price"><b>{ppu}</b> 算力/次</span>
             </div>
           ) : null}
         </div>
@@ -297,7 +297,7 @@ export function EcoMallHomePage() {
     };
   }, []);
 
-  /* 货架价目表：/market/skus 的 ppu（积分/次），商品卡和详情弹窗都从这取真实价格。 */
+  /* 货架价目表：/market/skus 的 ppu（算力/次），商品卡和详情弹窗都从这取真实价格。 */
   useEffect(() => {
     let cancelled = false;
     void fetch(apiPath("/market/skus"))
@@ -508,9 +508,9 @@ export function EcoMallHomePage() {
             <div className="eco-banner">
               <div className="eco-banner-text">
                 <b>数字员工团队已就位</b>
-                <span>文案、定位、复盘…挑一位立即开工，按次计积分</span>
+                <span>文案、定位、复盘…挑一位立即开工，按次计算力</span>
               </div>
-              <a className="eco-banner-link" href={getAppPath("/recharge")}>积分充值 ›</a>
+              <a className="eco-banner-link" href={getAppPath("/recharge")}>算力充值 ›</a>
             </div>
 
             {renderTodayStrip()}

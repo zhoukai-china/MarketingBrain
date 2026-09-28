@@ -144,7 +144,7 @@ export async function registerReportRoutes(
       if (error instanceof InsufficientCreditsError) {
         return reply.code(402).send({
           error: "insufficient_credits",
-          message: "积分不足，请充值积分后继续使用"
+          message: "算力不足，请充值算力后继续使用"
         });
       }
       throw error;

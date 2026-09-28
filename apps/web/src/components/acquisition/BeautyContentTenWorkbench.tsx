@@ -219,7 +219,7 @@ export function BeautyContentTenWorkbench(props: Props) {
         </section>
 
         <div className="beautyContentTenActions">
-          <button type="submit" className="beautyIndustryPrimary" disabled={props.busy || missing.length > 0}>{props.busy ? `生成内容中 · ${props.elapsed}s` : props.preview ? "生成内容系统流程预览｜预计12积分" : "生成内容系统｜预计12积分"}</button>
+          <button type="submit" className="beautyIndustryPrimary" disabled={props.busy || missing.length > 0}>{props.busy ? `生成内容中 · ${props.elapsed}s` : props.preview ? "生成内容系统流程预览｜预计12算力" : "生成内容系统｜预计12算力"}</button>
           {props.busy && <button type="button" className="beautyIndustrySecondary" onClick={props.onCancel}>取消</button>}
         </div>
         {props.busy && <p className="beautyContentGenerationState" role="status">正在核对简报 → 生成十件交付 → 检查事实与结构 → 保存；可取消，不会自动重试。</p>}
@@ -230,7 +230,7 @@ export function BeautyContentTenWorkbench(props: Props) {
       <article className="beautyContentTenResult">
         <header className="beautyIndustryResultHead"><div><span>03 · {props.preview ? "已保存流程预览" : "已保存交付"}</span><h2>{props.activeRun ? props.preview ? "内容系统流程预览（非正式生成）" : "正式 V5 内容系统" : "等待生成"}</h2></div>{props.activeRun && <div className="beautyContentResultActions"><button type="button" disabled={copying} onClick={() => void copyDelivery()}>{copying ? "复制中…" : props.preview ? "复制预览内容" : "复制十件交付"}</button><button type="button" disabled={downloading} onClick={() => void downloadWord()}>{downloading ? "正在生成 Word…" : "下载 Word"}</button></div>}</header>
         {props.activeRun ? <>
-          <div className="beautyIndustryMeta"><span>{props.activeRun.creditCost} 积分</span><span>{props.activeRun.usageChannel === "mcp" ? "WorkBuddy" : "网页"}</span><span>本次使用：{props.activeRun.abilityUsed || "内容系统"}</span><span>{new Date(props.activeRun.createdAt).toLocaleString()}</span></div>
+          <div className="beautyIndustryMeta"><span>{props.activeRun.creditCost} 算力</span><span>{props.activeRun.usageChannel === "mcp" ? "WorkBuddy" : "网页"}</span><span>本次使用：{props.activeRun.abilityUsed || "内容系统"}</span><span>{new Date(props.activeRun.createdAt).toLocaleString()}</span></div>
           {delivery && delivery.sections.length === 10 ? <div className="contentDeliveryLayout">
             {delivery.preface.length > 0 && <div className="contentDeliveryPreface"><ReactMarkdown remarkPlugins={[remarkGfm]}>{delivery.preface.join("\n")}</ReactMarkdown></div>}
             <div className="contentDeliveryCards">{delivery.sections.map((section, index) => <article key={`${section.title}-${index}`} className={`contentDeliveryCard section-${index + 1}`}><header><span>{String(index + 1).padStart(2, "0")}</span><h4>{section.title}</h4></header><div><ReactMarkdown remarkPlugins={[remarkGfm]}>{section.lines.join("\n")}</ReactMarkdown></div></article>)}</div>
@@ -243,8 +243,8 @@ export function BeautyContentTenWorkbench(props: Props) {
 
     <details className="beautyContentHistory">
       <summary>任务历史 <span>{props.history.length} 条</span></summary>
-      <p>历史已收纳；恢复记录不会再次调用模型或扣积分。</p>
-      <div className="beautyIndustryHistoryList">{props.history.length ? props.history.map((run) => <button key={run.id} type="button" className={props.activeRun?.id === run.id ? "active" : ""} onClick={() => props.onSelectHistory(run)}><strong>内容系统</strong><span>{run.usageChannel === "mcp" ? "WorkBuddy" : "网页"} · {run.creditCost} 积分</span><time>{new Date(run.createdAt).toLocaleString()}</time></button>) : <p>还没有内容系统记录。</p>}</div>
+      <p>历史已收纳；恢复记录不会再次调用模型或扣算力。</p>
+      <div className="beautyIndustryHistoryList">{props.history.length ? props.history.map((run) => <button key={run.id} type="button" className={props.activeRun?.id === run.id ? "active" : ""} onClick={() => props.onSelectHistory(run)}><strong>内容系统</strong><span>{run.usageChannel === "mcp" ? "WorkBuddy" : "网页"} · {run.creditCost} 算力</span><time>{new Date(run.createdAt).toLocaleString()}</time></button>) : <p>还没有内容系统记录。</p>}</div>
     </details>
     <span className="beautyContentTenContract" hidden>{V5_HEADINGS.join("｜")}</span>
   </section>;

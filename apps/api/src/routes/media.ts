@@ -99,7 +99,7 @@ export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
       }, "media analysis stopped before external processing");
       return reply.code(503).send({
         error: "asr_authorization_required",
-        message: "当前入口尚未接通受授权的音视频转写。请先提供已有转写文本；自动转写须完成服务端用途、权限与费用授权后才能使用，本次未调用转写服务、未扣积分。",
+        message: "当前入口尚未接通受授权的音视频转写。请先提供已有转写文本；自动转写须完成服务端用途、权限与费用授权后才能使用，本次未调用转写服务、未扣算力。",
         stage: "asr_admission",
         retryable: false,
         providerCalls: 0,
@@ -112,7 +112,7 @@ export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
     request.raw.once("aborted", onAborted);
 
     /**
-     * 计费（PLAT-41，用户 2026-09-15：「图片解析 + 扫描版 PDF 页面识别按 100 倍扣积分」）。
+     * 计费（PLAT-41，用户 2026-09-15：「图片解析 + 扫描版 PDF 页面识别按 100 倍扣算力」）。
      * - 只有会调用视觉模型（qwen-vl）的路径才收费：单张图片 = 1 次；PDF 预按 4 页上界预留；
      * - CSV / XLSX / TXT / DOCX 等纯文档解析不调模型，**不收费**；
      * - 先预留 → 跑完按实际视觉调用次数结算 → 差额退回；余额不足在调用前 402。
@@ -145,7 +145,7 @@ export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
         if (error instanceof InsufficientCreditsForChargeError) {
           return reply.code(402).send({
             error: "insufficient_credits",
-            message: `图片 / 扫描件解析的积分不足（本次约需 ${error.required} 积分），请先充值后再用。`,
+            message: `图片 / 扫描件解析的算力不足（本次约需 ${error.required} 算力），请先充值后再用。`,
             stage: "credit_admission",
             required: error.required,
             balance: error.wallet.balance,
@@ -177,7 +177,7 @@ export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
          * 只统计**真正成功**的视觉调用（`terminalStatus === "succeeded"`）：
          * ① 纯文字 PDF / 能抽出正文的文件 → 一次视觉调用都没发生 → **全额退回，0 收费**；
          * ② 视觉调用失败 / 超时 / 取消 → 没拿到结果（服务商通常也不计费）→ 同样 0 收费；
-         * ③ 成功几次收几次（每次 = 成本 ¥0.02 × 25 倍 = 10 积分）。
+         * ③ 成功几次收几次（每次 = 成本 ¥0.02 × 25 倍 = 10 算力）。
          * 原来这里写的是 `max(1, …)`：只要走了 PDF 分支就至少收一次，与「没有成本不收费」冲突。
          */
         const successfulVisionCalls = result.providerTrace.filter(
@@ -213,7 +213,7 @@ export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
       }, "media analysis completed");
       return { ...result, creditCost, creditRefunded };
     } catch (error) {
-      // 失败关闭：解析失败时把预留的积分全额退回。
+      // 失败关闭：解析失败时把预留的算力全额退回。
       if (mediaReservation && mediaUserId) {
         await refundAllCreditsForCharge({ reservation: mediaReservation, userId: mediaUserId, skillId: "media_analyze", source: "web", reason: "media_analyze_failed" }).catch(() => {});
       }

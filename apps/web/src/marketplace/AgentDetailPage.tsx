@@ -114,7 +114,7 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
    * 开通包月。
    *
    * 与对话页走**同一个** `POST /market/subscriptions`，服务端语义也一致：
-   * 已在包月期内会把当前这期原样返回（`alreadySubscribed`，不重复消耗积分），
+   * 已在包月期内会把当前这期原样返回（`alreadySubscribed`，不重复消耗算力），
    * 余额不足在扣费前 402 并带回充值入口。
    */
   async function subscribeMonthly() {
@@ -133,13 +133,13 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
         body: JSON.stringify({ skuId: runSku.skuCode })
       });
       if (handleStaleSession(response.status)) {
-        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录后再开通；本次不消耗积分。");
+        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录后再开通；本次不消耗算力。");
       }
       if (response.status === 402) {
         const payload = (await response.json().catch(() => ({}))) as { message?: string };
         setSubscriptionNotice(
-          `${payload.message ?? `开通包月需要 ${subscriptionOffer.credits} 积分，当前积分不足，请先充值。`}`
-          + "（本次不消耗积分；充完回来再点「开通包月」即可。）"
+          `${payload.message ?? `开通包月需要 ${subscriptionOffer.credits} 算力，当前算力不足，请先充值。`}`
+          + "（本次不消耗算力；充完回来再点「开通包月」即可。）"
         );
         setRechargeHref(
           getAppPath(
@@ -165,9 +165,9 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
       const quotaText = dailyQuota == null ? "不限次数" : `每天 ${dailyQuota} 条`;
       setSubscriptionNotice(
         result.alreadySubscribed
-          ? `你已经在包月期内了，这次没有重复消耗积分：${quotaText}，额度每天 0 点恢复${until ? `，本期末到 ${until}` : ""}。`
-          : `✅ 包月已开通：本期已消耗 ${result.credits ?? subscriptionOffer.credits} 积分（${quotaText}${until ? `，本期末到 ${until}` : ""}）。`
-            + `从现在起，本智能体的生成不再额外消耗积分${dailyQuota == null ? "" : `；今天还剩 ${Math.max(0, dailyQuota - usedToday)} 条`}。`
+          ? `你已经在包月期内了，这次没有重复消耗算力：${quotaText}，额度每天 0 点恢复${until ? `，本期末到 ${until}` : ""}。`
+          : `✅ 包月已开通：本期已消耗 ${result.credits ?? subscriptionOffer.credits} 算力（${quotaText}${until ? `，本期末到 ${until}` : ""}）。`
+            + `从现在起，本智能体的生成不再额外消耗算力${dailyQuota == null ? "" : `；今天还剩 ${Math.max(0, dailyQuota - usedToday)} 条`}。`
       );
     } catch (reason) {
       setSubscriptionNotice(reason instanceof Error ? reason.message : "开通失败，请稍后再试。");
@@ -201,7 +201,7 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
 
           <aside className="detail-buy">
             {soon && (
-              <div className="zone-soon">🚧 <b>该智能体正在开发中</b>：能力介绍和输出参考案例可以先看，暂未开放使用。上线后可直接使用，和平台其他智能体共用同一份积分，不需要重复充值。</div>
+              <div className="zone-soon">🚧 <b>该智能体正在开发中</b>：能力介绍和输出参考案例可以先看，暂未开放使用。上线后可直接使用，和平台其他智能体共用同一份算力，不需要重复充值。</div>
             )}
             <div className="use-card">
               <div className="use-label">开始使用 · 对话式智能体</div>
@@ -222,7 +222,7 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
                   <button className="btn primary block" disabled={soon} onClick={startChat}>{soon ? "开发中 · 敬请期待" : "开始第 1 步"}</button>
                   {soon
                     ? <div className="pc-note">🚧 组合内各环节正在开发中，上线后开放按环节使用。</div>
-                    : <div className="pc-note">🎯 <b>不用一次走完</b>：进入后一步一步来，每步交付完才结算——<b>中途停下来，没做的环节不消耗积分</b>。</div>}
+                    : <div className="pc-note">🎯 <b>不用一次走完</b>：进入后一步一步来，每步交付完才结算——<b>中途停下来，没做的环节不消耗算力</b>。</div>}
                 </div>
               ) : (
                 <div className="pc-block">
@@ -240,18 +240,18 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
                * 只对配置了 `sub` 的 SKU 渲染：套餐价与每日条数全部来自接口字段，页面上不写死数字，
                * 以后给别的智能体上包月（`marketplace-v3.json` 加 `sub`）这个块会自动出现。
                *
-               * 不违反 PLAT-31「不前置报价」：那条禁的是**按次**报价（「N 积分/次」「约扣 N 积分」与折算人民币写法）；
+               * 不违反 PLAT-31「不前置报价」：那条禁的是**按次**报价（「N 算力/次」「约扣 N 算力」与折算人民币写法）；
                * 包月是用户拍板「可以自己选包月或按消耗计费」的独立售卖方案，价格必须看得见。
                */}
               {subscriptionOffer && !bundle && !soon && (
                 <div className="pc-block sub">
-                  <div className="pc-label">📅 也可以按月订阅 · 订阅期内生成不再额外消耗积分</div>
-                  <div className="pc-pts">{subscriptionOffer.credits}<span> 积分/月</span></div>
+                  <div className="pc-label">📅 也可以按月订阅 · 订阅期内生成不再额外消耗算力</div>
+                  <div className="pc-pts">{subscriptionOffer.credits}<span> 算力/月</span></div>
                   <div className="pc-quota">{subscriptionQuotaText}</div>
                   {subscribed ? (
                     <>
-                      <button className="btn primary block" onClick={startChat}>💬 开始用（本次不消耗积分）</button>
-                      <div className="pc-subnote">包月期内额度每天 0 点恢复；本期结束前再来生成都不会再消耗积分。</div>
+                      <button className="btn primary block" onClick={startChat}>💬 开始用（本次不消耗算力）</button>
+                      <div className="pc-subnote">包月期内额度每天 0 点恢复；本期结束前再来生成都不会再消耗算力。</div>
                     </>
                   ) : (
                     <>
@@ -260,9 +260,9 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
                         disabled={subscribing}
                         onClick={() => { void subscribeMonthly(); }}
                       >
-                        {subscribing ? "正在开通…" : `📅 开通包月：${subscriptionOffer.credits} 积分/月`}
+                        {subscribing ? "正在开通…" : `📅 开通包月：${subscriptionOffer.credits} 算力/月`}
                       </button>
-                      <div className="pc-subnote">低频使用按结果交付更划算；高频用选包月，订阅期内不再消耗积分。</div>
+                      <div className="pc-subnote">低频使用按结果交付更划算；高频用选包月，订阅期内不再消耗算力。</div>
                     </>
                   )}
                   {subscriptionNotice && (
@@ -292,7 +292,7 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
                * 点下去什么都不会发生，用户以为坏了。现在没有样例就不给样例按钮，工作台入口给真正的入口。
                */}
               {refCase ? (
-                <button className="btn ghost block demo-chat-btn" onClick={() => setBenchmark(refCase)}>👀 输出参考案例 · 不消耗积分</button>
+                <button className="btn ghost block demo-chat-btn" onClick={() => setBenchmark(refCase)}>👀 输出参考案例 · 不消耗算力</button>
               ) : sku.skuCode === "lanqi__lanqi-brain" ? (
                 <>
                   <div className="pc-note">🧭 这是<b>品牌工作台入口</b>，不是单次生成的智能体：进去后用门店档案、经营诊断、到店获客与卡项客户管理（需要兰琪授权）。</div>
@@ -300,7 +300,7 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
                 </>
               ) : null}
             </div>
-            <div className="shared-card">💎 <b>一份积分，全平台通用</b><br />创始人IP专区与各行业专区的智能体共用同一份积分；在 WorkBuddy 里用思潼智能体，用的也是这份积分。</div>
+            <div className="shared-card">💎 <b>一份算力，全平台通用</b><br />创始人IP专区与各行业专区的智能体共用同一份算力；在 WorkBuddy 里用思潼智能体，用的也是这份算力。</div>
             {notice && <div className="notice">{notice}</div>}
           </aside>
         </div>
@@ -317,7 +317,7 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
           >
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 10 }}>
               <div>
-                <div style={{ color: "var(--muted)", fontSize: 13 }}>输出参考案例 · 不消耗积分 · 不调用模型</div>
+                <div style={{ color: "var(--muted)", fontSize: 13 }}>输出参考案例 · 不消耗算力 · 不调用模型</div>
                 <h2 style={{ margin: "4px 0 0", fontSize: 22 }}>{sku.name}</h2>
               </div>
               <button className="back" onClick={() => setBenchmark(null)}>关闭</button>

@@ -32,7 +32,7 @@ interface TrialGrantResult {
   grantedAt: string | null;
 }
 
-/** 默认体验额度口径（2026-09-11 用户拍板）：400 积分 / 3 天。 */
+/** 默认体验额度口径（2026-09-11 用户拍板）：400 算力 / 3 天。 */
 const TRIAL_DEFAULT_CREDITS = 400;
 const TRIAL_DEFAULT_VALID_DAYS = 3;
 
@@ -194,7 +194,7 @@ function PlatformSettingsPanel({
         <h2>推荐有礼配置位（PLAT-28 第①批）</h2>
         <p>
           本批只提供开关的读写与校验，<b>不发放任何奖励</b>：三段奖励金额、90 天有效期、text-only
-          硬限制、活动窗左闭右开等口径由第②批按这里的配置执行。奖励积分的「只能用于文字类智能体」是冻结口径，不可改。
+          硬限制、活动窗左闭右开等口径由第②批按这里的配置执行。奖励算力的「只能用于文字类智能体」是冻结口径，不可改。
         </p>
       </div>
       {error && <div className="marketplaceAdminError" role="alert">{error}</div>}
@@ -298,7 +298,7 @@ export function MarketplaceAdminPage() {
     }
     const amountNumber = Number.parseInt(amount, 10);
     if (!Number.isInteger(amountNumber) || amountNumber < 1 || amountNumber > 800) {
-      setError("发放积分必须是 1-800 的整数");
+      setError("发放算力必须是 1-800 的整数");
       return;
     }
     if (!/^[A-Za-z0-9_-]{8,80}$/.test(grantId.trim())) {
@@ -340,7 +340,7 @@ export function MarketplaceAdminPage() {
         <h1>{trialGrantEnabled ? "体验额度发放" : "体验额度发放（已停用）"}</h1>
         <p className="mine-tip">
           销售/运营确认真实商家身份后发放体验额度。额度只能发给<b>已经自己扫码注册登入</b>的客户，
-          走 bonus 桶、不计收入、不退款；默认口径 {TRIAL_DEFAULT_CREDITS} 积分 / {TRIAL_DEFAULT_VALID_DAYS} 天。
+          走 bonus 桶、不计收入、不退款；默认口径 {TRIAL_DEFAULT_CREDITS} 算力 / {TRIAL_DEFAULT_VALID_DAYS} 天。
           本页属于资金侧操作，除账号角色外还需要<b>平台管理令牌</b>（ADMIN_TOKEN），否则任何商家都能给自己发额度。
         </p>
         {!trialGrantEnabled && (
@@ -403,7 +403,7 @@ export function MarketplaceAdminPage() {
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <label style={adminFieldStyle}>
-              <span>发放积分（1-800）</span>
+              <span>发放算力（1-800）</span>
               <input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="numeric" style={adminInputStyle} />
             </label>
             <label style={adminFieldStyle}>
@@ -424,12 +424,12 @@ export function MarketplaceAdminPage() {
 
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--muted)" }}>
             <input type="checkbox" checked={dryRun} onChange={(event) => setDryRun(event.target.checked)} />
-            预演（dry-run）：只校验身份，不写入任何积分
+            预演（dry-run）：只校验身份，不写入任何算力
           </label>
 
           <div>
             <button className="btn primary" disabled={busy} onClick={() => { void submit(); }}>
-              {busy ? "处理中…" : dryRun ? "预演发放" : `发放 ${amount || "—"} 积分`}
+              {busy ? "处理中…" : dryRun ? "预演发放" : `发放 ${amount || "—"} 算力`}
             </button>
           </div>
           </>}
@@ -463,7 +463,7 @@ export function MarketplaceAdminPage() {
         {result && result.state !== "already_applied" && (
           <p className="mine-tip" style={{ marginTop: 8 }}>
             运营口径有效期 {days} 天，建议到期日：<b>{addDaysLabel(result.grantedAt, days)}</b>
-            （系统当前不自动回收过期体验积分，到期需人工核对）。
+            （系统当前不自动回收过期体验算力，到期需人工核对）。
           </p>
         )}
 
@@ -481,7 +481,7 @@ export function MarketplaceAdminPage() {
                   <th>发放时间</th>
                   <th>发放编号</th>
                   <th>客户</th>
-                  <th>积分</th>
+                  <th>算力</th>
                   <th>发放人</th>
                 </tr>
               </thead>

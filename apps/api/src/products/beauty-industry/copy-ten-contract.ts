@@ -41,7 +41,7 @@ export const COPY_TEN_SYSTEM_PROMPT = [
   "输出必须一、…十、十节齐全、每节独立成段；标题必须正好 3 行（主标题 + 2 备选）；若为获客/招商型，访谈话术必须 5-6 组【问·…】，且第十节主投本地推。只输出这套十件套 Markdown，不要输出任何说明、推导或内部评估。"
 ].join("\n");
 
-/** 结构校验结果：`failures` 为空才算通过（失败即不扣积分，见两侧调用方）。 */
+/** 结构校验结果：`failures` 为空才算通过（失败即不扣算力，见两侧调用方）。 */
 export interface CopyTenParseResult {
   failures: string[];
 }

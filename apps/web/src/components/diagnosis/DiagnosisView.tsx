@@ -238,7 +238,7 @@ export function DiagnosisView({ token, headers, planCode, setPlanCode, onOpenCon
       industryGap: ["成熟商家通常持续记录来源、咨询、成交、复购和成本数据。", "当前经营管理与周期性复盘闭环仍有差距。"],
       riskLevel: "中风险",
       recommendedPlan: planCode || "chain_standard",
-      recommendReason: "专属咨询落地方案属于付费/积分兑换资产。",
+      recommendReason: "专属咨询落地方案属于付费/算力兑换资产。",
       roadmap: [],
       aiConsultants: [],
       onboardingChecklist: [],

@@ -126,7 +126,7 @@ export async function registerBillingConsumeRoutes(app: FastifyInstance): Promis
     if (result.status === "insufficient") {
       return reply.code(402).send({
         error: "insufficient_credits",
-        message: "当前积分不足，请先充值后再使用。",
+        message: "当前算力不足，请先充值后再使用。",
         balance: result.wallet.balance,
         paidBalance: result.wallet.paidBalance,
         bonusBalance: result.wallet.bonusBalance,

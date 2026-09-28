@@ -156,7 +156,7 @@ export function useChat({
       });
 
       if (res.status === 402) {
-        appendAdvisorMessage("当前积分不足，先充值积分，我再继续帮你往下做。");
+        appendAdvisorMessage("当前算力不足，先充值算力，我再继续帮你往下做。");
         onOpenBilling();
         setBusy(false);
         return;
@@ -355,7 +355,7 @@ function friendlyChatErrorMessage(errData: unknown, status: number): string {
     return "登录状态已失效，请重新登录或完成企业入驻。";
   }
   if (status === 402 || error === "insufficient_credits") {
-    return "当前积分不足，先充值积分，我再继续帮你往下做。";
+    return "当前算力不足，先充值算力，我再继续帮你往下做。";
   }
   if (status === 403 && error === "subscription_required") {
     return "当前账号暂时无法使用，请联系服务团队。";

@@ -4,11 +4,11 @@
 // 合同不复制：提示词与结构校验都取 `../beauty-industry/copy-ten-contract.js`
 // （货架「文案智能体」用的同一份「内容十件套 V5」），兰琪这侧只加一层「怎么问、缺信息怎么办」的壳。
 //
-// 计费边界（与兰琪其它出片 / 图片能力同一套口径：租户积分账户 `creditAccount`）：
-//   ① 余额不足 → 402，**不调模型、不扣积分**；
-//   ② 模型失败 / 信息不足 / 十件套结构校验不过 → 不扣积分；
+// 计费边界（与兰琪其它出片 / 图片能力同一套口径：租户算力账户 `creditAccount`）：
+//   ① 余额不足 → 402，**不调模型、不扣算力**；
+//   ② 模型失败 / 信息不足 / 十件套结构校验不过 → 不扣算力；
 //   ③ 只有拿到合格的十件套才扣，条件更新（`balance >= price`）保证并发不为负，并写 `creditTransaction` 流水；
-//   ④ 同一 `requestKey` + 同一输入 → 复用同一份结果、不重复扣积分；同键不同输入 → 409 冲突。
+//   ④ 同一 `requestKey` + 同一输入 → 复用同一份结果、不重复扣算力；同键不同输入 → 409 冲突。
 import type { LlmMessage, LlmProvider } from "@baolu/agent";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
@@ -43,7 +43,7 @@ const MIN_BRIEF_CHARS = 12;
  * 为什么不是「像货架那样关掉思考」：2026-09-15 真实 Eval 对比过——
  *   ① 走默认推理档 + 8192 额度：正文 3.5k 字、结构合格，但 3 次里 1 次把额度花在推理上被截断；
  *   ② 关掉思考（standard + disabled）：正文掉到 ~2.5k 字，出现口播单句 >40 字、违禁词等结构失败。
- * 所以这里保留推理档，改为给足输出额度；偶发失败由结构校验兜住（不扣积分、可重试）。
+ * 所以这里保留推理档，改为给足输出额度；偶发失败由结构校验兜住（不扣算力、可重试）。
  */
 const MAX_TOKENS = Number(process.env.LANQI_COPY_KIT_MAX_TOKENS ?? "") > 0
   ? Math.round(Number(process.env.LANQI_COPY_KIT_MAX_TOKENS))
@@ -67,7 +67,7 @@ export type LanqiCopyKitResult =
   | { status: "ready"; content: string; contractVersion: string; failures: [] };
 
 /**
- * 独立计费口径：默认 40 积分 / 次 —— 与货架「文案智能体」**同一份合同、同一档价**。
+ * 独立计费口径：默认 40 算力 / 次 —— 与货架「文案智能体」**同一份合同、同一档价**。
  * 老板要把这张卡定成别的价，只改 env `LANQI_COPY_KIT_CREDITS` 即可，不必发版。
  */
 export function lanqiCopyKitPriceCredits(): number {
@@ -177,7 +177,7 @@ export async function generateLanqiCopyKit(params: {
 // 幂等与结果留存
 //
 // 结果落本租户目录（与兰琪媒体资产同一套「路径里带租户、再按租户校验」的隔离口径），
-// 这样「点了一次、响应丢了、再点一次」不会重复扣积分，也不会白花钱拿不到内容。
+// 这样「点了一次、响应丢了、再点一次」不会重复扣算力，也不会白花钱拿不到内容。
 // ---------------------------------------------------------------------------
 
 export interface LanqiCopyKitCacheEntry {

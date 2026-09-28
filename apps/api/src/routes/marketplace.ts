@@ -171,7 +171,7 @@ const marketplaceRunSchema = z.object({
 
 /**
  * 视频复盘「文件到底有没有到后端」的预检（工单 2.4）：
- * 只解析、不调模型、不消耗积分；前端可先确认「文件到了 + 解析到了」，再发起正式复盘。
+ * 只解析、不调模型、不消耗算力；前端可先确认「文件到了 + 解析到了」，再发起正式复盘。
  */
 const vidrevParsePreviewSchema = z.object({
   content: z.string().max(400_000).optional(),
@@ -183,7 +183,7 @@ const vidrevParsePreviewSchema = z.object({
  * 从表头/正文里猜平台。
  *
  * 2026-09-15 用户口径：**视频复盘只做抖音和视频号**，小红书 / 快手 / B站 一律不支持；
- * 识别到这些平台时返回 "其他平台"，由调用方 fail closed（不出报告、不消耗积分）。
+ * 识别到这些平台时返回 "其他平台"，由调用方 fail closed（不出报告、不消耗算力）。
  */
 function detectVidrevPlatform(text: string): string | null {
   const head = (text ?? "").slice(0, 4000);
@@ -359,8 +359,8 @@ export async function runMarketplaceSku(params: {
       body: {
         error: comingSoon ? "marketplace_sku_coming_soon" : "marketplace_sku_not_available",
         message: comingSoon
-          ? "该智能体正在开发中，敬请期待；本次不消耗积分。"
-          : "该智能体暂不可用；本次不消耗积分。",
+          ? "该智能体正在开发中，敬请期待；本次不消耗算力。"
+          : "该智能体暂不可用；本次不消耗算力。",
         status: sku.status
       }
     };
@@ -446,7 +446,7 @@ export async function runMarketplaceSku(params: {
       status: 409,
       body: {
         error: "marketplace_subscription_quota_exhausted",
-        message: `你已开通本智能体的包月：今天 ${subscriptionQuota} 次已经用完（今日已用 ${subscriptionUsedToday} 次）。本次不消耗积分，额度每天 0 点恢复。`,
+        message: `你已开通本智能体的包月：今天 ${subscriptionQuota} 次已经用完（今日已用 ${subscriptionUsedToday} 次）。本次不消耗算力，额度每天 0 点恢复。`,
         quota: subscriptionQuota,
         usedToday: subscriptionUsedToday,
         subscriptionEndDate: activeSubscription.endDate,
@@ -463,7 +463,7 @@ export async function runMarketplaceSku(params: {
       status: 402,
       body: {
         error: "insufficient_credits",
-        message: "当前积分不足，请先充值后再使用。",
+        message: "当前算力不足，请先充值后再使用。",
         balance: walletBefore.balance,
         required: price,
         rechargeUrl: buildRechargeUrl(sku.skuCode)
@@ -528,7 +528,7 @@ export async function runMarketplaceSku(params: {
           }
         }
         // 来源4（数据复盘）：只读上传时解析落库的快照（enabled=false 视为用户主动关闭，不注入）。
-        // 复用 vidrev 确定性重算引擎（computeVidrevMetrics / vidrevMetricBrief），不调 LLM、不扣积分。
+        // 复用 vidrev 确定性重算引擎（computeVidrevMetrics / vidrevMetricBrief），不调 LLM、不扣算力。
         const reviewRows = await prisma
           .$queryRawUnsafe<TopicReviewRow[]>(TOPIC_REVIEW_COLUMN, context.userId)
           .catch(() => [] as TopicReviewRow[]);
@@ -596,7 +596,7 @@ export async function runMarketplaceSku(params: {
           status: 422,
           body: {
             error: "marketplace_output_invalid",
-            message: "没有识别到视频记录，本次不消耗积分。请上传视频号/抖音后台导出的 CSV/Excel（至少包含 1 条视频数据，表头含标题 / 播放 / 互动等字段）。",
+            message: "没有识别到视频记录，本次不消耗算力。请上传视频号/抖音后台导出的 CSV/Excel（至少包含 1 条视频数据，表头含标题 / 播放 / 互动等字段）。",
             reasons: ["V0 未解析到可复算的数据行：深度复盘必须有结构化数据（rows 或可解析的数据表）。"],
             failed_rules: ["V0"]
           }
@@ -660,7 +660,7 @@ export async function runMarketplaceSku(params: {
        * 2026-09-17 现场（50 条导出实测）：深度复盘报告的长度随视频条数线性增长，一次生成的输出
        * 上限是 8000 tokens；20 条约 7000 tokens 已是临界，50 条必然被截断（finishReason=length）。
        * 这种失败必须说清「是数据太多、不是系统坏了」，并给出可执行的下一步；绝不能糊成
-       * 「模型调用失败（model_call_failed）」让老板反复重试。仍然不消耗积分。
+       * 「模型调用失败（model_call_failed）」让老板反复重试。仍然不消耗算力。
        */
       const isVidrevTooLong = core === "vidrev" && code === "output_token_limit";
       return {
@@ -670,8 +670,8 @@ export async function runMarketplaceSku(params: {
           error: "marketplace_provider_failed",
           code,
           message: isVidrevTooLong
-            ? `本次要复盘的视频有 ${vidrevMetrics?.count ?? 0} 条，超过单次深度复盘能生成的报告篇幅上限，报告会被截断——所以没有交付，本次也不消耗积分。请把导出周期改成「近 7 天 / 近 14 天」分批复盘（每批 20 条以内最稳），或先只复盘其中一批。`
-            : `模型调用失败（${code}），本次不消耗积分。`
+            ? `本次要复盘的视频有 ${vidrevMetrics?.count ?? 0} 条，超过单次深度复盘能生成的报告篇幅上限，报告会被截断——所以没有交付，本次也不消耗算力。请把导出周期改成「近 7 天 / 近 14 天」分批复盘（每批 20 条以内最稳），或先只复盘其中一批。`
+            : `模型调用失败（${code}），本次不消耗算力。`
         }
       };
     }
@@ -732,7 +732,7 @@ export async function runMarketplaceSku(params: {
           status: 422,
           body: {
             error: "marketplace_output_invalid",
-            message: "选题交付未通过技能校验，本次不消耗积分：\n" + validation.failures.slice(0, 8).join("\n"),
+            message: "选题交付未通过技能校验，本次不消耗算力：\n" + validation.failures.slice(0, 8).join("\n"),
             reasons: validation.failures.slice(0, 20)
           }
         };
@@ -779,7 +779,7 @@ export async function runMarketplaceSku(params: {
           status: 422,
           body: {
             error: "marketplace_output_invalid",
-            message: "文案交付未通过技能校验，本次不消耗积分：\n" + validation.failures.join("\n"),
+            message: "文案交付未通过技能校验，本次不消耗算力：\n" + validation.failures.join("\n"),
             reasons: validation.failures
           }
         };
@@ -832,7 +832,7 @@ export async function runMarketplaceSku(params: {
           status: 422,
           body: {
             error: "marketplace_output_invalid",
-            message: "IP 定位全案未通过技能校验，本次不消耗积分：\n" + validation.failures.slice(0, 8).join("\n"),
+            message: "IP 定位全案未通过技能校验，本次不消耗算力：\n" + validation.failures.slice(0, 8).join("\n"),
             reasons: validation.failures.slice(0, 20)
           }
         };
@@ -876,7 +876,7 @@ export async function runMarketplaceSku(params: {
             await dumpVidrevDebugOutput("retry", retryText ?? "", retryValidation.failures);
           }
         } catch {
-          // 纠错重跑失败则保留首次输出，走下面的 422 分支（不消耗积分）。
+          // 纠错重跑失败则保留首次输出，走下面的 422 分支（不消耗算力）。
         }
       }
       if (validation.failures.length > 0) {
@@ -885,7 +885,7 @@ export async function runMarketplaceSku(params: {
           status: 422,
           body: {
             error: "marketplace_output_invalid",
-            message: "视频复盘未通过技能校验，本次不消耗积分：\n" + validation.failures.slice(0, 8).join("\n"),
+            message: "视频复盘未通过技能校验，本次不消耗算力：\n" + validation.failures.slice(0, 8).join("\n"),
             reasons: validation.failures.slice(0, 20),
             failed_rules: [...new Set(validation.failures.map((item) => item.split(/[\s：:]/)[0]))]
           }
@@ -914,7 +914,7 @@ export async function runMarketplaceSku(params: {
           status: 402,
           body: {
             error: "insufficient_credits",
-            message: "当前积分不足，请先充值后再使用。",
+            message: "当前算力不足，请先充值后再使用。",
             balance: consumed.wallet.balance,
             paidBalance: consumed.wallet.paidBalance,
             bonusBalance: consumed.wallet.bonusBalance,
@@ -1020,7 +1020,7 @@ export async function runMarketplaceSku(params: {
 
 /**
  * ip-pos 生成前预审（2026-09-27 用户拍板）：正式生成前用轻模型逐槽位体检 6 项访谈回答，
- * 缺什么追问什么、不消耗积分。槽位键是固定枚举，模型输出会经服务端白名单二次过滤，
+ * 缺什么追问什么、不消耗算力。槽位键是固定枚举，模型输出会经服务端白名单二次过滤，
  * 前端按同一映射回填——保证「模型问的是哪个槽位，答案就落回哪个槽位」，不会串格。
  */
 const IP_POS_PRECHECK_SLOTS = ["role", "project", "competition", "user", "founder", "stage"] as const;
@@ -1077,7 +1077,7 @@ function parseIpPosPrecheck(text: string): IpPosPrecheckIssue[] | null {
 export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<void> {
   await ensureMarketplaceCatalog();
 
-  // 视频复盘预检（工单 2.4）：验证「文件真的到了后端、字段也解析到了」，不调模型、不消耗积分。
+  // 视频复盘预检（工单 2.4）：验证「文件真的到了后端、字段也解析到了」，不调模型、不消耗算力。
   app.post("/vidrev/parse-preview", async (request, reply) => {
     const parsed = vidrevParsePreviewSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
@@ -1102,7 +1102,7 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
     const metrics = result.rows.length > 0 ? computeVidrevMetrics(result.rows) : null;
     const detectedPlatform = parsed.data.platform ?? detectVidrevPlatform(content);
 
-    // 2026-09-15 用户口径：只做抖音 / 视频号；识别到小红书等平台时明确说明，不进解析、不消耗积分。
+    // 2026-09-15 用户口径：只做抖音 / 视频号；识别到小红书等平台时明确说明，不进解析、不消耗算力。
     if (detectedPlatform === "其他平台" || (detectedPlatform && !VIDREV_SUPPORTED_PLATFORMS.includes(detectedPlatform))) {
       return {
         ok: false,
@@ -1189,7 +1189,7 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
     });
 
     // ip-pos 生成前体检（2026-09-27）：轻模型逐槽位审 6 项回答，缺什么追问什么；
-    // 不走钱包、不消耗积分。预审是建议性闸门——服务异常时前端会放行，正式 run 的
+    // 不走钱包、不消耗算力。预审是建议性闸门——服务异常时前端会放行，正式 run 的
     // needsInput 澄清与契约校验仍然兜底，不会因为体检挂掉而挡住付费主链路。
     market.post<{ Params: { skuId: string } }>("/skus/:skuId/precheck", async (request, reply) => {
       const parsedSchema = ipPosPrecheckSchema.safeParse(request.body ?? {});
@@ -1441,7 +1441,7 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
     });
 
     // 选题策略官工作台 · 来源4（数据复盘）：上传 CSV/Excel → 复用 vidrev 确定性解析/重算引擎
-    // （parseVidrevRowsFromText + computeVidrevMetrics，不调 LLM、不扣积分）→ 解析结果落库。
+    // （parseVidrevRowsFromText + computeVidrevMetrics，不调 LLM、不扣算力）→ 解析结果落库。
     // 运行时（/run workbench 分支）只读这份快照。vidrev 对话流程（ipzone__vidrev）完全不受影响。
     market.post("/topic-review-upload", async (request, reply) => {
       const context = await resolveRequestContext(request.headers);
@@ -1628,8 +1628,8 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
         return reply.code(409).send({
           error: comingSoon ? "marketplace_sku_coming_soon" : "marketplace_sku_not_available",
           message: comingSoon
-            ? "该智能体正在开发中，敬请期待；本次不消耗积分。"
-            : "该智能体暂不可用；本次不消耗积分。",
+            ? "该智能体正在开发中，敬请期待；本次不消耗算力。"
+            : "该智能体暂不可用；本次不消耗算力。",
           status: sku.status
         });
       }
@@ -1645,11 +1645,11 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
       const sku = await getMarketplaceSku(parsed.data.skuId);
       if (!sku) return reply.code(404).send({ error: "marketplace_sku_not_found" });
       /**
-       * 积分口径包月（用户 2026-09-17 拍板）：文案智能体 4000 积分/月、每天 5 条。
+       * 算力口径包月（用户 2026-09-17 拍板）：文案智能体 4000 算力/月、每天 5 条。
        *
-       * 为什么必须用积分口径：老的人民币口径包月价格在生产里全是 NULL（等于没上架），
+       * 为什么必须用算力口径：老的人民币口径包月价格在生产里全是 NULL（等于没上架），
        * 且订阅支付只有 `mock-pay`（`NODE_ENV=production` 直接 404），所以「包月」以前根本走不通。
-       * 平台本来就有统一积分钱包，直接扣积分即可闭环，不需要再接一条支付渠道。
+       * 平台本来就有统一算力钱包，直接扣算力即可闭环，不需要再接一条支付渠道。
        */
       if (context.source === "database" && (sku.subscriptionCredits ?? 0) > 0) {
         return await subscribeMarketplaceSkuWithCredits(context, sku, reply);
@@ -1766,7 +1766,7 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
       //
       // P0（QA-20260911-009）：体验额度是**资金侧写操作**，只靠租户级角色是放不住的——
       // `context.role` 来自 membership，任何商家注册后就是自己租户的 `owner`，
-      // 只查角色等于给每个商家开了「给自己无限发积分」的入口（实测一条 grant-id 可发 800）。
+      // 只查角色等于给每个商家开了「给自己无限发算力」的入口（实测一条 grant-id 可发 800）。
       // 因此这两条路由除角色守卫外，还必须由平台运维凭证证明调用方是内部人员：
       //   - 生产：`x-sitong-admin-token` 必须等于 `env.ADMIN_TOKEN`（同 `/admin/invites`）；
       //   - 本地/开发：`ADMIN_TOKEN` 未配置时沿用既有「未配置即放行」语义，角色守卫仍然生效。
@@ -1944,8 +1944,8 @@ async function tryResolveContext(request: FastifyRequest): Promise<RequestContex
 
 async function getCreditBalance(context: RequestContext): Promise<number> {
   if (context.source === "demo") return demoMarketplace.getBalance(context.tenantId);
-  // 货架只认用户双桶钱包：展示（/market/me、访问态）与消耗积分（/run、/ppu/consume）必须同源，
-  // 否则会出现「余额显示够、消耗积分却失败」或反向的错账。
+  // 货架只认用户双桶钱包：展示（/market/me、访问态）与消耗算力（/run、/ppu/consume）必须同源，
+  // 否则会出现「余额显示够、消耗算力却失败」或反向的错账。
   return (await readWallet(context.userId)).balance;
 }
 
@@ -2019,12 +2019,12 @@ export async function getMarketplaceSku(idOrCode: string): Promise<PublicMarketp
 }
 
 /**
- * 包月订阅（积分口径）——用户 2026-09-17 拍板。
+ * 包月订阅（算力口径）——用户 2026-09-17 拍板。
  *
  * 口径：
  *   1. 每个智能体自己决定计费方式：按次（`ppu`）、按消耗（成本口径）、或按月订阅。
- *   2. 订阅期内**不再扣积分**，只受「每天 N 次」限制（`subscriptionDailyQuota`）。
- *   3. 额度用完后是**显式拒绝**，不静默改成扣积分（用户选了包月就不该被扣分）。
+ *   2. 订阅期内**不再扣算力**，只受「每天 N 次」限制（`subscriptionDailyQuota`）。
+ *   3. 额度用完后是**显式拒绝**，不静默改成扣算力（用户选了包月就不该被扣分）。
  *
  * 用量按「上海时区自然日」统计，落在 `MarketplaceLedgerEntry` 上（`refType=marketplace_subscription_usage`，
  * `refId=订阅 id`），不新增计数器表——账本本来就是唯一真相，充值/扣费/退款都能从它回溯。
@@ -2097,7 +2097,7 @@ async function subscribeMarketplaceSkuWithCredits(
   if (walletBefore.balance < price) {
     return reply.code(402).send({
       error: "insufficient_credits",
-      message: `订阅本智能体包月需要 ${price} 积分，当前积分不足，请先充值后再订阅（本次不消耗积分）。`,
+      message: `订阅本智能体包月需要 ${price} 算力，当前算力不足，请先充值后再订阅（本次不消耗算力）。`,
       balance: walletBefore.balance,
       required: price,
       rechargeUrl: buildRechargeUrl(sku.skuCode)
@@ -2114,7 +2114,7 @@ async function subscribeMarketplaceSkuWithCredits(
   if (consumed.status === "insufficient") {
     return reply.code(402).send({
       error: "insufficient_credits",
-      message: `订阅本智能体包月需要 ${price} 积分，当前积分不足，请先充值后再订阅（本次不消耗积分）。`,
+      message: `订阅本智能体包月需要 ${price} 算力，当前算力不足，请先充值后再订阅（本次不消耗算力）。`,
       balance: consumed.wallet.balance,
       required: price,
       rechargeUrl: buildRechargeUrl(sku.skuCode)
@@ -2198,7 +2198,7 @@ async function accessStateFor(context: RequestContext, sku: PublicMarketplaceSku
       state: "subscribed",
       track: "subscription",
       balance: await getCreditBalance(context),
-      /** 前端据此显示「已订阅 · 今天还剩 N 条」，并解释为什么这次不扣积分。 */
+      /** 前端据此显示「已订阅 · 今天还剩 N 条」，并解释为什么这次不扣算力。 */
       subscription: {
         id: subscription.id,
         endDate: subscription.endDate,
@@ -2247,7 +2247,7 @@ async function consumeMarketplacePpu(
     };
   }
 
-  // 与 /market/skus/:skuId/run 相同的用户双桶钱包消耗积分，保证 /market/me 显示的余额就是被扣的钱包。
+  // 与 /market/skus/:skuId/run 相同的用户双桶钱包消耗算力，保证 /market/me 显示的余额就是被扣的钱包。
   const consumed = await consumeWalletCredits({
     userId: context.userId,
     requestId: `marketplace_ppu:${idempotencyKey}`,
@@ -2374,7 +2374,7 @@ async function listSubscriptions(context: RequestContext) {
 }
 
 /**
- * 「我的」页的**积分退回记录**（用户 2026-09-16：客户 4 次 Word 下载失败被多扣 30 积分，
+ * 「我的」页的**算力退回记录**（用户 2026-09-16：客户 4 次 Word 下载失败被多扣 30 算力，
  * 退了钱但他自己看不到——只显示消耗记录等于让他无从核对）。
  *
  * 只列**与客户切身相关**的退回（Word 导出重复扣费这类），不把内部的预留/结算差额晾出来
@@ -2395,7 +2395,7 @@ async function listRecentRefunds(context: RequestContext) {
   });
   return rows.map((row) => ({
     id: row.id,
-    label: (row.source ?? "").replace(/^web:ops:/, "").replace(/^web:/, "").split(":")[0] || "积分退回",
+    label: (row.source ?? "").replace(/^web:ops:/, "").replace(/^web:/, "").split(":")[0] || "算力退回",
     amountCredits: row.delta,
     detail: row.source?.replace(/^web:/, "") ?? "",
     createdAt: row.createdAt
@@ -2445,7 +2445,7 @@ function resolveMarketplaceSkillId(capabilityKey: string | null | undefined): Sk
  * 「常用智能体」列表（用户 2026-09-16：「常用智能体要不要做成独立的智能体列表页」→ 要）。
  *
  * 与 `listRecentPpuUsage`（最近 20 条流水，用于「我的」页的时间线）不同，这里按 **SKU 聚合**：
- * 每个智能体给「用过几次 / 累计消耗多少积分 / 最近一次什么时候」，页面据此排序（最近用的在最前），
+ * 每个智能体给「用过几次 / 累计消耗多少算力 / 最近一次什么时候」，页面据此排序（最近用的在最前），
  * 客户点一下就能接着用。口径与扣费账本一致（`marketplaceLedgerEntry.type = ppu_consume`），
  * 只读、按租户隔离。
  */
@@ -2777,7 +2777,7 @@ const VIDREV_SYSTEM_PROMPT = [
   "【九、方法论沉淀】≥2 条，每条用 `1.` `2.` 编号独占一段，五个字段各占一行、字段名逐字写全：`类型：…`、`规律：…`、`证据：…`、`置信度：…`、`相关选题：…`（禁止把五个字段用「/」串成一行）；证据必须带具体视频与数字；置信度只能取「疑似规律 / 已确认 / 黄金法则」。",
   "【十、下个周期选题建议】四个方向必须齐全且用这些标题：主力复制（又爆又赚池）/ 优化重拍（有量无转池）/ 投流放量（有转无量池）/ 放弃方向，每个方向给出基于具体 video_id 的动作；最后给「候选选题（直接进选题池，来源：数据复盘）」**≥2 条**，每条一句可发布的选题标题 + 依据。候选选题的标题与评论引导**严禁出现：私信 / 电话 / 找我 / 留个 / 加我 / 扫码领**。",
   "",
-  "【硬口径（写错即判失败、不消耗积分）】",
+  "【硬口径（写错即判失败、不消耗算力）】",
   "1. 所有比率一律加权平均（总量相除）：互动率 = Σ互动 ÷ Σ播放，完播率按播放加权；禁止逐条相除再平均。",
   "2. 空值不等于 0：缺失字段按缺失处理并写「数据缺失」，禁止用 0 兜底参与计算（ROI、完播率、投流金额尤其注意）。",
   "3. 四象限由后端函数判定，报告必须与后端给的口径完全一致，禁止自行改判。",
@@ -2803,7 +2803,7 @@ function extractClarification(text: string): string | null {
  * 2026-09-27 由 400 改价到 99；已在 `billing-cost-model.ts` 的 `FIXED_PRICE_SKUS` 中退出成本计费），
  * 一次交付 1 份完整 IP 定位全案。
  * 全案体量大（1分钟速览 + 八章 + ≥80 条选题），按「0–四章 / 五–八章」两段并发生成再合并，
- * 合并结果必须通过下面的硬校验（V1–V10）才消耗积分，校验不通过不消耗积分、可免费重跑。
+ * 合并结果必须通过下面的硬校验（V1–V10）才消耗算力，校验不通过不消耗算力、可免费重跑。
  * ------------------------------------------------------------------------- */
 
 const IP_POS_OVERVIEW_FIELDS = [

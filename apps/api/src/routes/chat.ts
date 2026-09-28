@@ -366,7 +366,7 @@ export async function registerChatRoutes(app: FastifyInstance, provider: LlmProv
               : "agent_run_failed",
         message:
           error instanceof InsufficientCreditsError
-            ? "积分不足，请充值积分后继续使用"
+            ? "算力不足，请充值算力后继续使用"
             : normalizeChatError(error)
       });
       reply.raw.end();
@@ -425,7 +425,7 @@ export async function registerChatRoutes(app: FastifyInstance, provider: LlmProv
         return reply.code(402).send({
           status: "failed",
           error: "insufficient_credits",
-          message: "积分不足，请充值积分后继续使用"
+          message: "算力不足，请充值算力后继续使用"
         });
       }
       return reply.code(403).send({
@@ -1470,7 +1470,7 @@ function sendChatError(reply: { code: (statusCode: number) => { send: (payload: 
   if (error instanceof InsufficientCreditsError) {
     return reply.code(402).send({
       error: "insufficient_credits",
-      message: "积分不足，请充值积分后继续使用"
+      message: "算力不足，请充值算力后继续使用"
     });
   }
   if (isLoginContextError(error)) {

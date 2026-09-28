@@ -6,7 +6,7 @@
 //  - 右：定位简报（8 字段，可点改）+ 全案画布（占位 / ready / 生成中逐张点亮+日志+进度 / 分区交付）。
 //
 // 后端功能与原对话页同源（这是「不犯错的底线」）：
-//  - 生成前体检 /precheck（不扣积分）保留，slot 精确勾销；体检通过才进生成；
+//  - 生成前体检 /precheck（不扣算力）保留，slot 精确勾销；体检通过才进生成；
 //  - 生成走同一个 /market/skus/ipzone__ip-pos/run（buildRunBody 同构 { input }），
 //    99 算力固定价（FIXED_PRICE_SKUS），402/409/502/needsInput 处理照旧；
 //  - 结构化 payload 本机找回（换账号丢弃）、Word 导出免费。
@@ -205,7 +205,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   const [flashFields, setFlashFields] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // 生成前体检（不扣积分；slot 精确勾销）
+  // 生成前体检（不扣算力；slot 精确勾销）
   const [review, setReview] = useState<PrecheckIssue[] | null>(null);
   const [resolved, setResolved] = useState<string[]>([]);
 
@@ -397,7 +397,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     }
     setError(null);
 
-    // 第一关：生成前体检（轻模型、不扣积分）。预审不通过 → 追问卡（slot 精确勾销），不进生成。
+    // 第一关：生成前体检（轻模型、不扣算力）。预审不通过 → 追问卡（slot 精确勾销），不进生成。
     let issues: PrecheckIssue[] = [];
     try {
       const res = await fetch(apiPath(`/market/skus/${encodeURIComponent(skuId)}/precheck`), {
@@ -406,7 +406,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
         body: JSON.stringify({ answers: briefToSlotAnswers() })
       });
       if (handleStaleSession(res.status)) {
-        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次不消耗积分。");
+        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次不消耗算力。");
       }
       if (res.ok) {
         const data = await readJson<{ issues?: PrecheckIssue[] }>(res);
@@ -420,7 +420,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     if (issues.length > 0) {
       setReview(issues);
       setResolved([]);
-      pushMsg("ai", `先别急——体检发现 <b>${issues.length} 项</b>回答还要补强（见右侧清单）。补完后再次点「✓ 确认，开始生成」（体检不扣积分）。`);
+      pushMsg("ai", `先别急——体检发现 <b>${issues.length} 项</b>回答还要补强（见右侧清单）。补完后再次点「✓ 确认，开始生成」（体检不扣算力）。`);
       return;
     }
     setReview(null);
@@ -467,12 +467,12 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
       });
       window.clearInterval(tick);
       if (handleStaleSession(res.status)) {
-        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次不消耗积分。");
+        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次不消耗算力。");
       }
       if (res.status === 402) {
         const data = (await res.json().catch(() => ({}))) as { message?: string };
         const nextRoute = `${getAppRoutePath(window.location.pathname)}${window.location.search}`;
-        setError(`${data.message ?? "当前积分不足，请先充值后再使用。"}（本次未消耗积分） 请前往充值页后回来，简报已在本页保留。`);
+        setError(`${data.message ?? "当前算力不足，请先充值后再使用。"}（本次未消耗算力） 请前往充值页后回来，简报已在本页保留。`);
         setPhase("confirm"); setConfirmOpts(true);
         window.setTimeout(() => {
           window.location.href = getAppPath(`/recharge?from=agent&skill=${encodeURIComponent(skuId)}&next=${encodeURIComponent(nextRoute)}`);
@@ -481,7 +481,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
       }
       if (res.status === 409) {
         const payload = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
-        throw new Error(payload.message ?? "本次请求被拒绝；本次不消耗积分。");
+        throw new Error(payload.message ?? "本次请求被拒绝；本次不消耗算力。");
       }
       if (res.status === 502 || res.status === 503 || res.status === 504) {
         throw new Error(
@@ -499,7 +499,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
         const question = (result.answer ?? "").trim();
         throw new Error(
           (question ? `沈定还想确认一下：${question} ` : "还需要补充一些关键信息。") +
-          "请对照左侧简报补充后重新生成（本次不消耗积分）。"
+          "请对照左侧简报补充后重新生成（本次不消耗算力）。"
         );
       }
       const payload = result.payload && "overview" in result.payload ? result.payload : null;
@@ -514,7 +514,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
       window.clearInterval(tick);
       setError(e instanceof Error ? e.message : "生成失败，请稍后重试。");
       setPhase("confirm"); setConfirmOpts(true);
-      pushMsg("ai", "这一稿没有生成成功（<b>本次不消耗积分</b>）。按提示补充或稍后再点「✓ 确认，开始生成」。");
+      pushMsg("ai", "这一稿没有生成成功（<b>本次不消耗算力</b>）。按提示补充或稍后再点「✓ 确认，开始生成」。");
     }
   }
 

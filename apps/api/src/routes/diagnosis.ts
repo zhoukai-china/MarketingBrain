@@ -252,7 +252,7 @@ function buildDiagnosisReportPrompt(session: DiagnosisSession): string {
     "- management：管理有问题（老板太累离不开/团队执行力差/决策靠个人经验/无法规模化复制）",
     "",
     "强制边界：",
-    "- 诊断报告永久免费，不得写任何付费门槛、扣积分、消耗额度的话术。",
+    "- 诊断报告永久免费，不得写任何付费门槛、扣算力、消耗额度的话术。",
     "- 只客观陈列现状、漏洞、盈利缺口、潜在风险和行业差距。",
     "- 禁止输出执行步骤、活动方案、落地优化方法、路线图、任务清单、文案模板、人员分工、Agent解锁建议。",
     "- 不要输出 recommendedPlan、roadmap、actions、aiConsultants、onboardingChecklist 等字段。",

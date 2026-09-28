@@ -48,7 +48,7 @@ const ENTRIES: AcquireEntry[] = [
     tag: "新增",
     accent: true,
     name: "一键成片",
-    desc: "不用自己写文案：一句话说需求 → AI 写 3 版文案 → 自动出分镜脚本 → 传人物卡 / 场景卡 / 道具卡 → 确认积分预算 → 出成片。",
+    desc: "不用自己写文案：一句话说需求 → AI 写 3 版文案 → 自动出分镜脚本 → 传人物卡 / 场景卡 / 道具卡 → 确认算力预算 → 出成片。",
     enter: "进入一键成片 →",
     href: getAppPath("/lanqi/acquire/video-copy")
   },

@@ -153,7 +153,7 @@ export async function registerLanqiContentStudioRoutes(app: FastifyInstance, pro
         });
         return reply.code(504).send({
           error: "content_generation_timed_out",
-          message: "文案生成已超时，本次没有创建图片或扣图片积分；输入仍保留，可以重试。",
+          message: "文案生成已超时，本次没有创建图片或扣图片算力；输入仍保留，可以重试。",
         });
       }
       if (error instanceof ContentNeedsInputError) {

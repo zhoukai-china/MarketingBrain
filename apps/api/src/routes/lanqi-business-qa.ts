@@ -108,10 +108,10 @@ export async function registerLanqiBusinessQaRoutes(app: FastifyInstance, provid
     } catch (error) {
       request.log.warn({ event: "lanqi_business_qa.failed", requestId, capabilityId: BEAUTY_BUSINESS_QA_CAPABILITY, skillId: BEAUTY_BUSINESS_QA_SKILL, errorCode: safeErrorCode(error) });
       if (error instanceof IdempotencyConflictError) return reply.code(409).send({ error: "request_id_conflict", message: "这次提交与原请求不一致，请重新发送。" });
-      if (error instanceof InsufficientCreditsError) return reply.code(402).send({ error: "insufficient_credits", message: "当前积分不足，请补充后再提问。" });
+      if (error instanceof InsufficientCreditsError) return reply.code(402).send({ error: "insufficient_credits", message: "当前算力不足，请补充后再提问。" });
       if (scope.getAbortCode() === "business_qa_timed_out") return reply.code(504).send({ error: "business_qa_timed_out", message: "本次回答超时，问题已保留，可以稍后重试。" });
       if (scope.signal.aborted) return reply.code(499).send({ error: "business_qa_cancelled", message: "本次回答已取消，问题没有丢失。" });
-      return reply.code(502).send({ error: "business_qa_failed", message: "本次没有生成有效回答，未保存也未扣积分；请稍后重试。" });
+      return reply.code(502).send({ error: "business_qa_failed", message: "本次没有生成有效回答，未保存也未扣算力；请稍后重试。" });
     }
   });
 }

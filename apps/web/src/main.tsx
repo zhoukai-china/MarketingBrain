@@ -524,7 +524,7 @@ function Root() {
    * 不接管 `/agents/beauty-industry`、`/agents/acquisition` 等既有页面。
    */
   if (path === "/agents/admin" || path.startsWith("/agents/admin/")) {
-    // PLAT-35：`/agents/admin` 换成统一后台（侧边导航：概览 / 客户 / 订单与收款 / 积分干预 /
+    // PLAT-35：`/agents/admin` 换成统一后台（侧边导航：概览 / 客户 / 订单与收款 / 算力干预 /
     // 智能体与货架 / 推荐归因 / 质量与安全）。旧页面保留在 `/agents/admin/legacy`，
     // 它的「推荐有礼配置位」可写编辑不在新后台里重复造。
     if (path === "/agents/admin/legacy" || path === "/agents/admin/legacy/") {

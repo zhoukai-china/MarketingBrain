@@ -5,6 +5,15 @@ import { applyRechargeInTx } from "./sitong-wallet.js";
 import { buildRechargeNotice, notifyOps } from "./ops-alert.js";
 import { readWallet } from "./sitong-wallet.js";
 
+/**
+ * 改档前（1 元=20 算力时代）的旧档位数值：仅用于**改档前已创建挂单**的支付入账兜底，
+ * 不对新单开放（新单由 CREDIT_PACKS 的 1:10 三档承接）。
+ */
+const LEGACY_CREDIT_PACKS: Record<string, { baseCredits: number; bonusCredits: number }> = {
+  pack_50: { baseCredits: 1000, bonusCredits: 0 },
+  pack_500: { baseCredits: 10000, bonusCredits: 2000 }
+};
+
 export async function applyPaidOrder(orderId: string) {
   /**
    * 2026-09-16 用户：「用户付费了我咋样才能知道呢？也给我推送到企业微信吧」。
@@ -112,7 +121,12 @@ export async function applyPaidOrder(orderId: string) {
     }
 
     if (order.type === "credit_pack" && order.creditPackCode) {
-      const pack = CREDIT_PACKS[order.creditPackCode as keyof typeof CREDIT_PACKS];
+      // 算力计费 v1.0（2026-09-28）：目录切 1:10 三档（pack_100/300/1000）。改档前创建的
+      // 挂单（pack_50/pack_500）仍按**当时档位数值**入账，不能因为目录更新而丢档——
+      // 这里用 legacy 表兜底，避免旧单支付时 undefined 崩溃。
+      const pack = CREDIT_PACKS[order.creditPackCode as keyof typeof CREDIT_PACKS]
+        ?? LEGACY_CREDIT_PACKS[order.creditPackCode];
+      if (!pack) throw new Error(`credit_pack_not_found:${order.creditPackCode}`);
       if (!order.userId) throw new Error("credit_pack_order_missing_user");
       await applyRechargeInTx(tx, {
         userId: order.userId,
@@ -287,7 +301,7 @@ export async function applyPaidOrder(orderId: string) {
   return paidOrder;
 }
 
-/** 充值到账通知（企业微信）：客户名 / 金额 / 到账积分 / 该客户当前余额 / 订单号。 */
+/** 充值到账通知（企业微信）：客户名 / 金额 / 到账算力 / 该客户当前余额 / 订单号。 */
 async function notifyRechargePaid(order: {
   id: string;
   tenantId: string;

@@ -3062,7 +3062,7 @@ export default function FlywheelDiagnosisApp() {
     <div className="flywheelDiagnosis">
       <header className="diagnosisTop">
         <button onClick={() => window.location.href = "/"}>思潼AI 行业智能体平台</button>
-        <span>诊断和报告永久免费，不扣积分、不占会员额度</span>
+        <span>诊断和报告永久免费，不扣算力、不占会员额度</span>
       </header>
 
       {stage === "form" && (
@@ -3255,8 +3255,8 @@ export default function FlywheelDiagnosisApp() {
           </section>
 
           <section className="trialCreditNotice">
-            <strong>新账号注册不赠送积分</strong>
-            <span>诊断与报告免费；生成落地方案按积分兑换，先充值再使用。</span>
+            <strong>新账号注册不赠送算力</strong>
+            <span>诊断与报告免费；生成落地方案按算力兑换，先充值再使用。</span>
           </section>
         </main>
       )}
@@ -3473,13 +3473,13 @@ export default function FlywheelDiagnosisApp() {
         <div className="diagnosisPickerLayer" role="dialog" aria-modal="true" aria-label={`解锁${solutionServiceTitleForMode(mode, category)}`}>
           <section className="solutionPaywall">
             <button className="modalClose" onClick={() => setPaywallOpen(false)} aria-label="关闭">×</button>
-            <p className="flywheelEyebrow">按实际调用扣积分，积分不足时再充值</p>
+            <p className="flywheelEyebrow">按实际调用扣算力，算力不足时再充值</p>
             <h2>解锁后立即生成方案</h2>
             <p className="paywallLead">生成后会进入方案确认页，可调整目标、人手和周期，最终确认后进入逐日落地。</p>
             <div className="paywallCards">
               {membershipOffers.map((plan) => (
                 <article key={plan.code} className={plan.highlighted ? "paywallPrimary" : ""}>
-                  <span>{plan.highlighted ? "首选推荐" : "按积分使用"}</span>
+                  <span>{plan.highlighted ? "首选推荐" : "按算力使用"}</span>
                   <strong>{plan.name} · 不收月费</strong>
                   <em>{plan.audience}</em>
                   <p>{plan.benefits.join(" / ")}</p>
@@ -3487,9 +3487,9 @@ export default function FlywheelDiagnosisApp() {
                 </article>
               ))}
               <article className="creditFallback">
-                <span>积分兑换</span>
-                {creditOffers.map((offer) => <p key={offer.code}>{offer.price}元={offer.credits}积分</p>)}
-                <button onClick={() => unlockSolution("积分兑换")}>用积分生成方案</button>
+                <span>算力兑换</span>
+                {creditOffers.map((offer) => <p key={offer.code}>{offer.price}元={offer.credits}算力</p>)}
+                <button onClick={() => unlockSolution("算力兑换")}>用算力生成方案</button>
               </article>
             </div>
           </section>

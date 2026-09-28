@@ -95,7 +95,7 @@ export async function registerLanqiImageStudioRoutes(app: FastifyInstance, provi
       const abortCode = scope?.getAbortCode();
       if (abortCode === "image_preview_timed_out") {
         request.log.warn({ event: "lanqi_image_preview.timed_out", tenantId: context.tenantId, runId: previewId, status: "timed_out" });
-        return reply.code(504).send({ error: "image_preview_timed_out", message: "专业提示词增强已超时，本次没有生成图片或扣图片积分；输入仍保留，可以重试。" });
+        return reply.code(504).send({ error: "image_preview_timed_out", message: "专业提示词增强已超时，本次没有生成图片或扣图片算力；输入仍保留，可以重试。" });
       }
       request.log.error({ err: error, event: "lanqi_image_preview.failed", tenantId: context.tenantId, runId: previewId, status: "failed" }, "lanqi_image_preview_failed");
       return reply.code(503).send({ error: "image_preview_failed", message: "提示词预览暂时没有保存成功，输入已保留，请稍后重试。" });

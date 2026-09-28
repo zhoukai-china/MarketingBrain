@@ -77,7 +77,7 @@ export function LanqiAcquireCopyKitPage() {
   const [meta, setMeta] = useState<{ creditCost?: number; balance?: number }>({});
   /**
    * 幂等键：**同一份输入复用同一个 requestKey**。
-   * 这样「点了一次、响应丢了、再点一次」走服务端缓存，不会重复扣积分；
+   * 这样「点了一次、响应丢了、再点一次」走服务端缓存，不会重复扣算力；
    * 改了项目 / 人群 / 平台，才换新键（= 新的一次生成）。
    */
   const requestKeyRef = useRef<{ key: string; signature: string }>({ key: "", signature: "" });
@@ -113,13 +113,13 @@ export function LanqiAcquireCopyKitPage() {
       }
       setContent(body.result?.content ?? "");
       setMeta({ creditCost: body.creditCost, balance: body.balance });
-      setNotice(`已生成十件套${body.cached ? "（这次复用上一次的结果，没有重复扣积分）" : `，本次消耗 ${body.creditCost ?? 0} 积分`}${typeof body.balance === "number" ? `，剩余 ${body.balance} 积分` : ""}。`);
+      setNotice(`已生成十件套${body.cached ? "（这次复用上一次的结果，没有重复扣算力）" : `，本次消耗 ${body.creditCost ?? 0} 算力`}${typeof body.balance === "number" ? `，剩余 ${body.balance} 算力` : ""}。`);
     } catch (cause) {
       const failure = cause as Error & { code?: string; body?: any };
       if (failure.code === "insufficient_credits") {
-        setError(`${failure.message ?? "积分不足"}（充值入口：右上角「我的 · 充值」）`);
+        setError(`${failure.message ?? "算力不足"}（充值入口：右上角「我的 · 充值」）`);
       } else {
-        setError(failure.message || "这次没有生成成功，没有扣积分，请重试。");
+        setError(failure.message || "这次没有生成成功，没有扣算力，请重试。");
       }
     } finally {
       setBusy("");
@@ -193,7 +193,7 @@ export function LanqiAcquireCopyKitPage() {
             {busy ? "正在生成十件套…" : "✍️ 生成十件套"}
           </button>
           <div className="lq-vd__note">
-            一次交付十节：{SECTIONS.join(" / ")}。按次计费，<b>没生成出来不扣积分</b>；同一句话重复点也不会重复扣。
+            一次交付十节：{SECTIONS.join(" / ")}。按次计费，<b>没生成出来不扣算力</b>；同一句话重复点也不会重复扣。
           </div>
           {notice && <div className="lq-vd__note" data-lq-ck-notice>{notice}</div>}
           {error && <p className="lq-vd__err" data-lq-ck-error>{error}</p>}
@@ -220,7 +220,7 @@ export function LanqiAcquireCopyKitPage() {
               <div className="lq-vd__chips">
                 <button className="lq-vd__btn ghost" type="button" onClick={() => void copyAll()}>📋 复制整份</button>
                 <button className="lq-vd__btn ghost" type="button" onClick={downloadMarkdown}>⬇ 导出 Markdown</button>
-                {meta.creditCost ? <span className="lq-vd__pill on">本次 {meta.creditCost} 积分</span> : null}
+                {meta.creditCost ? <span className="lq-vd__pill on">本次 {meta.creditCost} 算力</span> : null}
               </div>
               <pre className="lq-vd__shot" data-lq-ck-content style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", padding: 14 }}>{content}</pre>
             </>

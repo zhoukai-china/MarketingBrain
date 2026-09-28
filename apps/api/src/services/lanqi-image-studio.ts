@@ -123,7 +123,7 @@ const canvasByRatio: Record<LanqiImageRatio, { width: number; height: number }> 
   "16:9": { width: 1024, height: 576 },
 };
 
-const managementTerms = /积分|计费|权限|事实边界|人工审核|系统说明|存储依赖|模型授权|API\s*key|供应商/gi;
+const managementTerms = /算力|计费|权限|事实边界|人工审核|系统说明|存储依赖|模型授权|API\s*key|供应商/gi;
 const syntheticStoreNamePattern = /(?:兰琪)?(?:验收|测试|脱敏测试|合成测试)[\s_-]*[AＢABab一二12]?(?:店|门店|租户)|(?:tenant|test[\s_-]*tenant)/i;
 
 export type LanqiImageModelFacts = {
@@ -276,7 +276,7 @@ export function buildLanqiImagePreview(params: {
       creditCost: LANQI_IMAGE_PREVIEW_CREDIT_ESTIMATE,
       billable: false,
       confirmationRequired: true,
-      note: "这是未来真实生成的产品积分预估；本次提示词增强不扣积分、不创建图片任务。",
+      note: "这是未来真实生成的产品算力预估；本次提示词增强不扣算力、不创建图片任务。",
     },
     execution: {
       status: "preview_only",
