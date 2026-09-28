@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { apiPath, getAppPath, getPublicAssetPath } from "../lib/api.js";
+import { MallTopbar } from "./MallTopbar.js";
 import { fetchMarketMe, readJson } from "./shell.js";
 import { employeePersonaLabel } from "./employee-names.js";
 import {
@@ -153,85 +154,6 @@ function EmployeeProduct({
 }
 
 /** 占位商品卡：AI 硬件 / AI 课程等还没上架的货架位。 */
-function EmployeeModal({
-  employee,
-  initialSkin,
-  skuPpu,
-  onClose
-}: {
-  employee: EcoEmployee;
-  initialSkin: EcoSkinKey;
-  skuPpu: Map<string, number> | null;
-  onClose: () => void;
-}) {
-  const [skin, setSkin] = useState<EcoSkinKey>(initialSkin);
-  const current = employee.skins[skin];
-  const detailPath = employeeDetailPath(employee, skin);
-  const canUse = employee.status === "ok" && Boolean(detailPath);
-  const skuCode = employeeSkuCode(employee, skin);
-  const ppu = skuCode && skuPpu ? skuPpu.get(skuCode) : undefined;
-
-  return (
-    <div className="eco-mask show" role="dialog" aria-modal="true" onClick={(event) => {
-      if (event.target === event.currentTarget) onClose();
-    }}>
-      <div className="eco-modal">
-        <button className="eco-modal-x" type="button" onClick={onClose} aria-label="关闭">×</button>
-        <div className="eco-modal-top">
-          <EcoAvatar icon={employee.icon} img={employeeImagePath(employee)} className="eco-m-ava" />
-          <div>
-            <div className="eco-m-role">{employee.role}</div>
-            <div className="eco-name">{employeePersonaLabel(employee.capability)}</div>
-            <div className="eco-m-tag">AI 数字员工 · {skin}</div>
-          </div>
-        </div>
-        <div className="eco-tabs">
-          {ECO_SKIN_ORDER.filter((key) => employee.skins[key]).map((key) => (
-            <button key={key} type="button" className={key === skin ? "on" : ""} onClick={() => setSkin(key)}>
-              {key}
-            </button>
-          ))}
-        </div>
-        <div className="eco-m-hook">{current?.hook ?? employee.hookBase}</div>
-        <div className="eco-persona">
-          <div><b>性格</b>{employee.personality}</div>
-          <div><b>擅长</b>{employee.ability}</div>
-        </div>
-        <div className="eco-m-rows">
-          <div className="eco-m-row">
-            <span className="eco-m-label">交付</span>
-            <span className="eco-m-val">{current?.deliver ?? ""}</span>
-          </div>
-          <div className="eco-m-row">
-            <span className="eco-m-label">需要你给</span>
-            <span className="eco-m-val">{current?.need ?? ""}</span>
-          </div>
-          {ppu != null ? (
-            <div className="eco-m-row">
-              <span className="eco-m-label">价格</span>
-              <span className="eco-m-val eco-m-price"><b>{ppu}</b> 算力/次</span>
-            </div>
-          ) : null}
-        </div>
-        <div className="eco-note">
-          <b>说明：</b>你可以在这里切换通用 / 美业专精 / 餐饮专精，查看不同行业的交付内容和需要准备的材料。
-        </div>
-        <button
-          className="eco-primary"
-          type="button"
-          disabled={!canUse}
-          onClick={() => {
-            if (!detailPath) return;
-            window.location.href = getAppPath(detailPath);
-          }}
-        >
-          {employee.status === "ok" ? (detailPath ? "去使用 ›" : "该行业专精正在准备") : "开发中 · 敬请期待"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function ConsultantModal({ consultant, onClose }: { consultant: EcoConsultant; onClose: () => void }) {
   return (
     <div className="eco-mask show" role="dialog" aria-modal="true" onClick={(event) => {
@@ -276,8 +198,6 @@ export function EcoMallHomePage() {
   const [skuPpu, setSkuPpu] = useState<Map<string, number> | null>(null);
   const [view, setView] = useState<"home" | "cases">("home");
   const [caseCat, setCaseCat] = useState("全部");
-  const [openEmployee, setOpenEmployee] = useState<EcoEmployee | null>(null);
-  const [openEmployeeSkin, setOpenEmployeeSkin] = useState<EcoSkinKey>("通用");
   const [openConsultant, setOpenConsultant] = useState<EcoConsultant | null>(null);
   // B 线新增（agents-home-tech-demo v3.28 对齐，2026-09-28）：签到 / 邀请 / 新手词典弹层。
   // 签到、邀请均为**本地演示态**（后端签到/裂变接口属 A 线 P1，落地后切换）。
@@ -323,18 +243,6 @@ export function EcoMallHomePage() {
     }
     timer = window.setTimeout(tick, 500);
     return () => window.clearTimeout(timer);
-  }, []);
-
-  /* 顶栏/侧栏「AI 全员在线 · HH:MM」实时时钟。 */
-  const [clock, setClock] = useState("");
-  useEffect(() => {
-    const fmt = () => {
-      const d = new Date();
-      return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-    };
-    setClock(fmt());
-    const timer = window.setInterval(() => setClock(fmt()), 15000);
-    return () => window.clearInterval(timer);
   }, []);
 
   /* 背景鼠标光晕（原型 #cursor-glow）。 */
@@ -447,11 +355,6 @@ export function EcoMallHomePage() {
 
   const searching = query.trim().length > 0;
 
-  function openEmployeeAt(employee: EcoEmployee, skin: EcoSkinKey) {
-    setOpenEmployee(employee);
-    setOpenEmployeeSkin(skin);
-  }
-
   function useSameAgent(sku: string) {
     window.location.href = getAppPath(`/agent/${sku}/detail`);
   }
@@ -473,12 +376,9 @@ export function EcoMallHomePage() {
           index={index}
           ppu={ppu}
           onOpen={() => {
-            // 未上线智能体：卡片直达预约详情页（原型 v12「预约统一收口到详情页」）
-            if (status === "dev") {
-              window.location.href = getAppPath(`/agent/${employeeSkuCode(employee, "通用")}/detail`);
-              return;
-            }
-            openEmployeeAt(employee, "通用");
+            // 点击卡片一律直达商品详情页（2026-09-29 用户要求：不要中间弹窗）
+            const path = employeeDetailPath(employee, "通用");
+            if (path) window.location.href = getAppPath(path);
           }}
         />
       );
@@ -501,7 +401,11 @@ export function EcoMallHomePage() {
                 key={item.employeeKey}
                 type="button"
                 className="eco-today-item"
-                onClick={() => employee && openEmployeeAt(employee, "通用")}
+                onClick={() => {
+                  if (!employee) return;
+                  const path = employeeDetailPath(employee, "通用");
+                  if (path) window.location.href = getAppPath(path);
+                }}
               >
                 <span className="eco-today-ico">
                   {employee ? <img src={employeeImagePath(employee)} alt={employeePersonaLabel(employee.capability)} onError={(e) => { e.currentTarget.style.display = "none"; }} /> : null}
@@ -584,21 +488,7 @@ export function EcoMallHomePage() {
       <div className="eh-orb eh-orb-1" aria-hidden="true" />
       <div className="eh-orb eh-orb-2" aria-hidden="true" />
       <div className="eh-glow" ref={glowRef} aria-hidden="true" />
-      {/* 顶栏（原型 v3.28：品牌 + AI 在线状态 + 余额橙 chip + 充值 + ?） */}
-      <header className="eh-topbar">
-        <div className="eh-brand">
-          <div className="eh-brand-txt">
-            <b>思潼AI商城</b>
-            <span className="eh-ai"><i></i>AI 全员在线 <em>{clock}</em></span>
-          </div>
-        </div>
-        <span className="eh-sp" />
-        <div className="eh-wallet">
-          <span className="eh-bal">⚡ <b>{balance ?? "—"}</b><i>{balance != null ? `≈ ¥${(balance / 10).toFixed(balance % 10 === 0 ? 0 : 1)}` : ""}</i></span>
-          <button type="button" className="eh-mini" onClick={() => { window.location.href = getAppPath("/recharge"); }}>充值</button>
-        </div>
-        <button type="button" className="eh-iconbtn" title="新手帮助" onClick={() => setShowDict(true)}>?</button>
-      </header>
+      <MallTopbar />
 
       {view === "cases" ? (
         <section className="eh-cases-view">
@@ -702,7 +592,10 @@ export function EcoMallHomePage() {
                       status={ok ? "ok" : "dev"}
                       index={index}
                       ppu={ppu}
-                      onOpen={() => openEmployeeAt(employee, "通用")}
+                      onOpen={() => {
+                        const path = employeeDetailPath(employee, "通用");
+                        if (path) window.location.href = getAppPath(path);
+                      }}
                     />
                   );
                 })}
@@ -904,14 +797,6 @@ export function EcoMallHomePage() {
         </div>
       ) : null}
 
-      {openEmployee ? (
-        <EmployeeModal
-          employee={openEmployee}
-          initialSkin={openEmployeeSkin}
-          skuPpu={skuPpu}
-          onClose={() => setOpenEmployee(null)}
-        />
-      ) : null}
       {openConsultant ? <ConsultantModal consultant={openConsultant} onClose={() => setOpenConsultant(null)} /> : null}
     </main>
   );

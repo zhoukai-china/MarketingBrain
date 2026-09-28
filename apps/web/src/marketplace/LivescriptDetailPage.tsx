@@ -13,7 +13,8 @@
 
 import { useEffect, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
-import { fetchMarketMe, readJson, Topbar } from "./shell.js";
+import { readJson } from "./shell.js";
+import { MallTopbar } from "./MallTopbar.js";
 import { employeeAvatarPath } from "./eco-mall-data.js";
 
 const WORKBENCH_URL_TEXT = "ai.lcppch.top/agent/ipzone__livescript/workbench";
@@ -124,7 +125,6 @@ function WbBrief({ filled }: { filled: number }) {
 }
 
 export function LivescriptDetailPage() {
-  const [balance, setBalance] = useState<number | null>(null);
   const [tab, setTab] = useState<TabKey>("ability");
   const [view, setView] = useState<GalleryView>("wb");
   const avatar = employeeAvatarPath("ipzone__livescript");
@@ -133,9 +133,6 @@ export function LivescriptDetailPage() {
 
   useEffect(() => {
     let cancelled = false;
-    void fetchMarketMe<{ creditBalance: number }>()
-      .then((d) => { if (!cancelled) setBalance(d ? d.creditBalance : null); })
-      .catch(() => { if (!cancelled) setBalance(null); });
     void fetch(apiPath("/market/skus"))
       .then((r) => readJson<{ skus: Array<{ skuCode: string; ppu: number }> }>(r))
       .then((data) => {
@@ -148,10 +145,10 @@ export function LivescriptDetailPage() {
   }, []);
 
   return (
-    <main className="app-wrap ipd-page">
-      <Topbar active="chat" balance={balance} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
+    <main className="app-wrap ipd-page eh">
+      <MallTopbar />
 
-      <button className="ipd-back" onClick={() => { window.location.href = getAppPath("/agents"); }}>‹ 返回商城</button>
+      <button className="ipd-back" onClick={() => { window.location.href = getAppPath("/agents"); }}>← 返回</button>
 
       {/* ============ 上半屏：左头图（可切换视图） + 右信息/价格/CTA ============ */}
       <section className="ipd-pd">

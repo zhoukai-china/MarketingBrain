@@ -204,6 +204,39 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
   });
   log(bh.includes("美业门店AI经营大脑"), "F7 行业工作台金卡", bh);
 
+  // ---- 详情页商城版式 + 卡片直达（无弹窗） ----
+  {
+    const p2 = await browser.newPage();
+    await p2.setViewport({ width: 1440, height: 1000 });
+    const errors2 = [];
+    p2.on("pageerror", (e) => errors2.push(String(e)));
+    await p2.goto("http://localhost:5174/agent/ipzone__copy/detail", { waitUntil: "networkidle2", timeout: 30000 });
+    await new Promise((r) => setTimeout(r, 1500));
+    const chrome = await p2.evaluate(() => ({
+      topbar: Boolean(document.querySelector(".eh-topbar")),
+      banner: document.querySelectorAll(".shared-banner").length,
+      back: document.querySelector(".ipd-back")?.textContent?.trim() || "",
+      ehScope: Boolean(document.querySelector("main.eh"))
+    }));
+    log(chrome.topbar && chrome.banner === 0 && chrome.back.includes("返回") && chrome.ehScope, "详情页商城版式（MallTopbar/无旧横幅/← 返回）", JSON.stringify(chrome));
+    log(errors2.length === 0, "详情页无 JS 异常");
+    await p2.close();
+  }
+  {
+    const p3 = await browser.newPage();
+    await p3.setViewport({ width: 1440, height: 1000 });
+    await p3.goto("http://localhost:5174/agents", { waitUntil: "networkidle2", timeout: 30000 });
+    await new Promise((r) => setTimeout(r, 1800));
+    await p3.evaluate(() => {
+      const card = Array.from(document.querySelectorAll(".eh .eco-product")).find((c) => c.textContent.includes("沈定"));
+      if (card) card.click();
+    });
+    await new Promise((r) => setTimeout(r, 1800));
+    const url = p3.url();
+    log(url.includes("/agent/ipzone__ip-pos/detail"), "点卡片直达详情页（无弹窗）", url);
+    await p3.close();
+  }
+
   log(errors.length === 0, "无 JS 异常");
 
   await page.screenshot({ path: __dirname + "/home-v328-final.png" });

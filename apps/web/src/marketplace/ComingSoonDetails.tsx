@@ -10,7 +10,8 @@
 
 import { useEffect, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
-import { fetchMarketMe, readJson, Topbar } from "./shell.js";
+import { readJson } from "./shell.js";
+import { MallTopbar } from "./MallTopbar.js";
 import { employeeAvatarPath } from "./eco-mall-data.js";
 
 export interface ComingSoonContent {
@@ -107,7 +108,6 @@ function BookDialog({ content, onClose }: { content: ComingSoonContent; onClose:
 }
 
 export function ComingSoonDetailPage({ content }: { content: ComingSoonContent }) {
-  const [balance, setBalance] = useState<number | null>(null);
   const [tab, setTab] = useState<TabKey>("ability");
   const [view, setView] = useState<"wb" | "photo" | "rate">("wb");
   const [skuPpu, setSkuPpu] = useState<number | null>(null);
@@ -116,9 +116,6 @@ export function ComingSoonDetailPage({ content }: { content: ComingSoonContent }
 
   useEffect(() => {
     let cancelled = false;
-    void fetchMarketMe<{ creditBalance: number }>()
-      .then((d) => { if (!cancelled) setBalance(d ? d.creditBalance : null); })
-      .catch(() => { if (!cancelled) setBalance(null); });
     void fetch(apiPath("/market/skus"))
       .then((r) => readJson<{ skus: Array<{ skuCode: string; ppu: number }> }>(r))
       .then((data) => {
@@ -133,9 +130,9 @@ export function ComingSoonDetailPage({ content }: { content: ComingSoonContent }
   const DELIVERABLES = content.abilities.slice(0, 4);
 
   return (
-    <main className="app-wrap ipd-page">
-      <Topbar active="chat" balance={balance} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
-      <button className="ipd-back" onClick={() => { window.location.href = getAppPath("/agents"); }}>‹ 返回商城</button>
+    <main className="app-wrap ipd-page eh">
+      <MallTopbar />
+      <button className="ipd-back" onClick={() => { window.location.href = getAppPath("/agents"); }}>← 返回</button>
 
       <section className="ipd-pd">
         <div className="ipd-gallery">

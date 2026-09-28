@@ -16,7 +16,7 @@
 
 import { useEffect, useState } from "react";
 import { getAppPath } from "../lib/api.js";
-import { fetchMarketMe, Topbar } from "./shell.js";
+import { MallTopbar } from "./MallTopbar.js";
 import { employeeAvatarPath } from "./eco-mall-data.js";
 import { IP_POS_PRICE, IP_POS_UNIT } from "./sku-model.js";
 
@@ -159,25 +159,16 @@ function InterviewChat() {
 }
 
 export function IpPosDetailPage() {
-  const [balance, setBalance] = useState<number | null>(null);
   const [tab, setTab] = useState<TabKey>("ability");
   const [view, setView] = useState<GalleryView>("wb");
   const avatar = employeeAvatarPath("ipzone__ip-pos");
 
-  useEffect(() => {
-    let cancelled = false;
-    void fetchMarketMe<{ creditBalance: number }>()
-      .then((d) => { if (!cancelled) setBalance(d ? d.creditBalance : null); })
-      .catch(() => { if (!cancelled) setBalance(null); });
-    return () => { cancelled = true; };
-  }, []);
-
   return (
-    <main className="app-wrap ipd-page">
-      <Topbar active="chat" balance={balance} onNavigate={(p) => { window.location.href = getAppPath(p); }} />
+    <main className="app-wrap ipd-page eh">
+      <MallTopbar />
 
       {/* 返回按钮照原型 back-btn：小号橙色药丸（align-self 防 .app-wrap 纵向 flex 拉伸） */}
-      <button className="ipd-back" onClick={() => { window.location.href = getAppPath("/agents"); }}>‹ 返回商城</button>
+      <button className="ipd-back" onClick={() => { window.location.href = getAppPath("/agents"); }}>← 返回</button>
 
       {/* ============ 上半屏：左头图（可切换视图） + 右信息/价格/CTA ============ */}
       <section className="ipd-pd">
