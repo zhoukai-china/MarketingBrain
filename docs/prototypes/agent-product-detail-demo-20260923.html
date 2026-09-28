@@ -473,31 +473,6 @@
           </div>
         </div>
 
-        <!-- 样例2：选题清单 -->
-        <div class="g-view" data-v="1">
-          <div class="s-card">
-            <div class="s-head"><span class="s-ico">💡</span><b>今日选题清单</b><span>何策 · 输出样例</span></div>
-            <div class="s-body">
-              <div class="s-topic"><em>能火</em><span>「顾客说贵，我回了一句让她办了年卡」（话术型 · 同城）</span></div>
-              <div class="s-topic"><em>能拍</em><span>跟拍一次真实到店：前台 → 项目 → 术后回访</span></div>
-              <div class="s-topic"><em>合规</em><span>员工日常 vlog：不出现效果承诺词</span></div>
-            </div>
-            <div class="s-foot"><span>三关筛选：能拍 / 愿拍 / 拍了有人看</span><span>3 / 5 条</span></div>
-          </div>
-        </div>
-
-        <!-- 样例3：直播逐字稿 -->
-        <div class="g-view" data-v="2">
-          <div class="s-card">
-            <div class="s-head"><span class="s-ico">🎤</span><b>直播逐字稿</b><span>罗盘 · 输出样例</span></div>
-            <div class="s-body">
-              <div class="s-quote">「19:30 开场留人：今晚 8 点整上一波 9.9 元体验秒杀，先扣 1 扣起来…」</div>
-              <div class="s-chips"><i>带货场</i><i>90 分钟</i><i>节奏表 ✓</i><i>场控清单 ✓</i></div>
-            </div>
-            <div class="s-foot"><span>含节奏表 + 场控清单</span><span>已存入 · 我的交付物</span></div>
-          </div>
-        </div>
-
         <!-- 样例5：职业形象照（真实照片） -->
         <div class="g-view" data-v="5" style="padding:0">
           <img src="avatars-20260923/ip-position.jpg" alt="沈定 · 职业形象照"
@@ -518,8 +493,6 @@
         <button class="on" data-t="6" title="工作台实况" data-cap="工作台实况 · 6 步访谈 → 定位简报 → 速览 + 8 章全案（99 算力/份）">🧰</button>
         <button data-t="0" title="AI 工作实况演示" data-cap="AI 工作实况 · 自动循环播放">▶</button>
         <button data-t="5" title="职业形象照（真实照片）" data-cap="职业形象照 · 豆包生成 · 512×512 压缩版">👤</button>
-        <button data-t="1" title="选题清单样例" data-cap="输出样例 · 今日选题清单">💡</button>
-        <button data-t="2" title="直播逐字稿样例" data-cap="输出样例 · 直播逐字稿">🎤</button>
         <button data-t="4" title="用户口碑" data-cap="用户口碑 · 评分与好评率">⭐</button>
       </div>
       <div class="g-cap" id="gcap">工作台实况 · 6 步访谈 → 定位简报 → 速览 + 8 章全案（99 算力/份）</div>
@@ -1430,56 +1403,87 @@
                 <span class="gif-pill">▶ 动图</span>
               </div>
               <div class="wb-body">
-                <div class="wb-chat">
+                <div class="wb-chat" style="flex:0 0 56%;background:#fffdf9">
                   <div class="wb-chat-h">
                     <span class="wb-av">何</span>
-                    <div><b>何策 · 选题访谈</b><span>四大来源喂料 · 三关筛选出题</span></div>
+                    <div><b>何策 · 选题流水线</b><span>配置即出题 · 无需对话</span></div>
                   </div>
-                  <div class="wb-msgs">
-                    <div class="wb-q">先说说你的行业和阶段——门店起步期看获客、成熟期看转化，两头的选题策略完全不同。</div>
-                    <div class="wb-opts"><i class="on">🍽️ 餐饮门店</i><i>💪 瑜伽健身</i><i>🏠 家居建材</i></div>
-                    <div class="wb-a">本地生活服务 · 开业 3 个月——那这批题以「同城获客」为主，我从知识库和热点里配。</div>
+                  <div style="flex:1;padding:.7em;display:flex;flex-direction:column;gap:.55em;overflow:hidden">
+                    <div class="wb-opts" style="font-size:.85em">
+                      <i class="on">① 配置四大来源</i><i>② 候选池涌现</i><i>③ 三关筛选</i><i>④ 交付 10 条</i>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.45em">
+                      <div style="border:1px solid var(--line);border-radius:.55em;padding:.45em .55em;background:#fff">
+                        <b style="font-size:.86em">📚 私有知识库 · 主力</b>
+                        <div style="font-size:.72em;color:var(--muted);margin:.12em 0">录音卡笔记 / 客户原话 / 案例素材自动汇入</div>
+                        <span style="font-size:.7em;display:inline-block;background:var(--orange-soft);border:1px solid rgba(244,121,32,.4);border-radius:99px;padding:.08em .5em;font-weight:600">配额 35% · 候选 6 条</span>
+                      </div>
+                      <div style="border:1px solid var(--line);border-radius:.55em;padding:.45em .55em;background:#fff">
+                        <b style="font-size:.86em">🔥 行业热点</b>
+                        <div style="font-size:.72em;color:var(--muted);margin:.12em 0">抖音检索 · 逐条核验来源，无来源不入池</div>
+                        <span style="font-size:.7em;display:inline-block;background:var(--orange-soft);border:1px solid rgba(244,121,32,.4);border-radius:99px;padding:.08em .5em;font-weight:600">配额 25% · 候选 3 条</span>
+                      </div>
+                      <div style="border:1px solid var(--line);border-radius:.55em;padding:.45em .55em;background:#fff">
+                        <b style="font-size:.86em">🎯 对标账号</b>
+                        <div style="font-size:.72em;color:var(--muted);margin:.12em 0">粘贴主页链接 · 分析可借鉴角度入池</div>
+                        <span style="font-size:.7em;display:inline-block;background:var(--orange-soft);border:1px solid rgba(244,121,32,.4);border-radius:99px;padding:.08em .5em;font-weight:600">配额 20% · 候选 4 条</span>
+                      </div>
+                      <div style="border:1px solid var(--line);border-radius:.55em;padding:.45em .55em;background:#fff">
+                        <b style="font-size:.86em">📈 数据复盘</b>
+                        <div style="font-size:.72em;color:var(--muted);margin:.12em 0">复盘智能体供稿 · 缺源自动重分配</div>
+                        <span style="font-size:.7em;display:inline-block;border:1px solid var(--line);border-radius:99px;padding:.08em .5em;color:var(--muted)">未启用 · 配额已重分配</span>
+                      </div>
+                    </div>
                   </div>
-                  <div class="wb-input">🎤 <span>打字或点 🎤 说话…</span><em>发送</em></div>
                 </div>
                 <div class="wb-ws">
                   <div class="wb-brief">
-                    <div class="wb-brief-h"><b>🗂️ 选题来源池</b><span>4 路</span></div>
+                    <div class="wb-brief-h"><b>🗂️ 选题来源池</b><span>4 路 · 缺源自动重分配</span></div>
                     <div class="wb-grid">
                       <span class="lit">📚 私有知识库 · 主力</span><span class="lit">🔥 行业热点</span><span class="lit">🎯 对标账号</span><span>📈 数据复盘</span>
                     </div>
                     <div style="display:flex;gap:.4em;align-items:center;flex-wrap:wrap;font-size:.85em;color:var(--muted);margin:.2em 0">
                       <i style="font-style:normal;border:1px solid var(--line);border-radius:99px;padding:.15em .6em">1️⃣ 一票否决</i>→
-                      <i style="font-style:normal;border:1px solid var(--line);border-radius:99px;padding:.15em .6em">2️⃣ 贴标签</i>→
-                      <i style="font-style:normal;border:1px solid var(--line);border-radius:99px;padding:.15em .6em">3️⃣ 按阶段配</i>
+                      <i style="font-style:normal;border:1px solid var(--line);border-radius:99px;padding:.15em .6em">2️⃣ 对号入座</i>→
+                      <i style="font-style:normal;border:1px solid var(--line);border-radius:99px;padding:.15em .6em">3️⃣ 配比校准</i>
                     </div>
-                    <div class="wb-gen wb-pulse">✨ 出一批选题 · 99 算力</div>
+                    <div style="display:flex;gap:.4em;align-items:center;flex-wrap:wrap;font-size:.85em;margin:.2em 0">
+                      <span style="color:var(--muted)">第三关 · 你的阶段</span>
+                      <span class="wb-opts"><i>起号期</i><i class="on">增长期</i><i>变现期</i></span>
+                    </div>
+                    <div style="display:flex;gap:.35em;margin:.3em 0 .1em">
+                      <span style="flex:1;text-align:center;border:1px solid var(--line);border-radius:.45em;padding:.25em 0;font-size:.75em;color:var(--muted)"><b style="color:var(--text)">17</b> 候选池</span>
+                      <span style="flex:1;text-align:center;border:1px solid var(--line);border-radius:.45em;padding:.25em 0;font-size:.75em;color:var(--muted)"><b style="color:var(--text)">11</b> 过一关</span>
+                      <span style="flex:1;text-align:center;border:1px solid var(--line);border-radius:.45em;padding:.25em 0;font-size:.75em;color:var(--muted)"><b style="color:var(--text)">2</b> 待验证</span>
+                      <span style="flex:1;text-align:center;background:var(--orange-soft);border:1px solid rgba(244,121,32,.4);border-radius:.45em;padding:.25em 0;font-size:.75em"><b>10</b> 交付</span>
+                    </div>
+                    <div class="wb-gen wb-pulse">✨ 一键生成今天选题 · 99 算力</div>
                   </div>
-                  <div class="wb-fee">内测打磨中 · 上线后开放购买 · 一批 5 条</div>
+                  <div class="wb-fee">内测打磨中 · 上线后开放购买 · 交付 10 条 · 可换一批</div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- 输出样例：一批 5 条（节选 3 条） -->
+          <!-- 输出样例：交付 10 条（节选 3 条，取自工作台交付表） -->
           <div class="g-view" data-v="s">
             <div class="s-card">
-              <div class="s-head"><span class="s-ico">💡</span><b>何策 · 本周选题清单</b><span style="margin-left:auto">一批 5 条 · 节选</span></div>
+              <div class="s-head"><span class="s-ico">💡</span><b>何策 · 本批选题（10 条 · 节选）</b><span style="margin-left:auto">可换一批</span></div>
               <div class="s-body" style="padding:10px 14px;display:grid;gap:7px">
                 <div class="s-line">
-                  <b>① 「开业 90 天，同城获客成本砍下来一半的 3 个动作」</b>
-                  <span style="font-size:11px;color:var(--muted)">阶段：获客 · 来源：私有知识库 · 参考结构：反常识开头 + 数据佐证</span>
+                  <b>① 越省钱越亏钱：小老板最容易算错的一笔账</b>
+                  <span style="font-size:11px;color:var(--muted)">认知型 · 私有知识 · 客户原话 · ✓ 通过（私信 3 人问过）· 建议：开头用客户原话，30 秒内给一个反例</span>
                 </div>
                 <div class="s-line">
-                  <b>② 「顾客进店 30 秒，开口先说这一句」</b>
-                  <span style="font-size:11px;color:var(--muted)">阶段：转化 · 来源：对标账号 · 参考结构：场景痛点 + 一句话留人</span>
+                  <b>② 客户只问价不下单？你缺的不是折扣，是步骤</b>
+                  <span style="font-size:11px;color:var(--muted)">转化型 · 私有知识 · 销售记录 · ✓ 通过（客服高频）· 建议：先讲场景再给方法，结尾留咨询钩子</span>
                 </div>
                 <div class="s-line">
-                  <b>③ 「老带新海报，别再写『转发有礼』」</b>
-                  <span style="font-size:11px;color:var(--muted)">阶段：裂变 · 来源：数据复盘 · 参考结构：反例开场 + 给模板</span>
+                  <b>③ 这个月大家都在聊的新规，对你说人话翻译</b>
+                  <span style="font-size:11px;color:var(--muted)">连接型 · 行业热点 · ⏳ 待验证（先核验官方来源）· 建议：注明来源与日期，24 小时内跟发</span>
                 </div>
               </div>
-              <div class="s-note">每条带「阶段标签 + 来源 + 参考结构」· 三关筛选全过 · 拿去就能拍</div>
+              <div class="s-note">每条带「类型 + 来源证据状态 + 创作建议」· 三关筛选全过 · 不满意可换一批</div>
             </div>
           </div>
 
@@ -1494,22 +1498,22 @@
 
         </div>
         <div class="g-thumbs">
-          <button class="on" data-t="w" title="工作台实况" data-cap="工作台实况 · 四大来源喂料 → 三关筛选 → 一批 5 条">🧰</button>
-          <button data-t="s" title="输出样例" data-cap="输出样例 · 选题清单（阶段标签 + 来源 + 参考结构）">💡</button>
+          <button class="on" data-t="w" title="工作台实况" data-cap="工作台实况 · 四大来源 → 候选池涌现 → 三关筛选 → 交付 10 条">🧰</button>
+          <button data-t="s" title="输出样例" data-cap="输出样例 · 选题清单（类型 + 来源证据状态 + 创作建议）">💡</button>
           <button data-t="r" title="内测反馈" data-cap="内测反馈 · 上线后开放购买，预约用户优先开通">👥</button>
         </div>
-        <div class="g-cap">工作台实况 · 四大来源喂料 → 三关筛选 → 一批 5 条</div>
+        <div class="g-cap">工作台实况 · 四大来源 → 候选池涌现 → 三关筛选 → 交付 10 条</div>
       </div>
 
       <div class="info">
         <div class="i-title">何策 · 选题策略官<span style="font-weight:600;color:var(--muted);font-size:14px">（选题策划智能体）</span></div>
         <div class="i-sub"><span class="js-status">内测打磨中 · 支持预约</span></div>
-        <p class="i-desc">不用再拍脑袋想选题——四大来源自动喂料（私有知识库为主力），三关筛选把关后一批给你 5 条，每条带阶段标签、来源和参考结构，拿去就能拍。</p>
+        <p class="i-desc">不用再拍脑袋想选题——四大来源自动喂料（私有知识库为主力），候选池涌现 16–20 条，三关筛选把关后交付 10 条，每条带来源证据状态和创作建议，不满意可换一批。</p>
         <div class="i-rate"><b>内测</b><span class="stars">🔍</span><span>预约用户优先开通</span></div>
         <div class="price-card">
           <div class="price-line">
             <span class="num">99</span><span class="unit">算力 / 次</span>
-            <span class="approx">≈ ¥9.9 · 一批 5 条（上线价）</span>
+            <span class="approx">≈ ¥9.9 · 交付 10 条（上线价）</span>
           </div>
           <div class="price-meta">内测期 <em>预约免费</em> · 上线后按次扣算力 · 失败不扣费</div>
           <div class="guar"><i>⚡ 1元 = 10算力</i><i>🎁 注册赠 100 算力</i><i>📄 账单逐笔可查</i></div>
@@ -1517,9 +1521,10 @@
         <div class="deliver">
           <div class="deliver-h">📦 交付清单</div>
           <ul>
-            <li>一批 5 条选题：每条带阶段标签 / 来源 / 参考结构</li>
+            <li>交付 10 条选题：每条带类型 / 来源证据状态 / 创作建议，不满意可换一批</li>
             <li>四大来源喂料：私有知识库（主力）· 行业热点 · 对标账号 · 数据复盘</li>
-            <li>三关筛选：一票否决 → 贴标签 → 按阶段配，不合格不出题</li>
+            <li>候选池涌现：按配额出 16–20 条，缺源自动重分配</li>
+            <li>三关筛选：一票否决 → 对号入座 → 配比校准，不合格不出题</li>
             <li>与秦文 / 江流联动：选题 → 拍摄脚本 → 发布后复盘一条龙</li>
           </ul>
         </div>
@@ -1541,16 +1546,17 @@
       <div class="panel on" data-p="0">
         <ul>
           <li>四大来源自动喂料：私有知识库（主力）· 行业热点 · 对标账号 · 数据复盘</li>
-          <li>三关筛选：一票否决（合规 / 常识错）→ 贴标签（行业 / 阶段）→ 按阶段配比</li>
-          <li>一批 5 条：每条带阶段标签 + 来源 + 参考结构，拿去就能拍</li>
+          <li>候选池涌现：按配额出 16–20 条，缺源自动重分配</li>
+          <li>三关筛选：一票否决（无证据淘汰）→ 对号入座（类型 × 共识层级 × 客资准度）→ 配比校准（起号 / 增长 / 变现）</li>
+          <li>交付 10 条：每条带类型 + 来源证据状态（✓ 通过 / ⏳ 待验证）+ 创作建议</li>
           <li>与秦文 / 江流联动：选题 → 拍摄脚本 → 发布后复盘一条龙</li>
         </ul>
       </div>
       <div class="panel" data-p="1">
         <h3>过程</h3>
-        <p>两问定行业和阶段 → 来源池自动配齐 → 三关筛选出题，一批 5 条流式点亮，约 30 秒。</p>
+        <p>配置四大来源、选定经营阶段（起号 / 增长 / 变现）→ 候选池涌现 16–20 条 → 三关筛选 → 交付 10 条，演示全程约 20 秒，不满意可换一批。全程配置面板操作，无需对话。</p>
         <h3>口径</h3>
-        <p>上线价 99 算力/次（≈¥9.9）；来源池可配置、阶段可切换（获客 / 转化 / 复购 / 裂变）；现开放预约，上线后第一时间通知。</p>
+        <p>上线价 99 算力/次（≈¥9.9）；来源池可配置、阶段可切换（起号期 / 增长期 / 变现期）；现开放预约，上线后第一时间通知。</p>
       </div>
       <div class="panel" data-p="2">
         <p style="margin:2px 0 0">头图与详情图均按何策选题工作台（ai.lcppch.top/agent/ipzone__topic/workbench）的真实界面逻辑制作——<b>上线后买到的就是这台工作台，所见即所得</b>。</p>
@@ -1559,18 +1565,39 @@
           <div class="wb wb-lg">
             <div class="wb-bar"><span class="t-dot" style="background:#ff5f57"></span><span class="t-dot" style="background:#febc2e"></span><span class="t-dot" style="background:#28c840"></span><span class="wb-url">ai.lcppch.top/agent/ipzone__topic/workbench</span><span class="wb-live">① 配置四大来源 · 知识库为主力</span></div>
             <div class="wb-body">
-              <div class="wb-chat">
-                <div class="wb-chat-h"><span class="wb-av">何</span><div><b>何策 · 选题访谈</b><span>四大来源喂料 · 三关筛选出题</span></div></div>
-                <div class="wb-msgs">
-                  <div class="wb-q">先说说你的行业和阶段——门店起步期看获客、成熟期看转化，两头的选题策略完全不同。</div>
-                  <div class="wb-opts"><i class="on">🍽️ 餐饮门店</i><i>💪 瑜伽健身</i><i>🏠 家居建材</i></div>
-                  <div class="wb-a">好，本地生活服务 · 获客期——来源池我按「知识库 12 篇 + 热点 5 条 + 对标 3 个」配，数据复盘等你跑起来再喂。</div>
+              <div class="wb-chat" style="flex:0 0 56%;background:#fffdf9">
+                <div class="wb-chat-h"><span class="wb-av">何</span><div><b>何策 · 选题流水线</b><span>第 1 步 · 配置四大来源</span></div></div>
+                <div style="flex:1;padding:.7em;display:flex;flex-direction:column;gap:.55em;overflow:hidden">
+                  <div class="wb-opts" style="font-size:.85em">
+                    <i class="on">① 配置四大来源</i><i>② 候选池涌现</i><i>③ 三关筛选</i><i>④ 交付 10 条</i>
+                  </div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:.45em">
+                    <div style="border:1px solid var(--line);border-radius:.55em;padding:.45em .55em;background:#fff">
+                      <b style="font-size:.86em">📚 私有知识库 · 主力</b>
+                      <div style="font-size:.72em;color:var(--muted);margin:.12em 0">录音卡笔记 12 篇 · 客户原话 8 · 案例素材 3</div>
+                      <span style="font-size:.7em;display:inline-block;background:var(--orange-soft);border:1px solid rgba(244,121,32,.4);border-radius:99px;padding:.08em .5em;font-weight:600">配额 44% · 候选 6 条</span>
+                    </div>
+                    <div style="border:1px solid var(--line);border-radius:.55em;padding:.45em .55em;background:#fff">
+                      <b style="font-size:.86em">🔥 行业热点</b>
+                      <div style="font-size:.72em;color:var(--muted);margin:.12em 0">抖音检索 · 已核验 2 · 待核验 1</div>
+                      <span style="font-size:.7em;display:inline-block;background:var(--orange-soft);border:1px solid rgba(244,121,32,.4);border-radius:99px;padding:.08em .5em;font-weight:600">配额 31% · 候选 3 条</span>
+                    </div>
+                    <div style="border:1px solid var(--line);border-radius:.55em;padding:.45em .55em;background:#fff">
+                      <b style="font-size:.86em">🎯 对标账号</b>
+                      <div style="font-size:.72em;color:var(--muted);margin:.12em 0">主页链接 ×2 · 可借鉴角度 4 个入池</div>
+                      <span style="font-size:.7em;display:inline-block;background:var(--orange-soft);border:1px solid rgba(244,121,32,.4);border-radius:99px;padding:.08em .5em;font-weight:600">配额 25% · 候选 4 条</span>
+                    </div>
+                    <div style="border:1px solid var(--line);border-radius:.55em;padding:.45em .55em;background:#fff">
+                      <b style="font-size:.86em">📈 数据复盘</b>
+                      <div style="font-size:.72em;color:var(--muted);margin:.12em 0">未启用 · 配额自动重分配到前三路</div>
+                      <span style="font-size:.7em;display:inline-block;border:1px solid var(--line);border-radius:99px;padding:.08em .5em;color:var(--muted)">缺源不阻塞 · 照常出题</span>
+                    </div>
+                  </div>
                 </div>
-                <div class="wb-input">🎤 <span>打字或点 🎤 说话…</span><em>发送</em></div>
               </div>
               <div class="wb-ws">
                 <div class="wb-brief">
-                  <div class="wb-brief-h"><b>🗂️ 选题来源池</b><span>4 路</span></div>
+                  <div class="wb-brief-h"><b>🗂️ 选题来源池</b><span>4 路 · 缺源自动重分配</span></div>
                   <div class="wb-grid">
                     <span class="lit">📚 私有知识库 · 主力</span><span class="lit">🔥 行业热点</span><span class="lit">🎯 对标账号</span><span>📈 数据复盘</span>
                   </div>
@@ -1586,25 +1613,26 @@
         <div class="wb-shot gif">
           <span class="gif-tag">▶ 动图 · 自动循环</span>
           <div class="wb wb-lg">
-            <div class="wb-bar"><span class="t-dot" style="background:#ff5f57"></span><span class="t-dot" style="background:#febc2e"></span><span class="t-dot" style="background:#28c840"></span><span class="wb-url">ai.lcppch.top/agent/ipzone__topic/workbench</span><span class="wb-live">② 三关筛选 · 一批 5 条</span></div>
+            <div class="wb-bar"><span class="t-dot" style="background:#ff5f57"></span><span class="t-dot" style="background:#febc2e"></span><span class="t-dot" style="background:#28c840"></span><span class="wb-url">ai.lcppch.top/agent/ipzone__topic/workbench</span><span class="wb-live">② 候选池涌现 → 三关筛选 → 交付 10 条</span></div>
             <div class="wb-canvas" style="flex:none;padding:1em">
-              <div class="wb-zone"><b>1️⃣ 一票否决</b><span class="wb-chips"><i class="in">合规 / 常识错 → 淘汰 6 条</i></span></div>
-              <div class="wb-zone"><b>2️⃣ 贴标签</b><span class="wb-chips"><i class="in">行业 × 阶段 → 打标 18 条</i></span></div>
-              <div class="wb-zone"><b>3️⃣ 按阶段配</b><span class="wb-chips"><i class="ov in">获客 3 + 转化 1 + 裂变 1 → 出一批 5 条</i></span></div>
-              <div class="wb-foot"><span>三关全过才出题 · 每条带标签和参考结构</span><span>上线价 99 算力/次 · 内测预约免费</span></div>
+              <div class="wb-zone"><b>🗂️ 候选池涌现</b><span class="wb-chips"><i class="in">按配额出 16–20 条 · 缺源自动重分配</i></span></div>
+              <div class="wb-zone"><b>1️⃣ 一票否决</b><span class="wb-chips"><i class="in">评论区 / 同行热度无证据 → 淘汰 6 条</i></span></div>
+              <div class="wb-zone"><b>2️⃣ 对号入座</b><span class="wb-chips"><i class="in">类型 × 共识层级 × 客资准度 → 打标 11 条</i></span></div>
+              <div class="wb-zone"><b>3️⃣ 配比校准</b><span class="wb-chips"><i class="ov in">增长期视角：起号 3 + 增长 4 + 变现 3 → 交付 10 条</i></span></div>
+              <div class="wb-foot"><span>三关全过才出题 · 每条带证据状态和创作建议 · 可换一批</span><span>上线价 99 算力/次 · 内测预约免费</span></div>
             </div>
           </div>
-          <div class="shot-cap"><b>② 三关筛选 · 一批 5 条</b><span>一票否决卡合规，贴标签定行业阶段，最后按你的经营阶段配比出题——不合格的不出。</span></div>
+          <div class="shot-cap"><b>② 候选池涌现 → 三关筛选 → 交付 10 条</b><span>候选池按配额涌现 16–20 条，一票否决卡掉无证据选题，对号入座贴类型与共识层级，按你选的经营阶段配比交付 10 条——不合格的不出。</span></div>
         </div>
       </div>
       <div class="panel" data-p="3">
         <div class="rev">
           <div class="rev-head"><div class="rev-ava">贺</div><b>贺店长 · 轻食沙拉门店（内测）</b><span class="stars">★★★★★</span></div>
-          <p>最值钱的是「按阶段配」——开业期 3 条获客题全被拍爆了，终于不用拍脑袋想选题。</p>
+          <p>最值钱的是「配比校准」——选了增长期，出来的 10 条里 4 条正中当下阶段，终于不用拍脑袋想选题。</p>
         </div>
         <div class="rev">
           <div class="rev-head"><div class="rev-ava">齐</div><b>齐经理 · 家居门店运营（内测）</b><span class="stars">★★★★★</span></div>
-          <p>三关筛选把关很严，出来的题没有一条是发不出去的——热点题都被合规关筛过一遍，放心拍。</p>
+          <p>三关筛选把关很严，出来的题没有一条是发不出去的——每条热点都核验过来源，没证据的直接标「待验证」不冒充通过。</p>
         </div>
       </div>
     </div>
