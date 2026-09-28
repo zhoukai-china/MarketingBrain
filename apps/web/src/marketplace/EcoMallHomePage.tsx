@@ -14,6 +14,7 @@ import {
   type EcoEmployee,
   type EcoSkinKey
 } from "./eco-mall-data.js";
+import { ECO_CASES } from "./eco-cases-data.js";
 
 type FloorId = "floor-acquire" | "floor-private" | "floor-consultants" | "floor-hardware" | "floor-courses" | "floor-opc" | "floor-industry" | "floor-cases";
 
@@ -273,6 +274,8 @@ export function EcoMallHomePage() {
   const [activeFloor, setActiveFloor] = useState<FloorId>("floor-acquire");
   const [balance, setBalance] = useState<number | null>(null);
   const [skuPpu, setSkuPpu] = useState<Map<string, number> | null>(null);
+  const [view, setView] = useState<"home" | "cases">("home");
+  const [caseCat, setCaseCat] = useState("全部");
   const [openEmployee, setOpenEmployee] = useState<EcoEmployee | null>(null);
   const [openEmployeeSkin, setOpenEmployeeSkin] = useState<EcoSkinKey>("通用");
   const [openConsultant, setOpenConsultant] = useState<EcoConsultant | null>(null);
@@ -449,6 +452,10 @@ export function EcoMallHomePage() {
     setOpenEmployeeSkin(skin);
   }
 
+  function useSameAgent(sku: string) {
+    window.location.href = getAppPath(`/agent/${sku}/detail`);
+  }
+
   function scrollToFloor(floor: FloorId) {
     setActiveFloor(floor);
     document.getElementById(floor)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -593,6 +600,47 @@ export function EcoMallHomePage() {
         <button type="button" className="eh-iconbtn" title="新手帮助" onClick={() => setShowDict(true)}>?</button>
       </header>
 
+      {view === "cases" ? (
+        <section className="eh-cases-view">
+          <div className="eh-cv-head">
+            <div className="eh-cv-title"><b>📚 AI 案例</b><span>看别人怎么用 AI 降本增效</span></div>
+            <div className="eh-cv-slogan">每个案例写清<b>卡点、做法、投入、结果</b>，看中直接<b>用同款智能体</b> · 演示数据虚构</div>
+            <div className="eh-cv-chips">
+              {["全部", "内容获客", "私域营销", "AI 硬件", "AI 课程", "OPC", "行业工作台"].map((cat) => (
+                <button key={cat} type="button" className={`eh-cv-chip ${caseCat === cat ? "act" : ""}`} onClick={() => setCaseCat(cat)}>{cat}</button>
+              ))}
+            </div>
+          </div>
+          <div className="eh-cv-wrap">
+            {ECO_CASES.filter((c) => caseCat === "全部" || c.cat === caseCat).map((c) => (
+              <article key={c.title} className="eh-case-card">
+                <div className="eh-case-cover">
+                  <img src={getPublicAssetPath(c.cover)} alt={c.title} />
+                  <span className="eh-case-tag">{c.tag}</span>
+                  <span className="eh-case-gain"><b>{c.gain}</b><span>{c.gainLabel}</span></span>
+                </div>
+                <div className="eh-case-body">
+                  <div className="eh-case-title">{c.title}</div>
+                  <div className="eh-case-sub">{c.sub}</div>
+                  <div className="eh-case-metrics">
+                    {c.metrics.map((m) => (
+                      <div key={m.k} className="eh-case-metric"><span className="k">{m.k}</span><div className="v">{m.v}</div></div>
+                    ))}
+                  </div>
+                  <div className="eh-case-inspire">💡 <b>给你的启发：</b>{c.inspire.replace(/^💡 给你的启发：/, "")}</div>
+                  <div className="eh-case-cta">
+                    <button type="button" className="eh-case-use" onClick={() => useSameAgent(c.sku)}>{c.use}</button>
+                    <button type="button" className="eh-case-more">看完整做法 ›</button>
+                  </div>
+                </div>
+              </article>
+            ))}
+            {ECO_CASES.every((c) => caseCat !== "全部" && c.cat !== caseCat) ? (
+              <div className="eh-cv-empty">该分类暂无案例 · 演示数据陆续补充</div>
+            ) : null}
+          </div>
+        </section>
+      ) : (
       <section className="eco-mall">
         {/* Hero AI 指挥横幅（原型 v3.28：橙色渐变 + 波形 + 打字机 + 流光边） */}
         <section className="eh-hero">
@@ -770,37 +818,20 @@ export function EcoMallHomePage() {
 
             {renderBrandFloor()}
 
-            {/* AI 案例 · 信息流（原型 v3.12；演示数据虚构，照原型口径标注） */}
-            <section className="eco-floor" id="floor-cases">
-              <FloorHead no="📚" title="AI 案例" sub="看别人怎么用 AI 降本增效——每个案例写清卡点、做法、投入、结果，看中直接用同款智能体（演示数据虚构）。" />
-              <div className="eco-cases">
-                {AI_CASES.map((c) => (
-                  <article key={c.title} className="eco-case">
-                    <div className="eco-case-top">
-                      <span className="eco-case-tag">{c.tag}</span>
-                      <b className="eco-case-metric">{c.metric}</b>
-                    </div>
-                    <h3 className="eco-case-title">{c.title}</h3>
-                    <p className="eco-case-point">{c.point}</p>
-                    <div className="eco-case-agents">同款智能体：{c.agents}</div>
-                  </article>
-                ))}
-              </div>
-              <div className="eco-case-foot">上面这些案例用的智能体，商城里都有现成的 · <a onClick={() => scrollToFloor("floor-acquire")}>去逛同款 ›</a></div>
-            </section>
           </>
         )}
       </section>
+      )}
 
       {/* 底部 TabBar（手机）/ 左侧导航（桌面 ≥960px，照原型 v3.28） */}
       <nav className="eh-tabbar" aria-label="商城导航">
         <div className="eh-nav-brand">
           <span className="eh-brand-txt"><b>思潼AI商城</b></span>
         </div>
-        <button type="button" className="eh-tab act" onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+        <button type="button" className={`eh-tab ${view === "home" ? "act" : ""}`} onClick={() => { setView("home"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
           <i>🏠</i><span>首页</span>
         </button>
-        <button type="button" className="eh-tab" onClick={() => scrollToFloor("floor-cases")}>
+        <button type="button" className={`eh-tab ${view === "cases" ? "act" : ""}`} onClick={() => setView("cases")}>
           <i>📚</i><span>AI案例</span>
         </button>
         <button type="button" className="eh-tab" title="购物车（即将上线）">

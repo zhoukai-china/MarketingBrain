@@ -1,0 +1,108 @@
+/**
+ * AI 案例数据（照原型 agents-home-tech-demo v3.28 的案例流逐字提取，含封面图 public/mall/caseN.jpg）。
+ * 演示数据虚构口径与原型一致。
+ */
+export type EcoCase = {
+  tag: string;
+  gain: string;
+  gainLabel: string;
+  title: string;
+  sub: string;
+  metrics: Array<{ k: string; v: string }>;
+  inspire: string;
+  use: string;
+  cover: string;
+  cat: string;
+  sku: string;
+};
+
+export const ECO_CASES: EcoCase[] = [
+  {
+    "tag": "法律服务 · IP 定位",
+    "gain": "+80%",
+    "gainLabel": "案源咨询",
+    "title": "律师用 AI 定位 IP，3 个月案源咨询 +80%",
+    "sub": "律师事务所创始人 · 1 人运营 · 二线城市",
+    "metrics": [
+      {
+        "k": "月案源咨询",
+        "v": "25 通 → 45 通"
+      },
+      {
+        "k": "粉丝",
+        "v": "800 → 2.6 万"
+      }
+    ],
+    "inspire": "💡 给你的启发：个人 IP 不是发得多，是让人记住「你专门解决什么」。",
+    "use": "⚡ 用同款 · 沈定",
+    "cover": "/mall/case0.jpg",
+    "cat": "内容获客",
+    "sku": "ipzone__ip-pos"
+  },
+  {
+    "tag": "宠物门店 · 团购文案",
+    "gain": "+210%",
+    "gainLabel": "团购核销",
+    "title": "宠物店让 AI 写团购文案，核销单 +210%",
+    "sub": "单店 · 4 人 · 美团+抖音团购",
+    "metrics": [
+      {
+        "k": "月内容产能",
+        "v": "8 条 → 40 条"
+      },
+      {
+        "k": "月核销",
+        "v": "92 单 → 285 单"
+      }
+    ],
+    "inspire": "💡 给你的启发：文案不用憋——把卖点给 AI，让它用顾客的话写出来，你只挑钩子。",
+    "use": "⚡ 用同款 · 秦文",
+    "cover": "/mall/case1.jpg",
+    "cat": "内容获客",
+    "sku": "ipzone__copy"
+  },
+  {
+    "tag": "知识付费 · 视频复盘",
+    "gain": "23%",
+    "gainLabel": "爆款率",
+    "title": "知识博主 AI 复盘 30 条视频，爆款率 8% → 23%",
+    "sub": "个人博主 · 5.7 万粉 · B站+抖音",
+    "metrics": [
+      {
+        "k": "爆款率（>5万播放）",
+        "v": "8% → 23%"
+      },
+      {
+        "k": "月均播放",
+        "v": "1.8 万 → 6.4 万"
+      }
+    ],
+    "inspire": "💡 给你的启发：别整条重做——每条只改复盘指出的一个问题，30 条后爆款率翻 3 倍。",
+    "use": "⚡ 用同款 · 江流",
+    "cover": "/mall/case2.jpg",
+    "cat": "内容获客",
+    "sku": "ipzone__vidrev"
+  },
+  {
+    "tag": "服装门店 · 直播",
+    "gain": "+34%",
+    "gainLabel": "场均 GMV",
+    "title": "服装店用 AI 逐字稿开播，场均 GMV +34%",
+    "sub": "单店 · 6 人 · 抖音直播每周 3 场",
+    "metrics": [
+      {
+        "k": "场均 GMV",
+        "v": "¥8,200 → ¥11,000"
+      },
+      {
+        "k": "场观停留",
+        "v": "42 秒 → 78 秒"
+      }
+    ],
+    "inspire": "💡 给你的启发：直播别再「跟着感觉播」——逐字稿把节奏钉死，新人也能照稿接客。",
+    "use": "⚡ 用同款 · 罗盘",
+    "cover": "/mall/case3.jpg",
+    "cat": "内容获客",
+    "sku": "ipzone__livescript"
+  }
+];

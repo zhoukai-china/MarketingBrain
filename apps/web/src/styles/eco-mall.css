@@ -1592,3 +1592,67 @@ body.eco-mall-body .app-wrap {
 @media (prefers-reduced-motion: reduce){
   .eh-orb,.eh-scanline,.eh-ring,.eh-cons-ava{animation:none}
 }
+
+
+/* ============================================================
+   v3.28 第五轮：搜索不悬浮 / 空搜索态 / 字号 / 员工卡流光线 / AI 案例独立视图
+   ============================================================ */
+/* 1) 搜索框不再悬浮（原型里搜索框随页面滚动） */
+.eh .eco-searchbar{position:static;background:transparent;padding:14px 0 0;z-index:auto}
+
+/* 2) 搜索结果/空态：去掉大虚线框，照原型简单文案 */
+.eh .eco-results{margin-top:14px}
+.eh .eco-results-head{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:#94796B;margin-bottom:10px}
+.eh .eco-results-head b{color:#FF6A00}
+.eh .eco-results-head button{border:1px solid #E5DDD1;background:#FFFDF9;border-radius:999px;padding:5px 14px;font-size:12px;color:#94796B;cursor:pointer}
+.eh .eco-empty{border:0 !important;background:none !important;text-align:center;padding:48px 0 !important;color:#94796B;font-size:13px}
+
+/* 3) 卡内文字字号照原型（.emp-deliver 10.5 / .emp-price 11） */
+.eh .eco-p-tag{font-size:11px;padding:7px 12px}
+.eh .eco-p-price{font-size:11px}
+.eh .eco-p-price i{font-size:10px}
+
+/* 4) 员工卡顶部流光线（原型 .emp::before topFlow） */
+.eh .eco-product::before{content:"";position:absolute;top:0;left:-100%;width:60%;height:2px;background:linear-gradient(90deg,transparent,#FF6A00,transparent);animation:ehTopFlow 3.6s infinite}
+@keyframes ehTopFlow{0%{left:-100%}60%,100%{left:160%}}
+
+/* 5) AI 案例独立视图（照原型 .cases-view / .cv-* / .case-*） */
+.eh-cases-view{
+  position:relative;flex:1;overflow-y:auto;line-height:1.6;
+  background:linear-gradient(180deg,#FFFFFF,#FFF6EC 26%,#FFFFFF);padding-bottom:60px;
+}
+.eh-cv-head{position:sticky;top:0;z-index:6;padding:15px 22px 0;background:rgba(255,252,247,.93);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border-bottom:1px solid #F0EBE3;margin:0 -22px;padding-left:22px;padding-right:22px}
+.eh-cv-title{display:flex;align-items:baseline;gap:9px}
+.eh-cv-title b{font-size:20px;font-weight:900;color:#2B1B10}
+.eh-cv-title span{font-size:11px;color:#94796B}
+.eh-cv-slogan{margin-top:3px;font-size:11.5px;color:#94796B}
+.eh-cv-slogan b{color:#FF6A00}
+.eh-cv-chips{display:flex;gap:7px;overflow-x:auto;padding:10px 0 11px;scrollbar-width:none}
+.eh-cv-chips::-webkit-scrollbar{display:none}
+.eh-cv-chip{flex:none;padding:6px 14px;border-radius:999px;font-size:12px;font-weight:700;color:#94796B;border:1px solid #E5DDD1;background:#FFFDF9;cursor:pointer;transition:all .18s}
+.eh-cv-chip.act{color:#fff;background:linear-gradient(135deg,#FF6A00,#F25300);border-color:transparent;box-shadow:0 4px 12px rgba(242,83,0,.25)}
+.eh-cv-wrap{max-width:640px;margin:0 auto;padding:14px 14px 0}
+.eh-case-card{background:#fff;border:1px solid #F0EBE3;border-radius:18px;overflow:hidden;margin-bottom:14px;box-shadow:0 6px 24px rgba(160,90,20,.07)}
+.eh-case-cover{position:relative;aspect-ratio:16/9;background:#FFF2E2;overflow:hidden}
+.eh-case-cover img{width:100%;height:100%;object-fit:cover;display:block}
+.eh-case-tag{position:absolute;top:10px;left:10px;padding:3px 10px;border-radius:999px;background:rgba(28,16,8,.55);color:#fff;font-size:10.5px;font-weight:700;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.eh-case-gain{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;align-items:center;background:rgba(255,255,255,.92);border-radius:12px;padding:6px 12px}
+.eh-case-gain b{font-size:15px;color:#0E9F6E}
+.eh-case-gain span{font-size:9.5px;color:#94796B}
+.eh-case-body{padding:14px 16px 16px}
+.eh-case-title{font-size:15.5px;font-weight:800;color:#2B1B10;line-height:1.45}
+.eh-case-sub{font-size:11px;color:#BEA488;margin-top:3px}
+.eh-case-metrics{display:flex;gap:8px;margin-top:10px}
+.eh-case-metric{flex:1;background:#FFF9F2;border:1px solid #F0EBE3;border-radius:12px;padding:8px 10px;min-width:0}
+.eh-case-metric .k{font-size:10px;color:#BEA488;white-space:nowrap}
+.eh-case-metric .v{margin-top:2px;font-size:11.5px;color:#BEA488;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eh-case-inspire{margin-top:10px;font-size:12px;color:#94796B;background:#FFF9F1;border:1px solid #F0EBE3;border-radius:12px;padding:10px 12px}
+.eh-case-inspire b{color:#C97E12}
+.eh-case-cta{display:flex;gap:8px;margin-top:12px}
+.eh-case-use{flex:1;height:36px;border-radius:10px;border:0;background:linear-gradient(135deg,#FF8C32,#F25300);color:#fff;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(242,83,0,.25)}
+.eh-case-more{height:36px;padding:0 14px;border-radius:10px;border:1px solid #E5DDD1;background:#FFFDF9;color:#94796B;font-size:12.5px;cursor:pointer}
+.eh-cv-empty{text-align:center;padding:60px 0;color:#94796B;font-size:13px}
+
+@media (prefers-reduced-motion: reduce){
+  .eh .eco-product::before{animation:none}
+}

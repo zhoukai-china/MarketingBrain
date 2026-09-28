@@ -121,7 +121,34 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
   log(text.includes("F1") && text.includes("内容获客专区") && text.includes("位在线"), "F1 楼层头");
   log(text.includes("保禄数字分身") && text.includes("真人授权训练中"), "F3 保禄卡");
   log(text.includes("大模型折扣仓"), "F6 OPC");
-  log(text.includes("AI 案例") && text.includes("演示数据虚构"), "AI 案例流");
+  // AI 案例独立视图（侧栏切换）
+  await page.evaluate(() => {
+    const btn = Array.from(document.querySelectorAll(".eh-tab")).find((b) => b.textContent.includes("AI案例"));
+    if (btn) btn.click();
+  });
+  await new Promise((r) => setTimeout(r, 600));
+  const cv = await page.evaluate(() => {
+    const view = document.querySelector(".eh-cases-view");
+    if (!view) return null;
+    return {
+      head: view.querySelector(".eh-cv-title")?.textContent || "",
+      chips: view.querySelectorAll(".eh-cv-chip").length,
+      cards: view.querySelectorAll(".eh-case-card").length,
+      covers: view.querySelectorAll(".eh-case-cover img").length,
+      use: view.querySelector(".eh-case-use")?.textContent || ""
+    };
+  });
+  log(cv && cv.head.includes("AI 案例") && cv.chips === 7, "AI案例独立视图（标题+7 筛选片）", JSON.stringify(cv));
+  log(cv && cv.cards === 4 && cv.covers === 4, "4 张案例卡带封面", cv ? `${cv.cards}/${cv.covers}` : "N/A");
+  log(cv && cv.use.includes("用同款"), "用同款按钮", cv ? cv.use : "");
+  const homeBack = await page.evaluate(() => {
+    const btn = Array.from(document.querySelectorAll(".eh-tab")).find((b) => b.textContent.includes("首页"));
+    if (btn) btn.click();
+    return true;
+  });
+  await new Promise((r) => setTimeout(r, 400));
+  const homeBackOk = await page.evaluate(() => Boolean(document.querySelector(".eh-hero")));
+  log(homeBack && homeBackOk, "首页视图可切回");
 
   // ---- 8 条补修验收 ----
   const sideAi = await page.evaluate(() => {
