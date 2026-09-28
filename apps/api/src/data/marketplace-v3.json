@@ -16,7 +16,7 @@
     "topic": {
       "name": "选题智能体",
       "ico": "💡",
-      "ppu": 40,
+      "ppu": 99,
       "status": "selling",
       "verbs": [
         "选题",
@@ -29,7 +29,7 @@
     "copy": {
       "name": "文案智能体",
       "ico": "✍️",
-      "ppu": 40,
+      "ppu": 15,
       "status": "selling",
       "verbs": [
         "文案",
@@ -47,7 +47,7 @@
     "vidrev": {
       "name": "视频复盘智能体",
       "ico": "📊",
-      "ppu": 70,
+      "ppu": 50,
       "status": "selling",
       "verbs": [
         "复盘",
@@ -60,7 +60,7 @@
     "livescript": {
       "name": "直播话术智能体",
       "ico": "🎤",
-      "ppu": 200,
+      "ppu": 50,
       "status": "selling",
       "verbs": [
         "话术",
@@ -73,7 +73,7 @@
     "liverev": {
       "name": "直播复盘智能体",
       "ico": "🔁",
-      "ppu": 100,
+      "ppu": 50,
       "status": "coming_soon",
       "verbs": [
         "复盘",
@@ -86,7 +86,7 @@
     "sales": {
       "name": "销售话术智能体",
       "ico": "🤝",
-      "ppu": 60,
+      "ppu": 25,
       "status": "coming_soon",
       "verbs": [
         "跟单",
@@ -99,7 +99,7 @@
     "moments": {
       "name": "朋友圈文案智能体",
       "ico": "💬",
-      "ppu": 20,
+      "ppu": 5,
       "status": "coming_soon",
       "verbs": [
         "朋友圈",

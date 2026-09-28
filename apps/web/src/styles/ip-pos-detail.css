@@ -512,3 +512,45 @@
   object-fit: cover;
   display: block;
 }
+
+/* ============================================================
+   详情页「工作台实况」CSS 动图（对齐原型 v12 gifChip 循环演示，2026-09-28）
+   仅作用于头图实况区（.ipd-gview 内），实拍 tab 不受影响。
+   chips/配置卡逐条点亮 → 停留 → 淡出 → 循环（7s 一轮，逐条错峰）。
+   ============================================================ */
+@keyframes ipdGifIn {
+  0% { opacity: 0; transform: translateY(4px); }
+  3% { opacity: 1; transform: none; }
+  90% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: none; }
+}
+@keyframes ipdPulse {
+  50% { box-shadow: 0 4px 20px rgba(232, 101, 26, .45); transform: scale(1.02); }
+}
+@keyframes ipdBlink { 50% { opacity: .35; } }
+
+.ipd-gview .ipd-opts > span { animation: ipdGifIn 7s linear infinite backwards; }
+.ipd-gview .ipd-opts > span:nth-child(2) { animation-delay: .7s; }
+.ipd-gview .ipd-opts > span:nth-child(3) { animation-delay: 1.4s; }
+.ipd-gview .ipd-opts > span:nth-child(4) { animation-delay: 2.1s; }
+.ipd-gview .ipd-opts > span:nth-child(5) { animation-delay: 2.8s; }
+.ipd-gview .ipd-opts > span:nth-child(6) { animation-delay: 3.5s; }
+.ipd-gview .ipd-opts > span:nth-child(7) { animation-delay: 4.2s; }
+.ipd-gview .ipd-opts > span:nth-child(8) { animation-delay: 4.9s; }
+.ipd-gview .ipd-opts > span:nth-child(9) { animation-delay: 5.6s; }
+.ipd-gview .ipd-opts > span:nth-child(10) { animation-delay: 6.3s; }
+
+.ipd-gview .ipd-canvas > .ipd-zone { animation: ipdGifIn 7s linear infinite backwards; }
+.ipd-gview .ipd-canvas > .ipd-zone:nth-child(2) { animation-delay: 1.1s; }
+.ipd-gview .ipd-canvas > .ipd-zone:nth-child(3) { animation-delay: 2.2s; }
+.ipd-gview .ipd-canvas > .ipd-zone:nth-child(4) { animation-delay: 3.3s; }
+
+.ipd-gview .ipd-gen { animation: ipdPulse 2.4s ease-in-out infinite; }
+.ipd-gview .ipd-live { animation: ipdBlink 1.4s infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ipd-gview .ipd-opts > span,
+  .ipd-gview .ipd-canvas > .ipd-zone,
+  .ipd-gview .ipd-gen,
+  .ipd-gview .ipd-live { animation: none; }
+}

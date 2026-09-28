@@ -30,17 +30,20 @@ const redoSchema = z.object({
 const SKILL_PPU: Record<string, number> = {
   // 用户 2026-09-17 拍板：IP 定位按次计费，退出成本计费（`FIXED_PRICE_SKUS`）。
   // 2026-09-27 用户改价：400 → 99（与 `marketplace-v3.json` 的 `skills["ip-pos"].ppu` 同口径）。
+  // 2026-09-28 用户拍板：全部报价对齐原型 agents-home-tech-demo v3.28（何策99/次、秦文15/次起、
+  // 罗盘50/场、江流50/次、许复50/场、易成25/次、周域5/条），与 `marketplace-v3.json` 双写同口径。
   "ip-pos": 99,
-  topic: 40,
-  copy: 40,
-  vidrev: 60,
-  livescript: 200,
-  liverev: 100,
-  sales: 60,
-  moments: 20,
+  topic: 99,
+  copy: 15,
+  vidrev: 50,
+  livescript: 50,
+  liverev: 50,
+  sales: 25,
+  moments: 5,
   "ip-pack": 0
 };
 
+// 组合包（ip-pack）分步计费通道价，属独立产品口径，未随本次原型报价调整。
 const BUNDLE_STEP_PPU = [200, 40, 40, 60, 200, 100, 60];
 
 function resolveSkillPrice(skill: string, viaBundle?: string, stepIndex?: number): number {

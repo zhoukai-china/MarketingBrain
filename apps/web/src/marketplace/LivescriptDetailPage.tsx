@@ -5,7 +5,7 @@
 //   ① 「⚡ 充值算力」→ /recharge
 //   ② 「⚡ 立即使用」→ /agent/ipzone__livescript/workbench（直播话术工作台）
 // 内容口径：
-//   - livescript 在 FIXED_PRICE_SKUS（目录 ppu=200 算力）：价格卡「一口价 200 算力/场」，
+//   - livescript 在 FIXED_PRICE_SKUS（目录 ppu=50 算力，2026-09-28 对齐原型报价）：价格卡「一口价 200 算力/场」，
 //     原型里的「50 算力」是演示价，不照抄；「交付才扣 / 失败不扣费」按原型保留；
 //   - 简报 6 字段与真实直播话术工作台一致（场次类型/品牌 主推/目标人群/转化动作/场次时长/交付深度）；
 //   - 原型工作台地址写的旧 sku「live-host」→ 统一替换为真实地址「livescript」；
