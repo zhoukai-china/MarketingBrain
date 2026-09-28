@@ -237,6 +237,25 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
     await p3.close();
   }
 
+  // ---- 工作台商城版式 ----
+  {
+    const p4 = await browser.newPage();
+    await p4.setViewport({ width: 1440, height: 1000 });
+    const errors3 = [];
+    p4.on("pageerror", (e) => errors3.push(String(e)));
+    await p4.goto("http://localhost:5174/agent/ipzone__ip-pos/workbench", { waitUntil: "networkidle2", timeout: 30000 });
+    await new Promise((r) => setTimeout(r, 1800));
+    const wb = await p4.evaluate(() => ({
+      topbar: Boolean(document.querySelector(".eh-topbar")),
+      banner: document.querySelectorAll(".shared-banner").length,
+      oldTabs: (document.body.innerText.match(/商城 · 常用 · 算力充值/) || []).length
+    }));
+    log(wb.topbar && wb.banner === 0, "工作台商城版式（MallTopbar/无旧横幅）", JSON.stringify(wb));
+    log(errors3.length === 0, "工作台无 JS 异常");
+    await p4.screenshot({ path: __dirname + "/workbench-mall-chrome.png" });
+    await p4.close();
+  }
+
   log(errors.length === 0, "无 JS 异常");
 
   await page.screenshot({ path: __dirname + "/home-v328-final.png" });

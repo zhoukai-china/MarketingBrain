@@ -15,7 +15,8 @@
 import { useEffect, useRef, useState } from "react";
 import { apiPath, getAppPath, getAppRoutePath } from "../lib/api.js";
 import { readSessionIdentity } from "../lib/session.js";
-import { authHeaders, fetchMarketMe, handleStaleSession, readJson, Topbar } from "./shell.js";
+import { authHeaders, handleStaleSession, readJson } from "./shell.js";
+import { MallTopbar } from "./MallTopbar.js";
 import { chatFlowFor, buildRunBody } from "./chat-flows.js";
 import { renderMarkdownHtml } from "./AgentChatPage.js";
 import type { IpPosPayload } from "./ip-pos-report.js";
@@ -194,7 +195,6 @@ function buildPieces(p: IpPosPayload | null, answerMd: string): Piece[] {
 }
 
 export function IpPosWorkbench({ skuId }: { skuId: string }) {
-  const [balance, setBalance] = useState<number | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [qi, setQi] = useState(0);
   const [brief, setBrief] = useState<Record<string, string>>({});
@@ -260,9 +260,6 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     if (saved) {
       setPayloadView(saved, null, null, true);
     }
-    void fetchMarketMe<{ creditBalance: number }>()
-      .then((data) => { if (!cancelled) setBalance(data ? data.creditBalance : null); })
-      .catch(() => { if (!cancelled) setBalance(null); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [skuId]);
@@ -636,7 +633,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
 
   return (
     <main className="cpw-page">
-      <Topbar active="chat" balance={balance} onNavigate={(path) => { window.location.href = getAppPath(path); }} />
+      <MallTopbar />
 
       <header className="cpw-hero">
         <div className="cpw-wrap">

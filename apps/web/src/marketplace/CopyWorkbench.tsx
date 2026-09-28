@@ -14,7 +14,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { apiPath, getAppPath, getAppRoutePath } from "../lib/api.js";
-import { authHeaders, fetchMarketMe, handleStaleSession, readJson, Topbar } from "./shell.js";
+import { authHeaders, handleStaleSession, readJson } from "./shell.js";
+import { MallTopbar } from "./MallTopbar.js";
 import { renderMarkdownHtml } from "./AgentChatPage.js";
 import { employeeAvatarPath } from "./eco-mall-data.js";
 import sitongAvatar from "../assets/sitong-beauty.png";
@@ -120,7 +121,6 @@ function parseSections(answerMd: string): Piece[] {
 }
 
 export function CopyWorkbench({ skuId }: { skuId: string }) {
-  const [balance, setBalance] = useState<number | null>(null);
   const [skuPpu, setSkuPpu] = useState<number | null>(null);
   // 原型固定话术里的人设称呼（逐字对齐）：金牌文案主笔
   const persona = "金牌文案主笔";
@@ -182,9 +182,6 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
         if (sku && typeof sku.ppu === "number") setSkuPpu(sku.ppu);
       })
       .catch(() => { /* 价格取不到就隐藏，不阻塞 */ });
-    void fetchMarketMe<{ creditBalance: number }>()
-      .then((data) => { if (!cancelled) setBalance(data ? data.creditBalance : null); })
-      .catch(() => { if (!cancelled) setBalance(null); });
     return () => {
       cancelled = true;
     };
@@ -532,7 +529,7 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
   return (
     <main className="cpw-page">
       {/* Topbar 在作用域外（商城红线：留白/主题由全局容器与 Topbar 自己管） */}
-      <Topbar active="chat" balance={balance} onNavigate={(path) => { window.location.href = getAppPath(path); }} />
+      <MallTopbar />
 
       <header className="cpw-hero">
         <div className="cpw-wrap">

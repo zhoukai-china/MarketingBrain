@@ -9,7 +9,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiPath, getAppPath, getPublicAssetPath } from "../lib/api.js";
-import { authHeaders, fetchMarketMe, Topbar } from "./shell.js";
+import { authHeaders } from "./shell.js";
+import { MallTopbar } from "./MallTopbar.js";
 import { knowledgeSyncProgressText, runKnowledgeSync, latestKnowledgeSync } from "../lib/knowledge-sync.js";
 
 // ---------------- 第三关：账号阶段配比（原型 STAGES） ----------------
@@ -89,21 +90,6 @@ type StagedItem = { id: string; text: string; type: string; source: string };
 type GenTopic = { id: string; title: string; type: string; source: string; consensus: string; precision: string; advice: string; stage: string };
 
 export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
-  // 商城共用顶栏的算力余额（与 AgentChatPage 同款取法）
-  const [balance, setBalance] = useState<number | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    void fetchMarketMe<{ creditBalance: number }>()
-      .then((data) => {
-        if (!cancelled) setBalance(data ? data.creditBalance : null);
-      })
-      .catch(() => {
-        if (!cancelled) setBalance(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // 上一次同步结论（持久展示）：本地已存条数 + 更新时间；未同步 / 失败分别提示。
   const formatSyncTime = (iso?: string | null): string => {
@@ -559,7 +545,7 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
       <main className="app-wrap">
       {/* 商城共用顶栏（与 /agent/<skuCode>/chat 一致：导航 / 主题切换 / 算力 / 退出）。
           放在 .app-wrap 内：顶栏 1200 居中不顶格（与 chat/详情页一致）。 */}
-      <Topbar active="chat" balance={balance} onNavigate={(path) => { window.location.href = getAppPath(path); }} />
+      <MallTopbar />
       <div className="ts-wb">
       {/* ---------- hero ---------- */}
       <header className="hero">

@@ -15,7 +15,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { apiPath, getAppPath, getAppRoutePath } from "../lib/api.js";
-import { authHeaders, fetchMarketMe, handleStaleSession, readJson, Topbar } from "./shell.js";
+import { authHeaders, handleStaleSession, readJson } from "./shell.js";
+import { MallTopbar } from "./MallTopbar.js";
 import { chatFlowFor, buildVidrevRunBody, normalizeVidrevPlatform } from "./chat-flows.js";
 import { readAttachmentText } from "./text-attachment.js";
 import { VidrevReport, isVidrevPayload, type VidrevPayload } from "./vidrev-report.js";
@@ -120,7 +121,6 @@ type Phase = "idle" | "greet" | "checked" | "rejected" | "confirm" | "gen" | "do
 interface ChatMsg { id: number; who: "ai" | "user"; html: string }
 
 export function VidrevWorkbench({ skuId }: { skuId: string }) {
-  const [balance, setBalance] = useState<number | null>(null);
   const [skuPpu, setSkuPpu] = useState<number | null>(null);
   const avatar = employeeAvatarPath(skuId) ?? sitongAvatar;
 
@@ -174,9 +174,6 @@ export function VidrevWorkbench({ skuId }: { skuId: string }) {
         if (sku && typeof sku.ppu === "number") setSkuPpu(sku.ppu);
       })
       .catch(() => { /* 价格取不到就隐藏，不阻塞 */ });
-    void fetchMarketMe<{ creditBalance: number }>()
-      .then((data) => { if (!cancelled) setBalance(data ? data.creditBalance : null); })
-      .catch(() => { if (!cancelled) setBalance(null); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [skuId]);
@@ -506,7 +503,7 @@ export function VidrevWorkbench({ skuId }: { skuId: string }) {
 
   return (
     <main className="cpw-page">
-      <Topbar active="chat" balance={balance} onNavigate={(path) => { window.location.href = getAppPath(path); }} />
+      <MallTopbar />
 
       <header className="cpw-hero">
         <div className="cpw-wrap">
