@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>兰琪AI·经营大脑 v2 · 门店AI案例</title>
+<link rel="stylesheet" href="assets/lanqi-ui.css">
+<style>
+/* ===== 门店AI案例 私有样式（共享部分在 lanqi-ui.css） ===== */
+
+/* ① AI 深色 hero 卡 */
+.cs-hero-t { font-size: 19px; font-weight: 900; line-height: 1.45; letter-spacing: .2px; }
+.cs-hero-d { font-size: 12.5px; color: rgba(255,235,218,.78); line-height: 1.75; margin-top: 7px; }
+.cs-hero-d b { color: #FFC79B; }
+.cs-stats { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+.cs-stats > div { flex: 1; min-width: 96px; background: rgba(255,150,80,.12); border: 1px solid rgba(255,150,80,.3); border-radius: 13px; padding: 10px 12px; }
+.cs-stats b { display: block; font-size: 21px; font-weight: 900; color: #FFC79B; letter-spacing: -.3px; text-shadow: 0 0 14px rgba(255,138,61,.4); }
+.cs-stats span { font-size: 10.5px; color: rgba(255,220,190,.66); }
+.cs-hero-tip { margin-top: 13px; font-size: 11.5px; color: rgba(255,220,190,.75); background: rgba(255,255,255,.07); border: 1px dashed rgba(255,180,130,.3); border-radius: 10px; padding: 8px 12px; line-height: 1.6; }
+
+/* ② 筛选 chips */
+.cs-chipbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--card); border: 1px solid var(--line); border-radius: var(--rad-s); padding: 10px 12px; box-shadow: var(--shadow-s); }
+.cs-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  min-height: 40px; padding: 8px 15px; border-radius: 999px;
+  background: var(--soft); border: 1.5px solid var(--line);
+  font-size: 12.5px; font-weight: 700; color: var(--t2);
+  transition: all .16s; white-space: nowrap;
+}
+.cs-chip:active { transform: scale(.95); }
+.cs-chip.on { background: var(--og); color: #fff; border-color: transparent; box-shadow: 0 4px 12px rgba(255,106,0,.3); }
+.cs-chip .ct { font-size: 10px; font-weight: 800; opacity: .7; }
+.cs-cnt { margin-left: auto; font-size: 10.5px; color: var(--t3); font-weight: 600; }
+
+/* ③ 案例卡 */
+.cs-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--rad);
+  padding: 15px 15px 14px; box-shadow: var(--shadow-s); position: relative; overflow: hidden;
+}
+.cs-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--og); opacity: .8; }
+.cs-card.hide { display: none; }
+.cs-top { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 9px; }
+.cs-scene { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 800; color: var(--o3); background: var(--soft); border: 1px solid var(--line2); border-radius: 999px; padding: 3px 11px; }
+.cs-store { margin-left: auto; font-size: 10.5px; font-weight: 700; color: var(--t2); background: #FFF9F4; border: 1px dashed var(--line2); border-radius: 999px; padding: 3px 10px; }
+.cs-card h3 { font-size: 14.5px; font-weight: 800; line-height: 1.55; margin-bottom: 11px; }
+.cs-step { border-radius: 11px; padding: 9px 12px 10px; margin-bottom: 8px; }
+.cs-step .lb { display: inline-block; font-size: 9.5px; font-weight: 900; letter-spacing: 1px; border-radius: 6px; padding: 1.5px 8px; margin-bottom: 4px; }
+.cs-step p { font-size: 12px; line-height: 1.75; color: var(--t2); }
+.cs-step.sp { background: #FFF7F7; border: 1px solid #FBE3E4; }
+.cs-step.sp .lb { background: #FCE9EB; color: var(--red); }
+.cs-step.sa { background: var(--soft); border: 1px solid var(--line); }
+.cs-step.sa .lb { background: var(--og); color: #fff; }
+.cs-step.sa p b { color: var(--o3); }
+.cs-res { display: flex; gap: 8px; margin: 11px 0 10px; }
+.cs-res > div { flex: 1; min-width: 0; text-align: center; background: #FFF9F4; border: 1px solid var(--line); border-radius: 11px; padding: 9px 4px 8px; }
+.cs-res .k { display: block; font-size: 9.5px; color: var(--t3); font-weight: 600; white-space: nowrap; }
+.cs-res .v { display: inline-block; font-size: 16.5px; font-weight: 900; color: var(--o1); letter-spacing: -.4px; margin-top: 3px; }
+.cs-res .u { font-size: 9.5px; color: var(--t3); font-weight: 600; }
+.cs-barlb { font-size: 10.5px; color: var(--t3); margin-top: 6px; line-height: 1.5; }
+.cs-barlb b { color: var(--o3); }
+.cs-foot { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.cs-apply {
+  flex: 1; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  background: var(--og); color: #fff; font-size: 13px; font-weight: 800;
+  border-radius: 999px; box-shadow: 0 5px 14px rgba(255,106,0,.32); transition: transform .15s;
+}
+.cs-apply:active { transform: scale(.96); }
+.cs-go { flex-shrink: 0; font-size: 12px; font-weight: 700; color: var(--o3); border: 1.5px solid var(--line2); border-radius: 999px; padding: 9px 14px; min-height: 40px; display: inline-flex; align-items: center; background: #fff; transition: all .15s; }
+.cs-go:active { background: var(--soft); }
+.cs-detail-btn {
+  width: 100%; min-height: 38px; margin-top: 11px; display: flex; align-items: center; justify-content: center; gap: 5px;
+  background: #FFF9F4; border: 1.5px dashed var(--line2); border-radius: 999px;
+  font-size: 12px; font-weight: 700; color: var(--o3); transition: all .15s;
+}
+.cs-detail-btn:active { transform: scale(.97); background: #FFE9D9; }
+
+/* ④ 底部相关工具 */
+.cs-more { background: var(--card); border: 1px solid var(--line); border-radius: var(--rad); padding: 15px 16px; box-shadow: var(--shadow-s); }
+.cs-more > b { font-size: 14px; font-weight: 800; display: flex; align-items: center; gap: 6px; }
+.cs-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 11px 0 10px; }
+.cs-links a { display: inline-flex; align-items: center; min-height: 40px; padding: 8px 15px; border-radius: 999px; background: var(--soft); border: 1px solid var(--line2); font-size: 12.5px; font-weight: 700; color: var(--t2); transition: all .15s; }
+.cs-links a:active { transform: scale(.95); background: #FFE3CE; color: var(--o3); }
+.cs-note { font-size: 10.5px; color: var(--t3); line-height: 1.7; }
+
+/* ⑤ 案例详情面板 */
+.dt-back { display: inline-flex; align-items: center; gap: 5px; min-height: 40px; padding: 8px 15px; border-radius: 999px; background: var(--soft); border: 1px solid var(--line2); color: var(--o3); font-size: 12.5px; font-weight: 700; }
+.dt-back:active { transform: scale(.95); }
+.dt-cells { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 13px; }
+.dt-cells > div { background: rgba(255,150,80,.1); border: 1px solid rgba(255,150,80,.28); border-radius: 11px; padding: 8px 11px; }
+.dt-cells b { display: block; font-size: 13.5px; font-weight: 900; color: #FFC79B; }
+.dt-cells span { font-size: 9.5px; color: rgba(255,220,190,.66); }
+.dt-ba { display: grid; grid-template-columns: 1fr; gap: 9px; }
+.dt-ba .bx { border-radius: 13px; padding: 12px 13px; font-size: 12.5px; line-height: 1.75; }
+.dt-ba .bx b { display: inline-block; font-size: 10px; font-weight: 900; letter-spacing: 1px; border-radius: 6px; padding: 1.5px 9px; margin-bottom: 6px; }
+.dt-ba .bf { background: #FFF7F7; border: 1px solid #FBE3E4; color: var(--t2); }
+.dt-ba .bf b { background: #FCE9EB; color: var(--red); }
+.dt-ba .af { background: var(--soft); border: 1px solid var(--line2); color: var(--t2); }
+.dt-ba .af b { background: var(--og); color: #fff; }
+.dt-step { display: flex; gap: 10px; padding: 11px 0; border-bottom: 1px dashed var(--line); }
+.dt-step:last-child { border-bottom: none; }
+.dt-step .no { width: 24px; height: 24px; flex-shrink: 0; border-radius: 8px; background: var(--og); color: #fff; font-size: 12px; font-weight: 900; display: grid; place-items: center; }
+.dt-step .bd { flex: 1; font-size: 12.5px; line-height: 1.7; color: var(--t1); }
+.dt-step .bd b { color: var(--o3); }
+.dt-step .mt { display: block; font-size: 10.5px; color: var(--t3); margin-top: 3px; }
+.dt-verify { margin-top: 11px; font-size: 11px; color: var(--t3); background: #FFF9F4; border: 1px dashed var(--line2); border-radius: 10px; padding: 8px 12px; line-height: 1.7; }
+.dt-asset { background: var(--soft); border: 1px solid var(--line); border-radius: 13px; padding: 12px 13px; margin-bottom: 9px; }
+.dt-asset:last-child { margin-bottom: 0; }
+.dt-asset .ah { display: flex; align-items: center; gap: 6px; margin-bottom: 7px; }
+.dt-asset .ah .kd { font-size: 9.5px; font-weight: 900; background: var(--og); color: #fff; border-radius: 6px; padding: 2px 8px; flex-shrink: 0; }
+.dt-asset .ah b { font-size: 12.5px; font-weight: 800; }
+.dt-asset pre { margin: 0; font-family: inherit; white-space: pre-wrap; word-break: break-all; font-size: 12px; line-height: 1.8; color: var(--t2); }
+.dt-asset .cp { margin-top: 8px; min-height: 32px; padding: 5px 12px; border-radius: 999px; background: #fff; border: 1.5px solid var(--line2); color: var(--o3); font-size: 11.5px; font-weight: 700; }
+.dt-pit { display: flex; gap: 8px; padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 12.5px; line-height: 1.7; color: var(--t2); }
+.dt-pit:last-child { border-bottom: none; }
+.dt-pit .ic { flex-shrink: 0; }
+.dt-fit { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.dt-fit > div { display: flex; gap: 8px; border-radius: 11px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; }
+.dt-fit .y { background: #EDFAF3; border: 1px solid #CBEEDA; color: #1d7a43; }
+.dt-fit .n { background: #FFF7F7; border: 1px solid #FBE3E4; color: #b03a3a; }
+.dt-fit b { flex-shrink: 0; }
+.dt-cost { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.dt-cost > div { background: var(--soft); border: 1px solid var(--line); border-radius: 11px; padding: 10px 8px; text-align: center; }
+.dt-cost b { display: block; font-size: 13.5px; font-weight: 900; color: var(--o1); }
+.dt-cost span { font-size: 9.5px; color: var(--t3); font-weight: 600; }
+.dt-days { display: grid; gap: 8px; margin-top: 12px; }
+.dt-day { display: flex; gap: 10px; align-items: flex-start; background: #FFF9F4; border: 1px solid var(--line); border-radius: 11px; padding: 10px 12px; }
+.dt-day .d { flex-shrink: 0; font-size: 10px; font-weight: 900; color: var(--o3); background: var(--soft); border: 1px solid var(--line2); border-radius: 8px; padding: 3px 8px; }
+.dt-day .bd { flex: 1; font-size: 12px; line-height: 1.65; color: var(--t1); }
+.dt-day .bd small { display: block; font-size: 10.5px; color: var(--t3); margin-top: 2px; }
+.dt-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+.dt-acts .btn { min-height: 40px; }
+
+/* 桌面增强 */
+@media (min-width: 960px) {
+  .cs-hero-t { font-size: 22px; }
+  .cs-card { transition: transform .18s, box-shadow .18s; }
+  .cs-card:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(217,79,0,.14); border-color: var(--line2); }
+  .dt-ba { grid-template-columns: 1fr 1fr; }
+  .dt-cells { grid-template-columns: repeat(4, 1fr); }
+}
+</style>
+</head>
+
+<body>
+
+<div id="lqHeader"></div>
+
+<main id="app"></main>
+
+<div class="foot-note">兰琪AI·经营大脑 v2 · UI 升级设计稿 · 2026-09-24 · 仅设计演示</div>
+
+<div id="lqTabbar"></div>
+
+<script src="assets/lanqi-ui.js"></script>
+<script>
+/* ============================================================
+   门店AI案例（页面级渲染）
+   ============================================================ */
+(function () {
+"use strict";
+var $ = LQ.$, $$ = LQ.$$, esc = LQ.esc, fmt = LQ.fmt;
+
+/* 案例分类 */
+var CATS = [
+  { k: "all",  n: "全部",   ct: 6 },
+  { k: "get",  n: "获客",   ct: 2 },
+  { k: "up",   n: "升单",   ct: 2 },
+  { k: "wake", n: "唤醒",   ct: 1 },
+  { k: "debt", n: "防负债", ct: 1 }
+];
+
+/* 案例数据（虚构演示，useStore=true 的门店名跟随全站门店切换） */
+var CASES = [
+  {
+    id: "c1", cat: "wake", icon: "😴", scene: "沉睡唤醒", useStore: true, to: "wake.html",
+    title: "37% 沉睡率，AI 分档话术 30 天唤醒 41 人",
+    pain: "会员 486 人里 181 人沉睡（沉睡率 37%）。顾问手工打电话每天只能跟 5 个人，M2/M3 拖着拖着就真流失了。",
+    act: "AI 按<b>没来的时间分 3 档</b>，自动配话术批量触达：M1 送护理、M2 带券带礼、M3 低成本短信；每天 09:00 自动出新名单，唤醒结果回流驾驶舱。",
+    res: [["30 天唤醒到店", "41", " 人"], ["多收", "¥28,600", ""], ["沉睡率", "37%→29%", ""]],
+    bar: 63, barLabel: "本月唤醒目标达成 <b>63%</b>（目标 30 人 · 已唤回 19 人 · 还差 11 人）",
+    cells: [["门店", "跟随门店切换"], ["规模", "486 会员 · 12 名员工"], ["难度", "★☆☆ 轻改造"], ["周期", "30 天见效"]],
+    before: "会员 486 人里 181 人沉睡，顾问手工打电话每天只能跟 5 个人，M2/M3 拖着拖着就真流失了。",
+    after: "30 天唤醒 41 人到店、多收 ¥28,600，沉睡率从 37% 压到 29%；每天 09:00 新名单自动出来，顾问照单跟进。",
+    steps: [
+      ["分档名单", "导出会员消费记录，按<b>最后到店时间分 M1 / M2 / M3 三档</b>。", "店长 · 客户管理 · 1 小时"],
+      ["配分档话术", "M1 送护理、M2 带券带礼、M3 低成本短信，三档三套口径。", "店长 · 沉睡唤醒引擎 · 2 小时"],
+      ["每日名单", "每天 09:00 自动出今日唤醒名单，顾问按名单逐个跟进。", "顾问 · 每日清单 · 每天 30 分钟"],
+      ["结果回流", "唤醒结果自动回流驾驶舱，按周复盘调整话术。", "店长 · 经营驾驶舱 · 每周 20 分钟"]
+    ],
+    assets: [
+      { kd: "话术", t: "M1 / M2 / M3 分档唤醒话术（模板）", c: "M1（3 个月没来）：王姐，好久不见～这月老客回馈，给您留了一次【免费肩颈舒缓】，您看周六还是周日方便？\nM2（半年没来）：王姐好久不见～之前给您留的【项目券】还有效，这周过来用掉吧，顺便给您带了小礼物。\nM3（更久没来）：王姐，您的卡里还有余次没用完，过期就可惜了，回个 1 我帮您查下余额。" },
+      { kd: "边界", t: "唤醒触达的边界", c: "话术里不能承诺效果，不能编「免费」以外的利益；同一会员 30 天内最多触达 2 次；名单发之前店长过一遍，避开正在退卡的客诉会员。" }
+    ],
+    pitfalls: ["话术里不能承诺效果、不能编「免费」以外的利益。", "同一会员 30 天内最多触达 2 次，避免变成骚扰。", "名单先给店长过一遍再发，防止撞上正在退卡的客诉会员。"],
+    fitY: "有会员档案和消费记录、会员 ≥ 300 人的门店，当天就能配好。",
+    fitN: "会员数据还在纸质登记、没建电子档案的店，先补录档案再上。",
+    verify: "演示口径：唤醒 = 沉睡会员 30 天内再次到店消费；沉睡 = 距上次到店 ≥ 90 天。",
+    cost: ["¥0 起", "店长 1 人", "2 天上线"]
+  },
+  {
+    id: "c2", cat: "up", icon: "⬆️", scene: "体验客升单", store: "悦己SPA · 星海店", to: "sales-sim.html",
+    title: "980 体验客升 3000 深宠卡，升单率 18%→41%",
+    pain: "980 体验卡客户做完就走，顾问靠感觉跟进，10 个里成不了 2 个，体验卡成了「一次性生意」。",
+    act: "AI 按<b>到店次数 + 护理记录 + 沟通录音</b>筛出高意向名单，第 3 次护理结束后自动推送「深宠卡」专属权益和算账话术。",
+    res: [["升单率", "18%→41%", ""], ["月多收", "¥16,800", ""], ["升单周期", "23→9", " 天"]],
+    bar: 41, barLabel: "当前升单率 <b>41%</b>（同类门店均值约 20%）",
+    cells: [["门店", "悦己SPA · 星海店"], ["规模", "体验客 980 人"], ["难度", "★★☆ 中等"], ["周期", "第 1 个月起效"]],
+    before: "980 体验卡客户做完就走，顾问靠感觉跟进，10 个里成不了 2 个，体验卡成了「一次性生意」。",
+    after: "升单率 18%→41%、月多收 ¥16,800，升单周期从 23 天缩到 9 天；高意向名单每天自动出，顾问照单跟进。",
+    steps: [
+      ["筛高意向名单", "按<b>到店次数 + 护理记录 + 沟通录音</b>三个信号筛人，满足两条即进名单。", "店长 · 客户管理 · 1 小时"],
+      ["自动推送权益", "第 3 次护理结束自动推送「深宠卡」专属权益。", "系统 · 规则配置 · 10 分钟"],
+      ["算账跟进", "顾问用算账话术逐个跟进，一天最多跟 10 人保证质量。", "顾问 · AI模拟销售 · 每天 20 分钟"],
+      ["周复盘", "升单率与升单周期回流看板，每周复盘话术。", "店长 · 看板 · 每周 20 分钟"]
+    ],
+    assets: [
+      { kd: "话术", t: "深宠卡算账话术", c: "姐，980 的体验卡是让您先认识我们，3000 的深宠卡是把您这一年的护理都包进去：折算下来单次不到 300，还多了 4 次深层清洁和全年护肤咨询。您一个月来两次，一年省出小一千。" },
+      { kd: "清单", t: "高意向名单三条件", c: "① 60 天内到店 ≥ 3 次\n② 护理记录里有升单项目意向\n③ 沟通录音里问过价格或活动\n—— 三条满足两条即可进入今日跟进名单。" }
+    ],
+    pitfalls: ["升单话术不能贬低体验卡，只能说「体验是第一步」。", "不承诺具体效果与收益数字，只用算账逻辑。", "名单每天最多跟 10 人，逐个跟进，不群发。"],
+    fitY: "体验客月均到店 ≥ 80 人次、有护理记录和顾问归属的门店。",
+    fitN: "体验卡没有记录归属顾问的店，先把归属补齐再上。",
+    verify: "演示口径：升单率 = 购买卡项的体验客 / 到店体验客，按 30 天滚动统计。",
+    cost: ["¥0 起", "顾问 1 人", "当天可配"]
+  },
+  {
+    id: "c3", cat: "up", icon: "💎", scene: "高客单前置", store: "花漾美肤 · 万达店", to: "crm.html",
+    title: "高客单项目前置，客单价 ¥520→¥780",
+    pain: "3800 的疗程卡总在结账时才被想起，一句「回去想想」就把单挡没了，事后电话十个九个不来。",
+    act: "AI 把疗程卡话术<b>前置到第 2 次到店</b>：结合皮肤检测报告出「改善路线图」，让客户先看见差距、再谈方案。",
+    res: [["客单价", "¥520→780", ""], ["疗程卡月销", "4→11", " 张"], ["成交率", "21%→38%", ""]],
+    bar: 78, barLabel: "疗程卡月销目标达成 <b>78%</b>（11 / 14 张）",
+    cells: [["门店", "花漾美肤 · 万达店"], ["规模", "疗程卡 ¥3800 主打"], ["难度", "★☆☆ 轻改造"], ["周期", "3 天建模板"]],
+    before: "3800 的疗程卡总在结账时才被想起，一句「回去想想」就把单挡没了，事后电话十个九个不来。",
+    after: "客单价 ¥520→¥780、疗程卡月销 4→11 张、成交率 21%→38%；客户先看见前后对比，再听方案。",
+    steps: [
+      ["建拍摄标准", "每次护理结束拍 2 张同角度照片，半天建好标准。", "顾问 · 手机 · 半天建标准"],
+      ["每次存档", "护理结束拍照存进客户档案。", "技师 · 客户管理 · 每次 3 分钟"],
+      ["进度回顾", "每 4 次护理后 AI 生成前后对比图发给客户。", "AI · 自动生成 · 10 分钟"],
+      ["升单面谈", "结合对比图谈升级方案，客户自己看见差距。", "顾问 · 话术 · 5 分钟"]
+    ],
+    assets: [
+      { kd: "模板", t: "拍照标准（拍出来才有对比感）", c: "① 同一角度：正脸 / 侧脸，角度差不超过 15°\n② 同一光线：窗边自然光，不开美颜\n③ 同一状态：素颜、刚卸完妆\n④ 拍完当场存进客户档案，备注第 N 次" },
+      { kd: "话术", t: "进度回顾话术（让客户自己看见变化）", c: "姐，这是您第 4 次和第 1 次的对比，法令纹的位置淡了一圈。您这个皮肤底子，再加一个紧致导入，下个月这个时候还能再明显一截，我把两次的对比图发您看看？" }
+    ],
+    pitfalls: ["只记录不判断——AI 只出对比图，结论由顾问当面说。", "对比图必须标注「效果因人而异」，且必须是客户本人照片。"],
+    fitY: "每月护理 ≥ 100 人次、有疗程卡项目的门店。",
+    fitN: "以单次散客为主、几乎没有复购的店，先做复购再做前置。",
+    verify: "演示口径：客单价 = 当月总收入 / 到店人次；疗程卡月销含续卡。",
+    cost: ["¥0 起", "顾问 2 人", "3 天建模板"]
+  },
+  {
+    id: "c4", cat: "debt", icon: "🛟", scene: "预收止血", useStore: true, to: "liability.html",
+    title: "预收负债 47% 止血，60 天消化 ¥52,000",
+    pain: "大卡冲量埋雷：未消费余额 96,000，占累计预收 47%（健康线 40%），卡越卖心越慌。",
+    act: "AI 锁定<b>「余次 ≥6 且 30 天没来」</b>名单直接排进预约表；同时暂停大额卡促销，给每个会员排 90 天消耗计划。",
+    res: [["卡耗率", "41%→58%", ""], ["预收负债", "47%→38%", ""], ["消化余额", "¥52,000", " / 60天"]],
+    bar: 38, barLabel: "预收负债已压到 <b>38%</b>，回到健康线以内（&lt;40%）",
+    cells: [["门店", "跟随门店切换"], ["规模", "未消费余额 ¥96,000"], ["难度", "★★☆ 中等"], ["周期", "60 天见效"]],
+    before: "未消费余额 96,000，占累计预收 47%（健康线 40%）；大卡还在冲量，卡越卖心越慌。",
+    after: "卡耗率 41%→58%、预收负债 47%→38% 回到健康线内，60 天消化余额 ¥52,000；大卡促销已停。",
+    steps: [
+      ["摸清负债", "导出未消费余额与余次明细，看清单靠什么堆出来的。", "店长 · 预收负债看板 · 1 小时"],
+      ["锁定名单", "锁定「余次 ≥6 且 30 天没来」的名单，直接排进预约表。", "顾问 · 预约表 · 2 小时"],
+      ["停大卡", "暂停大额卡促销，改推次卡与项目卡。", "店长 · 营销设置 · 当天生效"],
+      ["消耗计划", "给每个会员排 90 天消耗计划，按周追踪。", "顾问 · 消耗计划 · 每周 30 分钟"]
+    ],
+    assets: [
+      { kd: "模板", t: "90 天消耗计划（每客一张）", c: "第 1-2 周：本周约 1 次到店（顾问排期）\n第 3-6 周：每 10 天 1 次，绑定固定技师\n第 7-12 周：余次过半后回访一次，确认剩余安排\n原则：宁可少约，不可断约。" },
+      { kd: "清单", t: "大卡促销暂停检查清单", c: "□ 本月不再推 ≥3000 的卡项\n□ 在售套餐里补 1 个次卡\n□ 顾问话术统一改为「先消耗、后充值」\n□ 每周一核对负债率变化" }
+    ],
+    pitfalls: ["不能靠继续卖大卡把负债「填」下去，那只是把坑挖深。", "消耗计划必须落到预约表，不落表等于没排。", "暂停大卡要提前和顾问统一口径，避免当面冲突。"],
+    fitY: "预收负债 > 40%、卡耗率低于达标线的门店，当天可启动。",
+    fitN: "刚开业、还在靠现金流铺店的新店，先跑量再做负债管理。",
+    verify: "演示口径：预收负债 = 未消费余额 / 累计预收款；健康线 40%。",
+    cost: ["¥0 起", "店长 1 人", "当天可配"]
+  },
+  {
+    id: "c5", cat: "get", icon: "📱", scene: "朋友圈日更", store: "兰亭肌研 · 3 店连锁", to: "moments.html",
+    title: "朋友圈七柱日更不断更，30 天老客回流 63 人",
+    pain: "朋友圈全是广告掉粉，店长发圈三天打鱼两天晒网，老客做完项目就「失联」。",
+    act: "AI 按<b>七柱排期</b>出每日初稿（工作现场 / 客户问题 / 方法论 / 案例…），店长只改成自己的口气，8 分钟发一条。",
+    res: [["老客回流", "21→63", " 人/月"], ["发圈耗时", "40→8", " 分钟"], ["单条互动", "0→6-15", " 个"]],
+    bar: 88, barLabel: "内容达标率 <b>88%</b>（AI 初稿一次过审即可发）",
+    cells: [["门店", "兰亭肌研 · 3 店连锁"], ["规模", "3 店 · 老客为主"], ["难度", "★☆☆ 轻改造"], ["周期", "当天可发"]],
+    before: "朋友圈全是广告掉粉，店长发圈三天打鱼两天晒网，老客做完项目就「失联」，月回流只有 21 人。",
+    after: "按七柱日更不断更，30 天老客回流 21→63 人；发圈耗时 40→8 分钟，单条互动 0→6-15 个。",
+    steps: [
+      ["七柱排期", "AI 按七柱比例自动排一周内容日历。", "AI · 内容日历 · 20 分钟"],
+      ["挑素材", "当天挑 3-5 张现场照片或客户反馈截图。", "店长 · 手机 · 5 分钟"],
+      ["AI 初稿", "按七柱类型生成初稿，改成自己的口气即发。", "店长 · 朋友圈代笔 · 8 分钟"],
+      ["反馈标记", "互动好的帖子记一笔，让下周一版更准。", "店长 · 内容日历 · 2 分钟"]
+    ],
+    assets: [
+      { kd: "模板", t: "「客户问题柱」写法", c: "客户问：冬天做完补水为什么还干？\n答：多数是锁水没做够。发一条「补水 ≠ 锁水」的科普，结尾放一个到店钩子——不用编案例，问题本身就是素材。" },
+      { kd: "边界", t: "软邀约的边界（不能越线）", c: "能写：到店体验感受、真实活动信息、限时名额。\n不能写：虚构客户案例、编造效果对比、承诺治愈类话术。" }
+    ],
+    pitfalls: ["不能编客户案例——没发生的事不写。", "软邀约不越线：不虚构优惠、不承诺效果。"],
+    fitY: "店长愿意每天花 10 分钟发圈的门店。",
+    fitN: "想把发圈外包、完全不看内容的店——人设一断更就前功尽弃。",
+    verify: "演示口径：回流指 30 天内再次到店消费的老客；互动含点赞、评论、私信。",
+    cost: ["¥0 起", "店长 1 人", "当天可发"]
+  },
+  {
+    id: "c6", cat: "get", icon: "🚀", scene: "新店爬坡", store: "悦颜 · 新店（开业 90 天）", to: "acquire.html",
+    title: "新店爬坡：90 天会员 0→260，第 2 月现金流转正",
+    pain: "开业 3 个月日均到店 5 人，团购来的客核销完就删群，现金流一直转不正。",
+    act: "AI 跑<b>本地推视频 + 团购核销 3 天内二次触达 + 首月体验卡锁客</b>三条线，数据每天回流看板自动复盘。",
+    res: [["日均到店", "5→14", " 人"], ["90 天会员", "0→260", " 人"], ["现金流", "第2月转正", ""]],
+    bar: 71, barLabel: "爬坡进度 <b>71%</b>（会员 260 / 阶段目标 360）",
+    cells: [["门店", "悦颜 · 新店"], ["规模", "开业 90 天 · 260 会员"], ["难度", "★★★ 重投入"], ["周期", "7 天跑通投放"]],
+    before: "开业 3 个月日均到店 5 人，团购来的客核销完就删群，现金流一直转不正。",
+    after: "日均到店 5→14 人、90 天会员 0→260 人，第 2 个月现金流转正；投放和二次触达每天自动复盘。",
+    steps: [
+      ["列卖点假设", "从团购评价和客户聊天记录里找 3 个卖点假设。", "AI · 素材库 · 半天"],
+      ["生成素材", "每个卖点 4 个版本（2 视频 + 2 图文）。", "AI · 公域获客工具 · 1 天"],
+      ["小预算试", "每天 100 元试 3 天，看单客资成本。", "店长 · 本地推 · 3 天"],
+      ["扩量", "单客资成本 ≤ 40 元的加预算，跑不动的换素材。", "店长 · 看板 · 每天 10 分钟"]
+    ],
+    assets: [
+      { kd: "提示词", t: "卖点测试版本拆分（直接可用的提示词）", c: "「同一卖点出 4 个版本：① 口播直给 ② 场景实拍 ③ 客户证言 ④ 价格钩子。每版都带前 3 秒开头句和结尾引导语。」" },
+      { kd: "标准", t: "测试判断标准", c: "单客资成本 ≤ 40 元 = 跑通，加预算；40-80 元 = 换素材不换卖点；> 80 元 = 换卖点。连续 3 天不过线就停投复盘。" }
+    ],
+    pitfalls: ["不要一边测一边改素材，一组素材至少跑满 3 天。", "素材跑不动先查承接：到店核销和 3 天内二次触达没跟上，投流白烧。"],
+    fitY: "新店开业 6 个月内、周边 3 公里有竞对在做本地推的门店。",
+    fitN: "老店复购盘子足够大、不缺新客的门店，先把复购做扎实。",
+    verify: "演示口径：单客资成本 = 本地推花费 / 添加微信或留资人数；核销口径 = 团购到店并完成服务。",
+    cost: ["¥399/月 + 投流预算", "店长 1 人", "7 天跑通"]
+  }
+];
+
+/* 套用 7 天清单（原版同源） */
+var APPLY_DAYS = [
+  ["第 1 天", "摸清现状", "导出会员 / 消费 / 跟进记录，让 AI 先认识你的店。", "店长 · 30 分钟"],
+  ["第 2 天", "整理问答库", "把最近 50 条客户真实问题整理成问答模板。", "顾问 · 1 小时"],
+  ["第 3 天", "配置试跑", "配好规则试跑 3 条真实对话，人工修正口径。", "店长 · 2 小时"],
+  ["第 4 天", "小范围上线", "只对老客开放，每天看一次对话记录。", "全员 · 30 分钟"],
+  ["第 5 天", "人工兜底", "设置转人工规则，复杂问题 5 秒内转顾问。", "店长 · 1 小时"],
+  ["第 6 天", "扩时段", "全时段上线，夜里记录白天回。", "系统 · 10 分钟"],
+  ["第 7 天", "复盘", "看转化数据，把没接住的问题补进问答库。", "店长 · 30 分钟"]
+];
+
+var curF = "all";
+var view = "list";   /* list | detail */
+var detailId = null;
+
+function findCase(id) {
+  for (var i = 0; i < CASES.length; i++) if (CASES[i].id === id) return CASES[i];
+  return null;
+}
+
+/* ---------- 复制 ---------- */
+function copyTxt(t) {
+  function ok() { LQ.toast("已复制，可直接粘贴"); }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t).then(ok, function () { fallback(); });
+  } else fallback();
+  function fallback() {
+    var ta = document.createElement("textarea");
+    ta.value = t; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); ok(); } catch (e) { LQ.toast("复制失败，请长按手动复制"); }
+    document.body.removeChild(ta);
+  }
+}
+
+/* ---------- ① AI 深色 hero ---------- */
+function heroHtml(s) {
+  var h = '<section class="span2 rise"><div class="ai-wrap"><div class="ai-card">';
+  h += '  <div class="ai-head">';
+  h += '    <span class="ai-badge"><span class="dot"></span>✨ 同行案例库 · 本月精选</span>';
+  h += '    <span style="font-size:11px;color:rgba(255,220,190,.55)">每周三更新</span>';
+  h += "  </div>";
+  h += '  <div class="cs-hero-t">看看同行怎么用 AI 把店做起来</div>';
+  h += '  <p class="cs-hero-d">每个案例都是 <b>痛点 → AI 动作 → 结果</b> 三段式，不讲概念、只讲能照着做的动作。当前视角：<b>' + esc(s.short) + "</b>（切门店看对应案例）</p>";
+  h += '  <div class="cs-stats">';
+  h += '    <div><b>3</b><span>家门店跑通闭环</span></div>';
+  h += '    <div><b>1,286</b><span>本月 AI 执行次数</span></div>';
+  h += '    <div><b>¥41,000</b><span>帮门店多收</span></div>';
+  h += "  </div>";
+  h += '  <div class="cs-hero-tip">💡 点案例底部的「套用到我的店」，把这套打法加入你的执行清单；同名工具页可直接上手。</div>';
+  h += "</div></section>";
+  return h;
+}
+
+/* ---------- ② 筛选 chips ---------- */
+function chipsHtml() {
+  var h = '<section class="span2 rise"><div class="cs-chipbar">';
+  CATS.forEach(function (c) {
+    h += '<button class="cs-chip' + (c.k === curF ? " on" : "") + '" data-f="' + c.k + '" type="button">' + c.n + '<span class="ct">' + c.ct + "</span></button>";
+  });
+  h += '<span class="cs-cnt" id="csCnt"></span></div></section>';
+  return h;
+}
+
+/* ---------- ③ 案例卡 ---------- */
+function caseHtml(s, c) {
+  var storeName = c.useStore ? esc(s.short) : c.store;
+  var h = '<section class="rise cs-item' + (curF === "all" || c.cat === curF ? "" : " hide") + '" data-cat="' + c.cat + '">';
+  h += '<div class="cs-card">';
+  h += '  <div class="cs-top"><span class="cs-scene">' + c.icon + " " + c.scene + '</span><span class="cs-store">🏬 ' + storeName + "</span></div>";
+  h += "  <h3>" + c.title + "</h3>";
+  h += '  <div class="cs-step sp"><span class="lb">痛点</span><p>' + c.pain + "</p></div>";
+  h += '  <div class="cs-step sa"><span class="lb">AI 动作</span><p>' + c.act + "</p></div>";
+  h += '  <div class="cs-res">';
+  c.res.forEach(function (r) {
+    h += "<div><span class='k'>" + r[0] + '</span><span class="v">' + r[1] + '</span><span class="u">' + r[2] + "</span></div>";
+  });
+  h += "  </div>";
+  h += '  <div class="pbar"><i class="pfill" data-w="' + c.bar + '"></i></div>';
+  h += '  <div class="cs-barlb">' + c.barLabel + "</div>";
+  h += '  <button class="cs-detail-btn" type="button" data-detail="' + c.id + '">📄 查看完整改造过程（实施步骤 · 资产 · 避坑）›</button>';
+  h += '  <div class="cs-foot">';
+  h += '    <button class="cs-apply" type="button" data-apply="' + c.id + '">💡 套用到我的店</button>';
+  h += '    <a class="cs-go" href="' + c.to + '">去试同类工具 ›</a>';
+  h += "  </div></div></section>";
+  return h;
+}
+
+/* ---------- ④ 底部相关工具 ---------- */
+function footHtml() {
+  var h = '<section class="span2 rise"><div class="cs-more">';
+  h += "  <b>🧰 看完想上手？对应工具在这</b>";
+  h += '  <div class="cs-links">';
+  h += '    <a href="wake.html">😴 沉睡唤醒引擎</a>';
+  h += '    <a href="moments.html">✍️ 朋友圈代笔</a>';
+  h += '    <a href="crm.html">👤 客户管理</a>';
+  h += '    <a href="sales-sim.html">🤝 AI模拟销售</a>';
+  h += '    <a href="home.html">🏠 回经营驾驶舱</a>';
+  h += "  </div>";
+  h += '  <p class="cs-note">案例数据均为演示口径，门店均为化名；每周三更新，你套用过的打法会自动置顶到「每日清单」。</p>';
+  h += "</div></section>";
+  return h;
+}
+
+/* ---------- 更新计数 ---------- */
+function renderCnt() {
+  var el = $("#csCnt");
+  if (!el) return;
+  var n = CASES.filter(function (c) { return curF === "all" || c.cat === curF; }).length;
+  el.textContent = "显示 " + n + " / " + CASES.length + " 个案例";
+}
+
+/* ---------- ⑤ 案例详情面板 ---------- */
+function detailHtml(s) {
+  var c = findCase(detailId);
+  if (!c) return listHtml(s);
+  var storeName = c.useStore ? esc(s.short) : c.store;
+  var h = '<section class="rise"><button class="dt-back" type="button" data-back="1">‹ 返回案例列表</button></section>';
+
+  /* 头卡 */
+  h += '<section class="rise"><div class="ai-wrap"><div class="ai-card">';
+  h += '  <div class="ai-head"><span class="ai-badge"><span class="dot"></span>' + c.icon + " " + c.scene + ' · 案例详情</span></div>';
+  h += '  <div class="cs-hero-t">' + c.title + "</div>";
+  h += '  <p class="cs-hero-d">来源门店：<b>' + storeName + "</b> · 数据为演示口径，打法可直接照做</p>";
+  h += '  <div class="dt-cells">';
+  c.cells.forEach(function (x) { h += "<div><b>" + x[1] + "</b><span>" + x[0] + "</span></div>"; });
+  h += "  </div></div></section>";
+
+  /* 改造前 / 改造后 */
+  h += '<section class="rise"><div class="card"><h3 style="font-size:15px;font-weight:800;margin-bottom:11px">改造前 → 改造后</h3><div class="dt-ba">';
+  h += '<div class="bx bf"><b>改造前</b>' + c.before + "</div>";
+  h += '<div class="bx af"><b>改造后</b>' + c.after + "</div>";
+  h += "</div></div></section>";
+
+  /* AI 改造动作（实施步骤） */
+  h += '<section class="rise"><div class="card"><h3 style="font-size:15px;font-weight:800;margin-bottom:3px">🛠️ AI 改造动作（照着做就行）</h3>';
+  c.steps.forEach(function (st, i) {
+    h += '<div class="dt-step"><span class="no">' + (i + 1) + '</span><div class="bd"><b>' + st[0] + "</b>：" + st[1] + "<small class=\"mt\">" + st[2] + "</small></div></div>";
+  });
+  h += "</div></section>";
+
+  /* 结果数据（效果指标 + 口径） */
+  h += '<section class="rise"><div class="card"><h3 style="font-size:15px;font-weight:800;margin-bottom:11px">📊 效果指标</h3><div class="cs-res">';
+  c.res.forEach(function (r) {
+    h += "<div><span class='k'>" + r[0] + '</span><span class="v">' + r[1] + '</span><span class="u">' + r[2] + "</span></div>";
+  });
+  h += '</div><div class="dt-verify">🔎 ' + c.verify + "</div></div></section>";
+
+  /* 资产 */
+  h += '<section class="rise"><div class="card"><h3 style="font-size:15px;font-weight:800;margin-bottom:11px">🎁 可直接拿去用的东西</h3>';
+  c.assets.forEach(function (a, i) {
+    h += '<div class="dt-asset"><div class="ah"><span class="kd">' + a.kd + "</span><b>" + a.t + '</b></div><pre>' + esc(a.c) + '</pre>' +
+      '<button class="cp" type="button" data-copy="' + c.id + "_" + i + '">📋 复制全文</button></div>';
+  });
+  h += "</div></section>";
+
+  /* 避坑 + 适配 */
+  h += '<section class="rise"><div class="card"><h3 style="font-size:15px;font-weight:800;margin-bottom:3px">⚠️ 照做之前先看这几条</h3>';
+  c.pitfalls.forEach(function (p) { h += '<div class="dt-pit"><span class="ic">✋</span><span>' + p + "</span></div>"; });
+  h += '</div></section>';
+  h += '<section class="rise"><div class="card"><h3 style="font-size:15px;font-weight:800;margin-bottom:11px">🎯 这套打法适不适合你</h3><div class="dt-fit">';
+  h += '<div class="y"><b>✓ 适合：</b><span>' + c.fitY + "</span></div>";
+  h += '<div class="n"><b>✗ 暂缓：</b><span>' + c.fitN + "</span></div>";
+  h += "</div></div></section>";
+
+  /* 照着做：投入 + 7 天清单 */
+  h += '<section class="rise"><div class="card"><h3 style="font-size:15px;font-weight:800;margin-bottom:11px">🧾 照着做（启动投入）</h3>';
+  h += '<div class="dt-cost"><div><b>' + c.cost[0] + "</b><span>资金投入</span></div><div><b>" + c.cost[1] + "</b><span>人力投入</span></div><div><b>" + c.cost[2] + "</b><span>上线周期</span></div></div>";
+  h += '<div class="dt-acts"><button class="btn primary" type="button" data-days="1">📅 生成我的 7 天清单</button>' +
+       '<button class="btn ghost" type="button" data-apply="' + c.id + '">💡 套用到我的店</button>' +
+       '<button class="btn ghost" type="button" data-fav="1">⭐ 收藏案例</button></div>';
+  h += '<div class="dt-days" id="dtDays" hidden>';
+  APPLY_DAYS.forEach(function (d) {
+    h += '<div class="dt-day"><span class="d">' + d[0] + '</span><div class="bd"><b>' + d[1] + "</b>：" + d[2] + "<small>" + d[3] + "</small></div></div>";
+  });
+  h += '<div style="font-size:10.5px;color:var(--t3);line-height:1.7">7 天清单为通用起步节奏，配合本案例的「AI 改造动作」逐天执行。</div></div>';
+  h += "</div></section>";
+
+  h += '<section class="rise" style="text-align:center"><button class="dt-back" type="button" data-back="1">‹ 返回案例列表</button></section>';
+  return h;
+}
+
+/* ---------- 渲染 ---------- */
+function listHtml(s) {
+  var h = heroHtml(s) + chipsHtml();
+  CASES.forEach(function (c) { h += caseHtml(s, c); });
+  h += footHtml();
+  return h;
+}
+function render() {
+  var s = LQ.store();
+  $("#app").innerHTML = view === "detail" ? detailHtml(s) : listHtml(s);
+  if (view === "list") renderCnt();
+  LQ.riseIn($("#app"));
+}
+
+/* ---------- 页面事件（委托，判空安全） ---------- */
+document.addEventListener("click", function (e) {
+  if (!e.target || !e.target.closest) return;
+  var chip = e.target.closest(".cs-chip");
+  if (chip && view === "list") {
+    curF = chip.getAttribute("data-f") || "all";
+    $$(".cs-chip").forEach(function (el) { el.classList.toggle("on", el === chip); });
+    $$(".cs-item").forEach(function (el) {
+      var cat = el.getAttribute("data-cat");
+      el.classList.toggle("hide", !(curF === "all" || cat === curF));
+    });
+    renderCnt();
+    return;
+  }
+  var dt = e.target.closest("[data-detail]");
+  if (dt) { detailId = dt.getAttribute("data-detail"); view = "detail"; render(); window.scrollTo(0, 0); return; }
+  if (e.target.closest("[data-back]")) { view = "list"; detailId = null; render(); window.scrollTo(0, 0); return; }
+  var ap = e.target.closest("[data-apply]");
+  if (ap) { LQ.toast("「" + (findCase(ap.getAttribute("data-apply")) || {}).scene + "」已加入我的执行清单（演示）"); return; }
+  var cp = e.target.closest("[data-copy]");
+  if (cp) {
+    var ids = cp.getAttribute("data-copy").split("_");
+    var c = findCase(ids[0]);
+    if (c && c.assets[+ids[1]]) copyTxt(c.assets[+ids[1]].kd + " · " + c.assets[+ids[1]].t + "\n" + c.assets[+ids[1]].c);
+    return;
+  }
+  if (e.target.closest("[data-days]")) {
+    var box = $("#dtDays");
+    if (box) { box.hidden = !box.hidden; if (!box.hidden) box.scrollIntoView({ behavior: "smooth", block: "nearest" }); }
+    return;
+  }
+  if (e.target.closest("[data-fav]")) { LQ.toast("已收藏到「我的 · 常用案例」（演示）"); }
+});
+
+render();
+
+LQ.init({ nav: "cases", title: "门店AI案例" });
+})();
+</script>
+</body>
+</html>
