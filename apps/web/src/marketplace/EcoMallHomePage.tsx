@@ -15,15 +15,23 @@ import {
   type EcoSkinKey
 } from "./eco-mall-data.js";
 
-type FloorId = "floor-employees" | "floor-consultants" | "floor-hardware" | "floor-courses" | "floor-brand" | "floor-cases";
+type FloorId = "floor-acquire" | "floor-private" | "floor-consultants" | "floor-hardware" | "floor-courses" | "floor-opc" | "floor-industry" | "floor-cases";
 
+/** 金刚区七格（原型 v3.28：内容获客/私域营销/数字咨询师/AI硬件/AI课程/OPC专区/行业工作台）。 */
 const KINGKONG: Array<{ floor: FloorId; label: string; icon: string; tint: string }> = [
-  { floor: "floor-employees", label: "数字员工", icon: "👥", tint: "244, 121, 32" },
-  { floor: "floor-consultants", label: "数字咨询师", icon: "🧭", tint: "64, 123, 240" },
+  { floor: "floor-acquire", label: "内容获客", icon: "✍️", tint: "244, 121, 32" },
+  { floor: "floor-private", label: "私域营销", icon: "💬", tint: "64, 123, 240" },
+  { floor: "floor-consultants", label: "数字咨询师", icon: "🧭", tint: "13, 148, 136" },
   { floor: "floor-hardware", label: "AI硬件", icon: "🔌", tint: "14, 159, 110" },
   { floor: "floor-courses", label: "AI课程", icon: "🎓", tint: "151, 82, 220" },
-  { floor: "floor-brand", label: "品牌工作台", icon: "🏪", tint: "232, 163, 61" }
+  { floor: "floor-opc", label: "OPC专区", icon: "🏭", tint: "232, 163, 61" },
+  { floor: "floor-industry", label: "行业工作台", icon: "🏪", tint: "219, 39, 119" }
 ];
+
+/** 楼层分组（原型 v3.28：F1 内容获客 / F2 私域营销，按 employeeKey 归组）。 */
+const ACQUIRE_OK_KEYS = ["ip-position", "copywriter", "live-host", "video-diag", "topic"];
+const ACQUIRE_DEV_KEYS = ["live-coach"];
+const PRIVATE_DEV_KEYS = ["private", "sales-coach"];
 
 const TODAY_ITEMS: Array<{ title: string; hint: string; employeeKey: string }> = [
   { title: "今天要发内容", hint: "让金牌文案主笔直接给你一条能念的稿", employeeKey: "copywriter" },
@@ -141,24 +149,6 @@ function EmployeeProduct({
 }
 
 /** 占位商品卡：AI 硬件 / AI 课程等还没上架的货架位。 */
-function GhostProduct({ icon, name, desc }: { icon: string; name: string; desc: string }) {
-  return (
-    <div className="eco-product eco-ghost">
-      <div className="eco-p-img">
-        <EcoAvatar icon={icon} img="" />
-        <span className="eco-badge dev">待上架</span>
-      </div>
-      <div className="eco-p-body">
-        <div className="eco-p-name">{name}</div>
-        <p className="eco-p-desc">{desc}</p>
-        <div className="eco-p-buy">
-          <span className="eco-p-soon">即将上架</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function EmployeeModal({
   employee,
   initialSkin,
@@ -276,7 +266,7 @@ function FloorHead({ no, title, sub }: { no: string; title: string; sub?: string
 
 export function EcoMallHomePage() {
   const [query, setQuery] = useState("");
-  const [activeFloor, setActiveFloor] = useState<FloorId>("floor-employees");
+  const [activeFloor, setActiveFloor] = useState<FloorId>("floor-acquire");
   const [balance, setBalance] = useState<number | null>(null);
   const [skuPpu, setSkuPpu] = useState<Map<string, number> | null>(null);
   const [openEmployee, setOpenEmployee] = useState<EcoEmployee | null>(null);
@@ -350,6 +340,16 @@ export function EcoMallHomePage() {
 
   const employeeByKey = useMemo(() => new Map(ECO_EMPLOYEES.map((item) => [item.key, item])), []);
 
+  /** 楼层分组（照原型 v3.28：F1 内容获客 / F2 私域营销）。 */
+  const byKey = useMemo(() => {
+    const map = new Map(ECO_EMPLOYEES.map((employee) => [employee.key, employee]));
+    const pick = (keys: string[]) => keys.map((key) => map.get(key)).filter((x): x is EcoEmployee => Boolean(x));
+    return {
+      acquireOk: pick(ACQUIRE_OK_KEYS),
+      acquireDev: pick(ACQUIRE_DEV_KEYS),
+      privateDev: pick(PRIVATE_DEV_KEYS)
+    };
+  }, []);
   const okEmployees = useMemo(
     () => ECO_EMPLOYEES.filter((employee) => employee.status === "ok"),
     []
@@ -358,6 +358,13 @@ export function EcoMallHomePage() {
     () => ECO_EMPLOYEES.filter((employee) => employee.status !== "ok"),
     []
   );
+  void okEmployees;
+  void devEmployees;
+  /** 购物车（本地演示态：人民币直购商品加购，后端购物车接口落地后切换）。 */
+  const [cartCount, setCartCount] = useState(0);
+  function addToCart(name: string) {
+    setCartCount((value) => value + 1);
+  }
 
   /* 搜索：职位 / 人名 / 能力介绍 / 交付物全文匹配。 */
   const results = useMemo(() => {
@@ -394,7 +401,14 @@ export function EcoMallHomePage() {
           status={status}
           index={index}
           ppu={ppu}
-          onOpen={() => openEmployeeAt(employee, "通用")}
+          onOpen={() => {
+            // 未上线智能体：卡片直达预约详情页（原型 v12「预约统一收口到详情页」）
+            if (status === "dev") {
+              window.location.href = getAppPath(`/agent/${employeeSkuCode(employee, "通用")}/detail`);
+              return;
+            }
+            openEmployeeAt(employee, "通用");
+          }}
         />
       );
     });
@@ -405,9 +419,9 @@ export function EcoMallHomePage() {
       <div className="eco-today-strip">
         <div className="eco-floor-head">
           <div className="eco-floor-title">
-            <h2>今天该用谁</h2>
+            <h2>今日任务 · 按场景直达</h2>
           </div>
-          <div className="eco-floor-sub">按老板日常节奏推荐入口；点一下直达对应数字员工。</div>
+          <div className="eco-floor-sub">按老板日常节奏推荐入口；点一下直达对应数字员工。<span className="eco-today-badge">AI 派单中</span></div>
         </div>
         <div className="eco-today">
           {TODAY_ITEMS.map((item) => {
@@ -433,10 +447,37 @@ export function EcoMallHomePage() {
     );
   }
 
+  /** 人民币直购货架卡（原型 F4 硬件 / F5 课程 / F6 OPC：加购按钮 + 价格行）。 */
+  function renderShelfCard(icon: string, name: string, tag: string, desc: string, price: string, note: string) {
+    return (
+      <article className="eco-product is-ok">
+        <div className="eco-p-img">
+          <EcoAvatar icon={icon} img="" />
+          <span className="eco-badge ok">{tag}</span>
+        </div>
+        <div className="eco-p-body">
+          <div className="eco-p-name">{name}</div>
+          <p className="eco-p-desc">{desc}</p>
+          <div className="eco-p-buy">
+            <span className="eco-p-price">
+              <b>{price}</b>
+              <span className="eco-p-unit">{note}</span>
+            </span>
+            <button
+              type="button"
+              className="eco-p-cart"
+              onClick={(e) => { e.stopPropagation(); addToCart(name); }}
+            >🛒 加购</button>
+          </div>
+        </div>
+      </article>
+    );
+  }
+
   function renderBrandFloor() {
     return (
-      <section className="eco-floor" id="floor-brand">
-        <FloorHead no="F5" title="品牌工作台" sub="美业品牌 demo 实景：门店 AI 工作台一整套的样子，点进去直接体验。" />
+      <section className="eco-floor" id="floor-industry">
+        <FloorHead no="F7" title="行业工作台" sub="美业品牌 demo 实景：门店 AI 工作台一整套的样子，点进去直接体验。" />
         <button
           type="button"
           className="eco-mod eco-mod-hero"
@@ -552,24 +593,46 @@ export function EcoMallHomePage() {
 
             {renderTodayStrip()}
 
-            <section className="eco-floor" id="floor-employees">
-              <FloorHead no="F1" title="数字员工" sub="点商品卡看详情；「可用」的商品点进去直接用。" />
+            <section className="eco-floor" id="floor-acquire">
+              <FloorHead no="F1" title="内容获客专区" sub={`做内容引流的智能体都在这 · ${byKey.acquireOk.length} 位在线`} />
               <div className="eco-products">
-                {renderEmployeeProducts(okEmployees, "ok")}
+                {renderEmployeeProducts(byKey.acquireOk, "ok")}
               </div>
-              {devEmployees.length > 0 ? (
+              {byKey.acquireDev.length > 0 ? (
                 <>
                   <div className="eco-divider"><span>即将上线</span></div>
                   <div className="eco-products">
-                    {renderEmployeeProducts(devEmployees, "dev")}
+                    {renderEmployeeProducts(byKey.acquireDev, "dev")}
                   </div>
                 </>
               ) : null}
             </section>
 
-            <section className="eco-floor" id="floor-consultants">
-              <FloorHead no="F2" title="数字咨询师 · 真人孪生" sub="把真人的方法论装进数字分身，给你真人级判断。" />
+            <section className="eco-floor" id="floor-private">
+              <FloorHead no="F2" title="私域营销专区" sub="客户成交 / 私域内容，跟着转化走。" />
               <div className="eco-products">
+                {renderEmployeeProducts(byKey.privateDev, "dev")}
+              </div>
+            </section>
+
+            <section className="eco-floor" id="floor-consultants">
+              <FloorHead no="F3" title="数字咨询师专区" sub="把真人的方法论装进数字分身。" />
+              <div className="eco-products">
+                <article className="eco-product is-dev">
+                  <div className="eco-p-img">
+                    <EcoAvatar icon="🧭" img="" />
+                    <span className="eco-badge dev">即将上线</span>
+                  </div>
+                  <div className="eco-p-body">
+                    <div className="eco-p-name">保禄数字分身</div>
+                    <div className="eco-p-shop">思潼AI 创始人</div>
+                    <p className="eco-p-desc">我是保禄的数字分身，他的 AI 增长和连锁经营方法论都装进来了。你有具体问题，我按保禄的思路接着答。</p>
+                    <div className="eco-p-buy">
+                      <span className="eco-p-soon">🔐 真人授权训练中 · 即将上线</span>
+                      <button type="button" className="eco-p-cart" onClick={() => addToCart("保禄数字分身")}>🛒 立即购买</button>
+                    </div>
+                  </div>
+                </article>
                 {ECO_CONSULTANTS.map((consultant, index) => {
                   const ok = consultant.status === "ok";
                   return (
@@ -598,19 +661,43 @@ export function EcoMallHomePage() {
             </section>
 
             <section className="eco-floor" id="floor-hardware">
-              <FloorHead no="F3" title="AI 硬件" sub="让 AI 落到店里的硬件货架，陆续上架。" />
+              <FloorHead no="F4" title="AI 硬件专区" sub="让 AI 落到店里的硬件货架（人民币直购 · 不进算力体系）。" />
               <div className="eco-products">
-                <GhostProduct icon="🎙️" name="AI 录音卡" desc="录音即分析，自动转经营动作。硬件红利优先。" />
-                <GhostProduct icon="📹" name="AI 客流摄像头" desc="到店客流自动统计，会员到店自动识别。" />
-                <GhostProduct icon="🔊" name="门店 AI 音箱" desc="常用话术语音随叫随到，前台接待不冷场。" />
+                {renderShelfCard("🎙️", "AI 录音卡", "硬件新品", "录音即分析，自动转经营动作：客户沟通自动归档、话术要点自动提炼。", "¥199", "/台 · 人民币直购")}
+                {renderShelfCard("📹", "门店 AI 机器人", "硬件新品", "迎宾接待、导购问答，常用话术语音随叫随到，前台接待不冷场。", "¥1,999", "/台 · 人民币直购")}
               </div>
             </section>
 
             <section className="eco-floor" id="floor-courses">
-              <FloorHead no="F4" title="AI 课程" sub="从 0 到 1 学会用 AI 干活，行业打法一套跑通。" />
+              <FloorHead no="F5" title="AI 课程专区" sub="从 0 到 1 学会用 AI 干活（人民币直购 · 不进算力体系）。" />
               <div className="eco-products">
-                <GhostProduct icon="🎓" name="智能体开发课" desc="从 0 到 1 学会搭建自己的数字员工与智能体工作流。" />
-                <GhostProduct icon="🎬" name="行业起号实操课" desc="按行业拆解：人设、选题、内容到转化全链路。" />
+                {renderShelfCard("🎓", "智能体开发课", "视频课", "从 0 到 1 学会搭建自己的智能体工作流。", "¥199", "/门 · 人民币直购")}
+                {renderShelfCard("🎬", "WorkBuddy 办公提效课", "实操课", "用 AI 把日报、周报、方案、表格这些日常活干得更快，即学即用。", "¥99", "/门 · 人民币直购")}
+              </div>
+            </section>
+
+            <section className="eco-floor" id="floor-opc">
+              <FloorHead no="F6" title="OPC 专区" sub="AI 算力与创作资源，商家价直供。" />
+              <div className="eco-products">
+                <article className="eco-product is-ok">
+                  <div className="eco-p-img">
+                    <EcoAvatar icon="🏭" img="" />
+                    <span className="eco-badge ok">OPC</span>
+                  </div>
+                  <div className="eco-p-body">
+                    <div className="eco-p-name">大模型折扣仓</div>
+                    <div className="eco-p-shop">主流大模型 API 额度 · 折扣直充</div>
+                    <p className="eco-p-desc">token 按仓价拿，AI 用量大的商家先省一半。</p>
+                    <div className="eco-p-buy">
+                      <span className="eco-p-price">
+                        <b>50</b>
+                        <span className="eco-p-unit">算力/份 起 ≈ ¥5</span>
+                      </span>
+                      <button type="button" className="eco-p-cart" onClick={() => addToCart("大模型折扣仓")}>🛒 加购</button>
+                      <button type="button" className="eco-p-cart primary" onClick={() => addToCart("大模型折扣仓（直购）")}>立即购买</button>
+                    </div>
+                  </div>
+                </article>
               </div>
             </section>
 
@@ -632,7 +719,7 @@ export function EcoMallHomePage() {
                   </article>
                 ))}
               </div>
-              <div className="eco-case-foot">上面这些案例用的智能体，商城里都有现成的 · <a onClick={() => scrollToFloor("floor-employees")}>去逛同款 ›</a></div>
+              <div className="eco-case-foot">上面这些案例用的智能体，商城里都有现成的 · <a onClick={() => scrollToFloor("floor-acquire")}>去逛同款 ›</a></div>
             </section>
           </>
         )}
@@ -647,7 +734,7 @@ export function EcoMallHomePage() {
           <span className="eco-tb-ico">📚</span><span>AI案例</span>
         </button>
         <button type="button" className="eco-tb-item" title="购物车（即将上线）">
-          <span className="eco-tb-ico">🛒<i className="eco-tb-badge">0</i></span><span>购物车</span>
+          <span className="eco-tb-ico">🛒{cartCount > 0 ? <i className="eco-tb-badge">{cartCount}</i> : null}</span><span>购物车</span>
         </button>
         <button type="button" className="eco-tb-item" onClick={() => { window.location.href = getAppPath("/mine"); }}>
           <span className="eco-tb-ico">👤</span><span>我的</span>

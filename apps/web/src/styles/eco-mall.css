@@ -1215,3 +1215,38 @@ body.eco-mall-body .app-wrap {
 .eco-dict { text-align: left; display: grid; gap: 8px; }
 .eco-dict p { font-size: 12.5px; color: #374151; line-height: 1.7; background: #f8f9fb; border-radius: 10px; padding: 9px 12px; margin: 0; }
 .eco-dict b { color: #b4420f; }
+
+/* ---- 人民币直购货架卡：加购按钮（F4 硬件 / F5 课程 / F6 OPC） ---- */
+.eco-p-cart {
+  border: 1.5px solid #e7651a;
+  background: #fff;
+  color: #e7651a;
+  font-size: 12px; font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.eco-p-cart:hover { background: #fff4ec; }
+.eco-p-cart.primary {
+  background: linear-gradient(135deg, #ff9a4d, #ff6a00 55%, #e04e00);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(255, 106, 0, .35);
+}
+.eco-p-buy { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* ---- 今日任务 · AI 派单中徽标 ---- */
+.eco-today-badge {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 10.5px; font-weight: 800;
+  color: #e7651a;
+  background: #fff4ec;
+  border: 1px solid #ffd9bf;
+  border-radius: 99px;
+  padding: 1px 9px;
+  vertical-align: 1px;
+  animation: ecoPulse 2s ease-in-out infinite;
+}
+@keyframes ecoPulse { 50% { opacity: .55; } }
