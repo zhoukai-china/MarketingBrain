@@ -76,7 +76,7 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
     const el = document.querySelector(".eco-invite-banner");
     return el ? getComputedStyle(el).backgroundImage : "";
   });
-  log(!ad.includes("linear-gradient"), "邀约横幅扁平（方案A，无渐变）", ad.slice(0,30));
+  log(ad.includes("linear-gradient"), "邀约横幅橙渐变（回退恢复）");
 
   // 今日任务
   log(text.includes("TODAY") && text.includes("今日任务 · 按场景直达") && text.includes("AI 派单中"), "今日任务头");
@@ -93,8 +93,7 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
   log(card && card.bg === "rgb(255, 255, 255)", "员工卡白底", card ? String(card.bg) : "N/A");
   log(card && card.dir === "column", "桌面卡片竖排");
   const ringAnim = await page.evaluate(() => getComputedStyle(document.querySelector(".eh .eco-p-img"), "::before").animationName);
-  const ringDisp = await page.evaluate(() => getComputedStyle(document.querySelector(".eh .eco-p-img"), "::before").display);
-  log(ringDisp === "none", "头像旋环已扁平隐藏（方案A）", ringDisp);
+  log(ringAnim === "ehSpin", "头像虚线旋环动画（回退恢复）", ringAnim);
   log(text.includes("沈定") && text.includes("秦文") && text.includes("罗盘"), "F1 五位在线");
   log(/\d+\s*算力\/(份|次|场|条)/.test(text), "价格橙标（算力/单位）");
   const cardGeo = await page.evaluate(() => {
@@ -118,7 +117,7 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
   });
   log(todayGeo.w === 250 && todayGeo.h === 64, "今日卡 250×64（原型 .t-card）", `${todayGeo.w}×${todayGeo.h}`);
   const ring = await page.evaluate(() => getComputedStyle(document.querySelector(".eh .eco-p-img"), "::before").borderTopStyle);
-  log(ring !== undefined, "头像外圈检查（方案A已扁平）");
+  log(ring === "dashed", "头像外圈虚线旋环（回退恢复）");
 
   // 楼层
   log(text.includes("F1") && text.includes("内容获客专区") && text.includes("位在线"), "F1 楼层头");
@@ -185,7 +184,7 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
     const cards = document.querySelectorAll(".eh-cons-card");
     return { n: cards.length, dir: cards.length ? getComputedStyle(cards[0]).flexDirection : "", border: cards.length ? getComputedStyle(cards[0]).borderTopStyle : "" };
   });
-  log(cons.n === 1 && cons.dir === "row" && cons.border === "solid", "⑦ 数字咨询师卡=保禄一张+实线浅边（方案A）", JSON.stringify(cons));
+  log(cons.n === 1 && cons.dir === "row" && cons.border === "dashed", "⑦ 数字咨询师卡=保禄一张+横向虚线样式", JSON.stringify(cons));
   const paluImg = await page.evaluate(() => { const i = document.querySelector(".eh-cons-ava img"); return i ? i.src : ""; });
   log(paluImg.includes("/mall/palu.jpg"), "保禄分身用真身照片", paluImg.slice(-20));
   const covers = await page.evaluate(() => Array.from(document.querySelectorAll(".eh-cimg")).map((i) => i.src.split("/mall/")[1]).join(","));
@@ -337,30 +336,6 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
     log(homeTb.miniBg.indexOf("linear-gradient") >= 0, "首页充值橙渐变按钮", homeTb.miniBg);
     await p7.screenshot({ path: __dirname + "/home-topbar-v2.png" });
     await p7.close();
-  }
-
-  // ---- 方案A 轻拟物收敛断言 ----
-  {
-    const pa = await page.evaluate(() => {
-      const csP = (el, ps) => (el ? getComputedStyle(el, ps) : null);
-      const kk = document.querySelector(".eh .eco-kk-ico");
-      const wave = document.querySelector(".eh-wave i");
-      const big = document.querySelector(".eh-big");
-      const banner = document.querySelector(".eco-invite-banner");
-      const bh = document.querySelector(".eh-brand-hero");
-      return {
-        kkBreath: kk ? csP(kk).animationName : "",
-        wave: wave ? csP(wave).animationName : "",
-        bigSheen: big ? csP(big, "::after").animationName : "",
-        bannerBg: banner ? getComputedStyle(banner).backgroundColor : "",
-        bhGrad: bh ? getComputedStyle(bh).backgroundImage : ""
-      };
-    });
-    log(pa.kkBreath === "ehKkBreath", "[A留] 金刚瓷贴呼吸保留", pa.kkBreath);
-    log(pa.wave === "ehWv", "[A留] Hero 波形动画保留", pa.wave);
-    log(pa.bigSheen === "ehSheen", "[A留] 主 CTA 流光保留", pa.bigSheen);
-    log(pa.bannerBg === "rgba(255, 140, 50, 0.08)", "[A扁] 邀约横幅浅橙扁平", pa.bannerBg);
-    log(pa.bhGrad === "none", "[A扁] F7 金卡去渐变", pa.bhGrad);
   }
 
   log(errors.length === 0, "无 JS 异常");
