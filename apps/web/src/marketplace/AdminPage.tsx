@@ -451,7 +451,7 @@ export function MarketplaceAdminPage() {
             </article>
             <article>
               <span>体验额度余额（bonus 桶）</span>
-              <strong style={{ fontSize: 22 }}>💎 {result.wallet.bonusBalance}</strong>
+              <strong style={{ fontSize: 22 }}>⚡ {result.wallet.bonusBalance}</strong>
             </article>
             <article>
               <span>钱包总余额</span>

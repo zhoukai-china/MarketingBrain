@@ -14,6 +14,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { apiPath, getAppPath, getAppRoutePath } from "../lib/api.js";
+import { useScrollLock } from "../lib/use-scroll-lock.js";
 import { readSessionIdentity } from "../lib/session.js";
 import { authHeaders, handleStaleSession, readJson } from "./shell.js";
 import { IconAuto, IconLead } from "./IconGlyph.js";
@@ -232,6 +233,9 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const draftRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // 2026-09-29（用户）：编辑弹窗打开后，背景固定、不可滚动。
+  useScrollLock(Boolean(editing));
 
   const msgIdRef = useRef(0);
   const logRef = useRef<HTMLDivElement | null>(null);

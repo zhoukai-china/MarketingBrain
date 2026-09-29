@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiPath, getAppPath, getPublicAssetPath } from "../lib/api.js";
+import { useScrollLock } from "../lib/use-scroll-lock.js";
 import { authHeaders } from "./shell.js";
 import { IconAuto, IconLead } from "./IconGlyph.js";
 import { MallTopbar } from "./MallTopbar.js";
@@ -274,6 +275,10 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
   const [ihDrawerOpen, setIhDrawerOpen] = useState(false);
   const [ihSearch, setIhSearch] = useState("");
   const [ihTemp, setIhTemp] = useState<Set<string>>(new Set());
+
+  // 2026-09-29（用户）：任何弹窗/抽屉（素材抽屉、热点抽屉）打开后，背景固定、不可滚动。
+  useScrollLock(materialsOpen || ihDrawerOpen);
+
   const ihItems = industryHotspots?.result?.hot.items ?? [];
   const ihFiltered = ihSearch.trim() ? ihItems.filter((t) => t.includes(ihSearch.trim())) : ihItems;
   // 已选数展示口径：selected 为 null（未挑选）时按全量算，与 /run 默认全量注入一致。

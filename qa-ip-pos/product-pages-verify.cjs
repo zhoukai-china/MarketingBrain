@@ -55,10 +55,25 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   }
 
   // ③ OPC 计价口径（算力计价 + 预约态）
+  // 2026-09-29（用户）：OPC 与硬件价格块样式要统一成「大数字 + 小单位」，且价格字号不能过大。
   await p.goto("http://localhost:5174/product/opcLlm/detail", { waitUntil: "networkidle2" });
   await sleep(800);
   const opc = await p.evaluate(() => document.body.innerText);
-  log(opc.includes("50 算力/份") && opc.includes("🧪 演示商品 · 购买不入算力余额"), "③ OPC 算力计价 + 演示注记");
+  log(opc.includes("🧪 演示商品 · 购买不入算力余额"), "③ OPC 演示注记保留");
+  const opcPrice = await p.evaluate(() => {
+    const num = document.querySelector(".ipd-num");
+    const unit = document.querySelector(".ipd-unit");
+    const numCs = num ? getComputedStyle(num).fontSize : "";
+    const unitCs = unit ? getComputedStyle(unit).fontSize : "";
+    return {
+      num: num?.textContent?.trim() ?? "",
+      unit: unit?.textContent?.trim() ?? "",
+      numFont: parseFloat(numCs) || 0,
+      unitFont: parseFloat(unitCs) || 0
+    };
+  });
+  log(opcPrice.num === "50" && opcPrice.unit.includes("算力/份"), "③ 价格块拆成「大数字 + 小单位」", JSON.stringify(opcPrice));
+  log(opcPrice.numFont <= 26 && opcPrice.numFont > opcPrice.unitFont, "③ 价格字号已收小（num 24 / 单位更小）", `${opcPrice.numFont}px vs ${opcPrice.unitFont}px`);
   await p.screenshot({ path: __dirname + "/product-detail-opc.png" });
 
   // ④ 首页卡片点击 → 内页（详情页直达，无中间弹窗）

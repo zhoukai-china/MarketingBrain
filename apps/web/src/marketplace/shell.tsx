@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
 import { clearStoredSession, readSessionToken } from "../lib/session.js";
 import { loginPathWithPendingReferral } from "../lib/pending-referral.js";
+import { fmtCredits } from "../lib/fmt.js";
 
 export function authHeaders(json = false): Record<string, string> {
   const token = localStorage.getItem("store_os_token");
@@ -157,7 +158,7 @@ export function Topbar({ active, balance, onNavigate }: { active: string; balanc
           <span>{theme === "light" ? "浅色" : "深色"}</span>
         </button>
         <div className="wallet-pill" onClick={() => (balance === null ? guestToLogin("/agents") : onNavigate("/recharge"))} title="算力余额 · 点击充值">
-          {balance === null ? "🔒 未登录 · 点击登录" : <>💎 <b>{balance}</b> 算力 <span className="wp-tag">全平台通用</span></>}
+          {balance === null ? "🔒 未登录 · 点击登录" : <>⚡ <b>{fmtCredits(balance)}</b> 算力 <span className="wp-tag">全平台通用</span></>}
         </div>
         {loggedIn ? (
           <button className="logout-link" onClick={handleLogout} title="退出后用另一个账号重新登入">退出登录</button>
@@ -166,7 +167,7 @@ export function Topbar({ active, balance, onNavigate }: { active: string; balanc
       {/* 算力余额预警（HANDOFF §2.6：余额低于 50 算力时预警提示；2026-09-28 D 线接入） */}
       {balance != null && balance < 50
         ? <div className="shared-banner warn">⚠️ 算力余额不足 50（当前 {balance}）· 使用前建议先充值，<b style={{ cursor: "pointer" }} onClick={() => onNavigate("/recharge")}>去充值 ›</b></div>
-        : <div className="shared-banner">💎 <b>算力全平台通用</b> · 数字员工、数字咨询师与各行业专区共用同一份算力</div>}
+        : <div className="shared-banner">⚡ <b>算力全平台通用</b> · 数字员工、数字咨询师与各行业专区共用同一份算力</div>}
     </>
   );
 }

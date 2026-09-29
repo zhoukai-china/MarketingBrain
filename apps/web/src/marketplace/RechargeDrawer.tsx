@@ -2,6 +2,7 @@ import { getAppPath } from "../lib/api.js";
 import { packOff, packPts, useRechargeFlow } from "../lib/use-recharge-flow.js";
 import { IconAuto } from "./IconGlyph.js";
 import { fmtCredits } from "../lib/fmt.js";
+import { useScrollLock } from "../lib/use-scroll-lock.js";
 
 /**
  * 充值右侧抽屉（2026-09-29 用户拍板：右侧抽屉不跳页）。
@@ -20,6 +21,9 @@ export function RechargeDrawer({ open, onClose, onPaid }: { open: boolean; onClo
   });
   const { wallet, packs, planIdx, setPlanIdx, method, setMethod, loading, error, notice, busyCode, qrSrc, payMode, orderId, isLocal, setError, setNotice, createOrder, mockPayOrder } = flow;
   const currentPlan = packs[planIdx ?? 0] ?? packs[0];
+
+  // 抽屉打开时锁背景滚动（2026-09-29 用户要求：任何弹窗背景都要固定）。
+  useScrollLock(open);
 
   if (!open) return null;
 
@@ -45,7 +49,7 @@ export function RechargeDrawer({ open, onClose, onPaid }: { open: boolean; onClo
                 <div className="eh-rd-balance">
                   <div>
                     <div style={{ fontSize: 11, color: "#94796B" }}>当前算力余额</div>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: "#E86A00" }}><IconAuto v="💎" size={20} /> {fmtCredits(wallet.balance)}</div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: "#E86A00" }}><IconAuto v="⚡" size={20} /> {fmtCredits(wallet.balance)}</div>
                     <div style={{ fontSize: 11, color: "#BEA488" }}>充值 {wallet.paidBalance} · 赠送 {wallet.bonusBalance}</div>
                   </div>
                   <span className="eh-rd-tag">全平台通用</span>

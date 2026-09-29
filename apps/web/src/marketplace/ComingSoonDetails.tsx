@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
+import { useScrollLock } from "../lib/use-scroll-lock.js";
 import { readJson } from "./shell.js";
 import { IconAuto, IconLead } from "./IconGlyph.js";
 import { MallTopbar } from "./MallTopbar.js";
@@ -65,6 +66,9 @@ function BookDialog({ content, onClose }: { content: ComingSoonContent; onClose:
   const [phone, setPhone] = useState("");
   const [done, setDone] = useState(() => Boolean(localStorage.getItem(storageKey)));
   const [err, setErr] = useState("");
+
+  // 弹窗打开时锁背景滚动（2026-09-29 用户要求：任何弹窗背景都要固定）。
+  useScrollLock(true);
 
   function submit() {
     if (!/^1\d{10}$/.test(phone.trim())) {

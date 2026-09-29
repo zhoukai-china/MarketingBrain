@@ -307,8 +307,9 @@
   gap: 5px;
 }
 .ipd-price-line { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
-.ipd-num { color: var(--accent); font-size: 30px; font-weight: 800; letter-spacing: -0.5px; line-height: 1; }
-.ipd-unit { font-size: 13px; font-weight: 700; color: var(--text); }
+/* 2026-09-29（用户）：价格字号过大 → 30px 收到 24px；单位统一走小字，数字才用大字。 */
+.ipd-num { color: var(--accent); font-size: 24px; font-weight: 800; letter-spacing: -0.5px; line-height: 1; }
+.ipd-unit { font-size: 12.5px; font-weight: 700; color: var(--text); }
 .ipd-approx { font-size: 11.5px; color: var(--muted); }
 .ipd-price-meta { font-size: 11.5px; color: var(--muted); }
 .ipd-price-meta b { color: var(--text); }

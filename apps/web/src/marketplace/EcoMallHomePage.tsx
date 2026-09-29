@@ -5,6 +5,7 @@ import { IconGlyph } from "./IconGlyph.js";
 import { RechargeDrawer } from "./RechargeDrawer.js";
 import { BookingModal } from "./BookingModal.js";
 import { fmtCredits } from "../lib/fmt.js";
+import { useScrollLock } from "../lib/use-scroll-lock.js";
 import { fetchMarketMe, readJson } from "./shell.js";
 import { employeePersonaLabel } from "./employee-names.js";
 import {
@@ -213,6 +214,10 @@ export function EcoMallHomePage() {
   const [showInvite, setShowInvite] = useState(false);
   const [showDict, setShowDict] = useState(false);
   const [signedToday, setSignedToday] = useState(() => Boolean(localStorage.getItem(`eco_sign_${new Date().toISOString().slice(0, 10)}`)));
+
+  // 2026-09-29（用户）：任何弹窗打开后，背景固定、不可滚动。
+  useScrollLock(Boolean(showRecharge || booking || openCase || openConsultant || showSignIn || showInvite || showDict));
+
   function signIn() {
     localStorage.setItem(`eco_sign_${today}`, "1");
     setSignedToday(true);

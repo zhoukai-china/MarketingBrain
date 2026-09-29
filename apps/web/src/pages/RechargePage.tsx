@@ -7,6 +7,7 @@ import { WORKBUDDY_MCP_PUBLIC_URL } from "../config/site";
 // 充值流程逻辑（档位/下单/native 二维码/jsapi 收银台/轮询）已抽到共享 hook：
 // 页面与商城右侧抽屉消费同一实现，保证「支付逻辑一致，只差样式布局」。
 import { packOff, packPts, useRechargeFlow } from "../lib/use-recharge-flow.js";
+import { fmtCredits } from "../lib/fmt.js";
 
 /**
  * WorkBuddy 接入思潼 AI 的 MCP：把这段整段发给 WorkBuddy，它会自己合并 mcpServers 配置。
@@ -159,7 +160,7 @@ export function RechargePage() {
               <div className="rc-balance">
                 <div>
                   <div className="rcb-label">当前算力余额</div>
-                  <div className="rcb-val">💎 {wallet?.balance ?? "—"}</div>
+                  <div className="rcb-val">⚡ {fmtCredits(wallet?.balance)}</div>
                   {wallet && <div style={{ color: "#9db0d4", fontSize: 13, marginTop: 2 }}>充值 {wallet.paidBalance} · 赠送 {wallet.bonusBalance}</div>}
                 </div>
                 <span className="rcb-tag">全平台通用</span>
@@ -218,7 +219,7 @@ export function RechargePage() {
             </div>
 
             <aside className="rc-side">
-              <div className="rc-card"><b>💎 算力用在哪</b><p>思潼AI 创始人IP专区 + 各行业专区的所有智能体，共用这一份算力。</p></div>
+              <div className="rc-card"><b>⚡ 算力用在哪</b><p>思潼AI 创始人IP专区 + 各行业专区的所有智能体，共用这一份算力。</p></div>
               <div className="rc-card token">
                 <b>🔗 在 WorkBuddy 里接入思潼 AI</b>
                 <p>把下面这段整段复制，直接发给 WorkBuddy，它就会自动接入思潼 AI 的 MCP（不用手动改 JSON）。</p>

@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { apiPath } from "../lib/api.js";
+import { useScrollLock } from "../lib/use-scroll-lock.js";
 import { IconGlyph } from "./IconGlyph.js";
 
 export function BookingModal({
@@ -23,6 +24,9 @@ export function BookingModal({
   const [done, setDone] = useState(false);
   const [already, setAlready] = useState(false);
   const [error, setError] = useState("");
+
+  // 弹窗打开时锁背景滚动（2026-09-29 用户要求：任何弹窗背景都要固定）。
+  useScrollLock(open);
 
   if (!open) return null;
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiPath, getAppPath, getAppRoutePath } from "../lib/api.js";
 import { readSessionToken } from "../lib/session.js";
+import { useScrollLock } from "../lib/use-scroll-lock.js";
 import { referenceCaseForSku, type ReferenceCase } from "./reference-cases.js";
 import { authHeaders, fetchMarketMe, guestToLogin, handleStaleSession, readJson, Topbar } from "./shell.js";
 import {
@@ -29,6 +30,9 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const [benchmark, setBenchmark] = useState<ReferenceCase | null>(null);
+
+  // 2026-09-29（用户）：标杆案例弹窗打开后，背景固定、不可滚动。
+  useScrollLock(Boolean(benchmark));
   /**
    * 包月状态（用户 2026-09-17 二次反馈：`/agent/ipzone__copy` 上「并没有文案包月功能」）。
    *
@@ -300,7 +304,7 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
                 </>
               ) : null}
             </div>
-            <div className="shared-card">💎 <b>一份算力，全平台通用</b><br />创始人IP专区与各行业专区的智能体共用同一份算力；在 WorkBuddy 里用思潼智能体，用的也是这份算力。</div>
+            <div className="shared-card">⚡ <b>一份算力，全平台通用</b><br />创始人IP专区与各行业专区的智能体共用同一份算力；在 WorkBuddy 里用思潼智能体，用的也是这份算力。</div>
             {notice && <div className="notice">{notice}</div>}
           </aside>
         </div>

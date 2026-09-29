@@ -62,9 +62,18 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     return m ? { open: true, hasInput: Boolean(m.querySelector(".eh-bk-form input")), title: m.querySelector(".eh-bk-head b")?.textContent || "" } : { open: false };
   });
   log(modal.open && modal.hasInput, "点预约按钮 → 预约弹窗打开（含手机号输入）", JSON.stringify(modal));
+  // 2026-09-29（用户）：弹窗打开后背景必须固定、不可滚动。
+  const locked = await p.evaluate(() => getComputedStyle(document.body).overflow);
+  log(locked === "hidden", "预约弹窗打开 → 背景锁滚动", "body overflow=" + locked);
   // 关闭
   await p.evaluate(() => { const x = document.querySelector(".eh-bk-sheet .eh-cd-x"); if (x) x.click(); });
-  await sleep(400);
+  await sleep(500);
+  const unlocked = await p.evaluate(() => getComputedStyle(document.body).overflow);
+  log(unlocked !== "hidden", "弹窗关闭 → 背景恢复可滚动", "body overflow=" + unlocked);
+
+  // ---- 算力 logo 口径（2026-09-29 用户：统一用 ⚡，不再用 💎） ----
+  const walletTxt = await p.evaluate(() => document.querySelector(".eh-bal2")?.textContent?.trim() ?? "");
+  log(walletTxt.includes("算力") && !walletTxt.includes("💎"), "商城顶栏算力胶囊为 ⚡ 口径（无 💎）", walletTxt);
 
   // ---- 详情页：未上线·预约中 + 预约 CTA + 无购买 ----
   const detail = await b.newPage();
@@ -106,6 +115,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     return panel ? { open: true, url: location.pathname } : { open: false, url: location.pathname };
   });
   log(rd.open && rd.url === beforeUrl.replace(/^https?:\/\/[^/]+/, ""), "详情页充值 → 右侧抽屉（不跳页）", JSON.stringify(rd));
+  const rdLock = await detail.evaluate(() => getComputedStyle(document.body).overflow);
+  log(rdLock === "hidden", "充值抽屉打开 → 背景锁滚动", "body overflow=" + rdLock);
+  const rdBal = await detail.evaluate(() => document.querySelector(".eh-rd-balance")?.textContent?.trim() ?? "(未登录无余额块)");
+  log(!rdBal.includes("💎"), "充值抽屉余额块用 ⚡（无 💎）", rdBal);
 
   log(errors.length === 0 && dErr.length === 0, "无 JS 异常", "home=" + errors.length + " detail=" + dErr.length);
   await b.close();

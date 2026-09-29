@@ -3,6 +3,8 @@ import { apiPath, getAppPath, getPublicAssetPath } from "../lib/api.js";
 import { authHeaders, fetchMarketMe, guestToLogin, handleStaleSession, readJson, Topbar } from "./shell.js";
 import { RechargeDrawer } from "./RechargeDrawer.js";
 import { employeeDisplayNameFromLegacyName } from "./eco-mall-data.js";
+import { fmtCredits } from "../lib/fmt.js";
+import { useScrollLock } from "../lib/use-scroll-lock.js";
 import "../styles/referral-card.css";
 
 /**
@@ -199,6 +201,10 @@ export function MarketplaceMinePage() {
   // 凭证是租户级配置（存 KnowledgeConnection，与「企业知识库」同一份），不是系统级配置；
   // 流程：填凭证 → 先「测试连接」（后端 testOnly，不落库）→ 通过后才能「保存并生效」。
   const [gnOpen, setGnOpen] = useState(false);
+
+  // 2026-09-29（用户）：任何弹窗（得到大脑配置 / 充值抽屉）打开后，背景固定、不可滚动。
+  useScrollLock(gnOpen || showRecharge);
+
   const [gnStatus, setGnStatus] = useState<string | null>(null);
   const [gnApiKey, setGnApiKey] = useState("");
   const [gnClientId, setGnClientId] = useState("");
@@ -260,8 +266,8 @@ export function MarketplaceMinePage() {
       <section className="view view-mine">
         <h1>我的</h1>
         <div className="mine-top">
-          <div className="balance-card"><div className="bc-label">算力余额</div><div className="bc-val">💎 {balance ?? "—"}</div><div className="bc-sub">全平台通用</div><button className="btn ghost sm" onClick={() => setShowRecharge(true)}>+ 充值算力</button></div>
-          <div className="shared-card wide">💎 <b>跨数字员工通用</b><br />同一份算力，在创始人IP专区与各行业专区的数字员工 / AI员工都能用——只充一次，处处可用。</div>
+          <div className="balance-card"><div className="bc-label">算力余额</div><div className="bc-val">⚡ {fmtCredits(balance)}</div><div className="bc-sub">全平台通用</div><button className="btn ghost sm" onClick={() => setShowRecharge(true)}>+ 充值算力</button></div>
+          <div className="shared-card wide">⚡ <b>跨数字员工通用</b><br />同一份算力，在创始人IP专区与各行业专区的数字员工 / AI员工都能用——只充一次，处处可用。</div>
         </div>
         <ReferralLinkCard />
         {/*
