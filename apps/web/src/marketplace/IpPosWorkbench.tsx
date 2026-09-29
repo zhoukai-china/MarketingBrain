@@ -752,7 +752,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                             <div className="cpw-ir" key={issue.slot}>
                               <span className={`cpw-ir-badge ${issue.verdict === "missing" ? "missing" : "weak"}`}>{issue.verdict === "missing" ? "缺失" : "太薄"}</span>
                               <div className="cpw-ir-main">
-                                <b>{fields.map((fk) => { const meta = FIELDS.find((x) => x.key === fk); return meta ? `$<IconAuto v={meta.icon} /> ${meta.label}` : fk; }).join(" / ")}</b>
+                                <b>{fields.map((fk, i) => { const meta = FIELDS.find((x) => x.key === fk); return (<span key={`${fk}-${i}`}>{i > 0 ? " / " : ""}{meta ? <><IconAuto v={meta.icon} /> {meta.label}</> : fk}</span>); })}</b>
                                 <span>{issue.followup}</span>
                               </div>
                               {done0 && <span className="cpw-ir-done">✓ 已补充</span>}

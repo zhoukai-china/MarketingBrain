@@ -96,7 +96,9 @@ import {
   consumeWalletCredits,
   getOrCreateWallet,
   readWallet,
-  buildRechargeUrl
+  buildRechargeUrl,
+  grantSignupWalletCreditsInTx,
+  giftBonusExpiry
 } from "../services/sitong-wallet.js";
 import { maybeGrantReferralReward } from "../services/referral-rewards.js";
 import {
@@ -1337,13 +1339,62 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
     market.get("/me", async (request, reply) => {
       const context = await resolveRequestContext(request.headers);
       const wallet = context.source === "database" ? await readWallet(context.userId) : { balance: await getCreditBalance(context) };
+      // 「免费开通」注册礼状态：钱包流水里有没有 source=signup_gift 这一笔（幂等依据）。
+      const signupGift = context.source === "database"
+        ? await prisma.walletLedger.findFirst({
+            where: { userId: context.userId, source: "signup_gift" },
+            select: { delta: true, expiresAt: true },
+            orderBy: { createdAt: "desc" }
+          })
+        : null;
       return {
         dataMode: context.source,
         creditBalance: wallet.balance,
+        activated: Boolean(signupGift),
+        gift: signupGift
+          ? { amount: signupGift.delta, bucket: "bonus", expiresAt: signupGift.expiresAt?.toISOString?.() ?? null, scope: "text" }
+          : null,
         subscriptions: await listSubscriptions(context),
         recentPpu: await listRecentPpuUsage(context),
         recentRefunds: await listRecentRefunds(context)
       };
+    });
+
+    // 「免费开通」：0 元开通账号 + 领取注册礼 100 赠送算力（设计文档方案 A，已去掉手机号+验证码步骤）。
+    // 已登录即可开通；幂等按 userId（钱包流水 source=signup_gift 只发一次）。
+    market.post("/activate", async (request, reply) => {
+      const context = await resolveRequestContext(request.headers);
+      if (context.source !== "database" || !context.userId) {
+        return reply.code(401).send({ error: "login_required", message: "请先登录后再开通" });
+      }
+      const userId = context.userId;
+
+      const existing = await prisma.walletLedger.findFirst({
+        where: { userId, source: "signup_gift" },
+        select: { delta: true, expiresAt: true },
+        orderBy: { createdAt: "desc" }
+      });
+      if (existing) {
+        const wallet = await readWallet(userId);
+        return {
+          activated: true,
+          alreadyActivated: true,
+          gift: { amount: existing.delta, bucket: "bonus", expiresAt: existing.expiresAt?.toISOString?.() ?? null, scope: "text" },
+          wallet: { paid: wallet.paidBalance, bonus: wallet.bonusBalance }
+        };
+      }
+
+      const amount = 100;
+      await prisma.$transaction(async (tx) => {
+        await grantSignupWalletCreditsInTx(tx, { userId, amount, source: "signup_gift" });
+      });
+      const wallet = await readWallet(userId);
+      return reply.send({
+        activated: true,
+        alreadyActivated: false,
+        gift: { amount, bucket: "bonus", expiresAt: giftBonusExpiry().toISOString(), scope: "text" },
+        wallet: { paid: wallet.paidBalance, bonus: wallet.bonusBalance }
+      });
     });
 
     // 选题策略官工作台：读写用户「应用选中」的素材选择。

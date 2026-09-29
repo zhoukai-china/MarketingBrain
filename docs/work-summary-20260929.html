@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>思潼AI商城 · 工作进度汇报（2026-09-20 ~ 09-29）</title>
+<style>
+  :root{
+    --bg:#fffaf5; --card:#ffffff; --ink:#2b2b2b; --muted:#8a8178;
+    --line:#efe6db; --brand:#ff7a18; --brand-soft:#fff1e6;
+    --ok:#1f9d55; --ok-bg:#e8f6ee; --wait:#d98300; --wait-bg:#fff3e0;
+    --group:#3a2a1d;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.5;padding:28px 18px 60px;}
+  .wrap{max-width:1080px;margin:0 auto;}
+  h1{font-size:22px;margin:0 0 4px;letter-spacing:.5px;}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:18px;}
+  .stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:12px 18px;min-width:130px;box-shadow:0 1px 2px rgba(0,0,0,.03);}
+  .stat b{display:block;font-size:24px;line-height:1.1;}
+  .stat span{font-size:12px;color:var(--muted);}
+  .stat.ok b{color:var(--ok);} .stat.wait b{color:var(--wait);}
+  table{width:100%;border-collapse:collapse;background:var(--card);
+    border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13.5px;}
+  th,td{padding:9px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line);}
+  thead th{background:var(--brand-soft);color:#7a3b12;font-weight:600;font-size:12.5px;
+    text-transform:none;letter-spacing:.3px;}
+  tbody tr:last-child td{border-bottom:none;}
+  .grp td{background:var(--group);color:#fff;font-weight:600;font-size:13.5px;
+    padding:10px 14px;letter-spacing:.4px;}
+  .idx{color:var(--muted);font-variant-numeric:tabular-nums;width:34px;text-align:center;}
+  .task{font-weight:500;}
+  .note{color:var(--muted);font-size:12.5px;}
+  .ref{color:#b0722f;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;}
+  .badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600;white-space:nowrap;}
+  .b-ok{background:var(--ok-bg);color:var(--ok);}
+  .b-wait{background:var(--wait-bg);color:var(--wait);}
+  tbody tr:hover td{background:#fff8f1;}
+  .foot{margin-top:16px;color:var(--muted);font-size:12px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>思潼AI商城 · 工作进度汇报</h1>
+  <div class="sub">统计周期：2026-09-20 ~ 09-29 ｜ 数据来源：git 提交记录 + 当前工作区改动</div>
+
+  <div class="stats">
+    <div class="stat"><b>32</b><span>细分任务项</span></div>
+    <div class="stat ok"><b>28</b><span>已完成（已提交）</span></div>
+    <div class="stat wait"><b>4</b><span>已开发 / 已写，待提交</span></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:34px">#</th>
+        <th>任务项</th>
+        <th style="width:96px">状态</th>
+        <th style="width:120px">提交 / 产出</th>
+        <th>说明</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <!-- A 算力计费 -->
+      <tr class="grp"><td colspan="5">A · 算力计费体系</td></tr>
+      <tr><td class="idx">1</td><td class="task">算力计费底座 v1.0</td><td><span class="badge b-ok">已完成</span></td><td class="ref">c26f4df</td><td class="note">赠送先扣 / 双账本 / 充值三档 1:10 汇率 / 后台算力管理 / 全站“算力”改名统一</td></tr>
+      <tr><td class="idx">2</td><td class="task">增长规则 v1.0（设计）</td><td><span class="badge b-ok">已完成</span></td><td class="ref">5e2838b</td><td class="note">1:10 汇率、价目表、充值、存量迁移、佣金、裂变、签到规则文档交接</td></tr>
+      <tr><td class="idx">3</td><td class="task">全站报价对齐原型 v3.28</td><td><span class="badge b-ok">已完成</span></td><td class="ref">b6ef2ef</td><td class="note">报价口径全站对齐 agents-home-tech-demo v3.28</td></tr>
+
+      <!-- B 商城首页 -->
+      <tr class="grp"><td colspan="5">B · 商城首页对齐</td></tr>
+      <tr><td class="idx">4</td><td class="task">首页整体对齐 v3.28</td><td><span class="badge b-ok">已完成</span></td><td class="ref">80c7289<br>52c3b2f</td><td class="note">侧边栏布局、橙色 Hero、金刚瓷贴、员工卡重绘</td></tr>
+      <tr><td class="idx">5</td><td class="task">首页第 1 轮 8 条反馈修正</td><td><span class="badge b-ok">已完成</span></td><td class="ref">beda56e</td><td class="note">侧栏状态 / 时钟 / 背景动效 / 广告外框 / 今日头像 / 卡内价目行 / 咨询师卡 / F4-F7 商品卡</td></tr>
+      <tr><td class="idx">6</td><td class="task">首页第 2 轮 4 条反馈修正</td><td><span class="badge b-ok">已完成</span></td><td class="ref">bce0a19</td><td class="note">按反馈逐项迭代</td></tr>
+      <tr><td class="idx">7</td><td class="task">首页第 5 轮 5 条反馈修正</td><td><span class="badge b-ok">已完成</span></td><td class="ref">ed754d8</td><td class="note">按反馈逐项迭代</td></tr>
+      <tr><td class="idx">8</td><td class="task">顶栏统一商城版式 MallTopbar</td><td><span class="badge b-ok">已完成</span></td><td class="ref">1d1a48f<br>6d7a5b6<br>8374cd0</td><td class="note">← 返回胶囊 + 字标 + 页面徽标 + ⚡算力胶囊，全站顶格</td></tr>
+
+      <!-- C 工作台 -->
+      <tr class="grp"><td colspan="5">C · 数字员工工作台（5 个）</td></tr>
+      <tr><td class="idx">9</td><td class="task">选题策略官工作台</td><td><span class="badge b-ok">已完成</span></td><td class="ref">b3f4d44</td><td class="note">对话式访谈 → 配置面板化（四大来源配置卡 + 配额徽章 + 阶段按钮 + 运行指标）</td></tr>
+      <tr><td class="idx">10</td><td class="task">直播脚本工作台</td><td><span class="badge b-ok">已完成</span></td><td class="ref">b3f4d44</td><td class="note">三 Tab 单列、输出区扩大、导出 Word</td></tr>
+      <tr><td class="idx">11</td><td class="task">视频复盘工作台</td><td><span class="badge b-ok">已完成</span></td><td class="ref">b3f4d44</td><td class="note">三 Tab 单列（复盘引导 / 体检面板 / 交付报告），自动跳 Tab</td></tr>
+      <tr><td class="idx">12</td><td class="task">IP 定位工作台</td><td><span class="badge b-ok">已完成</span></td><td class="ref">b3f4d44</td><td class="note">共享骨架落地</td></tr>
+      <tr><td class="idx">13</td><td class="task">文案创作工作台</td><td><span class="badge b-ok">已完成</span></td><td class="ref">b3f4d44</td><td class="note">共享骨架落地</td></tr>
+
+      <!-- D 详情页 -->
+      <tr class="grp"><td colspan="5">D · 数字员工详情页（5 个）+ 商品页</td></tr>
+      <tr><td class="idx">14</td><td class="task">选题策略官详情页</td><td><span class="badge b-ok">已完成</span></td><td class="ref">b3f4d44</td><td class="note">商城版式详情页</td></tr>
+      <tr><td class="idx">15</td><td class="task">直播脚本详情页</td><td><span class="badge b-ok">已完成</span></td><td class="ref">b3f4d44</td><td class="note">商城版式详情页</td></tr>
+      <tr><td class="idx">16</td><td class="task">视频复盘详情页</td><td><span class="badge b-ok">已完成</span></td><td class="ref">b3f4d44</td><td class="note">商城版式详情页</td></tr>
+      <tr><td class="idx">17</td><td class="task">IP 定位详情页</td><td><span class="badge b-ok">已完成</span></td><td class="ref">b3f4d44</td><td class="note">商城版式详情页</td></tr>
+      <tr><td class="idx">18</td><td class="task">文案创作详情页</td><td><span class="badge b-ok">已完成</span></td><td class="ref">b3f4d44</td><td class="note">商城版式详情页</td></tr>
+      <tr><td class="idx">19</td><td class="task">E 线 · 何策详情页配置面板化</td><td><span class="badge b-ok">已完成</span></td><td class="ref">6ad186d</td><td class="note">四大来源配置卡 + 配额徽章 + 阶段按钮 + 运行指标，与工作台一致</td></tr>
+      <tr><td class="idx">20</td><td class="task">E 线 · 沈定详情页 AI 工作实况</td><td><span class="badge b-ok">已完成</span></td><td class="ref">6ad186d</td><td class="note">轮播净化，仅保留工作台实况 / AI 实况 / 形象照 / 用户口碑</td></tr>
+      <tr><td class="idx">21</td><td class="task">F4-F6 商品内页</td><td><span class="badge b-ok">已完成</span></td><td class="ref">4adcc32</td><td class="note">人民币直购 / OPC 完整模板 + 全站设计 Token 落地</td></tr>
+      <tr><td class="idx">22</td><td class="task">充值入口改右侧抽屉不跳页</td><td><span class="badge b-ok">已完成</span></td><td class="ref">5966f4d</td><td class="note">支付逻辑复用 /recharge 同一 hook，仅换壳</td></tr>
+
+      <!-- E 视觉交互统一 -->
+      <tr class="grp"><td colspan="5">E · 视觉 / 交互统一</td></tr>
+      <tr><td class="idx">23</td><td class="task">算力 ⚡logo 统一 + 价格块收小 + 全站弹窗锁滚动</td><td><span class="badge b-ok">已完成</span></td><td class="ref">0955624</td><td class="note">品牌符号统一、价格块字号收敛、弹层打开锁背景滚动</td></tr>
+      <tr><td class="idx">24</td><td class="task">AI 案例头部收进 640 列 + chips 换行</td><td><span class="badge b-ok">已完成</span></td><td class="ref">b29eb7b</td><td class="note">头部内容与卡片对齐，chips 改为 flex-wrap 换行</td></tr>
+      <tr><td class="idx">25</td><td class="task">全站 emoji 图标统一风格 B（IconAuto）</td><td><span class="badge b-ok">已完成</span></td><td class="ref">69f45f2<br>bedc06d</td><td class="note">散落 emoji 小图标替换为线性矢量图标，自动映射</td></tr>
+      <tr><td class="idx">26</td><td class="task">AI 案例补全全量 12 条 + 案例详情弹层</td><td><span class="badge b-ok">已完成</span></td><td class="ref">6a3cf23</td><td class="note">照原型 caseSheet 输出案例详情</td></tr>
+      <tr><td class="idx">27</td><td class="task">商城图案重设计稿（三风格 SVG）</td><td><span class="badge b-ok">已完成</span></td><td class="ref">3265ea0</td><td class="note">金刚区 / 商品封面 / 案例封面 × 三风格手绘 SVG，待拍板落代码</td></tr>
+
+      <!-- F 新手帮助 -->
+      <tr class="grp"><td colspan="5">F · 新手帮助</td></tr>
+      <tr><td class="idx">28</td><td class="task">新手帮助 · 术语词典重做</td><td><span class="badge b-ok">已完成</span></td><td class="ref">62bb1b6</td><td class="note">按原型 v3.29 重做，logo 改矢量 glyph 体系（含 gem 代表旧 💎）</td></tr>
+
+      <!-- G 免费开通（待提交） -->
+      <tr class="grp"><td colspan="5">G · 免费开通（已开发，待提交）</td></tr>
+      <tr><td class="idx">29</td><td class="task">后端 POST /market/activate</td><td><span class="badge b-wait">待提交</span></td><td class="ref">marketplace.ts</td><td class="note">0 元开通 + 领注册礼 100 赠送算力，按 userId 幂等（只发一次），按方案 A 已去掉手机号+验证码</td></tr>
+      <tr><td class="idx">30</td><td class="task">前端免费开通弹层</td><td><span class="badge b-wait">待提交</span></td><td class="ref">EcoMall<br>HomePage.tsx<br>eco-mall.css</td><td class="note">Hero CTA 改为“免费开通”，领取后展示到账 100 算力 + 到期日 + 首单引导</td></tr>
+      <tr><td class="idx">31</td><td class="task">免费开通本地端到端验证</td><td><span class="badge b-wait">待提交</span></td><td class="ref">实测</td><td class="note">未开通 → 激活发 100 → 重复幂等不发 → 未登录 401，全部通过</td></tr>
+
+      <!-- H 重设计原型（待提交） -->
+      <tr class="grp"><td colspan="5">H · 页面重设计原型（已写，待提交）</td></tr>
+      <tr><td class="idx">32</td><td class="task">agents.html 重设计原型</td><td><span class="badge b-wait">待提交</span></td><td class="ref">docs/<br>prototypes/<br>…20260929</td><td class="note">逻辑分层（电商组 / 账户组分离）、去掉新手教学 + 一键自动演示、AI 商城保留横滑</td></tr>
+
+    </tbody>
+  </table>
+
+  <div class="foot">
+    注：状态「已完成」= 已 git 提交；「待提交」= 代码 / 原型已开发完成并通过本地验证，尚未 commit。<br/>
+    免费开通（G）功能代码实际已写完，汇报建议表述为「已完成开发、待联调上线」；重设计原型（H）可直接预览参考。
+  </div>
+</div>
+</body>
+</html>

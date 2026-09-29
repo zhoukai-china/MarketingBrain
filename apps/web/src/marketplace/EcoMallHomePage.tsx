@@ -6,7 +6,7 @@ import { RechargeDrawer } from "./RechargeDrawer.js";
 import { BookingModal } from "./BookingModal.js";
 import { fmtCredits } from "../lib/fmt.js";
 import { useScrollLock } from "../lib/use-scroll-lock.js";
-import { fetchMarketMe, readJson } from "./shell.js";
+import { fetchMarketMe, readJson, authHeaders } from "./shell.js";
 import { employeePersonaLabel } from "./employee-names.js";
 import {
   ECO_CONSULTANTS,
@@ -215,12 +215,51 @@ export function EcoMallHomePage() {
   const [showDict, setShowDict] = useState(false);
   const [signedToday, setSignedToday] = useState(() => Boolean(localStorage.getItem(`eco_sign_${new Date().toISOString().slice(0, 10)}`)));
 
+  // 「免费开通」注册礼：弹层状态 + 后端返回的礼包 + 从 /market/me 读的已开通态。
+  const [showActivate, setShowActivate] = useState(false);
+  const [activateStep, setActivateStep] = useState<"form" | "success">("form");
+  const [activateGift, setActivateGift] = useState<{ amount: number; expiresAt: string | null; scope: string } | null>(null);
+  const [meActivated, setMeActivated] = useState<boolean | null>(null);
+
   // 2026-09-29（用户）：任何弹窗打开后，背景固定、不可滚动。
-  useScrollLock(Boolean(showRecharge || booking || openCase || openConsultant || showSignIn || showInvite || showDict));
+  useScrollLock(Boolean(showRecharge || booking || openCase || openConsultant || showSignIn || showInvite || showDict || showActivate));
 
   function signIn() {
     localStorage.setItem(`eco_sign_${today}`, "1");
     setSignedToday(true);
+  }
+
+  function fmtGiftDate(iso: string | null): string {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "—";
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  async function activateAccount() {
+    try {
+      const res = await fetch(apiPath("/market/activate"), {
+        method: "POST",
+        headers: authHeaders(true),
+        body: JSON.stringify({})
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        console.error("免费开通失败", err);
+        return;
+      }
+      const data = (await res.json()) as {
+        activated: boolean;
+        gift: { amount: number; expiresAt: string | null; scope: string } | null;
+        wallet: { paid: number; bonus: number };
+      };
+      setActivateGift(data.gift);
+      setMeActivated(true);
+      setActivateStep("success");
+      setBalance(data.wallet.paid + data.wallet.bonus);
+    } catch (error) {
+      console.error("免费开通请求异常", error);
+    }
   }
 
   /* Hero 打字机（原型 heroType：逐字打出 → 停留 → 删除 → 下一句）。 */
@@ -281,9 +320,13 @@ export function EcoMallHomePage() {
 
   useEffect(() => {
     let cancelled = false;
-    void fetchMarketMe<{ creditBalance: number }>()
+    void fetchMarketMe<{ creditBalance: number; activated?: boolean; gift?: { amount: number; expiresAt: string | null; scope: string } | null }>()
       .then((data) => {
-        if (!cancelled) setBalance(data ? data.creditBalance : null);
+        if (!cancelled) {
+          setBalance(data ? data.creditBalance : null);
+          setMeActivated(data ? Boolean(data.activated) : null);
+          if (data?.gift) setActivateGift(data.gift);
+        }
       })
       .catch(() => {
         if (!cancelled) setBalance(null);
@@ -589,7 +632,7 @@ export function EcoMallHomePage() {
             </div>
           </div>
           <div className="eh-hero-cta">
-            <button type="button" className="eh-big" onClick={() => setShowInvite(true)}><IconGlyph name="gift" size={16} style={{ display: "inline", verticalAlign: "-3px" }} /> 免费开通 · 立送 100 算力</button>
+            <button type="button" className="eh-big" onClick={() => { setActivateStep(meActivated ? "success" : "form"); setShowActivate(true); }}><IconGlyph name="gift" size={16} style={{ display: "inline", verticalAlign: "-3px" }} /> {meActivated ? "去用第一个智能体" : "免费开通 · 立送 100 算力"}</button>
             <button type="button" className="eh-ghost" onClick={() => setShowDict(true)}><IconGlyph name="help" size={15} style={{ display: "inline", verticalAlign: "-2px" }} /> 新手帮助</button>
           </div>
           <div className="eh-hero-note"><IconGlyph name="bolt" size={11} style={{ display: "inline", verticalAlign: "-1px" }} /> 计费口径：1 元 = 10 算力 · 0 元开通 · 用后扣费 · 失败不扣</div>
@@ -789,8 +832,14 @@ export function EcoMallHomePage() {
         open={showRecharge}
         onClose={() => setShowRecharge(false)}
         onPaid={() => {
-          void fetchMarketMe<{ creditBalance: number }>()
-            .then((d) => setBalance(d ? d.creditBalance : null))
+          void fetchMarketMe<{ creditBalance: number; activated?: boolean; gift?: { amount: number; expiresAt: string | null; scope: string } | null }>()
+            .then((d) => {
+              if (d) {
+                setBalance(d.creditBalance);
+                setMeActivated(Boolean(d.activated));
+                if (d.gift) setActivateGift(d.gift);
+              }
+            })
             .catch(() => setBalance(null));
         }}
       />
@@ -872,6 +921,34 @@ export function EcoMallHomePage() {
               复制邀请链接
             </button>
             <p className="eco-modal-tip">风控：同设备 / 同手机号 / 同支付账号只认一个；刷量追回（演示环境：邀请入账随后端能力上线）</p>
+          </div>
+        </div>
+      ) : null}
+
+      {showActivate ? (
+        <div className="eco-modal-mask" onClick={() => setShowActivate(false)}>
+          <div className="eco-modal eco-activate" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="eco-modal-x" onClick={() => setShowActivate(false)}>✕</button>
+            {activateStep === "form" ? (
+              <>
+                <h3><IconGlyph name="gift" size={18} style={{ display: "inline", verticalAlign: "-3px" }} /> 0 元开通 · 立送 100 算力</h3>
+                <p className="eco-modal-sub">不收开通费、无月费，每次使用按目录价扣算力；注册礼直接进你的算力钱包。</p>
+                <div className="eco-act-benefits">
+                  <div><IconGlyph name="gift" size={13} style={{ display: "inline", verticalAlign: "-2px" }} /> 100 算力 · 赠送性质 · 90 天有效</div>
+                  <div><IconGlyph name="pack" size={13} style={{ display: "inline", verticalAlign: "-2px" }} /> 限文字类任务（视频生成不可用）</div>
+                  <div><IconGlyph name="shield" size={13} style={{ display: "inline", verticalAlign: "-2px" }} /> 用后扣费 · 失败不扣费</div>
+                </div>
+                <button type="button" className="eco-modal-btn" onClick={() => void activateAccount()}>确认开通 · 领取 100 算力</button>
+                <p className="eco-modal-tip">同账号仅一份；异常挂起人工审核。</p>
+              </>
+            ) : (
+              <>
+                <div className="eco-act-ok">✅ 100 算力已到账</div>
+                <p className="eco-modal-sub">赠送算力 · 有效期至 <b>{fmtGiftDate(activateGift?.expiresAt ?? null)}</b>（90 天）· 到期前 3 天提醒</p>
+                <button type="button" className="eco-modal-btn" onClick={() => { setShowActivate(false); window.location.href = getAppPath("/agents"); }}>去用第一个智能体 ›</button>
+                <button type="button" className="eco-modal-btn eco-ghost-btn" onClick={() => setShowActivate(false)}>先逛逛</button>
+              </>
+            )}
           </div>
         </div>
       ) : null}

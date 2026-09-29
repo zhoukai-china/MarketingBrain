@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>思潼AI商城 · 首页重设计（v2 · 2026-09-29）</title>
+<style>
+  :root{
+    --ink:#2B1B10; --sub:#7a6452; --dim:#a99a8c; --line:#F0EBE3; --line2:#e6ddd0;
+    --orange:#FF6A00; --orange2:#F25300; --amber:#F5B04A; --green:#12A06A; --blue:#3B7DD8;
+    --bg:#FFFDF9; --card:#fff; --chip:#FFF6EC;
+    --radius:16px; --shadow:0 6px 24px rgba(160,90,20,.07);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#fff,#FFF6EC 26%,#fff);color:var(--ink);
+    font:15px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+  .app{max-width:1080px;margin:0 auto;padding:0 16px 96px}
+  /* ===== 顶栏 ===== */
+  .topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:12px;
+    padding:12px 16px;margin:0 -16px 14px;background:rgba(255,253,249,.92);
+    -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+  .brand{font-weight:900;font-size:16px;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
+  .brand .dot{width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,var(--orange),var(--orange2));display:inline-block}
+  .topbar .spacer{flex:1}
+  .bal{display:flex;align-items:center;gap:6px;background:var(--chip);border:1px solid var(--line2);
+    padding:6px 12px;border-radius:99px;font-weight:800;font-size:13px}
+  .bal .cny{color:var(--sub);font-weight:600;font-size:11px}
+  .btn{font-weight:800;cursor:pointer}
+  .btn-recharge{background:linear-gradient(135deg,#ff9a4d,var(--orange2));color:#fff;border:none;
+    padding:8px 14px;border-radius:99px;box-shadow:0 4px 12px rgba(255,106,0,.35)}
+  /* ===== Hero ===== */
+  .hero{background:linear-gradient(135deg,#FFF3E6,#FFE3CC);border:1px solid #ffd9bf;border-radius:22px;
+    padding:22px 22px 20px;margin-bottom:16px;position:relative;overflow:hidden}
+  .hero h1{margin:0 0 4px;font-size:23px;letter-spacing:-.02em}
+  .hero h1 em{color:var(--orange);font-style:normal}
+  .hero .tag{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #ffd9bf;
+    color:#b45309;font-size:12px;font-weight:700;padding:4px 10px;border-radius:99px;margin-bottom:12px}
+  .hero .slogan{color:var(--sub);font-size:13px;margin-bottom:14px}
+  .hero-cta{display:flex;gap:10px;flex-wrap:wrap}
+  .cta-primary{background:linear-gradient(135deg,#ff9a4d,var(--orange2));color:#fff;border:none;
+    font-weight:900;font-size:15px;padding:13px 20px;border-radius:14px;box-shadow:0 8px 20px rgba(255,106,0,.38);cursor:pointer}
+  .cta-ghost{background:#fff;border:1px solid #e6ddd0;color:#8a6b54;font-weight:700;font-size:13px;
+    padding:13px 16px;border-radius:14px;cursor:pointer}
+  .hero-note{margin-top:12px;font-size:11.5px;color:#a9712f}
+  /* ===== 邀请（独立广告位，与开通分家） ===== */
+  .invite{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#fff,#FFF6EC);
+    border:1px solid var(--line2);border-radius:14px;padding:12px 14px;margin-bottom:18px;cursor:pointer}
+  .invite b{color:#b45309;font-size:14px}
+  .invite span{color:var(--sub);font-size:12px}
+  .invite .go{margin-left:auto;color:var(--orange);font-weight:800;font-size:13px}
+  /* ===== 楼层导航（金刚区） ===== */
+  .kingkong{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:20px}
+  .kk{display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;padding:12px 4px;cursor:pointer;transition:.15s}
+  .kk:hover{border-color:#ffd9bf;transform:translateY(-2px)}
+  .kk .ico{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff}
+  .kk span{font-size:11.5px;font-weight:700;color:var(--ink)}
+  /* ===== 楼层 ===== */
+  .floor{margin-bottom:22px}
+  .floor-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .floor-no{background:var(--ink);color:#fff;font-weight:900;font-size:12px;width:26px;height:26px;border-radius:8px;
+    display:flex;align-items:center;justify-content:center}
+  .floor-title{font-size:16px;font-weight:900}
+  .floor-sub{color:var(--sub);font-size:12px}
+  .floor-live{margin-left:auto;color:var(--green);font-size:12px;font-weight:700;display:flex;align-items:center;gap:5px}
+  .floor-live i{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  /* 商品卡 */
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+  .pcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
+  .pcard .cover{height:96px;border-radius:10px;background:linear-gradient(135deg,#fde9d6,#ffd9bf);margin-bottom:10px;display:flex;align-items:center;justify-content:center;font-size:30px}
+  .pcard h4{margin:0 0 4px;font-size:14px}
+  .pcard .desc{color:var(--sub);font-size:12px;min-height:32px;margin-bottom:8px}
+  .pcard .row{display:flex;align-items:center;justify-content:space-between}
+  .pcard .price{font-weight:900;color:var(--orange)}
+  .pcard .price small{font-weight:600;color:var(--sub);font-size:11px}
+  .pcard .buy{background:var(--chip);border:1px solid #ffd9bf;color:#b45309;font-weight:800;font-size:12px;
+    padding:6px 12px;border-radius:9px;cursor:pointer}
+  .pcard.dev{opacity:.72}
+  .pcard .badge{font-size:10.5px;color:#b45309;background:#fff4e6;border:1px solid #ffd9bf;border-radius:99px;padding:2px 8px}
+  /* AI 商城横滑区（保留左右滚动） */
+  .mall-scroll{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 12px;scroll-snap-type:x mandatory}
+  .mall-scroll .pcard{flex:0 0 232px;scroll-snap-align:start;margin:0}
+  .mall-scroll::-webkit-scrollbar{height:6px}
+  .mall-scroll::-webkit-scrollbar-thumb{background:#e6ddd0;border-radius:99px}
+  /* AI 案例 */
+  .cases{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+  .case{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
+  .case .tag2{font-size:11px;color:#b45309;background:#fff4e6;border:1px solid #ffd9bf;border-radius:99px;padding:2px 9px}
+  .case h4{margin:8px 0 6px;font-size:14px}
+  .case .metric{color:var(--green);font-weight:800;font-size:13px;margin-bottom:4px}
+  .case .point{color:var(--sub);font-size:12px}
+  /* ===== 底部 Tab ===== */
+  .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;justify-content:center}
+  .tabbar .inner{max-width:1080px;width:100%;display:flex;background:rgba(255,253,249,.96);
+    -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid var(--line)}
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 0 11px;background:none;border:none;cursor:pointer;color:var(--sub);font-size:11px;font-weight:700}
+  .tab .ic{font-size:19px}
+  .tab.act{color:var(--orange)}
+  .tab .badge{position:absolute;top:4px;right:50%;transform:translateX(18px);background:var(--orange);color:#fff;
+    font-size:9px;border-radius:99px;padding:0 5px;font-weight:800}
+  /* ===== 弹层 ===== */
+  .mask{position:fixed;inset:0;z-index:50;background:rgba(43,27,16,.42);display:none;align-items:flex-end;justify-content:center}
+  .mask.open{display:flex}
+  .modal{background:var(--bg);width:min(560px,100%);max-height:86vh;overflow:auto;border-radius:22px 22px 0 0;padding:22px;position:relative}
+  @media(min-width:700px){.mask{align-items:center}.modal{border-radius:22px}}
+  .modal h3{margin:0 0 4px;font-size:18px}
+  .modal .sub{color:var(--sub);font-size:12.5px;margin:0 0 14px}
+  .modal .x{position:absolute;top:16px;right:16px;width:30px;height:30px;border-radius:50%;border:none;background:#FFF0DF;color:#b45309;font-size:15px;cursor:pointer}
+  .benefits{display:grid;gap:8px;margin:4px 0 16px}
+  .benefits div{display:flex;gap:8px;align-items:center;font-size:12.5px;color:#5b4636;background:#fff7ef;border:1px solid #ffe2cc;border-radius:10px;padding:9px 12px}
+  .ok-big{text-align:center;font-size:19px;font-weight:900;color:var(--green);margin:6px 0 4px}
+  .mbtn{width:100%;border:none;cursor:pointer;background:linear-gradient(135deg,#ff9a4d,var(--orange2));color:#fff;
+    font-weight:800;font-size:14px;padding:12px;border-radius:12px;box-shadow:0 6px 18px rgba(255,106,0,.4)}
+  .mbtn.ghost{background:#fff;border:1px solid #ecdccb;color:#8a6b54;margin-top:10px}
+  .tip{font-size:11px;color:#9aa3af;margin:10px 0 0;line-height:1.7}
+  /* 我的面板：电商组 / 账户组 清晰分块 */
+  .me-group{border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden}
+  .me-group .gh{padding:9px 14px;background:#FFF6EC;font-size:12px;font-weight:800;color:#b45309;letter-spacing:.04em}
+  .me-item{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;padding:13px 14px;cursor:pointer;
+    font-size:14px;color:var(--ink);border-top:1px solid var(--line);text-align:left}
+  .me-item:first-of-type{border-top:none}
+  .me-item .ic{font-size:17px}
+  .me-item .go{margin-left:auto;color:var(--dim)}
+  .me-item small{color:var(--dim);font-size:11px;margin-left:6px}
+  .note{color:var(--dim);font-size:11px;text-align:center;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 顶栏：只保留 算力余额 + 充值，不再塞帮助/演示图标 -->
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span>思潼AI商城</div>
+    <div class="spacer"></div>
+    <div class="bal">⚡ <span id="balNum">2,860</span> <span class="cny">≈ ¥286</span></div>
+    <button class="btn btn-recharge" onclick="openModal('recharge')">充值</button>
+  </div>
+
+  <!-- Hero：免费开通 CTA（点开「开通弹层」，与邀请彻底分家） -->
+  <section class="hero">
+    <div class="tag">● AI 值班中 · 点头像随时问小潼</div>
+    <h1>你好，我是 AI 管家<em>小潼</em></h1>
+    <div class="slogan">⭐ AI 商城 · 智能体 / 数字员工 / AI硬件 / AI课程，一站配齐</div>
+    <div class="hero-cta">
+      <button class="cta-primary" onclick="openModal('activate')">🧧 免费开通 · 立送 100 算力</button>
+      <button class="cta-ghost" onclick="openModal('dict')">❓ 新手帮助</button>
+    </div>
+    <div class="hero-note">⚡ 计费口径：1 元 = 10 算力 · 0 元开通 · 用后扣费 · 失败不扣</div>
+  </section>
+
+  <!-- 邀请有礼：独立广告位（不是免费开通的入口） -->
+  <div class="invite" onclick="openModal('invite')">
+    <div>
+      <b>🎁 邀请有礼</b><br>
+      <span>好友开通 · 各得 100 算力</span>
+    </div>
+    <span class="go">立即邀请 ›</span>
+  </div>
+
+  <!-- 金刚区：7 格楼层导航 -->
+  <nav class="kingkong" aria-label="商城楼层导航">
+    <div class="kk"><div class="ico" style="background:#FF7A1A">✍️</div><span>内容获客</span></div>
+    <div class="kk"><div class="ico" style="background:#F2538A">💬</div><span>私域营销</span></div>
+    <div class="kk"><div class="ico" style="background:#F5A623">🧭</div><span>数字咨询师</span></div>
+    <div class="kk"><div class="ico" style="background:#0E9F6E">🔌</div><span>AI硬件</span></div>
+    <div class="kk"><div class="ico" style="background:#FF5C4D">🎓</div><span>AI课程</span></div>
+    <div class="kk"><div class="ico" style="background:#D96A00">🏭</div><span>OPC专区</span></div>
+    <div class="kk"><div class="ico" style="background:#E8A33D">🏪</div><span>行业工作台</span></div>
+  </nav>
+
+  <!-- F1 内容获客 -->
+  <section class="floor" id="floor-acquire">
+    <div class="floor-head">
+      <div class="floor-no">F1</div><b class="floor-title">内容获客专区</b>
+      <span class="floor-sub">做内容引流的智能体都在这</span>
+      <span class="floor-live"><i></i><span>3 位在线</span></span>
+    </div>
+    <div class="cards">
+      <div class="pcard"><div class="cover">✍️</div><h4>秦文 · 金牌文案</h4><div class="desc">一条能直接念的口播稿，按你的人设写。</div><div class="row"><div class="price">15 <small>算力/次</small></div><button class="buy">加购</button></div></div>
+      <div class="pcard"><div class="cover">🧭</div><h4>沈定 · IP 定位官</h4><div class="desc">先定人设再排内容，不跑偏。</div><div class="row"><div class="price">99 <small>算力/份</small></div><button class="buy">加购</button></div></div>
+      <div class="pcard"><div class="cover">📊</div><h4>罗盘 · 流量诊断</h4><div class="desc">从播放完播互动转化里找毛病。</div><div class="row"><div class="price">99 <small>算力/次</small></div><button class="buy">加购</button></div></div>
+    </div>
+  </section>
+
+  <!-- AI 商城横滑区（保留左右滚动） -->
+  <section class="floor">
+    <div class="floor-head">
+      <div class="floor-no" style="background:var(--orange)">AI</div><b class="floor-title">AI 商城 · 热门单品</b>
+      <span class="floor-sub">左右滑动看更多 ›</span>
+    </div>
+    <div class="mall-scroll">
+      <div class="pcard"><div class="cover">🔌</div><h4>AI 录音卡</h4><div class="desc">实时转写 + 会议纪要。</div><div class="row"><div class="price">¥199 <small>/台</small></div><button class="buy">加购</button></div></div>
+      <div class="pcard"><div class="cover">🤖</div><h4>门店 AI 机器人</h4><div class="desc">前台重复问答交给它。</div><div class="row"><div class="price">¥1,999 <small>/台</small></div><button class="buy">加购</button></div></div>
+      <div class="pcard"><div class="cover">🎓</div><h4>智能体开发课</h4><div class="desc">视频课，从 0 搭一个。</div><div class="row"><div class="price">¥199 <small>/门</small></div><button class="buy">加购</button></div></div>
+      <div class="pcard"><div class="cover">💻</div><h4>WorkBuddy 课</h4><div class="desc">办公提效实操。</div><div class="row"><div class="price">¥99 <small>/门</small></div><button class="buy">加购</button></div></div>
+      <div class="pcard"><div class="cover">🏭</div><h4>大模型折扣仓 OPC</h4><div class="desc"><span class="badge">演示商品</span></div><div class="row"><div class="price">50 <small>算力/份起</small></div><button class="buy">加购</button></div></div>
+      <div class="pcard"><div class="cover">🎬</div><h4>AIGC 漫剧工作台</h4><div class="desc"><span class="badge">演示商品</span></div><div class="row"><div class="price">199 <small>算力/席</small></div><button class="buy">加购</button></div></div>
+    </div>
+  </section>
+
+  <!-- F3 数字咨询师 -->
+  <section class="floor">
+    <div class="floor-head">
+      <div class="floor-no">F3</div><b class="floor-title">数字咨询师专区</b>
+      <span class="floor-sub">创始人方法论，真人授权</span>
+    </div>
+    <div class="cards">
+      <div class="pcard dev"><div class="cover">🧑‍💼</div><h4>保禄数字分身</h4><div class="desc">真人授权训练中，即将上线。</div><div class="row"><span class="badge">🔐 训练中</span><button class="buy">立即购买</button></div></div>
+    </div>
+  </section>
+
+  <!-- AI 案例 -->
+  <section class="floor">
+    <div class="floor-head">
+      <div class="floor-no" style="background:var(--blue)">案</div><b class="floor-title">📚 AI 案例</b>
+      <span class="floor-sub">看别人怎么用 AI 降本增效</span>
+    </div>
+    <div class="cases">
+      <div class="case"><span class="tag2">美容门店</span><h4>美容院上线 AI 经营大脑</h4><div class="metric">到店转化 21% → 34%</div><div class="point">门店的资产是「记得住每个顾客」——记忆底座一建，转化客单一起涨。</div></div>
+      <div class="case"><span class="tag2">前台提效</span><h4>重复答一年的问题交给机器人</h4><div class="metric">前台腾出 0.5 人力</div><div class="point">重复答了一年的问题就该交给机器人，前台腾出来干转化。</div></div>
+      <div class="case"><span class="tag2">短视频</span><h4>视频没流量，先复盘再拍</h4><div class="metric">1 条复盘 + 下一条动作</div><div class="point">从播放完播互动转化里找毛病，给下一条怎么改的动作。</div></div>
+      <div class="case"><span class="tag2">直播</span><h4>开播前要话术，播后要复盘</h4><div class="metric">1 场复盘 + 迭代</div><div class="point">开播前找罗盘要话术，播后找许复拉数据，下场照着改。</div></div>
+    </div>
+  </section>
+  <div class="note">思潼AI商城 · AI 相关的这里都有（内容获客 / 私域 / 咨询师 / 硬件 / 课程 / OPC / 行业工作台）· 演示数据虚构</div>
+</div>
+
+<!-- 底部 Tab：首页 / 案例 / 购物车 / 我的算力 / 我的（无演示/教学入口） -->
+<div class="tabbar">
+  <div class="inner">
+    <button class="tab act" onclick="switchTab(this)"><span class="ic">🏠</span>首页</button>
+    <button class="tab" onclick="switchTab(this)"><span class="ic">📚</span>案例</button>
+    <button class="tab" onclick="openModal('cart')"><span class="ic">🛒</span>购物车<span class="badge">0</span></button>
+    <button class="tab" onclick="openModal('recharge')"><span class="ic">⚡</span>我的算力</button>
+    <button class="tab" onclick="openModal('me')"><span class="ic">👤</span>我的</button>
+  </div>
+</div>
+
+<!-- ===== 弹层们 ===== -->
+<div class="mask" id="m-recharge"><div class="modal">
+  <button class="x" onclick="closeModal()">✕</button>
+  <h3>⚡ 充值算力</h3><p class="sub">充值所得（含赠送）通用不限 · 1 元 = 10 算力</p>
+  <div class="benefits"><div>¥100 → 1,000 算力</div><div>¥300 → 3,000 算力</div><div>¥1,000 → 10,000 算力</div></div>
+  <button class="mbtn">去充值</button>
+</div></div>
+
+<div class="mask" id="m-activate"><div class="modal">
+  <button class="x" onclick="closeModal()">✕</button>
+  <h3>🧧 0 元开通 · 立送 100 算力</h3>
+  <p class="sub">不收开通费、无月费，每次使用按目录价扣算力；注册礼直接进你的算力钱包。</p>
+  <div class="benefits">
+    <div>🎁 100 算力 · 赠送性质 · 90 天有效</div>
+    <div>📦 限文字类任务（视频生成不可用）</div>
+    <div>🛡️ 用后扣费 · 失败不扣费</div>
+  </div>
+  <button class="mbtn" onclick="doActivate(this)">确认开通 · 领取 100 算力</button>
+  <p class="tip">同账号仅一份；异常挂起人工审核。</p>
+</div></div>
+
+<div class="mask" id="m-invite"><div class="modal">
+  <button class="x" onclick="closeModal()">✕</button>
+  <h3>🎁 邀请有礼</h3><p class="sub">分享给好友 · 各得 100 算力 · 人数不限</p>
+  <div class="benefits"><div>100 · 好友注册立得</div><div>100 · 好友消耗满 50 你得</div></div>
+  <button class="mbtn">复制邀请链接</button>
+  <p class="tip">邀请码 ST-A8C3X2 · 风控：同设备/同手机号/同支付账号只认一个。</p>
+</div></div>
+
+<div class="mask" id="m-dict"><div class="modal">
+  <button class="x" onclick="closeModal()">✕</button>
+  <h3>❓ 新手帮助 · 术语词典</h3>
+  <p class="sub">看不懂的词这里都有 · 也可以随时点左上角 🤖 问小潼</p>
+  <div class="benefits">
+    <div>⚡ 算力：商城里唯一的「钱」，1 元 = 10 算力</div>
+    <div>💎 积分（旧称）：现在统一叫「算力」</div>
+    <div>💬 访谈：开工前先问你几个问题</div>
+    <div>📋 简报：访谈答完自动生成的任务卡</div>
+    <div>📦 交付才扣 · 🛡️ 失败不扣费</div>
+    <div>🎁 赠送算力：90 天有效、限文字类任务</div>
+  </div>
+  <button class="mbtn ghost" onclick="closeModal()">知道了</button>
+</div></div>
+
+<div class="mask" id="m-cart"><div class="modal">
+  <button class="x" onclick="closeModal()">✕</button>
+  <h3>🛒 购物车</h3><p class="sub">0 件商品</p>
+  <div class="benefits"><div>在商城里点「🛒 加购」，把课程 / 硬件 / 额度包加进来</div><div>智能体不用加购，0 元开通直接用</div></div>
+  <button class="mbtn" onclick="closeModal()">去商城逛逛 ›</button>
+</div></div>
+
+<!-- 我的：电商组 / 账户组 清晰分块；无新手教学 / 自动演示 -->
+<div class="mask" id="m-me"><div class="modal">
+  <button class="x" onclick="closeModal()">✕</button>
+  <h3>👤 我的</h3><p class="sub">体验访客 · 演示账号</p>
+  <div class="me-group">
+    <div class="gh">电商订单</div>
+    <button class="me-item"><span class="ic">🛒</span>购物车<small>0 件</small><span class="go">›</span></button>
+    <button class="me-item"><span class="ic">📦</span>全部订单<small>0 笔</small><span class="go">›</span></button>
+  </div>
+  <div class="me-group">
+    <div class="gh">账户与权益</div>
+    <button class="me-item" onclick="openModal('recharge')"><span class="ic">⚡</span>我的算力<small>2,860 ≈ ¥286</small><span class="go">›</span></button>
+    <button class="me-item" onclick="openModal('invite')"><span class="ic">🎁</span>邀请有礼<span class="go">›</span></button>
+    <button class="me-item"><span class="ic">📅</span>每日签到<small>每日 +5</small><span class="go">›</span></button>
+    <button class="me-item" onclick="openModal('dict')"><span class="ic">❓</span>新手帮助 · 术语词典<span class="go">›</span></button>
+    <button class="me-item"><span class="ic">🧾</span>算力明细<span class="go">›</span></button>
+  </div>
+  <button class="mbtn ghost" onclick="closeModal()">退出登录</button>
+</div></div>
+
+<script>
+  function openModal(name){ document.getElementById('m-'+name).classList.add('open'); }
+  function closeModal(){ document.querySelectorAll('.mask.open').forEach(m=>m.classList.remove('open')); }
+  document.querySelectorAll('.mask').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) closeModal(); }));
+  function switchTab(el){ document.querySelectorAll('.tab').forEach(t=>t.classList.remove('act')); el.classList.add('act'); }
+  function doActivate(btn){
+    btn.textContent='开通中…'; btn.disabled=true;
+    setTimeout(()=>{
+      document.getElementById('m-activate').innerHTML =
+        '<button class="x" onclick="closeModal()">✕</button>'+
+        '<div class="ok-big">✅ 100 算力已到账</div>'+
+        '<p class="sub" style="text-align:center">赠送算力 · 有效期至 <b>2026-12-28</b>（90 天）· 到期前 3 天提醒</p>'+
+        '<button class="mbtn" onclick="closeModal()">去用第一个智能体 ›</button>'+
+        '<button class="mbtn ghost" onclick="closeModal()">先逛逛</button>';
+    }, 600);
+  }
+</script>
+</body>
+</html>
