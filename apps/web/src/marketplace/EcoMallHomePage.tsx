@@ -532,12 +532,14 @@ export function EcoMallHomePage() {
       {view === "cases" ? (
         <section className="eh-cases-view">
           <div className="eh-cv-head">
-            <div className="eh-cv-title"><b><IconGlyph name="book" size={18} style={{ display: "inline", verticalAlign: "-3px" }} /> AI 案例</b><span>看别人怎么用 AI 降本增效</span></div>
-            <div className="eh-cv-slogan">每个案例写清<b>卡点、做法、投入、结果</b>，看中直接<b>用同款</b> · 演示数据虚构</div>
-            <div className="eh-cv-chips">
-              {ECO_CASE_CATS.map((cat) => (
-                <button key={cat.key} type="button" className={`eh-cv-chip ${caseCat === cat.key ? "act" : ""}`} onClick={() => setCaseCat(cat.key)}>{cat.label}</button>
-              ))}
+            <div className="eh-cv-head-in">
+              <div className="eh-cv-title"><b><IconGlyph name="book" size={18} style={{ display: "inline", verticalAlign: "-3px" }} /> AI 案例</b><span>看别人怎么用 AI 降本增效</span></div>
+              <div className="eh-cv-slogan">每个案例写清<b>卡点、做法、投入、结果</b>，看中直接<b>用同款</b> · 演示数据虚构</div>
+              <div className="eh-cv-chips">
+                {ECO_CASE_CATS.map((cat) => (
+                  <button key={cat.key} type="button" className={`eh-cv-chip ${caseCat === cat.key ? "act" : ""}`} onClick={() => setCaseCat(cat.key)}>{cat.label}</button>
+                ))}
+              </div>
             </div>
           </div>
           <div className="eh-cv-wrap">

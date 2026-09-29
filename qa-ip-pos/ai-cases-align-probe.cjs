@@ -3,7 +3,7 @@ const puppeteer = require("/Users/zhoukai/.workbuddy/binaries/node/workspace/nod
 const HS = process.env.HOME + "/Library/Caches/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-mac-arm64/chrome-headless-shell";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 (async () => {
-  const b = await puppeteer.launch({ executablePath: HS, headless: true, args: ["--no-sandbox"] });
+  const b = await puppeteer.launch({ executablePath: HS, headless: true, args: ["--no-sandbox", "--no-proxy-server"] });
   for (const w of [1440, 1024, 430]) {
     const p = await b.newPage();
     await p.setViewport({ width: w, height: 1000 });
@@ -26,6 +26,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
       const chips = Array.from(document.querySelectorAll(".eh-cv-chip"));
       return {
         head: r(".eh-cv-head"),
+        headIn: r(".eh-cv-head-in"),
         title: r(".eh-cv-title"),
         titleB: r(".eh-cv-title b"),
         slogan: r(".eh-cv-slogan"),
