@@ -1815,3 +1815,39 @@ body:has(.ipd-page), body:has(.ts-wb){overflow-x:hidden}
 .eh-cases-view{flex:1 1 auto;width:100%;min-width:0}
 
 
+
+/* ============================================================
+   案例详情弹层（照原型 .cd-* / caseSheet 结构，2026-09-29）
+   ============================================================ */
+.eh-cd-mask{position:fixed;inset:0;z-index:400;background:rgba(60,35,10,.45);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center}
+@media(min-width:700px){.eh-cd-mask{align-items:center}}
+.eh-cd-sheet{
+  position:relative;width:100%;max-width:520px;max-height:86vh;overflow-y:auto;
+  background:#FFFDF9;border:1px solid #F0EBE3;border-radius:20px 20px 0 0;
+  padding:18px 18px 22px;line-height:1.6;
+  animation:ehCdIn .22s cubic-bezier(.32,.72,.35,1);
+}
+@media(min-width:700px){.eh-cd-sheet{border-radius:18px}}
+@keyframes ehCdIn{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
+.eh-cd-x{position:absolute;top:12px;right:12px}
+.eh-cd-head{display:flex;gap:12px;align-items:flex-start;padding-right:28px}
+.eh-cd-head img{width:96px;height:58px;object-fit:cover;border-radius:10px;flex:none}
+.eh-cd-headtxt{min-width:0}
+.eh-cd-headtxt b{font-size:15.5px;color:#2B1B10;line-height:1.5}
+.eh-cd-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
+.eh-cd-chips span{font-size:10.5px;padding:2.5px 9px;border-radius:999px;background:rgba(255,140,50,.1);color:#C25A00;font-weight:700}
+.eh-cd-sec{margin-top:12px;padding:11px 12px;border-radius:12px;background:#FFF9F1;border:1px solid #F0EBE3}
+.eh-cd-sec h4{font-size:12px;color:#E8651A;margin:0 0 6px;font-weight:800}
+.eh-cd-sec p{font-size:12.5px;color:#5B6B7C;margin:0;line-height:1.7}
+.eh-cd-step{display:flex;gap:9px;font-size:12.5px;color:#5B6B7C;line-height:1.6;margin-top:7px}
+.eh-cd-step i{flex:none;width:19px;height:19px;border-radius:50%;background:#FF6A00;color:#fff;font-size:11px;font-style:normal;display:grid;place-items:center;font-weight:800;margin-top:2px}
+.eh-cd-cost{display:flex;gap:8px;margin-top:12px}
+.eh-cd-cost > div{flex:1;background:#FFF9F1;border:1px solid #F0EBE3;border-radius:10px;padding:8px 10px}
+.eh-cd-cost span{font-size:10px;color:#BEA488;display:block}
+.eh-cd-cost b{font-size:13px;color:#E86A00;font-weight:800}
+.eh-cd-metric{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:12.5px}
+.eh-cd-metric span{flex:none;font-size:11px;color:#BEA488;width:86px}
+.eh-cd-metric b{color:#0E9F6E;font-weight:800}
+.eh-cd-metric em{font-style:normal;font-size:11px;color:#94796B;margin-left:6px}
+.eh-cd-use{width:100%;margin-top:14px;height:44px;border-radius:12px;font-size:14px;font-weight:800}
+@media (prefers-reduced-motion: reduce){.eh-cd-sheet{animation:none}}

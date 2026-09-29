@@ -141,7 +141,7 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
     };
   });
   log(cv && cv.head.includes("AI 案例") && cv.chips === 7, "AI案例独立视图（标题+7 筛选片）", JSON.stringify(cv));
-  log(cv && cv.cards === 4 && cv.covers === 4, "4 张案例卡带封面", cv ? `${cv.cards}/${cv.covers}` : "N/A");
+  log(cv && cv.cards === 12 && cv.covers === 12, "12 张案例卡带封面（原型全量）", cv ? `${cv.cards}/${cv.covers}` : "N/A");
   log(cv && cv.use.includes("用同款"), "用同款按钮", cv ? cv.use : "");
   const homeBack = await page.evaluate(() => {
     const btn = Array.from(document.querySelectorAll(".eh-tab")).find((b) => b.textContent.includes("首页"));
@@ -336,6 +336,40 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
     log(homeTb.miniBg.indexOf("linear-gradient") >= 0, "首页充值橙渐变按钮", homeTb.miniBg);
     await p7.screenshot({ path: __dirname + "/home-topbar-v2.png" });
     await p7.close();
+  }
+
+  // ---- 案例详情弹层 ----
+  {
+    await page.evaluate(() => {
+      const tab = Array.from(document.querySelectorAll(".eh-tab")).find((b) => b.textContent.includes("AI案例"));
+      if (tab) tab.click();
+    });
+    await new Promise((r) => setTimeout(r, 600));
+    await page.evaluate(() => {
+      const card = document.querySelector(".eh-case-card");
+      if (card) card.click();
+    });
+    await new Promise((r) => setTimeout(r, 500));
+    const cd = await page.evaluate(() => {
+      const sheet = document.querySelector(".eh-cd-sheet");
+      if (!sheet) return null;
+      const t = sheet.innerText;
+      return {
+        title: sheet.querySelector(".eh-cd-headtxt b")?.textContent || "",
+        before: t.includes("改造前 · 卡在哪"),
+        steps: sheet.querySelectorAll(".eh-cd-step").length,
+        cost: t.includes("投入") && t.includes("上线周期"),
+        metrics: t.includes("拿到什么结果"),
+        inspire: t.includes("给你的启发"),
+        use: sheet.querySelector(".eh-cd-use")?.textContent || ""
+      };
+    });
+    log(cd && cd.title.includes("律师"), "案例详情弹层打开（律师案例）", cd ? cd.title.slice(0, 18) : "N/A");
+    log(cd && cd.before && cd.steps === 3 && cd.cost && cd.metrics && cd.inspire, "详情五段结构（痛点/3步/投入周期/结果/启发）", JSON.stringify(cd));
+    log(cd && cd.use.includes("用同款"), "用同款按钮", cd ? cd.use : "");
+    await page.screenshot({ path: __dirname + "/case-detail.png" });
+    await page.evaluate(() => { const x = document.querySelector(".eh-cd-x"); if (x) x.click(); });
+    await new Promise((r) => setTimeout(r, 300));
   }
 
   log(errors.length === 0, "无 JS 异常");

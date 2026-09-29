@@ -16,7 +16,7 @@ import {
   type EcoEmployee,
   type EcoSkinKey
 } from "./eco-mall-data.js";
-import { ECO_CASES } from "./eco-cases-data.js";
+import { ECO_CASES, ECO_CASE_CATS, type EcoCase, type EcoCaseNav } from "./eco-cases-data.js";
 
 type FloorId = "floor-acquire" | "floor-private" | "floor-consultants" | "floor-hardware" | "floor-courses" | "floor-opc" | "floor-industry" | "floor-cases";
 
@@ -199,7 +199,8 @@ export function EcoMallHomePage() {
   const [skuPpu, setSkuPpu] = useState<Map<string, number> | null>(null);
   const [view, setView] = useState<"home" | "cases">("home");
   const [showRecharge, setShowRecharge] = useState(false);
-  const [caseCat, setCaseCat] = useState("全部");
+  const [caseCat, setCaseCat] = useState("all");
+  const [openCase, setOpenCase] = useState<EcoCase | null>(null);
   const [openConsultant, setOpenConsultant] = useState<EcoConsultant | null>(null);
   // B 线新增（agents-home-tech-demo v3.28 对齐，2026-09-28）：签到 / 邀请 / 新手词典弹层。
   // 签到、邀请均为**本地演示态**（后端签到/裂变接口属 A 线 P1，落地后切换）。
@@ -357,8 +358,13 @@ export function EcoMallHomePage() {
 
   const searching = query.trim().length > 0;
 
-  function useSameAgent(sku: string) {
-    window.location.href = getAppPath(`/agent/${sku}/detail`);
+  function goCaseNav(nav: EcoCaseNav) {
+    if (nav.kind === "floor") {
+      setView("home");
+      window.setTimeout(() => scrollToFloor(nav.path.replace("#", "") as FloorId), 80);
+      return;
+    }
+    window.location.href = getAppPath(nav.path);
   }
 
   function scrollToFloor(floor: FloorId) {
@@ -501,38 +507,38 @@ export function EcoMallHomePage() {
         <section className="eh-cases-view">
           <div className="eh-cv-head">
             <div className="eh-cv-title"><b>📚 AI 案例</b><span>看别人怎么用 AI 降本增效</span></div>
-            <div className="eh-cv-slogan">每个案例写清<b>卡点、做法、投入、结果</b>，看中直接<b>用同款智能体</b> · 演示数据虚构</div>
+            <div className="eh-cv-slogan">每个案例写清<b>卡点、做法、投入、结果</b>，看中直接<b>用同款</b> · 演示数据虚构</div>
             <div className="eh-cv-chips">
-              {["全部", "内容获客", "私域营销", "AI 硬件", "AI 课程", "OPC", "行业工作台"].map((cat) => (
-                <button key={cat} type="button" className={`eh-cv-chip ${caseCat === cat ? "act" : ""}`} onClick={() => setCaseCat(cat)}>{cat}</button>
+              {ECO_CASE_CATS.map((cat) => (
+                <button key={cat.key} type="button" className={`eh-cv-chip ${caseCat === cat.key ? "act" : ""}`} onClick={() => setCaseCat(cat.key)}>{cat.label}</button>
               ))}
             </div>
           </div>
           <div className="eh-cv-wrap">
-            {ECO_CASES.filter((c) => caseCat === "全部" || c.cat === caseCat).map((c) => (
-              <article key={c.title} className="eh-case-card">
+            {ECO_CASES.filter((c) => caseCat === "all" || c.cat === caseCat).map((c) => (
+              <article key={c.title} className="eh-case-card" onClick={() => setOpenCase(c)}>
                 <div className="eh-case-cover">
                   <img src={getPublicAssetPath(c.cover)} alt={c.title} />
                   <span className="eh-case-tag">{c.tag}</span>
-                  <span className="eh-case-gain"><b>{c.gain}</b><span>{c.gainLabel}</span></span>
+                  <span className="eh-case-gain"><b>{c.gain}</b><span>{c.gainSub}</span></span>
                 </div>
                 <div className="eh-case-body">
                   <div className="eh-case-title">{c.title}</div>
                   <div className="eh-case-sub">{c.sub}</div>
                   <div className="eh-case-metrics">
-                    {c.metrics.map((m) => (
-                      <div key={m.k} className="eh-case-metric"><span className="k">{m.k}</span><div className="v">{m.v}</div></div>
+                    {c.metrics.slice(0, 3).map((m) => (
+                      <div key={m[0]} className="eh-case-metric"><span className="k">{m[0]}</span><div className="v">{m[1]}</div></div>
                     ))}
                   </div>
-                  <div className="eh-case-inspire">💡 <b>给你的启发：</b>{c.inspire.replace(/^💡 给你的启发：/, "")}</div>
+                  <div className="eh-case-inspire">💡 <b>给你的启发：</b>{c.inspire}</div>
                   <div className="eh-case-cta">
-                    <button type="button" className="eh-case-use" onClick={() => useSameAgent(c.sku)}>{c.use}</button>
-                    <button type="button" className="eh-case-more">看完整做法 ›</button>
+                    <button type="button" className="eh-case-use" onClick={(e) => { e.stopPropagation(); goCaseNav(c.nav); }}>⚡ 用同款 · {c.refName}</button>
+                    <button type="button" className="eh-case-more" onClick={(e) => { e.stopPropagation(); setOpenCase(c); }}>看完整做法 ›</button>
                   </div>
                 </div>
               </article>
             ))}
-            {ECO_CASES.every((c) => caseCat !== "全部" && c.cat !== caseCat) ? (
+            {ECO_CASES.every((c) => caseCat !== "all" && c.cat !== caseCat) ? (
               <div className="eh-cv-empty">该分类暂无案例 · 演示数据陆续补充</div>
             ) : null}
           </div>
@@ -760,6 +766,43 @@ export function EcoMallHomePage() {
             .catch(() => setBalance(null));
         }}
       />
+      {openCase ? (
+        <div className="eh-cd-mask" onClick={() => setOpenCase(null)}>
+          <div className="eh-cd-sheet" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="eh-rd-x eh-cd-x" onClick={() => setOpenCase(null)}>✕</button>
+            <div className="eh-cd-head">
+              <img src={getPublicAssetPath(openCase.cover)} alt={openCase.title} />
+              <div className="eh-cd-headtxt">
+                <b>{openCase.title}</b>
+                <div className="eh-cd-chips">
+                  <span>{openCase.tag}</span>
+                  <span>投入 {openCase.cost}</span>
+                  {openCase.cycle ? <span>{openCase.cycle}</span> : null}
+                </div>
+              </div>
+            </div>
+            <div className="eh-cd-sec"><h4>😖 改造前 · 卡在哪</h4><p>{openCase.before}</p></div>
+            <div className="eh-cd-sec">
+              <h4>🛠 怎么做的 · {openCase.steps.length} 步</h4>
+              {openCase.steps.map((st, j) => <div key={j} className="eh-cd-step"><i>{j + 1}</i><span>{st}</span></div>)}
+            </div>
+            <div className="eh-cd-cost">
+              <div><span>投入</span><b>{openCase.cost}</b></div>
+              <div><span>上线周期</span><b>{openCase.cycle || "—"}</b></div>
+            </div>
+            <div className="eh-cd-sec">
+              <h4>📈 拿到什么结果</h4>
+              {openCase.metrics.map((m) => (
+                <div key={m[0]} className="eh-cd-metric"><span>{m[0]}</span><div><b>{m[1]}</b><em>{m[2] || ""}</em></div></div>
+              ))}
+            </div>
+            <div className="eh-cd-sec"><h4>💡 给你的启发</h4><p>{openCase.inspire}</p></div>
+            <button type="button" className="btn-orange eh-cd-use" onClick={() => { const nav = openCase.nav; setOpenCase(null); goCaseNav(nav); }}>
+              ⚡ 用同款 · {openCase.refName}先逛逛
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {showSignIn ? (
         <div className="eco-modal-mask" onClick={() => setShowSignIn(false)}>
