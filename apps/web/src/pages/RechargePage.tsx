@@ -1,29 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api";
 import { Topbar } from "../marketplace/shell.js";
 import { toSafeAppRoute } from "../lib/app-route.js";
 import { billingErrorCopy } from "../lib/humanize-error.js";
 import { WORKBUDDY_MCP_PUBLIC_URL } from "../config/site";
-
-interface CreditPack {
-  code: string;
-  name: string;
-  priceCny: number;
-  baseCredits: number;
-  bonusCredits: number;
-}
-
-interface BillingCatalog {
-  creditPacks: CreditPack[];
-}
-
-interface WalletBalance {
-  paidBalance: number;
-  bonusBalance: number;
-  balance: number;
-}
-
-const PTS_PER_YUAN = 10;
+// 充值流程逻辑（档位/下单/native 二维码/jsapi 收银台/轮询）已抽到共享 hook：
+// 页面与商城右侧抽屉消费同一实现，保证「支付逻辑一致，只差样式布局」。
+import { packOff, packPts, useRechargeFlow } from "../lib/use-recharge-flow.js";
 
 /**
  * WorkBuddy 接入思潼 AI 的 MCP：把这段整段发给 WorkBuddy，它会自己合并 mcpServers 配置。
@@ -40,64 +23,6 @@ export function buildWorkbuddyInstruction(url: string, key: string): string {
     }
   }, null, 2);
   return `请帮我在 WorkBuddy 中接入“思潼 AI”MCP。请打开 MCP 配置，将下面的 sitong-ai 配置合并进现有的 mcpServers（不要删除我已有的其他 MCP），保存配置并刷新 MCP 服务列表。配置完成后请提示我：我会自行前往 MCP 服务管理页面，对 sitong-ai 点击信任并启用。\n\n${config}`;
-}
-
-/**
- * 微信内置浏览器：必须走 JSAPI 收银台（`WeixinJSBridge`），不能只出二维码。
- *
- * 2026-09-13 用户真机实测：手机微信里打开充值页，页面只出 Native 二维码——
- * 用户没法用同一部手机扫自己屏幕上的码，长按识别又被微信拒绝
- * （“该商户暂时不支持通过长按识别二维码完成支付”），只能改用电脑打开页面才付得了款。
- * 现在微信内 → JSAPI 直接拉起收银台；其它环境（电脑、普通手机浏览器）→ 仍用二维码。
- */
-function isWechatInAppBrowser(): boolean {
-  return typeof navigator !== "undefined" && /MicroMessenger/i.test(navigator.userAgent);
-}
-
-interface WeixinJsBridgeLike {
-  invoke: (api: string, params: Record<string, unknown>, callback: (res: { err_msg?: string }) => void) => void;
-}
-
-/** 拉起微信内支付。返回 ok / cancel / fail，失败时由上层给「重新支付」与备选路径。 */
-function invokeWechatJsapiPay(payParams: Record<string, unknown>): Promise<"ok" | "cancel" | "fail"> {
-  return new Promise((resolve) => {
-    const bridge = (window as unknown as { WeixinJSBridge?: WeixinJsBridgeLike }).WeixinJSBridge;
-    const call = () => {
-      const active = (window as unknown as { WeixinJSBridge?: WeixinJsBridgeLike }).WeixinJSBridge;
-      if (!active) {
-        resolve("fail");
-        return;
-      }
-      active.invoke("getBrandWCPayRequest", payParams, (res) => {
-        const message = res?.err_msg ?? "";
-        if (message === "get_brand_wcpay_request:ok") resolve("ok");
-        else if (message === "get_brand_wcpay_request:cancel") resolve("cancel");
-        else resolve("fail");
-      });
-    };
-    if (bridge) {
-      call();
-      return;
-    }
-    // 微信注入 JSBridge 有两个时机：已注入、或等 `WeixinJSBridgeReady` 事件。
-    const onReady = () => {
-      document.removeEventListener("WeixinJSBridgeReady", onReady);
-      call();
-    };
-    document.addEventListener("WeixinJSBridgeReady", onReady);
-    window.setTimeout(() => {
-      document.removeEventListener("WeixinJSBridgeReady", onReady);
-      if (!(window as unknown as { WeixinJSBridge?: WeixinJsBridgeLike }).WeixinJSBridge) resolve("fail");
-    }, 2000);
-  });
-}
-
-function packPts(pack: CreditPack): number {
-  return pack.baseCredits + pack.bonusCredits;
-}
-
-function packOff(pack: CreditPack): number {
-  return Math.round((1 - pack.priceCny / (packPts(pack) / PTS_PER_YUAN)) * 100);
 }
 
 function authHeaders(json = false): Record<string, string> {
@@ -128,199 +53,12 @@ export function RechargePage() {
    */
   const nextRoute = toSafeAppRoute(query.get("next"));
   const goNext = () => { if (nextRoute) window.location.href = getAppPath(nextRoute); };
-  const [token, setToken] = useState(() => localStorage.getItem("store_os_token") ?? "");
-  const [wallet, setWallet] = useState<WalletBalance | null>(null);
-  const [packs, setPacks] = useState<CreditPack[]>([]);
-  const [planIdx, setPlanIdx] = useState<number | null>(null);
-  const [method, setMethod] = useState("wx");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [busyCode, setBusyCode] = useState("");
-  const [qrSrc, setQrSrc] = useState("");
-  /** 当前这一单用的是哪种支付方式：jsapi（微信内收银台）/ native（二维码）。 */
-  const [payMode, setPayMode] = useState<"none" | "jsapi" | "native">("none");
-  const [orderId, setOrderId] = useState("");
+  // 充值流程共享 hook（与商城右侧抽屉同一实现）：档位/下单/支付/轮询都在这里。
+  const flow = useRechargeFlow();
+  const { token, wallet, packs, planIdx, setPlanIdx, method, setMethod, loading, error, notice, busyCode, qrSrc, payMode, orderId, isLocal, setError, setNotice, createOrder, mockPayOrder } = flow;
   /** WorkBuddy MCP 接入指令用到的服务地址与本次生成的连接密钥（`sitong_wb_`）。 */
   const [mcpUrl, setMcpUrl] = useState(WORKBUDDY_MCP_PUBLIC_URL);
   const [mcpToken, setMcpToken] = useState("");
-  const pollRef = useRef<number | null>(null);
-const isLocal = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-
-  useEffect(() => {
-    void loadPacks();
-    return () => {
-      if (pollRef.current) window.clearTimeout(pollRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!token) return;
-    void loadAccount();
-  }, [token]);
-
-  async function loadPacks() {
-    setLoading(true);
-    setError("");
-    try {
-      const catalog = await fetch(apiPath("/billing/catalog")).then(readJson<BillingCatalog>);
-      setPacks(catalog.creditPacks ?? []);
-      if (planIdx === null) {
-        const hot = (catalog.creditPacks ?? []).findIndex((pack) => pack.code === "pack_100");
-        setPlanIdx(hot >= 0 ? hot : 0);
-      }
-    } catch (reason) {
-      setError(billingErrorCopy(reason, "充值档位加载失败，请刷新重试。"));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function loadAccount() {
-    try {
-      const [walletData, mcpInfo] = await Promise.all([
-        fetch(apiPath("/wallet"), { headers: authHeaders(), cache: "no-store" }).then(readJson<WalletBalance>),
-        fetch(apiPath("/integrations/workbuddy/connections"), { headers: authHeaders(), cache: "no-store" })
-          .then(readJson<{ mcpUrl?: string }>)
-          .catch((): { mcpUrl?: string } => ({}))
-      ]);
-      setWallet(walletData);
-      if (mcpInfo.mcpUrl) setMcpUrl(mcpInfo.mcpUrl);
-    } catch (reason) {
-      const status = (reason as { status?: number })?.status;
-      if (status === 401 || status === 403) {
-        localStorage.removeItem("store_os_token");
-        setToken("");
-      } else {
-        setWallet(null);
-      }
-    }
-  }
-
-  async function createOrder(pack: CreditPack) {
-    setError("");
-    setNotice("");
-    setQrSrc("");
-    setPayMode("none");
-    setBusyCode(pack.code);
-    try {
-      const created = await fetch(apiPath("/billing/orders"), {
-        method: "POST",
-        headers: { ...authHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "credit_pack", creditPackCode: pack.code })
-      }).then(readJson<{ order: { id: string } }>);
-
-      if (isLocal) {
-        setNotice("本机验收：订单已创建，点击「模拟支付到账」入账双桶。");
-      } else if (isWechatInAppBrowser()) {
-        // 微信内：直接拉起收银台，用户不需要（也没法）扫自己屏幕上的二维码。
-        setPayMode("jsapi");
-        let payParams: Record<string, unknown> | undefined;
-        try {
-          const prepay = await fetch(apiPath(`/billing/orders/${created.order.id}/wechat-prepay`), {
-            method: "POST",
-            headers: { ...authHeaders(), "Content-Type": "application/json" },
-            body: JSON.stringify({ tradeType: "jsapi" })
-          }).then(readJson<{ payParams?: Record<string, unknown>; order?: { payParams?: Record<string, unknown> } }>);
-          // 接口把收银台参数放在顶层 `payParams`（实测 2026-09-13：appId/nonceStr/package/paySign/signType/timeStamp）。
-          // 同时兼容早期把 payParams 嵌在 order 里的结构，避免任何一侧改动把支付打哑。
-          payParams = prepay.payParams ?? prepay.order?.payParams;
-        } catch {
-          // 例如账号没有微信 openid（非微信注册的老账号）：下面回落二维码，不让流程卡死。
-          payParams = undefined;
-        }
-        setOrderId(created.order.id);
-        void pollOrder(created.order.id);
-        if (!payParams) {
-          try {
-            await fetch(apiPath(`/billing/orders/${created.order.id}/wechat-prepay`), {
-              method: "POST",
-              headers: { ...authHeaders(), "Content-Type": "application/json" },
-              body: JSON.stringify({ tradeType: "native" })
-            }).then(readJson);
-            setPayMode("native");
-            setQrSrc(apiPath(`/billing/orders/${created.order.id}/wechat-qr.svg`));
-            setNotice("已在页面生成收款二维码：用另一台设备的微信扫码支付；也可以点上面的按钮重试微信内支付。");
-          } catch {
-            setNotice("微信支付暂时拉不起来，请点上面的按钮重试，或稍后换电脑打开本页扫码支付。");
-          }
-          return;
-        }
-        const result = await invokeWechatJsapiPay(payParams);
-        if (result === "ok") setNotice("支付完成，正在到账…（到账后算力立即可用）");
-        else if (result === "cancel") setNotice("你取消了支付，点上面的按钮可以重新支付。");
-        else setNotice("微信收银台没有正常拉起：请点上面的按钮重试；仍然不行就用电脑打开本页扫码支付。");
-        return;
-      } else {
-        await fetch(apiPath(`/billing/orders/${created.order.id}/wechat-prepay`), {
-          method: "POST",
-          headers: { ...authHeaders(), "Content-Type": "application/json" },
-          body: JSON.stringify({ tradeType: "native" })
-        }).then(readJson);
-        setPayMode("native");
-        setQrSrc(apiPath(`/billing/orders/${created.order.id}/wechat-qr.svg`));
-      }
-      setOrderId(created.order.id);
-      void pollOrder(created.order.id);
-    } catch (reason) {
-      const status = (reason as { status?: number })?.status;
-      if (status === 401 || status === 403) {
-        localStorage.removeItem("store_os_token");
-        setToken("");
-        return;
-      }
-      setError(billingErrorCopy(reason, "下单失败，请稍后重试。"));
-    } finally {
-      setBusyCode("");
-    }
-  }
-
-  function pollOrder(id: string) {
-    if (pollRef.current) window.clearTimeout(pollRef.current);
-    void (async () => {
-      try {
-        const order = await fetch(apiPath(`/billing/orders/${id}`), { headers: authHeaders() }).then(readJson<{ order?: { status: string } }>);
-        if (order.order?.status === "paid") {
-          setNotice("支付成功，算力已到账。");
-          setQrSrc("");
-          await refreshBalance();
-          return;
-        }
-      } catch {
-        // 网络抖动时继续轮询，不让用户错过支付成功状态。
-      }
-      pollRef.current = window.setTimeout(() => pollOrder(id), 2500);
-    })();
-  }
-
-  async function refreshBalance() {
-    try {
-      const data = await fetch(apiPath("/wallet"), { headers: authHeaders(), cache: "no-store" }).then(readJson<WalletBalance>);
-      setWallet(data);
-    } catch {
-      // 支付已成功，余额刷新失败会在下次刷新时恢复。
-    }
-  }
-
-  async function mockPayOrder() {
-    if (!orderId) return;
-    setBusyCode("mock");
-    setError("");
-    setNotice("");
-    try {
-      await fetch(apiPath(`/billing/orders/${orderId}/mock-pay`), {
-        method: "POST",
-        headers: authHeaders()
-      }).then(readJson);
-      setNotice("模拟支付成功，算力已入双桶。");
-      setOrderId("");
-      await refreshBalance();
-    } catch (reason) {
-      setError(billingErrorCopy(reason, "模拟支付失败。"));
-    } finally {
-      setBusyCode("");
-    }
-  }
 
   /**
    * 复制「给 WorkBuddy 的安装指令」。首次调用会先按当前账号生成一条专属 MCP 连接

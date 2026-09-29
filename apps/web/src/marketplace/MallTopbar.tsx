@@ -7,15 +7,20 @@ import { fetchMarketMe } from "./shell.js";
  * 左：可选「← 返回」胶囊 + 思潼AI商城 字标（思潼深色 + AI 橙色）+ 页面徽标；
  * 右：⚡算力余额胶囊 + 充值按钮。余额自取（fetchMarketMe）。
  */
-export function MallTopbar({ back, badge }: { back?: string; badge?: string }) {
+export function MallTopbar({ back, badge, onRecharge }: { back?: string; badge?: string; onRecharge?: () => void }) {
   const [balance, setBalance] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    void fetchMarketMe<{ creditBalance: number }>()
-      .then((d) => { if (!cancelled) setBalance(d ? d.creditBalance : null); })
-      .catch(() => { if (!cancelled) setBalance(null); });
-    return () => { cancelled = true; };
+    const load = () => {
+      void fetchMarketMe<{ creditBalance: number }>()
+        .then((d) => { if (!cancelled) setBalance(d ? d.creditBalance : null); })
+        .catch(() => { if (!cancelled) setBalance(null); });
+    };
+    load();
+    // 抽屉支付成功后广播该事件，顶栏余额即时刷新。
+    window.addEventListener("sitong:balance-changed", load);
+    return () => { cancelled = true; window.removeEventListener("sitong:balance-changed", load); };
   }, []);
 
   return (
@@ -29,7 +34,7 @@ export function MallTopbar({ back, badge }: { back?: string; badge?: string }) {
         <span className="eh-sp" />
         <div className="eh-wallet">
           <span className="eh-bal2">算力 <b>{balance ?? "—"}</b></span>
-          <button type="button" className="eh-mini" onClick={() => { window.location.href = getAppPath("/recharge"); }}>充值</button>
+          <button type="button" className="eh-mini" onClick={() => { if (onRecharge) onRecharge(); else window.location.href = getAppPath("/recharge"); }}>充值</button>
         </div>
       </div>
     </header>

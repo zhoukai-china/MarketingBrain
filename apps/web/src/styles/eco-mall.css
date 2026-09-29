@@ -1710,3 +1710,62 @@ body:has(.ipd-page), body:has(.ts-wb){overflow-x:hidden}
   animation:ehSheen 2.8s infinite;
 }
 .eco-mall-page .eh-topbar .eh-mini:hover{background:linear-gradient(135deg,#FF8A2A,#F25300)}
+
+/* ============================================================
+   充值右侧抽屉（2026-09-29：抽屉不跳页；支付逻辑与 /recharge 同一 hook，仅换壳）
+   ============================================================ */
+.eh-rd-overlay{position:fixed;inset:0;z-index:300;background:rgba(60,35,10,.42);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.eh-rd-panel{
+  position:fixed;top:0;right:0;bottom:0;width:440px;max-width:100%;
+  background:#FFFDF9;border-left:1px solid var(--line,#F0EBE3);
+  box-shadow:-16px 0 48px rgba(120,50,0,.18);
+  display:flex;flex-direction:column;
+  animation:ehRdIn .24s cubic-bezier(.32,.72,.35,1);
+}
+@keyframes ehRdIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
+.eh-rd-head{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid #F0EBE3;background:#FFFDF9}
+.eh-rd-head b{font-size:16px;color:#2B1B10}
+.eh-rd-fullpage{font-size:11.5px;color:#BEA488;text-decoration:none}
+.eh-rd-x{width:30px;height:30px;border-radius:9px;border:1px solid #E5DDD1;background:#fff;color:#94796B;font-size:13px;cursor:pointer}
+.eh-rd-body{flex:1;overflow-y:auto;padding:16px 18px 32px}
+.eh-rd-balance{display:flex;align-items:center;justify-content:space-between;border:1px solid #F0EBE3;border-radius:14px;background:#FFF9F2;padding:12px 14px;margin-bottom:14px}
+.eh-rd-tag{font-size:10.5px;color:#12A06A;border:1px solid rgba(18,160,106,.35);background:rgba(18,160,106,.08);border-radius:99px;padding:2px 9px}
+.eh-rd-notice{font-size:12.5px;color:#B4420F;background:#FFF3E6;border:1px solid rgba(232,101,26,.3);border-radius:10px;padding:9px 12px;margin-bottom:12px;line-height:1.6}
+.eh-rd-loading{font-size:13px;color:#94796B;padding:24px 0;text-align:center}
+.eh-rd-sec{font-size:13px;font-weight:800;color:#2B1B10;margin:14px 0 8px}
+.eh-rd-packs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+@media(max-width:480px){.eh-rd-packs{grid-template-columns:repeat(2,1fr)}}
+.eh-rd-pack{position:relative;border:1px solid #E5DDD1;border-radius:12px;background:#fff;padding:10px 8px;cursor:pointer;text-align:center}
+.eh-rd-pack.on{border-color:rgba(255,122,26,.65);background:rgba(255,140,50,.06);box-shadow:0 0 0 2px rgba(255,122,26,.18)}
+.eh-rd-hot{position:absolute;top:-8px;left:50%;transform:translateX(-50%);font-size:9.5px;font-weight:700;color:#fff;background:linear-gradient(135deg,#FF8A2A,#F25300);border-radius:99px;padding:1px 8px;white-space:nowrap}
+.eh-rd-off{position:absolute;top:6px;right:6px;font-size:9.5px;color:#D96A00;background:rgba(255,140,50,.12);border-radius:5px;padding:1px 5px}
+.eh-rd-price{font-size:16px;font-weight:800;color:#2B1B10}
+.eh-rd-pts{font-size:11px;color:#E86A00;font-weight:700;margin-top:2px}
+.eh-rd-sub{font-size:10px;color:#BEA488;margin-top:2px}
+.eh-rd-name{font-size:10px;color:#94796B;margin-top:4px}
+.eh-rd-worth{font-size:12px;color:#94796B;background:#FFF9F1;border:1px solid #F0EBE3;border-radius:10px;padding:8px 12px;margin:10px 0}
+.eh-rd-worth b{color:#E86A00}
+.eh-rd-method{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:1px solid #E5DDD1;border-radius:12px;background:#fff;cursor:pointer;font-size:13px;color:#2B1B10}
+.eh-rd-method.on{border-color:rgba(255,122,26,.55);background:rgba(255,140,50,.05)}
+.eh-rd-dot{width:12px;height:12px;border-radius:50%;border:1px solid #E5DDD1;position:relative}
+.eh-rd-method.on .eh-rd-dot{border-color:#FF6A00}
+.eh-rd-method.on .eh-rd-dot::after{content:"";position:absolute;inset:2px;border-radius:50%;background:#FF6A00}
+.btn-orange.eh-rd-pay{width:100%;height:44px;border-radius:12px;margin-top:14px;font-size:14px;font-weight:800}
+.eh-rd-mock{width:100%;height:38px;margin-top:10px;border-radius:10px;border:1px dashed rgba(232,101,26,.5);background:rgba(232,101,26,.05);color:#C25A00;font-size:12.5px;font-weight:700;cursor:pointer}
+.eh-rd-qr{margin-top:14px;text-align:center;border:1px solid #F0EBE3;border-radius:14px;padding:14px;background:#fff}
+.eh-rd-qr p{font-size:12px;color:#94796B;margin:0 0 10px}
+.eh-rd-qr img{width:190px;height:190px}
+.eh-rd-jsapi{font-size:12.5px;color:#94796B;line-height:1.7;margin-top:12px}
+.eh-rd-notes{margin-top:16px;border-top:1px dashed #F0EBE3;padding-top:12px;display:flex;flex-direction:column;gap:4px}
+.eh-rd-notes span{font-size:11px;color:#BEA488}
+.eh-rd-login{text-align:center;padding:30px 8px;color:#94796B;font-size:13px}
+.eh-rd-login b{display:block;font-size:16px;color:#2B1B10;margin:8px 0 4px}
+.eh-rd-login p{font-size:12.5px;line-height:1.7}
+@media(max-width:960px){
+  .eh-rd-panel{width:100%;box-shadow:none}
+}
+@media (prefers-reduced-motion: reduce){.eh-rd-panel{animation:none}}
+
+/* 移动端「我的算力」入口（桌面由侧栏 nav-bal 呈现，此 tab 仅 <960px 显示） */
+.eh-tab-bal{display:flex}
+@media(min-width:960px){.eh-tab-bal{display:none}}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { apiPath, getAppPath, getPublicAssetPath } from "../lib/api.js";
 import { MallTopbar } from "./MallTopbar.js";
+import { RechargeDrawer } from "./RechargeDrawer.js";
 import { fetchMarketMe, readJson } from "./shell.js";
 import { employeePersonaLabel } from "./employee-names.js";
 import {
@@ -197,6 +198,7 @@ export function EcoMallHomePage() {
   const [balance, setBalance] = useState<number | null>(null);
   const [skuPpu, setSkuPpu] = useState<Map<string, number> | null>(null);
   const [view, setView] = useState<"home" | "cases">("home");
+  const [showRecharge, setShowRecharge] = useState(false);
   const [caseCat, setCaseCat] = useState("全部");
   const [openConsultant, setOpenConsultant] = useState<EcoConsultant | null>(null);
   // B 线新增（agents-home-tech-demo v3.28 对齐，2026-09-28）：签到 / 邀请 / 新手词典弹层。
@@ -488,7 +490,7 @@ export function EcoMallHomePage() {
       <div className="eh-orb eh-orb-1" aria-hidden="true" />
       <div className="eh-orb eh-orb-2" aria-hidden="true" />
       <div className="eh-glow" ref={glowRef} aria-hidden="true" />
-      <MallTopbar />
+      <MallTopbar onRecharge={() => setShowRecharge(true)} />
 
       {view === "cases" ? (
         <section className="eh-cases-view">
@@ -733,13 +735,26 @@ export function EcoMallHomePage() {
         <button type="button" className="eh-tab" onClick={() => { window.location.href = getAppPath("/mine"); }}>
           <i>👤</i><span>我的</span>
         </button>
+        <button type="button" className="eh-tab eh-tab-bal" onClick={() => setShowRecharge(true)}>
+          <i>⚡</i><span>我的算力</span>
+        </button>
         <div className="eh-nav-bal">
           <span className="t">⚡ 我的算力</span>
           <span className="v">{balance ?? "—"}</span>
           <i>{balance != null ? `≈ ¥${(balance / 10).toFixed(balance % 10 === 0 ? 0 : 1)}` : ""}</i>
-          <button type="button" className="eh-mini" onClick={() => { window.location.href = getAppPath("/recharge"); }}>充值</button>
+          <button type="button" className="eh-mini" onClick={() => setShowRecharge(true)}>充值</button>
         </div>
       </nav>
+
+      <RechargeDrawer
+        open={showRecharge}
+        onClose={() => setShowRecharge(false)}
+        onPaid={() => {
+          void fetchMarketMe<{ creditBalance: number }>()
+            .then((d) => setBalance(d ? d.creditBalance : null))
+            .catch(() => setBalance(null));
+        }}
+      />
 
       {showSignIn ? (
         <div className="eco-modal-mask" onClick={() => setShowSignIn(false)}>

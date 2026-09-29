@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UI 风格审计与统一方案 · 思潼AI商城（2026-09-29 提案，未动代码）</title>
+<style>
+  :root{
+    --ink:#2B1B10;--sub:#94796B;--dim:#BEA488;--line:#F0EBE3;--line2:#E5DDD1;
+    --orange:#FF6A00;--orange2:#F25300;--gold:#F5B04A;--green:#12A06A;--blue:#3B7DD8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#fff,#FFF6EC 20%,#fff);color:var(--ink);
+    font:15px/1.75 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+  .wrap{max-width:1100px;margin:0 auto;padding:30px 22px 70px}
+  h1{font-size:25px;margin:0 0 4px}
+  .sub{color:var(--sub);font-size:13px;margin-bottom:22px}
+  h2{font-size:19px;margin:36px 0 10px;padding-left:10px;border-left:4px solid var(--orange)}
+  h3{font-size:15px;margin:18px 0 6px;color:#C97E12}
+  p,li{font-size:14px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin:12px 0;
+    box-shadow:0 6px 24px rgba(160,90,20,.06)}
+  .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
+  @media(max-width:900px){.kpi{grid-template-columns:repeat(2,1fr)}}
+  .kpi div{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center}
+  .kpi b{display:block;font-size:24px;color:#E86A00}
+  .kpi span{font-size:12px;color:var(--sub)}
+  table{width:100%;border-collapse:collapse;font-size:13px;background:#fff;border:1px solid var(--line);
+    border-radius:12px;overflow:hidden;margin:10px 0}
+  th,td{padding:8px 11px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{background:#FFF6EC;color:#C97E12;font-size:12px}
+  tr:last-child td{border-bottom:0}
+  .tag{display:inline-block;font-size:11px;padding:2px 9px;border-radius:99px;border:1px solid var(--line2);background:#fff;color:var(--sub)}
+  .tag.p0{color:#fff;background:linear-gradient(135deg,var(--orange),var(--orange2));border-color:transparent}
+  .tag.p1{color:#B4420F;border-color:rgba(232,101,26,.4);background:rgba(232,101,26,.08)}
+  .tag.p2{color:#5B6B7C;border-color:var(--line2)}
+  code{background:#FFF6EC;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:12px;color:#B4420F}
+  .hl{border-left:3px solid var(--orange);background:linear-gradient(120deg,rgba(255,106,0,.08),transparent);
+    padding:12px 16px;border-radius:0 10px 10px 0;margin:12px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr}}
+  svg{display:block;max-width:100%;height:auto;margin:6px auto}
+  /* 原型 mock */
+  .mock{background:#F4F7FC;border:1px solid var(--line);border-radius:16px;padding:14px}
+  .mock .bar{display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(255,255,255,.92);
+    border-bottom:1px solid var(--line);border-radius:10px 10px 0 0;font-size:12px;color:var(--sub)}
+  .mock .bar b{color:#2B1B10;font-size:14px;font-weight:800}
+  .mock .bar em{font-style:normal;color:var(--orange)}
+  .btn{height:36px;border-radius:10px;font-size:13px;font-weight:700;display:inline-flex;align-items:center;
+    justify-content:center;padding:0 14px;border:0;cursor:pointer}
+  .btn.primary{background:linear-gradient(135deg,#FF8A2A,#F25300);color:#fff;box-shadow:0 4px 14px rgba(255,106,0,.28)}
+  .btn.outline{background:rgba(232,101,26,.07);border:1px solid rgba(232,101,26,.38);color:#E8651A}
+  .btn.flat{background:#fff;border:1px solid var(--line2);color:var(--sub)}
+  .cardui{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px}
+  .footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);color:var(--dim);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>UI 风格审计与统一方案</h1>
+  <div class="sub">2026-09-29 · 本轮<b>只调研与出方案，未改动任何代码</b>；确认后再落地</div>
+
+  <div class="hl">
+    <b>一句话结论：</b>现在系统里其实跑着<b>三套视觉语言</b>——① 商城链路（扁平白卡 + 橙系）② 工作台/详情页里的 Hero 与瓷贴（轻拟物：大渐变、内阴影、光晕、旋转虚线环）③ 更早的深色拟物体系（sitong-design / agent-products，128 处阴影、84 处渐变）。
+    建议<b>不消灭轻拟物，而是给它划边界</b>：运营位（Hero、金刚瓷贴、主 CTA）允许轻拟物，内容区（列表、卡片正文、表单、表格、弹层）一律扁平，并用一套 Token 收口。
+  </div>
+
+  <h2>0. 先回答你提的两件事</h2>
+  <table>
+    <tr><th style="width:22%">事项</th><th>调研结论</th><th style="width:26%">建议</th></tr>
+    <tr>
+      <td><b>F4–F6 点击后的内页</b></td>
+      <td>原型里商品卡确实有内页：点 F4/F5/F6 跳 <code>agent-product-detail-demo-20260923.html?agent=&lt;key&gt;</code>（key = 录音卡 hwRec / 机器人 hwRobot / 智能体开发课 courseAgent / 办公提效课 courseWb / 大模型折扣仓 opcLlm / 漫剧工作台 opcComic）。<br /><b>我们系统没有这些页</b>：现有 <code>/agent/:sku/detail</code> 只覆盖数字员工，硬件/课程/OPC 这些人民币直购商品没有详情页。</td>
+      <td class="p1">另建一张<b>「商品详情页」模板</b>（人民币直购口径：价格 ¥、加购/立即购买、规格、交付说明），与数字人详情区分；工作量约 1.5–2 人日。或先做成「敬请期待」占位页（0.3 人日）。</td>
+    </tr>
+    <tr>
+      <td><b>我的 / 算力充值</b></td>
+      <td>都还是旧版：<code>RechargePage.tsx</code> 直接用旧 <code>Topbar</code>（商城/常用/我的 + 主题切换 + 退出 + 💎横幅）；<code>MinePage</code> 同族。与新的 <code>MallTopbar</code> 不是一套。</td>
+      <td class="p0">换 <code>MallTopbar</code>；<b>充值交互逻辑不动</b>（档位、下单、回调照 <code>/recharge</code> 现逻辑）；按你要求<b>左侧导航与顶栏保留</b>——即从商城点「充值」是<b>跳 /recharge 但外壳保持商城 chrome</b>（顶栏一致 + 侧栏保留高亮「我的算力」）。</td>
+    </tr>
+  </table>
+
+  <h2>1. 风格混杂：量化统计</h2>
+  <div class="kpi">
+    <div><b>7</b><span>种按钮高度并存<br />30/32/34/36/42/44/48px</span></div>
+    <div><b>53</b><span>单文件圆角种类<br />agent-products.css</span></div>
+    <div><b>128</b><span>处阴影<br />agent-products.css（最重拟物）</span></div>
+    <div><b>3</b><span>套字号基线<br />14 / 15 / 16px 混跑</span></div>
+  </div>
+  <table>
+    <tr><th style="width:26%">样式表</th><th style="width:14%">阴影</th><th style="width:14%">渐变</th><th style="width:16%">圆角种类</th><th>质感判断</th></tr>
+    <tr><td>agent-products.css</td><td>128</td><td>51</td><td>53</td><td class="p1">重拟物（早期深色体系，最不一致）</td></tr>
+    <tr><td>sitong-design.css</td><td>82</td><td>84</td><td>30</td><td class="p1">重拟物 + 旧主题</td></tr>
+    <tr><td>eco-mall.css（商城）</td><td>63</td><td>48</td><td>32</td><td>扁平为主 + 运营位轻拟物（瓷贴/Hero）</td></tr>
+    <tr><td>topic-system-workbench.css</td><td>27</td><td>24</td><td>18</td><td>混合</td></tr>
+    <tr><td>ip-pos-detail.css（详情）</td><td>6</td><td>9</td><td>12</td><td class="p2">基本扁平，较收敛</td></tr>
+    <tr><td>recharge.css / marketplace.css</td><td>0</td><td>0–4</td><td>7–8</td><td class="p2">纯扁平（但与其它页 Token 不同）</td></tr>
+  </table>
+
+  <h3>1.1 具体混搭点（同一屏里能同时看到的）</h3>
+  <table>
+    <tr><th style="width:6%">#</th><th style="width:26%">现象</th><th style="width:34%">证据</th><th>影响</th></tr>
+    <tr><td>1</td><td><b>轻拟物 vs 扁平同屏</b></td><td>金刚瓷贴（渐变+内阴影+呼吸光晕+外发光环）紧挨着扁平白卡商品卡；数字人卡带<b>旋转虚线环</b>，详情页卡不带</td><td>同一栅格里两种质感，视觉噪音强</td></tr>
+    <tr><td>2</td><td><b>按钮家族五套</b></td><td>橙渐变+流光（旧充值/主 CTA）／橙描边（新返回）／白底描边（商品卡加购）／深底白字（Hero 内）／微信绿（登录）</td><td>主次不分，主 CTA 被稀释</td></tr>
+    <tr><td>3</td><td><b>顶栏两套并存</b></td><td><code>MallTopbar</code>（新）与 <code>Topbar</code>（旧，带主题切换/退出/💎横幅）同时被 /chat、/mine、/recharge 等引用</td><td>页面间跳一次换一次头</td></tr>
+    <tr><td>4</td><td><b>圆角无梯度</b></td><td>6/8/9/10/12/14/15/16/18/20/99px 混用，同类卡片也不一致</td><td>整体"凑出来"的观感</td></tr>
+    <tr><td>5</td><td><b>阴影无档位</b></td><td>0 到 <code>0 16px 40px rgba(120,50,0,.14)</code> 之间任意取值</td><td>层级关系读不出来</td></tr>
+    <tr><td>6</td><td><b>边框色多套</b></td><td>#F0EBE3 / #E5DDD1 / #d5e3da / #e3e9f2（不同页面各一套）</td><td>跨页拼接有色差</td></tr>
+    <tr><td>7</td><td><b>字号基线不一</b></td><td>商城 .eh 14px、Topic 工作台 15px、cpw 默认 16px</td><td>同字号不同观感</td></tr>
+    <tr><td>8</td><td><b>图标三种来源</b></td><td>emoji／SVG／位图混用（金刚区 emoji、商品封面前阵才换图）</td><td>精细度不一致</td></tr>
+    <tr><td>9</td><td><b>弹层/空态两套</b></td><td>商城浅色橙系 <code>eco-modal</code> vs 其它页深色 sheet vs 充值页纯扁平</td><td>弹层出现时像另一个产品</td></tr>
+    <tr><td>10</td><td><b>动效无统一规则</b></td><td>扫描线、顶部流光、呼吸、旋环、流光按钮、打字机各自为政，无"何时动"的约定</td><td>页面"一直在动"，干扰阅读</td></tr>
+  </table>
+
+  <h2>2. 统一方案：一套基准 + 两种质感（给质感划边界）</h2>
+
+  <h3>2.1 质感边界（核心规则）</h3>
+  <svg viewBox="0 0 1000 240" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,PingFang SC,sans-serif">
+    <rect x="0" y="0" width="1000" height="240" rx="14" fill="#FFFDF9" stroke="#F0EBE3"/>
+    <!-- 左：允许轻拟物 -->
+    <rect x="20" y="44" width="450" height="170" rx="14" fill="#FFF3E6" stroke="#FF6A00"/>
+    <text x="245" y="72" font-size="14" font-weight="800" text-anchor="middle" fill="#C97E12">允许轻拟物（运营位 / 每屏最多 2 处）</text>
+    <rect x="42" y="88" width="126" height="46" rx="10" fill="#fff" stroke="#E5DDD1"/>
+    <text x="105" y="116" font-size="12" text-anchor="middle" fill="#2B1B10">Hero 橙色渐变卡</text>
+    <rect x="182" y="88" width="126" height="46" rx="10" fill="#fff" stroke="#E5DDD1"/>
+    <text x="245" y="116" font-size="12" text-anchor="middle" fill="#2B1B10">金刚区彩色瓷贴</text>
+    <rect x="322" y="88" width="126" height="46" rx="10" fill="#fff" stroke="#E5DDD1"/>
+    <text x="385" y="116" font-size="12" text-anchor="middle" fill="#2B1B10">主 CTA 渐变按钮</text>
+    <text x="245" y="160" font-size="12" text-anchor="middle" fill="#94796B">可用：渐变 / 内阴影 / 光晕 / 描边高光</text>
+    <text x="245" y="180" font-size="11" text-anchor="middle" fill="#BEA488">禁止：投影超过 1 档、多色渐变超过 2 色、持续旋转</text>
+    <!-- 右：必须扁平 -->
+    <rect x="530" y="44" width="450" height="170" rx="14" fill="#fff" stroke="#12A06A"/>
+    <text x="755" y="72" font-size="14" font-weight="800" text-anchor="middle" fill="#0E7F55">必须扁平（内容区 / 默认）</text>
+    <rect x="552" y="88" width="126" height="46" rx="10" fill="#fff" stroke="#E5DDD1"/>
+    <text x="615" y="116" font-size="12" text-anchor="middle" fill="#2B1B10">商品 / 员工卡</text>
+    <rect x="692" y="88" width="126" height="46" rx="10" fill="#fff" stroke="#E5DDD1"/>
+    <text x="755" y="116" font-size="12" text-anchor="middle" fill="#2B1B10">表单 / 表格</text>
+    <rect x="832" y="88" width="126" height="46" rx="10" fill="#fff" stroke="#E5DDD1"/>
+    <text x="895" y="116" font-size="12" text-anchor="middle" fill="#2B1B10">弹层正文 / 列表</text>
+    <text x="755" y="160" font-size="12" text-anchor="middle" fill="#94796B">只用：白底 + 1px 边框 + 0/1 档阴影</text>
+    <text x="755" y="180" font-size="11" text-anchor="middle" fill="#BEA488">禁止：渐变底、内阴影、发光、旋转环</text>
+    <text x="500" y="30" font-size="12" text-anchor="middle" fill="#94796B">一条规则判断：这块是「吸引点击」还是「供人阅读」？</text>
+  </svg>
+
+  <h3>2.2 Token 表（唯一真源，全站收口）</h3>
+  <table>
+    <tr><th style="width:16%">Token</th><th style="width:34%">取值</th><th>说明</th></tr>
+    <tr><td>圆角</td><td><code>--r-sm:8</code> 标签/小按钮 · <code>--r-md:12</code> 卡片/输入框 · <code>--r-lg:18</code> 大卡/Hero · <code>--r-pill:999</code> 胶囊</td><td>只用 4 档，废弃中间值（6/9/10/14/15/16/20）</td></tr>
+    <tr><td>阴影</td><td><code>--sh-0:none</code> · <code>--sh-1:0 2px 8px rgba(120,60,10,.06)</code> · <code>--sh-2:0 10px 28px rgba(120,60,10,.12)</code> · <code>--sh-3:0 16px 40px rgba(120,50,0,.18)</code>（仅弹层/Hero）</td><td>4 档；卡片只能用 1 档，hover 升到 2 档</td></tr>
+    <tr><td>边框</td><td><code>#F0EBE3</code>（默认）· <code>#E5DDD1</code>（强调/输入）</td><td>统一 2 色，废弃 #d5e3da / #e3e9f2 等</td></tr>
+    <tr><td>文字</td><td>主 <code>#2B1B10</code> · 次 <code>#94796B</code> · 弱 <code>#BEA488</code> · 橙 <code>#E86A00</code> · 绿 <code>#12A06A</code></td><td>一色一义</td></tr>
+    <tr><td>字号</td><td>基线 <b>14px</b>；标题 16/20/25；正文 13/14；辅助 11/12</td><td>全站统一 14 基线（15/16 的页面收敛）</td></tr>
+    <tr><td>间距</td><td>4 / 8 / 12 / 16 / 24 / 32</td><td>6 档，卡片内 16、栅格间距 12</td></tr>
+    <tr><td>按钮</td><td>高度 3 档：<b>32</b>（小）/ <b>36</b>（默认）/ <b>44</b>（主 CTA）</td><td>废弃 30/34/42/48；样式 3 种：primary 橙渐变 / outline 橙描边 / flat 白底</td></tr>
+    <tr><td>动效</td><td>时长 160/240/320ms；循环动画<b>仅允许</b> Hero 波形、瓷贴呼吸、扫描线</td><td>列表/卡片不做循环动画；prefers-reduced-motion 全关</td></tr>
+  </table>
+
+  <h3>2.3 组件收口清单</h3>
+  <table>
+    <tr><th style="width:18%">组件</th><th style="width:30%">现状</th><th>统一后</th></tr>
+    <tr><td>顶栏</td><td>新旧两套（MallTopbar / Topbar）</td><td>全站 <code>MallTopbar</code>；旧 Topbar 只保留在 admin 等内管页</td></tr>
+    <tr><td>按钮</td><td>5 套</td><td>3 套（primary / outline / flat）+ 3 档高度；微信绿仅登录场景特例</td></tr>
+    <tr><td>卡片</td><td>商品卡/员工卡/咨询卡/案例卡 各自一套</td><td>一套 <code>.card</code>：白底 + 1px + r-md + sh-1；内部插槽不同</td></tr>
+    <tr><td>弹层</td><td>浅橙 modal / 深色 sheet / 扁平</td><td>一套浅色 modal（白底 + r-lg + sh-3 + 橙系标题）</td></tr>
+    <tr><td>空态</td><td>虚线大框 / 居中文案 / 图形</td><td>一套：图标 + 一句说明 + 一个行动（无边框）</td></tr>
+    <tr><td>图标</td><td>emoji / SVG / 位图</td><td>功能图标统一 SVG（1.7 描边）；角色形象用位图；emoji 仅作装饰</td></tr>
+  </table>
+
+  <h2>3. 原型：统一后的四个页面</h2>
+
+  <div class="grid2">
+    <div class="mock">
+      <div class="bar"><b>思潼<em>AI</em>商城</b><span class="tag">IP定位智能体 · 定位工作台</span><span style="margin-left:auto">算力 2,400</span></div>
+      <div class="cardui" style="margin-top:12px">
+        <div style="font-size:13px;font-weight:800">统一后的商城卡（扁平）</div>
+        <div style="display:flex;gap:12px;margin-top:10px">
+          <div style="width:84px;height:84px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#FFF6EC,#FFE3C8);border:1px solid rgba(232,134,43,.4);display:grid;place-items:center;font-size:30px">👤</div>
+          <div style="flex:1">
+            <div style="font-size:15px;font-weight:800">沈定 <span style="font-size:11px;color:#94796B">首席定位官 · AI 智能体</span></div>
+            <div style="font-size:12px;color:#94796B;margin-top:4px">先把你这个人想明白，再定「对谁说、说啥」。</div>
+            <div style="margin-top:8px;font-size:11px;padding:6px 10px;border-radius:8px;background:rgba(255,140,50,.08);border:1px solid rgba(255,140,50,.3);color:#D96A00">IP 定位全案</div>
+            <div style="margin-top:8px;font-size:12px;color:#E86A00;font-weight:700">⚡ 99 算力/份 <span style="color:#BEA488;font-weight:400">≈ ¥9.9 · 0元开通 · 用后扣费</span></div>
+          </div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <span class="btn primary">去使用</span><span class="btn flat">看详情</span>
+        </div>
+      </div>
+      <div style="font-size:11.5px;color:#94796B;margin-top:8px">变化：去掉旋转虚线环、去掉渐变图区；头像保留暖色底（唯一允许的轻拟物残留）。</div>
+    </div>
+
+    <div class="mock">
+      <div class="bar"><b>思潼<em>AI</em>商城</b><span class="tag">算力充值</span><span style="margin-left:auto">算力 2,400</span></div>
+      <div style="display:flex;gap:12px;margin-top:12px">
+        <div style="width:96px;border:1px solid #F0EBE3;border-radius:12px;background:#fff;padding:10px;font-size:12px;color:#94796B">
+          <div style="margin-bottom:8px">🏠 首页</div><div style="margin-bottom:8px">📚 AI案例</div>
+          <div style="margin-bottom:8px">🛒 购物车</div><div style="margin-bottom:8px;color:#E86A00;font-weight:700">⚡ 我的算力</div>
+          <div>👤 我的</div>
+        </div>
+        <div style="flex:1">
+          <div class="cardui" style="margin-bottom:10px">
+            <div style="font-size:13px;font-weight:800">充值档位（交互逻辑不变）</div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <div style="flex:1;border:1px solid rgba(255,122,26,.45);border-radius:12px;padding:10px;text-align:center;background:rgba(255,140,50,.06)">
+                <div style="font-size:11px;color:#94796B">¥100</div><div style="font-size:15px;font-weight:800;color:#E86A00">1000 算力</div></div>
+              <div style="flex:1;border:1px solid #F0EBE3;border-radius:12px;padding:10px;text-align:center;background:#fff">
+                <div style="font-size:11px;color:#94796B">¥300</div><div style="font-size:15px;font-weight:800;color:#2B1B10">3600</div></div>
+              <div style="flex:1;border:1px solid #F0EBE3;border-radius:12px;padding:10px;text-align:center;background:#fff">
+                <div style="font-size:11px;color:#94796B">¥1000</div><div style="font-size:15px;font-weight:800;color:#2B1B10">13000</div></div>
+            </div>
+          </div>
+          <span class="btn primary" style="width:100%">立即充值</span>
+          <div style="font-size:11px;color:#BEA488;margin-top:8px">1 元 = 10 算力 · 赠送部分 90 天有效 · 失败不扣</div>
+        </div>
+      </div>
+      <div style="font-size:11.5px;color:#94796B;margin-top:8px">变化：只换外壳（顶栏 + 侧栏高亮「我的算力」），档位/下单/回调逻辑与现在 <code>/recharge</code> 完全一致。</div>
+    </div>
+  </div>
+
+  <h2>4. 落地路径（建议分四批，按依赖关系排）</h2>
+  <table>
+    <tr><th style="width:8%">批次</th><th style="width:26%">内容</th><th style="width:14%">量级</th><th>说明 / 风险</th></tr>
+    <tr><td><span class="tag p0">P0</span></td><td>Token 落地：CSS 变量（圆角/阴影/边框/字号/间距）+ 按钮 3 档 + 卡片一套</td><td>1.5–2 人日</td><td>只加变量与组件类，不改业务；旧样式暂不删，逐步替换</td></tr>
+    <tr><td><span class="tag p0">P0</span></td><td>我的 / 算力充值换 MallTopbar（保留充值逻辑、侧栏高亮）</td><td>0.5–1 人日</td><td>纯外壳替换，风险低</td></tr>
+    <tr><td><span class="tag p1">P1</span></td><td>商城链路收编：首页去掉旋环/渐变图区、卡片统一、弹层与空态统一</td><td>2–3 人日</td><td>会动到刚做的原型对齐结果，需你确认质感取舍</td></tr>
+    <tr><td><span class="tag p1">P1</span></td><td>F4–F6 商品内页（人民币直购模板）</td><td>1.5–2 人日</td><td>或先做 0.3 人日的「敬请期待」占位</td></tr>
+    <tr><td><span class="tag p2">P2</span></td><td>旧页收编：/chat、工作台深色 Hero、agent-products 重拟物区</td><td>4–6 人日</td><td>面最大，建议最后做；可逐页灰度</td></tr>
+    <tr><td><span class="tag p2">P2</span></td><td>图标统一（SVG 化）+ 动效收敛</td><td>2–3 人日</td><td>可与 P2 并行</td></tr>
+  </table>
+
+  <h2>5. 待你拍板（确认后我才动代码）</h2>
+  <table>
+    <tr><th style="width:6%">#</th><th style="width:34%">问题</th><th>选项</th></tr>
+    <tr><td>1</td><td><b>质感取向</b>：轻拟物保留多少？</td><td>A 只保留 Hero + 瓷贴 + 主 CTA（推荐，内容区全扁平）／B 全部扁平化（更整齐但促销感弱）／C 加大轻拟物（更有卖点但更乱）</td></tr>
+    <tr><td>2</td><td><b>是否现在就改商城卡片</b>（刚对齐过原型）</td><td>收敛旋环与渐变图区会与原型有出入，要不要等原型确认完再动</td></tr>
+    <tr><td>3</td><td><b>F4–F6 内页</b></td><td>完整商品详情页（1.5–2 人日）／先占位页（0.3 人日）／暂不做（点击无反应需加提示）</td></tr>
+    <tr><td>4</td><td><b>充值入口形态</b></td><td>跳 /recharge（外壳换商城 chrome，侧栏保留）／做成右侧抽屉不跳页</td></tr>
+    <tr><td>5</td><td><b>P0 是否连带旧页</b></td><td>Token 只服务商城链路，还是一次改到 /chat 等旧页（面大、风险高）</td></tr>
+  </table>
+
+  <div class="footer">
+    数据来源：样式表统计（<code>apps/web/src/styles/*.css</code>）、路由与顶栏引用扫描（<code>apps/web/src/main.tsx</code> / <code>pages/RechargePage.tsx</code> / <code>marketplace/MinePage.tsx</code>）、
+    原型链接 <code>agents-home-tech-demo-20260925.html</code>（F4–F6 → <code>?agent=hwRec|hwRobot|courseAgent|courseWb|opcLlm|opcComic</code>）。<br />
+    本轮<b>未修改任何代码</b>；确认方案与上面的 5 个选项后再进入实现。
+  </div>
+
+</div>
+</body>
+</html>

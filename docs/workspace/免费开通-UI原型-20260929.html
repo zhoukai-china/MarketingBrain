@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>「免费开通」UI 原型 · 微信一键登录 + 扫码（2026-09-29）</title>
+<style>
+  :root{
+    --ink:#2B1B10; --sub:#94796B; --dim:#BEA488; --line:#F0EBE3; --line2:#E5DDD1;
+    --orange:#FF6A00; --orange2:#F25300; --gold:#F5B04A; --green:#12A06A; --wx:#07C160;
+    --card:#fff; --bg:#F4F7FC;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#fff,#FFF6EC 22%,#fff);color:var(--ink);
+    font:15px/1.7 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+  .wrap{max-width:1120px;margin:0 auto;padding:30px 22px 70px}
+  h1{font-size:25px;margin:0 0 4px}
+  .sub{color:var(--sub);font-size:13px;margin-bottom:24px}
+  h2{font-size:18px;margin:36px 0 10px;padding-left:10px;border-left:4px solid var(--orange)}
+  .note{background:#FFF9F1;border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin:10px 0;font-size:13px;color:var(--sub)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:900px){.grid,.grid3{grid-template-columns:1fr}}
+  .screen{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;
+    box-shadow:0 10px 30px rgba(160,90,20,.08)}
+  .screen .cap{font-size:12px;color:var(--dim);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .screen .cap b{color:#C97E12;font-size:13px}
+  .tag{display:inline-block;font-size:11px;padding:2px 9px;border-radius:99px;border:1px solid var(--line2);background:#fff;color:var(--sub)}
+  .tag.act{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;border-color:transparent}
+
+  /* 手机壳 */
+  .phone{width:300px;margin:0 auto;border:1px solid var(--line2);border-radius:26px;background:#fff;overflow:hidden;
+    box-shadow:0 12px 30px rgba(160,90,20,.10)}
+  .phone .bar{height:42px;background:var(--bg);border-bottom:1px solid var(--line);display:flex;align-items:center;
+    justify-content:space-between;padding:0 14px;font-size:12px;color:var(--sub)}
+  .phone .body{padding:14px}
+  .hero-mini{border-radius:18px;padding:14px;background:linear-gradient(140deg,#FF8A2A,#FF6A00 55%,#F25300 100%);color:#fff}
+  .hero-mini .t{font-size:15px;font-weight:800}
+  .hero-mini .s{font-size:11px;color:#FFE9CF;margin-top:3px}
+  .btn-wx{display:flex;align-items:center;justify-content:center;gap:8px;height:48px;border-radius:12px;
+    background:var(--wx);color:#fff;font-size:15px;font-weight:800;border:0;cursor:pointer;width:100%;margin-top:12px;
+    box-shadow:0 6px 18px rgba(7,193,96,.28)}
+  .btn-orange{height:44px;border-radius:12px;background:linear-gradient(135deg,#FF8A2A,#F25300);color:#fff;
+    font-size:14px;font-weight:800;border:0;width:100%;cursor:pointer;box-shadow:0 6px 18px rgba(242,83,0,.25)}
+  .btn-ghost{height:42px;border-radius:12px;border:1px solid var(--line2);background:#FFFDF9;color:var(--sub);
+    font-size:13px;width:100%;cursor:pointer}
+  .rights{margin-top:12px;border:1px solid var(--line);border-radius:12px;background:#FFF9F1;padding:10px 12px}
+  .rights div{font-size:11.5px;color:var(--sub);display:flex;gap:6px;margin:3px 0}
+  .rights div b{color:#C97E12}
+  .fine{font-size:10px;color:var(--dim);margin-top:8px;line-height:1.6}
+
+  /* 弹层（PC） */
+  .modal{width:420px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;
+    box-shadow:0 16px 40px rgba(120,50,0,.14)}
+  .modal .mh{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);
+    background:#FFFDF9;font-size:14px;font-weight:800}
+  .modal .mb{padding:16px}
+  .qrbox{width:200px;height:200px;margin:0 auto;border:1px solid var(--line);border-radius:12px;background:#fff;
+    display:grid;place-items:center;position:relative}
+  .qrbox.expired::after{content:"二维码已过期";position:absolute;inset:0;background:rgba(255,255,255,.92);
+    display:grid;place-items:center;font-size:12px;color:#B4420F;font-weight:700}
+  .qrstat{margin-top:10px;text-align:center;font-size:12.5px;color:var(--sub)}
+  .qrstat b{color:var(--green)}
+  .balance{display:flex;gap:8px;margin-top:12px}
+  .balance .b{flex:1;border:1px solid var(--line);border-radius:12px;background:#FFF9F2;padding:8px 10px;font-size:11px;color:var(--sub)}
+  .balance .b b{display:block;font-size:16px;color:#E86A00}
+  .first{margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:10px}
+  .first .row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;border-radius:9px;background:#FFFDF9;border:1px solid var(--line);margin-bottom:6px;font-size:12.5px}
+  .first .row b{color:#E86A00}
+  .first .row span.go{color:var(--orange);font-weight:700}
+  ul{margin:8px 0;padding-left:20px}li{margin:4px 0}
+  table{width:100%;border-collapse:collapse;font-size:13px;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:10px}
+  th,td{padding:8px 11px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{background:#FFF6EC;color:#C97E12;font-size:12px}
+  tr:last-child td{border-bottom:0}
+  code{background:#FFF6EC;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:12px;color:#B4420F}
+  svg{display:block;max-width:100%;height:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>「免费开通」UI 原型</h1>
+  <div class="sub">登录/开通方式 = <b>微信一键登录</b>（微信内直跳授权）+ <b>二维码扫码</b>（PC/普通浏览器），复用现有 <code>WeChatLoginArea</code> 交互 · 2026-09-29 · 静态原型，未落代码</div>
+
+  <div class="note">
+    <b>入口分工：</b>Hero 按钮「🧧 免费开通 · 立送 100 算力」= <b>开通领注册礼</b>；下方广告位「🎁 邀请有礼」= 拉人各得 100。两条不再共用一个弹层。
+  </div>
+
+  <h2>流程总览</h2>
+  <svg viewBox="0 0 1060 150" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,PingFang SC,sans-serif">
+    <defs><marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto"><path d="M0,0 L7,3.2 L0,6.4 z" fill="#FF6A00"/></marker></defs>
+    <rect x="0" y="0" width="1060" height="150" rx="14" fill="#FFFDF9" stroke="#F0EBE3"/>
+    <rect x="16" y="52" width="150" height="52" rx="12" fill="#fff" stroke="#E5DDD1"/>
+    <text x="91" y="74" font-size="12.5" font-weight="700" text-anchor="middle" fill="#2B1B10">点 Hero</text>
+    <text x="91" y="92" font-size="11" text-anchor="middle" fill="#94796B">免费开通</text>
+    <line x1="166" y1="78" x2="200" y2="78" stroke="#FF6A00" stroke-width="2" marker-end="url(#a)"/>
+    <rect x="202" y="42" width="170" height="72" rx="12" fill="#FFF6EC" stroke="#FF6A00"/>
+    <text x="287" y="66" font-size="12.5" font-weight="800" text-anchor="middle" fill="#C97E12">判断环境</text>
+    <text x="287" y="84" font-size="11" text-anchor="middle" fill="#94796B">UA 含 MicroMessenger？</text>
+    <text x="287" y="100" font-size="11" text-anchor="middle" fill="#94796B">未配置微信 → 手机验证码</text>
+    <line x1="372" y1="62" x2="406" y2="62" stroke="#07C160" stroke-width="2" marker-end="url(#a)"/>
+    <rect x="408" y="32" width="170" height="60" rx="12" fill="#fff" stroke="#07C160"/>
+    <text x="493" y="55" font-size="12.5" font-weight="800" text-anchor="middle" fill="#0A9E52">① 微信内 · 一键授权</text>
+    <text x="493" y="73" font-size="11" text-anchor="middle" fill="#94796B">直跳 oauth2（S2）</text>
+    <line x1="372" y1="94" x2="406" y2="94" stroke="#FF6A00" stroke-width="2" marker-end="url(#a)"/>
+    <rect x="408" y="64" width="170" height="60" rx="12" fill="#fff" stroke="#E5DDD1"/>
+    <text x="493" y="87" font-size="12.5" font-weight="800" text-anchor="middle" fill="#2B1B10">② PC · 扫码开通</text>
+    <text x="493" y="105" font-size="11" text-anchor="middle" fill="#94796B">二维码 + 轮询（S3）</text>
+    <line x1="578" y1="78" x2="612" y2="78" stroke="#FF6A00" stroke-width="2" marker-end="url(#a)"/>
+    <rect x="614" y="42" width="180" height="72" rx="12" fill="#fff" stroke="#12A06A"/>
+    <text x="704" y="66" font-size="12.5" font-weight="800" text-anchor="middle" fill="#0E7F55">③ 成功态</text>
+    <text x="704" y="84" font-size="11" text-anchor="middle" fill="#94796B">100 到账 + 到期日</text>
+    <text x="704" y="100" font-size="11" text-anchor="middle" fill="#94796B">余额条 充值/赠送</text>
+    <line x1="794" y1="78" x2="828" y2="78" stroke="#FF6A00" stroke-width="2" marker-end="url(#a)"/>
+    <rect x="830" y="42" width="214" height="72" rx="12" fill="#fff" stroke="#E5DDD1"/>
+    <text x="937" y="66" font-size="12.5" font-weight="800" text-anchor="middle" fill="#2B1B10">④ 首单引导</text>
+    <text x="937" y="84" font-size="11" text-anchor="middle" fill="#94796B">秦文 15 / 沈定 99 / 何策 99</text>
+    <text x="937" y="100" font-size="11" text-anchor="middle" fill="#94796B">点进去直接用掉赠送</text>
+  </svg>
+
+  <h2>S2 · 微信内：一键授权（手机端）</h2>
+  <div class="grid">
+    <div class="screen">
+      <div class="cap"><b>开通弹层 · 微信内置浏览器</b><span class="tag act">主路径</span></div>
+      <div class="phone">
+        <div class="bar"><span>思潼AI商城</span><span>✕</span></div>
+        <div class="body">
+          <div class="hero-mini">
+            <div class="t">0 元开通 · 立送 100 算力</div>
+            <div class="s">不收开通费 · 无月费 · 用多少充多少</div>
+          </div>
+          <button class="btn-wx">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 4C5 4 2 6.7 2 10c0 1.9 1 3.6 2.6 4.7L4 17l2.7-1.4c.7.2 1.5.3 2.3.3h.6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><path d="M22 14.5c0-2.8-2.7-5-6-5s-6 2.2-6 5 2.7 5 6 5c.8 0 1.6-.1 2.3-.3L21 21l-.6-2.3c1.4-.9 2.6-2.4 2.6-4.2z" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+            微信一键开通
+          </button>
+          <div class="rights">
+            <div><span>🎁</span><span><b>100 算力</b>即时到账，赠送性质</span></div>
+            <div><span>⏳</span><span><b>90 天</b>有效，到期前 3 天提醒</span></div>
+            <div><span>📝</span><span>限<b>文字类</b>任务使用（视频生成不可用）</span></div>
+          </div>
+          <div class="fine">点击即跳转微信授权页（snsapi_userinfo），确认后自动注册并开通工作区。同一微信 / 同一设备仅一份；异常订单自动挂起人工审核。</div>
+          <button class="btn-ghost" style="margin-top:10px">用手机号验证码开通</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen">
+      <div class="cap"><b>S3 · PC / 普通浏览器：扫码开通</b><span class="tag">复用现有二维码块</span></div>
+      <div class="modal">
+        <div class="mh"><span>0 元开通 · 立送 100 算力</span><span style="color:var(--dim)">✕</span></div>
+        <div class="mb">
+          <div class="qrbox">
+            <svg width="168" height="168" viewBox="0 0 168 168">
+              <rect width="168" height="168" fill="#fff"/>
+              <g fill="#2B1B10">
+                <rect x="8" y="8" width="40" height="40" rx="6"/><rect x="16" y="16" width="24" height="24" fill="#fff"/>
+                <rect x="22" y="22" width="12" height="12"/>
+                <rect x="120" y="8" width="40" height="40" rx="6"/><rect x="128" y="16" width="24" height="24" fill="#fff"/><rect x="134" y="22" width="12" height="12"/>
+                <rect x="8" y="120" width="40" height="40" rx="6"/><rect x="16" y="128" width="24" height="24" fill="#fff"/><rect x="22" y="134" width="12" height="12"/>
+                <rect x="60" y="12" width="8" height="8"/><rect x="76" y="12" width="8" height="8"/><rect x="60" y="28" width="8" height="8"/><rect x="92" y="28" width="8" height="8"/>
+                <rect x="60" y="60" width="8" height="8"/><rect x="76" y="60" width="8" height="8"/><rect x="100" y="60" width="8" height="8"/><rect x="116" y="76" width="8" height="8"/>
+                <rect x="60" y="92" width="8" height="8"/><rect x="84" y="92" width="8" height="8"/><rect x="100" y="108" width="8" height="8"/><rect x="68" y="108" width="8" height="8"/>
+                <rect x="12" y="60" width="8" height="8"/><rect x="28" y="76" width="8" height="8"/><rect x="12" y="92" width="8" height="8"/><rect x="44" y="100" width="8" height="8"/>
+                <rect x="120" y="120" width="8" height="8"/><rect x="140" y="100" width="8" height="8"/><rect x="120" y="140" width="8" height="8"/><rect x="152" y="60" width="8" height="8"/>
+                <rect x="84" y="140" width="8" height="8"/><rect x="140" y="140" width="8" height="8"/><rect x="60" y="140" width="8" height="8"/><rect x="100" y="140" width="8" height="8"/>
+              </g>
+            </svg>
+          </div>
+          <div class="qrstat">用手机微信扫码开通 · <b>等待扫码…</b></div>
+          <div style="margin-top:10px;font-size:11.5px;color:var(--sub);text-align:center">
+            二维码 5 分钟有效 · <a style="color:#E86A00">刷新二维码</a>
+          </div>
+          <div class="rights" style="margin-top:12px">
+            <div><span>🎁</span><span>扫码成功即送 <b>100 算力</b>（赠送 · 90 天）</span></div>
+            <div><span>📝</span><span>限文字类任务使用</span></div>
+          </div>
+          <button class="btn-ghost" style="margin-top:10px">用手机号验证码开通</button>
+        </div>
+      </div>
+      <div class="note" style="margin-top:12px">
+        二维码指向本站 <code>/wechat-bridge</code> 中转页（与登录同链路），前端轮询 <code>/auth/wechat-bridge/status</code>：
+        <b>等待扫码 → 已扫码待确认 → 开通成功</b>；拿到结果后直接进 S4 成功态。
+      </div>
+    </div>
+  </div>
+
+  <h2>S4 · 成功态（到账 + 首单引导）</h2>
+  <div class="grid">
+    <div class="screen">
+      <div class="cap"><b>PC 弹层成功态</b></div>
+      <div class="modal">
+        <div class="mh"><span>开通成功</span><span style="color:var(--dim)">✕</span></div>
+        <div class="mb">
+          <div style="text-align:center">
+            <div style="font-size:34px">✅</div>
+            <div style="font-size:19px;font-weight:800;color:#0E7F55;margin-top:2px">100 算力已到账</div>
+            <div style="font-size:12px;color:var(--sub);margin-top:3px">赠送算力 · 有效期至 <b>2026-12-28</b>（90 天）· 到期前 3 天提醒</div>
+          </div>
+          <div class="balance">
+            <div class="b">充值算力<b>—</b></div>
+            <div class="b">赠送算力<b>100</b></div>
+          </div>
+          <div class="first">
+            <div style="font-size:12px;font-weight:700;color:#2B1B10;margin-bottom:6px">用这 100 算力先试一个</div>
+            <div class="row"><span>秦文 · 金牌文案主笔</span><b>15 算力/次</b><span class="go">去用 ›</span></div>
+            <div class="row"><span>沈定 · 首席定位官</span><b>99 算力/份</b><span class="go">去用 ›</span></div>
+            <div class="row"><span>何策 · 选题策略官</span><b>99 算力/次</b><span class="go">去用 ›</span></div>
+          </div>
+          <button class="btn-orange" style="margin-top:10px">先用秦文试一次（15 算力）</button>
+          <button class="btn-ghost" style="margin-top:8px">先逛逛商城</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen">
+      <div class="cap"><b>手机端成功态</b></div>
+      <div class="phone">
+        <div class="bar"><span>开通成功</span><span>✕</span></div>
+        <div class="body">
+          <div style="text-align:center">
+            <div style="font-size:32px">✅</div>
+            <div style="font-size:18px;font-weight:800;color:#0E7F55">100 算力已到账</div>
+            <div style="font-size:11px;color:var(--sub)">赠送 · 有效期至 2026-12-28</div>
+          </div>
+          <div class="balance">
+            <div class="b">充值<b>—</b></div>
+            <div class="b">赠送<b>100</b></div>
+          </div>
+          <div class="first">
+            <div style="font-size:12px;font-weight:700;margin-bottom:6px">先试一个</div>
+            <div class="row"><span>秦文 · 文案</span><b>15 算力</b><span class="go">去用 ›</span></div>
+            <div class="row"><span>沈定 · 定位</span><b>99 算力</b><span class="go">去用 ›</span></div>
+          </div>
+          <button class="btn-orange" style="margin-top:10px">先用秦文试一次</button>
+          <button class="btn-ghost" style="margin-top:8px">先逛逛商城</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2>S5 · 异常与已开通态（同一按钮换四套文案）</h2>
+  <div class="grid3">
+    <div class="screen">
+      <div class="cap"><b>风控挂起</b></div>
+      <div class="modal" style="width:100%">
+        <div class="mh"><span>需人工核验</span><span style="color:var(--dim)">✕</span></div>
+        <div class="mb">
+          <div style="font-size:13px;color:#B4420F">开通请求已提交，奖励<b>暂时挂起</b></div>
+          <div style="font-size:12px;color:var(--sub);margin-top:6px">同一设备 / 手机号 / 支付账号仅一份；异常触发人工审核，通过后自动到账（一般 2 小时内）。</div>
+          <button class="btn-ghost" style="margin-top:10px">我知道了</button>
+        </div>
+      </div>
+    </div>
+    <div class="screen">
+      <div class="cap"><b>已领 · 未到期</b></div>
+      <div class="phone" style="width:100%">
+        <div class="bar"><span>思潼AI商城</span><span>✕</span></div>
+        <div class="body">
+          <div class="hero-mini" style="background:linear-gradient(140deg,#FFB067,#FF8A2A)">
+            <div class="t">⚡ 去用第一个智能体</div>
+            <div class="s">你的 100 开通礼还剩 87 天</div>
+          </div>
+          <button class="btn-orange" style="margin-top:12px">继续用秦文（15 算力）</button>
+        </div>
+      </div>
+    </div>
+    <div class="screen">
+      <div class="cap"><b>已领 · 已到期</b></div>
+      <div class="phone" style="width:100%">
+        <div class="bar"><span>思潼AI商城</span><span>✕</span></div>
+        <div class="body">
+          <div class="hero-mini" style="background:linear-gradient(140deg,#FF8A2A,#F25300)">
+            <div class="t">💳 充 100 得 1000 算力</div>
+            <div class="s">开通礼已于 2026-12-28 到期清零</div>
+          </div>
+          <button class="btn-orange" style="margin-top:12px">去充值</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2>交互规则（给前端实现的约束）</h2>
+  <table>
+    <tr><th style="width:20%">点</th><th>规则</th></tr>
+    <tr><td>环境判断</td><td>复用 <code>wechatInAppBrowser()</code>：微信内 → 直跳 oauth2；否则 → 拉二维码（与登录<strong>同一组件、同一接口</strong>，只换文案与回调后的动作）</td></tr>
+    <tr><td>微信未配置</td><td><code>/auth/wechat-config</code> 返回 503（或 demo 模式）→ 隐藏微信按钮，只留「手机号验证码开通」</td></tr>
+    <tr><td>state</td><td>走 <code>/auth/wechat-state</code> 签发（带签名、10 分钟），回调页交后端验签；<strong>不依赖浏览器存储</strong></td></tr>
+    <tr><td>二维码</td><td><code>/auth/wechat-bridge/qrcode</code> 生成（指向本站 <code>/wechat-bridge</code>），轮询 <code>/auth/wechat-bridge/status</code>；5 分钟过期，过期保留块 + 「刷新二维码」</td></tr>
+    <tr><td>到账动作</td><td>拿到登录结果后立刻调 <code>POST /market/activate</code>（幂等）→ 返回 gift/expiresAt → 渲染成功态</td></tr>
+    <tr><td>文案一致性</td><td>权益三条、到期日、余额条构成，必须与 HANDOFF §7 一致（90 天 / 限文字类 / 不计佣金）</td></tr>
+    <tr><td>兜底</td><td>微信与验证码都失败 → 文案「联系服务团队开通」，不静默吞错</td></tr>
+  </table>
+
+  <h2>待你拍板</h2>
+  <ul>
+    <li><b>风控锚点</b>：微信开通拿不到手机号 → 选 <b>A openid+设备去重</b>（零摩擦）还是 <b>B 成功态补绑手机号</b>（最稳）。</li>
+    <li><b>首单引导</b>：默认推荐谁（当前默认秦文 15，最便宜、最容易跑通一次）。</li>
+    <li><b>scope</b>：开通用 <code>snsapi_userinfo</code>（弹一次确认页、拿昵称头像）还是 <code>snsapi_base</code>（静默、只拿 openid）。</li>
+  </ul>
+
+</div>
+</body>
+</html>
