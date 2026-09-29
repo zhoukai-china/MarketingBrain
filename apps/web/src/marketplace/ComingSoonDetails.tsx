@@ -218,7 +218,7 @@ export function ComingSoonDetailPage({ content }: { content: ComingSoonContent }
           </div>
 
           <div className="ipd-cta-row">
-            <button className="ipd-btn ghost" onClick={() => { window.location.href = getAppPath("/recharge"); }}><IconAuto v="⚡" /> 充值算力</button>
+            <button className="ipd-btn ghost" onClick={() => { window.dispatchEvent(new Event("sitong:open-recharge")); }}><IconAuto v="⚡" /> 充值算力</button>
             <button className="ipd-btn main" onClick={() => setBooking(true)}><IconAuto v="📲" /> 预约体验</button>
           </div>
           <div className="ipd-after-cta">

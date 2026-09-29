@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { apiPath, getAppPath, getPublicAssetPath } from "../lib/api.js";
 import { authHeaders, fetchMarketMe, guestToLogin, handleStaleSession, readJson, Topbar } from "./shell.js";
+import { RechargeDrawer } from "./RechargeDrawer.js";
 import { employeeDisplayNameFromLegacyName } from "./eco-mall-data.js";
 import "../styles/referral-card.css";
 
@@ -135,6 +136,7 @@ function ReferralLinkCard() {
 
 export function MarketplaceMinePage() {
   const [balance, setBalance] = useState<number | null>(null);
+  const [showRecharge, setShowRecharge] = useState(false);
   /**
    * 用户 2026-09-16：客户被多扣的算力退了，但他自己看不到（这里原来只列消耗）。
    * 服务端把「与客户切身相关」的退回（Word 导出重复扣费）单独给出来，这里显式展示 +N 算力。
@@ -258,7 +260,7 @@ export function MarketplaceMinePage() {
       <section className="view view-mine">
         <h1>我的</h1>
         <div className="mine-top">
-          <div className="balance-card"><div className="bc-label">算力余额</div><div className="bc-val">💎 {balance ?? "—"}</div><div className="bc-sub">全平台通用</div><button className="btn ghost sm" onClick={() => { window.location.href = getAppPath("/recharge"); }}>+ 充值算力</button></div>
+          <div className="balance-card"><div className="bc-label">算力余额</div><div className="bc-val">💎 {balance ?? "—"}</div><div className="bc-sub">全平台通用</div><button className="btn ghost sm" onClick={() => setShowRecharge(true)}>+ 充值算力</button></div>
           <div className="shared-card wide">💎 <b>跨数字员工通用</b><br />同一份算力，在创始人IP专区与各行业专区的数字员工 / AI员工都能用——只充一次，处处可用。</div>
         </div>
         <ReferralLinkCard />
@@ -438,6 +440,15 @@ export function MarketplaceMinePage() {
           </div>
         </div>
       )}
+      <RechargeDrawer
+        open={showRecharge}
+        onClose={() => setShowRecharge(false)}
+        onPaid={() => {
+          void fetchMarketMe<{ creditBalance: number }>()
+            .then((d) => setBalance(d ? d.creditBalance : null))
+            .catch(() => setBalance(null));
+        }}
+      />
     </main>
   );
 }

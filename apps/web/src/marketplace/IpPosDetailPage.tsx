@@ -265,9 +265,9 @@ export function IpPosDetailPage() {
             </ul>
           </div>
 
-          {/* 两处跳转（用户 2026-09-27 指定）：充值 → /recharge；立即使用 → 工作台 */}
+          {/* （用户 2026-09-29 改）充值 → 右侧抽屉弹窗（不跳转）；立即使用 → 工作台 */}
           <div className="ipd-cta-row">
-            <button className="ipd-btn ghost" onClick={() => { window.location.href = getAppPath("/recharge"); }}><IconAuto v="⚡" /> 充值算力</button>
+            <button className="ipd-btn ghost" onClick={() => { window.dispatchEvent(new Event("sitong:open-recharge")); }}><IconAuto v="⚡" /> 充值算力</button>
             <button className="ipd-btn main" onClick={() => { window.location.href = getAppPath("/agent/ipzone__ip-pos/workbench"); }}>
               ⚡ 立即使用（{IP_POS_PRICE} {IP_POS_UNIT}/份）
             </button>

@@ -239,7 +239,7 @@ export function VidrevDetailPage() {
 
           {/* 两处跳转（用户 2026-09-28 指定）：充值 → /recharge；立即使用 → 视频复盘工作台 */}
           <div className="ipd-cta-row">
-            <button className="ipd-btn ghost" onClick={() => { window.location.href = getAppPath("/recharge"); }}><IconAuto v="⚡" /> 充值算力</button>
+            <button className="ipd-btn ghost" onClick={() => { window.dispatchEvent(new Event("sitong:open-recharge")); }}><IconAuto v="⚡" /> 充值算力</button>
             <button className="ipd-btn main" onClick={() => { window.location.href = getAppPath(WORKBENCH_PATH); }}>
               ⚡ 立即使用{skuPpu != null ? `（约 ${skuPpu} 算力/次）` : ""}
             </button>

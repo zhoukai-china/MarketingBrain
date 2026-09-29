@@ -3,6 +3,8 @@ import { apiPath, getAppPath, getPublicAssetPath } from "../lib/api.js";
 import { MallTopbar } from "./MallTopbar.js";
 import { IconGlyph } from "./IconGlyph.js";
 import { RechargeDrawer } from "./RechargeDrawer.js";
+import { BookingModal } from "./BookingModal.js";
+import { fmtCredits } from "../lib/fmt.js";
 import { fetchMarketMe, readJson } from "./shell.js";
 import { employeePersonaLabel } from "./employee-names.js";
 import {
@@ -148,7 +150,7 @@ function EmployeeProduct({
         <span className="eco-p-desc">{hook}</span>
         {deliver ? <span className="eco-p-tag">{deliver}</span> : null}
         <span className="eco-p-price">
-          <IconGlyph name="bolt" size={12} style={{ display: "inline", verticalAlign: "-1px" }} /> {ppu ?? "—"} 算力/{unit} <i>≈ ¥{cny} · 0元开通 · 用后扣费</i>
+          <IconGlyph name="bolt" size={12} style={{ display: "inline", verticalAlign: "-1px" }} /> {fmtCredits(ppu)} 算力/{unit} <i>≈ ¥{cny} · 0元开通 · 用后扣费</i>
         </span>
       </div>
     </article>
@@ -200,6 +202,7 @@ export function EcoMallHomePage() {
   const [skuPpu, setSkuPpu] = useState<Map<string, number> | null>(null);
   const [view, setView] = useState<"home" | "cases">("home");
   const [showRecharge, setShowRecharge] = useState(false);
+  const [booking, setBooking] = useState<{ name: string; key: string } | null>(null);
   const [caseCat, setCaseCat] = useState("all");
   const [openCase, setOpenCase] = useState<EcoCase | null>(null);
   const [openConsultant, setOpenConsultant] = useState<EcoConsultant | null>(null);
@@ -443,6 +446,8 @@ export function EcoMallHomePage() {
     glyph?: string;
     tint?: string;
     detail?: string;
+    bookingName?: string;
+    bookingKey?: string;
     name: string;
     tag: string;
     desc: string;
@@ -477,8 +482,14 @@ export function EcoMallHomePage() {
               {opt.cny ? <i className="eh-u-cny">≈ {opt.cny}</i> : null}
             </span>
             <span className="eh-buy-row">
-              <button type="button" className="eh-cart-mini" onClick={(e) => { e.stopPropagation(); addToCart(opt.name); }}><IconGlyph name="cart" size={14} style={{ display: "inline", verticalAlign: "-2px" }} /> 加购</button>
-              {opt.buyNow ? <button type="button" className="eh-buy-now" onClick={(e) => { e.stopPropagation(); addToCart(opt.name); }}>立即购买</button> : null}
+              {opt.bookingName ? (
+                <button type="button" className="eh-buy-now book" onClick={(e) => { e.stopPropagation(); setBooking({ name: opt.bookingName!, key: opt.bookingKey ?? opt.name }); }}>🔔 预约上线提醒</button>
+              ) : (
+                <>
+                  <button type="button" className="eh-cart-mini" onClick={(e) => { e.stopPropagation(); addToCart(opt.name); }}><IconGlyph name="cart" size={14} style={{ display: "inline", verticalAlign: "-2px" }} /> 加购</button>
+                  {opt.buyNow ? <button type="button" className="eh-buy-now" onClick={(e) => { e.stopPropagation(); addToCart(opt.name); }}>立即购买</button> : null}
+                </>
+              )}
             </span>
           </div>
           {opt.demo ? <div className="eh-pdemo">演示商品 · 购买不入算力余额</div> : null}
@@ -495,11 +506,11 @@ export function EcoMallHomePage() {
         <button
           type="button"
           className="eh-brand-hero"
-          onClick={() => { window.location.href = getAppPath("/lanqi"); }}
+          onClick={() => setBooking({ name: "行业工作台（美业门店AI经营大脑）", key: "industry-lanqi" })}
         >
           <span className="eh-bh-name"><IconGlyph name="sparkle" size={16} style={{ display: "inline", verticalAlign: "-3px" }} /> 美业门店AI经营大脑 demo <span className="eh-bh-live">● 可体验</span></span>
           <span className="eh-bh-desc">朋友圈 / 社群内容、经营驾驶舱、门店诊断、内容工作室、AI 绘图、公域获客——美业门店（美容 / 美甲 / 轻医美）正在用的完整 AI 工作台，进去就能点。</span>
-          <span className="eh-bh-go">进入 demo ›</span>
+          <span className="eh-bh-go">🔔 预约上线提醒</span>
         </button>
       </section>
     );
@@ -701,8 +712,7 @@ export function EcoMallHomePage() {
                     <span className="eh-cons-meta">我是保禄的数字分身，他的 AI 增长和连锁经营方法论都装进来了。你有具体问题，我按保禄的思路接着答。</span>
                     <span className="eh-cons-soon">🔐 真人授权训练中 · 即将上线</span>
                     <span className="eh-buy-row">
-                      <button type="button" className="eh-cart-mini" onClick={() => addToCart("保禄数字分身")}><IconGlyph name="cart" size={14} /></button>
-                      <button type="button" className="eh-buy-now dim" onClick={() => addToCart("保禄数字分身")}>立即购买</button>
+                      <button type="button" className="eh-buy-now book" onClick={() => setBooking({ name: "保禄数字分身", key: "baolu-consultant" })}>🔔 预约上线提醒</button>
                     </span>
                   </span>
                 </article>
@@ -712,24 +722,24 @@ export function EcoMallHomePage() {
             <section className="eco-floor" id="floor-hardware">
               <FloorHead no="F4" title="AI 硬件专区" sub="让 AI 落到店里的硬件货架" />
               <div className="eh-prod">
-                {renderProductCard({ glyph: "mic", tint: "#FF7A1A", icon: "🎙️", img: getPublicAssetPath("/mall/hwRec.jpg"), detail: "/product/hwRec/detail", name: "AI 录音卡", tag: "硬件新品", desc: "录音即分析，自动转经营动作：客户沟通自动归档、话术要点自动提炼。", price: "¥199 /台 · 人民币直购" })}
-                {renderProductCard({ glyph: "robot", tint: "#0E9F6E", icon: "robot", img: getPublicAssetPath("/mall/hwRobot.jpg"), detail: "/product/hwRobot/detail", name: "门店 AI 机器人", tag: "硬件新品", desc: "迎宾接待、导购问答，常用话术语音随叫随到，前台接待不冷场。", price: "¥1,999 /台 · 人民币直购" })}
+                {renderProductCard({ glyph: "mic", tint: "#FF7A1A", icon: "🎙️", img: getPublicAssetPath("/mall/hwRec.jpg"), detail: "/product/hwRec/detail", name: "AI 录音卡", tag: "硬件新品", desc: "录音即分析，自动转经营动作：客户沟通自动归档、话术要点自动提炼。", price: "¥199 /台 · 人民币直购", bookingName: "AI 录音卡", bookingKey: "hwRec"})}
+                {renderProductCard({ glyph: "robot", tint: "#0E9F6E", icon: "robot", img: getPublicAssetPath("/mall/hwRobot.jpg"), detail: "/product/hwRobot/detail", name: "门店 AI 机器人", tag: "硬件新品", desc: "迎宾接待、导购问答，常用话术语音随叫随到，前台接待不冷场。", price: "¥1,999 /台 · 人民币直购", bookingName: "门店 AI 机器人", bookingKey: "hwRobot"})}
               </div>
             </section>
 
             <section className="eco-floor" id="floor-courses">
               <FloorHead no="F5" title="AI 课程专区" sub="从 0 到 1 学会用 AI 干活" />
               <div className="eh-prod">
-                {renderProductCard({ glyph: "sparkcap", tint: "#9752DC", icon: "🎓", img: getPublicAssetPath("/mall/courseAgent.jpg"), detail: "/product/courseAgent/detail", name: "智能体开发课", tag: "视频课", desc: "从 0 到 1 学会搭建自己的智能体工作流。", price: "¥199 /门 · 人民币直购" })}
-                {renderProductCard({ glyph: "chart", tint: "#2E7CF6", icon: "📊", img: getPublicAssetPath("/mall/courseWb.jpg"), detail: "/product/courseWb/detail", name: "WorkBuddy 办公提效课", tag: "实操课", desc: "用 AI 把日报、周报、方案、表格这些日常活干得更快，即学即用。", price: "¥99 /门 · 人民币直购" })}
+                {renderProductCard({ glyph: "sparkcap", tint: "#9752DC", icon: "🎓", img: getPublicAssetPath("/mall/courseAgent.jpg"), detail: "/product/courseAgent/detail", name: "智能体开发课", tag: "视频课", desc: "从 0 到 1 学会搭建自己的智能体工作流。", price: "¥199 /门 · 人民币直购", bookingName: "智能体开发课", bookingKey: "courseAgent"})}
+                {renderProductCard({ glyph: "chart", tint: "#2E7CF6", icon: "📊", img: getPublicAssetPath("/mall/courseWb.jpg"), detail: "/product/courseWb/detail", name: "WorkBuddy 办公提效课", tag: "实操课", desc: "用 AI 把日报、周报、方案、表格这些日常活干得更快，即学即用。", price: "¥99 /门 · 人民币直购", bookingName: "WorkBuddy 办公提效课", bookingKey: "courseWb"})}
               </div>
             </section>
 
             <section className="eco-floor" id="floor-opc">
               <FloorHead no="F6" title="OPC 专区" sub="AI 算力与创作资源，商家价直供" />
               <div className="eh-prod">
-                {renderProductCard({ glyph: "pack", tint: "#D96A00", icon: "🏭", img: getPublicAssetPath("/mall/opcLlm.jpg"), detail: "/product/opcLlm/detail", name: "大模型折扣仓", tag: "OPC", desc: "主流大模型 API 额度折扣直充，token 按仓价拿，AI 用量大的商家先省一半。", price: "50 算力/份 起", cny: "¥5", buyNow: true, demo: true })}
-                {renderProductCard({ glyph: "clapper", tint: "#DB2777", icon: "🎬", img: getPublicAssetPath("/mall/opcComic.jpg"), detail: "/product/opcComic/detail", name: "AIGC 漫剧创作工作台", tag: "OPC", desc: "分镜、角色、成片一条龙，批量产出漫剧短视频，带货与账号起号都能用。", price: "199 算力/席", cny: "¥19.9", buyNow: true, demo: true })}
+                {renderProductCard({ glyph: "pack", tint: "#D96A00", icon: "🏭", img: getPublicAssetPath("/mall/opcLlm.jpg"), detail: "/product/opcLlm/detail", name: "大模型折扣仓", tag: "OPC", desc: "主流大模型 API 额度折扣直充，token 按仓价拿，AI 用量大的商家先省一半。", price: "50 算力/份 起", cny: "¥5", buyNow: true, demo: true, bookingName: "大模型折扣仓", bookingKey: "opcLlm"})}
+                {renderProductCard({ glyph: "clapper", tint: "#DB2777", icon: "🎬", img: getPublicAssetPath("/mall/opcComic.jpg"), detail: "/product/opcComic/detail", name: "AIGC 漫剧创作工作台", tag: "OPC", desc: "分镜、角色、成片一条龙，批量产出漫剧短视频，带货与账号起号都能用。", price: "199 算力/席", cny: "¥19.9", buyNow: true, demo: true, bookingName: "AIGC 漫剧创作工作台", bookingKey: "opcComic"})}
               </div>
             </section>
 
@@ -762,7 +772,7 @@ export function EcoMallHomePage() {
         </button>
         <div className="eh-nav-bal">
           <span className="t"><IconGlyph name="bolt" size={12} style={{ display: "inline", verticalAlign: "-2px" }} /> 我的算力</span>
-          <span className="v">{balance ?? "—"}</span>
+          <span className="v">{fmtCredits(balance)}</span>
           <i>{balance != null ? `≈ ¥${(balance / 10).toFixed(balance % 10 === 0 ? 0 : 1)}` : ""}</i>
           <button type="button" className="eh-mini" onClick={() => setShowRecharge(true)}>充值</button>
         </div>
@@ -777,6 +787,10 @@ export function EcoMallHomePage() {
             .catch(() => setBalance(null));
         }}
       />
+      {booking ? (
+        <BookingModal open productName={booking.name} productKey={booking.key} onClose={() => setBooking(null)} />
+      ) : null}
+
       {openCase ? (
         <div className="eh-cd-mask" onClick={() => setOpenCase(null)}>
           <div className="eh-cd-sheet" onClick={(e) => e.stopPropagation()}>

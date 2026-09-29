@@ -1,6 +1,7 @@
 import { getAppPath } from "../lib/api.js";
 import { packOff, packPts, useRechargeFlow } from "../lib/use-recharge-flow.js";
 import { IconAuto } from "./IconGlyph.js";
+import { fmtCredits } from "../lib/fmt.js";
 
 /**
  * 充值右侧抽屉（2026-09-29 用户拍板：右侧抽屉不跳页）。
@@ -34,11 +35,6 @@ export function RechargeDrawer({ open, onClose, onPaid }: { open: boolean; onClo
         <div className="eh-rd-head">
           <b>算力充值</b>
           <span style={{ flex: 1 }} />
-          <a
-            className="eh-rd-fullpage"
-            href={getAppPath("/recharge")}
-            onClick={(e) => e.stopPropagation()}
-          >在完整页面打开 ›</a>
           <button type="button" className="eh-rd-x" onClick={onClose} aria-label="关闭">✕</button>
         </div>
 
@@ -49,7 +45,7 @@ export function RechargeDrawer({ open, onClose, onPaid }: { open: boolean; onClo
                 <div className="eh-rd-balance">
                   <div>
                     <div style={{ fontSize: 11, color: "#94796B" }}>当前算力余额</div>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: "#E86A00" }}><IconAuto v="💎" size={20} /> {wallet.balance}</div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: "#E86A00" }}><IconAuto v="💎" size={20} /> {fmtCredits(wallet.balance)}</div>
                     <div style={{ fontSize: 11, color: "#BEA488" }}>充值 {wallet.paidBalance} · 赠送 {wallet.bonusBalance}</div>
                   </div>
                   <span className="eh-rd-tag">全平台通用</span>
@@ -145,7 +141,6 @@ export function RechargeDrawer({ open, onClose, onPaid }: { open: boolean; onClo
                   window.location.href = getAppPath("/login");
                 }}
               >去登录</button>
-              <a className="eh-rd-fullpage" style={{ display: "block", textAlign: "center", marginTop: 10 }} href={getAppPath("/recharge")}>在完整页面打开 ›</a>
             </div>
           )}
         </div>

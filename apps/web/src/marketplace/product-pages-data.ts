@@ -35,12 +35,12 @@ export const PRODUCT_PAGES: Record<string, ProductPageData> = {
     name: "AI 录音卡",
     heroTitle: "AI 录音卡 · 录音即分析",
     brandLine: "AI 硬件 · 人民币直购",
-    shopLine: "思潼AI 精选商品 · 现货 · 可直接购买",
+    shopLine: "思潼AI 精选商品 · 🔔 未上线 · 预约中",
     desc: "给门店配一台「AI 记录员」——录音即分析：客户沟通自动归档、话术要点自动提炼，分析结果一键转成经营动作，老板不用盯现场也知道聊了什么、接下来做什么。",
     cover: "/mall/hwRec.jpg",
     price: "¥199",
     unit: "/台",
-    priceNote: "人民币直购 · 不耗算力",
+    priceNote: "预计上线价 · 不耗算力",
     payNote: "微信支付 · 7 天无理由退换 · 1 年质保 · 顺丰包邮 · 电子发票",
     perks: ["🚚 48h 发货", "🛡️ 正品保障", "📄 电子发票"],
     features: [
@@ -48,6 +48,12 @@ export const PRODUCT_PAGES: Record<string, ProductPageData> = {
       { icon: "🗂️", t: "沟通自动归档", d: "按客户 / 日期自动归档，聊天记录式检索，找一段话 3 秒钟。" },
       { icon: "✨", t: "话术要点提炼", d: "AI 自动提炼承诺点、异议点、跟进点，销售复盘直接照着改。" },
       { icon: "🚀", t: "一键转经营动作", d: "分析结果一键生成待办：回访谁、补什么货、哪句话术要改。" }
+    ],
+    extrasTitle: "📦 包装清单",
+    extras: [
+      "AI 录音卡主机 ×1（名片大小 · 随身携带）",
+      "磁吸充电底座 + 数据线",
+      "快速上手指南（扫码即用，无需安装）"
     ],
     tabs: [
       {
@@ -57,6 +63,13 @@ export const PRODUCT_PAGES: Record<string, ProductPageData> = {
           "沟通自动归档：按客户 / 日期自动归档，聊天记录式检索",
           "话术要点提炼：承诺点、异议点、跟进点自动提炼",
           "一键转经营动作：分析结果自动生成待办"
+        ]
+      },
+      {
+        t: "规格参数",
+        lines: [
+          "硬件：名片大小随身携带 · 内置麦克风阵列 · 满电连续录音 8 小时。",
+          "连接：微信小程序扫码即用，录音与分析结果云端同步，手机 / 电脑都能看。"
         ]
       },
       { t: "售后保障", lines: ["7 天无理由退换 · 1 年质保 · 顺丰包邮 · 电子发票。质量问题 48h 内响应（限主要城市）。"] }
@@ -70,12 +83,12 @@ export const PRODUCT_PAGES: Record<string, ProductPageData> = {
     name: "门店 AI 机器人",
     heroTitle: "门店 AI 机器人 · 迎宾接待",
     brandLine: "AI 硬件 · 人民币直购",
-    shopLine: "思潼AI 精选商品 · 现货 · 可直接购买",
+    shopLine: "思潼AI 精选商品 · 🔔 未上线 · 预约中",
     desc: "给门店配一个「不知疲倦的接待员」——迎宾接待、导购问答，常用话术语音随叫随到，前台接待不冷场，接待情况每天自动汇总成日报。",
     cover: "/mall/hwRobot.jpg",
     price: "¥1,999",
     unit: "/台",
-    priceNote: "人民币直购 · 不耗算力",
+    priceNote: "预计上线价 · 不耗算力",
     payNote: "微信支付 · 7 天无理由退换 · 1 年质保 · 顺丰包邮 · 电子发票",
     perks: ["🚚 48h 发货", "🛡️ 正品保障", "📄 电子发票"],
     features: [
@@ -118,12 +131,12 @@ export const PRODUCT_PAGES: Record<string, ProductPageData> = {
     name: "智能体开发课",
     heroTitle: "智能体开发课 · 从 0 到 1",
     brandLine: "AI 课程 · 人民币直购",
-    shopLine: "思潼AI 精选课程 · 已上线 · 报名即学",
+    shopLine: "思潼AI 精选课程 · 🔔 未上线 · 预约中",
     desc: "不写代码也能搭出自己的智能体工作流：获客文案、接待问答、复盘助手三个真实业务案例全程实操，每一节跟着点就能会。",
     cover: "/mall/courseAgent.jpg",
     price: "¥199",
     unit: "/门",
-    priceNote: "人民币直购 · 不耗算力",
+    priceNote: "预计上线价 · 不耗算力",
     payNote: "微信支付 · 一次购买永久回看 · 电子发票",
     perks: ["♾️ 永久回看", "👥 学员社群", "📄 电子发票"],
     rating: "4.9 ★★★★★ · 首批学员评分",
@@ -154,12 +167,12 @@ export const PRODUCT_PAGES: Record<string, ProductPageData> = {
     name: "WorkBuddy 办公提效课",
     heroTitle: "WorkBuddy 办公提效课 · 即学即用",
     brandLine: "AI 课程 · 人民币直购",
-    shopLine: "思潼AI 精选课程 · 已上线 · 报名即学",
+    shopLine: "思潼AI 精选课程 · 🔔 未上线 · 预约中",
     desc: "用 AI 把日报、周报、方案、表格这些日常活干得更快：每节 10 分钟以内，全是手把手实操，学完当天就能用在自己手头的工作上。",
     cover: "/mall/courseWb.jpg",
     price: "¥99",
     unit: "/门",
-    priceNote: "人民币直购 · 不耗算力",
+    priceNote: "预计上线价 · 不耗算力",
     payNote: "微信支付 · 一次购买永久回看 · 7 天内未观看可退 · 电子发票",
     perks: ["♾️ 永久回看", "👥 学员社群", "📄 电子发票"],
     rating: "4.8 ★★★★★ · 首批学员评分 · 购买后 7 天内未观看可退",

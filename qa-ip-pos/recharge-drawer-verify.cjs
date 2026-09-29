@@ -33,7 +33,7 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
 
   // ③ 完整页链接保留
   const full = await p.evaluate(() => document.querySelector(".eh-rd-fullpage")?.textContent || "");
-  log(full.includes("在完整页面打开"), "③ 保留 /recharge 完整页兜底入口", full);
+  log(!full.includes("在完整页面打开"), "③ 兜底入口已按用户要求移除");
 
   // ④ 左侧导航与顶栏仍在（保持不动）
   const chrome = await p.evaluate(() => ({

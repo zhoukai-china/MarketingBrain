@@ -2626,3 +2626,18 @@ model PlatformSetting {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+/// 商品/专区预约（F3-F7 未上线功能：用户留手机号预约，管理后台可查）
+model ProductBooking {
+  id          String    @id @default(cuid())
+  phone       String
+  productKey  String
+  productName String
+  source      String    @default("mall")
+  remark      String?
+  status      String    @default("pending")
+  createdAt   DateTime  @default(now())
+
+  @@unique([phone, productKey])
+  @@index([createdAt])
+}

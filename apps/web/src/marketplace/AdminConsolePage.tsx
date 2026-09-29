@@ -17,7 +17,7 @@ import "../styles/admin-console.css";
  *   其余一律只读展示，避免在后台里再造一套计费逻辑。
  */
 
-type SectionId = "overview" | "customers" | "recharges" | "orders" | "credits" | "shelf" | "referral" | "quality";
+type SectionId = "overview" | "customers" | "recharges" | "orders" | "credits" | "bookings" | "shelf" | "referral" | "quality";
 
 interface AdminSection {
   id: SectionId;
@@ -33,6 +33,7 @@ const SECTIONS: AdminSection[] = [
   { id: "recharges", label: "充值明细", hint: "用户充值时间与人民币金额明细", endpoints: ["GET /admin/recharges"] },
   { id: "orders", label: "订单与收款", hint: "计费审计、统一账本与用户充值明细", endpoints: ["GET /admin/billing/audit", "GET /market/admin/ledger", "GET /admin/recharges"] },
   { id: "credits", label: "算力管理", hint: "用户算力总览（充值/赠送分账）、使用明细、手动加算力", endpoints: ["GET /admin/credits/users", "GET /admin/credits/users/:id/ledger", "POST /admin/credits/users/:id/grant"] },
+  { id: "bookings", label: "商品预约", hint: "F3-F7 未上线功能预约留资：手机号 / 商品 / 时间", endpoints: ["GET /admin/bookings"] },
   { id: "shelf", label: "智能体与商品", hint: "SKU 上下架/改价、供应商、Agent 定义", endpoints: ["GET /market/admin/skus", "PATCH /market/admin/skus/:skuId", "GET /market/admin/suppliers", "GET /admin/agents"] },
   { id: "referral", label: "推荐归因", hint: "推荐有礼配置位、生成推荐码、归因清单", endpoints: ["GET /market/admin/referral-config", "POST /market/admin/referral-codes", "GET /market/admin/referrals"] },
   { id: "quality", label: "质量与安全", hint: "质量摘要与租户隔离审计", endpoints: ["GET /admin/quality/summary", "GET /admin/security/isolation-audit"] }
@@ -137,6 +138,7 @@ export function AdminConsolePage() {
           {section === "recharges" && <RechargeSection />}
           {section === "orders" && <OrdersSection />}
           {section === "credits" && <CreditsSection />}
+          {section === "bookings" && <BookingsSection />}
           {section === "shelf" && <ShelfSection />}
           {section === "referral" && <ReferralSection />}
           {section === "quality" && <QualitySection />}
@@ -980,6 +982,37 @@ function TrialGrantLegacySection() {
       </div>
       {result && <div className="adminConsoleNotice">{result}</div>}
       <DataView data={grants.data} columns={["grantId", "amount", "nickname", "phone", "operator", "createdAt"]} />
+    </Panel>
+  );
+}
+
+/** 商品预约留资（GET /admin/bookings）：F3-F7 未上线功能的预约清单。 */
+function BookingsSection() {
+  const [refresh, setRefresh] = useState(0);
+  const data = useAdminData<{ bookings: Array<Record<string, unknown>>; total: number }>("/admin/bookings?limit=200", refresh);
+  const rows = data.data?.bookings ?? [];
+  return (
+    <Panel title={`商品预约留资（共 ${data.data?.total ?? 0} 条）`} error={data.error} loading={data.loading} onReload={() => void data.reload()}>
+      <table className="adminTable">
+        <thead>
+          <tr><th>时间</th><th>手机号</th><th>预约对象</th><th>商品 Key</th><th>来源</th><th>状态</th></tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={String(row.id)}>
+              <td>{String(row.createdAt ?? "").replace("T", " ").slice(0, 16)}</td>
+              <td><b>{String(row.phone)}</b></td>
+              <td>{String(row.productName)}</td>
+              <td className="adminTableCaption">{String(row.productKey)}</td>
+              <td className="adminTableCaption">{String(row.source)}</td>
+              <td>{String(row.status) === "pending" ? "待上线通知" : String(row.status)}</td>
+            </tr>
+          ))}
+          {rows.length === 0 && (
+            <tr><td colSpan={6} className="adminTableCaption">暂无预约 · 商城 F3-F7 的「预约体验」会收集到这里</td></tr>
+          )}
+        </tbody>
+      </table>
     </Panel>
   );
 }

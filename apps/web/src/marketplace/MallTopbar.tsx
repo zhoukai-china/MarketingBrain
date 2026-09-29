@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { getAppPath } from "../lib/api.js";
 import { fetchMarketMe } from "./shell.js";
 import { IconGlyph } from "./IconGlyph.js";
+import { RechargeDrawer } from "./RechargeDrawer.js";
+import { fmtCredits } from "../lib/fmt.js";
 
 /**
  * 商城统一顶栏（样式基准：工作台 demo 顶栏）。
@@ -9,6 +11,7 @@ import { IconGlyph } from "./IconGlyph.js";
  * 右：⚡算力余额胶囊 + 充值按钮。余额自取（fetchMarketMe）。
  */
 export function MallTopbar({ back, badge, onRecharge }: { back?: string; badge?: string; onRecharge?: () => void }) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [balance, setBalance] = useState<number | null>(null);
 
   useEffect(() => {
@@ -24,7 +27,15 @@ export function MallTopbar({ back, badge, onRecharge }: { back?: string; badge?:
     return () => { cancelled = true; window.removeEventListener("sitong:balance-changed", load); };
   }, []);
 
+  // 页面内嵌的「充值算力」入口（详情页/工作台）统一通过该事件打开右侧抽屉，不再跳转 /recharge。
+  useEffect(() => {
+    const open = () => setDrawerOpen(true);
+    window.addEventListener("sitong:open-recharge", open);
+    return () => window.removeEventListener("sitong:open-recharge", open);
+  }, []);
+
   return (
+    <>
     <header className="eh-topbar">
       <div className="eh-topbar-in">
         {back ? (
@@ -34,10 +45,12 @@ export function MallTopbar({ back, badge, onRecharge }: { back?: string; badge?:
         {badge ? <span className="eh-page-badge">{badge}</span> : null}
         <span className="eh-sp" />
         <div className="eh-wallet">
-          <span className="eh-bal2"><i className="eh-bal2-bolt"><IconGlyph name="bolt" size={12} /></i>算力 <b>{balance ?? "—"}</b></span>
-          <button type="button" className="eh-mini" onClick={() => { if (onRecharge) onRecharge(); else window.location.href = getAppPath("/recharge"); }}>充值</button>
+          <span className="eh-bal2"><i className="eh-bal2-bolt"><IconGlyph name="bolt" size={12} /></i>算力 <b>{fmtCredits(balance)}</b></span>
+          <button type="button" className="eh-mini" onClick={() => { if (onRecharge) onRecharge(); else setDrawerOpen(true); }}>充值</button>
         </div>
       </div>
     </header>
+    {drawerOpen ? <RechargeDrawer open onClose={() => setDrawerOpen(false)} /> : null}
+    </>
   );
 }

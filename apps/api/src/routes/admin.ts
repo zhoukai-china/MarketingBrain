@@ -163,6 +163,19 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     offset: z.coerce.number().int().min(0).default(0)
   });
 
+  /** 商品/专区预约列表（F3-F7 未上线功能收集的留资）。 */
+  app.get("/admin/bookings", { preHandler: requireAdminToken }, async (request) => {
+    const query = request.query as { limit?: string; productKey?: string };
+    const limit = Math.min(Number(query.limit) || 100, 500);
+    const rows = await prisma.productBooking.findMany({
+      where: query.productKey ? { productKey: query.productKey } : undefined,
+      orderBy: { createdAt: "desc" },
+      take: limit
+    });
+    const total = await prisma.productBooking.count();
+    return { bookings: rows, total };
+  });
+
   app.get("/admin/credits/users", { preHandler: requireAdminToken }, async (request, reply) => {
     const parsed = creditUsersQuerySchema.safeParse(request.query ?? {});
     if (!parsed.success) return reply.code(400).send({ error: "invalid_request", message: "查询参数不合法。" });

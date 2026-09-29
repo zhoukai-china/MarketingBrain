@@ -1078,6 +1078,38 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
   await ensureMarketplaceCatalog();
 
   // 视频复盘预检（工单 2.4）：验证「文件真的到了后端、字段也解析到了」，不调模型、不消耗算力。
+  /**
+   * 商品/专区预约（F3-F7 未上线功能）：留手机号预约上线提醒。
+   * 幂等：同手机号 + 同商品只保留一条（重复提交返回已预约）。
+   */
+  app.post("/market/bookings", async (request, reply) => {
+    const body = (request.body ?? {}) as { phone?: string; productKey?: string; productName?: string; source?: string };
+    const phone = String(body.phone ?? "").replace(/\s+/g, "");
+    const productKey = String(body.productKey ?? "").trim();
+    const productName = String(body.productName ?? productKey).trim();
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
+      return reply.code(400).send({ ok: false, error: "请输入正确的手机号" });
+    }
+    if (!productKey) {
+      return reply.code(400).send({ ok: false, error: "缺少预约对象" });
+    }
+    const existed = await prisma.productBooking.findUnique({
+      where: { phone_productKey: { phone, productKey } }
+    });
+    if (existed) {
+      return reply.send({ ok: true, already: true, booking: existed });
+    }
+    const booking = await prisma.productBooking.create({
+      data: {
+        phone,
+        productKey,
+        productName,
+        source: String(body.source ?? "mall").slice(0, 32)
+      }
+    });
+    return reply.send({ ok: true, already: false, booking });
+  });
+
   app.post("/vidrev/parse-preview", async (request, reply) => {
     const parsed = vidrevParsePreviewSchema.safeParse(request.body ?? {});
     if (!parsed.success) {

@@ -1575,6 +1575,7 @@ body:has(.ipd-page), body:has(.ts-wb){overflow-x:hidden}
 .eh-buy-now{min-width:76px;height:30px;min-height:30px;max-height:30px;padding:0 10px;border-radius:8px;border:0;background:linear-gradient(135deg,#FF8C32,#F25300);color:#fff;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;box-shadow:0 2px 8px rgba(242,83,0,.25);cursor:pointer}
 .eh-buy-now:active{transform:scale(.96)}
 .eh-buy-now.dim{filter:grayscale(.45) opacity(.78);box-shadow:none}
+.eh-buy-now.book{flex:1;width:100%;min-width:0;font-size:12.5px}
 
 /* ---- F4–F6 商品卡（照原型 .prod / .pcard / .pcover / .pbody） ---- */
 .eh-prod{display:grid;grid-template-columns:1fr;gap:11px}
@@ -1882,3 +1883,71 @@ body:has(.ipd-page), body:has(.ts-wb){overflow-x:hidden}
 .eh-tab.act i{border-color:rgba(232,101,26,.4);color:#E8651A;background:#fff}
 .eh-tab-badge{background:#F25300}
 .eh-hero-ava{background:#FFF9F2;color:#C24A00;border:1px solid #E5DDD1;box-shadow:0 0 0 3px rgba(255,255,255,.35),0 4px 14px rgba(120,50,0,.25)}
+
+/* ============================================================
+   修复：案例用同款 / 抽屉确认充值按钮透明（btn-orange 类未定义）→ 实心橙渐变
+   ============================================================ */
+.eh-cd-use,.eh-rd-pay{
+  background:linear-gradient(135deg,#FF8A2A,#F25300) !important;
+  color:#fff !important;border:0 !important;
+  box-shadow:0 4px 14px rgba(242,83,0,.32) !important;
+}
+.eh-cd-use:hover,.eh-rd-pay:hover{background:linear-gradient(135deg,#FF9640,#F25300) !important}
+
+/* ============================================================
+   预约弹窗（F3-F7 未上线功能留资）
+   ============================================================ */
+.eh-bk-mask{position:fixed;inset:0;z-index:400;background:rgba(60,35,10,.45);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center}
+@media(min-width:700px){.eh-bk-mask{align-items:center}}
+.eh-bk-sheet{
+  position:relative;width:100%;max-width:420px;background:#FFFDF9;
+  border:1px solid #F0EBE3;border-radius:20px 20px 0 0;padding:20px 18px 22px;line-height:1.6;
+  animation:ehCdIn .22s cubic-bezier(.32,.72,.35,1);
+}
+@media(min-width:700px){.eh-bk-sheet{border-radius:18px}}
+.eh-bk-head{display:flex;align-items:center;gap:12px;padding-right:28px;margin-bottom:14px}
+.eh-bk-ico{width:46px;height:46px;flex:none;border-radius:13px;display:grid;place-items:center;background:#FFF9F2;border:1px solid #E5DDD1;color:#C24A00}
+.eh-bk-head b{font-size:15px;color:#2B1B10;display:block}
+.eh-bk-head span{font-size:11.5px;color:#94796B}
+.eh-bk-form{display:flex;gap:8px}
+.eh-bk-form input{flex:1;height:44px;border:1px solid #E5DDD1;border-radius:12px;padding:0 14px;font-size:15px;color:#2B1B10;outline:0;background:#fff;min-width:0}
+.eh-bk-form input:focus{border-color:rgba(255,122,26,.55)}
+.eh-bk-form button{height:44px;padding:0 18px;border-radius:12px;border:0;background:linear-gradient(135deg,#FF8A2A,#F25300);color:#fff;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(242,83,0,.28);white-space:nowrap}
+.eh-bk-form button:disabled{opacity:.55;cursor:not-allowed}
+.eh-bk-err{margin-top:8px;font-size:12.5px;color:#B4420F}
+.eh-bk-notes{margin-top:12px;display:flex;flex-direction:column;gap:3px}
+.eh-bk-notes span{font-size:11px;color:#BEA488}
+.eh-bk-done{text-align:center;padding:14px 6px 6px}
+.eh-bk-done-ico{width:58px;height:58px;margin:0 auto 12px;border-radius:50%;display:grid;place-items:center;background:#E9F9F1;border:1px solid rgba(18,160,106,.4);color:#0E9F6E}
+.eh-bk-done b{font-size:17px;color:#2B1B10;display:block}
+.eh-bk-done p{font-size:13px;color:#94796B;margin:8px 0 14px;line-height:1.7}
+.eh-bk-done p b{color:#E8651A}
+.eh-bk-btn{height:40px;padding:0 22px;border-radius:11px;border:0;background:linear-gradient(135deg,#FF8A2A,#F25300);color:#fff;font-size:13.5px;font-weight:800;cursor:pointer}
+@media (prefers-reduced-motion: reduce){.eh-bk-sheet{animation:none}}
+
+/* ============================================================
+   F4-F6 商品详情（未上线·预约）：原型三视图内容 + 未上线状态样式
+   ============================================================ */
+.ipd-pcover{width:100%;height:100%;object-fit:cover;display:block}
+.ipd-gview .pd-cover-badge{z-index:2}
+.ipd-page .ipd-gmain{aspect-ratio:4/3}
+.pd-gfeat{display:grid;gap:14px;width:100%;max-width:460px}
+.pd-gfeat .pf-row{display:flex;gap:11px;align-items:flex-start;text-align:left}
+.pd-gfeat .pf-ico{flex:none;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:rgba(244,121,32,.12);color:#C24A00;font-size:17px}
+.pd-gfeat .pf-row b{display:block;font-size:13.5px;color:#2B1B10;margin-bottom:2px}
+.pd-gfeat .pf-row span{font-size:12px;color:#94796B;line-height:1.65}
+.ipd-status.soon{background:rgba(244,121,32,.13);color:#C24A00;gap:5px;align-items:center}
+.ipd-status.soon .eh-ig{display:inline-flex}
+.ipd-detail{margin-top:16px}
+
+/* F4-F6 商品详情属「商城浅色区」：沿用 .ipd-* 原型结构，但把主题令牌切到商城暖浅色，
+   避免跟随应用默认深色主题变成深色卡片（与商城首页 / 原型商品页不一致）。 */
+.ipd-page.pd-lite{
+  --bg:#FFFDF9; --bg2:#FFFFFF; --bg3:#FFF6EC;
+  --glass:rgba(255,255,255,.78); --glass-2:rgba(255,255,255,.96);
+  --line:#F0EBE3; --line-strong:#E5DDD1;
+  --text:#2B1B10; --muted:#94796B; --muted-2:#BEA488;
+  --accent:#FF7A1A; --accent2:#FFB070; --accent-deep:#E8651A;
+  --ok:#0E9F6E; --danger:#DC3D43;
+  --shadow-sm:0 2px 10px rgba(160,90,20,.08);
+}

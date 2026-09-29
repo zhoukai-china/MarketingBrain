@@ -237,7 +237,7 @@ export function LivescriptDetailPage() {
 
           {/* 两处跳转（用户 2026-09-28 指定）：充值 → /recharge；立即使用 → 直播话术工作台 */}
           <div className="ipd-cta-row">
-            <button className="ipd-btn ghost" onClick={() => { window.location.href = getAppPath("/recharge"); }}><IconAuto v="⚡" /> 充值算力</button>
+            <button className="ipd-btn ghost" onClick={() => { window.dispatchEvent(new Event("sitong:open-recharge")); }}><IconAuto v="⚡" /> 充值算力</button>
             <button className="ipd-btn main" onClick={() => { window.location.href = getAppPath(WORKBENCH_PATH); }}>
               ⚡ 立即使用{skuPpu != null ? `（${skuPpu} 算力/场）` : ""}
             </button>
