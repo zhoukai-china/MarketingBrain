@@ -1212,9 +1212,56 @@ body.eco-mall-body .app-wrap {
   background: #fff; border-radius: 12px; padding: 8px;
 }
 .eco-invite-rows small { font-weight: 600; font-size: 10.5px; color: #7a6455; }
-.eco-dict { text-align: left; display: grid; gap: 8px; }
-.eco-dict p { font-size: 12.5px; color: #374151; line-height: 1.7; background: #f8f9fb; border-radius: 12px; padding: 9px 12px; margin: 0; }
-.eco-dict b { color: #b4420f; }
+/* ---- 新手帮助 · 术语词典（原型 v3.29：窄屏底部抽屉 / ≥700px 居中卡） ---- */
+.eco-sheet-mask { place-content: end center; padding: 0; }
+@media (min-width: 700px) { .eco-sheet-mask { place-content: center; padding: 20px; } }
+.eco-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  max-height: 86vh;
+  overflow-y: auto;
+  background: linear-gradient(170deg, #ffffff, #fff6ec);
+  border: 1px solid #f0e2d2;
+  border-bottom: 0;
+  border-radius: 22px 22px 0 0;
+  padding: 20px 18px 24px;
+  text-align: left;
+  color: #2b1b10;
+  box-shadow: 0 -12px 40px rgba(160, 90, 20, .18);
+  animation: eco-sheet-up .3s cubic-bezier(.32, .72, .35, 1);
+}
+@media (min-width: 700px) {
+  .eco-sheet {
+    border-bottom: 1px solid #f0e2d2;
+    border-radius: 22px;
+    box-shadow: 0 24px 64px rgba(9, 18, 36, .22);
+    animation: eco-pop .22s ease;
+  }
+}
+@keyframes eco-sheet-up { from { transform: translateY(48px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.eco-sheet-x {
+  position: absolute; top: 14px; right: 14px;
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 50%;
+  background: #fff0df; color: #94796b;
+  font-size: 14px; line-height: 1; font-family: inherit;
+  cursor: pointer; z-index: 2;
+}
+.eco-help-head { padding-right: 34px; font-size: 17px; font-weight: 800; color: #2b1b10; line-height: 1.35; }
+.eco-help-head small { display: block; margin-top: 4px; font-size: 11px; font-weight: 500; color: #94796b; }
+.eco-help-ic { display: inline; vertical-align: -2px; }
+.eco-help-head .eco-help-ic { vertical-align: -3px; }
+.eco-help-list { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 4px; }
+.eco-help-item {
+  display: flex; flex-direction: column; gap: 3px;
+  background: #fff9f1; border: 1px solid #f0e2d2; border-radius: 12px;
+  padding: 10px 12px; text-align: left;
+}
+.eco-help-item b { font-size: 13px; font-weight: 800; color: #b4420f; }
+.eco-help-item span { font-size: 12px; color: #6f5a4d; line-height: 1.55; }
+.eco-help-note { margin: 10px 0 2px; font-size: 10.5px; color: #a08b7d; line-height: 1.7; }
 
 /* ---- 人民币直购货架卡：加购按钮（F4 硬件 / F5 课程 / F6 OPC） ---- */
 .eco-p-cart {

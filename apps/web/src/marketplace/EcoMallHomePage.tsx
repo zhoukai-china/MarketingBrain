@@ -877,17 +877,25 @@ export function EcoMallHomePage() {
       ) : null}
 
       {showDict ? (
-        <div className="eco-modal-mask" onClick={() => setShowDict(false)}>
-          <div className="eco-modal" onClick={(e) => e.stopPropagation()}>
-            <button type="button" className="eco-modal-x" onClick={() => setShowDict(false)}>✕</button>
-            <h3><IconGlyph name="help" size={18} style={{ display: "inline", verticalAlign: "-3px" }} /> 新手帮助 · 术语词典</h3>
-            <p className="eco-modal-sub">看不懂的词这里都有</p>
-            <div className="eco-dict">
-              <p><b><IconGlyph name="bolt" size={13} style={{ display: "inline", verticalAlign: "-2px" }} /> 算力</b>商城里唯一的「钱」：1 元 = 10 算力。智能体按次扣算力，例：本单 99 算力 ≈ ¥9.9。</p>
-              <p><b>🪙 算力（旧称「积分」）</b>以前叫「积分」，现在统一叫「算力」，是同一样东西。</p>
-              <p><b>💬 访谈</b>智能体开工前先问你几个问题（一次只问一个），回答自动填进「简报」。</p>
-              <p><b>📋 简报</b>访谈答完自动生成的任务卡，字段可逐条改，确认后才生成，改简报不花钱。</p>
+        /* 新手帮助 · 术语词典（原型 v3.29：窄屏底部抽屉 / ≥700px 居中卡；图标统一走矢量 glyph） */
+        <div className="eco-modal-mask eco-sheet-mask" onClick={() => setShowDict(false)}>
+          <div className="eco-sheet" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="eco-sheet-x" onClick={() => setShowDict(false)}>✕</button>
+            <div className="eco-help-head">
+              <IconGlyph name="help" size={19} className="eco-help-ic" /> 新手帮助 · 术语词典
+              <small>看不懂的词这里都有 · 也可以随时点左上角 <IconGlyph name="robot" size={12} className="eco-help-ic" /> 问小潼</small>
             </div>
+            <div className="eco-help-list">
+              <div className="eco-help-item"><b><IconGlyph name="bolt" size={13} className="eco-help-ic" /> 算力</b><span>商城里唯一的「钱」：1 元 = 10 算力。智能体按次扣算力（例：沈定 IP 定位全案 99 算力/次 ≈ ¥9.9）；AI 硬件按台直购、不耗算力（例：AI 录音卡 ¥199/台）。</span></div>
+              <div className="eco-help-item"><b><IconGlyph name="gem" size={13} className="eco-help-ic" /> 积分（旧称）</b><span>以前叫「积分」（旧图标就是左边那个钻石），现在统一叫「算力」，是同一样东西，看到旧图写积分也别慌。</span></div>
+              <div className="eco-help-item"><b><IconGlyph name="chat" size={13} className="eco-help-ic" /> 访谈</b><span>智能体开工前先问你几个问题（一次只问一个），你的回答会自动填进「简报」——AI 照着做才不跑偏。</span></div>
+              <div className="eco-help-item"><b><IconGlyph name="clipboard" size={13} className="eco-help-ic" /> 简报</b><span>访谈答完自动生成的一页「任务卡」，字段可逐条改，你确认后才生成，改简报不花钱。</span></div>
+              <div className="eco-help-item"><b><IconGlyph name="tag" size={13} className="eco-help-ic" /> 0 元开通 · 用后扣费</b><span>智能体不收月费、不用不花钱；点了「立即使用」并成功交付后才扣算力。</span></div>
+              <div className="eco-help-item"><b><IconGlyph name="pack" size={13} className="eco-help-ic" /> 交付才扣</b><span>东西做好、你在交付区看到结果了才扣算力，中途退出不算你头上。</span></div>
+              <div className="eco-help-item"><b><IconGlyph name="shield" size={13} className="eco-help-ic" /> 失败不扣费</b><span>任务失败 / 超时不扣算力，余额原路不动。</span></div>
+              <div className="eco-help-item"><b><IconGlyph name="gift" size={13} className="eco-help-ic" /> 赠送算力</b><span>注册 / 签到 / 邀请送的算力 90 天有效、限自营文字类智能体；充值所得（含赠送）通用不限。</span></div>
+            </div>
+            <div className="eco-help-note">还有疑问？点左上角头像随时问小潼。</div>
           </div>
         </div>
       ) : null}
