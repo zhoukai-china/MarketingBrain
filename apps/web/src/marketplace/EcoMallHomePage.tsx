@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { apiPath, getAppPath, getPublicAssetPath } from "../lib/api.js";
 import { MallTopbar } from "./MallTopbar.js";
+import { IconGlyph } from "./IconGlyph.js";
 import { RechargeDrawer } from "./RechargeDrawer.js";
 import { fetchMarketMe, readJson } from "./shell.js";
 import { employeePersonaLabel } from "./employee-names.js";
@@ -21,14 +22,14 @@ import { ECO_CASES, ECO_CASE_CATS, type EcoCase, type EcoCaseNav } from "./eco-c
 type FloorId = "floor-acquire" | "floor-private" | "floor-consultants" | "floor-hardware" | "floor-courses" | "floor-opc" | "floor-industry" | "floor-cases";
 
 /** 金刚区七格（原型 v3.28，tint 照原型 data-tint）。 */
-const KINGKONG: Array<{ floor: FloorId; label: string; icon: string; tint: string }> = [
-  { floor: "floor-acquire", label: "内容获客", icon: "✍️", tint: "#FF7A1A" },
-  { floor: "floor-private", label: "私域营销", icon: "💬", tint: "#F2538A" },
-  { floor: "floor-consultants", label: "数字咨询师", icon: "🧭", tint: "#F5A623" },
-  { floor: "floor-hardware", label: "AI硬件", icon: "🔌", tint: "#0E9F6E" },
-  { floor: "floor-courses", label: "AI课程", icon: "🎓", tint: "#FF5C4D" },
-  { floor: "floor-opc", label: "OPC专区", icon: "🏭", tint: "#D96A00" },
-  { floor: "floor-industry", label: "行业工作台", icon: "🏪", tint: "#E8A33D" }
+const KINGKONG: Array<{ floor: FloorId; label: string; icon: string; tint: string; glyph: string; deep: string }> = [
+  { floor: "floor-acquire", label: "内容获客", icon: "✍️", tint: "#FF7A1A", glyph: "pen", deep: "#C24A00" },
+  { floor: "floor-private", label: "私域营销", icon: "💬", tint: "#F2538A", glyph: "chat", deep: "#B01E56" },
+  { floor: "floor-consultants", label: "数字咨询师", icon: "🧭", tint: "#F5A623", glyph: "compass", deep: "#9C6410" },
+  { floor: "floor-hardware", label: "AI硬件", icon: "🔌", tint: "#0E9F6E", glyph: "chip", deep: "#066B49" },
+  { floor: "floor-courses", label: "AI课程", icon: "🎓", tint: "#FF5C4D", glyph: "cap", deep: "#5F2B9C" },
+  { floor: "floor-opc", label: "OPC专区", icon: "🏭", tint: "#D96A00", glyph: "factory", deep: "#8F4200" },
+  { floor: "floor-industry", label: "行业工作台", icon: "🏪", tint: "#E8A33D", glyph: "store", deep: "#8E1249" }
 ];
 
 /** 交付单位（照原型 emp-price：定位=份 / 直播=场 / 文案·诊断·选题=次 / 私域=条）。 */
@@ -147,7 +148,7 @@ function EmployeeProduct({
         <span className="eco-p-desc">{hook}</span>
         {deliver ? <span className="eco-p-tag">{deliver}</span> : null}
         <span className="eco-p-price">
-          ⚡ {ppu ?? "—"} 算力/{unit} <i>≈ ¥{cny} · 0元开通 · 用后扣费</i>
+          <IconGlyph name="bolt" size={12} style={{ display: "inline", verticalAlign: "-1px" }} /> {ppu ?? "—"} 算力/{unit} <i>≈ ¥{cny} · 0元开通 · 用后扣费</i>
         </span>
       </div>
     </article>
@@ -439,6 +440,8 @@ export function EcoMallHomePage() {
   function renderProductCard(opt: {
     icon: string;
     img?: string;
+    glyph?: string;
+    tint?: string;
     detail?: string;
     name: string;
     tag: string;
@@ -455,7 +458,14 @@ export function EcoMallHomePage() {
         onClick={() => { if (opt.detail) window.location.href = getAppPath(opt.detail); }}
       >
         <div className="eh-pcover">
-          {opt.img ? <img className="eh-cimg" src={opt.img} alt={opt.name} /> : <span className="eh-pcover-ico">{opt.icon}</span>}
+          {opt.img ? <img className="eh-cimg" src={opt.img} alt={opt.name} /> : null}
+          {opt.glyph ? (
+            <span className="eh-cover-glyph" style={{ color: opt.tint }}>
+              <IconGlyph name={opt.glyph} size={64} />
+            </span>
+          ) : (
+            <span className="eh-pcover-ico">{opt.icon}</span>
+          )}
           <span className="eh-scanline" />
         </div>
         <div className="eh-pbody">
@@ -467,11 +477,11 @@ export function EcoMallHomePage() {
               {opt.cny ? <i className="eh-u-cny">≈ {opt.cny}</i> : null}
             </span>
             <span className="eh-buy-row">
-              <button type="button" className="eh-cart-mini" onClick={(e) => { e.stopPropagation(); addToCart(opt.name); }}>🛒 加购</button>
+              <button type="button" className="eh-cart-mini" onClick={(e) => { e.stopPropagation(); addToCart(opt.name); }}><IconGlyph name="cart" size={14} style={{ display: "inline", verticalAlign: "-2px" }} /> 加购</button>
               {opt.buyNow ? <button type="button" className="eh-buy-now" onClick={(e) => { e.stopPropagation(); addToCart(opt.name); }}>立即购买</button> : null}
             </span>
           </div>
-          {opt.demo ? <div className="eh-pdemo">🧪 演示商品 · 购买不入算力余额</div> : null}
+          {opt.demo ? <div className="eh-pdemo">演示商品 · 购买不入算力余额</div> : null}
         </div>
       </article>
     );
@@ -487,7 +497,7 @@ export function EcoMallHomePage() {
           className="eh-brand-hero"
           onClick={() => { window.location.href = getAppPath("/lanqi"); }}
         >
-          <span className="eh-bh-name">💄 美业门店AI经营大脑 demo <span className="eh-bh-live">● 可体验</span></span>
+          <span className="eh-bh-name"><IconGlyph name="sparkle" size={16} style={{ display: "inline", verticalAlign: "-3px" }} /> 美业门店AI经营大脑 demo <span className="eh-bh-live">● 可体验</span></span>
           <span className="eh-bh-desc">朋友圈 / 社群内容、经营驾驶舱、门店诊断、内容工作室、AI 绘图、公域获客——美业门店（美容 / 美甲 / 轻医美）正在用的完整 AI 工作台，进去就能点。</span>
           <span className="eh-bh-go">进入 demo ›</span>
         </button>
@@ -506,7 +516,7 @@ export function EcoMallHomePage() {
       {view === "cases" ? (
         <section className="eh-cases-view">
           <div className="eh-cv-head">
-            <div className="eh-cv-title"><b>📚 AI 案例</b><span>看别人怎么用 AI 降本增效</span></div>
+            <div className="eh-cv-title"><b><IconGlyph name="book" size={18} style={{ display: "inline", verticalAlign: "-3px" }} /> AI 案例</b><span>看别人怎么用 AI 降本增效</span></div>
             <div className="eh-cv-slogan">每个案例写清<b>卡点、做法、投入、结果</b>，看中直接<b>用同款</b> · 演示数据虚构</div>
             <div className="eh-cv-chips">
               {ECO_CASE_CATS.map((cat) => (
@@ -518,7 +528,8 @@ export function EcoMallHomePage() {
             {ECO_CASES.filter((c) => caseCat === "all" || c.cat === caseCat).map((c) => (
               <article key={c.title} className="eh-case-card" onClick={() => setOpenCase(c)}>
                 <div className="eh-case-cover">
-                  <img src={getPublicAssetPath(c.cover)} alt={c.title} />
+                  <img className="eh-cimg" src={getPublicAssetPath(c.cover)} alt={c.title} />
+                  <span className="eh-cover-glyph eh-cover-glyph-lg" style={{ color: c.tint }}><IconGlyph name={c.glyph} size={56} /></span>
                   <span className="eh-case-tag">{c.tag}</span>
                   <span className="eh-case-gain"><b>{c.gain}</b><span>{c.gainSub}</span></span>
                 </div>
@@ -532,7 +543,7 @@ export function EcoMallHomePage() {
                   </div>
                   <div className="eh-case-inspire">💡 <b>给你的启发：</b>{c.inspire}</div>
                   <div className="eh-case-cta">
-                    <button type="button" className="eh-case-use" onClick={(e) => { e.stopPropagation(); goCaseNav(c.nav); }}>⚡ 用同款 · {c.refName}</button>
+                    <button type="button" className="eh-case-use" onClick={(e) => { e.stopPropagation(); goCaseNav(c.nav); }}><IconGlyph name="bolt" size={13} style={{ display: "inline", verticalAlign: "-2px" }} /> 用同款 · {c.refName}</button>
                     <button type="button" className="eh-case-more" onClick={(e) => { e.stopPropagation(); setOpenCase(c); }}>看完整做法 ›</button>
                   </div>
                 </div>
@@ -548,7 +559,7 @@ export function EcoMallHomePage() {
         {/* Hero AI 指挥横幅（原型 v3.28：橙色渐变 + 波形 + 打字机 + 流光边） */}
         <section className="eh-hero">
           <div className="eh-hero-row">
-            <button type="button" className="eh-hero-ava" title="点我和 AI 管家小潼聊聊" onClick={() => setShowDict(true)}>🤖</button>
+            <button type="button" className="eh-hero-ava" title="点我和 AI 管家小潼聊聊" onClick={() => setShowDict(true)}><IconGlyph name="robot" size={26} /></button>
             <div className="eh-hero-main">
               <div className="eh-hero-tag">
                 <span className="eh-wave"><i></i><i></i><i></i><i></i><i></i></span>
@@ -560,10 +571,10 @@ export function EcoMallHomePage() {
             </div>
           </div>
           <div className="eh-hero-cta">
-            <button type="button" className="eh-big" onClick={() => setShowInvite(true)}>🧧 免费开通 · 立送 100 算力</button>
-            <button type="button" className="eh-ghost" onClick={() => setShowDict(true)}>❓ 新手帮助</button>
+            <button type="button" className="eh-big" onClick={() => setShowInvite(true)}><IconGlyph name="gift" size={16} style={{ display: "inline", verticalAlign: "-3px" }} /> 免费开通 · 立送 100 算力</button>
+            <button type="button" className="eh-ghost" onClick={() => setShowDict(true)}><IconGlyph name="help" size={15} style={{ display: "inline", verticalAlign: "-2px" }} /> 新手帮助</button>
           </div>
-          <div className="eh-hero-note">⚡ 计费口径：1 元 = 10 算力 · 0 元开通 · 用后扣费 · 失败不扣</div>
+          <div className="eh-hero-note"><IconGlyph name="bolt" size={11} style={{ display: "inline", verticalAlign: "-1px" }} /> 计费口径：1 元 = 10 算力 · 0 元开通 · 用后扣费 · 失败不扣</div>
         </section>
 
         <div className="eco-searchbar">
@@ -625,7 +636,7 @@ export function EcoMallHomePage() {
             <div className="eh-ad">
               <button type="button" className="eco-banner eco-invite-banner" onClick={() => setShowInvite(true)}>
                 <div className="eco-banner-text">
-                  <b>🎁 邀请有礼</b>
+                  <b><IconGlyph name="gift" size={16} style={{ display: "inline", verticalAlign: "-3px" }} /> 邀请有礼</b>
                   <span>好友开通 · 各得 100 算力</span>
                 </div>
                 <span className="eco-banner-link">立即邀请 ›</span>
@@ -641,7 +652,7 @@ export function EcoMallHomePage() {
                   style={{ "--kk-tint": item.tint } as CSSProperties}
                   onClick={() => scrollToFloor(item.floor)}
                 >
-                  <span className="eco-kk-ico">{item.icon}</span>
+                  <span className="eco-kk-ico" style={{ "--kk-deep": item.deep } as CSSProperties}><IconGlyph name={item.glyph} /></span>
                   <span className="eco-kk-label">{item.label}</span>
                 </button>
               ))}
@@ -690,7 +701,7 @@ export function EcoMallHomePage() {
                     <span className="eh-cons-meta">我是保禄的数字分身，他的 AI 增长和连锁经营方法论都装进来了。你有具体问题，我按保禄的思路接着答。</span>
                     <span className="eh-cons-soon">🔐 真人授权训练中 · 即将上线</span>
                     <span className="eh-buy-row">
-                      <button type="button" className="eh-cart-mini" onClick={() => addToCart("保禄数字分身")}>🛒</button>
+                      <button type="button" className="eh-cart-mini" onClick={() => addToCart("保禄数字分身")}><IconGlyph name="cart" size={14} /></button>
                       <button type="button" className="eh-buy-now dim" onClick={() => addToCart("保禄数字分身")}>立即购买</button>
                     </span>
                   </span>
@@ -701,24 +712,24 @@ export function EcoMallHomePage() {
             <section className="eco-floor" id="floor-hardware">
               <FloorHead no="F4" title="AI 硬件专区" sub="让 AI 落到店里的硬件货架" />
               <div className="eh-prod">
-                {renderProductCard({ icon: "🎙️", img: getPublicAssetPath("/mall/hwRec.jpg"), detail: "/product/hwRec/detail", name: "AI 录音卡", tag: "硬件新品", desc: "录音即分析，自动转经营动作：客户沟通自动归档、话术要点自动提炼。", price: "¥199 /台 · 人民币直购" })}
-                {renderProductCard({ icon: "🤖", img: getPublicAssetPath("/mall/hwRobot.jpg"), detail: "/product/hwRobot/detail", name: "门店 AI 机器人", tag: "硬件新品", desc: "迎宾接待、导购问答，常用话术语音随叫随到，前台接待不冷场。", price: "¥1,999 /台 · 人民币直购" })}
+                {renderProductCard({ glyph: "mic", tint: "#FF7A1A", icon: "🎙️", img: getPublicAssetPath("/mall/hwRec.jpg"), detail: "/product/hwRec/detail", name: "AI 录音卡", tag: "硬件新品", desc: "录音即分析，自动转经营动作：客户沟通自动归档、话术要点自动提炼。", price: "¥199 /台 · 人民币直购" })}
+                {renderProductCard({ glyph: "robot", tint: "#0E9F6E", icon: "robot", img: getPublicAssetPath("/mall/hwRobot.jpg"), detail: "/product/hwRobot/detail", name: "门店 AI 机器人", tag: "硬件新品", desc: "迎宾接待、导购问答，常用话术语音随叫随到，前台接待不冷场。", price: "¥1,999 /台 · 人民币直购" })}
               </div>
             </section>
 
             <section className="eco-floor" id="floor-courses">
               <FloorHead no="F5" title="AI 课程专区" sub="从 0 到 1 学会用 AI 干活" />
               <div className="eh-prod">
-                {renderProductCard({ icon: "🎓", img: getPublicAssetPath("/mall/courseAgent.jpg"), detail: "/product/courseAgent/detail", name: "智能体开发课", tag: "视频课", desc: "从 0 到 1 学会搭建自己的智能体工作流。", price: "¥199 /门 · 人民币直购" })}
-                {renderProductCard({ icon: "📊", img: getPublicAssetPath("/mall/courseWb.jpg"), detail: "/product/courseWb/detail", name: "WorkBuddy 办公提效课", tag: "实操课", desc: "用 AI 把日报、周报、方案、表格这些日常活干得更快，即学即用。", price: "¥99 /门 · 人民币直购" })}
+                {renderProductCard({ glyph: "sparkcap", tint: "#9752DC", icon: "🎓", img: getPublicAssetPath("/mall/courseAgent.jpg"), detail: "/product/courseAgent/detail", name: "智能体开发课", tag: "视频课", desc: "从 0 到 1 学会搭建自己的智能体工作流。", price: "¥199 /门 · 人民币直购" })}
+                {renderProductCard({ glyph: "chart", tint: "#2E7CF6", icon: "📊", img: getPublicAssetPath("/mall/courseWb.jpg"), detail: "/product/courseWb/detail", name: "WorkBuddy 办公提效课", tag: "实操课", desc: "用 AI 把日报、周报、方案、表格这些日常活干得更快，即学即用。", price: "¥99 /门 · 人民币直购" })}
               </div>
             </section>
 
             <section className="eco-floor" id="floor-opc">
               <FloorHead no="F6" title="OPC 专区" sub="AI 算力与创作资源，商家价直供" />
               <div className="eh-prod">
-                {renderProductCard({ icon: "🏭", img: getPublicAssetPath("/mall/opcLlm.jpg"), detail: "/product/opcLlm/detail", name: "大模型折扣仓", tag: "OPC", desc: "主流大模型 API 额度折扣直充，token 按仓价拿，AI 用量大的商家先省一半。", price: "50 算力/份 起", cny: "¥5", buyNow: true, demo: true })}
-                {renderProductCard({ icon: "🎬", img: getPublicAssetPath("/mall/opcComic.jpg"), detail: "/product/opcComic/detail", name: "AIGC 漫剧创作工作台", tag: "OPC", desc: "分镜、角色、成片一条龙，批量产出漫剧短视频，带货与账号起号都能用。", price: "199 算力/席", cny: "¥19.9", buyNow: true, demo: true })}
+                {renderProductCard({ glyph: "pack", tint: "#D96A00", icon: "🏭", img: getPublicAssetPath("/mall/opcLlm.jpg"), detail: "/product/opcLlm/detail", name: "大模型折扣仓", tag: "OPC", desc: "主流大模型 API 额度折扣直充，token 按仓价拿，AI 用量大的商家先省一半。", price: "50 算力/份 起", cny: "¥5", buyNow: true, demo: true })}
+                {renderProductCard({ glyph: "clapper", tint: "#DB2777", icon: "🎬", img: getPublicAssetPath("/mall/opcComic.jpg"), detail: "/product/opcComic/detail", name: "AIGC 漫剧创作工作台", tag: "OPC", desc: "分镜、角色、成片一条龙，批量产出漫剧短视频，带货与账号起号都能用。", price: "199 算力/席", cny: "¥19.9", buyNow: true, demo: true })}
               </div>
             </section>
 
@@ -735,22 +746,22 @@ export function EcoMallHomePage() {
           <span className="eh-logo"><b>思潼</b><em>AI</em>商城</span>
         </div>
         <button type="button" className={`eh-tab ${view === "home" ? "act" : ""}`} onClick={() => { setView("home"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
-          <i>🏠</i><span>首页</span>
+          <i><IconGlyph name="home" size={19} /></i><span>首页</span>
         </button>
         <button type="button" className={`eh-tab ${view === "cases" ? "act" : ""}`} onClick={() => setView("cases")}>
-          <i>📚</i><span>AI案例</span>
+          <i><IconGlyph name="book" size={19} /></i><span>AI案例</span>
         </button>
         <button type="button" className="eh-tab" title="购物车（即将上线）">
-          <i>🛒{cartCount > 0 ? <b className="eh-tab-badge">{cartCount}</b> : null}</i><span>购物车</span>
+          <i><IconGlyph name="cart" size={19} />{cartCount > 0 ? <b className="eh-tab-badge">{cartCount}</b> : null}</i><span>购物车</span>
         </button>
         <button type="button" className="eh-tab" onClick={() => { window.location.href = getAppPath("/mine"); }}>
-          <i>👤</i><span>我的</span>
+          <i><IconGlyph name="user" size={19} /></i><span>我的</span>
         </button>
         <button type="button" className="eh-tab eh-tab-bal" onClick={() => setShowRecharge(true)}>
-          <i>⚡</i><span>我的算力</span>
+          <i><IconGlyph name="bolt" size={19} /></i><span>我的算力</span>
         </button>
         <div className="eh-nav-bal">
-          <span className="t">⚡ 我的算力</span>
+          <span className="t"><IconGlyph name="bolt" size={12} style={{ display: "inline", verticalAlign: "-2px" }} /> 我的算力</span>
           <span className="v">{balance ?? "—"}</span>
           <i>{balance != null ? `≈ ¥${(balance / 10).toFixed(balance % 10 === 0 ? 0 : 1)}` : ""}</i>
           <button type="button" className="eh-mini" onClick={() => setShowRecharge(true)}>充值</button>
@@ -798,7 +809,7 @@ export function EcoMallHomePage() {
             </div>
             <div className="eh-cd-sec"><h4>💡 给你的启发</h4><p>{openCase.inspire}</p></div>
             <button type="button" className="btn-orange eh-cd-use" onClick={() => { const nav = openCase.nav; setOpenCase(null); goCaseNav(nav); }}>
-              ⚡ 用同款 · {openCase.refName}先逛逛
+              <IconGlyph name="bolt" size={14} style={{ display: "inline", verticalAlign: "-2px" }} /> 用同款 · {openCase.refName}先逛逛
             </button>
           </div>
         </div>
@@ -822,7 +833,7 @@ export function EcoMallHomePage() {
         <div className="eco-modal-mask" onClick={() => setShowInvite(false)}>
           <div className="eco-modal eco-invite" onClick={(e) => e.stopPropagation()}>
             <button type="button" className="eco-modal-x" onClick={() => setShowInvite(false)}>✕</button>
-            <h3>🎁 邀请有礼</h3>
+            <h3><IconGlyph name="gift" size={18} style={{ display: "inline", verticalAlign: "-3px" }} /> 邀请有礼</h3>
             <p className="eco-modal-sub">分享海报给好友 · 各得 100 算力 · 人数不限</p>
             <div className="eco-invite-poster">
               <b>思潼AI商城 · 智能体 0 元开通</b>
@@ -848,10 +859,10 @@ export function EcoMallHomePage() {
         <div className="eco-modal-mask" onClick={() => setShowDict(false)}>
           <div className="eco-modal" onClick={(e) => e.stopPropagation()}>
             <button type="button" className="eco-modal-x" onClick={() => setShowDict(false)}>✕</button>
-            <h3>❓ 新手帮助 · 术语词典</h3>
+            <h3><IconGlyph name="help" size={18} style={{ display: "inline", verticalAlign: "-3px" }} /> 新手帮助 · 术语词典</h3>
             <p className="eco-modal-sub">看不懂的词这里都有</p>
             <div className="eco-dict">
-              <p><b>⚡ 算力</b>商城里唯一的「钱」：1 元 = 10 算力。智能体按次扣算力，例：本单 99 算力 ≈ ¥9.9。</p>
+              <p><b><IconGlyph name="bolt" size={13} style={{ display: "inline", verticalAlign: "-2px" }} /> 算力</b>商城里唯一的「钱」：1 元 = 10 算力。智能体按次扣算力，例：本单 99 算力 ≈ ¥9.9。</p>
               <p><b>🪙 算力（旧称「积分」）</b>以前叫「积分」，现在统一叫「算力」，是同一样东西。</p>
               <p><b>💬 访谈</b>智能体开工前先问你几个问题（一次只问一个），回答自动填进「简报」。</p>
               <p><b>📋 简报</b>访谈答完自动生成的任务卡，字段可逐条改，确认后才生成，改简报不花钱。</p>

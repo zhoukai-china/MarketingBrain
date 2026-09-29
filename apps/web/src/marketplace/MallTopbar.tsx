@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getAppPath } from "../lib/api.js";
 import { fetchMarketMe } from "./shell.js";
+import { IconGlyph } from "./IconGlyph.js";
 
 /**
  * 商城统一顶栏（样式基准：工作台 demo 顶栏）。
@@ -33,7 +34,7 @@ export function MallTopbar({ back, badge, onRecharge }: { back?: string; badge?:
         {badge ? <span className="eh-page-badge">{badge}</span> : null}
         <span className="eh-sp" />
         <div className="eh-wallet">
-          <span className="eh-bal2">算力 <b>{balance ?? "—"}</b></span>
+          <span className="eh-bal2"><i className="eh-bal2-bolt"><IconGlyph name="bolt" size={12} /></i>算力 <b>{balance ?? "—"}</b></span>
           <button type="button" className="eh-mini" onClick={() => { if (onRecharge) onRecharge(); else window.location.href = getAppPath("/recharge"); }}>充值</button>
         </div>
       </div>

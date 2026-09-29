@@ -22,6 +22,8 @@ export type EcoCase = {
   inspire: string;
   refName: string;
   cover: string;
+  glyph: string;
+  tint: string;
   nav: EcoCaseNav;
 };
 
@@ -58,6 +60,8 @@ export const ECO_CASES: EcoCase[] = [
     "inspire": "个人 IP 不是发得多，是让人记住「你专门解决什么」。",
     "refName": "沈定",
     "cover": "/mall/case0.jpg",
+  "glyph": "badge",
+  "tint": "#FF7A1A",
     "nav": {
       "kind": "agent",
       "path": "/agent/ipzone__ip-pos/detail"
@@ -93,6 +97,8 @@ export const ECO_CASES: EcoCase[] = [
     "inspire": "文案不用憋——把卖点给 AI，让它用顾客的话写出来，你只挑钩子。",
     "refName": "秦文",
     "cover": "/mall/case1.jpg",
+  "glyph": "paw",
+  "tint": "#FF7A1A",
     "nav": {
       "kind": "agent",
       "path": "/agent/ipzone__copy/detail"
@@ -128,6 +134,8 @@ export const ECO_CASES: EcoCase[] = [
     "inspire": "别整条重做——每条只改复盘指出的一个问题，30 条后爆款率翻 3 倍。",
     "refName": "江流",
     "cover": "/mall/case2.jpg",
+  "glyph": "playback",
+  "tint": "#FF7A1A",
     "nav": {
       "kind": "agent",
       "path": "/agent/ipzone__vidrev/detail"
@@ -163,6 +171,8 @@ export const ECO_CASES: EcoCase[] = [
     "inspire": "直播别再「跟着感觉播」——逐字稿把节奏钉死，新人也能照稿接客。",
     "refName": "罗盘",
     "cover": "/mall/case3.jpg",
+  "glyph": "liveset",
+  "tint": "#FF7A1A",
     "nav": {
       "kind": "agent",
       "path": "/agent/ipzone__livescript/detail"
@@ -198,6 +208,8 @@ export const ECO_CASES: EcoCase[] = [
     "inspire": "管连锁先管「现场」——录音卡把每家店的现场搬回总部，省下的差旅就够回本。",
     "refName": "AI 录音卡",
     "cover": "/mall/case4.jpg",
+  "glyph": "mic",
+  "tint": "#0E9F6E",
     "nav": {
       "kind": "product",
       "path": "/product/hwRec/detail"
@@ -233,6 +245,8 @@ export const ECO_CASES: EcoCase[] = [
     "inspire": "最懂流程的是你自己——学会搭智能体，每个重复劳动都能变你的 AI 员工。",
     "refName": "智能体开发课",
     "cover": "/mall/case5.jpg",
+  "glyph": "calc",
+  "tint": "#9752DC",
     "nav": {
       "kind": "product",
       "path": "/product/courseAgent/detail"
@@ -268,6 +282,8 @@ export const ECO_CASES: EcoCase[] = [
     "inspire": "门店的资产不是流量，是「记得住每个顾客」——记忆底座一建，转化和客单一起涨。",
     "refName": "美业门店AI经营大脑",
     "cover": "/mall/case6.jpg",
+  "glyph": "sparkle",
+  "tint": "#DB2777",
     "nav": {
       "kind": "floor",
       "path": "#floor-industry"
@@ -303,6 +319,8 @@ export const ECO_CASES: EcoCase[] = [
     "inspire": "用量大的活儿先算 token 成本——同样的模型走仓价，省下来的都是利润。",
     "refName": "大模型折扣仓",
     "cover": "/mall/case7.jpg",
+  "glyph": "clapper",
+  "tint": "#D96A00",
     "nav": {
       "kind": "product",
       "path": "#floor-opc"
@@ -338,6 +356,8 @@ export const ECO_CASES: EcoCase[] = [
     "inspire": "朋友圈别只发广告——信任、价值、软引导按节奏排，老客自己会回来。",
     "refName": "周域",
     "cover": "/mall/case8.jpg",
+  "glyph": "cake",
+  "tint": "#F2538A",
     "nav": {
       "kind": "agent",
       "path": "/agent/ipzone__moments/detail"
@@ -373,6 +393,8 @@ export const ECO_CASES: EcoCase[] = [
     "inspire": "成交能力是练出来的——让 AI 扮演难缠顾客，上岗前先过 100 轮对练。",
     "refName": "易成",
     "cover": "/mall/case9.jpg",
+  "glyph": "dumbbell",
+  "tint": "#F2538A",
     "nav": {
       "kind": "agent",
       "path": "/agent/ipzone__sales/detail"
@@ -408,6 +430,8 @@ export const ECO_CASES: EcoCase[] = [
     "inspire": "重复答了一年的问题就该交给机器人——前台腾出来的人去干转化。",
     "refName": "门店 AI 机器人",
     "cover": "/mall/case10.jpg",
+  "glyph": "cupbot",
+  "tint": "#0E9F6E",
     "nav": {
       "kind": "product",
       "path": "/product/hwRobot/detail"
@@ -443,6 +467,8 @@ export const ECO_CASES: EcoCase[] = [
     "inspire": "别再凭感觉拍——把「客户真在问什么」变成选题清单，起号快一倍。",
     "refName": "何策",
     "cover": "/mall/case11.jpg",
+  "glyph": "bulb",
+  "tint": "#FF7A1A",
     "nav": {
       "kind": "agent",
       "path": "/agent/ipzone__topic/detail"

@@ -1851,3 +1851,32 @@ body:has(.ipd-page), body:has(.ts-wb){overflow-x:hidden}
 .eh-cd-metric em{font-style:normal;font-size:11px;color:#94796B;margin-left:6px}
 .eh-cd-use{width:100%;margin-top:14px;height:44px;border-radius:12px;font-size:14px;font-weight:800}
 @media (prefers-reduced-motion: reduce){.eh-cd-sheet{animation:none}}
+
+/* 图标双轨基底：默认显示照片/emoji，[风格B] 块启用时反转为暖白浮雕 glyph */
+.eh-cover-glyph{display:none}
+
+/* ============================================================
+   [风格B-begin] 暖白浮雕图案（2026-09-29 用户拍板先看效果）
+   应用：金刚区 7 格 + 商城散落的 UI 小图标（F4-F6/AI案例封面已回退照片）
+   回退：删除本 begin/end 块即完整还原（照片/emoji 自动回归）
+   ============================================================ */
+/* ---- 金刚区：暖白瓷底 + 各自深色线性图标（去渐变/呼吸） ---- */
+.eh .eco-kk-ico{
+  background:#FFF9F2;
+  border:1px solid #E5DDD1;
+  box-shadow:0 3px 10px rgba(160,90,20,.08),inset 0 1px 0 #fff;
+  color:var(--kk-deep,#C24A00);
+  animation:none;
+}
+.eh .eco-kk-item:hover .eco-kk-ico{border-color:var(--kk-tint,#FF7A1A)}
+/* [风格B-end] */
+
+/* ---- 散落 UI 小图标：TabBar / Hero / 横幅（B 风格统一） ---- */
+.eh-bal2-bolt{display:none}
+.eco-mall-page .eh-bal2{position:relative}
+.eco-mall-page .eh-bal2::before{display:none}
+.eco-mall-page .eh-bal2-bolt{display:inline-grid;place-items:center;margin-right:2px;color:#E8651A}
+.eh-tab i{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:#FFF9F2;border:1px solid #E5DDD1;color:#B08968;transition:all .2s}
+.eh-tab.act i{border-color:rgba(232,101,26,.4);color:#E8651A;background:#fff}
+.eh-tab-badge{background:#F25300}
+.eh-hero-ava{background:#FFF9F2;color:#C24A00;border:1px solid #E5DDD1;box-shadow:0 0 0 3px rgba(255,255,255,.35),0 4px 14px rgba(120,50,0,.25)}

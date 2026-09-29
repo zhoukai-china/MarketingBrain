@@ -62,13 +62,13 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
 
   // 金刚区瓷贴
   const kk = await page.evaluate(() => {
-    const ico = document.querySelector(".eco-kk-ico");
+    const ico = document.querySelector(".eh .eco-kk-ico");
     if (!ico) return null;
     const cs = getComputedStyle(ico);
-    return { bg: cs.backgroundImage, w: cs.width, items: document.querySelectorAll(".eco-kk-item").length };
+    return { bg: cs.backgroundColor, w: cs.width, items: document.querySelectorAll(".eco-kk-item").length };
   });
   log(kk && kk.items === 7, "金刚区 7 格", String(kk && kk.items));
-  log(kk && kk.bg.includes("linear-gradient") && (kk.bg.includes("color-mix") || kk.bg.includes("255")), "瓷贴彩色渐变", kk ? kk.bg.slice(0, 50) : "N/A");
+  log(kk && kk.bg === "rgb(255, 249, 242)", "瓷贴暖白浮雕（风格B）", kk ? kk.bg : "N/A");
   log(text.includes("内容获客") && text.includes("私域营销") && text.includes("OPC专区") && text.includes("行业工作台"), "金刚区标签");
 
   // 邀约横幅
@@ -102,7 +102,7 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
     return { w: Math.round(r.width), h: Math.round(r.height), text: c.innerText.replace(/\n/g, " | ") };
   });
   log(cardGeo.w === 276 && cardGeo.h === 278, "员工卡尺寸与原型一致 276×278", `${cardGeo.w}×${cardGeo.h}`);
-  log(/⚡ \d+ 算力\/(份|次|场|条)/.test(cardGeo.text) && cardGeo.text.includes("≈ ¥") && cardGeo.text.includes("0元开通 · 用后扣费"), "价目行口径（算力/单位 + ≈¥ + 0元开通）", cardGeo.text.slice(-40));
+  log(/\d+ 算力\/(份|次|场|条)/.test(cardGeo.text) && cardGeo.text.includes("≈ ¥") && cardGeo.text.includes("0元开通 · 用后扣费"), "价目行口径（算力/单位 + ≈¥ + 0元开通）", cardGeo.text.slice(-40));
   log(cardGeo.text.includes("· AI 智能体"), "职务行口径（原型逐字）");
   const avaGeo = await page.evaluate(() => {
     const a = document.querySelector(".eh .eco-p-img > .eco-ava");
