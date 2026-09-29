@@ -861,7 +861,7 @@ button {
   min-height: 28px;
   padding: 0 10px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--muted);
   background: transparent;
   font-size: 12px;
@@ -2742,7 +2742,7 @@ pre {
 .loginCard {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 18px;
   padding: 40px 36px;
   max-width: 560px;
   width: 100%;
@@ -2801,7 +2801,7 @@ pre {
 .roleCard {
   background: var(--panel2);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 14px 12px;
   cursor: pointer;
   text-align: center;
@@ -2891,7 +2891,7 @@ pre {
   width: 100%;
   padding: 13px;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   background: linear-gradient(135deg, #d9b875, #c4a35a);
   color: #070a0f;
   font-size: 15px;
@@ -2915,7 +2915,7 @@ pre {
   width: 100%;
   padding: 10px;
   border: 1px dashed var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   background: transparent;
   color: var(--soft);
   font-size: 13px;
@@ -2991,7 +2991,7 @@ pre {
   color: var(--text);
   text-decoration: none;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 18px;
   background: linear-gradient(145deg, rgba(217, 184, 117, 0.09), rgba(43, 208, 189, 0.045));
   transition: transform .2s, border-color .2s;
 }
@@ -3026,7 +3026,7 @@ pre {
   padding: 13px 15px;
   color: var(--soft);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 12px;
   line-height: 1.65;
 }
@@ -3047,7 +3047,7 @@ pre {
   padding: 10px 12px;
   color: var(--teal);
   border: 1px solid rgba(43, 208, 189, .28);
-  border-radius: 9px;
+  border-radius: 8px;
   background: rgba(43, 208, 189, .07);
   font-size: 12px;
 }
@@ -3117,7 +3117,7 @@ pre {
   width: 100%;
   padding: 12px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   background: #1aad19;
   color: #ffffff;
   font-size: 15px;
@@ -3228,7 +3228,7 @@ pre {
 .diagnosisCard {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 18px;
   padding: 40px 36px;
   max-width: 600px;
   width: 100%;
@@ -3273,7 +3273,7 @@ pre {
   flex: 1;
   background: var(--panel2);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 14px;
   text-align: center;
 }
@@ -3293,7 +3293,7 @@ pre {
 .diagnosisIntroHints {
   background: var(--panel2);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 16px 20px;
   margin-bottom: 20px;
 }
@@ -3339,7 +3339,7 @@ pre {
   width: 100%;
   padding: 14px;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   background: linear-gradient(135deg, #d9b875, #c4a35a);
   color: #070a0f;
   font-size: 16px;
@@ -3421,7 +3421,7 @@ pre {
 
 .msgBubble {
   padding: 10px 16px;
-  border-radius: 14px;
+  border-radius: 18px;
   font-size: 14px;
   line-height: 1.6;
 }
@@ -3461,7 +3461,7 @@ pre {
 .chatInput textarea {
   flex: 1;
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--line);
   background: rgba(9, 13, 20, 0.8);
   color: var(--text);
@@ -3478,7 +3478,7 @@ pre {
 .chatInput button {
   padding: 10px 20px;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   background: linear-gradient(135deg, #d9b875, #c4a35a);
   color: #070a0f;
   font-size: 14px;
@@ -3609,7 +3609,7 @@ pre {
 .planRecCard {
   background: linear-gradient(135deg, rgba(217, 184, 117, 0.15), rgba(43, 208, 189, 0.1));
   border: 1px solid rgba(217, 184, 117, 0.25);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 16px;
   margin-bottom: 10px;
 }
@@ -3645,7 +3645,7 @@ pre {
 .roadmapPhase {
   background: var(--panel2);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 14px 16px;
   margin-bottom: 10px;
 }
@@ -3707,7 +3707,7 @@ pre {
   width: 100%;
   padding: 14px;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   background: linear-gradient(135deg, #d9b875, #c4a35a);
   color: #070a0f;
   font-size: 16px;
@@ -3724,7 +3724,7 @@ pre {
   width: 100%;
   padding: 12px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   background: transparent;
   color: var(--soft);
   font-size: 14px;
@@ -3766,7 +3766,7 @@ pre {
 /* ===== Comparison Matrix (dark theme) ===== */
 
 .matrixRoot {
-  border-radius: 16px;
+  border-radius: 18px;
   background: var(--panel);
   border: 1px solid var(--line);
   overflow: hidden;
@@ -3887,7 +3887,7 @@ pre {
 .matrixMiniCard {
   background: var(--panel2);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 12px;
   text-align: center;
 }
@@ -4151,7 +4151,7 @@ pre {
   min-height: 58px;
   padding: 10px 14px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
 }
 
@@ -4348,7 +4348,7 @@ pre {
   min-width: 0;
   padding: 6px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 18px;
   background: var(--panel2);
 }
 
@@ -4427,7 +4427,7 @@ pre {
   max-height: 280px;
   padding: 12px 13px 8px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 12px;
   background: transparent;
   color: var(--text);
   font-size: 14px;
@@ -4466,7 +4466,7 @@ pre {
   background: rgba(219, 190, 115, 0.08);
   width: 36px;
   min-height: 36px;
-  border-radius: 10px;
+  border-radius: 12px;
 }
 
 .fileUploadButton {
@@ -4574,7 +4574,7 @@ pre {
   place-items: center;
   width: 22px;
   height: 22px;
-  border-radius: 6px;
+  border-radius: 8px;
   background: rgba(43, 208, 189, 0.16);
   color: #bffdf5;
   font-size: 11px;
@@ -4598,7 +4598,7 @@ pre {
   width: 22px;
   height: 22px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   color: #f9d6d6;
   background: rgba(248, 113, 113, 0.12);
 }
@@ -4854,7 +4854,7 @@ pre {
   min-height: 38px;
   padding: 0 16px;
   border: 0;
-  border-radius: 11px;
+  border-radius: 12px;
   color: #07110f;
   background: #d9b875;
   font-size: 14px;
@@ -5165,7 +5165,7 @@ pre {
 .messageCopyBar button {
   padding: 2px 9px;
   border: 1px solid rgba(233, 255, 251, 0.22);
-  border-radius: 7px;
+  border-radius: 8px;
   background: transparent;
   color: rgba(233, 255, 251, 0.66);
   cursor: pointer;
@@ -6089,7 +6089,7 @@ pre {
 
   .legalCard {
     padding: 28px 22px;
-    border-radius: 14px;
+    border-radius: 18px;
   }
 
   .legalNav {

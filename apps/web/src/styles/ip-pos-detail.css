@@ -19,7 +19,7 @@
   margin: 2px 0 10px;
   padding: 6px 16px;
   border: 1px solid rgba(232, 101, 26, 0.38);
-  border-radius: 99px;
+  border-radius: 18px;
   background: rgba(232, 101, 26, 0.07);
   color: var(--accent-deep);
   font-size: 12.5px;
@@ -36,7 +36,7 @@
   padding: 20px;
   background: var(--bg2);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 18px;
 }
 @media (max-width: 860px) {
   .ipd-pd { grid-template-columns: 1fr; }
@@ -46,7 +46,7 @@
 .ipd-gmain {
   position: relative;
   aspect-ratio: 1 / 1;
-  border-radius: 14px;
+  border-radius: 18px;
   overflow: hidden;
   background:
     radial-gradient(200px 200px at 88% -8%, rgba(255, 255, 255, 0.20), transparent 62%),
@@ -95,7 +95,7 @@
   color: var(--accent-deep);
   background: var(--glass-2);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 18px;
   padding: 22px 30px;
   box-shadow: 0 10px 26px rgba(160, 70, 10, 0.12);
   display: grid;
@@ -109,7 +109,7 @@
 .ipd-gthumbs { display: grid; grid-template-columns: repeat(3, 64px); gap: 8px; margin-top: 10px; }
 .ipd-gthumbs button {
   aspect-ratio: 1;
-  border-radius: 9px;
+  border-radius: 8px;
   border: 2px solid transparent;
   cursor: pointer;
   display: grid;
@@ -177,7 +177,7 @@
   gap: 7px;
   padding: 10px;
   border: 1px solid var(--line);
-  border-radius: 11px;
+  border-radius: 12px;
   background: var(--bg2);
 }
 .ipd-wb-chat-h { display: flex; align-items: center; gap: 8px; padding-bottom: 6px; border-bottom: 1px dashed var(--line); }
@@ -197,7 +197,7 @@
 .ipd-wb-chat-h b { display: block; font-size: 12px; line-height: 1.3; }
 .ipd-wb-chat-h span { display: block; font-size: 10px; color: var(--muted-2); }
 
-.ipd-msg { padding: 7px 10px; border-radius: 10px; font-size: 11px; line-height: 1.55; max-width: 92%; }
+.ipd-msg { padding: 7px 10px; border-radius: 12px; font-size: 11px; line-height: 1.55; max-width: 92%; }
 .ipd-msg.q { background: var(--bg3); border: 1px solid var(--line); align-self: flex-start; }
 .ipd-msg.a { background: rgba(244, 121, 32, 0.10); border: 1px solid rgba(244, 121, 32, 0.28); align-self: flex-end; }
 
@@ -259,7 +259,7 @@
 
 .ipd-gen {
   padding: 10px;
-  border-radius: 10px;
+  border-radius: 12px;
   background: linear-gradient(135deg, #ff8a3d, var(--accent-deep));
   color: #fff;
   font-size: 12px;
@@ -338,7 +338,7 @@
   .ipd-cta-row { grid-template-columns: 1fr; }
 }
 .ipd-btn {
-  border-radius: 11px;
+  border-radius: 12px;
   padding: 13px 10px;
   font-size: 15px;
   font-weight: 700;
@@ -363,7 +363,7 @@
   margin-top: 18px;
   background: var(--bg2);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 18px;
   overflow: hidden;
 }
 .ipd-tabs {
@@ -413,7 +413,7 @@
   height: 34px;
   display: grid;
   place-items: center;
-  border-radius: 10px;
+  border-radius: 12px;
   background: rgba(244, 121, 32, 0.10);
   font-size: 16px;
 }
@@ -438,13 +438,13 @@
 .ipd-shot-cap b { font-size: 14px; color: var(--text); }
 .ipd-shot-cap span { font-size: 12px; color: var(--muted-2); line-height: 1.6; }
 
-.ipd-wb { border: 1px solid var(--line); border-radius: 14px; background: var(--bg); overflow: hidden; }
+.ipd-wb { border: 1px solid var(--line); border-radius: 18px; background: var(--bg); overflow: hidden; }
 .ipd-canvas { display: grid; gap: 8px; padding: 12px; }
 .ipd-zone {
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-left: 3px solid var(--accent);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--bg2);
 }
 .ipd-zone-h { font-size: 12.5px; font-weight: 800; color: var(--text); }
@@ -465,7 +465,7 @@
 .ipd-foot-note {
   margin-top: 18px;
   padding: 11px 14px;
-  border-radius: 11px;
+  border-radius: 12px;
   background: var(--bg);
   border: 1px dashed var(--line-strong);
   font-size: 12px;

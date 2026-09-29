@@ -40,7 +40,7 @@
   gap: 2px;
   text-align: left;
   padding: 8px 10px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid transparent;
   background: none;
   cursor: pointer;
@@ -136,7 +136,7 @@
 .adminConsoleNotice {
   border: 1px solid var(--line);
   border-left: 3px solid var(--accent2);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--glass);
   padding: 10px 12px;
   font-size: 12.5px;
@@ -175,7 +175,7 @@
 
 .adminCard {
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 10px 12px;
   display: grid;
   gap: 4px;

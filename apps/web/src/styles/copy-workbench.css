@@ -68,7 +68,7 @@
 .cpw-desc { font-size: 12px; color: var(--sub); }
 
 /* ---------- 舞台（暗色外框，照原型） ---------- */
-.cpw-stage { background: #132530; border-radius: 16px; overflow: hidden; box-shadow: 0 12px 30px rgba(19, 37, 48, 0.35); margin-bottom: 40px; }
+.cpw-stage { background: #132530; border-radius: 18px; overflow: hidden; box-shadow: 0 12px 30px rgba(19, 37, 48, 0.35); margin-bottom: 40px; }
 .cpw-bar {
   display: flex;
   align-items: center;
@@ -152,7 +152,7 @@
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.14);
   color: #dce8e1;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 7px 12px;
   font-size: 13px;
   text-align: left;
@@ -176,7 +176,7 @@
   flex: 1;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 8px 12px;
   font-size: 13px;
   color: #eef7f1;
@@ -187,7 +187,7 @@
 .cpw-input button {
   background: var(--orange);
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   color: #fff;
   font-weight: 800;
   font-size: 13px;
@@ -199,7 +199,7 @@
 .cpw-ws { display: flex; flex-direction: column; background: #f7fafc; overflow: hidden; }
 .cpw-ws-inner { padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; max-height: 720px; }
 
-.cpw-brief { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+.cpw-brief { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 14px; }
 .cpw-brief-t { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; margin-bottom: 10px; }
 .cpw-brief-t b { font-size: 14px; }
 .cpw-brief-sub { font-size: 12px; color: var(--sub); }
@@ -212,7 +212,7 @@
 .cpw-bf {
   background: #f8fafd;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 8px 11px;
   min-height: 52px;
   transition: 0.25s;
@@ -225,7 +225,7 @@
 .cpw-bf.filled .cpw-bf-v { color: var(--ink); }
 
 .cpw-ops { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
-.cpw-big-btn { border: none; border-radius: 10px; font-weight: 800; font-size: 13.5px; padding: 9px 20px; cursor: pointer; transition: 0.2s; }
+.cpw-big-btn { border: none; border-radius: 12px; font-weight: 800; font-size: 13.5px; padding: 9px 20px; cursor: pointer; transition: 0.2s; }
 .cpw-big-btn.gen { background: var(--orange); color: #fff; box-shadow: 0 4px 12px rgba(232, 101, 26, 0.3); }
 .cpw-big-btn.gen:hover { filter: brightness(1.05); }
 .cpw-big-btn.gen:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
@@ -237,7 +237,7 @@
   font-weight: 700;
   color: var(--green);
   background: var(--green-soft);
-  border-radius: 99px;
+  border-radius: 18px;
   padding: 3px 10px;
 }
 .cpw-err {
@@ -251,14 +251,14 @@
 }
 
 /* ---------- 画布 ---------- */
-.cpw-canvas { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+.cpw-canvas { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 14px; }
 .cpw-ph-note { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 13px; font-weight: 600; margin-bottom: 12px; }
 .cpw-tag {
   font-size: 11.5px;
   font-weight: 700;
   color: var(--orange);
   background: var(--orange-soft);
-  border-radius: 99px;
+  border-radius: 18px;
   padding: 2px 10px;
 }
 .cpw-ph-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
@@ -281,7 +281,7 @@
 .cpw-ph.locked { opacity: 0.75; }
 .cpw-ph.gening { border-color: var(--orange); opacity: 1; box-shadow: 0 4px 14px rgba(232, 101, 26, 0.15); animation: cpwPop 0.35s ease; }
 @keyframes cpwPop { from { transform: translateY(6px) scale(0.98); opacity: 0.4; } to { transform: none; opacity: 1; } }
-.cpw-no { font-size: 10.5px; font-weight: 800; border-radius: 6px; padding: 1px 7px; width: fit-content; }
+.cpw-no { font-size: 10.5px; font-weight: 800; border-radius: 8px; padding: 1px 7px; width: fit-content; }
 .cpw-no.g-plan { color: var(--orange); background: var(--orange-soft); }
 .cpw-no.g-doc { color: var(--blue); background: var(--blue-soft); }
 .cpw-no.g-shoot { color: var(--purple); background: var(--purple-soft); }
@@ -305,13 +305,13 @@
 /* 生成中：进度条 + 日志（照原型） */
 .cpw-gen-prog { margin: 2px 0 10px; }
 .cpw-gp-row { display: flex; align-items: center; gap: 10px; }
-.cpw-gp-bar { flex: 1; height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; }
-.cpw-gp-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--orange), #ff9a5c); border-radius: 99px; transition: width 0.4s; }
+.cpw-gp-bar { flex: 1; height: 8px; background: var(--line); border-radius: 18px; overflow: hidden; }
+.cpw-gp-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--orange), #ff9a5c); border-radius: 18px; transition: width 0.4s; }
 .cpw-gp-row b { font-size: 12px; color: var(--orange); min-width: 38px; text-align: right; }
 .cpw-gp-meta { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--sub); margin-top: 4px; }
 .cpw-genlog {
   background: #101f29;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 10px 12px;
   margin-bottom: 12px;
   max-height: 150px;
@@ -348,7 +348,7 @@
 .cpw-tab {
   background: #fff;
   border: 1px solid var(--line);
-  border-radius: 99px;
+  border-radius: 18px;
   font-size: 12px;
   color: var(--sub);
   padding: 4px 12px;
@@ -356,7 +356,7 @@
 }
 .cpw-tab.act { background: var(--orange); border-color: var(--orange); color: #fff; font-weight: 700; }
 .cpw-pieces { display: flex; flex-direction: column; gap: 10px; }
-.cpw-pc { background: #fff; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.cpw-pc { background: #fff; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
 .cpw-pc-h { display: flex; align-items: center; gap: 9px; padding: 11px 15px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .cpw-pc-no {
   flex: none;
@@ -370,7 +370,7 @@
   font-weight: 800;
 }
 .cpw-pc-h b { font-size: 14px; }
-.cpw-g-tag { font-size: 11px; font-weight: 700; border-radius: 6px; padding: 2px 8px; }
+.cpw-g-tag { font-size: 11px; font-weight: 700; border-radius: 8px; padding: 2px 8px; }
 .cpw-pc-btns { margin-left: auto; display: flex; gap: 8px; }
 .cpw-pc-c { padding: 14px 16px; font-size: 13.5px; line-height: 1.75; color: var(--ink); }
 .cpw-pc-c.markdown h1, .cpw-pc-c.markdown h2, .cpw-pc-c.markdown h3, .cpw-pc-c.markdown h4 { font-size: 13.5px; margin: 10px 0 6px; color: var(--ink); }
@@ -380,17 +380,17 @@
 .cpw-pc-c.markdown table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 12.5px; }
 .cpw-pc-c.markdown th, .cpw-pc-c.markdown td { border: 1px solid var(--line); padding: 6px 9px; text-align: left; vertical-align: top; }
 .cpw-pc-c.markdown th { background: #f4f7fb; font-weight: 700; }
-.cpw-pc-c.markdown code { background: #f4f7fb; border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; font-size: 12px; }
+.cpw-pc-c.markdown code { background: #f4f7fb; border: 1px solid var(--line); border-radius: 8px; padding: 1px 5px; font-size: 12px; }
 .cpw-pc-c.markdown blockquote { margin: 8px 0; padding: 6px 12px; border-left: 3px solid var(--orange-line); background: #fffaf6; color: var(--sub); border-radius: 0 8px 8px 0; }
 
 /* ---------- 编辑弹窗 ---------- */
 .cpw-modal-mask { position: fixed; inset: 0; background: rgba(16, 31, 41, 0.5); display: grid; place-items: center; z-index: 60; }
-.cpw-modal { width: min(460px, 92vw); background: #fff; border-radius: 14px; padding: 18px; box-shadow: 0 18px 50px rgba(19, 37, 48, 0.35); }
+.cpw-modal { width: min(460px, 92vw); background: #fff; border-radius: 18px; padding: 18px; box-shadow: 0 18px 50px rgba(19, 37, 48, 0.35); }
 .cpw-modal-t { font-size: 14px; font-weight: 700; margin-bottom: 10px; color: var(--ink); }
 .cpw-modal textarea {
   width: 100%;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 10px;
   font-size: 13px;
   font-family: inherit;
@@ -405,7 +405,7 @@
   text-align: left;
   border: 1px solid var(--line);
   background: #f8fafd;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 9px 12px;
   font-size: 13px;
   font-weight: 700;
@@ -430,10 +430,10 @@
 .cpw-bf.flash { animation: cpwBfpop 0.5s; }
 @keyframes cpwBfpop { 40% { transform: scale(1.04); border-color: var(--orange); } }
 /* 生成前体检追问卡（保留 slot 精确勾销能力，套新皮肤） */
-.cpw-review { margin-top: 10px; border: 1px solid var(--orange-line); background: #fffaf5; border-radius: 10px; padding: 10px 12px; }
+.cpw-review { margin-top: 10px; border: 1px solid var(--orange-line); background: #fffaf5; border-radius: 12px; padding: 10px 12px; }
 .cpw-review .ir-t { font-size: 12.5px; font-weight: 800; color: var(--orange); margin-bottom: 4px; }
 .cpw-ir { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; font-size: 12.5px; line-height: 1.55; }
-.cpw-ir-badge { flex: none; font-size: 10.5px; font-weight: 800; border-radius: 6px; padding: 1px 7px; margin-top: 1px; }
+.cpw-ir-badge { flex: none; font-size: 10.5px; font-weight: 800; border-radius: 8px; padding: 1px 7px; margin-top: 1px; }
 .cpw-ir-badge.missing { color: #fff; background: var(--red); }
 .cpw-ir-badge.weak { color: var(--amber); background: var(--amber-soft); }
 .cpw-ir-main b { color: var(--ink); margin-right: 6px; }
@@ -468,7 +468,7 @@
 }
 .cpw-dz-btn:hover { border-color: var(--orange); }
 /* 体检结果卡（对话内嵌） */
-.cpw-bub .chk { border-radius: 10px; padding: 8px 10px; margin: 2px 0 6px; font-size: 12px; }
+.cpw-bub .chk { border-radius: 12px; padding: 8px 10px; margin: 2px 0 6px; font-size: 12px; }
 .cpw-bub .chk.pass { background: rgba(15, 138, 95, 0.14); border: 1px solid rgba(15, 138, 95, 0.4); }
 .cpw-bub .chk.fail { background: rgba(214, 69, 69, 0.14); border: 1px solid rgba(214, 69, 69, 0.4); }
 .cpw-bub .chk .ch { font-weight: 800; margin-bottom: 6px; color: #eef7f1; }
@@ -481,7 +481,7 @@
 .cpw-cov-chips { display: flex; flex-wrap: wrap; gap: 5px; }
 .cpw-chipok, .cpw-chipmiss {
   font-size: 11px;
-  border-radius: 99px;
+  border-radius: 18px;
   padding: 2px 9px;
   font-weight: 600;
 }
@@ -492,7 +492,7 @@
 .cpw-cmpl {
   font-size: 11.5px;
   font-weight: 800;
-  border-radius: 99px;
+  border-radius: 18px;
   padding: 3px 11px;
 }
 .cpw-cmpl.idle { color: var(--sub); background: var(--bg2); }
@@ -505,7 +505,7 @@
   font-weight: 700;
   color: var(--amber);
   background: var(--amber-soft);
-  border-radius: 99px;
+  border-radius: 18px;
   padding: 1px 7px;
 }
 
@@ -513,7 +513,7 @@
 .cpw-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .cpw-chip {
   font-size: 12px;
-  border-radius: 99px;
+  border-radius: 18px;
   padding: 3px 11px;
   background: rgba(255, 255, 255, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.22);

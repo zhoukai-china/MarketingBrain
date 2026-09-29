@@ -433,6 +433,7 @@ export function EcoMallHomePage() {
   function renderProductCard(opt: {
     icon: string;
     img?: string;
+    detail?: string;
     name: string;
     tag: string;
     desc: string;
@@ -442,7 +443,11 @@ export function EcoMallHomePage() {
     demo?: boolean;
   }) {
     return (
-      <article className="eh-pcard">
+      <article
+        className="eh-pcard"
+        style={{ cursor: opt.detail ? "pointer" : undefined }}
+        onClick={() => { if (opt.detail) window.location.href = getAppPath(opt.detail); }}
+      >
         <div className="eh-pcover">
           {opt.img ? <img className="eh-cimg" src={opt.img} alt={opt.name} /> : <span className="eh-pcover-ico">{opt.icon}</span>}
           <span className="eh-scanline" />
@@ -456,8 +461,8 @@ export function EcoMallHomePage() {
               {opt.cny ? <i className="eh-u-cny">≈ {opt.cny}</i> : null}
             </span>
             <span className="eh-buy-row">
-              <button type="button" className="eh-cart-mini" onClick={() => addToCart(opt.name)}>🛒 加购</button>
-              {opt.buyNow ? <button type="button" className="eh-buy-now" onClick={() => addToCart(opt.name)}>立即购买</button> : null}
+              <button type="button" className="eh-cart-mini" onClick={(e) => { e.stopPropagation(); addToCart(opt.name); }}>🛒 加购</button>
+              {opt.buyNow ? <button type="button" className="eh-buy-now" onClick={(e) => { e.stopPropagation(); addToCart(opt.name); }}>立即购买</button> : null}
             </span>
           </div>
           {opt.demo ? <div className="eh-pdemo">🧪 演示商品 · 购买不入算力余额</div> : null}
@@ -690,24 +695,24 @@ export function EcoMallHomePage() {
             <section className="eco-floor" id="floor-hardware">
               <FloorHead no="F4" title="AI 硬件专区" sub="让 AI 落到店里的硬件货架" />
               <div className="eh-prod">
-                {renderProductCard({ icon: "🎙️", img: getPublicAssetPath("/mall/hwRec.jpg"), name: "AI 录音卡", tag: "硬件新品", desc: "录音即分析，自动转经营动作：客户沟通自动归档、话术要点自动提炼。", price: "¥199 /台 · 人民币直购" })}
-                {renderProductCard({ icon: "🤖", img: getPublicAssetPath("/mall/hwRobot.jpg"), name: "门店 AI 机器人", tag: "硬件新品", desc: "迎宾接待、导购问答，常用话术语音随叫随到，前台接待不冷场。", price: "¥1,999 /台 · 人民币直购" })}
+                {renderProductCard({ icon: "🎙️", img: getPublicAssetPath("/mall/hwRec.jpg"), detail: "/product/hwRec/detail", name: "AI 录音卡", tag: "硬件新品", desc: "录音即分析，自动转经营动作：客户沟通自动归档、话术要点自动提炼。", price: "¥199 /台 · 人民币直购" })}
+                {renderProductCard({ icon: "🤖", img: getPublicAssetPath("/mall/hwRobot.jpg"), detail: "/product/hwRobot/detail", name: "门店 AI 机器人", tag: "硬件新品", desc: "迎宾接待、导购问答，常用话术语音随叫随到，前台接待不冷场。", price: "¥1,999 /台 · 人民币直购" })}
               </div>
             </section>
 
             <section className="eco-floor" id="floor-courses">
               <FloorHead no="F5" title="AI 课程专区" sub="从 0 到 1 学会用 AI 干活" />
               <div className="eh-prod">
-                {renderProductCard({ icon: "🎓", img: getPublicAssetPath("/mall/courseAgent.jpg"), name: "智能体开发课", tag: "视频课", desc: "从 0 到 1 学会搭建自己的智能体工作流。", price: "¥199 /门 · 人民币直购" })}
-                {renderProductCard({ icon: "📊", img: getPublicAssetPath("/mall/courseWb.jpg"), name: "WorkBuddy 办公提效课", tag: "实操课", desc: "用 AI 把日报、周报、方案、表格这些日常活干得更快，即学即用。", price: "¥99 /门 · 人民币直购" })}
+                {renderProductCard({ icon: "🎓", img: getPublicAssetPath("/mall/courseAgent.jpg"), detail: "/product/courseAgent/detail", name: "智能体开发课", tag: "视频课", desc: "从 0 到 1 学会搭建自己的智能体工作流。", price: "¥199 /门 · 人民币直购" })}
+                {renderProductCard({ icon: "📊", img: getPublicAssetPath("/mall/courseWb.jpg"), detail: "/product/courseWb/detail", name: "WorkBuddy 办公提效课", tag: "实操课", desc: "用 AI 把日报、周报、方案、表格这些日常活干得更快，即学即用。", price: "¥99 /门 · 人民币直购" })}
               </div>
             </section>
 
             <section className="eco-floor" id="floor-opc">
               <FloorHead no="F6" title="OPC 专区" sub="AI 算力与创作资源，商家价直供" />
               <div className="eh-prod">
-                {renderProductCard({ icon: "🏭", img: getPublicAssetPath("/mall/opcLlm.jpg"), name: "大模型折扣仓", tag: "OPC", desc: "主流大模型 API 额度折扣直充，token 按仓价拿，AI 用量大的商家先省一半。", price: "50 算力/份 起", cny: "¥5", buyNow: true, demo: true })}
-                {renderProductCard({ icon: "🎬", img: getPublicAssetPath("/mall/opcComic.jpg"), name: "AIGC 漫剧创作工作台", tag: "OPC", desc: "分镜、角色、成片一条龙，批量产出漫剧短视频，带货与账号起号都能用。", price: "199 算力/席", cny: "¥19.9", buyNow: true, demo: true })}
+                {renderProductCard({ icon: "🏭", img: getPublicAssetPath("/mall/opcLlm.jpg"), detail: "/product/opcLlm/detail", name: "大模型折扣仓", tag: "OPC", desc: "主流大模型 API 额度折扣直充，token 按仓价拿，AI 用量大的商家先省一半。", price: "50 算力/份 起", cny: "¥5", buyNow: true, demo: true })}
+                {renderProductCard({ icon: "🎬", img: getPublicAssetPath("/mall/opcComic.jpg"), detail: "/product/opcComic/detail", name: "AIGC 漫剧创作工作台", tag: "OPC", desc: "分镜、角色、成片一条龙，批量产出漫剧短视频，带货与账号起号都能用。", price: "199 算力/席", cny: "¥19.9", buyNow: true, demo: true })}
               </div>
             </section>
 

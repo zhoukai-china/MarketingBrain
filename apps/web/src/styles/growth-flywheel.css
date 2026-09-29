@@ -435,7 +435,7 @@
 .bottomDock button {
   min-height: 42px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   color: #dffdf8;
   background: rgba(43, 208, 189, 0.09);
   font-weight: 900;

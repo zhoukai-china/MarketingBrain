@@ -16,7 +16,7 @@
 .lq-dash__header-actions { display: flex; align-items: center; gap: 8px; }
 .lq-dash__header-actions select {
   padding: 7px 10px;
-  border-radius: 9px;
+  border-radius: 8px;
   border: 1px solid #E8E2DB;
   background: #fff;
   font: inherit;
@@ -26,7 +26,7 @@
 }
 .lq-dash__set-goal {
   padding: 8px 14px;
-  border-radius: 9px;
+  border-radius: 8px;
   background: linear-gradient(135deg, #F37021, #D45A12);
   color: #fff;
   font-weight: 700;
@@ -42,7 +42,7 @@
   background: #fff;
   border: 1px solid rgba(214, 57, 78, .35);
   border-left: 4px solid #D6394E;
-  border-radius: 14px;
+  border-radius: 18px;
   padding: 20px 22px;
 }
 .lq-dash__error h2 { margin: 0 0 8px; font-size: 17px; font-weight: 800; }
@@ -51,7 +51,7 @@
 .lq-dash__error-actions button,
 .lq-dash__error-actions a {
   padding: 9px 16px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid #E8E2DB;
   background: #fff;
   color: #D45A12;
@@ -66,7 +66,7 @@
 .lq-dash__empty-store {
   background: #fff;
   border: 1px dashed #E8E2DB;
-  border-radius: 14px;
+  border-radius: 18px;
   padding: 32px 24px;
   text-align: center;
 }
@@ -76,7 +76,7 @@
   display: inline-block;
   margin-top: 16px;
   padding: 10px 20px;
-  border-radius: 10px;
+  border-radius: 12px;
   background: linear-gradient(135deg, #F37021, #D45A12);
   color: #fff;
   font-weight: 700;
@@ -87,7 +87,7 @@
 .lq-dash__demo-note {
   margin: 0;
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: 12px;
   background: rgba(232, 163, 61, .14);
   border: 1px solid rgba(232, 163, 61, .42);
   color: #6B5B50;
@@ -104,7 +104,7 @@
   padding: 16px 18px;
   border: 1px solid #E8E2DB;
   border-left: 4px solid #F37021;
-  border-radius: 14px;
+  border-radius: 18px;
   background: #fff;
 }
 .lq-dash__verdict--ok { border-left-color: #1E8E3E; background: rgba(30, 142, 62, .05); }
@@ -129,7 +129,7 @@
 .lq-dash__block {
   padding: 18px 20px 20px;
   border: 1px solid #E8E2DB;
-  border-radius: 14px;
+  border-radius: 18px;
   background: #fff;
 }
 .lq-dash__block-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
@@ -187,7 +187,7 @@
 
 /* 只读值统一灰底：告诉用户「这个数是系统算的，别想改」 */
 .ro { font-variant-numeric: tabular-nums; }
-.lq-dash__target-nums b.ro { padding: 1px 8px; border-radius: 7px; background: #F1ECE6; }
+.lq-dash__target-nums b.ro { padding: 1px 8px; border-radius: 8px; background: #F1ECE6; }
 
 .lq-dash__bar { height: 8px; border-radius: 999px; background: #EFEAE4; overflow: hidden; }
 .lq-dash__bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #F37021, #D45A12); }
@@ -236,7 +236,7 @@
   align-items: center;
   gap: 10px;
   padding: 9px 13px;
-  border-radius: 10px;
+  border-radius: 12px;
   background: #FBF8F5;
   font-size: 13px;
 }
@@ -259,7 +259,7 @@
   flex-direction: column;
   gap: 4px;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: 12px;
   background: #FBF8F5;
 }
 .lq-dash__today span { font-size: 11.5px; color: #9A8B7D; }
@@ -272,7 +272,7 @@
   gap: 3px;
   padding: 10px 14px;
   border: 1px dashed #E8E2DB;
-  border-radius: 10px;
+  border-radius: 12px;
 }
 .lq-dash__tiers span { font-size: 11.5px; color: #9A8B7D; }
 .lq-dash__tiers b { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -341,7 +341,7 @@
 }
 .lq-goal__note b { color: #2D1A10; }
 
-.lq-goal__sec { padding: 18px 20px 20px; border: 1px solid #E8E2DB; border-radius: 14px; background: #fff; }
+.lq-goal__sec { padding: 18px 20px 20px; border: 1px solid #E8E2DB; border-radius: 18px; background: #fff; }
 .lq-goal__sec-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
 .lq-goal__sec-head h2 { margin: 0; font-size: 16px; font-weight: 800; }
 .lq-goal__sec-head p { margin: 0; color: #9A8B7D; font-size: 12.5px; line-height: 1.6; }
@@ -362,7 +362,7 @@
   margin: 0 0 14px;
   padding: 10px 14px;
   border: 1px solid #E8E2DB;
-  border-radius: 10px;
+  border-radius: 12px;
   background: rgba(154, 139, 125, .1);
   color: #6B5B50;
   font-size: 12.5px;
@@ -399,7 +399,7 @@
   width: 100%;
   padding: 9px 11px;
   border: 1px solid #E8E2DB;
-  border-radius: 10px;
+  border-radius: 12px;
   background: #fff;
   font: inherit;
   font-size: 14px;
@@ -418,7 +418,7 @@
   margin: 14px 0 0;
   padding: 10px 14px;
   border: 1px solid rgba(214, 57, 78, .3);
-  border-radius: 10px;
+  border-radius: 12px;
   background: rgba(214, 57, 78, .1);
   color: #D6394E;
   font-size: 12.5px;
@@ -429,7 +429,7 @@
   margin: 12px 0 0;
   padding: 10px 14px;
   border: 1px solid rgba(30, 142, 62, .28);
-  border-radius: 10px;
+  border-radius: 12px;
   background: rgba(30, 142, 62, .1);
   color: #1E8E3E;
   font-size: 12.5px;
@@ -440,7 +440,7 @@
 .lq-goal__save {
   padding: 11px 22px;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   background: linear-gradient(135deg, #F37021, #D45A12);
   color: #fff;
   font: inherit;

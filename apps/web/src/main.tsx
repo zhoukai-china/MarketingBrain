@@ -11,6 +11,7 @@ import {
 import { clearStoredSession, probeSession, readSessionToken, takePostLoginRedirect } from "./lib/session.js";
 import { rememberPendingReferral } from "./lib/pending-referral.js";
 import { renderLanqiRoutes, isLanqiHandled } from "./routes/lanqi.js";
+import "./styles/design-tokens.css";
 import "./styles/app.css";
 import "./styles/store-growth.css";
 import "./styles/baolu-diagnosis.css";
@@ -150,6 +151,7 @@ const LiverevDetailPage = lazy(() => import("./marketplace/ComingSoonDetails.js"
 const SalesDetailPage = lazy(() => import("./marketplace/ComingSoonDetails.js").then(module => ({ default: module.SalesDetailPage })));
 const MomentsDetailPage = lazy(() => import("./marketplace/ComingSoonDetails.js").then(module => ({ default: module.MomentsDetailPage })));
 const RechargePage = lazy(() => import("./pages/RechargePage.js").then(module => ({ default: module.RechargePage })));
+const ProductDetailPage = lazy(() => import("./marketplace/ProductDetailPage.js").then(module => ({ default: module.ProductDetailPage })));
 
 type AppStage = "login" | "diagnosis" | "main";
 
@@ -424,6 +426,8 @@ function Root() {
   // 商品详情页：`/agent/<sku>/detail`（首席定位官已落地原型版；其余 SKU 暂回落通用详情页）
   const marketplaceDetailMatch = path.match(/^\/agent\/([a-z0-9_-]+)\/detail\/?$/i);
   const marketplaceAgentMatch = path.match(/^\/agent\/([a-z0-9_-]+)\/?$/i);
+  // 商品详情页（F4-F6 人民币直购 / OPC）：`/product/<key>/detail`
+  const productPageMatch = path.match(/^\/product\/([a-z0-9-]+)\/detail\/?$/i);
 
   // 平台首页是唯一入口：根路径直接落到平台首页，不再进入旧的单品落地页。
   // 2026-09-11 起平台首页地址为 `/agents`（产品叫「智能体平台」，URL 不再用 market）。
@@ -549,6 +553,10 @@ function Root() {
 
   if (path === "/agents" || path === "/agents/") {
     return <EcoMallHomePage />;
+  }
+
+  if (productPageMatch) {
+    return <ProductDetailPage productKey={productPageMatch[1]} />;
   }
 
   if (path === "/agents/beauty-industry/workbuddy" || path === "/agents/beauty-industry/workbuddy/") {

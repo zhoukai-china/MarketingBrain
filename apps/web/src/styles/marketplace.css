@@ -98,7 +98,7 @@
 .marketplaceSearch input {
   width: 100%;
   padding: 14px 68px 14px 18px;
-  border-radius: 16px;
+  border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.06);
   color: #eaf1ff;
@@ -134,7 +134,7 @@
   max-width: 1180px;
   margin: 0 auto 24px;
   padding: 14px 18px;
-  border-radius: 16px;
+  border-radius: 18px;
   background: linear-gradient(90deg, rgba(255, 138, 61, 0.16), rgba(59, 130, 246, 0.16));
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: #ffb070;
@@ -145,7 +145,7 @@
   max-width: 1180px;
   margin: 0 auto 18px;
   padding: 12px 16px;
-  border-radius: 13px;
+  border-radius: 12px;
   background: rgba(52, 216, 160, 0.12);
   border: 1px solid rgba(52, 216, 160, 0.26);
   color: #9ff3d3;
@@ -293,7 +293,7 @@
   max-height: 90vh;
   overflow: auto;
   padding: 24px;
-  border-radius: 22px;
+  border-radius: 18px;
   background: #0b1730;
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
@@ -322,7 +322,7 @@
 .marketplaceUseCase {
   margin: 16px 0;
   padding: 12px 14px;
-  border-radius: 13px;
+  border-radius: 12px;
   background: rgba(255, 138, 61, 0.12);
   color: #ffb070;
   line-height: 1.5;
@@ -335,7 +335,7 @@
 
 .marketplaceDetailBlocks > div {
   padding: 13px 14px;
-  border-radius: 13px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.05);
 }
 
@@ -426,7 +426,7 @@
 .marketplaceAdminError {
   margin: 20px clamp(18px, 4vw, 52px);
   padding: 13px 16px;
-  border-radius: 13px;
+  border-radius: 12px;
   background: rgba(255, 107, 107, 0.14);
   color: #ffb3b3;
 }
@@ -454,7 +454,7 @@
   min-width: 720px;
   border-collapse: collapse;
   background: rgba(255, 255, 255, 0.04);
-  border-radius: 16px;
+  border-radius: 18px;
   overflow: hidden;
 }
 
@@ -549,7 +549,7 @@
 .marketplaceMineBalance {
   padding: 16px 18px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.04);
   color: #eaf1ff;
 }
@@ -595,7 +595,7 @@
   resize: vertical;
   padding: 14px;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 13px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
   color: #eaf1ff;
   font-size: 14px;
@@ -615,7 +615,7 @@
 .marketplaceChatAnswer {
   padding: 16px 18px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.03);
   white-space: pre-wrap;
   line-height: 1.75;
@@ -634,7 +634,7 @@
   margin: 18px 0;
   padding: 16px 18px;
   border: 1px solid rgba(255, 138, 61, 0.28);
-  border-radius: 14px;
+  border-radius: 18px;
   background: rgba(255, 138, 61, 0.06);
 }
 
@@ -710,7 +710,7 @@
 
 .marketplaceIndustryEditor {
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 14px;
+  border-radius: 18px;
   padding: 16px 18px;
   background: rgba(255, 255, 255, 0.04);
 }
@@ -736,7 +736,7 @@
   resize: vertical;
   padding: 10px;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 10px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
   color: #eaf1ff;
   font-size: 13px;

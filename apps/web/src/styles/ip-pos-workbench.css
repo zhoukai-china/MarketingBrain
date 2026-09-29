@@ -61,7 +61,7 @@
 }
 .ipw-hero .chip {
   font-size: 12px;
-  border-radius: 99px;
+  border-radius: 18px;
   padding: 3px 11px;
   background: rgba(255, 255, 255, .14);
   border: 1px solid rgba(255, 255, 255, .22);
@@ -80,7 +80,7 @@
   background: rgba(255, 255, 255, .12);
   border: 1px solid rgba(255, 255, 255, .28);
   color: #fff;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 7px 14px;
   font-size: 13px;
   cursor: pointer;
@@ -99,7 +99,7 @@
 .ipw-hero h1 .avatar {
   width: 52px;
   height: 52px;
-  border-radius: 14px;
+  border-radius: 18px;
   object-fit: cover;
   border: 2px solid rgba(255, 255, 255, .35);
   box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
@@ -355,7 +355,7 @@
   background: rgba(255, 255, 255, .06);
   border: 1px solid rgba(255, 255, 255, .16);
   color: #e8f1ec;
-  border-radius: 9px;
+  border-radius: 8px;
   font-size: 14px;
   width: 34px;
   height: 34px;
@@ -377,7 +377,7 @@
   box-sizing: border-box;
   background: rgba(255, 255, 255, .05);
   border: 1px solid rgba(255, 255, 255, .12);
-  border-radius: 9px;
+  border-radius: 8px;
   color: #e8f1ec;
   font-size: 12.5px;
   font-family: inherit;
@@ -388,7 +388,7 @@
   background: var(--orange);
   border: none;
   color: #fff;
-  border-radius: 9px;
+  border-radius: 8px;
   font-weight: 700;
   font-size: 12.5px;
   height: 34px;
@@ -423,7 +423,7 @@
   width: 440px;
   max-width: 100%;
   background: #fff;
-  border-radius: 16px;
+  border-radius: 18px;
   box-shadow: 0 24px 64px rgba(15, 29, 38, .35);
   overflow: hidden;
   animation: ipwPop .2s;
@@ -440,7 +440,7 @@
 .ipw-modal .im-head .im-icon {
   width: 34px;
   height: 34px;
-  border-radius: 10px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, .14);
   border: 1px solid rgba(255, 255, 255, .22);
   display: flex;
@@ -502,7 +502,7 @@
 }
 
 .ipw-modal .im-btn {
-  border-radius: 10px;
+  border-radius: 12px;
   font-weight: 700;
   font-size: 13px;
   padding: 8px 18px;
@@ -558,7 +558,7 @@
 .ipw-ws .bf {
   background: #f8fafd;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 8px 11px;
   min-height: 52px;
   transition: .25s;
@@ -588,7 +588,7 @@
   font-size: 10px;
   color: var(--amber);
   background: var(--amber-soft);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 0 6px;
   font-weight: 700;
 }
@@ -601,7 +601,7 @@
 }
 .ipw-ws .big-btn {
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   font-weight: 800;
   font-size: 13.5px;
   padding: 9px 20px;
@@ -621,7 +621,7 @@
   gap: 4px;
   margin-top: 9px;
   padding: 3px 11px;
-  border-radius: 99px;
+  border-radius: 18px;
   background: var(--green-soft);
   color: var(--green);
   font-size: 12px;
@@ -657,7 +657,7 @@
   flex: none;
   font-size: 11px;
   font-weight: 700;
-  border-radius: 99px;
+  border-radius: 18px;
   padding: 2px 8px;
   margin-top: 2px;
 }
@@ -671,7 +671,7 @@
   font-size: 11.5px;
   font-weight: 700;
   padding: 4px 10px;
-  border-radius: 99px;
+  border-radius: 18px;
   border: 1px solid var(--orange-line);
   background: #fff;
   color: var(--orange);
@@ -687,7 +687,7 @@
   font-size: 11.5px;
   font-weight: 700;
   padding: 4px 10px;
-  border-radius: 99px;
+  border-radius: 18px;
   background: #e8f4ec;
   color: #2f7d4f;
   white-space: nowrap;
@@ -718,7 +718,7 @@
 .ipw-ws .ph-note .tag {
   background: #fff;
   border: 1px solid var(--line);
-  border-radius: 99px;
+  border-radius: 18px;
   font-size: 11px;
   padding: 2px 10px;
 }
@@ -785,7 +785,7 @@
   color: var(--green);
   font-size: 12px;
   font-weight: 800;
-  border-radius: 99px;
+  border-radius: 18px;
   padding: 3px 12px;
 }
 .ipw-ws .dl-head .time { font-size: 12px; color: var(--sub); }
@@ -795,7 +795,7 @@
   border: 1px solid var(--orange);
   color: var(--orange);
   background: transparent;
-  border-radius: 99px;
+  border-radius: 18px;
   padding: 4px 14px;
   font-size: 12px;
   font-weight: 700;
@@ -818,7 +818,7 @@
   border: 1px solid var(--line);
   background: #fff;
   color: var(--sub);
-  border-radius: 99px;
+  border-radius: 18px;
   padding: 4px 14px;
   cursor: pointer;
 }
@@ -845,7 +845,7 @@
   width: 24px; height: 24px; border-radius: 8px; flex: none;
   display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #fff;
 }
-.ipw-ws .ipr-gtag { font-size: 11px; font-weight: 700; border-radius: 6px; padding: 1px 8px; }
+.ipw-ws .ipr-gtag { font-size: 11px; font-weight: 700; border-radius: 8px; padding: 1px 8px; }
 
 /* 结果区 Markdown 正文：对齐原型 .pc .c 排版（锚点色小标题、卡片化引用、表格、无点列表） */
 .ipw-ws .cr-sec.md-rich { font-size: 13.5px; line-height: 1.8; color: #1c2733; }

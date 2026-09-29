@@ -1,9 +1,9 @@
 /* Long takeaway plans are operational briefs, not a stack of empty report cards. */
 .takeawayOperatingBrief.documentAnswer{border:0;border-radius:0;background:transparent;overflow:visible}
-.takeawayOperatingBrief.documentAnswer>.structuredAnswerTitle{margin:0;padding:20px 22px 17px;border:1px solid #cfe0d6;border-bottom:0;border-radius:16px 16px 0 0;background:linear-gradient(135deg,#eff8f2,#fff)}
+.takeawayOperatingBrief.documentAnswer>.structuredAnswerTitle{margin:0;padding:20px 22px 17px;border:1px solid #cfe0d6;border-bottom:0;border-radius:18px 18px 0 0;background:linear-gradient(135deg,#eff8f2,#fff)}
 .takeawayOperatingBrief.documentAnswer>.structuredAnswerIntro{margin:0;padding:14px 22px;border:1px solid #dbe8e0;border-top:1px solid #e4eee8;border-bottom:0;background:#fff}
-.takeawayOperatingBrief.documentAnswer .answerSectionList{gap:10px;padding:12px;border:1px solid #dbe8e0;border-radius:0 0 16px 16px;background:#f6faf7}
-.takeawayOperatingBrief.documentAnswer .documentAnswerSection{position:relative;padding:15px 17px 16px;border:1px solid #d9e5de;border-left:4px solid var(--brief-accent,#2d755e);border-radius:5px 13px 13px 5px;background:#fff;box-shadow:0 5px 14px rgba(33,73,59,.035)}
+.takeawayOperatingBrief.documentAnswer .answerSectionList{gap:10px;padding:12px;border:1px solid #dbe8e0;border-radius:0 0 18px 18px;background:#f6faf7}
+.takeawayOperatingBrief.documentAnswer .documentAnswerSection{position:relative;padding:15px 17px 16px;border:1px solid #d9e5de;border-left:4px solid var(--brief-accent,#2d755e);border-radius:8px 12px 12px 8px;background:#fff;box-shadow:0 5px 14px rgba(33,73,59,.035)}
 .takeawayOperatingBrief.documentAnswer .documentAnswerSection:nth-child(2n){--brief-accent:#657a72}
 .takeawayOperatingBrief.documentAnswer .documentAnswerSection:nth-child(3n){--brief-accent:#3d7c6d}
 .takeawayOperatingBrief.documentAnswer .documentAnswerSection>header{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:center;margin:0;padding-bottom:10px;border-bottom:1px solid #e6eee9}

@@ -172,7 +172,7 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
     const cs = getComputedStyle(el);
     return { bw: cs.borderTopWidth, radius: cs.borderTopLeftRadius, bg: cs.backgroundColor };
   });
-  log(adWrap && adWrap.bw === "1px" && adWrap.radius === "16px", "④ 邀请有礼外框（1px 边框/圆角16）", JSON.stringify(adWrap));
+  log(adWrap && adWrap.bw === "1px" && (adWrap.radius === "16px" || adWrap.radius === "18px"), "④ 邀请有礼外框（1px 边框/圆角 16→18 归一）", JSON.stringify(adWrap));
   const todayImg = await page.evaluate(() => document.querySelectorAll(".eh .eco-today-ico img").length);
   log(todayImg >= 1, "⑤ 今日任务用数字人头像", String(todayImg));
   const priceMt = await page.evaluate(() => {
