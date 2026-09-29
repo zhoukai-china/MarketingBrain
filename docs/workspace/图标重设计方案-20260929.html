@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>商城图案重设计方案 · 2026-09-29</title>
+<style>
+  :root{
+    --ink:#2B1B10; --sub:#5B6B7C; --dim:#94796B; --line:#F0EBE3; --bg:#F6F7F9;
+    --orange:#FF6A00; --orange2:#F25300; --deep:#E8651A;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);padding:34px 20px 80px;line-height:1.6}
+  .wrap{max-width:1080px;margin:0 auto}
+  h1{font-size:24px;margin-bottom:6px}
+  h1 em{font-style:normal;color:var(--orange)}
+  .lead{font-size:13.5px;color:var(--sub);margin-bottom:26px}
+  .lead b{color:var(--deep)}
+  h2{font-size:17px;margin:34px 0 4px;padding-left:10px;border-left:4px solid var(--orange)}
+  .h-sub{font-size:12.5px;color:var(--dim);margin:0 0 14px 14px}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;margin-bottom:18px;box-shadow:0 4px 18px rgba(160,90,20,.05)}
+  .style-head{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+  .style-head b{font-size:15px}
+  .rec{font-size:10.5px;font-weight:800;color:#fff;background:linear-gradient(135deg,#FF8A2A,#F25300);border-radius:99px;padding:2px 10px}
+  .style-desc{font-size:12.5px;color:var(--sub);margin-bottom:14px}
+  .grid{display:flex;gap:14px;flex-wrap:wrap}
+  .cell{width:118px;text-align:center}
+  .cell .name{font-size:11px;color:var(--dim);margin-top:8px}
+  .cell-ctx{background:linear-gradient(180deg,#FFF6EC,#FFFDF9);border:1px solid var(--line);border-radius:14px;padding:16px 6px 10px}
+  .tile{width:56px;height:56px;border-radius:15px;display:grid;place-items:center;margin:0 auto;position:relative}
+  .tile svg{width:30px;height:30px}
+  .tile-sm{width:46px;height:46px;border-radius:13px}
+  .tile-sm svg{width:25px;height:25px}
+  /* 封面 */
+  .cover{width:186px;aspect-ratio:16/9;border-radius:14px;overflow:hidden;position:relative;flex:none}
+  .cover-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .cover .cname{font-size:10.5px;color:var(--dim);margin-top:6px;text-align:center}
+  .note{font-size:12px;color:var(--sub);background:#FFF9F1;border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-top:14px}
+  .note b{color:var(--deep)}
+  .vs{display:flex;gap:18px;align-items:flex-start;margin-top:14px;flex-wrap:wrap}
+  .vs .old{flex:none;text-align:center}
+  .vs .old .emo{width:56px;height:56px;border-radius:15px;display:grid;place-items:center;font-size:26px;background:linear-gradient(150deg,#FFD9B8,#FF9A4D);box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 7px 14px rgba(255,122,26,.35)}
+  .vs .old .cap,.vs .new .cap{font-size:10.5px;color:var(--dim);margin-top:6px}
+  .vs .arrow{font-size:22px;color:var(--orange);align-self:center}
+  .vs .new{flex:1;min-width:520px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>商城图案重设计方案 · <em>三选一</em></h1>
+  <p class="lead">替换范围：金刚区 7 格 + F4–F6 商品封面 6 张 + AI 案例封面 12 张。全部为 <b>手绘 SVG 矢量</b>（任意尺寸不糊、与商城橙系同一色板）。<b>挑好风格告诉我，我再落代码。</b></p>
+
+  <h2>风格 A · 釉面线性（推荐）</h2>
+  <p class="h-sub">品牌渐变瓷贴 + 白色 2px 圆头线性图标 + 顶部高光。精致、有质感，和 Hero 渐变同一血缘；线性笔画显得「贵」。</p>
+  <div class="panel">
+    <div class="style-head"><b>金刚区七格</b><span class="rec">推荐</span></div>
+    <div class="grid" id="gA"></div>
+    <div class="note">瓷贴渐变逐格用现有 tint 色（内容获客橙 / 私域玫红 / 咨询师金 / 硬件绿 / 课程紫 / OPC 深橙 / 行业粉），与现状色板一致，只换「图案」不换「配色」。</div>
+  </div>
+
+  <h2>风格 B · 暖白浮雕</h2>
+  <p class="h-sub">暖白瓷底 + 橙色图标 + 细边框轻投影。更素、更「苹果设置页」，牺牲一点活泼换高级感。</p>
+  <div class="panel"><div class="grid" id="gB"></div></div>
+
+  <h2>风格 C · 双色几何</h2>
+  <p class="h-sub">浅色底 + 双色面性图标（主色块 + 深色细节）。扁平干净、信息感强，但和 Hero 的拟物氛围略有割裂。</p>
+  <div class="panel"><div class="grid" id="gC"></div></div>
+
+  <h2>前后对比（以「内容获客」为例）</h2>
+  <div class="panel">
+    <div class="vs">
+      <div class="old"><div class="emo">✍️</div><div class="cap">现状：emoji 廉价感</div></div>
+      <div class="arrow">→</div>
+      <div class="new" id="vsNew"></div>
+    </div>
+  </div>
+
+  <h2>F4–F6 商品封面（风格 A 应用示例）</h2>
+  <p class="h-sub">16:9 封面：分类渐变底 + 大号白描主图标 + 装饰环 + 角标。替换掉现在「emoji 渐变色块」的廉价感。</p>
+  <div class="panel"><div class="cover-grid" id="pCovers"></div></div>
+
+  <h2>AI 案例封面（12 张 · 风格 A 应用示例）</h2>
+  <p class="h-sub">每个案例按所属行业/主题配主图标 + 分类色底。比原型照片更统一，比 emoji 更精致。</p>
+  <div class="panel"><div class="cover-grid" id="cCovers"></div></div>
+
+  <h2>落地说明</h2>
+  <div class="panel">
+    <div class="note" style="margin-top:0">
+      <b>确认风格后我做什么：</b>① 金刚区/商品/案例的 emoji 与照片封面全部替换为这套 SVG（写成一个 <b>IconGlyph 组件</b>，一处维护）；② 色板、圆角、笔画粗细走全站 Token；③ 案例封面 12 张矢量可直接缩放，不再依赖原型提取的照片。<br>
+      <b>回退：</b>图标组件独立成文件，替换/回退都不碰布局代码。<br>
+      <b>工作量：</b>约 0.5–1 人日（组件 + 三处接入 + 验收截图）。
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- 线性图标库（24×24，stroke 2，圆头） ---------- */
+const GLYPHS = {
+  pen:   '<path d="M17 3a2.8 2.8 0 0 1 4 4L8 20l-5 1 1-5L17 3z"/>',
+  chat:  '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z"/><path d="M8 10h8M8 14h5"/>',
+  compass:'<circle cx="12" cy="12" r="9"/><path d="m16.2 7.8-2 6.3-6.4 2.1 2-6.3z"/>',
+  chip:  '<rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9.5 7V4M14.5 7V4M9.5 20v-3M14.5 20v-3M7 9.5H4M7 14.5H4M20 9.5h-3M20 14.5h-3"/>',
+  cap:   '<path d="m2 9 10-5 10 5-10 5L2 9z"/><path d="M6 11.5V16c0 1.7 2.7 3 6 3s6-1.3 6-3v-4.5"/><path d="M22 9v5"/>',
+  factory:'<path d="M3 21V9l6 4V9l6 4V4h6v17H3z"/><path d="M17 17h2M13 17h2"/>',
+  store: '<path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M9 21v-6h6v6"/><path d="M3 9c0 1.4 1.2 2.5 2.7 2.5S8.4 10.4 8.4 9c0 1.4 1.2 2.5 2.7 2.5s2.7-1.1 2.7-2.5c0 1.4 1.2 2.5 2.7 2.5S19.2 10.4 19.2 9c0 1.4 1.2 2.5 2.7 2.5"/>',
+  mic:   '<rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17.5v3.5M8.5 21h7"/>',
+  robot: '<rect x="4" y="8" width="16" height="12" rx="3"/><circle cx="12" cy="4.5" r="1.5"/><path d="M12 6v2"/><circle cx="9" cy="13.5" r="1.1"/><circle cx="15" cy="13.5" r="1.1"/><path d="M9.5 17h5"/>',
+  sparkcap:'<path d="m2 10 10-5 10 5-10 5L2 10z"/><path d="M6 12.5V17c0 1.6 2.7 2.8 6 2.8s6-1.2 6-2.8v-4.5"/><path d="m19 2 .7 1.6 1.6.7-1.6.7L19 6.6l-.7-1.6-1.6-.7 1.6-.7L19 2z"/>',
+  chart: '<path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5.5-6"/><path d="M15.5 7H20v4.5"/>',
+  pack:  '<path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5M12 13v9"/>',
+  clapper:'<path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8z"/><path d="M20.2 6 3.6 10.9l-.6-2c-.3-1.1.3-2.2 1.4-2.5l12.9-3.8c1.1-.3 2.2.3 2.5 1.4L20.2 6z"/><path d="m7 5.5 2 3.2M12.3 4l2 3.2"/>',
+  badge: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="11" r="2"/><path d="M13.5 9.5H18M13.5 13H18M6 16.5h12"/>',
+  paw:   '<circle cx="7" cy="8" r="1.7"/><circle cx="12" cy="6.3" r="1.7"/><circle cx="17" cy="8" r="1.7"/><path d="M12 10.5c3.1 0 5.6 2.3 5.6 4.9 0 1.9-1.5 3-3.1 3-1 0-1.7-.5-2.5-.5s-1.5.5-2.5.5c-1.6 0-3.1-1.1-3.1-3 0-2.6 2.5-4.9 5.6-4.9z"/>',
+  playback:'<circle cx="12" cy="12" r="9"/><path d="m10 8.2 6 3.8-6 3.8V8.2z"/>',
+  liveset:'<rect x="9" y="8" width="6" height="8" rx="3"/><path d="M6.5 11.5a5.5 5.5 0 0 1 11 0M12 16v3"/><path d="M4 8a9.5 9.5 0 0 1 3.2-3.4M20 8a9.5 9.5 0 0 0-3.2-3.4"/>',
+  calc:  '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8.5 6.5h7"/><path d="M8.5 11h.01M12 11h.01M15.5 11h.01M8.5 14.5h.01M12 14.5h.01M15.5 14.5h.01M8.5 18h.01M12 18h.01M15.5 18h.01"/>',
+  sparkle:'<path d="M12 3.5 13.8 8l4.7 1.8-4.7 1.8L12 16.2l-1.8-4.6L5.5 9.8 10.2 8 12 3.5z"/><path d="m19 15.5.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5-1.5-.6 1.5-.6.6-1.5z"/>',
+  cake:  '<path d="M4 21h16v-6.5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2V21z"/><path d="M12 12.5V9M9 12.5V9.5M15 12.5V9.5"/><path d="M4 17.5c2 1.4 3.5-1 5.5 0s4-1 6 0 3.5-1 4.5-.5"/>',
+  dumbbell:'<path d="M6.5 8.5v7M17.5 8.5v7M4 10v4M20 10v4M6.5 12h11"/>',
+  cupbot:'<path d="M6 9h12l-1.3 10.2a2 2 0 0 1-2 1.8H9.3a2 2 0 0 1-2-1.8L6 9z"/><path d="M6.3 9A3.2 3.2 0 0 1 9.5 6h5a3.2 3.2 0 0 1 3.2 3"/><path d="M14 4.5 16 2"/>',
+  bulb:  '<path d="M12 3a6 6 0 0 1 3.6 10.8c-.7.5-1.1 1.3-1.1 2.2H9.5c0-.9-.4-1.7-1.1-2.2A6 6 0 0 1 12 3z"/><path d="M9.5 19h5M10.5 21.5h3"/>'
+};
+const svg = (name, cls) =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${cls||''}">${GLYPHS[name]}</svg>`;
+
+/* ---------- 金刚区 7 格 ---------- */
+const KK = [
+  { name:"pen",     label:"内容获客",  tint:"#FF7A1A", deep:"#C24A00" },
+  { name:"chat",    label:"私域营销",  tint:"#F2538A", deep:"#B01E56" },
+  { name:"compass", label:"数字咨询师", tint:"#E8A33D", deep:"#9C6410" },
+  { name:"chip",    label:"AI硬件",   tint:"#0E9F6E", deep:"#066B49" },
+  { name:"cap",     label:"AI课程",   tint:"#9752DC", deep:"#5F2B9C" },
+  { name:"factory", label:"OPC专区",  tint:"#D96A00", deep:"#8F4200" },
+  { name:"store",   label:"行业工作台", tint:"#DB2777", deep:"#8E1249" }
+];
+/* 商品 6 张 */
+const PRODS = [
+  { name:"mic",     label:"AI 录音卡 ¥199",    tint:"#FF7A1A" },
+  { name:"robot",   label:"门店 AI 机器人 ¥1,999", tint:"#0E9F6E" },
+  { name:"sparkcap",label:"智能体开发课 ¥199",  tint:"#9752DC" },
+  { name:"chart",   label:"办公提效课 ¥99",    tint:"#2E7CF6" },
+  { name:"pack",    label:"大模型折扣仓",      tint:"#D96A00" },
+  { name:"clapper", label:"漫剧创作工作台",    tint:"#DB2777" }
+];
+/* 案例 12 张 */
+const CASES = [
+  { name:"badge",   label:"律师 · IP 定位",    tint:"#FF7A1A" },
+  { name:"paw",     label:"宠物 · 团购文案",   tint:"#FF7A1A" },
+  { name:"playback",label:"知识 · 视频复盘",   tint:"#FF7A1A" },
+  { name:"liveset", label:"服装 · 直播",      tint:"#FF7A1A" },
+  { name:"mic",     label:"连锁 · 巡店",      tint:"#0E9F6E" },
+  { name:"calc",    label:"财务 · 智能体课",   tint:"#9752DC" },
+  { name:"sparkle", label:"美业 · 经营大脑",   tint:"#DB2777" },
+  { name:"clapper", label:"MCN · 漫剧",      tint:"#D96A00" },
+  { name:"cake",    label:"烘焙 · 私域复购",   tint:"#F2538A" },
+  { name:"dumbbell",label:"健身 · 成交训练",   tint:"#F2538A" },
+  { name:"cupbot",  label:"茶饮 · 接待机器人", tint:"#0E9F6E" },
+  { name:"bulb",    label:"美业 · 短视频选题", tint:"#FF7A1A" }
+];
+
+/* ---------- 三种风格的瓷贴 ---------- */
+function tileA(g, tint, deep, cls){
+  return `<div class="tile ${cls||''}" style="background:linear-gradient(150deg,${tint}CC,${tint} 46%,${deep});border:1px solid ${tint}80;box-shadow:0 7px 16px ${tint}59,inset 0 1px 1px rgba(255,255,255,.6),inset 0 -3px 5px ${deep}73;color:#fff">${svg(g)}</div>`;
+}
+function tileB(g, tint, deep, cls){
+  return `<div class="tile ${cls||''}" style="background:#FFF9F2;border:1px solid #E5DDD1;box-shadow:0 3px 10px rgba(160,90,20,.08),inset 0 1px 0 #fff;color:${deep}">${svg(g)}</div>`;
+}
+function tileC(g, tint, deep, cls){
+  return `<div class="tile ${cls||''}" style="background:${tint}1F;border:1px solid ${tint}45;color:${tint}">${svg(g)}<style></style></div>`
+    .replace('<style></style>','');
+}
+function dualSvg(name, tint, deep){
+  // 风格C：主形状用 tint 描边+淡填充，细节用 deep
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="${tint}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:30px;height:30px">${GLYPHS[name]
+    .replace(/<(path|rect|circle)( [^>]*)?\/>/g, (m, tag) => m.includes('stroke') ? m : `<${tag}${m.slice(4)}`)
+  }</svg>`
+    .replace(/<circle([^>]*)\/>/g, `<circle$1 fill="${tint}33" stroke="${deep}"`)
+    .replace(/<rect([^>]*)\/>/g, `<rect$1 fill="${tint}26" stroke="${deep}"`)
+    .replace(/<path([^>]*)\/>/g, `<path$1 stroke="${deep}"`);
+}
+const KK_CATS = KK;
+
+/* 渲染三风格 */
+function renderGrid(id, fn){
+  document.getElementById(id).innerHTML = KK_CATS.map(k =>
+    `<div class="cell"><div class="cell-ctx">${fn(k.name, k.tint, k.deep)}</div><div class="name">${k.label}</div></div>`).join('');
+}
+renderGrid("gA", (n,t,d) => tileA(n,t,d));
+renderGrid("gB", (n,t,d) => tileB(n,t,d));
+renderGrid("gC", (n,t,d) => `<div class="tile" style="background:${t}1F;border:1px solid ${t}45">${dualSvg(n,t,d)}</div>`);
+
+/* 对比区 */
+document.getElementById("vsNew").innerHTML =
+  `<div class="cap" style="margin-bottom:8px">三个新方案同框（左→右：A 釉面线性 / B 暖白浮雕 / C 双色几何）</div>
+   <div style="display:flex;gap:16px">${tileA("pen",KK[0].tint,KK[0].deep)}${tileB("pen",KK[0].tint,KK[0].deep)}<div class="tile" style="background:${KK[0].tint}1F;border:1px solid ${KK[0].tint}45">${dualSvg("pen",KK[0].tint,KK[0].deep)}</div></div>`;
+
+/* 商品封面（风格A） */
+document.getElementById("pCovers").innerHTML = PRODS.map(p => `
+  <div><div class="cover" style="background:linear-gradient(140deg,${p.tint}30,${p.tint}12 55%,#FFF9F1)">
+    <div style="position:absolute;inset:0;display:grid;place-items:center">
+      <div class="tile tile-sm" style="width:64px;height:64px;border-radius:17px;background:linear-gradient(150deg,${p.tint}D9,${p.tint} 50%,${p.tint});box-shadow:0 8px 20px ${p.tint}55,inset 0 1px 1px rgba(255,255,255,.55);color:#fff">${svg(p.name)}</div>
+    </div>
+    <div style="position:absolute;right:-24px;bottom:-24px;width:110px;height:110px;border-radius:50%;border:2px dashed ${p.tint}40"></div>
+    <span style="position:absolute;top:10px;left:10px;font-size:10px;font-weight:800;color:#fff;background:rgba(28,16,8,.45);border-radius:99px;padding:2px 9px">商城精选</span>
+  </div><div class="cname">${p.label}</div></div>`).join("");
+
+/* 案例封面（风格A） */
+document.getElementById("cCovers").innerHTML = CASES.map((c, i) => `
+  <div><div class="cover" style="background:linear-gradient(135deg,${c.tint}2E,${c.tint}0F 50%,#FFFDF9)">
+    <div style="position:absolute;left:14px;top:12px;bottom:12px;display:flex;align-items:center">
+      <div class="tile" style="width:52px;height:52px;border-radius:14px;background:linear-gradient(150deg,${c.tint}D9,${c.tint} 50%,${c.tint});box-shadow:0 6px 16px ${c.tint}4D,inset 0 1px 1px rgba(255,255,255,.55);color:#fff">${svg(c.name)}</div>
+    </div>
+    <div style="position:absolute;left:84px;top:14px;font-size:12px;font-weight:800;color:${c.tint};filter:brightness(.78) saturate(1.2)">案例 ${String(i+1).padStart(2,"0")}</div>
+    <div style="position:absolute;left:84px;top:32px;font-size:9.5px;color:#94796B">演示数据虚构</div>
+    <div style="position:absolute;right:10px;bottom:10px;font-size:10px;font-weight:800;color:#0E9F6E;background:rgba(255,255,255,.9);border-radius:8px;padding:2px 8px">成效徽章位</div>
+    <div style="position:absolute;right:-20px;top:-20px;width:90px;height:90px;border-radius:50%;border:2px dashed ${c.tint}35"></div>
+  </div><div class="cname">${c.label}</div></div>`).join("");
+</script>
+</body>
+</html>
