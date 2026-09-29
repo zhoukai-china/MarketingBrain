@@ -18,7 +18,7 @@ const ANSWER = `# 整场直播脚本 · 思潼AI商城 招商专场（120 分钟
   page.on("request", (req) => {
     const u = req.url();
     if (u.includes("/market/skus") && !u.includes("/run") && !u.includes("/access") && req.method() === "GET") {
-      return req.respond({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify({ skus: [{ skuCode: "ipzone__livescript", name: "直播话术智能体", ppu: 200, status: "selling" }] }) });
+      return req.respond({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify({ skus: [{ skuCode: "ipzone__livescript", name: "直播话术智能体", ppu: 50, status: "selling" }] }) });
     }
     if (u.includes("/market/skus/ipzone__livescript/run") && req.method() === "POST") {
       const body = JSON.parse(req.postData() || "{}");
@@ -41,7 +41,7 @@ const ANSWER = `# 整场直播脚本 · 思潼AI商城 招商专场（120 分钟
   log(/开播话术工作台|直播话术工作台/.test(root), "标题=直播话术工作台");
   log(/开播简报/.test(root), "简报标题=「开播简报」");
   const bfLabels = await page.evaluate(() => [...document.querySelectorAll(".cpw-bf-k")].map((e) => e.textContent.trim()));
-  const expectLabels = ["🎬 场次类型 · 待填", "🏷️ 品牌 / 主推 · 待填", "👥 目标人群 · 待填", "🎯 转化动作 · 待填", "⏱️ 场次时长 · 待填", "📋 交付深度 · 待填"];
+  const expectLabels = ["场次类型 · 待填", "品牌 / 主推 · 待填", "目标人群 · 待填", "转化动作 · 待填", "场次时长 · 待填", "交付深度 · 待填"]; // 风格B
   log(expectLabels.every((l) => bfLabels.includes(l)), "简报 6 字段与原型逐字一致", bfLabels.join("|").slice(0, 80));
 
   // 2) Q1 三选项（含知识付费）
@@ -59,7 +59,7 @@ const ANSWER = `# 整场直播脚本 · 思潼AI商城 招商专场（120 分钟
   const after = await page.evaluate(() => document.body.innerText.replace(/\s+/g, " "));
   log(/齐了 ✅ 简报 6\/6/.test(after), "确认话术与原型一致");
   log(/整场脚本十件套（招商加盟 · 120 分钟）/.test(after), "确认话术带场次与时长");
-  log(/一口价\s*200\s*积分/.test(after), "费用=固定价一口价 200 积分（目录真源）");
+  log(/一口价\s*50\s*算力/.test(after), "费用=固定价一口价 50 算力（目录真源）");
   log(!/按本次实际用量结算/.test(after), "固定价 SKU 不写「按实际用量结算」");
   log(/失败不扣费/.test(after), "「🛡️ 失败不扣费」保留");
   log(/✓ 确认，开始生成/.test(after) && /✎ 改一下再生成/.test(after), "确认卡双按钮");
@@ -89,7 +89,7 @@ const ANSWER = `# 整场直播脚本 · 思潼AI商城 招商专场（120 分钟
   const done = await page.evaluate(() => document.body.innerText.replace(/\s+/g, " "));
   log(/已交付/.test(done), "交付头「✓ 已交付」");
   log(/整场直播脚本/.test(done) && /全场节奏表/.test(done), "Markdown 正文渲染");
-  log(/本次实际消耗\s*200\s*积分/.test(done), "交付费用=固定价 200 积分");
+  log(/本次实际消耗\s*50\s*算力/.test(done), "交付费用=固定价 50 算力");
   log(/⧉ 复制全部/.test(done) && /↓ 导出 Word/.test(done), "复制全部/导出 Word 就位");
   const rb = global.__runBody || {};
   log(typeof rb.input === "string" && rb.input.includes("场次类型：招商加盟") && rb.input.includes("交付深度：完整 · 整场脚本十件套") && rb.input.includes("场次时长：120 分钟"), "/run 需求单带全 6 字段（分流不丢信息）", (rb.input || "").slice(0, 60));

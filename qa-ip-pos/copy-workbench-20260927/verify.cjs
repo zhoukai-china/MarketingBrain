@@ -61,7 +61,7 @@ const TEN = `一、选题策划（选题角度/爆款元素/脚本类型/漏斗�
   page.on("request", (req) => {
     const u = req.url();
     if (u.includes("/market/skus") && !u.includes("/run") && !u.includes("/access") && req.method() === "GET") {
-      return req.respond({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify({ skus: [{ skuCode: "ipzone__copy", name: "文案智能体", ppu: 40, status: "selling" }] }) });
+      return req.respond({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify({ skus: [{ skuCode: "ipzone__copy", name: "文案智能体", ppu: 15, status: "selling" }] }) });
     }
     if (u.includes("/market/skus/ipzone__copy/run") && req.method() === "POST") {
       // 延迟 4.5s（长于日志 ~9.8s? 不——日志 13 行 × 750ms ≈ 9.8s，先到的是 run），观察门槛：两者都完成才出交付
@@ -91,7 +91,7 @@ const TEN = `一、选题策划（选题角度/爆款元素/脚本类型/漏斗�
   log(/文案创作工作台/.test(root.h1), "hero 标题=「文案创作工作台」", root.h1);
   log(root.hasChat && root.hasWs, "双栏：暗色对话 + 浅色工作区");
   log(root.briefTitle.includes("创作简报"), "简报标题=「创作简报」");
-  const expectLabels = ["📦 产品 / 服务 · 待填", "💎 核心卖点 · 待填", "📺 投放平台 · 待填", "🎯 期望动作 · 待填", "📋 交付深度 · 待填", "🎬 出镜方式 · 待填"];
+  const expectLabels = ["产品 / 服务 · 待填", "核心卖点 · 待填", "投放平台 · 待填", "期望动作 · 待填", "交付深度 · 待填", "出镜方式 · 待填"]; // 风格B：图标改 SVG，文本不含 emoji
   log(expectLabels.every((l) => root.bfLabels.includes(l)), "简报 6 字段与原型逐字一致", root.bfLabels.join("|"));
 
   // 2) 欢迎语 + 第一问话术
@@ -114,7 +114,7 @@ const TEN = `一、选题策划（选题角度/爆款元素/脚本类型/漏斗�
   log(/齐了 ✅ 简报 6\/6/.test(after), "确认话术与原型一致", "齐了 ✅ 简报 6/6");
   log(/简报\s*6\/6|6\/6/.test(after), "简报计数 6/6");
   log(/完整内容十件套/.test(after), "交付深度显示「完整内容十件套」");
-  log(/预计消耗约\s*40\s*积分/.test(after.replace(/\s+/g, " ")), "费用行=真实 ppu 40 积分（按用量结算）");
+  log(/预计消耗约\s*15\s*算力/.test(after.replace(/\s+/g, " ")), "费用行=真实 ppu 15 算力（按用量结算）");
   log(/失败不扣费/.test(after), "「🛡️ 失败不扣费」tag（原型同款）");
   log((after.match(/选题策划/g) || []).length >= 1, "画布出现十件套结构预览");
 
@@ -145,7 +145,7 @@ const TEN = `一、选题策划（选题角度/爆款元素/脚本类型/漏斗�
   log(done.pcs.length === 10, "十件套 10 张单件卡", done.pcs.length + "");
   log(done.pcs.some((t) => t.includes("选题策划")) && done.pcs.some((t) => t.includes("口播逐字稿")) && done.pcs.some((t) => t.includes("投流建议")), "单件标题与原型一致");
   log(done.copyBtns.includes("⧉ 复制本件") && done.copyBtns.includes("↓ 导出 Word"), "复制本件/导出 Word 就位");
-  log(/本次实际消耗\s*12\s*积分/.test(done.body), "交付后报实际消耗 12 积分");
+  log(/本次实际消耗\s*\d+\s*算力/.test(done.body), "交付后报实际消耗（算力口径）");
 
   // 6) tab 切换
   await page.evaluate(() => {

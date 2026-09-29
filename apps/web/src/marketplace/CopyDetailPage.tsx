@@ -18,6 +18,7 @@ import { apiPath, getAppPath } from "../lib/api.js";
 import { MallTopbar } from "./MallTopbar.js";
 import { employeeAvatarPath } from "./eco-mall-data.js";
 import { readJson } from "./shell.js";
+import { IconAuto, IconLead } from "./IconGlyph.js";
 
 /** 工作台 URL 展示文案（原型 wb-url：头图窗口栏里标明「买到的就是这台工作台」）。 */
 const WORKBENCH_URL_TEXT = "ai.lcppch.top/agent/ipzone__copy/workbench";
@@ -118,10 +119,10 @@ function WbChatHeader() {
 function WbBrief({ filled }: { filled: number }) {
   return (
     <div className="ipd-ws">
-      <div className="ipd-brief-h"><span>📋 创作简报</span><b>{filled}/6</b></div>
+      <div className="ipd-brief-h"><span><IconAuto v="📋" /> 创作简报</span><b>{filled}/6</b></div>
       <div className="ipd-brief-grid">
         {BRIEF_FIELDS.map((f, i) => (
-          <span key={f} className={i < filled ? "ipd-bf in" : "ipd-bf"}>{f}</span>
+          <span key={f} className={i < filled ? "ipd-bf in" : "ipd-bf"}><IconLead text={f} /></span>
         ))}
       </div>
     </div>
@@ -145,7 +146,7 @@ function InterviewChat() {
         <span>视频号</span>
         <span>小红书</span>
       </div>
-      <div className="ipd-input"><span>🎤</span><i>打字或点 🎤 说话…</i><b>发送</b></div>
+      <div className="ipd-input"><span><IconAuto v="🎤" /></span><i>打字或点麦克风说话…</i><b>发送</b></div>
     </div>
   );
 }
@@ -187,7 +188,7 @@ export function CopyDetailPage() {
                     <InterviewChat />
                     <div className="ipd-wb-right">
                       <WbBrief filled={5} />
-                      <div className="ipd-gen">✨ 生成内容十件套</div>
+                      <div className="ipd-gen"><IconAuto v="✨" /> 生成内容十件套</div>
                       <div className="ipd-fee">预计消耗约 {skuPpu ?? "—"} 算力 · 按实际用量结算 · 失败不扣费</div>
                     </div>
                   </div>
@@ -212,9 +213,9 @@ export function CopyDetailPage() {
             )}
           </div>
           <div className="ipd-gthumbs">
-            <button className={view === "wb" ? "on" : ""} title="工作台实况" onClick={() => setView("wb")}>🧰</button>
-            <button className={view === "photo" ? "on" : ""} title="职业形象照 · 数字员工形象" onClick={() => setView("photo")}>👤</button>
-            <button className={view === "rate" ? "on" : ""} title="用户口碑" onClick={() => setView("rate")}>⭐</button>
+            <button className={view === "wb" ? "on" : ""} title="工作台实况" onClick={() => setView("wb")}><IconAuto v="🧰" /></button>
+            <button className={view === "photo" ? "on" : ""} title="职业形象照 · 数字员工形象" onClick={() => setView("photo")}><IconAuto v="👤" /></button>
+            <button className={view === "rate" ? "on" : ""} title="用户口碑" onClick={() => setView("rate")}><IconAuto v="⭐" /></button>
           </div>
           <div className="ipd-gcap">{VIEW_CAP[view]}</div>
         </div>
@@ -240,7 +241,7 @@ export function CopyDetailPage() {
               <span className="ipd-approx">{skuPpu != null ? `≈ ¥${(skuPpu / 10).toFixed(1)}` : "≈ ¥"} · 按实际用量结算</span>
             </div>
             <div className="ipd-price-meta">计费说明：<b>0 元开通</b> · 不收月费 · 使用后扣算力，失败不扣费</div>
-            <div className="ipd-guar">⚡ 1元 = 10算力　🎁 注册赠 100 算力　📄 账单逐笔可查</div>
+            <div className="ipd-guar"><IconAuto v="⚡" /> 1元 = 10算力　<IconAuto v="🎁" /> 注册赠 100 算力　<IconAuto v="📄" /> 账单逐笔可查</div>
           </div>
 
           <div className="ipd-deliver">
@@ -252,7 +253,7 @@ export function CopyDetailPage() {
 
           {/* 两处跳转（用户 2026-09-28 指定）：充值 → /recharge；立即使用 → 文案工作台 */}
           <div className="ipd-cta-row">
-            <button className="ipd-btn ghost" onClick={() => { window.location.href = getAppPath("/recharge"); }}>⚡ 充值算力</button>
+            <button className="ipd-btn ghost" onClick={() => { window.location.href = getAppPath("/recharge"); }}><IconAuto v="⚡" /> 充值算力</button>
             <button className="ipd-btn main" onClick={() => { window.location.href = getAppPath(WORKBENCH_PATH); }}>
               ⚡ 立即使用{skuPpu != null ? `（约 ${skuPpu} 算力/次）` : ""}
             </button>
@@ -330,11 +331,11 @@ export function CopyDetailPage() {
                       <span>✓ 确认，开始创作</span>
                       <span>✏️ 先改简报</span>
                     </div>
-                    <div className="ipd-input"><span>🎤</span><i>打字或点 🎤 说话…</i><b>发送</b></div>
+                    <div className="ipd-input"><span><IconAuto v="🎤" /></span><i>打字或点麦克风说话…</i><b>发送</b></div>
                   </div>
                   <div className="ipd-wb-right">
                     <WbBrief filled={6} />
-                    <div className="ipd-gen">✨ 生成内容十件套</div>
+                    <div className="ipd-gen"><IconAuto v="✨" /> 生成内容十件套</div>
                     <div className="ipd-fee">轻量约 3 分钟 · 十件套 5-10 分钟流式 · 失败不扣费</div>
                   </div>
                 </div>
@@ -349,7 +350,7 @@ export function CopyDetailPage() {
                 <div className="ipd-canvas">
                   {CANVAS_ZONES.map((z) => (
                     <div key={z.name} className="ipd-zone">
-                      <div className="ipd-zone-h">{z.icon} {z.name}</div>
+                      <div className="ipd-zone-h"><IconAuto v={z.icon} /> {z.name}</div>
                       <p>{z.items}</p>
                     </div>
                   ))}

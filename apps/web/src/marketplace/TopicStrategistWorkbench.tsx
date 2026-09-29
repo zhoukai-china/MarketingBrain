@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiPath, getAppPath, getPublicAssetPath } from "../lib/api.js";
 import { authHeaders } from "./shell.js";
+import { IconAuto, IconLead } from "./IconGlyph.js";
 import { MallTopbar } from "./MallTopbar.js";
 import { knowledgeSyncProgressText, runKnowledgeSync, latestKnowledgeSync } from "../lib/knowledge-sync.js";
 

@@ -11,6 +11,7 @@
 import { useEffect, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
 import { readJson } from "./shell.js";
+import { IconAuto, IconLead } from "./IconGlyph.js";
 import { MallTopbar } from "./MallTopbar.js";
 import { employeeAvatarPath } from "./eco-mall-data.js";
 
@@ -86,7 +87,7 @@ function BookDialog({ content, onClose }: { content: ComingSoonContent; onClose:
           </>
         ) : (
           <>
-            <div className="ipd-book-ico">📲</div>
+            <div className="ipd-book-ico"><IconAuto v="📲" /></div>
             <h3>预约「{content.name} · {content.title}」</h3>
             <p>该数字员工正在打磨中，上方可先看形态预览。留下手机号，上线后第一时间通知你。</p>
             <input
@@ -149,7 +150,7 @@ export function ComingSoonDetailPage({ content }: { content: ComingSoonContent }
                       <div className="ipd-msg q">{content.chat.q}</div>
                       <div className="ipd-opts">{content.chat.opts.map((o) => <span key={o}>{o}</span>)}</div>
                       <div className="ipd-msg a">{content.chat.a}</div>
-                      <div className="ipd-input"><span>🎤</span><i>打字或点 🎤 说话…</i><b>发送</b></div>
+                      <div className="ipd-input"><span><IconAuto v="🎤" /></span><i>打字或点麦克风说话…</i><b>发送</b></div>
                     </div>
                     <div className="ipd-wb-right">
                       <div className="ipd-ws">
@@ -180,9 +181,9 @@ export function ComingSoonDetailPage({ content }: { content: ComingSoonContent }
             )}
           </div>
           <div className="ipd-gthumbs">
-            <button className={view === "wb" ? "on" : ""} title="工作台形态预览" onClick={() => setView("wb")}>🧰</button>
-            <button className={view === "photo" ? "on" : ""} title="职业形象照 · 数字员工形象" onClick={() => setView("photo")}>👤</button>
-            <button className={view === "rate" ? "on" : ""} title="内测口碑" onClick={() => setView("rate")}>⭐</button>
+            <button className={view === "wb" ? "on" : ""} title="工作台形态预览" onClick={() => setView("wb")}><IconAuto v="🧰" /></button>
+            <button className={view === "photo" ? "on" : ""} title="职业形象照 · 数字员工形象" onClick={() => setView("photo")}><IconAuto v="👤" /></button>
+            <button className={view === "rate" ? "on" : ""} title="内测口碑" onClick={() => setView("rate")}><IconAuto v="⭐" /></button>
           </div>
           <div className="ipd-gcap">{view === "wb" ? content.wbCap : view === "photo" ? `职业形象照 · 数字员工「${content.name}」形象` : "内测口碑 · 评分与好评率"}</div>
         </div>
@@ -206,7 +207,7 @@ export function ComingSoonDetailPage({ content }: { content: ComingSoonContent }
               <span className="ipd-approx">{skuPpu != null ? `≈ ¥${(skuPpu / 10).toFixed(1)}` : "≈ ¥"} · 上线价</span>
             </div>
             <div className="ipd-price-meta">计费说明：<b>0 元开通</b> · 上线后按次扣算力 · <b>失败不扣费</b> · 预约免费</div>
-            <div className="ipd-guar">⚡ 1元 = 10算力　🎁 注册赠 100 算力　📄 账单逐笔可查</div>
+            <div className="ipd-guar"><IconAuto v="⚡" /> 1元 = 10算力　<IconAuto v="🎁" /> 注册赠 100 算力　<IconAuto v="📄" /> 账单逐笔可查</div>
           </div>
 
           <div className="ipd-deliver">
@@ -217,8 +218,8 @@ export function ComingSoonDetailPage({ content }: { content: ComingSoonContent }
           </div>
 
           <div className="ipd-cta-row">
-            <button className="ipd-btn ghost" onClick={() => { window.location.href = getAppPath("/recharge"); }}>⚡ 充值算力</button>
-            <button className="ipd-btn main" onClick={() => setBooking(true)}>📲 预约体验</button>
+            <button className="ipd-btn ghost" onClick={() => { window.location.href = getAppPath("/recharge"); }}><IconAuto v="⚡" /> 充值算力</button>
+            <button className="ipd-btn main" onClick={() => setBooking(true)}><IconAuto v="📲" /> 预约体验</button>
           </div>
           <div className="ipd-after-cta">
             上线价 {skuPpu ?? "—"} 算力{content.priceUnit} ≈ ¥{skuPpu != null ? (skuPpu / 10).toFixed(1) : "—"}（1 元 = 10 算力）· 预约用户优先开通 · 留手机号接收上线通知

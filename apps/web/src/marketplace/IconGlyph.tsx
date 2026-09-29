@@ -38,12 +38,36 @@ const GLYPHS: Record<string, string> = {
   book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/>',
   bolt: '<path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/>',
-  help: '<circle cx="12" cy="12" r="9"/><path d="M9.2 9a3 3 0 0 1 5.8 1c0 2-3 2.4-3 4"/><path d="M12 17.5h.01"/>'
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.2 9a3 3 0 0 1 5.8 1c0 2-3 2.4-3 4"/><path d="M12 17.5h.01"/>',
+  target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  tag: '<path d="M12 2H2v10l9.3 9.3a1 1 0 0 0 1.4 0l8.6-8.6a1 1 0 0 0 0-1.4L12 2z"/><circle cx="7" cy="7" r="1.3"/>',
+  rocket: '<path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2 0-2.8-.8-.7-2.2-.7-3 .2z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>',
+  pin: '<path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+  map: '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.2-4.2"/>',
+  star: '<path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1L12 2z"/>',
+  gem: '<path d="M6 3h12l4 6-10 12L2 9l4-6z"/><path d="M2 9h20M9.5 3 8 9l4 12 4-12-1.5-6"/>',
+  tv: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="m17 2-5 5-5-5"/>',
+  clipboard: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>',
+  heart: '<path d="M19.5 12.6 12 20l-7.5-7.4a5 5 0 1 1 7.5-6.6 5 5 0 1 1 7.5 6.6z"/>',
+  flask: '<path d="M10 2v6L4 19a2 2 0 0 0 1.8 3h12.4A2 2 0 0 0 20 19L14 8V2"/><path d="M8.5 2h7M7 15h10"/>',
+  brain: '<path d="M9.5 2A2.5 2.5 0 0 0 7 4.5v.55A3.5 3.5 0 0 0 4.5 8.5c0 .74.23 1.43.62 2A3.5 3.5 0 0 0 4 13.5 3.5 3.5 0 0 0 7 17v.5A2.5 2.5 0 0 0 9.5 20h.5V2h-.5z"/><path d="M14.5 2A2.5 2.5 0 0 1 17 4.5v.55a3.5 3.5 0 0 1 2.5 3.45c0 .74-.23 1.43-.62 2a3.5 3.5 0 0 1 1.12 3A3.5 3.5 0 0 1 17 17v.5a2.5 2.5 0 0 1-2.5 2.5H14V2h.5z"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>',
+  briefcase: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+  megaphone: '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/>',
+  key: '<circle cx="7.5" cy="15.5" r="4.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>',
+  health: '<rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 8v8M8 12h8"/>',
+  shield: '<path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10z"/><path d="m9 11.5 2 2 4-4.5"/>',
+  warning: '<path d="M12 3 2.5 20h19L12 3z"/><path d="M12 10v4M12 17.5h.01"/>'
 };
 
 export type IconGlyphName = keyof typeof GLYPHS;
 
-export function IconGlyph({ name, size = 30, style }: { name: string; size?: number; style?: CSSProperties }) {
+export function IconGlyph({ name, size = 30, style, className }: { name: string; size?: number; style?: CSSProperties; className?: string }) {
   const body = GLYPHS[name] ?? GLYPHS.sparkle;
   return (
     <svg
@@ -56,8 +80,41 @@ export function IconGlyph({ name, size = 30, style }: { name: string; size?: num
       width={size}
       height={size}
       style={style}
+      className={className}
       aria-hidden="true"
       dangerouslySetInnerHTML={{ __html: body }}
     />
   );
+}
+
+/* ---------- emoji → glyph 自动映射（详情页/工作台 icon 字段与固定 UI emoji） ---------- */
+const EMOJI_MAP: Record<string, string> = {
+  "🧭": "compass", "🎯": "target", "👤": "user", "👥": "users", "💰": "chart", "📊": "chart", "💎": "gem",
+  "🏷": "tag", "⚔": "bolt", "✍": "pen", "🚀": "rocket", "📌": "pin", "🗺": "map",
+  "✅": "check", "🔍": "search", "🎬": "clapper", "🎤": "mic", "📣": "megaphone", "📦": "pack",
+  "🌟": "star", "⭐": "star", "⏱": "clock", "🏁": "flag", "💼": "briefcase", "🩺": "health",
+  "🧬": "sparkle", "💔": "heart", "❤": "heart", "💚": "heart", "🔬": "flask", "🧠": "brain",
+  "📋": "clipboard", "📺": "tv", "📱": "tv", "🔧": "check", "🧩": "pack", "▶": "playback",
+  "🏪": "store", "🏭": "factory", "💪": "dumbbell", "📥": "download", "🔑": "key", "💤": "clock",
+  "⚡": "bolt", "📲": "bolt", "📄": "clipboard", "🎁": "gift", "🛒": "cart", "🧰": "pack",
+  "😲": "star", "😮": "star", "✨": "sparkle", "🛡": "shield", "⚠": "warning", "🗂": "clipboard"
+};
+
+/** emoji→glyph 自动渲染：映射命中画线性图标，否则原样展示（内容级 emoji 兜底）。 */
+export function IconAuto({ v, size = 14 }: { v: string; size?: number }) {
+  const key = v.replace(/\uFE0F/g, "").trim();
+  const g = EMOJI_MAP[key];
+  if (g) return <IconGlyph name={g} size={size} className="eh-ig" style={{ display: "inline", verticalAlign: "-2px" }} />;
+  return <span className="eh-emoji-fallback">{v}</span>;
+}
+
+/** 字符串开头的 emoji 转 glyph（如 "🧭 角色" → [compass 图标] 角色）。 */
+export function IconLead({ text, size = 13 }: { text: string; size?: number }) {
+  const m = text.match(/^(\S{1,2})\s*(.*)$/u);
+  if (m) {
+    const key = m[1].replace(/\uFE0F/g, "");
+    const g = EMOJI_MAP[key];
+    if (g) return <><IconGlyph name={g} size={size} className="eh-ig" style={{ display: "inline", verticalAlign: "-2px" }} /> {m[2]}</>;
+  }
+  return <>{text}</>;
 }

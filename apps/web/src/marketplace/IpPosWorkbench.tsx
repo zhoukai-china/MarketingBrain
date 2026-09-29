@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from "react";
 import { apiPath, getAppPath, getAppRoutePath } from "../lib/api.js";
 import { readSessionIdentity } from "../lib/session.js";
 import { authHeaders, handleStaleSession, readJson } from "./shell.js";
+import { IconAuto, IconLead } from "./IconGlyph.js";
 import { MallTopbar } from "./MallTopbar.js";
 import { chatFlowFor, buildRunBody } from "./chat-flows.js";
 import { renderMarkdownHtml } from "./AgentChatPage.js";
@@ -719,7 +720,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                         const v = (brief[f.key] ?? "").trim();
                         return (
                           <div key={f.key} className={`cpw-bf${v ? " filled" : ""}${flashFields.includes(f.key) ? " flash" : ""}`} title={v ? "点击修改" : "等待左侧引导填入"} onClick={() => editField(f.key)}>
-                            <div className="cpw-bf-k">{f.icon} {f.label}{v ? "" : " · 待填"}</div>
+                            <div className="cpw-bf-k"><IconAuto v={f.icon} /> {f.label}{v ? "" : " · 待填"}</div>
                             <div className="cpw-bf-v">{v || "——"}</div>
                           </div>
                         );
@@ -727,13 +728,13 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                     </div>
                     <div className="cpw-ops">
                       {phase !== "gen" && phase !== "done" && (
-                        <button className="cpw-big-btn gen" disabled={filled < 8} onClick={() => { dismissConfirmOpts(); void startGen(); }}>✨ 生成定位全案</button>
+                        <button className="cpw-big-btn gen" disabled={filled < 8} onClick={() => { dismissConfirmOpts(); void startGen(); }}><IconAuto v="✨" /> 生成定位全案</button>
                       )}
                       {phase === "done" && (
                         <button className="cpw-big-btn ghost" onClick={() => { setPhase("confirm"); setConfirmOpts(true); setPieces([]); setRestored(false); setConsumed(null); }}>↻ 改简报重新生成</button>
                       )}
                       <span className="cpw-fee">{feeHint}</span>
-                      <span className="cpw-safe-tag">🛡️ 失败不扣费</span>
+                      <span className="cpw-safe-tag"><IconAuto v="🛡" /> 失败不扣费</span>
                     </div>
                     {review && review.length > 0 && phase !== "gen" && (
                       <div className="cpw-review" role="alert">
@@ -747,7 +748,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                             <div className="cpw-ir" key={issue.slot}>
                               <span className={`cpw-ir-badge ${issue.verdict === "missing" ? "missing" : "weak"}`}>{issue.verdict === "missing" ? "缺失" : "太薄"}</span>
                               <div className="cpw-ir-main">
-                                <b>{fields.map((fk) => { const meta = FIELDS.find((x) => x.key === fk); return meta ? `${meta.icon} ${meta.label}` : fk; }).join(" / ")}</b>
+                                <b>{fields.map((fk) => { const meta = FIELDS.find((x) => x.key === fk); return meta ? `$<IconAuto v={meta.icon} /> ${meta.label}` : fk; }).join(" / ")}</b>
                                 <span>{issue.followup}</span>
                               </div>
                               {done0 && <span className="cpw-ir-done">✓ 已补充</span>}
@@ -783,7 +784,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                                 <div className="cpw-pc" key={p.meta.id}>
                                   <div className="cpw-pc-h">
                                     <span className="cpw-pc-no" style={{ background: GCOLOR[p.meta.g] }}>{p.meta.no}</span>
-                                    <b>{p.meta.icon} {p.meta.title}</b>
+                                    <b><IconAuto v={p.meta.icon} /> {p.meta.title}</b>
                                     <span className="cpw-g-tag" style={{ color: GCOLOR[p.meta.g], background: GSOFT[p.meta.g] }}>{p.meta.gt}</span>
                                     <div className="cpw-pc-btns">
                                       <button className="cpw-cbtn" onClick={() => copyText(`${p.meta.no}、${p.meta.title}\n\n${p.plain}`)}>⧉ 复制本件</button>
@@ -826,7 +827,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                               <div key={p.id} className={cls}>
                                 {phase === "gen" && i === genIdx && !genFinished && <span className="cpw-spin" />}
                                 <div className="cpw-no" style={{ color: GCOLOR[p.g], background: GSOFT[p.g] }}>{p.no} · {p.gt}</div>
-                                <b>{p.icon} {p.title}</b>
+                                <b><IconAuto v={p.icon} /> {p.title}</b>
                                 <span className="cpw-d">{p.d}</span>
                               </div>
                             );
@@ -845,7 +846,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
       {editing && (
         <div className="cpw-modal-mask" onClick={() => setEditing(null)}>
           <div className="cpw-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="cpw-modal-t">{FIELDS.find((f) => f.key === editing)?.icon} 修改「{FIELDS.find((f) => f.key === editing)?.label}」</div>
+            <div className="cpw-modal-t">{FIELDS.find((f) => f.key === editing) && <IconAuto v={FIELDS.find((f) => f.key === editing)!.icon} />} 修改「{FIELDS.find((f) => f.key === editing)?.label}」</div>
             <textarea ref={draftRef} value={draft} onChange={(e) => setDraft(e.target.value)} rows={4} placeholder="输入内容，留空保存 = 清空该字段" />
             <div className="cpw-modal-ops">
               <button className="cpw-big-btn ghost" onClick={() => setEditing(null)}>取消</button>

@@ -70,7 +70,7 @@ const ANSWER = `# IP定位全案\n\n## 速览\n项目定位：手机后市场供
   }));
   log(/IP定位工作台/.test(root.h1), "hero 标题=「IP定位工作台」", root.h1);
   log(/IP定位工作台/.test(root.bar), "舞台栏标题统一", root.bar);
-  const expectLabels = ["🧭 角色 · 待填", "🏷️ 项目 · 待填", "💰 商业模式 · 待填", "⚔️ 竞争格局 · 待填", "🎯 目标用户 · 待填", "👤 创始人 · 待填", "🏁 IP目标 · 待填", "📊 现状与投入 · 待填"];
+  const expectLabels = ["角色 · 待填", "项目 · 待填", "商业模式 · 待填", "竞争格局 · 待填", "目标用户 · 待填", "创始人 · 待填", "IP目标 · 待填", "现状与投入 · 待填"]; // 风格B
   log(expectLabels.every((l) => root.bfLabels.includes(l)), "简报 8 字段与原型逐字一致");
   log(/0\/8/.test(root.body), "简报计数 0/8");
   log(root.phCount === 9, "画布 9 件结构预览", "ph=" + root.phCount);

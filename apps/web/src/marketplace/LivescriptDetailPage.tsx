@@ -14,6 +14,7 @@
 import { useEffect, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
 import { readJson } from "./shell.js";
+import { IconAuto, IconLead } from "./IconGlyph.js";
 import { MallTopbar } from "./MallTopbar.js";
 import { employeeAvatarPath } from "./eco-mall-data.js";
 
@@ -114,10 +115,10 @@ function WbChatHeader() {
 function WbBrief({ filled }: { filled: number }) {
   return (
     <div className="ipd-ws">
-      <div className="ipd-brief-h"><span>📋 脚本简报</span><b>{filled}/6</b></div>
+      <div className="ipd-brief-h"><span><IconAuto v="📋" /> 脚本简报</span><b>{filled}/6</b></div>
       <div className="ipd-brief-grid">
         {BRIEF_FIELDS.map((f, i) => (
-          <span key={f} className={i < filled ? "ipd-bf in" : "ipd-bf"}>{f}</span>
+          <span key={f} className={i < filled ? "ipd-bf in" : "ipd-bf"}><IconLead text={f} /></span>
         ))}
       </div>
     </div>
@@ -167,11 +168,11 @@ export function LivescriptDetailPage() {
                         <span>📚 知识付费</span>
                       </div>
                       <div className="ipd-msg a">招商场——按「赚创业者的钱」配整场打法。全场唯一的转化动作是什么？钩子和收尾都围着它转。</div>
-                      <div className="ipd-input"><span>🎤</span><i>打字或点 🎤 说话…</i><b>发送</b></div>
+                      <div className="ipd-input"><span><IconAuto v="🎤" /></span><i>打字或点麦克风说话…</i><b>发送</b></div>
                     </div>
                     <div className="ipd-wb-right">
                       <WbBrief filled={4} />
-                      <div className="ipd-gen">✨ 生成脚本包</div>
+                      <div className="ipd-gen"><IconAuto v="✨" /> 生成脚本包</div>
                       <div className="ipd-fee">先选场次类型 · 再选交付深度 · 逐字稿可照读 · 失败不扣费</div>
                     </div>
                   </div>
@@ -196,9 +197,9 @@ export function LivescriptDetailPage() {
             )}
           </div>
           <div className="ipd-gthumbs">
-            <button className={view === "wb" ? "on" : ""} title="工作台实况" onClick={() => setView("wb")}>🧰</button>
-            <button className={view === "photo" ? "on" : ""} title="职业形象照 · 数字员工形象" onClick={() => setView("photo")}>👤</button>
-            <button className={view === "rate" ? "on" : ""} title="用户口碑" onClick={() => setView("rate")}>⭐</button>
+            <button className={view === "wb" ? "on" : ""} title="工作台实况" onClick={() => setView("wb")}><IconAuto v="🧰" /></button>
+            <button className={view === "photo" ? "on" : ""} title="职业形象照 · 数字员工形象" onClick={() => setView("photo")}><IconAuto v="👤" /></button>
+            <button className={view === "rate" ? "on" : ""} title="用户口碑" onClick={() => setView("rate")}><IconAuto v="⭐" /></button>
           </div>
           <div className="ipd-gcap">{VIEW_CAP[view]}</div>
         </div>
@@ -224,7 +225,7 @@ export function LivescriptDetailPage() {
               <span className="ipd-approx">{skuPpu != null ? `≈ ¥${(skuPpu / 10).toFixed(1)}` : "≈ ¥"} · 整场直播逐字稿 · 一口价</span>
             </div>
             <div className="ipd-price-meta">计费说明：<b>0 元开通</b> · 不收月费 · 使用后扣算力，失败不扣费</div>
-            <div className="ipd-guar">⚡ 1元 = 10算力　🎁 注册赠 100 算力　📄 账单逐笔可查</div>
+            <div className="ipd-guar"><IconAuto v="⚡" /> 1元 = 10算力　<IconAuto v="🎁" /> 注册赠 100 算力　<IconAuto v="📄" /> 账单逐笔可查</div>
           </div>
 
           <div className="ipd-deliver">
@@ -236,7 +237,7 @@ export function LivescriptDetailPage() {
 
           {/* 两处跳转（用户 2026-09-28 指定）：充值 → /recharge；立即使用 → 直播话术工作台 */}
           <div className="ipd-cta-row">
-            <button className="ipd-btn ghost" onClick={() => { window.location.href = getAppPath("/recharge"); }}>⚡ 充值算力</button>
+            <button className="ipd-btn ghost" onClick={() => { window.location.href = getAppPath("/recharge"); }}><IconAuto v="⚡" /> 充值算力</button>
             <button className="ipd-btn main" onClick={() => { window.location.href = getAppPath(WORKBENCH_PATH); }}>
               ⚡ 立即使用{skuPpu != null ? `（${skuPpu} 算力/场）` : ""}
             </button>
@@ -300,7 +301,7 @@ export function LivescriptDetailPage() {
                       <span>📚 知识付费</span>
                     </div>
                     <div className="ipd-msg a">招商场——先说品牌：有哪些看得见的硬实力？直营数据、供应链、培训体系…没有的先写「暂无」，我不瞎编。</div>
-                    <div className="ipd-input"><span>🎤</span><i>打字或点 🎤 说话…</i><b>发送</b></div>
+                    <div className="ipd-input"><span><IconAuto v="🎤" /></span><i>打字或点麦克风说话…</i><b>发送</b></div>
                   </div>
                   <div className="ipd-wb-right">
                     <WbBrief filled={2} />
@@ -323,11 +324,11 @@ export function LivescriptDetailPage() {
                       <span>✓ 确认，生成脚本包</span>
                       <span>✏️ 先改简报</span>
                     </div>
-                    <div className="ipd-input"><span>🎤</span><i>打字或点 🎤 说话…</i><b>发送</b></div>
+                    <div className="ipd-input"><span><IconAuto v="🎤" /></span><i>打字或点麦克风说话…</i><b>发送</b></div>
                   </div>
                   <div className="ipd-wb-right">
                     <WbBrief filled={6} />
-                    <div className="ipd-gen">✨ 生成脚本包</div>
+                    <div className="ipd-gen"><IconAuto v="✨" /> 生成脚本包</div>
                     <div className="ipd-fee">整场脚本包流式分区点亮 · 失败不扣费</div>
                   </div>
                 </div>

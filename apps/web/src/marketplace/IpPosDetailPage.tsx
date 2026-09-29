@@ -17,6 +17,7 @@
 import { useEffect, useState } from "react";
 import { getAppPath } from "../lib/api.js";
 import { MallTopbar } from "./MallTopbar.js";
+import { IconAuto, IconLead } from "./IconGlyph.js";
 import { employeeAvatarPath } from "./eco-mall-data.js";
 import { IP_POS_PRICE, IP_POS_UNIT } from "./sku-model.js";
 
@@ -133,7 +134,7 @@ function WbBrief({ filled }: { filled: number }) {
       <div className="ipd-brief-h"><span>📋 定位简报</span><b>{filled}/6</b></div>
       <div className="ipd-brief-grid">
         {BRIEF_FIELDS.map((f, i) => (
-          <span key={f} className={i < filled ? "ipd-bf in" : "ipd-bf"}>{f}</span>
+          <span key={f} className={i < filled ? "ipd-bf in" : "ipd-bf"}><IconLead text={f} /></span>
         ))}
       </div>
     </div>
@@ -153,7 +154,7 @@ function InterviewChat() {
       </div>
       <div className="ipd-msg a">明白——按「招商获客型创始人IP」深度来做。</div>
       <div className="ipd-msg q">项目叫什么？赚谁的钱、怎么赚？</div>
-      <div className="ipd-input"><span>🎤</span><i>打字或点 🎤 说话…</i><b>发送</b></div>
+      <div className="ipd-input"><span><IconAuto v="🎤" /></span><i>打字或点麦克风说话…</i><b>发送</b></div>
     </div>
   );
 }
@@ -181,7 +182,7 @@ export function IpPosDetailPage() {
                     <InterviewChat />
                     <div className="ipd-wb-right">
                       <WbBrief filled={0} />
-                      <div className="ipd-gen">✨ 生成定位全案 · {IP_POS_PRICE} {IP_POS_UNIT}</div>
+                      <div className="ipd-gen"><IconAuto v="✨" /> 生成定位全案 · {IP_POS_PRICE} {IP_POS_UNIT}</div>
                       <div className="ipd-fee">完成 6 步访谈后可生成 · 全案（速览 + 8 章）{IP_POS_PRICE} {IP_POS_UNIT}/份</div>
                     </div>
                   </div>
@@ -225,10 +226,10 @@ export function IpPosDetailPage() {
             )}
           </div>
           <div className="ipd-gthumbs">
-            <button className={view === "wb" ? "on" : ""} title="工作台实况" onClick={() => setView("wb")}>🧰</button>
-            <button className={view === "live" ? "on" : ""} title="AI 工作实况" onClick={() => setView("live")}>▶</button>
-            <button className={view === "photo" ? "on" : ""} title="职业形象照 · 数字员工形象" onClick={() => setView("photo")}>👤</button>
-            <button className={view === "rate" ? "on" : ""} title="用户口碑" onClick={() => setView("rate")}>⭐</button>
+            <button className={view === "wb" ? "on" : ""} title="工作台实况" onClick={() => setView("wb")}><IconAuto v="🧰" /></button>
+            <button className={view === "live" ? "on" : ""} title="AI 工作实况" onClick={() => setView("live")}><IconAuto v="▶" /></button>
+            <button className={view === "photo" ? "on" : ""} title="职业形象照 · 数字员工形象" onClick={() => setView("photo")}><IconAuto v="👤" /></button>
+            <button className={view === "rate" ? "on" : ""} title="用户口碑" onClick={() => setView("rate")}><IconAuto v="⭐" /></button>
           </div>
           <div className="ipd-gcap">{VIEW_CAP[view]}</div>
         </div>
@@ -254,7 +255,7 @@ export function IpPosDetailPage() {
               <span className="ipd-approx">≈ ¥9.9 · 一口价</span>
             </div>
             <div className="ipd-price-meta">计费说明：<b>0 元开通</b> · 不收月费 · 使用后扣算力，失败不扣费</div>
-            <div className="ipd-guar">⚡ 1元 = 10算力　🎁 注册赠 100 算力　📄 账单逐笔可查</div>
+            <div className="ipd-guar"><IconAuto v="⚡" /> 1元 = 10算力　<IconAuto v="🎁" /> 注册赠 100 算力　<IconAuto v="📄" /> 账单逐笔可查</div>
           </div>
 
           <div className="ipd-deliver">
@@ -266,7 +267,7 @@ export function IpPosDetailPage() {
 
           {/* 两处跳转（用户 2026-09-27 指定）：充值 → /recharge；立即使用 → 工作台 */}
           <div className="ipd-cta-row">
-            <button className="ipd-btn ghost" onClick={() => { window.location.href = getAppPath("/recharge"); }}>⚡ 充值算力</button>
+            <button className="ipd-btn ghost" onClick={() => { window.location.href = getAppPath("/recharge"); }}><IconAuto v="⚡" /> 充值算力</button>
             <button className="ipd-btn main" onClick={() => { window.location.href = getAppPath("/agent/ipzone__ip-pos/workbench"); }}>
               ⚡ 立即使用（{IP_POS_PRICE} {IP_POS_UNIT}/份）
             </button>
@@ -293,7 +294,7 @@ export function IpPosDetailPage() {
             <div className="ipd-caps">
               {CAPABILITIES.map((c) => (
                 <div key={c.name} className="ipd-cap">
-                  <span className="ipd-cap-ico">{c.icon}</span>
+                  <span className="ipd-cap-ico"><IconAuto v={c.icon} /></span>
                   <div><b>{c.name}</b><p>{c.desc}</p></div>
                 </div>
               ))}
@@ -348,11 +349,11 @@ export function IpPosDetailPage() {
                       <span>✓ 确认，开始生成</span>
                       <span>✏️ 先改简报</span>
                     </div>
-                    <div className="ipd-input"><span>🎤</span><i>打字或点 🎤 说话…</i><b>发送</b></div>
+                    <div className="ipd-input"><span><IconAuto v="🎤" /></span><i>打字或点麦克风说话…</i><b>发送</b></div>
                   </div>
                   <div className="ipd-wb-right">
                     <WbBrief filled={6} />
-                    <div className="ipd-gen">✨ 生成定位全案 · {IP_POS_PRICE} {IP_POS_UNIT}</div>
+                    <div className="ipd-gen"><IconAuto v="✨" /> 生成定位全案 · {IP_POS_PRICE} {IP_POS_UNIT}</div>
                     <div className="ipd-fee">线上流式约 50 秒 · 失败不扣费</div>
                   </div>
                 </div>
@@ -367,7 +368,7 @@ export function IpPosDetailPage() {
                 <div className="ipd-canvas">
                   {CANVAS_ZONES.map((z) => (
                     <div key={z.name} className="ipd-zone">
-                      <div className="ipd-zone-h">{z.icon} {z.name}</div>
+                      <div className="ipd-zone-h"><IconAuto v={z.icon} /> {z.name}</div>
                       <p>{z.items}</p>
                     </div>
                   ))}

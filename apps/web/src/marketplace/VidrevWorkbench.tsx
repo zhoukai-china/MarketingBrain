@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState } from "react";
 import { apiPath, getAppPath, getAppRoutePath } from "../lib/api.js";
 import { authHeaders, handleStaleSession, readJson } from "./shell.js";
+import { IconAuto, IconLead } from "./IconGlyph.js";
 import { MallTopbar } from "./MallTopbar.js";
 import { chatFlowFor, buildVidrevRunBody, normalizeVidrevPlatform } from "./chat-flows.js";
 import { readAttachmentText } from "./text-attachment.js";
@@ -596,7 +597,7 @@ export function VidrevWorkbench({ skuId }: { skuId: string }) {
                     <div className="cpw-grid">
                       {briefRows.map((r) => (
                         <div key={r.label} className={`cpw-bf${r.value ? " filled" : ""}`} style={{ cursor: "default" }}>
-                          <div className="cpw-bf-k">{r.icon} {r.label}{r.tag ? <span className="cpw-opt-tag">{r.tag}</span> : null}</div>
+                          <div className="cpw-bf-k"><IconAuto v={r.icon} /> {r.label}{r.tag ? <span className="cpw-opt-tag">{r.tag}</span> : null}</div>
                           <div className="cpw-bf-v">{r.value || "——"}</div>
                         </div>
                       ))}
@@ -624,7 +625,7 @@ export function VidrevWorkbench({ skuId }: { skuId: string }) {
                           ? <>本次实际消耗 <b>{consumed ?? skuPpu ?? "—"} 算力</b>（按实际用量结算）</>
                           : <>预计消耗约 <b>{skuPpu ?? "—"} 算力</b>（按实际用量结算 · 体检不扣 · 校验不过不扣）</>}
                       </span>
-                      <span className="cpw-safe-tag">🛡️ 失败不扣费</span>
+                      <span className="cpw-safe-tag"><IconAuto v="🛡" /> 失败不扣费</span>
                     </div>
                     {error && <div className="cpw-err">{error}</div>}
                   </div>
@@ -661,7 +662,7 @@ export function VidrevWorkbench({ skuId }: { skuId: string }) {
                               <div key={ch.no} className={cls}>
                                 {i === genIdx && <span className="cpw-spin" />}
                                 <div className="cpw-no" style={{ color: GROUP_COLOR[ch.g], background: GROUP_SOFT[ch.g] }}>{ch.no} · {ch.gt}</div>
-                                <b>{ch.icon} {ch.title}</b>
+                                <b><IconAuto v={ch.icon} /> {ch.title}</b>
                                 <span className="cpw-d">{ch.d}</span>
                               </div>
                             );

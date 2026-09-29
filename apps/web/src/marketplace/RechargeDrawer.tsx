@@ -1,5 +1,6 @@
 import { getAppPath } from "../lib/api.js";
 import { packOff, packPts, useRechargeFlow } from "../lib/use-recharge-flow.js";
+import { IconAuto } from "./IconGlyph.js";
 
 /**
  * 充值右侧抽屉（2026-09-29 用户拍板：右侧抽屉不跳页）。
@@ -48,7 +49,7 @@ export function RechargeDrawer({ open, onClose, onPaid }: { open: boolean; onClo
                 <div className="eh-rd-balance">
                   <div>
                     <div style={{ fontSize: 11, color: "#94796B" }}>当前算力余额</div>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: "#E86A00" }}>💎 {wallet.balance}</div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: "#E86A00" }}><IconAuto v="💎" size={20} /> {wallet.balance}</div>
                     <div style={{ fontSize: 11, color: "#BEA488" }}>充值 {wallet.paidBalance} · 赠送 {wallet.bonusBalance}</div>
                   </div>
                   <span className="eh-rd-tag">全平台通用</span>
@@ -81,7 +82,7 @@ export function RechargeDrawer({ open, onClose, onPaid }: { open: boolean; onClo
                   </div>
 
                   {currentPlan ? (
-                    <div className="eh-rd-worth">💰 这一档到账 <b>{packPts(currentPlan)} 算力</b>{currentPlan.bonusCredits > 0 ? `（含多送 ${currentPlan.bonusCredits}）` : ""}</div>
+                    <div className="eh-rd-worth"><IconAuto v="💰" size={13} /> 这一档到账 <b>{packPts(currentPlan)} 算力</b>{currentPlan.bonusCredits > 0 ? `（含多送 ${currentPlan.bonusCredits}）` : ""}</div>
                   ) : null}
 
                   <div className="eh-rd-sec">支付方式</div>
@@ -90,7 +91,7 @@ export function RechargeDrawer({ open, onClose, onPaid }: { open: boolean; onClo
                     className={`eh-rd-method ${method === "wx" ? "on" : ""}`}
                     onClick={() => setMethod("wx")}
                   >
-                    <span style={{ fontSize: 16 }}>💚</span>
+                    <span><IconAuto v="💚" size={16} /></span>
                     <span style={{ flex: 1, textAlign: "left" }}><b>微信支付</b><small style={{ display: "block", color: "#94796B", fontSize: 11 }}>推荐 · 支持零钱与银行卡</small></span>
                     <i className="eh-rd-dot" />
                   </button>
@@ -132,7 +133,7 @@ export function RechargeDrawer({ open, onClose, onPaid }: { open: boolean; onClo
             </>
           ) : (
             <div className="eh-rd-login">
-              <div style={{ fontSize: 26 }}>🔑</div>
+              <div><IconAuto v="🔑" size={26} /></div>
               <b>登录后充值</b>
               <p>算力跟思潼AI 账号走，登录后即可充值并查看余额与记录。</p>
               <button

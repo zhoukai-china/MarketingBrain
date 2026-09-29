@@ -72,13 +72,16 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
     await page.goto("http://localhost:5174/agent/ipzone__ip-pos/detail", { waitUntil: "networkidle2", timeout: 30000 });
     await new Promise((r) => setTimeout(r, 1500));
     const text = await page.evaluate(() => document.body.innerText);
-    const thumbs = await page.evaluate(() => Array.from(document.querySelectorAll(".ipd-gthumbs button")).map((b) => b.textContent.trim()).join(""));
-    log(thumbs === "🧰▶👤⭐", "轮播四图顺序 🧰▶👤⭐", thumbs);
+    const thumbs = await page.evaluate(() => {
+      const btns = Array.from(document.querySelectorAll(".ipd-gthumbs button"));
+      return { n: btns.length, svg: btns.filter((b) => b.querySelector("svg")).length, titles: btns.map((b) => b.getAttribute("title")).join("|") };
+    });
+    log(thumbs.n === 4 && thumbs.svg === 4, "轮播四图均为线性图标（风格B）", JSON.stringify(thumbs));
     log(!text.includes("今日选题清单") && !text.includes("直播逐字稿"), "无错位样例（选题清单/逐字稿）");
     // 切到 AI 工作实况
     await page.evaluate(() => {
       const btns = Array.from(document.querySelectorAll(".ipd-gthumbs button"));
-      const t = btns.find((b) => b.textContent.trim() === "▶");
+      const t = btns.find((b) => (b.getAttribute("title") || "").includes("AI 工作实况"));
       if (t) t.click();
     });
     await new Promise((r) => setTimeout(r, 500));
@@ -92,7 +95,7 @@ const log = (ok, name, extra = "") => { ok ? pass++ : fail++; console.log((ok ? 
     // 切到用户口碑
     await page.evaluate(() => {
       const btns = Array.from(document.querySelectorAll(".ipd-gthumbs button"));
-      const t = btns.find((b) => b.textContent.trim() === "⭐");
+      const t = btns.find((b) => (b.getAttribute("title") || "").includes("口碑"));
       if (t) t.click();
     });
     await new Promise((r) => setTimeout(r, 400));

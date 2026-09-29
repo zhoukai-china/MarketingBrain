@@ -1869,6 +1869,8 @@ body:has(.ipd-page), body:has(.ts-wb){overflow-x:hidden}
   animation:none;
 }
 .eh .eco-kk-item:hover .eco-kk-ico{border-color:var(--kk-tint,#FF7A1A)}
+/* 详情页 / 工作台 icon 字段渲染的线性图标统一深橙 */
+.eh-ig{color:#C24A00}
 /* [风格B-end] */
 
 /* ---- 散落 UI 小图标：TabBar / Hero / 横幅（B 风格统一） ---- */

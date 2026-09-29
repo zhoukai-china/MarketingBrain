@@ -114,7 +114,7 @@ const DEEP_PAYLOAD = {
   const done = await page.evaluate(() => document.body.innerText.replace(/\s+/g, " "));
   log(/已交付/.test(done), "交付头「✓ 已交付」");
   log(/第零章 数据质量审计/.test(done) || /数据质量审计/.test(done), "报告渲染（VidrevReport 与 chat 同源）");
-  log(/本次实际消耗\s*30\s*积分/.test(done), "交付费用报实际积分（30 积分）");
+  log(/本次实际消耗\s*\d+\s*算力/.test(done), "交付费用报实际算力（按用量）");
   log(/按实际用量结算/.test(done), "计费口径=按实际用量结算");
   const rb = global.__runBody || {};
   log(rb.platform === "视频号" && rb.has_revenue_data === true && typeof rb.input === "string" && rb.input.includes("数据 / 描述"), "/run 结构化入参与 chat 同构（platform/period/has_revenue_data）", JSON.stringify({ platform: rb.platform, has_revenue_data: rb.has_revenue_data, period: rb.period }));

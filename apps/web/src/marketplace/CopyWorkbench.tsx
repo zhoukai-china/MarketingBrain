@@ -15,6 +15,7 @@
 import { useEffect, useRef, useState } from "react";
 import { apiPath, getAppPath, getAppRoutePath } from "../lib/api.js";
 import { authHeaders, handleStaleSession, readJson } from "./shell.js";
+import { IconAuto, IconLead } from "./IconGlyph.js";
 import { MallTopbar } from "./MallTopbar.js";
 import { renderMarkdownHtml } from "./AgentChatPage.js";
 import { employeeAvatarPath } from "./eco-mall-data.js";
@@ -602,7 +603,7 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
                         const show = f.key === "depth" && v ? (v === "full" ? "完整内容十件套" : "轻量 · 1 条可直发文案") : v;
                         return (
                           <div key={f.key} className={`cpw-bf${v ? " filled" : ""}`} title={v ? "点击修改" : "等待左侧引导填入"} onClick={() => editField(f.key)}>
-                            <div className="cpw-bf-k">{f.icon} {f.label}{v ? "" : " · 待填"}</div>
+                            <div className="cpw-bf-k"><IconAuto v={f.icon} /> {f.label}{v ? "" : " · 待填"}</div>
                             <div className="cpw-bf-v">{show || "——"}</div>
                           </div>
                         );
@@ -614,7 +615,7 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
                         <button className="cpw-big-btn ghost" onClick={() => { setPhase("confirm"); setPieces([]); setAnswerMd(""); setConsumed(null); }}>↻ 改简报重新生成</button>
                       )}
                       <span className="cpw-fee">{feeHint}</span>
-                      <span className="cpw-safe-tag">🛡️ 失败不扣费</span>
+                      <span className="cpw-safe-tag"><IconAuto v="🛡" /> 失败不扣费</span>
                     </div>
                     {error && <div className="cpw-err">{error}</div>}
                   </div>
@@ -653,7 +654,7 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
                           {(depth === "light" ? [{ no: "✦", g: "doc", gt: "文稿区", icon: "📄", title: "可直发文案（1 条）", d: "标题 + 正文 + 话题" }] : PIECES).map((p, i) => (
                             <div key={p.no} className={`cpw-ph ${phase === "gen" ? (i <= genIdx ? "gening" : "locked") : "locked"}`}>
                               {phase === "gen" && i <= genIdx && <span className="cpw-spin" />}
-                              <div className={`cpw-no g-${p.g}`}>{p.no} {p.gt}</div><b>{p.icon} {p.title}</b><span className="cpw-d">{p.d}</span>
+                              <div className={`cpw-no g-${p.g}`}>{p.no} {p.gt}</div><b><IconAuto v={p.icon} /> {p.title}</b><span className="cpw-d">{p.d}</span>
                             </div>
                           ))}
                         </div>
@@ -683,7 +684,7 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
                                 <div className="cpw-pc" key={p.meta.no}>
                                   <div className="cpw-pc-h">
                                     <span className="cpw-pc-no" style={{ background: GROUP_COLOR[p.meta.g] }}>{p.meta.no}</span>
-                                    <b>{p.meta.icon} {p.meta.title}</b>
+                                    <b><IconAuto v={p.meta.icon} /> {p.meta.title}</b>
                                     <span className="cpw-g-tag" style={{ color: GROUP_COLOR[p.meta.g], background: GROUP_SOFT[p.meta.g] }}>{p.meta.gt}</span>
                                     <div className="cpw-pc-btns">
                                       <button className="cpw-cbtn" onClick={() => copyText(`#${p.meta.num}、${p.meta.title}\n\n${p.body}`)}>⧉ 复制本件</button>
@@ -708,7 +709,7 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
       {editing && (
         <div className="cpw-modal-mask" onClick={() => setEditing(null)}>
           <div className="cpw-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="cpw-modal-t">{FIELDS.find((f) => f.key === editing)?.icon} 修改「{FIELDS.find((f) => f.key === editing)?.label}」</div>
+            <div className="cpw-modal-t">{FIELDS.find((f) => f.key === editing) && <IconAuto v={FIELDS.find((f) => f.key === editing)!.icon} />} 修改「{FIELDS.find((f) => f.key === editing)?.label}」</div>
             {editing === "depth" ? (
               <div className="cpw-depth-opts">
                 <button className={`cpw-depth-opt${draft === "light" ? " act" : ""}`} onClick={() => setDraft("light")}>📄 轻量 · 1 条可直发文案<small>标题 + 正文 + 话题</small></button>

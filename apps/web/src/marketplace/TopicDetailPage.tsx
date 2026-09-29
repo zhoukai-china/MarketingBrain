@@ -20,6 +20,7 @@
 import { useEffect, useState } from "react";
 import { apiPath, getAppPath } from "../lib/api.js";
 import { readJson } from "./shell.js";
+import { IconAuto, IconLead } from "./IconGlyph.js";
 import { MallTopbar } from "./MallTopbar.js";
 import { employeeAvatarPath } from "./eco-mall-data.js";
 
@@ -143,7 +144,7 @@ function WbChatHeader() {
 function SourceChipRow() {
   return (
     <div className="ipd-ws">
-      <div className="ipd-brief-h"><span>🗂️ 选题来源池</span><b>4 路 · 缺源自动重分配</b></div>
+      <div className="ipd-brief-h"><span><IconAuto v="🗂" /> 选题来源池</span><b>4 路 · 缺源自动重分配</b></div>
       <div className="ipd-brief-grid">
         <span className="ipd-bf in">📚 私有知识库 · 主力</span>
         <span className="ipd-bf in">🔥 行业热点</span>
@@ -160,7 +161,7 @@ function SourceConfigPanel() {
     <div className="ipd-canvas">
       {SOURCE_CARDS.map((c) => (
         <div key={c.name} className="ipd-zone" style={c.off ? { opacity: 0.55 } : undefined}>
-          <div className="ipd-zone-h">{c.icon} {c.name}{c.main ? " · 主力" : ""}</div>
+          <div className="ipd-zone-h"><IconAuto v={c.icon} /> {c.name}{c.main ? " · 主力" : ""}</div>
           <p>{c.desc}</p>
           <p><b>{c.quota}</b></p>
         </div>
@@ -232,7 +233,7 @@ export function TopicDetailPage() {
                         ))}
                       </div>
                       <MetricsRow />
-                      <div className="ipd-gen">✨ 一键生成今天选题</div>
+                      <div className="ipd-gen"><IconAuto v="✨" /> 一键生成今天选题</div>
                       <div className="ipd-fee">预计消耗约 {skuPpu ?? "—"} 算力 · 交付 10 条 · 可换一批 · 失败不扣费</div>
                     </div>
                   </div>
@@ -257,9 +258,9 @@ export function TopicDetailPage() {
             )}
           </div>
           <div className="ipd-gthumbs">
-            <button className={view === "wb" ? "on" : ""} title="工作台实况" onClick={() => setView("wb")}>🧰</button>
-            <button className={view === "photo" ? "on" : ""} title="职业形象照 · 数字员工形象" onClick={() => setView("photo")}>👤</button>
-            <button className={view === "rate" ? "on" : ""} title="用户口碑" onClick={() => setView("rate")}>⭐</button>
+            <button className={view === "wb" ? "on" : ""} title="工作台实况" onClick={() => setView("wb")}><IconAuto v="🧰" /></button>
+            <button className={view === "photo" ? "on" : ""} title="职业形象照 · 数字员工形象" onClick={() => setView("photo")}><IconAuto v="👤" /></button>
+            <button className={view === "rate" ? "on" : ""} title="用户口碑" onClick={() => setView("rate")}><IconAuto v="⭐" /></button>
           </div>
           <div className="ipd-gcap">{VIEW_CAP[view]}</div>
         </div>
@@ -285,7 +286,7 @@ export function TopicDetailPage() {
               <span className="ipd-approx">{skuPpu != null ? `≈ ¥${(skuPpu / 10).toFixed(1)}` : "≈ ¥"} · 按实际用量结算</span>
             </div>
             <div className="ipd-price-meta">计费说明：<b>0 元开通</b> · 不收月费 · 使用后扣算力，失败不扣费</div>
-            <div className="ipd-guar">⚡ 1元 = 10算力　🎁 注册赠 100 算力　📄 账单逐笔可查</div>
+            <div className="ipd-guar"><IconAuto v="⚡" /> 1元 = 10算力　<IconAuto v="🎁" /> 注册赠 100 算力　<IconAuto v="📄" /> 账单逐笔可查</div>
           </div>
 
           <div className="ipd-deliver">
@@ -297,7 +298,7 @@ export function TopicDetailPage() {
 
           {/* 两处跳转（用户 2026-09-28 指定：预约改成充值算力和立即使用） */}
           <div className="ipd-cta-row">
-            <button className="ipd-btn ghost" onClick={() => { window.location.href = getAppPath("/recharge"); }}>⚡ 充值算力</button>
+            <button className="ipd-btn ghost" onClick={() => { window.location.href = getAppPath("/recharge"); }}><IconAuto v="⚡" /> 充值算力</button>
             <button className="ipd-btn main" onClick={() => { window.location.href = getAppPath(WORKBENCH_PATH); }}>
               ⚡ 立即使用{skuPpu != null ? `（约 ${skuPpu} 算力/次）` : ""}
             </button>
@@ -371,7 +372,7 @@ export function TopicDetailPage() {
                 <div className="ipd-canvas">
                   {GATES.map((g) => (
                     <div key={g.name} className="ipd-zone">
-                      <div className="ipd-zone-h">{g.icon} {g.name}</div>
+                      <div className="ipd-zone-h"><IconAuto v={g.icon} /> {g.name}</div>
                       <p>{g.text}</p>
                     </div>
                   ))}

@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState } from "react";
 import { apiPath, getAppPath, getAppRoutePath } from "../lib/api.js";
 import { authHeaders, handleStaleSession, readJson } from "./shell.js";
+import { IconAuto, IconLead } from "./IconGlyph.js";
 import { MallTopbar } from "./MallTopbar.js";
 import { renderMarkdownHtml } from "./AgentChatPage.js";
 import { employeeAvatarPath } from "./eco-mall-data.js";
@@ -594,7 +595,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
                         const show = f.key === "depth" && v ? (v === "light" ? "轻量 · 单段脚本" : "完整 · 整场脚本十件套") : v;
                         return (
                           <div key={f.key} className={`cpw-bf${v ? " filled" : ""}${flashFields.includes(f.key) ? " flash" : ""}`} title={v ? "点击修改" : "等待左侧引导填入"} onClick={() => editField(f.key)}>
-                            <div className="cpw-bf-k">{f.icon} {f.label}{v ? "" : " · 待填"}</div>
+                            <div className="cpw-bf-k"><IconAuto v={f.icon} /> {f.label}{v ? "" : " · 待填"}</div>
                             <div className="cpw-bf-v">{show || "——"}</div>
                           </div>
                         );
@@ -602,13 +603,13 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
                     </div>
                     <div className="cpw-ops">
                       {phase !== "gen" && phase !== "done" && (
-                        <button className="cpw-big-btn gen" disabled={!canGen} onClick={() => { setConfirmOpts(false); void startGen(); }}>✨ 生成脚本包</button>
+                        <button className="cpw-big-btn gen" disabled={!canGen} onClick={() => { setConfirmOpts(false); void startGen(); }}><IconAuto v="✨" /> 生成脚本包</button>
                       )}
                       {phase === "done" && (
                         <button className="cpw-big-btn ghost" onClick={() => { setPhase("confirm"); setAnswerMd(""); setConsumed(null); }}>↻ 改简报重新生成</button>
                       )}
                       <span className="cpw-fee">{feeHint}</span>
-                      <span className="cpw-safe-tag">🛡️ 失败不扣费</span>
+                      <span className="cpw-safe-tag"><IconAuto v="🛡" /> 失败不扣费</span>
                     </div>
                     {error && <div className="cpw-err">{error}</div>}
                   </div>
@@ -646,7 +647,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
                               <div key={p.no} className={cls + spanCls}>
                                 {i === genIdx && <span className="cpw-spin" />}
                                 <div className="cpw-no" style={{ color: GROUP_COLOR[p.g], background: GROUP_SOFT[p.g] }}>{p.no} · {p.gt}</div>
-                                <b>{p.icon} {p.title}</b>
+                                <b><IconAuto v={p.icon} /> {p.title}</b>
                                 <span className="cpw-d">{p.d}</span>
                               </div>
                             );
@@ -660,7 +661,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
                           {(depthRef.current === "light" ? [LIGHT_PIECE] : PIECES).map((p) => (
                             <div key={p.no} className="cpw-ph locked">
                               <div className="cpw-no" style={{ color: GROUP_COLOR[p.g], background: GROUP_SOFT[p.g] }}>{p.no} · {p.gt}</div>
-                              <b>{p.icon} {p.title}</b>
+                              <b><IconAuto v={p.icon} /> {p.title}</b>
                               <span className="cpw-d">{p.d}</span>
                             </div>
                           ))}
@@ -686,7 +687,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
       {editing && (
         <div className="cpw-modal-mask" onClick={() => setEditing(null)}>
           <div className="cpw-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="cpw-modal-t">{FIELDS.find((f) => f.key === editing)?.icon} 修改「{FIELDS.find((f) => f.key === editing)?.label}」</div>
+            <div className="cpw-modal-t">{FIELDS.find((f) => f.key === editing) && <IconAuto v={FIELDS.find((f) => f.key === editing)!.icon} />} 修改「{FIELDS.find((f) => f.key === editing)?.label}」</div>
             {editing === "depth" ? (
               <div className="cpw-depth-opts">
                 <button className={`cpw-depth-opt${draft === "light" ? " act" : ""}`} onClick={() => setDraft("light")}>📄 轻量 · 单段脚本<small>1-2 分钟可照读 + 运营配合</small></button>
