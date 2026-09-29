@@ -1,9 +1,9 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>平台管理后台（总后台）· 设计原型 v0.3 · 思潼AI</title>
+<title>平台管理后台（总后台）· 设计原型 v0.6 · 思潼AI</title>
 <style>
   :root{
     --bg:#F4F7FC; --card:#ffffff; --ink:#1c2733; --sub:#5b6b7c; --line:#e3e9f2;
@@ -162,7 +162,7 @@
 <div class="appbar">
   <div class="wrap">
     <div class="logo">思潼<i>AI</i><em>· 平台管理后台（总后台）</em></div>
-    <span class="prototag">设计原型 v0.3</span>
+    <span class="prototag">设计原型 v0.6</span>
     <div class="me-chip"><span class="ava">管</span><span>平台运营管理员</span></div>
   </div>
 </div>
@@ -178,6 +178,7 @@
     <button class="snav" data-view="applications"><span class="ic">📝</span>合伙人申请</button>
     <button class="snav" data-view="ledger"><span class="ic">💰</span>佣金流水</button>
     <button class="snav" data-view="payouts"><span class="ic">💳</span>提现审核</button>
+    <button class="snav" data-view="settle"><span class="ic">🧾</span>月度结算</button>
     <div class="side-note">佣金比例按<b>商品 SKU</b> 独立设置，保存后实时同步到所有市场合伙人后台；历史订单按成交时点比例结算。</div>
   </aside>
 
@@ -192,8 +193,20 @@
         <div class="metric"><div class="lab">📅 本月 GMV</div><div class="val">¥286,420</div></div>
         <div class="metric"><div class="lab">💸 今日佣金支出</div><div class="val">¥682.40</div></div>
         <div class="metric hot"><div class="lab">💸 本月佣金支出</div><div class="val">¥8,642</div></div>
-        <div class="metric"><div class="lab">⚡ 今日算力支出</div><div class="val">128,420</div></div>
-        <div class="metric"><div class="lab">Σ 总算力支出</div><div class="val">12,864,200</div></div>
+      </div>
+      <div class="card">
+        <h3>💹 合伙人渠道损益（本月） <span class="more">佣金仅合伙人渠道计 · 其余收入零佣金成本</span></h3>
+        <div style="display:flex;gap:24px;align-items:baseline;flex-wrap:wrap;margin-bottom:12px">
+          <div><span style="font-size:12.5px;color:var(--sub)">本月净利润</span><div style="font-size:30px;font-weight:800;color:var(--green)">¥277,778</div></div>
+          <span style="font-size:12px;color:var(--sub)">= 全平台 GMV ¥286,420 − 合伙人佣金 ¥8,642 · 本表仅列合伙人渠道，其余收入无佣金成本</span>
+        </div>
+        <div class="tbl-wrap">
+          <table class="ctbl">
+            <thead><tr><th>渠道</th><th>收入（本月）</th><th>佣金支出</th><th>净额</th><th>收入占比</th></tr></thead>
+            <tbody id="profitRows"></tbody>
+          </table>
+        </div>
+        <div class="muted" style="margin-top:10px">归因口径：合伙人渠道=推荐码 / 推广链接首触绑定（ReferralBinding），注册即绑定终身跟随，佣金仅合伙人渠道计；合伙人的推广方式为短视频 / 直播 / 私域，由合伙人在自己后台分渠道建链统计（<code>?ch=</code> 打标）。收入=实付人民币。</div>
       </div>
       <div class="topgrid">
         <div class="card">
@@ -209,13 +222,13 @@
           </div>
         </div>
         <div class="card">
-          <h3>🔥 今日商品消耗 TOP5 <span class="more">按算力消耗</span></h3>
+          <h3>🔥 今日商品消耗 TOP5 <span class="more">按消耗金额折算（¥）</span></h3>
           <div class="bars">
-            <div class="brow"><span class="bn">🎯 沈定 · 首席定位官</span><div class="btrack"><i style="width:100%"></i></div><span class="bv">38,420</span></div>
-            <div class="brow"><span class="bn">✍️ 秦文 · 金牌文案</span><div class="btrack"><i style="width:81%"></i></div><span class="bv">31,260</span></div>
-            <div class="brow"><span class="bn">🎤 罗盘 · 直播话术师</span><div class="btrack"><i style="width:58%"></i></div><span class="bv">22,180</span></div>
-            <div class="brow"><span class="bn">📊 江流 · 流量诊断官</span><div class="btrack"><i style="width:55%"></i></div><span class="bv">20,940</span></div>
-            <div class="brow"><span class="bn">💡 何策 · 选题策略官</span><div class="btrack"><i style="width:41%"></i></div><span class="bv">15,620</span></div>
+            <div class="brow"><span class="bn">🎯 沈定 · 首席定位官</span><div class="btrack"><i style="width:100%"></i></div><span class="bv">¥3,842</span></div>
+            <div class="brow"><span class="bn">✍️ 秦文 · 金牌文案</span><div class="btrack"><i style="width:81%"></i></div><span class="bv">¥3,126</span></div>
+            <div class="brow"><span class="bn">🎤 罗盘 · 直播话术师</span><div class="btrack"><i style="width:58%"></i></div><span class="bv">¥2,218</span></div>
+            <div class="brow"><span class="bn">📊 江流 · 流量诊断官</span><div class="btrack"><i style="width:55%"></i></div><span class="bv">¥2,094</span></div>
+            <div class="brow"><span class="bn">💡 何策 · 选题策略官</span><div class="btrack"><i style="width:41%"></i></div><span class="bv">¥1,562</span></div>
           </div>
         </div>
         <div class="card">
@@ -233,7 +246,7 @@
           <div class="feed">
             <div class="feedrow"><span class="fi">🎯</span><span class="ft">11:42</span><span class="fx">客户「美**姐」使用「沈定 · 首席定位官」，林秋水 分佣 <b>¥1.98</b></span></div>
             <div class="feedrow"><span class="fi">🎓</span><span class="ft">10:26</span><span class="fx">「智能体开发课」成交 1 门，王小美 分佣 <b>¥29.85</b></span></div>
-            <div class="feedrow"><span class="fi">💳</span><span class="ft">09:15</span><span class="fx">林秋水 发起提现 <b>¥1,288.60</b>，待审核</span></div>
+            <div class="feedrow"><span class="fi">💳</span><span class="ft">09:15</span><span class="fx">林秋水 发起提现 <b>¥456.00</b>，待审核</span></div>
             <div class="feedrow"><span class="fi">🤝</span><span class="ft">09:02</span><span class="fx">新合伙人「周建国」完成注册，推广码 <b>ZJ3310</b></span></div>
             <div class="feedrow"><span class="fi">↩️</span><span class="ft">昨日</span><span class="fx">订单退款，赵一鸣 佣金自动扣回 <b>¥1.98</b></span></div>
           </div>
@@ -418,6 +431,31 @@
       </div>
       <div class="warnbox">⚠️ 审核要点：核对归属客户消费真实性（防刷单）；收款账户实名须与合伙人一致；单笔超 ¥5,000 建议二次复核；打款通道建议微信商家转账（自动回执对账）。</div>
     </section>
+
+    <!-- 月度结算（v0.4） -->
+    <section id="view-settle" hidden>
+      <div class="vhead"><h2>月度结算</h2><span class="desc">按月自动出账 · 合伙人确认后打款 · 月结月清</span></div>
+      <div class="metrics">
+        <div class="metric"><div class="lab">🧾 本月结算单</div><div class="val">4 <small style="font-size:13px;color:var(--sub)">份</small></div></div>
+        <div class="metric"><div class="lab">💰 本月应结总额</div><div class="val">¥5,327.40</div></div>
+        <div class="metric hot"><div class="lab">✅ 已确认待打款</div><div class="val">¥3,820.80</div></div>
+        <div class="metric"><div class="lab">💳 上月已打款</div><div class="val">¥12,840</div></div>
+      </div>
+      <div class="card">
+        <h3>🧾 结算单 <span class="more">每月 1 日自动生成上月账 · 状态：待确认 → 已确认 → 已打款</span></h3>
+        <div class="tbl-wrap">
+          <table class="ctbl">
+            <thead><tr><th>结算月</th><th>合伙人</th><th>应结佣金</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody id="settleRows"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
+          <button class="btn pri" onclick="toast('已生成 2026-08 结算单草稿（演示）：按上月 settled 佣金汇总，冻结合伙人自动暂缓')">＋ 生成上月结算单</button>
+          <button class="btn line" onclick="toast('按月导出结算单对账包（演示）：含每笔佣金明细引用，可交财务归档')">导出对账包</button>
+        </div>
+      </div>
+      <div class="warnbox">⚠️ 与「提现审核」的关系：结算单是<b>平台按月主动出账</b>（draft→合伙人后台确认→打款）；提现申请是<b>合伙人按需支取</b>。两条路都走打款审计，打款完成均回写对应佣金流水为已结清。</div>
+    </section>
   </main>
 </div>
 
@@ -432,14 +470,16 @@
       <li><b>商品范围：</b>智能体（算力消费按 1 元 = 10 算力折算人民币）、AI 硬件 / AI 课程（人民币直购）；OPC 专区演示商品不参与。新商品上架默认不参与分佣，需在本页开启并设置比例。</li>
       <li><b>关联原型：</b>合伙人端 <code>market-partner-admin-demo-20260923.html</code>（v0.3）——「分佣产品」展示各商品比例、「推广链接」支持分享平台（<code>/r/:code</code>）与单款商品（<code>/r/:code?p=:sku</code>）及团队子链接（<code>?sub=:key</code>）。</li>
       <li><b>权限与安全：</b>本页仅平台管理员可访问；比例变更记录操作人与时间，支持按月导出对账。</li>
-      <li><b>其余模块（v0.2）：</b>数据总览 = 平台聚合视图（GMV / 算力消耗 / 分佣支出，读 WalletLedger 与 PartnerCommission 聚合，TOP 与动态为实时查询）；商品管理 = 商城商品上下架与楼层位（复用商城商品表，新增商品默认不参与分佣，需在「分佣设置」开启）；合伙人管理 = ReferralCode / ReferralBinding / MarketPartnerGrant 管理视图（一人一码、首触永久归属、授权续期回收、风控冻结）；佣金流水 = PartnerCommission 平台侧全量视图（pending→settled→withdrawable + 退款扣回负向流水）；提现审核 = PayoutOrder 审核流（待审核→打款中→已打款 / 驳回，建议微信商家转账 API 自动回执对账，超 ¥5,000 二次复核）。</li>
+      <li><b>其余模块（v0.2）：</b>数据总览 = 平台聚合视图（GMV / 分佣支出，读 WalletLedger 与 PartnerCommission 聚合，TOP 与动态为实时查询）；商品管理 = 商城商品上下架与楼层位（复用商城商品表，新增商品默认不参与分佣，需在「分佣设置」开启）；合伙人管理 = ReferralCode / ReferralBinding / MarketPartnerGrant 管理视图（一人一码、首触永久归属、授权续期回收、风控冻结）；佣金流水 = PartnerCommission 平台侧全量视图（pending→settled→withdrawable + 退款扣回负向流水）；提现审核 = PayoutOrder 审核流（待审核→打款中→已打款 / 驳回，建议微信商家转账 API 自动回执对账，超 ¥5,000 二次复核）。</li>
       <li><b>申请审核（v0.3）：</b>合伙人入驻申请来源为申请落地页 / 官网表单；审核复用 <code>MarketPartnerGrant</code> 状态机（pending → granted / rejected），通过后系统自动创建 <code>ReferralCode</code>（一人一码）+ 发放合伙人后台权限 + 短信通知；拒绝建议记录原因并短信告知；同一手机号 / 微信重复申请做唯一性校验。</li>
-      <li><b>数据总览指标（v0.3）：</b>今日 / 本月 GMV 与今日 / 本月佣金支出读 <code>WalletLedger</code> 与 <code>PartnerCommission</code> 聚合；算力支出 = 全平台客户算力消耗总量（10 算力 ≈ ¥1 折算口径）。</li>
+      <li><b>数据总览指标（v0.3）：</b>今日 / 本月 GMV 与今日 / 本月佣金支出读 <code>WalletLedger</code> 与 <code>PartnerCommission</code> 聚合。<b>v0.5 修订：移除算力支出统计——合伙人后台不涉及算力，算力口径只留在统一管理后台</b>；商品消耗 TOP5 改按消耗金额折算（¥）展示。</li>
+      <li><b>合伙人渠道损益（v0.4；v0.6 修订）：</b>净利润 = 收入 − 合伙人佣金，<b>佣金只发生在合伙人渠道</b>。v0.6 起<b>损益表仅列合伙人渠道</b>（<code>ReferralBinding</code> 首触绑定计佣）——短视频 / 直播 / 私域是<b>合伙人自己的三种推广方式</b>，由合伙人在其后台分渠道建链统计（<code>?ch=</code> 打标），不属于平台渠道分组；其余渠道收入零佣金成本，不再列示（已计入 GMV）。收入按实付人民币（智能体确认收入按消耗 10 算力 ≈ ¥1 折算，但本后台只展示人民币，不展示算力）。</li>
+      <li><b>月度结算（v0.4）：</b>新增 <code>MonthlySettlement</code> 模型（月份、合伙人、佣金明细引用、settledAmount、状态机 draft → confirmed → paid，冻结自动 onhold）。每月 1 日定时任务按上月 settled 佣金自动生成 draft；合伙人端「我的 · 月度结算」确认后变 confirmed；平台打款（微信商家转账，回执归档）后变 paid。与提现审核并存：结算单=主动出账，提现=按需支取，打款完成均回写佣金流水已结清。导出对账包=按月打包结算单+佣金明细，供财务归档。</li>
     </ol>
   </details>
 </div>
 
-<footer>思潼AI 行业智能体平台 · 平台管理后台设计原型 v0.3 · 2026-09-28 · 数据均为演示数据</footer>
+<footer>思潼AI 行业智能体平台 · 平台管理后台设计原型 v0.6 · 2026-09-29 · 数据均为演示数据</footer>
 
 <div id="toast"></div>
 
@@ -514,8 +554,53 @@ function saveAll(){
   toast('已保存并同步至 1,286 位市场合伙人后台（演示）');
 }
 
+/* ================= 渠道损益 + 月度结算（v0.4；v0.6 仅列合伙人渠道） ================= */
+/* 佣金只发生在合伙人渠道（合伙人推广方式：短视频 / 直播 / 私域）；其余收入零佣金成本，不列本表（已计入 GMV） */
+const CHANNELS = [
+  { ico:'🤝', name:'合伙人渠道', rev:96420, comm:8642 }
+];
+const REV_TOTAL = CHANNELS.reduce((s,c)=>s+c.rev,0);
+document.getElementById('profitRows').innerHTML = CHANNELS.map(c=>`
+  <tr>
+    <td>${c.ico} <b>${c.name}</b></td>
+    <td><b>${fmt(c.rev)}</b></td>
+    <td>${c.comm ? fmt(c.comm) : '<span style="color:var(--sub)">—</span>'}</td>
+    <td><b>${fmt(c.rev - c.comm)}</b></td>
+    <td style="color:var(--sub)">${(c.rev/REV_TOTAL*100).toFixed(1)}%</td>
+  </tr>`).join('') + `
+  <tr>
+    <td><b>合计</b></td><td><b>${fmt(REV_TOTAL)}</b></td><td><b>${fmt(CHANNELS.reduce((s,c)=>s+c.comm,0))}</b></td>
+    <td><b style="color:var(--green)">${fmt(REV_TOTAL - CHANNELS.reduce((s,c)=>s+c.comm,0))}</b></td>
+    <td style="color:var(--sub)">100%</td>
+  </tr>`;
+
+const SETTLES = [
+  { m:'2026-08', p:'林秋水', code:'LQ8888', amt:2046.20, st:'draft' },
+  { m:'2026-08', p:'陈大力', code:'CY2266', amt:1388.40, st:'confirmed' },
+  { m:'2026-08', p:'王小美', code:'WM1024', amt:986.60,  st:'draft' },
+  { m:'2026-08', p:'赵一鸣', code:'ZM3155', amt:342.80,  st:'onhold' },
+  { m:'2026-07', p:'林秋水', code:'LQ8888', amt:2104.30, st:'paid' }
+];
+const SETTLE_ST = { draft:['wait','待确认'], confirmed:['run','已确认'], paid:['ok','已打款'], onhold:['off','暂缓（冻结）'] };
+function renderSettles(){
+  document.getElementById('settleRows').innerHTML = SETTLES.map((s,i)=>{
+    const st = SETTLE_ST[s.st];
+    const act = s.st==='draft' ? `<button class="lnk" onclick="settleAct(${i},'confirm')">确认</button>`
+      : s.st==='confirmed' ? `<button class="lnk" onclick="settleAct(${i},'paid')">标记已打款</button>`
+      : s.st==='paid' ? `<button class="lnk" onclick="toast('查看微信商家转账回执（演示）')">回执</button>` : '—';
+    return `<tr><td><b>${s.m}</b></td><td><div class="sku-cell"><span class="cico">${s.p[0]}</span><div><b>${s.p}</b><span>${s.code}</span></div></div></td><td>${fmt(s.amt)}</td><td><span class="stpill ${st[0]}">${st[1]}</span></td><td>${act}</td></tr>`;
+  }).join('');
+}
+function settleAct(i, next){
+  const s = SETTLES[i];
+  if (s.st==='draft' && next==='confirm'){ s.st='confirmed'; toast(`${s.p} ${s.m} 结算单已确认，待打款（演示）`); }
+  else if (s.st==='confirmed' && next==='paid'){ s.st='paid'; toast(`${s.p} 结算单已打款，微信商家转账回执已归档（演示）`); }
+  renderSettles();
+}
+renderSettles();
+
 /* ================= 导航（v0.2 多模块） ================= */
-const VIEWS = ['overview','products','rates','partners','applications','ledger','payouts'];
+const VIEWS = ['overview','products','rates','partners','applications','ledger','payouts','settle'];
 function setView(v){
   document.querySelectorAll('.snav[data-view]').forEach(b=>b.classList.toggle('active', b.dataset.view===v));
   VIEWS.forEach(k=>{ const el = document.getElementById('view-'+k); if (el) el.hidden = (k!==v); });
@@ -568,11 +653,11 @@ document.querySelectorAll('#prodChips .chip').forEach(ch=>ch.addEventListener('c
 
 /* ================= 合伙人管理 ================= */
 const PARTNERS = [
-  { ico:'林', name:'林秋水', code:'LQ8888', ch:'朋友圈 / 抖音 / 社群 / 线下', cust:128, month:2318.60, total:18742.30, st:'ok' },
-  { ico:'陈', name:'陈大力', code:'CY2266', ch:'抖音',        cust:96, month:1502.20, total:9860.00,  st:'ok' },
-  { ico:'王', name:'王小美', code:'WM1024', ch:'社群',        cust:74, month:1120.40, total:7215.80,  st:'ok' },
-  { ico:'赵', name:'赵一鸣', code:'ZM3155', ch:'线下',        cust:41, month:386.20,  total:2035.60,  st:'frozen' },
-  { ico:'孙', name:'孙丽华', code:'SL0917', ch:'朋友圈',      cust:29, month:254.80,  total:1284.40,  st:'ok' },
+  { ico:'林', name:'林秋水', code:'LQ8888', ch:'短视频 / 直播 / 私域', cust:128, month:2318.60, total:18742.30, st:'ok' },
+  { ico:'陈', name:'陈大力', code:'CY2266', ch:'短视频',        cust:96, month:1502.20, total:9860.00,  st:'ok' },
+  { ico:'王', name:'王小美', code:'WM1024', ch:'私域',        cust:74, month:1120.40, total:7215.80,  st:'ok' },
+  { ico:'赵', name:'赵一鸣', code:'ZM3155', ch:'直播',        cust:41, month:386.20,  total:2035.60,  st:'frozen' },
+  { ico:'孙', name:'孙丽华', code:'SL0917', ch:'私域',        cust:29, month:254.80,  total:1284.40,  st:'ok' },
 ];
 function renderPartners(){
   document.getElementById('partnerRows').innerHTML = PARTNERS.map((p,i)=>`
@@ -598,12 +683,12 @@ const LTYPE = { credit:{lab:'⚡ 积分消耗',pill:'agent'}, sub:{lab:'👑 月
 const LST = { wait:['wait','待结算'], ok:['ok','已入账'], draw:['run','可提现'], back:['back','已扣回'] };
 const LEDGER = [
   { time:'09-28 11:42', p:'林秋水', c:'美**姐',   sku:'沈定 · 首席定位官',  type:'credit', base:9.90,    rate:20, comm:1.98,   st:'wait' },
-  { time:'09-28 10:18', p:'陈大力', c:'餐**东',   sku:'秦文 · 金牌文案',    type:'credit', base:1.50,    rate:20, comm:0.30,   st:'wait' },
+  { time:'09-28 10:18', p:'陈大力', c:'果**茶',   sku:'秦文 · 金牌文案',    type:'credit', base:1.50,    rate:20, comm:0.30,   st:'wait' },
   { time:'09-27 22:05', p:'林秋水', c:'汽**赵',   sku:'门店 AI 机器人',     type:'hw',     base:1999.00, rate:8,  comm:159.92, st:'ok'   },
-  { time:'09-27 16:31', p:'王小美', c:'教**李',   sku:'智能体开发课',       type:'course', base:199.00,  rate:15, comm:29.85,  st:'ok'   },
+  { time:'09-27 16:31', p:'王小美', c:'薇**美',   sku:'智能体开发课',       type:'course', base:199.00,  rate:15, comm:29.85,  st:'ok'   },
   { time:'09-26 09:12', p:'林秋水', c:'美**姐',   sku:'罗盘 · 直播话术师',  type:'credit', base:5.00,    rate:20, comm:1.00,   st:'ok'   },
-  { time:'09-25 14:20', p:'陈大力', c:'健身**吴', sku:'月度订阅',           type:'sub',    base:99.00,   rate:20, comm:19.80,  st:'draw' },
-  { time:'09-24 11:08', p:'赵一鸣', c:'装**郑',   sku:'沈定 · 首席定位官',  type:'back',   base:9.90,    rate:20, comm:1.98,   st:'back' },
+  { time:'09-25 14:20', p:'陈大力', c:'焙**坊', sku:'月度订阅',           type:'sub',    base:99.00,   rate:20, comm:19.80,  st:'draw' },
+  { time:'09-24 11:08', p:'赵一鸣', c:'汪**傅',   sku:'沈定 · 首席定位官',  type:'back',   base:9.90,    rate:20, comm:1.98,   st:'back' },
 ];
 let ledgerFilter = 'all';
 function renderLedger(){
@@ -633,11 +718,11 @@ document.querySelectorAll('#ledgerChips .chip').forEach(ch=>ch.addEventListener(
 /* ================= 提现审核 ================= */
 const PST = { wait:['wait','待审核'], run:['run','打款中'], done:['ok','已打款'], rejected:['off','已驳回'] };
 const PAYOUTS = [
-  { time:'09-28 09:15', p:'林秋水', amt:1288.60, way:'微信零钱', st:'wait' },
+  { time:'09-28 09:15', p:'林秋水', amt:456.00,  way:'微信零钱', st:'wait' },
   { time:'09-27 16:40', p:'王小美', amt:520.00,  way:'支付宝',   st:'wait' },
   { time:'09-27 10:22', p:'孙丽华', amt:164.20,  way:'银行卡',   st:'wait' },
   { time:'09-26 15:33', p:'陈大力', amt:860.00,  way:'微信零钱', st:'run'   },
-  { time:'09-25 11:05', p:'林秋水', amt:996.40,  way:'微信零钱', st:'done'  },
+  { time:'09-25 11:05', p:'王小美', amt:996.40,  way:'微信零钱', st:'done'  },
   { time:'09-24 09:48', p:'赵一鸣', amt:320.00,  way:'支付宝',   st:'rejected' },
 ];
 function renderPayouts(){

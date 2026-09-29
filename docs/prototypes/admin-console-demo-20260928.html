@@ -1,0 +1,1245 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>统一管理后台（/agents/admin）· UI升级设计原型 v1.0 · 思潼AI</title>
+<style>
+  :root{
+    --bg:#F4F7FC; --card:#ffffff; --ink:#1c2733; --sub:#5b6b7c; --line:#e3e9f2;
+    --orange:#E8651A; --orange-soft:#fdeee2; --orange-line:#f7d4b8;
+    --green:#0f8a5f; --green-soft:#e6f5ee;
+    --amber:#b26a00; --amber-soft:#fff4e0;
+    --blue:#2563eb; --blue-soft:#e8effd;
+    --purple:#7c3aed; --purple-soft:#f1eafd;
+    --navy:#17313f;
+    --red:#d64545; --red-soft:#fdeaea;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{background:var(--bg);color:var(--ink);font:15px/1.7 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+
+  /* ---------- top bar ---------- */
+  .appbar{position:sticky;top:0;z-index:9;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .appbar .wrap{max-width:1280px;margin:0 auto;padding:0 16px;display:flex;align-items:center;gap:10px;height:54px}
+  .logo{font-weight:800;font-size:17px;white-space:nowrap}
+  .logo i{font-style:normal;color:var(--orange)}
+  .logo em{font-style:normal;font-size:13px;color:var(--sub);font-weight:600;margin-left:2px}
+  .prototag{font-size:11px;font-weight:700;color:var(--orange);background:var(--orange-soft);border:1px solid var(--orange-line);border-radius:99px;padding:2px 9px;white-space:nowrap}
+  .appbar .sp{margin-left:auto}
+  .tokchip{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:99px;padding:4px 12px;font-size:12.5px;font-weight:700;color:var(--green);white-space:nowrap}
+  .tokchip.warn{color:var(--amber)}
+  .updchip{font-size:12px;color:var(--sub);white-space:nowrap}
+  .autolab{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sub);white-space:nowrap}
+  @media (max-width:720px){.tokchip,.autolab{display:none}}
+
+  /* ---------- shell ---------- */
+  .shell{max-width:1280px;margin:0 auto;padding:20px 16px 40px;display:grid;gap:20px;grid-template-columns:220px 1fr;align-items:start}
+  @media (max-width:860px){.shell{grid-template-columns:1fr}.side{position:static!important;flex-direction:row!important;flex-wrap:wrap}}
+  .side{display:flex;flex-direction:column;gap:8px;position:sticky;top:78px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 12px;box-shadow:0 6px 18px rgba(28,39,51,.05)}
+  .snav{display:flex;align-items:center;gap:10px;border:none;background:none;font:600 14px/1 inherit;color:var(--sub);border-radius:12px;padding:10px 12px;cursor:pointer;text-align:left}
+  .snav .ic{width:30px;height:30px;border-radius:9px;background:#f0f4f9;display:grid;place-items:center;font-size:15px;flex:none}
+  .snav.active{background:var(--orange-soft);color:var(--orange)}
+  .snav.active .ic{background:var(--orange);color:#fff}
+  .side .side-note{font-size:11.5px;color:var(--sub);border-top:1px dashed var(--line);padding-top:10px;margin-top:6px;line-height:1.8}
+  .main{min-width:0}
+
+  .vhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .vhead h2{font-size:21px}
+  .vhead .desc{font-size:12.5px;color:var(--sub)}
+  .vhead .src{margin-left:auto;font-size:11.5px;color:var(--blue);background:var(--blue-soft);border-radius:99px;padding:3px 10px;font-weight:600}
+
+  /* ---------- cards / stats ---------- */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 6px 18px rgba(28,39,51,.05);padding:16px;margin-bottom:14px}
+  .card h3{font-size:15px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .card h3 .more{margin-left:auto;font-size:12px;color:var(--sub);font-weight:400}
+  .muted{font-size:12px;color:var(--sub)}
+  .metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+  @media (min-width:900px){.metrics{grid-template-columns:repeat(4,1fr)}}
+  .metric{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:0 6px 18px rgba(28,39,51,.05)}
+  .metric .lab{font-size:11.5px;color:var(--sub)}
+  .metric .val{font-size:22px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
+  .metric .sub{font-size:11.5px;margin-top:2px;font-weight:700}
+  .metric .sub.up{color:var(--green)}
+  .metric .sub.dim{color:var(--sub);font-weight:400}
+  .metric.hot .val{color:var(--orange)}
+  .metric .ic{float:right;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:15px;background:#f0f4f9}
+  .metric.hot .ic{background:var(--orange-soft)}
+
+  /* ---------- trend chart ---------- */
+  .tgrid{display:grid;gap:14px;grid-template-columns:1fr}
+  @media (min-width:900px){.tgrid{grid-template-columns:1fr 1fr}}
+  .tchart{display:flex;align-items:flex-end;gap:10px;height:150px;padding:6px 4px 0}
+  .tcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+  .tcol .tv{font-size:11px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tcol .bar{width:100%;max-width:38px;border-radius:8px 8px 4px 4px;background:linear-gradient(180deg,#f7a56b,var(--orange));min-height:4px;transition:height .4s}
+  .tcol.blue .bar{background:linear-gradient(180deg,#7ea4f5,var(--blue))}
+  .tcol .td{font-size:10.5px;color:var(--sub);white-space:nowrap}
+  .tcol .td b{display:block;color:var(--ink);font-size:11px}
+  .tcol.today .td b{color:var(--orange)}
+
+  /* ---------- bars / rank / feed ---------- */
+  .bars{display:flex;flex-direction:column;gap:9px;margin-top:4px}
+  .brow{display:flex;align-items:center;gap:10px;font-size:12.5px}
+  .brow .bn{width:150px;flex:none;color:var(--ink);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brow .btrack{flex:1;height:14px;border-radius:7px;background:#f0f4f9;overflow:hidden}
+  .brow .btrack i{display:block;height:100%;border-radius:7px;background:linear-gradient(90deg,#f7a56b,var(--orange))}
+  .brow .bv{width:96px;flex:none;text-align:right;color:var(--sub);font-variant-numeric:tabular-nums}
+  .rankrow{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px dashed var(--line);font-size:13px}
+  .rankrow:last-child{border-bottom:none}
+  .rankrow .no{width:22px;height:22px;border-radius:7px;background:#f0f4f9;color:var(--sub);display:grid;place-items:center;font-size:11.5px;font-weight:800;flex:none}
+  .rankrow .no.top{background:var(--orange-soft);color:var(--orange)}
+  .rankrow .rn{flex:1;min-width:0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rankrow .rv{flex:none;color:var(--sub);font-size:12px;font-variant-numeric:tabular-nums}
+  .feed{display:flex;flex-direction:column}
+  .feedrow{display:flex;gap:10px;padding:9px 2px;border-bottom:1px dashed var(--line);font-size:12.5px;align-items:flex-start}
+  .feedrow:last-child{border-bottom:none}
+  .feedrow .fi{flex:none;font-size:15px}
+  .feedrow .ft{flex:none;color:var(--sub);font-variant-numeric:tabular-nums}
+  .feedrow .fx{flex:1;min-width:0}
+  .feedrow .fx b{font-weight:700}
+  .feedrow .fv{flex:none;font-weight:800;font-variant-numeric:tabular-nums}
+  .feedrow .fv.money{color:var(--green)}
+  .feedrow .fv.credit{color:var(--blue)}
+
+  /* ---------- buttons / pills / chips ---------- */
+  .btn{border:none;border-radius:11px;padding:10px 18px;font:700 13.5px inherit;cursor:pointer}
+  .btn.pri{background:var(--orange);color:#fff;box-shadow:0 8px 20px rgba(232,101,26,.4)}
+  .btn.pri:hover{filter:brightness(1.05)}
+  .btn.mini{padding:6px 13px;font-size:12.5px;border-radius:9px;background:var(--orange);color:#fff}
+  .btn.line{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .btn.line:hover{border-color:var(--orange-line)}
+  .btn.ghost{background:none;border:none;color:var(--blue);font-weight:700;cursor:pointer;padding:6px 8px;font-size:12.5px}
+  .btn.ghost:hover{text-decoration:underline}
+  .btn.danger{background:var(--red-soft);color:var(--red)}
+  .lnk{border:none;background:none;color:var(--blue);font:600 12.5px inherit;cursor:pointer;padding:2px 4px}
+  .lnk:hover{text-decoration:underline}
+  .lnk.danger{color:var(--red)}
+  .lnk+.lnk{margin-left:6px}
+
+  .pill{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;vertical-align:1px}
+  .pill.agent{background:var(--orange-soft);color:var(--orange)}
+  .pill.hw{background:var(--blue-soft);color:var(--blue)}
+  .pill.course{background:var(--purple-soft);color:var(--purple)}
+  .pill.off{background:#eef2f8;color:var(--sub)}
+  .stpill{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 8px;white-space:nowrap}
+  .stpill.ok{background:var(--green-soft);color:var(--green)}
+  .stpill.wait{background:var(--amber-soft);color:var(--amber)}
+  .stpill.run{background:var(--blue-soft);color:var(--blue)}
+  .stpill.off{background:#eef2f8;color:var(--sub)}
+  .stpill.back{background:var(--red-soft);color:var(--red)}
+
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:99px;padding:6px 14px;font:600 12.5px inherit;color:var(--sub);cursor:pointer}
+  .chip.on{background:var(--orange-soft);color:var(--orange);border-color:var(--orange-line)}
+
+  /* ---------- table ---------- */
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .toolbar .lab{font-size:12px;color:var(--sub);font-weight:700;margin-right:2px}
+  .toolbar input[type=text]{flex:1;min-width:160px;max-width:280px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;font:600 13px inherit;outline:none;background:#fff;color:var(--ink)}
+  .toolbar input[type=text]:focus{border-color:var(--orange-line);box-shadow:0 0 0 3px rgba(232,101,26,.12)}
+  .toolbar .cnt{margin-left:auto;font-size:12px;color:var(--sub);font-weight:600;white-space:nowrap}
+  .toolbar select{padding:7px 9px;border:1px solid var(--line);border-radius:9px;font:600 12.5px inherit;color:var(--ink);background:#fff;outline:none}
+  .sumbar{display:flex;gap:16px;flex-wrap:wrap;background:var(--orange-soft);border:1px solid var(--orange-line);border-radius:12px;padding:9px 14px;margin-bottom:12px;font-size:12.5px;color:#9a5a1c}
+  .sumbar b{font-size:15px;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.ctbl{width:100%;border-collapse:collapse;min-width:760px}
+  .ctbl th{font-size:11.5px;color:var(--sub);font-weight:600;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;user-select:none}
+  .ctbl th.sortable{cursor:pointer}
+  .ctbl th.sortable:hover{color:var(--orange)}
+  .ctbl th .arr{font-size:10px;margin-left:2px}
+  .ctbl td{padding:11px 10px;border-bottom:1px dashed var(--line);font-size:13.5px;vertical-align:middle;white-space:nowrap}
+  .ctbl tr:last-child td{border-bottom:none}
+  .ctbl tbody tr.click{cursor:pointer}
+  .ctbl tbody tr.click:hover td{background:#fffaf5}
+  .ctbl tr.offrow td{opacity:.45}
+  .num{font-variant-numeric:tabular-nums;font-weight:700}
+  .num.money{color:var(--green)}
+  .num.credit{color:var(--blue)}
+  .cell-main{display:flex;align-items:center;gap:10px;min-width:180px}
+  .cell-main .cico{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:16px;background:var(--orange-soft);flex:none}
+  .cell-main .cico.blue{background:var(--blue-soft)}
+  .cell-main .cico.purple{background:var(--purple-soft)}
+  .cell-main b{display:block;font-size:13.5px;line-height:1.4}
+  .cell-main span{font-size:11.5px;color:var(--sub)}
+  .agtags{display:flex;gap:4px;flex-wrap:wrap;max-width:260px}
+  .agtag{font-size:10.5px;font-weight:700;border-radius:6px;padding:1px 6px;background:var(--orange-soft);color:var(--orange);white-space:nowrap}
+  .pager{display:flex;gap:6px;align-items:center;justify-content:flex-end;padding-top:12px;font-size:12.5px;color:var(--sub)}
+  .pager button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 11px;font:700 12.5px inherit;color:var(--ink);cursor:pointer}
+  .pager button.on{background:var(--orange-soft);color:var(--orange);border-color:var(--orange-line)}
+  .pager button:disabled{opacity:.4;cursor:default}
+  .empty{padding:26px 0;text-align:center;color:var(--sub);font-size:13px}
+
+  /* ---------- toggle / kv ---------- */
+  .tgl{position:relative;width:40px;height:22px;border-radius:99px;background:#d6dee8;cursor:pointer;border:none;transition:.2s;flex:none}
+  .tgl::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .tgl.on{background:var(--green)}
+  .tgl.on::after{left:21px}
+  .kv{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  @media (min-width:700px){.kv{grid-template-columns:repeat(4,1fr)}}
+  .kv .k{background:#f8fafd;border:1px solid var(--line);border-radius:11px;padding:8px 12px}
+  .kv .k i{font-style:normal;display:block;font-size:11px;color:var(--sub)}
+  .kv .k b{font-size:14px;font-variant-numeric:tabular-nums}
+  .rules{list-style:none;display:flex;flex-direction:column;gap:8px}
+  .rules li{font-size:13px;padding-left:18px;position:relative;color:var(--sub)}
+  .rules li::before{content:"";position:absolute;left:2px;top:10px;width:6px;height:6px;border-radius:50%;background:var(--orange-line)}
+  .rules li b{color:var(--ink)}
+  .warnbox{font-size:12.5px;background:var(--amber-soft);border:1px solid #f1dfb6;color:var(--amber);border-radius:11px;padding:10px 12px;line-height:1.8}
+  .okbox{font-size:12.5px;background:var(--green-soft);border:1px solid #bfe5d4;color:var(--green);border-radius:11px;padding:10px 12px;line-height:1.8}
+  .rate-cell{display:flex;align-items:center;gap:6px}
+  .rate-cell input{width:74px;font:700 14px ui-monospace,Consolas,monospace;padding:7px 10px;border:1px solid var(--line);border-radius:9px;outline:none;text-align:right;color:var(--navy)}
+  .rate-cell input:focus{border-color:var(--orange-line);box-shadow:0 0 0 3px rgba(232,101,26,.12)}
+  .rate-cell i{font-style:normal;font-size:12.5px;color:var(--sub);font-weight:700}
+
+  /* ---------- drawer / modal / toast ---------- */
+  .mask{position:fixed;inset:0;background:rgba(23,49,63,.45);z-index:40;opacity:0;pointer-events:none;transition:.25s}
+  .mask.show{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(520px,94vw);background:var(--bg);z-index:50;transform:translateX(105%);transition:.28s;overflow-y:auto;box-shadow:-12px 0 40px rgba(23,49,63,.18)}
+  .drawer.show{transform:none}
+  .drawer .dhead{position:sticky;top:0;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:14px 18px;display:flex;align-items:center;gap:10px;z-index:2}
+  .drawer .dhead b{font-size:16px}
+  .drawer .dhead .x{margin-left:auto;border:none;background:#f0f4f9;width:30px;height:30px;border-radius:9px;font-size:14px;cursor:pointer;color:var(--sub)}
+  .drawer .dbody{padding:16px 18px 30px}
+  .modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:16px}
+  .modal.show{display:flex}
+  .modal .mbox{background:#fff;border-radius:16px;max-width:760px;width:100%;max-height:86vh;overflow-y:auto;box-shadow:0 24px 60px rgba(23,49,63,.3)}
+  .modal .mhead{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;position:sticky;top:0;background:#fff;z-index:2}
+  .modal .mhead b{font-size:15px}
+  .modal .mhead .x{margin-left:auto;border:none;background:#f0f4f9;width:30px;height:30px;border-radius:9px;font-size:14px;cursor:pointer;color:var(--sub)}
+  .modal .mbody{padding:16px 18px}
+  #toast{position:fixed;top:64px;left:50%;transform:translateX(-50%) translateY(-8px);background:#1c2733;color:#fff;font-size:13px;border-radius:10px;padding:9px 16px;opacity:0;pointer-events:none;transition:.25s;z-index:99;max-width:86vw;text-align:center;box-shadow:0 10px 26px rgba(0,0,0,.25)}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .frm{display:grid;gap:12px}
+  .frm label{display:grid;gap:5px;font-size:12.5px;font-weight:700;color:var(--sub)}
+  .frm input,.frm select,.frm textarea{padding:10px 12px;border:1px solid var(--line);border-radius:10px;font:600 14px inherit;outline:none;background:#fff;color:var(--ink);width:100%}
+  .frm input:focus,.frm select:focus{border-color:var(--orange-line);box-shadow:0 0 0 3px rgba(232,101,26,.12)}
+  .frm .hint{font-size:11.5px;color:var(--sub);font-weight:400}
+
+  /* ---------- devnotes / footer ---------- */
+  .devnotes{max-width:1280px;margin:0 auto;padding:0 16px 30px}
+  .devnotes details{background:#fff;border:1px solid var(--line);border-radius:13px;padding:12px 16px}
+  .devnotes summary{font-size:13px;font-weight:700;color:var(--sub);cursor:pointer;outline:none}
+  .devnotes ol{margin:10px 0 4px 18px;font-size:12.5px;color:var(--sub);line-height:2}
+  .devnotes ul{margin:6px 0 4px 18px;font-size:12.5px;color:var(--sub);line-height:1.9}
+  .devnotes b{color:var(--ink)}
+  .devnotes code{background:#f5f8fc;border-radius:5px;padding:0 5px;font-size:11.5px}
+  footer{border-top:1px solid var(--line);background:#fff;padding:16px;text-align:center;font-size:12px;color:var(--sub)}
+  section[hidden]{display:none}
+</style>
+</head>
+<body>
+
+<header class="appbar">
+  <div class="wrap">
+    <div class="logo">思潼AI<i>·</i>统一管理后台<em>/agents/admin</em></div>
+    <span class="prototag">UI升级设计原型 v1.4</span>
+    <span class="sp"></span>
+    <span class="updchip" id="updChip">最后更新 --:--:--</span>
+    <span class="autolab"><span>自动刷新</span><button class="tgl on" id="autoTgl" type="button" aria-label="自动刷新开关"></button></span>
+    <span class="tokchip">🔑 运营令牌已配置（演示）</span>
+  </div>
+</header>
+
+<div class="shell">
+  <aside class="side">
+    <button class="snav active" data-view="overview"><span class="ic">📈</span>概览仪表盘</button>
+    <button class="snav" data-view="customers"><span class="ic">🏢</span>客户</button>
+    <button class="snav" data-view="recharges"><span class="ic">💰</span>充值明细</button>
+    <button class="snav" data-view="orders"><span class="ic">🧾</span>订单与收款</button>
+    <button class="snav" data-view="credits"><span class="ic">⚡</span>算力管理</button>
+    <button class="snav" data-view="shelf"><span class="ic">🤖</span>智能体与商品</button>
+    <button class="snav" data-view="quality"><span class="ic">🛡️</span>质量与安全</button>
+    <div class="side-note">仅平台运营使用 · 不对外开放<br>数据口径与真实端点一致<br>详见页底交接备注</div>
+  </aside>
+
+  <main class="main">
+
+    <!-- ================= ① 概览仪表盘 ================= -->
+    <section id="view-overview">
+      <div class="vhead"><h2>概览仪表盘</h2><span class="desc">平台经营关键数字与近7天趋势</span><span class="src">GET /admin/ops/summary + GET /market/admin/overview</span></div>
+
+      <div class="metrics">
+        <div class="metric"><span class="ic">👤</span><div class="lab">用户总数</div><div class="val" id="kUsers">—</div><div class="sub up" id="kUsersToday">今日 +0</div></div>
+        <div class="metric"><span class="ic">🏢</span><div class="lab">客户（租户）</div><div class="val" id="kTenants">—</div><div class="sub up" id="kTenantsToday">今日 +0</div></div>
+        <div class="metric"><span class="ic">🔁</span><div class="lab">活跃订阅</div><div class="val" id="kSubs">—</div><div class="sub dim">含试用中</div></div>
+        <div class="metric hot"><span class="ic">💰</span><div class="lab">累计收款</div><div class="val" id="kPaid">—</div><div class="sub dim" id="kPaidOrders">已支付订单 0 笔</div></div>
+        <div class="metric hot"><span class="ic">📈</span><div class="lab">今日 GMV</div><div class="val" id="kGmv">—</div><div class="sub dim" id="kGmvCalls">今日调用 0 次</div></div>
+        <div class="metric"><span class="ic">🤖</span><div class="lab">今日智能体运行</div><div class="val" id="kRunsToday">—</div><div class="sub dim" id="kPointsToday">今日消耗 0 积分</div></div>
+        <div class="metric"><span class="ic">🔋</span><div class="lab">累计智能体运行</div><div class="val" id="kRuns">—</div><div class="sub dim" id="kActiveTenants">活跃租户 0</div></div>
+        <div class="metric"><span class="ic">⚡</span><div class="lab">全平台剩余算力</div><div class="val" id="kCredit">—</div><div class="sub dim" id="kCreditDetail">充值 0 / 赠送 0</div></div>
+      </div>
+
+      <div class="tgrid">
+        <div class="card">
+          <h3>近7天充值趋势 <span class="more">单位：元 · 基于最近500条充值记录</span></h3>
+          <div class="tchart" id="chartRecharge"></div>
+        </div>
+        <div class="card">
+          <h3>近7天消耗趋势 <span class="more">单位：积分（10积分=1元）</span></h3>
+          <div class="tchart" id="chartConsume"></div>
+        </div>
+      </div>
+
+      <div class="tgrid">
+        <div class="card">
+          <h3>智能体使用 TOP8 <span class="more">按累计运行次数 · usage.topSkills</span></h3>
+          <div class="bars" id="topSkills"></div>
+        </div>
+        <div class="card">
+          <h3>平台动态 <span class="more">充值 / 消耗 / 开通 实时混排</span></h3>
+          <div class="feed" id="feed"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>质量摘要 <span class="more">GET /admin/quality/summary</span></h3>
+        <div class="kv">
+          <div class="k"><i>用户反馈数</i><b id="qFeedback">0</b></div>
+          <div class="k"><i>被标记运行数</i><b id="qFlagged">0</b></div>
+          <div class="k"><i>文件分析累计</i><b id="qFiles">0</b></div>
+          <div class="k"><i>自动化任务累计</i><b id="qAutomation">0</b></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= ② 客户 ================= -->
+    <section id="view-customers" hidden>
+      <div class="vhead"><h2>客户</h2><span class="desc">客户 / 租户清单 · 点行看详情</span><span class="src">GET /admin/customers</span></div>
+      <div class="card">
+        <div class="toolbar">
+          <input type="text" id="custQ" placeholder="搜索客户名 / 行业 / 城市…">
+          <span class="cnt" id="custCnt"></span>
+          <button class="btn line mini" data-export="customers" type="button">导出 CSV</button>
+        </div>
+        <div class="tbl-wrap">
+          <table class="ctbl" id="tblCustomers">
+            <thead><tr>
+              <th class="sortable" data-k="name">客户</th>
+              <th class="sortable" data-k="type">来源</th>
+              <th class="sortable" data-k="industry">行业</th>
+              <th class="sortable" data-k="city">城市</th>
+              <th class="sortable" data-k="walletBalance">钱包余额</th>
+              <th class="sortable" data-k="rechargedCredits">累计充值</th>
+              <th class="sortable" data-k="consumedCredits">累计消耗</th>
+              <th>常用智能体</th>
+              <th class="sortable" data-k="memberCount">成员</th>
+              <th></th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="pager" id="custPager"></div>
+      </div>
+      <div class="card">
+        <h3>⏰ 试用到期提醒 <span class="more">未来 7 天到期 · 按试用期间消耗排序 · 消耗大=转化概率高优先跟进</span></h3>
+        <div class="tbl-wrap">
+          <table class="ctbl" id="tblTrials">
+            <thead><tr><th>客户</th><th>来源</th><th>体验套餐</th><th>到期日</th><th>剩余</th><th class="sortable" data-k="used">试用期间消耗</th><th>跟进状态</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="muted" style="margin-top:10px">数据源：订阅表 <code>status=trialing</code> + 到期时间；点「跟进状态」单元格循环切换 未跟进→已联系→已转化→已放弃。</div>
+      </div>
+    </section>
+
+    <!-- ================= ③ 充值明细 ================= -->
+    <section id="view-recharges" hidden>
+      <div class="vhead"><h2>充值明细</h2><span class="desc">用户充值时间与人民币金额 · 真实入账流水</span><span class="src">GET /admin/recharges</span></div>
+      <div class="card">
+        <div class="chips" style="margin-bottom:12px" id="rechChips">
+          <button class="chip on" data-st="" type="button">全部</button>
+          <button class="chip" data-st="paid" type="button">已支付</button>
+          <button class="chip" data-st="pending" type="button">待支付</button>
+          <button class="chip" data-st="refunded" type="button">已退款</button>
+        </div>
+        <div class="sumbar" id="rechSum"></div>
+        <div class="toolbar">
+          <input type="text" id="rechQ" placeholder="搜索用户 / 手机号 / 租户…">
+          <span class="cnt" id="rechCnt"></span>
+          <button class="btn line mini" data-export="recharges" type="button">导出 CSV</button>
+        </div>
+        <div class="tbl-wrap">
+          <table class="ctbl" id="tblRecharges">
+            <thead><tr>
+              <th class="sortable" data-k="paidAt">支付时间</th>
+              <th class="sortable" data-k="userName">用户</th>
+              <th>手机号</th>
+              <th>所属租户</th>
+              <th class="sortable" data-k="amountCny">金额</th>
+              <th class="sortable" data-k="totalPts">获得算力</th>
+              <th>方式</th>
+              <th class="sortable" data-k="status">状态</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="pager" id="rechPager"></div>
+      </div>
+    </section>
+
+    <!-- ================= ④ 订单与收款 ================= -->
+    <section id="view-orders" hidden>
+      <div class="vhead"><h2>订单与收款</h2><span class="desc">计费审计与统一账本</span><span class="src">GET /admin/billing/audit + GET /market/admin/ledger</span></div>
+      <div class="card">
+        <h3>计费审计 <span class="more">billing audit · 最近 12 笔</span></h3>
+        <div class="tbl-wrap">
+          <table class="ctbl" id="tblAudit">
+            <thead><tr><th>时间</th><th>订单号</th><th>租户</th><th>类型</th><th>金额</th><th>算力</th><th>状态</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h3>平台账本流水 <span class="more">market ledger · 最近 12 笔</span></h3>
+        <div class="tbl-wrap">
+          <table class="ctbl" id="tblLedger">
+            <thead><tr><th>时间</th><th>租户</th><th>类型</th><th>变动积分</th><th>关联智能体</th><th>备注</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= ⑤ 算力管理 ================= -->
+    <section id="view-credits" hidden>
+      <div class="vhead"><h2>算力管理</h2><span class="desc">用户算力总览（充值/赠送分账）· 使用明细 · 手动加算力</span><span class="src">GET /admin/credits/users</span></div>
+      <div class="card">
+        <div class="toolbar">
+          <input type="text" id="credQ" placeholder="搜索用户 / 手机号…">
+          <span class="cnt" id="credCnt"></span>
+          <button class="btn line mini" data-export="credits" type="button">导出 CSV</button>
+        </div>
+        <div class="tbl-wrap">
+          <table class="ctbl" id="tblCredits">
+            <thead><tr>
+              <th class="sortable" data-k="userName">用户</th>
+              <th>手机号</th>
+              <th class="sortable" data-k="paidBalance">充值余额</th>
+              <th class="sortable" data-k="bonusBalance">赠送余额</th>
+              <th class="sortable" data-k="balance">合计</th>
+              <th>最近赠送到期</th>
+              <th></th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="pager" id="credPager"></div>
+      </div>
+    </section>
+
+    <!-- ================= ⑥ 智能体与商品 ================= -->
+    <section id="view-shelf" hidden>
+      <div class="vhead"><h2>智能体与商品</h2><span class="desc">SKU 上下架 / 单次消耗积分 · Agent 定义</span><span class="src">GET /market/admin/skus + GET /admin/agents</span></div>
+      <div class="card">
+        <h3>SKU 货架 <span class="more">单次消耗积分 · PATCH /market/admin/skus/:skuId</span></h3>
+        <div class="tbl-wrap">
+          <table class="ctbl" id="tblSkus">
+            <thead><tr><th>商品</th><th>编码</th><th>分类</th><th>单次消耗积分</th><th>供应商</th><th>上架</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Agent 定义 <span class="more">GET /admin/agents</span></h3>
+        <div class="tbl-wrap">
+          <table class="ctbl" id="tblAgents">
+            <thead><tr><th>agentId</th><th>名称</th><th>状态</th><th>当前技能版本</th><th>更新时间</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= ⑦ 质量与安全 ================= -->
+    <section id="view-quality" hidden>
+      <div class="vhead"><h2>质量与安全</h2><span class="desc">质量摘要与租户隔离审计</span><span class="src">GET /admin/quality/summary + /admin/security/isolation-audit</span></div>
+      <div class="card">
+        <h3>质量摘要</h3>
+        <div class="kv">
+          <div class="k"><i>用户反馈数</i><b>12</b></div>
+          <div class="k"><i>被标记运行数</i><b>4</b></div>
+          <div class="k"><i>近7天反馈</i><b>3</b></div>
+          <div class="k"><i>待处理标记</i><b>1</b></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>运行失败记录 <span class="more">近 24 小时 · 客户投诉时先查这里</span></h3>
+        <div class="tbl-wrap">
+          <table class="ctbl" id="tblFails">
+            <thead><tr><th>时间</th><th>租户</th><th>智能体</th><th>错误摘要</th><th>状态</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="muted" style="margin-top:10px">点「状态」单元格标记已处理；数据源 <code>GET /admin/quality/flagged-runs?hours=24</code>（明细端点为建议新增，不阻塞主流程）。</div>
+      </div>
+      <div class="card">
+        <h3>租户隔离审计 <span class="more">isolation audit</span></h3>
+        <div class="okbox">DATA_MODE=database · 最近一次全量隔离审计通过：8/8 租户抽样无越权读写 · 2026-09-28 09:12</div>
+        <div class="tbl-wrap" style="margin-top:12px">
+          <table class="ctbl" id="tblIso">
+            <thead><tr><th>租户</th><th>检查项</th><th>结果</th><th>时间</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- 客户详情抽屉 -->
+<div class="mask" id="mask"></div>
+<aside class="drawer" id="custDrawer">
+  <div class="dhead"><b id="dTitle">客户详情</b><button class="x" data-close type="button">✕</button></div>
+  <div class="dbody" id="dBody"></div>
+</aside>
+
+<!-- 手动加算力弹窗 -->
+<div class="modal" id="grantModal">
+  <div class="mbox">
+    <div class="mhead"><b>手动加算力 · <span id="gUser"></span></b><button class="x" data-close type="button">✕</button></div>
+    <div class="mbody">
+      <div class="frm">
+        <label>加算力账户
+          <select id="gAccount"><option value="bonus">赠送账户（不过期扣赠送）</option><option value="paid">充值账户</option></select>
+        </label>
+        <label>积分数量<input type="number" id="gAmount" placeholder="如 2000"></label>
+        <label>备注 / 原因<input type="text" id="gNote" placeholder="如 客服补偿 / 活动赠送"></label>
+        <label class="hint">演示说明：真实实现走 POST /admin/credits/users/:userId/grant，写入双账本并留操作人审计。</label>
+        <div><button class="btn pri" id="gSubmit" type="button">确认加算力</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 使用记录弹窗 -->
+<div class="modal" id="ledgerModal">
+  <div class="mbox">
+    <div class="mhead"><b>使用记录（钱包逐笔流水）· <span id="lUser"></span></b><button class="x" data-close type="button">✕</button></div>
+    <div class="mbody">
+      <div class="tbl-wrap">
+        <table class="ctbl" style="min-width:620px" id="tblCredLedger">
+          <thead><tr><th>时间</th><th>类型</th><th>账户</th><th>变动</th><th>智能体</th><th>来源</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<div class="devnotes">
+  <details open>
+    <summary>交接备注（给周凯的实现口径 · AdminConsolePage.tsx UI升级 v1.4）</summary>
+    <ol>
+      <li><b>目标页面</b>：现网 <code>/agents/admin</code> = <code>apps/web/src/marketplace/AdminConsolePage.tsx</code> + <code>apps/web/src/styles/admin-console.css</code>。本设计稿对齐该页 7 个 section（<b>推荐归因已并入市场合伙人管理后台，本页不再重复实现</b>），只做 UI 升级与前端功能增强，<b>全部复用已有 API，不新造聚合接口</b>；保留页面原则：仅运营使用、双条件鉴权（<code>x-sitong-admin-token</code> + owner/admin 角色）、每视图展示数据来源 endpoints、错误文案沿用 <code>consoleReadJson</code> 现有人话口径。</li>
+      <li><b>概览仪表盘数据源（四路合并，共享一个 refreshKey）</b>：<code>GET /admin/ops/summary</code> → <code>users{total,createdToday}</code>/<code>tenants{total,createdToday}</code>/<code>subscriptions.activeOrTrialing</code>/<code>billing{paidOrders,pendingOrders,paidAmountCny}</code>/<code>usage{agentRuns,agentRunsToday,...}</code>/<code>quality{feedbackCount,flaggedRuns}</code>/<code>credit</code>算力汇总/<code>topSkills[{skillId,count}]</code>；<code>GET /market/admin/overview</code> → <code>{todayCalls,todayPoints,activeTenants,gmvCny}</code>；充值与账本（见下）。指标卡：用户总数=users.total（今日+createdToday）等，剩余算力=credit 余额合计，注明"充值 x / 赠送 y"。</li>
+      <li><b>近7天充值趋势</b>：前端聚合 <code>GET /admin/recharges?limit=500</code>。口径：仅 <code>status=paid</code>；时间取 <code>paidAt ?? createdAt</code>；按浏览器本地时区 <code>YYYY-MM-DD</code> 分组对 <code>amountCny</code> 求和；从今天往前 7 天补零。空数据/接口报错显示空态文案而非全零柱，并标注「基于最近500条」。<b>可选后端增强（不阻塞）</b>：<code>GET /admin/metrics/daily?days=7</code> 返回按日 {rechargeCny, consumeCredits}，可替换前端聚合。</li>
+      <li><b>近7天消耗趋势</b>：聚合 <code>GET /market/admin/ledger?limit=500</code> 中 <code>type=ppu_consume</code> 的 <code>amountCredits</code> 按日求和；口径同上。</li>
+      <li><b>AdminTable 通用表格规格</b>（替换现 DataView 的展示层，<code>useAdminData</code> 数据获取逻辑不动）：① 搜索框跨所有显示列（含 render 后文本）过滤；② 点表头排序 asc→desc→取消循环，numeric 列按数值比、其余 <code>localeCompare(zh-CN)</code>、null 恒末尾；③ 分页每页 10/20/50 可切，默认 10；④ CSV 导出：<code>"\\uFEFF"</code> BOM 防中文乱码、含 <code>, " \\n</code> 的单元格加引号且内部 <code>"</code> 翻倍、数值列用原始值（不带 ¥/千分位）、日期 <code>YYYY-MM-DD HH:mm:ss</code>、文件名 <code>admin-{section}-{yyyyMMdd-HHmm}.csv</code>、Blob+a.click+revokeObjectURL；⑤ 表头下「共 N 条」实时联动。</li>
+      <li><b>充值明细</b>：状态 chips 过滤（all/paid/pending/refunded 直接用 query <code>status</code> 参数）；合计条=笔数+合计¥（仅已支付计入合计，待支付单独提示）；列映射 <code>{id,userName,userPhone,tenantNames[],amountCny,basePts,bonusPts,totalPts,method,status,paidAt,createdAt}</code>。</li>
+      <li><b>客户视图</b>：沿用现有列（<code>name/type/industry/city/walletBalance/rechargedCredits/consumedCredits/topAgents/memberCount</code>）；<b>类型列改为「来源」（v1.4）：两值=自营 / 合伙人渠道，注册时即打标（<code>?src=</code> 或推荐码），试用阶段就显示归属、不等付费</b>；合伙人渠道客户小字标注归属合伙人（<code>via</code>，来自 ReferralBinding）；试用状态是另一维度（<code>trial</code> 标记「试用中」小标），与来源正交；<code>topAgents[{name,runs,credits}]</code> 渲染为「名称×次数」小标签（人话规则保留）；行点击详情抽屉=纯前端组装（基本信息+钱包+该客户充值历史(recharges 按 userId 过滤)+常用智能体横条），不新造接口。</li>
+      <li><b>算力管理</b>：沿用现有状态机（搜索/选中/ledger 刷新/grant 弹窗联动），只换 UI；ledger 弹窗保留「智能体」列（现网已有）；手动加算力走 <code>POST /admin/credits/users/:userId/grant</code>，字段：账户(充值/赠送)、积分、备注。</li>
+      <li><b>试用到期 / 失败排查（v1.3 新增两卡，v1.4 加来源列）</b>：① 试用到期提醒=查订阅 <code>status=trialing</code> 且 7 天内到期，按试用期间消耗降序（消耗大=转化概率高优先催），<b>每行带来源列（自营 / 合伙人渠道·归属合伙人）——试用即显示归属，合伙人端「我的客户」同步可见自己的试用客户（ReferralBinding 注册即绑定）</b>，跟进状态四态循环（未跟进→已联系→已转化→已放弃）需持久化；② 运行失败记录=近24h 失败/被标记运行明细，建议新增 <code>GET /admin/quality/flagged-runs?hours=24</code>（不阻塞主流程），状态可标记已处理。</li>
+      <li><b>写操作白名单（不新增）</b>：发体验额度 <code>POST /market/admin/trial-grants</code>、建邀请码 <code>POST /admin/invites</code>、SKU 上下架/改价 <code>PATCH /market/admin/skus/:skuId</code>、手动加算力（上述）。操作回执统一 toast（成功绿/失败红文案直出 message）。</li>
+      <li><b>状态→stpill 五色映射</b>：<code class="stpill ok">ok/paid/active/通过=绿</code>、<code class="stpill wait">pending/waiting/待审核=琥珀</code>、<code class="stpill run">running/进行中=蓝</code>、<code class="stpill off">下架/停用=灰</code>、<code class="stpill back">refunded/已驳回/退款=红</code>。</li>
+      <li><b>自动刷新</b>：概览页 60s 轮询开关（默认开），顶栏显示「最后更新 HH:MM:SS」；切走 section 暂停，写操作后主动 reload 对应视图。<code>dataMode=demo</code> 时概览顶部加「演示数据」徽标，趋势图显示空态。</li>
+      <li><b>样式与移动端</b>：设计变量与组件样式见本文件 <code>&lt;style&gt;</code>（<code>--orange:#E8651A</code> 主色系、卡阴影 <code>0 6px 18px rgba(28,39,51,.05)</code>）；React 落地时新类加 <code>ac-</code> 前缀且调色板 scope 到页面根类（不用 :root，避免污染 Topbar/marketplace 全局样式）；≤860px 侧栏折行、表格 <code>.tbl-wrap</code> 横向滚动必须保留。</li>
+      <li><b>验收清单</b>：① 7 模块导航 ② 概览 8 卡+两趋势+TOP8+动态 ③ 客户搜索/排序/分页/导出/详情抽屉+来源列（自营/合伙人渠道·via）+试用到期跟进（含来源） ④ 充值筛选/合计/导出 ⑤ 算力 ledger 含智能体列+grant 弹窗 ⑥ SKU toggle+改价 ⑦ 失败记录标记 ⑧ 移动端 390px 布局 ⑨ console 零报错 ⑩ 401/403 无权限文案与现网一致。</li>
+    </ol>
+  </details>
+</div>
+
+<footer>思潼AI · 统一管理后台 UI升级设计原型 v1.4 · 2026-09-29 · 仅供内部交接使用</footer>
+
+<script>
+'use strict';
+/* ================= 工具 ================= */
+function $(sel){ return document.querySelector(sel); }
+function $$(sel){ return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+function fmt(n){ return Number(n||0).toLocaleString('zh-CN'); }
+function fmtCny(n){ return '¥' + fmt(n); }
+function pad(n){ return String(n).padStart(2,'0'); }
+function dayKey(d){ return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); }
+function timeStr(d){ return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+function dtStr(d){ return dayKey(d) + ' ' + timeStr(d); }
+function nowStamp(){ var d=new Date(); var p=pad; return ''+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes()); }
+var toastTimer=null;
+function toast(msg){ var t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(function(){ t.classList.remove('show'); },2200); }
+
+/* ================= 演示数据（相对今天生成，口径对齐真实端点字段） ================= */
+var DAY = 86400000;
+var NOW = new Date();
+function ago(days, hm){ var d=new Date(NOW.getTime()-days*DAY); if(hm){ d.setHours(hm[0],hm[1],0,0); if(d>NOW){ d=new Date(d.getTime()-DAY); } } return d; }
+
+var OPS = {
+  users:{total:47,createdToday:3},
+  tenants:{total:12,createdToday:1},
+  subscriptions:{activeOrTrialing:8},
+  billing:{paidOrders:63,pendingOrders:2,paidAmountCny:46800},
+  usage:{agentRuns:2136,agentRunsToday:57,fileAnalyses:121,audioCardsAnalyzed:89,automationTasks:34},
+  quality:{feedbackCount:12,flaggedRuns:4},
+  credit:{balance:218400,paidBalance:172000,bonusBalance:46400},
+  overview:{todayCalls:143,todayPoints:2860,activeTenants:9,gmvCny:1280}
+};
+
+var CUSTOMERS = [
+  {id:'t01',name:'兰琪美容美发',type:'自营',industry:'美业',city:'上海',walletBalance:12400,rechargedCredits:60000,consumedCredits:47600,memberCount:5,
+   topAgents:[{name:'金牌文案主笔',runs:320,credits:6400},{name:'选题策略官',runs:180,credits:3600}],owner:'张店长',phone:'138****6688',createdAt:'2026-07-02'},
+  {id:'t02',name:'枕水江南外卖',type:'自营',industry:'餐饮',city:'杭州',walletBalance:8200,rechargedCredits:40000,consumedCredits:31800,memberCount:3,
+   topAgents:[{name:'视频复盘官',runs:298,credits:5960},{name:'直播话术教练',runs:120,credits:2400}],owner:'李经理',phone:'139****2233',createdAt:'2026-07-18'},
+  {id:'t03',name:'轻奢美业连锁',type:'合伙人渠道',via:'林秋水',industry:'美业',city:'成都',walletBalance:15600,rechargedCredits:80000,consumedCredits:64400,memberCount:8,
+   topAgents:[{name:'IP定位师',runs:187,credits:3740},{name:'门店增长参谋',runs:152,credits:3040}],owner:'王总',phone:'137****8899',createdAt:'2026-06-25'},
+  {id:'t04',name:'悦己美学Spa',type:'合伙人渠道',via:'王小美',industry:'美业',city:'广州',walletBalance:6400,rechargedCredits:30000,consumedCredits:23600,memberCount:4,
+   topAgents:[{name:'金牌文案主笔',runs:210,credits:4200},{name:'私域成交教练',runs:96,credits:1920}],owner:'陈店长',phone:'136****4455',createdAt:'2026-08-02'},
+  {id:'t05',name:'鲜果时光茶饮',type:'自营',trial:true,industry:'零售',city:'长沙',walletBalance:500,rechargedCredits:4000,consumedCredits:3600,memberCount:2,
+   topAgents:[{name:'获客内容官',runs:78,credits:1560}],owner:'刘老板',phone:'135****1122',createdAt:'2026-09-20'},
+  {id:'t06',name:'潘哥餐饮管理',type:'自营',industry:'餐饮',city:'合肥',walletBalance:21000,rechargedCredits:100000,consumedCredits:79000,memberCount:6,
+   topAgents:[{name:'直播话术教练',runs:366,credits:7320},{name:'选题策略官',runs:200,credits:4000}],owner:'潘哥',phone:'133****7788',createdAt:'2026-06-10'},
+  {id:'t07',name:'花漾美业',type:'合伙人渠道',via:'陈大力',industry:'美业',city:'武汉',walletBalance:3800,rechargedCredits:20000,consumedCredits:16200,memberCount:3,
+   topAgents:[{name:'视频复盘官',runs:150,credits:3000}],owner:'赵店长',phone:'188****9900',createdAt:'2026-08-15'},
+  {id:'t08',name:'星辉健身工作室',type:'合伙人渠道',via:'陈大力',trial:true,industry:'健身',city:'北京',walletBalance:100,rechargedCredits:0,consumedCredits:62,memberCount:2,
+   topAgents:[{name:'获客内容官',runs:3,credits:36}],owner:'孙教练',phone:'186****3355',createdAt:'2026-09-29'}
+];
+
+/* 充值流水：金额集中落在近7天，保证趋势图有形 */
+var RECH_PLAN = [
+  {d:6,user:'兰琪美容美发',phone:'138****6688',tenants:['兰琪美容美发'],cny:2000,method:'微信支付',status:'paid'},
+  {d:6,user:'潘哥餐饮管理',phone:'133****7788',tenants:['潘哥餐饮管理'],cny:2000,method:'对公转账',status:'paid'},
+  {d:5,user:'轻奢美业连锁',phone:'137****8899',tenants:['轻奢美业连锁'],cny:3600,method:'对公转账',status:'paid'},
+  {d:5,user:'悦己美学Spa',phone:'136****4455',tenants:['悦己美学Spa'],cny:500,method:'微信支付',status:'paid'},
+  {d:4,user:'枕水江南外卖',phone:'139****2233',tenants:['枕水江南外卖'],cny:1500,method:'微信支付',status:'paid'},
+  {d:4,user:'花漾美业',phone:'188****9900',tenants:['花漾美业'],cny:500,method:'微信支付',status:'pending'},
+  {d:3,user:'兰琪美容美发',phone:'138****6688',tenants:['兰琪美容美发'],cny:1000,method:'微信支付',status:'paid'},
+  {d:3,user:'星辉健身工作室',phone:'186****3355',tenants:['星辉健身工作室'],cny:4000,method:'对公转账',status:'paid'},
+  {d:2,user:'潘哥餐饮管理',phone:'133****7788',tenants:['潘哥餐饮管理'],cny:2000,method:'对公转账',status:'paid'},
+  {d:2,user:'鲜果时光茶饮',phone:'135****1122',tenants:['鲜果时光茶饮'],cny:500,method:'微信支付',status:'refunded'},
+  {d:1,user:'轻奢美业连锁',phone:'137****8899',tenants:['轻奢美业连锁'],cny:2000,method:'对公转账',status:'paid'},
+  {d:1,user:'悦己美学Spa',phone:'136****4455',tenants:['悦己美学Spa'],cny:500,method:'微信支付',status:'paid'},
+  {d:0,user:'兰琪美容美发',phone:'138****6688',tenants:['兰琪美容美发'],cny:1000,method:'微信支付',status:'paid'},
+  {d:0,user:'枕水江南外卖',phone:'139****2233',tenants:['枕水江南外卖'],cny:2000,method:'微信支付',status:'paid'},
+  {d:0,user:'潘哥餐饮管理',phone:'133****7788',tenants:['潘哥餐饮管理'],cny:500,method:'对公转账',status:'pending'}
+];
+var RECHARGES = RECH_PLAN.map(function(p,i){
+  var base = p.cny*10, bonus = p.cny>=1000 ? Math.round(base*0.1) : 0;
+  var dt = ago(p.d,[9+(i%9),5+(i%50)]);
+  return {id:'RCH'+(260901+i), userId:'u'+(i%8+1), userName:p.user, userPhone:p.phone, tenantNames:p.tenants,
+    amountCny:p.cny, basePts:base, bonusPts:bonus, totalPts:base+bonus, method:p.method, status:p.status, paidAt:dt, createdAt:dt};
+});
+
+var CONSUME_7 = [1850,2210,1740,2680,1990,2405,2860];
+
+var TOP_SKILLS = [
+  {name:'选题策略官',count:512},{name:'金牌文案主笔',count:447},{name:'直播话术教练',count:366},
+  {name:'视频复盘官',count:298},{name:'IP定位师',count:187},{name:'门店增长参谋',count:152},
+  {name:'私域成交教练',count:96},{name:'获客内容官',count:78}
+];
+
+var AGENTS_OF_SKILL = {'选题策略官':'ipzone__topic','金牌文案主笔':'ipzone__copy','直播话术教练':'ipzone__livescript','视频复盘官':'ipzone__vidrev','IP定位师':'ipzone__ippos','门店增长参谋':'ipzone__store','私域成交教练':'ipzone__closer','获客内容官':'ipzone__acquire'};
+
+var FEED = [
+  {ic:'💰',t:'10:24',x:'<b>兰琪美容美发</b> 充值成功（微信支付）',v:fmtCny(1000),cls:'money'},
+  {ic:'🔥',t:'10:02',x:'<b>枕水江南外卖</b> 视频复盘官 运行 1 次',v:'-286 积分',cls:'credit'},
+  {ic:'🎉',t:'09:41',x:'新客户开通：<b>星辉健身工作室</b>（合伙人渠道 · 陈大力推广 · 试用 · 注册送 100 算力/30 天）',v:'',cls:''},
+  {ic:'💰',t:'09:18',x:'<b>潘哥餐饮管理</b> 充值成功（对公转账）',v:fmtCny(500),cls:'money'},
+  {ic:'🔥',t:'09:05',x:'<b>轻奢美业连锁</b> 选题策略官 运行 3 次',v:'-840 积分',cls:'credit'},
+  {ic:'🎟️',t:'08:47',x:'邀请码 <b>SITONG-9K2F</b> 被核销 · 绑定 <b>花漾美业</b>',v:'',cls:''},
+  {ic:'💰',t:'昨天',x:'<b>轻奢美业连锁</b> 充值成功（对公转账）',v:fmtCny(2000),cls:'money'},
+  {ic:'🔥',t:'昨天',x:'<b>悦己美学Spa</b> 金牌文案主笔 运行 6 次',v:'-1200 积分',cls:'credit'}
+];
+
+var AUDIT = [
+  {t:ago(0,[10,24]),no:'RCH260914',tenant:'兰琪美容美发',type:'充值',cny:1000,pts:10000,st:'paid'},
+  {t:ago(0,[9,40]),no:'RCH260913',tenant:'枕水江南外卖',type:'充值',cny:2000,pts:22000,st:'paid'},
+  {t:ago(0,[9,5]),no:'RCH260912',tenant:'潘哥餐饮管理',type:'充值',cny:500,pts:5000,st:'pending'},
+  {t:ago(1,[18,22]),no:'RCH260909',tenant:'轻奢美业连锁',type:'充值',cny:2000,pts:22000,st:'paid'},
+  {t:ago(1,[15,3]),no:'RCH260908',tenant:'悦己美学Spa',type:'充值',cny:500,pts:5000,st:'paid'},
+  {t:ago(2,[16,44]),no:'RCH260904',tenant:'鲜果时光茶饮',type:'充值',cny:500,pts:5000,st:'refunded'},
+  {t:ago(2,[11,9]),no:'RCH260903',tenant:'潘哥餐饮管理',type:'充值',cny:2000,pts:22000,st:'paid'},
+  {t:ago(3,[14,31]),no:'RCH260898',tenant:'星辉健身工作室',type:'充值',cny:4000,pts:44000,st:'paid'},
+  {t:ago(3,[10,2]),no:'RCH260897',tenant:'兰琪美容美发',type:'充值',cny:1000,pts:11000,st:'paid'},
+  {t:ago(4,[17,18]),no:'RCH260891',tenant:'花漾美业',type:'充值',cny:500,pts:5000,st:'pending'},
+  {t:ago(4,[9,26]),no:'RCH260890',tenant:'枕水江南外卖',type:'充值',cny:1500,pts:16500,st:'paid'},
+  {t:ago(5,[15,52]),no:'RCH260883',tenant:'轻奢美业连锁',type:'充值',cny:3600,pts:39600,st:'paid'}
+];
+
+var LEDGER = [
+  {t:ago(0,[10,2]),tenant:'枕水江南外卖',type:'ppu_consume',credits:-286,agent:'视频复盘官',note:'按次消耗'},
+  {t:ago(0,[9,5]),tenant:'轻奢美业连锁',type:'ppu_consume',credits:-840,agent:'选题策略官',note:'按次消耗×3'},
+  {t:ago(0,[8,30]),tenant:'兰琪美容美发',type:'topup',credits:11000,agent:'—',note:'充值 ¥1000（含赠送）'},
+  {t:ago(1,[19,12]),tenant:'潘哥餐饮管理',type:'ppu_consume',credits:-1520,agent:'直播话术教练',note:'按次消耗×4'},
+  {t:ago(1,[16,40]),tenant:'悦己美学Spa',type:'ppu_consume',credits:-1200,agent:'金牌文案主笔',note:'按次消耗×6'},
+  {t:ago(0,[9,41]),tenant:'星辉健身工作室',type:'bonus_grant',credits:100,agent:'—',note:'注册送 100 算力 · 30 天有效'},
+  {t:ago(2,[15,15]),tenant:'轻奢美业连锁',type:'subscription_charge',credits:0,agent:'—',note:'订阅扣款 ¥800'},
+  {t:ago(2,[11,20]),tenant:'花漾美业',type:'ppu_consume',credits:-600,agent:'视频复盘官',note:'按次消耗×2'},
+  {t:ago(3,[20,2]),tenant:'兰琪美容美发',type:'ppu_consume',credits:-980,agent:'金牌文案主笔',note:'按次消耗×2'},
+  {t:ago(3,[14,30]),tenant:'枕水江南外卖',type:'topup',credits:22000,agent:'—',note:'充值 ¥2000（含赠送）'},
+  {t:ago(4,[18,0]),tenant:'潘哥餐饮管理',type:'ppu_consume',credits:-2100,agent:'直播话术教练',note:'按次消耗×5'},
+  {t:ago(4,[12,45]),tenant:'鲜果时光茶饮',type:'refund',credits:5000,agent:'—',note:'退款冲正 ¥500'}
+];
+
+var CREDITS = [
+  {id:'u01',userName:'张店长（兰琪）',phone:'138****6688',paidBalance:8600,bonusBalance:3800,balance:12400,expiry:'2026-10-05'},
+  {id:'u02',userName:'李经理（枕水）',phone:'139****2233',paidBalance:6000,bonusBalance:2200,balance:8200,expiry:'2026-09-30'},
+  {id:'u03',userName:'王总（轻奢）',phone:'137****8899',paidBalance:12000,bonusBalance:3600,balance:15600,expiry:'2026-10-12'},
+  {id:'u04',userName:'陈店长（悦己）',phone:'136****4455',paidBalance:4400,bonusBalance:2000,balance:6400,expiry:'—'},
+  {id:'u05',userName:'刘老板（鲜果）',phone:'135****1122',paidBalance:0,bonusBalance:400,balance:400,expiry:'2026-09-29'},
+  {id:'u06',userName:'潘哥（餐饮）',phone:'133****7788',paidBalance:17000,bonusBalance:4000,balance:21000,expiry:'2026-10-20'},
+  {id:'u07',userName:'赵店长（花漾）',phone:'188****9900',paidBalance:2600,bonusBalance:1200,balance:3800,expiry:'—'},
+  {id:'u08',userName:'孙教练（星辉）',phone:'186****3355',paidBalance:0,bonusBalance:400,balance:400,expiry:'2026-09-29'}
+];
+
+var CRED_LEDGER = [
+  {t:ago(0,[10,2]),type:'consume',acct:'充值',delta:-286,agent:'视频复盘官',src:'智能体运行'},
+  {t:ago(0,[8,30]),type:'topup',acct:'充值',delta:10000,agent:'—',src:'微信支付 ¥1000'},
+  {t:ago(0,[8,30]),type:'topup',acct:'赠送',delta:1000,agent:'—',src:'充值满千赠送'},
+  {t:ago(1,[16,40]),type:'consume',acct:'赠送',delta:-600,agent:'金牌文案主笔',src:'智能体运行'},
+  {t:ago(2,[15,15]),type:'consume',acct:'充值',delta:-350,agent:'选题策略官',src:'智能体运行'},
+  {t:ago(4,[12,0]),type:'grant',acct:'赠送',delta:2000,agent:'—',src:'运营手动加算力（客服补偿）'}
+];
+
+var SKUS = [
+  {name:'选题策略官',code:'ipzone__topic',cat:'agent',cls:'agent',pts:200,supplier:'思潼自研',on:true},
+  {name:'金牌文案主笔',code:'ipzone__copy',cat:'agent',cls:'agent',pts:200,supplier:'思潼自研',on:true},
+  {name:'直播话术教练',code:'ipzone__livescript',cat:'agent',cls:'agent',pts:400,supplier:'思潼自研',on:true},
+  {name:'视频复盘官',code:'ipzone__vidrev',cat:'agent',cls:'agent',pts:286,supplier:'思潼自研',on:true},
+  {name:'IP定位师',code:'ipzone__ippos',cat:'agent',cls:'agent',pts:200,supplier:'思潼自研',on:true},
+  {name:'门店增长参谋',code:'ipzone__store',cat:'agent',cls:'agent',pts:200,supplier:'思潼自研',on:true},
+  {name:'私域成交教练',code:'ipzone__closer',cat:'agent',cls:'agent',pts:200,supplier:'思潼自研',on:true},
+  {name:'获客内容官',code:'ipzone__acquire',cat:'agent',cls:'agent',pts:200,supplier:'思潼自研',on:false}
+];
+
+var AGENTS = [
+  {id:'ipzone__topic',name:'选题策略官',st:'active',rel:'skill-topic-v1.5',upd:ago(4,[11,20])},
+  {id:'ipzone__copy',name:'金牌文案主笔',st:'active',rel:'skill-copy-v1.2',upd:ago(6,[15,2])},
+  {id:'ipzone__livescript',name:'直播话术教练',st:'active',rel:'skill-ls-v0.2',upd:ago(8,[10,40])},
+  {id:'ipzone__vidrev',name:'视频复盘官',st:'degraded',rel:'skill-vidrev-v1.1',upd:ago(5,[9,18])},
+  {id:'ipzone__ippos',name:'IP定位师',st:'active',rel:'skill-ippos-v1.0',upd:ago(12,[16,30])},
+  {id:'ipzone__closer',name:'私域成交教练',st:'active',rel:'skill-closer-v0.8',upd:ago(9,[13,10])}
+];
+
+var ISO = [
+  {tenant:'兰琪美容美发',item:'会话数据越权抽样（20条）',res:'pass',t:ago(0,[9,12])},
+  {tenant:'枕水江南外卖',item:'文件隔离抽样（10个）',res:'pass',t:ago(0,[9,12])},
+  {tenant:'轻奢美业连锁',item:'账本流水越权抽样',res:'pass',t:ago(0,[9,11])},
+  {tenant:'悦己美学Spa',item:'知识库跨租户读写',res:'pass',t:ago(1,[9,30])},
+  {tenant:'潘哥餐饮管理',item:'会话数据越权抽样（20条）',res:'pass',t:ago(1,[9,30])}
+];
+
+var TRIALS = [
+  {t:'鲜果时光茶饮',src:'自营',via:'',plan:'本地标准版',end:'09-30',left:2,used:3600,fo:0},
+  {t:'星辉健身工作室',src:'合伙人渠道',via:'陈大力',plan:'本地标准版',end:'10-01',left:3,used:62,fo:0},
+  {t:'轻加美容仪器',src:'合伙人渠道',via:'林秋水',plan:'IP标准版',end:'10-03',left:5,used:58,fo:1},
+  {t:'悦颜茶饮二店',src:'自营',via:'',plan:'本地标准版',end:'10-04',left:6,used:36,fo:0}
+];
+
+var FAILS = [
+  {t:ago(0,[11,42]),tenant:'枕水江南外卖',agent:'视频复盘官',err:'抖音「按天汇总」xlsx 表头识别失败（已知问题·绕行传逐条明细）',st:'wait'},
+  {t:ago(0,[9,18]),tenant:'轻奢美业连锁',agent:'金牌文案主笔',err:'技能超时 30s，已自动重试成功 1 次',st:'ok'},
+  {t:ago(1,[17,5]),tenant:'兰琪美容美发',agent:'直播话术教练',err:'会话上下文超长，建议客户开新会话',st:'wait'}
+];
+
+/* ================= 状态映射 ================= */
+var ST_MAP = {
+  paid:['ok','已支付'], pending:['wait','待支付'], refunded:['back','已退款'],
+  active:['ok','运行中'], degraded:['wait','降级'], off:['off','已下架'],
+  pass:['ok','通过'], fail:['back','未通过']
+};
+function stpill(st){
+  var m = ST_MAP[st] || ['off', st || '—'];
+  return '<span class="stpill ' + m[0] + '">' + m[1] + '</span>';
+}
+
+/* ================= 视图切换 ================= */
+var AUTO_ON = true, autoTimer = null;
+function show(view){
+  $$('.snav').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-view')===view); });
+  $$('main.main > section').forEach(function(s){ s.hidden = (s.id !== 'view-' + view); });
+  window.scrollTo({top:0});
+}
+$$('.snav').forEach(function(b){ b.addEventListener('click', function(){ show(b.getAttribute('data-view')); }); });
+
+function touchStamp(){
+  var d = new Date();
+  $('#updChip').textContent = '最后更新 ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+}
+function startAuto(){
+  clearInterval(autoTimer);
+  if(AUTO_ON){ autoTimer = setInterval(function(){ touchStamp(); }, 60000); }
+}
+$('#autoTgl').addEventListener('click', function(){
+  AUTO_ON = !AUTO_ON;
+  this.classList.toggle('on', AUTO_ON);
+  startAuto();
+  toast(AUTO_ON ? '已开启自动刷新（60秒/次）' : '已关闭自动刷新');
+});
+
+/* ================= ① 概览 ================= */
+function renderOverview(){
+  $('#kUsers').textContent = fmt(OPS.users.total);
+  $('#kUsersToday').textContent = '今日 +' + OPS.users.createdToday;
+  $('#kTenants').textContent = fmt(OPS.tenants.total);
+  $('#kTenantsToday').textContent = '今日 +' + OPS.tenants.createdToday;
+  $('#kSubs').textContent = fmt(OPS.subscriptions.activeOrTrialing);
+  $('#kPaid').textContent = fmtCny(OPS.billing.paidAmountCny);
+  $('#kPaidOrders').textContent = '已支付 ' + OPS.billing.paidOrders + ' 笔 · 待支付 ' + OPS.billing.pendingOrders + ' 笔';
+  $('#kGmv').textContent = fmtCny(OPS.overview.gmvCny);
+  $('#kGmvCalls').textContent = '今日调用 ' + fmt(OPS.overview.todayCalls) + ' 次';
+  $('#kRunsToday').textContent = fmt(OPS.usage.agentRunsToday);
+  $('#kPointsToday').textContent = '今日消耗 ' + fmt(OPS.overview.todayPoints) + ' 积分';
+  $('#kRuns').textContent = fmt(OPS.usage.agentRuns);
+  $('#kActiveTenants').textContent = '活跃租户 ' + OPS.overview.activeTenants + '（今日有消耗）';
+  $('#kCredit').textContent = fmt(OPS.credit.balance);
+  $('#kCreditDetail').textContent = '充值 ' + fmt(OPS.credit.paidBalance) + ' / 赠送 ' + fmt(OPS.credit.bonusBalance);
+  $('#qFeedback').textContent = OPS.quality.feedbackCount;
+  $('#qFlagged').textContent = OPS.quality.flaggedRuns;
+  $('#qFiles').textContent = OPS.usage.fileAnalyses;
+  $('#qAutomation').textContent = OPS.usage.automationTasks;
+
+  /* 近7天充值趋势 */
+  var days = [], labels = [], wk = ['日','一','二','三','四','五','六'];
+  for(var i=6;i>=0;i--){
+    var d = new Date(NOW.getTime()-i*DAY);
+    days.push(dayKey(d));
+    labels.push({m:(d.getMonth()+1)+'/'+d.getDate(), w:'周'+wk[d.getDay()], today:i===0});
+  }
+  var rechByDay = {};
+  RECHARGES.forEach(function(r){
+    if(r.status!=='paid') return;
+    var k = dayKey(r.paidAt);
+    rechByDay[k] = (rechByDay[k]||0) + r.amountCny;
+  });
+  var rechVals = days.map(function(k){ return rechByDay[k]||0; });
+  drawChart('#chartRecharge', rechVals, labels, function(v){ return v>=10000 ? (v/1000).toFixed(1)+'k' : String(v); });
+
+  /* 近7天消耗趋势 */
+  drawChart('#chartConsume', CONSUME_7, labels, function(v){ return v>=1000 ? (v/1000).toFixed(1)+'k' : String(v); }, true);
+
+  /* TOP8 横条 */
+  var max = Math.max.apply(null, TOP_SKILLS.map(function(s){ return s.count; }));
+  $('#topSkills').innerHTML = TOP_SKILLS.map(function(s){
+    return '<div class="brow"><span class="bn">' + s.name + '</span><span class="btrack"><i style="width:' + Math.round(s.count/max*100) + '%"></i></span><span class="bv">' + fmt(s.count) + ' 次</span></div>';
+  }).join('');
+
+  /* 动态流 */
+  $('#feed').innerHTML = FEED.map(function(f){
+    return '<div class="feedrow"><span class="fi">' + f.ic + '</span><span class="ft">' + f.t + '</span><span class="fx">' + f.x + '</span><span class="fv ' + f.cls + '">' + f.v + '</span></div>';
+  }).join('');
+}
+function drawChart(sel, vals, labels, fmtVal, blue){
+  var max = Math.max.apply(null, vals.concat([1]));
+  $(sel).innerHTML = vals.map(function(v,i){
+    var h = Math.max(Math.round(v/max*100), 4);
+    return '<div class="tcol' + (blue?' blue':'') + (labels[i].today?' today':'') + '">' +
+      '<span class="tv">' + fmtVal(v) + '</span>' +
+      '<span class="bar" style="height:' + h + 'px"></span>' +
+      '<span class="td"><b>' + labels[i].m + '</b>' + labels[i].w + '</span></div>';
+  }).join('');
+}
+
+/* ================= 通用 AdminTable ================= */
+var TABLES = {};
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function cellText(v){
+  if(v==null) return '';
+  if(v instanceof Date) return dtStr(v);
+  if(typeof v==='number') return fmt(v);
+  if(Array.isArray(v)) return v.map(function(x){ return (x&&x.name)?x.name:String(x); }).join('、');
+  return String(v);
+}
+function initTable(key, cfg){
+  TABLES[key] = Object.assign({q:'',sortKey:'',sortDir:0,page:1,pageSize:10}, cfg);
+  var input = cfg.searchInput;
+  if(input){
+    input.addEventListener('input', function(){
+      TABLES[key].q = input.value.trim().toLowerCase();
+      TABLES[key].page = 1;
+      renderTable(key);
+    });
+  }
+  if(cfg.thead){
+    $$(cfg.thead + ' th.sortable').forEach(function(th){
+      th.addEventListener('click', function(){
+        var t = TABLES[key], k = th.getAttribute('data-k');
+        if(t.sortKey===k){ t.sortDir = t.sortDir===1 ? -1 : (t.sortDir===-1 ? 0 : 1); }
+        else { t.sortKey = k; t.sortDir = 1; }
+        $$(cfg.thead + ' th').forEach(function(o){
+          var a = o.querySelector('.arr'); if(a) a.remove();
+        });
+        if(t.sortDir!==0){
+          var arr = document.createElement('span');
+          arr.className = 'arr';
+          arr.textContent = t.sortDir===1 ? '▲' : '▼';
+          th.appendChild(arr);
+        }
+        renderTable(key);
+      });
+    });
+  }
+  renderTable(key);
+}
+function tableRows(key){
+  var t = TABLES[key];
+  var rows = t.rows.slice();
+  if(t.q){
+    rows = rows.filter(function(r){
+      return t.columns.some(function(c){
+        var v = c.raw ? c.raw(r) : cellText(r[c.key]);
+        return String(v).toLowerCase().indexOf(t.q) >= 0;
+      });
+    });
+  }
+  if(t.sortKey && t.sortDir!==0){
+    var col = t.columns.filter(function(c){ return c.key===t.sortKey; })[0];
+    var numeric = col ? !!col.numeric : false;
+    rows.sort(function(a,b){
+      var va = col&&col.raw ? col.raw(a) : a[t.sortKey];
+      var vb = col&&col.raw ? col.raw(b) : b[t.sortKey];
+      if(va==null) return 1;
+      if(vb==null) return -1;
+      var c = numeric ? (Number(va)-Number(vb)) : String(va).localeCompare(String(vb),'zh-CN');
+      return c * t.sortDir;
+    });
+  }
+  return rows;
+}
+function renderTable(key){
+  var t = TABLES[key];
+  var all = tableRows(key);
+  var totalPages = Math.max(1, Math.ceil(all.length / t.pageSize));
+  if(t.page > totalPages) t.page = totalPages;
+  var pageRows = all.slice((t.page-1)*t.pageSize, t.page*t.pageSize);
+  t.tbody.innerHTML = pageRows.length
+    ? pageRows.map(t.render).join('')
+    : '<tr><td colspan="' + t.columns.length + '"><div class="empty">没有匹配的记录</div></td></tr>';
+  if(t.countEl) t.countEl.textContent = '共 ' + all.length + ' 条';
+  if(t.pagerEl){
+    if(totalPages<=1){ t.pagerEl.innerHTML=''; }
+    else{
+      var html = '<button ' + (t.page===1?'disabled':'') + ' data-pg="prev" type="button">上一页</button>';
+      for(var p=1;p<=totalPages;p++){ html += '<button class="' + (p===t.page?'on':'') + '" data-pg="' + p + '" type="button">' + p + '</button>'; }
+      html += '<button ' + (t.page===totalPages?'disabled':'') + ' data-pg="next" type="button">下一页</button>';
+      t.pagerEl.innerHTML = html;
+      t.pagerEl.querySelectorAll('button').forEach(function(b){
+        b.addEventListener('click', function(){
+          var pg = b.getAttribute('data-pg');
+          if(pg==='prev') t.page = Math.max(1, t.page-1);
+          else if(pg==='next') t.page = Math.min(totalPages, t.page+1);
+          else t.page = Number(pg);
+          renderTable(key);
+        });
+      });
+    }
+  }
+}
+function exportCsv(key){
+  var t = TABLES[key];
+  var rows = tableRows(key);
+  var head = t.columns.map(function(c){ return c.label; }).join(',');
+  var lines = [head].concat(rows.map(function(r){
+    return t.columns.map(function(c){
+      var v = c.raw ? c.raw(r) : cellText(r[c.key]);
+      v = String(v==null?'':v);
+      if(/[",\n]/.test(v)) v = '"' + v.replace(/"/g,'""') + '"';
+      return v;
+    }).join(',');
+  }));
+  var blob = new Blob(['\uFEFF' + lines.join('\n')], {type:'text/csv;charset=utf-8'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'admin-' + key + '-' + nowStamp() + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 800);
+  toast('已导出 ' + rows.length + ' 条记录');
+}
+$$('[data-export]').forEach(function(b){
+  b.addEventListener('click', function(){ exportCsv(b.getAttribute('data-export')); });
+});
+
+/* ================= ② 客户 ================= */
+function typePill(t, r){
+  var p = t==='合伙人渠道' ? '<span class="pill hw">合伙人渠道</span>' : '<span class="pill agent">自营</span>';
+  if(r && r.via) p += ' <span style="font-size:11px;color:var(--sub)">' + esc(r.via) + '</span>';
+  if(r && r.trial) p += ' <span class="pill course" style="font-size:11px;padding:1px 8px">试用中</span>';
+  return p;
+}
+function agTags(list){
+  return '<div class="agtags">' + list.map(function(a){
+    return '<span class="agtag">' + esc(a.name) + ' ×' + a.runs + '</span>';
+  }).join('') + '</div>';
+}
+initTable('customers', {
+  rows: CUSTOMERS,
+  searchInput: $('#custQ'), countEl: $('#custCnt'), pagerEl: $('#custPager'),
+  thead: '#tblCustomers', tbody: $('#tblCustomers tbody'),
+  columns: [
+    {key:'name',label:'客户'},
+    {key:'type',label:'类型'},
+    {key:'industry',label:'行业'},
+    {key:'city',label:'城市'},
+    {key:'walletBalance',label:'钱包余额',numeric:true},
+    {key:'rechargedCredits',label:'累计充值',numeric:true},
+    {key:'consumedCredits',label:'累计消耗',numeric:true},
+    {key:'topAgents',label:'常用智能体'},
+    {key:'memberCount',label:'成员',numeric:true}
+  ],
+  render: function(r){
+    return '<tr class="click" data-cust="' + r.id + '">' +
+      '<td><div class="cell-main"><span class="cico">' + esc(r.name.slice(0,1)) + '</span><div><b>' + esc(r.name) + '</b><span>' + esc(r.createdAt) + ' 开通</span></div></div></td>' +
+      '<td>' + typePill(r.type, r) + '</td><td>' + esc(r.industry) + '</td><td>' + esc(r.city) + '</td>' +
+      '<td class="num credit">' + fmt(r.walletBalance) + '</td><td class="num">' + fmt(r.rechargedCredits) + '</td><td class="num">' + fmt(r.consumedCredits) + '</td>' +
+      '<td>' + agTags(r.topAgents) + '</td><td class="num">' + r.memberCount + '</td>' +
+      '<td><span class="lnk">详情</span></td></tr>';
+  }
+});
+$('#tblCustomers').addEventListener('click', function(e){
+  var tr = e.target.closest('tr[data-cust]');
+  if(tr) openCustomer(tr.getAttribute('data-cust'));
+});
+
+/* ================= ③ 充值明细 ================= */
+var RECH_ST = '';
+$('#rechChips').addEventListener('click', function(e){
+  var c = e.target.closest('.chip'); if(!c) return;
+  $$('#rechChips .chip').forEach(function(o){ o.classList.remove('on'); });
+  c.classList.add('on');
+  RECH_ST = c.getAttribute('data-st');
+  TABLES.recharges.rows = RECH_ST ? RECHARGES.filter(function(r){ return r.status===RECH_ST; }) : RECHARGES;
+  TABLES.recharges.page = 1;
+  renderRechSum();
+  renderTable('recharges');
+});
+function renderRechSum(){
+  var rows = TABLES.recharges.rows;
+  var paid = rows.filter(function(r){ return r.status==='paid'; });
+  var pending = rows.filter(function(r){ return r.status==='pending'; });
+  var sum = paid.reduce(function(s,r){ return s+r.amountCny; },0);
+  $('#rechSum').innerHTML = '<span>当前筛选 <b>' + rows.length + '</b> 笔</span>' +
+    '<span>已支付合计 <b>' + fmtCny(sum) + '</b></span>' +
+    '<span>待支付 <b>' + pending.length + '</b> 笔（不计入合计）</span>' +
+    '<span>退款 <b>' + rows.filter(function(r){ return r.status==='refunded'; }).length + '</b> 笔</span>';
+}
+initTable('recharges', {
+  rows: RECHARGES,
+  searchInput: $('#rechQ'), countEl: $('#rechCnt'), pagerEl: $('#rechPager'),
+  thead: '#tblRecharges', tbody: $('#tblRecharges tbody'),
+  columns: [
+    {key:'paidAt',label:'支付时间',raw:function(r){ return dtStr(r.paidAt); }},
+    {key:'userName',label:'用户'},
+    {key:'userPhone',label:'手机号'},
+    {key:'tenantNames',label:'所属租户'},
+    {key:'amountCny',label:'金额',numeric:true},
+    {key:'totalPts',label:'获得算力',numeric:true},
+    {key:'method',label:'方式'},
+    {key:'status',label:'状态'}
+  ],
+  render: function(r){
+    return '<tr class="' + (r.status==='refunded'?'offrow':'') + '">' +
+      '<td>' + dtStr(r.paidAt) + '</td><td><b>' + esc(r.userName) + '</b></td><td>' + esc(r.userPhone) + '</td>' +
+      '<td>' + esc(r.tenantNames.join('、')) + '</td>' +
+      '<td class="num money">' + fmtCny(r.amountCny) + '</td>' +
+      '<td class="num credit">' + fmt(r.totalPts) + (r.bonusPts?' <span class="muted">(含赠'+fmt(r.bonusPts)+')</span>':'') + '</td>' +
+      '<td>' + esc(r.method) + '</td><td>' + stpill(r.status) + '</td></tr>';
+  }
+});
+renderRechSum();
+
+/* ================= ④ 订单与收款 ================= */
+$('#tblAudit tbody').innerHTML = AUDIT.map(function(a){
+  return '<tr class="' + (a.st==='refunded'?'offrow':'') + '"><td>' + dtStr(a.t) + '</td><td>' + esc(a.no) + '</td><td>' + esc(a.tenant) + '</td>' +
+    '<td>' + esc(a.type) + '</td><td class="num money">' + fmtCny(a.cny) + '</td><td class="num credit">' + fmt(a.pts) + '</td><td>' + stpill(a.st) + '</td></tr>';
+}).join('');
+$('#tblLedger tbody').innerHTML = LEDGER.map(function(l){
+  var tname = {ppu_consume:'按次消耗',topup:'充值',subscription_charge:'订阅扣款',bonus_grant:'赠送发放',refund:'退款冲正'}[l.type] || l.type;
+  return '<tr><td>' + dtStr(l.t) + '</td><td><b>' + esc(l.tenant) + '</b></td><td>' + esc(tname) + '</td>' +
+    '<td class="num ' + (l.credits<0?'':'credit') + '">' + (l.credits>0?'+':'') + fmt(l.credits) + '</td>' +
+    '<td>' + esc(l.agent) + '</td><td class="muted">' + esc(l.note) + '</td></tr>';
+}).join('');
+
+/* ================= ⑤ 算力管理 ================= */
+initTable('credits', {
+  rows: CREDITS,
+  searchInput: $('#credQ'), countEl: $('#credCnt'), pagerEl: $('#credPager'),
+  thead: '#tblCredits', tbody: $('#tblCredits tbody'),
+  columns: [
+    {key:'userName',label:'用户'},
+    {key:'phone',label:'手机号'},
+    {key:'paidBalance',label:'充值余额',numeric:true},
+    {key:'bonusBalance',label:'赠送余额',numeric:true},
+    {key:'balance',label:'合计',numeric:true},
+    {key:'expiry',label:'最近赠送到期'}
+  ],
+  render: function(r){
+    return '<tr><td><b>' + esc(r.userName) + '</b></td><td>' + esc(r.phone) + '</td>' +
+      '<td class="num credit">' + fmt(r.paidBalance) + '</td><td class="num">' + fmt(r.bonusBalance) + '</td><td class="num credit">' + fmt(r.balance) + '</td>' +
+      '<td>' + esc(r.expiry) + '</td>' +
+      '<td><button class="lnk" data-ledger="' + r.id + '" type="button">使用记录</button><button class="lnk" data-grant="' + r.id + '" type="button">加算力</button></td></tr>';
+  }
+});
+document.addEventListener('click', function(e){
+  var lg = e.target.closest('[data-ledger]');
+  var gt = e.target.closest('[data-grant]');
+  if(lg) openCredLedger(lg.getAttribute('data-ledger'));
+  if(gt) openGrant(gt.getAttribute('data-grant'));
+});
+
+/* ================= ⑥ 智能体与商品 ================= */
+var CAT_MAP = {agent:['agent','智能体']};
+$('#tblSkus tbody').innerHTML = SKUS.map(function(s){
+  return '<tr class="' + (s.on?'':'offrow') + '"><td><div class="cell-main"><span class="cico ' + (s.cls==='agent'?'':'blue') + '">🤖</span><div><b>' + esc(s.name) + '</b><span>按次计费</span></div></div></td>' +
+    '<td class="muted">' + esc(s.code) + '</td><td><span class="pill agent">智能体</span></td>' +
+    '<td><div class="rate-cell"><input type="number" value="' + s.pts + '" data-sku="' + s.code + '"><i>积分/次</i></div></td>' +
+    '<td>' + esc(s.supplier) + '</td>' +
+    '<td><button class="tgl ' + (s.on?'on':'') + '" data-tgl="' + s.code + '" type="button" aria-label="上下架"></button></td></tr>';
+}).join('');
+$('#tblSkus').addEventListener('click', function(e){
+  var b = e.target.closest('[data-tgl]'); if(!b) return;
+  b.classList.toggle('on');
+  var code = b.getAttribute('data-tgl');
+  var on = b.classList.contains('on');
+  var sku = SKUS.filter(function(s){ return s.code===code; })[0];
+  sku.on = on;
+  b.closest('tr').classList.toggle('offrow', !on);
+  toast('「' + sku.name + '」已' + (on?'上架':'下架') + '（演示）');
+});
+$('#tblSkus').addEventListener('change', function(e){
+  var inp = e.target.closest('[data-sku]'); if(!inp) return;
+  toast('「' + inp.getAttribute('data-sku') + '」单次消耗已改为 ' + inp.value + ' 积分（演示）');
+});
+$('#tblAgents tbody').innerHTML = AGENTS.map(function(a){
+  return '<tr><td class="muted">' + esc(a.id) + '</td><td><b>' + esc(a.name) + '</b></td><td>' + stpill(a.st) + '</td>' +
+    '<td>' + esc(a.rel) + '</td><td>' + dtStr(a.upd) + '</td></tr>';
+}).join('');
+
+/* ================= ⑦ 质量与安全 ================= */
+$('#tblIso tbody').innerHTML = ISO.map(function(r){
+  return '<tr><td><b>' + esc(r.tenant) + '</b></td><td>' + esc(r.item) + '</td><td>' + stpill(r.res) + '</td><td>' + dtStr(r.t) + '</td></tr>';
+}).join('');
+
+/* ================= 试用到期 / 失败排查 ================= */
+var FO_STATES = [['wait','未跟进'],['run','已联系'],['ok','已转化'],['off','已放弃']];
+function foPill(i){ var s = FO_STATES[i] || FO_STATES[0]; return '<span class="stpill ' + s[0] + '" style="cursor:pointer">' + s[1] + '</span>'; }
+
+$('#tblTrials tbody').innerHTML = TRIALS.map(function(r, i){
+  var srcHtml = r.src==='合伙人渠道'
+    ? '<span class="pill hw">合伙人渠道</span> <span style="font-size:11px;color:var(--sub)">' + esc(r.via) + '</span>'
+    : '<span class="pill agent">自营</span>';
+  return '<tr><td><b>' + esc(r.t) + '</b></td><td>' + srcHtml + '</td><td>' + esc(r.plan) + '</td><td class="muted">' + r.end + '</td>' +
+    '<td>' + (r.left <= 2 ? '<b style="color:#d64545">' + r.left + ' 天</b>' : r.left + ' 天') + '</td>' +
+    '<td class="num">' + fmt(r.used) + '</td><td class="fo-cell" data-i="' + i + '">' + foPill(r.fo) + '</td></tr>';
+}).join('');
+$('#tblTrials').addEventListener('click', function(e){
+  var td = e.target.closest('.fo-cell'); if(!td) return;
+  var r = TRIALS[+td.getAttribute('data-i')];
+  r.fo = ((r.fo || 0) + 1) % FO_STATES.length;
+  td.innerHTML = foPill(r.fo);
+  toast('「' + r.t + '」跟进状态 → ' + FO_STATES[r.fo][1] + '（演示）');
+});
+
+$('#tblFails tbody').innerHTML = FAILS.map(function(r, i){
+  return '<tr><td class="muted">' + dtStr(r.t) + '</td><td><b>' + esc(r.tenant) + '</b></td><td>' + esc(r.agent) + '</td>' +
+    '<td class="muted">' + esc(r.err) + '</td><td class="fail-cell" data-i="' + i + '">' + stpill(r.st) + '</td></tr>';
+}).join('');
+$('#tblFails').addEventListener('click', function(e){
+  var td = e.target.closest('.fail-cell'); if(!td) return;
+  var r = FAILS[+td.getAttribute('data-i')];
+  r.st = r.st === 'wait' ? 'ok' : 'wait';
+  td.innerHTML = stpill(r.st);
+  toast(r.st === 'ok' ? '已标记处理完成（演示）' : '已重新打开（演示）');
+});
+
+/* ================= 抽屉与弹窗 ================= */
+function openDrawer(title, html){
+  $('#dTitle').textContent = title;
+  $('#dBody').innerHTML = html;
+  $('#mask').classList.add('show');
+  $('#custDrawer').classList.add('show');
+}
+function openModal(sel){
+  $('#mask').classList.add('show');
+  $(sel).classList.add('show');
+}
+function closeOverlays(){
+  $('#mask').classList.remove('show');
+  $('#custDrawer').classList.remove('show');
+  $$('.modal').forEach(function(m){ m.classList.remove('show'); });
+}
+$('#mask').addEventListener('click', closeOverlays);
+$$('[data-close]').forEach(function(b){ b.addEventListener('click', closeOverlays); });
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeOverlays(); });
+
+function openCustomer(id){
+  var c = CUSTOMERS.filter(function(x){ return x.id===id; })[0];
+  if(!c) return;
+  var rech = RECHARGES.filter(function(r){ return r.userName===c.name; });
+  var maxA = Math.max.apply(null, c.topAgents.map(function(a){ return a.runs; }).concat([1]));
+  var html = '<div class="card"><h3>基本信息</h3><div class="kv">' +
+    '<div class="k"><i>来源</i><b>' + esc(c.type) + (c.via ? ' · ' + esc(c.via) : '') + (c.trial ? '（试用中）' : '') + '</b></div>' +
+    '<div class="k"><i>行业 / 城市</i><b>' + esc(c.industry) + ' · ' + esc(c.city) + '</b></div>' +
+    '<div class="k"><i>负责人</i><b>' + esc(c.owner) + '</b></div>' +
+    '<div class="k"><i>成员数</i><b>' + c.memberCount + '</b></div>' +
+    '<div class="k"><i>开通时间</i><b>' + esc(c.createdAt) + '</b></div>' +
+    '<div class="k"><i>联系电话</i><b>' + esc(c.phone) + '</b></div></div></div>' +
+    '<div class="card"><h3>算力账户</h3><div class="kv">' +
+    '<div class="k"><i>钱包余额</i><b>' + fmt(c.walletBalance) + '</b></div>' +
+    '<div class="k"><i>累计充值</i><b>' + fmt(c.rechargedCredits) + '</b></div>' +
+    '<div class="k"><i>累计消耗</i><b>' + fmt(c.consumedCredits) + '</b></div>' +
+    '<div class="k"><i>充值笔数</i><b>' + rech.length + '</b></div></div></div>' +
+    '<div class="card"><h3>常用智能体</h3><div class="bars">' +
+    c.topAgents.map(function(a){
+      return '<div class="brow"><span class="bn">' + esc(a.name) + '</span><span class="btrack"><i style="width:' + Math.round(a.runs/maxA*100) + '%"></i></span><span class="bv">' + fmt(a.runs) + ' 次 / ' + fmt(a.credits) + ' 积分</span></div>';
+    }).join('') + '</div></div>' +
+    '<div class="card"><h3>充值历史（' + rech.length + ' 笔）</h3><div class="tbl-wrap"><table class="ctbl" style="min-width:420px"><thead><tr><th>时间</th><th>金额</th><th>算力</th><th>状态</th></tr></thead><tbody>' +
+    (rech.length ? rech.map(function(r){
+      return '<tr><td>' + dtStr(r.paidAt) + '</td><td class="num money">' + fmtCny(r.amountCny) + '</td><td class="num credit">' + fmt(r.totalPts) + '</td><td>' + stpill(r.status) + '</td></tr>';
+    }).join('') : '<tr><td colspan="4"><div class="empty">近7天无充值</div></td></tr>') +
+    '</tbody></table></div></div>';
+  openDrawer(c.name, html);
+}
+var grantUserId = null;
+function openGrant(id){
+  var u = CREDITS.filter(function(x){ return x.id===id; })[0];
+  if(!u) return;
+  grantUserId = id;
+  $('#gUser').textContent = u.userName;
+  $('#gAmount').value = ''; $('#gNote').value = '';
+  openModal('#grantModal');
+}
+$('#gSubmit').addEventListener('click', function(){
+  var amt = Number($('#gAmount').value||0);
+  if(!amt || amt<=0){ toast('请填写有效的积分数量'); return; }
+  var acct = $('#gAccount').value==='paid' ? '充值' : '赠送';
+  var u = CREDITS.filter(function(x){ return x.id===grantUserId; })[0];
+  if(u){
+    if(acct==='充值') u.paidBalance += amt; else u.bonusBalance += amt;
+    u.balance = u.paidBalance + u.bonusBalance;
+    CRED_LEDGER.unshift({t:new Date(), type:'grant', acct:acct, delta:amt, agent:'—', src:'运营手动加算力 · ' + ($('#gNote').value||'备注未填')});
+    renderTable('credits');
+  }
+  closeOverlays();
+  toast('已为「' + (u?u.userName:'用户') + '」' + acct + '账户加 ' + fmt(amt) + ' 算力（演示）');
+  $('#gAmount').value=''; $('#gNote').value='';
+});
+var ledgerUserId = null;
+function openCredLedger(id){
+  var u = CREDITS.filter(function(x){ return x.id===id; })[0];
+  if(!u) return;
+  ledgerUserId = id;
+  $('#lUser').textContent = u.userName;
+  $('#tblCredLedger tbody').innerHTML = CRED_LEDGER.map(function(l){
+    return '<tr><td>' + dtStr(l.t) + '</td><td>' + esc(({topup:'充值',consume:'消耗',grant:'人工发放'})[l.type]||l.type) + '</td>' +
+      '<td>' + esc(l.acct) + '</td><td class="num ' + (l.delta<0?'':'credit') + '">' + (l.delta>0?'+':'') + fmt(l.delta) + '</td>' +
+      '<td>' + esc(l.agent) + '</td><td class="muted">' + esc(l.src) + '</td></tr>';
+  }).join('');
+  openModal('#ledgerModal');
+}
+
+/* ================= 启动 ================= */
+renderOverview();
+touchStamp();
+startAuto();
+</script>
+</body>
+</html>

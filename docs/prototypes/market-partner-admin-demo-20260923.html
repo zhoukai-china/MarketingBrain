@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>市场合伙人后台 · 设计原型 v0.3 · 思潼AI 行业智能体平台</title>
+<title>市场合伙人后台 · 设计原型 v0.5 · 思潼AI 行业智能体平台</title>
 <style>
   :root{
     --bg:#F4F7FC; --card:#ffffff; --ink:#1c2733; --sub:#5b6b7c; --line:#e3e9f2;
@@ -105,6 +105,7 @@
   .pill{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;vertical-align:1px}
   .pill.ok{background:var(--green-soft);color:var(--green)}
   .pill.todo{background:var(--amber-soft);color:var(--amber)}
+  .pill.course{background:var(--purple-soft);color:var(--purple)}
   .pill.soon{background:#eef2f8;color:var(--sub)}
 
   /* per-SKU commission list (v0.2) */
@@ -280,7 +281,7 @@
 <div class="appbar">
   <div class="wrap">
     <div class="logo">思潼<i>AI</i><em>· 市场合伙人后台</em></div>
-    <span class="prototag">设计原型 v0.3</span>
+    <span class="prototag">设计原型 v0.5</span>
     <div class="me-chip"><span class="ava">思</span><span>思潼AI市场合伙人</span></div>
   </div>
 </div>
@@ -310,7 +311,7 @@
         <div class="amt" id="balBig">¥0.00</div>
         <div class="subline">
           <span>提现中 <b id="pendBig">¥0.00</b></span>
-          <span>本月佣金 <b>¥1,268.50</b></span>
+          <span>本月佣金 <b>¥2,318.60</b></span>
           <span>待结算 <b>¥19.80</b></span>
         </div>
         <div class="btns">
@@ -322,7 +323,7 @@
 
       <div class="metrics">
         <div class="metric"><div class="lab">👥 累计客户</div><div class="val">181<span class="delta">+46 月</span></div></div>
-        <div class="metric hot"><div class="lab">💰 累计佣金</div><div class="val">¥4,286.40</div></div>
+        <div class="metric hot"><div class="lab">💰 累计佣金</div><div class="val">¥18,742.30</div></div>
         <div class="metric"><div class="lab">⚡ 本月计佣流水</div><div class="val">¥6,342.50</div></div>
         <div class="metric"><div class="lab">📈 客户转化率</div><div class="val">3.4%</div></div>
       </div>
@@ -343,9 +344,9 @@
         <ul class="feed">
           <li><span class="fic money">💰</span><span><b>美**姐</b> 消耗积分 ¥92.50，佣金 <b>+¥18.50</b> 入账</span><time>21:14</time></li>
           <li><span class="fic money">👑</span><span><b>餐**东</b> 订阅月度会员 ¥99，佣金 <b>+¥19.80</b> 待结算</span><time>20:02</time></li>
-          <li><span class="fic">✨</span><span><b>美**姐</b> 通过「抖音简介」链接注册并完成首充</span><time>18:36</time></li>
+          <li><span class="fic">✨</span><span><b>美**姐</b> 通过「短视频」链接注册并完成首充</span><time>18:36</time></li>
           <li><span class="fic money">💰</span><span><b>汽**赵</b> 消耗积分 ¥186.00，佣金 <b>+¥37.20</b> 入账</span><time>15:47</time></li>
-          <li><span class="fic">✨</span><span><b>装修**郑</b> 通过「朋友圈」链接注册</span><time>11:20</time></li>
+          <li><span class="fic">✨</span><span><b>装修**郑</b> 通过「直播」链接注册</span><time>11:20</time></li>
         </ul>
       </div>
     </section>
@@ -361,7 +362,7 @@
           <div class="qr-flex">
             <div class="qr" id="qrbox"></div>
             <div class="qr-note">
-              <b>发朋友圈 / 社群 / 短音简介，扫码直达思潼AI商城。</b><br>
+              <b>发短视频 / 直播间口播 / 私域社群，扫码直达思潼AI商城。</b><br>
               · 新用户通过此链接注册，<b>永久归属</b>到你的名下<br>
               · 客户后续购买<b>任何商品</b>，按各商品比例自动计佣<br>
               · <span class="muted">示意二维码 · 上线后自动生成真实二维码与推广海报</span>
@@ -380,16 +381,17 @@
             <div class="qr-note" id="skuMeta"></div>
           </div>
         </div>
-        <p class="muted" style="margin-top:10px">每款商品都有你的专属推广码：客户点开<b>直达该商品详情页</b>；智能体按客户每次使用消耗的积分计佣，硬件 / 课程按成交计佣；新客户注册仍永久归属你，后续使用 / 购买任何商品都与你关联。渠道与商品可组合推广（如 <code style="font-size:11px">?ch=douyin&amp;p=hwrec</code>）。</p>
+        <p class="muted" style="margin-top:10px">每款商品都有你的专属推广码：客户点开<b>直达该商品详情页</b>；智能体按客户每次使用消耗的积分计佣，硬件 / 课程按成交计佣；新客户注册仍永久归属你，后续使用 / 购买任何商品都与你关联。渠道与商品可组合推广（如 <code style="font-size:11px">?ch=video&amp;p=hwrec</code>）。</p>
       </div>
 
       <div class="card">
-        <h3>🏷️ 渠道链接管理 <span class="more">分渠道统计点击与注册</span></h3>
+        <h3>🏷️ 渠道链接管理 <span class="more">短视频 / 直播 / 私域 · 分渠道统计推广情况</span></h3>
         <div id="channelList"></div>
         <div class="addch">
-          <input id="newChannelName" maxlength="12" placeholder="新建渠道名称，如：视频号 / 异业门店" />
+          <input id="newChannelName" maxlength="12" placeholder="自建细分渠道，如：短视频-二号账号 / 直播-周日场" />
           <button class="btn mini" onclick="addChannel()">+ 创建渠道链接</button>
         </div>
+        <p class="muted" style="margin-top:8px">短视频 / 直播 / 私域为三种推广方式，已默认建链；可按不同账号、不同场次再自建细分链接，每个链接独立统计点击、注册与佣金。</p>
       </div>
 
       <div class="card">
@@ -429,6 +431,7 @@
       </div>
       <div class="chips" id="custChips">
         <button class="chip on" data-f="all">全部 (10)</button>
+        <button class="chip" data-f="trial">试用中</button>
         <button class="chip" data-f="active">活跃</button>
         <button class="chip" data-f="sleep">沉睡</button>
         <button class="chip" data-f="month">本月新增</button>
@@ -443,8 +446,8 @@
     <section class="view" id="view-comm">
       <div class="vhead"><h2>佣金明细</h2><span class="desc">每一笔佣金可追溯来源订单</span></div>
       <div class="strip">
-        <div class="sbox"><b>¥1,268.50</b><span>本月佣金</span></div>
-        <div class="sbox"><b>¥4,286.40</b><span>累计佣金</span></div>
+        <div class="sbox"><b>¥2,318.60</b><span>本月佣金</span></div>
+        <div class="sbox"><b>¥18,742.30</b><span>累计佣金</span></div>
         <div class="sbox"><b>¥19.80</b><span>待结算</span></div>
         <div class="sbox"><b>8–20%</b><span>按商品设置比例</span></div>
       </div>
@@ -480,9 +483,24 @@
           <div class="pava">思</div>
           <div>
             <b>思潼AI市场合伙人</b>
-            <div class="muted">合伙人 ID：LQ8888 · 2026-08-01 加入</div>
+            <div class="muted">合伙人 ID：LQ8888 · 2026-06-20 加入</div>
           </div>
         </div>
+      </div>
+
+      <div class="card">
+        <h3>🗓️ 月度结算 <span class="more">上月佣金 · 平台统一出账</span></h3>
+        <div class="rrow" style="padding-left:0;padding-right:0">
+          <span class="rico pay">🧾</span>
+          <div class="rinfo"><b>2026-08 · ¥2,046.20</b><span>待确认 · 确认后平台安排打款</span></div>
+          <button class="btn mini" onclick="toast('已确认 2026-08 结算单（演示），等待平台打款')">确认结算</button>
+        </div>
+        <div class="rrow" style="padding-left:0;padding-right:0">
+          <span class="rico pay">🧾</span>
+          <div class="rinfo"><b>2026-07 · ¥2,104.30</b><span>已打款 · 2026-08-05 微信商家转账</span></div>
+          <div class="rnum"><span class="st ok">已结算</span></div>
+        </div>
+        <p class="muted" style="margin-top:8px">每月 1 日平台自动生成上月结算单，确认后打款；也可随时按可提现余额申请提现，两条出账通道并存。</p>
       </div>
 
       <div class="card">
@@ -495,7 +513,7 @@
         <div style="margin-top:14px">
           <div class="rrow" style="padding-left:0;padding-right:0">
             <span class="rico pay">💳</span>
-            <div class="rinfo"><b>¥456.00</b><span>2026-09-22 10:31 · 微信零钱</span></div>
+            <div class="rinfo"><b>¥456.00</b><span>2026-09-28 09:15 · 微信零钱</span></div>
             <div class="rnum"><span class="st wait">审核中</span></div>
           </div>
           <div class="rrow" style="padding-left:0;padding-right:0">
@@ -553,13 +571,15 @@
       <li><b>提现：</b>需新增 <code>PayoutOrder</code> + 打款通道（建议微信商家转账）+ 平台侧审核后台；本原型只画合伙人端，满 ¥100 可提、T+1 结算、1-3 个工作日打款为建议规则，可调整。</li>
       <li><b>商品与分享链路（v0.2）：</b>合伙人可分享平台（<code>/r/:code</code> 落地商城首页）或单款商品（<code>/r/:code?p=:sku</code> 直达商品详情页），渠道参数可组合（<code>?ch=:channel&amp;p=:sku</code>）；归因不变——首触注册永久绑定，成交按商品比例计佣。</li>
       <li><b>团队子链接（v0.3）：</b>仍是<b>一级推广</b>——子链接 = 同一 <code>ReferralCode</code> 名下的推广位（建议在码表加 <code>label</code> 备注名 + <code>subKey</code> 字段，链接形如 <code>/r/:code?sub=:key</code>），客户归属与佣金全部记在主账号合伙人名下，平台只对合伙人一人结算；员工不注册平台账号、不与平台发生资金关系，报酬由合伙人线下自理（合伙人协议需声明）。<code>PartnerCommission</code> 增加 <code>referralSubKey</code> 字段即可支持按链接统计佣金总额与明细。</li>
+      <li><b>来源归属（v0.4）：</b>客户来源<b>注册即定</b>——通过合伙人链接注册即写入「合伙人渠道」归属（复用 <code>ReferralBinding</code>），与是否付费无关；试用期客户同样出现在「我的客户」（紫色「试用中」标签，可筛选），试用期内消耗不计佣。「自营推广」客户归属平台，不进入合伙人列表。</li>
+      <li><b>推广方式与渠道链接（v0.5）：</b>市场合伙人的三种推广方式为<b>短视频 / 直播 / 私域</b>，「推广链接 · 渠道链接管理」默认按三种方式建链（<code>?ch=video|live|private</code>），支持合伙人自建细分渠道（如不同账号、不同直播间，<code>?ch=</code> 打标），分渠道统计点击 / 注册 / 转化 / 佣金；渠道参数可与商品参数组合。归因规则不变：首触注册永久归属该合伙人。</li>
       <li><b>数据合规：</b>合伙人端只下发脱敏昵称/手机号（如「美**姐」「138****2261」），不下发完整手机号、聊天与工作数据。</li>
       <li><b>合伙人身份：</b>暂不做合伙人分级（用户 2026-09-23 拍板），统一展示「思潼AI市场合伙人」。</li>
     </ol>
   </details>
 </div>
 
-<footer>思潼AI 行业智能体平台 · 市场合伙人后台设计原型 v0.3 · 2026-09-28 · 数据均为演示数据</footer>
+<footer>思潼AI 行业智能体平台 · 市场合伙人后台设计原型 v0.5 · 2026-09-29 · 数据均为演示数据</footer>
 
 <script>
 /* ================= 演示数据 ================= */
@@ -585,22 +605,21 @@ const state = {
     { key:'lisi',     name:'李四', cust:41, month:298.30, total:1474.10 },
   ],
   channels: [
-    { tag:'朋友圈',   ch:'pyq',   clicks:1284, regs:42 },
-    { tag:'抖音简介', ch:'douyin', clicks:3560, regs:96 },
-    { tag:'社群',     ch:'group',  clicks:820,  regs:31 },
-    { tag:'线下物料', ch:'offline', clicks:214,  regs:12 },
+    { tag:'短视频', ch:'video',   clicks:3560, regs:96, comm:1342.60 },
+    { tag:'直播',   ch:'live',    clicks:1614, regs:52, comm:686.20 },
+    { tag:'私域',   ch:'private', clicks:820,  regs:31, comm:289.80 },
   ],
   customers: [
-    { name:'美**姐',   phone:'138****2261', channel:'抖音简介', reg:'09-18', recharge:1200, consumed:986,  sub:0,    status:'active', last:'09-22' },
-    { name:'餐**东',   phone:'159****0342', channel:'朋友圈',   reg:'09-17', recharge:3000, consumed:2140, sub:99,    status:'active', last:'09-22' },
-    { name:'教**李',   phone:'186****7710', channel:'抖音简介', reg:'09-16', recharge:600,  consumed:312,  sub:99,   status:'active', last:'09-20' },
-    { name:'律**张',   phone:'131****5908', channel:'社群',     reg:'09-15', recharge:300,  consumed:84,   sub:0,    status:'active', last:'09-16' },
-    { name:'房**周',   phone:'177****2231', channel:'抖音简介', reg:'09-14', recharge:100,  consumed:36,   sub:0,    status:'sleep',  last:'09-14' },
-    { name:'健身**吴', phone:'135****8845', channel:'朋友圈',   reg:'09-12', recharge:2000, consumed:1230, sub:0,    status:'active', last:'09-21' },
-    { name:'装修**郑', phone:'188****4109', channel:'线下物料', reg:'09-10', recharge:500,  consumed:190,  sub:0,    status:'active', last:'09-18' },
-    { name:'保险**杨', phone:'150****6673', channel:'社群',     reg:'09-08', recharge:100,  consumed:20,   sub:0,    status:'sleep',  last:'09-17' },
-    { name:'母婴**陈', phone:'137****9926', channel:'抖音简介', reg:'09-05', recharge:800,  consumed:566,  sub:99,   status:'active', last:'09-21' },
-    { name:'汽**赵',   phone:'186****3057', channel:'抖音简介', reg:'09-01', recharge:1500, consumed:1090, sub:0,    status:'active', last:'09-22' },
+    { name:'美**姐',   phone:'138****2261', channel:'短视频', reg:'09-18', recharge:1200, consumed:986,  sub:0,    status:'active', last:'09-22' },
+    { name:'餐**东',   phone:'159****0342', channel:'私域',   reg:'09-17', recharge:3000, consumed:2140, sub:99,    status:'active', last:'09-22' },
+    { name:'教**李',   phone:'186****7710', channel:'短视频', reg:'09-16', recharge:600,  consumed:312,  sub:99,   status:'active', last:'09-20' },
+    { name:'律**张',   phone:'131****5908', channel:'私域',     reg:'09-15', recharge:300,  consumed:84,   sub:0,    status:'active', last:'09-16' },
+    { name:'房**周',   phone:'177****2231', channel:'短视频', reg:'09-14', recharge:0,    consumed:36,   sub:0,    status:'sleep',  last:'09-14', trial:true },
+    { name:'健身**吴', phone:'135****8845', channel:'私域',   reg:'09-12', recharge:2000, consumed:1230, sub:0,    status:'active', last:'09-21' },
+    { name:'装修**郑', phone:'188****4109', channel:'直播', reg:'09-10', recharge:500,  consumed:190,  sub:0,    status:'active', last:'09-18' },
+    { name:'保险**杨', phone:'150****6673', channel:'私域',     reg:'09-08', recharge:100,  consumed:20,   sub:0,    status:'sleep',  last:'09-17' },
+    { name:'母婴**陈', phone:'137****9926', channel:'短视频', reg:'09-05', recharge:800,  consumed:566,  sub:99,   status:'active', last:'09-21' },
+    { name:'汽**赵',   phone:'186****3057', channel:'短视频', reg:'09-01', recharge:1500, consumed:1090, sub:0,    status:'active', last:'09-22' },
   ],
   commissions: [
     { time:'09-22 21:14', cust:'美**姐',   type:'credit', order:'MC-240922-0186', base:92.50,  comm:18.50,  status:'ok',   lk:'main'     },
@@ -700,7 +719,7 @@ function renderChannels(){
     return `<div class="chrow">
       <span class="chtag">${c.tag}</span>
       <code>${link}</code>
-      <span class="chstats">点击 <b>${c.clicks.toLocaleString()}</b> · 注册 <b>${c.regs}</b> · 转化 <b>${rate}</b></span>
+      <span class="chstats">点击 <b>${c.clicks.toLocaleString()}</b> · 注册 <b>${c.regs}</b> · 转化 <b>${rate}</b> · 佣金 <b>${fmt(c.comm||0)}</b></span>
       <button class="btn mini cp" onclick="copyText('${link}','已复制「${c.tag}」渠道链接')">复制</button>
     </div>`;
   }).join('');
@@ -709,8 +728,9 @@ function addChannel(){
   const inp = document.getElementById('newChannelName');
   const name = inp.value.trim();
   if (!name){ toast('请先输入渠道名称'); return; }
+  if (state.channels.some(c=>c.tag===name)){ toast('已有同名渠道链接'); return; }
   const ch = 'ch' + Date.now().toString(36).slice(-4);
-  state.channels.push({ tag:name, ch, clicks:0, regs:0 });
+  state.channels.push({ tag:name, ch, clicks:0, regs:0, comm:0 });
   inp.value = '';
   renderChannels();
   toast('渠道「' + name + '」已创建，复制链接去推广吧');
@@ -753,10 +773,11 @@ function renderShareProducts(){
 }
 
 /* ================= 客户 ================= */
-function custComm(c){ return Math.round(((c.consumed + (c.sub||0)) * 0.2) * 100) / 100; }
+function custComm(c){ if(c.trial) return 0; return Math.round(((c.consumed + (c.sub||0)) * 0.2) * 100) / 100; }
 function renderCustomers(){
   const f = state.custFilter;
   const list = state.customers.filter(c=>{
+    if (f==='trial') return !!c.trial;
     if (f==='active') return c.status==='active';
     if (f==='sleep') return c.status==='sleep';
     if (f==='month') return c.reg >= '09-01';
@@ -770,7 +791,7 @@ function renderCustomers(){
     return `<div class="crow" onclick="openCustomer(${i})">
       <div class="cava" style="background:${color}">${c.name[0]}</div>
       <div class="cinfo">
-        <b>${c.name} ${c.status==='active'?'<span class="pill ok">活跃</span>':'<span class="pill todo">沉睡</span>'} ${c.sub?'<span class="pill ok">已订阅</span>':''}</b>
+        <b>${c.name} ${c.status==='active'?'<span class="pill ok">活跃</span>':'<span class="pill todo">沉睡</span>'} ${c.trial?'<span class="pill course">试用中</span>':''} ${c.sub?'<span class="pill ok">已订阅</span>':''}</b>
         <span class="csub">${c.channel} · 09 月 ${c.reg.slice(3)} 注册 · ${c.phone}</span>
       </div>
       <div class="cnums">
@@ -905,7 +926,7 @@ function openCustomer(i){
   const comm = custComm(c);
   openModal(`
     <div class="sh-head"><span class="cava" style="background:${avColors[i%avColors.length]};width:34px;height:34px;border-radius:10px;font-size:15px">${c.name[0]}</span><b>${c.name}</b><button class="close" onclick="closeModal()">✕</button></div>
-    <div class="muted" style="margin:-6px 0 8px">${c.channel} 渠道注册 · 手机 ${c.phone} · 信息已脱敏</div>
+    <div class="muted" style="margin:-6px 0 8px">来源：合伙人渠道（${c.channel} 推广注册） · 手机 ${c.phone} · 信息已脱敏</div>
     <div class="kv">
       <div class="kbox"><span>累计充值</span><b>${fmt0(c.recharge)}</b></div>
       <div class="kbox"><span>累计消耗</span><b>${fmt0(c.consumed)}</b></div>
@@ -914,6 +935,7 @@ function openCustomer(i){
     </div>
     <ul class="tl">
       <li><b>通过「${c.channel}」推广链接注册</b><time>2026-${c.reg}</time></li>
+      ${c.trial?`<li><b>注册送 100 算力 · 试用中</b>（试用期内消耗不计佣）<time>自注册起 30 天</time></li>`:''}
       ${c.sub?`<li><b>订阅月度会员</b>（¥99）<time>消费后自动计佣</time></li>`:''}
       <li><b>最近活跃</b><time>2026-${c.last}</time></li>
     </ul>
