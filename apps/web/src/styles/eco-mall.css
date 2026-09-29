@@ -1808,3 +1808,43 @@ body:has(.ipd-page), body:has(.ts-wb){overflow-x:hidden}
 .pd-tabs summary{font-size:13.5px;font-weight:800;color:var(--st-ink);cursor:pointer}
 .pd-list{margin:8px 0 4px;padding-left:18px}
 .pd-list li{font-size:12.5px;color:var(--st-sub);margin:4px 0;line-height:1.6}
+
+
+/* 修：搜索/空结果时页面收窄——main.eh 是 flex，.eco-mall 作为 flex 项被内容宽度拖塌 */
+.eh .eco-mall{flex:1 1 auto;width:100%;min-width:0}
+.eh-cases-view{flex:1 1 auto;width:100%;min-width:0}
+
+
+/* ============================================================
+   [方案A] 轻拟物收敛（2026-09-29 用户拍板：先改着看，不满意可整体回退）
+   保留拟物：Hero 全套动画 / 金刚瓷贴渐变+呼吸 / 主 CTA（Hero按钮、去使用、首页充值）
+   扁平化：员工卡旋环与流光 / 咨询师卡扫描线+发光+旋环 / 商品封面扫描线 /
+           卡片 hover 大阴影 / 邀约横幅渐变 / F7 品牌金卡渐变
+   回退方式：删除本 begin/end 块即可完整还原。
+   [方案A-begin]
+   ============================================================ */
+/* 员工卡：去顶部流光、去双虚线旋环动画（保留头像与状态点），hover 阴影减淡 */
+.eh .eco-product::before{display:none}
+.eh .eco-p-img::before,.eh .eco-p-img::after{display:none}
+.eh .eco-p-img{border:0 !important}
+@media(hover:hover){
+  .eh .eco-product:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(170,90,20,.10);border-color:var(--st-line,#F0EBE3)}
+}
+/* 咨询师卡：静态化（去扫描线/旋环动画/呼吸发光），虚线边框改实线浅边 */
+.eh-cons-card .eh-scanline{display:none}
+.eh-cons-card{border-style:solid;border-color:var(--st-line,#F0EBE3)}
+.eh-ring{animation:none !important}
+.eh-cons-ava{animation:none !important}
+.eh-cons-card:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(170,90,20,.10)}
+/* 商品封面：去扫描线 */
+.eh-pcard .eh-scanline{display:none}
+.eh-pcard:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(170,90,20,.10)}
+/* 邀约横幅：橙渐变 → 浅橙扁平（仍是可点 CTA，但不发光） */
+.eh .eco-invite-banner{background:rgba(255,140,50,.08);border:1px solid rgba(255,140,50,.35);box-shadow:none;color:#C25A00}
+.eh .eco-invite-banner .eco-banner-text b{color:#C25A00}
+.eh .eco-invite-banner .eco-banner-text span{color:#94796B}
+.eh .eco-invite-banner .eco-banner-link{background:#fff;border:1px solid rgba(255,140,50,.45);border-radius:var(--st-r-pill,999px);padding:5px 12px;font-size:12px;font-weight:700;color:#E8651A}
+/* F7 行业工作台：金卡渐变 → 白底浅金边 */
+.eh-brand-hero{background:#fff;border:1px solid rgba(245,176,74,.45);box-shadow:none}
+.eh-brand-hero:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(245,176,74,.12)}
+/* [方案A-end] */
