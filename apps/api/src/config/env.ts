@@ -199,6 +199,10 @@ const envSchema = z.object({
   // 邀请链接专用站点源（用户 2026-09-30：线上 https://ai.lcppch.top/ 、本地 http://localhost:5174，
   // 与 api 域名不同，所以单独一个统一配置项；未配置时回退 PUBLIC_WEB_BASE_URL 的 origin）。
   PUBLIC_SITE_ORIGIN: optionalString,
+  // 大模型输入输出追踪日志（用户 2026-09-30：出问题好追踪）。默认开；
+  // 每次调用一行 JSONL（完整 messages + 完整输出 + 用量/耗时），按天滚动，写在 LLM_TRACE_DIR。
+  LLM_TRACE_ENABLED: z.enum(["true", "false"]).default("true"),
+  LLM_TRACE_DIR: z.string().default("logs/llm-trace"),
   // 平台管理后台的账号密码登录（用户 2026-09-15：普通用户进不去，管理员账号密码登入）。
   // 密码优先用 hash（`scrypt$<salt>$<hash>`，见 scripts/hash-admin-password.mjs），没配 hash 才用明文。
   ADMIN_LOGIN_USERNAME: optionalString,

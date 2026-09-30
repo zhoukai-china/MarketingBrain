@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { LlmMessage, LlmProvider, ProviderFailureInfo } from "@baolu/agent";
 import type { AgentReasoningProfile } from "@baolu/shared";
 import { assertHighCapabilityLlmModel } from "./llm-model-policy.js";
+import { writeLlmTrace } from "./llm-trace.js";
 import { assertOutboundUrlAllowed } from "./outbound-policy.js";
 
 export interface DomesticChatProviderOptions {
@@ -220,6 +221,15 @@ export class DomesticChatProvider implements LlmProvider {
         requestFingerprint,
         ...endpointTrace
       }));
+      // 追踪（用户 2026-09-30）：完整输入落 JSONL，出问题按 fingerprint 串起请求/响应。
+      writeLlmTrace({
+        ts: new Date().toISOString(),
+        event: "request",
+        provider: this.name,
+        model: this.options.model,
+        fingerprint: requestFingerprint,
+        messages: messages.map((m) => ({ role: m.role, content: m.content }))
+      });
       const response = await fetch(endpoint, {
         method: "POST",
         signal: controller.signal,
@@ -242,6 +252,16 @@ export class DomesticChatProvider implements LlmProvider {
 
       if (!response.ok) {
         terminalTraceEmitted = true;
+        writeLlmTrace({
+          ts: new Date().toISOString(),
+          event: "error",
+          provider: this.name,
+          model: this.options.model,
+          fingerprint: requestFingerprint,
+          elapsedMs: Math.max(0, Date.now() - requestStartedAt),
+          httpStatus: response.status,
+          errorCode: "http_error"
+        });
         console.warn(JSON.stringify({
           event: "domestic_provider_request_finished",
           selectedProvider: this.name,
@@ -287,9 +307,32 @@ export class DomesticChatProvider implements LlmProvider {
           ...usage
         }));
       }
-      return parseChatCompletionResponse(this.name, data);
+      const completion = parseChatCompletionResponse(this.name, data);
+      // 追踪（用户 2026-09-30）：完整输出落 JSONL。
+      writeLlmTrace({
+        ts: new Date().toISOString(),
+        event: "response",
+        provider: this.name,
+        model: this.options.model,
+        fingerprint: requestFingerprint,
+        content: completion,
+        usage: usage ? { ...usage } : undefined,
+        elapsedMs: Math.max(0, Date.now() - requestStartedAt),
+        httpStatus: response.status
+      });
+      return completion;
     } catch (error) {
       if (!terminalTraceEmitted) {
+        writeLlmTrace({
+          ts: new Date().toISOString(),
+          event: "error",
+          provider: this.name,
+          model: this.options.model,
+          fingerprint: requestFingerprint,
+          elapsedMs: Math.max(0, Date.now() - requestStartedAt),
+          errorCode: safeProviderTraceCode(error),
+          error: error instanceof Error ? error.message : String(error)
+        });
         console.warn(JSON.stringify({
           event: "domestic_provider_request_finished",
           selectedProvider: this.name,
@@ -338,11 +381,24 @@ export class DomesticChatProvider implements LlmProvider {
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.options.timeoutMs);
+    const streamStartedAt = Date.now();
+    const streamFingerprint = createHash("sha256")
+      .update(JSON.stringify(["stream", this.options.model, messages]))
+      .digest("hex")
+      .slice(0, 16);
 
     try {
       assertOutboundUrlAllowed(this.name, this.options.baseUrl!, {
         domesticNetworkOnly: this.options.domesticNetworkOnly,
         allowedHosts: this.options.allowedHosts
+      });
+      writeLlmTrace({
+        ts: new Date().toISOString(),
+        event: "request",
+        provider: this.name,
+        model: this.options.model,
+        fingerprint: streamFingerprint,
+        messages: messages.map((m) => ({ role: m.role, content: m.content }))
       });
       const response = await fetch(buildChatCompletionsUrl(this.options.baseUrl!), {
         method: "POST",
@@ -361,6 +417,17 @@ export class DomesticChatProvider implements LlmProvider {
 
       if (!response.ok) {
         const body = await response.text();
+        writeLlmTrace({
+          ts: new Date().toISOString(),
+          event: "error",
+          provider: this.name,
+          model: this.options.model,
+          fingerprint: streamFingerprint,
+          elapsedMs: Math.max(0, Date.now() - streamStartedAt),
+          httpStatus: response.status,
+          errorCode: "stream_http_error",
+          error: body.slice(0, 500)
+        });
         throw new Error(`${this.name} stream request failed: ${response.status} ${body.slice(0, 500)}`);
       }
       if (!response.body) {
@@ -401,8 +468,28 @@ export class DomesticChatProvider implements LlmProvider {
         }
         throw new Error(`${this.name} stream did not include message content`);
       }
+      writeLlmTrace({
+        ts: new Date().toISOString(),
+        event: "response",
+        provider: this.name,
+        model: this.options.model,
+        fingerprint: streamFingerprint,
+        content: fullText,
+        elapsedMs: Math.max(0, Date.now() - streamStartedAt),
+        httpStatus: response.status
+      });
       return fullText;
     } catch (error) {
+      writeLlmTrace({
+        ts: new Date().toISOString(),
+        event: "error",
+        provider: this.name,
+        model: this.options.model,
+        fingerprint: streamFingerprint,
+        elapsedMs: Math.max(0, Date.now() - streamStartedAt),
+        errorCode: error instanceof Error && error.name === "AbortError" ? "timed_out" : "stream_error",
+        error: error instanceof Error ? error.message : String(error)
+      });
       if (error instanceof Error && error.name === "AbortError") {
         throw new Error(`${this.name} request timed out after ${this.options.timeoutMs}ms`);
       }

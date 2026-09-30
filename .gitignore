@@ -65,3 +65,4 @@ node_modules.broken-*
 
 # 管理后台自动生成凭证（仅哈希，勿入库）
 .admin-credentials.json
+logs/
