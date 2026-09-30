@@ -28,16 +28,25 @@ function mdcChipOf(title: string): { chip: string; rest: string } {
   return { chip: m ? m[1] : "•", rest: cleaned || title };
 }
 
-/** 章节体里的逐字稿时间轴：时间行开头的连续块 → .mdc-tl 行，其余行走普通 markdown。 */
+/** 章节体里的逐字稿时间轴 + 独立标签行（加粗的「标题」「正文（60 秒口播）」这类）→ .mdc-tl 行。 */
 function renderBodyWithTimeline(lines: string[]): string {
   const normal: string[] = [];
   const rows: Array<{ time: string; label: string; body: string[] }> = [];
   let curRow: { time: string; label: string; body: string[] } | null = null;
   for (const line of lines) {
     const t = line.trim();
-    const tm = t ? TIME_RE.exec(t) : null;
+    // 2026-09-30：模型输出的时间行/标签行常带 ** 加粗，识别前先剥掉
+    const bare = t.replace(/^\*\*(.+)\*\*$/, "$1").trim();
+    const tm = bare ? TIME_RE.exec(bare) : null;
+    const loneBold = bare && !tm ? /^\*\*(.+?)\*\*$/.test(t) : false;
     if (tm) {
       curRow = { time: tm[1].replace(/\s+/g, ""), label: (tm[2] ?? "").trim(), body: [] };
+      rows.push(curRow);
+      continue;
+    }
+    if (loneBold && !/^(?:第\s*)?[零一二三四五六七八九十百0-9]{1,4}\s*[、.．:：]/.test(bare)) {
+      // 无序号的独立加粗行 = 标签行（标题 / 正文（60 秒口播）…），也进时间轴式行
+      curRow = { time: "", label: bare.replace(/\*\*/g, "").trim(), body: [] };
       rows.push(curRow);
       continue;
     }
@@ -46,7 +55,7 @@ function renderBodyWithTimeline(lines: string[]): string {
       continue;
     }
     if (curRow && !t) {
-      // 空行暂不关闭时间轴（段间空行常见）；连续非时间内容才在下方自然续写
+      // 空行暂不关闭时间轴（段间空行常见）
       curRow.body.push(line);
       continue;
     }
@@ -54,7 +63,7 @@ function renderBodyWithTimeline(lines: string[]): string {
   }
   const normalHtml = normal.some((l) => l.trim()) ? renderMarkdownHtml(normal.join("\n")) : "";
   const tlHtml = rows.length
-    ? `<div class="mdc-tl">${rows.map((r) => `<div class="mdc-tl-r"><span class="mdc-tl-t">${escapeHtml(r.time)}</span><div class="mdc-tl-c">${r.label ? `<em>${escapeHtml(r.label)}</em>` : ""}${renderMarkdownHtml(r.body.join("\n"))}</div></div>`).join("")}</div>`
+    ? `<div class="mdc-tl">${rows.map((r) => `<div class="mdc-tl-r"><span class="mdc-tl-t">${escapeHtml(r.time || "•")}</span><div class="mdc-tl-c">${r.label ? `<em>${escapeHtml(r.label)}</em>` : ""}${renderMarkdownHtml(r.body.join("\n"))}</div></div>`).join("")}</div>`
     : "";
   return normalHtml + tlHtml;
 }
