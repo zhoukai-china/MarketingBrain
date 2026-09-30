@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>市场合伙人后台 · 设计原型 v0.1 · 思潼AI 行业智能体平台</title>
+<title>市场合伙人后台 · 设计原型 v0.5 · 思潼AI 行业智能体平台</title>
 <style>
   :root{
     --bg:#F4F7FC; --card:#ffffff; --ink:#1c2733; --sub:#5b6b7c; --line:#e3e9f2;
@@ -102,22 +102,25 @@
   .chart .bar span{font-size:9.5px;color:var(--sub);white-space:nowrap}
   .chart .bar.top i{background:linear-gradient(180deg,#17313f,#2c5c46)}
 
-  /* product grid */
-  .prods{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-  @media (min-width:640px){.prods{grid-template-columns:repeat(4,1fr)}}
-  .prod{border:1px solid var(--line);border-radius:13px;padding:12px;background:#fff}
-  .prod .pico{font-size:20px;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--orange-soft)}
-  .prod.on .pico{background:var(--orange-soft)}
-  .prod.soon .pico{background:#eef2f8;filter:grayscale(.6)}
-  .prod b{display:block;font-size:13.5px;margin-top:8px}
-  .prod .rate{font-size:12px;color:var(--sub)}
-  .prod .rate b{display:inline;font-size:14px;color:var(--orange)}
-  .prod.soon .rate b{color:var(--sub)}
-  .prod .cover{font-size:10.5px;color:var(--sub);margin-top:5px;line-height:1.6}
   .pill{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;vertical-align:1px}
   .pill.ok{background:var(--green-soft);color:var(--green)}
   .pill.todo{background:var(--amber-soft);color:var(--amber)}
+  .pill.course{background:var(--purple-soft);color:var(--purple)}
   .pill.soon{background:#eef2f8;color:var(--sub)}
+
+  /* per-SKU commission list (v0.2) */
+  .cplist{display:flex;flex-direction:column}
+  .cprow{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px dashed var(--line)}
+  .cprow:last-child{border-bottom:none}
+  .cprow .cico{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:16px;background:var(--orange-soft);flex:none}
+  .cprow .cico.hw{background:var(--blue-soft)}
+  .cprow .cico.co{background:var(--purple-soft)}
+  .cprow .cmeta{flex:1;min-width:0}
+  .cprow .cmeta b{font-size:13.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cprow .cmeta span{font-size:11.5px;color:var(--sub)}
+  .cprow .crate{text-align:right;flex:none}
+  .cprow .crate b{font-size:16px;color:var(--orange)}
+  .cprow .crate span{display:block;font-size:10.5px;color:var(--sub)}
 
   /* feed */
   .feed{list-style:none;display:flex;flex-direction:column;gap:9px}
@@ -149,6 +152,14 @@
   .addch{display:flex;gap:8px;margin-top:10px}
   .addch input{flex:1;min-width:120px;font-size:13px;padding:8px 11px;border:1px solid var(--line);border-radius:9px;outline:none}
   .addch input:focus{border-color:var(--orange-line);box-shadow:0 0 0 3px rgba(232,101,26,.12)}
+  /* 团队子链接（v0.3） */
+  .subrow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px dashed var(--line);flex-wrap:wrap}
+  .subrow:last-child{border-bottom:none}
+  .subrow .chtag{background:var(--green-soft);color:var(--green)}
+  .substats{display:flex;gap:10px;font-size:12px;color:var(--sub);white-space:nowrap;flex-wrap:wrap}
+  .substats b{color:var(--ink)}
+  .substats b.money{color:var(--orange)}
+  .lktag{display:inline-block;font-size:10.5px;font-weight:700;color:var(--orange);background:var(--orange-soft);border-radius:5px;padding:0 6px;margin-left:4px;vertical-align:1px}
 
   /* steps */
   .steps{display:grid;gap:10px}
@@ -270,11 +281,11 @@
 <div class="appbar">
   <div class="wrap">
     <div class="logo">思潼<i>AI</i><em>· 市场合伙人后台</em></div>
-    <span class="prototag">设计原型 v0.1</span>
+    <span class="prototag">设计原型 v0.5</span>
     <div class="me-chip"><span class="ava">思</span><span>思潼AI市场合伙人</span></div>
   </div>
 </div>
-<div class="demobanner">原型演示 · 页面内所有数字均为演示数据，不代表已上线功能 · 20260923</div>
+<div class="demobanner">原型演示 · 页面内所有数字均为演示数据，不代表已上线功能 · 20260928</div>
 
 <div class="shell">
   <!-- ===== desktop sidebar ===== -->
@@ -285,7 +296,7 @@
     <button class="snav" data-view="comm"><span class="ic">💰</span>佣金明细</button>
     <button class="snav" data-view="me"><span class="ic">👤</span>我的</button>
     <button class="withdraw-cta" onclick="openWithdraw()">提现 ¥<span id="sideBal">0</span></button>
-    <div class="side-note">用户通过你的链接注册，即永久归属。<br>智能体相关消费，按 <b>20%</b> 计佣。</div>
+    <div class="side-note">用户通过你的链接注册，即永久归属。<br>每件商品独立佣金比例 · 智能体 <b>20%</b> 起。</div>
   </aside>
 
   <!-- ===== main ===== -->
@@ -300,7 +311,7 @@
         <div class="amt" id="balBig">¥0.00</div>
         <div class="subline">
           <span>提现中 <b id="pendBig">¥0.00</b></span>
-          <span>本月佣金 <b>¥1,268.50</b></span>
+          <span>本月佣金 <b>¥2,318.60</b></span>
           <span>待结算 <b>¥19.80</b></span>
         </div>
         <div class="btns">
@@ -312,7 +323,7 @@
 
       <div class="metrics">
         <div class="metric"><div class="lab">👥 累计客户</div><div class="val">181<span class="delta">+46 月</span></div></div>
-        <div class="metric hot"><div class="lab">💰 累计佣金</div><div class="val">¥4,286.40</div></div>
+        <div class="metric hot"><div class="lab">💰 累计佣金</div><div class="val">¥18,742.30</div></div>
         <div class="metric"><div class="lab">⚡ 本月计佣流水</div><div class="val">¥6,342.50</div></div>
         <div class="metric"><div class="lab">📈 客户转化率</div><div class="val">3.4%</div></div>
       </div>
@@ -323,14 +334,9 @@
       </div>
 
       <div class="card">
-        <h3>🧩 分佣产品</h3>
-        <div class="prods">
-          <div class="prod on"><div class="pico">🤖</div><b>智能体</b><div class="rate"><b>20%</b> · 已上线</div><div class="cover">积分充值 · 积分消耗 · 月度订阅</div></div>
-          <div class="prod soon"><div class="pico">🖥️</div><b>AI 硬件</b><div class="rate"><b>待定</b> · <span class="pill soon">敬请期待</span></div></div>
-          <div class="prod soon"><div class="pico">🎓</div><b>AI 课程</b><div class="rate"><b>待定</b> · <span class="pill soon">敬请期待</span></div></div>
-          <div class="prod soon"><div class="pico">🛒</div><b>更多商品</b><div class="rate">比例<b>独立配置</b> · 上新自动加入</div></div>
-        </div>
-        <p class="muted" style="margin-top:10px">智能体相关消费（积分充值、积分消耗、月度订阅）当前统一按 20% 计佣；每个商品的分佣比例独立配置，AI 硬件 / AI 课程等上架后自动出现在你的分佣产品中。</p>
+        <h3>🧩 分佣产品 <span class="more">比例由平台按商品设置</span></h3>
+        <div class="cplist" id="cpList"></div>
+        <p class="muted" style="margin-top:10px">智能体按客户<b>每次使用实际消耗的积分</b>（10 积分 = ¥1，与商城算力同口径）× 该商品比例实时计佣，客户用得越多你分得越多；AI 硬件 / AI 课程按成交实付计佣。每件商品的佣金比例由平台在总后台独立配置，调整后自动同步到你的后台。</p>
       </div>
 
       <div class="card">
@@ -338,9 +344,9 @@
         <ul class="feed">
           <li><span class="fic money">💰</span><span><b>美**姐</b> 消耗积分 ¥92.50，佣金 <b>+¥18.50</b> 入账</span><time>21:14</time></li>
           <li><span class="fic money">👑</span><span><b>餐**东</b> 订阅月度会员 ¥99，佣金 <b>+¥19.80</b> 待结算</span><time>20:02</time></li>
-          <li><span class="fic">✨</span><span><b>美**姐</b> 通过「抖音简介」链接注册并完成首充</span><time>18:36</time></li>
+          <li><span class="fic">✨</span><span><b>美**姐</b> 通过「短视频」链接注册并完成首充</span><time>18:36</time></li>
           <li><span class="fic money">💰</span><span><b>汽**赵</b> 消耗积分 ¥186.00，佣金 <b>+¥37.20</b> 入账</span><time>15:47</time></li>
-          <li><span class="fic">✨</span><span><b>装修**郑</b> 通过「朋友圈」链接注册</span><time>11:20</time></li>
+          <li><span class="fic">✨</span><span><b>装修**郑</b> 通过「直播」链接注册</span><time>11:20</time></li>
         </ul>
       </div>
     </section>
@@ -350,15 +356,15 @@
       <div class="vhead"><h2>推广链接</h2><span class="desc">一人一码 · 注册即永久绑定归属</span></div>
 
       <div class="card">
-        <h3>🔗 我的专属推广链接</h3>
+        <h3>🔗 分享平台 · 思潼AI商城</h3>
         <div class="linkbox">
           <div class="url"><code id="mainLink">https://ai.lcppch.top/r/LQ8888</code><button class="btn mini" onclick="copyMainLink()">复制链接</button></div>
           <div class="qr-flex">
             <div class="qr" id="qrbox"></div>
             <div class="qr-note">
-              <b>发朋友圈 / 社群 / 短音简介，扫码直达思潼AI商城。</b><br>
+              <b>发短视频 / 直播间口播 / 私域社群，扫码直达思潼AI商城。</b><br>
               · 新用户通过此链接注册，<b>永久归属</b>到你的名下<br>
-              · 注册、充值、消耗、订阅全程自动关联计佣<br>
+              · 客户后续购买<b>任何商品</b>，按各商品比例自动计佣<br>
               · <span class="muted">示意二维码 · 上线后自动生成真实二维码与推广海报</span>
             </div>
           </div>
@@ -366,18 +372,43 @@
       </div>
 
       <div class="card">
-        <h3>🏷️ 渠道链接管理 <span class="more">分渠道统计点击与注册</span></h3>
+        <h3>📦 分享单款商品 <span class="more">客户点开直达商品详情页</span></h3>
+        <div class="chips" id="skuChips" style="margin-bottom:12px"></div>
+        <div class="linkbox">
+          <div class="url"><code id="skuLink"></code><button class="btn mini" id="skuCopy">复制链接</button></div>
+          <div class="qr-flex">
+            <div class="qr" id="skuQr"></div>
+            <div class="qr-note" id="skuMeta"></div>
+          </div>
+        </div>
+        <p class="muted" style="margin-top:10px">每款商品都有你的专属推广码：客户点开<b>直达该商品详情页</b>；智能体按客户每次使用消耗的积分计佣，硬件 / 课程按成交计佣；新客户注册仍永久归属你，后续使用 / 购买任何商品都与你关联。渠道与商品可组合推广（如 <code style="font-size:11px">?ch=video&amp;p=hwrec</code>）。</p>
+      </div>
+
+      <div class="card">
+        <h3>🏷️ 渠道链接管理 <span class="more">短视频 / 直播 / 私域 · 分渠道统计推广情况</span></h3>
         <div id="channelList"></div>
         <div class="addch">
-          <input id="newChannelName" maxlength="12" placeholder="新建渠道名称，如：视频号 / 异业门店" />
+          <input id="newChannelName" maxlength="12" placeholder="自建细分渠道，如：短视频-二号账号 / 直播-周日场" />
           <button class="btn mini" onclick="addChannel()">+ 创建渠道链接</button>
         </div>
+        <p class="muted" style="margin-top:8px">短视频 / 直播 / 私域为三种推广方式，已默认建链；可按不同账号、不同场次再自建细分链接，每个链接独立统计点击、注册与佣金。</p>
+      </div>
+
+      <div class="card">
+        <h3>👥 团队子链接 · 发给员工推广 <span class="more">仍是一级归属 · 平台只对你一个人结算</span></h3>
+        <div class="warnbox">你有员工 / 助手帮你推广？为每人创建一个专属子链接发给 TA。客户从谁的子链接进来，佣金都记在<b>你的总账户</b>——仍是<b>一级推广</b>，员工不注册、不与平台发生关系，报酬由你线下自行发放。</div>
+        <div id="subLinkList" style="margin-top:6px"></div>
+        <div class="addch">
+          <input id="newSubName" maxlength="12" placeholder="输入员工备注名，如：张三" />
+          <button class="btn mini" onclick="addSubLink()">+ 为员工创建子链接</button>
+        </div>
+        <p class="muted" style="margin-top:10px;line-height:1.8">· 子链接 = 你名下的一个推广位，客户归属规则与主链接完全一致（首触注册永久归你）<br>· 每个链接的佣金总额与明细在「佣金明细」页按链接筛选查看；平台统一对你结算，与员工的分账由你自理</p>
       </div>
 
       <div class="card">
         <h3>🧭 归因规则</h3>
         <div class="steps">
-          <div class="step"><b><span class="num">1</span>点击链接</b>客户点击你的专属链接或扫码进入商城，推广码自动写入访问记录。</div>
+          <div class="step"><b><span class="num">1</span>点击链接</b>客户点击你的专属链接（含发给员工的子链接）或扫码进入商城，推广码自动写入访问记录。</div>
           <div class="step"><b><span class="num">2</span>注册绑定</b>客户完成注册，即刻与你永久绑定（首触归因，后续不因再次点击他人链接而变更）。</div>
           <div class="step"><b><span class="num">3</span>自动计佣</b>客户后续充值、消耗积分、订阅会员，系统按比例自动结算佣金到你的账户。</div>
         </div>
@@ -400,6 +431,7 @@
       </div>
       <div class="chips" id="custChips">
         <button class="chip on" data-f="all">全部 (10)</button>
+        <button class="chip" data-f="trial">试用中</button>
         <button class="chip" data-f="active">活跃</button>
         <button class="chip" data-f="sleep">沉睡</button>
         <button class="chip" data-f="month">本月新增</button>
@@ -414,26 +446,28 @@
     <section class="view" id="view-comm">
       <div class="vhead"><h2>佣金明细</h2><span class="desc">每一笔佣金可追溯来源订单</span></div>
       <div class="strip">
-        <div class="sbox"><b>¥1,268.50</b><span>本月佣金</span></div>
-        <div class="sbox"><b>¥4,286.40</b><span>累计佣金</span></div>
+        <div class="sbox"><b>¥2,318.60</b><span>本月佣金</span></div>
+        <div class="sbox"><b>¥18,742.30</b><span>累计佣金</span></div>
         <div class="sbox"><b>¥19.80</b><span>待结算</span></div>
-        <div class="sbox"><b>20%</b><span>智能体分佣比例</span></div>
+        <div class="sbox"><b>8–20%</b><span>按商品设置比例</span></div>
       </div>
       <div class="chips" id="commChips">
         <button class="chip on" data-f="all">全部</button>
         <button class="chip" data-f="credit">⚡ 积分消耗</button>
         <button class="chip" data-f="sub">👑 月度订阅</button>
-        <button class="chip lock" data-f="hw">🤖 AI硬件 🔒</button>
-        <button class="chip lock" data-f="course">🎓 AI课程 🔒</button>
+        <button class="chip" data-f="hw">🤖 AI硬件 10%</button>
+        <button class="chip" data-f="course">🎓 AI课程 15%</button>
       </div>
+      <div class="chips" id="commLinkChips" style="margin-top:8px"></div>
+      <p class="muted" style="margin-top:8px">第二行按<b>推广链接</b>筛选：主链接是你自己的，其余是发给员工的团队子链接（在「推广链接」页创建）。</p>
       <div class="card" style="padding:6px 14px">
         <div id="commList"></div>
       </div>
       <div class="card">
         <h3>📖 计佣规则</h3>
         <ul class="rules">
-          <li><b>计佣基数：</b>智能体相关消费——积分充值、积分消耗（1 积分 = ¥0.05）与月度订阅实付金额；客户退款对应佣金自动扣回，防刷单。</li>
-          <li><b>分佣比例：</b>智能体当前统一 20%；每个商品比例独立配置，AI 硬件 / AI 课程上线后按各自比例自动加入。</li>
+          <li><b>计佣基数：</b>智能体按客户<b>每次使用实际消耗的积分</b>折算人民币（10 积分 = ¥1，与商城算力同口径）计佣——客户用得越多、你分得越多；月度订阅与 AI 硬件 / AI 课程等按实付金额计佣；客户退款对应佣金自动扣回，防刷单。</li>
+          <li><b>分佣比例：</b>每件商品由平台在<b>总后台</b>单独设置（智能体 20%、AI 硬件 8–10%、AI 课程 15% 为当前演示口径），比例调整后自动同步，可在「工作台 · 分佣产品」随时查看最新比例。</li>
           <li><b>入账周期：</b>消费次日（T+1）结算进入可提现余额，明细中「待结算」→「已入账」可全程追溯。</li>
           <li><b>提现规则：</b>满 ¥100 可提，1-3 个工作日审核打款，支持微信零钱 / 支付宝 / 银行卡。</li>
         </ul>
@@ -449,9 +483,24 @@
           <div class="pava">思</div>
           <div>
             <b>思潼AI市场合伙人</b>
-            <div class="muted">合伙人 ID：LQ8888 · 2026-08-01 加入</div>
+            <div class="muted">合伙人 ID：LQ8888 · 2026-06-20 加入</div>
           </div>
         </div>
+      </div>
+
+      <div class="card">
+        <h3>🗓️ 月度结算 <span class="more">上月佣金 · 平台统一出账</span></h3>
+        <div class="rrow" style="padding-left:0;padding-right:0">
+          <span class="rico pay">🧾</span>
+          <div class="rinfo"><b>2026-08 · ¥2,046.20</b><span>待确认 · 确认后平台安排打款</span></div>
+          <button class="btn mini" onclick="toast('已确认 2026-08 结算单（演示），等待平台打款')">确认结算</button>
+        </div>
+        <div class="rrow" style="padding-left:0;padding-right:0">
+          <span class="rico pay">🧾</span>
+          <div class="rinfo"><b>2026-07 · ¥2,104.30</b><span>已打款 · 2026-08-05 微信商家转账</span></div>
+          <div class="rnum"><span class="st ok">已结算</span></div>
+        </div>
+        <p class="muted" style="margin-top:8px">每月 1 日平台自动生成上月结算单，确认后打款；也可随时按可提现余额申请提现，两条出账通道并存。</p>
       </div>
 
       <div class="card">
@@ -464,7 +513,7 @@
         <div style="margin-top:14px">
           <div class="rrow" style="padding-left:0;padding-right:0">
             <span class="rico pay">💳</span>
-            <div class="rinfo"><b>¥456.00</b><span>2026-09-22 10:31 · 微信零钱</span></div>
+            <div class="rinfo"><b>¥456.00</b><span>2026-09-28 09:15 · 微信零钱</span></div>
             <div class="rnum"><span class="st wait">审核中</span></div>
           </div>
           <div class="rrow" style="padding-left:0;padding-right:0">
@@ -517,58 +566,77 @@
     <summary>交接备注 · 实现对接点（给技术实现方，评审时可忽略）</summary>
     <ol>
       <li><b>归因链路：</b>推广链接 <code>/r/:code</code> 落地商城首页并写入推广码；注册时写入绑定。可复用 schema 中已有 <code>ReferralCode</code> / <code>ReferralBinding</code>，推广码 owner 需持有 <code>MarketPartnerGrant</code>（表已存在）。</li>
-      <li><b>分佣计算：</b><code>apps/api/src/services/billing-cost-model.ts</code> 已预留 <code>PARTNER_SHARE_PERCENT</code> 与 <code>splitPartnerShare()</code>（当前全为 null 待拍板）。本原型口径：智能体相关消费（积分充值、积分消耗、月度订阅）统一 20%；用户 2026-09-23 拍板未来每个商品比例可能不同，建议把比例配置从「按能力」扩展为「按商品 SKU」维度。</li>
-      <li><b>佣金流水：</b>扣费流水已存在于 <code>WalletLedger</code> / <code>marketplaceLedgerEntry</code>；需新增 <code>PartnerCommission</code>（partnerId、customerId、sourceType、baseAmountCny、rate、commissionCny、status: pending→settled→withdrawable、退款扣回），佣金页面即该表的合伙人端视图。</li>
+      <li><b>分佣计算：</b><code>apps/api/src/services/billing-cost-model.ts</code> 已预留 <code>PARTNER_SHARE_PERCENT</code> 与 <code>splitPartnerShare()</code>（当前全为 null 待拍板）。<b>v0.2 口径：按商品 SKU 独立设置比例</b>——平台在总后台（原型 <code>platform-admin-demo-20260928.html</code>）按商品配置，合伙人端本页「分佣产品」只读展示；当前演示口径：智能体 20%、AI 硬件 8–10%、AI 课程 15%。</li>
+      <li><b>佣金流水：</b>扣费流水已存在于 <code>WalletLedger</code> / <code>marketplaceLedgerEntry</code>；需新增 <code>PartnerCommission</code>（partnerId、customerId、skuId、sourceType、baseAmountCny、rate（成交时点快照）、commissionCny、status: pending→settled→withdrawable、退款扣回），佣金页面即该表的合伙人端视图。</li>
       <li><b>提现：</b>需新增 <code>PayoutOrder</code> + 打款通道（建议微信商家转账）+ 平台侧审核后台；本原型只画合伙人端，满 ¥100 可提、T+1 结算、1-3 个工作日打款为建议规则，可调整。</li>
-      <li><b>商品预留：</b>商城 F3（AI 硬件）/ F4（AI 课程）楼层已上线占位，分佣比例待产品定价后配置，合伙人端「分佣产品」卡自动点亮，无需合伙人操作。</li>
+      <li><b>商品与分享链路（v0.2）：</b>合伙人可分享平台（<code>/r/:code</code> 落地商城首页）或单款商品（<code>/r/:code?p=:sku</code> 直达商品详情页），渠道参数可组合（<code>?ch=:channel&amp;p=:sku</code>）；归因不变——首触注册永久绑定，成交按商品比例计佣。</li>
+      <li><b>团队子链接（v0.3）：</b>仍是<b>一级推广</b>——子链接 = 同一 <code>ReferralCode</code> 名下的推广位（建议在码表加 <code>label</code> 备注名 + <code>subKey</code> 字段，链接形如 <code>/r/:code?sub=:key</code>），客户归属与佣金全部记在主账号合伙人名下，平台只对合伙人一人结算；员工不注册平台账号、不与平台发生资金关系，报酬由合伙人线下自理（合伙人协议需声明）。<code>PartnerCommission</code> 增加 <code>referralSubKey</code> 字段即可支持按链接统计佣金总额与明细。</li>
+      <li><b>来源归属（v0.4）：</b>客户来源<b>注册即定</b>——通过合伙人链接注册即写入「合伙人渠道」归属（复用 <code>ReferralBinding</code>），与是否付费无关；试用期客户同样出现在「我的客户」（紫色「试用中」标签，可筛选），试用期内消耗不计佣。「自营推广」客户归属平台，不进入合伙人列表。</li>
+      <li><b>推广方式与渠道链接（v0.5）：</b>市场合伙人的三种推广方式为<b>短视频 / 直播 / 私域</b>，「推广链接 · 渠道链接管理」默认按三种方式建链（<code>?ch=video|live|private</code>），支持合伙人自建细分渠道（如不同账号、不同直播间，<code>?ch=</code> 打标），分渠道统计点击 / 注册 / 转化 / 佣金；渠道参数可与商品参数组合。归因规则不变：首触注册永久归属该合伙人。</li>
       <li><b>数据合规：</b>合伙人端只下发脱敏昵称/手机号（如「美**姐」「138****2261」），不下发完整手机号、聊天与工作数据。</li>
-      <li><b>合伙人身份：</b>暂不做合伙人分级（用户 2026-09-23 拍板），统一展示「思潼AI市场合伙人」，首版分佣比例固定 20%。</li>
+      <li><b>合伙人身份：</b>暂不做合伙人分级（用户 2026-09-23 拍板），统一展示「思潼AI市场合伙人」。</li>
     </ol>
   </details>
 </div>
 
-<footer>思潼AI 行业智能体平台 · 市场合伙人后台设计原型 v0.1 · 2026-09-23 · 数据均为演示数据</footer>
+<footer>思潼AI 行业智能体平台 · 市场合伙人后台设计原型 v0.5 · 2026-09-29 · 数据均为演示数据</footer>
 
 <script>
 /* ================= 演示数据 ================= */
+/* 按商品佣金（v0.2）：智能体按「每次使用消耗积分」计佣（10 积分 = ¥1，与商城算力同口径），硬件/课程按成交计佣 */
+const SKU_RATE = [
+  { key:'shending',    ico:'🎯', name:'沈定 · 首席定位官',  cat:'智能体', price:'每次消耗 99 积分 ≈ ¥9.9',    priceNum:9.9,   rate:20, unit:'次' },
+  { key:'qinwen',      ico:'✍️', name:'秦文 · 金牌文案',    cat:'智能体', price:'每次消耗 10–15 积分 ≈ ¥1–1.5', priceNum:1.5,  rate:20, unit:'次' },
+  { key:'luopan',      ico:'🎤', name:'罗盘 · 直播话术师',  cat:'智能体', price:'每次消耗 50 积分 ≈ ¥5',      priceNum:5,     rate:20, unit:'场' },
+  { key:'jiangliu',    ico:'📊', name:'江流 · 流量诊断官',  cat:'智能体', price:'每次消耗 50 积分 ≈ ¥5',      priceNum:5,     rate:20, unit:'次' },
+  { key:'hece',        ico:'💡', name:'何策 · 选题策略官',  cat:'智能体', price:'每次消耗 99 积分 ≈ ¥9.9',    priceNum:9.9,   rate:20, unit:'次' },
+  { key:'hwrec',       ico:'🎙️', name:'AI 录音卡',         cat:'AI硬件', price:'¥199 /台',   priceNum:199,   rate:10, unit:'台' },
+  { key:'hwrobot',     ico:'🤖', name:'门店 AI 机器人',     cat:'AI硬件', price:'¥1,999 /台', priceNum:1999,  rate:8,  unit:'台' },
+  { key:'courseagent', ico:'🎓', name:'智能体开发课',       cat:'AI课程', price:'¥199 /门',   priceNum:199,   rate:15, unit:'门' },
+  { key:'coursewb',    ico:'📘', name:'WorkBuddy 办公提效课', cat:'AI课程', price:'¥99 /门',  priceNum:99,    rate:15, unit:'门' },
+];
+
 const state = {
   balance: 1288.60,      // 可提现
   pending: 456.00,       // 提现中
   mainLink: 'https://ai.lcppch.top/r/LQ8888',
+  subLinks: [
+    { key:'zhangsan', name:'张三', cust:68, month:486.20, total:2812.60 },
+    { key:'lisi',     name:'李四', cust:41, month:298.30, total:1474.10 },
+  ],
   channels: [
-    { tag:'朋友圈',   ch:'pyq',   clicks:1284, regs:42 },
-    { tag:'抖音简介', ch:'douyin', clicks:3560, regs:96 },
-    { tag:'社群',     ch:'group',  clicks:820,  regs:31 },
-    { tag:'线下物料', ch:'offline', clicks:214,  regs:12 },
+    { tag:'短视频', ch:'video',   clicks:3560, regs:96, comm:1342.60 },
+    { tag:'直播',   ch:'live',    clicks:1614, regs:52, comm:686.20 },
+    { tag:'私域',   ch:'private', clicks:820,  regs:31, comm:289.80 },
   ],
   customers: [
-    { name:'美**姐',   phone:'138****2261', channel:'抖音简介', reg:'09-18', recharge:1200, consumed:986,  sub:0,    status:'active', last:'09-22' },
-    { name:'餐**东',   phone:'159****0342', channel:'朋友圈',   reg:'09-17', recharge:3000, consumed:2140, sub:99,    status:'active', last:'09-22' },
-    { name:'教**李',   phone:'186****7710', channel:'抖音简介', reg:'09-16', recharge:600,  consumed:312,  sub:99,   status:'active', last:'09-20' },
-    { name:'律**张',   phone:'131****5908', channel:'社群',     reg:'09-15', recharge:300,  consumed:84,   sub:0,    status:'active', last:'09-16' },
-    { name:'房**周',   phone:'177****2231', channel:'抖音简介', reg:'09-14', recharge:100,  consumed:36,   sub:0,    status:'sleep',  last:'09-14' },
-    { name:'健身**吴', phone:'135****8845', channel:'朋友圈',   reg:'09-12', recharge:2000, consumed:1230, sub:0,    status:'active', last:'09-21' },
-    { name:'装修**郑', phone:'188****4109', channel:'线下物料', reg:'09-10', recharge:500,  consumed:190,  sub:0,    status:'active', last:'09-18' },
-    { name:'保险**杨', phone:'150****6673', channel:'社群',     reg:'09-08', recharge:100,  consumed:20,   sub:0,    status:'sleep',  last:'09-17' },
-    { name:'母婴**陈', phone:'137****9926', channel:'抖音简介', reg:'09-05', recharge:800,  consumed:566,  sub:99,   status:'active', last:'09-21' },
-    { name:'汽**赵',   phone:'186****3057', channel:'抖音简介', reg:'09-01', recharge:1500, consumed:1090, sub:0,    status:'active', last:'09-22' },
+    { name:'美**姐',   phone:'138****2261', channel:'短视频', reg:'09-18', recharge:1200, consumed:986,  sub:0,    status:'active', last:'09-22' },
+    { name:'餐**东',   phone:'159****0342', channel:'私域',   reg:'09-17', recharge:3000, consumed:2140, sub:99,    status:'active', last:'09-22' },
+    { name:'教**李',   phone:'186****7710', channel:'短视频', reg:'09-16', recharge:600,  consumed:312,  sub:99,   status:'active', last:'09-20' },
+    { name:'律**张',   phone:'131****5908', channel:'私域',     reg:'09-15', recharge:300,  consumed:84,   sub:0,    status:'active', last:'09-16' },
+    { name:'房**周',   phone:'177****2231', channel:'短视频', reg:'09-14', recharge:0,    consumed:36,   sub:0,    status:'sleep',  last:'09-14', trial:true },
+    { name:'健身**吴', phone:'135****8845', channel:'私域',   reg:'09-12', recharge:2000, consumed:1230, sub:0,    status:'active', last:'09-21' },
+    { name:'装修**郑', phone:'188****4109', channel:'直播', reg:'09-10', recharge:500,  consumed:190,  sub:0,    status:'active', last:'09-18' },
+    { name:'保险**杨', phone:'150****6673', channel:'私域',     reg:'09-08', recharge:100,  consumed:20,   sub:0,    status:'sleep',  last:'09-17' },
+    { name:'母婴**陈', phone:'137****9926', channel:'短视频', reg:'09-05', recharge:800,  consumed:566,  sub:99,   status:'active', last:'09-21' },
+    { name:'汽**赵',   phone:'186****3057', channel:'短视频', reg:'09-01', recharge:1500, consumed:1090, sub:0,    status:'active', last:'09-22' },
   ],
   commissions: [
-    { time:'09-22 21:14', cust:'美**姐',   type:'credit', order:'MC-240922-0186', base:92.50,  comm:18.50,  status:'ok'   },
-    { time:'09-22 20:02', cust:'餐**东',   type:'sub',    order:'SUB-240922-0031', base:99.00,  comm:19.80,  status:'wait' },
-    { time:'09-22 15:47', cust:'汽**赵',   type:'credit', order:'MC-240922-0122', base:186.00, comm:37.20,  status:'ok'   },
-    { time:'09-21 19:30', cust:'健身**吴', type:'credit', order:'MC-240921-0377', base:230.00, comm:46.00,  status:'ok'   },
-    { time:'09-21 10:05', cust:'母婴**陈', type:'credit', order:'MC-240921-0215', base:56.40,  comm:11.28,  status:'ok'   },
-    { time:'09-20 22:41', cust:'教**李',   type:'credit', order:'MC-240920-0410', base:148.20, comm:29.64,  status:'ok'   },
-    { time:'09-20 09:12', cust:'美**姐',   type:'credit', order:'MC-240920-0155', base:78.00,  comm:15.60,  status:'ok'   },
-    { time:'09-19 17:26', cust:'餐**东',   type:'credit', order:'MC-240919-0288', base:312.00, comm:62.40,  status:'ok'   },
-    { time:'09-18 14:03', cust:'装修**郑', type:'credit', order:'MC-240918-0199', base:95.00,  comm:19.00,  status:'ok'   },
-    { time:'09-17 20:55', cust:'保险**杨', type:'credit', order:'MC-240917-0073', base:20.00,  comm:4.00,   status:'ok'   },
-    { time:'09-16 11:38', cust:'律**张',   type:'credit', order:'MC-240916-0120', base:42.00,  comm:8.40,   status:'ok'   },
-    { time:'09-15 16:20', cust:'汽**赵',   type:'credit', order:'MC-240915-0336', base:264.00, comm:52.80,  status:'ok'   },
+    { time:'09-22 21:14', cust:'美**姐',   type:'credit', order:'MC-240922-0186', base:92.50,  comm:18.50,  status:'ok',   lk:'main'     },
+    { time:'09-22 20:02', cust:'餐**东',   type:'sub',    order:'SUB-240922-0031', base:99.00,  comm:19.80,  status:'wait', lk:'zhangsan' },
+    { time:'09-22 15:47', cust:'汽**赵',   type:'credit', order:'MC-240922-0122', base:186.00, comm:37.20,  status:'ok',   lk:'lisi'     },
+    { time:'09-21 19:30', cust:'健身**吴', type:'credit', order:'MC-240921-0377', base:230.00, comm:46.00,  status:'ok',   lk:'main'     },
+    { time:'09-21 10:05', cust:'母婴**陈', type:'credit', order:'MC-240921-0215', base:56.40,  comm:11.28,  status:'ok',   lk:'zhangsan' },
+    { time:'09-20 22:41', cust:'教**李',   type:'credit', order:'MC-240920-0410', base:148.20, comm:29.64,  status:'ok',   lk:'lisi'     },
+    { time:'09-20 09:12', cust:'美**姐',   type:'credit', order:'MC-240920-0155', base:78.00,  comm:15.60,  status:'ok',   lk:'main'     },
+    { time:'09-19 17:26', cust:'餐**东',   type:'credit', order:'MC-240919-0288', base:312.00, comm:62.40,  status:'ok',   lk:'zhangsan' },
+    { time:'09-18 14:03', cust:'装修**郑', type:'credit', order:'MC-240918-0199', base:95.00,  comm:19.00,  status:'ok',   lk:'main'     },
+    { time:'09-17 20:55', cust:'保险**杨', type:'credit', order:'MC-240917-0073', base:20.00,  comm:4.00,   status:'ok',   lk:'lisi'     },
+    { time:'09-16 11:38', cust:'律**张',   type:'credit', order:'MC-240916-0120', base:42.00,  comm:8.40,   status:'ok',   lk:'main'     },
+    { time:'09-15 16:20', cust:'汽**赵',   type:'credit', order:'MC-240915-0336', base:264.00, comm:52.80,  status:'ok',   lk:'zhangsan' },
   ],
   trend: [58,42,66,90,74,118,96,132,88,146,104,168,152,202],
-  custFilter:'all', commFilter:'all',
+  custFilter:'all', commFilter:'all', commLinkFilter:'all',
 };
 
 /* ================= 工具 ================= */
@@ -625,10 +693,10 @@ function renderChart(){
 }
 
 /* ================= 二维码（示意） ================= */
-function renderQR(){
-  const box = document.getElementById('qrbox');
-  const n = 21, seedStr = state.mainLink;
-  let seed = 0; for (const c of seedStr) seed = (seed*31 + c.charCodeAt(0)) >>> 0;
+function renderQR(seedStr, boxId){
+  const box = document.getElementById(boxId || 'qrbox');
+  const n = 21, src = seedStr || state.mainLink;
+  let seed = 0; for (const c of src) seed = (seed*31 + c.charCodeAt(0)) >>> 0;
   const rnd = () => (seed = (seed*1664525 + 1013904223) >>> 0) / 4294967296;
   let cells = '';
   const finder = (x,y)=>{ // 7x7 定位角
@@ -651,7 +719,7 @@ function renderChannels(){
     return `<div class="chrow">
       <span class="chtag">${c.tag}</span>
       <code>${link}</code>
-      <span class="chstats">点击 <b>${c.clicks.toLocaleString()}</b> · 注册 <b>${c.regs}</b> · 转化 <b>${rate}</b></span>
+      <span class="chstats">点击 <b>${c.clicks.toLocaleString()}</b> · 注册 <b>${c.regs}</b> · 转化 <b>${rate}</b> · 佣金 <b>${fmt(c.comm||0)}</b></span>
       <button class="btn mini cp" onclick="copyText('${link}','已复制「${c.tag}」渠道链接')">复制</button>
     </div>`;
   }).join('');
@@ -660,19 +728,56 @@ function addChannel(){
   const inp = document.getElementById('newChannelName');
   const name = inp.value.trim();
   if (!name){ toast('请先输入渠道名称'); return; }
+  if (state.channels.some(c=>c.tag===name)){ toast('已有同名渠道链接'); return; }
   const ch = 'ch' + Date.now().toString(36).slice(-4);
-  state.channels.push({ tag:name, ch, clicks:0, regs:0 });
+  state.channels.push({ tag:name, ch, clicks:0, regs:0, comm:0 });
   inp.value = '';
   renderChannels();
   toast('渠道「' + name + '」已创建，复制链接去推广吧');
 }
 function copyMainLink(){ copyText(state.mainLink); }
 
+/* ================= 按商品分佣（v0.2） ================= */
+function earnTxt(s){
+  const earn = fmt(Math.round(s.priceNum*s.rate)/100);
+  return s.cat==='智能体' ? `每用 1 ${s.unit}分 ${earn}` : `成交 1 ${s.unit}分 ${earn}`;
+}
+function renderCpList(){
+  const box = document.getElementById('cpList');
+  box.innerHTML = SKU_RATE.map(s=>{
+    const icocls = s.cat==='智能体' ? '' : (s.cat==='AI硬件' ? ' hw' : ' co');
+    return `<div class="cprow">
+      <span class="cico${icocls}">${s.ico}</span>
+      <div class="cmeta"><b>${s.name}</b><span>${s.cat} · ${s.price}</span></div>
+      <div class="crate"><b>${s.rate}%</b><span>${earnTxt(s)}</span></div>
+    </div>`;
+  }).join('');
+}
+
+let shareIdx = 0;
+function renderShareProducts(){
+  const chipBox = document.getElementById('skuChips');
+  chipBox.innerHTML = SKU_RATE.map((s,i)=>`<button class="chip ${i===shareIdx?'on':''}" data-i="${i}">${s.ico} ${s.name.split(' · ')[0]}</button>`).join('');
+  chipBox.querySelectorAll('.chip').forEach(ch=>ch.addEventListener('click',()=>{ shareIdx = +ch.dataset.i; renderShareProducts(); }));
+  const s = SKU_RATE[shareIdx];
+  const link = state.mainLink + '?p=' + s.key;
+  const earn = fmt(Math.round(s.priceNum*s.rate)/100);
+  const useLine = s.cat==='智能体'
+    ? `${s.price} · 佣金比例 <b style="color:var(--orange)">${s.rate}%</b><br>客户每用 1 ${s.unit}你分 <b>${earn}</b> · 客户用得越多分得越多`
+    : `售价 ${s.price} · 佣金比例 <b style="color:var(--orange)">${s.rate}%</b><br>成交 1 ${s.unit}你分 <b>${earn}</b>`;
+  document.getElementById('skuLink').textContent = link;
+  document.getElementById('skuMeta').innerHTML =
+    `<b>${s.ico} ${s.name}</b><br>${useLine} · <span class="muted">示意二维码</span>`;
+  document.getElementById('skuCopy').onclick = () => copyText(link, '已复制「' + s.name + '」推广链接');
+  renderQR(link, 'skuQr');
+}
+
 /* ================= 客户 ================= */
-function custComm(c){ return Math.round(((c.consumed + (c.sub||0)) * 0.2) * 100) / 100; }
+function custComm(c){ if(c.trial) return 0; return Math.round(((c.consumed + (c.sub||0)) * 0.2) * 100) / 100; }
 function renderCustomers(){
   const f = state.custFilter;
   const list = state.customers.filter(c=>{
+    if (f==='trial') return !!c.trial;
     if (f==='active') return c.status==='active';
     if (f==='sleep') return c.status==='sleep';
     if (f==='month') return c.reg >= '09-01';
@@ -686,7 +791,7 @@ function renderCustomers(){
     return `<div class="crow" onclick="openCustomer(${i})">
       <div class="cava" style="background:${color}">${c.name[0]}</div>
       <div class="cinfo">
-        <b>${c.name} ${c.status==='active'?'<span class="pill ok">活跃</span>':'<span class="pill todo">沉睡</span>'} ${c.sub?'<span class="pill ok">已订阅</span>':''}</b>
+        <b>${c.name} ${c.status==='active'?'<span class="pill ok">活跃</span>':'<span class="pill todo">沉睡</span>'} ${c.trial?'<span class="pill course">试用中</span>':''} ${c.sub?'<span class="pill ok">已订阅</span>':''}</b>
         <span class="csub">${c.channel} · 09 月 ${c.reg.slice(3)} 注册 · ${c.phone}</span>
       </div>
       <div class="cnums">
@@ -716,17 +821,25 @@ function renderCommissions(){
   const box = document.getElementById('commList');
   if (f==='hw'||f==='course'){
     const m = typeMeta[f];
+    const rates = f==='hw' ? '「AI 录音卡」10% /「门店 AI 机器人」8%' : '「智能体开发课」15% /「WorkBuddy 办公提效课」15%';
     box.innerHTML = `<div class="empty" style="border:none;padding:30px 0">
-      <span class="big">${m.ico}</span><b>${m.label}分佣</b><br>商城「${m.label}」楼层上架后，客户每笔购买自动计入你的佣金，敬请期待。
+      <span class="big">${m.ico}</span><b>${m.label}分佣 · 暂无订单</b><br>比例已在平台配置：${rates}。<br>客户通过你的链接购买后，佣金按比例自动计入这里。
     </div>`;
     return;
   }
-  const list = state.commissions.filter(r=> f==='all' ? true : r.type===f);
+  const list = state.commissions.filter(r=> (f==='all' ? true : r.type===f) && (state.commLinkFilter==='all' ? true : (r.lk||'main')===state.commLinkFilter));
+  if (!list.length){
+    box.innerHTML = `<div class="empty" style="border:none;padding:30px 0">
+      <span class="big">🔗</span><b>该推广链接暂无佣金记录</b><br>员工开始推广产生消费后，佣金会自动计入这里。
+    </div>`;
+    return;
+  }
   box.innerHTML = list.map(r=>{
     const m = typeMeta[r.type];
+    const lk = lkName(r);
     return `<div class="rrow">
       <span class="rico ${m.cls}">${m.ico}</span>
-      <div class="rinfo"><b>${r.cust} · ${m.label}</b><span>订单 ${r.order} · ${r.time}</span></div>
+      <div class="rinfo"><b>${r.cust} · ${m.label}<span class="lktag">${lk}</span></b><span>订单 ${r.order} · ${r.time}</span></div>
       <div class="rnum">
         <span class="base">${fmt(r.base)} × 20%</span>
         <b class="plus">+${fmt(r.comm)}</b><br>
@@ -740,8 +853,66 @@ document.querySelectorAll('#commChips .chip').forEach(ch=>ch.addEventListener('c
   ch.classList.add('on');
   state.commFilter = ch.dataset.f;
   renderCommissions();
-  if (ch.classList.contains('lock')) toast('「'+ch.textContent.replace('🔒','').trim()+'」上线后自动开启分佣');
 }));
+
+/* ================= 团队子链接（v0.3） ================= */
+function subUrl(s){ return state.mainLink + '?sub=' + s.key; }
+function lkName(r){ return r && r.lk ? (state.subLinks.find(s=>s.key===r.lk)?.name || '主链接') : '主链接'; }
+function renderSubLinks(){
+  const box = document.getElementById('subLinkList');
+  box.innerHTML = state.subLinks.map((s,i)=>`
+    <div class="subrow">
+      <span class="chtag">${s.name}</span>
+      <span class="substats">客户 <b>${s.cust}</b> · 本月 <b class="money">${fmt(s.month)}</b> · 累计 <b class="money">${fmt(s.total)}</b></span>
+      <code>${subUrl(s)}</code>
+      <button class="btn mini cp" onclick="copyText('${subUrl(s)}','已复制「${s.name}」子链接，发给 TA 去推广')">复制</button>
+      <button class="btn mini line" onclick="openSubQr(${i})">二维码</button>
+      <button class="btn mini line" onclick="gotoLinkDetail('${s.key}')">明细</button>
+    </div>`).join('');
+}
+function addSubLink(){
+  const inp = document.getElementById('newSubName');
+  const name = inp.value.trim();
+  if (!name){ toast('请先输入员工备注名'); return; }
+  if (state.subLinks.some(s=>s.name===name)){ toast('已有同名子链接，换个名字试试'); return; }
+  if (state.subLinks.length >= 20){ toast('最多创建 20 个子链接'); return; }
+  const key = 'sub' + Date.now().toString(36).slice(-5);
+  state.subLinks.push({ key, name, cust:0, month:0, total:0 });
+  inp.value = '';
+  renderSubLinks(); renderCommLinkChips();
+  toast('「' + name + '」子链接已创建，复制发给 TA 去推广');
+}
+function openSubQr(i){
+  const s = state.subLinks[i], url = subUrl(s);
+  openModal(`
+    <div class="sh-head"><b>「${s.name}」子链接二维码</b><button class="close" onclick="closeModal()">✕</button></div>
+    <div class="qr-flex" style="justify-content:center;margin-top:4px">
+      <div class="qr" id="subQrBox" style="width:150px;height:150px"></div>
+    </div>
+    <div class="linkbox" style="margin-top:12px">
+      <div class="url"><code>${url}</code><button class="btn mini" onclick="copyText('${url}','已复制「${s.name}」子链接')">复制链接</button></div>
+    </div>
+    <p class="muted" style="margin-top:10px;text-align:center">把二维码或链接发给「${s.name}」推广；TA 带来的客户佣金全部计入你的账户（本月 ${fmt(s.month)}），你与 TA 的分账由你自行线下结算。</p>
+  `);
+  renderQR(url, 'subQrBox');
+}
+function gotoLinkDetail(key){
+  setView('comm');
+  state.commLinkFilter = key;
+  renderCommLinkChips();
+  renderCommissions();
+}
+function renderCommLinkChips(){
+  const box = document.getElementById('commLinkChips');
+  const items = [{key:'all',name:'🔗 全部链接'},{key:'main',name:'主链接'}]
+    .concat(state.subLinks.map(s=>({key:s.key,name:'👥 '+s.name})));
+  box.innerHTML = items.map(it=>`<button class="chip ${state.commLinkFilter===it.key?'on':''}" data-l="${it.key}">${it.name}</button>`).join('');
+  box.querySelectorAll('.chip').forEach(ch=>ch.addEventListener('click',()=>{
+    state.commLinkFilter = ch.dataset.l;
+    renderCommLinkChips();
+    renderCommissions();
+  }));
+}
 
 /* ================= 弹窗 ================= */
 function openModal(html){
@@ -755,7 +926,7 @@ function openCustomer(i){
   const comm = custComm(c);
   openModal(`
     <div class="sh-head"><span class="cava" style="background:${avColors[i%avColors.length]};width:34px;height:34px;border-radius:10px;font-size:15px">${c.name[0]}</span><b>${c.name}</b><button class="close" onclick="closeModal()">✕</button></div>
-    <div class="muted" style="margin:-6px 0 8px">${c.channel} 渠道注册 · 手机 ${c.phone} · 信息已脱敏</div>
+    <div class="muted" style="margin:-6px 0 8px">来源：合伙人渠道（${c.channel} 推广注册） · 手机 ${c.phone} · 信息已脱敏</div>
     <div class="kv">
       <div class="kbox"><span>累计充值</span><b>${fmt0(c.recharge)}</b></div>
       <div class="kbox"><span>累计消耗</span><b>${fmt0(c.consumed)}</b></div>
@@ -764,6 +935,7 @@ function openCustomer(i){
     </div>
     <ul class="tl">
       <li><b>通过「${c.channel}」推广链接注册</b><time>2026-${c.reg}</time></li>
+      ${c.trial?`<li><b>注册送 100 算力 · 试用中</b>（试用期内消耗不计佣）<time>自注册起 30 天</time></li>`:''}
       ${c.sub?`<li><b>订阅月度会员</b>（¥99）<time>消费后自动计佣</time></li>`:''}
       <li><b>最近活跃</b><time>2026-${c.last}</time></li>
     </ul>
@@ -824,10 +996,14 @@ function submitWithdraw(){
 /* ================= init ================= */
 renderBalance();
 renderChart();
-renderQR();
+renderQR(state.mainLink, 'qrbox');
 renderChannels();
+renderCpList();
+renderShareProducts();
 renderCustomers();
 renderCommissions();
+renderSubLinks();
+renderCommLinkChips();
 </script>
 </body>
 </html>

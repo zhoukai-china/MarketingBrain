@@ -1,0 +1,802 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>平台管理后台（总后台）· 设计原型 v0.6 · 思潼AI</title>
+<style>
+  :root{
+    --bg:#F4F7FC; --card:#ffffff; --ink:#1c2733; --sub:#5b6b7c; --line:#e3e9f2;
+    --orange:#E8651A; --orange-soft:#fdeee2; --orange-line:#f7d4b8;
+    --green:#0f8a5f; --green-soft:#e6f5ee;
+    --amber:#b26a00; --amber-soft:#fff4e0;
+    --blue:#2563eb; --blue-soft:#e8effd;
+    --purple:#7c3aed; --purple-soft:#f1eafd;
+    --navy:#17313f;
+    --red:#d64545;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{background:var(--bg);color:var(--ink);font:15px/1.7 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+
+  /* ---------- top bar ---------- */
+  .appbar{position:sticky;top:0;z-index:9;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .appbar .wrap{max-width:1280px;margin:0 auto;padding:0 16px;display:flex;align-items:center;gap:10px;height:54px}
+  .logo{font-weight:800;font-size:17px;white-space:nowrap}
+  .logo i{font-style:normal;color:var(--orange)}
+  .logo em{font-style:normal;font-size:13px;color:var(--sub);font-weight:600;margin-left:2px}
+  .prototag{font-size:11px;font-weight:700;color:var(--orange);background:var(--orange-soft);border:1px solid var(--orange-line);border-radius:99px;padding:2px 9px;white-space:nowrap}
+  .me-chip{margin-left:auto;display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:#fff;border-radius:99px;padding:3px 12px 3px 4px;font-size:13px;font-weight:700}
+  .me-chip .ava{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#17313f,#2c5c46);color:#fff;display:grid;place-items:center;font-size:13px}
+  .demobanner{background:#fff8f0;border-bottom:1px solid var(--orange-line);color:#9a5a1c;font-size:12px;text-align:center;padding:5px 12px}
+  .demobanner a{color:#c2570c;font-weight:700;text-decoration:none}
+
+  /* ---------- shell ---------- */
+  .shell{max-width:1280px;margin:0 auto;padding:20px 16px 40px;display:grid;gap:20px;grid-template-columns:220px 1fr;align-items:start}
+  @media (max-width:860px){.shell{grid-template-columns:1fr}.side{position:static!important;flex-direction:row!important;flex-wrap:wrap}}
+  .side{display:flex;flex-direction:column;gap:8px;position:sticky;top:78px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 12px;box-shadow:0 6px 18px rgba(28,39,51,.05)}
+  .snav{display:flex;align-items:center;gap:10px;border:none;background:none;font:600 14px/1 inherit;color:var(--sub);border-radius:12px;padding:10px 12px;cursor:pointer;text-align:left}
+  .snav .ic{width:30px;height:30px;border-radius:9px;background:#f0f4f9;display:grid;place-items:center;font-size:15px;flex:none}
+  .snav.active{background:var(--orange-soft);color:var(--orange)}
+  .snav.active .ic{background:var(--orange);color:#fff}
+  .side .side-note{font-size:11.5px;color:var(--sub);border-top:1px dashed var(--line);padding-top:10px;margin-top:6px;line-height:1.8}
+  .main{min-width:0}
+
+  .vhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .vhead h2{font-size:21px}
+  .vhead .desc{font-size:12.5px;color:var(--sub)}
+
+  /* ---------- cards / stats ---------- */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 6px 18px rgba(28,39,51,.05);padding:16px;margin-bottom:14px}
+  .card h3{font-size:15px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .card h3 .more{margin-left:auto;font-size:12px;color:var(--sub);font-weight:400}
+  .muted{font-size:12px;color:var(--sub)}
+  .metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+  @media (min-width:900px){.metrics{grid-template-columns:repeat(4,1fr)}}
+  .metric{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:0 6px 18px rgba(28,39,51,.05)}
+  .metric .lab{font-size:11.5px;color:var(--sub)}
+  .metric .val{font-size:22px;font-weight:800;margin-top:2px}
+  .metric.hot .val{color:var(--orange)}
+
+  .btn{border:none;border-radius:11px;padding:10px 18px;font:700 13.5px inherit;cursor:pointer}
+  .btn.pri{background:var(--orange);color:#fff;box-shadow:0 8px 20px rgba(232,101,26,.4)}
+  .btn.pri:hover{filter:brightness(1.05)}
+  .btn.mini{padding:6px 13px;font-size:12.5px;border-radius:9px;background:var(--orange);color:#fff}
+  .btn.line{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .btn.line:hover{border-color:var(--orange-line)}
+
+  .pill{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;vertical-align:1px}
+  .pill.agent{background:var(--orange-soft);color:var(--orange)}
+  .pill.hw{background:var(--blue-soft);color:var(--blue)}
+  .pill.course{background:var(--purple-soft);color:var(--purple)}
+  .pill.off{background:#eef2f8;color:var(--sub)}
+
+  /* ---------- commission table ---------- */
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.ctbl{width:100%;border-collapse:collapse;min-width:760px}
+  .ctbl th{font-size:11.5px;color:var(--sub);font-weight:600;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+  .ctbl td{padding:11px 10px;border-bottom:1px dashed var(--line);font-size:13.5px;vertical-align:middle;white-space:nowrap}
+  .ctbl tr:last-child td{border-bottom:none}
+  .ctbl tr.offrow td{opacity:.45}
+  .sku-cell{display:flex;align-items:center;gap:10px;min-width:200px}
+  .sku-cell .cico{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:16px;background:var(--orange-soft);flex:none}
+  .sku-cell .cico.hw{background:var(--blue-soft)}
+  .sku-cell .cico.course{background:var(--purple-soft)}
+  .sku-cell b{display:block;font-size:13.5px;line-height:1.4}
+  .sku-cell span{font-size:11.5px;color:var(--sub)}
+  .rate-cell{display:flex;align-items:center;gap:6px}
+  .rate-cell input{width:74px;font:700 14px ui-monospace,Consolas,monospace;padding:7px 10px;border:1px solid var(--line);border-radius:9px;outline:none;text-align:right;color:var(--navy)}
+  .rate-cell input:focus{border-color:var(--orange-line);box-shadow:0 0 0 3px rgba(232,101,26,.12)}
+  .rate-cell input:disabled{background:#f2f5f9;color:#9aa8b5}
+  .rate-cell i{font-style:normal;font-size:12.5px;color:var(--sub);font-weight:700}
+  .earn{font-weight:800;color:var(--green)}
+  /* toggle */
+  .tgl{position:relative;width:40px;height:22px;border-radius:99px;background:#d6dee8;cursor:pointer;border:none;transition:.2s;flex:none}
+  .tgl::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .tgl.on{background:var(--green)}
+  .tgl.on::after{left:21px}
+
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .toolbar .lab{font-size:12px;color:var(--sub);font-weight:700;margin-right:2px}
+  .savestate{font-size:11.5px;color:var(--green);font-weight:700;margin-left:auto}
+
+  .rules{list-style:none;display:flex;flex-direction:column;gap:8px}
+  .rules li{font-size:13px;padding-left:18px;position:relative;color:var(--sub)}
+  .rules li::before{content:"";position:absolute;left:2px;top:10px;width:6px;height:6px;border-radius:50%;background:var(--orange-line)}
+  .rules li b{color:var(--ink)}
+  .warnbox{font-size:12.5px;background:var(--amber-soft);border:1px solid #f1dfb6;color:var(--amber);border-radius:11px;padding:10px 12px;line-height:1.8}
+
+  /* ---------- multi-view modules (v0.2) ---------- */
+  section[hidden]{display:none}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:99px;padding:6px 14px;font:600 12.5px inherit;color:var(--sub);cursor:pointer}
+  .chip.on{background:var(--orange-soft);color:var(--orange);border-color:var(--orange-line)}
+  .topgrid{display:grid;gap:14px;grid-template-columns:1fr}
+  @media (min-width:900px){.topgrid{grid-template-columns:1fr 1fr}}
+  .bars{display:flex;flex-direction:column;gap:9px;margin-top:4px}
+  .brow{display:flex;align-items:center;gap:10px;font-size:12.5px}
+  .brow .bn{width:150px;flex:none;color:var(--ink);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brow .btrack{flex:1;height:14px;border-radius:7px;background:#f0f4f9;overflow:hidden}
+  .brow .btrack i{display:block;height:100%;border-radius:7px;background:linear-gradient(90deg,#f7a56b,var(--orange))}
+  .brow .bv{width:86px;flex:none;text-align:right;color:var(--sub);font-variant-numeric:tabular-nums}
+  .rankrow{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px dashed var(--line);font-size:13px}
+  .rankrow:last-child{border-bottom:none}
+  .rankrow .no{width:22px;height:22px;border-radius:7px;background:#f0f4f9;color:var(--sub);display:grid;place-items:center;font-size:11.5px;font-weight:800;flex:none}
+  .rankrow .no.top{background:var(--orange-soft);color:var(--orange)}
+  .rankrow .rn{flex:1;min-width:0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rankrow .rv{flex:none;color:var(--sub);font-size:12px}
+  .feed{display:flex;flex-direction:column}
+  .feedrow{display:flex;gap:10px;padding:9px 2px;border-bottom:1px dashed var(--line);font-size:12.5px;align-items:flex-start}
+  .feedrow:last-child{border-bottom:none}
+  .feedrow .fi{flex:none;font-size:15px}
+  .feedrow .ft{flex:none;color:var(--sub);font-variant-numeric:tabular-nums}
+  .feedrow .fx{flex:1;min-width:0}
+  .stpill{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 8px}
+  .stpill.ok{background:var(--green-soft);color:var(--green)}
+  .stpill.wait{background:var(--amber-soft);color:var(--amber)}
+  .stpill.run{background:var(--blue-soft);color:var(--blue)}
+  .stpill.off{background:#eef2f8;color:var(--sub)}
+  .stpill.back{background:#fdeaea;color:var(--red)}
+  .lnk{border:none;background:none;color:var(--blue);font:600 12.5px inherit;cursor:pointer;padding:2px 4px}
+  .lnk:hover{text-decoration:underline}
+  .lnk.danger{color:var(--red)}
+  .lnk+.lnk{margin-left:6px}
+  .pill.back{background:#fdeaea;color:var(--red)}
+
+  /* toast / devnotes / footer */
+  #toast{position:fixed;top:64px;left:50%;transform:translateX(-50%) translateY(-8px);background:#1c2733;color:#fff;font-size:13px;border-radius:10px;padding:9px 16px;opacity:0;pointer-events:none;transition:.25s;z-index:99;max-width:86vw;text-align:center;box-shadow:0 10px 26px rgba(0,0,0,.25)}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .devnotes{max-width:1280px;margin:0 auto;padding:0 16px 30px}
+  .devnotes details{background:#fff;border:1px solid var(--line);border-radius:13px;padding:12px 16px}
+  .devnotes summary{font-size:13px;font-weight:700;color:var(--sub);cursor:pointer;outline:none}
+  .devnotes ol{margin:10px 0 4px 18px;font-size:12.5px;color:var(--sub);line-height:2}
+  .devnotes b{color:var(--ink)}
+  .devnotes code{background:#f5f8fc;border-radius:5px;padding:0 5px;font-size:11.5px}
+  footer{border-top:1px solid var(--line);background:#fff;padding:16px;text-align:center;font-size:12px;color:var(--sub)}
+</style>
+</head>
+<body>
+
+<!-- ===== top bar ===== -->
+<div class="appbar">
+  <div class="wrap">
+    <div class="logo">思潼<i>AI</i><em>· 平台管理后台（总后台）</em></div>
+    <span class="prototag">设计原型 v0.6</span>
+    <div class="me-chip"><span class="ava">管</span><span>平台运营管理员</span></div>
+  </div>
+</div>
+<div class="demobanner">原型演示 · 页面内所有数字均为演示数据，不代表已上线功能 · 20260928 · 关联原型：<a href="market-partner-admin-demo-20260923.html?v=2">市场合伙人后台 v0.2 →</a></div>
+
+<div class="shell">
+  <!-- ===== sidebar ===== -->
+  <aside class="side">
+    <button class="snav active" data-view="overview"><span class="ic">📈</span>数据总览</button>
+    <button class="snav" data-view="products"><span class="ic">🛒</span>商品管理</button>
+    <button class="snav" data-view="rates"><span class="ic">🧩</span>分佣设置</button>
+    <button class="snav" data-view="partners"><span class="ic">🤝</span>合伙人管理</button>
+    <button class="snav" data-view="applications"><span class="ic">📝</span>合伙人申请</button>
+    <button class="snav" data-view="ledger"><span class="ic">💰</span>佣金流水</button>
+    <button class="snav" data-view="payouts"><span class="ic">💳</span>提现审核</button>
+    <button class="snav" data-view="settle"><span class="ic">🧾</span>月度结算</button>
+    <div class="side-note">佣金比例按<b>商品 SKU</b> 独立设置，保存后实时同步到所有市场合伙人后台；历史订单按成交时点比例结算。</div>
+  </aside>
+
+  <!-- ===== main ===== -->
+  <main class="main">
+
+    <!-- 数据总览 -->
+    <section id="view-overview">
+      <div class="vhead"><h2>数据总览</h2><span class="desc">平台经营与分佣全景 · 均为演示数据</span></div>
+      <div class="metrics">
+        <div class="metric"><div class="lab">💰 今日 GMV</div><div class="val">¥12,468</div></div>
+        <div class="metric"><div class="lab">📅 本月 GMV</div><div class="val">¥286,420</div></div>
+        <div class="metric"><div class="lab">💸 今日佣金支出</div><div class="val">¥682.40</div></div>
+        <div class="metric hot"><div class="lab">💸 本月佣金支出</div><div class="val">¥8,642</div></div>
+      </div>
+      <div class="card">
+        <h3>💹 合伙人渠道损益（本月） <span class="more">佣金仅合伙人渠道计 · 其余收入零佣金成本</span></h3>
+        <div style="display:flex;gap:24px;align-items:baseline;flex-wrap:wrap;margin-bottom:12px">
+          <div><span style="font-size:12.5px;color:var(--sub)">本月净利润</span><div style="font-size:30px;font-weight:800;color:var(--green)">¥277,778</div></div>
+          <span style="font-size:12px;color:var(--sub)">= 全平台 GMV ¥286,420 − 合伙人佣金 ¥8,642 · 本表仅列合伙人渠道，其余收入无佣金成本</span>
+        </div>
+        <div class="tbl-wrap">
+          <table class="ctbl">
+            <thead><tr><th>渠道</th><th>收入（本月）</th><th>佣金支出</th><th>净额</th><th>收入占比</th></tr></thead>
+            <tbody id="profitRows"></tbody>
+          </table>
+        </div>
+        <div class="muted" style="margin-top:10px">归因口径：合伙人渠道=推荐码 / 推广链接首触绑定（ReferralBinding），注册即绑定终身跟随，佣金仅合伙人渠道计；合伙人的推广方式为短视频 / 直播 / 私域，由合伙人在自己后台分渠道建链统计（<code>?ch=</code> 打标）。收入=实付人民币。</div>
+      </div>
+      <div class="topgrid">
+        <div class="card">
+          <h3>📈 近 7 天 GMV <span class="more">人民币实付口径</span></h3>
+          <div class="bars">
+            <div class="brow"><span class="bn">09-22</span><div class="btrack"><i style="width:60%"></i></div><span class="bv">¥8,420</span></div>
+            <div class="brow"><span class="bn">09-23</span><div class="btrack"><i style="width:66%"></i></div><span class="bv">¥9,150</span></div>
+            <div class="brow"><span class="bn">09-24</span><div class="btrack"><i style="width:56%"></i></div><span class="bv">¥7,860</span></div>
+            <div class="brow"><span class="bn">09-25</span><div class="btrack"><i style="width:74%"></i></div><span class="bv">¥10,240</span></div>
+            <div class="brow"><span class="bn">09-26</span><div class="btrack"><i style="width:82%"></i></div><span class="bv">¥11,380</span></div>
+            <div class="brow"><span class="bn">09-27</span><div class="btrack"><i style="width:100%"></i></div><span class="bv">¥13,920</span></div>
+            <div class="brow"><span class="bn">09-28 今日</span><div class="btrack"><i style="width:90%"></i></div><span class="bv">¥12,468</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>🔥 今日商品消耗 TOP5 <span class="more">按消耗金额折算（¥）</span></h3>
+          <div class="bars">
+            <div class="brow"><span class="bn">🎯 沈定 · 首席定位官</span><div class="btrack"><i style="width:100%"></i></div><span class="bv">¥3,842</span></div>
+            <div class="brow"><span class="bn">✍️ 秦文 · 金牌文案</span><div class="btrack"><i style="width:81%"></i></div><span class="bv">¥3,126</span></div>
+            <div class="brow"><span class="bn">🎤 罗盘 · 直播话术师</span><div class="btrack"><i style="width:58%"></i></div><span class="bv">¥2,218</span></div>
+            <div class="brow"><span class="bn">📊 江流 · 流量诊断官</span><div class="btrack"><i style="width:55%"></i></div><span class="bv">¥2,094</span></div>
+            <div class="brow"><span class="bn">💡 何策 · 选题策略官</span><div class="btrack"><i style="width:41%"></i></div><span class="bv">¥1,562</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>🏆 合伙人贡献 TOP5 <span class="more">本月佣金</span></h3>
+          <div>
+            <div class="rankrow"><span class="no top">1</span><span class="rn">林秋水 · LQ8888</span><span class="rv">¥2,318.60</span></div>
+            <div class="rankrow"><span class="no top">2</span><span class="rn">陈大力 · CY2266</span><span class="rv">¥1,502.20</span></div>
+            <div class="rankrow"><span class="no top">3</span><span class="rn">王小美 · WM1024</span><span class="rv">¥1,120.40</span></div>
+            <div class="rankrow"><span class="no">4</span><span class="rn">赵一鸣 · ZM3155</span><span class="rv">¥386.20</span></div>
+            <div class="rankrow"><span class="no">5</span><span class="rn">孙丽华 · SL0917</span><span class="rv">¥254.80</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>🔔 平台动态 <span class="more">实时</span></h3>
+          <div class="feed">
+            <div class="feedrow"><span class="fi">🎯</span><span class="ft">11:42</span><span class="fx">客户「美**姐」使用「沈定 · 首席定位官」，林秋水 分佣 <b>¥1.98</b></span></div>
+            <div class="feedrow"><span class="fi">🎓</span><span class="ft">10:26</span><span class="fx">「智能体开发课」成交 1 门，王小美 分佣 <b>¥29.85</b></span></div>
+            <div class="feedrow"><span class="fi">💳</span><span class="ft">09:15</span><span class="fx">林秋水 发起提现 <b>¥456.00</b>，待审核</span></div>
+            <div class="feedrow"><span class="fi">🤝</span><span class="ft">09:02</span><span class="fx">新合伙人「周建国」完成注册，推广码 <b>ZJ3310</b></span></div>
+            <div class="feedrow"><span class="fi">↩️</span><span class="ft">昨日</span><span class="fx">订单退款，赵一鸣 佣金自动扣回 <b>¥1.98</b></span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 商品管理 -->
+    <section id="view-products" hidden>
+      <div class="vhead"><h2>商品管理</h2><span class="desc">商城商品上下架与楼层位 · 分佣比例在「分佣设置」配置</span></div>
+      <div class="card">
+        <h3>🛒 商品列表 <span class="more">共 14 个 SKU · 4 大类</span></h3>
+        <div class="chips" id="prodChips" style="margin-bottom:12px">
+          <button class="chip on" data-f="all">全部</button>
+          <button class="chip" data-f="智能体">智能体</button>
+          <button class="chip" data-f="AI硬件">AI硬件</button>
+          <button class="chip" data-f="AI课程">AI课程</button>
+          <button class="chip" data-f="OPC">OPC 专区</button>
+        </div>
+        <div class="tbl-wrap">
+          <table class="ctbl">
+            <thead><tr><th>商品</th><th>分类</th><th>计费口径</th><th>楼层</th><th>上架状态</th><th>操作</th></tr></thead>
+            <tbody id="prodRows"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
+          <button class="btn pri" onclick="toast('原型演示：新增商品走商品创建流程，上架默认不参与分佣')">＋ 新增商品</button>
+          <span class="muted">新商品上架<b>默认不参与分佣</b>，需到「分佣设置」开启并设置比例后，才会出现在合伙人后台。</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 分佣设置 -->
+    <section id="view-rates">
+    <div class="vhead"><h2>分佣设置</h2><span class="desc">按商品设置市场合伙人佣金比例 · 保存后自动同步合伙人端</span></div>
+
+    <div class="metrics">
+      <div class="metric"><div class="lab">🧩 参与分佣商品</div><div class="val" id="stOn">9 <small style="font-size:13px;color:var(--sub)">/ 9</small></div></div>
+      <div class="metric hot"><div class="lab">📊 佣金比例区间</div><div class="val" id="stRange">8% – 20%</div></div>
+      <div class="metric"><div class="lab">💸 本月分佣支出（预估）</div><div class="val">¥8,642</div></div>
+      <div class="metric"><div class="lab">🤝 市场合伙人</div><div class="val">1,286</div></div>
+    </div>
+
+    <div class="card">
+      <h3>🧩 商品佣金比例 <span class="more">按商品 SKU 独立设置</span></h3>
+      <div class="toolbar">
+        <span class="lab">批量设置：</span>
+        <button class="btn line" onclick="applyCat('智能体',20)">智能体统一 20%</button>
+        <button class="btn line" onclick="applyCat('AI硬件',10)">AI硬件统一 10%</button>
+        <button class="btn line" onclick="applyCat('AI课程',15)">AI课程统一 15%</button>
+        <span class="savestate" id="saveState"></span>
+      </div>
+      <div class="tbl-wrap">
+        <table class="ctbl">
+          <thead>
+            <tr><th>商品</th><th>分类</th><th>计费口径</th><th>佣金比例</th><th>合伙人佣金（按标价折算）</th><th>参与分佣</th></tr>
+          </thead>
+          <tbody id="skuRows"></tbody>
+        </table>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
+        <button class="btn pri" onclick="saveAll()">💾 保存并同步合伙人端</button>
+        <span class="muted">保存后实时生效，合伙人后台「分佣产品」自动更新；新注册客户与历史归属客户均按新比例计佣。</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📖 口径说明</h3>
+      <ul class="rules">
+        <li><b>即时生效：</b>保存后新成交订单立即按新比例计佣；历史订单按<b>成交时点比例快照</b>结算，不追溯重算。</li>
+        <li><b>计佣基数：</b>智能体按客户<b>每次使用实际消耗的积分</b>折算人民币（10 积分 = ¥1，与商城算力同口径）计佣，客户用得越多合伙人分得越多；月度订阅与 AI 硬件 / AI 课程按实付金额计佣（表中佣金按标价折算，实际按客户实付）。</li>
+        <li><b>退款扣回：</b>客户退款对应佣金自动从合伙人账户扣回，防刷单。</li>
+        <li><b>比例上限：</b>建议单商品不超过 50%，特殊活动另行审批（演示环境未强制）。</li>
+        <li><b>不参与分佣：</b>OPC 专区商品为演示商品不参与；商品下架或关闭开关后，合伙人端自动隐藏该商品。</li>
+      </ul>
+    </div>
+
+    <div class="warnbox">⚠️ 本页为设计原型：比例修改仅作用于当前页面演示，不会写入任何环境；技术实现对接点见页面底部交接备注。</div>
+    </section>
+
+    <!-- 合伙人管理 -->
+    <section id="view-partners" hidden>
+      <div class="vhead"><h2>合伙人管理</h2><span class="desc">授权、归属与状态管理 · 一人一码 · 首触注册永久归属</span></div>
+      <div class="metrics">
+        <div class="metric"><div class="lab">🤝 合伙人总数</div><div class="val">1,286</div></div>
+        <div class="metric"><div class="lab">🟢 本月活跃</div><div class="val">892</div></div>
+        <div class="metric"><div class="lab">🧲 归属客户总数</div><div class="val">15,730</div></div>
+        <div class="metric hot"><div class="lab">📈 本月新增归属</div><div class="val">1,208</div></div>
+      </div>
+      <div class="card">
+        <h3>🤝 合伙人列表 <span class="more">演示数据 · 展示前 5 位</span></h3>
+        <div class="tbl-wrap">
+          <table class="ctbl">
+            <thead><tr><th>合伙人</th><th>推广码</th><th>归属客户</th><th>本月佣金</th><th>累计佣金</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody id="partnerRows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h3>🔑 授权与归属口径</h3>
+        <ul class="rules">
+          <li><b>一人一码：</b>每位合伙人唯一推广码（ReferralCode），平台链接与商品链接自动携带。</li>
+          <li><b>首触归属：</b>客户首次经链接注册即永久绑定（ReferralBinding），后续使用 / 购买任何商品均计佣。</li>
+          <li><b>授权管理：</b>合伙人资格经平台授权发放（MarketPartnerGrant），支持续期与回收；回收后历史归属客户沉淀平台。</li>
+          <li><b>冻结：</b>风控异常（刷单、投诉）可冻结账号，冻结期间暂停分佣结算与提现，存量佣金核查后释放。</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 合伙人申请审核 -->
+    <section id="view-applications" hidden>
+      <div class="vhead"><h2>合伙人申请</h2><span class="desc">申请落地页 / 官网表单提交的入驻申请 · 审核通过自动生成推广码并开通合伙人后台</span></div>
+      <div class="metrics">
+        <div class="metric hot"><div class="lab">⏳ 待审核</div><div class="val" id="stAppWait">2 <small style="font-size:13px;color:var(--sub)">人</small></div></div>
+        <div class="metric"><div class="lab">✅ 本月通过</div><div class="val">36 <small style="font-size:13px;color:var(--sub)">人</small></div></div>
+        <div class="metric"><div class="lab">🚫 本月拒绝</div><div class="val">11 <small style="font-size:13px;color:var(--sub)">人</small></div></div>
+        <div class="metric"><div class="lab">⌛ 平均审核时效</div><div class="val">9.5 <small style="font-size:13px;color:var(--sub)">小时</small></div></div>
+      </div>
+      <div class="chips" id="appChips">
+        <button class="chip on" data-f="all">全部</button>
+        <button class="chip" data-f="wait">⏳ 待审核</button>
+        <button class="chip" data-f="pass">✅ 已通过</button>
+        <button class="chip" data-f="reject">🚫 已拒绝</button>
+      </div>
+      <div class="card">
+        <h3>📝 入驻申请 <span class="more">待审核可直接通过 / 拒绝</span></h3>
+        <div class="tbl-wrap">
+          <table class="ctbl">
+            <thead><tr><th>申请时间</th><th>申请人</th><th>联系方式</th><th>来源</th><th>资源 / 动机</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody id="appRows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="warnbox">⚠️ 审核要点：核对申请人身份与推广资源真实性；同一手机号 / 微信重复申请需人工判断；通过后系统自动创建推广码（一人一码）并短信通知申请人登录合伙人后台；拒绝时建议填写原因并短信告知。</div>
+    </section>
+
+    <!-- 佣金流水 -->
+    <section id="view-ledger" hidden>
+      <div class="vhead"><h2>佣金流水</h2><span class="desc">PartnerCommission 平台侧全量视图 · 智能体按次消耗计佣</span></div>
+      <div class="metrics">
+        <div class="metric hot"><div class="lab">💸 本月分佣支出</div><div class="val">¥8,642</div></div>
+        <div class="metric"><div class="lab">⏳ 待结算</div><div class="val">¥1,236</div></div>
+        <div class="metric"><div class="lab">↩️ 本月退款扣回</div><div class="val">¥86.40</div></div>
+        <div class="metric"><div class="lab">🧾 本月流水笔数</div><div class="val">3,208</div></div>
+      </div>
+      <div class="card">
+        <h3>💰 分佣流水 <span class="more">T+1 结算 · 退款自动扣回</span></h3>
+        <div class="chips" id="ledgerChips" style="margin-bottom:12px">
+          <button class="chip on" data-f="all">全部</button>
+          <button class="chip" data-f="credit">⚡ 积分消耗</button>
+          <button class="chip" data-f="sub">👑 月度订阅</button>
+          <button class="chip" data-f="hw">🤖 AI硬件</button>
+          <button class="chip" data-f="course">🎓 AI课程</button>
+          <button class="chip" data-f="back">↩️ 退款扣回</button>
+        </div>
+        <div class="tbl-wrap">
+          <table class="ctbl">
+            <thead><tr><th>时间</th><th>合伙人</th><th>客户</th><th>商品</th><th>类型</th><th>计佣基数</th><th>比例</th><th>佣金</th><th>状态</th></tr></thead>
+            <tbody id="ledgerRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 提现审核 -->
+    <section id="view-payouts" hidden>
+      <div class="vhead"><h2>提现审核</h2><span class="desc">PayoutOrder 审核流 · 满 ¥100 可提 · 建议微信商家转账打款</span></div>
+      <div class="metrics">
+        <div class="metric"><div class="lab">⏳ 待审核</div><div class="val">3 <small style="font-size:13px;color:var(--sub)">笔</small></div></div>
+        <div class="metric"><div class="lab">✅ 本月已打款</div><div class="val">¥12,840</div></div>
+        <div class="metric"><div class="lab">⚡ 平均打款时效</div><div class="val">6.2 <small style="font-size:13px;color:var(--sub)">小时</small></div></div>
+        <div class="metric"><div class="lab">↩️ 本月驳回</div><div class="val">5 <small style="font-size:13px;color:var(--sub)">笔</small></div></div>
+      </div>
+      <div class="card">
+        <h3>💳 提现申请 <span class="more">待审核可直接通过 / 驳回</span></h3>
+        <div class="tbl-wrap">
+          <table class="ctbl">
+            <thead><tr><th>时间</th><th>合伙人</th><th>金额</th><th>收款方式</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody id="payoutRows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="warnbox">⚠️ 审核要点：核对归属客户消费真实性（防刷单）；收款账户实名须与合伙人一致；单笔超 ¥5,000 建议二次复核；打款通道建议微信商家转账（自动回执对账）。</div>
+    </section>
+
+    <!-- 月度结算（v0.4） -->
+    <section id="view-settle" hidden>
+      <div class="vhead"><h2>月度结算</h2><span class="desc">按月自动出账 · 合伙人确认后打款 · 月结月清</span></div>
+      <div class="metrics">
+        <div class="metric"><div class="lab">🧾 本月结算单</div><div class="val">4 <small style="font-size:13px;color:var(--sub)">份</small></div></div>
+        <div class="metric"><div class="lab">💰 本月应结总额</div><div class="val">¥5,327.40</div></div>
+        <div class="metric hot"><div class="lab">✅ 已确认待打款</div><div class="val">¥3,820.80</div></div>
+        <div class="metric"><div class="lab">💳 上月已打款</div><div class="val">¥12,840</div></div>
+      </div>
+      <div class="card">
+        <h3>🧾 结算单 <span class="more">每月 1 日自动生成上月账 · 状态：待确认 → 已确认 → 已打款</span></h3>
+        <div class="tbl-wrap">
+          <table class="ctbl">
+            <thead><tr><th>结算月</th><th>合伙人</th><th>应结佣金</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody id="settleRows"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
+          <button class="btn pri" onclick="toast('已生成 2026-08 结算单草稿（演示）：按上月 settled 佣金汇总，冻结合伙人自动暂缓')">＋ 生成上月结算单</button>
+          <button class="btn line" onclick="toast('按月导出结算单对账包（演示）：含每笔佣金明细引用，可交财务归档')">导出对账包</button>
+        </div>
+      </div>
+      <div class="warnbox">⚠️ 与「提现审核」的关系：结算单是<b>平台按月主动出账</b>（draft→合伙人后台确认→打款）；提现申请是<b>合伙人按需支取</b>。两条路都走打款审计，打款完成均回写对应佣金流水为已结清。</div>
+    </section>
+  </main>
+</div>
+
+<!-- ===== devnotes ===== -->
+<div class="devnotes">
+  <details>
+    <summary>交接备注 · 实现对接点（给技术实现方，评审时可忽略）</summary>
+    <ol>
+      <li><b>比例配置模型：</b>建议新增 <code>PartnerCommissionRate</code>（skuId、rateBp（基点，20% = 2000）、enabled、updatedBy、updatedAt）+ 操作审计表；合伙人端通过只读接口（如 <code>/api/partner/sku-rates</code>）拉取，无写权限。</li>
+      <li><b>计费对接：</b><code>apps/api/src/services/billing-cost-model.ts</code> 的 <code>splitPartnerShare()</code> 改为按 skuId 查 <code>PartnerCommissionRate</code> 取比例；<code>PartnerCommission</code> 流水记录<b>成交时点 rate 快照</b>，退款按原快照扣回。</li>
+      <li><b>同步机制：</b>保存成功后可推送（WebSocket / 轮询）刷新合伙人端「工作台 · 分佣产品」；商品下架或关闭「参与分佣」后合伙人端自动隐藏。</li>
+      <li><b>商品范围：</b>智能体（算力消费按 1 元 = 10 算力折算人民币）、AI 硬件 / AI 课程（人民币直购）；OPC 专区演示商品不参与。新商品上架默认不参与分佣，需在本页开启并设置比例。</li>
+      <li><b>关联原型：</b>合伙人端 <code>market-partner-admin-demo-20260923.html</code>（v0.3）——「分佣产品」展示各商品比例、「推广链接」支持分享平台（<code>/r/:code</code>）与单款商品（<code>/r/:code?p=:sku</code>）及团队子链接（<code>?sub=:key</code>）。</li>
+      <li><b>权限与安全：</b>本页仅平台管理员可访问；比例变更记录操作人与时间，支持按月导出对账。</li>
+      <li><b>其余模块（v0.2）：</b>数据总览 = 平台聚合视图（GMV / 分佣支出，读 WalletLedger 与 PartnerCommission 聚合，TOP 与动态为实时查询）；商品管理 = 商城商品上下架与楼层位（复用商城商品表，新增商品默认不参与分佣，需在「分佣设置」开启）；合伙人管理 = ReferralCode / ReferralBinding / MarketPartnerGrant 管理视图（一人一码、首触永久归属、授权续期回收、风控冻结）；佣金流水 = PartnerCommission 平台侧全量视图（pending→settled→withdrawable + 退款扣回负向流水）；提现审核 = PayoutOrder 审核流（待审核→打款中→已打款 / 驳回，建议微信商家转账 API 自动回执对账，超 ¥5,000 二次复核）。</li>
+      <li><b>申请审核（v0.3）：</b>合伙人入驻申请来源为申请落地页 / 官网表单；审核复用 <code>MarketPartnerGrant</code> 状态机（pending → granted / rejected），通过后系统自动创建 <code>ReferralCode</code>（一人一码）+ 发放合伙人后台权限 + 短信通知；拒绝建议记录原因并短信告知；同一手机号 / 微信重复申请做唯一性校验。</li>
+      <li><b>数据总览指标（v0.3）：</b>今日 / 本月 GMV 与今日 / 本月佣金支出读 <code>WalletLedger</code> 与 <code>PartnerCommission</code> 聚合。<b>v0.5 修订：移除算力支出统计——合伙人后台不涉及算力，算力口径只留在统一管理后台</b>；商品消耗 TOP5 改按消耗金额折算（¥）展示。</li>
+      <li><b>合伙人渠道损益（v0.4；v0.6 修订）：</b>净利润 = 收入 − 合伙人佣金，<b>佣金只发生在合伙人渠道</b>。v0.6 起<b>损益表仅列合伙人渠道</b>（<code>ReferralBinding</code> 首触绑定计佣）——短视频 / 直播 / 私域是<b>合伙人自己的三种推广方式</b>，由合伙人在其后台分渠道建链统计（<code>?ch=</code> 打标），不属于平台渠道分组；其余渠道收入零佣金成本，不再列示（已计入 GMV）。收入按实付人民币（智能体确认收入按消耗 10 算力 ≈ ¥1 折算，但本后台只展示人民币，不展示算力）。</li>
+      <li><b>月度结算（v0.4）：</b>新增 <code>MonthlySettlement</code> 模型（月份、合伙人、佣金明细引用、settledAmount、状态机 draft → confirmed → paid，冻结自动 onhold）。每月 1 日定时任务按上月 settled 佣金自动生成 draft；合伙人端「我的 · 月度结算」确认后变 confirmed；平台打款（微信商家转账，回执归档）后变 paid。与提现审核并存：结算单=主动出账，提现=按需支取，打款完成均回写佣金流水已结清。导出对账包=按月打包结算单+佣金明细，供财务归档。</li>
+    </ol>
+  </details>
+</div>
+
+<footer>思潼AI 行业智能体平台 · 平台管理后台设计原型 v0.6 · 2026-09-29 · 数据均为演示数据</footer>
+
+<div id="toast"></div>
+
+<script>
+/* ================= 演示数据（与合伙人端 SKU_RATE 口径一致） ================= */
+const SKUS = [
+  { key:'shending',    ico:'🎯', name:'沈定 · 首席定位官',  cat:'智能体', priceLabel:'每次消耗 99 积分 ≈ ¥9.9',    priceNum:9.9,   rate:20, unit:'次', on:true },
+  { key:'qinwen',      ico:'✍️', name:'秦文 · 金牌文案',    cat:'智能体', priceLabel:'每次消耗 10–15 积分 ≈ ¥1–1.5', priceNum:1.5,  rate:20, unit:'次', on:true },
+  { key:'luopan',      ico:'🎤', name:'罗盘 · 直播话术师',  cat:'智能体', priceLabel:'每次消耗 50 积分 ≈ ¥5',      priceNum:5,     rate:20, unit:'场', on:true },
+  { key:'jiangliu',    ico:'📊', name:'江流 · 流量诊断官',  cat:'智能体', priceLabel:'每次消耗 50 积分 ≈ ¥5',      priceNum:5,     rate:20, unit:'次', on:true },
+  { key:'hece',        ico:'💡', name:'何策 · 选题策略官',  cat:'智能体', priceLabel:'每次消耗 99 积分 ≈ ¥9.9',    priceNum:9.9,   rate:20, unit:'次', on:true },
+  { key:'hwrec',       ico:'🎙️', name:'AI 录音卡',         cat:'AI硬件', priceLabel:'¥199 /台',            priceNum:199,   rate:10, unit:'台', on:true },
+  { key:'hwrobot',     ico:'🤖', name:'门店 AI 机器人',     cat:'AI硬件', priceLabel:'¥1,999 /台',          priceNum:1999,  rate:8,  unit:'台', on:true },
+  { key:'courseagent', ico:'🎓', name:'智能体开发课',       cat:'AI课程', priceLabel:'¥199 /门',            priceNum:199,   rate:15, unit:'门', on:true },
+  { key:'coursewb',    ico:'📘', name:'WorkBuddy 办公提效课', cat:'AI课程', priceLabel:'¥99 /门',           priceNum:99,    rate:15, unit:'门', on:true },
+];
+
+const fmt = n => '¥' + n.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+/* ================= 渲染 ================= */
+function catPill(cat){ return cat==='智能体' ? 'agent' : (cat==='AI硬件' ? 'hw' : 'course'); }
+function renderRows(){
+  document.getElementById('skuRows').innerHTML = SKUS.map((s,i)=>`
+    <tr class="${s.on?'':'offrow'}">
+      <td><div class="sku-cell"><span class="cico ${catPill(s.cat)==='agent'?'':catPill(s.cat)}">${s.ico}</span><div><b>${s.name}</b><span>${s.key}</span></div></div></td>
+      <td><span class="pill ${catPill(s.cat)}">${s.cat}</span></td>
+      <td>${s.priceLabel}</td>
+      <td><div class="rate-cell"><input type="number" min="0" max="80" step="0.5" value="${s.rate}" ${s.on?'':'disabled'} oninput="onRate(${i},this.value)" /><i>%</i></div></td>
+      <td><span class="earn" id="earn-${i}">${fmt(Math.round(s.priceNum*s.rate)/100)}</span> <span style="font-size:10.5px;color:var(--sub)">${s.cat==='智能体' ? '/每次使用' : '/每' + s.unit + '成交'}</span></td>
+      <td><button class="tgl ${s.on?'on':''}" role="switch" aria-checked="${s.on}" onclick="onToggle(${i})" title="${s.on?'点击关闭':'点击开启'}"></button></td>
+    </tr>`).join('');
+  renderStats();
+}
+function renderStats(){
+  const on = SKUS.filter(s=>s.on);
+  document.getElementById('stOn').innerHTML = `${on.length} <small style="font-size:13px;color:var(--sub)">/ ${SKUS.length}</small>`;
+  document.getElementById('stRange').textContent = on.length ? `${Math.min(...on.map(s=>s.rate))}% – ${Math.max(...on.map(s=>s.rate))}%` : '—';
+}
+function onRate(i,v){
+  const s = SKUS[i];
+  let r = parseFloat(v);
+  if (isNaN(r)) r = 0;
+  if (r < 0) r = 0;
+  if (r > 80) r = 80;
+  s.rate = r;
+  document.getElementById('earn-'+i).textContent = fmt(Math.round(s.priceNum*s.rate)/100);
+  renderStats();
+}
+function onToggle(i){
+  const s = SKUS[i];
+  s.on = !s.on;
+  renderRows();
+  toast(s.on ? `「${s.name}」已参与分佣，合伙人端将显示该商品` : `「${s.name}」已停用分佣，合伙人端将隐藏该商品`);
+}
+function applyCat(cat, rate){
+  SKUS.forEach(s=>{ if (s.cat===cat && s.on) s.rate = rate; });
+  renderRows();
+  toast(`已将${cat}类参与分佣商品统一设为 ${rate}%（演示，尚未保存）`);
+}
+function saveAll(){
+  const bad = SKUS.filter(s=>s.on && (s.rate<=0));
+  if (bad.length){ toast('存在比例为 0 的启用商品，请调整后再保存'); return; }
+  const now = new Date();
+  const pad = x => String(x).padStart(2,'0');
+  const t = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  document.getElementById('saveState').textContent = `✓ 最近保存 ${t}`;
+  toast('已保存并同步至 1,286 位市场合伙人后台（演示）');
+}
+
+/* ================= 渠道损益 + 月度结算（v0.4；v0.6 仅列合伙人渠道） ================= */
+/* 佣金只发生在合伙人渠道（合伙人推广方式：短视频 / 直播 / 私域）；其余收入零佣金成本，不列本表（已计入 GMV） */
+const CHANNELS = [
+  { ico:'🤝', name:'合伙人渠道', rev:96420, comm:8642 }
+];
+const REV_TOTAL = CHANNELS.reduce((s,c)=>s+c.rev,0);
+document.getElementById('profitRows').innerHTML = CHANNELS.map(c=>`
+  <tr>
+    <td>${c.ico} <b>${c.name}</b></td>
+    <td><b>${fmt(c.rev)}</b></td>
+    <td>${c.comm ? fmt(c.comm) : '<span style="color:var(--sub)">—</span>'}</td>
+    <td><b>${fmt(c.rev - c.comm)}</b></td>
+    <td style="color:var(--sub)">${(c.rev/REV_TOTAL*100).toFixed(1)}%</td>
+  </tr>`).join('') + `
+  <tr>
+    <td><b>合计</b></td><td><b>${fmt(REV_TOTAL)}</b></td><td><b>${fmt(CHANNELS.reduce((s,c)=>s+c.comm,0))}</b></td>
+    <td><b style="color:var(--green)">${fmt(REV_TOTAL - CHANNELS.reduce((s,c)=>s+c.comm,0))}</b></td>
+    <td style="color:var(--sub)">100%</td>
+  </tr>`;
+
+const SETTLES = [
+  { m:'2026-08', p:'林秋水', code:'LQ8888', amt:2046.20, st:'draft' },
+  { m:'2026-08', p:'陈大力', code:'CY2266', amt:1388.40, st:'confirmed' },
+  { m:'2026-08', p:'王小美', code:'WM1024', amt:986.60,  st:'draft' },
+  { m:'2026-08', p:'赵一鸣', code:'ZM3155', amt:342.80,  st:'onhold' },
+  { m:'2026-07', p:'林秋水', code:'LQ8888', amt:2104.30, st:'paid' }
+];
+const SETTLE_ST = { draft:['wait','待确认'], confirmed:['run','已确认'], paid:['ok','已打款'], onhold:['off','暂缓（冻结）'] };
+function renderSettles(){
+  document.getElementById('settleRows').innerHTML = SETTLES.map((s,i)=>{
+    const st = SETTLE_ST[s.st];
+    const act = s.st==='draft' ? `<button class="lnk" onclick="settleAct(${i},'confirm')">确认</button>`
+      : s.st==='confirmed' ? `<button class="lnk" onclick="settleAct(${i},'paid')">标记已打款</button>`
+      : s.st==='paid' ? `<button class="lnk" onclick="toast('查看微信商家转账回执（演示）')">回执</button>` : '—';
+    return `<tr><td><b>${s.m}</b></td><td><div class="sku-cell"><span class="cico">${s.p[0]}</span><div><b>${s.p}</b><span>${s.code}</span></div></div></td><td>${fmt(s.amt)}</td><td><span class="stpill ${st[0]}">${st[1]}</span></td><td>${act}</td></tr>`;
+  }).join('');
+}
+function settleAct(i, next){
+  const s = SETTLES[i];
+  if (s.st==='draft' && next==='confirm'){ s.st='confirmed'; toast(`${s.p} ${s.m} 结算单已确认，待打款（演示）`); }
+  else if (s.st==='confirmed' && next==='paid'){ s.st='paid'; toast(`${s.p} 结算单已打款，微信商家转账回执已归档（演示）`); }
+  renderSettles();
+}
+renderSettles();
+
+/* ================= 导航（v0.2 多模块） ================= */
+const VIEWS = ['overview','products','rates','partners','applications','ledger','payouts','settle'];
+function setView(v){
+  document.querySelectorAll('.snav[data-view]').forEach(b=>b.classList.toggle('active', b.dataset.view===v));
+  VIEWS.forEach(k=>{ const el = document.getElementById('view-'+k); if (el) el.hidden = (k!==v); });
+}
+document.querySelectorAll('.snav[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
+
+/* ================= 商品管理 ================= */
+const PRODS = [
+  { ico:'🎯', name:'沈定 · 首席定位官',     key:'shending',    cat:'智能体', floor:'F1 · 数字员工',  billing:'99 积分/次',     status:'on'   },
+  { ico:'✍️', name:'秦文 · 金牌文案',       key:'qinwen',      cat:'智能体', floor:'F1 · 数字员工',  billing:'10–15 积分/次',  status:'on'   },
+  { ico:'🎤', name:'罗盘 · 直播话术师',     key:'luopan',      cat:'智能体', floor:'F1 · 数字员工',  billing:'50 积分/场',     status:'on'   },
+  { ico:'📊', name:'江流 · 流量诊断官',     key:'jiangliu',    cat:'智能体', floor:'F1 · 数字员工',  billing:'50 积分/次',     status:'on'   },
+  { ico:'💡', name:'何策 · 选题策略官',     key:'hece',        cat:'智能体', floor:'F1 · 数字员工',  billing:'99 积分/次',     status:'on'   },
+  { ico:'🎙️', name:'AI 录音卡',            key:'hwrec',       cat:'AI硬件', floor:'F3 · AI硬件',    billing:'¥199 /台',       status:'on'   },
+  { ico:'🤖', name:'门店 AI 机器人',        key:'hwrobot',     cat:'AI硬件', floor:'F3 · AI硬件',    billing:'¥1,999 /台',     status:'on'   },
+  { ico:'🎓', name:'智能体开发课',          key:'courseagent', cat:'AI课程', floor:'F4 · AI课程',    billing:'¥199 /门',       status:'on'   },
+  { ico:'📘', name:'WorkBuddy 办公提效课',  key:'coursewb',    cat:'AI课程', floor:'F4 · AI课程',    billing:'¥99 /门',        status:'on'   },
+  { ico:'🔁', name:'许复 · 直播复盘导师',   key:'live-coach',  cat:'智能体', floor:'F1 · 数字员工',  billing:'50 积分/场',     status:'prep' },
+  { ico:'🤝', name:'易成 · 首席成交官',     key:'sales-coach', cat:'智能体', floor:'F1 · 数字员工',  billing:'25 积分/次',     status:'prep' },
+  { ico:'💬', name:'周域 · 私域增长顾问',   key:'private',     cat:'智能体', floor:'F1 · 数字员工',  billing:'5 积分/条',      status:'prep' },
+  { ico:'🏬', name:'大模型折扣仓',          key:'opc-llm',     cat:'OPC',    floor:'OPC · 大客户',   billing:'50 积分/份起',   status:'on'   },
+  { ico:'🎬', name:'AIGC 漫剧创作工作台',   key:'opc-comic',   cat:'OPC',    floor:'OPC · 大客户',   billing:'人民币直购',     status:'on'   },
+];
+let prodFilter = 'all';
+function renderProducts(){
+  const list = PRODS.map((p,i)=>({p,i})).filter(x=>prodFilter==='all'||x.p.cat===prodFilter);
+  document.getElementById('prodRows').innerHTML = list.map(({p,i})=>{
+    const st = p.status==='on' ? '<span class="stpill ok">上架中</span>' : p.status==='prep' ? '<span class="stpill wait">预约中</span>' : '<span class="stpill off">已下架</span>';
+    const ops = `${p.cat==='OPC' ? '' : `<button class="lnk" onclick="setView('rates')">分佣</button>`}<button class="lnk" onclick="toast('原型演示：商品编辑表单（详情页 / 素材 / 库存）')">编辑</button>`;
+    return `<tr>
+      <td><div class="sku-cell"><span class="cico ${catPill(p.cat)==='agent'?'':catPill(p.cat)}">${p.ico}</span><div><b>${p.name}</b><span>${p.key}</span></div></div></td>
+      <td><span class="pill ${catPill(p.cat)}">${p.cat}</span></td>
+      <td>${p.billing}</td>
+      <td style="color:var(--sub)">${p.floor}</td>
+      <td><div style="display:flex;align-items:center;gap:8px">${st}<button class="tgl ${p.status==='on'?'on':''}" role="switch" aria-checked="${p.status==='on'}" onclick="prodSt(${i})"></button></div></td>
+      <td>${ops}</td>
+    </tr>`;
+  }).join('');
+}
+function prodSt(i){
+  const p = PRODS[i];
+  p.status = p.status==='on' ? 'off' : 'on';
+  renderProducts();
+  toast(p.status==='on' ? `「${p.name}」已上架${p.cat==='OPC' ? '（OPC 演示商品，不参与分佣）' : ''}` : `「${p.name}」已下架，合伙人端同步隐藏`);
+}
+document.querySelectorAll('#prodChips .chip').forEach(ch=>ch.addEventListener('click',()=>{
+  document.querySelectorAll('#prodChips .chip').forEach(x=>x.classList.remove('on'));
+  ch.classList.add('on'); prodFilter = ch.dataset.f; renderProducts();
+}));
+
+/* ================= 合伙人管理 ================= */
+const PARTNERS = [
+  { ico:'林', name:'林秋水', code:'LQ8888', ch:'短视频 / 直播 / 私域', cust:128, month:2318.60, total:18742.30, st:'ok' },
+  { ico:'陈', name:'陈大力', code:'CY2266', ch:'短视频',        cust:96, month:1502.20, total:9860.00,  st:'ok' },
+  { ico:'王', name:'王小美', code:'WM1024', ch:'私域',        cust:74, month:1120.40, total:7215.80,  st:'ok' },
+  { ico:'赵', name:'赵一鸣', code:'ZM3155', ch:'直播',        cust:41, month:386.20,  total:2035.60,  st:'frozen' },
+  { ico:'孙', name:'孙丽华', code:'SL0917', ch:'私域',        cust:29, month:254.80,  total:1284.40,  st:'ok' },
+];
+function renderPartners(){
+  document.getElementById('partnerRows').innerHTML = PARTNERS.map((p,i)=>`
+    <tr>
+      <td><div class="sku-cell"><span class="cico">${p.ico}</span><div><b>${p.name}</b><span>${p.ch}</span></div></div></td>
+      <td><code style="font-size:12px">${p.code}</code></td>
+      <td>${p.cust} 人</td>
+      <td><b style="color:var(--orange)">${fmt(p.month)}</b></td>
+      <td>${fmt(p.total)}</td>
+      <td>${p.st==='ok' ? '<span class="stpill ok">正常</span>' : '<span class="stpill off">已冻结</span>'}</td>
+      <td><button class="lnk" onclick="toast('原型演示：合伙人详情（归属客户 / 佣金流水 / 渠道统计）')">详情</button><button class="lnk ${p.st==='ok'?'danger':''}" onclick="partnerSt(${i})">${p.st==='ok'?'冻结':'解冻'}</button></td>
+    </tr>`).join('');
+}
+function partnerSt(i){
+  const p = PARTNERS[i];
+  p.st = p.st==='ok' ? 'frozen' : 'ok';
+  renderPartners();
+  toast(p.st==='frozen' ? `「${p.name}」已冻结：暂停分佣结算与提现（演示）` : `「${p.name}」已解冻，恢复结算与提现`);
+}
+
+/* ================= 佣金流水 ================= */
+const LTYPE = { credit:{lab:'⚡ 积分消耗',pill:'agent'}, sub:{lab:'👑 月度订阅',pill:'agent'}, hw:{lab:'🤖 AI硬件',pill:'hw'}, course:{lab:'🎓 AI课程',pill:'course'}, back:{lab:'↩️ 退款扣回',pill:''} };
+const LST = { wait:['wait','待结算'], ok:['ok','已入账'], draw:['run','可提现'], back:['back','已扣回'] };
+const LEDGER = [
+  { time:'09-28 11:42', p:'林秋水', c:'美**姐',   sku:'沈定 · 首席定位官',  type:'credit', base:9.90,    rate:20, comm:1.98,   st:'wait' },
+  { time:'09-28 10:18', p:'陈大力', c:'果**茶',   sku:'秦文 · 金牌文案',    type:'credit', base:1.50,    rate:20, comm:0.30,   st:'wait' },
+  { time:'09-27 22:05', p:'林秋水', c:'汽**赵',   sku:'门店 AI 机器人',     type:'hw',     base:1999.00, rate:8,  comm:159.92, st:'ok'   },
+  { time:'09-27 16:31', p:'王小美', c:'薇**美',   sku:'智能体开发课',       type:'course', base:199.00,  rate:15, comm:29.85,  st:'ok'   },
+  { time:'09-26 09:12', p:'林秋水', c:'美**姐',   sku:'罗盘 · 直播话术师',  type:'credit', base:5.00,    rate:20, comm:1.00,   st:'ok'   },
+  { time:'09-25 14:20', p:'陈大力', c:'焙**坊', sku:'月度订阅',           type:'sub',    base:99.00,   rate:20, comm:19.80,  st:'draw' },
+  { time:'09-24 11:08', p:'赵一鸣', c:'汪**傅',   sku:'沈定 · 首席定位官',  type:'back',   base:9.90,    rate:20, comm:1.98,   st:'back' },
+];
+let ledgerFilter = 'all';
+function renderLedger(){
+  const list = LEDGER.filter(l=>ledgerFilter==='all'||l.type===ledgerFilter);
+  document.getElementById('ledgerRows').innerHTML = list.map(l=>{
+    const t = LTYPE[l.type], s = LST[l.st];
+    const pill = t.pill ? `<span class="pill ${t.pill}">${t.lab}</span>` : `<span class="pill back">${t.lab}</span>`;
+    const neg = l.st==='back';
+    return `<tr>
+      <td style="color:var(--sub)">${l.time}</td>
+      <td><b>${l.p}</b></td>
+      <td style="color:var(--sub)">${l.c}</td>
+      <td>${l.sku}</td>
+      <td>${pill}</td>
+      <td>${fmt(l.base)}</td>
+      <td>${l.rate}%</td>
+      <td><b style="color:${neg?'var(--red)':'var(--green)'}">${neg?'-':''}${fmt(l.comm)}</b></td>
+      <td><span class="stpill ${s[0]}">${s[1]}</span></td>
+    </tr>`;
+  }).join('');
+}
+document.querySelectorAll('#ledgerChips .chip').forEach(ch=>ch.addEventListener('click',()=>{
+  document.querySelectorAll('#ledgerChips .chip').forEach(x=>x.classList.remove('on'));
+  ch.classList.add('on'); ledgerFilter = ch.dataset.f; renderLedger();
+}));
+
+/* ================= 提现审核 ================= */
+const PST = { wait:['wait','待审核'], run:['run','打款中'], done:['ok','已打款'], rejected:['off','已驳回'] };
+const PAYOUTS = [
+  { time:'09-28 09:15', p:'林秋水', amt:456.00,  way:'微信零钱', st:'wait' },
+  { time:'09-27 16:40', p:'王小美', amt:520.00,  way:'支付宝',   st:'wait' },
+  { time:'09-27 10:22', p:'孙丽华', amt:164.20,  way:'银行卡',   st:'wait' },
+  { time:'09-26 15:33', p:'陈大力', amt:860.00,  way:'微信零钱', st:'run'   },
+  { time:'09-25 11:05', p:'王小美', amt:996.40,  way:'微信零钱', st:'done'  },
+  { time:'09-24 09:48', p:'赵一鸣', amt:320.00,  way:'支付宝',   st:'rejected' },
+];
+function renderPayouts(){
+  document.getElementById('payoutRows').innerHTML = PAYOUTS.map((x,i)=>{
+    const s = PST[x.st];
+    const ops = x.st==='wait'
+      ? `<button class="lnk" onclick="payoutAct(${i},'pass')">通过</button><button class="lnk danger" onclick="payoutAct(${i},'reject')">驳回</button>`
+      : '<span class="muted">—</span>';
+    return `<tr>
+      <td style="color:var(--sub)">${x.time}</td>
+      <td><b>${x.p}</b></td>
+      <td><b style="color:var(--orange)">${fmt(x.amt)}</b></td>
+      <td>${x.way}</td>
+      <td><span class="stpill ${s[0]}">${s[1]}</span></td>
+      <td>${ops}</td>
+    </tr>`;
+  }).join('');
+}
+function payoutAct(i, act){
+  const x = PAYOUTS[i];
+  x.st = act==='pass' ? 'run' : 'rejected';
+  renderPayouts();
+  toast(act==='pass' ? `已通过「${x.p}」${fmt(x.amt)} 提现，进入打款队列（微信商家转账）` : `已驳回「${x.p}」提现，佣金退回可提现余额（演示）`);
+}
+
+/* ================= 合伙人申请审核 ================= */
+const AST = { wait:['wait','待审核'], pass:['ok','已通过'], reject:['off','已拒绝'] };
+const APPS = [
+  { time:'09-28 08:42', name:'周凯',   contact:'139****8821 · 微信 zk_1988',  src:'官网表单',     note:'北京数码行业 12 年，5 家 3C 门店资源，可推门店 AI 机器人', st:'wait'   },
+  { time:'09-27 21:15', name:'吴珊',   contact:'137****3350 · 微信 wushan_ls',src:'合伙人推荐',   note:'本地母婴社群群主 8 个群约 6,000 人，想推智能体开发课',     st:'wait'   },
+  { time:'09-26 14:08', name:'郑海',   contact:'135****6627 · 微信 zh_viv',   src:'抖音评论区',   note:'自称有 200 人推广团队，要求比例另议',                     st:'reject' },
+  { time:'09-25 10:31', name:'孙丽华', contact:'150****4419 · 微信 slh_2026', src:'官网表单',     note:'窗帘软装门店主，老客户 3,000+，适合异业推广',             st:'pass'   },
+  { time:'09-24 16:55', name:'马跃',   contact:'188****0924 · 微信 mayue_77', src:'申请落地页',   note:'汽修连锁 3 店主，想做客户增值服务',                       st:'pass'   },
+];
+let appFilter = 'all';
+function renderApps(){
+  const list = APPS.filter(a=>appFilter==='all'||a.st===appFilter);
+  document.getElementById('appRows').innerHTML = list.map(a=>{
+    const s = AST[a.st];
+    const ops = a.st==='wait'
+      ? `<button class="lnk" onclick="appAct(${APPS.indexOf(a)},'pass')">通过</button><button class="lnk danger" onclick="appAct(${APPS.indexOf(a)},'reject')">拒绝</button>`
+      : '<span class="muted">—</span>';
+    return `<tr>
+      <td style="color:var(--sub)">${a.time}</td>
+      <td><b>${a.name}</b></td>
+      <td style="color:var(--sub)">${a.contact}</td>
+      <td>${a.src}</td>
+      <td style="max-width:260px;color:var(--sub)">${a.note}</td>
+      <td><span class="stpill ${s[0]}">${s[1]}</span></td>
+      <td>${ops}</td>
+    </tr>`;
+  }).join('');
+  const wait = APPS.filter(a=>a.st==='wait').length;
+  document.getElementById('stAppWait').innerHTML = wait + ' <small style="font-size:13px;color:var(--sub)">人</small>';
+}
+function appAct(i, act){
+  const a = APPS[i];
+  a.st = act==='pass' ? 'pass' : 'reject';
+  renderApps();
+  toast(act==='pass' ? `已通过「${a.name}」的合伙人申请，推广码已生成并短信通知开通后台` : `已拒绝「${a.name}」的申请（演示），建议短信告知原因`);
+}
+document.querySelectorAll('#appChips .chip').forEach(ch=>ch.addEventListener('click',()=>{
+  document.querySelectorAll('#appChips .chip').forEach(x=>x.classList.remove('on'));
+  ch.classList.add('on'); appFilter = ch.dataset.f; renderApps();
+}));
+
+/* ================= init ================= */
+renderRows();
+renderProducts();
+renderPartners();
+renderApps();
+renderLedger();
+renderPayouts();
+setView('overview');
+</script>
+</body>
+</html>

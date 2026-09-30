@@ -765,6 +765,18 @@ input{font-family:inherit;color:inherit}
 .pcover-ico{display:grid;place-items:center;font-size:46px;background:linear-gradient(140deg,#FFE8D2,#FFD9B8)}
 .cimg{width:100%;height:100%;object-fit:cover;display:block}
 .pcover .scanline{position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,rgba(255,140,50,.7),transparent);animation:scanMove 4.5s linear infinite}
+/* FDE 专区（F8）：服务流程条 + 渐变封面主图 */
+.fde-flow{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-bottom:12px;padding:9px 12px;background:linear-gradient(120deg,rgba(124,92,255,.08),rgba(255,122,26,.08));border:1px dashed rgba(124,92,255,.35);border-radius:12px;font-size:11px;color:#5b4a8a;font-weight:600}
+.fde-flow i{color:#b9a8e8;font-style:normal;font-weight:400}
+.fcover{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;padding:12px 14px}
+.fc-ico{position:absolute;top:13px;left:14px;font-size:38px;line-height:1;filter:drop-shadow(0 4px 10px rgba(0,0,0,.2))}
+.fc-name{position:relative;font-size:15px;font-weight:800;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.3)}
+.fc-name::after{content:"工程师入企 · 把 AI 用进生意";display:block;font-size:9.5px;font-weight:600;opacity:.85;margin-top:3px}
+.fc-badge{position:absolute;top:10px;right:10px;font-size:9.5px;font-weight:700;color:#fff;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.45);border-radius:99px;padding:2px 8px}
+.fc-store{background:linear-gradient(140deg,#FF9A4D,#E8651A 60%,#C24E00)}
+.fc-chain{background:linear-gradient(140deg,#8F6BFF,#6A3DE8 60%,#4C22B8)}
+.fc-logi{background:linear-gradient(140deg,#5E7FA8,#3C5A80 60%,#2A4260)}
+.fde-soon .ptag{background:#EEF1F6;color:#7A8699}
 .pbody{padding:12px 14px 14px;display:flex;flex-direction:column;gap:6px;flex:1}
 .pname{font-size:14px;font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .ptag{font-size:9.5px;padding:2px 7px;border-radius:5px;color:#D96A00;background:rgba(255,140,50,.12);border:1px solid rgba(255,140,50,.35);white-space:nowrap;font-weight:600}
@@ -877,6 +889,7 @@ input{font-family:inherit;color:inherit}
     <button class="kk" style="--kk-tint:#FF5C4D" data-floor="floor-courses"><span class="kk-ico"><img data-kimg="kkCourse" alt="AI课程"></span><span>AI课程</span></button>
     <button class="kk" style="--kk-tint:#D96A00" data-floor="floor-opc"><span class="kk-ico"><svg viewBox="0 0 24 24"><rect x="4" y="7.8" width="16" height="4" rx="1"/><path d="M6 11.8V19a1.6 1.6 0 0 0 1.6 1.6h8.8A1.6 1.6 0 0 0 18 19v-7.2"/><path d="M12 7.8v12.8"/><path d="M12 7.8S7.6 8 7.6 5.6C7.6 3.8 10.5 4 12 7.8z"/><path d="M12 7.8s4.4.2 4.4-2.2C16.4 3.8 13.5 4 12 7.8z"/></svg></span><span>OPC专区</span></button>
     <button class="kk" style="--kk-tint:#E8A33D" data-floor="floor-industry"><span class="kk-ico"><img data-kimg="kkInd" alt="行业工作台"></span><span>行业工作台</span></button>
+    <button class="kk" style="--kk-tint:#7C5CFF" data-floor="floor-fde"><span class="kk-ico"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a4.2 4.2 0 0 0-5.6 5.2L3.6 17a1.7 1.7 0 0 0 2.4 2.4l5.5-5.5a4.2 4.2 0 0 0 5.2-5.6l-2.6 2.6-2.4-.6-.6-2.4 2.6-2.6z"/></svg></span><span>FDE专区</span></button>
   </nav>
 
   <!-- 今日任务 -->
@@ -1000,9 +1013,48 @@ input{font-family:inherit;color:inherit}
     </button>
   </section>
 
+  <!-- F8 FDE 专区 -->
+  <section class="floor" id="floor-fde">
+    <div class="floor-head rv"><span class="floor-no">F8</span><b class="floor-title">FDE 专区</b><span class="floor-sub">AI 落地最后一公里 · 工程师入企服务，按行业接单</span><span class="floor-live"><i></i>正在接单</span></div>
+    <div class="fde-flow rv">
+      <span>📱 留电话预约</span><i>›</i>
+      <span>☎️ 顾问回电沟通</span><i>›</i>
+      <span>📋 出方案报价</span><i>›</i>
+      <span>✅ 确认收定金</span><i>›</i>
+      <span>🛠️ 工程师入企</span><i>›</i>
+      <span>🚀 交付结款</span>
+    </div>
+    <div class="prod" id="fdeRow">
+      <div class="pcard rv pcard-link" data-fde="fde-store">
+        <div class="pcover fcover fc-store"><span class="fc-ico">🏪</span><span class="fc-name">实体门店 FDE</span><span class="fc-badge">已开放 · 正在接单</span><span class="scanline"></span></div>
+        <div class="pbody">
+          <div class="pname">实体门店 FDE<span class="ptag">单店 · 到店服务</span></div>
+          <p class="pdesc">面向实体商家（美容 / 餐饮 / 零售等单店）：AI 现状诊断 + 落地方案 + 到店带教，把 AI 真正用进日常经营。</p>
+          <div class="pfoot"><span class="pprice">¥3,000 起/店 · 按需报价</span><span class="buy-row"><button class="cart-mini">📞 免费预约</button></span></div>
+        </div>
+      </div>
+      <div class="pcard rv pcard-link" data-fde="fde-chain">
+        <div class="pcover fcover fc-chain"><span class="fc-ico">🏢</span><span class="fc-name">连锁品牌 FDE</span><span class="fc-badge">已开放 · 正在接单</span><span class="scanline"></span></div>
+        <div class="pbody">
+          <div class="pname">连锁品牌 FDE<span class="ptag">多店 · 总部+门店</span></div>
+          <p class="pdesc">面向连锁品牌 / 连锁行业：总部流程诊断 + 试点门店落地 + 方案复制推广，一套打法铺到全部门店。</p>
+          <div class="pfoot"><span class="pprice">¥20,000 起 · 按需报价</span><span class="buy-row"><button class="cart-mini">📞 免费预约</button></span></div>
+        </div>
+      </div>
+      <div class="pcard rv pcard-link fde-soon" data-fde="fde-logistics">
+        <div class="pcover fcover fc-logi"><span class="fc-ico">🚚</span><span class="fc-name">物流行业 FDE</span><span class="fc-badge">即将上线</span><span class="scanline"></span></div>
+        <div class="pbody">
+          <div class="pname">物流行业 FDE<span class="ptag">预告 · 预约排队</span></div>
+          <p class="pdesc">面向物流行业（仓储 / 配送 / 货运）：工程师团队扩招中，先留电话排队，上线后按预约顺序安排沟通。</p>
+          <div class="pfoot"><span class="pprice">价格待定 · 上线前通知</span><span class="buy-row"><button class="cart-mini">📋 预约排队</button></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <footer class="foot">
-    <b>思潼AI商城 · AI 相关的这里都有（内容获客 / 私域营销 / 咨询师 / 硬件 / 课程 / OPC / 行业工作台）demo</b><br>
-    演示数据虚构 · 智能体 0 元开通 · 按次扣算力（1 元 = 10 算力） · 单文件原型 20260925
+    <b>思潼AI商城 · AI 相关的这里都有（内容获客 / 私域营销 / 咨询师 / 硬件 / 课程 / OPC / 行业工作台 / FDE入企）demo</b><br>
+    演示数据虚构 · 智能体 0 元开通 · 按次扣算力（1 元 = 10 算力） · FDE 起步价为示意 · 单文件原型 20260925
   </footer>
 </div>
 
@@ -2218,6 +2270,13 @@ $$(".pcard").forEach(function(card){
     location.href = "agent-product-detail-demo-20260923.html?agent=" + b.getAttribute("data-cart-product") + "&v=12";
   });
 });
+/* FDE 行业卡（F8）：整卡可点 → 详情页看该行业服务详情，详情页内留电话预约 */
+$$("[data-fde]").forEach(function(card){
+  card.addEventListener("click", function(){
+    if(DEMO.on) stopDemo();
+    location.href = "agent-product-detail-demo-20260923.html?agent=" + card.getAttribute("data-fde") + "&v=13";
+  });
+});
 $$("[data-buy-dev]").forEach(function(b){
   b.addEventListener("click", function(ev){
     ev.stopPropagation();
@@ -2617,6 +2676,7 @@ var TONG_REPLIES = [
   { k:["朋友圈","私域","社群"], t:"朋友圈找「周域 · 私域增长顾问」💬\n写能直接发的朋友圈，信任、业务价值、软引导三样都顾上。", act:{ label:"⚡ 找周域写圈", type:"emp", key:"private" } },
   { k:["OPC","折扣仓","漫剧","额度"], t:"OPC 专区两个新品马上上架 📦\n「大模型折扣仓」主流大模型额度折扣直充，「AIGC 漫剧创作工作台」分镜到成片一条龙，AI 用量大的先关注。", act:{ label:"📦 去 OPC 专区看看", type:"floor", key:"#floor-opc" } },
   { k:["硬件","录音","机器人","摄像头","音箱"], t:"AI 硬件货架两个新品在筹备 🎙️\n「AI 录音卡」录音即分析，「门店 AI 机器人」迎宾接待问答，上架了我会第一时间提醒你。", act:{ label:"🎙️ 去硬件货架看看", type:"floor", key:"#floor-hardware" } },
+  { k:["FDE","入企","工程师","上门","落地服务","驻场"], t:"想让 AI 真正落进生意里，找 FDE 工程师入企服务 🛠️\n现在开放接单：实体门店 / 连锁品牌；物流行业可排队预约。流程：留电话 → 顾问回电沟通 → 方案报价 → 确认定金 → 工程师入企交付。", act:{ label:"🛠️ 去 FDE 专区看看", type:"floor", key:"#floor-fde" } },
   { k:["教学","怎么用","新手","不会","带我"], t:"教学已经升级成 5 节系统课了 🎓（认识商城 / 智能体派单 / 算力充值 / 加购订单 / 签到邀请）\n点右上角「？」进课程目录，挑想听的课听；也可以直接告诉我你的场景，我帮你派单。", act:{ label:"🎓 开始系统课", type:"course" } },
   { k:["你好","在吗","您好","hi","hello","你是谁"], t:"在的在的 🙋 我是管家小潼。\n直接说事：「今天要发内容」「刚直播完」「不知道拍什么」，我帮你派最合适的员工。" }
 ];
