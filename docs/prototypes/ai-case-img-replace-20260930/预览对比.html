@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI案例页图片替换预览 - 思潼AI</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0a1220; color:#e8ecf3; font-family:"PingFang SC","Microsoft YaHei",sans-serif; padding:32px 4vw 60px; }
+  h1 { font-size:22px; font-weight:700; margin-bottom:6px; }
+  .sub { color:#8b96a8; font-size:13px; margin-bottom:28px; line-height:1.7; }
+  .sub b { color:#F47920; font-weight:600; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(520px,1fr)); gap:24px; }
+  .card { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:14px; overflow:hidden; }
+  .card-head { padding:14px 18px 10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .key { font-family:Consolas,monospace; font-size:12px; color:#0a1220; background:#F47920; padding:2px 8px; border-radius:5px; font-weight:600; }
+  .name { font-size:14px; font-weight:600; }
+  .tagline { font-size:12px; color:#8b96a8; width:100%; }
+  .pair { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:0 18px 18px; }
+  .cell { border-radius:9px; overflow:hidden; border:1px solid rgba(255,255,255,0.09); }
+  .cell.new { border-color:rgba(244,121,32,0.55); }
+  .cell img { width:100%; height:160px; object-fit:cover; display:block; }
+  .tag { font-size:11px; padding:4px 10px; display:block; text-align:center; letter-spacing:1px; }
+  .tag.old { background:rgba(255,255,255,0.06); color:#8b96a8; }
+  .tag.new { background:rgba(244,121,32,0.18); color:#F79B52; font-weight:600; }
+  .note { margin-top:30px; background:rgba(244,121,32,0.08); border:1px solid rgba(244,121,32,0.3); border-radius:12px; padding:16px 20px; font-size:13px; line-height:1.9; color:#c9d2e0; }
+  .note b { color:#F47920; }
+</style>
+</head>
+<body>
+  <h1>AI案例页图片替换预览（思潼AI · /agents?tab=cases）</h1>
+  <p class="sub">共 <b>12 张</b>案例封面替换 · 线上原图 /mall/case0~11.jpg（640×360 扁平插画）→ 新图统一「深蓝底 + 橙色光 + 玻璃质感」960×640</p>
+  <div class="grid" id="grid"></div>
+  <div class="note">
+    <b>交接说明（确认后打包给周凯上架）：</b><br>
+    1. 线上图位于站点静态目录 <span style="font-family:Consolas,monospace">/mall/case0.jpg ~ case11.jpg</span>，前端 <span style="font-family:Consolas,monospace">EcoMallHomePage</span> 分包里 cover 字段按文件名引用，<b>只需同名替换服务器上的 12 个 jpg 文件，无需改代码</b>。<br>
+    2. 新图 960×640 JPG（69~148KB），原图 640×360（26~34KB），总体积增加约 1MB，可接受；如需更小可再压。<br>
+    3. 图右下角「AI生成」水印为平台自动添加（AIGC 合规标识）。<br>
+    4. 替换后浏览器强刷（Ctrl+F5）验证 12 张卡片。
+  </div>
+<script>
+const items = [
+  { key:"case0",  name:"法律服务 · IP 定位",   d:"律师用 AI 定位 IP，3 个月案源咨询 +80%" },
+  { key:"case1",  name:"宠物门店 · 团购文案",  d:"宠物店让 AI 写团购文案，核销单 +210%" },
+  { key:"case2",  name:"知识付费 · 视频复盘",  d:"知识博主 AI 复盘 30 条视频，爆款率 8%→23%" },
+  { key:"case3",  name:"服装门店 · 直播",      d:"服装店用 AI 逐字稿开播，场均 GMV +34%" },
+  { key:"case4",  name:"连锁门店 · 巡店管理",  d:"连锁门店 AI 录音卡巡店，督查覆盖 30%→100%" },
+  { key:"case5",  name:"企业财务 · 效率工具",  d:"财务学了智能体课，自建报销审核智能体，人效 ×3" },
+  { key:"case6",  name:"美业门店 · 经营大脑",  d:"美容院上线 AI 经营大脑，到店转化 21%→34%" },
+  { key:"case7",  name:"MCN · 内容量产",       d:"MCN 用折扣 API 批量产漫剧脚本，单集成本 2000→180" },
+  { key:"case8",  name:"烘焙门店 · 私域复购",  d:"烘焙店 AI 排朋友圈内容，老客月回流 21→63 人" },
+  { key:"case9",  name:"健身房 · 成交训练",    d:"健身房用 AI 模拟成交训练，新人首单周期 45→26 天" },
+  { key:"case10", name:"连锁前台 · 智能接待",  d:"连锁茶饮前台换 AI 机器人，接待响应 0 延迟" },
+  { key:"case11", name:"美业门店 · 短视频起号", d:"美业小店靠「AI 每天出选题」，45 天 0→1.2 万粉" },
+];
+document.getElementById('grid').innerHTML = items.map(it => `
+  <div class="card">
+    <div class="card-head"><span class="key">${it.key}</span><span class="name">${it.name}</span><span class="tagline">${it.d}</span></div>
+    <div class="pair">
+      <div class="cell"><img src="old/${it.key}.jpg" alt=""><span class="tag old">替换前</span></div>
+      <div class="cell new"><img src="new/${it.key}.jpg" alt=""><span class="tag new">替换后</span></div>
+    </div>
+  </div>`).join('');
+</script>
+</body>
+</html>
