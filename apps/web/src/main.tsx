@@ -152,7 +152,6 @@ const TopicDetailPage = lazy(() => import("./marketplace/TopicDetailPage.js").th
 const LiverevDetailPage = lazy(() => import("./marketplace/ComingSoonDetails.js").then(module => ({ default: module.LiverevDetailPage })));
 const SalesDetailPage = lazy(() => import("./marketplace/ComingSoonDetails.js").then(module => ({ default: module.SalesDetailPage })));
 const MomentsDetailPage = lazy(() => import("./marketplace/ComingSoonDetails.js").then(module => ({ default: module.MomentsDetailPage })));
-const RechargePage = lazy(() => import("./pages/RechargePage.js").then(module => ({ default: module.RechargePage })));
 const ProductDetailPage = lazy(() => import("./marketplace/ProductDetailPage.js").then(module => ({ default: module.ProductDetailPage })));
 
 type AppStage = "login" | "diagnosis" | "main";
@@ -626,7 +625,15 @@ function Root() {
   }
 
   if (path.startsWith("/recharge")) {
-    return <RechargePage />;
+    /*
+     * 2026-09-30（用户）：旧版充值整页退役——统一进商城新版充值抽屉。
+     * 保留 query（尤其 `next`：工作台算力不足跳来充值、到账后要能回去继续生成）。
+     */
+    const params = new URLSearchParams(window.location.search);
+    params.delete("from");
+    params.set("recharge", "1");
+    window.location.replace(getAppPath(`/agents?${params.toString()}`));
+    return null;
   }
 
   /*

@@ -640,7 +640,7 @@ export function MarketplaceAgentChatPage({
               `（本次**未消耗算力**；你填的 ${slots.length} 项已经存在本机，充值回来点「继续生成」即可，**不用重填**。）`,
             action: {
               label: "去充值（回来不用重填）",
-              href: getAppPath(`/recharge?from=agent&skill=${encodeURIComponent(runSku.skuCode)}&next=${encodeURIComponent(nextRoute)}`)
+              href: getAppPath(`/agents?recharge=1&skill=${encodeURIComponent(runSku.skuCode)}&next=${encodeURIComponent(nextRoute)}`)
             }
           }
         ]);
@@ -928,7 +928,7 @@ export function MarketplaceAgentChatPage({
               `（本次**不消耗算力**；充完回来点「开通包月」即可，你填的内容还在。）`,
             action: {
               label: "去充值（回来接着订阅）",
-              href: getAppPath(`/recharge?from=agent&skill=${encodeURIComponent(runSku.skuCode)}&next=${encodeURIComponent(nextRoute)}`)
+              href: getAppPath(`/agents?recharge=1&skill=${encodeURIComponent(runSku.skuCode)}&next=${encodeURIComponent(nextRoute)}`)
             }
           }
         ]);

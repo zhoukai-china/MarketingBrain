@@ -298,21 +298,84 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [skuId]);
 
-  // 定时器只在真正卸载时清理（不能放进带依赖的 effect cleanup：StrictMode 会误清引导定时器）
-  useEffect(() => () => {
-    timersRef.current.forEach((t) => { window.clearTimeout(t); window.clearInterval(t); });
-  }, []);
-
   useEffect(() => {
     const el = logRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, optsQ, confirmOpts]);
 
-  // 进页即开始访谈；不加 ref 守卫（StrictMode 模拟卸载会清定时器，须重跑收敛）
+  /*
+   * 进页：有草稿就**恢复整个对话**（聊天记录 + 简报 + 进度，2026-09-30 用户要求），
+   * 没有才从头开始访谈。restoreDraft 幂等（StrictMode 双跑不产生重复消息）。
+   */
   useEffect(() => {
-    resetAll(true);
+    if (!restoreDraft()) resetAll(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 定时器只在真正卸载时清理（不能放进带依赖的 effect cleanup：StrictMode 会误清引导定时器）
+  useEffect(() => () => {
+    timersRef.current.forEach((t) => { window.clearTimeout(t); window.clearInterval(t); });
+  }, []);
+
+  /** 对话草稿的 localStorage 键：按 skuId 隔离，换智能体不串台本。 */
+  const DRAFT_KEY = `ippos_chat_draft_${skuId}`;
+
+  /** 访谈进行中实时落草稿；生成中不落（正式结果另有 payload 本机找回）。 */
+  useEffect(() => {
+    if (phase === "gen") return;
+    // 空对话不落盘：StrictMode 双跑时挂载初期的空 state 会先于恢复生效，
+    // 若此时覆盖写，会把刚读到的真草稿清成空、导致下一次启动恢复失败（实测踩中）。
+    if (messages.length === 0) return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        v: 1,
+        phase, qi, optsQ, confirmOpts,
+        brief,
+        // 「正在消化」占位不落盘：恢复时不能出现一条永远转圈的假消息
+        messages: messages.filter((m) => !m.pending),
+        genCandidates
+      }));
+    } catch { /* 存储满等异常忽略：草稿是尽力而为 */ }
+  }, [DRAFT_KEY, phase, qi, optsQ, confirmOpts, brief, messages, genCandidates]);
+
+  /**
+   * 恢复上次对话（2026-09-30 用户：输入到一半关掉页面，下次进来接着聊）。
+   * 返回是否恢复成功。幂等：同一次挂载里 StrictMode 双跑结果一致、不重复追加。
+   */
+  function restoreDraft(): boolean {
+    let d: {
+      phase?: string; qi?: number; optsQ?: number | null; confirmOpts?: boolean;
+      brief?: Record<string, string>;
+      messages?: ChatMsg[];
+      genCandidates?: { q: number; list: string[] } | null;
+    } | null = null;
+    try {
+      const raw = localStorage.getItem(`ippos_chat_draft_${skuId}`);
+      if (raw) d = JSON.parse(raw);
+    } catch { d = null; }
+    if (!d || !Array.isArray(d.messages)) return false;
+    const msgs = d.messages.filter((m): m is ChatMsg => Boolean(m) && typeof m.id === "number" && typeof m.who === "string" && !m.pending);
+    if (msgs.length === 0) return false;
+    const maxId = msgs.reduce((acc, m) => Math.max(acc, m.id), 0);
+    const brief0 = d.brief ?? {};
+    // 「done」不恢复成交付态（交付物另有 payload 找回），落到确认态让用户改简报重生成
+    const wasGen = d.phase === "gen" || d.phase === "done";
+    const qi0 = Math.min(Math.max(0, Number(d.qi) || 0), QFLOW.length - 1);
+    msgIdRef.current = maxId + 1;
+    setMessages([...msgs, { id: maxId + 1, who: "ai", html: "↩️ 已恢复上次的对话，接着答就行；右侧简报也原样保留。" }]);
+    setBrief(brief0); briefRef.current = brief0;
+    setQi(qi0);
+    if (!wasGen && d.phase === "ask") {
+      setPhase("ask");
+      setOptsQ(Math.min(Math.max(0, Number(d.optsQ) || qi0), QFLOW.length - 1));
+    } else {
+      setPhase("confirm"); setConfirmOpts(true); setOptsQ(null);
+    }
+    if (d.genCandidates && d.genCandidates.q === qi0 && Array.isArray(d.genCandidates.list)) {
+      setGenCandidates(d.genCandidates);
+    }
+    return true;
+  }
 
   function setPayloadView(p: IpPosPayload | null, answer: string | null, consumed0: number | null, isRestored: boolean) {
     setPieces(buildPieces(p, answer ?? ""));
@@ -333,6 +396,8 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     setLogLines([]); setLogIdx(0); setGenIdx(-1); setGenFinished(false);
     setRunSettled(false); setLogDone(false); runResultRef.current = null;
     setPieces([]); setAnswerMd(""); setConsumed(null); setRestored(false); setTab("all");
+    // 用户主动重置 = 丢弃对话草稿，下次从头开始
+    try { localStorage.removeItem(`ippos_chat_draft_${skuId}`); } catch { /* ignore */ }
     if (greet) {
       pushMsg("ai", `你好，我是<b>沈定</b>，首席定位官 🎯<br>IP 定位我不给你拍脑袋——先用 <b>6 步访谈</b>把信息收齐：<b>一次只问一个维度</b>，你的回答会自动填进右侧「定位简报」。8 项齐了，我出 <b>速览 + 8 章全案</b>（${IP_POS_PRICE} ${IP_POS_UNIT} / 份）。赶时间点下方「AI 先铺底稿，你来逐条确认」。`);
       later(() => askQuestion(0), 600);
@@ -581,7 +646,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
         setError(`${data.message ?? "当前算力不足，请先充值后再使用。"}（本次未消耗算力） 请前往充值页后回来，简报已在本页保留。`);
         setPhase("confirm"); setConfirmOpts(true);
         window.setTimeout(() => {
-          window.location.href = getAppPath(`/recharge?from=agent&skill=${encodeURIComponent(skuId)}&next=${encodeURIComponent(nextRoute)}`);
+          window.location.href = getAppPath(`/agents?recharge=1&skill=${encodeURIComponent(skuId)}&next=${encodeURIComponent(nextRoute)}`);
         }, 400);
         return;
       }

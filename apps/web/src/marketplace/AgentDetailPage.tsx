@@ -147,7 +147,7 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
         );
         setRechargeHref(
           getAppPath(
-            `/recharge?from=agent&skill=${encodeURIComponent(runSku.skuCode)}`
+            `/agents?recharge=1&skill=${encodeURIComponent(runSku.skuCode)}`
             + `&next=${encodeURIComponent(`${getAppRoutePath(window.location.pathname)}${window.location.search}`)}`
           )
         );

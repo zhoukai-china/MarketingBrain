@@ -360,7 +360,7 @@ export function VidrevWorkbench({ skuId }: { skuId: string }) {
         setError(`${data.message ?? "当前算力不足，请先充值后再使用。"}（本次未消耗算力） 请前往充值页后回来，体检结果已在本页保留。`);
         setPhase("confirm");
         window.setTimeout(() => {
-          window.location.href = getAppPath(`/recharge?from=agent&skill=${encodeURIComponent(skuId)}&next=${encodeURIComponent(nextRoute)}`);
+          window.location.href = getAppPath(`/agents?recharge=1&skill=${encodeURIComponent(skuId)}&next=${encodeURIComponent(nextRoute)}`);
         }, 400);
         return;
       }

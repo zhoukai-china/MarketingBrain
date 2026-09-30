@@ -145,7 +145,7 @@ export function Topbar({ active, balance, onNavigate }: { active: string; balanc
           <a className={`nav-link ${active === "market" ? "active" : ""}`} onClick={() => onNavigate("/agents")}>商城</a>
           {/* 2026-09-16：用户要求「常用智能体」做成独立列表页（只列自己用过的智能体），不再是「我的」的锚点。 */}
           <a className={`nav-link ${active === "my-agents" ? "active" : ""}`} onClick={() => onNavigate("/my-agents")}>常用</a>
-          <a className={`nav-link ${active === "recharge" ? "active" : ""}`} onClick={() => onNavigate("/recharge")}>算力充值</a>
+          <a className={`nav-link ${active === "recharge" ? "active" : ""}`} onClick={() => onNavigate("/agents?recharge=1")}>算力充值</a>
           {/*
            * 2026-09-16（用户）：「我的」要做到一级导航栏、放在「算力充值」后面。
            * 页面本身就是「我的」（余额 / 常用智能体 / 历史交付物 / 算力退回 / 邀请链接），
@@ -160,7 +160,7 @@ export function Topbar({ active, balance, onNavigate }: { active: string; balanc
           <span className="tt-ico">{theme === "light" ? "☀️" : "🌙"}</span>
           <span>{theme === "light" ? "浅色" : "深色"}</span>
         </button>
-        <div className="wallet-pill" onClick={() => (balance === null ? guestToLogin("/agents") : onNavigate("/recharge"))} title="算力余额 · 点击充值">
+        <div className="wallet-pill" onClick={() => (balance === null ? guestToLogin("/agents") : onNavigate("/agents?recharge=1"))} title="算力余额 · 点击充值">
           {balance === null ? "🔒 未登录 · 点击登录" : <>⚡ <b>{fmtCredits(balance)}</b> 算力 <span className="wp-tag">全平台通用</span></>}
         </div>
         {loggedIn ? (
@@ -169,7 +169,7 @@ export function Topbar({ active, balance, onNavigate }: { active: string; balanc
       </header>
       {/* 算力余额预警（HANDOFF §2.6：余额低于 50 算力时预警提示；2026-09-28 D 线接入） */}
       {balance != null && balance < 50
-        ? <div className="shared-banner warn">⚠️ 算力余额不足 50（当前 {balance}）· 使用前建议先充值，<b style={{ cursor: "pointer" }} onClick={() => onNavigate("/recharge")}>去充值 ›</b></div>
+        ? <div className="shared-banner warn">⚠️ 算力余额不足 50（当前 {balance}）· 使用前建议先充值，<b style={{ cursor: "pointer" }} onClick={() => onNavigate("/agents?recharge=1")}>去充值 ›</b></div>
         : <div className="shared-banner">⚡ <b>算力全平台通用</b> · 数字员工、数字咨询师与各行业专区共用同一份算力</div>}
     </>
   );

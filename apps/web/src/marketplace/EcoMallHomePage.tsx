@@ -422,6 +422,24 @@ export function EcoMallHomePage() {
   useEffect(() => {
     try { setLocalAccountName(localStorage.getItem("store_os_tenant_name") ?? ""); } catch { setLocalAccountName(""); }
   }, []);
+
+  /**
+   * 充值直达入口（2026-09-30 用户）：`/agents?recharge=1&next=<回跳路径>`。
+   * 工作台算力不足时不再跳旧版 /recharge 整页，改来这里开充值抽屉；带 next 时
+   * 到账后抽屉里出现「返回继续生成」按钮（用户自己决定何时回去）。
+   */
+  const [resumeAfterPaid, setResumeAfterPaid] = useState<string | null>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("recharge") !== "1") return;
+    const next = params.get("next");
+    if (next) setResumeAfterPaid(next);
+    setShowRecharge(true);
+    // 用完即清（replaceState 不留历史）：刷新页面不再莫名弹抽屉
+    params.delete("recharge"); params.delete("next");
+    const qs = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash);
+  }, []);
   /** CTA 文案是否已知：未知就先不显示文字（保留按钮位置），避免「先错后对」的闪烁。 */
   const ctaReady = meActivated !== null || !mountedWithToken.current;
   /** 服务端确认过的开通态统一入口：同时更新缓存，下次首帧直接用。 */
@@ -1758,6 +1776,7 @@ export function EcoMallHomePage() {
       <RechargeDrawer
         open={showRecharge}
         onClose={() => setShowRecharge(false)}
+        resumeHref={resumeAfterPaid ? getAppPath(resumeAfterPaid) : undefined}
         onPaid={() => {
           void fetchMarketMe<{ creditBalance: number; activated?: boolean; gift?: { amount: number; expiresAt: string | null; scope: string } | null }>()
             .then((d) => {

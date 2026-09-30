@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { getAppPath } from "../lib/api.js";
 import { packOff, packPts, useRechargeFlow } from "../lib/use-recharge-flow.js";
 import { IconAuto } from "./IconGlyph.js";
@@ -10,12 +11,17 @@ import { useScrollLock } from "../lib/use-scroll-lock.js";
  * 支付逻辑与 /recharge 完全一致——两者消费同一个 `useRechargeFlow` hook，
  * 这里只做「样式和布局」：桌面右侧滑入 440px，手机端全屏；左侧导航与顶栏保持不动。
  * 完整页 /recharge 保留为兜底入口（头部有「在完整页面打开」）。
+ *
+ * 2026-09-30（用户）：从工作台算力不足跳进来时带 `resumeHref`——到账后显示
+ * 「返回继续生成」按钮，用户自己决定何时回去（不自动跳，方便先看一眼余额）。
  */
-export function RechargeDrawer({ open, onClose, onPaid }: { open: boolean; onClose: () => void; onPaid?: () => void }) {
+export function RechargeDrawer({ open, onClose, onPaid, resumeHref }: { open: boolean; onClose: () => void; onPaid?: () => void; resumeHref?: string }) {
+  const [paidDone, setPaidDone] = useState(false);
   const flow = useRechargeFlow({
     onPaid: () => {
       // 通知全站顶栏/侧栏刷新余额（MallTopbar 监听该事件）。
       window.dispatchEvent(new CustomEvent("sitong:balance-changed"));
+      setPaidDone(true);
       onPaid?.();
     }
   });
@@ -43,6 +49,11 @@ export function RechargeDrawer({ open, onClose, onPaid }: { open: boolean; onClo
         </div>
 
         <div className="eh-rd-body">
+          {resumeHref && paidDone ? (
+            <button type="button" className="btn-orange" style={{ width: "100%", marginBottom: 10 }} onClick={() => { window.location.href = resumeHref; }}>
+              ✓ 算力已到账 · 返回继续生成 →
+            </button>
+          ) : null}
           {flow.token ? (
             <>
               {wallet ? (
@@ -141,7 +152,7 @@ export function RechargeDrawer({ open, onClose, onPaid }: { open: boolean; onClo
                 className="btn-orange"
                 style={{ width: "100%" }}
                 onClick={() => {
-                  localStorage.setItem("store_os_post_login_redirect", getAppPath("/recharge"));
+                  localStorage.setItem("store_os_post_login_redirect", getAppPath("/agents?recharge=1"));
                   window.location.href = getAppPath("/login");
                 }}
               >去登录</button>
