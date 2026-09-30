@@ -95,6 +95,15 @@ const PIECES: Array<{ no: string; g: string; gt: string; icon: string; title: st
   { no: "⑨", g: "exec", gt: "执行区", icon: "🗓️", title: "全场节奏表", d: "0→120 连续覆盖 · 20 分钟一浪" },
   { no: "⑩", g: "exec", gt: "执行区", icon: "🛠️", title: "场控清单", d: "开播前 / 直播中 / 下播后 + 合规提醒" }
 ];
+/** C 端（带货/本地生活/知识付费）的 ④⑤⑥：skill 场景隔离规则要求这几件不讲招商/盈利模型。 */
+const PIECES_C: Array<{ no: string; g: string; gt: string; icon: string; title: string; d: string }> = PIECES.map((p) => ({ ...p }));
+PIECES_C[3] = { no: "④", g: "script", gt: "脚本区", icon: "🧴", title: "产品塑品", d: "FABE 讲品 · 特点-优势-利益-证据" };
+PIECES_C[4] = { no: "⑤", g: "script", gt: "脚本区", icon: "💰", title: "价格与机制", d: "开团价 / 限购 / 核销 · 讲清楚不玩虚" };
+PIECES_C[5] = { no: "⑥", g: "script", gt: "脚本区", icon: "🛡️", title: "信任背书", d: "实体 / 资质 / 真实体验 · 不承诺结果" };
+/** 按场次类型取对应十件套：招商加盟走 B 端件（系统实演示/怎么赚钱/总部扶持），带货与知识付费走 C 端件。 */
+function activePieces(mode?: string) {
+  return mode === "招商加盟" ? PIECES : PIECES_C;
+}
 const GROUP_COLOR: Record<string, string> = { plan: "#E8651A", script: "#2563eb", hook: "#b26a00", exec: "#7c3aed" };
 const GROUP_SOFT: Record<string, string> = { plan: "#fdeee2", script: "#e8effd", hook: "#fff4e0", exec: "#f1eafd" };
 /** 轻量模式唯一交付卡（原型 LIGHT_PIECE）。 */
@@ -449,7 +458,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
     setAnswerMd(""); setConsumed(null);
 
     // 日志（原型同款）；末行 ✅ 由后端真实返回揭晓——结果没回来前进度 <100%
-    const list = depthRef.current === "light" ? [LIGHT_PIECE] : PIECES;
+    const list = depthRef.current === "light" ? [LIGHT_PIECE] : activePieces(briefRef.current.mode);
     const ordered: string[] = [
       "→ 读取开播简报与场次参数 …",
       "→ 加载直播脚本 skill（live_script_planner V3.1）",
@@ -624,7 +633,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
     <>完成引导后可生成 · 一口价 <b>{skuPpu ?? "—"} 算力</b>/次（校验不过 / 失败不扣费）</>;
   const gpTotal = logLines.length || 1;
   const gpPct = Math.round(Math.min(logIdx, gpTotal) / gpTotal * 100);
-  const pieceList = depthRef.current === "light" ? [LIGHT_PIECE] : PIECES;
+  const pieceList = depthRef.current === "light" ? [LIGHT_PIECE] : activePieces(briefRef.current.mode);
 
   return (
     <main className="cpw-page">
@@ -796,7 +805,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
                       <>
                         <div className="cpw-ph-note">🧩 交付结构预览 · 确认简报后点「✨ 生成脚本包」<span className="cpw-tag">{depthRef.current === "full" ? "整场十件套" : "轻量单段"}</span></div>
                         <div className="cpw-ph-grid">
-                          {(depthRef.current === "light" ? [LIGHT_PIECE] : PIECES).map((p) => (
+                          {(depthRef.current === "light" ? [LIGHT_PIECE] : activePieces(briefRef.current.mode)).map((p) => (
                             <div key={p.no} className="cpw-ph locked">
                               <div className="cpw-no" style={{ color: GROUP_COLOR[p.g], background: GROUP_SOFT[p.g] }}>{p.no} · {p.gt}</div>
                               <b><IconAuto v={p.icon} /> {p.title}</b>
