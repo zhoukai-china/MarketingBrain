@@ -251,6 +251,16 @@ function readInitialMallView(): MallView {
   return (MALL_VIEWS as readonly string[]).includes(tab ?? "") ? (tab as MallView) : "home";
 }
 
+/**
+ * 新客礼（0 元开通送的 100 算力）的有效期天数。
+ *
+ * 必须与后端 `apps/api/src/services/sitong-wallet.ts` 的 `SIGNUP_GIFT_VALIDITY_DAYS`
+ * 保持一致——**新客礼是 30 天，不跟签到 / 邀请的 90 天共用**（用户 2026-09-30 明确）。
+ * 这里只是「领取前」的展示兜底；领取后的实际天数以 `/market/activate` 返回的
+ * `gift.validDays` 为准（见 activateGift.validDays）。
+ */
+const SIGNUP_GIFT_VALID_DAYS = 30;
+
 export function EcoMallHomePage() {
   const [query, setQuery] = useState("");
   const [activeFloor, setActiveFloor] = useState<FloorId>("floor-acquire");
@@ -389,7 +399,7 @@ export function EcoMallHomePage() {
   // 「免费开通」注册礼：弹层状态 + 后端返回的礼包 + 从 /market/me 读的已开通态。
   const [showActivate, setShowActivate] = useState(false);
   const [activateStep, setActivateStep] = useState<"form" | "success">("form");
-  const [activateGift, setActivateGift] = useState<{ amount: number; expiresAt: string | null; scope: string } | null>(null);
+  const [activateGift, setActivateGift] = useState<{ amount: number; expiresAt: string | null; scope: string; validDays?: number } | null>(null);
   /**
    * 已开通态：初值取本地缓存（首帧文案就是对的），服务端回来后以服务端为准。
    * 已登录但还没有缓存时，CTA 先留空占位、拿到真实态再淡入——不再有文案闪变。
@@ -2200,7 +2210,7 @@ export function EcoMallHomePage() {
                 <h3><IconGlyph name="gift" size={18} style={{ display: "inline", verticalAlign: "-3px" }} /> 0 元开通 · 立送 100 算力</h3>
                 <p className="eco-modal-sub">不收开通费、无月费，每次使用按目录价扣算力；注册礼直接进你的算力钱包。</p>
                 <div className="eco-act-benefits">
-                  <div><IconGlyph name="gift" size={13} style={{ display: "inline", verticalAlign: "-2px" }} /> 100 算力 · 赠送性质 · 90 天有效</div>
+                  <div><IconGlyph name="gift" size={13} style={{ display: "inline", verticalAlign: "-2px" }} /> 100 算力 · 赠送性质 · {SIGNUP_GIFT_VALID_DAYS} 天有效</div>
                   <div><IconGlyph name="pack" size={13} style={{ display: "inline", verticalAlign: "-2px" }} /> 限文字类任务（视频生成不可用）</div>
                   <div><IconGlyph name="shield" size={13} style={{ display: "inline", verticalAlign: "-2px" }} /> 用后扣费 · 失败不扣费</div>
                 </div>
@@ -2210,7 +2220,7 @@ export function EcoMallHomePage() {
             ) : (
               <>
                 <div className="eco-act-ok">✅ 100 算力已到账</div>
-                <p className="eco-modal-sub">赠送算力 · 有效期至 <b>{fmtGiftDate(activateGift?.expiresAt ?? null)}</b>（90 天）· 到期前 3 天提醒</p>
+                <p className="eco-modal-sub">赠送算力 · 有效期至 <b>{fmtGiftDate(activateGift?.expiresAt ?? null)}</b>（{activateGift?.validDays ?? SIGNUP_GIFT_VALID_DAYS} 天）· 到期前 3 天提醒</p>
                 <button type="button" className="eco-modal-btn" onClick={() => { setShowActivate(false); window.location.href = getAppPath("/agents"); }}>去用第一个智能体 ›</button>
                 <button type="button" className="eco-modal-btn eco-ghost-btn" onClick={() => setShowActivate(false)}>先逛逛</button>
               </>
@@ -2236,7 +2246,7 @@ export function EcoMallHomePage() {
               <div className="eco-help-item"><b><IconGlyph name="tag" size={13} className="eco-help-ic" /> 0 元开通 · 用后扣费</b><span>智能体不收月费、不用不花钱；点了「立即使用」并成功交付后才扣算力。</span></div>
               <div className="eco-help-item"><b><IconGlyph name="pack" size={13} className="eco-help-ic" /> 交付才扣</b><span>东西做好、你在交付区看到结果了才扣算力，中途退出不算你头上。</span></div>
               <div className="eco-help-item"><b><IconGlyph name="shield" size={13} className="eco-help-ic" /> 失败不扣费</b><span>任务失败 / 超时不扣算力，余额原路不动。</span></div>
-              <div className="eco-help-item"><b><IconGlyph name="gift" size={13} className="eco-help-ic" /> 赠送算力</b><span>注册 / 签到 / 邀请送的算力 90 天有效、限自营文字类智能体；充值所得（含赠送）通用不限。</span></div>
+              <div className="eco-help-item"><b><IconGlyph name="gift" size={13} className="eco-help-ic" /> 赠送算力</b><span>新客礼（0 元开通送的 100 算力）{SIGNUP_GIFT_VALID_DAYS} 天有效；签到 / 邀请送的 90 天有效。赠送算力限自营文字类智能体；充值所得（含赠送）通用不限。</span></div>
             </div>
             <div className="eco-help-note">还有疑问？点左上角头像随时问小潼。</div>
           </div>
