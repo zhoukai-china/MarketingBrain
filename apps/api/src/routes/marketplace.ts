@@ -92,6 +92,7 @@ import {
   listReferralCodesOfOwner
 } from "../services/referral-attribution.js";
 import { issueSelfReferralLink, listMyInvitees, readSelfReferralLink } from "../services/referral-self-service.js";
+import { listMyOrders } from "../services/my-orders.js";
 import {
   consumeWalletCredits,
   getOrCreateWallet,
@@ -99,7 +100,8 @@ import {
   buildRechargeUrl,
   grantSignupWalletCreditsInTx,
   giftBonusExpiry,
-  SIGNUP_GIFT_VALIDITY_DAYS
+  SIGNUP_GIFT_VALIDITY_DAYS,
+  SIGNUP_GIFT_SOURCES
 } from "../services/sitong-wallet.js";
 import { loadSigninStatus, performSignin } from "../services/daily-signin.js";
 import { maybeGrantReferralReward } from "../services/referral-rewards.js";
@@ -1305,26 +1307,38 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
      * 只返回**当前登录人自己**、且**还在 7 天留存期内**的交付物（租户 + 用户双重过滤）；
      * 每次读取顺手清掉过期行，避免这 7 天留存无限增长。
      */
-    market.get<{ Querystring: { skuCode?: string } }>("/me/deliverables", async (request, reply) => {
+    market.get<{ Querystring: { skuCode?: string; page?: string; pageSize?: string } }>("/me/deliverables", async (request, reply) => {
       const context = await resolveRequestContext(request.headers);
-      if (context.source !== "database") return { deliverables: [] };
+      if (context.source !== "database") return { retentionDays: DELIVERABLE_RETENTION_DAYS, page: 1, pageSize: 10, total: 0, totalPages: 1, deliverables: [] };
       await prisma.marketplaceDeliverable
         .deleteMany({ where: { expiresAt: { lt: new Date() } } })
         .catch(() => {});
       const skuCode = (request.query?.skuCode ?? "").trim();
-      const rows = await prisma.marketplaceDeliverable.findMany({
-        where: {
-          tenantId: context.tenantId,
-          userId: context.userId,
-          ...(skuCode ? { skuCode } : {}),
-          expiresAt: { gt: new Date() }
-        },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-        select: { id: true, skuCode: true, skuName: true, input: true, answer: true, credits: true, createdAt: true, expiresAt: true }
-      });
+      // 2026-09-30 用户：历史交付物改右侧抽屉 + 分页（原来写死 take 5，多的看不到）。
+      const page = Math.max(1, Math.trunc(Number(request.query.page ?? 1)) || 1);
+      const pageSize = Math.min(50, Math.max(1, Math.trunc(Number(request.query.pageSize ?? 10)) || 10));
+      const where = {
+        tenantId: context.tenantId,
+        userId: context.userId,
+        ...(skuCode ? { skuCode } : {}),
+        expiresAt: { gt: new Date() }
+      };
+      const [total, rows] = await Promise.all([
+        prisma.marketplaceDeliverable.count({ where }),
+        prisma.marketplaceDeliverable.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+          select: { id: true, skuCode: true, skuName: true, input: true, answer: true, credits: true, createdAt: true, expiresAt: true }
+        })
+      ]);
       return {
         retentionDays: DELIVERABLE_RETENTION_DAYS,
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
         deliverables: rows.map((row) => ({
           id: row.id,
           skuCode: row.skuCode,
@@ -1341,10 +1355,12 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
     market.get("/me", async (request, reply) => {
       const context = await resolveRequestContext(request.headers);
       const wallet = context.source === "database" ? await readWallet(context.userId) : { balance: await getCreditBalance(context) };
-      // 「免费开通」注册礼状态：钱包流水里有没有 source=signup_gift 这一笔（幂等依据）。
+      // 「免费开通」注册礼状态：钱包流水里有没有新客礼（幂等依据）。
+      // 2026-09-30 起 source 有两个（signup=建工作区 / signup_gift=免费开通），
+      // 二者是同一个权益，去重按并集——否则「已建工作区的用户」会被判成未开通，再点一次就送两份。
       const signupGift = context.source === "database"
         ? await prisma.walletLedger.findFirst({
-            where: { userId: context.userId, source: "signup_gift" },
+            where: { userId: context.userId, source: { in: [...SIGNUP_GIFT_SOURCES] } },
             select: { delta: true, expiresAt: true },
             orderBy: { createdAt: "desc" }
           })
@@ -1377,8 +1393,9 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
       }
       const userId = context.userId;
 
+      // 幂等依据与 /me 同口径：两个新客礼 source 任一存在即算已开通（2026-09-30 去重）。
       const existing = await prisma.walletLedger.findFirst({
-        where: { userId, source: "signup_gift" },
+        where: { userId, source: { in: [...SIGNUP_GIFT_SOURCES] } },
         select: { delta: true, expiresAt: true },
         orderBy: { createdAt: "desc" }
       });
@@ -1743,14 +1760,42 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
      * 「被邀请的客户」列表（2026-09-30 用户：邀请有礼要能看到被邀请的客户列表）。
      * 身份只取服务端验签会话；姓名 / 手机号一律打码后返回。
      */
-    market.get<{ Querystring: { limit?: string } }>("/me/referrals", async (request, reply) => {
+    market.get<{ Querystring: { limit?: string; page?: string; pageSize?: string } }>("/me/referrals", async (request, reply) => {
       let context;
       try {
         context = await resolveRequestContext(request.headers);
       } catch {
         return reply.code(401).send({ error: "login_required", message: "请先登录后再查看邀请记录。" });
       }
-      return await listMyInvitees(context.userId, Number(request.query.limit ?? 50));
+      return await listMyInvitees(context.userId, {
+        page: Number(request.query.page ?? 1),
+        pageSize: Number(request.query.pageSize ?? request.query.limit ?? 8)
+      });
+    });
+
+    /**
+     * 「我的 · 全部订单」（2026-09-30 用户：右侧抽屉 + 分页，充值也算订单，要有订单详情）。
+     * 三个真源合并：RechargeOrder（充值）/ MarketplaceSubscriptionOrder（商品）/ ProductBooking（预约留资，按手机号归拢）。
+     * 详情随列表一起返回（都是小文本），抽屉内展开即可，不用二次请求。
+     */
+    market.get<{ Querystring: { page?: string; pageSize?: string } }>("/me/orders", async (request, reply) => {
+      let context;
+      try {
+        context = await resolveRequestContext(request.headers);
+      } catch {
+        return reply.code(401).send({ error: "login_required", message: "请先登录后再查看订单。" });
+      }
+      if (context.source !== "database" || !context.userId) {
+        return { page: 1, pageSize: 10, total: 0, totalPages: 1, orders: [] };
+      }
+      const phone = context.userId
+        ? (await prisma.user.findUnique({ where: { id: context.userId }, select: { phone: true } }))?.phone ?? null
+        : null;
+      return await listMyOrders(context.userId, {
+        page: Number(request.query.page ?? 1),
+        pageSize: Number(request.query.pageSize ?? 10),
+        phone
+      });
     });
 
     market.post("/ppu/consume", async (request, reply) => {

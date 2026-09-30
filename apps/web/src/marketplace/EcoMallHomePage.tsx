@@ -4,9 +4,10 @@ import { MallTopbar } from "./MallTopbar.js";
 import { IconGlyph } from "./IconGlyph.js";
 import { RechargeDrawer } from "./RechargeDrawer.js";
 import { BookingModal } from "./BookingModal.js";
+import { DrawerPager, useIsMobile } from "./DrawerPager.js";
 import { fmtCredits } from "../lib/fmt.js";
 import { useScrollLock } from "../lib/use-scroll-lock.js";
-import { fetchMarketMe, readJson, authHeaders, guestToLogin } from "./shell.js";
+import { fetchMarketMe, readJson, authHeaders, guestToLogin, handleStaleSession } from "./shell.js";
 import { clearStoredSession } from "../lib/session.js";
 import { loginPathWithPendingReferral } from "../lib/pending-referral.js";
 import { employeePersonaLabel } from "./employee-names.js";
@@ -278,12 +279,71 @@ export function EcoMallHomePage() {
   interface InviteesView {
     total: number;
     creditsEarned: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
     invitees: InviteeItem[];
   }
   const [inviteLink, setInviteLink] = useState<ReferralLinkView | null>(null);
   const [invitees, setInvitees] = useState<InviteesView | null>(null);
+  /** 被邀请客户行（手机端翻页流 append / PC 整页替换），同算力明细一套交互。 */
+  const [inviteeItems, setInviteeItems] = useState<InviteeItem[]>([]);
+  const [inviteePage, setInviteePage] = useState(1);
+  const INVITEE_PAGE_SIZE = 8;
   const [inviteBusy, setInviteBusy] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
+
+  /* ---- 全部订单 / 历史交付物 / 关联应用：统一右侧抽屉 + 分页（2026-09-30 用户） ---- */
+  interface OrderDetailView { label: string; value: string }
+  interface OrderItemView {
+    id: string;
+    kind: "recharge" | "subscription" | "booking";
+    kindLabel: string;
+    orderNo: string;
+    title: string;
+    amountCny: number | null;
+    credits: number | null;
+    status: string;
+    statusLabel: string;
+    createdAt: string;
+    paidAt: string | null;
+    detail: OrderDetailView[];
+  }
+  interface OrdersView { page: number; pageSize: number; total: number; totalPages: number; orders: OrderItemView[] }
+  const ORDERS_PAGE_SIZE = 10;
+  const [showOrders, setShowOrders] = useState(false);
+  const [orders, setOrders] = useState<OrdersView | null>(null);
+  const [orderItems, setOrderItems] = useState<OrderItemView[]>([]);
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [ordersBusy, setOrdersBusy] = useState(false);
+  /** 展开详情的订单 id（手风琴，同抽屉内看详情不跳页）。 */
+  const [openOrderId, setOpenOrderId] = useState<string | null>(null);
+
+  interface DelivItemView { id: string; skuName?: string | null; answer: string; credits: number; createdAt: string; expiresAt: string }
+  interface DelivView { page: number; pageSize: number; total: number; totalPages: number }
+  const DELIV_PAGE_SIZE = 8;
+  const [showDeliv, setShowDeliv] = useState(false);
+  const [deliv, setDeliv] = useState<DelivView | null>(null);
+  const [delivItems, setDelivItems] = useState<DelivItemView[]>([]);
+  const [delivPage, setDelivPage] = useState(1);
+  const [delivBusy, setDelivBusy] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  /* 关联应用（原「我的」页得到大脑逻辑平移：凭证测试通过后才能保存生效）。 */
+  const APPS_PAGE_SIZE = 10;
+  const [showApps, setShowApps] = useState(false);
+  const [appsConns, setAppsConns] = useState<Array<{ id: string; provider: string; status: string; label?: string | null }>>([]);
+  const [appsView, setAppsView] = useState<{ page: number; pageSize: number; total: number; totalPages: number } | null>(null);
+  const [appsPage, setAppsPage] = useState(1);
+  const [appsBusy, setAppsBusy] = useState(false);
+  const [gnStatus, setGnStatus] = useState<string | null>(null);
+  const [gnApiKey, setGnApiKey] = useState("");
+  const [gnClientId, setGnClientId] = useState("");
+  const [gnTesting, setGnTesting] = useState(false);
+  const [gnTestedOk, setGnTestedOk] = useState(false);
+  const [gnSaving, setGnSaving] = useState(false);
+  const [gnMsg, setGnMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const gnConnected = gnStatus === "active";
 
   /** 签到状态视图（后端 /market/signin 返回，与 daily-signin.ts 对齐）。 */
   interface SigninDayView {
@@ -350,7 +410,10 @@ export function EcoMallHomePage() {
     category: string;
   }
   interface LedgerView {
-    wallet: { paid: number; bonus: number };
+    /* 后端 /credits/ledger 返回的是 WalletSnapshot 原字段（paidBalance/bonusBalance），
+       2026-09-30 修正：之前错读 wallet.paid → 恒为 undefined → 抽屉顶部「实付余额 0」，
+       用户充值到账后仍显示 0 的假象即源于此。 */
+    wallet: { paidBalance: number; bonusBalance: number; balance: number };
     entries: LedgerEntryView[];
     page: number;
     pageSize: number;
@@ -364,8 +427,11 @@ export function EcoMallHomePage() {
     expiredBonus: number;
   }
   const LEDGER_PAGE_SIZE = 8;
+  const isMobile = useIsMobile();
   const [showLedger, setShowLedger] = useState(false);
   const [ledger, setLedger] = useState<LedgerView | null>(null);
+  /** 明细行（手机端翻页流：滚动到底 append 下一页；PC 端整页替换）。 */
+  const [ledgerEntries, setLedgerEntries] = useState<LedgerEntryView[]>([]);
   const [ledgerPage, setLedgerPage] = useState(1);
   const [ledgerCategory, setLedgerCategory] = useState("all");
   /** 输入框即时值 → 300ms 防抖后进 `ledgerQuery` 再请求（打字不刷屏）。 */
@@ -375,7 +441,7 @@ export function EcoMallHomePage() {
   const [ledgerError, setLedgerError] = useState<string | null>(null);
 
   // 2026-09-29（用户）：任何弹窗打开后，背景固定、不可滚动。
-  useScrollLock(Boolean(showRecharge || booking || openCase || openConsultant || showSignIn || showInvite || showDict || showActivate || showLedger));
+  useScrollLock(Boolean(showRecharge || booking || openCase || openConsultant || showSignIn || showInvite || showDict || showActivate || showLedger || showOrders || showDeliv || showApps));
 
   /** 读签到状态（不写库）；未登录收口到登录页，回来后重开弹层。 */
   async function loadSignin(): Promise<void> {
@@ -439,7 +505,8 @@ export function EcoMallHomePage() {
   async function loadLedger(
     page = ledgerPage,
     category = ledgerCategory,
-    keyword = ledgerQuery
+    keyword = ledgerQuery,
+    append = false
   ): Promise<void> {
     setLedgerBusy(true);
     setLedgerError(null);
@@ -460,7 +527,11 @@ export function EcoMallHomePage() {
         setLedgerError("明细加载失败，请稍后重试");
         return;
       }
-      setLedger(await res.json());
+      const view = (await res.json()) as LedgerView;
+      setLedger(view);
+      // 手机端翻页流：下一页 append 到已看列表后面；PC/换页/换分类整页替换。
+      setLedgerEntries((prev) => (append ? [...prev, ...view.entries] : view.entries));
+      setLedgerPage(Math.max(1, view.page));
     } catch {
       setLedgerError("网络异常，请稍后重试");
     } finally {
@@ -468,26 +539,44 @@ export function EcoMallHomePage() {
     }
   }
 
-  /** 读「邀请有礼」数据：海报（链接/码/二维码）+ 被邀请客户列表（打码）。 */
+  /** 读一页「被邀请的客户」（打码列表，分页交互同算力明细）。 */
+  async function loadInviteePage(page: number, append: boolean): Promise<void> {
+    const params = new URLSearchParams({ page: String(Math.max(1, page)), pageSize: String(INVITEE_PAGE_SIZE) });
+    const res = await fetch(apiPath(`/market/me/referrals?${params.toString()}`), { headers: authHeaders(), cache: "no-store" });
+    if (res.status === 401) {
+      try { localStorage.setItem("store_os_open_invite_after_login", "1"); } catch { /* ignore */ }
+      guestToLogin("/agents");
+      return;
+    }
+    if (!res.ok) return;
+    const view = (await res.json()) as InviteesView;
+    setInvitees(view);
+    setInviteeItems((prev) => (append ? [...prev, ...view.invitees] : view.invitees));
+    setInviteePage(Math.max(1, view.page));
+  }
+
+  /** 读「邀请有礼」数据：海报（链接/码/二维码）+ 被邀请客户列表（打码、分页）。 */
   async function loadInvite(): Promise<void> {
     setInviteBusy(true);
     setInviteError(null);
     try {
-      const [linkRes, listRes] = await Promise.all([
-        fetch(apiPath("/market/me/referral-link"), { headers: authHeaders(), cache: "no-store" }),
-        fetch(apiPath("/market/me/referrals?limit=100"), { headers: authHeaders(), cache: "no-store" })
-      ]);
-      if (linkRes.status === 401 || listRes.status === 401) {
+      const linkRes = await fetch(apiPath("/market/me/referral-link"), { headers: authHeaders(), cache: "no-store" });
+      if (linkRes.status === 401) {
         try { localStorage.setItem("store_os_open_invite_after_login", "1"); } catch { /* ignore */ }
         guestToLogin("/agents");
         return;
       }
-      if (!linkRes.ok || !listRes.ok) {
+      if (!linkRes.ok) {
         setInviteError("邀请信息加载失败，请稍后重试");
         return;
       }
-      setInviteLink((await linkRes.json()) as ReferralLinkView);
-      setInvitees((await listRes.json()) as InviteesView);
+      const linkView = (await linkRes.json()) as ReferralLinkView;
+      setInviteLink(linkView);
+      await loadInviteePage(1, false);
+      // 2026-09-30：抽屉里海报/邀请码/链接不能空着——万一账号还没有可回显的自助码，自动签一条。
+      if (linkView.state === "none" || !linkView.link) {
+        await createInviteLink(false);
+      }
     } catch {
       setInviteError("网络异常，请稍后重试");
     } finally {
@@ -495,15 +584,15 @@ export function EcoMallHomePage() {
     }
   }
 
-  /** 生成（或重新生成）我的邀请链接：明文链接 / 码 / 二维码只在签发这次返回。 */
-  async function createInviteLink(): Promise<void> {
+  /** 生成（或换新）我的邀请链接：明文/二维码已由后端持久化，随时可回显。 */
+  async function createInviteLink(regenerate: boolean): Promise<void> {
     setInviteBusy(true);
     setInviteError(null);
     try {
       const res = await fetch(apiPath("/market/me/referral-link"), {
         method: "POST",
         headers: authHeaders(true),
-        body: JSON.stringify({ regenerate: true })
+        body: JSON.stringify({ regenerate })
       });
       if (res.status === 401) {
         try { localStorage.setItem("store_os_open_invite_after_login", "1"); } catch { /* ignore */ }
@@ -528,6 +617,103 @@ export function EcoMallHomePage() {
       () => meNote(okMsg),
       () => meNote("复制失败，请长按手动选择")
     );
+  }
+
+  /* ---- 全部订单：充值 / 商品 / 预约登记合一，分页交互与算力明细一致 ---- */
+  async function loadOrderPage(page: number, append: boolean): Promise<void> {
+    setOrdersBusy(true);
+    try {
+      const params = new URLSearchParams({ page: String(Math.max(1, page)), pageSize: String(ORDERS_PAGE_SIZE) });
+      const res = await fetch(apiPath(`/market/me/orders?${params.toString()}`), { headers: authHeaders(), cache: "no-store" });
+      if (res.status === 401) {
+        try { localStorage.setItem("store_os_open_orders_after_login", "1"); } catch { /* ignore */ }
+        guestToLogin("/agents");
+        return;
+      }
+      if (!res.ok) return;
+      const view = (await res.json()) as OrdersView;
+      setOrders(view);
+      setOrderItems((prev) => (append ? [...prev, ...view.orders] : view.orders));
+      setOrdersPage(Math.max(1, view.page));
+    } catch { /* 抽屉里给空态，不额外打扰 */ }
+    finally { setOrdersBusy(false); }
+  }
+
+  /* ---- 历史交付物（原「我的」页逻辑平移：服务端留 7 天，可导出 Word） ---- */
+  async function loadDelivPage(page: number, append: boolean): Promise<void> {
+    setDelivBusy(true);
+    try {
+      const params = new URLSearchParams({ page: String(Math.max(1, page)), pageSize: String(DELIV_PAGE_SIZE) });
+      const res = await fetch(apiPath(`/market/me/deliverables?${params.toString()}`), { headers: authHeaders(), cache: "no-store" });
+      if (res.status === 401) {
+        try { localStorage.setItem("store_os_open_deliv_after_login", "1"); } catch { /* ignore */ }
+        guestToLogin("/agents");
+        return;
+      }
+      if (!res.ok) return;
+      const view = (await res.json()) as { page: number; total: number; totalPages: number; deliverables: DelivItemView[] };
+      setDeliv({ page: view.page, pageSize: DELIV_PAGE_SIZE, total: view.total, totalPages: view.totalPages });
+      setDelivItems((prev) => (append ? [...prev, ...view.deliverables] : view.deliverables));
+      setDelivPage(Math.max(1, view.page));
+    } catch { /* 同上 */ }
+    finally { setDelivBusy(false); }
+  }
+
+  /** 下载交付物 Word（与 MinePage 同一口径：会话失效/欠费/被拒分开讲人话）。 */
+  async function downloadDeliverable(item: { id: string; answer: string; skuName?: string | null }): Promise<void> {
+    setDownloadingId(item.id);
+    try {
+      const response = await fetch(apiPath("/exports/docx"), {
+        method: "POST",
+        headers: authHeaders(true),
+        body: JSON.stringify({ title: `历史交付物-${item.skuName ?? "AI员工"}`, content: item.answer })
+      });
+      const data = (await response.json().catch(() => ({}))) as { downloadUrl?: string; message?: string; required?: number; balance?: number };
+      if (handleStaleSession(response.status)) {
+        window.alert("登录状态已失效，请重新登录后再下载；本次不消耗算力。");
+        return;
+      }
+      if (response.status === 402) {
+        window.alert(`算力不足，本次导出需 ${data.required ?? "若干"} 算力（当前余额 ${data.balance ?? 0}），请先充值。`);
+        return;
+      }
+      if (response.status === 415) {
+        window.alert("下载请求被服务端拒绝，请刷新页面后重试；本次不消耗算力。");
+        return;
+      }
+      if (!response.ok || !data.downloadUrl) throw new Error(data.message ?? "导出失败，请稍后重试。");
+      window.location.assign(apiPath(data.downloadUrl));
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "导出失败，请稍后重试。");
+    } finally {
+      setDownloadingId(null);
+    }
+  }
+
+  /* ---- 关联应用：连接列表（分页）+ 得到大脑配置（先测试连接，通过后才能保存生效） ---- */
+  async function loadAppsPage(page: number, append: boolean): Promise<void> {
+    setAppsBusy(true);
+    try {
+      const params = new URLSearchParams({ page: String(Math.max(1, page)), pageSize: String(APPS_PAGE_SIZE) });
+      const res = await fetch(apiPath(`/knowledge-base/connections?${params.toString()}`), { headers: authHeaders(), cache: "no-store" });
+      if (res.status === 401) {
+        try { localStorage.setItem("store_os_open_apps_after_login", "1"); } catch { /* ignore */ }
+        guestToLogin("/agents");
+        return;
+      }
+      if (!res.ok) return;
+      const view = (await res.json()) as {
+        connections: Array<{ id: string; provider: string; status: string; label?: string | null }>;
+        page?: number; total?: number; totalPages?: number;
+      };
+      const conns = view.connections ?? [];
+      setAppsView({ page: view.page ?? 1, pageSize: APPS_PAGE_SIZE, total: view.total ?? conns.length, totalPages: view.totalPages ?? 1 });
+      setAppsConns((prev) => (append ? [...prev, ...conns] : conns));
+      setAppsPage(Math.max(1, view.page ?? 1));
+      const gn = conns.find((item) => item.provider === "getnote");
+      if (gn && !append) setGnStatus(gn.status);
+    } catch { /* 抽屉里给空态 */ }
+    finally { setAppsBusy(false); }
   }
 
   function fmtInviteDate(iso: string): string {
@@ -703,20 +889,61 @@ export function EcoMallHomePage() {
     return () => window.clearTimeout(timer);
   }, [ledgerInput]);
 
-  /* 抽屉打开 / 翻页 / 切分类 / 改关键词 → 拉明细（带搜索词时多等一下防抖）。 */
+  /* 抽屉打开 / 切分类 / 改关键词 → 整页重拉第 1 页（翻页由按钮/滚动流直接调 loadLedger，不走这里）。 */
   useEffect(() => {
     if (!showLedger) return;
     const timer = window.setTimeout(
-      () => void loadLedger(ledgerPage, ledgerCategory, ledgerQuery),
+      () => void loadLedger(1, ledgerCategory, ledgerQuery, false),
       ledgerQuery ? 280 : 0
     );
     return () => window.clearTimeout(timer);
-  }, [showLedger, ledgerPage, ledgerCategory, ledgerQuery]);
+  }, [showLedger, ledgerCategory, ledgerQuery]);
 
-  /* 打开「邀请有礼」抽屉时拉一次数据（海报 + 客户列表）。 */
+  /* 打开「邀请有礼」抽屉时拉一次数据（海报 + 客户列表）；重开先清列表避免闪旧数据。 */
   useEffect(() => {
-    if (showInvite) void loadInvite();
+    if (showInvite) {
+      setInviteeItems([]);
+      void loadInvite();
+    }
   }, [showInvite]);
+
+  /* 打开 订单 / 交付物 / 关联应用 抽屉 → 重置到第 1 页整页拉取（翻页由按钮/滚动流直接调 loader）。 */
+  useEffect(() => {
+    if (showOrders) {
+      setOrderItems([]);
+      setOpenOrderId(null);
+      void loadOrderPage(1, false);
+    }
+  }, [showOrders]);
+  useEffect(() => {
+    if (showDeliv) {
+      setDelivItems([]);
+      void loadDelivPage(1, false);
+    }
+  }, [showDeliv]);
+  useEffect(() => {
+    if (showApps) {
+      setAppsConns([]);
+      void loadAppsPage(1, false);
+    }
+  }, [showApps]);
+
+  /* 登录回来自动重开抽屉（与签到/明细同一套约定）。 */
+  useEffect(() => {
+    try {
+      const flags: Array<[string, () => void]> = [
+        ["store_os_open_orders_after_login", () => setShowOrders(true)],
+        ["store_os_open_deliv_after_login", () => setShowDeliv(true)],
+        ["store_os_open_apps_after_login", () => setShowApps(true)]
+      ];
+      for (const [key, open] of flags) {
+        if (localStorage.getItem(key) === "1" && localStorage.getItem("store_os_token")) {
+          localStorage.removeItem(key);
+          open();
+        }
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   /* 货架价目表：/market/skus 的 ppu（算力/次），商品卡和详情弹窗都从这取真实价格。 */
   useEffect(() => {
@@ -1216,8 +1443,10 @@ export function EcoMallHomePage() {
                 <button className="mini-btn" type="button" onClick={() => setShowRecharge(true)}>充值</button>
               </div>
             </div>
-            <div className="me-sec-head"><b>全部订单</b><span>0 笔</span></div>
-            <div className="me-orders"><div className="me-order-empty">暂无订单</div></div>
+            <button type="button" className="me-sec-head me-sec-link" onClick={() => { setShowOrders(true); }}>
+              <b>全部订单</b>
+              <span>充值 · 商品 · 预约 · 查看详情 ›</span>
+            </button>
             <div className="me-list">
               <button type="button" className="me-item" onClick={() => setShowDict(true)}>
                 <span className="mi-ico"><IconGlyph name="help" size={15} /></span>
@@ -1237,6 +1466,16 @@ export function EcoMallHomePage() {
               <button type="button" className="me-item" onClick={() => { setLedgerPage(1); setShowLedger(true); }}>
                 <span className="mi-ico"><IconGlyph name="clipboard" size={15} /></span>
                 <span className="mi-txt">算力明细<small>充值 · 赠送 · 消耗逐笔可查</small></span>
+                <span className="mi-go">›</span>
+              </button>
+              <button type="button" className="me-item" onClick={() => setShowDeliv(true)}>
+                <span className="mi-ico"><IconGlyph name="book" size={15} /></span>
+                <span className="mi-txt">历史交付物<small>服务端保留 7 天 · 随时导出 Word</small></span>
+                <span className="mi-go">›</span>
+              </button>
+              <button type="button" className="me-item" onClick={() => setShowApps(true)}>
+                <span className="mi-ico"><IconGlyph name="shield" size={15} /></span>
+                <span className="mi-txt">关联应用<small>得到大脑 · 私有知识源接入</small></span>
                 <span className="mi-go">›</span>
               </button>
               <button type="button" className="me-item" onClick={() => handleMineLogout()}>
@@ -1501,6 +1740,9 @@ export function EcoMallHomePage() {
               }
             })
             .catch(() => setBalance(null));
+          // 2026-09-30 用户：支付到账后，开着 的「算力明细」必须立刻重拉——
+          // 否则抽屉顶部还是支付前的「实付余额 0」，新充值那一笔也不出现（假象：钱没到）。
+          if (showLedger) void loadLedger(ledgerPage, ledgerCategory, ledgerQuery);
         }}
       />
       {booking ? (
@@ -1610,7 +1852,7 @@ export function EcoMallHomePage() {
               <div className="eh-rd-balance">
                 <div>
                   <div style={{ fontSize: 11, color: "#94796B" }}>实付余额</div>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: "#E86A00" }}>⚡ {fmtCredits(ledger?.wallet.paid ?? 0)}</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: "#E86A00" }}>⚡ {fmtCredits(ledger?.wallet.paidBalance ?? 0)}</div>
                   <div style={{ fontSize: 11, color: "#BEA488" }}>
                     赠送可用 {fmtCredits(ledger?.usableBonus ?? 0)}
                     {ledger && ledger.expiredBonus > 0 ? ` · 已过期 ${fmtCredits(ledger.expiredBonus)}` : ""}
@@ -1646,15 +1888,15 @@ export function EcoMallHomePage() {
                 })}
               </div>
 
-              {ledgerBusy ? (
+              {ledgerBusy && ledgerEntries.length === 0 ? (
                 <div className="eh-rd-loading">加载中…</div>
               ) : ledgerError ? (
                 <div className="eh-rd-loading eco-err">{ledgerError}</div>
-              ) : (ledger?.entries.length ?? 0) === 0 ? (
+              ) : ledgerEntries.length === 0 ? (
                 <div className="eh-led-empty">暂无明细 · 开通或充值后这里会自动记录</div>
               ) : (
                 <ul className="eh-led-list">
-                  {(ledger?.entries ?? []).map((e) => (
+                  {ledgerEntries.map((e) => (
                     <li key={e.id} className={"eh-led-row dir-" + e.direction}>
                       <div className="lr-main">
                         <span className="lr-label">{e.label}</span>
@@ -1676,23 +1918,17 @@ export function EcoMallHomePage() {
                 </ul>
               )}
 
-              {ledger && ledger.totalPages > 1 ? (
-                <div className="eh-led-pager">
-                  <button
-                    type="button"
-                    className="eh-led-page"
-                    disabled={ledgerPage <= 1}
-                    onClick={() => setLedgerPage((p) => Math.max(1, p - 1))}
-                  >← 上一页</button>
-                  <span className="eh-led-page-info">第 {ledgerPage} / {ledger.totalPages} 页 · 共 {ledger.total} 笔</span>
-                  <button
-                    type="button"
-                    className="eh-led-page"
-                    disabled={ledgerPage >= ledger.totalPages}
-                    onClick={() => setLedgerPage((p) => Math.min(ledger.totalPages, p + 1))}
-                  >下一页 →</button>
-                </div>
-              ) : null}
+              <DrawerPager
+                isMobile={isMobile}
+                page={ledgerPage}
+                totalPages={ledger?.totalPages ?? 1}
+                total={ledger?.total ?? 0}
+                unit="笔"
+                busy={ledgerBusy}
+                onPrev={() => void loadLedger(ledgerPage - 1, ledgerCategory, ledgerQuery, false)}
+                onNext={() => void loadLedger(ledgerPage + 1, ledgerCategory, ledgerQuery, false)}
+                onLoadMore={() => void loadLedger(ledgerPage + 1, ledgerCategory, ledgerQuery, true)}
+              />
             </div>
           </aside>
         </div>
@@ -1714,15 +1950,19 @@ export function EcoMallHomePage() {
             </div>
             <div className="eh-rd-body eh-inv-body">
               {inviteBusy && !inviteLink ? (
-                <div className="eh-rd-loading">加载中…</div>
-              ) : inviteError ? (
+                <div className="eh-rd-loading">正在生成专属海报…</div>
+              ) : inviteError && !inviteLink ? (
                 <div className="eh-rd-loading eco-err">{inviteError}</div>
               ) : (
                 <>
-                  {/* ---------- 海报 + 二维码 ---------- */}
-                  <div className="eh-inv-poster">
+                  {/* ---------- 国庆主题海报 + 二维码（2026-09-30 用户：邀请要有海报，国庆主题） ---------- */}
+                  <div className="eh-inv-poster national">
+                    <div className="eh-inv-flag" aria-hidden="true">
+                      <i /><i /><i /><i /><i />
+                      <span className="eh-inv-flag-t">10·1 国庆限定</span>
+                    </div>
                     <div className="eh-inv-poster-top">
-                      <b>思潼 AI 商城</b>
+                      <b>思潼 AI 商城 · 国庆有礼</b>
                       <span>智能体 · 数字员工 · AI 硬件，0 元开通</span>
                     </div>
                     <div className="eh-inv-poster-reward">
@@ -1733,17 +1973,21 @@ export function EcoMallHomePage() {
                       {inviteLink?.qrSvg ? (
                         <div className="eh-inv-qr-img" dangerouslySetInnerHTML={{ __html: inviteLink.qrSvg }} />
                       ) : (
-                        <div className="eh-inv-qr-ph">{inviteLink?.codePreview ? `邀请码 ${inviteLink.codePreview}` : "专属二维码生成中"}</div>
+                        <div className="eh-inv-qr-ph">{inviteBusy ? "专属二维码生成中…" : "暂未生成 · 稍后自动重试"}</div>
                       )}
                     </div>
-                    <div className="eh-inv-poster-foot">扫码或打开链接 · 好友开通各得 100 算力</div>
+                    <div className="eh-inv-poster-foot">
+                      {inviteLink?.campaignActive === false
+                        ? "扫码或打开链接 · 邀请奖励将在活动开启后自动生效"
+                        : "扫码或打开链接 · 好友开通各得 100 算力"}
+                    </div>
                   </div>
 
                   {/* ---------- 邀请码 / 链接 ---------- */}
                   <div className="eh-inv-rows">
                     <div className="eh-inv-fld">
                       <span className="eh-inv-fld-l">邀请码</span>
-                      <code className="eh-inv-fld-v">{inviteLink?.codePreview ?? "—"}</code>
+                      <code className="eh-inv-fld-v">{inviteLink?.code ?? inviteLink?.codePreview ?? "—"}</code>
                       <button
                         type="button"
                         className="eh-inv-copy"
@@ -1752,7 +1996,7 @@ export function EcoMallHomePage() {
                     </div>
                     <div className="eh-inv-fld">
                       <span className="eh-inv-fld-l">邀请链接</span>
-                      <code className="eh-inv-fld-v eh-inv-link">{inviteLink?.link ?? "（点下方按钮生成）"}</code>
+                      <code className="eh-inv-fld-v eh-inv-link">{inviteLink?.link ?? "生成中…"}</code>
                       <button
                         type="button"
                         className="eh-inv-copy"
@@ -1761,15 +2005,15 @@ export function EcoMallHomePage() {
                     </div>
                   </div>
 
-                  {inviteLink?.link ? null : (
-                    <button type="button" className="eco-modal-btn" onClick={() => void createInviteLink()}>
-                      {inviteBusy ? "生成中…" : inviteLink?.state === "existing" ? "重新生成邀请链接" : "生成我的邀请链接"}
+                  {inviteLink?.link ? (
+                    <button type="button" className="eh-inv-regen" onClick={() => void createInviteLink(true)} disabled={inviteBusy}>
+                      {inviteBusy ? "生成中…" : "换一条新链接（旧链接仍然有效）"}
                     </button>
-                  )}
+                  ) : null}
 
                   {inviteLink?.hint ? <p className="eh-inv-hint">{inviteLink.hint}</p> : null}
 
-                  {/* ---------- 被邀请客户列表 ---------- */}
+                  {/* ---------- 被邀请客户列表（分页：PC 按钮 / 手机翻页流） ---------- */}
                   <div className="eh-inv-sec">
                     <div className="eh-inv-sec-head">
                       <b>被邀请的客户</b>
@@ -1778,9 +2022,9 @@ export function EcoMallHomePage() {
                         {invitees && invitees.creditsEarned > 0 ? ` · 已得 ${fmtCredits(invitees.creditsEarned)} 算力` : ""}
                       </span>
                     </div>
-                    {invitees && invitees.invitees.length > 0 ? (
+                    {inviteeItems.length > 0 ? (
                       <ul className="eh-inv-list">
-                        {invitees.invitees.map((it) => (
+                        {inviteeItems.map((it) => (
                           <li key={it.id} className="eh-inv-item">
                             <div className="eh-inv-ava" aria-hidden="true">{it.name.slice(0, 1)}</div>
                             <div className="eh-inv-info">
@@ -1803,11 +2047,295 @@ export function EcoMallHomePage() {
                     ) : (
                       <div className="eh-inv-empty">还没有被邀请的客户 · 把上面的海报或链接发出去试试</div>
                     )}
+                    <DrawerPager
+                      isMobile={isMobile}
+                      page={inviteePage}
+                      totalPages={invitees?.totalPages ?? 1}
+                      total={invitees?.total ?? 0}
+                      unit="人"
+                      busy={inviteBusy}
+                      onPrev={() => void loadInviteePage(inviteePage - 1, false)}
+                      onNext={() => void loadInviteePage(inviteePage + 1, false)}
+                      onLoadMore={() => void loadInviteePage(inviteePage + 1, true)}
+                    />
                   </div>
 
-                  <p className="eco-modal-tip">风控：同设备 / 同手机号 / 同支付账号只认一个；刷量追回。邀请入账随后端能力上线。</p>
+                  <p className="eco-modal-tip">风控：同设备 / 同手机号 / 同支付账号只认一个；刷量追回。</p>
                 </>
               )}
+            </div>
+          </aside>
+        </div>
+      ) : null}
+
+      {showOrders ? (
+        <div className="eh-rd-overlay" onClick={() => setShowOrders(false)}>
+          <aside
+            className="eh-rd-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label="全部订单"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="eh-rd-head">
+              <b>🧾 全部订单</b>
+              <span style={{ flex: 1 }} />
+              <button type="button" className="eh-rd-x" onClick={() => setShowOrders(false)} aria-label="关闭">✕</button>
+            </div>
+            <div className="eh-rd-body eh-od-body">
+              {ordersBusy && orderItems.length === 0 ? (
+                <div className="eh-rd-loading">加载中…</div>
+              ) : orderItems.length === 0 ? (
+                <div className="eh-od-empty">
+                  <span className="eh-od-empty-ico">🧾</span>
+                  <b>暂无订单</b>
+                  <p>充值算力、开通商品或登记预约后，订单会出现在这里，点开可看详情。</p>
+                </div>
+              ) : (
+                <ul className="eh-od-list">
+                  {orderItems.map((o) => (
+                    <li key={o.id} className={"eh-od-item kind-" + o.kind}>
+                      <button
+                        type="button"
+                        className="eh-od-row"
+                        onClick={() => setOpenOrderId(openOrderId === o.id ? null : o.id)}
+                      >
+                        <div className="eh-od-main">
+                          <div className="eh-od-t"><span className="eh-od-kind">{o.kindLabel}</span><b>{o.title}</b></div>
+                          <span className="eh-od-time">{fmtInviteDate(o.createdAt)}</span>
+                        </div>
+                        <div className="eh-od-side">
+                          {o.credits ? <b className="eh-od-pts">+{fmtCredits(o.credits)} 算力</b> : o.amountCny != null ? <b className="eh-od-cny">¥{o.amountCny}</b> : null}
+                          <span className={"eh-od-st" + (o.status === "paid" ? " ok" : "")}>{o.statusLabel}</span>
+                        </div>
+                        <span className="eh-od-arrow" aria-hidden="true">{openOrderId === o.id ? "⌃" : "⌄"}</span>
+                      </button>
+                      {openOrderId === o.id ? (
+                        <div className="eh-od-detail">
+                          {o.detail.map((line) => (
+                            <div key={line.label} className="eh-od-dl">
+                              <span>{line.label}</span>
+                              <b>{line.value}</b>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <DrawerPager
+                isMobile={isMobile}
+                page={ordersPage}
+                totalPages={orders?.totalPages ?? 1}
+                total={orders?.total ?? 0}
+                unit="笔"
+                busy={ordersBusy}
+                onPrev={() => void loadOrderPage(ordersPage - 1, false)}
+                onNext={() => void loadOrderPage(ordersPage + 1, false)}
+                onLoadMore={() => void loadOrderPage(ordersPage + 1, true)}
+              />
+            </div>
+          </aside>
+        </div>
+      ) : null}
+
+      {showDeliv ? (
+        <div className="eh-rd-overlay" onClick={() => setShowDeliv(false)}>
+          <aside
+            className="eh-rd-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label="历史交付物"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="eh-rd-head">
+              <b>📄 历史交付物</b>
+              <span style={{ flex: 1 }} />
+              <button type="button" className="eh-rd-x" onClick={() => setShowDeliv(false)} aria-label="关闭">✕</button>
+            </div>
+            <div className="eh-rd-body eh-dl-body">
+              <p className="eh-dl-tip">平台只为你保留 <b>7 天</b>，到期自动清理；需要长期保存请点「下载 Word」存到手机/电脑（WPS 或 Word 都能打开）。</p>
+              {delivBusy && delivItems.length === 0 ? (
+                <div className="eh-rd-loading">加载中…</div>
+              ) : delivItems.length === 0 ? (
+                <div className="eh-dl-empty">还没有交付物 · 生成成功后会保存在这里，7 天内随时可下载 Word</div>
+              ) : (
+                <ul className="eh-dl-list">
+                  {delivItems.map((item) => {
+                    const daysLeft = Math.max(0, Math.ceil((new Date(item.expiresAt).getTime() - Date.now()) / 86_400_000));
+                    return (
+                      <li key={item.id} className="eh-dl-item">
+                        <div className="eh-dl-main">
+                          <b>{item.skuName ?? "AI员工交付物"}</b>
+                          <span>消耗 {item.credits} 算力 · {fmtInviteDate(item.createdAt)} · 剩余 {daysLeft} 天</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="eh-dl-btn"
+                          disabled={downloadingId === item.id}
+                          onClick={() => void downloadDeliverable(item)}
+                        >
+                          {downloadingId === item.id ? "准备中…" : "下载 Word"}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              <DrawerPager
+                isMobile={isMobile}
+                page={delivPage}
+                totalPages={deliv?.totalPages ?? 1}
+                total={deliv?.total ?? 0}
+                unit="份"
+                busy={delivBusy}
+                onPrev={() => void loadDelivPage(delivPage - 1, false)}
+                onNext={() => void loadDelivPage(delivPage + 1, false)}
+                onLoadMore={() => void loadDelivPage(delivPage + 1, true)}
+              />
+            </div>
+          </aside>
+        </div>
+      ) : null}
+
+      {showApps ? (
+        <div className="eh-rd-overlay" onClick={() => setShowApps(false)}>
+          <aside
+            className="eh-rd-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label="关联应用"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="eh-rd-head">
+              <b>🔌 关联应用</b>
+              <span style={{ flex: 1 }} />
+              <button type="button" className="eh-rd-x" onClick={() => setShowApps(false)} aria-label="关闭">✕</button>
+            </div>
+            <div className="eh-rd-body eh-ap-body">
+              <p className="eh-ap-tip">
+                把你的私有知识源接到平台，数字员工生成选题等内容时可以直接引用（与「企业知识库」是同一份配置）。
+              </p>
+              {appsBusy && appsConns.length === 0 ? (
+                <div className="eh-rd-loading">加载中…</div>
+              ) : appsConns.length === 0 ? (
+                <div className="eh-ap-empty">还没有关联的应用 · 在下方填入得到大脑凭证即可接入</div>
+              ) : (
+                <ul className="eh-ap-list">
+                  {appsConns.map((conn) => (
+                    <li key={conn.id} className="eh-ap-item">
+                      <img src={getPublicAssetPath("/logos/getnote-logo.png")} alt={conn.label ?? "得到大脑"} />
+                      <div className="eh-ap-info">
+                        <b>{conn.label ?? "得到大脑（Get 笔记）"}</b>
+                        <span>私有知识源 · 笔记内容可被数字员工引用</span>
+                      </div>
+                      <span className={"eh-ap-st" + (conn.status === "active" ? " on" : "")}>{conn.status === "active" ? "已连接" : conn.status === "error" ? "异常" : "未连接"}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <DrawerPager
+                isMobile={isMobile}
+                page={appsPage}
+                totalPages={appsView?.totalPages ?? 1}
+                total={appsView?.total ?? 0}
+                unit="个"
+                busy={appsBusy}
+                onPrev={() => void loadAppsPage(appsPage - 1, false)}
+                onNext={() => void loadAppsPage(appsPage + 1, false)}
+                onLoadMore={() => void loadAppsPage(appsPage + 1, true)}
+              />
+
+              {/* ---- 得到大脑配置（原逻辑：先「测试连接」（不落库）→ 通过后才能「保存并生效」） ---- */}
+              <div className="eh-ap-cfg">
+                <b>配置得到大脑（Get 笔记）</b>
+                <p className="eh-ap-cfg-tip">
+                  凭证按你的账号单独保存（与企业知识库是同一份配置）。在{" "}
+                  <a href="https://www.biji.com/openapi" target="_blank" rel="noreferrer">Get 笔记开放平台</a>{" "}
+                  登录后，在你的应用「凭证」里复制 API Key 和 Client ID。
+                </p>
+                {gnConnected ? (
+                  <div className="eh-ap-ok">当前已连接。修改时可两项都重填，或只填 API Key（沿用已保存的 Client ID）。</div>
+                ) : null}
+                <label htmlFor="eh-gn-apikey">API Key</label>
+                <input
+                  id="eh-gn-apikey"
+                  value={gnApiKey}
+                  onChange={(e) => { setGnApiKey(e.target.value); setGnTestedOk(false); }}
+                  placeholder={gnConnected ? "留空则沿用已保存的 API Key" : "粘贴 gk_ 开头的 API Key"}
+                />
+                <label htmlFor="eh-gn-clientid">Client ID</label>
+                <input
+                  id="eh-gn-clientid"
+                  value={gnClientId}
+                  onChange={(e) => { setGnClientId(e.target.value); setGnTestedOk(false); }}
+                  placeholder={gnConnected ? "已保存（留空则沿用）" : "粘贴 cli_ 开头的 Client ID"}
+                />
+                {gnMsg ? (
+                  <div className={"eh-ap-msg" + (gnMsg.ok ? " ok" : "")}>{gnMsg.text}</div>
+                ) : null}
+                <div className="eh-ap-actions">
+                  <button
+                    type="button"
+                    className="eh-ap-btn ghost"
+                    disabled={gnTesting || gnSaving || (!gnApiKey.trim() && !gnConnected)}
+                    onClick={() => {
+                      void (async () => {
+                        setGnTesting(true); setGnMsg(null); setGnTestedOk(false);
+                        try {
+                          const body: Record<string, unknown> = {};
+                          if (gnApiKey.trim()) body.apiKey = gnApiKey.trim();
+                          if (gnClientId.trim()) body.clientId = gnClientId.trim();
+                          if (!body.apiKey) { setGnMsg({ ok: false, text: "请先填写 API Key。" }); return; }
+                          const response = await fetch(apiPath("/knowledge-base/connections/getnote"), { method: "POST", headers: { ...authHeaders(true) }, body: JSON.stringify({ ...body, testOnly: true }) });
+                          if (handleStaleSession(response.status)) { setGnMsg({ ok: false, text: "登录状态已失效，请重新登录后再试。" }); return; }
+                          const data = await response.json().catch(() => ({}));
+                          if (!response.ok) { setGnMsg({ ok: false, text: data?.message ?? data?.error ?? "测试未通过，请检查凭证。" }); return; }
+                          setGnTestedOk(true);
+                          setGnMsg({ ok: true, text: `✅ 连接可用${typeof data?.noteCount === "number" ? `，已读到 ${data.noteCount} 条笔记` : ""}。点「保存并生效」完成配置。` });
+                        } catch {
+                          setGnMsg({ ok: false, text: "网络异常，请稍后重试。" });
+                        } finally {
+                          setGnTesting(false);
+                        }
+                      })();
+                    }}
+                  >
+                    {gnTesting ? "测试中…" : "① 测试连接"}
+                  </button>
+                  <button
+                    type="button"
+                    className="eh-ap-btn primary"
+                    disabled={!gnTestedOk || gnSaving || gnTesting}
+                    onClick={() => {
+                      void (async () => {
+                        setGnSaving(true); setGnMsg(null);
+                        try {
+                          const body: Record<string, unknown> = {};
+                          if (gnApiKey.trim()) body.apiKey = gnApiKey.trim();
+                          if (gnClientId.trim()) body.clientId = gnClientId.trim();
+                          if (!body.apiKey) { setGnMsg({ ok: false, text: "请先填写 API Key。" }); return; }
+                          const response = await fetch(apiPath("/knowledge-base/connections/getnote"), { method: "POST", headers: { ...authHeaders(true) }, body: JSON.stringify(body) });
+                          if (handleStaleSession(response.status)) { setGnMsg({ ok: false, text: "登录状态已失效，请重新登录后再试。" }); return; }
+                          const data = await response.json().catch(() => ({}));
+                          if (!response.ok) { setGnMsg({ ok: false, text: data?.message ?? data?.error ?? "保存失败，请稍后重试。" }); return; }
+                          setGnStatus("active");
+                          setGnMsg({ ok: true, text: "已保存并生效，数字员工现在可以引用你的得到大脑笔记了。" });
+                          void loadAppsPage(1, false);
+                        } catch {
+                          setGnMsg({ ok: false, text: "网络异常，请稍后重试。" });
+                        } finally {
+                          setGnSaving(false);
+                        }
+                      })();
+                    }}
+                  >
+                    {gnSaving ? "保存中…" : "② 保存并生效"}
+                  </button>
+                </div>
+                <p className="eh-ap-cfg-note">每次修改都要先「测试连接」，通过后才能保存生效——避免把不可用的凭证存进系统。</p>
+              </div>
             </div>
           </aside>
         </div>

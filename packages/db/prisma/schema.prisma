@@ -2560,7 +2560,8 @@ model LanqiMomentAsset {
 // 第①批只落「归因」与「配置」，不发任何奖励。
 // ---------------------------------------------------------------------------
 
-/// 推荐码：归属到一个**用户**（不是租户）。明文码只在下发那一刻返回一次，库里只存 sha256 哈希。
+/// 推荐码：归属到一个**用户**（不是租户）。后台下发的码明文只在下发那一刻返回一次，库里只存 sha256 哈希；
+/// 自助「我的邀请链接」签发的码会额外存明文（codePlaintext），因为用户要随时取回自己的分享物料。
 model ReferralCode {
   id           String    @id @default(cuid())
   ownerUserId  String
@@ -2569,6 +2570,9 @@ model ReferralCode {
   ownerOpenid  String?
   codeHash     String    @unique
   codePreview  String
+  /// 明文码：仅自助「我的邀请链接」签发链路写入（用户要随时取回自己的分享链接/二维码）；
+  /// 后台下发的码保持 NULL，仍遵守「明文只在下发时返回一次」的 PLAT-28 口径。
+  codePlaintext String?
   label        String?
   isActive     Boolean   @default(true)
   /// null = 不限次数（第①批冻结口径：不设单人月上限，改为超阈值只告警）

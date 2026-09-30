@@ -7,26 +7,32 @@ import { getReferralConfig, isWithinReferralCampaignWindow } from "./referral-co
 /**
  * 自服务「我的邀请链接」（用户 2026-09-15：平台页面里要有复制我的推荐链接的入口，含二维码）。
  *
- * 安全模型与 PLAT-28 保持一致：**推荐码明文只在签发时返回一次**（库里只存 hash + preview，
- * 明文无法回收）。因此这里的口径是：
- * - 已经有有效推荐码 → 不新签，只回 `codePreview` 与人话提示（避免"每次点都发新码"）；
- * - 没有 → 现场签一条，把明文 + 完整注册链接 + 二维码一起回给本人；
- * - 想再要一条 → 显式 `regenerate: true`（页面按钮写明「旧链接仍然有效」）。
+ * 安全模型（2026-09-30 修订）：后台下发的码仍遵守 PLAT-28「明文只返回一次」；
+ * 但**自助推荐链接是用户自己的分享物料**，用户要随时打开抽屉取回链接/二维码/邀请码，
+ * 所以自助签发的码把明文存进 `ReferralCode.codePlaintext`（见迁移 202609300001），GET 随时可回显。
+ * 口径：
+ * - 已有可回显的自助码 → GET/POST 都直接返回同一个链接（不再每次新签）；
+ * - 没有 → 现场签一条（存明文），把明文 + 完整注册链接 + 二维码一起回给本人；
+ * - 想换一条 → 显式 `regenerate: true`（页面按钮写明「旧链接仍然有效」）。
+ *
+ * 签发**不再被活动窗拦住**（2026-09-30 用户：邀请抽屉三个空位要能出数据）：
+ * 活动窗只决定**发不发奖励**（referral-rewards 引擎），不决定链接能不能生成；
+ * `campaignActive` 照常返回，前端据此调整海报文案，避免「承诺了奖励却不兑现」。
  *
  * 链接由**服务端**用 `PUBLIC_WEB_BASE_URL` 拼，不接受客户端传入的地址（避免被当成免费二维码生成器）。
  */
 
 export interface SelfReferralLinkView {
-  /** `none` = 还没签过推荐码（页面应该给「生成我的邀请链接」）。 */
+  /** `none` = 还没有可回显的邀请链接（后端会自动签发，一般不会停留在这个态）。 */
   state: "none" | "existing" | "created";
   /**
-   * 推荐活动是否在窗口内（用户 2026-09-16：活动期 10.1–10.7 才开放，平时「先下架」）。
-   * 只有为 `true` 时「我的」页才显示邀请链接卡片；活动开关一开，卡片自己回来。
+   * 推荐活动是否在窗口内（奖励发放的开关，见 referral-rewards）。
+   * 与链接签发解耦：false 时链接照常可用，只是海报上「各得 100 算力」暂不生效。
    */
   campaignActive: boolean;
-  /** 完整注册链接（`<公开站点>/login?ref=<码>`）；只有刚签发时才有明文可拼。 */
+  /** 完整注册链接（`<公开站点>/login?ref=<码>`）。 */
   link: string | null;
-  /** 明文推荐码：只在 `created` 时返回一次。 */
+  /** 明文推荐码（自助码随取随回）。 */
   code: string | null;
   codePreview: string | null;
   qrSvg: string | null;
@@ -60,23 +66,41 @@ async function renderQrSvg(link: string): Promise<string> {
 }
 
 export async function readSelfReferralLink(userId: string): Promise<SelfReferralLinkView> {
-  const codes = await listReferralCodesOfOwner(userId);
-  const active = codes.filter((item) => item.isActive);
+  const [codes, campaignActive] = await Promise.all([
+    listReferralCodesOfOwner(userId),
+    isReferralCampaignActiveForUi()
+  ]);
+  const codesCount = codes.length;
+  // 可回显的自助码：有明文的那条（最新的优先——按 codesCount 无法判断，直接查库拿最新）。
+  const reusable = await prisma.referralCode.findFirst({
+    where: { ownerUserId: userId, isActive: true, codePlaintext: { not: null } },
+    orderBy: { createdAt: "desc" },
+    select: { codePlaintext: true, codePreview: true }
+  });
+  if (reusable?.codePlaintext) {
+    const link = buildReferralLink(reusable.codePlaintext);
+    return {
+      state: "existing",
+      campaignActive,
+      link,
+      code: reusable.codePlaintext,
+      codePreview: reusable.codePreview,
+      qrSvg: await renderQrSvg(link),
+      codesCount,
+      hint: campaignActive
+        ? "把链接或二维码发给朋友：对方首次开通工作区时，推荐关系自动登记到你这，奖励自动到账。"
+        : "链接已就绪、随时可分享；邀请奖励将在推荐活动开启后自动生效。"
+    };
+  }
   return {
-    state: active.length > 0 ? "existing" : "none",
-    /**
-     * 活动开关（用户 2026-09-16：「暂时不开放，等我通知，预计 10.1–10.7 搞活动再开放，先下架」）。
-     * 前端据此决定「我的邀请链接」卡片显不显示——活动一到（后台把开关和活动窗打开）卡片自己回来，不用改代码。
-     */
-    campaignActive: await isReferralCampaignActiveForUi(),
+    state: "none",
+    campaignActive,
     link: null,
     code: null,
-    codePreview: active[0]?.codePreview ?? null,
+    codePreview: codes[0]?.codePreview ?? null,
     qrSvg: null,
-    codesCount: codes.length,
-    hint: active.length > 0
-      ? "你已经有一个推荐码（明文只在签发时显示过一次，不再重复展示）。点「生成新的邀请链接」可以再签一条——旧链接仍然有效。"
-      : "还没有推荐码，点「生成我的邀请链接」即可拿到专属邀请链接和二维码。"
+    codesCount,
+    hint: "还没有专属邀请链接，正在为你自动生成…"
   };
 }
 
@@ -104,8 +128,11 @@ export interface MyInviteeItem {
 export interface MyInviteesView {
   /** 我名下的被邀请人总数（不受分页影响）。 */
   total: number;
-  /** 这些客户累计给我带来的算力。 */
+  /** 这些客户累计给我带来的算力（全量口径，不受分页影响）。 */
   creditsEarned: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
   invitees: MyInviteeItem[];
 }
 
@@ -130,20 +157,25 @@ function maskName(nickname: string | null | undefined, phone: string | null | un
 }
 
 /**
- * 我名下的被邀请客户（推荐关系归因结果 + 已到账奖励）。
+ * 我名下的被邀请客户（推荐关系归因结果 + 已到账奖励），分页（2026-09-30 用户：与算力明细同款翻页）。
  *
  * 奖励真源在 `WalletLedger`：`referral_reward:<kind>:<bindingId>`（见 `referral-rewards.ts`），
  * 所以「有没有拿到首次使用 / 首次充值奖励」直接从我的账本反查，不另建状态表。
  * 姓名 / 手机号一律打码：这是给别人看的清单，不该把客户完整联系方式摆在邀请页上。
  */
-export async function listMyInvitees(userId: string, limit = 50): Promise<MyInviteesView> {
-  const take = Math.min(Math.max(Math.trunc(limit) || 50, 1), 100);
+export async function listMyInvitees(
+  userId: string,
+  options: { page?: number; pageSize?: number } = {}
+): Promise<MyInviteesView> {
+  const page = Math.max(1, Math.trunc(options.page ?? 1) || 1);
+  const pageSize = Math.min(50, Math.max(1, Math.trunc(options.pageSize ?? 8) || 8));
   const [total, bindings, rewardRows] = await Promise.all([
     prisma.referralBinding.count({ where: { referrerUserId: userId } }),
     prisma.referralBinding.findMany({
       where: { referrerUserId: userId },
       orderBy: { boundAt: "desc" },
-      take,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
       select: {
         id: true,
         boundAt: true,
@@ -156,6 +188,7 @@ export async function listMyInvitees(userId: string, limit = 50): Promise<MyInvi
     })
   ]);
 
+  let creditsEarned = 0;
   const rewarded = new Map<string, { firstUse: boolean; firstRecharge: boolean; credits: number }>();
   for (const row of rewardRows) {
     // `referral_reward:<kind>:<bindingId>`：bindingId 自己不含冒号，第 3 段起拼回来更稳。
@@ -165,6 +198,7 @@ export async function listMyInvitees(userId: string, limit = 50): Promise<MyInvi
     // 新客礼发的是**被推荐人**，不算我的收益，也不进我的明细。
     if (kind === "new_user") continue;
     const bindingId = parts.slice(2).join(":");
+    creditsEarned += Math.max(0, row.delta);
     const current = rewarded.get(bindingId) ?? { firstUse: false, firstRecharge: false, credits: 0 };
     if (kind === "referrer_first_use") current.firstUse = true;
     if (kind === "referrer_first_recharge") current.firstRecharge = true;
@@ -188,45 +222,48 @@ export async function listMyInvitees(userId: string, limit = 50): Promise<MyInvi
 
   return {
     total,
-    creditsEarned: invitees.reduce((sum, item) => sum + item.creditsEarned, 0),
+    creditsEarned,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
     invitees
   };
 }
 
 export async function issueSelfReferralLink(params: { userId: string; regenerate?: boolean }): Promise<SelfReferralLinkView> {
   const codes = await listReferralCodesOfOwner(params.userId);
-  const active = codes.filter((item) => item.isActive);
-  // 活动没开时也不该能签发（页面已隐藏入口，这里再兜一层，避免接口被直接调用）。
   const campaignActive = await isReferralCampaignActiveForUi();
-  if (!campaignActive) {
-    return {
-      state: active.length > 0 ? "existing" : "none",
-      campaignActive: false,
-      link: null,
-      code: null,
-      codePreview: active[0]?.codePreview ?? null,
-      qrSvg: null,
-      codesCount: codes.length,
-      hint: "推荐有礼活动暂未开放（预计 10.1–10.7），活动开始后可在这里生成专属邀请链接。"
-    };
-  }
-  if (active.length > 0 && !params.regenerate) {
-    return {
-      state: "existing",
-      campaignActive,
-      link: null,
-      code: null,
-      codePreview: active[0]?.codePreview ?? null,
-      qrSvg: null,
-      codesCount: codes.length,
-      hint: "你已经有一个推荐码（明文只在签发时显示过一次，不再重复展示）。点「生成新的邀请链接」可以再签一条——旧链接仍然有效。"
-    };
+  // 已有可回显的自助码且没有要求换新 → 直接回同一条（不每次新签，避免码无限增长）。
+  if (!params.regenerate) {
+    const reusable = await prisma.referralCode.findFirst({
+      where: { ownerUserId: params.userId, isActive: true, codePlaintext: { not: null } },
+      orderBy: { createdAt: "desc" },
+      select: { codePlaintext: true, codePreview: true }
+    });
+    if (reusable?.codePlaintext) {
+      const link = buildReferralLink(reusable.codePlaintext);
+      return {
+        state: "existing",
+        campaignActive,
+        link,
+        code: reusable.codePlaintext,
+        codePreview: reusable.codePreview,
+        qrSvg: await renderQrSvg(link),
+        codesCount: codes.length,
+        hint: campaignActive
+          ? "把链接或二维码发给朋友：对方首次开通工作区时，推荐关系自动登记到你这，奖励自动到账。"
+          : "链接已就绪、随时可分享；邀请奖励将在推荐活动开启后自动生效。"
+      };
+    }
   }
 
+  // 签发与活动窗解耦（2026-09-30）：活动没开也能生成链接做分享/归因；
+  // 奖励是否发放由 referral-rewards 引擎在绑定/使用/充值时按当时的活动窗判断。
   const issued = await issueReferralCode({
     identity: { userId: params.userId },
     label: "我的邀请链接（自服务）",
-    createdBy: params.userId
+    createdBy: params.userId,
+    persistPlaintext: true
   });
   const link = buildReferralLink(issued.code);
   return {
@@ -237,6 +274,8 @@ export async function issueSelfReferralLink(params: { userId: string; regenerate
     codePreview: issued.codePreview,
     qrSvg: await renderQrSvg(link),
     codesCount: codes.length + 1,
-    hint: "把链接或二维码发给朋友：对方首次开通工作区时，推荐关系会自动登记到你这。"
+    hint: campaignActive
+      ? "把链接或二维码发给朋友：对方首次开通工作区时，推荐关系自动登记到你这。"
+      : "专属邀请链接已生成；邀请奖励将在推荐活动开启后自动生效。"
   };
 }

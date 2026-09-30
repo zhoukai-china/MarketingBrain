@@ -128,11 +128,16 @@ export interface IssuedReferralCode {
  * 给一个已注册用户下发推荐码（后台/运营入口）。
  * 每次调用都会签发一个新码，历史码保持有效（已发出去的链接不能因为再签一个就失效）；
  * 明文无法回收，因此不返回历史码明文，只返回本次这一个。
+ *
+ * `persistPlaintext`（2026-09-30）：自助「我的邀请链接」签发链路传 true，把明文存进
+ * `ReferralCode.codePlaintext`，让用户随时能从抽屉取回自己的链接/二维码/邀请码；
+ * 后台下发的码不传（保持 NULL），仍遵守 PLAT-28「明文只返回一次」。
  */
 export async function issueReferralCode(params: {
   identity: ReferralIdentity;
   label?: string | null;
   createdBy?: string | null;
+  persistPlaintext?: boolean;
 }): Promise<IssuedReferralCode> {
   const { label: identityLabel, where } = resolveIdentitySelector(params.identity ?? {});
   const users = await prisma.user.findMany({
@@ -161,6 +166,7 @@ export async function issueReferralCode(params: {
       ownerOpenid: owner.wechatOpenid,
       codeHash: hashReferralCode(code),
       codePreview: previewReferralCode(code),
+      codePlaintext: params.persistPlaintext ? code : null,
       label,
       createdBy: params.createdBy?.trim() || null
     }

@@ -104,6 +104,13 @@ export const GIFT_BONUS_VALIDITY_DAYS = 90;
  */
 export const SIGNUP_GIFT_VALIDITY_DAYS = 30;
 
+/**
+ * 新客礼的所有入账 source（2026-09-30 用户：开通礼/注册礼同一个意思，只送一次）。
+ * `signup` = 建工作区时发（database-bootstrap），`signup_gift` = 货架「免费开通」发
+ * （/market/activate）。发放入口去重一律按这个并集判断。
+ */
+export const SIGNUP_GIFT_SOURCES = ["signup", "signup_gift"] as const;
+
 export function giftBonusExpiry(now = new Date(), days = GIFT_BONUS_VALIDITY_DAYS): Date {
   return new Date(now.getTime() + days * 24 * 3600 * 1000);
 }
@@ -219,8 +226,10 @@ export async function applyRechargeInTx(
  * 如果只写租户级 `CreditAccount`，新用户进平台就会看到「💎 0 算力」并且点不动任何
  * 智能体（QA-20260910-016）。因此注册发币必须与货架同源。
  *
- * 幂等：以该用户 `source="signup"` 的钱包流水为准，同一用户只发一次；
- * 同一用户第二次建工作区不会重复领取，懒创建的 0/0 钱包也能补发一次。
+ * 幂等（2026-09-30 用户：开通礼/注册礼是同一个意思，不能送两次）：
+ * 新客礼有两个入口——建工作区（source="signup"）与货架「免费开通」（source="signup_gift"），
+ * **去重按两个 source 的并集**判断，谁先到谁算数；仍写入调用方自己的 source 便于对账。
+ * 同一用户第二次建工作区/第二次点开通都不会重复领取，懒创建的 0/0 钱包也能补发一次。
  * 必须与工作区创建在同一事务内调用，避免「建了工作区却没发币」的半成品态。
  */
 export async function grantSignupWalletCreditsInTx(
@@ -237,7 +246,7 @@ export async function grantSignupWalletCreditsInTx(
   }
 
   const existing = await tx.walletLedger.findFirst({
-    where: { userId: params.userId, source },
+    where: { userId: params.userId, source: { in: [...SIGNUP_GIFT_SOURCES] } },
     select: { id: true }
   });
   if (existing) {

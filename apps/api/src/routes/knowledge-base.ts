@@ -519,16 +519,40 @@ const connectionSyncSchema = z.object({
     ]
   }));
 
-  app.get("/knowledge-base/connections", async (request) => {
+  app.get<{ Querystring: { page?: string; pageSize?: string } }>("/knowledge-base/connections", async (request) => {
     const context = await resolveRequestContext(request.headers);
+    // 2026-09-30 用户：关联应用改右侧抽屉 + 分页；不传分页参数时保持旧行为（全量返回）。
+    const rawPage = Number(request.query?.page ?? 0);
+    const rawSize = Number(request.query?.pageSize ?? 0);
+    const paginate = rawPage > 0 && rawSize > 0;
+    const page = Math.max(1, Math.trunc(rawPage) || 1);
+    const pageSize = Math.min(50, Math.max(1, Math.trunc(rawSize) || 10));
     if (context.source === "demo") {
-      return { connections: [...demoConnections.values()].filter((item) => item.tenantId === context.tenantId).map(publicConnection) };
+      const all = [...demoConnections.values()].filter((item) => item.tenantId === context.tenantId).map(publicConnection);
+      if (!paginate) return { connections: all };
+      return {
+        connections: all.slice((page - 1) * pageSize, page * pageSize),
+        page, pageSize, total: all.length, totalPages: Math.max(1, Math.ceil(all.length / pageSize))
+      };
     }
-    const records = await prisma.knowledgeConnection.findMany({
-      where: { tenantId: context.tenantId },
-      orderBy: { createdAt: "desc" }
-    });
-    return { connections: records.map(publicConnection) };
+    const where = { tenantId: context.tenantId };
+    if (!paginate) {
+      const records = await prisma.knowledgeConnection.findMany({ where, orderBy: { createdAt: "desc" } });
+      return { connections: records.map(publicConnection) };
+    }
+    const [total, records] = await Promise.all([
+      prisma.knowledgeConnection.count({ where }),
+      prisma.knowledgeConnection.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize
+      })
+    ]);
+    return {
+      connections: records.map(publicConnection),
+      page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize))
+    };
   });
 
   // 选题策略官工作台展示用：getnote 已同步结论的体量（全部已存 vs 已确认可用于生成）。
