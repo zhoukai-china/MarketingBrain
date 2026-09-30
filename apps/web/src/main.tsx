@@ -41,9 +41,11 @@ import "./styles/beauty-video-review.css";
 import "./styles/sitong-design.css";
 import "./styles/eco-mall.css";
 
-// 2026-09-21 产品拍板：平台默认深色主题（此前默认浅色）。仅在用户没有
-// 主动选择过主题时才用深色兜底；用户切换过的偏好仍按 localStorage 生效。
-const initialTheme = localStorage.getItem("sitong-theme") !== "light" ? "dark" : "light";
+// 2026-09-30 产品调整：**默认浅色**（此前 09-21 定的是默认深色）。
+// 缘由：商城首页是固定浅色设计，而工作台/详情页跟主题变量走——没存过偏好的浏览器
+// （尤其微信内置浏览器，存储独立且为空）会落到默认深色，出现「商城白、工作台黑」
+// 的不一致。现在只有用户**主动切过深色**才用深色，其余一律浅色。
+const initialTheme = localStorage.getItem("sitong-theme") === "dark" ? "dark" : "light";
 document.documentElement.setAttribute("data-theme", initialTheme);
 document
   .querySelector('meta[name="theme-color"]')

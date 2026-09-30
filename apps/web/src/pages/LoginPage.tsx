@@ -759,15 +759,25 @@ function WeChatLoginArea({ qr, busy, disabled, label, onStart, onRefresh }: {
   onStart: () => void;
   onRefresh: () => void;
 }) {
+  // 剩余有效期倒计时：扫码轮询只在状态变化时 setState，这里独立 tick 一次，
+  // 让「还剩约 X 分钟」真的会往下走。15 秒一跳足够（只显示到分钟）。
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!qr || qr.expired) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 15000);
+    return () => window.clearInterval(timer);
+  }, [qr]);
+
   if (!qr) {
     return <button className="wechatLoginBtn" onClick={onStart} disabled={busy || disabled} type="button">{busy ? "正在打开微信…" : label}</button>;
   }
+  const remainMinutes = Math.max(0, Math.ceil((qr.expiresAt - now) / 60000));
   return <div className="wechatQrBlock" data-wechat-qr={qr.expired ? "expired" : "pending"}>
     <p className="wechatQrTitle">{qr.expired ? "二维码已失效" : "请用微信扫这个码登录"}</p>
     {!qr.expired && <img className="wechatQrImage" src={qr.qrSrc} alt="微信登录二维码" width={200} height={200} />}
     <p className="wechatQrHint">{qr.expired
-      ? "二维码 5 分钟内有效，点下面的按钮重新生成一张。"
-      : "用手机微信「扫一扫」扫码并授权，这台电脑会自动登录。"}</p>
+      ? "二维码有效期 15 分钟，这张已失效。点下面的「刷新二维码」重新生成一张再扫。"
+      : `用手机微信「扫一扫」扫码并授权，这台电脑会自动登录。有效期还剩约 ${remainMinutes} 分钟。`}</p>
     {!qr.expired && <div className="loginStatus" role="status">等待扫码授权…</div>}
     <button className="switchProductLink" type="button" onClick={onRefresh}>刷新二维码</button>
   </div>;

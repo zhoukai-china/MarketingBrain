@@ -34,8 +34,13 @@ export type WechatLoginBridgeRead =
   | { state: "pending"; context: WechatLoginBridgeContext }
   | { state: "completed"; context: WechatLoginBridgeContext; result: WechatLoginBridgeResult };
 
-/** 二维码有效期：够一次扫码授权，又不给暴力试探留窗口。 */
-export const WECHAT_BRIDGE_TTL_MS = 5 * 60 * 1000;
+/**
+ * 二维码有效期（2026-09-30 用户要求：5 分钟太短，延长到 15 分钟）。
+ * 原本 5 分钟「够一次扫码授权」，但真机上「打开微信 → 找到扫一扫 → 扫码 → 授权确认」
+ * 常要更久，超时就报「二维码已失效」，体验很差。15 分钟仍不给暴力试探留太大窗口
+ * （secret 是 32 字节随机串 + 比对用 timingSafeEqual）。
+ */
+export const WECHAT_BRIDGE_TTL_MS = 15 * 60 * 1000;
 
 /** 内存上限：匿名可创建会话，必须封顶，防止刷接口把进程内存打满。 */
 const MAX_SESSIONS = 500;

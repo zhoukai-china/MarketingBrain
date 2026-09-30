@@ -3163,6 +3163,16 @@ pre {
   background: #ffffff;
 }
 
+/* 二维码失效态（2026-09-30）：此前和其它提示长得一样，用户扫完才发现过期。
+   加一条告警描边 + 标题变红，配合下方「刷新二维码」按钮，一眼看出该重扫。 */
+.wechatQrBlock[data-wechat-qr="expired"] {
+  border-color: rgba(220, 61, 67, 0.45);
+  background: rgba(220, 61, 67, 0.06);
+}
+.wechatQrBlock[data-wechat-qr="expired"] .wechatQrTitle {
+  color: var(--danger);
+}
+
 .wechatQrTitle {
   margin: 0;
   font-size: 15px;
