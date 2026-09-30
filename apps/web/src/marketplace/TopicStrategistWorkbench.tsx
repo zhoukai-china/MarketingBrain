@@ -13,6 +13,7 @@ import { useScrollLock } from "../lib/use-scroll-lock.js";
 import { authHeaders } from "./shell.js";
 import { IconAuto, IconLead } from "./IconGlyph.js";
 import { MallTopbar } from "./MallTopbar.js";
+import { AppsDrawer } from "./AppsDrawer.js";
 import { knowledgeSyncProgressText, runKnowledgeSync, latestKnowledgeSync } from "../lib/knowledge-sync.js";
 
 // ---------------- 第三关：账号阶段配比（原型 STAGES） ----------------
@@ -377,6 +378,8 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
   };
   // 换一批：仅控制视觉旋转态，真实重生成由下方选题生成流程触发
   const [refreshing, setRefreshing] = useState(false);
+  // 「关联应用」右侧抽屉（共享组件 AppsDrawer，2026-09-30：替代跳旧版「我的」页）
+  const [showAppsDrawer, setShowAppsDrawer] = useState(false);
   const doRefresh = () => {
     setRefreshing(true);
     window.setTimeout(() => setRefreshing(false), 1200);
@@ -384,7 +387,7 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
 
   const doSync = () => {
     if (!gnConfigured || !gnConnectionId) {
-      window.location.href = getAppPath("/mine");
+      setShowAppsDrawer(true);
       return;
     }
     setSyncing(true); setSyncProgress(""); setSyncError("");
@@ -626,7 +629,7 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
                     <span className="sync-warn">
                       {gnLoading ? "查询中…" : gnConnectionId ? "连接状态异常，请到「关联应用」重连" : "尚未在「关联应用」中连接得到大脑"}
                     </span>
-                    <button className="mini-btn act" onClick={() => { window.location.href = getAppPath("/mine"); }}>
+                    <button className="mini-btn act" onClick={() => { setShowAppsDrawer(true); }}>
                       去「关联应用」配置
                     </button>
                   </div>
@@ -1192,6 +1195,12 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
         </div>
       )}
       </div>
+      {/* 「关联应用」右侧抽屉（2026-09-30 用户：直接本页弹出，不再跳旧版「我的」页） */}
+      <AppsDrawer
+        open={showAppsDrawer}
+        onClose={() => setShowAppsDrawer(false)}
+        onConnected={() => { void loadSource1(); }}
+      />
     </main>
     </>
   );

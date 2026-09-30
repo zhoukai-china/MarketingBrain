@@ -118,7 +118,7 @@ export function MarketplaceMyAgentsPage() {
           </div>
         )}
         <p className="mine-tip" style={{ marginTop: 18 }}>
-          交付物（生成的报告 / 文案）在「<a onClick={() => { window.location.href = getAppPath("/mine"); }}>我的</a>」页，平台保留 7 天，请及时下载。
+          交付物（生成的报告 / 文案）在「<a onClick={() => { window.location.href = getAppPath("/agents?tab=mine"); }}>我的</a>」页，平台保留 7 天，请及时下载。
         </p>
       </section>
     </main>

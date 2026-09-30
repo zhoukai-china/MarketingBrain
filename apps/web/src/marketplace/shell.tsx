@@ -150,8 +150,11 @@ export function Topbar({ active, balance, onNavigate }: { active: string; balanc
            * 2026-09-16（用户）：「我的」要做到一级导航栏、放在「算力充值」后面。
            * 页面本身就是「我的」（余额 / 常用智能体 / 历史交付物 / 算力退回 / 邀请链接），
            * 所以这一栏是它的正名入口，高亮也归它（`active="me"`），避免与「常用智能体」抢高亮。
+           *
+           * 2026-09-30（用户）：「我的」收口到新版商城首页的内联视图，不再跳旧版独立页 `/mine`。
+           * 指向 `/agents?tab=mine`，由 EcoMallHomePage 落到 mine 视图；旧页 MinePage 只保留老路由。
            */}
-          <a className={`nav-link ${active === "me" ? "active" : ""}`} onClick={() => onNavigate("/mine")}>我的</a>
+          <a className={`nav-link ${active === "me" ? "active" : ""}`} onClick={() => onNavigate("/agents?tab=mine")}>我的</a>
         </nav>
         <button className="theme-toggle" onClick={toggle} title="切换深色 / 浅色">
           <span className="tt-ico">{theme === "light" ? "☀️" : "🌙"}</span>
