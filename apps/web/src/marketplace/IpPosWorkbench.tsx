@@ -40,16 +40,25 @@ const FIELDS: Array<{ key: string; icon: string; label: string }> = [
   { key: "status", icon: "📊", label: "现状与投入" }
 ];
 
-interface QOpt { t: string; d: string; v: Record<string, string>; rec?: boolean }
+/**
+ * `digest` = **该选项专属**的「消化回应」。
+ * 2026-09-30（用户实测）：第 1 题有 3 个选项，但整题只写了一份 digest（按「连锁品牌总部」写的），
+ * 结果选「本地单店老板」也回「明白了——连锁品牌总部」——答非所问。
+ * 多选项题必须逐项写 digest；缺省时才回退整题的 digest。
+ */
+interface QOpt { t: string; d: string; v: Record<string, string>; rec?: boolean; digest?: string }
 interface QFlow { fields: string[]; q: string; hint: string; digest: string; opts: QOpt[] }
 
 const QFLOW: QFlow[] = [
   { fields: ["role"], q: "先确认一下——你是老板本人，还是代运营？品牌是单店还是连锁？", hint: "先识别你是谁，再匹配输出深度。同一个定位需求，不同角色的输出完全不同。",
     digest: "明白了——<b>连锁品牌总部，老板本人出镜</b>。那我按「招商获客型创始人IP」的深度来给你做全案，不讲单店获客那套。",
     opts: [
-      { t: "🏭 连锁品牌总部 · 老板本人", d: "示例：品牌总部做招商获客", v: { role: "连锁品牌（总部/加盟体系 · 招商获客向）" }, rec: true },
-      { t: "🏪 本地单店老板", d: "不讲招商、不讲连锁复制", v: { role: "本地单店（老板本人 · 本地获客向）" } },
-      { t: "💼 OPC 代运营", d: "帮客户出可交付方案", v: { role: "OPC 运营（代客户操盘 · 方案交付向）" } }
+      { t: "🏭 连锁品牌总部 · 老板本人", d: "示例：品牌总部做招商获客", v: { role: "连锁品牌（总部/加盟体系 · 招商获客向）" }, rec: true,
+        digest: "明白了——<b>连锁品牌总部，老板本人出镜</b>。那我按「招商获客型创始人IP」的深度来给你做全案，不讲单店获客那套。" },
+      { t: "🏪 本地单店老板", d: "不讲招商、不讲连锁复制", v: { role: "本地单店（老板本人 · 本地获客向）" },
+        digest: "明白了——<b>本地单店，老板本人出镜</b>。那我按「本地获客型创始人IP」来做全案：先解决周边到店与转化，不讲招商、不讲连锁复制那套。" },
+      { t: "💼 OPC 代运营", d: "帮客户出可交付方案", v: { role: "OPC 运营（代客户操盘 · 方案交付向）" },
+        digest: "明白了——<b>你是代运营（OPC），不是老板本人</b>。那我按「能直接交付给客户」的口径来做：人设按客户方老板来立，结论要能讲给他听，落地由你操盘。" }
     ] },
   { fields: ["project", "biz"], q: "先说说你的项目吧——叫什么名字？做什么的？赚谁的钱、怎么赚？现在做到什么阶段了？", hint: "一句话能说清就行；答得好时，项目和商业模式两个字段会一起点亮。",
     digest: "收到——<b>「XX贴膜」，手机后市场连锁加盟，供应链驱动，几百家门店</b>。模型已经跑通，现在是 1-10 增长期，这个判断后面全案会用到。",
@@ -330,7 +339,8 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
 
   function chooseOpt(q: QFlow, o: QOpt) {
     if (phase !== "ask") return;
-    applyAnswer(q, o.v, o.t, q.digest);
+    // 优先用选项自己的消化回应（多选项题必须逐项写），没有才回退整题那份。
+    applyAnswer(q, o.v, o.t, o.digest ?? q.digest);
   }
 
   /** 自由输入：提问中 = 回答当前维度（多字段问题并入首字段）；确认后 = 追加说明。 */
