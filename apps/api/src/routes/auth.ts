@@ -422,6 +422,20 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         create: { wechatOpenid: identity.openid, wechatUnionid: identity.unionid }
       });
 
+      // 微信登录可观测性（2026-09-30 用户反馈「同一个微信号出现两个账号」）。
+      // 同一公众号下同一微信号的 openid 恒定，所以只要对比两次登录的 openid 指纹，
+      // 就能判定「这两次到底是不是同一个微信身份」——以后再遇到同类问题不用靠猜。
+      // 只记前 10 位指纹，不落完整 openid（避免隐私/凭据进日志）。
+      log.info({
+        event: "wechat_login",
+        appidPrefix: env.WECHAT_AUTH_APPID?.slice(0, 10) ?? null,
+        openidPrefix: identity.openid.slice(0, 10),
+        openidLength: identity.openid.length,
+        hasUnionid: Boolean(identity.unionid),
+        userId: user.id,
+        isNewUser: Date.now() - user.createdAt.getTime() < 10_000
+      });
+
       const membership = await prisma.membership.findFirst({
         where: {
           userId: user.id,

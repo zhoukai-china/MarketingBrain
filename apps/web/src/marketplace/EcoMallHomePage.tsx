@@ -1446,9 +1446,7 @@ export function EcoMallHomePage() {
                 <div className="me-id">
                   <b>{accountInfo?.tenantName || localAccountName || "我的账号"}</b>
                   <span>
-                    {accountInfo
-                      ? `账号 ${accountInfo.userId.slice(-6)} · 注册于 ${fmtInviteDate(accountInfo.createdAt)}`
-                      : "已登录"}
+                    {accountInfo ? `注册于 ${fmtInviteDate(accountInfo.createdAt)}` : "已登录"}
                   </span>
                 </div>
               </div>
