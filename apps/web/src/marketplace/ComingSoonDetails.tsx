@@ -5,7 +5,8 @@
 //     预约弹窗收口（表单态 → 成功态，原型 20260923 v12「预约统一收口到详情页」）；
 //   - 价格显示真实目录 ppu（50 / 25 / 5 算力，2026-09-28 对齐原型报价）＋「上线价」小字；
 //   - 复用 ipd- 骨架样式（零新增骨架 CSS，仅预约弹窗一小段）；头图是「形态预览」对话式（照原型）；
-//   - 预约目前为**本地演示态**：localStorage 记录，后端预约接口落库后切换。
+//   - 预约为**真实留资**：POST /market/bookings 落 ProductBooking，后台「商品预约」可查
+//     （2026-09-30 用户要求：不能只进 localStorage，控制台要能看到预约记录）。
 // 头像：employeeAvatarPath 真实照片，失败回退姓氏字。
 
 import { useEffect, useState } from "react";
@@ -60,23 +61,49 @@ function WbBar({ live }: { live: string }) {
   );
 }
 
-/** 预约弹窗（原型 v12：表单态 → 成功态；本地演示态，后端落库后切换）。 */
+/** 预约弹窗（原型 v12：表单态 → 成功态；2026-09-30 起改为**真实落库** POST /market/bookings）。 */
 function BookDialog({ content, onClose }: { content: ComingSoonContent; onClose: () => void }) {
-  const storageKey = `ipd_book_${content.skuId}`;
   const [phone, setPhone] = useState("");
-  const [done, setDone] = useState(() => Boolean(localStorage.getItem(storageKey)));
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [already, setAlready] = useState(false);
   const [err, setErr] = useState("");
 
   // 弹窗打开时锁背景滚动（2026-09-29 用户要求：任何弹窗背景都要固定）。
   useScrollLock(true);
 
-  function submit() {
+  async function submit() {
     if (!/^1\d{10}$/.test(phone.trim())) {
       setErr("请输入正确的 11 位手机号");
       return;
     }
-    localStorage.setItem(storageKey, JSON.stringify({ phone: phone.trim(), at: new Date().toISOString() }));
-    setDone(true);
+    setBusy(true);
+    setErr("");
+    try {
+      // 与商城其它预约（BookingModal）走同一条接口：后台「商品预约」能看到这条记录，
+      // 不再只写 localStorage（那样控制台永远看不到，客服也无法回访）。
+      const res = await fetch(apiPath("/market/bookings"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          phone: phone.trim(),
+          productKey: `agent:${content.skuId}`,
+          productName: `${content.name} · ${content.title}`,
+          source: "agent-detail"
+        })
+      });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; already?: boolean; error?: string };
+      if (!res.ok || data.ok === false) {
+        setErr(data.error ?? "提交失败，请稍后再试");
+        return;
+      }
+      setAlready(Boolean(data.already));
+      setDone(true);
+    } catch {
+      setErr("网络异常，请稍后再试");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -86,8 +113,8 @@ function BookDialog({ content, onClose }: { content: ComingSoonContent; onClose:
         {done ? (
           <>
             <div className="ipd-book-ico ok">✓</div>
-            <h3>预约成功</h3>
-            <p>上线后将第一时间短信通知你；预约用户可优先开通体验。</p>
+            <h3>{already ? "你已预约过啦" : "预约成功"}</h3>
+            <p>上线后将第一时间短信通知你（{phone.replace(/(\d{3})\d{4}(\d{4})/, "$1****$2")}）；预约用户可优先开通体验。</p>
           </>
         ) : (
           <>
@@ -100,10 +127,10 @@ function BookDialog({ content, onClose }: { content: ComingSoonContent; onClose:
               placeholder="手机号"
               value={phone}
               onChange={(e) => { setPhone(e.target.value.replace(/\D/g, "")); setErr(""); }}
-              onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+              onKeyDown={(e) => { if (e.key === "Enter") void submit(); }}
             />
             {err && <p className="ipd-book-err">{err}</p>}
-            <button className="ipd-btn main" onClick={submit}>确认预约</button>
+            <button className="ipd-btn main" disabled={busy} onClick={() => void submit()}>{busy ? "提交中…" : "确认预约"}</button>
             <p className="ipd-book-tip">仅用于上线通知，不做营销骚扰</p>
           </>
         )}

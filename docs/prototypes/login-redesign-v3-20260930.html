@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>登录页重设计 v3 · 4 套方向（无内部数据 / 无截图）· 思潼 AI</title>
+<style>
+  /* ============================================================
+   * v3 修正两点（用户 2026-09-30 反馈）：
+   *   ① 去掉内部数据（价目/算力数字）与内部界面截图 —— 登录页是对外门面，不暴露内部信息；
+   *   ② 去掉会换行的清单（上一版「选题策略官·每日选 / 题」折行很难看）。
+   * 于是改由「图形构成 + 排版」承担视觉分量：全部为纯 CSS/SVG，
+   * 不含任何内部数字、不含任何截图。仍不用渐变文字、不用 emoji、不用纯 #fff/#000。
+   * 约束保持：带微信变体无企业/品牌名称输入框；隐私条款始终在。
+   * ============================================================ */
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:#EFEAE1;color:#241D17;padding:40px 26px 80px;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .gallery{max-width:1180px;margin:0 auto}
+  h1.page{font-size:22px;letter-spacing:-.01em;margin:0 0 6px}
+  .page-sub{font-size:13px;color:#6E6155;line-height:1.75;margin:0 0 14px}
+  .why{background:#FBF8F2;border:1px solid rgba(36,29,23,.08);border-radius:14px;padding:14px 16px;margin:0 0 34px}
+  .why b{display:block;font-size:12.5px;margin-bottom:8px}
+  .why ul{margin:0;padding-left:18px;font-size:12.5px;color:#5C5045;line-height:1.85}
+  .why code{background:rgba(36,29,23,.06);padding:1px 5px;border-radius:5px;font-size:11.5px}
+
+  .scheme{margin:0 0 54px}
+  .scheme-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:5px}
+  .scheme-tag{font-size:12px;font-weight:800;letter-spacing:.06em;color:#8A4A18;border:1px solid rgba(138,74,24,.35);border-radius:999px;padding:3px 11px}
+  .scheme-name{font-size:17px;font-weight:800;letter-spacing:-.01em}
+  .scheme-desc{font-size:12.5px;color:#6E6155;line-height:1.7;margin:0 0 4px}
+  .scheme-fit{font-size:12px;color:#8A7A69;margin:0 0 16px}
+  .variants{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media(max-width:980px){.variants{grid-template-columns:1fr}}
+
+  .frame{border-radius:16px;overflow:hidden;border:1px solid rgba(36,29,23,.10);box-shadow:0 12px 30px rgba(60,38,16,.10);background:#FCFAF5}
+  .frame .vt{display:flex;align-items:center;justify-content:space-between;padding:8px 13px;font-size:11.5px;font-weight:700;background:#F6F2EA;border-bottom:1px solid rgba(36,29,23,.08)}
+  .vt .pill{font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:999px;border:1px solid}
+  .vt .pill.on{color:#0B7A43;border-color:rgba(11,122,67,.35);background:rgba(11,122,67,.08)}
+  .vt .pill.off{color:#9A4A18;border-color:rgba(154,74,24,.30);background:rgba(154,74,24,.07)}
+
+  .lg{display:grid;grid-template-columns:1.06fr .94fr;min-height:520px}
+  .lr{padding:26px 24px;display:flex;flex-direction:column;justify-content:center}
+  .field{width:100%;height:44px;border-radius:10px;padding:0 13px;font-size:13.5px;font-family:inherit;outline:0}
+  .wt{display:flex;align-items:center;justify-content:center;height:44px;border-radius:10px;border:0;cursor:pointer;font-size:13.5px;font-weight:700;font-family:inherit;background:#0B8A46;color:#F2FBF5}
+  .btn{display:flex;align-items:center;justify-content:center;height:44px;border-radius:10px;border:0;cursor:pointer;font-size:13.5px;font-weight:700;font-family:inherit}
+  .legal{margin:14px 0 0;font-size:10.5px;line-height:1.6}
+  .legal a{color:inherit;text-underline-offset:2px}
+  .hint{font-size:11px;line-height:1.65;margin:9px 0 0}
+  .dev{margin-top:12px;font-size:11px;text-align:center}
+  .dev b{font-weight:800;text-decoration:underline;text-underline-offset:2px}
+
+  /* ================= A · 轨道（纸底 + 圆弧构成） ================= */
+  .dirA .lg{background:#F6F2EB}
+  .dirA .l-left{position:relative;overflow:hidden;padding:32px 30px;display:flex;flex-direction:column;justify-content:center}
+  .dirA .orbit{position:absolute;top:-130px;right:-150px;width:560px;height:560px;pointer-events:none}
+  .dirA .in{position:relative;z-index:1}
+  .dirA .mark{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:11px;background:#1E1814;color:#F6F0E6;font-size:17px;font-weight:800;margin-bottom:20px}
+  .dirA h2{font-family:"Songti SC","Noto Serif SC",Georgia,serif;font-weight:700;font-size:29px;line-height:1.36;letter-spacing:-.01em;margin:0 0 12px;color:#17120E}
+  .dirA .tag{font-size:12.5px;line-height:1.8;color:#5E5245;max-width:30ch;margin:0}
+  .dirA .rule{width:52px;height:2px;background:#C2410C;border-radius:2px;margin:18px 0 0}
+  .dirA .lr{background:#FCFAF6;border-left:1px solid rgba(26,21,18,.08)}
+  .dirA .lr h3{font-family:"Songti SC","Noto Serif SC",Georgia,serif;font-size:17px;font-weight:700;margin:0 0 3px;color:#17120E}
+  .dirA .lr .sub{font-size:11px;color:#8A7A69;margin:0 0 16px}
+  .dirA .field{border:1px solid rgba(26,21,18,.18);background:#FCFAF6;color:#1E1814}
+  .dirA .field::placeholder{color:#B0A192}
+  .dirA .btn{background:#1E1814;color:#F6F1E9}
+  .dirA .legal,.dirA .dev{color:#9A8A78}
+  .dirA .hint{color:#8A7A69}
+
+  /* ================= B · 织纹（深墨 + 网点 + 暖光） ================= */
+  .dirB .vt{background:#17140F;border-bottom-color:rgba(255,255,255,.08);color:#D8CDBE}
+  .dirB .lg{background:#12100E}
+  .dirB .l-left{position:relative;overflow:hidden;padding:32px 30px;display:flex;flex-direction:column;justify-content:center;color:#EFE7DB;
+    background-image:radial-gradient(rgba(255,255,255,.075) 1px,transparent 1px);background-size:22px 22px}
+  .dirB .glow{position:absolute;width:420px;height:420px;top:-170px;left:-150px;border-radius:50%;
+    background:radial-gradient(circle,rgba(231,162,60,.20),rgba(231,162,60,0) 70%);pointer-events:none}
+  .dirB .in{position:relative;z-index:1}
+  .dirB .eyebrow{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;letter-spacing:.24em;color:#E7A23C;margin-bottom:16px}
+  .dirB h2{font-size:27px;line-height:1.36;letter-spacing:-.02em;font-weight:800;margin:0 0 14px;color:#F6F0E6;max-width:20ch}
+  .dirB .rule{height:1px;width:120px;background:linear-gradient(90deg,rgba(231,162,60,.7),rgba(231,162,60,0));margin:0 0 14px}
+  .dirB .tag{font-size:12.5px;line-height:1.8;color:#B3A695;max-width:30ch;margin:0}
+  .dirB .lr{background:#151311;border-left:1px solid rgba(255,255,255,.08)}
+  .dirB .lr h3{font-size:16px;font-weight:800;margin:0 0 3px;color:#F6F0E6}
+  .dirB .lr .sub{font-size:11px;color:#8B7C67;margin:0 0 16px}
+  .dirB .field{border:1px solid rgba(255,255,255,.14);background:#0C0B0A;color:#F2ECE2}
+  .dirB .field::placeholder{color:#6E6355}
+  .dirB .btn{background:#E7A23C;color:#1A1206}
+  .dirB .legal,.dirB .dev{color:#6E6355}
+  .dirB .hint{color:#8B7C67}
+
+  /* ================= C · 字标（排版主导） ================= */
+  .dirC .lg{background:#F4F1EA}
+  .dirC .l-left{position:relative;padding:34px 30px;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+  .dirC .wm{font-size:15px;font-weight:800;letter-spacing:.30em;color:#17120E;margin-bottom:auto}
+  .dirC h2{font-size:40px;line-height:1.16;letter-spacing:-.035em;font-weight:800;margin:26px 0 0;color:#17120E}
+  .dirC h2 span{display:block;color:#C2410C}
+  .dirC .tag{margin:16px 0 0;font-size:12.5px;line-height:1.8;color:#5E5245;max-width:32ch}
+  .dirC .seal{position:absolute;right:-40px;bottom:-40px;width:200px;height:200px;opacity:.5;pointer-events:none}
+  .dirC .lr{background:#FCFAF6;border-left:1px solid rgba(26,21,18,.08)}
+  .dirC .lr h3{font-size:16px;font-weight:800;margin:0 0 3px;color:#17120E}
+  .dirC .lr .sub{font-size:11px;color:#8A7A69;margin:0 0 16px}
+  .dirC .field{border:1px solid rgba(26,21,18,.18);background:#FCFAF6;color:#1E1814}
+  .dirC .field::placeholder{color:#B0A192}
+  .dirC .btn{background:#C2410C;color:#FDF6F1}
+  .dirC .legal,.dirC .dev{color:#9A8A78}
+  .dirC .hint{color:#8A7A69}
+
+  /* ================= D · 层叠（抽象纵深，纯 CSS 形状） ================= */
+  .dirD .lg{background:#F7F4EE}
+  .dirD .l-left{position:relative;overflow:hidden;padding:32px 30px;display:flex;flex-direction:column;justify-content:center}
+  .dirD .stack{position:absolute;right:-30px;top:50%;transform:translateY(-50%);width:290px;height:330px;pointer-events:none}
+  .dirD .plate{position:absolute;border-radius:16px;border:1px solid rgba(26,21,18,.10);background:#FCFAF7;box-shadow:0 18px 40px rgba(60,38,16,.14)}
+  .dirD .p1{width:250px;height:300px;right:0;top:14px;transform:rotate(7deg);background:#EFE7DA}
+  .dirD .p2{width:250px;height:300px;right:22px;top:8px;transform:rotate(2.5deg)}
+  .dirD .p3{width:250px;height:300px;right:44px;top:0;transform:rotate(-3.5deg);background:#FCFAF7}
+  .dirD .p3 i{display:block;height:7px;border-radius:4px;background:rgba(194,65,12,.55);width:44px;margin:22px 0 0 22px}
+  .dirD .p3 u{display:block;height:5px;border-radius:3px;background:rgba(26,21,18,.10);text-decoration:none;margin:12px 22px 0}
+  .dirD .p3 u.s{width:120px}.dirD .p3 u.m{width:170px}
+  .dirD .in{position:relative;z-index:1;max-width:60%}
+  .dirD h2{font-size:26px;line-height:1.36;letter-spacing:-.015em;font-weight:800;margin:0 0 12px;color:#17120E}
+  .dirD .tag{font-size:12.5px;line-height:1.8;color:#5E5245;margin:0;max-width:26ch}
+  .dirD .lr{background:#FCFAF7;border-left:1px solid rgba(26,21,18,.08)}
+  .dirD .lr h3{font-size:16px;font-weight:800;margin:0 0 3px;color:#17120E}
+  .dirD .lr .sub{font-size:11px;color:#8A7A69;margin:0 0 16px}
+  .dirD .field{border:1px solid rgba(26,21,18,.18);background:#FCFAF7;color:#1E1814}
+  .dirD .field::placeholder{color:#B0A192}
+  .dirD .btn{background:#1E1814;color:#F6F1E9}
+  .dirD .legal,.dirD .dev{color:#9A8A78}
+  .dirD .hint{color:#8A7A69}
+
+  .foot-note{max-width:1180px;margin:0 auto;font-size:12px;color:#6E6155;line-height:1.8}
+  .foot-note b{color:#241D17}
+</style>
+</head>
+<body>
+<div class="gallery">
+  <h1 class="page">登录页重设计 v3 · 4 套方向</h1>
+  <p class="page-sub">本轮修正：<b>不再出现任何内部数据（价目 / 算力数字）与内部界面截图</b>；不再用会折行的清单。视觉分量改由「图形构成 + 排版」承担——全部是纯 CSS / SVG 绘制。</p>
+  <div class="why">
+    <b>这次改了什么</b>
+    <ul>
+      <li>去掉了价目数字与产品截图 —— 登录页是对外门面，不暴露内部信息。</li>
+      <li>去掉了会折行的清单（上一版「选题策略官 · 每日选 / 题」两行确实难看）。</li>
+      <li>改用 <code>圆弧轨道</code> / <code>网点织纹</code> / <code>巨大字标</code> / <code>抽象层叠</code> 四种纯图形语言撑住版面。</li>
+      <li>依然不用渐变文字、不用 emoji、不用纯 #fff/#000；橙色只做点睛。</li>
+    </ul>
+  </div>
+
+  <!-- A -->
+  <section class="scheme">
+    <div class="scheme-head"><span class="scheme-tag">方向 A</span><span class="scheme-name">轨道 · 纸底 + 圆弧构成</span></div>
+    <p class="scheme-desc">暖纸底 + 一组同心圆弧与刻度点，像品牌手册的扉页。衬线标题压住画面，克制、安静、有出身感。</p>
+    <p class="scheme-fit">适合：想显得「有专业门槛、稳定可靠」；与内容/出版调性接近。</p>
+    <div class="variants">
+      <figure class="frame dirA">
+        <figcaption class="vt"><span>线上 · 带微信</span><span class="pill on">微信已启用</span></figcaption>
+        <div class="lg">
+          <section class="l-left">
+            <svg class="orbit" viewBox="0 0 560 560" fill="none" aria-hidden="true">
+              <circle cx="280" cy="280" r="266" stroke="rgba(194,65,12,.13)" stroke-width="1"></circle>
+              <circle cx="280" cy="280" r="210" stroke="rgba(194,65,12,.10)" stroke-width="1"></circle>
+              <circle cx="280" cy="280" r="150" stroke="rgba(194,65,12,.08)" stroke-width="1"></circle>
+              <path d="M280 14a266 266 0 0 1 230 133" stroke="#C2410C" stroke-width="2.2" stroke-linecap="round"></path>
+              <path d="M280 70a210 210 0 0 1 182 105" stroke="rgba(194,65,12,.45)" stroke-width="2" stroke-dasharray="3 8" stroke-linecap="round"></path>
+              <circle cx="510" cy="147" r="5" fill="#C2410C"></circle>
+              <circle cx="462" cy="175" r="3.5" fill="rgba(194,65,12,.45)"></circle>
+              <circle cx="280" cy="14" r="4" fill="rgba(194,65,12,.6)"></circle>
+            </svg>
+            <div class="in">
+              <span class="mark">思</span>
+              <h2>一个账号，<br>用遍所有数字员工</h2>
+              <p class="tag">不卖工具，交结果。按次结算，交付物为可复核的分区文档。</p>
+              <div class="rule"></div>
+            </div>
+          </section>
+          <section class="lr">
+            <h3>登录 / 开通</h3>
+            <p class="sub">微信一键登录，工作号或生活号都可以</p>
+            <button class="wt" type="button">微信一键登录</button>
+            <p class="hint">首次使用微信登录会自动注册并开通工作区，不需要邀请码。</p>
+            <p class="legal">登录即表示同意<a href="#">服务条款</a>和<a href="#">隐私政策</a>。</p>
+            <p class="dev">内部开发 · <b>一键演示登录</b></p>
+          </section>
+        </div>
+      </figure>
+      <figure class="frame dirA">
+        <figcaption class="vt"><span>本地 · 无微信</span><span class="pill off">微信未配置</span></figcaption>
+        <div class="lg">
+          <section class="l-left">
+            <svg class="orbit" viewBox="0 0 560 560" fill="none" aria-hidden="true">
+              <circle cx="280" cy="280" r="266" stroke="rgba(194,65,12,.13)" stroke-width="1"></circle>
+              <circle cx="280" cy="280" r="210" stroke="rgba(194,65,12,.10)" stroke-width="1"></circle>
+              <circle cx="280" cy="280" r="150" stroke="rgba(194,65,12,.08)" stroke-width="1"></circle>
+              <path d="M280 14a266 266 0 0 1 230 133" stroke="#C2410C" stroke-width="2.2" stroke-linecap="round"></path>
+              <path d="M280 70a210 210 0 0 1 182 105" stroke="rgba(194,65,12,.45)" stroke-width="2" stroke-dasharray="3 8" stroke-linecap="round"></path>
+              <circle cx="510" cy="147" r="5" fill="#C2410C"></circle>
+              <circle cx="462" cy="175" r="3.5" fill="rgba(194,65,12,.45)"></circle>
+              <circle cx="280" cy="14" r="4" fill="rgba(194,65,12,.6)"></circle>
+            </svg>
+            <div class="in">
+              <span class="mark">思</span>
+              <h2>一个账号，<br>用遍所有数字员工</h2>
+              <p class="tag">不卖工具，交结果。按次结算，交付物为可复核的分区文档。</p>
+              <div class="rule"></div>
+            </div>
+          </section>
+          <section class="lr">
+            <h3>登录 / 开通</h3>
+            <p class="sub">本机开发环境 · 填任意品牌名即可进入</p>
+            <input class="field" placeholder="企业 / 品牌名称" />
+            <div style="height:10px"></div>
+            <button class="btn" type="button">进入思潼 AI 智能体平台</button>
+            <p class="legal">登录即表示同意<a href="#">服务条款</a>和<a href="#">隐私政策</a>。</p>
+            <p class="dev">内部开发 · <b>一键演示登录</b></p>
+          </section>
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <!-- B -->
+  <section class="scheme">
+    <div class="scheme-head"><span class="scheme-tag">方向 B</span><span class="scheme-name">织纹 · 深墨 + 网点 + 暖光</span></div>
+    <p class="scheme-desc">近黑暖墨 + 细网点织纹 + 左上角一抹暖光。冷静、精密、有仪器感；没有大色块，只有密度。</p>
+    <p class="scheme-fit">适合：想传达「技术可靠、按量计费、可追溯」。</p>
+    <div class="variants">
+      <figure class="frame dirB">
+        <figcaption class="vt"><span>线上 · 带微信</span><span class="pill on">微信已启用</span></figcaption>
+        <div class="lg">
+          <section class="l-left">
+            <span class="glow"></span>
+            <div class="in">
+              <div class="eyebrow">SITONG · AI WORKFORCE</div>
+              <h2>一份通用算力，调度全部数字员工</h2>
+              <div class="rule"></div>
+              <p class="tag">按次结算、失败不扣费；每个交付物都是可复核的分区文档。</p>
+            </div>
+          </section>
+          <section class="lr">
+            <h3>登录 / 开通</h3>
+            <p class="sub">微信一键登录 · 自动开通工作区</p>
+            <button class="wt" type="button">微信一键登录</button>
+            <p class="hint">不需要邀请码，开通即送赠送算力。</p>
+            <p class="legal">登录即表示同意<a href="#">服务条款</a>和<a href="#">隐私政策</a>。</p>
+            <p class="dev">内部开发 · <b>一键演示登录</b></p>
+          </section>
+        </div>
+      </figure>
+      <figure class="frame dirB">
+        <figcaption class="vt"><span>本地 · 无微信</span><span class="pill off">微信未配置</span></figcaption>
+        <div class="lg">
+          <section class="l-left">
+            <span class="glow"></span>
+            <div class="in">
+              <div class="eyebrow">SITONG · AI WORKFORCE</div>
+              <h2>一份通用算力，调度全部数字员工</h2>
+              <div class="rule"></div>
+              <p class="tag">按次结算、失败不扣费；每个交付物都是可复核的分区文档。</p>
+            </div>
+          </section>
+          <section class="lr">
+            <h3>登录 / 开通</h3>
+            <p class="sub">本机开发环境</p>
+            <input class="field" placeholder="企业 / 品牌名称（任意填写）" />
+            <div style="height:10px"></div>
+            <button class="btn" type="button">进入思潼 AI 智能体平台</button>
+            <p class="legal">登录即表示同意<a href="#">服务条款</a>和<a href="#">隐私政策</a>。</p>
+            <p class="dev">内部开发 · <b>一键演示登录</b></p>
+          </section>
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <!-- C -->
+  <section class="scheme">
+    <div class="scheme-head"><span class="scheme-tag">方向 C</span><span class="scheme-name">字标 · 排版主导</span></div>
+    <p class="scheme-desc">以超大字号、紧字距、强对比的排版当主视觉；右下角一枚极简印记。最「设计驱动」，几乎不靠颜色。</p>
+    <p class="scheme-fit">适合：品牌自信、想一眼记住；移动端天然好适配。</p>
+    <div class="variants">
+      <figure class="frame dirC">
+        <figcaption class="vt"><span>线上 · 带微信</span><span class="pill on">微信已启用</span></figcaption>
+        <div class="lg">
+          <section class="l-left">
+            <svg class="seal" viewBox="0 0 200 200" fill="none" aria-hidden="true">
+              <circle cx="100" cy="100" r="88" stroke="rgba(194,65,12,.35)" stroke-width="1.5"></circle>
+              <circle cx="100" cy="100" r="58" stroke="rgba(194,65,12,.22)" stroke-width="1.5"></circle>
+              <path d="M100 42v116M42 100h116" stroke="rgba(194,65,12,.20)" stroke-width="1.5"></path>
+              <rect x="84" y="84" width="32" height="32" rx="8" fill="#C2410C" opacity=".85"></rect>
+            </svg>
+            <div class="wm">思潼 AI 生态商城</div>
+            <h2>用一份算力<span>调度全部数字员工</span></h2>
+            <p class="tag">微信一键登录即可开通工作区；按次结算，交付物可复核。</p>
+          </section>
+          <section class="lr">
+            <h3>登录 / 开通</h3>
+            <p class="sub">微信一键登录 · 自动开通工作区</p>
+            <button class="wt" type="button">微信一键登录</button>
+            <p class="hint">首次使用会自动注册并开通工作区，不需要邀请码。</p>
+            <p class="legal">登录即表示同意<a href="#">服务条款</a>和<a href="#">隐私政策</a>。</p>
+            <p class="dev">内部开发 · <b>一键演示登录</b></p>
+          </section>
+        </div>
+      </figure>
+      <figure class="frame dirC">
+        <figcaption class="vt"><span>本地 · 无微信</span><span class="pill off">微信未配置</span></figcaption>
+        <div class="lg">
+          <section class="l-left">
+            <svg class="seal" viewBox="0 0 200 200" fill="none" aria-hidden="true">
+              <circle cx="100" cy="100" r="88" stroke="rgba(194,65,12,.35)" stroke-width="1.5"></circle>
+              <circle cx="100" cy="100" r="58" stroke="rgba(194,65,12,.22)" stroke-width="1.5"></circle>
+              <path d="M100 42v116M42 100h116" stroke="rgba(194,65,12,.20)" stroke-width="1.5"></path>
+              <rect x="84" y="84" width="32" height="32" rx="8" fill="#C2410C" opacity=".85"></rect>
+            </svg>
+            <div class="wm">思潼 AI 生态商城</div>
+            <h2>用一份算力<span>调度全部数字员工</span></h2>
+            <p class="tag">微信一键登录即可开通工作区；按次结算，交付物可复核。</p>
+          </section>
+          <section class="lr">
+            <h3>登录 / 开通</h3>
+            <p class="sub">本机开发环境 · 填任意品牌名即可进入</p>
+            <input class="field" placeholder="企业 / 品牌名称" />
+            <div style="height:10px"></div>
+            <button class="btn" type="button">进入思潼 AI 智能体平台</button>
+            <p class="legal">登录即表示同意<a href="#">服务条款</a>和<a href="#">隐私政策</a>。</p>
+            <p class="dev">内部开发 · <b>一键演示登录</b></p>
+          </section>
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <!-- D -->
+  <section class="scheme">
+    <div class="scheme-head"><span class="scheme-tag">方向 D</span><span class="scheme-name">层叠 · 抽象纵深</span></div>
+    <p class="scheme-desc">右侧一组微微错角叠放的纸片（纯 CSS 形状，不含任何内容），柔影制造纵深。安静但有体量感。</p>
+    <p class="scheme-fit">适合：想暗示「交付物 / 文档」这件事，又不想露真图。</p>
+    <div class="variants">
+      <figure class="frame dirD">
+        <figcaption class="vt"><span>线上 · 带微信</span><span class="pill on">微信已启用</span></figcaption>
+        <div class="lg">
+          <section class="l-left">
+            <div class="stack" aria-hidden="true">
+              <div class="plate p1"></div>
+              <div class="plate p2"></div>
+              <div class="plate p3"><i></i><u class="m"></u><u class="s"></u><u class="m"></u></div>
+            </div>
+            <div class="in">
+              <h2>一个账号，<br>用遍所有数字员工</h2>
+              <p class="tag">按次结算、失败不扣费；交付物为可复核的分区文档。</p>
+            </div>
+          </section>
+          <section class="lr">
+            <h3>登录 / 开通</h3>
+            <p class="sub">微信一键登录 · 自动开通工作区</p>
+            <button class="wt" type="button">微信一键登录</button>
+            <p class="hint">首次使用会自动注册并开通工作区，不需要邀请码。</p>
+            <p class="legal">登录即表示同意<a href="#">服务条款</a>和<a href="#">隐私政策</a>。</p>
+            <p class="dev">内部开发 · <b>一键演示登录</b></p>
+          </section>
+        </div>
+      </figure>
+      <figure class="frame dirD">
+        <figcaption class="vt"><span>本地 · 无微信</span><span class="pill off">微信未配置</span></figcaption>
+        <div class="lg">
+          <section class="l-left">
+            <div class="stack" aria-hidden="true">
+              <div class="plate p1"></div>
+              <div class="plate p2"></div>
+              <div class="plate p3"><i></i><u class="m"></u><u class="s"></u><u class="m"></u></div>
+            </div>
+            <div class="in">
+              <h2>一个账号，<br>用遍所有数字员工</h2>
+              <p class="tag">按次结算、失败不扣费；交付物为可复核的分区文档。</p>
+            </div>
+          </section>
+          <section class="lr">
+            <h3>登录 / 开通</h3>
+            <p class="sub">本机开发环境 · 填任意品牌名即可进入</p>
+            <input class="field" placeholder="企业 / 品牌名称" />
+            <div style="height:10px"></div>
+            <button class="btn" type="button">进入思潼 AI 智能体平台</button>
+            <p class="legal">登录即表示同意<a href="#">服务条款</a>和<a href="#">隐私政策</a>。</p>
+            <p class="dev">内部开发 · <b>一键演示登录</b></p>
+          </section>
+        </div>
+      </figure>
+    </div>
+  </section>
+</div>
+
+<p class="foot-note">
+  4 套均为<b>静态设计稿</b>（表单不可提交），全部图形由 CSS / SVG 现场绘制。<br>
+  本版<b>不含任何内部数据（价目 / 算力数字）与内部界面截图</b>；两处硬约束仍保留：<b>带微信版本没有企业/品牌名称输入框</b>、<b>隐私条款始终在</b>。
+</p>
+</body>
+</html>

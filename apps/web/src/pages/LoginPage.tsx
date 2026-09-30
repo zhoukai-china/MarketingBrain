@@ -157,8 +157,11 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
   const [industry, setIndustry] = useState("");
   const [city, setCity] = useState("");
   const [inviteCode, setInviteCode] = useState(() => new URLSearchParams(window.location.search).get("invite") ?? "");
-  // PLAT-28：推荐码只来自推荐链接（`?ref=`），不提供手工输入框（手工填码属于后台口径，不是用户路径）。
-  const [referralCode] = useState(() => new URLSearchParams(window.location.search).get("ref") ?? "");
+  // 推荐码：既可由推荐链接带入（`?ref=`），也允许用户手工填（2026-09-30 用户要求「登录页增加推荐码 · 选填」）。
+  // 两者写进同一份 pending-referral 暂存，微信授权往返 / 回调丢 query 都不会把归因码弄丢。
+  const [referralCode, setReferralCode] = useState(() => new URLSearchParams(window.location.search).get("ref") ?? "");
+  /** 用户是否手工动过推荐码输入框：只有动过才允许「清空」把暂存的码一并清掉。 */
+  const [referralTouched, setReferralTouched] = useState(false);
   const [inviteValidated, setInviteValidated] = useState(false);
   const [wechatReady, setWechatReady] = useState<boolean | null>(null);
   // 是否强制邀请码由服务端开关决定（INVITE_REQUIRED）。null = 还没问回来，
@@ -202,8 +205,15 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
   }, [branding.systemName, product?.name]);
 
   useEffect(() => {
-    if (referralCode.trim()) rememberPendingReferral(referralCode);
-  }, [referralCode]);
+    const code = referralCode.trim();
+    if (code) {
+      rememberPendingReferral(code);
+      return;
+    }
+    // 只有「用户自己把码删了」才顺手清暂存；链接带的码不经手用户，不能因为输入框为空就清掉
+    // （否则先点推荐链接、再直开 /login 会把归因码弄丢）。
+    if (referralTouched) clearPendingReferral();
+  }, [referralCode, referralTouched]);
 
   useEffect(() => {
     if (isCustomDomain) return;
@@ -620,7 +630,32 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
       <label><span className="loginFieldLabel">企业 / 品牌名称<b className="requiredMarker">*</b></span><input value={tenantName} onChange={(event) => { setTenantName(event.target.value); clearFeedback(); }} placeholder="例如：XX品牌 / XX门店" maxLength={80} autoComplete="organization" required /></label>
       {invitesNeeded && <label><span className="loginFieldLabel">邀请码<b className="requiredMarker">*</b></span><input value={inviteCode} onChange={(event) => { setInviteCode(event.target.value); clearFeedback(); }} placeholder="请输入邀请码" maxLength={200} autoComplete="one-time-code" /></label>}
     </>;
-    return <div className="loginPage"><main className="loginCard platformLoginCard">
+    return <div className="loginPage">
+      {/*
+       * 方案 A 分屏左侧「品牌墙」——纯展示性装饰：
+       * 无事件、无状态、不参与任何登录/注册流程，故不影响功能与交互。
+       * 文案与视觉严格对齐 docs/prototypes/login-redesign-options-20260930.html 方案 A。
+       * 右侧 <main className="loginCard"> 的结构与逻辑保持原样。
+       */}
+      <aside className="loginHeroWall" aria-hidden="true">
+        <svg className="lhw-orbit" viewBox="0 0 560 560" fill="none">
+          <circle cx="280" cy="280" r="266" stroke="rgba(255,138,61,.13)" strokeWidth="1" />
+          <circle cx="280" cy="280" r="210" stroke="rgba(255,138,61,.10)" strokeWidth="1" />
+          <circle cx="280" cy="280" r="150" stroke="rgba(255,138,61,.08)" strokeWidth="1" />
+          <path d="M280 14a266 266 0 0 1 230 133" stroke="#FF8A3D" strokeWidth="2.2" strokeLinecap="round" />
+          <path d="M280 70a210 210 0 0 1 182 105" stroke="rgba(255,138,61,.45)" strokeWidth="2" strokeDasharray="3 8" strokeLinecap="round" />
+          <circle cx="510" cy="147" r="5" fill="#FF8A3D" />
+          <circle cx="462" cy="175" r="3.5" fill="rgba(255,138,61,.45)" />
+          <circle cx="280" cy="14" r="4" fill="rgba(255,138,61,.6)" />
+        </svg>
+        <div className="lhw-in">
+          <span className="lhw-mark">潼</span>
+          <h2>一处入口，<br />贯通全平台智能体</h2>
+          <p className="lhw-tag">结果导向，按次结算；每一份交付，都可被复核。</p>
+          <span className="lhw-rule" />
+        </div>
+      </aside>
+      <main className="loginCard platformLoginCard">
       <div className="loginBrand">
         <span className="loginBadge">{branding.systemName}</span>
         <h1>{finishingSignup ? "完成注册，开通你的工作区" : "登录 / 注册"}</h1>
@@ -635,6 +670,24 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
         )}
         {!finishingSignup && wechatReady !== false && <WeChatLoginArea qr={wechatQr} busy={busy} disabled={wechatReady === null} label={wechatReady === null ? "正在检查登录方式…" : "微信一键登录 / 注册"} onStart={() => void handleWechatLogin()} onRefresh={() => void startWechatQrLogin()} />}
         {!finishingSignup && wechatReady === true && !showInviteForm && <p className="wechatLoginHint">首次使用微信登录，会自动为你注册账号并开通工作区{invitesNeeded ? "（需邀请码）" : "，不需要邀请码"}。</p>}
+        {/*
+         * 推荐码（选填，2026-09-30 用户要求）。
+         * 放在登录/注册表单区：微信一键登录、完成注册、邀请码开通三条分支都能看到，
+         * 填了就进 pending-referral 暂存，登录/注册成功后由服务端登记推荐关系。
+         */}
+        <label className="loginReferralField">
+          <span className="loginFieldLabel">推荐码<b className="optionalMarker">选填</b></span>
+          <input
+            value={referralCode}
+            onChange={(event) => { setReferralCode(event.target.value.replace(/\s/g, "")); setReferralTouched(true); clearFeedback(); }}
+            placeholder="好友的推荐码，没有可留空"
+            maxLength={64}
+            autoComplete="off"
+            spellCheck={false}
+            aria-label="推荐码（选填）"
+          />
+          <span className="loginReferralHint">填了推荐码，<b>新账号首次开通</b>时登记推荐关系，你和好友各得 100 算力。没有推荐码可留空。</span>
+        </label>
         {finishingSignup ? (
           <form onSubmit={handleLoginSubmit}>
             {workspaceFields}

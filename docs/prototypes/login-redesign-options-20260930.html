@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>登录页重设计方案 · 思潼AI生态商城</title>
+<style>
+  :root{
+    --bg:#F2EEE8; --card:#FFFFFF;
+    --accent:#FF7A1A; --accent2:#FFB070; --accent-deep:#E8651A;
+    --grad:linear-gradient(135deg,#FF8C32,#F25300 60%,#E84B00);
+    --text:#2B1B10; --muted:#94796B; --muted-2:#BEA488;
+    --line:#F0EBE3; --line-strong:#E5DDD1;
+    --wechat:#07C160; --ok:#0E9F6E;
+    --radius:18px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:34px 26px 64px; background:var(--bg);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    color:var(--text); -webkit-font-smoothing:antialiased;
+  }
+  .gallery{max-width:1240px;margin:0 auto}
+  .page-title{font-size:24px;font-weight:900;letter-spacing:.5px;margin:0 0 4px}
+  .page-sub{font-size:13px;color:var(--muted);margin:0 0 8px;line-height:1.7}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:10px 0 30px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:10px;height:10px;border-radius:50%}
+  .dot.w{background:var(--wechat)} .dot.o{background:var(--accent)}
+
+  .scheme{margin-bottom:52px}
+  .scheme-head{display:flex;align-items:baseline;gap:12px;margin-bottom:6px}
+  .scheme-no{font-size:13px;font-weight:800;color:#fff;background:var(--grad);border-radius:8px;padding:3px 11px;letter-spacing:1px}
+  .scheme-name{font-size:18px;font-weight:800}
+  .scheme-desc{font-size:12.5px;color:var(--muted);margin:0 0 18px;line-height:1.7}
+  .variants{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+
+  .frame{border-radius:var(--radius);overflow:hidden;background:#fff;box-shadow:0 10px 34px rgba(150,90,30,.12);border:1px solid var(--line)}
+  .frame .vt{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;font-size:12px;font-weight:700;background:#FFF9F1;border-bottom:1px solid var(--line)}
+  .vt .pill{font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px}
+  .vt .pill.on{color:var(--wechat);background:rgba(7,193,96,.1);border:1px solid rgba(7,193,96,.35)}
+  .vt .pill.off{color:var(--accent-deep);background:rgba(255,122,26,.1);border:1px solid rgba(255,122,26,.35)}
+
+  /* ===== shared atoms ===== */
+  .logo{display:inline-grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--grad);color:#fff;box-shadow:0 4px 12px rgba(242,83,0,.3)}
+  .wbtn{display:flex;align-items:center;justify-content:center;gap:9px;height:46px;border-radius:12px;background:var(--wechat);color:#fff;font-size:14.5px;font-weight:800;border:0;cursor:pointer}
+  .obtn{display:flex;align-items:center;justify-content:center;height:46px;border-radius:12px;background:var(--grad);color:#fff;font-size:14.5px;font-weight:800;border:0;cursor:pointer;position:relative;overflow:hidden}
+  .otext{display:block;text-align:center;height:44px;line-height:44px;border-radius:12px;border:1px solid var(--line-strong);background:#fff;color:var(--text);font-size:14px;font-weight:600;cursor:pointer}
+  .field{width:100%;height:46px;border-radius:12px;border:1px solid var(--line-strong);padding:0 14px;font-size:14px;color:var(--text);outline:0;background:#fff}
+  .field::placeholder{color:var(--muted-2)}
+  .divider{display:flex;align-items:center;gap:12px;color:var(--muted-2);font-size:11.5px;margin:16px 0}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line)}
+  .ilink{display:block;text-align:center;font-size:12px;color:var(--muted);margin-top:14px;text-decoration:none}
+  .ilink b{color:var(--accent-deep)}
+  .note{font-size:11.5px;color:#B4420F;background:#FFF3E6;border:1px solid rgba(232,101,26,.3);border-radius:12px;padding:9px 12px;line-height:1.6;margin-bottom:14px}
+  .stage{position:relative;min-height:540px}
+
+  /* ===== Scheme A : split ===== */
+  .split{display:grid;grid-template-columns:44% 56%;min-height:540px}
+  .split .brand{position:relative;overflow:hidden;background:var(--grad);color:#fff;padding:34px 30px;display:flex;flex-direction:column}
+  .split .brand .bl{position:absolute;width:230px;height:230px;border-radius:50%;background:rgba(255,255,255,.12);filter:blur(2px)}
+  .split .brand .b1{top:-70px;right:-60px}.split .brand .b2{bottom:-90px;left:-50px;width:280px;height:280px;background:rgba(255,200,120,.18)}
+  .split .brand .row{display:flex;align-items:center;gap:11px;position:relative;z-index:1}
+  .split .brand .bname{font-size:17px;font-weight:800}
+  .split .brand .bsub{font-size:11px;opacity:.85;letter-spacing:1px}
+  .split .brand .bhead{margin-top:auto;position:relative;z-index:1}
+  .split .brand h1{font-size:26px;line-height:1.5;font-weight:900;margin:0 0 10px}
+  .split .brand h1 em{font-style:normal;background:linear-gradient(90deg,#FFF0C8,#FFC66B);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .split .brand .bslogan{font-size:12.5px;opacity:.92;background:rgba(255,255,255,.16);display:inline-block;padding:5px 12px;border-radius:18px}
+  .split .brand .chips{display:flex;gap:8px;margin-top:18px;position:relative;z-index:1;flex-wrap:wrap}
+  .split .brand .chips i{font-style:normal;font-size:11px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.4);padding:4px 10px;border-radius:999px}
+  .split .panel{padding:38px 34px;display:flex;flex-direction:column;justify-content:center}
+  .split .panel h2{font-size:18px;font-weight:800;margin:0 0 4px}
+  .split .panel .ps{font-size:12px;color:var(--muted);margin:0 0 20px}
+
+  /* ===== Scheme B : centered card ===== */
+  .center{background:radial-gradient(420px 320px at 12% 8%,rgba(255,140,50,.14),transparent 60%),radial-gradient(420px 360px at 92% 96%,rgba(255,176,112,.18),transparent 60%),#FFFDF9;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px}
+  .ccard{width:100%;max-width:380px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:26px 24px;box-shadow:0 16px 40px rgba(150,90,30,.1)}
+  .ccard .top{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:18px}
+  .ccard .top .bname{font-size:16px;font-weight:800;margin-top:10px}
+  .ccard .top .bsub{font-size:11px;color:var(--muted);letter-spacing:1px}
+  .foot{margin-top:16px;text-align:center;font-size:11.5px;color:var(--muted-2)}
+
+  /* ===== Scheme C : full hero + docked login ===== */
+  .hero{position:relative;overflow:hidden;background:var(--grad);color:#fff;min-height:540px;display:flex;flex-direction:column;align-items:center;padding:30px}
+  .hero .bl{position:absolute;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.1)}
+  .hero .h1{top:-110px;right:-80px}.hero .h2{bottom:-140px;left:-90px;width:360px;height:360px;background:rgba(255,200,120,.16)}
+  .hero .hrow{display:flex;align-items:center;gap:10px;position:relative;z-index:1}
+  .hero .hname{font-size:15px;font-weight:800;letter-spacing:1px}
+  .hero .hcenter{position:relative;z-index:1;text-align:center;margin-top:42px}
+  .hero .hcenter h1{font-size:25px;font-weight:900;margin:0 0 10px;line-height:1.5}
+  .hero .hcenter h1 em{font-style:normal;background:linear-gradient(90deg,#FFF0C8,#FFC66B);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero .hcenter p{font-size:12.5px;opacity:.92;background:rgba(255,255,255,.16);display:inline-block;padding:5px 14px;border-radius:18px;margin:0}
+  .dock{position:relative;z-index:1;margin-top:auto;width:100%;max-width:420px;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border-radius:20px;padding:22px 22px 18px;box-shadow:0 18px 44px rgba(120,40,0,.28)}
+  .dock h3{font-size:15px;font-weight:800;margin:0 0 14px;text-align:center;color:var(--text)}
+  @media(max-width:900px){.variants{grid-template-columns:1fr}.split{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="gallery">
+  <h1 class="page-title">登录页重设计方案 · 思潼 AI 生态商城</h1>
+  <p class="page-sub">与商城首页同款暖橙浅色语言：橙渐变主按钮 <code>linear-gradient(135deg,#FF8C32,#F25300)</code>、白卡 + <code>#F0EBE3</code> 描边、Hero 橙渐变氛围。每组含两个变体：<b>线上（带微信）</b> 与 <b>本地（无微信）</b>。</p>
+  <div class="legend">
+    <span><i class="dot w"></i> 微信登录（仅线上）</span>
+    <span><i class="dot o"></i> 企业/品牌名称免密进入（本地主路径）</span>
+    <span>● 内部开发开通入口 / 一键演示登录（两变体共有）</span>
+  </div>
+
+  <!-- ============ SCHEME A ============ -->
+  <section class="scheme">
+    <div class="scheme-head">
+      <span class="scheme-no">方案 A</span>
+      <span class="scheme-name">分屏式 · 品牌 Hero + 登录卡</span>
+    </div>
+    <p class="scheme-desc">左侧橙渐变品牌墙讲清楚「一个账号用遍所有数字员工」，右侧白卡放登录动作。层次最稳、信息最聚焦，适合首次访问的商家。</p>
+    <div class="variants">
+
+      <!-- A 线上 -->
+      <div class="frame">
+        <div class="vt"><span>线上 · 带微信</span><span class="pill on">微信已启用</span></div>
+        <div class="split">
+          <div class="brand">
+            <span class="bl b1"></span><span class="bl b2"></span>
+            <div class="row"><span class="logo">思</span><div><div class="bname">思潼 AI 生态商城</div><div class="bsub">数字员工 · 算力即服务</div></div></div>
+            <div class="bhead">
+              <h1>一个账号<br/>用遍<em>所有数字员工</em></h1>
+              <span class="bslogan">0 元开通 · 立送 100 算力</span>
+              <div class="chips"><i>IP 定位</i><i>直播话术</i><i>视频复盘</i><i>文案创作</i></div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2>登录 / 开通</h2>
+            <p class="ps">微信一键登录，工作或生活号都能用</p>
+            <button class="wbtn">💬 微信一键登录</button>
+            <div class="divider">其他登录方式</div>
+            <input class="field" placeholder="企业 / 品牌名称"/>
+            <div style="height:10px"></div>
+            <button class="otext">进入思潼 AI 智能体平台</button>
+            <a class="ilink">内部开发 · <b>一键演示登录</b></a>
+          </div>
+        </div>
+      </div>
+
+      <!-- A 本地 -->
+      <div class="frame">
+        <div class="vt"><span>本地 · 无微信</span><span class="pill off">微信未启用</span></div>
+        <div class="split">
+          <div class="brand">
+            <span class="bl b1"></span><span class="bl b2"></span>
+            <div class="row"><span class="logo">思</span><div><div class="bname">思潼 AI 生态商城</div><div class="bsub">数字员工 · 算力即服务</div></div></div>
+            <div class="bhead">
+              <h1>一个账号<br/>用遍<em>所有数字员工</em></h1>
+              <span class="bslogan">0 元开通 · 立送 100 算力</span>
+              <div class="chips"><i>IP 定位</i><i>直播话术</i><i>视频复盘</i><i>文案创作</i></div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2>登录 / 开通</h2>
+            <p class="ps">本机开发环境</p>
+            <div class="note">⚠ 本机微信登录未配置，请使用下方免密通道进入。</div>
+            <input class="field" placeholder="企业 / 品牌名称（任意填写）"/>
+            <div style="height:10px"></div>
+            <button class="obtn">进入思潼 AI 智能体平台</button>
+            <a class="ilink">内部开发 · <b>一键演示登录</b></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SCHEME B ============ -->
+  <section class="scheme">
+    <div class="scheme-head">
+      <span class="scheme-no">方案 B</span>
+      <span class="scheme-name">居中卡片 · 登录舞台</span>
+    </div>
+    <p class="scheme-desc">浅色舞台 + 双柔光球，居中白卡承载品牌与登录动作。最克制、最像「官网登录页」，移动端天然自适应。</p>
+    <div class="variants">
+
+      <!-- B 线上 -->
+      <div class="frame">
+        <div class="vt"><span>线上 · 带微信</span><span class="pill on">微信已启用</span></div>
+        <div class="center stage">
+          <div class="ccard">
+            <div class="top">
+              <span class="logo">思</span>
+              <div class="bname">思潼 AI 生态商城</div>
+              <div class="bsub">数字员工 · 算力即服务</div>
+            </div>
+            <button class="wbtn">💬 微信一键登录</button>
+            <div class="divider">其他登录方式</div>
+            <input class="field" placeholder="企业 / 品牌名称"/>
+            <div style="height:10px"></div>
+            <button class="otext">进入思潼 AI 智能体平台</button>
+            <a class="ilink">内部开发 · <b>一键演示登录</b></a>
+          </div>
+          <div class="foot">算力即服务 · 用一次付一次</div>
+        </div>
+      </div>
+
+      <!-- B 本地 -->
+      <div class="frame">
+        <div class="vt"><span>本地 · 无微信</span><span class="pill off">微信未启用</span></div>
+        <div class="center stage">
+          <div class="ccard">
+            <div class="top">
+              <span class="logo">思</span>
+              <div class="bname">思潼 AI 生态商城</div>
+              <div class="bsub">数字员工 · 算力即服务</div>
+            </div>
+            <div class="note">⚠ 本机微信登录未配置，请使用下方免密通道进入。</div>
+            <input class="field" placeholder="企业 / 品牌名称（任意填写）"/>
+            <div style="height:10px"></div>
+            <button class="obtn">进入思潼 AI 智能体平台</button>
+            <a class="ilink">内部开发 · <b>一键演示登录</b></a>
+          </div>
+          <div class="foot">算力即服务 · 用一次付一次</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SCHEME C ============ -->
+  <section class="scheme">
+    <div class="scheme-head">
+      <span class="scheme-no">方案 C</span>
+      <span class="scheme-name">全屏 Hero + 底部登录坞</span>
+    </div>
+    <p class="scheme-desc">整屏橙渐变 Hero，品牌与主张居中铺满，白色磨砂登录坞停靠底部。视觉冲击最强、品牌感最足，适合作为落地首屏。</p>
+    <div class="variants">
+
+      <!-- C 线上 -->
+      <div class="frame">
+        <div class="vt"><span>线上 · 带微信</span><span class="pill on">微信已启用</span></div>
+        <div class="hero">
+          <span class="bl h1"></span><span class="bl h2"></span>
+          <div class="hrow"><span class="logo">思</span><span class="hname">思潼 AI 生态商城</span></div>
+          <div class="hcenter">
+            <h1>一个账号，<em>用遍所有数字员工</em></h1>
+            <p>0 元开通 · 立送 100 算力 · 用一次付一次</p>
+          </div>
+          <div class="dock">
+            <h3>登录 / 开通</h3>
+            <button class="wbtn">💬 微信一键登录</button>
+            <div class="divider">其他登录方式</div>
+            <input class="field" placeholder="企业 / 品牌名称"/>
+            <div style="height:10px"></div>
+            <button class="otext">进入思潼 AI 智能体平台</button>
+            <a class="ilink">内部开发 · <b>一键演示登录</b></a>
+          </div>
+        </div>
+      </div>
+
+      <!-- C 本地 -->
+      <div class="frame">
+        <div class="vt"><span>本地 · 无微信</span><span class="pill off">微信未启用</span></div>
+        <div class="hero">
+          <span class="bl h1"></span><span class="bl h2"></span>
+          <div class="hrow"><span class="logo">思</span><span class="hname">思潼 AI 生态商城</span></div>
+          <div class="hcenter">
+            <h1>一个账号，<em>用遍所有数字员工</em></h1>
+            <p>0 元开通 · 立送 100 算力 · 用一次付一次</p>
+          </div>
+          <div class="dock">
+            <h3>登录 / 开通</h3>
+            <div class="note">⚠ 本机微信登录未配置，请使用下方免密通道进入。</div>
+            <input class="field" placeholder="企业 / 品牌名称（任意填写）"/>
+            <div style="height:10px"></div>
+            <button class="obtn">进入思潼 AI 智能体平台</button>
+            <a class="ilink">内部开发 · <b>一键演示登录</b></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+</body>
+</html>

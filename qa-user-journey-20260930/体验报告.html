@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>思潼AI商城 · 真实用户体验报告（2026-09-30）</title>
+<style>
+  :root{
+    --bg:#f7f7f5; --card:#ffffff; --line:#e5e3df; --line2:#efede9;
+    --ink:#1c1b19; --ink2:#5c5a55; --ink3:#8b8880;
+    --blue:#2563eb; --blue-sf:#eff4ff;
+    --orange:#c2410c; --orange-sf:#fff3ec;
+    --red:#b91c1c; --red-sf:#fdeced;
+    --green:#047857; --green-sf:#e9f6f0;
+    --purple:#6d28d9; --purple-sf:#f2edfd;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    line-height:1.75;font-size:15px;padding:0 0 80px}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+  header{padding:52px 0 30px;border-bottom:1px solid var(--line);margin-bottom:32px}
+  h1{font-size:29px;font-weight:700;letter-spacing:-.4px;line-height:1.4}
+  .sub{color:var(--ink2);margin-top:10px;font-size:14px}
+  .badge{display:inline-block;background:var(--blue-sf);color:var(--blue);font-size:12px;
+    padding:3px 10px;border-radius:20px;font-weight:600;margin-right:8px;vertical-align:middle}
+  h2{font-size:21px;font-weight:700;margin:48px 0 6px;letter-spacing:-.2px;padding-top:18px;border-top:1px solid var(--line)}
+  h2:first-of-type{border-top:none;padding-top:0}
+  h3{font-size:16px;font-weight:650;margin:26px 0 8px}
+  p{margin:10px 0;color:var(--ink2)}
+  .lead{color:var(--ink2);font-size:14.5px;margin-bottom:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:16px 0}
+  svg{display:block;max-width:100%;height:auto;margin:4px auto}
+  .figcap{font-size:12.5px;color:var(--ink3);text-align:center;margin-top:10px}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px;background:var(--card);
+        border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  th{background:#faf9f7;text-align:left;padding:10px 13px;font-weight:650;font-size:12.5px;color:var(--ink2);border-bottom:1px solid var(--line)}
+  td{padding:10px 13px;border-bottom:1px solid var(--line2);vertical-align:top;color:var(--ink2)}
+  tr:last-child td{border-bottom:none}
+  td strong{color:var(--ink)}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;background:#f2f1ed;padding:1px 5px;border-radius:4px;color:var(--ink)}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;white-space:nowrap}
+  .p0{background:var(--red-sf);color:var(--red)}
+  .p1{background:var(--orange-sf);color:var(--orange)}
+  .p2{background:var(--blue-sf);color:var(--blue)}
+  .ok{background:var(--green-sf);color:var(--green)}
+  ul{margin:10px 0 10px 20px;color:var(--ink2)} li{margin:6px 0}
+  .good{border-left:3px solid var(--green);background:var(--green-sf);padding:14px 18px;border-radius:0 8px 8px 0;margin:16px 0}
+  .good h3{margin:0 0 6px;color:var(--green)}
+  .good p,.good li{color:#14624c;margin:4px 0;font-size:13.8px}
+  .bad{border-left:3px solid var(--red);background:var(--red-sf);padding:14px 18px;border-radius:0 8px 8px 0;margin:16px 0}
+  .bad h3{margin:0 0 6px;color:var(--red)}
+  .bad p{color:#8f1d1d;margin:6px 0;font-size:13.8px}
+  .quote{border-left:3px solid var(--line);padding:2px 0 2px 14px;color:var(--ink);
+         font-style:normal;margin:12px 0;background:#faf9f7;border-radius:0 6px 6px 0}
+  figure{margin:16px 0;text-align:center}
+  figure img{max-width:100%;border:1px solid var(--line);border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  figcaption{font-size:12.5px;color:var(--ink3);margin-top:8px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:740px){.grid2{grid-template-columns:1fr}}
+  footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);color:var(--ink3);font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1><span class="badge">真人走查</span>思潼AI商城 · 用户体验报告</h1>
+  <div class="sub">
+    2026-09-30 · 手机视口（iPhone 390×844）真机模拟 · 全程真实点击与输入<br>
+    身份设定：一个开社区火锅店的小老板，第一次听说这个平台，想给店里做条抖音文案
+  </div>
+</header>
+
+<h2>一、一句话结论</h2>
+<p class="lead">
+  <strong>东西是好东西，但我差点在最后一步之前就走了。</strong><br>
+  交付物质量确实超出预期——花 15 算力拿到的是一份能直接开拍的 60 秒口播分镜脚本。但通往这一步的路上，
+  <strong>有三个地方会让人以为"这平台是坏的"</strong>：找不到登录入口、购物车点了没反应、以及最要命的——
+  作为一个没登录的访客，我认认真真回答了 6 个问题，点下「开始创作」，等了 60 秒，只等来一句<strong>"登录已过期"</strong>。
+</p>
+
+<div class="card">
+<svg viewBox="0 0 900 250" xmlns="http://www.w3.org/2000/svg">
+  <defs><marker id="a1" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#8b8880"/></marker></defs>
+  <text x="30" y="24" font-size="13" font-weight="700" fill="#1c1b19">我这一趟的真实时间线</text>
+
+  <rect x="30" y="44" width="118" height="52" rx="8" fill="#e9f6f0" stroke="#047857" stroke-width="1.3"/>
+  <text x="89" y="64" text-anchor="middle" font-size="12" font-weight="650" fill="#1c1b19">首页</text>
+  <text x="89" y="80" text-anchor="middle" font-size="10.5" fill="#047857">2.2 秒打开</text>
+  <text x="89" y="93" text-anchor="middle" font-size="10.5" fill="#047857">看得懂</text>
+
+  <rect x="166" y="44" width="118" height="52" rx="8" fill="#e9f6f0" stroke="#047857" stroke-width="1.3"/>
+  <text x="225" y="64" text-anchor="middle" font-size="12" font-weight="650" fill="#1c1b19">选智能体</text>
+  <text x="225" y="80" text-anchor="middle" font-size="10.5" fill="#047857">价格清楚</text>
+  <text x="225" y="93" text-anchor="middle" font-size="10.5" fill="#047857">15 算力 ≈¥1.5</text>
+
+  <rect x="302" y="44" width="118" height="52" rx="8" fill="#e9f6f0" stroke="#047857" stroke-width="1.3"/>
+  <text x="361" y="64" text-anchor="middle" font-size="12" font-weight="650" fill="#1c1b19">进工作台</text>
+  <text x="361" y="80" text-anchor="middle" font-size="10.5" fill="#047857">引导问答</text>
+  <text x="361" y="93" text-anchor="middle" font-size="10.5" fill="#047857">一次问一个</text>
+
+  <rect x="438" y="44" width="118" height="52" rx="8" fill="#fff3ec" stroke="#c2410c" stroke-width="1.4"/>
+  <text x="497" y="64" text-anchor="middle" font-size="12" font-weight="650" fill="#1c1b19">答完 6 问</text>
+  <text x="497" y="80" text-anchor="middle" font-size="10.5" fill="#c2410c">投入 6 轮对话</text>
+  <text x="497" y="93" text-anchor="middle" font-size="10.5" fill="#c2410c">约 2 分钟</text>
+
+  <rect x="574" y="44" width="118" height="52" rx="8" fill="#fdeced" stroke="#b91c1c" stroke-width="1.5"/>
+  <text x="633" y="64" text-anchor="middle" font-size="12" font-weight="650" fill="#1c1b19">点开始创作</text>
+  <text x="633" y="80" text-anchor="middle" font-size="10.5" fill="#b91c1c">等 60 秒</text>
+  <text x="633" y="93" text-anchor="middle" font-size="10.5" fill="#b91c1c">「登录已过期」</text>
+
+  <rect x="710" y="44" width="160" height="52" rx="8" fill="#faf9f7" stroke="#e5e3df" stroke-width="1.2"/>
+  <text x="790" y="64" text-anchor="middle" font-size="12" font-weight="650" fill="#8b8880">？</text>
+  <text x="790" y="80" text-anchor="middle" font-size="10.5" fill="#8b8880">提示让我点一个</text>
+  <text x="790" y="93" text-anchor="middle" font-size="10.5" fill="#8b8880">首页不存在的按钮</text>
+
+  <path d="M148,70 L164,70" stroke="#8b8880" stroke-width="1.4" marker-end="url(#a1)"/>
+  <path d="M284,70 L300,70" stroke="#8b8880" stroke-width="1.4" marker-end="url(#a1)"/>
+  <path d="M420,70 L436,70" stroke="#8b8880" stroke-width="1.4" marker-end="url(#a1)"/>
+  <path d="M556,70 L572,70" stroke="#8b8880" stroke-width="1.4" marker-end="url(#a1)"/>
+  <path d="M692,70 L708,70" stroke="#b91c1c" stroke-width="1.4" marker-end="url(#a1)"/>
+
+  <text x="30" y="126" font-size="12" fill="#047857">前 3 步体验良好，只需要 10 秒就能决定试一试</text>
+  <text x="438" y="126" font-size="12" fill="#b91c1c">用户投入最大的一步，恰恰在这里被拦下</text>
+
+  <line x1="30" y1="146" x2="870" y2="146" stroke="#e5e3df"/>
+
+  <text x="30" y="172" font-size="13" font-weight="700" fill="#1c1b19">登录之后（找到隐藏入口之后）</text>
+  <rect x="30" y="188" width="150" height="42" rx="8" fill="#eff4ff" stroke="#2563eb" stroke-width="1.3"/>
+  <text x="105" y="206" text-anchor="middle" font-size="12" font-weight="650" fill="#1c1b19">填企业名即登录</text>
+  <text x="105" y="221" text-anchor="middle" font-size="10.5" fill="#2563eb">送 100 算力</text>
+
+  <rect x="200" y="188" width="150" height="42" rx="8" fill="#eff4ff" stroke="#2563eb" stroke-width="1.3"/>
+  <text x="275" y="206" text-anchor="middle" font-size="12" font-weight="650" fill="#1c1b19">重填 6 问</text>
+  <text x="275" y="221" text-anchor="middle" font-size="10.5" fill="#2563eb">右侧简报实时回填</text>
+
+  <rect x="370" y="188" width="150" height="42" rx="8" fill="#e9f6f0" stroke="#047857" stroke-width="1.3"/>
+  <text x="445" y="206" text-anchor="middle" font-size="12" font-weight="650" fill="#1c1b19">20 秒内出稿</text>
+  <text x="445" y="221" text-anchor="middle" font-size="10.5" fill="#047857">分段口播 + B-roll</text>
+
+  <rect x="540" y="188" width="150" height="42" rx="8" fill="#e9f6f0" stroke="#047857" stroke-width="1.3"/>
+  <text x="615" y="206" text-anchor="middle" font-size="12" font-weight="650" fill="#1c1b19">扣 15 算力</text>
+  <text x="615" y="221" text-anchor="middle" font-size="10.5" fill="#047857">100 → 85，与标价一致</text>
+
+  <rect x="710" y="188" width="160" height="42" rx="8" fill="#fdeced" stroke="#b91c1c" stroke-width="1.3"/>
+  <text x="790" y="206" text-anchor="middle" font-size="12" font-weight="650" fill="#1c1b19">订单页 0 笔</text>
+  <text x="790" y="221" text-anchor="middle" font-size="10.5" fill="#b91c1c">花完钱找不到凭证</text>
+
+  <path d="M180,209 L198,209" stroke="#8b8880" stroke-width="1.4" marker-end="url(#a1)"/>
+  <path d="M350,209 L368,209" stroke="#8b8880" stroke-width="1.4" marker-end="url(#a1)"/>
+  <path d="M520,209 L538,209" stroke="#8b8880" stroke-width="1.4" marker-end="url(#a1)"/>
+  <path d="M690,209 L708,209" stroke="#8b8880" stroke-width="1.4" marker-end="url(#a1)"/>
+</svg>
+<div class="figcap">图 1 · 我从进站到拿到交付物的真实时间线</div>
+</div>
+
+<h2>二、先说好的：这几处是真的好用</h2>
+
+<div class="good">
+  <h3>1. 交付物不是"AI 味套话"，是能直接开拍的东西</h3>
+  <p>我拿到的是一份 60 秒口播脚本，按时间轴切成 6 段，每段都有：动作情绪提示、口播原话、B-roll 画面建议，结尾还带 6 个话题标签。摘录一段：</p>
+  <div class="quote" style="font-size:13.5px">
+    <strong>15-30秒｜卖点</strong>【动作/情绪：抬手比划，语气上扬】B-roll：年卡展示、洗护流程<br>
+    「咱家洗护年卡，全年不限次，一次买断，单次折算省一半。洗得越勤，越划算。」
+  </div>
+  <p>这不是"赋能、闭环、抓手"那套空话，是拿去就能拍的。单这一条，15 算力（≈¥1.5）我觉得值。</p>
+</div>
+
+<div class="good">
+  <h3>2. 引导式问需求，比给我一个空输入框友好太多</h3>
+  <p>工作台一次只问一个问题，下面配 3 个推荐选项可点，右侧「创作简报」实时回填。还贴心地留了条捷径：</p>
+  <div class="quote" style="font-size:13.5px">「赶时间？AI 先铺底稿，你来逐条确认 →」</div>
+  <p>对比"请描述你的需求"那种空框，这个设计明显更懂不会写提示词的小商家。</p>
+</div>
+
+<div class="good">
+  <h3>3. 钱的事说得清清楚楚</h3>
+  <ul>
+    <li>价格双标注：算力 + 约等于多少人民币（<code>15 算力 / 次 ≈ ¥1.5</code>）</li>
+    <li><strong>"失败不扣费"在详情页、工作台、按钮下方反复出现</strong>——这对第一次掏钱的人很重要</li>
+    <li>实际扣费与标价一致：我这次标 15，扣的就是 15（100 → 85），生成后明确写「本次实际消耗 15 算力」</li>
+    <li>生成速度可接受：约 20 秒内出稿，全程无 JS 报错</li>
+  </ul>
+</div>
+
+<div class="good">
+  <h3>4. 两个让人愿意信任的细节</h3>
+  <ul>
+    <li>AI 案例页明确标了<strong>"演示数据虚构"</strong>——不拿假案例充真，诚实，加分</li>
+    <li>搜索真的能用：搜「直播」立刻出 2 个精准结果（罗盘 / 许复），还带「清空」按钮</li>
+  </ul>
+</div>
+
+<figure>
+  <img src="31-delivery-final.png" alt="最终交付物">
+  <figcaption>实际拿到的交付物：分段口播脚本 + 复制全部 + 导出 Word</figcaption>
+</figure>
+
+<h2>三、但有三个地方，我以为平台坏了</h2>
+
+<h3><span class="pill p0">P0</span> ① 找不到登录入口，而报错偏偏让我去点它</h3>
+<div class="bad">
+  <h3>真实发生的事</h3>
+  <p>我在工作台填完 6 个问题，点「开始创作」，60 秒后收到这句话：</p>
+  <div class="quote" style="font-size:13.5px">
+    登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次不消耗算力。
+  </div>
+  <p><strong>两个问题叠在一起：</strong></p>
+  <p>第一，我<strong>从来没登录过</strong>，说"已过期"是错的，应该是"请先登录"。</p>
+  <p>第二，它让我点右上角那个按钮——<strong>我把首页从头翻到尾，顶栏只有「思潼AI商城｜算力 —｜充值」，根本没有登录入口</strong>。</p>
+  <p>最后我是靠"点充值 → 弹层里有个「去登录」"才摸进去的。这个入口藏得太深了，普通用户到这一步基本就关页面了。</p>
+</div>
+
+<figure>
+  <img src="15-recharge-click.png" alt="充值弹层">
+  <figcaption>唯一能摸到登录的地方：点「充值」后弹层里的「去登录」</figcaption>
+</figure>
+
+<h3><span class="pill p0">P0</span> ② 未登录用户可以一路走到最后一步才被拦</h3>
+<p>我可以看详情页、可以进工作台、可以填完 6 项简报、可以点「开始创作」——<strong>直到最后一步才告诉我没登录</strong>。这时候我已经投入了 6 轮对话、约 2 分钟。</p>
+<p>把门槛放在最后一步，等于让用户先付出全部成本再拒绝他。更合理的做法是：要么进工作台时就提示"登录后可保存并生成"，要么在填简报前就拦，别让人白填。</p>
+<p class="note" style="font-size:13px;color:var(--ink3)">另外一点：未登录时按钮下方写的是「预计消耗约 <strong>（空白）</strong>（按本次实际用量结算）」——价格数字整个没了。登录后才显示"约 15 算力"。空白价格比没有更让人不安。</p>
+
+<h3><span class="pill p1">P1</span> ③ 购物车是个死 Tab</h3>
+<p>底部 5 个 Tab：首页 / AI案例 / 购物车 / 我的 / 我的算力。我点了「购物车」，<strong>页面纹丝不动，还在首页，没有任何内容也没有任何提示</strong>。点了三次都一样。</p>
+<p>一个不工作的 Tab 放在主导航里，用户会认为整个平台都不稳定。</p>
+
+<figure>
+  <img src="16-cart.png" alt="购物车点击后无反应">
+  <figcaption>点「购物车」之后：页面停在首页，无任何反馈</figcaption>
+</figure>
+
+<h2>四、付费之后才发现的坑</h2>
+
+<h3><span class="pill p1">P1</span> 花了钱，订单页是 0 笔</h3>
+<p>我消费了 15 算力、拿到了交付物，然后去「我的 → 全部订单」：</p>
+<div class="quote" style="font-size:13.5px">📦 全部订单 · 0 笔 · 暂无订单 · 功能开发中</div>
+<p>付费用户最需要的一件事就是"我买的东西在哪"，这里直接是空的。交付物目前只能靠工作台里那一屏，<strong>一旦清缓存或换设备就找不回来了</strong>（虽然页面宣传说"交付物云端保存可回看"）。</p>
+
+<figure>
+  <img src="32-mine-after.png" alt="我的页消费后">
+  <figcaption>消费 15 算力后，「我的」页：余额正确显示 85，但订单 0 笔</figcaption>
+</figure>
+
+<h3><span class="pill p1">P1</span> 我登录了，但页面还叫我"体验访客"</h3>
+<p>我用"测试火锅店"这个名字登录后，算力确实到账了（100），但「我的」页顶部仍然写着：</p>
+<div class="quote" style="font-size:13.5px">体验访客 · 演示账号 ｜ 首次登入 · 2026-09-25</div>
+<p>首次登入日期还是 9 月 25 号，不是今天。<strong>我到底登录成功了没有？</strong>这个页面给不出答案。花真钱的人看到"体验访客"四个字，心里是没底的。</p>
+
+<h3><span class="pill p1">P1</span> 进度说 6/6，其实还差一项</h3>
+<p>填简报时我遇到一个困惑：进度显示 <code>6/6</code>，但右侧还有一项写着「出镜方式 · 待填」，「开始创作」按钮是灰的。<strong>点它没有任何提示</strong>——不会告诉我"还差出镜方式没填"，就只是没反应。</p>
+<p>我栽在这里两次，第二次才反应过来要再答一轮。真实用户大概率在这里放弃。</p>
+
+<h2>五、一些细节问题（不致命，但影响信任感）</h2>
+<table>
+  <tr><th style="width:16%">程度</th><th style="width:30%">现象</th><th>我当时怎么想</th></tr>
+  <tr><td><span class="pill p2">P2</span></td><td>模板文案有空洞：「一个账号，<strong>　</strong>用遍所有数字员工」</td><td>像是没做完就上线了，读起来断句很怪</td></tr>
+  <tr><td><span class="pill p2">P2</span></td><td>餐饮场景下出现宠物示例：「评论区留言<strong>「洗澡」</strong>约体验」</td><td>我选的是餐饮门店，推荐选项却是宠物洗护——示例写死了，不跟着我的选择变</td></tr>
+  <tr><td><span class="pill p2">P2</span></td><td>本地环境里显示生产域名 <code>ai.lcppch.top/agent/...</code></td><td>我在 127.0.0.1 上看到线上地址，不知道点进去会跳哪</td></tr>
+  <tr><td><span class="pill p2">P2</span></td><td>口径打架：详情页写「已上线 · 可直接对话」，首页还留着「🔔 预约上线提醒」</td><td>到底上线了没有？</td></tr>
+  <tr><td><span class="pill p2">P2</span></td><td>登录只填一个企业名就拿到 100 算力</td><td>演示环境可以理解，但页面上没说明这是"体验账号"，容易被误认为正式注册</td></tr>
+  <tr><td><span class="pill p2">P2</span></td><td>余额显示不一致：顶栏「算力 —」，我的页「≈ ¥0」</td><td>一个显示横线一个显示 0，哪个准？</td></tr>
+</table>
+
+<h2>六、如果我是老板，我最想先修哪三个</h2>
+<div class="card">
+<svg viewBox="0 0 900 240" xmlns="http://www.w3.org/2000/svg">
+  <text x="30" y="24" font-size="13" font-weight="700" fill="#1c1b19">按"会不会赶走用户"排序</text>
+
+  <rect x="30" y="42" width="270" height="94" rx="10" fill="#fdeced" stroke="#b91c1c" stroke-width="1.5"/>
+  <text x="50" y="68" font-size="12.5" font-weight="700" fill="#b91c1c">第 1 · 顶栏加登录入口</text>
+  <text x="50" y="88" font-size="11" fill="#5c5a55">现在新用户拿不到任何可见入口</text>
+  <text x="50" y="105" font-size="11" fill="#5c5a55">且报错文案说"已过期"，其实是没登录</text>
+  <text x="50" y="124" font-size="10.5" fill="#b91c1c">成本：加个按钮 + 改一句文案</text>
+
+  <rect x="320" y="42" width="270" height="94" rx="10" fill="#fff3ec" stroke="#c2410c" stroke-width="1.5"/>
+  <text x="340" y="68" font-size="12.5" font-weight="700" fill="#c2410c">第 2 · 把拦截提前到进工作台</text>
+  <text x="340" y="88" font-size="11" fill="#5c5a55">别让人填完 6 问才说没登录</text>
+  <text x="340" y="105" font-size="11" fill="#5c5a55">顺带补上未登录时的价格空白</text>
+  <text x="340" y="124" font-size="10.5" fill="#c2410c">成本：一次路由判断 + 提示弹层</text>
+
+  <rect x="610" y="42" width="260" height="94" rx="10" fill="#fff3ec" stroke="#c2410c" stroke-width="1.5"/>
+  <text x="630" y="68" font-size="12.5" font-weight="700" fill="#c2410c">第 3 · 订单页 + 购物车</text>
+  <text x="630" y="88" font-size="11" fill="#5c5a55">付了钱要能看到凭证（现在 0 笔）</text>
+  <text x="630" y="105" font-size="11" fill="#5c5a55">购物车要么做、要么先摘掉</text>
+  <text x="630" y="124" font-size="10.5" fill="#c2410c">成本：订单列表已有数据，购物车可先隐藏</text>
+
+  <line x1="30" y1="158" x2="870" y2="158" stroke="#e5e3df"/>
+
+  <text x="30" y="184" font-size="13" font-weight="700" fill="#1c1b19">我的整体感受</text>
+  <rect x="30" y="198" width="840" height="34" rx="8" fill="#e9f6f0" stroke="#047857" stroke-width="1.2"/>
+  <text x="450" y="219" text-anchor="middle" font-size="12.5" fill="#047857">
+    产品内核是有竞争力的——交付物对得起价格。现在挡在前面的不是能力问题，是几条"没走完的最后一公里"。
+  </text>
+</svg>
+<div class="figcap">图 2 · 修复优先级（用户视角）</div>
+</div>
+
+<h2>七、附：我这趟的完整数据</h2>
+<table>
+  <tr><th style="width:32%">指标</th><th>实测</th></tr>
+  <tr><td>首屏加载</td><td>2.2 秒（本地，手机视口）</td></tr>
+  <tr><td>JS 异常 / 控制台错误</td><td><strong class="ok">全程 0 条</strong>（走完 6 个页面 + 一次完整生成）</td></tr>
+  <tr><td>引导问答轮次</td><td>填满 6 项简报实际需要 <strong>7 轮</strong>（进度数字比实际填充快一拍）</td></tr>
+  <tr><td>生成耗时</td><td>约 20 秒内返回完整交付物</td></tr>
+  <tr><td>扣费准确性</td><td>标价 15 算力 → 实扣 15 算力（100 → 85）<span class="pill ok" style="margin-left:6px">一致</span></td></tr>
+  <tr><td>交付物</td><td>60 秒口播脚本，6 段时间轴 + B-roll + 6 个话题标签；支持复制全部 / 导出 Word（免费）</td></tr>
+  <tr><td>失败提示</td><td>未登录时阻塞，但文案错误（说"已过期"）、指引的按钮不存在</td></tr>
+  <tr><td>能走通的入口</td><td>首页 / 详情页 / 工作台 / AI案例 / 我的 / 搜索 / 签到弹层 / 充值弹层</td></tr>
+  <tr><td>走不通的入口</td><td><strong>购物车 Tab（点击无响应）</strong>／订单页（0 笔）</td></tr>
+</table>
+
+<footer>
+  走查方式：Chrome 无头（390×844 手机视口，iPhone UA），全程真实点击与键盘输入，未使用任何接口绕过。<br>
+  截图与脚本留存于 <code>qa-user-journey-20260930/</code>（42 张截图 + 12 个走查脚本）。本报告未修改平台任何代码。<br>
+  说明：本次走查在本地开发环境（127.0.0.1:5174）进行，部分现象（如生产域名、体验账号直登）可能与线上配置有关。
+</footer>
+
+</div>
+</body>
+</html>

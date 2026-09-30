@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>登录页主题色 · 对齐商城</title>
+<style>
+  :root{
+    --font:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,"Segoe UI",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:#0b0b0e;color:#e8e8ea;min-height:100vh;}
+
+  .doc-head{max-width:1180px;margin:0 auto;padding:30px 24px 6px;}
+  .doc-head h1{font-size:20px;font-weight:800;letter-spacing:.2px;color:#fff;}
+  .doc-head p{margin-top:6px;font-size:13px;line-height:1.7;color:#9a9aa2;max-width:820px;}
+  .doc-head .hint{margin-top:10px;font-size:12px;color:#ffb070;}
+
+  .controls{
+    max-width:1180px;margin:16px auto 0;padding:0 24px;
+    display:flex;flex-wrap:wrap;gap:18px 26px;align-items:flex-end;
+  }
+  .ctrl-group{display:flex;flex-direction:column;gap:7px;}
+  .ctrl-group > .lbl{font-size:11px;color:#8a8a92;letter-spacing:.4px;font-weight:700;}
+  .seg{display:flex;gap:8px;flex-wrap:wrap;}
+  .tab{
+    appearance:none;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);
+    color:#cfcfd4;font-size:13px;font-weight:700;padding:8px 14px;border-radius:10px;cursor:pointer;
+    transition:.18s;font-family:var(--font);white-space:nowrap;
+  }
+  .tab:hover{border-color:rgba(255,138,61,.5);color:#fff;}
+  .tab.active{background:linear-gradient(135deg,#FF8A3D,#FFB070);color:#1a1205;border-color:transparent;}
+
+  .stage{max-width:1180px;margin:18px auto 60px;padding:0 24px;}
+  .frame{border-radius:18px;overflow:hidden;border:1px solid rgba(255,255,255,.08);box-shadow:0 30px 80px rgba(0,0,0,.7);}
+  .ver-note{margin:14px 2px 0;font-size:12.5px;line-height:1.7;color:#a8a8b0;border-left:2px solid #ff8a3d;padding-left:12px;}
+  .ver-note b{color:#ffb070;font-weight:700;}
+
+  .loginPage{
+    --bg1:#0b0b0e;--bg2:#131316;--bg3:#17171b;
+    --wall:#101014;--wall-border:rgba(255,255,255,.08);
+    --text:#f2f2f4;--muted:#aaadb2;
+    --arc:#ff8a3d;--dot:#ff8a3d;
+    --mark-bg:#ff8a3d;--mark-fg:#1a1205;
+    --rule:#ff8a3d;
+    --input-bg:rgba(255,255,255,.05);--input-border:rgba(255,255,255,.10);
+    --input-fg:#f2f2f4;--ph:#777a80;--input-focus:#ff8a3d;
+    --btn-bg:linear-gradient(135deg,#FF8A3D,#FFB070);--btn-fg:#1a1205;
+    --btn-border:transparent;--btn-shadow:0 14px 44px rgba(255,138,61,.16);
+    --link:#ffb070;--footer:#aaadb2;
+    --glow:
+      radial-gradient(1000px 640px at 12% -10%, rgba(255,255,255,.04), transparent 58%),
+      radial-gradient(900px 620px at 95% 2%, rgba(255,138,61,.06), transparent 56%),
+      radial-gradient(820px 760px at 80% 105%, rgba(255,255,255,.035), transparent 60%),
+      linear-gradient(160deg, var(--bg1) 0%, var(--bg2) 52%, var(--bg3) 100%);
+    color:var(--text);min-height:560px;display:flex;align-items:stretch;padding:0;
+    background:var(--glow);background-attachment:fixed;position:relative;
+  }
+  .loginPage::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
+    background-image:radial-gradient(rgba(255,255,255,.03) 1px, transparent 1px);background-size:28px 28px;}
+  .loginPage.vB{
+    --wall:#0d0d11;--wall-border:rgba(255,255,255,.07);
+    --arc:rgba(255,255,255,.16);--dot:#ff8a3d;
+    --mark-bg:rgba(255,255,255,.07);--mark-fg:#ff8a3d;
+    --rule:rgba(255,255,255,.22);
+    --input-bg:rgba(255,255,255,.035);--input-border:rgba(255,255,255,.10);
+    --btn-bg:transparent;--btn-fg:#ff8a3d;--btn-border:1px solid #ff8a3d;--btn-shadow:none;
+  }
+  .loginPage.vC{
+    --wall:rgba(255,255,255,.04);--wall-border:rgba(255,255,255,.12);
+    --arc:#ff8a3d;--dot:#ffb070;
+    --mark-bg:#ff8a3d;--mark-fg:#1a1205;
+    --rule:#ff8a3d;
+    --input-bg:rgba(255,255,255,.07);--input-border:rgba(255,255,255,.14);
+    --btn-bg:linear-gradient(135deg,#FF8A3D,#FFB070);--btn-fg:#1a1205;
+    --btn-border:transparent;--btn-shadow:0 14px 44px rgba(255,138,61,.22), inset 0 1px 0 rgba(255,255,255,.28);
+  }
+  .loginPage.vC::before{background-image:radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px);background-size:22px 22px;}
+
+  .loginHeroWall{
+    position:relative;overflow:hidden;flex:0 0 44%;width:44%;padding:34px 32px;
+    display:flex;flex-direction:column;justify-content:center;
+    background:var(--wall);border-right:1px solid var(--wall-border);z-index:1;
+  }
+  .lhw-orbit{position:absolute;top:-140px;right:-170px;width:560px;height:560px;pointer-events:none;color:var(--arc);}
+  .lhw-orbit .ring{fill:none;stroke:currentColor;stroke-opacity:.55;}
+  .lhw-orbit .ring2{fill:none;stroke:currentColor;stroke-opacity:.3;}
+  .lhw-orbit .arc{fill:none;stroke:currentColor;stroke-width:2;}
+  .lhw-orbit .tick{fill:var(--dot);}
+  .lhw-in{position:relative;z-index:1;}
+  .lhw-mark{
+    display:inline-grid;place-items:center;width:38px;height:38px;border-radius:11px;
+    background:var(--mark-bg);color:var(--mark-fg);font-size:17px;font-weight:800;margin-bottom:20px;
+    font-family:var(--font);letter-spacing:.5px;
+  }
+  .lhw-mark.mark-st{font-size:13px;letter-spacing:1.5px;}
+  .lhw-mark.mark-gem{font-size:20px;}
+  .loginHeroWall h2{
+    font-family:"Songti SC","Noto Serif SC",Georgia,serif;font-weight:700;font-size:29px;
+    line-height:1.36;letter-spacing:-.01em;margin:0 0 12px;color:var(--text);
+  }
+  .lhw-tag{font-size:12.5px;line-height:1.8;color:var(--muted);max-width:30ch;margin:0;}
+  .lhw-rule{display:block;width:52px;height:2px;background:var(--rule);border-radius:2px;margin-top:18px;}
+
+  .loginCard{
+    flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;
+    max-width:none;padding:38px 56px;background:transparent;border:0;border-radius:0;
+    box-shadow:none;backdrop-filter:none;z-index:1;
+  }
+  .loginBrand{text-align:left;margin:0 0 20px;}
+  .loginBadge{
+    display:inline-block;font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--muted);
+    border:1px solid var(--input-border);border-radius:999px;padding:3px 10px;margin-bottom:14px;
+  }
+  .loginBrand h1{font-size:19px;font-weight:800;margin:0 0 5px;color:var(--text);}
+  .loginBrand p{font-size:12.5px;line-height:1.6;color:var(--muted);max-width:380px;}
+  .loginForm{width:100%;max-width:380px;margin-top:6px;display:flex;flex-direction:column;gap:14px;}
+  .loginForm label{display:flex;flex-direction:column;gap:7px;}
+  .loginFieldLabel{font-size:12px;color:var(--muted);font-weight:600;}
+  .requiredMarker{color:#ff6b6b;margin-left:2px;}
+  .loginForm input{
+    height:46px;padding:0 14px;border-radius:12px;border:1px solid var(--input-border);
+    background:var(--input-bg);color:var(--input-fg);font-size:14px;font-family:var(--font);outline:none;transition:.18s;
+  }
+  .loginForm input::placeholder{color:var(--ph);}
+  .loginForm input:focus{border-color:var(--input-focus);box-shadow:0 0 0 3px rgba(255,138,61,.12);}
+  .loginSubmit{
+    height:46px;padding:0;border-radius:12px;margin-top:4px;font-size:14px;font-weight:800;
+    background:var(--btn-bg);color:var(--btn-fg);border:var(--btn-border);box-shadow:var(--btn-shadow);
+    cursor:pointer;font-family:var(--font);transition:.18s;
+  }
+  .loginSubmit:hover{filter:brightness(1.04);}
+  .switchProductLink{
+    align-self:flex-start;margin-top:2px;background:none;border:0;color:var(--link);font-size:12.5px;
+    cursor:pointer;font-family:var(--font);text-decoration:underline;padding:0;
+  }
+  .loginFooter{font-size:11.5px;color:var(--footer);margin-top:22px;}
+  .loginFooter a{color:var(--link);text-decoration:underline;}
+
+  @media (max-width:760px){
+    .loginPage{flex-direction:column;}
+    .loginHeroWall{flex:0 0 auto;width:100%;border-right:0;border-bottom:1px solid var(--wall-border);padding:28px 24px;}
+    .loginCard{padding:26px 22px 34px;}
+  }
+</style>
+</head>
+<body>
+  <div class="doc-head">
+    <h1>登录页主题色 · 对齐商城（含文案 / 印记方案）</h1>
+    <p>把 <code>/login</code> 的视觉体系对齐商城「深色底 + 暖橙」。这里同时提供：<b>配色</b>（A 橙光主导 / B 墨黑克制 / C 玻璃暗调）、<b>品牌墙文案</b>（① 身份·调度 / ② 入口·贯通 / ③ 主张·克制）、<b>印记</b>（ST / ◈ / 潼）三组切换，布局与表单结构完全不变。</p>
+    <p class="hint">红线圈出的「思」单字印章已替换为候选印记。文案去掉了口语与说明书腔，更凝练有调性。</p>
+  </div>
+
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="lbl">配色</span>
+      <div class="seg" id="colorSeg">
+        <button class="tab active" data-v="vA">A · 橙光主导</button>
+        <button class="tab" data-v="vB">B · 墨黑克制</button>
+        <button class="tab" data-v="vC">C · 玻璃暗调</button>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <span class="lbl">品牌墙文案</span>
+      <div class="seg" id="copySeg">
+        <button class="tab active" data-c="0">① 身份·调度</button>
+        <button class="tab" data-c="1">② 入口·贯通</button>
+        <button class="tab" data-c="2">③ 主张·克制</button>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <span class="lbl">印记</span>
+      <div class="seg" id="markSeg">
+        <button class="tab active" data-m="st">ST</button>
+        <button class="tab" data-m="gem">◈</button>
+        <button class="tab" data-m="tong">潼</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="frame" id="frame"></div>
+    <div class="ver-note" id="note"></div>
+  </div>
+
+<script>
+  const svgOrbit = `
+    <svg class="lhw-orbit" viewBox="0 0 560 560" fill="none" aria-hidden="true">
+      <circle class="ring" cx="280" cy="280" r="120"/>
+      <circle class="ring" cx="280" cy="280" r="170"/>
+      <circle class="ring2" cx="280" cy="280" r="220"/>
+      <path class="arc" d="M280 60 A220 220 0 0 1 500 280" stroke-width="2.5"/>
+      <path class="arc" d="M280 500 A220 220 0 0 1 60 280" stroke-width="2.5" stroke-opacity=".5"/>
+      <circle class="tick" cx="280" cy="60" r="4"/>
+      <circle class="tick" cx="500" cy="280" r="4"/>
+      <circle class="tick" cx="280" cy="500" r="4"/>
+      <circle class="tick" cx="60" cy="280" r="4"/>
+      <circle class="tick" cx="397" cy="163" r="3"/>
+      <circle class="tick" cx="163" cy="397" r="3"/>
+    </svg>`;
+
+  const copies = [
+    {h2:'一个身份，<br>调度全部智能体', tag:'以结果交付，而非工具租赁。每次调用皆可追溯、可复核。'},
+    {h2:'一处入口，<br>贯通全平台智能体', tag:'结果导向，按次结算；每一份交付，都可被复核。'},
+    {h2:'我们不卖工具，<br>只交付结果', tag:'一套账号，调度所有数字员工；按次计费，过程透明可查。'}
+  ];
+  const marks = {st:'ST', gem:'◈', tong:'潼'};
+  const markClass = {st:'mark-st', gem:'mark-gem', tong:''};
+  const colorNames = {vA:'A 橙光主导', vB:'B 墨黑克制', vC:'C 玻璃暗调'};
+  const copyNames = ['① 身份·调度','② 入口·贯通','③ 主张·克制'];
+  const markNames = {st:'ST', gem:'◈ 几何', tong:'潼'};
+
+  const state = {color:'vA', copy:0, mark:'st'};
+
+  function loginPage(){
+    const c = copies[state.copy];
+    const m = marks[state.mark];
+    const mc = markClass[state.mark];
+    return `
+    <div class="loginPage ${state.color}">
+      <aside class="loginHeroWall">
+        ${svgOrbit}
+        <div class="lhw-in">
+          <span class="lhw-mark ${mc}">${m}</span>
+          <h2>${c.h2}</h2>
+          <p class="lhw-tag">${c.tag}</p>
+          <span class="lhw-rule"></span>
+        </div>
+      </aside>
+      <div class="loginCard">
+        <div class="loginBrand">
+          <span class="loginBadge">思潼 AI · 智能体商城</span>
+          <h1>登录 / 注册</h1>
+          <p>一个账号、一份全平台通用算力，商城上的行业智能体随取随用。</p>
+        </div>
+        <form class="loginForm" onsubmit="return false">
+          <label><span class="loginFieldLabel">企业 / 品牌名称<b class="requiredMarker">*</b></span><input placeholder="例如：XX品牌 / XX门店"></label>
+          <label><span class="loginFieldLabel">邀请码<b class="requiredMarker">*</b></span><input placeholder="请输入邀请码"></label>
+          <button class="loginSubmit" type="submit">进入思潼AI 智能体平台</button>
+          <button class="switchProductLink" type="button">不是这个微信号？重新授权</button>
+        </form>
+        <p class="loginFooter">登录即表示同意<a href="#">服务条款</a>和<a href="#">隐私政策</a>。</p>
+      </div>
+    </div>`;
+  }
+
+  function note(){
+    return `<b>当前组合</b>：配色 ${colorNames[state.color]} · 文案 ${copyNames[state.copy]} · 印记 ${markNames[state.mark]}。布局与表单结构未变，仅主题色 / 文案 / 印记不同。`;
+  }
+
+  const frame = document.getElementById('frame');
+  const noteEl = document.getElementById('note');
+  function render(){ frame.innerHTML = loginPage(); noteEl.innerHTML = note(); }
+
+  function bind(segId, key, attr, cast){
+    document.getElementById(segId).addEventListener('click',(e)=>{
+      const btn = e.target.closest('.tab'); if(!btn) return;
+      [...e.currentTarget.children].forEach(t=>t.classList.remove('active'));
+      btn.classList.add('active');
+      state[key] = cast ? cast(btn.dataset[attr]) : btn.dataset[attr];
+      render();
+    });
+  }
+  bind('colorSeg','color','v');
+  bind('copySeg','copy','c',v=>parseInt(v,10));
+  bind('markSeg','mark','m');
+
+  render();
+</script>
+</body>
+</html>

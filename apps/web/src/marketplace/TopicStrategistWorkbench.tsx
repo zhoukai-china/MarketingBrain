@@ -554,15 +554,10 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
       <MallTopbar back={skuId ? `/agent/${encodeURIComponent(skuId)}/detail` : "/agents"} badge="选题策略智能体 · 选题工作台" />
       <div className="ts-wb">
       {/* ---------- hero ---------- */}
+      {/* 注意：返回按钮已统一交给外层 MallTopbar 的 back（顶部），这里不再放第二个返回按钮，
+          否则 /agent/ipzone__topic/workbench 会出现「两个返回」（用户 2026-09-30 反馈）。 */}
       <header className="hero">
         <div className="wrap">
-          <button
-            className="ts-backbtn"
-            type="button"
-            onClick={() => { window.location.href = getAppPath(`/agent/${encodeURIComponent(skuId ?? "ipzone__topic")}/detail`); }}
-          >
-            ← 返回
-          </button>
           <div className="chips">
             <span className="chip">四大来源 · 三关筛选</span>
           </div>

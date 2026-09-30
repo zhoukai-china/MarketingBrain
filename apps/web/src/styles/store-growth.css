@@ -3199,6 +3199,219 @@ pre {
   color: var(--soft);
 }
 
+/* ============================================================
+ * 登录页视觉改版 · 对齐商城主题色（配色 A · 橙光主导）
+ * 复用商城 sitong-design.css 令牌：深色底 + 暖橙强调（#FF8A3D / #FFB070）
+ * 布局 / DOM 结构 / 交互逻辑 / 表单字段 / 接口 / 路由 全部不变，仅替换主题色。
+ * 左侧品牌墙由 LoginPage.tsx 的 <aside className="loginHeroWall"> 提供（纯装饰、无状态）。
+ * 右侧交互语义保持原样（线上微信 / 本地表单 / 隐私条款始终保留）。
+ * ============================================================ */
+.loginPage {
+  /* 设计令牌就地重定义为「商城深色 + 暖橙」 */
+  --panel: #131316;
+  --line: rgba(255,255,255,0.10);
+  --line-strong: rgba(255,255,255,0.18);
+  --text: #f2f2f4;
+  --muted: #aaadb2;
+  --soft: #777a80;
+  --gold: #FF8A3D;
+  --accent: #FF8A3D;
+  --accent2: #FFB070;
+  --teal: #34D8A0;
+  --danger: #FF6B6B;
+
+  /* 显式定义前景色：body 上继承的 color 是 :root 算好的浅色(#f2f2f4)，本身是浅字；
+     这里显式给定避免历史兜底规则把 loginPage 强制成深字导致「深底深字」看不见。 */
+  color: #f2f2f4;
+  min-height: 100vh;
+  display: flex;
+  align-items: stretch;
+  padding: 0;
+  position: relative;
+  background:
+    radial-gradient(1000px 640px at 12% -10%, rgba(255,255,255,.04), transparent 58%),
+    radial-gradient(900px 620px at 95% 2%, rgba(255,138,61,.06), transparent 56%),
+    radial-gradient(820px 760px at 80% 105%, rgba(255,255,255,.035), transparent 60%),
+    linear-gradient(160deg, #0b0b0e 0%, #131316 52%, #17171b 100%);
+  background-attachment: fixed;
+}
+/* 极淡点阵，对齐商城科技质感 */
+.loginPage::before{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
+  background-image:radial-gradient(rgba(255,255,255,.03) 1px, transparent 1px);
+  background-size:28px 28px;
+}
+
+/* ---------- 左：品牌墙（深色 + 圆弧构成） ---------- */
+.loginHeroWall {
+  position: relative;
+  overflow: hidden;
+  flex: 0 0 44%;
+  width: 44%;
+  padding: 34px 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: #101014;
+  border-right: 1px solid rgba(255,255,255,0.08);
+}
+.lhw-orbit {
+  position: absolute;
+  top: -140px;
+  right: -170px;
+  width: 560px;
+  height: 560px;
+  pointer-events: none;
+  color: var(--accent);
+}
+.lhw-in { position: relative; z-index: 1; }
+.lhw-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: #FF8A3D;
+  color: #1a1205;
+  font-size: 17px;
+  font-weight: 800;
+  margin-bottom: 20px;
+}
+.loginHeroWall h2 {
+  font-family: "Songti SC", "Noto Serif SC", Georgia, serif;
+  font-weight: 700;
+  font-size: 29px;
+  line-height: 1.36;
+  letter-spacing: -0.01em;
+  margin: 0 0 12px;
+  color: #f2f2f4;
+}
+.lhw-tag { font-size: 12.5px; line-height: 1.8; color: #aaadb2; max-width: 30ch; margin: 0; }
+.lhw-rule { display: block; width: 52px; height: 2px; background: #FF8A3D; border-radius: 2px; margin-top: 18px; }
+
+/* ---------- 右：登录面板 ----------
+   只在「存在品牌墙」时把 loginCard 改成方案 A 的 panel 形态；
+   产品/内部登录页没有品牌墙，仍保持原有的居中白卡，避免误伤。 */
+.loginHeroWall ~ .loginCard {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: none;
+  padding: 38px 56px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+/* loginBrand 收敛成面板标题；徽标已由左墙承接，不再重复 */
+.loginHeroWall ~ .loginCard .loginBrand { text-align: left; margin: 0 0 20px; }
+.loginHeroWall ~ .loginCard .loginBadge { display: none; }
+.loginHeroWall ~ .loginCard .loginBrand h1 { font-size: 19px; font-weight: 800; margin: 0 0 5px; }
+.loginHeroWall ~ .loginCard .loginBrand p { font-size: 12.5px; line-height: 1.6; }
+.loginHeroWall ~ .loginCard .loginForm,
+.loginHeroWall ~ .loginCard .internalOnboardingLink,
+.loginHeroWall ~ .loginCard .switchProductLink,
+.loginHeroWall ~ .loginCard .loginFooter {
+  width: 100%;
+  max-width: 380px;
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 0;
+  padding-right: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.loginHeroWall ~ .loginCard .loginForm input,
+.loginHeroWall ~ .loginCard .loginForm select {
+  height: 46px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.05);
+  color: #f2f2f4;
+}
+.loginHeroWall ~ .loginCard .loginForm input:focus,
+.loginHeroWall ~ .loginCard .loginForm select:focus { border-color: #FF8A3D; }
+.loginHeroWall ~ .loginCard .loginSubmit {
+  height: 46px;
+  padding: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #FF8A3D, #FFB070);
+  color: #1a1205;
+  font-weight: 800;
+}
+.loginHeroWall ~ .loginCard .loginSubmit:hover:not(:disabled) { opacity: 0.94; }
+.loginHeroWall ~ .loginCard .loginError { border-radius: 12px; }
+.loginHeroWall ~ .loginCard .wechatQrBlock { background: #fff; border-color: rgba(255,255,255,0.12); border-radius: 16px; }
+.loginHeroWall ~ .loginCard .loginFooter { text-align: left; margin-top: 22px; }
+.loginHeroWall ~ .loginCard .wechatLoginHint,
+.loginHeroWall ~ .loginCard .switchProductLink,
+.loginHeroWall ~ .loginCard .internalOnboardingLink { color: #aaadb2; }
+
+/* 覆盖历史「非产品登录页强制深底浅字」规则 → 浅字（深色玻璃底） */
+.loginPage:not(.productLoginPage) .loginForm input,
+.loginPage:not(.productLoginPage) .loginForm select,
+.loginPage:not(.productLoginPage) .loginForm textarea {
+  background: rgba(255,255,255,0.05);
+  color: #f2f2f4;
+  -webkit-text-fill-color: #f2f2f4;
+  border-color: rgba(255,255,255,0.10);
+}
+.loginPage:not(.productLoginPage) .loginForm input::placeholder,
+.loginPage:not(.productLoginPage) .loginForm textarea::placeholder {
+  color: #777a80;
+  -webkit-text-fill-color: #777a80;
+}
+.loginPage:not(.productLoginPage) .loginForm label span { color: #aaadb2; }
+
+/* ---------- 登录页 · 推荐码（选填，2026-09-30 用户要求） ----------
+   与登录表单字段同形，但说明文字压到次要色，避免跟主流程抢注意力。
+   选择器必须带 .loginPage/.loginForm 前缀：历史规则
+   `.loginPage:not(.productLoginPage) .loginForm label span` 权重更高，裸类名会被它盖掉。 */
+.loginPage .loginForm label.loginReferralField { margin-top: 2px; }
+.loginPage .loginForm label.loginReferralField b.optionalMarker {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: #aaadb2;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.loginPage .loginForm label.loginReferralField span.loginReferralHint {
+  display: block;
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: #777a80;
+  font-weight: 400;
+}
+.loginPage .loginForm label.loginReferralField span.loginReferralHint b { color: #FFB070; font-weight: 700; }
+
+/* 窄屏：分屏塌成单列，品牌墙置顶、登录面板在下 */
+@media (max-width: 900px) {
+  .loginPage { flex-direction: column; }
+  .loginHeroWall {
+    flex: 0 0 auto;
+    width: 100%;
+    padding: 28px 24px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .loginHeroWall h2 { font-size: 24px; }
+  .lhw-orbit { top: -200px; right: -230px; }
+  .loginHeroWall ~ .loginCard { padding: 26px 22px 34px; }
+  .loginHeroWall ~ .loginCard .loginForm,
+  .loginHeroWall ~ .loginCard .internalOnboardingLink,
+  .loginHeroWall ~ .loginCard .switchProductLink,
+  .loginHeroWall ~ .loginCard .loginFooter { max-width: none; }
+}
 .wechatLoadingSpinner {
   width: 36px;
   height: 36px;

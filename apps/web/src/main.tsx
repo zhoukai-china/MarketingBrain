@@ -9,7 +9,7 @@ import {
   hasDirectTestSession,
 } from "./lib/direct-test-session.js";
 import { clearStoredSession, probeSession, readSessionToken, takePostLoginRedirect } from "./lib/session.js";
-import { rememberPendingReferral } from "./lib/pending-referral.js";
+import { rememberPendingReferral, loginPathWithPendingReferral } from "./lib/pending-referral.js";
 import { renderLanqiRoutes, isLanqiHandled } from "./routes/lanqi.js";
 import "./styles/design-tokens.css";
 import "./styles/app.css";
@@ -467,6 +467,13 @@ function Root() {
   }
 
   if (marketplaceWorkbenchMatch) {
+    // 工作台门禁（用户 2026-09-30）：未登录可直接进、还能走完 6 步访谈却无落库。
+    // 无 token 一律跳登录，登录成功回跳本工作台。
+    if (!readSessionToken()) {
+      localStorage.setItem("store_os_post_login_redirect", getAppPath(`/agent/${marketplaceWorkbenchMatch[1]}/workbench`));
+      window.location.replace(getAppPath(loginPathWithPendingReferral("/login")));
+      return null;
+    }
     const workbenchSku = marketplaceWorkbenchMatch[1];
     // IP 定位智能体走专属工作台（左：真实对话 / 右：定位简报 + 全案画布）。
     if (workbenchSku === "ipzone__ip-pos") {

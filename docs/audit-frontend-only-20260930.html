@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>全站前端设计问题审计 · 2026-09-30</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;padding:38px 26px 70px;background:#F6F2EB;color:#241D17;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;line-height:1.6}
+  .wrap{max-width:1180px;margin:0 auto}
+  h1{font-size:22px;margin:0 0 6px;letter-spacing:-.01em}
+  .sub{font-size:13px;color:#6E6155;margin:0 0 18px}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:0 0 26px}
+  @media(max-width:900px){.cards{grid-template-columns:repeat(2,1fr)}}
+  .card{background:#FCFAF6;border:1px solid rgba(36,29,23,.10);border-radius:14px;padding:14px 16px}
+  .card b{display:block;font-size:26px;line-height:1.1;letter-spacing:-.02em}
+  .card span{font-size:11.5px;color:#8A7A69}
+  .card.p0 b{color:#B3261E}.card.p1 b{color:#B4441F}.card.p2 b{color:#8A7A69}.card.ok b{color:#2E7D4F}
+
+  h2{font-size:16px;margin:34px 0 8px;display:flex;align-items:center;gap:10px}
+  h2 .tag{font-size:11px;font-weight:800;letter-spacing:.06em;padding:3px 10px;border-radius:999px;border:1px solid}
+  h2 .p0{color:#B3261E;border-color:rgba(179,38,30,.35);background:rgba(179,38,30,.07)}
+  h2 .p1{color:#B4441F;border-color:rgba(180,68,31,.35);background:rgba(180,68,31,.07)}
+  h2 .p2{color:#8A7A69;border-color:rgba(138,122,105,.35);background:rgba(138,122,105,.08)}
+  h2 .ok{color:#2E7D4F;border-color:rgba(46,125,79,.35);background:rgba(46,125,79,.08)}
+  .lede{font-size:12.5px;color:#5E5245;margin:0 0 12px}
+
+  table{width:100%;border-collapse:collapse;background:#FCFAF6;border:1px solid rgba(36,29,23,.10);border-radius:12px;overflow:hidden;font-size:12.5px}
+  th{text-align:left;background:#F1ECE3;padding:9px 12px;font-size:11px;letter-spacing:.06em;color:#6E6155;border-bottom:1px solid rgba(36,29,23,.10)}
+  td{padding:9px 12px;border-bottom:1px solid rgba(36,29,23,.07);vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td.where{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#8A4A18;white-space:nowrap}
+  td.now{color:#5E5245}
+  td.api{font-size:11.5px}
+  .no{color:#B3261E;font-weight:700}
+  .yes{color:#2E7D4F;font-weight:700}
+  .part{color:#B4441F;font-weight:700}
+  td.fix{color:#6E6155;font-size:11.5px}
+  .note{margin:14px 0 0;background:#FBF8F2;border:1px solid rgba(36,29,23,.08);border-radius:12px;padding:12px 14px;font-size:12.5px;color:#5E5245}
+  .note b{color:#241D17}
+  .foot{margin:30px 0 0;font-size:11.5px;color:#8A7A69;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>全站前端设计问题审计</h1>
+  <p class="sub">范围：<code>apps/web/src</code>（真实产品页面）｜触发点：数字员工详情/工作台不登录也能进、签到纯前端、对话不联网｜日期：2026-09-30</p>
+
+  <div class="cards">
+    <div class="card p0"><b>8</b><span>P0 · 计费 / 个人资产 / 无鉴权</span></div>
+    <div class="card p1"><b>5</b><span>P1 · 个人信息 / 数据口径</span></div>
+    <div class="card p2"><b>13</b><span>P2 · 假数据 / 空壳 / 死入口</span></div>
+    <div class="card ok"><b>7</b><span>已确认真实接后端</span></div>
+  </div>
+
+  <h2><span class="tag p0">P0</span>不登录也能用 · 纯前端驱动 · 涉及计费与资产</h2>
+  <p class="lede">这一类最危险：要么缺登录门禁，要么本该落库/计费的动作只停在前端。</p>
+  <table>
+    <thead><tr><th style="width:26%">位置</th><th style="width:30%">问题</th><th style="width:26%">现状</th><th>后端是否有接口</th></tr></thead>
+    <tbody>
+      <tr><td class="where">main.tsx:469-487<br>各 *Workbench.tsx</td>
+        <td><b>5 个工作台无登录门禁</b><br>未登录可直接进，还能走完 6 步访谈</td>
+        <td class="now">路由层直接渲染，无 token 判断；只在最后点「生成」时后端才 401</td>
+        <td class="api"><span class="yes">后端其实有鉴权</span><br>marketplace.ts:1234 / request-context.ts:41 → 匿名抛错。所以是「先让你走完流程，最后一脚才拦」</td></tr>
+      <tr><td class="where">IpPosWorkbench.tsx:46-104, 319-329, 439-459<br>CopyWorkbench:207 / Vidrev:191 / Livescript:200</td>
+        <td><b>访谈对话 100% 纯前端脚本</b><br>台词写死、setTimeout 推进、零网络请求</td>
+        <td class="now">QFLOW/STEP_LINES 常量 + <code>setTimeout</code> 逐行出日志与进度条</td>
+        <td class="api"><span class="no">无</span>（设计上就是前端引导脚本）</td></tr>
+      <tr><td class="where">IpPosDetailPage.tsx:145-159<br>CopyDetailPage.tsx:133</td>
+        <td>详情页里的「6 步访谈」是<b>静态 DOM 演示</b></td>
+        <td class="now">写死的对话气泡，完全不请求</td>
+        <td class="api"><span class="no">无</span></td></tr>
+      <tr><td class="where">EcoMallHomePage.tsx:236-240</td>
+        <td><b>每日签到纯前端</b><br>宣称 +5 算力，实际无入账</td>
+        <td class="now">只写 <code>localStorage("eco_sign_&lt;date&gt;")</code></td>
+        <td class="api"><span class="no">后端暂无签到接口</span></td></tr>
+      <tr><td class="where">EcoMallHomePage.tsx:425, 567-568, 895</td>
+        <td><b>购物车 / 加购 / 立即购买全是假计数器</b></td>
+        <td class="now"><code>addToCart()</code> 只 <code>setCartCount(v=&gt;v+1)</code>；底部「购物车」Tab 无 onClick</td>
+        <td class="api"><span class="no">无 cart 接口</span></td></tr>
+      <tr><td class="where">EcoMallHomePage.tsx:668-669</td>
+        <td><b>订单区硬编码</b><br>「全部订单 0 笔 · 功能开发中」</td>
+        <td class="now">文案写死，不查任何接口</td>
+        <td class="api"><span class="no">无商品订单接口</span>（/billing/orders 只管充值）</td></tr>
+      <tr><td class="where">ComingSoonDetails.tsx:67, 78</td>
+        <td><b>预约手机号只进 localStorage</b></td>
+        <td class="now">未上报后端</td>
+        <td class="api"><span class="part">接口有但漏接</span><br>POST /market/bookings（marketplace.ts:1087）；BookingModal.tsx:37 反而调对了</td></tr>
+      <tr><td class="where">IpPosWorkbench.tsx:417-421</td>
+        <td>生成前体检的异常被 catch 吞掉后<b>直接放行</b></td>
+        <td class="now">非 401 的体检失败不拦截</td>
+        <td class="api"><span class="part">有 precheck（:405）但兜底逻辑放水</span></td></tr>
+    </tbody>
+  </table>
+
+  <h2><span class="tag p1">P1</span>个人信息与数据口径不一致</h2>
+  <p class="lede">同一件事有两套实现、或前端写死了本该后端给的数据。</p>
+  <table>
+    <thead><tr><th style="width:26%">位置</th><th style="width:30%">问题</th><th style="width:26%">现状</th><th>后端是否有接口</th></tr></thead>
+    <tbody>
+      <tr><td class="where">EcoMallHomePage.tsx:660-661, 651-692<br>vs MinePage.tsx</td>
+        <td><b>「我的」存在两套实现</b><br>内联视图硬编码「体验访客 / 首次登入 2026-09-25」</td>
+        <td class="now">内联视图不读 /market/me；独立页 /mine 才真调接口 → 两处口径完全不同</td>
+        <td class="api"><span class="part">接口有（marketplace.ts:1339），内联视图没用</span></td></tr>
+      <tr><td class="where">EcoMallHomePage.tsx:1001<br>vs MinePage.tsx:51</td>
+        <td><b>邀请有礼两套</b><br>首页复制的是当前页地址，没有推荐码</td>
+        <td class="now">复制 <code>window.location.href</code>；独立页才走真实推荐链接</td>
+        <td class="api"><span class="part">接口有（marketplace.ts:1679/1690）</span></td></tr>
+      <tr><td class="where">EcoMallHomePage.tsx:665, 907</td>
+        <td>算力 → 人民币汇率 <b>/10 写死在前端</b></td>
+        <td class="now">前端常量</td>
+        <td class="api"><span class="no">无汇率接口</span></td></tr>
+      <tr><td class="where">EcoMallHomePage.tsx:856-873</td>
+        <td>F4/F5/F6 <b>实物商品价格写死</b>（¥199 / ¥1999 / ¥99、50 算力）</td>
+        <td class="now">数字员工价格真取自 /market/skus，实物商品却是硬编码</td>
+        <td class="api"><span class="no">无实物商品 SKU 接口</span></td></tr>
+      <tr><td class="where">EnterpriseKnowledgeBasePage.tsx:62</td>
+        <td>企业知识库<b>无 token 也渲染</b></td>
+        <td class="now">缺 token 时只是不带 Authorization，页面照常出</td>
+        <td class="api"><span class="part">有接口，缺前端门禁</span></td></tr>
+    </tbody>
+  </table>
+
+  <h2><span class="tag p2">P2</span>假数据 · 点了没反应 · 死入口</h2>
+  <table>
+    <thead><tr><th style="width:26%">位置</th><th style="width:34%">问题</th><th>现状</th></tr></thead>
+    <tbody>
+      <tr><td class="where">6 个 *DetailPage + product-pages-data.ts:142,178</td>
+        <td><b>评分 4.9 / 好评率 97% 全写死</b></td>
+        <td class="now">Topic:253,275 / Copy:208,230 / IpPos:221,244 / Vidrev:194,216 / Livescript:192,214 / ComingSoon:180,200 — <span class="no">无评价接口</span></td></tr>
+      <tr><td class="where">EcoMallHomePage.tsx:806, 821</td>
+        <td>「N 位在线」由本地数组长度算出</td>
+        <td class="now">不是真实在线数</td></tr>
+      <tr><td class="where">EcoMallHomePage.tsx:686</td>
+        <td>「算力明细」只弹 1.8s toast</td>
+        <td class="now"><code>meNote("算力明细功能开发中")</code></td></tr>
+      <tr><td class="where">EcoMallHomePage.tsx:188 / AgentDetailPage:226,235 / RechargePage:190 / TopicStrategistWorkbench:737</td>
+        <td><b>一堆「敬请期待 / 开发中 / 待接入」死按钮</b></td>
+        <td class="now">disabled，点不动（含支付宝「待接入」）</td></tr>
+      <tr><td class="where">eco-mall-data.ts:55, 56, 58</td>
+        <td>宠物 / 汽车后市场 / 兰琪品牌工作台 <b>「员工暂未开放」但入口照常展示</b></td>
+        <td class="now">点了才知道没内容</td></tr>
+      <tr><td class="where">EcoMallHomePage.tsx:587, 844</td>
+        <td>美业 demo 只弹「预约提醒」；咨询师卡片不可对话</td>
+        <td class="now">看着能点，实际无行为</td></tr>
+      <tr><td class="where">main.tsx:490-518 / ProductDetailPage:26,45</td>
+        <td>各详情页、商品详情页<b>无门禁</b></td>
+        <td class="now">纯展示 + 跳转，风险较低但口径不统一</td></tr>
+      <tr><td class="where">HomePage.tsx（main.tsx:121）</td>
+        <td><b>整页死代码</b></td>
+        <td class="now">lazy 导入但路由从未渲染，内含「开发中」卡片</td></tr>
+      <tr><td class="where">routes/lanqi.tsx:212-227</td>
+        <td>/lanqi 下 <b>5 个路由全落同一占位页</b>；开关 LANQI_MOMENTS_ONLY_LAUNCH 使 dashboard/goal-setting 也不可达</td>
+        <td class="now">真实组件留在仓库但被屏蔽</td></tr>
+      <tr><td class="where">LanqiExecutionPlanPage.tsx:19 + main.tsx:591</td>
+        <td>「兰琪美业」按钮跳 /my-ai，而 /my-ai 已重定向到 /agents</td>
+        <td class="now">点了等于回首页</td></tr>
+      <tr><td class="where">RechargePage.tsx vs RechargeDrawer.tsx</td>
+        <td><b>充值两套实现</b>（整页 + 抽屉）</td>
+        <td class="now">各自一套支付流程</td></tr>
+      <tr><td class="where">AdminConsolePage.tsx vs AdminPage.tsx</td>
+        <td><b>后台两套并存</b>（含 /agents/admin/legacy 旧版）</td>
+        <td class="now">旧版留存</td></tr>
+      <tr><td class="where">eco-cases-data.ts + EcoMallHomePage:610</td>
+        <td>AI 案例<b>全量虚构</b></td>
+        <td class="now">页面已标「演示数据虚构」，建议后续改 CMS</td></tr>
+    </tbody>
+  </table>
+
+  <h2><span class="tag ok">OK</span>已确认真实接后端（不是问题，供对照）</h2>
+  <table>
+    <thead><tr><th style="width:28%">能力</th><th>证据</th></tr></thead>
+    <tbody>
+      <tr><td>算力余额</td><td>/market/me（EcoMallHomePage:339、MinePage:221）</td></tr>
+      <tr><td>数字员工价目</td><td>/market/skus（EcoMallHomePage:372）</td></tr>
+      <tr><td>历史交付物</td><td>/market/me/deliverables（MinePage:234）</td></tr>
+      <tr><td>免费开通</td><td>/market/activate（EcoMallHomePage:251）</td></tr>
+      <tr><td>充值全链路</td><td>use-recharge-flow.ts:122/144/174 → /billing/catalog、/wallet、/billing/orders</td></tr>
+      <tr><td>生成（真实联网）</td><td>IpPosWorkbench:465 POST run；TopicStrategistWorkbench:152-210 真实 GET</td></tr>
+      <tr><td>对话页门禁</td><td>AgentChatPage:1368/1385 —— 未登录显示「🔒 这个智能体要登录后才能使用」并跳 guestToLogin</td></tr>
+    </tbody>
+  </table>
+
+  <p class="note">
+    <b>两个关键结论：</b><br>
+    ① <b>后端其实有鉴权</b>——工作台不是真能白嫖，匿名请求会被 401/抛错拦掉；真正的问题是「前端不带门禁 → 让用户白走完 6 步访谈，最后一步才被拦」，体验上等同于「不需要登录」。<br>
+    ② 用户抱怨的「纯前端驱动」集中在 <b>商城首页 EcoMallHomePage</b>（签到 / 购物车 / 订单 / 邀请 / 我的 全是本地假数据）与 <b>5 个工作台的引导访谈</b>（纯脚本，只有最终生成才联网）。这两块是重灾区。
+  </p>
+
+  <p class="foot">本报告由代码静态审计生成（4 路并行扫描：路由门禁 / 假数据 / 对话与工作台 / 空壳入口）。所有条目均带 <code>文件:行号</code> 可复查；不含修复方案，如需要可据此排期。</p>
+</div>
+</body>
+</html>

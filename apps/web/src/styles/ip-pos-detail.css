@@ -105,8 +105,8 @@
 .ipd-stars.lg { color: var(--accent); font-size: 16px; letter-spacing: 3px; }
 .ipd-grate span { font-size: 11.5px; color: var(--muted); }
 
-/* 缩略图切换（原型 g-thumbs） */
-.ipd-gthumbs { display: grid; grid-template-columns: repeat(3, 64px); gap: 8px; margin-top: 10px; }
+/* 缩略图切换（原型 g-thumbs）：4 个视图按钮固定一行（原 3 列会把第 4 个挤到第二行） */
+.ipd-gthumbs { display: grid; grid-template-columns: repeat(4, 64px); justify-content: center; gap: 8px; margin-top: 10px; }
 .ipd-gthumbs button {
   aspect-ratio: 1;
   border-radius: 8px;

@@ -91,15 +91,17 @@ import {
   listReferralBindings,
   listReferralCodesOfOwner
 } from "../services/referral-attribution.js";
-import { issueSelfReferralLink, readSelfReferralLink } from "../services/referral-self-service.js";
+import { issueSelfReferralLink, listMyInvitees, readSelfReferralLink } from "../services/referral-self-service.js";
 import {
   consumeWalletCredits,
   getOrCreateWallet,
   readWallet,
   buildRechargeUrl,
   grantSignupWalletCreditsInTx,
-  giftBonusExpiry
+  giftBonusExpiry,
+  SIGNUP_GIFT_VALIDITY_DAYS
 } from "../services/sitong-wallet.js";
+import { loadSigninStatus, performSignin } from "../services/daily-signin.js";
 import { maybeGrantReferralReward } from "../services/referral-rewards.js";
 import {
   MARKETPLACE_ZONES,
@@ -1352,7 +1354,13 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
         creditBalance: wallet.balance,
         activated: Boolean(signupGift),
         gift: signupGift
-          ? { amount: signupGift.delta, bucket: "bonus", expiresAt: signupGift.expiresAt?.toISOString?.() ?? null, scope: "text" }
+          ? {
+              amount: signupGift.delta,
+              bucket: "bonus",
+              validDays: SIGNUP_GIFT_VALIDITY_DAYS,
+              expiresAt: signupGift.expiresAt?.toISOString?.() ?? null,
+              scope: "text"
+            }
           : null,
         subscriptions: await listSubscriptions(context),
         recentPpu: await listRecentPpuUsage(context),
@@ -1379,7 +1387,13 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
         return {
           activated: true,
           alreadyActivated: true,
-          gift: { amount: existing.delta, bucket: "bonus", expiresAt: existing.expiresAt?.toISOString?.() ?? null, scope: "text" },
+          gift: {
+          amount: existing.delta,
+          bucket: "bonus",
+          validDays: SIGNUP_GIFT_VALIDITY_DAYS,
+          expiresAt: existing.expiresAt?.toISOString?.() ?? null,
+          scope: "text"
+        },
           wallet: { paid: wallet.paidBalance, bonus: wallet.bonusBalance }
         };
       }
@@ -1392,9 +1406,36 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
       return reply.send({
         activated: true,
         alreadyActivated: false,
-        gift: { amount, bucket: "bonus", expiresAt: giftBonusExpiry().toISOString(), scope: "text" },
+        // 用户 2026-09-30：新用户赠送的 100 算力按 **30 天** 有效（不跟签到/充值的 90 天共用）。
+        gift: {
+          amount,
+          bucket: "bonus",
+          validDays: SIGNUP_GIFT_VALIDITY_DAYS,
+          expiresAt: giftBonusExpiry(new Date(), SIGNUP_GIFT_VALIDITY_DAYS).toISOString(),
+          scope: "text"
+        },
         wallet: { paid: wallet.paidBalance, bonus: wallet.bonusBalance }
       });
+    });
+
+    /**
+     * 每日签到（用户 2026-09-30：签到必须**真入账**，按账号维度，90 天有效、限文字类）。
+     * GET 读状态（不写库），POST 执行签到（幂等，同一天重复点不重复发）。
+     */
+    market.get("/signin", async (request, reply) => {
+      const context = await resolveRequestContext(request.headers);
+      if (context.source !== "database" || !context.userId) {
+        return reply.code(401).send({ error: "login_required", message: "登录后即可签到领算力。" });
+      }
+      return loadSigninStatus(context.userId);
+    });
+
+    market.post("/signin", async (request, reply) => {
+      const context = await resolveRequestContext(request.headers);
+      if (context.source !== "database" || !context.userId) {
+        return reply.code(401).send({ error: "login_required", message: "登录后即可签到领算力。" });
+      }
+      return performSignin(context.userId);
     });
 
     // 选题策略官工作台：读写用户「应用选中」的素材选择。
@@ -1696,6 +1737,20 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
       }
       const regenerate = Boolean((request.body as { regenerate?: unknown } | undefined)?.regenerate);
       return await issueSelfReferralLink({ userId: context.userId, regenerate });
+    });
+
+    /**
+     * 「被邀请的客户」列表（2026-09-30 用户：邀请有礼要能看到被邀请的客户列表）。
+     * 身份只取服务端验签会话；姓名 / 手机号一律打码后返回。
+     */
+    market.get<{ Querystring: { limit?: string } }>("/me/referrals", async (request, reply) => {
+      let context;
+      try {
+        context = await resolveRequestContext(request.headers);
+      } catch {
+        return reply.code(401).send({ error: "login_required", message: "请先登录后再查看邀请记录。" });
+      }
+      return await listMyInvitees(context.userId, Number(request.query.limit ?? 50));
     });
 
     market.post("/ppu/consume", async (request, reply) => {

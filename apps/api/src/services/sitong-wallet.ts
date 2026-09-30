@@ -96,8 +96,16 @@ export function buildRechargeUrl(skillId?: string): string {
 /** 赠送算力统一有效期（HANDOFF §7）：90 天，到期清零，到期前 3 天提醒（提醒由账单侧后续补）。 */
 export const GIFT_BONUS_VALIDITY_DAYS = 90;
 
-export function giftBonusExpiry(now = new Date()): Date {
-  return new Date(now.getTime() + GIFT_BONUS_VALIDITY_DAYS * 24 * 3600 * 1000);
+/**
+ * 新用户注册礼（0 元开通 / 建工作区送的 100 算力）有效期：**30 天**。
+ *
+ * 用户 2026-09-30 拍板：新用户赠送的那 100 算力按 30 天算，不跟充值加赠 / 签到 / 邀请
+ * 的 90 天共用同一个数——注册礼是「先来试试」的券，签到与充值加赠才是长周期赠送。
+ */
+export const SIGNUP_GIFT_VALIDITY_DAYS = 30;
+
+export function giftBonusExpiry(now = new Date(), days = GIFT_BONUS_VALIDITY_DAYS): Date {
+  return new Date(now.getTime() + days * 24 * 3600 * 1000);
 }
 
 /**
@@ -217,10 +225,11 @@ export async function applyRechargeInTx(
  */
 export async function grantSignupWalletCreditsInTx(
   tx: Prisma.TransactionClient,
-  params: { userId: string; amount: number; source?: string }
+  params: { userId: string; amount: number; source?: string; validDays?: number }
 ): Promise<{ granted: boolean; amount: number; balance: number }> {
   const amount = Math.max(0, Math.round(params.amount));
   const source = params.source ?? "signup";
+  const validDays = params.validDays ?? SIGNUP_GIFT_VALIDITY_DAYS;
   const wallet = await getOrCreateWallet(params.userId, tx);
 
   if (amount <= 0) {
@@ -248,8 +257,8 @@ export async function grantSignupWalletCreditsInTx(
       bucket: "bonus",
       type: "bonus",
       source,
-      // 注册礼 = 赠送算力（HANDOFF §7/§11）：90 天有效期。
-      expiresAt: giftBonusExpiry()
+      // 注册礼 = 新用户赠送算力（用户 2026-09-30）：**30 天**有效期，到期清零。
+      expiresAt: giftBonusExpiry(new Date(), validDays)
     }
   });
 

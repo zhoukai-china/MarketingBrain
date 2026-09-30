@@ -77,8 +77,17 @@ export function packPts(pack: CreditPack): number {
   return pack.baseCredits + pack.bonusCredits;
 }
 
+/**
+ * 档位徽章「多 N%」= **多送 ÷ 实付**（用户 2026-09-30 口径）。
+ *
+ * 旧实现算的是「折扣率」= 1 − 实付/按 10 算力每元折出的面值，得到 17% / 23%，
+ * 跟档位卡上的「3000 + 多送 600 = 3600」「10000 + 多送 3000 = 13000」对不上，
+ * 用户看到的是「多 17%」但实际多送的是 20%，容易被当成算错。
+ * 现在直接按多送比例算：300 档 600/3000 = 20%，1000 档 3000/10000 = 30%。
+ */
 export function packOff(pack: CreditPack): number {
-  return Math.round((1 - pack.priceCny / (packPts(pack) / PTS_PER_YUAN)) * 100);
+  if (pack.baseCredits <= 0 || pack.bonusCredits <= 0) return 0;
+  return Math.round((pack.bonusCredits / pack.baseCredits) * 100);
 }
 
 function authHeaders(json = false): Record<string, string> {

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>商城「我的」页 重设计方案</title>
+<style>
+  :root{
+    --bg:#f4f7fc; --card:#fff; --line:#e8edf4; --text:#1c2733; --sub:#6b7a8d;
+    --accent:#E8651A; --accent-soft:#fff0df; --green:#0f8a5f; --green-soft:#e6f5ee;
+    --pink:#ffd9c2;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#eef1f6;color:var(--text);padding:28px 16px 60px}
+  h1.page{font-size:22px;text-align:center;margin-bottom:4px}
+  .lead{text-align:center;color:var(--sub);font-size:13px;line-height:1.7;max-width:760px;margin:0 auto 8px}
+  .legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;font-size:11.5px;color:var(--sub);margin-bottom:26px}
+  .legend b{color:var(--accent)}
+  .schemes{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+  .scheme{width:300px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 14px 20px;box-shadow:0 6px 20px rgba(30,40,60,.06)}
+  .scheme h2{font-size:15px;margin-bottom:2px}
+  .scheme .tag{display:inline-block;font-size:11px;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:2px 8px;margin-bottom:12px}
+  .scheme .pts{font-size:11.5px;color:var(--sub);line-height:1.7;margin:12px 0 0;padding-left:16px}
+  .scheme .pts li{margin-bottom:3px}
+
+  /* phone frame */
+  .phone{width:272px;margin:0 auto;background:var(--bg);border-radius:26px;border:8px solid #1c2733;overflow:hidden;position:relative}
+  .phone .notch{height:18px;background:#1c2733}
+  .scr{padding:12px 12px 16px;max-height:560px;overflow:hidden}
+  .scr::-webkit-scrollbar{display:none}
+
+  /* shared atoms */
+  .topbar{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:700;margin-bottom:10px}
+  .topbar .ttl{font-size:15px}
+  .topbar .bal{background:#fff;border:1px solid var(--line);border-radius:20px;padding:3px 9px;font-size:11px;color:var(--accent)}
+  .av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#ffb27a,#E8651A);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px}
+  .h3{font-size:12px;color:var(--sub);margin:14px 2px 7px;font-weight:700}
+  .row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 11px;margin-bottom:7px;font-size:12px}
+  .row .ic{width:26px;height:26px;border-radius:8px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-size:14px;flex:none}
+  .row .rt{margin-left:auto;color:var(--sub);font-size:11px}
+  .btn{background:var(--accent);color:#fff;border:none;border-radius:9px;padding:7px 11px;font-size:11.5px;font-weight:600}
+  .btn.ghost{background:#fff;border:1px solid var(--line);color:var(--accent)}
+  .chip{font-size:10px;background:var(--green-soft);color:var(--green);border-radius:6px;padding:2px 6px}
+  .chip.gray{background:#eef1f6;color:var(--sub)}
+
+  /* ===== Scheme A : 分组列表 ===== */
+  .a-balance{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+  .a-balance .n{font-size:24px;font-weight:800;color:var(--accent)}
+  .a-balance .l{font-size:11px;color:var(--sub)}
+  .a-balance .act{display:flex;gap:8px;margin-top:9px}
+  .a-order{display:flex;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:8px}
+  .a-order div{flex:1;text-align:center;padding:9px 0;font-size:11px;border-right:1px solid var(--line)}
+  .a-order div:last-child{border-right:none}
+  .a-order b{display:block;font-size:15px;color:var(--text)}
+  .a-order span{color:var(--sub);font-size:10px}
+
+  /* ===== Scheme B : 仪表盘 ===== */
+  .b-hero{background:linear-gradient(135deg,#ff9a5a,#E8651A);color:#fff;border-radius:16px;padding:14px;margin-bottom:10px}
+  .b-hero .n{font-size:26px;font-weight:800}
+  .b-hero .sub{font-size:11px;opacity:.9;margin-top:2px}
+  .b-bar{height:6px;background:rgba(255,255,255,.35);border-radius:4px;margin-top:9px;overflow:hidden}
+  .b-bar i{display:block;height:100%;background:#fff;width:62%}
+  .b-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:10px}
+  .b-cell{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 4px;text-align:center;font-size:11px}
+  .b-cell .ic{font-size:16px}
+  .b-cell .t{margin-top:3px;color:var(--sub);font-size:10px}
+  .b-stat{display:flex;gap:7px;margin-bottom:10px}
+  .b-stat div{flex:1;background:var(--card);border:1px solid var(--line);border-radius:11px;text-align:center;padding:8px 0}
+  .b-stat b{font-size:16px}.b-stat span{display:block;font-size:10px;color:var(--sub)}
+
+  /* ===== Scheme C : 磁贴 ===== */
+  .c-hero{background:linear-gradient(135deg,#ffd0b0,#ffb27a);border-radius:16px;padding:14px;margin-bottom:10px;color:#7a3a10}
+  .c-hero .n{font-size:24px;font-weight:800;color:var(--accent)}
+  .c-tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+  .c-tile{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:10px}
+  .c-tile .ic{width:28px;height:28px;border-radius:9px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-size:15px;margin-bottom:6px}
+  .c-tile .t{font-size:12px;font-weight:700}
+  .c-tile .s{font-size:10px;color:var(--sub);margin-top:1px}
+  .c-tile .st{font-size:10px;margin-top:4px}
+
+  /* horizontal scroll strip (AI商城) — kept scrollable in all schemes */
+  .hs{display:flex;gap:8px;overflow-x:auto;padding:2px 0 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .hs::-webkit-scrollbar{display:none}
+  .hk{flex:none;width:96px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:9px 8px}
+  .hk .ph{height:42px;border-radius:8px;background:linear-gradient(135deg,#ffe2cf,#ffc9a3);margin-bottom:6px}
+  .hk .t{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hk .p{font-size:10px;color:var(--accent);margin-top:2px}
+
+  .cmp{margin:34px auto 0;max-width:880px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px}
+  .cmp h2{font-size:16px;margin-bottom:12px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{border:1px solid var(--line);padding:9px 10px;text-align:left;vertical-align:top}
+  th{background:#fafcff;color:var(--sub);font-weight:700}
+  td b{color:var(--accent)}
+</style>
+</head>
+<body>
+  <h1 class="page">商城「我的」页 · 重设计方案</h1>
+  <p class="lead">把当前扁平堆叠的「我的」页（余额 / 邀请链接 / 关联应用 / 历史交付物 / 算力退回）重新分层，预留<b>订单</b>与<b>常用 / 账户</b>分组位。<br>按你的要求：<b>不含新手教学 / 一键自动演示</b>，<b>AI 商城推荐保持横向滚动</b>。</p>
+  <div class="legend">当前问题：信息平铺、订单与功能入口不分、缺统一层次　|　设计目标：资产 / 订单 / 工具 / 账户 四区清晰　|　底部 AI 商城横滑保留</div>
+
+  <div class="schemes">
+
+    <!-- ============ Scheme A ============ -->
+    <div class="scheme">
+      <h2>方案 A · 分组列表式</h2>
+      <span class="tag">经典「我的」· 最稳</span>
+      <div class="phone"><div class="notch"></div><div class="scr">
+        <div class="topbar"><span class="ttl">我的</span><span class="bal">⚡ 1,280</span></div>
+        <div class="a-balance">
+          <div class="l">算力余额</div>
+          <div class="n">⚡ 1,280</div>
+          <div class="act"><button class="btn">+ 充值算力</button><button class="btn ghost">算力明细</button></div>
+        </div>
+        <div class="a-order">
+          <div><b>2</b><span>我的订单</span></div>
+          <div><b>1</b><span>购物车</span></div>
+          <div><b>0</b><span>待评价</span></div>
+        </div>
+        <div class="h3">常用</div>
+        <div class="row"><span class="ic">🎁</span>推荐有礼<span class="rt">邀请链接 ›</span></div>
+        <div class="row"><span class="ic">🔗</span>关联应用 · 得到大脑<span class="rt gray">未连接</span></div>
+        <div class="row"><span class="ic">📄</span>历史交付物<span class="rt">7天内 ›</span></div>
+        <div class="row"><span class="ic">📅</span>每日签到<span class="rt">+5/天 ›</span></div>
+        <div class="h3">账户</div>
+        <div class="row"><span class="ic">❓</span>帮助中心<span class="rt">›</span></div>
+        <div class="row"><span class="ic">⚙️</span>设置<span class="rt">›</span></div>
+        <div class="h3">AI 商城 · 为你推荐</div>
+        <div class="hs">
+          <div class="hk"><div class="ph"></div><div class="t">沈定 AI 定位</div><div class="p">99 算力</div></div>
+          <div class="hk"><div class="ph"></div><div class="t">秦文 文案十件</div><div class="p">15 算力</div></div>
+          <div class="hk"><div class="ph"></div><div class="t">直播话术</div><div class="p">200 算力</div></div>
+        </div>
+      </div></div>
+      <ul class="pts">
+        <li>iOS 设置风分组，用户最熟悉、上手零成本</li>
+        <li>资产 / 订单 / 常用 / 账户 四区一眼分清</li>
+        <li>订单与功能入口彻底解耦</li>
+        <li>缺点：视觉偏平淡，信息密度低</li>
+      </ul>
+    </div>
+
+    <!-- ============ Scheme B ============ -->
+    <div class="scheme">
+      <h2>方案 B · 仪表盘式</h2>
+      <span class="tag">信息密度高 · 数据感</span>
+      <div class="phone"><div class="notch"></div><div class="scr">
+        <div class="topbar"><span class="ttl">我的</span><span class="bal">⚡ 1,280</span></div>
+        <div class="b-hero">
+          <div class="l" style="opacity:.9;font-size:11px">算力余额</div>
+          <div class="n">⚡ 1,280</div>
+          <div class="sub">本月已用 480 · 获赠 100</div>
+          <div class="b-bar"><i></i></div>
+        </div>
+        <div class="b-grid">
+          <div class="b-cell"><div class="ic">💰</div><div class="t">充值</div></div>
+          <div class="b-cell"><div class="ic">🎁</div><div class="t">邀请</div></div>
+          <div class="b-cell"><div class="ic">📅</div><div class="t">签到</div></div>
+          <div class="b-cell"><div class="ic">📄</div><div class="t">交付物</div></div>
+          <div class="b-cell"><div class="ic">🔗</div><div class="t">关联</div></div>
+          <div class="b-cell"><div class="ic">❓</div><div class="t">帮助</div></div>
+        </div>
+        <div class="b-stat">
+          <div><b>2</b><span>我的订单</span></div>
+          <div><b>1</b><span>购物车</span></div>
+          <div><b>3</b><span>历史交付</span></div>
+        </div>
+        <div class="h3">历史交付物 · 7 天内</div>
+        <div class="hs">
+          <div class="hk"><div class="ph"></div><div class="t">IP 全案</div><div class="p">剩 4 天</div></div>
+          <div class="hk"><div class="ph"></div><div class="t">直播话术</div><div class="p">剩 2 天</div></div>
+          <div class="hk"><div class="ph"></div><div class="t">文案十件</div><div class="p">剩 6 天</div></div>
+        </div>
+        <div class="h3">AI 商城 · 为你推荐</div>
+        <div class="hs">
+          <div class="hk"><div class="ph"></div><div class="t">沈定 AI 定位</div><div class="p">99 算力</div></div>
+          <div class="hk"><div class="ph"></div><div class="t">秦文 文案</div><div class="p">15 算力</div></div>
+          <div class="hk"><div class="ph"></div><div class="t">直播话术</div><div class="p">200 算力</div></div>
+        </div>
+      </div></div>
+      <ul class="pts">
+        <li>首屏一张 hero 把算力收支讲清，数据感强</li>
+        <li>宫格快捷入口 + 状态数字，操作路径短</li>
+        <li>订单 / 交付物用横滑，省纵向空间</li>
+        <li>缺点：元素多，需要克制配色避免花</li>
+      </ul>
+    </div>
+
+    <!-- ============ Scheme C ============ -->
+    <div class="scheme">
+      <h2>方案 C · 磁贴模块式</h2>
+      <span class="tag">现代卡片 · 层次强</span>
+      <div class="phone"><div class="notch"></div><div class="scr">
+        <div class="topbar"><span class="ttl">我的</span><span class="bal">⚡ 1,280</span></div>
+        <div class="c-hero">
+          <div class="l" style="font-size:11px">算力余额</div>
+          <div class="n">⚡ 1,280</div>
+          <button class="btn" style="margin-top:8px">+ 充值算力</button>
+        </div>
+        <div class="h3">我的订单</div>
+        <div class="c-tiles">
+          <div class="c-tile"><div class="ic">🧾</div><div class="t">我的订单</div><div class="s">2 笔进行中</div><div class="st"><span class="chip">查看 ›</span></div></div>
+          <div class="c-tile"><div class="ic">🛒</div><div class="t">购物车</div><div class="s">1 件待结算</div><div class="st"><span class="chip gray">去结算 ›</span></div></div>
+        </div>
+        <div class="h3">常用工具</div>
+        <div class="c-tiles">
+          <div class="c-tile"><div class="ic">🎁</div><div class="t">推荐有礼</div><div class="s">邀请得算力</div></div>
+          <div class="c-tile"><div class="ic">🔗</div><div class="t">得到大脑</div><div class="s">未连接</div></div>
+          <div class="c-tile"><div class="ic">📄</div><div class="t">历史交付物</div><div class="s">7 天内下载</div></div>
+          <div class="c-tile"><div class="ic">📅</div><div class="t">每日签到</div><div class="s">+5/天</div></div>
+        </div>
+        <div class="h3">AI 商城 · 为你推荐</div>
+        <div class="hs">
+          <div class="hk"><div class="ph"></div><div class="t">沈定 AI 定位</div><div class="p">99 算力</div></div>
+          <div class="hk"><div class="ph"></div><div class="t">秦文 文案</div><div class="p">15 算力</div></div>
+          <div class="hk"><div class="ph"></div><div class="t">直播话术</div><div class="p">200 算力</div></div>
+        </div>
+      </div></div>
+      <ul class="pts">
+        <li>每张磁贴自含图标+标题+状态，模块感最清晰</li>
+        <li>订单 / 工具分区用 2 列磁贴，层次最强</li>
+        <li>视觉现代，适合做品牌感</li>
+        <li>缺点：磁贴占纵向空间，长列表需滚动</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="cmp">
+    <h2>三方案对比</h2>
+    <table>
+      <tr><th>维度</th><th>方案 A 分组列表</th><th>方案 B 仪表盘</th><th>方案 C 磁贴模块</th></tr>
+      <tr><td>层次清晰度</td><td>★★★★☆</td><td>★★★☆☆</td><td><b>★★★★★</b></td></tr>
+      <tr><td>信息密度</td><td>★★★☆☆</td><td><b>★★★★★</b></td><td>★★★★☆</td></tr>
+      <tr><td>上手成本</td><td><b>最低</b></td><td>中</td><td>中</td></tr>
+      <tr><td>订单/功能解耦</td><td>✓ 分组</td><td>✓ 数字+横滑</td><td><b>✓ 独立模块</b></td></tr>
+      <tr><td>视觉风格</td><td>稳重克制</td><td>数据感强</td><td>现代品牌感</td></tr>
+      <tr><td>开发量（相对）</td><td>小</td><td>中</td><td>中</td></tr>
+      <tr><td>去新手教学/演示</td><td colspan="3" style="text-align:center">三方案均不含，AI 商城均保留横滑</td></tr>
+    </table>
+  </div>
+</body>
+</html>
