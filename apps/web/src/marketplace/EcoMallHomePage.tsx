@@ -1444,10 +1444,24 @@ export function EcoMallHomePage() {
               <div className="me-pf-top">
                 <span className="me-ava"><IconGlyph name="user" size={22} /></span>
                 <div className="me-id">
-                  <b>{accountInfo?.tenantName || localAccountName || "我的账号"}</b>
-                  <span>
-                    {accountInfo ? `注册于 ${fmtInviteDate(accountInfo.createdAt)}` : "已登录"}
-                  </span>
+                  {accountInfo ? (
+                    <>
+                      <b>{accountInfo.tenantName || localAccountName || "我的账号"}</b>
+                      <span>注册于 {fmtInviteDate(accountInfo.createdAt)}</span>
+                    </>
+                  ) : mountedWithToken.current ? (
+                    /* 本地有会话、但 /market/me 还没回来：先占位——不谎称「已登录」，也不谎称「未登录」。 */
+                    <>
+                      <b>{localAccountName || "我的账号"}</b>
+                      <span>账号信息加载中…</span>
+                    </>
+                  ) : (
+                    /* 没有会话：明确说未登录（此前这里无条件写「已登录」，游客看着像已登录）。 */
+                    <>
+                      <b>未登录</b>
+                      <span>登录后可查看订单、算力与权益</span>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="me-pf-bal">
