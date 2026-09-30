@@ -30,7 +30,9 @@ interface FetchedTitle { title: string; /** 发布时间（unix 秒，来自搜�
  * 解析 timeConvert 时间戳，由调用方按时间降序/过滤。
  * 注：搜狗 tsn 时间窗参数有反爬（302 跳回首页），服务端不可用，只能拿回页面自己过滤。
  */
-async function fetchTitlesWithTime(url: string, pages = 1): Promise<FetchedTitle[]> {
+async function fetchTitlesWithTime(url: string, pages = 1, minFresh = 0): Promise<FetchedTitle[]> {
+  // 2026-10-01（用户）：翻页最多 10 页，防止冷门行业无限翻。
+  pages = Math.min(Math.max(1, pages), 10);
   if (!isAllowedUrl(url)) return [];
   try {
     // 搜狗每页固定 10 条；pages>1 时抓前 N 页（2026-10-01 实测 page=2/3 不触发反爬）
@@ -149,7 +151,7 @@ async function consolidateHotTopics(industry: string, pool: FetchedTitle[]): Pro
     "其中很多是《XX日报》《XX简报》《XX盘点》这类**栏目壳**——真正的热点是壳里提到的一个个具体事件。",
     "任务：提炼出**具体的热点话题**清单，每条是一个具体的事件 / 发布 / 动态 / 数据点，",
     "例如「小米开源 Mimo 模型登顶热榜」「Anthropic 招股书显示高增长」——禁止输出《日报》《简报》《盘点》《周报》这类栏目名本身。",
-    "每条 ≤40 字；5-8 条；只基于给定材料，不编造；输出 JSON {\"topics\":[\"...\"]}，不要其它文字。"
+    "每条 ≤40 字；**输出 10 条**（材料实在不足才允许 8 条，并在最后一条标注「（素材有限）」）；只基于给定材料，不编造；输出 JSON {\"topics\":[\"...\"]}，不要其它文字。"
   ].join("\n");
   try {
     const raw = await provider.complete(
@@ -157,14 +159,14 @@ async function consolidateHotTopics(industry: string, pool: FetchedTitle[]): Pro
         { role: "system", content: system },
         { role: "user", content: `行业：${industry}\n\n检索结果：\n${lines}` }
       ] as LlmMessage[],
-      { maxTokens: 800, reasoningProfile: "standard", thinkingMode: "disabled" }
+      { maxTokens: 1000, reasoningProfile: "standard", thinkingMode: "disabled" }
     );
     const jsonText = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
     const parsed = JSON.parse(jsonText) as { topics?: unknown };
     if (!Array.isArray(parsed.topics)) return null;
     const topics = parsed.topics
       .filter((t): t is string => typeof t === "string" && t.trim().length >= 4 && t.trim().length <= 60)
-      .slice(0, 10);
+      .slice(0, 12);
     return topics.length > 0 ? topics : null;
   } catch {
     return null;
@@ -173,7 +175,7 @@ async function consolidateHotTopics(industry: string, pool: FetchedTitle[]): Pro
 
 export async function searchPublicTopicSources(industry: string, benchmarkText: string): Promise<PublicTopicSearch> {
   const hotUrl = SEARCH_URLS.sogou(`${industry} 热点`);
-  const hotAll = await fetchTitlesWithTime(hotUrl, 2);
+  const hotAll = await fetchTitlesWithTime(hotUrl, 10, 15);
   // 热点只要新鲜的：过滤掉 90 天前的旧文（2026-10-01 用户：搜出 2024 年的数据不能用）；
   // 太少（行业冷门）则回退全量，但仍按新→旧排序，老文章沉底。
   const HOT_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;

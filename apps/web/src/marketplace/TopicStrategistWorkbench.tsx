@@ -185,8 +185,10 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
   useEffect(() => {
     let cancelled = false;
     void fetch(apiPath("/market/topic-staged-materials"), { headers: authHeaders(), cache: "no-store" })
+      // kbEnabled：来源1（私有知识库）开关的后端真源，随素材快照一起回填。
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: { selected?: StagedItem[] } | null) => {
+      .then((data: { selected?: StagedItem[]; kbEnabled?: boolean } | null) => {
+        if (typeof data?.kbEnabled === "boolean") setSrc1On(data.kbEnabled);
         if (!cancelled && data?.selected) setStagedMaterials(data.selected);
       })
       .catch(() => {});
@@ -257,6 +259,8 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
   const [stage, setStage] = useState<number | null>(null);
   // 来源 4（数据复盘）开关 —— 关闭时触发配额重分配与降级提示
   const [src3On, setSrc3On] = useState(true);
+  // 来源 1（私有知识库）开关（2026-10-01 用户：与来源4同款）——关闭后不要求配置、生成也不注入。
+  const [src1On, setSrc1On] = useState(true);
   // 各来源的演示态
   const [synced, setSynced] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -365,6 +369,17 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
     }
   };
 
+  // 来源1 开关：同步到后端（/run 只注入 enabled=true 的配置）；关闭时配置保留，重开即恢复。
+  const toggleSource1 = async (on: boolean) => {
+    setSrc1On(on);
+    try {
+      await fetch(apiPath("/market/topic-kb-materials/enable"), {
+        method: "POST",
+        headers: authHeaders(true),
+        body: JSON.stringify({ enabled: on })
+      });
+    } catch { /* 本地态已更新，网络异常时下次进入会以后端为准 */ }
+  };
   // 来源4 开关：同步到后端（/run 只注入 enabled=true 的快照）；未上传过时后端会 400，静默保留本地态。
   const toggleSource4 = async (on: boolean) => {
     setSrc3On(on);
@@ -442,7 +457,7 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
     }
     setGenLoading(true); setGenError("");
     try {
-      const useMaterials = stagedMaterials.length;
+      const useMaterials = src1On ? stagedMaterials.length : 0; // 开关关闭：生成不引用知识库素材
       const prompt =
         "请为我的账号生成 10 条视频选题。" +
         (stage !== null ? `账号阶段：${STAGE_NAMES[stage]}。` : "") +
@@ -534,7 +549,7 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
 
   // ---------- 生成闸门：来源齐备 + 第三关阶段已选，二者都满足才允许生成 ----------
   // 来源3（对标账号）开发中，不参与配置校验，生成不依赖它。
-  const s1Ready = gnConfigured; // 私有知识库：得到大脑连接已 active
+  const s1Ready = !src1On || gnConfigured; // 私有知识库：关闭（主动跳过）或得到大脑连接已 active
   const s2Ready = Boolean(industryHotspots?.result?.hot.fetched); // 行业热点：已在配置页拉取并落库
   const s4Ready = !src3On || reviewData !== null; // 数据复盘：关闭（主动跳过）或已上传并解析成功
   const stageReady = stage !== null; // 第三关·配比校准：必须点选账号阶段才允许生成
@@ -617,13 +632,24 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
           </div>
           <div className="sources">
             {/* 来源 1 */}
-            <div className="src" id="src1">
+            <div className={src1On ? "src" : "src off"} id="src1">
               <div className="head">
                 <span className="no">1</span>
                 <b>私有知识库</b>
               </div>
               <div className="ctrl">
-                {!gnConfigured ? (
+                <div className="inline">
+                  <span className="ctrl-lab">私有知识库</span>
+                  <label className="switch">
+                    <input type="checkbox" checked={src1On} onChange={(e) => void toggleSource1(e.target.checked)} />
+                    <i />
+                  </label>
+                </div>
+                {!src1On ? (
+                  <div className="inline">
+                    <span className="sync-warn">来源 1（私有知识库）已关闭并跳过。已连接的得到大脑与已选素材都保留，重新打开开关即恢复。</span>
+                  </div>
+                ) : !gnConfigured ? (
                   <div className="inline">
                     <span className="ctrl-lab">得到大脑</span>
                     <span className="sync-warn">
@@ -1172,6 +1198,11 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
               </div>
               <div className="mat-x" onClick={() => setIhDrawerOpen(false)}>×</div>
             </div>
+            {/* 2026-10-01（同事反馈）：输入框改成新行业后，下面还挂着旧行业的检索结果，
+                看起来像「抓错了」。加一行不一致提示，明确告诉用户点「重新检索」才会更新。 */}
+            {industryHotspots && industryInput.trim() && industryInput.trim() !== industryHotspots.industry && (
+              <div className="mat-stale" role="alert">⚠️ 行业已改为「{industryInput.trim()}」，下方还是「{industryHotspots.industry}」的旧结果——回卡片点「拉取热点」更新。</div>
+            )}
             <input className="mat-search" placeholder="搜索热点标题" value={ihSearch} onChange={(e) => setIhSearch(e.target.value)} />
             <div className="mat-list">
               {ihItems.length === 0 && <div className="mat-empty">还没有热点，先在卡片里点「拉取热点」</div>}

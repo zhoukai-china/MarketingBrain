@@ -371,3 +371,15 @@
   transition: 0.15s;
 }
 .ts-wb .ts-backbtn:hover { background: rgba(232, 101, 26, 0.18); }
+
+/* 行业热点抽屉：输入行业与已检索快照不一致时的提示（2026-10-01 同事反馈） */
+.mat-stale {
+  margin: 8px 14px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--orange-line, #f5c9a8);
+  background: #fff7ef;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #b25e00;
+}

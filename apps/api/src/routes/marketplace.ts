@@ -37,6 +37,8 @@ import {
 // 两端都读 topic_staged_material_selections 这张表，避免双源口径不一致。
 type StagedItem = { id: string; type: string; text: string; source: string };
 const STAGED_SELECT_COLUMN = `SELECT selected FROM topic_staged_material_selections WHERE user_id = $1`;
+// 来源1（私有知识库）开关真源（2026-10-01 用户：与来源4 数据复盘的 enabled 同款）。
+const TOPIC_KB_COLUMN = `SELECT enabled FROM topic_kb_material_settings WHERE user_id = $1`;
 
 // 来源2（行业热点）配置结果：配置页「拉取」时调用公开检索并存库，运行时只读这份快照，
 // 不自行外网拉取。与前端展示同源，是「已配置行业热点」的唯一真源。
@@ -512,6 +514,11 @@ export async function runMarketplaceSku(params: {
       if (parsed.data.entry === "workbench") {
         // 工作台入口：读取【后端已存】的用户选择（与前端展示同源，唯一真源），
         // 不再信任请求体里的 privateMaterials，避免「前端显示已选 N 条」与「后端实际注入」口径不一致。
+        // 2026-10-01（用户）：来源1 加开关——关闭后即使已连接/已勾选素材也不注入。
+        const kbRows = await prisma
+          .$queryRawUnsafe<Array<{ enabled: boolean }>>(TOPIC_KB_COLUMN, context.userId)
+          .catch(() => [] as Array<{ enabled: boolean }>);
+        const kbEnabled = kbRows[0]?.enabled ?? true;
         const storedRows = await prisma
           .$queryRawUnsafe<Array<{ selected: Array<{ id: string; text: string }> }>>(
             STAGED_SELECT_COLUMN,
@@ -521,7 +528,10 @@ export async function runMarketplaceSku(params: {
         const storedTexts = (storedRows[0]?.selected ?? [])
           .map((s) => s.text)
           .filter((t): t is string => Boolean(t));
-        if (storedTexts.length > 0) {
+        if (!kbEnabled) {
+          userContent +=
+            "\n\n【私有知识库】来源1已被用户关闭，本次不挂载私有知识来源（已选素材与得到大脑配置均保留，重新打开开关即恢复）。";
+        } else if (storedTexts.length > 0) {
           userContent +=
             `\n\n【私有知识库 · 客户所选素材（本次生成带入，共 ${storedTexts.length} 条）】\n` +
             storedTexts.map((t, i) => `${i + 1}. ${t}`).join("\n");
@@ -1536,7 +1546,41 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
       const rows = await prisma
         .$queryRawUnsafe<Array<{ selected: StagedItem[] }>>(STAGED_SELECT_COLUMN, context.userId)
         .catch(() => [] as Array<{ selected: StagedItem[] }>);
-      return reply.send({ selected: rows[0]?.selected ?? [] });
+      // 来源1（私有知识库）开关状态：与来源4（数据复盘）的 enabled 同款；没记录 = 默认开启。
+      const kbRows = await prisma
+        .$queryRawUnsafe<Array<{ enabled: boolean }>>(TOPIC_KB_COLUMN, context.userId)
+        .catch(() => [] as Array<{ enabled: boolean }>);
+      return reply.send({ selected: rows[0]?.selected ?? [], kbEnabled: kbRows[0]?.enabled ?? true });
+    });
+
+    // 来源1（私有知识库）开关（2026-10-01 用户：与来源4同款）——关闭后 /run 不注入知识库素材，
+    // 即使已连接得到大脑、已勾选素材也不应用；配置本身保留，重新打开即恢复。
+    market.post("/topic-kb-materials/enable", async (request, reply) => {
+      const context = await resolveRequestContext(request.headers);
+      const parsed = z.object({ enabled: z.boolean() }).safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+      }
+      await prisma.$executeRawUnsafe(
+        `CREATE TABLE IF NOT EXISTS topic_kb_material_settings (
+           id uuid PRIMARY KEY,
+           user_id text NOT NULL UNIQUE,
+           tenant_id text NOT NULL,
+           enabled boolean NOT NULL DEFAULT true,
+           created_at timestamptz NOT NULL DEFAULT now(),
+           updated_at timestamptz NOT NULL DEFAULT now()
+         )`
+      );
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO topic_kb_material_settings (id, user_id, tenant_id, enabled, created_at, updated_at)
+         VALUES ($1::uuid, $2, $3, $4, now(), now())
+         ON CONFLICT (user_id) DO UPDATE SET enabled = EXCLUDED.enabled, updated_at = now()`,
+        randomUUID(),
+        context.userId,
+        context.tenantId,
+        parsed.data.enabled
+      );
+      return reply.send({ enabled: parsed.data.enabled });
     });
 
     market.post("/topic-staged-materials", async (request, reply) => {
