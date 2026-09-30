@@ -218,7 +218,8 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   /** 生成进行中：期间自由输入先不接（AI 还没消化完上一句、也没问出下一句，答了会对不上题）。 */
   const digestingRef = useRef(false);
   /** 模型实时生成的下一题候选：点了先放进输入框，用户改完确认才进简报（模型不直接落库）。 */
-  const [genCandidates, setGenCandidates] = useState<string[]>([]);
+  /** 生成候选：q = 属于第几题。只有那道题真的问出来（optsQ 就位）才渲染——先问后荐，不许抢跑。 */
+  const [genCandidates, setGenCandidates] = useState<{ q: number; list: string[] } | null>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [optsQ, setOptsQ] = useState<number | null>(null);
   const [confirmOpts, setConfirmOpts] = useState(false);
@@ -326,7 +327,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   function resetAll(greet: boolean) {
     timersRef.current.forEach((t) => { window.clearTimeout(t); window.clearInterval(t); });
     timersRef.current = [];
-    setPhase("idle"); setQi(0); setBrief({}); briefRef.current = {}; setGenCandidates([]); runIdRef.current += 1;
+    setPhase("idle"); setQi(0); setBrief({}); briefRef.current = {}; setGenCandidates(null); runIdRef.current += 1;
     setMessages([]); setOptsQ(null); setConfirmOpts(false); setFreeInput("");
     setError(null); setReview(null); setResolved([]);
     setLogLines([]); setLogIdx(0); setGenIdx(-1); setGenFinished(false);
@@ -354,7 +355,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     // 先放「正在消化」动画占位；**等消化成型后再问下一题**——对话原则：上一句没说完，不冒下一句。
     // 模型超时（9s）→ 落兜底话术并推进，不让用户对着三个点干等。
     const fallbackId = pushMsg("ai", '<span class="cpw-thinking"><i></i><i></i><i></i></span>', true);
-    setGenCandidates([]);
+    setGenCandidates(null);
     const nqi = qi + 1;
     setQi(nqi);
     const next = nqi < QFLOW.length ? { fields: QFLOW[nqi].fields, q: QFLOW[nqi].q, hint: QFLOW[nqi].hint } : null;
@@ -389,7 +390,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
       const data = (await res.json()) as { digest?: string | null; candidates?: string[] };
       // 生成成功 → 成型；生成失败/为空 → 落回兜底话术。两种都是「一次成型」，无中途换话。
       replaceMsg(fallbackMsgId, escapeHtml(data.digest || fallbackText));
-      if (Array.isArray(data.candidates) && data.candidates.length > 0) setGenCandidates(data.candidates);
+      if (Array.isArray(data.candidates) && data.candidates.length > 0) setGenCandidates({ q: nqi, list: data.candidates });
       advanceAfterDigest(nqi, runId);
     } catch {
       replaceMsg(fallbackMsgId, escapeHtml(fallbackText));
@@ -450,7 +451,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     timersRef.current.forEach((t) => { window.clearTimeout(t); window.clearInterval(t); });
     timersRef.current = [];
     setMessages([]); setOptsQ(null); setConfirmOpts(false);
-    setBrief({}); briefRef.current = {}; setGenCandidates([]);
+    setBrief({}); briefRef.current = {}; setGenCandidates(null);
     runIdRef.current += 1;
     setQi(QFLOW.length);
     setPhase("confirm"); setConfirmOpts(true);
@@ -801,10 +802,10 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                     </div>
                   )}
                 </div>
-                {phase === "ask" && genCandidates.length > 0 && (
+                {phase === "ask" && genCandidates && optsQ === genCandidates.q && genCandidates.list.length > 0 && (
                   /* 模型按你的行业生成的候选：点了放进输入框，改完再发（不直接进简报）。 */
                   <div className="cpw-opts">
-                    {genCandidates.map((c, i) => (
+                    {genCandidates.list.map((c, i) => (
                       <button key={i} className="cpw-opt" onClick={() => setFreeInput(c)}>{c}</button>
                     ))}
                   </div>
