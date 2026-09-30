@@ -544,6 +544,6 @@
 }
 @keyframes cpw-btn-rot { to { transform: rotate(360deg); } }
 
-/* 体检卡里的「跳过体检」出口：弱化呈现，但一眼能找到。 */
-.cpw-review .cpw-review-skip { float: right; font-size: 11.5px; font-weight: 600; color: var(--ink-2, #8a8f98); cursor: pointer; }
-.cpw-review .cpw-review-skip:hover { color: var(--orange); }
+/* 体检卡底部的双按钮行（2026-09-30）：补强 / 直接生成，两条路都一眼可见。 */
+.cpw-review-ops { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.cpw-review-ops .cpw-opt { width: 100%; text-align: left; }

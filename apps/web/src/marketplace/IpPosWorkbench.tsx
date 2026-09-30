@@ -863,12 +863,6 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                           {pendingReview.length > 0
                             ? `🔍 生成前体检 · ${pendingReview.length} 项可以补强（不强制）`
                             : `✅ 生成前体检 · ${review.length} 项已按提示补充，再点一次「✓ 确认，开始生成」`}
-                          {pendingReview.length > 0 && (
-                            <a
-                              className="cpw-review-skip"
-                              onClick={() => { precheckBypassRef.current = true; dismissConfirmOpts(); void startGen(); }}
-                            >认为没问题？跳过体检，直接生成 →</a>
-                          )}
                         </div>
                         {review.map((issue) => {
                           const fields = SLOT_TO_FIELDS[issue.slot] ?? [issue.slot];
@@ -884,6 +878,18 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                             </div>
                           );
                         })}
+                        {pendingReview.length > 0 && (
+                          /* 2026-09-30（用户）：跳过入口原来是右上角小字，太隐蔽——
+                             升级为卡底醒目双按钮：补强 or 直接生成，两条路都一眼可见。 */
+                          <div className="cpw-review-ops">
+                            <button className="cpw-opt go" onClick={() => { precheckBypassRef.current = true; dismissConfirmOpts(); void startGen(); }}>
+                              🚀 跳过体检，直接生成<small>材料够不够你说了算 · 体检不扣算力</small>
+                            </button>
+                            <button className="cpw-opt" onClick={() => { setConfirmOpts(false); pushMsg("ai", "好，按上面清单逐条补充：点右侧简报里对应的字段改，改完再点「✨ 生成定位全案」，我会重新体检。"); }}>
+                              ✎ 按提示补充<small>补完更准 · 改完重新生成</small>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                     {error && <div className="cpw-err">{error}</div>}

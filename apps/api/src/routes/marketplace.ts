@@ -1053,7 +1053,13 @@ const IP_POS_PRECHECK_SYSTEM_PROMPT = `你是 IP 定位访谈的预审员。用�
 
 只输出一个 JSON 数组，不要输出任何其他文字。每个不达标的槽位一个对象：
 [{"slot":"competition","verdict":"missing","followup":"一条具体的追问，针对该槽位缺什么、让老板好回答"}]
-达标的槽位不要出现在数组里。slot 只能取：role、project、competition、user、founder、stage。最多 6 条。`;
+达标的槽位不要出现在数组里。slot 只能取：role、project、competition、user、founder、stage。最多 6 条。
+
+followup 的硬性边界（2026-09-30 用户：追问脱离了收集信息的范畴就不行）：
+- followup 只能是「引导用户补充该槽位信息」的问句，目的是把缺的关键点问出来；
+- 禁止让用户背话术、念文案、现场表演或"发一条/说一段/拍一条我看看"——那不是访谈，是考核；
+- 禁止向用户索要任何需要额外准备的物料（截图、视频、历史内容）；
+- 只围绕上面列的该槽位关键点提问，一条 15-40 字，语气自然像访谈，不要像审问。`;
 
 /** 解析预审输出：只保留槽位白名单内的 weak/missing 项，其余一律丢弃（防模型编造槽位导致回填串格）。 */
 /** 返回 null = 输出根本不是 JSON 数组（degraded）；[] = 解析成功且全部达标。 */
@@ -1072,10 +1078,15 @@ function parseIpPosPrecheck(text: string): IpPosPrecheckIssue[] | null {
     const record = item as { slot?: unknown; verdict?: unknown; followup?: unknown };
     const slot = record.slot;
     const verdict = record.verdict;
-    const followup = String(record.followup ?? "").trim();
+    let followup = String(record.followup ?? "").trim();
     if (typeof slot !== "string" || !(IP_POS_PRECHECK_SLOTS as readonly string[]).includes(slot)) continue;
     if (verdict !== "weak" && verdict !== "missing") continue;
     if (!followup) continue;
+    // 代码级保险：模型哪怕不守提示词约束，出了「背话术/发一条看看」这类脱离收集范畴的
+    // 表演式追问，也在这里拦下，替换成通用补强问法（2026-09-30 用户反馈）。
+    if (/我看看|发一条|拍一条|说一段|来一段|背一下|念一下|发给我|录一段|截图|发个视频/.test(followup)) {
+      followup = "这一项回答可以再具体一点：补充关键细节（是谁、凭什么、有啥可验证的），全案会更准。";
+    }
     issues.push({ slot: slot as IpPosPrecheckSlot, verdict, followup });
   }
   return issues;

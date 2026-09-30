@@ -114,7 +114,7 @@ async function typeAndSend(p, text) {
   let ok = btnState && !btnState.disabled;
   if (reviewShown) {
     const skipLink = await p.evaluate(() => {
-      const a = document.querySelector(".cpw-review .cpw-review-skip");
+      const a = document.querySelector(".cpw-review-ops .cpw-opt.go");
       if (!a) return "not-found";
       a.click();
       return "clicked";
