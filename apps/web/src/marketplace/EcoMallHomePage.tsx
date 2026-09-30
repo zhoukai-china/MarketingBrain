@@ -410,15 +410,17 @@ export function EcoMallHomePage() {
     try { mountedWithToken.current = Boolean(localStorage.getItem("store_os_token")); } catch { mountedWithToken.current = false; }
   }
   /**
-   * 「我的」页要显示的真实账号名。
+   * 「我的」页要显示的真实账号信息。
    *
    * 2026-09-30（用户）：这里原来摆的是写死的「体验访客 / 演示账号 / 首次登入 2026-09-25」——
    * 用户在同一微信号下扫码注册后，看到这个假身份以为系统另开了个「新账号」。
-   * 现在改为读登录时后端下发的租户/账号名（`store_os_tenant_name`），还没有就显示「我的账号」。
+   * 现在改为读后端 `/market/me` 下发的真实账号（租户名 + 注册时间 + userId），
+   * 让用户能自己判断 PC 与微信两端登录的是不是同一个号；未取到后端数据时回退本地租户名。
    */
-  const [accountName, setAccountName] = useState("");
+  const [accountInfo, setAccountInfo] = useState<{ userId: string; createdAt: string; tenantName: string | null } | null>(null);
+  const [localAccountName, setLocalAccountName] = useState("");
   useEffect(() => {
-    try { setAccountName(localStorage.getItem("store_os_tenant_name") ?? ""); } catch { setAccountName(""); }
+    try { setLocalAccountName(localStorage.getItem("store_os_tenant_name") ?? ""); } catch { setLocalAccountName(""); }
   }, []);
   /** CTA 文案是否已知：未知就先不显示文字（保留按钮位置），避免「先错后对」的闪烁。 */
   const ctaReady = meActivated !== null || !mountedWithToken.current;
@@ -834,7 +836,7 @@ export function EcoMallHomePage() {
 
   useEffect(() => {
     let cancelled = false;
-    void fetchMarketMe<{ creditBalance: number; activated?: boolean; gift?: { amount: number; expiresAt: string | null; scope: string } | null }>()
+    void fetchMarketMe<{ creditBalance: number; activated?: boolean; gift?: { amount: number; expiresAt: string | null; scope: string } | null; account?: { userId: string; createdAt: string; tenantName: string | null } | null }>()
       .then((data) => {
         if (cancelled) return;
         setBalance(data ? data.creditBalance : null);
@@ -842,6 +844,7 @@ export function EcoMallHomePage() {
         if (data) applyActivated(Boolean(data.activated));
         else setMeActivated(false);
         if (data?.gift) setActivateGift(data.gift);
+        if (data?.account) setAccountInfo(data.account);
       })
       .catch(() => {
         // 请求失败：按「未开通」渲染（点主按钮会走开通表单，已开通用户服务端会直接回到成功态），
@@ -1441,8 +1444,12 @@ export function EcoMallHomePage() {
               <div className="me-pf-top">
                 <span className="me-ava"><IconGlyph name="user" size={22} /></span>
                 <div className="me-id">
-                  <b>{accountName || "我的账号"}</b>
-                  <span>{accountName ? "当前登录账号" : "已登录 · 账号名待同步"}</span>
+                  <b>{accountInfo?.tenantName || localAccountName || "我的账号"}</b>
+                  <span>
+                    {accountInfo
+                      ? `账号 ${accountInfo.userId.slice(-6)} · 注册于 ${fmtInviteDate(accountInfo.createdAt)}`
+                      : "已登录"}
+                  </span>
                 </div>
               </div>
               <div className="me-pf-bal">

@@ -1365,6 +1365,23 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
             orderBy: { createdAt: "desc" }
           })
         : null;
+      // 真实账号信息（2026-09-30 用户）：展示真实租户名与注册时间，不再用占位假数据；
+      // 带上 userId，方便用户/客服判断「PC 与微信两端登录的是不是同一个号」。
+      const account = context.source === "database" && context.userId
+        ? await prisma.user.findUnique({
+            where: { id: context.userId },
+            select: {
+              id: true,
+              createdAt: true,
+              memberships: {
+                where: { isActive: true },
+                orderBy: { createdAt: "asc" },
+                take: 1,
+                select: { tenant: { select: { name: true } } }
+              }
+            }
+          })
+        : null;
       return {
         dataMode: context.source,
         creditBalance: wallet.balance,
@@ -1376,6 +1393,13 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
               validDays: SIGNUP_GIFT_VALIDITY_DAYS,
               expiresAt: signupGift.expiresAt?.toISOString?.() ?? null,
               scope: "text"
+            }
+          : null,
+        account: account
+          ? {
+              userId: account.id,
+              createdAt: account.createdAt.toISOString(),
+              tenantName: account.memberships[0]?.tenant?.name ?? null
             }
           : null,
         subscriptions: await listSubscriptions(context),
