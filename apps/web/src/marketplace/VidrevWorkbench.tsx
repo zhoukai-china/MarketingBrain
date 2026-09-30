@@ -77,6 +77,17 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+/**
+ * 数据导出指南（2026-10-01 用户同事反馈：工作台缺「去哪里下载数据表」的引导）。
+ * 移植自旧版对话页 AgentChatPage 的 VIDREV_NO_DATA_GUIDE，路径随平台后台更新要跟着维护。
+ */
+const VIDREV_EXPORT_GUIDE_HTML = [
+  "<b>📥 数据导出指南</b>",
+  "- <b>视频号</b>：登录视频号助手 channels.weixin.qq.com/login.html → 数据中心 → 视频数据 → 单篇视频 → 选「近 30 天」→ 下载表格",
+  "- <b>抖音</b>：登录抖音创作者中心 creator.douyin.com → 数据中心 → 作品数据 → 近 30 天 → 导出数据",
+  "下载好的 <b>CSV 或 Excel</b> 直接拖进下方虚线框（或点「选择文件」）就行。"
+].join("<br>");
+
 /** 客户端体检：只判「能不能收」，不重算后端指标。 */
 function checkDataText(fileName: string, raw: string): FileCheck {
   const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
@@ -205,7 +216,7 @@ export function VidrevWorkbench({ skuId }: { skuId: string }) {
     setPayload(null); setAnswerMd(""); setConsumed(null);
     dataTextRef.current = "";
     if (greet) {
-      pushMsg("ai", `老板，我是<b>江流</b>。你把后台导出的数据表拖进来，我<b>先体检、再复盘</b>：数据合不合格、缺什么字段、影响哪一章结论，体检面板上写得明明白白，<b>体检不扣算力</b>，不合格我不会瞎出报告。<br><span class="q-hint">目前支持抖音、视频号两个平台（一次一个平台）。把文件拖进下方虚线框，或点「选择文件」。</span>`);
+      pushMsg("ai", `老板，我是<b>江流</b>。你把后台导出的数据表拖进来，我<b>先体检、再复盘</b>：数据合不合格、缺什么字段、影响哪一章结论，体检面板上写得明明白白，<b>体检不扣算力</b>，不合格我不会瞎出报告。<br><span class="q-hint">目前支持抖音、视频号两个平台（一次一个平台）。</span><br><br>${VIDREV_EXPORT_GUIDE_HTML}`);
       setShowDropzone(true);
       setPhase("greet");
     }
@@ -276,7 +287,7 @@ export function VidrevWorkbench({ skuId }: { skuId: string }) {
           `<div class="row"><span>识别平台</span><b>${result.platform ?? "未识别"}</b></div>` +
           `<div class="row"><span>数据形态</span><b>${result.shape}</b></div>` +
           `<div class="row"><span>解析记录</span><b>0 条</b></div>` +
-          `<div class="guide">${result.guide ?? ""}</div></div></div>换一份<b>逐条作品明细</b>（每行一个作品）拖进来就行。`);
+          `<div class="guide">${result.guide ?? ""}</div></div></div>换一份<b>逐条作品明细</b>（每行一个作品）拖进来就行。<br><br>${VIDREV_EXPORT_GUIDE_HTML}`);
         setShowDropzone(true);
       }
     } catch (e) {
