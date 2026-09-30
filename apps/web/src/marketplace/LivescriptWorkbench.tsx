@@ -35,7 +35,8 @@ const FIELDS: Array<{ key: string; icon: string; label: string }> = [
 ];
 
 interface QOpt { t: string; d: string; v: string; rec?: boolean; /** example：行业示例——点击先进输入框让用户改，回车确认才进简报（不直接落库）。 */ example?: boolean }
-interface QFlow { field: string; when?: { mode: string[] }; q: string; hint: string; opts?: QOpt[] }
+/** enum: 系统枚举题——选项是封闭集合，不走 LLM 候选，直接让用户选择。 */
+interface QFlow { field: string; when?: { mode: string[] }; q: string; hint: string; opts?: QOpt[]; enum?: boolean }
 
 const QFLOW: QFlow[] = [
   { field: "mode", q: "这场直播是哪一种？", hint: "先定「这场赚谁的钱」——带货赚消费者、招商赚创业者，两套打法完全不同，我不串场。",
@@ -74,7 +75,7 @@ const QFLOW: QFlow[] = [
       { t: "90 分钟", d: "", v: "90" },
       { t: "60 分钟", d: "", v: "60" }
     ] },
-  { field: "depth", q: "脚本交付到什么深度？", hint: "只要一段能念的，还是整场从开场到下播的完整脚本包？",
+  { field: "depth", enum: true, q: "脚本交付到什么深度？", hint: "只要一段能念的，还是整场从开场到下播的完整脚本包？",
     opts: [
       { t: "轻量 · 单段脚本", d: "1-2 分钟可照读 + 运营配合 · 约 3 分钟", v: "light" },
       { t: "完整 · 整场脚本十件套", d: "总览→开场→四套轮播→钩子→应答→收尾→节奏表→场控清单 · 约 5-10 分钟", v: "full", rec: true }
@@ -315,8 +316,10 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
     const placeholderId = pushMsg("ai", '<span class="cpw-thinking"><i></i><i></i><i></i></span>', true);
     setGenCandidates(null);
     const nqi = q.field === "mode" ? 1 : (optsQ == null ? 0 : optsQ + 1);
-    const next = nqi < qListRef.current.length
-      ? (() => { const nq = qListRef.current[nqi]; return { fields: [nq.field], q: nq.q, hint: nq.hint }; })()
+    // 下一题是系统枚举题（enum）→ 不为它生成候选（封闭集合直接选择），消化话术照常。
+    const nq = nqi < qListRef.current.length ? qListRef.current[nqi] : null;
+    const next = nq && !nq.enum
+      ? { fields: [nq.field], q: nq.q, hint: nq.hint }
       : null;
     const runId = runIdRef.current;
     digestingRef.current = true;

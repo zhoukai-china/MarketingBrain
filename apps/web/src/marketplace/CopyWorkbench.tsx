@@ -34,8 +34,8 @@ const FIELDS: Array<{ key: string; icon: string; label: string }> = [
 ];
 
 interface QOpt { t: string; d: string; v: string; rec?: boolean; /** example：行业示例——点击先进输入框让用户改，回车确认才进简报（不直接落库）。 */ example?: boolean }
-/** opts 可选。 */
-interface QFlow { field: string; q: string; hint: string; opts?: QOpt[] }
+/** opts 可选。enum: 系统枚举题（如交付深度 light/full）——选项是封闭集合，不走 LLM 候选，直接让用户二选一。 */
+interface QFlow { field: string; q: string; hint: string; opts?: QOpt[]; enum?: boolean }
 
 const QFLOW: QFlow[] = [
   { field: "product", q: "这次给什么产品 / 服务写文案？", hint: "名字 + 一句话卖点就行，也可以后面传资料让我自己读。",
@@ -59,7 +59,7 @@ const QFLOW: QFlow[] = [
       { t: "私信咨询", d: "", v: "私信咨询" },
       { t: "到店 / 留资", d: "", v: "到店 / 留资" }
     ] },
-  { field: "depth", q: "这次要交付到什么深度？", hint: "只要一条能发的文案，还是连拍摄剪辑发布投流一起出完整十件套？",
+  { field: "depth", enum: true, q: "这次要交付到什么深度？", hint: "只要一条能发的文案，还是连拍摄剪辑发布投流一起出完整十件套？",
     opts: [
       { t: "轻量 · 1 条可直发文案", d: "标题 + 正文 + 话题 · 约 3 分钟", v: "light" },
       { t: "完整 · 内容十件套", d: "选题→口播→访谈→拍摄→剪辑→标题→时间→评论→投流 · 约 5-10 分钟", v: "full", rec: true }
@@ -321,8 +321,11 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
     setGenCandidates(null);
     const nqi = qi + 1;
     setQi(nqi);
-    const next = nqi < QFLOW.length
-      ? { fields: [QFLOW[nqi].field], q: QFLOW[nqi].q, hint: QFLOW[nqi].hint }
+    // 下一题是系统枚举题（enum）→ 不为它生成候选（选项就是封闭集合，直接二选一），
+    // 但当前回答的消化话术照常生成。
+    const nq = nqi < QFLOW.length ? QFLOW[nqi] : null;
+    const next = nq && !nq.enum
+      ? { fields: [nq.field], q: nq.q, hint: nq.hint }
       : null;
     const runId = runIdRef.current;
     digestingRef.current = true;

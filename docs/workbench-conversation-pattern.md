@@ -49,6 +49,7 @@ interface QFlow { fields: string[]; q: string; hint: string; digest: string; opt
 2. **不要一句话中途变成另一句**：先显示占位动画（`.cpw-thinking`），模型回来**一次成型**替换。绝不先显示一句兜底再偷偷换掉。
 3. **先出问题，再出推荐回答**：候选带 `q`（题号）标记，渲染门槛 `optsQ === genCandidates.q`——`optsQ` 由 `askQuestion` 设置，问题没问出来候选就永远不会出现。
 4. **生成候选存在时替代该题静态选项**（不是并存！）：静态 opts 渲染条件加 `!(genCandidates && genCandidates.q === optsQ && list 非空)`；生成失败（候选为空）才回退静态选项。否则静态示例和生成候选同屏两排（2026-10-01 用户实测连踩两次）。
+5. **系统枚举题标 `enum: true`，整体不走 LLM**（2026-10-01 用户：交付深度这种封闭集合直接让用户二选一）：选项是系统定义的封闭值（如 light/full 决定交付链路与价格），不给它生成候选、静态选项永远显示。实现：生成 hints 时若下一题是 enum，`next` 传 null（当前回答的消化话术照常生成）。
 
 ## 4. 防卡死的四道保险
 
