@@ -1030,6 +1030,9 @@ export function EcoMallHomePage() {
     );
   }
 
+  // AI 案例视图：只算一次，页头计数与列表共用同一份结果
+  const caseList = ECO_CASES.filter((c) => caseCat === "all" || c.cat === caseCat);
+
   return (
     <main className="app-wrap eco-mall-page eco-light eh">
       <div className="eh-bg-grid" aria-hidden="true" />
@@ -1040,19 +1043,25 @@ export function EcoMallHomePage() {
 
       {view === "cases" ? (
         <section className="eh-cases-view">
-          <div className="eh-cv-head">
-            <div className="eh-cv-head-in">
-              <div className="eh-cv-title"><b><IconGlyph name="book" size={18} style={{ display: "inline", verticalAlign: "-3px" }} /> AI 案例</b><span>看别人怎么用 AI 降本增效</span></div>
-              <div className="eh-cv-slogan">每个案例写清<b>卡点、做法、投入、结果</b>，看中直接<b>用同款</b> · 演示数据虚构</div>
-              <div className="eh-cv-chips">
+          <header className="eh-ph">
+            <div className="eh-ph-in">
+              <div className="eh-ph-top">
+                <span className="eh-ph-ico"><IconGlyph name="book" size={17} /></span>
+                <div className="eh-ph-tt">
+                  <div className="eh-ph-t">AI 案例</div>
+                  <p className="eh-ph-d">看别人怎么用 AI 降本增效 · 演示数据虚构</p>
+                </div>
+                <div className="eh-ph-stat"><b>{caseList.length}</b><span>个案例</span></div>
+              </div>
+              <div className="eh-ph-tabs">
                 {ECO_CASE_CATS.map((cat) => (
-                  <button key={cat.key} type="button" className={`eh-cv-chip ${caseCat === cat.key ? "act" : ""}`} onClick={() => setCaseCat(cat.key)}>{cat.label}</button>
+                  <button key={cat.key} type="button" className={`eh-ph-tab ${caseCat === cat.key ? "on" : ""}`} onClick={() => setCaseCat(cat.key)}>{cat.label}</button>
                 ))}
               </div>
             </div>
-          </div>
+          </header>
           <div className="eh-cv-wrap">
-            {ECO_CASES.filter((c) => caseCat === "all" || c.cat === caseCat).map((c) => (
+            {caseList.map((c) => (
               <article key={c.title} className="eh-case-card" onClick={() => setOpenCase(c)}>
                 <div className="eh-case-cover">
                   <img className="eh-cimg" src={getPublicAssetPath(c.cover)} alt={c.title} />
@@ -1076,7 +1085,7 @@ export function EcoMallHomePage() {
                 </div>
               </article>
             ))}
-            {ECO_CASES.every((c) => caseCat !== "all" && c.cat !== caseCat) ? (
+            {caseList.length === 0 ? (
               <div className="eh-cv-empty">该分类暂无案例 · 演示数据陆续补充</div>
             ) : null}
           </div>
@@ -1084,19 +1093,27 @@ export function EcoMallHomePage() {
       ) : view === "cart" ? (
         /* ---------- 购物车（照原型 .cart-view：标题 + 商品行 + 固定合计条） ---------- */
         <section className="eh-cases-view cart-view">
-          <div className="eh-cv-head">
-            <div className="eh-cv-head-in">
-              <div className="eh-cv-title">
-                <b><IconGlyph name="cart" size={18} style={{ display: "inline", verticalAlign: "-3px" }} /> 购物车</b>
-                <span>{cartCount} 件商品</span>
+          <header className="eh-ph">
+            <div className="eh-ph-in">
+              <div className="eh-ph-top">
+                <span className="eh-ph-ico"><IconGlyph name="cart" size={17} /></span>
+                <div className="eh-ph-tt">
+                  <div className="eh-ph-t">购物车</div>
+                  <p className="eh-ph-d">上线预约期商品 · 结算登记后客服按清单跟进</p>
+                </div>
+                {cartCount > 0 ? <div className="eh-ph-stat"><b>{cartCount}</b><span>件商品</span></div> : null}
               </div>
-              <div className="eh-cv-slogan">商品处于上线预约期 · 结算登记后客服按清单跟进，购物车会保留</div>
+              <div className="eh-ph-meta">
+                <span>购物车自动保留</span>
+                <i />
+                <span>结算不扣算力</span>
+              </div>
             </div>
-          </div>
+          </header>
 
           {cart.length === 0 ? (
             <div className="cart-empty">
-              <span className="ce-ico">🛒</span>
+              <span className="ce-ico"><IconGlyph name="cart" size={22} /></span>
               <b>购物车还是空的</b>
               <p>去商城把需要的智能体 / 商品加进来，这里会帮你算好总价。</p>
               <button type="button" className="cart-empty-go" onClick={() => { setView("home"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
@@ -1166,25 +1183,40 @@ export function EcoMallHomePage() {
         </section>
       ) : view === "mine" ? (
         <section className="eh-cases-view">
-          <div className="eh-cv-head">
-            <div className="eh-cv-head-in">
-              <div className="eh-cv-title"><b><IconGlyph name="user" size={18} style={{ display: "inline", verticalAlign: "-3px" }} /> 我的</b><span>体验访客 · 演示账号</span></div>
-              <div className="eh-cv-slogan">智能体订单可点进工作台 · 商品订单发货中 · 结算不扣算力</div>
-            </div>
-          </div>
-          <div className="me-inner">
-            <div className="me-head">
-              <span className="me-ava"><IconGlyph name="user" size={26} /></span>
-              <div>
-                <div className="me-name">体验访客</div>
-                <div className="me-sub">首次登入 · 2026-09-25</div>
+          <header className="eh-ph">
+            <div className="eh-ph-in">
+              <div className="eh-ph-top">
+                <span className="eh-ph-ico"><IconGlyph name="user" size={17} /></span>
+                <div className="eh-ph-tt">
+                  <div className="eh-ph-t">我的</div>
+                  <p className="eh-ph-d">订单 · 算力 · 权益，都在这一页</p>
+                </div>
+                <span className="eh-ph-tag">演示账号</span>
+              </div>
+              <div className="eh-ph-meta">
+                <span>智能体订单可点进工作台</span>
+                <i />
+                <span>结算不扣算力</span>
               </div>
             </div>
-            <div className="me-bal-card">
-              <span className="me-bal"><b>{fmtCredits(balance)}</b> <span className="u">算力余额</span> <i className="bal-cny">≈ ¥{balance != null ? (balance / 10).toFixed(balance % 10 === 0 ? 0 : 1) : "0"}</i></span>
-              <button className="mini-btn" type="button" onClick={() => setShowRecharge(true)}>充值</button>
+          </header>
+          <div className="me-inner">
+            <div className="me-profile">
+              <div className="me-pf-top">
+                <span className="me-ava"><IconGlyph name="user" size={22} /></span>
+                <div className="me-id">
+                  <b>体验访客</b>
+                  <span>演示账号 · 首次登入 2026-09-25</span>
+                </div>
+              </div>
+              <div className="me-pf-bal">
+                <span className="mpb-k">算力余额</span>
+                <b className="mpb-v">{fmtCredits(balance)}</b>
+                <i className="mpb-cny">≈ ¥{balance != null ? (balance / 10).toFixed(balance % 10 === 0 ? 0 : 1) : "0"}</i>
+                <button className="mini-btn" type="button" onClick={() => setShowRecharge(true)}>充值</button>
+              </div>
             </div>
-            <div className="me-sec-head"><b>📦 全部订单</b><span>0 笔</span></div>
+            <div className="me-sec-head"><b>全部订单</b><span>0 笔</span></div>
             <div className="me-orders"><div className="me-order-empty">暂无订单</div></div>
             <div className="me-list">
               <button type="button" className="me-item" onClick={() => setShowDict(true)}>
