@@ -229,6 +229,10 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   // 生成前体检（不扣算力；slot 精确勾销）
   const [review, setReview] = useState<PrecheckIssue[] | null>(null);
   const [resolved, setResolved] = useState<string[]>([]);
+  /** 生成前体检进行中：按钮显示「校验中…」，期间不可重复点击。 */
+  const [prechecking, setPrechecking] = useState(false);
+  /** 用户明确选择「跳过体检直接生成」后置 true，下一次 startGen 不再跑体检。 */
+  const precheckBypassRef = useRef(false);
 
   // 生成中
   const [logLines, setLogLines] = useState<string[]>([]);
@@ -476,39 +480,54 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   }
 
   async function startGen() {
-    if (phase !== "confirm") return;
-    if (FIELDS.filter((f) => (brief[f.key] ?? "").trim()).length < FIELDS.length) {
-      setError(`简报还有 ${FIELDS.length - FIELDS.filter((f) => (brief[f.key] ?? "").trim()).length} 项没填，点简报字段补全后再生成。`);
+    if (phase !== "confirm" || prechecking) return;
+    const missing = FIELDS.filter((f) => !(brief[f.key] ?? "").trim()).length;
+    if (missing > 0) {
+      // 按钮不再 disabled——点了必须有反馈，指明缺哪些，而不是无声无息。
+      const missNames = FIELDS.filter((f) => !(brief[f.key] ?? "").trim()).map((f) => f.label).join("、");
+      setError(`简报还有 ${missing} 项没填：${missNames}。点右侧简报字段补全后再生成。`);
       return;
     }
     setError(null);
 
-    // 第一关：生成前体检（轻模型、不扣算力）。预审不通过 → 追问卡（slot 精确勾销），不进生成。
-    let issues: PrecheckIssue[] = [];
-    try {
-      const res = await fetch(apiPath(`/market/skus/${encodeURIComponent(skuId)}/precheck`), {
-        method: "POST",
-        headers: authHeaders(true),
-        body: JSON.stringify({ answers: briefToSlotAnswers() })
-      });
-      if (handleStaleSession(res.status)) {
-        throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次不消耗算力。");
+    // 第一关：生成前体检（轻模型、不扣算力）。
+    // 2026-09-30（用户）：体检只是「建议」，不许拦人——发现问题给出「补强」和「直接生成」两条路，
+    // 用户说没问题就直接放行；第二次点击（bypass）不再重复体检。
+    if (!precheckBypassRef.current) {
+      setPrechecking(true);
+      let issues: PrecheckIssue[] = [];
+      try {
+        const res = await fetch(apiPath(`/market/skus/${encodeURIComponent(skuId)}/precheck`), {
+          method: "POST",
+          headers: authHeaders(true),
+          body: JSON.stringify({ answers: briefToSlotAnswers() })
+        });
+        if (handleStaleSession(res.status)) {
+          throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次不消耗算力。");
+        }
+        if (res.ok) {
+          const data = await readJson<{ issues?: PrecheckIssue[] }>(res);
+          issues = (data.issues ?? []).filter((item) => item && item.slot && item.followup);
+        }
+      } catch (e) {
+        const message = e instanceof Error ? e.message : "";
+        if (message.includes("登录已过期")) { setPrechecking(false); setError(message); return; }
+        // 其余预审异常：放行，不挡生成主链路
       }
-      if (res.ok) {
-        const data = await readJson<{ issues?: PrecheckIssue[] }>(res);
-        issues = (data.issues ?? []).filter((item) => item && item.slot && item.followup);
+      setPrechecking(false);
+      if (issues.length > 0) {
+        setReview(issues);
+        setResolved([]);
+        pushMsg(
+          "ai",
+          `体检看了下，有 <b>${issues.length} 项</b>回答再补强一点，全案会更准（清单在右侧）。`
+          + `不过材料够不够你说了算——想补就照右侧提示改，改完再点生成；`
+          + `认为没问题就点 <b>「跳过体检，直接生成」</b>，马上开做。`
+        );
+        return;
       }
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "";
-      if (message.includes("登录已过期")) { setError(message); return; }
-      // 其余预审异常：放行，不挡生成主链路
     }
-    if (issues.length > 0) {
-      setReview(issues);
-      setResolved([]);
-      pushMsg("ai", `先别急——体检发现 <b>${issues.length} 项</b>回答还要补强（见右侧清单）。补完后再次点「✓ 确认，开始生成」（体检不扣算力）。`);
-      return;
-    }
+    precheckBypassRef.current = false;
     setReview(null);
     setResolved([]);
     setConfirmOpts(false);
@@ -823,8 +842,14 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                       })}
                     </div>
                     <div className="cpw-ops">
-                      {phase !== "gen" && phase !== "done" && (
-                        <button className="cpw-big-btn gen" disabled={filled < 8} onClick={() => { dismissConfirmOpts(); void startGen(); }}><IconAuto v="✨" /> 生成定位全案</button>
+                      {phase === "confirm" && (
+                        <button
+                          className={`cpw-big-btn gen${prechecking ? " busy" : ""}`}
+                          disabled={prechecking}
+                          onClick={() => { dismissConfirmOpts(); void startGen(); }}
+                        >
+                          {prechecking ? <><span className="cpw-btn-spin" /> 🔍 生成前校验中…</> : <><IconAuto v="✨" /> 生成定位全案</>}
+                        </button>
                       )}
                       {phase === "done" && (
                         <button className="cpw-big-btn ghost" onClick={() => { setPhase("confirm"); setConfirmOpts(true); setPieces([]); setRestored(false); setConsumed(null); }}>↻ 改简报重新生成</button>
@@ -835,7 +860,15 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                     {review && review.length > 0 && phase !== "gen" && (
                       <div className="cpw-review" role="alert">
                         <div className="ir-t">
-                          {pendingReview.length > 0 ? `🔍 生成前体检 · ${pendingReview.length} 项需要补充` : `✅ 生成前体检 · ${review.length} 项已按提示补充，再点一次「✓ 确认，开始生成」`}
+                          {pendingReview.length > 0
+                            ? `🔍 生成前体检 · ${pendingReview.length} 项可以补强（不强制）`
+                            : `✅ 生成前体检 · ${review.length} 项已按提示补充，再点一次「✓ 确认，开始生成」`}
+                          {pendingReview.length > 0 && (
+                            <a
+                              className="cpw-review-skip"
+                              onClick={() => { precheckBypassRef.current = true; dismissConfirmOpts(); void startGen(); }}
+                            >认为没问题？跳过体检，直接生成 →</a>
+                          )}
                         </div>
                         {review.map((issue) => {
                           const fields = SLOT_TO_FIELDS[issue.slot] ?? [issue.slot];
