@@ -222,17 +222,8 @@ function drawPoster(ctx: CanvasRenderingContext2D, version: VersionKey, data: In
   }
   fillTextCentered(ctx, "扫码或长按识别 · 立即开通", cx, boxY + box + 44, `600 30px ${FONT}`, skin.fg);
 
-  // 链接 + 邀请码
-  const link = data.link ?? "生成中…";
-  ctx.font = `500 24px ${MONO}`;
-  ctx.fillStyle = skin.soft;
-  ctx.textAlign = "center";
-  let shown = link;
-  while (ctx.measureText(shown).width > W - 140 && shown.length > 8) shown = shown.slice(0, -2);
-  if (shown !== link) shown += "…";
-  ctx.fillText(shown, cx, 986);
-
-  fillTextCentered(ctx, data.code ? `邀请码 ${data.code}` : " ", cx, 1026, `700 26px ${MONO}`, skin.accent);
+  // 邀请码（2026-09-30 用户：地址 URL 行去掉——二维码里已编码链接，文字行碍眼还容易露出本地域名）
+  fillTextCentered(ctx, data.code ? `邀请码 ${data.code}` : " ", cx, 986, `700 26px ${MONO}`, skin.accent);
 
   // 底部品牌行
   fillTextCentered(ctx, "智能体 · 数字员工 · AI 硬件 · AI 课程，一站配齐", cx, H - 56, `500 22px ${FONT}`, skin.soft);

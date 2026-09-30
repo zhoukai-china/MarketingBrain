@@ -512,8 +512,9 @@ const connectionSyncSchema = z.object({
         sourceTypes: ["录音转写", "笔记"],
         requiredFields: ["apiKey", "clientId"]
       },
-      { provider: "feishu", name: "飞书", status: "available", sourceTypes: ["已授权知识空间", "云文档", "知识库"], requiredFields: ["appId", "appSecret"] },
-      { provider: "wecom", name: "企业微信", status: "available", sourceTypes: ["已授权通讯录"], requiredFields: ["corpId", "corpSecret"] },
+      // 2026-09-30 用户：飞书 / 企业微信接入链路还没准备好，先标「即将上线」，不放开配置入口。
+      { provider: "feishu", name: "飞书", status: "planned", sourceTypes: ["已授权知识空间", "云文档", "知识库"], requiredFields: ["appId", "appSecret"] },
+      { provider: "wecom", name: "企业微信", status: "planned", sourceTypes: ["已授权通讯录"], requiredFields: ["corpId", "corpSecret"] },
       { provider: "dingtalk", name: "钉钉", status: "planned", sourceTypes: ["录音转写", "文档"] },
       { provider: "wechat_reading", name: "微信读书", status: "planned", sourceTypes: ["书摘", "笔记"] }
     ]
