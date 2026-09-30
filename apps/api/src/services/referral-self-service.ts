@@ -40,9 +40,19 @@ export interface SelfReferralLinkView {
   hint: string;
 }
 
+/**
+ * 邀请链接统一站点源（用户 2026-09-30）：线上 `https://ai.lcppch.top`、本地 `http://localhost:5174`，
+ * 与 API 域名（api.lcppch.top）不是同一个，所以走独立配置 `PUBLIC_SITE_ORIGIN`；
+ * 未配置时回退 `PUBLIC_WEB_BASE_URL` 的 origin（老环境不配也不至于拼出 404）。
+ */
+function siteOrigin(): string {
+  const configured = String(env.PUBLIC_SITE_ORIGIN ?? "").trim().replace(/\/+$/, "");
+  if (configured) return configured;
+  return String(env.PUBLIC_WEB_BASE_URL ?? "").replace(/\/+$/, "");
+}
+
 function buildReferralLink(code: string): string {
-  const base = String(env.PUBLIC_WEB_BASE_URL ?? "").replace(/\/+$/, "");
-  return `${base}/login?ref=${encodeURIComponent(code)}`;
+  return `${siteOrigin()}/login?ref=${encodeURIComponent(code)}`;
 }
 
 /** 活动窗口是否开放（读后台配置位 + 左闭右开窗口判断，与发奖同一套口径）。 */

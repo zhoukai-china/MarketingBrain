@@ -196,6 +196,9 @@ const envSchema = z.object({
   WORKBUDDY_MCP_PUBLIC_URL: urlWithDefault("https://api.lcppch.top/os-v2/api/integrations/workbuddy/mcp"),
   // 对外公开站点根地址（生成「我的邀请链接」用；服务端拼链接，不接受客户端传入的地址）。
   PUBLIC_WEB_BASE_URL: urlWithDefault("https://api.lcppch.top/os-v2/"),
+  // 邀请链接专用站点源（用户 2026-09-30：线上 https://ai.lcppch.top/ 、本地 http://localhost:5174，
+  // 与 api 域名不同，所以单独一个统一配置项；未配置时回退 PUBLIC_WEB_BASE_URL 的 origin）。
+  PUBLIC_SITE_ORIGIN: optionalString,
   // 平台管理后台的账号密码登录（用户 2026-09-15：普通用户进不去，管理员账号密码登入）。
   // 密码优先用 hash（`scrypt$<salt>$<hash>`，见 scripts/hash-admin-password.mjs），没配 hash 才用明文。
   ADMIN_LOGIN_USERNAME: optionalString,

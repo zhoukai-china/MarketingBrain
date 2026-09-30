@@ -1345,27 +1345,6 @@ body.eco-mall-body .app-wrap {
 
 /* ---- 邀请有礼（右侧抽屉） ---- */
 .eh-inv-body { display: flex; flex-direction: column; gap: 14px; }
-.eh-inv-poster {
-  border-radius: 18px; overflow: hidden; color: #fff;
-  background:
-    radial-gradient(120% 80% at 0% 0%, rgba(255,255,255,.18), transparent 60%),
-    linear-gradient(135deg,#FF8A2A,#F25300);
-  padding: 16px;
-}
-.eh-inv-poster-top { display: flex; flex-direction: column; gap: 2px; }
-.eh-inv-poster-top b { font-size: 17px; font-weight: 900; }
-.eh-inv-poster-top span { font-size: 11.5px; opacity: .92; }
-.eh-inv-poster-reward { display: flex; gap: 18px; margin: 14px 0; }
-.eh-inv-poster-reward div { display: flex; flex-direction: column; }
-.eh-inv-poster-reward i { font-size: 26px; font-weight: 900; font-style: normal; line-height: 1; }
-.eh-inv-poster-reward small { font-size: 10.5px; opacity: .9; margin-top: 3px; }
-.eh-inv-qr {
-  background: #fff; border-radius: 14px; padding: 12px; display: flex;
-  align-items: center; justify-content: center; color: #2B1B10;
-}
-.eh-inv-qr-img svg { width: 180px; height: 180px; display: block; }
-.eh-inv-qr-ph { font-size: 13px; font-weight: 700; color: #94796B; padding: 18px 10px; text-align: center; }
-.eh-inv-poster-foot { font-size: 11px; opacity: .92; text-align: center; margin-top: 10px; }
 .eh-inv-rows { display: flex; flex-direction: column; gap: 8px; }
 .eh-inv-fld {
   display: flex; align-items: center; gap: 8px; background: #FFF9F2;
@@ -2431,34 +2410,6 @@ body:has(.ipd-page), body:has(.ts-wb){overflow-x:hidden}
 
 /* ================= 国庆主题邀请海报 ================= */
 /* 红金主线 + 发丝线点缀；不用渐变文字、不铺整面渐变（用户审美红线） */
-.eh-inv-poster.national {
-  position: relative; overflow: hidden;
-  background: linear-gradient(160deg, #B3271E 0%, #C0392B 46%, #A92318 100%);
-  border: 1px solid rgba(140, 20, 12, .6);
-  color: #FFF6E8;
-}
-.eh-inv-poster.national::before {
-  content: ""; position: absolute; inset: 7px; border-radius: 14px;
-  border: 1px solid rgba(255, 232, 180, .45); pointer-events: none;
-}
-.eh-inv-poster.national .eh-inv-poster-top b { color: #FFE9BD; }
-.eh-inv-poster.national .eh-inv-poster-top span { color: rgba(255, 240, 214, .92); }
-.eh-inv-poster.national .eh-inv-poster-reward i { color: #FFD98A; }
-.eh-inv-poster.national .eh-inv-poster-reward small { color: rgba(255, 240, 214, .88); }
-.eh-inv-poster.national .eh-inv-qr { background: #FFFDF6; border-color: rgba(255, 232, 180, .5); }
-.eh-inv-poster.national .eh-inv-poster-foot { color: rgba(255, 240, 214, .92); }
-.eh-inv-flag {
-  position: relative; display: flex; align-items: center; gap: 5px; margin-bottom: 10px;
-}
-.eh-inv-flag i { width: 16px; height: 10px; border-radius: 2px; background: #FFD98A; opacity: .9; }
-.eh-inv-flag i:nth-child(2) { width: 12px; opacity: .7; }
-.eh-inv-flag i:nth-child(3) { width: 8px; opacity: .5; }
-.eh-inv-flag i:nth-child(4) { width: 5px; opacity: .35; }
-.eh-inv-flag i:nth-child(5) { width: 3px; opacity: .22; }
-.eh-inv-flag-t {
-  margin-left: 4px; font-size: 10.5px; font-weight: 800; letter-spacing: .06em;
-  color: #8C140C; background: #FFD98A; border-radius: 999px; padding: 2px 10px;
-}
 .eh-inv-regen {
   border: 0; background: none; color: #94796B; font-size: 11.5px; cursor: pointer;
   text-decoration: underline; text-underline-offset: 3px; padding: 2px 0;
@@ -2475,3 +2426,49 @@ body:has(.ipd-page), body:has(.ts-wb){overflow-x:hidden}
 .me-sec-link b { font-size: 14px; color: #2B1B10; }
 .me-sec-link span { font-size: 11px; color: #94796B; }
 .me-sec-link:active { background: #FFF9F2; }
+
+/* ================= 可下载邀请海报（Canvas 位图，3 版本） ================= */
+.eh-ips { display: flex; flex-direction: column; gap: 10px; }
+.eh-ips-tabs { display: flex; gap: 6px; }
+.eh-ips-tab {
+  flex: 1; height: 32px; border-radius: 10px; cursor: pointer;
+  border: 1px solid #E5DDD1; background: #fff; color: #94796B;
+  font-size: 12px; font-weight: 700;
+}
+.eh-ips-tab.on { color: #fff; background: linear-gradient(135deg,#FF8A2A,#F25300); border-color: transparent; }
+.eh-ips-stage {
+  border-radius: 16px; overflow: hidden; background: #F6F1EA;
+  border: 1px solid #F0EBE3; display: flex; justify-content: center;
+  padding: 10px;
+}
+.eh-ips-canvas { width: 300px; height: 450px; display: block; border-radius: 10px; box-shadow: 0 6px 22px rgba(60,35,10,.16); }
+.eh-ips-dl {
+  height: 42px; border-radius: 12px; border: 0; cursor: pointer;
+  background: linear-gradient(135deg,#FF8A2A,#F25300); color: #fff;
+  font-size: 13.5px; font-weight: 800; box-shadow: 0 4px 14px rgba(242,83,0,.25);
+}
+.eh-ips-dl:disabled { opacity: .55; cursor: default; }
+.eh-ips-note { margin: 0; font-size: 11px; color: #BEA488; text-align: center; line-height: 1.6; }
+
+/* 关联应用 · 目录化条目（按钮卡：可选中的应用目录） */
+.eh-ap-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.eh-ap-item {
+  display: flex; align-items: center; gap: 11px; width: 100%;
+  border: 1px solid #F1EBE1; border-radius: 14px; background: #FFFDFA;
+  padding: 11px 13px; cursor: pointer; text-align: left;
+}
+.eh-ap-item.sel { border-color: rgba(232,101,26,.55); background: #FFF9F2; box-shadow: 0 0 0 2px rgba(232,101,26,.12); }
+.eh-ap-item.off { cursor: default; opacity: .6; }
+.eh-ap-logo {
+  width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+  display: grid; place-items: center; overflow: hidden;
+  background: #FFF4E9; border: 1px solid rgba(232,101,26,.18);
+  color: #E8651A; font-size: 16px; font-weight: 800;
+}
+.eh-ap-logo img { width: 100%; height: 100%; object-fit: cover; }
+.eh-ap-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.eh-ap-info b { font-size: 13px; font-weight: 800; color: #2B1B10; }
+.eh-ap-info span { font-size: 10.5px; color: #94796B; }
+.eh-ap-st { flex-shrink: 0; font-size: 10.5px; color: #B0A394; border: 1px solid #E5DDD1; border-radius: 999px; padding: 2px 9px; background: #fff; }
+.eh-ap-st.on { color: #0E9F6E; border-color: rgba(14,159,110,.4); background: rgba(14,159,110,.08); font-weight: 700; }
+.eh-ap-st.ready { color: #C25A00; border-color: rgba(232,101,26,.4); background: rgba(232,101,26,.07); font-weight: 700; }

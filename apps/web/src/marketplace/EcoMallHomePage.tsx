@@ -5,6 +5,7 @@ import { IconGlyph } from "./IconGlyph.js";
 import { RechargeDrawer } from "./RechargeDrawer.js";
 import { BookingModal } from "./BookingModal.js";
 import { DrawerPager, useIsMobile } from "./DrawerPager.js";
+import { InvitePoster } from "./InvitePoster.js";
 import { fmtCredits } from "../lib/fmt.js";
 import { useScrollLock } from "../lib/use-scroll-lock.js";
 import { fetchMarketMe, readJson, authHeaders, guestToLogin, handleStaleSession } from "./shell.js";
@@ -329,21 +330,35 @@ export function EcoMallHomePage() {
   const [delivBusy, setDelivBusy] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-  /* 关联应用（原「我的」页得到大脑逻辑平移：凭证测试通过后才能保存生效）。 */
+  /* 关联应用（2026-09-30 用户：不止得到大脑，目录化设计）——
+     目录来自后端 /knowledge-base/connectors（getnote / 飞书 / 企业微信 可接入，钉钉 / 微信读书 规划中），
+     连接状态来自 /knowledge-base/connections；点可接入的应用展开对应配置表单。 */
+  interface ConnectorView {
+    provider: string;
+    name: string;
+    status: "available" | "planned";
+    sourceTypes: string[];
+    requiredFields: string[];
+  }
   const APPS_PAGE_SIZE = 10;
+  const APP_FIELD_LABELS: Record<string, string> = {
+    apiKey: "API Key", clientId: "Client ID", appId: "App ID", appSecret: "App Secret", corpId: "Corp ID", corpSecret: "Corp Secret"
+  };
+  const APP_FIELD_PLACEHOLDERS: Record<string, string> = {
+    apiKey: "gk_ 开头的 API Key", clientId: "cli_ 开头的 Client ID", appId: "飞书应用 App ID",
+    appSecret: "飞书应用 App Secret", corpId: "企业微信 Corp ID", corpSecret: "企业微信应用 Secret"
+  };
   const [showApps, setShowApps] = useState(false);
+  const [connectors, setConnectors] = useState<ConnectorView[]>([]);
+  const [appsSel, setAppsSel] = useState<string>("getnote");
+  const [appFields, setAppFields] = useState<Record<string, string>>({});
+  const [appTestedOk, setAppTestedOk] = useState(false);
+  const [appBusy, setAppBusy] = useState(false);
+  const [appMsg, setAppMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [appsConns, setAppsConns] = useState<Array<{ id: string; provider: string; status: string; label?: string | null }>>([]);
   const [appsView, setAppsView] = useState<{ page: number; pageSize: number; total: number; totalPages: number } | null>(null);
   const [appsPage, setAppsPage] = useState(1);
   const [appsBusy, setAppsBusy] = useState(false);
-  const [gnStatus, setGnStatus] = useState<string | null>(null);
-  const [gnApiKey, setGnApiKey] = useState("");
-  const [gnClientId, setGnClientId] = useState("");
-  const [gnTesting, setGnTesting] = useState(false);
-  const [gnTestedOk, setGnTestedOk] = useState(false);
-  const [gnSaving, setGnSaving] = useState(false);
-  const [gnMsg, setGnMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const gnConnected = gnStatus === "active";
 
   /** 签到状态视图（后端 /market/signin 返回，与 daily-signin.ts 对齐）。 */
   interface SigninDayView {
@@ -710,10 +725,36 @@ export function EcoMallHomePage() {
       setAppsView({ page: view.page ?? 1, pageSize: APPS_PAGE_SIZE, total: view.total ?? conns.length, totalPages: view.totalPages ?? 1 });
       setAppsConns((prev) => (append ? [...prev, ...conns] : conns));
       setAppsPage(Math.max(1, view.page ?? 1));
-      const gn = conns.find((item) => item.provider === "getnote");
-      if (gn && !append) setGnStatus(gn.status);
     } catch { /* 抽屉里给空态 */ }
     finally { setAppsBusy(false); }
+  }
+
+  /** 当前选中的应用是否已连接。 */
+  function isProviderConnected(provider: string): boolean {
+    return appsConns.some((item) => item.provider === provider && item.status === "active");
+  }
+
+  /** 平台类应用（飞书/企业微信）：一次「测试并保存」——服务端校验凭证通过后才落库。 */
+  async function connectPlatform(sel: ConnectorView): Promise<void> {
+    setAppBusy(true); setAppMsg(null);
+    try {
+      const body: Record<string, unknown> = { provider: sel.provider, label: sel.name };
+      for (const field of sel.requiredFields) {
+        const value = (appFields[field] ?? "").trim();
+        if (!value) { setAppMsg({ ok: false, text: `请先填写 ${APP_FIELD_LABELS[field] ?? field}。` }); return; }
+        body[field] = value;
+      }
+      const response = await fetch(apiPath("/knowledge-base/connections/platform"), { method: "POST", headers: { ...authHeaders(true) }, body: JSON.stringify(body) });
+      if (handleStaleSession(response.status)) { setAppMsg({ ok: false, text: "登录状态已失效，请重新登录后再试。" }); return; }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) { setAppMsg({ ok: false, text: data?.message ?? data?.error ?? "连接校验未通过，请检查凭证。" }); return; }
+      setAppMsg({ ok: true, text: data?.message ?? `✅ ${sel.name} 已连接，数字员工可以引用这里的资料了。` });
+      void loadAppsPage(1, false);
+    } catch {
+      setAppMsg({ ok: false, text: "网络异常，请稍后重试。" });
+    } finally {
+      setAppBusy(false);
+    }
   }
 
   function fmtInviteDate(iso: string): string {
@@ -924,7 +965,16 @@ export function EcoMallHomePage() {
   useEffect(() => {
     if (showApps) {
       setAppsConns([]);
+      setAppFields({});
+      setAppMsg(null);
+      setAppTestedOk(false);
+      setAppsSel("getnote");
       void loadAppsPage(1, false);
+      // 应用目录（后端可扩展：新增 provider 只改服务端，前端自动出卡片）
+      void fetch(apiPath("/knowledge-base/connectors"), { headers: authHeaders(), cache: "no-store" })
+        .then((r) => (r.ok ? readJson<{ connectors: ConnectorView[] }>(r) : null))
+        .then((d) => { if (d?.connectors) setConnectors(d.connectors); })
+        .catch(() => { /* 目录拉不到时退回已有连接列表 */ });
     }
   }, [showApps]);
 
@@ -1805,7 +1855,12 @@ export function EcoMallHomePage() {
                 >
                   <span className="sd-label">{d.label}</span>
                   <span className="sd-credits">+{d.credits}</span>
-                  <span className="sd-state">{d.signed ? "✓ 已签" : d.current ? "今天" : ""}</span>
+                  {/* 口径统一（2026-09-30 用户）：格子是「周期落点」不是日历——
+                      今天已签时，下一次签到落在明天，所以 current 格标「明天」，不再标「今天」
+                      造成「按钮说已签、格子还像能签」的矛盾。 */}
+                  <span className="sd-state">
+                    {d.signed ? "✓ 已签" : d.current ? (signinStatus?.signedToday ? "明天" : "今天") : ""}
+                  </span>
                 </div>
               ))}
             </div>
@@ -1955,33 +2010,16 @@ export function EcoMallHomePage() {
                 <div className="eh-rd-loading eco-err">{inviteError}</div>
               ) : (
                 <>
-                  {/* ---------- 国庆主题海报 + 二维码（2026-09-30 用户：邀请要有海报，国庆主题） ---------- */}
-                  <div className="eh-inv-poster national">
-                    <div className="eh-inv-flag" aria-hidden="true">
-                      <i /><i /><i /><i /><i />
-                      <span className="eh-inv-flag-t">10·1 国庆限定</span>
-                    </div>
-                    <div className="eh-inv-poster-top">
-                      <b>思潼 AI 商城 · 国庆有礼</b>
-                      <span>智能体 · 数字员工 · AI 硬件，0 元开通</span>
-                    </div>
-                    <div className="eh-inv-poster-reward">
-                      <div><i>100</i><small>好友注册立得</small></div>
-                      <div><i>100</i><small>好友消耗满 50 你得</small></div>
-                    </div>
-                    <div className="eh-inv-qr">
-                      {inviteLink?.qrSvg ? (
-                        <div className="eh-inv-qr-img" dangerouslySetInnerHTML={{ __html: inviteLink.qrSvg }} />
-                      ) : (
-                        <div className="eh-inv-qr-ph">{inviteBusy ? "专属二维码生成中…" : "暂未生成 · 稍后自动重试"}</div>
-                      )}
-                    </div>
-                    <div className="eh-inv-poster-foot">
-                      {inviteLink?.campaignActive === false
-                        ? "扫码或打开链接 · 邀请奖励将在活动开启后自动生效"
-                        : "扫码或打开链接 · 好友开通各得 100 算力"}
-                    </div>
-                  </div>
+                  {/* ---------- 可下载海报（Canvas 位图，3 版本切换，2026-09-30） ---------- */}
+                  <InvitePoster
+                    data={{
+                      link: inviteLink?.link ?? null,
+                      qrSvg: inviteLink?.qrSvg ?? null,
+                      code: inviteLink?.code ?? inviteLink?.codePreview ?? null,
+                      campaignActive: inviteLink?.campaignActive !== false,
+                      busy: inviteBusy
+                    }}
+                  />
 
                   {/* ---------- 邀请码 / 链接 ---------- */}
                   <div className="eh-inv-rows">
@@ -2215,26 +2253,41 @@ export function EcoMallHomePage() {
             </div>
             <div className="eh-rd-body eh-ap-body">
               <p className="eh-ap-tip">
-                把你的私有知识源接到平台，数字员工生成选题等内容时可以直接引用（与「企业知识库」是同一份配置）。
+                把你的私有知识源接到平台，数字员工生成选题等内容时可以直接引用（与「企业知识库」是同一份配置）。点一个应用进行接入。
               </p>
-              {appsBusy && appsConns.length === 0 ? (
-                <div className="eh-rd-loading">加载中…</div>
-              ) : appsConns.length === 0 ? (
-                <div className="eh-ap-empty">还没有关联的应用 · 在下方填入得到大脑凭证即可接入</div>
-              ) : (
-                <ul className="eh-ap-list">
-                  {appsConns.map((conn) => (
-                    <li key={conn.id} className="eh-ap-item">
-                      <img src={getPublicAssetPath("/logos/getnote-logo.png")} alt={conn.label ?? "得到大脑"} />
-                      <div className="eh-ap-info">
-                        <b>{conn.label ?? "得到大脑（Get 笔记）"}</b>
-                        <span>私有知识源 · 笔记内容可被数字员工引用</span>
-                      </div>
-                      <span className={"eh-ap-st" + (conn.status === "active" ? " on" : "")}>{conn.status === "active" ? "已连接" : conn.status === "error" ? "异常" : "未连接"}</span>
+              {/* ---- 应用目录（后端 connectors 可扩展，前端不再写死某个大脑） ---- */}
+              <ul className="eh-ap-list">
+                {(connectors.length > 0
+                  ? connectors
+                  : [{ provider: "getnote", name: "得到大脑", status: "available" as const, sourceTypes: [], requiredFields: ["apiKey", "clientId"] }]
+                ).map((conn) => {
+                  const connected = isProviderConnected(conn.provider);
+                  const planned = conn.status === "planned";
+                  return (
+                    <li key={conn.provider}>
+                      <button
+                        type="button"
+                        className={"eh-ap-item" + (appsSel === conn.provider ? " sel" : "") + (planned ? " off" : "")}
+                        disabled={planned}
+                        onClick={() => { setAppsSel(conn.provider); setAppFields({}); setAppMsg(null); setAppTestedOk(false); }}
+                      >
+                        <span className="eh-ap-logo" aria-hidden="true">
+                          {conn.provider === "getnote"
+                            ? <img src={getPublicAssetPath("/logos/getnote-logo.png")} alt="" />
+                            : conn.name.slice(0, 1)}
+                        </span>
+                        <span className="eh-ap-info">
+                          <b>{conn.name}</b>
+                          <span>{conn.sourceTypes.length > 0 ? `可引用：${conn.sourceTypes.join(" / ")}` : "私有知识源"}</span>
+                        </span>
+                        <span className={"eh-ap-st" + (connected ? " on" : planned ? "" : " ready")}>
+                          {connected ? "已连接" : planned ? "即将上线" : "可接入"}
+                        </span>
+                      </button>
                     </li>
-                  ))}
-                </ul>
-              )}
+                  );
+                })}
+              </ul>
               <DrawerPager
                 isMobile={isMobile}
                 page={appsPage}
@@ -2247,95 +2300,123 @@ export function EcoMallHomePage() {
                 onLoadMore={() => void loadAppsPage(appsPage + 1, true)}
               />
 
-              {/* ---- 得到大脑配置（原逻辑：先「测试连接」（不落库）→ 通过后才能「保存并生效」） ---- */}
-              <div className="eh-ap-cfg">
-                <b>配置得到大脑（Get 笔记）</b>
-                <p className="eh-ap-cfg-tip">
-                  凭证按你的账号单独保存（与企业知识库是同一份配置）。在{" "}
-                  <a href="https://www.biji.com/openapi" target="_blank" rel="noreferrer">Get 笔记开放平台</a>{" "}
-                  登录后，在你的应用「凭证」里复制 API Key 和 Client ID。
-                </p>
-                {gnConnected ? (
-                  <div className="eh-ap-ok">当前已连接。修改时可两项都重填，或只填 API Key（沿用已保存的 Client ID）。</div>
-                ) : null}
-                <label htmlFor="eh-gn-apikey">API Key</label>
-                <input
-                  id="eh-gn-apikey"
-                  value={gnApiKey}
-                  onChange={(e) => { setGnApiKey(e.target.value); setGnTestedOk(false); }}
-                  placeholder={gnConnected ? "留空则沿用已保存的 API Key" : "粘贴 gk_ 开头的 API Key"}
-                />
-                <label htmlFor="eh-gn-clientid">Client ID</label>
-                <input
-                  id="eh-gn-clientid"
-                  value={gnClientId}
-                  onChange={(e) => { setGnClientId(e.target.value); setGnTestedOk(false); }}
-                  placeholder={gnConnected ? "已保存（留空则沿用）" : "粘贴 cli_ 开头的 Client ID"}
-                />
-                {gnMsg ? (
-                  <div className={"eh-ap-msg" + (gnMsg.ok ? " ok" : "")}>{gnMsg.text}</div>
-                ) : null}
-                <div className="eh-ap-actions">
-                  <button
-                    type="button"
-                    className="eh-ap-btn ghost"
-                    disabled={gnTesting || gnSaving || (!gnApiKey.trim() && !gnConnected)}
-                    onClick={() => {
-                      void (async () => {
-                        setGnTesting(true); setGnMsg(null); setGnTestedOk(false);
-                        try {
-                          const body: Record<string, unknown> = {};
-                          if (gnApiKey.trim()) body.apiKey = gnApiKey.trim();
-                          if (gnClientId.trim()) body.clientId = gnClientId.trim();
-                          if (!body.apiKey) { setGnMsg({ ok: false, text: "请先填写 API Key。" }); return; }
-                          const response = await fetch(apiPath("/knowledge-base/connections/getnote"), { method: "POST", headers: { ...authHeaders(true) }, body: JSON.stringify({ ...body, testOnly: true }) });
-                          if (handleStaleSession(response.status)) { setGnMsg({ ok: false, text: "登录状态已失效，请重新登录后再试。" }); return; }
-                          const data = await response.json().catch(() => ({}));
-                          if (!response.ok) { setGnMsg({ ok: false, text: data?.message ?? data?.error ?? "测试未通过，请检查凭证。" }); return; }
-                          setGnTestedOk(true);
-                          setGnMsg({ ok: true, text: `✅ 连接可用${typeof data?.noteCount === "number" ? `，已读到 ${data.noteCount} 条笔记` : ""}。点「保存并生效」完成配置。` });
-                        } catch {
-                          setGnMsg({ ok: false, text: "网络异常，请稍后重试。" });
-                        } finally {
-                          setGnTesting(false);
-                        }
-                      })();
-                    }}
-                  >
-                    {gnTesting ? "测试中…" : "① 测试连接"}
-                  </button>
-                  <button
-                    type="button"
-                    className="eh-ap-btn primary"
-                    disabled={!gnTestedOk || gnSaving || gnTesting}
-                    onClick={() => {
-                      void (async () => {
-                        setGnSaving(true); setGnMsg(null);
-                        try {
-                          const body: Record<string, unknown> = {};
-                          if (gnApiKey.trim()) body.apiKey = gnApiKey.trim();
-                          if (gnClientId.trim()) body.clientId = gnClientId.trim();
-                          if (!body.apiKey) { setGnMsg({ ok: false, text: "请先填写 API Key。" }); return; }
-                          const response = await fetch(apiPath("/knowledge-base/connections/getnote"), { method: "POST", headers: { ...authHeaders(true) }, body: JSON.stringify(body) });
-                          if (handleStaleSession(response.status)) { setGnMsg({ ok: false, text: "登录状态已失效，请重新登录后再试。" }); return; }
-                          const data = await response.json().catch(() => ({}));
-                          if (!response.ok) { setGnMsg({ ok: false, text: data?.message ?? data?.error ?? "保存失败，请稍后重试。" }); return; }
-                          setGnStatus("active");
-                          setGnMsg({ ok: true, text: "已保存并生效，数字员工现在可以引用你的得到大脑笔记了。" });
-                          void loadAppsPage(1, false);
-                        } catch {
-                          setGnMsg({ ok: false, text: "网络异常，请稍后重试。" });
-                        } finally {
-                          setGnSaving(false);
-                        }
-                      })();
-                    }}
-                  >
-                    {gnSaving ? "保存中…" : "② 保存并生效"}
-                  </button>
-                </div>
-                <p className="eh-ap-cfg-note">每次修改都要先「测试连接」，通过后才能保存生效——避免把不可用的凭证存进系统。</p>
-              </div>
+              {/* ---- 选中应用的配置表单（得到大脑：先测试再保存；飞书/企微：服务端校验通过即保存） ---- */}
+              {(() => {
+                const sel = connectors.find((c) => c.provider === appsSel);
+                if (!sel) return null;
+                const connected = isProviderConnected(sel.provider);
+                if (sel.status === "planned") {
+                  return (
+                    <div className="eh-ap-cfg">
+                      <b>配置{sel.name}</b>
+                      <p className="eh-ap-cfg-tip">「{sel.name}」正在接入规划中（可引用：{sel.sourceTypes.join(" / ") || "私有资料"}），上线后会在这里出现配置入口。</p>
+                    </div>
+                  );
+                }
+                const isGetnote = sel.provider === "getnote";
+                return (
+                  <div className="eh-ap-cfg">
+                    <b>配置{sel.name}</b>
+                    <p className="eh-ap-cfg-tip">
+                      {isGetnote
+                        ? <>凭证按你的账号单独保存（与企业知识库是同一份配置）。在{" "}<a href="https://www.biji.com/openapi" target="_blank" rel="noreferrer">Get 笔记开放平台</a>{" "}登录后，在你的应用「凭证」里复制 API Key 和 Client ID。</>
+                        : <>需要{sel.name}管理员在开放平台创建应用并授权对应文档/通讯录范围；平台只会读取你显式授权的资料，不会读取聊天记录。</>}
+                    </p>
+                    {connected ? (
+                      <div className="eh-ap-ok">当前已连接。重新填写并保存即可更新凭证。</div>
+                    ) : null}
+                    {sel.requiredFields.map((field) => (
+                      <div key={field}>
+                        <label htmlFor={`eh-ap-${field}`}>{APP_FIELD_LABELS[field] ?? field}</label>
+                        <input
+                          id={`eh-ap-${field}`}
+                          type={/secret/i.test(field) ? "password" : "text"}
+                          value={appFields[field] ?? ""}
+                          onChange={(e) => { setAppFields((prev) => ({ ...prev, [field]: e.target.value })); setAppTestedOk(false); }}
+                          placeholder={APP_FIELD_PLACEHOLDERS[field] ?? `填写${APP_FIELD_LABELS[field] ?? field}`}
+                        />
+                      </div>
+                    ))}
+                    {appMsg ? <div className={"eh-ap-msg" + (appMsg.ok ? " ok" : "")}>{appMsg.text}</div> : null}
+                    <div className="eh-ap-actions">
+                      {isGetnote ? (
+                        <>
+                          <button
+                            type="button"
+                            className="eh-ap-btn ghost"
+                            disabled={appBusy || !(appFields.apiKey ?? "").trim()}
+                            onClick={() => {
+                              void (async () => {
+                                setAppBusy(true); setAppMsg(null); setAppTestedOk(false);
+                                try {
+                                  const body: Record<string, unknown> = {};
+                                  if ((appFields.apiKey ?? "").trim()) body.apiKey = appFields.apiKey.trim();
+                                  if ((appFields.clientId ?? "").trim()) body.clientId = appFields.clientId.trim();
+                                  if (!body.apiKey) { setAppMsg({ ok: false, text: "请先填写 API Key。" }); return; }
+                                  const response = await fetch(apiPath("/knowledge-base/connections/getnote"), { method: "POST", headers: { ...authHeaders(true) }, body: JSON.stringify({ ...body, testOnly: true }) });
+                                  if (handleStaleSession(response.status)) { setAppMsg({ ok: false, text: "登录状态已失效，请重新登录后再试。" }); return; }
+                                  const data = await response.json().catch(() => ({}));
+                                  if (!response.ok) { setAppMsg({ ok: false, text: data?.message ?? data?.error ?? "测试未通过，请检查凭证。" }); return; }
+                                  setAppTestedOk(true);
+                                  setAppMsg({ ok: true, text: `✅ 连接可用${typeof data?.noteCount === "number" ? `，已读到 ${data.noteCount} 条笔记` : ""}。点「保存并生效」完成配置。` });
+                                } catch {
+                                  setAppMsg({ ok: false, text: "网络异常，请稍后重试。" });
+                                } finally {
+                                  setAppBusy(false);
+                                }
+                              })();
+                            }}
+                          >
+                            {appBusy ? "测试中…" : "① 测试连接"}
+                          </button>
+                          <button
+                            type="button"
+                            className="eh-ap-btn primary"
+                            disabled={!appTestedOk || appBusy}
+                            onClick={() => {
+                              void (async () => {
+                                setAppBusy(true); setAppMsg(null);
+                                try {
+                                  const body: Record<string, unknown> = {};
+                                  if ((appFields.apiKey ?? "").trim()) body.apiKey = appFields.apiKey.trim();
+                                  if ((appFields.clientId ?? "").trim()) body.clientId = appFields.clientId.trim();
+                                  if (!body.apiKey) { setAppMsg({ ok: false, text: "请先填写 API Key。" }); return; }
+                                  const response = await fetch(apiPath("/knowledge-base/connections/getnote"), { method: "POST", headers: { ...authHeaders(true) }, body: JSON.stringify(body) });
+                                  if (handleStaleSession(response.status)) { setAppMsg({ ok: false, text: "登录状态已失效，请重新登录后再试。" }); return; }
+                                  const data = await response.json().catch(() => ({}));
+                                  if (!response.ok) { setAppMsg({ ok: false, text: data?.message ?? data?.error ?? "保存失败，请稍后重试。" }); return; }
+                                  setAppMsg({ ok: true, text: "已保存并生效，数字员工现在可以引用你的得到大脑笔记了。" });
+                                  void loadAppsPage(1, false);
+                                } catch {
+                                  setAppMsg({ ok: false, text: "网络异常，请稍后重试。" });
+                                } finally {
+                                  setAppBusy(false);
+                                }
+                              })();
+                            }}
+                          >
+                            ② 保存并生效
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="eh-ap-btn primary"
+                          disabled={appBusy}
+                          onClick={() => void connectPlatform(sel)}
+                        >
+                          {appBusy ? "校验中…" : "测试并保存"}
+                        </button>
+                      )}
+                    </div>
+                    <p className="eh-ap-cfg-note">
+                      {isGetnote
+                        ? "每次修改都要先「测试连接」，通过后才能保存生效——避免把不可用的凭证存进系统。"
+                        : "保存前服务端会先校验凭证，校验不通过不会落库。"}
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           </aside>
         </div>
