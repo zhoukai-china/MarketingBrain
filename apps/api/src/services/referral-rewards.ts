@@ -1,6 +1,6 @@
 import { Prisma, prisma } from "@baolu/db";
 import { getReferralConfig, isWithinReferralCampaignWindow, type ReferralConfig } from "./referral-config.js";
-import { getOrCreateWallet } from "./sitong-wallet.js";
+import { getOrCreateWallet, SIGNUP_GIFT_SOURCES } from "./sitong-wallet.js";
 
 /**
  * 推荐有礼 · 奖励发放引擎（PLAT-28 第②批）。
@@ -97,6 +97,15 @@ export async function maybeGrantReferralReward(params: {
     const granted = await prisma.$transaction(async (tx) => {
       const existing = await tx.walletLedger.findFirst({ where: { userId: receiverUserId, source } });
       if (existing) return false;
+      // 2026-09-30 用户：新客礼只送一次——被邀请人已经领过「注册礼/开通礼」（signup / signup_gift）
+      // 的话，被邀请新客礼（new_user）不再重复发；两套幂等原来互不知情，开关打开后会出现 +100 两次。
+      if (kind === "new_user") {
+        const hasSignupGift = await tx.walletLedger.findFirst({
+          where: { userId: receiverUserId, source: { in: [...SIGNUP_GIFT_SOURCES] } },
+          select: { id: true }
+        });
+        if (hasSignupGift) return false;
+      }
       const wallet = await getOrCreateWallet(receiverUserId, tx);
       await tx.wallet.update({
         where: { id: wallet.id },

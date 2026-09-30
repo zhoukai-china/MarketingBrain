@@ -1503,7 +1503,7 @@ export function MarketplaceAgentChatPage({
                           <IpPosReport payload={item.payload} renderMarkdown={renderMarkdownHtml} />
                         )
                       ) : (
-                        <div className="md-rich ls-root" style={{ color: "var(--text)", fontSize: 14, lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: item.html ? (isLiveScript ? renderLiveScriptHtml(item.text) : renderMarkdownHtml(item.text)) : renderInline(item.text) }} />
+                        <div className="md-rich ls-root" style={{ color: "var(--text)", fontSize: 14, lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: item.html ? (isLiveScript ? renderLiveScriptHtml(item.text) : renderRichReportHtml(item.text)) : renderInline(item.text) }} />
                       )}
                       {item.action && (
                         <div style={{ marginTop: 10 }}>
@@ -2010,6 +2010,58 @@ export function renderMarkdownHtml(md: string): string {
     i++;
   }
   return out.join("\n");
+}
+
+/** 方案 C 章节序号提取：`一、` `1.` `第3章` → chip；其余用圆点。 */
+function mdcChipOf(title: string): { chip: string; rest: string } {
+  const m = /^(?:第\s*)?([零一二三四五六七八九十百0-9]{1,4})\s*[、.．:：]\s*(.*)$/.exec(title);
+  const cleaned = (m ? m[2] : title).replace(/^[^\u4e00-\u9fa5A-Za-z0-9]+/, "").trim();
+  return { chip: m ? m[1] : "•", rest: cleaned || title };
+}
+
+let mdcSeq = 0;
+
+/**
+ * 生成结果结构化排版（2026-09-30 用户拍板方案 C「双栏速览工作台」）：
+ * 按章节切成卡片（`#`/`##` 标题或「一、」式独立加粗行），桌面端左侧常驻目录、右侧正文；
+ * 手机端退化为单列卡片流。直播复盘（livescript）有专属渲染，不走这里。
+ */
+export function renderRichReportHtml(md: string): string {
+  const lines = md.split(/\r?\n/);
+  const sections: Array<{ title: string; body: string[] }> = [];
+  const pre: string[] = [];
+  let cur: { title: string; body: string[] } | null = null;
+  const headingOf = (t: string): string | null => {
+    const h = /^#{1,2}\s+(.+)$/.exec(t);
+    if (h) return h[1].trim();
+    const bold = /^\*\*(.+?)\*\*\s*$/.exec(t);
+    // 独立加粗行只有带序号才算章节（**0-3秒｜钩子** 这类小节保持正文小标题）
+    if (bold && /^(?:第\s*)?[零一二三四五六七八九十百0-9]{1,4}\s*[、.．:：]/.test(bold[1].trim())) return bold[1].trim();
+    return null;
+  };
+  for (const line of lines) {
+    const t = line.trim();
+    const title = t ? headingOf(t) : null;
+    if (title) {
+      cur = { title, body: [] };
+      sections.push(cur);
+    } else if (cur) {
+      cur.body.push(line);
+    } else {
+      pre.push(line);
+    }
+  }
+  if (sections.length === 0) return renderMarkdownHtml(md);
+  const id = `mdc${++mdcSeq}`;
+  const secHtml = sections.map((s, idx) => {
+    const { chip, rest } = mdcChipOf(s.title);
+    return `<section class="mdc-sec" id="${id}-s${idx}"><div class="mdc-sec-h"><i>${chip}</i><b>${inline(rest)}</b></div>${renderMarkdownHtml(s.body.join("\n"))}</section>`;
+  }).join("");
+  const toc = sections.length >= 3
+    ? `<aside class="mdc-side"><b>本篇结构</b><nav>${sections.map((s, idx) => `<a href="#${id}-s${idx}">${inline(s.title)}</a>`).join("")}</nav></aside>`
+    : "";
+  const preHtml = pre.some((l) => l.trim()) ? `<section class="mdc-sec mdc-lead">${renderMarkdownHtml(pre.join("\n"))}</section>` : "";
+  return `<div class="mdc">${toc}<div class="mdc-main">${preHtml}${secHtml}</div></div>`;
 }
 
 function inline(text: string): string {

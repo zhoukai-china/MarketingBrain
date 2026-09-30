@@ -246,7 +246,15 @@ export async function grantSignupWalletCreditsInTx(
   }
 
   const existing = await tx.walletLedger.findFirst({
-    where: { userId: params.userId, source: { in: [...SIGNUP_GIFT_SOURCES] } },
+    where: {
+      userId: params.userId,
+      // 2026-09-30 用户：新客礼只送一次——除了注册礼两个 source 互斥，
+      // 被邀请新客礼（referral_reward:new_user:*）如果先发了，注册礼也不再发。
+      OR: [
+        { source: { in: [...SIGNUP_GIFT_SOURCES] } },
+        { source: { startsWith: "referral_reward:new_user" } }
+      ]
+    },
     select: { id: true }
   });
   if (existing) {

@@ -443,6 +443,7 @@ export function EcoMallHomePage() {
   }
   const LEDGER_PAGE_SIZE = 8;
   const isMobile = useIsMobile();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showLedger, setShowLedger] = useState(false);
   const [ledger, setLedger] = useState<LedgerView | null>(null);
   /** 明细行（手机端翻页流：滚动到底 append 下一页；PC 端整页替换）。 */
@@ -456,7 +457,7 @@ export function EcoMallHomePage() {
   const [ledgerError, setLedgerError] = useState<string | null>(null);
 
   // 2026-09-29（用户）：任何弹窗打开后，背景固定、不可滚动。
-  useScrollLock(Boolean(showRecharge || booking || openCase || openConsultant || showSignIn || showInvite || showDict || showActivate || showLedger || showOrders || showDeliv || showApps));
+  useScrollLock(Boolean(showRecharge || booking || openCase || openConsultant || showSignIn || showInvite || showDict || showActivate || showLedger || showOrders || showDeliv || showApps || showLogoutConfirm));
 
   /** 读签到状态（不写库）；未登录收口到登录页，回来后重开弹层。 */
   async function loadSignin(): Promise<void> {
@@ -1528,7 +1529,7 @@ export function EcoMallHomePage() {
                 <span className="mi-txt">关联应用<small>得到大脑 · 私有知识源接入</small></span>
                 <span className="mi-go">›</span>
               </button>
-              <button type="button" className="me-item" onClick={() => handleMineLogout()}>
+              <button type="button" className="me-item" onClick={() => setShowLogoutConfirm(true)}>
                 <span className="mi-ico"><IconGlyph name="logout" size={15} /></span>
                 <span className="mi-txt">退出登录<small>体验注册登录流程</small></span>
                 <span className="mi-go">›</span>
@@ -2420,6 +2421,18 @@ export function EcoMallHomePage() {
               })()}
             </div>
           </aside>
+        </div>
+      ) : null}
+
+      {/* 退出登录二次确认（2026-09-30 用户）：防误触，退出不可撤。 */}
+      {showLogoutConfirm ? (
+        <div className="eco-modal-mask" onClick={() => setShowLogoutConfirm(false)}>
+          <div className="eco-modal eco-logout" onClick={(e) => e.stopPropagation()}>
+            <h3>确认退出登录？</h3>
+            <p className="eco-modal-sub">退出后需要重新登录才能查看算力余额、订单与邀请记录；本次会话的购物车仍会保留。</p>
+            <button type="button" className="eco-modal-btn eco-logout-btn" onClick={() => handleMineLogout()}>退出登录</button>
+            <button type="button" className="eco-modal-btn eco-ghost-btn" onClick={() => setShowLogoutConfirm(false)}>再想想</button>
+          </div>
         </div>
       ) : null}
 
