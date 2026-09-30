@@ -1364,9 +1364,11 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
       };
     });
 
-    // IP 定位访谈辅助（2026-09-30 用户）：按已填字段生成「消化回应 + 下一题候选」。
+    // 访谈辅助（2026-09-30 用户）：按已填字段生成「消化回应 + 下一题候选」。
     // 必须登录——这是会烧模型钱的接口，不能开放给匿名刷。
-    market.post("/ip-pos/interview-hints", async (request, reply) => {
+    // `/interview-hints` 为通用路径（文案 / 直播等工作台共用）；`/ip-pos/interview-hints`
+    // 是 IP 定位先接入时的旧路径，保留兼容（同 handler，人设走默认沈定）。
+    const interviewHintsHandler = async (request: FastifyRequest, reply: FastifyReply) => {
       const context = await resolveRequestContext(request.headers);
       if (context.source !== "database" || !context.userId) {
         return reply.code(401).send({ error: "login_required", message: "请先登录" });
@@ -1379,7 +1381,11 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
           fields: z.array(z.string().max(40)).min(1).max(4),
           q: z.string().min(1).max(300),
           hint: z.string().max(300).optional()
-        }).nullable().optional()
+        }).nullable().optional(),
+        persona: z.object({
+          name: z.string().min(1).max(30),
+          role: z.string().min(1).max(80)
+        }).optional()
       }).safeParse(request.body ?? {});
       if (!parsed.success) {
         return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
@@ -1389,9 +1395,12 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
         answered: p.answered ?? {},
         answeredField: p.answeredField,
         answeredText: p.answeredText,
-        next: p.next ? { fields: p.next.fields, q: p.next.q, hint: p.next.hint } : null
+        next: p.next ? { fields: p.next.fields, q: p.next.q, hint: p.next.hint } : null,
+        persona: p.persona
       });
-    });
+    };
+    market.post("/interview-hints", interviewHintsHandler);
+    market.post("/ip-pos/interview-hints", interviewHintsHandler);
 
     market.get("/me", async (request, reply) => {
       const context = await resolveRequestContext(request.headers);

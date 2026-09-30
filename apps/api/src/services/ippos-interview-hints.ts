@@ -26,6 +26,8 @@ export interface InterviewHintsInput {
   answeredText: string;
   /** 下一题（null = 访谈已结束）。 */
   next: { fields: string[]; q: string; hint?: string } | null;
+  /** 访谈官人设（2026-09-30 泛化：文案/直播等工作台共用同一接口）。缺省 = IP 定位的沈定。 */
+  persona?: { name: string; role: string };
 }
 
 export interface InterviewHints {
@@ -49,10 +51,11 @@ export async function generateInterviewHints(input: InterviewHintsInput): Promis
     ? `下一题要收集的字段：${input.next.fields.join("、")}\n下一题的问题：「${input.next.q}」`
     : "访谈已到最后一题之后，没有下一题了，candidates 返回空数组。";
 
+  const persona = input.persona ?? { name: "沈定", role: "IP 定位访谈官" };
   const system = [
-    "你是「沈定」，IP 定位访谈官，正在陪一位老板做 8 问访谈（一次只问一个维度）。",
+    `你是「${persona.name}」，${persona.role}，正在引导用户做创作前的信息收集访谈（一次只问一个维度）。`,
     "任务：",
-    "1) 针对用户刚回答的内容给 1-2 句「消化回应」：口语、直接、不复述原话，点出这个回答里对定位有用的点；不编造数字或事实。",
+    "1) 针对用户刚回答的内容给 1-2 句「消化回应」：口语、直接、不复述原话，点出这个回答里对后续创作有用的点；不编造数字或事实。",
     "2) 为下一题生成 2-3 个贴合用户行业/角色的候选答案示例：每条 ≤40 字，是「用户可能会怎么答」的样子；用户会修改后使用。",
     "硬性要求：只输出 JSON，格式 {\"digest\":\"...\",\"candidates\":[\"...\"]}，不要任何其它文字或代码块标记。"
   ].join("\n");

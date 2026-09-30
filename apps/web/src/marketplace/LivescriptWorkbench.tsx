@@ -35,7 +35,7 @@ const FIELDS: Array<{ key: string; icon: string; label: string }> = [
 ];
 
 interface QOpt { t: string; d: string; v: string; rec?: boolean }
-interface QFlow { field: string; when?: { mode: string[] }; q: string; hint: string; opts: QOpt[] }
+interface QFlow { field: string; when?: { mode: string[] }; q: string; hint: string; opts?: QOpt[] }
 
 const QFLOW: QFlow[] = [
   { field: "mode", q: "这场直播是哪一种？", hint: "先定「这场赚谁的钱」——带货赚消费者、招商赚创业者，两套打法完全不同，我不串场。",
@@ -44,12 +44,7 @@ const QFLOW: QFlow[] = [
       { t: "带货（本地生活团购）", d: "到店 & 团购核销类", v: "带货" },
       { t: "知识付费 / 课程", d: "按产品=课程处理", v: "知识付费" }
     ] },
-  { field: "brand", when: { mode: ["招商加盟"] }, q: "品牌是做什么的？有哪些看得见的硬实力？", hint: "直营数据、供应链、培训体系…没有的先写「暂无」，我不瞎编。",
-    opts: [
-      { t: "思潼AI商城 · 招城市合伙人", d: "示例：招城市合伙人场次", v: "思潼AI商城", rec: true },
-      { t: "美业连锁品牌", d: "", v: "（示例）美业连锁品牌招商" },
-      { t: "餐饮连锁品牌", d: "", v: "（示例）餐饮连锁品牌招商" }
-    ] },
+  { field: "brand", when: { mode: ["招商加盟"] }, q: "品牌是做什么的？有哪些看得见的硬实力？", hint: "直营数据、供应链、培训体系…没有的先写「暂无」，我不瞎编。" },
   { field: "audience", when: { mode: ["招商加盟"] }, q: "这场想吸引谁进直播间？", hint: "决定痛点脚本讲给谁听。",
     opts: [
       { t: "想找第二增长曲线的本地老板", d: "示例：有生意基础，想加新线", v: "想找第二增长曲线的本地老板", rec: true },
@@ -62,11 +57,7 @@ const QFLOW: QFlow[] = [
       { t: "点小风车留资", d: "", v: "小风车留资" },
       { t: "预约到司考察", d: "", v: "预约到司考察" }
     ] },
-  { field: "brand", when: { mode: ["带货", "知识付费"] }, q: "主推什么产品 / 套餐？真实价格是多少？", hint: "品名 + 真实团购价。价格机制没确认，我不会写进逼单。",
-    opts: [
-      { t: "美业门店护理团单", d: "示例：到店核销类", v: "（示例）美业护理套餐团单", rec: true },
-      { t: "餐饮双人套餐", d: "", v: "（示例）餐饮双人套餐团单" }
-    ] },
+  { field: "brand", when: { mode: ["带货", "知识付费"] }, q: "主推什么产品 / 套餐？真实价格是多少？", hint: "品名 + 真实团购价。价格机制没确认，我不会写进逼单。" },
   { field: "audience", when: { mode: ["带货", "知识付费"] }, q: "来看直播的主要是谁？", hint: "决定痛点场景怎么讲。",
     opts: [
       { t: "门店周边 3 公里的本地客", d: "示例：到店型消费", v: "门店周边 3 公里的本地客", rec: true },
@@ -109,7 +100,7 @@ const GROUP_SOFT: Record<string, string> = { plan: "#fdeee2", script: "#e8effd",
 const LIGHT_PIECE = { no: "✦", g: "script", gt: "脚本区", icon: "📄", title: "单段脚本 · 开场暖场（可照读）", d: "1-2 分钟可照读 + 运营配合" };
 
 type Phase = "idle" | "ask" | "confirm" | "gen" | "done";
-interface ChatMsg { id: number; who: "ai" | "user"; html: string }
+interface ChatMsg { id: number; who: "ai" | "user"; html: string; pending?: boolean; /** 临时消息（如「已恢复对话」提示）：不落草稿——否则每次重进叠一条。 */ ephemeral?: boolean }
 
 const RUN_TIMEOUT_MS = 900_000; // livescript 串行 9 段+附属件，常 5-10 分钟
 const LOG_DELAY_MS = 650;
@@ -158,10 +149,21 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
   const timersRef = useRef<number[]>([]);
   const qListRef = useRef<QFlow[]>([]); // 当前分流下的问题队列
   const depthRef = useRef<"light" | "full">("full");
+  /** 会话轮次：跳过/重置时 +1，让飞行中的生成回调知道自己已过期、放弃推进。 */
+  const runIdRef = useRef(0);
+  /** 生成进行中：期间自由输入先不接（AI 还没问下一题，答了会对不上题）。 */
+  const digestingRef = useRef(false);
+  /** 生成候选：q = 属于第几题（qList 下标）。只有那道题真的问出来才渲染——先问后荐。 */
+  const [genCandidates, setGenCandidates] = useState<{ q: number; list: string[] } | null>(null);
 
-  function pushMsg(who: "ai" | "user", html: string) {
+  function pushMsg(who: "ai" | "user", html: string, pending = false): number {
     const id = ++msgIdRef.current;
-    setMessages((prev) => [...prev, { id, who, html }]);
+    setMessages((prev) => [...prev, { id, who, html, pending }]);
+    return id;
+  }
+  /** 消化回应成型后替换占位；html 传 null = 移除该条（无兜底话术的流程用）。 */
+  function replaceMsg(id: number, html: string | null) {
+    setMessages((prev) => (html == null ? prev.filter((m) => m.id !== id) : prev.map((m) => (m.id === id ? { ...m, html, pending: false } : m))));
   }
   function later(fn: () => void, ms: number) {
     const t = window.setTimeout(fn, ms);
@@ -197,17 +199,83 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, optsQ, confirmOpts]);
 
-  // 进页即问候；不加 ref 守卫（StrictMode 模拟卸载会清定时器，须重跑收敛）
+  /*
+   * 进页：有草稿就**恢复整个对话**（聊天记录 + 简报 + 分流队列 + 进度），
+   * 没有才从头开始问候。restoreDraft 幂等（StrictMode 双跑不产生重复消息）。
+   */
   useEffect(() => {
-    resetAll(true);
+    if (!restoreDraft()) resetAll(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** 对话草稿的 localStorage 键：按 skuId 隔离。 */
+  const DRAFT_KEY = `livescript_chat_draft_${skuId}`;
+
+  /** 访谈进行中实时落草稿；生成中不落（正式结果另有交付区找回）。 */
+  useEffect(() => {
+    if (phase === "gen") return;
+    // 空对话不落盘：StrictMode 双跑时挂载初期的空 state 会先于恢复生效，
+    // 若此时覆盖写，会把刚读到的真草稿清成空、导致下一次启动恢复失败（ip-pos 实测踩中）。
+    if (messages.length === 0) return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        v: 1,
+        phase, optsQ,
+        brief: briefRef.current,
+        messages: messages.filter((m) => !m.pending && !m.ephemeral),
+        genCandidates
+      }));
+    } catch { /* 存储满等异常忽略：草稿是尽力而为 */ }
+  }, [DRAFT_KEY, phase, optsQ, messages, genCandidates]);
+
+  /** 恢复上次对话；返回是否成功。幂等：setMessages 整组替换，StrictMode 双跑结果一致。 */
+  function restoreDraft(): boolean {
+    let d: {
+      phase?: string; optsQ?: number | null;
+      brief?: Record<string, string>;
+      messages?: ChatMsg[];
+      genCandidates?: { q: number; list: string[] } | null;
+    } | null = null;
+    try {
+      const raw = localStorage.getItem(`livescript_chat_draft_${skuId}`);
+      if (raw) d = JSON.parse(raw);
+    } catch { d = null; }
+    if (!d || !Array.isArray(d.messages)) return false;
+    const msgs = d.messages.filter((m): m is ChatMsg => Boolean(m) && typeof m.id === "number" && typeof m.who === "string" && !m.pending && !m.ephemeral);
+    if (msgs.length === 0) return false;
+    const maxId = msgs.reduce((acc, m) => Math.max(acc, m.id), 0);
+    const brief0 = d.brief ?? {};
+    // gen/done 不恢复（生成中的活没法续、交付物另有找回），落到确认态让用户改简报重生成
+    const wasEnd = d.phase === "gen" || d.phase === "done";
+    // 分流队列按存档时的场次类型重建（qList 下标才有效）
+    qListRef.current = brief0.mode
+      ? QFLOW.filter((x) => !x.when || x.when.mode.includes(brief0.mode!))
+      : [QFLOW[0]];
+    depthRef.current = brief0.depth === "light" ? "light" : "full";
+    const lastIdx = Math.max(0, qListRef.current.length - 1);
+    const optsQ0 = Math.min(Math.max(0, Number(d.optsQ) || 0), lastIdx);
+    msgIdRef.current = maxId + 1;
+    setMessages([...msgs, { id: maxId + 1, who: "ai", html: "↩️ 已恢复上次的对话，接着答就行；右侧简报也原样保留。", ephemeral: true }]);
+    setBrief(brief0); briefRef.current = brief0;
+    if (!wasEnd && d.phase === "ask") {
+      setPhase("ask"); setOptsQ(optsQ0);
+    } else {
+      setPhase("confirm"); setConfirmOpts(true); setOptsQ(null);
+    }
+    if (d.genCandidates && d.genCandidates.q === optsQ0 && Array.isArray(d.genCandidates.list)) {
+      setGenCandidates(d.genCandidates);
+    }
+    return true;
+  }
 
   function resetAll(greet: boolean) {
     timersRef.current.forEach((t) => { window.clearTimeout(t); window.clearInterval(t); });
     timersRef.current = [];
     setPhase("idle"); setBrief({}); briefRef.current = {};
     setMessages([]); setOptsQ(null); setConfirmOpts(false); setFreeInput("");
+    setGenCandidates(null); runIdRef.current += 1; digestingRef.current = false;
+    // 用户主动重置 = 丢弃对话草稿，下次从头开始
+    try { localStorage.removeItem(`livescript_chat_draft_${skuId}`); } catch { /* ignore */ }
     setError(null); setLogLines([]); setLogIdx(0); setGenIdx(-1);
     setRunSettled(false); setLogDone(false); runResultRef.current = null;
     setAnswerMd(""); setConsumed(null);
@@ -234,22 +302,69 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
     briefRef.current = { ...briefRef.current, [q.field]: value };
     setBrief(briefRef.current);
     flash([q.field]);
+    // 场次类型定了 → 按分支重排后续问题队列（消化前就重排：hints 的「下一题」要用）
     if (q.field === "mode") {
-      // 场次类型定了 → 按分支重排后续问题队列
       qListRef.current = QFLOW.filter((x) => !x.when || x.when.mode.includes(value));
-      setOptsQ(null);
-      later(() => askQuestion(1), 500);
-      return;
     }
     if (q.field === "depth") {
       depthRef.current = value === "light" ? "light" : "full";
     }
-    const nqi = optsQ == null ? 0 : optsQ + 1;
-    if (nqi < qListRef.current.length) {
-      later(() => askQuestion(nqi), 500);
-    } else {
-      later(enterConfirm, 400);
-    }
+    // 对话节奏（workbench-conversation-pattern.md §3）：先放「正在消化」占位，
+    // 模型生成消化回应回来一次成型（失败就移除占位——本流程没有写死兜底话术），
+    // 消化成型后才问下一题；9s 拿不到就直接推进，不让用户对着三个点干等。
+    const placeholderId = pushMsg("ai", '<span class="cpw-thinking"><i></i><i></i><i></i></span>', true);
+    setGenCandidates(null);
+    const nqi = q.field === "mode" ? 1 : (optsQ == null ? 0 : optsQ + 1);
+    const next = nqi < qListRef.current.length
+      ? (() => { const nq = qListRef.current[nqi]; return { fields: [nq.field], q: nq.q, hint: nq.hint }; })()
+      : null;
+    const runId = runIdRef.current;
+    digestingRef.current = true;
+    void loadGenHints(briefRef.current, q.field, displayText, next, placeholderId, nqi, runId);
+  }
+
+  /** 调后端生成「消化回应 + 下一题候选」；失败静默（移除占位、照常推进）。 */
+  async function loadGenHints(
+    answered: Record<string, string>,
+    answeredField: string,
+    answeredText: string,
+    next: { fields: string[]; q: string; hint?: string } | null,
+    placeholderId: number,
+    nqi: number,
+    runId: number
+  ) {
+    let digest: string | null = null;
+    let candidates: string[] = [];
+    try {
+      const res = await fetch(apiPath("/market/interview-hints"), {
+        method: "POST",
+        headers: authHeaders(true),
+        body: JSON.stringify({
+          answered, answeredField, answeredText, next,
+          persona: { name: "罗盘", role: "直播操盘总监，正在引导用户收集开播信息（一次只问一个维度）" }
+        }),
+        signal: AbortSignal.timeout(9000)
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { digest?: string | null; candidates?: string[] };
+        digest = typeof data.digest === "string" ? data.digest : null;
+        candidates = Array.isArray(data.candidates) ? data.candidates : [];
+      }
+    } catch { /* 超时/网络异常：占位移除、照常推进 */ }
+    replaceMsg(placeholderId, digest);
+    if (candidates.length > 0 && runIdRef.current === runId) setGenCandidates({ q: nqi, list: candidates });
+    advanceAfterDigest(nqi, runId);
+  }
+
+  /** 消化成型后停顿片刻再问下一题；期间用户重置（runId 变了）则放弃推进。 */
+  function advanceAfterDigest(nqi: number, runId: number) {
+    digestingRef.current = false;
+    if (runIdRef.current !== runId) return;
+    later(() => {
+      if (runIdRef.current !== runId) return;
+      if (nqi < qListRef.current.length) askQuestion(nqi);
+      else enterConfirm();
+    }, 600);
   }
 
   function chooseOpt(q: QFlow, o: QOpt) {
@@ -270,6 +385,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
   function freeSend() {
     const v = freeInput.trim();
     if (!v) return;
+    if (digestingRef.current) return; // 消化中：AI 还没问下一题，答了会对不上题
     setFreeInput("");
     if (phase === "ask" && optsQ != null) {
       const q = qListRef.current[optsQ];
@@ -284,21 +400,17 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
     }
   }
 
-  /** 老手快填：按推荐答案铺 6 字段底稿（招商分支），直接进确认态。 */
+  /** 老手通道：跳过引导直接进确认态，字段留空由用户自己填——宁可不填，也不填错的。 */
   function skipGuide() {
     if (phase === "gen" || phase === "done") return;
     timersRef.current.forEach((t) => { window.clearTimeout(t); window.clearInterval(t); });
     timersRef.current = [];
     setMessages([]); setOptsQ(null); setConfirmOpts(false);
-    const pre: Record<string, string> = {};
-    for (const q of QFLOW) {
-      if (q.when && !q.when.mode.includes("招商加盟")) continue;
-      pre[q.field] = (q.opts.find((o) => o.rec) ?? q.opts[0]).v;
-    }
-    setBrief(pre);
+    setBrief({}); briefRef.current = {};
+    setGenCandidates(null); runIdRef.current += 1; digestingRef.current = false;
     depthRef.current = "full";
     setPhase("confirm"); setConfirmOpts(true);
-    pushMsg("ai", "好，老手通道 🚀 按同类场次先铺了 <b>6 项预填底稿</b>（右侧可逐条点击修改）。确认没问题就点 <b>「✨ 生成脚本包」</b>。");
+    pushMsg("ai", "好，老手通道 🚀 跳过引导，直接在右侧「📋 开播简报」把 6 项填好（点字段即可输入）。填完点 <b>「✨ 生成脚本包」</b>。");
   }
 
   /* ---------- 生成（后端与 /chat 同一个 /run） ---------- */
@@ -495,7 +607,6 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
   /* ---------- 派生 ---------- */
 
   const filled = FIELDS.filter((f) => (brief[f.key] ?? "").trim()).length;
-  const canGen = filled === 6 && (phase === "confirm" || phase === "done");
   const statusText =
     phase === "gen" ? "生成中 · 串行推导" :
     phase === "done" ? "已交付" :
@@ -549,12 +660,12 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
                   {messages.map((m) => (
                     <div key={m.id} className={`cpw-msg${m.who === "user" ? " user" : ""}`}>
                       {m.who === "ai" && <div className="cpw-m-av"><img src={avatar} alt="" /></div>}
-                      <div className="cpw-bub" dangerouslySetInnerHTML={{ __html: m.html }} />
+                      <div className={`cpw-bub${m.pending ? " is-pending" : ""}`} dangerouslySetInnerHTML={{ __html: m.html }} />
                     </div>
                   ))}
                   {optsQ != null && phase === "ask" && qListRef.current[optsQ] && (
                     <div className="cpw-opts">
-                      {qListRef.current[optsQ].opts.map((o, i) => (
+                      {(qListRef.current[optsQ].opts ?? []).map((o, i) => (
                         <button key={i} className="cpw-opt" onClick={() => chooseOpt(qListRef.current[optsQ], o)}>
                           {o.t}{o.d ? <small>{o.d}</small> : null}
                         </button>
@@ -572,7 +683,15 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
                     </div>
                   )}
                 </div>
-                <div className="cpw-skip">赶时间？<a onClick={skipGuide}>AI 先铺底稿，你来逐条确认 →</a></div>
+                {phase === "ask" && genCandidates && optsQ === genCandidates.q && genCandidates.list.length > 0 && (
+                  /* 模型按你的场次/行业生成的候选：点了放进输入框，改完再发（不直接进简报）。 */
+                  <div className="cpw-opts">
+                    {genCandidates.list.map((c, i) => (
+                      <button key={i} className="cpw-opt" onClick={() => setFreeInput(c)}>{c}</button>
+                    ))}
+                  </div>
+                )}
+                <div className="cpw-skip">赶时间？<a onClick={skipGuide}>跳过引导，直接在右侧简报填写 6 项 →</a></div>
                 <div className="cpw-input">
                   <input
                     value={freeInput}
@@ -607,7 +726,16 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
                     </div>
                     <div className="cpw-ops">
                       {phase !== "gen" && phase !== "done" && (
-                        <button className="cpw-big-btn gen" disabled={!canGen} onClick={() => { setConfirmOpts(false); void startGen(); }}><IconAuto v="✨" /> 生成脚本包</button>
+                        <button className="cpw-big-btn gen" onClick={() => {
+                          const missing = FIELDS.filter((f) => !(brief[f.key] ?? "").trim());
+                          if (missing.length > 0) {
+                            setError(`还有 ${missing.length} 项没填：${missing.map((f) => f.label).join("、")}。点右侧简报字段补全后再生成。`);
+                            return;
+                          }
+                          setError(null);
+                          setConfirmOpts(false);
+                          void startGen();
+                        }}><IconAuto v="✨" /> 生成脚本包</button>
                       )}
                       {phase === "done" && (
                         <button className="cpw-big-btn ghost" onClick={() => { setPhase("confirm"); setAnswerMd(""); setConsumed(null); }}>↻ 改简报重新生成</button>
