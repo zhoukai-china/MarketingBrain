@@ -93,7 +93,13 @@ function checkDataText(fileName: string, raw: string): FileCheck {
   const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const header = lines[0] ?? "";
   const dataLines = lines.slice(1);
-  const platform = normalizeVidrevPlatform(`${fileName} ${header.slice(0, 200)}`);
+  let platform = normalizeVidrevPlatform(`${fileName} ${header.slice(0, 200)}`);
+  if (!platform) {
+    // 兜底：抖音/视频号官方导出的表头都是通用列名（作品标题/播放量…），文件名也未必带平台字样。
+    // 按表头特征签名识别：抖音单篇有「点赞量/收藏/5秒完播/弹幕」，视频号有「喜欢/视频描述/朋友量」。
+    if (/作品标题|点赞量|收藏|弹幕|5\s*秒完播/.test(header)) platform = "抖音";
+    else if (/喜欢|视频描述|朋友量/.test(header)) platform = "视频号";
+  }
   // 视频号后台导出的标题列叫「视频描述」，必须在其列（2026-10-01 用户实测：缺它直接判无法识别）。
   const hasTitleCol = /作品标题|动态描述|视频描述|视频名称|标题/.test(header);
   const isDaily = /日期|投稿量|总播放/.test(header) && !hasTitleCol;
