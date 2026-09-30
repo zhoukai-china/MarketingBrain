@@ -544,6 +544,22 @@
 }
 @keyframes cpw-btn-rot { to { transform: rotate(360deg); } }
 
-/* 体检卡底部的双按钮行（2026-09-30）：补强 / 直接生成，两条路都一眼可见。 */
+/* 体检卡底部的双按钮行（2026-09-30）：补强 / 直接生成，两条路都一眼可见。
+   注意：.cpw-opt 默认配色是给深色聊天面板的（近白文字 #dce8e1 + 透明底），
+   放进浅色体检卡（#fffaf5）会整个隐形（用户实测）——这里显式给浅底配色。 */
 .cpw-review-ops { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
-.cpw-review-ops .cpw-opt { width: 100%; text-align: left; }
+.cpw-review-ops .cpw-opt {
+  width: 100%; text-align: left;
+  background: #ffffff;
+  border: 1.5px solid #e8c4a8;
+  color: #7c3a12;
+}
+.cpw-review-ops .cpw-opt small { color: #a3765a; }
+.cpw-review-ops .cpw-opt.go {
+  background: var(--orange);
+  border-color: var(--orange);
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgba(232, 101, 26, 0.3);
+}
+.cpw-review-ops .cpw-opt.go small { color: rgba(255, 255, 255, 0.9); }
+.cpw-review-ops .cpw-opt:hover { border-color: var(--orange); box-shadow: 0 0 0 2px rgba(232, 101, 26, 0.18); }

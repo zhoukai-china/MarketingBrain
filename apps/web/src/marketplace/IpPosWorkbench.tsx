@@ -138,7 +138,7 @@ const FIELD_TO_SLOT: Record<string, string> = {
 /** 生成前体检的一条结论（与后端 /precheck 契约一致）。 */
 type PrecheckIssue = { slot: string; verdict: "weak" | "missing"; followup: string };
 type Phase = "idle" | "ask" | "confirm" | "gen" | "done";
-interface ChatMsg { id: number; who: "ai" | "user"; html: string; pending?: boolean }
+interface ChatMsg { id: number; who: "ai" | "user"; html: string; pending?: boolean; /** 临时消息（如「已恢复对话」提示）：不落草稿——否则每次重进叠一条（2026-09-30 实测）。 */ ephemeral?: boolean }
 interface Piece { meta: PieceMeta; bodyHtml: string; plain: string }
 
 const RUN_TIMEOUT_MS = 300_000;
@@ -332,7 +332,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
         phase, qi, optsQ, confirmOpts,
         brief,
         // 「正在消化」占位不落盘：恢复时不能出现一条永远转圈的假消息
-        messages: messages.filter((m) => !m.pending),
+        messages: messages.filter((m) => !m.pending && !m.ephemeral),
         genCandidates
       }));
     } catch { /* 存储满等异常忽略：草稿是尽力而为 */ }
@@ -362,7 +362,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     const wasGen = d.phase === "gen" || d.phase === "done";
     const qi0 = Math.min(Math.max(0, Number(d.qi) || 0), QFLOW.length - 1);
     msgIdRef.current = maxId + 1;
-    setMessages([...msgs, { id: maxId + 1, who: "ai", html: "↩️ 已恢复上次的对话，接着答就行；右侧简报也原样保留。" }]);
+    setMessages([...msgs, { id: maxId + 1, who: "ai", html: "↩️ 已恢复上次的对话，接着答就行；右侧简报也原样保留。", ephemeral: true }]);
     setBrief(brief0); briefRef.current = brief0;
     setQi(qi0);
     if (!wasGen && d.phase === "ask") {
