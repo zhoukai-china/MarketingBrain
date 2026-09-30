@@ -30,46 +30,50 @@ interface FetchedTitle { title: string; /** 发布时间（unix 秒，来自搜�
  * 解析 timeConvert 时间戳，由调用方按时间降序/过滤。
  * 注：搜狗 tsn 时间窗参数有反爬（302 跳回首页），服务端不可用，只能拿回页面自己过滤。
  */
-async function fetchTitlesWithTime(url: string): Promise<FetchedTitle[]> {
+async function fetchTitlesWithTime(url: string, pages = 1): Promise<FetchedTitle[]> {
   if (!isAllowedUrl(url)) return [];
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36",
-        "Accept-Language": "zh-CN,zh;q=0.9"
-      }
-    });
-    clearTimeout(timer);
-    if (!res.ok) return [];
-    const html = await res.text();
-    // 按「结果块」（div.txt-box）解析：块内有 h3 标题 / txt-info 摘要 / timeConvert 发布时间 / 公众号名
+    // 搜狗每页固定 10 条；pages>1 时抓前 N 页（2026-10-01 实测 page=2/3 不触发反爬）
     const stripTags = (raw: string) => raw
       .replace(/<script[\s\S]*?<\/script>/g, "")
       .replace(/<[^>]+>/g, "")
       .replace(/&[a-z#0-9]+;/g, " ")
       .replace(/\s+/g, " ")
       .trim();
-    const boxre = /<div class="txt-box">([\s\S]*?)(?=<div class="txt-box">|<\/ol>|$)/g;
     const out: FetchedTitle[] = [];
-    let m: RegExpExecArray | null;
-    while ((m = boxre.exec(html)) !== null) {
-      const block = m[1];
-      const titleM = /<h3>\s*<a[^>]*>([\s\S]*?)<\/a>/.exec(block);
-      if (!titleM) continue;
-      const title = stripTags(titleM[1]);
-      if (title.length < 6) continue;
-      const infoM = /<p class="txt-info"[^>]*>([\s\S]*?)<\/p>/.exec(block);
-      const tsM = /timeConvert\('(\d+)'\)/.exec(block);
-      const accM = /class="all-time-y2">([^<]+)</.exec(block);
-      out.push({
-        title,
-        snippet: infoM ? stripTags(infoM[1]).slice(0, 200) : "",
-        ts: tsM ? Number(tsM[1]) || null : null,
-        account: accM ? stripTags(accM[1]) : ""
+    for (let page = 1; page <= Math.max(1, pages); page++) {
+      const pageUrl = page === 1 ? url : `${url}${url.includes("?") ? "&" : "?"}page=${page}`;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(pageUrl, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36",
+          "Accept-Language": "zh-CN,zh;q=0.9"
+        }
       });
+      clearTimeout(timer);
+      if (!res.ok) continue;
+      const html = await res.text();
+      const boxre = /<div class="txt-box">([\s\S]*?)(?=<div class="txt-box">|<\/ol>|$)/g;
+      let m: RegExpExecArray | null;
+      while ((m = boxre.exec(html)) !== null) {
+        const block = m[1];
+        const titleM = /<h3>\s*<a[^>]*>([\s\S]*?)<\/a>/.exec(block);
+        if (!titleM) continue;
+        const title = stripTags(titleM[1]);
+        if (title.length < 6) continue;
+        const infoM = /<p class="txt-info"[^>]*>([\s\S]*?)<\/p>/.exec(block);
+        const tsM = /timeConvert\('(\d+)'\)/.exec(block);
+        const accM = /class="all-time-y2">([^<]+)</.exec(block);
+        out.push({
+          title,
+          snippet: infoM ? stripTags(infoM[1]).slice(0, 200) : "",
+          ts: tsM ? Number(tsM[1]) || null : null,
+          account: accM ? stripTags(accM[1]) : ""
+        });
+        if (out.length >= 20) break;
+      }
       if (out.length >= 20) break;
     }
     // 按发布时间降序（取不到时间的排最后），同题去重
@@ -169,7 +173,7 @@ async function consolidateHotTopics(industry: string, pool: FetchedTitle[]): Pro
 
 export async function searchPublicTopicSources(industry: string, benchmarkText: string): Promise<PublicTopicSearch> {
   const hotUrl = SEARCH_URLS.sogou(`${industry} 热点`);
-  const hotAll = await fetchTitlesWithTime(hotUrl);
+  const hotAll = await fetchTitlesWithTime(hotUrl, 2);
   // 热点只要新鲜的：过滤掉 90 天前的旧文（2026-10-01 用户：搜出 2024 年的数据不能用）；
   // 太少（行业冷门）则回退全量，但仍按新→旧排序，老文章沉底。
   const HOT_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
