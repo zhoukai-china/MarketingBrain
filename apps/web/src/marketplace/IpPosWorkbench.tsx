@@ -125,6 +125,83 @@ const OVERVIEW_ROWS: Array<[string, keyof IpPosPayload["overview"]]> = [
   ["第一个月核心动作", "month_actions"]
 ];
 
+/* ---------- 演示模式数据（2026-10-01 用户：进工作台自动演示完整流程） ----------
+ * 铁律：演示全程不调任何接口、不写草稿、不消耗算力——纯前端脚本 + 预置模拟数据。
+ * 案例沿用测试同款「黔味坊 · 火锅底料」，8 问答案/候选/消化全部贴合该行业。 */
+interface DemoStep { values: Record<string, string>; display: string; candidates: string[]; digest: string }
+const DEMO_STEPS: DemoStep[] = [
+  { display: "🏪 本地单店老板，自己出镜", values: { role: "本地单店（老板本人 · 本地获客向）" },
+    candidates: ["🏪 本地单店老板，自己出镜", "🏭 连锁品牌总部做招商", "💼 代运营，帮客户出方案"],
+    digest: "明白了——本地单店，老板本人出镜。那我按「本地获客型创始人IP」来做全案：先解决周边到店与转化，不讲招商那套。" },
+  { display: "黔味坊 · 手工牛油火锅底料，电商 + 本地商超在铺 12 家", values: { project: "黔味坊 · 手工牛油火锅底料，线上电商 + 本地商超在铺 12 家" },
+    candidates: ["手工牛油火锅底料，电商+本地商超", "自营火锅店，堂食为主", "底料代工厂，接品牌订单"],
+    digest: "黔味坊这个名字有辨识度，「手工小批量炒制」是稀缺卖点——后面的内容就围绕这两个抓手展开。" },
+  { display: "一次性购买 39-69 元，复购靠口味回头客", values: { biz: "一次性购买为主，客单 39-69 元，复购靠口味回头客" },
+    candidates: ["一次性购买 39-69 元，靠复购", "订货会 + 加盟费模式", "直播团购冲量，低价走量"],
+    digest: "客单不高、靠复购，那内容的重心要打「回头理由」，而不是一次性爆量。" },
+  { display: "桥头、秋霞这类大牌；我手工小批量、牛油纯", values: { comp: "桥头、秋霞这类大牌；差异是我手工小批量炒制、牛油纯度高不掺油" },
+    candidates: ["桥头、秋霞大牌；我手工小批量", "本地三家作坊；我牛油更纯", "电商白牌；我有后厨背书"],
+    digest: "跟大牌硬拼价格没戏，你的胜负手是「看得见的手工锅气」——这个差异化立得住。" },
+  { display: "25-40 岁城市家庭客，怕踩雷难吃", values: { user: "25-40 岁城市家庭客，在家煮火锅图方便，最怕踩雷难吃浪费一顿" },
+    candidates: ["25-40 岁城市家庭客，怕踩雷", "火锅店采购，看重成本", "送礼人群，看重包装"],
+    digest: "家庭客决策快、怕踩雷——内容多给「开锅实测」这种眼见为实的证据。" },
+  { display: "12 年火锅后厨主厨，最擅长炒料", values: { founder: "干了 12 年火锅后厨，从切配做到主厨，最擅长炒料，性格直、爱较真" },
+    candidates: ["12 年后厨主厨，擅长炒料", "二代接班，懂线上运营", "夫妻店，两人一起出镜"],
+    digest: "12 年后厨主厨是黄金素材——「别人卖料，你炒了 12 年料」，人设就立在这。" },
+  { display: "商超铺 200 家 + 本地号涨粉 5 万", values: { goal: "一年内本地商超铺到 200 家，抖音本地号涨粉 5 万带门店引流" },
+    candidates: ["商超铺货 200 家 + 涨粉 5 万", "招商 30 家县域代理", "打品牌，进 KA 卖场"],
+    digest: "目标拆成「铺货 200 家 + 涨粉 5 万」，内容就一条主线：本地信任感。" },
+  { display: "抖音 800 粉，出镜 6 分，每周 10 小时", values: { status: "抖音有号 800 粉，出镜说话 6 分，每周能稳定投入 10 小时" },
+    candidates: ["抖音 800 粉，6 分，每周 10 小时", "视频号 3000 粉，7 分，每周 6 小时", "还没开号，8 分，全职投入"],
+    digest: "800 粉、6 分出镜、每周 10 小时——起步阶段，打法要轻，先跑通再放量。" }
+];
+
+/** 模拟交付 payload：结构化 9 件（速览 + 8 章），内容贴合演示案例，全部为演示数据。 */
+function buildDemoPayload(): IpPosPayload {
+  return {
+    meta: { brand: "黔味坊", industry: "食品 · 火锅底料", goal: "本地获客 + 商超铺货", generatedAt: new Date().toISOString() },
+    overview: {
+      project: "黔味坊 · 手工牛油火锅底料——本地手作底料品牌，靠「看得见的锅气」打差异化",
+      user: "25-40 岁城市家庭客：在家煮火锅图方便，怕踩雷难吃",
+      persona: "炒了 12 年料的老主厨——直脾气、爱较真、只讲真材实料",
+      archetype: "同行型 60% + 领路型 40%",
+      ip_status: "起步期：抖音 800 粉，出镜 6 分，每周 10 小时",
+      content_focus: "信任 40 · 认知 30 · 连接 20 · 转化 10",
+      platform: "抖音（本地号优先，视频号同步分发）",
+      month_actions: "「开锅实测」系列 8 条 + 商超探柜 4 条，跑通「到店找货」闭环"
+    },
+    stats: { topic_total: 80, by_type: { trust: 32, cognitive: 24, connection: 14, conversion: 10 } },
+    validation: { passed: true, errors: [] },
+    homepage: {
+      nickname: "炒料12年的黔味坊老周", avatar: "",
+      bio: ["12 年火锅后厨，从切配做到主厨", "现在只做一件事：手工炒好一锅料", "小批量 · 高牛油 · 不掺油，配料表干净", "本地商超能买到的锅气"],
+      banner: "别人卖料，我炒了 12 年料"
+    },
+    tone: {
+      positive: "「这锅料我炒了 12 年」——用手艺人的笃定讲细节，用实测画面说话",
+      negative: "不说「最好吃」「全网第一」这类空话，不贬低竞品，不承诺功效"
+    },
+    topics: {
+      trust: ["跟拍一锅料的完整炒制：从牛油下锅到出料 42 道工序", "把我们的配料表和大牌并排放，一条条念给你听", "商超货架实拍：教你三秒分辨纯牛油和掺油料", "老顾客回访：这家人用我们的料煮了 30 顿火锅", "后厨第一课：我的炒锅为什么从来不换", "翻车实录：炒糊的那一锅，直接倒了不做货"],
+      cognitive: ["牛油和清油底料到底差在哪，一张图看懂", "为什么手工小批量比流水线贵 5 块，贵得值", "辣度不是越辣越好——家庭锅怎么选度数", "底料过期还能不能吃？看这三个信号", "火锅店的味道为什么在家复刻不出来，缺这一步", "麻和辣是两回事：花椒品种决定麻感"],
+      connection: ["评论区收集：你家火锅必涮的第一道菜是什么", "粉丝来厂里参观，全程直播一锅料的诞生", "上周炒糊的锅被粉丝起名「糊锅侠」，我认了", "和本地火锅店老板对谈：他们怎么选底料", "晒晒你家的火锅桌，抽 3 人送当月新料", "我师父炒了 30 年料，他的三条规矩我一直守着"],
+      conversion: ["本周商超上新：这 12 家门店能买到黔味坊", "家庭装 vs 宴客装怎么选，一张表讲清", "直播间下单 3 个理由：新料现发、坏单包赔", "到店自提立减 5 元，门店位置见主页", "第二件半价：给常煮火锅的家庭算笔账", "企业团餐通道：30 份起送，支持开票"],
+      top10: ["跟拍一锅料的完整炒制", "配料表和大牌并排念给你听", "商超货架三秒分辨纯牛油", "老顾客 30 顿回访", "牛油 vs 清油一张图", "手工小批量贵 5 块贵在哪", "火锅店味道在家复刻的秘密", "翻车实录：炒糊的那一锅", "粉丝来厂参观直播", "本周商超上新地图"],
+      calendar30: ["W1：开锅实测×2 + 配料表科普×1", "W2：后厨跟拍×1 + 评论区互动×1 + 上新×1", "W3：大牌对比×1 + 回访×1 + 自提促销×1", "W4：粉丝来厂直播 + 月度复盘 + 涨粉总结"]
+    },
+    sections: {
+      positioning: "一句话定位：把 12 年火锅后厨的手艺，装进一袋看得见的牛油底料。\n\n**差异化**：大牌是流水线，黔味坊是小批量手工炒制——牛油纯度高、不掺油，配料表干净到能背下来。\n\n**竞品对比**：桥头/秋霞胜在渠道与价格，我们胜在「锅气的真实性」；对比白牌，我们有真人真后厨可验证。\n\n**阶段判断**：起步期。先做深本地，不急着全国铺。",
+      user: "**核心画像**：25-40 岁城市家庭客，双职工，周末在家煮火锅。\n\n**JTBD 三层痛点**：功能层「在家也能煮出店里的味道」；情感层「怕踩雷，一锅料毁一顿饭」；社会层「被朋友夸会生活」。\n\n**四层漏斗**：刷到（锅气画面）→ 记住（炒料 12 年的老周）→ 相信（配料表 + 实测）→ 下单（商超/自提）。\n\n**决策旅程**：看到实拍锅气 → 翻主页看人 → 查配料表 → 找最近的柜。",
+      ip: "**五维模型**：专业（后厨 12 年）× 真实（翻车也发）× 稳定（每周 3 更）× 亲和（直脾气）× 稀缺（会炒料的主厨很少出镜）。\n\n**原型**：同行型 60%（跟你一样爱在家煮火锅）+ 领路型 40%（料的事听我的）。\n\n**语言正例**：「这锅料我炒了 12 年」「配料表第二位必须是牛油」。\n\n**语言反例**：「全网最好吃」「秒杀大牌」。\n\n**记忆板块**：炒锅 + 白毛巾 + 一句「锅气不骗人」。\n\n**主页四件套**：昵称「炒料12年的黔味坊老周」；简介四行；背景图炒锅实拍；置顶「一锅料的诞生」。",
+      content: "**内容使命**：让本地家庭相信「这袋料 = 店里的锅气」。\n\n**矩阵四象限**：信任 40（实拍/配料表/回访）· 认知 30（选料科普）· 连接 20（评论区/来厂参观）· 转化 10（上新/自提）。\n\n**平台差异化**：抖音主打锅气实拍短视频；视频号放完整版；小红书做配料表科普图文。",
+      topics: "选题库共 80 条，四类配比 32/24/14/10（见交付区四类 Tab）。\n\n**TOP 优先级**：跟拍一锅料的完整炒制 > 配料表对比 > 商超货架实拍 > 老顾客 30 顿回访。\n\n**30 天日历**：每周 3 条——周一认知、周三信任、周六连接或转化轮换；每条结尾带「本地这 12 家柜能买到」钩子。",
+      ads: "**前置判断**：起步期不建议立刻投流——先让自然流验证内容；800 粉阶段 DOU+ 只加热已验证的信任型内容。\n\n**DOU+ 方案**：单条 100 元试投「本地 + 美食兴趣」人群，ROI > 1.5 再加量。\n\n**预算分配**：月 500 元内；60% 给爆款信任型，40% 给到店转化型。",
+      growth: "**能力评估（25/50）**：出镜 6 分 · 内容 5 分 · 运营 4 分 · 投放 3 分 · 供应链 7 分。\n\n**三阶段**：第 1-2 月跑通内容与本地信任 → 第 3-4 月商超联动 + 自提闭环 → 第 5-6 月视频号放量。\n\n**第一个月提升计划**：每天 30 分钟对锅练口播；每周 3 条更新雷打不动；把「配料表」做成固定栏目。",
+      execution: "**关键成功因素**：锅气画面的稳定供给（每周集中拍摄半天）；「炒料 12 年」人设每条内容都不断。\n\n**风险红线**：不承诺功效；不贬低竞品品牌；配送破损必须包赔。\n\n**迭代节奏**：每周复盘完播与评论；每月按四象限检一次配比；每季度回访一轮老客户。"
+    }
+  };
+}
+
 /* 槽位映射：原型 8 字段 ↔ 后端 6 槽位（商业模式并入项目、IP目标并入创始人——与 /chat 同口径） */
 const SLOT_TO_FIELDS: Record<string, string[]> = {
   role: ["role"], project: ["project", "biz"], competition: ["comp"],
@@ -209,6 +286,14 @@ function buildPieces(p: IpPosPayload | null, answerMd: string): Piece[] {
 
 export function IpPosWorkbench({ skuId }: { skuId: string }) {
   const [phase, setPhase] = useState<Phase>("idle");
+  /**
+   * 演示模式（2026-10-01 用户：进工作台自动演示完整流程）。
+   * demoRef 是真源（定时器回调里读）；demoOn 只驱动横幅渲染。
+   * 演示 = 纯前端脚本：预置答案/候选/消化/交付数据，不调任何接口、不写草稿、不扣算力。
+   */
+  const demoRef = useRef(false);
+  const [demoOn, setDemoOn] = useState(false);
+  const demoTickRef = useRef<number | null>(null);
   const [qi, setQi] = useState(0);
   const [brief, setBrief] = useState<Record<string, string>>({});
   /** brief 的同步镜像：异步生成 hints 时要拿「含本题在内」的最新字段（state 闭包会过期）。 */
@@ -308,7 +393,12 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
    * 没有才从头开始访谈。restoreDraft 幂等（StrictMode 双跑不产生重复消息）。
    */
   useEffect(() => {
-    if (!restoreDraft()) resetAll(true);
+    if (!restoreDraft()) {
+      // 从没来过（无草稿、无历史交付）→ 进页自动演示完整流程（模拟数据，不调接口不扣算力）。
+      // 来过的用户（有草稿或交付物）直接恢复，不打扰。
+      if (loadPayloadLocally(skuId)) resetAll(true);
+      else startDemo();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -323,6 +413,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   /** 访谈进行中实时落草稿；生成中不落（正式结果另有 payload 本机找回）。 */
   useEffect(() => {
     if (phase === "gen") return;
+    if (demoOn) return; // 演示对话绝不写进真实草稿——停掉演示后干干净净从头开始
     // 空对话不落盘：StrictMode 双跑时挂载初期的空 state 会先于恢复生效，
     // 若此时覆盖写，会把刚读到的真草稿清成空、导致下一次启动恢复失败（实测踩中）。
     if (messages.length === 0) return;
@@ -336,7 +427,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
         genCandidates
       }));
     } catch { /* 存储满等异常忽略：草稿是尽力而为 */ }
-  }, [DRAFT_KEY, phase, qi, optsQ, confirmOpts, brief, messages, genCandidates]);
+  }, [DRAFT_KEY, phase, qi, optsQ, confirmOpts, brief, messages, genCandidates, demoOn]);
 
   /**
    * 恢复上次对话（2026-09-30 用户：输入到一半关掉页面，下次进来接着聊）。
@@ -390,6 +481,9 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   function resetAll(greet: boolean) {
     timersRef.current.forEach((t) => { window.clearTimeout(t); window.clearInterval(t); });
     timersRef.current = [];
+    // 退出演示（若在演示中）：后续演示定时器全部作废，恢复真实交互
+    demoRef.current = false; setDemoOn(false);
+    if (demoTickRef.current != null) { window.clearInterval(demoTickRef.current); demoTickRef.current = null; }
     setPhase("idle"); setQi(0); setBrief({}); briefRef.current = {}; setGenCandidates(null); runIdRef.current += 1;
     setMessages([]); setOptsQ(null); setConfirmOpts(false); setFreeInput("");
     setError(null); setReview(null); setResolved([]);
@@ -475,6 +569,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   }
 
   function chooseOpt(q: QFlow, o: QOpt) {
+    if (demoRef.current) { setError("演示模式中，脚本会自己走——点上方「停止演示」即可接管。"); return; }
     if (phase !== "ask") return;
     // 优先用选项自己的消化回应（多选项题必须逐项写），没有才回退整题那份。
     applyAnswer(q, o.v, o.t, o.digest ?? q.digest);
@@ -484,6 +579,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   function freeSend() {
     const v = freeInput.trim();
     if (!v) return;
+    if (demoRef.current) { setError("演示模式中，脚本会自己走——点上方「停止演示」即可接管。"); return; }
     // 上一句还在消化（模型生成中）：AI 还没问出下一题，这时候答进去会对不上题，先不接。
     if (digestingRef.current) return;
     setFreeInput("");
@@ -512,6 +608,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
    * （等接入模型生成底稿后，这里可以改回「按你的角色铺一份底稿」。）
    */
   function skipGuide() {
+    if (demoRef.current) { setError("演示模式中，脚本会自己走——点上方「停止演示」即可接管。"); return; }
     if (phase === "gen" || phase === "done") return;
     timersRef.current.forEach((t) => { window.clearTimeout(t); window.clearInterval(t); });
     timersRef.current = [];
@@ -532,6 +629,87 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     setConfirmOpts(false);
   }
 
+  /* ---------- 演示模式：纯前端脚本走完整流程（不调接口 / 不写草稿 / 不扣算力） ---------- */
+
+  /** 停止演示 → 清掉全部演示定时器，立刻从头开始真实访谈（控制权交还用户）。 */
+  function stopDemo() {
+    if (!demoRef.current) return;
+    resetAll(true);
+  }
+
+  /** 进页自动演示：8 问访谈（候选/消化/简报点亮）→ 确认 → 生成进度 → 模拟全案交付。 */
+  function startDemo() {
+    resetAll(false);
+    demoRef.current = true; setDemoOn(true);
+    pushMsg("ai", `你好，我是<b>沈定</b>，首席定位官 🎯 正在为你<b>自动演示</b>一遍完整流程（模拟数据，不消耗算力）——看完点上方「停止演示」就开始你自己的访谈。`);
+    let t = 1100;
+    for (let i = 0; i < QFLOW.length; i++) {
+      const q = QFLOW[i];
+      const ans = DEMO_STEPS[i];
+      later(() => { if (demoRef.current) askQuestion(i); }, t); t += 1100;
+      later(() => { if (demoRef.current) setGenCandidates({ q: i, list: ans.candidates }); }, t); t += 1500;
+      later(() => {
+        if (!demoRef.current) return;
+        setGenCandidates(null);
+        pushMsg("user", escapeHtml(ans.display));
+        const merged = { ...briefRef.current, ...ans.values };
+        briefRef.current = merged; setBrief(merged);
+        flash(q.fields);
+      }, t); t += 850;
+      later(() => {
+        if (!demoRef.current) return;
+        const pid = pushMsg("ai", '<span class="cpw-thinking"><i></i><i></i><i></i></span>', true);
+        later(() => { if (demoRef.current) replaceMsg(pid, escapeHtml(ans.digest)); }, 700);
+      }, t); t += 1000;
+    }
+    later(() => {
+      if (!demoRef.current) return;
+      setOptsQ(null); setPhase("confirm");
+      pushMsg("ai", `8 项信息齐了 ✅ 右侧简报就是刚才的演示回答——演示继续：下面走一遍<b>生成进度与交付</b>（模拟数据）。`);
+    }, t); t += 2800;
+    later(() => { if (demoRef.current) runDemoGen(); }, t);
+  }
+
+  /** 模拟生成：复用真实生成页的日志/进度渲染，只换数据来源（无 fetch）。 */
+  function runDemoGen() {
+    setConfirmOpts(false); setPhase("gen"); setElapsed(0);
+    setGenIdx(-1); setGenFinished(false); setRunSettled(false); setLogDone(false);
+    setPieces([]); setRestored(false);
+    const ordered: string[] = [
+      `→ 读取定位简报（8/8 字段齐全）· 角色深度：${briefRef.current.role || "—"}`,
+      "→ 加载定位方法论 · 五步定位法 · 固定输出结构（速览 + 8 章）"
+    ];
+    for (const p of PIECES) {
+      if (STEP_LINES[p.id]) ordered.push(STEP_LINES[p.id]);
+      ordered.push(`✓ ${p.no} ${p.title} —— ${p.gd}`);
+    }
+    setLogLines([...ordered, "✅ 全案 9 件生成完成 · 已写入交付区（演示数据）"]);
+    let li = 0;
+    const step = () => {
+      if (!demoRef.current) return;
+      li += 1;
+      setLogIdx(li);
+      const ln = ordered[li - 1] ?? "";
+      if (ln.startsWith("✓")) setGenIdx((g) => g + 1);
+      if (li < ordered.length) later(step, ln.startsWith("✓") ? 650 : 750);
+      else later(() => { if (demoRef.current) finishDemoGen(); }, 900);
+    };
+    later(step, 300);
+    demoTickRef.current = window.setInterval(() => setElapsed((e) => e + 1), 1000);
+  }
+
+  /** 模拟交付：铺入预置 payload，落在 done 态；明示这是演示数据。 */
+  function finishDemoGen() {
+    if (demoTickRef.current != null) { window.clearInterval(demoTickRef.current); demoTickRef.current = null; }
+    setGenFinished(true); setLogDone(true);
+    const payload = buildDemoPayload();
+    setAnswerMd(buildPayloadMarkdown(payload));
+    setPieces(buildPieces(payload, ""));
+    setConsumed(0); setRestored(false);
+    setPhase("done");
+    pushMsg("ai", `演示完成 ✅ 右侧「速览 + 8 章全案」全部是<b>模拟数据</b>（黔味坊示例）——真实生成会按<b>你的</b>简报出内容。点右上角 <b>「↻ 重置」</b>或上方 <b>「停止演示」</b>，开始你自己的访谈。`);
+  }
+
   /* ---------- 生成（体检 → /run，后端与原对话页同源） ---------- */
 
   function briefToSlotAnswers(): Record<string, string> {
@@ -546,6 +724,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   }
 
   async function startGen() {
+    if (demoRef.current) { setError("演示模式中不真实生成——点上方「停止演示」结束演示后再生成（会消耗算力）。"); return; }
     if (phase !== "confirm" || prechecking) return;
     const missing = FIELDS.filter((f) => !(brief[f.key] ?? "").trim()).length;
     if (missing > 0) {
@@ -715,6 +894,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   /* ---------- 简报编辑（点字段改；体检追问按 slot 精确勾销） ---------- */
 
   function editField(key: string) {
+    if (demoRef.current) { setError("演示模式中，简报是演示数据——点上方「停止演示」后可编辑。"); return; }
     if (phase === "gen") return;
     setDraft(brief[key] ?? "");
     setEditing(key);
@@ -840,6 +1020,12 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                   <div className="cpw-av"><img src={avatar} alt="沈定" /></div>
                   <div><b>沈定 · 创作引导</b><span>一次只问一个维度 · 回答自动填入右侧简报</span></div>
                 </div>
+                {demoOn && (
+                  <div className="cpw-demo-bar">
+                    <span className="cpw-demo-txt">🎬 <b>演示模式</b> · 自动演示完整流程（模拟数据 · 不调接口 · 不消耗算力）</span>
+                    <button className="cpw-demo-stop" onClick={stopDemo}>⏹ 停止演示，开始我的访谈</button>
+                  </div>
+                )}
                 <div className="cpw-log" ref={logRef}>
                   {messages.map((m) => (
                     <div key={m.id} className={`cpw-msg${m.who === "user" ? " user" : ""}`}>
