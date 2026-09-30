@@ -211,6 +211,10 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [qi, setQi] = useState(0);
   const [brief, setBrief] = useState<Record<string, string>>({});
+  /** brief 的同步镜像：异步生成 hints 时要拿「含本题在内」的最新字段（state 闭包会过期）。 */
+  const briefRef = useRef<Record<string, string>>({});
+  /** 模型实时生成的下一题候选：点了先放进输入框，用户改完确认才进简报（模型不直接落库）。 */
+  const [genCandidates, setGenCandidates] = useState<string[]>([]);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [optsQ, setOptsQ] = useState<number | null>(null);
   const [confirmOpts, setConfirmOpts] = useState(false);
@@ -253,10 +257,15 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   const timersRef = useRef<number[]>([]);
   const avatar = employeeAvatarPath(skuId) ?? sitongAvatar;
 
-  function pushMsg(who: "ai" | "user", html: string) {
+  function pushMsg(who: "ai" | "user", html: string): number {
     // 同步捕获 id：updater 在批处理/重渲染时才执行，读 ref 会撞号（React key 重复告警的根源）
     const id = ++msgIdRef.current;
     setMessages((prev) => [...prev, { id, who, html }]);
+    return id;
+  }
+  /** 模型生成的消化回应回来后，把「兜底话术」那条消息原地替换掉。 */
+  function replaceMsg(id: number, html: string) {
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, html } : m)));
   }
   function later(fn: () => void, ms: number) {
     const t = window.setTimeout(fn, ms);
@@ -309,7 +318,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   function resetAll(greet: boolean) {
     timersRef.current.forEach((t) => { window.clearTimeout(t); window.clearInterval(t); });
     timersRef.current = [];
-    setPhase("idle"); setQi(0); setBrief({});
+    setPhase("idle"); setQi(0); setBrief({}); briefRef.current = {}; setGenCandidates([]);
     setMessages([]); setOptsQ(null); setConfirmOpts(false); setFreeInput("");
     setError(null); setReview(null); setResolved([]);
     setLogLines([]); setLogIdx(0); setGenIdx(-1); setGenFinished(false);
@@ -330,13 +339,43 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   function applyAnswer(q: QFlow, valueMap: Record<string, string>, displayText: string, digest: string) {
     setOptsQ(null);
     pushMsg("user", escapeHtml(displayText));
-    setBrief((prev) => ({ ...prev, ...valueMap }));
+    const merged = { ...briefRef.current, ...valueMap };
+    briefRef.current = merged;
+    setBrief(merged);
     flash(q.fields);
-    pushMsg("ai", digest);
+    // 先回兜底话术（零等待）；模型生成的「贴合承接」回来后原地替换这条。
+    const fallbackId = pushMsg("ai", digest);
+    setGenCandidates([]);
     const nqi = qi + 1;
     setQi(nqi);
     if (nqi < QFLOW.length) later(() => askQuestion(nqi), 800);
     else later(enterConfirm, 500);
+    // 异步生成：失败/超时时上面的兜底话术原样保留，访谈不卡。
+    const next = nqi < QFLOW.length ? { fields: QFLOW[nqi].fields, q: QFLOW[nqi].q, hint: QFLOW[nqi].hint } : null;
+    void loadGenHints(merged, q.fields[0] ?? "", displayText, next, fallbackId);
+  }
+
+  /** 调后端生成「贴合承接 + 下一题候选」；只替换文案与补候选，不阻塞访谈节奏。 */
+  async function loadGenHints(
+    answered: Record<string, string>,
+    answeredField: string,
+    answeredText: string,
+    next: { fields: string[]; q: string; hint: string } | null,
+    fallbackMsgId: number
+  ) {
+    try {
+      const res = await fetch(apiPath("/market/ip-pos/interview-hints"), {
+        method: "POST",
+        headers: authHeaders(true),
+        body: JSON.stringify({ answered, answeredField, answeredText, next })
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as { digest?: string | null; candidates?: string[] };
+      if (data.digest) replaceMsg(fallbackMsgId, escapeHtml(data.digest));
+      if (Array.isArray(data.candidates) && data.candidates.length > 0) setGenCandidates(data.candidates);
+    } catch {
+      /* 网络/后端异常：保持兜底话术与空候选 */
+    }
   }
 
   function chooseOpt(q: QFlow, o: QOpt) {
@@ -379,7 +418,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     timersRef.current.forEach((t) => { window.clearTimeout(t); window.clearInterval(t); });
     timersRef.current = [];
     setMessages([]); setOptsQ(null); setConfirmOpts(false);
-    setBrief({});
+    setBrief({}); briefRef.current = {}; setGenCandidates([]);
     setQi(QFLOW.length);
     setPhase("confirm"); setConfirmOpts(true);
     pushMsg("ai", "好，老手通道 🚀 按同类项目先铺了 <b>8 项预填底稿</b>（右侧可逐条点击修改）。确认没问题就点 <b>「✓ 确认，开始生成」</b>。");
@@ -714,6 +753,14 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                     </div>
                   )}
                 </div>
+                {phase === "ask" && genCandidates.length > 0 && (
+                  /* 模型按你的行业生成的候选：点了放进输入框，改完再发（不直接进简报）。 */
+                  <div className="cpw-opts">
+                    {genCandidates.map((c, i) => (
+                      <button key={i} className="cpw-opt" onClick={() => setFreeInput(c)}>{c}</button>
+                    ))}
+                  </div>
+                )}
                 <div className="cpw-skip">赶时间？<a onClick={skipGuide}>跳过访谈，直接在右侧简报填写 8 项 →</a></div>
                 <div className="cpw-input">
                   <input

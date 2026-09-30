@@ -14,6 +14,7 @@ import { searchPublicTopicSources, type PublicTopicSearch } from "../services/pu
 import { fetchGetnoteNotes } from "../services/getnote.js";
 import { getConfirmedGetNoteEvidence } from "../services/getnote-evidence.js";
 import { parseTopicTable, splitRow, type TopicRow } from "../services/topic-table-parser.js";
+import { generateInterviewHints } from "../services/ippos-interview-hints.js";
 import {
   estimateMarketplaceModelCostCny,
   marketplaceCreditsForUsage
@@ -1350,6 +1351,35 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
           expiresAt: row.expiresAt
         }))
       };
+    });
+
+    // IP 定位访谈辅助（2026-09-30 用户）：按已填字段生成「消化回应 + 下一题候选」。
+    // 必须登录——这是会烧模型钱的接口，不能开放给匿名刷。
+    market.post("/ip-pos/interview-hints", async (request, reply) => {
+      const context = await resolveRequestContext(request.headers);
+      if (context.source !== "database" || !context.userId) {
+        return reply.code(401).send({ error: "login_required", message: "请先登录" });
+      }
+      const parsed = z.object({
+        answered: z.record(z.string().max(400)).optional(),
+        answeredField: z.string().min(1).max(40),
+        answeredText: z.string().min(1).max(2000),
+        next: z.object({
+          fields: z.array(z.string().max(40)).min(1).max(4),
+          q: z.string().min(1).max(300),
+          hint: z.string().max(300).optional()
+        }).nullable().optional()
+      }).safeParse(request.body ?? {});
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "invalid_request", details: parsed.error.flatten() });
+      }
+      const p = parsed.data;
+      return await generateInterviewHints({
+        answered: p.answered ?? {},
+        answeredField: p.answeredField,
+        answeredText: p.answeredText,
+        next: p.next ? { fields: p.next.fields, q: p.next.q, hint: p.next.hint } : null
+      });
     });
 
     market.get("/me", async (request, reply) => {

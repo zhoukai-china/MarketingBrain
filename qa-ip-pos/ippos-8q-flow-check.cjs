@@ -51,6 +51,7 @@ const FREE = [
   await wait(1800);
 
   // 第 2~8 题：自由输入 + 回车
+  let genCandidatesSeen = false;
   for (let i = 0; i < FREE.length; i++) {
     const typed = await p.evaluate((text) => {
       const el = document.querySelector("input");
@@ -62,7 +63,14 @@ const FREE = [
       return "ok";
     }, FREE[i]);
     if (typed !== "ok") { console.log("第 " + (i + 2) + " 题输入失败:", typed); break; }
-    await wait(1500);
+    // 第 2 题答完（进入第 3 题）后，等模型生成回来——第 3 题没有预设选项，
+    // 此时出现的 .cpw-opt 按钮必然是模型生成的候选 ✓
+    if (i === 0) {
+      await wait(5000);
+      genCandidatesSeen = await p.evaluate(() => document.querySelectorAll("button.cpw-opt").length > 0);
+      console.log("模型生成的候选出现在界面上:", genCandidatesSeen);
+    }
+    await wait(1800);
   }
 
   await wait(2000);
