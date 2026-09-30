@@ -47,7 +47,20 @@ const FIELDS: Array<{ key: string; icon: string; label: string }> = [
  * 多选项题必须逐项写 digest；缺省时才回退整题的 digest。
  */
 interface QOpt { t: string; d: string; v: Record<string, string>; rec?: boolean; digest?: string }
-interface QFlow { fields: string[]; q: string; hint: string; digest: string; opts: QOpt[] }
+interface QFlow {
+  fields: string[];
+  q: string;
+  hint: string;
+  /** 兜底承接话术：模型生成失败/超时时用它。不引用用户原话，所以只有「已记下」这类通用表述。 */
+  digest: string;
+  /**
+   * 预设候选答案。**只有「角色」这种与行业无关的结构化题才写死**；
+   * 涉及行业/业务的题一律留空 —— 由模型按已填字段实时生成。
+   * （2026-09-30：原来每题都写死一份「XX贴膜」示例，用户是别的行业时
+   *   ①话术对不上 ②点一下就把别人的案例值并进简报，故清空。）
+   */
+  opts?: QOpt[];
+}
 
 const QFLOW: QFlow[] = [
   { fields: ["role"], q: "先确认一下——你是老板本人，还是代运营？品牌是单店还是连锁？", hint: "先识别你是谁，再匹配输出深度。同一个定位需求，不同角色的输出完全不同。",
@@ -60,31 +73,20 @@ const QFLOW: QFlow[] = [
       { t: "💼 OPC 代运营", d: "帮客户出可交付方案", v: { role: "OPC 运营（代客户操盘 · 方案交付向）" },
         digest: "明白了——<b>你是代运营（OPC），不是老板本人</b>。那我按「能直接交付给客户」的口径来做：人设按客户方老板来立，结论要能讲给他听，落地由你操盘。" }
     ] },
-  { fields: ["project", "biz"], q: "先说说你的项目吧——叫什么名字？做什么的？赚谁的钱、怎么赚？现在做到什么阶段了？", hint: "一句话能说清就行；答得好时，项目和商业模式两个字段会一起点亮。",
-    digest: "收到——<b>「XX贴膜」，手机后市场连锁加盟，供应链驱动，几百家门店</b>。模型已经跑通，现在是 1-10 增长期，这个判断后面全案会用到。",
-    opts: [
-      { t: "XX贴膜：手机后市场连锁加盟，以贴膜为入口做全链条；赚想小成本创业的加盟商的钱；已有几百家门店", d: "示例：点一次，项目+商业模式两个字段同时点亮", v: { project: "XX贴膜 · 手机后市场连锁加盟", biz: "加盟连锁：供应链驱动，以贴膜为入口做手机全链条生意" }, rec: true }
-    ] },
+  { fields: ["project"], q: "先说说你的项目吧——叫什么名字？做什么的？现在做到什么阶段了？", hint: "品牌名 + 一句话业务 + 现在到哪一步，一句话说清就行。",
+    digest: "收到 ✅ 已记进右侧简报，咱们接着聊你的钱是怎么赚的。" },
+  { fields: ["biz"], q: "那你的钱是怎么赚的？客户为什么付钱——一次性消费、加盟费，还是长期复购？客单价大概什么量级？", hint: "模式决定内容往哪引：招商向要打「项目可信」，零售向要打「到店理由」。",
+    digest: "收到 ✅ 已记进右侧简报，咱们接着聊竞品。" },
   { fields: ["comp"], q: "那跟你最较劲的竞争对手是谁？列 1-3 个。关键是——你跟他们比，最不一样的地方是什么？客户凭什么选你、不选他们？", hint: "差异化要有事实支撑，「我们更好」不算。",
-    digest: "竞品锁定：<b>平台A、平台B、街边手机店</b>。你的差异我记下了——<b>自有供应链 + 开的是自己的店</b>，这条会进定位三角校验。",
-    opts: [
-      { t: "平台A、平台B、街边手机店。我们最不一样：自有3000平供应链，加盟商开的是自己的店", d: "示例：3 个竞品 + 有事实的差异化", v: { comp: "平台A / 平台B / 街边手机店；差异=自有3000平供应链，开的是自己的店" }, rec: true }
-    ] },
+    digest: "收到 ✅ 已记进右侧简报，咱们接着聊你的客户。" },
   { fields: ["user"], q: "这个是关键——你的客户长什么样？把你最典型的客户画个像给我：年龄、城市、收入？他们找你之前最痛苦的事是什么？", hint: "能具体到一个真实的人最好，比如上个月成交的那个客户。",
-    digest: "用户画像很清晰——<b>30-45 岁想小成本创业的男性，「不知道做什么、怕被坑」</b>。这就是后面 JTBD 三层痛点的原型，内容全部围绕他设计。",
-    opts: [
-      { t: "30-45岁想小成本创业的男性，预算5-15万；「不知道做什么、怕被坑」；刷抖音搜小本创业", d: "示例：画像 + 痛点 + 平台习惯", v: { user: "30-45岁想小成本创业的男性，「不知道做什么、怕被坑」" }, rec: true }
-    ] },
-  { fields: ["founder", "goal"], q: "现在说说你自己——你的背景、经历、最擅长什么？身上最明显的性格特质？还有，做 IP 的核心目标是获客、招商还是品牌？", hint: "背景里「只有你经历过的事」是人设的黄金素材；答得好，创始人+IP目标两个字段一起点亮。",
-    digest: "X总这个背景很好用——<b>10 年供应链老炮，说话直接、不装</b>。目标也明确：<b>IP 驱动招商，奔 1000 家店去</b>。人设不用造，找到真实自我里最能吸引这批用户的那个面就行。",
-    opts: [
-      { t: "X总，80后，干手机配件供应链10年，3000平仓库；说话直接、不装。核心目标：创始人IP驱动招商，奔1000家店去", d: "示例：点一次，创始人+IP目标两个字段同时点亮", v: { founder: "X总，80后，手机配件供应链10年，3000平仓库；说话直接、不装", goal: "创始人IP驱动招商，目标1000家店" }, rec: true }
-    ] },
+    digest: "收到 ✅ 已记进右侧简报，咱们接着聊你自己。" },
+  { fields: ["founder"], q: "现在说说你自己——你的背景、经历、最擅长什么？身上最明显的性格特质？", hint: "背景里「只有你经历过的事」是人设的黄金素材。",
+    digest: "收到 ✅ 已记进右侧简报，最后聊聊你的 IP 目标。" },
+  { fields: ["goal"], q: "做 IP 你最想拿到什么——获客、招商，还是品牌背书？一年内的具体目标是什么？", hint: "目标决定内容取舍；带个数字最好，比如「今年招商 100 家」。",
+    digest: "收到 ✅ 已记进右侧简报，最后一轮聊聊你的现状。" },
   { fields: ["status"], q: "最后一轮——看看你现在的基础。哪个平台有账号、粉丝多少？自己出镜说话自然吗（1-10 分）？一周能投入多少时间？", hint: "这轮决定能力评估的五维打分，卡在哪、从哪起步，都从这里推。",
-    digest: "现状收到——<b>1.3w 粉但方向散、客资月均只有 1-2 条；表达自然但不会选题</b>。卡点在内容能力，不在表达。8 项信息齐了，右边简报你可以过目确认。",
-    opts: [
-      { t: "抖音1.3w粉但方向散，客资月均1-2条；出镜自然(7/10)但不会选题；愿意投入，缺方法", d: "示例：账号 + 表达 + 能力 + 投入，一轮收齐", v: { status: "抖音1.3w粉但方向散，客资月均1-2条；表达自然(7/10)，不会选题；愿投入缺方法" }, rec: true }
-    ] }
+    digest: "现状收到 ✅ 8 项信息齐了，右边简报你可以过目确认。" }
 ];
 
 /** 全案 9 件（速览 + 8 章），分区/配色/质量点 gd 全照原型；sectionKey 对应 payload.sections。 */
@@ -365,15 +367,19 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     }
   }
 
-  /** 老手快填：按推荐答案铺 8 字段底稿，直接进确认态。 */
+  /**
+   * 赶时间：跳过访谈，直接进确认态，8 个字段留空、由用户自己在右侧简报里填。
+   *
+   * 2026-09-30 改：此前这里把每题写死的「XX贴膜」示例值铺进简报——用户若不是手机贴膜行业，
+   * 等于把**别人的生意数据**当成自己的填进去，后面整份全案都会跑偏。宁可不填，也不填错的。
+   * （等接入模型生成底稿后，这里可以改回「按你的角色铺一份底稿」。）
+   */
   function skipGuide() {
     if (phase === "gen" || phase === "done") return;
     timersRef.current.forEach((t) => { window.clearTimeout(t); window.clearInterval(t); });
     timersRef.current = [];
     setMessages([]); setOptsQ(null); setConfirmOpts(false);
-    const pre: Record<string, string> = {};
-    for (const q of QFLOW) for (const o of q.opts) if (o.rec) Object.assign(pre, o.v);
-    setBrief(pre);
+    setBrief({});
     setQi(QFLOW.length);
     setPhase("confirm"); setConfirmOpts(true);
     pushMsg("ai", "好，老手通道 🚀 按同类项目先铺了 <b>8 项预填底稿</b>（右侧可逐条点击修改）。确认没问题就点 <b>「✓ 确认，开始生成」</b>。");
@@ -690,7 +696,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                   ))}
                   {optsQ != null && phase === "ask" && (
                     <div className="cpw-opts">
-                      {QFLOW[optsQ].opts.map((o, i) => (
+                      {(QFLOW[optsQ].opts ?? []).map((o, i) => (
                         <button key={i} className="cpw-opt" onClick={() => chooseOpt(QFLOW[optsQ], o)}>
                           {o.t}{o.d ? <small>{o.d}</small> : null}
                         </button>
@@ -708,7 +714,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                     </div>
                   )}
                 </div>
-                <div className="cpw-skip">赶时间？<a onClick={skipGuide}>AI 先铺底稿，你来逐条确认 →</a></div>
+                <div className="cpw-skip">赶时间？<a onClick={skipGuide}>跳过访谈，直接在右侧简报填写 8 项 →</a></div>
                 <div className="cpw-input">
                   <input
                     value={freeInput}
