@@ -13,6 +13,11 @@
      v7（20260927）UX 走查修复批：5 个智能体 sec 的 CTA 下 after-cta 加算力换算
      （1 元 = 10 算力 · 本单 N 算力 ≈ ¥X · 交付才扣 · 失败不扣费）；4 个人民币直购
      商品 sec 不加换算；新增右下角「?」新手帮助 FAB + 术语词典弹层 helpMask2。
+     v10（20260930）保禄分身 chat 改版：计费 ¥999/月·30 次深度交付 → ¥980/月·对话不限次；
+     后台 token 成本超 ¥98 → 提示「算力已用完，需充值算力」（用户侧不展示金额）；
+     头图分镜改为 Chat 自由交流 / 多模态 / 算力兜底 / 文件卡交付；头像换新形象照；
+     工作台 WBMAP 升 v=4（chat 版工作台）。
+     v11（20260930）称谓更新：「新媒体增长咨询师」→「新媒体获客增长咨询师」（工作台 title/头图 nm/元问题回复/详情页 i-title/foot-note 同步）；工作台 WBMAP 升 v=6。
      ============================================================ */
   :root{
     --orange:#F47920; --orange-deep:#E8651A; --orange-soft:rgba(244,121,32,.12);
@@ -379,7 +384,7 @@
 
   <button class="back-btn" onclick="detailBack()">← 返回</button>
 
-  <div class="proto-note">🧪 <b>设计原型（20260923 · v7 0928 FDE 专区接入）</b>：数字员工 = <b>工作台实况</b>头图 +「⚡ 立即使用」（0 元开通 · 用后扣算力）；AI硬件 / AI课程 = 首页卡片只留「🛒 加购」，进详情页才有「🛍️ 立即购买」。<b>v7 新增 FDE 专区 3 个服务页</b>（实体门店 / 连锁品牌 / 物流预告）：工程师入企服务，<b>不标实价</b>（起步价仅为示意锚点），CTA = 「📞 预约免费沟通」留电话，弹窗文案走 FDE 分支（顾问 24h 回电 → 书面方案报价 → 确认定金 → 入企交付）。价格按 <b>0926 定稿算力价目</b>（1元=10算力）+ 商品人民币价，实际以 <b>/market/skus</b> 为准。商品直达（商城点入）= 单商品详情页（无切换栏）；评审看全部商品：去掉 URL 的 <b>?agent</b> 参数。</div>
+  <div class="proto-note">🧪 <b>设计原型（20260923 · v10 0929 保禄分身对齐 V5.2.0 全链路 · v9 0929 月卡 · v8 0929 首次接入）</b>：数字员工 = <b>工作台实况</b>头图 +「⚡ 立即使用」（0 元开通 · 用后扣算力）；AI硬件 / AI课程 = 首页卡片只留「🛒 加购」，进详情页才有「🛍️ 立即购买」。<b>v10 保禄分身升级 = 对齐数字分身技能 V5.2.0</b>：身份改「新媒体增长咨询师」（10 年新媒体 · 7 行业头部 IP · 上市公司创始人 IP 总操盘 · 陪跑 500+ 品牌）；三模式对齐计费——问答咨询不扣次、创作十件套 / 执行方案各扣 1 次；十件套换真十件（选题策划 / 口播逐字稿 / 访谈话术 / 拍摄脚本 / 剪辑EDL / 评论区话术 / 投流建议等）；表达 DNA = 开头「根据我的方法论」+ 结尾金句；红线加禁引导词（私信/加微信/电话/找我/联系我/扫码）。月卡口径不变：¥999/月 · 30 次深度交付 + 追问不限次 · 失败不消耗额度。<b>v7 FDE 专区 3 个服务页</b>（实体门店 / 连锁品牌 / 物流预告）：工程师入企服务，<b>不标实价</b>（起步价仅为示意锚点），CTA = 「📞 预约免费沟通」留电话。价格按 <b>0926 定稿算力价目</b>（1元=10算力）+ 商品人民币价，实际以 <b>/market/skus</b> 为准。商品直达（商城点入）= 单商品详情页（无切换栏）；评审看全部商品：去掉 URL 的 <b>?agent</b> 参数。</div>
 
   <!-- 商品切换 -->
   <div class="ag-switch" id="agChips">
@@ -396,6 +401,7 @@
     <button data-ag="hwRobot">🤖 AI机器人</button>
     <button data-ag="courseAgent">🎓 智能体课</button>
     <button data-ag="courseWb">📚 提效课</button>
+    <button data-ag="baolu-twin">🧔 保禄分身</button>
     <button data-ag="fde-store">🏪 门店FDE</button>
     <button data-ag="fde-chain">🏢 连锁FDE</button>
     <button data-ag="fde-logistics">🚚 物流FDE <span class="soon">预告</span></button>
@@ -2373,6 +2379,195 @@
     </div>
   </div><!-- /agent-sec courseWb -->
 
+  <!-- ============ v9 商品 sec：保禄数字分身（创始人 10 年新媒体 · 自媒体参谋月卡 ¥980/月 不限次） ============ -->
+  <style>
+  /* 保禄分身头图「工作台实况」专用（scoped · 切到该视图即自动重播） */
+  .bl-win{position:relative;z-index:1;width:100%;max-width:580px;background:#10202e;border-radius:14px;padding:10px 12px;box-shadow:0 14px 34px rgba(20,40,60,.35);text-align:left}
+  .bl-bar{display:flex;align-items:center;gap:5px;margin-bottom:8px}
+  .bl-av{width:16px;height:16px;border-radius:50%;object-fit:cover;flex:none;border:1px solid rgba(255,255,255,.35)}
+  .bl-bar i{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .bl-bar .r{background:#f87171}.bl-bar .y{background:#fbbf24}.bl-bar .g{background:#34d399}
+  .bl-url{flex:1;min-width:0;background:#1b3042;border-radius:7px;padding:3px 9px;font-size:9.5px;color:#8fa5b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bl-live{font-size:9px;color:#2ecc71;font-weight:800;white-space:nowrap;animation:blBlink 1.6s infinite}
+  @keyframes blBlink{50%{opacity:.35}}
+  .bl-cols{display:flex;gap:8px}
+  .bl-chat{flex:1.15;min-width:0;background:#16293a;border-radius:9px;padding:8px;display:flex;flex-direction:column;gap:5px}
+  .bl-b{max-width:94%;border-radius:8px;padding:4px 7px;font-size:9.5px;line-height:1.5;opacity:0;animation:blIn .45s forwards}
+  .bl-b.ai{background:#22394f;color:#e8f0f7;border-bottom-left-radius:2px;align-self:flex-start}
+  .bl-b.me{background:#E8651A;color:#fff;border-bottom-right-radius:2px;align-self:flex-end}
+  .bl-b small{display:block;font-size:8px;opacity:.78;font-weight:700}
+  .bl-ws{flex:1;min-width:0;background:#f2f6fc;border-radius:9px;padding:8px}
+  .bl-ws .t{font-size:9px;font-weight:800;color:#5b6b7c;margin-bottom:4px}
+  .bl-bfs{display:grid;grid-template-columns:1fr 1fr;gap:3px}
+  .bl-bfs span{font-size:8px;background:#fff;border:1px solid #e0e7f1;border-radius:5px;padding:2px 4px;color:#8ba0b4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0;animation:blIn .4s forwards}
+  .bl-fee{margin-top:5px;background:#fff;border:1px solid #f7d4b8;border-radius:7px;padding:3px 6px;font-size:8.5px;color:#8a4a15;font-weight:700;opacity:0;animation:blIn .4s forwards}
+  .bl-fee em{font-style:normal;color:#E8651A}
+  .bl-ds{margin-top:5px;display:flex;flex-direction:column;gap:3px}
+  .bl-d{font-size:8.5px;background:#fff;border-left:3px solid #e0e7f1;border-radius:4px;padding:2px 6px;color:#9fb0c2;opacity:0;animation:blIn .4s forwards}
+  .bl-d.c1{border-color:#2563eb;color:#2563eb}.bl-d.c2{border-color:#b26a00;color:#b26a00}.bl-d.c3{border-color:#0f8a5f;color:#0f8a5f}.bl-d.c4{border-color:#d64545;color:#d64545}.bl-d.c5{border-color:#7c3aed;color:#7c3aed}
+  .bl-badge{margin-top:5px;align-self:flex-start;font-size:8px;color:#0f8a5f;background:#e8f3ee;border:1px solid #cbe7dc;border-radius:99px;padding:2px 7px;font-weight:800;opacity:0;animation:blIn .4s forwards}
+  @keyframes blIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .bl-shot{position:relative;z-index:1;width:100%;background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 10px 26px rgba(160,70,10,.12)}
+  .bl-shot .h{font-size:12.5px;font-weight:800;color:#7A4A1E;margin-bottom:9px;display:flex;align-items:center;gap:6px}
+  .bl-shot .h .n{flex:none;width:18px;height:18px;border-radius:6px;background:linear-gradient(135deg,#FF8C32,#F25300);color:#fff;font-size:10px;display:grid;place-items:center}
+  .bl-rows{display:grid;gap:7px}
+  .bl-row{display:flex;gap:8px;align-items:flex-start;font-size:11.5px;color:var(--muted,#5b6b7c);line-height:1.55}
+  .bl-row i{flex:none;width:20px;height:20px;border-radius:7px;background:#FFF2E4;display:grid;place-items:center;font-style:normal;font-size:11px}
+  .bl-row b{color:var(--text,#1c2733);font-size:12px}
+  .bl-warn{margin-top:10px;font-size:10.5px;color:#8a4a15;background:#FFF6EC;border:1px solid #f7d4b8;border-radius:8px;padding:6px 9px;line-height:1.55}
+  @media (max-width:480px){.bl-cols{gap:6px}.bl-chat{padding:6px}.bl-ws{padding:6px}}
+  </style>
+  <div class="agent-sec" data-agent="baolu-twin" data-online="1" data-type="product">
+    <div class="pd">
+      <div class="gallery">
+        <div class="g-main">
+          <div class="g-view on" data-v="0" style="padding:14px;display:grid;place-items:center;background:linear-gradient(135deg,#FFF6EC,#FFE4C8 60%,#FFD9B8);border-radius:14px">
+            <div class="bl-win">
+              <div class="bl-bar"><img class="bl-av" src="data:image/jpeg;base64,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" alt=""><i class="r"></i><i class="y"></i><i class="g"></i><span class="bl-url">ai.lcppch.top/agent/baolu-twin/workbench</span><span class="bl-live">● LIVE</span></div>
+              <div class="bl-cols">
+                <div class="bl-chat">
+                  <div class="bl-b ai" style="animation-delay:.2s"><small>保禄</small>获客最头疼的是啥？一句话说事。</div>
+                  <div class="bl-b me" style="animation-delay:.9s">新号3个月不涨粉，帮我出条获客视频</div>
+                  <div class="bl-b ai" style="animation-delay:1.5s"><small>保禄</small>根据我的方法论——问题在内容，不在赛道。</div>
+                </div>
+                <div class="bl-ws">
+                  <div class="t">📎 交付面板</div>
+                  <div class="bl-bfs">
+                    <span style="animation-delay:1.8s">域：文案脚本</span>
+                    <span style="animation-delay:2s">交付：十件套</span>
+                    <span style="animation-delay:2.2s">追问：不限次</span>
+                    <span style="animation-delay:2.4s">月卡：¥980 不限次</span>
+                  </div>
+                  <div class="bl-fee" style="animation-delay:2.7s">📎 十件套文件卡 · 已交付 · <em>可导出 Word</em></div>
+                  <div class="bl-ds">
+                    <div class="bl-d c1" style="animation-delay:3.1s">🧭【判断】问题在内容 · 不在赛道</div>
+                    <div class="bl-d c2" style="animation-delay:3.3s">⚡【反常识】起号别投流 · 别追日更</div>
+                    <div class="bl-d c3" style="animation-delay:3.5s">✅【动作清单】晒过程 · 磨开头 3 秒</div>
+                    <div class="bl-d c4" style="animation-delay:3.7s">⚠️【风险提醒】禁引导词 · 别刷粉</div>
+                    <div class="bl-d c5" style="animation-delay:3.9s">➡️【下一步】按十件套逐件拍</div>
+                  </div>
+                  <div class="bl-badge" style="animation-delay:4.3s">✅ 自检：五段齐全 · 无竞品名 · 无引导词</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="g-view" data-v="1">
+            <div class="bl-shot">
+              <div class="h"><span class="n">1</span>Chat 自由交流 · 多模态输入</div>
+              <div class="bl-rows">
+                <div class="bl-row"><i>💬</i><div><b>任意提问 · 不限模版</b><br>定位 / 选题 / 文案 / 投流 / 复盘 / 直播话术——跟新媒体有关都能问，多轮追问不断片。</div></div>
+                <div class="bl-row"><i>🎤</i><div><b>语音 / 图片 / 视频 / 文件都能传</b><br>传门店实拍帮你抠画面，传视频帮你抠开头 3 秒，传数据表直接出复盘报告。</div></div>
+                <div class="bl-row"><i>🚫</i><div><b>域外守卫</b><br>只答新媒体相关；超出知识范围的，直接说「建议问保禄本人」，不瞎答。</div></div>
+              </div>
+              <div class="bl-warn">💡 问答追问不限次不另收费；深度交付（十件套 / 投流方案 / 复盘报告）出文件卡。</div>
+            </div>
+          </div>
+          <div class="g-view" data-v="2">
+            <div class="bl-shot">
+              <div class="h"><span class="n">2</span>月卡不限次 · 算力兜底</div>
+              <div class="bl-rows">
+                <div class="bl-row"><i>♾️</i><div><b>¥980/月 · 对话不限次</b><br>取消按次计费：月卡有效期内随便问、随便追问，不再扣次。</div></div>
+                <div class="bl-row"><i>⚡</i><div><b>算力兜底（后台内置）</b><br>token 成本超阈值 → 提示「算力已用完」，充值算力即可恢复，月卡权益不受影响。</div></div>
+                <div class="bl-row"><i>🆔</i><div><b>深度交付仍走任务</b><br>十件套等文件卡生成约 1~2 分钟，进度实时转述。</div></div>
+                <div class="bl-row"><i>🛡️</i><div><b>失败不收费</b><br>交付失败自动退回，不消耗算力。</div></div>
+              </div>
+              <div class="bl-warn">🛡️ 用户侧不暴露成本数字；演示面板可见成本进度条（¥98 兜底阈值）。</div>
+            </div>
+          </div>
+          <div class="g-view" data-v="3">
+            <div class="bl-shot">
+              <div class="h"><span class="n">3</span>文件卡交付 · 拿走就用</div>
+              <div class="bl-rows">
+                <div class="bl-row"><i>📎</i><div><b>文件卡 · 聊天内交付</b><br>十件套 / 投流方案 / 复盘报告以文件卡出现在对话里——交付的是文件，不是聊天记录。</div></div>
+                <div class="bl-row"><i>🏷️</i><div><b>方法论标签</b><br>只标框架名（如「内容三板斧 · 晒过程脚本」），有据回答不编造。</div></div>
+                <div class="bl-row"><i>📄</i><div><b>全文复制 / 导出 Word</b><br>Word · WPS 可直接打开，转发运营即可执行。</div></div>
+                <div class="bl-row"><i>🎁</i><div><b>创作十件套：完整 10 件</b><br>选题策划 / 口播逐字稿 / 访谈话术 / 拍摄脚本 / 剪辑EDL / 发布标题与话题 / 评论区引导话术 / 投流建议——逐件可执行。</div></div>
+              </div>
+              <div class="bl-warn">📌 普通问答走聊天，深度交付出文件卡——开头「根据我的方法论」，结尾附保禄金句，短句分条不绕弯。</div>
+            </div>
+          </div>
+        </div>
+        <div class="g-thumbs">
+          <button class="on" data-t="0" title="工作台实况" data-cap="工作台实况 · Chat 自由交流 → 文件卡交付（切到此页自动重播）">🖥️</button>
+          <button data-t="1" title="分镜① Chat 自由交流" data-cap="分镜① · Chat 自由交流：多模态输入（语音/图片/视频/文件）· 域外守卫不瞎答">💬</button>
+          <button data-t="2" title="分镜② 月卡不限次+算力兜底" data-cap="分镜② · ¥980/月不限次 + 算力兜底（超阈值提示充值算力）">⚡</button>
+          <button data-t="3" title="分镜③ 文件卡交付+导出" data-cap="分镜③ · 文件卡交付 + 复制 / 导出 Word（创作十件套全件交付）">📦</button>
+        </div>
+        <div class="g-cap">工作台实况 · Chat 自由交流 → 文件卡交付（切到此页自动重播）</div>
+      </div>
+      <div class="info">
+        <div class="i-title">保禄数字分身 · 新媒体获客增长咨询师<span style="font-weight:600;color:var(--muted);font-size:14px">（10 年新媒体 · 操盘 7 行业头部 IP · 数字分身）</span></div>
+        <div class="i-sub"><span class="tagp">思潼AI 出品</span><span>·</span><span class="js-status">已上线 · 现货开通</span></div>
+        <p class="i-desc">10 年新媒体 · 操盘 7 个行业头部 IP · 陪跑 500+ 品牌——保禄的数字分身，一个智能体闭环你的全链路获客：IP定位 / 选题 / 内容创作 / 投流 / 短视频复盘 / 直播话术 / 直播复盘，七大域随便问。Chat 自由交流、追问不限次：语音、图片、视频、文件都能传，看完再答；只答新媒体相关，域外不瞎答；十件套、投流方案出文件卡（可导出 Word）。行不行先说行不行，再说理由。</p>
+        <div class="i-rate"><b>4.9</b><span class="stars">★★★★★</span><span>首批用户评分</span></div>
+        <div class="price-card">
+          <div class="price-line">
+            <span class="num">¥980</span><span class="unit">/ 月卡会员</span>
+            <span class="approx">对话不限次 · 深度交付出文件卡 + Word 导出 + 算力兜底</span>
+          </div>
+          <div class="price-meta">微信支付 · <em>对话不限次</em> · 算力超阈值可充值 · 随时取消</div>
+          <div class="guar"><i>🧔 10 年新媒体 · 7 行业头部 IP</i><i>📦 深度交付出文件卡</i><i>🙈 禁引导词 · 无极限词</i><i>♾️ 月卡对话不限次</i></div>
+        </div>
+        <div class="deliver">
+          <div class="deliver-h">🎓 你将获得</div>
+          <ul>
+            <li>Chat 自由咨询：IP定位 / 选题 / 投流 / 复盘 / 直播七域问题随便问，追问不限次</li>
+            <li>多模态输入：语音 / 图片 / 视频 / 文件 / 文字都能传——传数据表直接出复盘报告</li>
+            <li>创作十件套：选题策划 / 口播逐字稿 / 访谈话术 / 拍摄脚本 / 剪辑EDL / 评论区话术 / 投流建议…10 件全链路可执行</li>
+            <li>执行方案：投流方案 / 数据复盘 / 直播话术 / 直播复盘，直接给可落地版本</li>
+            <li>深度交付 = 聊天里的文件卡：判断 / 反常识点 / 动作清单 / 风险提醒 / 下一步，可复制 / 导出 Word（WPS 可开）</li>
+          </ul>
+        </div>
+        <div class="cta-row js-ctaRow">
+          <button class="btn btn-ghost js-cartCta">🛒 加入购物车</button>
+          <button class="btn btn-main js-mainCta" data-price="¥980/月">🛍️ 开通月卡</button>
+        </div>
+        <div class="after-cta js-afterCta">月卡会员 · <em>对话不限次</em> · 算力用完可充值 · 深度交付出文件卡</div>
+      </div>
+    </div>
+    <div class="detail">
+      <div class="tabs">
+        <button class="tab on" data-p="0">交付什么</button>
+        <button class="tab" data-p="1">适合谁</button>
+        <button class="tab" data-p="2">计费与红线</button>
+        <button class="tab" data-p="3">用户评价</button>
+      </div>
+      <div class="panel on" data-p="0">
+        <ul>
+          <li>Chat 自由咨询：IP定位 / 选题 / 内容 / 投流 / 复盘 / 直播话术 / 直播复盘，七域随便问，多轮追问不断片</li>
+          <li>创作十件套（文件卡）：从选题策划到投流建议 10 件交付，逐件可执行</li>
+          <li>执行方案（文件卡）：本地推 / 抖加投流方案、短视频复盘、直播话术、直播复盘</li>
+          <li>多模态输入：语音 / 图片 / 视频 / 文件 / 文字都能传；域外守卫——只答新媒体相关，不懂的不瞎答</li>
+          <li>决策判断：行不行先说行不行——成功率过 50% 就做，低于 50% 就不做，附算账依据</li>
+          <li>深度交付 = 聊天里的文件卡：判断 / 反常识点 / 动作清单 / 风险提醒 / 下一步</li>
+        </ul>
+      </div>
+      <div class="panel" data-p="1">
+        <p style="margin:2px 0 0">想用短视频 / 直播获客的老板、操盘手、运营：门店引流、连锁招商、创始人 IP、知识付费卖课都操盘过——7 个行业头部 IP、500+ 品牌陪跑经验。卡在不涨粉、没客资、直播间个位数在线、脚本不会写——需要一个人把话说透、把动作列出来。</p>
+      </div>
+      <div class="panel" data-p="2">
+        <ul>
+          <li>计费：¥980 / 月卡会员（人民币直购），对话不限次；十件套 / 投流方案 / 复盘报告以文件卡交付（可复制 / 导出 Word）</li>
+          <li>算力兜底：后台监控 token 成本，超阈值即提示「算力已用完，需充值算力」（用户侧不展示成本金额），充值后继续</li>
+          <li>算力刷新：每月 1 号重置算力额度；随时取消，次月不再扣费</li>
+          <li>红线内建：竞品名自动拦截（不评价任何同行课程与个人）；不承诺「保证涨粉 / 保证回本」；禁引导词（私信 / 加微信 / 电话 / 扫码等一概不出现）；不编造数据与案例，涉及数字请替换为真实数据；案例一律脱敏</li>
+          <li>产出为参考方案/草稿，正式对外使用前建议人工复核合规、数据与品牌调性</li>
+        </ul>
+      </div>
+      <div class="panel" data-p="3">
+        <div class="rev">
+          <div class="rev-head"><span class="rev-ava">手</span><b>手机后市场连锁创始人 · 北京 300+ 门店</b><span class="stars">★★★★★</span></div>
+          <p>按保禄的方法论做 IP 定位 + 内容体系 + 投流：现在每天 20+ 条精准客资，半年新增 40 家门店。交付全是文件，团队照着执行就行。</p>
+        </div>
+        <div class="rev">
+          <div class="rev-head"><span class="rev-ava">培</span><b>连锁培训创始人 · 年营收 5000 万+</b><span class="stars">★★★★★</span></div>
+          <p>20 多条视频，半年 1 万+ 客资。行不行先说行不行，不给鸡汤；追问不限次，一条条帮我抠脚本和投流。</p>
+        </div>
+        <p style="margin-top:10px;font-size:11.5px;color:var(--muted)">（数字口径来自真实案例库脱敏引用 · 不构成效果承诺；上线后接真实评价体系）</p>
+      </div>
+    </div>
+  </div><!-- /agent-sec baolu-twin -->
+
   <!-- ============ FDE · 实体门店（工程师入企 · 按需报价） ============ -->
   <div class="agent-sec" data-agent="fde-store" data-online="1" data-type="fde">
     <div class="pd">
@@ -2708,9 +2903,15 @@
     if(row)row.classList.toggle('solo',!online);
     if(online){
       if(curSec.dataset.type==='product'){ /* v6 商品：人民币直购，不拼算力文案 */
-        if(st)st.textContent='现货 · 可直接购买';
-        main.innerHTML='🛍️ 立即购买（'+(main.dataset.price||'?')+'）';
-        if(after)after.innerHTML=after.dataset.onafter||'正品保障 · <em>7 天无理由</em> · 微信支付 · 电子发票';
+        if(curSec.dataset.agent==='baolu-twin'){ /* v9 保禄分身：月卡文案不被通用模板覆盖 */
+          if(st)st.textContent='现货 · 可直接开通';
+          main.innerHTML='🛍️ 开通月卡（¥980/月）';
+          if(after)after.innerHTML='月卡会员 · <em>对话不限次</em> · 算力用完可充值 · 深度交付出文件卡';
+        }else{
+          if(st)st.textContent='现货 · 可直接购买';
+          main.innerHTML='🛍️ 立即购买（'+(main.dataset.price||'?')+'）';
+          if(after)after.innerHTML=after.dataset.onafter||'正品保障 · <em>7 天无理由</em> · 微信支付 · 电子发票';
+        }
       }else{
         if(st)st.textContent='已上线 · 可直接对话';
         main.innerHTML='⚡ 立即使用（'+(main.dataset.price||'?')+' 算力'+(main.dataset.unit||'/次')+'）';
@@ -2775,9 +2976,16 @@
       $$('.panel',sec).forEach(function(p){p.classList.toggle('on',p.dataset.p===b.dataset.p)});
     });
     var main=$('.js-mainCta',sec),cart=$('.js-cartCta',sec);
-    var WBMAP={shending:'ip-pos-workbench-demo-20260924.html?v=3',qinwen:'copy-workbench-demo-20260922.html?v=p7',luopan:'livescript-workbench-demo-20260924.html?v=2',jiangliu:'vidrev-workbench-demo-20260924.html?v=2',hece:'topic-strategist-demo-20260922.html?v=3'};
+    var WBMAP={shending:'ip-pos-workbench-demo-20260924.html?v=3',qinwen:'copy-workbench-demo-20260922.html?v=p7',luopan:'livescript-workbench-demo-20260924.html?v=2',jiangliu:'vidrev-workbench-demo-20260924.html?v=2',hece:'topic-strategist-demo-20260922.html?v=3','baolu-twin':'baolu-twin-workbench-demo-20260928.html?v=7'};
     if(main)main.addEventListener('click',function(){
       if(sec.dataset.type==='product'){ /* v6 商品：下单走人民币支付流程，不进工作台 */
+        if(sec.dataset.agent==='baolu-twin'){ /* v9 保禄分身：月卡支付成功 → 直达工作台（月卡计费） */
+          if(confirm('原型示意：开通月卡（¥980/月）→ 确认订单 → 微信支付 → 会员生效。\n\n是否直接进入「保禄数字分身」工作台？（对话不限次 · 算力超阈值提示充值 · 深度交付出文件卡）')){
+            dtToast('月卡已开通 · 对话不限次 · 算力超阈值可充值');
+            setTimeout(function(){ location.href=WBMAP['baolu-twin']; },600);
+          }
+          return;
+        }
         alert('原型示意：立即购买（'+(main.dataset.price||'')+'）→ 确认订单 → 微信支付 → 下单成功进「我的 · 全部订单」。支持 7 天无理由退换。');
         return;
       }

@@ -1,0 +1,68 @@
+<!doctype html>
+<!-- baolu-twin mobile preview · 20260930 · 桌面手机壳预览（iframe 390px 真实触发移动端样式）+ 真机扫码 -->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>保禄数字分身 · 手机端预览（Demo）</title>
+<style>
+:root{--ink:#1c2733;--sub:#5b6b7c;--line:#e3e9f2;--orange:#E8651A;--orange-soft:#fdeee2;--orange-line:#f7d4b8}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:linear-gradient(160deg,#20262e,#2c333d);min-height:100vh;display:flex;align-items:flex-start;justify-content:center;gap:34px;padding:26px 20px 40px;color:#fff}
+.side{max-width:300px;padding-top:26px}
+.side h1{font-size:19px;margin-bottom:6px}
+.side h1 i{font-style:normal;color:#ff9a5c}
+.side .sub{font-size:12.5px;color:#aeb9c6;line-height:1.7;margin-bottom:16px}
+.side .tips{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:12px 14px;font-size:12px;color:#c4cdd8;line-height:1.8}
+.side .tips b{color:#ffb37a}
+.qr{margin-top:14px;background:#fff;border-radius:14px;padding:12px;text-align:center}
+.qr img{width:150px;height:150px;display:block;margin:0 auto}
+.qr p{font-size:11px;color:#5b6b7c;margin-top:6px;line-height:1.5}
+.tabs{display:flex;gap:8px;margin:14px 0 0}
+.tabs button{flex:1;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#e7edf4;border-radius:10px;padding:9px 6px;font-size:12.5px;font-weight:600}
+.tabs button.on{background:var(--orange);border-color:var(--orange);color:#fff}
+/* 手机壳 */
+.phone{flex:none;width:424px;height:868px;background:#0d1117;border-radius:52px;padding:17px;box-shadow:0 30px 70px rgba(0,0,0,.55),inset 0 0 0 2px #2a323d;position:relative}
+.phone .notch{position:absolute;top:17px;left:50%;transform:translateX(-50%);width:118px;height:26px;background:#0d1117;border-radius:0 0 16px 16px;z-index:5}
+.phone .screen{width:390px;height:834px;border-radius:38px;overflow:hidden;background:#fff;position:relative}
+.phone iframe{width:390px;height:834px;border:0;display:block}
+.phone .bar{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:130px;height:4px;border-radius:99px;background:rgba(255,255,255,.35);z-index:6}
+.foot{max-width:300px;font-size:11px;color:#8b96a3;line-height:1.7;padding-top:18px}
+@media (max-width:900px){body{flex-direction:column;align-items:center}.phone{transform:scale(.86);transform-origin:top center;margin-bottom:-110px}}
+</style>
+</head>
+<body>
+
+<div class="side">
+  <h1>保禄<i>数字分身</i> · 手机端预览</h1>
+  <p class="sub">右边手机壳里是 <b>390px 真机视口</b>——样式和手机上完全一致（iframe 宽度真实触发移动端布局）。</p>
+  <div class="tabs">
+    <button class="on" id="tabWb">💬 数字分身工作台</button>
+    <button id="tabDt">🛍️ 商品详情页</button>
+  </div>
+  <div class="tips">
+    <b>壳里可玩：</b>随便问 / 点能力入口 / 传图传文件（演示）/ 点「▶ 一键演示」看全流程到「算力已用完」弹层；<br>
+    <b>真机体验：</b>手机连同一 WiFi，扫码或打开<br><span style="word-break:break-all">http://192.168.3.81:8917/baolu-twin-workbench-demo-20260928.html?v=7</span>
+  </div>
+  <div class="qr">
+    <img src="baolu-twin-mobile-qr.png" alt="真机访问二维码">
+    <p>手机扫码直达工作台<br>（需与电脑同一局域网 · 服务仅本机演示用）</p>
+  </div>
+  <p class="foot">说明：本页为静态原型演示壳，不连后端；页面内数据均为虚构脱敏案例。桌面双栏布局会自动收起——本壳专为桌面预览手机效果设计。</p>
+</div>
+
+<div class="phone">
+  <div class="notch"></div>
+  <div class="screen"><iframe id="frame" src="baolu-twin-workbench-demo-20260928.html?v=7" title="手机端预览"></iframe></div>
+  <div class="bar"></div>
+</div>
+
+<script>
+var WURL='baolu-twin-workbench-demo-20260928.html?v=7';
+var DURL='agent-product-detail-demo-20260923.html';
+var tabWb=document.getElementById('tabWb'),tabDt=document.getElementById('tabDt'),frame=document.getElementById('frame');
+tabWb.onclick=function(){tabWb.classList.add('on');tabDt.classList.remove('on');frame.src=WURL};
+tabDt.onclick=function(){tabDt.classList.add('on');tabWb.classList.remove('on');frame.src=DURL};
+</script>
+</body>
+</html>
