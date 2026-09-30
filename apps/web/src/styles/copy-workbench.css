@@ -526,3 +526,11 @@
    使 topbar / banner / hero 内容左边缘完全对齐（hero 用 .cpw-wrap padding 0 20px）。 */
 .cpw-page > .topbar { max-width: 1200px; margin: 0 auto; width: 100%; padding-left: 20px; padding-right: 20px; }
 .cpw-page > .shared-banner { max-width: 1200px; margin: 0 auto; width: 100%; padding-left: 20px; padding-right: 20px; }
+
+/* 「正在消化」占位（2026-09-30）：三个点跳动。模型生成回来后整条一次成型——
+   避免之前「先显示一句兜底话术、几秒后突然变成另一句」的突变感。 */
+.cpw-bub .cpw-thinking{display:inline-flex;gap:5px;align-items:center;padding:3px 0}
+.cpw-bub .cpw-thinking i{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.35;animation:cpw-think 1.2s infinite}
+.cpw-bub .cpw-thinking i:nth-child(2){animation-delay:.15s}
+.cpw-bub .cpw-thinking i:nth-child(3){animation-delay:.3s}
+@keyframes cpw-think{0%,60%,100%{transform:translateY(0);opacity:.35}30%{transform:translateY(-4px);opacity:.9}}

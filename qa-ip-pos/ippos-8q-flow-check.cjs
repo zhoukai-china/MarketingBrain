@@ -81,6 +81,8 @@ const FREE = [
       reachedConfirm: /确认，开始生成|开始生成/.test(body),
       stillAsking: /先说说你的项目吧|最后一轮/.test(body),
       pendingCount: pending,
+      // 所有「正在消化」占位都应已被模型结果（或兜底）替换——不留挂着永远转圈的
+      thinkingLeft: document.querySelectorAll(".cpw-bub .cpw-thinking").length,
       tail: body.slice(-260).replace(/\s+/g, " ")
     };
   });
@@ -88,10 +90,11 @@ const FREE = [
   console.log("进入确认态:", info.reachedConfirm);
   console.log("还停在提问中:", info.stillAsking);
   console.log("简报里「待填」个数:", info.pendingCount);
+  console.log("残留「思考中」占位:", info.thinkingLeft);
   console.log("页面尾部片段:", info.tail);
 
-  const ok = pick === "clicked" && info.reachedConfirm && info.pendingCount === 0;
-  console.log(ok ? "\nPASS: 8 问走完，简报 8 项已填满" : "\nFAIL");
+  const ok = pick === "clicked" && info.reachedConfirm && info.pendingCount === 0 && info.thinkingLeft === 0;
+  console.log(ok ? "\nPASS: 8 问走完，简报 8 项已填满，占位全部成型" : "\nFAIL");
   await b.close();
   process.exit(ok ? 0 : 1);
 })().catch((e) => { console.error(e); process.exit(1); });

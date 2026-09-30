@@ -138,7 +138,7 @@ const FIELD_TO_SLOT: Record<string, string> = {
 /** 生成前体检的一条结论（与后端 /precheck 契约一致）。 */
 type PrecheckIssue = { slot: string; verdict: "weak" | "missing"; followup: string };
 type Phase = "idle" | "ask" | "confirm" | "gen" | "done";
-interface ChatMsg { id: number; who: "ai" | "user"; html: string }
+interface ChatMsg { id: number; who: "ai" | "user"; html: string; pending?: boolean }
 interface Piece { meta: PieceMeta; bodyHtml: string; plain: string }
 
 const RUN_TIMEOUT_MS = 300_000;
@@ -257,15 +257,15 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   const timersRef = useRef<number[]>([]);
   const avatar = employeeAvatarPath(skuId) ?? sitongAvatar;
 
-  function pushMsg(who: "ai" | "user", html: string): number {
+  function pushMsg(who: "ai" | "user", html: string, pending = false): number {
     // 同步捕获 id：updater 在批处理/重渲染时才执行，读 ref 会撞号（React key 重复告警的根源）
     const id = ++msgIdRef.current;
-    setMessages((prev) => [...prev, { id, who, html }]);
+    setMessages((prev) => [...prev, { id, who, html, pending }]);
     return id;
   }
-  /** 模型生成的消化回应回来后，把「兜底话术」那条消息原地替换掉。 */
+  /** 模型生成的消化回应回来后，把「正在消化」占位原地替换成最终话术（一次成型，不做中途换话）。 */
   function replaceMsg(id: number, html: string) {
-    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, html } : m)));
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, html, pending: false } : m)));
   }
   function later(fn: () => void, ms: number) {
     const t = window.setTimeout(fn, ms);
@@ -343,25 +343,26 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     briefRef.current = merged;
     setBrief(merged);
     flash(q.fields);
-    // 先回兜底话术（零等待）；模型生成的「贴合承接」回来后原地替换这条。
-    const fallbackId = pushMsg("ai", digest);
+    // 先放「正在消化」动画占位：不显示一句话再突然换成另一句；模型回来一次成型，
+    // 失败才落回兜底话术。下一题照常推进，不被生成阻塞。
+    const fallbackId = pushMsg("ai", '<span class="cpw-thinking"><i></i><i></i><i></i></span>', true);
     setGenCandidates([]);
     const nqi = qi + 1;
     setQi(nqi);
     if (nqi < QFLOW.length) later(() => askQuestion(nqi), 800);
     else later(enterConfirm, 500);
-    // 异步生成：失败/超时时上面的兜底话术原样保留，访谈不卡。
     const next = nqi < QFLOW.length ? { fields: QFLOW[nqi].fields, q: QFLOW[nqi].q, hint: QFLOW[nqi].hint } : null;
-    void loadGenHints(merged, q.fields[0] ?? "", displayText, next, fallbackId);
+    void loadGenHints(merged, q.fields[0] ?? "", displayText, next, fallbackId, digest);
   }
 
-  /** 调后端生成「贴合承接 + 下一题候选」；只替换文案与补候选，不阻塞访谈节奏。 */
+  /** 调后端生成「贴合承接 + 下一题候选」；只替换占位与补候选，不阻塞访谈节奏。 */
   async function loadGenHints(
     answered: Record<string, string>,
     answeredField: string,
     answeredText: string,
     next: { fields: string[]; q: string; hint: string } | null,
-    fallbackMsgId: number
+    fallbackMsgId: number,
+    fallbackText: string
   ) {
     try {
       const res = await fetch(apiPath("/market/ip-pos/interview-hints"), {
@@ -369,12 +370,13 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
         headers: authHeaders(true),
         body: JSON.stringify({ answered, answeredField, answeredText, next })
       });
-      if (!res.ok) return;
+      if (!res.ok) { replaceMsg(fallbackMsgId, escapeHtml(fallbackText)); return; }
       const data = (await res.json()) as { digest?: string | null; candidates?: string[] };
-      if (data.digest) replaceMsg(fallbackMsgId, escapeHtml(data.digest));
+      // 生成成功 → 成型；生成失败/为空 → 落回兜底话术。两种都是「一次成型」，无中途换话。
+      replaceMsg(fallbackMsgId, escapeHtml(data.digest || fallbackText));
       if (Array.isArray(data.candidates) && data.candidates.length > 0) setGenCandidates(data.candidates);
     } catch {
-      /* 网络/后端异常：保持兜底话术与空候选 */
+      replaceMsg(fallbackMsgId, escapeHtml(fallbackText));
     }
   }
 
@@ -730,7 +732,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                   {messages.map((m) => (
                     <div key={m.id} className={`cpw-msg${m.who === "user" ? " user" : ""}`}>
                       {m.who === "ai" && <div className="cpw-m-av"><img src={avatar} alt="" /></div>}
-                      <div className="cpw-bub" dangerouslySetInnerHTML={{ __html: m.html }} />
+                      <div className={`cpw-bub${m.pending ? " is-pending" : ""}`} dangerouslySetInnerHTML={{ __html: m.html }} />
                     </div>
                   ))}
                   {optsQ != null && phase === "ask" && (
