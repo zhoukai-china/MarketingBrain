@@ -49,9 +49,9 @@ const GROUP_SOFT: Record<string, string> = { audit: "#e6f5ee", overview: "#fdeee
 
 /** 客户端体检的 10 个关键字段（原型 fields 口径）。 */
 const CHECK_FIELDS: Array<{ label: string; re: RegExp }> = [
-  { label: "作品标题", re: /作品标题|动态描述|视频名称|标题/ },
+  { label: "作品标题", re: /作品标题|动态描述|视频描述|视频名称|标题/ },
   { label: "播放量", re: /播放量|播放/ },
-  { label: "点赞量", re: /点赞/ },
+  { label: "点赞量", re: /点赞|喜欢/ }, // 视频号后台把点赞导出为「喜欢」
   { label: "评论量", re: /评论/ },
   { label: "分享量", re: /分享|转发/ },
   { label: "完播率", re: /完播率/ },
@@ -83,7 +83,8 @@ function checkDataText(fileName: string, raw: string): FileCheck {
   const header = lines[0] ?? "";
   const dataLines = lines.slice(1);
   const platform = normalizeVidrevPlatform(`${fileName} ${header.slice(0, 200)}`);
-  const hasTitleCol = /作品标题|动态描述|视频名称|标题/.test(header);
+  // 视频号后台导出的标题列叫「视频描述」，必须在其列（2026-10-01 用户实测：缺它直接判无法识别）。
+  const hasTitleCol = /作品标题|动态描述|视频描述|视频名称|标题/.test(header);
   const isDaily = /日期|投稿量|总播放/.test(header) && !hasTitleCol;
   const limited: string[] = [];
   const coverage = CHECK_FIELDS.map((f) => {
