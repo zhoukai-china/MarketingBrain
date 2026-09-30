@@ -217,6 +217,14 @@ type PrecheckIssue = { slot: string; verdict: "weak" | "missing"; followup: stri
 type Phase = "idle" | "ask" | "confirm" | "gen" | "done";
 interface ChatMsg { id: number; who: "ai" | "user"; html: string; pending?: boolean; /** 临时消息（如「已恢复对话」提示）：不落草稿——否则每次重进叠一条（2026-09-30 实测）。 */ ephemeral?: boolean }
 interface Piece { meta: PieceMeta; bodyHtml: string; plain: string }
+/** 演示开始前的一帧状态快照——退出演示时整帧还原（2026-10-01 用户：演示像放视频，退出回到原来的对话）。 */
+interface DemoSnapshot {
+  messages: ChatMsg[]; brief: Record<string, string>; qi: number; phase: Phase;
+  optsQ: number | null; confirmOpts: boolean; genCandidates: { q: number; list: string[] } | null;
+  pieces: Piece[]; answerMd: string; consumed: number | null; restored: boolean;
+  /** 演示前的本机交付物（如有，退出演示时一并铺回交付区）。 */
+  payload: IpPosPayload | null;
+}
 
 const RUN_TIMEOUT_MS = 300_000;
 const LOG_DELAY_MS = 700;
@@ -294,6 +302,8 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   const demoRef = useRef(false);
   const [demoOn, setDemoOn] = useState(false);
   const demoTickRef = useRef<number | null>(null);
+  /** 演示前的现场快照：退出演示时按这一帧还原（含对话、简报、进度、交付物）。 */
+  const demoSnapshotRef = useRef<DemoSnapshot | null>(null);
   const [qi, setQi] = useState(0);
   const [brief, setBrief] = useState<Record<string, string>>({});
   /** brief 的同步镜像：异步生成 hints 时要拿「含本题在内」的最新字段（state 闭包会过期）。 */
@@ -393,12 +403,16 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
    * 没有才从头开始访谈。restoreDraft 幂等（StrictMode 双跑不产生重复消息）。
    */
   useEffect(() => {
-    if (!restoreDraft()) {
-      // 从没来过（无草稿、无历史交付）→ 进页自动演示完整流程（模拟数据，不调接口不扣算力）。
-      // 来过的用户（有草稿或交付物）直接恢复，不打扰。
-      if (loadPayloadLocally(skuId)) resetAll(true);
-      else startDemo();
-    }
+    // 2026-10-01（用户）：**进页一律自动演示**——即使页面上已有用户的对话/简报/交付，
+    // 演示也照常从头播（相当于另开一个对话叠在上面，像放视频）；退出演示时整帧还原现场。
+    // 快照必须在演示覆盖状态**之前**抓。
+    const restored = restoreDraft();
+    const payload = loadPayloadLocally(skuId);
+    const snap: DemoSnapshot = restored ?? {
+      messages: [], brief: {}, qi: 0, phase: "idle", optsQ: null, confirmOpts: false,
+      genCandidates: null, pieces: [], answerMd: "", consumed: null, restored: false, payload
+    };
+    beginDemo(snap);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -431,9 +445,10 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
 
   /**
    * 恢复上次对话（2026-09-30 用户：输入到一半关掉页面，下次进来接着聊）。
-   * 返回是否恢复成功。幂等：同一次挂载里 StrictMode 双跑结果一致、不重复追加。
+   * 返回恢复出的**快照**（演示模式退出时按它还原现场）；无草稿返回 null。
+   * 幂等：同一次挂载里 StrictMode 双跑结果一致、不重复追加。
    */
-  function restoreDraft(): boolean {
+  function restoreDraft(): DemoSnapshot | null {
     let d: {
       phase?: string; qi?: number; optsQ?: number | null; confirmOpts?: boolean;
       brief?: Record<string, string>;
@@ -444,16 +459,17 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
       const raw = localStorage.getItem(`ippos_chat_draft_${skuId}`);
       if (raw) d = JSON.parse(raw);
     } catch { d = null; }
-    if (!d || !Array.isArray(d.messages)) return false;
+    if (!d || !Array.isArray(d.messages)) return null;
     const msgs = d.messages.filter((m): m is ChatMsg => Boolean(m) && typeof m.id === "number" && typeof m.who === "string" && !m.pending);
-    if (msgs.length === 0) return false;
+    if (msgs.length === 0) return null;
     const maxId = msgs.reduce((acc, m) => Math.max(acc, m.id), 0);
     const brief0 = d.brief ?? {};
     // 「done」不恢复成交付态（交付物另有 payload 找回），落到确认态让用户改简报重生成
     const wasGen = d.phase === "gen" || d.phase === "done";
     const qi0 = Math.min(Math.max(0, Number(d.qi) || 0), QFLOW.length - 1);
-    msgIdRef.current = maxId + 1;
-    setMessages([...msgs, { id: maxId + 1, who: "ai", html: "↩️ 已恢复上次的对话，接着答就行；右侧简报也原样保留。", ephemeral: true }]);
+    msgIdRef.current = maxId + 2;
+    const restoredMsgs: ChatMsg[] = [...msgs, { id: maxId + 1, who: "ai", html: "↩️ 已恢复上次的对话，接着答就行；右侧简报也原样保留。", ephemeral: true }];
+    setMessages(restoredMsgs);
     setBrief(brief0); briefRef.current = brief0;
     setQi(qi0);
     if (!wasGen && d.phase === "ask") {
@@ -465,7 +481,14 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     if (d.genCandidates && d.genCandidates.q === qi0 && Array.isArray(d.genCandidates.list)) {
       setGenCandidates(d.genCandidates);
     }
-    return true;
+    return {
+      messages: restoredMsgs, brief: brief0, qi: qi0, phase: wasGen ? "confirm" : ((d.phase as Phase) ?? "ask"),
+      optsQ: !wasGen && d.phase === "ask" ? Math.min(Math.max(0, Number(d.optsQ) || qi0), QFLOW.length - 1) : null,
+      confirmOpts: wasGen || d.phase !== "ask",
+      genCandidates: d.genCandidates && d.genCandidates.q === qi0 ? d.genCandidates : null,
+      pieces: [], answerMd: "", consumed: null, restored: false,
+      payload: loadPayloadLocally(skuId)
+    };
   }
 
   function setPayloadView(p: IpPosPayload | null, answer: string | null, consumed0: number | null, isRestored: boolean) {
@@ -478,7 +501,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
 
   /* ---------- 访谈流（逐字对齐原型话术） ---------- */
 
-  function resetAll(greet: boolean) {
+  function resetAll(greet: boolean, keepDraft = false) {
     timersRef.current.forEach((t) => { window.clearTimeout(t); window.clearInterval(t); });
     timersRef.current = [];
     // 退出演示（若在演示中）：后续演示定时器全部作废，恢复真实交互
@@ -490,8 +513,11 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     setLogLines([]); setLogIdx(0); setGenIdx(-1); setGenFinished(false);
     setRunSettled(false); setLogDone(false); runResultRef.current = null;
     setPieces([]); setAnswerMd(""); setConsumed(null); setRestored(false); setTab("all");
-    // 用户主动重置 = 丢弃对话草稿，下次从头开始
-    try { localStorage.removeItem(`ippos_chat_draft_${skuId}`); } catch { /* ignore */ }
+    // 用户主动重置 = 丢弃对话草稿，下次从头开始。演示开局传 keepDraft=true：
+    // 演示只是叠在上面的一层，绝不能顺手删掉用户真实的访谈进度（刷新页面就丢了）。
+    if (!keepDraft) {
+      try { localStorage.removeItem(`ippos_chat_draft_${skuId}`); } catch { /* ignore */ }
+    }
     if (greet) {
       pushMsg("ai", `你好，我是<b>沈定</b>，首席定位官 🎯<br>IP 定位我不给你拍脑袋——先用 <b>6 步访谈</b>把信息收齐：<b>一次只问一个维度</b>，你的回答会自动填进右侧「定位简报」。8 项齐了，我出 <b>速览 + 8 章全案</b>（${IP_POS_PRICE} ${IP_POS_UNIT} / 份）。赶时间点下方「AI 先铺底稿，你来逐条确认」。`);
       later(() => askQuestion(0), 600);
@@ -631,15 +657,57 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
 
   /* ---------- 演示模式：纯前端脚本走完整流程（不调接口 / 不写草稿 / 不扣算力） ---------- */
 
-  /** 停止演示 → 清掉全部演示定时器，立刻从头开始真实访谈（控制权交还用户）。 */
+  /** 抓当前这一帧（对话/简报/进度/交付物）——演示退出时按它还原。 */
+  function captureCurrent(): DemoSnapshot {
+    return {
+      messages: messages.filter((m) => !m.pending && !m.ephemeral),
+      brief: { ...briefRef.current }, qi, phase, optsQ, confirmOpts, genCandidates,
+      pieces, answerMd, consumed, restored,
+      payload: loadPayloadLocally(skuId)
+    };
+  }
+
+  /** 开播演示：先存快照，再从头播一遍完整流程（不调接口、不写草稿、不扣算力）。 */
+  function beginDemo(snap: DemoSnapshot) {
+    // 真实生成正在跑：演示会清掉它的定时器与结果展示，等这一稿交付后再看。
+    if (phase === "gen" && !demoRef.current) { setError("生成中，等这一稿交付后再看演示。"); return; }
+    demoSnapshotRef.current = snap;
+    startDemo();
+  }
+
+  /** 停止演示 → 清掉全部演示定时器，把演示前那一帧整帧还原（对话/简报/进度/交付全部回到原样）。 */
   function stopDemo() {
     if (!demoRef.current) return;
-    resetAll(true);
+    const snap = demoSnapshotRef.current;
+    demoRef.current = false; setDemoOn(false);
+    timersRef.current.forEach((t) => { window.clearTimeout(t); window.clearInterval(t); });
+    timersRef.current = [];
+    if (demoTickRef.current != null) { window.clearInterval(demoTickRef.current); demoTickRef.current = null; }
+    demoSnapshotRef.current = null;
+    runIdRef.current += 1;
+
+    if (!snap || snap.messages.length === 0) {
+      // 演示前是空会话（全新用户）→ 正常开场；有历史交付物则一并铺回交付区
+      resetAll(true);
+      if (snap?.payload) setPayloadView(snap.payload, null, null, true);
+      return;
+    }
+    const maxId = snap.messages.reduce((acc, m) => Math.max(acc, m.id), 0);
+    msgIdRef.current = maxId + 1;
+    setMessages(snap.messages);
+    setBrief(snap.brief); briefRef.current = snap.brief;
+    setQi(snap.qi); setPhase(snap.phase); setOptsQ(snap.optsQ); setConfirmOpts(snap.confirmOpts);
+    setGenCandidates(snap.genCandidates);
+    setLogLines([]); setLogIdx(0); setGenIdx(-1); setGenFinished(false);
+    setRunSettled(false); setLogDone(false); runResultRef.current = null;
+    setError(null); setReview(null); setResolved([]); setFreeInput(""); setTab("all"); setElapsed(0);
+    if (snap.payload) setPayloadView(snap.payload, null, null, true);
+    else { setPieces(snap.pieces); setAnswerMd(snap.answerMd); setConsumed(snap.consumed); setRestored(snap.restored); }
   }
 
   /** 进页自动演示：8 问访谈（候选/消化/简报点亮）→ 确认 → 生成进度 → 模拟全案交付。 */
   function startDemo() {
-    resetAll(false);
+    resetAll(false, true); // keepDraft：演示是叠上去的一层，真实访谈进度必须原样留在本地
     demoRef.current = true; setDemoOn(true);
     pushMsg("ai", `你好，我是<b>沈定</b>，首席定位官 🎯 正在为你<b>自动演示</b>一遍完整流程（模拟数据，不消耗算力）——看完点上方「停止演示」就开始你自己的访谈。`);
     let t = 1100;
@@ -1010,6 +1078,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
               <span className="cpw-url">思潼AI · IP定位工作台</span>
               <span className="cpw-st"><span className={`cpw-st-dot ${phase === "gen" ? "playing" : phase === "done" ? "done" : ""}`} /><span>{statusText}</span></span>
               <div className="cpw-ctrls">
+                <button className="cpw-sbtn" onClick={() => beginDemo(captureCurrent())}>▶ 看演示</button>
                 <button className="cpw-sbtn" onClick={() => resetAll(true)}>↻ 重置</button>
               </div>
             </div>
@@ -1022,8 +1091,10 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                 </div>
                 {demoOn && (
                   <div className="cpw-demo-bar">
-                    <span className="cpw-demo-txt">🎬 <b>演示模式</b> · 自动演示完整流程（模拟数据 · 不调接口 · 不消耗算力）</span>
-                    <button className="cpw-demo-stop" onClick={stopDemo}>⏹ 停止演示，开始我的访谈</button>
+                    <span className="cpw-demo-txt">🎬 <b>演示模式</b> · 正在自动演示完整流程（模拟数据 · 不调接口 · 不消耗算力）{demoSnapshotRef.current && demoSnapshotRef.current.messages.length > 0 ? " · 退出后回到你刚才的对话" : ""}</span>
+                    <button className="cpw-demo-stop" onClick={stopDemo}>
+                      {demoSnapshotRef.current && demoSnapshotRef.current.messages.length > 0 ? "⏹ 停止演示，回到我的对话" : "⏹ 停止演示，开始我的访谈"}
+                    </button>
                   </div>
                 )}
                 <div className="cpw-log" ref={logRef}>

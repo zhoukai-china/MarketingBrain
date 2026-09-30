@@ -104,8 +104,39 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const partB = demoDone && piecesShown && !draftAfterFull && reqs.length === 0 && realQ1AfterFull;
   console.log("[B]", partB ? "PASS" : "FAIL");
 
+  /* ---------- C：页面已有用户内容 → 仍自动演示 → 退出后原对话整帧恢复 ---------- */
+  await clearAndOpen();
+  await page.evaluate(() => { const b = document.querySelector(".cpw-demo-stop"); if (b) b.click(); });
+  await wait(1600);
+  const MARK = "标记" + String(Date.now()).slice(-6);
+  await page.type(".cpw-input input", "我的项目是" + MARK + "，先做本地");
+  await page.keyboard.press("Enter");
+  await wait(3000);
+  const savedBefore = await page.evaluate((m) => document.body.innerText.includes(m), MARK);
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await wait(2200);
+  const bannerAgain = await page.evaluate(() => Boolean(document.querySelector(".cpw-demo-bar")));
+  const stopLabel = await page.evaluate(() => (document.querySelector(".cpw-demo-stop")?.textContent || "").trim());
+  await wait(6000);
+  const draftKept = await page.evaluate((k, m) => {
+    const raw = localStorage.getItem(k);
+    return raw ? raw.includes(m) : false;
+  }, DRAFT_KEY, MARK);
+  await page.evaluate(() => { const b = document.querySelector(".cpw-demo-stop"); if (b) b.click(); });
+  await wait(1200);
+  const restored = await page.evaluate((m) => ({
+    gone: !document.querySelector(".cpw-demo-bar"),
+    hasMark: document.body.innerText.includes(m),
+    notice: document.body.innerText.includes("已恢复上次的对话")
+  }), MARK);
+  const partC = savedBefore && bannerAgain && draftKept && restored.gone && restored.hasMark && restored.notice;
+  console.log(`[C] 已有内容时仍自动演示:${bannerAgain ? "✓" : "✗"}｜按钮:"${stopLabel}"｜演示期间真实草稿未被删:${draftKept ? "✓" : "✗丢失!"}`);
+  console.log(`[C] 退出后横幅消失:${restored.gone ? "✓" : "✗"}｜原对话内容(MARK)还原:${restored.hasMark ? "✓" : "✗"}｜恢复提示出现:${restored.notice ? "✓" : "✗"}`);
+  console.log("[C]", partC ? "PASS" : "FAIL");
+
   await browser.close();
   fs.rmSync(userDataDir, { recursive: true, force: true });
-  console.log(partA && partB ? "ALL PASS" : "HAS FAIL");
-  process.exit(partA && partB ? 0 : 1);
+  console.log(partA && partB && partC ? "ALL PASS" : "HAS FAIL");
+  process.exit(partA && partB && partC ? 0 : 1);
 })();
