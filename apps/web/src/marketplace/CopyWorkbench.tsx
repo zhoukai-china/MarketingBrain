@@ -33,13 +33,22 @@ const FIELDS: Array<{ key: string; icon: string; label: string }> = [
   { key: "camera", icon: "🎬", label: "出镜方式" }
 ];
 
-interface QOpt { t: string; d: string; v: string; rec?: boolean }
-/** opts 可选：行业相关题（产品/卖点）不配写死示例——示例值会被并进简报污染交付物（见 workbench-conversation-pattern.md §2）。 */
+interface QOpt { t: string; d: string; v: string; rec?: boolean; /** example：行业示例——点击先进输入框让用户改，回车确认才进简报（不直接落库）。 */ example?: boolean }
+/** opts 可选。 */
 interface QFlow { field: string; q: string; hint: string; opts?: QOpt[] }
 
 const QFLOW: QFlow[] = [
-  { field: "product", q: "这次给什么产品 / 服务写文案？", hint: "名字 + 一句话卖点就行，也可以后面传资料让我自己读。" },
-  { field: "selling", q: "它最想让观众记住的一个卖点是什么？", hint: "不用完美，先给一个方向，我写稿时会放大。" },
+  { field: "product", q: "这次给什么产品 / 服务写文案？", hint: "名字 + 一句话卖点就行，也可以后面传资料让我自己读。",
+    opts: [
+      { t: "🐶 宠物门店洗护年卡", d: "示例：门店年卡锁客类 · 点了改成你的", v: "宠物门店洗护年卡（全年不限次）", example: true },
+      { t: "🍜 餐饮门店 / 团购", d: "示例：到店 & 团购核销类 · 点了改成你的", v: "餐饮门店团购套餐", example: true },
+      { t: "💆 美业门店服务", d: "示例：护理 / 科技美容类 · 点了改成你的", v: "美业门店护理服务", example: true }
+    ] },
+  { field: "selling", q: "它最想让观众记住的一个卖点是什么？", hint: "不用完美，先给一个方向，我写稿时会放大。",
+    opts: [
+      { t: "全年不限次，一次买断省一半", d: "示例：价格锚点 + 锁客 · 点了改成你的", v: "全年洗护不限次，一次买断，单次折算省一半", example: true },
+      { t: "持证美容师，中大型犬也敢接", d: "示例：专业与安全背书 · 点了改成你的", v: "美容师持证上岗，中大型犬也敢接", example: true }
+    ] },
   { field: "platform", q: "主要发布到哪个平台？", hint: "多平台也没关系，我会做适配。",
     opts: [
       { t: "抖音 + 视频号", d: "示例：双平台同发", v: "抖音 + 视频号", rec: true },
@@ -376,6 +385,9 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
   /** 选项点击（原型 answer()） */
   function chooseOpt(q: QFlow, o: QOpt) {
     if (phase !== "ask") return;
+    // 行业示例选项（example）：点击**先进输入框**让用户改成自己的，回车才进简报——
+    // 示例数据永不直接落库（workbench-conversation-pattern.md §1/§2）。
+    if (o.example) { setFreeInput(o.v || o.t); return; }
     applyAnswer(q.field, o.v, escapeHtml(q.field === "depth" ? o.t : (o.v || o.t)));
   }
 

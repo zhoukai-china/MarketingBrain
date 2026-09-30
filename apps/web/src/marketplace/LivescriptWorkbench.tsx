@@ -34,7 +34,7 @@ const FIELDS: Array<{ key: string; icon: string; label: string }> = [
   { key: "depth", icon: "📋", label: "交付深度" }
 ];
 
-interface QOpt { t: string; d: string; v: string; rec?: boolean }
+interface QOpt { t: string; d: string; v: string; rec?: boolean; /** example：行业示例——点击先进输入框让用户改，回车确认才进简报（不直接落库）。 */ example?: boolean }
 interface QFlow { field: string; when?: { mode: string[] }; q: string; hint: string; opts?: QOpt[] }
 
 const QFLOW: QFlow[] = [
@@ -44,7 +44,11 @@ const QFLOW: QFlow[] = [
       { t: "带货（本地生活团购）", d: "到店 & 团购核销类", v: "带货" },
       { t: "知识付费 / 课程", d: "按产品=课程处理", v: "知识付费" }
     ] },
-  { field: "brand", when: { mode: ["招商加盟"] }, q: "品牌是做什么的？有哪些看得见的硬实力？", hint: "直营数据、供应链、培训体系…没有的先写「暂无」，我不瞎编。" },
+  { field: "brand", when: { mode: ["招商加盟"] }, q: "品牌是做什么的？有哪些看得见的硬实力？", hint: "直营数据、供应链、培训体系…没有的先写「暂无」，我不瞎编。",
+    opts: [
+      { t: "📦 供应链 / 实体工厂型品牌", d: "示例：有直营与产能背书 · 点了改成你的", v: "供应链 / 实体工厂型品牌，有直营门店与产能背书", example: true },
+      { t: "🏥 连锁服务型品牌", d: "示例：美业 / 餐饮连锁 · 点了改成你的", v: "连锁服务型品牌，有成熟单店模型", example: true }
+    ] },
   { field: "audience", when: { mode: ["招商加盟"] }, q: "这场想吸引谁进直播间？", hint: "决定痛点脚本讲给谁听。",
     opts: [
       { t: "想找第二增长曲线的本地老板", d: "示例：有生意基础，想加新线", v: "想找第二增长曲线的本地老板", rec: true },
@@ -57,7 +61,11 @@ const QFLOW: QFlow[] = [
       { t: "点小风车留资", d: "", v: "小风车留资" },
       { t: "预约到司考察", d: "", v: "预约到司考察" }
     ] },
-  { field: "brand", when: { mode: ["带货", "知识付费"] }, q: "主推什么产品 / 套餐？真实价格是多少？", hint: "品名 + 真实团购价。价格机制没确认，我不会写进逼单。" },
+  { field: "brand", when: { mode: ["带货", "知识付费"] }, q: "主推什么产品 / 套餐？真实价格是多少？", hint: "品名 + 真实团购价。价格机制没确认，我不会写进逼单。",
+    opts: [
+      { t: "💆 到店核销类团单", d: "示例：美业 / 门店服务 · 点了改成你的", v: "到店核销类团单", example: true },
+      { t: "🍚 餐饮双人套餐", d: "示例：餐饮团购 · 点了改成你的", v: "餐饮双人套餐团单", example: true }
+    ] },
   { field: "audience", when: { mode: ["带货", "知识付费"] }, q: "来看直播的主要是谁？", hint: "决定痛点场景怎么讲。",
     opts: [
       { t: "门店周边 3 公里的本地客", d: "示例：到店型消费", v: "门店周边 3 公里的本地客", rec: true },
@@ -369,6 +377,9 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
 
   function chooseOpt(q: QFlow, o: QOpt) {
     if (phase !== "ask") return;
+    // 行业示例选项（example）：点击**先进输入框**让用户改成自己的，回车才进简报——
+    // 示例数据永不直接落库（workbench-conversation-pattern.md §1/§2）。
+    if (o.example) { setFreeInput(o.v); return; }
     applyAnswer(q, o.v, o.t);
   }
 
