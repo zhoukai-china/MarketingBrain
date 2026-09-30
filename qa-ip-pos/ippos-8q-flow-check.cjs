@@ -4,7 +4,11 @@ const BASE = "http://127.0.0.1:5174";
 const API = "http://127.0.0.1:3011";
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// 8 题的真实回答（第 1 题点选项，其余自由输入）
+// 每题的问题特征（页面出现它 = AI 已问出这一题）
+const Q_MARKS = [
+  "先确认一下", "先说说你的项目", "那你的钱是怎么赚的", "最较劲的竞争对手",
+  "客户长什么样", "现在说说你自己", "做 IP 你最想拿到", "最后一轮"
+];
 const FREE = [
   "火锅底料工厂，做川味牛油底料，现在有稳定代工客户",
   "卖给中小餐饮店和火锅店，按件结算，月均复购",
@@ -15,10 +19,31 @@ const FREE = [
   "抖音 3000 粉但都是同行，出镜自然 7 分，每周能投 6 小时"
 ];
 
+async function waitQuestion(p, mark, timeoutMs = 20000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeoutMs) {
+    const shown = await p.evaluate((m) => document.body.innerText.includes(m), mark);
+    if (shown) return true;
+    await wait(400);
+  }
+  return false;
+}
+
+async function typeAndSend(p, text) {
+  return p.evaluate((t) => {
+    const el = document.querySelector("input");
+    if (!el) return "no-input";
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+    setter.call(el, t);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    return "ok";
+  }, text);
+}
+
 (async () => {
   const b = await puppeteer.launch({
-    executablePath: CHROME,
-    headless: true,
+    executablePath: CHROME, headless: true,
     args: ["--no-sandbox", "--no-proxy-server", "--disable-gpu"]
   });
   const p = await b.newPage();
@@ -38,9 +63,9 @@ const FREE = [
   await p.goto(BASE + "/agents", { waitUntil: "networkidle2", timeout: 45000 });
   if (token) await p.evaluate((t) => localStorage.setItem("store_os_token", t), token);
   await p.goto(BASE + "/agent/ipzone__ip-pos/workbench", { waitUntil: "networkidle2", timeout: 45000 });
-  await wait(3000);
 
-  // 第 1 题：点角色选项
+  // 第 1 题：等问题出现 → 点角色选项
+  if (!(await waitQuestion(p, Q_MARKS[0]))) { console.log("FAIL: 第 1 题未出现"); await b.close(); process.exit(1); }
   const pick = await p.evaluate(() => {
     const hit = Array.from(document.querySelectorAll("button.cpw-opt")).find((el) => /本地单店老板/.test(el.textContent || ""));
     if (!hit) return "not-found";
@@ -48,53 +73,32 @@ const FREE = [
     return "clicked";
   });
   console.log("第 1 题点「本地单店老板」:", pick);
-  await wait(1800);
 
-  // 第 2~8 题：自由输入 + 回车
-  let genCandidatesSeen = false;
-  for (let i = 0; i < FREE.length; i++) {
-    const typed = await p.evaluate((text) => {
-      const el = document.querySelector("input");
-      if (!el) return "no-input";
-      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-      setter.call(el, text);
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-      el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      return "ok";
-    }, FREE[i]);
-    if (typed !== "ok") { console.log("第 " + (i + 2) + " 题输入失败:", typed); break; }
-    // 第 2 题答完（进入第 3 题）后，等模型生成回来——第 3 题没有预设选项，
-    // 此时出现的 .cpw-opt 按钮必然是模型生成的候选 ✓
-    if (i === 0) {
-      await wait(5000);
-      genCandidatesSeen = await p.evaluate(() => document.querySelectorAll("button.cpw-opt").length > 0);
-      console.log("模型生成的候选出现在界面上:", genCandidatesSeen);
-    }
-    await wait(1800);
+  // 第 2~8 题：等问题出现 → 输入回车
+  let allTyped = true;
+  for (let i = 1; i < Q_MARKS.length; i++) {
+    if (!(await waitQuestion(p, Q_MARKS[i]))) { console.log(`第 ${i + 1} 题问题未出现`); allTyped = false; break; }
+    const r = await typeAndSend(p, FREE[i - 1]);
+    if (r !== "ok") { console.log(`第 ${i + 1} 题输入失败:`, r); allTyped = false; break; }
   }
 
-  await wait(2000);
+  // 等最后一题的消化成型 + 进入确认态
+  await wait(6000);
   const info = await p.evaluate(() => {
     const body = document.body.innerText;
-    const pending = (body.match(/待填/g) || []).length;
     return {
       reachedConfirm: /确认，开始生成|开始生成/.test(body),
-      stillAsking: /先说说你的项目吧|最后一轮/.test(body),
-      pendingCount: pending,
-      // 所有「正在消化」占位都应已被模型结果（或兜底）替换——不留挂着永远转圈的
-      thinkingLeft: document.querySelectorAll(".cpw-bub .cpw-thinking").length,
-      tail: body.slice(-260).replace(/\s+/g, " ")
+      pendingCount: (body.match(/待填/g) || []).length,
+      thinkingLeft: document.querySelectorAll(".cpw-bub .cpw-thinking").length
     };
   });
-
+  console.log("全部作答:", allTyped);
   console.log("进入确认态:", info.reachedConfirm);
-  console.log("还停在提问中:", info.stillAsking);
   console.log("简报里「待填」个数:", info.pendingCount);
   console.log("残留「思考中」占位:", info.thinkingLeft);
-  console.log("页面尾部片段:", info.tail);
 
-  const ok = pick === "clicked" && info.reachedConfirm && info.pendingCount === 0 && info.thinkingLeft === 0;
-  console.log(ok ? "\nPASS: 8 问走完，简报 8 项已填满，占位全部成型" : "\nFAIL");
+  const ok = pick === "clicked" && allTyped && info.reachedConfirm && info.pendingCount === 0 && info.thinkingLeft === 0;
+  console.log(ok ? "\nPASS: 8 问按对话节奏走完，简报 8 项填满" : "\nFAIL");
   await b.close();
   process.exit(ok ? 0 : 1);
 })().catch((e) => { console.error(e); process.exit(1); });

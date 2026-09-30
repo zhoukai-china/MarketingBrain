@@ -213,6 +213,10 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   const [brief, setBrief] = useState<Record<string, string>>({});
   /** brief 的同步镜像：异步生成 hints 时要拿「含本题在内」的最新字段（state 闭包会过期）。 */
   const briefRef = useRef<Record<string, string>>({});
+  /** 会话轮次：跳过/重置时 +1，让飞行中的生成回调知道自己已过期、放弃推进。 */
+  const runIdRef = useRef(0);
+  /** 生成进行中：期间自由输入先不接（AI 还没消化完上一句、也没问出下一句，答了会对不上题）。 */
+  const digestingRef = useRef(false);
   /** 模型实时生成的下一题候选：点了先放进输入框，用户改完确认才进简报（模型不直接落库）。 */
   const [genCandidates, setGenCandidates] = useState<string[]>([]);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
@@ -318,7 +322,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   function resetAll(greet: boolean) {
     timersRef.current.forEach((t) => { window.clearTimeout(t); window.clearInterval(t); });
     timersRef.current = [];
-    setPhase("idle"); setQi(0); setBrief({}); briefRef.current = {}; setGenCandidates([]);
+    setPhase("idle"); setQi(0); setBrief({}); briefRef.current = {}; setGenCandidates([]); runIdRef.current += 1;
     setMessages([]); setOptsQ(null); setConfirmOpts(false); setFreeInput("");
     setError(null); setReview(null); setResolved([]);
     setLogLines([]); setLogIdx(0); setGenIdx(-1); setGenFinished(false);
@@ -343,41 +347,61 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     briefRef.current = merged;
     setBrief(merged);
     flash(q.fields);
-    // 先放「正在消化」动画占位：不显示一句话再突然换成另一句；模型回来一次成型，
-    // 失败才落回兜底话术。下一题照常推进，不被生成阻塞。
+    // 先放「正在消化」动画占位；**等消化成型后再问下一题**——对话原则：上一句没说完，不冒下一句。
+    // 模型超时（9s）→ 落兜底话术并推进，不让用户对着三个点干等。
     const fallbackId = pushMsg("ai", '<span class="cpw-thinking"><i></i><i></i><i></i></span>', true);
     setGenCandidates([]);
     const nqi = qi + 1;
     setQi(nqi);
-    if (nqi < QFLOW.length) later(() => askQuestion(nqi), 800);
-    else later(enterConfirm, 500);
     const next = nqi < QFLOW.length ? { fields: QFLOW[nqi].fields, q: QFLOW[nqi].q, hint: QFLOW[nqi].hint } : null;
-    void loadGenHints(merged, q.fields[0] ?? "", displayText, next, fallbackId, digest);
+    const runId = runIdRef.current;
+    digestingRef.current = true;
+    void loadGenHints(merged, q.fields[0] ?? "", displayText, next, fallbackId, digest, nqi, runId);
   }
 
-  /** 调后端生成「贴合承接 + 下一题候选」；只替换占位与补候选，不阻塞访谈节奏。 */
+  /**
+   * 调后端生成「贴合承接 + 下一题候选」。
+   * 生成完成（成功或失败）后**才推进下一题**；用户中途跳过/重置（runId 变化）则放弃推进。
+   */
   async function loadGenHints(
     answered: Record<string, string>,
     answeredField: string,
     answeredText: string,
     next: { fields: string[]; q: string; hint: string } | null,
     fallbackMsgId: number,
-    fallbackText: string
+    fallbackText: string,
+    nqi: number,
+    runId: number
   ) {
     try {
       const res = await fetch(apiPath("/market/ip-pos/interview-hints"), {
         method: "POST",
         headers: authHeaders(true),
-        body: JSON.stringify({ answered, answeredField, answeredText, next })
+        body: JSON.stringify({ answered, answeredField, answeredText, next }),
+        // 9 秒拿不到就放弃：落兜底话术照常推进，不让用户对着三个点干等。
+        signal: AbortSignal.timeout(9000)
       });
-      if (!res.ok) { replaceMsg(fallbackMsgId, escapeHtml(fallbackText)); return; }
+      if (!res.ok) { replaceMsg(fallbackMsgId, escapeHtml(fallbackText)); advanceAfterDigest(nqi, runId); return; }
       const data = (await res.json()) as { digest?: string | null; candidates?: string[] };
       // 生成成功 → 成型；生成失败/为空 → 落回兜底话术。两种都是「一次成型」，无中途换话。
       replaceMsg(fallbackMsgId, escapeHtml(data.digest || fallbackText));
       if (Array.isArray(data.candidates) && data.candidates.length > 0) setGenCandidates(data.candidates);
+      advanceAfterDigest(nqi, runId);
     } catch {
       replaceMsg(fallbackMsgId, escapeHtml(fallbackText));
+      advanceAfterDigest(nqi, runId);
     }
+  }
+
+  /** 消化成型后停顿片刻再问下一题；期间用户跳过/重置（runId 变了）则放弃推进。 */
+  function advanceAfterDigest(nqi: number, runId: number) {
+    digestingRef.current = false;
+    if (runIdRef.current !== runId) return;
+    later(() => {
+      if (runIdRef.current !== runId) return;
+      if (nqi < QFLOW.length) askQuestion(nqi);
+      else enterConfirm();
+    }, 600);
   }
 
   function chooseOpt(q: QFlow, o: QOpt) {
@@ -390,6 +414,8 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   function freeSend() {
     const v = freeInput.trim();
     if (!v) return;
+    // 上一句还在消化（模型生成中）：AI 还没问出下一题，这时候答进去会对不上题，先不接。
+    if (digestingRef.current) return;
     setFreeInput("");
     if (phase === "ask") {
       const q = QFLOW[qi];
@@ -421,6 +447,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     timersRef.current = [];
     setMessages([]); setOptsQ(null); setConfirmOpts(false);
     setBrief({}); briefRef.current = {}; setGenCandidates([]);
+    runIdRef.current += 1;
     setQi(QFLOW.length);
     setPhase("confirm"); setConfirmOpts(true);
     pushMsg("ai", "好，老手通道 🚀 按同类项目先铺了 <b>8 项预填底稿</b>（右侧可逐条点击修改）。确认没问题就点 <b>「✓ 确认，开始生成」</b>。");
