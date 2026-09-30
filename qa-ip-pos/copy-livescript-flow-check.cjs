@@ -45,6 +45,8 @@ async function typeAndSend(p, text) {
   let token = null;
   try { const j = JSON.parse(lr.text); token = j.token || j.data?.token; } catch { /* ignore */ }
   console.log("dev-login:", lr.status, token ? "OK" : "NO TOKEN");
+  // 演示模式会先自动播：先停止演示再走真实流程
+  await p.evaluate(() => { const b = document.querySelector(".cpw-demo-stop"); if (b) b.click(); });
 
   await p.goto(BASE + "/agents", { waitUntil: "networkidle2", timeout: 45000 });
   if (token) await p.evaluate((t) => localStorage.setItem("store_os_token", t), token);
@@ -52,6 +54,9 @@ async function typeAndSend(p, text) {
   // ========== A. CopyWorkbench ==========
   await p.evaluate(() => localStorage.removeItem("copy_chat_draft_ipzone__copy"));
   await p.goto(BASE + "/agent/ipzone__copy/workbench", { waitUntil: "networkidle2", timeout: 45000 });
+  await wait(1400); // 进页会先播演示：先停止演示，再走真实流程
+  await p.evaluate(() => { const b = document.querySelector(".cpw-demo-stop"); if (b) b.click(); });
+  await wait(900);
   const a1 = await waitText(p, "这次给什么产品 / 服务写文案");
   console.log("[copy] 第 1 题出现:", a1, "｜第 1 题已无写死示例选项:", !(await p.evaluate(() => /宠物门店洗护年卡/.test(document.body.innerText))));
   await typeAndSend(p, "火锅底料工厂的团购套餐，川味牛油底料");
@@ -68,6 +73,9 @@ async function typeAndSend(p, text) {
   console.log("[copy] 第 3 题正常问出: true");
   await p.reload({ waitUntil: "networkidle2", timeout: 45000 });
   await wait(1500);
+  // 刷新后仍会先播演示（新行为）：停止演示才看得到被还原的真实对话
+  await p.evaluate(() => { const b = document.querySelector(".cpw-demo-stop"); if (b) b.click(); });
+  await wait(900);
   const ra = await p.evaluate(() => {
     const body = document.body.innerText;
     return {
@@ -83,6 +91,9 @@ async function typeAndSend(p, text) {
   // ========== B. LivescriptWorkbench ==========
   await p.evaluate(() => localStorage.removeItem("livescript_chat_draft_ipzone__livescript"));
   await p.goto(BASE + "/agent/ipzone__livescript/workbench", { waitUntil: "networkidle2", timeout: 45000 });
+  await wait(1400); // 进页会先播演示：先停止演示，再走真实流程
+  await p.evaluate(() => { const b = document.querySelector(".cpw-demo-stop"); if (b) b.click(); });
+  await wait(900);
   const b1 = await waitText(p, "这场直播是哪一种");
   console.log("[live] 第 1 题出现:", b1);
   await p.evaluate(() => {
@@ -97,6 +108,9 @@ async function typeAndSend(p, text) {
   console.log("[live] 第 3 题正常问出: true");
   await p.reload({ waitUntil: "networkidle2", timeout: 45000 });
   await wait(1500);
+  // 刷新后仍会先播演示（新行为）：停止演示才看得到被还原的真实对话
+  await p.evaluate(() => { const b = document.querySelector(".cpw-demo-stop"); if (b) b.click(); });
+  await wait(900);
   const rb = await p.evaluate(() => {
     const body = document.body.innerText;
     return {

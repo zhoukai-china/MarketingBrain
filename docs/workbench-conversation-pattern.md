@@ -138,6 +138,8 @@ interface QFlow { fields: string[]; q: string; hint: string; digest: string; opt
 - **铁律：演示零副作用**——①不调任何业务接口（interview-hints / precheck / run 全不碰，纯前端脚本 + 预置数据）；②**绝不写真实草稿**（保存 effect 判 `demoOn` 直接 return，否则演示消息会污染用户的访谈进度）；③不消耗算力；④交付物用预置 mock payload，明示「模拟数据」。
 - **实现骨架**：`demoRef`（定时器回调读的真源）+ `demoOn`（横幅渲染）；脚本用 `later()` 挂进 `timersRef`——**停止 = 清 timers + resetAll(true)**，与防卡死保险共用同一套清理机制。每个定时器回调开头判 `demoRef.current`，过期即弃。
 - **演示中的交互守卫**：chooseOpt/freeSend/editField/startGen 都要挡（演示的候选/按钮是脚本摆设，点了会与脚本时间线打架）——但**必须给明确 error 提示**（「演示模式中，点停止演示即可接管」），不许无声 return（按钮反馈铁律同样适用于演示）。
+- **关键动作要有「被点下去」的实感**：确认态的「开始创作/生成」按钮若只一闪就进生成，用户会以为「按钮和生成阶段都没走」。演示在按钮出现后插一条 `▶ 点了「✨ 开始创作」` 的用户气泡再进生成——把动作演出来，而不是靠用户脑补（2026-10-01 实测反馈）。
 - **停止按钮要醒目**：聊天面板顶部常驻横幅（演示状态说明 + 橙色主按钮），停止后立刻回到原状态——接管是瞬间且可见的。按钮文案按快照是否为空变化：「回到我的对话」/「开始我的访谈」，横幅补一句「退出后回到你刚才的对话」降低焦虑。
+- **共享实现**：`marketplace/workbench-demo.tsx` 提供 `DemoBar` / `scheduleInterviewDemo` / `scheduleDemoLog`；各工作台只提供 `DemoStep[]`（数据在 `*-demo-data.ts`）和一组适配器（ask / showCandidates / fillBrief / pushUser / pushThinking / replaceMsg）。IP定位、文案、直播三个工作台共用同一套。
 - **随时可重播**：顶栏加「▶ 看演示」入口 = `beginDemo(captureCurrent())`（现场抓帧 → 播 → 退出还原）。真实生成进行中（phase==="gen"）禁止开播并给提示，否则演示会清掉在途生成的定时器与结果展示。
 - **验收要点**：①演示推进期间草稿 key 始终不存在；②监听 request 断言零业务接口调用；③交付态的断言选**交付卡类名**（`.cpw-pc`），别拿生成占位格（`.cpw-ph`，交付后会被替换掉）。

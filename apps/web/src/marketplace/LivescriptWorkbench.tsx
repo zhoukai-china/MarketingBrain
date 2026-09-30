@@ -18,6 +18,8 @@ import { apiPath, getAppPath, getAppRoutePath } from "../lib/api.js";
 import { useScrollLock } from "../lib/use-scroll-lock.js";
 import { authHeaders, handleStaleSession, readJson } from "./shell.js";
 import { IconAuto, IconLead } from "./IconGlyph.js";
+import { DemoBar, scheduleInterviewDemo, scheduleDemoLog } from "./workbench-demo.js";
+import { LIVE_DEMO_STEPS, LIVE_DEMO_ANSWER_MD } from "./livescript-demo-data.js";
 import { MallTopbar } from "./MallTopbar.js";
 import { renderMarkdownHtml } from "./AgentChatPage.js";
 import { employeeAvatarPath } from "./eco-mall-data.js";
@@ -111,6 +113,12 @@ const LIGHT_PIECE = { no: "✦", g: "script", gt: "脚本区", icon: "📄", tit
 
 type Phase = "idle" | "ask" | "confirm" | "gen" | "done";
 interface ChatMsg { id: number; who: "ai" | "user"; html: string; pending?: boolean; /** 临时消息（如「已恢复对话」提示）：不落草稿——否则每次重进叠一条。 */ ephemeral?: boolean }
+/** 演示前的现场快照（退出演示时整帧还原）。 */
+interface DemoSnapshot {
+  messages: ChatMsg[]; brief: Record<string, string>; optsQ: number | null; phase: Phase;
+  confirmOpts: boolean; genCandidates: { q: number; list: string[] } | null;
+  answerMd: string; consumed: number | null;
+}
 
 const RUN_TIMEOUT_MS = 900_000; // livescript 串行 9 段+附属件，常 5-10 分钟
 const LOG_DELAY_MS = 650;
@@ -124,6 +132,11 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
   const avatar = employeeAvatarPath(skuId) ?? sitongAvatar;
 
   const [phase, setPhase] = useState<Phase>("idle");
+  /** 演示模式（进页自动播一遍，可随时停止并还原原对话）。 */
+  const demoRef = useRef(false);
+  const [demoOn, setDemoOn] = useState(false);
+  const demoTickRef = useRef<number | null>(null);
+  const demoSnapshotRef = useRef<DemoSnapshot | null>(null);
   const [brief, setBrief] = useState<Record<string, string>>({});
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [optsQ, setOptsQ] = useState<number | null>(null); // 当前待答题在 qList 中的下标
@@ -214,7 +227,12 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
    * 没有才从头开始问候。restoreDraft 幂等（StrictMode 双跑不产生重复消息）。
    */
   useEffect(() => {
-    if (!restoreDraft()) resetAll(true);
+    // 进页一律自动演示（演示 = 另开一层叠在上面，退出时整帧还原）。快照必须在覆盖状态前抓。
+    const restored = restoreDraft();
+    beginDemo(restored ?? {
+      messages: [], brief: {}, optsQ: null, phase: "idle", confirmOpts: false,
+      genCandidates: null, answerMd: "", consumed: null
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -224,6 +242,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
   /** 访谈进行中实时落草稿；生成中不落（正式结果另有交付区找回）。 */
   useEffect(() => {
     if (phase === "gen") return;
+    if (demoOn) return; // 演示对话绝不写进真实草稿
     // 空对话不落盘：StrictMode 双跑时挂载初期的空 state 会先于恢复生效，
     // 若此时覆盖写，会把刚读到的真草稿清成空、导致下一次启动恢复失败（ip-pos 实测踩中）。
     if (messages.length === 0) return;
@@ -239,7 +258,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
   }, [DRAFT_KEY, phase, optsQ, messages, genCandidates]);
 
   /** 恢复上次对话；返回是否成功。幂等：setMessages 整组替换，StrictMode 双跑结果一致。 */
-  function restoreDraft(): boolean {
+  function restoreDraft(): DemoSnapshot | null {
     let d: {
       phase?: string; optsQ?: number | null;
       brief?: Record<string, string>;
@@ -250,9 +269,9 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
       const raw = localStorage.getItem(`livescript_chat_draft_${skuId}`);
       if (raw) d = JSON.parse(raw);
     } catch { d = null; }
-    if (!d || !Array.isArray(d.messages)) return false;
+    if (!d || !Array.isArray(d.messages)) return null;
     const msgs = d.messages.filter((m): m is ChatMsg => Boolean(m) && typeof m.id === "number" && typeof m.who === "string" && !m.pending && !m.ephemeral);
-    if (msgs.length === 0) return false;
+    if (msgs.length === 0) return null;
     const maxId = msgs.reduce((acc, m) => Math.max(acc, m.id), 0);
     const brief0 = d.brief ?? {};
     // gen/done 不恢复（生成中的活没法续、交付物另有找回），落到确认态让用户改简报重生成
@@ -265,7 +284,8 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
     const lastIdx = Math.max(0, qListRef.current.length - 1);
     const optsQ0 = Math.min(Math.max(0, Number(d.optsQ) || 0), lastIdx);
     msgIdRef.current = maxId + 1;
-    setMessages([...msgs, { id: maxId + 1, who: "ai", html: "↩️ 已恢复上次的对话，接着答就行；右侧简报也原样保留。", ephemeral: true }]);
+    const restoredMsgs: ChatMsg[] = [...msgs, { id: maxId + 1, who: "ai", html: "↩️ 已恢复上次的对话，接着答就行；右侧简报也原样保留。", ephemeral: true }];
+    setMessages(restoredMsgs);
     setBrief(brief0); briefRef.current = brief0;
     if (!wasEnd && d.phase === "ask") {
       setPhase("ask"); setOptsQ(optsQ0);
@@ -275,17 +295,27 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
     if (d.genCandidates && d.genCandidates.q === optsQ0 && Array.isArray(d.genCandidates.list)) {
       setGenCandidates(d.genCandidates);
     }
-    return true;
+    return {
+      messages: restoredMsgs, brief: brief0, optsQ: !wasEnd && d.phase === "ask" ? optsQ0 : null,
+      phase: wasEnd ? "confirm" : ((d.phase as Phase) ?? "ask"),
+      confirmOpts: wasEnd || d.phase !== "ask",
+      genCandidates: d.genCandidates && d.genCandidates.q === optsQ0 ? d.genCandidates : null,
+      answerMd: "", consumed: null
+    };
   }
 
-  function resetAll(greet: boolean) {
+  function resetAll(greet: boolean, keepDraft = false) {
     timersRef.current.forEach((t) => { window.clearTimeout(t); window.clearInterval(t); });
     timersRef.current = [];
+    demoRef.current = false; setDemoOn(false);
+    if (demoTickRef.current != null) { window.clearInterval(demoTickRef.current); demoTickRef.current = null; }
     setPhase("idle"); setBrief({}); briefRef.current = {};
     setMessages([]); setOptsQ(null); setConfirmOpts(false); setFreeInput("");
     setGenCandidates(null); runIdRef.current += 1; digestingRef.current = false;
-    // 用户主动重置 = 丢弃对话草稿，下次从头开始
-    try { localStorage.removeItem(`livescript_chat_draft_${skuId}`); } catch { /* ignore */ }
+    // 用户主动重置 = 丢弃对话草稿；演示开局传 keepDraft=true（演示不得删用户真实进度）
+    if (!keepDraft) {
+      try { localStorage.removeItem(`livescript_chat_draft_${skuId}`); } catch { /* ignore */ }
+    }
     setError(null); setLogLines([]); setLogIdx(0); setGenIdx(-1);
     setRunSettled(false); setLogDone(false); runResultRef.current = null;
     setAnswerMd(""); setConsumed(null);
@@ -380,11 +410,106 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
   }
 
   function chooseOpt(q: QFlow, o: QOpt) {
+    if (demoRef.current) { setError("演示中，脚本会自己走——点上方「停止演示」即可接管。"); return; }
     if (phase !== "ask") return;
     // 行业示例选项（example）：点击**先进输入框**让用户改成自己的，回车才进简报——
     // 示例数据永不直接落库（workbench-conversation-pattern.md §1/§2）。
     if (o.example) { setFreeInput(o.v); return; }
     applyAnswer(q, o.v, o.t);
+  }
+
+  /* ---------- 演示模式：纯前端脚本走完整流程（不调接口 / 不写草稿 / 不扣算力） ---------- */
+
+  function captureCurrent(): DemoSnapshot {
+    return {
+      messages: messages.filter((m) => !m.pending && !m.ephemeral),
+      brief: { ...briefRef.current }, optsQ, phase, confirmOpts, genCandidates, answerMd, consumed
+    };
+  }
+
+  function beginDemo(snap: DemoSnapshot) {
+    if (phase === "gen" && !demoRef.current) { setError("生成中，等这一稿交付后再看演示。"); return; }
+    demoSnapshotRef.current = snap;
+    startDemo();
+  }
+
+  function startDemo() {
+    resetAll(false, true); // keepDraft：演示不得删用户真实进度
+    demoRef.current = true; setDemoOn(true);
+    pushMsg("ai", "你好，我是<b>罗盘</b> 🎬 先<b>演示一遍</b>这套开播访谈怎么用——看完点上方「停止演示」，就能按你自己的场次开始。");
+    const t = scheduleInterviewDemo(LIVE_DEMO_STEPS, {
+      later, isActive: () => demoRef.current,
+      ask: (i) => askQuestion(i),
+      showCandidates: (i, list) => setGenCandidates({ q: i, list }),
+      hideCandidates: () => setGenCandidates(null),
+      fillBrief: (_i, step) => {
+        const merged = { ...briefRef.current, ...step.values };
+        briefRef.current = merged; setBrief(merged);
+        if (step.values.mode) qListRef.current = QFLOW.filter((x) => !x.when || x.when.mode.includes(step.values.mode));
+        if (step.values.depth) depthRef.current = step.values.depth === "light" ? "light" : "full";
+        flash(Object.keys(step.values));
+      },
+      pushUser: (_i, step) => pushMsg("user", escapeHtml(step.display)),
+      pushThinking: () => pushMsg("ai", '<span class="cpw-thinking"><i></i><i></i><i></i></span>', true),
+      replaceMsg: (id, html) => replaceMsg(id, html)
+    });
+    later(() => {
+      if (!demoRef.current) return;
+      setPhase("confirm"); setConfirmOpts(true);
+      pushMsg("ai", "6 项齐了 ✅ 右侧开播简报就是刚才演示填的。下方的 <b>「✨ 生成脚本包」</b> 就是这一步——演示替你点一下：");
+    }, t + 600);
+    later(() => { if (demoRef.current) pushMsg("user", "▶ 点了「✨ 生成脚本包」"); }, t + 2600);
+    later(() => { if (demoRef.current) runDemoGen(); }, t + 4200);
+  }
+
+  function runDemoGen() {
+    setPhase("gen"); setElapsed(0); setLogIdx(0); setGenIdx(-1);
+    setRunSettled(false); setLogDone(false); setAnswerMd("");
+    const list = depthRef.current === "light" ? [] : activePieces(briefRef.current.mode);
+    const ordered = ["→ 读取开播简报与场次类型 …", "→ 加载直播脚本引擎", ...list.map((p) => `✓ ${p.no} ${p.title}`)];
+    setLogLines([...ordered, "✓ 交付完成，已写入交付区"]);
+    scheduleDemoLog(
+      ordered,
+      { later, isActive: () => demoRef.current },
+      (_line, idx) => {
+        setLogIdx(idx);
+        const ln = ordered[idx - 1] ?? "";
+        if (ln.startsWith("✓")) setGenIdx((g) => g + 1);
+      },
+      () => finishDemoGen()
+    );
+    demoTickRef.current = window.setInterval(() => setElapsed((e) => e + 1), 1000);
+  }
+
+  function finishDemoGen() {
+    if (demoTickRef.current != null) { window.clearInterval(demoTickRef.current); demoTickRef.current = null; }
+    setLogDone(true); setLogIdx((i) => Math.max(i, logLines.length));
+    setAnswerMd(LIVE_DEMO_ANSWER_MD);
+    setConsumed(0); setPhase("done");
+    pushMsg("ai", "演示完成 ✅ 右侧就是这套流程能交付的<b>整场脚本包</b>（用的是示例案例，演示不消耗算力）。点上方 <b>「停止演示」</b>，就能按你自己的场次开始。");
+  }
+
+  /** 停止演示 → 清定时器 + 整帧还原演示前的现场（含按 mode 重建分流队列）。 */
+  function stopDemo() {
+    if (!demoRef.current) return;
+    const snap = demoSnapshotRef.current;
+    demoRef.current = false; setDemoOn(false);
+    timersRef.current.forEach((t) => { window.clearTimeout(t); window.clearInterval(t); });
+    timersRef.current = [];
+    if (demoTickRef.current != null) { window.clearInterval(demoTickRef.current); demoTickRef.current = null; }
+    demoSnapshotRef.current = null;
+    runIdRef.current += 1;
+    if (!snap || snap.messages.length === 0) { resetAll(true); return; }
+    const maxId = snap.messages.reduce((acc, m) => Math.max(acc, m.id), 0);
+    msgIdRef.current = maxId + 1;
+    setMessages(snap.messages); setBrief(snap.brief); briefRef.current = snap.brief;
+    qListRef.current = snap.brief.mode ? QFLOW.filter((x) => !x.when || x.when.mode.includes(snap.brief.mode!)) : [QFLOW[0]];
+    depthRef.current = snap.brief.depth === "light" ? "light" : "full";
+    setOptsQ(snap.optsQ); setPhase(snap.phase); setConfirmOpts(snap.confirmOpts);
+    setGenCandidates(snap.genCandidates); setAnswerMd(snap.answerMd); setConsumed(snap.consumed);
+    setLogLines([]); setLogIdx(0); setGenIdx(-1);
+    setRunSettled(false); setLogDone(false); runResultRef.current = null;
+    setError(null); setFreeInput(""); setElapsed(0);
   }
 
   function enterConfirm() {
@@ -400,6 +525,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
   function freeSend() {
     const v = freeInput.trim();
     if (!v) return;
+    if (demoRef.current) { setError("演示中，脚本会自己走——点上方「停止演示」即可接管。"); return; }
     if (digestingRef.current) return; // 消化中：AI 还没问下一题，答了会对不上题
     setFreeInput("");
     if (phase === "ask" && optsQ != null) {
@@ -417,6 +543,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
 
   /** 老手通道：跳过引导直接进确认态，字段留空由用户自己填——宁可不填，也不填错的。 */
   function skipGuide() {
+    if (demoRef.current) { setError("演示中，脚本会自己走——点上方「停止演示」即可接管。"); return; }
     if (phase === "gen" || phase === "done") return;
     timersRef.current.forEach((t) => { window.clearTimeout(t); window.clearInterval(t); });
     timersRef.current = [];
@@ -445,6 +572,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
   }
 
   async function startGen() {
+    if (demoRef.current) { setError("演示中不真实生成——点上方「停止演示」结束演示后再生成（那时才消耗算力）。"); return; }
     if (phase !== "confirm") return;
     if (FIELDS.filter((f) => (briefRef.current[f.key] ?? "").trim()).length < FIELDS.length) {
       setError(`开播简报还有 ${FIELDS.length - FIELDS.filter((f) => (briefRef.current[f.key] ?? "").trim()).length} 项没填，点简报字段补全后再生成。`);
@@ -551,6 +679,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
   /* ---------- 简报编辑 ---------- */
 
   function editField(key: string) {
+    if (demoRef.current) { setError("演示中，简报是演示内容——点上方「停止演示」后可编辑。"); return; }
     if (phase === "gen") return;
     setDraft(brief[key] ?? "");
     setEditing(key);
@@ -661,6 +790,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
               <span className="cpw-url">思潼AI · 直播话术工作台</span>
               <span className="cpw-st"><span className={`cpw-st-dot ${phase === "gen" ? "playing" : phase === "done" ? "done" : ""}`} /><span>{statusText}</span></span>
               <div className="cpw-ctrls">
+                <button className="cpw-sbtn" onClick={() => beginDemo(captureCurrent())}>▶ 看演示</button>
                 <button className="cpw-sbtn" onClick={() => resetAll(true)}>↻ 重置</button>
               </div>
             </div>
@@ -671,6 +801,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
                   <div className="cpw-av"><img src={avatar} alt="罗盘" /></div>
                   <div><b>罗盘 · 开播引导</b><span>一次只问一个问题 · 回答自动填入右侧简报</span></div>
                 </div>
+                {demoOn && <DemoBar onStop={stopDemo} hasPrior={Boolean(demoSnapshotRef.current && demoSnapshotRef.current.messages.length > 0)} />}
                 <div className="cpw-log" ref={logRef}>
                   {messages.map((m) => (
                     <div key={m.id} className={`cpw-msg${m.who === "user" ? " user" : ""}`}>

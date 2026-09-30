@@ -580,3 +580,5 @@
   background: var(--orange, #E8651A); color: #fff; border: none; border-radius: 8px; cursor: pointer;
 }
 .cpw-demo-stop:hover { filter: brightness(1.08); }
+
+.cpw-demo-free { color: #a8d5b8; font-size: 11.5px; margin-left: 2px; }

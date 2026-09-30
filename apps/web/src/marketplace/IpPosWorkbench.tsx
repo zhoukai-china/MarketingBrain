@@ -709,7 +709,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   function startDemo() {
     resetAll(false, true); // keepDraft：演示是叠上去的一层，真实访谈进度必须原样留在本地
     demoRef.current = true; setDemoOn(true);
-    pushMsg("ai", `你好，我是<b>沈定</b>，首席定位官 🎯 正在为你<b>自动演示</b>一遍完整流程（模拟数据，不消耗算力）——看完点上方「停止演示」就开始你自己的访谈。`);
+    pushMsg("ai", `你好，我是<b>沈定</b>，首席定位官 🎯 先<b>演示一遍</b>这套访谈怎么用——看完点上方「停止演示」，就能按你自己的情况开始。`);
     let t = 1100;
     for (let i = 0; i < QFLOW.length; i++) {
       const q = QFLOW[i];
@@ -733,8 +733,9 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     later(() => {
       if (!demoRef.current) return;
       setOptsQ(null); setPhase("confirm");
-      pushMsg("ai", `8 项信息齐了 ✅ 右侧简报就是刚才的演示回答——演示继续：下面走一遍<b>生成进度与交付</b>（模拟数据）。`);
-    }, t); t += 2800;
+      pushMsg("ai", `8 项信息齐了 ✅ 右侧简报就是刚才的演示回答。下方的 <b>「✓ 确认，开始生成」</b> 就是这一步——演示替你点一下：`);
+    }, t); t += 1800;
+    later(() => { if (demoRef.current) pushMsg("user", "▶ 点了「✓ 确认，开始生成」"); }, t); t += 1800;
     later(() => { if (demoRef.current) runDemoGen(); }, t);
   }
 
@@ -775,7 +776,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     setPieces(buildPieces(payload, ""));
     setConsumed(0); setRestored(false);
     setPhase("done");
-    pushMsg("ai", `演示完成 ✅ 右侧「速览 + 8 章全案」全部是<b>模拟数据</b>（黔味坊示例）——真实生成会按<b>你的</b>简报出内容。点右上角 <b>「↻ 重置」</b>或上方 <b>「停止演示」</b>，开始你自己的访谈。`);
+    pushMsg("ai", `演示完成 ✅ 右侧就是这套流程能交付的<b>速览 + 8 章全案</b>（用的是示例案例）。点上方 <b>「停止演示」</b>，就能按你自己的情况开始——到时候出来的内容全按你的回答来。`);
   }
 
   /* ---------- 生成（体检 → /run，后端与原对话页同源） ---------- */
@@ -1091,7 +1092,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                 </div>
                 {demoOn && (
                   <div className="cpw-demo-bar">
-                    <span className="cpw-demo-txt">🎬 <b>演示模式</b> · 正在自动演示完整流程（模拟数据 · 不调接口 · 不消耗算力）{demoSnapshotRef.current && demoSnapshotRef.current.messages.length > 0 ? " · 退出后回到你刚才的对话" : ""}</span>
+                    <span className="cpw-demo-txt">🎬 <b>演示中</b> · 正在带你走一遍完整流程<span className="cpw-demo-free">（本演示不消耗算力）</span>{demoSnapshotRef.current && demoSnapshotRef.current.messages.length > 0 ? " · 结束后回到你刚才的对话" : ""}</span>
                     <button className="cpw-demo-stop" onClick={stopDemo}>
                       {demoSnapshotRef.current && demoSnapshotRef.current.messages.length > 0 ? "⏹ 停止演示，回到我的对话" : "⏹ 停止演示，开始我的访谈"}
                     </button>
