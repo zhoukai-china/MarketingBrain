@@ -27,7 +27,7 @@ import {
 } from "./eco-mall-data.js";
 import { ECO_CASES, ECO_CASE_CATS, type EcoCase, type EcoCaseNav } from "./eco-cases-data.js";
 
-/** 「我的」页退出登录：清本地会话后回到登录页（演示账号走同一登录入口）。 */
+/** 「我的」页退出登录：清本地会话后回到登录页。 */
 function handleMineLogout() {
   clearStoredSession();
   window.location.href = getAppPath(loginPathWithPendingReferral("/login"));
@@ -409,6 +409,17 @@ export function EcoMallHomePage() {
   if (mountedWithToken.current === null) {
     try { mountedWithToken.current = Boolean(localStorage.getItem("store_os_token")); } catch { mountedWithToken.current = false; }
   }
+  /**
+   * 「我的」页要显示的真实账号名。
+   *
+   * 2026-09-30（用户）：这里原来摆的是写死的「体验访客 / 演示账号 / 首次登入 2026-09-25」——
+   * 用户在同一微信号下扫码注册后，看到这个假身份以为系统另开了个「新账号」。
+   * 现在改为读登录时后端下发的租户/账号名（`store_os_tenant_name`），还没有就显示「我的账号」。
+   */
+  const [accountName, setAccountName] = useState("");
+  useEffect(() => {
+    try { setAccountName(localStorage.getItem("store_os_tenant_name") ?? ""); } catch { setAccountName(""); }
+  }, []);
   /** CTA 文案是否已知：未知就先不显示文字（保留按钮位置），避免「先错后对」的闪烁。 */
   const ctaReady = meActivated !== null || !mountedWithToken.current;
   /** 服务端确认过的开通态统一入口：同时更新缓存，下次首帧直接用。 */
@@ -1417,7 +1428,6 @@ export function EcoMallHomePage() {
                   <div className="eh-ph-t">我的</div>
                   <p className="eh-ph-d">订单 · 算力 · 权益，都在这一页</p>
                 </div>
-                <span className="eh-ph-tag">演示账号</span>
               </div>
               <div className="eh-ph-meta">
                 <span>智能体订单可点进工作台</span>
@@ -1431,8 +1441,8 @@ export function EcoMallHomePage() {
               <div className="me-pf-top">
                 <span className="me-ava"><IconGlyph name="user" size={22} /></span>
                 <div className="me-id">
-                  <b>体验访客</b>
-                  <span>演示账号 · 首次登入 2026-09-25</span>
+                  <b>{accountName || "我的账号"}</b>
+                  <span>{accountName ? "当前登录账号" : "已登录 · 账号名待同步"}</span>
                 </div>
               </div>
               <div className="me-pf-bal">
