@@ -706,7 +706,7 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
                       <div className={`cpw-bub${m.pending ? " is-pending" : ""}`} dangerouslySetInnerHTML={{ __html: m.html }} />
                     </div>
                   ))}
-                  {optsQ != null && phase === "ask" && (
+                  {optsQ != null && phase === "ask" && !(genCandidates && genCandidates.q === optsQ && genCandidates.list.length > 0) && (
                     <div className="cpw-opts">
                       {(QFLOW[optsQ].opts ?? []).map((o, i) => (
                         <button key={i} className="cpw-opt" onClick={() => chooseOpt(QFLOW[optsQ], o)}>

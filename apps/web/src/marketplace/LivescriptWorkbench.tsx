@@ -666,7 +666,7 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
                       <div className={`cpw-bub${m.pending ? " is-pending" : ""}`} dangerouslySetInnerHTML={{ __html: m.html }} />
                     </div>
                   ))}
-                  {optsQ != null && phase === "ask" && qListRef.current[optsQ] && (
+                  {optsQ != null && phase === "ask" && qListRef.current[optsQ] && !(genCandidates && genCandidates.q === optsQ && genCandidates.list.length > 0) && (
                     <div className="cpw-opts">
                       {(qListRef.current[optsQ].opts ?? []).map((o, i) => (
                         <button key={i} className="cpw-opt" onClick={() => chooseOpt(qListRef.current[optsQ], o)}>
