@@ -1,0 +1,54 @@
+/* ================= 生成结果 · 方案 C 双栏速览（2026-09-30 用户拍板） =================
+   只用于新版工作台交付面板（rich-report.ts 消费）；以前的页面不引用本文件。
+   章节卡片 + 桌面左栏常驻目录 + 手机单列卡片流 */
+.mdc { display: block; }
+@media (min-width: 760px) {
+  .mdc { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 12px; align-items: start; }
+  .mdc-side { position: sticky; top: 8px; }
+}
+.mdc-side {
+  background: rgba(255, 249, 242, .92); border: 1px solid rgba(232, 101, 26, .16);
+  border-radius: 13px; padding: 11px 12px; display: none;
+}
+@media (min-width: 760px) { .mdc-side { display: block; } }
+.mdc-side > b { font-size: 11px; color: #94796B; display: block; margin-bottom: 7px; letter-spacing: .06em; }
+.mdc-side nav { display: flex; flex-direction: column; gap: 1px; }
+.mdc-side nav a {
+  font-size: 12px; color: inherit; text-decoration: none;
+  padding: 4px 8px; border-radius: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mdc-side nav a:hover { background: rgba(232, 101, 26, .08); color: #C25A00; }
+.mdc-main { min-width: 0; }
+.mdc-sec {
+  background: rgba(255, 255, 255, .82); border: 1px solid rgba(232, 101, 26, .14);
+  border-radius: 13px; padding: 11px 13px; margin-bottom: 9px;
+}
+.mdc-sec.mdc-lead { border-left: 3px solid rgba(232, 101, 26, .55); }
+.mdc-sec:last-child { margin-bottom: 0; }
+.mdc-sec-h { display: flex; align-items: center; gap: 7px; margin: 2px 0 7px; }
+.mdc-sec-h i {
+  font-style: normal; flex: none; font-size: 10.5px; font-weight: 800; color: #C25A00;
+  background: rgba(232, 101, 26, .1); border: 1px solid rgba(232, 101, 26, .25);
+  border-radius: 6px; padding: 1px 7px; min-width: 20px; text-align: center; white-space: nowrap;
+}
+.mdc-sec-h b { font-size: 13.5px; font-weight: 800; color: inherit; line-height: 1.4; }
+.mdc-sec h4 { margin: 10px 0 4px; }
+.mdc-sec > .mdc-sec-h + * { margin-top: 0; }
+.mdc-sec .report-table { font-size: 12.5px; margin: 4px 0 2px; }
+.mdc-sec p:last-child, .mdc-sec ul:last-child, .mdc-sec ol:last-child, .mdc-sec table:last-child { margin-bottom: 2px; }
+
+/* 章节内逐字稿时间轴（0-3秒｜钩子 …） */
+.mdc-tl { display: flex; flex-direction: column; margin: 6px 0 2px; }
+.mdc-tl-r {
+  display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 10px;
+  padding: 8px 0; border-top: 1px dashed rgba(232, 101, 26, .16);
+}
+.mdc-tl-r:first-child { border-top: none; }
+.mdc-tl-t {
+  font-size: 11px; font-weight: 900; color: #C25A00; white-space: nowrap;
+  background: rgba(232, 101, 26, .08); border: 1px solid rgba(232, 101, 26, .22);
+  border-radius: 8px; text-align: center; padding: 2px 0; height: fit-content;
+}
+.mdc-tl-c { font-size: 12.5px; line-height: 1.7; min-width: 0; }
+.mdc-tl-c em { font-style: normal; display: block; font-size: 10.5px; color: #94796B; margin-bottom: 2px; }
+.mdc-tl-c p { margin: 0 0 4px; }

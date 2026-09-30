@@ -18,7 +18,7 @@ import { useScrollLock } from "../lib/use-scroll-lock.js";
 import { authHeaders, handleStaleSession, readJson } from "./shell.js";
 import { IconAuto, IconLead } from "./IconGlyph.js";
 import { MallTopbar } from "./MallTopbar.js";
-import { renderMarkdownHtml } from "./AgentChatPage.js";
+import { renderRichReportHtml } from "./rich-report.js";
 import { employeeAvatarPath } from "./eco-mall-data.js";
 import sitongAvatar from "../assets/sitong-beauty.png";
 
@@ -694,7 +694,7 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
                                       <button className="cpw-cbtn" onClick={() => copyText(`#${p.meta.num}、${p.meta.title}\n\n${p.body}`)}>⧉ 复制本件</button>
                                     </div>
                                   </div>
-                                  <div className="cpw-pc-c markdown" dangerouslySetInnerHTML={{ __html: renderMarkdownHtml(p.body) }} />
+                                  <div className="cpw-pc-c markdown" dangerouslySetInnerHTML={{ __html: renderRichReportHtml(p.body) }} />
                                 </div>
                               ))}
                             </div>
