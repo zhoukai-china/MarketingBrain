@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FDE专区配图预览 - 6张行业封面</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0a1220; color:#e8ecf3; font-family:"PingFang SC","Microsoft YaHei",sans-serif; padding:32px 4vw 60px; }
+  h1 { font-size:22px; font-weight:700; margin-bottom:6px; }
+  .sub { color:#8b96a8; font-size:13px; margin-bottom:28px; line-height:1.7; }
+  .sub b { color:#F47920; font-weight:600; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(420px,1fr)); gap:24px; }
+  .card { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:14px; overflow:hidden; }
+  .card-head { padding:14px 18px 10px; display:flex; align-items:center; gap:10px; }
+  .key { font-family:Consolas,monospace; font-size:12px; color:#0a1220; background:#F47920; padding:2px 8px; border-radius:5px; font-weight:600; }
+  .name { font-size:15px; font-weight:600; }
+  .imgwrap { position:relative; margin:0 18px 18px; border-radius:9px; overflow:hidden; border:1px solid rgba(244,121,32,0.4); aspect-ratio:16/9; }
+  .imgwrap img { width:100%; height:100%; object-fit:cover; display:block; }
+  /* 模拟卡片上的标题叠层效果 */
+  .overlay { position:absolute; left:0; right:0; bottom:0; padding:28px 14px 12px; background:linear-gradient(transparent,rgba(0,0,0,.45)); }
+  .overlay b { font-size:15px; font-weight:800; color:#fff; text-shadow:0 2px 8px rgba(0,0,0,.5); }
+  .overlay i { display:block; font-size:9.5px; font-style:normal; color:rgba(255,255,255,.85); margin-top:3px; }
+  .note { margin-top:30px; background:rgba(244,121,32,0.08); border:1px solid rgba(244,121,32,0.3); border-radius:12px; padding:16px 20px; font-size:13px; line-height:1.9; color:#c9d2e0; }
+  .note b { color:#F47920; }
+</style>
+</head>
+<body>
+  <h1>FDE 专区配图预览（6 张行业封面）</h1>
+  <p class="sub">fde-industry-expansion-demo 卡片封面 · 原 CSS 渐变+线性图标 → 新图统一「深蓝底 + 橙色光 + 玻璃质感」1280×720（16:9）· 每张附<b>标题叠层模拟</b>，验证文字压图效果</p>
+  <div class="grid" id="grid"></div>
+  <div class="note">
+    <b>交接说明（确认后交周凯替换）：</b><br>
+    1. demo 里 6 张卡片目前是 CSS 渐变背景（.fc-store 等六色）+ 内联 SVG 线稿图标，<b>替换方式：把 .fc 的 background 换成新图</b>（background:url() center/cover 或 &lt;img&gt; 底层），保留 .fc-name 标题层，删除或保留 .fc-svg 由周凯定。<br>
+    2. 构图已预留左下留白，标题文字直接压图可读（见叠层模拟）。<br>
+    3. 单张 141~208KB，6 张合计约 1MB。<br>
+    4. 图右下角「AI生成」水印为平台自动添加（AIGC 合规标识）。
+  </div>
+<script>
+const items = [
+  { key:"fde-store",     name:"实体门店 FDE",      d:"门店+客流分析全息" },
+  { key:"fde-chain",     name:"连锁品牌 FDE",      d:"门店矩阵+扩张网络" },
+  { key:"fde-logistics", name:"物流行业 FDE",      d:"运力+路线光轨" },
+  { key:"fde-banking",   name:"银行业务系统 FDE",  d:"银行+金融数据流" },
+  { key:"fde-insurance", name:"保险业务系统 FDE",  d:"保障盾牌+理赔全息" },
+  { key:"fde-ecom",      name:"跨境电商AI SaaS FDE", d:"全球贸易+货流光弧" },
+];
+document.getElementById('grid').innerHTML = items.map(it => `
+  <div class="card">
+    <div class="card-head"><span class="key">${it.key}</span><span class="name">${it.name}</span></div>
+    <div class="imgwrap">
+      <img src="new/${it.key}.jpg" alt="">
+      <div class="overlay"><b>${it.name}</b><i>工程师入企 · 把 AI 用进生意</i></div>
+    </div>
+  </div>`).join('');
+</script>
+</body>
+</html>
