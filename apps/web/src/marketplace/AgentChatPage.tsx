@@ -1960,9 +1960,9 @@ export function renderMarkdownHtml(md: string): string {
     // 水平分割线
     if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) { out.push("<hr/>"); i++; continue; }
 
-    // 标题
-    if (/^#{1,3}\s/.test(trimmed)) {
-      out.push(`<h4>${inline(trimmed.replace(/^#{1,3}\s*/, ""))}</h4>`);
+    // 标题（1-6 级统一当小节标题渲染——#### 漏成原文是 2026-10-01 用户实测踩中）
+    if (/^#{1,6}\s/.test(trimmed)) {
+      out.push(`<h4>${inline(trimmed.replace(/^#{1,6}\s*/, ""))}</h4>`);
       i++; continue;
     }
 

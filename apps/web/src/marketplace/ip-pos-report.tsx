@@ -126,7 +126,7 @@ const GROUP_TABS: Array<{ key: "all" | ReportGroup; name: string; count: number 
  * - #### 子标题统一降级成 ###，避免被当成裸段落露出「####」；
  * - 模型偶发的「• / ·」伪列表还原成「- 列表」，否则 **粗体** 会露馅。
  */
-function preprocessIpPosMd(md: string): string {
+export function preprocessIpPosMd(md: string): string {
   const lines = md.split(/\r?\n/);
   const out: string[] = [];
   let droppedTitle = false;

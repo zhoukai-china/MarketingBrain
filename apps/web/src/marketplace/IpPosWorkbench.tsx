@@ -21,7 +21,7 @@ import { IconAuto, IconLead } from "./IconGlyph.js";
 import { MallTopbar } from "./MallTopbar.js";
 import { chatFlowFor, buildRunBody } from "./chat-flows.js";
 import { renderMarkdownHtml } from "./AgentChatPage.js";
-import type { IpPosPayload } from "./ip-pos-report.js";
+import { preprocessIpPosMd, type IpPosPayload } from "./ip-pos-report.js";
 import { employeeAvatarPath } from "./eco-mall-data.js";
 import { IP_POS_PRICE, IP_POS_UNIT } from "./sku-model.js";
 import sitongAvatar from "../assets/sitong-beauty.png";
@@ -272,7 +272,7 @@ function buildPieces(p: IpPosPayload | null, answerMd: string): Piece[] {
     const out: Piece[] = [{ meta: PIECES[0], bodyHtml: ovHtml, plain: ovPlain }];
     for (const meta of PIECES.slice(1)) {
       const body = (meta.sectionKey && p.sections?.[meta.sectionKey])?.trim() || "";
-      out.push({ meta, bodyHtml: body ? renderMarkdownHtml(body) : "<p>—</p>", plain: body });
+      out.push({ meta, bodyHtml: body ? renderMarkdownHtml(preprocessIpPosMd(body)) : "<p>—</p>", plain: body });
     }
     return out;
   }
