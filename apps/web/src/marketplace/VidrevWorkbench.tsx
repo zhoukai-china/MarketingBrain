@@ -417,6 +417,9 @@ export function VidrevWorkbench({ skuId }: { skuId: string }) {
         consumed: typeof result.consumedCredits === "number" ? result.consumedCredits : null
       };
       setRunSettled(true);
+      // 扣费已完成（后端返回 consumedCredits/balance）：立即广播余额刷新——
+      // 右上角余额只监听 sitong:balance-changed（此前仅充值抽屉会发），不广播就「看起来没扣」。
+      window.dispatchEvent(new CustomEvent("sitong:balance-changed"));
     } catch (e) {
       window.clearInterval(tick);
       setError(e instanceof Error ? e.message : "生成失败，请稍后重试。");
