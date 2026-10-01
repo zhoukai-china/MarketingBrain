@@ -209,6 +209,13 @@ td.good { color: var(--green); }
 
 <div id="lqHeader"></div>
 
+<!-- 演示原型 · 预约引导（2026-10-02）：明确这是示例数据，并在顶部给出预约入口 -->
+<div class="demo-tip" id="demoTip">
+  <span class="dt-ico">🎬</span>
+  <span class="dt-tx"><b>这是行业工作台的演示原型</b>：页面里的门店、客户、金额都是示例数据，不会保存你的任何操作。预约开通后，接的就是你门店的真实数据。</span>
+  <a class="dt-btn" data-book href="/agents?book=industry-lanqi">🔔 预约开通</a>
+</div>
+
 <main id="app"></main>
 
 <div class="foot-note">兰琪AI·经营大脑 v2 · UI 升级设计稿 · 2026-09-24 · 仅设计演示</div>
@@ -683,6 +690,67 @@ document.addEventListener("click", function (e) {
 });
 
 LQ.init({ tab: "home", title: "经营驾驶舱" });
+})();
+</script>
+
+<!-- ============ 演示原型预约引导（2026-10-02 用户：列表上都能预约 + 适当引导） ============ -->
+<div class="demo-cta" id="demoCta">
+  <div class="dc-tx"><b>看到的是示例数据</b> · 预约开通后接你门店的真实经营数据</div>
+  <a class="dc-btn" data-book href="/agents?book=industry-lanqi">🔔 预约开通</a>
+</div>
+<style>
+  .demo-tip { display: flex; align-items: center; gap: 8px; margin: 8px 12px 0; padding: 9px 12px;
+    border: 1px solid #f6d9bd; border-radius: 10px; background: #fff8f1; font-size: 12px; line-height: 1.6; color: #7a4a1c; }
+  .demo-tip .dt-ico { flex: none; font-size: 13px; }
+  .demo-tip .dt-tx { flex: 1; min-width: 0; }
+  .demo-tip .dt-btn { flex: none; padding: 6px 12px; border-radius: 999px; background: #ff6a00; color: #fff;
+    font-size: 12px; font-weight: 800; text-decoration: none; white-space: nowrap; box-shadow: 0 4px 12px rgba(255,106,0,.28); }
+  .sec-head .book-mini { margin-left: auto; flex: none; padding: 4px 10px; border-radius: 999px;
+    border: 1.5px solid #f6d9bd; background: #fff; color: #ff6a00; font-size: 11px; font-weight: 800;
+    text-decoration: none; white-space: nowrap; }
+  .todo-acts .act.book, .book-inline { display: inline-flex; align-items: center; padding: 6px 11px; border-radius: 999px;
+    border: 1.5px solid #f6d9bd; background: #fff; color: #ff6a00; font-size: 11.5px; font-weight: 800; text-decoration: none; }
+  .demo-cta { position: fixed; left: 0; right: 0; bottom: 0; z-index: 90; display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); background: rgba(255,255,255,.96);
+    border-top: 1px solid #ecd8c6; box-shadow: 0 -6px 20px rgba(90,50,10,.10); }
+  .demo-cta .dc-tx { flex: 1; min-width: 0; font-size: 12px; line-height: 1.5; color: #6b4a30; }
+  .demo-cta .dc-btn { flex: none; padding: 9px 16px; border-radius: 999px; background: #ff6a00; color: #fff;
+    font-size: 13px; font-weight: 800; text-decoration: none; box-shadow: 0 4px 12px rgba(255,106,0,.3); }
+</style>
+<script>
+(function () {
+  // 商城入口按部署前缀推导（ai.lcppch.top 根部署 vs api.lcppch.top/os-v2/ 子路径部署都能跳对）
+  var base = location.pathname.indexOf("/os-v2/") === 0 ? "/os-v2" : "";
+  var url = base + "/agents?book=industry-lanqi";
+  document.querySelectorAll("[data-book]").forEach(function (el) { el.setAttribute("href", url); });
+
+  // 各列表区块（.sec-head）与每日清单操作行（.todo-acts）都挂上「预约开通」
+  var decorate = function () {
+    document.querySelectorAll(".sec-head").forEach(function (h) {
+      if (h.querySelector(".book-mini") || h.closest(".demo-tip")) return;
+      var a = document.createElement("a");
+      a.className = "book-mini"; a.href = url; a.textContent = "🔔 预约开通";
+      h.appendChild(a);
+    });
+    document.querySelectorAll(".todo-acts").forEach(function (bar) {
+      if (bar.querySelector(".act.book")) return;
+      var a = document.createElement("a");
+      a.className = "act book"; a.href = url; a.textContent = "🔔 预约开通";
+      bar.appendChild(a);
+    });
+    // 底部 CTA 条占位：避免遮住页面最后一块内容
+    var cta = document.getElementById("demoCta");
+    if (cta && !document.body.dataset.ctaPad) {
+      document.body.dataset.ctaPad = "1";
+      document.body.style.paddingBottom = "76px";
+    }
+  };
+  decorate();
+  if (window.MutationObserver) {
+    var app = document.getElementById("app");
+    if (app) { new MutationObserver(decorate).observe(app, { childList: true, subtree: true }); }
+  }
+  window.addEventListener("load", decorate);
 })();
 </script>
 </body>

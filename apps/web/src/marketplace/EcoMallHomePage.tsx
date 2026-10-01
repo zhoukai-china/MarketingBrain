@@ -440,6 +440,25 @@ export function EcoMallHomePage() {
     const qs = params.toString();
     window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash);
   }, []);
+
+  /**
+   * 预约直达入口（2026-10-02 用户：静态演示原型里到处都有「预约开通」按钮）。
+   * 原型页里的预约链接会跳回 `/agents?book=<key>`，这里据此直接弹出预约弹窗，
+   * 让用户「看完原型 → 一键预约」不断线；参数用完即清，刷新不再莫名弹窗。
+   */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const book = params.get("book");
+    if (!book) return;
+    setBooking(
+      book === "industry-lanqi"
+        ? { name: "行业工作台（美业门店AI经营大脑）", key: book }
+        : { name: "行业工作台", key: book }
+    );
+    params.delete("book");
+    const qs = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash);
+  }, []);
   /** CTA 文案是否已知：未知就先不显示文字（保留按钮位置），避免「先错后对」的闪烁。 */
   const ctaReady = meActivated !== null || !mountedWithToken.current;
   /** 服务端确认过的开通态统一入口：同时更新缓存，下次首帧直接用。 */
@@ -1270,20 +1289,32 @@ export function EcoMallHomePage() {
     );
   }
 
-  /** F7 行业工作台（照原型 .brand-hero：金色渐变大卡 + 可体验徽标）。 */
+  /** F4 行业工作台（2026-10-02 用户：挂上静态原型预览 + 预约，不再「可体验」却只弹预约）。 */
+  const LANQI_BOOKING = { name: "行业工作台（美业门店AI经营大脑）", key: "industry-lanqi" };
   function renderBrandFloor() {
     return (
       <section className="eco-floor" id="floor-industry">
-        <FloorHead no="F4" title="行业工作台专区" sub="分行业的整套 AI 经营工作台，点进去直接体验" />
-        <button
-          type="button"
-          className="eh-brand-hero"
-          onClick={() => setBooking({ name: "行业工作台（美业门店AI经营大脑）", key: "industry-lanqi" })}
-        >
-          <span className="eh-bh-name"><IconGlyph name="sparkle" size={16} style={{ display: "inline", verticalAlign: "-3px" }} /> 美业门店AI经营大脑 demo <span className="eh-bh-live">● 可体验</span></span>
-          <span className="eh-bh-desc">朋友圈 / 社群内容、经营驾驶舱、门店诊断、内容工作室、AI 绘图、公域获客——美业门店（美容 / 美甲 / 轻医美）正在用的完整 AI 工作台，进去就能点。</span>
-          <span className="eh-bh-go">🔔 预约上线提醒</span>
-        </button>
+        <FloorHead no="F4" title="行业工作台专区" sub="分行业的整套 AI 经营工作台，可先看演示原型再预约" />
+        <div className="eh-brand-hero">
+          <span className="eh-bh-name"><IconGlyph name="sparkle" size={16} style={{ display: "inline", verticalAlign: "-3px" }} /> 美业门店AI经营大脑 <span className="eh-bh-live">● 演示原型</span></span>
+          <span className="eh-bh-desc">朋友圈 / 社群内容、经营驾驶舱、门店诊断、内容工作室、AI 绘图、公域获客——美业门店（美容 / 美甲 / 轻医美）正在用的完整 AI 工作台。先点「看演示原型」过一遍，觉得对路再预约开通（开通后接你门店的真实数据）。</span>
+          <span className="eh-bh-ops">
+            <button
+              type="button"
+              className="eh-bh-btn preview"
+              onClick={() => window.open(getAppPath("/lanqi-v2/home.html"), "_blank", "noopener")}
+            >
+              👀 看演示原型
+            </button>
+            <button
+              type="button"
+              className="eh-bh-btn book"
+              onClick={() => setBooking(LANQI_BOOKING)}
+            >
+              🔔 预约开通
+            </button>
+          </span>
+        </div>
       </section>
     );
   }
