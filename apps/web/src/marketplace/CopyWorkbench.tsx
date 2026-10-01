@@ -9,7 +9,7 @@
 // 后端契约固定输出「一、选题策划 … 十、投流建议」十段 Markdown（copy-ten-contract.ts），
 // 交付区按这十段拆卡、按原型分区（策划/文稿/拍摄/发布/投流）分 tab。
 //
-// 计费口径（不犯 ip-pos 的错）：文案按**实际用量结算**，费用文案用真实目录 ppu 与「算力」，
+// 计费口径（不犯 ip-pos 的错）：文案按**次固定收费**（2026-10-01 用户拍板），费用文案用真实目录 ppu 与「算力」，
 // 不照抄原型里的演示价（10/15 算力）；「🛡️ 失败不扣费」按原型保留（生成失败确实不扣）。
 
 import { useEffect, useRef, useState } from "react";
@@ -799,9 +799,9 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
     phase === "ask" ? `引导中（${Math.min(qi + 1, 6)}/6）` : "待引导";
   const feeHint =
     phase === "done" ? (
-      subCovered ? <>本次由<b>包月覆盖</b>，不扣算力</> : <>本次实际消耗 <b>{consumed ?? skuPpu ?? "—"} 算力</b>（按实际用量结算）</>
+      subCovered ? <>本次由<b>包月覆盖</b>，不扣算力</> : <>本次实际消耗 <b>{consumed ?? skuPpu ?? "—"} 算力</b>（按次固定收费）</>
     ) : (
-      <>完成引导后可创作 · 预计消耗约 <b>{skuPpu ?? "—"} 算力</b>（按本次实际用量结算）</>
+      <>完成引导后可创作 · 预计消耗约 <b>{skuPpu ?? "—"} 算力</b>（按次固定收费）</>
     );
 
   return (

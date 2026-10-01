@@ -5,7 +5,7 @@
 //   ① 「⚡ 充值算力」→ /recharge
 //   ② 「⚡ 立即使用」→ /agent/ipzone__vidrev/workbench（视频复盘工作台）
 // 内容口径：
-//   - 计费与视频复盘工作台同源：按实际用量结算，价格取真实目录 ppu（/market/skus），单位「算力」；
+//   - 计费与视频复盘工作台同源：按次固定收费，价格取真实目录 ppu（/market/skus），单位「算力」；
 //     原型里的「50 算力/次」是演示价，不照抄；「上传体检免费 / 校验不过不出报告 / 失败不扣费」按原型保留；
 //   - 头图三视图：工作台实况（拖表上传 + 体检面板）/ 职业形象照（系统内置 video-diag 形象）/ 用户口碑；
 //   - 人物头像圈统一「橙渐变圆 + 姓氏字」（江/谭/池）。
@@ -89,7 +89,7 @@ const TABS: Array<{ key: TabKey; label: string }> = [
 ];
 
 const VIEW_CAP: Record<GalleryView, string> = {
-  wb: "工作台实况 · 拖表上传 → 先体检再复盘 → 11 章报告（按实际用量结算）",
+  wb: "工作台实况 · 拖表上传 → 先体检再复盘 → 11 章报告（按次固定收费）",
   photo: "职业形象照 · 数字员工「江流」形象",
   rate: "用户口碑 · 评分与好评率"
 };
@@ -136,7 +136,7 @@ export function VidrevDetailPage() {
   const [tab, setTab] = useState<TabKey>("ability");
   const [view, setView] = useState<GalleryView>("wb");
   const avatar = employeeAvatarPath("ipzone__vidrev");
-  /** 真实目录价（与视频复盘工作台同源 /market/skus）；按实际用量结算，单位「算力」。 */
+  /** 真实目录价（与视频复盘工作台同源 /market/skus）；按次固定收费，单位「算力」。 */
   const [skuPpu, setSkuPpu] = useState<number | null>(null);
 
   useEffect(() => {
@@ -148,7 +148,7 @@ export function VidrevDetailPage() {
         const sku = data?.skus?.find((s) => s.skuCode === "ipzone__vidrev");
         if (sku && typeof sku.ppu === "number") setSkuPpu(sku.ppu);
       })
-      .catch(() => { /* 取不到就显示「按实际用量结算」，不阻塞 */ });
+      .catch(() => { /* 取不到就显示「按次固定收费」，不阻塞 */ });
     return () => { cancelled = true; };
   }, []);
 
@@ -224,7 +224,7 @@ export function VidrevDetailPage() {
             <div className="ipd-price-line">
               <span className="ipd-num">{skuPpu ?? "—"}</span>
               <span className="ipd-unit">算力 / 次 起</span>
-              <span className="ipd-approx">{skuPpu != null ? `≈ ¥${(skuPpu / 10).toFixed(1)}` : "≈ ¥"} · 按实际用量结算</span>
+              <span className="ipd-approx">{skuPpu != null ? `≈ ¥${(skuPpu / 10).toFixed(1)}` : "≈ ¥"} · 按次固定收费</span>
             </div>
             <div className="ipd-price-meta">计费说明：<b>0 元开通</b> · 不收月费 · 上传体检免费，出报告才扣算力</div>
             <div className="ipd-guar"><IconAuto v="⚡" /> 1元 = 10算力　<IconAuto v="🎁" /> 注册赠 100 算力　<IconAuto v="📄" /> 账单逐笔可查</div>
@@ -245,7 +245,7 @@ export function VidrevDetailPage() {
             </button>
           </div>
           <div className="ipd-after-cta">
-            上传体检不扣算力 · <b>校验不过不出报告</b> · 出报告按实际用量结算（1 元 = 10 算力）· 失败不扣费
+            上传体检不扣算力 · <b>校验不过不出报告</b> · 出报告按次固定收费（1 元 = 10 算力）· 失败不扣费
           </div>
         </div>
       </section>
@@ -280,7 +280,7 @@ export function VidrevDetailPage() {
             <h3>质量标准</h3>
             <ul className="ipd-foundation">
               <li><b>过程：</b>拖表上传 → 体检报告先出（免费）→ 缺什么补什么 → 口径确认后生成，11 章报告流式点亮，约 60 秒</li>
-              <li><b>口径：</b>上传体检不扣算力，出报告按实际用量结算；校验不过不出报告、不出糊涂账；交付可导出 Word</li>
+              <li><b>口径：</b>上传体检不扣算力，出报告按次固定收费；校验不过不出报告、不出糊涂账；交付可导出 Word</li>
               <li><b>数据：</b>按天汇总表拒收并给导出指引；受限维度（成交 / 投流缺失）按降级口径写清，不编数字</li>
             </ul>
           </div>
@@ -310,7 +310,7 @@ export function VidrevDetailPage() {
 
             {/* 实拍②：口径确认 · 生成报告 */}
             <div className="ipd-shot">
-              <div className="ipd-shot-cap"><b>② 口径确认 · 生成报告</b><span>7 项全过才放行生成——ROI 归因口径你来定；11 章报告按实际用量结算，失败不扣费</span></div>
+              <div className="ipd-shot-cap"><b>② 口径确认 · 生成报告</b><span>7 项全过才放行生成——ROI 归因口径你来定；11 章报告按次固定收费，失败不扣费</span></div>
               <div className="ipd-wb lg">
                 <WbBar live="口径确认" />
                 <div className="ipd-wb-body">

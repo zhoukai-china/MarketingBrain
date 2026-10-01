@@ -5,7 +5,7 @@
 //   ① 「⚡ 充值算力」→ /recharge
 //   ② 「⚡ 立即使用」→ /agent/ipzone__copy/workbench（文案工作台）
 // 内容口径：
-//   - 计费与文案工作台同源：按实际用量结算，价格取真实目录 ppu（/market/skus），单位「算力」；
+//   - 计费与文案工作台同源：按次固定收费，价格取真实目录 ppu（/market/skus），单位「算力」；
 //     原型里的「10/15 算力」是演示价，不照抄（避免页面价 ≠ 服务端结算价，ip-pos 的老教训）；
 //   - 「失败不扣费」按原型保留（生成失败确实不扣）；
 //   - 简报 6 字段（产品/卖点/平台/动作/深度/出镜）与真实文案工作台一致；
@@ -87,7 +87,7 @@ const TABS: Array<{ key: TabKey; label: string }> = [
 ];
 
 const VIEW_CAP: Record<GalleryView, string> = {
-  wb: "工作台实况 · 6 问引导 → 创作简报 → 内容十件套（按实际用量结算）",
+  wb: "工作台实况 · 6 问引导 → 创作简报 → 内容十件套（按次固定收费）",
   photo: "职业形象照 · 数字员工「秦文」形象",
   rate: "用户口碑 · 评分与好评率"
 };
@@ -155,7 +155,7 @@ export function CopyDetailPage() {
   const [tab, setTab] = useState<TabKey>("ability");
   const [view, setView] = useState<GalleryView>("wb");
   const avatar = employeeAvatarPath("ipzone__copy");
-  /** 真实目录价（与文案工作台/对话页同源 /market/skus）；文案按实际用量结算，单位「算力」。 */
+  /** 真实目录价（与文案工作台/对话页同源 /market/skus）；文案按次固定收费，单位「算力」。 */
   const [skuPpu, setSkuPpu] = useState<number | null>(null);
 
   useEffect(() => {
@@ -167,7 +167,7 @@ export function CopyDetailPage() {
         const sku = data?.skus?.find((s) => s.skuCode === "ipzone__copy");
         if (sku && typeof sku.ppu === "number") setSkuPpu(sku.ppu);
       })
-      .catch(() => { /* 取不到就显示「按实际用量结算」，不阻塞 */ });
+      .catch(() => { /* 取不到就显示「按次固定收费」，不阻塞 */ });
     return () => { cancelled = true; };
   }, []);
 
@@ -189,7 +189,7 @@ export function CopyDetailPage() {
                     <div className="ipd-wb-right">
                       <WbBrief filled={5} />
                       <div className="ipd-gen"><IconAuto v="✨" /> 生成内容十件套</div>
-                      <div className="ipd-fee">预计消耗约 {skuPpu ?? "—"} 算力 · 按实际用量结算 · 失败不扣费</div>
+                      <div className="ipd-fee">预计消耗约 {skuPpu ?? "—"} 算力 · 按次固定收费 · 失败不扣费</div>
                     </div>
                   </div>
                 </div>
@@ -238,7 +238,7 @@ export function CopyDetailPage() {
             <div className="ipd-price-line">
               <span className="ipd-num">{skuPpu ?? "—"}</span>
               <span className="ipd-unit">算力 / 次 起</span>
-              <span className="ipd-approx">{skuPpu != null ? `≈ ¥${(skuPpu / 10).toFixed(1)}` : "≈ ¥"} · 按实际用量结算</span>
+              <span className="ipd-approx">{skuPpu != null ? `≈ ¥${(skuPpu / 10).toFixed(1)}` : "≈ ¥"} · 按次固定收费</span>
             </div>
             <div className="ipd-price-meta">计费说明：<b>0 元开通</b> · 不收月费 · 使用后扣算力，失败不扣费</div>
             <div className="ipd-guar"><IconAuto v="⚡" /> 1元 = 10算力　<IconAuto v="🎁" /> 注册赠 100 算力　<IconAuto v="📄" /> 账单逐笔可查</div>
@@ -295,7 +295,7 @@ export function CopyDetailPage() {
             <ul className="ipd-foundation">
               <li><b>过程：</b>先看简报再创作——6 项信息齐了才放行；轻量约 3 分钟，十件套约 5-10 分钟流式逐件点亮，进度实时可见</li>
               <li><b>口径：</b>价格机制没确认的信息不编造；改简报可整包重跑</li>
-              <li><b>计费：</b>按实际用量结算，交付才扣算力，失败不扣费</li>
+              <li><b>计费：</b>按次固定收费，交付才扣算力，失败不扣费</li>
               <li><b>合规：</b>行业版自带红线词过滤（不出现私信 / 加微信等违规引导）</li>
             </ul>
           </div>
@@ -320,7 +320,7 @@ export function CopyDetailPage() {
 
             {/* 实拍②：简报确认 · 开始创作 */}
             <div className="ipd-shot">
-              <div className="ipd-shot-cap"><b>② 简报确认 · 开始创作</b><span>先选交付深度再花钱：轻量 1 条可直发文案、完整内容十件套；按实际用量结算，失败不扣费</span></div>
+              <div className="ipd-shot-cap"><b>② 简报确认 · 开始创作</b><span>先选交付深度再花钱：轻量 1 条可直发文案、完整内容十件套；按次固定收费，失败不扣费</span></div>
               <div className="ipd-wb lg">
                 <WbBar live="简报确认" />
                 <div className="ipd-wb-body">

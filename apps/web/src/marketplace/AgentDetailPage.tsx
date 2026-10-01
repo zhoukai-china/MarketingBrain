@@ -245,7 +245,7 @@ export function MarketplaceAgentDetailPage({ skuId }: { skuId: string }) {
                * 以后给别的智能体上包月（`marketplace-v3.json` 加 `sub`）这个块会自动出现。
                *
                * 不违反 PLAT-31「不前置报价」：那条禁的是**按次**报价（「N 算力/次」「约扣 N 算力」与折算人民币写法）；
-               * 包月是用户拍板「可以自己选包月或按消耗计费」的独立售卖方案，价格必须看得见。
+               * 包月是用户拍板「可以自己选包月或按次」的独立售卖方案，价格必须看得见。
                */}
               {subscriptionOffer && !bundle && !soon && (
                 <div className="pc-block sub">

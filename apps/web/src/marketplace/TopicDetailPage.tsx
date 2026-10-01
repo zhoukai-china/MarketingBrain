@@ -13,7 +13,7 @@
 // 口径适配（用户要求：预约改成充值算力和立即使用）：
 //   - 原型是「内测 / 预约」态：状态徽标改「已上线 · 可直接对话」；「📲 预约体验」改「⚡ 立即使用」；
 //     「预约免费 / 留手机号」等内测文案全部替换为已上线计费口径；
-//   - topic 按实际用量结算（不在 FIXED_PRICE_SKUS）：价格取真实目录 ppu，单位「算力」，
+//   - topic 按次固定收费：价格取真实目录 ppu，单位「算力」，
 //     原型「99 算力（上线价）」是演示价不照抄；
 //   - 头像：对话窗用系统内置形象（topic.jpg，真实照片）；评价区顾客保留姓氏字圆。
 
@@ -111,7 +111,7 @@ const TABS: Array<{ key: TabKey; label: string }> = [
 ];
 
 const VIEW_CAP: Record<GalleryView, string> = {
-  wb: "工作台实况 · 四大来源 → 候选池涌现 → 三关筛选 → 交付 10 条（按实际用量结算）",
+  wb: "工作台实况 · 四大来源 → 候选池涌现 → 三关筛选 → 交付 10 条（按次固定收费）",
   photo: "职业形象照 · 数字员工「何策」形象",
   rate: "用户口碑 · 评分与好评率"
 };
@@ -185,7 +185,7 @@ export function TopicDetailPage() {
   const [tab, setTab] = useState<TabKey>("ability");
   const [view, setView] = useState<GalleryView>("wb");
   const avatar = employeeAvatarPath("ipzone__topic");
-  /** 真实目录价（topic 按实际用量结算），单位「算力」。 */
+  /** 真实目录价（topic 按次固定收费），单位「算力」。 */
   const [skuPpu, setSkuPpu] = useState<number | null>(null);
 
   useEffect(() => {
@@ -197,7 +197,7 @@ export function TopicDetailPage() {
         const sku = data?.skus?.find((s) => s.skuCode === "ipzone__topic");
         if (sku && typeof sku.ppu === "number") setSkuPpu(sku.ppu);
       })
-      .catch(() => { /* 取不到就显示「按实际用量结算」，不阻塞 */ });
+      .catch(() => { /* 取不到就显示「按次固定收费」，不阻塞 */ });
     return () => { cancelled = true; };
   }, []);
 
@@ -283,7 +283,7 @@ export function TopicDetailPage() {
             <div className="ipd-price-line">
               <span className="ipd-num">{skuPpu ?? "—"}</span>
               <span className="ipd-unit">算力 / 次 起</span>
-              <span className="ipd-approx">{skuPpu != null ? `≈ ¥${(skuPpu / 10).toFixed(1)}` : "≈ ¥"} · 按实际用量结算</span>
+              <span className="ipd-approx">{skuPpu != null ? `≈ ¥${(skuPpu / 10).toFixed(1)}` : "≈ ¥"} · 按次固定收费</span>
             </div>
             <div className="ipd-price-meta">计费说明：<b>0 元开通</b> · 不收月费 · 使用后扣算力，失败不扣费</div>
             <div className="ipd-guar"><IconAuto v="⚡" /> 1元 = 10算力　<IconAuto v="🎁" /> 注册赠 100 算力　<IconAuto v="📄" /> 账单逐笔可查</div>
@@ -335,7 +335,7 @@ export function TopicDetailPage() {
             <h3>质量标准</h3>
             <ul className="ipd-foundation">
               <li><b>过程：</b>配置四大来源 → 候选池涌现 16–20 条（缺源自动重分配）→ 三关筛选 → 交付 10 条</li>
-              <li><b>口径：</b>来源池可配置、阶段可切换（起号期 / 增长期 / 变现期）；按实际用量结算，失败不扣费</li>
+              <li><b>口径：</b>来源池可配置、阶段可切换（起号期 / 增长期 / 变现期）；按次固定收费，失败不扣费</li>
               <li><b>联动：</b>选题 → 秦文拍摄脚本 → 江流发布后复盘，一条龙闭环</li>
             </ul>
           </div>
@@ -379,7 +379,7 @@ export function TopicDetailPage() {
                 </div>
                 <div className="ipd-canvas-foot">
                   <span>数据链路 17 → 淘汰 6 → 打标 11 → 交付 10 · 三关全过才出题</span>
-                  <b>10 条 · 按实际用量结算</b>
+                  <b>10 条 · 按次固定收费</b>
                 </div>
               </div>
             </div>

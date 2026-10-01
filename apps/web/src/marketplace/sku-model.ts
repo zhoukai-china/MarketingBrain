@@ -37,7 +37,7 @@ export interface MarketplaceSku {
   tags: string[];
   keywords: string[];
   ppu: number;
-  /** 包月价（算力/月）。为 0 或空表示该智能体不支持包月，只能按次/按消耗。 */
+  /** 包月价（算力/月）。为 0 或空表示该智能体不支持包月，只能按次。 */
   subscriptionCredits?: number | null;
   /** 包月期内的每日次数上限；null = 不限次数。 */
   subscriptionDailyQuota?: number | null;

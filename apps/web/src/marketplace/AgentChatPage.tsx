@@ -67,7 +67,7 @@ interface ChatPrefill {
 }
 
 /**
- * 包月订阅视图（用户 2026-09-17 拍板：有的智能体按次卖、有的按消耗卖、有的支持按月订阅）。
+ * 包月订阅视图（用户 2026-09-17 拍板：有的智能体按次卖、有的支持按月订阅）。
  *
  * 文案智能体＝4000 算力/月、每天 5 条，**订阅期内不再扣算力**。
  * 所以「确认生成」前必须说清这次扣不扣分，交付后也要说明白是包月覆盖而不是漏扣。
@@ -304,8 +304,8 @@ export function MarketplaceAgentChatPage({
   /** 直播话术：交付为几万字 · 2 小时完整逐字稿，生成耗时明显长于普通货架技能，需单独提示耐心等待。 */
   const isLiveScript = coreSkuCode(runSku?.skuCode ?? skuId) === "livescript";
   /**
-   * IP 定位：**按次固定价**（`FIXED_PRICE_SKUS`），不是按实际用量结算。
-   * 所以确认卡不能说「预计消耗约 N 算力…按实际用量结算，可能略有出入」——那会让客户以为价会浮动；
+   * IP 定位：**按次固定价**（`FIXED_PRICE_SKUS`），是按次固定收费。
+   * 所以确认卡不能说「预计消耗约 N 算力…按次固定收费」——那会让客户以为价会浮动；
    * 统一报固定价 `IP_POS_PRICE` 算力（2026-09-27 用户改价 99，单位口径同工作台）。
    */
   const isIpPos = coreSkuCode(runSku?.skuCode ?? skuId) === "ip-pos";
@@ -1561,7 +1561,7 @@ export function MarketplaceAgentChatPage({
                           </p>
                         ) : typeof runSku?.ppu === "number" && runSku.ppu > 0 && (
                           <p>
-                            预计消耗约 <b>{runSku.ppu}</b> 算力（<b>按本次实际用量结算</b>，可能略有出入；生成完成后会告诉你实际扣了多少）。
+                            预计消耗约 <b>{runSku.ppu}</b> 算力（<b>按次固定收费</b>，生成失败不扣）。
                           </p>
                         )}
                         {subscriptionView?.offer && (
@@ -1610,7 +1610,7 @@ export function MarketplaceAgentChatPage({
             )}
           </div>
 
-          {done && <div className="chat-donebar">✓ 已生成结果 · 可继续用文字追问迭代；重新生成会按实际用量计算</div>}
+          {done && <div className="chat-donebar">✓ 已生成结果 · 可继续用文字追问迭代；重新生成按次固定收费</div>}
 
           {done ? (
             <div className="chat-page-composer">

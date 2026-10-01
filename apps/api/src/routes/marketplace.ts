@@ -19,7 +19,6 @@ import {
   estimateMarketplaceModelCostCny,
   marketplaceCreditsForUsage
 } from "../services/marketplace-cost.js";
-import { usesCostBasedPricing } from "../services/billing-cost-model.js";
 import {
   MAX_TRIAL_CREDITS,
   TrialGrantError,
@@ -427,7 +426,6 @@ export async function runMarketplaceSku(params: {
   if (price <= 0) {
     return { ok: false, status: 409, body: { error: "marketplace_ppu_not_configured", message: "该智能体暂未开放使用" } };
   }
-  const costBased = usesCostBasedPricing(sku.skuCode);
 
   if (parsed.data.redoOf) {
     return {
@@ -915,7 +913,9 @@ export async function runMarketplaceSku(params: {
     const answer = marketplaceWrappedAnswer(sku, answerText);
     const costCny = estimateMarketplaceModelCostCny(usage);
     const dynamicCredits = marketplaceCreditsForUsage(usage);
-    const charge = coveredBySubscription ? 0 : costBased ? dynamicCredits : price;
+    // 2026-10-01 用户拍板：**所有智能体一律按次固定收费**（sku.ppu），不再按 token 消耗折算。
+    // （此前 BILLING_COST_BASED_SKUS=* 使 copy 等按消耗结算，同一定价每次扣 27~40 浮动，用户不可预期。）
+    const charge = coveredBySubscription ? 0 : price;
 
     let walletAfter = walletBefore;
     let spent: { paid: number; bonus: number } = { paid: 0, bonus: 0 };
@@ -960,7 +960,7 @@ export async function runMarketplaceSku(params: {
         refType: coveredBySubscription ? SUBSCRIPTION_USAGE_REF_TYPE : "marketplace_run",
         refId: coveredBySubscription ? activeSubscription?.id ?? requestId : requestId,
         metadata: {
-          pricingMode: coveredBySubscription ? "subscription" : costBased ? "cost_based" : "fixed_ppu",
+          pricingMode: coveredBySubscription ? "subscription" : "fixed_ppu",
           estimatedCredits: dynamicCredits,
           listPpu: price,
           modelCostCny: costCny,
@@ -1007,7 +1007,7 @@ export async function runMarketplaceSku(params: {
         qualityFlags: null,
         deliveryStatus: "completed",
         consumedCredits: charge,
-        pricingMode: coveredBySubscription ? "subscription" : costBased ? "cost_based" : "fixed_ppu",
+        pricingMode: coveredBySubscription ? "subscription" : "fixed_ppu",
         freeRedo: false,
         requestId,
         balance: walletAfter.balance,

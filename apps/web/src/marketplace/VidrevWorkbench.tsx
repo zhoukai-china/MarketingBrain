@@ -8,7 +8,7 @@
 //  - /run 走 vidrev 结构化入参（buildVidrevRunBody 同构：{ input, platform, period, has_revenue_data }），
 //    数据表文本与对话页同源（CSV 带编码探测 readAttachmentText；Excel 走 /media/analyze 文档解析）；
 //  - 交付渲染复用对话页同一个 `VidrevReport` 组件（含导出 CSV / 加入选题池），所见即所得；
-//  - 计费按实际用量结算（vidrev 不在 FIXED_PRICE_SKUS），价格取真实目录 ppu，单位「算力」；
+//  - 计费为按次固定收费（2026-10-01 用户拍板全部固定价），价格取真实目录 ppu，单位「算力」；
 //    校验不过不扣算力（后端 fail-closed 契约）。
 // 客户端体检只做「能不能收」（逐条明细 vs 按天汇总 fail-closed、字段覆盖、平台/周期识别），
 // 深度审计仍由后端第零章给出——前端不重算后端口径。原型里的「快速速读」后端无此模式，不做假选项。
@@ -460,7 +460,7 @@ export function VidrevWorkbench({ skuId }: { skuId: string }) {
       pushMsg("ai", "已记录 ✅ 会把这条说明一并交给复盘引擎，点「📊 开始复盘」生效。");
     } else if (phase === "done") {
       pushMsg("user", escapeHtml(v));
-      pushMsg("ai", "已记录。想基于这份报告重新复盘（换数据 / 补说明），直接拖新表进来，会按实际用量结算。");
+      pushMsg("ai", "已记录。想基于这份报告重新复盘（换数据 / 补说明），直接拖新表进来，会按次固定收费。");
     } else {
       pushMsg("user", escapeHtml(v));
       pushMsg("ai", "收到。把<b>数据表</b>拖进来（下方虚线框），我从文件里认平台——比口头说更准。");
@@ -545,7 +545,7 @@ export function VidrevWorkbench({ skuId }: { skuId: string }) {
           </div>
           <h1><img className="cpw-emoji" src={avatar} alt="江流" />视频复盘工作台</h1>
           <p className="cpw-hook">拖进后台导出的数据表，江流先体检、再复盘：合格才出报告，不合格写清原因。</p>
-          <p className="cpw-ability">上传数据 → 体检面板（字段覆盖 / 受限维度）→ 深度复盘 11 章（零章审计 + 一~十章归因 + 选题建议）：按实际用量结算，校验不过不扣算力。交付与对话页同一个复盘报告组件，所见即所得。</p>
+          <p className="cpw-ability">上传数据 → 体检面板（字段覆盖 / 受限维度）→ 深度复盘 11 章（零章审计 + 一~十章归因 + 选题建议）：按次固定收费，校验不过不扣算力。交付与对话页同一个复盘报告组件，所见即所得。</p>
         </div>
       </header>
 
@@ -652,8 +652,8 @@ export function VidrevWorkbench({ skuId }: { skuId: string }) {
                       )}
                       <span className="cpw-fee">
                         {phase === "done"
-                          ? <>本次实际消耗 <b>{consumed ?? skuPpu ?? "—"} 算力</b>（按实际用量结算）</>
-                          : <>预计消耗约 <b>{skuPpu ?? "—"} 算力</b>（按实际用量结算 · 体检不扣 · 校验不过不扣）</>}
+                          ? <>本次实际消耗 <b>{consumed ?? skuPpu ?? "—"} 算力</b>（按次固定收费）</>
+                          : <>预计消耗约 <b>{skuPpu ?? "—"} 算力</b>（按次固定收费 · 体检不扣 · 校验不过不扣）</>}
                       </span>
                       <span className="cpw-safe-tag"><IconAuto v="🛡" /> 失败不扣费</span>
                     </div>
