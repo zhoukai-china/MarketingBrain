@@ -91,13 +91,21 @@ const VIDREV_EXPORT_GUIDE_HTML = [
 /** 客户端体检：只判「能不能收」，不重算后端指标。 */
 function checkDataText(fileName: string, raw: string): FileCheck {
   const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  const header = lines[0] ?? "";
-  const dataLines = lines.slice(1);
+  // 表头行定位（2026-10-01 抖音「数据明细」导出实测：第一行可能是标题/说明行，不一定是表头）——
+  // 在前 10 行里找「已知特征词命中最多」的一行当表头，不再也假设 lines[0]。
+  const hintRe = /播放|点赞|喜欢|评论|分享|转发|完播|标题|描述|日期|投稿|收藏|弹幕|涨粉|时长|点击率|封面/g;
+  let headerIdx = 0, headerScore = -1;
+  for (let i = 0; i < Math.min(10, lines.length); i++) {
+    const score = (lines[i].match(hintRe) ?? []).length;
+    if (score > headerScore) { headerScore = score; headerIdx = i; }
+  }
+  const header = lines[headerIdx] ?? "";
+  const dataLines = lines.slice(headerIdx + 1);
   let platform = normalizeVidrevPlatform(`${fileName} ${header.slice(0, 200)}`);
   if (!platform) {
     // 兜底：抖音/视频号官方导出的表头都是通用列名（作品标题/播放量…），文件名也未必带平台字样。
-    // 按表头特征签名识别：抖音单篇有「点赞量/收藏/5秒完播/弹幕」，视频号有「喜欢/视频描述/朋友量」。
-    if (/作品标题|点赞量|收藏|弹幕|5\s*秒完播/.test(header)) platform = "抖音";
+    // 按表头特征签名识别：抖音单篇有「点赞量/收藏/5秒完播/弹幕」；抖音按天汇总有「投稿量/总播放/封面点击率」。
+    if (/作品标题|点赞量|收藏|弹幕|5\s*秒完播|投稿量|总播放|封面点击率|平均播放时长/.test(header)) platform = "抖音";
     else if (/喜欢|视频描述|朋友量/.test(header)) platform = "视频号";
   }
   // 视频号后台导出的标题列叫「视频描述」，必须在其列（2026-10-01 用户实测：缺它直接判无法识别）。
@@ -115,9 +123,9 @@ function checkDataText(fileName: string, raw: string): FileCheck {
   const period = dates.length >= 2 ? `${dates[0]} ~ ${dates[dates.length - 1]}` : dates.length === 1 ? dates[0] : "未识别";
   if (isDaily) {
     return {
-      ok: false, platform, rows: 0, period, shape: "按天汇总（每行 = 一天）", coverage, limited,
-      guide: "检测到<b>按天汇总</b>数据：视频复盘需要<b>逐条作品数据</b>（每行一个作品，含播放/点赞/评论/分享）。请在抖音创作者中心 → 内容管理 → 作品数据 导出，或另存为 CSV 后重新上传。",
-      fileName
+      ok: false, platform, rows: dataLines.length, period, shape: "按天汇总（每行 = 一天）", coverage, limited,
+      guide: "检测到<b>抖音「按天汇总」表</b>（每行 = 一天的合计，没有单个作品）。复盘需要<b>逐条作品明细</b>：抖音创作者中心 → <b>内容管理 → 作品数据</b> → 勾选作品 → <b>导出数据</b>（每行一个作品，含播放/点赞/评论/分享），导出后直接拖进来。"
+      , fileName
     };
   }
   const ok = hasTitleCol && dataLines.length > 0 && platform != null;
