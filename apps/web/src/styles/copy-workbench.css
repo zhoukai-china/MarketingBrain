@@ -582,3 +582,21 @@
 .cpw-demo-stop:hover { filter: brightness(1.08); }
 
 .cpw-demo-free { color: #a8d5b8; font-size: 11.5px; margin-left: 2px; }
+
+/* 交付正文：修掉全局 pre{color:#dce6ee}（store-growth.css 里给深色面板定的近白字）
+   漏进浅色交付卡的问题——模型把「签名档」这类内容包在 ``` 里时，
+   整块文字近乎不可见（2026-10-02 用户实测）。这里显式给浅底深字。 */
+.cpw-pc-c pre {
+  margin: 8px 0; padding: 10px 12px;
+  background: #f6f9fc; border: 1px solid var(--line); border-radius: 10px;
+  color: var(--ink); font-family: inherit; font-size: 12.5px;
+  line-height: 1.85; white-space: pre-wrap; word-break: break-word;
+}
+/* 引用行（> 开头）同批修复：交付卡里此前完全没样式，读起来像正文一样平。
+   用主题橙做左条，读起来一眼能分清是「文案块」。 */
+.cpw-pc-c blockquote {
+  margin: 8px 0; padding: 8px 12px;
+  border-left: 3px solid var(--orange); background: #fffaf6;
+  border-radius: 0 10px 10px 0; color: #3a3a3a;
+}
+.cpw-pc-c blockquote p { margin: 0; }

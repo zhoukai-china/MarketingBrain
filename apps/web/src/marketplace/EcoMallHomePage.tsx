@@ -68,8 +68,8 @@ type FloorId = "floor-acquire" | "floor-private" | "floor-consultants" | "floor-
 
 /** 金刚区七格（原型 v3.28，tint 照原型 data-tint）。 */
 const KINGKONG: Array<{ floor: FloorId; label: string; icon: string; tint: string; glyph: string; deep: string }> = [
-  { floor: "floor-acquire", label: "内容获客", icon: "✍️", tint: "#FF7A1A", glyph: "pen", deep: "#C24A00" },
-  { floor: "floor-private", label: "私域营销", icon: "💬", tint: "#F2538A", glyph: "chat", deep: "#B01E56" },
+  { floor: "floor-acquire", label: "获客专区", icon: "✍️", tint: "#FF7A1A", glyph: "pen", deep: "#C24A00" },
+  { floor: "floor-private", label: "营销专区", icon: "💬", tint: "#F2538A", glyph: "chat", deep: "#B01E56" },
   { floor: "floor-consultants", label: "数字咨询师", icon: "🧭", tint: "#F5A623", glyph: "compass", deep: "#9C6410" },
   { floor: "floor-hardware", label: "AI硬件", icon: "🔌", tint: "#0E9F6E", glyph: "chip", deep: "#066B49" },
   { floor: "floor-courses", label: "AI课程", icon: "🎓", tint: "#FF5C4D", glyph: "cap", deep: "#5F2B9C" },
@@ -96,7 +96,7 @@ const TYPE_LINES = [
   "刚播完一场？让罗盘把话术复盘一遍"
 ];
 
-/** 楼层分组（原型 v3.28：F1 内容获客 / F2 私域营销，按 employeeKey 归组）。 */
+/** 楼层分组（F1 获客专区 / F2 营销专区，按 employeeKey 归组）。 */
 const ACQUIRE_OK_KEYS = ["ip-position", "copywriter", "live-host", "video-diag", "topic"];
 const ACQUIRE_DEV_KEYS = ["live-coach"];
 const PRIVATE_DEV_KEYS = ["private", "sales-coach"];
@@ -1010,7 +1010,7 @@ export function EcoMallHomePage() {
 
   const employeeByKey = useMemo(() => new Map(ECO_EMPLOYEES.map((item) => [item.key, item])), []);
 
-  /** 楼层分组（照原型 v3.28：F1 内容获客 / F2 私域营销）。 */
+  /** 楼层分组（F1 获客专区 / F2 营销专区）。 */
   const byKey = useMemo(() => {
     const map = new Map(ECO_EMPLOYEES.map((employee) => [employee.key, employee]));
     const pick = (keys: string[]) => keys.map((key) => map.get(key)).filter((x): x is EcoEmployee => Boolean(x));
