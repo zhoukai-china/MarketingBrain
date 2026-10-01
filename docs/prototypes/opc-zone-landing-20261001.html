@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>思潼AI商城 · OPC专区 — 商家提需求，OPC来交付</title>
+<meta name="description" content="思潼AI商城 OPC专区：面向商家开放AI开发需求承接，平台统一承接需求，匹配OPC超级个体以「AI生产力」低成本、快响应完成开发交付。">
+<style>
+  :root{
+    --navy-900:#0a1628;
+    --navy-800:#0f1f38;
+    --navy-700:#15294a;
+    --orange:#F47920;
+    --orange-deep:#E8651A;
+    --text-main:#eef3fa;
+    --text-sub:#a8b8cf;
+    --text-dim:#7a8ca5;
+    --card:rgba(255,255,255,0.045);
+    --card-border:rgba(255,255,255,0.10);
+    --radius:16px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;
+    background:var(--navy-900);
+    color:var(--text-main);
+    line-height:1.75;
+    -webkit-font-smoothing:antialiased;
+  }
+  .bg-glow{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+  .bg-glow::before{
+    content:"";position:absolute;width:640px;height:640px;border-radius:50%;
+    top:-220px;right:-160px;
+    background:radial-gradient(circle,rgba(244,121,32,0.16),transparent 65%);
+  }
+  .bg-glow::after{
+    content:"";position:absolute;width:720px;height:720px;border-radius:50%;
+    bottom:-260px;left:-200px;
+    background:radial-gradient(circle,rgba(46,104,214,0.18),transparent 65%);
+  }
+  .wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:0 20px;}
+
+  header{
+    position:sticky;top:0;z-index:50;
+    background:rgba(10,22,40,0.82);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--card-border);
+  }
+  .nav{display:flex;align-items:center;justify-content:space-between;height:62px;}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:.5px;}
+  .brand .logo{
+    width:auto;min-width:32px;height:32px;border-radius:9px;flex:none;
+    background:linear-gradient(135deg,var(--orange),#ff9c4d);
+    display:flex;align-items:center;justify-content:center;
+    font-size:14px;font-weight:800;color:#fff;white-space:nowrap;padding:0 8px;
+  }
+  .brand .divider{color:var(--text-dim);font-weight:400;font-size:14px;}
+  .brand .zone{font-size:15px;color:#ffb377;}
+  .nav-links{display:flex;gap:26px;font-size:14px;}
+  .nav-links a{color:var(--text-sub);text-decoration:none;transition:color .2s;}
+  .nav-links a:hover{color:var(--orange);}
+  .nav-cta{
+    background:linear-gradient(135deg,var(--orange),var(--orange-deep));
+    color:#fff;padding:8px 18px;border-radius:22px;font-size:14px;
+    text-decoration:none;font-weight:600;transition:transform .2s,box-shadow .2s;white-space:nowrap;
+  }
+  .nav-cta:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(244,121,32,.35);}
+  @media(max-width:760px){.nav-links{display:none;}}
+
+  .hero{padding:76px 0 56px;text-align:center;position:relative;}
+  .hero-badge{
+    display:inline-flex;align-items:center;gap:8px;
+    background:rgba(244,121,32,0.12);border:1px solid rgba(244,121,32,0.35);
+    color:#ffb377;font-size:13px;padding:6px 16px;border-radius:20px;margin-bottom:26px;
+    letter-spacing:1px;
+  }
+  .hero-badge .dot{width:7px;height:7px;border-radius:50%;background:var(--orange);animation:pulse 1.8s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+  .hero h1{
+    font-size:clamp(30px,5.4vw,52px);font-weight:800;line-height:1.28;
+    letter-spacing:1px;
+  }
+  .hero h1 .grad{
+    background:linear-gradient(100deg,#ffb377,var(--orange) 55%,#ff9c4d);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .hero .sub{
+    margin:22px auto 0;max-width:760px;color:var(--text-sub);font-size:clamp(15px,2vw,17px);
+  }
+  .hero-actions{margin-top:36px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap;}
+  .btn{
+    display:inline-block;padding:13px 32px;border-radius:28px;font-size:15px;font-weight:600;
+    text-decoration:none;transition:transform .2s,box-shadow .2s;
+  }
+  .btn-primary{
+    background:linear-gradient(135deg,var(--orange),var(--orange-deep));color:#fff;
+    box-shadow:0 8px 24px rgba(244,121,32,.28);
+  }
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(244,121,32,.4);}
+  .btn-ghost{
+    border:1px solid var(--card-border);color:var(--text-main);background:var(--card);
+  }
+  .btn-ghost:hover{border-color:rgba(244,121,32,.5);color:#ffb377;}
+
+  /* ---------- 流程 ---------- */
+  section{padding:72px 0 0;}
+  .sec-head{text-align:center;margin-bottom:40px;}
+  .sec-tag{
+    display:inline-block;font-size:13px;color:var(--orange);letter-spacing:3px;
+    margin-bottom:12px;font-weight:600;
+  }
+  .sec-head h2{font-size:clamp(23px,3.6vw,32px);font-weight:800;letter-spacing:.5px;}
+  .sec-head p{color:var(--text-sub);margin-top:12px;max-width:680px;margin-left:auto;margin-right:auto;font-size:15px;}
+
+  .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;position:relative;}
+  @media(max-width:900px){.flow{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:520px){.flow{grid-template-columns:1fr;}}
+  .step{
+    background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);
+    padding:26px 22px;position:relative;overflow:hidden;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    transition:transform .25s,border-color .25s;
+  }
+  .step:hover{transform:translateY(-4px);border-color:rgba(244,121,32,.4);}
+  .step .idx{
+    position:absolute;top:10px;right:16px;font-size:44px;font-weight:800;
+    color:rgba(244,121,32,.12);line-height:1;
+  }
+  .step .icon{
+    width:44px;height:44px;border-radius:12px;margin-bottom:16px;
+    background:linear-gradient(135deg,rgba(244,121,32,.22),rgba(244,121,32,.08));
+    border:1px solid rgba(244,121,32,.3);
+    display:flex;align-items:center;justify-content:center;font-size:20px;
+  }
+  .step h3{font-size:17px;font-weight:700;margin-bottom:8px;}
+  .step p{font-size:13.5px;color:var(--text-sub);}
+
+  /* ---------- 优势 ---------- */
+  .adv-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+  @media(max-width:900px){.adv-grid{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:520px){.adv-grid{grid-template-columns:1fr;}}
+  .adv{
+    position:relative;background:var(--card);border:1px solid var(--card-border);
+    border-radius:var(--radius);padding:26px 22px;overflow:hidden;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    transition:transform .25s,border-color .25s;
+  }
+  .adv:hover{transform:translateY(-4px);border-color:rgba(244,121,32,.4);}
+  .adv .idx{
+    position:absolute;top:10px;right:16px;font-size:44px;font-weight:800;
+    color:rgba(244,121,32,.12);line-height:1;
+  }
+  .adv h3{font-size:17px;color:#ffb377;font-weight:700;margin-bottom:8px;}
+  .adv p{font-size:13.5px;color:var(--text-sub);}
+
+  /* ---------- 承接范围 ---------- */
+  .orders{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+  @media(max-width:700px){.orders{grid-template-columns:1fr;}}
+  .order{
+    background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);
+    padding:24px 22px;position:relative;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    transition:transform .25s,border-color .25s;
+  }
+  .order:hover{transform:translateY(-4px);border-color:rgba(244,121,32,.4);}
+  .order .no{
+    display:inline-block;font-size:12px;font-weight:700;color:var(--orange);
+    border:1px solid rgba(244,121,32,.4);border-radius:6px;padding:2px 10px;margin-bottom:14px;
+    letter-spacing:1px;
+  }
+  .order h3{font-size:16.5px;font-weight:700;margin-bottom:8px;}
+  .order p{font-size:13px;color:var(--text-sub);}
+
+  /* ---------- 需求登记 ---------- */
+  .contact{
+    margin-top:72px;border-radius:22px;padding:52px 32px;text-align:center;
+    background:linear-gradient(160deg,rgba(244,121,32,.14),rgba(46,104,214,.12));
+    border:1px solid rgba(244,121,32,.3);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  }
+  .contact h2{font-size:clamp(22px,3.4vw,30px);font-weight:800;}
+  .contact > p{color:var(--text-sub);margin-top:12px;font-size:15px;}
+  .form{
+    margin:34px auto 0;max-width:640px;text-align:left;
+    display:grid;gap:16px;
+  }
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:600px){.form-row{grid-template-columns:1fr;}}
+  .field label{display:block;font-size:13px;color:var(--text-sub);margin-bottom:6px;}
+  .field label .req{color:var(--orange);}
+  .field input,.field select,.field textarea{
+    width:100%;background:rgba(10,22,40,.55);border:1px solid var(--card-border);
+    border-radius:12px;padding:12px 16px;color:var(--text-main);font-size:14.5px;
+    font-family:inherit;outline:none;transition:border-color .2s;
+  }
+  .field textarea{min-height:110px;resize:vertical;}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:rgba(244,121,32,.55);}
+  .field select option{background:var(--navy-800);color:var(--text-main);}
+  .form-submit{
+    justify-self:center;margin-top:6px;
+    background:linear-gradient(135deg,var(--orange),var(--orange-deep));color:#fff;
+    border:none;border-radius:26px;padding:13px 52px;font-size:15.5px;font-weight:700;
+    cursor:pointer;letter-spacing:2px;
+    box-shadow:0 8px 24px rgba(244,121,32,.28);
+    transition:transform .2s,box-shadow .2s;
+  }
+  .form-submit:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(244,121,32,.4);}
+  .form-tip{margin-top:18px;font-size:13px;color:var(--text-dim);}
+  .form-tip a{color:#ffb377;text-decoration:none;border-bottom:1px dashed rgba(255,179,119,.5);}
+  #form-ok{
+    display:none;margin-top:16px;font-size:14px;color:#7ee2a8;
+    background:rgba(126,226,168,.08);border:1px solid rgba(126,226,168,.3);
+    border-radius:12px;padding:12px 18px;
+  }
+
+  footer{
+    margin-top:64px;border-top:1px solid var(--card-border);
+    padding:30px 0 40px;text-align:center;color:var(--text-dim);font-size:13px;
+  }
+  footer a{color:var(--text-dim);text-decoration:none;}
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+
+<header>
+  <div class="wrap nav">
+    <div class="brand">
+      <div class="logo">思潼AI</div>
+      <span class="divider">|</span>
+      <span class="zone">OPC专区</span>
+    </div>
+    <nav class="nav-links">
+      <a href="#flow">承接流程</a>
+      <a href="#advantage">模式优势</a>
+      <a href="#orders">承接范围</a>
+      <a href="#contact">提交需求</a>
+    </nav>
+    <a class="nav-cta" href="#contact">提交开发需求</a>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-badge"><span class="dot"></span>思潼AI商城 · 线上OPC专区 · 开放需求承接</div>
+    <h1>商家提需求 · 平台来承接<br><span class="grad">OPC超级个体为你开发</span></h1>
+    <p class="sub">
+      思潼AI商城 OPC专区面向商家开放AI开发需求承接：
+      你提交开发需求，平台统一承接与跟进，
+      由 OPC 超级个体以「AI生产力」完成开发交付——
+      <b style="color:#ffcf9e">低成本、快响应、专业化</b>。
+    </p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="#contact">提交开发需求</a>
+      <a class="btn btn-ghost" href="#flow">了解承接流程</a>
+    </div>
+  </div>
+
+  <!-- 承接流程 -->
+  <section id="flow">
+    <div class="sec-head">
+      <div class="sec-tag">承接流程</div>
+      <h2>四步走完，需求变交付</h2>
+      <p>全线上对接，平台全程跟踪，商家不需要自己找人、管人、盯进度。</p>
+    </div>
+
+    <div class="flow">
+      <div class="step"><div class="idx">01</div><div class="icon">📝</div><h3>商家提交需求</h3><p>在线登记开发需求，说清业务场景与预期效果。</p></div>
+      <div class="step"><div class="idx">02</div><div class="icon">🔍</div><h3>平台承接评估</h3><p>平台对需求进行评估与拆解，确认承接范围与交付节点。</p></div>
+      <div class="step"><div class="idx">03</div><div class="icon">🤝</div><h3>匹配OPC开发</h3><p>按能力匹配 OPC 超级个体，明确方案、周期与验收标准。</p></div>
+      <div class="step"><div class="idx">04</div><div class="icon">✅</div><h3>交付验收</h3><p>开发完成交付验收，平台全程跟踪保障交付质量。</p></div>
+    </div>
+  </section>
+
+  <!-- 模式优势 -->
+  <section id="advantage">
+    <div class="sec-head">
+      <div class="sec-tag">模式优势</div>
+      <h2>OPC 开发模式，对比传统外包的优势</h2>
+      <p>OPC（One Person Company）超级个体以 AI 为原生工作方式，一人即是一支团队。</p>
+    </div>
+
+    <div class="adv-grid">
+      <div class="adv"><div class="idx">01</div><h3>成本更优</h3><p>轻量开发模式，无团队冗余成本，开发费用更省。</p></div>
+      <div class="adv"><div class="idx">02</div><h3>响应更快</h3><p>平台直接对接开发者，决策链路短，需求沟通与执行高效。</p></div>
+      <div class="adv"><div class="idx">03</div><h3>专业更细</h3><p>按需求匹配对应垂直领域的开发者，补齐商家的AI开发能力短板。</p></div>
+      <div class="adv"><div class="idx">04</div><h3>工具先进</h3><p>以AI智能体作为原生生产工具，开发与内容生产效率突出。</p></div>
+    </div>
+  </section>
+
+  <!-- 承接范围 -->
+  <section id="orders">
+    <div class="sec-head">
+      <div class="sec-tag">承接范围</div>
+      <h2>OPC 专区开放承接的开发需求</h2>
+      <p>商家可提交以下类型的开发需求，平台评估后匹配 OPC 超级个体承接开发。</p>
+    </div>
+
+    <div class="orders">
+      <div class="order"><span class="no">类型 01</span><h3>智能体与自动化开发</h3><p>企业智能体搭建、AI知识库构建、工作流自动化开发、业务工具定制。</p></div>
+      <div class="order"><span class="no">类型 02</span><h3>AIGC 内容制作</h3><p>营销短视频、产品演示、数字人内容、培训课件等 AI 内容生产。</p></div>
+      <div class="order"><span class="no">类型 03</span><h3>数据加工与知识库建设</h3><p>业务数据整理加工、AI训练语料准备、企业知识库搭建与质控。</p></div>
+      <div class="order"><span class="no">类型 04</span><h3>创新场景试点（POC）</h3><p>新想法、新方案的低成本快速验证，先跑通再决定是否加大投入。</p></div>
+    </div>
+  </section>
+
+  <!-- 需求登记 -->
+  <div class="contact" id="contact">
+    <h2>提交开发需求 · 平台承接</h2>
+    <p>留下你的需求，平台评估后安排 OPC 超级个体与你对接。</p>
+
+    <form class="form" id="req-form">
+      <div class="form-row">
+        <div class="field">
+          <label>商家/企业名称 <span class="req">*</span></label>
+          <input type="text" name="company" placeholder="填写你的企业或店铺名称" required>
+        </div>
+        <div class="field">
+          <label>联系方式（手机/微信） <span class="req">*</span></label>
+          <input type="text" name="contact" placeholder="方便平台与你对接" required>
+        </div>
+      </div>
+      <div class="field">
+        <label>需求类型</label>
+        <select name="type">
+          <option>智能体与自动化开发</option>
+          <option>AIGC 内容制作</option>
+          <option>数据加工与知识库建设</option>
+          <option>创新场景试点（POC）</option>
+          <option>其他（请在描述中说明）</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>需求描述 <span class="req">*</span></label>
+        <textarea name="detail" placeholder="简单说下业务场景、想解决的问题、预期效果" required></textarea>
+      </div>
+      <button class="form-submit" type="submit">提交需求</button>
+      <div id="form-ok">✅ 需求已提交，平台会尽快与你联系对接。</div>
+    </form>
+
+    <p class="form-tip">也可以先到 <a href="https://ai.lcppch.top/agents" target="_blank" rel="noopener">思潼AI商城</a> 逛逛，了解平台已有的智能体能力。</p>
+  </div>
+
+  <footer>
+    <div>思潼AI商城 · OPC专区 · 线上需求承接</div>
+  </footer>
+
+</main>
+
+<script>
+  // 表单提交（原型演示：前端提示，后端接口由工程化阶段接入）
+  document.getElementById('req-form').addEventListener('submit', function(e){
+    e.preventDefault();
+    // TODO 工程化：接入需求登记后端接口（POST 公司/联系方式/类型/描述）
+    document.getElementById('form-ok').style.display = 'block';
+    this.reset();
+  });
+</script>
+</body>
+</html>
