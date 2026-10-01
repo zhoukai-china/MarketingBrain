@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>FDE 专区 · 新增三行业 demo · 思潼AI商城（设计原型）</title>
+<style>
+/* ========== 令牌（取自 agents-home-tech-demo-20260925，保持系列一致） ========== */
+:root{
+  --bg0:#FFFFFF; --bg1:#FFFFFF;
+  --card:#FFFFFF; --card2:#FFF9F2;
+  --line:#F0EBE3; --line2:#E5DDD1;
+  --ink:#2B1B10; --sub:#94796B; --dim:#BEA488;
+  --orange:#FF6A00; --orange2:#F25300; --orangeSoft:rgba(255,106,0,.12);
+  --green:#12A06A; --r:16px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, rgba(255,150,60,.15), transparent 60%),
+    radial-gradient(1000px 520px at -10% 12%, rgba(255,106,0,.10), transparent 55%),
+    linear-gradient(180deg, var(--bg0), var(--bg1) 46%, var(--bg0));
+  color:var(--ink); font-size:14px; line-height:1.6; min-height:100vh;
+  overflow-x:hidden;
+}
+button{font-family:inherit;border:0;cursor:pointer;background:none;color:inherit}
+::selection{background:rgba(255,122,26,.35)}
+
+.page{position:relative;z-index:5;max-width:1180px;margin:0 auto;padding:0 14px 90px}
+
+/* 顶部轻条 + demo 说明 */
+.topbar-lite{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:9px;padding:10px 16px;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.topbar-lite b{font-size:14.5px;color:var(--orange);font-weight:800}
+.topbar-lite span{font-size:11.5px;color:var(--sub)}
+.topbar-lite i{margin-left:auto;font-style:normal;font-size:9.5px;font-weight:700;color:#8A6A1E;background:rgba(201,162,39,.14);border:1px solid rgba(201,162,39,.42);border-radius:99px;padding:2px 9px}
+.demo-note{margin-top:14px;padding:10px 13px;border-radius:12px;font-size:11.5px;line-height:1.75;color:#7A5A2E;background:linear-gradient(120deg,#FFF6E6,#FFEDD3);border:1px dashed rgba(201,162,39,.5)}
+.demo-note b{color:#A93226}
+
+/* ---- 楼层 ---- */
+.floor{margin-top:26px}
+.floor-head{display:flex;align-items:baseline;gap:9px;margin-bottom:12px}
+.floor-no{font-size:10px;font-weight:800;letter-spacing:1px;color:var(--orange);padding:3px 8px;border-radius:6px;background:rgba(255,122,26,.12);border:1px solid rgba(255,122,26,.3)}
+.floor-title{font-size:16px;font-weight:800}
+.floor-sub{font-size:11px;color:var(--dim)}
+.floor-live{margin-left:auto;font-size:10px;color:var(--green);display:flex;align-items:center;gap:5px}
+.floor-live i{width:5px;height:5px;border-radius:50%;background:var(--green);animation:breathDot 2s infinite}
+@keyframes breathDot{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* FDE 流程条 */
+.fde-flow{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-bottom:12px;padding:9px 12px;background:linear-gradient(120deg,rgba(124,92,255,.08),rgba(255,122,26,.08));border:1px dashed rgba(124,92,255,.35);border-radius:12px;font-size:11px;color:#5b4a8a;font-weight:600}
+.fde-flow i{color:#b9a8e8;font-style:normal;font-weight:400}
+
+/* ---- 商品卡 ---- */
+.prod{display:grid;grid-template-columns:1fr;gap:11px}
+@media(min-width:640px){.prod{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:960px){.prod{grid-template-columns:repeat(3,1fr)}}
+.pcard{position:relative;display:flex;flex-direction:column;border-radius:var(--r);overflow:hidden;background:var(--card);border:1px solid var(--line);text-align:left;transition:transform .25s,border .25s,box-shadow .25s}
+@media(hover:hover){.pcard:hover{transform:translateY(-3px);border-color:rgba(255,122,26,.5);box-shadow:0 10px 28px rgba(170,90,20,.14)}}
+.pcard-link{cursor:pointer}
+.pcover{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;background:#FFF2E2}
+.pcover .scanline{position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,rgba(255,140,50,.7),transparent);animation:scanMove 4.5s linear infinite;z-index:3}
+@keyframes scanMove{0%{top:0;opacity:0}10%{opacity:1}90%{opacity:1}100%{top:100%;opacity:0}}
+.fcover{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;padding:12px 14px}
+.fc-ico{position:absolute;top:13px;left:14px;font-size:38px;line-height:1;filter:drop-shadow(0 4px 10px rgba(0,0,0,.2));z-index:2}
+.fc-name{position:relative;font-size:15px;font-weight:800;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.3);z-index:2}
+.fc-name::after{content:"工程师入企 · 把 AI 用进生意";display:block;font-size:9.5px;font-weight:600;opacity:.85;margin-top:3px}
+.fc-badge{position:absolute;top:10px;right:10px;font-size:9.5px;font-weight:700;color:#fff;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.45);border-radius:99px;padding:2px 8px;z-index:2}
+.fc-new{position:absolute;top:58px;left:14px;font-size:9px;font-weight:800;letter-spacing:.08em;color:#fff;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.55);border-radius:99px;padding:2px 8px;z-index:2}
+.fc-store{background:linear-gradient(140deg,#FF9A4D,#E8651A 60%,#C24E00)}
+.fc-chain{background:linear-gradient(140deg,#8F6BFF,#6A3DE8 60%,#4C22B8)}
+.fc-logi{background:linear-gradient(140deg,#5E7FA8,#3C5A80 60%,#2A4260)}
+.fc-bank{background:linear-gradient(140deg,#24466E,#16345C 60%,#0C2244)}
+.fc-ins{background:linear-gradient(140deg,#17584C,#11473C 60%,#0A332C)}
+.fc-ecom{background:linear-gradient(140deg,#53296B,#3A1D55 55%,#B05A30)}
+.fde-soon .ptag{background:#EEF1F6;color:#7A8699}
+/* 新行业：手绘 SVG 封面 */
+.fc-svg{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1}
+
+.pbody{padding:12px 14px 14px;display:flex;flex-direction:column;gap:6px;flex:1}
+.pname{font-size:14px;font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ptag{font-size:9.5px;padding:2px 7px;border-radius:5px;color:#D96A00;background:rgba(255,140,50,.12);border:1px solid rgba(255,140,50,.35);white-space:nowrap;font-weight:600}
+.pdesc{font-size:11.5px;color:var(--sub);line-height:1.6}
+.pfoot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;padding-top:6px;gap:8px}
+.pprice{font-size:11px;color:var(--dim)}
+.psoon{font-size:10.5px;color:#C77700;padding:4px 9px;border-radius:7px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);white-space:nowrap}
+.buy-row{display:inline-flex;gap:6px;align-items:center}
+.cart-mini{min-width:30px;height:30px;padding:0 8px;border-radius:9px;border:1px solid rgba(255,122,26,.45);background:#FFF3E4;color:#C25A00;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:3px;justify-content:center}
+.cart-mini:active{transform:scale(.94)}
+
+.foot{margin-top:34px;text-align:center;font-size:10.5px;color:var(--dim);line-height:1.9}
+
+/* toast */
+#toast{position:fixed;left:50%;transform:translateX(-50%) translateY(20px);bottom:calc(96px + env(safe-area-inset-bottom));z-index:400;max-width:82vw;padding:11px 18px;border-radius:12px;font-size:13px;color:var(--ink);background:rgba(255,252,248,.97);border:1px solid rgba(255,122,26,.5);box-shadow:0 10px 34px rgba(130,70,15,.22), 0 0 22px rgba(255,106,0,.14);opacity:0;pointer-events:none;transition:opacity .3s, transform .3s;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(min-width:960px){#toast{bottom:36px}}
+
+/* 滚动显现 */
+.rv{opacity:0;transform:translateY(18px);transition:opacity .6s, transform .6s}
+.rv.in{opacity:1;transform:translateY(0)}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}}
+</style>
+</head>
+<body>
+
+<header class="topbar-lite">
+  <b>思潼AI商城</b><span>FDE 专区 · 新增三行业设计 demo</span><i>原型 · 未上线</i>
+</header>
+
+<div class="page">
+
+  <div class="demo-note rv in">
+    本页为<b>设计原型</b>（不动生产代码）：基于 agents-home「F9 · FDE 专区」扩展，新增 <b>银行业务系统 / 保险业务系统 / 跨境电商AI SaaS</b> 三张行业卡（封面带「新增」标）；存量三卡封面同步升级为同风格 SVG 艺术图。全部卡片 CTA 统一为「免费咨询」。点卡片看交互预留。演示数据一律虚构。
+  </div>
+
+  <!-- F9 FDE 专区 -->
+  <section class="floor" id="floor-fde">
+    <div class="floor-head rv"><span class="floor-no">F9</span><b class="floor-title">FDE 专区</b><span class="floor-sub">AI 落地最后一公里 · 工程师入企服务，按行业接单</span><span class="floor-live"><i></i>正在接单</span></div>
+    <div class="fde-flow rv">
+      <span>📱 留电话咨询</span><i>›</i>
+      <span>☎️ 顾问回电沟通</span><i>›</i>
+      <span>📋 出方案报价</span><i>›</i>
+      <span>✅ 确认收定金</span><i>›</i>
+      <span>🛠️ 工程师入企</span><i>›</i>
+      <span>🚀 交付结款</span>
+    </div>
+
+    <div class="prod" id="fdeRow">
+
+      <!-- 存量卡 1：实体门店 FDE（原样保留） -->
+      <div class="pcard rv pcard-link" data-fde="fde-store" data-name="实体门店 FDE" data-new="0">
+        <div class="pcover fcover fc-store">
+          <svg class="fc-svg" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <defs>
+              <linearGradient id="st-bg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#FF9A4D"/><stop offset=".55" stop-color="#E8651A"/><stop offset="1" stop-color="#B84A00"/>
+              </linearGradient>
+              <radialGradient id="st-glow" cx=".74" cy=".22" r=".5">
+                <stop offset="0" stop-color="#FFE0B0" stop-opacity=".3"/><stop offset="1" stop-color="#FFE0B0" stop-opacity="0"/>
+              </radialGradient>
+              <linearGradient id="st-band" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#5A2400" stop-opacity="0"/><stop offset="1" stop-color="#5A2400" stop-opacity=".6"/>
+              </linearGradient>
+              <radialGradient id="st-vign" cx=".5" cy=".5" r=".72">
+                <stop offset=".55" stop-color="#3D1700" stop-opacity="0"/><stop offset="1" stop-color="#3D1700" stop-opacity=".3"/>
+              </radialGradient>
+            </defs>
+            <rect width="800" height="450" fill="url(#st-bg)"/>
+            <rect width="800" height="450" fill="url(#st-glow)"/>
+            <path d="M0,362 H800" stroke="#FFDDBA" stroke-opacity=".28" stroke-width="1.6"/>
+            <path d="M170,88 C138,88 116,112 116,142 C116,182 170,224 170,224 C170,224 224,182 224,142 C224,112 202,88 170,88 Z" fill="rgba(90,36,0,.28)" stroke="#FFE3C2" stroke-width="2.6"/>
+            <circle cx="170" cy="140" r="17" fill="none" stroke="#FFE3C2" stroke-width="2.4"/>
+            <circle cx="170" cy="140" r="5.5" fill="#FFE3C2"/>
+            <path d="M170,236 C220,268 300,300 420,318 C470,325 520,330 566,332" fill="none" stroke="#FFE3C2" stroke-opacity=".5" stroke-width="2" stroke-dasharray="1 14" stroke-linecap="round"/>
+            <g stroke="#FFF0DC" fill="none" stroke-linecap="round">
+              <rect x="486" y="170" width="224" height="30" rx="6" stroke-width="2.4"/>
+              <path d="M510,185 h60 M596,185 h84" stroke-opacity=".45" stroke-width="2"/>
+              <rect x="470" y="206" width="256" height="20" rx="4" stroke-width="2.2"/>
+              <path d="M470,226 a16,9 0 0 0 32,0 a16,9 0 0 0 32,0 a16,9 0 0 0 32,0 a16,9 0 0 0 32,0 a16,9 0 0 0 32,0 a16,9 0 0 0 32,0 a16,9 0 0 0 32,0 a16,9 0 0 0 32,0" stroke-width="2"/>
+              <path d="M502,208 v18 M534,208 v18 M566,208 v18 M598,208 v18 M630,208 v18 M662,208 v18 M694,208 v18" stroke="#7A2E00" stroke-opacity=".3" stroke-width="2"/>
+              <rect x="492" y="262" width="118" height="76" rx="4" stroke-width="2.2"/>
+              <path d="M551,262 V338 M492,300 H610" stroke-opacity=".7" stroke-width="1.6"/>
+              <rect x="634" y="252" width="64" height="86" rx="4" stroke-width="2.2"/>
+              <circle cx="686" cy="298" r="3" fill="#FFF0DC" stroke="none"/>
+              <path d="M478,350 H726" stroke-width="2.6" stroke-opacity=".85"/>
+              <path d="M466,364 H738" stroke-width="3" stroke-opacity=".4"/>
+            </g>
+            <g stroke="#FFE3C2" fill="none" stroke-linecap="round">
+              <path d="M380,104 v16 M372,112 h16" stroke-opacity=".45" stroke-width="1.8"/>
+              <path d="M420,196 v12 M414,202 h12" stroke-opacity=".3" stroke-width="1.6"/>
+            </g>
+            <g fill="#FFEDD6">
+              <circle cx="300" cy="80" r="1.8" fill-opacity=".5"/><circle cx="345" cy="150" r="1.4" fill-opacity=".4"/><circle cx="748" cy="120" r="1.6" fill-opacity=".45"/><circle cx="716" cy="60" r="1.3" fill-opacity=".4"/>
+            </g>
+            <rect y="272" width="800" height="178" fill="url(#st-band)"/>
+            <rect width="800" height="450" fill="url(#st-vign)"/>
+          </svg>
+          <span class="fc-ico">🏪</span><span class="fc-name">实体门店 FDE</span><span class="fc-badge">已开放 · 正在接单</span><span class="scanline"></span>
+        </div>
+        <div class="pbody">
+          <div class="pname">实体门店 FDE<span class="ptag">单店 · 到店服务</span></div>
+          <p class="pdesc">面向实体商家（美容 / 餐饮 / 零售等单店）：AI 现状诊断 + 落地方案 + 到店带教，把 AI 真正用进日常经营。</p>
+          <div class="pfoot"><span class="pprice">¥3,000 起/店 · 按需报价</span><span class="buy-row"><button class="cart-mini">💬 免费咨询</button></span></div>
+        </div>
+      </div>
+
+      <!-- 存量卡 2：连锁品牌 FDE（原样保留） -->
+      <div class="pcard rv pcard-link" data-fde="fde-chain" data-name="连锁品牌 FDE" data-new="0">
+        <div class="pcover fcover fc-chain">
+          <svg class="fc-svg" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <defs>
+              <linearGradient id="ch-bg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#9D7CFF"/><stop offset=".55" stop-color="#6A3DE8"/><stop offset="1" stop-color="#3E1CA8"/>
+              </linearGradient>
+              <radialGradient id="ch-glow" cx=".26" cy=".2" r=".5">
+                <stop offset="0" stop-color="#C9B4FF" stop-opacity=".26"/><stop offset="1" stop-color="#C9B4FF" stop-opacity="0"/>
+              </radialGradient>
+              <linearGradient id="ch-band" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#2E0E78" stop-opacity="0"/><stop offset="1" stop-color="#2E0E78" stop-opacity=".62"/>
+              </linearGradient>
+              <radialGradient id="ch-vign" cx=".5" cy=".5" r=".72">
+                <stop offset=".55" stop-color="#230A60" stop-opacity="0"/><stop offset="1" stop-color="#230A60" stop-opacity=".3"/>
+              </radialGradient>
+            </defs>
+            <rect width="800" height="450" fill="url(#ch-bg)"/>
+            <rect width="800" height="450" fill="url(#ch-glow)"/>
+            <circle cx="620" cy="120" r="118" fill="none" stroke="#CBB6FF" stroke-opacity=".16" stroke-width="1.3"/>
+            <circle cx="620" cy="120" r="86" fill="none" stroke="#CBB6FF" stroke-opacity=".1" stroke-width="1.1"/>
+            <g stroke="#CBB6FF" stroke-opacity=".55" stroke-width="1.8" fill="none" stroke-dasharray="2 10" stroke-linecap="round">
+              <path d="M560,250 C430,210 300,168 198,154"/>
+              <path d="M560,268 C440,278 360,272 310,269"/>
+              <path d="M560,290 C420,330 300,348 196,352"/>
+            </g>
+            <g fill="#E4DAFF">
+              <circle cx="196" cy="154" r="4" /><circle cx="194" cy="154" r="9" fill-opacity=".22"/>
+              <circle cx="308" cy="269" r="4"/><circle cx="310" cy="269" r="9" fill-opacity=".22"/>
+              <circle cx="196" cy="352" r="4"/><circle cx="194" cy="352" r="9" fill-opacity=".22"/>
+            </g>
+            <g stroke="#E4DAFF" fill="none" stroke-linecap="round">
+              <rect x="172" y="136" width="44" height="30" rx="4" stroke-width="2"/>
+              <path d="M172,146 h44" stroke-opacity=".5" stroke-width="1.5"/>
+              <rect x="286" y="252" width="44" height="30" rx="4" stroke-width="2"/>
+              <path d="M286,262 h44" stroke-opacity=".5" stroke-width="1.5"/>
+              <rect x="172" y="334" width="44" height="30" rx="4" stroke-width="2"/>
+              <path d="M172,344 h44" stroke-opacity=".5" stroke-width="1.5"/>
+            </g>
+            <g stroke="#E4DAFF" fill="none" stroke-linecap="round">
+              <rect x="560" y="150" width="120" height="200" rx="6" stroke-width="2.4"/>
+              <path d="M590,172 V336 M620,172 V336 M650,172 V336" stroke-opacity=".3" stroke-width="1.5"/>
+              <path d="M560,200 H680 M560,250 H680 M560,300 H680" stroke-opacity=".3" stroke-width="1.5"/>
+              <path d="M620,150 V122" stroke-width="2"/>
+              <circle cx="620" cy="114" r="4" fill="#E4DAFF" stroke="none"/>
+              <rect x="680" y="212" width="52" height="138" stroke-opacity=".65" stroke-width="2"/>
+              <path d="M540,350 H756" stroke-width="2.6" stroke-opacity=".85"/>
+              <path d="M526,364 H770" stroke-width="3" stroke-opacity=".4"/>
+            </g>
+            <g fill="#EFE6FF">
+              <rect x="598" y="182" width="10" height="8" rx="1.5" fill-opacity=".5"/><rect x="628" y="182" width="10" height="8" rx="1.5" fill-opacity=".7"/><rect x="598" y="232" width="10" height="8" rx="1.5" fill-opacity=".4"/><rect x="658" y="282" width="10" height="8" rx="1.5" fill-opacity=".6"/><rect x="628" y="332" width="10" height="8" rx="1.5" fill-opacity=".45"/>
+            </g>
+            <g fill="#F1EAFF">
+              <circle cx="352" cy="80" r="1.6" fill-opacity=".5"/><circle cx="410" cy="120" r="1.3" fill-opacity=".4"/><circle cx="86" cy="250" r="1.5" fill-opacity=".4"/><circle cx="120" cy="60" r="1.3" fill-opacity=".45"/><circle cx="760" cy="80" r="1.4" fill-opacity=".4"/>
+            </g>
+            <rect y="272" width="800" height="178" fill="url(#ch-band)"/>
+            <rect width="800" height="450" fill="url(#ch-vign)"/>
+          </svg>
+          <span class="fc-ico">🏢</span><span class="fc-name">连锁品牌 FDE</span><span class="fc-badge">已开放 · 正在接单</span><span class="scanline"></span>
+        </div>
+        <div class="pbody">
+          <div class="pname">连锁品牌 FDE<span class="ptag">多店 · 总部+门店</span></div>
+          <p class="pdesc">面向连锁品牌 / 连锁行业：总部流程诊断 + 试点门店落地 + 方案复制推广，一套打法铺到全部门店。</p>
+          <div class="pfoot"><span class="pprice">¥20,000 起 · 按需报价</span><span class="buy-row"><button class="cart-mini">💬 免费咨询</button></span></div>
+        </div>
+      </div>
+
+      <!-- 存量卡 3：物流行业 FDE（原样保留） -->
+      <div class="pcard rv pcard-link fde-soon" data-fde="fde-logistics" data-name="物流行业 FDE" data-new="0">
+        <div class="pcover fcover fc-logi">
+          <svg class="fc-svg" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <defs>
+              <linearGradient id="lg-bg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#6E8DB5"/><stop offset=".55" stop-color="#3C5A80"/><stop offset="1" stop-color="#22374F"/>
+              </linearGradient>
+              <radialGradient id="lg-glow" cx=".72" cy=".2" r=".5">
+                <stop offset="0" stop-color="#CFE2F5" stop-opacity=".22"/><stop offset="1" stop-color="#CFE2F5" stop-opacity="0"/>
+              </radialGradient>
+              <linearGradient id="lg-band" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#0C1A2C" stop-opacity="0"/><stop offset="1" stop-color="#0C1A2C" stop-opacity=".62"/>
+              </linearGradient>
+              <radialGradient id="lg-vign" cx=".5" cy=".5" r=".72">
+                <stop offset=".55" stop-color="#081422" stop-opacity="0"/><stop offset="1" stop-color="#081422" stop-opacity=".3"/>
+              </radialGradient>
+            </defs>
+            <rect width="800" height="450" fill="url(#lg-bg)"/>
+            <rect width="800" height="450" fill="url(#lg-glow)"/>
+            <path d="M60,300 C200,246 330,296 462,306" fill="none" stroke="#D7E4F2" stroke-opacity=".55" stroke-width="2" stroke-dasharray="2 11" stroke-linecap="round"/>
+            <g fill="#E8F1FA">
+              <circle cx="60" cy="300" r="4"/><circle cx="60" cy="300" r="9" fill-opacity=".2"/>
+              <circle cx="240" cy="266" r="2.6" fill-opacity=".6"/>
+              <circle cx="360" cy="290" r="2.6" fill-opacity=".6"/>
+              <path d="M462,306 l-14,-7 v14 Z" fill-opacity=".85"/>
+            </g>
+            <path d="M0,352 H800" stroke="#D7E4F2" stroke-opacity=".5" stroke-width="2"/>
+            <path d="M0,368 H800" stroke="#D7E4F2" stroke-opacity=".28" stroke-width="2" stroke-dasharray="26 22"/>
+            <g fill="#E8F1FA">
+              <rect x="150" y="306" width="54" height="36" rx="4" fill="rgba(215,228,242,.1)" stroke="#D7E4F2" stroke-opacity=".85" stroke-width="2"/>
+              <rect x="208" y="318" width="40" height="24" rx="4" fill="rgba(215,228,242,.1)" stroke="#D7E4F2" stroke-opacity=".7" stroke-width="1.8"/>
+              <path d="M177,306 V342" stroke="#D7E4F2" stroke-opacity=".45" stroke-width="1.6"/>
+              <path d="M228,318 V342" stroke="#D7E4F2" stroke-opacity=".4" stroke-width="1.5"/>
+            </g>
+            <g stroke="#E8F1FA" fill="none" stroke-linecap="round">
+              <path d="M470,270 H502 M458,292 H496 M472,314 H504" stroke-opacity=".35" stroke-width="2"/>
+              <rect x="520" y="258" width="130" height="78" rx="6" stroke-width="2.4"/>
+              <path d="M552,258 V336 M584,258 V336 M616,258 V336" stroke-opacity=".3" stroke-width="1.6"/>
+              <path d="M650,336 V286 H698 L716,310 V336 Z" stroke-width="2.4"/>
+              <path d="M664,294 h30 l10,16 h-42 Z" fill="rgba(215,228,242,.22)" stroke-opacity=".6" stroke-width="1.6"/>
+              <circle cx="560" cy="340" r="13" stroke-width="2.4"/>
+              <circle cx="612" cy="340" r="13" stroke-width="2.4"/>
+              <circle cx="682" cy="340" r="13" stroke-width="2.4"/>
+            </g>
+            <g fill="#E8F1FA">
+              <circle cx="560" cy="340" r="4" fill-opacity=".85"/><circle cx="612" cy="340" r="4" fill-opacity=".85"/><circle cx="682" cy="340" r="4" fill-opacity=".85"/>
+              <circle cx="330" cy="90" r="1.6" fill-opacity=".5"/><circle cx="420" cy="140" r="1.3" fill-opacity=".4"/><circle cx="740" cy="90" r="1.5" fill-opacity=".45"/><circle cx="90" cy="120" r="1.4" fill-opacity=".4"/>
+            </g>
+            <rect y="272" width="800" height="178" fill="url(#lg-band)"/>
+            <rect width="800" height="450" fill="url(#lg-vign)"/>
+          </svg>
+          <span class="fc-ico">🚚</span><span class="fc-name">物流行业 FDE</span><span class="fc-badge">即将上线</span><span class="scanline"></span>
+        </div>
+        <div class="pbody">
+          <div class="pname">物流行业 FDE<span class="ptag">预告 · 即将开放</span></div>
+          <p class="pdesc">面向物流行业（仓储 / 配送 / 货运）：工程师团队扩招中，行业服务即将开放，可先免费咨询了解方案。</p>
+          <div class="pfoot"><span class="pprice">价格待定 · 上线前通知</span><span class="buy-row"><button class="cart-mini">💬 免费咨询</button></span></div>
+        </div>
+      </div>
+
+      <!-- 新增卡 1：银行业务系统 FDE -->
+      <div class="pcard rv pcard-link" data-fde="fde-banking" data-name="银行业务系统 FDE" data-new="1">
+        <div class="pcover fcover fc-bank">
+          <svg class="fc-svg" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <defs>
+              <linearGradient id="bk-bg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#24466E"/><stop offset=".55" stop-color="#16345C"/><stop offset="1" stop-color="#0C2244"/>
+              </linearGradient>
+              <radialGradient id="bk-glow" cx=".76" cy=".2" r=".55">
+                <stop offset="0" stop-color="#F5B04A" stop-opacity=".26"/><stop offset="1" stop-color="#F5B04A" stop-opacity="0"/>
+              </radialGradient>
+              <linearGradient id="bk-band" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#051226" stop-opacity="0"/><stop offset="1" stop-color="#051226" stop-opacity=".66"/>
+              </linearGradient>
+              <radialGradient id="bk-vign" cx=".5" cy=".5" r=".72">
+                <stop offset=".55" stop-color="#020814" stop-opacity="0"/><stop offset="1" stop-color="#020814" stop-opacity=".32"/>
+              </radialGradient>
+            </defs>
+            <rect width="800" height="450" fill="url(#bk-bg)"/>
+            <rect width="800" height="450" fill="url(#bk-glow)"/>
+            <circle cx="120" cy="86" r="64" fill="none" stroke="#E8C97A" stroke-opacity=".14" stroke-width="1.4"/>
+            <circle cx="120" cy="86" r="98" fill="none" stroke="#E8C97A" stroke-opacity=".08" stroke-width="1.2"/>
+            <polyline points="52,336 128,306 106,262 190,238 168,196 252,168" fill="none" stroke="#F5B04A" stroke-opacity=".6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline points="52,368 140,340 200,352 268,318" fill="none" stroke="#F5B04A" stroke-opacity=".22" stroke-width="1.4"/>
+            <g fill="#FFD98A">
+              <circle cx="52" cy="336" r="3.4" fill-opacity=".85"/><circle cx="128" cy="306" r="2.6" fill-opacity=".7"/><circle cx="106" cy="262" r="3" fill-opacity=".8"/><circle cx="190" cy="238" r="2.4" fill-opacity=".65"/><circle cx="168" cy="196" r="3" fill-opacity=".75"/><circle cx="252" cy="168" r="4" fill-opacity=".95"/>
+            </g>
+            <g stroke="#E9CE8C" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-opacity=".9">
+              <path d="M470,170 L590,118 L710,170"/>
+              <path d="M486,196 H694" stroke-opacity=".55" stroke-width="1.6"/>
+              <path d="M502,196 V296 M546,196 V296 M590,196 V296 M634,196 V296 M678,196 V296"/>
+              <path d="M478,312 H702" stroke-width="3"/>
+              <path d="M462,334 H718" stroke-width="4" stroke-opacity=".45"/>
+            </g>
+            <path d="M590,118 L590,96" stroke="#E9CE8C" stroke-opacity=".5" stroke-width="1.6"/>
+            <circle cx="590" cy="88" r="3.2" fill="#FFE1A0"/>
+            <g stroke="#E8C97A" stroke-opacity=".07" stroke-width="1">
+              <path d="M0,352 H800 M0,378 H800 M0,404 H800 M0,430 H800"/>
+            </g>
+            <g fill="#FFE9C0">
+              <circle cx="332" cy="84" r="1.6" fill-opacity=".5"/><circle cx="388" cy="140" r="1.2" fill-opacity=".4"/><circle cx="300" cy="210" r="1.4" fill-opacity=".35"/><circle cx="748" cy="250" r="1.6" fill-opacity=".4"/><circle cx="700" cy="70" r="1.3" fill-opacity=".45"/>
+            </g>
+            <rect y="272" width="800" height="178" fill="url(#bk-band)"/>
+            <rect width="800" height="450" fill="url(#bk-vign)"/>
+          </svg>
+          <span class="fc-ico">🏦</span><span class="fc-new">新增</span><span class="fc-name">银行业务系统 FDE</span><span class="fc-badge">已开放 · 正在接单</span><span class="scanline"></span>
+        </div>
+        <div class="pbody">
+          <div class="pname">银行业务系统 FDE<span class="ptag">总行+网点 · 定制开发</span></div>
+          <p class="pdesc">面向银行 / 金融机构：业务系统智能化改造 + 智能客服与流程自动化，按金融行业合规要求定制交付。</p>
+          <div class="pfoot"><span class="pprice">¥100,000 起 · 按项目报价</span><span class="buy-row"><button class="cart-mini">💬 免费咨询</button></span></div>
+        </div>
+      </div>
+
+      <!-- 新增卡 2：保险业务系统 FDE -->
+      <div class="pcard rv pcard-link" data-fde="fde-insurance" data-name="保险业务系统 FDE" data-new="1">
+        <div class="pcover fcover fc-ins">
+          <svg class="fc-svg" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <defs>
+              <linearGradient id="in-bg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#11473C"/><stop offset=".55" stop-color="#17584C"/><stop offset="1" stop-color="#0A332C"/>
+              </linearGradient>
+              <radialGradient id="in-glow" cx=".66" cy=".4" r=".5">
+                <stop offset="0" stop-color="#7BE3C3" stop-opacity=".22"/><stop offset="1" stop-color="#7BE3C3" stop-opacity="0"/>
+              </radialGradient>
+              <linearGradient id="in-band" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#03140F" stop-opacity="0"/><stop offset="1" stop-color="#03140F" stop-opacity=".68"/>
+              </linearGradient>
+              <radialGradient id="in-vign" cx=".5" cy=".5" r=".72">
+                <stop offset=".55" stop-color="#02110D" stop-opacity="0"/><stop offset="1" stop-color="#02110D" stop-opacity=".34"/>
+              </radialGradient>
+              <filter id="in-blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="7"/></filter>
+            </defs>
+            <rect width="800" height="450" fill="url(#in-bg)"/>
+            <rect width="800" height="450" fill="url(#in-glow)"/>
+            <g fill="#041B16" fill-opacity=".9">
+              <rect x="0" y="330" width="90" height="120"/><rect x="90" y="360" width="70" height="90"/><rect x="160" y="316" width="56" height="134"/><rect x="216" y="352" width="88" height="98"/><rect x="304" y="336" width="48" height="114"/><rect x="352" y="368" width="80" height="82"/><rect x="432" y="342" width="60" height="108"/><rect x="492" y="372" width="90" height="78"/><rect x="582" y="348" width="54" height="102"/><rect x="636" y="330" width="70" height="120"/><rect x="706" y="362" width="94" height="88"/>
+            </g>
+            <path d="M560,118 L652,150 V242 C652,302 612,334 560,356 C508,334 468,302 468,242 V150 Z" fill="none" stroke="#8CEBD0" stroke-opacity=".5" stroke-width="7" filter="url(#in-blur)"/>
+            <path d="M560,118 L652,150 V242 C652,302 612,334 560,356 C508,334 468,302 468,242 V150 Z" fill="rgba(124,227,195,.06)" stroke="#8CEBD0" stroke-width="2.4" stroke-opacity=".95"/>
+            <path d="M518,228 L550,262 L606,186" fill="none" stroke="#C4F7E6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-opacity=".95"/>
+            <circle cx="560" cy="240" r="152" fill="none" stroke="#7BE3C3" stroke-opacity=".28" stroke-width="1.4" stroke-dasharray="3 9"/>
+            <circle cx="560" cy="240" r="190" fill="none" stroke="#7BE3C3" stroke-opacity=".16" stroke-width="1.2" stroke-dasharray="2 12"/>
+            <g fill="#9FF0D8">
+              <circle cx="120" cy="300" r="2.2" fill-opacity=".5"/><circle cx="168" cy="238" r="1.8" fill-opacity=".4"/><circle cx="102" cy="180" r="1.5" fill-opacity=".35"/><circle cx="238" cy="160" r="2" fill-opacity=".45"/><circle cx="205" cy="96" r="1.4" fill-opacity=".3"/><circle cx="330" cy="120" r="1.8" fill-opacity=".4"/><circle cx="300" cy="220" r="1.4" fill-opacity=".3"/><circle cx="720" cy="120" r="1.6" fill-opacity=".4"/>
+            </g>
+            <g stroke="#8CEBD0" stroke-opacity=".1" stroke-width="1">
+              <path d="M84,140 V300 M116,120 V320 M148,160 V286"/>
+            </g>
+            <rect y="270" width="800" height="180" fill="url(#in-band)"/>
+            <rect width="800" height="450" fill="url(#in-vign)"/>
+          </svg>
+          <span class="fc-ico">🛡️</span><span class="fc-new">新增</span><span class="fc-name">保险业务系统 FDE</span><span class="fc-badge">已开放 · 正在接单</span><span class="scanline"></span>
+        </div>
+        <div class="pbody">
+          <div class="pname">保险业务系统 FDE<span class="ptag">展业+理赔 · 定制开发</span></div>
+          <p class="pdesc">面向保险公司 / 经纪代理：展业工具 + 智能核保理赔辅助 + 代理人培训带教，敏感数据按合规隔离。</p>
+          <div class="pfoot"><span class="pprice">¥100,000 起 · 按项目报价</span><span class="buy-row"><button class="cart-mini">💬 免费咨询</button></span></div>
+        </div>
+      </div>
+
+      <!-- 新增卡 3：跨境电商AI SaaS FDE -->
+      <div class="pcard rv pcard-link" data-fde="fde-ecom" data-name="跨境电商AI SaaS FDE" data-new="1">
+        <div class="pcover fcover fc-ecom">
+          <svg class="fc-svg" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <defs>
+              <linearGradient id="ec-bg" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#241543"/><stop offset=".5" stop-color="#53296B"/><stop offset=".82" stop-color="#8C4248"/><stop offset="1" stop-color="#B05A30"/>
+              </linearGradient>
+              <radialGradient id="ec-sun" cx=".32" cy=".6" r=".42">
+                <stop offset="0" stop-color="#FFB36B" stop-opacity=".3"/><stop offset="1" stop-color="#FFB36B" stop-opacity="0"/>
+              </radialGradient>
+              <linearGradient id="ec-route1" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stop-color="#FFC98A"/><stop offset="1" stop-color="#C99CFF"/>
+              </linearGradient>
+              <linearGradient id="ec-route2" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stop-color="#C99CFF"/><stop offset="1" stop-color="#FFC98A"/>
+              </linearGradient>
+              <linearGradient id="ec-band" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#160B26" stop-opacity="0"/><stop offset="1" stop-color="#160B26" stop-opacity=".62"/>
+              </linearGradient>
+              <radialGradient id="ec-vign" cx=".5" cy=".5" r=".72">
+                <stop offset=".55" stop-color="#12061F" stop-opacity="0"/><stop offset="1" stop-color="#12061F" stop-opacity=".3"/>
+              </radialGradient>
+            </defs>
+            <rect width="800" height="450" fill="url(#ec-bg)"/>
+            <rect width="800" height="450" fill="url(#ec-sun)"/>
+            <g fill="#FFFFFF">
+              <circle cx="96" cy="60" r="1.6" fill-opacity=".55"/><circle cx="360" cy="44" r="1.3" fill-opacity=".45"/><circle cx="520" cy="78" r="1.6" fill-opacity=".5"/><circle cx="680" cy="52" r="1.2" fill-opacity=".4"/><circle cx="760" cy="110" r="1.5" fill-opacity=".45"/><circle cx="420" cy="120" r="1.2" fill-opacity=".35"/>
+            </g>
+            <g stroke="rgba(255,255,255,.65)" stroke-width="1.8" fill="none">
+              <circle cx="212" cy="228" r="106"/>
+            </g>
+            <g stroke="rgba(255,255,255,.4)" stroke-width="1.3" fill="none">
+              <ellipse cx="212" cy="228" rx="44" ry="106"/>
+              <ellipse cx="212" cy="228" rx="80" ry="106"/>
+              <path d="M116,196 H308 M106,228 H318 M116,260 H308"/>
+            </g>
+            <path d="M268,186 C420,86 570,96 724,150" fill="none" stroke="url(#ec-route1)" stroke-width="2.2" stroke-opacity=".95" stroke-linecap="round"/>
+            <path d="M268,262 C430,330 570,312 736,258" fill="none" stroke="url(#ec-route2)" stroke-width="2" stroke-opacity=".8" stroke-linecap="round"/>
+            <path d="M300,226 C470,210 560,220 700,196" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.3" stroke-dasharray="2 8" stroke-linecap="round"/>
+            <circle cx="268" cy="186" r="9" fill="#FFC98A" fill-opacity=".22"/><circle cx="268" cy="186" r="4" fill="#FFE1B0"/>
+            <circle cx="724" cy="150" r="9" fill="#C99CFF" fill-opacity=".25"/><circle cx="724" cy="150" r="4" fill="#E4D4FF"/>
+            <circle cx="736" cy="258" r="8" fill="#FFC98A" fill-opacity=".2"/><circle cx="736" cy="258" r="3.4" fill="#FFE1B0"/>
+            <g stroke="#190C2C" stroke-opacity=".92" stroke-width="5" fill="none">
+              <path d="M500,440 V306 L560,274 L620,306 V440"/>
+              <path d="M470,312 H760" stroke-width="4"/>
+              <path d="M690,312 V356" stroke-width="2.4"/>
+            </g>
+            <rect x="676" y="356" width="28" height="14" rx="2" fill="#190C2C" fill-opacity=".92"/>
+            <g fill="#150A26" fill-opacity=".85">
+              <rect x="530" y="416" width="52" height="22" rx="3"/><rect x="588" y="416" width="52" height="22" rx="3"/><rect x="530" y="392" width="52" height="22" rx="3"/><rect x="646" y="416" width="52" height="22" rx="3"/>
+            </g>
+            <rect y="272" width="800" height="178" fill="url(#ec-band)"/>
+            <rect width="800" height="450" fill="url(#ec-vign)"/>
+          </svg>
+          <span class="fc-ico">🌏</span><span class="fc-new">新增</span><span class="fc-name">跨境电商AI SaaS FDE</span><span class="fc-badge">已开放 · 正在接单</span><span class="scanline"></span>
+        </div>
+        <div class="pbody">
+          <div class="pname">跨境电商AI SaaS FDE<span class="ptag">独立站+平台 · SaaS交付</span></div>
+          <p class="pdesc">面向跨境卖家 / 服务商：多平台选品分析 + 多语 listing 文案 + 客服自动化，SaaS 模块化快速上线。</p>
+          <div class="pfoot"><span class="pprice">¥50,000 起 · 按项目报价</span><span class="buy-row"><button class="cart-mini">💬 免费咨询</button></span></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <footer class="foot">
+    <b>思潼AI商城 · FDE 专区扩展 demo（新增 银行业务系统 / 保险业务系统 / 跨境电商AI SaaS）</b><br>
+    演示数据虚构 · FDE 起步价为示意 · 存量卡片文案取自 agents-home-tech-demo-20260925、封面升级为同风格 SVG 艺术图 · 单文件原型 20261001
+  </footer>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+var $=function(s,r){return (r||document).querySelector(s)};
+var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+
+var toastTimer=null;
+function toast(msg,ms){
+  var t=$('#toast');
+  t.textContent=msg;t.classList.add('show');
+  if(toastTimer)clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){t.classList.remove('show')},ms||2600);
+}
+function fdeMsg(name,isNew){
+  if(isNew){toast('🛠️ 「'+name+'」详情页待设计 · 本 demo 只做专区卡片');}
+  else{toast('📦 线上版点击会跳转「'+name+'」行业详情页 · 本 demo 聚焦专区展示');}
+}
+
+$$("[data-fde]").forEach(function(card){
+  var name=card.getAttribute('data-name')||'行业 FDE';
+  var isNew=card.getAttribute('data-new')==='1';
+  card.addEventListener('click',function(){fdeMsg(name,isNew)});
+});
+
+(function(){
+  var els=$$('.rv');
+  if(!('IntersectionObserver' in window)){els.forEach(function(el){el.classList.add('in')});return;}
+  var io=new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target);}
+    });
+  },{threshold:.08});
+  els.forEach(function(el){io.observe(el)});
+})();
+</script>
+</body>
+</html>
