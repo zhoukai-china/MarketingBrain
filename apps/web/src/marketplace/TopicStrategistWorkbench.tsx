@@ -172,15 +172,20 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
 
   useEffect(() => { void loadSource1(); }, [loadSource1]);
 
-  // 拉取已同步结论体量（核心观点 / 金句 / 客户原话），作为结论展示给用户。
-  useEffect(() => {
-    let cancelled = false;
+  /**
+   * 拉取已同步结论体量（核心观点 / 金句 / 客户原话）——「已沉淀选题素材」卡片的数据源。
+   * 2026-10-02（用户实测）：同步完笔记后这张卡不出现，是因为**只在挂载时拉了一次**——
+   * 同步新增的结论体量不会反映到卡片上，必须刷新页面才看得到。改为可复用：
+   * 挂载 + 每次同步完成 + 打开素材抽屉时都刷新。
+   */
+  const refreshConclusionStats = useCallback(() => {
     void fetch(apiPath("/knowledge-base/getnote-conclusions"), { headers: authHeaders(), cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => { if (!cancelled && data) setConclusionStats(data); })
+      .then((data) => { if (data) setConclusionStats(data); })
       .catch(() => {});
-    return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => { refreshConclusionStats(); }, [refreshConclusionStats]);
   // 挂载时从后端回填「已应用选中」的素材（真源在后端，刷新后保留，与 /run 注入同源）。
   useEffect(() => {
     let cancelled = false;
@@ -412,7 +417,7 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
         if (result.status !== "succeeded") throw new Error("没有同步");
       })
       .catch((reason) => setSyncError(reason instanceof Error ? (reason.message || "没有同步") : "没有同步"))
-      .finally(() => { setSyncing(false); void loadLastSync(); });
+      .finally(() => { setSyncing(false); void loadLastSync(); refreshConclusionStats(); });
   };
 
   // 抽屉：打开时拉取素材清单（按类型/搜索在前端过滤；后端一次性吐全量）
@@ -433,6 +438,7 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
         const stagedIds = new Set(stagedMaterials.map((s) => s.id));
         setMaterialSelected(new Set(data.materials.filter((m) => stagedIds.has(m.id)).map((m) => m.id)));
       }
+      refreshConclusionStats(); // 抽屉打开即刷新体量，避免卡片数字与抽屉内容不一致
     } catch {
       /* 忽略，抽屉内显示空 */
     } finally {
