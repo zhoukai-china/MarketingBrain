@@ -42,6 +42,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const r2 = await upload("/tmp/vidrev-test/douyin-daily-utf8.csv", "按天汇总+UTF8");
   const r3 = await upload("/tmp/vidrev-test/douyin-per-item.csv", "逐条明细");
   const r4 = await upload("/Users/zhoukai/Downloads/视频号动态数据明细.csv", "视频号真实导出");
+  const r5 = await upload("/Users/zhoukai/Downloads/作品列表导出.xlsx", "抖音作品列表导出");
 
   const pass1 = r1.daily && r1.guide && !r1.unknown && !r1.unrecognizedPlatform;
   const pass2 = r2.daily && r2.guide && !r2.unknown && !r2.unrecognizedPlatform;
@@ -51,7 +52,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   console.log(`逐条明细 → 体检通过: ${pass3 ? "PASS" : "FAIL"}`);
   const pass4 = r4.pass;
   console.log(`视频号真实导出 → 体检通过（回归）: ${pass4 ? "PASS" : "FAIL"}`);
-  const all = pass1 && pass2 && pass3 && pass4;
+  const pass5 = r5.pass && !r5.unknown;
+  console.log(`抖音作品列表导出(xlsx·作品名称列) → 体检通过: ${pass5 ? "PASS" : "FAIL"}`);
+  const all = pass1 && pass2 && pass3 && pass4 && pass5;
   console.log(all ? "ALL PASS" : "HAS FAIL");
   await b.close(); fs.rmSync(dir, { recursive: true, force: true });
   process.exit(all ? 0 : 1);

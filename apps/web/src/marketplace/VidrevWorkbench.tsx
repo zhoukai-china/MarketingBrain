@@ -49,13 +49,14 @@ const GROUP_SOFT: Record<string, string> = { audit: "#e6f5ee", overview: "#fdeee
 
 /** 客户端体检的 10 个关键字段（原型 fields 口径）。 */
 const CHECK_FIELDS: Array<{ label: string; re: RegExp }> = [
-  { label: "作品标题", re: /作品标题|动态描述|视频描述|视频名称|标题/ },
+  // 「作品名称」= 抖音「作品列表导出」的标题列名（既不含"标题"也不含"视频名称"，2026-10-01 用户实测）
+  { label: "作品标题", re: /作品标题|作品名称|动态描述|视频描述|视频名称|标题/ },
   { label: "播放量", re: /播放量|播放/ },
   { label: "点赞量", re: /点赞|喜欢/ }, // 视频号后台把点赞导出为「喜欢」
   { label: "评论量", re: /评论/ },
   { label: "分享量", re: /分享|转发/ },
   { label: "完播率", re: /完播率/ },
-  { label: "5秒完播率", re: /5秒完播|5 秒完播/ },
+  { label: "5秒完播率", re: /5\s*[秒s]完播|5秒完播/i }, // 抖音写作「5s完播率」
   { label: "咨询/转化", re: /咨询|转化|成交/ },
   { label: "发布时间", re: /发布时间|发表时间|发布日期/ },
   { label: "投流标记", re: /投流/ }
@@ -109,7 +110,7 @@ function checkDataText(fileName: string, raw: string): FileCheck {
     else if (/喜欢|视频描述|朋友量/.test(header)) platform = "视频号";
   }
   // 视频号后台导出的标题列叫「视频描述」，必须在其列（2026-10-01 用户实测：缺它直接判无法识别）。
-  const hasTitleCol = /作品标题|动态描述|视频描述|视频名称|标题/.test(header);
+  const hasTitleCol = /作品标题|作品名称|动态描述|视频描述|视频名称|标题/.test(header);
   const isDaily = /日期|投稿量|总播放/.test(header) && !hasTitleCol;
   const limited: string[] = [];
   const coverage = CHECK_FIELDS.map((f) => {
