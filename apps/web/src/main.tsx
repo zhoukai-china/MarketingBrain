@@ -692,6 +692,18 @@ function Root() {
     return <AppFlow />;
   }
 
+  /**
+   * 兰琪 v2 静态原型（`apps/web/public/lanqi-v2/`，纯静态展示页、不接接口）。
+   *
+   * 2026-10-02：目录形式 `/lanqi-v2/` 在 dev（vite）下会被 SPA 兜底成 index.html →
+   * 落到 404 说明页（用户实测）。这里统一跳到 `home.html`；生产 nginx 若直接命中目录索引也无妨
+   * （静态文件优先于 SPA 兜底，这段只在没命中静态文件时才执行）。
+   */
+  if (path === "/lanqi-v2" || path === "/lanqi-v2/") {
+    window.location.replace(getAppPath("/lanqi-v2/home.html"));
+    return null;
+  }
+
   /*
    * 未知网址统一兜底（PLAT-18 验收条件 2）。
    *
