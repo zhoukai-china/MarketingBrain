@@ -84,7 +84,7 @@ function escapeHtml(s: string): string {
 const VIDREV_EXPORT_GUIDE_HTML = [
   "<b>📥 数据导出指南</b>",
   "- <b>视频号</b>：登录视频号助手 channels.weixin.qq.com/login.html → 数据中心 → 视频数据 → 单篇视频 → 选「近 30 天」→ 下载表格",
-  "- <b>抖音</b>：登录抖音创作者中心 creator.douyin.com → 数据中心 → 作品数据 → 近 30 天 → 导出数据",
+  "- <b>抖音</b>：登录抖音创作者中心 creator.douyin.com → 内容管理 → 作品数据 → 勾选作品 → 导出数据（每行一个作品，含播放/点赞/评论/分享）",
   "下载好的 <b>CSV 或 Excel</b> 直接拖进下方虚线框（或点「选择文件」）就行。"
 ].join("<br>");
 

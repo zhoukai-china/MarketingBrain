@@ -38,7 +38,7 @@ const VIDREV_NO_DATA_GUIDE = [
   "",
   "📥 数据导出指南（上方卡片也能随时展开）",
   "- **视频号**：登录视频号助手 https://channels.weixin.qq.com/login.html → 数据中心 → 视频数据 → 单篇视频 → 选「近 30 天」→ 下载表格",
-  "- **抖音**：登录抖音创作者中心 https://creator.douyin.com/ → 数据中心 → 作品数据 → 近 30 天 → 导出数据",
+  "- **抖音**：登录抖音创作者中心 https://creator.douyin.com/ → 内容管理 → 作品数据 → 勾选作品 → 导出数据（每行一个作品，含播放/点赞/评论/分享）",
   "",
   "把下载好的 **CSV 或 Excel** 直接拖进对话框上传，再跟我说「复盘」即可。（本次没有调用模型、不消耗算力）"
 ].join("\n");
@@ -1441,7 +1441,7 @@ export function MarketplaceAgentChatPage({
                 {/* <h4>抖音</h4>
                 <ol>
                   <li>登录抖音创作者中心：<a href="https://creator.douyin.com/" target="_blank" rel="noreferrer">creator.douyin.com</a>（扫码登录）</li>
-                  <li>进入：数据中心 → 作品数据 → 近 30 天 → 导出数据</li>
+                  <li>进入：内容管理 → 作品数据 → 勾选作品 → 导出数据（每行一个作品，含播放/点赞/评论/分享）</li>
                   <li>把下载好的表格拖到对话框上传，输入「复盘」</li>
                 </ol> */}
                 <h4>上传后我会做什么</h4>
