@@ -1180,7 +1180,7 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
             <div className="mat-head">
               <div>
                 <p className="mat-title">选题素材库</p>
-                <p className="mat-sub">已沉淀 {materials.length || conclusionStats?.stored.docs || 0} 条 · 来自 {conclusionStats?.stored.docs || 0} 篇笔记{materialQueryLower ? ` · 匹配 ${filteredMaterials.length} 条` : ""}</p>
+                <p className="mat-sub">已沉淀 {materials.length || conclusionStats?.stored.docs || 0} 条 · 来自 {conclusionStats?.stored.docs || 0} 篇笔记</p>
               </div>
               <div className="mat-x" onClick={() => setMaterialsOpen(false)}>×</div>
             </div>
@@ -1200,9 +1200,14 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
             </div>
             <input className="mat-search" placeholder="搜索素材内容 / 来源笔记" value={materialSearch} onChange={(e) => setMaterialSearch(e.target.value)} />
             <div className="mat-ops">
-              <span className="mat-count">{filteredMaterials.length} 条{materialQueryLower ? "匹配" : ""}</span>
-              <button className="mat-select-all" onClick={toggleAllFiltered} disabled={filteredMaterials.length === 0}>
-                {allFilteredSelected ? "取消全选" : "全选本页匹配结果"}
+              <span className="mat-count">{materialQueryLower ? `命中 ${filteredMaterials.length} 条` : `共 ${filteredMaterials.length} 条`}</span>
+              <button
+                className={`mat-selall${allFilteredSelected ? " on" : ""}`}
+                onClick={toggleAllFiltered}
+                disabled={filteredMaterials.length === 0}
+              >
+                <i className={`mat-box${allFilteredSelected ? " on" : ""}`} />
+                {allFilteredSelected ? "取消全选" : "全选"}
               </button>
             </div>
             <div className="mat-list">

@@ -387,12 +387,20 @@
 /* 素材库搜索命中高亮（2026-10-01 同事反馈：搜索看不出命中在哪） */
 .mat-tx mark.mat-hl { background: #ffd9a8; color: #7c3a12; padding: 0 1px; border-radius: 2px; font-weight: 600; }
 
-/* 素材库：全选匹配结果操作行（2026-10-01 同事：搜完要能一键全选） */
-.mat-ops { display: flex; align-items: center; justify-content: space-between; margin: 6px 0 2px; }
-.mat-ops .mat-count { font-size: 12px; color: #8a6a52; }
-.mat-select-all {
-  padding: 5px 12px; font-size: 12.5px; font-weight: 600;
-  background: #fff; color: #b25e00; border: 1.5px solid #e8c4a8; border-radius: 8px; cursor: pointer;
+/* 素材库：计数 + 全选工具行（2026-10-02 重设计——旧版橙色大药丸与抽屉蓝灰紧凑风格不搭、
+   计数被甩到最左很空。现在改为抽屉同款语言：12px 次级小字 + 带勾选框的轻量文字按钮，
+   左计数右按钮同一条基线，下面一条发丝线与列表相接。 */
+.ts-wb .mat-ops {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin: 0 16px; padding: 0 0 8px; border-bottom: 1px solid var(--line);
 }
-.mat-select-all:hover:not(:disabled) { border-color: var(--orange, #E8651A); color: var(--orange, #E8651A); }
-.mat-select-all:disabled { opacity: 0.45; cursor: default; }
+.ts-wb .mat-ops .mat-count { font-size: 12px; color: var(--sub); }
+.ts-wb .mat-selall {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 24px; padding: 0 8px; border: 0; border-radius: 6px;
+  background: transparent; font-size: 12px; color: var(--sub); cursor: pointer;
+}
+.ts-wb .mat-selall .mat-box { margin-top: 0; width: 14px; height: 14px; }
+.ts-wb .mat-selall:hover:not(:disabled) { background: #eef1f6; color: var(--ink); }
+.ts-wb .mat-selall.on { color: #1d4ed8; }
+.ts-wb .mat-selall:disabled { opacity: 0.4; cursor: default; }
