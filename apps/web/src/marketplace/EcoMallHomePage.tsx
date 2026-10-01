@@ -1662,7 +1662,7 @@ export function EcoMallHomePage() {
             {renderTodayStrip()}
 
             <section className="eco-floor" id="floor-acquire">
-              <FloorHead no="F1" title="内容获客专区" sub="做内容引流的智能体都在这" live={`${byKey.acquireOk.length} 位在线`} />
+              <FloorHead no="F1" title="获客专区" sub="做内容引流的智能体都在这" live={`${byKey.acquireOk.length} 位在线`} />
               <div className="eco-products">
                 {renderEmployeeProducts(byKey.acquireOk, "ok")}
               </div>
@@ -1677,7 +1677,7 @@ export function EcoMallHomePage() {
             </section>
 
             <section className="eco-floor" id="floor-private">
-              <FloorHead no="F2" title="私域营销专区" sub="客户成交 / 私域内容，跟着转化走。" live={`${byKey.privateDev.filter((x) => x.status === "ok").length} 位在线`} />
+              <FloorHead no="F2" title="营销专区" sub="客户成交 / 私域内容，跟着转化走。" live={`${byKey.privateDev.filter((x) => x.status === "ok").length} 位在线`} />
               <div className="eco-products">
                 {renderEmployeeProducts(byKey.privateDev, "dev")}
               </div>
