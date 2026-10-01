@@ -383,3 +383,6 @@
   line-height: 1.55;
   color: #b25e00;
 }
+
+/* 素材库搜索命中高亮（2026-10-01 同事反馈：搜索看不出命中在哪） */
+.mat-tx mark.mat-hl { background: #ffd9a8; color: #7c3a12; padding: 0 1px; border-radius: 2px; font-weight: 600; }

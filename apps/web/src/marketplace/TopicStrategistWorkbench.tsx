@@ -285,7 +285,8 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
   useScrollLock(materialsOpen || ihDrawerOpen);
 
   const ihItems = industryHotspots?.result?.hot.items ?? [];
-  const ihFiltered = ihSearch.trim() ? ihItems.filter((t) => t.includes(ihSearch.trim())) : ihItems;
+  const ihQuery = ihSearch.trim();
+  const ihFiltered = ihQuery ? ihItems.filter((t) => t.toLowerCase().includes(ihQuery.toLowerCase())) : ihItems;
   // 已选数展示口径：selected 为 null（未挑选）时按全量算，与 /run 默认全量注入一致。
   const ihSelectedCount = industryHotspots ? (industryHotspots.selected ?? (industryHotspots.result?.hot.fetched ? industryHotspots.result.hot.items : [])).length : 0;
   const openHotspotDrawer = () => {
@@ -509,12 +510,23 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
   // 配额比（各来源占候选池的比例）由后台默认配置决定，前端不写死。
 
   // 抽屉内：按类型 + 搜索过滤后的素材
+  // 2026-10-01（同事反馈「搜索不好用」）：①匹配改大小写不敏感（搜 ai/AI 一致）；
+  // ②命中词高亮；③计数联动——否则搜了和没搜一样，看不出命中在哪。
+  const materialQuery = materialSearch.trim();
+  const materialQueryLower = materialQuery.toLowerCase();
   const filteredMaterials = materials.filter((m) => {
     if (materialTab !== "all" && m.type !== materialTab) return false;
-    const q = materialSearch.trim();
-    if (q && !(m.text.includes(q) || m.source.includes(q))) return false;
+    if (materialQueryLower && !(m.text.toLowerCase().includes(materialQueryLower) || m.source.toLowerCase().includes(materialQueryLower))) return false;
     return true;
   });
+  const escapeHtml = (t: string): string => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  /** 把命中片段包上 <mark>（先整段 escape 再切，避免笔记原文里的字符被当 HTML）。 */
+  const highlightText = (text: string, query: string): string => {
+    const safe = escapeHtml(text);
+    if (!query) return safe;
+    const re = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+    return safe.replace(re, (m0: string) => `<mark class="mat-hl">${m0}</mark>`);
+  };
 
   // 真实生成结果替换演示选题表：统一成 Topic 形状供同一套表格渲染
   const typeClsOf = (t: string): string => {
@@ -1152,14 +1164,21 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
             <div className="mat-head">
               <div>
                 <p className="mat-title">选题素材库</p>
-                <p className="mat-sub">已沉淀 {materials.length || conclusionStats?.stored.docs || 0} 条 · 来自 {conclusionStats?.stored.docs || 0} 篇笔记</p>
+                <p className="mat-sub">已沉淀 {materials.length || conclusionStats?.stored.docs || 0} 条 · 来自 {conclusionStats?.stored.docs || 0} 篇笔记{materialQueryLower ? ` · 匹配 ${filteredMaterials.length} 条` : ""}</p>
               </div>
               <div className="mat-x" onClick={() => setMaterialsOpen(false)}>×</div>
             </div>
             <div className="mat-tabs">
               {(["all", "coreView", "quote", "customerQuote"] as const).map((t) => (
                 <span key={t} className={materialTab === t ? "mat-tab on" : "mat-tab"} onClick={() => setMaterialTab(t)}>
-                  {t === "all" ? "全部" : t === "coreView" ? `核心观点 ${materials.filter((m) => m.type === "coreView").length}` : t === "quote" ? `金句 ${materials.filter((m) => m.type === "quote").length}` : `客户原话 ${materials.filter((m) => m.type === "customerQuote").length}`}
+                  {(() => {
+                    const pool = materialQueryLower ? filteredMaterials : materials;
+                    const n = (ty: string) => pool.filter((m) => m.type === ty).length;
+                    if (t === "all") return materialQueryLower ? `全部 ${pool.length}` : "全部";
+                    if (t === "coreView") return `核心观点 ${n("coreView")}`;
+                    if (t === "quote") return `金句 ${n("quote")}`;
+                    return `客户原话 ${n("customerQuote")}`;
+                  })()}
                 </span>
               ))}
             </div>
@@ -1174,8 +1193,8 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
                     {m.type === "coreView" ? "观点" : m.type === "quote" ? "金句" : "原话"}
                   </span>
                   <span className="mat-tx">
-                    {m.text}
-                    <small className="mat-src">来源：{m.source}</small>
+                    <span dangerouslySetInnerHTML={{ __html: highlightText(m.text, materialQuery) }} />
+                    <small className="mat-src" dangerouslySetInnerHTML={{ __html: `来源：${highlightText(m.source, materialQuery)}` }} />
                   </span>
                 </div>
               ))}
