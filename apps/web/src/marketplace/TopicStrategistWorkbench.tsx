@@ -519,6 +519,16 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
     if (materialQueryLower && !(m.text.toLowerCase().includes(materialQueryLower) || m.source.toLowerCase().includes(materialQueryLower))) return false;
     return true;
   });
+  /** 全选/取消当前匹配结果（2026-10-01 同事：搜完要能一键全选，别一条条点）。 */
+  const allFilteredSelected = filteredMaterials.length > 0 && filteredMaterials.every((m) => materialSelected.has(m.id));
+  const toggleAllFiltered = () => {
+    setMaterialSelected((prev) => {
+      const next = new Set(prev);
+      if (allFilteredSelected) filteredMaterials.forEach((m) => next.delete(m.id));
+      else filteredMaterials.forEach((m) => next.add(m.id));
+      return next;
+    });
+  };
   const escapeHtml = (t: string): string => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   /** 把命中片段包上 <mark>（先整段 escape 再切，避免笔记原文里的字符被当 HTML）。 */
   const highlightText = (text: string, query: string): string => {
@@ -1183,6 +1193,12 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
               ))}
             </div>
             <input className="mat-search" placeholder="搜索素材内容 / 来源笔记" value={materialSearch} onChange={(e) => setMaterialSearch(e.target.value)} />
+            <div className="mat-ops">
+              <span className="mat-count">{filteredMaterials.length} 条{materialQueryLower ? "匹配" : ""}</span>
+              <button className="mat-select-all" onClick={toggleAllFiltered} disabled={filteredMaterials.length === 0}>
+                {allFilteredSelected ? "取消全选" : "全选本页匹配结果"}
+              </button>
+            </div>
             <div className="mat-list">
               {materialsLoading && <div className="mat-empty">加载中…</div>}
               {!materialsLoading && filteredMaterials.length === 0 && <div className="mat-empty">没有匹配的素材</div>}
