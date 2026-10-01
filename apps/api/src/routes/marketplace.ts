@@ -2958,6 +2958,12 @@ async function generateLiveScriptFull(
   complete: (messages: LlmMessage[], options?: { maxTokens?: number }) => Promise<string>
 ): Promise<string> {
   const parts: string[] = [];
+  // 网络类瞬时错误（2026-10-01 本地实测：连接被重置、错误无分类码 → 笼统 model_call_failed）：可原样重试一次
+  const isTransientLlmError = (error: unknown): boolean => {
+    const code = (error as { code?: string })?.code;
+    if (!code) return true;
+    return ["timed_out", "transport_error", "http_error", "upstream_capacity", "unknown", "empty_final", "invalid_json", "invalid_response"].includes(code);
+  };
   for (let i = 0; i < LIVE_SCRIPT_SEGMENTS.length; i++) {
     const seg = LIVE_SCRIPT_SEGMENTS[i];
     const targetChars = Math.round(seg.minutes * 165);
@@ -2981,11 +2987,21 @@ async function generateLiveScriptFull(
           { maxTokens: LIVESCRIPT_MAX_TOKENS }
         );
       } catch (error) {
-        if ((error as { code?: string })?.code !== "output_token_limit") throw error;
-        return await complete(
-          [{ role: "system", content: `${systemPrompt}\n\n---\n\n${directive}\n\n注意：上一稿超出篇幅上限被截断。请压缩输出——口播稿以约 ${targetChars} 字为上限写完整、必须写到收尾，禁止超出；【主播节奏提示】精简到 5 条以内。` }, ...turnMessages] as LlmMessage[],
-          { maxTokens: LIVESCRIPT_MAX_TOKENS }
-        );
+        if ((error as { code?: string })?.code === "output_token_limit") {
+          // 超长截断：收紧要求重试（宁短勿断）
+          return await complete(
+            [{ role: "system", content: `${systemPrompt}\n\n---\n\n${directive}\n\n注意：上一稿超出篇幅上限被截断。请压缩输出——口播稿以约 ${targetChars} 字为上限写完整、必须写到收尾，禁止超出；【主播节奏提示】精简到 5 条以内。` }, ...turnMessages] as LlmMessage[],
+            { maxTokens: LIVESCRIPT_MAX_TOKENS }
+          );
+        }
+        if (isTransientLlmError(error)) {
+          // 网络类瞬时错误（连接被重置等，2026-10-01 本地实测）：原样重发一次，换一次网络样本
+          return await complete(
+            [{ role: "system", content: `${systemPrompt}\n\n---\n\n${directive}` }, ...turnMessages] as LlmMessage[],
+            { maxTokens: LIVESCRIPT_MAX_TOKENS }
+          );
+        }
+        throw error;
       }
     };
     const text = await segText();
@@ -3009,11 +3025,21 @@ async function generateLiveScriptFull(
       { maxTokens: LIVESCRIPT_MAX_TOKENS }
     );
   } catch (error) {
-    if ((error as { code?: string })?.code !== "output_token_limit") throw error;
-    attachmentText = await complete(
-      [{ role: "system", content: `${systemPrompt}\n\n---\n\n${attachmentDirective}\n\n注意：上一稿超出篇幅上限被截断。请压缩输出——四件各给要点版，总长控制在原文一半以内。` }, ...turnMessages] as LlmMessage[],
-      { maxTokens: LIVESCRIPT_MAX_TOKENS }
-    );
+    if ((error as { code?: string })?.code === "output_token_limit") {
+      // 超长截断：收紧要求重试
+      attachmentText = await complete(
+        [{ role: "system", content: `${systemPrompt}\n\n---\n\n${attachmentDirective}\n\n注意：上一稿超出篇幅上限被截断。请压缩输出——四件各给要点版，总长控制在原文一半以内。` }, ...turnMessages] as LlmMessage[],
+        { maxTokens: LIVESCRIPT_MAX_TOKENS }
+      );
+    } else if (isTransientLlmError(error)) {
+      // 网络类瞬时错误：原样重发一次
+      attachmentText = await complete(
+        [{ role: "system", content: `${systemPrompt}\n\n---\n\n${attachmentDirective}` }, ...turnMessages] as LlmMessage[],
+        { maxTokens: LIVESCRIPT_MAX_TOKENS }
+      );
+    } else {
+      throw error;
+    }
   }
 
   const header = [
