@@ -630,7 +630,10 @@ export function LivescriptWorkbench({ skuId }: { skuId: string }) {
         return;
       }
       if (res.status === 502 || res.status === 503 || res.status === 504) {
+        // 502 可能是后端主动返回的（如段落超长被截断），不是只有网关超时——优先透传后端原因。
+        const payload = (await res.json().catch(() => ({}))) as { message?: string };
         throw new Error(
+          payload.message?.trim() ||
           `直播话术要串行跑 9 段 + 附属件（常 5-10 分钟），这次网关的等待上限先到了（HTTP ${res.status}）。` +
           "这一稿在后台通常还在继续：生成成功会正常计费并留存 7 天，稍后可回到对话页找回，不必急着重做。"
         );

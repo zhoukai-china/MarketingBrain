@@ -688,7 +688,9 @@ export async function runMarketplaceSku(params: {
           code,
           message: isVidrevTooLong
             ? `本次要复盘的视频有 ${vidrevMetrics?.count ?? 0} 条，超过单次深度复盘能生成的报告篇幅上限，报告会被截断——所以没有交付，本次也不消耗算力。请把导出周期改成「近 7 天 / 近 14 天」分批复盘（每批 20 条以内最稳），或先只复盘其中一批。`
-            : `模型调用失败（${code}），本次不消耗算力。`
+            : core === "livescript" && code === "output_token_limit"
+              ? `直播话术某一段的篇幅超出单次生成上限，已自动重试仍未完整——所以没有交付，本次也不消耗算力。点「✓ 确认，开始生成」再试一次即可（多数情况第二次能过）；若连续失败，把「交付深度」改成轻量试试。`
+              : `模型调用失败（${code}），本次不消耗算力。`
         }
       };
     }
@@ -2969,10 +2971,23 @@ async function generateLiveScriptFull(
       "3. 动作/神态用 [ ] 标注在对应句前；托举式语气贯穿。",
       "4. 严格只用输入里已确认的真实事实，不编造数字、收益、门店、名额或案例；该提「投资有风险，加盟需谨慎」的段落必须提。"
     ].join("\n");
-    const text = await complete(
-      [{ role: "system", content: `${systemPrompt}\n\n---\n\n${directive}` }, ...turnMessages] as LlmMessage[],
-      { maxTokens: LIVESCRIPT_MAX_TOKENS }
-    );
+    // 2026-10-01 线上实测：某段输出超过篇幅上限（finishReason=length）会抛 output_token_limit，
+    // 串行流程整单失败、前面几段白烧（跑了 3 分 24 秒才报错）。对截断段收紧要求重试一次——宁短勿断。
+    const segText = async (): Promise<string> => {
+      try {
+        return await complete(
+          [{ role: "system", content: `${systemPrompt}\n\n---\n\n${directive}` }, ...turnMessages] as LlmMessage[],
+          { maxTokens: LIVESCRIPT_MAX_TOKENS }
+        );
+      } catch (error) {
+        if ((error as { code?: string })?.code !== "output_token_limit") throw error;
+        return await complete(
+          [{ role: "system", content: `${systemPrompt}\n\n---\n\n${directive}\n\n注意：上一稿超出篇幅上限被截断。请压缩输出——口播稿以约 ${targetChars} 字为上限写完整、必须写到收尾，禁止超出；【主播节奏提示】精简到 5 条以内。` }, ...turnMessages] as LlmMessage[],
+          { maxTokens: LIVESCRIPT_MAX_TOKENS }
+        );
+      }
+    };
+    const text = await segText();
     parts.push(`## ${seg.title}（${seg.time}）\n\n${(text ?? "").trim()}`);
   }
 
@@ -2986,10 +3001,19 @@ async function generateLiveScriptFull(
     "5. 节奏表必须出现术语「20分钟黄金循环」，并说明核心塑品每 20 分钟轮播一次。",
     "所有内容与整场逐字稿一致，事实只能来自输入里已确认的信息，收益与费用一律走“模型测算/历史数据参考”，并保留合规安全词。"
   ].join("\n");
-  const attachmentText = await complete(
-    [{ role: "system", content: `${systemPrompt}\n\n---\n\n${attachmentDirective}` }, ...turnMessages] as LlmMessage[],
-    { maxTokens: LIVESCRIPT_MAX_TOKENS }
-  );
+  let attachmentText: string;
+  try {
+    attachmentText = await complete(
+      [{ role: "system", content: `${systemPrompt}\n\n---\n\n${attachmentDirective}` }, ...turnMessages] as LlmMessage[],
+      { maxTokens: LIVESCRIPT_MAX_TOKENS }
+    );
+  } catch (error) {
+    if ((error as { code?: string })?.code !== "output_token_limit") throw error;
+    attachmentText = await complete(
+      [{ role: "system", content: `${systemPrompt}\n\n---\n\n${attachmentDirective}\n\n注意：上一稿超出篇幅上限被截断。请压缩输出——四件各给要点版，总长控制在原文一半以内。` }, ...turnMessages] as LlmMessage[],
+      { maxTokens: LIVESCRIPT_MAX_TOKENS }
+    );
+  }
 
   const header = [
     "# 2 小时直播 · 完整逐字稿",
