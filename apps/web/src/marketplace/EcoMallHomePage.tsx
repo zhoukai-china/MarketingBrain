@@ -1274,7 +1274,7 @@ export function EcoMallHomePage() {
   function renderBrandFloor() {
     return (
       <section className="eco-floor" id="floor-industry">
-        <FloorHead no="F7" title="行业工作台专区" sub="分行业的整套 AI 经营工作台，点进去直接体验" />
+        <FloorHead no="F4" title="行业工作台专区" sub="分行业的整套 AI 经营工作台，点进去直接体验" />
         <button
           type="button"
           className="eh-brand-hero"
@@ -1709,8 +1709,10 @@ export function EcoMallHomePage() {
               </div>
             </section>
 
+            {renderBrandFloor()}
+
             <section className="eco-floor" id="floor-hardware">
-              <FloorHead no="F4" title="AI 硬件专区" sub="让 AI 落到店里的硬件货架" />
+              <FloorHead no="F5" title="AI 硬件专区" sub="让 AI 落到店里的硬件货架" />
               <div className="eh-prod">
                 {renderProductCard({ glyph: "mic", tint: "#FF7A1A", icon: "🎙️", img: getPublicAssetPath("/mall/hwRec.jpg"), detail: "/product/hwRec/detail", name: "AI 录音卡", tag: "硬件新品", desc: "录音即分析，自动转经营动作：客户沟通自动归档、话术要点自动提炼。", price: "¥199 /台 · 人民币直购", bookingName: "AI 录音卡", bookingKey: "hwRec"})}
                 {renderProductCard({ glyph: "robot", tint: "#0E9F6E", icon: "robot", img: getPublicAssetPath("/mall/hwRobot.jpg"), detail: "/product/hwRobot/detail", name: "门店 AI 机器人", tag: "硬件新品", desc: "迎宾接待、导购问答，常用话术语音随叫随到，前台接待不冷场。", price: "¥1,999 /台 · 人民币直购", bookingName: "门店 AI 机器人", bookingKey: "hwRobot"})}
@@ -1718,7 +1720,7 @@ export function EcoMallHomePage() {
             </section>
 
             <section className="eco-floor" id="floor-courses">
-              <FloorHead no="F5" title="AI 课程专区" sub="从 0 到 1 学会用 AI 干活" />
+              <FloorHead no="F6" title="AI 课程专区" sub="从 0 到 1 学会用 AI 干活" />
               <div className="eh-prod">
                 {renderProductCard({ glyph: "sparkcap", tint: "#9752DC", icon: "🎓", img: getPublicAssetPath("/mall/courseAgent.jpg"), detail: "/product/courseAgent/detail", name: "智能体开发课", tag: "视频课", desc: "从 0 到 1 学会搭建自己的智能体工作流。", price: "¥199 /门 · 人民币直购", bookingName: "智能体开发课", bookingKey: "courseAgent"})}
                 {renderProductCard({ glyph: "chart", tint: "#2E7CF6", icon: "📊", img: getPublicAssetPath("/mall/courseWb.jpg"), detail: "/product/courseWb/detail", name: "WorkBuddy 办公提效课", tag: "实操课", desc: "用 AI 把日报、周报、方案、表格这些日常活干得更快，即学即用。", price: "¥99 /门 · 人民币直购", bookingName: "WorkBuddy 办公提效课", bookingKey: "courseWb"})}
@@ -1726,14 +1728,12 @@ export function EcoMallHomePage() {
             </section>
 
             <section className="eco-floor" id="floor-opc">
-              <FloorHead no="F6" title="OPC 专区" sub="AI 算力与创作资源，商家价直供" />
+              <FloorHead no="F7" title="OPC 专区" sub="AI 算力与创作资源，商家价直供" />
               <div className="eh-prod">
                 {renderProductCard({ glyph: "pack", tint: "#D96A00", icon: "🏭", img: getPublicAssetPath("/mall/opcLlm.jpg"), detail: "/product/opcLlm/detail", name: "大模型折扣仓", tag: "OPC", desc: "主流大模型 API 额度折扣直充，token 按仓价拿，AI 用量大的商家先省一半。", price: "50 算力/份 起", cny: "¥5", buyNow: true, demo: true, bookingName: "大模型折扣仓", bookingKey: "opcLlm"})}
                 {renderProductCard({ glyph: "clapper", tint: "#DB2777", icon: "🎬", img: getPublicAssetPath("/mall/opcComic.jpg"), detail: "/product/opcComic/detail", name: "AIGC 漫剧创作工作台", tag: "OPC", desc: "分镜、角色、成片一条龙，批量产出漫剧短视频，带货与账号起号都能用。", price: "199 算力/席", cny: "¥19.9", buyNow: true, demo: true, bookingName: "AIGC 漫剧创作工作台", bookingKey: "opcComic"})}
               </div>
             </section>
-
-            {renderBrandFloor()}
 
           </>
         )}
