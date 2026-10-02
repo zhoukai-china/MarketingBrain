@@ -52,6 +52,14 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 const FONT = "'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif";
 const MONO = "ui-monospace, Menlo, Consolas, monospace";
 
+/**
+ * 2026-10-02：微信内置浏览器（iOS/Android）**不支持网页触发文件下载**——
+ * 点「下载海报」时微信会拦截 blob 下载并弹出它的提示「可在浏览器打开此网页来下载文件。」，
+ * 该提示正好盖住海报。微信里的正确姿势是把海报渲染成真正的 <img> 让用户**长按保存到相册**。
+ * 因此：微信环境不触发下载，改为「查看大图 + 长按保存」；普通浏览器保持原下载行为。
+ */
+const IS_WECHAT = typeof navigator !== "undefined" && /micromessenger/i.test(navigator.userAgent);
+
 function fillTextCentered(ctx: CanvasRenderingContext2D, text: string, cx: number, y: number, font: string, color: string): void {
   ctx.font = font;
   ctx.fillStyle = color;
@@ -259,6 +267,10 @@ function drawPoster(ctx: CanvasRenderingContext2D, version: VersionKey, data: In
 
 export function InvitePoster({ data }: { data: InvitePosterData }) {
   const [version, setVersion] = useState<VersionKey>("national");
+  // 预览用真正的 <img>（由隐藏 canvas 转出的 data URL），这样微信里可长按保存；
+  // canvas 仅作离屏渲染器，不再直接展示。
+  const [preview, setPreview] = useState<string>("");
+  const [zoom, setZoom] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -267,6 +279,7 @@ export function InvitePoster({ data }: { data: InvitePosterData }) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     let cancelled = false;
+    setPreview(""); // 切版本先清空，避免旧图残留
     void (async () => {
       let qr: HTMLImageElement | null = null;
       if (data.qrSvg) {
@@ -278,13 +291,23 @@ export function InvitePoster({ data }: { data: InvitePosterData }) {
       }
       if (cancelled) return;
       drawPoster(ctx, version, data, qr);
+      try {
+        setPreview(canvas.toDataURL("image/png"));
+      } catch {
+        setPreview("");
+      }
     })();
     return () => {
       cancelled = true;
     };
   }, [version, data.link, data.qrSvg, data.code, data.campaignActive, data.busy]);
 
-  function download(): void {
+  /** 微信里不触发下载（会被拦截并弹「可在浏览器打开…」盖住海报），改为看大图+长按保存。 */
+  function save(): void {
+    if (IS_WECHAT) {
+      setZoom(true);
+      return;
+    }
     const canvas = canvasRef.current;
     if (!canvas) return;
     canvas.toBlob((blob) => {
@@ -318,12 +341,46 @@ export function InvitePoster({ data }: { data: InvitePosterData }) {
         ))}
       </div>
       <div className="eh-ips-stage">
-        <canvas ref={canvasRef} width={W} height={H} className="eh-ips-canvas" aria-label="邀请海报预览" />
+        {/* 离屏渲染画布（不展示） */}
+        <canvas ref={canvasRef} width={W} height={H} className="eh-ips-canvas-src" aria-hidden="true" />
+        {preview ? (
+          <img
+            src={preview}
+            alt="邀请海报预览"
+            className="eh-ips-canvas"
+            onClick={() => {
+              if (IS_WECHAT) setZoom(true);
+            }}
+          />
+        ) : (
+          <div className="eh-ips-canvas eh-ips-ph">海报生成中…</div>
+        )}
+        {IS_WECHAT && preview ? <span className="eh-ips-longpress">长按保存 ↙</span> : null}
       </div>
-      <button type="button" className="eh-ips-dl" onClick={download} disabled={!data.link}>
-        ⬇ 下载海报图片（发给好友）
+      {/* 微信：查看大图/长按保存不依赖邀请链接，链接未就绪也能用；非微信：无链接则禁用下载 */}
+      <button type="button" className="eh-ips-dl" onClick={save} disabled={IS_WECHAT ? false : !data.link}>
+        {IS_WECHAT ? "查看大图 · 长按保存到相册" : "⬇ 下载海报图片（发给好友）"}
       </button>
-      <p className="eh-ips-note">720 × 1080 PNG · 微信 / 朋友圈直接发；切版本即刻换样式。</p>
+      <p className="eh-ips-note">
+        {IS_WECHAT
+          ? "长按上方海报图片 → 选择「保存图片」，即可发到微信 / 朋友圈（720 × 1080 PNG）。"
+          : "720 × 1080 PNG · 微信 / 朋友圈直接发；切版本即刻换样式。"}
+      </p>
+
+      {zoom && preview ? (
+        <div className="eh-ips-zoom" onClick={() => setZoom(false)} role="dialog" aria-modal="true" aria-label="邀请海报大图">
+          <button type="button" className="eh-ips-zoom-x" onClick={() => setZoom(false)} aria-label="关闭">
+            ✕
+          </button>
+          <img
+            src={preview}
+            alt="邀请海报大图"
+            className="eh-ips-zoom-img"
+            onClick={(event) => event.stopPropagation()}
+          />
+          <p className="eh-ips-zoom-tip">长按图片 → 保存到相册 → 发给好友</p>
+        </div>
+      ) : null}
     </div>
   );
 }
