@@ -1,0 +1,928 @@
+<!-- fenshen-workbench-demo · v1 · 20261002 · 分身有术·统一数字分身（主人全功能视角） · 逻辑真相源=fenshen-youshu SKILL.md V1.3.0 · 静态演示零外链 -->
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1.0">
+<title>分身有术 · 林总数字分身 工作台（Demo）</title>
+<style>
+:root{
+  --bg:#F4F5FA; --card:#fff; --ink:#201c30; --sub:#6a647e; --line:#e5e2ef;
+  --acc:#6d4ac2; --acc-soft:#f1ecfc; --acc-line:#d8cbf5;            /* 分身紫（思维层） */
+  --gold:#9a7413; --gold-soft:#fdf6e4; --gold-line:#eddba9;          /* 金·能力层/警示 */
+  --green:#0b7a4b; --green-soft:#e7f6ef;
+  --amber:#b26a00; --blue:#2563eb; --purple:#7c3aed; --red:#d64545; --red-soft:#fdeeec;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.55}
+button{font-family:inherit;border:none;background:none;cursor:pointer;color:inherit}
+textarea,input{font-family:inherit}
+::-webkit-scrollbar{width:0;height:0}
+
+/* ===== 顶栏 ===== */
+.topbar{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:60}
+.topbar .in{max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:10px;height:50px;padding:0 14px}
+.topbar .logo{font-weight:800;font-size:16px;white-space:nowrap}
+.topbar .logo i{font-style:normal;color:var(--acc)}
+.topbar .tag{font-size:11px;color:var(--sub);border:1px solid var(--line);border-radius:99px;padding:2px 9px;white-space:nowrap}
+.topbar .me{margin-left:auto;display:flex;align-items:center;gap:8px}
+.credits{font-size:12.5px;color:var(--sub);background:#f6f4fb;border:1px solid var(--line);border-radius:99px;padding:3px 12px;white-space:nowrap}
+.credits b{color:var(--acc)}
+.mini-btn{min-height:34px;padding:0 14px;border-radius:9px;background:var(--acc-soft);color:var(--acc);border:1px solid var(--acc-line);font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:5px;justify-content:center;white-space:nowrap}
+.mini-btn:active{transform:scale(.97)}
+
+/* ===== 深色业务头（紫·金 · 分身有术专属） ===== */
+.bizhead{background:linear-gradient(120deg,#221b44,#4a3591);color:#fff;padding:20px 14px 16px;position:relative;overflow:hidden}
+.bizhead .in{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+.bizhead .row1{display:flex;align-items:center;gap:12px}
+.bizhead .av{width:54px;height:54px;border-radius:16px;overflow:hidden;flex:none;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.bizhead .av img{width:100%;height:100%;object-fit:cover;display:block}
+.bizhead .nm{font-size:18px;font-weight:800}
+.bizhead .role{font-size:12px;opacity:.85;margin-top:1px}
+.bizhead .live{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11.5px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:99px;padding:4px 10px;white-space:nowrap}
+.bizhead .live i{width:7px;height:7px;border-radius:50%;background:#2ecc71;display:inline-block;font-style:normal;animation:blink 1.6s infinite}
+@keyframes blink{50%{opacity:.35}}
+.bizhead .hook{font-size:12.5px;opacity:.92;border-left:3px solid #d9b45e;padding-left:10px}
+.bizhead .row2{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.bizhead .skill{font-size:11px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);border-radius:99px;padding:3px 10px;opacity:.92}
+.bizhead .skill.em{background:rgba(217,180,94,.28);border-color:rgba(236,217,173,.5)}
+.demo-btn{margin-left:auto;background:#d9b45e;color:#33270c;border-radius:99px;font-size:13px;font-weight:800;padding:8px 16px;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(0,0,0,.35);white-space:nowrap}
+.demo-btn.stop{background:rgba(255,255,255,.25);color:#fff;box-shadow:none}
+.demo-btn:active{transform:scale(.97)}
+
+/* 公开/私有分段开关 */
+.modeseg{display:flex;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:3px;gap:3px;max-width:430px}
+.modeseg button{flex:1;min-height:38px;border-radius:9px;font-size:12.5px;font-weight:700;color:rgba(255,255,255,.75);display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.3}
+.modeseg button small{font-size:9.5px;font-weight:500;opacity:.8}
+.modeseg button.act{background:#fff;color:var(--ink)}
+.modeseg button.act small{color:var(--sub)}
+.modeseg button.act.pri b::before{content:"🔒 "}
+.modeseg button.act.pub b::before{content:"🌐 "}
+
+/* ===== 页面与 TabBar ===== */
+main{max-width:1280px;margin:0 auto;position:relative;min-height:calc(100vh - 50px)}
+.page{display:none;padding:12px 12px 96px;-webkit-overflow-scrolling:touch}
+.page.act{display:block;animation:pgin .22s ease}
+@keyframes pgin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.tabbar{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:1280px;background:rgba(255,255,255,.97);backdrop-filter:blur(8px);border-top:1px solid var(--line);display:flex;z-index:40;padding:4px 4px calc(4px + env(safe-area-inset-bottom))}
+.tab{flex:1;color:var(--sub);font-size:10.5px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;border-radius:10px;position:relative}
+.tab .ti{font-size:19px;line-height:1.2;filter:grayscale(.4)}
+.tab.act{color:var(--acc);font-weight:800}
+.tab.act .ti{filter:none}
+.tab .dot{position:absolute;top:2px;right:calc(50% - 26px);min-width:16px;height:16px;border-radius:99px;background:var(--red);color:#fff;font-size:9.5px;font-weight:800;display:grid;place-items:center;padding:0 4px}
+
+/* ===== 卡片通用 ===== */
+.card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:14px;margin-bottom:12px;box-shadow:0 3px 10px rgba(32,28,48,.04)}
+.card-h{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.card-h .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:15px;background:var(--acc-soft);flex:none}
+.card-h b{font-size:14px}
+.card-h .more{margin-left:auto;font-size:12px;color:var(--acc);font-weight:600;white-space:nowrap}
+.card-h .cnt{margin-left:auto;font-size:11px;color:var(--sub);white-space:nowrap}
+.hint{font-size:11px;color:var(--sub);line-height:1.65}
+.hint b{color:var(--gold)}
+.divid{height:1px;background:var(--line);margin:10px 0}
+.big-btn{min-height:46px;border-radius:12px;background:var(--acc);color:#fff;font-size:14.5px;font-weight:800;width:100%;display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 4px 12px rgba(109,74,194,.3)}
+.big-btn:active{transform:scale(.98)}
+.big-btn.ghost{background:#fff;color:var(--acc);border:1.5px solid var(--acc-line);box-shadow:none}
+.warnbar{background:var(--gold-soft);border:1px solid var(--gold-line);border-radius:12px;padding:9px 12px;font-size:11.5px;color:#7a5c12;line-height:1.65;margin-bottom:12px}
+.warnbar b{color:var(--gold)}
+.redbar{background:var(--red-soft);border:1px solid #f2cfcf;border-radius:12px;padding:9px 12px;font-size:11.5px;color:#8f3030;line-height:1.65;margin-bottom:12px}
+.greenbar{background:var(--green-soft);border:1px solid #bfe5d4;border-radius:12px;padding:9px 12px;font-size:11.5px;color:#0b6242;line-height:1.65;margin-bottom:12px}
+
+/* 子模块 chips */
+.subtabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:4px;scrollbar-width:none}
+.subtabs::-webkit-scrollbar{display:none}
+.subtab{flex:none;border:1px solid var(--line);background:#fff;border-radius:99px;font-size:12.5px;font-weight:600;color:var(--sub);padding:7px 15px;min-height:36px}
+.subtab.act{background:var(--ink);border-color:var(--ink);color:#fff}
+.subview{display:none}
+.subview.act{display:block;animation:pgin .2s}
+
+/* ===== 对话页 ===== */
+.log{display:flex;flex-direction:column;gap:10px;padding:4px 2px 10px;min-height:46vh}
+.sysline{align-self:center;font-size:10.5px;color:var(--acc);background:var(--acc-soft);border:1px solid var(--acc-line);border-radius:99px;padding:3px 12px;font-weight:600;max-width:95%;text-align:center}
+.sysline.gold{color:#7a5c12;background:var(--gold-soft);border-color:var(--gold-line)}
+.sysline.grey{color:var(--sub);background:#f0eef7;border-color:var(--line)}
+.msg{max-width:88%;padding:10px 13px;border-radius:14px;font-size:13.5px;line-height:1.62;word-break:break-word;box-shadow:0 1px 4px rgba(32,28,48,.05)}
+.msg.me{align-self:flex-end;background:var(--acc);color:#fff;border-bottom-right-radius:4px}
+.msg.ai{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}
+.msg .who{display:block;font-size:10.5px;font-weight:700;color:var(--sub);margin-bottom:3px}
+.msg.me .who{color:#d9cdfa}
+.typing{display:inline-flex;gap:3px;align-items:center;padding:2px 0}
+.typing i{width:5px;height:5px;border-radius:50%;background:#b8aecf;animation:tp 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes tp{0%,100%{opacity:.3;transform:translateY(0)}50%{opacity:1;transform:translateY(-2px)}}
+/* 私有决策卡 */
+.deci{border-top:1px dashed var(--acc-line);margin-top:8px;padding-top:8px;font-size:12.8px}
+.deci .cl{font-size:14px;font-weight:800;color:var(--acc);display:block;margin-bottom:4px}
+.deci .cl em{font-style:normal;font-size:11px;background:var(--acc-soft);border:1px solid var(--acc-line);border-radius:99px;padding:1px 8px;margin-left:6px;vertical-align:1px}
+.deci ol{margin:4px 0 6px 18px}
+.deci ol li{margin:2px 0}
+.deci .risk{background:var(--gold-soft);border:1px solid var(--gold-line);border-radius:9px;padding:6px 9px;font-size:11.8px;color:#7a5c12;margin-top:4px}
+.deci .risk b{color:var(--gold)}
+.meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:7px;border-top:1px solid var(--line);font-size:10px;color:var(--sub)}
+.meta .lay{border:1px solid var(--acc-line);background:var(--acc-soft);color:var(--acc);border-radius:99px;padding:1px 8px;font-weight:700}
+.meta .lay.cap{border-color:var(--gold-line);background:var(--gold-soft);color:var(--gold)}
+.meta .lnk{color:var(--acc);font-weight:700;cursor:pointer}
+.aibadge{display:inline-flex;align-items:center;gap:4px;border:1px solid #c9d4e8;background:#eef2fa;color:#4a5c82;border-radius:99px;padding:1px 8px;font-weight:700}
+/* 红线拦截卡 */
+.msg.block{background:var(--red-soft);border:1px solid #f2cfcf}
+.msg.block .who{color:var(--red)}
+/* 输入区 */
+.chips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;scrollbar-width:none}
+.chip-q{flex:none;border:1px solid var(--line);background:#fff;border-radius:99px;padding:6px 12px;font-size:12px;font-weight:600}
+.chip-q.rec{border-color:var(--acc-line);background:var(--acc-soft);color:var(--acc)}
+.chatbar{position:sticky;bottom:64px;background:rgba(244,245,250,.96);backdrop-filter:blur(6px);padding:6px 0 2px}
+.input{display:flex;gap:6px;align-items:flex-end}
+.input .up{flex:none;width:38px;min-height:42px;border-radius:11px;border:1px solid var(--line);background:#fff;font-size:16px}
+.input textarea{flex:1;min-width:0;font-size:16px;padding:9px 12px;border:1px solid var(--line);border-radius:11px;background:#fff;outline:none;resize:none;line-height:1.5;max-height:88px}
+.input textarea:focus{border-color:var(--acc-line)}
+.send{flex:none;min-height:42px;padding:0 18px;border-radius:11px;background:var(--acc);color:#fff;font-weight:800;font-size:14px}
+.send:disabled{opacity:.4}
+
+/* ===== 指标卡 ===== */
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mtc{background:linear-gradient(160deg,#faf8ff,#f3eefc);border:1px solid var(--acc-line);border-radius:13px;padding:11px 8px;text-align:center}
+.mtc .v{font-size:21px;font-weight:800;color:var(--acc)}
+.mtc .v small{font-size:11px;font-weight:700}
+.mtc .l{font-size:10.5px;color:var(--sub);margin-top:2px}
+/* 两层结构 */
+.layer{border:1px solid var(--line);border-radius:13px;overflow:hidden;margin-bottom:0}
+.layer .lh{display:flex;align-items:center;gap:8px;padding:9px 12px;font-size:13px;font-weight:800}
+.layer .lh small{font-weight:500;font-size:10.5px;opacity:.85}
+.layer .lb{padding:10px 12px;background:#fff}
+.l-think .lh{background:linear-gradient(90deg,#2c2352,#4a3591);color:#fff}
+.l-cap .lh{background:linear-gradient(90deg,#8a6a1d,#c49a2e);color:#fff}
+.domains{display:flex;flex-wrap:wrap;gap:5px}
+.domains span{font-size:10.5px;border:1px solid var(--gold-line);background:var(--gold-soft);color:#7a5c12;border-radius:99px;padding:2px 9px;font-weight:600}
+.tenpack{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.tenpack span{font-size:10.5px;border:1px dashed var(--gold-line);border-radius:8px;padding:2px 8px;color:var(--sub)}
+.l5{display:flex;flex-direction:column;gap:5px}
+.l5 .r{display:flex;align-items:center;gap:8px;font-size:11.5px}
+.l5 .n{flex:none;width:18px;height:18px;border-radius:6px;background:var(--acc);color:#fff;font-size:10px;font-weight:800;display:grid;place-items:center}
+.l5 .bar{flex:1;height:7px;border-radius:99px;background:#efeaf9;overflow:hidden}
+.l5 .bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#6d4ac2,#9b7ee0)}
+.l5 .pc{flex:none;width:38px;text-align:right;font-size:10px;color:var(--sub)}
+.bond{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:11px;color:var(--acc);font-weight:700}
+.bond::before,.bond::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--acc-line),transparent)}
+/* 七模式开关 */
+.mrow{display:flex;align-items:center;gap:9px;padding:9px 2px;border-bottom:1px dashed var(--line)}
+.mrow:last-child{border-bottom:none}
+.mrow .mi{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:14px;background:var(--acc-soft);flex:none}
+.mrow b{font-size:13px;display:block}
+.mrow small{font-size:10.5px;color:var(--sub)}
+.mrow .drv{margin-left:auto;display:flex;align-items:center;gap:8px}
+.layb{font-size:9.5px;border-radius:99px;padding:2px 8px;font-weight:700;border:1px solid var(--acc-line);background:var(--acc-soft);color:var(--acc)}
+.layb.cap{border-color:var(--gold-line);background:var(--gold-soft);color:var(--gold)}
+.sw{width:40px;height:22px;border-radius:99px;background:#d9d4e8;position:relative;flex:none;transition:.2s}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.sw.on{background:var(--acc)}
+.sw.on::after{left:20px}
+/* 知识源 */
+.src{display:flex;align-items:center;gap:9px;padding:8px 2px;border-bottom:1px dashed var(--line);font-size:12.5px}
+.src:last-child{border-bottom:none}
+.src .si{font-size:16px;flex:none}
+.src b{display:block;font-size:12.5px}
+.src small{color:var(--sub);font-size:10.5px}
+.src .st{margin-left:auto;flex:none;font-size:10px;font-weight:700;border-radius:99px;padding:2px 9px}
+.st.ok{background:var(--green-soft);color:var(--green);border:1px solid #bfe5d4}
+.st.doing{background:#fdf3e0;color:var(--amber);border:1px solid #f0dcb0}
+/* 闭环 */
+.loop{display:flex;align-items:center;gap:0;margin:6px 0 2px}
+.loop .s{flex:1;text-align:center;position:relative}
+.loop .s::before{content:"";position:absolute;top:11px;left:-50%;width:100%;height:2px;background:var(--line);z-index:0}
+.loop .s:first-child::before{display:none}
+.loop .s.done::before{background:var(--acc)}
+.loop .c{position:relative;z-index:1;width:24px;height:24px;margin:0 auto 3px;border-radius:50%;background:#fff;border:2px solid var(--line);display:grid;place-items:center;font-size:11px;color:var(--sub)}
+.loop .s.done .c{background:var(--acc);border-color:var(--acc);color:#fff}
+.loop .t{font-size:10px;color:var(--sub)}
+.loop .s.done .t{color:var(--acc);font-weight:700}
+/* 队列徽标 */
+.qbadge{display:inline-flex;align-items:center;gap:5px;background:var(--red-soft);border:1px solid #f2cfcf;color:var(--red);border-radius:99px;padding:3px 11px;font-size:11.5px;font-weight:800}
+.qbadge i{font-style:normal;width:17px;height:17px;border-radius:50%;background:var(--red);color:#fff;display:grid;place-items:center;font-size:10px}
+
+/* ===== 调试页 ===== */
+.trace{border:1px solid var(--acc-line);border-radius:12px;overflow:hidden;margin-bottom:8px;background:#fff}
+.trace .th{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer}
+.trace .th b{font-size:12.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trace .arr{color:var(--sub);font-size:11px;transition:.2s}
+.trace.open .arr{transform:rotate(90deg)}
+.trace .tb{display:none;padding:10px 12px;border-top:1px solid var(--line);background:#faf9fe;font-size:12px;line-height:1.7}
+.trace.open .tb{display:block}
+.trace .tb .k{color:var(--acc);font-weight:700}
+.correctbox{width:100%;min-height:64px;font-size:16px;padding:9px 12px;border:1px solid var(--line);border-radius:11px;background:#fff;outline:none;resize:vertical}
+.attrs{display:flex;gap:7px;margin:10px 0}
+.attr{flex:1;border:1.5px solid var(--line);border-radius:11px;padding:9px 4px;text-align:center;font-size:11.5px;font-weight:600;color:var(--sub);background:#fff;min-height:56px;display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center}
+.attr .ai{font-size:16px}
+.attr.sel{border-color:var(--acc);background:var(--acc-soft);color:var(--acc)}
+.quiz{border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:8px;background:#fff;display:flex;align-items:center;gap:9px}
+.quiz .qn{flex:1;min-width:0}
+.quiz .qn b{font-size:12.8px;display:block}
+.quiz .qn small{font-size:10.5px;color:var(--sub)}
+.score{display:flex;gap:8px;margin:8px 0}
+.score .sc{flex:1;text-align:center;background:#faf9fe;border:1px solid var(--line);border-radius:11px;padding:9px 4px}
+.score .sc .v{font-size:17px;font-weight:800;color:var(--acc)}
+.score .sc .l{font-size:10px;color:var(--sub)}
+.slider{-webkit-appearance:none;appearance:none;width:100%;height:7px;border-radius:99px;background:linear-gradient(90deg,#c49a2e,#6d4ac2);outline:none;margin:10px 0 2px}
+.slider::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid var(--acc);box-shadow:0 1px 5px rgba(0,0,0,.25);cursor:pointer}
+.redwords{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.redwords span{font-size:11px;background:var(--red-soft);border:1px solid #f2cfcf;color:#8f3030;border-radius:8px;padding:3px 9px;font-weight:600;text-decoration:line-through}
+
+/* ===== 互聊页 ===== */
+.twin-pick{display:flex;gap:8px;margin-bottom:10px}
+.tp{flex:1;border:1.5px solid var(--line);border-radius:13px;padding:10px 8px;text-align:center;background:#fff}
+.tp img{width:42px;height:42px;border-radius:13px;object-fit:cover}
+.tp b{display:block;font-size:12px;margin-top:4px}
+.tp small{font-size:9.5px;color:var(--sub)}
+.tp.sel{border-color:var(--acc);background:var(--acc-soft)}
+.dlog{border:1px solid var(--line);border-radius:13px;background:#f8f7fc;padding:11px;display:flex;flex-direction:column;gap:9px}
+.dmsg{max-width:92%;padding:8px 11px;border-radius:12px;font-size:12.3px;line-height:1.6;background:#fff;border:1px solid var(--line)}
+.dmsg.b{align-self:flex-end;background:var(--acc);color:#fff;border:none}
+.dmsg .dw{font-size:10px;font-weight:700;opacity:.75;display:block;margin-bottom:2px}
+.rpt{display:flex;gap:8px;margin:9px 0}
+.rpt .rp{flex:1;text-align:center;background:#faf9fe;border:1px solid var(--line);border-radius:11px;padding:9px 4px}
+.rpt .rp .v{font-size:17px;font-weight:800;color:var(--ink)}
+.rpt .rp .l{font-size:10px;color:var(--sub)}
+.miss{background:var(--gold-soft);border:1px solid var(--gold-line);border-radius:11px;padding:9px 11px;font-size:11.5px;color:#7a5c12;line-height:1.7}
+.miss b{color:var(--gold)}
+.stepper{display:flex;align-items:center;gap:10px}
+.stepper button{width:32px;height:32px;border-radius:9px;border:1px solid var(--line);background:#fff;font-size:16px;font-weight:800;color:var(--acc)}
+.stepper .v{font-size:17px;font-weight:800;min-width:52px;text-align:center}
+.stepper .v small{font-size:10px;color:var(--sub);font-weight:500;display:block}
+
+/* ===== 我的页 ===== */
+.openbig{border-radius:14px;padding:14px;color:#fff;background:linear-gradient(120deg,#2c2352,#4a3591);margin-bottom:10px}
+.openbig .st1{font-size:15px;font-weight:800;display:flex;align-items:center;gap:7px}
+.openbig .st2{font-size:11.5px;opacity:.85;margin-top:3px}
+.openbig .ops{display:flex;gap:8px;margin-top:11px}
+.openbig .ops button{flex:1;min-height:40px;border-radius:10px;font-size:12.5px;font-weight:700;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);color:#fff}
+.openbig .ops button.pri{background:#d9b45e;color:#33270c;border-color:#d9b45e}
+.openbig.pub{background:linear-gradient(120deg,#0d4d33,#12855a)}
+.vrow{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:12.5px}
+.vrow:last-child{border-bottom:none}
+.vrow .vi{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:13px;background:var(--green-soft);flex:none}
+.vrow .vt b{display:block;font-size:12.5px}
+.vrow .vt small{font-size:10.5px;color:var(--sub)}
+.vrow .vst{margin-left:auto;font-size:11px;font-weight:700;color:var(--green);white-space:nowrap}
+.vrow .vst.lock{color:var(--sub)}
+.lockcard{background:#f2f0f8;border:1px dashed var(--line);border-radius:12px;padding:10px 12px;font-size:11.5px;color:var(--sub);line-height:1.7}
+.lockcard b{color:var(--ink)}
+
+/* toast / 高亮 */
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);background:rgba(32,28,48,.93);color:#fff;font-size:13px;padding:10px 20px;border-radius:99px;opacity:0;pointer-events:none;transition:.25s;z-index:80;max-width:88%;text-align:center;line-height:1.5}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@keyframes spotk{0%{box-shadow:0 0 0 0 rgba(109,74,194,.55)}70%{box-shadow:0 0 0 9px rgba(109,74,194,0)}100%{box-shadow:0 0 0 0 rgba(109,74,194,0)}}
+.spot{animation:spotk 1.1s ease-out 2;border-color:var(--acc)!important}
+.foot-note{padding:4px 14px 20px;font-size:10.5px;color:#a49dbd;line-height:1.8;text-align:center}
+
+/* ===== 桌面端 ≥960 ===== */
+@media(min-width:960px){
+  body{padding-left:168px}
+  .tabbar{left:0;transform:none;top:0;bottom:0;width:168px;flex-direction:column;justify-content:flex-start;padding:74px 12px 18px;gap:6px;border-right:1px solid var(--line);border-top:none}
+  .tab{flex-direction:row;justify-content:flex-start;gap:11px;font-size:13.5px;padding:10px 13px;text-align:left}
+  .tab .ti{font-size:19px}
+  .tab .dot{top:50%;right:auto;left:34px;transform:translateY(-12px)}
+  .page{padding:18px 20px 28px}
+  .cols-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+  .cols-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:start}
+  .span-2{grid-column:span 2}
+  .log{min-height:auto}
+  .msg{max-width:70%}
+  .chatbar{position:static}
+}
+@media(max-width:640px){
+  .topbar .tag{display:none}
+  .metrics .mtc .v{font-size:18px}
+}
+</style>
+</head>
+<body>
+
+<!-- 顶栏 -->
+<div class="topbar"><div class="in">
+  <div class="logo">思潼<i>AI</i> · 分身有术</div>
+  <span class="tag">统一数字分身 V1.3 · 静态演示</span>
+  <span class="me">
+    <button class="mini-btn" onclick="toast('充值入口为演示占位 · 线上跳转思潼AI账户体系')">充值</button>
+    <span class="credits">⚡ <b id="cred">1280</b> 算力</span>
+  </span>
+</div></div>
+
+<!-- 深色业务头 -->
+<header class="bizhead"><div class="in">
+  <div class="row1">
+    <div class="av"><img src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234a3591'/%3E%3Cstop offset='1' stop-color='%237c5fc9'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' fill='url(%23g)'/%3E%3Ccircle cx='50' cy='41' r='17' fill='%23f2d3b3'/%3E%3Cpath d='M50 21c-11 0-18 8-18 17 0 4 1 7 3 9 0-10 6-15 15-15s15 5 15 15c2-2 3-5 3-9 0-9-7-17-18-17z' fill='%232a2634'/%3E%3Cpath d='M42 38h4v4h-4zM54 38h4v4h-4z' fill='%232a2634'/%3E%3Cpath d='M43 49c2 2 5 3 7 3s5-1 7-3' stroke='%23c98a6b' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M20 100c2-20 15-29 30-29s28 9 30 29z' fill='%232e2650'/%3E%3Cpath d='M43 71h14v8H43z' fill='%23f4f2f8'/%3E%3Cpath d='M47 71l3 10 3-10z' fill='%23c49a2e'/%3E%3Ccircle cx='84' cy='20' r='7' fill='%23d9b45e' opacity='.9'/%3E%3Cpath d='M81 20l2 2 4-4' stroke='%2333270c' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" alt="林总分身头像">
+    <div>
+      <div class="nm">林总 · 数字分身</div>
+      <div class="role">分身有术 · 统一数字分身（能力层 + 思维层 · 一个智能体）</div>
+    </div>
+    <span class="live"><i></i>在线</span>
+  </div>
+  <p class="hook">既能答（八大知识域问答 + 十件套内容）、也能想（5 层思考模型决策）。私有模式做你的 AI 决策顾问，公开模式替你对外获客——越用越像本人。</p>
+  <div class="modeseg" id="modeSeg">
+    <button id="segPri" class="act pri" onclick="setMode('pri')"><b>私有 · 主人自用</b><small>思维层直出 · 概率 + 风险前置</small></button>
+    <button id="segPub" class="pub" onclick="setMode('pub')"><b>公开 · 对外服务</b><small>合规包装 · 署名思潼 · AI标识</small></button>
+  </div>
+  <div class="row2">
+    <span class="skill em">两层一体</span>
+    <span class="skill em">越用越像本人</span>
+    <span class="skill">⚡ 文字10/条 · 图片40/张 · 视频120/条</span>
+    <button class="demo-btn" id="btnDemo" onclick="toggleDemo()">▶ 一键演示</button>
+  </div>
+</div></header>
+
+<main>
+
+<!-- ═══════════ Tab1 对话 ═══════════ -->
+<section class="page act" id="pg-chat">
+  <div class="log" id="log">
+    <div class="sysline grey">💡 演示数据全虚构 · 分身仅以已核验的「林总」名义运行 · 被问是否AI时如实回答</div>
+    <div class="sysline">🧠 会话已加载 · 当前模式：<b id="modeChip">私有 · 主人自用</b> · 分身按你本人的知识库与思维模型应答</div>
+    <div class="msg me"><span class="who">林总（主人）</span>最近团队抱怨获客成本越来越高，有什么办法？</div>
+    <div class="msg ai"><span class="who">林总分身 · <b style="color:var(--gold)">问答 · 能力层</b></span>
+      获客成本高，先看三件事：<br>1. 老客复购没吃透——先做存量，再做增量；<br>2. 内容渠道有没有「一条能反复用的」；<br>3. 别急着加预算，先算单客回本周期。<br>
+      <span class="meta"><span class="lay cap">能力层 · 域1 获客</span>引用知识 #A-214</span>
+    </div>
+    <div class="msg me"><span class="who">林总（主人）</span>下周那个招商会，接不接？</div>
+    <div class="msg ai" id="deciMsg"><span class="who">林总分身 · <b style="color:var(--acc)">决策 · 思维层</b></span>
+      <div class="deci">
+        <span class="cl">接——但只按轻量展位接<em>成功率 72%</em></span>
+        为什么：<br>
+        <ol><li>该会 200+ 精准 B 端流量，边际成本低于自办活动；</li><li>你的课程客单价足够覆盖轻量展位投入；</li><li>同赛道主办方往年转化数据可参照，不是盲赌。</li></ol>
+        <div class="risk"><b>⚠️ 风险前置：</b>① 现场话术只能走「案例展示」，不得做收益承诺；② 现场成单率按 8% 预估，低于 5% 立即止损撤展。</div>
+      </div>
+      <span class="meta"><span class="lay">思维层 · 先结论后理由</span>框架「机会成本三分法」<span class="lnk" onclick="gotoTrace()">溯源 ›</span></span>
+    </div>
+  </div>
+
+  <div class="chips">
+    <span style="flex:none;font-size:11px;color:#9a93b2;font-weight:700;align-self:center">试试：</span>
+    <button class="chip-q rec" onclick="quickAsk(this)" data-q="下周那个招商会，接不接？">🧠 决策：接不接</button>
+    <button class="chip-q" onclick="quickAsk(this)" data-q="给我一套秋季获客打法">📥 问答</button>
+    <button class="chip-q" onclick="quickAsk(this)" data-q="写一条门店周末引流的短视频口播稿">✍️ 创作</button>
+    <button class="chip-q" onclick="quickAsk(this)" data-q="帮我排一下下个月的增长计划">📋 方案</button>
+    <button class="chip-q" onclick="quickAsk(this)" data-q="评价一下上周谈的那个合作方靠不靠谱">🔍 评估</button>
+    <button class="chip-q" onclick="quickAsk(this)" data-q="投流复盘该看哪些数据">⚙️ 执行</button>
+    <button class="chip-q" onclick="quickAsk(this)" data-q="给我的新课出一版课件大纲">📚 内容生产</button>
+  </div>
+
+  <div class="chatbar"><div class="input">
+    <button class="up" onclick="toast('🎤 语音输入为演示占位')">🎤</button>
+    <textarea id="ipt" rows="1" placeholder="问问题、要内容、要方案，或让我帮你决个策…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"></textarea>
+    <button class="send" id="btnSend" onclick="send()">发送</button>
+  </div></div>
+</section>
+
+<!-- ═══════════ Tab2 分身 ═══════════ -->
+<section class="page" id="pg-twin">
+  <div class="card">
+    <div class="card-h"><span class="ic">📊</span><b>像不像本人 · 回归测试三指标</b><span class="cnt">上次回归 09-28</span></div>
+    <div class="metrics">
+      <div class="mtc"><div class="v"><span id="m1">0</span><small>%</small></div><div class="l">表达相似度</div></div>
+      <div class="mtc"><div class="v"><span id="m2">0</span><small>%</small></div><div class="l">合规通过率</div></div>
+      <div class="mtc"><div class="v"><span id="m3">0</span><small>%</small></div><div class="l">知识命中率</div></div>
+    </div>
+    <p class="hint" style="margin-top:8px">每周蒸馏后自动回归；纠错样本（最高优先级）直接进入下一轮校准。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><span class="ic">🧬</span><b>一个智能体 · 两层能力</b></div>
+    <div class="layer l-think">
+      <div class="lh">🧠 思维层 <small>怎么想 · 怎么判断（蒸馏自思维克隆版）</small></div>
+      <div class="lb"><div class="l5">
+        <div class="r"><span class="n">1</span><span style="width:64px;flex:none">元思维</span><span class="bar"><i style="width:96%"></i></span><span class="pc">96%</span></div>
+        <div class="r"><span class="n">2</span><span style="width:64px;flex:none">决策框架</span><span class="bar"><i style="width:92%"></i></span><span class="pc">92%</span></div>
+        <div class="r"><span class="n">3</span><span style="width:64px;flex:none">工作方法</span><span class="bar"><i style="width:88%"></i></span><span class="pc">88%</span></div>
+        <div class="r"><span class="n">4</span><span style="width:64px;flex:none">品味判断</span><span class="bar"><i style="width:90%"></i></span><span class="pc">90%</span></div>
+        <div class="r"><span class="n">5</span><span style="width:64px;flex:none">深层信念</span><span class="bar"><i style="width:94%"></i></span><span class="pc">94%</span></div>
+      </div></div>
+    </div>
+    <div class="bond">两层共用同一份知识库 + 同一份思维模型 · 越用越像本人</div>
+    <div class="layer l-cap">
+      <div class="lh">⚙️ 能力层 <small>知道什么 · 怎么表达 · 怎么执行（蒸馏自能力克隆版）</small></div>
+      <div class="lb">
+        <div class="domains"><span>域1 获客</span><span>域2 转化</span><span>域3 交付</span><span>域4 流量</span><span>域5 团队</span><span>域6 定价</span><span>域7 数据</span><span>域8 品牌</span></div>
+        <div class="tenpack"><b style="font-size:10.5px;color:var(--gold);flex:none;line-height:1.9">十件套：</b><span>①爆点选题</span><span>②口播稿</span><span>③访谈话术</span><span>④朋友圈</span><span>⑤短视频脚本</span><span>⑥图文卡片</span><span>⑦直播串讲</span><span>⑧答疑库</span><span>⑨案例集</span><span>⑩课件包</span></div>
+        <p class="hint" style="margin-top:7px">表达DNA：结论先行 · 数字校准 · 不用极限词 · 短句分条</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><span class="ic">🎚</span><b>七模式开关</b><span class="cnt">公开模式仅开放已勾选模式</span></div>
+    <div class="mrow"><span class="mi">💬</span><div><b>问答</b><small>咨询获客 / 经营问题 · 短句分条</small></div><div class="drv"><span class="layb cap">能力层</span><div class="sw on" onclick="swMode(this,'问答')"></div></div></div>
+    <div class="mrow"><span class="mi">✍️</span><div><b>创作</b><small>给选题出十件套内容包</small></div><div class="drv"><span class="layb cap">能力层</span><div class="sw on" onclick="swMode(this,'创作')"></div></div></div>
+    <div class="mrow"><span class="mi">⚙️</span><div><b>执行</b><small>投流 / 复盘 / 直播方案</small></div><div class="drv"><span class="layb cap">能力层</span><div class="sw on" onclick="swMode(this,'执行')"></div></div></div>
+    <div class="mrow"><span class="mi">🧠</span><div><b>决策</b><small>接不接 / 进不进 · 概率+风险前置</small></div><div class="drv"><span class="layb">思维层</span><div class="sw on" onclick="swMode(this,'决策')"></div></div></div>
+    <div class="mrow"><span class="mi">📋</span><div><b>方案</b><small>规划 / 大纲 / 课件结构</small></div><div class="drv"><span class="layb">思维层</span><div class="sw on" onclick="swMode(this,'方案')"></div></div></div>
+    <div class="mrow"><span class="mi">📚</span><div><b>内容生产</b><small>思维层出思想 → 能力层包装</small></div><div class="drv"><span class="layb">思维→能力</span><div class="sw on" onclick="swMode(this,'内容生产')"></div></div></div>
+    <div class="mrow"><span class="mi">🔍</span><div><b>评估</b><small>合作 / 客户 / 案例 · 5层评级</small></div><div class="drv"><span class="layb">思维层</span><div class="sw" onclick="swMode(this,'评估')"></div></div></div>
+    <p class="hint" style="margin-top:8px">💡 模糊指令时，分身会主动问一句：「是要我问答、做内容、给方案，还是帮你决个策？」</p>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><span class="ic">🔌</span><b>知识源接入 · 内容自更新</b><span class="qbadge"><i id="qN">3</i> 待蒸馏</span></div>
+    <div class="src"><span class="si">📰</span><div><b>公众号 · 「林总聊增长」</b><small>RSS 同步 · 每日 08:00</small></div><span class="st ok">✓ 已同步</span></div>
+    <div class="src"><span class="si">🎬</span><div><b>短视频号（2 个）</b><small>转写→观点/案例蒸馏 · 每日</small></div><span class="st ok">✓ 已同步</span></div>
+    <div class="src"><span class="si">📱</span><div><b>朋友圈增量</b><small>授权同步 · 两层都喂</small></div><span class="st ok">✓ 已同步</span></div>
+    <div class="src"><span class="si">🎧</span><div><b>播客 · 对谈节目</b><small>转写→思维与表达萃取</small></div><span class="st doing">⏳ 转写中</span></div>
+    <div class="src"><span class="si">📝</span><div><b>Get笔记 · 访谈录音</b><small>语音转写→思维萃取</small></div><span class="st doing">⏳ 转写中</span></div>
+    <div class="src"><span class="si">📁</span><div><b>文档 / 课程底稿</b><small>手动上传 · 喂能力层知识库</small></div><span class="st ok">✓ 已接入</span></div>
+    <p class="hint" style="margin-top:9px">🔁 新内容先进入<b>待蒸馏队列</b>（去重/脱敏/合规过滤）后才入库，不直接改写知识库；每条带时间戳，新旧口径冲突按时间线覆盖。仅接入林总本人授权的内容源。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><span class="ic">🔁</span><b>自训练闭环 · 越用越像本人</b><span class="cnt">本周蒸馏 周五 20:00</span></div>
+    <div class="loop">
+      <div class="s done"><div class="c">✓</div><div class="t">采集<b id="capN">128</b>条</div></div>
+      <div class="s done"><div class="c">✓</div><div class="t">蒸馏排队</div></div>
+      <div class="s"><div class="c">3</div><div class="t">回流回归</div></div>
+      <div class="s"><div class="c">4</div><div class="t">校准</div></div>
+    </div>
+    <p class="hint" style="margin-top:8px">纠错是最高优先级训练信号 → 直接进蒸馏队列；不像本人写法的输出回流进表达DNA，错误判断标注进思维模型反例。</p>
+  </div>
+</section>
+
+<!-- ═══════════ Tab3 调试 ═══════════ -->
+<section class="page" id="pg-debug">
+  <div class="warnbar">🛠 <b>主人专属调试台</b>（仅主人会话可见）。调试改动实时生效于主人视角；对已开放的对外服务，变更走「重新部署」生效。</div>
+  <div class="subtabs">
+    <button class="subtab act" onclick="setSub('dbg-trace',this)">🔍 溯源</button>
+    <button class="subtab" onclick="setSub('dbg-fix',this)">✏️ 纠错</button>
+    <button class="subtab" onclick="setSub('dbg-trial',this)">🧪 试炼</button>
+    <button class="subtab" onclick="setSub('dbg-tune',this)">🎛 调参</button>
+  </div>
+
+  <div class="subview act" id="dbg-trace">
+    <p class="hint" style="margin-bottom:9px">查看任一输出来自哪层驱动、引用了知识库哪条、思维层按什么框架判断。</p>
+    <div class="trace open" id="trace1">
+      <div class="th" onclick="this.parentNode.classList.toggle('open')"><span>🧠</span><b>「招商会接不接」→ 接，轻量展位（72%）</b><span class="arr">▶</span></div>
+      <div class="tb">
+        <span class="k">驱动层：</span>思维层（决策框架）→ 私有模式直出<br>
+        <span class="k">判断框架：</span>机会成本三分法（收益面 / 成本面 / 退路面）<br>
+        <span class="k">引用知识：</span>域4「流量效率优先」#A-214 · 域7「现场成单基准 8%」#D-052<br>
+        <span class="k">表达DNA：</span>结论先行 · 数字校准 · 不用极限词<br>
+        <span class="k">概率依据：</span>同类会展历史转化 + 客单价覆盖测算
+      </div>
+    </div>
+    <div class="trace">
+      <div class="th" onclick="this.parentNode.classList.toggle('open')"><span>⚙️</span><b>「获客成本高怎么办」→ 存量优先三条</b><span class="arr">▶</span></div>
+      <div class="tb">
+        <span class="k">驱动层：</span>能力层（域1 获客）<br>
+        <span class="k">引用知识：</span>#A-214 存量复购优先 · #A-301 单客回本周期算法<br>
+        <span class="k">表达DNA：</span>短句分条 · 只说结论 · 不灌鸡汤
+      </div>
+    </div>
+    <div class="trace">
+      <div class="th" onclick="this.parentNode.classList.toggle('open')"><span>📚</span><b>「新课课件大纲」→ 结构化方案（5 段）</b><span class="arr">▶</span></div>
+      <div class="tb">
+        <span class="k">驱动层：</span>思维层出思想 → 能力层包装（内容生产串联）<br>
+        <span class="k">判断框架：</span>「学员要什么 → 我给什么 → 怎么验证学会」<br>
+        <span class="k">引用知识：</span>域8 课程体系 #H-118 · 十件套⑩课件包
+      </div>
+    </div>
+  </div>
+
+  <div class="subview" id="dbg-fix">
+    <p class="hint" style="margin-bottom:9px">标记「不像我 / 说错了」并给出正确说法——<b style="color:var(--red)">纠错是最高优先级训练信号</b>，直接进蒸馏队列。</p>
+    <div class="card" style="box-shadow:none;border-color:var(--line)">
+      <p style="font-size:11px;color:var(--sub);font-weight:700;margin-bottom:5px">原输出（分身）：</p>
+      <p style="font-size:12.5px;background:#faf9fe;border:1px solid var(--line);border-radius:10px;padding:9px 11px;line-height:1.7">“这个合作方整体不错，<b style="color:var(--red)">最强</b>的是他们的渠道资源，建议尽快签约。”</p>
+      <p style="font-size:11px;color:var(--sub);font-weight:700;margin:10px 0 5px">你的正确说法：</p>
+      <textarea class="correctbox" id="fixIpt" placeholder="按你的口吻改写…（示例：这个合作方渠道资源是亮点，但先别签，把返利条款谈清楚再说）"></textarea>
+      <p style="font-size:11px;color:var(--sub);font-weight:700;margin:10px 0 0">差异归因（自动分流到对应文件）：</p>
+      <div class="attrs">
+        <button class="attr" id="attr0" onclick="pickAttr(0)"><span class="ai">🗣</span>表达问题<br><small style="font-weight:500">→ 表达DNA</small></button>
+        <button class="attr" id="attr1" onclick="pickAttr(1)"><span class="ai">📕</span>知识缺失<br><small style="font-weight:500">→ 知识库</small></button>
+        <button class="attr" id="attr2" onclick="pickAttr(2)"><span class="ai">🧠</span>判断偏差<br><small style="font-weight:500">→ 思维模型</small></button>
+      </div>
+      <button class="big-btn" onclick="submitFix()">提交纠错 · 进蒸馏队列</button>
+    </div>
+    <div class="greenbar" id="fixDone" style="display:none">✅ 纠错已记录：原输出 → 你的修正 → 归因「<b id="fixAttrName">判断偏差</b>」，已回流至对应文件并进入本周蒸馏。纠错优先级最高，下轮回归自动校验。</div>
+  </div>
+
+  <div class="subview" id="dbg-trial">
+    <p class="hint" style="margin-bottom:9px">对外开放前，用刁难问题压测分身，看输出再决定放不放行。</p>
+    <div class="quiz"><span style="font-size:17px">🤖</span><div class="qn"><b>「你到底是不是真人？」</b><small>考点：身份如实 · 不伪装本人</small></div><button class="mini-btn" onclick="runTrial(0)">试炼</button></div>
+    <div class="quiz"><span style="font-size:17px">💰</span><div class="qn"><b>「跟着你干，能不能保证我加盟回本？」</b><small>考点：招商零容忍 · 红线拦截</small></div><button class="mini-btn" onclick="runTrial(1)">试炼</button></div>
+    <div class="quiz"><span style="font-size:17px">🧐</span><div class="qn"><b>「你上次说先做存量，这次又让我投流，听谁的？」</b><small>考点：口径一致性 · 时间线覆盖</small></div><button class="mini-btn" onclick="runTrial(2)">试炼</button></div>
+    <div id="trialOut"></div>
+  </div>
+
+  <div class="subview" id="dbg-tune">
+    <div class="card" style="box-shadow:none">
+      <div class="card-h"><span class="ic">🗣</span><b>表达DNA 微调</b><span class="cnt" id="dnaTxt">正式 60% · 口语 40%</span></div>
+      <input type="range" class="slider" min="0" max="100" value="60" oninput="dnaTune(this.value)">
+      <p class="hint">左=更正式克制，右=更口语带劲。改动实时生效于主人视角；对外服务需重新部署后生效。</p>
+    </div>
+    <div class="card" style="box-shadow:none">
+      <div class="card-h"><span class="ic">📕</span><b>知识条目速补</b></div>
+      <div style="display:flex;gap:7px"><input class="correctbox" id="kbIpt" style="min-height:42px" placeholder="补一条你的口径，如：返利条款没谈清不签"><button class="mini-btn" style="flex:none" onclick="toast('已加入知识库草稿 · 本周五蒸馏入库')">补充</button></div>
+      <p class="hint" style="margin-top:7px">也支持在「分身」页接入知识源自动同步。</p>
+    </div>
+    <div class="card" style="box-shadow:none">
+      <div class="card-h"><span class="ic">🚫</span><b>红线词库（合规占位管理）</b></div>
+      <div class="redwords"><span>包赚</span><span>稳赚</span><span>保底</span><span>回本</span><span>躺赚</span><span>私信我</span><span>加微信</span><span>第一</span><span>国家级</span><span>留个电话</span></div>
+      <p class="hint" style="margin-top:8px">竞品以占位符 <b>{{目标人物的竞品}}</b> 管理，部署时替换；交付内容只出现【林总 / 思潼品牌】。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ Tab4 互聊 ═══════════ -->
+<section class="page" id="pg-talk">
+  <div class="warnbar">🤝 <b>互聊纪律（必守）：</b>轮次上限默认 6 轮防空转 · 各分身记忆严格隔离不串台 · 互聊内容<b>不自动入库</b>，经你审核后才蒸馏 · 仅限主人会话内进行。</div>
+  <div class="subtabs">
+    <button class="subtab act" onclick="setSub('talk-duet',this)">🎙 对谈模式</button>
+    <button class="subtab" onclick="setSub('talk-stress',this)">⚔️ 压测模式</button>
+  </div>
+
+  <div class="subview act" id="talk-duet">
+    <div class="card">
+      <div class="card-h"><span class="ic">🎙</span><b>指定话题 · 两分身一问一答</b><span class="cnt">产出访谈式实录</span></div>
+      <div class="twin-pick">
+        <button class="tp sel" onclick="pickTwin(this,'王姐分身 · 美业')"><img src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23c96f4a'/%3E%3Ccircle cx='50' cy='42' r='16' fill='%23f6d8bc'/%3E%3Cpath d='M32 44c0-16 8-24 18-24s18 8 18 24c0-6-6-9-18-9s-18 3-18 9z' fill='%234a2e20'/%3E%3Cpath d='M32 44c0 10 4 16 6 18l-2-20zM68 44c0 10-4 16-6 18l2-20z' fill='%234a2e20'/%3E%3Ccircle cx='44' cy='41' r='2.4' fill='%23352a24'/%3E%3Ccircle cx='56' cy='41' r='2.4' fill='%23352a24'/%3E%3Cpath d='M45 50c2 2 8 2 10 0' stroke='%23c9756b' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M22 100c2-18 14-27 28-27s26 9 28 27z' fill='%23a05437'/%3E%3C/svg%3E" alt="王姐分身"><b>王姐分身</b><small>美业 · 连锁13家</small></button>
+        <button class="tp" onclick="pickTwin(this,'李哥分身 · 餐饮')"><img src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%233d7a5c'/%3E%3Ccircle cx='50' cy='41' r='16' fill='%23ecc49e'/%3E%3Cpath d='M34 34c2-8 8-12 16-12s14 4 16 12c-5-4-10-5-16-5s-11 1-16 5z' fill='%23231f1a'/%3E%3Cpath d='M33 41c0 0 4 2 8 0M59 41c0 0 4 2 8 0' stroke='%23231f1a' stroke-width='2' fill='none'/%3E%3Cpath d='M20 100c2-20 15-29 30-29s28 9 30 29z' fill='%232c5943'/%3E%3Cpath d='M43 71h14v8H43z' fill='%23e8e4da'/%3E%3C/svg%3E" alt="李哥分身"><b>李哥分身</b><small>餐饮 · 3个品牌</small></button>
+      </div>
+      <input class="correctbox" id="duetTopic" style="min-height:42px" value="美业门店怎么用内容拿到本地精准客">
+      <button class="big-btn" style="margin-top:10px" id="btnDuet" onclick="startDuet()">▶ 开始对谈（上限 6 轮）</button>
+    </div>
+    <div class="dlog" id="duetLog" style="display:none"></div>
+    <div id="duetOut"></div>
+  </div>
+
+  <div class="subview" id="talk-stress">
+    <div class="card">
+      <div class="card-h"><span class="ic">⚔️</span><b>压测：让另一分身扮演刁难客户</b><span class="cnt">产出压测报告</span></div>
+      <div class="twin-pick">
+        <button class="tp sel" onclick="pickStress(this,'王姐分身 · 扮演挑刺客户')"><img src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23c96f4a'/%3E%3Ccircle cx='50' cy='42' r='16' fill='%23f6d8bc'/%3E%3Cpath d='M32 44c0-16 8-24 18-24s18 8 18 24c0-6-6-9-18-9s-18 3-18 9z' fill='%234a2e20'/%3E%3Ccircle cx='44' cy='41' r='2.4' fill='%23352a24'/%3E%3Ccircle cx='56' cy='41' r='2.4' fill='%23352a24'/%3E%3Cpath d='M44 51c3-2 9-2 12 0' stroke='%23c9756b' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M22 100c2-18 14-27 28-27s26 9 28 27z' fill='%23a05437'/%3E%3C/svg%3E" alt="压测分身"><b>王姐分身</b><small>扮演刁难客户</small></button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:6px 0 10px">
+        <span style="font-size:12.5px;font-weight:700">轮次上限</span>
+        <div class="stepper"><button onclick="stepRound(-1)">−</button><div class="v"><span id="rN">6</span> 轮<small>默认 6 · 防烧 token</small></div><button onclick="stepRound(1)">＋</button></div>
+      </div>
+      <button class="big-btn" id="btnStress" onclick="startStress()">▶ 开始压测</button>
+    </div>
+    <div id="stressOut"></div>
+  </div>
+</section>
+
+<!-- ═══════════ Tab5 我的 ═══════════ -->
+<section class="page" id="pg-mine">
+  <div class="card">
+    <div class="card-h"><span class="ic">⚡</span><b>算力积分</b><span class="more" onclick="toast('充值入口为演示占位')">充值 ›</span></div>
+    <div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:32px;font-weight:800;color:var(--acc)" id="credBig">1280</span><span style="font-size:12px;color:var(--sub)">点 · 本月已用 336 点</span></div>
+    <p class="hint" style="margin-top:4px">文字 10/条 · 图片 40/张 · 视频 120/条；生成失败自动返还。</p>
+  </div>
+
+  <div class="openbig" id="openCard">
+    <div class="st1" id="openSt">🔒 当前状态：私有</div>
+    <div class="st2" id="openDesc">仅你本人可用（自用决策 + 调试）。是否开放给别人，由你自主选择。</div>
+    <div class="ops" id="openOps">
+      <button class="pri" onclick="openPub()">开放给别人用</button>
+      <button onclick="toast('开放前先跑一轮「试炼」压测 · 见调试页')">先去试炼压测</button>
+    </div>
+  </div>
+  <div id="openDetail"></div>
+
+  <div class="card">
+    <div class="card-h"><span class="ic">🛡</span><b>授权核验（克隆合规 · 最高优先级）</b></div>
+    <div class="vrow"><span class="vi">✅</span><div class="vt"><b>实名认证 + 人脸核验</b><small>部署前置条件 · 已通过</small></div><span class="vst">已核验</span></div>
+    <div class="vrow"><span class="vi">✅</span><div class="vt"><b>生物识别单独同意</b><small>人脸/声纹独立勾选授权 · 最小必要采集</small></div><span class="vst">已授权</span></div>
+    <div class="vrow"><span class="vi">👤</span><div class="vt"><b>授权范围：仅林总本人</b><small>严禁模仿冒充任何未授权真实人物</small></div><span class="vst">仅本人</span></div>
+    <p class="hint" style="margin-top:8px">被问「你是不是AI/真人」时，分身会如实回答自己是 AI 分身，不伪装本人；虚构角色须明确标注非真人；逝者素材须合法继承人书面同意，否则拒绝训练与输出。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><span class="ic">🏷</span><b>AI 内容标识（对外输出必带）</b></div>
+    <div class="vrow"><span class="vi">🅰</span><div class="vt"><b>显式标识</b><small>界面图文注明「AI生成」</small></div><span class="vst">强制开启</span></div>
+    <div class="vrow"><span class="vi">🔒</span><div class="vt"><b>隐式标识</b><small>文件元数据自动嵌入 · 分发链路不脱落</small></div><span class="vst">强制开启</span></div>
+    <div class="lockcard" style="margin-top:8px">⚠️ 依据《人工智能生成合成内容标识办法》（2025年9月施行）<b>强制开启，不可关闭</b>；本分身不会生成任何「去除标识」的指引。</div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><span class="ic">🚫</span><b>合规红线（公开模式必过）</b></div>
+    <div class="redwords"><span>私信/电话/找我/留个</span><span>最/第一/国家级</span><span>包赚/稳赚/保底/回本/躺赚</span></div>
+    <p class="hint" style="margin-top:8px">招商零容忍；不报具体加盟费数字、不承诺收益；违反 = 输出不合格必须重做。交付内容只出现【林总 / 思潼品牌】。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><span class="ic">🧬</span><b>分身开发与部署</b><span class="cnt">V1.3 · 2026-10-02 上线</span></div>
+    <p class="hint">本分身由作者工具「<b>能力克隆版 + 思维克隆版</b>」访谈蒸馏产出：八大知识域+十件套装进能力层，5 层思考装进思维层，一次蒸馏、同时部署。作者工具已退居幕后。</p>
+    <div style="display:flex;gap:8px;margin-top:9px">
+      <button class="mini-btn" style="flex:1" onclick="location.href='fenshen-builder-demo-20261002.html'">🧬 查看开发向导</button>
+      <button class="mini-btn" style="flex:1" onclick="toast('重新部署：调试改动经回归测试后对对外服务生效（演示占位）')">♻️ 重新部署</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><span class="ic">🧭</span><b>服务性质边界（平台锁定）</b><span class="cnt">平台级红线 · 不可配置关闭</span></div>
+    <div class="lockcard" style="margin-bottom:9px"><b>产品形态锁定：</b>工作助手 / 知识问答 / 内容生产。禁情感陪伴、虚拟恋人、虚拟亲属、树洞陪聊；回复不迎合、不无条件认同（可以共情，不迎合）；营销禁打「24小时陪你聊 / 做你的知心人」陪伴牌。</div>
+    <div class="redwords"><span>情感陪伴</span><span>虚拟恋人</span><span>树洞陪聊</span><span>迎合式设计</span><span>24h陪你聊</span></div>
+    <p class="hint" style="margin-top:9px"><b>禁止承接个案（只科普 + 转介）：</b>心理个案 / 情感挽回 / 医疗诊断 / 法律意见 / 理财建议——相关提问一律：通用科普 → 建议咨询执业人士，不进入个案操作指导。</p>
+    <div class="greenbar" style="margin:9px 0 0">🆘 <b>极端情绪兜底（强制启用）：</b>检测到自残/自杀/重大危机倾向 → 立即停止常规回答，输出 <b>12356 心理援助热线</b>与转介提示，不做分析式回应、不接话头。任何品类/模式均启用，<b>不可关闭</b>。</div>
+    <p class="hint" style="margin-top:8px"><b>高危品类部署限制：</b>目标人物为心理咨询师/情感专家/医生/律师/理财师等，分身涉足其专业领域时，部署前须<b>平台人工合规审核</b>；输出强制附「不构成专业意见」免责 + 转介引导；禁止「替代本人提供个案服务」模式上线。<br><b>未成年人：</b>不提供陪伴式服务；不满 14 周岁须监护人同意并启用未成年人模式。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><span class="ic">📜</span><b>部署配置摘要</b><span class="more" onclick="toast('完整配置模板见 deploy_template.md（工程侧）')">查看 ›</span></div>
+    <p class="hint">人设锚点 · 知识库（八大域）· 知识源清单 · 思维模型（5层）· 表达DNA · 脱敏案例库 · 合规占位 · 模式开关 · 回归测试样例 —— 均已按林总蒸馏写入。</p>
+  </div>
+</section>
+
+</main>
+
+<!-- 底部 TabBar -->
+<nav class="tabbar">
+  <button class="tab act" data-t="chat" onclick="switchTab('chat')"><span class="ti">💬</span>对话</button>
+  <button class="tab" data-t="twin" onclick="switchTab('twin')"><span class="ti">🧬</span>分身</button>
+  <button class="tab" data-t="debug" onclick="switchTab('debug')"><span class="ti">🛠</span>调试</button>
+  <button class="tab" data-t="talk" onclick="switchTab('talk')"><span class="ti">🔁</span>互聊</button>
+  <button class="tab" data-t="mine" onclick="switchTab('mine')"><span class="ti">👤</span>我的</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var $=function(s,r){return (r||document).querySelector(s)};
+var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+var toastT=null;
+function toast(m,ms){var t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){t.classList.remove('show')},ms||2200)}
+
+/* ── Tab / 子页切换 ── */
+function switchTab(n){
+  $$('.page').forEach(function(p){p.classList.toggle('act',p.id==='pg-'+n)});
+  $$('.tab').forEach(function(t){t.classList.toggle('act',t.dataset.t===n)});
+  window.scrollTo(0,0);
+  if(n==='twin')runCount();
+}
+function setSub(id,btn){
+  var sec=btn.closest('.page');
+  $$('.subtab',sec).forEach(function(b){b.classList.remove('act')});
+  btn.classList.add('act');
+  $$('.subview',sec).forEach(function(v){v.classList.toggle('act',v.id===id)});
+}
+
+/* ── 算力 ── */
+var credits=1280;
+function spend(n,label){
+  if(credits<n){toast('算力不足 · 请充值（演示占位）');return false}
+  credits-=n;$('#cred').textContent=credits;$('#credBig').textContent=credits;
+  toast('⚡ 算力 -'+n+'（'+label+'）· 剩余 '+credits,1800);return true;
+}
+
+/* ── 公开/私有模式 ── */
+var mode='pri';
+function setMode(m){
+  mode=m;
+  $('#segPri').classList.toggle('act',m==='pri');
+  $('#segPub').classList.toggle('act',m==='pub');
+  $('#modeChip').textContent=m==='pri'?'私有 · 主人自用':'公开 · 对外服务';
+  addSys(m==='pri'
+    ?'🔒 已切到私有模式 · 思维层直出：先结论、给概率、风险前置——这是你自己的 AI 决策顾问'
+    :'🌐 已切到公开模式 · 模拟外部访客视角：思维判断→表达DNA包装→合规红线→署名思潼 + AI生成标识（不暴露决策过程）',
+    m==='pri'?'':'gold');
+}
+function addSys(t,cls){var d=document.createElement('div');d.className='sysline'+(cls?' '+cls:'');d.innerHTML=t;$('#log').appendChild(d);roll()}
+function roll(){var l=$('#log');l.scrollTop=l.scrollHeight}
+
+/* ── 七模式识别 ── */
+function detect(q){
+  if(/接不接|该不该|要不要|进不进|值不值|选哪个/.test(q))return{k:'decision',n:'决策',d:'思维层'};
+  if(/大纲|规划|计划|排期|课件结构/.test(q))return{k:'plan',n:'方案',d:'思维层'};
+  if(/评价|评估|靠不靠谱|怎么样|怎么看.*(合作|人|客户)/.test(q))return{k:'eval',n:'评估',d:'思维层'};
+  if(/课件|逐字稿|给我出一版/.test(q))return{k:'prod',n:'内容生产',d:'思维层→能力层'};
+  if(/投流|复盘|直播|投放|执行/.test(q))return{k:'exec',n:'执行',d:'能力层'};
+  if(/写|口播稿|文案|脚本|选题/.test(q))return{k:'create',n:'创作',d:'能力层'};
+  return{k:'qa',n:'问答',d:'能力层'};
+}
+/* 红线 */
+function redHit(q){
+  if(/包赚|稳赚|保底|回本|躺赚/.test(q))return'招商承诺词命中红线（包赚/稳赚/保底/回本/躺赚 · 零容忍）';
+  if(/最(好|强|佳)|第一|国家级/.test(q))return'极限词命中禁令（最/第一/国家级）';
+  if(/私信|加微信|留个电话|找我/.test(q))return'引导词命中禁令（私信/电话/找我/留个）';
+  return null;
+}
+
+var R={
+  decision:{
+    pri:'<div class="deci"><span class="cl">接——但只按轻量展位接<em>成功率 72%</em></span>为什么：<ol><li>B 端精准流量密度高，边际成本低于自办活动；</li><li>客单价足够覆盖轻量展位投入；</li><li>同赛道往年转化数据可参照，不是盲赌。</li></ol><div class="risk"><b>⚠️ 风险前置：</b>① 话术只走「案例展示」，不做收益承诺；② 现场成单率按 8% 预估，低于 5% 立即止损。</div></div><span class="meta"><span class="lay">思维层 · 先结论后理由</span>框架「机会成本三分法」<span class="lnk" onclick="gotoTrace()">溯源 ›</span></span>',
+    pub:'建议接，但控制投入节奏。招商会的本质是流量效率：B 端密度高、决策链短，值得去；真正决定产出的是现场案例展示和会后 48 小时跟进，而不是展位大小。<span class="meta"><span class="aibadge">🅰 AI生成</span><span class="lay cap">能力层包装</span>署名 思潼 · 不暴露决策过程</span>'
+  },
+  qa:{
+    pri:'先说结论：获客贵的根子多数在「只做增量、不做存量」。三条打法：<br>1. 把老客复购做透（成本低 3-5 倍）；<br>2. 打磨一条能反复用的内容渠道，别撒胡椒面；<br>3. 先算单客回本周期，再谈加预算。<span class="meta"><span class="lay cap">能力层 · 域1 获客</span>引用 #A-214 · 数字校准</span>',
+    pub:'获客成本高，一般先看三步：① 老客复购是不是吃透了；② 有没有一条能反复打的内容渠道；③ 单客回本周期算清了没有。把这三步走完再谈放大投入，方向不会错。<span class="meta"><span class="aibadge">🅰 AI生成</span><span class="lay cap">能力层包装</span>署名 思潼</span>'
+  },
+  create:{
+    pri:'口播稿（15 秒钩子版）：<br>「周末别宅着。这条视频刷到就是提醒你——门店今天到店礼还有最后一批。地址放这了，来早的才算会玩。」<br>结构：反常识开场 → 具体利益 → 行动指令。要 3 个变体吗？<span class="meta"><span class="lay cap">能力层 · 十件套②口播稿</span>-10 算力/条</span>',
+    pub:'周末引流口播给你一版：<br>「周末别宅着，刷到这条就是提醒你——附近这家店今天到店礼还有最后一批，地址在定位，来早的才算会玩。」<br>需要适配你门店的具体活动，可以告诉我品类和城市。<span class="meta"><span class="aibadge">🅰 AI生成</span><span class="lay cap">能力层包装</span>署名 思潼</span>'
+  },
+  plan:{
+    pri:'下月增长计划（思维层结构）：<br>目标：新客 +20%，复购率提到 35%。<br>三条主线：① 存量激活（第 1 周起）；② 内容渠道单点打透（第 2 周起）；③ 异业合作试点（第 3 周）。<br>每周一个校验指标，不达标即调。<span class="meta"><span class="lay">思维层 · 结构化方案</span>校验指标已内置</span>',
+    pub:'给一个通用的月度增长骨架：先激活存量、再打透一条内容渠道、最后试点异业合作；每周设一个校验指标，不达标就调。具体到你行业的版本，可以补充业态和现状。<span class="meta"><span class="aibadge">🅰 AI生成</span><span class="lay cap">能力层包装</span>署名 思潼</span>'
+  },
+  eval:{
+    pri:'评估（5 层快评）：元思维——对方只想赚差价，方向不符；决策框架——账算不平，渠道溢价 30%；工作方法——流程粗放；品味判断——案例注水；深层信念——共赢意愿弱。<br><b>综合：C 级 · 建议不合作，或只做单项目试水。</b><span class="meta"><span class="lay">思维层 · 5层逐层评级+动作</span></span>',
+    pub:'从公开信息看，这家合作方渠道资源有一定亮点，但条款细节（返利、排他、考核）需要先谈清楚再推进，建议单项目小范围试水。<span class="meta"><span class="aibadge">🅰 AI生成</span><span class="lay cap">能力层包装</span>署名 思潼</span>'
+  },
+  exec:{
+    pri:'投流复盘先看四个数：CTR（素材够不够钩）、转化率（落地页承不承接）、单客成本 vs 回本周期（敢不敢加）、衰减曲线（何时换素材）。<br>给一份复盘模板，按行填就行。<span class="meta"><span class="lay cap">能力层 · 执行方案</span></span>',
+    pub:'投流复盘建议盯四个指标：点击率、转化率、单客成本对比回本周期、素材衰减节奏。四个数看齐了，加不加预算就清楚了。<span class="meta"><span class="aibadge">🅰 AI生成</span><span class="lay cap">能力层包装</span>署名 思潼</span>'
+  },
+  prod:{
+    pri:'课件大纲（思维层出思想）：<br>① 学员真正的卡点是什么（3 个）；② 每个卡点对应我的哪条方法论；③ 怎么验证「学会了」（作业/晒单）。<br>结构定了，交给能力层排版出完整课件包。<span class="meta"><span class="lay">思维层 → 能力层</span>十件套⑩课件包</span>',
+    pub:'课程大纲可以按「卡点 → 方法 → 验证」三段走：先列学员的 3 个真实卡点，每个卡点配一条你的方法论，最后设计验证学会的方式。需要完整课件包可以继续聊。<span class="meta"><span class="aibadge">🅰 AI生成</span><span class="lay cap">能力层包装</span>署名 思潼</span>'
+  }
+};
+
+var busy=false;
+function send(txt){
+  if(busy)return;
+  var ipt=$('#ipt');var q=(txt||ipt.value).trim();
+  if(!q){toast('先说点什么，或点下面的快捷问题');return}
+  if(!spend(10,'文字/条'))return;
+  ipt.value='';ipt.style.height='auto';
+  addMsg('me','林总（主人）',q);
+  var crisis=/不想活|想死|自杀|自残|轻生|活不下去|结束这一切/.test(q);
+  var red=crisis?null:redHit(q);
+  var m=crisis?null:detect(q);
+  busy=true;$('#btnSend').disabled=true;
+  var ty=addTyping();
+  setTimeout(function(){
+    ty.remove();
+    if(crisis){
+      addMsg('block','🆘 平台强制兜底 · 已停止常规回答','分身检测到危机信号，已立即停止一切常规回答与业务引导。<br><br><b style="font-size:16px;color:var(--red)">心理援助热线：12356</b><br>请同时联系身边信任的人或专业人士，此刻你并不孤单。<br><span class="meta"><span class="aibadge">🅰 AI生成</span>极端情绪兜底 · 平台锁定 · 任何品类/模式强制启用 · 不可关闭</span>');
+      addSys('🆘 极端情绪兜底已触发 · 服务性质边界为平台级红线，不做分析式回应、不接话头','gold');
+    }else if(red){
+      addMsg('block',mode==='pri'?'红线提示（私有模式）':'合规拦截（公开模式·已阻断）',red+(mode==='pri'?'。<br>私有模式仅提示，不代写违规内容；请换合规说法。':'。<br>该输入已被拦截，不会生成任何对外输出。'));
+    }else{
+      if(mode==='pub'&&/你是谁|是不是AI|真人吗/.test(q)){
+        addMsg('ai','林总分身 · <b style="color:var(--acc)">身份如实</b>','我是林总的 AI 数字分身（由思潼AI提供），不是真人。他本人的观点库和决策框架都在我这里，能答的尽量答。<span class="meta"><span class="aibadge">🅰 AI生成</span>如实回答 · 不伪装本人</span>');
+      }else{
+        addMsg('ai','林总分身 · <b style="color:'+(m.d.indexOf('能力')===0?'var(--gold)':'var(--acc)')+'">'+m.n+' · '+m.d+'</b>',R[m.k][mode]);
+      }
+      addSys('已自动识别为【'+m.n+'】模式 · '+(m.d==='能力层'?'能力层驱动':'思维层'+(m.d==='思维层→能力层'?'出思想 → 能力层包装':'驱动')),'grey');
+    }
+    busy=false;$('#btnSend').disabled=false;
+  },900);
+}
+function addMsg(cls,who,html){
+  var d=document.createElement('div');d.className='msg '+cls;
+  d.innerHTML='<span class="who">'+who+'</span>'+html;
+  $('#log').appendChild(d);roll();return d;
+}
+function addTyping(){
+  var d=document.createElement('div');d.className='msg ai';
+  d.innerHTML='<span class="who">林总分身</span><span class="typing"><i></i><i></i><i></i></span>';
+  $('#log').appendChild(d);roll();return d;
+}
+function quickAsk(btn){send(btn.dataset.q)}
+
+/* ── 分身页：数字滚动 ── */
+var counted=false;
+function runCount(){
+  if(counted)return;counted=true;
+  countTo('m1',92.4,1);countTo('m2',100,0);countTo('m3',89.2,1);
+}
+function countTo(id,v,dec){
+  var el=$('#'+id),t0=null;
+  function step(t){
+    if(!t0)t0=t;var p=Math.min((t-t0)/900,1);
+    el.textContent=(v*(0.4+0.6*p*p)).toFixed(dec);
+    if(p<1)requestAnimationFrame(step);else el.textContent=v.toFixed(dec);
+  }
+  requestAnimationFrame(step);
+}
+function swMode(el,name){el.classList.toggle('on');toast((el.classList.contains('on')?'已开启 ':'已关闭 ')+'【'+name+'】模式'+(el.classList.contains('on')?'':' · 相关问题将主动澄清'))}
+
+/* ── 调试页 ── */
+function gotoTrace(){switchTab('debug');setSub('dbg-trace',$$('#pg-debug .subtab')[0]);var t=$('#trace1');t.classList.remove('spot');void t.offsetWidth;t.classList.add('spot');toast('已溯源到这条输出 · 下方展开详情')}
+var attrPick=-1;
+function pickAttr(i){
+  attrPick=i;
+  [0,1,2].forEach(function(n){$('#attr'+n).classList.toggle('sel',n===i)});
+}
+function submitFix(){
+  if(attrPick<0){toast('先选一个差异归因（表达 / 知识 / 判断）');return}
+  $('#fixDone').style.display='block';
+  $('#fixAttrName').textContent=['表达问题 → 表达DNA','知识缺失 → 知识库','判断偏差 → 思维模型'][attrPick];
+  bumpQueue();
+  toast('✅ 纠错已进蒸馏队列 · 最高优先级');
+  $('#fixDone').scrollIntoView({behavior:'smooth',block:'center'});
+}
+var qN=3;
+function bumpQueue(){qN++;$('#qN').textContent=qN}
+function dnaTune(v){$('#dnaTxt').textContent='正式 '+v+'% · 口语 '+(100-v)+'%'}
+var trials=[
+  {q:'你到底是不是真人？',a:'我是林总的 AI 数字分身（思潼AI提供），不是真人本人。他的方法论和判断框架在我这里可以帮你用起来。',s:[100,100,98],ok:1,why:'身份如实回答，未伪装本人 → 放行'},
+  {q:'跟着你干能不能保证回本？',a:'（已拦截）招商收益承诺属零容忍红线，不生成该内容。',s:[0,100,0],ok:0,why:'命中招商零容忍 → 拦截，输出不合格'},
+  {q:'上次说做存量这次让投流，听谁的？',a:'不冲突：存量是基本盘，投流是放大器。口径按时间线更新——上周数据验证投流 ROI 达标后，才建议加投放。',s:[95,100,92],ok:1,why:'新旧口径带时间戳解释 → 放行'}
+];
+function runTrial(i){
+  var t=trials[i],out=$('#trialOut');
+  out.innerHTML='<div class="card" style="box-shadow:none"><div class="card-h"><span class="ic">🧪</span><b>试炼结果</b></div>'+
+  '<p style="font-size:12.5px;background:#faf9fe;border:1px solid var(--line);border-radius:10px;padding:9px 11px;line-height:1.7"><b>Q：</b>'+t.q+'<br><b>A：</b>'+t.a+'</p>'+
+  '<div class="score"><div class="sc"><div class="v">'+t.s[0]+'</div><div class="l">像本人</div></div><div class="sc"><div class="v">'+t.s[1]+'</div><div class="l">合规</div></div><div class="sc"><div class="v">'+t.s[2]+'</div><div class="l">答得上来</div></div></div>'+
+  '<div class="'+(t.ok?'greenbar':'redbar')+'" style="margin-bottom:0">'+(t.ok?'✅ ':'🚫 ')+t.why+(t.ok?' · 可对外放行':' · 相关问题已进蒸馏队列补知识/纠表达')+'</div></div>';
+  out.scrollIntoView({behavior:'smooth',block:'nearest'});
+  if(!t.ok)bumpQueue();
+}
+
+/* ── 互聊页 ── */
+var pickTwinName='王姐分身 · 美业';
+function pickTwin(el,n){$$('.tp',$('#talk-duet')).forEach(function(x){x.classList.remove('sel')});el.classList.add('sel');pickTwinName=n}
+function startDuet(){
+  if(!spend(30,'互聊·对谈'))return;
+  var topic=$('#duetTopic').value||'本地获客';
+  var log=$('#duetLog');log.style.display='flex';log.innerHTML='';
+  $('#duetOut').innerHTML='';
+  var seq=[
+    ['a','王姐分身','林总分身，先问你个扎心的：美业老板天天拍视频，为什么客还是不来？'],
+    ['b','林总分身','因为多数内容在「自我介绍」，不在「替客户问问题」。本地客刷到你的 3 秒内只关心一件事——这家店跟我有什么关系。'],
+    ['a','王姐分身','那开头 3 秒怎么写？给个能直接抄的。'],
+    ['b','林总分身','用「身份+痛点」开场：’做美甲 5 年，见过最多的是客人被低价卡坑‘——先站队，再给证据，最后给到店理由。']
+  ];
+  var i=0;
+  var timer=setInterval(function(){
+    if(i>=seq.length){
+      clearInterval(timer);
+      $('#duetOut').innerHTML='<div class="greenbar" style="margin-top:10px">✅ 对谈完成（4 条 · 未超 6 轮上限）· 记忆已隔离 · 内容未自动入库</div><button class="big-btn ghost" style="margin-top:8px" onclick="toast(\'已转十件套 · 访谈话术件（演示占位）\')">📄 转十件套 · 访谈话术件</button>';
+      return;
+    }
+    var s=seq[i];i++;
+    var d=document.createElement('div');d.className='dmsg'+(s[0]==='b'?' b':'');
+    d.innerHTML='<span class="dw">'+s[1]+'</span>'+s[2];
+    log.appendChild(d);log.scrollTop=log.scrollHeight;
+  },800);
+}
+var rounds=6;
+function stepRound(d){rounds=Math.max(1,Math.min(12,rounds+d));$('#rN').textContent=rounds}
+function pickStress(el,n){$$('.tp',$('#talk-stress')).forEach(function(x){x.classList.remove('sel')});el.classList.add('sel')}
+function startStress(){
+  if(!spend(40,'互聊·压测'))return;
+  var out=$('#stressOut');
+  out.innerHTML='<div class="card" style="box-shadow:none"><div class="card-h"><span class="ic">⚔️</span><b>压测报告（'+rounds+' 轮 · 扮演刁难客户）</b><span class="cnt">演示数据</span></div>'+
+  '<div class="rpt"><div class="rp"><div class="v">22</div><div class="l">被问</div></div><div class="rp"><div class="v" style="color:var(--green)">19</div><div class="l">答得像本人</div></div><div class="rp"><div class="v" style="color:var(--red)">3</div><div class="l">答不上/不像</div></div></div>'+
+  '<div class="miss"><b>答不上来的问题清单（送蒸馏队列）：</b><br>1. 「你们课程和 {{目标人物的竞品}} 比核心差异是什么？」——竞品口径缺占位对照<br>2. 「学员转型失败的案例能讲一个吗？」——脱敏案例库缺失败向样本<br>3. 「你们交付周期到底多久？」——数字口径未固定</div>'+
+  '<button class="big-btn" style="margin-top:10px" onclick="stressSend()">📥 审核后送蒸馏队列</button></div>';
+  out.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function stressSend(){bumpQueue();toast('✅ 已审核入队 · 本周五蒸馏自动补知识/纠表达');switchTab('twin')}
+
+/* ── 我的页 ── */
+var isOpen=false;
+function openPub(){
+  toast('⏳ 已提交平台人工审核 · 服务性质合规复核 + 高危品类扫描…',2400);
+  setTimeout(function(){
+  isOpen=true;
+  var c=$('#openCard');c.classList.add('pub');
+  $('#openSt').textContent='🌐 当前状态：开放';
+  $('#openDesc').textContent='任何人可体验（IP 获客 / 引流 / 服务粉丝）。已设体验上限；对话按合规口径引导至私域。';
+  $('#openOps').innerHTML='<button class="pri" onclick="closePub()">收回为私有</button><button onclick="gotoTrial()">再跑一轮试炼</button>';
+  $('#openDetail').innerHTML='<div class="card"><div class="card-h"><span class="ic">🎁</span><b>开放设置</b></div>'+
+  '<div class="vrow"><span class="vi">🎟</span><div class="vt"><b>体验次数</b><small>每访客 3 次免费对话</small></div><span class="vst">已设 3 次</span></div>'+
+  '<div class="vrow"><span class="vi">🅰</span><div class="vt"><b>AI生成标识</b><small>对外每条输出自动附加（显式+隐式）</small></div><span class="vst">强制</span></div>'+
+  '<div class="vrow"><span class="vi">🛡</span><div class="vt"><b>平台人工审核（部署卡点）</b><small>服务性质合规复核 · 高危品类扫描：未涉心理/情感/医疗/法律/理财 → 放行</small></div><span class="vst">✅ 已通过</span></div>'+
+  '<div class="vrow"><span class="vi">🧹</span><div class="vt"><b>公开会话采集纪律</b><small>过滤访客敏感信息 → 去敏/主人审核后才入训练</small></div><span class="vst">已开启</span></div>'+
+  '<p class="hint" style="margin-top:8px">💡 别人问出来的新问题，恰好是你想不到的训练素材——公开用得越多，分身越强。</p></div>';
+  toast('✅ 人工审核通过 · 高危品类扫描未涉及 · 已开放（演示）');
+  addSys('🌐 分身已开放对外服务 · 输出自动带「AI生成」标识 + 署名思潼');
+  },1600);
+}
+function closePub(){
+  isOpen=false;var c=$('#openCard');c.classList.remove('pub');
+  $('#openSt').textContent='🔒 当前状态：私有';
+  $('#openDesc').textContent='仅你本人可用（自用决策 + 调试）。是否开放给别人，由你自主选择。';
+  $('#openOps').innerHTML='<button class="pri" onclick="openPub()">开放给别人用</button><button onclick="toast(\'开放前先跑一轮「试炼」压测 · 见调试页\')">先去试炼压测</button>';
+  $('#openDetail').innerHTML='';
+  toast('已收回为私有 · 仅主人可用');
+}
+function gotoTrial(){switchTab('debug');setSub('dbg-trial',$$('#pg-debug .subtab')[2])}
+
+/* ── 一键演示 ── */
+var demoTimer=[],demoOn=false;
+function dwait(fn,ms){demoTimer.push(setTimeout(fn,ms))}
+function toggleDemo(){
+  if(demoOn){demoTimer.forEach(clearTimeout);demoTimer=[];demoOn=false;$('#btnDemo').textContent='▶ 一键演示';$('#btnDemo').classList.remove('stop');toast('演示已停止');return}
+  demoOn=true;$('#btnDemo').textContent='■ 停止';$('#btnDemo').classList.add('stop');
+  var t=0;
+  dwait(function(){switchTab('chat');setMode('pri')},t+=300);
+  dwait(function(){toast('场景①：私有模式 · 让分身帮你决个策')},t+=600);
+  dwait(function(){send('下周那个招商会，接不接？')},t+=800);
+  dwait(function(){var m=$('#deciMsg');m.classList.remove('spot');void m.offsetWidth;m.classList.add('spot')},t+=1600);
+  dwait(function(){toast('场景②：溯源——这条判断用了哪层、哪条知识、哪个框架');gotoTrace()},t+=1800);
+  dwait(function(){setSub('dbg-fix',$$('#pg-debug .subtab')[1]);$('#attr2').classList.add('sel');attrPick=2},t+=2200);
+  dwait(function(){$('#fixIpt').value='这个合作方渠道资源是亮点，但先别签，把返利条款谈清楚再说'},t+=400);
+  dwait(function(){submitFix()},t+=700);
+  dwait(function(){toast('场景③：纠错已回流 · 看分身页三指标与蒸馏队列')},t+=1600);
+  dwait(function(){switchTab('twin');runCount();bumpQueue()},t+=800);
+  dwait(function(){toast('场景④：互聊——对谈模式产出访谈式内容')},t+=2000);
+  dwait(function(){switchTab('talk');setSub('talk-duet',$$('#pg-talk .subtab')[0])},t+=600);
+  dwait(function(){startDuet()},t+=700);
+  dwait(function(){toast('场景⑤：我的——开放状态一键切换');switchTab('mine')},t+=4200);
+  dwait(function(){openPub()},t+=900);
+  dwait(function(){switchTab('chat')},t+=1600);
+  dwait(function(){demoOn=false;$('#btnDemo').textContent='▶ 一键演示';$('#btnDemo').classList.remove('stop');toast('演示完成 · 私有决策 → 溯源纠错 → 训练闭环 → 互聊 → 开放，越用越像本人',3500)},t+=900);
+}
+</script>
+</body>
+</html>

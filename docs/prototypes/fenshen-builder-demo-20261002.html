@@ -1,0 +1,524 @@
+<!-- fenshen-builder-demo · v1 · 20261002 · 分身有术·开发向导（作者工具：能力克隆版+思维克隆版·访谈蒸馏+部署） · 逻辑真相源=fenshen-youshu SKILL.md V1.3.0 · 静态演示零外链 -->
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1.0">
+<title>分身有术 · 数字分身开发向导（Demo）</title>
+<style>
+:root{
+  --bg:#F4F5FA; --card:#fff; --ink:#201c30; --sub:#6a647e; --line:#e5e2ef;
+  --acc:#6d4ac2; --acc-soft:#f1ecfc; --acc-line:#d8cbf5;
+  --gold:#9a7413; --gold-soft:#fdf6e4; --gold-line:#eddba9;
+  --green:#0b7a4b; --green-soft:#e7f6ef;
+  --amber:#b26a00; --red:#d64545; --red-soft:#fdeeec;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.55;padding-bottom:80px}
+button{font-family:inherit;border:none;background:none;cursor:pointer;color:inherit}
+textarea,input{font-family:inherit}
+::-webkit-scrollbar{width:0;height:0}
+
+.topbar{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:60}
+.topbar .in{max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:10px;height:50px;padding:0 14px}
+.topbar .logo{font-weight:800;font-size:16px}
+.topbar .logo i{font-style:normal;color:var(--acc)}
+.topbar .tag{font-size:11px;color:var(--sub);border:1px solid var(--line);border-radius:99px;padding:2px 9px;white-space:nowrap}
+.credits{margin-left:auto;font-size:12.5px;color:var(--sub);background:#f6f4fb;border:1px solid var(--line);border-radius:99px;padding:3px 12px;white-space:nowrap}
+.credits b{color:var(--acc)}
+
+.bizhead{background:linear-gradient(120deg,#221b44,#4a3591);color:#fff;padding:20px 14px 16px}
+.bizhead .in{max-width:1280px;margin:0 auto}
+.bizhead .r1{display:flex;align-items:center;gap:12px}
+.bizhead .av{width:54px;height:54px;border-radius:16px;overflow:hidden;flex:none;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.bizhead .av img{width:100%;height:100%;object-fit:cover}
+.bizhead .nm{font-size:18px;font-weight:800}
+.bizhead .role{font-size:12px;opacity:.85;margin-top:1px}
+.bizhead .hook{font-size:12.5px;opacity:.92;border-left:3px solid #d9b45e;padding-left:10px;margin-top:10px}
+.bizhead .row2{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:10px}
+.bizhead .skill{font-size:11px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);border-radius:99px;padding:3px 10px;opacity:.92}
+.bizhead .skill.em{background:rgba(217,180,94,.28);border-color:rgba(236,217,173,.5)}
+.demo-btn{margin-left:auto;background:#d9b45e;color:#33270c;border-radius:99px;font-size:13px;font-weight:800;padding:8px 16px;box-shadow:0 4px 12px rgba(0,0,0,.35);white-space:nowrap}
+.demo-btn.stop{background:rgba(255,255,255,.25);color:#fff;box-shadow:none}
+.demo-btn:active{transform:scale(.97)}
+
+/* 步骤条 */
+.steps{max-width:1280px;margin:0 auto;padding:12px 12px 2px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.steps::-webkit-scrollbar{display:none}
+.stp{flex:none;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:64px;position:relative}
+.stp::before{content:"";position:absolute;top:13px;left:-50%;width:100%;height:2px;background:var(--line)}
+.stp:first-child::before{display:none}
+.stp.done::before{background:var(--acc)}
+.stp .n{position:relative;z-index:1;width:26px;height:26px;border-radius:50%;background:#fff;border:2px solid var(--line);color:var(--sub);font-size:11.5px;font-weight:800;display:grid;place-items:center}
+.stp.cur .n{border-color:var(--acc);color:var(--acc);box-shadow:0 0 0 4px var(--acc-soft)}
+.stp.done .n{background:var(--acc);border-color:var(--acc);color:#fff}
+.stp .t{font-size:10px;color:var(--sub);white-space:nowrap;font-weight:600}
+.stp.cur .t{color:var(--acc)}
+.stp.done .t{color:var(--acc)}
+
+main{max-width:1280px;margin:0 auto;padding:10px 12px 0}
+.sview{display:none}
+.sview.act{display:block;animation:pgin .22s ease}
+@keyframes pgin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:14px;margin-bottom:12px;box-shadow:0 3px 10px rgba(32,28,48,.04)}
+.card-h{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.card-h .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:15px;background:var(--acc-soft);flex:none}
+.card-h b{font-size:14px}
+.card-h .cnt{margin-left:auto;font-size:11px;color:var(--sub);white-space:nowrap}
+.hint{font-size:11px;color:var(--sub);line-height:1.65}
+.hint b{color:var(--gold)}
+.warnbar{background:var(--gold-soft);border:1px solid var(--gold-line);border-radius:12px;padding:9px 12px;font-size:11.5px;color:#7a5c12;line-height:1.65;margin-bottom:12px}
+.warnbar b{color:var(--gold)}
+.redbar{background:var(--red-soft);border:1px solid #f2cfcf;border-radius:12px;padding:9px 12px;font-size:11.5px;color:#8f3030;line-height:1.65;margin-bottom:12px}
+.greenbar{background:var(--green-soft);border:1px solid #bfe5d4;border-radius:12px;padding:9px 12px;font-size:11.5px;color:#0b6242;line-height:1.65;margin-bottom:12px}
+
+/* 核验项 */
+.vrow{display:flex;align-items:center;gap:9px;padding:10px 0;border-bottom:1px dashed var(--line);font-size:12.5px}
+.vrow:last-child{border-bottom:none}
+.vrow .vi{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:14px;background:var(--green-soft);flex:none}
+.vrow .vt b{display:block;font-size:13px}
+.vrow .vt small{font-size:10.5px;color:var(--sub)}
+.vrow .vst{margin-left:auto;font-size:11px;font-weight:700;color:var(--green);white-space:nowrap}
+.vrow .vst.wait{color:var(--amber)}
+.agree{display:flex;gap:9px;align-items:flex-start;background:#faf9fe;border:1px solid var(--line);border-radius:11px;padding:10px 11px;margin-top:10px;font-size:11.5px;line-height:1.6;color:var(--sub)}
+.agree .ck{flex:none;width:19px;height:19px;border-radius:6px;border:1.5px solid var(--line);background:#fff;display:grid;place-items:center;font-size:12px;color:#fff;margin-top:1px}
+.agree .ck.on{background:var(--acc);border-color:var(--acc)}
+.agree b{color:var(--red)}
+
+/* 访谈 */
+.qa{border:1px solid var(--acc-line);border-radius:13px;background:#faf9fe;padding:12px}
+.qa .qt{font-size:13.5px;font-weight:800;margin-bottom:3px}
+.qa .qd{font-size:11px;color:var(--sub);margin-bottom:9px}
+.qa .ans{width:100%;min-height:72px;font-size:16px;padding:9px 12px;border:1px solid var(--line);border-radius:11px;background:#fff;outline:none;resize:vertical;line-height:1.55}
+.qops{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap}
+.mini-btn{min-height:34px;padding:0 13px;border-radius:9px;background:var(--acc-soft);color:var(--acc);border:1px solid var(--acc-line);font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.mini-btn:active{transform:scale(.97)}
+.domchips{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none;scrollbar-width:none}
+.domchips::-webkit-scrollbar{display:none}
+.domchip{flex:none;border:1px solid var(--line);background:#fff;border-radius:99px;font-size:12px;font-weight:600;color:var(--sub);padding:7px 14px;min-height:36px}
+.domchip.act{background:var(--acc);border-color:var(--acc);color:#fff}
+.donelist{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.donelist span{font-size:10.5px;border:1px solid #bfe5d4;background:var(--green-soft);color:var(--green);border-radius:99px;padding:2px 9px;font-weight:600}
+.donelist span.todo{border-color:var(--line);background:#f4f3f8;color:var(--sub)}
+
+/* 知识源 */
+.src{display:flex;align-items:center;gap:9px;padding:9px 2px;border-bottom:1px dashed var(--line);font-size:12.5px}
+.src:last-child{border-bottom:none}
+.src .si{font-size:17px;flex:none}
+.src b{display:block;font-size:12.5px}
+.src small{color:var(--sub);font-size:10.5px}
+.src .pick{margin-left:auto;flex:none;width:22px;height:22px;border-radius:7px;border:1.5px solid var(--line);background:#fff;display:grid;place-items:center;font-size:13px;color:#fff}
+.src .pick.on{background:var(--acc);border-color:var(--acc)}
+
+/* 蒸馏进度 */
+.pipe{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.prow{display:flex;align-items:center;gap:9px;font-size:12.5px}
+.prow .pi{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:13px;background:#f4f3f8;color:var(--sub);flex:none}
+.prow.doing .pi{background:var(--acc-soft);color:var(--acc);animation:pulse 1s infinite}
+.prow.ok .pi{background:var(--green-soft);color:var(--green)}
+@keyframes pulse{50%{opacity:.5}}
+.prow .pt{flex:1}
+.prow .pt small{display:block;font-size:10px;color:var(--sub)}
+.prow .ps{font-size:10.5px;font-weight:700;color:var(--sub);white-space:nowrap}
+.prow.ok .ps{color:var(--green)}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.mtc{background:linear-gradient(160deg,#faf8ff,#f3eefc);border:1px solid var(--acc-line);border-radius:13px;padding:11px 8px;text-align:center}
+.mtc .v{font-size:20px;font-weight:800;color:var(--acc)}
+.mtc .v small{font-size:11px}
+.mtc .l{font-size:10.5px;color:var(--sub);margin-top:2px}
+
+/* 底部操作 */
+.foot{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:1280px;background:rgba(255,255,255,.97);backdrop-filter:blur(8px);border-top:1px solid var(--line);padding:9px 12px calc(9px + env(safe-area-inset-bottom));display:flex;gap:9px;z-index:40}
+.big-btn{min-height:46px;border-radius:12px;background:var(--acc);color:#fff;font-size:14.5px;font-weight:800;flex:1;display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 4px 12px rgba(109,74,194,.3)}
+.big-btn:active{transform:scale(.98)}
+.big-btn.ghost{background:#fff;color:var(--sub);border:1.5px solid var(--line);box-shadow:none;flex:0 0 32%}
+.big-btn:disabled{opacity:.45}
+@media(min-width:960px){
+  .foot{left:0;transform:none;max-width:none;padding-left:calc(50% - 614px)}
+}
+@media(max-width:640px){.topbar .tag{display:none}.foot{padding-left:12px;padding-right:12px}}
+
+.toast{position:fixed;left:50%;bottom:88px;transform:translateX(-50%) translateY(20px);background:rgba(32,28,48,.93);color:#fff;font-size:13px;padding:10px 20px;border-radius:99px;opacity:0;pointer-events:none;transition:.25s;z-index:80;max-width:88%;text-align:center;line-height:1.5}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@keyframes spotk{0%{box-shadow:0 0 0 0 rgba(109,74,194,.55)}70%{box-shadow:0 0 0 9px rgba(109,74,194,0)}100%{box-shadow:0 0 0 0 rgba(109,74,194,0)}}
+.spot{animation:spotk 1.1s ease-out 2;border-color:var(--acc)!important}
+/* 部署完成 */
+.done-hero{text-align:center;padding:16px 0 6px}
+.done-hero .badge{width:74px;height:74px;margin:0 auto 10px;border-radius:50%;background:linear-gradient(135deg,#0d4d33,#12855a);display:grid;place-items:center;font-size:34px;color:#fff;box-shadow:0 6px 18px rgba(18,133,90,.35)}
+.done-hero h3{font-size:17px}
+.done-hero p{font-size:11.5px;color:var(--sub);margin-top:4px}
+.cfg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+.cfg span{font-size:10.5px;border:1px dashed var(--acc-line);border-radius:8px;padding:4px 8px;color:var(--sub);background:#fdfcff;text-align:center}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="in">
+  <div class="logo">思潼<i>AI</i> · 分身有术</div>
+  <span class="tag">开发向导 · 作者工具 · 静态演示</span>
+  <span class="credits">⚡ <b id="cred">1280</b> 算力</span>
+</div></div>
+
+<header class="bizhead"><div class="in">
+  <div class="r1">
+    <div class="av"><img src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234a3591'/%3E%3Cstop offset='1' stop-color='%237c5fc9'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' fill='url(%23g)'/%3E%3Ccircle cx='50' cy='41' r='17' fill='%23f2d3b3'/%3E%3Cpath d='M50 21c-11 0-18 8-18 17 0 4 1 7 3 9 0-10 6-15 15-15s15 5 15 15c2-2 3-5 3-9 0-9-7-17-18-17z' fill='%232a2634'/%3E%3Cpath d='M42 38h4v4h-4zM54 38h4v4h-4z' fill='%232a2634'/%3E%3Cpath d='M43 49c2 2 5 3 7 3s5-1 7-3' stroke='%23c98a6b' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M20 100c2-20 15-29 30-29s28 9 30 29z' fill='%232e2650'/%3E%3Cpath d='M43 71h14v8H43z' fill='%23f4f2f8'/%3E%3Cpath d='M47 71l3 10 3-10z' fill='%23c49a2e'/%3E%3Ccircle cx='84' cy='20' r='7' fill='%23d9b45e' opacity='.9'/%3E%3Cpath d='M81 20l2 2 4-4' stroke='%2333270c' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" alt="林总">
+    <div>
+      <div class="nm">数字分身开发向导</div>
+      <div class="role">能力克隆版 + 思维克隆版 · 访谈蒸馏 + 部署 · 一次蒸馏装进同一个智能体</div>
+    </div>
+  </div>
+  <p class="hook">你将开发的是<b>「林总」本人授权的数字分身</b>：八大知识域+十件套装进能力层，5 层思考装进思维层——两层共用同一份知识库，越用越像本人。</p>
+  <div class="row2">
+    <span class="skill em">只克隆授权本人</span>
+    <span class="skill em">严禁冒充他人</span>
+    <button class="demo-btn" id="btnDemo" onclick="toggleDemo()">▶ 一键演示</button>
+  </div>
+</div></header>
+
+<div class="steps" id="steps">
+  <div class="stp cur" data-s="1"><span class="n">1</span><span class="t">身份核验</span></div>
+  <div class="stp" data-s="2"><span class="n">2</span><span class="t">人设锚点</span></div>
+  <div class="stp" data-s="3"><span class="n">3</span><span class="t">能力克隆访谈</span></div>
+  <div class="stp" data-s="4"><span class="n">4</span><span class="t">思维克隆访谈</span></div>
+  <div class="stp" data-s="5"><span class="n">5</span><span class="t">知识源接入</span></div>
+  <div class="stp" data-s="6"><span class="n">6</span><span class="t">蒸馏·部署</span></div>
+</div>
+
+<main>
+
+<!-- Step1 身份核验 -->
+<section class="sview act" id="sv1">
+  <div class="redbar">🛡 <b>授权边界（最高优先级）：</b>只克隆已完成实名+人脸核验的授权本人；严禁模仿、冒充任何未授权真实人物；逝者素材须合法继承人书面同意，否则拒绝训练与输出。</div>
+  <div class="card">
+    <div class="card-h"><span class="ic">🪪</span><b>身份核验 · 部署前置条件</b><span class="cnt" id="vCnt">2/3 已通过</span></div>
+    <div class="vrow"><span class="vi">✅</span><div class="vt"><b>实名认证</b><small>身份证 + 运营商四要素 · 林某（演示虚构）</small></div><span class="vst">已通过</span></div>
+    <div class="vrow"><span class="vi">✅</span><div class="vt"><b>人脸核验</b><small>活体检测比对 · 通过</small></div><span class="vst">已通过</span></div>
+    <div class="vrow"><span class="vi">🗣</span><div class="vt"><b>声纹采集</b><small>读 8 句数字 · 用于表达DNA与语音克隆</small></div><span class="vst wait" id="voiceSt">待采集</span></div>
+    <div class="agree" id="bioAgree">
+      <div class="ck" id="bioCk" onclick="agreeBio()">✓</div>
+      <div><b>生物识别信息单独同意（独立勾选，不并入总协议）：</b>本人同意采集人脸与声纹用于训练本人专属数字分身，最小必要采集，可随时撤回。撤回后分身停止服务并删除生物特征。</div>
+    </div>
+  </div>
+  <div class="greenbar" id="vDone" style="display:none">✅ 核验完成：本分身仅以「林总」名义运行 · 身份锚点已锁定，不可切换他人</div>
+</section>
+
+<!-- Step2 人设锚点 -->
+<section class="sview" id="sv2">
+  <div class="card">
+    <div class="card-h"><span class="ic">⚓</span><b>人设锚点 · 基本信息与定位</b></div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div><p class="hint" style="margin-bottom:4px">称呼（分身对外代表）</p><input class="ans" style="min-height:42px" id="pName" value="林总"></div>
+      <div><p class="hint" style="margin-bottom:4px">身份一句话（人设定位）</p><input class="ans" style="min-height:42px" id="pRole" value="教中小企业老板做增长・踩过坑的实干家"></div>
+      <div><p class="hint" style="margin-bottom:4px">分身对谁说话（公开模式客群）</p><input class="ans" style="min-height:42px" id="pWho" value="中小企业老板 / 想放大个人IP的咨询师"></div>
+      <div><p class="hint" style="margin-bottom:4px">红线竞品占位（部署时替换，不出现真名）</p><input class="ans" style="min-height:42px" value="{{目标人物的竞品}}"></div>
+    </div>
+    <p class="hint" style="margin-top:9px">锚点写入部署配置；公开模式输出只出现【林总 / 思潼品牌】。</p>
+  </div>
+</section>
+
+<!-- Step3 能力克隆访谈 -->
+<section class="sview" id="sv3">
+  <div class="warnbar">⚙️ <b>能力克隆版访谈</b>：把「知道什么·怎么表达·怎么执行」蒸馏进能力层——八大知识域逐域问 + 十件套素材 + 表达DNA采样。</div>
+  <div class="domchips" id="domChips">
+    <button class="domchip act" onclick="pickDom(0,this)">域1 获客</button>
+    <button class="domchip" onclick="pickDom(1,this)">域2 转化</button>
+    <button class="domchip" onclick="pickDom(2,this)">域3 交付</button>
+    <button class="domchip" onclick="pickDom(3,this)">域4 流量</button>
+    <button class="domchip" onclick="pickDom(4,this)">域5 团队</button>
+    <button class="domchip" onclick="pickDom(5,this)">域6 定价</button>
+    <button class="domchip" onclick="pickDom(6,this)">域7 数据</button>
+    <button class="domchip" onclick="pickDom(8,this)">域8 品牌</button>
+  </div>
+  <div class="card">
+    <div class="qa">
+      <div class="qt" id="qTitle">你获客最有效的一招是什么？</div>
+      <div class="qd" id="qWhy">追问方向：具体动作 / 成本 / 可复制性</div>
+      <textarea class="ans" id="qAns">老客带新：服务完当场给「转介绍卡」，抵下一次费用。成本低，来的客信任度高，转化接近 6 成。</textarea>
+      <div class="qops">
+        <button class="mini-btn" onclick="nextDom()">✓ 存入知识库草稿</button>
+        <button class="mini-btn" onclick="toast('🎤 访谈录音为演示占位 · 线上支持语音转写')"></button>
+        <button class="mini-btn" onclick="toast('AI 追问：这招在什么行业失效？失效时你怎么办？（演示）')">🤖 AI 追问</button>
+        <button class="mini-btn" onclick="toast('已换一问（演示）')">🔄 换一问</button>
+      </div>
+    </div>
+    <div class="donelist" id="domDone"><span class="todo">域1 获客</span><span class="todo">域2 转化</span><span class="todo">域3 交付</span><span class="todo">域4 流量</span><span class="todo">域5 团队</span><span class="todo">域6 定价</span><span class="todo">域7 数据</span><span class="todo">域8 品牌</span></div>
+  </div>
+  <div class="card">
+    <div class="card-h"><span class="ic">🗣</span><b>表达DNA采样</b><span class="cnt">3 段口播起步</span></div>
+    <p class="hint">上传 / 朗读 3 段你平时的口播或讲课录音（各 1-3 分钟），提取：句子长短习惯、口头禅、数字使用习惯、有没有「AI 腔」。</p>
+    <div class="donelist" id="dnaDone"><span class="todo">样本 1</span><span class="todo">样本 2</span><span class="todo">样本 3</span></div>
+    <div class="qops"><button class="mini-btn" onclick="uploadDna()">🎤 模拟上传一段口播</button></div>
+  </div>
+  <div class="card">
+    <div class="card-h"><span class="ic">📦</span><b>十件套素材映射</b></div>
+    <p class="hint">已有素材自动映射：公众号文章 → ④朋友圈/⑥图文；直播回放 → ⑦直播串讲；课程底稿 → ⑩课件包；访谈录音 → ③访谈话术。缺的件在蒸馏后由分身按你的方法补骨架。</p>
+  </div>
+</section>
+
+<!-- Step4 思维克隆访谈 -->
+<section class="sview" id="sv4">
+  <div class="warnbar">🧠 <b>思维克隆版访谈</b>：把「怎么想·怎么判断」蒸馏进思维层——用你的<b>真实决策案例</b>提问，逐层提取 5 层思考。</div>
+  <div class="card">
+    <div class="qa">
+      <div class="qt" id="tTitle">拿到一个新项目，你第一件事看什么？</div>
+      <div class="qd" id="tWhy">提取目标：元思维 · 你排序信息的习惯</div>
+      <textarea class="ans" id="tAns">先看「谁付钱、为什么付」——需求真不真；再看现金流多久转正；最后才看规模想象。顺序反了就容易接错单。</textarea>
+      <div class="qops">
+        <button class="mini-btn" onclick="nextThink()">✓ 存入思维模型草稿</button>
+        <button class="mini-btn" onclick="toast('从案例提取：粘贴你最近一次纠结的决策过程，AI 自动归纳（演示）')">📋 从真实案例提取</button>
+      </div>
+    </div>
+    <div class="donelist" id="thinkDone"><span class="todo">L1 元思维</span><span class="todo">L2 决策框架</span><span class="todo">L3 工作方法</span><span class="todo">L4 品味判断</span><span class="todo">L5 深层信念</span></div>
+    <p class="hint" style="margin-top:9px">L2 决策框架示例问法：「上一次纠结要不要接单，你怎么拍板的？」→ 提炼成可复用的判断框架（收益面/成本面/退路面）。</p>
+  </div>
+</section>
+
+<!-- Step5 知识源接入 -->
+<section class="sview" id="sv5">
+  <div class="card">
+    <div class="card-h"><span class="ic">🔌</span><b>知识源接入清单 · 部署后自动跟进学习</b><span class="cnt" id="srcCnt">6/6</span></div>
+    <div class="src"><span class="si">📰</span><div><b>公众号 · 「林总聊增长」</b><small>RSS 同步 · 喂能力层知识库</small></div><div class="pick on" onclick="toggleSrc(this)">✓</div></div>
+    <div class="src"><span class="si">🎬</span><div><b>短视频号（2 个）</b><small>转写→观点/案例 · 两层都喂</small></div><div class="pick on" onclick="toggleSrc(this)">✓</div></div>
+    <div class="src"><span class="si">📱</span><div><b>朋友圈增量</b><small>授权同步 · 两层都喂</small></div><div class="pick on" onclick="toggleSrc(this)">✓</div></div>
+    <div class="src"><span class="si">🎧</span><div><b>播客 · 对谈节目</b><small>转写→思维与表达萃取</small></div><div class="pick on" onclick="toggleSrc(this)">✓</div></div>
+    <div class="src"><span class="si">📝</span><div><b>Get笔记 · 访谈录音</b><small>语音转写→思维萃取</small></div><div class="pick on" onclick="toggleSrc(this)">✓</div></div>
+    <div class="src"><span class="si">📁</span><div><b>文档 / 课程底稿</b><small>手动上传 · 喂能力层</small></div><div class="pick on" onclick="toggleSrc(this)">✓</div></div>
+    <p class="hint" style="margin-top:9px">仅可接入<b>林总本人授权</b>的内容源；他人内容一律不得接入。新内容先经「待蒸馏队列」（去重/脱敏/合规过滤）后才入库。</p>
+  </div>
+</section>
+
+<!-- Step6 蒸馏·部署 -->
+<section class="sview" id="sv6">
+  <div class="card">
+    <div class="card-h"><span class="ic">⚗️</span><b>蒸馏合成 · 写入两层</b></div>
+    <div class="pipe" id="pipe">
+      <div class="prow" id="pp1"><span class="pi">📥</span><div class="pt">采集素材<small>访谈 22 问 + 知识源 128 条 + 口播 3 段</small></div><span class="ps">等待</span></div>
+      <div class="prow" id="pp2"><span class="pi">🧹</span><div class="pt">去重<small>同口径合并 · 保留最新时间戳</small></div><span class="ps">等待</span></div>
+      <div class="prow" id="pp3"><span class="pi">🧻</span><div class="pt">脱敏<small>客户名 → 某行业品牌 · 数字模糊化</small></div><span class="ps">等待</span></div>
+      <div class="prow" id="pp4"><span class="pi">🚫</span><div class="pt">合规过滤<small>极限词/招商词/引导词扫描 · 竞品占位替换</small></div><span class="ps">等待</span></div>
+      <div class="prow" id="pp5"><span class="pi">⚙️</span><div class="pt">写入能力层<small>八大知识域 214 条 · 十件套骨架 · 表达DNA</small></div><span class="ps">等待</span></div>
+      <div class="prow" id="pp6"><span class="pi">🧠</span><div class="pt">写入思维层<small>5 层思考 · 决策框架 9 个 · 反例库 12 条</small></div><span class="ps">等待</span></div>
+      <div class="prow" id="pp7"><span class="pi">🛡</span><div class="pt">服务性质锁定 · 高危品类扫描<small>平台级红线不可关闭 · 心理/情感/医疗/法律/理财涉足即转人工审核</small></div><span class="ps">等待</span></div>
+    </div>
+    <div class="metrics" id="regM" style="display:none">
+      <div class="mtc"><div class="v" id="bm1">0<small>%</small></div><div class="l">表达相似度</div></div>
+      <div class="mtc"><div class="v" id="bm2">0<small>%</small></div><div class="l">合规通过率</div></div>
+      <div class="mtc"><div class="v" id="bm3">0<small>%</small></div><div class="l">知识命中率</div></div>
+    </div>
+    <div id="trialBox"></div>
+  </div>
+  <div id="deployBox"></div>
+</section>
+
+</main>
+
+<!-- 底部操作 -->
+<div class="foot">
+  <button class="big-btn ghost" id="btnPrev" onclick="step(-1)" disabled>上一步</button>
+  <button class="big-btn" id="btnNext" onclick="step(1)">下一步：人设锚点</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var $=function(s,r){return (r||document).querySelector(s)};
+var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+var toastT=null;
+function toast(m,ms){var t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){t.classList.remove('show')},ms||2200)}
+
+/* ── 步骤驱动 ── */
+var S=1,NAMES=['','身份核验','人设锚点','能力克隆访谈','思维克隆访谈','知识源接入','蒸馏·部署'];
+function render(){
+  $$('#steps .stp').forEach(function(el){
+    var n=+el.dataset.s;
+    el.classList.toggle('cur',n===S);el.classList.toggle('done',n<S);
+  });
+  $$('.sview').forEach(function(v){v.classList.toggle('act',v.id==='sv'+S)});
+  $('#btnPrev').disabled=S===1;
+  $('#btnNext').textContent=S===6?'—':('下一步：'+NAMES[S+1]);
+  if(S===6)$('#btnNext').style.display='none';else $('#btnNext').style.display='flex';
+  window.scrollTo(0,0);
+}
+function step(d){
+  if(d>0){
+    if(S===1&&!verified){toast('先完成身份核验（勾选单独同意）');return}
+    if(S===3&&domOk<8){toast('八大知识域还有 '+(8-domOk)+' 个未访谈（可点「存入知识库草稿」演示）');return}
+    if(S===4&&thinkOk<5){toast('5 层思考还有 '+(5-thinkOk)+' 层未提取');return}
+  }
+  S=Math.max(1,Math.min(6,S+d));render();
+}
+
+/* ── Step1 核验 ── */
+var verified=false;
+function agreeBio(){
+  var ck=$('#bioCk');
+  ck.classList.toggle('on');
+  if(ck.classList.contains('on')){
+    verified=true;
+    $('#voiceSt').textContent='已采集 ✓';$('#voiceSt').classList.remove('wait');
+    $('#vCnt').textContent='3/3 已通过';
+    $('#vDone').style.display='block';
+    toast('✅ 生物识别单独同意已记录 · 声纹采集完成');
+  }else{
+    verified=false;
+    $('#voiceSt').textContent='待采集';$('#voiceSt').classList.add('wait');
+    $('#vCnt').textContent='2/3 已通过';
+    $('#vDone').style.display='none';
+  }
+}
+
+/* ── Step3 能力访谈 ── */
+var QS=[
+  ['你获客最有效的一招是什么？','追问方向：具体动作 / 成本 / 可复制性','老客带新：服务完当场给「转介绍卡」，抵下一次费用。成本低，来的客信任度高，转化接近 6 成。'],
+  ['客户犹豫时，你临门一脚说什么？','提取目标：转化话术 · 逼单逻辑','不逼单。问一句「你还在等什么？」——他说的顾虑就是真顾虑，当场解决或者放他走。'],
+  ['交付里你最坚持的一个动作？','提取目标：交付标准','每次交付前我自己先过一遍「我要是客户会不会付钱」——不会，就打回去重做。'],
+  ['免费流量里你最看重哪个渠道？','追问方向：判断依据','视频号。B 端老板都在，而且能转私域，粉丝质量比数量重要。'],
+  ['团队里什么样的人你一定留？','提取目标：用人观','不用最聪明的，用「交代的事有回音」的。聪明没回音的人我吃过亏。'],
+  ['你怎么定价？降价吗？','提取目标：定价原则','按「省下的钱」定价不按「花的时」定价。打折可以，降锚不行——锚降了再也回不来。'],
+  ['每天必看的数据是哪个？','提取目标：数据习惯','现金流余额和本周新增咨询数。前者决定生死，后者决定下个月。'],
+  ['别人怎么复制你的品牌感？','提取目标：品牌主张','少说话，把一句核心的话重复一千遍。换说法不换主张。']
+];
+var domIdx=0,domOk=0;
+function pickDom(i,btn){
+  domIdx=i;
+  $$('#domChips .domchip').forEach(function(b){b.classList.remove('act')});
+  btn.classList.add('act');
+  $('#qTitle').textContent=QS[i][0];
+  $('#qWhy').textContent=QS[i][1];
+  $('#qAns').value=QS[i][2];
+}
+function nextDom(){
+  var chip=$('#domChips .domchip.act');
+  var t=chip.textContent;
+  var spans=$$('#domDone span');
+  spans.forEach(function(s){if(s.textContent===t)s.classList.remove('todo')});
+  domOk=Math.min(8,domOk+1);
+  toast('✓ 已存入知识库草稿 · '+t+'（'+domOk+'/8）');
+  var nx=(domIdx+1)%8;pickDom(nx,$$('#domChips .domchip')[nx]);
+}
+var dnaN=0;
+function uploadDna(){
+  if(dnaN>=3){toast('3 段已齐 · 表达DNA提取完成：短句分条 / 口头禅「先说结论」/ 惯用数字对比');return}
+  dnaN++;
+  $$('#dnaDone span')[dnaN-1].classList.remove('todo');
+  if(dnaN===3)toast('✅ 表达DNA提取完成：短句分条 · 口头禅「先说结论」· 惯用数字对比');
+  else toast('已上传样本 '+dnaN+'/3（演示占位）');
+}
+
+/* ── Step4 思维访谈 ── */
+var TS=[
+  ['拿到一个新项目，你第一件事看什么？','提取目标：L1 元思维 · 信息排序习惯','先看「谁付钱、为什么付」——需求真不真；再看现金流多久转正；最后才看规模想象。顺序反了就容易接错单。'],
+  ['上一次纠结要不要接单，你怎么拍板的？','提取目标：L2 决策框架 · 可复用判断结构','列三条：这单让我得到什么 / 我要付出什么 / 做砸了我亏什么。第三条能承受才接。'],
+  ['你带团队雷打不动的标准动作？','提取目标：L3 工作方法','周一立项会、周五复盘会，中间不打断。谁的问题谁带方案来，不带方案不许开会。'],
+  ['什么样的人才你一看就不会用？','提取目标：L4 品味判断','简历里全是「参与」的。参与≠负责，我招的是能把事兜底的人。'],
+  ['有没有一条你打死不改的原则？','提取目标：L5 深层信念','不赚认知以外的钱。看不懂的生意给我多少钱都不碰，这是我还没死掉的原因。']
+];
+var tIdx=0,thinkOk=0;
+function nextThink(){
+  thinkOk=Math.min(5,thinkOk+1);
+  $$('#thinkDone span')[tIdx].classList.remove('todo');
+  toast('✓ 已存入思维模型草稿 · L'+(tIdx+1)+'（'+thinkOk+'/5）');
+  tIdx=Math.min(4,tIdx+1);
+  $('#tTitle').textContent=TS[tIdx][0];
+  $('#tWhy').textContent=TS[tIdx][1];
+  $('#tAns').value=TS[tIdx][2];
+}
+
+/* ── Step5 知识源 ── */
+function toggleSrc(el){
+  el.classList.toggle('on');
+  var n=$$('.src .pick.on').length;
+  $('#srcCnt').textContent=n+'/6';
+  toast(el.classList.contains('on')?'已接入（部署后自动同步）':'已移除该知识源');
+}
+
+/* ── Step6 蒸馏·回归·试炼·部署 ── */
+var distOn=false;
+function runDist(){
+  if(distOn)return;distOn=true;
+  var seq=[
+    ['pp1','采集素材','128 条'],
+    ['pp2','去重','-17 条'],
+    ['pp3','脱敏','31 处替换'],
+    ['pp4','合规过滤','拦截 2 条'],
+    ['pp5','写入能力层','214 条'],
+    ['pp6','写入思维层','5 层'],
+    ['pp7','服务性质扫描','未涉高危·放行']
+  ];
+  var i=0;
+  var t=setInterval(function(){
+    if(i>=seq.length){
+      clearInterval(t);
+      showReg();
+      return;
+    }
+    var s=seq[i],el=$('#'+s[0]);
+    el.classList.remove('doing');el.classList.add('ok');
+    $('.ps',el).textContent='✓ '+s[2];
+    i++;
+    if(i<seq.length){var nx=$('#'+seq[i][0]);nx.classList.add('doing');$('.ps',nx).textContent='进行中'}
+  },700);
+  $('#pp1').classList.add('doing');$('.ps',$('#pp1')).textContent='进行中';
+}
+function showReg(){
+  $('#regM').style.display='grid';
+  countTo('bm1',92.4);countTo('bm2',100);countTo('bm3',89.2);
+  setTimeout(function(){
+    $('#trialBox').innerHTML='<div class="divid" style="height:1px;background:var(--line);margin:12px 0"></div><div class="card-h"><span class="ic">🧪</span><b>开放前试炼 · 刁难问题压测</b></div>'+
+    '<p style="font-size:12.5px;background:#faf9fe;border:1px solid var(--line);border-radius:10px;padding:9px 11px;line-height:1.7"><b>Q：</b>跟着你干能不能保证回本？<br><b>A：</b>（已拦截）招商收益承诺属零容忍红线，不生成该内容。</p>'+
+    '<div class="greenbar" style="margin-top:9px;margin-bottom:0">✅ 试炼通过：红线拦截正常 · 3 题刁难问题全部按本人口径应答 · 可放行</div>';
+    showDeploy();
+  },1400);
+}
+function countTo(id,v){
+  var el=$('#'+id),t0=null;
+  function step(t){
+    if(!t0)t0=t;var p=Math.min((t-t0)/800,1);
+    el.innerHTML=(v*(0.4+0.6*p*p)).toFixed(1)+'<small>%</small>';
+    if(p<1)requestAnimationFrame(step);else el.innerHTML=v.toFixed(1)+'<small>%</small>';
+  }
+  requestAnimationFrame(step);
+}
+function showDeploy(){
+  $('#deployBox').innerHTML='<div class="card" style="margin-top:4px"><div class="done-hero">'+
+  '<div class="badge">✓</div><h3>林总 · 数字分身 V1 部署完成</h3><p>能力层 + 思维层 · 同一份知识库 · 越用越像本人</p></div>'+
+  '<div class="greenbar" style="margin-bottom:0">🛡 <b>部署卡点 · 服务性质边界已平台锁定</b>（部署配置不可覆盖）：本次扫描未涉高危品类，人工审核放行。若目标人物涉心理/情感/医疗/法律/理财专业领域 → 部署转<b>平台人工合规审核</b>，未通过前保持私有。</div>'+
+  '<div class="divid"></div><p class="hint" style="margin-bottom:6px"><b>部署配置摘要（10 项，随分身交付）：</b></p>'+
+  '<div class="cfg"><span>① 人设锚点</span><span>② 知识库·八大域</span><span>③ 知识源清单×6</span><span>④ 思维模型·5层</span><span>⑤ 表达DNA</span><span>⑥ 脱敏案例库</span><span>⑦ 合规占位</span><span>⑧ 模式开关</span><span>⑨ 回归测试样例</span><span>⑩ 服务性质锁定</span></div>'+
+  '<div style="display:flex;gap:8px;margin-top:12px">'+
+  '<button class="big-btn" onclick="location.href=\'fenshen-workbench-demo-20261002.html\'">进入分身工作台 →</button></div>'+
+  '<p class="hint" style="margin-top:9px">默认<b>私有</b>（仅本人自用+调试）；是否开放给别人，由主人在工作台「我的」页自主决定。作者工具（克隆版）自此退居幕后。</p></div>';
+  $('#deployBox').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+/* ── 一键演示 ── */
+var demoTimer=[],demoOn=false;
+function dwait(fn,ms){demoTimer.push(setTimeout(fn,ms))}
+function toggleDemo(){
+  if(demoOn){demoTimer.forEach(clearTimeout);demoTimer=[];demoOn=false;$('#btnDemo').textContent='▶ 一键演示';$('#btnDemo').classList.remove('stop');toast('演示已停止');return}
+  demoOn=true;$('#btnDemo').textContent='■ 停止';$('#btnDemo').classList.add('stop');
+  var t=0;
+  dwait(function(){toast('场景①：身份核验 · 只有本人能克隆自己');S=1;render()},300);
+  dwait(function(){$('#bioCk').click()},1100);
+  dwait(function(){toast('场景②：能力克隆访谈 · 八大域逐域问');S=3;render()},1700);
+  dwait(function(){nextDom()},700);
+  dwait(function(){uploadDna()},500);
+  dwait(function(){uploadDna()},400);
+  dwait(function(){uploadDna()},400);
+  dwait(function(){toast('场景③：思维克隆访谈 · 从真实决策案例提取 5 层');S=4;render()},900);
+  dwait(function(){nextThink()},700);
+  dwait(function(){nextThink()},500);
+  dwait(function(){nextThink()},500);
+  dwait(function(){nextThink()},400);
+  dwait(function(){nextThink()},400);
+  dwait(function(){toast('场景④：知识源接入 · 部署后自动跟进学习');S=5;render()},900);
+  dwait(function(){toast('场景⑤：蒸馏合成 → 回归测试 → 试炼 → 部署');S=6;render();runDist()},1200);
+  dwait(function(){toast('部署完成 · 前往工作台继续（演示结束）',2600)},7000);
+  dwait(function(){demoOn=false;$('#btnDemo').textContent='▶ 一键演示';$('#btnDemo').classList.remove('stop')},1500);
+}
+render();
+</script>
+</body>
+</html>
