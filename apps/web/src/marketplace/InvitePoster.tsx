@@ -60,6 +60,31 @@ function fillTextCentered(ctx: CanvasRenderingContext2D, text: string, cx: numbe
   ctx.fillText(text, cx, y);
 }
 
+/**
+ * 按最大可用宽度收敛字号后居中绘制：文字过长时自动逐档缩号，避免两侧被画面裁掉。
+ * 2026-10-02：主标题「邀请好友 · 注册即得 100 算力」在 720 宽画布上 56px 会溢出，
+ * 改为自适应（上限仍 56px，够宽就保持原字号）。
+ */
+function fillTextCenteredFit(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  cx: number,
+  y: number,
+  weight: number,
+  maxSize: number,
+  minSize: number,
+  maxWidth: number,
+  color: string
+): void {
+  let size = maxSize;
+  ctx.font = `${weight} ${size}px ${FONT}`;
+  while (size > minSize && ctx.measureText(text).width > maxWidth) {
+    size -= 2;
+    ctx.font = `${weight} ${size}px ${FONT}`;
+  }
+  fillTextCentered(ctx, text, cx, y, `${weight} ${size}px ${FONT}`, color);
+}
+
 /* ------------------------------------------------------------------ */
 /* 三个版本的皮肤：背景 / 主色 / 辅色 / 徽标文案                        */
 /* ------------------------------------------------------------------ */
@@ -185,12 +210,13 @@ function drawPoster(ctx: CanvasRenderingContext2D, version: VersionKey, data: In
   fillTextCentered(ctx, "思潼 AI 商城", cx, 176, `800 40px ${FONT}`, skin.fg);
 
   // 主标题
-  fillTextCentered(ctx, "好友开通 · 各得 100 算力", cx, 246, `900 56px ${FONT}`, skin.accent);
+  // 主标题（自适应字号：过长自动收号，避免左右被裁）
+  fillTextCenteredFit(ctx, "邀请好友 · 注册即得 100 算力", cx, 246, 900, 56, 40, W - 128, skin.accent);
 
   // 奖励双栏
   const rewards: Array<[string, string]> = [
     ["100", "好友注册立得"],
-    ["100", "好友消耗满 50 你得"]
+    ["100", "好友注册 · 你即得"]
   ];
   rewards.forEach(([num, label], i) => {
     const x = cx + (i === 0 ? -150 : 150);

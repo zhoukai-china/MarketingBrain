@@ -686,7 +686,7 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
             spellCheck={false}
             aria-label="推荐码（选填）"
           />
-          <span className="loginReferralHint">填了推荐码，<b>新账号首次开通</b>时登记推荐关系，你和好友各得 100 算力。没有推荐码可留空。</span>
+          <span className="loginReferralHint">填了推荐码，好友<b>注册</b>时登记推荐关系，好友得 100 算力、你立得 100 算力。没有推荐码可留空。</span>
         </label>
         {finishingSignup ? (
           <form onSubmit={handleLoginSubmit}>

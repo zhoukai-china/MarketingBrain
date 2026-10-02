@@ -106,7 +106,6 @@ import {
   SIGNUP_GIFT_SOURCES
 } from "../services/sitong-wallet.js";
 import { loadSigninStatus, performSignin } from "../services/daily-signin.js";
-import { maybeGrantReferralReward } from "../services/referral-rewards.js";
 import {
   MARKETPLACE_ZONES,
   MARKETPLACE_INDUSTRIES,
@@ -980,9 +979,8 @@ export async function runMarketplaceSku(params: {
       }
     });
 
-    await maybeGrantReferralReward({ referredUserId: context.userId, kind: "referrer_first_use" }).catch((error: unknown) => {
-      log.warn({ err: error }, "referral reward(referrer_first_use) failed");
-    });
+    // 2026-10-02：取消「推荐人首段=被推荐人首次真实使用」的发放（referrer_first_use 不再触发）。
+    // 推荐人奖励改为注册绑定时立即发放（referrer_register，见 auth.ts），此处不再发奖。
 
     await prisma.marketplaceDeliverable
       .create({

@@ -64,13 +64,14 @@ const LEDGER_CATEGORIES: Array<{ key: string; label: string }> = [
   { key: "refund", label: "退回" }
 ];
 
-type FloorId = "floor-acquire" | "floor-private" | "floor-consultants" | "floor-hardware" | "floor-courses" | "floor-opc" | "floor-industry" | "floor-cases";
+type FloorId = "floor-acquire" | "floor-private" | "floor-consultants" | "floor-guren" | "floor-hardware" | "floor-courses" | "floor-opc" | "floor-industry" | "floor-cases";
 
 /** 金刚区七格（原型 v3.28，tint 照原型 data-tint）。 */
 const KINGKONG: Array<{ floor: FloorId; label: string; icon: string; tint: string; glyph: string; deep: string }> = [
   { floor: "floor-acquire", label: "获客专区", icon: "✍️", tint: "#FF7A1A", glyph: "pen", deep: "#C24A00" },
   { floor: "floor-private", label: "营销专区", icon: "💬", tint: "#F2538A", glyph: "chat", deep: "#B01E56" },
   { floor: "floor-consultants", label: "数字咨询师", icon: "🧭", tint: "#F5A623", glyph: "compass", deep: "#9C6410" },
+  { floor: "floor-guren", label: "古人智慧", icon: "📜", tint: "#FF6A00", glyph: "brain", deep: "#E8651A" },
   { floor: "floor-hardware", label: "AI硬件", icon: "🔌", tint: "#0E9F6E", glyph: "chip", deep: "#066B49" },
   { floor: "floor-courses", label: "AI课程", icon: "🎓", tint: "#FF5C4D", glyph: "cap", deep: "#5F2B9C" },
   { floor: "floor-opc", label: "OPC专区", icon: "🏭", tint: "#D96A00", glyph: "factory", deep: "#8F4200" },
@@ -1289,12 +1290,12 @@ export function EcoMallHomePage() {
     );
   }
 
-  /** F4 行业工作台（2026-10-02 用户：挂上静态原型预览 + 预约，不再「可体验」却只弹预约）。 */
+  /** F5 行业工作台（2026-10-02 用户：挂上静态原型预览 + 预约，不再「可体验」却只弹预约）。 */
   const LANQI_BOOKING = { name: "行业工作台（美业门店AI经营大脑）", key: "industry-lanqi" };
   function renderBrandFloor() {
     return (
       <section className="eco-floor" id="floor-industry">
-        <FloorHead no="F4" title="行业工作台专区" sub="分行业的整套 AI 经营工作台，可先看演示原型再预约" />
+        <FloorHead no="F5" title="行业工作台专区" sub="分行业的整套 AI 经营工作台，可先看演示原型再预约" />
         <div className="eh-brand-hero">
           <span className="eh-bh-name"><IconGlyph name="sparkle" size={16} style={{ display: "inline", verticalAlign: "-3px" }} /> 美业门店AI经营大脑 <span className="eh-bh-live">● 演示原型</span></span>
           <span className="eh-bh-desc">朋友圈 / 社群内容、经营驾驶舱、门店诊断、内容工作室、AI 绘图、公域获客——美业门店（美容 / 美甲 / 轻医美）正在用的完整 AI 工作台。先点「看演示原型」过一遍，觉得对路再预约开通（开通后接你门店的真实数据）。</span>
@@ -1302,7 +1303,7 @@ export function EcoMallHomePage() {
             <button
               type="button"
               className="eh-bh-btn preview"
-              onClick={() => window.open(getAppPath("/lanqi-v2/home.html"), "_blank", "noopener")}
+              onClick={() => { window.location.href = getAppPath("/lanqi-v2/home.html"); }}
             >
               👀 看演示原型
             </button>
@@ -1314,6 +1315,52 @@ export function EcoMallHomePage() {
               🔔 预约开通
             </button>
           </span>
+        </div>
+      </section>
+    );
+  }
+
+  /** F4 古人智慧专区（2026-10-02 用户：仅预约上线提醒，不订阅、不进对话）。 */
+  const GUREN_ADVISORS: Array<{ initial: string; name: string; tag: string; q: string }> = [
+    { initial: "孙", name: "孙武", tag: "兵法", q: "要不要跟头部打价格战？" },
+    { initial: "范", name: "范蠡·计然", tag: "货殖", q: "压货严重怎么解？" },
+    { initial: "亮", name: "诸葛亮", tag: "大势", q: "被巨头挤压小店怎么活？" },
+    { initial: "管", name: "管仲", tag: "轻重", q: "五折促销到底亏不亏？" },
+    { initial: "曾", name: "曾国藩", tag: "组织", q: "店长留不住怎么办？" },
+    { initial: "胡", name: "胡雪岩", tag: "资金", q: "现金流快断了怎么救？" },
+  ];
+  function renderGuRenFloor() {
+    return (
+      <section className="eco-floor" id="floor-guren">
+        <FloorHead no="F4" title="古人智慧专区" sub="千年商道 · 一问即答的 AI 顾问团" live="即将上线" />
+        <div className="eh-guren">
+          <div className="eh-guren-hero">
+            <span className="eh-guren-seal">智</span>
+            <div className="eh-guren-hero-t">
+              <b>古人智慧团</b>
+              <span>孙武 · 范蠡 · 诸葛亮 · 管仲 · 曾国藩 · 胡雪岩</span>
+            </div>
+            <span className="eh-guren-badge">AI 蒸馏 · 非真人</span>
+          </div>
+          <div className="eh-guren-grid">
+            {GUREN_ADVISORS.map((a) => (
+              <div className="eh-guren-card" key={a.name}>
+                <span className="eh-guren-av">{a.initial}</span>
+                <div className="eh-guren-meta">
+                  <span className="eh-guren-name">{a.name}</span>
+                  <span className="eh-guren-tag">{a.tag}</span>
+                </div>
+                <span className="eh-guren-q">{a.q}</span>
+              </div>
+            ))}
+          </div>
+          <div className="eh-guren-bar">
+            <div className="eh-guren-bar-t">
+              <b>暂未开放</b>
+              <span>仅支持预约上线提醒 · 上线第一时间通知你</span>
+            </div>
+            <button type="button" className="eh-guren-btn" onClick={() => setBooking({ name: "古人智慧专区", key: "guren" })}>🔔 预约上线提醒 ›</button>
+          </div>
         </div>
       </section>
     );
@@ -1537,7 +1584,7 @@ export function EcoMallHomePage() {
               </button>
               <button type="button" className="me-item" onClick={() => setShowInvite(true)}>
                 <span className="mi-ico"><IconGlyph name="gift" size={15} /></span>
-                <span className="mi-txt">邀请有礼<small>好友开通你就有奖</small></span>
+                <span className="mi-txt">邀请有礼<small>好友注册你立得 100</small></span>
                 <span className="mi-go">›</span>
               </button>
               <button type="button" className="me-item" onClick={() => { setLedgerPage(1); setShowLedger(true); }}>
@@ -1669,7 +1716,7 @@ export function EcoMallHomePage() {
               <button type="button" className="eco-banner eco-invite-banner" onClick={() => setShowInvite(true)}>
                 <div className="eco-banner-text">
                   <b><IconGlyph name="gift" size={16} style={{ display: "inline", verticalAlign: "-3px" }} /> 邀请有礼</b>
-                  <span>好友开通 · 各得 100 算力</span>
+                  <span>邀请好友注册 · 你立得 100 算力</span>
                 </div>
                 <span className="eco-banner-link">立即邀请 ›</span>
               </button>
@@ -1740,10 +1787,12 @@ export function EcoMallHomePage() {
               </div>
             </section>
 
+            {renderGuRenFloor()}
+
             {renderBrandFloor()}
 
             <section className="eco-floor" id="floor-hardware">
-              <FloorHead no="F5" title="AI 硬件专区" sub="让 AI 落到店里的硬件货架" />
+              <FloorHead no="F6" title="AI 硬件专区" sub="让 AI 落到店里的硬件货架" />
               <div className="eh-prod">
                 {renderProductCard({ glyph: "mic", tint: "#FF7A1A", icon: "🎙️", img: getPublicAssetPath("/mall/hwRec.jpg"), detail: "/product/hwRec/detail", name: "AI 录音卡", tag: "硬件新品", desc: "录音即分析，自动转经营动作：客户沟通自动归档、话术要点自动提炼。", price: "¥199 /台 · 人民币直购", bookingName: "AI 录音卡", bookingKey: "hwRec"})}
                 {renderProductCard({ glyph: "robot", tint: "#0E9F6E", icon: "robot", img: getPublicAssetPath("/mall/hwRobot.jpg"), detail: "/product/hwRobot/detail", name: "门店 AI 机器人", tag: "硬件新品", desc: "迎宾接待、导购问答，常用话术语音随叫随到，前台接待不冷场。", price: "¥1,999 /台 · 人民币直购", bookingName: "门店 AI 机器人", bookingKey: "hwRobot"})}
@@ -1751,7 +1800,7 @@ export function EcoMallHomePage() {
             </section>
 
             <section className="eco-floor" id="floor-courses">
-              <FloorHead no="F6" title="AI 课程专区" sub="从 0 到 1 学会用 AI 干活" />
+              <FloorHead no="F7" title="AI 课程专区" sub="从 0 到 1 学会用 AI 干活" />
               <div className="eh-prod">
                 {renderProductCard({ glyph: "sparkcap", tint: "#9752DC", icon: "🎓", img: getPublicAssetPath("/mall/courseAgent.jpg"), detail: "/product/courseAgent/detail", name: "智能体开发课", tag: "视频课", desc: "从 0 到 1 学会搭建自己的智能体工作流。", price: "¥199 /门 · 人民币直购", bookingName: "智能体开发课", bookingKey: "courseAgent"})}
                 {renderProductCard({ glyph: "chart", tint: "#2E7CF6", icon: "📊", img: getPublicAssetPath("/mall/courseWb.jpg"), detail: "/product/courseWb/detail", name: "WorkBuddy 办公提效课", tag: "实操课", desc: "用 AI 把日报、周报、方案、表格这些日常活干得更快，即学即用。", price: "¥99 /门 · 人民币直购", bookingName: "WorkBuddy 办公提效课", bookingKey: "courseWb"})}
@@ -1759,7 +1808,7 @@ export function EcoMallHomePage() {
             </section>
 
             <section className="eco-floor" id="floor-opc">
-              <FloorHead no="F7" title="OPC 专区" sub="AI 算力与创作资源，商家价直供" />
+              <FloorHead no="F8" title="OPC 专区" sub="AI 算力与创作资源，商家价直供" />
               <div className="eh-prod">
                 {renderProductCard({ glyph: "pack", tint: "#D96A00", icon: "🏭", img: getPublicAssetPath("/mall/opcLlm.jpg"), detail: "/product/opcLlm/detail", name: "大模型折扣仓", tag: "OPC", desc: "主流大模型 API 额度折扣直充，token 按仓价拿，AI 用量大的商家先省一半。", price: "50 算力/份 起", cny: "¥5", buyNow: true, demo: true, bookingName: "大模型折扣仓", bookingKey: "opcLlm"})}
                 {renderProductCard({ glyph: "clapper", tint: "#DB2777", icon: "🎬", img: getPublicAssetPath("/mall/opcComic.jpg"), detail: "/product/opcComic/detail", name: "AIGC 漫剧创作工作台", tag: "OPC", desc: "分镜、角色、成片一条龙，批量产出漫剧短视频，带货与账号起号都能用。", price: "199 算力/席", cny: "¥19.9", buyNow: true, demo: true, bookingName: "AIGC 漫剧创作工作台", bookingKey: "opcComic"})}

@@ -116,12 +116,17 @@ const envSchema = z.object({
    * - 奖励算力**只能用于文字类智能体**（`REFERRAL_REWARD_TEXT_ONLY`，服务端硬限制）；
    * - 奖励进 bonus 桶，90 天有效；不设单人月上限，改为超阈值**告警**；
    * - 绑定 / 首次真实使用 / 首次真实充值三个事件都必须落在活动窗内（左闭右开）。
+   *
+   * 2026-10-02 调整（用户本地改，不改动冻结口径主体）：取消「推荐人首段=新客首次真实使用」的发放触发，
+   * 改为新增 `referrer_register`——被推荐人注册绑定时推荐人**立即**得 `REFERRAL_REFERRER_REGISTER_CREDITS`（默认 100）。
+   * 原 `referrer_first_use`（首段=首次真实使用）不再被触发（保留配置位以便将来恢复）。
    */
   REFERRAL_REWARD_ENABLED: z.enum(["true", "false"]).default("false"),
   REFERRAL_CAMPAIGN_STARTS_AT: optionalString,
   REFERRAL_CAMPAIGN_ENDS_AT: optionalString,
   REFERRAL_NEW_USER_CREDITS: z.coerce.number().int().nonnegative().default(100),
   REFERRAL_REFERRER_FIRST_USE_CREDITS: z.coerce.number().int().nonnegative().default(100),
+  REFERRAL_REFERRER_REGISTER_CREDITS: z.coerce.number().int().nonnegative().default(100),
   REFERRAL_REFERRER_FIRST_RECHARGE_CREDITS: z.coerce.number().int().nonnegative().default(0),
   REFERRAL_REWARD_VALID_DAYS: z.coerce.number().int().positive().default(90),
   REFERRAL_REWARD_ALERT_THRESHOLD_CREDITS: z.coerce.number().int().positive().default(20000),

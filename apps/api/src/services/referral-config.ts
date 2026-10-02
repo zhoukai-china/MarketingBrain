@@ -66,7 +66,16 @@ export const PLATFORM_SETTING_DEFINITIONS: readonly PlatformSettingDefinition[] 
     key: "REFERRAL_REFERRER_FIRST_USE_CREDITS",
     group: "referral",
     label: "推荐人第一段（新客首次真实使用）",
-    description: "默认 100。",
+    description: "默认 100。2026-10-02 起不再触发（改为 referrer_register 注册即得），保留配置位以便将来恢复。",
+    type: "integer",
+    min: 0,
+    max: 100000
+  },
+  {
+    key: "REFERRAL_REFERRER_REGISTER_CREDITS",
+    group: "referral",
+    label: "推荐人奖励（新客注册即得）",
+    description: "2026-10-02 用户新增：被推荐人注册绑定时推荐人立即得（取消「首段=首次真实使用」前置）。默认 50，进 bonus 桶、90 天、只能用于文字类智能体。",
     type: "integer",
     min: 0,
     max: 100000
@@ -149,6 +158,7 @@ export interface ReferralConfig {
   campaignEndsAt: string | null;
   newUserCredits: number;
   referrerFirstUseCredits: number;
+  referrerRegisterCredits: number;
   referrerFirstRechargeCredits: number;
   rewardValidDays: number;
   alertThresholdCredits: number;
@@ -186,6 +196,8 @@ function envValueOf(key: string): PlatformSettingValue {
       return env.REFERRAL_NEW_USER_CREDITS;
     case "REFERRAL_REFERRER_FIRST_USE_CREDITS":
       return env.REFERRAL_REFERRER_FIRST_USE_CREDITS;
+    case "REFERRAL_REFERRER_REGISTER_CREDITS":
+      return env.REFERRAL_REFERRER_REGISTER_CREDITS;
     case "REFERRAL_REFERRER_FIRST_RECHARGE_CREDITS":
       return env.REFERRAL_REFERRER_FIRST_RECHARGE_CREDITS;
     case "REFERRAL_REWARD_VALID_DAYS":
@@ -408,6 +420,7 @@ export async function getReferralConfig(): Promise<ReferralConfig> {
     campaignEndsAt: (valueOf("REFERRAL_CAMPAIGN_ENDS_AT") as string | null) ?? null,
     newUserCredits: Number(valueOf("REFERRAL_NEW_USER_CREDITS") ?? 0),
     referrerFirstUseCredits: Number(valueOf("REFERRAL_REFERRER_FIRST_USE_CREDITS") ?? 0),
+    referrerRegisterCredits: Number(valueOf("REFERRAL_REFERRER_REGISTER_CREDITS") ?? 0),
     referrerFirstRechargeCredits: Number(valueOf("REFERRAL_REFERRER_FIRST_RECHARGE_CREDITS") ?? 0),
     rewardValidDays: Number(valueOf("REFERRAL_REWARD_VALID_DAYS") ?? 0),
     alertThresholdCredits: Number(valueOf("REFERRAL_REWARD_ALERT_THRESHOLD_CREDITS") ?? 0),

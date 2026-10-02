@@ -224,6 +224,10 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       void maybeGrantReferralReward({ referredUserId: workspace.user.id, kind: "new_user" }).catch((error: unknown) => {
         request.log.warn({ err: error }, "referral reward(new_user) failed");
       });
+      // 2026-10-02：被推荐人注册绑定时，推荐人立即得 `referrer_register`（默认 50），取消「首段=首次真实使用」前置。
+      void maybeGrantReferralReward({ referredUserId: workspace.user.id, kind: "referrer_register" }).catch((error: unknown) => {
+        request.log.warn({ err: error }, "referral reward(referrer_register) failed");
+      });
     }
 
     return {
@@ -316,6 +320,10 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     if (referral.state === "bound") {
       void maybeGrantReferralReward({ referredUserId: workspace.user.id, kind: "new_user" }).catch((error: unknown) => {
         request.log.warn({ err: error }, "referral reward(new_user) failed");
+      });
+      // 2026-10-02：被推荐人注册绑定时，推荐人立即得 `referrer_register`（默认 50），取消「首段=首次真实使用」前置。
+      void maybeGrantReferralReward({ referredUserId: workspace.user.id, kind: "referrer_register" }).catch((error: unknown) => {
+        request.log.warn({ err: error }, "referral reward(referrer_register) failed");
       });
     }
 
@@ -913,6 +921,10 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     if (referral.state === "bound") {
       void maybeGrantReferralReward({ referredUserId: workspace.user.id, kind: "new_user" }).catch((error: unknown) => {
         request.log.warn({ err: error }, "referral reward(new_user) failed");
+      });
+      // 2026-10-02：被推荐人注册绑定时，推荐人立即得 `referrer_register`（默认 50），取消「首段=首次真实使用」前置。
+      void maybeGrantReferralReward({ referredUserId: workspace.user.id, kind: "referrer_register" }).catch((error: unknown) => {
+        request.log.warn({ err: error }, "referral reward(referrer_register) failed");
       });
     }
 

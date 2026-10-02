@@ -15,9 +15,6 @@ export const COPY_DEMO_STEPS: DemoStep[] = [
   { display: "引导评论区留言「洗澡」约到店体验", values: { action: "引导评论区留言「洗澡」约到店体验" },
     candidates: ["评论区留言「洗澡」约体验", "私信咨询", "到店 / 留资"],
     digest: "评论关键词这个动作最轻、转化路径最短，结尾钩子就按它设计。" },
-  { display: "完整 · 内容十件套", values: { depth: "full" },
-    candidates: ["完整 · 内容十件套", "轻量 · 1 条可直发文案"],
-    digest: "选完整十件套——选题、口播、拍摄、剪辑、发布、投流一次给全。" },
   { display: "门店老板抱宠出镜", values: { camera: "门店老板抱宠出镜" },
     candidates: ["门店老板抱宠出镜", "代运营拍摄", "无人出镜（图文 / 混剪）"],
     digest: "老板抱宠出镜最有信任感，拍摄脚本按固定机位 + 宠物特写给你排。" }

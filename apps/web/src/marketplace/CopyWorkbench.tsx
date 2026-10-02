@@ -1,8 +1,11 @@
 // 文案创作工作台（/agent/ipzone__copy/workbench）
 //
 // 视觉与交互**严格对齐原型** copy-workbench-demo-20260922.html：
-//  - 左：暗色引导对话（一次只问一个问题，6 问固定话术 + 选项 chips，答案自动填右侧简报）；
-//  - 右：创作简报（6 字段可点改）+ 画布（占位 / 生成中日志+进度 / 分区 tabs 交付区）。
+//  - 左：暗色引导对话（一次只问一个问题，5 问固定话术 + 选项 chips，答案自动填右侧简报）；
+//  - 右：创作简报（5 字段可点改）+ 画布（占位 / 生成中日志+进度 / 分区 tabs 交付区）。
+//
+// 2026-10-02 用户：交付深度不再让用户选——**默认就是完整（内容十件套）**，简报槽位由 6 减到 5，
+// 提交时固定按「完整」交付。轻量的选项/入口全部去掉（保留 LIGHT 相关代码仅为兼容旧草稿，正常不会命中）。
 //
 // 「功能与 /chat 一样」指的是**后端**：同一个 `/market/skus/ipzone__copy/run`（计费、
 // 十件套契约、needsInput 全同源）。请求体与 chat-flows.buildRunBody 同构（{ input: 需求单文本 }）。
@@ -31,7 +34,6 @@ const FIELDS: Array<{ key: string; icon: string; label: string }> = [
   { key: "selling", icon: "💎", label: "核心卖点" },
   { key: "platform", icon: "📺", label: "投放平台" },
   { key: "action", icon: "🎯", label: "期望动作" },
-  { key: "depth", icon: "📋", label: "交付深度" },
   { key: "camera", icon: "🎬", label: "出镜方式" }
 ];
 
@@ -60,11 +62,6 @@ const QFLOW: QFlow[] = [
       { t: "关注账号", d: "", v: "关注账号" },
       { t: "私信咨询", d: "", v: "私信咨询" },
       { t: "到店 / 留资", d: "", v: "到店 / 留资" }
-    ] },
-  { field: "depth", enum: true, q: "这次要交付到什么深度？", hint: "只要一条能发的文案，还是连拍摄剪辑发布投流一起出完整十件套？",
-    opts: [
-      { t: "轻量 · 1 条可直发文案", d: "标题 + 正文 + 话题 · 约 3 分钟", v: "light" },
-      { t: "完整 · 内容十件套", d: "选题→口播→访谈→拍摄→剪辑→标题→时间→评论→投流 · 约 5-10 分钟", v: "full", rec: true }
     ] },
   { field: "camera", q: "出镜方式是哪种？", hint: "决定拍摄脚本和注意事项怎么写。",
     opts: [
@@ -141,7 +138,8 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
   const demoSnapshotRef = useRef<DemoSnapshot | null>(null);
   const [qi, setQi] = useState(0);
   const [brief, setBrief] = useState<Record<string, string>>({});
-  const [depth, setDepth] = useState<"light" | "full" | null>(null);
+  // 2026-10-02 用户：交付深度不再让用户选——**默认即完整**，全流程固定按「内容十件套」交付。
+  const [depth, setDepth] = useState<"light" | "full" | null>("full");
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [optsQ, setOptsQ] = useState<number | null>(null); // 当前待答的题号（渲染 opts chips）
   const [supplement, setSupplement] = useState("");
@@ -285,8 +283,7 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
     const restoredMsgs: ChatMsg[] = [...msgs, { id: maxId + 1, who: "ai", html: "↩️ 已恢复上次的对话，接着答就行；右侧简报也原样保留。", ephemeral: true }];
     setMessages(restoredMsgs);
     setBrief(brief0); briefRef.current = brief0;
-    const dv = brief0.depth;
-    setDepth(dv === "full" || dv === "light" ? dv : null);
+    setDepth("full");
     setQi(qi0);
     if (!wasEnd && d.phase === "ask") {
       setPhase("ask");
@@ -302,7 +299,7 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
       phase: wasEnd ? "confirm" : ((d.phase as Phase) ?? "ask"),
       optsQ: !wasEnd && d.phase === "ask" ? Math.min(Math.max(0, Number(d.optsQ) || qi0), QFLOW.length - 1) : null,
       genCandidates: d.genCandidates && d.genCandidates.q === qi0 ? d.genCandidates : null,
-      depth: dv === "full" || dv === "light" ? dv : null, pieces: [], answerMd: "", consumed: null
+      depth: "full", pieces: [], answerMd: "", consumed: null
     };
   }
 
@@ -313,7 +310,7 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
     timersRef.current = [];
     demoRef.current = false; setDemoOn(false);
     if (demoTickRef.current != null) { window.clearInterval(demoTickRef.current); demoTickRef.current = null; }
-    setPhase("idle"); setQi(0); setBrief({}); briefRef.current = {}; setDepth(null);
+    setPhase("idle"); setQi(0); setBrief({}); briefRef.current = {}; setDepth("full");
     setMessages([]); setOptsQ(null); setSupplement(""); setFreeInput("");
     setGenCandidates(null); runIdRef.current += 1; digestingRef.current = false;
     // 用户主动重置 = 丢弃对话草稿；演示开局传 keepDraft=true（演示不得删用户真实进度）
@@ -342,7 +339,7 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
     briefRef.current = merged;
     setBrief(merged);
     if (field === "depth") {
-      setDepth(value === "full" ? "full" : "light");
+      setDepth("full");
     }
     // 对话节奏（workbench-conversation-pattern.md §3）：先放「正在消化」占位，
     // 模型生成消化回应回来一次成型（失败就移除占位——本流程没有写死兜底话术），
@@ -444,7 +441,7 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
       if (!demoRef.current) return;
       setPhase("confirm");
       setDepth("full");
-      pushMsg("ai", "6 项齐了 ✅ 右侧简报就是刚才演示填的。下方的 <b>「✨ 开始创作」</b> 就是这一步——演示替你点一下：");
+      pushMsg("ai", "5 项齐了 ✅ 右侧简报就是刚才演示填的。下方的 <b>「✨ 开始创作」</b> 就是这一步——演示替你点一下：");
     }, t + 600);
     // 演示「点下去」这个动作（用户气泡明示），别让按钮一闪而过看起来像没走
     later(() => { if (demoRef.current) pushMsg("user", "▶ 点了「✨ 开始创作」"); }, t + 2600);
@@ -504,7 +501,7 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
 
   function confirmStep() {
     setPhase("confirm");
-    pushMsg("ai", `齐了 ✅ 简报 6/6。右侧确认后点 <b>「✨ 开始创作」</b>，我按 <b>${depth === "light" ? "轻量 1 条文案" : "完整十件套"}</b> 交付。中途可以随时打断我改简报。`);
+    pushMsg("ai", `齐了 ✅ 简报 5/5。右侧确认后点 <b>「✨ 开始创作」</b>，我按 <b>完整内容十件套</b> 交付。中途可以随时打断我改简报。`);
   }
 
   /** 选项点击（原型 answer()） */
@@ -544,10 +541,10 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
     timersRef.current.forEach((t) => window.clearTimeout(t));
     timersRef.current = [];
     setMessages([]); setOptsQ(null); setSupplement("");
-    setBrief({}); briefRef.current = {}; setDepth(null);
+    setBrief({}); briefRef.current = {}; setDepth("full");
     setGenCandidates(null); runIdRef.current += 1; digestingRef.current = false;
     setPhase("confirm"); setQi(QFLOW.length);
-    pushMsg("ai", "好，老手通道 🚀 跳过引导，直接在右侧「创作简报」把 6 项填好（点字段即可输入）。填完点 <b>「✨ 开始创作」</b>。");
+    pushMsg("ai", "好，老手通道 🚀 跳过引导，直接在右侧「创作简报」把 5 项填好（点字段即可输入）。填完点 <b>「✨ 开始创作」</b>。");
   }
 
   /* ---------- 生成（后端与 /chat 同一个 /run） ---------- */
@@ -796,7 +793,7 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
     phase === "gen" ? `创作中…（已等待 ${elapsed} 秒）` :
     phase === "done" ? "已交付" :
     phase === "confirm" ? "引导完成" :
-    phase === "ask" ? `引导中（${Math.min(qi + 1, 6)}/6）` : "待引导";
+    phase === "ask" ? `引导中（${Math.min(qi + 1, 5)}/5）` : "待引导";
   const feeHint =
     phase === "done" ? (
       subCovered ? <>本次由<b>包月覆盖</b>，不扣算力</> : <>本次实际消耗 <b>{consumed ?? skuPpu ?? "—"} 算力</b>（按次固定收费）</>
@@ -863,7 +860,7 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
                     ))}
                   </div>
                 )}
-                <div className="cpw-skip">赶时间？<a onClick={skipGuide}>跳过引导，直接在右侧简报填写 6 项 →</a></div>
+                <div className="cpw-skip">赶时间？<a onClick={skipGuide}>跳过引导，直接在右侧简报填写 5 项 →</a></div>
                 <div className="cpw-input">
                   <input
                     value={freeInput}
@@ -882,7 +879,7 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
                     <div className="cpw-brief-t">
                       <b>📋 创作简报</b>
                       <span className="cpw-brief-sub">字段可随时点击修改，改完可重新生成</span>
-                      <div className="cpw-meter"><span>{filled}/6</span><div className="cpw-segs">{FIELDS.map((f, i) => <div key={f.key} className={`cpw-seg${i < filled ? " on" : ""}`} />)}</div></div>
+                      <div className="cpw-meter"><span>{filled}/5</span><div className="cpw-segs">{FIELDS.map((f, i) => <div key={f.key} className={`cpw-seg${i < filled ? " on" : ""}`} />)}</div></div>
                     </div>
                     <div className="cpw-grid">
                       {FIELDS.map((f) => {
@@ -920,11 +917,10 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
                   </div>
 
                   <div className="cpw-canvas">
-                    {phase === "idle" || phase === "ask" || (phase === "confirm" && !depth) ? (
+                    {phase === "idle" || phase === "ask" ? (
                       <>
-                        <div className="cpw-ph-note">👋 完成左侧引导后，交付物会在这里分区生成<span className="cpw-tag">先选交付深度</span><span className="cpw-tag">再开始创作</span></div>
+                        <div className="cpw-ph-note">👋 完成左侧引导后，交付物会在这里分区生成<span className="cpw-tag">默认完整 · 内容十件套</span></div>
                         <div className="cpw-ph-grid initial">
-                          <div className="cpw-ph locked span2"><div className="cpw-no g-doc">轻量</div><b>📄 1 条可直发文案</b><span className="cpw-d">标题 + 正文 + 话题 · 约 3 分钟</span></div>
                           <div className="cpw-ph locked span3"><div className="cpw-no g-shoot">完整</div><b>📦 内容十件套</b><span className="cpw-d">选题→口播→访谈→拍摄→剪辑→标题→时间→评论→投流 · 约 5-10 分钟</span></div>
                         </div>
                       </>
@@ -933,8 +929,8 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
                     {(phase === "confirm" || phase === "gen") && depth && (
                       <>
                         <div className="cpw-ph-note">
-                          {phase === "gen" ? <>⏳ 生成中 · 已等待 {elapsed} 秒，{depth === "full" ? "十件" : "文案"}逐件点亮</> : <>🧩 交付结构预览 · 确认简报后点「✨ 开始创作」</>}
-                          <span className="cpw-tag">{depth === "full" ? "完整十件套" : "轻量 1 条"}</span>
+                          {phase === "gen" ? <>⏳ 生成中 · 已等待 {elapsed} 秒，十件逐件点亮</> : <>🧩 交付结构预览 · 确认简报后点「✨ 开始创作」</>}
+                          <span className="cpw-tag">完整十件套</span>
                         </div>
                         {phase === "gen" && (
                           <div className="cpw-gen-prog">

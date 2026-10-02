@@ -7,6 +7,8 @@ import { getOrCreateWallet, SIGNUP_GIFT_SOURCES } from "./sitong-wallet.js";
  *
  * 冻结口径（用户 2026-09-12 拍板）：
  * - 三段奖励：新客 100（绑定即得）、推荐人 100（被推荐人首次真实使用）、推荐人 200（被推荐人首次真实充值）；
+ * - 2026-10-02 本地调整（不改动冻结口径主体）：新增 `referrer_register`（被推荐人注册绑定时推荐人立即得 100），
+ *   并停止触发 `referrer_first_use`（旧「首段=首次真实使用」前置被取消）。
  * - 奖励进 bonus 桶、90 天有效、只能用于文字类智能体（图片/视频走租户 CreditAccount，结构上天然不可用 bonus）；
  * - 三个事件都必须落在活动窗内（左闭右开）；
  * - 充值必须真实 paid 未退款，退款走冲正（reverseReferralReward）；
@@ -15,7 +17,7 @@ import { getOrCreateWallet, SIGNUP_GIFT_SOURCES } from "./sitong-wallet.js";
  * 幂等：同一 `referral_reward:<kind>:<bindingId>` 账本来源只发一次（Serializable + 冲突重试）。
  * 所有发放都是 best-effort：失败只记日志，绝不阻断注册 / 生成 / 充值主流程。
  */
-export type ReferralRewardKind = "new_user" | "referrer_first_use" | "referrer_first_recharge";
+export type ReferralRewardKind = "new_user" | "referrer_first_use" | "referrer_register" | "referrer_first_recharge";
 
 export type ReferralRewardReason =
   | "granted"
@@ -47,6 +49,8 @@ function amountForKind(config: ReferralConfig, kind: ReferralRewardKind): number
       return config.newUserCredits;
     case "referrer_first_use":
       return config.referrerFirstUseCredits;
+    case "referrer_register":
+      return config.referrerRegisterCredits;
     case "referrer_first_recharge":
       return config.referrerFirstRechargeCredits;
   }
