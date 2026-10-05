@@ -79,7 +79,7 @@ export function buildAliyunReplicationRequest(input: Required<Pick<ViralReplicat
   if (validateDirectAssetUrl(input.referenceVideoUrl) || validateDirectAssetUrl(input.portraitImageUrl)) throw new Error("replication_asset_url_rejected");
   return {
     model: REPLICATION_MODEL,
-    input: { video_url: input.referenceVideoUrl, image_url: input.portraitImageUrl, watermark: true },
+    input: { video_url: input.referenceVideoUrl, image_url: input.portraitImageUrl, watermark: false },
     parameters: { mode: input.mode ?? "wan-std", check_image: true }
   };
 }
