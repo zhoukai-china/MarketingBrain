@@ -34,7 +34,10 @@ export function createVideoExecutionPermits(db:any,options:{authorityKey:string;
   const now=options.now??Date.now;
   const usageCall={step:"video_generation",attempt:1,provider:"aliyun_bailian",model:REPLICATION_MODEL,mode:options.access==="local_only"?"controlled_mock" as const:"real" as const};
   function usageMeter(tx:any,s:VideoExecutionScope){return createBeautyUsageMeter(tx,{tenantId:s.tenantId,userId:s.userId,storeId:s.storeId},s.permitId);}
-  function usageMeasures(s:VideoExecutionScope,seconds?:number):UsageMeasure[]{return [{unit:"video_second",meter:"output",quantity:seconds===undefined?null:String(seconds),source:seconds===undefined?"unknown":"provider_usage",currency:"CNY",priceVersion:s.priceVersion,unitPriceMicros:s.mode==="wan-pro"?"900000":"600000",observedCostMicros:null,billingSource:"unknown"}];}
+  // quantity 必须匹配 decimal 正则（≤6 位小数）：wan2.2-animate-mix 返回的 video_duration 是
+  // 高精度浮点（如 4.960000038146973），直接 String() 会炸 zod 校验 → 整个任务被误标
+  // artifact_persistence_failed（厂商其实已出片）。这里统一钳到 6 位小数并去掉尾零。
+  function usageMeasures(s:VideoExecutionScope,seconds?:number):UsageMeasure[]{return [{unit:"video_second",meter:"output",quantity:seconds===undefined?null:String(Number(seconds.toFixed(6))),source:seconds===undefined?"unknown":"provider_usage",currency:"CNY",priceVersion:s.priceVersion,unitPriceMicros:s.mode==="wan-pro"?"900000":"600000",observedCostMicros:null,billingSource:"unknown"}];}
   function verified(row:any):VideoExecutionScope{
     const parsed=videoExecutionScopeSchema.safeParse(row?.scope);if(!parsed.success)reject("execution_permit_invalid");
     const s=parsed.data,expected=createHmac("sha256",options.authorityKey).update(JSON.stringify(s)).digest("hex");
