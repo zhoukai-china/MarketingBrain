@@ -2341,7 +2341,8 @@ function ScriptMode({
         if (!frameId) throw new Error("这一镜的首帧没生成出来，请重试一次。");
         // 自动确认（2026-10-05 用户拍板）：生成即生效，出片直接用；确认状态同步记到服务端（selectedAt）。
         setShotFrames((current) => ({ ...current, [shot.no]: { frameId, simulated: Boolean(body.simulated), confirmed: true, scriptKey: currentScriptKey } }));
-        void fetch(apiPath(`/lanqi/media/shot-frame/${frameId}/confirm`), { method: "POST", headers: authHeaders() }).catch(() => {});
+        // body:"{}" 必须带：authHeaders 设了 application/json，空 body 会被 Fastify 以 400 拒收（生产实测）。
+        void fetch(apiPath(`/lanqi/media/shot-frame/${frameId}/confirm`), { method: "POST", headers: authHeaders(), body: "{}" }).catch(() => {});
       } catch (error) {
         setError(error instanceof Error && error.message ? error.message : "这一镜的首帧生成失败，请稍后重试。");
       } finally {
