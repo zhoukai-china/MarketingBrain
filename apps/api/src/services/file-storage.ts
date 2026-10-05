@@ -35,6 +35,29 @@ export async function storeMultipartFile(params: {
   };
 }
 
+export async function storeBuffer(params: {
+  tenantId: string;
+  filename: string;
+  mimeType: string;
+  buffer: Buffer;
+}): Promise<StoredUpload> {
+  const id = randomUUID();
+  const safeName = sanitizeFilename(params.filename);
+  const tenantDir = path.resolve(env.UPLOAD_DIR, params.tenantId);
+  await mkdir(tenantDir, { recursive: true });
+  const storagePath = path.join(tenantDir, `${id}-${safeName}`);
+  await writeFile(storagePath, params.buffer);
+
+  return {
+    id,
+    filename: safeName,
+    mimeType: params.mimeType || "application/octet-stream",
+    byteSize: params.buffer.byteLength,
+    storagePath,
+    sha256: createHash("sha256").update(params.buffer).digest("hex")
+  };
+}
+
 export async function summarizeStoredFile(params: {
   filename: string;
   mimeType: string;

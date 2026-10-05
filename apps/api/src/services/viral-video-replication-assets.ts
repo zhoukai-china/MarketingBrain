@@ -78,6 +78,25 @@ export function createReplicationAssetStore(options: { root: string; allowedResu
       return artifact;
       } finally { await unlink(temp).catch(e => { if (e.code !== "ENOENT") throw e; }); }
     },
+    async persistLocal(job: ReplicationJob, filePath: string): Promise<ReplicationArtifact> {
+      // Mock 回放（2026-10-04）：与 persist 走同一条内部路径——ftyp 容器校验、ffprobe 真实探测、
+      // sha256 命名落盘、读回校验——只是字节来源是本地文件而不是下载。
+      const real = await realpath(filePath).catch(() => null);
+      if (!real) throw new ReplicationError("artifact_url_rejected");
+      const bytes = await readFile(real);
+      if (bytes.length < 12 || bytes.toString("ascii", 4, 8) !== "ftyp") throw new ReplicationError("artifact_container_invalid");
+      if (bytes.length > MAX_BYTES) throw new ReplicationError("artifact_size_invalid");
+      const dir = await directory(job), temp = path.join(dir, `${randomUUID()}.partial.mp4`);
+      try {
+        await writeFile(temp, bytes, { flag: "wx" });
+        const probe = await (options.probe ?? probeClip)(temp);
+        if (probe.videoCodec !== "h264" || !Number.isFinite(probe.durationSeconds) || probe.durationSeconds < 2 || probe.durationSeconds > job.authorizationSnapshot.maxOutputSeconds || probe.width < 200 || probe.height < 200 || probe.width > 2048 || probe.height > 2048) throw new ReplicationError("artifact_media_invalid");
+        const hash = sha(bytes), destination = path.join(dir, `${hash}.mp4`);
+        await rename(temp, destination);
+        if (sha(await readFile(destination)) !== hash) throw new ReplicationError("artifact_commit_invalid");
+        return { sha256: hash, bytes: bytes.length, width: probe.width, height: probe.height, durationSeconds: probe.durationSeconds, storageKey: key(job), codec: "h264" };
+      } finally { await unlink(temp).catch(e => { if (e.code !== "ENOENT") throw e; }); }
+    },
     async cleanupPartials(job: ReplicationJob) {
       if (!options.recoveryReceipt) return;
       const dir = await directory(job);

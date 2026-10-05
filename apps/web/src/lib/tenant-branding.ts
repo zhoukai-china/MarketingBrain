@@ -4,11 +4,11 @@ import { apiPath } from "./api.js";
 
 export const DEFAULT_TENANT_BRANDING: TenantBrandingConfig = {
   brandName: "思潼",
-  systemName: "思潼AI 行业智能体平台",
+  systemName: "思潼AI商城",
   primaryColor: "#1f6a57",
-  loginHeadline: "进入思潼AI 行业智能体平台",
+  loginHeadline: "进入思潼AI商城",
   loginDescription: "先创建统一的企业空间，再进入外卖、获客及其他已开通的智能体工作台。",
-  exportFooter: "由思潼AI 行业智能体平台生成",
+  exportFooter: "由思潼AI商城生成",
   isCustomized: false
 };
 

@@ -701,7 +701,7 @@ export default function LoginPage({ mode, entry, onLogin }: LoginPageProps) {
         ) : (
           <form onSubmit={handleLoginSubmit}>
             {workspaceFields}
-            <button className="loginSubmit" type="submit" disabled={busy}>{busy ? "正在进入…" : retryReady ? "再试一次" : "进入思潼AI 智能体平台"}</button>
+            <button className="loginSubmit" type="submit" disabled={busy}>{busy ? "正在进入…" : retryReady ? "再试一次" : "进入思潼AI商城"}</button>
           </form>
         )}
         <Feedback error={error} status={status} />

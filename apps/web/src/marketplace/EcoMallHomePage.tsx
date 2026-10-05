@@ -690,13 +690,8 @@ export function EcoMallHomePage() {
     }
   }
 
-  function copyInviteText(value: string | null, okMsg: string): void {
-    if (!value) return;
-    void navigator.clipboard?.writeText(value).then(
-      () => meNote(okMsg),
-      () => meNote("复制失败，请长按手动选择")
-    );
-  }
+  /* 2026-10-03 用户：邀请码 / 邀请链接两行去掉（海报里已带码，文字行挤在一起还碍眼），
+     因此原先只服务这两行的 copyInviteText 一并删除。 */
 
   /* ---- 全部订单：充值 / 商品 / 预约登记合一，分页交互与算力明细一致 ---- */
   async function loadOrderPage(page: number, append: boolean): Promise<void> {
@@ -2097,28 +2092,6 @@ export function EcoMallHomePage() {
                       busy: inviteBusy
                     }}
                   />
-
-                  {/* ---------- 邀请码 / 链接 ---------- */}
-                  <div className="eh-inv-rows">
-                    <div className="eh-inv-fld">
-                      <span className="eh-inv-fld-l">邀请码</span>
-                      <code className="eh-inv-fld-v">{inviteLink?.code ?? inviteLink?.codePreview ?? "—"}</code>
-                      <button
-                        type="button"
-                        className="eh-inv-copy"
-                        onClick={() => copyInviteText(inviteLink?.code ?? inviteLink?.codePreview ?? null, "邀请码已复制")}
-                      >复制</button>
-                    </div>
-                    <div className="eh-inv-fld">
-                      <span className="eh-inv-fld-l">邀请链接</span>
-                      <code className="eh-inv-fld-v eh-inv-link">{inviteLink?.link ?? "生成中…"}</code>
-                      <button
-                        type="button"
-                        className="eh-inv-copy"
-                        onClick={() => copyInviteText(inviteLink?.link ?? null, "邀请链接已复制")}
-                      >复制</button>
-                    </div>
-                  </div>
 
                   {inviteLink?.link ? (
                     <button type="button" className="eh-inv-regen" onClick={() => void createInviteLink(true)} disabled={inviteBusy}>

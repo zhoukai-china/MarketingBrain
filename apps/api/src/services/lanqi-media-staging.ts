@@ -11,6 +11,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { FastifyInstance } from "fastify";
 import { env } from "../config/env.js";
+import { createOssPrivateVideoStaging } from "./beauty-video-oss-staging.js";
+import { readLanqiMediaAsset } from "./lanqi-media-assets.js";
 
 const firstNamePattern = /^lanqi-ff-[A-Za-z0-9]{16,64}$/;
 const contentTypeExtension: Record<string, string> = {
@@ -32,12 +34,91 @@ export type LanqiFirstFrameMetadata = {
 
 export const LANQI_FIRST_FRAME_PUBLIC_PATH = "/lanqi/media/first-frame";
 
-/** 暂存能力是否就绪：公网基址 + 签名密钥缺一不可。 */
+/**
+ * 首帧图 OSS 通道（2026-10-04 用户拍板「交给模型的地址就该是 OSS 的」）：
+ * 首帧图与爆款复刻的素材走同一个私有暂存桶——上传用 `direct/` 前缀的预签名 PUT，
+ * 给模型的取图链接用预签名 GET（本就是 HTTPS + 限时签名，`PUBLIC_BASE_URL` 不再参与）。
+ * 本地盘仍然留底（readLanqiFirstFrame 复用与审计不变）；OSS 不可用时整体回退本地签名外链。
+ */
+type OssFirstFramePresigner = { presign(method: "PUT" | "GET", key: string, ttlSeconds: number, contentType?: string): Promise<string> };
+let ossFirstFrameCache: OssFirstFramePresigner | null | undefined;
+function ossFirstFramePresigner(): OssFirstFramePresigner | undefined {
+  if (ossFirstFrameCache !== undefined) return ossFirstFrameCache ?? undefined;
+  try {
+    if (env.BEAUTY_VIDEO_STAGING_DRIVER !== "aliyun_oss" || !env.BEAUTY_VIDEO_OSS_BUCKET) {
+      ossFirstFrameCache = null;
+      return undefined;
+    }
+    const driver = createOssPrivateVideoStaging({
+      config: {
+        bucket: env.BEAUTY_VIDEO_OSS_BUCKET ?? "",
+        region: env.BEAUTY_VIDEO_OSS_REGION ?? "",
+        prefix: env.BEAUTY_VIDEO_OSS_PREFIX ?? "",
+        approvedOrigin: env.BEAUTY_VIDEO_OSS_APPROVED_ORIGIN ?? ""
+      },
+      credentials: () => ({
+        accessKeyId: env.BEAUTY_VIDEO_OSS_ACCESS_KEY_ID ?? "",
+        accessKeySecret: env.BEAUTY_VIDEO_OSS_ACCESS_KEY_SECRET ?? "",
+        securityToken: env.BEAUTY_VIDEO_OSS_SECURITY_TOKEN ?? "",
+        expiresAt: Date.parse(env.BEAUTY_VIDEO_OSS_CREDENTIAL_EXPIRES_AT ?? "")
+      }),
+      now: Date.now
+    });
+    if (!driver.presign) {
+      ossFirstFrameCache = null;
+      return undefined;
+    }
+    ossFirstFrameCache = { presign: driver.presign };
+    return ossFirstFrameCache;
+  } catch {
+    ossFirstFrameCache = null;
+    return undefined;
+  }
+}
+
+/** 单镜 AI 首帧在 OSS 上的确定地址（生图产物要给视频模型抓取，必须是公网 HTTPS）。 */
+export function ossShotFrameKey(tenantId: string, frameId: string, extension: string): string {
+  return `${env.BEAUTY_VIDEO_OSS_PREFIX ?? ""}direct/${tenantId}/shot-frame/${frameId}${extension}`;
+}
+
+/** 把字节推到 OSS 直传区（预签名 PUT）。失败抛错，由调用方决定是否回退。 */
+export async function putOssStagedBytes(params: { key: string; contentType: string; bytes: Buffer }): Promise<void> {
+  const presigner = ossFirstFramePresigner();
+  if (!presigner) throw new Error("oss_direct_upload_unavailable");
+  const uploadUrl = await presigner.presign("PUT", params.key, 600, params.contentType);
+  const put = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": params.contentType },
+    body: new Uint8Array(params.bytes),
+    signal: AbortSignal.timeout(60_000)
+  });
+  if (!put.ok) throw new Error(`oss_put_${put.status}`);
+}
+
+/** 已上传对象的限时取图链接（预签名 GET）；OSS 不可用返回 undefined。 */
+export async function ossStagedUrl(params: { key: string; ttlSeconds?: number }): Promise<string | undefined> {
+  const presigner = ossFirstFramePresigner();
+  if (!presigner) return undefined;
+  try {
+    return await presigner.presign("GET", params.key, Math.min(params.ttlSeconds ?? 900, 900));
+  } catch {
+    return undefined;
+  }
+}
+
+function ossFirstFrameKey(tenantId: string, firstFrameId: string, extension: string): string {
+  return `${env.BEAUTY_VIDEO_OSS_PREFIX ?? ""}direct/${tenantId}/first-frame/${firstFrameId}${extension}`;
+}
+
+/** 暂存能力是否就绪：OSS 通道可用即就绪；否则退回「公网基址 + 签名密钥」本地模式。 */
 export function lanqiFirstFrameStagingIssue(): string | undefined {
+  if (ossFirstFramePresigner()) return undefined;
   if (!stagingSecret()) return "首帧图暂存签名密钥未配置，当前不能把门店素材交给视频模型。";
   const base = publicBase();
   if (!base) return "首帧图公网基址未配置，视频模型无法抓取门店素材。";
-  if (!/^https:\/\//.test(base)) return "首帧图公网基址必须是 HTTPS。";
+  // mock 模式放宽为允许本地 HTTP（2026-10-04）：mock 不真调视频模型，URL 不会被外部抓取，
+  // 本地联调没有 HTTPS 域名。real 模式仍强制 HTTPS——那时 URL 会被阿里云真实拉取。
+  if (env.LANQI_MEDIA_EXECUTION_MODE !== "mock" && !/^https:\/\//.test(base)) return "首帧图公网基址必须是 HTTPS。";
   return undefined;
 }
 
@@ -83,18 +164,66 @@ export async function stageLanqiFirstFrame(params: {
   if (!existing) {
     await writeFile(`${base}${extension}`, bytes);
     await writeFile(`${base}.json`, JSON.stringify(metadata, null, 2), "utf8");
+    // OSS 通道：同一份字节再进暂存桶（确定性 key，同图幂等覆盖直传区不受 forbid-overwrite 影响——
+    // direct/ 前缀的预签名 PUT 无对象级互斥），给视频模型的取图链接由此走 OSS 预签名 GET。
+    const presigner = ossFirstFramePresigner();
+    if (presigner) {
+      try {
+        const key = ossFirstFrameKey(params.tenantId, firstFrameId, extension);
+        const uploadUrl = await presigner.presign("PUT", key, 600, contentType);
+        const put = await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": contentType }, body: new Uint8Array(bytes), signal: AbortSignal.timeout(60_000) });
+        if (!put.ok) throw new Error(`oss_put_${put.status}`);
+      } catch {
+        // OSS 上传失败不阻断本地暂存：URL 生成时会自动探测并回退本地签名外链。
+      }
+    }
   }
   return existing ?? metadata;
+}
+
+/**
+ * 参考图交给模型抓取的链接（2026-10-05 加固）：先把字节**确保**推上 OSS 再签名 GET。
+ * 此前只做预签名——暂存时 OSS PUT 一旦失败（如 STS 过期窗口）对象缺失，模型抓 404
+ * 会静默无视参考图 → 纯文生图 → 人物随机（用户实测「人物不是我上传的」）。
+ */
+export async function lanqiFirstFrameReferenceUrl(params: { tenantId: string; firstFrameId: string; contentType: string; bytes: Buffer }): Promise<string> {
+  const presigner = ossFirstFramePresigner();
+  const extension = contentTypeExtension[params.contentType];
+  if (presigner && extension) {
+    try {
+      const key = ossFirstFrameKey(params.tenantId, params.firstFrameId, extension);
+      await putOssStagedBytes({ key, contentType: params.contentType, bytes: params.bytes });
+      const ttl = Math.min(env.LANQI_MEDIA_FIRST_FRAME_TTL_MINUTES * 60, 900);
+      return await presigner.presign("GET", key, ttl);
+    } catch {
+      /* OSS 通道异常 → 回退原逻辑（内含本地签名外链兜底） */
+    }
+  }
+  return lanqiFirstFramePublicUrl({ tenantId: params.tenantId, firstFrameId: params.firstFrameId, contentType: params.contentType });
 }
 
 export async function readLanqiFirstFrame(params: { tenantId: string; firstFrameId: string }): Promise<{ metadata: LanqiFirstFrameMetadata; bytes: Buffer } | undefined> {
   return readByTenantKey(tenantKey(params.tenantId), params.firstFrameId);
 }
 
-/** 生成交给视频模型抓取的限时签名外链（只对外暴露租户指纹与过期时间，不含租户 ID）。 */
-export function lanqiFirstFramePublicUrl(params: { tenantId: string; firstFrameId: string }): string {
+/** 生成交给视频模型抓取的限时签名外链：优先 OSS 预签名 GET（HTTPS）；OSS 不可用回退本地签名外链。 */
+export async function lanqiFirstFramePublicUrl(params: { tenantId: string; firstFrameId: string; contentType?: string }): Promise<string> {
   const issue = lanqiFirstFrameStagingIssue();
   if (issue) throw Object.assign(new Error("first_frame_staging_disabled"), { statusCode: 503, publicMessage: issue });
+  const presigner = ossFirstFramePresigner();
+  const extension = params.contentType ? contentTypeExtension[params.contentType] : undefined;
+  if (presigner && extension) {
+    // 预签名纯本地计算、零网络往返；key 由 stageLanqiFirstFrame 的扩展名映射确定性保证。
+    // STS 过期等运行时问题（credential() 校验）会在这里抛——必须兜住回退本地签名外链，
+    // 否则整条 quote 直接 500（2026-10-05 实测：STS 过期 3 小时后 quote 全挂）。
+    try {
+      const key = ossFirstFrameKey(params.tenantId, params.firstFrameId, extension);
+      const ttl = Math.min(env.LANQI_MEDIA_FIRST_FRAME_TTL_MINUTES * 60, 900);
+      return await presigner.presign("GET", key, ttl);
+    } catch {
+      /* OSS 通道异常 → 走本地回退 */
+    }
+  }
   const expiresAt = Math.floor(Date.now() / 1000) + env.LANQI_MEDIA_FIRST_FRAME_TTL_MINUTES * 60;
   const key = tenantKey(params.tenantId);
   const token = sign(params.firstFrameId, key, expiresAt);
@@ -149,12 +278,31 @@ export async function resolveLanqiFirstFrameInput(params: {
   firstFrameId?: string;
   firstFrame?: { contentType: string; dataBase64: string };
   imageUrl?: string;
+  /** 已生成的 AI 单镜首帧（方案④）：优先用它当起幅。 */
+  frameId?: string;
 }): Promise<{ ok: true; imageUrl?: string; firstFrameId?: string } | { ok: false; statusCode: number; error: string; message: string }> {
   if (params.kind !== "image_to_video") return { ok: true, imageUrl: params.imageUrl };
+  // 方案④ 优先：这一镜已经生成过 AI 首帧 → 现签一条 OSS 取图链接当 img_url（模型公网可抓取）。
+  if (params.frameId) {
+    try {
+      const asset = await readLanqiMediaAsset({ tenantId: params.tenantId, jobId: params.frameId });
+      const extension = asset.metadata.contentType === "image/jpeg" ? ".jpg" : asset.metadata.contentType === "image/webp" ? ".webp" : ".png";
+      const key = ossShotFrameKey(params.tenantId, params.frameId, extension);
+      let url = await ossStagedUrl({ key });
+      if (!url) {
+        await putOssStagedBytes({ key, contentType: asset.metadata.contentType, bytes: asset.bytes });
+        url = await ossStagedUrl({ key });
+      }
+      if (!url) return { ok: false, statusCode: 422, error: "shot_frame_unavailable", message: "这一镜的 AI 首帧暂时取不到，请重新生成一次首帧再出片。" };
+      return { ok: true, imageUrl: url, firstFrameId: params.frameId };
+    } catch {
+      return { ok: false, statusCode: 422, error: "shot_frame_unavailable", message: "这一镜的 AI 首帧取不到了，请重新生成一次首帧再出片。" };
+    }
+  }
   if (params.firstFrameId) {
     const asset = await readLanqiFirstFrame({ tenantId: params.tenantId, firstFrameId: params.firstFrameId });
     if (!asset) return { ok: false, statusCode: 422, error: "first_frame_not_found", message: "首帧图不存在或不属于当前门店，请重新选择。" };
-    return { ok: true, imageUrl: lanqiFirstFramePublicUrl({ tenantId: params.tenantId, firstFrameId: params.firstFrameId }), firstFrameId: params.firstFrameId };
+    return { ok: true, imageUrl: await lanqiFirstFramePublicUrl({ tenantId: params.tenantId, firstFrameId: params.firstFrameId, contentType: asset.metadata.contentType }), firstFrameId: params.firstFrameId };
   }
   if (params.firstFrame) {
     let staged: LanqiFirstFrameMetadata;
@@ -169,7 +317,7 @@ export async function resolveLanqiFirstFrameInput(params: {
         message: failure.publicMessage ?? "首帧图暂存失败，请重新选择。",
       };
     }
-    return { ok: true, imageUrl: lanqiFirstFramePublicUrl({ tenantId: params.tenantId, firstFrameId: staged.firstFrameId }), firstFrameId: staged.firstFrameId };
+    return { ok: true, imageUrl: await lanqiFirstFramePublicUrl({ tenantId: params.tenantId, firstFrameId: staged.firstFrameId, contentType: staged.contentType }), firstFrameId: staged.firstFrameId };
   }
   return { ok: true, imageUrl: params.imageUrl };
 }

@@ -544,7 +544,7 @@ function Root() {
   /*
    * 平台首页（智能体平台入口）：`/agents`。
    *
-   * 2026-09-11 由 `/market` 更名——产品对外叫「思潼AI 智能体平台」，入口地址不该再出现
+   * 2026-09-11 由 `/market` 更名——产品对外叫「思潼AI商城」，入口地址不该再出现
    * market（旧地址按下方兼容分支 1:1 跳转，已发出去的链接不会 404）。
    * `/agents` 是**精确匹配**：这里只是和 `/agents/:slug`（单品落地页）共用命名空间，
    * 不接管 `/agents/beauty-industry`、`/agents/acquisition` 等既有页面。
@@ -889,7 +889,7 @@ function DiagnosisAwareApp({
 
           <div className="reportActions">
             <button className="reportConfirmBtn" onClick={confirmDiagnosis}>
-              进入思潼AI 行业智能体平台 →
+              进入思潼AI商城 →
             </button>
             <button className="reportBackBtn" onClick={onReDiagnosis}>
               重新诊断

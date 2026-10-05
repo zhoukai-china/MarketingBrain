@@ -5,6 +5,14 @@ import { REPLICATION_CONTRACT, REPLICATION_MODEL, ReplicationProviderError, vali
 const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const requestFingerprint=(a:ReplicationAdmission,input:ReplicationRequest)=>digest({version:REPLICATION_CONTRACT,userId:a.userId,storeId:a.storeId,input,reference:a.reference.sha256,portrait:a.portrait.sha256,creditCost:a.creditCost,maxCostFen:a.maxCostFen});
 const terminal = new Set(["succeeded", "failed", "terminal_unknown", "canceled"]);
+
+/**
+ * 2026-10-04 本地联调：把每个阶段的中间产物打到日志 —— 后面挂了也能确认前面哪些环节 OK、算力扣/退到哪一步。
+ * 只打 id、状态与数值；**不打素材 URL 与任何密钥**（私有素材 URL 按既有约定不落日志）。
+ */
+function trace(stage: string, data: Record<string, unknown>) {
+  console.log(`[viral-replication] ${stage} ${JSON.stringify(data)}`);
+}
 export class ReplicationError extends Error {
   constructor(public readonly code: string, public readonly statusCode = 409) { super(code); }
 }
@@ -43,6 +51,7 @@ export function createReplicationRepository(db: any) {
       if (charge.status === "insufficient") throw new ReplicationError("insufficient_credits", 402);
       // 同键此前已退款：不能再放行（否则会因为钱包同键幂等而白送一次付费执行）。
       if (charge.status === "refunded") throw new ReplicationError("request_already_refunded", 409);
+      trace("wallet.charge", { requestKey: input.requestKey, credits: a.creditCost, status: charge.status });
       try {
         return await transaction(async tx => {
           const old = await tx.viralVideoReplicationJob.findFirst({ where: { tenantId: a.tenantId, requestKey: input.requestKey } });
@@ -62,6 +71,7 @@ export function createReplicationRepository(db: any) {
         if (old) throw new ReplicationError("idempotency_conflict");
         // 钱扣了但任务没落地：按同一 requestKey **原桶退回**（钱包侧同键只退一次）；
         // 这条 requestKey 随后会被 `chargeLanqiWallet` 判为已退款而拒绝重放，必须换新的 requestId 才能再来一次。
+        trace("wallet.refund", { requestKey: input.requestKey, reason: "replication_create_failed" });
         await refundLanqiWallet({ tenantId: a.tenantId, requestId: input.requestKey, skillId: "lanqi_video_replication", reason: "replication_create_failed", db });
         if (["P2002", "P2034"].includes((error as any)?.code)) throw new ReplicationError("concurrent_request_conflict");
         throw error;
@@ -69,6 +79,8 @@ export function createReplicationRepository(db: any) {
     },
     async get(id: string, tenantId: string): Promise<ReplicationJob | null> { return db.viralVideoReplicationJob.findFirst({ where: { id, tenantId } }); },
     async list(tenantId: string, userId?:string): Promise<ReplicationJob[]> { return db.viralVideoReplicationJob.findMany({ where: { tenantId,...(userId?{userId}:{}) }, orderBy: { createdAt: "desc" }, take: 20 }); },
+    // 后台 worker 用：跨租户扫非终态任务（2026-10-04，任务推进从"前端触发"改为"后端主动"）。
+    async listActive(take = 20): Promise<ReplicationJob[]> { return db.viralVideoReplicationJob.findMany({ where: { status: { in: ["queued", "submitted", "submitting", "polling", "processing", "persisting"] } }, orderBy: { createdAt: "asc" }, take }); },
     async claim(job: ReplicationJob, status: string, now: number): Promise<ReplicationJob | null> {
       const result = await db.viralVideoReplicationJob.updateMany({ where: { id: job.id, tenantId: job.tenantId, status: job.status, updatedAt: job.updatedAt, billingStatus: "reserved" }, data: { status, updatedAt: new Date(now) } });
       return result.count === 1 ? { ...job, status, updatedAt: new Date(now) } : null;
@@ -94,8 +106,10 @@ export function createReplicationRepository(db: any) {
         await tx.viralVideoReplicationJob.update({ where: { id: job.id }, data: { status, billingStatus: success ? "charged" : "refund_processing", errorCode: code ?? null, outputVideoUrl: null, completedAt: new Date(), authorizationSnapshot: { ...current.authorizationSnapshot, ...(artifact ? { artifact } : {}), ...(providerCostFen !== undefined ? { providerCostFen } : {}), providerRefundClaimed: false } } });
         return { tenantId: current.tenantId, requestKey: current.requestKey, reason: code ?? status, refund: !success };
       });
+      trace("job.finish", { jobId: job.id, to: status, code: code ?? null, refund: Boolean(pending?.refund), providerCostFen: providerCostFen ?? null });
       if (!pending?.refund) return;
       const refund = await refundLanqiWallet({ tenantId: pending.tenantId, requestId: pending.requestKey, skillId: "lanqi_video_replication", reason: pending.reason, db });
+      trace("wallet.refund.done", { jobId: job.id, requestKey: pending!.requestKey, reason: pending!.reason, status: refund.status });
       // 找不到可退的主体（owner 缺失）时保留 refund_processing：不要假装已经退过，留待人工/后续重试。
       if (refund.status === "owner_missing") throw new ReplicationError("lanqi_wallet_owner_missing", 409);
       await transaction(async tx => {
@@ -134,8 +148,13 @@ export function createReplicationRuntime(ports: ReplicationRuntimePorts) {
       await ports.authorize?.(a,"before_stage");
       const existing=await repo.findRequest(a,input);
       if(existing){await owned(existing.id,a);if(terminal.has(existing.status))await ports.cleanup?.(existing);return {job:publicReplicationJob(existing),idempotent:true};}
-      await ports.control?.claim(a,input);
+      // prestage（报价后的后台预暂存）会提前 claim 同一 requestKey 的许可——这里遇到"已 claim"直接复用放行，
+      // 其余许可错误（预算不足/过期/撤销）仍 fail-closed。
+      try{await ports.control?.claim(a,input);}
+      catch(error){if(!(error instanceof ReplicationError)||error.code!=="execution_batch_already_claimed")throw error;
+        trace("permit.claim",{reuse:true,requestKey:input.requestKey});}
       const staged = await ports.stage(a,input);
+      trace("stage.ok", { leaseId: staged.leaseId ?? null, hasAssertScope: Boolean(staged.assertScope) });
       let job: ReplicationJob | undefined;
       let submitted = false;
       try {
@@ -144,7 +163,8 @@ export function createReplicationRuntime(ports: ReplicationRuntimePorts) {
         await ports.authorize?.(a,"before_reserve");
         const created = await repo.create({...a,stagingLeaseId:staged.leaseId}, input, now());
         job = created.job;
-        if (!created.created) return { job: publicReplicationJob(job), idempotent: true };
+        if (!created.created) { trace("job.idempotent", { jobId: job.id, status: job.status, billingStatus: job.billingStatus }); return { job: publicReplicationJob(job), idempotent: true }; }
+        trace("job.created", { jobId: job.id, creditCost: a.creditCost, status: job.status, billingStatus: job.billingStatus, mode: input.mode });
         const lease = await repo.claim(job, "submitting", now());
         if (!lease) return { job: publicReplicationJob((await repo.get(job.id, a.tenantId))!), idempotent: true };
         job = lease;
@@ -154,7 +174,9 @@ export function createReplicationRuntime(ports: ReplicationRuntimePorts) {
         submitted = true;
         const taskId = await ports.submit({ ...staged, mode: input.mode },job);
         await repo.update(job, { providerTaskId: taskId, providerStatus: "PENDING", status: "submitted" });
+        trace("provider.submitted", { jobId: job.id, providerTaskId: taskId });
       } catch (error) {
+        trace("confirm.error", { jobId: job?.id ?? null, submitted, code: error instanceof ReplicationProviderError || error instanceof ReplicationError ? error.code : String((error as any)?.message ?? error).slice(0, 140) });
         if (job) {
           const unknown = submitted && (!(error instanceof ReplicationProviderError) || error.uncertain);
           await repo.finish(job, unknown ? "terminal_unknown" : "failed", error instanceof ReplicationProviderError||error instanceof ReplicationError ? error.code : submitted ? "submission_persistence_unknown" : "pre_submission_failed");
@@ -183,18 +205,21 @@ export function createReplicationRuntime(ports: ReplicationRuntimePorts) {
       let observedCostFen: number | undefined;
       try {
         const result = await ports.poll(job.providerTaskId!,job);
+        trace("provider.polled", { jobId: job.id, providerStatus: result.status, seconds: result.seconds ?? null, hasVideoUrl: Boolean(result.videoUrl) });
         if (["FAILED", "CANCELED", "UNKNOWN"].includes(result.status)) await repo.finish(job, result.status === "UNKNOWN" ? "terminal_unknown" : "failed", `provider_${result.status.toLowerCase()}`);
         else if (result.status === "SUCCEEDED") {
           const cost = Math.ceil((result.seconds ?? Infinity) * (snapshot.mode === "wan-pro" ? 90 : 60));
           if (Number.isSafeInteger(cost) && cost >= 0) observedCostFen = cost;
           if (!result.videoUrl || !Number.isFinite(result.seconds) || result.seconds! < 2 || result.seconds! > snapshot.maxOutputSeconds || cost > snapshot.maxCostFen) throw new ReplicationError("provider_output_contract_failed");
           const artifact = await ports.persist(job, result.videoUrl);
+          trace("artifact.persisted", { jobId: job.id, bytes: artifact.bytes, durationSeconds: artifact.durationSeconds, width: artifact.width, height: artifact.height, sha256: artifact.sha256 });
           if (artifact.durationSeconds < 2 || artifact.durationSeconds > snapshot.maxOutputSeconds || Math.abs(artifact.durationSeconds - result.seconds!) > 0.5 || artifact.width < 200 || artifact.height < 200 || artifact.bytes <= 0 || artifact.bytes > 200*1024*1024) throw new ReplicationError("artifact_metadata_invalid");
           await repo.finish(job, "succeeded", undefined, artifact, cost);
         } else if (["PENDING", "RUNNING"].includes(result.status)) {
           await repo.update(job, { status: "processing", providerStatus: result.status, authorizationSnapshot: { ...snapshot, pollCount: snapshot.pollCount + 1, nextPollAt: now() + 15_000 } });
         } else throw new ReplicationError("provider_status_invalid");
       } catch (error) {
+        trace("refresh.error", { jobId: job.id, code: error instanceof ReplicationProviderError || error instanceof ReplicationError ? error.code : String((error as any)?.message ?? error).slice(0, 140) });
         if (error instanceof ReplicationProviderError) {
           // Query is recoverable by explicit refresh of the same task id, never by another submit.
           await repo.update(job, { status: "processing", errorCode: error.code, authorizationSnapshot: { ...snapshot, pollCount: snapshot.pollCount + 1, nextPollAt: now() + 15_000 } });
@@ -202,6 +227,7 @@ export function createReplicationRuntime(ports: ReplicationRuntimePorts) {
         else await repo.finish(job, error instanceof ReplicationError&&error.code.startsWith("execution_")?"terminal_unknown":"failed", error instanceof ReplicationError ? error.code : "artifact_persistence_failed", undefined, observedCostFen);
       }
       const current=(await repo.get(id,a.tenantId))!;if(terminal.has(current.status))await ports.cleanup?.(current);
+      trace("job.state", { jobId: current.id, status: current.status, billingStatus: current.billingStatus, errorCode: current.errorCode ?? null, pollCount: current.authorizationSnapshot?.pollCount ?? null });
       return publicReplicationJob(current);
     },
     async cancel(id: string, a: ReplicationAdmission) {

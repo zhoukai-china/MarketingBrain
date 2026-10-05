@@ -64,6 +64,13 @@ export const BUNDLE_ORDER = ["ip-pos", "topic", "copy", "vidrev", "livescript", 
 export const IP_POS_PRICE = 99;
 export const IP_POS_UNIT = "算力";
 
+/**
+ * IP 定位「章节级补全」单价（2026-10-04）：25 算力/次。
+ * 与后端 `apps/api/src/routes/marketplace.ts` 的 `IP_POS_PATCH_PRICE` 必须一致，
+ * 用于工作台「增强项目」面板按钮旁的温馨提示。
+ */
+export const IP_POS_PATCH_PRICE = 25;
+
 export function coreSkuCode(skuCode: string): string {
   const separator = skuCode.indexOf("__");
   return separator >= 0 ? skuCode.slice(separator + 2) : skuCode;

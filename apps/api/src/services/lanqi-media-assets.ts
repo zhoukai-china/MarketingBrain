@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { env, domesticNetworkOnly, domesticOutboundAllowlist } from "../config/env.js";
 import { assertOutboundUrlAllowed } from "./outbound-policy.js";
@@ -18,6 +18,10 @@ export type LanqiMediaAssetMetadata = {
   savedAt?: string;
   retention: "tenant_owned";
   source: "provider" | "controlled_mock" | "composed";
+  /** 仅单镜 AI 首帧使用：这张首帧属于第几镜（服务端记账，浏览器丢状态也能找回）。 */
+  shotNo?: number;
+  /** 仅单镜 AI 首帧使用：生成时所属口播脚本的指纹。脚本变了旧首帧一律作废，防止人物/场景串场。 */
+  scriptKey?: string;
   /** 仅合成成片（LQ-32）使用：这条成片是否带音轨、由几镜拼成、用了哪种音轨来源。 */
   composed?: {
     shotCount: number;
@@ -28,7 +32,7 @@ export type LanqiMediaAssetMetadata = {
   };
 };
 
-export async function persistLanqiProviderImage(params: { tenantId: string; jobId: string; sourceUrl: string }): Promise<LanqiMediaAssetMetadata> {
+export async function persistLanqiProviderImage(params: { tenantId: string; jobId: string; sourceUrl: string; shotNo?: number; scriptKey?: string }): Promise<LanqiMediaAssetMetadata> {
   if (env.LANQI_MEDIA_ASSET_STORAGE !== "local") throw new Error("media_asset_storage_not_ready");
   assertOutboundUrlAllowed("Lanqi generated image", params.sourceUrl, { domesticNetworkOnly, allowedHosts: domesticOutboundAllowlist });
   const response = await fetch(params.sourceUrl, { signal: AbortSignal.timeout(60_000) });
@@ -39,15 +43,15 @@ export async function persistLanqiProviderImage(params: { tenantId: string; jobI
   if (!contentType) throw new Error("media_asset_invalid_content_type");
   const bytes = Buffer.from(await response.arrayBuffer());
   if (bytes.length === 0 || bytes.length > maxImageBytes) throw new Error("media_asset_invalid_size");
-  return writeAsset({ tenantId: params.tenantId, jobId: params.jobId, bytes, contentType, source: "provider" });
+  return writeAsset({ tenantId: params.tenantId, jobId: params.jobId, bytes, contentType, source: "provider", shotNo: params.shotNo, scriptKey: params.scriptKey });
 }
 
-export async function persistLanqiMockImage(params: { tenantId: string; jobId: string; prompt: string; ratio?: string; label?: string }): Promise<LanqiMediaAssetMetadata> {
+export async function persistLanqiMockImage(params: { tenantId: string; jobId: string; prompt: string; ratio?: string; label?: string; shotNo?: number; scriptKey?: string }): Promise<LanqiMediaAssetMetadata> {
   const title = escapeXml(params.prompt.replace(/\s+/g, " ").slice(0, 42));
   const label = escapeXml(params.label ?? "受控模拟成图");
   const [width, height] = mockCanvas(params.ratio);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff8ed"/><stop offset="1" stop-color="#ef8a3a"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><circle cx="${Math.round(width * .76)}" cy="${Math.round(height * .25)}" r="${Math.round(Math.min(width, height) * .18)}" fill="#fff" opacity=".55"/><rect x="${Math.round(width * .08)}" y="${Math.round(height * .62)}" width="${Math.round(width * .84)}" height="${Math.round(height * .24)}" rx="28" fill="#fff" opacity=".9"/><text x="${Math.round(width * .12)}" y="${Math.round(height * .7)}" font-family="sans-serif" font-size="${Math.max(22, Math.round(width * .035))}" font-weight="700" fill="#713410">${label}</text><text x="${Math.round(width * .12)}" y="${Math.round(height * .77)}" font-family="sans-serif" font-size="${Math.max(16, Math.round(width * .022))}" fill="#7a5b46">${title}</text><text x="${Math.round(width * .12)}" y="${Math.round(height * .83)}" font-family="sans-serif" font-size="${Math.max(14, Math.round(width * .018))}" fill="#9a7358">零费用流程验收 · 不代表真实模型画质</text></svg>`;
-  return writeAsset({ tenantId: params.tenantId, jobId: params.jobId, bytes: Buffer.from(svg), contentType: "image/svg+xml", source: "controlled_mock" });
+  return writeAsset({ tenantId: params.tenantId, jobId: params.jobId, bytes: Buffer.from(svg), contentType: "image/svg+xml", source: "controlled_mock", shotNo: params.shotNo, scriptKey: params.scriptKey });
 }
 
 /**
@@ -71,6 +75,18 @@ export async function persistLanqiComposedVideo(params: {
     source: "composed",
     composed: params.composed,
   });
+}
+
+/**
+ * mock 回放视频落盘（2026-10-04）：一键成片 mock 的"成片"原来落一张 SVG 占位图，
+ * `<video>` 播不了（黑屏 0:00）。现在视频类任务回放真实 MP4，页面能真实播放/下载。
+ */
+export async function persistLanqiMockVideo(params: { tenantId: string; jobId: string; bytes: Buffer }): Promise<LanqiMediaAssetMetadata> {
+  if (env.LANQI_MEDIA_ASSET_STORAGE !== "local") throw new Error("media_asset_storage_not_ready");
+  if (params.bytes.length === 0 || params.bytes.length > maxVideoBytes) throw new Error("media_asset_invalid_size");
+  // 只认 MP4 容器魔数，与 provider 落盘同一条校验线。
+  if (params.bytes.length < 12 || params.bytes.subarray(4, 8).toString("latin1") !== "ftyp") throw new Error("media_asset_invalid_container");
+  return writeAsset({ tenantId: params.tenantId, jobId: params.jobId, bytes: params.bytes, contentType: "video/mp4", source: "controlled_mock" });
 }
 
 export async function readLanqiComposeIndex(params: { tenantId: string; requestKey: string }): Promise<{ composeId: string } | undefined> {
@@ -144,7 +160,7 @@ export function lanqiMediaAssetUrl(jobId: string): string {
   return `/lanqi/media/assets/${encodeURIComponent(jobId)}`;
 }
 
-async function writeAsset(params: { tenantId: string; jobId: string; bytes: Buffer; contentType: LanqiMediaAssetMetadata["contentType"]; source: LanqiMediaAssetMetadata["source"]; composed?: LanqiMediaAssetMetadata["composed"] }): Promise<LanqiMediaAssetMetadata> {
+async function writeAsset(params: { tenantId: string; jobId: string; bytes: Buffer; contentType: LanqiMediaAssetMetadata["contentType"]; source: LanqiMediaAssetMetadata["source"]; composed?: LanqiMediaAssetMetadata["composed"]; shotNo?: number; scriptKey?: string }): Promise<LanqiMediaAssetMetadata> {
   assertJobId(params.jobId);
   const base = assetBase(params.tenantId, params.jobId);
   await mkdir(path.dirname(base), { recursive: true });
@@ -161,9 +177,39 @@ async function writeAsset(params: { tenantId: string; jobId: string; bytes: Buff
     retention: "tenant_owned",
     source: params.source,
     ...(params.composed ? { composed: params.composed } : {}),
+    ...(params.shotNo ? { shotNo: params.shotNo } : {}),
+    ...(params.scriptKey ? { scriptKey: params.scriptKey } : {}),
   };
   await writeFile(`${base}.json`, JSON.stringify(metadata, null, 2), "utf8");
   return metadata;
+}
+
+/**
+ * 本租户最近生成的单镜首帧列表（2026-10-05）：首帧是门店花真金白银生成的，
+ * 不能只活在浏览器内存里。页面挂载时按这个列表找回（服务端是账本，浏览器只是缓存）。
+ */
+export async function listLanqiShotFrames(params: { tenantId: string; limit?: number }): Promise<Array<{ frameId: string; shotNo?: number; createdAt: string; source: string; contentType: string; bytes: number }>> {
+  const key = tenantKey(params.tenantId);
+  const root = path.resolve(env.UPLOAD_DIR, "lanqi-media", key);
+  let names: string[] = [];
+  try {
+    names = await readdir(root);
+  } catch {
+    return [];
+  }
+  const frames: Array<{ frameId: string; shotNo?: number; scriptKey?: string; createdAt: string; source: string; contentType: string; bytes: number; selectedAt?: string }> = [];
+  for (const name of names) {
+    if (!name.startsWith("lanqi-sf-") || !name.endsWith(".json")) continue;
+    try {
+      const meta = JSON.parse(await readFile(path.join(root, name), "utf8")) as LanqiMediaAssetMetadata;
+      if (meta.tenantKey !== key || meta.jobId !== name.replace(/\.json$/, "")) continue;
+      frames.push({ frameId: meta.jobId, shotNo: meta.shotNo, scriptKey: meta.scriptKey, createdAt: meta.createdAt, source: meta.source, contentType: meta.contentType, bytes: meta.bytes, selectedAt: meta.selectedAt });
+    } catch {
+      /* 单条元数据损坏就跳过，不影响其余 */
+    }
+  }
+  frames.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return typeof params.limit === "number" ? frames.slice(0, Math.max(1, params.limit)) : frames;
 }
 
 /** 合成幂等索引：按租户 + requestKey 记住「这一组镜次只合成一次」。 */

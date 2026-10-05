@@ -18,8 +18,8 @@ const createReportSchema = z.object({
 });
 
 const createDocxSchema = z.object({
-  title: z.string().min(1).max(120).default("思潼AI 行业智能体平台咨询报告"),
-  filename: z.string().min(1).max(180).default("思潼AI 行业智能体平台咨询报告.docx"),
+  title: z.string().min(1).max(120).default("思潼AI商城咨询报告"),
+  filename: z.string().min(1).max(180).default("思潼AI商城咨询报告.docx"),
   content: z.string().min(1).max(120000),
   consultantName: z.string().max(40).optional(),
   consultantTitle: z.string().max(80).optional()
@@ -159,7 +159,10 @@ export async function registerReportRoutes(
 
     const context = await resolveRequestContext(request.headers);
     const branding = resolveTenantBranding(context.profile.data);
-    const requestedFilename = parsed.data.filename === "思潼AI 行业智能体平台咨询报告.docx"
+    // 旧客户端仍会送「思潼AI 行业智能体平台咨询报告.docx」这个哨兵值（品牌更名前的默认名），
+    // 两个默认名都按「未指定」处理，换成当前租户品牌；其它文件名原样尊重。
+    const DEFAULT_DOCX_FILENAMES = ["思潼AI商城咨询报告.docx", "思潼AI 行业智能体平台咨询报告.docx"];
+    const requestedFilename = DEFAULT_DOCX_FILENAMES.includes(parsed.data.filename)
       ? `${branding.brandName} ${branding.systemName}咨询报告.docx`
       : parsed.data.filename;
     const safeFilename = sanitizeDocxFilename(requestedFilename);
@@ -189,7 +192,7 @@ function sanitizeDocxFilename(raw: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 150);
-  const fallback = base || "思潼AI 行业智能体平台咨询报告";
+  const fallback = base || "思潼AI商城咨询报告";
   return fallback.toLowerCase().endsWith(".docx") ? fallback : `${fallback}.docx`;
 }
 
@@ -485,7 +488,7 @@ function markdownToHtml(markdown: string): string {
     '<html lang="zh-CN">',
     "<head>",
     '<meta charset="utf-8" />',
-    "<title>思潼AI 行业智能体平台经营报告</title>",
+    "<title>思潼AI商城经营报告</title>",
     "<style>body{font-family:Arial,'Microsoft YaHei',sans-serif;max-width:860px;margin:40px auto;line-height:1.8;color:#17211d}h1,h2{line-height:1.3}h1{font-size:28px}h2{font-size:20px;margin-top:28px}p{white-space:pre-wrap}</style>",
     "</head>",
     "<body>",

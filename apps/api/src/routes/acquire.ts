@@ -22,8 +22,8 @@ import {
   type LiveInput
 } from "../products/beauty-industry/live-service.js";
 import {
-  buildStoryboard,
-  rebuildShot,
+  buildStoryboardWithLlm,
+  rebuildShotWithLlm,
   validateVideoScriptInput,
   type StoryboardInput
 } from "../products/beauty-industry/video-script-service.js";
@@ -109,7 +109,8 @@ const VIDEO_SCRIPT_SCHEMA = z.object({
   splitMode: z.enum(["auto", "s10", "s5"]).default("auto"),
   castName: z.string().trim().max(40).optional(),
   sceneNames: z.array(z.string().trim().max(40)).max(12).optional(),
-  propNames: z.array(z.string().trim().max(40)).max(12).optional()
+  propNames: z.array(z.string().trim().max(40)).max(12).optional(),
+  targetSeconds: z.number().int().min(10).max(120).optional()
 });
 
 const VIDEO_SHOT_SCHEMA = z.object({
@@ -433,15 +434,22 @@ export async function registerAcquireRoutes(app: FastifyInstance, basePath = "/b
         splitMode: parsed.data.splitMode,
         castName: parsed.data.castName,
         sceneNames: parsed.data.sceneNames,
-        propNames: parsed.data.propNames
+        propNames: parsed.data.propNames,
+        targetSeconds: parsed.data.targetSeconds
       };
       const missing = validateVideoScriptInput(input);
       if (missing.length) {
         return reply.code(422).send({ code: "invalid_video_script_input", message: `还差必填：${missing.join("、")}` });
       }
-      return { ok: true, tenantId: context.tenantId, result: buildStoryboard(input) };
+      return { ok: true, tenantId: context.tenantId, result: await buildStoryboardWithLlm(input) };
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown";
+      if (message === "llm_provider_not_configured") {
+        return reply.code(503).send({ code: "video_script_unavailable", message: "分镜改写服务还没有开通，暂时生成不了分镜。" });
+      }
+      if (/llm_output_invalid_structure/.test(message)) {
+        return reply.code(502).send({ code: "video_script_llm_failed", message: "这次分镜没改写成功，请再点一次重试。" });
+      }
       return reply.code(500).send({ code: "video_script_error", message });
     }
   });
@@ -457,11 +465,18 @@ export async function registerAcquireRoutes(app: FastifyInstance, basePath = "/b
       const denied = await assertStoreAccess(context, parsed.data.storeId);
       if (denied) return reply.code(denied.code).send({ code: denied.bodyCode, message: denied.message });
       const { storeId: _storeId, ...shotInput } = parsed.data;
-      return { ok: true, tenantId: context.tenantId, result: rebuildShot(shotInput) };
+      return { ok: true, tenantId: context.tenantId, result: await rebuildShotWithLlm(shotInput) };
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown";
       const invalid = /是空的|请先补上/.test(message);
-      return reply.code(invalid ? 422 : 500).send({ code: invalid ? "invalid_video_shot_input" : "video_shot_error", message });
+      if (invalid) return reply.code(422).send({ code: "invalid_video_shot_input", message });
+      if (message === "llm_provider_not_configured") {
+        return reply.code(503).send({ code: "video_shot_unavailable", message: "分镜改写服务还没有开通，暂时重写不了这一镜。" });
+      }
+      if (/llm_output_invalid_structure/.test(message)) {
+        return reply.code(502).send({ code: "video_shot_llm_failed", message: "这一镜没改写成功，请再点一次重试。" });
+      }
+      return reply.code(500).send({ code: "video_shot_error", message });
     }
   });
 

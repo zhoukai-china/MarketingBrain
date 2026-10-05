@@ -1044,7 +1044,20 @@ export async function runMarketplaceSku(params: {
  */
 const IP_POS_PRECHECK_SLOTS = ["role", "project", "competition", "user", "founder", "stage"] as const;
 type IpPosPrecheckSlot = (typeof IP_POS_PRECHECK_SLOTS)[number];
-type IpPosPrecheckIssue = { slot: IpPosPrecheckSlot; verdict: "weak" | "missing"; followup: string };
+/**
+ * 一条体检结论。2026-10-03（用户「这两个合并成一个，都按第二个填空的方式」）：体检追问
+ * 也改成**填空句** `sentence`（中文方括号【】留空），与 gaps 同构——前端把体检项和运营缺口
+ * 合并成同一个填空面板渲染，用户填的空统一作为「预采集补充」带进生成。
+ * `followup` 保留：一是作为「填空句缺失」时的兜底自由输入提示，二是保留旧问句语义。
+ */
+type IpPosPrecheckIssue = { slot: IpPosPrecheckSlot; verdict: "weak" | "missing"; sentence?: string; followup: string };
+/**
+ * 生成前预测出的「运营级缺口」：9 件全案会用到、但 6 步访谈没覆盖的细节。用户可答可不答。
+ * 2026-10-02（用户「这些最好是填空题」）：改用 **填空句** `sentence`——把要补的信息用
+ * 中文方括号【】留空（如「我希望在【目标城市】投放，每月投入【月预算】用于获客」），
+ * 前端把每个【】渲染成输入框，用户像填表一样填。`question` 保留疑问句作为兜底。
+ */
+export type IpPosGap = { area: string; sentence: string; question?: string };
 
 const ipPosPrecheckSchema = z.object({
   answers: z.record(z.string(), z.string().max(4000))
@@ -1063,20 +1076,48 @@ const IP_POS_PRECHECK_SYSTEM_PROMPT = `你是 IP 定位访谈的预审员。用�
 - founder：创始人背景、擅长、性格关键词，以及做 IP 的核心目标（获客/招商/品牌）
 - stage：现有账号与粉丝量、出镜镜头感（自然度 1-10 分）、每周可投入时间
 
-只输出一个 JSON 数组，不要输出任何其他文字。每个不达标的槽位一个对象：
-[{"slot":"competition","verdict":"missing","followup":"一条具体的追问，针对该槽位缺什么、让老板好回答"}]
-达标的槽位不要出现在数组里。slot 只能取：role、project、competition、user、founder、stage。最多 6 条。
+只输出一个 JSON 对象，不要输出任何其他文字，结构如下：
+{"issues":[...],"gaps":[...]}
+issues 是不达标的 6 个槽位（规则见下）。gaps 是你预测这份「9 件全案（速览+8章：定位/用户/人设/内容/选题/投流/规划/执行）」生成时最可能缺的**运营级细节**——6 步访谈覆盖不到、但全案会写到、用户不补就会留【待补】的信息。
 
+issues 规则：
+每个不达标的槽位一个对象，**两个字段都要给**：
+[{"slot":"competition","verdict":"missing","sentence":"我的直接竞品是【竞品名】，我们靠【差异化】赢","followup":"一条具体的追问，针对该槽位缺什么、让老板好回答"}]
+- 达标的槽位不要出现在数组里。slot 只能取：role、project、competition、user、founder、stage。最多 6 条。
+- sentence 是**填空句**，和 gaps 的写法完全一致（前端会把它们合并成同一个填空面板）：
+  用第一人称把缺的信息填进一句人话里，要补的内容用中文方括号【】留空，每条 1-3 个空，
+  空里写「要填什么」的名词（如【竞品名】【差异化】【客单价】），空里不要写问号、不要写成疑问句，
+  全句 20-40 字，读起来像用户自己会说的一句话。
+- followup 保留一句自然追问（15-40 字，作为兜底文案）。
 followup 的硬性边界（2026-09-30 用户：追问脱离了收集信息的范畴就不行）：
-- followup 只能是「引导用户补充该槽位信息」的问句，目的是把缺的关键点问出来；
+- sentence / followup 都只能是「引导用户补充该槽位信息」，目的是把缺的关键点补齐；
 - 禁止让用户背话术、念文案、现场表演或"发一条/说一段/拍一条我看看"——那不是访谈，是考核；
 - 禁止向用户索要任何需要额外准备的物料（截图、视频、历史内容）；
-- 只围绕上面列的该槽位关键点提问，一条 15-40 字，语气自然像访谈，不要像审问。`;
+- 只围绕上面列的该槽位关键点，语气自然像访谈，不要像审问。
+
+gaps 规则（可选补充，不答也能生成）：
+从运营落地角度预测 3-5 条最可能影响全案准确度的缺口，**每条写成一句「填空句」**：
+- 用第一人称、把这条信息填进一句人话里，要补的内容用中文方括号【】留空；
+- 每条留 1-3 个空；空里写「要填什么」的名词（如【目标城市】【月预算】【门店数】），
+  空里**不要写问号、不要写成疑问句**；
+- 全句 20-40 字，读起来像用户自己会说的一句话。
+可参照的缺口方向（按用户行业挑最相关的，不要照抄）：
+- 预算/投放：月投放预算、目标投流城市、当前月销售额；
+- 团队/规模：团队人数、现有/目标门店数、当前粉丝量阶段；
+- 产品/定价：核心产品具体名称、主力客单价、现有定价区间；
+- 渠道/内容：主发平台、是否已有可引用的真实案例/数据。
+范例（仅示范句式，内容要贴合用户）：
+- {"area":"预算/投放","sentence":"我希望主投【目标城市】，每月投放预算【月预算】"}
+- {"area":"团队/规模","sentence":"目前总部【人数】人，今年计划开到【门店数】家加盟店"}
+- {"area":"产品/定价","sentence":"加盟费约【金额】，设备物料约【金额】"}
+- {"area":"渠道/内容","sentence":"主阵地是【平台】，已有【案例数】个可引用的真实案例"}
+每条对象：{"area":"预算/投放…","sentence":"…【…】…"}。
+gaps 是「建议补充（可选）」——用户答了全案更准，不答也能正常生成，不要把它写成必填要求。`;
 
 /** 解析预审输出：只保留槽位白名单内的 weak/missing 项，其余一律丢弃（防模型编造槽位导致回填串格）。 */
-/** 返回 null = 输出根本不是 JSON 数组（degraded）；[] = 解析成功且全部达标。 */
-function parseIpPosPrecheck(text: string): IpPosPrecheckIssue[] | null {
-  const match = /\[[\s\S]*\]/.exec(text ?? "");
+/** 返回 null = 输出根本不是合法 JSON 对象（degraded）；否则 {issues, gaps}。 */
+function parseIpPosPrecheck(text: string): { issues: IpPosPrecheckIssue[]; gaps: IpPosGap[] } | null {
+  const match = /\{[\s\S]*\}/.exec(text ?? "");
   if (!match) return null;
   let raw: unknown;
   try {
@@ -1084,24 +1125,49 @@ function parseIpPosPrecheck(text: string): IpPosPrecheckIssue[] | null {
   } catch {
     return null;
   }
-  if (!Array.isArray(raw)) return null;
+  if (typeof raw !== "object" || raw === null) return null;
+  const obj = raw as { issues?: unknown; gaps?: unknown };
   const issues: IpPosPrecheckIssue[] = [];
-  for (const item of raw.slice(0, 6)) {
-    const record = item as { slot?: unknown; verdict?: unknown; followup?: unknown };
-    const slot = record.slot;
-    const verdict = record.verdict;
-    let followup = String(record.followup ?? "").trim();
-    if (typeof slot !== "string" || !(IP_POS_PRECHECK_SLOTS as readonly string[]).includes(slot)) continue;
-    if (verdict !== "weak" && verdict !== "missing") continue;
-    if (!followup) continue;
-    // 代码级保险：模型哪怕不守提示词约束，出了「背话术/发一条看看」这类脱离收集范畴的
-    // 表演式追问，也在这里拦下，替换成通用补强问法（2026-09-30 用户反馈）。
-    if (/我看看|发一条|拍一条|说一段|来一段|背一下|念一下|发给我|录一段|截图|发个视频/.test(followup)) {
-      followup = "这一项回答可以再具体一点：补充关键细节（是谁、凭什么、有啥可验证的），全案会更准。";
+  if (Array.isArray(obj.issues)) {
+    for (const item of (obj.issues as unknown[]).slice(0, 6)) {
+      const record = item as { slot?: unknown; verdict?: unknown; sentence?: unknown; followup?: unknown };
+      const slot = record.slot;
+      const verdict = record.verdict;
+      let sentence = String(record.sentence ?? "").trim();
+      let followup = String(record.followup ?? "").trim();
+      if (typeof slot !== "string" || !(IP_POS_PRECHECK_SLOTS as readonly string[]).includes(slot)) continue;
+      if (verdict !== "weak" && verdict !== "missing") continue;
+      if (!sentence && !followup) continue;
+      // 代码级保险：模型哪怕不守提示词约束，出了「背话术/发一条看看」这类脱离收集范畴的
+      // 表演式追问，也在这里拦下，替换成通用补强问法（2026-09-30 用户反馈）。
+      if (/我看看|发一条|拍一条|说一段|来一段|背一下|念一下|发给我|录一段|截图|发个视频/.test(sentence + followup)) {
+        sentence = "";
+        followup = "这一项回答可以再具体一点：补充关键细节（是谁、凭什么、有啥可验证的），全案会更准。";
+      }
+      // 2026-10-03：体检项也要走填空面板——没有【】的句子不算填空句，置空让前端退回自由输入。
+      if (sentence && !/【[^】]{1,24}】/.test(sentence)) sentence = "";
+      issues.push({ slot: slot as IpPosPrecheckSlot, verdict, sentence: sentence || undefined, followup });
     }
-    issues.push({ slot: slot as IpPosPrecheckSlot, verdict, followup });
   }
-  return issues;
+  const gaps: IpPosGap[] = [];
+  if (Array.isArray(obj.gaps)) {
+    for (const item of (obj.gaps as unknown[]).slice(0, 5)) {
+      const record = item as { area?: unknown; sentence?: unknown; question?: unknown };
+      const area = String(record.area ?? "").trim();
+      // 首选填空句 sentence；模型没给就退回旧问句 question（前端一样能渲染）。
+      let sentence = String(record.sentence ?? "").trim();
+      let question = String(record.question ?? "").trim();
+      if (!area || (!sentence && !question)) continue;
+      // 代码级保险：模型哪怕不守提示词约束，出了「背话术 / 发一条看看」这类脱离收集范畴的
+      // 要求，就在此丢弃填空句并退回一句通用补问（2026-09-30 用户反馈）。
+      if (/我看看|发一条|拍一条|说一段|来一段|背一下|念一下|发给我|录一段|截图|发个视频/.test(sentence + question)) {
+        sentence = "";
+        question = `可以补充一下「${area}」相关的具体信息，全案会更准。`;
+      }
+      gaps.push({ area, sentence, question: question || undefined });
+    }
+  }
+  return { issues, gaps };
 }
 
 export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<void> {
@@ -1273,11 +1339,12 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
         .filter((slot) => !(answers[slot] ?? "").trim())
         .map((slot) => ({ slot, verdict: "missing" as const, followup: "这一项还没有填写，请先补充。" }));
       if (localMissing.length === IP_POS_PRECHECK_SLOTS.length) {
-        return { ok: true, issues: localMissing, degraded: false };
+        return { ok: true, issues: localMissing, gaps: [], degraded: false };
       }
 
       let degraded = false;
       let llmIssues: IpPosPrecheckIssue[] = [];
+      let llmGaps: IpPosGap[] = [];
       const usage = { promptTokens: 0, completionTokens: 0, reasoningTokens: 0 };
       const provider = new DomesticChatProvider({
         providerName: "deepseek",
@@ -1302,14 +1369,17 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
             { role: "system", content: IP_POS_PRECHECK_SYSTEM_PROMPT },
             { role: "user", content: userContent }
           ] as LlmMessage[],
-          { reasoningProfile: "standard", thinkingMode: "disabled", maxTokens: 1200, responseFormat: "json_object" }
+          // 2026-10-02：这个 JSON 现在同时要出 issues(≤6) + gaps(3-5)，原来 1200 tokens 容易被截断
+          // → JSON.parse 失败 → degraded → 前端拿不到 gaps（用户实测「没看到 3-5 补问」的可能成因之一）。
+          { reasoningProfile: "standard", thinkingMode: "disabled", maxTokens: 2400, responseFormat: "json_object" }
         );
         const parsedIssues = parseIpPosPrecheck(text);
         if (parsedIssues === null) {
           // 模型没按要求输出 JSON：按「体检没做成」处理，不拦生成（正式 run 校验兜底）。
           degraded = true;
         } else {
-          llmIssues = parsedIssues;
+          llmIssues = parsedIssues.issues;
+          llmGaps = parsedIssues.gaps;
         }
       } catch (modelError) {
         request.log.warn(
@@ -1322,7 +1392,7 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
       const merged = new Map<IpPosPrecheckSlot, IpPosPrecheckIssue>();
       for (const issue of llmIssues) merged.set(issue.slot, issue);
       for (const issue of localMissing) merged.set(issue.slot, issue);
-      return { ok: true, issues: [...merged.values()], degraded };
+      return { ok: true, issues: [...merged.values()], gaps: llmGaps, degraded };
     });
 
     /**
@@ -1413,6 +1483,173 @@ export async function registerMarketplaceRoutes(app: FastifyInstance): Promise<v
     };
     market.post("/interview-hints", interviewHintsHandler);
     market.post("/ip-pos/interview-hints", interviewHintsHandler);
+
+    /**
+     * ip-pos 生成后「章节级补全」：首稿交付后，针对含【待补】的章节，用用户补充信息做定向重写，
+     * 只重写指定章节、其他章节不动——远低于整包重跑（99 算力）的成本。
+     * 非阻断：用户不补也能看首稿；补了更准。走钱包，不足额返回 402，模型失败不扣费。
+     */
+    const IP_POS_PATCH_PRICE = 25;
+    const IP_POS_PATCH_SECTION_KEYS = ["positioning", "user", "ip", "content", "topics", "ads", "growth", "execution"];
+    const IP_POS_PATCH_SYSTEM_PROMPT = `你是 IP 定位全案的修订编辑。用户已生成一份全案，其中若干章节含有待补标记（如「待补充：月预算」「待补充：目标城市」「【待补】」）。用户现在提供了针对这些标记的补充信息。
+
+任务：只重写请求里列出的章节，把其中的【待补】/「待补充：…」替换成基于用户补充的真实内容。
+
+硬性要求：
+- 每个待重写章节必须保留其原有首行章标题（如「六、投流建议」），不要改章编号与标题；
+- 未标【待补】的原文（数据、结论、案例、表格）必须原样保留，不要改写、不要增删其他章节；
+- 仅替换【待补】处：用用户对应回答中的真实信息填充，不要编造用户没给的内容；若用户回答仍不足以填充，保留该【待补】标记；
+- 输出严格 JSON 对象，键为 sectionKey（与输入一致），值为该章节重写后的完整 Markdown 字符串；
+- 只输出该 JSON，不要任何额外说明文字。`;
+
+    market.post<{ Params: { skuId: string } }>("/skus/:skuId/ip-pos/complete", async (request, reply) => {
+      const parsedSchema = z
+        .object({
+          answers: z.record(z.string().max(4000)).optional(),
+          patches: z
+            .array(
+              z.object({
+                sectionKey: z.string().refine((v) => IP_POS_PATCH_SECTION_KEYS.includes(v), { message: "invalid sectionKey" }),
+                title: z.string().min(1).max(40),
+                draft: z.string().min(1).max(8000),
+                items: z
+                  .array(z.object({ instruction: z.string().min(1).max(300), answer: z.string().min(1).max(2000) }))
+                  .min(1)
+                  .max(20)
+              })
+            )
+            .min(1)
+            .max(8)
+        })
+        .safeParse(request.body ?? {});
+      if (!parsedSchema.success) {
+        return reply.code(400).send({ error: "invalid_request", details: parsedSchema.error.flatten() });
+      }
+      const context = await resolveRequestContext(request.headers);
+      if (context.source !== "database") {
+        return reply.code(401).send({ error: "marketplace_auth_required", message: "请先登录后再补全。" });
+      }
+      const sku = await getMarketplaceSku(request.params.skuId);
+      if (!sku || !sku.skuCode.endsWith("__ip-pos")) {
+        return reply.code(404).send({ error: "marketplace_sku_not_found" });
+      }
+      const { answers, patches } = parsedSchema.data;
+      const activeSubscription = context.source === "database" ? await activeSubscriptionFor(context, sku.id) : null;
+      const coveredBySubscription = Boolean(activeSubscription);
+      const price = coveredBySubscription ? 0 : IP_POS_PATCH_PRICE;
+      const walletBefore = await readWallet(context.userId);
+      if (!coveredBySubscription && walletBefore.balance < price) {
+        return reply.code(402).send({
+          error: "insufficient_credits",
+          message: "当前算力不足，请先充值后再补全。",
+          balance: walletBefore.balance,
+          required: price
+        });
+      }
+      const requestId = randomUUID();
+      const provider = new DomesticChatProvider({
+        providerName: "deepseek",
+        apiKey: env.DEEPSEEK_API_KEY,
+        baseUrl: env.DEEPSEEK_BASE_URL,
+        model: process.env.MARKETPLACE_MODEL ?? "deepseek-v4-flash",
+        timeoutMs: env.LLM_TIMEOUT_MS,
+        domesticNetworkOnly,
+        allowedHosts: domesticOutboundAllowlist,
+        onUsage: () => {}
+      });
+      const demandDoc =
+        "6 步访谈需求单（背景参考，不要当作要改的内容）：\n" +
+        Object.entries(answers ?? {})
+          .map(([k, v]) => `- ${k}：${v || "（空）"}`)
+          .join("\n");
+      const userContent = [
+        demandDoc,
+        "",
+        "【需要补全的章节（只重写下面列出的章节，其他章节不要输出）】",
+        JSON.stringify(patches.map((p) => ({ sectionKey: p.sectionKey, title: p.title, draft: p.draft, items: p.items })), null, 2)
+      ].join("\n");
+      let rawText: string;
+      try {
+        rawText = (await provider.complete(
+          [
+            { role: "system", content: IP_POS_PATCH_SYSTEM_PROMPT },
+            { role: "user", content: userContent }
+          ] as LlmMessage[],
+          { reasoningProfile: "standard", thinkingMode: "disabled", maxTokens: 6000, responseFormat: "json_object" }
+        )) as unknown as string;
+      } catch (modelError) {
+        request.log.warn({ event: "ip_pos_patch_failed", err: String(modelError) }, "ip-pos 章节补全调用失败，不扣费");
+        return reply.code(502).send({
+          error: "marketplace_provider_failed",
+          message: "补全生成失败，本次不消耗算力，请稍后重试或整包重跑。"
+        });
+      }
+      const open = rawText.indexOf("{");
+      const close = rawText.lastIndexOf("}");
+      if (open < 0 || close <= open) {
+        return reply.code(502).send({ error: "marketplace_output_invalid", message: "补全结果解析失败，本次不消耗算力，请重试。" });
+      }
+      let parsed: Record<string, unknown>;
+      try {
+        parsed = JSON.parse(rawText.slice(open, close + 1)) as Record<string, unknown>;
+      } catch {
+        return reply.code(502).send({ error: "marketplace_output_invalid", message: "补全结果解析失败，本次不消耗算力，请重试。" });
+      }
+      const sections: Record<string, string> = {};
+      for (const p of patches) {
+        const val = parsed[p.sectionKey];
+        if (typeof val === "string" && val.trim().length > 0) sections[p.sectionKey] = val.trim();
+      }
+      if (Object.keys(sections).length === 0) {
+        return reply.code(502).send({ error: "marketplace_output_invalid", message: "补全结果为空，本次不消耗算力，请重试。" });
+      }
+      let walletAfter = walletBefore;
+      let spent: { paid: number; bonus: number } = { paid: 0, bonus: 0 };
+      if (!coveredBySubscription) {
+        const consumed = await consumeWalletCredits({
+          userId: context.userId,
+          requestId,
+          price,
+          skillId: sku.skuCode,
+          source: "web"
+        });
+        if (consumed.status === "insufficient") {
+          return reply.code(402).send({
+            error: "insufficient_credits",
+            message: "当前算力不足，请先充值后再补全。",
+            balance: consumed.wallet.balance,
+            required: price
+          });
+        }
+        walletAfter = consumed.wallet;
+        spent = consumed.spent;
+      }
+      await prisma.marketplaceLedgerEntry
+        .create({
+          data: {
+            tenantId: context.tenantId,
+            userId: context.userId,
+            skuId: sku.id,
+            type: "ppu_consume",
+            direction: "debit",
+            amountCredits: price,
+            amountCny: 0,
+            status: "completed",
+            idempotencyKey: requestId,
+            refType: "ip_pos_patch",
+            refId: requestId,
+            metadata: { pricingMode: coveredBySubscription ? "subscription" : "fixed_ppu", patchedSections: Object.keys(sections) }
+          }
+        })
+        .catch((error: unknown) => request.log.warn({ err: error }, "ip_pos_patch ledger failed"));
+      return {
+        ok: true,
+        sections,
+        consumedCredits: price,
+        balance: walletAfter.balance,
+        spent
+      };
+    });
 
     market.get("/me", async (request, reply) => {
       const context = await resolveRequestContext(request.headers);
@@ -3177,7 +3414,7 @@ const IP_POS_COMMON_RULES = [
   "- 需要补充：…（最多 3 条，一次最多问 3 个问题，只问真正缺的，不要重复用户已经给过的信息）",
   "信息够用时，绝对不要出现「需补充信息」这几个字。",
   "【不做什么】不写逐字口播稿 / 拍摄脚本（那是文案智能体的活）、不做实际投放、不承诺涨粉或客资数字、不给回本周期结论。",
-  "【空值与参考项】用户没给的数据（粉丝量、门店数、月营收、客单价、成本等）：①严禁把它写成用户的事实——禁止编造任何品牌名、数字、案例、资质、客户原话；②但必须给**参考项**：写「参考：行业常见做法是……（非你的数据，需你确认替换）」——参考项必须带「参考」字样并注明非用户数据，让老板知道好答案长什么样；③参考项给不出有把握的行业常识时才退回「待补充：需要用户提供…」。",
+  "【空值与参考项】用户没给的数据（粉丝量、门店数、月营收、客单价、成本等）：①严禁把它写成用户的事实——禁止编造任何品牌名、数字、案例、资质、客户原话；②但必须给**参考项**：写「参考：行业常见做法是……（非你的数据，需你确认替换）」——参考项必须带「参考」字样并注明非用户数据，让老板知道好答案长什么样；③参考项给不出有把握的行业常识时才退回标记占位，写法统一为「待补充：<缺的那一项>」（如「待补充：客单价」「待补充：门店数」）——标记里只写缺的项名，绝不写解释句、引号、百分比，也不要写「需要用户提供」这类空壳（那会让用户看不懂要补什么）。",
   "【违禁词·命中即判失败】用户可见文案（一句话定位、人设描述、语言正例、签名档、选题标题、钩子话术、执行建议）里禁止出现：私信 / 加微信 / 打电话 / 联系我 / 找我 / 留个 / 扫码；第一 / 唯一 / 最好 / 绝对 / 100% / 保证 / 顶级；包回本 / 稳赚 / 月入过万 / 零风险 / 躺赚 / 必赚。引导一律用「评论区说下你在哪个城市」「看主页置顶」这类合规说法，也不要在正文里复述这些词。",
   "【五步递进不许跳步】项目 → 用户 → 人设 → 内容 → 选题。",
   "【格式】只输出 Markdown 正文；章节号、章节标题、字段名严格照抄下面的结构，表格列名一字不改；不要输出推导过程、评分标准、内部评估、工作区 / 任务卡 / 提示词等字样。"
@@ -3209,11 +3446,11 @@ const IP_POS_SYSTEM_PROMPT_A = [
   "### 1.2 核心差异化",
   "| 序号 | 差异化点 | 支撑证据 | 用户价值 |",
   "|---|---|---|---|",
-  "至少 3 行；「支撑证据」必须是真实数据 / 客户原话 / 可验证事实，禁止只写「专业」「靠谱」这类形容词；用户没给证据时写两段式：「参考项：行业常见做法是……（非你的数据，需替换）」+「待补充：需要用户提供……」。",
+  "至少 3 行；「支撑证据」必须是真实数据 / 客户原话 / 可验证事实，禁止只写「专业」「靠谱」这类形容词；用户没给证据时写两段式：「参考项：行业常见做法是……（非你的数据，需替换）」+ 该格标记「待补充：<缺的那一项>」（只写缺什么，如「待补充：客户原话」，不要写解释句）。",
   "### 1.3 竞品对比",
   "| 维度 | 我们 | 竞品A | 竞品B | 机会点 |",
   "|---|---|---|---|---|",
-  "至少 3 行；竞品 ≥2 个；用户没给具体竞品就构造**占位竞品并给参考画像**（如「竞品A（隔壁连锁快餐·出餐快/口味标准化）」，禁止编造真实品牌名），维度格里给行业常见做法作「参考项：……（需按你的真实对手替换）」，不写光秃秃的「待补充」。",
+  "至少 3 行；竞品 ≥2 个；用户没给具体竞品就构造**占位竞品并给参考画像**（如「竞品A（隔壁连锁快餐·出餐快/口味标准化）」，禁止编造真实品牌名），维度格里给行业常见做法作「参考项：……（需按你的真实对手替换）」，不写光秃秃的「待补充」（要写就写清缺哪一项，如「待补充：竞品真实数据」）。",
   "### 1.4 阶段判断",
   "- 当前阶段：起步期 / 成长期 / 成熟期（按用户给的账号现状判断）",
   "- IP策略方向：一句话说明先做什么、不做什么",
@@ -3359,14 +3596,14 @@ const IP_POS_SYSTEM_PROMPT_B = [
   "### 6.3 本地推投放方案",
   "| 场景 | 目标 | 金额 | 范围 | 关键设置 |",
   "|---|---|---|---|---|",
-  "投放城市没给就写「待补充：需用户确认目标城市」，不要编造。",
+  "投放城市没给时，该格写标记「待补充：目标城市」占位——标记里只写缺的项名，后面不要跟任何解释句、引号或百分比；严禁编造城市。",
   "### 6.4 月预算分配",
   "| 项目 | 金额 | 占比 |",
   "|---|---|---|",
   "| DOU+ | … | …% |",
   "| 本地推 | … | …% |",
   "| **合计** | **…** | **100%** |",
-  "预算金额未给时按「待补充：需用户确认月预算」处理，占比给出建议值且合计 100%。",
+  "预算金额未给时，金额格写标记「待补充：月预算」（标记里只写缺的项名，不要跟解释句），占比照常给建议值且合计 100%。",
   "### 6.5 第一个月投放日历",
   "| 日期 | 投什么内容 | 渠道 | 金额 |",
   "|---|---|---|---|",

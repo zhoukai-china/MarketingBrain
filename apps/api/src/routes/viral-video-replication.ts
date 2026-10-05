@@ -1,10 +1,11 @@
-import { timingSafeEqual } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import type { FastifyInstance } from "fastify";
 import { prisma } from "@baolu/db";
 import { env } from "../config/env.js";
 import { getBearerToken, verifySessionToken } from "../services/auth-token.js";
 import { resolveRequestContext, type RequestContext } from "../services/request-context.js";
+import { storeBuffer } from "../services/file-storage.js";
 import { REPLICATION_CONTRACT, replicationSchema, replicationCapabilityGaps, validateReplicationAdmission, validateViralReplicationInput, type ReplicationAdmission, type ReplicationRequest } from "../services/viral-video-replication.js";
 import { ReplicationError, createReplicationRepository, publicReplicationJob, type createReplicationRuntime } from "../services/viral-video-replication-runtime.js";
 import { createVideoAssetAuthorization } from "../services/beauty-video-asset-authorization.js";
@@ -23,6 +24,9 @@ export type ReplicationRoutePorts = {
   runtime?: ReturnType<typeof createReplicationRuntime>;
   repository?: ReturnType<typeof createReplicationRepository>;
   authorization?: ReturnType<typeof createVideoAssetAuthorization>;
+  /** 受控链路的暂存服务（stage/release + 浏览器直传预签名）与单批许可控制（prestage 需要提前 claim）。 */
+  staging?: Omit<ReturnType<typeof import("../services/beauty-video-private-staging.js").createVideoPrivateStaging>, "presign"> & { presign?(method: "PUT" | "GET", key: string, ttlSeconds: number, contentType?: string): Promise<string> };
+  control?: import("../services/viral-video-replication-runtime.js").ReplicationRuntimePorts["control"];
 };
 
 export async function registerViralVideoReplicationRoutes(app: FastifyInstance, ports: ReplicationRoutePorts = {}): Promise<void> {
@@ -38,6 +42,37 @@ export async function registerViralVideoReplicationRoutes(app: FastifyInstance, 
       policy:{creditCost:env.ALIYUN_VIDEO_REPLICATION_CREDITS,maxCostFen:env.ALIYUN_VIDEO_REPLICATION_MAX_COST_FEN,maxOutputSeconds:30,...(env.ALIYUN_VIDEO_REPLICATION_CREDITS_PER_SECOND>0?{creditsPerSecond:env.ALIYUN_VIDEO_REPLICATION_CREDITS_PER_SECOND}:{})}}),...ports};
   }
   const repo = ports.repository ?? createReplicationRepository(prisma);
+  // 后台任务推进 worker（2026-10-04）：任务推进从「前端触发 refresh」改为「后端主动轮询」——
+  // 页面关掉任务也能跑完；前端只读任务状态。runtime 自带 nextPollAt 限频，5s 一拍不会打爆供应商。
+  if (ports.runtime && ports.admission && !(app as unknown as { __viralReplicationWorker?: boolean }).__viralReplicationWorker) {
+    (app as unknown as { __viralReplicationWorker?: boolean }).__viralReplicationWorker = true;
+    let ticking = false;
+    const runtime = ports.runtime;
+    const tick = async () => {
+      if (ticking) return;
+      ticking = true;
+      try {
+        const jobs = await repo.listActive(20);
+        for (const job of jobs) {
+          try {
+            const actor = { tenantId: job.tenantId, userId: job.userId, source: "database" as const };
+            const a = await ports.admission!(actor as unknown as RequestContext, undefined, job.id);
+            if (!a) continue;
+            await runtime.refresh(job.id, a);
+          } catch (error) {
+            console.log(`[viral-replication] worker.skip ${JSON.stringify({ jobId: job.id, code: error instanceof ReplicationError ? error.code : String((error as { message?: string })?.message ?? error).slice(0, 120) })}`);
+          }
+        }
+      } catch (error) {
+        console.log(`[viral-replication] worker.tick-failed ${JSON.stringify({ message: String((error as { message?: string })?.message ?? error).slice(0, 120) })}`);
+      } finally {
+        ticking = false;
+      }
+    };
+    const workerTimer = setInterval(() => void tick(), 5000);
+    workerTimer.unref?.();
+    void tick();
+  }
   async function context(headers: Record<string, unknown>): Promise<RequestContext> {
     let c: RequestContext;
     if (ports.context) c = await ports.context(headers);
@@ -73,9 +108,10 @@ export async function registerViralVideoReplicationRoutes(app: FastifyInstance, 
     if (admission) {
       // LQ-34 ③：报价阶段「够不够这一次」必须和扣费同源 —— 读**租户 owner 的通用钱包余额**
       // （兰琪充值的钱就进这本账）。找不到 owner 也按"不够"处理：不放行、不建任务、不扣费。
+      // 2026-10-04：视频生成不收赠送积分 → 按 **paid 桶**判定，赠送再多也不算够。
       const balance = ports.creditBalance
         ? await ports.creditBalance(c.tenantId)
-        : (await readLanqiWalletBalance(c.tenantId))?.balance ?? null;
+        : (await readLanqiWalletBalance(c.tenantId))?.paidBalance ?? null;
       if (balance === null || balance < admission.creditCost) gaps.push("insufficient_credits");
     }
     return { c, input, admission, gaps: [...new Set(gaps)] };
@@ -94,6 +130,7 @@ export async function registerViralVideoReplicationRoutes(app: FastifyInstance, 
   app.post("/viral-video-replication/quote", async (request, reply) => {
     try {
       const p = await preflight(request.headers, request.body);
+      console.log(`[viral-replication] quote ${JSON.stringify({ gaps: p.gaps, canConfirm: p.gaps.length === 0, creditCost: p.admission?.creditCost ?? null })}`);
       return { contractVersion: REPLICATION_CONTRACT, model: "aliyun_strict", mode: "只替换授权人物，保留参考视频原背景、动作和光照；不提供新口播或换背景。", canConfirm: p.gaps.length === 0, creditCost: p.admission?.creditCost ?? null, gaps: p.gaps, message: p.gaps.length ? "这一版还不能出片（缺口见下方），不会创建任务、不会预留算力。" : "请确认本次报价；不会自动重试或补做。" };
     } catch (error) { return safeError(error, reply); }
   });
@@ -141,6 +178,72 @@ export async function registerViralVideoReplicationRoutes(app: FastifyInstance, 
       } catch (error) { return safeError(error, reply); }
     } });
   }
+  // 预暂存（2026-10-04）：报价成功后前端自动触发，把「素材上传到 OSS」从用户点击 confirm 的那 5 秒里挪出来。
+  // 与 confirm 共用同一 requestKey → stage 按 requestHash 幂等，confirm 直接复用租约、不再重传。
+  app.post("/viral-video-replication/prestage", async (request, reply) => {
+    try {
+      const p = await preflight(request.headers, request.body);
+      const blocking = p.gaps.filter((gap) => gap !== "insufficient_credits");
+      if (blocking.length || !p.admission || !ports.runtime) return reply.code(422).send({ error: "replication_preflight_blocked", gaps: p.gaps });
+      if (!ports.staging?.stage) throw new ReplicationError("staging_unavailable", 503);
+      // 云端 PUT 受单批许可约束：prestage 先 claim（同一 requestKey），confirm 遇"已 claim"复用。
+      if (ports.control?.claim) {
+        try { await ports.control.claim(p.admission, p.input); }
+        catch (error) { if (!(error instanceof ReplicationError) || error.code !== "execution_batch_already_claimed") throw error; }
+      }
+      const staged = await ports.staging.stage(p.admission, p.input);
+      console.log(`[viral-replication] prestage ${JSON.stringify({ leaseId: staged.leaseId, requestKey: p.input.requestKey ?? null })}`);
+      return { staged: true, leaseId: staged.leaseId };
+    } catch (error) { return safeError(error, reply); }
+  });
+
+  // 浏览器直传 OSS：后端只签发 10 分钟预签名 PUT，不经手媒体字节（桶需配置 CORS 后浏览器才可用）。
+  const DIRECT_KINDS = {
+    reference: { exts: ["mp4", "mov", "avi"], limitMb: 200, mime: (ext: string) => (ext === "mp4" ? "video/mp4" : ext === "mov" ? "video/quicktime" : "video/x-msvideo") },
+    portrait: { exts: ["png", "jpg", "jpeg", "webp", "bmp"], limitMb: 5, mime: (ext: string) => ({ png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", bmp: "image/bmp" }[ext] ?? "image/jpeg") },
+    basis: { exts: ["txt", "pdf"], limitMb: 5, mime: (ext: string) => (ext === "pdf" ? "application/pdf" : "text/plain") }
+  } as const;
+  app.post("/viral-video-replication/upload-url", async (request, reply) => {
+    try {
+      const c = await context(request.headers);
+      const body = (request.body ?? {}) as { kind?: string; name?: string };
+      const kind = body.kind && body.kind in DIRECT_KINDS ? (body.kind as keyof typeof DIRECT_KINDS) : null;
+      if (!kind) throw new ReplicationError("invalid_request", 400);
+      const ext = (body.name?.split(".").pop() ?? "").toLowerCase();
+      if (!ext || !(DIRECT_KINDS[kind].exts as readonly string[]).includes(ext)) throw new ReplicationError("invalid_request", 422);
+      if (!ports.staging?.presign) throw new ReplicationError("direct_upload_unavailable", 503);
+      const key = `${env.BEAUTY_VIDEO_OSS_PREFIX ?? ""}direct/${c.tenantId}/${randomUUID()}.${ext}`;
+      const uploadUrl = await ports.staging.presign("PUT", key, 600, DIRECT_KINDS[kind].mime(ext));
+      console.log(`[viral-replication] upload-url ${JSON.stringify({ kind, keyTail: key.slice(-36) })}`);
+      return { uploadUrl, key, expiresIn: 600, contentType: DIRECT_KINDS[kind].mime(ext) };
+    } catch (error) { return safeError(error, reply); }
+  });
+
+  // 直传回源登记：浏览器 PUT 到 OSS 后，后端把对象取回本地 uploads 目录，走与 /files 完全相同的登记与下游校验。
+  app.post("/files/from-oss", async (request, reply) => {
+    try {
+      const c = await context(request.headers);
+      const body = (request.body ?? {}) as { key?: string; name?: string; kind?: string };
+      const key = String(body.key ?? "");
+      // key 全形 = <OSS前缀>direct/<租户>/…（与 upload-url 生成的完全一致），前缀校验要含 OSS 前缀。
+      if (!key.startsWith(`${env.BEAUTY_VIDEO_OSS_PREFIX ?? ""}direct/${c.tenantId}/`)) throw new ReplicationError("file_not_found", 404);
+      const kind = body.kind && body.kind in DIRECT_KINDS ? (body.kind as keyof typeof DIRECT_KINDS) : null;
+      if (!kind || !ports.staging?.presign) throw new ReplicationError("invalid_request", 400);
+      const ext = (body.name?.split(".").pop() ?? "").toLowerCase();
+      const getUrl = await ports.staging.presign("GET", key, 60);
+      const response = await fetch(getUrl, { signal: AbortSignal.timeout(60_000) });
+      console.log(`[viral-replication] ingest ${JSON.stringify({ keyTail: key.slice(-36), status: response.status })}`);
+      if (!response.ok) throw new ReplicationError("oss_object_not_found", 404);
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.length > DIRECT_KINDS[kind].limitMb * 1024 * 1024) throw new ReplicationError("file_too_large", 413);
+      const upload = await storeBuffer({ tenantId: c.tenantId, filename: body.name ?? `upload.${ext}`, mimeType: DIRECT_KINDS[kind].mime(ext), buffer });
+      const record = env.DATA_MODE === "demo"
+        ? null
+        : await prisma.uploadedFile.create({ data: { id: upload.id, tenantId: c.tenantId, userId: c.userId, filename: upload.filename, mimeType: upload.mimeType, byteSize: upload.byteSize, storagePath: upload.storagePath, sha256: upload.sha256 } });
+      return { dataMode: env.DATA_MODE, file: record ?? { id: upload.id, filename: upload.filename, mimeType: upload.mimeType, byteSize: upload.byteSize, storagePath: upload.storagePath, sha256: upload.sha256 } };
+    } catch (error) { return safeError(error, reply); }
+  });
+
   app.post("/viral-video-replication/callbacks/aliyun", async (request, reply) => {
     const received = Buffer.from(String(request.headers["x-aliyun-replication-token"] ?? ""));
     const expected = Buffer.from(env.ALIYUN_VIDEO_REPLICATION_CALLBACK_TOKEN ?? "");

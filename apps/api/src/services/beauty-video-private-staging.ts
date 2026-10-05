@@ -14,6 +14,8 @@ export type PrivateVideoStagingDriver={
   url(object:StagedObject):Promise<string>;
   assertUrl(url:string,object:StagedObject):Promise<void>;
   remove(object:StagedObject):Promise<void>;
+  /** 浏览器直传 / 回源读取的预签名（仅 OSS 驱动实现；本地驱动无外部地址，不实现）。 */
+  presign?(method:"PUT"|"GET",key:string,ttlSeconds:number,contentType?:string):Promise<string>;
 };
 const objectKey=/^[a-f0-9]{32}-(reference|portrait)\.(mp4|png|jpg|webp|bmp|mov|avi)$/;
 /** A local private service adapter, NOT a public staging cloud. Never compatible with real Provider transport. */
@@ -65,6 +67,26 @@ export function createVideoPrivateStaging(db:any,authorization:ReturnType<typeof
     const refs=await Promise.all([authorization.inspect(actor,a.reference.fileId,"reference"),authorization.inspect(actor,a.portrait.fileId,input.template==="kol_visit"?"kol":"owner")]);
     const requestHash=videoFileHash(JSON.stringify([a.userId,a.storeId,input.requestKey,refs.map(r=>[r.record.id,r.record.version,r.material.sha256])]));
     let lease=await db.beautyVideoStagingLease.findFirst({where:{tenantId:a.tenantId,requestHash}});
+    // released 墓碑（prestage 失败后遗留）：对象已删净，行只会挡住同 requestKey 的重试（P2002）→ 删行重建，confirm 才能自愈。
+    if(lease&&lease.status==="released"){await db.beautyVideoStagingLease.delete({where:{id:lease.id}}).catch(()=>undefined);lease=null;}
+    // 竞态守卫（2026-10-04 无头复现）：prestage 在途时 lease 处于 creating/pending，confirm 若走进续期分支
+    // 会把别人的在途对象 release 掉（两边全炸 409/503）。创建中的租约只回明确信号，绝不动它。
+    if(lease&&lease.status!=="active")throw new ReplicationError("staging_in_progress",409);
+    if(lease&&+lease.expiresAt<=now()){
+      // 过期/失效租约（用户报价后隔了一段时间才点确认）：授权仍一致就**原对象续期复用**——
+      // 对象还在桶里，不必重传；授权变了按既有语义 fail-closed（素材变更本来就该重新走）。
+      try{
+        const actor:VideoActor={tenantId:a.tenantId,userId:a.userId};
+        if(((await authorization.scope(actor)).storeId??null)!==(lease.storeId??null))throw new ReplicationError("staging_scope_changed",409);
+        const objects=lease.objects as StagedObject[];
+        const inspects=await Promise.all(objects.map(o=>authorization.inspect(actor,o.fileId,o.role)));
+        inspects.forEach((r,i)=>{if(r.record.id!==objects[i].authorizationId||r.record.version!==objects[i].version||r.material.sha256!==objects[i].sha256)throw new ReplicationError("authorization_changed",409);});
+        const expiresAt=Math.min(now()+15*60_000,...inspects.map(r=>+r.record.expiresAt));
+        if(expiresAt<=now()+1000)throw new ReplicationError("authorization_expiring",422);
+        lease=await db.beautyVideoStagingLease.update({where:{id:lease.id},data:{expiresAt:new Date(expiresAt),objects:objects.map(o=>({...o,expiresAt}))}});
+        await audit(lease,"renewed","lease_renewed_objects_reused_no_reupload");
+      }catch(e){await release(lease.id).catch(()=>undefined);throw e instanceof ReplicationError?e:new ReplicationError("staging_lease_unavailable",409);}
+    }
     if(!lease){
       const id=randomUUID().replaceAll("-",""),expiresAt=Math.min(now()+15*60_000,...refs.map(r=>+r.record.expiresAt));
       if(expiresAt<=now()+1000)throw new ReplicationError("authorization_expiring",422);
@@ -81,6 +103,7 @@ export function createVideoPrivateStaging(db:any,authorization:ReturnType<typeof
     return {leaseId:lease.id,referenceVideoUrl,portraitImageUrl,assertScope,release:()=>release(lease.id)};
   }
   return {stage,release,validate,
+    ...(driver.presign?{presign:(method:"PUT"|"GET",key:string,ttlSeconds:number,contentType?:string)=>driver.presign!(method,key,ttlSeconds,contentType)}:{}),
     async authorizeFetch(key:string){
       if(!objectKey.test(key))throw new ReplicationError("staged_object_not_found",404);
       const lease=await db.beautyVideoStagingLease.findUnique({where:{id:key.split("-")[0]}});await validate(lease);

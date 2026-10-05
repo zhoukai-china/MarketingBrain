@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { getAppPath } from "../../lib/api.js";
+import { RechargeDrawer } from "../../marketplace/RechargeDrawer.js";
 
 export type BrainActive = "brain" | "home" | "cases" | "acquire" | "moments" | "crm" | "analysis" | "sales" | "store";
 
@@ -53,6 +54,8 @@ export function LanqiBrainShell({ active, mainTitle, subtitle, crumb, headerSlot
    */
   const [syncToast, setSyncToast] = useState("");
   const [syncing, setSyncing] = useState(false);
+  // 2026-10-04（用户）：点「我的 · 充值」不再整页跳 /recharge，**当前页直接弹充值抽屉**。
+  const [showRecharge, setShowRecharge] = useState(false);
   function onSync() {
     if (syncing) return;
     setSyncing(true);
@@ -105,10 +108,10 @@ export function LanqiBrainShell({ active, mainTitle, subtitle, crumb, headerSlot
                 → 门店点「我的」会被送到平台货架，**在兰琪里根本找不到充值入口**。
                 改为直达钱包页（余额 + 充值套餐 + 订单），文案也说明点它是去充值。
               */}
-              <a href={getAppPath("/recharge")} className="lq-pd__me" title="查看余额 / 充值算力">
+              <button type="button" className="lq-pd__me" title="查看余额 / 充值算力（当前页弹窗）" onClick={() => setShowRecharge(true)}>
                 <span className="lq-pd__me-avatar">🧑</span>
                 <span className="lq-pd__me-label">我的 · 充值</span>
-              </a>
+              </button>
               {/*
                 「今日待办」原来是个没有 onClick 的 <button>，点了没反应（报告 Bug6）。
                 这里改成真链接：跳到驾驶舱「今天干什么」，那里才是按当前信号生成的动作清单。
@@ -120,6 +123,16 @@ export function LanqiBrainShell({ active, mainTitle, subtitle, crumb, headerSlot
           </header>
           <section className="lq-pd__body">{children}</section>
           {syncToast ? <div className="lq-cw__toast" role="status" data-lanqi-sync-toast>{syncToast}</div> : null}
+          {/* 当前页充值抽屉（复用商城的 RechargeDrawer）：支付成功在本页提示，不跳转。 */}
+          <RechargeDrawer
+            open={showRecharge}
+            onClose={() => setShowRecharge(false)}
+            onPaid={() => {
+              setShowRecharge(false);
+              setSyncToast("充值成功，算力已到账。");
+              window.setTimeout(() => setSyncToast(""), 2600);
+            }}
+          />
         </main>
       </div>
   );

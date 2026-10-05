@@ -223,6 +223,12 @@
 .cpw-bf-k { font-size: 11px; color: var(--sub); display: flex; align-items: center; gap: 5px; }
 .cpw-bf-v { font-size: 12.8px; font-weight: 600; margin-top: 2px; color: #93a3b3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .cpw-bf.filled .cpw-bf-v { color: var(--ink); }
+/* 定位简报底部「额外补充」：用户点生成前填的运营缺口补答，固化进简报展示 */
+.cpw-brief-extra { margin-top: 10px; background: #f3f8f1; border: 1px solid #d4e6cf; border-radius: 12px; padding: 9px 11px; }
+.cpw-be-k { font-size: 11px; color: #4f7a45; font-weight: 700; display: flex; align-items: center; gap: 5px; }
+.cpw-be-x { font-size: 12px; }
+.cpw-be-bd { margin-top: 5px; display: flex; flex-direction: column; gap: 3px; }
+.cpw-be-line { font-size: 12.5px; font-weight: 600; color: #2f4a29; line-height: 1.5; }
 
 .cpw-ops { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
 .cpw-big-btn { border: none; border-radius: 12px; font-weight: 800; font-size: 13.5px; padding: 9px 20px; cursor: pointer; transition: 0.2s; }
@@ -429,16 +435,8 @@
 .cpw-opt:disabled { opacity: 0.55; cursor: default; }
 .cpw-bf.flash { animation: cpwBfpop 0.5s; }
 @keyframes cpwBfpop { 40% { transform: scale(1.04); border-color: var(--orange); } }
-/* 生成前体检追问卡（保留 slot 精确勾销能力，套新皮肤） */
-.cpw-review { margin-top: 10px; border: 1px solid var(--orange-line); background: #fffaf5; border-radius: 12px; padding: 10px 12px; }
-.cpw-review .ir-t { font-size: 12.5px; font-weight: 800; color: var(--orange); margin-bottom: 4px; }
-.cpw-ir { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; font-size: 12.5px; line-height: 1.55; }
-.cpw-ir-badge { flex: none; font-size: 10.5px; font-weight: 800; border-radius: 8px; padding: 1px 7px; margin-top: 1px; }
-.cpw-ir-badge.missing { color: #fff; background: var(--red); }
-.cpw-ir-badge.weak { color: var(--amber); background: var(--amber-soft); }
-.cpw-ir-main b { color: var(--ink); margin-right: 6px; }
-.cpw-ir-main span { color: var(--sub); }
-.cpw-ir-done { flex: none; color: var(--green); font-weight: 800; }
+/* 2026-10-03（用户「这两个合并成一个，都按第二个填空的方式」）：
+   原「生成前体检追问卡」（.cpw-review / .cpw-ir*）已删除——体检项并进 .cpw-gaps 填空面板。 */
 
 /* =====================================================================
    共享扩展：视频复盘工作台（VidrevWorkbench）—— 拖拽框 / 体检卡 / 覆盖 chips / 状态徽标
@@ -544,25 +542,123 @@
 }
 @keyframes cpw-btn-rot { to { transform: rotate(360deg); } }
 
-/* 体检卡底部的双按钮行（2026-09-30）：补强 / 直接生成，两条路都一眼可见。
+/* 补充面板底部的放行按钮（2026-10-03 起只有一个「补充好了，直接生成」）。
    注意：.cpw-opt 默认配色是给深色聊天面板的（近白文字 #dce8e1 + 透明底），
-   放进浅色体检卡（#fffaf5）会整个隐形（用户实测）——这里显式给浅底配色。 */
-.cpw-review-ops { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
-.cpw-review-ops .cpw-opt {
+   放进浅色面板（#f5f9fc）会整个隐形（用户实测）——这里显式给浅底配色。 */
+.cpw-gaps-ops { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.cpw-gaps-ops .cpw-opt {
   width: 100%; text-align: left;
   background: #ffffff;
   border: 1.5px solid #e8c4a8;
   color: #7c3a12;
 }
-.cpw-review-ops .cpw-opt small { color: #a3765a; }
-.cpw-review-ops .cpw-opt.go {
+.cpw-gaps-ops .cpw-opt small { color: #a3765a; }
+.cpw-gaps-ops .cpw-opt.go {
   background: var(--orange);
   border-color: var(--orange);
   color: #ffffff;
   box-shadow: 0 3px 10px rgba(232, 101, 26, 0.3);
 }
-.cpw-review-ops .cpw-opt.go small { color: rgba(255, 255, 255, 0.9); }
-.cpw-review-ops .cpw-opt:hover { border-color: var(--orange); box-shadow: 0 0 0 2px rgba(232, 101, 26, 0.18); }
+.cpw-gaps-ops .cpw-opt.go small { color: rgba(255, 255, 255, 0.9); }
+.cpw-gaps-ops .cpw-opt:hover { border-color: var(--orange); box-shadow: 0 0 0 2px rgba(232, 101, 26, 0.18); }
+
+/* 生成前补充（体检补强 + 运营缺口合并成一个填空面板），非阻断、正向表述（填多少都算数）。 */
+.cpw-gaps { margin-top: 10px; border: 1px dashed #c9d6e2; background: #f5f9fc; border-radius: 12px; padding: 10px 12px; }
+.cpw-gaps .ir-t { font-size: 12.5px; font-weight: 800; color: #2f6fb0; margin-bottom: 6px; }
+/* 2026-10-03：标题里交代「其中几项来自体检」，不额外开第二块。 */
+.cpw-gaps-mix { margin-left: 6px; font-size: 10.5px; font-weight: 700; color: #a3765a; background: #fdf3ea; border: 1px solid var(--orange-line); border-radius: 999px; padding: 1px 7px; vertical-align: 1px; }
+.cpw-gap { display: flex; flex-direction: column; gap: 4px; padding: 5px 0; }
+.cpw-gap-q { font-size: 12.5px; line-height: 1.5; color: var(--sub); }
+.cpw-gap-q b { color: var(--ink); margin-right: 4px; }
+.cpw-gap-in { border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; font-size: 12.5px; color: var(--ink); background: #fff; }
+.cpw-gap-in:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 2px rgba(232, 101, 26, 0.16); }
+.cpw-gap-note { font-size: 11.5px; color: #9bb0c2; margin-top: 4px; }
+/* 2026-10-02 填空题：把「我希望在【城市】投放…」的每个【】渲染成下划线小输入框。 */
+.cpw-gaps-sub { font-size: 11.5px; line-height: 1.5; color: #6a8199; margin: -2px 0 8px; }
+.cpw-gap-fill { font-size: 13px; line-height: 2.7; color: var(--ink); word-break: break-word; }
+.cpw-gap-area { display: inline-block; font-size: 11px; font-weight: 800; color: #2f6fb0; background: #e8f2fb; border-radius: 6px; padding: 1px 7px; margin-right: 6px; vertical-align: 1px; }
+/* 2026-10-03：体检补强项用暖色标签区分（is-missing 更重），运营缺口保持蓝 —— 同一个面板，一眼看出来源。 */
+.cpw-gap-area.is-check { color: #a3765a; background: #fdf3ea; }
+.cpw-gap-area.is-check.is-missing { color: #b4342a; background: #fceeec; }
+.cpw-gap-txt { color: var(--ink); }
+.cpw-gap-blank { display: inline-block; min-width: 4em; max-width: 100%; border: none; border-bottom: 1.5px solid #b9cde0; background: #fff; border-radius: 4px 4px 0 0; padding: 1px 6px; margin: 0 3px; font-size: 13px; color: var(--ink); text-align: center; font-family: inherit; }
+.cpw-gap-blank::placeholder { color: #a9bdcd; }
+.cpw-gap-blank:focus { outline: none; border-bottom-color: var(--orange); background: #fff7f1; }
+
+/* 生成后「待补充」补全：扫描章节【待补】标记，按章节聚成问题卡，章节级 patch。 */
+.cpw-complete { margin: 10px 0 4px; border: 1px solid #f0d9b8; background: #fffdf8; border-radius: 12px; padding: 12px 14px; }
+.cpw-complete .cc-t { font-size: 13px; font-weight: 800; color: var(--orange); margin-bottom: 8px; }
+.cpw-complete .cc-sec { border-top: 1px dashed #ecd9bf; padding-top: 8px; margin-top: 8px; }
+.cpw-complete .cc-sec:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+.cpw-complete .cc-sec-h { font-size: 12.5px; font-weight: 800; color: var(--ink); margin-bottom: 5px; }
+.cpw-complete .cc-item { display: flex; flex-direction: column; gap: 4px; padding: 5px 0; }
+.cpw-complete .cc-q { font-size: 12.5px; line-height: 1.55; color: #8a5a2b; background: #fbeed7; border-radius: 7px; padding: 5px 8px; }
+.cpw-complete .cc-q b { color: #7a4318; font-weight: 800; }
+.cpw-complete .cc-count { margin-left: 6px; font-size: 11px; font-weight: 700; color: #a4794a; background: #f6e3c8; border-radius: 999px; padding: 1px 7px; }
+.cpw-complete .cc-hint { font-size: 11.5px; line-height: 1.5; color: #9b8a72; padding: 0 2px; }
+.cpw-complete .cc-in { border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; font-size: 12.5px; color: var(--ink); background: #fff; resize: vertical; font-family: inherit; }
+.cpw-complete .cc-in:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 2px rgba(232, 101, 26, 0.16); }
+.cpw-complete .cc-ops { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.cpw-complete .cc-cost { font-size: 11.5px; color: #9b8a72; }
+.cpw-complete .cc-done { font-size: 12.5px; font-weight: 800; color: var(--green); margin-top: 6px; }
+
+/* ===== 增强项目（2026-10-03：右侧 320px 窄栏 → 全宽 + 章节 tab）=====
+   原「A 版：左结果 / 右增强栏」把每个章节的填空卡竖着堆在窄栏里，长句反复折行，
+   用户反馈「挤在一起」。现在结果区顶部是一级 tab（交付内容 / 增强项目），
+   增强项目全宽展示，内部再按章节分 tab，一次只填一章。 */
+
+/* 一级 tab */
+.cpw-view-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+.cpw-vtab {
+  border: 0; background: transparent; cursor: pointer; font-family: inherit;
+  font-size: 13px; font-weight: 700; color: var(--sub);
+  padding: 7px 14px 9px; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.cpw-vtab:hover { color: var(--ink); }
+.cpw-vtab b { font-size: 11px; font-weight: 800; color: var(--sub); background: #f0f1f4; border-radius: 999px; padding: 1px 7px; }
+.cpw-vtab.act { color: #3B6FB0; border-bottom-color: #3B6FB0; }
+.cpw-vtab.act b { color: #fff; background: #3B6FB0; }
+
+/* 增强项目面板（全宽） */
+.cpw-enh-panel { background: #eef3fa; border: 1px solid #d6e2f1; border-radius: 14px; padding: 14px 16px; }
+.cpw-enh-panel .enh-sub { font-size: 12px; color: var(--sub); margin-bottom: 12px; }
+.cpw-sec-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.cpw-stab {
+  border: 1px solid #d6e2f1; background: #fff; border-radius: 999px; cursor: pointer;
+  font-family: inherit; font-size: 12.5px; font-weight: 700; color: #3B6FB0;
+  padding: 5px 13px; display: inline-flex; align-items: center; gap: 6px;
+}
+.cpw-stab:hover { border-color: #3B6FB0; }
+.cpw-stab b { font-size: 11px; font-weight: 800; color: #3B6FB0; background: #eef3fa; border-radius: 999px; padding: 1px 7px; }
+.cpw-stab.act { background: #3B6FB0; border-color: #3B6FB0; color: #fff; }
+.cpw-stab.act b { color: #3B6FB0; background: #fff; }
+
+/* 一次只显示一个章节的填空项；宽屏并排两列，窄屏自动落成单列。 */
+.cpw-enh-panel .enh-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 10px; }
+.cpw-enh-panel .enh-item { background: #fff; border: 1px solid #d6e2f1; border-radius: 11px; padding: 11px 13px; }
+.cpw-enh-panel .ei-label { font-size: 12px; font-weight: 800; color: #3B6FB0; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.cpw-enh-panel .cc-count { font-size: 11px; font-weight: 700; color: #a4794a; background: #f6e3c8; border-radius: 999px; padding: 1px 7px; }
+.cpw-enh-panel .fill-line { font-size: 13px; color: var(--ink); line-height: 2; }
+.cpw-enh-panel .enh-blank {
+  border: 0; border-bottom: 1.5px dashed #3B6FB0; min-width: 72px; margin: 0 2px;
+  padding: 0 6px; font-size: 13px; color: #3B6FB0; background: transparent;
+  outline: none; text-align: center; font-family: inherit;
+}
+.cpw-enh-panel .enh-blank::placeholder { color: #a9bdd6; }
+.cpw-enh-panel .enh-blank:focus { border-bottom-color: #2a559c; background: #f5f9ff; }
+.cpw-enh-panel .enh-foot { display: flex; align-items: center; gap: 12px; margin-top: 13px; flex-wrap: wrap; }
+.cpw-enh-panel .enh-btn { border: 0; background: #3B6FB0; color: #fff; font-weight: 700; font-size: 13px; padding: 9px 22px; border-radius: 9px; cursor: pointer; font-family: inherit; }
+.cpw-enh-panel .enh-btn:disabled { opacity: .6; cursor: default; }
+.cpw-enh-panel .enh-note { font-size: 11.5px; color: var(--sub); }
+.cpw-enh-panel .cc-done { font-size: 12.5px; font-weight: 800; color: var(--green); margin-top: 10px; }
+
+.cpw-badge-enh { font-size: 11px; font-weight: 700; color: #3B6FB0; background: #eef3fa; border: 1px solid #d6e2f1; border-radius: 999px; padding: 2px 9px; font-family: inherit; cursor: pointer; }
+.cpw-badge-enh:hover { border-color: #3B6FB0; }
+.cpw-badge-enh.on { color: #fff; background: #3B6FB0; border-color: #3B6FB0; }
+.cpw-badge-done { font-size: 11px; font-weight: 700; color: var(--green); background: #ecf7f0; border: 1px solid #cdebd8; border-radius: 999px; padding: 2px 9px; }
+/* 结果正文里的「待补充」标记：渲染成低调占位，不让它像正文内容（仅展示层，不改 payload）。 */
+.cpw-gap-chip { color: #3B6FB0; background: #eef3fa; border: 1px dashed #b9cfe8; border-radius: 6px; padding: 0 6px; font-size: .9em; cursor: help; }
 
 
 /* 演示模式横幅（2026-10-01）：进工作台自动演示，一眼能找到停止按钮。深色聊天面板 → 深底浅字。 */

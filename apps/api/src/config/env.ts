@@ -60,6 +60,8 @@ const envSchema = z.object({
   SEEDANCE_CREDIT_COST: z.string().regex(/^\d{1,6}$/).default("0"),
   SEEDANCE_CREDIT_QUOTE_VERSION: optionalString,
   BEAUTY_VIDEO_RESULT_HOSTS: optionalString,
+  /** 本地联调回放：指向一份真实成片 mp4 时，submit/poll 不再调阿里云，persist 回放该文件（仅非生产生效）。 */
+  BEAUTY_VIDEO_REPLICATION_MOCK_VIDEO: optionalString,
   BEAUTY_VIDEO_OSS_BUCKET: optionalString,
   BEAUTY_VIDEO_OSS_REGION: z.string().default("cn-beijing"),
   BEAUTY_VIDEO_OSS_PREFIX: optionalString,
@@ -77,6 +79,8 @@ const envSchema = z.object({
   LANQI_MEDIA_REAL_EXECUTION_APPROVED: z.enum(["true", "false"]).default("false"),
   // 图片与视频分开放行：本轮预算只批了「文案转片」图生视频，不能顺带把付费生图也打开。
   LANQI_MEDIA_IMAGE_REAL_EXECUTION_APPROVED: z.enum(["true", "false"]).default("false"),
+  /** 生图单独指定模式（2026-10-05）：显式 real|mock 时，生图不再跟随 LANQI_MEDIA_EXECUTION_MODE。 */
+  LANQI_MEDIA_IMAGE_EXECUTION_MODE: z.enum(["real", "mock"]).optional(),
   LANQI_MEDIA_ASSET_STORAGE: z.enum(["disabled", "local"]).default("disabled"),
   LANQI_MEDIA_TASK_TIMEOUT_MINUTES: z.coerce.number().int().min(5).max(180).default(30),
   // 首帧图暂存：门店上传的首帧图放进本平台自己的存储，再生成一条「限时、一次性签名」

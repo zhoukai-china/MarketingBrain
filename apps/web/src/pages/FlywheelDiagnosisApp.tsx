@@ -3061,7 +3061,7 @@ export default function FlywheelDiagnosisApp() {
   return (
     <div className="flywheelDiagnosis">
       <header className="diagnosisTop">
-        <button onClick={() => window.location.href = "/"}>思潼AI 行业智能体平台</button>
+        <button onClick={() => window.location.href = "/"}>思潼AI商城</button>
         <span>诊断和报告永久免费，不扣算力、不占会员额度</span>
       </header>
 

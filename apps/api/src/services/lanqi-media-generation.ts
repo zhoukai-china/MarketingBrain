@@ -15,7 +15,15 @@ export interface LanqiMediaRequest {
   ratio?: LanqiRatio;
   durationSeconds?: number;
   imageUrl?: string;
+  /** 已生成的 AI 单镜首帧（方案④）：出片时用它当图生视频的 img_url。 */
+  frameId?: string;
+  /** 生图参考图（HTTPS 公网可抓取）：用于人物/场景一致性，最多 9 张。 */
+  referenceImages?: string[];
   watermark?: boolean;
+  /** 台词配音（2026-10-05）：voice/dialogueText 由路由层合成语音后填 audioUrl，模型据此对口型。 */
+  voice?: string;
+  dialogueText?: string;
+  audioUrl?: string;
 }
 
 /** wan2.6-i2v-flash / wan2.5 系列：成片时长按整数秒下发，官方区间 [2,15]。 */
@@ -80,7 +88,9 @@ export function validateLanqiMediaRequest(input: LanqiMediaRequest): string | un
     return `视频时长必须为 ${LANQI_VIDEO_MIN_SECONDS}–${LANQI_VIDEO_MAX_SECONDS} 秒的整数`;
   }
   if (input.kind === "image_to_video" && !input.imageUrl) return "图生视频需要提供本店自有或已获授权的图片链接";
-  if (input.imageUrl && !/^https:\/\//.test(input.imageUrl)) return "图片素材必须为 HTTPS 链接";
+  // mock 模式放宽本地 HTTP（2026-10-04）：首帧图走本地签名 URL，mock 不会把 URL 交给外部模型；
+  // real 模式仍强制 HTTPS（阿里云真实拉取素材）。
+  if (input.imageUrl && env.LANQI_MEDIA_EXECUTION_MODE !== "mock" && !/^https:\/\//.test(input.imageUrl)) return "图片素材必须为 HTTPS 链接";
   return undefined;
 }
 
@@ -122,7 +132,11 @@ export function getLanqiMediaProviderIssue(input: Pick<LanqiMediaRequest, "kind"
 }
 
 export function getLanqiMediaExecutionReadiness(input: Pick<LanqiMediaRequest, "kind">): LanqiMediaExecutionReadiness {
-  const mode = env.LANQI_MEDIA_EXECUTION_MODE;
+  // 生图可单独指定模式（2026-10-05 用户口径：生图接真实看效果，视频继续 mock）：
+  // LANQI_MEDIA_IMAGE_EXECUTION_MODE=real|mock 显式指定时，生图不再跟随总开关。
+  const imageOverride = env.LANQI_MEDIA_IMAGE_EXECUTION_MODE;
+  const global = env.LANQI_MEDIA_EXECUTION_MODE;
+  const mode = input.kind === "image" && imageOverride === "real" ? "real" : input.kind === "image" && imageOverride === "mock" ? "mock" : global;
   const storage = env.LANQI_MEDIA_ASSET_STORAGE;
   const subject = input.kind === "image" ? "图片" : "视频";
   if (mode === "disabled") {
@@ -156,31 +170,50 @@ export function buildLanqiMediaProviderRequest(input: LanqiMediaRequest): Record
     ? `${input.prompt.trim()}\n\n必须避免：${input.negativePrompt.trim()}`
     : input.prompt.trim();
   if (input.kind === "image") {
+    // 参考图（2026-10-05）：wan2.7-image 支持多图参考 / 角色一致性——把人物正面照与场景照作为参考图下发，
+    // 提示词只描述"这一镜的机位、景别、动作"，人还是同一个人、景还是那个景，但每镜起幅不同。
+    // 契约见阿里云 wan2.7-image 文档：content 数组可含多个 {"image": url}，最后一个为 {"text": prompt}。
+    const refs = (input.referenceImages ?? []).filter((url) => /^https:\/\//.test(url)).slice(0, 9);
     return {
       model: modelFor(input),
-      input: { messages: [{ role: "user", content: [{ text: providerPrompt }] }] },
-      parameters: { watermark: input.watermark ?? true, n: 1, size: imageSizeForRatio(input.ratio) },
+      input: { messages: [{ role: "user", content: [...refs.map((image) => ({ image })), { text: providerPrompt }] }] },
+      parameters: { watermark: input.watermark ?? false, n: 1, size: imageSizeForRatio(input.ratio) },
     };
   }
   if (input.kind === "image_to_video") {
-    // 百炼图生视频（wan2.6-i2v-flash）契约：input.img_url 为必填首帧图，prompt 为运镜/画面描述；
-    // 无声成片必须显式 audio:false（并且不下发 audio_url）；画面比例由首帧图决定，不下发 ratio。
+    // wan2.7：media 数组（first_frame + driving_audio）——driving_audio 是官方对口型通道，
+    // 传了台词音频人物就会开口说台词；不传则模型自动配音。wan2.6 及以下仍走 img_url / audio_url 旧契约。
+    const model = modelFor(input)!;
+    if (model.startsWith("wan2.7")) {
+      const media: Array<{ type: string; url: string }> = [{ type: "first_frame", url: input.imageUrl! }];
+      if (input.audioUrl) media.push({ type: "driving_audio", url: input.audioUrl });
+      return {
+        model,
+        input: { prompt: providerPrompt, media },
+        parameters: {
+          resolution: input.resolution,
+          duration: input.durationSeconds,
+          prompt_extend: false,
+          watermark: input.watermark ?? false,
+        },
+      };
+    }
+    // wan2.6 及以下旧契约：img_url 首帧；audio 不下发（默认自动配音），audio_url 为参考音频。
     return {
-      model: modelFor(input),
-      input: { prompt: providerPrompt, img_url: input.imageUrl },
+      model,
+      input: { prompt: providerPrompt, img_url: input.imageUrl, ...(input.audioUrl ? { audio_url: input.audioUrl } : {}) },
       parameters: {
         resolution: input.resolution,
         duration: input.durationSeconds,
-        audio: false,
         prompt_extend: false,
-        watermark: input.watermark ?? true,
+        watermark: input.watermark ?? false,
       },
     };
   }
   return {
     model: modelFor(input),
     input: { prompt: providerPrompt },
-    parameters: { resolution: input.resolution, ratio: input.ratio, duration: input.durationSeconds, watermark: true },
+    parameters: { resolution: input.resolution, ratio: input.ratio, duration: input.durationSeconds, watermark: false },
   };
 }
 
@@ -210,6 +243,66 @@ export async function submitLanqiMedia(input: LanqiMediaRequest, requestKey: str
   const taskId = result.output?.task_id ?? result.output?.taskId ?? result.task_id ?? result.taskId;
   if (!response.ok || !taskId) throw new Error(typeof result.message === "string" ? result.message.slice(0, 300) : `provider_http_${response.status}`);
   return taskId;
+}
+
+/** 从百炼生图响应里取图片地址（同步返回 / 异步任务结果两种结构都认）。 */
+function pickImageUrl(result: Record<string, any>): string | undefined {
+  const direct: unknown[] = [
+    ...(result.output?.choices ?? []).flatMap((c: any) => c?.message?.content ?? []),
+    ...(result.output?.results ?? []),
+    ...(result.choices ?? []).flatMap((c: any) => c?.message?.content ?? []),
+  ];
+  for (const item of direct) {
+    const url = (item as { image?: string; url?: string })?.image ?? (item as { url?: string })?.url;
+    if (typeof url === "string" && /^https:\/\//.test(url)) return url;
+  }
+  return undefined;
+}
+
+/**
+ * 单镜首帧生图（2026-10-05 方案④）：按"本镜提示词 + 人物/场景参考图"画出这一镜的起幅。
+ * 与视频任务同一套出站校验与凭据；生图是 HTTP 同步为主，但兼容异步任务返回。
+ */
+export async function generateLanqiShotFrameImage(params: {
+  input: LanqiMediaRequest;
+  requestKey: string;
+  attempts?: number;
+  intervalMs?: number;
+  sleep?: (ms: number) => Promise<void>;
+}): Promise<string> {
+  if (params.input.kind !== "image") throw new Error("shot_frame_kind_invalid");
+  const apiKey = env.ALIYUN_API_KEY || env.DASHSCOPE_API_KEY;
+  const providerIssue = getLanqiMediaProviderIssue(params.input);
+  if (providerIssue || !apiKey) throw new Error(providerIssue ?? "provider_not_configured");
+  assertOutboundUrlAllowed("Aliyun image generation", imageEndpoint, { domesticNetworkOnly, allowedHosts: domesticOutboundAllowlist });
+  const body = buildLanqiMediaProviderRequest(params.input);
+  // 百炼生图接口强制异步：不带 X-DashScope-Async 会返回 "does not support synchronous calls"。
+  const response = await fetch(imageEndpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "X-DashScope-Async": "enable",
+      "X-Request-Id": params.requestKey
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(120_000),
+  });
+  const result = await response.json().catch(() => ({})) as Record<string, any>;
+  const sync = pickImageUrl(result);
+  if (sync) return sync;
+  if (!response.ok) throw new Error(typeof result.message === "string" ? result.message.slice(0, 300) : `provider_http_${response.status}`);
+  const taskId = result.output?.task_id ?? result.output?.taskId ?? result.task_id ?? result.taskId;
+  if (!taskId) throw new Error(typeof result.message === "string" ? result.message.slice(0, 300) : "provider_task_missing");
+  const attempts = params.attempts ?? 30, interval = params.intervalMs ?? 2000;
+  const wait = params.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  for (let i = 0; i < attempts; i += 1) {
+    await wait(interval);
+    const task = await getLanqiMediaTask(String(taskId));
+    if (task.status === "SUCCEEDED" && task.outputUrl) return task.outputUrl;
+    if (task.status === "FAILED" || task.status === "CANCELED" || task.status === "UNKNOWN") throw new Error(task.errorMessage ?? "provider_failed");
+  }
+  throw new Error("provider_timeout");
 }
 
 export async function getLanqiMediaTask(providerTaskId: string): Promise<{ status: string; outputUrl?: string; errorMessage?: string }> {

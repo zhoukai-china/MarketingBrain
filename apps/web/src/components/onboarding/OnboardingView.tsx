@@ -119,7 +119,7 @@ export function OnboardingView({ token, headers }: OnboardingViewProps) {
             接下来你可以开始诊断，或直接和思潼说你的经营问题。
           </p>
           <button className="diagnosisStartBtn" onClick={() => window.location.reload()}>
-            进入思潼AI 行业智能体平台
+            进入思潼AI商城
           </button>
         </div>
       </div>

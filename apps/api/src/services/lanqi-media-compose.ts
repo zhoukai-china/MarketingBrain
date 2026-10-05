@@ -139,17 +139,35 @@ export async function composeLanqiShots(input: LanqiComposeInput, db: LanqiCompo
     const [width, height] = canvasFor(probed[0]);
 
     const ffmpeg = await resolveBinary("ffmpeg");
+    // 逐镜视频现在自带音轨（模型自动配音/台词对口型）：没有音轨的镜补静音，拼接时全部带上。
+    for (const [index, file] of shotPaths.entries()) {
+      if (probed[index].hasAudio) continue;
+      const target = path.join(workRoot, `shot-${String(index + 1).padStart(2, "0")}-silent-audio.mp4`);
+      await execFileAsync(
+        ffmpeg,
+        ["-y", "-hide_banner", "-loglevel", "error", "-nostdin", "-i", file, "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100", "-shortest", "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac", "-b:a", "128k", target],
+        { timeout: COMPOSE_TIMEOUT_MS, maxBuffer: 8 * 1024 * 1024, windowsHide: true }
+      );
+      shotPaths[index] = target;
+    }
     const args: string[] = ["-y", "-hide_banner", "-loglevel", "error", "-nostdin"];
     for (const file of shotPaths) args.push("-i", file);
     if (audioPath) args.push("-stream_loop", "-1", "-i", audioPath);
     const filters = shotPaths.map((_, index) =>
       `[${index}:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${COMPOSE_FPS},format=yuv420p[v${index}]`
     );
-    filters.push(`${shotPaths.map((_, index) => `[v${index}]`).join("")}concat=n=${shotPaths.length}:v=1:a=0[vout]`);
-    args.push("-filter_complex", filters.join(";"), "-map", "[vout]");
-    if (audioPath) args.push("-map", `${shotPaths.length}:a:0`);
+    filters.push(shotPaths.map((_, index) => `[${index}:a]aformat=sample_rates=44100:channel_layouts=stereo[a${index}]`).join(";"));
+    // concat 的输入必须**按段交错**（每段先视频后音频：[v0][a0][v1][a1]…）——
+    // 视频全排前面会被 ffmpeg 以 Invalid argument 拒绝（2026-10-05 合成失败实锤原因）。
+    const concatInputs = shotPaths.map((_, index) => `[v${index}][a${index}]`).join("");
+    filters.push(`${concatInputs}concat=n=${shotPaths.length}:v=1:a=1[vout][aout]`);
+    if (audioPath) {
+      filters.push(`[${shotPaths.length}:a]aformat=sample_rates=44100:channel_layouts=stereo[ext]`);
+      filters.push(`[aout][ext]amix=inputs=2:duration=first:dropout_transition=0[aout2]`);
+    }
+    args.push("-filter_complex", filters.join(";"), "-map", "[vout]", "-map", audioPath ? "[aout2]" : "[aout]");
     args.push("-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p");
-    if (audioPath) args.push("-c:a", "aac", "-b:a", "128k", "-ac", "2", "-ar", "44100", "-shortest");
+    args.push("-c:a", "aac", "-b:a", "128k", "-ac", "2", "-ar", "44100");
     args.push("-movflags", "+faststart", outputPath);
 
     try {
@@ -251,20 +269,21 @@ function even(value?: number): number | undefined {
   return rounded % 2 === 0 ? rounded : rounded - 1;
 }
 
-export async function probeMedia(file: string): Promise<{ width?: number; height?: number; durationSeconds?: number }> {
+export async function probeMedia(file: string): Promise<{ width?: number; height?: number; durationSeconds?: number; hasAudio: boolean }> {
   const ffprobe = await resolveBinary("ffprobe");
   const { stdout } = await execFileAsync(
     ffprobe,
-    ["-v", "error", "-show_entries", "stream=width,height:format=duration", "-of", "json", file],
+    ["-v", "error", "-show_entries", "stream=width,height,codec_type:format=duration", "-of", "json", file],
     { timeout: PROBE_TIMEOUT_MS, maxBuffer: 1024 * 1024, windowsHide: true }
   );
-  const parsed = JSON.parse(stdout) as { streams?: Array<{ width?: number; height?: number }>; format?: { duration?: string } };
+  const parsed = JSON.parse(stdout) as { streams?: Array<{ width?: number; height?: number; codec_type?: string }>; format?: { duration?: string } };
   const stream = parsed.streams?.[0];
   const duration = Number(parsed.format?.duration);
   return {
     width: stream?.width,
     height: stream?.height,
     durationSeconds: Number.isFinite(duration) && duration > 0 ? duration : undefined,
+    hasAudio: parsed.streams?.some((item) => item.codec_type === "audio") ?? false,
   };
 }
 

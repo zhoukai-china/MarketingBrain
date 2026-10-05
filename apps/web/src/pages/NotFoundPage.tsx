@@ -19,7 +19,7 @@ export default function NotFoundPage() {
     typeof window === "undefined" ? "" : String(window.location.pathname ?? "").slice(0, 160);
 
   useEffect(() => {
-    document.title = "页面不存在 - 思潼AI 行业智能体平台";
+    document.title = "页面不存在 - 思潼AI商城";
   }, []);
 
   return (
@@ -33,7 +33,7 @@ export default function NotFoundPage() {
         </p>
         <div className="notFoundActions">
           <a className="notFoundPrimary" href={getAppPath("/agents")}>
-            回到智能体平台首页
+            回到商城首页
           </a>
           <a className="notFoundSecondary" href={getAppPath("/mine")}>
             去常用智能体

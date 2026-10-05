@@ -313,6 +313,8 @@ export async function consumeWalletCredits(params: {
   requestId: string;
   price: number;
   skillId?: string;
+  /** 只许用充值算力、禁用赠送桶（2026-10-04 用户拍板：视频/图片生成不收赠送积分）。 */
+  paidOnly?: boolean;
   viaBundle?: string;
   stepIndex?: number;
   priceVersion?: number;
@@ -364,7 +366,8 @@ export async function consumeWalletCredits(params: {
       });
       const expiredBonus = Math.max(0, expiredBonusAgg._sum.delta ?? 0);
       const usableBonus = Math.max(0, wallet.bonusBalance - expiredBonus);
-      const bonusUse = Math.min(usableBonus, amount);
+      // paidOnly：媒体类生成（视频/图片）不碰赠送桶，哪怕赠送余额足够也不许用。
+      const bonusUse = params.paidOnly ? 0 : Math.min(usableBonus, amount);
       const paidUse = Math.min(wallet.paidBalance, amount - bonusUse);
       const totalUse = paidUse + bonusUse;
 

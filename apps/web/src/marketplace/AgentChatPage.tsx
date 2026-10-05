@@ -343,7 +343,7 @@ export function MarketplaceAgentChatPage({
    */
   useEffect(() => {
     if (runSku?.name) {
-      document.title = industry?.title ? `${personaLabel} · ${runSku.name} · ${industry.title}` : `${personaLabel} · ${runSku.name} - 思潼AI 行业智能体平台`;
+      document.title = industry?.title ? `${personaLabel} · ${runSku.name} · ${industry.title}` : `${personaLabel} · ${runSku.name} - 思潼AI商城`;
     }
   }, [runSku?.skuCode, runSku?.name, industry?.title, personaLabel]);
 

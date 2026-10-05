@@ -437,9 +437,9 @@ function buildOrderDescription(order: {
 }): string {
   if (order.creditPackCode) {
     const pack = CREDIT_PACKS[order.creditPackCode as CreditPackCode];
-    return `思潼AI 行业智能体平台-${pack?.name ?? "算力包"}`;
+    return `思潼AI商城-${pack?.name ?? "算力包"}`;
   }
-  return "思潼AI 行业智能体平台算力充值";
+  return "思潼AI商城算力充值";
 }
 
 async function resolveOrderAttribution(

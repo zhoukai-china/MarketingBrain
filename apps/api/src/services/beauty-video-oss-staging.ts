@@ -213,6 +213,17 @@ export function createOssPrivateVideoStaging(options: {
       const deleted=await sdk.delete(name);
       if(deleted.res.headers["x-oss-delete-marker"]||deleted.res.headers["x-oss-version-id"])fail("oss_delete_versioning_changed");
       if(await head(o,sdk,true))fail("oss_delete_not_confirmed");
+    });},
+    // 浏览器直传（PUT）与后端回源（GET）的预签名：本地签名、零网络往返。key 必须落在受管前缀内。
+    // OSS V4 的规范化请求**永远包含 Content-Type（存在即参与签名）**——所以要么把 content-type 签进去并要求
+    // 客户端原样携带，要么客户端完全不发该头；两者混着用必然 SignatureDoesNotMatch。
+    async presign(method,key,ttlSeconds,contentType){return safe(async()=>{
+      if(!/^[A-Za-z0-9/_.-]{1,300}$/.test(key)||key.includes("..")||!key.startsWith(c.prefix))fail("oss_direct_key_invalid");
+      if(!Number.isSafeInteger(ttlSeconds)||ttlSeconds<1||ttlSeconds>900)fail("oss_url_expired");
+      const headers:{[k:string]:string}={host:new URL(c.approvedOrigin).host};
+      if(contentType)headers["content-type"]=contentType;
+      const sdk=client(now()+ttlSeconds*1000+5000);
+      return sdk.signatureUrlV4(method,ttlSeconds,{headers},key,["host"]);
     });}
   };
   return {...driver,preflight,checkCredentials:()=>{credential();}};

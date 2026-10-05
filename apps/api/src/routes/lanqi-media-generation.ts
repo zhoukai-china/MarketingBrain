@@ -1,12 +1,15 @@
 import { randomUUID, timingSafeEqual } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import type { FastifyInstance } from "fastify";
 import type { LlmProvider } from "@baolu/agent";
 import { Prisma, prisma } from "@baolu/db";
 import { z } from "zod";
 import { env } from "../config/env.js";
-import { discardLanqiMediaAsset, lanqiMediaAssetUrl, markLanqiMediaAsset, persistLanqiMockImage, persistLanqiProviderImage, persistLanqiProviderVideo, readLanqiMediaAsset } from "../services/lanqi-media-assets.js";
-import { LANQI_VIDEO_MAX_SECONDS, LANQI_VIDEO_MIN_SECONDS, cancelLanqiMediaTask, getLanqiMediaExecutionReadiness, getLanqiMediaTask, isSameLanqiMediaRequest, quoteLanqiMedia, submitLanqiMedia, validateLanqiMediaRequest, type LanqiMediaRequest } from "../services/lanqi-media-generation.js";
-import { resolveLanqiFirstFrameInput, stageLanqiFirstFrame, lanqiFirstFrameRequestFingerprint } from "../services/lanqi-media-staging.js";
+import { discardLanqiMediaAsset, lanqiMediaAssetUrl, listLanqiShotFrames, markLanqiMediaAsset, persistLanqiMockImage, persistLanqiMockVideo, persistLanqiProviderImage, persistLanqiProviderVideo, readLanqiMediaAsset } from "../services/lanqi-media-assets.js";
+import { generateLanqiShotFrameImage, LANQI_VIDEO_MAX_SECONDS, LANQI_VIDEO_MIN_SECONDS, cancelLanqiMediaTask, getLanqiMediaExecutionReadiness, getLanqiMediaTask, isSameLanqiMediaRequest, quoteLanqiMedia, submitLanqiMedia, validateLanqiMediaRequest, type LanqiMediaRequest } from "../services/lanqi-media-generation.js";
+import { createRuntimeLlmProvider } from "../services/llm-provider-factory.js";
+import { LANQI_TTS_PREVIEW_TEXT, LANQI_TTS_VOICES, synthesizeLanqiShotVoiceover } from "../services/lanqi-tts.js";
+import { resolveLanqiFirstFrameInput, stageLanqiFirstFrame, readLanqiFirstFrame, lanqiFirstFrameRequestFingerprint, lanqiFirstFramePublicUrl, lanqiFirstFrameReferenceUrl, putOssStagedBytes, ossShotFrameKey, ossStagedUrl } from "../services/lanqi-media-staging.js";
 import { LANQI_COMPOSE_MAX_SHOTS, LanqiComposeError, composeLanqiShots } from "../services/lanqi-media-compose.js";
 import { resolveRequestContext } from "../services/request-context.js";
 import { chargeLanqiWallet, readLanqiWalletBalance, refundLanqiWallet } from "../services/lanqi-wallet.js";
@@ -27,7 +30,12 @@ const mediaRequest = z.object({
   resolution: z.enum(["720P", "1080P"]).optional(), ratio: z.enum(["1:1", "3:4", "16:9", "9:16"]).optional(),
   durationSeconds: z.number().int().min(LANQI_VIDEO_MIN_SECONDS).max(LANQI_VIDEO_MAX_SECONDS).optional(), imageUrl: z.string().url().optional(), requestKey: z.string().regex(/^[A-Za-z0-9_-]{12,120}$/).optional(),
   firstFrameId: z.string().trim().regex(firstFrameIdPattern).optional(),
+  /** 已生成的 AI 首帧（方案④）：用它当图生视频的起幅，不必再传原图。 */
+  frameId: z.string().trim().regex(/^lanqi-sf-[A-Za-z0-9]{8,40}$/).optional(),
   firstFrame: z.object({ contentType: z.string().trim().min(3).max(80), dataBase64: z.string().min(16).max(12_000_000) }).optional(),
+  /** 台词配音（2026-10-05）：voice = 音色，dialogueText = 该镜口播原句（TTS 合成后 audio_url 对口型）。 */
+  voice: z.string().trim().max(40).optional(),
+  dialogueText: z.string().trim().max(2000).optional(),
 });
 const confirmationRequest = mediaRequest.extend({ confirmed: z.literal(true) });
 const callback = z.object({ taskId: z.string().min(1), status: z.string().min(1), outputUrl: z.string().url().optional(), errorMessage: z.string().max(500).optional() });
@@ -46,8 +54,183 @@ type PublicJob = { id: string; previewId?: string; kind: string; status: string;
 type MockJob = PublicJob & { tenantId: string; requestKey: string; prompt: string; negativePrompt?: string; promptVersion?: string; ratio?: string; refreshCount: number };
 const mockJobs = new Map<string, MockJob[]>();
 
+/**
+ * 单镜 AI 首帧（2026-10-05 方案④）：按"本镜提示词 + 人物/场景参考图"画出这一镜的起幅，
+ * 先出预览给用户看，确认后再拿它当图生视频的 img_url。
+ * 参考图走 OSS 签名链接（模型必须能公网抓取）；mock 模式返回占位预览、不调模型、不扣费。
+ */
+const shotFrameRequest = z.object({
+  prompt: z.string().trim().min(1).max(5000),
+  negativePrompt: z.string().trim().max(5000).optional(),
+  ratio: z.enum(["1:1", "3:4", "16:9", "9:16"]).optional(),
+  shotNo: z.number().int().min(1).max(60).optional(),
+  scriptKey: z.string().trim().min(4).max(64).optional(),
+  personReferenceCount: z.number().int().min(0).max(9).optional(),
+  propReferenceCount: z.number().int().min(0).max(9).optional(),
+  /**
+   * 参考图优先传**已暂存的 ID**（OSS 地址由服务端现签）——请求体几十字节，多镜复用同一份素材不用重传。
+   * 只有首次暂存时才走 references 传字节（或直接先调 /lanqi/media/reference 拿 ID）。
+   */
+  referenceIds: z.array(z.string().trim().regex(firstFrameIdPattern)).max(9).optional(),
+  references: z
+    .array(z.object({ contentType: z.string().trim().min(3).max(80), dataBase64: z.string().min(16).max(12_000_000) }))
+    .max(9)
+    .optional(),
+  requestKey: z.string().regex(/^[A-Za-z0-9_-]{12,120}$/).optional(),
+});
+
 export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, provider: LlmProvider): Promise<void> {
   await registerLanqiImageStudioRoutes(app, provider);
+
+  function frameExtensionFor(contentType: string): string {
+    const map: Record<string, string> = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp" };
+    return map[contentType.split(";")[0]?.trim().toLowerCase() ?? ""] ?? ".png";
+  }
+
+  /** 单镜首帧：生成 → 本地留存（供预览） → 推 OSS（供模型抓图） → 返回预览地址。 */
+  /** 参考素材暂存一次（大字节只传这一回）→ 拿到 ID，之后每镜只传 ID。 */
+  app.post("/lanqi/media/reference", { bodyLimit: 12 * 1024 * 1024 }, async (request, reply) => {
+    const context = await resolveRequestContext(request.headers);
+    const parsed = z
+      .object({ contentType: z.string().trim().min(3).max(80), dataBase64: z.string().min(16).max(12_000_000) })
+      .safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: "invalid_request" });
+    try {
+      const staged = await stageLanqiFirstFrame({ tenantId: context.tenantId, contentType: parsed.data.contentType, dataBase64: parsed.data.dataBase64 });
+      return { referenceId: staged.firstFrameId, bytes: staged.bytes, contentType: staged.contentType };
+    } catch (error) {
+      const failure = error as { statusCode?: number; publicMessage?: string; message?: string };
+      return reply.code(failure.statusCode && failure.statusCode >= 400 ? failure.statusCode : 500).send({
+        error: failure.message ?? "reference_staging_failed",
+        message: failure.publicMessage ?? "素材暂存失败，请重新选择。"
+      });
+    }
+  });
+
+  app.post<{ Body: z.infer<typeof shotFrameRequest> }>("/lanqi/media/shot-frame", { bodyLimit: 12 * 1024 * 1024 }, async (request, reply) => {
+    const context = await resolveRequestContext(request.headers);
+    const parsed = shotFrameRequest.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: "invalid_request" });
+    if (context.source === "demo") return reply.code(409).send({ error: "demo_execution_disabled", message: "当前体验环境不会创建生成任务。" });
+    const input = parsed.data;
+    const frameId = `lanqi-sf-${randomUUID().replaceAll("-", "").slice(0, 24)}`;
+    const requestKey = input.requestKey ?? `sf-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`.replace(/[^A-Za-z0-9_-]/g, "");
+    const readiness = getLanqiMediaExecutionReadiness({ kind: "image" });
+    try {
+      // 参考图：优先用已暂存的 ID（OSS 地址现签，请求体极小）；没有 ID 才现场暂存字节。
+      const referenceImages: string[] = [];
+      for (const id of input.referenceIds ?? []) {
+        const asset = await readLanqiFirstFrame({ tenantId: context.tenantId, firstFrameId: id });
+        if (!asset) return reply.code(422).send({ error: "reference_not_found", message: "有一张参考素材不属于当前门店或已过期，请重新选择素材。" });
+        referenceImages.push(await lanqiFirstFrameReferenceUrl({ tenantId: context.tenantId, firstFrameId: id, contentType: asset.metadata.contentType, bytes: asset.bytes }));
+      }
+      if (!referenceImages.length) {
+        for (const ref of input.references ?? []) {
+          const staged = await stageLanqiFirstFrame({ tenantId: context.tenantId, contentType: ref.contentType, dataBase64: ref.dataBase64 });
+          referenceImages.push(await lanqiFirstFramePublicUrl({ tenantId: context.tenantId, firstFrameId: staged.firstFrameId, contentType: staged.contentType }));
+        }
+      }
+      if (readiness.mode !== "real" || !readiness.canConfirm || !readiness.billable) {
+        // mock / 未放行：落占位预览，页面照样能看到"每镜一张首帧"的流程，不调模型、不扣费。
+        await persistLanqiMockImage({ tenantId: context.tenantId, jobId: frameId, prompt: input.prompt, ratio: input.ratio, label: "AI 首帧（模拟预览）", shotNo: input.shotNo, scriptKey: input.scriptKey });
+        request.log.info({ event: "lanqi_shot_frame.mock", tenantId: context.tenantId, frameId, shotNo: input.shotNo ?? null });
+        return { frameId, previewUrl: lanqiMediaAssetUrl(frameId), status: "succeeded", executionMode: readiness.mode, simulated: true };
+      }
+      // 身份锁定 + 场景指定：wan2.7 带图输入是「参考/编辑」语义，必须显式告诉模型每张参考图的角色——
+      // 人物图保持长相、场景图定背景，否则要么人物跑偏、要么门店场景用不上（2026-10-05 用户实测两者）。
+      // 参考图顺序（前端保证）：场景照（底图/画布）→ 道具照（0–1 张）→ 人物照。
+      // 底图语义 = 背景像素级就是场景照本身；传了图的部分，镜头描述里的对应文字一律无效（不允许模型自由发挥）。
+      const personCount = Math.max(0, Math.min(input.personReferenceCount ?? 0, referenceImages.length));
+      const propCount = Math.max(0, Math.min(input.propReferenceCount ?? 0, Math.max(0, referenceImages.length - personCount - 1)));
+      const sceneCount = Math.max(0, referenceImages.length - personCount - propCount);
+      // 传了场景底图：镜头描述里的背景/环境文字会让模型偏离场景照（用户实测"人物还是在前台背景下"）。
+      // 用一次轻量 LLM 调用把背景/环境/陈设描写剥干净——最终提示词里不存在背景文字，模型无从发挥。
+      let effectiveShotPrompt = input.prompt;
+      if (sceneCount > 0) {
+        try {
+          effectiveShotPrompt = await stripBackgroundFromShotPrompt(input.prompt);
+        } catch {
+          /* 剥离失败就用原文，编辑指令仍然兜底 */
+        }
+      }
+      // 提示词格式实测（2026-10-05 A/B）：角色标注式会让背景跟人物照走；只有【编辑指令式】
+      //（"编辑第一张图：保持背景不变，把第X张的人物放进场景"）才能让背景像素级贴合场景照。
+      let shotFramePrompt = input.prompt;
+      if (sceneCount > 0) {
+        shotFramePrompt = `编辑第一张图（门店场景照片）：保持第一张图中的一切背景元素（门头招牌、建筑、陈设、装饰、光线）完全不变，把${propCount > 0 ? "第2张照片中的道具和" : ""}第${sceneCount + propCount + 1}张照片中的人物放进这个场景。${effectiveShotPrompt} 人物的长相、发型、性别年龄与人物照片完全一致，不要换脸、不要替换成其他人、不要美颜变形。`;
+      } else if (personCount > 0 || propCount > 0) {
+        shotFramePrompt = `${propCount > 0 ? "道具必须与道具照片一致（外观、颜色、材质），忽略镜头描述中的道具文字。" : ""}${personCount > 0 ? "人物必须与人物照片完全一致（长相、脸型、发型、性别年龄），不要换脸。" : ""}按下面的镜头描述出图：\n${input.prompt}`;
+      }
+      const imageUrl = await generateLanqiShotFrameImage({
+        input: { kind: "image", prompt: shotFramePrompt, negativePrompt: input.negativePrompt, ratio: input.ratio, referenceImages, watermark: false },
+        requestKey
+      });
+      const metadata = await persistLanqiProviderImage({ tenantId: context.tenantId, jobId: frameId, sourceUrl: imageUrl, shotNo: input.shotNo, scriptKey: input.scriptKey });
+      const asset = await readLanqiMediaAsset({ tenantId: context.tenantId, jobId: frameId });
+      const extension = frameExtensionFor(metadata.contentType);
+      // 推 OSS：视频模型要能公网抓取这张首帧。失败不阻断预览（出片时会再试一次）。
+      let ossUrl: string | undefined;
+      try {
+        await putOssStagedBytes({ key: ossShotFrameKey(context.tenantId, frameId, extension), contentType: metadata.contentType, bytes: asset.bytes });
+        ossUrl = await ossStagedUrl({ key: ossShotFrameKey(context.tenantId, frameId, extension) });
+      } catch {
+        ossUrl = undefined;
+      }
+      request.log.info({ event: "lanqi_shot_frame.generated", tenantId: context.tenantId, frameId, shotNo: input.shotNo ?? null, refs: referenceImages.length, oss: Boolean(ossUrl) });
+      return { frameId, previewUrl: lanqiMediaAssetUrl(frameId), status: "succeeded", executionMode: "real", ossReady: Boolean(ossUrl) };
+    } catch (error) {
+      request.log.error({ event: "lanqi_shot_frame.failed", tenantId: context.tenantId, frameId, message: error instanceof Error ? error.message.slice(0, 200) : String(error) });
+      return reply.code(502).send({ error: "shot_frame_generation_failed", message: "这一镜的 AI 首帧没生成出来；本次没有扣算力，可以重试一次。" });
+    }
+  });
+
+  /** 首帧预览：带登录态读取本租户自己那张（不外链、不可遍历）。 */
+  app.get<{ Params: { frameId: string } }>("/lanqi/media/shot-frame/:frameId", async (request, reply) => {
+    const context = await resolveRequestContext(request.headers);
+    try {
+      const asset = await readLanqiMediaAsset({ tenantId: context.tenantId, jobId: request.params.frameId });
+      return reply.header("Content-Type", asset.metadata.contentType).header("Cache-Control", "private, no-store").send(asset.bytes);
+    } catch {
+      return reply.code(404).send({ error: "shot_frame_not_found" });
+    }
+  });
+
+  /** 门店确认首帧（2026-10-05）：确认状态记在服务端（selectedAt），重建分镜/换浏览器都能恢复。 */
+  app.post<{ Params: { frameId: string } }>("/lanqi/media/shot-frame/:frameId/confirm", async (request, reply) => {
+    const context = await resolveRequestContext(request.headers);
+    try {
+      const metadata = await markLanqiMediaAsset({ tenantId: context.tenantId, jobId: request.params.frameId, action: "select" });
+      return { selectedAt: metadata.selectedAt };
+    } catch {
+      return reply.code(404).send({ error: "shot_frame_not_found" });
+    }
+  });
+
+  /** TTS 音色列表（前端渲染选择器用）。 */
+  app.get("/lanqi/media/tts-voices", async (_request, reply) => {
+    return reply.send({ voices: LANQI_TTS_VOICES });
+  });
+
+  /** 台词试听 / 合成：文本 → qwen-tts 语音（base64 供试听；正式出片时同样走这个合成再转 OSS）。 */
+  app.post("/lanqi/media/tts", { bodyLimit: 64 * 1024 }, async (request, reply) => {
+    const context = await resolveRequestContext(request.headers);
+    const parsed = z.object({ text: z.string().trim().min(1).max(2000), voice: z.string().trim().max(40).optional() }).safeParse(request.body ?? {});
+    if (!parsed.success) return reply.code(400).send({ error: "invalid_request" });
+    try {
+      const { audioUrl, size, base64 } = await synthesizeLanqiShotVoiceover({ tenantId: context.tenantId, text: parsed.data.text || LANQI_TTS_PREVIEW_TEXT, voice: parsed.data.voice ?? "Cherry" });
+      return reply.send({ audioBase64: base64, audioUrl, size });
+    } catch (error) {
+      request.log.warn({ event: "lanqi_tts.failed", message: error instanceof Error ? error.message.slice(0, 160) : String(error) });
+      return reply.code(502).send({ error: "tts_failed", message: "这句台词没合成出来，请稍后再试或换一个音色。" });
+    }
+  });
+
+  /** 本租户最近生成的单镜首帧列表：页面挂载时据此找回首帧（服务端记账，浏览器丢状态也能恢复）。 */
+  app.get("/lanqi/media/shot-frames", async (request, reply) => {
+    const context = await resolveRequestContext(request.headers);
+    const frames = await listLanqiShotFrames({ tenantId: context.tenantId, limit: 120 });
+    return reply.send({ frames });
+  });
 
   app.post<{ Body: z.infer<typeof mediaRequest> }>("/lanqi/media/quote", async (request, reply) => {
     const context = await resolveRequestContext(request.headers);
@@ -135,7 +318,7 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
     try {
       job = await prisma.lanqiMediaJob.create({ data: { tenantId: context.tenantId, userId: context.userId, requestKey, kind: input.kind, provider: quote.provider, model: quote.model,
           previewId: input.previewId, promptVersion: input.promptVersion ?? "unknown", prompt: input.prompt, negativePrompt: input.negativePrompt,
-          parameters: { ratio: input.ratio, resolution: input.resolution, durationSeconds: input.durationSeconds, watermark: true, firstFrameId: firstFrameFingerprint } as Prisma.InputJsonValue,
+          parameters: { ratio: input.ratio, resolution: input.resolution, durationSeconds: input.durationSeconds, watermark: false, firstFrameId: firstFrameFingerprint } as Prisma.InputJsonValue,
           imageUrl: input.imageUrl, resolution: input.resolution, ratio: input.ratio, durationSeconds: input.durationSeconds, creditCost: quote.creditCost } });
     } catch (error) {
       if ((error as { statusCode?: number }).statusCode === 402) return reply.code(402).send({ error: "insufficient_credits", message: "算力不足，本次没有创建任务或扣费。" });
@@ -144,6 +327,28 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
         if (concurrent && sameRequest(concurrent, input, firstFrameFingerprint)) return { job: serialize(concurrent), idempotent: true };
       }
       throw error;
+    }
+    // 台词配音（2026-10-05）：该镜有口播原句且选了音色 → TTS 合成并转 OSS，模型按音频对口型。
+    if (input.kind === "image_to_video" && input.dialogueText && input.voice) {
+      try {
+        const voiceover = await synthesizeLanqiShotVoiceover({ tenantId: context.tenantId, text: input.dialogueText, voice: input.voice });
+        input.audioUrl = voiceover.audioUrl;
+        request.log.info({ event: "lanqi_tts.shot_voiceover", tenantId: context.tenantId, size: voiceover.size });
+      } catch (error) {
+        // 配音失败不阻塞出片：继续生成（模型自动配音兜底）。
+        request.log.warn({ event: "lanqi_tts.shot_voiceover_failed", message: error instanceof Error ? error.message.slice(0, 160) : String(error) });
+      }
+    }
+    // 背景一致性（2026-10-05 用户实测：i2v 第 2 秒背景漂走）：图生视频 = 第一帧的连续动画，
+    // 提示词里的背景/环境描写会把场景拉向泛化布景——先剥离，再显式声明全程锁首帧场景。
+    if (input.kind === "image_to_video" && (input.frameId || input.imageUrl)) {
+      try {
+        const stripped = await stripBackgroundFromShotPrompt(input.prompt);
+        // 固定机位（2026-10-05 用户拍板）：全部镜头不带运镜，镜头锁死，只有人物动作/表情/说话。
+        input.prompt = `单镜头连续实拍：固定机位，镜头全程固定不动（三脚架锁定，不要推拉摇移、不要运镜、不要变焦），只有人物的动作、表情和说话。全程停留在首帧图片的同一场景内，背景、陈设、光线绝不切换到其他地点，不要转场、不要换布景；镜头描述里若有任何运镜/推近拉远的文字一律忽略。${stripped}`;
+      } catch {
+        /* 剥离失败保留原文 */
+      }
     }
     try {
       const providerTaskId = await submitLanqiMedia(input, requestKey);
@@ -391,6 +596,30 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
 }
 
 /** 图片与成片共用同一条租户隔离落盘链路，按任务类型选择对应的格式校验规则。 */
+/**
+ * 镜头描述背景剥离（2026-10-05）：传了场景底图后，提示词里残留的背景/环境/陈设描写
+ * 会拉着模型偏离场景照。这里用一次轻量 LLM 调用把它们删掉，只留人物动作/表情/景别/构图。
+ * 失败由调用方兜底（用原文 + 覆盖规则）。
+ */
+async function stripBackgroundFromShotPrompt(prompt: string): Promise<string> {
+  const provider = createRuntimeLlmProvider();
+  if (!provider.isConfigured()) return prompt;
+  const raw = await provider.complete([
+    {
+      role: "system",
+      content: [
+        "你是生图提示词清洗器。把镜头描述里所有关于背景、环境、场景、陈设、地点的描写删掉",
+        "（例如「站在门店前台」「背景是产品货架」「店内氛围安静」这类），",
+        "只保留：人物动作、表情、景别、构图、光影质感词；运镜相关的词一并删掉（成片统一固定机位）。",
+        "直接输出清洗后的描述正文；不要解释、不要 Markdown、不要加引号；不要自己新增内容。"
+      ].join("\n")
+    },
+    { role: "user", content: prompt }
+  ], { maxTokens: 800, reasoningProfile: "standard", thinkingMode: "disabled" });
+  const cleaned = raw.trim().replace(/^["'「『]+/, "").replace(/["'」』]+$/, "").trim();
+  return cleaned || prompt;
+}
+
 async function persistLanqiProviderOutput(job: { id: string; tenantId: string; kind: string }, sourceUrl: string) {
   return job.kind === "image"
     ? persistLanqiProviderImage({ tenantId: job.tenantId, jobId: job.id, sourceUrl })
@@ -466,7 +695,20 @@ async function refreshMockJob(tenantId: string, jobId: string): Promise<MockJob 
   job.refreshCount += 1; job.updatedAt = new Date().toISOString();
   if (job.refreshCount === 1) { job.status = "processing"; job.progress = 55; }
   else if (job.prompt.includes("[模拟失败]")) { job.status = "failed"; job.progress = 0; job.assetStatus = "unavailable"; job.errorMessage = "受控模拟失败；未调用外部模型、未扣算力。"; job.canCancel = false; job.canRetry = true; }
-  else { await persistLanqiMockImage({ tenantId, jobId, prompt: job.prompt, ratio: job.ratio, label: job.kind === "image" ? "受控模拟成图" : "受控模拟成片" }); job.status = "succeeded"; job.progress = 100; job.assetStatus = "persisted"; job.outputUrl = lanqiMediaAssetUrl(job.id); job.canCancel = false; }
+  else {
+    // 视频类 mock 回放真实 MP4（原 SVG 占位图 `<video>` 播不了 → 黑屏 0:00，2026-10-04 用户实测）；
+    // 回放文件不可用时回退占位图，流程不断。
+    let persisted = false;
+    if (job.kind !== "image" && env.BEAUTY_VIDEO_REPLICATION_MOCK_VIDEO) {
+      try {
+        const bytes = await readFile(env.BEAUTY_VIDEO_REPLICATION_MOCK_VIDEO);
+        await persistLanqiMockVideo({ tenantId, jobId: job.id, bytes });
+        persisted = true;
+      } catch { /* 回退占位图 */ }
+    }
+    if (!persisted) await persistLanqiMockImage({ tenantId, jobId, prompt: job.prompt, ratio: job.ratio, label: job.kind === "image" ? "受控模拟成图" : "受控模拟成片" });
+    job.status = "succeeded"; job.progress = 100; job.assetStatus = "persisted"; job.outputUrl = lanqiMediaAssetUrl(job.id); job.canCancel = false;
+  }
   return job;
 }
 
@@ -545,7 +787,7 @@ async function bindLanqiFirstFrame(
   | { ok: true; input: LanqiMediaRequest; firstFrameId?: string }
   | { ok: false; statusCode: number; error: string; message: string }
 > {
-  const resolved = await resolveLanqiFirstFrameInput({ tenantId: context.tenantId, kind: input.kind, firstFrameId: input.firstFrameId, firstFrame: input.firstFrame, imageUrl: input.imageUrl });
+  const resolved = await resolveLanqiFirstFrameInput({ tenantId: context.tenantId, kind: input.kind, firstFrameId: input.firstFrameId, firstFrame: input.firstFrame, imageUrl: input.imageUrl, frameId: input.frameId });
   if (!resolved.ok) return resolved;
   return { ok: true, input: { ...input, imageUrl: resolved.imageUrl }, firstFrameId: resolved.firstFrameId };
 }

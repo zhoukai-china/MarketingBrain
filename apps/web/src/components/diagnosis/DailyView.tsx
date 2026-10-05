@@ -109,7 +109,7 @@ export function DailyView({ headers = {}, onNeedLogin, onConsult }: DailyViewPro
     setShareNotice("");
     try {
       const title = `思潼AI日报 · 第${report.issueNo}期`;
-      const text = `${report.summary || report.content?.headline || "今日AI日报已生成"}\n\n来自思潼AI 行业智能体平台。`;
+      const text = `${report.summary || report.content?.headline || "今日AI日报已生成"}\n\n来自思潼AI商城。`;
       if (navigator.share) {
         await navigator.share({ title, text, url: window.location.href });
         setShareNotice("已打开分享面板。");

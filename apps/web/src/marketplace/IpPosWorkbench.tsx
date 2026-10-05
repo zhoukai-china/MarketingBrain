@@ -12,7 +12,7 @@
 //  - 结构化 payload 本机找回（换账号丢弃）、Word 导出免费。
 // 与原型的两处刻意差异：单章「重生成」后端无此能力，不做假按钮；日志末行不写死耗时。
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Fragment } from "react";
 import { apiPath, getAppPath, getAppRoutePath } from "../lib/api.js";
 import { useScrollLock } from "../lib/use-scroll-lock.js";
 import { readSessionIdentity } from "../lib/session.js";
@@ -22,8 +22,12 @@ import { MallTopbar } from "./MallTopbar.js";
 import { chatFlowFor, buildRunBody } from "./chat-flows.js";
 import { renderMarkdownHtml } from "./AgentChatPage.js";
 import { preprocessIpPosMd, type IpPosPayload } from "./ip-pos-report.js";
+// shouldShowHint 仍由纯函数层导出并被 qa-ip-pos 单测覆盖；结果区不再渲染「原文：」一行
+// —— 填空句本身已经带上了原位上下文，再显示一遍就是 2026-10-03 那种「挤在一起」。
+import { scanCompletions, applyFilledAnswers, type CompletionItem } from "./ip-pos-completions.js";
+import { parseGapSentence, isFillSentence, gapText, assembleGapSupplement, mergePrefills, type IpPosGap, type PrefillItem, type PrefillIssue } from "./ip-pos-gaps.js";
 import { employeeAvatarPath } from "./eco-mall-data.js";
-import { IP_POS_PRICE, IP_POS_UNIT } from "./sku-model.js";
+import { IP_POS_PRICE, IP_POS_PATCH_PRICE, IP_POS_UNIT } from "./sku-model.js";
 import sitongAvatar from "../assets/sitong-beauty.png";
 
 /* ================= 原型数据（逐字对齐 ip-pos-workbench-demo-20260924） ================= */
@@ -202,18 +206,30 @@ function buildDemoPayload(): IpPosPayload {
   };
 }
 
-/* 槽位映射：原型 8 字段 ↔ 后端 6 槽位（商业模式并入项目、IP目标并入创始人——与 /chat 同口径） */
+/** 槽位映射：原型 8 字段 → 后端 6 槽位（商业模式并入项目、IP目标并入创始人——与 /chat 同口径）。
+ *  2026-10-03：反向映射 FIELD_TO_SLOT 随「体检项勾销」一起删除——合并面板后不再按「已补充槽位」勾销。 */
 const SLOT_TO_FIELDS: Record<string, string[]> = {
   role: ["role"], project: ["project", "biz"], competition: ["comp"],
   user: ["user"], founder: ["founder", "goal"], stage: ["status"]
 };
-const FIELD_TO_SLOT: Record<string, string> = {
-  role: "role", project: "project", biz: "project", comp: "competition",
-  user: "user", founder: "founder", goal: "founder", status: "stage"
-};
 
-/** 生成前体检的一条结论（与后端 /precheck 契约一致）。 */
-type PrecheckIssue = { slot: string; verdict: "weak" | "missing"; followup: string };
+/**
+ * 生成前体检的一条结论（与后端 /precheck 契约一致；sentence 是填空句，见 ip-pos-gaps.ts）。
+ * 2026-10-03（用户「这两个合并成一个，都按第二个填空的方式」）：体检结论不再单独渲染成一块
+ * 「疑问句清单 + 跳过/按提示补充双按钮」，而是经 mergePrefills 折成 PrefillItem，
+ * 和运营缺口一起进同一个填空面板。
+ */
+type PrecheckIssue = PrefillIssue;
+
+/** 槽位 → 面板左侧标签（复用简报 8 字段的中文名，如 stage → 现状与投入）。 */
+function slotLabelOf(slot: string): string {
+  const labels = (SLOT_TO_FIELDS[slot] ?? [slot])
+    .map((k) => FIELDS.find((f) => f.key === k)?.label)
+    .filter((x): x is string => Boolean(x));
+  return labels.join(" / ") || slot;
+}
+/** 生成前预测出的「运营级缺口」类型/填空句解析见 ./ip-pos-gaps.ts（纯函数，可单测）。 */
+/** 生成后扫描出的「待补充」项的类型/扫描/分组见 ./ip-pos-completions.ts（纯函数，可单测）。 */
 type Phase = "idle" | "ask" | "confirm" | "gen" | "done";
 interface ChatMsg { id: number; who: "ai" | "user"; html: string; pending?: boolean; /** 临时消息（如「已恢复对话」提示）：不落草稿——否则每次重进叠一条（2026-09-30 实测）。 */ ephemeral?: boolean }
 interface Piece { meta: PieceMeta; bodyHtml: string; plain: string }
@@ -231,6 +247,33 @@ const LOG_DELAY_MS = 700;
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/** 把结果正文里的「待补充」标记渲染成低调占位（虚线蓝 chip），不让它像正文内容。
+ *  仅在展示层转换，不改 payload / 不改变复制与导出原文。 */
+function neutralizeGaps(html: string): string {
+  const GAP_RE = /【待补(?:充)?[:：][^】<]{0,40}】|待补(?:充)?[:：][^<>\n]{0,40}/g;
+  return html.replace(GAP_RE, (mm) => {
+    const label = mm.replace(/【?待补(?:充)?[:：]?/g, "").replace(/】/g, "").trim() || "此处";
+    return `<span class="cpw-gap-chip" title="待补充项：${escapeHtml(label)}">（待补充）</span>`;
+  });
+}
+
+/** 把增强项按章节聚起来（保持 pieces 的章节顺序），供「增强项目」里的章节 tab 使用。
+ *  2026-10-03：增强项目由右侧 320px 窄栏改成全宽 + 章节 tab，一次只填一章，不再是长串堆叠。 */
+function groupEnhSections(items: CompletionItem[]): Array<{ key: string; title: string; items: CompletionItem[] }> {
+  const out: Array<{ key: string; title: string; items: CompletionItem[] }> = [];
+  const at = new Map<string, number>();
+  for (const c of items) {
+    const i = at.get(c.sectionKey);
+    if (i === undefined) {
+      at.set(c.sectionKey, out.length);
+      out.push({ key: c.sectionKey, title: c.sectionTitle, items: [c] });
+    } else {
+      out[i]!.items.push(c);
+    }
+  }
+  return out;
 }
 
 /* ---------- 结构化 payload 本机找回（沿用原实现：按会话指纹隔离） ---------- */
@@ -292,6 +335,11 @@ function buildPieces(p: IpPosPayload | null, answerMd: string): Piece[] {
   return out;
 }
 
+/** 扫描全案各章节里的待补标记，按章节聚成补全问题卡（实现见 ip-pos-completions.ts）。 */
+function scanAllCompletions(payload: IpPosPayload | null): CompletionItem[] {
+  return scanCompletions(payload, PIECES);
+}
+
 export function IpPosWorkbench({ skuId }: { skuId: string }) {
   const [phase, setPhase] = useState<Phase>("idle");
   /**
@@ -322,13 +370,39 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   const [flashFields, setFlashFields] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // 生成前体检（不扣算力；slot 精确勾销）
-  const [review, setReview] = useState<PrecheckIssue[] | null>(null);
-  const [resolved, setResolved] = useState<string[]>([]);
+  // 生成前体检 + 运营缺口：2026-10-03（用户「这两个合并成一个，都按第二个填空的方式」）后
+  // 只有一份数据 `gaps`（PrefillItem[]）——体检项（source=check）和运营缺口（source=gap）
+  // 折成同一个列表交给同一个填空面板渲染，不再有独立的体检清单/已补充勾销逻辑。
   /** 生成前体检进行中：按钮显示「校验中…」，期间不可重复点击。 */
   const [prechecking, setPrechecking] = useState(false);
   /** 用户明确选择「跳过体检直接生成」后置 true，下一次 startGen 不再跑体检。 */
   const precheckBypassRef = useRef(false);
+  /**
+   * 上一次体检时的「简报签名」（只含 6 个基础槽位，不含补充内容）。
+   * 相同 = 这份简报已经体检过 → 再点生成直接开做，避免无限重复体检。
+   */
+  const precheckSigRef = useRef("");
+  /**
+   * 已提交的补充信息快照。面板收起（setGaps([])）后，run 失败重试时若只靠 `gaps` 会算成空串，
+   * 用户填过的东西就被默默丢掉了——2026-10-02 用户要求「填了多少都要应用」，这里兜住。
+   */
+  const gapSuppRef = useRef("");
+  /** 「额外补充」在右侧定位简报里的展示内容（点生成后把用户填的固化进来，生成/重试全程保留）。 */
+  const [gapSuppView, setGapSuppView] = useState("");
+
+  // 生成前「建议补充」面板（体检补强 + 运营缺口合并，可选，不答也能生成）
+  // 2026-10-02：改「填空题」——每条是一个填空句（sentence 里用【】留空），
+  // gapFills 按下标存「每个空的作答」数组（gapFills[itemIndex][blankIndex]）。
+  const [gaps, setGaps] = useState<PrefillItem[]>([]);
+  const [gapFills, setGapFills] = useState<Record<number, string[]>>({});
+  // 生成后待补充补全（扫描 payload.sections 的【待补】标记，按章节聚成问题卡）
+  const [completions, setCompletions] = useState<CompletionItem[]>([]);
+  const [completionAnswers, setCompletionAnswers] = useState<Record<string, string>>({});
+  const [completing, setCompleting] = useState(false);
+  const [completionCost, setCompletionCost] = useState<number | null>(null);
+  /** 是否已完成「增强项目」且结果零残留【待补充】（用于结果头展示「已增强」徽标）。 */
+  const [enhClean, setEnhClean] = useState(false);
+  const [completionError, setCompletionError] = useState<string | null>(null);
 
   // 生成中
   const [logLines, setLogLines] = useState<string[]>([]);
@@ -346,6 +420,10 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   const [consumed, setConsumed] = useState<number | null>(null);
   const [restored, setRestored] = useState(false);
   const [tab, setTab] = useState("all");
+  /** 结果区一级 tab：交付内容 / 增强项目（2026-10-03 由左右分栏改为全宽切换）。 */
+  const [view, setView] = useState<"content" | "enh">("content");
+  /** 「增强项目」内当前选中的章节（sectionKey，空串 = 落到第一组）。 */
+  const [enhSec, setEnhSec] = useState("");
   const [exporting, setExporting] = useState(false);
 
   // 简报编辑弹窗
@@ -496,6 +574,8 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     setAnswerMd(answer ?? (p ? buildPayloadMarkdown(p) : ""));
     if (consumed0 != null) setConsumed(consumed0);
     setRestored(isRestored);
+    // 还原已交付方案时，若正文里仍残留【待补】标记，也要把"补完"面板挂上（走同一套清洗/去重）。
+    if (p) setCompletions(scanAllCompletions(p));
     if (!isRestored) setPhase("done");
   }
 
@@ -508,11 +588,13 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     demoRef.current = false; setDemoOn(false);
     if (demoTickRef.current != null) { window.clearInterval(demoTickRef.current); demoTickRef.current = null; }
     setPhase("idle"); setQi(0); setBrief({}); briefRef.current = {}; setGenCandidates(null); runIdRef.current += 1;
+    precheckBypassRef.current = false; precheckSigRef.current = ""; gapSuppRef.current = ""; setGapSuppView("");
     setMessages([]); setOptsQ(null); setConfirmOpts(false); setFreeInput("");
-    setError(null); setReview(null); setResolved([]);
+    setError(null);
+    setGaps([]); setGapFills({}); setCompletions([]); setCompletionAnswers({}); setCompletionCost(null); setCompletionError(null); setEnhClean(false);
     setLogLines([]); setLogIdx(0); setGenIdx(-1); setGenFinished(false);
     setRunSettled(false); setLogDone(false); runResultRef.current = null;
-    setPieces([]); setAnswerMd(""); setConsumed(null); setRestored(false); setTab("all");
+    setPieces([]); setAnswerMd(""); setConsumed(null); setRestored(false); setTab("all"); setView("content"); setEnhSec("");
     // 用户主动重置 = 丢弃对话草稿，下次从头开始。演示开局传 keepDraft=true：
     // 演示只是叠在上面的一层，绝不能顺手删掉用户真实的访谈进度（刷新页面就丢了）。
     if (!keepDraft) {
@@ -700,7 +782,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     setGenCandidates(snap.genCandidates);
     setLogLines([]); setLogIdx(0); setGenIdx(-1); setGenFinished(false);
     setRunSettled(false); setLogDone(false); runResultRef.current = null;
-    setError(null); setReview(null); setResolved([]); setFreeInput(""); setTab("all"); setElapsed(0);
+    setError(null); setFreeInput(""); setTab("all"); setView("content"); setEnhSec(""); setElapsed(0);
     if (snap.payload) setPayloadView(snap.payload, null, null, true);
     else { setPieces(snap.pieces); setAnswerMd(snap.answerMd); setConsumed(snap.consumed); setRestored(snap.restored); }
   }
@@ -781,8 +863,8 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
 
   /* ---------- 生成（体检 → /run，后端与原对话页同源） ---------- */
 
-  function briefToSlotAnswers(): Record<string, string> {
-    return {
+  function briefToSlotAnswers(withSupplement = true): Record<string, string> {
+    const base: Record<string, string> = {
       role: (brief.role ?? "").trim(),
       project: [(brief.project ?? "").trim(), (brief.biz ?? "").trim() && `商业模式：${(brief.biz ?? "").trim()}`].filter(Boolean).join("；"),
       competition: (brief.comp ?? "").trim(),
@@ -790,6 +872,14 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
       founder: [(brief.founder ?? "").trim(), (brief.goal ?? "").trim() && `IP目标：${(brief.goal ?? "").trim()}`].filter(Boolean).join("；"),
       stage: (brief.status ?? "").trim()
     };
+    // 生成前「建议补充（可选）」里用户填的空，组装成补充信息带入需求单（不答则为空）。
+    // 填空句全填→还原整句；只填了一部分→报「名词：值」（见 ip-pos-gaps.ts assembleGapAnswer）。
+    // withSupplement=false 用于算「已体检签名」：填空不算改简报，不该触发重新体检。
+    // 面板还开着 → 用实时作答；面板已收起（gaps 清空，如 run 失败重试）→ 回落到已提交快照。
+    const gapSupp = withSupplement
+      ? (gaps.length > 0 ? assembleGapSupplement(gaps, gapFills) : gapSuppRef.current)
+      : "";
+    return gapSupp ? { ...base, __supplement: `【预采集补充】${gapSupp}` } : base;
   }
 
   async function startGen() {
@@ -805,11 +895,23 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     setError(null);
 
     // 第一关：生成前体检（轻模型、不扣算力）。
-    // 2026-09-30（用户）：体检只是「建议」，不许拦人——发现问题给出「补强」和「直接生成」两条路，
-    // 用户说没问题就直接放行；第二次点击（bypass）不再重复体检。
-    if (!precheckBypassRef.current) {
+    // 2026-09-30（用户）：体检只是「建议」，不许拦人——用户直接放行也不会被挡。
+    // 2026-10-02（用户反馈「没看到 3–5 补问」）：体检复用同一次调用多返回一组 gaps（预测运营级缺口）。
+    // 2026-10-03（用户「这两个合并成一个，都按第二个填空的方式」）：体检 issues 也改成填空句，
+    //   与 gaps 经 mergePrefills 折成**同一个填空面板**（不再有独立清单 + 跳过/按提示补充双按钮）。
+    //   ⚠️ 两个坑必须同时堵：
+    //   ① setGaps(...) 之后**不能读 state**——同一函数里 gaps 还是旧值（[]），原来
+    //      `issues.length > 0 || gaps.length > 0` 恒为 false → 面板永远不出现、直接开跑。
+    //      改存局部变量 merged 判条件。
+    //   ② 只有补充项时，点「生成」会一直重复体检、永远生不出来（死循环）。
+    //      用 precheckSigRef 记住「这份简报已体检过」（只按 6 个基础槽位算签名，填补充项不算改简报），
+    //      再点一次就直接开做；简报真改了（签名变）才重新体检。
+    const briefSig = JSON.stringify(briefToSlotAnswers(false));
+    if (!precheckBypassRef.current && precheckSigRef.current !== briefSig) {
       setPrechecking(true);
       let issues: PrecheckIssue[] = [];
+      let gapList: IpPosGap[] = [];
+      let merged: PrefillItem[] = [];
       try {
         const res = await fetch(apiPath(`/market/skus/${encodeURIComponent(skuId)}/precheck`), {
           method: "POST",
@@ -820,8 +922,12 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
           throw new Error("登录已过期，本地登录信息已清除。请点右上角「未登录 · 点击登录」重新登录；本次不消耗算力。");
         }
         if (res.ok) {
-          const data = await readJson<{ issues?: PrecheckIssue[] }>(res);
-          issues = (data.issues ?? []).filter((item) => item && item.slot && item.followup);
+          const data = await readJson<{ issues?: PrecheckIssue[]; gaps?: IpPosGap[] }>(res);
+          issues = (data.issues ?? []).filter((item) => item && item.slot && (item.followup || (item.sentence ?? "").trim()));
+          gapList = (data.gaps ?? []).filter((g) => g && g.area && ((g.sentence ?? "").trim() || (g.question ?? "").trim()));
+          merged = mergePrefills(issues, gapList, slotLabelOf);
+          setGaps(merged);
+          gapSuppRef.current = ""; // 新一轮体检换了题，旧快照作废（否则会把上一题填的带进来）
         }
       } catch (e) {
         const message = e instanceof Error ? e.message : "";
@@ -829,21 +935,36 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
         // 其余预审异常：放行，不挡生成主链路
       }
       setPrechecking(false);
-      if (issues.length > 0) {
-        setReview(issues);
-        setResolved([]);
-        pushMsg(
-          "ai",
-          `体检看了下，有 <b>${issues.length} 项</b>回答再补强一点，全案会更准（清单在右侧）。`
-          + `不过材料够不够你说了算——想补就照右侧提示改，改完再点生成；`
-          + `认为没问题就点 <b>「跳过体检，直接生成」</b>，马上开做。`
-        );
+      if (merged.length > 0) {
+        // 2026-10-02（用户「不要让用户被重复的提醒」）：体检一旦出过结果就记住签名——
+        // 用户填完（填一部分或全填）再点「生成定位全案」直接开做，绝不会再弹一遍同样的提醒；
+        // 只有当简报真的被改了（签名变）才重新体检。签名只按 6 个基础槽位算，填补充项不算改简报。
+        precheckSigRef.current = briefSig;
+        const checkN = merged.filter((it) => it.source === "check").length;
+        const gapN = merged.length - checkN;
+        const lead = checkN > 0
+          ? `体检看了下，有 <b>${checkN} 项</b>回答可以补强一点`
+          : `体检这关过了，材料够生成 ✅`;
+        const gapTip = gapN > 0
+          ? `${checkN > 0 ? "；另外再补" : "再补"} <b>${gapN} 项</b>运营细节（预算 / 团队 / 产品 / 渠道等）`
+          : "";
+        const mid = `，全案会更贴你的实际——已合并列在下方，<b>按句子把空填上就行，填多少都算数</b>。`;
+        const tail = `<b>填完（只填一部分也可以）点下方「补充好了，直接生成」</b>，填的都会被采纳。`;
+        pushMsg("ai", `${lead}${gapTip}${mid}${tail}`);
         return;
       }
     }
     precheckBypassRef.current = false;
-    setReview(null);
-    setResolved([]);
+    // 只收面板、不清用户已填的 gapFills：run 失败（如 402/502 不扣费）退回确认页时，
+    // 已填的补充信息还在（下面 buildRunBody 用的也是闭包里这份值）。
+    // 面板要收起了：先把用户填的（部分或全部）固化成快照，run 失败重试也不会丢。
+    // 只在 gaps 非空时写，避免重试时用空数组把快照清掉。
+    if (gaps.length > 0) { gapSuppRef.current = assembleGapSupplement(gaps, gapFills); setGapSuppView(gapSuppRef.current); }
+    setGaps([]);
+    setCompletions([]);
+    setCompletionAnswers({});
+    setCompletionCost(null);
+    setCompletionError(null);
     setConfirmOpts(false);
     setPhase("gen");
     setElapsed(0);
@@ -959,6 +1080,10 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     setAnswerMd(result.answer || (result.payload ? buildPayloadMarkdown(result.payload) : ""));
     setPieces(buildPieces(result.payload, result.answer));
     setPhase("done");
+    // 交付后扫描【待补充】标记，聚成「补全」问题卡（章节级 patch，非整包重跑）。
+    setCompletions(scanAllCompletions(result.payload));
+    setView("content"); setEnhSec("");
+    setEnhClean(false);
     pushMsg("ai", `交付完成 ✅ <b>定位全案 9 件</b>已按 5 个分区放在右侧——速览先看，定位 / 人设 / 内容 / 增长按需取用。每章可<b>单独复制</b>、可导出 Word；改简报可整包重跑。本次消耗 <b>${result.consumed ?? IP_POS_PRICE} ${IP_POS_UNIT}</b>。`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runSettled, logDone, phase]);
@@ -981,11 +1106,7 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
       else delete next[key];
       return next;
     });
-    const slot = FIELD_TO_SLOT[key];
-    if (slot && v && review?.some((issue) => issue.slot === slot)) {
-      setResolved((prev) => (prev.includes(slot) ? prev : [...prev, slot]));
-    }
-    if (phase === "done") { setPhase("confirm"); setConfirmOpts(true); setPieces([]); setRestored(false); }
+    if (phase === "done") { setPhase("confirm"); setConfirmOpts(true); setPieces([]); setRestored(false); setCompletions([]); setCompletionAnswers({}); }
     setEditing(null);
   }
   useEffect(() => {
@@ -1038,10 +1159,95 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
     }
   }
 
+  /* ---------- 生成后「待补充」章节级补全（轻量 patch，非整包重跑） ---------- */
+
+  async function completePending() {
+    if (demoRef.current) { setError("演示模式中不可用——点上方「停止演示」后可操作。"); return; }
+    if (phase !== "done") return;
+    const prev = runResultRef.current;
+    const payload = prev?.payload;
+    if (!payload?.sections) return;
+    const answered = completions
+      .map((c) => ({ item: c, answer: (completionAnswers[c.id] ?? "").trim() }))
+      .filter((x) => x.answer);
+    if (answered.length === 0) {
+      setCompletionError("请至少填写一项补充信息，再点「一键补全」。");
+      return;
+    }
+    // 按章节聚合：每个待补章节一次性重写，draft 取当前章节全文。
+    const bySection = new Map<string, { sectionKey: string; title: string; draft: string; items: Array<{ instruction: string; answer: string }> }>();
+    for (const { item, answer } of answered) {
+      if (!bySection.has(item.sectionKey)) {
+        bySection.set(item.sectionKey, {
+          sectionKey: item.sectionKey,
+          title: item.sectionTitle,
+          draft: payload.sections[item.sectionKey] ?? "",
+          items: []
+        });
+      }
+      // 带上原文位置（表格行/所在句子经压平）：模型能判断这个缺口落在哪，替换更准。
+      const instr = item.hint && !item.hint.includes(item.instruction)
+        ? `${item.instruction}（原文位置：${item.hint}）`.slice(0, 300)
+        : item.instruction;
+      bySection.get(item.sectionKey)!.items.push({ instruction: instr, answer });
+    }
+    const patches = [...bySection.values()];
+    setCompleting(true); setCompletionError(null); setCompletionCost(null);
+    try {
+      const res = await fetch(apiPath(`/market/skus/${encodeURIComponent(skuId)}/ip-pos/complete`), {
+        method: "POST",
+        headers: authHeaders(true),
+        body: JSON.stringify({ answers: briefToSlotAnswers(), patches })
+      });
+      if (handleStaleSession(res.status)) {
+        throw new Error("登录已过期，本地登录信息已清除。请重新登录后再补全。");
+      }
+      if (res.status === 402) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.message ?? "当前算力不足，请先充值后再补全。");
+      }
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.message ?? "补全失败，本次不消耗算力，请稍后重试。");
+      }
+      const data = (await res.json()) as { sections?: Record<string, string>; consumedCredits?: number };
+      const returned = data.sections ?? {};
+      if (Object.keys(returned).length === 0) throw new Error("补全结果为空，本次不消耗算力，请重试。");
+      const merged: IpPosPayload = { ...payload, sections: { ...payload.sections, ...returned } };
+      // 兜底：用户填过的项，标记位强制替换成填写值，确保结果零残留【待补充】。
+      if (merged.sections) merged.sections = applyFilledAnswers(merged.sections, answered.map((a) => ({ sectionKey: a.item.sectionKey, instruction: a.item.instruction, answer: a.answer })));
+      savePayloadLocally(skuId, merged);
+      runResultRef.current = {
+        ...prev!,
+        payload: merged,
+        answer: buildPayloadMarkdown(merged),
+        consumed: prev!.consumed
+      };
+      setAnswerMd(buildPayloadMarkdown(merged));
+      setPieces(buildPieces(merged, buildPayloadMarkdown(merged)));
+      const remaining = scanAllCompletions(merged);
+      setCompletions(remaining);
+      setEnhClean(remaining.length === 0);
+      setCompletionAnswers({});
+      setCompletionCost(typeof data.consumedCredits === "number" ? data.consumedCredits : null);
+      window.dispatchEvent(new CustomEvent("sitong:balance-changed"));
+      if (remaining.length === 0) {
+        pushMsg("ai", `补全完成 ✅ 所有【待补充】都填实了，本次轻量补全消耗 <b>${data.consumedCredits ?? "?"} ${IP_POS_UNIT}</b>（整包重跑要 ${IP_POS_PRICE} ${IP_POS_UNIT}）。`);
+      } else {
+        pushMsg("ai", `已补全你填写的部分 ✅ 还剩 ${remaining.length} 处未填，可继续补；不想补也能直接用。`);
+      }
+    } catch (e) {
+      setCompletionError(e instanceof Error ? e.message : "补全失败。");
+    } finally {
+      setCompleting(false);
+    }
+  }
+
   /* ---------- 派生 ---------- */
 
   const filled = FIELDS.filter((f) => (brief[f.key] ?? "").trim()).length;
-  const pendingReview = (review ?? []).filter((issue) => !resolved.includes(issue.slot));
+  /** 合并面板的来源构成：体检补强 N 项（其余是运营缺口），标题/副标题据此交代来源。 */
+  const prefillChecks = gaps.filter((g) => g.source === "check").length;
   const statusText =
     phase === "gen" ? "生成中 · 流式推导" :
     phase === "done" ? "交付完成 · 9/9 件" :
@@ -1056,6 +1262,9 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
   const gpPct = Math.round(Math.min(logIdx, gpTotal) / gpTotal * 100);
   const groups = [...new Set(pieces.map((p) => p.meta.g))];
   const shownPieces = tab === "all" ? pieces : pieces.filter((p) => p.meta.g === tab);
+  // 增强项目：按章节分组 + 当前选中章节（章节被重算掉时回落到第一组）
+  const enhSections = groupEnhSections(completions);
+  const curSec = enhSections.find((s) => s.key === enhSec) ?? enhSections[0];
 
   return (
     <main className="cpw-page">
@@ -1168,6 +1377,16 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                         );
                       })}
                     </div>
+                    {gapSuppView.trim() && (
+                      <div className="cpw-brief-extra">
+                        <div className="cpw-be-k"><span className="cpw-be-x">➕</span> 额外补充</div>
+                        <div className="cpw-be-bd">
+                          {gapSuppView.split(/[\n；;]/).map((l) => l.trim()).filter(Boolean).map((l, i) => (
+                            <div className="cpw-be-line" key={i}>{l}</div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className="cpw-ops">
                       {phase === "confirm" && (
                         <button
@@ -1184,39 +1403,69 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                       <span className="cpw-fee">{feeHint}</span>
                       <span className="cpw-safe-tag"><IconAuto v="🛡" /> 失败不扣费</span>
                     </div>
-                    {review && review.length > 0 && phase !== "gen" && (
-                      <div className="cpw-review" role="alert">
+                    {gaps.length > 0 && phase !== "gen" && (
+                      /* 2026-10-03（用户「这两个合并成一个，都按第二个填空的方式」）：
+                         体检补强项（source=check）与运营缺口（source=gap）合成一个填空面板——
+                         不再分两块渲染、也没有「跳过体检 / 按提示补充」双按钮；全都不填直接点
+                         底部「补充好了，直接生成」即可（体检只是建议，不拦人）。 */
+                      <div className="cpw-gaps" role="note">
                         <div className="ir-t">
-                          {pendingReview.length > 0
-                            ? `🔍 生成前体检 · ${pendingReview.length} 项可以补强（不强制）`
-                            : `✅ 生成前体检 · ${review.length} 项已按提示补充，再点一次「✓ 确认，开始生成」`}
+                          💡 再补这 {gaps.length} 项，全案会更贴你的实际
+                          {prefillChecks > 0 && <span className="cpw-gaps-mix">含体检补强 {prefillChecks} 项</span>}
                         </div>
-                        {review.map((issue) => {
-                          const fields = SLOT_TO_FIELDS[issue.slot] ?? [issue.slot];
-                          const done0 = resolved.includes(issue.slot);
-                          return (
-                            <div className="cpw-ir" key={issue.slot}>
-                              <span className={`cpw-ir-badge ${issue.verdict === "missing" ? "missing" : "weak"}`}>{issue.verdict === "missing" ? "缺失" : "太薄"}</span>
-                              <div className="cpw-ir-main">
-                                <b>{fields.map((fk, i) => { const meta = FIELDS.find((x) => x.key === fk); return (<span key={`${fk}-${i}`}>{i > 0 ? " / " : ""}{meta ? <><IconAuto v={meta.icon} /> {meta.label}</> : fk}</span>); })}</b>
-                                <span>{issue.followup}</span>
+                        <div className="cpw-gaps-sub">补充会让方案更准、更能直接落地——按句子把空填上就行；填的都会被采纳，都会带进生成。</div>
+                        {gaps.map((g, i) => {
+                          const text = gapText(g);
+                          const fills = gapFills[i] ?? [];
+                          const setBlank = (bi: number, v: string) =>
+                            setGapFills((prev) => { const cur = prev[i] ? [...prev[i]] : []; cur[bi] = v; return { ...prev, [i]: cur }; });
+                          // 来源标记：体检补强的标签用暖色（缺失更重），运营缺口用原来的蓝。
+                          const areaCls = `cpw-gap-area${g.source === "check" ? ` is-check${g.verdict === "missing" ? " is-missing" : ""}` : ""}`;
+                          // 填空题：把【】渲染成一个个小输入框，用户只管把空填上（2026-10-02 用户）
+                          if (isFillSentence(text)) {
+                            return (
+                              <div className="cpw-gap" key={`${g.area}-${i}`}>
+                                <div className="cpw-gap-fill">
+                                  <span className={areaCls}>{g.area}</span>
+                                  {parseGapSentence(text).map((p, pi) => p.kind === "text"
+                                    ? <span key={pi} className="cpw-gap-txt">{p.text}</span>
+                                    : <input
+                                        key={pi}
+                                        className="cpw-gap-blank"
+                                        value={fills[p.blankIndex] ?? ""}
+                                        placeholder={p.label}
+                                        aria-label={p.label}
+                                        style={{ width: `${Math.max(4, p.label.length + 2)}em` }}
+                                        onChange={(e) => setBlank(p.blankIndex, e.target.value)}
+                                      />)}
+                                </div>
                               </div>
-                              {done0 && <span className="cpw-ir-done">✓ 已补充</span>}
+                            );
+                          }
+                          // 兜底：模型没给填空句（退回问句）→ 走原来的自由输入框
+                          return (
+                            <div className="cpw-gap" key={`${g.area}-${i}`}>
+                              <div className="cpw-gap-q"><span className={areaCls}>{g.area}</span>{text}</div>
+                              <input
+                                className="cpw-gap-in"
+                                value={fills[0] ?? ""}
+                                placeholder="在此补充（可选）"
+                                onChange={(e) => setBlank(0, e.target.value)}
+                              />
                             </div>
                           );
                         })}
-                        {pendingReview.length > 0 && (
-                          /* 2026-09-30（用户）：跳过入口原来是右上角小字，太隐蔽——
-                             升级为卡底醒目双按钮：补强 or 直接生成，两条路都一眼可见。 */
-                          <div className="cpw-review-ops">
-                            <button className="cpw-opt go" onClick={() => { precheckBypassRef.current = true; dismissConfirmOpts(); void startGen(); }}>
-                              🚀 跳过体检，直接生成<small>材料够不够你说了算 · 体检不扣算力</small>
-                            </button>
-                            <button className="cpw-opt" onClick={() => { setConfirmOpts(false); pushMsg("ai", "好，按上面清单逐条补充：点右侧简报里对应的字段改，改完再点「✨ 生成定位全案」，我会重新体检。"); }}>
-                              ✎ 按提示补充<small>补完更准 · 改完重新生成</small>
-                            </button>
-                          </div>
-                        )}
+                        <div className="cpw-gap-note">补充能让全案更贴合你的实际——填了多少都算数，已填的会全部带进生成。</div>
+                        {/* 面板收起必须靠这个按钮打开 bypass，否则用户再点「生成定位全案」会一直
+                            重复体检、看不到生成（死循环，2026-10-02 踩过）。 */}
+                        <div className="cpw-gaps-ops">
+                          <button
+                            className="cpw-opt go"
+                            onClick={() => { precheckBypassRef.current = true; dismissConfirmOpts(); void startGen(); }}
+                          >
+                            🚀 补充好了，直接生成<small>填的都会被采纳</small>
+                          </button>
+                        </div>
                       </div>
                     )}
                     {error && <div className="cpw-err">{error}</div>}
@@ -1228,35 +1477,112 @@ export function IpPosWorkbench({ skuId }: { skuId: string }) {
                         <div className="cpw-dl-head">
                           <span className="cpw-ok-tag">✓ 已交付</span>
                           <span className="cpw-time">{pieces.length || 9} 件{restored ? " · 本机找回" : ""} · 消耗 {consumed ?? IP_POS_PRICE} {IP_POS_UNIT}</span>
+                          {completions.length > 0 && (
+                            <button
+                              className={`cpw-badge-enh${view === "enh" ? " on" : ""}`}
+                              onClick={() => setView("enh")}
+                              title="点开填几个空，全案会更贴你的实际"
+                            >
+                              可增强 {completions.length} 处
+                            </button>
+                          )}
+                          {enhClean && <span className="cpw-badge-done">已增强 · 零待补充</span>}
                           <div className="cpw-dl-ops">
                             <button className="cpw-cbtn" onClick={() => copyText(answerMd)}>⧉ 复制全部</button>
                             <button className="cpw-cbtn" onClick={() => void exportWord()} disabled={exporting}>{exporting ? "导出中…" : "↓ 导出 Word"}</button>
                           </div>
                         </div>
-                        {pieces.length > 0 && (
-                          <>
-                            <div className="cpw-tabs">
-                              <button className={`cpw-tab${tab === "all" ? " act" : ""}`} onClick={() => setTab("all")}>全部 {pieces.length}</button>
-                              {groups.map((g) => (
-                                <button key={g} className={`cpw-tab${tab === g ? " act" : ""}`} onClick={() => setTab(g)}>{GNAME[g]} {pieces.filter((p) => p.meta.g === g).length}</button>
+
+                        {/* 一级 tab：交付内容 / 增强项目。原来增强项目是右侧 320px 窄栏，
+                            所有章节堆在一起显得很挤（2026-10-03 反馈），改成全宽切换。 */}
+                        <div className="cpw-view-tabs">
+                          <button className={`cpw-vtab${view === "content" ? " act" : ""}`} onClick={() => setView("content")}>
+                            📄 交付内容 <b>{pieces.length}</b>
+                          </button>
+                          {completions.length > 0 && (
+                            <button className={`cpw-vtab${view === "enh" ? " act" : ""}`} onClick={() => setView("enh")}>
+                              ✨ 增强项目 <b>{completions.length}</b>
+                            </button>
+                          )}
+                        </div>
+
+                        {view === "enh" && completions.length > 0 ? (
+                          <div className="cpw-enh-panel">
+                            <div className="enh-sub">把这几空填上，全案会更贴你的实际；不填也能直接用。</div>
+                            <div className="cpw-sec-tabs">
+                              {enhSections.map((s) => (
+                                <button
+                                  key={s.key}
+                                  className={`cpw-stab${curSec?.key === s.key ? " act" : ""}`}
+                                  onClick={() => setEnhSec(s.key)}
+                                >
+                                  {s.title}
+                                  {s.items.length > 1 && <b>{s.items.length} 处</b>}
+                                </button>
                               ))}
                             </div>
-                            <div className="cpw-pieces">
-                              {shownPieces.map((p) => (
-                                <div className="cpw-pc" key={p.meta.id}>
-                                  <div className="cpw-pc-h">
-                                    <span className="cpw-pc-no" style={{ background: GCOLOR[p.meta.g] }}>{p.meta.no}</span>
-                                    <b><IconAuto v={p.meta.icon} /> {p.meta.title}</b>
-                                    <span className="cpw-g-tag" style={{ color: GCOLOR[p.meta.g], background: GSOFT[p.meta.g] }}>{p.meta.gt}</span>
-                                    <div className="cpw-pc-btns">
-                                      <button className="cpw-cbtn" onClick={() => copyText(`${p.meta.no}、${p.meta.title}\n\n${p.plain}`)}>⧉ 复制本件</button>
-                                    </div>
+                            <div className="enh-list">
+                              {(curSec?.items ?? []).map((c) => (
+                                <div className="enh-item" key={c.id}>
+                                  <div className="ei-label">
+                                    {c.fillLabel}
+                                    {c.count > 1 && <span className="cc-count">全章共 {c.count} 处</span>}
                                   </div>
-                                  <div className="cpw-pc-c" dangerouslySetInnerHTML={{ __html: p.bodyHtml }} />
+                                  <div className="fill-line">
+                                    {c.fillParts.map((seg, i) =>
+                                      i === 0 ? (
+                                        <Fragment key={i}>{seg}</Fragment>
+                                      ) : (
+                                        <Fragment key={i}>
+                                          <input
+                                            className="enh-blank"
+                                            value={completionAnswers[c.id] ?? ""}
+                                            placeholder={c.fillLabel}
+                                            onChange={(e) => setCompletionAnswers((prev) => ({ ...prev, [c.id]: e.target.value }))}
+                                          />
+                                          {seg}
+                                        </Fragment>
+                                      )
+                                    )}
+                                  </div>
                                 </div>
                               ))}
                             </div>
-                          </>
+                            <div className="enh-foot">
+                              <button className="enh-btn" disabled={completing} onClick={() => void completePending()}>
+                                {completing ? "优化中…" : "补全并优化 →"}
+                              </button>
+                              <span className="enh-note">只重写缺信息的章节，不整包重跑 · 本次消耗 {IP_POS_PATCH_PRICE} {IP_POS_UNIT}</span>
+                            </div>
+                            {completionCost != null && <div className="cc-done">✅ 已嵌入正文，本次消耗 {completionCost} {IP_POS_UNIT}</div>}
+                            {completionError && <div className="cpw-err">{completionError}</div>}
+                          </div>
+                        ) : (
+                          pieces.length > 0 && (
+                            <>
+                              <div className="cpw-tabs">
+                                <button className={`cpw-tab${tab === "all" ? " act" : ""}`} onClick={() => setTab("all")}>全部 {pieces.length}</button>
+                                {groups.map((g) => (
+                                  <button key={g} className={`cpw-tab${tab === g ? " act" : ""}`} onClick={() => setTab(g)}>{GNAME[g]} {pieces.filter((p) => p.meta.g === g).length}</button>
+                                ))}
+                              </div>
+                              <div className="cpw-pieces">
+                                {shownPieces.map((p) => (
+                                  <div className="cpw-pc" key={p.meta.id}>
+                                    <div className="cpw-pc-h">
+                                      <span className="cpw-pc-no" style={{ background: GCOLOR[p.meta.g] }}>{p.meta.no}</span>
+                                      <b><IconAuto v={p.meta.icon} /> {p.meta.title}</b>
+                                      <span className="cpw-g-tag" style={{ color: GCOLOR[p.meta.g], background: GSOFT[p.meta.g] }}>{p.meta.gt}</span>
+                                      <div className="cpw-pc-btns">
+                                        <button className="cpw-cbtn" onClick={() => copyText(`${p.meta.no}、${p.meta.title}\n\n${p.plain}`)}>⧉ 复制本件</button>
+                                      </div>
+                                    </div>
+                                    <div className="cpw-pc-c" dangerouslySetInnerHTML={{ __html: neutralizeGaps(p.bodyHtml) }} />
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )
                         )}
                       </div>
                     ) : (

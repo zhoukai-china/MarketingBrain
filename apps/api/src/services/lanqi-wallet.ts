@@ -1,5 +1,4 @@
-// 兰琪通用钱包（LQ-34）：把兰琪的扣费主体从「租户算力账户」切到「**租户老板（owner）的通用钱包**」。
-//
+// 兰琪通用钱包（LQ-34）：把兰琪的扣费主体从「租户算力账户」切到「**租户老板（owner）的通用钱包**」。//
 // 用户 2026-09-16 口径（原话）：
 //   「兰琪的用户只使用兰琪智能体……在兰琪智能体充值的算力，可以支持同时在思潼 AI 里使用其他智能体。也就是说钱包是通用的。」
 //   「兰琪里不管谁操作，都扣**租户老板（owner）的钱包**，流水里记『谁操作的、扣的是老板的钱』；
@@ -12,6 +11,12 @@
 //
 // 唯一账本 = 用户钱包（`Wallet` / `WalletLedger`，与思潼 AI 货架同一本）；
 // 兰琪不再写 `CreditAccount`（历史额度由 LQ-34 的一次性迁移搬进钱包，见任务卡）。
+
+/** 视频/图片生成只认充值算力（2026-10-04 用户拍板）：赠送积分仅限文字类能力。 */
+const LANQI_PAID_ONLY_SKILLS: ReadonlySet<string> = new Set(["lanqi_video_replication", "lanqi_seedance", "lanqi_media_generation"]);
+export function isPaidOnlyLanqiSkill(skillId: string): boolean {
+  return LANQI_PAID_ONLY_SKILLS.has(skillId);
+}
 import { prisma } from "@baolu/db";
 import {
   consumeWalletCredits,
@@ -143,6 +148,8 @@ export async function chargeLanqiWallet(params: {
     requestId: refRequestId,
     price: params.credits,
     skillId: params.skillId,
+    // 2026-10-04 用户拍板：赠送积分只能用于文字类能力；视频/图片生成只认充值算力。
+    paidOnly: isPaidOnlyLanqiSkill(params.skillId),
     source: `lanqi:${operator}`,
     db
   });

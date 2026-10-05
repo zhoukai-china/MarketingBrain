@@ -52,5 +52,5 @@ export function createVideoMaterialIntegration(options:{
     for(const lease of leases)await staging!.release(lease.id);
     return {...record,cleanupMayRemain:jobs.length===100||leases.length===100};
   }};
-  return {admission,runtime,repository:repo,authorization:integratedAuthorization,staging};
+  return {admission,runtime,repository:repo,authorization:integratedAuthorization,staging,control:options.control};
 }

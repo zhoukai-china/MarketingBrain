@@ -156,7 +156,8 @@ export function createVideoExecutionPermits(db:any,options:{authorityKey:string;
       // `readLanqiWalletBalance` 自己会开事务，嵌进 Serializable 事务里等于两层事务。
       // 找不到 owner（没有可扣费的老板账号）→ 失败关闭，直接 402，不放行、不调模型。
       const wallet=await readLanqiWalletBalance(a.tenantId,db);
-      if(!wallet||wallet.balance<a.creditCost)reject("insufficient_credits",402);
+      // 2026-10-04：视频生成不收赠送积分 → 预算校验按 **paid 桶**，和扣费口径一致。
+      if(!wallet||wallet.paidBalance<a.creditCost)reject("insufficient_credits",402);
       await atomic(async tx=>{
         const current=await tx.beautyVideoExecutionPermit.findUnique({where:{id:row.id}});const scope=verified(current);live(current,scope);await currentAccess(tx,scope);
         // Claim once before any cloud PUT. A crash before job creation is a stopped batch, not a replay ticket.

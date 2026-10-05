@@ -467,6 +467,12 @@
 .lq-vd__pick { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; padding: 13px 15px; border: 1.5px dashed #E8E2DB; border-radius: 12px; background: #FAF8F5; color: #D45A12; font-size: 12.5px; font-weight: 700; cursor: pointer; transition: .15s; }
 .lq-vd__pick:hover { border-color: #F37021; background: #FFF9F4; }
 .lq-vd__pick input[type="file"] { display: none; }
+/* 上传中（2026-10-04 用户反馈「上传没有动画」）：按钮自身转圈 + 呼吸边框 + 禁用。 */
+.lq-vd__pick.uploading { border-color: #F37021; background: #FFF9F4; color: #B84808; cursor: progress; animation: lq-vd-pulse 1.1s ease-in-out infinite; }
+.lq-vd__pick.uploading span { display: inline-flex; align-items: center; gap: 7px; }
+.lq-vd__spin { width: 13px; height: 13px; flex: none; border: 2px solid rgba(243, 112, 33, .25); border-top-color: #F37021; border-radius: 50%; animation: lq-vd-spin .7s linear infinite; }
+@keyframes lq-vd-spin { to { transform: rotate(360deg); } }
+@keyframes lq-vd-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .62; } }
 
 /* LQ-29（用户 2026-09-14 反馈「已上传的照片 / 视频无法删除、无法替换」）：
    「更换」与「删除」并排放在同一行，删掉已上传素材的入口必须一眼可见、点得到。 */
