@@ -2965,7 +2965,7 @@ function ScriptMode({
               <div className="lq-vd__kv"><span className="k">AI 标识</span><span className="v">起始画面显式标识</span></div>
             </div>
             <div className="lq-vd__note">
-              逐镜按 <b>{SHOT_TIER_RES[tierKey] ?? "720P"}</b> 出片：模型只出<b>无声画面</b>，声音在「合成成片」这一步混进你上传的音轨（合片与混音不额外扣算力）。
+              逐镜按 <b>{SHOT_TIER_RES[tierKey] ?? "720P"}</b> 出片：台词用选中音色配音并与口型对齐，另有 AI 环境音；「合成成片」只做拼接（不额外扣算力）。
               每镜都复用同一张人物正面照当首帧图，出镜人才不会换脸。费用在每一次生成前先给你看清楚，确认后才创建任务；没出成的镜次预留算力会自动退回。
             </div>
             <div className="lq-vd__sec-title" style={{ marginTop: 14 }}>
