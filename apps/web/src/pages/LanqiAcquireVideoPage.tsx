@@ -863,6 +863,27 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
     setBusy("正在登记素材授权…");
     setNotice("");
     setQuote(null);
+    if (replaceMode === "face") {
+      // 换脸链路（阿里云视频人脸融合）· 本地先行
+      try {
+        await ensureMaterialDeclarations();
+        if (!videoFile || !portraitFile) { setNotice("请先上传原片与人物照片。"); return; }
+        setBusy("正在生成换脸报价…");
+        const response = await fetch(apiPath("/viral-video-replication/fuse/quote"), {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({ videoFileId: videoFile.id, portraitFileId: portraitFile.id })
+        });
+        const body = await readResponse(response);
+        setQuote({ canConfirm: Boolean(body?.canConfirm), creditCost: body?.creditCost ?? null, message: body?.message ?? "报价已生成" });
+        setNotice(body?.message ?? "报价已生成");
+      } catch (error) {
+        setNotice(replicationFailureNotice(error));
+      } finally {
+        setBusy("");
+      }
+      return;
+    }
     try {
       await ensureMaterialDeclarations();
       setBusy("正在校验素材与授权…");
@@ -899,6 +920,52 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
       setNotice(error instanceof Error && error.message ? error.message : "成片读取失败");
     }
   }, []);
+
+  /** 换脸链路：成片读取（融合产物在服务端本地）。 */
+  const loadFuseAsset = useCallback(async (jobId: string) => {
+    try {
+      const response = await fetch(apiPath(`/viral-video-replication/fuse/asset/${jobId}`), { headers: authHeaders() });
+      if (!response.ok) throw new Error("成片读取失败");
+      const blob = await response.blob();
+      setAssetUrl(URL.createObjectURL(blob));
+    } catch (error) {
+      setNotice(error instanceof Error && error.message ? error.message : "成片读取失败");
+    }
+  }, []);
+
+  /** 换脸链路轮询：每 5 秒问一次 fuse/status，成功拉成片、失败提示退款。 */
+  const pollFuseJob = useCallback(
+    async (jobId: string) => {
+      const startedAt = Date.now();
+      for (let attempt = 0; attempt < 240; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 5000));
+        const elapsed = Math.round((Date.now() - startedAt) / 1000);
+        try {
+          const response = await fetch(apiPath(`/viral-video-replication/fuse/status?jobId=${encodeURIComponent(jobId)}`), { headers: authHeaders() });
+          const body = await readResponse(response);
+          const status = String(body?.status ?? "unknown");
+          setJob({ id: jobId, status });
+          if (status === "succeeded") {
+            setBusy("");
+            setNotice("换脸成片已生成，可以播放或下载。");
+            void loadFuseAsset(jobId);
+            return;
+          }
+          if (status === "failed") {
+            setBusy("");
+            setNotice(`换脸失败：${body?.errorMessage ?? "厂商未能处理该素材"}。费用已自动退还。`);
+            return;
+          }
+          setBusy(`正在换脸生成成片… 已等待 ${elapsed}s`);
+        } catch {
+          /* 单次轮询失败不终止 */
+        }
+      }
+      setBusy("");
+      setNotice("换脸任务还在生成中（已超 20 分钟）。稍后回到本页即可看到结果。");
+    },
+    [loadFuseAsset]
+  );
 
   const pollJob = useCallback(
     async (jobId: string) => {
@@ -940,6 +1007,29 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
   const confirmReplication = useCallback(async () => {
     setBusy("正在创建任务…");
     setNotice("");
+    if (replaceMode === "face") {
+      // 换脸链路：融合提交 + 专属轮询（不含 OSS 预暂存那套 animate-mix 流程）。
+      try {
+        await ensureMaterialDeclarations();
+        if (!videoFile || !portraitFile) { setNotice("请先上传原片与人物照片。"); return; }
+        const response = await fetch(apiPath("/viral-video-replication/fuse/submit"), {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({ videoFileId: videoFile.id, portraitFileId: portraitFile.id, requestKey: requestKeyRef.current })
+        });
+        const body = await readResponse(response);
+        const id = body?.job?.id;
+        if (!id) throw new Error("任务没有创建成功，请稍后重试。");
+        setJob({ id, status: String(body.job.status ?? "submitted") });
+        setNotice("换脸任务已提交，正在生成…");
+        setBusy("正在换脸生成成片…");
+        void pollFuseJob(id);
+      } catch (error) {
+        setBusy("");
+        setNotice(replicationFailureNotice(error));
+      }
+      return;
+    }
     try {
       // 等报价触发的后台预暂存落地（成功=素材已在 OSS，confirm 秒过；失败=confirm 自行暂存），消除竞态。
       if (prestageRef.current) await prestageRef.current;
@@ -1049,6 +1139,14 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
               MP4 / MOV，≤{REFERENCE_MAX_MB}MB，时长 {REFERENCE_MIN_SECONDS}–{REFERENCE_MAX_SECONDS} 秒。
               抖音、视频号的分享链接平台不读取，请先把原片存到手机或电脑再上传。
             </p>
+            <p className="lq-vd__card-sub" style={{ marginTop: 8 }}>
+              <b>原片要求（成片质量取决于原片本身）</b><br />
+              · 分辨率 ≥720P、码率 ≥2Mbps：成片清晰度跟随原片，源糊成片就糊<br />
+              · 主角为真人近景（脸部 ≥128×128 像素、以正脸为主）；戴眼镜 / 口罩 / 大面积遮挡会无法换脸<br />
+              · 动漫 / 卡通风格暂不支持；多人出镜时只换可识别的主角脸，其余人物保持原样<br />
+              · 原片里的文字 / 字幕 / 贴片会原样保留；口播 + 空镜混剪可以，空镜段落保持不变<br />
+              · 镜头之间用硬切，避免渐变转场
+            </p>
             <div className="lq-vd__fileinfo">
               <b>{videoFile ? `已上传：${videoFile.name}` : "未上传参考视频"}</b>
               <p>
@@ -1096,15 +1194,26 @@ function ReplicateMode({ storeId, flash }: { storeId: string; flash: (message: s
           </button>
           <button
             type="button"
-            className={`lq-vd__pill${replaceMode === "body" ? " on" : ""}`}
-            onClick={() => setReplaceMode("body")}
+            aria-disabled="true"
+            title="换人（全身替换）正在内测，即将上线；当前请使用「换脸」。"
+            style={{ opacity: 0.45, cursor: "not-allowed" }}
+            onClick={() => setNotice("「换人（全身替换）」正在内测，即将上线；当前请先使用「换脸」。")}
           >
             换人 <span className="hint">给人物全身画面</span>
+            <span className="tag" style={{ marginLeft: 6, fontSize: 11 }}>待上线</span>
           </button>
         </div>
         <div className="lq-vd__fileinfo">
           <b>{portraitFile ? `已上传：${portraitFile.name}` : `未上传${photoNeeded}照片`}</b>
-          <p>换脸给头部照片，换人给人物全身画面；照片须为本人或已获授权。JPG / PNG / WebP，≤{PORTRAIT_MAX_MB}MB。</p>
+          <p>换脸 = 只把主角的脸换成照片里的人，原片其他内容（含字幕）全部原样保留。JPG / PNG / WebP，≤{PORTRAIT_MAX_MB}MB。</p>
+        </div>
+        <div className="lq-vd__fileinfo">
+          <b>人物照片要求（不满足会导致换脸失败）</b>
+          <p>
+            · 清晰正脸、五官完整：不戴眼镜 / 口罩 / 墨镜（有遮挡会换脸失败）<br />
+            · 光线均匀、表情自然；脸部区域 ≥128×128 像素，接近 1:1 构图最佳<br />
+            · 照片人物须为本人或已获授权
+          </p>
         </div>
         <div className="lq-vd__actions">
           <FilePick

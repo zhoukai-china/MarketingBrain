@@ -13,6 +13,8 @@ import { createVideoPrivateFileReader } from "../services/beauty-video-private-f
 import { createControlledVideoIntegration } from "../services/beauty-video-controlled-execution.js";
 import { findVideoReplicationEntitlement } from "../services/video-replication-entitlement.js";
 import { readLanqiWalletBalance } from "../services/lanqi-wallet.js";
+import { z } from "zod";
+import { faceFuseConfigured, faceFuseCreditsPerSecond, loadUploadedFilePath, pollFaceFusion, quoteFaceFusion, readFuseAsset, submitFaceFusion } from "../services/viral-face-fusion.js";
 
 export type ReplicationRoutePorts = {
   context?(headers: Record<string, unknown>): Promise<RequestContext>;
@@ -250,5 +252,72 @@ export async function registerViralVideoReplicationRoutes(app: FastifyInstance, 
     if (!expected.length || received.length !== expected.length || !timingSafeEqual(received, expected)) return reply.code(401).send({ error: "unauthorized_callback" });
     // A callback is not trusted output. Only verified polling may transition the job.
     return reply.code(202).send({ accepted: false, code: "verified_task_poll_required" });
+  });
+
+  // ── 换脸链路（阿里云视频人脸融合）· 2026-10-06 本地先行，未上线 ──
+  // 与 animate-mix（换人）不同：只换主角的脸，原片文字 / 字幕 / 配音全部原样保留。
+  // 前置质检（眼镜 / 遮挡 / 多人脸 / 码率）由前端上传环节提示；厂商对不可融合素材会静默跳过。
+  app.post("/viral-video-replication/fuse/quote", async (request, reply) => {
+    try {
+      const c = await context(request.headers);
+      const parsed = z.object({ videoFileId: z.string().min(4), portraitFileId: z.string().min(4) }).safeParse(request.body ?? {});
+      if (!parsed.success) return reply.code(400).send({ error: "invalid_request", message: "参数不完整，请刷新后重试。" });
+      const videoPath = await loadUploadedFilePath(parsed.data.videoFileId, c.tenantId);
+      const portraitPath = await loadUploadedFilePath(parsed.data.portraitFileId, c.tenantId);
+      const balance = (await ports.creditBalance?.(c.tenantId)) ?? null;
+      const quote = await quoteFaceFusion({ videoPath, portraitPath, creditBalance: balance });
+      return { canConfirm: quote.canConfirm, creditCost: quote.creditCost, durationSeconds: quote.durationSeconds, message: quote.message };
+    } catch (error) { return safeError(error, reply); }
+  });
+
+  app.post("/viral-video-replication/fuse/submit", async (request, reply) => {
+    try {
+      const c = await context(request.headers);
+      const parsed = z.object({
+        videoFileId: z.string().min(4),
+        portraitFileId: z.string().min(4),
+        requestKey: z.string().min(6).max(80)
+      }).safeParse(request.body ?? {});
+      if (!parsed.success) return reply.code(400).send({ error: "invalid_request", message: "参数不完整，请刷新后重试。" });
+      const videoPath = await loadUploadedFilePath(parsed.data.videoFileId, c.tenantId);
+      const portraitPath = await loadUploadedFilePath(parsed.data.portraitFileId, c.tenantId);
+      const durationSeconds = await (async () => {
+        const probe = await quoteFaceFusion({ videoPath, portraitPath, creditBalance: null });
+        return probe.durationSeconds;
+      })();
+      const creditCost = Math.max(1, Math.ceil(durationSeconds) * faceFuseCreditsPerSecond());
+      const result = await submitFaceFusion({
+        tenantId: c.tenantId,
+        userId: c.userId,
+        requestKey: parsed.data.requestKey,
+        videoPath,
+        portraitPath,
+        creditCost
+      });
+      return reply.code(202).send({ job: { id: result.jobId, status: "submitted" } });
+    } catch (error) {
+      request.log.error({ event: "fuse_submit_error", detail: String((error as any)?.message ?? error).slice(0, 300) });
+      return safeError(error, reply);
+    }
+  });
+
+  app.get("/viral-video-replication/fuse/status", async (request, reply) => {
+    try {
+      const c = await context(request.headers);
+      const query = (request.query ?? {}) as { jobId?: string };
+      if (!query.jobId) return reply.code(400).send({ error: "invalid_request" });
+      const job = await pollFaceFusion(query.jobId, c.tenantId);
+      if (!job) return reply.code(404).send({ error: "fuse_job_not_found" });
+      return { status: job.status, errorMessage: job.errorMessage ?? null, creditCost: job.creditCost };
+    } catch (error) { return safeError(error, reply); }
+  });
+
+  app.get("/viral-video-replication/fuse/asset/:jobId", async (request, reply) => {
+    try {
+      const c = await context(request.headers);
+      const asset = await readFuseAsset(String((request.params as { jobId: string }).jobId), c.tenantId);
+      if (!asset) return reply.code(404).send({ error: "fuse_asset_not_found" });
+      return reply.header("Content-Type", "video/mp4").header("Cache-Control", "private, no-store").send(asset.bytes);
+    } catch (error) { return safeError(error, reply); }
   });
 }
