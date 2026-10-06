@@ -1,6 +1,7 @@
-// 验收（2026-09-30 用户反馈）：
+// 验收（2026-09-30 用户反馈 / 2026-10-03 合并面板）：
 // A) 「已恢复对话」提示只出现一次——ephemeral 消息不落草稿，反复重进不叠加；
-// B) 体检卡双按钮在浅色卡上可读（深色文字 / 实底橙+白字）。
+// B) 合并补充面板（体检 + 运营缺口）底部的「补充好了，直接生成」在浅色面板上可读
+//    （实底橙 + 白字），且体检项的来源标签是暖色、与运营缺口的蓝标签能区分开。
 const puppeteer = require("puppeteer-core");
 const CHROME = "/Users/zhoukai/.cache/puppeteer/chrome-headless-shell/mac_arm-150.0.7871.24/chrome-headless-shell-mac-arm64/chrome-headless-shell";
 const BASE = "http://127.0.0.1:5174";
@@ -51,6 +52,15 @@ async function typeAndSend(p, text) {
   await p.evaluate(() => localStorage.removeItem("ippos_chat_draft_ipzone__ip-pos"));
   await p.goto(BASE + "/agent/ipzone__ip-pos/workbench", { waitUntil: "networkidle2", timeout: 45000 });
 
+  // 进页自动播演示（2026-10-01 设计）——演示态下点选项无效，草稿写不进去，
+  // A 段会因此拿不到「已恢复」提示（脚本假失败）。先停演示再走真实访谈。
+  await wait(1500);
+  await p.evaluate(() => {
+    const el = [...document.querySelectorAll("button")].find((x) => (x.textContent || "").includes("停止演示"));
+    if (el) el.click();
+  });
+  await wait(800);
+
   // 答到第 3 题（同 draft-recharge-check 的路径）
   if (!(await waitText(p, "先确认一下"))) { console.log("FAIL: 第 1 题未出现"); await b.close(); process.exit(1); }
   await p.evaluate(() => {
@@ -63,16 +73,26 @@ async function typeAndSend(p, text) {
 
   const countNotices = () => p.evaluate(() =>
     (document.body.innerText.match(/已恢复上次的对话/g) || []).length);
+  // 重进后进页又会自动播演示，而演示开始时会 resetAll 把恢复出来的消息清掉 ——
+  // 必须先停演示（回滚到演示前那一帧）再数提示，否则永远是 0（脚本假失败）。
+  const stopDemo = () => p.evaluate(() => {
+    const el = [...document.querySelectorAll("button")].find((x) => (x.textContent || "").includes("停止演示"));
+    if (el) el.click();
+  });
 
   // 第一次重进
   await p.reload({ waitUntil: "networkidle2", timeout: 45000 });
   await wait(1500);
+  await stopDemo();
+  await wait(900);
   const n1 = await countNotices();
   console.log("[A] 第 1 次重进，恢复提示条数:", n1, "（应为 1）");
 
   // 第二次重进：提示若被存进草稿，这里会变成 2 条（旧 bug）
   await p.reload({ waitUntil: "networkidle2", timeout: 45000 });
   await wait(1500);
+  await stopDemo();
+  await wait(900);
   const n2 = await countNotices();
   console.log("[A] 第 2 次重进，恢复提示条数:", n2, "（应为 1）");
   const draftMsgs = await p.evaluate(() => {
@@ -82,10 +102,17 @@ async function typeAndSend(p, text) {
   console.log("[A] 草稿消息条数:", draftMsgs, "（提示不落盘则不随重进增长）");
   const partA = n1 === 1 && n2 === 1;
 
-  // ========== B. 体检卡按钮配色 ==========
-  // 造「太薄」回答触发体检卡：清草稿重走，用极简回答
+  // ========== B. 合并补充面板：放行按钮 + 来源标签配色 ==========
+  // 造「太薄」回答触发体检：清草稿重走，用极简回答
   await p.evaluate(() => localStorage.removeItem("ippos_chat_draft_ipzone__ip-pos"));
   await p.goto(BASE + "/agent/ipzone__ip-pos/workbench", { waitUntil: "networkidle2", timeout: 45000 });
+  // 自动演示会盖住真实访谈流程 → 先停掉（否则下面的问答与后续断言都跑在演示态上）
+  await wait(1500);
+  await p.evaluate(() => {
+    const el = [...document.querySelectorAll("button")].find((x) => (x.textContent || "").includes("停止演示"));
+    if (el) el.click();
+  });
+  await wait(800);
   await waitText(p, "先确认一下");
   await p.evaluate(() => {
     const hit = Array.from(document.querySelectorAll("button.cpw-opt")).find((el) => /本地单店老板/.test(el.textContent || ""));
@@ -102,27 +129,35 @@ async function typeAndSend(p, text) {
     const el = document.querySelector("button.cpw-big-btn.gen");
     if (el) el.click();
   });
-  if (!(await waitText(p, "跳过体检，直接生成"))) { console.log("FAIL: 体检卡未出现"); await b.close(); process.exit(1); }
+  if (!(await waitText(p, "补充好了，直接生成"))) { console.log("FAIL: 合并补充面板未出现"); await b.close(); process.exit(1); }
   const styles = await p.evaluate(() => {
     const pick = (el) => {
       const cs = getComputedStyle(el);
       return { bg: cs.backgroundColor, color: cs.color, border: cs.borderColor };
     };
-    const go = document.querySelector(".cpw-review-ops .cpw-opt.go");
-    const sub = document.querySelector(".cpw-review-ops .cpw-opt:not(.go)");
-    return { go: go ? pick(go) : null, sub: sub ? pick(sub) : null };
+    const go = document.querySelector(".cpw-gaps-ops .cpw-opt.go");
+    const chipCheck = document.querySelector(".cpw-gap-area.is-check");
+    const chipGap = document.querySelector(".cpw-gap-area:not(.is-check)");
+    return {
+      go: go ? pick(go) : null,
+      chipCheck: chipCheck ? pick(chipCheck) : null,
+      chipGap: chipGap ? pick(chipGap) : null,
+      legacyOps: document.querySelectorAll(".cpw-review-ops").length,
+      legacyReview: document.querySelectorAll(".cpw-review").length
+    };
   });
-  console.log("[B] 主按钮（跳过体检）:", JSON.stringify(styles.go));
-  console.log("[B] 次按钮（按提示补充）:", JSON.stringify(styles.sub));
-  // 主按钮：橙色实底（~rgb(232,101,26)）+ 白字；次按钮：白底 + 深棕字
+  console.log("[B] 放行按钮（补充好了，直接生成）:", JSON.stringify(styles.go));
+  console.log("[B] 体检项标签:", JSON.stringify(styles.chipCheck), "｜运营缺口标签:", JSON.stringify(styles.chipGap));
+  // 放行按钮：橙色实底（~rgb(232,101,26)）+ 白字（浅色面板里不隐形）
   const isOrange = (c) => /232,\s*101,\s*26/.test(c || "");
   const isWhite = (c) => /255,\s*255,\s*255/.test(c || "");
-  const isDark = (c) => { const m = (c || "").match(/(\d+),\s*(\d+),\s*(\d+)/); return m && Number(m[1]) < 160 && Number(m[2]) < 160; };
+  // 体检标签与缺口标签必须是不同底色（暖 / 蓝），否则来源分不出来
+  const chipDistinct = !styles.chipCheck || !styles.chipGap || styles.chipCheck.bg !== styles.chipGap.bg;
   const partB = styles.go && isOrange(styles.go.bg) && isWhite(styles.go.color)
-    && styles.sub && isDark(styles.sub.color) && !isOrange(styles.sub.bg);
+    && styles.legacyOps === 0 && styles.legacyReview === 0 && chipDistinct;
 
   const ok = partA && partB;
-  console.log(ok ? "\nPASS: 恢复提示只提示一次 + 体检卡按钮清晰可读" : "\nFAIL");
+  console.log(ok ? "\nPASS: 恢复提示只提示一次 + 合并面板一个 CTA 清晰可读、来源标签可区分" : "\nFAIL");
   await b.close();
   process.exit(ok ? 0 : 1);
 })().catch((e) => { console.error(e); process.exit(1); });

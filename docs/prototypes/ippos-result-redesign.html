@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IP 定位工作台 · 交付区 + 待补 改版原型</title>
+<style>
+  :root{
+    --orange:#e8651a; --orange-soft:#fdeee2; --orange-line:#f7d4b8;
+    --ink:#1c2733; --sub:#5b6b7c; --faint:#8a97a6;
+    --line:#e3e9f2; --line2:#eef2f7; --card:#ffffff;
+    --bg:#eceff3; --bg2:#f4f6f9;
+    --ov:#e8651a; --ovs:#fdeee2;
+    --pos:#2563eb; --poss:#e8effd;
+    --per:#7c3aed; --pers:#f1eafd;
+    --con:#0f8a5f; --cons:#e6f5ee;
+    --gro:#b26a00; --gros:#fff4e0;
+    --ok:#0f8a5f; --oks:#e6f5ee;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font:14px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4,p{margin:0}
+  button{font:inherit;cursor:pointer}
+
+  /* ---------- 顶部切换条 ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:50;
+    display:flex; align-items:center; gap:20px; flex-wrap:wrap;
+    padding:16px 26px;
+    background:rgba(247,249,251,.86);
+    backdrop-filter:saturate(1.4) blur(14px);
+    border-bottom:1px solid var(--line);
+  }
+  .topbar .tb-l{flex:1;min-width:280px}
+  .topbar h1{font-size:16px;letter-spacing:.01em}
+  .topbar h1 b{color:var(--orange)}
+  .topbar p{font-size:12px;color:var(--sub);margin-top:2px}
+  .switch{display:flex;gap:6px;background:#fff;border:1px solid var(--line);padding:4px;border-radius:12px}
+  .switch button{
+    border:0;background:transparent;color:var(--sub);
+    padding:8px 14px;border-radius:9px;font-size:12.5px;font-weight:600;white-space:nowrap;
+  }
+  .switch button.on{background:var(--ink);color:#fff}
+  .filledtoggle{
+    border:1px solid var(--orange-line);background:var(--orange-soft);color:#a9450d;
+    padding:9px 14px;border-radius:10px;font-size:12.5px;font-weight:700;white-space:nowrap;
+  }
+
+  /* ---------- 原型外壳 ---------- */
+  .proto{display:none;padding:26px;max-width:1240px;margin:0 auto}
+  .proto.on{display:block}
+  .frame{
+    background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;
+    box-shadow:0 1px 0 rgba(28,39,51,.02),0 18px 44px -28px rgba(28,39,51,.28);
+  }
+  .frame-h{
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    padding:13px 18px;border-bottom:1px solid var(--line);background:#fff;
+  }
+  .deliv{
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--oks);color:#0b6a49;font-size:12.5px;font-weight:800;
+    padding:5px 11px;border-radius:8px;
+  }
+  .meta{font-size:12.5px;color:var(--sub)}
+  .frame-h .right{margin-left:auto;display:flex;gap:8px}
+  .cbtn{
+    border:1px solid var(--line);background:#fff;color:var(--sub);
+    padding:7px 12px;border-radius:9px;font-size:12px;font-weight:600;
+  }
+  .cbtn:hover{border-color:var(--orange);color:var(--orange)}
+
+  /* 分区色点/标签 */
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+  .gtag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .g-ov{color:var(--ov);background:var(--ovs)}
+  .g-pos{color:var(--pos);background:var(--poss)}
+  .g-per{color:var(--per);background:var(--pers)}
+  .g-con{color:var(--con);background:var(--cons)}
+  .g-gro{color:var(--gro);background:var(--gros)}
+
+  /* 待补标记（正文里） */
+  .todo-mark{
+    display:inline-block;background:var(--orange-soft);border:1px dashed var(--orange-line);
+    color:#a9450d;border-radius:6px;padding:0 6px;font-size:12.5px;font-weight:700;
+  }
+  .done-only{display:none}
+  .is-filled .done-only{display:inline}
+  .is-filled .todo-only{display:none}
+  .is-filled .todo-mark{display:none}
+
+  /* ---------- 待补「填空」通用 ---------- */
+  .fill-note{margin-top:6px}
+  .fill-row{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    padding:9px 12px;background:#fffaf5;border:1px solid var(--orange-line);border-radius:11px;
+    margin-top:7px;
+  }
+  .fill-row .lb{font-size:12px;color:#a9450d;font-weight:700;white-space:nowrap}
+  .fill-noun{
+    font-size:12.5px;font-weight:800;color:#7a3d10;background:var(--orange-soft);
+    border-radius:6px;padding:2px 8px;white-space:nowrap;
+  }
+  .fill-input{
+    flex:1;min-width:160px;height:32px;
+    border:0;border-bottom:2px solid var(--orange);background:transparent;
+    font-size:13px;color:var(--ink);padding:0 4px;outline:none;
+  }
+  .fill-input::placeholder{color:#c4a894}
+  .fill-count{font-size:11px;color:var(--sub);white-space:nowrap}
+  .is-filled .fill-row{background:var(--oks);border-color:#bfe3d3}
+  .is-filled .fill-row .lb{color:#0b6a49}
+  .is-filled .fill-row .fill-noun{background:#d9f0e6;color:#0b6a49}
+  .is-filled .fill-input{border-bottom-color:var(--ok);color:var(--ink);font-weight:600}
+  .is-filled .fill-count::after{content:" · ✓ 已补"}
+
+  .done-banner{
+    display:none;align-items:center;gap:9px;
+    padding:11px 14px;border-radius:11px;background:var(--oks);border:1px solid #bfe3d3;
+    color:#0b6a49;font-size:13px;font-weight:700;
+  }
+  .is-filled .done-banner{display:flex}
+  .todo-banner{
+    display:flex;align-items:center;gap:9px;
+    padding:11px 14px;border-radius:11px;background:var(--orange-soft);border:1px solid var(--orange-line);
+    color:#a9450d;font-size:13px;font-weight:800;
+  }
+  .is-filled .todo-banner{display:none}
+
+  /* 方向说明脚注 */
+  .note{
+    max-width:1240px;margin:14px auto 40px;padding:14px 18px;
+    background:#fbfcfd;border:1px solid var(--line);border-radius:14px;
+    font-size:12.5px;color:var(--sub);line-height:1.75;
+  }
+  .note b{color:var(--ink)}
+
+  /* =========================================================
+     方向 A · 杂志阅读器（左目录 + 右精读）
+     ========================================================= */
+  .A-body{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:620px}
+  .A-rail{border-right:1px solid var(--line);background:#fafbfd;padding:16px 12px}
+  .A-rail .rh{font-size:11px;font-weight:800;color:var(--faint);letter-spacing:.08em;padding:0 8px 8px}
+  .A-item{
+    display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:9px;
+    color:var(--sub);font-size:12.8px;cursor:pointer;border:1px solid transparent;
+  }
+  .A-item .no{
+    width:20px;height:20px;border-radius:6px;display:grid;place-items:center;
+    font-size:11px;font-weight:800;color:#fff;flex:none;
+  }
+  .A-item .tt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:var(--ink)}
+  .A-item .badge{
+    font-size:10.5px;font-weight:800;color:#a9450d;background:var(--orange-soft);
+    border-radius:999px;padding:1px 7px;flex:none;
+  }
+  .A-item.act{background:#fff;border-color:var(--line);box-shadow:0 4px 14px -8px rgba(28,39,51,.3)}
+  .A-item:hover{background:#fff}
+  .A-rail .rfoot{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:7px}
+
+  .A-read{padding:22px 28px;min-width:0}
+  .A-read .crumb{font-size:12px;color:var(--faint);margin-bottom:8px}
+  .A-read h3{font-size:22px;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+  .A-read h3 .no{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:#fff;font-size:14px;font-weight:800}
+  .A-read .lead{margin-top:12px;font-size:14px;color:#33424f;line-height:1.85}
+  .A-read .lead p{margin-top:10px}
+  /* 速览横条 */
+  .A-skim{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0 20px;
+  }
+  .A-skim .t{background:#f7f9fc;border:1px solid var(--line2);border-radius:11px;padding:9px 11px}
+  .A-skim .t b{font-size:11px;color:var(--faint);font-weight:700}
+  .A-skim .t span{display:block;margin-top:3px;font-size:12px;color:var(--ink);font-weight:600;line-height:1.5}
+
+  /* =========================================================
+     方向 B · 速览仪表盘（KPI 瓦片 + 分区矩阵 + 填空墙）
+     ========================================================= */
+  .B-body{padding:18px 20px 22px}
+  .B-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .B-kpi{border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:#fff;position:relative;overflow:hidden}
+  .B-kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--acc,var(--ov))}
+  .B-kpi b{font-size:11px;color:var(--faint);font-weight:800;letter-spacing:.02em}
+  .B-kpi p{margin-top:4px;font-size:12.3px;line-height:1.55;color:var(--ink);font-weight:600}
+  .B-wall{margin:16px 0}
+  .B-wall .wh{display:flex;align-items:center;gap:9px;margin-bottom:4px}
+  .B-wall .wh .tt{font-size:13px;font-weight:800;color:#a9450d}
+  .B-fills{display:flex;flex-wrap:wrap;gap:9px}
+  .B-fills .fill-row{flex:1 1 300px;margin-top:0}
+  .B-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-top:16px}
+  .B-card{border:1px solid var(--line);border-radius:14px;padding:13px 14px;background:#fff}
+  .B-card.hero{grid-column:1/-1;background:linear-gradient(180deg,#fff,#fdfbf9)}
+  .B-card.wide{grid-column:span 3}
+  .B-card.third{grid-column:span 2}
+  .B-card .ch{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+  .B-card .ch .no{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;color:#fff;font-size:11px;font-weight:800;flex:none}
+  .B-card .ch b{font-size:13.5px}
+  .B-card .ch .right{margin-left:auto}
+  .B-chips{display:flex;flex-wrap:wrap;gap:7px}
+  .B-chips .chip{
+    display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:9px;
+    padding:6px 10px;font-size:12px;color:var(--sub);background:#fafbfd;
+  }
+  .B-chips .chip.has{background:var(--orange-soft);border-color:var(--orange-line);color:#a9450d;font-weight:700}
+  .B-chips .chip .n{font-size:10px;font-weight:800;background:#fff;border-radius:999px;padding:0 6px}
+  .B-kpi-hero{grid-column:1/-1;border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:#fbfaf8}
+  .B-kpi-hero h4{font-size:14px;display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .kv{display:grid;grid-template-columns:96px minmax(0,1fr);gap:6px 14px;font-size:12.5px}
+  .kv .k{color:var(--faint);font-weight:700}
+  .kv .v{color:var(--ink);font-weight:600}
+
+  /* =========================================================
+     方向 C · 批注工作台（树 | 正文 | 批注栏）
+     ========================================================= */
+  .C-body{display:grid;grid-template-columns:210px minmax(0,1fr) 288px;min-height:640px}
+  .C-tree{border-right:1px solid var(--line);background:#fafbfd;padding:14px 10px}
+  .C-tree .rh{font-size:11px;font-weight:800;color:var(--faint);letter-spacing:.08em;padding:0 8px 8px}
+  .C-grp{font-size:11px;font-weight:800;color:var(--faint);padding:9px 9px 4px}
+  .C-node{
+    display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:8px;
+    font-size:12.6px;color:var(--sub);font-weight:600;cursor:pointer;
+  }
+  .C-node .tt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
+  .C-node.act{background:#fff;border:1px solid var(--line)}
+  .C-node:hover{background:#fff}
+
+  .C-doc{padding:22px 26px;min-width:0}
+  .C-doc .crumb{font-size:12px;color:var(--faint);margin-bottom:8px}
+  .C-doc h3{font-size:21px}
+  .C-doc .lead{margin-top:12px;font-size:14px;color:#33424f;line-height:1.85}
+  .C-doc .lead p{margin-top:10px}
+  .C-doc .markup{
+    border-left:3px solid var(--orange-line);background:#fffaf6;border-radius:0 10px 10px 0;
+    padding:10px 13px;margin-top:11px;font-size:13px;color:var(--sub);line-height:1.75;
+  }
+
+  .C-anno{border-left:1px solid var(--line);background:#fafbfd;padding:14px 13px}
+  .C-anno .ah{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .C-anno .ah b{font-size:13px}
+  .C-anno .ah .pill{margin-left:auto;font-size:11px;font-weight:800;color:#a9450d;background:var(--orange-soft);border-radius:999px;padding:2px 9px}
+  .is-filled .C-anno .ah .pill{color:#0b6a49;background:var(--oks)}
+  .C-card{
+    background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:10px;
+  }
+  .C-card .src{font-size:10.5px;font-weight:800;color:var(--faint);letter-spacing:.03em;margin-bottom:6px}
+  .C-card .q{font-size:12.6px;font-weight:700;color:var(--ink)}
+  .C-card .q b{color:#a9450d}
+  .C-card textarea{
+    width:100%;margin-top:8px;border:1px solid var(--line);border-radius:9px;padding:8px 9px;
+    font:13px/1.55 inherit;color:var(--ink);background:#fbfcfd;resize:none;outline:none;
+  }
+  .C-card textarea:focus{border-color:var(--orange);background:#fff}
+  .is-filled .C-card{background:var(--oks);border-color:#bfe3d3}
+  .is-filled .C-card textarea{background:#fff;border-color:#bfe3d3;color:var(--ink);font-weight:600}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="tb-l">
+    <h1>交付区 + <b>待补</b> 改版原型 · IP 定位工作台</h1>
+    <p>同一份内容（咖啡供应链案例）· 三个版面方向 · 待补统一做成「填空」；点「填完后的样子」看补全后正文不再出现「待补充」</p>
+  </div>
+  <div class="switch" role="tablist" id="sw">
+    <button data-dir="a" class="on">方向 A · 杂志阅读器</button>
+    <button data-dir="b">方向 B · 速览仪表盘</button>
+    <button data-dir="c">方向 C · 批注工作台</button>
+  </div>
+  <button class="filledtoggle" data-toggle="filled">填完后的样子 →</button>
+</header>
+
+<!-- ================= 方向 A ================= -->
+<section class="proto on" data-dir="a">
+  <div class="frame">
+    <div class="frame-h">
+      <span class="deliv">✓ 已交付</span>
+      <span class="meta">9 件 · 本机找回 · 消耗 99 算力</span>
+      <div class="right">
+        <button class="cbtn">⧉ 复制全部</button>
+        <button class="cbtn">↓ 导出 Word</button>
+      </div>
+    </div>
+    <div class="A-body">
+      <!-- 左：目录 -->
+      <aside class="A-rail">
+        <div class="rh">全案目录 · 9 件</div>
+        <div class="A-item act"><span class="no" style="background:var(--ov)">⓪</span><span class="tt">1分钟速览</span></div>
+        <div class="A-item"><span class="no" style="background:var(--pos)">一</span><span class="tt">项目定位</span><span class="badge">2</span></div>
+        <div class="A-item"><span class="no" style="background:var(--pos)">二</span><span class="tt">目标用户定位</span></div>
+        <div class="A-item"><span class="no" style="background:var(--per)">三</span><span class="tt">IP人设定位</span></div>
+        <div class="A-item"><span class="no" style="background:var(--con)">四</span><span class="tt">内容定位</span><span class="badge">1</span></div>
+        <div class="A-item"><span class="no" style="background:var(--con)">五</span><span class="tt">选题方向</span></div>
+        <div class="A-item"><span class="no" style="background:var(--gro)">六</span><span class="tt">投流建议</span><span class="badge">1</span></div>
+        <div class="A-item"><span class="no" style="background:var(--gro)">七</span><span class="tt">IP发展规划</span></div>
+        <div class="A-item"><span class="no" style="background:var(--gro)">八</span><span class="tt">执行建议</span><span class="badge">1</span></div>
+        <div class="rfoot">
+          <div class="todo-banner" style="font-size:12px;padding:9px 11px">🪄 还有 5 处待补 · 见右侧顶部</div>
+          <div class="done-banner" style="font-size:12px;padding:9px 11px">✅ 5 处已补全 · 正文已同步</div>
+        </div>
+      </aside>
+
+      <!-- 右：精读 -->
+      <div class="A-read">
+        <!-- 待补填空条 -->
+        <div class="todo-banner" style="margin-bottom:14px">🪄 还有 5 处「待补充」可以补全（按章节聚成问题，填空即可）</div>
+        <div class="done-banner" style="margin-bottom:14px">✅ 5 处已补全，正文里的「待补充」已全部替换为你的内容</div>
+        <div class="fill-note" style="margin-bottom:18px">
+          <div class="fill-row"><span class="lb">请补充</span><span class="fill-noun">竞品真实成本结构</span><input class="fill-input" placeholder="如：客单价 25-38 元，单杯物料成本约 9.2 元…"><span class="fill-count">一、项目定位 · 全章 2 处</span></div>
+          <div class="fill-row"><span class="lb">请补充</span><span class="fill-noun">可引用的真实案例数据</span><input class="fill-input" placeholder="如：某加盟店 3 个月回本，月流水 8 万…"><span class="fill-count">四、内容定位</span></div>
+          <div class="fill-row"><span class="lb">请补充</span><span class="fill-noun">月预算与目标城市</span><input class="fill-input" placeholder="如：月投 3 万，主投杭州、嘉兴"><span class="fill-count">六、投流建议</span></div>
+          <div class="fill-row"><span class="lb">请补充</span><span class="fill-noun">团队人数与分工</span><input class="fill-input" placeholder="如：6 人，1 运营 1 拍摄 2 供应链"><span class="fill-count">八、执行建议</span></div>
+        </div>
+
+        <div class="crumb">速览区 · ⓪</div>
+        <h3><span class="no" style="background:var(--ov)">⓪</span>1分钟速览</h3>
+        <div class="A-skim">
+          <div class="t"><b>项目定位</b><span>8 年咖啡供应链出身的连锁总部，帮二三线小老板降本、陪跑</span></div>
+          <div class="t"><b>目标用户</b><span>二三线想开店的小老板 · 30-45 岁 · 15-50 万启动</span></div>
+          <div class="t"><b>商业模式</b><span>加盟费 ＋ 设备/物料差价 ＋ 供应链服务费</span></div>
+          <div class="t"><b>IP目标</b><span>3 个月做区域「最懂小老板」的供应链 IP</span></div>
+        </div>
+
+        <div class="crumb" style="margin-top:6px">定位区 · 一 →</div>
+        <h3 style="margin-top:6px"><span class="no" style="background:var(--pos)">一</span>项目定位</h3>
+        <div class="lead">
+          <p>一句话定位：<b>8 年咖啡供应链出身的社区咖啡连锁总部</b>——不卖情怀，帮二三线城市的小老板把设备和物料成本压下来，陪跑把店开活，赚的是加盟费与设备物料利润。</p>
+          <p>竞品对比上，本地并没有强连锁，真正的对手是「单店精品馆」与「便利店咖啡」。我们的护城河在
+            <span class="todo-only"><span class="todo-mark">待补充：竞品真实成本结构</span></span>
+            <span class="done-only">客单价 25-38 元、单杯物料成本约 9.2 元（含杯耗），比单店精品馆低约 32%</span>
+            ——这是能直接压过对手的地方。
+          </p>
+          <p>阶段判断：<b>起步放量期</b>（0→1 已验证，1→10 待放大）；当务之急是把「供应链成本优势」讲成一句小老板听得懂的话。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    <b>方向 A · 杂志阅读器。</b>左边一条「全案目录」当锚点（谁有待补就挂数字角标），右边一次只精读一篇——长文可读性最好，不再是一长串上下罗列。<br>
+    <b>待补交互：</b>阅读区顶部一条「5 处待补」横条，展开就是一排<b>填空题</b>（名词红标＋下划线空）；填完点「一键补全」→ 正文里橙色「待补充」气泡全部消失，替换成你填的内容。
+  </div>
+</section>
+
+<!-- ================= 方向 B ================= -->
+<section class="proto" data-dir="b">
+  <div class="frame">
+    <div class="frame-h">
+      <span class="deliv">✓ 已交付</span>
+      <span class="meta">9 件 · 消耗 99 算力</span>
+      <div class="right">
+        <button class="cbtn">⧉ 复制全部</button>
+        <button class="cbtn">↓ 导出 Word</button>
+      </div>
+    </div>
+    <div class="B-body">
+      <!-- 填空墙 -->
+      <div class="B-wall">
+        <div class="wh">
+          <div class="todo-banner" style="padding:9px 13px;font-size:12.5px">🪄 还有 5 处「待补充」可以补全，填完正文不再出现待补</div>
+          <div class="done-banner" style="padding:9px 13px;font-size:12.5px">✅ 5 处已补全 · 正文已同步</div>
+        </div>
+        <div class="B-fills">
+          <div class="fill-row"><span class="lb">请补充</span><span class="fill-noun">竞品真实成本结构</span><input class="fill-input" placeholder="填真实成本结构…"><span class="fill-count">一 · 2 处</span></div>
+          <div class="fill-row"><span class="lb">请补充</span><span class="fill-noun">真实案例数据</span><input class="fill-input" placeholder="填可引用的数据…"><span class="fill-count">四</span></div>
+          <div class="fill-row"><span class="lb">请补充</span><span class="fill-noun">月预算与目标城市</span><input class="fill-input" placeholder="填预算 / 城市…"><span class="fill-count">六</span></div>
+          <div class="fill-row"><span class="lb">请补充</span><span class="fill-noun">团队人数与分工</span><input class="fill-input" placeholder="填团队情况…"><span class="fill-count">八</span></div>
+        </div>
+      </div>
+
+      <!-- KPI 瓦片（速览 8 维压缩） -->
+      <div class="B-kpis">
+        <div class="B-kpi" style="--acc:var(--pos)"><b>定位</b><p>供应链出身的连锁总部，帮小老板降本陪跑</p></div>
+        <div class="B-kpi" style="--acc:var(--pos)"><b>用户</b><p>二三线小老板 · 30-45 · 15-50 万启动</p></div>
+        <div class="B-kpi" style="--acc:var(--pos)"><b>竞品</b><p>本地无强连锁；对手＝单店精品馆 / 便利店咖啡</p></div>
+        <div class="B-kpi" style="--acc:var(--pos)"><b>模式</b><p>加盟费 ＋ 设备物料差价 ＋ 服务费</p></div>
+        <div class="B-kpi" style="--acc:var(--per)"><b>创始人</b><p>8 年供应链、B 端强；镜头表达偏朴素</p></div>
+        <div class="B-kpi" style="--acc:var(--gro)"><b>IP目标</b><p>3 个月做区域「最懂小老板」的 IP</p></div>
+        <div class="B-kpi" style="--acc:var(--gro)"><b>现状</b><p>4 家直营 · 团队 6 人 · 投流预算未定</p></div>
+        <div class="B-kpi" style="--acc:var(--gro)"><b>阶段</b><p>起步放量期（0→1 已验证，1→10 待放大）</p></div>
+      </div>
+
+      <!-- 分区矩阵 -->
+      <div class="B-grid">
+        <div class="B-card hero">
+          <div class="ch"><span class="no" style="background:var(--ov)">⓪</span><b>1分钟速览</b><span class="gtag g-ov">速览区</span><span class="right meta">老板先看这张</span></div>
+          <div class="kv">
+            <div class="k">项目定位</div><div class="v">8 年咖啡供应链出身的社区咖啡连锁总部，帮二三线小老板把设备和物料成本压下来、陪跑存活</div>
+            <div class="k">核心差异</div><div class="v"><span class="todo-only"><span class="todo-mark">待补充：竞品真实成本结构</span></span><span class="done-only">成本低约 32%，能直接压过单店精品馆</span></div>
+            <div class="k">阶段判断</div><div class="v">起步放量期 · 当务之急把成本优势讲成一句人话</div>
+          </div>
+        </div>
+
+        <div class="B-card wide">
+          <div class="ch"><span class="no" style="background:var(--pos)">一</span><b>项目定位</b><span class="gtag g-pos">定位区</span></div>
+          <div class="B-chips">
+            <span class="chip has">一句话定位 <span class="n">✓</span></span>
+            <span class="chip has">竞品对比 <span class="n">2 待补</span></span>
+            <span class="chip">阶段判断</span>
+          </div>
+        </div>
+        <div class="B-card wide">
+          <div class="ch"><span class="no" style="background:var(--pos)">二</span><b>目标用户定位</b><span class="gtag g-pos">定位区</span></div>
+          <div class="B-chips">
+            <span class="chip has">用户画像 <span class="n">✓</span></span>
+            <span class="chip has">JTBD 三层痛点 <span class="n">✓</span></span>
+            <span class="chip has">四层漏斗 <span class="n">✓</span></span>
+            <span class="chip">决策旅程</span>
+          </div>
+        </div>
+
+        <div class="B-card third">
+          <div class="ch"><span class="no" style="background:var(--per)">三</span><b>IP人设定位</b><span class="gtag g-per">人设区</span></div>
+          <div class="B-chips">
+            <span class="chip has">五维模型 <span class="n">✓</span></span>
+            <span class="chip">语言正反例</span>
+            <span class="chip">主页四件套</span>
+          </div>
+        </div>
+        <div class="B-card third">
+          <div class="ch"><span class="no" style="background:var(--con)">四</span><b>内容定位</b><span class="gtag g-con">内容区</span></div>
+          <div class="B-chips">
+            <span class="chip has">内容使命 <span class="n">✓</span></span>
+            <span class="chip has">矩阵四象限 <span class="n">1 待补</span></span>
+            <span class="chip">平台差异化</span>
+          </div>
+        </div>
+        <div class="B-card third">
+          <div class="ch"><span class="no" style="background:var(--con)">五</span><b>选题方向</b><span class="gtag g-con">内容区</span></div>
+          <div class="B-chips">
+            <span class="chip has">80 条选题库 <span class="n">✓</span></span>
+            <span class="chip has">TOP10 <span class="n">✓</span></span>
+            <span class="chip">30 天日历</span>
+          </div>
+        </div>
+
+        <div class="B-card third">
+          <div class="ch"><span class="no" style="background:var(--gro)">六</span><b>投流建议</b><span class="gtag g-gro">增长区</span></div>
+          <div class="B-chips">
+            <span class="chip has">前置判断 <span class="n">✓</span></span>
+            <span class="chip has">DOU+ 方案 <span class="n">1 待补</span></span>
+            <span class="chip">预算分配</span>
+          </div>
+        </div>
+        <div class="B-card third">
+          <div class="ch"><span class="no" style="background:var(--gro)">七</span><b>IP发展规划</b><span class="gtag g-gro">增长区</span></div>
+          <div class="B-chips">
+            <span class="chip has">能力五维 <span class="n">25/50</span></span>
+            <span class="chip has">三阶段路径 <span class="n">✓</span></span>
+            <span class="chip">首月计划</span>
+          </div>
+        </div>
+        <div class="B-card third">
+          <div class="ch"><span class="no" style="background:var(--gro)">八</span><b>执行建议</b><span class="gtag g-gro">增长区</span></div>
+          <div class="B-chips">
+            <span class="chip has">关键成功因素 <span class="n">✓</span></span>
+            <span class="chip has">风险红线 <span class="n">✓</span></span>
+            <span class="chip">30 天清单 <span class="n">1 待补</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    <b>方向 B · 速览仪表盘。</b>顶部 8 个 KPI 瓦片把「1 分钟速览」压成一眼可扫的方格；下面 5 个分区做成<b>错落矩阵</b>（速览区整行 hero、定位区宽卡、其余三等分），一屏看全 9 件，点卡片再展开全文。<br>
+    <b>待补交互：</b>顶部一条横向<b>「填空墙」</b>，4 条填空并排换行，不占正文。补完正文里的「待补」胶囊自动变绿「✓」。
+  </div>
+</section>
+
+<!-- ================= 方向 C ================= -->
+<section class="proto" data-dir="c">
+  <div class="frame">
+    <div class="frame-h">
+      <span class="deliv">✓ 已交付</span>
+      <span class="meta">9 件 · 消耗 99 算力</span>
+      <div class="right">
+        <button class="cbtn">⧉ 复制全部</button>
+        <button class="cbtn">↓ 导出 Word</button>
+      </div>
+    </div>
+    <div class="C-body">
+      <!-- 左：分区树 -->
+      <aside class="C-tree">
+        <div class="rh">全案 · 分区</div>
+        <div class="C-grp">📌 速览区</div>
+        <div class="C-node act"><span class="tt">⓪ 1分钟速览</span></div>
+        <div class="C-grp">🎯 定位区</div>
+        <div class="C-node"><span class="tt">一 项目定位</span><span class="badge g-ov gtag">2</span></div>
+        <div class="C-node"><span class="tt">二 目标用户定位</span></div>
+        <div class="C-grp">🧑 人设区</div>
+        <div class="C-node"><span class="tt">三 IP人设定位</span></div>
+        <div class="C-grp">✍️ 内容区</div>
+        <div class="C-node"><span class="tt">四 内容定位</span><span class="gtag g-ov">1</span></div>
+        <div class="C-node"><span class="tt">五 选题方向</span></div>
+        <div class="C-grp">🚀 增长区</div>
+        <div class="C-node"><span class="tt">六 投流建议</span><span class="gtag g-ov">1</span></div>
+        <div class="C-node"><span class="tt">七 IP发展规划</span></div>
+        <div class="C-node"><span class="tt">八 执行建议</span><span class="gtag g-ov">1</span></div>
+      </aside>
+
+      <!-- 中：正文 -->
+      <div class="C-doc">
+        <div class="crumb">定位区 · 一</div>
+        <h3>一、项目定位</h3>
+        <div class="lead">
+          <p>一句话定位：<b>8 年咖啡供应链出身的社区咖啡连锁总部</b>——不卖情怀，帮二三线小城市的小老板把设备与物料成本压下来，陪跑把店开活。</p>
+          <div class="markup">
+            竞品对比：本地无强连锁，对手是单店精品馆与便利店咖啡。护城河在
+            <span class="todo-only"><span class="todo-mark">待补充：竞品真实成本结构</span></span>
+            <span class="done-only">客单价 25-38 元、单杯物料成本约 9.2 元，比精品馆低约 32%</span>。
+          </div>
+          <p>阶段判断：<b>起步放量期</b>；当务之急是把「供应链成本优势」讲成一句小老板听得懂的话。</p>
+        </div>
+      </div>
+
+      <!-- 右：批注栏 -->
+      <aside class="C-anno">
+        <div class="ah"><b>🪄 待补批注</b><span class="pill">待补 5</span></div>
+        <div class="C-card">
+          <div class="src">一、项目定位 · 全章 2 处</div>
+          <div class="q">请补充：<b>竞品真实成本结构</b></div>
+          <textarea rows="2" placeholder="如：客单价 25-38 元，单杯物料成本约 9.2 元…"></textarea>
+        </div>
+        <div class="C-card">
+          <div class="src">四、内容定位</div>
+          <div class="q">请补充：<b>可引用的真实案例数据</b></div>
+          <textarea rows="2" placeholder="如：某加盟店 3 个月回本，月流水 8 万…"></textarea>
+        </div>
+        <div class="C-card">
+          <div class="src">六、投流建议</div>
+          <div class="q">请补充：<b>月预算与目标城市</b></div>
+          <textarea rows="2" placeholder="如：月投 3 万，主投杭州、嘉兴"></textarea>
+        </div>
+        <div class="C-card">
+          <div class="src">八、执行建议</div>
+          <div class="q">请补充：<b>团队人数与分工</b></div>
+          <textarea rows="2" placeholder="如：6 人，1 运营 1 拍摄 2 供应链"></textarea>
+        </div>
+        <button class="cbtn" style="width:100%;border-color:var(--orange-line);background:var(--orange-soft);color:#a9450d;font-weight:800;padding:10px">🪄 一键补全（仅重写有本章节）</button>
+      </aside>
+    </div>
+  </div>
+  <div class="note">
+    <b>方向 C · 批注工作台。</b>三栏：左边分区树定位，中间读正文，右边像 Word 批注一样挂着「待补批注」——<b>边读边补</b>，补完批注变绿并自动跳到正文对应位置高亮。<br>
+    <b>待补交互：</b>每条批注就是一个填空卡，带「全章共 N 处」的定位；补全后正文里的橙色「待补充」气泡消失。
+  </div>
+</section>
+
+<script>
+  // 方向切换
+  const sw = document.getElementById('sw');
+  sw.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-dir]');
+    if (!b) return;
+    sw.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    document.querySelectorAll('.proto').forEach(p => p.classList.toggle('on', p.dataset.dir === b.dataset.dir));
+  });
+  // 填完预览开关（全局作用于当前可见原型；用 body 级 class 简化）
+  const tg = document.querySelector('[data-toggle="filled"]');
+  tg.addEventListener('click', () => {
+    const on = document.body.classList.toggle('filled-all');
+    document.querySelectorAll('.proto').forEach(p => p.classList.toggle('is-filled', on));
+    tg.textContent = on ? '← 回到待补状态' : '填完后的样子 →';
+  });
+</script>
+</body>
+</html>

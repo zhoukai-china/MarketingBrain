@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>兰琪 · 爆款复刻与一键成片 · 剩余工作盘点</title>
+<style>
+  :root{
+    --paper:#F5F3EE;
+    --card:#FFFEFC;
+    --ink:#22201C;
+    --sub:#6F675C;
+    --muted:#9A9284;
+    --line:rgba(34,32,28,.10);
+    --line2:rgba(34,32,28,.18);
+    --done:#2E6B59;
+    --done-soft:#E7EFEB;
+    --warn:#8A6A1E;
+    --warn-soft:#F5EEDB;
+    --gap:#93483C;
+    --gap-soft:#F6E6E2;
+    --neutral:#5B6470;
+    --neutral-soft:#EBEDF0;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font:15px/1.65 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1060px;margin:0 auto;padding:52px 28px 72px}
+
+  /* ---------- header ---------- */
+  .eyebrow{
+    font:600 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;
+    color:var(--muted);margin:0 0 16px
+  }
+  h1{
+    font-size:31px;line-height:1.28;margin:0 0 14px;font-weight:700;letter-spacing:-.01em;
+  }
+  h1 .thin{color:var(--sub);font-weight:500}
+  .meta{
+    display:flex;flex-wrap:wrap;gap:8px 20px;padding-top:16px;border-top:1px solid var(--line);
+    font-size:12.5px;color:var(--sub)
+  }
+  .meta b{color:var(--ink);font-weight:600}
+  .meta .k{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+
+  /* ---------- lead ---------- */
+  .lead{
+    margin:30px 0 0;padding:20px 22px;background:var(--card);
+    border:1px solid var(--line);border-left:3px solid var(--ink);border-radius:2px 10px 10px 2px;
+  }
+  .lead p{margin:0;font-size:15.5px;line-height:1.72}
+  .lead .hl{background:linear-gradient(transparent 62%,rgba(46,107,89,.16) 0);padding:0 1px}
+  .lead .hl2{background:linear-gradient(transparent 62%,rgba(147,72,60,.16) 0);padding:0 1px}
+
+  /* ---------- tally ---------- */
+  .tally{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:22px 0 0}
+  .tally .t{
+    background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;
+    display:flex;align-items:baseline;gap:12px
+  }
+  .tally .n{font:700 30px/1 var(--mono);letter-spacing:-.02em}
+  .tally .n.g{color:var(--done)} .tally .n.b{color:var(--warn)}
+  .tally .txt{font-size:13.5px;color:var(--sub);line-height:1.5}
+  .tally .txt b{color:var(--ink);font-weight:600}
+
+  /* ---------- module card ---------- */
+  .mod{margin-top:42px;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .mod-h{
+    display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;
+    padding:20px 24px 18px;border-bottom:1px solid var(--line)
+  }
+  .mod-h .no{
+    font:700 13px/1 var(--mono);color:var(--sub);border:1px solid var(--line2);
+    border-radius:6px;padding:6px 8px;flex:none
+  }
+  .mod-h h2{font-size:20px;margin:2px 0 6px;font-weight:700;letter-spacing:-.01em}
+  .mod-h .sum{margin:0;font-size:13.5px;color:var(--sub)}
+  .mod-h .sum em{font-style:normal;font-weight:600}
+  .mod-h .sum em.g{color:var(--done)} .mod-h .sum em.b{color:var(--warn)} .mod-h .sum em.r{color:var(--gap)}
+
+  .mod-b{padding:24px}
+  .lbl{
+    font:600 11.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted);margin:0 0 12px
+  }
+
+  /* ---------- rail ---------- */
+  svg.rail{width:100%;height:auto;display:block;margin-bottom:6px}
+  .n-done{fill:var(--done)}
+  .n-gap{fill:var(--gap-soft);stroke:var(--gap);stroke-width:1.2;stroke-dasharray:5 3}
+  .n-brk{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.4}
+  .n-fea{fill:var(--neutral-soft);stroke:var(--neutral);stroke-width:1.2}
+  text.n-t{font:600 13px -apple-system,"PingFang SC",sans-serif;text-anchor:middle;fill:#fff}
+  text.n-t.dark{fill:var(--ink)}
+  text.n-s{font:500 10.5px var(--mono);text-anchor:middle;fill:rgba(255,255,255,.78)}
+  text.n-s.dark{fill:var(--muted)}
+  .flow{stroke:#CFC8BC;stroke-width:1.4}
+
+  /* ---------- gates ---------- */
+  .gates{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}
+  .chip{
+    display:flex;align-items:center;gap:9px;padding:8px 12px;border:1px solid var(--line2);
+    border-radius:8px;background:#FBFAF7
+  }
+  .chip .dot{width:7px;height:7px;border-radius:50%;flex:none}
+  .chip.off .dot{background:var(--gap)}
+  .chip .k{font:11.5px var(--mono);color:var(--sub)}
+  .chip .v{font-size:12.5px;font-weight:600;color:var(--gap)}
+
+  /* ---------- todo ---------- */
+  .todo{margin-top:22px;border-top:1px solid var(--line);padding-top:18px}
+  .todo ol{margin:0;padding:0;list-style:none;counter-reset:t}
+  .todo li{
+    counter-increment:t;position:relative;padding:9px 0 9px 34px;font-size:14px;
+    border-bottom:1px dashed var(--line)
+  }
+  .todo li:last-child{border-bottom:0}
+  .todo li::before{
+    content:counter(t);position:absolute;left:0;top:9px;
+    font:600 11.5px/18px var(--mono);color:var(--sub);text-align:center;
+    width:20px;height:20px;border:1px solid var(--line2);border-radius:5px
+  }
+  .todo li .r{font-weight:600}
+  .todo li .r.hard{color:var(--gap)}
+  .todo li .r.soft{color:var(--warn)}
+  .todo li .r.opt{color:var(--muted)}
+  .todo li .why{color:var(--sub);font-size:12.5px;display:block;margin-top:2px}
+
+  /* ---------- limits ---------- */
+  .limits{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 22px;margin-top:18px}
+  .limits div{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .limits span:first-child{color:var(--sub)}
+  .limits span:last-child{font-family:var(--mono);font-size:12px;color:var(--ink);white-space:nowrap}
+
+  /* ---------- legend ---------- */
+  .legend{display:flex;flex-wrap:wrap;gap:8px 22px;margin:42px 0 0;padding:18px 20px;background:var(--card);border:1px solid var(--line);border-radius:10px}
+  .legend i{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--sub);font-style:normal}
+  .legend .sw{width:22px;height:12px;border-radius:3px;flex:none}
+
+  footer{margin-top:28px;font-size:12px;color:var(--muted);line-height:1.8}
+  footer b{color:var(--sub);font-weight:600}
+  .mono{font-family:var(--mono);font-size:11.5px}
+
+  @media (max-width:720px){
+    .wrap{padding:32px 16px 52px}
+    h1{font-size:23px}
+    .tally,.limits{grid-template-columns:1fr}
+  }
+  @media print{
+    body{background:#fff}
+    .wrap{max-width:none;padding:0}
+    .mod,.lead,.legend{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow">Lanqi · Acquisition / Video — Work Remaining</p>
+  <h1>爆款复刻 与 一键成片<br /><span class="thin">还有多少工作要做</span></h1>
+
+  <div class="meta">
+    <span><b>核实方式</b> 逐文件读 <span class="k">apps/api/src</span>，行号见内文</span>
+    <span><b>代码版本</b> 本地未发布 + 已上线 20261004 包</span>
+    <span><b>日期</b> 2026-10-04</span>
+  </div>
+
+  <div class="lead">
+    <p>两个模块<b>都不是「功能没写」</b>——出片的真调用、扣费、退款、落盘校验在代码里都齐。真正卡住的是两类事：<span class="hl">③ 爆款复刻是被四道「闸」关着，外加取片一环前端接错了接口</span>；<span class="hl2">④ 一键成片是中间两步后端压根没做，加上本地环境没配</span>。所以是「接线 + 补两步」的量级，不是从零开发。</p>
+  </div>
+
+  <div class="tally">
+    <div class="t">
+      <div class="n g">2+1</div>
+      <div class="txt"><b>③ 爆款复刻</b> · 还差 2 件硬事<br />（配齐云端闸门 + 修取片轮询），1 件可选（授权存证）</div>
+    </div>
+    <div class="t">
+      <div class="n b">3+2</div>
+      <div class="txt"><b>④ 一键成片</b> · 还差 3 件硬事<br />（配 env + 素材卡持久化 + 算力预算接口），2 件可选</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ ③ 爆款复刻 ═══════════════ -->
+  <section class="mod">
+    <div class="mod-h">
+      <span class="no">③</span>
+      <div>
+        <h2>爆款复刻</h2>
+        <p class="sum">后 6 环<em class="g">全部真实现</em>（真调阿里云 · 真扣费退款 · 真 ffprobe 校验）；<em class="r">卡在 4 道闸 + 1 处接线断点</em>。</p>
+      </div>
+    </div>
+
+    <div class="mod-b">
+      <p class="lbl">链路 · 6 环</p>
+
+      <svg class="rail" viewBox="0 0 1000 92" role="img" aria-label="爆款复刻链路六环">
+        <defs>
+          <marker id="ah" markerWidth="7" markerHeight="7" refX="5" refY="3.2" orient="auto">
+            <path d="M0 0 L6.4 3.2 L0 6.4 z" fill="#CFC8BC" />
+          </marker>
+        </defs>
+
+        <!-- flows -->
+        <line class="flow" x1="171" y1="44" x2="187" y2="44" marker-end="url(#ah)" />
+        <line class="flow" x1="331" y1="44" x2="347" y2="44" marker-end="url(#ah)" />
+        <line class="flow" x1="491" y1="44" x2="507" y2="44" marker-end="url(#ah)" />
+        <line class="flow" x1="651" y1="44" x2="667" y2="44" marker-end="url(#ah)" />
+        <line class="flow" x1="811" y1="44" x2="827" y2="44" marker-end="url(#ah)" />
+
+        <!-- 1 -->
+        <rect class="n-done" x="30" y="12" width="138" height="64" rx="9" />
+        <text class="n-t" x="99" y="41">原片上传</text>
+        <text class="n-s" x="99" y="60">已实现</text>
+        <!-- 2 -->
+        <rect class="n-done" x="190" y="12" width="138" height="64" rx="9" />
+        <text class="n-t" x="259" y="41">肖像上传</text>
+        <text class="n-s" x="259" y="60">已实现</text>
+        <!-- 3 -->
+        <rect class="n-done" x="350" y="12" width="138" height="64" rx="9" />
+        <text class="n-t" x="419" y="41">授权声明</text>
+        <text class="n-s" x="419" y="60">勾选框</text>
+        <!-- 4 -->
+        <rect class="n-done" x="510" y="12" width="138" height="64" rx="9" />
+        <text class="n-t" x="579" y="41">报价 quote</text>
+        <text class="n-s" x="579" y="60">24 算力/秒</text>
+        <!-- 5 -->
+        <rect class="n-done" x="670" y="12" width="138" height="64" rx="9" />
+        <text class="n-t" x="739" y="41">提交阿里云</text>
+        <text class="n-s" x="739" y="60">已实现</text>
+        <!-- 6 -->
+        <rect class="n-brk" x="830" y="12" width="138" height="64" rx="9" />
+        <text class="n-t dark" x="899" y="41">取片 · 轮询</text>
+        <text class="n-s dark" x="899" y="60">接线断点</text>
+      </svg>
+
+      <p class="lbl" style="margin-top:20px">四道闸 · 全关（配置好即可外发付费请求）</p>
+      <div class="gates">
+        <span class="chip off"><i class="dot"></i><span class="k">BEAUTY_VIDEO_EXECUTION_MODE</span><span class="v">disabled</span></span>
+        <span class="chip off"><i class="dot"></i><span class="k">BEAUTY_VIDEO_STAGING_DRIVER</span><span class="v">disabled</span></span>
+        <span class="chip off"><i class="dot"></i><span class="k">ALIYUN_API_KEY</span><span class="v">空</span></span>
+        <span class="chip off"><i class="dot"></i><span class="k">BEAUTY_VIDEO_EXECUTION_AUTHORITY_KEY</span><span class="v">空</span></span>
+      </div>
+      <p style="margin:10px 0 0;font-size:12px;color:var(--muted)">
+        注：单价闸本地已配（<span class="mono">_CREDITS_PER_SECOND=24</span> · <span class="mono">MAX_COST_FEN=3000</span> · <span class="mono">PERMIT_MODE=auto</span>），真正缺的是云端凭据与执行开关。
+      </p>
+
+      <div class="todo">
+        <p class="lbl">要真上线还差</p>
+        <ol>
+          <li><span class="r hard">配齐云端凭据 + 打开 4 道闸</span><span class="why">阿里云 Key／OSS 桶 + STS／结果域名白名单／授权密钥；再置 execution + staging 为启用。</span></li>
+          <li><span class="r hard">修「取片」这一环</span><span class="why">前端 60 轮轮询打的是「任务列表」接口（只读库、不推进供应商），真正推进任务的 refresh 前端从没调用，后端也没有后台 worker → 任务会永远停在「处理中」。前端改调 refresh，或加一个后台轮询。</span></li>
+          <li><span class="r opt">（可选）授权换成真人签署 / 存证</span><span class="why">现在只是一段勾选文案上传，后端 assurance 写死「用户声明、未独立核验」，没有法律效力。</span></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ ④ 一键成片 ═══════════════ -->
+  <section class="mod">
+    <div class="mod-h">
+      <span class="no">④</span>
+      <div>
+        <h2>一键成片</h2>
+        <p class="sum">出片主链路<em class="g">可跑</em>（真 LLM 文案 → 规则分镜 → 逐镜图生视频 → ffmpeg 合片+音轨）；<em class="r">中间 2 步后端没做</em>，<em class="b">4 处 env 未配</em>。</p>
+      </div>
+    </div>
+
+    <div class="mod-b">
+      <p class="lbl">链路 · 7 环</p>
+
+      <svg class="rail" viewBox="0 0 1000 92" role="img" aria-label="一键成片链路七环">
+        <line class="flow" x1="152" y1="44" x2="163" y2="44" marker-end="url(#ah)" />
+        <line class="flow" x1="289" y1="44" x2="300" y2="44" marker-end="url(#ah)" />
+        <line class="flow" x1="426" y1="44" x2="437" y2="44" marker-end="url(#ah)" />
+        <line class="flow" x1="563" y1="44" x2="574" y2="44" marker-end="url(#ah)" />
+        <line class="flow" x1="700" y1="44" x2="711" y2="44" marker-end="url(#ah)" />
+        <line class="flow" x1="837" y1="44" x2="848" y2="44" marker-end="url(#ah)" />
+
+        <rect class="n-fea" x="30" y="12" width="118" height="64" rx="9" />
+        <text class="n-t dark" x="89" y="41">说需求</text>
+        <text class="n-s dark" x="89" y="60">前端表单</text>
+
+        <rect class="n-done" x="167" y="12" width="118" height="64" rx="9" />
+        <text class="n-t" x="226" y="41">3 版文案</text>
+        <text class="n-s" x="226" y="60">真大模型</text>
+
+        <rect class="n-done" x="304" y="12" width="118" height="64" rx="9" />
+        <text class="n-t" x="363" y="41">分镜脚本</text>
+        <text class="n-s" x="363" y="60">规则拼装</text>
+
+        <rect class="n-gap" x="441" y="12" width="118" height="64" rx="9" />
+        <text class="n-t dark" x="500" y="41">素材卡</text>
+        <text class="n-s dark" x="500" y="60">后端未做</text>
+
+        <rect class="n-gap" x="578" y="12" width="118" height="64" rx="9" />
+        <text class="n-t dark" x="637" y="41">算力预算</text>
+        <text class="n-s dark" x="637" y="60">后端未做</text>
+
+        <rect class="n-done" x="715" y="12" width="118" height="64" rx="9" />
+        <text class="n-t" x="774" y="41">逐镜出片</text>
+        <text class="n-s" x="774" y="60">已实现</text>
+
+        <rect class="n-done" x="852" y="12" width="118" height="64" rx="9" />
+        <text class="n-t" x="911" y="41">合片混音</text>
+        <text class="n-s" x="911" y="60">本地 ffmpeg</text>
+      </svg>
+
+      <p class="lbl" style="margin-top:20px">四处闸 · 未配（本地跑 mock；生产禁 mock = 直接不可用）</p>
+      <div class="gates">
+        <span class="chip off"><i class="dot"></i><span class="k">LANQI_MEDIA_EXECUTION_MODE</span><span class="v">mock</span></span>
+        <span class="chip off"><i class="dot"></i><span class="k">LANQI_MEDIA_PUBLIC_BASE_URL</span><span class="v">http ✕ 需 https</span></span>
+        <span class="chip off"><i class="dot"></i><span class="k">DASHSCOPE_API_KEY</span><span class="v">空</span></span>
+        <span class="chip off"><i class="dot"></i><span class="k">LANQI_MEDIA_IMAGE_REAL_EXECUTION_APPROVED</span><span class="v">未开</span></span>
+      </div>
+
+      <div class="todo">
+        <p class="lbl">要真上线还差</p>
+        <ol>
+          <li><span class="r hard">配 env</span><span class="why">DashScope/阿里云 Key、HTTPS 公网基址（首帧图外链校验要求 https）、执行模式切 real、付费生图放行。</span></li>
+          <li><span class="r hard">补「素材卡」服务端持久化</span><span class="why">人物卡/场景卡/道具卡的图片现在只存在浏览器内存里，刷新即丢；后端没有对应实体与接口。</span></li>
+          <li><span class="r hard">补「算力预算」后端接口</span><span class="why">档位是前端常量（草稿 480P 还被硬映射成 720P），余额预扣与校验没有服务端支撑。</span></li>
+          <li><span class="r soft">（可选）分镜升级为大模型</span><span class="why">现在是按标点切句 + 关键词判景别的规则模板，秒回但不理解语义。</span></li>
+          <li><span class="r opt">（可选）TTS 配音 / 字幕烧制</span><span class="why">视频模型只出无声片，声音必须来自门店自己上传的音轨；全仓无配音与字幕代码。</span></li>
+        </ol>
+      </div>
+
+      <p class="lbl" style="margin-top:22px">已成常量 · 产品需知</p>
+      <div class="limits">
+        <div><span>单条成片镜数</span><span>2 – 12 镜</span></div>
+        <div><span>单镜时长</span><span>2 – 15 秒</span></div>
+        <div><span>分辨率档位</span><span>仅 720P / 1080P</span></div>
+        <div><span>音轨单文件</span><span>≤ 20 MB</span></div>
+        <div><span>合片输出</span><span>≤ 200 MB</span></div>
+        <div><span>任务超时</span><span>30 分钟（自动退款）</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ legend ═══════════════ -->
+  <div class="legend">
+    <i><span class="sw" style="background:var(--done)"></span>已实现（真代码）</i>
+    <i><span class="sw" style="background:var(--gap-soft);border:1.2px dashed var(--gap)"></span>后端未做</i>
+    <i><span class="sw" style="background:var(--warn-soft);border:1.4px solid var(--warn)"></span>接线断点</i>
+    <i><span class="sw" style="background:var(--neutral-soft);border:1.2px solid var(--neutral)"></span>前端表单（无需后端）</i>
+  </div>
+
+  <footer>
+    <b>核实口径</b>：逐文件读 <span class="mono">apps/api/src</span> 路由与服务实现，关键结论均已回到源码行号确认（如爆款复刻取片断点见 <span class="mono">routes/viral-video-replication.ts:111-142</span> + 前端轮询段 <span class="mono">LanqiAcquireVideoPage.tsx:714-741</span>）。<br />
+    <b>提示</b>：本页只盘点这两个模块的「代码 + 配置」完成度，不含运营侧素材准备与拍摄成本。
+  </footer>
+
+</div>
+</body>
+</html>

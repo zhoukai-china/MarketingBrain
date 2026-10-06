@@ -169,7 +169,9 @@ async function main() {
     await waitFor(cdp, sessionId, lastSegment);
     await waitFor(cdp, sessionId, `() => document.body.innerText.includes("货架")`);
     const homeText = await evaluate(cdp, sessionId, `() => document.body.innerText`);
-    assert.match(homeText, /行业智能体平台/, "platform home shows platform brand");
+    // 品牌更名 2026-10-03：思潼AI 行业智能体平台 / 思潼AI 智能体平台 → 思潼AI商城；
+    // 线上产物在下一个包发布前仍是旧名，故过渡期两个名字都接受。
+    assert.match(homeText, /思潼AI商城|行业智能体平台/, "platform home shows platform brand");
     assert.match(homeText, /货架/, "platform home renders the shelf");
     assert.match(homeText, /未登录/, "anonymous visitor is prompted to log in");
 
@@ -189,8 +191,8 @@ async function main() {
       return text.includes("微信一键登录 / 注册") || text.includes("进入思潼");
     }`);
     const loginText = await evaluate(cdp, sessionId, `() => document.body.innerText`);
-    assert.match(loginText, /思潼AI 行业智能体平台/, "login page shows platform name");
-    assert.match(loginText, /微信一键登录 \/ 注册|进入思潼\s*AI\s*智能体平台/, "login page offers a way in");
+    assert.match(loginText, /思潼AI商城/, "login page shows platform name");
+    assert.match(loginText, /微信一键登录 \/ 注册|进入思潼\s*AI\s*商城/, "login page offers a way in");
     assert.match(loginText, /一个账号、一个积分钱包/, "login page explains the shared wallet");
     assert.doesNotMatch(loginText, /单项快速诊断/, "login page is not the legacy diagnosis flow");
 

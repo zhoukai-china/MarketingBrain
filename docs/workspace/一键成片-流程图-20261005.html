@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>一键成片 · 完整流程图（2026-10-05）</title>
+<style>
+  :root{
+    --ink:#2b2622; --sub:#6b5b50; --line:#e3dcd3; --paper:#faf8f4; --card:#ffffff;
+    --orange:#f37021; --orange-deep:#d45a12; --green:#3a7d44; --blue:#3d6b9e; --red:#b84808;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--paper); color:var(--ink);
+    font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    font-size:14px; line-height:1.65; padding:40px 24px 80px;}
+  .wrap{max-width:1240px; margin:0 auto;}
+  header h1{font-size:26px; font-weight:800; letter-spacing:.5px;}
+  header .meta{color:var(--sub); font-size:13px; margin-top:6px;}
+  header .meta b{color:var(--orange-deep);}
+  section{margin-top:44px;}
+  section > h2{font-size:18px; font-weight:800; border-left:4px solid var(--orange); padding-left:12px; margin-bottom:6px;}
+  section > p.lead{color:var(--sub); font-size:13px; margin-bottom:14px; padding-left:16px;}
+  .board{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:22px 18px;}
+  svg{display:block; width:100%; height:auto;}
+  .legend{display:flex; gap:22px; flex-wrap:wrap; margin-top:14px; padding:0 6px; color:var(--sub); font-size:12.5px;}
+  .legend span{display:inline-flex; align-items:center; gap:7px;}
+  .dot{width:10px; height:10px; border-radius:3px; display:inline-block;}
+  .notes{margin-top:14px; border-top:1px solid var(--line); padding-top:12px; display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:10px 26px; font-size:13px;}
+  .notes li{margin-left:18px; color:var(--ink);}
+  .notes li b{color:var(--orange-deep);}
+  .muted{color:var(--sub);}
+  footer{margin-top:56px; color:var(--sub); font-size:12px; border-top:1px solid var(--line); padding-top:14px;}
+  text{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>一键成片 · 完整流程</h1>
+  <div class="meta">2026-10-05 更新 · 分镜与提示词 = 大模型真写 · 首帧 = 真实生图 + 三视图身份锁定 · 视频 = <b>真实图生视频（已切 real）</b> · 计价：生图 20 算力/张、视频 12 算力/秒</div>
+</header>
+
+<!-- ─────────────────────────── 主流程 ─────────────────────────── -->
+<section>
+  <h2>一、端到端主流程</h2>
+  <p class="lead">门店从一句话到成片的完整链路。橙色 = 门店要动手的点；每一笔费用都在创建任务前先报价确认，失败自动退回。</p>
+  <div class="board">
+  <svg viewBox="0 0 1180 620" xmlns="http://www.w3.org/2000/svg">
+    <!-- lane headers -->
+    <g font-size="13" font-weight="700">
+      <rect x="0"   y="0" width="1180" height="34" fill="#f5efe7"/>
+      <text x="20"  y="22" fill="#d45a12">门店（页面操作）</text>
+      <text x="360" y="22" fill="#3d6b9e">后端服务</text>
+      <text x="700" y="22" fill="#3a7d44">模型 / 存储</text>
+      <text x="980" y="22" fill="#6b5b50">费用</text>
+    </g>
+    <line x1="340" y1="0" x2="340" y2="620" stroke="#e3dcd3"/>
+    <line x1="680" y1="0" x2="680" y2="620" stroke="#e3dcd3"/>
+    <line x1="950" y1="0" x2="950" y2="620" stroke="#e3dcd3"/>
+
+    <!-- step rows -->
+    <!-- 1 文案 -->
+    <g>
+      <rect x="20" y="52" width="290" height="58" rx="10" fill="#fff" stroke="#f37021" stroke-width="1.5"/>
+      <text x="36" y="76" font-size="13.5" font-weight="700" fill="#2b2622">① 说需求 → 选文案</text>
+      <text x="36" y="96" font-size="12" fill="#6b5b50">3 版候选（钩子/正文/结尾）</text>
+      <path d="M310 81 L375 81" stroke="#c9bfb2" marker-end="url(#ar)"/>
+      <rect x="380" y="52" width="120" height="58" rx="10" fill="#eef4fa" stroke="#3d6b9e"/>
+      <text x="392" y="76" font-size="12.5" font-weight="700" fill="#3d6b9e">文案服务</text>
+      <text x="392" y="96" font-size="11.5" fill="#5b7ba1">真实大模型</text>
+      <path d="M500 81 L705 81" stroke="#c9bfb2" marker-end="url(#ar)"/>
+      <text x="966" y="86" font-size="12" fill="#6b5b50">LLM 调用</text>
+    </g>
+
+    <!-- 2 分镜 -->
+    <g>
+      <rect x="20" y="126" width="290" height="58" rx="10" fill="#fff" stroke="#f37021" stroke-width="1.5"/>
+      <text x="36" y="150" font-size="13.5" font-weight="700">② 生成分镜脚本</text>
+      <text x="36" y="170" font-size="12" fill="#6b5b50">逐镜：画面描述 + 生视频提示词</text>
+      <path d="M310 155 L375 155" stroke="#c9bfb2" marker-end="url(#ar)"/>
+      <rect x="380" y="126" width="120" height="58" rx="10" fill="#eef4fa" stroke="#3d6b9e"/>
+      <text x="392" y="150" font-size="12.5" font-weight="700" fill="#3d6b9e">分镜改写</text>
+      <text x="392" y="170" font-size="11.5" fill="#5b7ba1">LLM 逐镜真写</text>
+      <path d="M500 155 L705 155" stroke="#c9bfb2" marker-end="url(#ar)"/>
+      <text x="966" y="160" font-size="12" fill="#6b5b50">LLM 调用 ×1</text>
+    </g>
+
+    <!-- 3 素材 -->
+    <g>
+      <rect x="20" y="200" width="290" height="58" rx="10" fill="#fff" stroke="#f37021" stroke-width="1.5"/>
+      <text x="36" y="224" font-size="13.5" font-weight="700">③ 上传素材卡</text>
+      <text x="36" y="244" font-size="12" fill="#6b5b50">人物三视图（必填）· 场景 · 道具</text>
+      <path d="M310 229 L375 229" stroke="#c9bfb2" marker-end="url(#ar)"/>
+      <rect x="380" y="200" width="120" height="58" rx="10" fill="#eef4fa" stroke="#3d6b9e"/>
+      <text x="392" y="224" font-size="12.5" font-weight="700" fill="#3d6b9e">素材暂存</text>
+      <text x="392" y="244" font-size="11.5" fill="#5b7ba1">给 ID，不重复传</text>
+      <path d="M500 229 L705 229" stroke="#c9bfb2" marker-end="url(#ar)"/>
+      <rect x="710" y="200" width="120" height="58" rx="10" fill="#f2f7f1" stroke="#3a7d44"/>
+      <text x="722" y="224" font-size="12.5" font-weight="700" fill="#3a7d44">OSS 暂存桶</text>
+      <text x="722" y="244" font-size="11.5" fill="#5c8563">确保上传后签名</text>
+      <text x="966" y="234" font-size="12" fill="#6b5b50">不计费</text>
+    </g>
+
+    <!-- 4 首帧 -->
+    <g>
+      <rect x="20" y="274" width="290" height="72" rx="10" fill="#fff4ec" stroke="#f37021" stroke-width="2"/>
+      <text x="36" y="298" font-size="13.5" font-weight="700" fill="#d45a12">④ ✅ 确认并生成</text>
+      <text x="36" y="318" font-size="12" fill="#6b5b50">肖像授权后 → 逐镜生成 AI 首帧</text>
+      <text x="36" y="336" font-size="12" fill="#6b5b50">卡内出预览，可「换一张」</text>
+      <path d="M310 310 L375 310" stroke="#c9bfb2" marker-end="url(#ar)"/>
+      <rect x="380" y="274" width="120" height="72" rx="10" fill="#eef4fa" stroke="#3d6b9e"/>
+      <text x="392" y="298" font-size="12.5" font-weight="700" fill="#3d6b9e">首帧生成</text>
+      <text x="392" y="318" font-size="11.5" fill="#5b7ba1">三视图参考</text>
+      <text x="392" y="336" font-size="11.5" fill="#5b7ba1">+ 身份锁定</text>
+      <path d="M500 310 L705 310" stroke="#c9bfb2" marker-end="url(#ar)"/>
+      <rect x="710" y="274" width="120" height="72" rx="10" fill="#f2f7f1" stroke="#3a7d44"/>
+      <text x="722" y="298" font-size="12.5" font-weight="700" fill="#3a7d44">生图模型</text>
+      <text x="722" y="318" font-size="11.5" fill="#5c8563">图1=正脸照为准</text>
+      <text x="722" y="336" font-size="11.5" fill="#5c8563">不换脸 · 真实生图</text>
+      <text x="966" y="315" font-size="12" fill="#b84808" font-weight="700">20 算力/张</text>
+    </g>
+
+    <!-- 5 确认首帧 -->
+    <g>
+      <rect x="20" y="362" width="290" height="58" rx="10" fill="#fff" stroke="#f37021" stroke-width="1.5"/>
+      <text x="36" y="386" font-size="13.5" font-weight="700">⑤ 确认首帧</text>
+      <text x="36" y="406" font-size="12" fill="#6b5b50">「✅ 用这张首帧出片」才生效</text>
+      <path d="M310 391 L375 391" stroke="#c9bfb2" marker-end="url(#ar)" stroke-dasharray="4 3"/>
+      <text x="318" y="382" font-size="11" fill="#a09283">frameId</text>
+      <rect x="380" y="362" width="120" height="58" rx="10" fill="#f8f6f2" stroke="#c9bfb2"/>
+      <text x="392" y="386" font-size="12.5" font-weight="700" fill="#6b5b50">首帧账本（服务端）</text>
+      <text x="392" y="406" font-size="11.5" fill="#8b7d70">按脚本+人物指纹记账</text>
+      <rect x="710" y="362" width="120" height="58" rx="10" fill="#f2f7f1" stroke="#3a7d44"/>
+      <text x="722" y="386" font-size="12.5" font-weight="700" fill="#3a7d44">落盘 + OSS</text>
+      <text x="722" y="406" font-size="11.5" fill="#5c8563">刷新不丢 · 防串场</text>
+      <text x="966" y="396" font-size="12" fill="#6b5b50">不计费</text>
+    </g>
+
+    <!-- 6 出片 -->
+    <g>
+      <rect x="20" y="436" width="290" height="72" rx="10" fill="#fff4ec" stroke="#f37021" stroke-width="2"/>
+      <text x="36" y="460" font-size="13.5" font-weight="700" fill="#d45a12">⑥ 🎬 生成本镜</text>
+      <text x="36" y="480" font-size="12" fill="#6b5b50">先报价 → 确认扣费 → 异步任务</text>
+      <text x="36" y="498" font-size="12" fill="#6b5b50">「查询结果」可随时续查</text>
+      <path d="M310 472 L375 472" stroke="#c9bfb2" marker-end="url(#ar)"/>
+      <rect x="380" y="436" width="120" height="72" rx="10" fill="#eef4fa" stroke="#3d6b9e"/>
+      <text x="392" y="460" font-size="12.5" font-weight="700" fill="#3d6b9e">视频任务</text>
+      <text x="392" y="480" font-size="11.5" fill="#5b7ba1">首帧当起幅</text>
+      <text x="392" y="498" font-size="11.5" fill="#5b7ba1">失败自动退款</text>
+      <path d="M500 472 L705 472" stroke="#c9bfb2" marker-end="url(#ar)"/>
+      <rect x="710" y="436" width="120" height="72" rx="10" fill="#f2f7f1" stroke="#3a7d44"/>
+      <text x="722" y="460" font-size="12.5" font-weight="700" fill="#3a7d44">图生视频模型</text>
+      <text x="722" y="480" font-size="11.5" fill="#5c8563">无声成片 4–15s</text>
+      <text x="722" y="498" font-size="11.5" fill="#5c8563">真实生成 · 约 1–3 分钟</text>
+      <text x="966" y="477" font-size="12" fill="#b84808" font-weight="700">12 算力/秒</text>
+    </g>
+
+    <!-- 7 合成 -->
+    <g>
+      <rect x="20" y="524" width="290" height="58" rx="10" fill="#fff" stroke="#f37021" stroke-width="1.5"/>
+      <text x="36" y="548" font-size="13.5" font-weight="700">⑦ 合成成片</text>
+      <text x="36" y="568" font-size="12" fill="#6b5b50">逐镜拼接 + 混入上传的音轨</text>
+      <path d="M310 553 L375 553" stroke="#c9bfb2" marker-end="url(#ar)"/>
+      <rect x="380" y="524" width="120" height="58" rx="10" fill="#eef4fa" stroke="#3d6b9e"/>
+      <text x="392" y="548" font-size="12.5" font-weight="700" fill="#3d6b9e">本机合成</text>
+      <text x="392" y="568" font-size="11.5" fill="#5b7ba1">拼接 + 混音</text>
+      <rect x="710" y="524" width="120" height="58" rx="10" fill="#f2f7f1" stroke="#3a7d44"/>
+      <text x="722" y="548" font-size="12.5" font-weight="700" fill="#3a7d44">ffmpeg（本机）</text>
+      <text x="722" y="568" font-size="11.5" fill="#5c8563">不调外部付费接口</text>
+      <text x="966" y="558" font-size="12" fill="#6b5b50">不额外扣费</text>
+    </g>
+
+    <!-- 8 我的生成 -->
+    <g>
+      <rect x="20" y="598" width="290" height="0" fill="none"/>
+    </g>
+    <g>
+      <rect x="550" y="596" width="280" height="0" fill="none"/>
+    </g>
+
+    <!-- side: 我的生成 -->
+    <g>
+      <rect x="20" y="598" width="290" height="18" fill="none"/>
+    </g>
+  </svg>
+  </div>
+  <div class="legend">
+    <span><i class="dot" style="background:#f37021"></i>门店操作</span>
+    <span><i class="dot" style="background:#3d6b9e"></i>后端服务</span>
+    <span><i class="dot" style="background:#3a7d44"></i>模型 / 存储</span>
+    <span><i class="dot" style="background:#b84808"></i>计费点</span>
+  </div>
+  <ul class="notes">
+    <li><b>⑧ 我的生成</b>：出片后进「我的生成」列表，可预览 / 下载 / 重新生成；每镜的成片也可在分镜卡里直接播放。</li>
+    <li>整片 = 各镜单独出片后由「合成成片」拼成；没出成的镜<b>预留算力自动退回</b>，同一镜重试不会重复扣费。</li>
+  </ul>
+</section>
+
+<!-- ─────────────────────────── 首帧一致性 ─────────────────────────── -->
+<section>
+  <h2>二、首帧一致性机制（为什么人物不再跑偏）</h2>
+  <p class="lead">每镜第一画面决定整条片的"脸"。这套机制保证：每个镜出来都是同一个人、背景忠实于文案。</p>
+  <div class="board">
+  <svg viewBox="0 0 1180 330" xmlns="http://www.w3.org/2000/svg">
+    <!-- inputs -->
+    <g font-size="13">
+      <rect x="20"  y="40" width="230" height="64" rx="10" fill="#fff" stroke="#3a7d44"/>
+      <text x="36"  y="66" font-weight="700" fill="#3a7d44">人物卡三视图</text>
+      <text x="36"  y="88" font-size="12" fill="#6b5b50">正面(身份) + 侧面 + 背面</text>
+
+      <rect x="20"  y="130" width="230" height="64" rx="10" fill="#fff" stroke="#3a7d44"/>
+      <text x="36"  y="156" font-weight="700" fill="#3a7d44">LLM 分镜提示词</text>
+      <text x="36"  y="178" font-size="12" fill="#6b5b50">只写动作/神态/环境</text>
+
+      <rect x="20"  y="220" width="230" height="64" rx="10" fill="#fff" stroke="#3a7d44"/>
+      <text x="36"  y="246" font-weight="700" fill="#3a7d44">身份锁定前缀</text>
+      <text x="36"  y="268" font-size="12" fill="#6b5b50">"必须还是图1这个人，不换脸"</text>
+    </g>
+
+    <!-- converge -->
+    <path d="M250 72 C 300 72, 310 140, 355 148" stroke="#c9bfb2" fill="none" marker-end="url(#ar)"/>
+    <path d="M250 162 L 355 162" stroke="#c9bfb2" fill="none" marker-end="url(#ar)"/>
+    <path d="M250 252 C 300 252, 310 185, 355 176" stroke="#c9bfb2" fill="none" marker-end="url(#ar)"/>
+
+    <!-- generation -->
+    <rect x="360" y="110" width="240" height="110" rx="12" fill="#eef4fa" stroke="#3d6b9e" stroke-width="1.5"/>
+    <text x="380" y="142" font-size="14.5" font-weight="800" fill="#3d6b9e">真实生图（参考生图）</text>
+    <text x="380" y="166" font-size="12" fill="#5b7ba1">图1正脸照 = 身份基准</text>
+    <text x="380" y="188" font-size="12" fill="#5b7ba1">侧背照 = 同一人参考</text>
+    <text x="380" y="210" font-size="12" fill="#5b7ba1">场景照不传（防稀释）</text>
+
+    <path d="M600 165 L 655 165" stroke="#c9bfb2" marker-end="url(#ar)"/>
+
+    <!-- guard -->
+    <rect x="660" y="40" width="240" height="250" rx="12" fill="#fffaf5" stroke="#f37021" stroke-width="1.5"/>
+    <text x="680" y="72" font-size="14.5" font-weight="800" fill="#d45a12">三道防串场闸门</text>
+    <g font-size="12.5" fill="#2b2622">
+      <text x="680" y="106">① 重建分镜 → 旧首帧全部作废</text>
+      <text x="680" y="138">② 指纹变了 → 不匹配的帧自动清掉</text>
+      <text x="680" y="170">③ 服务端找回 → 只认同指纹的帧</text>
+      <text x="680" y="210" fill="#6b5b50" font-size="12">指纹 = 口播脚本 + 人物照片</text>
+      <text x="680" y="230" font-size="12" fill="#6b5b50">换文案 / 换人 → 旧帧一律不用</text>
+      <text x="680" y="262" font-size="12" fill="#b84808">账本记在服务端，刷新不丢</text>
+    </g>
+
+    <path d="M900 165 L 950 165" stroke="#c9bfb2" marker-end="url(#ar)"/>
+
+    <!-- output -->
+    <rect x="955" y="105" width="200" height="120" rx="12" fill="#fff4ec" stroke="#f37021" stroke-width="2"/>
+    <text x="975" y="140" font-size="14.5" font-weight="800" fill="#d45a12">每镜首帧预览</text>
+    <text x="975" y="166" font-size="12" fill="#6b5b50">同一张脸 · 背景贴文案</text>
+    <text x="975" y="188" font-size="12" fill="#6b5b50">门店预览后手动确认</text>
+    <text x="975" y="212" font-size="12" fill="#a09283">确认后才用于出片</text>
+  </svg>
+  </div>
+  <ul class="notes">
+    <li>历史教训已修：提示词截断丢地标（"长江大桥"）→ 已交大模型全句理解；参考图 OSS 缺对象 → 现在先确保上传再签名。</li>
+    <li>LLM 被禁止指定人物性别/年龄/长相——人物长什么样<b>只由你上传的照片决定</b>。</li>
+  </ul>
+</section>
+
+<!-- ─────────────────────────── 真实出片与计费 ─────────────────────────── -->
+<section>
+  <h2>三、真实出片 · 计费与失败处理</h2>
+  <p class="lead">当前所有生成都走真实模型。规则只有三条：先报价再扣费、没出成自动退、重试不重复扣。</p>
+  <div class="board">
+  <svg viewBox="0 0 1180 250" xmlns="http://www.w3.org/2000/svg">
+    <g font-size="13">
+      <rect x="20" y="40" width="260" height="150" rx="12" fill="#fff" stroke="#3a7d44"/>
+      <text x="40" y="72" font-weight="800" fill="#3a7d44">报价 → 扣费</text>
+      <text x="40" y="100" font-size="12.5" fill="#2b2622">生图 20 算力/张</text>
+      <text x="40" y="124" font-size="12.5" fill="#2b2622">视频 12 算力/秒 × 镜头秒数</text>
+      <text x="40" y="148" font-size="12.5" fill="#2b2622">扣门店通用钱包，同键幂等</text>
+      <text x="40" y="172" font-size="12" fill="#6b5b50">余额不足 → 页内充值弹窗</text>
+
+      <rect x="330" y="40" width="260" height="150" rx="12" fill="#fff" stroke="#3d6b9e"/>
+      <text x="350" y="72" font-weight="800" fill="#3d6b9e">异步任务</text>
+      <text x="350" y="100" font-size="12.5" fill="#2b2622">单镜 1–3 分钟，卡内显示进度</text>
+      <text x="350" y="124" font-size="12.5" fill="#2b2622">刷新/关页后可「查询结果」续查</text>
+      <text x="350" y="148" font-size="12.5" fill="#2b2622">成片落租户资产，鉴权读取</text>
+      <text x="350" y="172" font-size="12" fill="#6b5b50">合成成片走本机 ffmpeg，不扣费</text>
+
+      <rect x="640" y="40" width="260" height="150" rx="12" fill="#fff" stroke="#f37021"/>
+      <text x="660" y="72" font-weight="800" fill="#d45a12">失败 = 自动退回</text>
+      <text x="660" y="100" font-size="12.5" fill="#2b2622">没出成片 → 预留算力自动退</text>
+      <text x="660" y="124" font-size="12.5" fill="#2b2622">重试同一镜 → 不重复扣费</text>
+      <text x="660" y="148" font-size="12.5" fill="#2b2622">偶发网络失败 → 直接重试即可</text>
+      <text x="660" y="172" font-size="12" fill="#6b5b50">失败原因明示，不静默吞掉</text>
+
+      <rect x="950" y="40" width="210" height="150" rx="12" fill="#fffaf5" stroke="#f37021" stroke-width="2"/>
+      <text x="970" y="72" font-weight="800" fill="#d45a12">AI 合规</text>
+      <text x="970" y="100" font-size="12.5" fill="#2b2622">起始画面带 AI 生成标识</text>
+      <text x="970" y="124" font-size="12.5" fill="#2b2622">肖像授权确认一次长期有效</text>
+      <text x="970" y="148" font-size="12.5" fill="#2b2622">照片仅用于本店成片</text>
+      <text x="970" y="172" font-size="12" fill="#6b5b50">可随时撤回并清空形象库</text>
+    </g>
+  </svg>
+  </div>
+</section>
+
+<footer>
+  配套开关：LANQI_MEDIA_EXECUTION_MODE=real（视频与图片均真实生成）· 模型：分镜/文案 = DeepSeek（真实 LLM）· 生图 = 万相 2.7 参考生图 · 视频 = 万相图生视频 · 合成 = 本机 ffmpeg。
+  生成失败不打扰流程：单镜重试不影响其他镜。
+</footer>
+
+</div>
+</body>
+</html>

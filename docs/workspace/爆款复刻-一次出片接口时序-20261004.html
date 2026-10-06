@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>爆款复刻 · 一次出片的接口时序（mock 模式实测）</title>
+<style>
+  :root{
+    --paper:#F5F3EE; --card:#FFFEFC; --ink:#22201C; --sub:#6F675C; --muted:#9A9284;
+    --line:rgba(34,32,28,.10); --line2:rgba(34,32,28,.18);
+    --green:#2E6B59; --green-soft:#E7EFEB;
+    --amber:#8A6A1E; --amber-soft:#F5EEDB; --amber-line:#C9A94E;
+    --blue:#185FA5; --blue-soft:#E6F1FB;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);margin:0;
+    font:15px/1.65 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:48px 28px 64px}
+  .eyebrow{font:600 12px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;color:var(--muted);margin:0 0 14px}
+  h1{font-size:28px;line-height:1.3;margin:0 0 10px;font-weight:700;letter-spacing:-.01em}
+  .meta{padding-top:14px;border-top:1px solid var(--line);font-size:12.5px;color:var(--sub);display:flex;gap:8px 22px;flex-wrap:wrap}
+  .meta b{color:var(--ink)}
+  .lead{margin:26px 0 0;padding:18px 22px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--ink);border-radius:2px 10px 10px 2px}
+  .lead p{margin:0;font-size:15px}
+  .lead .hl{background:linear-gradient(transparent 62%,rgba(46,107,89,.16) 0);padding:0 1px}
+  .lead .hl2{background:linear-gradient(transparent 62%,rgba(138,106,30,.18) 0);padding:0 1px}
+
+  /* 四个接口卡 */
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:22px}
+  .c{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+  .c h3{margin:0 0 8px;font-size:15.5px;display:flex;align-items:baseline;gap:10px}
+  .c h3 code{font:600 13px ui-monospace,Menlo,monospace}
+  .c h3 .t{margin-left:auto;font:700 13px ui-monospace,Menlo,monospace;padding:3px 8px;border-radius:6px}
+  .t.fast{color:var(--green);background:var(--green-soft)}
+  .t.slow{color:var(--amber);background:var(--amber-soft)}
+  .c p{margin:0;font-size:13px;color:var(--sub)}
+  .c p b{color:var(--ink)}
+  .c .why{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);font-size:12.5px}
+
+  /* 图区 */
+  .board{margin-top:34px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px}
+  .lbl{font:600 11.5px/1 ui-monospace,Menlo,monospace;letter-spacing:.1em;color:var(--muted);margin:0 0 14px}
+  svg{width:100%;height:auto;display:block}
+  .lg{display:flex;gap:8px 24px;flex-wrap:wrap;margin-top:16px}
+  .lg i{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--sub);font-style:normal}
+  .lg .sw{width:20px;height:11px;border-radius:3px}
+
+  .note{margin-top:18px;border-top:1px solid var(--line);padding-top:16px}
+  .note h4{margin:0 0 6px;font-size:13.5px}
+  .note p{margin:0 0 12px;font-size:13px;color:var(--sub)}
+  .note p b{color:var(--ink)}
+  .mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+  footer{margin-top:26px;font-size:12px;color:var(--muted);line-height:1.8}
+  @media (max-width:760px){.cards{grid-template-columns:1fr}.wrap{padding:32px 16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Lanqi · Viral Replication — Request Timeline</p>
+  <h1>一次出片的四个接口：各自干嘛，时间去哪了</h1>
+  <div class="meta">
+    <span><b>模式</b> 生成已 mock（不调阿里云百炼）</span>
+    <span><b>实测</b> 你刚跑的这一次（DevTools 数字）</span>
+    <span><b>日期</b> 2026-10-04</span>
+  </div>
+
+  <div class="lead">
+    <p>一句话：<span class="hl">生成是 mock 的，所以「等阿里云出片」的几分钟被压成了 0</span>；剩下的时间几乎都花在<span class="hl2">把你的原片和肖像照真·上传到阿里云 OSS 暂存桶</span>——这一步就算生成是 mock，也是真实网络，因为「素材只进你自己的桶」是定死的设计。</p>
+  </div>
+
+  <div class="cards">
+    <div class="c">
+      <h3><code>POST /quote</code> 校验+报价 <span class="t fast">114ms</span></h3>
+      <p><b>干嘛：</b>检查四项授权与素材是否齐全、读租户 owner 钱包余额、按 24 算力/秒算出本次价格（48 算力）。</p>
+      <div class="why">快的原因：<b>全程本地</b>——数据库查询 + 内存计算，不碰任何外部网络。</div>
+    </div>
+    <div class="c">
+      <h3><code>POST /confirm</code> 创建出片任务 <span class="t slow">5.07s</span></h3>
+      <p><b>干嘛：</b>真正下单——把<b>原片 + 肖像照上传到生产 OSS 暂存桶</b>、钱包扣 48 算力、创建任务、提交「生成」。</p>
+      <div class="why">慢的原因：<b>OSS 上传是真网络</b>（几 MB 走家庭宽带上行）；「提交生成」这步已是 mock、瞬间完成。</div>
+    </div>
+    <div class="c">
+      <h3><code>POST /refresh</code> 推进任务 <span class="t slow">2.08s</span></h3>
+      <p><b>干嘛：</b>查一次生成结果 → 把成片落盘并 ffprobe 校验（时长/分辨率/h264）→ 结算（reserved→charged）。只轮询了一次就拿到 SUCCEEDED。</p>
+      <div class="why">慢的原因：<b>成片校验是真功夫</b>——ffprobe 探测、读回哈希比对、结算事务，外加一次 OSS 往返。mock 的「查结果」本身是 0 耗时。</div>
+    </div>
+    <div class="c">
+      <h3><code>GET /content</code> 取成片 <span class="t fast">229ms</span></h3>
+      <p><b>干嘛：</b>从平台本地磁盘把 1.4MB 的成片字节流给浏览器，供播放与「下载成片」按钮。</p>
+      <div class="why">快的原因：纯本地磁盘读 + 登录态校验；成片已在自己服务器上，不需要再去任何外部取。</div>
+    </div>
+  </div>
+
+  <div class="board">
+    <p class="lbl">时序泳道 · 一次出片全流程</p>
+    <svg viewBox="0 0 1000 620" role="img" xmlns="http://www.w3.org/2000/svg">
+      <title>爆款复刻一次出片的接口时序泳道图</title>
+      <desc>浏览器依次调用 quote、confirm、refresh、content；confirm 期间后端把素材真上传到阿里云 OSS（耗时大头），生成调用是 mock；refresh 轮询 mock 结果并落盘结算。</desc>
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+
+      <!-- 泳道背景 -->
+      <rect x="40" y="52" width="170" height="540" rx="10" fill="#EFEBE2"/>
+      <rect x="240" y="52" width="420" height="540" rx="10" fill="#F7F5EF"/>
+      <rect x="690" y="52" width="130" height="540" rx="10" fill="#FAF3E2"/>
+      <rect x="850" y="52" width="110" height="540" rx="10" fill="#E6F1FB"/>
+      <text x="125" y="78" text-anchor="middle" font-size="13" font-weight="600" fill="#5F5E5A">浏览器</text>
+      <text x="450" y="78" text-anchor="middle" font-size="13" font-weight="600" fill="#5F5E5A">平台后端（本地）</text>
+      <text x="755" y="70" text-anchor="middle" font-size="12.5" font-weight="600" fill="#8A6A1E">阿里云 OSS</text>
+      <text x="755" y="86" text-anchor="middle" font-size="11" fill="#8A6A1E">真实网络</text>
+      <text x="905" y="70" text-anchor="middle" font-size="12.5" font-weight="600" fill="#185FA5">生成接口</text>
+      <text x="905" y="86" text-anchor="middle" font-size="11" fill="#185FA5">已 mock</text>
+
+      <!-- ① quote -->
+      <line x1="120" y1="112" x2="440" y2="112" stroke="#2E6B59" stroke-width="1.6" marker-end="url(#ar)"/>
+      <text x="282" y="104" text-anchor="middle" font-size="12.5" fill="#22201C">① quote · 校验授权 / 读余额 / 算价</text>
+      <rect x="404" y="118" width="76" height="20" rx="10" fill="#E7EFEB"/>
+      <text x="442" y="132" text-anchor="middle" font-size="11" fill="#2E6B59" font-weight="600">114ms 全本地</text>
+
+      <!-- ② confirm -->
+      <line x1="120" y1="168" x2="440" y2="168" stroke="#8A6A1E" stroke-width="1.6" marker-end="url(#ar)"/>
+      <text x="282" y="160" text-anchor="middle" font-size="12.5" fill="#22201C">② confirm · 创建出片任务（202）</text>
+      <rect x="404" y="174" width="76" height="20" rx="10" fill="#F5EEDB"/>
+      <text x="442" y="188" text-anchor="middle" font-size="11" fill="#8A6A1E" font-weight="600">5.07s</text>
+
+      <!-- confirm 内部：上传 OSS -->
+      <line x1="460" y1="216" x2="686" y2="216" stroke="#8A6A1E" stroke-width="1.6" marker-end="url(#ar)"/>
+      <text x="570" y="208" text-anchor="middle" font-size="12" fill="#8A6A1E">PUT 原片 + 肖像到暂存桶</text>
+      <rect x="536" y="222" width="118" height="20" rx="10" fill="#F5EEDB"/>
+      <text x="595" y="236" text-anchor="middle" font-size="11" fill="#8A6A1E" font-weight="600">耗时大头 · 真网络</text>
+      <!-- confirm 内部：扣费+建任务 -->
+      <line x1="380" y1="264" x2="380" y2="292" stroke="#2E6B59" stroke-width="1.4" marker-end="url(#ar)"/>
+      <text x="392" y="282" font-size="12" fill="#2E6B59">钱包扣 48 算力 · 建 job（本地 DB，毫秒级）</text>
+      <!-- confirm 内部：mock submit -->
+      <line x1="640" y1="318" x2="846" y2="318" stroke="#185FA5" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#ar)"/>
+      <text x="745" y="310" text-anchor="middle" font-size="12" fill="#185FA5">submit「提交生成」→ 瞬间返回 mock 任务号</text>
+      <text x="745" y="338" text-anchor="middle" font-size="11" fill="#6F675C">阿里云百炼的生成时间（几分钟）被 mock 压成 0</text>
+      <!-- confirm 返回 -->
+      <line x1="440" y1="368" x2="120" y2="368" stroke="#8A6A1E" stroke-width="1.6" marker-end="url(#ar)"/>
+      <text x="282" y="360" text-anchor="middle" font-size="12" fill="#8A6A1E">返回 202 · 任务受理（前端拿到任务号，开始轮询）</text>
+
+      <!-- ③ refresh -->
+      <line x1="120" y1="408" x2="440" y2="408" stroke="#185FA5" stroke-width="1.6" marker-end="url(#ar)"/>
+      <text x="282" y="400" text-anchor="middle" font-size="12.5" fill="#22201C">③ refresh · 查结果 + 落盘 + 结算（200）</text>
+      <rect x="404" y="414" width="76" height="20" rx="10" fill="#E6F1FB"/>
+      <text x="442" y="428" text-anchor="middle" font-size="11" fill="#185FA5" font-weight="600">2.08s</text>
+
+      <!-- refresh 内部：mock poll -->
+      <line x1="640" y1="452" x2="846" y2="452" stroke="#185FA5" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#ar)"/>
+      <text x="743" y="444" text-anchor="middle" font-size="12" fill="#185FA5">poll 查一次 → 直接 SUCCEEDED（0 耗时）</text>
+      <!-- refresh 内部：落盘 -->
+      <line x1="380" y1="478" x2="380" y2="506" stroke="#2E6B59" stroke-width="1.4" marker-end="url(#ar)"/>
+      <text x="392" y="496" font-size="12" fill="#2E6B59">成片落盘 + ffprobe 校验 + 读回哈希 + 结算 charged（约 1–2s）</text>
+
+      <!-- ④ content -->
+      <line x1="120" y1="544" x2="440" y2="544" stroke="#2E6B59" stroke-width="1.6" marker-end="url(#ar)"/>
+      <text x="282" y="536" text-anchor="middle" font-size="12.5" fill="#22201C">④ content · 取成片字节（200）</text>
+      <rect x="404" y="550" width="76" height="20" rx="10" fill="#E7EFEB"/>
+      <text x="442" y="564" text-anchor="middle" font-size="11" fill="#2E6B59" font-weight="600">229ms 本地磁盘</text>
+      <text x="125" y="575" text-anchor="middle" font-size="12" fill="#22201C">▶ 播放 / ⬇ 下载成片</text>
+    </svg>
+    <div class="lg">
+      <i><span class="sw" style="background:var(--amber-soft);border:1px solid var(--amber-line)"></span>真实外网（OSS 暂存，省不掉）</i>
+      <i><span class="sw" style="background:var(--blue-soft);border:1px solid #9FC0E4"></span>mock（替代阿里云百炼生成）</i>
+      <i><span class="sw" style="background:var(--green-soft);border:1px solid #A9C6BC"></span>纯本地（钱包 / DB / 磁盘）</i>
+    </div>
+  </div>
+
+  <div class="board">
+    <p class="lbl">为什么中间两个慢 · 时间去向</p>
+    <div class="note">
+      <h4>confirm 的 5.07s</h4>
+      <p>大头是 <b>把原片和肖像真·上传到生产 OSS 暂存桶</b>——生成虽然 mock 了，但「素材只进你自己的桶」是定死的合规设计，这步永远是真网络。从日志看单次 OSS 往返就要 ~220ms，PUT 整个视频按体积累积。剩下是钱包扣费、建任务（本地 DB，毫秒级）和 mock submit（瞬间）。精确分解可在 dev 终端搜 <span class="mono">beauty_video.oss</span> 事件看 <span class="mono">elapsedMs</span>。</p>
+      <h4>refresh 的 2.08s</h4>
+      <p>mock 让「查结果」变成 0 耗时，剩下的 2 秒是<b>成片校验的实打实动作</b>：ffprobe 探测时长/分辨率/编码、读回哈希比对、结算事务，外加 admission 复查时的一次 OSS 往返。</p>
+      <h4>和真实链路差在哪</h4>
+      <p>真实出片时：<b>confirm 依旧 ~5s</b>（OSS 上传不变）；refresh 之间会隔 15 秒轮询多次、总耗时 = 阿里云生成的几分钟。mock 把「那几分钟」压成了 0，其余时间一个子都没省——所以你现在测到的交互节奏（点完 5 秒受理、再 2 秒出片）已经非常接近真实上线的体感，只是把「干等生成」拿掉了。</p>
+    </div>
+  </div>
+
+  <footer>
+    <b>口径</b>：quote/confirm/refresh/content 为前端 DevTools 实测数字；OSS 往返耗时取自后端日志 <span class="mono">beauty_video.oss</span> 事件（HEAD 实测 ~220ms，曾观测到一次 20s 超时导致单个 refresh 503、下次自愈）。「生成接口」一列是被 mock 替代的阿里云百炼视频生成。
+  </footer>
+</div>
+</body>
+</html>

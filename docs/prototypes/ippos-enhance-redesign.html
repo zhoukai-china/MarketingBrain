@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>IP定位工作台 · 结果/增强项目 关系重设计</title>
+<style>
+  :root{
+    --orange:#E8651A; --orange-soft:#FFF3EA; --orange-line:#F6D8C2;
+    --ink:#2B2B2E; --sub:#6F7782; --faint:#9AA3AD;
+    --card:#FFFFFF; --line:#ECECF0; --bg:#F6F7F9;
+    --enh:#3B6FB0; --enh-soft:#EEF3FA; --enh-line:#D6E2F1;
+    --good:#2E8B57; --good-soft:#ECF7F0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);padding:18px;line-height:1.5}
+  .topbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+  .topbar h1{font-size:15px;font-weight:800}
+  .topbar .note{font-size:12px;color:var(--sub);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--card)}
+  .seg button{border:0;background:transparent;padding:7px 13px;font-size:12.5px;color:var(--sub);cursor:pointer;font-weight:600}
+  .seg button.on{background:var(--orange);color:#fff}
+  .toggle{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--sub);font-weight:600}
+  .switch{width:42px;height:23px;border-radius:99px;background:#cfd4da;position:relative;cursor:pointer;transition:.2s;flex:0 0 auto}
+  .switch.on{background:var(--good)}
+  .switch::after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:2.5px;left:2.5px;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .switch.on::after{left:21px}
+  .hint{font-size:12px;color:var(--faint);margin:2px 0 14px}
+  /* ===== 通用：结果区 ===== */
+  .result-head{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+  .result-head .t{font-size:14px;font-weight:800}
+  .result-head .s{font-size:12px;color:var(--sub)}
+  .badge-enh{font-size:11px;font-weight:700;color:var(--enh);background:var(--enh-soft);border:1px solid var(--enh-line);border-radius:99px;padding:2px 9px}
+  .badge-done{font-size:11px;font-weight:700;color:var(--good);background:var(--good-soft);border:1px solid #CDEBD8;border-radius:99px;padding:2px 9px}
+  .piece{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 14px;margin-bottom:9px}
+  .piece .ph{font-size:12px;font-weight:800;color:var(--orange);margin-bottom:3px}
+  .piece .pv{font-size:13px;color:var(--ink)}
+  .piece .pv b{color:var(--ink)}
+  .blank-val{color:var(--good);font-weight:700;border-bottom:1.5px solid #BFE3CC;padding:0 1px}
+  /* ===== 变体A：左结果 + 右增强栏 ===== */
+  .layout-a{display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start}
+  .enh-rail{background:var(--enh-soft);border:1px solid var(--enh-line);border-radius:14px;padding:13px;position:sticky;top:14px}
+  .enh-rail .eh{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;color:var(--enh);margin-bottom:3px}
+  .enh-rail .es{font-size:11px;color:var(--sub);margin-bottom:11px}
+  .enh-item{background:#fff;border:1px solid var(--enh-line);border-radius:10px;padding:10px 11px;margin-bottom:9px}
+  .enh-item .ei-t{font-size:12px;font-weight:700;color:var(--ink);margin-bottom:6px}
+  .fill-line{font-size:12.5px;color:var(--ink);line-height:1.9}
+  .fill-line .bk{display:inline-block;border:0;border-bottom:1.5px dashed var(--enh);min-width:64px;padding:0 5px;font-size:12.5px;color:var(--enh);outline:none;background:transparent;text-align:center}
+  .enh-foot{margin-top:4px}
+  .enh-btn{width:100%;border:0;background:var(--enh);color:#fff;font-weight:700;font-size:12.5px;padding:9px;border-radius:9px;cursor:pointer}
+  .enh-done{font-size:11.5px;color:var(--good);font-weight:600;text-align:center;margin-top:7px}
+  /* ===== 变体B：上结果 + 下增强抽屉 ===== */
+  .layout-b .drawer{margin-top:14px;background:var(--enh-soft);border:1px solid var(--enh-line);border-radius:14px;overflow:hidden}
+  .drawer .dh{display:flex;align-items:center;gap:9px;padding:12px 15px;cursor:pointer}
+  .drawer .dh .dt{font-size:13.5px;font-weight:800;color:var(--enh)}
+  .drawer .dh .ds{font-size:11.5px;color:var(--sub)}
+  .drawer .dh .chev{margin-left:auto;color:var(--enh);transition:.2s;font-size:13px}
+  .drawer.open .dh .chev{transform:rotate(180deg)}
+  .drawer .dbody{display:none;padding:0 15px 14px}
+  .drawer.open .dbody{display:block}
+  .drawer .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:880px){.layout-a{grid-template-columns:1fr}.layout-b .drawer .grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>结果 × 增强项目 · 关系重设计</h1>
+    <div class="seg">
+      <button data-variant="a" class="on">A · 左结果 / 右增强栏</button>
+      <button data-variant="b">B · 上结果 / 下增强抽屉</button>
+    </div>
+    <label class="toggle">填完后的样子
+      <span class="switch" data-toggle="filled"></span>
+    </label>
+  </div>
+  <div class="hint">原则：结果是一份「已能看的完整初稿」，待补充被抽成独立的<b>增强项目</b>模块（可选、次要、每条填空）。填完→小模型二次加工把值嵌回正文→最终版零【待补充】。</div>
+
+  <!-- ===== 变体 A ===== -->
+  <div class="variant" data-variant="a">
+    <div class="layout-a">
+      <div class="result-col">
+        <div class="result-head">
+          <span class="t">定位全案 · 初稿</span>
+          <span class="s">9 件齐全，可直接看</span>
+          <span class="badge-enh" data-badge>可增强 3 处</span>
+          <span class="badge-done" data-badge-done style="display:none">已增强 · 零待补充</span>
+        </div>
+        <div class="piece"><div class="ph">一句话定位</div><div class="pv" data-piece="pos">为追求效率与品质平衡的精品咖啡馆，提供「从豆到杯」的透明供应链方案。</div></div>
+        <div class="piece"><div class="ph">目标人群</div><div class="pv" data-piece="aud">25–38 岁城市新中产，愿为「确定性品质 + 可溯源故事」付溢价。</div></div>
+        <div class="piece"><div class="ph">投放策略</div><div class="pv" data-piece="ads">以小红书 / 视频号为主，投的不是广告而是「豆子故事」。<span data-ins="ads"></span></div></div>
+        <div class="piece"><div class="ph">门店拓展</div><div class="pv" data-piece="grow">先稳单店模型，再沿供应链优势区域复制。<span data-ins="grow"></span></div></div>
+        <div class="piece"><div class="ph">竞品对标</div><div class="pv" data-piece="comp">以「透明溯源 + 小店友好」错位竞争。<span data-ins="comp"></span></div></div>
+      </div>
+      <aside class="enh-rail">
+        <div class="eh">✨ 增强项目 <span style="font-weight:500;color:var(--sub);font-size:11px">（可选）</span></div>
+        <div class="es">把这几空填上，全案会更贴你的实际；不填也能直接用。</div>
+        <div class="enh-item">
+          <div class="ei-t">投放预算与城市</div>
+          <div class="fill-line">我每月能投 <input class="bk" value="8 万" /> 做获客，重点投 <input class="bk" value="上海、杭州" />。</div>
+        </div>
+        <div class="enh-item">
+          <div class="ei-t">门店拓展节奏</div>
+          <div class="fill-line">今年计划开到 <input class="bk" value="5 家" />，主要在 <input class="bk" value="长三角" />。</div>
+        </div>
+        <div class="enh-item">
+          <div class="ei-t">竞品对标</div>
+          <div class="fill-line">我想对标 <input class="bk" value="M2M" /> 的 <input class="bk" value="成本结构" />。</div>
+        </div>
+        <div class="enh-foot">
+          <button class="enh-btn" data-optimize>补全并优化 →</button>
+          <div class="enh-done" data-done style="display:none">✓ 已嵌入正文，结果已更新</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ===== 变体 B ===== -->
+  <div class="variant" data-variant="b" style="display:none">
+    <div class="layout-b">
+      <div class="result-col">
+        <div class="result-head">
+          <span class="t">定位全案 · 初稿</span>
+          <span class="s">9 件齐全，可直接看</span>
+          <span class="badge-enh" data-badge>可增强 3 处</span>
+          <span class="badge-done" data-badge-done style="display:none">已增强 · 零待补充</span>
+        </div>
+        <div class="piece"><div class="ph">一句话定位</div><div class="pv" data-piece="pos">为追求效率与品质平衡的精品咖啡馆，提供「从豆到杯」的透明供应链方案。</div></div>
+        <div class="piece"><div class="ph">目标人群</div><div class="pv" data-piece="aud">25–38 岁城市新中产，愿为「确定性品质 + 可溯源故事」付溢价。</div></div>
+        <div class="piece"><div class="ph">投放策略</div><div class="pv" data-piece="ads">以小红书 / 视频号为主，投的不是广告而是「豆子故事」。<span data-ins="ads"></span></div></div>
+        <div class="piece"><div class="ph">门店拓展</div><div class="pv" data-piece="grow">先稳单店模型，再沿供应链优势区域复制。<span data-ins="grow"></span></div></div>
+        <div class="piece"><div class="ph">竞品对标</div><div class="pv" data-piece="comp">以「透明溯源 + 小店友好」错位竞争。<span data-ins="comp"></span></div></div>
+      </div>
+      <div class="drawer open">
+        <div class="dh" data-drawer><span class="dt">✨ 增强项目（可选）</span><span class="ds">填几个空，全案更贴实际</span><span class="chev">▾</span></div>
+        <div class="dbody">
+          <div class="grid2">
+            <div class="enh-item">
+              <div class="ei-t">投放预算与城市</div>
+              <div class="fill-line">我每月能投 <input class="bk" value="8 万" /> 做获客，重点投 <input class="bk" value="上海、杭州" />。</div>
+            </div>
+            <div class="enh-item">
+              <div class="ei-t">门店拓展节奏</div>
+              <div class="fill-line">今年计划开到 <input class="bk" value="5 家" />，主要在 <input class="bk" value="长三角" />。</div>
+            </div>
+            <div class="enh-item">
+              <div class="ei-t">竞品对标</div>
+              <div class="fill-line">我想对标 <input class="bk" value="M2M" /> 的 <input class="bk" value="成本结构" />。</div>
+            </div>
+            <div class="enh-item" style="display:flex;flex-direction:column;justify-content:center">
+              <button class="enh-btn" data-optimize>补全并优化 →</button>
+              <div class="enh-done" data-done style="display:none">✓ 已嵌入正文</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const insMap = {
+    ads:' 落地：每月投 <b class="blank-val">8 万</b>，先打 <b class="blank-val">上海、杭州</b>。',
+    grow:' 今年开到 <b class="blank-val">5 家</b>，重心在 <b class="blank-val">长三角</b>。',
+    comp:' 直接对标 <b class="blank-val">M2M</b> 的 <b class="blank-val">成本结构</b>。'
+  };
+  document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('.seg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    const v=b.dataset.variant;
+    document.querySelectorAll('.variant').forEach(el=>el.style.display = el.dataset.variant===v?'block':'none');
+  }));
+  document.querySelector('[data-drawer]').addEventListener('click',()=>document.querySelector('.drawer').classList.toggle('open'));
+  document.querySelector('[data-toggle="filled"]').addEventListener('click',function(){
+    this.classList.toggle('on');
+    const filled=this.classList.contains('on');
+    document.querySelectorAll('[data-ins]').forEach(el=>{
+      if(filled){ el.innerHTML=insMap[el.dataset.ins]||''; }
+      else { el.innerHTML=''; }
+    });
+    document.querySelectorAll('[data-badge]').forEach(el=>el.style.display=filled?'none':'inline-block');
+    document.querySelectorAll('[data-badge-done]').forEach(el=>el.style.display=filled?'inline-block':'none');
+    document.querySelectorAll('[data-done]').forEach(el=>el.style.display=filled?'block':'none');
+  });
+</script>
+</body>
+</html>

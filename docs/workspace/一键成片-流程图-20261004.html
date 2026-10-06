@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>一键成片 · 全流程</title>
+<style>
+  :root { --ink:#2B2A26; --sub:#8A857C; --line:#E8E2DB; --bg:#F4F1EC; --card:#FFFFFF; --orange:#F37021; --orange-soft:#FFF3EA; --green:#3D8361; --green-soft:#EEF6F1; --blue:#3A6EA5; --blue-soft:#EDF3FA; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif; padding: 36px 24px 64px; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 24px; font-weight: 800; letter-spacing: .5px; }
+  h1 small { font-size: 13px; font-weight: 400; color: var(--sub); margin-left: 12px; }
+  .lede { margin: 10px 0 26px; font-size: 14px; color: var(--sub); line-height: 1.7; }
+  .lede b { color: var(--ink); }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 26px 28px; margin-bottom: 26px; }
+  .panel h2 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .panel .cap { font-size: 12.5px; color: var(--sub); margin-bottom: 18px; }
+  svg { display: block; width: 100%; height: auto; }
+  .legend { display: flex; gap: 22px; margin-top: 14px; font-size: 12px; color: var(--sub); flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .notes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 18px; }
+  .note { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 12.5px; line-height: 1.65; color: var(--sub); background: #FCFBF9; }
+  .note b { color: var(--ink); display: block; margin-bottom: 3px; font-size: 13px; }
+  .note.cost b { color: var(--orange); }
+  .foot { margin-top: 22px; font-size: 12px; color: var(--sub); line-height: 1.8; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>一键成片 · 全流程<small>按 2026-10-04 线上代码梳理 · localhost 实测口径</small></h1>
+  <p class="lede">一句话说清你要推广什么，AI 写文案、切分镜，你只补几张素材卡，然后逐镜生成、自动拼成整条片。<b>你动手的只有 3 处：说需求、传素材卡、点生成</b>，其余都是 AI 和系统在做。</p>
+
+  <div class="panel">
+    <h2>主流程 · 六步</h2>
+    <div class="cap">橙色 = 你要动手的 · 蓝色 = AI 自动做 · 绿色 = 系统自动做；⬤ 标记算力消耗点</div>
+    <svg viewBox="0 0 1120 300" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#B8B0A4"/>
+        </marker>
+      </defs>
+      <!-- 六个节点 -->
+      <!-- 1 说需求（你） -->
+      <g>
+        <rect x="16" y="46" width="158" height="150" rx="12" fill="#FFF3EA" stroke="#F37021" stroke-width="1.5"/>
+        <rect x="16" y="46" width="158" height="34" rx="12" fill="#F37021"/>
+        <rect x="16" y="66" width="158" height="14" fill="#F37021"/>
+        <text x="95" y="68" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">① 说需求</text>
+        <text x="30" y="104" font-size="12" font-weight="700" fill="#2B2A26">你：打一句话</text>
+        <text x="30" y="124" font-size="11.5" fill="#6B655B">"推广祛痘体验课"</text>
+        <text x="30" y="150" font-size="12" font-weight="700" fill="#2B2A26">系统：收需求</text>
+        <text x="30" y="170" font-size="11.5" fill="#6B655B">不用写口播稿</text>
+      </g>
+      <!-- 2 写文案（AI） -->
+      <g>
+        <rect x="206" y="46" width="158" height="150" rx="12" fill="#EDF3FA" stroke="#3A6EA5" stroke-width="1.5"/>
+        <rect x="206" y="46" width="158" height="34" rx="12" fill="#3A6EA5"/>
+        <rect x="206" y="66" width="158" height="14" fill="#3A6EA5"/>
+        <text x="285" y="68" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">② AI 写 3 版文案</text>
+        <text x="220" y="104" font-size="12" font-weight="700" fill="#2B2A26">AI：口播稿 ×3</text>
+        <text x="220" y="124" font-size="11.5" fill="#6B655B">不满意可换一批</text>
+        <text x="220" y="150" font-size="12" font-weight="700" fill="#2B2A26">你：挑 1 版</text>
+        <text x="220" y="170" font-size="11.5" fill="#6B655B">点击选中即定稿</text>
+      </g>
+      <!-- 3 分镜（AI） -->
+      <g>
+        <rect x="396" y="46" width="158" height="150" rx="12" fill="#EDF3FA" stroke="#3A6EA5" stroke-width="1.5"/>
+        <rect x="396" y="46" width="158" height="34" rx="12" fill="#3A6EA5"/>
+        <rect x="396" y="66" width="158" height="14" fill="#3A6EA5"/>
+        <text x="475" y="68" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">③ 自动切分镜</text>
+        <text x="410" y="104" font-size="12" font-weight="700" fill="#2B2A26">AI：按文案切 N 镜</text>
+        <text x="410" y="124" font-size="11.5" fill="#6B655B">每镜 = 画面 + 口播</text>
+        <text x="410" y="150" font-size="12" font-weight="700" fill="#2B2A26">你：可微调</text>
+        <text x="410" y="170" font-size="11.5" fill="#6B655B">"重新切分"一键重切</text>
+      </g>
+      <!-- 4 素材卡（你） -->
+      <g>
+        <rect x="586" y="46" width="158" height="150" rx="12" fill="#FFF3EA" stroke="#F37021" stroke-width="1.5"/>
+        <rect x="586" y="46" width="158" height="34" rx="12" fill="#F37021"/>
+        <rect x="586" y="66" width="158" height="14" fill="#F37021"/>
+        <text x="665" y="68" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">④ 补素材卡</text>
+        <text x="600" y="100" font-size="12" font-weight="700" fill="#2B2A26">必填：人物卡（三视图）</text>
+        <text x="600" y="122" font-size="11.5" fill="#6B655B">场景卡：想呈现在哪</text>
+        <text x="600" y="142" font-size="11.5" fill="#6B655B">音频卡 / 道具卡：可选</text>
+        <text x="600" y="170" font-size="11.5" fill="#B84808">音频 ≤3 段，出片混音用</text>
+      </g>
+      <!-- 5 规格+出片（你+系统） -->
+      <g>
+        <rect x="776" y="46" width="158" height="150" rx="12" fill="#FFF3EA" stroke="#F37021" stroke-width="1.5"/>
+        <rect x="776" y="46" width="158" height="34" rx="12" fill="#F37021"/>
+        <rect x="776" y="66" width="158" height="14" fill="#F37021"/>
+        <text x="855" y="68" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">⑤ 选规格 · 出片 ⬤</text>
+        <text x="790" y="100" font-size="12" font-weight="700" fill="#2B2A26">你：画质 + 勾肖像授权</text>
+        <text x="790" y="122" font-size="11.5" fill="#6B655B">720P / 1080P</text>
+        <text x="790" y="150" font-size="12" font-weight="700" fill="#2B2A26">系统：逐镜生成视频</text>
+        <text x="790" y="170" font-size="11.5" fill="#6B655B">按秒扣算力 · 失败自动退</text>
+      </g>
+      <!-- 6 合成（系统） -->
+      <g>
+        <rect x="966" y="46" width="138" height="150" rx="12" fill="#EEF6F1" stroke="#3D8361" stroke-width="1.5"/>
+        <rect x="966" y="46" width="138" height="34" rx="12" fill="#3D8361"/>
+        <rect x="966" y="66" width="138" height="14" fill="#3D8361"/>
+        <text x="1035" y="68" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">⑥ 合成成片</text>
+        <text x="980" y="104" font-size="12" font-weight="700" fill="#2B2A26">系统：拼接 + 混音</text>
+        <text x="980" y="124" font-size="11.5" fill="#6B655B">本机 ffmpeg 完成</text>
+        <text x="980" y="150" font-size="12" font-weight="700" fill="#3D8361">不额外扣算力</text>
+        <text x="980" y="170" font-size="11.5" fill="#6B655B">没传音轨 = 无声成片</text>
+      </g>
+      <!-- 箭头 -->
+      <line x1="174" y1="121" x2="202" y2="121" stroke="#B8B0A4" stroke-width="1.6" marker-end="url(#arr)"/>
+      <line x1="364" y1="121" x2="392" y2="121" stroke="#B8B0A4" stroke-width="1.6" marker-end="url(#arr)"/>
+      <line x1="554" y1="121" x2="582" y2="121" stroke="#B8B0A4" stroke-width="1.6" marker-end="url(#arr)"/>
+      <line x1="744" y1="121" x2="772" y2="121" stroke="#B8B0A4" stroke-width="1.6" marker-end="url(#arr)"/>
+      <line x1="934" y1="121" x2="962" y2="121" stroke="#B8B0A4" stroke-width="1.6" marker-end="url(#arr)"/>
+      <!-- 底部回退箭头：改素材 -->
+      <path d="M 855 200 L 855 236 L 665 236 L 665 200" fill="none" stroke="#B8B0A4" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+      <text x="760" y="252" text-anchor="middle" font-size="11.5" fill="#8A857C">出片不满意 → 上一步改素材卡 / 换首帧图，重来这一镜</text>
+      <!-- 底部说明 -->
+      <text x="16" y="284" font-size="12" fill="#8A857C">⬤ = 唯一扣算力的动作（逐镜按秒计价）；文案 / 分镜 / 合片都不扣。页面会显示已等待时长与每镜状态。</text>
+    </svg>
+    <div class="legend">
+      <span><i style="background:#F37021"></i>你要动手（3 处）</span>
+      <span><i style="background:#3A6EA5"></i>AI 自动</span>
+      <span><i style="background:#3D8361"></i>系统自动</span>
+      <span><i style="background:#B8B0A4"></i>可回退</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>⑤ 里"逐镜生成"每镜发生了什么</h2>
+    <div class="cap">这一步是黑盒，拆开看：人物一致性就是靠"每镜都用同一张首帧图"钉住的</div>
+    <svg viewBox="0 0 1120 190" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#B8B0A4"/>
+        </marker>
+      </defs>
+      <!-- 输入 -->
+      <g>
+        <rect x="16" y="40" width="190" height="104" rx="10" fill="#FCFBF9" stroke="#E8E2DB"/>
+        <text x="30" y="66" font-size="12.5" font-weight="700" fill="#2B2A26">这一镜的输入（自动组装）</text>
+        <text x="30" y="90" font-size="11.5" fill="#6B655B">· 人物卡正面照 = 首帧 ⭐</text>
+        <text x="30" y="110" font-size="11.5" fill="#6B655B">· 场景卡 + 本镜画面描述</text>
+        <text x="30" y="130" font-size="11.5" fill="#6B655B">· 本镜口播 → 画面提示词</text>
+      </g>
+      <!-- 首帧 -->
+      <g>
+        <rect x="238" y="40" width="180" height="104" rx="10" fill="#FFF3EA" stroke="#F37021"/>
+        <text x="252" y="66" font-size="12.5" font-weight="700" fill="#2B2A26">首帧图 ⭐</text>
+        <text x="252" y="90" font-size="11.5" fill="#6B655B">每镜复用同一张你上传的正面照</text>
+        <text x="252" y="110" font-size="11.5" fill="#6B655B">原样直用，无抠图无 AI 生成</text>
+        <text x="252" y="130" font-size="11.5" fill="#B84808">防 AI 脸漂移的关键</text>
+      </g>
+      <!-- i2v -->
+      <g>
+        <rect x="450" y="40" width="200" height="104" rx="10" fill="#EDF3FA" stroke="#3A6EA5"/>
+        <text x="464" y="66" font-size="12.5" font-weight="700" fill="#2B2A26">图生视频（阿里云）</text>
+        <text x="464" y="90" font-size="11.5" fill="#6B655B">wan2.6-i2v-flash</text>
+        <text x="464" y="110" font-size="11.5" fill="#6B655B">首帧动起来 → 镜片段</text>
+        <text x="464" y="130" font-size="11.5" fill="#B84808">⬤ 按秒扣算力 · 失败退款</text>
+      </g>
+      <!-- 成片库 -->
+      <g>
+        <rect x="682" y="40" width="180" height="104" rx="10" fill="#FCFBF9" stroke="#E8E2DB"/>
+        <text x="696" y="66" font-size="12.5" font-weight="700" fill="#2B2A26">镜次结果</text>
+        <text x="696" y="90" font-size="11.5" fill="#6B655B">每镜独立出片、独立重试</text>
+        <text x="696" y="110" font-size="11.5" fill="#6B655B">某镜不满意单独重渲染</text>
+        <text x="696" y="130" font-size="11.5" fill="#6B655B">后端自动轮询进度</text>
+      </g>
+      <!-- 合成 -->
+      <g>
+        <rect x="894" y="40" width="210" height="104" rx="10" fill="#EEF6F1" stroke="#3D8361"/>
+        <text x="908" y="66" font-size="12.5" font-weight="700" fill="#2B2A26">🧩 合成成片</text>
+        <text x="908" y="90" font-size="11.5" fill="#6B655B">按分镜顺序拼接镜片段</text>
+        <text x="908" y="110" font-size="11.5" fill="#6B655B">+ 混入你上传的音轨</text>
+        <text x="908" y="130" font-size="11.5" fill="#3D8361">免费 · 本机 ffmpeg</text>
+      </g>
+      <line x1="206" y1="92" x2="234" y2="92" stroke="#B8B0A4" stroke-width="1.6" marker-end="url(#arr2)"/>
+      <line x1="418" y1="92" x2="446" y2="92" stroke="#B8B0A4" stroke-width="1.6" marker-end="url(#arr2)"/>
+      <line x1="650" y1="92" x2="678" y2="92" stroke="#B8B0A4" stroke-width="1.6" marker-end="url(#arr2)"/>
+      <line x1="862" y1="92" x2="890" y2="92" stroke="#B8B0A4" stroke-width="1.6" marker-end="url(#arr2)"/>
+    </svg>
+  </div>
+
+  <div class="notes">
+    <div class="note"><b>钱在哪扣</b>只有逐镜生成按秒扣算力（720P 档）；写文案、切分镜、合片混音都免费。失败自动原路退款。赠送积分不参与视频生成（2026-10-04 新规），只认充值算力。</div>
+    <div class="note"><b>合规卡点</b>点"生成"前必须勾肖像授权——因为人物卡是真人照片。勾一次管本条片；换人像要重新确认。</div>
+    <div class="note"><b>和爆款复刻的区别</b>爆款复刻 = 你给一条别人拍好的原片，AI 换主角；一键成片 = 你只给素材卡，AI 从 0 生成画面。前者保原片节奏，后者从文案长出来。</div>
+  </div>
+
+  <p class="foot">当前本地为 mock 模式：逐镜生成秒回、不调阿里云、不扣算力，用来调试流程与页面；切回真实模式后同样的流程按秒计费、每镜几秒到几十秒出片。</p>
+</div>
+</body>
+</html>

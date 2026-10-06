@@ -1,7 +1,9 @@
-// 验收：点「生成定位全案」必须有可见反馈；体检改为建议（可跳过直接生成）。
+// 验收：点「生成定位全案」必须有可见反馈；体检只是建议（可以补也可以直接生成）。
 // 2026-09-30（用户）：按钮点了没反应 + 「太薄」校验不要拦人。
-// 两条路径：A) 回答太薄 → 体检卡 + 「跳过体检，直接生成」→ 点击后进生成；
-//          B) 回答完整 → 无体检卡，直接进生成。
+// 2026-10-03（用户）：体检项与运营缺口合并成一个填空面板（.cpw-gaps），放行按钮只有一个
+//   「补充好了，直接生成」（.cpw-gaps-ops .cpw-opt.go）。
+// 两条路径：A) 回答太薄 → 合并填空面板出现 + 「补充好了，直接生成」→ 点击后进生成；
+//          B) 回答完整且无缺口 → 无面板，直接进生成。
 const puppeteer = require("puppeteer-core");
 const CHROME = "/Users/zhoukai/.cache/puppeteer/chrome-headless-shell/mac_arm-150.0.7871.24/chrome-headless-shell-mac-arm64/chrome-headless-shell";
 const BASE = "http://127.0.0.1:5174";
@@ -63,6 +65,15 @@ async function typeAndSend(p, text) {
   p.on("console", (m) => { if (m.type() === "error") console.log("[console.error]", m.text().slice(0, 160)); });
   await p.goto(BASE + "/agent/ipzone__ip-pos/workbench", { waitUntil: "networkidle2", timeout: 45000 });
 
+  // 进页会**自动播演示**（2026-10-01 设计）→ 先停掉，否则下面是演示的假流程
+  // （旧版脚本没停演示，判定被演示日志骗过、走了假绿的 else 分支）。
+  await wait(1500);
+  await p.evaluate(() => {
+    const el = [...document.querySelectorAll("button")].find((x) => (x.textContent || "").includes("停止演示"));
+    if (el) el.click();
+  });
+  await wait(800);
+
   if (!(await waitQuestion(p, Q_MARKS[0]))) { console.log("FAIL: 第 1 题未出现"); await b.close(); process.exit(1); }
   await p.evaluate(() => {
     const hit = Array.from(document.querySelectorAll("button.cpw-opt")).find((el) => /本地单店老板/.test(el.textContent || ""));
@@ -85,7 +96,7 @@ async function typeAndSend(p, text) {
   });
   console.log("生成按钮:", JSON.stringify(btnState), "（filled<8 时也不应无声无息，此处 8/8 应可点）");
 
-  // 点击生成 → 轮询：或见「校验中」按钮态，或见体检卡，或直接进生成
+  // 点击生成 → 轮询：或见「校验中」按钮态，或见合并补充面板，或直接进生成
   await p.evaluate(() => {
     const el = document.querySelector("button.cpw-big-btn.gen");
     if (el) el.click();
@@ -96,7 +107,7 @@ async function typeAndSend(p, text) {
       const el = document.querySelector("button.cpw-big-btn.gen");
       return {
         busy: !!el && /校验中/.test(el.textContent || ""),
-        review: !!document.querySelector(".cpw-review"),
+        review: !!document.querySelector(".cpw-gaps"),
         gen: /读取定位简报（8\/8 字段齐全）/.test(document.body.innerText)
       };
     });
@@ -109,29 +120,29 @@ async function typeAndSend(p, text) {
     }
     await wait(150);
   }
-  console.log("路径A（太薄回答）：看到「校验中」:", sawBusy, "｜体检卡出现:", reviewShown, "｜直接生成:", genStarted);
+  console.log("路径A（太薄回答）：看到「校验中」:", sawBusy, "｜合并补充面板出现:", reviewShown, "｜直接生成:", genStarted);
 
   let ok = btnState && !btnState.disabled;
   if (reviewShown) {
     const skipLink = await p.evaluate(() => {
-      const a = document.querySelector(".cpw-review-ops .cpw-opt.go");
+      const a = document.querySelector(".cpw-gaps-ops .cpw-opt.go");
       if (!a) return "not-found";
       a.click();
       return "clicked";
     });
-    console.log("体检卡跳过链接:", skipLink);
+    console.log("合并面板放行按钮:", skipLink);
     await wait(2500);
     const genState = await p.evaluate(() => ({
       phaseGen: /读取定位简报（8\/8 字段齐全）/.test(document.body.innerText),
-      reviewGone: !document.querySelector(".cpw-review")
+      reviewGone: !document.querySelector(".cpw-gaps")
     }));
-    console.log("跳过体检后进入生成:", JSON.stringify(genState));
+    console.log("点「补充好了，直接生成」后进入生成:", JSON.stringify(genState));
     ok = ok && skipLink === "clicked" && genState.phaseGen && genState.reviewGone;
   } else {
-    // 没触发体检卡也行（预检放行即直接生成），但必须真的进了生成态
+    // 没触发补充面板也行（预检放行即直接生成），但必须真的进了生成态
     ok = ok && genStarted;
   }
-  console.log(ok ? "\nPASS: 点击有可见反馈；体检只是建议、可跳过直接生成" : "\nFAIL");
+  console.log(ok ? "\nPASS: 点击有可见反馈；体检只是建议，合并面板一个 CTA 直接生成" : "\nFAIL");
   await b.close();
   process.exit(ok ? 0 : 1);
 })().catch((e) => { console.error(e); process.exit(1); });

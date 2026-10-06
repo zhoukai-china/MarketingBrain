@@ -11,11 +11,11 @@ import {
 const defaults = resolveTenantBranding({});
 assert.deepEqual(defaults, {
   brandName: "思潼",
-  systemName: "思潼AI 行业智能体平台",
+  systemName: "思潼AI商城",
   primaryColor: "#1f6a57",
-  loginHeadline: "进入思潼AI 行业智能体平台",
+  loginHeadline: "进入思潼AI商城",
   loginDescription: "进入企业专属的智能体工作台，用知识、数据与专业能力持续推动业务增长。",
-  exportFooter: "由思潼AI 行业智能体平台生成",
+  exportFooter: "由思潼AI商城生成",
   isCustomized: false
 });
 

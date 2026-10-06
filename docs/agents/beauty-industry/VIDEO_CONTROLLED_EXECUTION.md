@@ -14,7 +14,7 @@
 | ALIYUN_VIDEO_REPLICATION_ENDPOINT | 固定北京DashScope video-synthesis原协议，其他地域/路径拒绝 |
 | ALIYUN_VIDEO_REPLICATION_API_KEY | 服务端视频专用凭据，仅格式预检不等于云端有效性/费用授权 |
 | ALIYUN_VIDEO_REPLICATION_CREDITS | 沿用已有正式服务端积分报价，默认0继续拒绝；本轮不制定新商业价格 |
-| BEAUTY_VIDEO_RESULT_HOSTS | 显式批准的精确OSS结果hostname，不接受客户端结果域；不能开放所有域 |
+| BEAUTY_VIDEO_RESULT_HOSTS | **可选**（2026-10-04 起不再是上线前置条件）。留空 = 仅依赖 OSS 域名族自动放行（自动覆盖任意区域）；配置时仅作额外收窄。背景：结果 URL 由服务端主动 poll 阿里云所得，非客户端可伪造输入；且 `isResultHostAllowed()` 首步已无条件放行 OSS 域名族，强制配置既无安全收益，还曾真实拦掉 wulanchabu 区域的成片（见 `beauty-industry-image-asset-url-policy-p1-smoke.ts:27`） |
 | BY49 OSS字段 | 必須完整、受权、STS有效且满足原私有桶合同；配置不足不得退回公开素材URL |
 
 正式结果存储在UPLOAD_DIR下`.beauty-video-results`，沿用租户/门店/job散列私有路径、ffprobe/H264验证、原子rename/hash和授权下载。用户看到的是正式任务与本地下载URL，不是Provider URL/secret。回调仍不能直接宣布成功。

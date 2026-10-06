@@ -141,7 +141,8 @@ async function main() {
     const shelfText = await evaluate(cdp, sessionId, `() => document.body.innerText`);
     const shelfShot = await shoot(cdp, sessionId, "01-shelf-agents");
     await writeFile(path.join(shotDir, "01-shelf-agents.txt"), shelfText, "utf8");
-    assert.match(shelfText, /行业智能体平台/, "shelf shows the platform brand");
+    // 品牌更名 2026-10-03：货架 logo 现为「思潼AI商城」；线上旧包仍显示旧名，过渡期两者都接受。
+    assert.match(shelfText, /思潼AI商城|行业智能体平台/, "shelf shows the platform brand");
     // PLAT-19（用户 2026-09-12）：客户界面只显示消耗多少积分，不再显示折算人民币。
     // 2026-09-13/15 用户口径：卡片不前置报价，也不出现「按次 / 钱包 / 扣费」这类计费感话术。
     assert.doesNotMatch(shelfText, /积分\/次/, "货架不前置按次报价");

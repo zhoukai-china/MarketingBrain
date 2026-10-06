@@ -379,7 +379,7 @@ async function checkChatTitles(cdp, token) {
     assert.ok(snap.pageTitle.includes(item.zone), `${item.sku} 页内标题应含专区「${item.zone}」，实际「${snap.pageTitle}」`);
     assert.ok(!/^视频复盘 · 视频复盘/.test(snap.pageTitle), `${item.sku} 页内标题不得是旧重复段，实际「${snap.pageTitle}」`);
     assert.ok(snap.docTitle.includes(item.agent), `${item.sku} 浏览器 <title> 应含「${item.agent}」，实际「${snap.docTitle}」`);
-    assert.notEqual(snap.docTitle, "思潼AI 行业智能体平台", `${item.sku} 浏览器 <title> 不得退回通用平台名`);
+    assert.notEqual(snap.docTitle, "思潼AI商城", `${item.sku} 浏览器 <title> 不得退回通用平台名`);
     await cdp.send("Target.closeTarget", { targetId: ctx.targetId });
     await cdp.send("Target.disposeBrowserContext", { browserContextId: ctx.browserContextId });
   }

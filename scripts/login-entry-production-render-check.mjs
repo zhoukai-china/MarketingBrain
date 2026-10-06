@@ -118,7 +118,9 @@ async function main() {
     await waitFor(cdp, sessionId, `() => window.location.pathname.split("/").filter(Boolean).pop() === "agents"`);
     await waitFor(cdp, sessionId, `() => document.body.innerText.includes("货架")`);
     const homeText = await evaluate(cdp, sessionId, `() => document.body.innerText`);
-    assert.match(homeText, /行业智能体平台/, "production home shows platform brand");
+    // 品牌更名 2026-10-03：思潼AI 行业智能体平台 / 思潼AI 智能体平台 → 思潼AI商城；
+    // 线上产物在下一个包发布前仍是旧名，故过渡期两个名字都接受。
+    assert.match(homeText, /思潼AI商城|行业智能体平台/, "production home shows platform brand");
     assert.match(homeText, /未登录/, "anonymous visitor is prompted to log in");
     const homeUrl = await evaluate(cdp, sessionId, `() => window.location.href`);
 
@@ -138,7 +140,7 @@ async function main() {
       return text.includes("微信一键登录 / 注册") || text.includes("进入思潼");
     }`);
     const loginText = await evaluate(cdp, sessionId, `() => document.body.innerText`);
-    assert.match(loginText, /思潼AI 行业智能体平台/, "login page shows the platform name");
+    assert.match(loginText, /思潼AI商城|思潼AI 行业智能体平台/, "login page shows the platform name");
     assert.match(loginText, /一个账号、一个积分钱包/, "login page explains the shared wallet");
     // 开放注册口径（生产 INVITE_REQUIRED=false）：微信一键登录是唯一入口，邀请码入口消失。
     assert.match(loginText, /微信一键登录 \/ 注册/, "open registration keeps the WeChat one-click entry");
