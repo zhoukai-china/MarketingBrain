@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>古人经营智慧 · 六位先生</title>
+<style>
+:root{
+  color-scheme:light;
+  --surface:#F6F1E6;--surface-muted:#EAE2CF;--text:#211C15;--text-muted:#5C5344;--border:rgba(38,33,26,.16);
+  --brand:#B45309;--brand-soft:#F1E4C2;--brand-text:#7C4A03;--brand-on:#FBF4E4;
+  --cinnabar:#A93226;--font-metric:"Georgia","Times New Roman","Songti SC","SimSun",serif;
+  --paper:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.32 0 0 0 0 0.27 0 0 0 0 0.18 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)'/%3E%3C/svg%3E");
+  --zhi:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Ctext x='100' y='150' font-size='160' text-anchor='middle' font-family='KaiTi,STKaiti,SimSun,serif' fill='%237A6A4F' fill-opacity='0.08'%3E%E6%99%BA%3C/text%3E%3C/svg%3E");
+  --success:#1DC981;--warning:#EFAA17;--danger:#E8463A;
+  --radius:8px;--radius-card:12px;--radius-full:999px;
+  --sp-4:4px;--sp-8:8px;--sp-12:12px;--sp-16:16px;--sp-20:20px;
+  --font-sans:"SF Pro Text","PingFang SC",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-quote:"Kaiti SC","STKaiti","KaiTi","Songti SC","SimSun","Noto Serif SC",serif;
+  --font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --w4:400;--w5:500;--w6:600;
+  --t-cap:12px/19px;--t-body:15px/22px;--t-title:16px/24px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow-x:hidden}
+body{background-color:var(--surface-muted);background-image:var(--paper);color:var(--text);font:var(--w4) var(--t-body) var(--font-sans);display:flex;flex-direction:column;min-width:320px;max-width:100vw}
+.app{flex:1;display:flex;flex-direction:column;width:100%;max-width:480px;margin:0 auto;background-color:var(--surface);background-image:var(--paper);min-height:0;min-width:0;overflow-x:hidden}
+@media(min-width:768px){
+  body{padding:var(--sp-16) 0}
+  .app{height:calc(100vh - 32px);border:1px solid var(--border);border-radius:var(--radius-card);box-shadow:0 8px 32px rgba(0,0,0,.08);overflow:hidden}
+  .hint-desktop{display:block}
+}
+.hint-desktop{display:none;text-align:center;font:var(--w4) var(--t-cap) var(--font-sans);color:var(--text-muted);margin-bottom:var(--sp-8)}
+.topbar{display:flex;align-items:center;gap:var(--sp-8);padding:var(--sp-12) var(--sp-16);border-bottom:1px solid rgba(169,50,38,.32);background:var(--surface);flex:none}
+.seal{flex:none;width:30px;height:30px;border-radius:7px;background:radial-gradient(circle at 30% 25%,#C24434,#A93226 55%,#8E271E);color:#F6EFE0;display:flex;align-items:center;justify-content:center;font:700 15px/1 var(--font-quote);box-shadow:inset 0 0 0 1.5px rgba(246,239,224,.5),inset 0 0 8px rgba(0,0,0,.28),0 1px 2px rgba(38,33,26,.3)}
+.topbar-t{font:var(--w6) var(--t-title) var(--font-quote);letter-spacing:.08em}
+.badge-ai{border:1px solid var(--brand);color:var(--brand-text);border-radius:var(--radius-full);padding:var(--sp-4) var(--sp-8);font:var(--w5) var(--t-cap) var(--font-sans);white-space:nowrap}
+.badge-free{margin-left:auto;border:1px solid var(--success);color:#0E7C4E;border-radius:var(--radius-full);padding:var(--sp-4) var(--sp-8);font:var(--w5) var(--t-cap) var(--font-sans);white-space:nowrap;background:rgba(29,201,129,.10);cursor:pointer}
+.keychip{border:1px dashed var(--border);color:var(--text-muted);border-radius:var(--radius-full);padding:var(--sp-4) var(--sp-8);font:var(--w4) var(--t-cap) var(--font-mono);white-space:nowrap;cursor:pointer;background:none}
+/* 手机窄屏顶栏收纳：标题单行，AI 徽标隐藏（卡底已有声明），点数徽标可截断 */
+@media(max-width:480px){
+  .topbar{gap:6px;padding:var(--sp-8) var(--sp-12)}
+  .topbar-t{white-space:nowrap;flex:none;letter-spacing:.04em}
+  .badge-ai{display:none}
+  .keychip{min-width:0;max-width:92px;overflow:hidden;text-overflow:ellipsis}
+}
+.chat{flex:1;min-height:0;overflow-y:auto;background-color:var(--surface-muted);background-image:var(--paper),var(--zhi);background-attachment:local,local;background-repeat:repeat,no-repeat;background-position:0 0,center 64px;padding:var(--sp-16);display:flex;flex-direction:column;gap:var(--sp-12)}
+.row{display:flex;gap:var(--sp-8);align-items:flex-start}
+.row.me{justify-content:flex-end}
+.avx{display:inline-block;flex:none;width:32px;height:32px;color:var(--text);filter:drop-shadow(0 1px 2px rgba(38,33,26,.22))}
+.avx svg{display:block;width:100%;height:100%}
+.bub{flex:1;min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);padding:var(--sp-12)}
+.bub-user{max-width:82%;background:var(--brand);color:var(--brand-on);border-radius:var(--radius-card);padding:var(--sp-8) var(--sp-12)}
+.pill{align-self:center;background:none;border:none;padding:var(--sp-4) var(--sp-4);font:var(--w4) var(--t-cap) var(--font-quote);color:var(--text-muted);letter-spacing:.12em}
+.pill::before{content:'❖';color:var(--cinnabar);margin-right:6px}
+.pill::after{content:'❖';color:var(--cinnabar);margin-left:6px}
+.lbl{display:flex;justify-content:space-between;align-items:center;font:var(--w5) var(--t-cap) var(--font-sans);color:var(--text-muted)}
+.lbl-r{font-weight:var(--w4)}
+.advs{display:flex;gap:var(--sp-8);overflow-x:auto;padding-bottom:var(--sp-4);-webkit-overflow-scrolling:touch}
+.adv{flex:none;width:104px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);padding:var(--sp-12) var(--sp-8);display:flex;flex-direction:column;align-items:center;gap:var(--sp-4);text-align:center;cursor:pointer}
+.adv:active,.adv:hover{border-color:var(--brand)}
+.adv .avx{width:40px;height:40px}
+.adv-n{font:var(--w5) var(--t-body) var(--font-sans)}
+.adv-d{font:var(--w4) var(--t-cap) var(--font-sans);color:var(--brand-text)}
+.adv-t{font:var(--w4) var(--t-cap) var(--font-sans);color:var(--text-muted);background:var(--surface-muted);border-radius:var(--radius-full);padding:0 var(--sp-8)}
+.who{display:flex;gap:var(--sp-8);align-items:center;font:var(--w5) var(--t-body) var(--font-sans);margin-bottom:var(--sp-8);flex-wrap:wrap}
+.tm{font:var(--w4) var(--t-cap) var(--font-sans);color:var(--text-muted);font-weight:var(--w4)}
+.kpill{border:1px solid var(--brand);color:var(--brand-text);border-radius:var(--radius-full);padding:2px var(--sp-8);font:var(--w5) var(--t-cap) var(--font-sans);cursor:pointer;background:none}
+.sec{padding:var(--sp-8) 0;border-top:1px dashed var(--border)}
+.sec.first{border-top:none;padding-top:0}
+.sec-h{font:var(--w6) 12.5px/18px var(--font-sans);color:var(--brand-text);letter-spacing:.1em}
+.sec-h::before{content:'';display:inline-block;width:5px;height:5px;background:var(--cinnabar);transform:rotate(45deg);margin-right:7px;vertical-align:2px}
+.sec-h.warn{color:var(--warning)}
+.sec p{margin-top:var(--sp-4);white-space:pre-wrap}
+.quote{margin-top:var(--sp-4);font:var(--w5) 17px/26px var(--font-quote);padding-left:10px;border-left:2px solid rgba(169,50,38,.38)}
+.srctag{margin-top:var(--sp-8);display:flex;flex-wrap:wrap;gap:var(--sp-8)}
+.tag{display:inline-flex;align-items:center;border-radius:var(--radius-full);padding:0 var(--sp-8);font:var(--w5) var(--t-cap) var(--font-sans)}
+.tag-first{color:var(--success);border:1px solid var(--success);background:rgba(29,201,129,.12)}
+.tag-gray{color:var(--text-muted);border:1px solid var(--border);background:var(--surface-muted)}
+.bub.lined{border-color:rgba(232,70,58,.5)}
+.no{color:var(--danger);font-weight:var(--w6)}
+.comply{display:flex;gap:var(--sp-8);align-items:flex-start;background:var(--surface-muted);border-radius:var(--radius);padding:var(--sp-8);margin-top:var(--sp-8);font:var(--w4) var(--t-cap) var(--font-sans);color:var(--text-muted)}
+.aim{flex:none;width:18px;height:18px;border:1px solid var(--text-muted);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font:var(--w6) var(--t-cap) var(--font-mono)}
+.know{margin-left:44px;border-color:var(--brand)}
+.k-h{font:var(--w5) var(--t-cap) var(--font-sans);color:var(--brand-text)}
+.k-q{margin-top:var(--sp-4);font:var(--w4) var(--t-body) var(--font-quote)}
+.typing{display:inline-flex;gap:4px;align-items:center;padding:var(--sp-4) 0}
+.typing i{width:5px;height:5px;border-radius:50%;background:var(--text-muted);opacity:.4;animation:tk 1.2s infinite}
+.typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+@keyframes tk{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-2px)}}
+.errbub{border-color:rgba(232,70,58,.5)}
+.err-t{font:var(--w5) var(--t-body) var(--font-sans);color:var(--danger)}
+.err-d{font:var(--w4) var(--t-cap) var(--font-sans);color:var(--text-muted);margin-top:var(--sp-4)}
+.c-t{font:var(--w5) var(--t-body) var(--font-sans)}
+.c-cap{display:block;font:var(--w4) var(--t-cap) var(--font-sans);color:var(--text-muted);margin-top:var(--sp-4)}
+.c-row{display:flex;gap:var(--sp-8);align-items:flex-start;margin-top:var(--sp-12);padding-top:var(--sp-12);border-top:1px dashed var(--border)}
+.c-row .avx{width:28px;height:28px}
+.c-b{flex:1;min-width:0}
+.c-n{font:var(--w5) var(--t-body) var(--font-sans)}
+.bd{display:inline-block;margin-left:var(--sp-4);border-radius:var(--radius-full);padding:0 var(--sp-8);font:var(--w5) var(--t-cap) var(--font-sans);vertical-align:1px}
+.bd-first{background:var(--brand);color:var(--brand-on)}
+.bd-sec{border:1px solid var(--border);color:var(--text-muted)}
+.c-d{font:var(--w4) var(--t-cap) var(--font-sans);color:var(--text-muted);margin-top:var(--sp-4)}
+.cta{margin-top:var(--sp-12);background:var(--brand);color:var(--brand-on);border-radius:var(--radius-full);padding:var(--sp-8) var(--sp-16);text-align:center;font:var(--w5) var(--t-body) var(--font-sans);cursor:pointer;border:none;width:100%}
+.cta:hover{opacity:.92}
+.cta-ghost{margin-top:var(--sp-8);display:block;width:100%;background:none;border:1px solid var(--border);border-radius:var(--radius-full);padding:var(--sp-8) var(--sp-16);text-align:center;font:var(--w5) var(--t-body) var(--font-sans);color:var(--text-muted);cursor:pointer}
+.cta-ghost:hover{border-color:var(--brand);color:var(--brand-text)}
+.plan-btn{flex:none;border:none;background:none;padding:var(--sp-4);cursor:pointer}
+.plan-btn:hover{opacity:.85}
+.dock{flex:none;border-top:1px solid var(--border);background:var(--surface);padding:var(--sp-8) var(--sp-12) calc(var(--sp-8) + env(safe-area-inset-bottom))}
+.chips{display:flex;gap:var(--sp-8);overflow-x:auto;padding-bottom:var(--sp-8);-webkit-overflow-scrolling:touch}
+.chip{flex:none;border:1px solid var(--border);background:var(--surface);border-radius:var(--radius-full);padding:var(--sp-4) var(--sp-12);font:var(--w4) var(--t-body) var(--font-sans);color:var(--text);white-space:nowrap;cursor:pointer;font-family:var(--font-quote)}
+/* 对谈态 · 底部顾问切换栏：小圆头像 + 名字，点谁切谁 */
+.gu-sw{gap:2px;padding-bottom:var(--sp-4)}
+.gu-b{flex:none;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;padding:2px 5px;cursor:pointer;font-family:var(--font-quote)}
+.gu-b .gvx{display:block;width:36px;height:36px;border-radius:50%;transition:transform .15s}
+.gu-b .gvx .avx{display:block;width:100%;height:100%}
+.gu-b .gn{font:var(--w4) 11px/14px var(--font-quote);color:var(--text-muted);white-space:nowrap}
+.gu-b.on .gvx{box-shadow:0 0 0 2px var(--cinnabar)}
+.gu-b.on .gn{color:var(--cinnabar);font-weight:var(--w6)}
+.gu-b:active .gvx{transform:scale(.94)}
+.gu-home{flex:none;align-self:center;margin-left:auto;background:none;border:1px solid var(--border);border-radius:var(--radius-full);padding:4px 10px;font:var(--w4) var(--t-cap) var(--font-quote);color:var(--text-muted);cursor:pointer;white-space:nowrap}
+.chip:active,.chip:hover{border-color:var(--brand);color:var(--brand-text)}
+.composer{display:flex;gap:var(--sp-8);align-items:center}
+.field{flex:1;min-width:0;border:1px solid var(--border);border-radius:var(--radius-full);padding:var(--sp-8) var(--sp-12);font:var(--w4) var(--t-body) var(--font-sans);color:var(--text);background:var(--surface);outline:none}
+.field:focus{border-color:var(--brand)}
+.field:disabled{opacity:.6}
+.send{flex:none;width:36px;height:36px;border-radius:var(--radius-full);background:var(--brand);color:var(--brand-on);display:flex;align-items:center;justify-content:center;font:var(--w6) var(--t-body) var(--font-sans);cursor:pointer;border:none}
+.send:disabled{opacity:.5}
+.foot{flex:none;text-align:center;font:var(--w4) var(--t-cap) var(--font-sans);color:var(--text-muted);padding:var(--sp-8) var(--sp-12) calc(var(--sp-8) + env(safe-area-inset-bottom))}
+@media(min-width:768px){.foot{padding-bottom:var(--sp-8)}}
+/* 顶栏返回商城按钮 */
+.bk{flex:none;width:30px;height:30px;border:1px solid var(--border);background:var(--surface);border-radius:var(--radius-full);color:var(--text);font:var(--w6) 17px/1 var(--font-quote);cursor:pointer;padding:0 0 2px}
+.bk:active{background:var(--surface-muted)}
+</style>
+</head>
+<body>
+<div class="hint-desktop">电脑端为辅：同一布局居中呈现 · 建议用手机体验</div>
+<div class="app">
+  <div class="topbar">
+    <button class="bk" id="bkBtn" type="button" aria-label="返回商城" hidden>‹</button>
+    <span class="seal">智</span>
+    <span class="topbar-t">古人经营智慧</span>
+    <span class="badge-ai">AI 蒸馏 · 非真人</span>
+    <span class="badge-free" id="badgeFree" hidden title="体验期免费，正式计费以公告为准">体验期 · 免费</span>
+  </div>
+  <div class="chat" id="chat"></div>
+  <div class="dock">
+    <div class="chips" id="chips"></div>
+    <div class="composer">
+      <input class="field" id="inp" placeholder="向智慧团提问…" autocomplete="off" maxlength="500">
+      <button class="send" id="send" type="button">↑</button>
+    </div>
+  </div>
+  <div class="foot">内容由 AI 生成 · 仅供经营参考 · 正式计费以公告为准</div>
+</div>
+<script>
+'use strict';
+/* ================= 部署配置（周凯注意） =================
+   线上：页面与 API 同域，nginx 把 /os-v2/api/skills/* 反代到 127.0.0.1:3007
+         → 自动走 /os-v2/api/skills 前缀（与微信回调 notify_url 同一通道）。
+   本地：file:// 或 localhost 打开 → 直连 http://127.0.0.1:3007。
+   若部署在其他域名/路径，改这两个常量即可。 */
+const API_HOST = /lcppch\.top$/.test(location.hostname) ? '' : 'http://' + (location.hostname || '127.0.0.1') + ':3007';
+const API_PREFIX = (/lcppch\.top$/.test(location.hostname)) ? '/os-v2/api/skills' : '/skills';
+const apiUrl = p => API_HOST + API_PREFIX + p;
+const MALL_URL = '';   // 返回商城：部署时填商城工作台地址（如 '/os-v2/'）；留空则用浏览器历史返回，无处可返时按钮自动隐藏
+
+/* ================= 全局状态 ================= */
+let KEY = localStorage.getItem('gu_api_key') || '';
+let ADV = {};            // gu_id → advisor 元数据（服务端下发，不含 system_prompt）
+let ROUTING = {routes: [], keywords: []};
+let BILLING = {mode: 'free_trial', points_per_call: 0};
+let currentGu = null;    // 当前对谈顾问
+let convIds = {};        // gu_id → conversation_id
+let transcripts = {};    // gu_id → [{role, text?, sections?}] 本地会话回放
+let busy = false;
+
+/* ================= 基础渲染（与设计稿同款） ================= */
+const chat = document.getElementById('chat');
+function el(html){const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstChild;}
+function bot(){chat.scrollTop=chat.scrollHeight;}
+const ART={
+  sun:'<rect x="25" y="17" width="30" height="46" rx="5"/><path d="M32 28h16M32 38h16M32 48h16"/>',
+  fan:'<path d="M40 28v18M20 46q20 12 40 0M15 58q8-4 16 0t16 0 16 0"/>',
+  zg:'<path d="M40 56L24 26M40 56L34 22M40 56L46 22M40 56L56 26M24 26q16-14 32 0"/>',
+  gz:'<path d="M24 28h32M40 28v26M32 56h16M24 28v10M56 28v10M17 38q7 10 14 0M49 38q7 10 14 0"/>',
+  zf:'<path d="M40 26q-10-6-20-2v30q10-4 20 2q10-6 20-2V24q-10-4-20 2v30"/>',
+  hx:'<rect x="22" y="24" width="36" height="32" rx="4"/><path d="M22 34h36M22 44h36"/><circle cx="29" cy="34" r="2.6"/><circle cx="38" cy="34" r="2.6"/><circle cx="52" cy="34" r="2.6"/><circle cx="33" cy="44" r="2.6"/><circle cx="47" cy="44" r="2.6"/>'
+};
+const ARTMAP={sun:'sun',fan:'fan','zhuge-liang':'zg',guanzi:'gz','zeng-guofan':'zf','hu-xueyan':'hx'};
+function avxSvg(guId){
+  const a = ADV[guId] || {};
+  const key = ARTMAP[guId] || 'sun';
+  const ch = a.avatar_char || (a.name || '席')[0];
+  const dash = '118 22 96 14 130 18';
+  return `<span class="avx"><svg viewBox="0 0 80 80" width="100%" height="100%" aria-hidden="true">`
+   +`<circle cx="40" cy="40" r="33" fill="rgba(122,106,79,.10)"/>`
+   +`<g stroke="#C9A227" stroke-opacity=".3" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round">${ART[key]}</g>`
+   +`<circle cx="40" cy="40" r="35" fill="none" stroke="currentColor" stroke-opacity=".85" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="${dash}" transform="rotate(-32 40 40)"/>`
+   +`<circle cx="40" cy="40" r="32.4" fill="none" stroke="currentColor" stroke-opacity=".38" stroke-width="1" stroke-dasharray="40 9 70 12 56 8 80 10" transform="rotate(15 40 40)"/>`
+   +`<text x="40" y="42" text-anchor="middle" dominant-baseline="central" font-family="'Kaiti SC','STKaiti','KaiTi','Songti SC','SimSun','Noto Serif SC',serif" font-size="33" font-weight="700" fill="currentColor">${ch}</text>`
+   +`<rect x="60" y="59" width="10" height="10" rx="1.5" fill="#A93226" fill-opacity=".92"/></svg></span>`;
+}
+const AVM = `<span class="avx"><svg viewBox="0 0 80 80" width="100%" height="100%" aria-hidden="true"><circle cx="40" cy="40" r="33" fill="rgba(201,162,39,.16)"/><circle cx="40" cy="40" r="35" fill="none" stroke="#B08A2E" stroke-opacity=".95" stroke-width="2.8" transform="rotate(-32 40 40)"/><text x="40" y="42" text-anchor="middle" dominant-baseline="central" font-family="'Kaiti SC','STKaiti','KaiTi','Songti SC','SimSun',serif" font-size="33" font-weight="700" fill="#B08A2E">席</text><rect x="60" y="59" width="10" height="10" rx="1.5" fill="#A93226" fill-opacity=".92"/></svg></span>`;
+const COMPLY = t => `<div class="comply"><span class="aim">AI</span><span>${esc(t)}</span></div>`;
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function addUser(t){chat.appendChild(el(`<div class="row me"><div class="bub-user">${esc(t)}</div></div>`));bot();}
+function addPill(t){chat.appendChild(el(`<div class="pill">${esc(t)}</div>`));bot();}
+function addMaster(html){chat.appendChild(el(`<div class="row">${AVM}<div class="bub">${html}</div></div>`));bot();}
+function advisorRow(guId){return `<div class="row">${avxSvg(guId)}<div style="flex:1;min-width:0" data-slot></div></div>`;}
+
+/* ================= 四段结构解析与渲染 ================= */
+function parseSections(text, head){
+  const marks = ['【'+head+'】', '【经营映射】', '【可执行动作】', '【风险提示】'];
+  const idx = marks.map(m => text.indexOf(m));
+  if (idx[0] < 0) return null; // 未按格式输出 → 纯文本渲染
+  const parts = [];
+  for (let i = 0; i < 4; i++){
+    if (idx[i] < 0) { parts.push(''); continue; }
+    let end = text.length;
+    for (let j = i+1; j < 4; j++) if (idx[j] >= 0) { end = idx[j]; break; }
+    parts.push(text.slice(idx[i] + marks[i].length, end).trim());
+  }
+  // 兜底：模型对寒暄/感谢偶发吐「空段标记」（规则冲突折中）——四段全空时按纯文本渲染，
+  // 把标记前的正文（若有）救回来，避免渲染出空卡
+  if (parts.every(p => !p)){
+    const first = text.indexOf(marks[0]);
+    const preamble = text.slice(0, first).trim();
+    return preamble ? null : parts;   // 有前文 → 走 plainHTML 显示前文；纯空 → 仍返回空 parts（上层再兜）
+  }
+  return parts;
+}
+function parseHead(body){
+  const lines = body.split('\n').map(s=>s.trim()).filter(Boolean);
+  let quote = '', src = '', rest = [];
+  for (const ln of lines){
+    if (!quote && ln.startsWith('「')) { quote = ln; continue; }
+    if (!src && ln.startsWith('——')) { src = ln.replace(/^——\s*/, ''); continue; }
+    rest.push(ln);
+  }
+  // 兜底：模型偶尔忘加「」，取出处行的紧邻上一行当引文
+  if (!quote && src && rest.length){
+    const last = rest[rest.length - 1];
+    if (last.length <= 40){ quote = last; rest.pop(); }
+  }
+  return {quote, src, text: rest.join('\n')};
+}
+function srcTier(src, guId){
+  const a = ADV[guId] || {};
+  const books = a.trusted_books || [];
+  return books.some(b => src.includes(b)) ? 'first' : 'gray';
+}
+function fourPartHTML(parts, guId, streaming){
+  const [h0, map, acts, risk] = parts;
+  const hd = parseHead(h0 || '');
+  const a = ADV[guId] || {};
+  const head =
+    `<div class="sec first"><div class="sec-h">${esc(a.name)} · ${esc(headLabel(guId))}</div>`+
+    (hd.quote?`<div class="quote">${esc(hd.quote)}</div>`:'')+
+    (hd.src?`<div class="srctag"><span class="tag ${srcTier(hd.src,guId)==='first'?'tag-first':'tag-gray'}">${esc(hd.src)}${srcTier(hd.src,guId)==='first'?' · 一手':' · 依托/辑佚'}</span></div>`:'')+
+    (hd.text?`<p>${esc(hd.text)}</p>`:'')+`</div>`;
+  const sMap = map?`<div class="sec"><div class="sec-h">经 营 映 射</div><p>${esc(map)}</p></div>`:'';
+  const sActs = acts?`<div class="sec"><div class="sec-h">可 执 行 动 作</div><p>${esc(acts)}</p></div>`:'';
+  const sRisk = risk?`<div class="sec"><div class="sec-h warn">风 险 提 示</div><p>${esc(risk)}</p></div>`:'';
+  const kn = streaming?'':`<button class="kpill" data-know="${guId}" type="button">真说过?</button>`;
+  const dots = streaming && !hd.text && !map && !acts && !risk ? '<div class="typing"><i></i><i></i><i></i></div>' : '';
+  return `<div class="who">${esc(a.name)} <span class="tm">刚刚</span>${kn}</div>${head}${sMap}${sActs}${sRisk}${dots}`;
+}
+function headLabel(guId){
+  const H = {'sunzi':'兵法之见','fanli':'商道之见','zhuge-liang':'孔明之见','guanzi':'管子之见','zeng-guofan':'曾公之见','hu-xueyan':'雪岩之鉴'};
+  return (ADV[guId] && ADV[guId].head) || H[guId] || '顾问之见';
+}
+function plainHTML(text, guId){
+  const a = ADV[guId] || {};
+  const clean = (text || '').split('\n')
+    .filter(l => { const t = l.trim(); return !(t.startsWith('【') && t.endsWith('】')); })
+    .join('\n').trim();
+  return `<div class="who">${esc(a.name)}</div><div class="sec first"><div class="sec-h">${esc(headLabel(guId))}</div><p>${esc(clean)}</p></div>`;
+}
+
+/* ================= 会话渲染 ================= */
+function renderTranscript(guId){
+  (transcripts[guId] || []).forEach(m => {
+    if (m.role === 'user'){ addUser(m.text); return; }
+    const w = el(advisorRow(guId)); chat.appendChild(w);
+    w.querySelector('[data-slot]').innerHTML =
+      `<div class="bub">${m.sections ? fourPartHTML(m.sections, guId, false) : plainHTML(m.text, guId)}${COMPLY(ADV[guId].comply)}</div>`;
+    bot();
+  });
+}
+function enterChat(guId, silent){
+  currentGu = guId;
+  chat.innerHTML = '';
+  addPill(`正与 ${ADV[guId].name} 对谈 · 换人点下方头像`);
+  addMaster(`「${esc(ADV[guId].greeting)}」`);
+  const a = ADV[guId];
+  chat.appendChild(el(`<div class="bub know" style="margin-left:44px"><div class="k-h">先 生 小 传</div><div class="k-q">${esc(a.discipline)} · ${esc(a.tag)}${a.correction ? '。' + esc(a.correction) : ''}</div></div>`));
+  renderTranscript(guId);
+  addHome();
+  renderChips();   // 对谈态：底部变成六顾问头像栏
+}
+function addHome(){
+  chat.appendChild(el(`<button class="pill pill-btn" data-home="1" type="button">‹ 回到大厅 · 换位先生对谈</button>`));bot();
+}
+function welcome(){
+  currentGu = null;
+  chat.innerHTML = '';
+  addMaster(`老板请坐，六位先生已入席。今天被什么事难住了？也可以直接挑一位先生对谈。`);
+  const lbl = el(`<div class="lbl"><span>智慧团 · 六位先生</span><span class="lbl-r">横滑查看 →</span></div>`);
+  chat.appendChild(lbl);
+  const row = el(`<div class="advs"></div>`);
+  Object.keys(ADV).forEach(k => {
+    const a = ADV[k];
+    row.appendChild(el(`<div class="adv" data-adv="${k}">${avxSvg(k)}<span class="adv-n">${esc(a.name)}</span><span class="adv-d">${esc(a.discipline)}</span><span class="adv-t">${esc(a.tag)}</span></div>`));
+  });
+  chat.appendChild(row);bot();
+  addMaster(`点下面的问题，我替你荐人；也可以直接说出你的难处。`);
+  renderChips();   // 大厅态：场景问题 chips
+}
+function playConsult(route){
+  const f = route.first, s = route.second;
+  addMaster(`<div class="c-t">此事宜请两位先生会诊<span class="c-cap">场景路由 · ${esc(route.route)}</span></div>
+    <div class="c-row">${avxSvg(f[0])}<div class="c-b"><span class="c-n">${esc(ADV[f[0]].name)}<span class="bd bd-first">首选</span></span><div class="c-d">${esc(f[1])}</div></div></div>
+    <div class="c-row">${avxSvg(s[0])}<div class="c-b"><span class="c-n">${esc(ADV[s[0]].name)}<span class="bd bd-sec">协同</span></span><div class="c-d">${esc(s[1])}</div></div></div>
+    <button class="cta" data-go="${f[0]}" type="button">先与 ${esc(ADV[f[0]].name.split(' ')[0])} 对谈 →</button>
+    <button class="cta-ghost" data-go="${s[0]}" type="button">改问 ${esc(ADV[s[0]].name.split(' ')[0])}（协同）→</button>`);
+}
+function routeFor(text){
+  const hit = (ROUTING.keywords || []).find(p => text.indexOf(p[0]) > -1);
+  if (!hit) return null;
+  return (ROUTING.routes || []).find(r => r.chip === hit[1]) || null;
+}
+function showError(msg, hint){
+  chat.appendChild(el(`<div class="bub errbub"><div class="err-t">这厢失手了</div><div class="err-d">${esc(msg)}${hint ? ' · ' + esc(hint) : ''}</div></div>`));bot();
+}
+
+/* ================= API ================= */
+async function apiJSON(path, opt){
+  const headers = Object.assign({'Content-Type':'application/json'}, (opt && opt.headers) || {});
+  if (KEY && !(opt && opt.noAuth)) headers['Authorization'] = 'Bearer ' + KEY;
+  const resp = await fetch(apiUrl(path), Object.assign({}, opt, {headers}));
+  let data = null;
+  try { data = await resp.json(); } catch (e) {}
+  if (!resp.ok) {
+    const err = new Error((data && data.message) || data && data.detail || ('HTTP ' + resp.status));
+    err.status = resp.status; throw err;
+  }
+  return data;
+}
+async function streamChat(payload, onEvent){
+  const resp = await fetch(apiUrl('/gu/chat'), {
+    method: 'POST',
+    headers: {'Content-Type':'application/json', 'Authorization':'Bearer ' + KEY},
+    body: JSON.stringify(payload),
+  });
+  if (!resp.ok) {
+    let d = null; try { d = await resp.json(); } catch (e) {}
+    const err = new Error((d && (d.message || d.detail)) || ('HTTP ' + resp.status));
+    err.status = resp.status; throw err;
+  }
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  for (;;){
+    const {done, value} = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, {stream:true});
+    let idx;
+    while ((idx = buf.indexOf('\n\n')) >= 0){
+      const raw = buf.slice(0, idx); buf = buf.slice(idx + 2);
+      let ev = '', data = '';
+      raw.split('\n').forEach(line => {
+        if (line.startsWith('event:')) ev = line.slice(6).trim();
+        else if (line.startsWith('data:')) data = line.slice(5).trim();
+      });
+      if (ev && data){ try { onEvent(ev, JSON.parse(data)); } catch (e) {} }
+    }
+  }
+}
+async function refreshBalance(){
+  if (!KEY) return;
+  try {
+    await apiJSON('/balance?api_key=' + encodeURIComponent(KEY), {noAuth:true});
+  } catch (e) {
+    KEY = ''; localStorage.removeItem('gu_api_key');   // Key 失效：清掉，下次发送自动重连游客 Key
+  }
+}
+
+/* ================= 发送主流程 ================= */
+const inp = document.getElementById('inp');
+const sendBtn = document.getElementById('send');
+const HALL_HINT = '这句话，哪位先生最对路，我来替你荐——点下方场景问题，或直接点一位先生对谈。';
+function setBusy(b){ busy = b; inp.disabled = b; sendBtn.disabled = b; sendBtn.textContent = b ? '…' : '↑'; }
+
+async function send(){
+  const text = inp.value.trim();
+  if (!text || busy) return;
+  inp.value = '';
+  addUser(text);
+  if (!KEY){
+    const ok = await ensureGuestKey();
+    if (!ok){ addMaster('连接智慧团时网络打了个盹，稍候再发一次就能续上。'); return; }
+  }
+  const t = {role:'user', text};
+  if (currentGu) (transcripts[currentGu] = transcripts[currentGu] || []).push(t);
+
+  // 大厅态：关键词路由 → 会诊卡；未命中 → AI 荐人（真模型，不扣次数）
+  if (!currentGu){
+    const r = routeFor(text);
+    if (r){ playConsult(r); return; }
+    setBusy(true);
+    try {
+      const d = await apiJSON('/gu/route', {method:'POST', noAuth:true, body: JSON.stringify({message:text})});
+      if (d && d.gu_id && ADV[d.gu_id]){
+        const a = ADV[d.gu_id];
+        addMaster(`<div class="c-t">为这句话荐位先生<span class="c-cap">知客 · AI 判断</span></div>
+          <div class="c-row">${avxSvg(d.gu_id)}<div class="c-b"><span class="c-n">${esc(a.name)}<span class="bd bd-first">首选</span></span><div class="c-d">${esc(d.reason || a.discipline)}</div></div></div>
+          <button class="cta" data-go="${d.gu_id}" type="button">先与 ${esc((a.name||'').split(' ')[0])} 对谈 →</button>
+          <button class="cta-ghost" data-home="1" type="button">我自己挑一位 →</button>`);
+      } else { addMaster(HALL_HINT); }
+    } catch (e) { addMaster(HALL_HINT); }
+    setBusy(false);
+    return;
+  }
+  await askGu(currentGu, text);
+}
+async function askGu(guId, text){
+  setBusy(true);
+  const w = el(advisorRow(guId)); chat.appendChild(w);
+  const slot = w.querySelector('[data-slot]');
+  slot.innerHTML = '<div class="bub"><div class="typing"><i></i><i></i><i></i></div></div>'; bot();
+  let acc = '';
+  try {
+    await streamChat({gu_id: guId, conversation_id: convIds[guId] || '', message: text}, (ev, d) => {
+      if (ev === 'meta'){ convIds[guId] = d.conv_id; updateQuota(d.quota_left); }
+      else if (ev === 'delta'){
+        acc += d.text || '';
+        const parts = parseSections(acc, headLabel(guId));
+        slot.innerHTML = `<div class="bub">${parts ? fourPartHTML(parts, guId, true) : plainHTML(acc, guId)}</div>`;
+        bot();
+      } else if (ev === 'done'){
+        updateQuota(d.quota_left);
+      } else if (ev === 'error'){
+        throw new Error(d.message || '生成失败');
+      }
+    });
+    const parts = parseSections(acc, headLabel(guId));
+    const useSections = !!(parts && parts.some(p => p));   // 空四段 → 按纯文本兜底
+    (transcripts[guId] = transcripts[guId] || []).push({role:'assistant', sections: useSections ? parts : null, text: useSections ? null : acc});
+    slot.innerHTML = `<div class="bub">${useSections ? fourPartHTML(parts, guId, false) : plainHTML(acc, guId)}${COMPLY(ADV[guId].comply)}</div>`;
+    bot();
+    refreshBalance();
+  } catch (e) {
+    slot.innerHTML = '';
+    if (e.status === 429){
+      slot.innerHTML = `<div class="bub">${subPitchHTML()}</div>`; bot();
+    } else {
+      const hint = e.status === 402 ? '体验期暂不扣点，若见此提示请联系管理员'
+        : (e.status === 401 ? '连接已失效，刷新页面即自动重连' : '请重试或换个问法');
+      showError(e.message || '网络异常', hint);
+    }
+  } finally {
+    setBusy(false);
+  }
+}
+
+/* 每日免费额度用完 → 月享充值方案卡（价格上线时改由 BILLING 下发，先按拍板口径写死） */
+function subPitchHTML(){
+  return `<div class="c-t">今日免费次数已用完<span class="c-cap">古人经营智慧 · 月享方案</span></div>
+    <div class="sec first" style="border-top:none;padding-top:0"><p>今天与六位先生的 <b>10 次</b>对谈额度已用完，<b>明天自动恢复</b>。想每天畅聊不断线，可选月享：</p></div>
+    <div class="c-row"><span class="seal">双</span><div class="c-b"><span class="c-n">双顾问月享 · ¥199/月</span><div class="c-d">任选 2 位先生，30 天不限次对谈</div></div></div>
+    <div class="c-row"><span class="seal">全</span><div class="c-b"><span class="c-n">全席月享 · ¥348/月</span><div class="c-d">六位先生全部畅聊，30 天有效</div></div></div>
+    <div class="pill" style="pointer-events:none">开通通道即将开放 · 明日免费 10 次照常赠送</div>`;
+}
+
+/* ================= 事件（委托） ================= */
+function onTap(e){
+  const home = e.target.closest('[data-home]'); if (home){ welcome(); return; }
+  const gu = e.target.closest('[data-gu]');   // 对谈态底部头像栏：切换顾问
+  if (gu && gu.dataset.gu !== currentGu){
+    enterChat(gu.dataset.gu);   // 直接换人：顶部提示条 + 各顾问保留自己上下文，不注入假消息
+    return;
+  }
+  if (gu) return;   // 点的就是当前顾问，忽略
+  const adv = e.target.closest('[data-adv]'); if (adv){ addUser(`我想与 ${ADV[adv.dataset.adv].name} 对谈`); (transcripts[adv.dataset.adv] = transcripts[adv.dataset.adv] || []).push({role:'user', text:`我想与 ${ADV[adv.dataset.adv].name} 对谈`}); enterChat(adv.dataset.adv); return; }
+  const chip = e.target.closest('[data-chip]'); if (chip){
+    const r = (ROUTING.routes || []).find(x => x.chip === chip.dataset.chip);
+    addUser(chip.dataset.chip); if (r) playConsult(r); return;
+  }
+  const go = e.target.closest('[data-go]'); if (go){ enterChat(go.dataset.go); return; }
+  const kn = e.target.closest('[data-know]'); if (kn){
+    const guId = kn.dataset.know, row = kn.closest('.row');
+    const old = chat.querySelector('.know'); if (old){ old.remove(); }
+    row.insertAdjacentElement('afterend', el(`<div class="bub know"><div class="k-h">演 义 校 正</div><div class="k-q">${esc(ADV[guId].correction)}</div></div>`)); bot(); return;
+  }
+}
+chat.addEventListener('click', onTap);
+document.getElementById('chips').addEventListener('click', onTap);
+sendBtn.addEventListener('click', send);
+inp.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+document.getElementById('badgeFree').addEventListener('click', () => {
+  const n = BILLING.daily_free || 0;
+  addMaster(`<div class="c-t">限时免费说明<span class="c-cap">古人经营智慧 · 体验政策</span></div>
+    <div class="sec first" style="border-top:none;padding-top:0"><p>限时免费体验：每位用户每天赠送 ${n || 10} 次对话（按成功提问计次，回答失败自动返还）。次数用完后可选月享：双顾问 ¥199/月（任选 2 位）· 全席 ¥348/月（六位全畅聊）。正式计费以公告为准，开启前会另行通知。</p></div>`);
+});
+
+/* ================= Key（体验期免注册：静默发游客 Key，无手动弹层） ================= */
+async function ensureGuestKey(){
+  /* 免 Key 直进：后台静默申请游客 Key（免费期不扣点） */
+  try {
+    const d = await apiJSON('/keys', {method:'POST', noAuth:true,
+      body: JSON.stringify({name: '游客' + Math.random().toString(36).slice(2, 7),
+                            contact: '免注册试用', usage: '古人经营智慧-游客'})});
+    KEY = d.api_key; localStorage.setItem('gu_api_key', KEY);
+    refreshBalance();
+    return true;
+  } catch (e) { return false; }
+}
+
+/* 返回商城：MALL_URL 优先，否则浏览器历史返回；无处可返时按钮不显示 */
+(function(){
+  const bk = document.getElementById('bkBtn');
+  if (!bk) return;
+  if (MALL_URL || history.length > 1 || document.referrer){
+    bk.hidden = false;
+    bk.addEventListener('click', () => { if (MALL_URL){ location.href = MALL_URL; } else { history.back(); } });
+  }
+})();
+
+/* ================= 启动 ================= */
+const chipsEl = document.getElementById('chips');
+function renderChips(){
+  /* 大厅态：场景问题 chips；对谈态：六顾问小头像切换栏（点谁切谁） */
+  chipsEl.innerHTML = '';
+  chipsEl.classList.toggle('gu-sw', !!currentGu);
+  if (currentGu){
+    Object.keys(ADV).forEach(k => {
+      const on = k === currentGu;
+      chipsEl.appendChild(el(`<button class="gu-b${on ? ' on' : ''}" data-gu="${k}" type="button"${on ? ' aria-current="true"' : ''}><span class="gvx">${avxSvg(k)}</span><span class="gn">${esc((ADV[k].name || '').split(' ')[0])}</span></button>`));
+    });
+    chipsEl.appendChild(el(`<button class="gu-home" data-home="1" type="button">‹ 大厅</button>`));
+  } else {
+    (ROUTING.routes || []).forEach(r => {
+      chipsEl.appendChild(el(`<button class="chip" data-chip="${esc(r.chip)}" type="button">${esc(r.chip)}</button>`));
+    });
+  }
+}
+function updateQuota(n){
+  /* meta/done 下发的今日剩余次数；null=不限次/未知 */
+  const bf = document.getElementById('badgeFree');
+  if (n == null) return;
+  bf.hidden = false;
+  bf.textContent = n > 0 ? `今日剩 ${n} 次` : '今日免费已用完';
+  bf.style.color = n > 0 ? '' : 'var(--danger)';
+  bf.style.borderColor = n > 0 ? '' : 'var(--danger)';
+}
+async function bootData(){
+  const d = await apiJSON('/gu/advisors', {noAuth:!KEY});
+  ADV = {}; (d.advisors || []).forEach(a => { ADV[a.gu_id] = a; });
+  ROUTING = d.routing || {routes:[], keywords:[]};
+  BILLING = d.billing || BILLING;
+  const bf = document.getElementById('badgeFree');
+  if (BILLING.mode === 'free_trial'){
+    bf.hidden = false;
+    bf.textContent = BILLING.daily_free > 0 ? `限时免费 · 每日 ${BILLING.daily_free} 次` : '体验期 · 免费';
+  }
+  else { bf.hidden = false; bf.textContent = `${BILLING.points_per_call} 点 / 次`; }
+  renderChips();
+}
+(async function init(){
+  try {
+    await bootData();
+    welcome();
+  } catch (e) {
+    addMaster(`服务这会儿不在家（${esc(e.message)}）。确认后端 3007 已启动，或联系管理员。`);
+    return;
+  }
+  if (!KEY){
+    await ensureGuestKey();   // 免注册直进：静默发游客 Key；失败不打扰用户，发送时会自动重试
+  } else {
+    refreshBalance();
+  }
+})();
+</script>
+</body>
+</html>
