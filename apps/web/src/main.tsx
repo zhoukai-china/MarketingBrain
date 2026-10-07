@@ -40,6 +40,7 @@ import "./styles/lanqi-moments.css";
 import "./styles/beauty-video-review.css";
 import "./styles/sitong-design.css";
 import "./styles/eco-mall.css";
+import "./styles/ai-news.css";
 
 // 2026-09-30 产品调整：**默认浅色**（此前 09-21 定的是默认深色）。
 // 缘由：商城首页是固定浅色设计，而工作台/详情页跟主题变量走——没存过偏好的浏览器
@@ -153,6 +154,8 @@ const LiverevDetailPage = lazy(() => import("./marketplace/ComingSoonDetails.js"
 const SalesDetailPage = lazy(() => import("./marketplace/ComingSoonDetails.js").then(module => ({ default: module.SalesDetailPage })));
 const MomentsDetailPage = lazy(() => import("./marketplace/ComingSoonDetails.js").then(module => ({ default: module.MomentsDetailPage })));
 const ProductDetailPage = lazy(() => import("./marketplace/ProductDetailPage.js").then(module => ({ default: module.ProductDetailPage })));
+// AI 资讯页（/agents/ai-news，落地自原型 ai-news-demo-20261006；解读/问答走 /ai-news 接口接大模型）
+const AiNewsPage = lazy(() => import("./marketplace/AiNewsPage.js").then(module => ({ default: module.AiNewsPage })));
 
 type AppStage = "login" | "diagnosis" | "main";
 
@@ -561,6 +564,11 @@ function Root() {
 
   if (path === "/agents" || path === "/agents/") {
     return <EcoMallHomePage />;
+  }
+
+  // AI 资讯页：必须在 agentMatch（/agents/:slug）之前判定，否则会被当成工作台 slug。
+  if (path === "/agents/ai-news" || path === "/agents/ai-news/") {
+    return <AiNewsPage />;
   }
 
   if (productPageMatch) {
