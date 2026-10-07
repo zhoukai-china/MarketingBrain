@@ -1,4 +1,4 @@
-﻿import "dotenv/config";
+import "dotenv/config";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
@@ -45,6 +45,7 @@ import { registerWechatMessageRoutes } from "./routes/wechat-messages.js";
 import { registerWechatKfRoutes } from "./routes/wechat-kf.js";
 import { registerWorkbuddySettingsRoutes } from "./routes/workbuddy-settings.js";
 import { registerMarketplaceRoutes } from "./routes/marketplace.js";
+import { registerAiNewsRoutes } from "./routes/ai-news.js";
 import { registerGeoRoutes } from "./routes/geo.js";
 import { ensureAgentProductCatalog } from "./services/agent-catalog.js";
 import { registerProductRoutes } from "./products/register.js";
@@ -133,6 +134,7 @@ export async function buildServer() {
   await registerWechatMessageRoutes(app, provider);
   await registerWechatKfRoutes(app, provider);
   await registerMarketplaceRoutes(app);
+  await registerAiNewsRoutes(app);
   await registerAgentProductRoutes(app, provider);
   await registerAgentAdminRoutes(app, provider);
   await registerClipLabRoutes(app, provider);

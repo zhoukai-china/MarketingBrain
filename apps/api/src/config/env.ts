@@ -190,6 +190,9 @@ const envSchema = z.object({
   DOMESTIC_COMPATIBLE_BASE_URL: optionalUrl,
   DOMESTIC_COMPATIBLE_MODEL: z.string().trim().min(1).default("deepseek-v4-pro"),
   LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(180000),
+  // AI 资讯页（/ai-news）公开接口的当日 LLM 调用上限（0 = 不限制）：
+  // 页面无需登录即可触发生成，用进程内计数兜底防止被刷爆模型成本。
+  AI_NEWS_DAILY_LLM_LIMIT: z.coerce.number().int().nonnegative().default(300),
   // V4 Pro reasoning_high exhausted a 2048-token budget without final content
   // at 56.8s; keep a bounded 4096-token generation inside this outer deadline.
   FOUNDER_IP_CONTENT_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).default(120_000),
