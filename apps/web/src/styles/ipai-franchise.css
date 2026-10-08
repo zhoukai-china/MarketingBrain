@@ -1,136 +1,393 @@
-/* IP+AI 业绩倍增系统 · 招商加盟版（IpaiFranchisePage.tsx，2026-10-09）
-   设计口径：发丝描边 + 克制单一强调色（橙）+ 真实内容，无渐变文字、无铺满大色块。 */
-
-.ipai{max-width:560px;margin:0 auto;padding:16px 14px 96px}
-.ipai-head{margin-bottom:16px}
-.ipai-head-t{display:flex;align-items:baseline;gap:10px}
-.ipai-head h1{font-size:20px;font-weight:800;color:var(--ink,#12203a);letter-spacing:.2px}
-.ipai-v{font-size:11.5px;font-weight:700;color:#E8651A;background:rgba(232,101,26,.08);border-radius:999px;padding:4px 10px}
-.ipai-head p{font-size:12.5px;color:var(--sub,#7d8ea3);line-height:1.8;margin-top:8px}
-.ipai-spec-link{margin-top:10px;font-size:12.5px;color:#E8651A;background:none;border:1px solid rgba(232,101,26,.3);
-  border-radius:10px;padding:7px 12px;cursor:pointer}
-
-.ipai-page{display:flex;flex-direction:column;gap:12px}
-.ipai-hint{font-size:12px;color:var(--sub,#7d8ea3);line-height:1.7;background:var(--card2,rgba(255,255,255,.06));
-  border:1px dashed var(--line,#eceff5);border-radius:12px;padding:10px 12px}
-.ipai-card{background:var(--card,#fff);border:1px solid var(--line,#eceff5);border-radius:15px;padding:14px 16px}
-.ipai-card-h{font-size:13.5px;font-weight:700;color:var(--ink,#12203a);margin-bottom:10px;letter-spacing:.2px}
-
-/* 头像占位（真人形象照待生成） */
-.ipai-ava{width:38px;height:38px;flex:none;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;
-  background:rgba(232,101,26,.10);border:1px solid rgba(232,101,26,.28);color:#C24F0E;font-weight:800;font-size:16px}
-.ipai-ava.sm{width:32px;height:32px;font-size:14px;border-radius:10px}
-.ipai-ava.lg{width:46px;height:46px;font-size:19px;border-radius:13px}
-
-/* 今日推荐 */
-.ipai-rec-row{display:flex;gap:12px;align-items:center}
-.ipai-rec-m b{display:block;font-size:14.5px;color:var(--ink,#12203a)}
-.ipai-rec-m span{display:block;font-size:12.5px;color:var(--sub,#7d8ea3);margin-top:2px}
-
-/* 闭环入口 */
-.ipai-loop{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.ipai-loop-it{display:flex;flex-direction:column;align-items:center;gap:3px;background:var(--card2,rgba(255,255,255,.05));
-  border:1px solid var(--line,#eceff5);border-radius:12px;padding:10px 6px;cursor:pointer;transition:.18s}
-.ipai-loop-it:hover{border-color:rgba(232,101,26,.45);color:#E8651A}
-.ipai-loop-it b{font-size:13px}
-.ipai-loop-it span{font-size:11.5px;color:var(--sub,#7d8ea3)}
-
-/* 最近生成 */
-.ipai-gen{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line,#eceff5);cursor:pointer}
-.ipai-gen:first-of-type{border-top:0}
-.ipai-gen-m{flex:1;min-width:0}
-.ipai-gen-m b{display:block;font-size:13.5px;color:var(--ink,#12203a)}
-.ipai-gen-m span{display:block;font-size:12px;color:var(--sub,#7d8ea3);margin-top:1px}
-.ipai-gen-t{font-size:11px;color:#98a4b0}
-.ipai-arrow{color:#98a4b0;font-size:16px}
-
-/* 待办 */
-.ipai-todo b{display:block;font-size:13.5px;color:var(--ink,#12203a)}
-.ipai-todo span{display:block;font-size:12px;color:var(--sub,#7d8ea3);margin:3px 0 9px}
-
-/* 高管卡 */
-.ipai-agent{display:flex;gap:12px;align-items:flex-start;background:var(--card,#fff);
-  border:1px solid var(--line,#eceff5);border-radius:15px;padding:13px 14px}
-.ipai-agent-m{flex:1;min-width:0}
-.ipai-agent-m b{font-size:15px;color:var(--ink,#12203a)}
-.ipai-role{display:block;font-size:12px;color:var(--sub,#7d8ea3);margin-top:1px}
-.ipai-scenes{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.ipai-chip{font-size:11px;color:var(--sub,#7d8ea3);background:var(--card2,rgba(255,255,255,.06));
-  border:1px solid var(--line,#eceff5);border-radius:999px;padding:3px 9px}
-.ipai-price{margin-top:8px;font-size:13px;font-weight:700;color:#C24F0E;font-variant-numeric:tabular-nums}
-.ipai-price i{font-style:normal;font-weight:400;font-size:11.5px;color:#98a4b0;margin-left:6px}
-
-/* 定时任务 */
-.ipai-sch{display:flex;gap:12px;align-items:center;background:var(--card,#fff);
-  border:1px solid var(--line,#eceff5);border-radius:15px;padding:12px 14px}
-.ipai-when{flex:none;width:74px;font-size:11.5px;line-height:1.5;color:var(--sub,#7d8ea3)}
-.ipai-sch-m{flex:1;min-width:0}
-.ipai-sch-m b{display:block;font-size:13.5px;color:var(--ink,#12203a)}
-.ipai-sch-m span{display:block;font-size:12px;color:var(--sub,#7d8ea3);margin-top:1px}
-.ipai-tgl{flex:none;width:42px;height:24px;border-radius:999px;border:1px solid var(--line,#eceff5);
-  background:var(--card2,rgba(255,255,255,.06));position:relative;cursor:pointer;transition:.2s}
-.ipai-tgl i{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#c3ccd8;transition:.2s}
-.ipai-tgl.on{border-color:rgba(232,101,26,.5);background:rgba(232,101,26,.14)}
-.ipai-tgl.on i{left:20px;background:#E8651A}
-
-.ipai-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.ipai-form label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--sub,#7d8ea3)}
-.ipai-form select{background:var(--card,#fff);border:1px solid var(--line,#eceff5);border-radius:10px;
-  padding:8px 10px;font-size:13px;color:var(--ink,#12203a);font-family:inherit}
-.ipai-form .ipai-btn{grid-column:1/-1}
-
-/* 我的 */
-.ipai-rights{border-color:rgba(232,101,26,.28)}
-.ipai-r-tag{font-size:10.5px;font-weight:700;color:#C24F0E;background:rgba(232,101,26,.08);border-radius:6px;padding:2px 7px}
-.ipai-rights h3{font-size:16px;margin:8px 0 3px;color:var(--ink,#12203a)}
-.ipai-r-sub{font-size:12px;color:var(--sub,#7d8ea3)}
-.ipai-r-price{margin-top:8px}
-.ipai-r-price b{font-size:22px;color:#C24F0E}
-.ipai-r-price i{font-style:normal;font-size:11.5px;color:#98a4b0;margin-left:6px}
-.ipai-billing{list-style:none;display:flex;flex-direction:column;gap:6px}
-.ipai-billing li{font-size:13px;color:var(--ink,#12203a);padding-left:16px;position:relative}
-.ipai-billing li::before{content:"";position:absolute;left:2px;top:7px;width:6px;height:6px;border-radius:50%;background:#E8651A}
-.ipai-mem{display:flex;gap:12px;align-items:center}
-.ipai-mem b{display:block;font-size:13.5px;color:var(--ink,#12203a)}
-.ipai-mem span{display:block;font-size:12px;color:var(--sub,#7d8ea3);margin-top:2px}
-.ipai-mem>div:first-child{flex:1}
-
-.ipai-btn{border:1px solid rgba(232,101,26,.45);background:rgba(232,101,26,.1);color:#C24F0E;border-radius:11px;
-  padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:.18s}
-.ipai-btn:hover{background:rgba(232,101,26,.16)}
-.ipai-btn.ghost{background:none}
-.ipai-btn.wide{width:100%;padding:11px;text-align:center}
-
-/* 底部 tab */
-.ipai-tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;justify-content:center;gap:6px;
-  background:rgba(255,255,255,.94);backdrop-filter:blur(12px);border-top:1px solid var(--line,#eceff5);padding:8px 10px}
-.ipai-tab{flex:1;max-width:110px;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;
-  cursor:pointer;color:var(--sub,#7d8ea3);font-size:11px;font-family:inherit;padding:4px 0}
-.ipai-tab i{font-size:17px;font-style:normal}
-.ipai-tab.on{color:#E8651A;font-weight:700}
-
-.ipai-toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);background:rgba(18,32,58,.94);color:#fff;
-  border-radius:12px;padding:9px 16px;font-size:12.5px;z-index:30}
-
-/* 说明页 */
-.ipai-spec{padding-bottom:40px}
-.ipai-sec{margin-bottom:18px}
-.ipai-sec h2{font-size:15px;font-weight:800;color:var(--ink,#12203a);margin-bottom:8px}
-.ipai-spec-card{background:var(--card,#fff);border:1px solid var(--line,#eceff5);border-radius:13px;padding:12px 14px;margin-bottom:8px}
-.ipai-spec-card b{display:block;font-size:13.5px;color:var(--ink,#12203a);margin-bottom:3px}
-.ipai-spec-card p{font-size:12.5px;color:var(--sub,#7d8ea3);line-height:1.8}
-.ipai-steps{list-style:none;display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
-.ipai-steps li{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--ink,#12203a);line-height:1.7}
-.ipai-steps li span{flex:none;width:22px;height:22px;border-radius:50%;background:rgba(232,101,26,.12);
-  color:#C24F0E;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center}
-.ipai-rows{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
-.ipai-row{display:flex;gap:10px;background:var(--card,#fff);border:1px solid var(--line,#eceff5);
-  border-radius:12px;padding:10px 12px}
-.ipai-row b{flex:none;width:76px;font-size:12.5px;color:var(--ink,#12203a)}
-.ipai-row span{font-size:12.5px;color:var(--sub,#7d8ea3);line-height:1.7}
-.ipai-para{font-size:12.5px;color:var(--sub,#7d8ea3);line-height:1.85;margin-bottom:6px}
-
-@media (max-width:520px){
-  .ipai-loop{grid-template-columns:repeat(2,1fr)}
-  .ipai-form{grid-template-columns:1fr}
+/* IP+AI 业绩倍增系统 · 招商加盟版（原型 ipai-franchise-demo-20261008.html 原样移植，2026-10-09）
+   说明：样式**完整照搬原型**，仅在每条选择器前加 .ipai-root 做作用域隔离，避免污染全局。
+   任何视觉调整都应回到原型改，再同步这里，保证「原型 = 系统页面」。 */
+:root{
+  --bg:#F4F7FC; --card:#fff; --ink:#1c2733; --sub:#5b6b7c; --line:#e3e9f2;
+  --grn:#E8651A; --grn-deep:#cf5a10; --grn-mid:#c24f0e;
+  --grn-soft:#fdeee2; --grn-line:#f7d4b8;
+  --gold:#c9a45c; --gold-soft:#f7f1e2; --gold-line:#e4d5ae;
+  --orange:#E8651A; --amber:#b26a00; --red:#d64545; --blue:#2563eb;
 }
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--ink);font-size:14px;padding-bottom:92px}
+.ipai-root button {font-family:inherit;cursor:pointer}
+.ipai-root b {font-weight:700}
+.ipai-root /* ===== topbar（系列统一：白底 · 品牌橙点） ===== */
+.topbar {position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:10px;background:#fff;padding:11px 14px;border-bottom:1px solid var(--line)}
+.ipai-root .brand {font-weight:800;font-size:16px;letter-spacing:.2px}
+.ipai-root .brand i {font-style:normal;color:var(--orange)}
+.ipai-root .topbar .sp {flex:1}
+.ipai-root .credits {font-size:12px;color:var(--sub);background:#f5f7fa;border:1px solid var(--line);border-radius:999px;padding:6px 11px;font-weight:600;white-space:nowrap}
+.ipai-root .credits b {color:var(--ink)}
+.ipai-root .recharge {background:var(--orange);color:#fff;border:0;border-radius:999px;padding:7px 15px;min-height:34px;font-weight:700;font-size:13px}
+.ipai-root /* ===== 业务头：深青蓝 × 橙（系列统一） ===== */
+.hero {position:relative;overflow:hidden;color:#fff;background:linear-gradient(120deg,#17313f,#2a4254);padding:20px 16px 16px}
+.ipai-root .hero::before {content:'';position:absolute;right:-70px;top:-90px;width:230px;height:230px;border-radius:50%;background:radial-gradient(circle,rgba(201,164,92,.28),transparent 68%)}
+.ipai-root .hero::after {content:'';position:absolute;left:-50px;bottom:-110px;width:190px;height:190px;border-radius:50%;background:radial-gradient(circle,rgba(232,101,26,.2),transparent 70%)}
+.ipai-root .hero-in {position:relative;z-index:1}
+.ipai-root .hero-top {display:flex;align-items:center;gap:12px}
+.ipai-root .hero-ava {width:54px;height:54px;border-radius:16px;flex:none;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff;background:linear-gradient(135deg,#d8b878,#8a6a2a);box-shadow:0 8px 20px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.4)}
+.ipai-root .hero-t h1 {font-size:20px;letter-spacing:.3px}
+.ipai-root .hero-t .hero-sub {font-size:12px;color:#c3d2e0;margin-top:4px}
+.ipai-root .hero-t .hero-sub em {font-style:normal;color:#ffb27a}
+.ipai-root .demo-btn {margin-left:auto;flex:none;background:rgba(255,255,255,.1);border:1px solid rgba(201,164,92,.65);color:#f3e2b8;font-size:12px;font-weight:700;border-radius:999px;padding:9px 13px;min-height:36px}
+.ipai-root .hero-slogan {position:relative;z-index:1;margin-top:14px;font-size:15px;font-weight:700;color:#eef4f8;letter-spacing:.5px}
+.ipai-root .hero-slogan small {display:block;font-size:11px;font-weight:400;color:#a9c0d4;margin-top:3px;letter-spacing:0}
+.ipai-root /* 增长五环条 */
+.loop-bar {position:relative;z-index:1;margin-top:14px;display:flex;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:14px;padding:10px 4px;backdrop-filter:blur(2px)}
+.ipai-root .loop-it {flex:1;text-align:center;color:#dfe8f0;border:0;background:none;padding:2px 0;font-size:10.5px;line-height:1.35}
+.ipai-root .loop-it:not(:last-child) {border-right:1px dashed rgba(255,255,255,.18)}
+.ipai-root .loop-dot {width:26px;height:26px;margin:0 auto 5px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;background:rgba(255,255,255,.1);border:1px solid rgba(201,164,92,.75);color:#ecd9a8}
+.ipai-root .loop-it b {display:block;font-size:12px;color:#fff;font-weight:700}
+.ipai-root .loop-it span {color:#9cb2c4;font-size:10px}
+.ipai-root .loop-it:active {background:rgba(255,255,255,.08);border-radius:10px}
+.ipai-root /* ===== 主体布局 ===== */
+main {padding:12px 12px 8px;max-width:1120px}
+.ipai-root .page {display:none}
+.ipai-root .page.act {display:block}
+.ipai-root .card {background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 10px rgba(23,58,46,.05)}
+.ipai-root .card-h {display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px;margin-bottom:11px}
+.ipai-root .card-h .h-ic {width:26px;height:26px;border-radius:8px;background:var(--grn-soft);display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+.ipai-root .card-h .more {margin-left:auto;font-size:12px;color:var(--grn);font-weight:600;border:0;background:none;min-height:30px}
+.ipai-root .mini-btn {min-height:34px;padding:0 13px;border-radius:9px;border:1px solid var(--grn-line);background:#fff;color:var(--grn);font-size:12.5px;font-weight:700;white-space:nowrap}
+.ipai-root .mini-btn.go {background:var(--grn);border-color:var(--grn);color:#fff}
+.ipai-root .mini-btn:disabled {opacity:.55;cursor:not-allowed}
+.ipai-root .big-btn {width:100%;min-height:46px;border:0;border-radius:12px;background:var(--grn);color:#fff;font-size:15px;font-weight:800;letter-spacing:.5px}
+.ipai-root .big-btn:disabled {background:#9dbfb1}
+.ipai-root .demo-badge {display:inline-block;font-size:10px;color:var(--amber);background:#fdf6e3;border:1px solid #f0dfb2;border-radius:6px;padding:2px 6px;font-weight:600;vertical-align:middle}
+.ipai-root /* ===== Tab1 权益卡 ===== */
+.rights {position:relative;border:1px solid var(--gold-line);background:linear-gradient(135deg,#fffdf6,#faf4e4);overflow:hidden}
+.ipai-root .rights::after {content:'⚡';position:absolute;right:-6px;bottom:-14px;font-size:64px;opacity:.08}
+.ipai-root .rights .r-tag {font-size:10.5px;color:#8a6a2a;background:var(--gold-soft);border:1px solid var(--gold-line);border-radius:6px;padding:2px 7px;font-weight:700}
+.ipai-root .rights h3 {font-size:16px;margin:8px 0 4px}
+.ipai-root .rights .r-sub {font-size:12px;color:var(--sub)}
+.ipai-root .r-price {margin:7px 0 5px}
+.ipai-root .r-price b {font-size:22px;color:#5c4c22}
+.ipai-root .r-price i {font-style:normal;font-size:11px;color:#98a4b0;margin-left:6px}
+.ipai-root .zone-row {position:relative;z-index:1;margin-top:12px}
+.ipai-root .zone-tag {display:inline-block;font-size:11px;font-weight:800;letter-spacing:2px;color:#5c4c22;background:linear-gradient(135deg,#f3e2b8,#e4d5ae);border-radius:999px;padding:5px 14px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.ipai-root .chip-g {display:inline-block;font-size:10px;font-weight:700;color:#eaf1f7;border:1px solid rgba(201,164,92,.55);background:rgba(255,255,255,.07);border-radius:999px;padding:3px 9px;letter-spacing:.5px}
+.ipai-root .r-list {display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.ipai-root .r-list span {font-size:11.5px;color:#5c4c22;background:#fff;border:1px solid var(--gold-line);border-radius:999px;padding:4px 10px}
+.ipai-root .r-foot {display:flex;align-items:center;justify-content:space-between;margin-top:12px}
+.ipai-root .r-foot .r-date {font-size:11.5px;color:var(--sub)}
+.ipai-root /* ===== 会员条（一行 · 深青蓝×金） ===== */
+.mbar {display:flex;align-items:center;gap:10px;background:linear-gradient(120deg,#17313f,#2a4254);border-radius:14px;padding:12px 14px;margin-bottom:12px;position:relative;overflow:hidden;box-shadow:0 4px 14px rgba(23,49,63,.28)}
+.ipai-root .mbar::after {content:'';position:absolute;right:-44px;top:-64px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(201,164,92,.28),transparent 70%)}
+.ipai-root .mbar>* {position:relative;z-index:1}
+.ipai-root .mbar-badge {flex:none;font-size:11px;font-weight:800;letter-spacing:.5px;color:#3a2f12;background:linear-gradient(135deg,#f3e2b8,#d8b878);border-radius:8px;padding:5px 9px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.ipai-root .mbar-t {flex:1;min-width:0}
+.ipai-root .mbar-t b {display:block;font-size:13.5px;color:#fff}
+.ipai-root .mbar-t span {display:block;font-size:10.5px;color:#a9c0d4;margin-top:2px}
+.ipai-root .mbar-link {flex:none;min-height:32px;border:1px solid rgba(201,164,92,.65);background:rgba(255,255,255,.08);color:#f3e2b8;font-size:12px;font-weight:700;border-radius:999px;padding:7px 12px}
+.ipai-root /* ===== 定时任务开关 ===== */
+.tgl {flex:none;width:44px;height:26px;border-radius:999px;border:1px solid var(--grn-line);background:#eef2f6;position:relative;transition:all .2s;padding:0}
+.ipai-root .tgl::after {content:'';position:absolute;left:2px;top:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.18);transition:all .2s}
+.ipai-root .tgl.on {background:var(--grn);border-color:var(--grn)}
+.ipai-root .tgl.on::after {left:20px}
+.ipai-root /* ===== 定时任务行（任务页） ===== */
+.sch {display:flex;align-items:center;gap:11px;padding:10px 2px;border-bottom:1px dashed var(--line)}
+.ipai-root .sch:last-of-type {border-bottom:0;padding-bottom:2px}
+.ipai-root .sch:first-of-type {padding-top:2px}
+.ipai-root .sch-when {flex:none;width:64px;text-align:center;background:var(--grn-soft);border:1px solid var(--grn-line);border-radius:10px;padding:6px 2px;font-size:10.5px;color:var(--grn-mid);font-weight:700;line-height:1.45}
+.ipai-root .sch .tk-t {flex:1;min-width:0}
+.ipai-root .sch .tk-t b {font-size:13.5px;display:block}
+.ipai-root .sch .tk-t span {font-size:11.5px;color:var(--sub);display:block;margin-top:2px}
+.ipai-root .card-note {font-size:10.5px;color:#98a4b0;margin-top:9px;line-height:1.6}
+.ipai-root /* ===== 录音卡 API 连接 ===== */
+.api-st {font-size:10.5px;font-weight:700;color:#98a4b0;background:#f1f4f7;border:1px solid var(--line);border-radius:999px;padding:3px 9px;white-space:nowrap}
+.ipai-root .api-st.on {color:var(--grn-mid);background:var(--grn-soft);border-color:var(--grn-line)}
+.ipai-root .api-row {display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.ipai-root .api-row span {flex:none;width:58px;font-size:12px;color:var(--sub);font-weight:600}
+.ipai-root .api-row input {flex:1;min-width:0;height:36px;border:1px solid var(--line);border-radius:9px;padding:0 10px;font-size:12.5px;color:var(--ink);background:#f8fafc}
+.ipai-root .api-row input:focus {outline:none;border-color:var(--grn);background:#fff}
+.ipai-root .api-log {display:none;margin-top:11px;background:#fdf6f0;border:1px solid var(--grn-line);border-radius:12px;padding:11px}
+.ipai-root .api-line {font-size:12.5px;line-height:1.7;color:#2c3e36}
+.ipai-root .api-line.ok {color:var(--grn-mid);font-weight:700}
+.ipai-root .api-line .mini-btn {min-height:28px;padding:0 10px;font-size:12px;margin-top:6px}
+.ipai-root /* ===== 记忆与进化 ===== */
+.mem-it {display:flex;align-items:flex-start;gap:10px;padding:10px 2px;border-bottom:1px dashed var(--line)}
+.ipai-root .mem-it:last-of-type {border-bottom:0}
+.ipai-root .mem-tag {flex:none;font-size:10.5px;font-weight:700;color:var(--grn-mid);background:var(--grn-soft);border:1px solid var(--grn-line);border-radius:7px;padding:4px 8px;margin-top:1px}
+.ipai-root .mem-b {flex:1;font-size:12.5px;line-height:1.6;min-width:0}
+.ipai-root .mem-ops {flex:none;display:flex;gap:2px}
+.ipai-root .mem-ops button {border:0;background:none;font-size:13px;opacity:.45;min-height:26px;min-width:26px;padding:0}
+.ipai-root .mem-ops button:active {opacity:1}
+.ipai-root /* ===== 记忆自定义编辑 ===== */
+.mem-ta {width:100%;min-height:56px;border:1px solid var(--grn-line);border-radius:10px;padding:8px 10px;font-size:12.5px;line-height:1.6;color:var(--ink);background:#fff;resize:vertical;font-family:inherit}
+.ipai-root .mem-ta:focus {outline:none;border-color:var(--grn)}
+.ipai-root .mem-eops {display:flex;gap:8px;margin-top:8px}
+.ipai-root .mem-eops .mini-btn {min-height:30px;padding:0 12px;font-size:12px}
+.ipai-root .mem-add {margin-top:10px}
+.ipai-root /* ===== 今日推荐数字高管 ===== */
+.rec-ag {display:flex;align-items:center;gap:11px}
+.ipai-root .rec-ag .ava {width:44px;height:44px;border-radius:13px;flex:none}
+.ipai-root .rec-ag .rec-main {flex:1;min-width:0}
+.ipai-root .rec-ag .rec-main b {font-size:14px;display:block}
+.ipai-root .rec-ag .rec-main span {display:block;font-size:11.5px;color:var(--sub);margin-top:3px;line-height:1.5}
+.ipai-root .rec-acts {display:flex;flex-direction:column;gap:6px;flex:none}
+.ipai-root .rec-acts .mini-btn {min-height:30px;padding:0 11px;font-size:12px}
+.ipai-root /* ===== 最近生成 ===== */
+.gen-it {display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px dashed var(--line);cursor:pointer}
+.ipai-root .gen-it:active {background:#fafbfc;border-radius:8px}
+.ipai-root .gen-it:last-child {border-bottom:0}
+.ipai-root .gen-ic {width:36px;height:36px;border-radius:10px;background:var(--grn-soft);display:flex;align-items:center;justify-content:center;font-size:16px;flex:none}
+.ipai-root .gen-m {flex:1;min-width:0}
+.ipai-root .gen-m b {display:block;font-size:13px}
+.ipai-root .gen-m span {display:block;font-size:11px;color:var(--sub);margin-top:2px}
+.ipai-root .gen-m .rc-t {font-size:10.5px;color:#98a4b0}
+.ipai-root .gen-arrow {flex:none;color:#c2ccd6;font-size:14px}
+.ipai-root /* ===== 今日任务 ===== */
+.task {display:flex;align-items:center;gap:11px;padding:11px 4px;border-bottom:1px dashed var(--line)}
+.ipai-root .task:last-child {border-bottom:0;padding-bottom:2px}
+.ipai-root .task:first-of-type {padding-top:2px}
+.ipai-root .tk-ic {width:38px;height:38px;border-radius:11px;background:var(--grn-soft);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
+.ipai-root .task .tk-t {flex:1;min-width:0}
+.ipai-root .task .tk-t b {font-size:13.5px;display:block}
+.ipai-root .task .tk-t span {font-size:11.5px;color:var(--sub);display:block;margin-top:2px}
+.ipai-root .task.done .tk-t b {color:#97a3b0;text-decoration:line-through}
+.ipai-root .task.done .tk-ic {background:#eef2f6}
+.ipai-root .task .tk-done {display:none;color:var(--grn);font-weight:800;font-size:15px}
+.ipai-root .task.done .tk-done {display:inline}
+.ipai-root /* ===== 玩法卡 ===== */
+.play {display:flex;gap:10px;align-items:flex-start;padding:11px 4px;border-bottom:1px dashed var(--line)}
+.ipai-root .play:last-child {border-bottom:0;padding-bottom:2px}
+.ipai-root .play .p-ic {width:38px;height:38px;border-radius:11px;background:var(--gold-soft);border:1px solid var(--gold-line);display:flex;align-items:center;justify-content:center;font-size:17px;flex:none}
+.ipai-root .play .tk-t b {font-size:13.5px;display:block}
+.ipai-root .play .tk-t span {font-size:11.5px;color:var(--sub);display:block;margin-top:2px}
+.ipai-root /* ===== Tab2 货架 ===== */
+.subtabs {display:flex;gap:8px;overflow-x:auto;padding:2px 2px 12px;scrollbar-width:none}
+.ipai-root .subtabs::-webkit-scrollbar {display:none}
+.ipai-root .subtabs button {flex:none;min-height:34px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--sub);font-size:12.5px;font-weight:600}
+.ipai-root .subtabs button.on {background:var(--grn-deep);border-color:var(--grn-deep);color:#fff}
+.ipai-root .g-title {font-size:13px;font-weight:800;color:var(--sub);margin:4px 2px 10px;display:flex;align-items:center;gap:7px}
+.ipai-root .g-title::before {content:'';width:4px;height:14px;border-radius:3px;background:var(--grn)}
+.ipai-root .g-title .g-n {font-weight:600;font-size:11.5px;color:#8fa39a}
+.ipai-root .agent {padding:13px}
+.ipai-root .ag-top {display:flex;align-items:center;gap:10px}
+.ipai-root .ava {width:46px;height:46px;border-radius:14px;flex:none;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:800;color:#fff;position:relative;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 3px 8px rgba(13,43,33,.18)}
+.ipai-root .ava::after {content:'';position:absolute;left:5px;top:4px;width:16px;height:8px;border-radius:50%;background:rgba(255,255,255,.28);filter:blur(1px)}
+.ipai-root .a1 {background:linear-gradient(135deg,#1c5a40,#35a377)}
+.ipai-root .a2 {background:linear-gradient(135deg,#0f5a4e,#23a68f)}
+.ipai-root .a3 {background:linear-gradient(135deg,#8a6a2a,#d4b06a)}
+.ipai-root .a4 {background:linear-gradient(135deg,#245a72,#3f93b3)}
+.ipai-root .a5 {background:linear-gradient(135deg,#3a5a22,#6f9c3a)}
+.ipai-root .a6 {background:linear-gradient(135deg,#3f3350,#7a68a8)}
+.ipai-root .a7 {background:linear-gradient(135deg,#14614a,#4cc08a)}
+.ipai-root .a8 {background:linear-gradient(135deg,#5a3a1c,#b3823f)}
+.ipai-root .a9 {background:linear-gradient(135deg,#7a4020,#c07a45)}
+.ipai-root .a10 {background:linear-gradient(135deg,#0d3a4a,#2b8ab0)}
+.ipai-root .b1 {background:linear-gradient(135deg,#1a3a5c,#3d6f9e)}
+.ipai-root .b2 {background:linear-gradient(135deg,#234a63,#5b93b0)}
+.ipai-root .b3 {background:linear-gradient(135deg,#7a3030,#c06a50)}
+.ipai-root .b4 {background:linear-gradient(135deg,#3a3a66,#7d74c2)}
+.ipai-root .b5 {background:linear-gradient(135deg,#8a5a1a,#d6a44e)}
+.ipai-root .b6 {background:linear-gradient(135deg,#5c4426,#a8825a)}
+.ipai-root .b7 {background:linear-gradient(135deg,#6a2e56,#b8689c)}
+.ipai-root .b8 {background:linear-gradient(135deg,#1e5546,#55a985)}
+.ipai-root .b9 {background:linear-gradient(135deg,#31404f,#6d85a0)}
+.ipai-root .ava {overflow:hidden}
+.ipai-root .ava .ava-img {width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit}
+.ipai-root .agent .ava {box-shadow:0 0 0 2.5px #fff,0 0 0 4.5px var(--grn-line),0 6px 14px rgba(0,0,0,.14)}
+.ipai-root .ag-info {flex:1;min-width:0}
+.ipai-root .ag-info b {font-size:15px}
+.ipai-root .ag-role {display:block;font-size:11.5px;color:var(--sub);margin-top:2px}
+.ipai-root .live {flex:none;font-size:10.5px;color:var(--grn);background:var(--grn-soft);border:1px solid var(--grn-line);border-radius:999px;padding:3px 8px;font-weight:700;white-space:nowrap}
+.ipai-root .live.soon {color:var(--amber);background:#fdf6e3;border-color:#f0dfb2}
+.ipai-root .ag-desc {font-size:12.5px;color:var(--sub);line-height:1.6;margin:10px 0}
+.ipai-root .ag-foot {display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ipai-root .price {font-size:11.5px;color:var(--sub)}
+.ipai-root .price b {font-size:15px;color:var(--grn-mid)}
+.ipai-root .price i {font-style:normal;font-size:10.5px;color:#98a4b0;margin-left:3px}
+.ipai-root .group {margin-bottom:4px}
+.ipai-root /* ===== Tab3 任务中心 ===== */
+.tk-prog {display:flex;align-items:center;gap:10px;background:var(--grn-soft);border:1px solid var(--grn-line);border-radius:11px;padding:10px 12px;margin-bottom:6px;font-size:12.5px;color:var(--grn-mid);font-weight:600}
+.ipai-root .tk-prog .bar {flex:1;height:8px;background:#fff;border:1px solid var(--grn-line);border-radius:99px;overflow:hidden}
+.ipai-root .tk-prog .bar i {display:block;height:100%;width:0;background:var(--grn);border-radius:99px;transition:width .5s}
+.ipai-root .week {display:flex;gap:6px;margin-top:4px}
+.ipai-root .wd {flex:1;text-align:center;background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:8px 2px}
+.ipai-root .wd span {display:block;font-size:9.5px;color:var(--sub)}
+.ipai-root .wd b {display:block;font-size:11.5px;margin-top:3px;font-weight:700;color:var(--grn-mid)}
+.ipai-root .wd.today {background:var(--gold-soft);border-color:var(--gold-line)}
+.ipai-root .wd.today span {color:#8a6a2a;font-weight:700}
+.ipai-root /* ===== Tab4 我的 ===== */
+.bal {display:flex;align-items:center;gap:12px}
+.ipai-root .bal .bal-n {flex:1}
+.ipai-root .bal .bal-n em {font-style:normal;display:block;font-size:11.5px;color:var(--sub);margin-bottom:3px}
+.ipai-root .bal .bal-n b {font-size:26px;color:var(--grn-mid);font-variant-numeric:tabular-nums}
+.ipai-root .bal .bal-n i {font-style:normal;font-size:12px;color:var(--sub);margin-left:4px}
+.ipai-root .rec-list .rec {display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px dashed var(--line);font-size:12.5px}
+.ipai-root .rec-list .rec:last-child {border-bottom:0}
+.ipai-root .rec .rc-t {color:var(--sub);flex:none;font-size:11.5px;width:64px}
+.ipai-root .rec .rc-m {flex:1;min-width:0}
+.ipai-root .rec .rc-m b {display:block}
+.ipai-root .rec .rc-m span {color:var(--sub);font-size:11px}
+.ipai-root .rec .rc-c {color:var(--sub);font-size:11.5px;flex:none}
+.ipai-root .help-it {border-bottom:1px dashed var(--line)}
+.ipai-root .help-it:last-child {border-bottom:0}
+.ipai-root .help-q {width:100%;text-align:left;background:none;border:0;padding:11px 2px;font-size:13.5px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:8px}
+.ipai-root .help-q::after {content:'＋';margin-left:auto;color:var(--grn);font-weight:800}
+.ipai-root .help-it.open .help-q::after {content:'－'}
+.ipai-root .help-a {display:none;font-size:12.5px;color:var(--sub);line-height:1.7;padding:0 2px 12px}
+.ipai-root .help-it.open .help-a {display:block}
+.ipai-root /* ===== 免责条 ===== */
+.redline-tip {font-size:11px;color:#8a7550;background:#fdfaf1;border:1px dashed var(--gold-line);border-radius:12px;padding:10px 12px;line-height:1.7;margin:2px 0 14px}
+.ipai-root /* 产品说明入口 */
+.spec-link {display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:44px;margin:12px 0 2px;border:1px solid var(--line);background:#fff;border-radius:14px;font-size:13px;font-weight:700;color:var(--ink);box-shadow:0 2px 8px rgba(20,40,60,.05)}
+.ipai-root .spec-link:active {transform:scale(.99)}
+.ipai-root /* ===== 派单弹层 ===== */
+.mask {position:fixed;inset:0;z-index:90;background:rgba(13,26,38,.58);display:none;align-items:flex-end;justify-content:center}
+.ipai-root .mask.on {display:flex}
+.ipai-root .sheet {width:100%;max-width:560px;background:#fff;border-radius:18px 18px 0 0;padding:15px 15px calc(16px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto;animation:sheetUp .28s ease}
+@keyframes sheetUp{from{transform:translateY(40px);opacity:.4}
+to{transform:none;opacity:1}
+}
+.ipai-root .sh-head {display:flex;align-items:center;gap:10px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.ipai-root .sh-head .sh-n b {font-size:16px;display:block}
+.ipai-root .sh-head .sh-n span {font-size:11.5px;color:var(--sub)}
+.ipai-root .sh-x {margin-left:auto;border:0;background:#f2f6f4;width:30px;height:30px;border-radius:50%;font-size:13px;color:var(--sub);flex:none}
+.ipai-root .sh-price {margin:11px 0 0;font-size:12.5px;color:var(--sub)}
+.ipai-root .sh-price b {color:var(--grn-mid);font-size:15px}
+.ipai-root .sh-label {font-size:12px;color:var(--sub);margin:13px 0 8px;font-weight:600}
+.ipai-root .chips {display:flex;flex-wrap:wrap;gap:8px}
+.ipai-root .chips button {min-height:36px;padding:0 13px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink);font-size:12.5px;font-weight:600}
+.ipai-root .chips button.on {background:var(--grn-soft);border-color:var(--grn);color:var(--grn);font-weight:700}
+.ipai-root .od-gen {display:none;margin-top:14px}
+.ipai-root .gp-bar {height:9px;background:#eef2f6;border-radius:99px;overflow:hidden;border:1px solid var(--grn-line)}
+.ipai-root .gp-bar i {display:block;height:100%;width:0;background:linear-gradient(90deg,#f5955c,var(--grn));border-radius:99px;transition:width 1.5s ease}
+.ipai-root .gp-step {font-size:12px;color:var(--sub);margin-top:8px}
+.ipai-root .od-out {display:none;margin-top:14px}
+.ipai-root .oc {background:#fdf6f0;border:1px solid var(--grn-line);border-radius:13px;padding:13px}
+.ipai-root .oc-h {display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:800;color:var(--grn-mid);margin-bottom:9px}
+.ipai-root .oc-h .demo-badge {margin-left:auto}
+.ipai-root .oc-b {font-size:13px;line-height:1.75;white-space:pre-wrap;color:#2c3e36}
+.ipai-root .oc-f {display:flex;gap:8px;margin-top:11px}
+.ipai-root .oc-f .mini-btn {flex:1}
+@keyframes phFloat{0%,100%{transform:translateY(0)}
+.ipai-root 50% {transform:translateY(-7%)}
+}
+.ipai-root .sh-head .ava {animation:phFloat 3.2s ease-in-out infinite}
+@keyframes wbpulse{50%{box-shadow:0 .5em 1.5em rgba(232,101,26,.5)}
+}
+.ipai-root .sh-go {animation:wbpulse 1.6s ease-in-out infinite}
+.ipai-root .sh-go:disabled {animation:none}
+.ipai-root .wb-entry {display:flex;align-items:center;justify-content:center;gap:6px;margin-top:11px;padding:10px 12px;border:1px dashed var(--grn-line);border-radius:12px;background:var(--grn-soft);font-size:12px;color:var(--grn-mid);font-weight:700;cursor:pointer}
+.ipai-root .sh-go {margin-top:14px}
+.ipai-root /* ===== toast / spotlight ===== */
+.toast {position:fixed;left:50%;bottom:104px;transform:translateX(-50%) translateY(14px);z-index:120;background:rgba(23,39,51,.94);color:#fff;font-size:13px;padding:11px 17px;border-radius:11px;opacity:0;pointer-events:none;transition:all .25s;max-width:82vw;text-align:center;line-height:1.5;border:1px solid rgba(201,164,92,.4)}
+.ipai-root .toast.show {opacity:1;transform:translateX(-50%) translateY(0)}
+@keyframes spotPulse{0%{box-shadow:0 0 0 0 rgba(232,101,26,.42)}
+.ipai-root 70% {box-shadow:0 0 0 12px rgba(232,101,26,0)}
+.ipai-root 100% {box-shadow:0 0 0 0 rgba(232,101,26,0)}
+}
+.ipai-root .spot {animation:spotPulse 1s ease 2;border-radius:14px}
+.ipai-root /* ===== 底部 TabBar（<960px） ===== */
+.tabbar {position:fixed;bottom:0;left:0;right:0;z-index:60;display:flex;background:#fff;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -4px 16px rgba(23,58,46,.06)}
+.ipai-root .tab {flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 0 7px;font-size:10.5px;color:var(--sub);border:0;background:none;font-weight:600}
+.ipai-root .tab .ic {font-size:20px;line-height:1}
+.ipai-root .tab.act {color:var(--grn);font-weight:800}
+.ipai-root .side-brand {display:none}
+.ipai-root /* ===== ≥960px：左竖导航 + 多列 ===== */
+@media (min-width:960px) {
+  body{padding-left:168px;padding-bottom:26px}
+.ipai-root .tabbar {top:0;bottom:0;right:auto;width:168px;flex-direction:column;justify-content:flex-start;align-items:stretch;border-top:0;border-right:1px solid var(--line);padding:0 0 20px;box-shadow:none}
+.ipai-root .side-brand {display:block;padding:18px 16px 14px;font-weight:800;font-size:15px;border-bottom:1px solid var(--line);margin-bottom:10px}
+.ipai-root .side-brand i {font-style:normal;color:var(--grn)}
+.ipai-root .side-brand small {display:block;font-size:10px;color:var(--sub);font-weight:500;margin-top:3px}
+.ipai-root .tab {flex:none;flex-direction:row;justify-content:flex-start;gap:10px;padding:13px 18px;font-size:13.5px;border-radius:0 999px 999px 0;margin:2px 12px 2px 0}
+.ipai-root .tab.act {background:var(--grn-soft)}
+.ipai-root .tab .ic {font-size:17px}
+.ipai-root main {padding:16px 22px}
+.ipai-root .grid2 {display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+.ipai-root .agent-grid {display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ipai-root .grid3 {display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:start}
+.ipai-root .grid3 .card {margin-bottom:0}
+.ipai-root .agent-grid .card {margin-bottom:0}
+.ipai-root .grid2 .card {margin-bottom:0}
+.ipai-root .hero {border-radius:0 0 18px 18px}
+.ipai-root .mask {align-items:center;padding:20px}
+.ipai-root .sheet {border-radius:18px}
+}
+@media (max-width:640px){
+.ipai-root .big-btn {width:100%
+}
+.ipai-root .hero-t h1 {font-size:19px}
+}
+.ipai-root /* ===== v2 质感升级（高级感覆盖层） ===== */
+body {background:radial-gradient(1100px 480px at 50% -200px,rgba(232,101,26,.09),transparent 62%),radial-gradient(900px 420px at 108% -160px,rgba(201,164,92,.10),transparent 60%),#f4f5f7}
+.ipai-root .topbar {background:rgba(255,255,255,.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid rgba(23,49,63,.06)}
+.ipai-root .card {border-radius:18px;border:1px solid rgba(23,49,63,.05);box-shadow:0 10px 30px rgba(23,49,63,.07),0 2px 6px rgba(23,49,63,.04)}
+.ipai-root .h-ic {background:linear-gradient(135deg,#fff1e3,#ffdcc0);box-shadow:0 2px 8px rgba(232,101,26,.16)}
+.ipai-root .hero {background:linear-gradient(135deg,#0d1f2c,#17313f 48%,#1e4054);position:relative;overflow:hidden}
+.ipai-root .hero::before {content:'';position:absolute;inset:-30%;background:radial-gradient(40% 55% at 16% 12%,rgba(232,101,26,.28),transparent 68%),radial-gradient(36% 50% at 86% 18%,rgba(201,164,92,.22),transparent 66%),radial-gradient(46% 60% at 62% 96%,rgba(72,146,182,.22),transparent 70%);animation:aurora 8s ease-in-out infinite alternate;pointer-events:none}
+@keyframes aurora{from{transform:translate3d(0,-8px,0) scale(1)}
+to{transform:translate3d(0,10px,0) scale(1.05)}
+}
+.ipai-root .hero-in {position:relative;z-index:1}
+.ipai-root .hero-slogan {letter-spacing:.4px;text-shadow:0 2px 18px rgba(0,0,0,.35)}
+.ipai-root .zone-tag {position:relative;overflow:hidden;box-shadow:0 4px 14px rgba(201,164,92,.35)}
+.ipai-root .zone-tag::after {content:'';position:absolute;top:0;bottom:0;width:36%;left:-60%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.65),transparent);animation:shine 3.2s ease-in-out infinite}
+@keyframes shine{0%{left:-60%}
+.ipai-root 55% {left:130%}
+.ipai-root 100% {left:130%}
+}
+.ipai-root .hchip {background:rgba(255,255,255,.10)!important;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.22)!important}
+.ipai-root #loopBar {background:rgba(255,255,255,.09);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.16)}
+.ipai-root .mbar {background:linear-gradient(120deg,#122836,#1d3b4e 55%,#2a4a60);box-shadow:0 10px 26px rgba(15,34,48,.35)}
+.ipai-root .mbar::before {content:'';position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.10) 50%,transparent 70%);transform:translateX(-100%);animation:mshine 4.5s ease-in-out infinite;pointer-events:none}
+@keyframes mshine{0%,55%{transform:translateX(-100%)}
+.ipai-root 85%, .ipai-root 100% {transform:translateX(100%)}
+}
+.ipai-root .mbar-badge {background:linear-gradient(135deg,#f7e7c3,#d8b878);box-shadow:0 3px 10px rgba(0,0,0,.35),inset 0 0 0 1px rgba(255,255,255,.25)}
+.ipai-root .mini-btn.go {background:linear-gradient(135deg,#f5955c,#e8651a);box-shadow:0 4px 14px rgba(232,101,26,.32)}
+.ipai-root .mini-btn.go:active {transform:scale(.95)}
+.ipai-root .big-btn {background:linear-gradient(135deg,#f5955c,#e8651a);box-shadow:0 8px 22px rgba(232,101,26,.35)}
+.ipai-root .big-btn:active {transform:scale(.985)}
+.ipai-root .tabbar {background:rgba(255,255,255,.88);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid rgba(23,49,63,.06)}
+.ipai-root .tab.act {font-weight:800}
+.ipai-root .p-ic {filter:drop-shadow(0 2px 6px rgba(232,101,26,.22))}
+.ipai-root /* ===== v2.1 排版/配色精修 ===== */
+:root {--ink:#1a2b3c;--sub:#5c6b7a}
+body{background:#f6f7f9}
+.ipai-root .card {padding:16px;margin-bottom:14px}
+.ipai-root .tk-ic, .ipai-root .gen-ic {background:linear-gradient(135deg,#fff1e3,#ffdcc0);box-shadow:0 2px 8px rgba(232,101,26,.12)}
+.ipai-root .pain {padding:13px 2px}
+.ipai-root .tk-t span {line-height:1.65}
+.ipai-root .hero-t h1 {font-size:21px;letter-spacing:.5px}
+.ipai-root .hero-sub {font-size:12px;color:#a9c0d4;margin-top:5px}
+.ipai-root .zone-tag.ghost {background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22);color:#ecd9a8;box-shadow:none}
+.ipai-root .zone-tag.ghost::after {display:none}
+.ipai-root .hero-tip {margin-top:10px;font-size:10.5px;color:rgba(233,240,246,.55);letter-spacing:.3px}
+.ipai-root /* ===== 定时任务管理弹层 ===== */
+.ssh-ic {flex:none;width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#f5955c,#e8651a);display:flex;align-items:center;justify-content:center;font-size:19px;box-shadow:0 4px 10px rgba(232,101,26,.28)}
+.ipai-root .ssh-ava {width:38px!important;height:38px!important;border-radius:11px!important;font-size:15px!important}
+.ipai-root #schedList .sch {padding:9px 0}
+.ipai-root .f-label {font-size:12px;font-weight:800;color:#44586b;margin:13px 0 8px}
+.ipai-root .f-hint {font-size:12px;color:#98a4b0;line-height:36px}
+.ipai-root .ssh-form {margin-top:12px;background:#f8fafc;border:1px solid var(--line);border-radius:14px;padding:12px}
+.ipai-root .ssh-form .big-btn {margin-top:14px}
+.ipai-root .ssh-cancel {display:block;margin:8px auto 0;border:0;background:none;color:#98a4b0;font-size:12px;min-height:28px}
+.ipai-root .ssh-foot {margin-top:12px;text-align:center}
+
+/* ---- 系统内页面的最小适配（原型 CSS 之外只加这几条）---- */
+.ipai-root{background:var(--bg,#F4F7FC);min-height:100vh;position:relative}
+/* 原型用 .page{display:none} + .act 控制分页；这里只渲染当前页，统一显示 */
+.ipai-root > .page{display:block}
+.ipai-spec-entry{display:block;width:calc(100% - 32px);margin:16px auto;padding:11px;text-align:center;
+  background:#fff;border:1px solid var(--line,#e3e9f2);border-radius:12px;color:#E8651A;
+  font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.ipai-spec{padding:0}
+.ipai-spec .spec-wrap{max-width:560px;margin:0 auto;padding:16px 14px 40px;display:flex;flex-direction:column;gap:12px}
+.ipai-spec .spec-card{border-top:1px solid var(--line,#e3e9f2);padding-top:8px;margin-top:8px}
+.ipai-spec .spec-card b{display:block;font-size:13.5px;color:var(--ink,#1c2733)}
+.ipai-spec .spec-card p{font-size:12.5px;color:var(--sub,#5b6b7c);line-height:1.8;margin-top:2px}
+.ipai-spec .spec-steps{list-style:none;display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.ipai-spec .spec-steps li{display:flex;gap:10px;font-size:13px;color:var(--ink,#1c2733);line-height:1.7}
+.ipai-spec .spec-steps li span{flex:none;width:22px;height:22px;border-radius:50%;background:var(--grn-soft,#fdeee2);
+  color:var(--grn-deep,#cf5a10);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.ipai-spec .spec-rows{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.ipai-spec .spec-row{display:flex;gap:10px;border-top:1px solid var(--line,#e3e9f2);padding-top:8px}
+.ipai-spec .spec-row b{flex:none;width:80px;font-size:12.5px;color:var(--ink,#1c2733)}
+.ipai-spec .spec-row span{font-size:12.5px;color:var(--sub,#5b6b7c);line-height:1.7}
+.ipai-spec .spec-para{font-size:12.5px;color:var(--sub,#5b6b7c);line-height:1.85;margin-top:6px}
