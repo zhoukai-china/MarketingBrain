@@ -366,7 +366,7 @@ function strField(value: unknown): string {
 function buildStoryboardLlmMessages(
   script: string,
   preset: string[] | null,
-  context: { style: VideoStyleOption; castName?: string; sceneNames?: string[]; propNames?: string[]; cap?: number; splitSeconds?: number; autoMerge?: boolean; expectedShots?: number }
+  context: { style: VideoStyleOption; castName?: string; sceneNames?: string[]; propNames?: string[]; cap?: number; splitSeconds?: number; autoMerge?: boolean; expectedShots?: number; actionHint?: string }
 ): LlmMessage[] {
   const scriptBlock = preset ? preset.map((text, index) => `第${index + 1}镜口播原句：${text}`).join("\n") : script;
   const system = [
@@ -377,7 +377,10 @@ function buildStoryboardLlmMessages(
     "3. 各镜之间人物长相、服装、门店环境保持一致；每镜只描述一个连续画面。",
     "3a. 禁止在提示词里指定出镜人物的性别、年龄、长相（不要写「中年男性」「年轻女性」「帅小伙」之类）——人物形象由门店上传的参考照片决定，提示词只写动作、神态、穿着风格与所处环境。",
     "4. desc 是给门店老板看的分镜说明（20~40 字大白话），prompt 才是给模型的提示词，两者不要写成一样的。",
-    "5. 只输出 JSON，不要解释、不要 Markdown。"
+    "5. 只输出 JSON，不要解释、不要 Markdown。",
+    ...(context.actionHint
+      ? [`6. 门店为这一镜指定了动作：${context.actionHint} —— 这是最高优先级要求，prompt 与 desc 必须把这个动作具体写出来（人物在做什么、怎么动），禁止写成站着不动或别的动作。`]
+      : [])
   ].join("\n");
   const user = [
     preset
@@ -388,6 +391,7 @@ function buildStoryboardLlmMessages(
     scriptBlock,
     "",
     `画面风格：${context.style.n}（光影：${context.style.light}；色调：${context.style.tone}；质感：${context.style.q}）——这些风格词要融进每镜 prompt。`,
+    context.actionHint ? `动作提示词（门店指定，硬要求：这一镜的 prompt 与 desc 必须明确体现这个动作，逐字写进画面描述，不能忽略、不能换成别的动作）：${context.actionHint}` : "",
     context.castName ? `出镜人物：${context.castName}（提示词里人物长相描述保持各镜一致）。` : "出镜人物：（未指定，按口播语义决定是否出现人物）。",
     context.sceneNames?.length ? `可用场景素材名：${context.sceneNames.join("、")}（提示词背景要贴这句话对应的场景）。` : "可用场景素材名：（未指定，背景按口播语义写具体）。",
     context.propNames?.length ? `可用道具素材名：${context.propNames.join("、")}（相关镜的 prompt 要写清道具怎么出现）。` : "",
@@ -414,7 +418,7 @@ interface LlmShotOutput { text: string; cam: string; move: string; desc: string;
 async function llmStoryboardShots(
   script: string,
   preset: string[] | null,
-  context: { style: VideoStyleOption; castName?: string; sceneNames?: string[]; propNames?: string[]; cap?: number; splitSeconds?: number; autoMerge?: boolean; expectedShots?: number }
+  context: { style: VideoStyleOption; castName?: string; sceneNames?: string[]; propNames?: string[]; cap?: number; splitSeconds?: number; autoMerge?: boolean; expectedShots?: number; actionHint?: string }
 ): Promise<LlmShotOutput[]> {
   const provider = createRuntimeLlmProvider();
   if (!provider.isConfigured()) throw new Error("llm_provider_not_configured");
@@ -514,4 +518,124 @@ export async function rebuildShotWithLlm(input: RebuildShotInput): Promise<Story
     propNames: input.propName?.trim() ? [input.propName.trim()] : []
   });
   return mergeShot(index, total, text, llmShots[0], style);
+}
+
+// ────────────────── 自建分镜（2026-10-07）：门店自己搭分镜，运镜按文案自动调节 ──────────────────
+//
+// 新流程口径（用户 2026-10-07 拍板）：
+//   · 分镜由门店自建：每镜 = 首帧（上传 / AI 生成）+ 口播文本（手填 / AI 生成）+ 动作提示词；
+//   · 运镜不再让门店选，也不走模板 kindOf——由模型按这一镜的文案自动调节；
+//   · 声音（音色）与视频风格是全局设置；
+//   · 门店确认算力预算后，逐镜生成「视频的 prompt」，再走既有逐镜出片 → 合成成片链路。
+
+/** 自建分镜的动作提示词选项：与前端 SELF_ACTIONS 一一对应（custom = 门店自己写一句）。 */
+export const SELF_SHOT_ACTIONS = [
+  { k: "fixed", n: "固定" },
+  { k: "walk", n: "移动" }
+] as const;
+export type SelfShotActionKey = (typeof SELF_SHOT_ACTIONS)[number]["k"];
+
+/**
+ * 自建分镜的负面提示词（2026-10-07 简化版）：用户拍板，越复杂的提示词出片越差，改用一口就说得清的短负面词。
+ */
+export const SELF_SHOT_NEGATIVE_PROMPT =
+  "镜头水平旋转，环绕运镜，机位侧翻，视角偏转，人物绕圈行走，人物路径偏移，画面剧烈抖动，人物面部变形扭曲，肢体畸形，手指错乱，画面闪烁，画质模糊，卡通动漫，多余物体，环境大幅改动，人物形象改变，字幕文字，水印，黑屏";
+
+/** 朝镜头走来的专用负面词：在通用版基础上，额外强调不露出首帧以外的新场景、不新增/消失物体、不左右侧移。 */
+export const SELF_SHOT_NEGATIVE_PROMPT_TOWARD =
+  "禁止镜头水平旋转，禁止环绕运镜，禁止机位侧翻，禁止视角偏转，人禁止物绕圈行走，禁止人物路径偏移，禁止画面剧烈抖动，禁止人物面部变形扭曲，肢体畸形，手指错乱，画面闪烁，画质模糊，卡通动漫，多余物体，环境大幅改动，人物形象改变，字幕文字，水印，黑屏，禁止露出首帧以外的新场景，不新增图片中没有的物体，不消失原有物体，禁止左右侧移";
+
+export const SELF_SHOT_NEGATIVE_PROMPT_FIXED =
+  "镜头水平旋转，环绕运镜，机位侧翻，视角偏转，人物行走，人物前进，人物后退，人物位移，人物绕圈，人物路径偏移，画面剧烈抖动，人物面部变形扭曲，肢体畸形，手指错乱，画面闪烁，画质模糊，卡通动漫，多余物体，环境大幅改动，人物形象改变，字幕文字，水印，黑屏，禁止露出首帧以外的新场景，不新增图片中没有的物体，不消失原有物体，禁止左右侧移";
+
+export interface SelfShotPromptInput {
+  /** 这一镜的口播文本 */
+  text: string;
+  /** 动作提示词 key（SELF_SHOT_ACTIONS 里的 k） */
+  actionKey?: string;
+  /** actionKey = custom 时门店自己写的动作要求 */
+  actionCustom?: string;
+  /** 旧字段（2026-10-07 方向选择已移除，前端不再下发；保留仅为兼容旧请求，后端忽略） */
+  moveDir?: string;
+  /** 手持道具/产品（2026-10-07 用户拍板补充，选填）：如「精华瓶」，融进画面与动作 */
+  prop?: string;
+  styleKey?: string;
+  /** 在整条片子里的位置（决定开场 / 收尾的运镜措辞） */
+  index?: number;
+  total?: number;
+}
+
+export interface SelfShotPromptResult {
+  /** 生视频提示词（含自动运镜 + 全局画面风格词） */
+  prompt: string;
+  negative: string;
+  cam: string;
+  /** 自动调节出来的运镜（回显给门店看，不用门店选） */
+  move: string;
+  /** 给门店看的分镜说明（大白话） */
+  desc: string;
+}
+
+/** 动作槽位：把 actionKey 翻成模板里那一句（仅 walk / custom 分支使用；fixed / none 走各自独立模板，不使用本函数返回值）。 */
+function selfShotActionPhrase(actionKey: string, actionCustom?: string): string {
+  const key = String(actionKey ?? "fixed").trim();
+  const custom = String(actionCustom ?? "").trim();
+  // 走着说：方向选择已于 2026-10-07 从前端移除，统一用这一口默认动作。
+  if (key === "walk") return "人物朝镜头走来，以缓慢、匀速的速度向镜头靠近，步幅小而自然，移动速度克制，不快速前进";
+  if (key === "custom") return custom || "人物站着说";
+  return "人物站着说";
+}
+
+// 动作兜底（SELF_ACTION_KEYWORDS / SELF_ACTION_CLAUSE / selfActionClause）已随 2026-10-07 简化版移除：
+// 提示词改为固定模板 + 动作槽位，不再依赖 LLM 关键词校验与确定性兜底并入。
+
+/**
+ * 自建分镜单镜提示词（2026-10-07 简化版）：固定模板 + 动作槽位，不再走 LLM 拼接。
+ * 用户反馈越复杂的提示词出片越差，所以回归到一口就说得清的短模板。
+ * 背景一致性靠模板里的「画面人物和背景保持和首帧一致 / 环境陈设和原图保持一致」声明，
+ * 运镜/机位由提交路由按 cameraMode 决定（walk=follow 跟拍，stand/sit=fixed 固定机位）。
+ */
+export async function buildSelfShotPromptWithLlm(input: SelfShotPromptInput): Promise<SelfShotPromptResult> {
+  const text = String(input.text ?? "").trim();
+  if (!text) throw new Error("这一镜的口播文本是空的，先补上文本再生成提示词。");
+  const actionKey = String(input.actionKey ?? "stand").trim();
+
+  // 无人物（产品 / 门店环境空镜）
+  if (actionKey === "none") {
+    const prompt = "实拍短视频，画面中无人物的产品与门店环境空镜，画面和背景保持和首帧一致，环境陈设和原图保持一致，灯光柔和，画质高清，画面稳定不抖动，真实照片质感，细节保留，自然";
+    return { prompt, negative: SELF_SHOT_NEGATIVE_PROMPT, cam: "固定机位", move: "固定机位", desc: "无人物的产品/环境空镜" };
+  }
+
+  const actionPhrase = selfShotActionPhrase(actionKey, input.actionCustom);
+  // 手持道具（选填）：融进画面，保证门店填了一定生效。
+  const prop = String(input.prop ?? "").trim().slice(0, 40);
+  const propTail = prop ? `，人物手中真实拿着${prop}，自然向镜头展示` : "";
+
+  // 所有「走着说」(walk) 方向（朝镜头走来 / 面向镜头倒退 / 从左往右 / 从右往左）统一用一口模板，
+  // 不在镜头/运镜上再按方向拆分，方向只体现在动作槽位那句里；负面词统一用这一套（更强调不露新场景 / 不左右侧移）。
+  let prompt: string;
+  let negative: string;
+  let cam: string;
+  let move: string;
+  let desc = actionPhrase;
+  if (actionKey === "walk") {
+    prompt = `实拍短视频，口播，画面人物和背景保持和首帧一致。${actionPhrase}${propTail}，边走边自然说话，手部配合讲解手势。镜头缓慢稳定移动，与人物速度同步，禁止镜头水平旋转，禁止环绕绕行，禁止机位角度偏转，人物始终在画面中心，相机视角固定，背景空间方向不变，人物沿直线运动，灯光柔和，画质高清，画面稳定不抖动，真实照片质感，细节保留，环境陈设和原图保持一致，自然表情，皮肤质感真实`;
+    negative = SELF_SHOT_NEGATIVE_PROMPT_TOWARD;
+    cam = "镜头缓慢稳定移动，人物始终在画面中心";
+    move = "镜头缓慢稳定移动";
+  } else if (actionKey === "fixed" || actionKey === "stand" || actionKey === "sit") {
+    // 固定（2026-10-08）：站着说/坐着说合并为单一「固定」选项——人物完全静止，固定机位，无运镜。
+    prompt = `实拍短视频，口播，画面人物和背景保持和首帧一致。人物不移动，不前进，不后退，不走路，不位移，看向镜头，自然说话，手部配合讲解手势。人物身体位置固定不变，只有嘴部、头部和手部做自然讲解动作。固定机位，相机完全静止，没有任何运镜，镜头不旋转，不移动，不环绕，人物始终在画面中心，背景空间方向不变，灯光柔和，画质高清，画面稳定不抖动，真实照片质感，细节保留，环境陈设和原图保持一致，自然表情，皮肤质感真实${propTail}`;
+    negative = SELF_SHOT_NEGATIVE_PROMPT_FIXED;
+    cam = "固定机位，相机完全静止";
+    move = "固定机位，无运镜";
+    desc = "人物固定不动，只有嘴部、头部、手部做自然讲解动作（站或坐均可）";
+  } else {
+    prompt = `实拍短视频，口播，画面人物和背景保持和首帧一致。${actionPhrase}${propTail}，看向镜头，边走边自然说话，手部配合讲解手势。镜头仅做直线平移跟随人物，禁止镜头水平旋转，禁止环绕绕行，禁止机位角度偏转，镜头平稳跟随人物，人物始终在画面中心，相机视角固定，背景空间方向不变，人物沿直线运动，灯光柔和，画质高清，画面稳定不抖动，真实照片质感，细节保留，环境陈设和原图保持一致，自然表情，皮肤质感真实`;
+    negative = SELF_SHOT_NEGATIVE_PROMPT;
+    cam = "跟拍运镜，镜头跟随人物";
+    move = "镜头平稳跟随人物";
+  }
+
+  return { prompt, negative, cam, move, desc };
 }

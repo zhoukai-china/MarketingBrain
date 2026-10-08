@@ -5,6 +5,7 @@ import { prisma } from "@baolu/db";
 import { env } from "../config/env.js";
 import { getBearerToken, verifySessionToken } from "../services/auth-token.js";
 import { resolveRequestContext, type RequestContext } from "../services/request-context.js";
+import { importDouyinVideo } from "../services/douyin-video-import.js";
 import { storeBuffer } from "../services/file-storage.js";
 import { REPLICATION_CONTRACT, replicationSchema, replicationCapabilityGaps, validateReplicationAdmission, validateViralReplicationInput, type ReplicationAdmission, type ReplicationRequest } from "../services/viral-video-replication.js";
 import { ReplicationError, createReplicationRepository, publicReplicationJob, type createReplicationRuntime } from "../services/viral-video-replication-runtime.js";
@@ -13,6 +14,7 @@ import { createVideoPrivateFileReader } from "../services/beauty-video-private-f
 import { createControlledVideoIntegration } from "../services/beauty-video-controlled-execution.js";
 import { findVideoReplicationEntitlement } from "../services/video-replication-entitlement.js";
 import { readLanqiWalletBalance } from "../services/lanqi-wallet.js";
+import { readWallet } from "../services/sitong-wallet.js";
 import { z } from "zod";
 import { faceFuseConfigured, faceFuseCreditsPerSecond, loadUploadedFilePath, pollFaceFusion, quoteFaceFusion, readFuseAsset, submitFaceFusion } from "../services/viral-face-fusion.js";
 
@@ -90,7 +92,39 @@ export async function registerViralVideoReplicationRoutes(app: FastifyInstance, 
   }
   function safeError(error: unknown, reply: any) {
     const known = error instanceof ReplicationError;
-    return reply.code(known ? error.statusCode : 503).send({ error: known ? error.code : "replication_unavailable", message: "当前步骤未完成；请按前置条件处理。未确认成功前不会提供成片。" });
+    // 兜底分支此前把**未知异常整个吞掉**：对外只回一句"当前步骤未完成"，对内不留任何栈，
+    // 线上排障无从下手（2026-10-08 换人出片轮询 503 就是这么查不到真因的）。
+    // 现在未知异常一律打出栈；对外文案一字不改。
+    if (!known) {
+      const e = error as { name?: string; code?: string; message?: string; stack?: string };
+      console.error(`[viral-replication] unhandled ${JSON.stringify({
+        name: e?.name ?? null,
+        code: (e as { code?: unknown })?.code ?? null,
+        message: String(e?.message ?? error).slice(0, 300),
+        stack: String(e?.stack ?? "").split("\n").slice(0, 5).join(" | ").slice(0, 900)
+      })}`);
+    }
+    const friendly: Record<string, string> = {
+      douyin_link_invalid: "没识别到抖音分享链接：请把分享口令整段粘贴进来（含 v.douyin.com 短链）。",
+      douyin_fetch_failed: "抖音视频获取失败（可能触发风控或作品不可见），请换一条，或改用本地上传。",
+      douyin_too_large: "这条抖音视频超过 200MB 上限，请换一条。",
+      file_type_invalid: "素材格式不支持：图片请上传 JPG / PNG / WebP / BMP，视频请上传 MP4 / MOV（以文件真实格式为准，改后缀名无效）。",
+      file_not_found: "素材不存在或已失效，请重新上传后再试。",
+      file_changed: "素材与之前的授权声明不一致（文件已变更），请重新上传并重新声明授权。",
+      reference_duration_invalid: "参考视频时长需在 2–30 秒之间。",
+      file_dimensions_invalid: "素材尺寸不满足要求：边长至少 200px，最长边不超限。",
+      basis_type_invalid: "授权依据文件需为 PDF 或 TXT。",
+      declaration_bounds_invalid: "授权有效期设置无效，请重新发起声明。",
+      invalid_declaration: "授权声明参数不完整，请刷新页面重新提交。",
+      product_access_denied: "当前账号没有视频生成权益，请先在商城开通。",
+      asset_declaration_forbidden: "当前账号无权声明素材授权，请用门店主账号操作。",
+      store_context_required: "请先选择门店后再操作。",
+      authorization_changed: "素材授权状态已发生变化，请刷新页面后重试。",
+      asset_not_found: "该素材还没有授权声明，请先完成授权声明再报价。",
+      asset_authorization_required: "素材授权已过期或版本已更新，请重新声明授权。"
+    };
+    const message = (known && friendly[error.code]) || "当前步骤未完成；请按前置条件处理。未确认成功前不会提供成片。";
+    return reply.code(known ? error.statusCode : 503).send({ error: known ? error.code : "replication_unavailable", message });
   }
   async function preflight(headers: Record<string, unknown>, body: unknown) {
     const c = await context(headers);
@@ -121,6 +155,16 @@ export async function registerViralVideoReplicationRoutes(app: FastifyInstance, 
   app.post("/viral-video-replication/material-authorizations",async(request,reply)=>{
     try{const c=await context(request.headers);if(!ports.authorization)throw new ReplicationError("authorization_registry_unavailable",503);
       return reply.code(201).send({authorization:await ports.authorization.declare(c,request.body),message:"已记录素材授权声明及依据引用，未独立核验法律真实性；不代表已获视频生成权限。"});
+    }catch(error){return safeError(error,reply);}
+  });
+  app.post("/viral-video-replication/douyin-import",async(request,reply)=>{
+    try{
+      const c=await context(request.headers);
+      const body=(request.body??{}) as {shareText?:string};
+      const shareText=String(body.shareText??"").trim();
+      if(shareText.length<8)throw new ReplicationError("douyin_link_invalid",400);
+      const result=await importDouyinVideo({tenantId:c.tenantId,userId:c.userId},shareText);
+      return reply.code(201).send(result);
     }catch(error){return safeError(error,reply);}
   });
   app.post<{Params:{id:string}}>("/viral-video-replication/material-authorizations/:id/revoke",async(request,reply)=>{
@@ -158,10 +202,15 @@ export async function registerViralVideoReplicationRoutes(app: FastifyInstance, 
         catch(error){
           // Revoked/changed files are no longer visible. Keep unrelated history usable;
           // database, audit and product-permission failures must still propagate fail-closed.
-          if(error instanceof ReplicationError&&["job_not_found","asset_not_found","file_not_found","asset_authorization_required","authorization_changed","file_changed"].includes(error.code))continue;
+          if(error instanceof ReplicationError&&["job_not_found","asset_not_found","file_not_found","asset_authorization_required","authorization_changed","file_changed"].includes(error.code)){
+            // 任务"凭空消失"比报错更难查：留下跳过原因（只记 code，不含素材细节）。
+            console.log(`[viral-replication] jobs.skip ${JSON.stringify({ jobId: job.id, code: error.code, status: job.status })}`);
+            continue;
+          }
           throw error;
         }
         if (a && a.tenantId === c.tenantId && a.userId === c.userId && a.entitlement && a.allowedStoreIds.includes(a.storeId) && a.storeId === job.authorizationSnapshot?.storeId && job.userId === c.userId) visible.push(publicReplicationJob(job));
+        else console.log(`[viral-replication] jobs.invisible ${JSON.stringify({ jobId: job.id, status: job.status, admission: a ? { entitlement: a.entitlement, storeId: a.storeId, allowed: a.allowedStoreIds, snapStore: job.authorizationSnapshot?.storeId, ownerMatch: a.userId === c.userId && job.userId === c.userId } : null })}`);
       }
       return { jobs: visible };
     } catch (error) { return safeError(error, reply); }
@@ -264,9 +313,14 @@ export async function registerViralVideoReplicationRoutes(app: FastifyInstance, 
       if (!parsed.success) return reply.code(400).send({ error: "invalid_request", message: "参数不完整，请刷新后重试。" });
       const videoPath = await loadUploadedFilePath(parsed.data.videoFileId, c.tenantId);
       const portraitPath = await loadUploadedFilePath(parsed.data.portraitFileId, c.tenantId);
-      const balance = (await ports.creditBalance?.(c.tenantId)) ?? null;
+      // 报价必须与提交**同源**：换脸扣的是发起人（c.userId）钱包，且视频生成只认充值算力（paidOnly）。
+      // 此前这里恒为 null（creditBalance port 从未注册）→ 报价跳过余额校验、永远显示"可确认"，
+      // 提交才在 paid 桶上失败（insufficient_credits），用户看到的是"报价通过、提交神秘失败"（2026-10-08）。
+      const balance = ports.creditBalance
+        ? await ports.creditBalance(c.tenantId)
+        : (await readWallet(c.userId)).paidBalance;
       const quote = await quoteFaceFusion({ videoPath, portraitPath, creditBalance: balance });
-      return { canConfirm: quote.canConfirm, creditCost: quote.creditCost, durationSeconds: quote.durationSeconds, message: quote.message };
+      return { canConfirm: quote.canConfirm, creditCost: quote.creditCost, durationSeconds: quote.durationSeconds, message: quote.message, gaps: quote.gaps };
     } catch (error) { return safeError(error, reply); }
   });
 

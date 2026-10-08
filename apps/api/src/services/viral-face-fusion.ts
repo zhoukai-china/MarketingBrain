@@ -6,6 +6,9 @@ import path from "node:path";
 import OSS from "ali-oss";
 import { prisma } from "@baolu/db";
 import { consumeWalletCredits, refundWalletCredits } from "./sitong-wallet.js";
+// 用 ReplicationError（而非裸 Error）抛业务码：路由的 safeError 只认 ReplicationError，
+// 裸 Error 会被兜底成 503 +「当前步骤未完成…」，把「余额不足/能力未配置」这类**可执行**的原因吞掉。
+import { ReplicationError } from "./viral-video-replication-runtime.js";
 
 /**
  * 爆款复刻 · 换脸链路（阿里云视觉智能开放平台「视频人脸融合」）。
@@ -66,7 +69,7 @@ async function probeDurationSeconds(filePath: string): Promise<number> {
     { timeout: 30_000, maxBuffer: 1024 * 1024 }
   );
   const duration = Number(stdout.trim());
-  if (!Number.isFinite(duration) || duration <= 0) throw Object.assign(new Error("fuse_probe_failed"), { statusCode: 422 });
+  if (!Number.isFinite(duration) || duration <= 0) throw new ReplicationError("fuse_probe_failed", 422);
   return duration;
 }
 
@@ -163,7 +166,7 @@ export async function submitFaceFusion(params: {
   portraitPath: string;
   creditCost: number;
 }): Promise<FuseSubmitResult> {
-  if (!faceFuseConfigured() || !ossClient) throw Object.assign(new Error("facefuse_not_configured"), { statusCode: 503 });
+  if (!faceFuseConfigured() || !ossClient) throw new ReplicationError("facefuse_not_configured", 503);
   const durationSeconds = await probeDurationSeconds(params.videoPath);
   const creditCost = Math.max(1, Math.ceil(durationSeconds) * CREDITS_PER_SECOND);
 
@@ -183,7 +186,9 @@ export async function submitFaceFusion(params: {
     source: "web"
   });
   if (consumed.status === "insufficient") {
-    throw Object.assign(new Error("insufficient_credits"), { statusCode: 402 });
+    // 视频生成只认充值算力（paidOnly）。这里必须回业务码 insufficient_credits：
+    // 前端按码给出「充值算力不足…请点右上角我的·充值」，被兜底成 503 通用文案用户无从下手。
+    throw new ReplicationError("insufficient_credits", 402);
   }
 
   const videoKey = `fuse/${params.tenantId}/${params.requestKey}-video.mp4`;

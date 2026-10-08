@@ -25,6 +25,7 @@ export function createVideoPrivateFileReader(rootPath:string, inspectionRoot:str
     } finally {await handle.close();}
     if((await realpath(abs)).toLowerCase()!==abs.toLowerCase())throw new ReplicationError("file_not_found",404);
     let width=0,height=0,durationSeconds:number|undefined;
+    let normalizedMime=file.mimeType;
     if(kind==="basis"){
       if(!["application/pdf","text/plain"].includes(file.mimeType)||(file.mimeType==="application/pdf"&&bytes.toString("ascii",0,5)!=="%PDF-"))throw new ReplicationError("basis_type_invalid",422);
     }else if(kind==="reference"){
@@ -33,16 +34,20 @@ export function createVideoPrivateFileReader(rootPath:string, inspectionRoot:str
       await mkdir(inspection,{recursive:true});
       if((await realpath(inspection)).toLowerCase()!==inspection.toLowerCase())throw new ReplicationError("inspection_path_invalid",503);
       const temp=path.join(inspection,`${randomUUID()}.mp4`);
-      try {await writeFile(temp,bytes,{flag:"wx"});const p=await probeClip(temp);width=p.width;height=p.height;durationSeconds=p.durationSeconds;} finally {await unlink(temp).catch(e=>{if(e.code!=="ENOENT")throw e;});}
+      try {await writeFile(temp,bytes,{flag:"wx"});const p=await probeClip(temp);width=p.width;height=p.height;durationSeconds=p.durationSeconds;} finally {await unlink(temp).catch(()=>{});} // 临时检查文件清理失败（被本地安全删除护栏拦截/并发删除等）只应残留，不可拖垮主流程
       if(!Number.isFinite(durationSeconds)||durationSeconds!<2||durationSeconds!>30)throw new ReplicationError("reference_duration_invalid",422);
     }else{
+      // 2026-10-08：浏览器按扩展名上报 mimeType，PNG 存成 .jpeg 时声明的 image/jpeg 与真实内容
+      // （PNG 魔数）不一致，严格比对会把正常图片拦成 file_type_invalid（现场：LQ 视频换脸 demo 页
+      // 那张 1536×1536 的 PNG）。改为按内容魔数识别，四类格式任一即放行，并归一化 mimeType。
       const hex=bytes.subarray(0,12).toString("hex");
-      const valid=file.mimeType==="image/png"?hex.startsWith("89504e470d0a1a0a"):file.mimeType==="image/jpeg"?hex.startsWith("ffd8ff"):file.mimeType==="image/bmp"?hex.startsWith("424d"):file.mimeType==="image/webp"?bytes.toString("ascii",0,4)==="RIFF"&&bytes.toString("ascii",8,12)==="WEBP":false;
-      if(!valid)throw new ReplicationError("file_type_invalid",422);
+      const isPng=hex.startsWith("89504e470d0a1a0a"),isJpeg=hex.startsWith("ffd8ff"),isBmp=hex.startsWith("424d"),isWebp=bytes.toString("ascii",0,4)==="RIFF"&&bytes.toString("ascii",8,12)==="WEBP";
+      if(!isPng&&!isJpeg&&!isBmp&&!isWebp)throw new ReplicationError("file_type_invalid",422);
+      normalizedMime=isPng?"image/png":isJpeg?"image/jpeg":isBmp?"image/bmp":"image/webp";
       // Decoder only receives bounded local bytes, not a URL.
       const image=await loadImage(bytes);width=image.width;height=image.height;
     }
     if(kind!=="basis"&&(!Number.isFinite(width)||!Number.isFinite(height)||width<200||height<200||width>(kind==="reference"?2048:4096)||height>(kind==="reference"?2048:4096)||width/height<1/3||width/height>3))throw new ReplicationError("file_dimensions_invalid",422);
-    return {bytes,sha256:file.sha256,mimeType:file.mimeType,width,height,...(durationSeconds===undefined?{}:{durationSeconds})};
+    return {bytes,sha256:file.sha256,mimeType:kind==="basis"||kind==="reference"?file.mimeType:normalizedMime,width,height,...(durationSeconds===undefined?{}:{durationSeconds})};
   };
 }

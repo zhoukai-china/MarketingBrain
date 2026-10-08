@@ -90,7 +90,14 @@ export function validateLanqiMediaRequest(input: LanqiMediaRequest): string | un
   if (input.kind === "image_to_video" && !input.imageUrl) return "图生视频需要提供本店自有或已获授权的图片链接";
   // mock 模式放宽本地 HTTP（2026-10-04）：首帧图走本地签名 URL，mock 不会把 URL 交给外部模型；
   // real 模式仍强制 HTTPS（阿里云真实拉取素材）。
-  if (input.imageUrl && env.LANQI_MEDIA_EXECUTION_MODE !== "mock" && !/^https:\/\//.test(input.imageUrl)) return "图片素材必须为 HTTPS 链接";
+  if (input.imageUrl && env.LANQI_MEDIA_EXECUTION_MODE !== "mock" && !/^https:\/\//.test(input.imageUrl)) {
+    // http 回退链接 = OSS 预签名失败（本机 STS 临时凭证过期最常见）。照抄"必须为 HTTPS"会把人引向
+    // 「素材不对」的错误方向；这里按真实原因说人话（2026-10-07 本地实测）。
+    if (/^http:\/\//.test(input.imageUrl)) {
+      return "首帧图现在拿不到公网 HTTPS 链接（OSS 暂存通道异常，多半是本机 OSS 临时凭证已过期），这次没有创建任务、没有扣算力；请稍后重试，仍失败请联系管理员更新 OSS 凭证。";
+    }
+    return "图片素材必须为 HTTPS 链接";
+  }
   return undefined;
 }
 

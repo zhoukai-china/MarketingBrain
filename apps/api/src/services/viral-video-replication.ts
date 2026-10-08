@@ -10,6 +10,8 @@ export const replicationSchema = z.object({
   requestKey: z.string().trim().min(12).max(120).optional(),
   model: z.enum(["aliyun_strict", "seedance_creative"]),
   template: z.enum(["owner_promo", "kol_visit"]).default("owner_promo"),
+  // 2026-10-08 由 wan-pro 还原为 wan-std：wan-pro（90 分/秒）更贵，但换人本就会整段重绘画面、
+  // 文字照样被破坏，多花一倍成本换不到「保文字」，故回到低成本档（60 分/秒、12 算力/秒）。
   mode: z.enum(["wan-std", "wan-pro"]).default("wan-std"),
   style: z.string().max(200).default("preserve_original"),
   environmentFileIds: z.array(z.string().max(120)).max(10).default([]),

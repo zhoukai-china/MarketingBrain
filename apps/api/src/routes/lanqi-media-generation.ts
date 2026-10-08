@@ -8,7 +8,7 @@ import { env } from "../config/env.js";
 import { discardLanqiMediaAsset, lanqiMediaAssetUrl, listLanqiShotFrames, markLanqiMediaAsset, persistLanqiMockImage, persistLanqiMockVideo, persistLanqiProviderImage, persistLanqiProviderVideo, readLanqiMediaAsset } from "../services/lanqi-media-assets.js";
 import { generateLanqiShotFrameImage, LANQI_VIDEO_MAX_SECONDS, LANQI_VIDEO_MIN_SECONDS, cancelLanqiMediaTask, getLanqiMediaExecutionReadiness, getLanqiMediaTask, isSameLanqiMediaRequest, quoteLanqiMedia, submitLanqiMedia, validateLanqiMediaRequest, type LanqiMediaRequest } from "../services/lanqi-media-generation.js";
 import { createRuntimeLlmProvider } from "../services/llm-provider-factory.js";
-import { LANQI_TTS_PREVIEW_TEXT, LANQI_TTS_VOICES, synthesizeLanqiShotVoiceover } from "../services/lanqi-tts.js";
+import { LANQI_TTS_PREVIEW_TEXT, LANQI_TTS_VOICES, synthesizeLanqiShotPreviewVoiceover, synthesizeLanqiShotVoiceover } from "../services/lanqi-tts.js";
 import { resolveLanqiFirstFrameInput, stageLanqiFirstFrame, readLanqiFirstFrame, lanqiFirstFrameRequestFingerprint, lanqiFirstFramePublicUrl, lanqiFirstFrameReferenceUrl, putOssStagedBytes, ossShotFrameKey, ossStagedUrl } from "../services/lanqi-media-staging.js";
 import { LANQI_COMPOSE_MAX_SHOTS, LanqiComposeError, composeLanqiShots } from "../services/lanqi-media-compose.js";
 import { resolveRequestContext } from "../services/request-context.js";
@@ -32,6 +32,10 @@ const mediaRequest = z.object({
   firstFrameId: z.string().trim().regex(firstFrameIdPattern).optional(),
   /** 已生成的 AI 首帧（方案④）：用它当图生视频的起幅，不必再传原图。 */
   frameId: z.string().trim().regex(/^lanqi-sf-[A-Za-z0-9]{8,40}$/).optional(),
+  /** 自建分镜：walk 需要「跟拍」——follow 时跳过固定机位包装（旧流程不传 = 默认固定机位）。 */
+  cameraMode: z.enum(["fixed", "follow"]).optional(),
+  /** 自建分镜 walk 的移动方向：路由据此区分 Z 轴(朝镜头/倒退)与 X 轴(横移)，对 Z 轴弱化位移表述。 */
+  moveDir: z.enum(["toward", "away", "ltr", "rtl"]).optional(),
   firstFrame: z.object({ contentType: z.string().trim().min(3).max(80), dataBase64: z.string().min(16).max(12_000_000) }).optional(),
   /** 台词配音（2026-10-05）：voice = 音色，dialogueText = 该镜口播原句（TTS 合成后 audio_url 对口型）。 */
   voice: z.string().trim().max(40).optional(),
@@ -217,11 +221,31 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
     const parsed = z.object({ text: z.string().trim().min(1).max(2000), voice: z.string().trim().max(40).optional() }).safeParse(request.body ?? {});
     if (!parsed.success) return reply.code(400).send({ error: "invalid_request" });
     try {
-      const { audioUrl, size, base64 } = await synthesizeLanqiShotVoiceover({ tenantId: context.tenantId, text: parsed.data.text || LANQI_TTS_PREVIEW_TEXT, voice: parsed.data.voice ?? "Cherry" });
-      return reply.send({ audioBase64: base64, audioUrl, size });
+      // 试听 = 纯合成直返 base64，不碰 OSS 暂存（2026-10-07）：OSS 凭证过期不该把试听一起挂掉；
+      // OSS 只在正式出片（视频模型按 URL 抓音频）时才需要。
+      const { base64, size } = await synthesizeLanqiShotPreviewVoiceover({ tenantId: context.tenantId, text: parsed.data.text || LANQI_TTS_PREVIEW_TEXT, voice: parsed.data.voice ?? "Cherry" });
+      return reply.send({ audioBase64: base64, size });
     } catch (error) {
-      request.log.warn({ event: "lanqi_tts.failed", message: error instanceof Error ? error.message.slice(0, 160) : String(error) });
+      const message = error instanceof Error ? error.message.slice(0, 160) : String(error);
+      request.log.warn({ event: "lanqi_tts.failed", message });
       return reply.code(502).send({ error: "tts_failed", message: "这句台词没合成出来，请稍后再试或换一个音色。" });
+    }
+  });
+
+  /** 台词时长测量（2026-10-07 用户拍板「音频驱动时长」，无 +1 缓冲）：文本 → TTS 合成（带缓存）→ ffprobe 量实长 → 视频时长直接等于音频真实秒数（就近取整、夹 2~15）→ 前端据此定视频时长与报价。 */
+  app.post("/lanqi/media/tts-duration", { bodyLimit: 64 * 1024 }, async (request, reply) => {
+    const context = await resolveRequestContext(request.headers);
+    const parsed = z.object({ text: z.string().trim().min(1).max(2000), voice: z.string().trim().max(40).optional() }).safeParse(request.body ?? {});
+    if (!parsed.success) return reply.code(400).send({ error: "invalid_request" });
+    try {
+      // 正式合成链路（带进程内缓存）：量出的秒数与 confirm 时真实下发的音频完全一致，报价不会偏差。
+      const { durationSeconds } = await synthesizeLanqiShotVoiceover({ tenantId: context.tenantId, text: parsed.data.text || LANQI_TTS_PREVIEW_TEXT, voice: parsed.data.voice ?? "Cherry" });
+      const videoSeconds = durationSeconds ? Math.min(15, Math.max(2, Math.round(durationSeconds))) : null;
+      return reply.send({ audioSeconds: durationSeconds, videoSeconds, tooLong: videoSeconds === null ? false : videoSeconds > 15 });
+    } catch (error) {
+      const message = error instanceof Error ? error.message.slice(0, 160) : String(error);
+      request.log.warn({ event: "lanqi_tts.duration_failed", message });
+      return reply.code(502).send({ error: "tts_duration_failed", message: "台词时长没量出来，请稍后再试。" });
     }
   });
 
@@ -333,32 +357,66 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
       try {
         const voiceover = await synthesizeLanqiShotVoiceover({ tenantId: context.tenantId, text: input.dialogueText, voice: input.voice });
         input.audioUrl = voiceover.audioUrl;
-        request.log.info({ event: "lanqi_tts.shot_voiceover", tenantId: context.tenantId, size: voiceover.size });
+        // 音频驱动时长（2026-10-07 用户拍板，无 +1 缓冲）：视频时长 = 音频真实秒数（就近取整，上限 15s）；超长显式失败退款，不硬塞。
+        if (voiceover.durationSeconds && Number.isFinite(voiceover.durationSeconds)) {
+          const need = Math.round(voiceover.durationSeconds);
+          if (need > 15) {
+            await refund(job, "failed", "dialogue_too_long");
+            return reply.code(400).send({
+              error: "dialogue_too_long",
+              message: `这句台词念完约 ${voiceover.durationSeconds.toFixed(1)} 秒，超出单次生成上限（音频时长 ≤ 15 秒）。请删短台词或拆成两镜；本次没有创建任务、预留算力已自动退回。`,
+              job: serialize(job)
+            });
+          }
+          input.durationSeconds = Math.min(15, Math.max(2, need));
+        }
+        request.log.info({ event: "lanqi_tts.shot_voiceover", tenantId: context.tenantId, size: voiceover.size, audioSeconds: voiceover.durationSeconds, videoSeconds: input.durationSeconds });
       } catch (error) {
-        // 配音失败不阻塞出片：继续生成（模型自动配音兜底）。
-        request.log.warn({ event: "lanqi_tts.shot_voiceover_failed", message: error instanceof Error ? error.message.slice(0, 160) : String(error) });
+        // 台词是成片的核心内容（2026-10-07 用户拍板）：配不出来就带着真实原因失败退款，
+        // 不静默降级成「模型自动配音」——那出来的片子说的不是门店要的话，等于废片。
+        const message = error instanceof Error ? error.message.slice(0, 160) : String(error);
+        request.log.warn({ event: "lanqi_tts.shot_voiceover_failed", message });
+        await refund(job, "failed", message);
+        const customerMessage = /oss_sts|tts_upload|oss_upload|staging/.test(message)
+          ? "台词配音依赖的 OSS 暂存通道当前不可用（OSS 临时凭证已过期或未配置），本次没有创建任务、预留算力已自动退回；请更新 OSS 凭证后重试。"
+          : "台词配音没合成出来，本次没有创建任务、预留算力已自动退回；请稍后重试，仍失败请联系管理员。";
+        return reply.code(502).send({ error: "tts_voiceover_failed", message: customerMessage, job: serialize(job) });
       }
     }
     // 背景一致性（2026-10-05 用户实测：i2v 第 2 秒背景漂走）：图生视频 = 第一帧的连续动画，
-    // 提示词里的背景/环境描写会把场景拉向泛化布景——先剥离，再显式声明全程锁首帧场景。
+    // 提示词里的背景/环境描写是 AI 按台词推测的，与实际首帧（尤其门店上传的）可能完全不同——
+    // 无论首帧来源，都先剥离，再显式声明场景以首帧为准。
+    // walk 镜走 follow：保留提示词里的跟拍运镜词（人物走、镜头跟），只锁背景；其余镜 fixed：锁镜头只留动作。
     if (input.kind === "image_to_video" && (input.frameId || input.imageUrl)) {
+      const follow = (input as { cameraMode?: string }).cameraMode === "follow";
       try {
-        const stripped = await stripBackgroundFromShotPrompt(input.prompt);
-        // 固定机位（2026-10-05 用户拍板）：全部镜头不带运镜，镜头锁死，只有人物动作/表情/说话。
-        input.prompt = `单镜头连续实拍：固定机位，镜头全程固定不动（三脚架锁定，不要推拉摇移、不要运镜、不要变焦），只有人物的动作、表情和说话。全程停留在首帧图片的同一场景内，背景、陈设、光线绝不切换到其他地点，不要转场、不要换布景；镜头描述里若有任何运镜/推近拉远的文字一律忽略。${stripped}`;
+        if (!follow) {
+          // 固定机位镜（站着说 / 坐着说 / 旧流程）：剥离提示词里残留的背景/场景描写，并锁定固定机位。
+          const stripped = await stripBackgroundFromShotPrompt(input.prompt, { keepCamera: false });
+          input.prompt = `单镜头连续实拍：固定机位，镜头全程固定不动（三脚架锁定，不要推拉摇移、不要运镜、不要变焦），只有人物的动作、表情和说话。全程停留在首帧图片的同一场景内，背景、陈设、光线绝不切换到其他地点，不要转场、不要换布景；镜头描述里若有任何运镜/推近拉远的文字一律忽略。${stripped}`;
+        }
+        // follow（自建分镜·走着说）：提示词已是「首帧一致 + 跟拍」自包含模板（buildSelfShotPromptWithLlm 2026-10-07 简化版），
+        // 直接透传，不再叠加旧版复杂前缀（"单镜头连续实拍：人物进行极小幅度讲解踱步…"）——越写越复杂反而出片变差。
       } catch {
         /* 剥离失败保留原文 */
       }
     }
+    // 2026-10-07：把最终提交给视频模型的完整 prompt 落到日志（便于排查，不影响出片）。
+    request.log.info({ event: "lanqi_media.final_prompt", jobId: job.id, cameraMode: (input as { cameraMode?: string }).cameraMode, prompt: input.prompt });
     try {
       const providerTaskId = await submitLanqiMedia(input, requestKey);
       job = await prisma.lanqiMediaJob.update({ where: { id: job.id }, data: { status: "submitted", providerTaskId, providerStatus: "PENDING" } });
       request.log.info({ event: "lanqi_image_generation.submitted", tenantId: context.tenantId, previewId: input.previewId, jobId: job.id });
       return reply.code(202).send({ job: serialize(job), idempotent: false });
     } catch (error) {
-      job = await refund(job, "failed", error instanceof Error ? error.message : "provider_failed");
-      request.log.error({ event: "lanqi_image_generation.failed", tenantId: context.tenantId, previewId: input.previewId, jobId: job.id, stage: "submit" });
-      return reply.code(502).send({ error: "provider_submission_failed", message: "图片任务提交失败，预留算力已自动退回。", job: serialize(job) });
+      const message = error instanceof Error ? error.message : "provider_failed";
+      job = await refund(job, "failed", message);
+      request.log.error({ event: "lanqi_image_generation.failed", tenantId: context.tenantId, previewId: input.previewId, jobId: job.id, stage: "submit", message: message.slice(0, 160) });
+      // 按真实原因分流（2026-10-07）：账户欠费 ≠ 提交失败，别让人反复重试。
+      if (/overdue-payment|Access denied/i.test(message)) {
+        return reply.code(402).send({ error: "provider_account_overdue", message: "阿里云模型服务账户欠费或状态异常（overdue-payment），任务被拒绝；预留算力已自动退回。请登录阿里云百炼控制台充值结清后再试。", job: serialize(job) });
+      }
+      return reply.code(502).send({ error: "provider_submission_failed", message: "任务提交失败，预留算力已自动退回。", job: serialize(job) });
     }
   });
 
@@ -601,16 +659,20 @@ export async function registerLanqiMediaGenerationRoutes(app: FastifyInstance, p
  * 会拉着模型偏离场景照。这里用一次轻量 LLM 调用把它们删掉，只留人物动作/表情/景别/构图。
  * 失败由调用方兜底（用原文 + 覆盖规则）。
  */
-async function stripBackgroundFromShotPrompt(prompt: string): Promise<string> {
+export async function stripBackgroundFromShotPrompt(prompt: string, opts?: { keepCamera?: boolean }): Promise<string> {
   const provider = createRuntimeLlmProvider();
   if (!provider.isConfigured()) return prompt;
+  // follow（自建分镜「走着说」跟拍）时运镜词要保留，只有背景词要剥——两种模式共用同一清洗器。
+  const cameraRule = opts?.keepCamera
+    ? "运镜、镜头移动的描写保留不动（这一镜需要跟拍运镜）。"
+    : "运镜相关的词一并删掉（成片统一固定机位）。";
   const raw = await provider.complete([
     {
       role: "system",
       content: [
         "你是生图提示词清洗器。把镜头描述里所有关于背景、环境、场景、陈设、地点的描写删掉",
         "（例如「站在门店前台」「背景是产品货架」「店内氛围安静」这类），",
-        "只保留：人物动作、表情、景别、构图、光影质感词；运镜相关的词一并删掉（成片统一固定机位）。",
+        "只保留：人物动作、表情、景别、构图、光影质感词；" + cameraRule,
         "直接输出清洗后的描述正文；不要解释、不要 Markdown、不要加引号；不要自己新增内容。"
       ].join("\n")
     },

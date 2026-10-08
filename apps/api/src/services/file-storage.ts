@@ -13,6 +13,19 @@ export interface StoredUpload {
   sha256: string;
 }
 
+/** 图片魔数识别（2026-10-08）：浏览器按扩展名上报 mimeType，PNG 存成 .jpeg 之类很常见，
+ *  上传时就按真实内容识别并归一化，别等授权/报价阶段才拿一句懵逼的「当前步骤未完成」。 */
+export class FileFormatError extends Error {}
+
+export function sniffImageMime(buffer: Buffer): "image/png" | "image/jpeg" | "image/bmp" | "image/webp" | null {
+  const hex = buffer.subarray(0, 12).toString("hex");
+  if (hex.startsWith("89504e470d0a1a0a")) return "image/png";
+  if (hex.startsWith("ffd8ff")) return "image/jpeg";
+  if (hex.startsWith("424d")) return "image/bmp";
+  if (buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP") return "image/webp";
+  return null;
+}
+
 export async function storeMultipartFile(params: {
   tenantId: string;
   file: MultipartFile;
@@ -23,12 +36,21 @@ export async function storeMultipartFile(params: {
   await mkdir(tenantDir, { recursive: true });
   const storagePath = path.join(tenantDir, `${id}-${safeName}`);
   const buffer = await params.file.toBuffer();
+  const declaredMime = params.file.mimetype || "application/octet-stream";
+  let mimeType = declaredMime;
+  if (declaredMime.startsWith("image/")) {
+    const real = sniffImageMime(buffer);
+    if (!real) {
+      throw new FileFormatError("图片格式不支持：请上传 JPG / PNG / WebP / BMP 格式的图片（以文件真实格式为准，改后缀名无效）。");
+    }
+    mimeType = real;
+  }
   await writeFile(storagePath, buffer);
 
   return {
     id,
     filename: safeName,
-    mimeType: params.file.mimetype || "application/octet-stream",
+    mimeType,
     byteSize: buffer.byteLength,
     storagePath,
     sha256: createHash("sha256").update(buffer).digest("hex")

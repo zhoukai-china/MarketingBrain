@@ -4,7 +4,8 @@ import { type ReplicationAdmission, type ReplicationAssetEvidence, type Replicat
 import { videoFileHash, type InspectedVideoFile, type VideoPrivateFile } from "./beauty-video-private-files.js";
 import { findVideoReplicationEntitlement } from "./video-replication-entitlement.js";
 
-/** 按输出秒数计算力（用户 2026-09-13 拍板：爆款复刻 30 算力/秒）。
+/** 按输出秒数计算力（对客价由 env.ALIYUN_VIDEO_REPLICATION_CREDITS_PER_SECOND 控制：
+ *  wan-std 默认 12 算力/秒；2026-10-08 曾切 wan-pro（90 分/秒、18 算力/秒），因换人本就整段重绘、文字照样被破坏且成本更高，已还原 wan-std + 12 算力/秒）。
  *  供应商按实际出片秒数计费（出片时长≈原视频时长）；扣分向上取整、不超过 maxOutputSeconds 封顶；
  *  未配置 creditsPerSecond（<=0）时回退固定 creditCost（兼容旧口径）。 */
 export function computeReplicationCreditCost(input: {

@@ -1,9 +1,10 @@
 ﻿import type { FastifyInstance } from "fastify";
+import { readFile } from "node:fs/promises";
 import { prisma } from "@baolu/db";
 import { runAgent, type LlmProvider } from "@baolu/agent";
 import { env } from "../config/env.js";
 import { getDemoFile, listDemoFiles, saveDemoFile } from "../services/demo-files.js";
-import { storeMultipartFile, summarizeStoredFile } from "../services/file-storage.js";
+import { FileFormatError, storeMultipartFile, summarizeStoredFile } from "../services/file-storage.js";
 import { resolveRequestContext } from "../services/request-context.js";
 
 export async function registerFileRoutes(app: FastifyInstance, provider: LlmProvider): Promise<void> {
@@ -14,10 +15,18 @@ export async function registerFileRoutes(app: FastifyInstance, provider: LlmProv
       return reply.code(400).send({ error: "file_required" });
     }
 
-    const upload = await storeMultipartFile({
-      tenantId: context.tenantId,
-      file
-    });
+    let upload;
+    try {
+      upload = await storeMultipartFile({
+        tenantId: context.tenantId,
+        file
+      });
+    } catch (error) {
+      if (error instanceof FileFormatError) {
+        return reply.code(400).send({ error: "file_type_invalid", message: error.message });
+      }
+      throw error;
+    }
 
     if (env.DATA_MODE === "demo") {
       const record = saveDemoFile({
@@ -48,6 +57,36 @@ export async function registerFileRoutes(app: FastifyInstance, provider: LlmProv
       dataMode: "database",
       file: record
     };
+  });
+
+  app.get<{ Params: { fileId: string } }>("/files/:fileId/content", async (request, reply) => {
+    const context = await resolveRequestContext(request.headers);
+    const file =
+      env.DATA_MODE === "demo"
+        ? getDemoFile(request.params.fileId, context.tenantId)
+        : await prisma.uploadedFile.findFirst({
+            where: {
+              id: request.params.fileId,
+              tenantId: context.tenantId
+            }
+          });
+
+    if (!file) {
+      return reply.code(404).send({ error: "file_not_found" });
+    }
+
+    // 素材预览（2026-10-06 用户要求「上传后可以预览」）：按租户隔离读回原字节，
+    // 前端取成 blob 后喂 <video>/<img>。inline + 私有缓存，绝不跨租户泄漏。
+    try {
+      const buffer = await readFile(file.storagePath);
+      return reply
+        .type(file.mimeType || "application/octet-stream")
+        .header("Cache-Control", "private, max-age=600")
+        .header("Content-Disposition", 'inline')
+        .send(buffer);
+    } catch {
+      return reply.code(410).send({ error: "file_content_missing" });
+    }
   });
 
   app.get("/files", async (request) => {

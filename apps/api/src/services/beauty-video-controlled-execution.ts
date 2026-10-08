@@ -86,13 +86,19 @@ export function createControlledVideoIntegration(options:Omit<Base,"environment"
     });
     return {...integrated,admission:async(...args:Parameters<typeof integrated.admission>)=>{
       const a=await integrated.admission(...args);if(!a)return a;
+      const isLiveRequest=Boolean(args[1]);
       let input=args[1];
       if(!input){const job=await integrated.repository.get(args[2]!,a.tenantId);input=job?.authorizationSnapshot.request as ReplicationRequest|undefined;}
       if(!input)throw new ReplicationError("execution_history_not_bound",409);
       const request=replicationSchema.parse(input);
       // auto 模式：按同一套预算上限自动签发绑定本次请求的单批许可（幂等，已用过的不重签）。
-      await permits.ensure(a,request);
-      return permits.admission(a,request,!args[1]);
+      // ⚠ 只在**实时请求**（quote/prestage/confirm，带请求体）里签发。历史读取（/jobs 列表、
+      // refresh、cancel、content：args[1] 为 undefined）绝不能走 ensure —— 已完成任务的许可必然是
+      // claimed/submitCount=1，ensure 会按"签了就该能重用"判定 `execution_permit_not_reusable`（409），
+      // 于是**只读一次历史列表就把整个 /jobs 打挂**（2026-10-08 换人出片后轮询一直 409 的真因：
+      // 任务其实早已 succeeded，前端却永远停在"正在生成成片…"）。
+      if(isLiveRequest)await permits.ensure(a,request);
+      return permits.admission(a,request,!isLiveRequest);
     }};
   }catch(e){
     const code=e instanceof ReplicationError?e.code:"execution_configuration_invalid";

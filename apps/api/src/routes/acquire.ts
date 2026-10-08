@@ -23,14 +23,17 @@ import {
 } from "../products/beauty-industry/live-service.js";
 import {
   buildStoryboardWithLlm,
+  buildSelfShotPromptWithLlm,
   rebuildShotWithLlm,
   validateVideoScriptInput,
   type StoryboardInput
 } from "../products/beauty-industry/video-script-service.js";
 import {
+  SHOT_COPY_DURS,
   VIDEO_COPY_DURS,
   VIDEO_COPY_PLATFORMS,
   VIDEO_COPY_STYLES,
+  generateShotCopy,
   generateVideoCopyCandidates,
   validateVideoCopyBrief
 } from "../products/beauty-industry/video-copy-service.js";
@@ -122,6 +125,31 @@ const VIDEO_SHOT_SCHEMA = z.object({
   propName: z.string().trim().max(40).optional(),
   index: z.coerce.number().int().min(0).max(200).default(0),
   total: z.coerce.number().int().min(1).max(400).default(1)
+});
+
+/** 自建分镜 · 单镜 AI 文案：选题（选填）+ 时长（5/10/15 秒）+ 文案风格 → 一句口播台词。 */
+const VIDEO_SELF_SHOT_COPY_SCHEMA = z.object({
+  storeId: z.string().trim().min(1),
+  topic: z.string().trim().max(100).default(""),
+  seconds: z.coerce.number().int().refine(value => (SHOT_COPY_DURS as readonly number[]).includes(value), {
+    message: "单镜时长只支持 5 / 10 / 15 秒"
+  }).default(10),
+  styleKey: z.enum(VIDEO_COPY_STYLES.map(style => style.k) as [string, ...string[]]).default("hook")
+});
+
+/** 自建分镜 · 单镜提示词：口播文本 + 动作提示词 → 运镜按文案自动调节的生视频 prompt。 */
+const VIDEO_SELF_SHOT_PROMPT_SCHEMA = z.object({
+  storeId: z.string().trim().min(1),
+  text: z.string().trim().min(1).max(600),
+  action: z.enum(["none", "fixed", "walk", "custom", "stand", "sit"]).default("fixed"),
+  actionCustom: z.string().trim().max(80).optional(),
+  /** 动作=walk 时的移动方向 */
+  moveDir: z.enum(["toward", "away", "ltr", "rtl"]).optional(),
+  /** 手持道具/产品（选填）：如「精华瓶」，融进画面与动作 */
+  prop: z.string().trim().max(40).optional(),
+  styleKey: z.string().trim().max(32).optional(),
+  index: z.coerce.number().int().min(0).max(200).default(0),
+  total: z.coerce.number().int().min(1).max(12).default(1)
 });
 
 function toLiveInput(parsed: z.infer<typeof LIVE_INPUT_SCHEMA>): LiveInput {
@@ -509,6 +537,56 @@ export async function registerAcquireRoutes(app: FastifyInstance, basePath = "/b
         });
       }
       return reply.code(500).send({ code: "video_copy_error", message });
+    }
+  });
+
+  // 视频获客 · 自建分镜（2026-10-07 新流程）：单镜 AI 文案——选题（选填）+ 时长 + 风格 → 一句口播台词。
+  app.post(`${basePath}/acquire/video/shot-copy`, async (request, reply) => {
+    try {
+      const context = await resolveRequestContext(request.headers);
+      const parsed = VIDEO_SELF_SHOT_COPY_SCHEMA.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        return reply.code(400).send({ code: "invalid_shot_copy_request", message: "参数不合法", details: parsed.error.flatten() });
+      }
+      const denied = await assertStoreAccess(context, parsed.data.storeId);
+      if (denied) return reply.code(denied.code).send({ code: denied.bodyCode, message: denied.message });
+      return { ok: true, tenantId: context.tenantId, result: await generateShotCopy(parsed.data) };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "unknown";
+      if (message === "llm_provider_not_configured") {
+        return reply.code(503).send({ code: "shot_copy_unavailable", message: "文案生成服务还没有开通，暂时写不出这一镜的台词。" });
+      }
+      if (/llm_output_invalid_structure/.test(message)) {
+        return reply.code(502).send({ code: "shot_copy_failed", message: "这一镜的台词没写出来，请再点一次「AI 文案」重试。" });
+      }
+      return reply.code(500).send({ code: "shot_copy_error", message });
+    }
+  });
+
+  // 视频获客 · 自建分镜：单镜提示词——口播文本 + 动作提示词 → 运镜按文案自动调节的生视频 prompt。
+  app.post(`${basePath}/acquire/video/self-shot-prompt`, async (request, reply) => {
+    try {
+      const context = await resolveRequestContext(request.headers);
+      const parsed = VIDEO_SELF_SHOT_PROMPT_SCHEMA.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        return reply.code(400).send({ code: "invalid_self_shot_request", message: "参数不合法", details: parsed.error.flatten() });
+      }
+      const denied = await assertStoreAccess(context, parsed.data.storeId);
+      if (denied) return reply.code(denied.code).send({ code: denied.bodyCode, message: denied.message });
+      // schema 字段名是 action，服务入参叫 actionKey —— 这里显式映射（之前漏映射导致动作永远按 stand 处理）。
+      const { storeId: _storeId, action, ...rest } = parsed.data;
+      return { ok: true, tenantId: context.tenantId, result: await buildSelfShotPromptWithLlm({ ...rest, actionKey: action }) };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "unknown";
+      const invalid = /是空的|请先补上/.test(message);
+      if (invalid) return reply.code(422).send({ code: "invalid_self_shot_input", message });
+      if (message === "llm_provider_not_configured") {
+        return reply.code(503).send({ code: "self_shot_unavailable", message: "提示词服务还没有开通，暂时生成不了这一镜的提示词。" });
+      }
+      if (/llm_output_invalid_structure/.test(message)) {
+        return reply.code(502).send({ code: "self_shot_llm_failed", message: "这一镜的提示词没写出来，请再点一次重试。" });
+      }
+      return reply.code(500).send({ code: "self_shot_error", message });
     }
   });
 }

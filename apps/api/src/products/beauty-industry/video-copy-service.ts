@@ -294,3 +294,108 @@ export async function generateVideoCopyCandidates(brief: VideoCopyBrief): Promis
 
 /** 冒烟用：给一个不依赖模型的可复现输入。 */
 export const VIDEO_COPY_EXAMPLE_NEED = PLACEHOLDER_NEED;
+
+// ────────────────── 自建分镜 · 单镜 AI 文案（2026-10-07） ──────────────────
+//
+// 新流程口径（用户 2026-10-07 拍板）：门店自建分镜后，每一镜的口播文本可以单独让 AI 写——
+// 选题（选填）+ 时长（5 / 10 / 15 秒）+ 文案风格（复用整片那 4 种）→ 写出**一句**可直接口播的台词。
+
+/** 单镜 AI 文案可选时长（秒）。整片是 15/30/45，单镜更短；与视频模型单次生成区间对齐。 */
+export const SHOT_COPY_DURS = [5, 10, 15] as const;
+export type ShotCopyDur = (typeof SHOT_COPY_DURS)[number];
+
+export interface ShotCopyInput {
+  /** 选题（选填）：这一镜想讲什么；不填就按门店口播的通用风格写 */
+  topic?: string;
+  seconds?: number;
+  styleKey?: string;
+}
+
+export interface ShotCopyResult {
+  text: string;
+  seconds: ShotCopyDur;
+  chars: number;
+  style: { k: VideoCopyStyle; n: string };
+  /** 非阻断提示：字数明显超时长 / 含限流词（与整片候选文案同口径，只提醒不改写）。 */
+  warnings: string[];
+}
+
+function parseJsonLooseShotCopy(text: string): any | null {
+  const trimmed = text.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  try {
+    return JSON.parse(trimmed.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+}
+
+/** 单镜 AI 文案：一句可直接口播的台词（后端大模型真写，失败显式报错不出半成品）。 */
+export async function generateShotCopy(input: ShotCopyInput): Promise<ShotCopyResult> {
+  const provider = createRuntimeLlmProvider();
+  if (!provider.isConfigured()) throw new Error("llm_provider_not_configured");
+  const seconds = (SHOT_COPY_DURS as readonly number[]).includes(Number(input.seconds))
+    ? (Number(input.seconds) as ShotCopyDur)
+    : 10;
+  const styleKey = (VIDEO_COPY_STYLES.find(item => item.k === input.styleKey)?.k ?? "hook") as VideoCopyStyle;
+  const style = VIDEO_COPY_STYLES.find(item => item.k === styleKey)!;
+  const topic = String(input.topic ?? "").trim().slice(0, 100);
+  const targetChars = Math.round(seconds * VIDEO_COPY_CHARS_PER_SECOND);
+
+  const system = [
+    "你是门店短视频口播文案写手。现在为一条分镜写**一句**可直接念出来的口播台词。",
+    "硬要求：",
+    "1. 只写这一镜的台词，口语化、第一人称、说完就能接下一镜；不要标题、不要分点、不要旁白说明。",
+    "2. 字数贴着目标来（±20%），别写成整片文案。",
+    "3. 禁止编造门店名、价格、销量、疗效；禁止绝对化与医疗承诺限流词。",
+    "4. 只输出 JSON，不要解释、不要 Markdown。"
+  ].join("\n");
+  const user = [
+    topic ? `这一镜的选题：${topic}` : "这一镜的选题：（没给，按门店宣传口播的通用路子写，比如欢迎到店、讲体验、留印象）",
+    `时长：约 ${seconds} 秒（约 ${targetChars} 字）`,
+    `文案风格：${style.n}——${style.d}`,
+    '输出格式：{"text":"这一镜的口播台词"}'
+  ].join("\n");
+
+  const opts = { maxTokens: 600, reasoningProfile: "standard" as const, thinkingMode: "disabled" as const };
+  const parseText = (raw: string): string => {
+    const parsed = parseJsonLooseShotCopy(raw);
+    const text = typeof parsed?.text === "string" ? parsed.text.trim() : "";
+    return text.replace(/\s+/g, "");
+  };
+
+  let text = parseText(await provider.complete(
+    [
+      { role: "system", content: system },
+      { role: "user", content: user }
+    ],
+    opts
+  ));
+  // 一轮带批评的重试：字数飘了就按目标重写一次，仍不合格才报错（不静默放行）。
+  if (!text || text.length < 8 || text.length > targetChars * 1.9) {
+    const complaint = !text
+      ? "你刚才那句是空的，不符合要求。"
+      : `你刚才那句有 ${text.length} 字，不符合要求。`;
+    text = parseText(await provider.complete(
+      [
+        { role: "system", content: system },
+        { role: "user", content: user },
+        { role: "user", content: `${complaint}重写一句 ${targetChars} 字左右（±20%）的口播台词，仍然只输出 JSON。` }
+      ],
+      opts
+    ));
+  }
+  // 结构门禁：一句能念的台词必须有；字数偏差与限流词按整片流程同口径降级为 warnings（不静默丢掉这一镜）。
+  const warnings: string[] = [];
+  if (!text || text.length < 8) throw new Error("llm_output_invalid_structure");
+  if (text.length > targetChars * 2.2) {
+    warnings.push(`这句台词 ${text.length} 字，比选的 ${seconds} 秒（约 ${targetChars} 字）长不少，念起来会超时；可以在文本框里删短，或选更长的时长。`);
+  }
+  const banHits = containsBanWords(text);
+  if (banHits.length) {
+    warnings.push(`台词含引流限流词（${banHits.slice(0, 3).map(item => item.word).join("、")}），发布前请改掉。`);
+  }
+  return { text, seconds, chars: text.length, style: { k: styleKey, n: style.n }, warnings };
+}
