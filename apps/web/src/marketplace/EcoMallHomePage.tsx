@@ -1356,37 +1356,6 @@ export function EcoMallHomePage() {
     window.location.href = getAppPath("/gu-ren/index.html");
   };
 
-  /**
-   * F9 业绩倍增系统 · 体验专区（2026-10-09 本地集成，未上线）。
-   * 两版原型 demo 作为独立静态页挂在系统内（public/demo/{franchise,local}/index.html），
-   * 点进去是完整手机端演示；演示里的数字高管直接跳系统内真实工作台（同域相对路径，不再写死线上域名）。
-   */
-  function renderDemoFloor() {
-    return (
-      <section className="eco-floor" id="floor-demo">
-        <FloorHead no="F9" title="业绩倍增系统 · 体验专区" sub="IP + AI 九位数字高管 · 招商与门店两版演示" live="2 版演示在线" />
-        <div className="eh-demo">
-          <button type="button" className="eh-demo-card" onClick={() => { window.location.href = getAppPath("/demo/franchise/index.html"); }}>
-            <span className="eh-demo-ic">🤝</span>
-            <div className="eh-demo-meta">
-              <b>招商加盟版</b>
-              <span>庄衡 · 苏笺 · 祝鸣 · 程鉴 · 金点 · 米临 · 甄映 · 温故 · 万契</span>
-            </div>
-            <span className="eh-demo-tag">面向招商方 / 意向加盟商 · 点高管进真实工作台</span>
-          </button>
-          <button type="button" className="eh-demo-card" onClick={() => { window.location.href = getAppPath("/demo/local/index.html"); }}>
-            <span className="eh-demo-ic">🏪</span>
-            <div className="eh-demo-meta">
-              <b>本地商家版</b>
-              <span>沈定 · 秦文 · 罗盘 · 江流 · 何策 · 顾拓 · 陆帧 · 周域 · 易成</span>
-            </div>
-            <span className="eh-demo-tag">面向已开店老板 · 门店获客场景</span>
-          </button>
-        </div>
-      </section>
-    );
-  }
-
   function renderGuRenFloor() {
     return (
       <section className="eco-floor" id="floor-guren">
@@ -1872,8 +1841,6 @@ export function EcoMallHomePage() {
                 {renderProductCard({ glyph: "clapper", tint: "#DB2777", icon: "🎬", img: getPublicAssetPath("/mall/opcComic.jpg"), detail: "/product/opcComic/detail", name: "AIGC 漫剧创作工作台", tag: "OPC", desc: "分镜、角色、成片一条龙，批量产出漫剧短视频，带货与账号起号都能用。", price: "199 算力/席", cny: "¥19.9", buyNow: true, demo: true, bookingName: "AIGC 漫剧创作工作台", bookingKey: "opcComic"})}
               </div>
             </section>
-
-            {renderDemoFloor()}
 
           </>
         )}

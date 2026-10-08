@@ -25,6 +25,7 @@ import "./styles/agent-work-map.css";
 import "./styles/topic-system-workbench.css";
 import "./styles/topic-strategist-workbench.css";
 import "./styles/ip-pos-detail.css";
+import "./styles/ipai-franchise.css";
 import "./styles/copy-workbench.css";
 import "./styles/clip-lab.css";
 import "./styles/client-project-workbench.css";
@@ -139,6 +140,12 @@ const CopyWorkbench = lazy(() => import("./marketplace/CopyWorkbench.js").then(m
 const VidrevWorkbench = lazy(() => import("./marketplace/VidrevWorkbench.js").then(module => ({ default: module.VidrevWorkbench })));
 // 直播话术智能体工作台（/agent/ipzone__livescript/workbench）
 const LivescriptWorkbench = lazy(() => import("./marketplace/LivescriptWorkbench.js").then(module => ({ default: module.LivescriptWorkbench })));
+// IP+AI 业绩倍增系统 · 招商加盟版（/ipai/franchise、/ipai/franchise/spec）
+const IpaiFranchisePage = lazy(() => import("./marketplace/IpaiFranchisePage.js").then(module => ({ default: module.IpaiFranchisePage })));
+const IpaiFranchiseSpecPage = lazy(() => import("./marketplace/IpaiFranchisePage.js").then(module => ({ default: module.IpaiFranchiseSpecPage })));
+// 数字人双岗工作台 + 详情页（/agent/ipzone__videoclone|videoreplicate/...，2026-10-08 本地落地）
+const DhWorkbench = lazy(() => import("./marketplace/dh-pages.js").then(module => ({ default: module.DhWorkbench })));
+const DhDetailPage = lazy(() => import("./marketplace/dh-pages.js").then(module => ({ default: module.DhDetailPage })));
 // 首席定位官商品详情页（/agent/ipzone__ip-pos/detail，落地自原型 20260923）
 const IpPosDetailPage = lazy(() => import("./marketplace/IpPosDetailPage.js").then(module => ({ default: module.IpPosDetailPage })));
 // 金牌文案主笔商品详情页（/agent/ipzone__copy/detail，落地自原型 20260923 ?agent=copywriter）
@@ -464,6 +471,14 @@ function Root() {
     return <LegalPage kind="privacy" />;
   }
 
+  // IP+AI 业绩倍增系统 · 招商加盟版（2026-10-09 由交付原型落成系统内页面，非静态页）：
+  //   /ipai/franchise       演示主界面（首页 / 高管 / 定时任务 / 我的）
+  //   /ipai/franchise/spec  产品说明（功能与计费口径）
+  const ipaiFranchiseMatch = path.match(/^\/ipai\/franchise(?:\/(spec))?\/?$/i);
+  if (ipaiFranchiseMatch) {
+    return ipaiFranchiseMatch[1] === "spec" ? <IpaiFranchiseSpecPage /> : <IpaiFranchisePage />;
+  }
+
   if (marketingMatch) {
     return <AgentMarketingPage slug={marketingMatch[1]} />;
   }
@@ -497,6 +512,10 @@ function Root() {
     if (workbenchSku === "ipzone__livescript") {
       return <LivescriptWorkbench skuId={workbenchSku} />;
     }
+    // 数字人双岗走专属工作台（左：岑野/苏砚 引导对话 / 右：素材槽位填充，2026-10-08 本地落地）。
+    if (workbenchSku === "ipzone__videoclone" || workbenchSku === "ipzone__videoreplicate") {
+      return <DhWorkbench skuId={workbenchSku} />;
+    }
     return <TopicStrategistWorkbench skuId={workbenchSku} />;
   }
 
@@ -526,6 +545,10 @@ function Root() {
     }
     if (marketplaceDetailMatch[1] === "ipzone__topic") {
       return <TopicDetailPage />;
+    }
+    // 数字人双岗详情页（与 IpPosDetailPage 同 ipd- 骨架，2026-10-08 本地落地）
+    if (marketplaceDetailMatch[1] === "ipzone__videoclone" || marketplaceDetailMatch[1] === "ipzone__videoreplicate") {
+      return <DhDetailPage skuId={marketplaceDetailMatch[1]} />;
     }
     // 未上线三智能体（许复/易成/周域）：预约收口版详情页（原型 v12 预约 sec，2026-09-28）
     if (marketplaceDetailMatch[1] === "ipzone__liverev") {
