@@ -79,6 +79,14 @@ const KINGKONG: Array<{ floor: FloorId; label: string; icon: string; tint: strin
 ];
 
 /** 交付单位（照原型 emp-price：定位=份 / 直播=场 / 文案·诊断·选题=次 / 私域=条）。 */
+/** 数字人双岗卡上单价（无货架 SKU，ppu 拉不到 → 这里列系统真实价，上下分布）。
+ *  数值来源：LANQI_MEDIA_VIDEO_CREDITS_PER_SECOND / ALIYUN_VIDEO_REPLICATION_CREDITS_PER_SECOND /
+ *  ALIYUN_FACEFUSE_CREDITS_PER_SECOND（改 env 记得同步这里）。 */
+const DH_CARD_PRICES: Record<string, Array<{ label: string; credits: number }>> = {
+  cenye: [{ label: "一键成片", credits: 12 }],
+  suyan: [{ label: "换人", credits: 12 }, { label: "换脸", credits: 2 }]
+};
+
 const UNIT_BY_KEY: Record<string, string> = {
   "ip-position": "份",
   copywriter: "次",
@@ -87,7 +95,10 @@ const UNIT_BY_KEY: Record<string, string> = {
   topic: "次",
   "live-coach": "场",
   private: "条",
-  "sales-coach": "次"
+  "sales-coach": "次",
+  // 2026-10-08 数字人双岗：交付成片 MP4，按秒计费（12 算力/秒）
+  cenye: "秒",
+  suyan: "秒"
 };
 
 /** Hero 打字机台词（原型 heroType 演示口径）。 */
@@ -98,7 +109,7 @@ const TYPE_LINES = [
 ];
 
 /** 楼层分组（F1 获客专区 / F2 营销专区，按 employeeKey 归组）。 */
-const ACQUIRE_OK_KEYS = ["ip-position", "copywriter", "live-host", "video-diag", "topic"];
+const ACQUIRE_OK_KEYS = ["ip-position", "copywriter", "live-host", "video-diag", "topic", "cenye", "suyan"];
 const ACQUIRE_DEV_KEYS = ["live-coach"];
 const PRIVATE_DEV_KEYS = ["private", "sales-coach"];
 
@@ -176,6 +187,7 @@ function EmployeeProduct({
 
   const unit = UNIT_BY_KEY[employee.key] ?? "次";
   const cny = ppu != null ? (ppu / 10).toFixed(ppu % 10 === 0 ? 0 : 1) : "—";
+  const dhPrices = DH_CARD_PRICES[employee.key];
   return (
     <article
       className={`eco-product ${ok ? "is-ok" : "is-dev"}`}
@@ -193,9 +205,20 @@ function EmployeeProduct({
         </div>
         <span className="eco-p-desc">{hook}</span>
         {deliver ? <span className="eco-p-tag">{deliver}</span> : null}
-        <span className="eco-p-price">
-          <IconGlyph name="bolt" size={12} style={{ display: "inline", verticalAlign: "-1px" }} /> {fmtCredits(ppu)} 算力/{unit} <i>≈ ¥{cny} · 0元开通 · 用后扣费</i>
-        </span>
+        {dhPrices ? (
+          <span className="eco-p-price dh-price-stack">
+            {dhPrices.map((row) => (
+              <span key={row.label} className="dh-price-row">
+                <IconGlyph name="bolt" size={12} style={{ display: "inline", verticalAlign: "-1px" }} /> {row.label} {row.credits} 算力/秒 <i>≈ ¥{(row.credits / 10).toFixed(1)}</i>
+              </span>
+            ))}
+            <i className="dh-price-foot">0元开通 · 用后扣费 · 不使用赠送算力</i>
+          </span>
+        ) : (
+          <span className="eco-p-price">
+            <IconGlyph name="bolt" size={12} style={{ display: "inline", verticalAlign: "-1px" }} /> {fmtCredits(ppu)} 算力/{unit} <i>≈ ¥{cny} · 0元开通 · 用后扣费</i>
+          </span>
+        )}
       </div>
     </article>
   );
@@ -1153,7 +1176,8 @@ export function EcoMallHomePage() {
           index={index}
           ppu={ppu}
           onOpen={() => {
-            // 点击卡片一律直达商品详情页（2026-09-29 用户要求：不要中间弹窗）
+            // 点击卡片一律直达商品详情页（2026-09-29 用户要求：不要中间弹窗）；
+            // 数字人双岗详情页已按 ipd- 骨架落地（dh-pages.tsx，main.tsx 按 skuCode 分发）。
             const path = employeeDetailPath(employee, "通用");
             if (path) window.location.href = getAppPath(path);
           }}
@@ -1315,7 +1339,7 @@ export function EcoMallHomePage() {
     );
   }
 
-  /** F4 古人智慧专区（2026-10-02 用户：仅预约上线提醒，不订阅、不进对话）。 */
+  /** F4 古人智慧专区（2026-10-08 起已开放：点卡片或按钮进入独立页面 /gu-ren/，与商城解耦）。 */
   const GUREN_ADVISORS: Array<{ initial: string; name: string; tag: string; q: string }> = [
     { initial: "孙", name: "孙武", tag: "兵法", q: "要不要跟头部打价格战？" },
     { initial: "范", name: "范蠡·计然", tag: "货殖", q: "压货严重怎么解？" },
@@ -1324,10 +1348,49 @@ export function EcoMallHomePage() {
     { initial: "曾", name: "曾国藩", tag: "组织", q: "店长留不住怎么办？" },
     { initial: "胡", name: "胡雪岩", tag: "资金", q: "现金流快断了怎么救？" },
   ];
+  /**
+   * 进入古人经营智慧独立页：public/gu-ren/ 是 SPA 之外的整页，不带商城外壳，与商城解耦。
+   * 写全 index.html —— dev 下 `/gu-ren/` 会落到 SPA 兜底页，带文件名在 dev / 生产都稳定。
+   */
+  const enterGuRen = () => {
+    window.location.href = getAppPath("/gu-ren/index.html");
+  };
+
+  /**
+   * F9 业绩倍增系统 · 体验专区（2026-10-09 本地集成，未上线）。
+   * 两版原型 demo 作为独立静态页挂在系统内（public/demo/{franchise,local}/index.html），
+   * 点进去是完整手机端演示；演示里的数字高管直接跳系统内真实工作台（同域相对路径，不再写死线上域名）。
+   */
+  function renderDemoFloor() {
+    return (
+      <section className="eco-floor" id="floor-demo">
+        <FloorHead no="F9" title="业绩倍增系统 · 体验专区" sub="IP + AI 九位数字高管 · 招商与门店两版演示" live="2 版演示在线" />
+        <div className="eh-demo">
+          <button type="button" className="eh-demo-card" onClick={() => { window.location.href = getAppPath("/demo/franchise/index.html"); }}>
+            <span className="eh-demo-ic">🤝</span>
+            <div className="eh-demo-meta">
+              <b>招商加盟版</b>
+              <span>庄衡 · 苏笺 · 祝鸣 · 程鉴 · 金点 · 米临 · 甄映 · 温故 · 万契</span>
+            </div>
+            <span className="eh-demo-tag">面向招商方 / 意向加盟商 · 点高管进真实工作台</span>
+          </button>
+          <button type="button" className="eh-demo-card" onClick={() => { window.location.href = getAppPath("/demo/local/index.html"); }}>
+            <span className="eh-demo-ic">🏪</span>
+            <div className="eh-demo-meta">
+              <b>本地商家版</b>
+              <span>沈定 · 秦文 · 罗盘 · 江流 · 何策 · 顾拓 · 陆帧 · 周域 · 易成</span>
+            </div>
+            <span className="eh-demo-tag">面向已开店老板 · 门店获客场景</span>
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   function renderGuRenFloor() {
     return (
       <section className="eco-floor" id="floor-guren">
-        <FloorHead no="F4" title="古人智慧专区" sub="千年商道 · 一问即答的 AI 顾问团" live="即将上线" />
+        <FloorHead no="F4" title="古人智慧专区" sub="千年商道 · 一问即答的 AI 顾问团" live="6 位先生在线" />
         <div className="eh-guren">
           <div className="eh-guren-hero">
             <span className="eh-guren-seal">智</span>
@@ -1339,22 +1402,22 @@ export function EcoMallHomePage() {
           </div>
           <div className="eh-guren-grid">
             {GUREN_ADVISORS.map((a) => (
-              <div className="eh-guren-card" key={a.name}>
+              <button type="button" className="eh-guren-card" key={a.name} onClick={enterGuRen}>
                 <span className="eh-guren-av">{a.initial}</span>
                 <div className="eh-guren-meta">
                   <span className="eh-guren-name">{a.name}</span>
                   <span className="eh-guren-tag">{a.tag}</span>
                 </div>
                 <span className="eh-guren-q">{a.q}</span>
-              </div>
+              </button>
             ))}
           </div>
           <div className="eh-guren-bar">
             <div className="eh-guren-bar-t">
-              <b>暂未开放</b>
-              <span>仅支持预约上线提醒 · 上线第一时间通知你</span>
+              <b>已开放 · 限时免费体验</b>
+              <span>点任意一位先生进入顾问团 · 每日赠送问答次数</span>
             </div>
-            <button type="button" className="eh-guren-btn" onClick={() => setBooking({ name: "古人智慧专区", key: "guren" })}>🔔 预约上线提醒 ›</button>
+            <button type="button" className="eh-guren-btn" onClick={enterGuRen}>进入古人经营智慧 ›</button>
           </div>
         </div>
       </section>
@@ -1809,6 +1872,8 @@ export function EcoMallHomePage() {
                 {renderProductCard({ glyph: "clapper", tint: "#DB2777", icon: "🎬", img: getPublicAssetPath("/mall/opcComic.jpg"), detail: "/product/opcComic/detail", name: "AIGC 漫剧创作工作台", tag: "OPC", desc: "分镜、角色、成片一条龙，批量产出漫剧短视频，带货与账号起号都能用。", price: "199 算力/席", cny: "¥19.9", buyNow: true, demo: true, bookingName: "AIGC 漫剧创作工作台", bookingKey: "opcComic"})}
               </div>
             </section>
+
+            {renderDemoFloor()}
 
           </>
         )}

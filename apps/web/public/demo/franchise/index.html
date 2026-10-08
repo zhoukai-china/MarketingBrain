@@ -1,0 +1,1173 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>IP+AI业绩倍增系统 · 招商加盟版 · 思潼AI商城</title>
+<!--
+  设计演示 · 只做设计不动生产代码
+  IP+AI 业绩倍增系统（招商加盟版）· 招商加盟客户直接落地本页
+  演示数据全虚构；计费口径 1元=10算力 · 0元开通 · 用后扣费 · 失败不扣
+-->
+<style>
+:root{
+  --bg:#F4F7FC; --card:#fff; --ink:#1c2733; --sub:#5b6b7c; --line:#e3e9f2;
+  --grn:#E8651A; --grn-deep:#cf5a10; --grn-mid:#c24f0e;
+  --grn-soft:#fdeee2; --grn-line:#f7d4b8;
+  --gold:#c9a45c; --gold-soft:#f7f1e2; --gold-line:#e4d5ae;
+  --orange:#E8651A; --amber:#b26a00; --red:#d64545; --blue:#2563eb;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--ink);font-size:14px;padding-bottom:92px}
+button{font-family:inherit;cursor:pointer}
+b{font-weight:700}
+
+/* ===== topbar（系列统一：白底 · 品牌橙点） ===== */
+.topbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:10px;background:#fff;padding:11px 14px;border-bottom:1px solid var(--line)}
+.brand{font-weight:800;font-size:16px;letter-spacing:.2px}
+.brand i{font-style:normal;color:var(--orange)}
+.topbar .sp{flex:1}
+.credits{font-size:12px;color:var(--sub);background:#f5f7fa;border:1px solid var(--line);border-radius:999px;padding:6px 11px;font-weight:600;white-space:nowrap}
+.credits b{color:var(--ink)}
+.recharge{background:var(--orange);color:#fff;border:0;border-radius:999px;padding:7px 15px;min-height:34px;font-weight:700;font-size:13px}
+
+/* ===== 业务头：深青蓝 × 橙（系列统一） ===== */
+.hero{position:relative;overflow:hidden;color:#fff;background:linear-gradient(120deg,#17313f,#2a4254);padding:20px 16px 16px}
+.hero::before{content:'';position:absolute;right:-70px;top:-90px;width:230px;height:230px;border-radius:50%;background:radial-gradient(circle,rgba(201,164,92,.28),transparent 68%)}
+.hero::after{content:'';position:absolute;left:-50px;bottom:-110px;width:190px;height:190px;border-radius:50%;background:radial-gradient(circle,rgba(232,101,26,.2),transparent 70%)}
+.hero-in{position:relative;z-index:1}
+.hero-top{display:flex;align-items:center;gap:12px}
+.hero-ava{width:54px;height:54px;border-radius:16px;flex:none;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff;background:linear-gradient(135deg,#d8b878,#8a6a2a);box-shadow:0 8px 20px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.4)}
+.hero-t h1{font-size:20px;letter-spacing:.3px}
+.hero-t .hero-sub{font-size:12px;color:#c3d2e0;margin-top:4px}
+.hero-t .hero-sub em{font-style:normal;color:#ffb27a}
+.demo-btn{margin-left:auto;flex:none;background:rgba(255,255,255,.1);border:1px solid rgba(201,164,92,.65);color:#f3e2b8;font-size:12px;font-weight:700;border-radius:999px;padding:9px 13px;min-height:36px}
+.hero-slogan{position:relative;z-index:1;margin-top:14px;font-size:15px;font-weight:700;color:#eef4f8;letter-spacing:.5px}
+.hero-slogan small{display:block;font-size:11px;font-weight:400;color:#a9c0d4;margin-top:3px;letter-spacing:0}
+
+/* 增长五环条 */
+.loop-bar{position:relative;z-index:1;margin-top:14px;display:flex;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:14px;padding:10px 4px;backdrop-filter:blur(2px)}
+.loop-it{flex:1;text-align:center;color:#dfe8f0;border:0;background:none;padding:2px 0;font-size:10.5px;line-height:1.35}
+.loop-it:not(:last-child){border-right:1px dashed rgba(255,255,255,.18)}
+.loop-dot{width:26px;height:26px;margin:0 auto 5px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;background:rgba(255,255,255,.1);border:1px solid rgba(201,164,92,.75);color:#ecd9a8}
+.loop-it b{display:block;font-size:12px;color:#fff;font-weight:700}
+.loop-it span{color:#9cb2c4;font-size:10px}
+.loop-it:active{background:rgba(255,255,255,.08);border-radius:10px}
+
+/* ===== 主体布局 ===== */
+main{padding:12px 12px 8px;max-width:1120px}
+.page{display:none}
+.page.act{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 10px rgba(23,58,46,.05)}
+.card-h{display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px;margin-bottom:11px}
+.card-h .h-ic{width:26px;height:26px;border-radius:8px;background:var(--grn-soft);display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+.card-h .more{margin-left:auto;font-size:12px;color:var(--grn);font-weight:600;border:0;background:none;min-height:30px}
+.mini-btn{min-height:34px;padding:0 13px;border-radius:9px;border:1px solid var(--grn-line);background:#fff;color:var(--grn);font-size:12.5px;font-weight:700;white-space:nowrap}
+.mini-btn.go{background:var(--grn);border-color:var(--grn);color:#fff}
+.mini-btn:disabled{opacity:.55;cursor:not-allowed}
+.big-btn{width:100%;min-height:46px;border:0;border-radius:12px;background:var(--grn);color:#fff;font-size:15px;font-weight:800;letter-spacing:.5px}
+.big-btn:disabled{background:#9dbfb1}
+.demo-badge{display:inline-block;font-size:10px;color:var(--amber);background:#fdf6e3;border:1px solid #f0dfb2;border-radius:6px;padding:2px 6px;font-weight:600;vertical-align:middle}
+
+/* ===== Tab1 权益卡 ===== */
+.rights{position:relative;border:1px solid var(--gold-line);background:linear-gradient(135deg,#fffdf6,#faf4e4);overflow:hidden}
+.rights::after{content:'⚡';position:absolute;right:-6px;bottom:-14px;font-size:64px;opacity:.08}
+.rights .r-tag{font-size:10.5px;color:#8a6a2a;background:var(--gold-soft);border:1px solid var(--gold-line);border-radius:6px;padding:2px 7px;font-weight:700}
+.rights h3{font-size:16px;margin:8px 0 4px}
+.rights .r-sub{font-size:12px;color:var(--sub)}
+.r-price{margin:7px 0 5px}
+.r-price b{font-size:22px;color:#5c4c22}
+.r-price i{font-style:normal;font-size:11px;color:#98a4b0;margin-left:6px}
+.zone-row{position:relative;z-index:1;margin-top:12px}
+.zone-tag{display:inline-block;font-size:11px;font-weight:800;letter-spacing:2px;color:#5c4c22;background:linear-gradient(135deg,#f3e2b8,#e4d5ae);border-radius:999px;padding:5px 14px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.chip-g{display:inline-block;font-size:10px;font-weight:700;color:#eaf1f7;border:1px solid rgba(201,164,92,.55);background:rgba(255,255,255,.07);border-radius:999px;padding:3px 9px;letter-spacing:.5px}
+.r-list{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.r-list span{font-size:11.5px;color:#5c4c22;background:#fff;border:1px solid var(--gold-line);border-radius:999px;padding:4px 10px}
+.r-foot{display:flex;align-items:center;justify-content:space-between;margin-top:12px}
+.r-foot .r-date{font-size:11.5px;color:var(--sub)}
+
+/* ===== 会员条（一行 · 深青蓝×金） ===== */
+.mbar{display:flex;align-items:center;gap:10px;background:linear-gradient(120deg,#17313f,#2a4254);border-radius:14px;padding:12px 14px;margin-bottom:12px;position:relative;overflow:hidden;box-shadow:0 4px 14px rgba(23,49,63,.28)}
+.mbar::after{content:'';position:absolute;right:-44px;top:-64px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(201,164,92,.28),transparent 70%)}
+.mbar>*{position:relative;z-index:1}
+.mbar-badge{flex:none;font-size:11px;font-weight:800;letter-spacing:.5px;color:#3a2f12;background:linear-gradient(135deg,#f3e2b8,#d8b878);border-radius:8px;padding:5px 9px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.mbar-t{flex:1;min-width:0}
+.mbar-t b{display:block;font-size:13.5px;color:#fff}
+.mbar-t span{display:block;font-size:10.5px;color:#a9c0d4;margin-top:2px}
+.mbar-link{flex:none;min-height:32px;border:1px solid rgba(201,164,92,.65);background:rgba(255,255,255,.08);color:#f3e2b8;font-size:12px;font-weight:700;border-radius:999px;padding:7px 12px}
+
+/* ===== 定时任务开关 ===== */
+.tgl{flex:none;width:44px;height:26px;border-radius:999px;border:1px solid var(--grn-line);background:#eef2f6;position:relative;transition:all .2s;padding:0}
+.tgl::after{content:'';position:absolute;left:2px;top:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.18);transition:all .2s}
+.tgl.on{background:var(--grn);border-color:var(--grn)}
+.tgl.on::after{left:20px}
+
+/* ===== 定时任务行（任务页） ===== */
+.sch{display:flex;align-items:center;gap:11px;padding:10px 2px;border-bottom:1px dashed var(--line)}
+.sch:last-of-type{border-bottom:0;padding-bottom:2px}
+.sch:first-of-type{padding-top:2px}
+.sch-when{flex:none;width:64px;text-align:center;background:var(--grn-soft);border:1px solid var(--grn-line);border-radius:10px;padding:6px 2px;font-size:10.5px;color:var(--grn-mid);font-weight:700;line-height:1.45}
+.sch .tk-t{flex:1;min-width:0}
+.sch .tk-t b{font-size:13.5px;display:block}
+.sch .tk-t span{font-size:11.5px;color:var(--sub);display:block;margin-top:2px}
+.card-note{font-size:10.5px;color:#98a4b0;margin-top:9px;line-height:1.6}
+
+/* ===== 录音卡 API 连接 ===== */
+.api-st{font-size:10.5px;font-weight:700;color:#98a4b0;background:#f1f4f7;border:1px solid var(--line);border-radius:999px;padding:3px 9px;white-space:nowrap}
+.api-st.on{color:var(--grn-mid);background:var(--grn-soft);border-color:var(--grn-line)}
+.api-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.api-row span{flex:none;width:58px;font-size:12px;color:var(--sub);font-weight:600}
+.api-row input{flex:1;min-width:0;height:36px;border:1px solid var(--line);border-radius:9px;padding:0 10px;font-size:12.5px;color:var(--ink);background:#f8fafc}
+.api-row input:focus{outline:none;border-color:var(--grn);background:#fff}
+.api-log{display:none;margin-top:11px;background:#fdf6f0;border:1px solid var(--grn-line);border-radius:12px;padding:11px}
+.api-line{font-size:12.5px;line-height:1.7;color:#2c3e36}
+.api-line.ok{color:var(--grn-mid);font-weight:700}
+.api-line .mini-btn{min-height:28px;padding:0 10px;font-size:12px;margin-top:6px}
+
+/* ===== 记忆与进化 ===== */
+.mem-it{display:flex;align-items:flex-start;gap:10px;padding:10px 2px;border-bottom:1px dashed var(--line)}
+.mem-it:last-of-type{border-bottom:0}
+.mem-tag{flex:none;font-size:10.5px;font-weight:700;color:var(--grn-mid);background:var(--grn-soft);border:1px solid var(--grn-line);border-radius:7px;padding:4px 8px;margin-top:1px}
+.mem-b{flex:1;font-size:12.5px;line-height:1.6;min-width:0}
+.mem-ops{flex:none;display:flex;gap:2px}
+.mem-ops button{border:0;background:none;font-size:13px;opacity:.45;min-height:26px;min-width:26px;padding:0}
+.mem-ops button:active{opacity:1}
+
+/* ===== 记忆自定义编辑 ===== */
+.mem-ta{width:100%;min-height:56px;border:1px solid var(--grn-line);border-radius:10px;padding:8px 10px;font-size:12.5px;line-height:1.6;color:var(--ink);background:#fff;resize:vertical;font-family:inherit}
+.mem-ta:focus{outline:none;border-color:var(--grn)}
+.mem-eops{display:flex;gap:8px;margin-top:8px}
+.mem-eops .mini-btn{min-height:30px;padding:0 12px;font-size:12px}
+.mem-add{margin-top:10px}
+
+/* ===== 今日推荐数字高管 ===== */
+.rec-ag{display:flex;align-items:center;gap:11px}
+.rec-ag .ava{width:44px;height:44px;border-radius:13px;flex:none}
+.rec-ag .rec-main{flex:1;min-width:0}
+.rec-ag .rec-main b{font-size:14px;display:block}
+.rec-ag .rec-main span{display:block;font-size:11.5px;color:var(--sub);margin-top:3px;line-height:1.5}
+.rec-acts{display:flex;flex-direction:column;gap:6px;flex:none}
+.rec-acts .mini-btn{min-height:30px;padding:0 11px;font-size:12px}
+
+/* ===== 最近生成 ===== */
+.gen-it{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px dashed var(--line);cursor:pointer}
+.gen-it:active{background:#fafbfc;border-radius:8px}
+.gen-it:last-child{border-bottom:0}
+.gen-ic{width:36px;height:36px;border-radius:10px;background:var(--grn-soft);display:flex;align-items:center;justify-content:center;font-size:16px;flex:none}
+.gen-m{flex:1;min-width:0}
+.gen-m b{display:block;font-size:13px}
+.gen-m span{display:block;font-size:11px;color:var(--sub);margin-top:2px}
+.gen-m .rc-t{font-size:10.5px;color:#98a4b0}
+.gen-arrow{flex:none;color:#c2ccd6;font-size:14px}
+
+/* ===== 今日任务 ===== */
+.task{display:flex;align-items:center;gap:11px;padding:11px 4px;border-bottom:1px dashed var(--line)}
+.task:last-child{border-bottom:0;padding-bottom:2px}
+.task:first-of-type{padding-top:2px}
+.tk-ic{width:38px;height:38px;border-radius:11px;background:var(--grn-soft);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
+.task .tk-t{flex:1;min-width:0}
+.task .tk-t b{font-size:13.5px;display:block}
+.task .tk-t span{font-size:11.5px;color:var(--sub);display:block;margin-top:2px}
+.task.done .tk-t b{color:#97a3b0;text-decoration:line-through}
+.task.done .tk-ic{background:#eef2f6}
+.task .tk-done{display:none;color:var(--grn);font-weight:800;font-size:15px}
+.task.done .tk-done{display:inline}
+
+/* ===== 玩法卡 ===== */
+.play{display:flex;gap:10px;align-items:flex-start;padding:11px 4px;border-bottom:1px dashed var(--line)}
+.play:last-child{border-bottom:0;padding-bottom:2px}
+.play .p-ic{width:38px;height:38px;border-radius:11px;background:var(--gold-soft);border:1px solid var(--gold-line);display:flex;align-items:center;justify-content:center;font-size:17px;flex:none}
+.play .tk-t b{font-size:13.5px;display:block}
+.play .tk-t span{font-size:11.5px;color:var(--sub);display:block;margin-top:2px}
+
+/* ===== Tab2 货架 ===== */
+.subtabs{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 12px;scrollbar-width:none}
+.subtabs::-webkit-scrollbar{display:none}
+.subtabs button{flex:none;min-height:34px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--sub);font-size:12.5px;font-weight:600}
+.subtabs button.on{background:var(--grn-deep);border-color:var(--grn-deep);color:#fff}
+.g-title{font-size:13px;font-weight:800;color:var(--sub);margin:4px 2px 10px;display:flex;align-items:center;gap:7px}
+.g-title::before{content:'';width:4px;height:14px;border-radius:3px;background:var(--grn)}
+.g-title .g-n{font-weight:600;font-size:11.5px;color:#8fa39a}
+.agent{padding:13px}
+.ag-top{display:flex;align-items:center;gap:10px}
+.ava{width:46px;height:46px;border-radius:14px;flex:none;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:800;color:#fff;position:relative;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 3px 8px rgba(13,43,33,.18)}
+.ava::after{content:'';position:absolute;left:5px;top:4px;width:16px;height:8px;border-radius:50%;background:rgba(255,255,255,.28);filter:blur(1px)}
+.a1{background:linear-gradient(135deg,#1c5a40,#35a377)}
+.a2{background:linear-gradient(135deg,#0f5a4e,#23a68f)}
+.a3{background:linear-gradient(135deg,#8a6a2a,#d4b06a)}
+.a4{background:linear-gradient(135deg,#245a72,#3f93b3)}
+.a5{background:linear-gradient(135deg,#3a5a22,#6f9c3a)}
+.a6{background:linear-gradient(135deg,#3f3350,#7a68a8)}
+.a7{background:linear-gradient(135deg,#14614a,#4cc08a)}
+.a8{background:linear-gradient(135deg,#5a3a1c,#b3823f)}
+.a9{background:linear-gradient(135deg,#7a4020,#c07a45)}
+.a10{background:linear-gradient(135deg,#0d3a4a,#2b8ab0)}
+.b1{background:linear-gradient(135deg,#1a3a5c,#3d6f9e)}
+.b2{background:linear-gradient(135deg,#234a63,#5b93b0)}
+.b3{background:linear-gradient(135deg,#7a3030,#c06a50)}
+.b4{background:linear-gradient(135deg,#3a3a66,#7d74c2)}
+.b5{background:linear-gradient(135deg,#8a5a1a,#d6a44e)}
+.b6{background:linear-gradient(135deg,#5c4426,#a8825a)}
+.b7{background:linear-gradient(135deg,#6a2e56,#b8689c)}
+.b8{background:linear-gradient(135deg,#1e5546,#55a985)}
+.b9{background:linear-gradient(135deg,#31404f,#6d85a0)}
+.ava{overflow:hidden}
+.ava .ava-img{width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit}
+.agent .ava{box-shadow:0 0 0 2.5px #fff,0 0 0 4.5px var(--grn-line),0 6px 14px rgba(0,0,0,.14)}
+.ag-info{flex:1;min-width:0}
+.ag-info b{font-size:15px}
+.ag-role{display:block;font-size:11.5px;color:var(--sub);margin-top:2px}
+.live{flex:none;font-size:10.5px;color:var(--grn);background:var(--grn-soft);border:1px solid var(--grn-line);border-radius:999px;padding:3px 8px;font-weight:700;white-space:nowrap}
+.live.soon{color:var(--amber);background:#fdf6e3;border-color:#f0dfb2}
+.ag-desc{font-size:12.5px;color:var(--sub);line-height:1.6;margin:10px 0}
+.ag-foot{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.price{font-size:11.5px;color:var(--sub)}
+.price b{font-size:15px;color:var(--grn-mid)}
+.price i{font-style:normal;font-size:10.5px;color:#98a4b0;margin-left:3px}
+.group{margin-bottom:4px}
+
+/* ===== Tab3 任务中心 ===== */
+.tk-prog{display:flex;align-items:center;gap:10px;background:var(--grn-soft);border:1px solid var(--grn-line);border-radius:11px;padding:10px 12px;margin-bottom:6px;font-size:12.5px;color:var(--grn-mid);font-weight:600}
+.tk-prog .bar{flex:1;height:8px;background:#fff;border:1px solid var(--grn-line);border-radius:99px;overflow:hidden}
+.tk-prog .bar i{display:block;height:100%;width:0;background:var(--grn);border-radius:99px;transition:width .5s}
+.week{display:flex;gap:6px;margin-top:4px}
+.wd{flex:1;text-align:center;background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:8px 2px}
+.wd span{display:block;font-size:9.5px;color:var(--sub)}
+.wd b{display:block;font-size:11.5px;margin-top:3px;font-weight:700;color:var(--grn-mid)}
+.wd.today{background:var(--gold-soft);border-color:var(--gold-line)}
+.wd.today span{color:#8a6a2a;font-weight:700}
+
+/* ===== Tab4 我的 ===== */
+.bal{display:flex;align-items:center;gap:12px}
+.bal .bal-n{flex:1}
+.bal .bal-n em{font-style:normal;display:block;font-size:11.5px;color:var(--sub);margin-bottom:3px}
+.bal .bal-n b{font-size:26px;color:var(--grn-mid);font-variant-numeric:tabular-nums}
+.bal .bal-n i{font-style:normal;font-size:12px;color:var(--sub);margin-left:4px}
+.rec-list .rec{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px dashed var(--line);font-size:12.5px}
+.rec-list .rec:last-child{border-bottom:0}
+.rec .rc-t{color:var(--sub);flex:none;font-size:11.5px;width:64px}
+.rec .rc-m{flex:1;min-width:0}
+.rec .rc-m b{display:block}
+.rec .rc-m span{color:var(--sub);font-size:11px}
+.rec .rc-c{color:var(--sub);font-size:11.5px;flex:none}
+.help-it{border-bottom:1px dashed var(--line)}
+.help-it:last-child{border-bottom:0}
+.help-q{width:100%;text-align:left;background:none;border:0;padding:11px 2px;font-size:13.5px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:8px}
+.help-q::after{content:'＋';margin-left:auto;color:var(--grn);font-weight:800}
+.help-it.open .help-q::after{content:'－'}
+.help-a{display:none;font-size:12.5px;color:var(--sub);line-height:1.7;padding:0 2px 12px}
+.help-it.open .help-a{display:block}
+
+/* ===== 免责条 ===== */
+.redline-tip{font-size:11px;color:#8a7550;background:#fdfaf1;border:1px dashed var(--gold-line);border-radius:12px;padding:10px 12px;line-height:1.7;margin:2px 0 14px}
+
+/* 产品说明入口 */
+.spec-link{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:44px;margin:12px 0 2px;border:1px solid var(--line);background:#fff;border-radius:14px;font-size:13px;font-weight:700;color:var(--ink);box-shadow:0 2px 8px rgba(20,40,60,.05)}
+.spec-link:active{transform:scale(.99)}
+
+/* ===== 派单弹层 ===== */
+.mask{position:fixed;inset:0;z-index:90;background:rgba(13,26,38,.58);display:none;align-items:flex-end;justify-content:center}
+.mask.on{display:flex}
+.sheet{width:100%;max-width:560px;background:#fff;border-radius:18px 18px 0 0;padding:15px 15px calc(16px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto;animation:sheetUp .28s ease}
+@keyframes sheetUp{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+.sh-head{display:flex;align-items:center;gap:10px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.sh-head .sh-n b{font-size:16px;display:block}
+.sh-head .sh-n span{font-size:11.5px;color:var(--sub)}
+.sh-x{margin-left:auto;border:0;background:#f2f6f4;width:30px;height:30px;border-radius:50%;font-size:13px;color:var(--sub);flex:none}
+.sh-price{margin:11px 0 0;font-size:12.5px;color:var(--sub)}
+.sh-price b{color:var(--grn-mid);font-size:15px}
+.sh-label{font-size:12px;color:var(--sub);margin:13px 0 8px;font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{min-height:36px;padding:0 13px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink);font-size:12.5px;font-weight:600}
+.chips button.on{background:var(--grn-soft);border-color:var(--grn);color:var(--grn);font-weight:700}
+.od-gen{display:none;margin-top:14px}
+.gp-bar{height:9px;background:#eef2f6;border-radius:99px;overflow:hidden;border:1px solid var(--grn-line)}
+.gp-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#f5955c,var(--grn));border-radius:99px;transition:width 1.5s ease}
+.gp-step{font-size:12px;color:var(--sub);margin-top:8px}
+.od-out{display:none;margin-top:14px}
+.oc{background:#fdf6f0;border:1px solid var(--grn-line);border-radius:13px;padding:13px}
+.oc-h{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:800;color:var(--grn-mid);margin-bottom:9px}
+.oc-h .demo-badge{margin-left:auto}
+.oc-b{font-size:13px;line-height:1.75;white-space:pre-wrap;color:#2c3e36}
+.oc-f{display:flex;gap:8px;margin-top:11px}
+.oc-f .mini-btn{flex:1}
+@keyframes phFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7%)}}
+.sh-head .ava{animation:phFloat 3.2s ease-in-out infinite}
+@keyframes wbpulse{50%{box-shadow:0 .5em 1.5em rgba(232,101,26,.5)}}
+.sh-go{animation:wbpulse 1.6s ease-in-out infinite}
+.sh-go:disabled{animation:none}
+.wb-entry{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:11px;padding:10px 12px;border:1px dashed var(--grn-line);border-radius:12px;background:var(--grn-soft);font-size:12px;color:var(--grn-mid);font-weight:700;cursor:pointer}
+.sh-go{margin-top:14px}
+
+/* ===== toast / spotlight ===== */
+.toast{position:fixed;left:50%;bottom:104px;transform:translateX(-50%) translateY(14px);z-index:120;background:rgba(23,39,51,.94);color:#fff;font-size:13px;padding:11px 17px;border-radius:11px;opacity:0;pointer-events:none;transition:all .25s;max-width:82vw;text-align:center;line-height:1.5;border:1px solid rgba(201,164,92,.4)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@keyframes spotPulse{0%{box-shadow:0 0 0 0 rgba(232,101,26,.42)}70%{box-shadow:0 0 0 12px rgba(232,101,26,0)}100%{box-shadow:0 0 0 0 rgba(232,101,26,0)}}
+.spot{animation:spotPulse 1s ease 2;border-radius:14px}
+
+/* ===== 底部 TabBar（<960px） ===== */
+.tabbar{position:fixed;bottom:0;left:0;right:0;z-index:60;display:flex;background:#fff;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -4px 16px rgba(23,58,46,.06)}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 0 7px;font-size:10.5px;color:var(--sub);border:0;background:none;font-weight:600}
+.tab .ic{font-size:20px;line-height:1}
+.tab.act{color:var(--grn);font-weight:800}
+.side-brand{display:none}
+
+/* ===== ≥960px：左竖导航 + 多列 ===== */
+@media (min-width:960px){
+  body{padding-left:168px;padding-bottom:26px}
+  .tabbar{top:0;bottom:0;right:auto;width:168px;flex-direction:column;justify-content:flex-start;align-items:stretch;border-top:0;border-right:1px solid var(--line);padding:0 0 20px;box-shadow:none}
+  .side-brand{display:block;padding:18px 16px 14px;font-weight:800;font-size:15px;border-bottom:1px solid var(--line);margin-bottom:10px}
+  .side-brand i{font-style:normal;color:var(--grn)}
+  .side-brand small{display:block;font-size:10px;color:var(--sub);font-weight:500;margin-top:3px}
+  .tab{flex:none;flex-direction:row;justify-content:flex-start;gap:10px;padding:13px 18px;font-size:13.5px;border-radius:0 999px 999px 0;margin:2px 12px 2px 0}
+  .tab.act{background:var(--grn-soft)}
+  .tab .ic{font-size:17px}
+  main{padding:16px 22px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+  .agent-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:start}
+  .grid3 .card{margin-bottom:0}
+  .agent-grid .card{margin-bottom:0}
+  .grid2 .card{margin-bottom:0}
+  .hero{border-radius:0 0 18px 18px}
+  .mask{align-items:center;padding:20px}
+  .sheet{border-radius:18px}
+}
+@media (max-width:640px){
+  .big-btn{width:100%}
+  .hero-t h1{font-size:19px}
+}
+/* ===== v2 质感升级（高级感覆盖层） ===== */
+body{background:radial-gradient(1100px 480px at 50% -200px,rgba(232,101,26,.09),transparent 62%),radial-gradient(900px 420px at 108% -160px,rgba(201,164,92,.10),transparent 60%),#f4f5f7}
+.topbar{background:rgba(255,255,255,.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid rgba(23,49,63,.06)}
+.card{border-radius:18px;border:1px solid rgba(23,49,63,.05);box-shadow:0 10px 30px rgba(23,49,63,.07),0 2px 6px rgba(23,49,63,.04)}
+.h-ic{background:linear-gradient(135deg,#fff1e3,#ffdcc0);box-shadow:0 2px 8px rgba(232,101,26,.16)}
+.hero{background:linear-gradient(135deg,#0d1f2c,#17313f 48%,#1e4054);position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:-30%;background:radial-gradient(40% 55% at 16% 12%,rgba(232,101,26,.28),transparent 68%),radial-gradient(36% 50% at 86% 18%,rgba(201,164,92,.22),transparent 66%),radial-gradient(46% 60% at 62% 96%,rgba(72,146,182,.22),transparent 70%);animation:aurora 8s ease-in-out infinite alternate;pointer-events:none}
+@keyframes aurora{from{transform:translate3d(0,-8px,0) scale(1)}to{transform:translate3d(0,10px,0) scale(1.05)}}
+.hero-in{position:relative;z-index:1}
+.hero-slogan{letter-spacing:.4px;text-shadow:0 2px 18px rgba(0,0,0,.35)}
+.zone-tag{position:relative;overflow:hidden;box-shadow:0 4px 14px rgba(201,164,92,.35)}
+.zone-tag::after{content:'';position:absolute;top:0;bottom:0;width:36%;left:-60%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.65),transparent);animation:shine 3.2s ease-in-out infinite}
+@keyframes shine{0%{left:-60%}55%{left:130%}100%{left:130%}}
+.hchip{background:rgba(255,255,255,.10)!important;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.22)!important}
+#loopBar{background:rgba(255,255,255,.09);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.16)}
+.mbar{background:linear-gradient(120deg,#122836,#1d3b4e 55%,#2a4a60);box-shadow:0 10px 26px rgba(15,34,48,.35)}
+.mbar::before{content:'';position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.10) 50%,transparent 70%);transform:translateX(-100%);animation:mshine 4.5s ease-in-out infinite;pointer-events:none}
+@keyframes mshine{0%,55%{transform:translateX(-100%)}85%,100%{transform:translateX(100%)}}
+.mbar-badge{background:linear-gradient(135deg,#f7e7c3,#d8b878);box-shadow:0 3px 10px rgba(0,0,0,.35),inset 0 0 0 1px rgba(255,255,255,.25)}
+.mini-btn.go{background:linear-gradient(135deg,#f5955c,#e8651a);box-shadow:0 4px 14px rgba(232,101,26,.32)}
+.mini-btn.go:active{transform:scale(.95)}
+.big-btn{background:linear-gradient(135deg,#f5955c,#e8651a);box-shadow:0 8px 22px rgba(232,101,26,.35)}
+.big-btn:active{transform:scale(.985)}
+.tabbar{background:rgba(255,255,255,.88);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid rgba(23,49,63,.06)}
+.tab.act{font-weight:800}
+.p-ic{filter:drop-shadow(0 2px 6px rgba(232,101,26,.22))}
+/* ===== v2.1 排版/配色精修 ===== */
+:root{--ink:#1a2b3c;--sub:#5c6b7a}
+body{background:#f6f7f9}
+.card{padding:16px;margin-bottom:14px}
+.tk-ic,.gen-ic{background:linear-gradient(135deg,#fff1e3,#ffdcc0);box-shadow:0 2px 8px rgba(232,101,26,.12)}
+.pain{padding:13px 2px}
+.tk-t span{line-height:1.65}
+.hero-t h1{font-size:21px;letter-spacing:.5px}
+.hero-sub{font-size:12px;color:#a9c0d4;margin-top:5px}
+.zone-tag.ghost{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22);color:#ecd9a8;box-shadow:none}
+.zone-tag.ghost::after{display:none}
+.hero-tip{margin-top:10px;font-size:10.5px;color:rgba(233,240,246,.55);letter-spacing:.3px}
+/* ===== 定时任务管理弹层 ===== */
+.ssh-ic{flex:none;width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#f5955c,#e8651a);display:flex;align-items:center;justify-content:center;font-size:19px;box-shadow:0 4px 10px rgba(232,101,26,.28)}
+.ssh-ava{width:38px!important;height:38px!important;border-radius:11px!important;font-size:15px!important}
+#schedList .sch{padding:9px 0}
+.f-label{font-size:12px;font-weight:800;color:#44586b;margin:13px 0 8px}
+.f-hint{font-size:12px;color:#98a4b0;line-height:36px}
+.ssh-form{margin-top:12px;background:#f8fafc;border:1px solid var(--line);border-radius:14px;padding:12px}
+.ssh-form .big-btn{margin-top:14px}
+.ssh-cancel{display:block;margin:8px auto 0;border:0;background:none;color:#98a4b0;font-size:12px;min-height:28px}
+.ssh-foot{margin-top:12px;text-align:center}
+</style>
+</head>
+<body>
+
+<!-- 顶栏（系列统一） -->
+<header class="topbar">
+  <div class="brand">⚡ 思潼<i>AI</i><span style="font-size:10px;font-weight:700;color:#3a2f12;background:linear-gradient(135deg,#f3e2b8,#d8b878);border-radius:6px;padding:3px 7px;margin-left:8px;vertical-align:2px;letter-spacing:.5px;white-space:nowrap">招商加盟版</span></div>
+  <div class="sp"></div>
+  <div class="credits">⚡ 算力 <b id="creditNum">12,860</b></div>
+  <button class="recharge" onclick="toast('演示环境 · 充值入口以线上为准')">充值</button>
+</header>
+
+<!-- 业务头：深墨绿 × 绿金 -->
+<section class="hero">
+  <div class="hero-in">
+    <div class="hero-top">
+      <div class="hero-t">
+        <h1>IP+AI 业绩倍增系统</h1>
+        <div class="hero-sub">不是通用AI套壳 · 做IP·招商·加盟裂变</div>
+      </div>
+      <button class="demo-btn" id="demoBtn" onclick="toggleDemo()">▶ 一键演示</button>
+    </div>
+    <div class="zone-row"><span class="zone-tag">不需要学 · 直接用</span><span class="zone-tag ghost">⚡ 实战专家团 · 十年沉淀</span></div>
+    <div class="loop-bar" id="loopBar">
+      <button class="loop-it" onclick="loopJump('dingwei')"><span class="loop-dot">🎯</span><b>定位</b><span>庄衡</span></button>
+      <button class="loop-it" onclick="loopJump('xuanti')"><span class="loop-dot">🗓️</span><b>选题</b><span>金点</span></button>
+      <button class="loop-it" onclick="loopJump('neirong')"><span class="loop-dot">✍️</span><b>内容</b><span>4 位</span></button>
+      <button class="loop-it" onclick="loopJump('zhibo')"><span class="loop-dot">🎙️</span><b>直播</b><span>祝鸣</span></button>
+      <button class="loop-it" onclick="loopJump('siyu')"><span class="loop-dot">🤝</span><b>转化</b><span>温故 · 万契</span></button>
+    </div>
+  </div>
+</section>
+
+<main>
+
+  <!-- ================= Tab1 增长台 ================= -->
+  <section class="page act" id="page-home">
+
+    <div class="card" id="painCard">
+      <div class="card-h"><span class="h-ic">🧗</span>做招商正卡在三道坎</div>
+      <div class="task">
+        <div class="tk-ic">💸</div>
+        <div class="tk-t"><b>招不到加盟商</b><span>招商团队贵、线索少、转化低；请代运营一年几十万，招不来几家，门店模型跑不出规模</span></div>
+      </div>
+      <div class="task">
+        <div class="tk-ic">📉</div>
+        <div class="tk-t"><b>加盟商存活低</b><span>招进来不会获客经营，开不久就关店，品牌口碑、续费、转介绍全受损</span></div>
+      </div>
+      <div class="task" style="border-bottom:0">
+        <div class="tk-ic">🏭</div>
+        <div class="tk-t"><b>总部产能跟不上</b><span>给几十上百家加盟商供内容、做培训、跟线索，靠人力扛不住，标准统一不了</span></div>
+      </div>
+      <div style="margin-top:11px;padding-top:10px;border-top:1px solid var(--grn-line);font-size:13px;font-weight:800;color:var(--grn)">一队数字高管，替你把用IP招商与加盟裂变的闭环跑完</div>
+    </div>
+
+    <div class="mbar" id="mbar">
+      <span class="mbar-badge">年卡 · 限时价</span>
+      <div class="mbar-t"><b>IP+AI 业绩倍增系统 <span class="demo-badge">演示数据</span></b><span>¥49,800/年 · 基础 3 席位 · 9 位数字高管畅用 · 失败不扣</span></div>
+      <button class="mbar-link" onclick="switchTab('me')">权益 ›</button>
+    </div>
+
+    <div class="card" id="todayCard">
+      <div class="card-h"><span class="h-ic">📍</span>今日招商任务 · 按场景直达<button class="more" onclick="switchTab('task')">全部任务 ›</button></div>
+      <div class="task" id="tk1">
+        <div class="tk-ic">✍️</div>
+        <div class="tk-t"><b>今天要发招商内容</b><span>让苏笺直接给你一条品牌招商朋友圈</span></div>
+        <button class="mini-btn go" onclick="event.stopPropagation();openOrder('qinwen')">派活</button>
+      </div>
+      <div class="task" id="tk2">
+        <div class="tk-ic">🎯</div>
+        <div class="tk-t"><b>招商定位还没想清</b><span>让庄衡先定「招什么商、对谁招」</span></div>
+        <button class="mini-btn go" onclick="event.stopPropagation();openOrder('shending')">派活</button>
+      </div>
+      <div class="task" id="tk3">
+        <div class="tk-ic">📊</div>
+        <div class="tk-t"><b>招商视频没水花</b><span>让程鉴诊断意向加盟商为什么划走、下条怎么调</span></div>
+        <button class="mini-btn go" onclick="event.stopPropagation();openOrder('jiangliu')">派活</button>
+      </div>
+      <div class="task" id="tk4">
+        <div class="tk-ic">🎙️</div>
+        <div class="tk-t"><b>周五要开招商直播</b><span>让祝鸣出一套照着念就能播的招商话术</span></div>
+        <button class="mini-btn go" onclick="event.stopPropagation();openOrder('luopan')">派活</button>
+      </div>
+    </div>
+
+    <div class="card" id="recCard">
+      <div class="card-h"><span class="h-ic">🌟</span>今日推荐数字高管 <span class="demo-badge">按本周节奏</span></div>
+      <div class="rec-ag" id="recAg"></div>
+    </div>
+
+    <div class="card" id="recentCard">
+      <div class="card-h"><span class="h-ic">🗂️</span>最近生成 <button class="more" onclick="switchTab('me')">全部记录 ›</button></div>
+      <div class="gen-it" onclick="location.href=WB_FILE.qinwen">
+        <div class="gen-ic">✍️</div>
+        <div class="gen-m"><b>苏笺 · 招商文案</b><span>品牌招商朋友圈 · 合伙人社群 1 条</span><span class="rc-t">今天 09:12 · 已扣 15 算力</span></div>
+        <span class="gen-arrow">›</span>
+      </div>
+      <div class="gen-it" onclick="location.href=WB_FILE.luzhen">
+        <div class="gen-ic">🎬</div>
+        <div class="gen-m"><b>甄映 · 文生视频</b><span>招商口播视频 · 15 秒竖版</span><span class="rc-t">昨天 16:40 · 已扣 120 算力</span></div>
+        <span class="gen-arrow">›</span>
+      </div>
+      <div class="gen-it" onclick="location.href=WB_FILE.hece">
+        <div class="gen-ic">🗓️</div>
+        <div class="gen-m"><b>金点 · 选题包</b><span>本周招商选题 3 条 · 已拍 1 条</span><span class="rc-t">10-04 · 已扣 99 算力</span></div>
+        <span class="gen-arrow">›</span>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ================= Tab2 数字高管货架 ================= -->
+  <section class="page" id="page-agents">
+    <div class="subtabs" id="agChips">
+      <button class="on" data-tag="all" onclick="chipFilter('all',this)">全部 9</button>
+      <button data-tag="dingwei" onclick="chipFilter('dingwei',this)">🎯 定位</button>
+      <button data-tag="xuanti" onclick="chipFilter('xuanti',this)">🗓️ 选题</button>
+      <button data-tag="neirong" onclick="chipFilter('neirong',this)">✍️ 内容</button>
+      <button data-tag="zhibo" onclick="chipFilter('zhibo',this)">🎙️ 直播</button>
+      <button data-tag="siyu" onclick="chipFilter('siyu',this)">🤝 转化</button>
+    </div>
+
+    <div class="group" id="g-ding" data-tags="dingwei">
+      <div class="g-title">定位 · 先想明白对谁说 <span class="g-n">1 位在线</span></div>
+      <div class="agent-grid">
+
+        <div class="card agent" data-tag="dingwei">
+          <div class="ag-top">
+            <div class="ava b1">庄</div>
+            <div class="ag-info"><b>庄衡</b><span class="ag-role">首席定位官 · 数字高管</span></div>
+            <span class="live">🟢 在线</span>
+          </div>
+          <p class="ag-desc">先把你这个人想明白，再定「对谁说、说啥」。起号第一站，别上来就发。</p>
+          <div class="ag-foot"><span class="price"><b>⚡99 算力</b>/份<i>≈¥9.9 · 0元开通·用后扣费</i></span><button class="mini-btn go" onclick="openOrder('shending')">派活给他</button></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="group" id="g-xuan" data-tags="xuanti">
+      <div class="g-title" style="margin-top:14px">选题 · 每天有得拍 <span class="g-n">1 位在线</span></div>
+      <div class="agent-grid">
+
+        <div class="card agent" data-tag="xuanti">
+          <div class="ag-top">
+            <div class="ava b5">金</div>
+            <div class="ag-info"><b>金点</b><span class="ag-role">选题策略官 · 数字高管</span></div>
+            <span class="live">🟢 在线</span>
+          </div>
+          <p class="ag-desc">每天给你 3–5 条带「三关筛选」标签、可直接开拍的选题。</p>
+          <div class="ag-foot"><span class="price"><b>⚡99 算力</b>/次<i>≈¥9.9 · 0元开通·用后扣费</i></span><button class="mini-btn go" onclick="openOrder('hece')">派活给他</button></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="group" id="g-nei" data-tags="neirong">
+      <div class="g-title" style="margin-top:14px">内容 · 写文案 / 爆款复刻 / 文生视频 / 视频复盘 <span class="g-n">4 位在线</span></div>
+      <div class="agent-grid">
+
+        <div class="card agent" data-tag="neirong">
+          <div class="ag-top">
+            <div class="ava b2">苏</div>
+            <div class="ag-info"><b>苏笺</b><span class="ag-role">金牌文案主笔 · 数字高管</span></div>
+            <span class="live">🟢 在线</span>
+          </div>
+          <p class="ag-desc">你把卖点给我，我给你一条多平台适配、带钩子的可直发文案。</p>
+          <div class="ag-foot"><span class="price"><b>⚡15 算力</b>/次<i>≈¥1.5 · 0元开通·用后扣费</i></span><button class="mini-btn go" onclick="openOrder('qinwen')">派活给他</button></div>
+        </div>
+
+        <div class="card agent" data-tag="neirong">
+          <div class="ag-top">
+            <div class="ava b6">米</div>
+            <div class="ag-info"><b>米临</b><span class="ag-role">爆款复刻 · 数字高管</span></div>
+            <span class="live">🟢 在线</span>
+          </div>
+          <p class="ag-desc">给我一条对标的爆款，我拆它的结构、换上你的文案，照着火一遍。</p>
+          <div class="ag-foot"><span class="price"><b>⚡70 算力</b>/次<i>≈¥7 · 0元开通·用后扣费</i></span><button class="mini-btn go" onclick="openOrder('gutu')">派活给他</button></div>
+        </div>
+
+        <div class="card agent" data-tag="neirong">
+          <div class="ag-top">
+            <div class="ava b7">映</div>
+            <div class="ag-info"><b>甄映</b><span class="ag-role">文生视频 · 数字高管</span></div>
+            <span class="live">🟢 在线</span>
+          </div>
+          <p class="ag-desc">文案丢给我，竖版成片还给你：分镜、配音、大字字幕一条龙。</p>
+          <div class="ag-foot"><span class="price"><b>⚡120 算力</b>/条<i>≈¥12 · 0元开通·用后扣费</i></span><button class="mini-btn go" onclick="openOrder('luzhen')">派活给他</button></div>
+        </div>
+
+        <div class="card agent" data-tag="neirong">
+          <div class="ag-top">
+            <div class="ava b4">程</div>
+            <div class="ag-info"><b>程鉴</b><span class="ag-role">流量诊断官 · 数字高管</span></div>
+            <span class="live">🟢 在线</span>
+          </div>
+          <p class="ag-desc">给一条视频做数据复盘，告诉你为什么没爆、下条怎么调。</p>
+          <div class="ag-foot"><span class="price"><b>⚡50 算力</b>/次<i>≈¥5 · 0元开通·用后扣费</i></span><button class="mini-btn go" onclick="openOrder('jiangliu')">派活给他</button></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="group" id="g-zhi" data-tags="zhibo">
+      <div class="g-title" style="margin-top:14px">直播 · 照着念就能播 <span class="g-n">1 位在线</span></div>
+      <div class="agent-grid">
+
+        <div class="card agent" data-tag="zhibo">
+          <div class="ag-top">
+            <div class="ava b3">祝</div>
+            <div class="ag-info"><b>祝鸣</b><span class="ag-role">直播话术师 · 数字高管</span></div>
+            <span class="live">🟢 在线</span>
+          </div>
+          <p class="ag-desc">给你一套可开播的逐字直播话术稿，照着念就上。</p>
+          <div class="ag-foot"><span class="price"><b>⚡50 算力</b>/场<i>≈¥5 · 0元开通·用后扣费</i></span><button class="mini-btn go" onclick="openOrder('luopan')">派活给他</button></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="group" id="g-zhuan" data-tags="siyu">
+      <div class="g-title" style="margin-top:14px">转化 · 加盟商接住才叫增长 <span class="g-n">2 位在线</span></div>
+      <div class="agent-grid">
+
+        <div class="card agent" data-tag="siyu">
+          <div class="ag-top">
+            <div class="ava b8">温</div>
+            <div class="ag-info"><b>温故</b><span class="ag-role">招商私域顾问 · 数字高管</span></div>
+            <span class="live">🟢 在线</span>
+          </div>
+          <p class="ag-desc">给你一条能直接发的招商朋友圈，信任人设 + 业务价值 + 软引导，把意向加盟商引进社群。</p>
+          <div class="ag-foot"><span class="price"><b>⚡5 算力</b>/条<i>≈¥0.5 · 0元开通·用后扣费</i></span><button class="mini-btn go" onclick="openOrder('zhouyu')">派活给他</button></div>
+        </div>
+
+        <div class="card agent" data-tag="siyu">
+          <div class="ag-top">
+            <div class="ava b9">万</div>
+            <div class="ag-info"><b>万契</b><span class="ag-role">招商成交官 · 数字高管</span></div>
+            <span class="live">🟢 在线</span>
+          </div>
+          <p class="ag-desc">给一个招商场景的标准成交话术 + 异议处理，进线的意向加盟商都接得住。</p>
+          <div class="ag-foot"><span class="price"><b>⚡25 算力</b>/次<i>≈¥2.5 · 0元开通·用后扣费</i></span><button class="mini-btn go" onclick="openOrder('yicheng')">派活给他</button></div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Tab3 任务 ================= -->
+  <section class="page" id="page-task">
+    <div class="card" id="threeCard">
+      <div class="card-h"><span class="h-ic">✅</span>今日三事 · 全齐 +10 算力 <span class="demo-badge">演示数据</span></div>
+      <div class="tk-prog">已打卡 <span id="tkDone">0</span>/3 <span class="bar"><i id="tkFill"></i></span></div>
+      <div class="task" data-task>
+        <div class="tk-ic">📤</div>
+        <div class="tk-t"><b>发 1 条招商内容</b><span>没灵感？点右边让苏笺写一条</span></div>
+        <button class="mini-btn go" onclick="event.stopPropagation();openOrder('qinwen')">派苏笺</button>
+        <span class="tk-done">✓</span>
+      </div>
+      <div class="task" data-task>
+        <div class="tk-ic">💬</div>
+        <div class="tk-t"><b>回 10 条意向加盟商私信</b><span>不知道怎么回？让万契给你话术</span></div>
+        <button class="mini-btn go" onclick="event.stopPropagation();openOrder('yicheng')">派万契</button>
+        <span class="tk-done">✓</span>
+      </div>
+      <div class="task" data-task>
+        <div class="tk-ic">📈</div>
+        <div class="tk-t"><b>看 1 次数据复盘</b><span>把昨天那条招商视频丢给程鉴</span></div>
+        <button class="mini-btn go" onclick="event.stopPropagation();openOrder('jiangliu')">派程鉴</button>
+        <span class="tk-done">✓</span>
+      </div>
+      <div style="font-size:11px;color:#98a4b0;margin-top:10px">点整行即可打卡 · 打卡奖励为演示口径</div>
+    </div>
+
+    <div class="card" id="weekCard">
+      <div class="card-h"><span class="h-ic">🗓️</span>本周招商节奏 · 照着走就行</div>
+      <div class="week">
+        <div class="wd"><span>周一</span><b>定选题</b></div>
+        <div class="wd"><span>周二</span><b>发视频</b></div>
+        <div class="wd"><span>周三</span><b>追评论</b></div>
+        <div class="wd"><span>周四</span><b>备直播</b></div>
+        <div class="wd"><span>周五</span><b>开播</b></div>
+        <div class="wd"><span>周六</span><b>做复盘</b></div>
+        <div class="wd today"><span>周日</span><b>私域日</b></div>
+      </div>
+      <div class="play" style="margin-top:12px;border-top:1px solid var(--line);padding-top:13px">
+        <div class="p-ic">🚀</div>
+        <div class="tk-t"><b>还没起号？走「起号七步」</b><span>从定位到第一条招商爆款的最短路径，庄衡带队开工</span></div>
+        <button class="mini-btn go" onclick="event.stopPropagation();openOrder('shending')">开工</button>
+      </div>
+      <div class="play">
+        <div class="p-ic">🗓️</div>
+        <div class="tk-t"><b>每天不知道发什么？要「选题日历」</b><span>一周 7 天不发愁，金点每天给 3 条能直接拍的</span></div>
+        <button class="mini-btn go" onclick="event.stopPropagation();openOrder('hece')">去要</button>
+      </div>
+      <div class="play">
+        <div class="p-ic">💬</div>
+        <div class="tk-t"><b>意向加盟商进来了？做好「私域承接」</b><span>意向加盟商进来别冷场：温故写招商朋友圈，万契接签约</span></div>
+        <button class="mini-btn go" onclick="event.stopPropagation();openOrder('zhouyu')">接住</button>
+      </div>
+      <div style="font-size:11px;color:#98a4b0;margin-top:10px">节奏为演示示例 · 每个环节都有对应数字高管接单</div>
+    </div>
+
+    <div class="card" id="schedCard">
+      <div class="card-h"><span class="h-ic">⏰</span>定时任务 · 到点自动干 <button class="more" onclick="openSched()">管理 ›</button></div>
+      <div class="sch">
+        <span class="sch-when">每周一<br>09:00</span>
+        <div class="tk-t"><b>金点 · 本周招商选题包</b><span>自动出 5 条招商选题 · 结果进增长台「最近生成」</span></div>
+        <button class="tgl on" onclick="tglSch(this)"></button>
+      </div>
+      <div class="sch">
+        <span class="sch-when">每天<br>20:00</span>
+        <div class="tk-t"><b>温故 · 明日招商朋友圈</b><span>提前备好第二天那条 · 早上照发就行</span></div>
+        <button class="tgl on" onclick="tglSch(this)"></button>
+      </div>
+      <div class="sch">
+        <span class="sch-when">每周四<br>19:00</span>
+        <div class="tk-t"><b>祝鸣 · 周五开播话术</b><span>周五晚场照着念就能播 · 扣字引导全安排</span></div>
+        <button class="tgl" onclick="tglSch(this)"></button>
+      </div>
+      <div class="card-note">定时任务不打卡、不占「今日三事」名额 · 消耗算力按各数字高管单价 · 失败不扣（演示口径）</div>
+    </div>
+  </section>
+
+  <!-- ================= Tab4 我的 ================= -->
+  <section class="page" id="page-me">
+    <div class="card rights">
+      <span class="r-tag">我的权益</span>
+      <h3>IP+AI 业绩倍增系统 · 年卡（招商加盟版） <span class="demo-badge">演示数据</span></h3>
+      <div class="r-sub">¥49,800/年 · 限时价 · 基础 3 席位 · 加 1 席位 +¥1,000/年</div>
+      <div style="font-size:12px;line-height:2;margin-top:8px;color:#5a4632">
+        ✅ 9 位数字高管全年畅用（招商全链路）<br>
+        ✅ 保禄老师十年实战方法论 · 专家私有知识库<br>
+        ✅ 录音卡接入 · 招商接待录音自动变线索<br>
+        ✅ 招商内容 · 私域承接 · 签约成交话术模板<br>
+        ✅ 交付成功才扣费 · 失败不扣 · 到期前 7 天提醒续费
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="bal">
+        <div class="bal-n"><em>算力余额 · 1 元 = 10 算力</em><b id="meBalance">12,860</b><i>算力</i></div>
+        <button class="mini-btn go" onclick="toast('演示环境 · 充值入口以线上为准')">充值</button>
+        <button class="mini-btn" onclick="toast('演示环境 · 明细入口以线上为准')">明细</button>
+      </div>
+      <div style="font-size:11px;color:#98a4b0;margin-top:10px">0 元开通 · 交付成功才扣费 · 失败不扣</div>
+    </div>
+
+    <div class="card" id="inviteCard">
+      <div class="card-h"><span class="h-ic">🎁</span>邀请有礼</div>
+      <div class="task">
+        <div class="tk-ic">🤝</div>
+        <div class="tk-t"><b>好友开通 · 各得 100 算力</b><span>把你的增长台分享给身边做连锁的朋友</span></div>
+        <button class="mini-btn go" onclick="toast('演示环境 · 邀请卡片以线上为准')">邀请</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><span class="h-ic">🗂️</span>增长档案 · 最近派单</div>
+      <div class="rec-list">
+        <div class="rec"><span class="rc-t">今天 10:24</span><div class="rc-m"><b>苏笺 · 招商文案</b><span>品牌招商朋友圈 · 合伙人社群 1 条</span></div><span class="rc-c">-15 算力</span></div>
+        <div class="rec"><span class="rc-t">昨天</span><div class="rc-m"><b>程鉴 · 流量诊断</b><span>短视频复盘诊断 1 次</span></div><span class="rc-c">-50 算力</span></div>
+        <div class="rec"><span class="rc-t">10-01</span><div class="rc-m"><b>庄衡 · IP 定位</b><span>定位全案 1 份</span></div><span class="rc-c">-99 算力</span></div>
+      </div>
+    </div>
+
+    <div class="card" id="recApiCard">
+      <div class="card-h"><span class="h-ic">🎙️</span>我的设备 · AI录音卡 <span class="api-st" id="apiSt">未连接</span><span class="demo-badge" style="margin-left:auto">演示数据</span></div>
+      <div class="api-row"><span>API 地址</span><input id="apiUrl" value="https://api.sitongai.com/open/v1/recordings" spellcheck="false"></div>
+      <div class="api-row"><span>连接密钥</span><input id="apiKey" type="password" value="sk-demo-2026"></div>
+      <button class="big-btn" id="apiBtn" onclick="apiConnect()">🔌 连接录音卡（拉取招商接待录音）</button>
+      <div class="api-log" id="apiLog"></div>
+      <div class="card-note">录音卡装在门店自动录招商接待对话 · API 连上后每 30 分钟同步一次，录音转写成文字，线索直接派给数字高管接（演示口径）</div>
+    </div>
+
+    <div class="card" id="memCard">
+      <div class="card-h"><span class="h-ic">🧠</span>记忆与进化 <span class="demo-badge" style="margin-left:auto">越用越懂你</span></div>
+      <div class="mem-it">
+        <span class="mem-tag">品牌画像</span>
+        <div class="mem-b">连锁烘焙品牌 · 单店投资 28 万 · 主打区域代理 · 目标一年签 30 家</div>
+        <div class="mem-ops"><button onclick="memEdit(this)">✏️</button><button onclick="memDel(this)">🗑️</button></div>
+      </div>
+      <div class="mem-it">
+        <span class="mem-tag">风格偏好</span>
+        <div class="mem-b">口语化、爱用算账式钩子、结尾固定引导扣「招商」</div>
+        <div class="mem-ops"><button onclick="memEdit(this)">✏️</button><button onclick="memDel(this)">🗑️</button></div>
+      </div>
+      <div class="mem-it">
+        <span class="mem-tag">红线禁忌</span>
+        <div class="mem-b">不说「最便宜」、不承诺效果、不贬低同行</div>
+        <div class="mem-ops"><button onclick="memEdit(this)">✏️</button><button onclick="memDel(this)">🗑️</button></div>
+      </div>
+      <button class="mini-btn mem-add" onclick="memAdd(this)">＋ 添加一条记忆</button>
+      <div class="card-note">已记住 26 条 · 本周自动进化 12 次 · 你每次改过的交付都会被记住，9 位数字高管下次直接照你的口味来（演示口径）</div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><span class="h-ic">❓</span>新手帮助</div>
+      <div class="help-it open">
+        <button class="help-q" onclick="this.parentNode.classList.toggle('open')">怎么派活？</button>
+        <div class="help-a">去「数字高管」页选人 → 点「派活给他」→ 选场景 → 生成后一键复制就能用。不知道找谁？回增长台按场景点任务。</div>
+      </div>
+      <div class="help-it">
+        <button class="help-q" onclick="this.parentNode.classList.toggle('open')">算力怎么扣？</button>
+        <div class="help-a">1 元 = 10 算力 · 0 元开通 · 生成成功才扣费，失败不扣。每位数字高管的单价在他的卡片上标着。</div>
+      </div>
+      <div class="help-it">
+        <button class="help-q" onclick="this.parentNode.classList.toggle('open')">发了没效果怎么办？</button>
+        <div class="help-a">招商是闭环：把数据丢给程鉴诊断 → 按建议调整 → 金点换选题 → 苏笺重写。迭代三轮，比单发一条有效得多。</div>
+      </div>
+    </div>
+    <button class="spec-link" onclick="location.href='spec.html'">📄 产品说明 · 招商加盟版（功能与计费口径）</button>
+  </section>
+
+  <!-- 免责红线 -->
+  <div class="redline-tip">🛡️ 本页为 UI 设计演示：所有数据、案例、人名均为虚构示意，不构成任何投资或加盟建议；不对招商成果、加盟收益、回本周期作任何承诺或保证；相关表述已按《广告法》要求规避承诺性、绝对化用语；「限时价」为演示口径，实际以官方页面为准。计费：1 元 = 10 算力 · 0 元开通 · 用后扣费 · 失败不扣费。</div>
+
+</main>
+
+<!-- 定时任务管理弹层 -->
+<div class="mask" id="schedMask" onclick="if(event.target===this)closeSched()">
+  <div class="sheet">
+    <div class="sh-head">
+      <div class="ssh-ic">⏰</div>
+      <div class="sh-n"><b>定时任务管理</b><span>到点自动派活 · 结果进增长台「最近生成」</span></div>
+      <button class="sh-x" onclick="closeSched()">✕</button>
+    </div>
+    <div id="schedList"></div>
+    <button class="big-btn" id="schedNewBtn" style="margin-top:12px" onclick="openSchedForm()">＋ 新建定时任务</button>
+    <div class="ssh-form" id="schedForm" style="display:none">
+      <div class="f-label" style="margin-top:0">① 选数字高管</div>
+      <div class="chips" id="sfAgents"></div>
+      <div class="f-label">② 选任务场景</div>
+      <div class="chips" id="sfScenes"><span class="f-hint">先选高管 · 自动带出他的拿手场景</span></div>
+      <div class="f-label">③ 执行频率</div>
+      <div class="chips" id="sfFreq"></div>
+      <button class="big-btn" onclick="saveSched()">保存定时任务</button>
+      <button class="ssh-cancel" onclick="closeSchedForm()">收起，不建了</button>
+    </div>
+    <div class="card-note ssh-foot">正式版支持到点提醒与自动执行 · 消耗算力按各数字高管单价 · 以线上为准</div>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<!-- 底部 TabBar -->
+<nav class="tabbar">
+  <div class="side-brand">⚡ 思潼<i>AI</i> 业绩倍增<small>招商加盟版</small></div>
+  <button class="tab act" data-tab="home" onclick="switchTab('home')"><span class="ic">🏠</span>增长台</button>
+  <button class="tab" data-tab="agents" onclick="switchTab('agents')"><span class="ic">🤖</span>数字高管</button>
+  <button class="tab" data-tab="task" onclick="switchTab('task')"><span class="ic">✅</span>任务</button>
+  <button class="tab" data-tab="me" onclick="switchTab('me')"><span class="ic">👤</span>我的</button>
+</nav>
+
+<script>
+/* ===== 公共件 ===== */
+var $=function(s,r){return (r||document).querySelector(s)};
+var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+var credits=12860;
+function fmt(n){return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,',')}
+function bumpCredit(d){
+  credits+=d;
+  var t1=$('#creditNum'); if(t1)t1.textContent=fmt(credits);
+  var t2=$('#meBalance'); if(t2)t2.textContent=fmt(credits);
+}
+var toastTimer=null;
+function toast(msg,ms){
+  var el=$('#toastEl'); el.textContent=msg; el.classList.add('show');
+  if(toastTimer)clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){el.classList.remove('show')},ms||2200);
+}
+function switchTab(name){
+  $$('.page').forEach(function(p){p.classList.remove('act')});
+  var pg=$('#page-'+name); if(pg)pg.classList.add('act');
+  $$('.tab').forEach(function(t){t.classList.toggle('act',t.getAttribute('data-tab')===name)});
+  window.scrollTo(0,0);
+}
+function spot(id){
+  var el=typeof id==='string'?$(id):id; if(!el)return;
+  el.classList.remove('spot'); void el.offsetWidth; el.classList.add('spot');
+  el.scrollIntoView({block:'center',behavior:'smooth'});
+}
+
+/* ===== 数字高管数据（演示案例统一：连锁烘焙品牌招商 · 虚构） ===== */
+var AG={
+  shending:{n:'庄衡',ch:'庄',cls:'b1',role:'首席定位官 · 数字高管',price:99,approx:'≈¥9.9',
+    scenes:['连锁品牌招商定位','区域代理政策梳理','招商账号人设梳理'],
+    out:{h:'📋 IP 定位全案（速览版）',
+      b:'一句话人设：帮品牌把招商讲清楚的招商操盘手\n对谁说：手里有门店资源、想拿区域代理的意向合伙人\n说啥：不是卖情怀，是卖「算得清账、跑得通的加盟模型」\n差异点：单店投资约 28 万 · 总部全程陪跑 · 主打区域代理',
+      p:'一句话人设：帮品牌把招商讲清楚的招商操盘手\n对谁说：手里有门店资源、想拿区域代理的意向合伙人\n说啥：不是卖情怀，是卖「算得清账、跑得通的加盟模型」\n差异点：单店投资约28万·总部全程陪跑·主打区域代理'}},
+  qinwen:{n:'苏笺',ch:'苏',cls:'b2',role:'金牌文案主笔 · 数字高管',price:15,approx:'≈¥1.5',
+    scenes:['品牌招商朋友圈','合伙人社群文案','区域代理招募长文'],
+    out:{h:'✍️ 可直发文案（速览版）',
+      b:'钩子：自己摸黑开店试错，和拿成熟品牌模型开店，是两种结果。\n正文：算笔账——单店投资约 28 万，选址、供应链、开业流程总部打包。\n我们今年目标是新签 30 家区域代理，每一步都陪着跑。\n本月区域代理名额只剩 5 个，想拿资料的私我。\n话题：#连锁加盟 #烘焙创业 #区域代理',
+      p:'自己摸黑开店试错，和拿成熟品牌模型开店，是两种结果。\n算笔账——单店投资约28万，选址、供应链、开业流程总部打包。\n今年目标新签30家区域代理，每一步都陪着跑。\n本月区域代理名额只剩5个，想拿资料的私我。\n#连锁加盟 #烘焙创业 #区域代理'}},
+  luopan:{n:'祝鸣',ch:'祝',cls:'b3',role:'直播话术师 · 数字高管',price:50,approx:'≈¥5',
+    scenes:['周五晚场招商专场','加盟答疑直播','区域代理政策直播'],
+    out:{h:'🎙️ 开播 30 秒逐字稿（速览版）',
+      b:'「欢迎刚进来的老板，先扣个 1，让我看看有多少在看招商项目的。\n今天不整虚的，就讲清楚一件事：单店投资 28 万，钱花在哪、怎么回本。\n担心「加盟就是割韭菜」的举个手——对，所以我们把账摆在桌面上算。\n想听区域代理政策的扣『招商』，我一条条讲。」',
+      p:'欢迎刚进来的老板，先扣个1，让我看看有多少在看招商项目的。\n今天不整虚的，就讲清楚一件事：单店投资28万，钱花在哪、怎么回本。\n担心「加盟就是割韭菜」的举个手——对，所以我们把账摆在桌面上算。\n想听区域代理政策的扣「招商」，我一条条讲。'}},
+  jiangliu:{n:'程鉴',ch:'程',cls:'b4',role:'流量诊断官 · 数字高管',price:50,approx:'≈¥5',
+    scenes:['上周招商视频没爆','直播间人气下滑','主页流量分析'],
+    out:{h:'📊 视频诊断报告（速览版）',
+      b:'数据快照：播放 1,204 · 完播 9% · 互动 11\n诊断：\n① 前 3 秒没有钩子，意向加盟商没等到「投资多少」就划走了\n② 结尾没有引导动作，看完不知道要干嘛\n下一条怎么调：\n开头直接甩账「自己开店试错成本 vs 单店投资 28 万的成熟模型」；结尾固定一句「想拿区域代理资料的，评论区扣招商」',
+      p:'数据快照：播放1204·完播9%·互动11\n诊断：①前3秒没有钩子 ②结尾没有引导动作\n下一条怎么调：开头直接甩账「自己开店试错成本 vs 单店投资28万的成熟模型」；结尾固定一句「想拿区域代理资料的，评论区扣招商」'}},
+  hece:{n:'金点',ch:'金',cls:'b5',role:'选题策略官 · 数字高管',price:99,approx:'≈¥9.9',
+    scenes:['本周招商短视频选题','加盟答疑选题','对标账号拆题'],
+    out:{h:'🗓️ 今日选题 3 条（速览版）',
+      b:'① 算账类：单店投资 28 万，这笔账拆给你看\n② 共鸣类：开店三次亏两次的人，后来都怎么样了\n③ 对比类：自己摸黑开店 vs 加盟成熟烘焙品牌，差在哪\n（三关筛选：有需求 ✓ 有反差 ✓ 能承接 ✓）',
+      p:'①算账类：单店投资28万，这笔账拆给你看\n②共鸣类：开店三次亏两次的人，后来都怎么样了\n③对比类：自己摸黑开店 vs 加盟成熟烘焙品牌，差在哪\n（三关筛选：有需求✓有反差✓能承接✓）'}},
+  gutu:{n:'米临',ch:'米',cls:'b6',role:'爆款复刻 · 数字高管',price:70,approx:'≈¥7',
+    scenes:['拆一条同行招商爆款','区域代理视频复刻','老爆款翻新'],
+    out:{h:'🔁 爆款复刻方案（速览版）',
+      b:'对标片结构拆解：\n① 反差开场「开店三年亏了两个 28 万」\n② 数字对比：自己试错 vs 加盟成熟模型\n③ 结尾扣字引导「想拿区域代理资料的扣招商」\n换血文案：同结构保留，卖点全换成你家招商口径',
+      p:'对标片结构拆解：①反差开场「开店三年亏了两个28万」②数字对比：自己试错 vs 加盟成熟模型 ③结尾扣字引导「想拿区域代理资料的扣招商」\n换血文案：同结构保留，卖点全换成你家招商口径'}},
+  luzhen:{n:'甄映',ch:'映',cls:'b7',role:'文生视频 · 数字高管',price:120,approx:'≈¥12',
+    scenes:['把招商文案变成成片','区域代理口播视频','品牌门店实拍混剪'],
+    out:{h:'🎬 文生视频任务卡（速览版）',
+      b:'成片规格：15 秒 · 竖版 9:16 · 大字钩子\n分镜 4 段：① 开店踩坑（痛点）② 单店投资 28 万账本字幕 ③ 品牌门店与签约现场 ④ 私信引导\n配音：男声 · 可换女声/本地口音\n字幕：全程大字，数字变色强调',
+      p:'成片规格：15秒·竖版9:16·大字钩子\n分镜4段：①开店踩坑（痛点）②单店投资28万账本字幕 ③品牌门店与签约现场 ④私信引导\n配音：男声·可换女声/本地口音\n字幕：全程大字，数字变色强调'}},
+  zhouyu:{n:'温故',ch:'温',cls:'b8',role:'招商私域顾问 · 数字高管',price:5,approx:'≈¥0.5',
+    scenes:['明天的招商朋友圈','合伙人社群预热','意向合伙人召回'],
+    out:{h:'💬 朋友圈文案（速览版）',
+      b:'【信任人设】今天又送走一位来总部考察的老板，聊了三个小时没签，但他说明白了账再决定，我们支持。\n【业务价值】招商不是劝人签约：单店投资 28 万、毛利结构、回本模型，都摆到桌面上算。\n【软引导】本月区域代理还剩 5 个名额，想拿资料的私我。',
+      p:'今天又送走一位来总部考察的老板，聊了三小时没签，但他说明白了账再决定，我们支持。\n招商不是劝人签约：单店投资28万、毛利结构、回本模型，都摆到桌面上算。\n本月区域代理还剩5个名额，想拿资料的私我。'}},
+  yicheng:{n:'万契',ch:'万',cls:'b9',role:'招商成交官 · 数字高管',price:25,approx:'≈¥2.5',
+    scenes:['意向加盟商接待','签约异议处理','私聊促单'],
+    out:{h:'🤝 成交话术卡（速览版）',
+      b:'场景：意向加盟商问「单店投资 28 万多久回本」\n回应：「这个问题不能拍脑袋。给您一份分城市级的测算表：日均客流、客单价、房租人力三项大头，您填上当地数据，回本周期自己算——我们不承诺数字，但把算法给您。」\n异议处理：怕被割韭菜 →「合同里写清楚总部义务与退出机制，账算不清之前，不建议您签。」',
+      p:'场景：意向加盟商问「单店投资28万多久回本」\n回应：给您一份分城市测算表，您填上当地数据自己算；不承诺数字，但把算法给您。\n异议（怕割韭菜）：合同写清总部义务与退出机制，账算不清之前不建议您签。'}}
+};
+
+/* ===== 数字高管统一入口：点开即进各自工作台（完整流程输出） ===== */
+function openOrder(key){
+  var a=AG[key]; if(!a)return;
+  if(WB_FILE[key]){location.href=WB_FILE[key]}
+  else{toast(a.n+'工作台即将上线')}
+}
+
+/* 数字高管 → 系统内真实工作台（同域相对路径，兼容 /os-v2 前缀）
+   甄映·文生视频 系统暂未上线，点击提示「即将上线」 */
+var SYSB = (location.pathname.indexOf('/os-v2/') === 0 ? '/os-v2' : '');
+function SYS(p){ return SYSB + p; }
+var WB_FILE={
+  shending:SYS('/agent/ipzone__ip-pos/workbench'),
+  hece:SYS('/agent/ipzone__topic/workbench'),
+  qinwen:SYS('/agent/ipzone__copy/workbench'),
+  jiangliu:SYS('/agent/ipzone__vidrev/workbench'),
+  luopan:SYS('/agent/ipzone__livescript/workbench'),
+  zhouyu:SYS('/agent/ipzone__moments/workbench'),
+  yicheng:SYS('/agent/ipzone__sales/workbench'),
+  gutu:SYS('/lanqi/acquire/video-copy')
+};
+/* 点整卡：与派活按钮一致，统一进各自工作台 */
+$$('#page-agents .agent').forEach(function(c){
+  var btn=c.querySelector('button[onclick*="openOrder"]');
+  if(!btn)return;
+  var key=(btn.getAttribute('onclick').match(/openOrder\('([a-z]+)'\)/)||[])[1];
+  if(!key)return;
+  c.style.cursor='pointer';
+  c.addEventListener('click',function(e){
+    if(e.target.closest('button'))return; /* 按钮走自己的 onclick */
+    openOrder(key);
+  });
+});
+
+/* ===== 货架筛选 ===== */
+function chipFilter(tag,btn){
+  $$('#agChips button').forEach(function(b){b.classList.remove('on')});
+  if(btn)btn.classList.add('on');
+  $$('#page-agents .agent').forEach(function(c){
+    var tags=c.getAttribute('data-tag')||'';
+    c.style.display=(tag==='all'||tags.indexOf(tag)>-1)?'':'none';
+  });
+  $$('#page-agents .group').forEach(function(g){
+    var tags=(g.getAttribute('data-tags')||'').split(' ');
+    g.style.display=(tag==='all'||tags.indexOf(tag)>-1)?'':'none';
+  });
+}
+function loopJump(tag){
+  switchTab('agents');
+  var btn=null;
+  $$('#agChips button').forEach(function(b){if(b.getAttribute('data-tag')===tag)btn=b});
+  chipFilter(tag,btn);
+  toast('已按「'+({'dingwei':'定位','xuanti':'选题','neirong':'内容','zhibo':'直播','siyu':'转化'}[tag]||tag)+'」筛选数字高管');
+}
+
+/* ===== 今日推荐数字高管（按本周节奏） ===== */
+var REC={0:['zhouyu','今天周日 · 私域日','发条招商朋友圈，把意向合伙人召回'],
+  1:['shending','今天周一 · 定选题日','把本周招商选题一次定好，一周不发愁'],
+  2:['luzhen','今天周二 · 发视频日','把招商选题变成成片，15 秒竖版直出'],
+  3:['yicheng','今天周三 · 追评论日','意向加盟商的评论私信别过夜，话术给你接住'],
+  4:['luopan','今天周四 · 备直播日','开播话术先写好，明天开播不慌'],
+  5:['luopan','今天周五 · 开播日','照着念就能播，扣字引导全安排'],
+  6:['jiangliu','今天周六 · 做复盘日','把本周数据丢给他，告诉你下条怎么调']};
+function agentAva(key){
+  var a=AG[key];
+  var btn=$('#page-agents .agent button[onclick*="\''+key+'\'"]');
+  var av=btn?btn.closest('.agent').querySelector('.ava'):null;
+  if(av&&av.innerHTML.indexOf('<img')>-1)return{cls:av.className,html:av.innerHTML};
+  return{cls:'ava '+a.cls,html:a.ch};
+}
+function renderRec(){
+  var box=$('#recAg'); if(!box)return;
+  var r=REC[new Date().getDay()]; if(!r)return;
+  var key=r[0],a=AG[key],av=agentAva(key);
+  box.innerHTML='<div class="'+av.cls+'">'+av.html+'</div>'
+    +'<div class="rec-main"><b>'+a.n+' · '+a.role.replace(' · 数字高管','')+'</b><span>'+r[1]+'：'+r[2]+'</span></div>'
+    +'<div class="rec-acts"><button class="mini-btn go" onclick="openOrder(\''+key+'\')">进工作台</button></div>';
+}
+
+/* ===== 定时任务 / 录音卡 API / 记忆与进化 ===== */
+function tglSch(btn){
+  btn.classList.toggle('on');
+  toast(btn.classList.contains('on')?'定时任务已开启 · 到点自动派活（演示）':'定时任务已暂停（演示）');
+}
+/* ===== 定时任务管理弹层 ===== */
+var SCH=[
+  {key:'hece',when:'每周一<br>09:00',whenTxt:'每周一 09:00',name:'金点 · 本周招商选题包',desc:'自动出 5 条招商选题 · 结果进「最近生成」',on:true},
+  {key:'zhouyu',when:'每天<br>20:00',whenTxt:'每天 20:00',name:'温故 · 明日招商朋友圈',desc:'提前备好第二天那条 · 早上照发就行',on:true},
+  {key:'luopan',when:'每周四<br>19:00',whenTxt:'每周四 19:00',name:'祝鸣 · 周五开播话术',desc:'周五晚场照着念就能播 · 扣字引导全安排',on:false}
+];
+var FREQ=[
+  {t:'每天 09:00',w:'每天<br>09:00'},
+  {t:'每天 20:00',w:'每天<br>20:00'},
+  {t:'每周一 09:00',w:'每周一<br>09:00'},
+  {t:'每周四 19:00',w:'每周四<br>19:00'}
+];
+var schedRendered=false,sfKey='',sfScene='',sfFreq='';
+function openSched(){
+  $('#schedMask').classList.add('on');
+  if(!schedRendered){renderSchedList();schedRendered=true}
+}
+function closeSched(){$('#schedMask').classList.remove('on')}
+function schedRow(it){
+  var av=agentAva(it.key);
+  return '<div class="sch"><span class="ssh-ava '+av.cls+'">'+av.html+'</span>'
+    +'<div class="tk-t"><b>'+it.name+'</b><span>'+it.whenTxt+' · '+it.desc+'</span></div>'
+    +'<button class="tgl'+(it.on?' on':'')+'" onclick="tglSch(this)"></button></div>';
+}
+function renderSchedList(){$('#schedList').innerHTML=SCH.map(schedRow).join('')}
+function openSchedForm(){
+  $('#schedForm').style.display='block';
+  $('#schedNewBtn').style.display='none';
+  if(!$('#sfAgents').children.length){
+    $('#sfAgents').innerHTML=Object.keys(AG).map(function(k){return '<button onclick="pickSfAgent(this,\''+k+'\')">'+AG[k].n+'</button>'}).join('');
+    $('#sfFreq').innerHTML=FREQ.map(function(f,i){return '<button onclick="pickSf(this,\'sfFreq\','+i+')">'+f.t+'</button>'}).join('');
+  }
+}
+function closeSchedForm(){
+  $('#schedForm').style.display='none';
+  $('#schedNewBtn').style.display='block';
+}
+function pickSf(btn,grp,i){
+  $$('#'+grp+' button').forEach(function(b){b.classList.remove('on')});
+  btn.classList.add('on');
+  if(grp==='sfFreq')sfFreq=i; else sfScene=i;
+}
+function pickSfAgent(btn,k){
+  $$('#sfAgents button').forEach(function(b){b.classList.remove('on')});
+  btn.classList.add('on');
+  sfKey=k; sfScene='';
+  $('#sfScenes').innerHTML=AG[k].scenes.map(function(s,i){return '<button onclick="pickSf(this,\'sfScene\','+i+')">'+s+'</button>'}).join('');
+}
+function saveSched(){
+  if(sfKey===''){toast('先选一位数字高管');return}
+  if(sfScene===''){toast('再选一个任务场景');return}
+  if(sfFreq===''){toast('最后选个执行频率');return}
+  var a=AG[sfKey],f=FREQ[+sfFreq],scene=a.scenes[+sfScene];
+  var it={key:sfKey,when:f.w,whenTxt:f.t,name:a.n+' · '+scene,desc:'到点自动执行 · 结果进「最近生成」',on:true};
+  SCH.unshift(it); renderSchedList(); addSchedCardRow(it); closeSchedForm();
+  toast('定时任务已创建 · 到点自动执行（演示）',2400);
+}
+function addSchedCardRow(it){
+  var note=$('#schedCard .card-note'); if(!note)return;
+  var div=document.createElement('div'); div.className='sch';
+  div.innerHTML='<span class="sch-when">'+it.when+'</span><div class="tk-t"><b>'+it.name+'</b><span>'+it.desc+'</span></div><button class="tgl on" onclick="tglSch(this)"></button>';
+  note.parentNode.insertBefore(div,note);
+}
+var apiOn=false, apiTimer=null;
+function apiConnect(){
+  var btn=$('#apiBtn'),st=$('#apiSt'),log=$('#apiLog');
+  if(!btn)return;
+  if(apiOn){
+    apiOn=false; if(apiTimer){clearTimeout(apiTimer);apiTimer=null}
+    st.textContent='未连接'; st.className='api-st';
+    btn.disabled=false; btn.textContent='🔌 连接录音卡（拉取招商接待录音）';
+    log.style.display='none'; log.innerHTML='';
+    toast('已断开录音卡（演示）'); return;
+  }
+  btn.disabled=true; btn.textContent='连接中…'; st.textContent='连接中…';
+  apiTimer=setTimeout(function(){
+    apiOn=true;
+    btn.disabled=false; btn.textContent='✅ 已连接 · 点击断开';
+    st.textContent='已连接'; st.className='api-st on';
+    log.style.display='block';
+    log.innerHTML='<div class="api-line ok">✅ 连接成功 · 每 30 分钟自动同步一次</div>'
+      +'<div class="api-line">🎙️ 最新录音（今天 09:12）：意向加盟商问「单店投资 28 万多久回本」</div>'
+      +'<div class="api-line">📝 已转写归档 · 下一步：<button class="mini-btn go" onclick="openOrder(\'yicheng\')">派万契接住这条线索</button></div>';
+    toast('录音卡已连接 · 招商接待录音自动变线索',2400);
+  },1200);
+}
+function memEdit(btn){
+  var it=btn.closest('.mem-it'); if(!it||it.querySelector('.mem-ta'))return;
+  var b=it.querySelector('.mem-b');
+  it.dataset.old=b.textContent;
+  b.innerHTML='<textarea class="mem-ta">'+it.dataset.old+'</textarea>'
+    +'<div class="mem-eops"><button class="mini-btn go" onclick="memSave(this)">保存</button><button class="mini-btn" onclick="memCancel(this)">取消</button></div>';
+  it.querySelector('.mem-ta').focus();
+}
+function memSave(btn){
+  var it=btn.closest('.mem-it');
+  var v=it.querySelector('.mem-ta').value.trim();
+  if(!v){toast('内容不能为空 · 想删就点🗑️');return}
+  it.querySelector('.mem-b').textContent=v;
+  toast('记忆已更新 · 数字高管下次照这个口味来（演示）',2400);
+}
+function memCancel(btn){
+  var it=btn.closest('.mem-it');
+  it.querySelector('.mem-b').textContent=it.dataset.old||'';
+}
+function memAdd(btn){
+  var note=$('#memCard .card-note'); if(!note)return;
+  var div=document.createElement('div'); div.className='mem-it';
+  div.innerHTML='<span class="mem-tag">自定义</span><div class="mem-b"><textarea class="mem-ta" placeholder="比如：加盟商常问回本，先讲单店模型再谈政策"></textarea>'
+    +'<div class="mem-eops"><button class="mini-btn go" onclick="memSave(this)">保存</button><button class="mini-btn" onclick="memCancelNew(this)">取消</button></div></div>';
+  note.parentNode.insertBefore(div,note);
+  div.querySelector('.mem-ta').focus();
+}
+function memCancelNew(btn){btn.closest('.mem-it').remove()}
+function memDel(btn){
+  var it=btn.closest('.mem-it'); if(it)it.remove();
+  toast('已删除这条记忆（演示）');
+}
+
+/* ===== 任务打卡 ===== */
+function checkTask(row){
+  if(row.classList.contains('done'))return;
+  row.classList.add('done');
+  updateTkProg();
+  toast('打卡成功 ✅ 坚持住，招商是攒出来的');
+}
+function updateTkProg(){
+  var all=$$('#page-task [data-task]');
+  var done=all.filter(function(r){return r.classList.contains('done')}).length;
+  $('#tkDone').textContent=done;
+  $('#tkFill').style.width=(done/all.length*100)+'%';
+  if(done===all.length){bumpCredit(10);toast('今日三事全齐 · +10 算力（演示）🎉')}
+}
+/* 增长台的任务行：整行点击打卡（只限今日任务卡，定时任务/邀请行除外） */
+$$('#page-home #todayCard .task').forEach(function(r){r.addEventListener('click',function(){checkTask(r)})});
+$$('#page-task [data-task]').forEach(function(r){r.addEventListener('click',function(){checkTask(r)})});
+renderRec();
+
+/* ===== 一键演示 ===== */
+var demoing=false, demoTimers=[];
+function dwait(fn,ms){demoTimers.push(setTimeout(fn,ms))}
+function clearDemo(){demoTimers.forEach(clearTimeout);demoTimers=[]}
+function toggleDemo(){
+  if(demoing){clearDemo();demoing=false;$('#demoBtn').textContent='▶ 一键演示';toast('演示已停止');return}
+  demoing=true; $('#demoBtn').textContent='■ 停止演示';
+  toast('▶ 演示开始 · 带你走一遍招商获客闭环',2400);
+  dwait(function(){switchTab('home');spot('#mbar')},1400);
+  dwait(function(){switchTab('task');spot('#schedCard');toast('定时任务：到点自动派活，不用天天盯',2200)},4200);
+  dwait(function(){switchTab('home');spot('#todayCard')},7600);
+  dwait(function(){switchTab('agents');spot('#page-agents .agent');toast('点开数字高管 · 直接进他的工作台走完整流程',2600)},9000);
+  dwait(function(){
+    spot('#recentCard');
+    toast('已进「最近生成」：每次生成都留档',2400);
+  },12200);
+  dwait(function(){switchTab('task');spot('#threeCard')},16800);
+  dwait(function(){checkTask($('#page-task [data-task]'))},18400);
+  dwait(function(){switchTab('home');spot('#loopBar')},20200);
+  dwait(function(){toast('五环闭环：定位 → 选题 → 内容 → 直播 → 转化',2600)},21400);
+  dwait(function(){switchTab('agents');chipFilter('siyu',$('#agChips [data-tag=siyu]'))},23600);
+  dwait(function(){toast('9 位数字高管 · 招商到签约，随时派活',2400)},24800);
+  dwait(function(){
+    switchTab('home');chipFilter('all',$('#agChips [data-tag=all]'));
+    $('#demoBtn').textContent='▶ 一键演示'; demoing=false;
+    toast('演示结束 · 你的招商增长台已就绪 🎉',3000);
+  },26800);
+}
+</script>
+</body>
+</html>
