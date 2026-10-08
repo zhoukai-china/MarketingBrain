@@ -24,6 +24,7 @@ import { registerDesktopRoutes } from "./routes/desktop.js";
 import { registerBillingRoutes } from "./routes/billing.js";
 import { registerBillingAccessTokenRoutes } from "./routes/billing-access-tokens.js";
 import { registerBillingConsumeRoutes } from "./routes/billing-consume.js";
+import { registerFdeRoutes } from "./routes/fde.js";
 import { registerCreditRoutes } from "./routes/credits.js";
 import { registerAudioCardRoutes } from "./routes/audio-cards.js";
 import { registerReportRoutes } from "./routes/reports.js";
@@ -118,6 +119,7 @@ export async function buildServer() {
   await registerBillingRoutes(app);
   await registerBillingAccessTokenRoutes(app);
   await registerBillingConsumeRoutes(app);
+  await registerFdeRoutes(app);
   await registerOfflineEventRoutes(app);
   await registerCreditRoutes(app);
   await registerAudioCardRoutes(app, provider);
