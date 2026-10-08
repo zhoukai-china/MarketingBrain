@@ -98,12 +98,13 @@
   <!-- 密钥门 -->
   <div class="gate" id="gate">
     <div class="em">🔐</div>
-    <h2>输入管理密钥</h2>
-    <p>密钥由管理员提供（服务端 FDE_ADMIN_KEY）。<br>仅存当前浏览器会话，关闭标签页即清除，绝不落库、不出现在源码里。</p>
-    <input id="keyin" type="password" placeholder="粘贴管理密钥…" autocomplete="off">
+    <h2>管理后台 · 双因子登录</h2>
+    <p>授权手机号 + Authenticator 6 位动态码，两样都对才能进。<br>会话仅存当前浏览器，当日有效，关闭标签页即清除。</p>
+    <input id="phonein" type="tel" maxlength="11" placeholder="授权手机号" autocomplete="off" style="margin-bottom:10px">
+    <input id="keyin" type="tel" inputmode="numeric" maxlength="6" placeholder="6 位动态码（Authenticator）" autocomplete="off">
     <div class="err" id="keyerr"></div>
-    <button class="btn pri" id="keygo">进入后台</button>
-    <button class="btn" id="demo" style="margin-top:10px">👀 先看原型（演示数据，不用密钥）</button>
+    <button class="btn pri" id="keygo">登录</button>
+    <button class="btn" id="demo" style="margin-top:10px">👀 先看原型（演示数据，不用登录）</button>
   </div>
 
   <!-- 主界面 -->
@@ -131,7 +132,7 @@
 </script>
 <script>
 (function(){
-  var KEY = sessionStorage.getItem('fde_admin_key') || '';
+  var KEY = sessionStorage.getItem('fde_admin_token') || '';
   var state = { page:1, pageSize:20, q:'', total:0, pages:1 };
   var $ = function(id){ return document.getElementById(id); };
 
@@ -152,8 +153,8 @@
   function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
 
   async function fetchList(){
-    var res = await fetch(apiUrl({ page:state.page, pageSize:state.pageSize, q:state.q, pwd:KEY }));
-    if(res.status===401){ sessionStorage.removeItem('fde_admin_key'); showGate('密钥已失效，请重新输入'); throw new Error('unauthorized'); }
+    var res = await fetch(apiUrl({ page:state.page, pageSize:state.pageSize, q:state.q }), { headers: { 'x-fde-token': KEY } });
+    if(res.status===401){ sessionStorage.removeItem('fde_admin_token'); showGate('会话已过期，请重新登录'); throw new Error('unauthorized'); }
     if(!res.ok) throw new Error('HTTP '+res.status);
     return res.json();
   }
@@ -252,21 +253,25 @@
     $('gate').style.display=''; $('main').style.display='none'; $('who').textContent='';
     $('keyerr').textContent=err||'';
   }
-  async function tryKey(k){
-    var res = await fetch(apiUrl({page:1,pageSize:1,pwd:k}));
-    if(!res.ok) return false;
-    return true;
+  async function tryLogin(phone, code){
+    var res = await fetch((window.STZ_CONFIG && window.STZ_CONFIG.list || 'https://ai.lcppch.top/api/fde/list').replace('/list','/login'), {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ phone:phone, code:code })
+    });
+    if(!res.ok) return null;
+    return res.json();
   }
   async function enter(){
-    var k=$('keyin').value.trim();
-    if(!k){ $('keyerr').textContent='请输入密钥'; return; }
+    var ph=$('phonein').value.trim(), k=$('keyin').value.trim();
+    if(!/^1\d{10}$/.test(ph)){ $('keyerr').textContent='请输入 11 位授权手机号'; return; }
+    if(!/^\d{6}$/.test(k)){ $('keyerr').textContent='请输入 Authenticator 当前 6 位动态码'; return; }
     $('keygo').textContent='验证中…';
-    var ok = await tryKey(k).catch(function(){ return false; });
-    $('keygo').textContent='进入后台';
-    if(!ok){ $('keyerr').textContent='密钥不正确或网络异常'; return; }
-    KEY=k; sessionStorage.setItem('fde_admin_key',k);
+    var d = await tryLogin(ph, k).catch(function(){ return null; });
+    $('keygo').textContent='登录';
+    if(!d || !d.ok){ $('keyerr').textContent=(d && d.message) || '手机号或动态码不正确（服务端校验）'; return; }
+    KEY=d.token; sessionStorage.setItem('fde_admin_token',d.token);
     $('gate').style.display='none'; $('main').style.display='';
-    $('who').textContent='密钥已就绪 · 本会话有效';
+    $('who').textContent='已登录 '+ph.slice(0,3)+'****'+ph.slice(7)+' · 会话当日有效';
     load();
   }
   $('keygo').addEventListener('click',enter);
@@ -278,10 +283,11 @@
   $('refresh').addEventListener('click',function(){ toast('已刷新'); load(); });
   $('logout').addEventListener('click',function(){
     if(demoMode){ demoMode=false; showGate(''); $('logout').textContent='退出'; return; }
-    sessionStorage.removeItem('fde_admin_key'); KEY=''; showGate('');
+    sessionStorage.removeItem('fde_admin_token'); KEY=''; showGate('');
   });
 
-  if(KEY){ tryKey(KEY).then(function(ok){ if(ok){ $('gate').style.display='none'; $('main').style.display=''; $('who').textContent='密钥已就绪 · 本会话有效'; load(); } else showGate(''); }).catch(function(){ showGate(''); }); }
+  if(KEY){ load(); $('gate').style.display='none'; $('main').style.display=''; $('who').textContent='会话已恢复 · 当日有效'; }
+  $('phonein').addEventListener('keydown',function(e){ if(e.key==='Enter') $('keyin').focus(); });
 })();
 </script>
 </body>
