@@ -183,6 +183,7 @@ export async function registerFdeRoutes(app: FastifyInstance): Promise<void> {
     return { ok: true, otpauth, until: process.env.FDE_ENROLL_UNTIL };
   });
 
+
   // 管理后台拉取：分页 + 搜索（姓名/手机号/城市/payload 全文）+ 按创建时间倒序
   app.get("/fde/list", async (request, reply) => {
     if (!checkAdmin(request)) {
