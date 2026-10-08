@@ -14,6 +14,18 @@ export function MallTopbar({ back, badge, onRecharge }: { back?: string; badge?:
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [balance, setBalance] = useState<number | null>(null);
 
+  /**
+   * 2026-10-08（用户）：「← 返回」要「从哪来回哪去」。
+   * 从「IP+AI 业绩倍增系统」等外部页面点进工作台时，原路返回来源页，
+   * 不再固定跳商品详情页；从商城内部（详情页→工作台）进来仍回详情页；
+   * 直接打开/新标签无来路时才落 back 兜底地址。
+   */
+  const smartBack = () => {
+    if (window.history.length > 1) { window.history.back(); return; }
+    if (document.referrer) { window.location.href = document.referrer; return; }
+    window.location.href = getAppPath(back ?? "/agents");
+  };
+
   useEffect(() => {
     let cancelled = false;
     const load = () => {
@@ -39,7 +51,7 @@ export function MallTopbar({ back, badge, onRecharge }: { back?: string; badge?:
     <header className="eh-topbar">
       <div className="eh-topbar-in">
         {back ? (
-          <button type="button" className="eh-backpill" onClick={() => { window.location.href = getAppPath(back); }}>← 返回</button>
+          <button type="button" className="eh-backpill" onClick={smartBack}>← 返回</button>
         ) : null}
         <span className="eh-logo"><b>思潼</b><em>AI</em>商城</span>
         {badge ? <span className="eh-page-badge">{badge}</span> : null}

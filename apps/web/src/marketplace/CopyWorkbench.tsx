@@ -804,7 +804,8 @@ export function CopyWorkbench({ skuId }: { skuId: string }) {
   return (
     <main className="cpw-page">
       {/* Topbar 在作用域外（商城红线：留白/主题由全局容器与 Topbar 自己管） */}
-      <MallTopbar back={`/agent/${encodeURIComponent(skuId)}/detail`} badge="文案主笔智能体 · 文案工作台" />
+      {/* 2026-10-08（用户）：详情页已下线，返回兜底改商城首页；有来路时 MallTopbar smartBack 原路返回（如业绩倍增系统演示页）。 */}
+      <MallTopbar back="/agents" badge="文案主笔智能体 · 文案工作台" />
 
       <header className="cpw-hero">
         <div className="cpw-wrap">

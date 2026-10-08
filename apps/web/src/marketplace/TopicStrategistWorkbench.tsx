@@ -597,7 +597,8 @@ export function TopicStrategistWorkbench({ skuId }: { skuId?: string }) {
       <main className="app-wrap">
       {/* 商城共用顶栏（与 /agent/<skuCode>/chat 一致：导航 / 主题切换 / 算力 / 退出）。
           放在 .app-wrap 内：顶栏 1200 居中不顶格（与 chat/详情页一致）。 */}
-      <MallTopbar back={skuId ? `/agent/${encodeURIComponent(skuId)}/detail` : "/agents"} badge="选题策略智能体 · 选题工作台" />
+      {/* 2026-10-08（用户）：详情页已下线，返回兜底改商城首页；有来路时 MallTopbar smartBack 原路返回（如业绩倍增系统演示页）。 */}
+      <MallTopbar back="/agents" badge="选题策略智能体 · 选题工作台" />
       <div className="ts-wb">
       {/* ---------- hero ---------- */}
       {/* 注意：返回按钮已统一交给外层 MallTopbar 的 back（顶部），这里不再放第二个返回按钮，

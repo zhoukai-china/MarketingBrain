@@ -429,6 +429,8 @@ function Root() {
   const marketplaceWorkbenchMatch = path.match(/^\/agent\/([a-z0-9_-]+)\/workbench\/?$/i);
   // 商品详情页：`/agent/<sku>/detail`（首席定位官已落地原型版；其余 SKU 暂回落通用详情页）
   const marketplaceDetailMatch = path.match(/^\/agent\/([a-z0-9_-]+)\/detail\/?$/i);
+  // 2026-10-08（用户）：有工作台的数字高管 SKU，产品详情页统一下线隐藏（入口直达工作台）。
+  const WORKBENCH_SKUS = new Set(["ipzone__ip-pos", "ipzone__copy", "ipzone__vidrev", "ipzone__livescript", "ipzone__topic", "ipzone__moments", "ipzone__sales"]);
   const marketplaceAgentMatch = path.match(/^\/agent\/([a-z0-9_-]+)\/?$/i);
   // 商品详情页（F4-F6 人民币直购 / OPC）：`/product/<key>/detail`
   const productPageMatch = path.match(/^\/product\/([a-z0-9-]+)\/detail\/?$/i);
@@ -499,6 +501,16 @@ function Root() {
   }
 
   if (marketplaceDetailMatch) {
+    /*
+     * 2026-10-08（用户）：数字高管产品详情页统一下线隐藏——
+     * 商品介绍由「IP+AI 业绩倍增系统」演示页承担，详情入口一律直达工作台。
+     * 7 个数字高管 SKU 的 `/agent/<sku>/detail` 直接 302 到 `/agent/<sku>/workbench`；
+     * 其余 SKU（预约版/通用兜底）维持原详情页。
+     */
+    if (WORKBENCH_SKUS.has(marketplaceDetailMatch[1])) {
+      window.location.replace(getAppPath(`/agent/${marketplaceDetailMatch[1]}/workbench`));
+      return null;
+    }
     // 首席定位官/金牌文案主笔详情页走原型落地版（纯展示 + 两处跳转）；其余 SKU 暂回落通用详情页。
     if (marketplaceDetailMatch[1] === "ipzone__ip-pos") {
       return <IpPosDetailPage />;
@@ -529,6 +541,11 @@ function Root() {
   }
 
   if (marketplaceAgentMatch) {
+    // 2026-10-08（用户）：旧短链 `/agent/<sku>` 对数字高管同样直达工作台（详情页已隐藏）。
+    if (WORKBENCH_SKUS.has(marketplaceAgentMatch[1])) {
+      window.location.replace(getAppPath(`/agent/${marketplaceAgentMatch[1]}/workbench`));
+      return null;
+    }
     return <MarketplaceAgentDetailPage skuId={marketplaceAgentMatch[1]} />;
   }
 
