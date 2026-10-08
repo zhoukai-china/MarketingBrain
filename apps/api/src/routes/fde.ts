@@ -61,8 +61,36 @@ export async function registerFdeRoutes(app: FastifyInstance): Promise<void> {
     const sql =
       'INSERT INTO "FdeRegistration" (id, phone, name, city, status, payload, "createdAt", "updatedAt")' +
       " VALUES (" + esc(randomUUID()) + ", " + esc(phone) + ", " + esc(name) + ", " + esc(city) + ", '已建档', " + payload + "::jsonb, " + esc(now) + ", " + esc(now) + ")" +
-      " ON CONFLICT (phone) DO UPDATE SET payload = " + payload + "::jsonb, name = " + esc(name) + ", city = " + esc(city) + ', "updatedAt" = ' + esc(now);
+      " ON CONFLICT (phone) DO UPDATE SET payload = " + payload + "::jsonb, name = " + esc(name) + ", city = " + esc(city) + ", status = '已建档', \"updatedAt\" = " + esc(now);
     await prisma.$executeRawUnsafe(sql);
+    return { ok: true };
+  });
+
+  // 分步草稿保存（2026-10-08 用户口径）：每点一次「下一步」存一次当前已填内容，
+  // 管理后台 status 能看到进行到第几步；payload 用 jsonb 浅合并（保留之前步骤的键）。
+  // 最终提交仍走 /fde/register（全量覆盖，status=已建档）。
+  app.post("/fde/save", async (request, reply) => {
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const raw = JSON.stringify(body);
+    if (raw.length > MAX_PAYLOAD_BYTES) {
+      return reply.code(400).send({ ok: false, error: "payload_too_large", message: "内容过大，请精简后重试。" });
+    }
+    const phone = String(body["手机号"] ?? "").replace(/\s+/g, "");
+    if (!/^1\d{10}$/.test(phone)) return reply.code(400).send({ ok: false, error: "phone_invalid" });
+    const stepRaw = parseInt(String(body.__step ?? "1"), 10);
+    const step = Math.min(9, Math.max(1, Number.isFinite(stepRaw) ? stepRaw : 1));
+    const now = new Date().toISOString();
+    const status = "进行中 · 第 " + step + " 步";
+    const payload = esc(JSON.stringify(body));
+    const mergeSql =
+      'INSERT INTO "FdeRegistration" (id, phone, name, city, status, payload, "createdAt", "updatedAt")' +
+      " VALUES (" + esc(randomUUID()) + ", " + esc(phone) +
+      ", " + esc(String(body["姓名"] ?? "").trim().slice(0, 60)) +
+      ", " + esc(String(body["城市"] ?? "").trim().slice(0, 60)) +
+      ", " + esc(status) + ", " + payload + "::jsonb, " + esc(now) + ", " + esc(now) + ")" +
+      ' ON CONFLICT (phone) DO UPDATE SET payload = "FdeRegistration".payload || ' + payload + "::jsonb" +
+      ", status = " + esc(status) + ', "updatedAt" = ' + esc(now);
+    await prisma.$executeRawUnsafe(mergeSql);
     return { ok: true };
   });
 

@@ -869,10 +869,24 @@
   }
   fm.addEventListener('input',function(e){clearBad(e.target);});
   fm.addEventListener('change',function(e){clearBad(e.target);});
+  // 分步草稿保存（2026-10-08）：下一步校验通过即静默存后端，后台可见进行到第几步；
+  // 失败完全静默（不打断填写），最终以提交为准。api 为空（本地模式）不保存。
+  function saveDraft(nextStep){
+    if(!API)return;
+    var r=buildRecord();
+    if(!String(r.手机号||'').trim())return;
+    r.__step=nextStep;
+    try{
+      fetch(API.replace('/register','/save'),{
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(r)
+      }).catch(function(){});
+    }catch(e){}
+  }
   [].slice.call(document.querySelectorAll('[data-next]')).forEach(function(b){
     b.addEventListener('click',function(){
       var cur=document.querySelector('.step[data-step="'+step+'"]');
       if(!validReq(cur)||!validPhoneGroup())return;
+      saveDraft(step+1);
       setStep(step+1);
     });
   });
@@ -893,6 +907,7 @@
         var sc=document.querySelector('.step[data-step="'+k+'"]');
         if(!validReq(sc)||!validPhoneGroup()){ setStep(k); return; }
       }
+      saveDraft(n);
       setStep(n);
     });
   });
