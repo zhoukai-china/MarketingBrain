@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0A1224" />
+<title>FDE工程师合作登记页 · 思潼AI商城</title>
+
+<!--
+  ============================================================================
+  部署说明
+  ---------------------------------------------------------------------------
+  接口地址统一在 config.js 里配置，本文件不写死任何地址。
+  若 config.js 未随页面上传，页面自动降级为「本地模式」：
+  用户填完后自己复制文字发到微信，不影响使用。
+  ============================================================================
+-->
+<script src="config.js" onerror="window.STZ_CONFIG={api:'',list:''}"></script>
+<style>
+  :root{
+    --navy-950:#070C18; --navy-900:#0A1224; --navy-850:#0E1830;
+    --card:rgba(255,255,255,.045); --card2:rgba(255,255,255,.075);
+    --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.18);
+    --orange:#F47920; --orange2:#E8651A; --orangeSoft:rgba(244,121,32,.14);
+    --text:#F2F5FA; --muted:#9BA9C2; --muted2:#7386A3;
+    --blue:#5B9CFF; --green:#3ECF8E;
+    --r:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:
+      radial-gradient(1100px 620px at 8% -8%,rgba(244,121,32,.16),transparent 60%),
+      radial-gradient(900px 560px at 105% 4%,rgba(91,156,255,.14),transparent 62%),
+      linear-gradient(178deg,#070C18 0%,#0A1224 46%,#080E1C 100%);
+    background-attachment:fixed;color:var(--text);line-height:1.6;
+    padding:0 16px 72px;font-size:15px;min-height:100vh;
+  }
+  .wrap{max-width:880px;margin:0 auto}
+
+  header{padding:36px 0 20px;text-align:center}
+  .badge{
+    display:inline-flex;align-items:center;gap:8px;padding:7px 16px;border-radius:999px;
+    background:var(--orangeSoft);border:1px solid rgba(244,121,32,.34);
+    font-size:12.5px;color:#FFC08A;letter-spacing:.4px;font-weight:700;
+  }
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--orange);box-shadow:0 0 10px var(--orange)}
+  h1{font-size:28px;line-height:1.34;margin:18px 0 12px;letter-spacing:-.4px;font-weight:800}
+  h1 .hl{background:linear-gradient(100deg,#FFB169,var(--orange));
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .sub{color:var(--muted);font-size:14.5px;max-width:660px;margin:0 auto}
+  .sub b{color:#FFC08A;font-weight:700}
+
+  .biz{
+    margin-top:22px;padding:20px 18px;border-radius:var(--r);text-align:left;
+    background:linear-gradient(140deg,rgba(244,121,32,.085),rgba(91,156,255,.05));
+    border:1px solid rgba(244,121,32,.26);
+  }
+  .biz-t{font-size:12.5px;color:#FFC08A;font-weight:800;letter-spacing:.5px;margin-bottom:12px}
+  .biz-p{font-size:14px;color:#E4ECF7;line-height:1.86;margin-bottom:14px}
+  .biz-p b{color:#FFC08A}
+  .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:13px}
+  @media(max-width:560px){.stat-row{grid-template-columns:1fr}}
+  .stat{padding:12px 13px;border-radius:11px;background:rgba(4,8,18,.44);border:1px solid var(--line);text-align:center}
+  .stat .n{font-size:22px;font-weight:900;color:var(--orange);letter-spacing:-.5px;line-height:1.2}
+  .stat .t{font-size:11.8px;color:var(--muted);margin-top:3px}
+  .zone-t{font-size:11.5px;color:var(--muted2);letter-spacing:.4px;margin:13px 0 8px;font-weight:700}
+  .zone{display:flex;flex-wrap:wrap;gap:6px}
+  .zone span{padding:5px 11px;border-radius:8px;font-size:12px;
+    background:rgba(255,255,255,.055);border:1px solid var(--line);color:#C2D0E4}
+  .zone .z1{background:rgba(244,121,32,.14);border-color:rgba(244,121,32,.4);color:#FFC08A;font-weight:700}
+  .zone .z2{background:rgba(91,156,255,.13);border-color:rgba(91,156,255,.34);color:#AEC8F5;font-weight:700}
+  .zone .z3{background:rgba(177,140,255,.13);border-color:rgba(177,140,255,.34);color:#D4BEFF;font-weight:700}
+  .zone .z4{background:rgba(255,196,77,.12);border-color:rgba(255,196,77,.34);color:#FFDC99;font-weight:700}
+  .zone .z5{background:rgba(62,207,142,.12);border-color:rgba(62,207,142,.34);color:#8FE7C2;font-weight:700}
+
+  .coop{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-top:13px}
+  @media(max-width:560px){.coop{grid-template-columns:1fr}}
+  .coop-i{padding:11px 13px;border-radius:11px;background:rgba(4,8,18,.44);border:1px solid var(--line)}
+  .coop-i b{display:block;font-size:13.2px;color:#FFE0C4;font-weight:800;margin-bottom:3px}
+  .coop-i i{display:block;font-style:normal;font-size:11.9px;color:var(--muted);line-height:1.58}
+  .biz-note{margin-top:13px;padding-top:12px;border-top:1px dashed var(--line);font-size:12.2px;color:var(--muted2);line-height:1.75}
+
+  .pill-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:18px}
+  .pill{padding:6px 14px;border-radius:999px;font-size:12.5px;background:var(--card);border:1px solid var(--line);color:#C6D3E6}
+  .pill b{color:var(--orange);font-weight:700}
+
+  .layers{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin:22px 0 6px}
+  @media(max-width:700px){.layers{grid-template-columns:1fr}}
+  .layer{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 14px;position:relative;overflow:hidden}
+  .layer::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--orange)}
+  .layer.l2::before{background:var(--blue)}
+  .layer.l3::before{background:var(--green)}
+  .layer .lv{font-size:11px;color:var(--muted2);letter-spacing:1.3px;font-weight:700}
+  .layer .nm{font-size:15.5px;font-weight:800;margin:5px 0 7px}
+  .layer .ds{font-size:12.6px;color:var(--muted);line-height:1.68}
+  .layer.l2 .nm{color:#9EC4FF} .layer.l3 .nm{color:#8FE7C2}
+
+  .prog{position:sticky;top:0;z-index:30;background:rgba(7,12,24,.9);backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line);margin:22px -16px 0;padding:13px 16px}
+  .prog-in{max-width:880px;margin:0 auto}
+  .steps{display:flex;align-items:center;gap:8px}
+  .st{flex:1;display:flex;align-items:center;gap:9px;min-width:0;cursor:pointer;padding:6px 8px;border-radius:10px;transition:.18s}
+  .st:hover{background:rgba(255,255,255,.05)}
+  .st:active{background:rgba(255,255,255,.09)}
+  .st-n{width:26px;height:26px;flex:none;border-radius:50%;display:grid;place-items:center;
+    font-size:12.5px;font-weight:800;background:var(--card2);border:1px solid var(--line2);color:var(--muted2);transition:.22s}
+  .st-t{font-size:13px;color:var(--muted2);font-weight:600;white-space:nowrap;transition:.22s}
+  .st.on .st-n{background:var(--orange);border-color:var(--orange);color:#1B0E03;box-shadow:0 0 0 4px rgba(244,121,32,.16)}
+  .st.on .st-t{color:#FFD0A8}
+  .st.done .st-n{background:rgba(62,207,142,.18);border-color:rgba(62,207,142,.5);color:var(--green)}
+  .st.done .st-t{color:var(--muted)}
+  .bar{height:3px;border-radius:3px;background:var(--card2);margin-top:11px;overflow:hidden}
+  .bar>i{display:block;height:100%;width:33.3%;border-radius:3px;
+    background:linear-gradient(90deg,#FFB169,var(--orange));transition:.32s cubic-bezier(.4,0,.2,1)}
+
+  form{margin-top:22px}
+  .card{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.022));
+    border:1px solid var(--line);border-radius:var(--r);padding:24px 22px}
+  .card h2{font-size:18px;font-weight:800;margin-bottom:5px;display:flex;align-items:center;gap:10px}
+  .card h2 em{font-style:normal;font-size:21px}
+  .card .hint{font-size:12.8px;color:var(--muted2);margin-bottom:20px;padding-bottom:15px;border-bottom:1px dashed var(--line)}
+  .sec-t{font-size:11.5px;letter-spacing:1.5px;color:var(--orange);font-weight:800;margin:24px 0 11px;
+    display:flex;align-items:center;gap:8px}
+  .sec-t::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(244,121,32,.35),transparent)}
+  .sec-t:first-of-type{margin-top:0}
+
+  label.f{display:block;margin-bottom:16px}
+  label.f>span.lb{display:block;font-size:13.5px;font-weight:700;margin-bottom:8px;color:#DCE6F5}
+  .req{color:var(--orange);margin-left:3px}
+  .tip{display:block;font-size:11.8px;color:var(--muted2);font-weight:400;margin-top:2px;line-height:1.6}
+
+  input[type=text],input[type=tel],select,textarea{
+    width:100%;padding:11px 13px;border-radius:11px;background:rgba(4,8,18,.55);
+    border:1px solid var(--line2);color:var(--text);font-size:16px;font-family:inherit;
+    transition:.18s;outline:none;-webkit-appearance:none;appearance:none}
+  textarea{min-height:96px;resize:vertical;line-height:1.72;font-size:15px}
+  input:focus,select:focus,textarea:focus{border-color:var(--orange);background:rgba(4,8,18,.85);box-shadow:0 0 0 3px rgba(244,121,32,.13)}
+  select{cursor:pointer;padding-right:36px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8'><path d='M1 1l5 5 5-5' stroke='%237386A3' stroke-width='1.8' fill='none' stroke-linecap='round'/></svg>");
+    background-repeat:no-repeat;background-position:right 13px center}
+  select option{background:#0E1830;color:var(--text)}
+  input::placeholder,textarea::placeholder{color:#5D6E88}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+  @media(max-width:600px){.grid2{grid-template-columns:1fr}}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{position:relative;display:inline-flex}
+  .chip input{position:absolute;opacity:0;width:0;height:0}
+  .chip span{display:inline-block;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.05);
+    border:1px solid var(--line2);font-size:13px;color:#BFCDE2;cursor:pointer;transition:.16s;user-select:none}
+  .chip span:hover{background:rgba(255,255,255,.1)}
+  .chip input:checked+span{background:var(--orangeSoft);border-color:var(--orange);color:#FFC08A;font-weight:700;box-shadow:0 0 0 3px rgba(244,121,32,.1)}
+  .chip input:focus-visible+span{outline:2px solid var(--blue);outline-offset:2px}
+
+  .opts{display:grid;gap:9px}
+  .opts.c2{grid-template-columns:1fr 1fr}
+  @media(max-width:600px){.opts.c2{grid-template-columns:1fr}}
+  .opt{position:relative;display:block}
+  .opt input{position:absolute;opacity:0;width:0;height:0}
+  .opt span{display:flex;align-items:flex-start;gap:11px;padding:12px 14px;border-radius:12px;cursor:pointer;
+    background:rgba(255,255,255,.04);border:1px solid var(--line);transition:.16s}
+  .opt span::before{content:"";width:16px;height:16px;flex:none;margin-top:2px;border-radius:50%;
+    border:2px solid var(--line2);transition:.16s}
+  .opt b{display:block;font-size:13.8px;font-weight:700;color:#E6EDF8;line-height:1.45}
+  .opt i{display:block;font-style:normal;font-size:12.2px;color:var(--muted2);margin-top:2px;line-height:1.55}
+  .opt:hover span{background:rgba(255,255,255,.08);border-color:var(--line2)}
+  .opt input:checked+span{background:var(--orangeSoft);border-color:var(--orange)}
+  .opt input:checked+span::before{border-color:var(--orange);border-width:5px}
+  .opt input:focus-visible+span{outline:2px solid var(--blue);outline-offset:2px}
+
+  .err{display:none;font-size:12.4px;color:#FF6B6B;margin-top:5px}
+  label.f.bad>span.lb{color:#FFB3B3}
+  label.f.bad input,label.f.bad select,label.f.bad textarea{border-color:rgba(255,107,107,.7)}
+  label.f.bad .err{display:block}
+  div.f{display:block;margin-bottom:16px}
+  div.f>span.lb{display:block;font-size:13.5px;font-weight:700;margin-bottom:8px;color:#DCE6F5}
+  div.f.bad>span.lb{color:#FFB3B3}
+  div.f.bad .opt{border-color:rgba(255,107,107,.7)}
+
+  .nav{display:flex;gap:11px;margin-top:22px}
+  .btn{flex:1;padding:14px 20px;border-radius:12px;border:0;cursor:pointer;font-size:15px;
+    font-weight:800;font-family:inherit;transition:.18s;min-height:48px}
+  .btn-m{background:var(--card2);border:1px solid var(--line2);color:#C9D6E8}
+  .btn-m:hover{background:rgba(255,255,255,.11)}
+  .btn-p{background:linear-gradient(100deg,#FFA856,var(--orange2));color:#241004;box-shadow:0 10px 26px rgba(244,121,32,.3)}
+  .btn-p:hover{filter:brightness(1.07)}
+  .btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+
+  #ok{display:none}
+  .ok-card{background:linear-gradient(180deg,rgba(62,207,142,.09),rgba(255,255,255,.02));
+    border:1px solid rgba(62,207,142,.32);border-radius:var(--r);padding:28px 24px;text-align:center}
+  .tick{width:56px;height:56px;border-radius:50%;margin:0 auto 16px;background:rgba(62,207,142,.16);
+    border:1px solid rgba(62,207,142,.42);display:grid;place-items:center;font-size:27px;color:var(--green)}
+  .ok-card h2{justify-content:center;font-size:21px}
+  .ok-card p{color:var(--muted);font-size:14px;margin:9px auto 20px;max-width:540px;line-height:1.8}
+  .ok-card p b{color:#8FE7C2}
+  .reply{text-align:left;background:rgba(4,8,18,.6);border:1px solid var(--line);border-radius:12px;
+    padding:16px;font-size:13px;color:#C7D5E8;line-height:1.8;white-space:pre-wrap;
+    max-height:520px;overflow:auto;margin-bottom:18px}
+  .acts{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  .acts .btn{flex:0 1 auto;min-width:148px}
+  .btn-g{background:rgba(62,207,142,.14);border:1px solid rgba(62,207,142,.4);color:#8FE7C2}
+  .btn-g:hover{background:rgba(62,207,142,.24)}
+  .notice{margin-top:16px;padding:13px 15px;border-radius:12px;font-size:12.8px;line-height:1.75;text-align:left}
+  .notice.err{background:rgba(255,107,107,.09);border:1px solid rgba(255,107,107,.3);color:#FFB3B3}
+  .notice.err b{color:#FFD0D0}
+
+  /* ---------- 附件拖拽区 ---------- */
+  .drop2{
+    display:block;padding:24px 18px;text-align:center;cursor:pointer;
+    border:2px dashed var(--line2);border-radius:14px;background:rgba(255,255,255,.025);
+    transition:.16s;
+  }
+  .drop2:hover,.drop2.hot{border-color:var(--orange);background:var(--orangeSoft)}
+  .drop2-ic{font-size:30px;margin-bottom:10px;opacity:.85}
+  .drop2-t{font-size:14px;color:#DCE6F5;font-weight:700;margin-bottom:8px}
+  .drop2-h{font-size:12px;color:var(--muted2);line-height:1.75}
+  .att{margin-top:10px}
+  .att-i{
+    display:flex;align-items:center;gap:11px;padding:10px 13px;border-radius:11px;
+    background:rgba(4,8,18,.5);border:1px solid var(--line);margin-bottom:8px;
+  }
+  .att-i .ic{font-size:17px;flex:none}
+  .att-i .nm{flex:1;font-size:13px;color:#DCE6F5;word-break:break-all;line-height:1.5}
+  .att-i .sz{font-size:11.5px;color:var(--muted2);flex:none}
+  .att-i .rm{
+    flex:none;width:22px;height:22px;border-radius:6px;border:1px solid var(--line2);
+    background:var(--card);color:var(--muted);cursor:pointer;font-size:13px;line-height:1;
+  }
+  .att-i .rm:hover{background:rgba(255,107,107,.2);color:#FFB3B3}
+
+  footer{text-align:center;margin-top:32px;padding-top:20px;border-top:1px solid var(--line);
+    color:var(--muted2);font-size:12.2px;line-height:1.9}
+  footer b{color:#B9C8DE}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="badge"><span class="dot"></span>思潼AI商城 · FDE工程师合作登记</div>
+    <h1>把你的交付能力<span class="hl">接入思潼AI商城</span></h1>
+    <p class="sub">思潼AI商城是面向中小企业提供 <b>AI 产品与相关服务</b> 的线上商城。商城已有持续交付中的商家需求，现面向全国招募 FDE 生态伙伴。</p>
+    <div class="pill-row">
+      <span class="pill">五个板块 · <b>可同时对接</b></span>
+      <span class="pill">全国可接 · <b>远程协作</b></span>
+      <span class="pill">不收任何费用 · <b>无门槛</b></span>
+      <span class="pill">撮合 → 深度 → 独家</span>
+    </div>
+
+    <div class="biz">
+      <div class="biz-t">我们做什么</div>
+      <div class="biz-p">
+        思潼AI商城已完成 <b>AI 智能体</b>、<b>AI 硬件</b>、<b>AI 培训</b>、<b>OPC 专区</b>、<b>企业服务（入企 AI 改造）</b>
+        五个板块的搭建，正在服务 <b>100 多个商家</b>的 AI 落地需求。
+      </div>
+      <div class="stat-row">
+        <div class="stat"><div class="n">5 大</div><div class="t">开放合作板块</div></div>
+        <div class="stat"><div class="n">100+</div><div class="t">在服务商家</div></div>
+        <div class="stat"><div class="n">全国</div><div class="t">开放合作</div></div>
+      </div>
+
+      <div class="zone-t">可对接板块（可同时对接多个）</div>
+      <div class="zone">
+        <span class="z1">AI 智能体</span>
+        <span class="z2">AI 硬件</span>
+        <span class="z3">AI 培训</span>
+        <span class="z4">OPC 专区</span>
+        <span class="z5">企业服务（入企 AI 改造）</span>
+      </div>
+
+      <div class="coop">
+        <div class="coop-i"><b>FDE 有智能体</b><i>我们代为上架销售，无需你自己运营</i></div>
+        <div class="coop-i"><b>FDE 能培训</b><i>安排线下课程，课程与培训交付我们承接组织</i></div>
+        <div class="coop-i"><b>FDE 有 OPC 能力</b><i>大模型折扣与漫剧创作工作台，商城内现成资源</i></div>
+        <div class="coop-i"><b>FDE 有落地能力</b><i>可直接承接企业入企 AI 改造项目</i></div>
+      </div>
+
+      <div class="biz-note">
+        <b>合作方式</b>：一个 FDE 可同时对接多个板块。比如既有智能体又能讲课，还做过入企改造，可以三个方向一起合作。<br>
+        <b style="color:#FFC08A">不做招聘，不要求入职，随时可终止，不收任何费用。</b>
+      </div>
+    </div>
+  </header>
+
+  <div class="layers">
+    <div class="layer l1">
+      <div class="lv">LEVEL 01</div><div class="nm">撮合合作</div>
+      <div class="ds">无需签约。有匹配需求直接对接，完成后按约定结算。适合先了解合作方式。</div>
+    </div>
+    <div class="layer l2">
+      <div class="lv">LEVEL 02</div><div class="nm">深度合作</div>
+      <div class="ds">签非独家合作协议。商城为你做能力包装与推广，帮你对接需求并承接结算。</div>
+    </div>
+    <div class="layer l3">
+      <div class="lv">LEVEL 03</div><div class="nm">独家合作</div>
+      <div class="ds">按行业或区域授予独家优先接单权，配套更多资源扶持。</div>
+    </div>
+  </div>
+
+  <div class="prog">
+    <div class="prog-in">
+      <div class="steps">
+        <div class="st on" data-s="1"><div class="st-n">1</div><div class="st-t">联系方式</div></div>
+        <div class="st" data-s="2"><div class="st-n">2</div><div class="st-t">能力范围</div></div>
+        <div class="st" data-s="3"><div class="st-n">3</div><div class="st-t">合作条件</div></div>
+      </div>
+      <div class="bar"><i id="barIn"></i></div>
+    </div>
+  </div>
+
+  <form id="fm" novalidate>
+
+    <section class="card step" data-step="1">
+      <h2><em>①</em>联系方式</h2>
+      <div class="hint">两项联系方式必填，其余信息填不全也不影响登记，后续可随时补充。</div>
+      <div class="sec-t">基本信息</div>
+      <div class="grid2">
+        <label class="f">
+          <span class="lb">姓名 / 称呼<span class="req">*</span></span>
+          <input type="text" name="name" placeholder="怎么称呼你" data-req />
+          <span class="err">请填写姓名或称呼</span>
+        </label>
+        <label class="f">
+          <span class="lb">手机号<span class="req">*</span></span>
+          <input type="tel" name="phone" inputmode="numeric" placeholder="11 位手机号" data-req data-phone />
+          <span class="err">手机号格式不对</span>
+        </label>
+        <label class="f">
+          <span class="lb">微信号<span class="req">*</span></span>
+          <input type="text" name="wechat" placeholder="方便联系你的号" data-req />
+          <span class="err">请填写微信号</span>
+        </label>
+        <label class="f">
+          <span class="lb">所在城市<span class="req">*</span></span>
+          <input type="text" name="city" placeholder="如：成都" data-req />
+          <span class="err">请填写城市</span>
+        </label>
+      </div>
+      <div class="sec-t">当前状态</div>
+      <div class="grid2">
+        <label class="f">
+          <span class="lb">当前身份</span>
+          <select name="identity">
+            <option>自由职业 / 独立接单</option>
+            <option>在职，兼职承接</option>
+            <option>工作室 / 小团队</option>
+            <option>公司 / 机构创始人</option>
+          </select>
+        </label>
+        <label class="f">
+          <span class="lb">每周可投入时间</span>
+          <select name="capacity">
+            <option>5 小时以内</option>
+            <option selected>5-15 小时</option>
+            <option>15-30 小时</option>
+            <option>30 小时以上 / 可全职承接</option>
+          </select>
+        </label>
+      </div>
+      <div class="nav"><button type="button" class="btn btn-p" data-next>下一步：能力范围 →</button></div>
+    </section>
+
+    <section class="card step" data-step="2" style="display:none">
+      <h2><em>②</em>能力范围</h2>
+      <div class="hint">按实际情况选。这部分用于把你匹配到商城里对应专区与商家需求。</div>
+
+      <div class="sec-t">擅长领域（可多选）</div>
+      <label class="f">
+        <span class="lb">主要交付方向<span class="req">*</span></span>
+        <div class="chips">
+          <label class="chip"><input type="checkbox" name="domain" value="AI智能体搭建" /><span>AI 智能体搭建</span></label>
+          <label class="chip"><input type="checkbox" name="domain" value="AI工作流与流程重构" /><span>AI 工作流 / 流程重构</span></label>
+          <label class="chip"><input type="checkbox" name="domain" value="提示词工程与知识库" /><span>提示词工程 / 知识库</span></label>
+          <label class="chip"><input type="checkbox" name="domain" value="模型API接入与集成" /><span>模型 API 接入</span></label>
+          <label class="chip"><input type="checkbox" name="domain" value="私有化部署" /><span>私有化部署</span></label>
+          <label class="chip"><input type="checkbox" name="domain" value="AI内容生产（图文/视频）" /><span>AI 内容生产</span></label>
+          <label class="chip"><input type="checkbox" name="domain" value="短视频与创始人IP" /><span>短视频 / 创始人 IP</span></label>
+          <label class="chip"><input type="checkbox" name="domain" value="直播运营与话术" /><span>直播运营与话术</span></label>
+          <label class="chip"><input type="checkbox" name="domain" value="投流（千川/巨量）" /><span>投流（千川 / 巨量）</span></label>
+          <label class="chip"><input type="checkbox" name="domain" value="销售与私域运营" /><span>销售 / 私域运营</span></label>
+          <label class="chip"><input type="checkbox" name="domain" value="数据看板与分析" /><span>数据看板与分析</span></label>
+          <label class="chip"><input type="checkbox" name="domain" value="定制软件开发" /><span>定制软件开发</span></label>
+          <label class="chip"><input type="checkbox" name="domain" value="系统集成与接口打通" /><span>系统集成 / 接口打通</span></label>
+          <label class="chip"><input type="checkbox" name="domain" value="企业内训与陪跑" /><span>企业内训与陪跑</span></label>
+        </div>
+        <span class="err">至少选一项</span>
+      </label>
+      <label class="f">
+        <span class="lb">其他擅长领域（选填）</span>
+        <input type="text" name="domain_other" placeholder="上面没有的，写这里" />
+      </label>
+
+      <div class="sec-t">可对接的行业客户</div>
+      <label class="f">
+        <span class="lb">你能服务的行业<span class="req">*</span></span>
+        <div class="chips">
+          <label class="chip"><input type="checkbox" name="industry" value="餐饮（连锁/门店）" /><span>连锁餐饮</span></label>
+          <label class="chip"><input type="checkbox" name="industry" value="美业（皮肤管理/美发）" /><span>美业</span></label>
+          <label class="chip"><input type="checkbox" name="industry" value="大健康/医美" /><span>大健康 / 医美</span></label>
+          <label class="chip"><input type="checkbox" name="industry" value="教育培训" /><span>教育培训</span></label>
+          <label class="chip"><input type="checkbox" name="industry" value="汽车后市场" /><span>汽车后市场</span></label>
+          <label class="chip"><input type="checkbox" name="industry" value="本地生活/生活服务" /><span>本地生活服务</span></label>
+          <label class="chip"><input type="checkbox" name="industry" value="零售/电商" /><span>零售电商</span></label>
+          <label class="chip"><input type="checkbox" name="industry" value="企业服务/ToB软件" /><span>企业服务 / ToB</span></label>
+          <label class="chip"><input type="checkbox" name="industry" value="其他行业" /><span>其他行业</span></label>
+        </div>
+      </label>
+      <label class="f" id="industryOtherWrap" style="display:none">
+        <span class="lb">其他行业说明（选填）</span>
+        <input type="text" name="industry_other" placeholder="写一下你能服务的具体行业" />
+      </label>
+
+      <div class="sec-t">可承担的交付环节（可多选）</div>
+      <label class="f">
+        <span class="lb">你能承担哪些工作<span class="req">*</span></span>
+        <div class="chips">
+          <label class="chip"><input type="checkbox" name="duty" value="需求诊断/陪访" /><span>需求诊断 / 陪访</span></label>
+          <label class="chip"><input type="checkbox" name="duty" value="方案设计与报价" /><span>方案设计与报价</span></label>
+          <label class="chip"><input type="checkbox" name="duty" value="搭建实施与开发" /><span>搭建实施</span></label>
+          <label class="chip"><input type="checkbox" name="duty" value="培训交付与带教" /><span>培训带教</span></label>
+          <label class="chip"><input type="checkbox" name="duty" value="顾问式陪跑" /><span>顾问式陪跑</span></label>
+          <label class="chip"><input type="checkbox" name="duty" value="代运营与托管" /><span>代运营托管</span></label>
+          <label class="chip"><input type="checkbox" name="duty" value="内容拍摄与剪辑" /><span>拍摄剪辑</span></label>
+          <label class="chip"><input type="checkbox" name="duty" value="投流与流量投放" /><span>投流投放</span></label>
+          <label class="chip"><input type="checkbox" name="duty" value="售后运维" /><span>售后运维</span></label>
+          <label class="chip"><input type="checkbox" name="duty" value="其他" /><span>其他</span></label>
+        </div>
+        <span class="err">至少选一项</span>
+      </label>
+      <label class="f" id="dutyOtherWrap" style="display:none">
+        <span class="lb">其他可承担工作（选填）</span>
+        <input type="text" name="duty_other" placeholder="上面没覆盖到的，写这里" />
+      </label>
+
+      <div class="sec-t">现有可上架产品</div>
+      <label class="f">
+        <span class="lb">是否已有可直接上架商城的产品或智能体</span>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="agent" value="有成品，可直接上架销售" /><span><b>有成品，可直接上架</b><i>已做成可售形态，可挂到商城专区销售</i></span></label>
+          <label class="opt"><input type="radio" name="agent" value="有成品，但想自己单卖" /><span><b>有成品，但想自己单卖</b><i>可接受商城引荐客户，不上架</i></span></label>
+          <label class="opt"><input type="radio" name="agent" value="无成品，可按需定制" /><span><b>无成品，可按需定制</b><i>接到需求后按场景开发</i></span></label>
+          <label class="opt"><input type="radio" name="agent" value="正在开发中" /><span><b>正在开发中</b><i>已在开发，接近完成</i></span></label>
+        </div>
+      </label>
+      <div id="agentWrap" style="display:none">
+        <div class="sec-t" style="margin-top:18px">智能体 / 产品明细（选填，填了优先对接上架）</div>
+        <label class="f">
+          <span class="lb">智能体 / 产品名称</span>
+          <input type="text" name="agent_name" placeholder="例：门店获客智能体" />
+        </label>
+        <label class="f">
+          <span class="lb">使用载体（可多选）</span>
+          <div class="chips">
+            <label class="chip"><input type="checkbox" name="agent_channel" value="网页链接" /><span>网页链接</span></label>
+            <label class="chip"><input type="checkbox" name="agent_channel" value="微信小程序" /><span>微信小程序</span></label>
+            <label class="chip"><input type="checkbox" name="agent_channel" value="App" /><span>App</span></label>
+            <label class="chip"><input type="checkbox" name="agent_channel" value="企业微信/机器人" /><span>企微 / 机器人</span></label>
+          </div>
+        </label>
+        <label class="f">
+          <span class="lb">载体链接 / 小程序名称（选填）</span>
+          <input type="text" name="agent_link" placeholder="可直接访问的链接，或小程序名称" />
+        </label>
+        <label class="f">
+          <span class="lb">解决什么问题</span>
+          <textarea name="agent_problem" placeholder="给谁用 + 解决什么问题 + 怎么用
+例：给连锁门店店长用，每天自动汇总客资并生成跟进话术，扫码即用" style="min-height:64px"></textarea>
+        </label>
+        <label class="f">
+          <span class="lb">合作报价（相当于商城进货价）</span>
+          <input type="text" name="agent_price" placeholder="例：按年 1980 元/坐席，10 坐席起；或一口价 9800 元/套" />
+          <span class="tip">商城对外售价由我们定，你按合作报价结算。</span>
+        </label>
+      </div>
+
+      <div class="sec-t">课程与授课能力</div>
+      <label class="f">
+        <span class="lb">是否可对外开讲或提供课程</span>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="course" value="有成熟课程，可直接开讲" /><span><b>有成熟课程，可直接开讲</b><i>已有完整课件且已开讲过，可排期</i></span></label>
+          <label class="opt"><input type="radio" name="course" value="有课程大纲，需完善" /><span><b>有课程大纲，需完善</b><i>方向和内容已有，课件需打磨</i></span></label>
+          <label class="opt"><input type="radio" name="course" value="暂无课程，可新开发" /><span><b>暂无课程，可新开发</b><i>愿意联合开发一门课</i></span></label>
+          <label class="opt"><input type="radio" name="course" value="不提供课程" /><span><b>不提供课程</b><i>仅承接项目交付</i></span></label>
+        </div>
+      </label>
+      <div id="courseWrap" style="display:none">
+        <div class="sec-t" style="margin-top:18px">课程明细（选填，填了优先排期）</div>
+        <label class="f">
+          <span class="lb">课程名称</span>
+          <input type="text" name="course_name" placeholder="例：连锁餐饮老板 AI 获客实操课" />
+        </label>
+        <label class="f">
+          <span class="lb">课程主题</span>
+          <input type="text" name="course_topic" placeholder="一句话说清这门课讲什么、给谁听" />
+        </label>
+        <label class="f">
+          <span class="lb">讲课报价</span>
+          <input type="text" name="course_price" placeholder="例：半天 3000 元 / 一天 6000 元；或按门票分成" />
+        </label>
+        <label class="f">
+          <span class="lb">课程补充信息（选填）</span>
+          <textarea name="course_detail" placeholder="面向人群 / 课时 / 单期人数 / 线上或线下
+例：面向连锁品牌创始人，2 天线下，单期 30 人以内" style="min-height:64px"></textarea>
+        </label>
+      </div>
+      <div class="opts c2" id="courseTypeWrap" style="display:none">
+        <div class="sec-t" style="grid-column:1/-1;margin-top:0">可提供的授课形式</div>
+        <label class="opt"><input type="checkbox" name="course_type" value="线上直播课" /><span><b>线上直播课</b><i>直播形式，大班或小班</i></span></label>
+        <label class="opt"><input type="checkbox" name="course_type" value="线下集训营" /><span><b>线下集训营</b><i>到客户现场或自有场地</i></span></label>
+        <label class="opt"><input type="checkbox" name="course_type" value="录播课" /><span><b>录播课</b><i>录制后持续销售</i></span></label>
+        <label class="opt"><input type="checkbox" name="course_type" value="企业内训" /><span><b>企业内训</b><i>为单家客户员工授课</i></span></label>
+      </div>
+
+      <div class="sec-t">企业服务 · 落地能力（选填）</div>
+      <label class="f">
+        <span class="lb">能承接的落地方向（可多选）</span>
+        <div class="chips">
+          <label class="chip"><input type="checkbox" name="land_domain" value="电商类" /><span>电商类</span></label>
+          <label class="chip"><input type="checkbox" name="land_domain" value="本地商家类" /><span>本地商家类</span></label>
+          <label class="chip"><input type="checkbox" name="land_domain" value="连锁门店类" /><span>连锁门店类</span></label>
+          <label class="chip"><input type="checkbox" name="land_domain" value="企业通用（流程/办公）" /><span>企业通用（流程 / 办公）</span></label>
+          <label class="chip"><input type="checkbox" name="land_domain" value="其他方向" /><span>其他方向</span></label>
+        </div>
+      </label>
+      <label class="f" id="landOtherWrap" style="display:none">
+        <span class="lb">其他落地方向说明（选填）</span>
+        <input type="text" name="land_other" placeholder="写一下你还能承接哪类落地" />
+      </label>
+      <label class="f">
+        <span class="lb">主要擅长（哪类客户、哪套打法）</span>
+        <textarea name="land_good" placeholder="例：餐饮连锁的私域 + 门店获客 AI 落地，从诊断到店长培训全流程可交付" style="min-height:60px"></textarea>
+      </label>
+      <label class="f">
+        <span class="lb">落地收费方式 / 报价</span>
+        <input type="text" name="land_price" placeholder="例：诊断 3000 元起，落地项目 3-10 万按阶段，或按结果分成" />
+      </label>
+
+      <div class="sec-t">AI 硬件 · 工厂与供应链（选填）</div>
+      <label class="f">
+        <span class="lb">硬件资源情况</span>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="hw" value="有自己的AI硬件工厂" /><span><b>有自己的 AI 硬件工厂</b><i>可生产或代工 AI 硬件</i></span></label>
+          <label class="opt"><input type="radio" name="hw" value="有硬件供应链资源" /><span><b>有硬件供应链资源</b><i>有货源、代工或渠道</i></span></label>
+          <label class="opt"><input type="radio" name="hw" value="有硬件产品，想上架商城" /><span><b>有硬件产品，想上架商城</b><i>成品硬件挂商城代销</i></span></label>
+          <label class="opt"><input type="radio" name="hw" value="无硬件资源" /><span><b>没有硬件资源</b><i>跳过此板块</i></span></label>
+        </div>
+      </label>
+      <div id="hwWrap" style="display:none">
+        <label class="f">
+          <span class="lb">硬件方向 / 产品说明（选填）</span>
+          <textarea name="hw_detail" placeholder="例：AI 录音卡工厂，支持贴牌代工；或有大模型一体机货源，可对接门店渠道" style="min-height:60px"></textarea>
+        </label>
+        <div class="notice" style="border:1px solid rgba(244,121,32,.35);background:var(--orangeSoft)">
+          <b style="color:#FFC08A">工厂 / 供应链资源的合作方式：</b>可帮平台<b>招商</b>——对接硬件品牌方与渠道方，按成交给<b>招商佣金</b>；有成品硬件的可直接上架商城代销。
+        </div>
+      </div>
+
+      <div class="sec-t">交付案例</div>
+      <label class="f">
+        <span class="lb">已完成的交付案例（选填）</span>
+        <textarea name="cases" placeholder="建议格式：客户行业 + 规模 → 你做了什么 → 结果数据
+例：某 30 店连锁餐饮 → 搭建私域与门店获客智能体 → 3 个月新增 3000 条线索"></textarea>
+        <span class="tip">没有企业客户案例可留空，填写其他可验证的交付经历同样有效。</span>
+      </label>
+
+      <div class="nav">
+        <button type="button" class="btn btn-m" data-prev>← 上一步</button>
+        <button type="button" class="btn btn-p" data-next>下一步：合作条件 →</button>
+      </div>
+    </section>
+
+    <section class="card step" data-step="3" style="display:none">
+      <h2><em>③</em>合作条件</h2>
+      <div class="hint">用于对齐结算方式与资源需求，不构成报价承诺。</div>
+
+      <div class="sec-t">结算方式接受度</div>
+      <label class="f">
+        <span class="lb">可接受的结算方式<span class="req">*</span></span>
+        <div class="chips">
+          <label class="chip"><input type="checkbox" name="pay" value="全额预付" /><span>全额预付</span></label>
+          <label class="chip"><input type="checkbox" name="pay" value="首付款+验收尾款" /><span>首付款 + 验收尾款</span></label>
+          <label class="chip"><input type="checkbox" name="pay" value="里程碑分期付款" /><span>里程碑分期</span></label>
+          <label class="chip"><input type="checkbox" name="pay" value="交付后回款再结" /><span>交付后回款再结</span></label>
+          <label class="chip"><input type="checkbox" name="pay" value="可先交付后分成" /><span>可先交付后分成</span></label>
+          <label class="chip"><input type="checkbox" name="pay" value="接受纯分成" /><span>接受纯分成</span></label>
+        </div>
+        <span class="err">至少选一项</span>
+      </label>
+
+      <div class="sec-t">合作方式偏好</div>
+      <label class="f">
+        <span class="lb">倾向的合作方式<span class="req">*</span></span>
+        <div class="opts c2">
+          <label class="opt"><input type="radio" name="coop_pref" value="只接受项目结算" /><span><b>只接受项目结算</b><i>按项目付费，费用直接结算给我</i></span></label>
+          <label class="opt"><input type="radio" name="coop_pref" value="倾向分成合作" /><span><b>倾向分成合作</b><i>可承担前期投入，共享后端收益</i></span></label>
+          <label class="opt"><input type="radio" name="coop_pref" value="均可，按需求定" /><span><b>均可，按需求定</b><i>小单走项目结算，大单走分成</i></span></label>
+          <label class="opt"><input type="radio" name="coop_pref" value="均可，需逐单确认" /><span><b>均可，需逐单确认</b><i>每个需求对接前单独确认</i></span></label>
+        </div>
+        <span class="err">请选择一项</span>
+      </label>
+
+      <div class="sec-t">报价参考</div>
+      <label class="f">
+        <span class="lb">常规报价区间（选填）</span>
+        <div class="chips">
+          <label class="chip"><input type="checkbox" name="price" value="日薪制 1500-3000/天" /><span>日薪 1.5-3k</span></label>
+          <label class="chip"><input type="checkbox" name="price" value="日薪制 3000-5000/天" /><span>日薪 3-5k</span></label>
+          <label class="chip"><input type="checkbox" name="price" value="日薪制 5000以上/天" /><span>日薪 5k+</span></label>
+          <label class="chip"><input type="checkbox" name="price" value="项目制 3万以内" /><span>项目制 3 万内</span></label>
+          <label class="chip"><input type="checkbox" name="price" value="项目制 3-10万" /><span>项目制 3-10 万</span></label>
+          <label class="chip"><input type="checkbox" name="price" value="项目制 10-30万" /><span>项目制 10-30 万</span></label>
+          <label class="chip"><input type="checkbox" name="price" value="项目制 30万以上" /><span>项目制 30 万+</span></label>
+          <label class="chip"><input type="checkbox" name="price" value="按结果分成" /><span>按结果分成</span></label>
+          <label class="chip"><input type="checkbox" name="price" value="按客户预算定" /><span>按客户预算定</span></label>
+        </div>
+      </label>
+      <label class="f">
+        <span class="lb">报价补充说明（选填）</span>
+        <input type="text" name="price_note" placeholder="例：10 万以上需先看方案再报价" />
+      </label>
+
+      <div class="sec-t">需要的平台资源（可多选）</div>
+      <label class="f">
+        <span class="lb">希望商城提供的支持</span>
+        <div class="chips">
+          <label class="chip"><input type="checkbox" name="support" value="大模型算力额度折扣" /><span>大模型算力折扣</span></label>
+          <label class="chip"><input type="checkbox" name="support" value="漫剧创作工作台" /><span>漫剧创作工作台</span></label>
+          <label class="chip"><input type="checkbox" name="support" value="课程包装与招生代运营" /><span>课程包装与招生</span></label>
+          <label class="chip"><input type="checkbox" name="support" value="产品上架商城代运营" /><span>产品上架代运营</span></label>
+          <label class="chip"><input type="checkbox" name="support" value="短视频拍摄剪辑支持" /><span>拍摄剪辑支持</span></label>
+          <label class="chip"><input type="checkbox" name="support" value="投流资金或账户支持" /><span>投流支持</span></label>
+          <label class="chip"><input type="checkbox" name="support" value="案例包装与内容推广" /><span>案例包装与推广</span></label>
+          <label class="chip"><input type="checkbox" name="support" value="智能体推广需求" /><span>智能体推广需求</span></label>
+          <label class="chip"><input type="checkbox" name="support" value="AI课程招生需求" /><span>AI 课程招生需求</span></label>
+          <label class="chip"><input type="checkbox" name="support" value="客户需求" /><span>客户需求对接</span></label>
+          <label class="chip"><input type="checkbox" name="support" value="暂不需要支持" /><span>暂不需要</span></label>
+        </div>
+      </label>
+      <label class="f">
+        <span class="lb">其他资源需求（选填）</span>
+        <input type="text" name="support_other" placeholder="如：多模态能力、语音克隆、数字人制作等" />
+      </label>
+
+      <div class="sec-t">补充</div>
+      <label class="f">
+        <span class="lb">其他需要说明的信息</span>
+        <textarea name="note" placeholder="如：只接远程、只做特定行业、只做后端开发不接客户对接、现有客户情况等" style="min-height:76px"></textarea>
+      </label>
+      <label class="f">
+        <span class="lb">作品或账号链接（选填）</span>
+        <input type="text" name="links" placeholder="GitHub / 公众号 / 视频号 / 抖音 / 个人网站，多个用空格隔开" />
+      </label>
+
+      <div class="sec-t">作品与能力附件（选填）</div>
+      <div class="f">
+        <label class="drop2" id="dropFile">
+          <input type="file" id="fileAtt" multiple style="display:none" />
+          <div class="drop2-ic">📎</div>
+          <div class="drop2-t">点击选择文件，或把文件拖到这里（仅作记录）</div>
+          <div class="drop2-h">支持作品集、案例 PDF、方案书、个人简历<br>多个文件可一起选，最大 5 个 / 单个不超过 20MB<br>真实提交请走下方网盘链接</div>
+        </label>
+        <div id="attList"></div>
+        <div class="notice" style="margin-top:12px;border:1px solid rgba(244,121,32,.35);background:var(--orangeSoft)">
+          <b>附件提交方式：</b>把文件打包上传到网盘（夸克 / 百度 / 阿里云盘均可），在下面填写链接即可，<b>无需再发微信</b>。上面选文件仅作暂存记录，真实提交以网盘链接为准。
+        </div>
+      </div>
+
+      <div class="f">
+        <span class="lb">资料提交方式（选填）</span>
+        <div class="opts c2">
+          <label class="opt"><input type="checkbox" name="att_send" value="网盘链接" /><span><b>网盘链接提交</b><i>已在下面填写链接，可直接提取</i></span></label>
+          <label class="opt"><input type="checkbox" name="att_send" value="暂不提供" /><span><b>暂不提供</b><i>需要时再补</i></span></label>
+        </div>
+      </div>
+      <label class="f">
+        <span class="lb">网盘 / 云盘链接</span>
+        <input type="text" name="att_links" placeholder="如：夸克/百度网盘/阿里云盘链接，可附提取码" />
+      </label>
+      <input type="text" name="att_names" id="attNames" style="display:none" />
+      <div class="f">
+        <span class="lb">信息使用授权<span class="req">*</span></span>
+        <label class="opt" style="display:block">
+          <input type="checkbox" name="agree" data-req />
+          <span><b>同意思潼AI商城使用以上信息进行合作对接与联系</b><i>信息仅用于为你匹配需求与合作对接，不会对外提供，也不会转交其他服务商。</i></span>
+        </label>
+        <span class="err">请先勾选同意项</span>
+      </div>
+
+      <div class="nav">
+        <button type="button" class="btn btn-m" data-prev>← 上一步</button>
+        <button type="submit" class="btn btn-p">提交登记</button>
+      </div>
+    </section>
+  </form>
+
+  <div id="ok">
+    <div class="ok-card">
+      <div class="tick">✓</div>
+      <h2 id="okTitle">登记已提交</h2>
+      <p id="okLead"></p>
+      <div class="reply" id="replyOut"></div>
+      <div class="acts" id="actsBox"></div>
+      <div class="notice" id="okNote" style="display:none"></div>
+    </div>
+  </div>
+
+  <footer>
+    <b>思潼AI商城</b>　｜　中小企业 AI 产品与服务商城<br>
+    撮合 → 深度 → 独家<br>
+    <span style="display:inline-block;margin-top:6px;opacity:.72;font-size:11.6px">本页用于 FDE 生态合作登记，信息仅用于合作对接</span>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var KEY='baolu_fde_pool_v2';
+  var CFG=window.STZ_CONFIG||{};
+  var API=String(CFG.api||'').trim();
+  var step=1,TOTAL=3;
+  var fm=document.getElementById('fm');
+  var steps=[].slice.call(document.querySelectorAll('.st'));
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+
+  function setStep(n){
+    step=n;
+    steps.forEach(function(s){var i=+s.dataset.s;s.classList.toggle('on',i===n);s.classList.toggle('done',i<n);});
+    document.getElementById('barIn').style.width=(n/TOTAL*100)+'%';
+    [].slice.call(document.querySelectorAll('.step')).forEach(function(sc){
+      sc.style.display=(+sc.dataset.step===n)?'':'none';});
+    window.scrollTo({top:document.querySelector('.prog').offsetTop-70,behavior:'smooth'});
+  }
+
+  [].slice.call(document.querySelectorAll('textarea')).forEach(function(t){
+    t.addEventListener('input',function(){t.style.height='auto';t.style.height=(t.scrollHeight+2)+'px';});
+  });
+
+  function bindFollow(name,ids,showFn){
+    [].slice.call(document.querySelectorAll('input[name='+name+']')).forEach(function(r){
+      r.addEventListener('change',function(){
+        var v=document.querySelector('input[name='+name+']:checked');
+        var on=v?showFn(v.value):false;
+        ids.forEach(function(id){
+          var el=document.getElementById(id);
+          if(!el)return;
+          // label.f / div.f 走block，网格容器走 grid
+          if(el.classList.contains('opts'))el.style.display=on?'grid':'none';
+          else el.style.display=on?'':'none';
+        });
+      });
+    });
+  }
+  // 判断「有可上架成品」：兼容新旧文案，正在开发中也需要填明细
+  function isProductReady(v){ return /^有成品|^正在开发/.test(v); }
+  // 判断「可授课」：兼容新旧文案
+  function isCourseReady(v){ return v && v.indexOf('不提供')===-1 && v.indexOf('不做')===-1; }
+  bindFollow('agent',['agentWrap'],isProductReady);
+  bindFollow('course',['courseWrap','courseTypeWrap'],isCourseReady);
+  bindFollow('hw',['hwWrap'],function(v){return v && v.indexOf('无硬件')===-1;});
+  // 勾选「其他」展开补充输入框
+  function bindOtherToggle(cbName,cbValue,wrapId){
+    var cb=document.querySelector('input[name='+cbName+'][value="'+cbValue+'"]');
+    var wrap=document.getElementById(wrapId);
+    if(!cb||!wrap)return;
+    cb.addEventListener('change',function(){ wrap.style.display=cb.checked?'':'none'; });
+  }
+  bindOtherToggle('industry','其他行业','industryOtherWrap');
+  bindOtherToggle('land_domain','其他方向','landOtherWrap');
+  bindOtherToggle('duty','其他','dutyOtherWrap');
+
+  // ---------- 附件：本地登记文件名，不上传 ----------
+  var ATT=[];
+  var MAX_FILES=5, MAX_SIZE=20*1024*1024;
+  var dropEl=document.getElementById('dropFile');
+  var fileEl=document.getElementById('fileAtt');
+  var listEl=document.getElementById('attList');
+  var namesEl=document.getElementById('attNames');
+
+  function humanSize(b){
+    if(b<1024)return b+' B';
+    if(b<1024*1024)return (b/1024).toFixed(0)+' KB';
+    return (b/1024/1024).toFixed(1)+' MB';
+  }
+  function renderAtt(){
+    listEl.innerHTML=ATT.map(function(a,i){
+      return '<div class="att-i"><span class="ic">📄</span>'+
+        '<span class="nm">'+esc(a.name)+'</span>'+
+        '<span class="sz">'+humanSize(a.size)+'</span>'+
+        '<button type="button" class="rm" data-i="'+i+'" title="移除">×</button></div>';
+    }).join('');
+    listEl.querySelectorAll('.rm').forEach(function(b){
+      b.onclick=function(){ ATT.splice(+b.getAttribute('data-i'),1); renderAtt(); };
+    });
+    namesEl.value=ATT.map(function(a){return a.name;}).join(' | ');
+  }
+  function addFiles(files){
+    [].slice.call(files).forEach(function(f){
+      if(ATT.length>=MAX_FILES){alert('最多上传 '+MAX_FILES+' 个文件');return;}
+      if(f.size>MAX_SIZE){alert('「'+f.name+'」超过 20MB，未添加');return;}
+      ATT.push({name:f.name,size:f.size,type:f.type||''});
+    });
+    renderAtt();
+  }
+  if(dropEl){
+    dropEl.onclick=function(){fileEl.click();};
+    fileEl.onchange=function(){ if(this.files.length)addFiles(this.files); this.value=''; };
+    ['dragenter','dragover'].forEach(function(ev){
+      dropEl.addEventListener(ev,function(e){e.preventDefault();e.stopPropagation();dropEl.classList.add('hot');});
+    });
+    ['dragleave','drop'].forEach(function(ev){
+      dropEl.addEventListener(ev,function(e){e.preventDefault();e.stopPropagation();dropEl.classList.remove('hot');});
+    });
+    dropEl.addEventListener('drop',function(e){
+      var fs=e.dataTransfer&&e.dataTransfer.files;
+      if(fs&&fs.length)addFiles(fs);
+    });
+  }
+
+  function isPhone(v){return /^1[3-9]\d{9}$/.test(String(v||'').replace(/\s|-/g,''));}
+  function closestField(el){return el.closest('label.f')||el.closest('div.f');}
+  function clearBad(el){var w=closestField(el);if(w)w.classList.remove('bad');}
+  function markBad(el){var w=closestField(el);if(w)w.classList.add('bad');}
+  function clearAllBad(scope){[].slice.call(scope.querySelectorAll('.bad')).forEach(function(w){w.classList.remove('bad');});}
+  function validPhoneGroup(){
+    var bad=false;
+    [].slice.call(document.querySelectorAll('input[data-phone]')).forEach(function(el){
+      if(!isPhone(el.value)){markBad(el);bad=true;}else clearBad(el);});
+    return !bad;
+  }
+  function validReq(scope){
+    clearAllBad(scope);
+    var ok=true,first=null;
+    [].slice.call(scope.querySelectorAll('[data-req]')).forEach(function(el){
+      var wrap=closestField(el);
+      if(!wrap)return;
+      if(el.type==='checkbox'||el.type==='radio'){
+        if(!wrap.querySelector('[type=checkbox]:checked,[type=radio]:checked')){
+          wrap.classList.add('bad');ok=false;if(!first)first=el;}
+      }else if(!String(el.value||'').trim()){
+        markBad(el);ok=false;if(!first)first=el;}
+    });
+    if(first)first.focus({preventScroll:true});
+    return ok;
+  }
+  fm.addEventListener('input',function(e){clearBad(e.target);});
+  fm.addEventListener('change',function(e){clearBad(e.target);});
+  [].slice.call(document.querySelectorAll('[data-next]')).forEach(function(b){
+    b.addEventListener('click',function(){
+      var cur=document.querySelector('.step[data-step="'+step+'"]');
+      if(!validReq(cur)||!validPhoneGroup())return;
+      setStep(step+1);
+    });
+  });
+  [].slice.call(document.querySelectorAll('[data-prev]')).forEach(function(b){
+    b.addEventListener('click',function(){
+      clearAllBad(document.querySelector('.step[data-step="'+step+'"]'));
+      setStep(step-1);
+    });
+  });
+
+  // 顶部步骤标签可点击跳转：往回自由跳，往前逐页校验
+  steps.forEach(function(s){
+    s.addEventListener('click',function(){
+      var n=+s.dataset.s;
+      if(n===step)return;
+      if(n<step){ clearAllBad(document.querySelector('.step[data-step="'+step+'"]')); setStep(n); return; }
+      for(var k=step;k<n;k++){
+        var sc=document.querySelector('.step[data-step="'+k+'"]');
+        if(!validReq(sc)||!validPhoneGroup()){ setStep(k); return; }
+      }
+      setStep(n);
+    });
+  });
+
+  function one(n){
+    var el=document.querySelector('[name="'+n+'"]');
+    if(!el)return '';
+    if(el.type==='radio'){
+      var c=document.querySelector('input[name="'+n+'"]:checked');
+      return c?c.value:'';
+    }
+    return el.value;
+  }
+  function many(n){return [].slice.call(document.querySelectorAll('[name="'+n+'"]:checked')).map(function(c){return c.value;});}
+
+  function buildRecord(){
+    var dom=many('domain');
+    if(one('domain_other'))dom=dom.concat(['其他：'+one('domain_other')]);
+    var ind=many('industry');
+    if(one('industry_other'))ind=ind.filter(function(v){return v!=='其他行业';}).concat(['其他：'+one('industry_other')]);
+    var land=many('land_domain');
+    if(one('land_other'))land=land.filter(function(v){return v!=='其他方向';}).concat(['其他：'+one('land_other')]);
+    var duty=many('duty');
+    if(one('duty_other'))duty=duty.filter(function(v){return v!=='其他';}).concat(['其他：'+one('duty_other')]);
+    return {
+      ts:new Date().toISOString(),
+      姓名:one('name'), 手机号:one('phone'), 微信号:one('wechat'), 城市:one('city'),
+      当前身份:one('identity'), 每周可投入:one('capacity'),
+      擅长领域:dom.join('、'),
+      能接行业:ind.join('、'),
+      交付动作:duty.join('、'),
+      交付案例:one('cases'),
+      可上架产品:one('agent'),
+      智能体名称:one('agent_name'), 智能体载体:many('agent_channel').join('、'), 载体链接:one('agent_link'),
+      解决什么问题:one('agent_problem'), 智能体合作报价:one('agent_price'),
+      授课能力:one('course'), 课程名称:one('course_name'), 课程主题:one('course_topic'),
+      可开课形式:many('course_type').join('、'), 讲课报价:one('course_price'), 课程信息:one('course_detail'),
+      落地方向:land.join('、'), 主要擅长:one('land_good'), 落地收费方式:one('land_price'),
+      硬件资源:one('hw'), 硬件说明:one('hw_detail'),
+      结算方式:many('pay').join('、'),
+      合作方式偏好:one('coop_pref'),
+      报价参考:many('price').join('、')+(one('price_note')?('（'+one('price_note')+'）'):''),
+      需要的平台资源:many('support').join('、')+(one('support_other')?('；其他：'+one('support_other')):''),
+      其他说明:one('note'), 作品链接:one('links'),
+      附件清单:ATT.map(function(a){return a.name+'（'+humanSize(a.size)+'）';}).join('、'),
+      附件获取方式:many('att_send').join('、'),
+      附件网盘链接:one('att_links')
+    };
+  }
+
+  function fmt(r){
+    var L=[];
+    L.push('【思潼AI商城 · FDE工程师合作登记】');
+    L.push('姓名：'+r.姓名+'　城市：'+r.城市+'　身份：'+r.当前身份);
+    L.push('手机：'+r.手机号+'　微信：'+r.微信号);
+    L.push('');
+    L.push('· 擅长方向：'+r.擅长领域);
+    L.push('· 可对接行业：'+r.能接行业);
+    L.push('· 承担环节：'+(r.交付动作||'（未选）'));
+    L.push('· 每周可投入：'+r.每周可投入);
+    L.push('');
+    L.push('· 结算方式：'+(r.结算方式||'（未选）'));
+    L.push('· 合作方式偏好：'+(r.合作方式偏好||'（未选）'));
+    L.push('· 报价参考：'+(r.报价参考||'（未选）'));
+    L.push('');
+    L.push('· 可上架产品：'+(r.可上架产品||'（未选）'));
+    if(r.智能体名称||r.智能体载体||r.智能体合作报价)L.push('　↳ 智能体：'+[r.智能体名称,r.智能体载体,r.智能体合作报价?('合作报价 '+r.智能体合作报价):''].filter(Boolean).join('｜'));
+    if(r.解决什么问题)L.push('　↳ 解决什么问题：'+r.解决什么问题);
+    if(r.载体链接)L.push('　↳ 载体：'+r.载体链接);
+    L.push('· 授课能力：'+(r.授课能力||'（未选）')+(r.可开课形式?('（形式：'+r.可开课形式+'）'):''));
+    if(r.课程名称||r.课程主题||r.讲课报价)L.push('　↳ 课程：'+[r.课程名称,r.课程主题,r.讲课报价?('讲课报价 '+r.讲课报价):''].filter(Boolean).join('｜'));
+    if(r.课程信息)L.push('　课程信息：'+r.课程信息);
+    if(r.落地方向||r.主要擅长||r.落地收费方式)L.push('· 落地能力：'+[r.落地方向,r.主要擅长,r.落地收费方式?('收费 '+r.落地收费方式):''].filter(Boolean).join('｜'));
+    if(r.硬件资源)L.push('· AI 硬件：'+r.硬件资源+(r.硬件说明?('｜'+r.硬件说明):''));
+    L.push('· 需要的平台资源：'+(r.需要的平台资源||'（未选）'));
+    L.push('· 交付案例：'+(r.交付案例||'（未填，可后续沟通补充）'));
+    if(r.作品链接)L.push('· 作品链接：'+r.作品链接);
+    if(r.附件清单){
+      L.push('· 附件（'+r.附件清单+'）');
+      L.push('　获取方式：'+(r.附件获取方式||'（未选）')+(r.附件网盘链接?('　链接：'+r.附件网盘链接):''));
+      L.push('　※ 文件请在网盘链接中提取，无需再发微信');
+    }else if(r.附件网盘链接){
+      L.push('· 资料链接：'+r.附件网盘链接);
+      L.push('　※ 文件请在网盘链接中提取，无需再发微信');
+    }
+    if(r.其他说明)L.push('· 其他说明：'+r.其他说明);
+    return L.join('\n');
+  }
+
+  function saveLocal(rec){
+    try{var a=JSON.parse(localStorage.getItem(KEY)||'[]');a.push(rec);localStorage.setItem(KEY,JSON.stringify(a));}catch(e){}
+  }
+
+  function showDone(){
+    fm.style.display='none';
+    document.querySelector('.prog').style.display='none';
+    document.querySelector('#ok').style.display='block';
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  function fillActs(html){document.getElementById('actsBox').innerHTML=html;}
+
+  function legacyCopy(t,ok){
+    var ta=document.createElement('textarea');
+    ta.value=t;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy');ok();}catch(e){}
+    document.body.removeChild(ta);
+  }
+
+  function bindCopyDl(rec){
+    var cp=document.getElementById('btnCopy');
+    if(cp)cp.onclick=function(){
+      var t=document.getElementById('replyOut').textContent,b=this;
+      var ok=function(){b.textContent='✓ 已复制，去微信粘贴发送';setTimeout(function(){b.textContent='复制登记信息';},3000);};
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(t).then(ok,function(){legacyCopy(t,ok);});
+      }else legacyCopy(t,ok);
+    };
+    var dl=document.getElementById('btnDl');
+    if(dl)dl.onclick=function(){
+      var blob=new Blob([JSON.stringify(rec,null,2)],{type:'application/json'});
+      var a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=(rec.姓名||'FDE')+'-登记-'+new Date().toISOString().slice(0,10)+'.json';
+      a.click();URL.revokeObjectURL(a.href);
+    };
+  }
+
+  function copyFallback(rec,text,errMsg){
+    document.getElementById('okTitle').textContent='登记已填写完成';
+    document.getElementById('okLead').innerHTML='<b>请把下面这段话复制发给我</b>（微信直接粘贴），我这边就正式建档。'+
+      '之后有匹配需求，或你勾选的资源（算力折扣 / 漫剧工作台 / 课程招生），会第一个找你对接。';
+    document.getElementById('replyOut').textContent=text;
+    fillActs('<button class="btn btn-g" id="btnCopy" type="button">复制登记信息</button>'+
+             '<button class="btn btn-m" id="btnDl" type="button">下载存档</button>');
+    var note=document.getElementById('okNote');
+    if(errMsg){
+      note.className='notice err';
+      note.innerHTML='<b>'+esc(errMsg)+'</b>，没能自动提交成功。没关系，点上方「复制登记信息」发到微信即可，不会丢失。';
+      note.style.display='';
+    }else note.style.display='none';
+    bindCopyDl(rec);
+    showDone();
+  }
+
+  function postJson(url,payload){
+    return new Promise(function(res,rej){
+      var xhr=new XMLHttpRequest();
+      xhr.open('POST',url,true);
+      xhr.setRequestHeader('Content-Type','application/json');
+      xhr.setRequestHeader('Accept','application/json');
+      xhr.timeout=12000;
+      xhr.onload=function(){
+        if(xhr.status>=200&&xhr.status<300)res();
+        else rej('提交失败（'+xhr.status+'）');
+      };
+      xhr.onerror=function(){rej('网络异常');};
+      xhr.ontimeout=function(){rej('请求超时');};
+      xhr.send(JSON.stringify(payload));
+    });
+  }
+
+  fm.addEventListener('submit',function(e){
+    e.preventDefault();
+    var cur=document.querySelector('.step[data-step="3"]');
+    if(!validPhoneGroup()||!validReq(cur))return;
+
+    var rec=buildRecord();
+    var text=fmt(rec);
+    saveLocal(rec);
+
+    if(!API){copyFallback(rec,text,'');return;}
+
+    var btn=document.querySelector('.step[data-step="3"] button[type=submit]');
+    var old=btn?btn.textContent:'';
+    if(btn){btn.disabled=true;btn.textContent='提交中…';}
+
+    postJson(API,rec).then(function(){
+      document.getElementById('okTitle').textContent='已提交成功';
+      document.getElementById('okLead').innerHTML='信息已送达思潼AI商城，<b>无需再复制任何内容。</b><br>建档完成后，如有匹配需求或你勾选的资源支持，会由对接人第一时间联系你。';
+      document.getElementById('replyOut').textContent=text;
+      fillActs('<button class="btn btn-m" id="btnAgain" type="button">再填一份</button>');
+      document.getElementById('okNote').style.display='none';
+      document.getElementById('btnAgain').onclick=function(){location.reload();};
+      showDone();
+    }).catch(function(err){
+      if(btn){btn.disabled=false;btn.textContent=old;}
+      copyFallback(rec,text,err);
+    });
+  });
+
+  setStep(1);
+})();
+</script>
+</body>
+</html>
