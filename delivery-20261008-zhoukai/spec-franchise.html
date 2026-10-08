@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>产品说明 · 招商加盟版 — IP+AI 业绩倍增系统 · 思潼AI</title>
+<style>
+/* ===== 产品说明页 · 招商加盟版（与 demo 系列同一设计语言）===== */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--grn:#E8651A;--ink:#2b3440;--sub:#7b8794;--line:#e8ecf0;--gold:#d8b878;--gold-line:#e6d5a8;--bg:#f6f7f9}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.75;-webkit-font-smoothing:antialiased}
+.wrap{max-width:496px;margin:0 auto;min-height:100vh;background:var(--bg);box-shadow:0 0 0 1px rgba(0,0,0,.03)}
+button{font-family:inherit;cursor:pointer;border:0;background:none}
+
+/* 顶栏 */
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;height:54px;padding:0 16px;background:rgba(255,255,255,.86);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.brand{font-size:17px;font-weight:900;letter-spacing:.5px;color:#22303c;white-space:nowrap}
+.brand i{font-style:normal;color:var(--grn)}
+.vtag{font-size:10px;font-weight:700;color:#3a2f12;background:linear-gradient(135deg,#f3e2b8,#d8b878);border-radius:6px;padding:3px 7px;margin-left:8px;vertical-align:2px;letter-spacing:.5px;white-space:nowrap}
+
+/* Hero 深墨蓝 */
+.hero{position:relative;overflow:hidden;color:#fff;background:linear-gradient(135deg,#0d1f2c,#17313f 48%,#1e4054);padding:22px 16px 18px;border-radius:0 0 18px 18px}
+.hero-in{position:relative;z-index:1}
+.hero h1{font-size:22px;font-weight:900;letter-spacing:.5px}
+.hero-sub{font-size:12.5px;color:rgba(255,255,255,.78);margin-top:4px}
+.zone-row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.zone-tag{display:inline-block;font-size:11px;font-weight:800;letter-spacing:2px;color:#5c4c22;background:linear-gradient(135deg,#f3e2b8,#e4d5ae);border-radius:999px;padding:5px 14px}
+.zone-tag.ghost{background:rgba(255,255,255,.12);color:rgba(255,255,255,.88);letter-spacing:1px}
+.ringbar{display:flex;align-items:center;gap:6px;margin-top:13px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:9px 10px;backdrop-filter:blur(6px)}
+.ringbar span{flex:1;text-align:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.92);position:relative}
+.ringbar span:not(:last-child)::after{content:'';position:absolute;right:-5px;top:50%;transform:translateY(-50%);width:1px;height:12px;background:rgba(255,255,255,.25)}
+.hero-note{font-size:10.5px;color:rgba(255,255,255,.55);margin-top:10px;text-align:center;letter-spacing:1px}
+
+/* 单版本价格卡 */
+.price-card{margin-top:14px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:14px 14px 13px;backdrop-filter:blur(6px)}
+.price-card .pn{font-size:12px;font-weight:800;color:#f3e2b8;letter-spacing:1px}
+.price-card .pp{font-size:23px;font-weight:900;margin-top:2px}
+.price-card .pp em{font-style:normal;font-size:11px;font-weight:600;color:rgba(255,255,255,.6);margin-left:2px}
+.price-card .pt{font-size:11px;color:rgba(255,255,255,.65);margin-top:3px;line-height:1.7}
+.price-card .go{display:block;margin-top:11px;text-align:center;font-size:12.5px;font-weight:800;color:#fff;background:linear-gradient(135deg,#f5955c,var(--grn));border-radius:10px;padding:9px 0;box-shadow:0 4px 12px rgba(232,101,26,.4);text-decoration:none}
+
+/* 区块 */
+main{padding:14px 16px 26px}
+.sec{margin-bottom:18px}
+.sec-h{display:flex;align-items:center;gap:8px;margin:4px 0 10px}
+.sec-h .ic{width:28px;height:28px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;background:linear-gradient(135deg,#f5955c,var(--grn));box-shadow:0 3px 8px rgba(232,101,26,.28);flex:none}
+.sec-h b{font-size:15.5px;font-weight:900}
+.sec-h span{font-size:10.5px;color:var(--sub)}
+.card{background:#fff;border-radius:18px;padding:14px;box-shadow:0 1px 2px rgba(20,40,60,.04),0 8px 24px rgba(20,40,60,.06)}
+.card p{font-size:12.5px;color:#4a5661;line-height:1.9}
+.card p b{color:var(--ink)}
+
+/* 三步 */
+.steps{display:flex;flex-direction:column;gap:9px;margin-top:11px}
+.step{display:flex;gap:10px;align-items:flex-start}
+.step .no{flex:none;width:24px;height:24px;border-radius:8px;background:linear-gradient(135deg,#f3e2b8,#d8b878);color:#3a2f12;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;margin-top:2px}
+.step b{font-size:13px;display:block}
+.step span{font-size:11.5px;color:var(--sub);line-height:1.7}
+
+/* 高管列表 */
+.ag-it{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px dashed var(--line)}
+.ag-it:last-child{border-bottom:0;padding-bottom:2px}
+.ava{flex:none;width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff}
+.a1{background:linear-gradient(135deg,#3b7f8e,#285661)}.a2{background:linear-gradient(135deg,#c46a3a,#9e4e22)}
+.a3{background:linear-gradient(135deg,#5a6fb5,#3c4a85)}.a4{background:linear-gradient(135deg,#4e9a7c,#336b55)}
+.a5{background:linear-gradient(135deg,#b5573b,#8a3c26)}.a9{background:linear-gradient(135deg,#7a5fa8,#5a4382)}
+.a10{background:linear-gradient(135deg,#33698c,#224a66)}.a7{background:linear-gradient(135deg,#c29140,#9a7028)}
+.a8{background:linear-gradient(135deg,#875f4a,#634434)}
+.ag-t{flex:1;min-width:0}
+.ag-t b{font-size:13.5px}
+.ag-t b em{font-style:normal;font-size:11px;font-weight:600;color:var(--sub);margin-left:6px}
+.ag-t span{display:block;font-size:11px;color:var(--sub);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag-p{flex:none;text-align:right}
+.ag-p b{font-size:13px;color:var(--grn)}
+.ag-p span{display:block;font-size:10px;color:var(--sub)}
+
+/* 计费 pills */
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.pills span{font-size:11.5px;font-weight:700;color:#5c4c22;background:#fdfaf1;border:1px solid var(--gold-line);border-radius:999px;padding:5px 12px}
+
+/* 权益 */
+.rights{margin-top:11px;border:1px solid var(--gold-line);border-radius:14px;padding:11px 12px;background:#fffdf6}
+.rights .rn{font-size:12.5px;font-weight:900}
+.rights .rn em{font-style:normal;font-size:10px;font-weight:700;color:#8a7550;border:1px solid var(--gold-line);border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:1px}
+.rights .rp{font-size:11px;color:#8a7550;margin-top:1px}
+.rights ul{list-style:none;margin-top:7px}
+.rights li{font-size:11.5px;color:#4a5661;line-height:2}
+
+/* 免责 */
+.redline-tip{font-size:11px;color:#8a7550;background:#fdfaf1;border:1px dashed var(--gold-line);border-radius:12px;padding:10px 12px;line-height:1.8}
+
+/* 底部 CTA */
+.end-cta{display:flex;flex-direction:column;gap:9px;margin-top:4px}
+.big-btn{display:block;width:100%;min-height:46px;border-radius:14px;font-size:14px;font-weight:800;color:#fff;background:linear-gradient(135deg,#f5955c,var(--grn));box-shadow:0 6px 16px rgba(232,101,26,.35);letter-spacing:1px;text-decoration:none;text-align:center;line-height:46px}
+.big-btn.ghost2{background:#fff;color:var(--ink);border:1px solid var(--line);box-shadow:0 2px 8px rgba(20,40,60,.06)}
+.foot{font-size:10.5px;color:#a8b2bc;text-align:center;margin-top:14px;line-height:1.8}
+.foot a{color:#8a95a0;text-decoration:underline}
+@media(min-width:900px){.wrap{max-width:520px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="topbar">
+  <div class="brand">⚡ 思潼<i>AI</i><span class="vtag">产品说明 · 招商加盟版</span></div>
+</header>
+
+<section class="hero">
+  <div class="hero-in">
+    <h1>IP+AI 业绩倍增系统</h1>
+    <div class="hero-sub">不是通用AI套壳 · 做IP·获客·销售转化 · 不需要学，直接用</div>
+    <div class="zone-row">
+      <span class="zone-tag">不需要学 · 直接用</span>
+      <span class="zone-tag ghost">⚡ 实战专家团 · 十年沉淀</span>
+    </div>
+    <div class="ringbar"><span>定位</span><span>选题</span><span>内容</span><span>直播</span><span>转化</span></div>
+    <div class="price-card">
+      <div class="pn">招商加盟版 · 年卡</div>
+      <div class="pp">¥49,800<em>/年 · 限时价</em></div>
+      <div class="pt">适合品牌方 / 区域代理 · 把招商全链路跑通<br>基础 3 席位 · 加 1 席位 +¥1,000/年</div>
+      <a class="go" href="franchise.html">打开「招商加盟版」演示 →</a>
+    </div>
+  </div>
+</section>
+
+<main>
+
+  <div class="sec">
+    <div class="sec-h"><span class="ic">💡</span><b>这是什么</b><span>一句话讲明白</span></div>
+    <div class="card">
+      <p>把一支 <b>10 年实战的招商增长团队</b>装进手机：系统里住着 <b>9 位数字高管</b>，各自管一段招商闭环。你说需求，他们出结果——品牌定位、招商选题、内容、直播、视频、朋友圈、签约成交，一个系统全包，招商接待录音自动变线索，结果沉淀成<b>专家私有知识库</b>，越用越懂你。</p>
+      <div class="steps">
+        <div class="step"><span class="no">1</span><div><b>选人派活</b><span>按场景挑数字高管 → 点「派活给他」→ 说清你的需求</span></div></div>
+        <div class="step"><span class="no">2</span><div><b>出结果就复制</b><span>招商文案、直播话术、诊断、视频脚本……一键复制直接用</span></div></div>
+        <div class="step"><span class="no">3</span><div><b>数据回流 · 越用越准</b><span>录音卡接入招商接待录音，线索自动派活；改过的交付都会被记住</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-h"><span class="ic">👥</span><b>9 位数字高管</b><span>招商全链路 · 单价与拿手场景</span></div>
+    <div class="card">
+      <div class="ag-it"><span class="ava a1">沈</span><div class="ag-t"><b>庄衡<em>首席定位官</em></b><span>连锁品牌招商定位 · 区域代理政策 · 招商人设</span></div><div class="ag-p"><b>99 算力</b><span>≈¥9.9/次</span></div></div>
+      <div class="ag-it"><span class="ava a5">何</span><div class="ag-t"><b>金点<em>选题策略官</em></b><span>招商短视频选题 · 加盟答疑选题 · 对标拆题</span></div><div class="ag-p"><b>99 算力</b><span>≈¥9.9/次</span></div></div>
+      <div class="ag-it"><span class="ava a2">秦</span><div class="ag-t"><b>苏笺<em>金牌文案主笔</em></b><span>品牌招商朋友圈 · 合伙人社群文案 · 代理招募长文</span></div><div class="ag-p"><b>15 算力</b><span>≈¥1.5/次</span></div></div>
+      <div class="ag-it"><span class="ava a3">罗</span><div class="ag-t"><b>祝鸣<em>直播话术师</em></b><span>招商专场直播 · 加盟答疑 · 政策直播</span></div><div class="ag-p"><b>50 算力</b><span>≈¥5/次</span></div></div>
+      <div class="ag-it"><span class="ava a4">江</span><div class="ag-t"><b>程鉴<em>流量诊断官</em></b><span>招商视频诊断 · 直播间人气 · 主页流量分析</span></div><div class="ag-p"><b>50 算力</b><span>≈¥5/次</span></div></div>
+      <div class="ag-it"><span class="ava a9">顾</span><div class="ag-t"><b>米临<em>爆款复刻</em></b><span>同行招商爆款拆解 · 代理视频复刻 · 爆款翻新</span></div><div class="ag-p"><b>70 算力</b><span>≈¥7/次</span></div></div>
+      <div class="ag-it"><span class="ava a10">陆</span><div class="ag-t"><b>甄映<em>文生视频</em></b><span>招商文案变成片 · 代理口播视频 · 门店实拍混剪</span></div><div class="ag-p"><b>120 算力</b><span>≈¥12/次</span></div></div>
+      <div class="ag-it"><span class="ava a7">周</span><div class="ag-t"><b>温故<em>私域增长顾问</em></b><span>明日招商朋友圈 · 合伙人社群预热 · 意向召回</span></div><div class="ag-p"><b>5 算力</b><span>≈¥0.5/次</span></div></div>
+      <div class="ag-it"><span class="ava a8">易</span><div class="ag-t"><b>万契<em>首席成交官</em></b><span>意向加盟商接待 · 签约异议处理 · 私聊促单</span></div><div class="ag-p"><b>25 算力</b><span>≈¥2.5/次</span></div></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-h"><span class="ic">⚡</span><b>算力与计费</b><span>花明白钱</span></div>
+    <div class="card">
+      <div class="pills"><span>1 元 = 10 算力</span><span>0 元开通</span><span>用后扣费</span><span>交付成功才扣</span><span>失败不扣</span><span>买系统送等值算力</span></div>
+      <p style="margin-top:10px">系统按年订阅（<b>¥49,800 限时价</b>），高管按次消耗算力、明码标价；<b>交付成功才扣费，失败不扣</b>。邀请好友开通，双方各得 100 算力。</p>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-h"><span class="ic">🎁</span><b>年卡权益</b><span>招商加盟版</span></div>
+    <div class="card">
+      <div class="rights">
+        <div class="rn">招商加盟版<em>¥49,800/年 · 限时价</em></div>
+        <div class="rp">适合品牌方 / 区域代理 · 基础 3 席位</div>
+        <ul>
+          <li>✅ 9 位数字高管全年畅用（招商全链路）</li>
+          <li>✅ 保禄老师十年实战方法论 · 专家私有知识库</li>
+          <li>✅ 录音卡接入 · 招商接待录音自动变线索</li>
+          <li>✅ 招商内容 · 私域承接 · 签约成交话术模板</li>
+          <li>✅ 交付成功才扣费 · 失败不扣 · 到期前 7 天提醒续费</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-h"><span class="ic">🛡️</span><b>免责与红线</b><span>合规口径</span></div>
+    <div class="redline-tip">本页为产品说明演示：所有数据、案例、人名均为虚构示意，不构成任何投资或加盟建议；不对招商成果、加盟收益、回本周期作任何承诺或保证；相关表述已按《广告法》要求规避承诺性、绝对化用语；「限时价」为演示口径，实际以官方页面为准。最终功能与计费以线上正式版本为准。</div>
+  </div>
+
+  <div class="end-cta">
+    <a class="big-btn" href="franchise.html">进入「招商加盟版」演示 →</a>
+    <a class="big-btn ghost2" href="spec-local.html">想看本地商家版？看这版说明 →</a>
+  </div>
+  <div class="foot">思潼AI · IP+AI 业绩倍增系统 · 招商加盟版产品说明<br>本页为演示说明，正式版以线上为准</div>
+
+</main>
+</div>
+</body>
+</html>

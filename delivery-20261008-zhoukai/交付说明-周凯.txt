@@ -1,0 +1,24 @@
+【IP+AI 业绩倍增系统 · 两版 demo 交付说明】（2026-10-08，交付人：Trae 生成；验收/上线：周凯）
+
+一、文件清单（手机端优先，496px 视口单文件零外链）
+1. ipai-biz-demo-20261008.html —— 本地商家版（数字高管：沈定/秦文/罗盘/江流/何策/顾拓/陆帧/周域/易成，头像为内嵌照片）
+2. ipai-franchise-demo-20261008.html —— 招商加盟版（数字高管全部换新：庄衡/苏笺/祝鸣/程鉴/金点/米临/甄映/温故/万契）
+3. spec-local.html —— 本地商家版产品说明页（入口在 demo 底部「我的」页按钮；页底可互切另一版说明页并回各自 demo）
+4. spec-franchise.html —— 招商加盟版产品说明页
+
+二、图片替换（周凯负责）——招商加盟版 9 位高管头像
+- 现状：招商版头像目前是「姓氏大字 + 渐变色块」占位（b1~b9），需参考本地商家版的真人商务照片风格，生成 9 张不同人物的新照片后替换
+- 规格：参考本地版内嵌照片——JPEG、约 256×256、单张 ≤40KB、base64 内嵌
+- 定位方法：在 ipai-franchise-demo-20261008.html 搜 class="ava b（共 9 处），把 <div class="ava bN">字</div> 整体替换为
+  <div class="ava bN"><img class="ava-img" src="data:image/jpeg;base64,..." alt="新名"></div>
+- 对应关系：b1庄衡(首席定位官) b2苏笺(金牌文案主笔) b3祝鸣(直播话术师) b4程鉴(流量诊断官) b5金点(选题策略官) b6米临(爆款复刻) b7甄映(文生视频) b8温故(招商私域顾问) b9万契(招商成交官)
+- 注意：本地商家版 7 张照片（搜 class="ava a）保持原样，不要复制给招商版，需另生成 9 位不同人物；CSS 渐变 .b1~.b9 保留即可（作为图片加载前的底色，图片会盖住）
+
+三、本次同仓库的线上代码改动（需重新构建部署 apps/web 后生效）
+- 数字高管产品详情页统一下线：/agent/<sku>/detail 与旧短链 /agent/<sku> 对 ipzone__ 7 个 sku 直接 302 到 /agent/<sku>/workbench（liverev 预约详情页与 /product/* 不受影响）
+- 工作台「← 返回」智能返回：有来路 history.back() 原路返回（如业绩倍增系统演示页），无来路兜底 /agents 商城首页
+- 涉及文件：apps/web/src/main.tsx、marketplace/MallTopbar.tsx 及 IpPos/Copy/Vidrev/Livescript/TopicStrategist 5 个工作台组件
+
+四、上线要求
+- demo 与 spec 页放同一目录（相对链接互跳）；部署前真机（手机浏览器/微信内置）回归：点高管→线上工作台→返回回 demo、定时任务管理弹层、记忆编辑、产品说明互切
+- 红线：demo 内计费口径文案（1元=10算力 · 0元开通 · 用后扣费 · 失败不扣）与免责条款请勿改动
