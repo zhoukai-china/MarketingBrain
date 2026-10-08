@@ -234,6 +234,28 @@
   footer{text-align:center;margin-top:32px;padding-top:20px;border-top:1px solid var(--line);
     color:var(--muted2);font-size:12.2px;line-height:1.9}
   footer b{color:#B9C8DE}
+
+  /* 自定义下拉（替代原生 select，2026-10-08） */
+  .sel{position:relative;width:100%}
+  .sel select{display:none!important}
+  .sel-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:11px 13px;border-radius:11px;background:rgba(4,8,18,.55);border:1px solid var(--line2);
+    color:var(--text);font-size:16px;font-family:inherit;cursor:pointer;transition:.18s;text-align:left}
+  .sel.open .sel-btn{border-color:var(--orange);background:rgba(4,8,18,.85);box-shadow:0 0 0 3px rgba(244,121,32,.13)}
+  .sel-btn .sel-v.sel-ph{color:#5D6E88}
+  .sel-chev{flex:none;transition:transform .18s;color:#7386A3}
+  .sel.open .sel-chev{transform:rotate(180deg);color:var(--orange)}
+  .sel-pop{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:60;
+    background:var(--navy-850);border:1px solid var(--line2);border-radius:12px;
+    box-shadow:0 14px 34px rgba(0,0,0,.5);
+    opacity:0;transform:translateY(-6px);pointer-events:none;transition:.16s}
+  .sel.open .sel-pop{opacity:1;transform:none;pointer-events:auto}
+  .sel-opts{max-height:236px;overflow-y:auto;padding:6px}
+  .sel-opt{padding:10px 12px;border-radius:9px;font-size:14.5px;color:var(--text);cursor:pointer}
+  .sel-opt:hover{background:var(--orangeSoft)}
+  .sel-opt.on{color:var(--orange);font-weight:700}
+  .sel-opt.on::after{content:'✓';float:right;font-size:12.5px}
+  label.f.bad .sel-btn{border-color:rgba(255,107,107,.7)}
 </style>
 </head>
 <body>
@@ -1063,6 +1085,45 @@
   });
 
   setStep(1);
+})();
+</script>
+
+<script>
+/* 自定义下拉增强器：隐藏原生 select（保留 name/value，提交逻辑零改动），样式化展示层 */
+(function(){
+  var all=[];
+  function closeAll(){all.forEach(function(w){w.classList.remove('open');});}
+  function sync(w){
+    var sel=w.querySelector('select');
+    var o=sel.options[sel.selectedIndex];
+    var v=document.createElement('span');
+    v.className='sel-v'+((!o||!o.textContent)?' sel-ph':'');
+    v.textContent=o?o.textContent:'请选择';
+    var b=w.querySelector('.sel-btn');
+    b.textContent='';b.appendChild(v);
+    b.insertAdjacentHTML('beforeend','<svg class="sel-chev" width="12" height="8" viewBox="0 0 12 8"><path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>');
+    var its=w.querySelectorAll('.sel-opt');
+    its.forEach(function(it,i){it.classList.toggle('on',i===sel.selectedIndex);});
+  }
+  document.querySelectorAll('select').forEach(function(sel){
+    if(sel.dataset.enh)return;sel.dataset.enh='1';
+    var w=document.createElement('div');w.className='sel';
+    sel.parentNode.insertBefore(w,sel);w.appendChild(sel);
+    var btn=document.createElement('button');btn.type='button';btn.className='sel-btn';
+    var pop=document.createElement('div');pop.className='sel-pop';
+    var opts=document.createElement('div');opts.className='sel-opts';
+    Array.prototype.forEach.call(sel.options,function(o){
+      var it=document.createElement('div');it.className='sel-opt';it.textContent=o.textContent;
+      it.addEventListener('click',function(e){e.stopPropagation();sel.value=o.value||o.textContent;sync(w);closeAll();});
+      opts.appendChild(it);
+    });
+    pop.appendChild(opts);
+    btn.addEventListener('click',function(e){e.stopPropagation();var was=w.classList.contains('open');closeAll();if(!was)w.classList.add('open');});
+    w.appendChild(btn);w.appendChild(pop);
+    all.push(w);sync(w);
+  });
+  document.addEventListener('click',closeAll);
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')closeAll();});
 })();
 </script>
 </body>
