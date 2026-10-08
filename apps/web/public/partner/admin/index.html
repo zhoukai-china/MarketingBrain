@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FDE 资源池 · 管理后台</title>
+<style>
+  :root{
+    --navy-950:#070C18; --navy-900:#0A1224; --navy-850:#0E1830;
+    --card:rgba(255,255,255,.045); --card2:rgba(255,255,255,.075);
+    --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.18);
+    --orange:#F47920; --orange2:#E8651A; --orangeSoft:rgba(244,121,32,.14);
+    --text:#F2F5FA; --muted:#9BA9C2; --muted2:#7386A3;
+    --green:#3ECF8E; --blue:#5B9CFF;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:
+      radial-gradient(1100px 620px at 8% -8%,rgba(244,121,32,.14),transparent 60%),
+      radial-gradient(900px 500px at 100% 0%,rgba(91,156,255,.10),transparent 55%),
+      var(--navy-950);
+    color:var(--text);min-height:100vh;padding:28px 20px 60px;
+  }
+  .wrap{max-width:1080px;margin:0 auto}
+  .top{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+  .logo{width:38px;height:38px;border-radius:11px;background:var(--orangeSoft);border:1px solid var(--line2);
+    display:flex;align-items:center;justify-content:center;font-size:18px}
+  .top h1{font-size:19px;font-weight:800}
+  .top .sub{font-size:12px;color:var(--muted2);margin-top:2px}
+  .top .sp{flex:1}
+  .btn{border:1px solid var(--line2);background:var(--card);color:var(--text);border-radius:10px;
+    padding:8px 14px;font-size:13px;cursor:pointer;transition:.18s;font-family:inherit}
+  .btn:hover{border-color:var(--orange);color:var(--orange)}
+  .btn.pri{background:var(--orange);border-color:var(--orange);color:#fff;font-weight:700}
+  .btn.pri:hover{background:var(--orange2);color:#fff}
+  /* 密钥门 */
+  .gate{max-width:420px;margin:9vh auto 0;background:var(--navy-850);border:1px solid var(--line2);
+    border-radius:18px;padding:30px 26px;text-align:center}
+  .gate .em{font-size:34px;margin-bottom:10px}
+  .gate h2{font-size:17px;margin-bottom:6px}
+  .gate p{font-size:12.5px;color:var(--muted2);line-height:1.7;margin-bottom:18px}
+  .gate input{width:100%;background:rgba(4,8,18,.55);border:1px solid var(--line2);border-radius:11px;
+    padding:11px 13px;color:var(--text);font-size:14px;font-family:inherit;text-align:center}
+  .gate input:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px var(--orangeSoft)}
+  .gate .err{font-size:12.5px;color:#FF8F8F;margin-top:10px;min-height:17px}
+  .gate .btn{margin-top:14px;width:100%;padding:11px}
+  /* 工具条 */
+  .bar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+  .bar input[type=search]{flex:1;min-width:220px;background:rgba(4,8,18,.55);border:1px solid var(--line2);
+    border-radius:11px;padding:10px 13px;color:var(--text);font-size:13.5px;font-family:inherit}
+  .bar input[type=search]:focus{outline:none;border-color:var(--orange)}
+  .stat{font-size:12.5px;color:var(--muted2)}
+  .stat b{color:var(--orange)}
+  /* 列表 */
+  .cards{display:flex;flex-direction:column;gap:10px}
+  .row{background:var(--navy-850);border:1px solid var(--line);border-radius:14px;padding:14px 16px;transition:.18s}
+  .row:hover{border-color:var(--line2)}
+  .row-h{display:flex;align-items:center;gap:12px;flex-wrap:wrap;cursor:pointer}
+  .ava{width:40px;height:40px;border-radius:50%;flex:none;background:var(--orangeSoft);color:var(--orange);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px}
+  .nm{font-weight:700;font-size:15px}
+  .meta{font-size:12px;color:var(--muted2)}
+  .pill{font-size:11px;padding:3px 10px;border-radius:999px;border:1px solid var(--line2);color:var(--muted);white-space:nowrap}
+  .pill.done{color:var(--green);border-color:rgba(62,207,142,.4);background:rgba(62,207,142,.08)}
+  .pill.doing{color:var(--orange);border-color:rgba(244,121,32,.45);background:var(--orangeSoft)}
+  .row-h .sp{flex:1}
+  .upd{font-size:11.5px;color:var(--muted2);white-space:nowrap}
+  .chev{color:var(--muted2);transition:transform .18s;flex:none}
+  .row.open .chev{transform:rotate(180deg)}
+  .det{display:none;margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+  .row.open .det{display:block}
+  .det-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px 18px}
+  .det-item{font-size:12.5px;line-height:1.6}
+  .det-item b{color:var(--muted);font-weight:600;margin-right:6px}
+  .det-item span{color:var(--text);word-break:break-all}
+  .det-item.wide{grid-column:1/-1}
+  /* 分页 */
+  .pager{display:flex;align-items:center;gap:12px;justify-content:center;margin-top:18px;font-size:13px;color:var(--muted)}
+  .empty{text-align:center;padding:60px 0;color:var(--muted2);font-size:13.5px}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);opacity:0;
+    background:var(--navy-850);border:1px solid var(--line2);border-radius:12px;padding:10px 18px;
+    font-size:13px;transition:.25s;pointer-events:none;z-index:99}
+  .toast.on{opacity:1;transform:none}
+  @media (max-width:640px){ .upd{display:none} }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="top">
+    <div class="logo">🧰</div>
+    <div><h1>FDE 资源池 · 管理后台</h1><div class="sub">登记数据实时拉取 · 密钥仅存本机浏览器会话</div></div>
+    <div class="sp"></div>
+    <span id="who" class="stat"></span>
+    <button class="btn" id="logout">退出</button>
+  </div>
+
+  <!-- 密钥门 -->
+  <div class="gate" id="gate">
+    <div class="em">🔐</div>
+    <h2>输入管理密钥</h2>
+    <p>密钥由管理员提供（服务端 FDE_ADMIN_KEY）。<br>仅存当前浏览器会话，关闭标签页即清除，绝不落库、不出现在源码里。</p>
+    <input id="keyin" type="password" placeholder="粘贴管理密钥…" autocomplete="off">
+    <div class="err" id="keyerr"></div>
+    <button class="btn pri" id="keygo">进入后台</button>
+  </div>
+
+  <!-- 主界面 -->
+  <div id="main" style="display:none">
+    <div class="bar">
+      <input id="q" type="search" placeholder="搜索姓名 / 手机号 / 城市 / 任意填写内容…">
+      <button class="btn" id="search">搜索</button>
+      <button class="btn" id="refresh">↻ 刷新</button>
+      <span class="stat" id="total"></span>
+    </div>
+    <div class="cards" id="cards"></div>
+    <div class="pager" id="pager"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* 读取部署配置（同源 config.js 不含密钥；本页密钥运行时输入） */
+(function(){
+  var s=document.createElement('script');
+  s.src='../join/config.js';
+  s.onerror=function(){ window.STZ_CONFIG={ list:'https://ai.lcppch.top/api/fde/list' }; };
+  document.head.appendChild(s);
+})();
+</script>
+<script>
+(function(){
+  var KEY = sessionStorage.getItem('fde_admin_key') || '';
+  var state = { page:1, pageSize:20, q:'', total:0, pages:1 };
+  var $ = function(id){ return document.getElementById(id); };
+
+  function toast(msg){
+    var t=$('toast'); t.textContent=msg; t.classList.add('on');
+    setTimeout(function(){ t.classList.remove('on'); }, 2200);
+  }
+  function apiUrl(params){
+    var base = (window.STZ_CONFIG && window.STZ_CONFIG.list) || 'https://ai.lcppch.top/api/fde/list';
+    return base + '?' + Object.keys(params).map(function(k){ return encodeURIComponent(k)+'='+encodeURIComponent(params[k]); }).join('&');
+  }
+  function fmtTime(iso){
+    if(!iso) return '—';
+    var d=new Date(iso);
+    var p=function(n){ return (n<10?'0':'')+n; };
+    return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+  }
+  function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+
+  async function fetchList(){
+    var res = await fetch(apiUrl({ page:state.page, pageSize:state.pageSize, q:state.q, pwd:KEY }));
+    if(res.status===401){ sessionStorage.removeItem('fde_admin_key'); showGate('密钥已失效，请重新输入'); throw new Error('unauthorized'); }
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    return res.json();
+  }
+
+  /* ---- 渲染 ---- */
+  function statusPill(st){
+    if(/已建档/.test(st||'')) return '<span class="pill done">✓ 已建档</span>';
+    var m=/(第\s*\d+\s*步)/.exec(st||'');
+    return '<span class="pill doing">⏳ '+(m?m[1]:'进行中')+'</span>';
+  }
+  function detItem(k,v){
+    var val = (v==null||v==='') ? '—' : String(v);
+    var wide = val.length>46 ? ' wide' : '';
+    return '<div class="det-item'+wide+'"><b>'+esc(k)+'</b><span>'+esc(val)+'</span></div>';
+  }
+  function render(d){
+    state.total=d.total; state.pages=d.pages;
+    $('total').innerHTML = '共 <b>'+d.total+'</b> 条 · 第 '+d.page+'/'+d.pages+' 页';
+    var box=$('cards');
+    if(!d.items.length){ box.innerHTML='<div class="empty">没有匹配的登记记录</div>'; $('pager').innerHTML=''; return; }
+    box.innerHTML = d.items.map(function(r,i){
+      var p = r.payload || {};
+      var name = r.name || p['姓名'] || '未署名';
+      var initial = name.slice(0,1);
+      var keys = Object.keys(p).filter(function(k){ return k!=='__step'; });
+      return '<div class="row" id="row'+i+'">'
+        + '<div class="row-h" onclick="document.getElementById(\'row'+i+'\').classList.toggle(\'open\')">'
+        +   '<div class="ava">'+esc(initial)+'</div>'
+        +   '<div><div class="nm">'+esc(name)+'</div><div class="meta">'+esc(r.phone)+(r.city?(' · '+esc(r.city)):'')+'</div></div>'
+        +   '<div class="sp"></div>'
+        +   statusPill(r.status)
+        +   '<span class="upd">'+fmtTime(r.updatedAt)+'</span>'
+        +   '<span class="chev">▾</span>'
+        + '</div>'
+        + '<div class="det"><div class="det-grid">'
+        +   keys.map(function(k){ return detItem(k, p[k]); }).join('')
+        +   '<div class="det-item"><b>首次登记</b><span>'+fmtTime(r.createdAt)+'</span></div>'
+        + '</div></div>'
+        + '</div>';
+    }).join('');
+    var pg=$('pager');
+    var btns='';
+    if(state.page>1) btns+='<button class="btn" data-p="prev">‹ 上一页</button>';
+    if(state.page<state.pages) btns+='<button class="btn" data-p="next">下一页 ›</button>';
+    pg.innerHTML = btns || (state.pages>1?'':'');
+    [].slice.call(pg.querySelectorAll('button')).forEach(function(b){
+      b.addEventListener('click',function(){
+        state.page += b.getAttribute('data-p')==='next'?1:-1;
+        load();
+      });
+    });
+  }
+
+  async function load(){
+    $('cards').innerHTML='<div class="empty">加载中…</div>';
+    try{ render(await fetchList()); }
+    catch(e){ if(e.message!=='unauthorized') { $('cards').innerHTML='<div class="empty">加载失败：'+esc(e.message)+'（点「刷新」重试）</div>'; } }
+  }
+
+  /* ---- 密钥门 ---- */
+  function showGate(err){
+    $('gate').style.display=''; $('main').style.display='none'; $('who').textContent='';
+    $('keyerr').textContent=err||'';
+  }
+  async function tryKey(k){
+    var res = await fetch(apiUrl({page:1,pageSize:1,pwd:k}));
+    if(!res.ok) return false;
+    return true;
+  }
+  async function enter(){
+    var k=$('keyin').value.trim();
+    if(!k){ $('keyerr').textContent='请输入密钥'; return; }
+    $('keygo').textContent='验证中…';
+    var ok = await tryKey(k).catch(function(){ return false; });
+    $('keygo').textContent='进入后台';
+    if(!ok){ $('keyerr').textContent='密钥不正确或网络异常'; return; }
+    KEY=k; sessionStorage.setItem('fde_admin_key',k);
+    $('gate').style.display='none'; $('main').style.display='';
+    $('who').textContent='密钥已就绪 · 本会话有效';
+    load();
+  }
+  $('keygo').addEventListener('click',enter);
+  $('keyin').addEventListener('keydown',function(e){ if(e.key==='Enter') enter(); });
+
+  /* ---- 工具条 ---- */
+  $('search').addEventListener('click',function(){ state.q=$('q').value.trim(); state.page=1; load(); });
+  $('q').addEventListener('keydown',function(e){ if(e.key==='Enter'){ state.q=this.value.trim(); state.page=1; load(); } });
+  $('refresh').addEventListener('click',function(){ toast('已刷新'); load(); });
+  $('logout').addEventListener('click',function(){ sessionStorage.removeItem('fde_admin_key'); KEY=''; showGate(''); });
+
+  if(KEY){ tryKey(KEY).then(function(ok){ if(ok){ $('gate').style.display='none'; $('main').style.display=''; $('who').textContent='密钥已就绪 · 本会话有效'; load(); } else showGate(''); }).catch(function(){ showGate(''); }); }
+})();
+</script>
+</body>
+</html>
