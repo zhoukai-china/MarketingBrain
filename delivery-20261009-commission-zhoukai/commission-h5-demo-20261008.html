@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>思潼AI · 生态推荐官（H5 原型）</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230B2545'/><text x='50' y='68' font-size='52' text-anchor='middle'>⚡</text></svg>">
+<style>
+/* ============ 深蓝 + 橙 · 玻璃质感 · 微信 H5 ============ */
+:root{
+  --bg1:#0B2545; --glass:rgba(255,255,255,.055); --glass2:rgba(255,255,255,.09);
+  --line:rgba(255,255,255,.12); --line-soft:rgba(255,255,255,.07);
+  --ink:#EAF2FF; --sub:rgba(234,242,255,.68); --faint:rgba(234,242,255,.46);
+  --orange:#E8651A; --orange2:#FF8F4D; --orange-soft:rgba(232,101,26,.16); --orange-line:rgba(232,101,26,.45);
+  --green:#34D399; --green-soft:rgba(52,211,153,.14);
+  --red:#F87171; --red-soft:rgba(248,113,113,.14);
+  --blue:#60A5FA; --blue-soft:rgba(96,165,250,.14);
+  --gray:#93A8C6; --gray-soft:rgba(147,168,198,.16);
+  --amber:#FBBF24; --amber-soft:rgba(251,191,36,.13);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{min-height:100%}
+body{
+  font-family:system-ui,-apple-system,"PingFang SC","Source Han Sans CN","Microsoft YaHei",sans-serif;
+  color:var(--ink);font-size:14px;line-height:1.55;
+  background:
+    radial-gradient(720px 420px at 92% -8%, rgba(232,101,26,.07), transparent 60%),
+    radial-gradient(640px 400px at -12% 108%, rgba(96,165,250,.07), transparent 58%),
+    var(--bg1);
+  background-attachment:fixed;
+  padding-bottom:calc(64px + env(safe-area-inset-bottom));
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input{font-family:inherit;font-size:16px;color:var(--ink);outline:none}
+input{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:10px;padding:11px 13px;transition:border .15s}
+input:focus{border-color:var(--orange)}
+.num{font-variant-numeric:tabular-nums}
+.money{color:var(--orange2);font-weight:700}
+.card{background:var(--glass);border:1px solid var(--line);border-radius:16px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:2.5px 10px;border-radius:999px;font-size:11.5px;white-space:nowrap;font-weight:500}
+.tag-gray{background:var(--gray-soft);color:var(--gray)}
+.tag-green{background:var(--green-soft);color:var(--green)}
+.tag-red{background:var(--red-soft);color:var(--red)}
+.tag-blue{background:var(--blue-soft);color:var(--blue)}
+.tag-orange{background:var(--orange-soft);color:var(--orange2)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:0 18px;border-radius:11px;
+  background:var(--glass2);border:1px solid var(--line);color:var(--ink);font-size:14px;transition:.15s;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--orange);border-color:transparent;color:#fff;font-weight:600;box-shadow:0 6px 18px rgba(232,101,26,.32)}
+.btn-block{width:100%;min-height:46px;font-size:15px}
+/* 顶栏 */
+#topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:9px;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+  background:rgba(9,28,54,.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--line-soft)}
+#topbar .logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#E8651A,#FF8F4D);display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+#topbar .bt{font-size:16px;font-weight:800;letter-spacing:.5px;white-space:nowrap}
+#topbar .bt em{font-style:normal;color:var(--orange2);font-size:11px;font-weight:600;border:1px solid var(--orange-line);background:var(--orange-soft);border-radius:999px;padding:1.5px 8px;margin-left:7px;vertical-align:2px;white-space:nowrap}
+#topbar .proto{margin-left:auto;font-size:10.5px;color:var(--amber);background:var(--amber-soft);border:1px solid rgba(251,191,36,.35);padding:2.5px 9px;border-radius:999px;white-space:nowrap}
+/* 页面容器 */
+.page{display:none;padding:16px 16px 20px;max-width:640px;margin:0 auto}
+.page.act{display:block;animation:fadeUp .3s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+/* Hero */
+.hero{padding:20px 18px;margin-bottom:14px;position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;right:-42px;top:-42px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(232,101,26,.22),transparent 68%);pointer-events:none}
+.hero .hi{font-size:15.5px;font-weight:700}
+.hero .hi em{font-style:normal;color:var(--orange2)}
+.hero .sub{font-size:12px;color:var(--faint);margin-top:3px}
+.bal{display:flex;align-items:flex-end;justify-content:space-between;margin-top:16px}
+.bal .k{font-size:12px;color:var(--sub)}
+.bal .v{font-size:31px;font-weight:800;color:var(--orange2);letter-spacing:.5px;line-height:1.15}
+.bal .v small{font-size:13px;font-weight:500;opacity:.7}
+.bal .btn{flex:none}
+.hero .meta{font-size:11px;color:var(--faint);margin-top:9px}
+/* 统计卡 */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:14px}
+.stat{padding:14px 15px 12px}
+.stat .k{font-size:12px;color:var(--sub)}
+.stat .v{font-size:21px;font-weight:800;margin-top:5px}
+.stat .v small{font-size:11px;font-weight:500;color:var(--faint);margin-left:2px}
+.stat .d{font-size:10.5px;color:var(--faint);margin-top:3px}
+/* 区块卡 */
+.sec{margin-bottom:14px}
+.sec-h{display:flex;align-items:center;gap:8px;padding:15px 16px 10px}
+.sec-h .ic{width:26px;height:26px;border-radius:8px;background:var(--orange-soft);display:flex;align-items:center;justify-content:center;flex:none}
+.sec-h .ic svg{width:13px;height:13px;stroke:var(--orange2);fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.sec-h .tt{font-size:14.5px;font-weight:700}
+.sec-h .more{margin-left:auto;font-size:11.5px;color:var(--faint)}
+/* 快捷入口 */
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:11px;padding:2px 0 14px}
+.qk{display:flex;align-items:center;gap:11px;padding:13px 14px;border-radius:14px;background:var(--glass);border:1px solid var(--line);transition:.15s;text-align:left}
+.qk:active{transform:scale(.98);border-color:var(--orange-line)}
+.qk .ic{width:36px;height:36px;border-radius:11px;background:var(--orange-soft);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 4px 12px rgba(232,101,26,.18)}
+.qk .ic svg{width:16px;height:16px;stroke:var(--orange2);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.qk .t{font-size:13.5px;font-weight:600}
+.qk .d{font-size:10.5px;color:var(--faint)}
+/* 白名单产品卡 */
+.prod{display:flex;gap:13px;align-items:center;padding:15px 16px}
+.prod .pav{width:48px;height:48px;border-radius:13px;background:linear-gradient(135deg,#1d3f6e,#2a5ca0);display:flex;align-items:center;justify-content:center;font-size:21px;flex:none;box-shadow:0 6px 16px rgba(0,0,0,.3)}
+.prod .pn{font-size:14.5px;font-weight:700}
+.prod .pd{font-size:11.5px;color:var(--faint);margin-top:2px}
+.prod .ptag{margin-left:auto}
+/* 用户列表 */
+.ucard{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line-soft)}
+.ucard:last-child{border-bottom:none}
+.uav{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#2a5ca0,#1d3f6e);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex:none;color:#cfe2ff}
+.ucard .un{font-size:13.5px;font-weight:600}
+.ucard .ud{font-size:11px;color:var(--faint);margin-top:2px}
+.ucard .ur{text-align:right;margin-left:auto;flex:none}
+.ucard .ur .uv{font-size:13px;font-weight:700}
+.ucard .ur .ul{font-size:10px;color:var(--faint)}
+/* 邀请页 */
+.linkbox{padding:16px}
+.linkbox .lk{font-size:12px;color:var(--sub);margin-bottom:8px}
+.linkval{display:flex;gap:9px;align-items:center;background:rgba(255,255,255,.05);border:1px dashed var(--line);border-radius:11px;padding:11px 12px}
+.linkval .lv{flex:1;font-size:12.5px;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr}
+.qrwrap{display:flex;flex-direction:column;align-items:center;padding:22px 16px 20px}
+.qrwrap canvas{width:196px;height:196px;background:#fff;border-radius:14px;padding:11px;box-shadow:0 14px 34px rgba(0,0,0,.35)}
+.qrwrap .qt{font-size:12.5px;color:var(--sub);margin-top:14px;text-align:center}
+.qrwrap .qt b{color:var(--green)}
+.tipbox{display:flex;gap:9px;align-items:flex-start;margin:0 16px 16px;padding:11px 13px;border-radius:11px;background:var(--orange-soft);border:1px solid var(--orange-line);font-size:11.5px;color:var(--orange2);line-height:1.65}
+.tipbox.blue{background:var(--blue-soft);border-color:rgba(96,165,250,.3);color:var(--blue)}
+/* 分润明细行 */
+.frow{display:flex;align-items:center;gap:11px;padding:12.5px 16px;border-bottom:1px solid var(--line-soft)}
+.frow:last-child{border-bottom:none}
+.frow .fi{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none;font-size:14px}
+.fi.first{background:var(--orange-soft)}
+.fi.usage{background:var(--blue-soft)}
+.frow .fn{font-size:13px;font-weight:600}
+.frow .fd{font-size:10.5px;color:var(--faint);margin-top:1.5px}
+.frow .fr{text-align:right;margin-left:auto;flex:none}
+.frow .fr .fv{font-size:14px;font-weight:800}
+.frow .fr .fs{margin-top:3px}
+.note{font-size:11px;color:var(--faint);padding:10px 16px 14px;line-height:1.75}
+/* 提现记录 */
+.wrow{display:flex;align-items:center;gap:11px;padding:12.5px 16px;border-bottom:1px solid var(--line-soft)}
+.wrow:last-child{border-bottom:none}
+.wrow .wn{font-size:12.5px;font-weight:600}
+.wrow .wd{font-size:10.5px;color:var(--faint);margin-top:1.5px}
+.wrow .wr{text-align:right;margin-left:auto;flex:none}
+/* 底部 TabBar */
+#tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;background:rgba(9,28,54,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-top:1px solid var(--line-soft);padding-bottom:env(safe-area-inset-bottom)}
+#tabbar .tb{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0 7px;color:var(--faint);font-size:10.5px;transition:.15s}
+#tabbar .tb svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+#tabbar .tb.on{color:var(--orange2);font-weight:600}
+#tabbar .tb.on svg{stroke:var(--orange2)}
+/* 弹层（底部 sheet） */
+.mask{position:fixed;inset:0;background:rgba(3,10,22,.62);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:60;display:none}
+.mask.act{display:block}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:61;background:linear-gradient(170deg,#10305A,#0C2344);border:1px solid var(--line);border-bottom:none;
+  border-radius:20px 20px 0 0;padding:18px 18px calc(20px + env(safe-area-inset-bottom));display:none;animation:slideUp .28s ease;max-height:86vh;overflow-y:auto}
+.sheet.act{display:block}
+@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+.sh-handle{width:38px;height:4px;border-radius:99px;background:rgba(255,255,255,.22);margin:0 auto 14px}
+.sheet h3{font-size:16.5px;font-weight:700;margin-bottom:2px}
+.sheet .msub{font-size:11.5px;color:var(--faint);margin-bottom:15px}
+.whead{display:flex;align-items:center;justify-content:space-between;background:var(--orange-soft);border:1px solid var(--orange-line);border-radius:12px;padding:13px 15px;margin-bottom:12px}
+.whead .k{font-size:11.5px;color:var(--orange2)}
+.whead .v{font-size:23px;font-weight:800;color:var(--orange2)}
+.whead .v small{font-size:12px;font-weight:500;opacity:.75}
+.frozen{font-size:11px;color:var(--faint);margin:-6px 0 13px}
+.arrive{display:flex;gap:9px;margin-top:10px}
+.arrive .ai{flex:1;background:rgba(255,255,255,.045);border:1px solid var(--line-soft);border-radius:10px;padding:9px 11px}
+.arrive .ai .k{font-size:10px;color:var(--faint)}
+.arrive .ai .v{font-size:13.5px;font-weight:700;margin-top:2px}
+.arrive .ai .v.money{color:var(--orange2)}
+.field label{display:block;font-size:12px;color:var(--sub);margin-bottom:6px}
+.field{margin-bottom:14px}
+.field .err{font-size:11.5px;color:var(--red);margin-top:5px;display:none}
+.field.bad input{border-color:var(--red)}
+.field.bad .err{display:block}
+/* 我的页 */
+.me-head{display:flex;align-items:center;gap:14px;padding:20px 18px}
+.me-av{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#E8651A,#FF8F4D);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#fff;flex:none;box-shadow:0 8px 22px rgba(232,101,26,.35)}
+.me-head .mn{font-size:17px;font-weight:800}
+.me-head .md{font-size:11.5px;color:var(--faint);margin-top:3px}
+.mrow{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line-soft)}
+.mrow:last-child{border-bottom:none}
+.mrow .mi{width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;flex:none}
+.mrow .mi svg{width:14px;height:14px;stroke:var(--sub);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.mrow .mt{font-size:13.5px}
+.mrow .mv{margin-left:auto;font-size:12px;color:var(--faint);display:flex;align-items:center;gap:6px}
+.mrow .arrow{color:var(--faint);font-size:13px}
+/* toast */
+#toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(16px);background:rgba(14,40,74,.95);border:1px solid var(--orange-line);
+  color:#fff;font-size:13px;padding:10px 18px;border-radius:11px;z-index:99;opacity:0;pointer-events:none;transition:.25s;box-shadow:0 10px 30px rgba(0,0,0,.4);max-width:82vw}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* ============ ≥960px：TabBar 变左侧竖排导航 ============ */
+@media (min-width:960px){
+  body{padding-left:168px;padding-bottom:0}
+  #tabbar{left:0;right:auto;top:0;bottom:0;width:168px;flex-direction:column;justify-content:flex-start;padding:76px 10px 20px;border-top:none;border-right:1px solid var(--line-soft)}
+  #tabbar .tb{flex-direction:row;gap:11px;padding:12px 14px;border-radius:11px;font-size:13.5px}
+  #tabbar .tb.on{background:linear-gradient(90deg,rgba(232,101,26,.28),rgba(232,101,26,.10));box-shadow:inset 2.5px 0 0 var(--orange)}
+  .page{padding:24px 28px}
+  .stats{grid-template-columns:repeat(4,1fr)}
+  .quick{grid-template-columns:repeat(4,1fr)}
+}
+</style>
+</head>
+<body>
+
+<header id="topbar">
+  <span class="logo">⚡</span>
+  <span class="bt">思潼AI商城<em>生态推荐官</em></span>
+  <span class="proto">第一轮原型 · 评审版</span>
+</header>
+
+<!-- ================= 首页 · 工作台 ================= -->
+<main class="page act" id="pg-home">
+  <div class="card hero">
+    <div class="hi">早上好，<em>李姐</em></div>
+    <div class="sub">感谢您为生态带来真实用户 · 数据截至今日 09:00（演示数据）</div>
+    <div class="bal">
+      <div><div class="k">可提现余额</div><div class="v num">¥1,240<small>.00</small></div></div>
+      <button class="btn btn-primary" onclick="openSheet()">去提现</button>
+    </div>
+    <div class="meta">起付 ¥100 · 微信支付 T+1 到账 · 待结算 ¥180.00（月度结算）</div>
+  </div>
+
+  <div class="stats">
+    <div class="card stat"><div class="k">带来用户数</div><div class="v num">86</div><div class="d">经我链接注册自动绑定</div></div>
+    <div class="card stat"><div class="k">付费用户数</div><div class="v num">23</div><div class="d">转化率 26.7%</div></div>
+    <div class="card stat"><div class="k">本月分润</div><div class="v num money">¥520</div><div class="d">首单 10% + 续费 5%</div></div>
+    <div class="card stat"><div class="k">累计分润</div><div class="v num money">¥3,860</div><div class="d">累计已提 ¥2,541</div></div>
+  </div>
+
+  <div class="card sec">
+    <div class="sec-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M20 7 12 3 4 7v10l8 4 8-4Z"/><path d="M12 12 4 7M12 12l8-5M12 12v9"/></svg></span><span class="tt">我可推广的产品</span><span class="more">总部白名单</span></div>
+    <div class="prod">
+      <span class="pav">📜</span>
+      <div><div class="pn">古人经营智慧</div><div class="pd">文字类智能体 · 推荐官首单分润 10% / 消耗分润 5%</div></div>
+      <span class="ptag tag tag-green">白名单内</span>
+    </div>
+    <div class="tipbox" style="margin:0 16px 16px">您的用户仅可使用白名单内指定智能体；后续总部增删白名单将站内信通知您。</div>
+  </div>
+
+  <div class="card sec">
+    <div class="sec-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9Z"/></svg></span><span class="tt">快捷入口</span></div>
+    <div class="quick" style="padding-top:2px">
+      <button class="qk" onclick="go('invite')"><span class="ic"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></span><div><div class="t">我的邀请</div><div class="d">链接 + 二维码</div></div></button>
+      <button class="qk" onclick="go('profit')"><span class="ic"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M6 15h4"/></svg></span><div><div class="t">分润中心</div><div class="d">明细与提现</div></div></button>
+      <button class="qk" onclick="go('users')"><span class="ic"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><div><div class="t">我的用户</div><div class="d">购买 / 消耗汇总</div></div></button>
+      <button class="qk" onclick="toast('素材库 V2 规划中，当前版本请使用邀请链接与二维码')"><span class="ic"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg></span><div><div class="t">推广素材</div><div class="d">V2 上线</div></div></button>
+    </div>
+  </div>
+</main>
+
+<!-- ================= 用户列表 ================= -->
+<main class="page" id="pg-users">
+  <div class="card sec" style="margin-top:2px">
+    <div class="sec-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="tt">我的用户</span><span class="more">共 86 人 · 付费 23</span></div>
+    <div>
+      <div class="ucard"><span class="uav">张</span><div><div class="un">张女士</div><div class="ud">古人经营智慧 · 已购 ¥3,980</div></div><div class="ur"><div class="uv num">¥860</div><div class="ul">累计算力消耗</div></div></div>
+      <div class="ucard"><span class="uav">王</span><div><div class="un">王先生</div><div class="ud">古人经营智慧 · 已购 ¥3,980</div></div><div class="ur"><div class="uv num">¥420</div><div class="ul">累计算力消耗</div></div></div>
+      <div class="ucard"><span class="uav">陈</span><div><div class="un">陈先生</div><div class="ud">古人经营智慧 · 已购 ¥3,980</div></div><div class="ur"><div class="uv num">¥135</div><div class="ul">累计算力消耗</div></div></div>
+      <div class="ucard"><span class="uav">刘</span><div><div class="un">刘女士</div><div class="ud">已注册 · 未付费</div></div><div class="ur"><div class="uv num" style="color:var(--faint)">—</div><div class="ul">暂无消耗</div></div></div>
+      <div class="ucard"><span class="uav">赵</span><div><div class="un">赵女士</div><div class="ud">已注册 · 未付费</div></div><div class="ur"><div class="uv num" style="color:var(--faint)">—</div><div class="ul">暂无消耗</div></div></div>
+    </div>
+    <div class="note">· 用户经您的链接注册即自动绑定名下，无需报备；其购买与算力消耗汇总对您可见<br>· 您对用户<b>仅可查看，无配置权限</b>（客户配置由代理商后台负责）</div>
+  </div>
+  <div class="tipbox blue" style="margin:0">转化建议：向注册未付费用户分享「古人经营智慧」的实战案例，引导其经您的链接完成首单。</div>
+</main>
+
+<!-- ================= 我的邀请 ================= -->
+<main class="page" id="pg-invite">
+  <div class="card sec" style="margin-top:2px">
+    <div class="linkbox">
+      <div class="lk">我的专属邀请链接（经此链接注册的用户自动绑定名下）</div>
+      <div class="linkval"><span class="lv num" id="invLink">https://st-ai.cn/r/ref-li2026?src=h5</span><button class="btn" style="min-height:34px;padding:0 14px;font-size:12.5px" onclick="copyLink()">复制</button></div>
+    </div>
+    <div class="qrwrap">
+      <canvas id="qrH5" width="390" height="390"></canvas>
+      <div class="qt">微信长按或扫码进入 · 用户经此码注册即自动绑定<br>已绑定推广产品：<b>古人经营智慧</b>（白名单）</div>
+    </div>
+    <div class="tipbox">白名单说明：推荐官链接下的用户<b>仅可使用「古人经营智慧」智能体</b>，后续总部增删白名单将同步通知。</div>
+    <div class="tipbox blue" style="margin:14px 16px 16px">归因规则：用户经链接注册 → 自动绑定；在同一链接下完成付款 → 计入您的分润。无链接来源的用户归属总部，不产生推荐官分润。</div>
+  </div>
+</main>
+
+<!-- ================= 分润中心 ================= -->
+<main class="page" id="pg-profit">
+  <div class="stats" style="margin-top:2px">
+    <div class="card stat"><div class="k">可提现余额</div><div class="v num money">¥1,240</div><div class="d">冷静期占用 ¥0</div></div>
+    <div class="card stat"><div class="k">待结算金额</div><div class="v num">¥180</div><div class="d">月度结算进入可提现</div></div>
+  </div>
+  <div class="card sec">
+    <div class="sec-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></span><span class="tt">分润构成</span><span class="more">费率由总部动态配置</span></div>
+    <div>
+      <div class="frow"><span class="fi first">💰</span><div><div class="fn">首单分润 · <span class="tag tag-orange">10%</span></div><div class="fd">白名单产品年费首次成交（年费续收按续费 5% 计）</div></div><div class="fr"><div class="fv money num">¥470</div><div class="fs tag tag-gray">本月</div></div></div>
+      <div class="frow"><span class="fi usage">⚡</span><div><div class="fn">消耗分润 · <span class="tag tag-orange">5%</span></div><div class="fd">用户实际算力消耗，持续发生</div></div><div class="fr"><div class="fv money num">¥50</div><div class="fs tag tag-gray">本月</div></div></div>
+    </div>
+    <div class="note">创始人 / 生态招商负责人层不分佣（拿工资）；分润仅与真实支付、真实消耗挂钩，不由人工触发。</div>
+  </div>
+  <div class="card sec">
+    <div class="sec-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 8v8M12 8a2.5 2.5 0 1 0-2.5-2.5M12 8a2.5 2.5 0 1 1 2.5-2.5M6 16h12M8 16c-2 0-3-1-3-2.5S6 11 8 11h8c2 0 3 1 3 2.5S18 16 16 16"/></svg></span><span class="tt">分润明细</span></div>
+    <div>
+      <div class="frow"><div><div class="fn">张女士 · 首单</div><div class="fd">古人经营智慧 ¥3,980 × 10%</div></div><div class="fr"><div class="fv money num">+¥398.00</div><div class="fs tag tag-green">已结算</div></div></div>
+      <div class="frow"><div><div class="fn">王先生 · 首单</div><div class="fd">古人经营智慧 ¥3,980 × 10%</div></div><div class="fr"><div class="fv money num">+¥398.00</div><div class="fs tag tag-blue">进行中 · 冷静期</div></div></div>
+      <div class="frow"><div><div class="fn">张女士 · 算力消耗</div><div class="fd">消耗 ¥860 × 5%</div></div><div class="fr"><div class="fv money num">+¥43.00</div><div class="fs tag tag-green">已结算</div></div></div>
+      <div class="frow"><div><div class="fn">王先生 · 算力消耗</div><div class="fd">消耗 ¥420 × 5%</div></div><div class="fr"><div class="fv money num">+¥21.00</div><div class="fs tag tag-gray">待结算</div></div></div>
+    </div>
+  </div>
+  <div class="card sec">
+    <div class="sec-h"><span class="ic"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M6 15h4"/></svg></span><span class="tt">提现记录</span></div>
+    <div>
+      <div class="wrow"><div><div class="wn num">WD-20261008-006</div><div class="wd">10-08 09:40 · 微信 尾号 5521</div></div><div class="wr"><div class="fv num money">¥320.00</div><div class="fs tag tag-gray">待审核</div></div></div>
+      <div class="wrow"><div><div class="wn num">WD-20260915-052</div><div class="wd">09-15 16:20 · 通道费 ¥0.86 · 实到 ¥859.14</div></div><div class="wr"><div class="fv num money">¥860.00</div><div class="fs tag tag-green">已到账</div></div></div>
+      <div class="wrow"><div><div class="wn num">WD-20260820-041</div><div class="wd">08-20 11:05 · 通道费 ¥0.54 · 实到 ¥539.46</div></div><div class="wr"><div class="fv num money">¥540.00</div><div class="fs tag tag-green">已到账</div></div></div>
+    </div>
+    <div class="note">状态机：待审核 → 打款中 → 已到账 / 已驳回（附原因）· T+1 到账 · 思潼不加收手续费，通道费由提现方承担</div>
+  </div>
+  <button class="btn btn-primary btn-block" style="margin-top:2px" onclick="openSheet()">申请提现</button>
+</main>
+
+<!-- ================= 我的 ================= -->
+<main class="page" id="pg-me">
+  <div class="card sec" style="margin-top:2px">
+    <div class="me-head">
+      <span class="me-av">李</span>
+      <div><div class="mn">李姐</div><div class="md">生态推荐官 · 已认证 · ID RL2026-0306</div></div>
+    </div>
+    <div>
+      <div class="mrow"><span class="mi"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M6 15h4"/></svg></span><span class="mt">微信收款账户</span><span class="mv"><span class="tag tag-green">已绑定 · 尾号 5521</span><span class="arrow">›</span></span></div>
+      <div class="mrow"><span class="mi"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z"/></svg></span><span class="mt">手机号</span><span class="mv num">139****8066<span class="arrow">›</span></span></div>
+      <div class="mrow"><span class="mi"><svg viewBox="0 0 24 24"><path d="M20 7 12 3 4 7v10l8 4 8-4Z"/><path d="M12 12 4 7M12 12l8-5M12 12v9"/></svg></span><span class="mt">我可推广的产品</span><span class="mv">古人经营智慧（白名单）<span class="arrow">›</span></span></div>
+      <div class="mrow" onclick="toast('如需调整白名单或费率，请联系总部对接人（演示）')"><span class="mi"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg></span><span class="mt">联系总部</span><span class="mv"><span class="arrow">›</span></span></div>
+      <div class="mrow" onclick="toast('分佣规则与结算说明（演示）：月度结算 / 起付 ¥100 / T+1 / 冷静期 7 天 / 退款冲回')"><span class="mi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg></span><span class="mt">分佣规则与结算说明</span><span class="mv"><span class="arrow">›</span></span></div>
+    </div>
+  </div>
+  <div class="tipbox blue" style="margin:0">本平台采用生态合作与平台分成模式，分润规则透明公示、全程可追溯。</div>
+</main>
+
+<!-- ================= 底部 TabBar ================= -->
+<nav id="tabbar">
+  <button class="tb on" data-tg="home" onclick="go('home')"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>首页</button>
+  <button class="tb" data-tg="users" onclick="go('users')"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>用户</button>
+  <button class="tb" data-tg="invite" onclick="go('invite')"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>邀请</button>
+  <button class="tb" data-tg="profit" onclick="go('profit')"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M6 15h4"/></svg>分润</button>
+  <button class="tb" data-tg="me" onclick="go('me')"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>我的</button>
+</nav>
+
+<!-- ================= 提现底部弹层 ================= -->
+<div class="mask" id="wdMask" onclick="closeSheet()"></div>
+<div class="sheet" id="wdSheet">
+  <div class="sh-handle"></div>
+  <h3>自主提现</h3>
+  <div class="msub">月度结算进入可提现余额 · 微信支付 T+1 到账</div>
+  <div class="whead">
+    <div><div class="k">可提现余额</div><div class="v num">¥1,240<small>.00</small></div></div>
+    <div style="text-align:right"><div class="k">收款账户</div><div style="font-size:12.5px;margin-top:4px">微信 · 李姐（尾号 5521）</div></div>
+  </div>
+  <div class="field" id="fWd"><label>提现金额（起付 ¥100）</label>
+    <input type="number" id="inpWd" placeholder="输入提现金额" oninput="wdChange()">
+    <div class="err" id="wdErr">金额需 ≥ ¥100 且不超过可提余额 ¥1,240.00</div>
+  </div>
+  <div class="arrive">
+    <div class="ai"><div class="k">预估通道费</div><div class="v num" id="wdFee">¥0.00</div></div>
+    <div class="ai"><div class="k">实际到账金额</div><div class="v num money" id="wdReal">¥0.00</div></div>
+    <div class="ai"><div class="k">预计到账</div><div class="v num" id="wdDate">T+1</div></div>
+  </div>
+  <div class="note" style="padding:13px 2px 0">· 思潼不收手续费；通道费为微信支付 / 银行通道费用，由提现方承担，以实际到账为准<br>· 新成交分润须过 7 天退款冷静期；订单退款对应分润自动冲回<br>· 提现状态：待审核 → 打款中 → 已到账 / 已驳回（附原因）<br>· 佣金支付入账：推荐官为企业需向我司开具佣金 / 服务费发票（抵企业所得税）；自然人为我司代扣个税（劳务报酬），凭代扣凭证入账</div>
+  <button class="btn btn-primary btn-block" style="margin-top:14px" onclick="submitWd()">提交申请</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ================= 公共件 ================= */
+var $=function(s,r){return (r||document).querySelector(s)};
+var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+var toastTimer=null;
+function toast(msg,ms){
+  var t=$('#toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.classList.remove('show')},ms||2400);
+}
+function copyText(txt,okMsg){
+  function done(){toast(okMsg||'已复制')}
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done,function(){fallback()});
+  }else{fallback()}
+  function fallback(){
+    var ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy');done()}catch(e){toast('复制失败，请手动复制')}
+    document.body.removeChild(ta);
+  }
+}
+function copyLink(){copyText($('#invLink').textContent,'邀请链接已复制，可直接发给微信好友 / 群')}
+
+/* ================= Tab 切换 ================= */
+function go(name){
+  $$('.page').forEach(function(p){p.classList.remove('act')});
+  $('#pg-'+name).classList.add('act');
+  $$('#tabbar .tb').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-tg')===name)});
+  window.scrollTo(0,0);
+}
+
+/* ================= 伪二维码 ================= */
+function drawQR(cvId){
+  var cv=document.getElementById(cvId);if(!cv)return;var ctx=cv.getContext('2d');
+  var n=25,cell=cv.width/n;
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#0B2545';
+  var seed=77;function rnd(){seed=(seed*9301+49297)%233280;return seed/233280}
+  function finder(ox,oy){
+    ctx.fillRect(ox*cell,oy*cell,7*cell,7*cell);
+    ctx.fillStyle='#fff';ctx.fillRect((ox+1)*cell,(oy+1)*cell,5*cell,5*cell);
+    ctx.fillStyle='#0B2545';ctx.fillRect((ox+2)*cell,(oy+2)*cell,3*cell,3*cell);
+  }
+  for(var y=0;y<n;y++)for(var x=0;x<n;x++){
+    var inF=(x<8&&y<8)||(x>n-9&&y<8)||(x<8&&y>n-9);
+    if(!inF&&rnd()>0.52)ctx.fillRect(x*cell,y*cell,cell,cell);
+  }
+  finder(0,0);finder(n-7,0);finder(0,n-7);
+}
+
+/* ================= 提现弹层 ================= */
+var WD_BAL=1240,WD_RATE=0.001;
+function openSheet(){$('#wdMask').classList.add('act');$('#wdSheet').classList.add('act')}
+function closeSheet(){$('#wdMask').classList.remove('act');$('#wdSheet').classList.remove('act')}
+function fmt(n){return n.toLocaleString('zh-CN',{maximumFractionDigits:2})}
+function wdChange(){
+  var v=parseFloat($('#inpWd').value)||0,ok=v>=100&&v<=WD_BAL;
+  $('#fWd').classList.toggle('bad',!ok&&$('#inpWd').value!=='');
+  var fee=Math.round(v*WD_RATE*100)/100;
+  $('#wdFee').textContent='¥'+fmt(fee);
+  $('#wdReal').textContent='¥'+fmt(Math.max(v-fee,0));
+  var d=new Date();d.setDate(d.getDate()+1);
+  $('#wdDate').textContent=(d.getMonth()+1)+'-'+d.getDate()+' 到账';
+}
+function submitWd(){
+  var v=parseFloat($('#inpWd').value)||0;
+  if(!(v>=100)){toast('起付金额为 ¥100');return}
+  if(v>WD_BAL){toast('超出可提余额 ¥'+fmt(WD_BAL));return}
+  closeSheet();
+  toast('提现申请已提交：¥'+fmt(v)+' · 待审核 → 打款中 → T+1 到账（演示）',3200);
+}
+
+/* ================= 初始化 ================= */
+drawQR('qrH5');
+</script>
+</body>
+</html>
