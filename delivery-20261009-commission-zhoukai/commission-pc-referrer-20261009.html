@@ -1,0 +1,2060 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>思潼AI · 生态推荐官后台</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230B2545'/><text x='50' y='68' font-size='52' text-anchor='middle'>⚡</text></svg>">
+<style>
+/* ============ 基础变量：深蓝 + 橙 · 玻璃质感 · 咨询公司级 ============ */
+:root{
+  --bg0:#081A33; --bg1:#0B2545; --bg2:#0E2C52; --side:#071527;
+  --glass:rgba(255,255,255,.055); --glass2:rgba(255,255,255,.09);
+  --line:rgba(255,255,255,.12); --line-soft:rgba(255,255,255,.07);
+  --ink:#EAF2FF; --sub:rgba(234,242,255,.68); --faint:rgba(234,242,255,.46);
+  --orange:#E8651A; --orange2:#FF8F4D; --orange-soft:rgba(232,101,26,.16); --orange-line:rgba(232,101,26,.45);
+  --green:#34D399; --green-soft:rgba(52,211,153,.14);
+  --red:#F87171; --red-soft:rgba(248,113,113,.14);
+  --blue:#60A5FA; --blue-soft:rgba(96,165,250,.14);
+  --gray:#93A8C6; --gray-soft:rgba(147,168,198,.16);
+  --amber:#FBBF24; --amber-soft:rgba(251,191,36,.13);
+  --radius:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:system-ui,-apple-system,"PingFang SC","Source Han Sans CN","Microsoft YaHei",sans-serif;
+  color:var(--ink);font-size:14px;line-height:1.55;
+  background:
+    radial-gradient(1100px 560px at 88% -12%, rgba(232,101,26,.055), transparent 62%),
+    radial-gradient(900px 520px at -8% 112%, rgba(96,165,250,.06), transparent 58%),
+    var(--bg1);
+  background-attachment:fixed;
+}
+a{color:var(--blue);text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);outline:none}
+input,select,textarea{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:9px;padding:9px 12px;transition:border .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--orange)}
+select option{background:#0E2C52;color:var(--ink)}
+.num{font-variant-numeric:tabular-nums}
+.money{color:var(--orange2);font-weight:700}
+/* ============ 通用组件 ============ */
+.card{background:var(--glass);border:1px solid var(--line);border-radius:var(--radius);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:0 16px;border-radius:9px;
+  background:var(--glass2);border:1px solid var(--line);color:var(--ink);font-size:13.5px;transition:.15s;white-space:nowrap}
+.btn:hover{background:rgba(255,255,255,.13)}
+.btn-primary{background:var(--orange);border-color:transparent;color:#fff;font-weight:600}
+.btn-primary:hover{background:#F0712B}
+.btn-primary:active{transform:scale(.98)}
+.btn-ghost{background:transparent}
+.btn-danger{background:var(--red-soft);border-color:rgba(248,113,113,.4);color:var(--red)}
+.btn-sm{min-height:30px;padding:0 11px;font-size:12.5px;border-radius:8px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:2.5px 10px;border-radius:999px;font-size:12px;white-space:nowrap;font-weight:500}
+.tag-gray{background:var(--gray-soft);color:var(--gray)}
+.tag-green{background:var(--green-soft);color:var(--green)}
+.tag-red{background:var(--red-soft);color:var(--red)}
+.tag-blue{background:var(--blue-soft);color:var(--blue)}
+.tag-orange{background:var(--orange-soft);color:var(--orange2)}
+.tag-amber{background:var(--amber-soft);color:var(--amber)}
+.field{margin-bottom:15px}
+.field label{display:block;font-size:12.5px;color:var(--sub);margin-bottom:6px}
+.field .hint{font-size:12px;color:var(--faint);margin-top:5px}
+.field .err{font-size:12px;color:var(--red);margin-top:5px;display:none}
+.field.bad input{border-color:var(--red)}
+.field.bad .err{display:block}
+/* ============ 登录页 ============ */
+#view-login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 24px;position:relative;overflow:hidden}
+.login-wrap{display:flex;gap:72px;align-items:center;max-width:1060px;width:100%}
+.login-brand{flex:1;min-width:0}
+.login-brand .kicker{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--orange2);letter-spacing:2px;margin-bottom:22px}
+.login-brand .kicker::before{content:"";width:26px;height:2px;background:var(--orange);display:inline-block}
+.login-brand h1{font-size:40px;line-height:1.28;font-weight:800;letter-spacing:1px;margin-bottom:18px}
+.login-brand h1 em{font-style:normal;color:var(--orange2)}
+.login-brand p{color:var(--sub);font-size:15px;max-width:420px;margin-bottom:34px}
+.login-points{display:flex;flex-direction:column;gap:12px}
+.login-points .pt{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--sub)}
+.login-points .pt b{color:var(--ink);font-weight:600}
+.login-points .pt .dot{width:6px;height:6px;border-radius:50%;background:var(--orange);margin-top:7px;flex:none}
+.login-card{width:420px;flex:none;padding:30px 30px 24px;box-shadow:0 24px 60px rgba(2,8,20,.5)}
+.login-card h2{font-size:19px;font-weight:700;margin-bottom:4px}
+.login-card .sub{font-size:12.5px;color:var(--faint);margin-bottom:18px}
+.role-chips{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px}
+.role-chips .rc{padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.04);text-align:left;transition:.15s}
+.role-chips .rc .t{font-size:13.5px;font-weight:600;display:block}
+.role-chips .rc .d{font-size:11.5px;color:var(--faint)}
+.role-chips .rc.on{border-color:var(--orange);background:var(--orange-soft)}
+.role-chips .rc.on .d{color:var(--orange2)}
+.login-tabs{display:flex;gap:22px;border-bottom:1px solid var(--line-soft);margin-bottom:18px}
+.login-tabs button{padding:8px 2px;font-size:14px;color:var(--faint);border-bottom:2px solid transparent;margin-bottom:-1px}
+.login-tabs button.on{color:var(--ink);border-color:var(--orange);font-weight:600}
+.qr-box{display:flex;flex-direction:column;align-items:center;padding:8px 0 4px}
+.qr-box canvas{width:180px;height:180px;border-radius:12px;background:#fff;padding:10px}
+.qr-box .scan-tip{font-size:13px;color:var(--sub);margin-top:14px}
+.qr-box .scan-tip b{color:var(--green)}
+.login-foot{font-size:11.5px;color:var(--faint);margin-top:16px;line-height:1.7;border-top:1px dashed var(--line-soft);padding-top:12px}
+.code-row{display:flex;gap:10px}
+.code-row input{flex:1}
+.code-row .btn{flex:none}
+.agree{display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--faint);margin:14px 0 16px}
+.agree input{width:15px;height:15px;margin-top:2px;accent-color:var(--orange)}
+/* ============ 后台壳 ============ */
+#shell{display:none}
+#side{position:fixed;left:0;top:0;bottom:0;width:216px;background:var(--side);border-right:1px solid var(--line-soft);display:flex;flex-direction:column;z-index:30}
+.side-brand{padding:20px 18px 16px;border-bottom:1px solid var(--line-soft)}
+.side-brand .bt{display:flex;align-items:center;gap:9px;font-size:16.5px;font-weight:800;letter-spacing:.5px}
+.side-brand .bt .logo{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#E8651A,#FF8F4D);display:flex;align-items:center;justify-content:center;font-size:15px;flex:none}
+.side-brand .bd{font-size:11px;color:var(--faint);margin-top:4px;padding-left:39px;letter-spacing:1px}
+.side-menu{flex:1;overflow-y:auto;padding:12px 10px 20px}
+.side-menu .group{font-size:11px;color:var(--faint);letter-spacing:2px;padding:14px 10px 6px}
+.mi{display:flex;align-items:center;gap:10px;width:100%;padding:9.5px 12px;border-radius:9px;color:var(--sub);font-size:13.5px;margin-bottom:2px;transition:.14s;text-align:left}
+.mi svg{width:17px;height:17px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.mi:hover{color:var(--ink);background:rgba(255,255,255,.05)}
+.mi.on{color:#fff;background:linear-gradient(90deg,rgba(232,101,26,.28),rgba(232,101,26,.10));box-shadow:inset 2.5px 0 0 var(--orange)}
+.side-tip{margin:10px 12px;padding:10px 12px;border-radius:10px;background:var(--orange-soft);border:1px solid var(--orange-line);font-size:11.5px;color:var(--orange2);line-height:1.6}
+#main{margin-left:216px;min-height:100vh;display:flex;flex-direction:column}
+#topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;padding:0 26px;height:60px;
+  background:rgba(9,28,54,.78);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--line-soft)}
+#crumb{font-size:14.5px;font-weight:600}
+#crumb span{color:var(--faint);font-weight:400;font-size:12.5px;margin-left:8px}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.proto-pill{font-size:11px;color:var(--amber);background:var(--amber-soft);border:1px solid rgba(251,191,36,.35);padding:3px 10px;border-radius:999px;white-space:nowrap}
+.bell{position:relative;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:var(--glass);border:1px solid var(--line)}
+.bell svg{width:16px;height:16px;stroke:var(--sub);fill:none;stroke-width:1.7}
+.bell .dot{position:absolute;top:6px;right:7px;width:7px;height:7px;border-radius:50%;background:var(--orange);border:1.5px solid #0B2545}
+.rolebox{display:flex;align-items:center;gap:8px;padding:5px 6px 5px 12px;border-radius:999px;background:var(--glass);border:1px solid var(--line)}
+.rolebox .who{font-size:13px;font-weight:600}
+.role-ids{display:flex;gap:4px}
+.role-ids .rid{font-size:11.5px;padding:2.5px 9px;border-radius:999px;background:rgba(255,255,255,.07);color:var(--faint)}
+.role-ids .rid.on{background:var(--orange-soft);color:var(--orange2);border:1px solid var(--orange-line)}
+#content{flex:1;padding:24px 26px 60px;max-width:1320px;width:100%}
+.view{display:none}
+.view.act{display:block;animation:fadeUp .3s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.page-h{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+.page-h h2{font-size:20px;font-weight:700}
+.page-h .desc{font-size:12.5px;color:var(--faint);margin-top:3px}
+/* ============ 看板统计卡 ============ */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+.stat{padding:18px 18px 15px;position:relative;overflow:hidden}
+.stat .lb{font-size:12.5px;color:var(--sub);display:flex;align-items:center;gap:6px}
+.stat .lb svg{width:14px;height:14px;stroke:var(--faint);fill:none;stroke-width:1.7}
+.stat .v{font-size:27px;font-weight:800;margin-top:7px;letter-spacing:.3px}
+.stat .v small{font-size:13px;font-weight:500;color:var(--faint);margin-left:3px}
+.stat .foot{font-size:11.5px;color:var(--faint);margin-top:5px}
+.stat.hero .v{color:var(--orange2)}
+.stat.hero{border-color:var(--orange-line);background:linear-gradient(135deg,rgba(232,101,26,.13),rgba(232,101,26,.04))}
+.grid-2{display:grid;grid-template-columns:1.6fr 1fr;gap:14px}
+.card-h{display:flex;align-items:center;gap:9px;padding:15px 18px 0}
+.card-h .ic{width:30px;height:30px;border-radius:9px;background:var(--orange-soft);display:flex;align-items:center;justify-content:center;flex:none}
+.card-h .ic svg{width:15px;height:15px;stroke:var(--orange2);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.card-h .tt{font-size:14.5px;font-weight:700}
+.card-h .more{margin-left:auto;font-size:12px;color:var(--faint)}
+.rate-card{padding:18px;display:flex;flex-direction:column;gap:12px}
+.rate-row{display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.045);border:1px solid var(--line-soft);border-radius:11px;padding:13px 15px}
+.rate-row .n{font-size:13px;color:var(--sub)}
+.rate-row .n b{display:block;font-size:14.5px;color:var(--ink);font-weight:700}
+.rate-row .pct{font-size:23px;font-weight:800;color:var(--orange2)}
+.rate-row .pct small{font-size:12px;font-weight:500;color:var(--faint)}
+.rate-note{font-size:11.5px;color:var(--faint);line-height:1.7}
+.quick{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+.qk{padding:16px 14px;border-radius:12px;background:var(--glass);border:1px solid var(--line);display:flex;flex-direction:column;gap:8px;align-items:flex-start;transition:.15s;text-align:left}
+.qk:hover{border-color:var(--orange-line);background:var(--orange-soft)}
+.qk .ic{width:34px;height:34px;border-radius:10px;background:var(--orange-soft);display:flex;align-items:center;justify-content:center}
+.qk .ic svg{width:16px;height:16px;stroke:var(--orange2);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.qk .t{font-size:13.5px;font-weight:600}
+.qk .d{font-size:11.5px;color:var(--faint)}
+/* ============ 表格 ============ */
+.tbl-wrap{padding:6px 6px 8px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-size:12px;color:var(--faint);font-weight:500;text-align:left;padding:11px 12px;border-bottom:1px solid var(--line-soft);white-space:nowrap}
+td{padding:11.5px 12px;border-bottom:1px solid var(--line-soft);color:var(--sub);white-space:nowrap}
+td .strong{color:var(--ink);font-weight:600}
+td.r,th.r{text-align:right}
+tr:nth-child(even) td{background:rgba(255,255,255,.025)}
+tbody tr:hover td{background:rgba(255,255,255,.05)}
+.tbl-note{font-size:11.5px;color:var(--faint);padding:10px 14px 6px;line-height:1.7}
+/* 筛选 chips */
+.filters{display:flex;gap:8px;flex-wrap:wrap;padding:14px 16px 2px}
+.fchip{font-size:12.5px;padding:5px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--sub)}
+.fchip.on{background:var(--orange-soft);border-color:var(--orange-line);color:var(--orange2);font-weight:600}
+/* ============ 弹窗 ============ */
+.mask{position:fixed;inset:0;background:rgba(3,10,22,.62);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);z-index:60;display:none;align-items:center;justify-content:center;padding:24px}
+.mask.act{display:flex}
+.modal{width:560px;max-width:96vw;max-height:88vh;overflow-y:auto;background:linear-gradient(165deg,#10305A,#0C2344);border:1px solid var(--line);border-radius:16px;padding:22px 24px;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.modal h3{font-size:16.5px;font-weight:700;margin-bottom:3px}
+.modal .msub{font-size:12px;color:var(--faint);margin-bottom:18px}
+.modal .m-close{float:right;width:28px;height:28px;border-radius:8px;color:var(--faint);font-size:15px}
+.modal .m-close:hover{background:rgba(255,255,255,.08)}
+.prod-pick{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-bottom:4px}
+.pp{border:1px solid var(--line);border-radius:11px;padding:11px 11px 9px;background:rgba(255,255,255,.035);text-align:left;transition:.14s;position:relative}
+.pp .pn{font-size:13px;font-weight:600;display:block}
+.pp .pt{font-size:11px;color:var(--faint);display:block;margin-top:2px}
+.pp .pv{font-size:13px;color:var(--orange2);font-weight:700;margin-top:6px;display:block}
+.pp.on{border-color:var(--orange);background:var(--orange-soft)}
+.pp.on::after{content:"✓";position:absolute;top:7px;right:9px;color:var(--orange2);font-size:12px;font-weight:700}
+.calc-strip{display:flex;gap:10px;margin:4px 0 14px}
+.calc-strip .cs{flex:1;background:rgba(255,255,255,.045);border:1px solid var(--line-soft);border-radius:10px;padding:10px 12px}
+.calc-strip .cs .k{font-size:11px;color:var(--faint)}
+.calc-strip .cs .v{font-size:16px;font-weight:800;color:var(--orange2);margin-top:2px}
+.calc-strip .cs .v.blue{color:var(--blue)}
+.bigwarn{display:none;gap:8px;align-items:flex-start;background:var(--amber-soft);border:1px solid rgba(251,191,36,.35);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--amber);line-height:1.6;margin-bottom:14px}
+.bigwarn.show{display:flex}
+.mfoot{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--line-soft)}
+.withdraw-head{display:flex;align-items:center;justify-content:space-between;background:var(--orange-soft);border:1px solid var(--orange-line);border-radius:11px;padding:13px 15px;margin-bottom:16px}
+.withdraw-head .k{font-size:12px;color:var(--orange2)}
+.withdraw-head .v{font-size:22px;font-weight:800;color:var(--orange2)}
+.withdraw-head .v small{font-size:12px;font-weight:500;opacity:.75}
+.frozen{font-size:11.5px;color:var(--faint);margin-top:-8px;margin-bottom:12px}
+.arrive{display:flex;gap:10px;margin-top:4px}
+.arrive .ai{flex:1;background:rgba(255,255,255,.045);border:1px solid var(--line-soft);border-radius:10px;padding:10px 12px}
+.arrive .ai .k{font-size:11px;color:var(--faint)}
+.arrive .ai .v{font-size:15px;font-weight:700;margin-top:2px}
+.arrive .ai .v.money{color:var(--orange2)}
+/* 进度条（考核 / 算力消耗） */
+.prog{height:6px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;min-width:110px}
+.prog i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#E8651A,#FF8F4D)}
+.prog.thin{min-width:80px}
+/* 空状态 */
+.empty{padding:60px 20px;text-align:center}
+.empty .eic{width:52px;height:52px;border-radius:16px;background:var(--glass2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+.empty .eic svg{width:22px;height:22px;stroke:var(--faint);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.empty .et{font-size:14px;color:var(--sub);margin-bottom:4px}
+.empty .ed{font-size:12px;color:var(--faint);margin-bottom:16px}
+/* toast */
+#toast{position:fixed;left:50%;bottom:56px;transform:translateX(-50%) translateY(16px);background:rgba(14,40,74,.94);border:1px solid var(--orange-line);
+  color:#fff;font-size:13px;padding:10px 18px;border-radius:10px;z-index:99;opacity:0;pointer-events:none;transition:.25s;box-shadow:0 10px 30px rgba(0,0,0,.4);max-width:80vw}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* 总部页 tab */
+.subtabs{display:flex;gap:6px;margin-bottom:16px;background:var(--glass);border:1px solid var(--line);border-radius:12px;padding:5px;width:fit-content}
+.subtabs button{padding:7.5px 18px;border-radius:9px;font-size:13px;color:var(--sub)}
+.subtabs button.on{background:var(--orange);color:#fff;font-weight:600}
+.subview{display:none}
+.subview.act{display:block;animation:fadeUp .25s ease}
+.cfg-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.cfg{padding:15px 16px}
+.cfg .k{font-size:12px;color:var(--sub)}
+.cfg .v{font-size:20px;font-weight:800;margin-top:4px}
+.cfg .v small{font-size:12px;font-weight:500;color:var(--faint)}
+.cfg .e{font-size:11px;color:var(--faint);margin-top:3px}
+.banner{display:flex;gap:10px;align-items:flex-start;border-radius:11px;padding:12px 15px;font-size:12.5px;line-height:1.7;margin-bottom:16px}
+.banner.info{background:var(--blue-soft);border:1px solid rgba(96,165,250,.3);color:var(--blue)}
+.banner.warn{background:var(--amber-soft);border:1px solid rgba(251,191,36,.32);color:var(--amber)}
+.banner b{font-weight:700}
+.rate-input{display:flex;align-items:center;gap:8px}
+.rate-input input{width:86px;text-align:right;font-size:15px;padding:7px 10px}
+.rate-input .pct{font-size:13px;color:var(--faint)}
+.sw{position:relative;width:38px;height:21px;border-radius:999px;background:rgba(255,255,255,.14);transition:.18s;flex:none;cursor:pointer}
+.sw::after{content:"";position:absolute;top:2.5px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.18s}
+.sw.on{background:var(--green)}
+.sw.on::after{left:19px}
+textarea{width:100%;min-height:88px;resize:vertical;font-size:14px}
+.diff{font-weight:700}
+.diff .old{color:var(--faint);text-decoration:line-through;font-weight:500}
+.diff .new{color:var(--orange2)}
+.inmsg{display:flex;gap:12px;align-items:flex-start;padding:14px 16px}
+.inmsg .dic{width:34px;height:34px;border-radius:10px;background:var(--blue-soft);display:flex;align-items:center;justify-content:center;flex:none}
+.inmsg .dic svg{width:16px;height:16px;stroke:var(--blue);fill:none;stroke-width:1.8}
+.inmsg .tt{font-size:13.5px;font-weight:600}
+.inmsg .tx{font-size:12.5px;color:var(--sub);margin-top:3px;line-height:1.7}
+.inmsg .tm{font-size:11px;color:var(--faint);margin-top:5px}
+/* 板块类目 */
+.cat-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.cat-chip{display:flex;align-items:center;gap:7px;padding:8px 16px;border-radius:999px;border:1px solid var(--line);background:var(--glass);color:var(--sub);font-size:13px;cursor:pointer;transition:.18s}
+.cat-chip .dot{width:8px;height:8px;border-radius:50%;background:var(--c,var(--orange));box-shadow:0 0 8px var(--c,var(--orange))}
+.cat-chip:hover{border-color:rgba(255,255,255,.3);color:var(--tx)}
+.cat-chip.on{background:linear-gradient(135deg,rgba(232,101,26,.24),rgba(232,101,26,.07));border-color:rgba(232,101,26,.55);color:#fff;font-weight:600}
+.cat-chip .mini{font-size:10px;padding:1px 7px;border-radius:999px}
+.cat-tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--sub);background:var(--glass);border:1px solid var(--line);border-radius:6px;padding:2px 7px;margin-left:7px;white-space:nowrap;vertical-align:1px}
+.cat-tag .dot{width:6px;height:6px;border-radius:50%;background:var(--c)}
+.cat-lock{border:1px dashed rgba(255,255,255,.18);background:var(--glass);border-radius:16px;padding:28px 28px;text-align:center}
+.cat-lock .lk{width:46px;height:46px;border-radius:13px;background:rgba(255,255,255,.06);display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px}
+.cat-lock .lk svg{width:20px;height:20px;stroke:var(--faint);fill:none;stroke-width:1.8}
+.cat-lock h4{font-size:16px;font-weight:700}
+.cat-lock p{font-size:12.5px;color:var(--sub);margin-top:8px;line-height:1.9}
+.cat-lock .plan{display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.cat-lock .plan .p{font-size:11.5px;color:var(--faint);border:1px solid var(--line);border-radius:8px;padding:5px 11px;background:rgba(255,255,255,.03)}
+.cat-lock .extra{margin-top:16px}
+/* 响应式兜底 */
+@media (max-width:960px){
+  .login-wrap{flex-direction:column;gap:34px}
+  .login-brand h1{font-size:30px}
+  .login-card{width:100%;max-width:440px}
+  #side{width:64px}
+  #side .bt span.tx,#side .bd,.side-menu .mi span.tx,.side-menu .group,.side-tip{display:none}
+  .side-menu .mi{justify-content:center;padding:11px 0}
+  #main{margin-left:64px}
+  .stats,.cfg-grid{grid-template-columns:1fr 1fr}
+  .grid-2{grid-template-columns:1fr}
+  .quick{grid-template-columns:1fr}
+  .prod-pick{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= 登录页 ================= -->
+<div id="view-login">
+  <div class="login-wrap">
+    <div class="login-brand">
+      <div class="kicker">SITONG AI · 生态推荐官后台</div>
+      <h1>透明分成，<br>把<em>增长</em>变成一起做的事业</h1>
+      <p>思潼AI商城生态合作平台：代理商、生态推荐官、市场招商与总部，共用一套实时、可查、可追溯的分佣体系。</p>
+      <div class="login-points">
+        <div class="pt"><span class="dot"></span><div><b>费率透明</b> · 首单 / 续费分成比例实时公示，变更站内信同步</div></div>
+        <div class="pt"><span class="dot"></span><div><b>自主提现</b> · 月度结算，微信支付 T+1 到账，平台不加收手续费</div></div>
+        <div class="pt"><span class="dot"></span><div><b>全链路留痕</b> · 归因、佣金计算、提现打款全程可追溯</div></div>
+      </div>
+    </div>
+    <div class="login-card card">
+      <h2>登录工作台</h2>
+      <div class="sub">统一从思潼AI商城角色入口进入 · 开通需总部审核</div>
+      <div class="role-chips" id="roleChips" style="display:grid;grid-template-columns:1fr">
+        <button class="rc on"><span class="t">生态推荐官</span><span class="d">带用户 · 看分润（H5 为主）</span></button>
+      </div>
+      <div class="login-tabs">
+        <button class="on" data-lt="wx">微信扫码登录</button>
+        <button data-lt="sms">手机号验证码</button>
+      </div>
+      <div id="lt-wx" class="qr-box">
+        <canvas id="qrCanvas" width="320" height="320"></canvas>
+        <div class="scan-tip">请使用<b>微信</b>扫描二维码登录</div>
+      </div>
+      <div id="lt-sms" style="display:none">
+        <div class="field"><label>手机号</label><input type="tel" maxlength="11" placeholder="请输入手机号"></div>
+        <div class="field"><label>验证码</label>
+          <div class="code-row"><input type="tel" maxlength="6" placeholder="6 位验证码"><button class="btn" onclick="toast('验证码已发送（演示）')">获取验证码</button></div>
+        </div>
+        <div class="field"><label>找回方式</label><div class="hint">忘记密码 / 换号：通过手机号验证码找回</div></div>
+      </div>
+      <div class="agree"><input type="checkbox" id="agreeChk" checked><label for="agreeChk">我已阅读并同意《生态合作协议》《分佣规则与结算说明》</label></div>
+      <button class="btn btn-primary" style="width:100%;min-height:44px;font-size:15px" onclick="doLogin()">登录</button>
+      <div class="login-foot">开通流程：邀请链接进入 → 提交申请 → 总部审核 → 开通对应后台<br>本平台采用生态合作模式，平台分成规则透明公示</div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 后台壳 ================= -->
+<div id="shell">
+  <aside id="side">
+    <div class="side-brand">
+      <div class="bt"><span class="logo">⚡</span><span class="tx">思潼AI商城</span></div>
+      <div class="bd">生态推荐官后台</div>
+    </div>
+    <nav class="side-menu" id="sideMenu"></nav>
+    <div class="side-tip" id="sideTip"></div>
+  </aside>
+
+  <div id="main">
+    <header id="topbar">
+      <div id="crumb">工作台<span></span></div>
+      <div class="top-right">
+        <span class="proto-pill">生态推荐官后台 · 独立原型</span>
+        <button class="bell" onclick="toast('站内信：费率变更通知 1 条（见佣金中心）')">
+          <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+          <span class="dot"></span>
+        </button>
+        <div class="rolebox">
+          <span class="who">李姐</span>
+        </div>
+      </div>
+    </header>
+
+    <main id="content">
+
+      <!-- ===== 代理商 · 工作台 ===== -->
+      <section class="view act" id="pg-agent-dashboard">
+        <div class="page-h">
+          <div><h2>工作台</h2><div class="desc">早上好，王总 · 数据截至今日 09:00（演示数据）</div></div>
+        </div>
+        <div class="stats">
+          <div class="stat card hero"><div class="lb">可提现余额</div><div class="v num">¥4,280<small>.00</small></div><div class="foot">起付 ¥100 · T+1 到账</div></div>
+          <div class="stat card"><div class="lb">客户数</div><div class="v num">36</div><div class="foot">正式 31 · 体验中 5</div></div>
+          <div class="stat card"><div class="lb">本月首单佣金</div><div class="v num money">¥8,955</div><div class="foot">首次成交年费 × 25% 计</div></div>
+          <div class="stat card"><div class="lb">本月续费分成</div><div class="v num money">¥2,457</div><div class="foot">算力消耗 · 年费续收 × 15% 计</div></div>
+        </div>
+        <div class="grid-2">
+          <div>
+            <div class="card" style="margin-bottom:14px">
+              <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span class="tt">快捷入口</span><span class="more">高频操作一步直达</span></div>
+              <div style="padding:16px 18px 18px">
+                <div class="quick">
+                  <button class="qk" onclick="copyText('https://st-ai.cn/r/wang88?src=agent','邀请链接已复制，可直接发给客户（演示链接）')"><span class="ic"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></span><span class="t">复制邀请链接</span><span class="d">客户经链接注册自动绑定名下</span></button>
+                  <button class="qk" onclick="openModal('mdNewCust')"><span class="ic"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></span><span class="t">新建客户</span><span class="d">选产品 · 定价 · 配权限档</span></button>
+                  <button class="qk" onclick="toast('已进入演示模式：演示数据隔离，不计入正式报表（演示）')"><span class="ic"><svg viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg></span><span class="t">进入演示</span><span class="d">演示账号 1 个 · 数据隔离</span></button>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span><span class="tt">本月佣金构成</span><span class="more">月度结算进入可提现余额</span></div>
+              <div class="tbl-wrap"><table>
+                <thead><tr><th>类型</th><th class="r">本月金额</th><th class="r">累计金额</th><th>说明</th></tr></thead>
+                <tbody>
+                  <tr><td class="strong">首单佣金（25%）</td><td class="r money num">¥8,955.00</td><td class="r num">¥85,405.00</td><td>客户首次成交年费 · 年费续收不再同率</td></tr>
+                  <tr><td class="strong">续费分成（15%）</td><td class="r money num">¥2,457.00</td><td class="r num">¥13,327.00</td><td>算力消耗 + 年费续收（第 2 年起），持续发生</td></tr>
+                </tbody>
+              </table></div>
+            </div>
+          </div>
+          <div>
+            <div class="card">
+              <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span class="tt">当前费率</span><span class="more">总部动态配置</span></div>
+              <div class="rate-card">
+                <div class="rate-row"><div class="n"><b>首单佣金</b>客户首次成交年费</div><div class="pct num">25<small>%</small></div></div>
+                <div class="rate-row"><div class="n"><b>续费分成</b>算力消耗 · 年费续收（第 2 年起）</div><div class="pct num">15<small>%</small></div></div>
+                <div class="rate-note">· 年费续收（第 2 年及以后）按续费率 15% 计，仅首次成交按首单率 25%<br>· 费率由总部后台动态可调，仅影响生效后的新订单 / 消耗，不追溯<br>· 变更将通过站内信推送，可在佣金中心查看<br>· 创始人 / 生态招商负责人层不分佣（拿工资）</div>
+              </div>
+            </div>
+            <div class="card" style="margin-top:14px">
+              <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H8l-4 4Z"/><path d="M8 9h8M8 12h5"/></svg></span><span class="tt">最新站内信</span></div>
+              <div class="inmsg">
+                <span class="dic"><svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg></span>
+                <div><div class="tt">费率变更通知</div><div class="tx">您的首单佣金比例由 20% 上调至 <b class="money">25%</b>（仅客户首次成交年费），续费分成维持 15%（含年费续收与算力消耗）。新比例仅适用于生效后的新订单与消耗，历史订单不追溯。</div><div class="tm">总部运营 · 2026-09-01 10:00</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 代理商 · 客户管理 ===== -->
+      <section class="view" id="pg-agent-customers">
+        <div class="page-h">
+          <div><h2>客户管理</h2><div class="desc">客户经您的邀请链接注册自动绑定名下，无需手动报备</div></div>
+          <div style="display:flex;gap:10px">
+            <button class="btn" onclick="toast('已开通 3 天体验号（演示）：仅限文字类智能体，到期自动回收')">开通体验号</button>
+            <button class="btn btn-primary" onclick="openModal('mdNewCust')">＋ 新建客户</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="filters" id="custFilters">
+            <button class="fchip on" data-f="all" onclick="filterCust('all',this)">全部（36）</button>
+            <button class="fchip" data-f="formal" onclick="filterCust('formal',this)">正式（31）</button>
+            <button class="fchip" data-f="trial" onclick="filterCust('trial',this)">体验中（5）</button>
+            <button class="fchip" data-f="expiring" onclick="filterCust('expiring',this)">即将到期（2）</button>
+          </div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>客户</th><th>状态</th><th>已购产品</th><th class="r">成交价</th><th class="r">等额算力</th><th class="r">算力消耗</th><th class="r">贡献佣金</th><th>操作</th></tr></thead>
+            <tbody id="custBody">
+              <tr data-s="formal"><td><span class="strong">陈总</span> · 138****2210</td><td><span class="tag tag-green">正式</span></td><td>门店经营大脑</td><td class="r num">¥5,980</td><td class="r num">¥5,980</td><td class="r num">¥2,140</td><td class="r money num">¥1,810.50</td><td><button class="btn btn-sm" onclick="openCustDetail(this)">详情</button></td></tr>
+              <tr data-s="trial expiring"><td><span class="strong">周女士</span> · 159****0387</td><td><span class="tag tag-orange">体验 · 今日到期</span></td><td>古人经营智慧（体验）</td><td class="r num">—</td><td class="r num">¥200</td><td class="r num">¥86</td><td class="r num">—</td><td><button class="btn btn-sm" onclick="toast('体验转正式：客户在您的链接下付款后自动升级，无需手动操作')">转正式</button></td></tr>
+              <tr data-s="formal"><td><span class="strong">张女士</span> · 136****7754</td><td><span class="tag tag-green">正式</span></td><td>古人经营智慧</td><td class="r num">¥3,980</td><td class="r num">¥3,980</td><td class="r num">¥1,320</td><td class="r money num">¥1,192.00</td><td><button class="btn btn-sm" onclick="openCustDetail(this)">详情</button></td></tr>
+              <tr data-s="trial"><td><span class="strong">李先生</span> · 186****5521</td><td><span class="tag tag-blue">体验 · 剩 2 天</span></td><td>IP+AI 业绩倍增系统（体验）</td><td class="r num">—</td><td class="r num">¥200</td><td class="r num">¥45</td><td class="r num">—</td><td><button class="btn btn-sm" onclick="toast('体验转正式：客户在您的链接下付款后自动升级')">转正式</button></td></tr>
+              <tr data-s="formal"><td><span class="strong">刘老板</span> · 150****6698</td><td><span class="tag tag-green">正式</span></td><td>古人经营智慧（自定价）</td><td class="r num">¥4,500</td><td class="r num">¥4,500</td><td class="r num">¥980</td><td class="r money num">¥1,272.00</td><td><button class="btn btn-sm" onclick="openCustDetail(this)">详情</button></td></tr>
+              <tr data-s="formal expiring"><td><span class="strong">吴经理</span> · 131****8843</td><td><span class="tag tag-gray">正式 · 年费 30 天内到期</span></td><td>IP+AI 业绩倍增系统</td><td class="r num">¥1,980</td><td class="r num">¥1,980</td><td class="r num">¥660</td><td class="r money num">¥594.00</td><td><button class="btn btn-sm" onclick="openCustDetail(this)">详情</button></td></tr>
+              <tr data-s="trial"><td><span class="strong">郑女士</span> · 188****3326</td><td><span class="tag tag-blue">体验 · 剩 1 天</span></td><td>古人经营智慧（体验）</td><td class="r num">—</td><td class="r num">¥200</td><td class="r num">¥18</td><td class="r num">—</td><td><button class="btn btn-sm" onclick="toast('体验转正式：客户在您的链接下付款后自动升级')">转正式</button></td></tr>
+            </tbody>
+          </table></div>
+          <div class="tbl-note">· 体验号 3 天、仅限文字类智能体，到期自动回收，可再次开通<br>· 客户在同一链接下完成付款即计入您的业绩；您可自定售价（¥100 ~ ¥100,000），佣金按实际成交价 × 费率计<br>· 客户算力为购买等额 1:1 赠送，支付成功后系统自动发放；您可看汇总与自身分成，不含平台成本</div>
+        </div>
+      </section>
+
+      <!-- ===== 代理商 · 佣金中心 ===== -->
+      <section class="view" id="pg-agent-commission">
+        <div class="page-h">
+          <div><h2>佣金中心</h2><div class="desc">分润按板块类目独立核算 · 当前实装：智能体板块（首单 25% / 续费 15%）</div></div>
+          <button class="btn btn-primary" onclick="openWithdraw(4280,660,'微信 · 王总（尾号 8823）')">自主提现</button>
+        </div>
+        <div class="stats">
+          <div class="stat card hero"><div class="lb">可提现余额</div><div class="v num">¥4,280<small>.00</small></div><div class="foot">其中冷静期占用 ¥660 · 10-12 解冻</div></div>
+          <div class="stat card"><div class="lb">待结算金额</div><div class="v num">¥3,032<small>.00</small></div><div class="foot">本月已发生 · 月结后进入可提现</div></div>
+          <div class="stat card"><div class="lb">累计已提</div><div class="v num">¥12,600<small>.00</small></div><div class="foot">微信支付 · T+1 到账</div></div>
+          <div class="stat card"><div class="lb">本月合计</div><div class="v num money">¥11,412<small>.00</small></div><div class="foot">首单佣金 + 续费分成</div></div>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span class="tt">我的分润 · 按板块</span><span class="more">六大板块独立费率 · 独立核算 · 独立提现</span></div>
+          <div style="padding:8px 18px 18px;display:flex;flex-direction:column;gap:10px">
+            <div class="rate-row"><div class="n"><b><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#E8651A;box-shadow:0 0 8px #E8651A;margin-right:8px"></span>智能体</b>SaaS 订阅 · 佣金按商品配置</div><div style="display:flex;gap:6px"><span class="tag tag-orange">按商品 22%~30%</span></div></div>
+            <div class="rate-row" style="padding-left:26px"><div class="n" style="font-size:12.5px"><b style="color:var(--ink)">古人经营智慧</b>建议价 ¥3,980</div><div style="display:flex;gap:6px"><span class="tag tag-gray">首单 25%</span><span class="tag tag-gray">续费 15%</span></div></div>
+            <div class="rate-row" style="padding-left:26px"><div class="n" style="font-size:12.5px"><b style="color:var(--ink)">IP+AI 业绩倍增系统</b>建议价 ¥1,980</div><div style="display:flex;gap:6px"><span class="tag tag-gray">首单 22%</span><span class="tag tag-gray">续费 12%</span></div></div>
+            <div class="rate-row" style="padding-left:26px"><div class="n" style="font-size:12.5px"><b style="color:var(--ink)">门店经营大脑</b>建议价 ¥5,980</div><div style="display:flex;gap:6px"><span class="tag tag-gray">首单 25%</span><span class="tag tag-gray">续费 15%</span></div></div>
+            <div class="rate-row" style="padding-left:26px"><div class="n" style="font-size:12.5px"><b style="color:var(--ink)">企业知识库 Pro</b>建议价 ¥12,800</div><div style="display:flex;gap:6px"><span class="tag tag-gray">首单 30%</span><span class="tag tag-gray">续费 18%</span></div></div>
+            <div class="rate-row"><div class="n"><b style="color:var(--faint)">大模型</b>API 订阅 · 算力包</div><span class="tag tag-gray">方案配置中</span></div>
+            <div class="rate-row"><div class="n"><b style="color:var(--faint)">AI培训</b>课程 · 认证</div><span class="tag tag-gray">方案配置中</span></div>
+            <div class="rate-row"><div class="n"><b style="color:var(--faint)">FDE</b>前置部署 · 项目交付</div><span class="tag tag-gray">方案配置中</span></div>
+            <div class="rate-row"><div class="n"><b style="color:var(--faint)">AI硬件</b>设备 · 延保订阅</div><span class="tag tag-gray">方案配置中</span></div>
+            <div class="rate-row"><div class="n"><b style="color:var(--faint)">OPC</b>外包服务 · 驻场协作</div><span class="tag tag-gray">方案配置中</span></div>
+          </div>
+          <div class="tbl-note">· 各板块费率由总部按类目独立配置，新板块启用后自动同步至本页并站内信通知<br>· 各板块佣金独立核算、合并提现；总览与流水明细当前均为智能体板块数据</div>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M6 15h4"/></svg></span><span class="tt">总览 · 智能体板块</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>分佣类型</th><th>当前比例</th><th class="r">本月</th><th class="r">累计</th><th>计入口径</th></tr></thead>
+            <tbody>
+              <tr><td class="strong">首单佣金</td><td><span class="tag tag-orange">按商品 22%~30%</span></td><td class="r money num">¥8,955.00</td><td class="r num">¥85,405.00</td><td>客户首次成交年费 · 年费续收按各商品续费率计入续费分成</td></tr>
+              <tr><td class="strong">续费分成</td><td><span class="tag tag-orange">按商品 12%~18%</span></td><td class="r money num">¥2,457.00</td><td class="r num">¥13,327.00</td><td>算力消耗 + 年费续收（第 2 年起）· 持续发生</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></span><span class="tt">流水明细</span><span class="more">按「当时比例」计算并留痕</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>时间</th><th>来源客户 / 代理</th><th>产品</th><th>类型</th><th class="r">计算基数</th><th>当时比例</th><th class="r">金额</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td class="num">10-07 14:22</td><td class="strong">张女士</td><td>古人经营智慧（年费续收）</td><td>续费分成</td><td class="r num">¥3,980</td><td><span class="tag tag-gray">15%</span></td><td class="r money num">¥597.00</td><td><span class="tag tag-blue">进行中 · 冷静期</span></td></tr>
+              <tr><td class="num">10-06 09:15</td><td class="strong">刘老板</td><td>古人经营智慧（自定价）</td><td>首单佣金</td><td class="r num">¥4,500</td><td><span class="tag tag-gray">25%</span></td><td class="r money num">¥1,125.00</td><td><span class="tag tag-blue">进行中 · 冷静期</span></td></tr>
+              <tr><td class="num">10-05 20:40</td><td class="strong">陈总</td><td>门店经营大脑</td><td>算力分成</td><td class="r num">¥1,240</td><td><span class="tag tag-gray">15%</span></td><td class="r money num">¥186.00</td><td><span class="tag tag-green">已结算</span></td></tr>
+              <tr><td class="num">10-02 16:33</td><td class="strong">周女士</td><td>古人经营智慧</td><td>首单佣金</td><td class="r num">¥3,980</td><td><span class="tag tag-gray">25%</span></td><td class="r money num">¥995.00</td><td><span class="tag tag-blue">进行中 · 冷静期</span></td></tr>
+              <tr><td class="num">09-30 18:02</td><td class="strong">张女士</td><td>古人经营智慧</td><td>算力分成</td><td class="r num">¥860</td><td><span class="tag tag-gray">15%</span></td><td class="r money num">¥129.00</td><td><span class="tag tag-green">已结算</span></td></tr>
+            </tbody>
+          </table></div>
+          <div class="tbl-note">· 新成交订单对应佣金须过退款冷静期（默认 7 天）或次月结算后方可提现<br>· 订单退款时对应佣金自动冲回；若已提现，从下期余额扣回</div>
+        </div>
+        <div class="card">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span class="tt">提现记录</span><span class="more">状态：待审核 → 打款中 → 已到账 / 已驳回</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>申请单号</th><th class="r">金额</th><th>收款账户</th><th>申请时间</th><th class="r">通道费</th><th class="r">实到账</th><th>状态</th><th>备注</th></tr></thead>
+            <tbody>
+              <tr><td class="num strong">WD-20261008-015</td><td class="r num money">¥1,500.00</td><td>微信 · 王总（尾号 8823）</td><td class="num">10-08 09:12</td><td class="r num">¥1.50</td><td class="r num">¥1,498.50</td><td><span class="tag tag-gray">待审核</span></td><td>首次提现已过总部审核</td></tr>
+              <tr><td class="num strong">WD-20260915-098</td><td class="r num money">¥3,600.00</td><td>微信 · 王总（尾号 8823）</td><td class="num">09-15 10:30</td><td class="r num">¥3.60</td><td class="r num">¥3,596.40</td><td><span class="tag tag-green">已到账</span></td><td>T+1 到账</td></tr>
+              <tr><td class="num strong">WD-20260820-076</td><td class="r num money">¥5,200.00</td><td>微信 · 王总（尾号 8823）</td><td class="num">08-20 15:44</td><td class="r num">¥5.20</td><td class="r num">¥5,194.80</td><td><span class="tag tag-green">已到账</span></td><td>T+1 到账</td></tr>
+              <tr><td class="num strong">WD-20260718-041</td><td class="r num money">¥800.00</td><td>微信 · （旧账户）</td><td class="num">07-18 11:26</td><td class="r num">¥0.80</td><td class="r num">—</td><td><span class="tag tag-red">已驳回</span></td><td>收款账户信息有误，请重新绑定</td></tr>
+            </tbody>
+          </table></div>
+          <div class="tbl-note">· 思潼不收手续费；预估通道费为微信支付 / 银行通道费用，由提现方承担，以实际到账为准</div>
+        </div>
+      </section>
+
+      <!-- ===== 代理商 · 演示账号 ===== -->
+      <section class="view" id="pg-agent-demo">
+        <div class="page-h">
+          <div><h2>演示账号</h2><div class="desc">每个代理商默认配 1 个演示账号 · 演示数据隔离，不计入正式报表</div></div>
+          <button class="btn" onclick="toast('已提交加开申请（演示）：总部审核通过后生效')">申请加开</button>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg></span><span class="tt">演示账号信息</span><span class="more">数据隔离 · 不入正式报表</span></div>
+            <div style="padding:14px 18px 18px;display:flex;flex-direction:column;gap:10px">
+              <div class="rate-row"><div class="n"><b>演示账号</b>Demo-001 · 随代理商资质长期有效</div><span class="tag tag-green">已开通</span></div>
+              <div class="rate-row"><div class="n"><b>数据隔离</b>演示客户的订单 / 佣金 / 算力消耗全部隔离</div><span class="tag tag-blue">不计入报表</span></div>
+              <button class="btn btn-primary" style="min-height:40px" onclick="toast('已进入演示模式（演示）：演示数据隔离，退出后自动回到正式视图')">▶ 一键进入演示模式</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M12 11v5"/></svg></span><span class="tt">使用说明</span></div>
+            <div class="rate-note" style="padding:14px 18px 18px;line-height:2">
+              · 演示账号用于向客户展示产品效果，全程数据隔离<br>
+              · 体验号（3 天 · 仅文字类）与演示账号相互独立，互不影响<br>
+              · 演示期间产生的佣金 / 消耗不计入正式台账与提现<br>
+              · 默认 1 个，不够用可申请加开（总部审核后生效）
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 代理商 · 邀请推广 ===== -->
+      <section class="view" id="pg-agent-invite">
+        <div class="page-h">
+          <div><h2>邀请推广</h2><div class="desc">客户经您的链接注册自动绑定名下 · 同一链接下付款计入您的业绩</div></div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></span><span class="tt">专属邀请链接</span><span class="more">可按产品生成落地页</span></div>
+            <div style="padding:14px 18px 18px">
+              <div class="field" style="margin-bottom:12px"><label>选择产品（生成对应产品落地页）</label>
+                <select onchange="inviteLink(this)">
+                  <option value="all" selected>通用入口（全部产品）</option>
+                  <option value="ghr">古人经营智慧</option>
+                  <option value="ipai">IP+AI 业绩倍增系统</option>
+                  <option value="store">门店经营大脑</option>
+                </select>
+              </div>
+              <div class="rate-row" style="margin-bottom:12px"><div class="n"><b class="num" id="inviteUrl" style="font-size:13px">https://st-ai.cn/r/wang88?src=agent</b>客户注册即自动绑定您名下</div><button class="btn btn-sm btn-primary" onclick="copyText(document.getElementById('inviteUrl').textContent,'邀请链接已复制（演示链接）')">复制</button></div>
+              <div class="rate-note">· 无链接来源的客户归属总部，不产生您的佣金<br>· 素材下载（海报 / 话术包）计划 V2 上线 <span class="tag tag-gray" style="margin-left:4px">待上线</span></div>
+            </div>
+          </div>
+          <div class="card" style="display:flex;align-items:center;justify-content:center;padding:18px">
+            <div class="qr-box"><canvas id="qrAgent" width="320" height="320"></canvas><div class="scan-tip">客户扫码注册 → 自动绑定 <b>王总</b> 名下</div></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span><span class="tt">归因记录</span><span class="more">注册 / 付款自动留痕，无需手动报备</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>时间</th><th>动作</th><th>客户</th><th>产品</th><th class="r">金额</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td class="num">10-07 14:20</td><td><span class="tag tag-blue">注册</span></td><td class="strong">张女士</td><td>—</td><td class="r num">—</td><td><span class="tag tag-green">已绑定名下</span></td></tr>
+              <tr><td class="num">10-06 09:15</td><td><span class="tag tag-orange">完成付款</span></td><td class="strong">刘老板</td><td>古人经营智慧（自定价 ¥4,500）</td><td class="r num">¥4,500</td><td><span class="tag tag-green">计入业绩</span></td></tr>
+              <tr><td class="num">10-05 20:31</td><td><span class="tag tag-blue">注册</span></td><td class="strong">李先生</td><td>—</td><td class="r num">—</td><td><span class="tag tag-green">已绑定名下</span></td></tr>
+              <tr><td class="num">10-02 16:33</td><td><span class="tag tag-orange">完成付款</span></td><td class="strong">周女士</td><td>古人经营智慧</td><td class="r num">¥3,980</td><td><span class="tag tag-green">计入业绩</span></td></tr>
+            </tbody>
+          </table></div>
+          <div class="tbl-note">· 归因规则：经链接注册自动绑定 → 同一链接付款计入业绩与佣金，全链路留痕</div>
+        </div>
+      </section>
+
+      <!-- ===== 代理商 · 产品与订单 ===== -->
+      <section class="view" id="pg-agent-products">
+        <div class="page-h">
+          <div><h2>产品与订单</h2><div class="desc">自主定价 ¥100 ~ ¥100,000 · 佣金 = 实际成交价 × 费率 · 当前板块：智能体（其余板块产品位已预留）</div></div>
+        </div>
+        <div class="banner warn"><span>⚠</span><div><b>大额复核：</b>单笔 ≥ ¥50,000 的订单触发<b>总部复核</b>后再生效（涉及大额等额算力赠送与佣金支出，阈值总部可配）。</div></div>
+        <div class="banner info"><span>ⓘ</span><div><b>板块产品位预留：</b>大模型 / AI培训 / FDE / AI硬件 / OPC 五大板块产品上架后，自动归属对应类目，并按<b>各板块费率</b>独立结算佣金，本页将按板块分组展示。</div></div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/></svg></span><span class="tt">可售产品</span><span class="more">定价越界即时拦截</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>产品</th><th>类别</th><th class="r">建议价</th><th class="r">我的售价</th><th class="r">首单佣金（25%）</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td class="strong">古人经营智慧</td><td>文字类</td><td class="r num">¥3,980</td><td class="r num">¥3,980（默认）</td><td class="r money num">¥995.00</td><td><button class="btn btn-sm" onclick="priceAgent()">去定价</button></td></tr>
+              <tr><td class="strong">IP+AI 业绩倍增系统</td><td>文字类</td><td class="r num">¥1,980</td><td class="r num">¥1,980（默认）</td><td class="r money num">¥495.00</td><td><button class="btn btn-sm" onclick="priceAgent()">去定价</button></td></tr>
+              <tr><td class="strong">门店经营大脑</td><td>图片 / 视频类</td><td class="r num">¥5,980</td><td class="r num">¥5,980（默认）</td><td class="r money num">¥1,495.00</td><td><button class="btn btn-sm" onclick="priceAgent()">去定价</button></td></tr>
+            </tbody>
+          </table></div>
+          <div class="tbl-note">· 自主定价后，佣金与客户等额算力均按实际成交价计算；年费续收（第 2 年起）按续费率 15% 计<br>· 下限 ¥100 为硬约束，上限 ¥100,000 以内（上限总部可配）</div>
+        </div>
+        <div class="card">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span><span class="tt">我卖出的订单</span><span class="more">退款订单佣金自动冲回</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>订单号</th><th>客户</th><th>产品</th><th class="r">成交价</th><th class="r">首单佣金</th><th class="r">等额算力</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td class="num strong">SO-20261007-042</td><td>张女士</td><td>古人经营智慧</td><td class="r num">¥3,980</td><td class="r money num">¥995.00</td><td class="r num">¥3,980</td><td><span class="tag tag-green">已完成</span></td></tr>
+              <tr><td class="num strong">SO-20261006-041</td><td>刘老板</td><td>古人经营智慧（自定价）</td><td class="r num">¥4,500</td><td class="r money num">¥1,125.00</td><td class="r num">¥4,500</td><td><span class="tag tag-green">已完成</span></td></tr>
+              <tr><td class="num strong">SO-20261005-039</td><td>陈总</td><td>门店经营大脑</td><td class="r num">¥5,980</td><td class="r money num">¥1,495.00</td><td class="r num">¥5,980</td><td><span class="tag tag-green">已完成</span></td></tr>
+              <tr><td class="num strong">SO-20261004-036</td><td>王氏食品</td><td>门店经营大脑</td><td class="r num">¥52,000</td><td class="r money num">¥13,000.00</td><td class="r num">¥52,000</td><td><span class="tag tag-amber">总部复核中</span></td></tr>
+              <tr><td class="num strong">SO-20260928-030</td><td>郑先生</td><td>古人经营智慧</td><td class="r num">¥3,980</td><td class="r num">—</td><td class="r num">—</td><td><span class="tag tag-red">已退款 · 佣金冲回</span></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </section>
+
+      <!-- ===== 代理商 · 算力（只读） ===== -->
+      <section class="view" id="pg-agent-compute">
+        <div class="page-h">
+          <div><h2>算力（只读）</h2><div class="desc">等额算力支付成功后由系统自动发放 · 您可看汇总与自身分成，不含平台成本</div></div>
+        </div>
+        <div class="stats">
+          <div class="stat card"><div class="lb">客户算力余额合计</div><div class="v num">¥18,420</div><div class="foot">31 个正式客户</div></div>
+          <div class="stat card"><div class="lb">本月客户消耗</div><div class="v num">¥12,400</div><div class="foot">持续发生</div></div>
+          <div class="stat card hero"><div class="lb">我的续费分成（15%）</div><div class="v num money">¥2,457</div><div class="foot">算力消耗 · 年费续收按 15% 计</div></div>
+          <div class="stat card"><div class="lb">本月到账笔数</div><div class="v num">4</div><div class="foot">系统自动发放</div></div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg></span><span class="tt">客户算力到账记录</span><span class="more">支付成功自动发放 · 可见不可操作</span></div>
+            <div class="tbl-wrap"><table>
+              <thead><tr><th>时间</th><th>客户</th><th>产品</th><th class="r">成交价</th><th class="r">等额算力</th><th>方式</th></tr></thead>
+              <tbody>
+                <tr><td class="num">10-07 14:22</td><td class="strong">张女士</td><td>古人经营智慧</td><td class="r num">¥3,980</td><td class="r num">¥3,980</td><td><span class="tag tag-blue">系统自动</span></td></tr>
+                <tr><td class="num">10-06 09:15</td><td class="strong">刘老板</td><td>古人经营智慧（自定价 ¥4,500）</td><td class="r num">¥4,500</td><td class="r num">¥4,500</td><td><span class="tag tag-blue">系统自动</span></td></tr>
+                <tr><td class="num">10-05 20:40</td><td class="strong">陈总</td><td>门店经营大脑</td><td class="r num">¥5,980</td><td class="r num">¥5,980</td><td><span class="tag tag-blue">系统自动</span></td></tr>
+                <tr><td class="num">10-02 16:33</td><td class="strong">周女士</td><td>古人经营智慧</td><td class="r num">¥3,980</td><td class="r num">¥3,980</td><td><span class="tag tag-blue">系统自动</span></td></tr>
+              </tbody>
+            </table></div>
+            <div class="tbl-note">· 等额算力 1:1 随实际成交价浮动，绑定真实支付，无人工触发入口</div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></span><span class="tt">客户算力消耗进度</span></div>
+            <div style="padding:14px 18px 18px;display:flex;flex-direction:column;gap:14px">
+              <div><div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--sub);margin-bottom:6px"><span>陈总 · 门店经营大脑</span><span class="num">¥2,140 <span style="color:var(--faint)">/ ¥5,980</span></span></div><div class="prog"><i style="width:36%"></i></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--sub);margin-bottom:6px"><span>张女士 · 古人经营智慧</span><span class="num">¥1,320 <span style="color:var(--faint)">/ ¥3,980</span></span></div><div class="prog"><i style="width:33%"></i></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--sub);margin-bottom:6px"><span>刘老板 · 古人经营智慧</span><span class="num">¥980 <span style="color:var(--faint)">/ ¥4,500</span></span></div><div class="prog"><i style="width:22%"></i></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--sub);margin-bottom:6px"><span>吴经理 · IP+AI 业绩倍增系统</span><span class="num">¥660 <span style="color:var(--faint)">/ ¥1,980</span></span></div><div class="prog"><i style="width:33%"></i></div></div>
+            </div>
+            <div class="tbl-note" style="padding-top:0">· 分成按客户实际消耗 × 15% 计，持续发生</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 代理商 · 账号设置 ===== -->
+      <section class="view" id="pg-agent-settings">
+        <div class="page-h">
+          <div><h2>账号设置</h2><div class="desc">资料 · 认证状态 · 微信收款账户 · 通知</div></div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.5 13 17 22l-5-3-5 3 1.5-9"/></svg></span><span class="tt">资料与认证</span></div>
+            <div style="padding:14px 18px 18px;display:flex;flex-direction:column;gap:10px">
+              <div class="rate-row"><div class="n"><b>姓名</b>王总 · 杭州</div></div>
+              <div class="rate-row"><div class="n"><b>手机号</b>138****0000</div></div>
+              <div class="rate-row"><div class="n"><b>邀请码</b>wang88</div><button class="btn btn-sm" onclick="copyText('wang88','邀请码已复制')">复制</button></div>
+              <div class="rate-row"><div class="n"><b>自运营认证</b>未认证将强制引流档，无法配置客户权限档</div><span class="tag tag-green">已通过</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M6 15h4"/></svg></span><span class="tt">微信收款账户</span></div>
+            <div style="padding:14px 18px 18px;display:flex;flex-direction:column;gap:10px">
+              <div class="rate-row"><div class="n"><b>绑定状态</b>微信 · 王总（尾号 8823）</div><span class="tag tag-green">已绑定</span></div>
+              <div class="rate-note">· 提现打款通道为微信支付（零钱 / 银行卡），须先绑定收款账户<br>· 首次提现需总部审核；换绑后次笔提现自动复审</div>
+              <button class="btn" onclick="toast('换绑微信收款账户（演示）：扫码验证后生效')">换绑账户</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg></span><span class="tt">通知设置</span></div>
+            <div style="padding:14px 18px 18px;display:flex;flex-direction:column;gap:10px">
+              <div class="rate-row"><div class="n"><b>费率变更站内信</b>比例调整实时推送</div><span class="sw on" onclick="this.classList.toggle('on')"></span></div>
+              <div class="rate-row"><div class="n"><b>佣金结算提醒</b>月度结算进入可提现余额时</div><span class="sw on" onclick="this.classList.toggle('on')"></span></div>
+              <div class="rate-row"><div class="n"><b>提现状态通知</b>待审核 / 打款中 / 已到账 / 已驳回</div><span class="sw on" onclick="this.classList.toggle('on')"></span></div>
+              <div class="rate-row"><div class="n"><b>体验号到期提醒</b>到期前 1 天提醒跟进转正式</div><span class="sw on" onclick="this.classList.toggle('on')"></span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg></span><span class="tt">安全</span></div>
+            <div style="padding:14px 18px 18px;display:flex;flex-direction:column;gap:10px">
+              <div class="rate-note">· 忘记密码 / 换号：通过手机号验证码找回<br>· 登录方式：微信扫码 + 手机号验证码兜底</div>
+              <button class="btn btn-danger" onclick="exitLogin()">退出登录</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 推荐官 · 工作台 ===== -->
+      <section class="view" id="pg-ref-dashboard">
+        <div class="page-h">
+          <div><h2>工作台</h2><div class="desc">李姐 · 生态推荐官 · 数据截至今日 09:00（演示数据）</div></div>
+        </div>
+        <div class="banner info"><span>ⓘ</span><div>生态推荐官以<b>移动 H5</b> 为主端（微信内使用），此 PC 端为简版，功能与 H5 一致。您仅可推广白名单内产品：<b>古人经营智慧</b>。</div></div>
+        <div class="stats">
+          <div class="stat card"><div class="lb">带来用户数</div><div class="v num">86</div><div class="foot">经您链接注册自动绑定</div></div>
+          <div class="stat card"><div class="lb">付费用户数</div><div class="v num">23</div><div class="foot">转化率 26.7%</div></div>
+          <div class="stat card"><div class="lb">本月分润</div><div class="v num money">¥520</div><div class="foot">首单 10% + 续费 5%</div></div>
+          <div class="stat card hero"><div class="lb">可提现余额</div><div class="v num">¥1,240<small>.00</small></div><div class="foot">起付 ¥100 · T+1 到账</div></div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span><span class="tt">本月分润构成</span><span class="more">按「当时比例」留痕</span></div>
+            <div class="tbl-wrap"><table>
+              <thead><tr><th>类型</th><th class="r">本月</th><th class="r">累计</th><th>口径</th></tr></thead>
+              <tbody>
+                <tr><td class="strong">首单分润（10%）</td><td class="r money num">¥398.00</td><td class="r num">¥2,540.00</td><td>白名单产品年费销售</td></tr>
+                <tr><td class="strong">续费分润（5%）</td><td class="r money num">¥122.00</td><td class="r num">¥1,320.00</td><td>用户算力消耗 · 年费续收 · 持续发生</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M6 15h4"/></svg></span><span class="tt">余额与提现</span></div>
+            <div class="rate-card">
+              <div class="rate-row"><div class="n"><b>可提现余额</b>累计分润 ¥3,860 · 待结算 ¥79</div><div class="pct num" style="font-size:22px">¥1,240</div></div>
+              <button class="btn btn-primary" style="min-height:40px" onclick="openWithdraw(1240,0,'微信 · 李姐（尾号 5521）')">自主提现</button>
+              <div class="rate-note">· 微信支付 T+1 到账 · 思潼不加收手续费，通道费由提现方承担（端上明示）</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 推荐官 · 我的邀请 ===== -->
+      <section class="view" id="pg-ref-invite">
+        <div class="page-h">
+          <div><h2>我的邀请</h2><div class="desc">经您链接注册的用户自动与您绑定 · 后续付款按 10% / 5% 计分润</div></div>
+        </div>
+        <div class="banner warn"><span>⚠</span><div><b>产品白名单：</b>您的链接下用户<b>仅可使用「古人经营智慧」</b>（初始白名单，总部可增删）。推荐官后台只展示白名单内产品。</div></div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></span><span class="tt">专属邀请链接</span><span class="more">白名单产品落地页</span></div>
+            <div style="padding:14px 18px 18px;display:flex;flex-direction:column;gap:12px">
+              <div class="rate-row"><div class="n"><b class="num" style="font-size:13px">https://st-ai.cn/r/lijie520?src=ref</b>用户注册即自动与您绑定</div><button class="btn btn-sm btn-primary" onclick="copyText('https://st-ai.cn/r/lijie520?src=ref','邀请链接已复制（演示链接）')">复制</button></div>
+              <div class="rate-note">· 分润比例：首单 10% / 续费 5%（算力消耗 · 年费续收），按「当时比例」计算留痕<br>· 无链接来源的用户归属总部，不产生您的分润</div>
+            </div>
+          </div>
+          <div class="card" style="display:flex;align-items:center;justify-content:center;padding:18px">
+            <div class="qr-box"><canvas id="qrRef" width="320" height="320"></canvas><div class="scan-tip">用户扫码注册 → 绑定 <b>李姐</b> 名下</div></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></span><span class="tt">邀请效果</span></div>
+          <div class="cfg-grid" style="grid-template-columns:repeat(3,1fr);padding:0 18px 18px;margin-bottom:0">
+            <div class="cfg card"><div class="k">链接访问</div><div class="v num">128</div><div class="e">近 30 天</div></div>
+            <div class="cfg card"><div class="k">注册用户</div><div class="v num">86</div><div class="e">自动绑定名下</div></div>
+            <div class="cfg card"><div class="k">付费用户</div><div class="v num">23</div><div class="e">转化率 26.7%</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 推荐官 · 用户列表 ===== -->
+      <section class="view" id="pg-ref-users">
+        <div class="page-h">
+          <div><h2>用户列表</h2><div class="desc">经我链接注册的用户 · 可看购买与消耗汇总，无配置权限</div></div>
+        </div>
+        <div class="card">
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>用户</th><th>注册时间</th><th>购买产品</th><th class="r">支付金额</th><th class="r">累计消耗</th><th class="r">为我带来分润</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td class="strong">王女士 · 139****7702</td><td class="num">09-18</td><td>古人经营智慧</td><td class="r num">¥3,980</td><td class="r num">¥1,580</td><td class="r money num">¥477.00</td><td><span class="tag tag-green">已付费</span></td></tr>
+              <tr><td class="strong">孙先生 · 137****4419</td><td class="num">09-02</td><td>古人经营智慧</td><td class="r num">¥3,980</td><td class="r num">¥860</td><td class="r money num">¥441.00</td><td><span class="tag tag-green">已付费</span></td></tr>
+              <tr><td class="strong">吴女士 · 155****8830</td><td class="num">10-06</td><td>古人经营智慧</td><td class="r num">¥3,980</td><td class="r num">¥120</td><td class="r money num">¥404.00</td><td><span class="tag tag-green">已付费</span></td></tr>
+              <tr><td class="strong">周先生 · 188****2213</td><td class="num">10-05</td><td>古人经营智慧（体验中）</td><td class="r num">—</td><td class="r num">¥52</td><td class="r num">—</td><td><span class="tag tag-blue">体验中</span></td></tr>
+              <tr><td class="strong">钱先生 · 150****3321</td><td class="num">10-07</td><td>古人经营智慧（体验中）</td><td class="r num">—</td><td class="r num">¥18</td><td class="r num">—</td><td><span class="tag tag-blue">体验中</span></td></tr>
+            </tbody>
+          </table></div>
+          <div class="tbl-note">· 推荐官仅可查看汇总，不能替用户配置权限或算力<br>· 分润 = 首单 10% + 续费 5%（算力消耗 · 年费续收），月度结算进入可提现余额</div>
+        </div>
+      </section>
+
+      <!-- ===== 推荐官 · 分润中心 ===== -->
+      <section class="view" id="pg-ref-profit">
+        <div class="page-h">
+          <div><h2>分润中心</h2><div class="desc">智能体板块：首单分润 10% / 续费分润 5% · 其他板块方案配置中 · 月度结算，微信支付 T+1</div></div>
+          <button class="btn btn-primary" onclick="openWithdraw(1240,0,'微信 · 李姐（尾号 5521）')">自主提现</button>
+        </div>
+        <div class="stats">
+          <div class="stat card hero"><div class="lb">可提现余额</div><div class="v num">¥1,240<small>.00</small></div><div class="foot">起付 ¥100 · T+1 到账</div></div>
+          <div class="stat card"><div class="lb">待结算金额</div><div class="v num">¥79<small>.00</small></div><div class="foot">月度结算后进入可提现</div></div>
+          <div class="stat card"><div class="lb">本月分润</div><div class="v num money">¥520<small>.00</small></div><div class="foot">首单 10% + 续费 5%</div></div>
+          <div class="stat card"><div class="lb">累计分润</div><div class="v num">¥3,860<small>.00</small></div><div class="foot">累计已提 ¥2,541</div></div>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span class="tt">板块分润比例</span><span class="more">六大板块独立费率 · 仅白名单产品可推广</span></div>
+          <div style="padding:8px 18px 18px;display:flex;flex-direction:column;gap:10px">
+            <div class="rate-row"><div class="n"><b><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#E8651A;box-shadow:0 0 8px #E8651A;margin-right:8px"></span>智能体</b>SaaS 订阅 · 分润按商品配置</div><div style="display:flex;gap:6px"><span class="tag tag-orange">按商品 8%~12%</span></div></div>
+            <div class="rate-row" style="padding-left:26px"><div class="n" style="font-size:12.5px"><b style="color:var(--ink)">古人经营智慧</b>建议价 ¥3,980 · 白名单内</div><div style="display:flex;gap:6px"><span class="tag tag-gray">首单 10%</span><span class="tag tag-gray">续费 5%</span></div></div>
+            <div class="rate-row" style="padding-left:26px"><div class="n" style="font-size:12.5px"><b style="color:var(--faint)">IP+AI 业绩倍增系统</b>建议价 ¥1,980 · 未开放</div><div style="display:flex;gap:6px"><span class="tag tag-gray">首单 8%</span><span class="tag tag-gray">续费 4%</span></div></div>
+            <div class="rate-row" style="padding-left:26px"><div class="n" style="font-size:12.5px"><b style="color:var(--faint)">门店经营大脑</b>建议价 ¥5,980 · 未开放</div><div style="display:flex;gap:6px"><span class="tag tag-gray">首单 10%</span><span class="tag tag-gray">续费 5%</span></div></div>
+            <div class="rate-row" style="padding-left:26px"><div class="n" style="font-size:12.5px"><b style="color:var(--faint)">企业知识库 Pro</b>建议价 ¥12,800 · 未开放</div><div style="display:flex;gap:6px"><span class="tag tag-gray">首单 12%</span><span class="tag tag-gray">续费 6%</span></div></div>
+            <div class="rate-row"><div class="n"><b style="color:var(--faint)">大模型</b>API 订阅 · 算力包</div><span class="tag tag-gray">配置中</span></div>
+            <div class="rate-row"><div class="n"><b style="color:var(--faint)">AI培训</b>课程 · 认证</div><span class="tag tag-gray">配置中</span></div>
+            <div class="rate-row"><div class="n"><b style="color:var(--faint)">FDE</b>前置部署 · 项目交付</div><span class="tag tag-gray">配置中</span></div>
+            <div class="rate-row"><div class="n"><b style="color:var(--faint)">AI硬件</b>设备 · 延保订阅</div><span class="tag tag-gray">配置中</span></div>
+            <div class="rate-row"><div class="n"><b style="color:var(--faint)">OPC</b>外包服务 · 驻场协作</div><span class="tag tag-gray">配置中</span></div>
+          </div>
+          <div class="tbl-note">· 仅白名单产品可推广（当前：古人经营智慧），白名单由总部增删并站内信通知<br>· 各商品分润比例不同，由总部统一调配；新板块分润方案启用后自动同步，各板块独立核算、合并提现</div>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></span><span class="tt">分润明细</span><span class="more">按「当时比例」计算并留痕</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>时间</th><th>用户</th><th>产品</th><th>类型</th><th class="r">计算基数</th><th>当时比例</th><th class="r">金额</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td class="num">10-06 09:15</td><td class="strong">王女士</td><td>古人经营智慧</td><td>首单分润</td><td class="r num">¥3,980</td><td><span class="tag tag-gray">10%</span></td><td class="r money num">¥398.00</td><td><span class="tag tag-blue">进行中 · 冷静期</span></td></tr>
+              <tr><td class="num">10-03 18:40</td><td class="strong">王女士</td><td>古人经营智慧</td><td>算力分润</td><td class="r num">¥1,580</td><td><span class="tag tag-gray">5%</span></td><td class="r money num">¥79.00</td><td><span class="tag tag-gray">待结算</span></td></tr>
+              <tr><td class="num">10-01 11:26</td><td class="strong">吴女士</td><td>古人经营智慧</td><td>算力分润</td><td class="r num">¥860</td><td><span class="tag tag-gray">5%</span></td><td class="r money num">¥43.00</td><td><span class="tag tag-green">已结算</span></td></tr>
+            </tbody>
+          </table></div>
+          <div class="tbl-note">· 新成交订单对应分润须过退款冷静期（默认 7 天）或次月结算后方可提现；退款自动冲回</div>
+        </div>
+        <div class="card">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span class="tt">提现记录</span><span class="more">待审核 → 打款中 → 已到账 / 已驳回</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>申请单号</th><th class="r">金额</th><th>收款账户</th><th>申请时间</th><th class="r">通道费</th><th class="r">实到账</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td class="num strong">WD-20261005-013</td><td class="r num money">¥800.00</td><td>微信 · 李姐（尾号 5521）</td><td class="num">10-05 10:02</td><td class="r num">¥0.80</td><td class="r num">¥799.20</td><td><span class="tag tag-green">已到账</span></td></tr>
+              <tr><td class="num strong">WD-20260920-006</td><td class="r num money">¥400.00</td><td>微信 · 李姐（尾号 5521）</td><td class="num">09-20 15:47</td><td class="r num">¥0.40</td><td class="r num">¥399.60</td><td><span class="tag tag-green">已到账</span></td></tr>
+            </tbody>
+          </table></div>
+          <div class="tbl-note">· 思潼不收手续费；预估通道费为微信支付 / 银行通道费用，由提现方承担</div>
+        </div>
+      </section>
+
+      <!-- ===== 推荐官 · 账号设置 ===== -->
+      <section class="view" id="pg-ref-settings">
+        <div class="page-h">
+          <div><h2>账号设置</h2><div class="desc">资料 · 微信收款账户 · 通知</div></div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.5 13 17 22l-5-3-5 3 1.5-9"/></svg></span><span class="tt">基本资料</span></div>
+            <div style="padding:14px 18px 18px;display:flex;flex-direction:column;gap:10px">
+              <div class="rate-row"><div class="n"><b>姓名</b>李姐 · 生态推荐官</div><span class="tag tag-green">正常</span></div>
+              <div class="rate-row"><div class="n"><b>手机号</b>139****0000</div></div>
+              <div class="rate-row"><div class="n"><b>邀请码</b>lijie520</div><button class="btn btn-sm" onclick="copyText('lijie520','邀请码已复制')">复制</button></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M6 15h4"/></svg></span><span class="tt">微信收款账户</span></div>
+            <div style="padding:14px 18px 18px;display:flex;flex-direction:column;gap:10px">
+              <div class="rate-row"><div class="n"><b>绑定状态</b>微信 · 李姐（尾号 5521）</div><span class="tag tag-green">已绑定</span></div>
+              <div class="rate-note">· 提现打款通道为微信支付（零钱 / 银行卡），须先绑定收款账户<br>· 首次提现需总部审核；换绑后次笔提现自动复审</div>
+              <button class="btn" onclick="toast('换绑微信收款账户（演示）：扫码验证后生效')">换绑账户</button>
+            </div>
+          </div>
+          <div class="card" style="grid-column:1/-1">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg></span><span class="tt">通知设置</span></div>
+            <div style="padding:14px 18px 18px;display:flex;flex-direction:column;gap:10px">
+              <div class="rate-row"><div class="n"><b>分润结算提醒</b>月度结算进入可提现余额时通知</div><span class="sw on" onclick="this.classList.toggle('on')"></span></div>
+              <div class="rate-row"><div class="n"><b>提现状态通知</b>待审核 / 打款中 / 已到账 / 已驳回</div><span class="sw on" onclick="this.classList.toggle('on')"></span></div>
+              <div class="rate-row"><div class="n"><b>费率变更通知</b>分润比例调整时站内信同步</div><span class="sw on" onclick="this.classList.toggle('on')"></span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 市场招商 · 工作台 ===== -->
+      <section class="view" id="pg-rc-dashboard">
+        <div class="page-h">
+          <div><h2>工作台</h2><div class="desc">王总 · 市场招商 · 可招生态推荐官与代理商两类伙伴 · 旗下成员业绩按商品比例计提，总部统一调配</div></div>
+        </div>
+        <div class="banner warn"><span>⚠</span><div><b>护栏：</b>仅<b>直接招募</b>的推荐官与代理商创造的业绩计提您的佣金；成员再发展的伙伴（间代）不产生您的提成，系统自动校验拦截。具体比例<b>按商品不同</b>，由总部后台统一配置。</div></div>
+        <div class="stats">
+          <div class="stat card"><div class="lb">旗下成员</div><div class="v num">9</div><div class="foot">代理商 6 · 生态推荐官 3 · 全部直接招募</div></div>
+          <div class="stat card"><div class="lb">本月旗下业绩</div><div class="v num">¥16,380</div><div class="foot">代理商 ¥12,400 · 推荐官 ¥3,980</div></div>
+          <div class="stat card"><div class="lb">本月市场招商提成</div><div class="v num money">¥819</div><div class="foot">旗下业绩 × 各商品提成比例</div></div>
+          <div class="stat card hero"><div class="lb">可提现余额</div><div class="v num">¥2,860<small>.00</small></div><div class="foot">起付 ¥100 · T+1 到账</div></div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span><span class="tt">旗下成员动态</span></div>
+            <div class="tbl-wrap"><table>
+              <thead><tr><th>时间</th><th>成员</th><th>动态</th></tr></thead>
+              <tbody>
+                <tr><td class="num">10-06</td><td class="strong">孙代理（杭州）</td><td>本月业绩突破 ¥4,200</td></tr>
+                <tr><td class="num">10-05</td><td class="strong">吴代理（南京）</td><td>新招募 · 完成认证开始运营</td></tr>
+                <tr><td class="num">10-03</td><td class="strong">黄推荐官</td><td>新招募 · 首单成交古人经营智慧 ¥3,980</td></tr>
+                <tr><td class="num">10-02</td><td class="strong">郑代理（合肥）</td><td>动销预警：本月业绩 ¥600，低于动销线</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span class="tt">市场招商提成构成</span><span class="more">按商品比例 · 总部调配</span></div>
+            <div class="rate-card">
+              <div class="rate-row"><div class="n"><b>代理商商业绩</b>6 家 · 按各商品提成比例计提</div><div class="pct num" style="font-size:20px">¥12,400</div></div>
+              <div class="rate-row"><div class="n"><b>推荐官业绩</b>3 人 · 古人经营智慧 5%</div><div class="pct num" style="font-size:20px">¥3,980</div></div>
+              <div class="rate-row"><div class="n"><b>本月市场招商提成</b>620 + 199</div><div class="pct num">¥819</div></div>
+              <div class="rate-note">· 累计市场招商提成 ¥5,919 · 已提 ¥2,740 · 待结算 ¥319<br>· 活跃考核：年度新招 3 人 / 月动销达标，不达标降级（总部配置）</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 市场招商 · 我的团队 ===== -->
+      <section class="view" id="pg-rc-agents">
+        <div class="page-h">
+          <div><h2>我的团队</h2><div class="desc">直接招募的推荐官与代理商 · 业绩按商品比例计提您的佣金 · 动销考核实时可见</div></div>
+        </div>
+        <div class="card">
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>成员</th><th>类型</th><th>地区</th><th>状态</th><th class="r">本月业绩</th><th>动销考核进度</th><th class="r">我的提成</th></tr></thead>
+            <tbody>
+              <tr><td class="strong">孙代理</td><td><span class="tag tag-orange">代理商</span></td><td>杭州</td><td><span class="tag tag-green">正常</span></td><td class="r num">¥4,200</td><td><div class="prog"><i style="width:100%"></i></div></td><td class="r money num">¥210.00</td></tr>
+              <tr><td class="strong">周代理</td><td><span class="tag tag-orange">代理商</span></td><td>苏州</td><td><span class="tag tag-green">正常</span></td><td class="r num">¥3,600</td><td><div class="prog"><i style="width:100%"></i></div></td><td class="r money num">¥180.00</td></tr>
+              <tr><td class="strong">吴代理</td><td><span class="tag tag-orange">代理商</span></td><td>南京</td><td><span class="tag tag-blue">新招募</span></td><td class="r num">¥1,800</td><td><div class="prog"><i style="width:90%"></i></div></td><td class="r money num">¥90.00</td></tr>
+              <tr><td class="strong">马代理</td><td><span class="tag tag-orange">代理商</span></td><td>无锡</td><td><span class="tag tag-green">正常</span></td><td class="r num">¥1,400</td><td><div class="prog"><i style="width:70%"></i></div></td><td class="r money num">¥70.00</td></tr>
+              <tr><td class="strong">胡代理</td><td><span class="tag tag-orange">代理商</span></td><td>宁波</td><td><span class="tag tag-green">正常</span></td><td class="r num">¥800</td><td><div class="prog thin"><i style="width:40%"></i></div></td><td class="r money num">¥40.00</td></tr>
+              <tr><td class="strong">郑代理</td><td><span class="tag tag-orange">代理商</span></td><td>合肥</td><td><span class="tag tag-amber">动销预警</span></td><td class="r num">¥600</td><td><div class="prog thin"><i style="width:30%"></i></div></td><td class="r money num">¥30.00</td></tr>
+              <tr><td class="strong">黄推荐官</td><td><span class="tag tag-green">生态推荐官</span></td><td>杭州</td><td><span class="tag tag-green">正常</span></td><td class="r num">¥3,980</td><td><div class="prog"><i style="width:100%"></i></div></td><td class="r money num">¥199.00</td></tr>
+              <tr><td class="strong">钱推荐官</td><td><span class="tag tag-green">生态推荐官</span></td><td>上海</td><td><span class="tag tag-green">正常</span></td><td class="r num">¥0</td><td><div class="prog thin"><i style="width:10%"></i></div></td><td class="r money num">¥0.00</td></tr>
+              <tr><td class="strong">冯推荐官</td><td><span class="tag tag-green">生态推荐官</span></td><td>苏州</td><td><span class="tag tag-blue">新招募</span></td><td class="r num">¥0</td><td><div class="prog thin"><i style="width:0%"></i></div></td><td class="r money num">¥0.00</td></tr>
+            </tbody>
+          </table></div>
+          <div class="tbl-note">· 仅直接招募的成员业绩计入您的提成基数；成员再发展的伙伴（间代）不计入，系统自动校验<br>· 提成比例按商品不同（古人 / 门店 5% · IP+AI 4% · 知识库 6%），总部统一调配<br>· 动销达标线 ¥2,000 / 月（总部可配），不达标降级（冻结招募链接）</div>
+        </div>
+      </section>
+
+      <!-- ===== 市场招商 · 招募工具 ===== -->
+      <section class="view" id="pg-rc-tools">
+        <div class="page-h">
+          <div><h2>招募工具</h2><div class="desc">可招募两类伙伴：生态推荐官 / 代理商 · 经链接提交申请 → 总部审核 → 开通对应后台（计入您的直接招募）</div></div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></span><span class="tt">代理商招募链接</span><span class="more">开通代理后台</span></div>
+            <div style="padding:14px 18px 18px;display:flex;flex-direction:column;gap:12px">
+              <div class="rate-row"><div class="n"><b class="num" style="font-size:13px">https://st-ai.cn/agent-join?inv=wang88</b>申请通过后对方成为您的直接招募代理商</div><button class="btn btn-sm btn-primary" onclick="copyText('https://st-ai.cn/agent-join?inv=wang88','代理商招募链接已复制（演示链接）')">复制</button></div>
+              <div class="rate-note">· 对方卖货业绩按各商品提成比例计您的佣金，一直拿<br>· 招募链接可随时冻结（考核不达标时自动冻结）</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="tt">生态推荐官招募链接</span><span class="more">开通推荐官 H5</span></div>
+            <div style="padding:14px 18px 18px;display:flex;flex-direction:column;gap:12px">
+              <div class="rate-row"><div class="n"><b class="num" style="font-size:13px">https://st-ai.cn/ref-join?inv=wang88</b>申请通过后对方成为您的直接招募推荐官（白名单产品推广）</div><button class="btn btn-sm btn-primary" onclick="copyText('https://st-ai.cn/ref-join?inv=wang88','推荐官招募链接已复制（演示链接）')">复制</button></div>
+              <div class="rate-note">· 对方推广成交业绩按各商品提成比例计您的佣金，一直拿<br>· 推荐官仅可推广白名单产品，无定价权与客户管理后台</div>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></span><span class="tt">招募漏斗</span><span class="more">近 90 天</span></div>
+          <div class="cfg-grid" style="grid-template-columns:repeat(4,1fr);padding:0 18px 18px;margin-bottom:0">
+            <div class="cfg card"><div class="k">链接访问</div><div class="v num">128</div><div class="e">—</div></div>
+            <div class="cfg card"><div class="k">提交申请</div><div class="v num">18</div><div class="e">转化 14.1%</div></div>
+            <div class="cfg card"><div class="k">审核通过</div><div class="v num">9</div><div class="e">代理 6 · 推荐官 3</div></div>
+            <div class="cfg card"><div class="k">动销达标</div><div class="v num">7</div><div class="e">月动销达标率 77.8%</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 市场招商 · 佣金中心 ===== -->
+      <section class="view" id="pg-rc-commission">
+        <div class="page-h">
+          <div><h2>佣金中心</h2><div class="desc">市场招商提成 = 旗下成员业绩 × 各商品提成比例（按商品不同，总部统一调配）· 与代理商身份分开核算</div></div>
+          <button class="btn btn-primary" onclick="openWithdraw(2860,0,'微信 · 王总（尾号 8823）')">自主提现</button>
+        </div>
+        <div class="stats">
+          <div class="stat card hero"><div class="lb">可提现余额</div><div class="v num">¥2,860<small>.00</small></div><div class="foot">起付 ¥100 · T+1 到账</div></div>
+          <div class="stat card"><div class="lb">待结算金额</div><div class="v num">¥319<small>.00</small></div><div class="foot">月度结算后进入可提现</div></div>
+          <div class="stat card"><div class="lb">本月市场招商提成</div><div class="v num money">¥819<small>.00</small></div><div class="foot">代理商业绩 ¥12,400 + 推荐官业绩 ¥3,980</div></div>
+          <div class="stat card"><div class="lb">累计市场招商提成</div><div class="v num">¥5,919<small>.00</small></div><div class="foot">累计已提 ¥2,740 · 待结算 ¥319</div></div>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span class="tt">板块招商政策</span><span class="more">六大板块独立政策 · 仅直接招募，禁止间代</span></div>
+          <div style="padding:8px 18px 18px;display:flex;flex-direction:column;gap:10px">
+            <div class="rate-row"><div class="n"><b><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#E8651A;box-shadow:0 0 8px #E8651A;margin-right:8px"></span>智能体</b>按商品配置 · 可招推荐官 + 代理商两类成员</div><div style="display:flex;gap:6px"><span class="tag tag-orange">按商品 4%~6%</span></div></div>
+            <div class="rate-row"><div class="n"><b style="color:var(--faint)">大模型</b>API 订阅 · 算力包</div><span class="tag tag-gray">规划中</span></div>
+            <div class="rate-row"><div class="n"><b style="color:var(--faint)">AI培训</b>课程 · 认证</div><span class="tag tag-gray">规划中</span></div>
+            <div class="rate-row"><div class="n"><b style="color:var(--faint)">FDE</b>前置部署 · 项目交付</div><span class="tag tag-gray">规划中</span></div>
+            <div class="rate-row"><div class="n"><b style="color:var(--faint)">AI硬件</b>设备 · 延保订阅</div><span class="tag tag-gray">规划中</span></div>
+            <div class="rate-row"><div class="n"><b style="color:var(--faint)">OPC</b>外包服务 · 驻场协作</div><span class="tag tag-gray">规划中</span></div>
+          </div>
+          <div class="tbl-note">· 提成比例按商品不同、总部统一调配：古人 / 门店 5% · IP+AI 4% · 企业知识库 6%<br>· 新板块招商政策启用后自动同步至本页并站内信通知；各板块提成独立核算、合并提现</div>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></span><span class="tt">提成明细</span><span class="more">按「商品 · 当时比例」计算并留痕</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>时间</th><th>成员</th><th>类型</th><th>商品</th><th class="r">业绩基数</th><th>当时比例</th><th class="r">金额</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td class="num">10-06 18:40</td><td class="strong">孙代理</td><td><span class="tag tag-orange">代理商</span></td><td>门店经营大脑</td><td class="r num">¥4,200</td><td><span class="tag tag-gray">5%</span></td><td class="r money num">¥210.00</td><td><span class="tag tag-gray">待结算</span></td></tr>
+              <tr><td class="num">10-05 20:11</td><td class="strong">周代理</td><td><span class="tag tag-orange">代理商</span></td><td>古人经营智慧</td><td class="r num">¥3,600</td><td><span class="tag tag-gray">5%</span></td><td class="r money num">¥180.00</td><td><span class="tag tag-gray">待结算</span></td></tr>
+              <tr><td class="num">10-04 15:26</td><td class="strong">黄推荐官</td><td><span class="tag tag-green">推荐官</span></td><td>古人经营智慧</td><td class="r num">¥3,980</td><td><span class="tag tag-gray">5%</span></td><td class="r money num">¥199.00</td><td><span class="tag tag-gray">待结算</span></td></tr>
+              <tr><td class="num">10-03 11:08</td><td class="strong">吴代理</td><td><span class="tag tag-orange">代理商</span></td><td>古人经营智慧</td><td class="r num">¥1,800</td><td><span class="tag tag-gray">5%</span></td><td class="r money num">¥90.00</td><td><span class="tag tag-blue">进行中 · 冷静期</span></td></tr>
+              <tr><td class="num">09-28 16:52</td><td class="strong">孙代理</td><td><span class="tag tag-orange">代理商</span></td><td>门店经营大脑</td><td class="r num">¥8,400</td><td><span class="tag tag-gray">5%</span></td><td class="r money num">¥420.00</td><td><span class="tag tag-green">已结算</span></td></tr>
+            </tbody>
+          </table></div>
+          <div class="tbl-note">· 间代自动拦截：成员再发展的伙伴不计入您的业绩基数（全量审计可查）<br>· 同一成员不同商品的成交分别按对应商品比例计提</div>
+        </div>
+        <div class="card">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span class="tt">提现记录</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>申请单号</th><th class="r">金额</th><th>收款账户</th><th>申请时间</th><th class="r">通道费</th><th class="r">实到账</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td class="num strong">WD-20260918-011</td><td class="r num money">¥1,200.00</td><td>微信 · 王总（尾号 8823）</td><td class="num">09-18 10:20</td><td class="r num">¥1.20</td><td class="r num">¥1,198.80</td><td><span class="tag tag-green">已到账</span></td></tr>
+              <tr><td class="num strong">WD-20260830-008</td><td class="r num money">¥1,540.00</td><td>微信 · 王总（尾号 8823）</td><td class="num">08-30 14:05</td><td class="r num">¥1.54</td><td class="r num">¥1,538.46</td><td><span class="tag tag-green">已到账</span></td></tr>
+            </tbody>
+          </table></div>
+          <div class="tbl-note">· 思潼不收手续费；通道费由提现方承担，发起提现时明示预估通道费与实到账</div>
+        </div>
+      </section>
+
+      <!-- ===== 市场招商 · 账号设置 ===== -->
+      <section class="view" id="pg-rc-settings">
+        <div class="page-h">
+          <div><h2>账号设置</h2><div class="desc">资料 · 微信收款账户 · 通知</div></div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.5 13 17 22l-5-3-5 3 1.5-9"/></svg></span><span class="tt">基本资料</span></div>
+            <div style="padding:14px 18px 18px;display:flex;flex-direction:column;gap:10px">
+              <div class="rate-row"><div class="n"><b>姓名</b>王总 · 市场招商（兼代理商）</div><span class="tag tag-green">正常</span></div>
+              <div class="rate-row"><div class="n"><b>手机号</b>138****0000</div></div>
+              <div class="rate-row"><div class="n"><b>市场招商身份</b>可招推荐官 + 代理商 · 提成按商品由总部调配</div><span class="tag tag-orange">已开通</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M6 15h4"/></svg></span><span class="tt">微信收款账户</span></div>
+            <div style="padding:14px 18px 18px;display:flex;flex-direction:column;gap:10px">
+              <div class="rate-row"><div class="n"><b>绑定状态</b>微信 · 王总（尾号 8823）</div><span class="tag tag-green">已绑定</span></div>
+              <div class="rate-note">· 双角色身份共用同一收款账户，提现时按角色分栏发起<br>· 首次提现需总部审核；换绑后次笔提现自动复审</div>
+              <button class="btn" onclick="toast('换绑微信收款账户（演示）：扫码验证后生效')">换绑账户</button>
+            </div>
+          </div>
+          <div class="card" style="grid-column:1/-1">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg></span><span class="tt">通知设置</span></div>
+            <div style="padding:14px 18px 18px;display:flex;flex-direction:column;gap:10px">
+              <div class="rate-row"><div class="n"><b>新代理申请提醒</b>有人经招募链接提交申请时通知</div><span class="sw on" onclick="this.classList.toggle('on')"></span></div>
+              <div class="rate-row"><div class="n"><b>市场招商提成结算提醒</b>月度结算进入可提现余额时通知</div><span class="sw on" onclick="this.classList.toggle('on')"></span></div>
+              <div class="rate-row"><div class="n"><b>考核预警通知</b>旗下代理动销不达标时提醒</div><span class="sw on" onclick="this.classList.toggle('on')"></span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 总部 · 数据大盘 ===== -->
+      <section class="view" id="pg-hq-dashboard">
+        <div class="page-h">
+          <div><h2>数据大盘</h2><div class="desc">全平台业绩 / 角色分布 / 佣金支出 / 提现流水 · 数据截至今日 09:00（演示数据）</div></div>
+        </div>
+        <div class="stats">
+          <div class="stat card"><div class="lb">本月平台业绩</div><div class="v num">¥386,400</div><div class="foot">全角色合计 GMV</div></div>
+          <div class="stat card"><div class="lb">本月佣金支出</div><div class="v num money">¥74,860</div><div class="foot">首单 + 算力分成 + 招商 5%</div></div>
+          <div class="stat card"><div class="lb">本月提现流水</div><div class="v num">¥18,900</div><div class="foot">微信支付 · T+1 对账</div></div>
+          <div class="stat card"><div class="lb">活跃角色</div><div class="v num">42</div><div class="foot">代理 12 · 推荐官 24 · 市场招商 6</div></div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="tt">角色业绩分布</span><span class="more">本月</span></div>
+            <div class="tbl-wrap"><table>
+              <thead><tr><th>角色</th><th class="r">人数</th><th class="r">本月 GMV</th><th class="r">本月佣金</th></tr></thead>
+              <tbody>
+                <tr><td class="strong">代理商</td><td class="r num">12</td><td class="r num">¥298,000</td><td class="r money num">¥61,900</td></tr>
+                <tr><td class="strong">生态推荐官</td><td class="r num">24</td><td class="r num">¥64,400</td><td class="r money num">¥7,660</td></tr>
+                <tr><td class="strong">市场招商</td><td class="r num">6</td><td class="r num">¥24,000</td><td class="r money num">¥5,300</td></tr>
+              </tbody>
+            </table></div>
+            <div class="tbl-note">· 角色分布支持一人多角色（如代理商兼市场招商），业绩与佣金分账核算</div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span class="tt">佣金支出构成</span><span class="more">本月 ¥74,860</span></div>
+            <div class="rate-card">
+              <div class="rate-row"><div class="n"><b>首单佣金</b>智能体年费销售</div><div class="pct num" style="font-size:19px">¥58,300</div></div>
+              <div class="rate-row"><div class="n"><b>续费分成</b>算力消耗 + 年费续收</div><div class="pct num" style="font-size:19px">¥11,260</div></div>
+              <div class="rate-row"><div class="n"><b>市场招商提成</b>旗下成员业绩 · 按商品计提</div><div class="pct num" style="font-size:19px">¥5,300</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="M9 12l2 2 4-4"/></svg></span><span class="tt">最近提现流水</span><span class="more" style="cursor:pointer" onclick="navTo('hq-withdraw')">前往处理 ›</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>单号</th><th>申请人</th><th class="r">金额</th><th>状态</th><th>备注</th></tr></thead>
+            <tbody>
+              <tr><td class="num strong">WD-20261008-015</td><td>王总 · 代理商</td><td class="r num money">¥1,500.00</td><td><span class="tag tag-gray">待审核</span></td><td>今日待审</td></tr>
+              <tr><td class="num strong">WD-20261008-016</td><td>李推荐官</td><td class="r num money">¥320.00</td><td><span class="tag tag-amber">风控待审</span></td><td>新账号大额 · 自动标记</td></tr>
+              <tr><td class="num strong">WD-20261007-014</td><td>赵招商 · 市场招商</td><td class="r num money">¥780.00</td><td><span class="tag tag-blue">打款中</span></td><td>微信支付处理中</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </section>
+
+      <!-- ===== 总部 · 费率配置 ===== -->
+      <section class="view" id="pg-hq-rates">
+        <div class="page-h">
+          <div><h2>费率配置</h2><div class="desc">按板块类目 × 商品两级配置 · 每个商品独立设定代理商 / 推荐官 / 市场招商费率，总部统一调配</div></div>
+        </div>
+        <div class="banner info"><span>ⓘ</span><div><b>六大板块：</b>大模型 / 智能体 / AI培训 / FDE / AI硬件 / OPC——每条板块线<b>独立费率、独立核算、独立提现</b>。当前实装「智能体」板块；其余五板块费率方案规划中，启用后在此按类目配置。</div></div>
+        <div class="cat-chips" id="rateCats">
+          <button class="cat-chip" onclick="catSwitch('llm',this)"><span class="dot" style="--c:#A78BFA"></span>大模型</button>
+          <button class="cat-chip on" onclick="catSwitch('agent',this)"><span class="dot" style="--c:#E8651A"></span>智能体<span class="tag tag-orange mini">实装</span></button>
+          <button class="cat-chip" onclick="catSwitch('train',this)"><span class="dot" style="--c:#34D399"></span>AI培训</button>
+          <button class="cat-chip" onclick="catSwitch('fde',this)"><span class="dot" style="--c:#38BDF8"></span>FDE</button>
+          <button class="cat-chip" onclick="catSwitch('hw',this)"><span class="dot" style="--c:#FBBF24"></span>AI硬件</button>
+          <button class="cat-chip" onclick="catSwitch('opc',this)"><span class="dot" style="--c:#F472B6"></span>OPC</button>
+        </div>
+        <div class="banner warn"><span>⚠</span><div><b>生效规则：</b>费率调整仅影响生效后的新订单与算力消耗，<b>不追溯</b>历史数据。每次变更自动留痕（操作人 / 时间 / 旧值 → 新值），代理端实时刷新并收到站内信推送。</div></div>
+        <div id="cat-agent-view">
+        <div class="banner info"><span>ⓘ</span><div><b>按商品配置：</b>每个智能体商品的<b>代理商佣金</b>（首单 / 续费）、<b>推荐官分润</b>（首单 / 续费）、<b>市场招商提成</b>比例独立设置，由总部统一调配；调整仅影响生效后的新订单，全程留痕。</div></div>
+        <div class="grid-2" style="grid-template-columns:1fr 1fr;max-width:960px">
+          <div class="card">
+            <div class="card-h"><span class="tt">古人经营智慧</span><span class="more">建议价 ¥3,980 · 热销</span></div>
+            <div class="rate-card">
+              <div class="rate-row" data-name="商品·古人经营智慧 / 代理商首单" data-old="25"><div class="n"><b>代理商 · 首单</b>客户首次成交年费</div><div class="rate-input"><input type="number" value="25" min="0" max="100"><span class="pct">%</span><button class="btn btn-sm btn-primary" onclick="saveRateBtn(this)">保存</button></div></div>
+              <div class="rate-row" data-name="商品·古人经营智慧 / 代理商续费" data-old="15"><div class="n"><b>代理商 · 续费</b>算力消耗 · 年费续收</div><div class="rate-input"><input type="number" value="15" min="0" max="100"><span class="pct">%</span><button class="btn btn-sm btn-primary" onclick="saveRateBtn(this)">保存</button></div></div>
+              <div class="rate-row"><div class="n"><b>推荐官 · 首单 / 续费</b>仅白名单产品可推广</div><div style="display:flex;gap:6px"><span class="tag tag-orange">10%</span><span class="tag tag-orange">5%</span></div></div>
+              <div class="rate-row"><div class="n"><b>市场招商 · 提成</b>旗下成员业绩提成</div><span class="tag tag-orange">5%</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="tt">IP+AI 业绩倍增系统</span><span class="more">建议价 ¥1,980</span></div>
+            <div class="rate-card">
+              <div class="rate-row" data-name="商品·IP+AI 业绩倍增系统 / 代理商首单" data-old="22"><div class="n"><b>代理商 · 首单</b>客户首次成交年费</div><div class="rate-input"><input type="number" value="22" min="0" max="100"><span class="pct">%</span><button class="btn btn-sm btn-primary" onclick="saveRateBtn(this)">保存</button></div></div>
+              <div class="rate-row" data-name="商品·IP+AI 业绩倍增系统 / 代理商续费" data-old="12"><div class="n"><b>代理商 · 续费</b>算力消耗 · 年费续收</div><div class="rate-input"><input type="number" value="12" min="0" max="100"><span class="pct">%</span><button class="btn btn-sm btn-primary" onclick="saveRateBtn(this)">保存</button></div></div>
+              <div class="rate-row"><div class="n"><b>推荐官 · 首单 / 续费</b>仅白名单产品可推广</div><div style="display:flex;gap:6px"><span class="tag tag-orange">8%</span><span class="tag tag-orange">4%</span></div></div>
+              <div class="rate-row"><div class="n"><b>市场招商 · 提成</b>旗下成员业绩提成</div><span class="tag tag-orange">4%</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="tt">门店经营大脑</span><span class="more">建议价 ¥5,980</span></div>
+            <div class="rate-card">
+              <div class="rate-row" data-name="商品·门店经营大脑 / 代理商首单" data-old="25"><div class="n"><b>代理商 · 首单</b>客户首次成交年费</div><div class="rate-input"><input type="number" value="25" min="0" max="100"><span class="pct">%</span><button class="btn btn-sm btn-primary" onclick="saveRateBtn(this)">保存</button></div></div>
+              <div class="rate-row" data-name="商品·门店经营大脑 / 代理商续费" data-old="15"><div class="n"><b>代理商 · 续费</b>算力消耗 · 年费续收</div><div class="rate-input"><input type="number" value="15" min="0" max="100"><span class="pct">%</span><button class="btn btn-sm btn-primary" onclick="saveRateBtn(this)">保存</button></div></div>
+              <div class="rate-row"><div class="n"><b>推荐官 · 首单 / 续费</b>仅白名单产品可推广</div><div style="display:flex;gap:6px"><span class="tag tag-orange">10%</span><span class="tag tag-orange">5%</span></div></div>
+              <div class="rate-row"><div class="n"><b>市场招商 · 提成</b>旗下成员业绩提成</div><span class="tag tag-orange">5%</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="tt">企业知识库 Pro</span><span class="more">建议价 ¥12,800</span></div>
+            <div class="rate-card">
+              <div class="rate-row" data-name="商品·企业知识库 Pro / 代理商首单" data-old="30"><div class="n"><b>代理商 · 首单</b>客户首次成交年费</div><div class="rate-input"><input type="number" value="30" min="0" max="100"><span class="pct">%</span><button class="btn btn-sm btn-primary" onclick="saveRateBtn(this)">保存</button></div></div>
+              <div class="rate-row" data-name="商品·企业知识库 Pro / 代理商续费" data-old="18"><div class="n"><b>代理商 · 续费</b>算力消耗 · 年费续收</div><div class="rate-input"><input type="number" value="18" min="0" max="100"><span class="pct">%</span><button class="btn btn-sm btn-primary" onclick="saveRateBtn(this)">保存</button></div></div>
+              <div class="rate-row"><div class="n"><b>推荐官 · 首单 / 续费</b>仅白名单产品可推广</div><div style="display:flex;gap:6px"><span class="tag tag-orange">12%</span><span class="tag tag-orange">6%</span></div></div>
+              <div class="rate-row"><div class="n"><b>市场招商 · 提成</b>旗下成员业绩提成</div><span class="tag tag-orange">6%</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px;max-width:960px">
+          <div class="rate-note" style="padding:4px 0">· 推荐官 / 市场招商比例调整入口与代理商一致（原型演示开放代理商首单 / 续费编辑）<br>· 比例调整仅对生效后的新订单与算力消耗有效，不追溯历史；代理端与推荐官端实时刷新并站内信推送<br>· 新上架商品默认继承板块默认费率，上架后可按商品单独调配</div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg></span><span class="tt">变更留痕</span><span class="more">谁 / 何时 / 旧值 → 新值</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>时间</th><th>操作人</th><th>类目</th><th>范围</th><th>项目</th><th>变更</th><th>备注</th></tr></thead>
+            <tbody id="rateLog">
+              <tr><td class="num">2026-10-06 16:20</td><td>管理员 · 思潼</td><td><span class="cat-tag"><span class="dot" style="--c:#E8651A"></span>智能体</span></td><td>商品 · 门店经营大脑</td><td>代理商首单</td><td class="diff"><span class="old">22%</span> → <span class="new">25%</span></td><td>门店季促销激励，仅新订单生效</td></tr>
+              <tr><td class="num">2026-09-12 10:05</td><td>运营 · 小李</td><td><span class="cat-tag"><span class="dot" style="--c:#E8651A"></span>智能体</span></td><td>商品 · 古人经营智慧</td><td>推荐官首单</td><td class="diff"><span class="old">12%</span> → <span class="new">10%</span></td><td>生态预算调整，仅新订单生效</td></tr>
+              <tr><td class="num">2026-09-01 10:00</td><td>运营 · 小李</td><td><span class="cat-tag"><span class="dot" style="--c:#E8651A"></span>智能体</span></td><td>商品 · 古人经营智慧</td><td>代理商首单</td><td class="diff"><span class="old">20%</span> → <span class="new">25%</span></td><td>Q4 生态激励上调</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+        </div>
+        <div id="cat-lock-view" style="display:none"></div>
+      </section>
+
+      <!-- ===== 总部 · 提现管理 ===== -->
+      <section class="view" id="pg-hq-withdraw">
+        <div class="page-h">
+          <div><h2>提现管理</h2><div class="desc">审核 → 微信支付打款 → T+1 对账 · 风控拦截自动标记待审</div></div>
+        </div>
+        <div class="cfg-grid">
+          <div class="cfg card"><div class="k">退款冷静期</div><div class="v num">7 <small>天（可配）</small></div><div class="e">新订单佣金过冷静期方可提现</div></div>
+          <div class="cfg card"><div class="k">起付阈值</div><div class="v num">¥100 <small>（可配）</small></div><div class="e">低于阈值拦截提现申请</div></div>
+          <div class="cfg card"><div class="k">到账周期</div><div class="v num">T+1</div><div class="e">打款后次日记账核对</div></div>
+          <div class="cfg card"><div class="k">手续费</div><div class="v" style="color:var(--green)">思潼不加收</div><div class="e">通道费由提现方承担，端上明示</div></div>
+        </div>
+        <div class="banner warn"><span>⚠</span><div><b>风控规则：</b>短时集中提现、新账号大额提现、关联账号刷量将自动标记「风控待审」，需人工复核后方可打款。首次提现须完成总部审核 + 微信收款账户绑定。</div></div>
+        <div class="banner info"><span>ℹ</span><div><b>佣金支付入账口径：</b>我司付代理商分佣 → 代理商向我司开具<b>佣金 / 服务费发票</b>入账（抵企业所得税）；若代理商为<b>自然人</b>，由我司代扣个税（劳务报酬），凭<b>代扣凭证</b>入账。</div></div>
+        <div class="card">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="M9 12l2 2 4-4"/></svg></span><span class="tt">提现申请审核</span><span class="more">今日待审 2 笔 · ¥1,820</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>单号</th><th>申请人</th><th>角色 · 主体</th><th class="r">金额</th><th>收款账户</th><th>申请时间</th><th>风控</th><th>入账凭证</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody id="wdBody">
+              <tr><td class="num strong">WD-20261008-015</td><td>王总</td><td><span class="tag tag-orange">代理商 · 企业</span></td><td class="r num money">¥1,500.00</td><td>微信 · 尾号 8823</td><td class="num">10-08 09:12</td><td>—</td><td data-v data-inv="pending"><span class="tag tag-amber">待收佣金发票</span> <button class="btn btn-sm" onclick="recvInvoice(this)">登记收票</button></td><td><span class="tag tag-gray" data-st>待审核</span></td><td><button class="btn btn-sm btn-primary" onclick="payWd(this)">打款</button> <button class="btn btn-sm btn-danger" onclick="openReject(this)">驳回</button></td></tr>
+              <tr><td class="num strong">WD-20261008-016</td><td>李推荐官</td><td><span class="tag tag-blue">推荐官 · 自然人</span></td><td class="r num money">¥320.00</td><td>微信 · 尾号 5521</td><td class="num">10-08 10:05</td><td><span class="tag tag-amber" data-risk>风控待审</span></td><td data-v data-tax="51.20"><span class="tag tag-blue">平台代扣个税</span><div style="font-size:11px;opacity:.7;margin-top:3px">劳务报酬 · 预扣 ¥51.20（演示口径）· 凭代扣凭证入账</div></td><td><span class="tag tag-gray" data-st>待审核</span></td><td><button class="btn btn-sm btn-primary" onclick="riskPass(this)">复核通过</button> <button class="btn btn-sm btn-danger" onclick="openReject(this)">驳回</button></td></tr>
+              <tr><td class="num strong">WD-20261007-014</td><td>赵招商</td><td><span class="tag tag-green">市场招商 · 企业</span></td><td class="r num money">¥780.00</td><td>微信 · 尾号 3308</td><td class="num">10-07 18:40</td><td>—</td><td data-v><span class="tag tag-green">佣金发票已收</span></td><td><span class="tag tag-blue" data-st>打款中</span></td><td><span class="tag tag-blue">微信支付处理中</span></td></tr>
+              <tr><td class="num strong">WD-20260915-098</td><td>王总</td><td><span class="tag tag-orange">代理商 · 企业</span></td><td class="r num money">¥3,600.00</td><td>微信 · 尾号 8823</td><td class="num">09-15 10:30</td><td>—</td><td data-v><span class="tag tag-green">佣金发票已收</span></td><td><span class="tag tag-green" data-st>已到账</span></td><td><span class="tag tag-green">T+1 对账通过</span></td></tr>
+              <tr><td class="num strong">WD-20260912-092</td><td>孙代理</td><td><span class="tag tag-orange">代理商 · 自然人</span></td><td class="r num money">¥2,000.00</td><td>微信 · 尾号 0117</td><td class="num">09-12 14:22</td><td>—</td><td data-v>—</td><td><span class="tag tag-red" data-st>已驳回</span></td><td><button class="btn btn-sm" onclick="toast('驳回原因：冷静期内佣金不足，含 ¥620 冷静期占用')">查看原因</button></td></tr>
+            </tbody>
+          </table></div>
+          <div class="tbl-note">· 打款通道：微信支付（付款到零钱 / 银行卡）；思潼不加收手续费，通道费明细随单留痕<br>· 佣金入账：企业角色须开具佣金 / 服务费发票供我司入账（抵企业所得税），收票后方可打款；自然人角色由我司按劳务报酬代扣个税，凭代扣凭证入账<br>· 全量审计：每笔提现的申请人、审核人、打款回单、驳回原因均可追溯（见审计日志）</div>
+        </div>
+      </section>
+
+      <!-- ===== 总部 · 代理商管理 ===== -->
+      <section class="view" id="pg-hq-agents">
+        <div class="page-h">
+          <div><h2>代理商管理</h2><div class="desc">审核 / 认证 / 状态 / 定价区间与大额复核阈值配置</div></div>
+        </div>
+        <div class="banner warn"><span>⚠</span><div><b>认证门槛：</b>自运营代理须<b>认证通过</b>方可配置客户与权限档，未认证账号将<b>强制引流档</b>。</div></div>
+        <div class="cfg-grid">
+          <div class="cfg card"><div class="k">定价区间下限</div><div class="v num">¥100</div><div class="e">硬约束 · 越界即时拦截</div></div>
+          <div class="cfg card"><div class="k">定价区间上限</div><div class="v num">¥100,000</div><div class="e">可配 · 平台统一上限</div></div>
+          <div class="cfg card"><div class="k">大额复核阈值</div><div class="v num">¥50,000</div><div class="e">可配 · 触发总部复核</div></div>
+          <div class="cfg card"><div class="k">代理商总数</div><div class="v num">12</div><div class="e">待审核 1 · 待认证 2</div></div>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span><span class="tt">代理商列表</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>代理商</th><th>地区</th><th>认证</th><th>状态</th><th class="r">本月业绩</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td class="strong">王总（杭州）</td><td>杭州</td><td><span class="tag tag-green">已认证</span></td><td><span class="tag tag-green">正常</span></td><td class="r num">¥11,412</td><td><button class="btn btn-sm" onclick="toast('代理商档案（演示）：客户 / 业绩 / 佣金 / 特殊费率')">详情</button></td></tr>
+              <tr><td class="strong">孙代理（上海）</td><td>上海</td><td><span class="tag tag-amber">待认证</span></td><td><span class="tag tag-green">正常</span></td><td class="r num">¥6,200</td><td><button class="btn btn-sm btn-primary" onclick="certPass(this)">通过认证</button></td></tr>
+              <tr><td class="strong">赵代理（广州）</td><td>广州</td><td><span class="tag tag-green">已认证</span></td><td><span class="tag tag-green">正常</span></td><td class="r num">¥9,400</td><td><button class="btn btn-sm" onclick="toast('代理商档案（演示）')">详情</button></td></tr>
+              <tr><td class="strong">钱代理（深圳）</td><td>深圳</td><td><span class="tag tag-amber">待认证</span></td><td><span class="tag tag-blue">认证审核中</span></td><td class="r num">¥2,300</td><td><button class="btn btn-sm btn-primary" onclick="certPass(this)">通过认证</button> <button class="btn btn-sm" onclick="toast('查看认证资料（演示）')">资料</button></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.5 13 17 22l-5-3-5 3 1.5-9"/></svg></span><span class="tt">入驻审核</span><span class="more">开通流程：申请 → 审核 → 开通后台</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>申请人</th><th>来源</th><th>申请时间</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td class="strong">刘经理 · 137****9021</td><td>招商链接（赵招商）</td><td class="num">10-07 20:14</td><td><button class="btn btn-sm btn-primary" onclick="passAgent(this)">审核通过</button> <button class="btn btn-sm btn-danger" onclick="toast('驳回需填写原因并通知申请人（演示）')">驳回</button></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </section>
+
+      <!-- ===== 总部 · 推荐官管理 ===== -->
+      <section class="view" id="pg-hq-referrers">
+        <div class="page-h">
+          <div><h2>推荐官管理</h2><div class="desc">审核 / 产品白名单配置（初始仅「古人经营智慧」）</div></div>
+        </div>
+        <div class="cfg-grid">
+          <div class="cfg card"><div class="k">推荐官总数</div><div class="v num">24</div><div class="e">待审核 2</div></div>
+          <div class="cfg card"><div class="k">本月分润支出</div><div class="v num">¥7,660</div><div class="e">首单 10% + 算力 5%</div></div>
+          <div class="cfg card"><div class="k">白名单产品</div><div class="v num">1 <small>个</small></div><div class="e">古人经营智慧</div></div>
+          <div class="cfg card"><div class="k">注册用户（经推荐官）</div><div class="v num">86+</div><div class="e">自动绑定推荐官名下</div></div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="tt">推荐官列表</span></div>
+            <div class="tbl-wrap"><table>
+              <thead><tr><th>推荐官</th><th class="r">用户数</th><th class="r">付费用户</th><th class="r">累计分润</th><th>状态</th></tr></thead>
+              <tbody>
+                <tr><td class="strong">李姐</td><td class="r num">86</td><td class="r num">23</td><td class="r money num">¥3,860.00</td><td><span class="tag tag-green">正常</span></td></tr>
+                <tr><td class="strong">黄推荐官</td><td class="r num">41</td><td class="r num">9</td><td class="r money num">¥1,240.00</td><td><span class="tag tag-green">正常</span></td></tr>
+                <tr><td class="strong">林推荐官</td><td class="r num">12</td><td class="r num">2</td><td class="r money num">¥260.00</td><td><span class="tag tag-blue">入驻审核中</span></td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="M9 12l2 2 4-4"/></svg></span><span class="tt">产品白名单配置</span><span class="more">实时同步推荐官端</span></div>
+            <div style="padding:14px 18px 18px;display:flex;flex-direction:column;gap:10px">
+              <div class="rate-row"><div class="n"><b>古人经营智慧</b>文字类 · 初始白名单</div><span class="sw on" onclick="wlToggle(this,'古人经营智慧')"></span></div>
+              <div class="rate-row"><div class="n"><b>IP+AI 业绩倍增系统</b>文字类</div><span class="sw" onclick="wlToggle(this,'IP+AI 业绩倍增系统')"></span></div>
+              <div class="rate-row"><div class="n"><b>门店经营大脑</b>图片 / 视频类</div><span class="sw" onclick="wlToggle(this,'门店经营大脑')"></span></div>
+              <div class="rate-note">· 白名单变更实时生效并站内信通知推荐官<br>· 推荐官链接下的用户仅可使用白名单内产品</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 总部 · 市场招商管理 ===== -->
+      <section class="view" id="pg-hq-recruiters">
+        <div class="page-h">
+          <div><h2>市场招商管理</h2><div class="desc">活跃考核配置（年度新招 / 动销达标，不达标降级）</div></div>
+        </div>
+        <div class="banner info"><span>ⓘ</span><div>市场招商提成 5% 仅限<b>直接招募</b>；系统自动校验间代关系并拦截分佣。考核不达标自动<b>降级</b>并冻结招募链接。</div></div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></span><span class="tt">市场招商列表</span></div>
+            <div class="tbl-wrap"><table>
+              <thead><tr><th>市场招商</th><th class="r">直接招募</th><th>年度新招进度</th><th>动销进度</th><th>状态</th></tr></thead>
+              <tbody>
+                <tr><td class="strong">王总</td><td class="r num">6</td><td><div class="prog"><i style="width:100%"></i></div></td><td><div class="prog"><i style="width:100%"></i></div></td><td><span class="tag tag-green">正常</span></td></tr>
+                <tr><td class="strong">赵招商</td><td class="r num">3</td><td><div class="prog"><i style="width:67%"></i></div></td><td><div class="prog"><i style="width:100%"></i></div></td><td><span class="tag tag-green">正常</span></td></tr>
+                <tr><td class="strong">钱招商</td><td class="r num">1</td><td><div class="prog thin"><i style="width:33%"></i></div></td><td><div class="prog thin"><i style="width:20%"></i></div></td><td><span class="tag tag-amber">降级预警</span></td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></span><span class="tt">活跃考核配置</span></div>
+            <div style="padding:14px 18px 18px">
+              <div class="field"><label>年度新招要求（人 / 年）</label><input type="number" value="3" style="width:120px"></div>
+              <div class="field"><label>动销达标线（元 / 月）</label><input type="number" value="2000" style="width:120px"></div>
+              <div class="field"><label>不达标处理</label>
+                <select><option>自动降级（冻结招募链接）</option><option>预警观察（1 个月宽限）</option></select>
+              </div>
+              <button class="btn btn-primary" onclick="toast('考核配置已保存（演示）：次月 1 日起按新口径执行')">保存配置</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 总部 · 产品管理 ===== -->
+      <section class="view" id="pg-hq-products">
+        <div class="page-h">
+          <div><h2>产品管理</h2><div class="desc">上架 / 定价 / 算力赠送规则 / 推荐官白名单 · 按板块类目扩展</div></div>
+        </div>
+        <div class="card">
+          <div class="filters" style="margin-bottom:12px">
+            <button class="fchip on" data-f="all" onclick="chipFilter(this,'prodBody')">全部</button>
+            <button class="fchip" data-f="cat-agent" onclick="chipFilter(this,'prodBody')">智能体</button>
+            <button class="fchip" data-f="cat-llm" onclick="chipFilter(this,'prodBody')">大模型</button>
+            <button class="fchip" data-f="cat-train" onclick="chipFilter(this,'prodBody')">AI培训</button>
+            <button class="fchip" data-f="cat-fde" onclick="chipFilter(this,'prodBody')">FDE</button>
+            <button class="fchip" data-f="cat-hw" onclick="chipFilter(this,'prodBody')">AI硬件</button>
+            <button class="fchip" data-f="cat-opc" onclick="chipFilter(this,'prodBody')">OPC</button>
+          </div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>产品</th><th>类别</th><th class="r">建议价</th><th>上架</th><th>算力赠送规则</th><th>推荐官白名单</th></tr></thead>
+            <tbody id="prodBody">
+              <tr data-s="cat-agent"><td class="strong">古人经营智慧<span class="cat-tag"><span class="dot" style="--c:#E8651A"></span>智能体</span></td><td>文字类</td><td class="r num">¥3,980</td><td><span class="sw on" onclick="prodToggle(this,'古人经营智慧')"></span></td><td>等额 1:1（随成交价浮动）</td><td><span class="tag tag-orange">白名单内</span></td></tr>
+              <tr data-s="cat-agent"><td class="strong">IP+AI 业绩倍增系统<span class="cat-tag"><span class="dot" style="--c:#E8651A"></span>智能体</span></td><td>文字类</td><td class="r num">¥1,980</td><td><span class="sw on" onclick="prodToggle(this,'IP+AI 业绩倍增系统')"></span></td><td>等额 1:1（随成交价浮动）</td><td><span class="tag tag-gray">—</span></td></tr>
+              <tr data-s="cat-agent"><td class="strong">门店经营大脑<span class="cat-tag"><span class="dot" style="--c:#E8651A"></span>智能体</span></td><td>图片 / 视频类</td><td class="r num">¥5,980</td><td><span class="sw on" onclick="prodToggle(this,'门店经营大脑')"></span></td><td>等额 1:1（随成交价浮动）</td><td><span class="tag tag-gray">—</span></td></tr>
+              <tr data-s="cat-agent"><td class="strong">企业知识库 Pro<span class="cat-tag"><span class="dot" style="--c:#E8651A"></span>智能体</span></td><td>文字类</td><td class="r num">¥12,800</td><td><span class="sw" onclick="prodToggle(this,'企业知识库 Pro')"></span></td><td>等额 1:1（随成交价浮动）</td><td><span class="tag tag-gray">—</span></td></tr>
+              <tr class="tb-empty" style="display:none"><td colspan="6" style="text-align:center;padding:26px 0;color:var(--faint);font-size:12.5px">该板块暂未上架产品 · 产品位已预留，上架后按板块费率独立结算</td></tr>
+            </tbody>
+          </table></div>
+          <div class="tbl-note">· 每个智能体商品的佣金（代理商 / 推荐官 / 市场招商）在「费率配置」按商品独立设定，总部统一调配<br>· 算力由系统在支付成功后按实际成交价 1:1 自动发放，绑定真实支付，无人工触发入口<br>· 上架开关实时生效；白名单配置见「推荐官管理」<br>· 板块产品位预留：大模型 / AI培训 / FDE / AI硬件 / OPC 上架后自动归属对应类目，按各板块费率独立结算</div>
+        </div>
+      </section>
+
+      <!-- ===== 总部 · 客户与订单 ===== -->
+      <section class="view" id="pg-hq-orders">
+        <div class="page-h">
+          <div><h2>客户与订单</h2><div class="desc">全量订单 · 退款触发对应佣金自动冲回</div></div>
+        </div>
+        <div class="card">
+          <div class="filters">
+            <button class="fchip on" data-f="all" onclick="chipFilter(this,'ordersBody')">全部</button>
+            <button class="fchip" data-f="review" onclick="chipFilter(this,'ordersBody')">复核中</button>
+            <button class="fchip" data-f="refund" onclick="chipFilter(this,'ordersBody')">退款</button>
+            <button class="fchip" data-f="done" onclick="chipFilter(this,'ordersBody')">已完成</button>
+          </div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>订单号</th><th>客户</th><th>归属</th><th>产品</th><th class="r">成交价</th><th class="r">佣金支出</th><th class="r">等额算力</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody id="ordersBody">
+              <tr data-s="done"><td class="num strong">SO-20261008-045</td><td>李老板</td><td>王总（代理）</td><td>门店经营大脑<span class="cat-tag"><span class="dot" style="--c:#E8651A"></span>智能体</span></td><td class="r num">¥5,980</td><td class="r money num">¥1,495.00</td><td class="r num">¥5,980</td><td><span class="tag tag-green">已完成</span></td><td>—</td></tr>
+              <tr data-s="review"><td class="num strong">SO-20261004-036</td><td>王氏食品</td><td>王总（代理）</td><td>门店经营大脑<span class="cat-tag"><span class="dot" style="--c:#E8651A"></span>智能体</span></td><td class="r num">¥52,000</td><td class="r money num">¥13,000.00</td><td class="r num">¥52,000</td><td><span class="tag tag-amber" data-st>总部复核中</span></td><td><button class="btn btn-sm btn-primary" onclick="reviewOrder(this)">复核通过</button></td></tr>
+              <tr data-s="done"><td class="num strong">SO-20261007-044</td><td>高先生</td><td>孙代理</td><td>古人经营智慧<span class="cat-tag"><span class="dot" style="--c:#E8651A"></span>智能体</span></td><td class="r num">¥3,980</td><td class="r money num">¥995.00</td><td class="r num">¥3,980</td><td><span class="tag tag-green">已完成</span></td><td>—</td></tr>
+              <tr data-s="refund"><td class="num strong">SO-20261007-043</td><td>沈女士</td><td>黄推荐官（10%）</td><td>古人经营智慧<span class="cat-tag"><span class="dot" style="--c:#E8651A"></span>智能体</span></td><td class="r num">¥3,980</td><td class="r money num">¥398.00</td><td class="r num">¥3,980</td><td><span class="tag tag-amber" data-st>退款申请中</span></td><td><button class="btn btn-sm btn-danger" onclick="openRefund(this)">退款处理</button></td></tr>
+              <tr data-s="refund"><td class="num strong">SO-20260928-030</td><td>郑先生</td><td>王总（代理）</td><td>古人经营智慧<span class="cat-tag"><span class="dot" style="--c:#E8651A"></span>智能体</span></td><td class="r num">¥3,980</td><td class="r num">—</td><td class="r num">—</td><td><span class="tag tag-red" data-st>已退款 · 佣金冲回</span></td><td><span class="tag tag-gray">已冲回 ¥995.00</span></td></tr>
+            </tbody>
+          </table></div>
+          <div class="tbl-note">· 无链接来源订单归属总部，不产生角色佣金<br>· 退款后对应佣金自动冲回；若佣金已提现，从下期余额扣回（冲回全程留痕）<br>· 订单按板块类目归属：大模型 / AI培训 / FDE / AI硬件 / OPC 板块上线后自动纳入并按类目费率核算</div>
+        </div>
+      </section>
+
+      <!-- ===== 总部 · 算力发放记录 ===== -->
+      <section class="view" id="pg-hq-compute">
+        <div class="page-h">
+          <div><h2>算力发放记录</h2><div class="desc">绑定真实支付 · 支付成功后系统自动发放，无人工触发</div></div>
+        </div>
+        <div class="stats">
+          <div class="stat card"><div class="lb">本月发放算力</div><div class="v num">¥36,400</div><div class="foot">等额 1:1 · 随成交价浮动</div></div>
+          <div class="stat card"><div class="lb">本月消耗</div><div class="v num">¥24,800</div><div class="foot">持续发生</div></div>
+          <div class="stat card"><div class="lb">累计发放</div><div class="v num">¥312,800</div><div class="foot">全量可追溯</div></div>
+          <div class="stat card"><div class="lb">自动发放率</div><div class="v num" style="color:var(--green)">100%</div><div class="foot">无人工触发入口</div></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg></span><span class="tt">发放记录</span><span class="more">每次发放含订单入参留痕</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>时间</th><th>客户</th><th>归属</th><th>产品</th><th class="r">成交价</th><th class="r">等额算力</th><th>方式</th></tr></thead>
+            <tbody>
+              <tr><td class="num">10-08 09:12</td><td class="strong">李老板</td><td>王总（代理）</td><td>门店经营大脑</td><td class="r num">¥5,980</td><td class="r num">¥5,980</td><td><span class="tag tag-blue">系统自动</span></td></tr>
+              <tr><td class="num">10-07 14:22</td><td class="strong">张女士</td><td>王总（代理）</td><td>古人经营智慧</td><td class="r num">¥3,980</td><td class="r num">¥3,980</td><td><span class="tag tag-blue">系统自动</span></td></tr>
+              <tr><td class="num">10-07 10:05</td><td class="strong">高先生</td><td>孙代理</td><td>古人经营智慧</td><td class="r num">¥3,980</td><td class="r num">¥3,980</td><td><span class="tag tag-blue">系统自动</span></td></tr>
+              <tr><td class="num">10-04 16:40</td><td class="strong">王氏食品</td><td>王总（代理）</td><td>门店经营大脑</td><td class="r num">¥52,000</td><td class="r num">¥52,000</td><td><span class="tag tag-amber">大额复核通过后发放</span></td></tr>
+            </tbody>
+          </table></div>
+          <div class="tbl-note">· 大额订单（默认 ≥¥50,000）复核通过后发放，见「审计日志」全量留痕</div>
+        </div>
+      </section>
+
+      <!-- ===== 总部 · 佣金台账与结算 ===== -->
+      <section class="view" id="pg-hq-ledger">
+        <div class="page-h">
+          <div><h2>佣金台账与结算</h2><div class="desc">月度结算进入各角色可提现余额 · 按板块类目独立核算 · 每笔佣金计算入参全量留痕</div></div>
+        </div>
+        <div class="cfg-grid">
+          <div class="cfg card"><div class="k">本月应付佣金</div><div class="v num">¥74,860</div><div class="e">三类角色合计 · 智能体板块</div></div>
+          <div class="cfg card"><div class="k">已结算</div><div class="v num" style="color:var(--green)">¥52,340</div><div class="e">进入可提现余额</div></div>
+          <div class="cfg card"><div class="k">待结算</div><div class="v num money">¥22,520</div><div class="e">含冷静期内佣金</div></div>
+          <div class="cfg card"><div class="k">冷静期占用（示例）</div><div class="v num">¥660</div><div class="e">10-12 解冻后可结算</div></div>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg></span><span class="tt">月度结算</span><span class="more">结算后 T+1 可提现</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>账期</th><th>角色</th><th class="r">佣金合计</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td class="num strong">2026-09</td><td>代理商</td><td class="r num">¥54,200.00</td><td><span class="tag tag-green">已结算</span></td><td><span class="tag tag-green">已完成</span></td></tr>
+              <tr><td class="num strong">2026-09</td><td>生态推荐官</td><td class="r num">¥6,880.00</td><td><span class="tag tag-green">已结算</span></td><td><span class="tag tag-green">已完成</span></td></tr>
+              <tr><td class="num strong">2026-09</td><td>市场招商</td><td class="r num">¥4,940.00</td><td><span class="tag tag-green">已结算</span></td><td><span class="tag tag-green">已完成</span></td></tr>
+              <tr><td class="num strong">2026-10</td><td>全角色（截至今日）</td><td class="r num">¥22,520.00</td><td><span class="tag tag-blue" data-st>待结算</span></td><td><button class="btn btn-sm btn-primary" onclick="execSettle(this)">执行月度结算</button></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><span class="ic"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span><span class="tt">佣金台账</span><span class="more">计算入参：订单 / 成交价 / 当时比例</span></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>时间</th><th>对象</th><th>类型</th><th class="r">计算基数</th><th>比例</th><th class="r">金额</th><th>入参留痕</th></tr></thead>
+            <tbody>
+              <tr><td class="num">10-07 14:22</td><td class="strong">王总（代理）</td><td>首单佣金</td><td class="r num">¥3,980</td><td><span class="tag tag-gray">25%</span></td><td class="r money num">¥995.00</td><td class="num">SO-20261007-042</td></tr>
+              <tr><td class="num">10-06 09:15</td><td class="strong">王总（代理）</td><td>首单佣金（自定价）</td><td class="r num">¥4,500</td><td><span class="tag tag-gray">25%</span></td><td class="r money num">¥1,125.00</td><td class="num">SO-20261006-041</td></tr>
+              <tr><td class="num">10-05 20:40</td><td class="strong">王总（代理）</td><td>算力分成</td><td class="r num">¥1,240</td><td><span class="tag tag-gray">15%</span></td><td class="r money num">¥186.00</td><td class="num">消耗 C-20261005-112</td></tr>
+              <tr><td class="num">10-06 09:15</td><td class="strong">李姐（推荐官）</td><td>首单分润</td><td class="r num">¥3,980</td><td><span class="tag tag-gray">10%</span></td><td class="r money num">¥398.00</td><td>经推荐官链接归因</td></tr>
+              <tr><td class="num">10-06 18:40</td><td class="strong">赵招商</td><td>市场招商提成</td><td class="r num">¥4,200</td><td><span class="tag tag-gray">5%</span></td><td class="r money num">¥210.00</td><td>直接招募校验通过</td></tr>
+            </tbody>
+          </table></div>
+          <div class="tbl-note">· 台账逐笔可追溯：谁建账号、谁发算力、每笔佣金计算入参、每次提现<br>· 佣金支出入账：企业角色凭其开具的佣金 / 服务费发票入账（抵企业所得税）；自然人角色由平台代扣个税（劳务报酬），凭代扣凭证入账<br>· 台账按板块类目独立核算：大模型 / AI培训 / FDE / AI硬件 / OPC 板块启用后分列账期，月度结算按板块出账</div>
+        </div>
+      </section>
+
+      <!-- ===== 总部 · 审计日志 ===== -->
+      <section class="view" id="pg-hq-audit">
+        <div class="page-h">
+          <div><h2>审计日志</h2><div class="desc">谁建账号 · 谁发算力 · 每笔佣金计算入参 · 每次提现 · 不可删改</div></div>
+        </div>
+        <div class="card">
+          <div class="filters">
+            <button class="fchip on" data-f="all" onclick="chipFilter(this,'auditBody')">全部</button>
+            <button class="fchip" data-f="rate" onclick="chipFilter(this,'auditBody')">费率</button>
+            <button class="fchip" data-f="acct" onclick="chipFilter(this,'auditBody')">账号</button>
+            <button class="fchip" data-f="cpu" onclick="chipFilter(this,'auditBody')">算力</button>
+            <button class="fchip" data-f="wd" onclick="chipFilter(this,'auditBody')">提现</button>
+            <button class="fchip" data-f="refund" onclick="chipFilter(this,'auditBody')">退款</button>
+          </div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>时间</th><th>操作人</th><th>类型</th><th>动作与明细</th></tr></thead>
+            <tbody id="auditBody">
+              <tr data-s="wd"><td class="num">10-08 10:05</td><td>系统</td><td><span class="tag tag-amber">提现</span></td><td>WD-20261008-016（¥320）自动标记「风控待审」：新账号大额</td></tr>
+              <tr data-s="wd"><td class="num">10-08 09:12</td><td>系统</td><td><span class="tag tag-blue">提现</span></td><td>WD-20261008-015（¥1,500）进入待审核 · 首次提现已过审核</td></tr>
+              <tr data-s="cpu"><td class="num">10-07 14:22</td><td>系统</td><td><span class="tag tag-blue">算力</span></td><td>等额算力 ¥3,980 自动发放（订单 SO-20261007-042 · 支付成功触发）</td></tr>
+              <tr data-s="rate"><td class="num">10-06 16:20</td><td>运营 · 小李</td><td><span class="tag tag-orange">费率</span></td><td>单代理特殊费率：王总（杭州）首单 25% → 28%（年度标杆激励）</td></tr>
+              <tr data-s="acct"><td class="num">10-06 11:02</td><td>运营 · 小李</td><td><span class="tag tag-green">账号</span></td><td>入驻审核通过：刘经理（来源 招商链接 · 赵招商）→ 开通代理后台</td></tr>
+              <tr data-s="refund"><td class="num">09-28 15:22</td><td>运营 · 小李</td><td><span class="tag tag-red">退款</span></td><td>订单 SO-20260928-030 退款，佣金 ¥995.00 自动冲回</td></tr>
+            </tbody>
+          </table></div>
+          <div class="tbl-note">· 日志不可删改，支持按对象 / 操作人 / 时间检索导出（正式版）</div>
+        </div>
+      </section>
+
+      <!-- ===== 占位页（第二轮交付） ===== -->
+      <section class="view" id="pg-placeholder">
+        <div class="card empty">
+          <div class="eic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M12 8v8M8 12h8"/></svg></div>
+          <div class="et" id="phTitle">该模块在第二轮交付</div>
+          <div class="ed" id="phDesc">第一轮原型聚焦评审关键页：登录 / 代理商工作台 / 客户管理 / 佣金中心 / 总部费率配置 / 总部提现管理</div>
+          <button class="btn btn-primary" onclick="navTo(firstRealPage)">返回关键页</button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ===== 新建客户弹窗 ===== -->
+<div class="mask" id="mdNewCust">
+  <div class="modal">
+    <button class="m-close" onclick="closeModal('mdNewCust')">✕</button>
+    <h3>新建客户子账号</h3>
+    <div class="msub">选产品 → 自主定价 → 配权限档 · 佣金按实际成交价 × 当前费率计</div>
+    <div class="field"><label>选择产品</label>
+      <div class="prod-pick" id="prodPick">
+        <button class="pp on" data-price="3980" data-cat="text" onclick="pickProd(this)"><span class="pn">古人经营智慧</span><span class="pt">文字类 · 推荐官白名单内</span><span class="pv">建议价 ¥3,980</span></button>
+        <button class="pp" data-price="1980" data-cat="text" onclick="pickProd(this)"><span class="pn">IP+AI 业绩倍增系统</span><span class="pt">文字类</span><span class="pv">建议价 ¥1,980</span></button>
+        <button class="pp" data-price="5980" data-cat="media" onclick="pickProd(this)"><span class="pn">门店经营大脑</span><span class="pt">图片 / 视频类</span><span class="pv">建议价 ¥5,980</span></button>
+      </div>
+    </div>
+    <div class="field" id="fPrice"><label>自主定价（¥100 ~ ¥100,000，下限硬约束）</label>
+      <input type="number" id="inpPrice" value="3980" min="100" max="100000" oninput="priceChange()">
+      <div class="err" id="priceErr">定价超出允许区间：¥100 ~ ¥100,000</div>
+    </div>
+    <div class="calc-strip">
+      <div class="cs"><div class="k">我的首单佣金（25%）</div><div class="v num" id="calcComm">¥995</div></div>
+      <div class="cs"><div class="k">客户等额算力（1:1 自动发放）</div><div class="v num blue" id="calcCredit">¥3,980</div></div>
+    </div>
+    <div class="bigwarn" id="bigWarn"><span>⚠</span><div>单笔 ≥ ¥50,000 触发<b>总部大额复核</b>，复核通过后订单再生效（涉及大额等额算力赠送与佣金支出，阈值总部可配）。</div></div>
+    <div class="field"><label>客户手机号</label><input type="tel" maxlength="11" placeholder="用于创建客户子账号并绑定到您名下"></div>
+    <div class="field"><label>权限档（决定客户可用功能与算力额度）</label>
+      <select id="permSel" onchange="permHint()">
+        <option value="basic">引流档 · 基础体验</option>
+        <option value="std" selected>标准档 · 推荐</option>
+        <option value="full">全功能档</option>
+      </select>
+      <div class="hint" id="permHint"></div>
+      <div class="hint" style="color:var(--green)">✓ 已通过自运营履约认证，可配置全部权限档（未认证账号将强制引流档）</div>
+    </div>
+    <div class="field"><label>同时开通 3 天体验号</label>
+      <div style="display:flex;align-items:center;gap:10px"><span class="sw on" id="trialSw" onclick="trialToggle(this)"></span><span style="font-size:12.5px;color:var(--sub)" id="trialTxt">仅文字类智能体可开 · 到期自动回收，可再开</span></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn" onclick="closeModal('mdNewCust')">取消</button>
+      <button class="btn btn-primary" id="btnCreateCust" onclick="createCust()">确认创建</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 提现弹窗 ===== -->
+<div class="mask" id="mdWithdraw">
+  <div class="modal" style="width:500px">
+    <button class="m-close" onclick="closeModal('mdWithdraw')">✕</button>
+    <h3>自主提现</h3>
+    <div class="msub">月度结算进入可提现余额 · 微信支付 T+1 到账</div>
+    <div class="withdraw-head">
+      <div><div class="k">可提现余额</div><div class="v num" id="wdBalV">¥4,280<small>.00</small></div></div>
+      <div style="text-align:right"><div class="k">收款账户</div><div style="font-size:13px;margin-top:4px" id="wdAccV">微信 · 王总（尾号 8823）</div></div>
+    </div>
+    <div class="frozen" id="wdFrozenRow">其中 ¥660.00 处于退款冷静期（2026-10-12 解冻），暂不可提</div>
+    <div class="field" id="fWd"><label>提现金额（起付 ¥100）</label>
+      <input type="number" id="inpWd" placeholder="输入提现金额" oninput="wdChange()">
+      <div class="err" id="wdErr">金额需 ≥ ¥100 且不超过可提余额 ¥3,620.00</div>
+    </div>
+    <div class="arrive">
+      <div class="ai"><div class="k">预估通道费（微信支付）</div><div class="v num" id="wdFee">¥0.00</div></div>
+      <div class="ai"><div class="k">实际到账金额</div><div class="v num money" id="wdReal">¥0.00</div></div>
+      <div class="ai"><div class="k">预计到账</div><div class="v num" id="wdDate">T+1</div></div>
+    </div>
+    <div class="tbl-note" style="padding:12px 2px 0">· 思潼不收手续费；通道费为微信支付 / 银行通道费用，由提现方承担，以实际到账为准<br>· 新成交佣金须过 7 天冷静期；订单退款对应佣金自动冲回<br>· 提现状态：待审核 → 打款中 → 已到账 / 已驳回（附原因）<br>· 佣金支付入账：贵方为企业需向我司开具佣金 / 服务费发票（抵企业所得税）；自然人由我司代扣个税（劳务报酬），凭代扣凭证入账</div>
+    <div class="mfoot">
+      <button class="btn" onclick="closeModal('mdWithdraw')">取消</button>
+      <button class="btn btn-primary" onclick="submitWd()">提交申请</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 驳回弹窗 ===== -->
+<div class="mask" id="mdReject">
+  <div class="modal" style="width:460px">
+    <button class="m-close" onclick="closeModal('mdReject')">✕</button>
+    <h3>驳回提现申请</h3>
+    <div class="msub">驳回原因将展示给申请人，并计入审计日志</div>
+    <div class="field"><label>驳回原因（必填）</label>
+      <textarea id="rejectReason" placeholder="如：收款账户信息有误，请重新绑定微信收款账户后再申请"></textarea>
+    </div>
+    <div class="mfoot">
+      <button class="btn" onclick="closeModal('mdReject')">取消</button>
+      <button class="btn btn-danger" id="btnReject">确认驳回</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 客户详情弹窗 ===== -->
+<div class="mask" id="mdCustDetail">
+  <div class="modal" style="width:540px">
+    <button class="m-close" onclick="closeModal('mdCustDetail')">✕</button>
+    <h3>客户详情</h3>
+    <div class="msub">已购 / 算力消耗 / 贡献佣金明细（演示数据）</div>
+    <div class="withdraw-head">
+      <div><div class="k">客户</div><div class="v" id="cdName" style="font-size:17px">—</div></div>
+      <div style="text-align:right"><div class="k">状态 · 已购产品</div><div style="font-size:13px;margin-top:4px" id="cdMeta">—</div></div>
+    </div>
+    <div class="arrive">
+      <div class="ai"><div class="k">成交价</div><div class="v num" id="cdPrice">—</div></div>
+      <div class="ai"><div class="k">等额算力</div><div class="v num" id="cdGrant">—</div></div>
+      <div class="ai"><div class="k">算力消耗</div><div class="v num" id="cdUsed">—</div></div>
+      <div class="ai"><div class="k">贡献佣金</div><div class="v num money" id="cdComm">—</div></div>
+    </div>
+    <div class="tbl-note" style="padding:12px 2px 0">· 等额算力按实际成交价 1:1 赠送，支付成功后系统自动发放<br>· 贡献佣金 = 首单佣金（25%，仅首次成交年费）+ 续费分成（15%，含年费续收与算力消耗），按下单当时费率计<br>· 客户在同一链接下续费 / 消耗算力，持续计入您的业绩</div>
+    <div class="mfoot"><button class="btn" onclick="closeModal('mdCustDetail')">关闭</button></div>
+  </div>
+</div>
+
+<!-- ===== 退款处理弹窗 ===== -->
+<div class="mask" id="mdRefund">
+  <div class="modal" style="width:460px">
+    <button class="m-close" onclick="closeModal('mdRefund')">✕</button>
+    <h3>退款处理</h3>
+    <div class="msub" id="rfOrder">退款后对应佣金自动冲回（演示）</div>
+    <div class="arrive">
+      <div class="ai"><div class="k">订单成交价</div><div class="v num" id="rfAmt">—</div></div>
+      <div class="ai"><div class="k">冲回佣金</div><div class="v num money" id="rfComm">—</div></div>
+    </div>
+    <div class="field"><label>退款原因（必填）</label>
+      <textarea id="refundReason" placeholder="如：客户主动取消 / 重复下单，原因计入审计日志"></textarea>
+    </div>
+    <div class="tbl-note" style="padding:12px 2px 0">· 退款后对应佣金自动冲回；若佣金已提现，从下期余额扣回<br>· 冲回全程留痕，可在审计日志追溯</div>
+    <div class="mfoot">
+      <button class="btn" onclick="closeModal('mdRefund')">取消</button>
+      <button class="btn btn-danger" onclick="confirmRefund()">确认退款</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ================= 公共件 ================= */
+var $=function(s,r){return (r||document).querySelector(s)};
+var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+var toastTimer=null;
+function toast(msg,ms){
+  var t=$('#toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.classList.remove('show')},ms||2400);
+}
+function copyText(txt,okMsg){
+  function done(){toast(okMsg||'已复制')}
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done,function(){fallback()});
+  }else{fallback()}
+  function fallback(){
+    var ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy');done()}catch(e){toast('复制失败，请手动复制')}
+    document.body.removeChild(ta);
+  }
+}
+function openModal(id){$('#'+id).classList.add('act')}
+function closeModal(id){$('#'+id).classList.remove('act')}
+$$('.mask').forEach(function(m){m.addEventListener('click',function(e){if(e.target===m)m.classList.remove('act')})});
+
+/* ================= 登录 ================= */
+var curRole='agent';
+$$('#roleChips .rc').forEach(function(b){
+  b.addEventListener('click',function(){
+    $$('#roleChips .rc').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on');curRole=b.getAttribute('data-role');
+  });
+});
+$$('#view-login .login-tabs button').forEach(function(b){
+  b.addEventListener('click',function(){
+    $$('#view-login .login-tabs button').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on');
+    $('#lt-wx').style.display=b.getAttribute('data-lt')==='wx'?'flex':'none';
+    $('#lt-sms').style.display=b.getAttribute('data-lt')==='sms'?'block':'none';
+  });
+});
+function doLogin(){
+  enterShell('ref');
+}
+/* 伪二维码（演示用，canvas 本地绘制） */
+function drawQR(){
+  var cv=$('#qrCanvas');if(!cv)return;var ctx=cv.getContext('2d');
+  var n=25,cell=cv.width/n;
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#0B2545';
+  var seed=42;function rnd(){seed=(seed*9301+49297)%233280;return seed/233280}
+  function finder(ox,oy){
+    ctx.fillRect(ox*cell,oy*cell,7*cell,7*cell);
+    ctx.fillStyle='#fff';ctx.fillRect((ox+1)*cell,(oy+1)*cell,5*cell,5*cell);
+    ctx.fillStyle='#0B2545';ctx.fillRect((ox+2)*cell,(oy+2)*cell,3*cell,3*cell);
+  }
+  for(var y=0;y<n;y++)for(var x=0;x<n;x++){
+    var inF=(x<8&&y<8)||(x>n-9&&y<8)||(x<8&&y>n-9);
+    if(!inF&&rnd()>0.52)ctx.fillRect(x*cell,y*cell,cell,cell);
+  }
+  finder(0,0);finder(n-7,0);finder(0,n-7);
+}
+
+/* ================= 后台壳 / 导航 ================= */
+var MENUS={
+  agent:{
+    tip:'身份：王总 · 自运营代理（已认证）<br>多角色：可切换「市场招商」身份',
+    items:[
+      {group:'代理商后台'},
+      {id:'agent-dashboard',t:'工作台',ic:'grid'},
+      {id:'agent-customers',t:'客户管理',ic:'users'},
+      {id:'agent-demo',t:'演示账号',ic:'play'},
+      {id:'agent-invite',t:'邀请推广',ic:'link'},
+      {id:'agent-commission',t:'佣金中心',ic:'wallet'},
+      {id:'agent-products',t:'产品与订单',ic:'box'},
+      {id:'agent-compute',t:'算力（只读）',ic:'cpu'},
+      {id:'agent-settings',t:'账号设置',ic:'settings'}
+    ]
+  },
+  hq:{
+    tip:'身份：总部运营 · 全量权限<br>所有配置变更自动留痕',
+    items:[
+      {group:'总部管理'},
+      {id:'hq-dashboard',t:'数据大盘',ic:'grid'},
+      {id:'hq-rates',t:'费率配置',ic:'sliders'},
+      {id:'hq-agents',t:'代理商管理',ic:'badge'},
+      {id:'hq-referrers',t:'推荐官管理',ic:'users'},
+      {id:'hq-recruiters',t:'市场招商管理',ic:'userplus'},
+      {id:'hq-products',t:'产品管理',ic:'box'},
+      {id:'hq-orders',t:'客户与订单',ic:'list'},
+      {id:'hq-compute',t:'算力发放记录',ic:'cpu'},
+      {id:'hq-ledger',t:'佣金台账与结算',ic:'book'},
+      {id:'hq-withdraw',t:'提现管理',ic:'banknote'},
+      {id:'hq-audit',t:'审计日志',ic:'shield'}
+    ]
+  },
+  ref:{
+    tip:'身份：李姐 · 生态推荐官<br>主端为移动 H5，此为 PC 简版',
+    items:[
+      {group:'推荐官后台（简版）'},
+      {id:'ref-dashboard',t:'工作台',ic:'grid'},
+      {id:'ref-invite',t:'我的邀请',ic:'link'},
+      {id:'ref-users',t:'用户列表',ic:'users'},
+      {id:'ref-profit',t:'分润中心',ic:'wallet'},
+      {id:'ref-settings',t:'账号设置',ic:'settings'}
+    ]
+  },
+  rc:{
+    tip:'身份：王总 · 市场招商（兼代理商）<br>可招推荐官 + 代理商 · 提成按商品计提',
+    items:[
+      {group:'市场招商后台'},
+      {id:'rc-dashboard',t:'工作台',ic:'grid'},
+      {id:'rc-agents',t:'我的团队',ic:'users'},
+      {id:'rc-tools',t:'招募工具',ic:'link'},
+      {id:'rc-commission',t:'佣金中心',ic:'wallet'},
+      {id:'rc-settings',t:'账号设置',ic:'settings'}
+    ]
+  }
+};
+var ICONS={
+  grid:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  users:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  play:'<polygon points="6 3 20 12 6 21 6 3"/>',
+  link:'<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
+  wallet:'<rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M6 15h4"/>',
+  box:'<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/>',
+  cpu:'<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/>',
+  settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/>',
+  sliders:'<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
+  badge:'<circle cx="12" cy="8" r="6"/><path d="M15.5 13 17 22l-5-3-5 3 1.5-9"/>',
+  userplus:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>',
+  list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  book:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/>',
+  banknote:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>',
+  shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/>'
+};
+var curBackend='agent',firstRealPage='agent-dashboard';
+function renderMenu(){
+  var cfg=MENUS[curBackend],html='';
+  cfg.items.forEach(function(it){
+    if(it.group){html+='<div class="group">'+it.group+'</div>';return}
+    html+='<button class="mi" data-pg="'+it.id+'" onclick="navTo(\''+it.id+'\')"><svg viewBox="0 0 24 24">'+ICONS[it.ic]+'</svg><span class="tx">'+it.t+'</span></button>';
+  });
+  $('#sideMenu').innerHTML=html;
+  $('#sideTip').innerHTML=cfg.tip;
+}
+function navTo(pg){
+  $$('.view').forEach(function(v){v.classList.remove('act')});
+  var view=$('#pg-'+pg);
+  if(view){
+    view.classList.add('act');
+    var h=view.querySelector('h2');
+    $('#crumb').firstChild.nodeValue=h?h.textContent:pg;
+    $('#crumb span').textContent='（原型演示数据）';
+  }else{
+    $('#phTitle').textContent=pg+' · 待排期';
+    $('#pg-placeholder').classList.add('act');
+    $('#crumb').firstChild.nodeValue='模块预览';
+    $('#crumb span').textContent='未实装';
+  }
+  $$('#sideMenu .mi').forEach(function(m){m.classList.toggle('on',m.getAttribute('data-pg')===pg)});
+  window.scrollTo(0,0);
+}
+var HOME={agent:'agent-dashboard',ref:'ref-dashboard',rc:'rc-dashboard',hq:'hq-dashboard'};
+function enterShell(role){
+  curBackend=role;firstRealPage=HOME[role]||'agent-dashboard';
+  $('#view-login').style.display='none';$('#shell').style.display='block';
+  renderMenu();navTo(firstRealPage);
+  if(role==='hq')toast('已进入总部后台（11 个模块全量）',2600);
+  if(role==='ref')toast('生态推荐官以移动 H5 为主端，此为 PC 简版',2600);
+}
+function switchRole(rid){
+  enterShell(rid==='recruit'?'rc':'agent');
+}
+
+/* ================= 客户管理 ================= */
+function filterCust(f,btn){
+  $$('#custFilters .fchip').forEach(function(x){x.classList.remove('on')});
+  btn.classList.add('on');
+  $$('#custBody tr').forEach(function(tr){
+    var s=tr.getAttribute('data-s');
+    tr.style.display=(f==='all'||s.indexOf(f)>-1)?'':'none';
+  });
+}
+/* 新建客户弹窗 */
+var curProd={price:3980,cat:'text'};
+function pickProd(btn){
+  $$('#prodPick .pp').forEach(function(x){x.classList.remove('on')});
+  btn.classList.add('on');
+  curProd.price=parseInt(btn.getAttribute('data-price'),10);
+  curProd.cat=btn.getAttribute('data-cat');
+  $('#inpPrice').value=curProd.price;
+  trialUpdate();priceChange();
+}
+function priceChange(){
+  var v=parseFloat($('#inpPrice').value)||0,ok=v>=100&&v<=100000;
+  $('#fPrice').classList.toggle('bad',!ok);
+  $('#calcComm').textContent='¥'+fmt(v*0.25);
+  $('#calcCredit').textContent='¥'+fmt(v);
+  $('#bigWarn').classList.toggle('show',v>=50000);
+  $('#btnCreateCust').disabled=!ok;
+}
+function fmt(n){return n.toLocaleString('zh-CN',{maximumFractionDigits:2})}
+function trialToggle(sw){
+  if(curProd.cat!=='text'&&sw.id==='trialSw'){toast('体验号仅限文字类智能体（3 天，到期自动回收）');return}
+  sw.classList.toggle('on');
+}
+function trialUpdate(){
+  var sw=$('#trialSw'),isText=curProd.cat==='text';
+  if(isText){sw.classList.add('on');sw.style.opacity='1'}
+  else{sw.classList.remove('on');sw.style.opacity='.45'}
+  $('#trialTxt').textContent=isText?'仅文字类智能体可开 · 到期自动回收，可再开':'当前产品非文字类，不可开体验号';
+}
+function permHint(){
+  var v=$('#permSel').value;
+  var m={
+    basic:'引流档：仅开放基础体验功能 + 低算力限额，适合先跑起来的新客户，后续可升档。',
+    std:'标准档：开放文字 / 图片等核心增长功能 + 标准算力额度，适合大多数正式客户（推荐）。',
+    full:'全功能档：解锁全部智能体（含视频 / 数字人类）+ 最高算力额度，适合大客户与高年费订单。'
+  };
+  $('#permHint').textContent=m[v];
+}
+function createCust(){
+  var v=parseFloat($('#inpPrice').value)||0;
+  if(!(v>=100&&v<=100000)){toast('定价超出允许区间：¥100 ~ ¥100,000');return}
+  var body=$('#custBody'),tr=document.createElement('tr');
+  tr.setAttribute('data-s','trial');
+  tr.innerHTML='<td><span class="strong">新客户（演示）</span> · 155****'+Math.floor(1000+Math.random()*9000)+'</td>'
+    +'<td><span class="tag tag-blue">体验 · 剩 3 天</span></td>'
+    +'<td>古人经营智慧（体验）</td><td class="r num">—</td><td class="r num">¥200</td><td class="r num">¥0</td><td class="r num">—</td>'
+    +'<td><button class="btn btn-sm" onclick="toast(\'体验转正式：客户在您的链接下付款后自动升级\')">转正式</button></td>';
+  body.insertBefore(tr,body.firstChild);
+  closeModal('mdNewCust');
+  toast('客户已创建：'+fmt(v)+' 元档 · 首单佣金预估 ¥'+fmt(v*0.25)+'（演示数据，不入库）',3200);
+}
+
+/* ================= 佣金中心 · 提现（三角色共用动态弹窗） ================= */
+var WD_BAL=4280,WD_FROZEN=660,WD_RATE=0.001;
+function openWithdraw(bal,frozen,acc){
+  WD_BAL=bal;WD_FROZEN=frozen;
+  $('#wdBalV').innerHTML='¥'+fmt(bal)+'<small>.00</small>';
+  $('#wdAccV').textContent=acc||'微信 · 收款账户';
+  $('#wdFrozenRow').style.display=frozen>0?'':'none';
+  $('#inpWd').value='';
+  $('#fWd').classList.remove('bad');
+  $('#wdErr').textContent='金额需 ≥ ¥100 且不超过可提余额 ¥'+fmt(bal-frozen)+'.00';
+  wdChange();
+  openModal('mdWithdraw');
+}
+function wdChange(){
+  var v=parseFloat($('#inpWd').value)||0,max=WD_BAL-WD_FROZEN,ok=v>=100&&v<=max;
+  $('#fWd').classList.toggle('bad',!ok&&$('#inpWd').value!=='');
+  var fee=Math.round(v*WD_RATE*100)/100;
+  $('#wdFee').textContent='¥'+fmt(fee);
+  $('#wdReal').textContent='¥'+fmt(Math.max(v-fee,0));
+  var d=new Date();d.setDate(d.getDate()+1);
+  $('#wdDate').textContent=(d.getMonth()+1)+'-'+d.getDate()+' 到账';
+}
+function submitWd(){
+  var v=parseFloat($('#inpWd').value)||0,max=WD_BAL-WD_FROZEN;
+  if(!(v>=100)){toast('起付金额为 ¥100');return}
+  if(v>max){toast('超出可提余额 ¥'+fmt(max)+'（冷静期占用 ¥'+fmt(WD_FROZEN)+' 暂不可提）');return}
+  closeModal('mdWithdraw');
+  toast('提现申请已提交：¥'+fmt(v)+' · 待审核 → 打款中 → T+1 到账（演示）',3200);
+}
+/* 总部提现操作 */
+var rejectTarget=null;
+function payWd(btn){
+  var tr=btn.closest('tr'),tag=tr.querySelector('[data-st]');
+  var v=tr.querySelector('[data-v]');
+  if(v&&v.getAttribute('data-inv')==='pending'){toast('打款前须收到该代理商开具的佣金 / 服务费发票（抵企业所得税），请先「登记收票」',3200);return}
+  if(tr.querySelector('[data-risk]')){toast('风控待审：该笔提现触发风控规则，需先完成人工复核',3200);return}
+  var tax=tr.querySelector('[data-tax]');
+  tag.className='tag tag-blue';tag.textContent='打款中';
+  btn.parentElement.innerHTML='<span class="tag tag-blue">微信支付处理中 · T+1 对账</span>';
+  if(tax){
+    var amt=parseFloat(tr.cells[3].textContent.replace(/[¥,]/g,''))||0,tp=parseFloat(tax.getAttribute('data-tax'))||0,fee=Math.round(amt*0.001*100)/100;
+    toast('已发起打款：金额 '+tr.cells[3].textContent+'，代扣个税（劳务报酬）¥'+fmt(tp)+'，通道费 ¥'+fmt(fee)+'（提现方承担），实付 ¥'+fmt(amt-tp-fee)+' · 凭代扣凭证入账（演示）',4200);
+  }else{
+    toast('已通过审核并发起微信支付打款（演示）：单号 '+tr.cells[0].textContent,3200);
+  }
+}
+function recvInvoice(btn){
+  var td=btn.closest('td');
+  td.removeAttribute('data-inv');
+  td.innerHTML='<span class="tag tag-green">佣金发票已收 · 可打款</span>';
+  toast('已登记收票：佣金 / 服务费发票（抵企业所得税），该笔提现可发起打款（演示）',3200);
+}
+function riskPass(btn){
+  var tr=btn.closest('tr'),risk=tr.querySelector('[data-risk]');
+  if(risk){risk.className='tag tag-green';risk.removeAttribute('data-risk');risk.textContent='复核通过'}
+  toast('人工复核通过：风控标记已解除，可发起打款（演示），已计入审计日志',3200);
+}
+function openReject(btn){rejectTarget=btn.closest('tr');$('#rejectReason').value='';openModal('mdReject')}
+$('#btnReject').addEventListener('click',function(){
+  var r=$('#rejectReason').value.trim();
+  if(!r){toast('请填写驳回原因（必填）');return}
+  var tag=rejectTarget.querySelector('[data-st]');
+  tag.className='tag tag-red';tag.textContent='已驳回';
+  rejectTarget.cells[8].innerHTML='<button class="btn btn-sm" onclick="toast(\'驳回原因：'+r+'\')">查看原因</button>';
+  closeModal('mdReject');
+  toast('已驳回并通知申请人（演示），原因计入审计日志');
+});
+
+/* ================= 总部费率 ================= */
+function saveRateBtn(btn){
+  var row=btn.closest('.rate-row'),inp=row.querySelector('input');
+  var nv=parseFloat(inp.value),ov=parseFloat(row.getAttribute('data-old'));
+  if(isNaN(nv)||nv<0||nv>100){toast('比例需在 0 ~ 100 之间');return}
+  if(nv===ov){toast(row.getAttribute('data-name')+' 未变更（当前 '+ov+'%）');return}
+  saveRate(row.getAttribute('data-name'),ov,nv);
+  row.setAttribute('data-old',nv);
+}
+function saveRate(name,oldV,newV){
+  if(oldV===newV){toast(name+' 未变更（当前 '+newV+'%）');return}
+  var tb=$('#rateLog'),tr=document.createElement('tr');
+  var d=new Date(),ds=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
+  tr.innerHTML='<td class="num">'+ds+' '+new Date().toTimeString().slice(0,5)+'</td><td>管理员 · 思潼</td><td>全局默认</td><td>'+name+'</td>'
+    +'<td class="diff"><span class="old">'+oldV+'%</span> → <span class="new">'+newV+'%</span></td><td>仅影响生效后新订单/消耗，不追溯</td>';
+  tb.insertBefore(tr,tb.firstChild);
+  toast('已保存：'+name+' '+newV+'% · 代理端实时刷新并收到站内信（演示）',3200);
+}
+function plToggle(sw){
+  var tr=sw.closest('tr'),on=sw.classList.contains('on');
+  tr.querySelectorAll('input[type=number]').forEach(function(i){i.disabled=!on});
+  tr.cells[4].innerHTML=on?'<span class="tag tag-blue">覆盖中</span>':'按全局默认执行';
+}
+function subSwitch(group,key,btn){
+  var tabs=btn.parentElement;
+  $$('button',tabs).forEach(function(b){b.classList.remove('on')});
+  btn.classList.add('on');
+  $$('.subview[id^="sv-'+group+'-"]').forEach(function(v){v.classList.remove('act')});
+  $('#sv-'+group+'-'+key).classList.add('act');
+}
+
+/* ================= 第二轮 · 全量页面交互 ================= */
+function drawQRIcon(id,seed){
+  var cv=document.getElementById(id);if(!cv)return;var ctx=cv.getContext('2d');
+  var n=25,cell=cv.width/n;
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#0B2545';
+  function rnd(){seed=(seed*9301+49297)%233280;return seed/233280}
+  function finder(ox,oy){
+    ctx.fillRect(ox*cell,oy*cell,7*cell,7*cell);
+    ctx.fillStyle='#fff';ctx.fillRect((ox+1)*cell,(oy+1)*cell,5*cell,5*cell);
+    ctx.fillStyle='#0B2545';ctx.fillRect((ox+2)*cell,(oy+2)*cell,3*cell,3*cell);
+  }
+  for(var y=0;y<n;y++)for(var x=0;x<n;x++){
+    var inF=(x<8&&y<8)||(x>n-9&&y<8)||(x<8&&y>n-9);
+    if(!inF&&rnd()>0.52)ctx.fillRect(x*cell,y*cell,cell,cell);
+  }
+  finder(0,0);finder(n-7,0);finder(0,n-7);
+}
+function chipFilter(btn,tbId){
+  $$('button',btn.parentElement).forEach(function(b){b.classList.remove('on')});
+  btn.classList.add('on');
+  var f=btn.getAttribute('data-f'),shown=0;
+  $$('#'+tbId+' tr').forEach(function(tr){
+    if(tr.classList.contains('tb-empty'))return;
+    var s=tr.getAttribute('data-s')||'';
+    var show=(f==='all'||s.indexOf(f)>-1);
+    tr.style.display=show?'':'none';
+    if(show)shown++;
+  });
+  var emp=document.querySelector('#'+tbId+' .tb-empty');
+  if(emp)emp.style.display=shown?'none':'';
+}
+/* ================= 板块类目 ================= */
+var CAT_INFO={
+  llm:['大模型','API 订阅 · 算力包','#A78BFA'],
+  train:['AI培训','课程 · 认证','#34D399'],
+  fde:['FDE','前置部署 · 项目交付','#38BDF8'],
+  hw:['AI硬件','设备 · 延保订阅','#FBBF24'],
+  opc:['OPC','外包服务 · 驻场协作','#F472B6']
+};
+function catDot(c){return '<span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+c+';box-shadow:0 0 8px '+c+';margin-right:8px;vertical-align:0"></span>'}
+function catSwitch(key,btn){
+  $$('button',btn.parentElement).forEach(function(b){b.classList.remove('on')});
+  btn.classList.add('on');
+  var agentView=document.getElementById('cat-agent-view'),lockView=document.getElementById('cat-lock-view');
+  if(!agentView||!lockView)return;
+  if(key==='agent'){agentView.style.display='';lockView.style.display='none';return}
+  var c=CAT_INFO[key];
+  lockView.innerHTML='<div class="cat-lock" style="max-width:720px;margin:0 auto">'
+    +'<div class="lk"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>'
+    +'<h4>'+c[0]+'板块 · 分佣方案规划中</h4>'
+    +'<p>该板块费率尚未启用。启用后将与「智能体」板块结构一致：<br>首单 / 续费双轨费率 × 代理商 / 推荐官 / 市场招商三类角色，按类目独立核算、独立提现、全量留痕。</p>'
+    +'<div class="plan"><span class="p">首单率 · 待定</span><span class="p">续费率 · 待定</span><span class="p">推荐官分润 · 待定</span><span class="p">市场招商提成 · 待定</span></div>'
+    +'<div class="extra"><span class="tag tag-amber">'+c[1]+' · 预留开发位</span></div></div>';
+  agentView.style.display='none';lockView.style.display='';
+  toast(c[0]+'板块分佣方案规划中 · 启用后自动在此按类目配置');
+}
+function inviteLink(sel){
+  var map={all:'https://st-ai.cn/r/wang88?src=agent',ghr:'https://st-ai.cn/r/wang88?src=agent&p=ghr',ipai:'https://st-ai.cn/r/wang88?src=agent&p=ipai',store:'https://st-ai.cn/r/wang88?src=agent&p=store'};
+  $('#inviteUrl').textContent=map[sel.value]||map.all;
+  toast('已切换为「'+(sel.selectedIndex===0?'通用入口':sel.options[sel.selectedIndex].text)+'」落地页链接（演示）');
+}
+function priceAgent(){toast('自主定价：可在 ¥100 ~ ¥100,000 区间设置售价；单笔 ≥¥50,000 触发总部复核后生效（演示入口）',3200)}
+function openCustDetail(btn){
+  var tr=btn.closest('tr');
+  $('#cdName').textContent=tr.cells[0].textContent;
+  $('#cdMeta').textContent=tr.cells[1].textContent+' · '+tr.cells[2].textContent;
+  $('#cdPrice').textContent=tr.cells[3].textContent;
+  $('#cdGrant').textContent=tr.cells[4].textContent;
+  $('#cdUsed').textContent=tr.cells[5].textContent;
+  $('#cdComm').textContent=tr.cells[6].textContent;
+  openModal('mdCustDetail');
+}
+function certPass(btn){
+  var tr=btn.closest('tr');
+  tr.cells[2].innerHTML='<span class="tag tag-green">已认证</span>';
+  btn.parentElement.innerHTML='<span class="tag tag-green">认证通过 · 已开通配置权限</span>';
+  toast('认证已通过：'+tr.cells[0].textContent+' 可自建客户并配置权限档（演示），已计入审计日志',3200);
+}
+function passAgent(btn){
+  var tr=btn.closest('tr');
+  tr.cells[3].innerHTML='<span class="tag tag-green">已通过 · 已开通代理后台</span>';
+  toast('入驻审核通过：'+tr.cells[0].textContent+'（演示），已计入审计日志',3200);
+}
+function reviewOrder(btn){
+  var tr=btn.closest('tr'),tag=tr.querySelector('[data-st]');
+  tag.className='tag tag-green';tag.textContent='复核通过 · 已生效';
+  btn.parentElement.innerHTML='<span class="tag tag-gray">复核完成</span>';
+  toast('大额订单复核通过：等额算力与佣金即刻生效（演示），已计入审计日志',3200);
+}
+function wlToggle(sw,name){
+  var on=sw.classList.toggle('on');
+  toast('推荐官白名单已'+(on?'加入':'移除')+'「'+name+'」，新注册用户即时生效（演示）',3200);
+}
+function prodToggle(sw,name){
+  var on=sw.classList.toggle('on');
+  toast('「'+name+'」已'+(on?'上架':'下架')+'，商城与各角色后台同步更新（演示）',3200);
+}
+function execSettle(btn){
+  var tr=btn.closest('tr'),tag=tr.querySelector('[data-st]');
+  tag.className='tag tag-green';tag.textContent='已结算';
+  btn.parentElement.innerHTML='<span class="tag tag-green">结算完成 · 已入各角色可提余额</span>';
+  toast('月度结算已执行：¥22,520.00 按台账拆分入账（演示），佣金计算入参已留痕',3200);
+}
+var refundTarget=null;
+function openRefund(btn){
+  refundTarget=btn.closest('tr');
+  $('#rfOrder').textContent='订单 '+refundTarget.cells[0].textContent+' · 客户 '+refundTarget.cells[1].textContent;
+  $('#rfAmt').textContent=refundTarget.cells[4].textContent;
+  $('#rfComm').textContent=refundTarget.cells[5].textContent;
+  $('#refundReason').value='';
+  openModal('mdRefund');
+}
+function confirmRefund(){
+  var r=$('#refundReason').value.trim();
+  if(!r){toast('请填写退款原因（必填）');return}
+  var tag=refundTarget.querySelector('[data-st]');
+  tag.className='tag tag-red';tag.textContent='已退款 · 佣金冲回';
+  refundTarget.cells[8].innerHTML='<span class="tag tag-gray">已冲回 '+refundTarget.cells[5].textContent+'</span>';
+  closeModal('mdRefund');
+  toast('退款已处理：对应佣金 '+refundTarget.cells[5].textContent+' 自动冲回（演示），冲回全程留痕',3200);
+}
+function exitLogin(){
+  $('#shell').style.display='none';
+  $('#view-login').style.display='';
+  window.scrollTo(0,0);
+  toast('已退出登录（演示）');
+}
+
+/* ================= 初始化 ================= */
+drawQR();
+drawQRIcon('qrAgent',7);drawQRIcon('qrRef',13);
+priceChange();
+permHint();
+</script>
+</body>
+</html>
