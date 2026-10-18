@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>兰琪AI·经营大脑 v2 · 每日清单</title>
+<link rel="stylesheet" href="assets/lanqi-ui.css">
+<style>
+/* ===== 每日清单私有样式（共享部分在 lanqi-ui.css） ===== */
+/* 日期头卡 */
+.date-card { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: linear-gradient(135deg, #FFF3EA, #FFEBDD); border: 1px solid var(--line2); border-radius: var(--rad); padding: 17px 18px; box-shadow: var(--shadow-s); }
+.dc-date { font-size: 21px; font-weight: 900; letter-spacing: -.3px; }
+.dc-date span { font-size: 12px; color: var(--o3); background: #fff; border: 1px solid var(--line2); border-radius: 999px; padding: 2px 10px; margin-left: 7px; vertical-align: 3px; font-weight: 800; }
+.dc-sub { font-size: 11.5px; color: var(--t3); margin-top: 5px; }
+.dc-prog { flex: 1; min-width: 200px; }
+.dc-num { display: flex; align-items: baseline; gap: 5px; margin-bottom: 7px; }
+.dc-num b { font-size: 26px; font-weight: 900; color: var(--o1); }
+.dc-num span { font-size: 11.5px; color: var(--t3); font-weight: 600; }
+.dc-meta { font-size: 11px; color: var(--t3); margin-top: 7px; }
+.dc-meta b { color: var(--o3); }
+
+/* 欠账滚存 */
+.carry-item { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border-radius: 12px; background: #FDF6EC; border: 1px dashed #F2D9BC; margin-bottom: 9px; }
+.carry-item:last-of-type { margin-bottom: 0; }
+.carry-ic { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.carry-t { font-size: 12.5px; font-weight: 800; line-height: 1.5; }
+.carry-d { font-size: 11.5px; font-weight: 600; color: var(--t2); line-height: 1.65; margin-top: 1px; }
+.carry-d b { color: var(--o3); }
+.carry-note { display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--t3); margin-top: 11px; line-height: 1.6; }
+
+/* 夕会复盘 CTA */
+.eve-card { background: var(--og); border-radius: var(--rad); padding: 18px 16px; color: #fff; box-shadow: 0 8px 22px rgba(255,106,0,.35); position: relative; overflow: hidden; }
+.eve-card::after { content: "🌅"; position: absolute; right: -6px; bottom: -16px; font-size: 76px; opacity: .18; pointer-events: none; }
+.eve-t { font-size: 18px; font-weight: 900; display: flex; align-items: center; gap: 7px; }
+.eve-d { font-size: 12px; opacity: .92; margin: 6px 0 14px; line-height: 1.7; }
+.eve-btn { width: 100%; min-height: 44px; border-radius: 12px; background: #fff; color: var(--o3); font-size: 14px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 6px; transition: transform .15s; position: relative; z-index: 1; }
+.eve-btn:active { transform: scale(.97); }
+
+/* 任务清单 */
+.tk-item { display: flex; align-items: flex-start; gap: 11px; padding: 13px 12px; border: 1px solid var(--line); border-radius: 14px; margin-bottom: 10px; background: linear-gradient(180deg, #fff, #FFFBF7); transition: all .18s; cursor: pointer; min-height: 40px; }
+.tk-item:last-of-type { margin-bottom: 2px; }
+.tk-item:active { transform: scale(.99); }
+.tk-check { width: 24px; height: 24px; border-radius: 9px; border: 2px solid #E8C9AE; background: #fff; flex-shrink: 0; display: grid; place-items: center; color: #fff; font-size: 13px; font-weight: 900; margin-top: 2px; transition: all .18s; }
+.tk-item.done { background: #FBF5EF; }
+.tk-item.done .tk-check { background: var(--og); border-color: var(--og); }
+.tk-item.done .tk-t, .tk-item.done .tk-w { opacity: .45; text-decoration: line-through; }
+.tk-mid { flex: 1; min-width: 0; }
+.tk-t { font-size: 13px; font-weight: 700; line-height: 1.55; }
+.tk-tag { font-size: 10px; background: var(--soft); color: var(--o3); border-radius: 999px; padding: 1px 8px; font-weight: 800; margin-right: 6px; vertical-align: 1px; }
+.tk-item.done .tk-tag { background: #F3EDE6; color: var(--t3); }
+.tk-w { font-size: 11px; color: var(--t3); margin-top: 3px; }
+.tk-link { font-size: 11.5px; color: var(--o3); font-weight: 700; white-space: nowrap; margin-top: 4px; flex-shrink: 0; }
+.tk-foot { font-size: 10.5px; color: var(--t3); line-height: 1.7; padding-top: 11px; border-top: 1px dashed var(--line); margin-top: 4px; }
+
+/* 分段锚点导航 */
+.dseg { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 3px; -webkit-overflow-scrolling: touch; }
+.dseg button { flex: 0 0 auto; border: 1px solid var(--line2); background: #fff; color: var(--t2); font-size: 12.5px; font-weight: 700; padding: 8px 15px; border-radius: 999px; min-height: 36px; transition: all .15s; }
+.dseg button.on { background: var(--og); color: #fff; border-color: transparent; font-weight: 800; }
+
+/* 本月四目标入口条 */
+.gs-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
+.gs-item { background: #fff; border: 1px solid var(--line); border-radius: var(--rad-s); padding: 11px; transition: .15s; }
+.gs-item:active { transform: scale(.97); }
+.gs-item .g-ic { font-size: 14px; }
+.gs-item .g-lb { display: block; font-size: 10.5px; color: var(--t2); font-weight: 700; margin-top: 1px; }
+.gs-item .g-v { display: block; font-size: 14px; font-weight: 900; margin-top: 4px; letter-spacing: -.2px; white-space: nowrap; }
+.gs-item .g-v small { font-size: 10px; font-weight: 600; color: var(--t3); }
+.gs-item .g-bar { display: block; height: 5px; background: #FFEBDD; border-radius: 999px; margin-top: 7px; overflow: hidden; }
+.gs-item .g-bar i { display: block; height: 100%; background: var(--og); border-radius: 999px; }
+.gs-item .g-bar i.low { background: var(--red); }
+.gs-item .g-pc { display: block; font-size: 10.5px; font-weight: 800; color: var(--o3); margin-top: 5px; }
+@media (max-width: 520px) { .gs-row { grid-template-columns: repeat(2, 1fr); } }
+
+/* 滚存引擎：公式卡 + 测算表 + 演示 */
+.fml-card { background: var(--ink); color: #FFE9D6; border-radius: var(--rad-s); padding: 14px 15px; font-size: 12.5px; line-height: 2.1; font-weight: 600; margin-top: 12px; overflow-x: auto; }
+.fml-card .k { color: #FFB27A; font-weight: 800; }
+.fml-card .c { color: #B39B8A; }
+.fml-card code { background: rgba(255,255,255,.08); padding: 2px 7px; border-radius: 6px; }
+table.dt2 { width: 100%; border-collapse: collapse; font-size: 11.5px; min-width: 560px; }
+table.dt2 th { text-align: center; font-size: 10px; color: var(--t3); font-weight: 800; padding: 8px 4px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.dt2 td { text-align: center; padding: 9px 4px; border-bottom: 1px solid #FFF3EA; font-weight: 700; white-space: nowrap; }
+table.dt2 tr:last-child td { border-bottom: none; }
+table.dt2 td:first-child, table.dt2 th:first-child { text-align: left; }
+table.dt2 tr.hl { background: #FDF0EE; }
+.pill-r { display: inline-block; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 99px; background: #FCE9EB; color: var(--red); }
+.pill-g { display: inline-block; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 99px; background: #E7F8F0; color: var(--green); }
+.demo-case { border: 2px dashed var(--line2); background: #FFF9F4; border-radius: var(--rad-s); padding: 13px 14px; margin-top: 12px; }
+.demo-case h4 { font-size: 12.5px; font-weight: 900; color: var(--o3); margin-bottom: 7px; }
+.demo-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 12px; font-weight: 700; margin: 5px 0; line-height: 1.6; }
+.demo-row .chip { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 4px 9px; }
+.demo-row .arw { color: var(--o3); font-weight: 900; }
+.demo-row .big { font-size: 17px; font-weight: 900; color: var(--red); }
+
+/* 防雪崩 / 定额配置 */
+.opt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.opt { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 13px; background: #FFFBF7; border: 1px solid var(--line); border-radius: var(--rad-s); cursor: pointer; }
+.opt .k2 { font-size: 12.5px; font-weight: 700; line-height: 1.5; }
+.opt .k2 small { display: block; font-size: 10.5px; color: var(--t3); font-weight: 600; margin-top: 2px; }
+.rule-row { display: grid; grid-template-columns: 1fr 68px 68px; gap: 9px; align-items: center; padding: 11px 0; border-bottom: 1px dashed var(--line); }
+.rule-row:last-of-type { border-bottom: none; }
+.rule-row.head { font-size: 10px; color: var(--t3); font-weight: 800; border-bottom: 1px solid var(--line); padding: 7px 0; }
+.rule-row .rn { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; }
+.rule-row .rn .ic { font-size: 15px; }
+.qty-in { width: 100%; height: 34px; border: 1px solid var(--line2); border-radius: 8px; padding: 0 6px; font-size: 14px; font-weight: 800; text-align: center; color: var(--t1); background: #fff; }
+.qty-in:focus { outline: 2px solid rgba(255,106,0,.3); border-color: var(--o1); }
+.rule-row .calc { grid-column: 1 / -1; font-size: 11px; color: var(--t2); font-weight: 600; line-height: 1.6; }
+.rule-row .calc b { color: var(--o3); font-weight: 900; }
+.sw { width: 42px; height: 24px; border-radius: 999px; background: var(--line2); position: relative; transition: .2s; flex-shrink: 0; border: none; cursor: pointer; }
+.sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.sw.on { background: var(--og); }
+.sw.on::after { left: 21px; }
+
+/* 实时动态 */
+.live-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11.5px; color: var(--t2); font-weight: 600; padding: 9px 12px; background: #FFFBF7; border: 1px dashed var(--line2); border-radius: var(--rad-s); margin-bottom: 11px; }
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(15,169,104,.18); animation: dtPulse 1.6s infinite; }
+@keyframes dtPulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.live-bar .sp { flex: 1; }
+.live-btn { border: 1px solid var(--line2); background: #fff; color: var(--t2); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px; min-height: 26px; }
+.live-btn.on { background: var(--green); color: #fff; border-color: var(--green); }
+.feed { position: relative; padding-left: 20px; }
+.feed::before { content: ""; position: absolute; left: 5px; top: 8px; bottom: 8px; width: 2px; background: var(--line); }
+.fi { position: relative; background: #FFFBF7; border: 1px solid var(--line); border-radius: var(--rad-s); padding: 10px 12px; margin-bottom: 8px; }
+.fi::before { content: ""; position: absolute; left: -19px; top: 16px; width: 9px; height: 9px; border-radius: 50%; background: var(--o1); border: 2px solid #fff; }
+.fi.new::before { background: var(--green); }
+.fi-h { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 12.5px; }
+.fi-h .who { font-weight: 800; }
+.fi-tag { font-size: 10px; font-weight: 700; color: var(--t2); background: var(--soft); border-radius: 6px; padding: 2px 7px; }
+.delta { font-size: 11px; font-weight: 900; padding: 2px 8px; border-radius: 999px; background: #E7F8F0; color: var(--green); }
+.fi-h .ts { margin-left: auto; font-size: 10.5px; color: var(--t3); font-weight: 700; }
+.fi-note { font-size: 11.5px; color: var(--t2); margin-top: 3px; font-weight: 600; line-height: 1.65; }
+
+/* 团队欠账排名 */
+.team-row { display: flex; align-items: center; gap: 11px; padding: 11px; border: 1px solid var(--line); border-radius: var(--rad-s); margin-bottom: 9px; background: #FFFBF7; }
+.team-row.risk { border-color: rgba(226,62,78,.4); background: #FDF1F2; }
+.rank { width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; font-size: 12px; font-weight: 900; background: var(--soft); color: var(--t2); flex-shrink: 0; }
+.rank.r1 { background: var(--og); color: #fff; }
+.avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--soft); color: var(--o3); display: grid; place-items: center; font-size: 13px; font-weight: 900; flex-shrink: 0; }
+.team-info { flex: 1; min-width: 0; }
+.team-info .n { font-size: 13px; font-weight: 800; }
+.team-info .r { font-size: 10.5px; color: var(--t3); font-weight: 600; }
+.team-bar { width: 96px; flex-shrink: 0; }
+.team-bar .pbar { height: 6px; }
+.team-val { text-align: right; flex-shrink: 0; }
+.team-val .v { font-size: 14px; font-weight: 900; white-space: nowrap; }
+.team-val .d { font-size: 10.5px; font-weight: 800; color: var(--red); white-space: nowrap; }
+@media (max-width: 520px) { .team-bar { display: none; } }
+
+@media (min-width: 960px) {
+  .date-card { padding: 20px 24px; }
+  .dc-date { font-size: 23px; }
+  .tk-item { padding: 15px 16px; }
+  .opt-grid { grid-template-columns: repeat(3, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div id="lqHeader"></div>
+
+<main id="app"></main>
+
+<div class="foot-note">兰琪AI·经营大脑 v2 · 每日清单 · 2026-09-24 · 仅设计演示</div>
+
+<div id="lqTabbar"></div>
+
+<script src="assets/lanqi-ui.js"></script>
+<script>
+/* ============================================================
+   每日清单（日报制 · 欠账滚存 · 夕会复盘）
+   ============================================================ */
+(function () {
+"use strict";
+var $ = LQ.$, $$ = LQ.$$, esc = LQ.esc, fmt = LQ.fmt, pct = LQ.pct;
+
+/* 5 类例行任务（文案口径与驾驶舱 DAILY 一致） */
+var TASKS = [
+  { tag: "拓客", n: "新增 2 名体验客", t: "今日新增 2 名体验客：抖音 / 美团 / 转介绍三条线", w: "日均 2 名 · 三条线分配", href: "acquire.html", go: "去看获客任务" },
+  { tag: "升单", n: "跟进 3 名 980 体验客", t: "今日跟进 3 名 980 体验客，push 升 3000 深宠卡", w: "日均 1 人 · 980→3000 升单", href: "crm.html", go: "去跟进客户" },
+  { tag: "服务", n: "核对 12 个预约档案", t: "今日 12 个预约：100% 核对皮肤档案 + 敏感红线", w: "护理前核对敏感史 · 零事故红线", href: "crm.html", go: "去核对档案" },
+  { tag: "内容", n: "发布朋友圈 + 视频号", t: "今日发布 1 条朋友圈（七柱）+ 1 条视频号", w: "不断更 · 日触达本地客群", href: "moments.html", go: "去拍内容" },
+  { tag: "复盘", n: "夕会 10 分钟复盘", t: "夕会 10 分钟：复盘今日营收 / 到店 / 升单", w: "10 分钟 · 当天偏差当天纠", href: "home.html", go: "回驾驶舱复盘" }
+];
+/* 昨日滚入的欠账 */
+var CARRIES = [
+  { ic: "🆕", t: "拓客 · 新客邀约", d: "昨日差 <b>1 人</b>未达成，已自动滚入 → 今日目标 <b>2 → 3 人</b>" },
+  { ic: "📝", t: "服务 · 预约回访", d: "昨日剩 <b>1 通</b>未打完，已自动滚入 → 今日目标 <b>3 → 4 通</b>" }
+];
+var doneState = { 1: true, 2: true }; /* 今日 5 项已办 2：升单 / 服务 */
+
+function doneCount() { var n = 0; TASKS.forEach(function (t, i) { if (doneState[i]) n++; }); return n; }
+
+/* ---------- 滚存引擎演示数据（与原版口径一致：目标 = 日定额 + 昨日欠账，未完成不清零） ---------- */
+var RULES0 = [
+  { key: "invite",    icon: "📞", name: "新客邀约",     unit: "人", quota: 6, capRatio: 2.0, carryIn: 4, done: 2 },
+  { key: "recall",    icon: "🔁", name: "老客回访",     unit: "人", quota: 8, capRatio: 2.0, carryIn: 0, done: 8 },
+  { key: "follow",    icon: "🎯", name: "意向跟进",     unit: "人", quota: 5, capRatio: 2.0, carryIn: 2, done: 3 },
+  { key: "moments",   icon: "📱", name: "朋友圈发布",   unit: "条", quota: 2, capRatio: 2.0, carryIn: 0, done: 2 },
+  { key: "reception", icon: "🛎️", name: "到店接待确认", unit: "人", quota: 3, capRatio: 2.0, carryIn: 2, done: 1 },
+  { key: "profile",   icon: "📝", name: "客户档案完善", unit: "份", quota: 4, capRatio: 2.0, carryIn: 4, done: 0 }
+];
+var RULES = JSON.parse(JSON.stringify(RULES0));
+function rCalc(t) {
+  var target = t.quota + t.carryIn;
+  var carry = Math.max(0, target - t.done);
+  var cap = Math.round(t.quota * t.capRatio);
+  return { target: target, carry: carry, cap: cap, atCap: carry >= cap, tomorrow: t.quota + Math.min(carry, cap) };
+}
+function rTotals() {
+  var tg = 0, dn = 0, cr = 0, tm = 0, capped = 0;
+  RULES.forEach(function (t) { var c = rCalc(t); tg += c.target; dn += t.done; cr += c.carry; tm += c.tomorrow; if (c.atCap) capped++; });
+  return { target: tg, done: dn, carry: cr, tomorrow: tm, capped: capped };
+}
+function carryRowsHtml() {
+  var t = rTotals();
+  var h = "";
+  RULES.forEach(function (r0) {
+    var c = rCalc(r0);
+    h += '<tr data-key="' + r0.key + '"' + (c.atCap ? ' class="hl"' : "") + ">";
+    h += "<td>" + r0.icon + " " + r0.name + "</td>";
+    h += "<td>" + c.target + " " + r0.unit + "</td><td>" + c.carry + "</td><td>" + c.cap + "</td>";
+    h += "<td><b>" + c.tomorrow + " " + r0.unit + "</b></td>";
+    h += "<td>" + (c.atCap ? '<span class="pill-r">触顶</span>' : (c.carry === 0 ? '<span class="pill-g">清零</span>' : "正常")) + "</td></tr>";
+  });
+  h += '<tr style="border-top:2px solid var(--line2)"><td><b>合计</b></td><td>' + t.target + '</td><td><b style="color:var(--red)">' + t.carry + '</b></td><td>—</td><td><b style="color:var(--o3)">' + t.tomorrow + "</b></td><td>" + (t.capped ? t.capped + " 项触顶" : "—") + "</td></tr>";
+  return h;
+}
+
+/* ---------- 实时动态（结构照搬原版 · 内容同演示世界） ---------- */
+var FEED_TAG = { invite: "📞 新客邀约", recall: "🔁 老客回访", follow: "🎯 意向跟进", moments: "📱 朋友圈发布", reception: "🛎️ 到店接待确认", profile: "📝 客户档案完善" };
+var FEED = [
+  { k: "invite",    who: "小雨", d: "+1人", ts: "14:32", isNew: true,  n: "抖音来的新客「王姐」已加企微，约周六 14:00 到店体验" },
+  { k: "recall",    who: "小雨", d: "+1人", ts: "13:10", isNew: true,  n: "老客「李姐」被唤醒成功，约周二上午到店做肩颈" },
+  { k: "follow",    who: "小雨", d: "+1通", ts: "11:45", isNew: false, n: "980 体验客「赵姐」已跟进，在考虑升 3000 深宠卡" },
+  { k: "moments",   who: "小雨", d: "+1条", ts: "11:20", isNew: false, n: "已发布朋友圈（七柱 · 效果向）：「秋天肩颈最容易僵」" },
+  { k: "reception", who: "小雨", d: "+1人", ts: "10:50", isNew: false, n: "「孙姐」到店接待完成，敏感史已核对，已交接护理师" },
+  { k: "profile",   who: "小雨", d: "+1份", ts: "10:12", isNew: false, n: "「周女士」客户档案补全：过敏源 + 历史项目 + 消费偏好" },
+  { k: "invite",    who: "小雨", d: "+1人", ts: "09:40", isNew: false, n: "美团新客「吴女士」到店核销体验卡，已转入企微" },
+  { k: "recall",    who: "小雨", d: "+1通", ts: "09:15", isNew: false, n: "沉睡客「郑姐」电话接通，约下周三复购补水护理" }
+];
+var TEAM_LIVE = [
+  "小雨 完成 新客邀约 · 抖音团购核销 1 人",
+  "陈陈 完成 意向跟进 · 3000 卡升单 1 人",
+  "阿静 完成 老客回访 · 唤醒沉睡客 1 人",
+  "晓雯 完成 客户档案完善 · 补全 1 份",
+  "小雨 完成 朋友圈发布 · 七柱内容 1 条"
+];
+var TEAM = [
+  { n: "小雨", role: "美容师 · 拓客担当", done: 16, target: 40 },
+  { n: "阿静", role: "美容师 · 服务担当", done: 22, target: 34 },
+  { n: "陈陈", role: "美容顾问 · 升单担当", done: 14, target: 26 },
+  { n: "晓雯", role: "前台 · 接待担当", done: 9, target: 18 }
+];
+function feedHtml(f) {
+  return '<div class="fi' + (f.isNew ? " new" : "") + '"><div class="fi-h"><span class="who">' + esc(f.who) + '</span><span class="fi-tag">' + (FEED_TAG[f.k] || "") + '</span><span class="delta">' + f.d + '</span><span class="ts">' + f.ts + '</span></div><div class="fi-note">' + esc(f.n) + "</div></div>";
+}
+function nowHM() { var d0 = new Date(); return ("0" + d0.getHours()).slice(-2) + ":" + ("0" + d0.getMinutes()).slice(-2); }
+
+/* 全局规则开关（默认态与原版一致） */
+var SW = { offset: false, holiday: true, remind: true, stop: false };
+var SW_LABEL = { offset: "跨任务抵扣", holiday: "公休日不计欠账", remind: "欠账晨报提醒", stop: "触顶自动停工" };
+var liveOn = true, liveTimer = null, liveIdx = 0, feedTotal = FEED.length;
+
+function refreshRule(i) {
+  var r0 = RULES[i], c = rCalc(r0);
+  var el = $("#ruleCalc" + i);
+  if (el) el.innerHTML = "今日 " + c.target + " · 未完成 " + c.carry + " → <b>明天 " + c.tomorrow + " " + r0.unit + "</b>（上限 " + c.cap + "）";
+  var body = $("#dtBody");
+  if (body) body.innerHTML = carryRowsHtml();
+}
+function resetRules() {
+  RULES0.forEach(function (r0, i) { RULES[i].quota = r0.quota; RULES[i].capRatio = r0.capRatio; });
+  $$("[data-quota],[data-cap]").forEach(function (el) {
+    var i = +(el.getAttribute("data-quota") !== null ? el.getAttribute("data-quota") : el.getAttribute("data-cap"));
+    el.value = el.getAttribute("data-quota") !== null ? RULES[i].quota : RULES[i].capRatio.toFixed(1);
+  });
+  RULES.forEach(function (r0, i) { refreshRule(i); });
+  LQ.toast("已恢复默认定额（演示）");
+}
+function liveTick() {
+  if (!liveOn) return;
+  var list = $("#feedList");
+  if (!list) return;
+  var txt = TEAM_LIVE[liveIdx % TEAM_LIVE.length];
+  liveIdx++;
+  var parts = txt.split(" 完成 ");
+  var who = parts[0], rest = parts[1] || "";
+  var div = document.createElement("div");
+  div.className = "fi new";
+  div.innerHTML = '<div class="fi-h"><span class="who">' + who + '</span><span class="fi-tag">⚡ 团队动态</span><span class="delta">+1</span><span class="ts">' + nowHM() + '</span></div><div class="fi-note">' + rest + "</div>";
+  list.insertBefore(div, list.firstChild);
+  while (list.children.length > 30) list.removeChild(list.lastChild);
+  feedTotal++;
+  var cnt = $("#feedCnt");
+  if (cnt) cnt.textContent = "共 " + feedTotal + " 条";
+}
+function startLive() { stopLive(); liveTimer = setInterval(liveTick, 6000); }
+function stopLive() { if (liveTimer) { clearInterval(liveTimer); liveTimer = null; } }
+
+function render() {
+  var total = TASKS.length, done = doneCount(), pd = Math.round(done / total * 100);
+  var h = "";
+  /* ① 日期头卡 */
+  h += '<section class="span2 rise"><div class="date-card">';
+  h += '<div class="dc-left"><div class="dc-date">今天 · 9月24日<span>周四</span></div>';
+  h += '<div class="dc-sub">📅 日报制 · 未完成自动滚存，每天清零不欠账</div></div>';
+  h += '<div class="dc-prog"><div class="dc-num"><b id="doneNum">' + done + '</b><span>/ ' + total + ' 项已办</span></div>';
+  h += '<div class="pbar"><i class="pfill" id="doneBar" data-w="' + pd + '"></i></div>';
+  h += '<div class="dc-meta" id="doneMeta">完成率 <b>' + pd + '%</b> · 还剩 <b>' + (total - done) + '</b> 项</div></div>';
+  h += '</div></section>';
+  /* ①+ 本月四目标入口条 */
+  var s = LQ.store();
+  var gdefs = [
+    { k: "rev", ic: "💰", nm: "营收", money: true },
+    { k: "new", ic: "🧚", nm: "新客", money: false },
+    { k: "up", ic: "⬆️", nm: "升单", money: false },
+    { k: "wake", ic: "😴", nm: "唤醒", money: false }
+  ];
+  h += '<section class="span2 rise"><div class="sec-head"><h2><span class="bar"></span>本月目标</h2><p>月度结果 → 拆成每天的动作 · 剩 ' + LQ.MONTH.leftDays + ' 天</p><a class="more" href="goal-detail.html">看明细 ›</a></div>';
+  h += '<div class="gs-row">';
+  gdefs.forEach(function (d) {
+    var tt = s.targets[d.k], p = pct(tt[1], tt[0]);
+    var vTxt = d.money ? fmt(tt[1]) : tt[1] + " 人";
+    var gTxt = d.money ? (tt[0] / 10000).toFixed(0) + " 万" : tt[0] + " 人";
+    h += '<a class="gs-item" href="goal-detail.html?goal=' + d.k + '"><span class="g-ic">' + d.ic + '</span><span class="g-lb">' + d.nm + '目标</span>';
+    h += '<span class="g-v">' + vTxt + " <small>/ " + gTxt + '</small></span>';
+    h += '<span class="g-bar"><i class="' + (p < 55 ? "low" : "") + '" style="width:' + p + '%"></i></span>';
+    h += '<span class="g-pc">达成 ' + p + "%</span></a>";
+  });
+  h += '</div></section>';
+  /* ①++ 分段锚点导航 */
+  h += '<section class="span2 rise"><div class="dseg" id="dseg">';
+  [["secTasks", "今日清单"], ["secCarry", "欠账滚存"], ["secFeed", "实时动态"], ["secRules", "定额配置"], ["secTeam", "团队看板"]].forEach(function (b) {
+    h += '<button type="button" data-jump="' + b[0] + '">' + b[1] + "</button>";
+  });
+  h += '</div></section>';
+  /* ② 欠账滚存 */
+  h += '<section class="rise" id="secCarry"><div class="sec-head"><h2><span class="bar"></span>欠账滚存</h2><p>昨日未完成 2 项 · 已自动滚入今天</p><span class="badge a" style="margin-left:auto">🔔 滚存提醒</span></div>';
+  h += '<div class="card">';
+  CARRIES.forEach(function (c) {
+    h += '<div class="carry-item"><span class="carry-ic">' + c.ic + '</span><div><div class="carry-t">' + c.t + '</div><div class="carry-d">' + c.d + '</div></div></div>';
+  });
+  h += '<div class="carry-note">⚙️ 滚存上限 = 日定额 × 2 · 触顶会提醒「重设 / 豁免 / 拆期」，防雪崩</div>';
+  h += '</div></section>';
+  /* ②+ 滚存引擎：明日目标测算 */
+  h += '<section class="span2 rise" id="secEngine"><div class="sec-head"><h2><span class="bar"></span>明日目标测算（滚存引擎）</h2><p>每类任务：目标 = 日定额 + 昨日欠账 · 未完成不清零</p></div>';
+  h += '<div class="card">';
+  h += '<div class="fml-card"><div><span class="c">// 日终结算：未完成部分自动滚入明天，清零不欠账</span></div>';
+  h += '<div><span class="k">target</span>(d) = <code>quota + carry(d-1)</code></div>';
+  h += '<div><span class="k">carry</span>(d) = <code>max(0, target(d) - done(d))</code></div>';
+  h += '<div><span class="k">cap</span> = <code>quota × capRatio</code> <span class="c">// 默认 2.0，防雪崩</span></div></div>';
+  h += '<div class="tbl-card" style="margin-top:12px"><table class="dt2"><thead><tr><th>任务</th><th>今日目标</th><th>未完成</th><th>滚存上限</th><th>明日目标</th><th>状态</th></tr></thead><tbody id="dtBody">';
+  h += carryRowsHtml();
+  h += '</tbody></table></div>';
+  h += '<div class="demo-case"><h4>▶ 规则演示 · 新客邀约</h4>';
+  h += '<div class="demo-row"><span class="chip">日定额 6 人</span><span class="chip">昨日完成 2</span><span class="arw">→</span><span class="chip">未完成 4 人</span><span class="arw">→</span><span>今天目标 = <b>6 + 4 = 10 人</b></span></div>';
+  h += '<div class="demo-row"><span class="chip">上限 = 6 × 2 = 12</span><span class="arw">→</span><span>明天目标 = <b>6 + min(4, 12) = 10 人</b>，不会滚成 50 人</span></div>';
+  h += '<div class="demo-row"><span class="chip">假如连欠 3 天</span><span class="arw">→</span><span class="big">16 人</span><span>→ 触发「防雪崩三层」</span></div></div>';
+  h += '<div class="sec-head" style="margin-top:16px"><h2 style="font-size:13.5px"><span class="bar"></span>防雪崩三层</h2><p>滚存是好工具，但必须有刹车</p></div>';
+  h += '<div class="opt-grid">';
+  h += '<div class="opt" data-mock="⏰ 欠账 > 50% 时，早上 8:30 推给店长（演示）"><div class="k2">第一层 · 提醒<small>欠账 > 50% 时，早上 8:30 推给店长</small></div><span class="badge a">开</span></div>';
+  h += '<div class="opt" data-mock="⛔ 滚存到上限（定额×2）后不再累加（演示）"><div class="k2">第二层 · 触顶停增<small>滚存到上限（定额×2）后不再累加</small></div><span class="badge a">开</span></div>';
+  h += '<div class="opt" data-mock="🛠 触顶任务只能：重设 / 豁免 / 拆期（演示）"><div class="k2">第三层 · 店长干预<small>触顶任务只能：重设 / 豁免 / 拆期</small></div><span class="badge a">开</span></div>';
+  h += '</div>';
+  h += '</div></section>';
+  /* ③ 夕会复盘 CTA */
+  h += '<section class="rise"><div class="sec-head"><h2><span class="bar"></span>夕会复盘</h2><p>每天 10 分钟 · 当天偏差当天纠</p></div>';
+  h += '<div class="eve-card"><div class="eve-t">⏰ 夕会 10 分钟</div>';
+  h += '<div class="eve-d">复盘今日营收 / 到店 / 升单 · 由 AI 生成复盘提纲，输出明天最重要的 3 件事</div>';
+  h += '<button class="eve-btn" id="eveBtn">🕰 现在开始夕会复盘</button></div></section>';
+  /* ④ 任务清单 */
+  h += '<section class="span2 rise" id="secTasks"><div class="sec-head"><h2><span class="bar"></span>今日任务清单</h2><p>点一下即勾选完成 · 已完成置灰划线</p></div>';
+  h += '<div class="card">';
+  TASKS.forEach(function (t, i) {
+    var on = !!doneState[i];
+    h += '<div class="tk-item' + (on ? " done" : "") + '" data-task="' + i + '">';
+    h += '<span class="tk-check">' + (on ? "✓" : "") + "</span>";
+    h += '<div class="tk-mid"><div class="tk-t"><span class="tk-tag">' + t.tag + "</span>" + t.t + '</div><div class="tk-w">' + t.w + "</div></div>";
+    h += '<a class="tk-link" href="' + t.href + '">' + t.go + " ›</a></div>";
+  });
+  h += '<div class="tk-foot">📌 口径：拓客 / 升单 / 服务定额来自「目标拆解」按日折算；内容 / 复盘为固定动作。完成情况计入店长日报。</div>';
+  h += '</div></section>';
+  /* ⑤ 实时动态 */
+  h += '<section class="span2 rise" id="secFeed"><div class="sec-head"><h2><span class="bar"></span>实时动态</h2><p>每一笔完成都有痕迹 · 多端实时同步</p><span class="badge a" style="margin-left:auto" id="feedCnt">共 ' + FEED.length + ' 条</span></div>';
+  h += '<div class="card">';
+  h += '<div class="live-bar"><span class="live-dot"></span><span>实时同步中 · 团队每完成一项都会写进这条流</span><span class="sp"></span><button type="button" class="live-btn on" id="liveToggle">实时流：开</button></div>';
+  h += '<div class="feed" id="feedList">';
+  FEED.forEach(function (f) { h += feedHtml(f); });
+  h += '</div></div>';
+  h += '<div class="card" style="margin-top:10px"><div style="font-size:12.5px;font-weight:800;margin-bottom:6px">📌 动态写入规则</div><div style="font-size:11.5px;color:var(--t2);line-height:1.95">· 员工点「完成」→ 写入一条带时间戳的动态，进度实时刷新；<br>· 点「撤销」→ 写入一条负数动态（红色），保留操作痕迹，不静默删除；<br>· 店长可在动态里直接评论 / @ 提醒当事人；<br>· 日终结算时，今日动态归档进「经营档案」，明日从零开始。</div></div>';
+  h += '</section>';
+  /* ⑥ 定额配置 */
+  h += '<section class="span2 rise" id="secRules"><div class="sec-head"><h2><span class="bar"></span>定额配置</h2><p>店长可改 · 改完实时重算明天目标（演示）</p></div>';
+  h += '<div class="card">';
+  h += '<div class="rule-row head"><div>任务</div><div style="text-align:center">日定额</div><div style="text-align:center">上限倍数</div></div>';
+  RULES.forEach(function (r0, i) {
+    var c = rCalc(r0);
+    h += '<div class="rule-row">';
+    h += '<div class="rn"><span class="ic">' + r0.icon + '</span><span>' + r0.name + '</span></div>';
+    h += '<input class="qty-in" type="number" inputmode="numeric" min="0" max="99" step="1" value="' + r0.quota + '" data-quota="' + i + '" aria-label="' + r0.name + ' 日定额"/>';
+    h += '<input class="qty-in" type="number" inputmode="decimal" min="1" max="3" step="0.5" value="' + r0.capRatio.toFixed(1) + '" data-cap="' + i + '" aria-label="' + r0.name + ' 上限倍数"/>';
+    h += '<div class="calc" id="ruleCalc' + i + '">今日 ' + c.target + " · 未完成 " + c.carry + " → <b>明天 " + c.tomorrow + " " + r0.unit + "</b>（上限 " + c.cap + "）</div>";
+    h += '</div>';
+  });
+  h += '<div class="sec-head" style="margin-top:16px"><h2 style="font-size:13.5px"><span class="bar"></span>全局规则</h2><p>全店生效 · 改动立即同步给全员</p></div>';
+  h += '<div class="opt-grid">';
+  h += '<div class="opt"><div class="k2">跨任务抵扣<small>当天超额部分抵扣其他任务欠账</small></div><button type="button" class="sw' + (SW.offset ? " on" : "") + '" data-sw="offset" aria-label="跨任务抵扣开关"></button></div>';
+  h += '<div class="opt"><div class="k2">公休日不计欠账<small>店休 / 法定假不滚存，回来重新起算</small></div><button type="button" class="sw' + (SW.holiday ? " on" : "") + '" data-sw="holiday" aria-label="公休日不计欠账开关"></button></div>';
+  h += '<div class="opt"><div class="k2">欠账晨报提醒<small>每天 8:30 把欠账名单推给店长</small></div><button type="button" class="sw' + (SW.remind ? " on" : "") + '" data-sw="remind" aria-label="欠账晨报提醒开关"></button></div>';
+  h += '<div class="opt"><div class="k2">触顶自动停工<small>连续触顶 3 天，当天自动减负</small></div><button type="button" class="sw' + (SW.stop ? " on" : "") + '" data-sw="stop" aria-label="触顶自动停工开关"></button></div>';
+  h += '</div>';
+  h += '<div style="display:flex;gap:9px;margin-top:13px;flex-wrap:wrap"><button type="button" class="btn primary" style="flex:1;min-width:140px" data-rules-save>💾 保存配置</button><button type="button" class="btn ghost" style="flex:1;min-width:140px" data-rules-reset>↩️ 恢复默认</button></div>';
+  h += '<div style="font-size:10.5px;color:var(--t3);margin-top:9px;line-height:1.65">工程化说明：定额由服务端按「目标拆解」自动折算下发，店长可改；前端只回传 done，测算由引擎完成。</div>';
+  h += '</div></section>';
+  /* ⑦ 团队看板 */
+  h += '<section class="span2 rise" id="secTeam"><div class="sec-head"><h2><span class="bar"></span>团队欠账排名</h2><p>按欠账数倒序 · 欠账 ≥ 15 店长需当天介入</p><span class="badge o" style="margin-left:auto">' + TEAM.length + ' 人实时</span></div>';
+  h += '<div class="card">';
+  TEAM.slice().sort(function (a, b) { return (b.target - b.done) - (a.target - a.done); }).forEach(function (m, i) {
+    var debt = m.target - m.done, pp = Math.round(m.done / m.target * 100), risk = debt >= 15;
+    h += '<div class="team-row' + (risk ? " risk" : "") + '"><span class="rank' + (i === 0 ? " r1" : "") + '">' + (i + 1) + '</span><span class="avatar">' + m.n.slice(0, 1) + '</span>';
+    h += '<div class="team-info"><div class="n">' + m.n + '</div><div class="r">' + m.role + '</div></div>';
+    h += '<div class="team-bar"><div class="pbar"><i class="pfill" data-w="' + pp + '"></i></div><div style="font-size:10px;color:var(--t3);margin-top:4px;font-weight:700">完成 ' + pp + '%</div></div>';
+    h += '<div class="team-val"><div class="v">' + m.done + " / " + m.target + '</div><div class="d">欠账 ' + debt + '</div></div></div>';
+  });
+  h += '<div class="carry-note" style="margin-top:6px">📌 欠账 ≥ 15 的员工，店长需在当日 18:00 前介入：加人、改定额，或把任务拆到后天。</div>';
+  h += '</div></section>';
+  $("#app").innerHTML = h;
+  if (liveOn) startLive();
+}
+
+function updateHead() {
+  var total = TASKS.length, done = doneCount(), pd = Math.round(done / total * 100);
+  var num = $("#doneNum"), bar = $("#doneBar"), meta = $("#doneMeta");
+  if (num) num.textContent = done;
+  if (bar) bar.style.width = pd + "%";
+  if (meta) meta.innerHTML = done === total ? "🎉 今日任务全部完成！" : "完成率 <b>" + pd + "%</b> · 还剩 <b>" + (total - done) + "</b> 项";
+}
+
+render();
+
+/* ---------- 页面事件（事件委托，无需判空元素） ---------- */
+document.addEventListener("click", function (e) {
+  var item = e.target.closest("[data-task]");
+  if (item) {
+    if (e.target.closest("a")) return; /* 点右侧链接不触发勾选 */
+    var i = +item.getAttribute("data-task");
+    doneState[i] = !doneState[i];
+    item.classList.toggle("done", doneState[i]);
+    var ck = item.querySelector(".tk-check");
+    if (ck) ck.textContent = doneState[i] ? "✓" : "";
+    LQ.toast((doneState[i] ? "✅ 已完成：" : "↩️ 已恢复未完成：") + TASKS[i].tag + " · " + TASKS[i].n);
+    updateHead();
+    return;
+  }
+  var jump = e.target.closest("[data-jump]");
+  if (jump) {
+    $$("#dseg button").forEach(function (b) { b.classList.toggle("on", b === jump); });
+    var sec = $("#" + jump.getAttribute("data-jump"));
+    if (sec && sec.scrollIntoView) sec.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+  var sw = e.target.closest("[data-sw]");
+  if (sw) {
+    var k = sw.getAttribute("data-sw");
+    SW[k] = !SW[k];
+    sw.classList.toggle("on", SW[k]);
+    LQ.toast(SW_LABEL[k] + (SW[k] ? " 已开启" : " 已关闭") + "（演示）");
+    return;
+  }
+  if (e.target.closest("[data-rules-save]")) { LQ.toast("已保存：明天起按新定额执行（演示）"); return; }
+  if (e.target.closest("[data-rules-reset]")) { resetRules(); return; }
+  var lt = e.target.closest("#liveToggle");
+  if (lt) {
+    liveOn = !liveOn;
+    lt.classList.toggle("on", liveOn);
+    lt.textContent = "实时流：" + (liveOn ? "开" : "关");
+    if (liveOn) startLive(); else stopLive();
+    LQ.toast(liveOn ? "实时流已开启：团队动态每 6 秒推一条（演示）" : "实时流已暂停");
+    return;
+  }
+  if (e.target.closest("#eveBtn")) LQ.toast("⏰ 演示：夕会复盘已开始（10 分钟）");
+  var mk = e.target.closest("[data-mock]");
+  if (mk) LQ.toast(mk.getAttribute("data-mock"));
+});
+
+/* 定额输入实时测算 */
+document.addEventListener("input", function (e) {
+  var el = e.target;
+  if (!el.getAttribute) return;
+  var qi = el.getAttribute("data-quota"), ci = el.getAttribute("data-cap");
+  if (qi !== null) {
+    RULES[+qi].quota = Math.max(0, +el.value || 0);
+    refreshRule(+qi);
+  } else if (ci !== null) {
+    var v = parseFloat(el.value);
+    if (v >= 1) RULES[+ci].capRatio = v;
+    refreshRule(+ci);
+  }
+});
+
+LQ.init({ tab: "daily", title: "每日清单" });
+})();
+</script>
+</body>
+</html>
