@@ -1,0 +1,837 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>思潼 · IP+AI 业绩倍增系统（本地商家版）｜产品说明书</title>
+<style>
+:root{
+  --bg:#eef2f8; --ink:#16212e; --sub:#5a6b7c; --line:#e1e8f1;
+  --navy:#17313f; --navy2:#274056; --navy3:#1f3a4d;
+  --orange:#E8651A; --orange-deep:#cf5a10; --orange-soft:#fdeee2; --orange-line:#f7d4b8;
+  --gold:#c9a45c; --gold-soft:#f7f1e2; --gold-line:#e4d5ae;
+  --card:#ffffff;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--ink);line-height:1.7;font-size:15px}
+b{font-weight:800}
+section{position:relative}
+.wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+.eyebrow{display:inline-block;font-size:12.5px;font-weight:800;letter-spacing:3px;color:var(--orange);background:var(--orange-soft);border:1px solid var(--orange-line);border-radius:999px;padding:5px 14px;margin-bottom:16px}
+h2.sec{font-size:30px;line-height:1.25;font-weight:800;letter-spacing:.5px;margin-bottom:10px}
+.sec-sub{color:var(--sub);font-size:15.5px;max-width:760px;margin-bottom:34px}
+.center{text-align:center}
+.center .sec-sub{margin-left:auto;margin-right:auto}
+
+/* ===== hero ===== */
+.hero{position:relative;overflow:hidden;color:#fff;background:radial-gradient(120% 120% at 80% -10%,#2a4254 0%,#17313f 55%,#102632 100%);padding:74px 0 70px}
+.hero::before{content:'';position:absolute;right:-90px;top:-100px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(201,164,92,.30),transparent 68%)}
+.hero::after{content:'';position:absolute;left:-80px;bottom:-120px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(232,101,26,.22),transparent 70%)}
+.hero .wrap{position:relative;z-index:1}
+.brand-line{display:flex;align-items:center;gap:10px;margin-bottom:26px}
+.brand-line .logo{font-weight:800;font-size:17px;letter-spacing:.3px}
+.brand-line .logo i{font-style:normal;color:var(--orange)}
+.brand-line .v{font-size:11px;font-weight:700;color:#9fb4c6;border:1px solid rgba(201,164,92,.5);border-radius:6px;padding:3px 8px;letter-spacing:.5px}
+.hero h1{font-size:46px;line-height:1.18;font-weight:800;letter-spacing:.5px;max-width:880px}
+.hero h1 em{font-style:normal;color:var(--orange)}
+.hero .lead{margin-top:20px;font-size:16.5px;color:#c9d8e4;max-width:720px;line-height:1.85}
+.hero .tags{margin-top:30px;display:flex;flex-wrap:wrap;gap:10px}
+.hero .tags span{font-size:13px;font-weight:700;color:#f3e2b8;background:rgba(255,255,255,.07);border:1px solid rgba(201,164,92,.6);border-radius:999px;padding:8px 16px}
+.hero-cta{margin-top:36px;display:flex;gap:14px;flex-wrap:wrap}
+/* 代理商专属标识（仅当经代理商分享链接 ?inv= 进入时显示） */
+.agent-badge{display:none;align-items:center;gap:9px;margin:-8px 0 24px;font-size:13px;font-weight:700;color:#f3e2b8;background:rgba(232,101,26,.16);border:1px solid rgba(232,101,26,.55);border-radius:999px;padding:8px 16px;width:fit-content;max-width:100%}
+.agent-badge.show{display:inline-flex}
+.agent-badge .ab-dot{width:8px;height:8px;border-radius:50%;background:var(--orange);box-shadow:0 0 8px var(--orange);flex:none}
+.agent-badge b{color:#fff}
+.btn{display:inline-flex;align-items:center;gap:8px;font-weight:800;font-size:15px;border-radius:12px;padding:14px 26px;text-decoration:none;min-height:52px;border:0;cursor:pointer}
+.btn.primary{background:var(--orange);color:#fff;box-shadow:0 10px 26px rgba(232,101,26,.34)}
+.btn.ghost{background:rgba(255,255,255,.08);color:#f3e2b8;border:1px solid rgba(201,164,92,.6)}
+
+/* ===== 信任锚点 / 四重差异化 ===== */
+.trust{background:var(--card);padding:64px 0;border-bottom:1px solid var(--line)}
+.four-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:8px}
+.fcard{position:relative;background:linear-gradient(135deg,#fffdf7,#faf3e2);border:1px solid var(--gold-line);border-radius:18px;padding:26px 24px;overflow:hidden}
+.fcard::after{content:'⚡';position:absolute;right:-8px;bottom:-20px;font-size:74px;opacity:.07}
+.fcard .num{font-size:13px;font-weight:800;letter-spacing:2px;color:#8a6a2a}
+.fcard h3{font-size:19px;margin:8px 0 10px;color:#3a2f12}
+.fcard p{font-size:14.5px;color:#5d5436;line-height:1.85}
+.fcard .pill{display:inline-block;margin-top:14px;font-size:12px;font-weight:700;color:#5c4c22;background:#fff;border:1px solid var(--gold-line);border-radius:999px;padding:5px 12px}
+
+/* ===== 痛点 ===== */
+.pain{background:var(--navy);color:#fff;padding:64px 0;position:relative;overflow:hidden}
+.pain::before{content:'';position:absolute;right:-70px;top:-70px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(232,101,26,.18),transparent 70%)}
+.pain .wrap{position:relative;z-index:1}
+.pain h2.sec{color:#fff}
+.pain .sec-sub{color:#a9c0d4}
+.pain-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:6px}
+.pitem{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:22px 20px}
+.pitem .ic{font-size:26px;margin-bottom:10px}
+.pitem h4{font-size:16px;margin-bottom:8px;color:#fff}
+.pitem p{font-size:13.8px;color:#aebfce;line-height:1.8}
+
+/* ===== 产品定义 ===== */
+.def{background:var(--bg);padding:64px 0}
+.def-box{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:34px;box-shadow:0 14px 40px rgba(23,49,63,.06)}
+.def-box p{font-size:16px;color:#33424f;line-height:1.95}
+.def-box p .hl{color:var(--orange-deep);font-weight:800}
+.def-box .formula{margin-top:22px;display:flex;flex-wrap:wrap;align-items:center;gap:12px;font-size:14px;color:var(--sub)}
+.def-box .formula b{color:var(--ink)}
+.def-box .formula .chip{background:var(--orange-soft);border:1px solid var(--orange-line);color:var(--orange-deep);border-radius:10px;padding:8px 14px;font-weight:700}
+.def-box .formula .arrow{color:var(--orange);font-weight:800}
+
+/* ===== 品牌故事 ===== */
+.story{background:var(--card);padding:66px 0;border-bottom:1px solid var(--line)}
+.story .persona{display:flex;align-items:center;gap:14px;justify-content:center;margin-bottom:26px}
+.story .persona .av{width:56px;height:56px;border-radius:18px;flex:none;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:#fff;background:linear-gradient(135deg,#d8b878,#8a6a2a);box-shadow:0 8px 20px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.4)}
+.story .persona .pt b{font-size:16px}
+.story .persona .pt span{display:block;font-size:12.5px;color:var(--sub);margin-top:2px}
+.story-main{max-width:880px;margin:0 auto}
+.story-main p{font-size:16px;color:#33424f;line-height:1.95;margin-bottom:16px}
+.story-main p b{color:var(--ink)}
+.find{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:6px 0 20px}
+.find-it{background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:22px 20px;border-top:3px solid var(--orange)}
+.find-it .fi-n{font-size:12px;font-weight:800;letter-spacing:2px;color:var(--orange);margin-bottom:8px}
+.find-it h4{font-size:18px;margin-bottom:10px}
+.find-it p{font-size:14.5px;color:var(--sub);line-height:1.85;margin:0}
+.story-turn{background:linear-gradient(135deg,#fffdf7,#faf3e2);border:1px solid var(--gold-line);border-radius:16px;padding:24px;margin-top:4px;position:relative;overflow:hidden}
+.story-turn::after{content:'⚡';position:absolute;right:-6px;bottom:-16px;font-size:70px;opacity:.07}
+.story-turn p{margin:0;font-size:16px;color:#3a2f12;line-height:1.95}
+.story-turn p b{color:var(--orange-deep)}
+.story-turn .nolearn{display:block;margin-top:14px;font-size:15px;font-weight:800;color:#5c4c22;background:#fff;border:1px solid var(--gold-line);border-radius:12px;padding:12px 16px}
+.story-mission{font-size:16px;color:#33424f;line-height:1.95;background:var(--bg);border:1px solid var(--line);border-left:4px solid var(--orange);border-radius:12px;padding:20px 22px;margin-top:6px}
+.story-mission b{color:var(--orange-deep)}
+.story-punch{font-size:22px;font-weight:800;color:var(--navy);text-align:center;margin-top:24px;letter-spacing:.5px}
+.story-punch em{font-style:normal;color:var(--orange)}
+@media(max-width:640px){.find{grid-template-columns:1fr}.story-punch{font-size:18px}}
+/* ===== 五环闭环 ===== */
+.loop{background:var(--card);padding:66px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.loop-vis{display:flex;align-items:stretch;gap:8px;margin-top:10px;flex-wrap:wrap}
+.loop-node{flex:1;min-width:150px;background:linear-gradient(135deg,#17313f,#274056);color:#fff;border-radius:16px;padding:18px 16px;position:relative;text-align:center;box-shadow:0 8px 22px rgba(23,49,63,.18)}
+.loop-node .lk{font-size:26px}
+.loop-node b{display:block;font-size:16px;margin-top:6px}
+.loop-node span{display:block;font-size:11.5px;color:#a9c0d4;margin-top:4px}
+.loop-node .who{margin-top:8px;font-size:11px;font-weight:700;color:#f3e2b8;background:rgba(201,164,92,.18);border:1px solid rgba(201,164,92,.5);border-radius:999px;padding:3px 8px;display:inline-block}
+.loop-arrow{flex:none;align-self:center;color:var(--orange);font-size:24px;font-weight:800}
+
+/* ===== 数字高管矩阵 ===== */
+.agents{background:var(--bg);padding:66px 0}
+.ag-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:6px}
+.ag{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;position:relative;overflow:hidden;transition:transform .18s,box-shadow .18s}
+.ag:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(23,49,63,.12)}
+.ag .top{display:flex;align-items:center;gap:12px}
+.ag .ava{width:48px;height:48px;border-radius:14px;flex:none;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 3px 8px rgba(13,43,33,.18)}
+.ag .ava.a1{background:linear-gradient(135deg,#1c5a40,#35a377)}
+.ag .ava.a2{background:linear-gradient(135deg,#0f5a4e,#23a68f)}
+.ag .ava.a3{background:linear-gradient(135deg,#8a6a2a,#d4b06a)}
+.ag .ava.a4{background:linear-gradient(135deg,#245a72,#3f93b3)}
+.ag .ava.a5{background:linear-gradient(135deg,#3a5a22,#6f9c3a)}
+.ag .ava.a7{background:linear-gradient(135deg,#14614a,#4cc08a)}
+.ag .ava.a8{background:linear-gradient(135deg,#5a3a1c,#b3823f)}
+.ag .ava.a9{background:linear-gradient(135deg,#7a4020,#c07a45)}
+.ag .ava.a10{background:linear-gradient(135deg,#0d3a4a,#2b8ab0)}
+.ag .nm b{font-size:17px}
+.ag .nm span{display:block;font-size:12px;color:var(--sub);margin-top:2px}
+.ag .role-tag{position:absolute;top:18px;right:18px;font-size:10.5px;font-weight:700;color:var(--orange);background:var(--orange-soft);border:1px solid var(--orange-line);border-radius:999px;padding:3px 9px}
+.ag .desc{font-size:13.8px;color:var(--sub);line-height:1.8;margin:14px 0 12px;min-height:66px}
+.ag .bot{display:flex;align-items:center;justify-content:space-between;border-top:1px dashed var(--line);padding-top:12px}
+.ag .price{font-size:12.5px;color:var(--sub)}
+.ag .price b{font-size:16px;color:var(--orange-deep)}
+.ag .price i{font-style:normal;font-size:10.5px;color:#9aa7b3;margin-left:3px}
+.ag .tag-line{font-size:11px;color:#9aa7b3;margin-top:6px}
+
+/* ===== 核心能力 ===== */
+.cap{background:var(--navy);color:#fff;padding:66px 0;position:relative;overflow:hidden}
+.cap::before{content:'';position:absolute;left:-60px;bottom:-80px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(201,164,92,.20),transparent 70%)}
+.cap .wrap{position:relative;z-index:1}
+.cap h2.sec{color:#fff}
+.cap .sec-sub{color:#a9c0d4}
+.cap-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:6px}
+.cap-item{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:22px 20px}
+.cap-item .ic{font-size:24px;margin-bottom:8px}
+.cap-item h4{font-size:16.5px;color:#fff;margin-bottom:8px}
+.cap-item p{font-size:13.8px;color:#b3c3d1;line-height:1.85}
+
+/* ===== 计费 ===== */
+.price-sec{background:var(--bg);padding:66px 0}
+.price-card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:36px;box-shadow:0 14px 40px rgba(23,49,63,.07);display:grid;grid-template-columns:1.1fr 1fr;gap:30px;align-items:center}
+.price-card .left .badge{display:inline-block;font-size:12px;font-weight:800;letter-spacing:1.5px;color:#5c4c22;background:linear-gradient(135deg,#f3e2b8,#e4d5ae);border-radius:8px;padding:5px 12px;margin-bottom:14px}
+.price-card .left h3{font-size:24px;margin-bottom:8px}
+.price-card .left .pv{font-size:34px;font-weight:800;color:var(--orange-deep)}
+.price-card .left .pv i{font-style:normal;font-size:15px;color:var(--sub);font-weight:600}
+.price-card .left .note{font-size:13px;color:var(--sub);margin-top:8px}
+.price-card .right{border-left:1px solid var(--line);padding-left:30px}
+.pr{display:flex;align-items:flex-start;gap:10px;padding:9px 0;font-size:14px;color:#33424f}
+.pr .ck{color:var(--orange);font-weight:800;flex:none;margin-top:1px}
+.price-extra{margin-top:22px;display:flex;flex-wrap:wrap;gap:10px}
+.price-extra span{font-size:12.5px;font-weight:700;color:var(--orange-deep);background:var(--orange-soft);border:1px solid var(--orange-line);border-radius:999px;padding:7px 14px}
+
+/* ===== 适用对象 / 流程 ===== */
+.fit{background:var(--card);padding:66px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.fit-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:6px}
+.fit-item{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:18px 16px}
+.fit-item .ic{font-size:24px;margin-bottom:8px}
+.fit-item h4{font-size:15px;margin-bottom:6px}
+.fit-item p{font-size:13px;color:var(--sub);line-height:1.75}
+.flow{background:var(--bg);padding:66px 0}
+.flow-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:6px;counter-reset:step}
+.flow-step{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 18px;position:relative}
+.flow-step .n{width:30px;height:30px;border-radius:50%;background:var(--navy);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:14px;margin-bottom:10px}
+.flow-step h4{font-size:15.5px;margin-bottom:6px}
+.flow-step p{font-size:13px;color:var(--sub);line-height:1.75}
+
+/* ===== 方法论来源 ===== */
+.source{background:linear-gradient(120deg,#17313f,#274056);color:#fff;padding:66px 0;position:relative;overflow:hidden}
+.source::before{content:'';position:absolute;right:-80px;top:-90px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(201,164,92,.26),transparent 70%)}
+.source .wrap{position:relative;z-index:1}
+.source h2.sec{color:#fff}
+.source .sec-sub{color:#bccbd8}
+.src-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:6px}
+.src{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:24px 22px}
+.src h4{font-size:17px;color:#fff;margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.src h4 .dot{width:10px;height:10px;border-radius:50%;background:var(--orange);flex:none}
+.src p{font-size:14px;color:#c2d2df;line-height:1.9}
+.src p b{color:#f3e2b8}
+
+/* ===== FAQ ===== */
+.faq{background:var(--bg);padding:66px 0}
+.qa{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden}
+.qa .q{width:100%;text-align:left;background:none;border:0;padding:18px 20px;font-size:15.5px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:10px;cursor:default;font-family:inherit}
+.qa .a{display:block;padding:0 20px 20px;font-size:14px;color:var(--sub);line-height:1.9}
+.qa .a .em{color:var(--orange-deep);font-weight:700}
+
+/* ===== 预约体验弹窗 ===== */
+.modal{display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;padding:20px}
+.modal.open{display:flex}
+.modal-backdrop{position:absolute;inset:0;background:rgba(10,25,35,.78);backdrop-filter:blur(3px)}
+.modal-card{position:relative;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;background:linear-gradient(145deg,#1b3a4b,#132b39);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:34px 30px 30px;box-shadow:0 24px 60px rgba(0,0,0,.45);color:#fff;animation:modalIn .25s ease}
+@keyframes modalIn{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:none}}
+.modal-close{position:absolute;top:14px;right:16px;background:none;border:0;color:#9fb6c7;font-size:28px;line-height:1;cursor:pointer}
+.modal-card h3{font-size:22px;font-weight:800;margin-bottom:6px;color:#fff}
+.modal-sub{font-size:13.5px;color:#b0c4d4;margin-bottom:22px}
+.form-row{margin-bottom:14px}
+.form-row label{display:block;font-size:13px;font-weight:700;color:#cfe0ec;margin-bottom:6px}
+.form-row label .req{color:var(--orange);margin-left:2px}
+.form-row input,.form-row select,.form-row textarea{width:100%;padding:12px 14px;border:1px solid rgba(255,255,255,.14);border-radius:10px;background:rgba(255,255,255,.06);color:#fff;font-size:14px;font-family:inherit;outline:none;transition:border-color .15s}
+.form-row input::placeholder,.form-row textarea::placeholder{color:#7d9aae}
+.form-row input:focus,.form-row select:focus,.form-row textarea:focus{border-color:var(--orange)}
+.form-row select option{background:#17313f;color:#fff}
+.form-row textarea{resize:vertical;min-height:72px}
+.modal-submit{width:100%;margin-top:6px}
+.form-tip{font-size:12px;color:#8ea9bd;text-align:center;margin-top:12px;line-height:1.6}
+.modal-success{display:none;text-align:center;padding:20px 10px}
+.modal-success.show{display:block}
+.success-icon{width:60px;height:60px;border-radius:50%;background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;margin:0 auto 16px}
+.modal-success h4{font-size:20px;font-weight:800;margin-bottom:10px}
+.modal-success p{font-size:14px;color:#c8dce9;line-height:1.8;margin-bottom:22px}
+
+/* ===== 红线 / 免责 ===== */
+.redline{background:var(--card);padding:30px 0 40px}
+.redline-box{background:#fdfaf1;border:1px dashed var(--gold-line);border-radius:14px;padding:20px 22px;font-size:13.5px;color:#8a7550;line-height:1.95}
+
+/* ===== CTA / footer ===== */
+.cta{background:radial-gradient(120% 120% at 50% 0%,#2a4254,#17313f);color:#fff;padding:60px 0;text-align:center}
+.cta h2{font-size:30px;font-weight:800;margin-bottom:12px}
+.cta p{color:#bcccd8;font-size:15.5px;margin-bottom:26px}
+.footer{background:#0e202b;color:#7d93a4;padding:26px 0;font-size:12.5px;text-align:center;line-height:1.8}
+.footer b{color:#c9d8e4}
+
+/* nav */
+.topnav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);display:none}
+.topnav .wrap{display:flex;align-items:center;gap:6px;padding:12px 22px;flex-wrap:wrap}
+.topnav a{font-size:13px;color:var(--sub);text-decoration:none;font-weight:600;padding:6px 10px;border-radius:8px}
+.topnav a:hover{background:var(--orange-soft);color:var(--orange-deep)}
+@media(min-width:980px){.topnav{display:block}}
+@media(max-width:860px){
+  .hero h1{font-size:32px}
+  .four-grid,.cap-grid,.src-grid,.price-card{grid-template-columns:1fr}
+  .pain-grid,.ag-grid,.fit-grid,.flow-grid{grid-template-columns:1fr 1fr}
+  .price-card .right{border-left:0;border-top:1px solid var(--line);padding-left:0;padding-top:20px}
+  .loop-vis{flex-direction:column}
+  .loop-arrow{transform:rotate(90deg);align-self:center}
+}
+@media(max-width:560px){
+  .pain-grid,.ag-grid,.fit-grid,.flow-grid{grid-template-columns:1fr}
+  .hero h1{font-size:27px}
+  h2.sec{font-size:24px}
+}
+@page{size:A4;margin:16mm 14mm 18mm}
+@media print{
+  *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
+  html,body{background:#ffffff !important}
+  body{
+    font-family:'Microsoft YaHei','PingFang SC','Hiragino Sans GB',sans-serif;
+    font-size:12pt;line-height:24px;color:#1a2733;text-align:justify;
+  }
+  /* 标题体系：18-20pt 加粗 居中（合同排版标准） */
+  h2.sec{font-size:19pt;line-height:1.4;font-weight:800;text-align:center;color:var(--navy);margin:0 0 10px;letter-spacing:.5px}
+  .eyebrow{font-size:9pt;letter-spacing:2px;padding:3px 12px;margin-bottom:10px}
+  .sec-sub{font-size:11pt;line-height:1.9;color:var(--sub);text-align:center;margin:0 auto 24px;max-width:none}
+  /* 收紧超大留白，提升纸张利用率 */
+  .hero{padding:28px 0 24px}
+  .cta{padding:24px 0}
+  /* 卡片/区块不跨页 */
+  .ag,.cap-item,.src,.find-it,.fit-item,.flow-step,.pitem,.qa,.pr,.price-card,
+  .loop-vis,.redline-box,.persona,.find,.formula,.def-box,.road-tags span,.name,.tag-line{
+    break-inside:avoid;page-break-inside:avoid
+  }
+  h2.sec,.eyebrow,.center,.loop-node,.sec-sub{break-after:avoid;page-break-after:avoid}
+  p,li{orphans:3;widows:3}
+  /* 表格化：斑马纹 + 橙色左标 */
+  .pr{background:#fafbfd;border-left:3px solid var(--orange);border-radius:0}
+  .pr:nth-child(even){background:#f3f6f9}
+  table tr:nth-child(even) td{background:#f7f9fc}
+  /* FAQ：打印时展开答案，去掉加号 */
+  .qa{border:1px solid var(--line);border-radius:10px;margin-bottom:16px;overflow:visible}
+  .qa .q{
+    background:#f2f6fa;border-bottom:1px solid var(--line);
+    padding:10px 16px;font-size:12.5pt;font-weight:800;color:var(--navy);
+  }
+  .qa .q::after{content:'' !important;display:none !important}
+  .qa .a{display:block !important;padding:11px 16px 13px;font-size:11pt;line-height:1.95;color:#2b3a48;text-align:justify}
+  .qa .a .em{color:var(--orange-deep);font-weight:700}
+  /* 链接与按钮在纸面上去交互化 */
+  a{color:inherit;text-decoration:none}
+  .btn{pointer-events:none;box-shadow:none}
+  .footer{padding:14px 0;font-size:9.5pt}
+}
+</style>
+</head>
+<body>
+
+<!-- 顶部悬浮导航 -->
+<div class="topnav" id="topnav">
+  <div class="wrap">
+    <a href="#trust">差异化</a>
+    <a href="#pain">痛点</a>
+    <a href="#define">产品定义</a>
+    <a href="#loop">五环闭环</a>
+    <a href="#agents">数字高管矩阵</a>
+    <a href="#cap">核心能力</a>
+    <a href="#price">计费</a>
+    <a href="#source">方法论来源</a>
+    <a href="#faq">常见问题</a>
+  </div>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap">
+    <div class="brand-line">
+      <span class="logo">⚡ 思潼<i>AI</i>商城</span>
+      <span class="v">IP+AI 业绩倍增系统 · 本地商家版 · 产品说明书 v1.0</span>
+    </div>
+    <div class="agent-badge" id="agentBadge">
+      <span class="ab-dot"></span>
+      <span>本页由 <b id="agentBadgeName">代理商</b> 专属提供 · 专属顾问将尽快与您联系</span>
+    </div>
+    <h1>不是通用AI套壳，<br>是帮创始人<span style="color:var(--orange)">用AI做IP、做获客、做销售转化</span><br>的业绩倍增系统</h1>
+    <p class="lead">这个工作台本质是用AI来做IP获客与销售转化。我们把创始人IP打造、新媒体操盘、直播收集客资线索、私域转化一线跑出来的真方法，从多位行业专家的私有知识库里做系统化蒸馏，训练成一队"能上岗、能交付"的数字高管。你按场景派活，它按方法论出活——从IP定位、人设打造，到选题、内容、直播、成交，一套覆盖获客与销售转化的业绩闭环。</p>
+    <div class="tags">
+      <span>🚀 用AI做IP·获客·销售转化</span>
+      <span>🎓 不需要学 · 直接用</span>
+      <span>🎯 十年新媒体实战沉淀</span>
+      <span>🧠 非通用大模型</span>
+      <span>👥 多位行业专家私有知识库</span>
+      <span>⚗️ 方法论蒸馏训练</span>
+    </div>
+    <div class="hero-cta">
+      <a class="btn primary" href="#agents">查看 9 位数字高管 ▾</a>
+      <a class="btn ghost" href="#define">它到底解决什么 ▾</a>
+    </div>
+  </div>
+</section>
+
+<!-- 品牌故事 -->
+<section class="story" id="story">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow">为什么做这件事</span>
+      <h2 class="sec">保禄老师的十年，与"教了也学不会"的反复验证</h2>
+      <p class="sec-sub">这些数字高管不是拍脑袋想出来的——它始于一个做了十年新媒体的人的真实卡点。</p>
+      <div class="persona">
+        <div class="av">保</div>
+        <div class="pt"><b>保禄老师</b><span>创始人IP与企业AI改造顾问 · 十年新媒体实战</span></div>
+      </div>
+    </div>
+    <div class="story-main">
+      <p>保禄做了 <b>十年新媒体</b>。从短视频、直播、电商供应链一路做IP起家，后来帮品牌做创始人IP打造与企业AI改造咨询。十年里，他深度服务过 <b>上百家实体与连锁品牌</b>——贴膜小子半年新增40家门店、黑马汇老李做到行业第一、大崔副业年销千万、耿叔朗诵全国第一、兰琪美业、枕水江南餐饮……案例一个接一个，方法一套接一套。</p>
+      <p>但就在这条路上，保禄老师撞见两件事，让他下决心换一种交付方式。</p>
+      <div class="find">
+        <div class="find-it">
+          <div class="fi-n">发现 一</div>
+          <h4>做IP，太贵了</h4>
+          <p>一个能起号、会写脚本、懂投流的操盘团队，年薪二三十万起；请保禄做陪跑也不便宜。对大多数中小企业来说，<b>想用IP获客、做销售转化，却根本做不起</b>。</p>
+        </div>
+        <div class="find-it">
+          <div class="fi-n">发现 二</div>
+          <h4>不是这行的人，教了也学不会</h4>
+          <p>保禄去企业实地教学，一家接一家，一年又一年。结果呢？<b>几乎所有不是这行出身的客户，教了也学不会。</b> 老板忙、团队没底子，方法听着都懂，落笔就不会，上播就断线。</p>
+        </div>
+      </div>
+      <div class="story-turn">
+        <p>反复验证后，AI 走到了能"承载方法论"的临界点。保禄老师做了一个决定：<b>不教了，直接把能力做成数字高管。</b> 把十年实战、上百个案例、被反复验证过的IP获客与销售转化打法，蒸馏成一队能上岗的数字高管——让学员 <b>不需要学</b>，只要用保禄老师开发的数字高管，就能做出专业的IP定位、流量内容、转化文案与成交话术。</p>
+        <span class="nolearn">核心理念：不需要学。直接用保禄老师开发的数字高管，就拿到国内头部IP操盘手级的IP获客与销售转化结果。</span>
+      </div>
+      <p class="story-mission">而做这套系统的初心，是保禄老师的一个念想：<b>让更多中小企业，也能低门槛享受到 AI 时代的红利。</b> 用 AI 把 IP 做起来、把获客做起来、把销售做起来——帮企业、公司、商家、门店，用更低的成本，把业绩真正做起来。</p>
+      <p class="story-punch">你不用变成保禄这样的IP操盘手，也能拿到<em>国内头部IP操盘手级</em>的结果。</p>
+    </div>
+  </div>
+</section>
+
+<!-- 信任锚点：四重差异化 -->
+<section class="trust" id="trust">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow">为什么不一样</span>
+      <h2 class="sec">四重差异化：你买的是"IP增长方法论"，不是"又一个聊天机器人"</h2>
+      <p class="sec-sub">市面上的AI工具大多套一层壳就上架。思潼的IP+AI业绩倍增系统从底层就不是这么来的——它的"脑子"里装的是真金白银跑出来的行业方法。</p>
+    </div>
+    <div class="four-grid">
+      <div class="fcard">
+        <div class="num">01 / 方法论底色</div>
+        <h3>来自十年新媒体实战</h3>
+        <p>从短视频起号、直播收集客资线索、本地生活门店引流到私域转化，底层方法论源于团队与生态专家在新媒体一线连续十年、服务数百家实体与连锁品牌的实战沉淀。不是纸上谈兵，是踩过坑、跑出过业绩的方法。</p>
+        <span class="pill">十年 · 一线 · 可复用</span>
+      </div>
+      <div class="fcard">
+        <div class="num">02 / 出身不同</div>
+        <h3>非通用AI大模型</h3>
+        <p>通用大模型没有你的行业know-how，写不出"算账式钩子"，不懂本地生活门店的经营节奏，更不知道什么叫红线。思潼的数字高管是垂直训练出来的——它懂行业、懂成交、懂你这条赛道的话术和禁忌。</p>
+        <span class="pill">垂直 · 懂行 · 能直接用</span>
+      </div>
+      <div class="fcard">
+        <div class="num">03 / 知识来源</div>
+        <h3>多位行业专家私有知识库</h3>
+        <p>这些数字高管不是凭空生成的。新媒体操盘手、直播收集客资线索操盘、门店运营顾问、私域转化专家……每位专家的私有实战案例、话术模板、踩坑记录，被结构化沉淀进知识库，成为数字高管交付的"原料"。</p>
+        <span class="pill">专家私有库 · 非公开网文</span>
+      </div>
+      <div class="fcard">
+        <div class="num">04 / 训练方式</div>
+        <h3>方法论蒸馏训练而成</h3>
+        <p>我们把上述私有知识里的"判断逻辑、结构范式、成交路径"做蒸馏，训练成能稳定上岗交付的数字高管。你每次派活，它调用的不是泛泛而谈的互联网常识，而是被反复验证过的行业打法。</p>
+        <span class="pill">蒸馏 · 稳定 · 可迭代</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 痛点 -->
+<section class="pain" id="pain">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow">它解决什么</span>
+      <h2 class="sec">中小企业获客，正卡在三道坎上</h2>
+      <p class="sec-sub">流量越来越贵，团队越来越累，通用AI又用不起来——这是大多数年营收几百万到几千万的老板共同的窘境。</p>
+    </div>
+    <div class="pain-grid">
+      <div class="pitem">
+        <div class="ic">💸</div>
+        <h4>想做IP、做不起来</h4>
+        <p>老板知道要用IP引流，但自己不会定位人设、不会写稿开播；请个操盘团队年薪二三十万起，小团队养不起、留不住。</p>
+      </div>
+      <div class="pitem">
+        <div class="ic">🤖</div>
+        <h4>通用AI写不出能用的</h4>
+        <p>ChatGPT写出来的文案"看着对、发出去没水花"。没有行业钩子、没有成交路径、不懂你的门店，不能直接用。</p>
+      </div>
+      <div class="pitem">
+        <div class="ic">🔄</div>
+        <h4>做了没闭环</h4>
+        <p>今天发条视频、明天开场直播，各干各的。定位没想清、选题靠拍脑袋、线索进来接不住，流量变不成生意。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 产品定义 -->
+<section class="def" id="define">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow">产品定义</span>
+      <h2 class="sec">一句话说清：它是什么</h2>
+    </div>
+    <div class="def-box">
+      <p><b>思潼 · IP+AI 业绩倍增系统</b>，本质是一套<span class="hl">用AI做IP、做获客、做销售转化</span>的系统。它把<span class="hl">十年新媒体实战方法论</span>，从<span class="hl">多位行业专家的私有知识库</span>里做<span class="hl">蒸馏训练</span>，变成一队按"IP增长体系"排好队的<span class="hl">垂直数字高管</span>——不是通用聊天机器人，而是能稳定"上岗交付"的数字高管。</p>
+      <p style="margin-top:14px">你按今天的获客与转化场景，把一个具体任务"派"给对应数字高管——它按方法论产出可直接用的IP定位全案、人设梳理、选题包、文案、视频、直播话术、成交话术。从"想清楚我是谁、对谁说"，到"线索进来接得住、成交拿得下"，一队数字高管替你把用IP获客与销售转化的闭环跑完，创始人不用自己扛全流程。</p>
+      <div class="formula">
+        <span class="chip">十年实战方法论</span><span class="arrow">+</span>
+        <span class="chip">专家私有知识库</span><span class="arrow">→</span>
+        <span class="chip">蒸馏训练</span><span class="arrow">→</span>
+        <b>9 位能交付的数字高管</b>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 五环闭环 -->
+<section class="loop" id="loop">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow">IP增长体系</span>
+      <h2 class="sec">流量不是玄学，做IP·获客·销售转化要搭一套系统</h2>
+      <p class="sec-sub">9 位数字高管不是散兵，而是按"IP定位 → 选题 → 内容 → 直播 → 转化"闭环排好队的体系——这正是创始人用IP获客与销售转化要走的全程。当前 9 位是起步，小红书图文、投流、数字人视频等数字高管会持续上新。点一环，直达对应数字高管。</p>
+    </div>
+    <div class="loop-vis">
+      <div class="loop-node"><div class="lk">🎯</div><b>定位</b><span>先想明白我是谁、对谁说</span><span class="who">沈定</span></div>
+      <div class="loop-arrow">→</div>
+      <div class="loop-node"><div class="lk">🗓️</div><b>选题</b><span>每天有得拍</span><span class="who">何策</span></div>
+      <div class="loop-arrow">→</div>
+      <div class="loop-node"><div class="lk">✍️</div><b>内容</b><span>文案/复刻/视频/复盘</span><span class="who">秦文·顾拓·陆帧·江流</span></div>
+      <div class="loop-arrow">→</div>
+      <div class="loop-node"><div class="lk">🎙️</div><b>直播</b><span>照着念就能播</span><span class="who">罗盘</span></div>
+      <div class="loop-arrow">→</div>
+      <div class="loop-node"><div class="lk">🤝</div><b>转化</b><span>线索接住才叫获客</span><span class="who">周域·易成</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 数字高管矩阵 -->
+<section class="agents" id="agents">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow">数字高管矩阵</span>
+      <h2 class="sec">9 位数字高管，按岗排布</h2>
+      <p class="sec-sub">每位都是蒸馏自实战方法论、能独立交付的"数字高管"。不需要学、直接用，交付失败不扣。</p>
+    </div>
+    <div class="ag-grid">
+
+      <div class="ag">
+        <div class="role-tag">定位</div>
+        <div class="top"><div class="ava a1">沈</div><div class="nm"><b>沈定</b><span>首席定位官 · AI数字高管</span></div></div>
+        <p class="desc">先把你这个人/这家店想明白，再定"对谁说、说啥"。起号第一站，别上来就发。</p>
+        <div class="tag-line">IP定位全案 · 人设 · 差异点</div>
+      </div>
+
+      <div class="ag">
+        <div class="role-tag">选题</div>
+        <div class="top"><div class="ava a5">何</div><div class="nm"><b>何策</b><span>选题策略官 · AI数字高管</span></div></div>
+        <p class="desc">每天给你 10 条带"三关筛选"标签、可直接开拍的选题，告别拍脑袋。</p>
+        <div class="tag-line">选题包 · 三关筛选 · 对标拆题</div>
+      </div>
+
+      <div class="ag">
+        <div class="role-tag">内容·文案</div>
+        <div class="top"><div class="ava a2">秦</div><div class="nm"><b>秦文</b><span>金牌文案主笔 · AI数字高管</span></div></div>
+        <p class="desc">你把卖点给我，我给你一条多平台适配、带钩子的可直发文案。</p>
+        <div class="tag-line">朋友圈 · 口播稿 · 社群促单</div>
+      </div>
+
+      <div class="ag">
+        <div class="role-tag">内容·复刻</div>
+        <div class="top"><div class="ava a9">顾</div><div class="nm"><b>顾拓</b><span>爆款复刻数字高管 · AI数字高管</span></div></div>
+        <p class="desc">给我一条对标的爆款，我拆它的结构、换上你的文案，照着火一遍。</p>
+        <div class="tag-line">结构拆解 · 换血文案 · 照着火</div>
+      </div>
+
+      <div class="ag">
+        <div class="role-tag">内容·视频</div>
+        <div class="top"><div class="ava a10">陆</div><div class="nm"><b>陆帧</b><span>文生视频数字高管 · AI数字高管</span></div></div>
+        <p class="desc">文案丢给我，竖版成片还给你：分镜、配音、大字字幕一条龙。</p>
+        <div class="tag-line">15秒竖版 · 分镜 · 配音字幕</div>
+      </div>
+
+      <div class="ag">
+        <div class="role-tag">内容·复盘</div>
+        <div class="top"><div class="ava a4">江</div><div class="nm"><b>江流</b><span>流量诊断官 · AI数字高管</span></div></div>
+        <p class="desc">给一条视频做数据复盘，告诉你为什么没爆、下条怎么调。</p>
+        <div class="tag-line">数据诊断 · 完播 · 引导动作</div>
+      </div>
+
+      <div class="ag">
+        <div class="role-tag">直播</div>
+        <div class="top"><div class="ava a3">罗</div><div class="nm"><b>罗盘</b><span>直播话术师 · AI数字高管</span></div></div>
+        <p class="desc">给你一套可开播的逐字直播话术稿，照着念就上，扣字引导全安排。</p>
+        <div class="tag-line">逐字稿 · 冷启动 · 专场</div>
+      </div>
+
+      <div class="ag">
+        <div class="role-tag">转化·私域</div>
+        <div class="top"><div class="ava a7">周</div><div class="nm"><b>周域</b><span>私域增长顾问 · AI数字高管</span></div></div>
+        <p class="desc">给你一条能直接发的朋友圈文案，信任人设 + 业务价值 + 软引导。</p>
+        <div class="tag-line">朋友圈 · 活动预热 · 老客召回</div>
+      </div>
+
+      <div class="ag">
+        <div class="role-tag">转化·成交</div>
+        <div class="top"><div class="ava a8">易</div><div class="nm"><b>易成</b><span>首席成交官 · AI数字高管</span></div></div>
+        <p class="desc">给一个客户场景的标准成交话术 + 异议处理，进线的都接得住。</p>
+        <div class="tag-line">接待 · 异议处理 · 私聊促单</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- 持续上新 -->
+<section class="road" id="road">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow">持续扩展的数字高管团队</span>
+      <h2 class="sec">现在 9 位，后面还会更多</h2>
+      <p class="sec-sub">当前上线的 9 位数字高管只是起步。围绕"用AI做IP、做获客、做销售转化"全链路，更多垂直数字高管正在陆续上车——</p>
+    </div>
+    <div class="tags road-tags">
+      <span>📕 小红书图文</span>
+      <span>🎯 投流（投放优化）</span>
+      <span>🖼️ 营销海报</span>
+      <span>✂️ AI剪辑</span>
+      <span>🧑‍💼 数字人视频</span>
+      <span>📈 流量预测</span>
+      <span>🔁 直播复盘</span>
+      <span>📍 AI geo（本地生活地理引流）</span>
+      <span>📞 AI外呼</span>
+      <span>… 持续上新中</span>
+    </div>
+    <p style="text-align:center;margin-top:22px;font-size:15px;color:#17313f;font-weight:600">现在用 1.0 版本价格购买，就能享受全部产品；后续新上的数字高管，<b>不额外收费</b>。</p>
+  </div>
+</section>
+
+<!-- 核心能力 -->
+<section class="cap" id="cap">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow">不止是9个工具</span>
+      <h2 class="sec">四个"越用越值"的核心能力</h2>
+      <p class="sec-sub">数字高管之外，平台还把"懂你、自动干、接得住、不花冤枉钱"做成了系统能力。</p>
+    </div>
+    <div class="cap-grid">
+      <div class="cap-item">
+        <div class="ic">🧠</div>
+        <h4>记忆与进化</h4>
+        <p>平台记住你的门店画像、风格偏好、红线禁忌。你每次改过的交付都会被记住，9 位数字高管下次直接照你的口味来——越用越懂你，不是每次都从零开始。</p>
+      </div>
+      <div class="cap-item">
+        <div class="ic">⏰</div>
+        <h4>定时任务</h4>
+        <p>周一自动出选题包、每天提前备好明日朋友圈、周四备好周五直播话术——到点自动干，不打卡、不占名额，结果自动进系统工作台。</p>
+      </div>
+      <div class="cap-item">
+        <div class="ic">🎙️</div>
+        <h4>AI录音卡接入</h4>
+        <p>门店装上录音卡，自动录下接待对话，API 连接后定期同步、转写文字，线索直接派给数字高管接。把线下接待也接进增长闭环。</p>
+      </div>
+      <div class="cap-item">
+        <div class="ic">💡</div>
+        <h4>会员畅用 · 失败不扣</h4>
+        <p>买系统额外赠送等值算力，9 位数字高管随便用；单次生成失败不扣费，等于"交付了才扣算力"，不花冤枉钱；邀请好友额外赠送免费算力。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 计费 -->
+<section class="price-sec" id="price">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow">计费方案</span>
+      <h2 class="sec">年度会员，9 位数字高管畅用</h2>
+    </div>
+    <div class="price-card">
+      <div class="left">
+        <span class="badge">限时价 · 推荐</span>
+        <h3>IP+AI 业绩倍增系统 · 年卡（本地商家版）</h3>
+        <div class="pv"><span data-bro-price>¥19,800</span> <i>/ 年 · 限时</i></div>
+        <div class="note">9 位数字高管全年畅用 · 含 IP增长体系全流程 · 基础席位 3 个 · 到期前 7 天提醒续费</div>
+        <div class="price-extra">
+          <span>9 位数字高管畅用</span>
+          <span>IP增长体系全包</span>
+          <span>不需要学 · 直接用</span>
+          <span>交付失败不扣</span>
+          <span>邀请得算力</span>
+          <span>加 1 席位 +¥1,000/年</span>
+          <span>客服 1对1 年度陪跑</span>
+        </div>
+        <div class="note">席位 = 可同时登录系统的账号数；超出基础 3 席后，每增加 1 个席位 +¥1,000/年。另含客服一对一年度陪跑，全程解答系统使用问题。</div>
+      </div>
+      <div class="right">
+        <div class="pr"><span class="ck">✓</span><div><b>比请团队省：</b>原来请操盘团队年薪二三十万起；现在 <span data-bro-price-year>¥19,800/年</span>，一套数字高管替你跑全流程。</div></div>
+        <div class="pr"><span class="ck">✓</span><div><b>比陪跑轻：</b>不用上课、不用学，开通即用，直接出可交付的内容与话术。</div></div>
+        <div class="pr"><span class="ck">✓</span><div><b>风险为零：</b>单次生成失败不扣费，等于"交付了才扣算力"，不花冤枉钱。</div></div>
+        <div class="pr"><span class="ck">✓</span><div><b>越用越值：</b>数字高管记住你的口味持续进化；邀请好友额外赠送免费算力（双方各得 100 算力）。</div></div>
+        <div class="pr"><span class="ck">✓</span><div><b>买早享全：</b>现在按 1.0 版本价格购买，后续上线的新数字高管（小红书图文、投流、数字人视频等）全部包含，<b>不额外收费</b>。</div></div>
+        <div class="pr"><span class="ck">✓</span><div><b>专属陪跑：</b>含客服一对一年度陪跑，全程解答系统使用问题，上手不踩坑。</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 适用对象 -->
+<section class="fit" id="fit">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow">谁该用</span>
+      <h2 class="sec">最适合用AI做IP·获客·销售转化的四类主体</h2>
+    </div>
+    <div class="fit-grid">
+      <div class="fit-item"><div class="ic">👤</div><h4>创始人 / 老板IP（核心）</h4><p>想用IP引流但不会定位人设、不会写稿开播——这是工作台最该服务的人，用AI把"IP起号 → 获客"跑通。</p></div>
+      <div class="fit-item"><div class="ic">🔗</div><h4>连锁品牌</h4><p>1 家到几十家店，需要标准化内容、统一人设、总部可复制的IP获客与销售转化打法。</p></div>
+      <div class="fit-item"><div class="ic">🏪</div><h4>本地生活门店</h4><p>宠物、美业、餐饮、零售——用老板/店长IP + 短视频私域，把周边 3 公里客流拉满。</p></div>
+      <div class="fit-item"><div class="ic">📣</div><h4>市场 / 运营岗</h4><p>一个人扛内容 KPI，需要把选题、文案、视频、复盘的效率拉起来。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 使用流程 -->
+<section class="flow" id="flow">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow">怎么用</span>
+      <h2 class="sec">四步上手，今天就能派第一单</h2>
+    </div>
+    <div class="flow-grid">
+      <div class="flow-step"><div class="n">1</div><h4>开通</h4><p>开通年度会员，9 位数字高管全年畅用，进系统工作台。</p></div>
+      <div class="flow-step"><div class="n">2</div><h4>派活</h4><p>按今天的场景选数字高管，或回系统工作台点"今日任务"直接派。</p></div>
+      <div class="flow-step"><div class="n">3</div><h4>出活</h4><p>数字高管按方法论产出可直用内容，一键复制或进完整工作台。</p></div>
+      <div class="flow-step"><div class="n">4</div><h4>进化</h4><p>改一版你的口味被记住，下次更懂你；复盘迭代三轮，比单发一条有效得多。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 方法论来源 -->
+<section class="source" id="source">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow">方法论从哪来</span>
+      <h2 class="sec">数字高管的"脑子"，装的不是公开网文</h2>
+      <p class="sec-sub">这是它与通用AI最本质的区别。下面四类私有知识，是蒸馏训练的底料。</p>
+    </div>
+    <div class="src-grid">
+      <div class="src">
+        <h4><span class="dot"></span>一线实战案例库</h4>
+        <p>新媒体起号、直播收集客资线索、本地生活门店引流、私域转化——<b>连续十年、服务数百家实体与连锁品牌，更来自每一次线下课、近千家商家的真实线下辅导、近百家企业的入企咨询实战</b>蒸馏出来的真方法，而非网络搜集的通用教程。</p>
+      </div>
+      <div class="src">
+        <h4><span class="dot"></span>行业专家私有知识库</h4>
+        <p>新媒体操盘手、直播收集客资线索操盘、门店运营顾问、私域转化专家……每位专家的<b>私有话术模板、结构范式、踩坑记录</b>，被结构化沉淀，成为数字高管交付的"原料"。</p>
+      </div>
+      <div class="src">
+        <h4><span class="dot"></span>方法论蒸馏</h4>
+        <p>把上述私有知识里的<b>判断逻辑、成交路径、内容结构</b>做蒸馏提炼，训练成能稳定上岗交付的数字高管。你每次派活，调用的是被反复验证过的行业打法。</p>
+      </div>
+      <div class="src">
+        <h4><span class="dot"></span>持续进化机制</h4>
+        <p>平台把你的门店画像、风格偏好、红线禁忌持续记忆，结合真实交付反馈<b>不断微调</b>。数字高管不是静态模型，而是越用越贴合你生意的"活"资产。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq" id="faq">
+  <div class="wrap">
+    <div class="center">
+      <span class="eyebrow">常见问题</span>
+    </div>
+    <div class="qa"><button class="q">和直接用 ChatGPT 有什么区别？</button><div class="a">本质区别在"出身"。ChatGPT 是通用大模型，没有你的行业 know-how，写出来的内容"看着对、发出去没水花"，不懂成交路径和红线。思潼的数字高管是<span class="em">从十年实战方法论 + 专家私有知识库蒸馏训练</span>出来的垂直数字高管，懂行业、懂成交、能直接用。</div></div>
+    <div class="qa"><button class="q">不会写提示词、不懂AI也能用吗？</button><div class="a">能。回到"系统工作台"，系统按今天的场景给你列好任务，点一下就能派给对应数字高管，选个场景即可生成。不需要会写复杂的提示词。</div></div>
+    <div class="qa"><button class="q">内容真的能直接用吗？</button><div class="a">数字高管产出的是带钩子、带结构的可直用内容（文案、话术、分镜、视频），你复制微调即可发布。配合"江流"做数据复盘、"何策"换选题，迭代三轮比单发一条有效得多。</div></div>
+    <div class="qa"><button class="q">收费会不会很贵、会不会乱扣？</button><div class="a">年度会员 <span class="em" data-bro-price-year>¥19,800/年</span>，9 位数字高管全年畅用，比请操盘团队（年薪二三十万起）轻得多；买系统额外赠送等值算力，单次生成失败不扣费、等于"交付了才扣算力"，邀请好友还额外赠送免费算力，不花冤枉钱。</div></div>
+    <div class="qa"><button class="q">我的门店信息和数据安全吗？</button><div class="a">你填写的门店画像、风格偏好、红线禁忌用于让数字高管更懂你，属私有配置。录音卡接入需你主动授权 API，数据用于转写与派单，遵循最小化使用原则。</div></div>
+  </div>
+</section>
+
+<!-- 红线 / 免责 -->
+<section class="redline">
+  <div class="wrap">
+    <div class="redline-box">
+      🛡️ <b>合规与效果说明：</b>本说明书所述方法论来源、数字高管能力与案例，为产品定位与功能说明之用。AI 生成内容仅供参考与辅助创作，不构成效果承诺；实际获客结果受行业、执行与预算等多因素影响。平台严禁生成违反广告法与平台规则的内容（如"最便宜""承诺效果""贬低同行"等），相关红线由数字高管内置与用户配置共同把关。
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+  <div class="wrap">
+    <h2>让更多企业，低门槛吃到 AI 时代的红利</h2>
+    <p>用AI做IP、做获客、做业绩——帮你的公司、门店、商家，低成本把增长做起来。年度会员 <span data-bro-price>¥19,800</span>，今天就能开通体验。</p>
+    <a class="btn primary" href="#">⚡ 立即开通体验</a>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="wrap">
+    <b>⚡ 思潼商城</b> · IP+AI 业绩倍增系统 ｜ 产品说明书 v1.0<br>
+    用AI做IP·获客·销售转化 · 方法论来自十年新媒体实战 · 非通用AI · 多位行业专家私有知识库蒸馏训练<br>
+    本说明书为产品介绍材料，最终功能与计费以线上正式版本为准。
+  </div>
+</footer>
+
+<!-- 预约体验弹窗 -->
+<div id="leadModal" class="modal">
+  <div class="modal-backdrop"></div>
+  <div class="modal-card">
+    <button type="button" class="modal-close" aria-label="关闭">&times;</button>
+    <h3>预约开通体验账号</h3>
+    <p class="modal-sub" id="leadModalSub">留下信息，总部或本地代理商将尽快联系你开通体验</p>
+    <form id="leadForm">
+      <div class="form-row">
+        <label>贵姓 <span class="req">*</span></label>
+        <input type="text" name="surname" placeholder="怎么称呼您" required>
+      </div>
+      <div class="form-row">
+        <label>联系电话 <span class="req">*</span></label>
+        <input type="tel" name="phone" placeholder="用于预约开通体验" required pattern="1[3-9][0-9]{9}">
+      </div>
+      <div class="form-row">
+        <label>企业/门店名称 <span class="req">*</span></label>
+        <input type="text" name="company" placeholder="您的企业或门店名" required>
+      </div>
+      <div class="form-row">
+        <label>所在城市</label>
+        <input type="text" name="city" placeholder="例如：大连">
+      </div>
+      <div class="form-row">
+        <label>所属行业 <span class="req">*</span></label>
+        <select name="industry" required>
+          <option value="">请选择行业</option>
+          <option value="餐饮">餐饮</option>
+          <option value="美业">美业</option>
+          <option value="宠物">宠物</option>
+          <option value="零售">零售</option>
+          <option value="连锁品牌">连锁品牌</option>
+          <option value="招商加盟">招商加盟</option>
+          <option value="其他">其他</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>感兴趣版本 <span class="req">*</span></label>
+        <select name="version" required>
+          <option value="本地商家版" data-bro-opt>本地商家版（¥19,800/年）</option>
+          <option value="招商加盟版">招商加盟版（¥49,800/年）</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>当前经营规模</label>
+        <select name="scale">
+          <option value="">请选择规模</option>
+          <option value="单店">单店</option>
+          <option value="3-10家">3-10家</option>
+          <option value="10-50家">10-50家</option>
+          <option value="50家以上">50家以上</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>想解决的核心问题</label>
+        <textarea name="painpoint" rows="3" placeholder="例如：想做创始人IP、门店获客、直播话术、招商加盟..."></textarea>
+      </div>
+      <div class="form-row">
+        <label>推荐人/代理商代码（如有）</label>
+        <input type="text" name="agent_code" placeholder="方便归属代理商分佣">
+      </div>
+      <button type="submit" class="btn primary modal-submit">提交申请</button>
+      <p class="form-tip">提交后 1 个工作日内，专属顾问会电话联系你开通体验账号</p>
+    </form>
+    <div id="leadSuccess" class="modal-success">
+      <div class="success-icon">&#10003;</div>
+      <h4>提交成功</h4>
+      <p>已收到你的开通申请，总部或本地代理商将尽快电话联系你，协助开通体验账号。</p>
+      <button type="button" class="btn primary modal-close-btn">好的</button>
+    </div>
+  </div>
+</div>
+
+<script src="./lead-form.js?v=4"></script>
+<script src="./demo-flow.js?v=3"></script>
+</body>
+</html>
