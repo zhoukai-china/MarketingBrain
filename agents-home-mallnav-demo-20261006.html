@@ -124,6 +124,7 @@
     v4.40b（同日）红值对齐全站红：v4.40 用的 Google 红（#D93025 系）与全站主红 #C81623（83 处，顶栏/按钮同源）不一致——.sq 段再映射 #D93025→#C81623/#C5221F→#B0121A/#F0522F→#FF4433、rgba(217,48,37)→rgba(200,22,35)、浅底/文字色全部转 #C81623 色相；**关键发现：全站主色早非 #E8651A 橙（样式表 0 处），v4.38 的橙是我按旧记忆误用——模型广场在全站红海里孤悬成橙块才触发用户反馈**；验收 ?v=48
     v4.41（20261018，用户：把立即开通设置成动图 一直挂在屏幕某一侧 屏幕向下滑但立即开通一直在画面里；填写完相关信息之后后台审核 审核通过之后给用户开放业绩倍增系统账号权限，模拟演示 自动填写申请 后台开通 然后 开放账号权限 接业绩倍增系统的UI）：落地页拉本地副本 docs/prototypes/ipai-brochure/（index/local/franchise/lead-form.js 线上同源下载），新增 demo-flow.js——①说明书页右侧中部 fixed「⚡立即开通」竖排动图按钮（渐变呼吸+高光扫过+光圈脉冲，滚动常驻，z950 弹窗之下）②表单内「🚀 演示模式·一键自动填写并提交」③提交不再走真实 API（本地副本 lead-form.js?v=4 把 fetch 换成 __broDemo.submit），全屏开通后台模拟：受理编号→资料校验/资质审核/版本配置三步审核动画→审核通过→终端动画开通权限（创建商户空间/绑定版本/生成体验账号 sitong_xxxx/初始密码/分配 9 位数字高管）→🎉开通成功出示账号，CTA「进入业绩倍增系统」跳 growth-agents-workbench-demo-20261004.html；CB_HREF.acq 线上落地页→本地副本串联全链路（inv 透传保留）；验收 本地副本 ?v=2、主 demo ?v=49
     v4.41b（20261018，用户：这个UI才是对的 - 本地商家版 ipai-wb-local.html / 招商加盟版 ipai-wb-franchise.html）：开通成功「进入业绩倍增系统」跳转从 growth-agents-workbench 改为增长台工作台 UI，按表单「选用版本」分流——本地商家版→ipai-wb-local.html?v=1、招商加盟版→ipai-wb-franchise.html?v=1（demo-flow.js?v=2 workbenchUrl(__lastVer)；此前跳错页系用户提供的 8899 端口直链，源文件在其会话目录 temp_20261017_02，已字节级复制入 prototypes 根实现 8931 同源+手机可访问）；增长台页内「产品说明」死链 spec-local/spec-franchise.html（源目录无此文件）改指 ipai-brochure 各版说明书?v=2；两页补固定返回钮（左上白圆橙‹，无历史兜底回商城首页）；数字高管子跳转 WB_FILE 保持原样（luzhen 本地无对应文件，与用户 8899 环境行为一致）；growth-agents-workbench-demo-20261004.html 文件保留但不再被引用；验收 主demo ?v=50、增长台 ?v=1
+    v4.42（20261021，用户认可「不专业」诊断，同意先做 A 结构升级）：全站视觉规范化五点——① 字阶统一：楼层标题 17px（floor-title/sk-title）、商品标题 14px（pname）、描述 12px（pdesc/floor-sub/sq-ds/cons-meta/ghost-desc）、价格 18px（pprice；AIGC vc-pr 19→18、秒杀 sk-price 15→16 并对齐 #C81623）② 卡片骨架统一：pcover 16:9→3:2 全局默认、圆角 12px（cat-banner/chan-soon/vcard/sq-card/cpn-sec/sk-floor/all-goods/ad-banner/an-card）、单层阴影（静置 0 1px 4px / 悬停 0 8px 20px + 红描边）、标签胶囊灰底红字圆角 999（ptag/vc-tags/sq-ft/emp-deliver；AIGC 橙系徽标/价格全部转红 #C81623）③ 楼层头统一：F1/F3/F5/F6/C1/C2 六楼层右补「更多 ›」（.f-more + data-list→openList 文档级委托，插 listState 前）；卡片间距 12px（prod/emps/cons/guess-grid/sk-row/vlist/sq-list）；guess 导购理由 g-reason 右上→左上避开 sk-tag 同位叠压 ④ 顶栏/搜索/宫格质感：顶栏微渐变 135deg #E1251B→#C81623→#A80F1A + 阴影加深、搜索框毛玻璃（半透明白底 + blur12 + 红调柔影）、频道宫格 cb-img 74→84px 强化视觉锚点 ⑤ 秒杀组件重绘：倒计时数字块 tabular-nums 加大加高、进度条 7px 红渐变 + 45° 斜纹流动动画、sk-item 124→140px 封面加高；⑥ 移除搜索框下方「不知道买啥？点右下 AI 导购」提示条（.search-hint HTML+CSS 全清）；验证 node 语法+探针；验收 ?v=52
     v4.20（20261016）AI硬件新增机器人租赁业务（用户口径：AI硬件里加一个机器人租赁业务）：
   ① C1 硬件专区 hwRow 新增第三张卡「门店 AI 机器人 · 租赁」：复用 hwRobot 机器人主图 + 秒杀角标 ¥299 +「押金可退」角标，租赁专属元素=hw-spec 服务行（含安装调试/远程运维/坏损换新）+ opc-tier 租期档（租满 12 个月租金抵 50% 买断 / 6 个月起租 9 折）+ 划线买断价 ¥1,999 vs 月租 ¥299/月 · 押金 ¥1,000 可退；卡片直购模式（加购+立即租赁，不跳详情页——详情页无 hwRent 专属 sec）
   ② 数据同步：PRODUCTS.hwRent（cat:硬件 → 自动进全部硬件列表与硬件筛选、cta:cartbuy）、SK_ITEMS 加 hwRent（sec:229 硬件秒杀位自动收录）、GUESS_MAP.hardware 补「轻资产首选」、C1 楼层副标改「可买可租，拍下就装」、AI 助手硬件话术补租赁卖点且 k 加「租赁/月租」触发词
@@ -268,7 +269,7 @@ input{font-family:inherit;color:inherit}
 /* ========== v4.3 分类产品主图宫格（全部态） ========== */
 .cat-grid{display:flex;flex-direction:column;gap:12px;padding:14px 2px 4px}
 .cat-banner{
-  display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;
+  display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;
   background:#fff;border:1px solid var(--line2);box-shadow:0 4px 14px rgba(60,40,20,.06);
   text-align:left;position:relative;overflow:hidden;
 }
@@ -338,7 +339,7 @@ input{font-family:inherit;color:inherit}
 .chan.chan-on{display:block;animation:chanIn .25s ease}
 @keyframes chanIn{from{opacity:.4;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 /* v4.12 未开仓频道统一占位（大模型 / AIGC）：暖橙主壳同款卡片，不用多套皮肤 */
-.chan-soon{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:64px 20px;text-align:center;background:var(--card);border:1px dashed #E5E5E5;border-radius:16px}
+.chan-soon{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:64px 20px;text-align:center;background:var(--card);border:1px dashed #E5E5E5;border-radius:12px}
 .chan-soon .soon-ico{width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,#F5F5F5,#EEEEEE);display:flex;align-items:center;justify-content:center;font-size:32px}
 /* v4.16 大模型占位主图 */
 .chan-soon .soon-img{width:min(440px,86%);aspect-ratio:16/9;object-fit:cover;border-radius:14px;box-shadow:0 12px 28px rgba(170,90,20,.18)}
@@ -469,8 +470,6 @@ body.no-chanbar #chan-news .cv-head{top:calc(54px + env(safe-area-inset-top))}
 .search input{flex:1;background:none;border:0;outline:0;font-size:16px;color:var(--ink);min-width:0}
 .search input::placeholder{color:var(--dim)}
 .search-clear{width:24px;height:24px;border-radius:50%;background:#E8E8E8;color:var(--sub);font-size:13px;flex:none}
-.search-hint{font-size:12.5px;color:var(--dim);margin-top:7px;padding-left:4px}
-.search-hint b{color:#E1251B;font-weight:600}
 #result-count{display:none;font-size:12.5px;color:var(--sub);margin:12px 2px 0}
 #result-count b{color:var(--orange)}
 
@@ -535,8 +534,8 @@ body.no-chanbar #chan-news .cv-head{top:calc(54px + env(safe-area-inset-top))}
   font-size:12px;font-weight:800;letter-spacing:1px;color:var(--orange);
   padding:3px 8px;border-radius:6px;background:rgba(225,37,27,.12);border:1px solid rgba(225,37,27,.3);
 }
-.floor-title{font-size:16px;font-weight:800}
-.floor-sub{font-size:12.5px;color:var(--dim)}
+.floor-title{font-size:17px;font-weight:800}
+.floor-sub{font-size:12px;color:var(--dim)}
 .floor-live{margin-left:auto;font-size:12px;color:var(--green);display:flex;align-items:center;gap:5px}
 .floor-live i{width:5px;height:5px;border-radius:50%;background:var(--green);animation:breathDot 2s infinite}
 
@@ -616,7 +615,7 @@ body.no-chanbar #chan-news .cv-head{top:calc(54px + env(safe-area-inset-top))}
 @keyframes consGlow{0%,100%{box-shadow:0 0 12px rgba(225,37,27,.28)}50%{box-shadow:0 0 26px rgba(225,37,27,.5)}}
 .cons-name{font-size:15px;font-weight:800}
 .cons-face{font-size:12px;color:var(--purple)}
-.cons-meta{font-size:12.5px;color:var(--sub);margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cons-meta{font-size:12px;color:var(--sub);margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .cons-soon{margin-top:7px;font-size:12px;color:var(--dim)}
 
 /* ghost 货架卡 */
@@ -627,7 +626,7 @@ body.no-chanbar #chan-news .cv-head{top:calc(54px + env(safe-area-inset-top))}
 .ghost-top{display:flex;align-items:center;gap:10px}
 .ghost-ico{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:19px;background:#F5F5F5;border:1px solid var(--line)}
 .ghost-name{font-size:13px;font-weight:700}
-.ghost-desc{font-size:12.5px;color:var(--sub);margin-top:8px}
+.ghost-desc{font-size:12px;color:var(--sub);margin-top:8px}
 .ghost-prog{margin-top:11px;height:5px;border-radius:3px;background:rgba(225,37,27,.12);overflow:hidden;position:relative}
 .ghost-prog i{position:absolute;top:0;bottom:0;width:38%;border-radius:3px;background:linear-gradient(90deg,rgba(225,37,27,.2),rgba(225,37,27,.85),rgba(225,37,27,.2));animation:ghostGo 2.6s infinite}
 @keyframes ghostGo{0%{left:-40%}100%{left:105%}}
@@ -1082,7 +1081,7 @@ body.no-chanbar #chan-news .cv-head{top:calc(54px + env(safe-area-inset-top))}
 }
 @media(hover:hover){.pcard:hover{transform:translateY(-3px);border-color:rgba(225,37,27,.5);box-shadow:0 10px 28px rgba(170,90,20,.14)}}
 .pcard-link{cursor:pointer}
-.pcover{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;background:#F5F5F5}
+.pcover{position:relative;width:100%;aspect-ratio:3/2;overflow:hidden;background:#F5F5F5}
 .pcover-ico{display:grid;place-items:center;font-size:46px;background:linear-gradient(140deg,#EEEEEE,#EEEEEE)}
 .cimg{width:100%;height:100%;object-fit:cover;display:block}
 /* FDE 专区（F8）：服务流程条 + 渐变封面主图 */
@@ -1130,9 +1129,9 @@ body.no-chanbar #chan-news .cv-head{top:calc(54px + env(safe-area-inset-top))}
 .gu-sub-t span{font-size:12px;color:var(--sub)}
 .gu-sub-btn{flex:none;min-height:34px;padding:0 16px;border-radius:10px;border:0;font-size:12px;font-weight:800;color:#fff;background:linear-gradient(135deg,#FF4433,#C81623);box-shadow:0 4px 12px rgba(225,37,27,.3);cursor:pointer}
 .pbody{padding:12px 14px 14px;display:flex;flex-direction:column;gap:6px;flex:1}
-.pname{font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pname{font-size:14px;font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .ptag{font-size:12.5px;padding:2px 7px;border-radius:5px;color:#C81623;background:rgba(225,37,27,.12);border:1px solid rgba(225,37,27,.35);white-space:nowrap;font-weight:600}
-.pdesc{font-size:12.5px;color:var(--sub);line-height:1.6}
+.pdesc{font-size:12px;color:var(--sub);line-height:1.6}
 .pfoot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;padding-top:6px;gap:8px}
 .pprice{font-size:12.5px;color:var(--dim)}
 .psoon{font-size:12px;color:#C77700;padding:4px 9px;border-radius:7px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);white-space:nowrap}
@@ -1170,7 +1169,7 @@ body.no-chanbar #chan-news .cv-head{top:calc(54px + env(safe-area-inset-top))}
 body{background:#F4F5F7}
 #bg-net,#bg-grid,#cursor-glow{display:none}
 /* 京东红头部 */
-.topbar{background:linear-gradient(90deg,#E1251B,#F0250F);border-bottom:0;box-shadow:0 2px 8px rgba(225,37,27,.28)}
+.topbar{background:linear-gradient(135deg,#E1251B 0%,#C81623 55%,#A80F1A 100%);border-bottom:0;box-shadow:0 2px 14px rgba(200,22,35,.30)}
 .brand-txt b{color:#fff}
 .brand-txt span{color:rgba(255,255,255,.9)}
 #clock{color:rgba(255,255,255,.75)!important}
@@ -1186,13 +1185,12 @@ body{background:#F4F5F7}
 .chan-tab.act{color:#E1251B}
 .chan-tab.act::after{background:#E1251B;width:24px;height:3px;bottom:3px}
 /* 搜索框 · 京东胶囊红描边 */
-.search{border-radius:999px;border:1.5px solid #E1251B;box-shadow:none;padding:10px 16px}
-.search:focus-within{border-color:#C81623;box-shadow:0 0 0 3px rgba(225,37,27,.08)}
-.search-hint b{color:#E1251B}
+.search{border-radius:999px;border:1.5px solid rgba(200,22,35,.22);box-shadow:0 4px 18px rgba(200,22,35,.10);padding:10px 16px;background:rgba(255,255,255,.82);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.search:focus-within{border-color:#C81623;box-shadow:0 0 0 3px rgba(200,22,35,.12),0 4px 18px rgba(200,22,35,.16)}
 /* 楼层角标 · 京东红底白字 */
 .floor-no{color:#fff;background:#E1251B;border-color:#E1251B;border-radius:4px}
 /* 京东红价逻辑 */
-.pprice{color:#C81623;font-weight:800;font-size:14px}
+.pprice{color:#C81623;font-weight:800;font-size:18px}
 .opc-now{color:#C81623}
 .opc-save{background:#E1251B}
 .hw-inst{background:#E1251B}
@@ -1294,9 +1292,9 @@ body{background:#F4F5F7}
 .cpn.got .cpn-btn{background:#CCCCCC}
 .sk-floor{margin:12px 0 2px;background:#fff;border:1px solid #EEEEEE;border-radius:14px;padding:12px 14px}
 .sk-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-.sk-title{font-size:15px;font-weight:800;color:#1A1A1A}
-.sk-clock{display:inline-flex;align-items:center;gap:3px;font-size:12px;color:#C81623;font-weight:800}
-.sk-clock i{font-style:normal;background:#1A1A1A;color:#fff;border-radius:4px;padding:1px 5px;font-weight:800}
+.sk-title{font-size:17px;font-weight:800;color:#1A1A1A}
+.sk-clock{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#C81623;font-weight:800}
+.sk-clock i{font-style:normal;background:#1A1A1A;color:#fff;border-radius:5px;padding:2.5px 6px;font-weight:800;font-size:13px;min-width:26px;text-align:center;font-variant-numeric:tabular-nums}
 .sk-more{margin-left:auto;font-size:12px;color:#888888}
 .sk-row{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none}
 .sk-row::-webkit-scrollbar{display:none}
@@ -1305,10 +1303,10 @@ body{background:#F4F5F7}
 .sk-cov img{width:100%;height:100%;object-fit:cover;display:block}
 .sk-cov .sk-ico{display:grid;place-items:center;height:100%;font-size:26px;background:#FFF1F0}
 .sk-name{font-size:12px;color:#1A1A1A;padding:6px 8px 0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sk-price{padding:2px 8px 0;font-size:15px;font-weight:800;color:#E1251B}
+.sk-price{padding:2px 8px 0;font-size:16px;font-weight:800;color:#C81623}
 .sk-price s{font-size:11px;color:#AAAAAA;font-weight:400;margin-left:4px}
-.sk-bar{margin:5px 8px 0;height:6px;border-radius:3px;background:#F7C1C1;overflow:hidden}
-.sk-bar i{display:block;height:6px;border-radius:3px;background:#E1251B}
+.sk-bar{margin:5px 8px 0;height:7px;border-radius:4px;background:#FFE9E7;overflow:hidden;position:relative}
+.sk-bar i{display:block;height:7px;border-radius:4px;background:linear-gradient(90deg,#FF6A5E,#C81623);position:relative;overflow:hidden}
 .sk-pct{font-size:11px;color:#C81623;padding:2px 8px 0}
 .sk-buy{display:block;width:calc(100% - 16px);margin:5px 8px 10px;border:0;border-radius:8px;background:linear-gradient(135deg,#FF4433,#C81623);color:#fff;font-size:12.5px;font-weight:800;padding:7px 0}
 .trust-strip{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0 2px;padding:9px 14px;background:#FAFAFA;border:1px solid #EEEEEE;border-radius:10px;font-size:12px;color:#555555}
@@ -1395,7 +1393,6 @@ body{background:#F4F5F7}
       <input id="searchInput" type="text" placeholder="搜 AI 商品：文案 / 直播 / 复盘 / 课程…" autocomplete="off">
       <button class="search-clear" id="searchClear" style="display:none" aria-label="清空">×</button>
     </div>
-    <div class="search-hint">不知道买啥？点右下「💬 AI 导购」，说一句话帮你挑 <a href="javascript:void(0)" onclick="guideOpen()">马上问 ›</a></div>
     <div id="result-count">“<b id="rc-word"></b>” 的搜索结果 · <b id="rc-num">0</b> 个商品 · 查看 ›</div>
   </div>
 </div>
@@ -1472,7 +1469,7 @@ body{background:#F4F5F7}
 
 <!-- F1 AI获客增长智能体（内容获客 + 私域营销 合并，v4.1） -->
   <section class="floor" id="floor-acq">
-    <div class="floor-head rv"><span class="floor-no">F1</span><b class="floor-title">AI获客增长工作台</b><span class="floor-sub">内容获客 + 私域营销 · 8 位数字员工一条增长流水线</span><span class="floor-live"><i></i><span id="empOnline">3</span> 位在线</span></div>
+    <div class="floor-head rv"><span class="floor-no">F1</span><b class="floor-title">AI获客增长工作台</b><span class="floor-sub">内容获客 + 私域营销 · 8 位数字员工一条增长流水线</span><span class="floor-live"><i></i><span id="empOnline">3</span> 位在线</span><button class="f-more" data-list="智能体">更多 ›</button></div>
     <div class="emps" id="empOk"></div>
     <div class="divider rv">即将上线</div>
     <div class="emps" id="empDev"></div>
@@ -1480,7 +1477,7 @@ body{background:#F4F5F7}
 
   <!-- F3 数字分身专区（v4.0 从数字咨询师专区拆出） -->
   <section class="floor" id="floor-avatar">
-    <div class="floor-head rv"><span class="floor-no">F3</span><b class="floor-title">数字分身工作台</b><span class="floor-sub">真人分身 7×24 在线 · 月卡对话不限次</span></div>
+    <div class="floor-head rv"><span class="floor-no">F3</span><b class="floor-title">数字分身工作台</b><span class="floor-sub">真人分身 7×24 在线 · 月卡对话不限次</span><button class="f-more" data-list="智能体">更多 ›</button></div>
     <div class="cons">
       <div class="cons-card rv soon" id="consBaolu" role="button" tabindex="0">
         <span class="soon-badge">即将上线</span>
@@ -1501,7 +1498,7 @@ body{background:#F4F5F7}
 
   <!-- F4 古人智慧专区 -->
   <section class="floor" id="floor-guren">
-    <div class="floor-head rv"><span class="floor-no">F5</span><b class="floor-title">古人经营智慧工作台</b><span class="floor-sub">千年商道 · 一问即答的 AI 顾问团</span><span class="floor-live"><i></i>6 位先生在线</span></div>
+    <div class="floor-head rv"><span class="floor-no">F5</span><b class="floor-title">古人经营智慧工作台</b><span class="floor-sub">千年商道 · 一问即答的 AI 顾问团</span><span class="floor-live"><i></i>6 位先生在线</span><button class="f-more" data-list="智能体">更多 ›</button></div>
     <div class="gu-hero rv">
       <div class="gu-seal">智</div>
       <div class="gu-hero-t"><b>古人智慧团</b><span>孙子 · 范蠡 · 诸葛亮 · 管子 · 曾国藩 · 胡雪岩</span></div>
@@ -1529,7 +1526,7 @@ body{background:#F4F5F7}
 
   <!-- F6 行业工作台 -->
   <section class="floor" id="floor-industry">
-    <div class="floor-head rv"><span class="floor-no">F6</span><b class="floor-title">门店AI经营大脑工作台</b><span class="floor-sub">分行业的整套 AI 经营工作台，点进去直接体验</span></div>
+    <div class="floor-head rv"><span class="floor-no">F6</span><b class="floor-title">门店AI经营大脑工作台</b><span class="floor-sub">分行业的整套 AI 经营工作台，点进去直接体验</span><button class="f-more" data-list="智能体">更多 ›</button></div>
     <button class="brand-hero rv" id="lanqiBtn">
       <span class="bh-name">💄 美业门店AI经营大脑 demo <span class="live">● 可体验</span></span>
       <span class="bh-desc">朋友圈 / 社群内容、经营驾驶舱、门店诊断、内容工作室、AI 绘图、公域获客——美业门店（美容 / 美甲 / 轻医美）正在用的完整 AI 工作台，进去就能点。</span>
@@ -1571,7 +1568,7 @@ body{background:#F4F5F7}
 <!-- ═══ v4.0 频道③ AI硬件 ═══ -->
 <div class="chan" id="chan-hardware">
   <section class="floor" id="floor-hardware">
-    <div class="floor-head rv"><span class="floor-no">C1</span><b class="floor-title">AI 硬件专区</b><span class="floor-sub">店里的 AI 设备货架 · 可买可租，拍下就装</span></div>
+    <div class="floor-head rv"><span class="floor-no">C1</span><b class="floor-title">AI 硬件专区</b><span class="floor-sub">店里的 AI 设备货架 · 可买可租，拍下就装</span><button class="f-more" data-list="硬件">更多 ›</button></div>
     <button class="all-goods rv" data-open-list="硬件">🛍 全部硬件 · 按价格筛选 ›</button>
     <div class="prod" id="hwRow">
       <div class="pcard rv">
@@ -1626,7 +1623,7 @@ body{background:#F4F5F7}
 <!-- ═══ v4.0 频道④ AI培训 ═══ -->
 <div class="chan" id="chan-course">
   <section class="floor" id="floor-courses">
-    <div class="floor-head rv"><span class="floor-no">C2</span><b class="floor-title">AI 培训专区</b><span class="floor-sub">从老板到店员的 AI 培训货架 · 学会就能用</span></div>
+    <div class="floor-head rv"><span class="floor-no">C2</span><b class="floor-title">AI 培训专区</b><span class="floor-sub">从老板到店员的 AI 培训货架 · 学会就能用</span><button class="f-more" data-list="课程">更多 ›</button></div>
     <div class="trust-strip rv"><span><b>✓</b>永久回放</span><span><b>✓</b>内容持续更新</span><span><b>✓</b>学会即用</span><span><b>✓</b>社群答疑</span></div>
     <button class="all-goods rv" data-open-list="课程">🛍 全部课程 · 按价格筛选 ›</button>
     <div class="cs-path rv">🌱 个人入门<i>›</i>🚀 超级个体提效<i>›</i>🏢 企业内训</div>
@@ -2182,7 +2179,7 @@ body{background:#F4F5F7}
 .sq-chip.on{background:linear-gradient(135deg,#B0121A,#C81623 55%,#FF4433);color:#FFFFFF;border-color:transparent;box-shadow:0 3px 10px rgba(176,18,26,.32);font-weight:600}
 .sq-count{font-size:11.5px;color:#B3A9A1}
 .sq-list{margin-top:12px;display:flex;flex-direction:column;gap:12px}
-.sq-card{position:relative;display:flex;gap:12px;background:#FFFFFF;border:1px solid rgba(200,22,35,.15);border-radius:16px;padding:14px;box-shadow:0 3px 12px rgba(200,22,35,.07);overflow:hidden;transition:transform .15s,box-shadow .15s}
+.sq-card{position:relative;display:flex;gap:12px;background:#FFFFFF;border:1px solid rgba(200,22,35,.15);border-radius:12px;padding:14px;box-shadow:0 3px 12px rgba(200,22,35,.07);overflow:hidden;transition:transform .15s,box-shadow .15s}
 .sq-card::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#B0121A,#FF4433);opacity:.85}
 .sq-card:active{transform:scale(.99);box-shadow:0 5px 16px rgba(200,22,35,.14)}
 .sq-ico{width:44px;height:44px;border-radius:12px;flex:0 0 auto;object-fit:contain;background:linear-gradient(145deg,#FFF4F3,#FBE4E2);border:1px solid rgba(200,22,35,.12);padding:5px;box-sizing:border-box}
@@ -2192,7 +2189,7 @@ body{background:#F4F5F7}
 .sq-badge{font-style:normal;font-size:10px;color:#FFFFFF;background:linear-gradient(135deg,#B0121A,#C81623);border-radius:5px;padding:2px 6px;font-weight:700;box-shadow:0 2px 5px rgba(232,69,26,.28)}
 .sq-pv{font-size:11.5px;color:#B3A9A1;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sq-pv code{font-size:10.5px;background:#F8E7E5;border-radius:4px;padding:1px 5px;color:#B04840;font-family:inherit}
-.sq-ds{margin:7px 0 0;font-size:12.5px;color:#7A6F68;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sq-ds{margin:7px 0 0;font-size:12px;color:#7A6F68;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .sq-fts{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
 .sq-ft{font-size:10.5px;color:#A8121D;background:linear-gradient(135deg,#FBE9E7,#F6D5D2);border:1px solid rgba(200,22,35,.14);border-radius:5px;padding:2px 7px;font-weight:500}
 .sq-foot{display:flex;align-items:center;justify-content:space-between;margin-top:12px;gap:8px}
@@ -2210,7 +2207,7 @@ body{background:#F4F5F7}
 /* ═══ v4.32 AIGC 视频制作秒杀专场 ═══ */
 .aigc-floor{margin:14px 12px 4px}
 .vlist{margin-top:10px;display:flex;flex-direction:column;gap:12px}
-.vcard{display:flex;gap:10px;background:#FFFFFF;border:1px solid rgba(0,0,0,.06);border-radius:16px;padding:10px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
+.vcard{display:flex;gap:10px;background:#FFFFFF;border:1px solid rgba(0,0,0,.06);border-radius:12px;padding:10px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
 .vc-cover{position:relative;flex:0 0 118px;height:158px;border-radius:12px;overflow:hidden;cursor:pointer;background:#F7F7F7}
 .vc-cover img{width:100%;height:100%;object-fit:cover;display:block}
 .vc-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.45);color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:15px;padding-left:3px;backdrop-filter:blur(2px);border:1.5px solid rgba(255,255,255,.75)}
@@ -2223,7 +2220,7 @@ body{background:#F4F5F7}
 .vc-tags span{font-size:10px;color:#E8651A;background:#FDF1E8;border-radius:4px;padding:2px 6px}
 .vc-pr{display:flex;align-items:baseline;gap:6px;margin-top:7px;flex-wrap:wrap}
 .vc-pr del{color:#BBBBBB;font-size:11px}
-.vc-pr b{color:#E8451A;font-size:19px;font-weight:800}
+.vc-pr b{color:#C81623;font-size:18px;font-weight:800}
 .vc-pr u{text-decoration:none;color:#999999;font-size:11px}
 .vc-pr em{font-style:normal;font-size:10px;color:#E8651A;background:#FDF1E8;border-radius:4px;padding:2px 5px}
 .vc-main .pfoot{margin-top:auto;padding-top:7px}
@@ -2235,6 +2232,26 @@ body{background:#F4F5F7}
 #vcPlayer{width:100%;max-height:86vh;border-radius:14px;background:#000;display:block}
 #vcClose{position:absolute;top:-42px;right:0;width:34px;height:34px;border-radius:50%;border:none;background:rgba(255,255,255,.18);color:#FFFFFF;font-size:16px;cursor:pointer}
 @media(min-width:760px){.vlist{display:grid;grid-template-columns:1fr 1fr;gap:12px}}
+
+/* ═══ v4.42 A 方案结构升级：统一骨架 / 标签胶囊 / 间距 / 秒杀装饰 ═══ */
+.pcard,.cat-banner,.vcard,.sq-card,.emp,.cons-card,.an-card{box-shadow:0 1px 4px rgba(0,0,0,.05)}
+@media(hover:hover){.pcard:hover,.cat-banner:hover,.vcard:hover,.sq-card:hover,.emp:hover,.cons-card:hover{box-shadow:0 8px 20px rgba(0,0,0,.10);border-color:rgba(200,22,35,.35)}}
+.prod,.emps,.cons,.guess-grid,.sk-row,.vlist,.sq-list{gap:12px}
+.f-more{margin-left:auto;flex:none;font-size:12.5px;font-weight:700;color:#888888;cursor:pointer;letter-spacing:.5px;background:none;border:0;padding:0}
+.f-more:active{color:#C81623}
+.floor-live{margin-left:12px}
+.g-reason{left:6px;right:auto}
+.ptag{font-size:11px;color:#C81623;background:#F5F5F5;border:1px solid #EEEEEE;border-radius:999px;padding:2px 8px;font-weight:600}
+.vc-tags span,.sq-ft{font-size:10.5px;color:#C81623;background:#F5F5F5;border:1px solid #EEEEEE;border-radius:999px;padding:2px 7px}
+.vc-badge{background:linear-gradient(135deg,#FF4433,#C81623)}
+.vc-pr em{color:#C81623;background:#FFF1F0}
+.hw-spec span,.cs-meta span,.fde-stat span,.opc-tags span{border-radius:999px}
+.emp-deliver{font-size:11px;color:#C81623;background:#F5F5F5;border:1px solid #EEEEEE;border-radius:999px}
+.cat-banner .cb-img{width:84px;height:84px}
+.sk-item{width:140px;border-radius:12px;background:#FFFBFB}
+.sk-cov{height:76px}
+.sk-bar i::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,.22) 0 6px,transparent 6px 12px);background-size:17px 17px;animation:skStripe .9s linear infinite}
+@keyframes skStripe{to{background-position:17px 0}}
 </style>
 <div class="mask" id="orderMask">
   <div class="sheet" style="max-width:480px">
@@ -4221,6 +4238,8 @@ document.addEventListener("click", function(ev){
   if(DEMO.on) stopDemo();
   location.href = "agent-product-detail-demo-20260923.html?agent=" + key + "&v=12";
 });
+/* v4.42 楼层头「更多」文档级委托 */
+document.addEventListener("click",function(e){var b=e.target.closest(".f-more");if(b)openList(b.getAttribute("data-list")||"全部");});
 var listState = { cat:"全部", sort:"综合", priceAsc:true, q:"" };
 
 /* ═══ v4.32 AIGC 视频播放弹层 ═══ */
