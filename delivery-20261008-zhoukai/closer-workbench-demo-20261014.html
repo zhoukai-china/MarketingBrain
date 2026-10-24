@@ -1,0 +1,1470 @@
+﻿<!doctype html>
+<!-- ?v=18 · 真实感三件套（开发视角评审落地，demo模拟真产品必有的异步路径）：①dlDeliver 统一插入生成骨架卡（1.1s shimmer「易成生成中·通常3~10秒」，含重置竞态防护）——消除「秒出」假象 ②真实素材≥2张 → 多客户归属确认步（张女士/X总，防张冠李戴） ③≥3张 → 最后一张模拟识别失败（重传/跳过），禁止静默吞掉低质量输入；示例素材不触发，演示链不受影响 -->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- 允许双指缩放：老花用户可放大 9-11px 小字，无障碍优先；禁用缩放是反模式 -->
+<title>易成 · 首席成交官 工作台（Demo）</title>
+<style>
+:root{
+  --bg:#F4F7FC; --card:#fff; --ink:#1c2733; --sub:#5b6b7c; --line:#e3e9f2;
+  --orange:#E8651A; --orange-soft:#fdeee2; --orange-line:#f7d4b8;
+  --green:#0f8a5f; --amber:#b26a00; --blue:#2563eb; --purple:#7c3aed; --red:#d64545;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.55}
+button{font-family:inherit;border:none;background:none;cursor:pointer;color:inherit}
+::-webkit-scrollbar{width:0;height:0}
+
+/* ===== 顶栏 ===== */
+.topbar{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:60}
+.topbar .in{max-width:none;margin:0 auto;display:flex;align-items:center;gap:10px;height:50px;padding:0 14px}
+.topbar .logo{font-weight:800;font-size:16px}
+.topbar .logo i{font-style:normal;color:var(--orange)}
+.topbar .tag{font-size:11px;color:var(--sub);border:1px solid var(--line);background:#fff;border-radius:99px;padding:2px 9px;white-space:nowrap}
+.topbar .me{margin-left:auto;display:flex;align-items:center;gap:8px}
+.topbar .credits{font-size:12.5px;color:var(--sub);background:#f4f7fb;border:1px solid var(--line);border-radius:99px;padding:3px 12px;white-space:nowrap}
+.topbar .credits b{color:var(--orange)}
+.back-btn{flex:none;background:rgba(232,101,26,.07);border:1px solid rgba(232,101,26,.38);color:var(--orange);border-radius:8px;font-size:12px;font-weight:700;padding:5px 12px}
+.safe-tag{font-size:11px;color:var(--green);background:#e8f3ee;border:1px solid #cbe7dc;border-radius:99px;padding:2px 9px;font-weight:700;white-space:nowrap}
+.mini-btn{min-height:34px;padding:0 13px;border-radius:9px;background:var(--orange-soft);color:var(--orange);border:1px solid var(--orange-line);font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:5px;justify-content:center}
+.demo-btn{background:var(--orange);color:#fff;border-radius:99px;font-size:13px;font-weight:700;padding:8px 15px;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(232,101,26,.4);white-space:nowrap}
+.demo-btn.stop{background:#5b6b7c;box-shadow:none}
+
+/* ===== 双栏工作台：左对话 · 右面板（窄屏适配统一收口到文末 959 块） ===== */
+.stage{max-width:none;margin:0 auto;padding:12px 14px 22px;display:grid;grid-template-columns:11fr 9fr;gap:12px;align-items:start}
+.chat{display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 2px 10px rgba(28,39,51,.05);overflow:hidden;position:sticky;top:62px;height:calc(100vh - 78px)}
+.ws{display:flex;flex-direction:column;gap:12px;position:sticky;top:62px;min-width:0}
+
+.chat-head{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap;background:#fff}
+.chat-head .av{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,#E8651A,#f0932b);display:grid;place-items:center;font-size:17px;font-weight:800;color:#fff;flex:none;box-shadow:0 3px 10px rgba(232,101,26,.3)}
+.chat-head .cht{flex:1;min-width:140px}
+.chat-head .cht b{font-size:14.5px;display:block}
+.chat-head .cht span{font-size:11px;color:var(--sub)}
+.chat-head .live{color:var(--green);font-weight:700}
+.chat-head .demo-btn{margin-left:auto}
+
+.chat .log{flex:1;min-height:0;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;max-height:calc(100vh - 268px)}
+.msg{display:flex;gap:8px;animation:fadein .3s}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.msg .m-av{width:26px;height:26px;border-radius:8px;background:var(--orange);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:800;flex:none;margin-top:2px}
+.msg.user{flex-direction:row-reverse}
+.msg.user .m-av{background:#dfe7f0;color:#5b6b7c}
+.msg.cust .m-av{background:var(--blue)}
+.msg .bub{background:#f6f9fd;border:1px solid var(--line);border-radius:4px 12px 12px 12px;padding:9px 12px;font-size:13px;max-width:100%;line-height:1.65;word-break:break-word}
+.msg .bub b{color:var(--orange)}
+.msg .who{font-size:11px;color:var(--orange);font-weight:700;margin-bottom:3px}
+.msg.user .bub{background:var(--orange-soft);border-color:var(--orange-line);border-radius:12px 4px 12px 12px;color:#6b3a10;max-width:86%}
+.msg.cust .bub{background:#eef4fd;border-color:#d4e3f7;border-radius:4px 12px 12px 12px;color:#2b3f55}
+.msg .dim{color:#8496a8;font-size:12px}
+.msg.user .dim{color:#a3763f}
+.ev-ok{display:inline-flex;align-items:center;gap:3px;background:#e8f3ee;color:var(--green);border:1px solid #cbe7dc;border-radius:99px;padding:1px 9px;font-size:11px;font-weight:700}
+.ev-un{display:inline-flex;align-items:center;gap:3px;background:#fdf3e2;color:var(--amber);border:1px solid #f3ddb2;border-radius:99px;padding:1px 9px;font-size:11px;font-weight:700}
+.opts{display:flex;flex-direction:column;gap:7px;margin:0 0 4px 34px;animation:fadein .3s}
+.opt{background:#fff;border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:8px 13px;font-size:12.5px;text-align:left;cursor:pointer;transition:.15s;line-height:1.5;font-weight:600;min-height:36px}
+.opt:hover{border-color:var(--orange);background:var(--orange-soft)}
+.opt:disabled{opacity:.45;cursor:default}
+.opt small{display:block;color:#8496a8;font-size:11px;font-weight:400;margin-top:2px}
+.opt.recing{animation:recP 1s ease 2}
+@keyframes recP{50%{box-shadow:0 0 0 5px rgba(232,101,26,.18)}}
+/* 补充背景卡 */
+.brief-card{background:#fbfdff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.brief-card .bf-t{font-size:12.5px;font-weight:800;color:var(--orange);margin-bottom:7px}
+.bf-row{margin-bottom:7px}
+.bf-row label{display:block;font-size:11px;font-weight:800;color:#8496a8;margin-bottom:3px}
+.bf-row input,.bf-row textarea{width:100%;background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:13.5px;font-family:inherit;color:var(--ink);outline:none;resize:none}
+.bf-row input:focus,.bf-row textarea:focus{border-color:var(--orange)}
+.bf-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:2px}
+.bf-btns button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 14px;font-size:12.5px;font-weight:700;color:#3a4858}
+.bf-btns button.pri{background:var(--orange);border-color:var(--orange);color:#fff}
+/* 生成进度（深色对比卡，周域同款） */
+.gen-wrap{background:#0f1c26;border-radius:14px;padding:13px 14px}
+/* 生成等待骨架：真产品 LLM 生成需 3-10s，demo 用骨架卡模拟异步等待，消除「秒出」假象 */
+.skel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:0 2px 10px rgba(28,39,51,.05)}
+.skel .sk-t{font-size:11.5px;color:var(--sub);margin-bottom:2px}
+.skel i{display:block;height:12px;border-radius:6px;background:linear-gradient(90deg,#eef1f5 25%,#f7f9fb 50%,#eef1f5 75%);background-size:200% 100%;animation:skel 1.1s infinite;margin:9px 0}
+.skel i.s2{width:72%}.skel i.s3{width:46%}
+@keyframes skel{to{background-position:-200% 0}}
+.gen-head{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:#8fa3b5;margin-bottom:9px;gap:8px}
+.gen-head b{color:#fff;font-size:12.5px}
+.gen-pbar{height:6px;border-radius:99px;background:#1e3242;overflow:hidden;margin-bottom:10px}
+.gen-pbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#E8651A,#f0932b);border-radius:99px;transition:width .5s}
+.gen-log{font-size:11.5px;line-height:1.9;color:#9db2c5;font-family:Menlo,Consolas,monospace}
+.gen-log .ln{opacity:0;transform:translateX(-6px);transition:.3s}
+.gen-log .ln.in{opacity:1;transform:none}
+.gen-log .ok{color:#6fd39a}
+.gen-log .hl{color:#e9c46a}
+.gen-log .rd{color:#ff8f8f;font-weight:700}
+/* 自由输入（对练） */
+.spar-free{display:flex;gap:8px;animation:fadein .3s}
+.spar-free input{flex:1;min-width:0;min-height:40px;background:#fff;border:1.5px solid var(--orange-line);border-radius:11px;padding:0 12px;font-size:13.5px;color:var(--ink);outline:none}
+.spar-free input:focus{border-color:var(--orange)}
+.spar-free input::placeholder{color:#9fb0c2}
+.spar-free button{min-height:40px;padding:0 15px;border-radius:11px;background:var(--orange);border:1px solid var(--orange);color:#fff;font-weight:700;font-size:13px;flex:none}
+/* 反馈卡 */
+.fb-card{border-radius:12px;padding:10px 12px;font-size:12.5px;animation:fadein .3s}
+.fb-card.good{background:#f0f9f4;border:1.5px solid #bfe3cf}
+.fb-card.good b{color:var(--green)}
+.fb-card.bad{background:#fdf0f0;border:1.5px solid #f2cfcf}
+.fb-card.bad b{color:var(--red)}
+.fb-card b{display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:4px}
+.fb-card p{color:#3a4858}
+.fb-card .redline-tip{margin-top:6px}
+.redline-tip{font-size:11px;color:#a33a3a;background:#fdf0f0;border:1px solid #f2cfcf;border-radius:8px;padding:5px 9px}
+.std-ref{background:#f6f9fd;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:12.5px;margin-top:7px;color:#3a4858}
+.score-pill{display:inline-block;background:var(--ink);color:#fff;border-radius:99px;font-size:11.5px;font-weight:800;padding:2px 11px;margin-left:6px}
+.gap-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;background:#fdf3e2;color:var(--amber);border:1px solid #f3ddb2;border-radius:99px;padding:2px 9px;font-weight:700;margin:2px 4px 2px 0}
+.shot-thumb{display:block;max-width:180px;max-height:130px;border-radius:9px;border:1px solid var(--line);margin:6px 0 4px}
+/* 底部输入区 */
+.chat-ft{flex:none;border-top:1px solid var(--line);background:#fff;padding:10px 12px}
+.paste-panel{background:#fbfdff;border:1px solid var(--line);border-radius:11px;padding:8px;margin-bottom:8px}
+.paste-panel textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:13.5px;font-family:inherit;resize:vertical;background:#fff;color:var(--ink);outline:none}
+.paste-panel textarea:focus{border-color:var(--orange)}
+.paste-panel textarea::placeholder{color:#9fb0c2}
+.paste-ops{display:flex;gap:8px;align-items:center;margin-top:7px}
+.paste-ops .spacer{flex:1}
+.file-mini{font-size:12px;font-weight:700;color:var(--orange);border:1px dashed var(--orange-line);border-radius:9px;padding:6px 10px;cursor:pointer;display:inline-block}
+.file-mini input{display:none}
+.paste-ops button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:6px 13px;font-size:12.5px;font-weight:700;color:#3a4858}
+.paste-ops button.pri{background:var(--orange);border-color:var(--orange);color:#fff}
+.inbar{display:flex;gap:8px;align-items:center}
+.plus-btn{width:40px;height:40px;flex:none;border-radius:11px;background:var(--orange-soft);border:1px solid var(--orange-line);color:var(--orange);font-size:19px;font-weight:800;line-height:1;display:grid;place-items:center}
+.plus-btn:active{transform:scale(.95)}
+.chat .inbar input{flex:1;min-width:0;min-height:40px;background:#f7fafd;border:1px solid var(--line);border-radius:11px;padding:0 12px;font-size:16px;color:var(--ink);outline:none}
+.chat .inbar input:focus{border-color:var(--orange);background:#fff}
+.chat .inbar input::placeholder{color:#9fb0c2}
+.send-btn{min-height:40px;padding:0 16px;border-radius:11px;background:var(--orange);color:#fff;font-weight:700;font-size:13.5px;flex:none}
+.plus-menu{position:absolute;left:10px;bottom:64px;width:270px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 34px rgba(28,39,51,.2);padding:6px;display:none;z-index:40}
+.plus-menu.on{display:block}
+.plus-menu button{display:flex;gap:9px;align-items:flex-start;width:100%;text-align:left;background:none;border:none;border-radius:10px;padding:9px 10px;font-size:13px;font-weight:700;color:var(--ink)}
+.plus-menu button em{font-style:normal;flex:1}
+.plus-menu button small{display:block;font-weight:400;font-size:11px;color:#8496a8;margin-top:2px;line-height:1.4}
+.plus-menu button:active{background:var(--orange-soft)}
+
+/* ===== 右：工作台（浅色） ===== */
+.brief{background:#fff;border:1px solid var(--line);border-radius:16px;padding:13px 14px;box-shadow:0 2px 10px rgba(28,39,51,.05)}
+.brief .b-t{display:flex;align-items:center;gap:8px}
+.brief .b-t b{font-size:14.5px}
+.brief .sync{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;color:var(--green);background:#e8f3ee;border:1px solid #cbe7dc;border-radius:99px;padding:3px 10px;font-weight:700}
+.brief .sync i{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.6s infinite}
+@keyframes blink{50%{opacity:.35}}
+.b-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.bf{background:#f8fafd;border:1px solid var(--line);border-radius:10px;padding:7px 10px;min-height:48px;cursor:pointer;transition:.15s}
+.bf:active{background:var(--orange-soft);border-color:var(--orange-line)}
+.bf .k{font-size:10.5px;color:#8496a8}
+.bf .v{font-size:13.5px;font-weight:700;margin-top:1px}
+.bf.o .v{color:var(--orange)}.bf.g .v{color:var(--green)}.bf.b .v{color:var(--blue)}.bf.a .v{color:var(--amber)}
+.b-ops{margin-top:10px;display:flex;gap:8px}
+.home-btn{flex:1;min-height:42px;border:1px solid var(--line);background:#fff;border-radius:12px;font-size:13.5px;font-weight:700;color:var(--ink);display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;transition:.15s}
+.home-btn:active{background:var(--orange-soft);border-color:var(--orange-line);transform:scale(.98)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 2px 10px rgba(28,39,51,.05);overflow:hidden;scroll-margin-top:106px}
+.card-h{display:flex;align-items:center;gap:8px;padding:12px 14px 9px;font-weight:700;font-size:14px}
+.card-h .more{margin-left:auto;font-size:11.5px;color:var(--orange);font-weight:600;white-space:nowrap;cursor:pointer}
+.card-b{padding:0 14px 14px}
+/* 跟单清单 */
+/* 今日待办（行动视角首卡） */
+.todo-list{display:flex;flex-direction:column;gap:6px;padding:0 10px 10px}
+.todo-row{display:flex;align-items:center;gap:8px;text-align:left;background:#fbfdff;border:1px solid var(--line);border-radius:11px;padding:8px 9px;cursor:pointer;transition:.15s}
+.todo-row:active{background:var(--orange-soft);border-color:var(--orange-line)}
+.todo-row .td-time{flex:none;font-size:10px;font-weight:800;color:var(--orange);background:var(--orange-soft);border-radius:99px;padding:3px 8px}
+.todo-row .td-time.now{background:var(--orange);color:#fff}
+.todo-row .td-main{min-width:0;flex:1}
+.todo-row .td-main b{display:block;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.todo-row .td-main span{display:block;font-size:10.5px;color:var(--sub);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.todo-row i{font-style:normal;color:var(--sub);flex:none}
+.fu-item{display:flex;gap:10px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:#fbfdff;align-items:flex-start;cursor:pointer;transition:.15s}
+.fu-item:active{background:#f0f6fb}
+.fu-item .fu-t{flex:none;width:86px;text-align:center;background:var(--orange-soft);border:1px solid var(--orange-line);border-radius:9px;padding:6px 4px;font-size:11.5px;color:var(--orange);font-weight:700;line-height:1.35}
+.fu-item .fu-t small{display:block;font-weight:600;opacity:.85}
+.fu-item .fu-c{flex:1;min-width:0}
+.fu-item .fu-c b{font-size:13.5px}
+.fu-item .fu-goal{font-size:12.5px;color:var(--ink);margin-top:3px}
+.fu-item .fu-meta{font-size:11.5px;color:var(--sub);margin-top:4px;display:flex;flex-wrap:wrap;gap:4px 10px}
+.fu-item .fu-meta em{font-style:normal;color:var(--green);font-weight:600}
+.fu-item .fu-meta i{font-style:normal;color:var(--red);font-weight:600}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;border-radius:99px;padding:2px 9px;font-weight:600;white-space:nowrap}
+.chip.b2c{background:#e8f3ee;color:var(--green);border:1px solid #cbe7dc}
+.chip.sample{background:#f1f4f8;color:#8496a8;border:1px dashed #c9d4de;font-style:normal}
+.chip.b2b{background:#ede9fb;color:var(--purple);border:1px solid #ddd5f5}
+.chip.hot{background:var(--orange-soft);color:var(--orange);border:1px solid var(--orange-line)}
+.chip.mid{background:#eef2f9;color:var(--blue);border:1px solid #dbe4f3}
+.chip.low{background:#f1f3f6;color:var(--sub);border:1px solid var(--line)}
+.fu-why{color:var(--orange);font-weight:600;cursor:pointer}
+/* 水温 */
+.temp-wrap{padding:0}
+.temp-card{border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:8px;background:#fbfdff;cursor:pointer}
+.temp-card:last-child{margin-bottom:0}
+.temp-top{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.temp-top .tn{font-weight:700;font-size:13.5px}
+.temp-top .chip{margin-left:auto}
+.temp-bar{position:relative;height:9px;border-radius:99px;background:linear-gradient(90deg,#dbe7f2 0%,#f6d365 45%,#f0932b 72%,#d64545 100%);margin:12px 0 4px}
+.temp-bar .zone{position:absolute;top:-4px;height:17px;border-radius:99px;background:rgba(232,101,26,.22);border:1.5px solid var(--orange);box-shadow:0 0 0 3px rgba(232,101,26,.12)}
+.temp-scale{display:flex;justify-content:space-between;font-size:10px;color:#9fb0c2;margin-bottom:6px}
+.temp-num{font-size:12px;font-weight:700;color:var(--orange)}
+.temp-sub{font-size:12px;color:var(--sub);margin-top:5px}
+/* 红线 */
+.redline-banner{background:var(--orange-soft);border:1px solid var(--orange-line);border-radius:12px;padding:11px 13px;font-size:12.5px;color:#8a4a15;margin-bottom:10px}
+.redline-banner b{display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:4px;color:var(--orange)}
+/* 客户档案列表 */
+.subtabs{display:flex;gap:8px;overflow-x:auto;padding:0 14px 10px;scrollbar-width:none}
+.subtabs button{flex:none;font-size:12.5px;font-weight:600;border:1px solid var(--line);background:#fff;color:var(--sub);border-radius:99px;padding:6px 14px}
+.subtabs button.act{background:var(--ink);color:#fff;border-color:var(--ink)}
+.cust-item{display:flex;gap:11px;align-items:center;padding:12px 14px;border-top:1px solid var(--line);cursor:pointer}
+.cust-item:active{background:#f7fafd}
+.cust-item .cav{width:42px;height:42px;border-radius:13px;flex:none;display:grid;place-items:center;font-size:16px;font-weight:800;color:#fff}
+.cust-item .cc{flex:1;min-width:0}
+.cust-item .cc b{font-size:14px}
+.cust-item .cc p{font-size:12px;color:var(--sub);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.temp-mini{position:relative;height:7px;border-radius:99px;background:linear-gradient(90deg,#dbe7f2,#f6d365 45%,#f0932b 72%,#d64545);margin-top:5px}
+.temp-mini .zone{position:absolute;top:-3px;height:13px;border-radius:99px;background:rgba(232,101,26,.22);border:1.5px solid var(--orange)}
+.cust-item .go{color:#b6c3d1;font-size:18px;flex:none}
+.big-btn{min-height:44px;border-radius:12px;background:var(--orange);color:#fff;font-size:14.5px;font-weight:700;padding:0 16px;display:inline-flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 4px 14px rgba(232,101,26,.28)}
+.big-btn:active{transform:scale(.98)}
+/* 对练场景 */
+.spar-note{font-size:12px;color:var(--sub);margin:0 14px 10px}
+.scene-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:0 14px 14px}
+.scene-cell{border:1.5px solid var(--line);border-radius:12px;padding:12px 10px;text-align:center;background:#fbfdff;position:relative;transition:.15s;cursor:pointer}
+.scene-cell:active{transform:scale(.97)}
+.scene-cell i{font-style:normal;font-size:22px;display:block;margin-bottom:4px}
+.scene-cell b{font-size:12.5px;display:block}
+.scene-cell span{font-size:10.5px;color:var(--sub);display:block;margin-top:2px}
+.scene-cell.lock{opacity:.5}
+.scene-cell.act{border-color:var(--orange);background:var(--orange-soft)}
+.scene-cell .lock-tag{position:absolute;top:7px;right:7px;font-size:9.5px;background:#eef1f5;color:var(--sub);border-radius:99px;padding:1px 7px;font-weight:700}
+/* 交付区 */
+.dl-empty{border:1.5px dashed var(--line);border-radius:12px;padding:28px 14px;text-align:center;color:#9fb0c2;font-size:12.5px;background:#fbfdff;line-height:1.8}
+.dl-card{background:#fff;border:1.5px solid var(--orange-line);border-radius:14px;margin-bottom:12px;overflow:hidden;animation:fadein .3s}
+.dl-head{display:flex;align-items:center;gap:8px;background:var(--orange-soft);padding:10px 13px;font-size:13px;font-weight:700;color:#8a4a15}
+.dl-head .fee{margin-left:auto;font-size:11px;background:#fff;border:1px solid var(--orange-line);border-radius:99px;padding:2px 9px;color:var(--orange);white-space:nowrap}
+.dl-sec{padding:11px 13px;border-bottom:1px dashed var(--line)}
+.dl-sec:last-of-type{border-bottom:none}
+.dl-sec b.n{display:flex;gap:6px;align-items:center;font-size:13px;margin-bottom:6px}
+.dl-sec b.n i{font-style:normal;width:19px;height:19px;border-radius:6px;background:var(--orange-soft);color:var(--orange);font-size:11.5px;display:grid;place-items:center;flex:none}
+.dl-sec p{font-size:12.5px;color:#3a4858}
+.dl-sec .brk{background:#f6f9fd;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:12.5px;margin-bottom:5px}
+.script-row{border:1px solid var(--line);border-radius:11px;padding:10px 11px;margin-bottom:8px;background:#fbfdff}
+.script-row .sc-cond{font-size:11.5px;color:var(--blue);font-weight:700;margin-bottom:5px}
+.script-row .sc-txt{font-size:13px;color:var(--ink);background:#fff;border:1px dashed var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px}
+.script-row .sc-why{font-size:11.5px;color:var(--sub);margin-bottom:7px}
+.copy-btn{min-height:32px;font-size:12px;border-radius:8px;background:#fff;border:1px solid var(--orange-line);color:var(--orange);font-weight:700;padding:0 12px}
+.copy-btn:active{background:var(--orange-soft)}
+.dl-foot{display:flex;gap:8px;padding:11px 13px;flex-wrap:wrap;border-top:1px solid var(--line);background:#fbfdff}
+.dl-foot .fbtn{flex:1;min-height:38px;border-radius:10px;font-size:12.5px;font-weight:700;border:1px solid var(--orange-line);color:var(--orange);background:#fff;display:flex;align-items:center;justify-content:center;gap:4px;min-width:84px}
+.dl-foot .fbtn.pri{background:var(--orange);color:#fff;border-color:var(--orange)}
+.funnel-t{width:100%;border-collapse:collapse;font-size:12px;margin:4px 0}
+.funnel-t th{background:#f2f6fb;color:var(--sub);font-weight:600;padding:6px 4px;text-align:center;border:1px solid var(--line);font-size:11px}
+.funnel-t td{padding:6px 4px;text-align:center;border:1px solid var(--line)}
+.funnel-t td.hi{background:var(--orange-soft);color:var(--orange);font-weight:700}
+.funnel-t td.hi2{background:#fdf3e2;color:var(--amber);font-weight:700}
+.kpoint{border:1px solid var(--orange-line);background:var(--orange-soft);border-radius:9px;padding:8px 10px;font-size:12.5px;margin-bottom:6px}
+.kpoint small{display:block;color:var(--amber);font-size:11px;margin-top:2px;font-weight:600}
+
+/* ===== 客户档案详情 overlay ===== */
+.detail-ov{position:fixed;inset:0;background:var(--bg);z-index:100;transform:translateY(100%);transition:transform .32s cubic-bezier(.32,.72,.34,1);overflow-y:auto;overscroll-behavior:contain}
+.detail-ov.on{transform:none}
+.d-head{position:sticky;top:0;background:linear-gradient(120deg,#17313f,#2a4254);color:#fff;z-index:5;padding:14px}
+.d-head .r1{display:flex;align-items:center;gap:10px}
+.d-head .back{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.14);display:grid;place-items:center;font-size:17px;flex:none}
+.d-head .dt{flex:1;min-width:0}
+.d-head .dt b{font-size:16.5px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.d-head .dt p{font-size:11.5px;opacity:.85;margin-top:2px}
+.d-head .ops{display:flex;gap:6px;margin-top:12px}
+.d-head .ops button{flex:1;min-height:36px;border-radius:9px;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.28);color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:4px}
+.d-head .ops button.pri{background:var(--orange);border-color:var(--orange)}
+.d-wrap{max-width:860px;margin:0 auto;padding:13px 13px 30px}
+.d-sec{background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden}
+.d-sec .sh{display:flex;align-items:center;gap:8px;padding:12px 14px 8px;font-weight:700;font-size:14px}
+.d-sec .sh small{margin-left:auto;font-size:11px;color:var(--sub);font-weight:600}
+.d-sec .sb{padding:0 14px 14px}
+.d-temp{position:relative;height:12px;border-radius:99px;background:linear-gradient(90deg,#dbe7f2 0%,#f6d365 45%,#f0932b 72%,#d64545 100%);margin:14px 0 5px}
+.d-temp .zone{position:absolute;top:-5px;height:22px;border-radius:99px;background:rgba(232,101,26,.22);border:2px solid var(--orange);box-shadow:0 0 0 4px rgba(232,101,26,.12)}
+.ev-row{display:flex;gap:9px;padding:9px 11px;border-radius:11px;margin-bottom:7px;font-size:12.5px;align-items:flex-start}
+.ev-row.ok{background:#f0f9f4;border:1px solid #d3ecdf}
+.ev-row.un{background:#fdf7ea;border:1px solid #f3e3bd}
+.ev-row .ic{flex:none;width:20px;height:20px;border-radius:7px;display:grid;place-items:center;font-size:11px;font-weight:800;margin-top:1px}
+.ev-row.ok .ic{background:#dff0e7;color:var(--green)}
+.ev-row.un .ic{background:#f9edd3;color:var(--amber)}
+.ev-row .q{color:var(--ink)}
+.ev-row .src{display:block;font-size:11px;color:var(--sub);margin-top:2px}
+.kv{display:flex;gap:8px;font-size:12.5px;margin-bottom:6px;align-items:flex-start}
+.kv .k{flex:none;width:76px;color:var(--sub);font-size:12px;padding-top:1px}
+.kv .v{flex:1;color:var(--ink);min-width:0}
+.diag-item{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:10px}
+.diag-item .di-row{display:flex;border-bottom:1px dashed var(--line)}
+.diag-item .di-row:last-child{border-bottom:none}
+.diag-item .di-k{flex:none;width:82px;background:#f6f9fd;color:var(--sub);font-size:11px;font-weight:700;padding:8px 9px;display:flex;align-items:center}
+.diag-item .di-v{flex:1;font-size:12.5px;padding:8px 10px;color:var(--ink);min-width:0}
+.tl-item{display:flex;gap:10px;padding:7px 0;position:relative}
+.tl-item .td{flex:none;width:76px;font-size:11px;color:var(--sub);font-weight:700;text-align:right;padding-top:2px}
+.tl-item .dot{flex:none;width:10px;height:10px;border-radius:50%;margin-top:5px;position:relative}
+.tl-item .dot:after{content:'';position:absolute;left:4.5px;top:13px;width:1px;height:26px;background:var(--line)}
+.tl-item:last-child .dot:after{display:none}
+.tl-item .dot.g{background:var(--green)} .tl-item .dot.w{background:var(--red)} .tl-item .dot.p{background:var(--orange)} .tl-item .dot.b{background:#c3cfdd}
+.tl-item .te{flex:1;font-size:12.5px;padding-top:1px;min-width:0}
+.tl-item .te small{display:block;font-size:11px;color:var(--sub);margin-top:1px}
+.tl-item .te.warn{color:var(--red)}
+.acts-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.acts-row button{min-height:52px;border-radius:12px;border:1px solid var(--line);background:#fff;font-size:11.5px;font-weight:700;color:#3a4858;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+.acts-row button i{font-style:normal;font-size:17px}
+.acts-row button.pri{background:var(--orange-soft);border-color:var(--orange-line);color:var(--orange)}
+
+/* ===== modal / toast / spotlight ===== */
+.modal-ov{position:fixed;inset:0;background:rgba(15,28,38,.55);z-index:120;display:none;align-items:flex-end;justify-content:center}
+.modal-ov.on{display:flex}
+.modal{background:#fff;width:100%;max-width:640px;max-height:82vh;border-radius:18px 18px 0 0;overflow:hidden;display:flex;flex-direction:column;animation:mup .3s ease}
+@keyframes mup{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+.modal .mh{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--line);font-weight:700;font-size:14.5px}
+.modal .mh button{margin-left:auto;font-size:12px;color:var(--sub);border:1px solid var(--line);border-radius:99px;padding:4px 12px;min-height:30px}
+.modal .mb{overflow-y:auto;padding:14px 16px;font-size:13px}
+#toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(16px);background:rgba(28,39,51,.94);color:#fff;font-size:12.5px;padding:10px 16px;border-radius:12px;opacity:0;pointer-events:none;transition:.28s;z-index:200;max-width:86vw;text-align:center;line-height:1.5}
+#toast.on{opacity:1;transform:translateX(-50%)}
+#toast b{color:#ffb27d}
+.spot{animation:spotA 1.1s ease 3}
+@keyframes spotA{0%,100%{box-shadow:0 0 0 0 rgba(232,101,26,0)}45%{box-shadow:0 0 0 5px rgba(232,101,26,.35),0 0 0 11px rgba(232,101,26,.15)}}
+.chat.spot{animation:spotChat 1.1s ease 3}
+@keyframes spotChat{0%,100%{box-shadow:0 0 0 0 rgba(232,101,26,0)}45%{box-shadow:inset 0 0 0 3px rgba(232,101,26,.5)}}
+.flash-cred{animation:credA .7s ease 2}
+@keyframes credA{40%{transform:scale(1.25);color:var(--red)}}
+/* ===== 移动端底部切换（对话 / 工作台） ===== */
+.tabbar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:80;padding:8px 14px calc(12px + env(safe-area-inset-bottom));gap:10px;background:linear-gradient(to top,#F4F7FC 60%,rgba(244,247,252,0))}
+.tabbar button{flex:1;min-height:48px;border-radius:14px;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:7px;background:#fff;border:1px solid var(--line);color:var(--ink);box-shadow:0 2px 8px rgba(28,39,51,.06);position:relative}
+.tabbar button.act{background:var(--orange);border-color:var(--orange);color:#fff;box-shadow:0 6px 16px rgba(232,101,26,.35)}
+.tabbar .tdot{position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:50%;background:var(--red);display:none;border:2px solid #fff}
+.tabbar .tdot.on{display:block}
+/* 工作台页内二级 Tab（仅移动端） */
+.ws-tabs{display:none;gap:8px;overflow-x:auto;scrollbar-width:none;flex:none}
+.ws-tabs button{flex:none;font-size:13px;font-weight:700;border:1px solid var(--line);background:#fff;color:var(--sub);border-radius:12px;padding:9px 18px}
+.ws-tabs button.act{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* ===== 桌面端 ===== */
+@media (min-width:960px){
+  .scene-grid{grid-template-columns:repeat(3,1fr)}
+  .modal-ov{align-items:center}
+  .modal{border-radius:18px}
+}
+@media (max-width:640px){
+  .topbar .tag{display:none}
+  .topbar .safe-tag{display:none}
+  .topbar .in{padding:0 12px;gap:8px}
+  .b-grid{grid-template-columns:repeat(2,1fr)}
+  .acts-row{grid-template-columns:repeat(2,1fr)}
+  .chat-head .cht span{display:none}
+}
+/* ===== 窄屏（<960px）：moments 同款单栏切换制 —— 对话/工作台全宽互斥显示 + 底部毛玻璃TabBar，≥960px 恢复左右双栏 ===== */
+@media(max-width:959px){
+  /* -- 布局：单栏切换，body.v-chat / body.v-work 控制显示 -- */
+  .stage{display:block;height:auto;padding:10px 12px calc(76px + env(safe-area-inset-bottom,0px))}
+  .chat,.ws{display:none!important}
+  body.v-chat .chat{display:flex!important}
+  body.v-work .ws{display:flex!important}
+  .chat{position:static;height:calc(100dvh - 124px - env(safe-area-inset-bottom,0px));min-height:420px;border-radius:16px;margin-top:0}
+  .ws{position:static;height:auto;overflow:visible;gap:12px;border-radius:16px}
+  .chat .log{max-height:none;flex:1;min-height:0}
+  .tabbar{display:flex}
+  .ws-tabs{display:flex}
+  /* -- 底部TabBar（44px触控 + safe-area + 毛玻璃） -- */
+  .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:45;gap:8px;max-width:640px;margin:0 auto;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border-top:1px solid var(--line)}
+  .tabbar button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;border-radius:12px;font-size:13.5px;font-weight:800;background:#fff;color:var(--sub);border:1px solid var(--line)}
+  .tabbar button.act{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .tabbar .tdot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#e5484d}
+  /* -- 工作台：全宽文档流滚动，分组tab吸顶 -- */
+  .ws-tabs{position:sticky;top:52px;z-index:15;background:rgba(244,247,252,.94);backdrop-filter:blur(8px);border-radius:12px;padding:6px}
+  .b-grid{grid-template-columns:repeat(2,1fr);gap:6px}
+  .bf{padding:8px 10px;min-height:52px}.bf .k{font-size:11px}.bf .v{font-size:16px}
+  .b-t b{font-size:13.5px}
+  .b-ops{gap:7px;margin-top:10px}
+  .todo-list{gap:7px;padding:0 12px 12px}
+  .todo-row{padding:10px 11px;gap:8px}
+  .todo-row .td-time{font-size:10.5px;padding:3px 7px}
+  .todo-row .td-main b{font-size:13px}
+  .todo-row .td-main span{font-size:11px}
+  .home-btn{min-height:42px;font-size:13px;border-radius:11px}
+  .card{border-radius:14px;scroll-margin-top:64px}
+  .card-h{font-size:13.5px;padding:12px 12px 8px;gap:7px}
+  .card-h .more{font-size:11.5px}
+  .card-b{padding:0 12px 12px}
+  .fu-item{padding:10px;gap:9px}
+  .fu-item .fu-t{width:70px;font-size:11.5px}
+  .fu-item .fu-c b{font-size:13px}
+  .fu-item .fu-goal,.fu-item .fu-meta{font-size:12px}
+  .temp-card{padding:10px 12px}.temp-card .tn{font-size:13.5px}
+  .temp-sub,.temp-num{font-size:12px}
+  .subtabs{padding:0 12px 10px}.subtabs button{font-size:12.5px;padding:7px 12px}
+  .cust-item{padding:11px;gap:10px}.cust-item .cav{width:38px;height:38px;font-size:15px;border-radius:11px}
+  .cust-item .cc b{font-size:13.5px}.cust-item .cc p{font-size:11.5px}
+  .cust-item .chip{font-size:11px;padding:2px 9px}
+  .spar-note{font-size:12px;margin:0 12px 10px}
+  .scene-grid{grid-template-columns:1fr 1fr;gap:8px;padding:0 12px 12px}
+  .scene-cell{padding:11px 7px}.scene-cell i{font-size:20px}.scene-cell b{font-size:12.5px}.scene-cell span{font-size:11px}
+  .redline-banner{font-size:12px;padding:10px 12px;margin:0 12px 12px}.redline-banner b{font-size:13px}
+  .dl-head{font-size:13px;padding:10px 12px}
+  .dl-sec{padding:11px 12px}
+  .chat-head{padding:11px 12px;gap:9px}
+  .chat-head .av{width:34px;height:34px;font-size:15px;border-radius:10px}
+  .chat-head .cht{min-width:0}
+  .chat-head .cht b{font-size:14px}
+  .chat-head .cht span{display:none}
+  .chat-head .mini-btn{display:inline-flex}
+  .msg .bub{font-size:13.5px;padding:9px 12px}
+  .msg .m-av{width:24px;height:24px;font-size:11.5px}
+  .chat-ft{padding:9px 10px}
+  .inbar input{min-height:40px;font-size:16px;border-radius:11px}/* ≥16px：低于此值 iOS 聚焦会自动放大页面 */
+  .plus-btn,.send-btn{min-height:40px}
+  .opt{font-size:13px}
+  .gen-wrap .ln{font-size:12px}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== 顶栏 ===== -->
+<div class="topbar"><div class="in">
+  <button class="back-btn" onclick="toast('数字员工列表（演示）：当前只有「易成」<br>获客助手 / 客服助手 内测中',2400)">← 助手</button>
+  <div class="logo">思潼<i>AI</i></div>
+  <span class="tag">易成 · 首席成交官</span>
+  <div class="me">
+    <span class="safe-tag" onclick="toast('生成失败自动退回算力 · 成功才扣',2200)">🛡 出不来结果不扣算力</span>
+    <span class="credits" id="credBox" onclick="toast('<b>算力</b>：出话术 / 报告 / 对练都从这里扣 · 注册即送 860 · 用完点右边「充值」<br>正式版按会员套餐计费',3200)">算力 <b id="cred">860</b></span>
+    <button class="mini-btn" onclick="recharge()">充值</button>
+  </div>
+</div></div>
+
+<!-- ===== 双栏工作台：左对话 · 右面板 ===== -->
+<main class="stage">
+
+  <!-- 左：对话流 -->
+  <section class="chat" id="chatPanel">
+    <div class="chat-head">
+      <div class="av">易</div>
+      <div class="cht"><b>易成 · 首席成交官 <span class="live">● 在线</span></b><span>客户卡单了，告诉你话术怎么接、异议怎么挡 · 随传随答 · 不逼单 · 只按证据说话</span></div>
+      <button class="demo-btn" id="demoBtn" onclick="toggleDemo()">▶ 看效果</button>
+      <button class="mini-btn" onclick="resetAll()">↺ 清空重来</button>
+    </div>
+    <div class="log" id="chatLog"></div>
+    <div class="chat-ft">
+      <div class="paste-panel" id="pastePanel" hidden>
+        <textarea id="pasteTxt" placeholder="粘贴微信聊天记录（可多行，支持直接 Ctrl+V 贴图）…"></textarea>
+        <div class="paste-ops">
+          <button onclick="$('#pasteTxt').value=SAMPLE_TXT;$('#pasteTxt').focus()">🎬 填入示例</button>
+          <label class="file-mini">📎 选 txt 记录文件<input type="file" id="fileTxt" accept=".txt,.csv,.log,text/plain" onchange="onFile(this,'paste')"></label>
+          <span class="spacer"></span>
+          <button onclick="closePaste()">取消</button>
+          <button class="pri" onclick="submitPaste()">✓ 发给易成</button>
+        </div>
+      </div>
+      <div class="inbar">
+        <button class="plus-btn" id="chatPlus" onclick="openPlus()" title="提交素材：截图 / 语音 / 粘贴 / 企微">＋</button>
+        <input id="chatIn" placeholder="选个任务，或直接打字…" enterkeyhint="send" onkeydown="if(event.key==='Enter'){sendChat()}">
+        <button class="send-btn" onclick="sendChat()">发送</button>
+      </div>
+      <div class="plus-menu" id="plusMenu">
+        <button onclick="closePlus();ingest('shot')">📱<em>截图识别<small>微信聊天截图 · 可多选批量传 · OCR 提证据</small></em></button>
+        <button onclick="closePlus();ingest('voice')">🎤<em>语音转写<small>上传通话录音 · 自动转文字进档案</small></em></button>
+        <button onclick="closePlus();ingest('paste')">📋<em>粘贴聊天记录<small>文本直接粘 / Ctrl+V 贴图</small></em></button>
+        <button onclick="closePlus();ingest('wecom')">🏢<em>企微同步<small>即将上线 · 先看效果预览</small></em></button>
+      </div>
+      <input type="file" id="fileShot" accept="image/*" multiple hidden onchange="onFile(this,'shot')">
+      <input type="file" id="fileVoice" accept="audio/*" hidden onchange="onFile(this,'voice')">
+    </div>
+  </section>
+
+    <!-- 右：工作台 -->
+    <section class="ws">
+      <div class="ws-tabs" id="wsTabs">
+        <button class="act" data-g="brief" onclick="wsTab('brief')">📋 简报</button>
+        <button data-g="dl" onclick="wsTab('dl')">📤 话术/报告</button>
+        <button data-g="arch" onclick="wsTab('arch')">👥 客户</button>
+      </div>
+      <div class="card" id="todoCard">
+        <div class="card-h">👉 今天该干啥 <span class="chip sample">示例数据</span> <span class="more" onclick="demoTab('chat');chatFocus()">拿不准？问易成 ›</span></div>
+        <div class="card-b todo-list">
+          <button class="todo-row" onclick="openDetail('zhang')"><span class="td-time now">10:00 前</span><div class="td-main"><b>张女士 · 补救话术约到店时间</b><span>你亲自发 · 目标：拿到具体到店时间</span></div><i>›</i></button>
+          <button class="todo-row" onclick="openDetail('xz')"><span class="td-time">本周四前</span><div class="td-main"><b>X总 · 补测算表 + 约三方会议</b><span>你亲自发 · 目标：让合伙人一起谈</span></div><i>›</i></button>
+          <button class="todo-row" onclick="openDetail('li')"><span class="td-time">明天上午</span><div class="td-main"><b>李女士 · 复购回访</b><span>店长发 · 目标：锁定下次到店</span></div><i>›</i></button>
+        </div>
+      </div>
+
+      <div class="brief" id="briefBox">
+        <div class="b-t"><b>📋 今日战报</b><span class="chip sample" id="briefTag">示例口径</span><span class="sync"><i></i>自动更新</span></div>
+        <div class="b-grid">
+          <div class="bf o" onclick="wsScroll('#todoCard')"><div class="k">今日跟进动作</div><div class="v" id="bfAct">4</div></div>
+          <div class="bf g" onclick="wsScroll('#todoCard')"><div class="k">必跟客户</div><div class="v" id="bfCust">2</div></div>
+          <div class="bf b" onclick="openDetail('zhang')"><div class="k">最热客户（热度）</div><div class="v" id="bfHot">72°</div></div>
+          <div class="bf a" onclick="toast('待确认：张女士的预算 / 到店时间 / 是否在比价——都标在客户档案里',2600)"><div class="k">待确认信息</div><div class="v" id="bfGap">3</div></div>
+        </div>
+        <div class="b-ops">
+          <button class="home-btn" onclick="wsTab('spar');spotlight('#sparCard')">🥊 练话术</button>
+        </div>
+      </div>
+
+      <div class="card" id="fuCard">
+        <div class="card-h">🚫 暂不跟的客户 <span class="chip sample">示例数据</span> · 不硬追，等触发信号 <span class="more" onclick="demoTab('chat');chatFocus();toast('传入客户对话，客户会自动进出这张清单',1800)">怎么进出 ›</span></div>
+        <div class="card-b" id="fuBox"></div>
+      </div>
+
+      <div class="card" id="tempCard">
+        <div class="card-h">🌡️ 客户热度 · 谁最值得跟 <span class="more" onclick="wsTab('arch');spotlight('#archCard')">全部客户 ›</span></div>
+        <div class="card-b temp-wrap" id="tempBox"></div>
+      </div>
+
+      <div class="card" id="dlCard">
+        <div class="card-h">📤 话术 / 报告 · 拿到就能直接发给客户 <span class="more" onclick="toast('生成后每张卡自带「⧉ 复制」按钮，点了就能原样发给客户',2000)">怎么用 ›</span></div>
+        <div class="card-b" id="dlZone"><div class="dl-empty">📥 在左侧发一段客户对话，或传张截图<br>易成自动出卡，拿到就能发的话术 / 报告落这里</div></div>
+        <div class="redline-banner" style="margin:0 14px 14px">
+          <b>⛔ 话术底线（自动生效，无需设置）</b>
+          不编造客户没说过的话 · 不虚构政策 / 案例 / 收益 · 不压迫式逼单 · 没核实的信息一律标「待确认」
+        </div>
+      </div>
+
+      <div class="card" id="archCard">
+        <div class="card-h">🗂️ 我的客户 · 对话自动建档，越用越全 <span class="more" onclick="toast('绿 = 对话里明确说过（可写进话术）<br>黄 = 推测、待核实（不写进话术）',2800)">颜色含义 ›</span></div>
+        <div class="subtabs" id="custFilter">
+          <button data-f="all">全部 4</button>
+          <button data-f="B2C">门店客户 3</button>
+          <button data-f="B2B">企业客户 1</button>
+        </div>
+        <div id="custList"></div>
+        <div style="padding:10px 14px 14px"><button class="big-btn" style="width:100%" onclick="toast('演示：表格导入 · 企微同步建档（活码 / 名片加好友引流后自动）',2600)">＋ 导入客户（演示）</button></div>
+      </div>
+
+      <div class="card" id="sparCard">
+        <div class="card-h">🥊 对练场 · 易成扮客户练真实反应 <span class="more" onclick="toast('每场约 3 分钟 · 5 问 5 答 · 练完出评分卡<br>扣 25 算力 · 生成失败不扣',2600)">规则 ›</span></div>
+        <p class="spar-note">选场景跟「易成」一问一答：接住顾虑 → 校准价值 → 推进一个动作。每场约 3 分钟 · 5 问 5 答 · 练完出评分卡（扣 25 算力）。</p>
+        <div class="scene-grid" id="sceneGrid"></div>
+      </div>
+
+    </section>
+
+</main>
+
+<!-- ===== 客户档案详情页 ===== -->
+<div class="detail-ov" id="detailOv">
+  <div class="d-head">
+    <div class="r1">
+      <button class="back" onclick="closeDetail()">‹</button>
+      <div class="dt" id="dHead"></div>
+    </div>
+    <div class="ops" id="dOps"></div>
+  </div>
+  <div class="d-wrap" id="dBody"></div>
+</div>
+
+<!-- ===== 全文 modal ===== -->
+<div class="modal-ov" id="modalOv" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="mh"><span id="mTitle"></span><button onclick="closeModal()">关闭</button></div>
+    <div class="mb" id="mBody"></div>
+  </div>
+</div>
+
+<!-- ===== 移动端底部切换 ===== -->
+<div class="tabbar" id="tabbar">
+  <button class="act" id="tabChat" onclick="mTab('chat')">💬 对话</button>
+  <button id="tabWs" onclick="mTab('ws')">🏢 工作台<span class="tdot" id="wsDot"></span></button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ================= 公共件 ================= */
+var $=function(s,r){return (r||document).querySelector(s)};
+var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+var tmr=null;
+function toast(m,ms){var t=$('#toast');t.innerHTML=m;t.classList.add('on');clearTimeout(tmr);tmr=setTimeout(function(){t.classList.remove('on')},ms||2200)}
+/* 战报动态化：示例基线 + 用户真实素材增量，杜绝「传了数据数字不变」的假象 */
+var REAL_N=0,BRIEF_BASE={act:4,cust:2,gap:3};
+function updateBrief(){
+  var a=$('#bfAct'),c=$('#bfCust'),g=$('#bfGap'),tag=$('#briefTag');
+  if(!a)return;
+  a.textContent=BRIEF_BASE.act+REAL_N;
+  c.textContent=BRIEF_BASE.cust+(REAL_N>0?1:0);
+  g.textContent=BRIEF_BASE.gap+(REAL_N>0?1:0);
+  if(tag)tag.textContent=REAL_N>0?('含你的 '+REAL_N+' 条对话'):'示例口径';
+}
+var CRED=860;
+/* 剩余次数本地持久化：刷新不失忆（demo 范围内先保算力这一项） */
+function loadCred(){try{var v=parseInt(localStorage.getItem('yc_cred'),10);if(!isNaN(v)&&v>=0&&v<=99999){CRED=v}}catch(e){}}
+function saveCred(){try{localStorage.setItem('yc_cred',String(CRED))}catch(e){}}
+function spend(n){
+  CRED=Math.max(0,CRED-n);var c=$('#cred');c.textContent=CRED;saveCred();
+  var b=$('#credBox');b.classList.remove('flash-cred');void b.offsetWidth;b.classList.add('flash-cred');
+}
+/* 充值：给真实数字反馈，不做半吊子 toast */
+function recharge(){
+  CRED+=100;$('#cred').textContent=CRED;saveCred();
+  var b=$('#credBox');b.classList.remove('flash-cred');void b.offsetWidth;b.classList.add('flash-cred');
+  toast('演示：已充值 <b>+100 算力</b> · 当前 '+CRED,2200);
+}
+function copyText(txt,msg){
+  function ok(){toast(msg||'已复制 · 可直接粘贴发给客户',1600)}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(ok,function(){fallback()})}else{fallback()}
+  function fallback(){var ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');ok()}catch(e){toast('复制失败，请长按选择文本',1800)}document.body.removeChild(ta)}
+}
+function spotlight(sel){var el=typeof sel==='string'?$(sel):sel;if(!el)return;el.classList.remove('spot');void el.offsetWidth;el.classList.add('spot')}
+function chatFocus(){var c=$('#chatPanel');if(c){c.scrollIntoView({behavior:'smooth',block:'start'})}}
+function wsScroll(sel){var el=$(sel);if(el){el.scrollIntoView({behavior:'smooth',block:'start'})}}
+function setStage(cls,txt){var d=$('#stDot'),t=$('#stTxt');if(d)d.className='st-dot'+(cls?' '+cls:'');if(t)t.textContent=txt}
+function openPlus(){var m=$('#plusMenu');if(m)m.classList.toggle('on')}
+function closePlus(){var m=$('#plusMenu');if(m)m.classList.remove('on')}
+document.addEventListener('click',function(e){
+  var m=$('#plusMenu');if(!m||!m.classList.contains('on'))return;
+  if(!m.contains(e.target)&&e.target.id!=='chatPlus')m.classList.remove('on');
+});
+
+/* ================= 数据 · 全部虚构匿名 ================= */
+var MODES=[
+  {k:'diag', i:'🔍', n:'客户诊断', d:'复盘对话 · 六列表格'},
+  {k:'temp', i:'🌡️', n:'客户热度', d:'热度区间 + 待确认信息'},
+  {k:'obj',  i:'🛡️', n:'异议回复', d:'五段结构 · 3 套话术'},
+  {k:'plan', i:'📅', n:'跟进计划', d:'排进「今天该干啥」清单'},
+  {k:'close',i:'🤝', n:'成交话术', d:'不施压推进下一步'},
+  {k:'funnel',i:'📊',n:'漏斗复盘', d:'五步法 · 双卡点定位'}
+];
+
+var CUSTS={
+  zhang:{name:'张女士',av:'张',col:'#E8651A',type:'B2C',typeTxt:'消费者成交 · 团购到店',src:'XX美业门店（演示样板）',
+    temp:[60,75],prio:'今日必跟',prioCls:'hot',full:true,
+    short:'团购咨询到店 · 卡在价格与决策信心之间',
+    confirmed:[
+      {q:'「你们团购那个 599 的是啥情况？现在有活动吗？」',src:'9-27 15:42 · 微信聊天记录'},
+      {q:'「嗯，我考虑一下，跟闺蜜商量商量。」',src:'9-27 16:05 · 微信聊天记录'}],
+    unsure:[
+      {q:'预算可能落在 300–500 团购档位附近',src:'由所问套餐推断 · 未经客户确认'},
+      {q:'周末可能约了别家在比',src:'待核实——不得写进话术当事实'}],
+    tempDetail:{concl:'需求活跃，卡在价格与决策信心之间；「跟闺蜜商量」说明是多人商量型决策。',
+      basis:['主动问价（已确认）','提到闺蜜 → 多人商量（已确认）','未给具体到店时间（已确认）'],
+      complex:'多人商量 · 中',gap:['预算区间','到店时间','是否在比价'],next:'本轮只推进一个动作：把「考虑」变成具体到店时间'},
+    diag:[{done:'客户说「考虑一下」，店员回「好的您考虑好联系我」',prob:'把主动权交了出去，没有接住顾虑',
+      why:'客户离开后失去触达理由，对话停在原地',say:'「应该的～对了，你们周末上午方便还是下午方便？体验位我先帮您留出来，不耽误您商量。」',
+      fix:'今天 10:00 前发补救消息 · 你亲自发 · 目标：拿到具体到店时间',ev:'已确认'}],
+    scripts:[
+      {cond:'A · 客户刚说完「考虑一下」时',txt:'应该的，选门店就是要多比比。对了，你们周末上午方便还是下午方便？体验位我先帮您留着，不耽误您商量。',why:'先认同再二选一锁时间，只推进一个动作'},
+      {cond:'B · 客户提到「跟闺蜜商量」时',txt:'必须的，闺蜜眼光好～她要是也感兴趣，你们俩一起来，体验位我留两个。',why:'把第二决策人变成到店同行人'},
+      {cond:'C · 客户明确嫌贵时',txt:'理解，单看价是贵一点。差在护理时长和产品上——按次算每次多 20，省的是重来一次的时间。',why:'拆单次成本，不降价、不贬同行'}],
+    foresee:[
+      {r:'「周末上午吧」',a:'锁定时段 + 发到店指引；不追加销售'},
+      {r:'「我再看看别家」',a:'不拦不贬：「比完随时找我留位」；当天不追问'},
+      {r:'「还是有点贵」',a:'用 C 接法拆成本；绝不主动降价'}],
+    timeline:[
+      {t:'9-27 15:42',e:'客户主动问价（团购 599）',cls:'g',ev:'已确认'},
+      {t:'9-27 16:05',e:'「考虑一下，跟闺蜜商量」',cls:'g',ev:'已确认'},
+      {t:'9-27 16:06',e:'店员回「考虑好联系我」',cls:'w',ev:'已确认 · 当时做法交出主动权'},
+      {t:'今天 10:00 前',e:'发补救话术 · 你亲自 · 目标拿时间',cls:'p',ev:'计划'},
+      {t:'到店前 1 天',e:'发到店提醒 + 停车指引',cls:'p',ev:'计划'},
+      {t:'到店后 3 天',e:'复购回访 · 目标锁定下次到店',cls:'p',ev:'计划'}]
+  },
+  xz:{name:'X总',av:'X',col:'#7c3aed',type:'B2B',typeTxt:'组织决策 · 招商加盟',src:'某区域加盟意向（演示样板）',
+    temp:[50,65],prio:'本周重点',prioCls:'mid',full:true,
+    short:'招商加盟意向 · 决策链未打通，缺决策人',
+    confirmed:[
+      {q:'主动要过单店盈利测算表',src:'9-25 · 邮件往来'},
+      {q:'「这个事我得跟合伙人商量。」',src:'9-26 · 电话沟通记录'}],
+    unsure:[
+      {q:'预算与资金安排',src:'全程未提及——不得假设'},
+      {q:'合伙人的态度与分工',src:'X总未说明 · 待核实'},
+      {q:'区域保护政策',src:'无授权依据 · 话术里不得承诺'}],
+    tempDetail:{concl:'意向真实但决策链未打通；热度不高是因为缺关键信息，不是需求弱。',
+      basis:['主动要测算表（已确认）','提及合伙人 → 多人决策（已确认）','预算与时间表未确认（缺口）'],
+      complex:'组织决策 · 多人商量 · 高',gap:['预算','决策人','时间表','评估标准'],next:'本轮只锁定一件事：与合伙人同席的三方会议'},
+    diag:[{done:'电话里直接报价，未先确认决策链',prob:'价格先于决策链，X总只能拿去「商量」无法内部拍板',
+      why:'报价后主动权在对方手里，跟进没有抓手',say:'「测算表我补一版您和合伙人都能看懂的口径。下周三或周四，约一个 20 分钟的三方沟通？我不推销，就把几个关键数讲清楚。」',
+      fix:'本周四前补测算表 + 约三方会议 · 你亲自 · 目标：拿到合伙人联系方式',ev:'已确认'}],
+    scripts:[
+      {cond:'A · X总再说「跟合伙人商量」时',txt:'应该的，这个体量必须两个人都点头。要不这样，下周三或周四约 20 分钟，我和您二位一起把测算口径过一遍？商量起来也有依据。',why:'企业客户不追价格，锁定决策人同席'},
+      {cond:'B · X总追问区域保护时',txt:'区域政策我需要跟总部核实后给您书面版本，口头的我不敢承诺——这也是对您负责。',why:'无授权不承诺，红线即信任'},
+      {cond:'C · X总迟迟不回复时',txt:'X总，测算表我更新好了（含您问的人工成本口径）。您方便时回我个时间，我把它发您。',why:'给具体理由 + 低压力，不催单'}],
+    foresee:[
+      {r:'「下周三可以」',a:'锁定三方会议 → 发议程与测算表；会前不谈价格'},
+      {r:'「合伙人再看看」',a:'不追问；请示可否直接给合伙人发书面材料'},
+      {r:'「再等等」',a:'记录时间表缺口；两周内用行业资料轻触达，不谈单'}],
+    timeline:[
+      {t:'9-25',e:'主动要单店盈利测算表',cls:'g',ev:'已确认'},
+      {t:'9-26',e:'「跟合伙人商量」· 电话直接报价',cls:'w',ev:'已确认 · 先报价后确认决策链'},
+      {t:'本周四前',e:'补测算表 + 约三方会议 · 你亲自',cls:'p',ev:'计划'},
+      {t:'三方会议上',e:'只过测算口径 · 锁定评估标准',cls:'p',ev:'计划'},
+      {t:'会后 48 小时',e:'书面纪要 + 明确下一步与时间',cls:'p',ev:'计划'}]
+  },
+  li:{name:'李女士',av:'李',col:'#0f8a5f',type:'B2C',typeTxt:'消费者成交 · 复购',src:'XX美业门店（演示样板）',
+    temp:[75,85],prio:'明日回访',prioCls:'hot',full:false,
+    short:'护理后复购 · 高意向，锁定下次到店即可',
+    confirmed:[{q:'上次到店做了 398 元深层护理套餐',src:'9-24 · 门店核销记录'},{q:'离店时主动问「下次活动什么时候」',src:'9-24 · 店员口述（转写）'}],
+    unsure:[{q:'季卡预算意愿',src:'未提及——回访时先探不推'}],
+    briefNote:'档案较薄：已确认 2 条，足够支撑复购回访；补入后续对话会自动丰富诊断与话术。',
+    next:{t:'明天上午',who:'店长',goal:'复购回访，锁定下次到店',sig:'客户主动问档期 → 顺势推季卡（只推这一步）'}},
+  wang:{name:'王女士',av:'王',col:'#8ba0b4',type:'B2C',typeTxt:'消费者成交 · 未回复',src:'XX美业门店（演示样板）',
+    temp:[40,55],prio:'暂不主动跟',prioCls:'low',full:false,thin:true,
+    short:'私信连续 2 次未回复 · 证据不足，不硬追',
+    confirmed:[{q:'9-24 发送活动朋友圈，未回应',src:'朋友圈互动记录'},{q:'9-25 私信 1 条，未回复',src:'私信记录'}],
+    unsure:[{q:'未回复原因（忙 / 不感兴趣 / 在比价）',src:'无对话证据，不得猜测'}],
+    briefNote:'按销冠规则：证据不足就不输出假报告——只保留已确认事实，不写带占位符的诊断。补 1 条最近对话原话，即可生成完整档案。',
+    next:{t:'等活动触发',who:'系统',goal:'降频观察，等明确需求信号再联',sig:'客户主动互动 / 回复 → 重新升温跟进'}}
+};
+
+/* ================= 工作台渲染 ================= */
+/* 「暂不跟」清单：必跟客户在上方「今天该干啥」，这里只展示不硬追的——这正是销冠与普通销售的差别 */
+var FU=[
+  {t:'暂不跟<small>等触发</small>',who:'—',n:'王女士 · 证据不足降频',chip:'b2c',chipT:'门店',goal:'沟通目标：无——不硬追（连续 2 次未回复）',sig:'进入信号：客户主动互动 → 重新升温',stop:'红线：不得用「限时优惠」硬拉'}
+];
+function renderWs(){
+  $('#fuBox').innerHTML=FU.map(function(f,i){
+    return '<div class="fu-item" onclick="openDetail(\'wang\')"><div class="fu-t">'+f.t+'</div><div class="fu-c">'+
+    '<div><b>'+f.n+'</b> <span class="chip '+f.chip+'">'+f.chipT+'</span></div>'+
+    '<div class="fu-goal">'+f.goal+'</div>'+
+    '<div class="fu-meta"><span>'+f.who+'</span><em>'+f.sig+'</em><i>'+f.stop+'</i><span class="fu-why" onclick="event.stopPropagation();whyFu('+i+')">依据 ›</span></div>'+
+    '</div></div>'}).join('');
+
+  $('#tempBox').innerHTML=['zhang','xz'].map(function(k){var c=CUSTS[k];
+    return '<div class="temp-card" onclick="openDetail(\''+k+'\')">'+
+    '<div class="temp-top"><span class="tn">'+c.name+'</span><span class="chip sample">示例</span><span class="chip '+(c.type==='B2C'?'b2c':'b2b')+'">'+(c.type==='B2C'?'门店':'企业')+'</span><span class="chip '+c.prioCls+'">'+c.prio+'</span></div>'+
+    '<div class="temp-bar"><span class="zone" style="left:'+c.temp[0]+'%;width:'+(c.temp[1]-c.temp[0])+'%"></span></div>'+
+    '<div class="temp-scale"><span>0°</span><span>50°</span><span>100°</span></div>'+
+    '<div class="temp-num">热度 '+c.temp[0]+'–'+c.temp[1]+'°（区间值）</div>'+
+    '<div class="temp-sub">'+c.short+'</div></div>'}).join('');
+
+}
+/* 跟单依据 · 证据链可追溯（非拍脑袋/非模板） */
+function whyFu(i){
+  var m=[
+  '王女士：9-24/25 连续 2 次未回复、无对话证据 → 按规则不硬追 · 等客户主动互动再升温。'];
+  toast('<b>计划依据（由对话沉淀 · 非模板）</b><br>'+(m[i]||''),4200);
+}
+
+/* ================= 客户档案列表 ================= */
+function renderArch(){
+  $('#custList').innerHTML=Object.keys(CUSTS).map(function(k){var c=CUSTS[k];
+    return '<div class="cust-item" data-type="'+c.type+'" onclick="openDetail(\''+k+'\')">'+
+    '<div class="cav" style="background:'+c.col+'">'+c.av+'</div>'+
+    '<div class="cc"><b>'+c.name+'</b> <span class="chip sample">示例</span> <span class="chip '+(c.type==='B2C'?'b2c':'b2b')+'">'+(c.type==='B2C'?'门店':'企业')+'</span> <span class="chip '+c.prioCls+'">'+c.prio+'</span>'+
+    '<p>'+c.typeTxt+' · '+c.short+'</p>'+
+    '<div class="temp-mini"><span class="zone" style="left:'+c.temp[0]+'%;width:'+(c.temp[1]-c.temp[0])+'%"></span></div>'+
+    '</div><span class="go">›</span></div>'}).join('');
+  $$('#custFilter button').forEach(function(btn){
+    btn.onclick=function(){
+      $$('#custFilter button').forEach(function(b){b.classList.remove('act')});
+      btn.classList.add('act');
+      var f=btn.dataset.f;
+      $$('#custList .cust-item').forEach(function(it){
+        it.style.display=(f==='all'||it.dataset.type===f)?'':'none'});
+    };
+  });
+}
+
+/* ================= 详情页 ================= */
+function openDetail(k){
+  renderDetail(k);
+  $('#detailOv').scrollTop=0;$('#detailOv').classList.add('on');
+  document.body.style.overflow='hidden';
+}
+function closeDetail(){$('#detailOv').classList.remove('on');document.body.style.overflow=''}
+function evRows(list,cls,ic){return list.map(function(e){return '<div class="ev-row '+cls+'"><span class="ic">'+ic+'</span><span><span class="q">'+e.q+'</span><span class="src">来源：'+e.src+'</span></span></div>'}).join('')}
+
+function renderDetail(k){
+  var c=CUSTS[k];
+  $('#dHead').innerHTML='<b>'+c.name+'<span class="chip '+(c.type==='B2C'?'b2c':'b2b')+'">'+(c.type==='B2C'?'门店':'企业')+'</span><span class="chip hot">'+c.prio+'</span></b><p>'+c.typeTxt+' · '+c.src+'</p>';
+  $('#dOps').innerHTML=
+    '<button class="pri" onclick="jumpObj()">🛡️ 生成异议回复</button>'+
+    '<button onclick="jumpPlan()">📅 排进今日待办</button>'+
+    '<button onclick="closeDetail();demoTab(\'ws\');wsTab(\'spar\');spotlight(\'#sparCard\');toast(\'拿这个客户去对练 · 点场景开练\',2000)">🥊 去对练</button>'+
+    '<button onclick="toast(\'演示：档案导出为 Word（.doc）\',1600)">⧉ 导出</button>';
+
+  var h='';
+  /* 水温 */
+  h+='<div class="d-sec"><div class="sh">🌡️ 客户热度 <small>只给区间 · 已确认行为 + 决策复杂度</small></div><div class="sb">'+
+    '<div class="d-temp"><span class="zone" style="left:'+c.temp[0]+'%;width:'+(c.temp[1]-c.temp[0])+'%"></span></div>'+
+    '<div class="temp-scale" style="margin:-8px 0 8px"><span>0°</span><span>50°</span><span>100°</span></div>'+
+    '<div class="kv"><span class="k">热度区间</span><span class="v"><b style="color:var(--orange);font-size:15px">'+c.temp[0]+'–'+c.temp[1]+'°</b> <span style="color:var(--sub);font-size:11.5px">（沟通阶段判断，≠成交概率）</span></span></div>'+
+    '<div class="kv"><span class="k">短结论</span><span class="v">'+(c.tempDetail?c.tempDetail.concl:c.short)+'</span></div>'+
+    (c.tempDetail?'<div class="kv"><span class="k">判断依据</span><span class="v">'+c.tempDetail.basis.map(function(x){return '· '+x}).join('<br>')+'</span></div>'+
+    '<div class="kv"><span class="k">决策复杂度</span><span class="v">'+c.tempDetail.complex+'</span></div>'+
+    '<div class="kv"><span class="k">待确认信息</span><span class="v">'+c.tempDetail.gap.map(function(g){return '<span class="gap-chip" onclick="toast(\'<b>？ '+g+'</b>：对话里没说过，不能替客户回答。补一条相关原话（截图/粘贴都行）就转「已确认」\',3000)">？ '+g+'</span>'}).join('')+'</span></div>'+
+    '<div class="kv"><span class="k">本轮动作</span><span class="v" style="color:var(--orange);font-weight:700">'+c.tempDetail.next+'</span></div>':'')+
+    '</div></div>';
+
+  /* 证据 */
+  h+='<div class="d-sec"><div class="sh">🧾 信息可信度 <small>绿=已确认 · 黄=待核实 · 黄标不写进话术</small></div><div class="sb">'+
+    evRows(c.confirmed,'ok','✓')+evRows(c.unsure,'un','?')+'</div></div>';
+
+  if(c.full){
+    h+='<div class="d-sec"><div class="sh">🔍 客户诊断 · 复盘六列 <small>客户心理只写「可能」，不替客户下结论</small></div><div class="sb">'+
+      c.diag.map(function(d){return '<div class="diag-item">'+
+      '<div class="di-row"><span class="di-k">当时做法</span><span class="di-v">'+d.done+'</span></div>'+
+      '<div class="di-row"><span class="di-k">存在问题</span><span class="di-v">'+d.prob+'</span></div>'+
+      '<div class="di-row"><span class="di-k">影响成交原因</span><span class="di-v">'+d.why+'</span></div>'+
+      '<div class="di-row"><span class="di-k">下次具体说法</span><span class="di-v">'+d.say+'<br><button class="copy-btn" style="margin-top:7px" onclick="copyText(\''+d.say.replace(/'/g,'')+'\')">⧉ 复制这句</button></span></div>'+
+      '<div class="di-row"><span class="di-k">当前补救</span><span class="di-v">'+d.fix+'</span></div>'+
+      '<div class="di-row"><span class="di-k">证据状态</span><span class="di-v"><span class="ev-ok">✓ '+d.ev+'</span></span></div>'+
+      '</div>'}).join('')+'</div></div>';
+    h+='<div class="d-sec"><div class="sh">🛡️ 话术档案 · 五段结构 <small>每套注明适用条件</small></div><div class="sb">'+
+      '<div class="kv"><span class="k">① 当前判断</span><span class="v"><span class="ev-ok">✓ 已确认 '+c.confirmed.length+'</span> <span class="ev-un">？ 待核实 '+c.unsure.length+'</span></span></div>'+
+      '<div class="kv"><span class="k">② 破局点</span><span class="v" style="font-weight:700">'+c.tempDetail.next+'</span></div>'+
+      '<div class="kv" style="align-items:flex-start"><span class="k">③ 推荐回复</span><span class="v">'+
+      c.scripts.map(function(s){return '<div class="script-row"><div class="sc-cond">'+s.cond+'</div><div class="sc-txt">'+s.txt+'</div><div class="sc-why">'+s.why+'</div><button class="copy-btn" onclick="copyText(\''+s.txt+'\')">⧉ 复制这套</button></div>'}).join('')+
+      '</span></div>'+
+      '<div class="kv" style="align-items:flex-start"><span class="k">④ 预判应对</span><span class="v">'+
+      c.foresee.map(function(f){return '<div class="brk">客户说 <b>'+f.r+'</b> → '+f.a+'<br><span style="color:var(--sub);font-size:11px">（预判 ≠ 客户说过这些话）</span></div>'}).join('')+
+      '</span></div>'+
+      '<div class="kv"><span class="k">⑤ 下一步</span><span class="v">'+c.diag[0].fix+'<br><span style="color:var(--red);font-size:11.5px;font-weight:600">停止条件：连续 2 天未回复 → 降频，不硬追</span></span></div>'+
+      '</div></div>';
+    h+='<div class="d-sec"><div class="sh">📅 跟进时间线 <small>绿=已确认 · 红=问题动作 · 橙=计划</small></div><div class="sb">'+
+      c.timeline.map(function(t){return '<div class="tl-item"><span class="td">'+t.t+'</span><span class="dot '+t.cls+'"></span><span class="te'+(t.cls==='w'?' warn':'')+'">'+t.e+'<small>'+t.ev+'</small></span></div>'}).join('')+
+      '</div></div>';
+  }else{
+    h+='<div class="d-sec"><div class="sh">🗂️ 档案状态 <small>信息不足时只输出已确认信息</small></div><div class="sb">'+
+      '<div class="brk" style="font-size:12.5px">'+c.briefNote+'</div>'+
+      '<div class="kv"><span class="k">下一步</span><span class="v"><b>'+c.next.t+' · '+c.next.who+'</b><br>'+c.next.goal+'<br><span style="color:var(--green);font-size:11.5px;font-weight:600">'+c.next.sig+'</span></span></div>'+
+      (c.thin?'<div class="redline-tip" style="background:#fdf0f0;border:1px solid #f2cfcf;color:var(--red)">⛔ 按 skill 规则：不输出带占位符的假报告。先补证据，再生成诊断。</div>':'')+
+      '</div></div>';
+  }
+  h+='<div class="acts-row">'+
+    '<button class="pri" onclick="jumpObj()"><i>🛡️</i>异议回复</button>'+
+    '<button onclick="jumpPlan()"><i>📅</i>今日待办</button>'+
+    '<button onclick="closeDetail();demoTab(\'ws\');wsTab(\'spar\');spotlight(\'#sparCard\')"><i>🥊</i>对练</button>'+
+    '<button onclick="copyArchive(\''+k+'\')"><i>⧉</i>复制档案</button>'+
+    '</div>';
+  $('#dBody').innerHTML=h;
+}
+/* 复制档案摘要：真复制到剪贴板，不做假 toast */
+function copyArchive(k){
+  var c=CUSTS[k];
+  var txt='【'+c.name+' · 客户档案】\n热度：'+c.temp[0]+'–'+c.temp[1]+'°（区间）\n'+
+    '已确认：\n'+c.confirmed.map(function(e){return '· '+e.q+'（'+e.src+'）'}).join('\n')+'\n'+
+    (c.unsure.length?'待核实（不写进话术）：\n'+c.unsure.map(function(e){return '· '+e.q}).join('\n')+'\n':'')+
+    '下一步：'+(c.full?c.tempDetail.next:c.next.t+' '+c.next.goal);
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){toast('档案摘要已复制 ✓ 可直接粘贴备忘',1800)},function(){copyText(txt,'档案摘要已复制 ✓')})}
+  else{copyText(txt,'档案摘要已复制 ✓')}
+}
+function jumpObj(){
+  closeDetail();chatFocus();
+  setTimeout(function(){
+    if(CH.step===2){toast('点「🛡️ 异议回复」出五段话术',2000)}
+    else if(CH.step===1){pasteChat()}
+    else{greet()}
+  },260);
+}
+function jumpPlan(){closeDetail();demoTab('ws');wsTab('brief');wsScroll('#todoCard');spotlight('#todoCard');toast('已排入「今天该干啥」清单',2200)}
+
+/* ================= 对话引擎 ================= */
+var CH={init:false,step:0,auto:false,timer:null,brief:null,busy:false,src:'',token:0};
+var AUTO={chat:false,spar:false};
+function scrollLog(){var l=$('#chatLog');l.scrollTop=l.scrollHeight}
+function addMsg(html,who,whoTxt){
+  var d=document.createElement('div');d.className='msg '+(who||'ai');
+  var av=who==='user'?'我':(who==='cust'?'客':'易');
+  var bub=(who&&who!=='user'?'<div class="who">'+(whoTxt||(who==='cust'?'客户':'易成 · 首席成交官'))+'</div>':'')+html;
+  d.innerHTML='<div class="m-av">'+av+'</div><div class="bub">'+bub+'</div>';
+  $('#chatLog').appendChild(d);scrollLog();return d;
+}
+function addOpts(list,ctx){
+  var box=document.createElement('div');box.className='opts';
+  list.forEach(function(o){
+    var b=document.createElement('button');b.className='opt';
+    b.innerHTML=o.t+(o.d?'<small>'+o.d+'</small>':'');
+    b.onclick=function(){if(CH.busy)return;box.querySelectorAll('button').forEach(function(x){x.disabled=true});o.cb(o)};
+    box.appendChild(b);
+  });
+  (ctx||$('#chatLog')).appendChild(box);scrollLog();
+  o_autoCheck(list,box);
+  return box;
+}
+function o_autoCheck(list,box){
+  var rec=list.findIndex(function(o){return o.rec});
+  if(rec>=0&&AUTO.chat){
+    var btns=box.children;
+    setTimeout(function(){btns[rec].classList.add('recing')},400);
+    setTimeout(function(){
+      if(AUTO.chat&&DEMO.on&&!btns[rec].disabled){
+        Array.prototype.forEach.call(btns,function(x){x.disabled=true});
+        list[rec].cb(list[rec]);
+      }
+    },1300);
+  }
+}
+function greet(){
+  addMsg('我是<b>易成</b>，你的成交助手：<b>发一段客户对话 → 拿到能直接发的话术 → 照着「今天该干啥」跟单</b>。<span class="dim">诊断、热度、异议回复、跟进计划我自动出，不用你选。</span>');
+  var d=document.createElement('div');d.style.height='4px';$('#chatLog').appendChild(d);
+  addOpts([
+    {t:'🎬 没素材？用示例 30 秒跑一遍',d:'点这个先看结果',cb:sampleRun,rec:true},
+    {t:'📱 传微信聊天截图',d:'上传你的截图 · 自动识别文字',cb:function(){ingest('shot')}},
+    {t:'▾ 其他录入方式',d:'粘贴记录 / 企微同步',cb:moreOpts}
+  ]);
+  CH.step=1;
+}
+/* 折叠的次级录入入口：点了就地展开，避免首屏 4 连按钮 */
+function moreOpts(o){
+  addOpts([
+    {t:'📋 粘贴聊天记录',d:'复制粘贴即可 · 也支持 txt 文件',cb:function(){ingest('paste')}},
+    {t:'🏢 同步企微会话记录',d:'即将上线 · 先看效果预览',cb:function(){ingest('wecom')}}
+  ]);
+}
+var SAMPLE_TXT='客户 15:42：你们团购那个 599 的是啥情况？现在有活动吗？\n店员 15:50：包含 2 次深层护理 + 居家产品小样～\n客户 16:05：嗯，我考虑一下，跟闺蜜商量商量。\n店员 16:06：好的，您考虑好联系我。';
+function sampleRun(){runIngest('shot',{name:'示例 · 微信聊天截图.png',kb:'186KB'})}
+var CHAT_TEXT='客户 15:42：你们团购那个 599 的是啥情况？现在有活动吗？<br>店员 15:50：包含 2 次深层护理 + 居家产品小样～<br>客户 16:05：嗯，我考虑一下，跟闺蜜商量商量。<br>店员 16:06：好的，您考虑好联系我。';
+var SRC_META={
+  shot:{ic:'📱',t:'微信截图识别',tag:'已支持',lines:[]},
+  voice:{ic:'🎤',t:'语音转写',tag:'已支持',lines:[]},
+  paste:{ic:'📋',t:'粘贴记录',tag:'已支持',lines:[]},
+  wecom:{ic:'🏢',t:'企微同步',tag:'即将上线 · 效果预览',lines:['→ 先说明：这个功能现在还用不了，下面是上线后的效果预览','→ 上线后：企微聊天自动同步进档案，不用再手动转发截图','（预览结束 · 想优先开通请联系我们）']}
+};
+function ingest(k){
+  if(CH.busy)return;
+  if(CH.step>=2){toast('本轮证据已在处理 · 直接选模式即可',2000);return}
+  var demo=AUTO.chat&&DEMO.on;
+  if(k==='wecom'){runIngest('wecom',null);return}
+  if(k==='shot'){demo?runIngest('shot',{name:'微信聊天截图 9-27.png',kb:'186KB'}):$('#fileShot').click();return}
+  if(k==='voice'){demo?runIngest('voice',{name:'通话录音 1042.mp3'}):$('#fileVoice').click();return}
+  if(k==='paste'){demo?runIngest('paste',{name:'聊天记录 9-27.txt',lines:4}):openPaste();return}
+}
+function openPaste(){if(CH.busy)return;if(CH.step>=2){toast('本轮证据已在处理 · 直接选模式即可',2000);return}$('#pastePanel').hidden=false;$('#pasteTxt').focus()}
+function closePaste(){$('#pastePanel').hidden=true}
+function submitPaste(){
+  var t=$('#pasteTxt').value.trim();
+  if(!t){toast('先粘贴聊天记录，或选 txt 文件',1600);return}
+  closePaste();
+  runIngest('paste',{name:'粘贴文本',lines:t.split(/\n+/).filter(function(x){return x.trim()}).length,txt:t});
+}
+function onFile(inp,k){
+  var f=inp.files&&inp.files[0];inp.value='';
+  if(!f)return;closePaste();
+  var kb=f.size>1048576?Math.round(f.size/10485.7)/100+'MB':Math.round(f.size/102.4)/10+'KB';
+  if(k==='paste'){
+    var r=new FileReader();
+    r.onload=function(){var t=String(r.result||'').trim();runIngest('paste',{name:f.name,lines:t?t.split(/\n+/).filter(function(x){return x.trim()}).length:0,txt:t})};
+    r.readAsText(f);return;
+  }
+  if(k==='shot'){
+    var nShot=inp.files.length;
+    var r2=new FileReader();
+    r2.onload=function(){runIngest('shot',{name:f.name,kb:kb,img:String(r2.result||''),n:nShot})};
+    r2.readAsDataURL(f);return;
+  }
+  runIngest('voice',{name:f.name,kb:kb});
+}
+function runIngest(k,meta){
+  CH.busy=true;
+  /* 真实素材（非示例）第一次进入：提示数据边界，消除「app里是别人客户」的误会 */
+  var isReal=meta&&meta.name&&!/^示例/.test(meta.name)&&!/^(粘贴文本|微信聊天截图)$/.test(meta.name);
+  if(isReal){
+    setTimeout(function(){toast('已用<b>你自己的素材</b> · 档案将切为你的客户（当前张女士等为示例，重置可清）',3400)},2400);
+    setTimeout(function(){REAL_N+=(meta&&meta.n>1?meta.n:1);updateBrief();demoTab('ws');wsTab('brief');wsScroll('#briefBox');toast('📊 战报已更新：+'+(meta&&meta.n>1?meta.n:1)+' 条你的对话进入统计',2400)},9800);
+  }
+  var m=SRC_META[k];
+  var head=meta?meta.name:m.t;
+  var w=document.createElement('div');w.className='gen-wrap';
+  w.innerHTML='<div class="gen-head"><b>'+m.ic+' '+head+'</b><span>'+m.tag+'</span></div>'+
+  '<div class="gen-pbar"><i style="width:0%"></i></div><div class="gen-log"></div>';
+  $('#chatLog').appendChild(w);scrollLog();
+  var lines;
+  if(k==='shot'){lines=['→ 已接收'+(meta&&meta.n>1?meta.n+' 张截图 · 首张：'+head:'图片 '+head)+(meta&&meta.kb?' · '+meta.kb:''),'→ OCR 识别中：对话行 + 时间戳 · 角色区分…（多张截图自动按时间线拼接）','✓ 识别完成 · 已转成文字记录（演示环境 · 正式版接入多模态识别）']}
+  else if(k==='voice'){lines=['→ 已接收录音 '+head+(meta&&meta.kb?' · '+meta.kb:''),'→ ASR 转写中：角色分离 · 时间戳对齐…','✓ 转写完成 · 已转成文字记录（演示环境 · 正式版接入 ASR 引擎）']}
+  else if(k==='paste'){lines=['→ 已接收文本记录'+(meta.lines?' '+meta.lines+' 行':'')+(meta.name&&meta.name!=='粘贴文本'?'（'+meta.name+'）':''),'→ 解析对话结构：角色区分 · 关键信号提取…','✓ 解析完成 · 已转成文字记录']}
+  else{lines=m.lines}
+  var log=w.querySelector('.gen-log'),bar=w.querySelector('.gen-pbar i'),li=0;
+  (function step(){
+    if(li<lines.length){
+      var d=document.createElement('div');d.className='ln '+(li===lines.length-1?'ok':'hl');
+      d.textContent=lines[li];log.appendChild(d);
+      requestAnimationFrame(function(){d.classList.add('in')});
+      li++;bar.style.width=Math.round(li/lines.length*100)+'%';
+      scrollLog();CH.timer=setTimeout(step,620);
+    }else{
+      CH.timer=setTimeout(function(){
+        w.style.opacity='.55';
+        var n=(meta&&meta.n)||1;
+        /* 真实感三件套（真产品必有的路径，demo 模拟）：
+           ≥3张 → 最后一张模拟识别失败(重传/跳过)；≥2张 → 多客户归属确认；单张 → 直接过 */
+        if(isReal&&n>=3){ingestFail(k,meta,n);return}
+        if(isReal&&n>=2){custConfirm(k,meta,n);return}
+        pasteChat(k,meta);
+      },520);
+    }
+  })();
+}
+/* 识别失败路径：低质量截图真实场景——重传模拟成功 / 跳过继续，禁止静默吞掉 */
+function ingestFail(k,meta,n){
+  addMsg('⚠️ 第 '+n+' 张画质模糊，<b>没认出客户信息</b>（其他 '+(n-1)+' 张正常）。<span class="dim">重新拍清晰的再传，或先跳过。</span>','ai','易成');
+  addOpts([
+    {t:'🔄 重传这张（演示：按重传成功处理）',cb:function(){addMsg('✓ 已重新识别成功 · 该张内容并入记录','ai','易成');pasteChat(k,meta)},rec:true},
+    {t:'→ 跳过，先处理认出的 '+(n-1)+' 张',cb:function(){pasteChat(k,meta)}}
+  ]);
+}
+/* 多客户归属确认：真实批量上传常混多个客户，抽取管道先聚类再让用户确认，防止张冠李戴 */
+function custConfirm(k,meta,n){
+  addMsg('这批素材<b>识别出 2 个客户</b>：前 '+(n-1)+' 张是<b>张女士</b>（提到的到店项目一致），第 '+n+' 张提到「X总 · 测算表」。<span class="dim">确认归属后分别建档，不会混。</span>','ai','易成');
+  addOpts([
+    {t:'✓ 归属没问题 · 继续',cb:function(){pasteChat(k,meta)},rec:true},
+    {t:'分错了 · 我来改',cb:function(){toast('正式版可拖拽调整归属 · 演示按默认处理',2000);pasteChat(k,meta)}}
+  ]);
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+function pasteChat(src,meta){
+  CH.busy=false;
+  var pre=src==='shot'?'（聊天截图 · OCR 识别）':src==='voice'?'（通话录音 · ASR 转写）':src==='wecom'?'（企微会话存档 · 自动同步）':'（聊天记录）';
+  var img=meta&&meta.img?'<img class="shot-thumb" src="'+meta.img+'">':'';
+  var body=meta&&meta.txt?esc(meta.txt).replace(/\n/g,'<br>'):CHAT_TEXT+'<br><span class="dim" style="font-size:11px">（演示样板数据 · 上传你自己的截图 / 录音 / 记录即可替换）</span>';
+  addMsg(pre+'<br>'+img+body,'user','我');
+  CH.src='chat';CH.step=2;
+  var tk=CH.token;
+  setTimeout(function(){
+    if(tk!==CH.token)return;
+    addMsg('<b>证据读取完毕</b><br>'+
+    '<span class="ev-ok">✓ 已确认 2 条</span>　<span class="ev-un">？ 待核实 1 条</span><br>'+
+    '场景识别：<b>门店客户成交</b>（到店前 · <b>犹豫阶段</b>）——短链路，一次只推进一个动作。<br>'+
+    '<span class="dim">待核实的「是否约了别家」不会写进话术当事实。</span>');
+    addBrief();
+  },700);
+}
+function addBrief(){
+  var box=document.createElement('div');box.className='opts';
+  box.innerHTML='<div class="brief-card"><div class="bf-t">📝 补充客户背景 · 销售建议会更准（不填也可直接分析）</div>'+
+  '<div class="bf-row"><label>客户称呼</label><input id="bfName" placeholder="如：张女士 / X总"></div>'+
+  '<div class="bf-row"><label>项目背景（你的产品 / 报价 / 活动）</label><textarea id="bfBg" rows="2" placeholder="如：美业门店团购 599 元护理套餐引新客，含 2 次深层护理 + 居家小样"></textarea></div>'+
+  '<div class="bf-row"><label>当前卡点</label><input id="bfStuck" placeholder="如：客户犹豫，说要跟闺蜜商量"></div>'+
+  '<div class="bf-btns"><button onclick="submitBrief(false)">跳过，直接分析</button><button class="pri" onclick="submitBrief(true)">✓ 完成补充</button></div></div>';
+  $('#chatLog').appendChild(box);scrollLog();
+  if(AUTO.chat&&DEMO.on){setTimeout(function(){if(AUTO.chat&&DEMO.on&&$('#bfName')){$('#bfName').value='张女士';$('#bfBg').value='美业门店团购 599 元护理套餐引新客，含 2 次深层护理 + 居家小样';$('#bfStuck').value='客户犹豫，说要跟闺蜜商量';submitBrief(true)}},1300)}
+}
+function submitBrief(go){
+  CH.brief=go?{name:$('#bfName').value.trim()||'客户',bg:$('#bfBg').value.trim(),stuck:$('#bfStuck').value.trim()}:{name:'客户',bg:'',stuck:''};
+  addMsg(go?'<span class="ev-ok">✓ 背景已收到</span> · 结合证据 + 背景出建议'+(CH.brief.bg?'<br><span class="dim">项目背景：'+esc(CH.brief.bg)+'</span>':''):'已跳过 · 按证据直接分析。');
+  addOpts(MODES.map(function(m){return {t:m.i+' '+m.n,d:m.d,cb:function(){pickMode(m)},rec:m.k==='obj'}}));
+}
+function pasteData(){
+  addMsg('（本月销售数据 · 近 30 天）<br>曝光/咨询 1200 → 建联/下单 360 → 到店 96 → 成交 54 → 30天内复购 18','user','我');
+  CH.src='data';CH.step=2;
+  setTimeout(function(){
+    addMsg('<b>数据审计</b>：5 个阶段齐备 ✓ 时间范围一致（30 天）✓ 按手机号去重口径 ✓<br>'+
+    '漏斗类型：<b>门店客户 · 曝光/咨询 → 建联 → 到店 → 成交 → 复购</b><br>'+
+    '<span class="dim">已核对：无上期数据 → 本次不出环比；未提供金额成本 → 不算 ROI。选「📊 漏斗复盘」开始五步法。</span>');
+    addOpts(MODES.map(function(m){return {t:m.i+' '+m.n,d:m.d,cb:function(){pickMode(m)},rec:m.k==='funnel'}}));
+  },700);
+}
+function pickMode(m){
+  if(m.k==='obj'||(m.k==='close'&&CH.src==='chat')){
+    runGen(OBJ_GEN);
+  }else if(m.k==='funnel'){
+    if(CH.src==='data'){runGen(FUN_GEN)}
+    else{addMsg('漏斗复盘需要各阶段数量（skill 规则：少于两个阶段的数据不出报告）。<span class="dim">先把数据发给我。</span>');addOpts([{t:'📊 贴漏斗数据',cb:function(){pasteData()},rec:true}])}
+  }else if(m.k==='diag'){
+    addMsg('客户诊断已在 <b>张女士档案</b> 生成 1 条复盘（六列表格）：当时交出主动权 → 影响是失去触达理由 → 下次先接住顾虑再二选一锁时间。<br><span class="dim">按 skill 规则，一半写优化一半写放大，先亮点后问题。</span>');
+    addOpts([{t:'🗂️ 打开张女士档案看全文',cb:function(){openDetail('zhang')}}]);
+  }else if(m.k==='temp'){
+    addMsg('张女士热度 <b>60–75°</b>（区间值）：需求活跃，「跟闺蜜商量」→ 多人商量型决策。<br>待确认：<span class="gap-chip">？ 预算</span><span class="gap-chip">？ 到店时间</span><span class="gap-chip">？ 是否在比价</span><br><span class="dim">热度是沟通阶段判断，不等于成交概率。</span>');
+    addOpts([{t:'🗂️ 打开张女士档案',cb:function(){openDetail('zhang')}}]);
+  }else if(m.k==='plan'){
+    addMsg('「今天该干啥」已排好（每条都有依据）：已排进右侧<b>工作台首卡</b>，点下方按钮直达。<br>· 今天 10:00 前 · 你亲自 · 张女士补救话术 · 目标拿时间<br>· 本周四前 · 你亲自 · X总补测算表+约三方会<br>· 明天上午 · 店长 · 李女士复购回访<br>· 王女士暂不跟——证据不足不硬追');
+    addOpts([{t:'📌 到工作台看「今天该干啥」',cb:function(){demoTab('ws');wsTab('brief');wsScroll('#todoCard');spotlight('#todoCard')},rec:true},{t:'🗂️ 打开张女士档案',cb:function(){openDetail('zhang')}}]);
+  }else if(m.k==='close'){
+    addMsg('成交话术与异议回复同用五段结构（先接住 → 再校准 → 推进一个动作）。<span class="dim">本演示以「异议回复」链路为代表，输出同一套不施压话术。</span>');
+    addOpts([{t:'🛡️ 走异议回复链路',cb:function(){runGen(OBJ_GEN)},rec:true}]);
+  }
+}
+
+/* 生成器 */
+var OBJ_GEN={
+  title:'🛡️ 异议回复 · 五段结构话术',fee:'25 算力',
+  lines:[
+    {t:'→ 读取对话证据（9-27 微信记录 ×4 条）…',c:''},
+    {t:'→ 场景识别：门店客户成交 · 犹豫阶段',c:''},
+    {t:'→ 信息可信度：已确认 2 · 待核实 1（待核实不写进话术）',c:''},
+    {t:'→ 加载销冠 skill（sales_growth_advisor · 六模式引擎）',c:''},
+    {t:'→ 话术预审：扫描逼单 / 虚拟稀缺 / 贬低竞品 …',c:''},
+    {t:'✦ 预审拦截：「仅剩 3 个名额」无来源 → 已替换为「名额以门店当日为准」',c:'rd'},
+    {t:'✓ 五段结构生成完毕（判断 / 破局点 / 3 套话术 / 预判 / 下一步）',c:'ok'},
+    {t:'✓ 完成 · 扣 25 算力（演示）',c:'ok'}
+  ],
+  render:renderObjDl
+};
+var FUN_GEN={
+  title:'📊 漏斗复盘 · 五步法报告',fee:'25 算力',
+  lines:[
+    {t:'→ ① 数据质量审计：阶段定义一致 · 30 天 · 按手机号去重',c:''},
+    {t:'→ 缺失标注：流失原因缺失 12%，按「未知」计入，不猜测',c:'hl'},
+    {t:'→ ② 漏斗计算：相邻转化率 + 累计转化率 + 各阶段流失',c:''},
+    {t:'→ ③ 卡点定位：绝对流失最大 ≠ 比例流失最大 · 分开报告',c:'hl'},
+    {t:'→ 合规检查：无上期数据不出环比 · 无金额成本不算 ROI ✓',c:''},
+    {t:'✓ 五步法报告生成完毕 · 扣 25 算力（演示）',c:'ok'}
+  ],
+  render:renderFunDl
+};
+function dlDeliver(card,msg){
+  var zone=$('#dlZone');var ph=zone.querySelector('.dl-empty');if(ph)ph.remove();
+  /* 生成等待骨架：真产品 LLM 生成 3-10s，demo 模拟 1.1s 异步——消除「秒出」假象（真实感改造） */
+  var skel=document.createElement('div');skel.className='skel';
+  skel.innerHTML='<div class="sk-t">✨ 易成生成中 · 通常 3~10 秒（演示加速）</div><i></i><i class="s2"></i><i class="s3"></i>';
+  zone.insertBefore(skel,zone.firstChild);
+  setTimeout(function(){
+    if(!skel.parentNode)return;/* 重置后 dlZone 已清空：骨架被移除则放弃本次落卡，防重置竞态 */
+    skel.remove();
+    zone.insertBefore(card,zone.firstChild);/* 最新卡置顶：窄屏免滚全列表找新交付 */
+    if(msg)addMsg(msg);
+    if(window.innerWidth<960){wsNotify()}
+    else{wsScroll('#dlCard');spotlight(card)}
+  },1100);
+}
+function wsNotify(){var d=$('#wsDot');if(d)d.classList.add('on')}
+/* 移动端底部切换：对话 / 工作台 · 工作台二级分组（简报/交付主线 · 档案/对练从简报入口进） */
+var WSG={brief:['todoCard','briefBox','fuCard','tempCard'],dl:['dlCard'],arch:['archCard'],spar:['sparCard']};
+var WSCUR='brief';
+function wsTab(g){
+  WSCUR=g;
+  Object.keys(WSG).forEach(function(k){
+    WSG[k].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display=''});
+  });
+  $$('#wsTabs button').forEach(function(b){b.classList.toggle('act',b.dataset.g===g)});
+}
+function mTab(k){
+  /* 窄屏单栏切换制：v-chat/v-work 互斥显示，桌面（≥960）双栏常显不受影响 */
+  document.body.classList.toggle('v-chat',k==='chat');
+  document.body.classList.toggle('v-work',k==='ws');
+  var tc=$('#tabChat'),tw=$('#tabWs');
+  if(tc){tc.classList.toggle('act',k==='chat');tw.classList.toggle('act',k==='ws');}
+  if(k==='ws'){var d=$('#wsDot');if(d)d.style.display='none';window.scrollTo({top:0,behavior:'smooth'});}
+  else chatFocus();
+}
+function demoTab(k){if(window.innerWidth<960)mTab(k)}
+/* 全量重置：对话流 / 交付区 / 算力 / 对练 / 红点 一键回初始态 */
+function resetAll(skipConfirm){
+  if(!skipConfirm&&!confirm('清空全部对话和数据（包括你上传的记录），回到初始状态？')){
+    return;
+  }
+  REAL_N=0;updateBrief();
+  stopDemo();
+  clearTimeout(CH.timer);CH.busy=false;CH.init=false;CH.step=0;CH.brief=null;CH.src='';CH.token++;
+  SP.token++;SP.scene=null;SP.round=0;SP.score=0;SP.log=[];SP.viol={cut:0,rival:0,scarce:0};
+  $('#chatLog').innerHTML='';
+  $('#dlZone').innerHTML='<div class="dl-empty">📥 在左侧发一段客户对话，或传张截图<br>易成自动出卡，拿到就能发的话术 / 报告落这里</div>';
+  CRED=860;$('#cred').textContent=CRED;saveCred();
+  var wd=$('#wsDot');if(wd)wd.classList.remove('on');
+  $$('#sceneGrid .scene-cell').forEach(function(c){c.classList.remove('act')});
+  closePaste();closeModal();closeDetail();
+  CH.init=true;greet();
+  wsTab('brief');
+  toast('↺ 已重置 · 对话与交付区已清空',1800);
+}
+window.addEventListener('resize',function(){wsTab(WSCUR)});
+function runGen(gen){
+  if(CH.busy)return;CH.busy=true;spend(25);
+  var w=document.createElement('div');w.className='gen-wrap';
+  w.innerHTML='<div class="gen-head"><b>'+gen.title+'</b><span>销冠引擎运行中</span></div>'+
+  '<div class="gen-pbar"><i style="width:0%"></i></div><div class="gen-log"></div>';
+  $('#chatLog').appendChild(w);scrollLog();
+  var log=w.querySelector('.gen-log'),bar=w.querySelector('.gen-pbar i');
+  var li=0,delay=gen.lines.length>6?720:900;
+  (function step(){
+    if(li<gen.lines.length){
+      var d=document.createElement('div');d.className='ln '+(gen.lines[li].c||'hl');
+      d.textContent=gen.lines[li].t;log.appendChild(d);
+      requestAnimationFrame(function(){d.classList.add('in')});
+      li++;bar.style.width=Math.round(li/gen.lines.length*100)+'%';
+      scrollLog();
+      CH.timer=setTimeout(step,delay);
+    }else{
+      CH.timer=setTimeout(function(){
+        w.style.opacity='.55';
+        var card=document.createElement('div');card.className='dl-card';
+        card.innerHTML=gen.render();
+        dlDeliver(card,'话术卡已生成 ✅ 就在右侧<b>话术 / 报告</b>里。话术可直接复制发客户；「待确认」的判断我不会包装成事实。<span class="dim">要改哪段直接说，或去对练场跟练一遍。</span>');
+        CH.busy=false;
+      },420);
+    }
+  })();
+}
+function renderObjDl(){
+  var c=CUSTS.zhang;
+  var who=CH.brief&&CH.brief.name&&CH.brief.name!=='客户'?esc(CH.brief.name):'张女士';
+  var bgLine=CH.brief&&CH.brief.bg?'<p style="margin:0 0 6px;font-size:12px;color:#8a5a18;background:#fdf7ea;border:1px solid #f3ddb2;border-radius:8px;padding:5px 8px">📌 结合你补充的背景：'+esc(CH.brief.bg)+(CH.brief.stuck?'<br>卡点：'+esc(CH.brief.stuck):'')+'</p>':'';
+  return '<div class="dl-head">🛡️ 异议回复 · '+who+'（B2C · 犹豫阶段）<span class="fee">'+OBJ_GEN.fee+'</span></div>'+
+  '<div class="dl-sec"><b class="n"><i>①</i>当前判断</b>'+bgLine+
+  '<p><span class="ev-ok">✓ 已确认：主动问价 · 「考虑一下，跟闺蜜商量」</span><br><span class="ev-un">？ 待核实：预算区间 · 是否约了别家</span><br><span style="color:var(--sub);font-size:11.5px">待核实不写进话术当事实。</span></p></div>'+
+  '<div class="dl-sec"><b class="n"><i>②</i>核心破局点</b><p>'+c.tempDetail.next+'。价格异议本轮不展开——<b>一次只推进一个动作</b>。</p></div>'+
+  '<div class="dl-sec"><b class="n"><i>③</i>推荐回复 · 3 套（按客户反应选用）</b>'+
+  c.scripts.map(function(s){return '<div class="script-row"><div class="sc-cond">'+s.cond+'</div><div class="sc-txt">'+s.txt+'</div><div class="sc-why">'+s.why+'</div><button class="copy-btn" onclick="copyText(\''+s.txt+'\')">⧉ 复制这套</button></div>'}).join('')+
+  '</div>'+
+  '<div class="dl-sec"><b class="n"><i>④</i>客户可能回复与预判</b>'+
+  c.foresee.map(function(f){return '<div class="brk">客户说 <b>'+f.r+'</b> → '+f.a+'</div>'}).join('')+
+  '<p style="font-size:11px;color:var(--sub);margin-top:4px">预判应对 ≠ 客户说过这些话。</p></div>'+
+  '<div class="dl-sec"><b class="n"><i>⑤</i>下一步动作</b>'+
+  '<p>时间：今天 10:00 前发 · 你亲自<br>目标：拿到具体到店时间<br><b style="color:var(--red)">停止条件：连续 2 天未回复 → 降频，等触发再联（不硬追）</b></p></div>'+
+  '<div class="dl-foot">'+
+  '<button class="fbtn" onclick="openFull(\'obj\')">📄 看全文</button>'+
+  '<button class="fbtn" onclick="copyAllObj()">⧉ 复制全套</button>'+
+  '<button class="fbtn pri" onclick="demoTab(\'ws\');wsTab(\'spar\');spotlight(\'#sparCard\');toast(\'去对练场把这三套话术跟练一遍\',1800)">🥊 去对练</button>'+
+  '<button class="fbtn" onclick="openDetail(\'zhang\')">🗂️ 存入档案</button>'+
+  '</div>';
+}
+function renderFunDl(){
+  return '<div class="dl-head">📊 漏斗复盘 · B2C 五阶段（30 天）<span class="fee">'+FUN_GEN.fee+'</span></div>'+
+  '<div class="dl-sec"><b class="n"><i>①</i>数据质量审计</b><p>阶段定义一致 ✓ 时间范围 30 天 ✓ 去重口径按手机号 ✓<br><span class="ev-un">？ 流失原因缺失 12%</span> → 按「未知」计入，不猜测。</p></div>'+
+  '<div class="dl-sec"><b class="n"><i>②</i>漏斗计算</b>'+
+  '<table class="funnel-t"><tr><th>阶段</th><th>人数</th><th>相邻转化</th><th>流失</th></tr>'+
+  '<tr><td>曝光/咨询</td><td>1200</td><td>—</td><td>—</td></tr>'+
+  '<tr><td>建联/下单</td><td>360</td><td>30%</td><td class="hi">840</td></tr>'+
+  '<tr><td>到店</td><td>96</td><td class="hi2">26.7%</td><td class="hi2">264</td></tr>'+
+  '<tr><td>成交</td><td>54</td><td>56.3%</td><td>42</td></tr>'+
+  '<tr><td>30天复购</td><td>18</td><td>33.3%</td><td>36</td></tr></table>'+
+  '<p style="font-size:11px;color:var(--sub)">只按你提供的数字计算，可复算；未引用任何行业标杆。</p></div>'+
+  '<div class="dl-sec"><b class="n"><i>③</i>卡点定位（分开报告，不混成一个结论）</b>'+
+  '<div class="kpoint">绝对流失最大：<b>咨询 → 建联（流失 840 人）</b>——量的问题，源头在曝光人群与首响话术。<small>先把「加微信/留电话」这一步的接法标准化</small></div>'+
+  '<div class="kpoint">比例流失最大：<b>建联 → 到店（流失 73.3%）</b>——率的问题，私信只报价没给到店理由。<small>与张女士案例同一病根：没接住犹豫</small></div>'+
+  '</div>'+
+  '<div class="dl-sec"><b class="n"><i>④</i>原因边界</b><p><span class="ev-ok">✓ 数据能证明</span>：建联→到店走低与「未接住犹豫」同时段出现（时序相关）。<br><span class="ev-un">？ 待验证</span>：私信只报价是否为直接原因——下周期 A/B 验证，不下死结论。</p></div>'+
+  '<div class="dl-sec"><b class="n"><i>⑤</i>下周期动作（负责人 · 动作 · 指标 · 复盘时间）</b>'+
+  '<div class="brk">老板 · 私信固定加「二选一约时间」步骤 · 建联→到店 26.7% → 40% · 两周后复盘</div>'+
+  '<div class="brk">店长 · 到店前 1 天提醒 SOP · 到店率 +10% · 每周核对</div>'+
+  '<div class="brk">店员 · 首响 3 分钟内 + 先答后问 · 咨询→建联 30% → 40% · 两周后复盘</div>'+
+  '<p style="font-size:11px;color:var(--sub);margin-top:4px">无上期数据，本次不出环比；下一周期以本期为基线。</p></div>'+
+  '<div class="dl-foot">'+
+  '<button class="fbtn" onclick="openFull(\'funnel\')">📄 看全文</button>'+
+  '<button class="fbtn" onclick="toast(\'已复制复盘结论（演示）\',1500)">⧉ 复制结论</button>'+
+  '<button class="fbtn pri" onclick="demoTab(\'ws\');wsTab(\'spar\');spotlight(\'#sparCard\');toast(\'练「我再看看」场景，补建联→到店这一环\',2000)">🥊 去对练</button>'+
+  '</div>';
+}
+function copyAllObj(){
+  var c=CUSTS.zhang;
+  copyText(c.scripts.map(function(s){return s.cond+':\n'+s.txt}).join('\n\n'),'3 套话术已复制 · 按客户反应选用');
+}
+function openFull(which){
+  $('#mTitle').textContent=which==='obj'?'异议回复 · 五段结构全文':'漏斗复盘 · 五步法全文';
+  $('#mBody').innerHTML=which==='obj'?renderObjDl():renderFunDl();
+  $('#mBody').querySelector('.dl-foot').style.display='none';
+  $('#modalOv').classList.add('on');
+}
+function closeModal(){$('#modalOv').classList.remove('on')}
+function sendChat(){
+  var v=$('#chatIn').value.trim();if(!v)return;$('#chatIn').value='';
+  addMsg(esc(v),'user','我');
+  setTimeout(function(){
+    if(CH.step===0){addMsg('收到。要我判断得有证据——<span class="dim">把真实对话或数据发给我（可点下方快捷动作），我不编客户心理。</span>');return}
+    if(CH.src==='chat'){
+      CUSTS.zhang.unsure.push({q:esc(v),src:'刚刚 · 你手动补充 · 待核实'});
+      addMsg('已按「待核实」记入<b>张女士档案</b>（黄标）——对话发得越多，档案越全，建议越准。');
+    }else{
+      addMsg('这条我先记下。<span class="dim">想出哪类交付，直接跟我说，比如「帮我回这条异议」。</span>');
+    }
+  },450);
+}
+
+/* ================= 对练引擎（答题在对话流 · 评分卡落工作台） ================= */
+var SP={scene:null,round:0,score:0,log:[],freeBox:null,viol:{},token:0};
+var SCENES={
+  price:{name:'🤔 嫌贵 · 客户拿竞品压价',rounds:[
+    {q:'你们这个套餐 599，隔壁街 499 还能做两次，你这价格怎么好意思的？',
+     opts:[
+      {t:'我们用的都是进口产品，一分钱一分货，便宜的自然有便宜的道理',s:4,vt:'rival',fb:'踩线：暗示同行差 = 变相贬竞品，客户立刻竖起防备心。',bad:1,red:'红线：不贬低竞品——比较可以，踩人不行。'},
+      {t:'单看价确实贵一点，差在护理时长和产品上。按次算每次多 25，多出来的是效果和你省下的时间',s:8,rec:1,fb:'接住顾虑 ✓ 拆单次成本 ✓ 不贬同行 ✓。如果开头先接一句「理解，谁都想又好又省」再拆，就是 10 分。'},
+      {t:'那这样，我给您申请个九折',s:3,vt:'cut',fb:'主动降价 = 承认虚高，毛利没了客户更不信价值。',bad:1,red:'红线：不主动降价逼单——价格让步要换条件，不能白给。'}
+     ]},
+    {q:'行吧，那我考虑考虑，回头再说。',
+     opts:[
+      {t:'好的，您考虑好联系我',s:3,fb:'张女士案例同款问题：把主动权交出去了，对话停在原地。',bad:1,red:'复盘对照：这就是 9-27 那天的原始失误。'},
+      {t:'应该的～对了，你周末上午方便还是下午方便？体验位我先帮你留出来',s:9,rec:1,fb:'先认同 + 二选一锁时间 ✓ 只推进一个动作 ✓。这就是补救话术的标准接法。'},
+      {t:'今天定下来我给你锁个优惠价',s:2,vt:'scarce',fb:'虚假稀缺 + 逼单，两根红线一起踩。',bad:1,red:'红线：不用虚假稀缺、不保证结果——预审会直接拦截这种话术。'}
+     ]}
+  ]},
+  look:{name:'🚶 我再看看 · 客户要走',rounds:[
+    {q:'嗯……我再去别家转转看吧。',
+     opts:[
+      {t:'好的您慢走',s:3,fb:'标准送客。客户出门，触达理由归零。',bad:1},
+      {t:'没问题，比货比的是服务。你转的时候重点看三点：时长、产品、手法——回头想到我们，随时找我留位',s:9,rec:1,fb:'不拦不贬 ✓ 给比较工具 ✓ 把「比」变成「留」✓。客户带着你的清单去比，比完回来找你。'},
+      {t:'别家都是套路，用的产品都不行',s:2,vt:'rival',fb:'贬竞品 + 恐吓，红线预警。',bad:1,red:'红线：不贬低竞品、不恐吓客户。'}
+     ]}
+  ]}
+};
+function renderScenes(){
+  var html='';
+  Object.keys(SCENES).forEach(function(k){var s=SCENES[k];
+    html+='<button class="scene-cell" data-k="'+k+'" onclick="pickScene(\''+k+'\')"><i>'+s.name.split(' ')[0]+'</i><b>'+s.name.split(' · ')[0].replace(/^\S+\s/,'')+'</b><span>'+s.name.split(' · ')[1]+'</span></button>';
+  });
+  /* 内测锁定场景对小白是负资产，不渲染；上线后随 SCENES 扩充自然出现 */
+  $('#sceneGrid').innerHTML=html;
+}
+function pickScene(k){
+  demoTab('chat');/* 窄屏单栏制：对练出题在对话视图，先切过去再开练，否则用户在工台视角点场景=点不开 */
+  SP.token++;SP.scene=k;SP.round=0;SP.score=0;SP.log=[];SP.viol={cut:0,rival:0,scarce:0};
+  spend(25);toast('对练开始 · 扣 25 算力（演示）',1600);
+  $$('#sceneGrid .scene-cell').forEach(function(c){c.classList.toggle('act',c.dataset.k===k)});
+  chatFocus();
+  addMsg('场景就位：<b>'+SCENES[k].name+'</b>。我来演你的客户，你接招——<span class="dim">记住三件事：先接住顾虑，一次只推进一个动作，不踩红线。</span>','ai','易成 · 教练');
+  setTimeout(sparQ,700);
+}
+function sparQ(){
+  var r=SCENES[SP.scene].rounds[SP.round];
+  addMsg(r.q,'cust','客户（易成扮）');
+  addSOpts(r.opts);
+}
+function addSOpts(opts){
+  var box=document.createElement('div');box.className='opts';
+  opts.forEach(function(o){
+    var b=document.createElement('button');b.className='opt';
+    b.textContent=o.t;
+    b.onclick=function(){box.querySelectorAll('button').forEach(function(x){x.disabled=true});sparAns(o)};
+    box.appendChild(b);
+  });
+  $('#chatLog').appendChild(box);scrollLog();
+  /* 自由输入：用自己的话接，AI 即时判分（正式版走 LLM，demo 规则模拟） */
+  if(!(AUTO.spar&&DEMO.on)){
+    var fr=document.createElement('div');fr.className='spar-free';
+    fr.innerHTML='<input id="sparIn" placeholder="✍️ 用自己的话接 · 练真实反应（AI 即时判分）" enterkeyhint="send"><button onclick="sparFreeGo()">接招</button>';
+    $('#chatLog').appendChild(fr);SP.freeBox=fr;scrollLog();
+    fr.querySelector('input').addEventListener('keydown',function(e){if(e.key==='Enter')sparFreeGo()});
+    if(window.innerWidth>960){fr.querySelector('input').focus()}
+  }
+  if(AUTO.spar){
+    var rec=opts.findIndex(function(o){return o.rec});
+    if(rec<0)rec=0;
+    var btns=box.children;
+    setTimeout(function(){btns[rec].classList.add('recing')},400);
+    setTimeout(function(){
+      if(AUTO.spar&&DEMO.on&&!btns[rec].disabled){
+        Array.prototype.forEach.call(btns,function(x){x.disabled=true});
+        sparAns(opts[rec]);
+      }
+    },1300);
+  }
+}
+function sparClearFree(){if(SP.freeBox){SP.freeBox.remove();SP.freeBox=null}}
+function sparAns(o){
+  sparClearFree();
+  addMsg(o.t,'user','我');
+  var fb=document.createElement('div');fb.className='fb-card '+(o.bad?'bad':'good');
+  fb.innerHTML='<b>'+(o.bad?'✗ 踩线':'✓ 好接法')+'<span class="score-pill">'+o.s+' / 10</span></b><p>'+o.fb+'</p>'+(o.red?'<div class="redline-tip">⛔ '+o.red+'</div>':'');
+  $('#chatLog').appendChild(fb);scrollLog();
+  if(o.vt&&SP.viol[o.vt]!==undefined)SP.viol[o.vt]++;
+  SP.score+=o.s;SP.log.push(o.s);
+  sparNext();
+}
+function sparNext(){
+  var tk=SP.token;SP.round++;
+  setTimeout(function(){
+    if(tk!==SP.token)return;
+    if(SP.round<SCENES[SP.scene].rounds.length){sparQ()}
+    else{sparDone()}
+  },900);
+}
+/* 自由输入判分 · 规则模拟（正式版：LLM 按同一 rubric 判分） */
+function sparJudge(t){
+  var has=function(){for(var i=0;i<arguments.length;i++){if(t.indexOf(arguments[i])>=0)return true}return false};
+  var rec=SCENES[SP.scene].rounds[SP.round].opts.filter(function(o){return o.rec})[0];
+  var std=rec?rec.t:'';
+  if(has('九折','打折','便宜点','便宜一些','优惠价','减价','让利','免单'))return{s:2,bad:1,vt:'cut',fb:'主动降价 = 承认虚高，毛利没了客户更不信价值。',red:'红线：不主动降价——让步要换条件，不能白给。',std:std};
+  if(has('都是套路','他们家不行','别家都是','不如我们','一分钱一分货'))return{s:3,bad:1,vt:'rival',fb:'踩线：贬低竞品，客户立刻竖起防备心。',red:'红线：不贬竞品——比较可以，踩人不行。',std:std};
+  if(has('仅剩','最后一天','错过不再','限时','今天定'))return{s:2,bad:1,vt:'scarce',fb:'虚假稀缺 + 逼单，引擎预审会直接拦截这种话术。',red:'红线：不用虚假稀缺、不逼单。',std:std};
+  if(has('考虑好联系我','考虑好再说','您先考虑','您考虑好'))return{s:3,bad:1,fb:'把主动权交了出去，对话停在原地——张女士案例同款问题。',std:std};
+  if(has('理解','应该的','确实','没错','明白')&&has('留','锁','约','上午','下午','时间','方便'))return{s:9,fb:'先接住顾虑 ✓ 再推进一个动作 ✓——与标准接法同构，这就是销冠的骨架。',std:std};
+  if(has('留','锁','上午还是下午','方便还是','体验位','约'))return{s:8,fb:'有推进动作 ✓。开头先接一句顾虑（理解 / 应该的）会更稳。',std:std};
+  if(has('理解','应该的','确实','是的是的','没错','明白'))return{s:6,fb:'顾虑接住了 ✓ 但没有推进下一步——客户不知道该做什么，要主动把球递回去。',std:std};
+  return{s:5,fb:'方向可以，但既没接住顾虑也没给下一步。骨架：先接一句（理解）→ 校准价值 → 推进一个具体动作。',std:std};
+}
+function sparFreeGo(){
+  var inp=$('#sparIn');if(!inp)return;
+  var t=inp.value.trim();
+  if(!t){toast('先输入你的接法，再看易成怎么判',1500);return}
+  var r=sparJudge(t);
+  var ob=SP.freeBox?SP.freeBox.previousElementSibling:null;
+  if(ob)Array.prototype.forEach.call(ob.querySelectorAll('button'),function(x){x.disabled=true});
+  sparClearFree();
+  addMsg(esc(t),'user','我');
+  var fb=document.createElement('div');fb.className='fb-card '+(r.bad?'bad':'good');
+  fb.innerHTML='<b>'+(r.bad?'✗ 踩线':(r.s>=8?'✓ 好接法':'◐ 方向对，待校准'))+'<span class="score-pill">'+r.s+' / 10</span></b><p>'+r.fb+'</p>'+
+  (r.red?'<div class="redline-tip">⛔ '+r.red+'</div>':'')+
+  (r.s<9&&r.std?'<div class="std-ref">📌 标准接法参考：'+r.std+'</div>':'');
+  $('#chatLog').appendChild(fb);scrollLog();
+  if(r.vt&&SP.viol[r.vt]!==undefined)SP.viol[r.vt]++;
+  SP.score+=r.s;SP.log.push(r.s);
+  sparNext();
+}
+function sparDone(){
+  var total=SCENES[SP.scene].rounds.length*10;
+  addMsg('这轮练完了。<b>总评 '+SP.score+' / '+total+'</b>——评分卡已生成，点下方按钮看。<br>话术不在背诵在反应：接住 → 校准 → 推进一步。','ai','易成 · 教练');
+  /* 窄屏单栏制：按钮必须内嵌在当前对话流，禁止让用户去另一视图找入口（真机死点教训） */
+  addOpts([
+    {t:'📤 看评分卡（已存话术/报告）',cb:function(){demoTab('ws');wsTab('dl');spotlight('#sparScoreCard')},rec:true},
+    {t:'🗂️ 存入张女士档案',cb:function(){openDetail('zhang')}},
+    {t:'↺ 换个场景再练',cb:function(){resetSpar()}}
+  ]);
+  var card=document.createElement('div');card.className='dl-card';card.id='sparScoreCard';
+  card.innerHTML='<div class="dl-head">🥊 对练评分 · '+SCENES[SP.scene].name+'<span class="fee">25 算力/场</span></div>'+
+  '<div class="dl-sec"><b class="n"><i>✓</i>评分</b><p style="font-size:20px;font-weight:800;color:var(--orange)">'+SP.score+'<span style="font-size:12px;color:var(--sub)"> / '+total+'</span></p>'+
+  '<p>接住顾虑 '+(SP.log[0]>=6?'✓':'✗')+' · 不贬同行 '+(SP.viol.rival?'✗':'✓')+' · 不主动降价 '+(SP.viol.cut?'✗':'✓')+' · 不虚假稀缺 '+(SP.viol.scarce?'✗':'✓')+' · 只推进一个动作 '+(SP.log[SP.log.length-1]>=6?'✓':'✗')+'</p></div>'+
+  '<div class="dl-sec"><b class="n"><i>💡</i>把标准接法带走</b>'+
+  (SP.scene==='price'?
+    '<div class="script-row"><div class="sc-cond">嫌贵时</div><div class="sc-txt">理解，谁都想又好又省。单看价确实贵一点，差在护理时长和产品上——按次算每次多 25，多出来的是效果和你省下的时间。</div><button class="copy-btn" style="margin-top:6px" onclick="copyText(\'理解，谁都想又好又省。单看价确实贵一点，差在护理时长和产品上——按次算每次多 25，多出来的是效果和你省下的时间。\')">⧉ 复制</button></div>'+
+    '<div class="script-row"><div class="sc-cond">说「考虑考虑」时</div><div class="sc-txt">应该的～对了，你周末上午方便还是下午方便？体验位我先帮你留出来。</div><button class="copy-btn" style="margin-top:6px" onclick="copyText(\'应该的～对了，你周末上午方便还是下午方便？体验位我先帮你留出来。\')">⧉ 复制</button></div>'
+    :
+    '<div class="script-row"><div class="sc-cond">说「再看看」时</div><div class="sc-txt">没问题，比货比的是服务。你转的时候重点看三点：时长、产品、手法——回头想到我们，随时找我留位。</div><button class="copy-btn" style="margin-top:6px" onclick="copyText(\'没问题，比货比的是服务。你转的时候重点看三点：时长、产品、手法——回头想到我们，随时找我留位。\')">⧉ 复制</button></div>')+
+  '</div>'+
+  '<div class="dl-foot"><button class="fbtn" onclick="resetSpar()">↺ 换场景再练</button>'+
+  '<button class="fbtn" onclick="openDetail(\'zhang\')">🗂️ 存入张女士档案</button>'+
+  '<button class="fbtn" onclick="demoTab(\'ws\');wsTab(\'dl\');spotlight(\'#sparScoreCard\')">📤 看评分卡落位</button>'+
+  '<button class="fbtn pri" onclick="demoTab(\'chat\');chatFocus();toast(\'到对话页让易成按你的真实客户出话术\',2000)">💬 按真实客户出话术</button></div>';
+  dlDeliver(card,'');
+  $('#chatLog').scrollTop=$('#chatLog').scrollHeight;
+}
+function resetSpar(){SP.scene=null;demoTab('ws');wsTab('spar');wsScroll('#sparCard');toast('点场景卡换一个练',1600)}
+
+/* ================= 一键演示 ================= */
+var DEMO={on:false,queue:[],t:null};
+function dwait(fn,ms){DEMO.queue.push({fn:fn,ms:ms})}
+function dnext(){
+  if(!DEMO.on)return;
+  var it=DEMO.queue.shift();
+  if(!it){setStage('done','已完成');stopDemo();toast('演示完毕 ✅ 左边跟易成对话 · 右边看工作台，自由体验',3200);return}
+  DEMO.t=setTimeout(function(){it.fn();dnext()},it.ms);
+}
+function stopDemo(){
+  DEMO.on=false;DEMO.queue=[];
+  clearTimeout(DEMO.t);clearTimeout(CH.timer);
+  CH.token++;SP.token++;
+  AUTO.chat=false;AUTO.spar=false;
+  closePaste();
+  var b=$('#demoBtn');b.textContent='▶ 一键演示';b.classList.remove('stop');
+}
+function toggleDemo(){
+  if(DEMO.on){setStage('','待机');stopDemo();toast('已停止演示',1400);return}
+  DEMO.on=true;
+  var b=$('#demoBtn');b.textContent='■ 停止';b.classList.add('stop');
+  setStage('playing','演示中');
+  closeModal();closeDetail();closePaste();
+  /* 重置对话区与交付区，保证演示链路完整重跑 */
+  clearTimeout(CH.timer);CH.busy=false;CH.init=false;CH.step=0;CH.brief=null;CH.src='';CH.token++;SP.token++;$('#chatLog').innerHTML='';
+  $('#dlZone').innerHTML='<div class="dl-empty">📥 在左侧发一段客户对话，或传张截图<br>易成自动出卡，拿到就能发的话术 / 报告落这里</div>';
+  var wd=$('#wsDot');if(wd)wd.classList.remove('on');
+  $$('#sceneGrid .scene-cell').forEach(function(c){c.classList.remove('act')});
+  AUTO.chat=true;AUTO.spar=true;
+  /* 编排：右栏工作台逐卡讲解 → 档案 → 对话自动喂入出交付卡 → 对练评分卡 · 全程约 36 秒 */
+  dwait(function(){demoTab('ws');spotlight('#todoCard');toast('① 每条待办都有依据：时间 · 谁去 · 目标 · 进入信号 · 停止条件',2400)},500);
+  dwait(function(){spotlight('#tempCard');toast('② 客户热度只给区间 · 绿=已确认 黄=待核实 · 待核实不进话术',2100)},2700);
+  dwait(function(){openDetail('zhang');spotlight($('#detailOv .d-sec'))},2300);
+  dwait(function(){toast('③ 客户档案：已确认/待核实分级 + 六列诊断 + 3 套话术',2100)},2100);
+  dwait(function(){closeDetail()},2000);
+  dwait(function(){toast('④ 发真实对话（截图 / 录音 / 粘贴 · 企微即将上线）→ 自动出异议回复',2100)},300);
+  dwait(function(){demoTab('chat');if(!CH.init){CH.init=true;greet()}chatFocus()},1300);
+  dwait(function(){},12500);
+  dwait(function(){toast('⑤ 交付卡已落工作台 · 预审拦截内建：不虚构 · 不逼单 · 不贬竞品',2400)},400);
+  dwait(function(){demoTab('chat');pickScene('price')},2800);
+  dwait(function(){},6000);
+  dnext();
+}
+
+/* ================= 启动 ================= */
+renderWs();renderArch();renderScenes();loadCred();$('#cred').textContent=CRED;
+CH.init=true;greet();
+if(window.innerWidth<960)mTab('chat');
+/* 粘贴面板支持直接 Ctrl+V 贴聊天截图 */
+$('#pasteTxt').addEventListener('paste',function(e){
+  var items=e.clipboardData&&e.clipboardData.items;if(!items)return;
+  for(var i=0;i<items.length;i++){
+    if(items[i].type&&items[i].type.indexOf('image')===0){
+      e.preventDefault();closePaste();
+      var f=items[i].getAsFile();if(!f)return;
+      var r=new FileReader();
+      r.onload=function(){runIngest('shot',{name:'剪贴板截图.png',kb:Math.round(f.size/102.4)/10+'KB',img:String(r.result||''),n:1})};
+      r.readAsDataURL(f);return;
+    }
+  }
+});
+</script>
+</body>
+</html>

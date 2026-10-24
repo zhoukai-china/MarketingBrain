@@ -1,0 +1,1353 @@
+﻿<!-- ?v=12 · 周域 · 私域引擎工作台 v12：评审修订（顶栏单行 · 底部「对话/工作台」导航+safe-area · 触控目标≥44px/字号≥12px · UI 图标 SVG 化 · ＋五路提交改底部面板 · 工作台吸顶锚点 · 键盘 viewport-fit 适配 · 红点进工作台才清 · smooth 滚动+打字中动画）· 脱敏口径修正（客户隐私打码 · 门头/位置等品牌信息保留）· 金句卡「保存图片」演示入口 · v11 功能全保留 -->
+<!-- ?v=11 · 周域 · 私域引擎工作台 v11：以手机端为主（390 视口优先 · 顶部「对话/工作台」tab 切换 · 交付红点提示），桌面 ≥960px 双栏为辅 · v10 功能全保留（素材箱五路提交 · 配图环节：实拍引用+AI金句卡） -->
+<!-- ?v=10 · 周域 · 私域引擎工作台 v10（20261014 重建版）：v9 口径（私域引擎·朋友圈+社群双阵地 · 素材箱五路提交）+ 新增配图环境（每条候选：实拍引用 + AI 金句卡 · 案例/聊天记录图不生成） -->
+<!-- 演示数据均为虚构 · 不可作为真实效果承诺 -->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1.0,viewport-fit=cover,interactive-widget=resizes-content">
+<title>周域 · 私域增长顾问（私域引擎）工作台 Demo</title>
+<style>
+:root{
+  --bg:#F4F7FC; --card:#fff; --ink:#1c2733; --sub:#5b6b7c; --line:#e3e9f2;
+  --orange:#E8651A; --orange-soft:#fdeee2; --orange-line:#f7d4b8;
+}
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+button{cursor:pointer;border:none;font-family:inherit}
+body{background:var(--bg);color:var(--ink);min-height:100vh}
+
+/* ===== 顶栏 ===== */
+.topbar{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.topbar .in{max-width:none;margin:0 auto;padding:7px 10px;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden}
+.logo{font-weight:800;font-size:16px;letter-spacing:.5px}
+.logo i{font-style:normal;color:var(--orange)}
+.tag{font-size:11px;font-weight:700;color:var(--orange);background:var(--orange-soft);border:1px solid var(--orange-line);border-radius:999px;padding:3px 8px;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.me{margin-left:auto;display:flex;align-items:center;gap:6px}
+.back-btn,.logo,.me{flex-shrink:0}
+@media(max-width:599px){.safe-tag{display:none}}
+.safe-tag{font-size:10.5px;color:#1a9e5c;background:#e8f7ee;border-radius:999px;padding:3px 7px;font-weight:600;white-space:nowrap}
+.credits{font-size:11.5px;color:var(--sub);white-space:nowrap}
+.credits b{color:var(--ink)}
+.mini-btn{font-size:11px;font-weight:700;color:var(--orange);background:var(--orange-soft);border:1px solid var(--orange-line);border-radius:8px;padding:5px 9px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.back-btn{font-size:11.5px;color:var(--sub);background:#fff;border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-weight:600;white-space:nowrap}
+
+/* ===== 手机端为主 · 底部导航 · 桌面双栏为辅 ===== */
+.i{vertical-align:middle}
+.stage{max-width:640px;margin:0 auto;padding:0 12px calc(74px + env(safe-area-inset-bottom,0px))}
+.chat{display:none;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 2px 10px rgba(28,39,51,.05);overflow:hidden;position:relative;margin-top:10px;height:calc(100dvh - 126px - env(safe-area-inset-bottom,0px));min-height:420px}
+.ws{display:none;flex-direction:column;gap:12px}
+body.v-chat .chat{display:flex}
+body.v-work .ws{display:flex}
+.b-tabs{position:fixed;left:0;right:0;bottom:0;z-index:45;display:flex;gap:8px;max-width:640px;margin:0 auto;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border-top:1px solid var(--line)}
+.b-tabs button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;border-radius:12px;font-size:13.5px;font-weight:800;background:#fff;color:var(--sub);border:1px solid var(--line)}
+.b-tabs button.act{background:var(--ink);color:#fff;border-color:var(--ink)}
+.b-tabs .dot{display:none;width:8px;height:8px;border-radius:50%;background:#ff4d4f;box-shadow:0 0 0 3px rgba(255,77,79,.18)}
+.ws-nav{position:sticky;top:48px;z-index:15;display:flex;gap:8px;background:rgba(244,247,252,.94);backdrop-filter:blur(8px);border-radius:12px;padding:6px}
+.ws-nav button{flex:1;min-height:36px;border-radius:9px;font-size:12.5px;font-weight:700;background:#fff;color:var(--sub);border:1px solid var(--line)}
+.ws-nav button.act{background:var(--ink);color:#fff;border-color:var(--ink)}
+#secBrief,#matBox,#dlOut{scroll-margin-top:64px}
+.typing{display:inline-flex;gap:4px;padding:13px 14px;background:#fff;border:1px solid var(--line);border-radius:4px 14px 14px 14px;align-items:center}
+.typing i{width:6px;height:6px;border-radius:50%;background:#c3cdd9;animation:tk 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}
+.typing i:nth-child(3){animation-delay:.3s}
+@keyframes tk{0%,60%,100%{opacity:.35;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+@media(prefers-reduced-motion:reduce){.typing i{animation:none}}
+@media(min-width:960px){
+  .b-tabs{display:none}
+  .stage{max-width:none;display:grid;grid-template-columns:1.05fr .95fr;gap:14px;align-items:start;margin-top:14px;padding:0 16px 30px}
+  .chat{display:flex!important;position:sticky;top:62px;height:calc(100vh - 78px);margin-top:0}
+  .ws{display:flex!important;position:sticky;top:62px}
+  .ws-nav{display:none}
+}
+
+.chat-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.av{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,#E8651A,#f5a623);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.cht{flex:1;min-width:0}
+.cht b{font-size:14px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cht span{font-size:11.5px;color:var(--sub);display:block;line-height:1.4;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.demo-btn{margin-left:auto;font-size:11.5px;font-weight:700;color:#fff;background:var(--orange);border-radius:8px;padding:8px 10px;min-height:36px;white-space:nowrap;display:flex;align-items:center;gap:4px;flex-shrink:0}
+.demo-btn.stop{background:#c0392b}
+.log{flex:1;overflow-y:auto;padding:14px 14px 6px;background:#fbfdff}
+.msg{display:flex;gap:8px;margin-bottom:12px;align-items:flex-start}
+.msg .m-av{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#E8651A,#f5a623);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.msg .bub{max-width:86%;background:#fff;border:1px solid var(--line);border-radius:4px 14px 14px 14px;padding:10px 12px;font-size:13.5px;line-height:1.7}
+.msg.user{flex-direction:row-reverse}
+.msg.user .bub{background:var(--orange-soft);border-color:var(--orange-line);border-radius:14px 4px 14px 14px}
+.opts{display:flex;flex-direction:column;gap:8px;margin:0 0 14px 34px}
+.opt{text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:11px 12px;min-height:44px;font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.5}
+.opt small{display:block;font-size:12px;color:var(--sub);font-weight:400;margin-top:2px}
+.opt.pri{border-color:var(--orange);background:var(--orange-soft)}
+.opt.recing{border-color:var(--orange);box-shadow:0 0 0 3px rgba(232,101,26,.15)}
+.opt-hint{font-size:12px;color:var(--sub);font-weight:400}
+.skip{padding:10px 14px;font-size:12.5px;color:var(--sub);border-top:1px solid var(--line)}
+.skip a{color:var(--orange);font-weight:600;text-decoration:none}
+.inbar{border-top:1px solid var(--line);padding:10px 12px;display:flex;gap:8px;background:#fff}
+.inbar textarea{flex:1;resize:none;min-height:44px;max-height:110px;border:1px solid var(--line);border-radius:10px;padding:11px;font-size:14px;outline:none;background:#f7fafd;font-family:inherit;line-height:1.5}
+.inbar textarea:focus{border-color:var(--orange)}
+.inbar button{min-width:64px;min-height:44px;border-radius:10px;background:var(--orange);color:#fff;font-weight:700;font-size:13px}
+.inbar .plus-btn{min-width:44px;width:44px;padding:0;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--line);color:var(--orange)}
+.inbar .plus-btn:active{background:var(--orange-soft)}
+.sheet-mask{position:fixed;inset:0;background:rgba(28,39,51,.45);z-index:55;opacity:0;pointer-events:none;transition:opacity .2s}
+.sheet-mask.on{opacity:1;pointer-events:auto}
+.plus-menu{position:fixed;left:0;right:0;bottom:0;z-index:56;max-width:640px;margin:0 auto;background:#fff;border-radius:18px 18px 0 0;box-shadow:0 -8px 34px rgba(28,39,51,.22);padding:10px 12px calc(12px + env(safe-area-inset-bottom,0px));transform:translateY(105%);transition:transform .25s}
+.plus-menu.on{transform:translateY(0)}
+.plus-menu .pm-h{display:flex;align-items:center;justify-content:space-between;padding:2px 4px 8px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.plus-menu .pm-h b{font-size:13.5px}
+.plus-menu .pm-h button{font-size:12px;color:var(--sub);background:#f6f8fb;border-radius:999px;padding:6px 12px;font-weight:700}
+.plus-menu .pm-i{display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:none;border-radius:12px;padding:10px 8px;min-height:56px;font-size:13.5px;font-weight:700;color:var(--ink)}
+.plus-menu .pm-i em{font-style:normal;flex:1}
+.plus-menu .pm-i small{display:block;font-weight:400;font-size:12px;color:var(--sub);margin-top:2px;line-height:1.45}
+.plus-menu .pm-i:active{background:var(--orange-soft)}
+.plus-menu .pmi{width:38px;height:38px;border-radius:11px;background:var(--orange-soft);color:var(--orange);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+@media(min-width:960px){.plus-menu{max-width:460px}}
+
+/* ===== 右栏 ===== */
+.brief{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 2px 10px rgba(28,39,51,.05)}
+.b-t{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;margin-bottom:10px}
+.b-t .meter{margin-left:auto;font-size:11px;color:var(--orange);background:var(--orange-soft);border-radius:999px;padding:2px 8px;font-weight:700}
+.b-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.bf{border:1px dashed var(--line);border-radius:10px;padding:7px 9px;min-width:0}
+.bf .k{font-size:10.5px;color:var(--sub);font-weight:600}
+.bf .v{font-size:12px;font-weight:600;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bf.filled{border:1px solid var(--orange-line);background:var(--orange-soft)}
+.bf.flash{animation:bfpop .5s}
+@keyframes bfpop{30%{transform:scale(1.05);box-shadow:0 0 0 3px rgba(232,101,26,.18)}}
+.b-stat{margin-top:10px;font-size:11px;color:var(--sub);border-top:1px dashed var(--line);padding-top:9px}
+.b-stat b{color:var(--ink)}
+.b-ops{margin-top:10px}
+.big-btn{width:100%;padding:12px;min-height:44px;border-radius:12px;background:linear-gradient(135deg,#E8651A,#f5a623);color:#fff;font-size:14px;font-weight:800}
+.big-btn:disabled{background:#cdd6e0;cursor:not-allowed}
+
+.canvas{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;min-height:300px;box-shadow:0 2px 10px rgba(28,39,51,.05)}
+.dl-empty{border:1.5px dashed var(--line);border-radius:14px;padding:36px 10px;text-align:center;color:#9fb0c2;font-size:13px;background:#fbfdff;line-height:1.8}
+.h2{font-size:12px;font-weight:700;color:var(--sub);letter-spacing:1px;margin:4px 2px 8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 2px 10px rgba(28,39,51,.05);margin-bottom:12px;overflow:hidden}
+.card-h{display:flex;align-items:center;gap:8px;padding:13px 14px 9px;font-weight:700;font-size:14.5px}
+.card-h .more{margin-left:auto;font-size:12px;color:var(--orange);font-weight:600;white-space:nowrap}
+.card-b{padding:0 14px 14px}
+.copy-btn{width:100%;margin-top:10px;padding:12px 9px;min-height:44px;border-radius:10px;background:var(--orange);color:#fff;font-size:13px;font-weight:700}
+.copy-btn.ghost{background:#fff;color:var(--orange);border:1.5px solid var(--orange-line)}
+.copy-btn+.copy-btn{margin-top:6px}
+.ct{font-size:13.5px;line-height:1.8;background:#fbfdff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:8px;white-space:pre-wrap}
+.cmp-meta{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--sub);margin-top:6px}
+.cmp-meta .hi{color:var(--orange);font-weight:700}
+.cmp-grid{display:grid;grid-template-columns:1fr;gap:8px;margin-top:8px}
+@media(min-width:560px){.cmp-grid{grid-template-columns:1fr 1fr}}
+.cmp-col .cap{display:block;font-size:11px;color:var(--sub);font-weight:700;margin-bottom:2px}
+.cmp-col.old .ct{background:#f6f8fb}
+.cmp-col.new .ct{background:var(--orange-soft);border-color:var(--orange-line)}
+.check-row{display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed var(--line);font-size:12.5px}
+.check-row:last-child{border-bottom:none}
+.ci{flex-shrink:0;width:17px;height:17px;border-radius:50%;background:#e8f7ee;color:#1a9e5c;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:800;margin-top:2px}
+.check-row.warn .ci{background:#fff4e5;color:#c97a1a}
+.cq b{font-size:12.5px}
+.cq p{font-size:11.5px;color:var(--sub);margin-top:1px;line-height:1.55}
+.pub-tip{display:flex;gap:8px;background:#fffbe8;border:1px solid #f5e6a8;border-radius:10px;padding:9px 11px;font-size:11.5px;line-height:1.6;color:#8a6d1a}
+.patch-box{margin-top:9px;background:var(--orange-soft);border:1px solid var(--orange-line);border-radius:10px;padding:10px}
+.patch-box .hint{font-size:11.5px;color:var(--sub);line-height:1.6}
+.patch-box .hint.g{color:#1a9e5c}
+.patch-box .row{display:flex;gap:6px;margin-top:7px}
+.patch-box input{flex:1;border:1px solid var(--orange-line);border-radius:8px;padding:7px 9px;font-size:12.5px;outline:none;background:#fff}
+.patch-box .ok-btn{padding:7px 12px;border-radius:8px;background:var(--orange);color:#fff;font-size:12px;font-weight:700;white-space:nowrap}
+.needs-card{background:#fff6f0;border:1px solid var(--orange-line);border-radius:12px;padding:10px 12px;font-size:12.5px;line-height:1.65}
+.needs-card .hint{font-size:11px;color:var(--sub);margin-top:3px}
+.ref-grid{display:grid;grid-template-columns:1fr;gap:8px;margin-top:8px}
+@media(min-width:560px){.ref-grid{grid-template-columns:1fr 1fr}}
+.ref-cell{border-radius:10px;padding:9px 11px;font-size:11.5px;line-height:1.6}
+.ref-cell b{display:block;font-size:12px;margin-bottom:3px}
+.ref-cell ul{padding-left:15px}
+.ref-cell.g{background:#eefaf1;color:#1c6b3c}
+.ref-cell.r{background:#fdf0ef;color:#a04038}
+.ref-cell.o{background:#fff4e5;color:#8a5a1a}
+.p-chip{font-weight:800;font-size:11.5px;margin-right:6px}
+.pill-row{display:flex;align-items:center;gap:7px;font-size:11px;margin-bottom:6px}
+.pill-row .pn{flex:none;width:70px;font-weight:700;font-size:11px}
+.pill-row .bar{flex:1;height:7px;border-radius:99px;background:#eef2f7;overflow:hidden}
+.pill-row .bar i{display:block;height:100%;border-radius:99px}
+.pill-row .pc{width:30px;text-align:right;color:var(--sub);font-weight:700}
+.gen-wrap{background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px;font-size:12px}
+.gen-head{display:flex;justify-content:space-between;font-weight:800;margin-bottom:7px}
+.gen-head span{color:var(--sub);font-weight:600;font-size:11px}
+.gen-pbar{height:6px;border-radius:99px;background:#eef2f7;overflow:hidden;margin-bottom:8px}
+.gen-pbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#E8651A,#f5a623);transition:width .3s}
+.gen-log .ln{color:var(--sub);line-height:1.9;font-size:11.5px}
+.gen-log .ln .ok{color:#1a9e5c;font-weight:700}
+.gen-log .ln .hl{color:var(--orange);font-weight:700}
+.redline-banner{margin-top:12px;background:#fdf0ef;border:1px solid #f2c9c4;border-radius:12px;padding:10px 12px;font-size:11px;line-height:1.75;color:#a04038}
+.redline-banner b{font-size:11.5px}
+.plan-row{display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed var(--line);font-size:12px;line-height:1.6}
+.plan-row:last-child{border-bottom:none}
+.plan-day{flex-shrink:0;font-weight:800;color:var(--orange);width:38px;font-size:11.5px;margin-top:1px}
+
+/* ===== 素材箱 ===== */
+#matBox{border-left:3px solid var(--orange)}
+.mat-row{display:flex;gap:8px;padding:7px 0;border-bottom:1px dashed var(--line);align-items:flex-start}
+.mat-row:last-child{border-bottom:none}
+.mat-tp{font-size:15px;line-height:1.35}
+.mat-mid{flex:1;min-width:0}
+.mat-mid b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12.5px;font-weight:600;line-height:1.45;color:var(--ink)}
+.mat-mid small{display:block;font-size:12px;color:var(--sub);margin-top:2px}
+.mat-st{flex-shrink:0;font-size:11.5px;font-weight:600;padding:3px 7px;border-radius:999px;white-space:nowrap}
+.mat-row.ok .mat-st{background:#e8f7ee;color:#1a9e5c}
+.mat-row.pend .mat-st{background:#fff4e5;color:#c97a1a}
+#matBox.flash{animation:bfpop .5s}
+
+/* ===== 配图区 ===== */
+.img-strip{margin-top:10px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.img-cap{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:#fff;font-size:12.5px}
+.img-cap b{font-weight:800}
+.img-cap span{font-size:11px;color:var(--sub)}
+.go-img{display:inline-flex;align-items:center;gap:4px;margin-top:8px;min-height:38px;padding:8px 14px;border-radius:10px;background:var(--orange-soft);border:1px solid var(--orange-line);color:var(--orange);font-size:12.5px;font-weight:800}
+.img-tabs{display:flex;background:#f6f8fb;border-bottom:1px solid var(--line)}
+.img-tabs button{flex:1;padding:12px 4px;min-height:44px;font-size:12.5px;font-weight:700;color:var(--sub);background:none;border-bottom:2px solid transparent}
+.img-tabs button.act{color:var(--orange);background:#fff;border-bottom-color:var(--orange)}
+.img-body{padding:10px 11px;background:#fff}
+.img-tip{font-size:12px;color:var(--sub);line-height:1.6;margin-bottom:8px}
+.shot-list{display:flex;flex-wrap:wrap;gap:6px}
+.shot-chip{display:flex;align-items:center;gap:5px;border:1.5px solid var(--line);border-radius:10px;background:#fbfdff;padding:10px 12px;min-height:44px;font-size:12.5px;font-weight:600;color:var(--ink)}
+.shot-chip.act{border-color:var(--orange);background:var(--orange-soft)}
+.qcard{border-radius:12px;padding:16px 14px;color:#fff;position:relative;min-height:118px;display:flex;flex-direction:column;justify-content:center;box-shadow:0 6px 18px rgba(28,39,51,.16)}
+.qcard.q-gold{background:linear-gradient(135deg,#E8651A 0%,#f5a623 100%)}
+.qcard.q-ink{background:linear-gradient(135deg,#13294b 0%,#2a4a7b 100%)}
+.qcard.q-cream{background:linear-gradient(135deg,#f7ead8 0%,#f0d9b5 100%);color:#5a3d1a}
+.qcard .q-tag{font-size:9.5px;font-weight:800;letter-spacing:2px;opacity:.75;margin-bottom:7px}
+.qcard .q-txt{font-size:14.5px;font-weight:800;line-height:1.7}
+.qcard .q-by{margin-top:9px;font-size:10px;opacity:.8}
+.q-ops{display:flex;gap:6px;margin-top:8px;align-items:center}
+.q-ops button{font-size:12.5px;font-weight:700;border-radius:8px;padding:10px 12px;min-height:40px;background:#f6f8fb;color:var(--ink);border:1px solid var(--line)}
+.q-ops button.on{background:var(--orange-soft);color:var(--orange);border-color:var(--orange-line)}
+.q-ops .q-regen{margin-left:auto;background:#fff;color:var(--orange);border-color:var(--orange-line)}
+.img-chosen{display:flex;align-items:center;gap:8px;background:#eefaf1;border:1px solid #bfe8cc;border-radius:10px;padding:10px 11px;font-size:12.5px;font-weight:600;color:#1c6b3c;line-height:1.5}
+.img-redline{margin-top:8px;font-size:12px;color:#a04038;background:#fdf0ef;border-radius:8px;padding:8px 10px;line-height:1.6}
+
+/* ===== 生成中退出确认 / 详情 / toast ===== */
+.gen-exit{position:fixed;inset:0;background:rgba(28,39,51,.45);display:none;align-items:center;justify-content:center;z-index:60;padding:20px}
+.ge-card{background:#fff;border-radius:16px;padding:20px;max-width:320px;width:100%;font-size:13px;line-height:1.7}
+.ge-card b{font-size:14px}
+.ge-card span{display:block;color:var(--sub);margin:6px 0 14px}
+.ge-btns{display:flex;gap:8px}
+.ge-btns button{flex:1;padding:9px;border-radius:10px;font-size:13px;font-weight:700}
+#geStay{background:var(--orange);color:#fff}
+#geGo{background:#f6f8fb;color:var(--sub);border:1px solid var(--line)}
+.detail-ov{position:fixed;inset:0;background:#f4f7fc;z-index:50;overflow-y:auto;display:none}
+.detail-ov.on{display:block}
+.d-head{position:sticky;top:0;background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);z-index:2}
+.d-head .r1{max-width:720px;margin:0 auto;display:flex;gap:10px;align-items:center;padding:12px 16px}
+.d-head .back{width:34px;height:34px;border-radius:10px;background:#f6f8fb;font-size:18px;color:var(--ink);flex-shrink:0}
+.d-head .dt b{font-size:15px}
+.d-head .dt p{font-size:11.5px;color:var(--sub);margin-top:2px}
+.d-head .ops{max-width:720px;margin:0 auto;display:flex;gap:8px;padding:0 16px 12px}
+.d-head .ops button{flex:1;padding:10px;border-radius:11px;font-size:13px;font-weight:700;background:#f6f8fb;color:var(--ink);border:1px solid var(--line)}
+.d-head .ops .pri{background:linear-gradient(135deg,#E8651A,#f5a623);color:#fff;border:none}
+.p-chip{display:inline-block}
+.d-wrap{max-width:720px;margin:0 auto;padding:14px 16px 40px}
+.d-tabs{display:flex;gap:6px;margin-bottom:12px}
+.d-tabs button{padding:8px 14px;border-radius:999px;font-size:12.5px;font-weight:700;background:#fff;color:var(--sub);border:1px solid var(--line)}
+.d-tabs button.act{background:var(--ink);color:#fff;border-color:var(--ink)}
+.d-sec{margin-bottom:14px}
+.sh{font-size:14.5px;font-weight:800;padding:12px 14px 4px}
+.sh small{font-size:11px;color:var(--sub);font-weight:600;margin-left:6px}
+.sb{padding:8px 14px 4px}
+.feat{display:flex;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line);font-size:13px}
+.feat:last-child{border-bottom:none}
+.feat i{font-style:normal;font-size:16px;flex-shrink:0;margin-top:1px}
+.feat b{font-size:13px}
+.feat p{font-size:11.5px;color:var(--sub);line-height:1.65;margin-top:2px}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+.ptable{width:100%;border-collapse:collapse;font-size:12px;background:#fff}
+.ptable th{background:#f6f8fb;text-align:left;padding:8px 10px;font-size:11px;color:var(--sub);white-space:nowrap}
+.ptable td{padding:8px 10px;border-top:1px solid var(--line);line-height:1.5}
+.ptable .pct{font-weight:800;color:var(--orange);white-space:nowrap}
+.flow-strip{display:flex;flex-wrap:wrap;gap:6px;padding:6px 0 10px}
+.flow-cell{flex:1;min-width:104px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px;text-align:center}
+.flow-cell i{font-style:normal;display:inline-flex;width:20px;height:20px;border-radius:50%;background:var(--orange);color:#fff;font-size:11px;font-weight:800;align-items:center;justify-content:center;margin-bottom:5px}
+.flow-cell b{display:block;font-size:11.5px}
+.flow-cell em{display:block;font-style:normal;font-size:9.5px;color:var(--sub);margin-top:2px;line-height:1.4}
+#toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(16px);background:rgba(28,39,51,.94);color:#fff;font-size:12.5px;font-weight:600;padding:10px 16px;border-radius:12px;opacity:0;pointer-events:none;transition:.25s;z-index:80;max-width:86vw;text-align:center;line-height:1.6}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body class="v-chat">
+
+<!-- ===== 顶栏 ===== -->
+<div class="topbar"><div class="in">
+  <button class="back-btn" onclick="wbBack()">← 返回</button>
+  <div class="logo">思潼<i>AI</i></div>
+  <span class="tag">周域 · 私域引擎</span>
+  <div class="me">
+    <span class="safe-tag">🛡 失败不扣费</span>
+    <span class="credits">算力 <b id="cred">860</b></span>
+    <button class="mini-btn" onclick="toast('充值演示：1 元 = 10 算力 · 注册赠 100',2000)">充值</button>
+  </div>
+</div></div>
+
+<!-- ===== 主舞台：手机单列 · 桌面双栏 ===== -->
+<main class="stage">
+
+  <!-- 左：对话流 -->
+  <section class="chat" id="viewChat">
+    <div class="chat-head">
+      <div class="av">周</div>
+      <div class="cht"><b>周域 · 私域增长顾问</b><span>朋友圈 + 社群双阵地 · 素材随手喂</span></div>
+      <button class="demo-btn" id="demoBtn" onclick="toggleDemo()"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg> 一键演示</button>
+      <button class="mini-btn" id="detailBtn" onclick="openDetail()"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z"/><path d="M14 3v5h5"/></svg> 详情</button>
+    </div>
+    <div class="log" id="chatLog"></div>
+    <div class="skip">赶时间？<a id="skipGuide" onclick="fastFillAll()">AI 先铺底稿，你来逐条确认 →</a></div>
+    <div class="inbar">
+      <button class="plus-btn" id="chatPlus" onclick="openPlus()" title="提交素材（文字/语音/图片/视频/文件）" aria-label="提交素材"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+      <textarea id="chatIn" rows="1" placeholder="选个任务，或直接打字…"></textarea>
+      <button id="chatSend">发送</button>
+    </div>
+  </section>
+
+  <!-- 右：工作台面板 -->
+  <section class="ws" id="viewWork">
+    <div class="ws-nav" id="wsNav">
+      <button class="act" onclick="wsJump('secBrief',this)">简报</button>
+      <button onclick="wsJump('matBox',this)">素材箱</button>
+      <button onclick="wsJump('dlOut',this)">交付</button>
+    </div>
+    <div class="brief" id="secBrief">
+      <div class="b-t"><b><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="i" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 2.5h6v3H9z"/><path d="M9 11h6M9 15h4"/></svg> 发圈简报</b><span class="meter" id="briefPct">0/7</span></div>
+      <div class="b-grid" id="briefGrid"></div>
+      <div class="b-stat">今日已发 <b>1/2</b> · 本周咨询 <b>3</b> · 共鸣率 <b>40%</b> · 本月成交 <b>2</b>（虚构演示数据）</div>
+      <div class="b-ops"><button class="big-btn" id="mainBtn" onclick="mainGo()">⚡ 选择对话里的任务</button></div>
+    </div>
+    <div class="canvas">
+      <div class="card" id="matBox">
+        <div class="card-h"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="i" aria-hidden="true"><path d="M4 13h4l2 3h4l2-3h4"/><path d="M5.5 5h13l1.5 8v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5l1.5-8z"/></svg> 素材箱 <span class="more" id="matCnt">4 条 · 今日</span></div>
+        <div class="card-b" id="matList"></div>
+      </div>
+      <div class="dl-empty" id="dlEmpty"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-7px" aria-hidden="true"><path d="M5 9h14l-1.5 10a2 2 0 0 1-2 1.7h-7A2 2 0 0 1 6.5 19L5 9z"/><path d="M8.5 9 12 3l3.5 6"/><path d="M9.5 13v3M14.5 13v3"/></svg> 交付物会出现在这里<br><small>对话里走完流程，候选文案 + 配图 / 群消息 / 周历卡自动落到这里</small></div>
+      <div id="dlOut"></div>
+      <div class="redline-banner"><b>⛔ 私域内容红线 · 朋友圈/社群（内建在引擎里，不是文档约定）</b><br>不编造案例、不夸大数据、不造假聊天记录 · 隐去人名/公司名/金额/可辨认截图 · 禁用词自动拦截：私信 / 加微信 / 联系我 / 第一 / 最 / 绝对 / 保证 · AI 腔拦截：赋能 / 抓手 / 闭环 / 打法 · 不发鸡汤、不发纯转发、不发纯广告<br><b>配图同规</b>：客户照片 / 聊天记录截图 / 门店实拍 —— AI 不生成、只修不造（脱敏打码）；可生成仅限金句卡 / 节气海报 / 知识卡片</div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ===== 生成中退出确认 ===== -->
+<div class="gen-exit" id="genExitMask">
+  <div class="ge-card">
+    <b>⏳ 生成中 · 退出将丢失本次进度</b>
+    <span>正在生成交付物，中途返回需要重新开始。确认要离开吗？</span>
+    <div class="ge-btns"><button id="geStay">继续等待</button><button id="geGo">仍要退出</button></div>
+  </div>
+</div>
+
+<!-- ================= 商品详情页 overlay ================= -->
+<div class="detail-ov" id="detailOv">
+  <div class="d-head">
+    <div class="r1">
+      <button class="back" onclick="closeDetail()">‹</button>
+      <div class="dt"><b>周域 · 私域增长顾问 <span class="p-chip" style="color:#ffb37a">💬 私域引擎</span></b><p>朋友圈 + 社群双阵地 · 把工作日常变成客户信任</p></div>
+    </div>
+    <div class="ops">
+      <button class="pri" onclick="jumpUse()">⚡ 立即使用</button>
+      <button onclick="toast('已收藏 · 在「我的-收藏」可见',1600)">☆ 收藏</button>
+      <button onclick="toast('客服演示：工作日 9:00-19:00 在线',1800)">💬 客服</button>
+    </div>
+  </div>
+  <div class="d-wrap">
+    <div class="d-tabs" id="dTabs">
+      <button class="act" data-d="0" onclick="setDTab(0)">能力清单</button>
+      <button data-d="1" onclick="setDTab(1)">文案铁律</button>
+      <button data-d="2" onclick="setDTab(2)">配图规则</button>
+      <button data-d="3" onclick="setDTab(3)">计费说明</button>
+    </div>
+
+    <div class="d-page" id="dpage-0">
+      <div class="d-sec">
+        <div class="sh">🎯 私域引擎 · 朋友圈 + 社群两大阵地 <small>对齐兰琪落地方案</small></div>
+        <div class="sb">
+          <div class="feat"><i>📥</i><div><b>素材五路进 · 一个素材箱</b><p>今天的工作日常、所思所想、工作文件都能喂：打字 / 语音转写 / 图片视频 / Word·PDF·Excel / 微信聊天记录转发——素材自动进箱，AI 提炼信号、标记隐私风险</p></div></div>
+          <div class="feat"><i>⚡</i><div><b>朋友圈 · 快速模式（30 秒出稿）</b><p>已写好草稿：传图 + 粘原话 → AI 诊断升级 → 原稿/升级稿对比 → 微调后发布；可选目标、口吻、升级强度、保留原话</p></div></div>
+          <div class="feat"><i>🎯</i><div><b>朋友圈 · 专业模式 · 七柱（体系化）</b><p>还没想好发什么：喂工作素材 → 信号提取 → 分柱归类 → 按七柱体系从零写出图文</p></div></div>
+          <div class="feat"><i>🖼️</i><div><b>配图 · 实拍引用 + AI 金句卡</b><p>每条候选自带配图区：实拍从素材箱一键挂图（AI 只修不造：脱敏打码）；没图可生成金句卡 / 节气海报 / 知识卡片，风格跟人设走</p></div></div>
+          <div class="feat"><i>👥</i><div><b>微信群 · 社群营销</b><p>活动通知 / 日常维护 / 裂变引流 / 节日问候：AI 按群聊节奏拆多条，复制逐条发</p></div></div>
+          <div class="feat"><i>🗓️</i><div><b>周计划 + 人设档案</b><p>一周内容策略按七柱配比排期（每天带配图建议）；首次建档一次，定位长期复用</p></div></div>
+        </div>
+      </div>
+      <div class="d-sec">
+        <div class="sh">🏛️ 七柱内容体系 <small>每条回答客户一个问题</small></div>
+        <div class="sb">
+          <div class="tbl-wrap"><table class="ptable">
+            <tr><th>柱子</th><th>目的</th><th>占比</th><th>典型素材</th></tr>
+            <tr><td>工作现场</td><td>证明你在做事</td><td class="pct">40%</td><td>开会、交付、客户沟通、复盘</td></tr>
+            <tr><td>客户问题</td><td>让客户觉得你懂他</td><td class="pct">25%</td><td>常见痛点、误区、犹豫、隐形焦虑</td></tr>
+            <tr><td>方法论</td><td>展示专业判断力</td><td class="pct">15%</td><td>框架、原则、决策逻辑、踩坑经验</td></tr>
+            <tr><td>案例证据</td><td>用结果建立信任</td><td class="pct">10%</td><td>前后对比、客户反馈、里程碑</td></tr>
+            <tr><td>价值观边界</td><td>让客户了解你的底线</td><td class="pct">5%</td><td>拒绝过的需求、坚持的标准</td></tr>
+            <tr><td>生活温度</td><td>让人觉得你好接近</td><td class="pct">5%</td><td>轻生活、学习笔记、情绪感受</td></tr>
+            <tr><td>软邀约</td><td>提供低压力咨询入口</td><td class="pct">5%</td><td>诊断名额、资源分享、「可以交流」</td></tr>
+          </table></div>
+        </div>
+      </div>
+      <div class="d-sec">
+        <div class="sh">⚙️ 六步工作流 <small>信号 → 信任的流水线</small></div>
+        <div class="sb">
+          <div class="flow-strip">
+            <div class="flow-cell"><i>1</i><b>输入素材</b><em>打字/语音/图/文件/微信转发</em></div>
+            <div class="flow-cell"><i>2</i><b>信号提取</b><em>找最强业务信号</em></div>
+            <div class="flow-cell"><i>3</i><b>分柱归类</b><em>按七柱配比</em></div>
+            <div class="flow-cell"><i>4</i><b>文案生成</b><em>带选配 CTA</em></div>
+            <div class="flow-cell"><i>5</i><b>质量审查</b><em>隐私/营销/真实感</em></div>
+            <div class="flow-cell"><i>6</i><b>发布策略</b><em>时间+配图+反馈</em></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-page" id="dpage-1" style="display:none">
+      <div class="d-sec">
+        <div class="sh">📜 文案铁律 <small>每条都过</small></div>
+        <div class="sb">
+          <div class="feat"><i>✓</i><div><b>一句话一个意思</b><p>每条 100-200 字，短句，口语，像手机打出来的</p></div></div>
+          <div class="feat"><i>✓</i><div><b>从具体场景出发</b><p>不说「今天感悟很深」，说「今天帮一个火锅品牌跑通了AI获客」</p></div></div>
+          <div class="feat"><i>✓</i><div><b>专业感用行为证明</b><p>不说「我很专业」，说「今天帮客户排查了一个AI流程卡点」</p></div></div>
+          <div class="feat"><i>✓</i><div><b>软 CTA，不硬推</b><p>不说「私信我」，说「有类似问题可以交流」</p></div></div>
+          <div class="feat"><i>✓</i><div><b>保护客户隐私</b><p>隐去人名、公司名、具体金额、可辨认截图</p></div></div>
+          <div class="feat"><i>✓</i><div><b>不编造</b><p>不发明案例、不夸大数据、不造假客户聊天</p></div></div>
+          <div class="feat"><i>✓</i><div><b>缺真实数字只留占位</b><p>正文缺数字时插入【这里补一个真实数字】，老板亲补（例：护理 40 分钟），补完检查项才变绿 —— 系统不替你编</p></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-page" id="dpage-2" style="display:none">
+      <div class="d-sec">
+        <div class="sh">🖼️ 配图规则 <small>真实感优先 · 能不生成就不生成</small></div>
+        <div class="sb">
+          <div class="feat"><i>📷</i><div><b>实拍图为主（信任来源）</b><p>工作现场、交付过程最值钱的是真实感：从素材箱一键挂图，AI 只修不造——客户隐私打码（人脸 / 车牌 / 联系方式），门头、logo、位置等你的品牌信息原样保留，与文案隐私泛化同一条流水线</p></div></div>
+          <div class="feat"><i>🎨</i><div><b>AI 生成仅限装饰性配图</b><p>金句卡 / 节气海报 / 知识卡片 / 方法论配图——模板合成，风格跟人设档案走；每条候选可一键生成、可换样式、可换句子</p></div></div>
+          <div class="feat"><i>⛔</i><div><b>三类图绝不生成</b><p>伪造客户案例图、假聊天记录截图、假门店/客户照片——既踩「不编造」红线，也最掉信任。AI 会直接拒绝并给替代方案</p></div></div>
+          <div class="feat"><i>🧩</i><div><b>每条候选 = 文案 + 配图</b><p>七柱候选自动给配图建议：工作现场/案例柱 → 建议实拍；方法论/价值观柱 → 建议金句卡；引用素材箱实拍后自动带「隐私已打码」标记</p></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-page" id="dpage-3" style="display:none">
+      <div class="d-sec">
+        <div class="sh">💰 计费说明 <small>演示数据</small></div>
+        <div class="sb">
+          <div class="feat"><i>⚡</i><div><b>快速升级 · 5 算力/条</b><p>原稿诊断 + 升级 + 配图建议；重新生成同价</p></div></div>
+          <div class="feat"><i>🎯</i><div><b>七柱从零写 · 15 算力/次</b><p>3 条候选 + 每条配图区；金句卡生成演示期免费（正式版 2 算力/张）</p></div></div>
+          <div class="feat"><i>👥</i><div><b>群消息拆条 · 15 算力/次</b><p>按目的拆 3 条，节奏建议随附</p></div></div>
+          <div class="feat"><i>🗓️</i><div><b>周计划 · 50 算力/次</b><p>七日周历卡 + 每日配图建议；人设建档演示免费（正式 20 算力）</p></div></div>
+          <div class="feat"><i>🛡</i><div><b>失败不扣费</b><p>生成失败自动退回算力；算力 1 元 = 10 算力，注册赠 100</p></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 手机端底部导航 ===== -->
+<nav class="b-tabs" aria-label="视图切换">
+  <button id="tabChat" class="act" onclick="switchView('chat')"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5c0 4.1-4 7.5-9 7.5-1 0-2-.1-2.9-.4L4 20l1.2-3.1C3.8 15.6 3 13.6 3 11.5 3 7.4 7 4 12 4s9 3.4 9 7.5z"/></svg> 对话</button>
+  <button id="tabWork" onclick="switchView('work')"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M4 12h16"/></svg> 工作台<span class="dot" id="workDot"></span></button>
+</nav>
+
+<!-- ===== 素材提交 · 底部面板（五路进一个素材箱） ===== -->
+<div class="sheet-mask" id="sheetMask" onclick="closePlus()"></div>
+<div class="plus-menu" id="plusMenu" role="dialog" aria-label="提交素材">
+  <div class="pm-h"><b>提交素材 · 五路进一个素材箱</b><button onclick="closePlus()">关闭</button></div>
+  <button class="pm-i" onclick="plusPick(0)"><span class="pmi"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="11" rx="2"/><path d="M7 11h.01M11 11h.01M15 11h.01M7 14.5h10"/></svg></span><em>打字 / 粘文字<small>工作日常、所思所想，像发微信一样直接发</small></em></button>
+  <button class="pm-i" onclick="plusPick(1)"><span class="pmi"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></span><em>语音说<small>占位演示 · 正式版自动转写，说完素材自动进箱</small></em></button>
+  <button class="pm-i" onclick="plusPick(2)"><span class="pmi"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4.5 17 4.5-4 3.5 3 3-2.5 4 3.5"/></svg></span><em>图片 / 视频<small>最多 9 张 + 短视频 · 演示仅本地预览不上传</small></em></button>
+  <button class="pm-i" onclick="plusPick(3)"><span class="pmi"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z"/><path d="M14 3v5h5"/></svg></span><em>工作文件<small>Word / PDF / Excel · 自动摘出可用的点</small></em></button>
+  <button class="pm-i" onclick="plusPick(4)"><span class="pmi"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4"/><path d="m8 8 4-4 4 4"/><path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg></span><em>微信转发<small>聊天记录转发给周域 · 自动进箱（占位演示）</small></em></button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ===== 工具 ===== */
+function $(s){return document.querySelector(s)}
+function $$(s){return Array.prototype.slice.call(document.querySelectorAll(s))}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+var tmr;
+function toast(m,ms){var t=$('#toast');t.innerHTML=m;t.classList.add('on');clearTimeout(tmr);tmr=setTimeout(function(){t.classList.remove('on')},ms||2200)}
+function spotlight(el){el.style.boxShadow='0 0 0 3px rgba(232,101,26,.35)';setTimeout(function(){el.style.boxShadow=''},1200)}
+function spend(n){var c=$('#cred');c.textContent=Math.max(0,parseInt(c.textContent,10)-n);c.style.color='#E8651A';setTimeout(function(){c.style.color=''},900)}
+function copyText(txt,msg){
+  var ok=false;
+  try{var ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();ok=document.execCommand('copy');ta.remove()}catch(e){}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).catch(function(){})}
+  toast(msg||( ok?'已复制':'已复制（部分浏览器需长按手动复制）'),2000);
+}
+/* ===== 内联图标（chrome UI 用 SVG，正文 emoji 保留） ===== */
+var ICO={
+  bolt:'<path d="M13 2 4.5 13.5H11L9.5 22 19 10h-6.5L13 2z"/>',
+  clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  refresh:'<path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/><path d="M20.5 3.5v5h-5"/>',
+  play:'<path d="M7 4.5v15l12-7.5z"/>',
+  stop:'<rect x="6.5" y="6.5" width="11" height="11" rx="1.5"/>'
+};
+function ico(n,sz){
+  sz=sz||14;
+  var solid=(n==='play'||n==='stop');
+  return '<svg viewBox="0 0 24 24" width="'+sz+'" height="'+sz+'" fill="'+(solid?'currentColor':'none')+'"'+(solid?'':' stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"')+' style="vertical-align:-2px" aria-hidden="true">'+ICO[n]+'</svg>';
+}
+
+/* ===== 状态 ===== */
+var S={};
+
+/* ===== 视图切换（手机端：对话 / 工作台） ===== */
+function switchView(v){
+  S.view=v;
+  document.body.classList.toggle('v-chat',v==='chat');
+  document.body.classList.toggle('v-work',v==='work');
+  var tc=$('#tabChat'),tw=$('#tabWork');
+  if(tc)tc.classList.toggle('act',v==='chat');
+  if(tw)tw.classList.toggle('act',v==='work');
+  if(v==='work'&&$('#workDot'))$('#workDot').style.display='none';
+  window.scrollTo(0,0);
+  if(v==='chat')scrollChat();
+}
+function workNotify(){
+  if(S.view!=='work'&&$('#workDot')){$('#workDot').style.display='inline-block'}
+}
+/* ===== 工作台吸顶锚点 ===== */
+function wsJump(id,btn){
+  var t=$('#'+id);
+  if(!t||(id==='dlOut'&&$('#dlEmpty').style.display!=='none'))t=$('#matBox');
+  if(!t)return;
+  try{t.scrollIntoView({behavior:'smooth',block:'start'})}catch(e){t.scrollIntoView()}
+  var bs=$('#wsNav').querySelectorAll('button');
+  for(var i=0;i<bs.length;i++)bs[i].classList.toggle('act',bs[i]===btn);
+}
+
+/* ===== 素材箱（五路提交：打字/语音/图片视频/文件/微信转发） ===== */
+var MATS=[
+  {tp:'📷',src:'相册 · 工作现场实拍',sum:'贴膜过程 2 张 + 交付前后对比（客户隐私已打码，可挂图引用）',st:'ok',stTxt:'📷 可挂图'},
+  {tp:'📝',src:'聊天框 · 今日素材',sum:'贴膜门店老板「不敢往里投钱」的顾虑 + 接待流程拆解（客人进店前没人知道他是谁）',st:'ok',stTxt:'✓ 已提炼'},
+  {tp:'💬',src:'微信 · 聊天记录转发',sum:'3 位加盟商问「支持为什么落不了地」的原话（隐私已泛化）',st:'ok',stTxt:'✓ 已提炼'},
+  {tp:'📄',src:'文件 · 周报1018.docx',sum:'上周门店数据周报：到店 / 转化 / 老客回流口径',st:'pend',stTxt:'⏳ 待提炼'}
+];
+function shotMats(){return MATS.filter(function(m){return m.tp==='📷'})}
+function renderMats(){
+  var el=$('#matList');if(!el)return;
+  el.innerHTML=MATS.map(function(m){return '<div class="mat-row '+m.st+'"><span class="mat-tp">'+m.tp+'</span><div class="mat-mid"><b>'+m.sum+'</b><small>'+m.src+'</small></div><span class="mat-st">'+m.stTxt+'</span></div>'}).join('');
+  $('#matCnt').textContent=MATS.length+' 条 · 今日';
+}
+function addMat(tp,src,sum,st,stTxt){
+  MATS.unshift({tp:tp,src:src,sum:sum,st:st||'ok',stTxt:stTxt||'✓ 已提炼'});
+  renderMats();
+  var b=$('#matBox');if(b){b.classList.remove('flash');void b.offsetWidth;b.classList.add('flash')}
+}
+var PLUS_DEMO=[
+  null,
+  {tp:'🎤',src:'语音 · 62 秒（已转写）',sum:'今天最大的感受：客人不是嫌贵，是怕选错。下次把对比表摆出来。'},
+  {tp:'📷',src:'相册 · 新增 1 图',sum:'店内一角随手拍（可挂图引用）',stTxt:'📷 可挂图'},
+  {tp:'📄',src:'文件 · 周报1021.docx',sum:'上周门店周报：到店 38 · 转化 9 · 老客回流 4'},
+  {tp:'💬',src:'微信 · 聊天记录转发',sum:'加盟商原话 3 条：「支持为什么落不了地」等（隐私已泛化）'}
+];
+function openPlus(){$('#plusMenu').classList.add('on');$('#sheetMask').classList.add('on')}
+function closePlus(){$('#plusMenu').classList.remove('on');$('#sheetMask').classList.remove('on')}
+function plusPick(i){
+  closePlus();
+  if(i===0){$('#chatIn').focus();toast('像发微信一样打字就行：工作日常、所思所想、客人原话、文件要点…',2600);return}
+  var m=PLUS_DEMO[i];
+  addMat(m.tp,m.src,m.sum,'ok',m.stTxt);
+  toast('📥 已进素材箱：'+m.src+'（演示数据）',2600);
+}
+
+/* ===== 简报 ===== */
+var BFIELDS=[
+  {k:'role',icon:'👤',label:'角色'},
+  {k:'task',icon:'🧭',label:'任务模式'},
+  {k:'goal',icon:'🎯',label:'目标'},
+  {k:'tone',icon:'🗣',label:'口吻'},
+  {k:'level',icon:'🎚',label:'强度'},
+  {k:'keep',icon:'🔒',label:'保留原话'},
+  {k:'img',icon:'🖼',label:'配图'}
+];
+function renderBrief(){
+  var html='';
+  BFIELDS.forEach(function(f){
+    var v=S.brief[f.k];
+    var filled=v&&v!=='——'&&v!=='未填'&&v!=='待选择';
+    html+='<div class="bf'+(filled?' filled':'')+'" id="bf_'+f.k+'"><div class="k">'+f.icon+' '+f.label+'</div><div class="v">'+(v||'——')+'</div></div>';
+  });
+  $('#briefGrid').innerHTML=html;
+  var n=0;BFIELDS.forEach(function(f){var v=S.brief[f.k];if(v&&v!=='——'&&v!=='未填'&&v!=='待选择')n++});
+  $('#briefPct').textContent=n+'/7';
+}
+function setBrief(k,v){
+  S.brief[k]=v;renderBrief();
+  var el=$('#bf_'+k);if(el){el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash')}
+}
+
+/* ===== 主按钮 ===== */
+var TASK_NAME={fast:'⚡ 快速升级',pro:'🎯 七柱从零写',wx:'👥 群消息拆条',plan:'🗓 周计划',prof:'🪪 人设建档',rev:'📊 发后复盘'};
+var BTN={fast:'⚡ AI 诊断升级（5 算力/条）',pro:'⚡ 生成 3 条候选（15 算力）',wx:'👥 拆 3 条群消息（15 算力）',plan:'🗓 生成周历（50 算力）',prof:'🪪 生成人设档案（演示免费）',rev:'📊 去工作台点信号'};
+function updateMainBtn(){
+  var b=$('#mainBtn');
+  if(S.mainState==='gen'){b.disabled=true;b.innerHTML=ico('clock',14)+' 生成中…';return}
+  if(S.mainState==='done'){b.disabled=false;b.innerHTML=ico('refresh',14)+' 再来一条';return}
+  if(S.task==='menu'||!TASK_NAME[S.task]){b.disabled=true;b.innerHTML=ico('bolt',14)+' 选择对话里的任务';return}
+  b.disabled=(S.task==='rev');
+  b.innerHTML=ico('bolt',14)+' '+String(BTN[S.task]||'选择左侧任务').replace(/^[^A-Za-z0-9\u4e00-\u9fa5]+/,'');
+}
+function mainGo(){
+  if(S.mainState==='gen')return;
+  if(S.mainState==='done'){startTask(S.task);return}
+  switch(S.task){
+    case 'fast':fastMain();break;
+    case 'pro':proMain();break;
+    case 'wx':wxMain();break;
+    case 'plan':planMain();break;
+    case 'prof':profMain();break;
+    case 'rev':toast('在工作台「已发记录」里点「五级信号」，我按信号给策略',2000);break;
+    default:toast('先在对话里选一个任务',1800);
+  }
+}
+
+/* ===== 对话引擎 ===== */
+var chatLog=$('#chatLog');
+function scrollChat(){
+  try{chatLog.scrollTo({top:chatLog.scrollHeight,behavior:'smooth'})}catch(e){chatLog.scrollTop=chatLog.scrollHeight}
+}
+/* ===== 打字中三点动画 ===== */
+var tyEl=null;
+function showTyping(){
+  if(tyEl)return;
+  var d=document.createElement('div');d.className='msg';
+  d.innerHTML='<div class="m-av">周</div><span class="typing"><i></i><i></i><i></i></span>';
+  chatLog.appendChild(d);scrollChat();tyEl=d;
+}
+function hideTyping(){if(tyEl){tyEl.remove();tyEl=null}}
+function addMsg(html,who){
+  var d=document.createElement('div');d.className='msg'+(who==='user'?' user':'');
+  d.innerHTML=(who==='user'?'':'<div class="m-av">周</div>')+'<div class="bub">'+html+'</div>';
+  chatLog.appendChild(d);scrollChat();return d;
+}
+function addOpts(items,cb){
+  var box=document.createElement('div');box.className='opts';
+  items.forEach(function(o,i){
+    var b=document.createElement('button');b.className='opt'+(o.pri?' pri':'');
+    b.setAttribute('data-k',o.k||'');
+    b.innerHTML=o.t+(o.d?'<small>'+o.d+'</small>':'');
+    b.onclick=function(){if(S.lock)return;box.remove();S.curBox=null;cb(i,o)};
+    box.appendChild(b);
+  });
+  chatLog.appendChild(box);scrollChat();S.curBox=box;return box;
+}
+function pickOptAt(i){
+  var box=S.curBox;if(!box)return;
+  var b=box.querySelectorAll('.opt')[i];if(!b)return;
+  b.classList.add('recing');
+  setTimeout(function(){if(b.parentNode)b.click()},260);
+}
+function tryPickByText(v){
+  var box=S.curBox;if(!box)return false;
+  var btns=box.querySelectorAll('.opt');
+  for(var i=0;i<btns.length;i++){
+    var k=btns[i].getAttribute('data-k')||'';
+    if(k&&v.indexOf(k)>=0){btns[i].click();return true}
+    if(k&&k.indexOf(v)===0&&v.length>=2){btns[i].click();return true}
+  }
+  return false;
+}
+function setPh(t){$('#chatIn').placeholder=t}
+function userSays(v){addMsg(esc(v),'user');route(v)}
+function route(v){
+  if(S.lock)return;
+  switch(S.task){
+    case 'menu':menuText(v);break;
+    case 'fast':fastText(v);break;
+    case 'pro':proText(v);break;
+    case 'wx':wxText(v);break;
+    case 'plan':planText(v);break;
+    case 'prof':profText(v);break;
+    case 'rev':addMsg('点工作台「已发记录」里的五级信号按钮，我按信号给下一条的调法。');break;
+    default:addMsg('先从任务入口选一个开始吧。');
+  }
+}
+function menuText(v){
+  for(var k in TASK_NAME){if(v.indexOf(TASK_NAME[k])>=0||v.indexOf(k)>=0){startTask(k);return}}
+  addMsg('想从哪个开始？直接点下面的入口，或打任务名：');
+  showMenu();
+}
+function showMenu(){
+  S.task='menu';S.step='';S.mainState='idle';updateMainBtn();
+  setBrief('task','待选择');
+  setPh('选个任务，或直接打字…');
+  addMsg('想从哪个开始？点下面任一入口，我逐条问你：');
+  addOpts(TASKS,function(i,o){startTask(o.k)});
+}
+var TASKS=[
+  {t:'⚡ 快速升级',d:'已有草稿 · 30 秒出稿 · 5 算力/条',k:'fast',pri:true},
+  {t:'🎯 七柱从零写',d:'喂素材 · 3 条候选+配图 · 15 算力',k:'pro'},
+  {t:'👥 群消息拆条',d:'4 目的 · 拆 3 条 · 15 算力',k:'wx'},
+  {t:'🗓 周计划',d:'七日周历+配图建议 · 50 算力',k:'plan'},
+  {t:'🪪 人设建档',d:'4 问建档 · 演示免费（正式 20）',k:'prof'},
+  {t:'📊 发后复盘',d:'五级信号 · 出策略',k:'rev'}
+];
+function startTask(k){
+  if(S.lock)return;
+  S.task=k;S.step='';S.raw='';S.src='';S.planFocus='';S.prof={};S.patched=null;S.mainState='idle';
+  setBrief('task',TASK_NAME[k]);
+  updateMainBtn();
+  if(k==='fast'||k==='pro'){
+    S.step='role';
+    addMsg(k==='fast'?'好，快速升级先对个焦：你的角色是？':'好，七柱从零写先对个焦：你的角色是？<br><span class="opt-hint">决定素材提示与文案侧重</span>');
+    addOpts([
+      {t:'🏪 本地单店',k:'单店',d:'灶台/门店日常 · 顾客故事 · 本地人情味'},
+      {t:'🏭 连锁品牌',k:'连锁',d:'巡店/加盟商案例 · 体系与方法论'},
+      {t:'💼 OPC 运营',k:'OPC',d:'帮客户出周计划与配比建议'}
+    ],function(i){pickRole(['store','chain','opc'][i],k)});
+    setPh('点上面的角色选项…');
+  }else if(k==='wx'){
+    S.step='purpose';
+    addMsg('微信群营销——先选这条群消息的目的：<br><span class="opt-hint">示例群：XX贴膜 · 会员1群（138 人）</span>');
+    addOpts(WX_PURPOSE,pickPurpose);
+    setPh('点上面的目的选项，或输入「活动通知」等…');
+  }else if(k==='plan'){
+    S.step='focus';
+    addMsg('周计划——这周店里的重点是什么？<br><span class="opt-hint">上新 / 活动 / 老客回流，直接打字说</span>');
+    setPh('这周店里的重点是什么？上新 / 活动 / 老客回流…');
+    addOpts([{t:'📋 填入示例重点',k:'示例'}],function(){userSays(DEMO_PLAN)});
+  }else if(k==='prof'){
+    S.step='p1';
+    addMsg('人设建档——4 个问题逐个聊，一次建档长期复用。<br><span class="opt-hint">建档演示免费 · 正式版一次性 20 算力</span><br><br><b>① 你应该是？（一句话人设）</b>');
+    setPh('例：帮门店做AI增长的实操者，不是卖课的');
+    addOpts([{t:'✓ 用示例：帮门店做AI增长的实操者，不是卖课的',k:'示例'}],function(){userSays(DEMO_PROF.p1)});
+  }else if(k==='rev'){
+    addMsg('复盘——最近的已发记录放在「工作台」里了。点每条的「五级信号」，我告诉你下一条怎么调。');
+    renderRevDeliver();
+    S.mainState='idle';updateMainBtn();
+    workNotify();
+  }
+}
+var ROLES={
+  store:{icon:'🏪',n:'本地单店',side:'灶台日常 · 顾客故事 · 本地人情味'},
+  chain:{icon:'🏭',n:'连锁品牌',side:'巡店案例 · 加盟商共性问题 · 体系方法论'},
+  opc:{icon:'💼',n:'OPC 运营',side:'替客户出周计划与配比 · 第一视角服务'}
+};
+var SRC_HINT={
+  store:'今天店里发生了什么？接待了谁、客人问了什么、做了哪个小改变…（像发微信一样打字就行）',
+  chain:'今天巡了几家店？加盟商聊出什么共性问题、体系上有什么新判断…',
+  opc:'客户本周的经营重点是什么？贴进来，帮你出七柱配比与周计划建议…'
+};
+function pickRole(r,task){
+  S.role=r;
+  setBrief('role',ROLES[r].icon+' '+ROLES[r].n);
+  addMsg(esc(ROLES[r].icon+' '+ROLES[r].n)+' ——侧重：'+esc(ROLES[r].side),'user');
+  addMsg('好，'+ROLES[r].n+'。');
+  if(task==='fast'){
+    S.step='raw';
+    addMsg('把你写好的原话<b>直接发我</b>（聊天框打字就行，至少 15 字）——我帮你诊断问题、补钩子、补结尾。');
+    setPh('把原话粘进来（至少 15 字）…');
+    addOpts([{t:'📷 传图（占位演示：最多 9 张，仅本地预览不上传）',k:'传图'},{t:'📋 填入示例原话',k:'示例',pri:true}],function(i){
+      if(i===0){toast('📷 传图为占位演示：最多 9 张，仅本地预览不上传（正式版同兰琪口径）',2400)}
+      else{userSays(DEMO_RAW[S.role])}
+    });
+  }else{
+    S.step='src';
+    addMsg('把今天的素材发我：'+esc(SRC_HINT[r]));
+    setPh(SRC_HINT[r]);
+    addOpts([{t:'🎤 语音输入（占位演示：正式版对接转写引擎）',k:'语音'},{t:'📋 填入示例素材',k:'示例',pri:true}],function(i){
+      if(i===0){toast('🎤 语音输入为占位演示：正式版对接转写引擎，说完自动进素材',2400)}
+      else{userSays(DEMO_SRC[S.role])}
+    });
+  }
+}
+
+/* ===== 业务数据（口径与线上方案一致 · 虚构匿名 · 铁律合规） ===== */
+var TOKEN='【这里补一个真实数字】';
+var DEMO_RAW={
+  store:'今天店里来了个客人，做了个清洁护理，她走的时候挺满意的，说下次还来',
+  chain:'今天巡店，A 店的转化比另外两家高，店长每天多问客人一句话，效果就不一样',
+  opc:'今天帮客户排了下周的朋友圈，工作现场 3 条客户问题 2 条，排期对了写起来快'
+};
+var DEMO_SRC={
+  store:'下午在一家贴膜门店。老板说AI获客听着热闹，就是不敢往里投钱。把他的接待流程拆开看：客人进店前，没人知道他是谁。',
+  chain:'今天巡了 3 家店。同一套流程，A 店转化比另外两家高一截。差异：店长每天愿不愿意多问客人一句话。加盟商还在问「支持为什么落不了地」。',
+  opc:'给客户排下周朋友圈：工作现场 3 条、客户问题 2 条、软邀约 1 条。另外推掉一个要求包装流水的单子。'
+};
+var DEMO_PLAN='本周重点：老客回流活动预热，周三上新，周末冲一波到店';
+var DEMO_PROF={p1:'帮门店做AI增长的实操者，不是卖课的',p2:'你在真店里解决问题，且解决问题有方法',p3:'AI在门店落地的过程记录与判断',p4:'纯广告、鸡汤、客户隐私截图'};
+var REF_DEMO={
+  store:{usable:['贴膜门店老板「不敢往里投钱」的顾虑','接待流程拆解：客人进店前没人知道他是谁','老板原话「听着热闹」，可作口语引用'],risk:'检测到具体行业与到店场景 → 已泛化为「一家贴膜门店」；未出现人名 / 金额 / 可辨认截图',strong:'客人进店前不知道他是谁 → 流程卡点（可复用为客户问题柱素材）'},
+  chain:{usable:['3 家店转化差异：店长是否多问一句话','加盟商「支持落不了地」的共性抱怨','开工率 6 成 → 9 成的巡店清单做法'],risk:'品牌与城市信息不得出现 → 已泛化为「一家连锁品牌」；开工率数字为对方运营自报，已注明来源',strong:'「落地动作没拆到谁、什么时候、做完长什么样」→ 方法论柱'},
+  opc:{usable:['客户下周排期：3+2+1 的柱子结构','「怕发错」的普遍心理','推单事件：拒绝包装流水'],risk:'客户行业与名称已隐去；金额示例为虚构演示数据，不作为效果承诺',strong:'「客户要看的不是完美，是真实」→ 价值观柱'}
+};
+var FAST_BODY={
+  store:'今天店里来了位老客人。护理做了'+TOKEN+'，她走的时候说下次带朋友一起来。你看，客人不会因为你推销才来，是因为舒服才再来。有做店的姐妹，可以交流。⚡',
+  chain:'今天巡了 3 家店，A 店转化比另外两家高。差的不在人，在店长每天多问客人'+TOKEN+'句话，就这一句，客人觉得被在意了。体系能复制，这个动作先写进 SOP。做连锁的老板，应该懂我说的。⚡',
+  opc:'今天帮客户排下周的朋友圈：工作现场 3 条，客户问题 2 条，软邀约 1 条。排到'+TOKEN+'天就见效，关键不是写多少条，是每条都知道在回答客户的哪个疑问。排期对了，写作是最容易的一步。⚡'
+};
+var COPYSET={
+  store:[
+    {p:0,pi:'证明你在做事 · 让同行看到你的现场',txt:'今天上午在一家贴膜门店待了半天。老板说AI获客听着热闹，就是不敢往里投钱。下午把他的接待流程拆开看了，其实卡点就一个：客人进店前，没人知道他是谁。把这一步补上，剩下的都是顺路的事。有类似情况的老板，可以交流。⚡',img:'shot'},
+    {p:1,pi:'让客户觉得你懂他 · 说中共同焦虑',txt:'连着三天，三个老板问我同一个问题：AI是不是又要让我换系统？你看，大家怕的不是新工具，是又交一遍学费。我就说一点：先跑通一条最小流程，用起来有效再谈升级。对吧？⚡',img:'quote'},
+    {p:6,pi:'低压力咨询入口 · 每周不超过 1 条',txt:'本周还剩 2 个免费诊断名额。不推销，就是帮你看看朋友圈的第一屏像不像个真人、客户能不能看懂你是做什么的。有需要的老板可以留言交流。⚡',img:'quote'}
+  ],
+  chain:[
+    {p:0,pi:'证明你在做事 · 展示体系在运转',txt:'今天巡了 3 家店。同一套流程，A 店的转化比另外两家高一截。差异不在人，在店长每天愿不愿意多问客人一句话。体系能复制，这个动作也得写进 SOP。做连锁的老板，应该懂我说的。⚡',img:'shot'},
+    {p:2,pi:'方法论 · 展示专业判断力',txt:'加盟商最常问：总部给的支持为什么落不了地？说白了，多数不是支持不够，是落地动作没有拆到「谁、什么时候、做完长什么样」。拆到这个颗粒度，支持才叫支持。⚡',img:'quote'},
+    {p:3,pi:'案例证据 · 用结果建立信任',txt:'上个月帮一家连锁品牌把加盟商的开工率从 6 成提到 9 成。没加一分钱补贴，就是把每周巡店改成带着清单去。数字是对方运营自己报的。同行有类似问题的，可以交流。⚡',img:'shot'}
+  ],
+  opc:[
+    {p:2,pi:'方法论 · 服务客户的第一视角',txt:'今天给一个客户排了下周的朋友圈：工作现场 3 条，客户问题 2 条，软邀约 1 条。你看，关键不是写多少条，是每条都知道在回答客户的哪个疑问。排期对了，写作反而是最容易的一步。⚡',img:'quote'},
+    {p:1,pi:'替客户说出隐形焦虑',txt:'很多老板不是不想发朋友圈，是怕发错。怕掉粉、怕丢人、怕像微商。我就说一点：客户要看的不是完美，是真实。真实的人，才值得信任。⚡',img:'quote'},
+    {p:4,pi:'价值观边界 · 让客户知道你的底线',txt:'今天推掉了一个单子。对方要求把月流水 8 万包装成 30 万发出去。不接。数字可以慢慢做，信任塌了一次就扶不起来。同行的老板应该能理解。⚡',img:'quote'}
+  ]
+};
+var PILLARS=[
+  {n:'工作现场',c:'#E8651A',pc:40},
+  {n:'客户问题',c:'#2a6fb5',pc:25},
+  {n:'方法论',c:'#7c5cbf',pc:15},
+  {n:'案例证据',c:'#1a9e5c',pc:10},
+  {n:'价值观边界',c:'#c0392b',pc:5},
+  {n:'生活温度',c:'#d48806',pc:5},
+  {n:'软邀约',c:'#5b6b7c',pc:5}
+];
+var GOALS=[
+  {t:'让老客回店',d:'钩子走「被在意」',k:'back'},
+  {t:'带来新客到店',d:'钩子走「好奇+门槛低」',k:'visit'},
+  {t:'立专业人设',d:'钩子走「判断力」',k:'trust'}
+];
+var GOAL_NAME={back:'让老客回店',visit:'带来新客到店',trust:'立专业人设'};
+var TONES=['实在老板','懂行朋友','利落掌柜'];
+var LEVELS=[{t:'轻改 · 只补钩子',k:'lite'},{t:'标准 · 顺一遍加钩子结尾',k:'std',pri:true},{t:'大改 · 结构重来',k:'big'}];
+var LEVEL_NAME={lite:'轻改',std:'标准',big:'大改'};
+var WX_PURPOSE=[
+  {t:'📣 活动通知',k:'act',d:'体验名额 / 到店安排 / 接龙'},
+  {t:'💬 日常维护',k:'daily',d:'答常见问题 · 群存在感'},
+  {t:'🚀 裂变引流',k:'fiss',d:'老带新 · 报昵称有礼'},
+  {t:'🏮 节日问候',k:'fest',d:'节气 / 节日 · 轻提醒'}
+];
+var WXDATA={
+  act:{n:'活动通知',items:['【群公告】本周六下午的体验名额还剩 5 个，老客人优先。要来的在群里接个「+1」，我按顺序排。','周六来的客人，到店报群里昵称就行，前台都备注好了，不用再发姓名电话。','名额排满我会在群里说一声，下周同一时间还有一批，别跑空。'],tip:'节奏：今天发第 1 条 → 周五发第 2 条 → 周六上午发第 3 条 · 一场活动不超过 3 条'},
+  daily:{n:'日常维护',items:['群里问得多的还是「多久护理一次合适」。统一说下：看皮肤状态定，不按日历排。拿不准的，来店里免费测一次。','测完我把结果写在卡上给你，不推项目，你自己拿主意。','群里平时聊什么都行，就是别发广告，发了我也就默默撤了。'],tip:'节奏：每周 2-3 条，别刷屏 · 问必答，答完不追销'},
+  fiss:{n:'裂变引流',items:['老带新：这周带朋友来，两个人的基础护理都按老客价。','朋友首次到店，报你的群昵称，多送一次清洁。','带过来的朋友不合适也没关系，喝杯茶就走，不推销。'],tip:'节奏：裂变条每月不超过 2 条，别透支群信任'},
+  fest:{n:'节日问候',items:['入秋了，皮肤开始紧绷。这两天到店的客人十个有八个说干。换季护理提前一天约，给你留时间。','天凉了，到店有热的美颜茶，等位也不遭罪。','下周霜降，换季护理套餐开始预约，老客提前两天说一声就行。'],tip:'节奏：节气 / 节日提前 1 天发，一条就够 · AI 按日历自动排'}
+};
+var REVS=[
+  {p:3,tm:'昨天 20:14',txt:'上个月帮一家连锁品牌把加盟商的开工率从 6 成提到 9 成。没加一分钱补贴，就是把每周巡店改成带着清单去。数字是对方运营自己报的。⚡',sig:3},
+  {p:0,tm:'前天 19:02',txt:'今天上午在一家贴膜门店待了半天。老板说AI获客听着热闹，就是不敢往里投钱。下午把他的接待流程拆开看了，其实卡点就一个：客人进店前，没人知道他是谁。⚡',sig:4},
+  {p:1,tm:'3 天前',txt:'连着三天，三个老板问我同一个问题：AI是不是又要让我换系统？你看，大家怕的不是新工具，是又交一遍学费。我就说一点：先跑通一条最小流程。⚡',sig:2},
+  {p:5,tm:'4 天前',txt:'周末店里的小瞬间：给常来的客人多包了一份小样，她说下次带朋友来。生活里的小事，比广告管用。⚡',sig:1},
+  {p:6,tm:'上周日',txt:'本周还剩 2 个免费诊断名额。不推销，就是帮你看看朋友圈的第一屏像不像个真人。有需要的老板可以留言交流。⚡',sig:5}
+];
+var SIGS=[
+  {n:'无反应',adv:'没人注意 → 换角度、换素材，不是换类型'},
+  {n:'赞没有评',adv:'看完就走 → 结尾加一个轻问题，让人好接话'},
+  {n:'有人问价',adv:'兴趣出现 → 别报价，先约到店（免费测/体验）'},
+  {n:'有人私信',adv:'强信号 → 24 小时内跟进，超出一条朋友圈的范畴了'},
+  {n:'老客转发',adv:'信任背书 → 把这条主题 2 周内换个角度再发一次'}
+];
+
+/* ===== 配图引擎 ===== */
+var QUOTES={
+  store:['客人不会因为你推销才来，是因为舒服才再来','把客人进店前的第一句话做好，剩下的都是顺路的事','真实的人，才值得信任'],
+  chain:['体系能复制，动作也要写进 SOP','支持落不落地，看有没有拆到「谁、什么时候、做完长什么样」','先跑通一条最小流程，用起来有效再谈升级'],
+  opc:['排期对了，写作反而是最容易的一步','客户要看的不是完美，是真实','信任塌了一次就扶不起来']
+};
+var QSTYLES=[{k:'q-gold',n:'橙金'},{k:'q-ink',n:'墨蓝'},{k:'q-cream',n:'浅米'}];
+var IMG_MODE={};      /* 每条候选的配图模式 shot|quote */
+var IMG_STATE={};     /* 每条候选：{shot:素材索引, q:句索引, style:样式} */
+var IMG_ROLE=null;
+function imgInit(){
+  if(IMG_ROLE===S.role&&IMG_STATE[0]!==undefined)return;
+  IMG_ROLE=S.role;
+  IMG_MODE={};IMG_STATE={};
+  COPYSET[S.role].forEach(function(c,i){
+    IMG_MODE[i]=c.img;
+    IMG_STATE[i]={shot:-1,q:i%QUOTES[S.role].length,style:0};
+  });
+  setBrief('img','建议已出 · 可换');
+}
+function renderImgStrip(idx){
+  var mode=IMG_MODE[idx],st=IMG_STATE[idx];
+  var h='<div class="img-strip" id="imgstrip-'+idx+'">';
+  h+='<div class="img-cap"><b>🖼️ 配图</b><span>'+(mode==='shot'?'实拍只修不造 · AI 不造假图':'AI 生成 · 装饰性文字卡')+'</span></div>';
+  h+='<div class="img-tabs">'
+    +'<button class="'+(mode==='shot'?'act':'')+'" onclick="imgSetMode('+idx+',\'shot\')">📷 用我的实拍</button>'
+    +'<button class="'+(mode==='quote'?'act':'')+'" onclick="imgSetMode('+idx+',\'quote\')">🎨 AI 生成配图</button>'
+    +'</div><div class="img-body">';
+  if(mode==='shot'){
+    var shots=shotMats();
+    h+='<div class="img-tip">从素材箱挑实拍挂上（AI 只修不造：客户隐私自动打码——人脸、车牌、联系方式；门头、logo、位置等品牌信息原样保留）</div>';
+    if(!shots.length){
+      h+='<div class="img-tip">素材箱还没有实拍图 —— 点左下角 ＋ 传图，或切到「AI 金句卡」。</div>';
+    }else{
+      h+='<div class="shot-list">';
+      shots.forEach(function(m,si){
+        var gi=MATS.indexOf(m);
+        h+='<button class="shot-chip'+(st.shot===gi?' act':'')+'" onclick="imgPickShot('+idx+','+gi+')">'+esc(m.sum.slice(0,16))+'…</button>';
+      });
+      h+='</div>';
+      if(st.shot>=0){
+        h+='<div class="img-chosen" style="margin-top:8px">✓ 已挂：'+esc(MATS[st.shot].src)+'（AI 修图：客户隐私打码 · 门头位置保留 · 不改内容）</div>';
+      }
+    }
+  }else{
+    var q=QUOTES[S.role][st.q],qs=QSTYLES[st.style];
+    h+='<div class="qcard '+qs.k+'"><div class="q-tag">'+PILLARS[COPYSET[S.role][idx].p].n+' · 金句卡</div><div class="q-txt">'+esc(q)+'</div><div class="q-by">—— '+esc((S.prof&&S.prof.p1)||'你的 一句话人设')+'</div></div>';
+    h+='<div class="img-tip" style="margin:8px 0 0">↑ 这张卡就是 <b>AI 生成的配图</b>（纯文字排版卡，不含伪造画面）· 正式版「保存图片」直接进手机相册</div>';
+    h+='<div class="q-ops">';
+    QSTYLES.forEach(function(s2,si2){h+='<button class="'+(st.style===si2?'on':'')+'" onclick="imgSetStyle('+idx+','+si2+')">'+s2.n+'</button>'});
+    h+='<button class="q-regen" onclick="imgRegen('+idx+')">🔄 换一句</button><button onclick="saveQcard()">⬇ 保存图片</button></div>';
+  }
+  h+='<div class="img-redline">⛔ 客户照片 / 聊天记录截图 / 门店实拍 —— AI 不生成，只修不造</div>';
+  h+='</div></div>';
+  return h;
+}
+function imgSetMode(idx,mode){IMG_MODE[idx]=mode;renderDeliverOnly();toast(mode==='shot'?'📷 已切到实拍引用：从素材箱挑图挂上，AI 只修不造':'🎨 已生成配图卡：可换样式、换一句、保存图片',2200)}
+function goImg(idx){
+  switchView('work');
+  setTimeout(function(){
+    var el=$('#imgstrip-'+idx);
+    if(el){try{el.scrollIntoView({behavior:'smooth',block:'center'})}catch(e){el.scrollIntoView()}spotlight(el)}
+  },120);
+}
+function imgPickShot(idx,gi){IMG_STATE[idx].shot=gi;setBrief('img','实拍已挂 · 隐私打码');renderDeliverOnly();toast('✓ 已挂实拍 · 客户隐私已打码，门头、位置保留，内容未改',2200)}
+function imgSetStyle(idx,si){IMG_STATE[idx].style=si;renderDeliverOnly()}
+function imgRegen(idx){var st=IMG_STATE[idx];st.q=(st.q+1)%QUOTES[S.role].length;renderDeliverOnly();toast('🔄 已换金句（演示池 3 句轮换）',1800)}
+function saveQcard(){toast('演示：正式版按当前样式渲染成 PNG 图片，直接保存到手机相册，发圈时从相册选取（风格跟人设档案走）',3200)}
+function imgLabel(idx){
+  var mode=IMG_MODE[idx],st=IMG_STATE[idx];
+  if(mode==='shot'){return st.shot>=0?'📷 实拍引用 · 隐私已打码':'📷 建议实拍 · 待挂图'}
+  return '🎨 金句卡 · '+QSTYLES[st.style].n;
+}
+
+/* ===== 快速升级 ===== */
+function fastText(v){
+  if(S.step==='raw'){
+    if(v.length<15){
+      addMsg('<div class="needs-card" style="margin:0"><b>⚠️ 这条素材信息还不够</b><p>'+esc(v)+'</p><p class="hint">补充一个关键信息（客人是谁 / 做了什么 / 结果或价格）再发我；不想编造内容，所以这条先不出稿。</p></div>');
+      setBrief('src','太短 '+v.length+' 字');
+      addOpts([{t:'✏️ 去补充原话',k:'补充',pri:true}],function(){spotlight($('#chatIn'));$('#chatIn').focus()});
+      toast('原话至少 15 字 · 信息不够不出稿，系统不编内容',2600);
+      return;
+    }
+    S.raw=v;setBrief('src','已填 '+v.length+' 字');S.step='goal';
+    addMat('📝','聊天框 · 原话草稿',v,'ok','✓ 已收录');
+    addMsg('收到，原话 '+v.length+' 字。这条想达成什么？<br><span class="opt-hint">决定钩子方向和 CTA 强度</span>');
+    addOpts(GOALS.map(function(g){return {t:g.t,d:g.d,k:g.t}}),function(i){
+      S.goal=GOALS[i].k;setBrief('goal',GOALS[i].t);S.step='tone';
+      addMsg('用哪个口吻写？');
+      addOpts(TONES.map(function(t){return {t:t,k:t}}),function(i2){
+        S.tone=TONES[i2];setBrief('tone',S.tone);S.step='level';
+        addMsg('升级强度？');
+        addOpts(LEVELS.map(function(l){return {t:l.t,d:l.d,k:l.t}}),function(i3){
+          S.level=LEVELS[i3].k;setBrief('level',LEVELS[i3].t);S.step='keep';
+          addMsg('要保留你的原话吗？');
+          addOpts([{t:'否 · 允许升级改写',k:'否',d:'AI 补钩子补结尾'},{t:'是 · 一字不改',k:'是',d:'只给发布建议'}],function(i4){
+            S.keep=(i4===1);setBrief('keep',S.keep?'是':'否');S.step='diag';
+            runFastDiagnose();
+          });
+        });
+      });
+    });
+    return;
+  }
+  if(S.step==='patch'){applyPatchDoc(v);return}
+  if(!tryPickByText(v)){addMsg('点卡片上的选项就行，或直接说你的想法。')}
+}
+function fastMain(){
+  if(!S.raw){toast('先把原话发我（至少 15 字）',2000);spotlight($('#chatIn'));return}
+  S.goal=S.goal||'visit';S.tone=S.tone||'实在老板';S.level=S.level||'std';
+  setBrief('goal',GOAL_NAME[S.goal]);setBrief('tone',S.tone);setBrief('level',LEVEL_NAME[S.level]);
+  if(!S.brief.keep)setBrief('keep',S.keep?'是':'否');
+  S.step='diag';runFastDiagnose();
+}
+function upgradedLen(){var keep=S.keep,b=FAST_BODY[S.role];return keep?S.raw.length:(S.patched?b.replace(TOKEN,S.patched).length:b.length)}
+function runFastDiagnose(){
+  if(S.busy)return;
+  S.busy=true;S.lock=true;S.mainState='gen';updateMainBtn();
+  spend(5);showTyping();
+  setTimeout(function(){
+    hideTyping();
+    S.busy=false;S.lock=false;S.mainState='done';updateMainBtn();
+    renderFastChat();renderFastDeliver();
+    toast('升级完成 · 扣 5 算力 · 原稿 '+S.raw.length+' 字 → 升级稿 '+upgradedLen()+' 字 · 交付在「工作台」',3000);
+    addMsg('交付已放到<b>工作台</b> ✅ 复制就能发；配图区在文案下面——实拍从素材箱挂，或 AI 生成配图卡。<br><button class="go-img" onclick="goImg(0)">🖼️ 去配图 →</button>');
+    workNotify();
+  },700);
+}
+function renderFastChat(){
+  var keep=S.keep,b=FAST_BODY[S.role];
+  var needPatch=!keep&&b.indexOf(TOKEN)>=0&&!S.patched;
+  var out=keep?S.raw:(S.patched?b.replace(TOKEN,S.patched):b);
+  var html='<b>🔍 诊断升级完成</b>'
+    +'<div class="cmp-meta"><span>原稿 '+S.raw.length+' 字</span><span>升级稿 '+out.length+' 字</span><span class="hi">内容分 52 → '+(keep?58:86)+'</span><span>'+LEVEL_NAME[S.level]+' · '+S.tone+'</span></div>'
+    +'<div class="cmp-grid"><div class="cmp-col old"><b class="cap">📝 你的原话</b><div class="ct">'+esc(S.raw)+'</div></div><div class="cmp-col new"><b class="cap">✨ 升级稿</b><div class="ct" id="chatNewBody">'+esc(out)+'</div></div></div>';
+  if(needPatch){
+    html+='<div class="patch-box" id="chatPatch"><p class="hint">正文缺一个真实数字（时长 / 次数 / 到店价），点下面直接补——补完「有具体数字」检查项变绿，系统不会替你编。</p><div class="row"><input id="patchIn" placeholder="例：护理 40 分钟"><button class="ok-btn" onclick="applyPatchDoc()">确认补上</button></div></div>';
+    S.step='patch';setPh('例：护理 40 分钟');
+  }else{S.step='done'}
+  addMsg(html);
+}
+function renderFastDeliver(){
+  $('#dlEmpty').style.display='none';
+  imgInit();
+  var keep=S.keep,b=FAST_BODY[S.role];
+  var out=keep?S.raw:(S.patched?b.replace(TOKEN,S.patched):b);
+  var html='<div class="h2">快速升级 · 5 算力已扣 · '+GOAL_NAME[S.goal]+'导向 · '+LEVEL_NAME[S.level]+'</div>';
+  html+='<div class="card"><div class="card-h">🔍 诊断升级</div><div class="card-b">';
+  html+='<div class="cmp-meta"><span>原稿 '+S.raw.length+' 字</span><span>升级稿 '+out.length+' 字</span><span class="hi">内容分 52 → '+(keep?58:86)+'</span></div>';
+  if(keep){
+    html+='<div class="cmp-grid"><div class="cmp-col new"><b class="cap">🔒 保留原话模式 · 正文一字未改</b><div class="ct">'+esc(S.raw)+'</div></div></div>'
+      +'<div class="pub-tip" style="margin-top:9px"><i>📢</i><span>发布建议：配 1 张服务过程实拍，今晚 20:00 发；评论区自己补一句客户反馈，互动更好</span></div>';
+  }else{
+    html+='<div class="cmp-grid"><div class="cmp-col old"><b class="cap">📝 你的原话</b><div class="ct">'+esc(S.raw)+'</div></div><div class="cmp-col new"><b class="cap">✨ 升级稿（可直接复制发布）</b><div class="ct" id="fastBody">'+esc(out)+'</div></div></div>';
+  }
+  var rows;
+  if(keep){
+    rows='<div class="check-row"><span class="ci">✓</span><span class="cq"><b>保留原话</b><p>正文一字未改 · 只附发布建议</p></span></div>';
+  }else{
+    rows='<div class="check-row'+(S.patched?'':' warn')+'"><span class="ci">'+(S.patched?'✓':'!')+'</span><span class="cq"><b>有具体数字</b><p>'+(S.patched?('你已补：'+esc(S.patched)+'（发布前请确认真实）'):'缺一个真实数字，在左侧对话点「✏️ 补数字」补完才建议发布 —— AI 不编数字')+'</p></span></div>';
+  }
+  html+='<div id="fastChecks">'+rows
+    +'<div class="check-row"><span class="ci">✓</span><span class="cq"><b>像真人吗</b><p>口语短句、有钩子有结尾，无 AI 腔</p></span></div>'
+    +'<div class="check-row"><span class="ci">✓</span><span class="cq"><b>过度营销了吗</b><p>禁用词 0 命中 · 软 CTA</p></span></div>'
+    +'<div class="check-row"><span class="ci">✓</span><span class="cq"><b>隐私安全</b><p>无人名/公司名/可辨认截图</p></span></div></div>';
+  html+=renderImgStrip(0);
+  html+='<button class="copy-btn" onclick="fastCopy()">📋 复制升级稿</button>';
+  html+='<button class="copy-btn ghost" onclick="fastRegen()">🔄 重新生成（5 算力）</button>';
+  html+='</div></div>';
+  $('#dlOut').innerHTML=html;
+}
+function applyPatchDoc(v){
+  if(typeof v!=='string'){v=($('#patchIn')?$('#patchIn').value:'')}
+  v=(v||'').trim();
+  if(!v){toast('先填一个真实数字，例如：护理 40 分钟',2000);return}
+  S.patched=v;S.step='done';
+  var box=$('#chatPatch');
+  if(box)box.innerHTML='<p class="hint g">✓ 已补：'+esc(v)+' · 「有具体数字」检查项已通过（发布前请确认真实）</p>';
+  var cn=$('#chatNewBody');
+  if(cn)cn.innerHTML=esc(FAST_BODY[S.role].replace(TOKEN,v));
+  renderFastDeliver();
+  toast('已补：'+v+' · 「有具体数字」检查项已变绿 · 发布前请确认真实',2600);
+}
+function fastCopy(){
+  var el=$('#fastBody')||$('#chatNewBody');
+  if(!el){toast('还没有可复制的内容',1500);return}
+  copyText(el.textContent,'文案已复制，去朋友圈直接粘贴');
+}
+function fastRegen(){spend(5);renderFastDeliver();toast('已重新生成 · 扣 5 算力（内容同版演示）',2000)}
+
+/* ===== 七柱从零写 ===== */
+function proText(v){
+  if(S.step==='src'){
+    S.src=v;setBrief('src','已填 '+v.length+' 字');S.step='confirm';
+    addMat('📝','聊天框 · 今日素材',v);
+    signalCard();
+    return;
+  }
+  if(!tryPickByText(v)){addMsg('点卡片上的 ✓ / ✏️ / ⏩ 就行')}
+}
+function proMain(){
+  if(!S.src){toast('先在对话里把今天的素材发我',2200);spotlight($('#chatIn'));return}
+  if(S.step==='src'){signalCard();return}
+  runProPipeline();
+}
+function signalCard(){
+  var R=REF_DEMO[S.role];
+  addMsg('<b>🔍 信号提取完成</b><div class="ref-grid">'
+    +'<div class="ref-cell g"><b>可用素材</b><ul>'+R.usable.map(function(u){return '<li>'+u+'</li>'}).join('')+'</ul></div>'
+    +'<div class="ref-cell r"><b>隐私风险</b><div>🛡 '+R.risk+'</div></div>'
+    +'<div class="ref-cell o"><b>最强业务信号</b>'+R.strong+'</div>'
+    +'</div>');
+  var cls=[0,1,6].map(function(i){var p=PILLARS[i];return '<span class="p-chip" style="color:'+p.c+'">'+p.n+'</span>'}).join(' ');
+  addMsg('<b>🗂 分柱归类</b>：'+cls+'<br><span class="opt-hint">3 条候选按此落柱：1 条工作现场 · 1 条客户问题 · 1 条软邀约（软邀约每周 ≤1-2 条）</span>');
+  addOpts([{t:'✓ 生成 3 条候选 + 配图 · 15 算力',k:'生成',pri:true},{t:'✏️ 换素材',k:'换素材'}],function(i){
+    if(i===0){runProPipeline()}
+    else{S.step='src';addMsg('好，把新素材发我：');setPh(SRC_HINT[S.role])}
+  });
+}
+function runProPipeline(){
+  S.busy=true;S.lock=true;S.mainState='gen';updateMainBtn();
+  var holder=addMsg('<div class="gen-wrap" style="margin:0"><div class="gen-head"><b>周域 · 六步流水线</b><span>模式：'+ROLES[S.role].n+'</span></div><div class="gen-pbar"><i id="gbar"></i></div><div class="gen-log" id="glog"></div></div>');
+  var lines=[
+    '读取人设档案 … <span class="ok">ok</span> · 主轴：工作现场 40%',
+    '信号提取 … <span class="ok">ok</span> · 可用信号 3 条 · 隐私风险 1 处已泛化',
+    '分柱归类 … <span class="ok">ok</span> · <span class="hl">工作现场 / 客户问题 / 软邀约</span>',
+    '文案生成 … <span class="ok">ok</span> · 3 条候选 · 1 条硬广被拦截',
+    '配图建议 … <span class="ok">ok</span> · 实拍 2 条 · 金句卡 1 条 · 案例图不生成',
+    '质量审查 … <span class="ok">ok</span> · 禁用词 0 命中 · 建议今晚 20:00 发第 1 条'
+  ];
+  var i=0;
+  var t=setInterval(function(){
+    var lg=$('#glog');if(!lg){clearInterval(t);return}
+    var d=document.createElement('div');d.className='ln in';d.innerHTML='› '+lines[i];lg.appendChild(d);lg.scrollTop=lg.scrollHeight;
+    i++;$('#gbar').style.width=(i/lines.length*100)+'%';
+    if(i>=lines.length){clearInterval(t);setTimeout(finishPro,420)}
+  },430);
+}
+function finishPro(){
+  S.busy=false;S.lock=false;S.mainState='done';S.step='done';updateMainBtn();
+  renderProDeliver();
+  toast('已生成 3 条候选+配图 · 扣 15 算力 · 交付在「工作台」',2800);
+  addMsg('交付已放到<b>工作台</b> ✅ 3 条候选每条都带<b>配图区</b>：实拍从素材箱挂（AI 只修不造），或 AI 生成配图卡。<br><button class="go-img" onclick="goImg(0)">🖼️ 去配图 →</button>');
+  workNotify();
+}
+function renderDeliverOnly(){
+  if(S.task==='pro'&&S.mainState==='done')renderProDeliver(true);
+  else if(S.task==='fast'&&S.mainState==='done')renderFastDeliver();
+}
+function renderProDeliver(silent){
+  $('#dlEmpty').style.display='none';
+  imgInit();
+  var R=REF_DEMO[S.role],cs=COPYSET[S.role];
+  var pillarChip=function(i){var p=PILLARS[i];return '<span class="p-chip" style="color:'+p.c+'">'+p.n+'</span>'};
+  if(!silent)spend(15);
+  var html='<div class="h2">七柱候选 · 文案+配图（15 算力已扣 · 失败不扣费）</div>';
+  html+='<div class="card"><div class="card-h">🔍 素材提炼 <span class="more">今日策略：发 2 条 · 主推第 1 条</span></div><div class="card-b"><div class="ref-grid">'
+    +'<div class="ref-cell g"><b>可用素材</b><ul>'+R.usable.map(function(u){return '<li>'+u+'</li>'}).join('')+'</ul></div>'
+    +'<div class="ref-cell r"><b>隐私风险</b><div>🛡 '+R.risk+'</div></div>'
+    +'<div class="ref-cell o" style="grid-column:1/-1"><b>最强业务信号</b>'+R.strong+'</div>'
+    +'</div></div></div>';
+  cs.forEach(function(c,i){
+    html+='<div class="card"><div class="card-h">'+pillarChip(c.p)+' <span style="font-size:11px;color:var(--sub);font-weight:600">'+c.pi+'</span> <span class="more">'+imgLabel(i)+'</span></div><div class="card-b">';
+    html+='<div class="ct" id="proBody'+i+'" style="margin-top:2px">'+esc(c.txt)+'</div>';
+    html+=renderImgStrip(i);
+    html+='<button class="copy-btn" onclick="proCopy('+i+')">📋 复制文案</button>';
+    html+='</div></div>';
+  });
+  html+='<div class="pub-tip"><i>📢</i><span>发布策略：今晚 20:00 发第 1 条（工作现场+实拍）→ 明天 12:30 发第 2 条 → 软邀约条每周 ≤1-2 条</span></div>';
+  $('#dlOut').innerHTML=html;
+}
+function proCopy(i){
+  var el=$('#proBody'+i);
+  if(!el){toast('还没有可复制的内容',1500);return}
+  copyText(el.textContent,'第 '+(i+1)+' 条已复制 · 配图记得按右侧建议带上');
+}
+
+/* ===== 群消息拆条 ===== */
+var WX_PURPOSE=WX_PURPOSE||[];
+function pickPurpose(i){S.wxp=WX_PURPOSE[i].k;setBrief('goal','群 · '+WXDATA[S.wxp].n);S.step='gen';addMsg('好，「'+WXDATA[S.wxp].n+'」。');wxMain()}
+function wxText(v){
+  for(var i=0;i<WX_PURPOSE.length;i++){if(v.indexOf(WX_PURPOSE[i].t)>=0||v.indexOf(WXDATA[WX_PURPOSE[i].k].n)>=0){addMsg(esc(v),'user');pickPurpose(i);return}}
+  if(!tryPickByText(v)){addMsg('点上面 4 个目的之一，或打「活动通知」「节日问候」…')}
+}
+function wxMain(){
+  if(S.mainState==='gen')return;
+  S.busy=true;S.lock=true;S.mainState='gen';updateMainBtn();
+  spend(15);showTyping();
+  setTimeout(function(){
+    hideTyping();
+    S.busy=false;S.lock=false;S.mainState='done';updateMainBtn();
+    renderWxDeliver();
+    toast('已拆 3 条 · 扣 15 算力 · 交付在「工作台」',2400);
+    addMsg('群消息拆好放<b>工作台</b>了 ✅ 复制逐条发，节奏建议在卡片里。');
+    workNotify();
+  },600);
+}
+function renderWxDeliver(){
+  $('#dlEmpty').style.display='none';
+  var D=WXDATA[S.wxp||'act'];
+  var html='<div class="h2">群消息 · '+D.n+' · 拆 3 条（15 算力已扣）</div><div class="card"><div class="card-h">👥 按群聊节奏拆条</div><div class="card-b">';
+  D.items.forEach(function(it,i){html+='<div class="ct" style="margin-top:'+(i?'8px':'2px')+'" id="wxBody'+i+'">'+esc(it)+'</div>'});
+  html+='<div class="pub-tip" style="margin-top:9px"><i>⏱</i><span>'+D.tip+'</span></div>';
+  D.items.forEach(function(it,i){html+='<button class="copy-btn'+(i?' ghost':'')+'" onclick="copyText(document.getElementById(\'wxBody'+i+'\').textContent,\'第 '+(i+1)+' 条已复制\')">📋 复制第 '+(i+1)+' 条</button>'});
+  html+='</div></div>';
+  $('#dlOut').innerHTML=html;
+}
+
+/* ===== 周计划 ===== */
+function planText(v){
+  if(S.step==='focus'){
+    S.planFocus=v;setBrief('goal','周计划 · '+v.slice(0,12));S.step='gen';
+    addMat('📝','聊天框 · 本周重点',v);
+    planMain();return;
+  }
+  if(!tryPickByText(v)){addMsg('直接打字说这周重点，或点「填入示例重点」。')}
+}
+function planMain(){
+  if(!S.planFocus){toast('先说这周的重点',2000);return}
+  S.busy=true;S.lock=true;S.mainState='gen';updateMainBtn();
+  spend(50);showTyping();
+  setTimeout(function(){
+    hideTyping();
+    S.busy=false;S.lock=false;S.mainState='done';updateMainBtn();
+    renderPlanDeliver();
+    toast('周历已生成 · 扣 50 算力 · 交付在「工作台」',2400);
+    addMsg('七日周历放<b>工作台</b>了 ✅ 每天一条 + 配图建议，实拍/金句卡都标好了。');
+    workNotify();
+  },700);
+}
+function renderPlanDeliver(){
+  $('#dlEmpty').style.display='none';
+  var plan=[
+    {d:'周一',p:0,txt:'新一周，把接待流程的第一句话再顺一遍：客人进店前，先让前台知道他是谁。小改变，今天开始。⚡',img:'📷 实拍：前台/接待区 1 张'},
+    {d:'周二',p:1,txt:'最近好几个老板问：AI 是不是要全换系统？我的答案一直是：先跑通一条最小流程，有效再加。别为工具交两遍学费。⚡',img:'🎨 金句卡「先跑通最小流程」'},
+    {d:'周三',p:0,txt:'周三上新日。新款到店，先给老客留了 3 组体验名额，到店报上周的消费记录就行，不用晒单。⚡',img:'📷 实拍：新品陈列 1 张'},
+    {d:'周四',p:2,txt:'门店获客的卡点，八成不在流量，在接待动作有没有拆到「谁、什么时候、做完长什么样」。拆到这个颗粒度，改进才轮得到执行。⚡',img:'🎨 金句卡「拆到颗粒度」'},
+    {d:'周五',p:3,txt:'上周开始按新流程接待，回访了 6 组客人，4 组说「进门就被认出来了」。数字是小店自己报的，还在攒。⚡',img:'📷 实拍：回访记录（打码）'},
+    {d:'周六',p:6,txt:'明天店里留了 2 个免费体验名额，帮你看第一屏朋友圈像不像真人、客户能不能看懂你做什么。留言「聊聊」就行。⚡',img:'🎨 金句卡「诊断名额」'},
+    {d:'周日',p:5,txt:'周日晚上的小瞬间：给常来的客人多包了份小样，她说下次带朋友来。生活里的小事，比广告管用。⚡',img:'📷 实拍：小样随手拍'}
+  ];
+  var html='<div class="h2">七日周历 · '+esc(S.planFocus.slice(0,16))+'（50 算力已扣）</div><div class="card"><div class="card-h">🗓 下周排期 <span class="more">七柱配比 40/25/15/10/5/5</span></div><div class="card-b">';
+  plan.forEach(function(r){
+    var p=PILLARS[r.p];
+    html+='<div class="plan-row"><span class="plan-day">'+r.d+'</span><div style="flex:1;min-width:0">'+esc(r.txt)+'<div style="margin-top:3px"><span class="p-chip" style="color:'+p.c+';font-size:10.5px">'+p.n+'</span><span style="font-size:10.5px;color:var(--sub)">'+r.img+'</span></div></div></div>';
+  });
+  html+='<div class="pub-tip" style="margin-top:9px"><i>📢</i><span>发布时间：早 8:00 / 午 12:30 / 晚 20:00 三选一，固定下来让客户形成预期</span></div>';
+  html+='</div></div>';
+  $('#dlOut').innerHTML=html;
+}
+
+/* ===== 人设建档 ===== */
+function profText(v){
+  var map={p1:'p2',p2:'p3',p3:'p4'};
+  if(S.step==='p1'){S.prof.p1=v;setBrief('tone','人设 · '+v.slice(0,12));S.step='p2';addMsg('<b>② 凭什么信你？</b><br><span class="opt-hint">你做成过什么，一句话</span>');addOpts([{t:'✓ 用示例',k:'示例'}],function(){userSays(DEMO_PROF.p2)});return}
+  if(S.step==='p2'){S.prof.p2=v;S.step='p3';addMsg('<b>③ 你会发什么？</b><br><span class="opt-hint">内容主轴一句话</span>');addOpts([{t:'✓ 用示例',k:'示例'}],function(){userSays(DEMO_PROF.p3)});return}
+  if(S.step==='p3'){S.prof.p3=v;S.step='p4';addMsg('<b>④ 坚决不发什么？</b><br><span class="opt-hint">底线，AI 全程替你拦</span>');addOpts([{t:'✓ 用示例',k:'示例'}],function(){userSays(DEMO_PROF.p4)});return}
+  if(S.step==='p4'){S.prof.p4=v;S.step='done';profMain();return}
+  if(!tryPickByText(v)){addMsg('点「✓ 用示例」或直接打字回答当前问题。')}
+}
+function profMain(){
+  if(!S.prof.p4){toast('先回答完 4 个问题',1800);return}
+  S.busy=true;S.lock=true;S.mainState='gen';updateMainBtn();showTyping();
+  setTimeout(function(){
+    hideTyping();
+    S.busy=false;S.lock=false;S.mainState='done';updateMainBtn();
+    renderProfDeliver();
+    toast('人设档案已生成 · 演示免费（正式 20 算力）· 交付在「工作台」',2600);
+    addMsg('档案建好了 ✅ 金句卡的落款、口吻、配图风格都会跟着这份档案走。');
+    workNotify();
+  },600);
+}
+function renderProfDeliver(){
+  $('#dlEmpty').style.display='none';
+  var html='<div class="h2">🪪 人设档案（长期复用 · 演示免费）</div><div class="card"><div class="card-h">🪪 你的人设档案</div><div class="card-b">'
+    +'<div class="ct" style="margin-top:2px">① 一句话人设：'+esc(S.prof.p1||DEMO_PROF.p1)+'\n② 凭什么信你：'+esc(S.prof.p2||DEMO_PROF.p2)+'\n③ 内容主轴：'+esc(S.prof.p3||DEMO_PROF.p3)+'\n④ 坚决不发：'+esc(S.prof.p4||DEMO_PROF.p4)+'</div>'
+    +'<div class="pub-tip" style="margin-top:9px"><i>🖼</i><span>配图风格已锁定：金句卡落款用①的口吻；实拍只修不造；④里的内容 AI 全程拦截</span></div>';
+  html+='</div></div>';
+  $('#dlOut').innerHTML=html;
+}
+
+/* ===== 发后复盘 ===== */
+function renderRevDeliver(){
+  $('#dlEmpty').style.display='none';
+  var html='<div class="h2">📊 已发记录 · 五级信号（虚构演示数据）</div>';
+  REVS.forEach(function(r,i){
+    var p=PILLARS[r.p];
+    html+='<div class="card"><div class="card-h"><span class="p-chip" style="color:'+p.c+'">'+p.n+'</span> <span style="font-size:11px;color:var(--sub);font-weight:600">'+r.tm+'</span>'
+      +'<span class="more" style="cursor:pointer" onclick="sigTip('+i+')">五级信号 · '+SIGS[r.sig].n+' ›</span></div>'
+      +'<div class="card-b"><div class="ct" style="margin-top:2px">'+esc(r.txt)+'</div></div></div>';
+  });
+  html+='<div class="pub-tip"><i>📊</i><span>五级信号：无反应 → 赞没评 → 问价 → 私信 → 老客转发 · 一条一个信号，下一按信号调</span></div>';
+  $('#dlOut').innerHTML=html;
+}
+function sigTip(i){
+  var r=REVS[i],s=SIGS[r.sig];
+  addMsg('<b>📊 五级信号：'+s.n+'</b><p style="margin-top:4px">下一条怎么调：'+s.adv+'</p>');
+  toast('信号「'+s.n+'」→ '+s.adv,3000);
+}
+
+/* ===== 老手快填（逐字段确认） ===== */
+function fastFillAll(){
+  if(S.task!=='fast'&&S.task!=='pro'){toast('先在对话里选「快速升级」或「七柱从零写」',2000);return}
+  if(S.task==='fast'){
+    if(S.step==='raw'){userSays(DEMO_RAW[S.role])}
+    else if(S.step==='goal'){pickOptAt(GOALS.length>1?1:0)}
+    else if(S.step==='tone'){pickOptAt(0)}
+    else if(S.step==='level'){pickOptAt(1)}
+    else if(S.step==='keep'){pickOptAt(0)}
+    else{toast('按当前进度继续走，或重新选任务',1800)}
+  }else{
+    if(S.step==='src'){userSays(DEMO_SRC[S.role])}
+    else{toast('按当前进度继续走',1800)}
+  }
+}
+
+/* ===== 输入框 ===== */
+$('#chatSend').onclick=function(){var v=$('#chatIn').value.trim();if(!v)return;$('#chatIn').value='';userSays(v)};
+$('#chatIn').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();var v=$('#chatIn').value.trim();if(!v)return;$('#chatIn').value='';userSays(v)}});
+
+/* ===== 返回 / 退出确认 ===== */
+function wbBack(){
+  if(S.busy){$('#genExitMask').style.display='flex';return}
+  goBackNow();
+}
+function goBackNow(){
+  if(document.referrer&&history.length>1){history.back();return}
+  location.href='agent-product-detail-demo-20260923.html?agent=private&v=12';
+}
+$('#geStay').onclick=function(){$('#genExitMask').style.display='none'};
+$('#geGo').onclick=function(){$('#genExitMask').style.display='none';goBackNow()};
+
+/* ===== 详情页 overlay ===== */
+function setDTab(i){
+  $$('#dTabs button').forEach(function(b,idx){b.classList.toggle('act',idx===i)});
+  for(var k=0;k<4;k++){$('#dpage-'+k).style.display=(k===i?'':'none')}
+  $('#detailOv').scrollTop=0;
+}
+function openDetail(){$('#detailOv').classList.add('on');document.body.style.overflow='hidden'}
+function closeDetail(){$('#detailOv').classList.remove('on');document.body.style.overflow=''}
+function jumpUse(){
+  closeDetail();
+  switchView('chat');
+  showMenu();
+  spotlight($('#chatIn'));$('#chatIn').focus();
+  toast('已进入周域对话 · 选个任务开始，或直接把素材丢给我',2400);
+}
+
+/* ===== 一键演示（约 40 秒） ===== */
+var DEMO={on:false,queue:[],timer:null};
+function dwait(fn,ms){DEMO.queue.push({fn:fn,ms:ms})}
+function dnext(){var it=DEMO.queue.shift();if(!it){DEMO.on=false;demoBtnOff();return}DEMO.timer=setTimeout(function(){if(DEMO.on){it.fn();dnext()}else{DEMO.queue.length=0;demoBtnOff()}},it.ms)}
+function demoBtnOff(){var b=$('#demoBtn');b.classList.remove('stop');b.innerHTML=ico('play',12)+' 一键演示'}
+function stopDemo(){DEMO.on=false;DEMO.queue.length=0;clearTimeout(DEMO.timer);demoBtnOff();toast('演示已停止，可继续手动操作',1600)}
+function focusPatch(){var i=$('#patchIn');if(i){spotlight(i);i.focus()}}
+function applyPatchVal(v){var i=$('#patchIn');if(!i)return;i.value=v;applyPatchDoc()}
+function toggleDemo(){
+  var b=$('#demoBtn');
+  if(DEMO.on){stopDemo();return}
+  DEMO.on=true;b.classList.add('stop');b.innerHTML=ico('stop',12)+' 停止演示';
+  DEMO.queue.length=0;
+  dwait(function(){switchView('chat');resetAll(true);toast('① 六个任务入口 · 素材箱四条素材已就位 · 交付在「工作台」tab',2600)},60);
+  dwait(function(){toast('② 快速升级：示例原话 → 诊断 → 补数字',2400);pickOptAt(0)},2200);
+  dwait(function(){pickOptAt(0)},1600);
+  dwait(function(){userSays(DEMO_RAW.store)},1800);
+  dwait(function(){pickOptAt(1)},1600);
+  dwait(function(){pickOptAt(1)},1400);
+  dwait(function(){pickOptAt(1)},1400);
+  dwait(function(){pickOptAt(0)},1400);
+  dwait(function(){focusPatch()},1500);
+  dwait(function(){applyPatchVal('护理 40 分钟')},1800);
+  dwait(function(){switchView('work');toast('快速升级交付已到「工作台」· 看完回对话',2600)},1600);
+  dwait(function(){switchView('chat');toast('③ 换任务：七柱从零写 —— 喂素材 → 信号 → 分柱 → 候选+配图',2600);startTask('pro')},2400);
+  dwait(function(){pickOptAt(0)},1600);
+  dwait(function(){pickOptAt(1)},1500);
+  dwait(function(){pickOptAt(0)},2800);
+  dwait(function(){toast('④ 流水线跑完：3 条候选每条带配图区（实拍引用 / AI 金句卡）',3000)},4800);
+  dwait(function(){switchView('work');imgSetMode(1,'quote');toast('⑤ 第 2 条切「AI 金句卡」→ 换样式 → 换一句',2600)},2200);
+  dwait(function(){imgSetStyle(1,1)},1600);
+  dwait(function(){imgRegen(1)},1600);
+  dwait(function(){imgPickShot(0,firstShotIdx())},2000);
+  dwait(function(){toast('✅ 演示完毕 · 全部为虚构演示数据 · 实拍只修不造，案例图不生成 · 底部切「对话/工作台」',3200)},800);
+  dnext();
+}
+function firstShotIdx(){for(var i=0;i<MATS.length;i++){if(MATS[i].tp==='📷')return i}return 0}
+
+/* ===== init ===== */
+function resetAll(greet){
+  var keepView=S.view||'chat';
+  S={task:'menu',step:'',role:'store',raw:'',src:'',goal:null,tone:null,level:null,keep:false,planFocus:'',wxp:null,prof:{},patched:null,busy:false,lock:false,mainState:'idle',brief:{},curBox:null,view:keepView};
+  IMG_MODE={};IMG_STATE={};
+  chatLog.innerHTML='';
+  $('#dlOut').innerHTML='';
+  $('#dlEmpty').style.display='';
+  setBrief('role','🏪 本地单店');
+  setBrief('task','待选择');
+  setBrief('src','未填');
+  updateMainBtn();
+  setPh('选个任务，或直接打字…');
+  if(greet){
+    addMsg('你好，我是<b>周域</b> 🗓️<br>朋友圈不是发广告，是让客户每一天更相信你一点。今天的工作日常、所思所想、文件图片，随手喂我就行——从下面选个任务，或直接把素材丢给我。<br><span class="opt-hint">手机端：底部「对话 / 工作台」随时切换</span>');
+    showMenu();
+  }
+}
+renderMats();
+switchView('chat');
+resetAll(true);
+</script>
+</body>
+</html>

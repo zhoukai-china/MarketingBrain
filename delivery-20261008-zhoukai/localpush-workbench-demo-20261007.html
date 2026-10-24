@@ -1,0 +1,770 @@
+﻿<!doctype html>
+<!-- ?v=4 -->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>本地推投流工作台 · 思潼AI</title>
+<style>
+  :root{
+    --bg:#F4F7FC; --card:#ffffff; --ink:#1c2733; --sub:#5b6b7c; --line:#e3e9f2;
+    --orange:#E8651A; --orange-soft:#fdeee2; --orange-line:#f7d4b8;
+    --green:#0f8a5f; --green-soft:#e6f5ee;
+    --amber:#b26a00; --amber-soft:#fff4e0;
+    --blue:#2563eb; --blue-soft:#e8effd;
+    --purple:#7c3aed; --purple-soft:#f1eafd;
+    --red:#d64545; --radius:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{background:var(--bg);color:var(--ink);font:15px/1.7 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+  .wrap{max-width:none;margin:0;padding:0 16px}
+
+  /* ---------- topbar ---------- */
+  .topbar{position:sticky;top:0;z-index:9;background:rgba(244,247,252,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .topbar .wrap{display:flex;align-items:center;gap:10px;height:52px}
+  .topbar .logo{font-weight:800}
+  .topbar .logo i{font-style:normal;color:var(--orange)}
+  .back-btn{background:#fff;border:1px solid var(--line);border-radius:99px;font-size:12.5px;color:var(--sub);padding:4px 12px;cursor:pointer;min-height:34px}
+  .back-btn:hover{border-color:var(--orange-line);color:var(--orange)}
+  .credits{font-size:12.5px;color:var(--sub);background:#f4f7fb;border:1px solid var(--line);border-radius:99px;padding:3px 12px;white-space:nowrap;margin-left:auto}
+  .credits b{color:var(--orange)}
+
+  /* ---------- hero ---------- */
+  .hero{background:linear-gradient(135deg,#17313f 0%,#274156 55%,#3a4a3f 100%);color:#fff;padding:32px 0 26px;position:relative;overflow:hidden}
+  .hero::after{content:"";position:absolute;right:-70px;top:-70px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(232,101,26,.45),transparent 68%)}
+  .hero .wrap{position:relative;z-index:1}
+  .hero .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+  .chip{font-size:12px;border-radius:99px;padding:3px 11px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22)}
+  .chip.dev{background:var(--orange);border-color:var(--orange);font-weight:700}
+  .hero h1{font-size:28px;letter-spacing:1px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .hero h1 .emoji{width:52px;height:52px;border-radius:14px;overflow:hidden;display:grid;place-items:center;box-shadow:0 8px 24px rgba(232,101,26,.45);flex:none;background:transparent}
+  .hero h1 .emoji img{width:100%;height:100%;display:block}
+  .hero p.hook{margin-top:12px;font-size:16px;color:#dce6e2;max-width:680px}
+  .hero p.ability{margin-top:4px;font-size:13.5px;color:#9db3a8;max-width:720px}
+  .hero .cta{margin-top:16px;display:inline-flex;align-items:center;gap:10px;background:var(--orange);color:#fff;font-weight:700;border-radius:12px;padding:11px 22px;font-size:15px;border:none;cursor:pointer;box-shadow:0 10px 26px rgba(232,101,26,.4)}
+  .hero .cta small{font-weight:400;opacity:.85;font-size:12px}
+  .safe-banner{margin-top:14px;display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:#ffe3cd;background:rgba(232,101,26,.16);border:1px solid rgba(232,101,26,.4);border-radius:10px;padding:7px 14px}
+
+  /* ---------- stage ---------- */
+  section{padding:32px 0 4px}
+  .sec-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+  .sec-head h2{font-size:21px}
+  .sec-head .k{color:var(--orange);font-weight:800}
+  .sec-head .desc{font-size:13px;color:var(--sub)}
+  .sec-note{font-size:12.5px;color:var(--sub);margin-bottom:14px}
+  .stage{background:#132530;border-radius:var(--radius);overflow:hidden;box-shadow:0 12px 30px rgba(19,37,48,.35)}
+  .stage .bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#0f1d26;color:#8fa8b3;font-size:12px;flex-wrap:wrap}
+  .dot{width:10px;height:10px;border-radius:50%}
+  .dot.r{background:#ff5f57}.dot.y{background:#febc2e}.dot.g{background:#28c840}
+  .stage .url{background:#0a161e;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:3px 12px;font:11.5px/1.5 ui-monospace,Consolas,monospace;color:#7d95a0}
+  .stage .ctrls{margin-left:auto;display:flex;gap:6px;align-items:center}
+  .stage .st{display:flex;align-items:center;gap:6px;font-size:12px;color:#c9ded4}
+  .st-dot{width:8px;height:8px;border-radius:50%;background:#5f7d8c;display:inline-block}
+  .st-dot.playing{background:var(--orange);animation:pulse 1s infinite}
+  .st-dot.done{background:#28c840}
+  @keyframes pulse{50%{opacity:.35}}
+  .sbtn{background:transparent;border:1px solid rgba(255,255,255,.18);color:#c9ded4;border-radius:8px;font-size:12px;padding:4px 12px;cursor:pointer;font-weight:700;min-height:30px}
+  .sbtn:hover{border-color:var(--orange);color:#ffb27d}
+  .sbtn.act{background:var(--orange);border-color:var(--orange);color:#fff}
+  .stage .body{display:grid;grid-template-columns:390px 1fr;min-height:600px}
+  @media(max-width:960px){.stage .body{grid-template-columns:1fr}}
+
+  /* ---------- 左：引导对话 ---------- */
+  .chat{border-right:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;background:#101f29}
+  .chat .head{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px}
+  .chat .head .av{width:34px;height:34px;border-radius:10px;overflow:hidden;flex:none}
+  .chat .head .av img{width:100%;height:100%;display:block}
+  .chat .head b{color:#e8f1ec;font-size:14.5px;display:block;line-height:1.3}
+  .chat .head span{color:#7d95a0;font-size:11.5px}
+  .chat .log{flex:1;overflow-y:auto;padding:14px 14px 8px;display:flex;flex-direction:column;gap:10px;max-height:520px}
+  .msg{display:flex;gap:8px;animation:fadein .35s}
+  @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .msg .m-av{width:26px;height:26px;border-radius:8px;overflow:hidden;flex:none;margin-top:2px}
+  .msg .m-av img{width:100%;height:100%;display:block}
+  .msg .bub{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);border-radius:4px 12px 12px 12px;padding:8px 12px;font-size:13px;color:#d5e3db;max-width:290px;line-height:1.65}
+  .msg .bub b{color:#ffb27d}
+  .msg.user{flex-direction:row-reverse}
+  .msg.user .bub{background:rgba(232,101,26,.16);border-color:rgba(232,101,26,.35);border-radius:12px 4px 12px 12px;color:#ffe3cd}
+  .opts{display:flex;flex-direction:column;gap:7px;margin:2px 0 6px 34px;animation:fadein .35s}
+  .opt{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);color:#dce8e1;border-radius:10px;padding:7px 12px;font-size:13px;text-align:left;cursor:pointer;transition:.18s;line-height:1.5;min-height:34px}
+  .opt:hover{border-color:var(--orange);background:rgba(232,101,26,.12)}
+  .opt.recing{box-shadow:0 0 0 2px rgba(232,101,26,.35);border-color:var(--orange)}
+  .opt small{display:block;color:#7d95a0;font-size:11.5px}
+  .opt .tick{color:#7ee2a8;font-weight:800}
+  .chat .input{display:flex;gap:8px;padding:10px 12px;border-top:1px solid rgba(255,255,255,.07)}
+  .chat .input input{flex:1;min-width:0;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:9px;color:#e8f1ec;font-size:16px;padding:7px 11px;outline:none}
+  .chat .input input:focus{border-color:var(--orange)}
+  .chat .input button{background:var(--orange);border:none;color:#fff;border-radius:9px;font-weight:700;font-size:13px;padding:7px 14px;cursor:pointer;min-height:38px}
+  .chat .skip{padding:0 12px 10px;font-size:11.5px;color:#7d95a0;text-align:center}
+  .chat .skip a{color:#ffb27d;cursor:pointer;text-decoration:underline}
+
+  /* ---------- 右：工作区 ---------- */
+  .ws{display:flex;flex-direction:column;background:#f7fafc;overflow:hidden}
+  .brief{background:#fff;border-bottom:1px solid var(--line);padding:14px 18px}
+  .brief .t{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .brief .t b{font-size:15px}
+  .brief .t .meter{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub)}
+  .segs{display:flex;gap:3px}
+  .seg{width:16px;height:7px;border-radius:4px;background:#e3e9f2;transition:.3s}
+  .seg.on{background:var(--orange)}
+  .brief .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+  @media(max-width:1180px){.brief .grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:640px){.brief .grid{grid-template-columns:1fr}}
+  .bf{background:#f8fafd;border:1px solid var(--line);border-radius:10px;padding:8px 11px;min-height:52px}
+  .bf .k{font-size:11px;color:var(--sub);display:flex;align-items:center;gap:5px}
+  .bf .v{font-size:12.8px;font-weight:600;margin-top:2px;color:#93a3b3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .bf.filled{background:var(--orange-soft);border-color:var(--orange-line)}
+  .bf.filled .v{color:var(--ink)}
+  .bf.flash{animation:bfpop .5s}
+  @keyframes bfpop{30%{transform:scale(1.04);box-shadow:0 0 0 3px rgba(232,101,26,.18)}}
+  .brief .ops{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap;align-items:center}
+  .big-btn{border:none;border-radius:10px;font-weight:800;font-size:13.5px;padding:9px 20px;cursor:pointer;transition:.2s;min-height:46px}
+  .big-btn.gen{background:var(--orange);color:#fff;box-shadow:0 6px 18px rgba(232,101,26,.35)}
+  .big-btn.gen:disabled{background:#b6c3d2;box-shadow:none;cursor:default}
+  .big-btn.ghost{background:#fff;border:1px solid var(--line);color:var(--sub)}
+  .big-btn.ghost:hover{border-color:var(--orange-line);color:var(--orange)}
+  @media(max-width:640px){.brief .ops .big-btn{flex:1 1 100%}}
+  .fee{font-size:12px;color:var(--sub);align-self:center}
+  .fee b{color:var(--orange)}
+  .safe-tag{font-size:11.5px;color:var(--green);background:var(--green-soft);border-radius:99px;padding:2px 10px;font-weight:700}
+
+  /* 占位/生成/交付 三态画布 */
+  .canvas{flex:1;padding:16px 18px 18px;overflow-y:auto;max-height:560px}
+  .ph-note{font-size:12.5px;color:var(--sub);margin-bottom:12px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .ph-note .tag{background:#fff;border:1px solid var(--line);border-radius:99px;font-size:11px;padding:2px 10px}
+  .ph-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  @media(max-width:1100px){.ph-grid{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:700px){.ph-grid{grid-template-columns:repeat(2,1fr)}}
+  .ph{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 12px 10px;position:relative;transition:.3s;min-height:104px}
+  .ph .no{font-size:11px;font-weight:800;color:#b6c3d2}
+  .ph b{font-size:12.8px;display:flex;gap:6px;align-items:center;margin-top:3px}
+  .ph span.d{font-size:11px;color:var(--sub);display:block;margin-top:3px;line-height:1.5}
+  .ph.locked{opacity:.55}
+  .ph.locked::after{content:"🔒";position:absolute;top:8px;right:9px;font-size:12px;opacity:.6}
+  .ph.gening{border-color:var(--orange);background:#fff}
+  .ph.gening .spin{position:absolute;top:8px;right:9px;width:13px;height:13px;border:2px solid var(--orange-line);border-top-color:var(--orange);border-radius:50%;animation:rot .7s linear infinite}
+  .ph.done{border-color:#bfe6d2;background:linear-gradient(180deg,#fff,#f4fcf8)}
+  .ph.done::after{content:"✓";position:absolute;top:6px;right:9px;font-size:12px;color:var(--green);font-weight:800}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  .g-blue{color:var(--blue)} .g-purple{color:var(--purple)} .g-green{color:var(--green)} .g-amber{color:var(--amber)} .g-orange{color:var(--orange)} .g-red{color:var(--red)}
+  .gen-prog{margin:10px 0 12px}
+  .gp-row{display:flex;align-items:center;gap:10px}
+  .gp-bar{flex:1;height:8px;border-radius:99px;background:#e3e9f2;overflow:hidden}
+  .gp-bar i{display:block;height:100%;width:0;background:var(--orange);border-radius:99px;transition:width .4s}
+  .gp-row b{font-size:13px}
+  .gp-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-top:5px}
+  .genlog{background:#132530;border-radius:12px;padding:14px 16px;font:12.5px/2 ui-monospace,Consolas,"Courier New",monospace;color:#c9ded4;max-height:230px;overflow-y:auto}
+  .genlog .ln{opacity:0;transform:translateY(4px);transition:.3s}
+  .genlog .ln.in{opacity:1;transform:none}
+  .genlog .ln.ok{color:#7ee2a8}
+  .genlog .ln.hl{color:#ffb27d;font-weight:700}
+
+  /* 交付视图 */
+  .dl-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .dl-head .ok-tag{background:var(--green-soft);color:var(--green);font-size:12px;font-weight:800;border-radius:99px;padding:3px 12px}
+  .dl-head .time{font-size:12px;color:var(--sub)}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .tab{font-size:12.5px;font-weight:700;border:1px solid var(--line);background:#fff;color:var(--sub);border-radius:99px;padding:4px 14px;cursor:pointer;min-height:32px}
+  .tab.act{background:#17313f;border-color:#17313f;color:#fff}
+  .pieces{display:flex;flex-direction:column;gap:12px}
+  .pc{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .pc .h{display:flex;align-items:center;gap:9px;padding:11px 15px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .pc .h .no{width:24px;height:24px;border-radius:8px;display:grid;place-items:center;font-size:12px;font-weight:800;color:#fff;flex:none}
+  .pc .h b{font-size:14.5px}
+  .pc .h .btns{margin-left:auto;display:flex;gap:7px}
+  .cbtn{font-size:12px;font-weight:700;border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 11px;cursor:pointer;color:var(--sub);min-height:34px}
+  .cbtn:hover{border-color:var(--orange-line);color:var(--orange)}
+  .pc .c{padding:14px 16px;font-size:13.5px}
+  .pc .c h4{font-size:13px;margin:12px 0 5px;color:var(--ink)}
+  .pc .c h4:first-child{margin-top:0}
+  .pc .c table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0}
+  .pc .c th{background:#f4f7fb;text-align:left;padding:6px 9px;border:1px solid var(--line);font-weight:700;white-space:nowrap}
+  .pc .c td{padding:6px 9px;border:1px solid var(--line);vertical-align:top}
+  .pc .c ul{list-style:none;display:flex;flex-direction:column;gap:5px}
+  .pc .c li{padding-left:17px;position:relative}
+  .pc .c li::before{content:"";position:absolute;left:3px;top:9px;width:5px;height:5px;border-radius:50%;background:var(--orange-line)}
+  .warn{font-size:12px;color:var(--red);background:#fdeaea;border-radius:8px;padding:6px 10px;margin-top:8px}
+  .todo-mark{font-size:11px;color:var(--amber);background:var(--amber-soft);border-radius:6px;padding:1px 7px;font-weight:700;white-space:nowrap}
+  .pv-badge{display:inline-block;font-size:11px;font-weight:800;color:#fff;background:var(--orange);border-radius:6px;padding:1px 8px;margin-right:6px;letter-spacing:.5px}
+  .pv-badge.ghost{background:#fff;color:var(--amber);border:1px dashed var(--amber)}
+  .page-chip{display:inline-block;font-size:11px;color:var(--blue);background:var(--blue-soft);border-radius:99px;padding:1px 9px;font-weight:600;white-space:nowrap}
+  .spotlight{animation:spot 1.2s ease 2}
+  @keyframes spot{0%,100%{box-shadow:0 0 0 0 rgba(232,101,26,0)}50%{box-shadow:0 0 0 5px rgba(232,101,26,.45)}}
+
+  /* 待补清单卡 */
+  .need-card{background:#fff;border:1px dashed var(--amber);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+  .need-card b.t{font-size:14px;color:var(--amber);display:flex;align-items:center;gap:8px}
+  .need-card ul{list-style:none;margin-top:8px;display:flex;flex-direction:column;gap:6px}
+  .need-card li{font-size:12.8px;color:var(--sub);padding-left:20px;position:relative}
+  .need-card li::before{content:"☐";position:absolute;left:0;color:var(--amber)}
+
+  /* 说明区块 */
+  .cards3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:900px){.cards3{grid-template-columns:1fr}}
+  .xcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:0 6px 18px rgba(28,39,51,.05)}
+  .xcard b.t{display:flex;align-items:center;gap:8px;font-size:15.5px;margin-bottom:8px}
+  .xcard .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:15px;flex:none}
+  .xcard p{font-size:13px;color:var(--sub)}
+  .xcard p+p{margin-top:6px}
+  table.cmp{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+  table.cmp th,table.cmp td{padding:9px 13px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  table.cmp th{background:#f4f7fb;font-size:12.5px}
+  table.cmp tr:last-child td{border-bottom:none}
+  table.cmp td:first-child{font-weight:700;white-space:nowrap;color:var(--sub);font-size:12.5px}
+  .qa-list{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:12px}
+  .qa-list b.q{font-size:13.5px;display:block;margin-bottom:3px}
+  .qa-list p{font-size:12.8px;color:var(--sub)}
+  footer{padding:30px 0 40px;text-align:center;font-size:12px;color:#9db0be}
+  .toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(20px);background:#17313f;color:#fff;font-size:13px;font-weight:600;border-radius:99px;padding:9px 22px;opacity:0;transition:.3s;z-index:99;box-shadow:0 10px 30px rgba(19,37,48,.4);pointer-events:none;max-width:86vw;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%)}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="wrap">
+  <button class="back-btn" onclick="toast('演示版：返回商城首页')">← 返回</button>
+  <div class="logo">思潼<i>AI</i> 行业智能体平台</div>
+  <span class="credits">算力 <b id="creditVal">2,400</b></span>
+</div></div>
+
+<header class="hero"><div class="wrap">
+  <div class="chips"><span class="chip dev">投流专区</span><span class="chip">巨量本地推 · 线索获客</span><span class="chip">PREVIEW_ONLY 安全模式</span></div>
+  <h1><span class="emoji"><img alt="推手头像" src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2317313f'/%3E%3Cstop offset='1' stop-color='%23E8651A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' fill='url(%23g)'/%3E%3Ctext x='50' y='42' font-size='34' text-anchor='middle'%3E%F0%9F%A7%AD%3C/text%3E%3Ctext x='50' y='84' font-size='26' font-weight='bold' fill='%23ffe3cd' text-anchor='middle'%3E%E6%8E%A8%E6%89%8B%3C/text%3E%3C/svg%3E"></span>本地推投流工作台</h1>
+  <p class="hook">跟本地推投流军师「推手」聊几句，它帮你把钱花明白：先核口径、再下诊断，动预算之前先出预览单。</p>
+  <p class="ability">回答几个问题 → 出诊断报告 → 诊断 / 动作 / 变更单 / 风险四区交付；完整版含 PREVIEW_ONLY 变更单，确认后转独立执行层，本界面不碰你账户一分钱。</p>
+  <button class="cta" onclick="setMode(true);document.getElementById('demo').scrollIntoView({behavior:'smooth'});window.__autostart&&window.__autostart()">▶ 看演示（自动跑一遍）<small>约 35 秒 · 随时点卡片接管，也可手动逐步操作</small></button>
+  <div class="safe-banner">🛡️ 本界面只出预览：不登录、不读取、不创建、不修改、不启动、不暂停任何真实广告账户 · 诊断给方向，不保证投放结果</div>
+</div></header>
+
+<section id="demo"><div class="wrap">
+  <div class="sec-head"><h2>▶ <span class="k">工作台实况演示</span></h2><span class="desc">默认手动操作 · 点上方「▶ 看演示」自动跑一遍 · 左：引导对话｜右：简报 + 交付区</span></div>
+  <div class="sec-note">演示数据为模拟账户（平台A · X总的宠物门店，账户/数据均为虚构）。诊断环节模拟数分钟的核验与生成轮询。时效性字段（预算、出价、审核、资质、赔付）以当前官方页面为准。</div>
+
+  <div class="stage">
+    <div class="bar">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="url">ai.lcppch.top/agent/ipzone__localpush/workbench</span>
+      <span class="st"><span class="st-dot" id="stDot"></span><span id="stTxt">○ 待演示</span></span>
+      <div class="ctrls">
+        <button class="sbtn" id="btnAuto">▶ 自动演示</button>
+        <button class="sbtn" id="btnManual">✋ 手动</button>
+        <button class="sbtn" id="btnReset">↻ 重置</button>
+      </div>
+    </div>
+    <div class="body">
+
+      <!-- 左：引导对话 -->
+      <div class="chat">
+        <div class="head">
+          <div class="av"><img alt="推手头像" src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2317313f'/%3E%3Cstop offset='1' stop-color='%23E8651A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' fill='url(%23g)'/%3E%3Ctext x='50' y='42' font-size='34' text-anchor='middle'%3E%F0%9F%A7%AD%3C/text%3E%3Ctext x='50' y='84' font-size='26' font-weight='bold' fill='%23ffe3cd' text-anchor='middle'%3E%E6%8E%A8%E6%89%8B%3C/text%3E%3C/svg%3E"></div>
+          <div><b>推手 · 本地推投流军师</b><span>一次只问一个问题 · 回答自动填入右侧简报</span></div>
+        </div>
+        <div class="log" id="chatLog"></div>
+        <div class="skip">赶时间？<a id="skipGuide">AI 先铺底稿，你来逐条确认 →</a></div>
+        <div class="input">
+          <input id="freeInput" placeholder="也可以直接打字，例如：换成近30天口径" />
+          <button id="freeSend">发送</button>
+        </div>
+      </div>
+
+      <!-- 右：工作区 -->
+      <div class="ws">
+        <div class="brief">
+          <div class="t">
+            <b>🧭 投流诊断简报</b>
+            <span style="font-size:12px;color:var(--sub)">每轮绑定 client_id + account_id，身份不全只出待补清单</span>
+            <div class="meter"><span id="briefPct">0/6</span><div class="segs" id="segs"></div></div>
+          </div>
+          <div class="grid" id="briefGrid"></div>
+          <div class="ops">
+            <button class="big-btn gen" id="btnGen" disabled>✨ 开始诊断</button>
+            <button class="big-btn ghost" id="btnRegenAll" style="display:none">↻ 改简报重新诊断</button>
+            <span class="fee" id="feeHint">完成引导后可诊断 · 轻量诊断报告 <b>10 算力</b> ｜ 完整诊断+变更单 <b>20 算力/次</b></span>
+            <span class="safe-tag">🛡️ 失败不扣费</span>
+          </div>
+        </div>
+        <div class="canvas" id="canvas">
+          <div class="ph-note">👋 完成左侧引导后，诊断交付会在这里分区生成<span class="tag">先绑定账户身份</span><span class="tag">再开始诊断</span></div>
+          <div class="ph-grid" id="phGrid"></div>
+          <div id="genWrap" style="display:none">
+            <div class="ph-note" style="margin-top:4px">⏳ 诊断中 · 前端每 30 秒轮询一次结果接口（线上已验证的超时策略）</div>
+            <div class="gen-prog"><div class="gp-row"><div class="gp-bar"><i id="gpFill"></i></div><b id="gpPct">0%</b></div><div class="gp-meta"><span id="gpStep">准备中…</span><span id="gpEta"></span></div></div>
+            <div class="genlog" id="genLog"></div>
+          </div>
+          <div id="dlWrap" style="display:none"></div>
+          <div id="needWrap" style="display:none"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="sec-head"><h2>交付物里有什么</h2><span class="desc">九件交付 · 四个分区 · 单件可复制可重生成（3 算力/件）</span></div>
+  <div class="cards3" style="margin-top:12px">
+    <div class="xcard"><b class="t"><span class="ic" style="background:var(--orange-soft)">🔍</span>诊断区</b><p>投流结论（含根因强度星级）· 账户身份与口径核验（消耗/线索/有效线索/预约/到店/成交/回传七项）· 证据与诊断假设 · P0 动作清单（本周只做三件事）。</p></div>
+    <div class="xcard"><b class="t"><span class="ic" style="background:var(--blue-soft)">🧪</span>动作区</b><p>单变量测试计划（一次只动一个变量，带对照与观察窗）· 监控与止损（止损线 + 回退步骤，回退同样走批次确认）。</p></div>
+    <div class="xcard"><b class="t"><span class="ic" style="background:var(--amber-soft)">📝</span>变更单区</b><p>PREVIEW_ONLY 变更单：账户 / 计划 / 字段原值 / 新值·待核验 / 原因 / 验证 / 风险 / 止损 / 回退，双徽标固定展示，确认后转独立桌面执行层逐项执行。</p></div>
+  </div>
+  <table class="cmp" style="margin-top:14px">
+    <tr><th style="width:150px">安全机制</th><th>说明</th></tr>
+    <tr><td>身份绑定</td><td>每轮绑定 client_id + account_id；身份不全时只输出待补清单和条件化建议，不出诊断。</td></tr>
+    <tr><td>口径核验前置</td><td>先核验时间范围、归因口径与七项指标，再谈结论；口径不齐不硬答。</td></tr>
+    <tr><td>PREVIEW_ONLY</td><td>本界面只出预览，不登录、不读取、不修改真实账户；真实变更在独立桌面执行层逐项确认后才执行。</td></tr>
+    <tr><td>不承诺效果</td><td>诊断给方向不保证结果；不混用客户数据、不生成规避审核或造假方案。</td></tr>
+  </table>
+  <div class="qa-list"><b class="q">Q：能直接帮我把预算改了吗？</b><p>不能。界面里生成的是 PREVIEW_ONLY 变更单，字段原值、新值、原因、止损、回退都在单子上；你确认后由独立执行层逐项操作，本界面永远不碰真实账户。</p></div>
+  <div class="qa-list"><b class="q">Q：为什么先问数据口径？</b><p>消耗、线索、有效线索、预约、到店、成交、回传这七项，口径不同结论完全不同。先核口径再诊断，是本地推不踩坑的第一步。</p></div>
+</div></section>
+
+<footer>思潼AI · 本地推投流工作台 demo · 数据为虚构演示 · PREVIEW_ONLY 安全模式</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= 数据 ================= */
+var AV = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2317313f'/%3E%3Cstop offset='1' stop-color='%23E8651A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' fill='url(%23g)'/%3E%3Ctext x='50' y='42' font-size='34' text-anchor='middle'%3E%F0%9F%A7%AD%3C/text%3E%3Ctext x='50' y='84' font-size='26' font-weight='bold' fill='%23ffe3cd' text-anchor='middle'%3E%E6%8E%A8%E6%89%8B%3C/text%3E%3C/svg%3E";
+var FIELDS = [
+  {key:'account', icon:'🔐', label:'账户身份'},
+  {key:'pain',    icon:'🩺', label:'主诉问题'},
+  {key:'scope',   icon:'📅', label:'数据口径'},
+  {key:'data',    icon:'📊', label:'关键数据'},
+  {key:'budget',  icon:'💰', label:'预算空间'},
+  {key:'depth',   icon:'📋', label:'交付深度'}
+];
+var DEMO_ACCOUNT = '平台A · X总的宠物门店（账户 1680****69）';
+var QFLOW = [
+  {field:'account', q:'先绑定账户身份：这次诊断哪个本地推账户？', hint:'每轮绑定 client_id + account_id；身份不全我只给待补清单，不出诊断。',
+   opts:[
+     {t:'平台A · X总的宠物门店', d:'演示账户 · 已授权', v:'platformA', rec:true},
+     {t:'平台B · 连锁餐饮X店', d:'演示账户 · 已授权', v:'platformB'},
+     {t:'先不绑定，看待补清单长什么样', d:'体验安全边界：身份不全不出诊断', v:'none'}
+   ]},
+  {field:'pain', q:'这个账户目前最头疼的是哪件事？', hint:'决定诊断的主线，其他问题我会顺带看。',
+   opts:[
+     {t:'消耗高，线索少', d:'钱花出去了，量起不来', v:'cost_lead', rec:true},
+     {t:'线索多，有效线索率低', d:'接到一堆无效线索', v:'quality'},
+     {t:'预约多，到店少', d:'中间环节在掉人', v:'visit'},
+     {t:'素材总被审核拒', d:'反复改反复拒', v:'audit'},
+     {t:'新户冷启动跑不动', d:'新账户没历史数据', v:'cold'}
+   ]},
+  {field:'scope', q:'数据看哪个口径？', hint:'时间范围与归因口径不同，结论完全不同，先核口径再诊断。',
+   opts:[
+     {t:'近 7 天 · 点击归因', d:'演示示例：近期改动后的表现', v:'近 7 天 · 点击归因（账户口径）', rec:true},
+     {t:'近 14 天 · 点击归因', d:'', v:'近 14 天 · 点击归因（账户口径）'},
+     {t:'近 30 天 · 账户口径', d:'', v:'近 30 天 · 账户口径'}
+   ]},
+  {field:'data', q:'账户里的关键数据大概是多少？', hint:'演示版直接用模拟数据，真实版从这里读你授权的账户报表。',
+   opts:[
+     {t:'7 天消耗 3,580 · 线索 46 · 有效 9', d:'有效线索率 19.6% · 预约 5 · 到店 2', v:'cost3580', rec:true},
+     {t:'我口述一组数据', d:'演示版会带出同一组模拟数据', v:'cost3580'}
+   ]},
+  {field:'budget', q:'预算和出价还有调整空间吗？', hint:'时效字段（预算上限、出价方式、赔付）以当前官方页面为准，我不会替你拍板。',
+   opts:[
+     {t:'日预算 300 → 500 试一次', d:'演示示例：单变量提量', v:'日预算 300 → 500（单变量试一次）', rec:true},
+     {t:'预算保持不动', d:'先只调定向和素材', v:'保持不动'},
+     {t:'出价情况待核验', d:'演示：以当前页面为准', v:'出价待核验（以当前官方页面为准）'}
+   ]},
+  {field:'depth', q:'这次要交付到什么深度？', hint:'只要一份诊断报告，还是连单变量计划和变更单一起出？',
+   opts:[
+     {t:'轻量 · 诊断报告', d:'结论+口径核验+假设+P0 · 10 算力 · 约 3 分钟', v:'light'},
+     {t:'完整 · 诊断+单变量计划+变更单', d:'九件套 · PREVIEW_ONLY 变更单 · 20 算力/次 · 约 5 分钟', v:'full', rec:true}
+   ]}
+];
+var PIECES = [
+  {id:'p1',no:'①',g:'diag', gt:'诊断区', gcls:'g-orange', icon:'🎯', title:'投流结论', d:'结论 + 根因强度 + 一句话方向',
+   html:`<p><b>结论：消耗高线索少，主因是「定向过宽 + 表单过长」，素材钩子次之。</b></p>
+   <table><tr><th style="width:110px">项</th><th>内容</th></tr>
+   <tr><td>根因强度</td><td>★★★☆☆（定向）＋ ★★★☆☆（表单）＋ ★★☆☆☆（素材）</td></tr>
+   <tr><td>一句话方向</td><td>先收窄定向、砍表单字段，跑 72 小时再看钱去哪了</td></tr></table>
+   <p style="font-size:12px;color:var(--sub)">诊断给方向，不保证投放结果。</p>`,
+   plain:'一、投流结论\n结论：消耗高线索少，主因是定向过宽+表单过长，素材钩子次之\n根因强度：定向★★★☆☆ 表单★★★☆☆ 素材★★☆☆☆\n方向：先收窄定向、砍表单字段，跑72小时再复盘\n（诊断给方向，不保证投放结果）'},
+  {id:'p2',no:'②',g:'diag', gt:'诊断区', gcls:'g-orange', icon:'📋', title:'账户身份与口径核验', d:'七项指标逐项核验',
+   html:`<table><tr><th>核验项</th><th>结果</th><th>状态</th></tr>
+   <tr><td>时间范围 / 归因</td><td>近 7 天 · 点击归因（账户口径）</td><td>✓</td></tr>
+   <tr><td>消耗</td><td>3,580 元</td><td>✓</td></tr>
+   <tr><td>线索</td><td>46 条</td><td>✓</td></tr>
+   <tr><td>有效线索</td><td>9 条（有效线索率 19.6%，同业参考约 30%）</td><td>⚠ 偏低</td></tr>
+   <tr><td>预约 / 到店</td><td>预约 5 · 到店 2（预约到店率 40%）</td><td>✓</td></tr>
+   <tr><td>成交</td><td>未接入</td><td><span class="todo-mark">待核验</span></td></tr>
+   <tr><td>回传状态</td><td>回传正常，无断链</td><td>✓</td></tr></table>
+   <p><span class="page-chip">时效字段以当前官方页面为准</span></p>`,
+   plain:'二、账户身份与口径核验\n时间范围/归因：近7天·点击归因 ✓\n消耗 3,580 元 ✓｜线索 46 条 ✓\n有效线索 9 条（率19.6%，偏低）⚠\n预约 5 · 到店 2 ✓｜成交 未接入（待核验）\n回传正常 ✓\n（时效字段以当前官方页面为准）'},
+  {id:'p3',no:'③',g:'diag', gt:'诊断区', gcls:'g-orange', icon:'🔎', title:'证据与诊断假设', d:'每条假设挂数据证据',
+   html:`<h4>假设 1：定向过宽（强度 ★★★☆☆）</h4><ul><li>证据：人群覆盖全市，无商圈半径限定；非本地点击占比高</li></ul>
+   <h4>假设 2：表单过长（强度 ★★★☆☆）</h4><ul><li>证据：表单 9 个字段，提交率仅 12%，流失集中在第 5 项之后</li></ul>
+   <h4>假设 3：素材钩子弱（强度 ★★☆☆☆）</h4><ul><li>证据：3 秒播放率 41%，低于 55% 参考门槛</li></ul>
+   <p style="font-size:12px;color:var(--sub)">演示数据为模拟账户，真实版逐项取自授权报表。</p>`,
+   plain:'三、证据与诊断假设\n假设1 定向过宽 ★★★☆☆（覆盖全市无半径限定）\n假设2 表单过长 ★★★☆☆（9字段提交率12%）\n假设3 素材钩子弱 ★★☆☆☆（3秒播放率41%）'},
+  {id:'p4',no:'④',g:'act', gt:'动作区', gcls:'g-blue', icon:'✅', title:'P0 动作清单', d:'本周只做 3 件事，每件带验证指标',
+   html:`<ul><li><b>收窄定向：</b>全市 → 门店 5km + 宠物兴趣（验证指标：线索成本）</li>
+   <li><b>砍表单：</b>9 项 → 4 项，只留称呼/电话/宠物类型/方便到店时段（验证指标：提交率）</li>
+   <li><b>换钩子：</b>前三秒改「算账类」开头（验证指标：3 秒播放率 ≥ 55%）</li></ul>
+   <p style="font-size:12px;color:var(--sub)">一次只动一个变量是纪律；三件事按周排，不叠着改。</p>`,
+   plain:'四、P0动作清单（本周只做3件事）\n1 收窄定向：全市→门店5km+宠物兴趣（看线索成本）\n2 砍表单：9项→4项（看提交率）\n3 换钩子：前三秒改算账类（看3秒播放率≥55%）'},
+  {id:'p5',no:'⑤',g:'act', gt:'动作区', gcls:'g-blue', icon:'🧪', title:'单变量测试计划', d:'一次只动一个变量',
+   html:`<table><tr><th style="width:100px">项</th><th>内容</th></tr>
+   <tr><td>变量</td><td>定向：全市 → 门店 5km + 宠物兴趣</td></tr>
+   <tr><td>对照</td><td>保留 1 条原计划不动（同素材、同出价）</td></tr>
+   <tr><td>观察窗</td><td>72 小时，中途不改</td></tr>
+   <tr><td>样本口径</td><td>同素材、同出价、同落地页，只差定向</td></tr></table>
+   <p><span class="page-chip">预算/出价字段以当前官方页面为准</span></p>`,
+   plain:'五、单变量测试计划\n变量：定向 全市→门店5km+宠物兴趣\n对照：保留1条原计划不动\n观察窗：72小时中途不改\n样本口径：同素材同出价同落地页'},
+  {id:'p6',no:'⑥',g:'act', gt:'动作区', gcls:'g-blue', icon:'📈', title:'监控与止损', d:'观察条件 + 止损线 + 回退',
+   html:`<h4>观察条件（72h）</h4><ul><li>新计划线索成本 ≤ 60 元/条 → 继续观察</li><li>有效线索率回升至 ≥ 25% → P0 第二件事启动</li></ul>
+   <h4>止损线</h4><ul><li>连续 2 天线索成本 > 80 元/条 → 暂停新计划（需批次确认）</li></ul>
+   <h4>回退方案</h4><ul><li>恢复原预算与原定向，回退同样走 PREVIEW_ONLY 单确认</li></ul>`,
+   plain:'六、监控与止损\n观察：72h内线索成本≤60元/条继续；有效线索率≥25%启动下一件\n止损：连续2天>80元/条暂停新计划（需批次确认）\n回退：恢复原预算与定向（走PREVIEW_ONLY确认）'},
+  {id:'p7',no:'⑦',g:'pv', gt:'变更单区', gcls:'g-amber', icon:'📝', title:'PREVIEW_ONLY 变更单', d:'status: PREVIEW_ONLY · requires_confirmation: true',
+   html:`<p><span class="pv-badge">PREVIEW_ONLY</span><span class="pv-badge ghost">requires_confirmation: true</span></p>
+   <table><tr><th>字段</th><th>原值</th><th>新值 / 待核验</th><th>原因</th></tr>
+   <tr><td>账户</td><td colspan="3">平台A · 1680****69</td></tr>
+   <tr><td>计划</td><td colspan="3">「洗护年卡-获客-01」</td></tr>
+   <tr><td>日预算</td><td>300 元</td><td>500 元</td><td>定向收窄后的提量配合</td></tr>
+   <tr><td>定向</td><td>全市</td><td>门店 5km + 宠物兴趣</td><td>主变量测试</td></tr>
+   <tr><td>出价方式</td><td>—</td><td><span class="todo-mark">待核验</span>（以当前页面为准）</td><td>时效字段</td></tr></table>
+   <ul><li><b>验证：</b>72h 线索成本 ≤ 60 元/条</li><li><b>风险：</b>预算上调可能放大低效消耗，止损线兜底</li><li><b>止损：</b>连续 2 天 > 80 元/条暂停新计划</li><li><b>回退：</b>恢复日预算 300 + 原定向</li></ul>
+   <div class="warn">🛡️ 本单仅预览：确认后转独立桌面执行层逐项执行，本界面不登录、不修改任何真实广告账户。</div>`,
+   plain:'七、PREVIEW_ONLY 变更单\nstatus: PREVIEW_ONLY ｜ requires_confirmation: true\n账户：平台A·1680****69｜计划：洗护年卡-获客-01\n日预算：300→500｜定向：全市→门店5km+宠物兴趣\n出价方式：待核验（以当前页面为准）\n验证：72h线索成本≤60元/条\n止损：连续2天>80元/条暂停\n回退：恢复预算300+原定向\n（确认后转独立执行层逐项执行）'},
+  {id:'p8',no:'⑧',g:'risk', gt:'风险区', gcls:'g-red', icon:'🧯', title:'素材与合规自查', d:'违规表述替换建议',
+   html:`<ul><li>❌「最专业的宠物美容」绝对化用语 → 改「从业 8 年的美容师」</li>
+   <li>❌「保证办卡就划算」承诺类表述 → 删，改客观算账</li>
+   <li>❌「加微信私聊」站外引导 → 改评论区关键词承接</li>
+   <li>✓「持证美容师」有资质支撑，保留（资质状态<span class="todo-mark">待核验</span>）</li></ul>
+   <p><span class="page-chip">审核规则以当前官方页面为准</span></p>`,
+   plain:'八、素材与合规自查\n❌ 绝对化用语→改从业年限\n❌ 承诺类表述→删，改客观算账\n❌ 站外引导→改评论区关键词承接\n✓ 持证美容师可保留（资质待核验）'},
+  {id:'p9',no:'⑨',g:'risk', gt:'风险区', gcls:'g-red', icon:'⚠️', title:'风险与待补信息', d:'待补清单 + 时效字段声明',
+   html:`<ul><li><span class="todo-mark">待补</span> 主体资质与行业类目审核状态（影响可投素材类型）</li>
+   <li><span class="todo-mark">待补</span> 出价方式当前可选范围（时效字段）</li>
+   <li><span class="todo-mark">待补</span> 成交数据未接入，转化链路只核到「到店」</li>
+   <li><span class="todo-mark">待补</span> 账户是否有赔付记录（时效字段）</li></ul>
+   <p><span class="page-chip">以当前官方页面为准</span>　本件不虚构任何核验不到的数据。</p>`,
+   plain:'九、风险与待补信息\n待补：主体资质审核状态\n待补：出价方式可选范围\n待补：成交数据未接入\n待补：赔付记录\n（时效字段以当前官方页面为准）'}
+];
+var LIGHT_IDS = ['p1','p2','p3','p4'];
+var GEN_LOGS = [
+  '连接演示账户 1680****69（PREVIEW_ONLY 模式，只读预览）',
+  '核验时间范围：近 7 天 · 点击归因（账户口径）',
+  '读取消耗 / 线索 / 有效线索 / 预约 / 到店 / 回传 …',
+  '⚠ 有效线索率 19.6%，低于同业参考 30%',
+  '诊断根因强度评定：定向 ★★★☆☆ · 表单 ★★★☆☆ · 素材 ★★☆☆☆',
+  '生成 P0 动作清单与单变量测试计划',
+  '组装 PREVIEW_ONLY 变更单（status: PREVIEW_ONLY）',
+  '✓ 完成：九件交付就绪，等待逐件查看'
+];
+var NEED_LIST = ['账户 ID（巨量本地推账户编号）','主体资质与行业类目','客户投放授权关系','数据口径（时间范围 / 归因）'];
+
+/* ================= 状态 ================= */
+var S = {phase:'idle', qi:0, brief:{}, depth:null, auto:false, timer:null, genIdx:-1, needsAccount:false};
+var CREDITS = 2400;
+function $(id){ return document.getElementById(id); }
+var chatLog=$('chatLog'), phGrid=$('phGrid');
+
+/* ================= 通用 ================= */
+var toastTimer=null;
+function toast(msg, ms){ var t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(function(){ t.classList.remove('show'); }, ms||1800); }
+function spend(n){ CREDITS-=n; $('creditVal').textContent = CREDITS.toLocaleString('en-US'); }
+function setStatus(txt, cls){ $('stTxt').textContent=txt; $('stDot').className='st-dot '+(cls||''); }
+
+/* ================= 简报区 ================= */
+function fmtVal(k,v){
+  if(k==='depth') return v==='full' ? '完整 · 九件套（20 算力/次）' : '轻量 · 诊断报告（10 算力）';
+  return v;
+}
+function renderBrief(){
+  var g=$('briefGrid'); g.innerHTML='';
+  FIELDS.forEach(function(f){
+    var v=S.brief[f.key];
+    var d=document.createElement('div');
+    d.className='bf'+(v?' filled':''); d.id='bf_'+f.key;
+    d.innerHTML='<div class="k">'+f.icon+' '+f.label+(v?'':' · 待填')+'</div><div class="v">'+(v?fmtVal(f.key,v):'——')+'</div>';
+    g.appendChild(d);
+  });
+  var n=FIELDS.filter(function(f){return !!S.brief[f.key];}).length;
+  $('briefPct').textContent=n+'/6';
+  var segs=$('segs').children;
+  for(var i=0;i<segs.length;i++){ segs[i].classList.toggle('on', i<n); }
+  $('btnGen').disabled = !(n===6 && S.phase==='confirm');
+}
+(function(){ var s=$('segs'); for(var i=0;i<6;i++){ var d=document.createElement('div'); d.className='seg'; s.appendChild(d);} })();
+
+/* ================= 占位卡 ================= */
+function pieceList(){ return S.depth==='full' ? PIECES : PIECES.filter(function(p){ return LIGHT_IDS.indexOf(p.id)>=0; }); }
+function renderPH(state){
+  var list=pieceList();
+  phGrid.innerHTML=list.map(function(p,i){
+    var cls='ph '+state;
+    var spin=(state==='gen'&&i<=S.genIdx)?'<span class="spin"></span>':'';
+    return '<div class="'+cls+'" id="ph_'+p.id+'">'+spin+'<div class="no '+p.gcls+'">'+p.no+' '+p.gt+'</div><b>'+p.icon+' '+p.title+'</b><span class="d">'+p.d+'</span></div>';
+  }).join('');
+}
+function initialPH(){
+  phGrid.innerHTML='<div class="ph locked" style="grid-column:span 2"><div class="no g-orange">轻量</div><b>📋 诊断报告四件</b><span class="d">结论+口径核验+假设+P0 · 10 算力 · 约 3 分钟</span></div>'+
+  '<div class="ph locked" style="grid-column:span 3"><div class="no g-amber">完整</div><b>📦 诊断九件套（含变更单）</b><span class="d">诊断四件 + 单变量计划 + 监控止损 + PREVIEW_ONLY 变更单 + 素材合规 + 待补清单 · 20 算力/次</span></div>';
+}
+
+/* ================= 聊天 ================= */
+function addMsg(html, who){
+  var d=document.createElement('div'); d.className='msg'+(who==='user'?' user':'');
+  d.innerHTML = who==='user' ? '<div class="bub">'+html+'</div>' : '<div class="m-av"><img src="'+AV+'" alt="头像"></div><div class="bub">'+html+'</div>';
+  chatLog.appendChild(d); chatLog.scrollTop=chatLog.scrollHeight; return d;
+}
+function addOpts(qi){
+  var q=QFLOW[qi];
+  var wrap=document.createElement('div'); wrap.className='opts'; wrap.id='opts_q'+qi;
+  q.opts.forEach(function(o){
+    var b=document.createElement('button'); b.className='opt'+(o.rec?' recing':'');
+    b.innerHTML='<span class="t">'+o.t+(o.rec?' <span class="tick">推荐</span>':'')+'</span>'+(o.d?'<small>'+o.d+'</small>':'');
+    b.onclick=function(){ pickOpt(qi, o, b); };
+    wrap.appendChild(b);
+  });
+  chatLog.appendChild(wrap); chatLog.scrollTop=chatLog.scrollHeight;
+}
+function askNext(){
+  if(S.qi>=QFLOW.length){ S.phase='confirm'; addMsg('简报齐了。<b>点右侧「开始诊断」</b>，我按口径一步步来。'); renderBrief(); return; }
+  S.phase='ask';
+  var q=QFLOW[S.qi];
+  addMsg(q.q+(q.hint?'<br><span style="font-size:11.5px;color:#7d95a0">'+q.hint+'</span>':''));
+  addOpts(S.qi);
+}
+function pickOpt(qi, o, btn){
+  var q=QFLOW[qi];
+  var wrap=$('opts_q'+qi);
+  if(wrap){ var bs=wrap.querySelectorAll('.opt'); for(var i=0;i<bs.length;i++){ bs[i].disabled=true; bs[i].style.opacity=.55; } btn.style.opacity=1; btn.classList.add('recing'); }
+  addMsg(o.t,'user');
+  fillField(q.field, o);
+  if(q.field==='account' && o.v==='none'){ enterNeedsInput(); return; }
+  if(q.field==='data'){ addMsg('口径确认：'+S.brief.scope+'。按这组口径走：<b>消耗 3,580 · 线索 46 · 有效线索 9（19.6%）· 预约 5 · 到店 2</b>。'); }
+  if(q.field==='depth'){ addMsg('收到。简报 6/6 齐了，<b>点右侧「开始诊断」</b>（'+(o.v==='full'?'完整版 20 算力':'轻量版 10 算力')+'）。'); S.phase='confirm'; renderBrief(); return; }
+  S.qi++; setTimeout(askNext, 450);
+}
+function fillField(field, o){
+  var label = o.t.replace(/（.*?）/g,'');
+  if(field==='data') label='消耗3,580·线索46·有效9·预约5·到店2';
+  if(field==='account') label = o.v==='none' ? '未绑定（走待补清单）' : label+'（演示账户 1680****69）';
+  S.brief[field]=fmtVal(field, o.v==='cost3580'?'数据已带出':label);
+  if(field==='depth') S.depth=o.v;
+  var card=$('bf_'+field);
+  renderBrief();
+  var card2=$('bf_'+field); if(card2){ card2.classList.add('flash'); setTimeout(function(){card2.classList.remove('flash');},600); }
+}
+/* needsInput 分支：身份不全只出待补清单 */
+function enterNeedsInput(){
+  S.needsAccount=true;
+  addMsg('<b>身份不全，我只出待补清单</b>，不做诊断——这是安全边界。补齐下面四项后随时继续：');
+  var w=$('needWrap'); w.style.display='block';
+  w.innerHTML='<div class="need-card" id="needCard"><b class="t">📋 待补清单（诊断前置条件）</b><ul>'+
+    NEED_LIST.map(function(x){ return '<li>'+x+'</li>'; }).join('')+
+    '</ul><p style="font-size:12px;color:var(--sub);margin-top:8px">真实版会在这里等你上传授权信息；演示版点下面按钮直接补全。</p>'+
+    '<button class="big-btn gen" style="margin-top:8px" onclick="completeAccount()">演示：一键补全身份</button></div>';
+  $('canvas').scrollTop=$('canvas').scrollHeight;
+}
+function completeAccount(){
+  if(!S.needsAccount) return;
+  S.needsAccount=false;
+  S.brief.account=DEMO_ACCOUNT;
+  $('needWrap').style.display='none'; $('needWrap').innerHTML='';
+  addMsg('演示：已补全账户身份（1680****69）','user');
+  addMsg('身份齐了，回到正题——');
+  renderBrief();
+  S.qi=1; setTimeout(askNext, 450);
+}
+
+/* ================= 生成 ================= */
+function startGen(){
+  if(S.phase!=='confirm') return;
+  S.phase='gen'; renderBrief();
+  var cost = S.depth==='full'?20:10;
+  spend(cost); toast('已扣 '+cost+' 算力');
+  $('genWrap').style.display='block';
+  $('needWrap').style.display='none';
+  S.genIdx=-1; renderPH('gen');
+  var logs = GEN_LOGS.slice(0);
+  if(S.depth!=='full'){ logs[6]='组装监控与止损卡（轻量版不含变更单）'; logs[7]='✓ 完成：四件交付就绪，等待逐件查看'; }
+  var logEl=$('genLog'); logEl.innerHTML='';
+  var pct=0, li=0;
+  var stepTxt=['准备中…','核验口径…','读取数据…','诊断分析…','生成交付…','组装变更单…','收尾…'];
+  var t=setInterval(function(){
+    pct+=Math.random()*14+7; if(pct>96)pct=96;
+    $('gpFill').style.width=pct+'%'; $('gpPct').textContent=Math.floor(pct)+'%';
+    $('gpStep').textContent=stepTxt[Math.min(Math.floor(pct/16),6)];
+    $('gpEta').textContent='约还需 '+Math.max(1,Math.ceil((100-pct)/22))+'0 秒';
+    if(li<logs.length && pct> (li+1)*(90/logs.length)){
+      var ln=document.createElement('div'); ln.className='ln'+(logs[li].indexOf('⚠')>=0?'':(logs[li].indexOf('✓')>=0?' ok':''));
+      if(logs[li].indexOf('⚠')>=0||logs[li].indexOf('PREVIEW_ONLY')>=0) ln.className='ln hl';
+      ln.textContent=logs[li]; logEl.appendChild(ln);
+      setTimeout(function(){ ln.classList.add('in'); },30);
+      logEl.scrollTop=logEl.scrollHeight;
+      if(logs[li].indexOf('九件')>=0||logs[li].indexOf('四件')>=0){ S.genIdx=pieceList().length-1; } else { S.genIdx=Math.min(S.genIdx+1,pieceList().length-1); }
+      renderPH('gen');
+      li++;
+    }
+    if(pct>=96){
+      clearInterval(t);
+      setTimeout(finishGen, 600);
+    }
+  }, 420);
+}
+function finishGen(){
+  $('gpFill').style.width='100%'; $('gpPct').textContent='100%'; $('gpStep').textContent='完成'; $('gpEta').textContent='';
+  S.phase='done'; renderPH('done'); renderDL();
+  setStatus('● 演示完成','done');
+  $('btnRegenAll').style.display='inline-block';
+}
+/* 交付视图 */
+function renderDL(){
+  var w=$('dlWrap'); w.style.display='block';
+  var list=pieceList();
+  var groups=[];
+  list.forEach(function(p){ if(!groups.length||groups[groups.length-1].gt!==p.gt){ groups.push({gt:p.gt,gcls:p.gcls,items:[p]}); } else { groups[groups.length-1].items.push(p); } });
+  var html='<div class="dl-head"><span class="ok-tag">✓ 诊断完成（模拟）</span><span class="time">PREVIEW_ONLY 模式 · 数据为模拟账户 · '+new Date().toLocaleTimeString('zh-CN',{hour12:false})+'</span></div>';
+  html+='<div class="tabs">'+groups.map(function(g,i){ return '<button class="tab'+(i===0?' act':'')+'" onclick="showGrp(this,\''+g.gt+'\')">'+g.gt+'</button>'; }).join('')+'</div>';
+  html+='<div class="pieces">'+list.map(function(p){
+    return '<div class="pc" data-grp="'+p.gt+'" id="pc_'+p.id+'"><div class="h"><span class="no" style="background:var(--'+(p.gcls.replace('g-',''))+')">'+p.no+'</span><b>'+p.icon+' '+p.title+'</b>'+(p.id==='p7'?'<span class="pv-badge">PREVIEW_ONLY</span>':'')+'<span class="btns"><button class="cbtn" onclick="copyPiece(\''+p.id+'\',this)">复制</button><button class="cbtn" onclick="regenOne(\''+p.id+'\')">重生成 · 3算力</button></span></div><div class="c">'+p.html+'</div></div>';
+  }).join('')+'</div>';
+  w.innerHTML=html;
+}
+function showGrp(btn, gt){
+  var tabs=document.querySelectorAll('#dlWrap .tab');
+  for(var i=0;i<tabs.length;i++) tabs[i].classList.remove('act');
+  btn.classList.add('act');
+  var pcs=document.querySelectorAll('#dlWrap .pc');
+  for(var j=0;j<pcs.length;j++){ pcs[j].style.display = (pcs[j].getAttribute('data-grp')===gt)?'':'none'; }
+  spotGroup(gt);
+}
+function spotGroup(gt){
+  var pcs=document.querySelectorAll('#dlWrap .pc');
+  for(var j=0;j<pcs.length;j++){ if(pcs[j].getAttribute('data-grp')===gt){ pcs[j].classList.add('spotlight'); setTimeout((function(el){return function(){el.classList.remove('spotlight');};})(pcs[j]),2600); } }
+}
+function copyPiece(id, btn){
+  var p=PIECES.filter(function(x){return x.id===id;})[0]; if(!p) return;
+  var txt=p.plain;
+  fallbackCopy(txt);
+  try{ if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).catch(function(){}); } }catch(e){}
+  toast('已复制：'+p.title+'（演示剪贴板）');
+  if(btn){ btn.textContent='已复制 ✓'; setTimeout(function(){btn.textContent='复制';},1200); }
+}
+function fallbackCopy(txt){
+  var ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); }catch(e){}
+  document.body.removeChild(ta);
+}
+function regenOne(id){
+  var p=PIECES.filter(function(x){return x.id===id;})[0]; if(!p) return;
+  spend(3); toast('重生成「'+p.title+'」· 已扣 3 算力（演示即时返回）');
+  var pc=$('pc_'+id); if(pc){ pc.classList.add('spotlight'); setTimeout(function(){pc.classList.remove('spotlight');},2600); }
+}
+
+/* ================= 快填 / 自由输入 ================= */
+function skipFill(){
+  if(S.phase==='gen'||S.phase==='done'){ toast('本轮已开始，重置后再试'); return; }
+  chatLog.innerHTML='';
+  S.qi=0; S.brief={}; S.needsAccount=false; $('needWrap').style.display='none';
+  addMsg('赶时间？我先把底稿铺好，你在右侧逐条确认。','user');
+  addMsg('好，按演示档案铺：<b>'+DEMO_ACCOUNT+' · 主诉「消耗高线索少」· 近 7 天口径 · 预算 300→500</b>。深度选完整九件套。');
+  var i;
+  for(i=0;i<QFLOW.length;i++){
+    var q=QFLOW[i];
+    var rec=q.opts.filter(function(o){return o.rec;})[0]||q.opts[0];
+    if(q.field==='account'){ S.brief.account=DEMO_ACCOUNT; continue; }
+    if(q.field==='data'){ S.brief.data='消耗3,580·线索46·有效9·预约5·到店2'; continue; }
+    if(q.field==='depth'){ S.depth=rec.v; S.brief.depth=fmtVal('depth',rec.v); continue; }
+    S.brief[q.field]=rec.t.replace(/（.*?）/g,'');
+  }
+  S.phase='confirm'; renderBrief();
+  addMsg('简报 6/6 已铺好，<b>点右侧「开始诊断」</b>即出完整九件套（20 算力）。');
+}
+function freeSendGo(){
+  var inp=$('freeInput'); var v=inp.value.trim(); if(!v) return;
+  inp.value='';
+  addMsg(v,'user');
+  if(S.phase==='ask'||S.phase==='idle'){
+    var q=QFLOW[Math.min(S.qi,QFLOW.length-1)];
+    var o={t:v, v:v};
+    if(q.field==='depth'){ toast('演示版：深度请在选项里选'); return; }
+    if(q.field==='account'){ toast('演示版：账户请在选项里选'); return; }
+    fillField(q.field, o);
+    addMsg('已记下：<b>'+v+'</b>。');
+    S.qi++; setTimeout(askNext, 450);
+  } else if(S.phase==='confirm'){
+    addMsg('记下了，点「开始诊断」会带上这条。');
+  } else {
+    addMsg('本轮已在跑，重置后可带新要求重来。');
+  }
+}
+
+/* ================= 模式与一键演示 ================= */
+function setMode(auto){
+  S.auto=auto;
+  $('btnAuto').classList.toggle('act', auto);
+  $('btnManual').classList.toggle('act', !auto);
+}
+function resetAll(keepMode){
+  stopDemo();
+  S.phase='idle'; S.qi=0; S.brief={}; S.depth=null; S.genIdx=-1; S.needsAccount=false;
+  chatLog.innerHTML=''; phGrid.innerHTML='';
+  $('genWrap').style.display='none'; $('dlWrap').style.display='none';
+  $('needWrap').style.display='none'; $('needWrap').innerHTML='';
+  $('genLog').innerHTML=''; $('gpFill').style.width='0'; $('gpPct').textContent='0%'; $('gpStep').textContent='准备中…';
+  $('btnRegenAll').style.display='none';
+  initialPH(); renderBrief(); setStatus('○ 待演示','');
+  addMsg('我是推手，本地推投流军师。先说好规矩：<b>我只出预览，不动你账户</b>。准备好了就开始。');
+  setTimeout(askNext, 350);
+}
+function stopDemo(){
+  if(S.timer){ S.timer.forEach(function(t){ clearTimeout(t); }); S.timer=null; }
+  setStatus('○ 待演示','');
+}
+function dwait(fn, ms){
+  if(!S.timer) S.timer=[];
+  var idx=S.timer.length;
+  S.timer.push(setTimeout(fn, ms));
+  return idx;
+}
+/* 一键演示脚本（约 35s） */
+function runDemoScript(){
+  var seq=[
+    [300,  function(){ toast('自动演示开始 · 约 35 秒', 1500); setStatus('● 自动演示中','playing'); }],
+    [900,  function(){ // Q1 选「先不绑定」看待补清单
+      var o=QFLOW[0].opts[2]; var btn=$('opts_q0').querySelectorAll('.opt')[2]; pickOpt(0,o,btn); }],
+    [2400, function(){ addMsg('看，这就是安全边界：缺身份只给清单，不给结论。','assistant'); }],
+    [3400, function(){ completeAccount(); }],
+    [5000, function(){ // Q2 消耗高线索少
+      var o=QFLOW[1].opts[0]; var btn=$('opts_q1').querySelectorAll('.opt')[0]; pickOpt(1,o,btn); }],
+    [6400, function(){ // Q3 近7天
+      var o=QFLOW[2].opts[0]; var btn=$('opts_q2').querySelectorAll('.opt')[0]; pickOpt(2,o,btn); }],
+    [7800, function(){ // Q4 数据
+      var o=QFLOW[3].opts[0]; var btn=$('opts_q3').querySelectorAll('.opt')[0]; pickOpt(3,o,btn); }],
+    [9200, function(){ // Q5 预算
+      var o=QFLOW[4].opts[0]; var btn=$('opts_q4').querySelectorAll('.opt')[0]; pickOpt(4,o,btn); }],
+    [10600,function(){ // Q6 完整
+      var o=QFLOW[5].opts[1]; var btn=$('opts_q5').querySelectorAll('.opt')[1]; pickOpt(5,o,btn); }],
+    [12200,function(){ startGen(); }],
+    [15000,function(){ $('dlWrap') && null; }],
+    [20000,function(){ if(S.phase==='done'){ renderDL(); var tabs=document.querySelectorAll('#dlWrap .tab'); if(tabs.length>1) showGrp(tabs[1], tabs[1].textContent); } }],
+    [23000,function(){ if(S.phase==='done'){ var pc=$('pc_p7'); if(pc){ pc.scrollIntoView({behavior:'smooth',block:'center'}); pc.classList.add('spotlight'); setTimeout(function(){pc.classList.remove('spotlight');},3000); toast('PREVIEW_ONLY：确认后才转独立执行层',2200);} } }],
+    [26500,function(){ if(S.phase==='done'){ setStatus('● 演示完成','done'); toast('演示完成 · 2400→'+CREDITS+' 算力 · 全程未碰真实账户',2500);} }]
+  ];
+  seq.forEach(function(pair){ dwait(pair[1], pair[0]); });
+}
+window.__autostart=function(){ resetAll(true); setMode(true); dwait(runDemoScript, 600); };
+
+/* ================= 绑定 ================= */
+$('btnAuto').onclick=function(){ resetAll(true); setMode(true); dwait(runDemoScript, 600); };
+$('btnManual').onclick=function(){ stopDemo(); setMode(false); toast('手动模式：点左侧选项继续'); };
+$('btnReset').onclick=function(){ resetAll(false); setMode(false); };
+$('btnGen').onclick=startGen;
+$('btnRegenAll').onclick=function(){ toast('演示版：回到简报修改后重新诊断'); S.phase='confirm'; $('genWrap').style.display='none'; $('dlWrap').style.display='none'; initialPH(); renderBrief(); };
+$('skipGuide').onclick=skipFill;
+$('freeSend').onclick=freeSendGo;
+$('freeInput').addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); freeSendGo(); } });
+
+/* ================= 启动 ================= */
+initialPH(); renderBrief();
+addMsg('我是推手，本地推投流军师。先说好规矩：<b>我只出预览，不动你账户</b>。准备好了就开始。');
+setTimeout(askNext, 600);
+</script>
+</body>
+</html>
